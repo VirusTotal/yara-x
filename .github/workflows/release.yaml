@@ -78,36 +78,38 @@ jobs:
   
   # Build Python extension.
   build-py:
-    runs-on: ${{ format('{0}-latest', matrix.os) }}
+    runs-on: ${{ matrix.os) }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu, macos, windows ]
-        python-version: [ 'cp310', 'pp37', 'pp38', 'pp39' ]
-        arch: [ main, alt ]
+        python-version: [ 'cp310', 'pp38', 'pp39' ]
+        build:
+        - linux
+        - macos
+        - windows
         include:
-        - os: ubuntu
-          platform: linux
-        - os: windows
-          ls: dir
-        - os: macos
+        - build: linux
+          os: ubuntu-latest
+          target: x86_64-unknown-linux-gnu
+          vcpkg_openssl_triplet: x64-linux-release
+          arch: alt
+          args: "--features=openssl-static"
+
+        - build: macos
+          os: macos-latest
+          target: x86_64-apple-darwin
+          vcpkg_openssl_triplet: x64-osx-release
           arch: alt
           alt_arch_name: 'arm64 universal2'
-        exclude:
-        - os: windows
+          args: "--features=openssl-static"
+
+        - build: windows
+          os: windows-latest
+          target: x86_64-pc-windows-msvc
+          vcpkg_openssl_triplet: x64-windows-static
           arch: alt
-        - os: macos
-          python-version: 'pp37'
-          arch: alt
-        - os: macos
-          python-version: 'pp38'
-          arch: alt
-        - os: macos
-          python-version: 'pp39'
-          arch: alt
-        - os: ubuntu
-          arch: alt
-    
+          args: ""
+          
     steps:
     - name: Checkout sources
       uses: actions/checkout@v3
@@ -121,6 +123,14 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: stable
+
+    - name: Install dependencies
+      id: vcpkg
+      uses: johnwason/vcpkg-action@v6
+      with:
+        pkgs: openssl
+        triplet: ${{ matrix.vcpkg_openssl_triplet }}
+        token: ${{ github.token }}
 
     - name: Install Python dependencies
       run: pip install -U setuptools wheel twine cibuildwheel platformdirs
