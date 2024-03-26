@@ -18,9 +18,12 @@ seo:
   noindex: false # false (default) or true
 ---
 
-Guides lead a user through a specific task they want to accomplish, often with a
-sequence of steps. Writing a good guide requires thinking about what your users
-are trying to do.
+YARA-X is a re-incarnation of [YARA](https://virustotal.github.io/yara), a
+pattern matching tool designed with
+malware researchers in mind, but that can be used in many other use cases.
+
+This new incarnation intends to be faster, safer and more user-friendly than
+its predecesor.
 
 ## Further reading
 

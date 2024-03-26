@@ -30,7 +30,7 @@ url = "/tutorial/lorem/"
 
 [[main]]
 name = "Docs"
-url = "/docs/guides/example-guide/"
+url = "/docs/intro/getting-started/"
 # url = "/docs/1.0/prologue/introduction/"
 weight = 10
 
