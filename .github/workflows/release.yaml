@@ -127,6 +127,15 @@ jobs:
       with:
         toolchain: stable
 
+    - run: rustup target add aarch64-apple-darwin
+      if: matrix.build == 'macos'
+
+    - run: rustup toolchain install stable-i686-pc-windows-msvc
+      if: matrix.build == 'windows'
+
+    - run: rustup target add i686-pc-windows-msvc
+      if: matrix.build == 'windows'
+
     - name: Install dependencies
       id: vcpkg
       uses: johnwason/vcpkg-action@v6
