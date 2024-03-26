@@ -1,7 +1,7 @@
 [package]
 name = "yara-x"
 description = """
-A pure Rust implmentation of YARA-X.
+A pure Rust implementation of YARA.
 """
 version.workspace = true
 authors.workspace = true
@@ -9,6 +9,7 @@ edition.workspace = true
 readme.workspace = true
 license.workspace = true
 homepage.workspace = true
+keywords.workspace = true
 rust-version.workspace = true
 
 [features]

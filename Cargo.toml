@@ -3,8 +3,16 @@ version = "0.1.0"
 authors = ["Victor M. Alvarez <vmalvarez@virustotal.com>"]
 edition = "2021"
 homepage = "https://github.com/VirusTotal/yara-x"
+repository = "https://github.com/VirusTotal/yara-x"
 readme = "README.md"
 license = "MIT"
+keywords = [
+    "pattern-matching",
+    "cybersecurity",
+    "forensics",
+    "malware",
+    "yara"
+]
 
 # When updating rust-version also update MSRV in:
 #   .github/workflows/tests.yaml
