@@ -351,7 +351,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05efc5cfd9110c8416e471df0e96702d58690178e206e61b7173706673c93706"
 dependencies = [
  "memchr",
- "regex-automata 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex-automata 0.4.6",
  "serde",
 ]
 
@@ -1316,8 +1316,8 @@ dependencies = [
  "aho-corasick",
  "bstr 1.9.1",
  "log",
- "regex-automata 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "regex-syntax 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex-automata 0.4.6",
+ "regex-syntax 0.8.3",
 ]
 
 [[package]]
@@ -1478,7 +1478,7 @@ dependencies = [
  "globset",
  "log",
  "memchr",
- "regex-automata 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex-automata 0.4.6",
  "same-file",
  "walkdir",
  "winapi-util",
@@ -2627,8 +2627,8 @@ checksum = "c117dbdfde9c8308975b6a18d71f3f385c89461f7b3fb054288ecf2a2058ba4c"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-automata 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "regex-syntax 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex-automata 0.4.6",
+ "regex-syntax 0.8.3",
 ]
 
 [[package]]
@@ -2645,17 +2645,7 @@ checksum = "86b83b8b9847f9bf95ef68afb0b8e6cdb80f498442f5179a29fad448fcc1eaea"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-syntax 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "regex-automata"
-version = "0.4.6"
-source = "git+https://github.com/plusvic/regex.git?rev=50a708b#50a708b507c1f75197d15d244c79fc840590a2e2"
-dependencies = [
- "aho-corasick",
- "memchr",
- "regex-syntax 0.8.2 (git+https://github.com/plusvic/regex.git?rev=50a708b)",
+ "regex-syntax 0.8.3",
 ]
 
 [[package]]
@@ -2666,14 +2656,9 @@ checksum = "dbb5fb1acd8a1a18b3dd5be62d25485eb770e05afb408a9627d14d451bae12da"
 
 [[package]]
 name = "regex-syntax"
-version = "0.8.2"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c08c74e62047bb2de4ff487b251e4a92e24f48745648451635cec7d591162d9f"
-
-[[package]]
-name = "regex-syntax"
-version = "0.8.2"
-source = "git+https://github.com/plusvic/regex.git?rev=50a708b#50a708b507c1f75197d15d244c79fc840590a2e2"
+checksum = "adad44e29e4c806119491a7f06f03de4d1af22c3a680dd47f1e6e179439d1f56"
 
 [[package]]
 name = "rgb"
@@ -4265,8 +4250,8 @@ dependencies = [
  "protobuf-codegen",
  "protobuf-parse",
  "rayon",
- "regex-automata 0.4.6 (git+https://github.com/plusvic/regex.git?rev=50a708b)",
- "regex-syntax 0.8.2 (git+https://github.com/plusvic/regex.git?rev=50a708b)",
+ "regex-automata 0.4.6",
+ "regex-syntax 0.8.3",
  "roxmltree",
  "rustc-hash",
  "serde",
