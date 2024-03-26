@@ -94,14 +94,12 @@ jobs:
         - build: linux
           os: ubuntu-latest
           target: x86_64-unknown-linux-gnu
-          vcpkg_openssl_triplet: x64-linux-release
           arch: alt
           args: "--features=openssl-static"
 
         - build: macos
           os: macos-latest
           target: x86_64-apple-darwin
-          vcpkg_openssl_triplet: x64-osx-release
           arch: alt
           alt_arch_name: 'arm64 universal2'
           args: "--features=openssl-static"
@@ -109,7 +107,6 @@ jobs:
         - build: windows
           os: windows-latest
           target: x86_64-pc-windows-msvc
-          vcpkg_openssl_triplet: x64-windows-static
           arch: alt
           args: ""
     
@@ -153,8 +150,8 @@ jobs:
         CIBW_SKIP: '*-musllinux_i686'
         # we build for "alt_arch_name" if it exists, else 'auto'
         CIBW_ARCHS: ${{ matrix.alt_arch_name || 'auto' }}
-        CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH" CARGO_TERM_COLOR="always" OPENSSL_DIR="${{ github.workspace }}/vcpkg/installed/${{ matrix.vcpkg_openssl_triplet }}"'
-        CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH"'
+        CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH" CARGO_TERM_COLOR="always"'
+        CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH" OPENSSL_DIR="C:\\vcpkg\\packages\\openssl_x86-windows-static\\lib"'
         CIBW_BEFORE_BUILD: rustup show
         CIBW_BEFORE_BUILD_LINUX: >
           curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=minimal -y &&
