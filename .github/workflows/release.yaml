@@ -78,7 +78,7 @@ jobs:
   
   # Build Python extension.
   build-py:
-    runs-on: ${{ matrix.os) }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -109,7 +109,7 @@ jobs:
           vcpkg_openssl_triplet: x64-windows-static
           arch: alt
           args: ""
-          
+    
     steps:
     - name: Checkout sources
       uses: actions/checkout@v3
