@@ -6,7 +6,7 @@ on:
     - 'v*'
 jobs:
   # Build CLI tool.
-  build:
+  build-cli:
     env:
       CARGO_TERM_COLOR: always
     runs-on: ${{ matrix.os }}
@@ -82,7 +82,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ 'cp310', 'pp38', 'pp39' ]
+        python-version:
+        - cp310
+        - pp38
+        - pp39
         build:
         - linux
         - macos
@@ -163,7 +166,7 @@ jobs:
   
   
   publish:
-    needs: [ build, build-py ]
+    needs: [ build-cli, build-py ]
     runs-on: ubuntu-latest
     
     steps:
