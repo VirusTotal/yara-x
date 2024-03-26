@@ -9,6 +9,7 @@ jobs:
       CARGO_TERM_COLOR: always
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         build:
         - linux
@@ -17,21 +18,18 @@ jobs:
         include:
         - build: linux
           os: ubuntu-latest
-          rust: stable
           target: x86_64-unknown-linux-gnu
           vcpkg_openssl_triplet: x64-linux-release
           args: "--features=openssl-static"
 
         - build: macos
           os: macos-latest
-          rust: stable
           target: x86_64-apple-darwin
           vcpkg_openssl_triplet: x64-osx-release
           args: "--features=openssl-static"
 
         - build: windows
           os: windows-latest
-          rust: stable
           target: x86_64-pc-windows-msvc
           vcpkg_openssl_triplet: x64-windows-static
           args: ""
@@ -49,9 +47,9 @@ jobs:
         token: ${{ github.token }}
 
     - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@master
+      uses: dtolnay/rust-toolchain@stable
       with:
-        toolchain: ${{ matrix.rust }}
+        toolchain: stable
 
     - name: Build
       run: cargo build --bin yr --profile release-lto --target ${{ matrix.target }} ${{ matrix.args }}
@@ -76,8 +74,83 @@ jobs:
         name: yr-${{ matrix.target }}
         path: yara-x-*
   
+  
+  build-py:
+    runs-on: ${{ format('{0}-latest', matrix.os) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu, macos, windows ]
+        python-version: [ 'cp310', 'pp37', 'pp38', 'pp39' ]
+        arch: [ main, alt ]
+        include:
+        - os: ubuntu
+          platform: linux
+        - os: windows
+          ls: dir
+        - os: macos
+          arch: alt
+          alt_arch_name: 'arm64 universal2'
+        exclude:
+        - os: windows
+          arch: alt
+        - os: macos
+          python-version: 'pp37'
+          arch: alt
+        - os: macos
+          python-version: 'pp38'
+          arch: alt
+        - os: macos
+          python-version: 'pp39'
+          arch: alt
+        - os: ubuntu
+          arch: alt
+    
+    steps:
+    - name: Checkout sources
+    - uses: actions/checkout@v3
+
+    - name: Install Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+
+    - name: Install Python dependencies
+      run: pip install -U setuptools wheel twine cibuildwheel platformdirs
+
+    - name: Build sdist
+      if: matrix.os == 'ubuntu' && matrix.python-version == 'cp310'
+      run: |
+        pip install maturin build
+        python -m build --sdist -o wheelhouse
+
+    - name: Build ${{ matrix.platform || matrix.os }} binaries
+      run: cibuildwheel --output-dir wheelhouse
+      env:
+        CIBW_BUILD: '${{ matrix.python-version }}-*'
+        # rust doesn't seem to be available for musl linux on i686
+        CIBW_SKIP: '*-musllinux_i686'
+        # we build for "alt_arch_name" if it exists, else 'auto'
+        CIBW_ARCHS: ${{ matrix.alt_arch_name || 'auto' }}
+        CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH" CARGO_TERM_COLOR="always"'
+        CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH"'
+        CIBW_BEFORE_BUILD: rustup show
+        CIBW_BEFORE_BUILD_LINUX: >
+          curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=minimal -y &&
+          rustup show
+        CIBW_TEST_COMMAND: 'pytest {project}/test'
+        CIBW_TEST_REQUIRES: pytest requests
+        CIBW_TEST_SKIP: '*-macosx_arm64 *-macosx_universal2:arm64'
+        CIBW_BUILD_VERBOSITY: 1
+  
+  
   publish:
-    needs: [ build ]
+    needs: [ build, build-py ]
     runs-on: ubuntu-latest
     
     steps:
