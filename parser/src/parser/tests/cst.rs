@@ -979,6 +979,109 @@ rule test : foo bar baz {
        └─ RPAREN ")"
 "#,
         ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            GrammarRule::term,
+            r#"#a in (1_000..200_)"#,
+            r##"
+ term
+ └─ primary_expr
+    ├─ pattern_count "#a"
+    ├─ k_IN "in"
+    └─ range
+       ├─ LPAREN "("
+       ├─ expr
+       │  └─ term
+       │     └─ primary_expr
+       │        └─ integer_lit "1_000"
+       ├─ DOT_DOT ".."
+       ├─ expr
+       │  └─ term
+       │     └─ primary_expr
+       │        └─ integer_lit "200_"
+       └─ RPAREN ")"
+"##,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            GrammarRule::expr,
+            r#"0x0_2 | 0o00_1 & 0x03_"#,
+            r#"
+ expr
+ ├─ term
+ │  └─ primary_expr
+ │     └─ integer_lit "0x0_2"
+ ├─ BITWISE_OR "|"
+ ├─ term
+ │  └─ primary_expr
+ │     └─ integer_lit "0o00_1"
+ ├─ BITWISE_AND "&"
+ └─ term
+    └─ primary_expr
+       └─ integer_lit "0x03_"
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            GrammarRule::expr,
+            r#"0_2_2 | 0x00000_11 & 0o05_5"#,
+            r#"
+ expr
+ ├─ term
+ │  └─ primary_expr
+ │     └─ integer_lit "0_2_2"
+ ├─ BITWISE_OR "|"
+ ├─ term
+ │  └─ primary_expr
+ │     └─ integer_lit "0x00000_11"
+ ├─ BITWISE_AND "&"
+ └─ term
+    └─ primary_expr
+       └─ integer_lit "0o05_5"
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            GrammarRule::boolean_expr,
+            r#"2.5_5 * 2__3 * -1.0_1 == 5_55.05 + -(1_1)"#,
+            r#"
+ boolean_expr
+ └─ boolean_term
+    ├─ expr
+    │  ├─ term
+    │  │  └─ primary_expr
+    │  │     └─ float_lit "2.5_5"
+    │  ├─ MUL "*"
+    │  ├─ term
+    │  │  └─ primary_expr
+    │  │     └─ integer_lit "2__3"
+    │  ├─ MUL "*"
+    │  └─ term
+    │     └─ primary_expr
+    │        └─ float_lit "-1.0_1"
+    ├─ EQ "=="
+    └─ expr
+       ├─ term
+       │  └─ primary_expr
+       │     └─ float_lit "5_55.05"
+       ├─ ADD "+"
+       └─ term
+          └─ primary_expr
+             ├─ MINUS "-"
+             └─ term
+                └─ primary_expr
+                   ├─ LPAREN "("
+                   ├─ expr
+                   │  └─ term
+                   │     └─ primary_expr
+                   │        └─ integer_lit "1_1"
+                   └─ RPAREN ")"
+"#,
+        ),
     ];
 
     for t in tests {
