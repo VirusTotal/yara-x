@@ -156,13 +156,12 @@ jobs:
     - name: Build ${{ matrix.platform || matrix.os }} binaries
       run: cibuildwheel --output-dir wheelhouse py
       env:
-        OPENSSL_DIR: "${{ github.workspace }}/vcpkg/installed/${{ matrix.vcpkg_openssl_triplet }}"
         CIBW_BUILD: '${{ matrix.python-version }}-*'
         # rust doesn't seem to be available for musl linux on i686
         CIBW_SKIP: '*-musllinux_i686'
         # we build for "alt_arch_name" if it exists, else 'auto'
         CIBW_ARCHS: ${{ matrix.alt_arch_name || 'auto' }}
-        CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH" CARGO_TERM_COLOR="always"'
+        CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH" CARGO_TERM_COLOR="always" OPENSSL_DIR="${{ github.workspace }}/vcpkg/installed/${{ matrix.vcpkg_openssl_triplet }}"'
         CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH"'
         CIBW_BEFORE_BUILD: rustup show
         CIBW_BEFORE_BUILD_LINUX: >
