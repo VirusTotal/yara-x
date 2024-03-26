@@ -5,6 +5,7 @@ on:
     tags:
     - 'v*'
 jobs:
+  # Build CLI tool.
   build:
     env:
       CARGO_TERM_COLOR: always
@@ -75,7 +76,7 @@ jobs:
         name: yr-${{ matrix.target }}
         path: yara-x-*
   
-  
+  # Build Python extension.
   build-py:
     runs-on: ${{ format('{0}-latest', matrix.os) }}
     strategy:
