@@ -1,0 +1,6 @@
+error: wrong type
+ --> line:2:19
+  |
+2 |   condition: 1 + -"1" == 0
+  |                   ^^^ expression should be `float` or `integer`, but is `string`
+  |

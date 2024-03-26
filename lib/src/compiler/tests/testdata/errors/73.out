@@ -1,0 +1,6 @@
+error: syntax error
+ --> line:1:9
+  |
+1 | private foo rule test { condition: true }
+  |         ^ expected `global` or `rule`
+  |

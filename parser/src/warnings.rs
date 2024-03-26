@@ -2,8 +2,8 @@ use std::fmt::{Debug, Display, Formatter};
 use yara_x_macros::Error;
 
 use crate::ast::Span;
+use crate::report::Level;
 use crate::report::ReportBuilder;
-use crate::report::ReportType;
 
 /// A warning raised while parsing YARA rules.
 #[rustfmt::skip]

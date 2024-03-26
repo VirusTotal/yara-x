@@ -1,0 +1,9 @@
+warning: invariant boolean expression
+ --> line:6:5
+  |
+6 |       3 of them
+  |  _____-
+7 | | }
+  | |_- this expression is always false
+  |
+  = note: the expression requires 3 matching patterns out of 2

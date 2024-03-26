@@ -1,0 +1,6 @@
+error: invalid pattern `$a`
+ --> line:3:13
+  |
+3 |   $a = { 00 ~?? 11 }
+  |             ^^^ negation of `??` is not allowed
+  |

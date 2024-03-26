@@ -1,0 +1,6 @@
+error: unknown pattern `$a`
+ --> line:3:6
+  |
+3 |      $a
+  |      ^^ this pattern is not declared in the `strings` section
+  |

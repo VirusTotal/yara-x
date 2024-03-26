@@ -1,0 +1,7 @@
+error: invalid pattern `$a`
+ --> line:3:15
+  |
+3 |     $a = { 11 [1-2][40-38] 22 }
+  |               ^^^^^^^^^^^^ lower bound (41) is greater than upper bound (40)
+  |
+  = note: consecutive jumps were coalesced into a single one

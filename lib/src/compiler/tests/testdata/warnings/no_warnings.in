@@ -1,0 +1,45 @@
+rule test_1 {
+  strings:
+    $a = "foo"
+    $b = "bar"
+  condition:
+    none of them at 0
+}
+
+rule test_2 {
+  strings:
+    $a = "foo"
+    $b = "bar"
+  condition:
+    0 of them at 0
+}
+
+rule test_3 {
+  strings:
+    $a = "foo"
+    $b = "bar"
+  condition:
+    any of them at 0
+}
+
+rule test_4 {
+  strings:
+    $a = "foo"
+    $b = "bar"
+  condition:
+    1 of them at 0
+}
+
+rule test_5 {
+  strings:
+    $a = "foo"
+  condition:
+    none of ($a*) at 0
+}
+
+rule test_6 {
+  strings:
+    $a = "foo"
+  condition:
+    all of ($a*, $a*) at 0
+}

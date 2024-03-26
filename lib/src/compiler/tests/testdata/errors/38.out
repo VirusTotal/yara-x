@@ -1,0 +1,6 @@
+error: invalid regular expression
+ --> line:3:16
+  |
+3 |     $a = /abc.{-100}xyz/
+  |                ^ repetition quantifier expects a valid decimal
+  |

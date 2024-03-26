@@ -1,0 +1,6 @@
+error: invalid base64 alphabet
+ --> line:3:23
+  |
+3 |     $a = "foo" base64("ff")
+  |                       ^^^^ invalid length - must be 64 bytes
+  |

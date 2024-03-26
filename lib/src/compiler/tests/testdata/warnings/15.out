@@ -1,0 +1,7 @@
+warning: non-boolean expression used as boolean
+ --> line:2:37
+  |
+2 |   condition: for any i in (0..1): ( 1 )
+  |                                     - this expression is `integer` but is being used as `bool`
+  |
+  = note: non-zero integers are considered `true`, while zero is `false`

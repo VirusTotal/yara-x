@@ -1,0 +1,6 @@
+error: syntax error
+ --> line:2:5
+  |
+2 |     true }
+  |     ^ expected `condition`, `meta`, or `strings`
+  |

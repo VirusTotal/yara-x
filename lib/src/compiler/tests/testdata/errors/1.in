@@ -1,0 +1,7 @@
+rule test {
+   condition: true
+}
+
+rule test {
+   condition: false
+}

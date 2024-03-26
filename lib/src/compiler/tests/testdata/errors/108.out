@@ -1,0 +1,6 @@
+error: invalid escape sequence
+ --> line:2:17
+  |
+2 |   condition: "\xZZ" == "\xZZ"
+  |                 ^^ invalid hex value `ZZ` after `\x`
+  |

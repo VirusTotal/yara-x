@@ -1,0 +1,8 @@
+rule test {
+   strings:
+     $a = "foo"
+     $_b = "bar"  
+     $c = "baz"
+   condition:
+     $a
+}

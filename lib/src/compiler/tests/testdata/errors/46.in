@@ -1,0 +1,4 @@
+rule test {
+  condition:
+    entrypoint == 0x1000
+}

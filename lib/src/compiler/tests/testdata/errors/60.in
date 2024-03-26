@@ -1,0 +1,8 @@
+rule test
+{
+  strings:
+    $a = "©©©©©©©©"
+    $b = /abc{}/
+  condition:
+    any of them
+}

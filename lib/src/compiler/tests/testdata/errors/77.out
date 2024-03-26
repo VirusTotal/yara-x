@@ -1,0 +1,6 @@
+error: syntax error
+ --> line:1:1
+  |
+1 | foo rule test { condition: true }
+  | ^ expected YARA rules
+  |

@@ -1,0 +1,7 @@
+import "test_proto2"
+rule test {
+  condition:
+    for all struct in test_proto2.array_struct : ( 
+       struct.nested_int64_zero == "0" 
+    )
+}

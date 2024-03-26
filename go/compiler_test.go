@@ -92,11 +92,9 @@ func TestError(t *testing.T) {
 	c := NewCompiler()
 	err := c.AddSource("rule test { condition: foo }")
 	assert.EqualError(t, err, `error: unknown identifier `+"`foo`"+`
-   ╭─[line:1:24]
-   │
- 1 │ rule test { condition: foo }
-   │                        ─┬─  
-   │                         ╰─── this identifier has not been declared
-───╯
-`)
+ --> line:1:24
+  |
+1 | rule test { condition: foo }
+  |                        ^^^ this identifier has not been declared
+  |`)
 }

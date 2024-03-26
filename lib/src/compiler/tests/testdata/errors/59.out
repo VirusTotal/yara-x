@@ -1,0 +1,9 @@
+error: wrong arguments
+ --> line:4:21
+  |
+4 |     test_proto2.head() == "foo"
+  |                     ^^ wrong arguments in this call
+  |
+  = note: accepted argument combinations:
+          
+          (integer)

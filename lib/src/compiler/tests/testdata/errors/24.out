@@ -1,0 +1,6 @@
+error: wrong type
+ --> line:5:5
+  |
+5 |     "1" of them
+  |     ^^^ expression should be `integer`, but is `string`
+  |

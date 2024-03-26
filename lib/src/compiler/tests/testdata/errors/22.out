@@ -1,0 +1,6 @@
+error: wrong type
+ --> line:5:20
+  |
+5 |     any of them at "10"
+  |                    ^^^^ expression should be `integer`, but is `string`
+  |

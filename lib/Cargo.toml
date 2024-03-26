@@ -1,7 +1,7 @@
 [package]
 name = "yara-x"
 description = """
-A pure Rust implmentation of YARA-X.
+A pure Rust implementation of YARA.
 """
 version.workspace = true
 authors.workspace = true
@@ -9,6 +9,7 @@ edition.workspace = true
 readme.workspace = true
 license.workspace = true
 homepage.workspace = true
+keywords.workspace = true
 rust-version.workspace = true
 
 [features]
@@ -152,7 +153,6 @@ default = [
 [dependencies]
 aho-corasick = { workspace = true, features = ["logging"] }
 anyhow = { workspace = true }
-ariadne = { workspace = true }
 array-bytes = { workspace = true }
 ascii_tree = { workspace = true }
 authenticode-parser = { workspace = true, optional = true }
@@ -207,15 +207,10 @@ protobuf-parse = { workspace = true }
 yara-x-proto = { workspace = true }
 
 [dev-dependencies]
-criterion = { workspace = true }
 globwalk = { workspace = true }
 goldenfile = { workspace = true }
-ihex = "3.0.0"
+ihex = { workspace = true }
 pretty_assertions = { workspace = true }
-yara = { version = "0.26.0", features = ["vendored"] }
+rayon = { workspace = true }
 yara-x-proto-yaml = { workspace = true }
-zip = "0.6.6"
-
-[[bench]]
-name = "benches"
-harness = false
+zip = { workspace = true }

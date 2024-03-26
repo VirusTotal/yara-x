@@ -8,6 +8,8 @@ use yara_x_fmt::Formatter;
 
 pub fn fmt() -> Command {
     super::command("fmt").about("Format YARA source files")
+        // The `fmt` command is not ready yet.
+        .hide(true)
         .arg(
             arg!(<FILE>)
             .help("Path to YARA source file")

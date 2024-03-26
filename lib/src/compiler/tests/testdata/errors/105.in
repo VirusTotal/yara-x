@@ -1,0 +1,6 @@
+rule test {
+strings:
+  $a = { 01 [0] 02 }
+condition: 
+  $a
+}

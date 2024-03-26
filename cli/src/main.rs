@@ -30,7 +30,7 @@ fn main() -> anyhow::Result<()> {
     // file) turn off colors. This way you can redirect the output to a file
     // without ANSI escape codes messing up the file content.
     if !io::stdout().is_tty() {
-        Paint::disable();
+        yansi::disable();
     }
 
     let args = command!()
@@ -94,12 +94,12 @@ fn main() -> anyhow::Result<()> {
             if let Some(source) = err.source() {
                 eprintln!(
                     "{} {}: {}",
-                    Red.paint("error:").bold(),
+                    "error: ".paint(Red).bold(),
                     err,
                     source
                 );
             } else {
-                eprintln!("{} {}", Red.paint("error:").bold(), err);
+                eprintln!("{} {}", "error: ".paint(Red).bold(), err);
             }
             std::process::exit(1);
         }

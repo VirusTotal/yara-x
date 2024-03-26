@@ -1,0 +1,6 @@
+error: invalid escape sequence
+ --> line:2:15
+  |
+2 |   condition: "\g" == "\g"
+  |               ^^ invalid escape sequence `\g`
+  |

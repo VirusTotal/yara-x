@@ -1,0 +1,6 @@
+rule test {
+   strings:
+     $ = "foo"
+   condition:
+     true
+}

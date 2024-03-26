@@ -1,0 +1,6 @@
+error: syntax error
+ --> line:1:28
+  |
+1 | rule test { strings: $a = {} condition: true }
+  |                            ^ unexpected closing brace `}`
+  |

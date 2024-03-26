@@ -1,0 +1,6 @@
+error: syntax error
+ --> line:3:18
+  |
+3 |   $a = { 00 ( 00 }
+  |                  ^ expected byte, closing parenthesis `)`, opening bracket `[`, opening parenthesis `(`, or pipe `|`
+  |

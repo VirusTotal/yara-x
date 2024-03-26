@@ -1,0 +1,7 @@
+error: assignment mismatch
+ --> line:3:13
+  |
+3 |     for all x,y in (0..10) : ( true )
+  |             ^^^ this expects 2 value(s)
+  |                    ^^^^^^^ this produces 1 value(s)
+  |

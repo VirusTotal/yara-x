@@ -1,0 +1,6 @@
+rule test {
+  strings:
+    $a = /abc.{-100}xyz/
+  condition:
+    $a
+}

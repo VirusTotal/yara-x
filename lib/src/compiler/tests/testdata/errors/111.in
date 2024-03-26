@@ -1,0 +1,6 @@
+rule test {
+  strings: 
+    $a = "foo" xor(0) xor(1-2)
+  condition:
+    $a
+}

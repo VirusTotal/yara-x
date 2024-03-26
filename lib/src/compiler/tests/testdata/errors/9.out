@@ -1,0 +1,6 @@
+error: wrong type
+ --> line:2:31
+  |
+2 |   condition: "foobar" matches "foobar"
+  |                               ^^^^^^^^ expression should be `regexp`, but is `string`
+  |

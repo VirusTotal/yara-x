@@ -1,0 +1,7 @@
+warning: non-boolean expression used as boolean
+ --> line:2:22
+  |
+2 |   condition: true or "false"
+  |                      ------- this expression is `string` but is being used as `bool`
+  |
+  = note: non-empty strings are considered `true`, while the empty string ("") is `false`

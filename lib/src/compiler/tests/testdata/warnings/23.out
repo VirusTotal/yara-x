@@ -1,0 +1,6 @@
+warning: slow pattern
+ --> line:3:10
+  |
+3 |     $a = {00 [1-10] 01}
+  |          -------------- this pattern may slow down the scan
+  |

@@ -1,0 +1,6 @@
+error: invalid pattern `$a`
+ --> line:3:15
+  |
+3 |     $a = { 11 [2-1] 22 }
+  |               ^^^^^ lower bound (2) is greater than upper bound (1)
+  |

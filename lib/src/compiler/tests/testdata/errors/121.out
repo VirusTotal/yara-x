@@ -1,0 +1,6 @@
+error: invalid regexp modifier `x`
+ --> line:3:24
+  |
+3 |     "foo" matches /foo/x
+  |                        ^ invalid modifier
+  |

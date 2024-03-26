@@ -1,0 +1,6 @@
+error: wrong type
+ --> line:5:11
+  |
+5 |     $a at "1"
+  |           ^^^ expression should be `integer`, but is `string`
+  |

@@ -1,0 +1,7 @@
+error: mismatching types
+ --> line:3:20
+  |
+3 |     for 1 n in (1, 2, "3") : (
+  |                    ^ this expression is `integer`
+  |                       ^^^ this expression is `string`
+  |

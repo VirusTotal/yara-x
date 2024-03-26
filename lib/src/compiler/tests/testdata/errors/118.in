@@ -1,0 +1,6 @@
+rule test {
+  strings: 
+    $a = "foo" base64("ff")
+  condition:
+    $a
+}

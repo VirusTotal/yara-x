@@ -1,0 +1,7 @@
+error: invalid pattern `$a`
+ --> line:3:10
+  |
+3 |     $a = "aa" base64
+  |          ^^^^ this pattern is too short
+  |
+  = note: `base64` requires that pattern is at least 3 bytes long

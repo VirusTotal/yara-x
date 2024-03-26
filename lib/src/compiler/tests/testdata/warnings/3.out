@@ -1,0 +1,7 @@
+warning: potentially wrong expression
+ --> line:6:5
+  |
+6 |     all of them at 0
+  |     --- this implies that multiple patterns must match
+  |                 ---- but they must match at the same offset
+  |

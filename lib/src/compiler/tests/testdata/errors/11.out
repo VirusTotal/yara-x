@@ -1,0 +1,6 @@
+error: invalid regular expression
+ --> line:2:35
+  |
+2 |   condition: "foobar" matches /foo[bar/
+  |                                   ^ unclosed character class
+  |

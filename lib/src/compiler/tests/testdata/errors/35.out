@@ -1,0 +1,6 @@
+error: unknown identifier `y`
+ --> line:7:11
+  |
+7 |       and y == 1
+  |           ^ this identifier has not been declared
+  |

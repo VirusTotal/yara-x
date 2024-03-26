@@ -1,0 +1,7 @@
+error: no matching patterns
+ --> line:3:12
+  |
+3 |     all of them
+  |            ^^^^ there's no pattern in this set
+  |
+  = note: this rule doesn't define any patterns

@@ -1,0 +1,7 @@
+error: mismatching types
+ --> line:4:53
+  |
+4 |     for all k,v in test_proto2.map_int64_string : ( v == 1 )
+  |                                                     ^ this expression is `string`
+  |                                                          ^ this expression is `integer`
+  |

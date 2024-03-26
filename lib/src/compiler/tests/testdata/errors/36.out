@@ -1,0 +1,14 @@
+error: global rule `test_2` depends on non-global rule `test_1`
+ --> line:8:5
+  |
+1 | rule test_1 {
+  |      ------ note: non-global rule `test_1` declared here
+2 |   condition:
+...
+5 | 
+6 | global rule test_2 {
+  |             ------ note: global rule `test_2` declared here
+7 |   condition:
+8 |     test_1
+  |     ^^^^^^ `test_1` is used in the condition of `test_2`
+  |

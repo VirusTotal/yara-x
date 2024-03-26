@@ -1,0 +1,9 @@
+rule test_1 {
+  condition:
+    true
+}
+
+global rule test_2 {
+  condition:
+    test_1
+}

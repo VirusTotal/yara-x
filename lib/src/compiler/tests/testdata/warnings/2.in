@@ -1,0 +1,6 @@
+rule test { 
+  strings: 
+    $a = { 0F 84 [4] [0-7] 8D } 
+  condition: 
+    $a 
+}

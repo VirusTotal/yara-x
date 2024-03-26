@@ -1,0 +1,17 @@
+warning: module `unsupported_module` is not supported
+ --> line:1:1
+  |
+1 | import "unsupported_module"
+  | --------------------------- module `unsupported_module` used here
+  |warning: module `unsupported_module` is not supported
+ --> line:4:5
+  |
+4 |     unsupported_module.foo()
+  |     ------------------ module `unsupported_module` used here
+  |
+  = note: the whole rule `test_1` will be ignoredwarning: rule `test_2` will be ignored due to an indirect dependency on module `unsupported_module`
+ --> line:9:5
+  |
+9 |     test_1
+  |     ------ this other rule depends on module `unsupported_module`, which is unsupported
+  |

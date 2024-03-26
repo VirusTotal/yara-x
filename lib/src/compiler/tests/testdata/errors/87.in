@@ -1,0 +1,4 @@
+rule test {
+condition:
+  any of (a,b,c) in (0..100)
+}
