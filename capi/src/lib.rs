@@ -8,12 +8,40 @@ the library.
 
 # How to build and install
 
-You will need [`cargo-c`][2] for building this library:
+You will need [`cargo-c`][2] for building this library, if you didn't install
+it before, this is the first step:
 ```text
 cargo install cargo-c
 ```
 
-Build and install:
+You will also need the `openssl` library, depending on your platform you
+can choose one of the following methods:
+
+Ubuntu:
+
+```text
+sudo apt install libssl-dev
+```
+
+MacOS (using [`brew`][3]):
+
+```text
+brew install openssl@3
+```
+
+Windows (using [`vcpkg`][4]):
+
+```text
+git clone https://github.com/microsoft/vcpkg.git
+cd vcpkg
+bootstrap-vcpkg.bat
+vcpkg install openssl:x64-windows-static
+set OPENSSL_DIR=%cd%\installed\x64-windows-static
+```
+ 
+Once you have installed the pre-requisites, go to the root directory
+of the YARA-X repository and type:
+
 ```text
 cargo cinstall -p yara-x-capi --release
 ```
@@ -43,6 +71,8 @@ gcc `pkg-config --cflags yara_x_capi` `pkg-config --libs yara_x_capi` test.c
 
 [1]: https://github.com/mozilla/cbindgen
 [2]: https://github.com/lu-zero/cargo-c
+[3]: https://brew.sh
+[4]: https://vcpkg.io/
  */
 
 #![allow(non_camel_case_types)]
