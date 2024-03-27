@@ -264,6 +264,46 @@ fn has_rpath(ctx: &ScanContext, rpath: RuntimeString) -> Option<bool> {
     Some(false)
 }
 
+/// Returns an md5 hash of the dylibs designated in the mach-o binary
+#[module_export]
+fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
+    let macho = ctx.module_output::<Macho>()?;
+    let mut md5_hash = md5::Context::new();
+    let mut dylibs_to_hash = &macho.dylibs;
+
+    // if there are not any dylibs in the main Macho, the dylibs of the nested file should be hashed
+    if dylibs_to_hash.is_empty() && !macho.file.is_empty() {
+        dylibs_to_hash = &macho.file[0].dylibs;
+    }
+
+    // we need to check again as the nested file dylibs could be empty too
+    if dylibs_to_hash.is_empty() {
+        return None;
+    }
+
+    let mut dylibs: Vec<String> = dylibs_to_hash
+        .iter()
+        .map(|d| {
+            std::string::String::from_utf8(d.name.clone().unwrap())
+                .unwrap()
+                .trim()
+                .to_lowercase()
+        })
+        .collect();
+
+    dylibs.sort();
+    dylibs.dedup();
+
+    for (idx, dylib) in dylibs.iter().enumerate() {
+        md5_hash.consume(dylib);
+        if idx != dylibs.len() - 1 {
+            md5_hash.consume(",")
+        }
+    }
+    let digest = format!("{:x}", md5_hash.compute());
+    Some(RuntimeString::new(digest))
+}
+
 #[module_main]
 fn main(input: &[u8]) -> Macho {
     match parser::MachO::parse(input) {
