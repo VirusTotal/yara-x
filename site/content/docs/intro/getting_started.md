@@ -8,8 +8,8 @@ draft: false
 menu:
   docs:
     parent: ""
-    identifier: "example-6a1a6be4373e933280d78ea53de6158e"
-weight: 810
+    identifier: "getting_started"
+weight: 110
 toc: true
 seo:
   title: "" # custom title (optional)
@@ -27,5 +27,8 @@ its predecesor.
 
 ## Further reading
 
-- Read [about how-to guides](https://diataxis.fr/how-to-guides/) in the Diátaxis
-  framework
+- If you are completely new to YARA, you should start by
+  learning [how to write YARA rules]({{< ref "syntax.md" >}}).
+
+- Seasoned YARA users may want to know about the
+  [differences between YARA-X and YARA]({{< ref "differences.md" >}})
