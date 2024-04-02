@@ -275,7 +275,12 @@ fn string_operations() {
     condition_true!(r#""タイトル" matches /タイトル/"#);
     condition_true!(r#""\xF7\xFF" matches /\xF7\xFF/"#);
     condition_true!(r#""\xe2\x28\xa1" matches /\xe2\x28\xa1/"#);
-    condition_true!(r#""🙈🙉🙊" matches /.../"#);
+
+    // By default, regexps don't match unicode, each dot (.) matches
+    // a single byte, not a character. By turning on unicode support
+    // with the `(?u)` prefix we make the dot to match unicode
+    // characters.
+    condition_true!(r#""🙈🙉🙊" matches /(?u)^...$/"#);
 }
 
 #[test]
