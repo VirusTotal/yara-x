@@ -38,7 +38,7 @@ bootstrap-vcpkg.bat
 vcpkg install openssl:x64-windows-static
 set OPENSSL_DIR=%cd%\installed\x64-windows-static
 ```
- 
+
 Once you have installed the pre-requisites, go to the root directory
 of the YARA-X repository and type:
 
@@ -48,7 +48,7 @@ cargo cinstall -p yara-x-capi --release
 
 The command above will put the library and header files in the correct path
 in your system (usually `/usr/local/lib` and `/usr/local/include` for Linux
-and MacOS users), and will generate a `.pc` file so that `pkg-config` knows 
+and MacOS users), and will generate a `.pc` file so that `pkg-config` knows
 about the library.
 
 In Linux and MacOS you can check if everything went fine by compiling a simple
@@ -71,7 +71,7 @@ gcc `pkg-config --cflags yara_x_capi` `pkg-config --libs yara_x_capi` test.c
 
 The compilation should succeed without errors.
 
-Windows users can find all the files you need for importing the YARA-X library 
+Windows users can find all the files you need for importing the YARA-X library
 in your project in the `target/x86_64-pc-windows-msvc/release` directory. This
 includes:
 
