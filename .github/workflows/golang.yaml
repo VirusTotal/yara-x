@@ -15,12 +15,12 @@ jobs:
       fail-fast: false
       matrix:
         go-version: [ '1.19', '1.20', '1.21.x' ]
-        os: [ubuntu-latest, macos-latest]
+        os: [ ubuntu-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      
+
     - name: Setup Go ${{ matrix.go-version }}
       uses: actions/setup-go@v4
       with:
@@ -30,7 +30,10 @@ jobs:
       uses: dtolnay/rust-toolchain@master
       with:
         toolchain: stable
-        
+
+    - name: Install cargo-c
+      run: cargo install cargo-c
+    
     # Install OpenSSL on Windows
     - name: Install OpenSSL
       if: runner.os == 'Windows'
@@ -52,16 +55,11 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y libssl-dev
-        
-    - name: Build Rust library
-      run: cargo build --release -p yara-x -p yara-x-capi
-        
-    - name: Set LD_LIBRARY_PATH environment variable
-      if: runner.os == 'Linux'
-      shell: bash
-      run: echo "LD_LIBRARY_PATH=${{ github.workspace }}/target/release" >> $GITHUB_ENV        
-        
+
+    - name: Build and install Rust library
+      run: cargo cinstall -p yara-x-capi --release
+
     - name: Run Go tests
       run: |
-          cd go
-          go test
+        cd go
+        go test
