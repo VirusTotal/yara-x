@@ -1,3 +1,4 @@
 rule test {
-  condition: "foo" == 2
+  condition: 
+ 		"foo" == 2
 }
