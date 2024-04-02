@@ -1,7 +1,7 @@
 error: mismatching types
- --> line:2:14
+ --> line:3:4
   |
-2 |   condition: "foo" == 2
-  |              ^^^^^ this expression is `string`
-  |                       ^ this expression is `integer`
+3 |    "foo" == 2
+  |    ^^^^^ this expression is `string`
+  |             ^ this expression is `integer`
   |

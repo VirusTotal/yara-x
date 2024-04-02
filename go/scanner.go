@@ -15,7 +15,7 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-// #include <yara-x.h>
+// #include <yara_x.h>
 // void onMatchingRule(YRX_RULE*, void*);
 import "C"
 

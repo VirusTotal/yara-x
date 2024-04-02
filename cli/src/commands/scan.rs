@@ -82,7 +82,7 @@ pub fn scan() -> Command {
                 .value_parser(value_parser!(u64).range(1..))
         )
         .arg(
-            arg!(-define --"define")
+            arg!(-d --"define")
                 .help("Define external variable")
                 .long_help(help::DEFINE_LONG_HELP)
                 .required(false)
