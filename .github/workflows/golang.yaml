@@ -30,9 +30,6 @@ jobs:
       uses: dtolnay/rust-toolchain@master
       with:
         toolchain: stable
-
-    - name: Install cargo-c
-      run: sudo cargo install cargo-c
     
     # Install OpenSSL on Windows
     - name: Install OpenSSL
@@ -56,8 +53,11 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y libssl-dev
 
+    - name: Install cargo-c
+      run: cargo install cargo-c
+
     - name: Build and install Rust library
-      run: sudo cargo cinstall -p yara-x-capi --release
+      run: sudo /home/runner/.cargo/bin/cargo cinstall -p yara-x-capi --release
 
     - name: Run Go tests
       run: |
