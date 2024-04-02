@@ -280,6 +280,7 @@ fn string_operations() {
     // a single byte, not a character. By turning on unicode support
     // with the `(?u)` prefix we make the dot to match unicode
     // characters.
+    condition_false!(r#""🙈🙉🙊" matches /^...$/"#);
     condition_true!(r#""🙈🙉🙊" matches /(?u)^...$/"#);
 }
 
