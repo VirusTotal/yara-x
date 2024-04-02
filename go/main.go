@@ -3,7 +3,7 @@ package yara_x
 
 // #cgo !static_link pkg-config: yara_x_capi
 // #cgo static_link pkg-config: --static yara_x_capi
-// #import <yara_x.h>
+// #include <yara_x.h>
 import "C"
 import (
 	"errors"
