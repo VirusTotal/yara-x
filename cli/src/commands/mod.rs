@@ -126,7 +126,7 @@ where
     }
 
     for warning in rules.warnings() {
-        eprintln!("\n{}", warning);
+        eprintln!("{}", warning);
     }
 
     Ok(rules)

@@ -1,0 +1,6 @@
+rule test {
+  strings:
+    $a = "foo"
+  condition: 
+    $a at "1"
+}

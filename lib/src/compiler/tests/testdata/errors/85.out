@@ -1,0 +1,6 @@
+error: invalid pattern `$a`
+ --> line:3:16
+  |
+3 |   $a = { 01 02 0 }
+  |                ^ uneven number of nibbles
+  |

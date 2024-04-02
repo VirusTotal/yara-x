@@ -1,0 +1,1 @@
+rule 1_foo { condition: true }

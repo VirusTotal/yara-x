@@ -1,0 +1,6 @@
+error: syntax error
+ --> line:5:6
+  |
+5 |      $
+  |      ^ this `$` is outside of the condition of a `for .. of` statement
+  |

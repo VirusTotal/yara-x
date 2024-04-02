@@ -1,0 +1,6 @@
+error: invalid regular expression
+ --> line:3:15
+  |
+3 |     $a = /abc[b-a]/
+  |               ^^^ invalid character class range, the start must be <= the end
+  |

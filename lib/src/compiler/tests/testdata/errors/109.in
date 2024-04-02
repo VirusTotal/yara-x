@@ -1,0 +1,3 @@
+rule test {
+  condition: "\ޘabc" == "abc"
+}

@@ -1,0 +1,7 @@
+error: mismatching types
+ --> line:3:4
+  |
+3 |    "foo" == 2
+  |    ^^^^^ this expression is `string`
+  |             ^ this expression is `integer`
+  |

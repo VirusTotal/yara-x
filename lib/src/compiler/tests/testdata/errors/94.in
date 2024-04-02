@@ -1,0 +1,4 @@
+rule test {
+   condition:
+     !a == 1
+}

@@ -1,0 +1,6 @@
+error: syntax error
+ --> line:1:12
+  |
+1 | rule test {}
+  |            ^ expected `condition`, `meta`, or `strings`
+  |

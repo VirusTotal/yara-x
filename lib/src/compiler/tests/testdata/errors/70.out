@@ -1,0 +1,6 @@
+error: syntax error
+ --> line:1:22
+  |
+1 | rule test { strings: condition: true }
+  |                      ^ expected pattern identifier
+  |

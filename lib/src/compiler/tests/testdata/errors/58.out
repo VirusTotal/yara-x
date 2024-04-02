@@ -1,0 +1,10 @@
+error: wrong arguments
+ --> line:4:20
+  |
+4 |     test_proto2.add(1, "2") == 3
+  |                    ^^^^^^^^ wrong arguments in this call
+  |
+  = note: accepted argument combinations:
+          
+          (float, float)
+          (integer, integer)

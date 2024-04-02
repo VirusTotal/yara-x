@@ -1,0 +1,6 @@
+error: syntax error
+ --> line:1:8
+  |
+1 | global global rule test { condition: true }
+  |        ^ expected `private` or `rule`
+  |

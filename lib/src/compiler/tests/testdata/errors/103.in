@@ -1,0 +1,6 @@
+rule test {
+  strings:
+    $a = { 11 [2-1] 22 }
+  condition:
+    $a
+}

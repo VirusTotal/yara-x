@@ -1,0 +1,6 @@
+error: unexpected negative number
+ --> line:5:11
+  |
+5 |     $a at -1
+  |           ^^ this number can not be negative
+  |

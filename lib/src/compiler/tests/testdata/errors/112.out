@@ -1,0 +1,6 @@
+error: invalid range
+ --> line:3:20
+  |
+3 |     $a = "foo" xor(2-1)
+  |                    ^ lower bound (2) is greater than upper bound (1)
+  |

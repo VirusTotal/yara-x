@@ -1,0 +1,6 @@
+rule test {
+strings:
+  $a = { G0 }
+condition: 
+  $a
+}

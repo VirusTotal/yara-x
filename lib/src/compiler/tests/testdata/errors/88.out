@@ -1,0 +1,6 @@
+error: syntax error
+ --> line:3:18
+  |
+3 |   any of (a,b,c) at 0
+  |                  ^ unexpected `at`
+  |

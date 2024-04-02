@@ -20,7 +20,7 @@ use std::{cmp, fs, thread};
 use bitvec::prelude::*;
 use fmmap::{MmapFile, MmapFileExt};
 use indexmap::IndexMap;
-use protobuf::MessageDyn;
+use protobuf::{CodedInputStream, MessageDyn};
 use rustc_hash::{FxHashMap, FxHashSet};
 use thiserror::Error;
 use wasmtime::{
@@ -466,8 +466,14 @@ impl<'r> Scanner<'r> {
             return Err(ScanError::UnknownModule { module: name.to_string() });
         }
 
+        let mut is = CodedInputStream::from_bytes(data);
+
+        // Default recursion limit is 100, that's not enough for some deeply
+        // nested structures like the process tree in the `vt` module.
+        is.set_recursion_limit(500);
+
         self.set_module_output(
-            descriptor.unwrap().parse_from_bytes(data).map_err(|err| {
+            descriptor.unwrap().parse_from(&mut is).map_err(|err| {
                 ScanError::ProtoError { module: name.to_string(), err }
             })?,
         )

@@ -58,4 +58,3 @@ fn pathological_case() {
 
 mod ast;
 mod cst;
-mod errors;

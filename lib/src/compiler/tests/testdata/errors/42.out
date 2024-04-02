@@ -1,0 +1,7 @@
+error: mixing greedy and non-greedy quantifiers in regular expression
+ --> line:3:15
+  |
+3 |     $a = /a.*b.*?c/
+  |               ^^^ this is non-greedy
+  |            ^^ this is greedy
+  |

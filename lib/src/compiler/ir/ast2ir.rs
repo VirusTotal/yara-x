@@ -178,7 +178,7 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     // we can know the overall greediness of the regexp, and decide whether we
     // should aim for the longest, or the shortest possible match when multiple
     // matches that start at the same offset are found while scanning backwards
-    // (right-to-left). However, if the regexp contains a mix of greedy an
+    // (right-to-left). However, if the regexp contains a mix of greedy and
     // non-greedy repetitions the decision becomes impossible.
     let hir = re::parser::Parser::new()
         .force_case_insensitive(flags.contains(PatternFlags::Nocase))
@@ -1153,7 +1153,7 @@ fn func_call_from_ast(
             ctx.report_builder,
             func_call.args_span,
             Some(format!(
-                "accepted argument combinations:\n   │\n   │       {}",
+                "accepted argument combinations:\n\n{}",
                 expected_args
                     .iter()
                     .map(|v| {
@@ -1166,7 +1166,7 @@ fn func_call_from_ast(
                         )
                     })
                     .collect::<Vec<String>>()
-                    .join("\n   │       ")
+                    .join("\n")
             )),
         )));
     }
@@ -1217,24 +1217,6 @@ fn check_type(
             ErrorInfo::join_with_or(accepted_types, true),
             ty.to_string(),
             span,
-        )))
-    }
-}
-
-fn check_type2(
-    ctx: &CompileContext,
-    expr: &ast::Expr,
-    ty: Type,
-    accepted_types: &[Type],
-) -> Result<(), Box<CompileError>> {
-    if accepted_types.contains(&ty) {
-        Ok(())
-    } else {
-        Err(Box::new(CompileError::wrong_type(
-            ctx.report_builder,
-            ErrorInfo::join_with_or(accepted_types, true),
-            ty.to_string(),
-            expr.span(),
         )))
     }
 }
@@ -1472,7 +1454,7 @@ macro_rules! gen_n_ary_operation {
 
             // Make sure that all operands have one of the accepted types.
             for (hir, ast) in iter::zip(operands_hir.iter(), expr.operands()) {
-                check_type2(ctx, ast, hir.ty(), accepted_types)?;
+                check_type(ctx, hir.ty(), ast.span(), accepted_types)?;
                 if let Some(check_fn) = check_fn {
                     check_fn(ctx, hir, ast.span())?;
                 }

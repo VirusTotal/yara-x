@@ -49,13 +49,12 @@ timestamp: 999999999 # 2001-09-09 01:46:39 UTC
 ```
  */
 
-use chrono::prelude::{DateTime, NaiveDateTime, Utc};
+use chrono::prelude::DateTime;
 use itertools::Itertools;
 use protobuf::MessageDyn;
 use std::cmp::Ordering;
 use std::io::{Error, Write};
-use yansi::Paint;
-use yansi::{Color, Style};
+use yansi::{Color, Paint, Style};
 
 use protobuf::descriptor::FieldDescriptorProto;
 use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
@@ -111,10 +110,10 @@ impl<W: Write> Serializer<W> {
     pub fn with_colors(&mut self, b: bool) -> &mut Self {
         self.colors = if b {
             Colors {
-                string: Color::Green.style(),
-                field_name: Color::Yellow.style(),
-                repeated_name: Color::Yellow.style(),
-                comment: Color::RGB(222, 184, 135).style(),
+                string: Color::Green.foreground(),
+                field_name: Color::Yellow.foreground(),
+                repeated_name: Color::Yellow.foreground(),
+                comment: Color::Rgb(222, 184, 135).foreground(),
             }
         } else {
             Colors::default()
@@ -148,22 +147,19 @@ impl<W: Write> Serializer<W> {
         value: T,
         value_options: &ValueOptions,
     ) -> Result<(), std::io::Error> {
-        let field_value = if value_options.is_hex {
-            format!("0x{:x}", value.into())
+        if value_options.is_hex {
+            write!(self.output, "0x{:x}", value.into())?;
         } else if value_options.is_timestamp {
-            let timestamp = DateTime::<Utc>::from_naive_utc_and_offset(
-                NaiveDateTime::from_timestamp_opt(value.into(), 0).unwrap(),
-                Utc,
-            );
-            format!(
-                "{} {}",
-                value.to_string(),
-                self.write_as_a_comment(timestamp.to_string())
-            )
+            let timestamp =
+                DateTime::from_timestamp(value.into(), 0).unwrap().to_string();
+
+            write!(self.output, "{} ", value.to_string())?;
+            self.write_comment(&timestamp)?;
         } else {
-            value.to_string()
+            write!(self.output, "{}", value.to_string())?;
         };
-        write!(self.output, "{}", field_value)
+
+        Ok(())
     }
 
     fn quote_bytes(&mut self, bytes: &[u8]) -> String {
@@ -205,16 +201,17 @@ impl<W: Write> Serializer<W> {
         result
     }
 
-    fn write_as_a_comment(&mut self, value: String) -> Paint<String> {
-        self.colors.comment.paint(format!("{} {}", "#", value))
+    fn write_comment(&mut self, comment: &str) -> Result<(), Error> {
+        let comment = format!("# {}", comment);
+        write!(self.output, "{}", comment.paint(self.colors.comment))
     }
 
     fn write_field_name(&mut self, name: &str) -> Result<(), Error> {
-        write!(self.output, "{}:", self.colors.field_name.paint(name))
+        write!(self.output, "{}:", name.paint(self.colors.field_name))
     }
 
     fn write_repeated_name(&mut self, name: &str) -> Result<(), Error> {
-        write!(self.output, "{}:", self.colors.repeated_name.paint(name))
+        write!(self.output, "{}:", name.paint(self.colors.repeated_name))
     }
 
     fn write_msg(&mut self, msg: &MessageRef) -> Result<(), Error> {
@@ -249,7 +246,7 @@ impl<W: Write> Serializer<W> {
                             self.output,
                             "{}{} ",
                             " ".repeat((INDENTATION - 2) as usize),
-                            self.colors.repeated_name.paint("-")
+                            "-".paint(self.colors.repeated_name)
                         )?;
                         self.indent += INDENTATION;
                         self.write_value(&field, &value)?;
@@ -325,11 +322,11 @@ impl<W: Write> Serializer<W> {
             ReflectValueRef::Bool(v) => write!(self.output, "{}", v)?,
             ReflectValueRef::String(v) => {
                 let quoted = self.quote_str(v);
-                write!(self.output, "{}", self.colors.string.paint(quoted))?;
+                write!(self.output, "{}", quoted.paint(self.colors.string))?;
             }
             ReflectValueRef::Bytes(v) => {
                 let quoted = self.quote_bytes(v);
-                write!(self.output, "{}", self.colors.string.paint(quoted))?;
+                write!(self.output, "{}", quoted.paint(self.colors.string))?;
             }
             ReflectValueRef::Enum(d, v) => match d.value_by_number(*v) {
                 Some(e) => write!(self.output, "{}", e.name())?,

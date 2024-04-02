@@ -1,15 +1,15 @@
 use pretty_assertions::assert_eq;
 use serde_json::json;
+use std::fs;
+use std::io::Write;
 use std::mem::size_of;
+use yara_x_parser::Parser;
 
 use crate::compiler::{
     SerializationError, SubPattern, Var, VarStack, VariableError,
 };
 use crate::types::Type;
 use crate::{compile, Compiler, Error, Rules, Scanner};
-
-mod errors;
-mod warnings;
 
 #[test]
 fn serialization() {
@@ -589,4 +589,131 @@ fn continue_after_error() {
     compiler.new_namespace("namespace2");
 
     assert!(compiler.add_source(r#"rule test { condition: true }"#).is_ok());
+}
+
+#[test]
+fn errors_2() {
+    assert_eq!(
+        Compiler::new()
+            .define_global("foo", 1)
+            .unwrap()
+            .add_source("rule foo  {condition: true}")
+            .unwrap_err()
+            .to_string(),
+        "error: rule `foo` conflicts with an existing identifier
+ --> line:1:6
+  |
+1 | rule foo  {condition: true}
+  |      ^^^ identifier already in use by a module or global variable
+  |"
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .add_source("rule foo : first {condition: true}")
+            .unwrap()
+            .add_source("rule foo : second {condition: true}")
+            .unwrap_err()
+            .to_string(),
+        "error: duplicate rule `foo`
+ --> line:1:6
+  |
+1 | rule foo : first {condition: true}
+  |      --- note: `foo` declared here for the first time
+  |
+ ::: line:1:6
+  |
+1 | rule foo : second {condition: true}
+  |      ^^^ duplicate declaration of `foo`
+  |"
+    );
+}
+
+#[test]
+fn utf8_errors() {
+    let mut src =
+        "rule test {condition: true}".to_string().as_bytes().to_vec();
+
+    // Insert invalid UTF-8 in the code.
+    src.insert(4, 0xff);
+
+    assert_eq!(
+        Parser::new()
+            .build_ast(src.as_slice())
+            .expect_err("expected error")
+            .to_string(),
+        "error: invalid UTF-8
+ --> line:1:5
+  |
+1 | rule� test {condition: true}
+  |     ^ invalid UTF-8 character
+  |"
+    );
+}
+
+#[test]
+fn test_errors() {
+    let mut mint = goldenfile::Mint::new(".");
+
+    for entry in globwalk::glob("src/compiler/tests/testdata/errors/*.in")
+        .unwrap()
+        .flatten()
+    {
+        // Path to the .in file.
+        let in_path = entry.into_path();
+
+        // Path to the .out file.
+        let out_path = in_path.with_extension("out");
+
+        let mut src = String::new();
+
+        let rules = fs::read_to_string(&in_path).expect("unable to read");
+
+        src.push_str(rules.as_str());
+
+        let err = compile(src.as_str()).expect_err(
+            format!("file {:?} should have failed with error", in_path)
+                .as_str(),
+        );
+
+        let mut output_file = mint.new_goldenfile(out_path).unwrap();
+
+        output_file
+            .write_all(err.to_string().as_bytes())
+            .expect("unable to write")
+    }
+}
+
+#[test]
+fn test_warnings() {
+    let mut mint = goldenfile::Mint::new(".");
+
+    for entry in globwalk::glob("src/compiler/tests/testdata/warnings/*.in")
+        .unwrap()
+        .flatten()
+    {
+        // Path to the .in file.
+        let in_path = entry.into_path();
+
+        // Path to the .out file.
+        let out_path = in_path.with_extension("out");
+
+        let mut src = String::new();
+        let rules = fs::read_to_string(&in_path).expect("unable to read");
+
+        src.push_str(rules.as_str());
+
+        let mut compiler = Compiler::new();
+
+        compiler.ignore_module("unsupported_module");
+        compiler.add_source(src.as_str()).unwrap();
+
+        let mut output_file = mint.new_goldenfile(out_path).unwrap();
+
+        for w in &compiler.warnings {
+            output_file
+                .write_all(w.to_string().as_bytes())
+                .expect("unable to write");
+        }
+    }
 }

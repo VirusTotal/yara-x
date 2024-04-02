@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Error};
-use clap::{arg, value_parser, Arg, ArgAction, ArgMatches, Command};
+use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 use crossbeam::channel::Sender;
 use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
@@ -34,11 +34,11 @@ pub fn scan() -> Command {
                 .value_parser(value_parser!(PathBuf))
         )
         .arg(
-            arg!(-e - -"print-namespace")
+            arg!(-e --"print-namespace")
                 .help("Print rule namespace")
         )
         .arg(
-            arg!(-s - -"print-strings")
+            arg!(-s --"print-strings")
                 .help("Print matching patterns, limited to the first 120 bytes")
         )
         .arg(
@@ -51,7 +51,7 @@ pub fn scan() -> Command {
                 .help("Disable printing console log messages")
         )
         .arg(
-            arg!(-n - -"negate")
+            arg!(-n --"negate")
                 .help("Print non-satisfied rules only")
         )
         .arg(
@@ -59,7 +59,7 @@ pub fn scan() -> Command {
                 .help("Use file path as rule namespace")
         )
         .arg(
-            arg!(-C - -"compiled-rules")
+            arg!(-C --"compiled-rules")
                 .help("Tells that RULES_PATH is a file with compiled rules")
                 .long_help(help::COMPILED_RULES_HELP)
         )
@@ -82,9 +82,7 @@ pub fn scan() -> Command {
                 .value_parser(value_parser!(u64).range(1..))
         )
         .arg(
-            Arg::new("define")
-                .short('d')
-                .long("define")
+            arg!(-d --"define")
                 .help("Define external variable")
                 .long_help(help::DEFINE_LONG_HELP)
                 .required(false)
@@ -174,7 +172,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 let output = output.clone();
                 scanner.console_log(move |msg| {
                     output
-                        .send(Message::Error(format!("{}", Yellow.paint(msg))))
+                        .send(Message::Error(format!("{}", msg.paint(Yellow))))
                         .unwrap();
                 });
             }
@@ -251,7 +249,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         |err, output| {
             let _ = output.send(Message::Error(format!(
                 "{} {}: {}",
-                Red.paint("error:").bold(),
+                "error: ".paint(Red).bold(),
                 err,
                 err.root_cause(),
             )));
@@ -289,14 +287,14 @@ fn print_matching_rules(
         let line = if print_namespace {
             format!(
                 "{}:{} {}",
-                Cyan.paint(matching_rule.namespace()).bold(),
-                Cyan.paint(matching_rule.identifier()).bold(),
+                matching_rule.namespace().paint(Cyan).bold(),
+                matching_rule.identifier().paint(Cyan).bold(),
                 file_path.display(),
             )
         } else {
             format!(
                 "{} {}",
-                Cyan.paint(matching_rule.identifier()).bold(),
+                matching_rule.identifier().paint(Cyan).bold(),
                 file_path.display()
             )
         };
@@ -321,6 +319,16 @@ fn print_matching_rules(
                         for c in b.escape_ascii() {
                             msg.push_str(format!("{}", c as char).as_str());
                         }
+                    }
+
+                    if match_data.len() > *limit {
+                        msg.push_str(
+                            format!(
+                                " ... {} more bytes",
+                                match_data.len().saturating_sub(*limit)
+                            )
+                            .as_str(),
+                        );
                     }
 
                     output.send(Message::Info(msg)).unwrap();

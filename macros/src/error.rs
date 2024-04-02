@@ -131,7 +131,7 @@ fn gen_build_func(
     match &variant.fields {
         syn::Fields::Named(fields) => {
             // Each error variant has one or more labels (e.g. #[label(...)]), 
-            // get the labels for for this variant.
+            // get the labels for this variant.
             let labels = get_labels(report_type, variant)?;
 
             // The variant can also have a note (e.g. #[note(...)]).
@@ -176,8 +176,8 @@ fn gen_build_func(
             let labels = labels.iter().map(|(_, labels)| labels);
 
             let report_type = match report_type {
-                "error" => quote!(ReportType::Error),
-                "warning" => quote!(ReportType::Warning),
+                "error" => quote!(Level::Error),
+                "warning" => quote!(Level::Warning),
                 _  => unreachable!(),
             };
 
@@ -239,7 +239,7 @@ fn get_note(variant: &Variant) -> syn::Result<TokenStream> {
             ));
         }
 
-        // Get the argument of #[note(...)], which should be field that
+        // Get the argument of #[note(...)], which should be the field that
         // contains the note.
         let note_field = &attr_args.nested.first().unwrap();
 
@@ -304,9 +304,9 @@ fn get_labels(
 
         // The default label style depends on the type of report. It's red
         // for errors and yellow for warnings.
-        let mut style = match report_type {
-            "error" => quote!(Color::Red.style().bold()),
-            "warning" => quote!(Color::Yellow.style().bold()),
+        let mut level = match report_type {
+            "error" => quote!(Level::Error),
+            "warning" => quote!(Level::Warning),
             _ => unreachable!(),
         };
 
@@ -343,10 +343,10 @@ fn get_labels(
 
                 // Override the label style with the one specified as an
                 // argument. (e.g. #[label(..., style="<style>")]).
-                style = match style_name.as_str() {
-                    "error" => quote!(Color::Red.style().bold()),
-                    "warning" => quote!(Color::Yellow.style().bold()),
-                    "note" => quote!(Color::Cyan.style().bold()),
+                level = match style_name.as_str() {
+                    "error" => quote!(Level::Error),
+                    "warning" => quote!(Level::Warning),
+                    "note" => quote!(Level::Note),
                     s => {
                         return Err(syn::Error::new_spanned(
                             &last_arg,
@@ -405,7 +405,7 @@ fn get_labels(
         labels.push((
             label_span_field.clone(),
             quote!(
-                (#label_span_field, format!(#label_fmt_args), #style)
+                (#label_span_field, format!(#label_fmt_args), #level)
             ),
         ));
     }

@@ -1,0 +1,7 @@
+error: assignment mismatch
+ --> line:4:13
+  |
+4 |     for all x in test_proto2.map_string_int64 : ( true )
+  |             ^ this expects 1 value(s)
+  |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this produces 2 value(s)
+  |

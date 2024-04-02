@@ -1,0 +1,13 @@
+warning: non-boolean expression used as boolean
+ --> line:2:14
+  |
+2 |   condition: 2 and 3
+  |              - this expression is `integer` but is being used as `bool`
+  |
+  = note: non-zero integers are considered `true`, while zero is `false`warning: non-boolean expression used as boolean
+ --> line:2:20
+  |
+2 |   condition: 2 and 3
+  |                    - this expression is `integer` but is being used as `bool`
+  |
+  = note: non-zero integers are considered `true`, while zero is `false`

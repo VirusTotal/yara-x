@@ -1,0 +1,447 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version:
+    major: 4
+    minor: 0
+subsystem_version:
+    major: 4
+    minor: 0
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 7
+    minor: 10
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
+characteristics: 271
+dll_characteristics: 0
+timestamp: 1074384164 # 2004-01-18 00:02:44 UTC
+image_base: 4194304
+checksum: 0
+base_of_code: 4096
+base_of_data: 53248
+entry_point: 26948
+entry_point_raw: 26948
+section_alignment: 4096
+file_alignment: 4096
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 49152
+size_of_initialized_data: 28672
+size_of_uninitialized_data: 0
+size_of_image: 90112
+size_of_headers: 4096
+size_of_stack_reserve: 1048576
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 4
+number_of_imported_functions: 97
+number_of_delayed_imported_functions: 0
+number_of_resources: 5
+number_of_version_infos: 12
+number_of_imports: 4
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 0
+version_info:
+    "Comments": ""
+    "CompanyName": "MONETA"
+    "FileDescription": "MONETA Installer"
+    "FileVersion": "2.530"
+    "InternalName": "MONETA"
+    "LegalCopyright": "Copyright MONETA"
+    "LegalTrademarks": ""
+    "OriginalFilename": "Moneta_MiTs330_ￅﾰ﾿￲.exe"
+    "PrivateBuild": ""
+    "ProductName": "MONETA"
+    "ProductVersion": "2.530"
+    "SpecialBuild": ""
+version_info_list:
+  - key: "Comments"
+    value: ""
+  - key: "CompanyName"
+    value: "MONETA"
+  - key: "FileDescription"
+    value: "MONETA Installer"
+  - key: "FileVersion"
+    value: "2.530"
+  - key: "InternalName"
+    value: "MONETA"
+  - key: "LegalCopyright"
+    value: "Copyright MONETA"
+  - key: "LegalTrademarks"
+    value: ""
+  - key: "OriginalFilename"
+    value: "Moneta_MiTs330_ￅﾰ﾿￲.exe"
+  - key: "PrivateBuild"
+    value: ""
+  - key: "ProductName"
+    value: "MONETA"
+  - key: "ProductVersion"
+    value: "2.530"
+  - key: "SpecialBuild"
+    value: ""
+rich_signature:
+    offset: 128
+    length: 88
+    key: 326150311
+    raw_data: "\xe3\xc9\x1e@\xa7\xa8p\x13\xa7\xa8p\x13\xa7\xa8p\x13]\x8bi\x13\xa5\xa8p\x13\xa2\xa4\x7f\x13\xb3\xa8p\x13\xa2\xa4/\x13\xc2\xa8p\x13\xb4\xa0-\x13\xa5\xa8p\x13$\xa0-\x13\xa2\xa8p\x13\xa7\xa8q\x13\xc8\xa8p\x13\xa2\xa4\x10\x13\xa0\xa8p\x13K\xa3.\x13\xa6\xa8p\x13\xa2\xa4*\x13\xa6\xa8p\x13"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xfa#\x19\x00\x02\x00\x00\x00\x05\x0c\x0f\x00\x14\x00\x00\x00\x05\x0c_\x00e\x00\x00\x00\x13\x08]\x00\x02\x00\x00\x00\x83\x08]\x00\x05\x00\x00\x00\x00\x00\x01\x00o\x00\x00\x00\x05\x0c`\x00\x07\x00\x00\x00\xec\x0b^\x00\x01\x00\x00\x00\x05\x0cZ\x00\x01\x00\x00\x00"
+    tools:
+      - toolid: 25
+        version: 9210
+        times: 2
+      - toolid: 15
+        version: 3077
+        times: 20
+      - toolid: 95
+        version: 3077
+        times: 101
+      - toolid: 93
+        version: 2067
+        times: 2
+      - toolid: 93
+        version: 2179
+        times: 5
+      - toolid: 1
+        version: 0
+        times: 111
+      - toolid: 96
+        version: 3077
+        times: 7
+      - toolid: 94
+        version: 3052
+        times: 1
+      - toolid: 90
+        version: 3077
+        times: 1
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1610612768
+    raw_data_size: 49152
+    raw_data_offset: 4096
+    virtual_address: 4096
+    virtual_size: 46980
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rdata"
+    full_name: ".rdata"
+    characteristics: 1073741888
+    raw_data_size: 12288
+    raw_data_offset: 53248
+    virtual_address: 53248
+    virtual_size: 11244
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".data"
+    full_name: ".data"
+    characteristics: 3221225536
+    raw_data_size: 8192
+    raw_data_offset: 65536
+    virtual_address: 65536
+    virtual_size: 13848
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 1073741888
+    raw_data_size: 8192
+    raw_data_offset: 73728
+    virtual_address: 81920
+    virtual_size: 7168
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 62280
+    size: 100
+  - virtual_address: 81920
+    size: 7168
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 62184
+    size: 72
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 53248
+    size: 404
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_version:
+    major: 4
+    minor: 0
+resources:
+  - length: 3640
+    rva: 82272
+    offset: 74080
+    type: RESOURCE_TYPE_BITMAP
+    id: 104
+    language: 1033
+  - length: 120
+    rva: 85912
+    offset: 77720
+    type: RESOURCE_TYPE_BITMAP
+    id: 105
+    language: 1033
+  - length: 2216
+    rva: 86032
+    offset: 77840
+    type: RESOURCE_TYPE_ICON
+    id: 1
+    language: 1033
+  - length: 20
+    rva: 88248
+    offset: 80056
+    type: RESOURCE_TYPE_GROUP_ICON
+    id: 103
+    language: 1033
+  - length: 820
+    rva: 88268
+    offset: 80076
+    type: RESOURCE_TYPE_VERSION
+    id: 1
+    language: 1033
+import_details:
+  - library_name: "KERNEL32.dll"
+    number_of_functions: 81
+    functions:
+      - name: "VirtualFree"
+        rva: 53280
+      - name: "VirtualAlloc"
+        rva: 53284
+      - name: "RemoveDirectoryA"
+        rva: 53288
+      - name: "FindClose"
+        rva: 53292
+      - name: "FindNextFileA"
+        rva: 53296
+      - name: "DeleteFileA"
+        rva: 53300
+      - name: "FindFirstFileA"
+        rva: 53304
+      - name: "WriteFile"
+        rva: 53308
+      - name: "MulDiv"
+        rva: 53312
+      - name: "WaitForSingleObject"
+        rva: 53316
+      - name: "CreateProcessA"
+        rva: 53320
+      - name: "SetFileAttributesA"
+        rva: 53324
+      - name: "SetFileTime"
+        rva: 53328
+      - name: "GetFileSize"
+        rva: 53332
+      - name: "CreateDirectoryA"
+        rva: 53336
+      - name: "GetTempFileNameA"
+        rva: 53340
+      - name: "GetTempPathA"
+        rva: 53344
+      - name: "GetModuleFileNameA"
+        rva: 53348
+      - name: "GetSystemInfo"
+        rva: 53352
+      - name: "VirtualProtect"
+        rva: 53356
+      - name: "FlushFileBuffers"
+        rva: 53360
+      - name: "SetFilePointer"
+        rva: 53364
+      - name: "SetEndOfFile"
+        rva: 53368
+      - name: "CreateFileMappingA"
+        rva: 53372
+      - name: "MapViewOfFile"
+        rva: 53376
+      - name: "UnmapViewOfFile"
+        rva: 53380
+      - name: "CloseHandle"
+        rva: 53384
+      - name: "ReadFile"
+        rva: 53388
+      - name: "CreateFileA"
+        rva: 53392
+      - name: "GetLocaleInfoA"
+        rva: 53396
+      - name: "GetModuleHandleA"
+        rva: 53400
+      - name: "GetStartupInfoA"
+        rva: 53404
+      - name: "GetCommandLineA"
+        rva: 53408
+      - name: "GetVersionExA"
+        rva: 53412
+      - name: "HeapAlloc"
+        rva: 53416
+      - name: "HeapFree"
+        rva: 53420
+      - name: "ExitProcess"
+        rva: 53424
+      - name: "GetProcAddress"
+        rva: 53428
+      - name: "TerminateProcess"
+        rva: 53432
+      - name: "GetCurrentProcess"
+        rva: 53436
+      - name: "GetStdHandle"
+        rva: 53440
+      - name: "UnhandledExceptionFilter"
+        rva: 53444
+      - name: "FreeEnvironmentStringsA"
+        rva: 53448
+      - name: "GetEnvironmentStrings"
+        rva: 53452
+      - name: "FreeEnvironmentStringsW"
+        rva: 53456
+      - name: "WideCharToMultiByte"
+        rva: 53460
+      - name: "GetLastError"
+        rva: 53464
+      - name: "GetEnvironmentStringsW"
+        rva: 53468
+      - name: "SetHandleCount"
+        rva: 53472
+      - name: "GetFileType"
+        rva: 53476
+      - name: "DeleteCriticalSection"
+        rva: 53480
+      - name: "TlsAlloc"
+        rva: 53484
+      - name: "SetLastError"
+        rva: 53488
+      - name: "GetCurrentThreadId"
+        rva: 53492
+      - name: "TlsFree"
+        rva: 53496
+      - name: "TlsSetValue"
+        rva: 53500
+      - name: "TlsGetValue"
+        rva: 53504
+      - name: "HeapDestroy"
+        rva: 53508
+      - name: "HeapCreate"
+        rva: 53512
+      - name: "LeaveCriticalSection"
+        rva: 53516
+      - name: "EnterCriticalSection"
+        rva: 53520
+      - name: "HeapReAlloc"
+        rva: 53524
+      - name: "LoadLibraryA"
+        rva: 53528
+      - name: "GetACP"
+        rva: 53532
+      - name: "GetOEMCP"
+        rva: 53536
+      - name: "GetCPInfo"
+        rva: 53540
+      - name: "InitializeCriticalSection"
+        rva: 53544
+      - name: "RtlUnwind"
+        rva: 53548
+      - name: "InterlockedExchange"
+        rva: 53552
+      - name: "VirtualQuery"
+        rva: 53556
+      - name: "SetStdHandle"
+        rva: 53560
+      - name: "QueryPerformanceCounter"
+        rva: 53564
+      - name: "GetTickCount"
+        rva: 53568
+      - name: "GetCurrentProcessId"
+        rva: 53572
+      - name: "GetSystemTimeAsFileTime"
+        rva: 53576
+      - name: "HeapSize"
+        rva: 53580
+      - name: "LCMapStringA"
+        rva: 53584
+      - name: "MultiByteToWideChar"
+        rva: 53588
+      - name: "LCMapStringW"
+        rva: 53592
+      - name: "GetStringTypeA"
+        rva: 53596
+      - name: "GetStringTypeW"
+        rva: 53600
+  - library_name: "USER32.dll"
+    number_of_functions: 7
+    functions:
+      - name: "GetDC"
+        rva: 53620
+      - name: "SetCursor"
+        rva: 53624
+      - name: "ReleaseDC"
+        rva: 53628
+      - name: "MessageBoxA"
+        rva: 53632
+      - name: "InvalidateRect"
+        rva: 53636
+      - name: "LoadCursorA"
+        rva: 53640
+      - name: "LoadBitmapA"
+        rva: 53644
+  - library_name: "GDI32.dll"
+    number_of_functions: 7
+    functions:
+      - name: "SelectObject"
+        rva: 53248
+      - name: "GetDeviceCaps"
+        rva: 53252
+      - name: "BitBlt"
+        rva: 53256
+      - name: "DeleteObject"
+        rva: 53260
+      - name: "DeleteDC"
+        rva: 53264
+      - name: "StretchBlt"
+        rva: 53268
+      - name: "CreateCompatibleDC"
+        rva: 53272
+  - library_name: "SHLWAPI.dll"
+    number_of_functions: 2
+    functions:
+      - name: "PathRemoveFileSpecA"
+        rva: 53608
+      - name: "PathCombineA"
+        rva: 53612
+is_signed: false
+overlay:
+    offset: 81920
+    size: 1102273

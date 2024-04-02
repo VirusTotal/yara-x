@@ -3,8 +3,8 @@ use yara_x_macros::Error as Err;
 
 use crate::ast::Span;
 use crate::parser::grammar::Rule;
+use crate::report::Level;
 use crate::report::ReportBuilder;
-use crate::report::ReportType;
 
 /// An error occurred while parsing YARA rules.
 ///

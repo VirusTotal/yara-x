@@ -1,0 +1,6 @@
+error: invalid pattern `$a`
+ --> line:3:10
+  |
+3 |     $a = ""
+  |          ^^ this pattern is too short
+  |

@@ -1,0 +1,6 @@
+error: syntax error
+ --> line:1:23
+  |
+1 | rule test { meta: a = condition: true }
+  |                       ^ expected `false`, `true`, number, or string literal
+  |

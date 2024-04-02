@@ -126,12 +126,12 @@ fn entropy_data(ctx: &ScanContext, offset: i64, length: i64) -> Option<f64> {
     let length: usize = length.try_into().ok()?;
     let start: usize = offset.try_into().ok()?;
     let end = cmp::min(ctx.scanned_data().len(), start.saturating_add(length));
-    entropy(ctx.scanned_data().get(start..end)?)
+    Some(entropy(ctx.scanned_data().get(start..end)?))
 }
 
 #[module_export(name = "entropy")]
 fn entropy_string(ctx: &ScanContext, s: RuntimeString) -> Option<f64> {
-    entropy(s.as_bstr(ctx).as_bytes())
+    Some(entropy(s.as_bstr(ctx).as_bytes()))
 }
 
 #[module_export(name = "deviation")]
@@ -206,9 +206,9 @@ fn monte_carlo_pi_string(ctx: &ScanContext, s: RuntimeString) -> Option<f64> {
     monte_carlo_pi(s.as_bstr(ctx).as_bytes())
 }
 
-fn entropy(data: &[u8]) -> Option<f64> {
+fn entropy(data: &[u8]) -> f64 {
     if data.is_empty() {
-        return None;
+        return 0.0;
     }
 
     let mut distribution = [0u64; 256];
@@ -224,7 +224,7 @@ fn entropy(data: &[u8]) -> Option<f64> {
         }
     }
 
-    Some(entropy)
+    entropy
 }
 
 fn deviation(data: &[u8], mean: f64) -> Option<f64> {
@@ -456,6 +456,16 @@ mod tests {
             rule test {
                 condition:
                     math.entropy("AABB") == 1.0
+            }"#,
+            &[]
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.entropy("") == 0.0
             }"#,
             &[]
         );

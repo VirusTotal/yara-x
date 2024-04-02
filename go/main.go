@@ -1,10 +1,9 @@
 // Package yara_x provides Go bindings to the YARA-X library.
 package yara_x
 
-// #cgo CFLAGS: -I${SRCDIR}/../capi/include
-// #cgo !static_link LDFLAGS: -L${SRCDIR}/../target/release -lyara_x_capi
-// #cgo static_link LDFLAGS: ${SRCDIR}/../target/release/libyara_x_capi.a
-// #import <yara-x.h>
+// #cgo !static_link pkg-config: yara_x_capi
+// #cgo static_link pkg-config: --static yara_x_capi
+// #include <yara_x.h>
 import "C"
 import (
 	"errors"
@@ -88,7 +87,7 @@ type Rules struct{ cRules *C.YRX_RULES }
 // Scan some data with the compiled rules.
 //
 // Returns a slice with the rules that matched.
-func (r* Rules) Scan(data []byte) ([]*Rule, error) {
+func (r *Rules) Scan(data []byte) ([]*Rule, error) {
 	scanner := NewScanner(r)
 	return scanner.Scan(data)
 }

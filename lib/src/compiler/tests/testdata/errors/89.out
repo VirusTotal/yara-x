@@ -1,0 +1,6 @@
+error: syntax error
+ --> line:2:17
+  |
+2 |   condition: 1  1 == 1
+  |                 ^ expected `of`, closing brace `}`, dot `.`, opening bracket `[`, opening parenthesis `(`, operator, or percent `%`
+  |

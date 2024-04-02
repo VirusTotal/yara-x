@@ -1,0 +1,6 @@
+error: unexpected escape sequence
+ --> line:1:8
+  |
+1 | import "foo\x00"
+  |        ^^^^^^^^^ escape sequences are not allowed in this string
+  |

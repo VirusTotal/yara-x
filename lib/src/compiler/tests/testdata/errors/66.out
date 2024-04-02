@@ -1,0 +1,6 @@
+error: syntax error
+ --> line:1:13
+  |
+1 | rule test : condition: true }
+  |             ^ expected identifier
+  |

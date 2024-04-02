@@ -1,0 +1,6 @@
+error: invalid integer
+ --> line:3:20
+  |
+3 |     $a = "foo" xor(256)
+  |                    ^^^ this number is out of the valid range: [0, 255]
+  |

@@ -1,0 +1,5 @@
+import "test_proto2"
+rule test {
+  condition:
+    for all k,v in test_proto2.map_int64_string : ( k == "1" )
+}

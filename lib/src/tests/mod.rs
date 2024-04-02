@@ -275,7 +275,13 @@ fn string_operations() {
     condition_true!(r#""タイトル" matches /タイトル/"#);
     condition_true!(r#""\xF7\xFF" matches /\xF7\xFF/"#);
     condition_true!(r#""\xe2\x28\xa1" matches /\xe2\x28\xa1/"#);
-    condition_true!(r#""🙈🙉🙊" matches /.../"#);
+
+    // By default, regexps don't match unicode, each dot (.) matches
+    // a single byte, not a character. By turning on unicode support
+    // with the `(?u)` prefix we make the dot to match unicode
+    // characters.
+    condition_false!(r#""🙈🙉🙊" matches /^...$/"#);
+    condition_true!(r#""🙈🙉🙊" matches /(?u)^...$/"#);
 }
 
 #[test]
@@ -1288,12 +1294,14 @@ fn regexp_patterns_4() {
     pattern_match!(r"/\w\w\w\B/", b"abcd", b"abc");
     pattern_match!(r"/\B\w\w\w/", b"abcd", b"bcd");
     pattern_false!(r"/\B\w\w\w\B/", b"abcd");
-    pattern_match!(r"/\<abc/", b"abc", b"abc");
-    pattern_match!(r"/abc\>/", b"abc", b"abc");
+    pattern_match!(r"/\<abc/", b"<abc", b"<abc");
+    pattern_match!(r"/abc\>/", b"abc>", b"abc>");
     pattern_match!(r"/\b{start}abc/", b"abc", b"abc");
     pattern_match!(r"/abc\b{end}/", b"abc", b"abc");
-    pattern_match!(r"/\<abc/", b" abc", b"abc");
-    pattern_match!(r"/abc\>/", b"abc ", b"abc");
+    pattern_match!(r"/\b{start}abc/", b" abc", b"abc");
+    pattern_match!(r"/abc\b{end}/", b"abc ", b"abc");
+    pattern_false!(r"/\<abc/", b" abc");
+    pattern_false!(r"/abc\>/", b"abc ");
     pattern_false!(r"/\<abc/", b"1abc");
     pattern_false!(r"/abc\>/", b"abc1");
 

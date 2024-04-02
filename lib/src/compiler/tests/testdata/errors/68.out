@@ -1,0 +1,6 @@
+error: syntax error
+ --> line:1:19
+  |
+1 | rule test { meta: condition: true }
+  |                   ^ expected identifier
+  |

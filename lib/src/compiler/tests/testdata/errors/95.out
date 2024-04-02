@@ -1,0 +1,6 @@
+error: unused pattern `$c`
+ --> line:5:6
+  |
+5 |      $c = "baz"
+  |      ^^ this pattern was not used in the condition
+  |

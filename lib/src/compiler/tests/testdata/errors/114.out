@@ -1,0 +1,8 @@
+error: invalid modifier combination: `base64wide` `nocase`
+ --> line:3:29
+  |
+3 |     $a = "foo" nocase ascii base64wide
+  |                             ^^^^^^^^^^ `base64wide` modifier used here
+  |                ^^^^^^ `nocase` modifier used here
+  |
+  = note: these two modifiers can't be used together

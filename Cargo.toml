@@ -3,14 +3,16 @@ version = "0.1.0"
 authors = ["Victor M. Alvarez <vmalvarez@virustotal.com>"]
 edition = "2021"
 homepage = "https://github.com/VirusTotal/yara-x"
+repository = "https://github.com/VirusTotal/yara-x"
 readme = "README.md"
 license = "MIT"
+keywords = ["pattern-matching", "cybersecurity", "forensics", "malware", "yara"]
 
 # When updating rust-version also update MSRV in:
 #   .github/workflows/tests.yaml
 #   .github/workflows/code_health.yaml
 #
-rust-version = "1.73.0"
+rust-version = "1.74.0"
 
 [workspace]
 members = [
@@ -28,74 +30,76 @@ resolver = "2"
 
 
 [workspace.dependencies]
-aho-corasick = "1.1.2"
-anyhow = "1.0.75"
-ariadne = "0.3.0"
-array-bytes = "6.2.0"
+aho-corasick = "1.1.3"
+annotate-snippets = "0.11.1"
+anyhow = "1.0.81"
+array-bytes = "6.2.2"
 ascii_tree = "0.1.1"
 authenticode-parser = "0.5.0"
 base64 = "0.22.0"
 bincode = "1.3.3"
 bitmask = "0.5.0"
 bitvec = "1.0.1"
-bstr = "1.8.0"
+bstr = "1.9.1"
 cbindgen = "0.26.0"
-chrono = "0.4.34"
-clap = "4.4.8"
-crc32fast = "1.3.2"
-criterion = "0.5.1"
+chrono = "0.4.35"
+clap = "4.5.3"
+crc32fast = "1.4.0"
 enable-ansi-support = "0.2.1"
-env_logger = "0.11.1"
-fmmap = "0.3.2"
-globwalk = "0.9.0"
+env_logger = "0.11.3"
+fmmap = "0.3.3"
+globwalk = "0.9.1"
 goldenfile = "1.6.0"
+ihex = "3.0.0"
 indenter = "0.3.3"
-indexmap = "2.1.0"
+indexmap = "2.2.6"
 intaglio = "1.9.1"
-itertools = "0.12.0"
+itertools = "0.12.1"
 lazy_static = "1.4.0"
 line-span = "0.1.5"
-linkme = "0.3"
-log = "0.4"
+linkme = "0.3.25"
+log = "0.4.21"
 md5 = "0.7.0"
 sha1 = "0.10.6"
-sha2 = "0.10.7"
+sha2 = "0.10.8"
 # Using tlsh-fixed instead of tlsh because tlsh-fixed includes a fix for this
 # issue: https://github.com/1crcbl/tlsh-rs/issues/2.
 tlsh-fixed = "0.1.1"
 magic = "0.16.2"
-memchr = "2.6.4"
+memchr = "2.7.1"
 memx = "0.1.28"
 nom = "7.1.3"
-num-traits = "0.2"
-num-derive = "0.4.1"
-pest = "2.7.5"
-pest_derive = "2.7.5"
+num-traits = "0.2.18"
+num-derive = "0.4.2"
+pest = "2.7.8"
+pest_derive = "2.7.8"
 pretty_assertions = "1.4.0"
 protobuf = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8a7" }
 protobuf-codegen = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8a7" }
 protobuf-json-mapping = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8a7" }
 protobuf-parse = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8a7" }
 protobuf-support = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8a7" }
-regex-syntax = { git = "https://github.com/plusvic/regex.git", rev = "50a708b" }
-regex-automata = { git = "https://github.com/plusvic/regex.git", rev = "50a708b" }
+rayon = "1.5.3"
+regex-syntax = "0.8.3"
+regex-automata = "0.4.6"
 roxmltree = "0.19.0"
 rustc-hash = "1.1.0"
-smallvec = "1.10.0"
+smallvec = "1.13.2"
 serde = "1.0"
 serde_json = "1.0"
-thiserror = "1.0.50"
+thiserror = "1.0.58"
 uuid = "1.4.1"
 walrus = "0.20.2"
-wasmtime = "18.0.2"
+wasmtime = "19.0.0"
 yaml-rust = "0.4.5"
-yansi = "0.5.1"
+yansi = "1.0.1"
 yara-x = { path = "lib" }
 yara-x-fmt = { path = "fmt" }
 yara-x-macros = { path = "macros" }
 yara-x-parser = { path = "parser" }
 yara-x-proto = { path = "proto" }
 yara-x-proto-yaml = { path = "proto-yaml" }
+zip = "0.6.2"
 
 # Special profile that builds a release binary with link-time optimization. 
 # Compiling with this profile takes a while, but the resulting binary is

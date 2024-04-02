@@ -1,0 +1,6 @@
+rule test {
+  condition:
+    for 1 n in (1, 2, "3") : (
+      n == 2
+    )
+}

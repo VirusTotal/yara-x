@@ -1,0 +1,6 @@
+error: wrong type
+ --> line:3:17
+  |
+3 |     1 of (true, 2, false)
+  |                 ^ expression should be `boolean`, but is `integer`
+  |
