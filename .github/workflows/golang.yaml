@@ -57,7 +57,7 @@ jobs:
       run: cargo install cargo-c
 
     - name: Build and install Rust library
-      run: cargo cinstall -p yara-x-capi --release --pkgconfigdir=${{ github.workspace }}
+      run: cargo cinstall -p yara-x-capi --release --pkgconfigdir=${{ github.workspace }} --includedir=${{ github.workspace }} --libdir=${{ github.workspace }}
 
     - name: Run Go tests
       run: |
