@@ -1,11 +1,14 @@
 // Light mode
-$primary: rgb(231, 81, 21);
+$primary: rgb(114, 150, 239);
 
 // Dark mode
-$link-color-dark: rgb(231, 81, 21);
-$button-color-dark: rgb(248, 186, 17);
+$link-color-dark: rgb(134, 170, 249);
+$button-color-dark: rgb(134, 170, 249);
+$body-bg-dark: rgb(22, 22, 37);
+
 
 :root,
 ::backdrop {
-  --sl-color-accent-high: rgb(231, 81, 21);
+  --sl-color-accent-high: rgb(134, 170, 249);
 }
+

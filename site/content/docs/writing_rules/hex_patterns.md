@@ -1,5 +1,5 @@
 ---
-title: "Patterns"
+title: "Hex patterns"
 description: ""
 summary: ""
 date: 2023-09-07T16:13:18+02:00
@@ -8,8 +8,8 @@ draft: false
 menu:
   docs:
     parent: ""
-    identifier: "patterns"
-weight: 220
+    identifier: "hex_patterns"
+weight: 230
 toc: true
 seo:
   title: "" # custom title (optional)
@@ -18,66 +18,16 @@ seo:
   noindex: false # false (default) or true
 ---
 
-There are three types of patterns in YARA: text patterns, hex patterns and
-regular expressions. Hex patterns are used for defining raw sequences of
-bytes, while text patterns and regular expressions are useful for defining
-portions of legible text. However, text patterns and regular expressions can be
-also used for representing raw bytes by mean of escape sequences as will be
-shown below.
+Hex patterns allow to search for arbitrary byte sequences. They allow four
+special constructions that make them more flexible: wildcards, negations, jumps,
+and alternatives.
 
-## Text patterns
+### Wildcards
 
-Text patterns are the most common type of patterns in YARA rules. They are
-simply plain text strings, like in the following example:
-
-```yara
-rule TextExample{
-    strings:
-        $text = "foobar"
-    condition:
-        $text
-}
-```
-
-This is the simplest case: an ASCII-encoded, case-sensitive string. However,
-text patterns can be by modifiers that alter the way in which the pattern will
-be interpreted. Those modifiers are appended at the end of the pattern
-definition, as discussed below.
-
-### "nocase" modifier
-
-Text patterns in YARA are case-sensitive by default, but you can turn your
-pattern into a case-insensitive one by appending the `nocase` modifier at the
-end of the pattern definition:
-
-```yara
-rule CaseInsensitiveTextExample {
-    strings:
-        $text = "foobar" nocase
-    condition:
-        $text
-}
-```
-
-With the `nocase` modifier the pattern "foobar" will match "Foobar", "FOOBAR",
-and "fOoBaR". This modifier can be used in conjunction with any modifier, except
-`base64`, `base64wide` and `xor`.
-
-### "wide" modifier
-
-### "xor" modifier
-
-### "fullword" modifier
-
-### "base64" modifier
-
-## Hex patterns
-
-Hex patterns allow four special constructions that make them more flexible:
-wildcards, `not` operators, jumps, and alternatives. Wildcards are simply
-placeholders that you can put in the string indicating that some bytes
-are unknown, and they should match anything. The placeholder character is the
-question mark (`?`). Here you have an example of a hex pattern with wildcards:
+Wildcards are simply placeholders that you can put in the pattern indicating
+that some bytes are unknown, and they should match anything. The placeholder
+character is the question mark (`?`). Here you have an example of a hex pattern
+with wildcards:
 
 ```yara
 rule WildcardExample {
@@ -90,6 +40,8 @@ rule WildcardExample {
 
 As shown in the example the wildcards are nibble-wise, which means that you can
 define just one nibble of the byte and leave the other unknown (e.g: `A?`).
+
+### Negation
 
 You may also specify that a byte is not a specific value. For that you can use
 the `not` operator:
@@ -109,6 +61,8 @@ not operator. This defines that the byte in that location can take any value
 except the value specified. In this case the first string will only match if the
 byte is not `00`. The not operator can also be used with nibble-wise wildcards,
 so the second string will only match if the second nibble is not zero.
+
+### Jumps
 
 Wildcards and `not` operators are useful when defining patterns whose content
 can vary, but you know the length of the variable chunks, however, this is not
@@ -191,8 +145,10 @@ FE 39 45 [-] 89 00
 
 The first one means `[10-infinite]`, the second one means `[0-infinite]`.
 
+### Alternatives
+
 There are also situations in which you may want to provide different
-alternatives for a given fragment of your hex string. In those situations you
+alternatives for a given fragment of your hex pattern. In those situations you
 can use a syntax which resembles a regular expression:
 
 ```yara
@@ -204,7 +160,7 @@ rule AlternativesExample1 {
 }
 ```
 
-This rule will match any file containing `F42362B445` or `F4235645`.
+This rule will match any file containing `F4 23 62 B4 45` or `F4 23 56 45`.
 
 But more than two alternatives can be also expressed. In fact, there are no
 limits to the amount of alternative sequences you can provide, and neither to
@@ -221,5 +177,3 @@ rule AlternativesExample2 {
 
 As can be seen also in the above example, patterns containing wildcards are
 allowed as part of alternative sequences.
-
-## Regular expressions

@@ -24,7 +24,7 @@ YARA-X without changes, however, some differences are inevitable.
 
 Our guiding principles are:
 
-* Incompatibilities are nuisance for our users and should be minimized.
+* Incompatibilities are a nuisance for our users and should be minimized.
 * When some incompatibility exists it should be either a small one (i.e:
   unlikely to happen in real-life rules), or it should be for a good reason.
 
