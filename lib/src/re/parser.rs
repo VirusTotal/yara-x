@@ -131,6 +131,7 @@ impl Parser {
                     ))
                 }
                 ErrorKind::RepetitionMissing
+                | ErrorKind::RepetitionCountInvalid
                 | ErrorKind::RepetitionCountUnclosed
                 | ErrorKind::RepetitionCountDecimalEmpty => {
                     Some("did you mean `\\{` instead of `{`?".to_string())
