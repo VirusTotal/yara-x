@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::mem::replace;
 
 use regex_syntax as re;
-use regex_syntax::ast::{AssertionKind, Ast, Literal, LiteralKind};
+use regex_syntax::ast::{AssertionKind, Ast, ErrorKind, Literal, LiteralKind};
 use thiserror::Error;
 
 use crate::re::hir::Hir;
@@ -16,6 +16,7 @@ pub(crate) enum Error {
     SyntaxError {
         msg: String,
         span: re::ast::Span,
+        note: Option<String>,
     },
     MixedGreediness {
         is_greedy_1: bool,
@@ -117,10 +118,28 @@ impl Parser {
         let mut parser =
             re::ast::parse::ParserBuilder::new().empty_min_range(true).build();
 
-        let ast = parser.parse(regexp.source()).map_err(|err| {
+        let re_src = regexp.source();
+
+        let ast = parser.parse(re_src).map_err(|err| {
+            let span = err.span();
+            let note = match err.kind() {
+                ErrorKind::EscapeUnrecognized => {
+                    let esc_seq = &re_src[span.start.offset..span.end.offset];
+                    Some(format!(
+                        "did you mean `\\{}` instead of `{}`?",
+                        esc_seq, esc_seq
+                    ))
+                }
+                ErrorKind::RepetitionCountUnclosed
+                | ErrorKind::RepetitionCountDecimalEmpty => {
+                    Some("did you mean `\\{` instead of `{`?".to_string())
+                }
+                _ => None,
+            };
             Error::SyntaxError {
                 msg: err.kind().to_string(),
                 span: *err.span(),
+                note,
             }
         })?;
 
@@ -156,6 +175,7 @@ impl Parser {
                 Error::SyntaxError {
                     msg: err.kind().to_string(),
                     span: *err.span(),
+                    note: None,
                 }
             })?;
 
