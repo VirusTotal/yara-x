@@ -130,7 +130,8 @@ impl Parser {
                         esc_seq, esc_seq
                     ))
                 }
-                ErrorKind::RepetitionCountUnclosed
+                ErrorKind::RepetitionMissing
+                | ErrorKind::RepetitionCountUnclosed
                 | ErrorKind::RepetitionCountDecimalEmpty => {
                     Some("did you mean `\\{` instead of `{`?".to_string())
                 }
