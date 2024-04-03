@@ -1616,16 +1616,12 @@ fn quantifier_from_cst<'src>(
         GrammarRule::k_ALL => Quantifier::All { span: ctx.span(&node) },
         GrammarRule::k_ANY => Quantifier::Any { span: ctx.span(&node) },
         GrammarRule::k_NONE => Quantifier::None { span: ctx.span(&node) },
+        GrammarRule::expr => Quantifier::Expr(expr_from_cst(ctx, node)?),
         GrammarRule::primary_expr => {
             let expr = primary_expr_from_cst(ctx, node)?;
-            // If there's some node after the expression it should be the
-            // percent `%` symbol.
-            if let Some(node) = children.next() {
-                expect!(node, GrammarRule::PERCENT);
-                Quantifier::Percentage(expr)
-            } else {
-                Quantifier::Expr(expr)
-            }
+            // The expression must be followed by the percent `%` symbol.
+            expect!(children.next().unwrap(), GrammarRule::PERCENT);
+            Quantifier::Percentage(expr)
         }
         rule => unreachable!("{:?}", rule),
     };
