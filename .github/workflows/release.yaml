@@ -40,14 +40,6 @@ jobs:
     - name: Checkout sources
       uses: actions/checkout@v4
 
-    - name: Install dependencies
-      id: vcpkg
-      uses: johnwason/vcpkg-action@v6
-      with:
-        pkgs: openssl
-        triplet: ${{ matrix.vcpkg_openssl_triplet }}
-        token: ${{ github.token }}
-
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@master
       with:
@@ -61,6 +53,14 @@ jobs:
         if [ "${{ github.ref_name }}" != "v$version" ]; then
           exit 1
         fi
+
+    - name: Install dependencies
+      id: vcpkg
+      uses: johnwason/vcpkg-action@v6
+      with:
+        pkgs: openssl
+        triplet: ${{ matrix.vcpkg_openssl_triplet }}
+        token: ${{ github.token }}
 
     - name: Build
       run: cargo build --bin yr --profile release-lto --target ${{ matrix.target }} ${{ matrix.args }}
