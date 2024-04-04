@@ -53,6 +53,15 @@ jobs:
       with:
         toolchain: ${{ matrix.rust }}
 
+    - name: Check version number
+      shell: bash
+      run: |
+        set -ex
+        version=`cargo pkgid --manifest-path lib/Cargo.toml | cut -d "@" -f2`
+        if [ "${{ github.ref_name }}" != "v${{ version }}" ]; then
+          exit 1
+        fi
+
     - name: Build
       run: cargo build --bin yr --profile release-lto --target ${{ matrix.target }} ${{ matrix.args }}
       env:
