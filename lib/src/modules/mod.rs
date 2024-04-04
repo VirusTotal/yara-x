@@ -113,8 +113,7 @@ lazy_static! {
         //
         // `add_modules.rs` will contain an `add_module!` statement for each
         // protobuf in `src/modules/protos` defining a YARA module.
-        include!(concat!(env!("OUT_DIR"), "/add_modules.rs"));
-
+        include!("add_modules.rs");
         modules
     };
 }
