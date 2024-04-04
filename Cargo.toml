@@ -75,11 +75,11 @@ num-derive = "0.4.2"
 pest = "2.7.8"
 pest_derive = "2.7.8"
 pretty_assertions = "1.4.0"
-protobuf = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8a7" }
-protobuf-codegen = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8a7" }
-protobuf-json-mapping = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8a7" }
-protobuf-parse = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8a7" }
-protobuf-support = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8a7" }
+protobuf = "3.4.0"
+protobuf-codegen = "3.4.0"
+protobuf-json-mapping = "3.4.0"
+protobuf-parse = "3.4.0"
+protobuf-support = "3.4.0"
 rayon = "1.5.3"
 regex-syntax = "0.8.3"
 regex-automata = "0.4.6"
@@ -95,11 +95,11 @@ wasmtime = "19.0.1"
 yaml-rust = "0.4.5"
 yansi = "1.0.1"
 yara-x = { path = "lib" }
-yara-x-fmt = { path = "fmt" }
-yara-x-macros = { path = "macros" }
-yara-x-parser = { path = "parser" }
-yara-x-proto = { path = "proto" }
-yara-x-proto-yaml = { path = "proto-yaml" }
+yara-x-fmt = { path = "fmt", version = "0.1.0" }
+yara-x-macros = { path = "macros", version = "0.1.0" }
+yara-x-parser = { path = "parser", version = "0.1.0" }
+yara-x-proto = { path = "proto", version = "0.1.0" }
+yara-x-proto-yaml = { path = "proto-yaml", version = "0.1.0" }
 zip = "0.6.2"
 
 # Special profile that builds a release binary with link-time optimization. 
