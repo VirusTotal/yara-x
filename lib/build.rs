@@ -21,16 +21,9 @@ fn main() {
     proto_compiler
         .pure()
         .cargo_out_dir("protos")
-        .include("../proto/src")
-        .include("../proto-yaml/src")
-        .include("src/modules/protos")
-        .input("../proto/src/yara.proto")
-        .input("../proto-yaml/src/yaml.proto");
-
-    proto_parser
-        .include("../proto/src")
-        .include("../proto-yaml/src")
         .include("src/modules/protos");
+
+    proto_parser.include("src/modules/protos");
 
     // All `.proto` files in src/modules/protos must be compiled
     for entry in fs::read_dir("src/modules/protos").unwrap() {
