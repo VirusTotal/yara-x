@@ -1,5 +1,5 @@
 ---
-title: "Conditions"
+title: "Rule conditions"
 description: ""
 summary: ""
 date: 2023-09-07T16:13:18+02:00
@@ -41,7 +41,7 @@ rule Example {
 }
 ```
 
-### Operators
+## Operators
 
 The following table lists the precedence and associativity of all operators. The
 table is sorted in descending precedence order. When parsing an expression,
@@ -87,7 +87,7 @@ direction of their associativity.
 | 2          | `and`         | Logical and                             | Left-to-right |
 | 1          | `or`          | Logical or                              | Left-to-right |
 
-### Counting pattern occurrences
+## Counting pattern occurrences
 
 Sometimes we need to know not only if a certain pattern is present or not, but
 how many times the pattern appears in the data. The number of occurrences of
@@ -115,7 +115,7 @@ occurrences of "dummy1" in the last 500 bytes of the data.
 #a in (filesize-500..filesize) == 2
 ```
 
-### Finding patterns at specific offsets
+## Finding patterns at specific offsets
 
 In most cases, when we use a pattern identifier in a condition, we want to check
 if the associated pattern appears anywhere within the data. However, sometimes
@@ -163,7 +163,7 @@ the second one `@a[2]`, and so on. If you provide an index greater than the
 number of occurrences of the pattern, the result will be a NaN (Not A Number)
 value.
 
-### Match lengths
+## Match lengths
 
 For many regular expressions and hex patterns containing jumps, the length of
 the match will vary. If you have the regular expression `/fo*/` the strings "
@@ -187,7 +187,7 @@ further below it. Operators within the same row have the same precedence, if
 they appear together in a expression the associativity determines how they are
 grouped.
 
-### File size
+## File size
 
 Pattern identifiers are not the only variables that can appear in a condition (
 in fact, rules can be defined without patterns, as will be shown below), there
@@ -207,7 +207,7 @@ postfix, when attached to a numerical constant, automatically multiplies the
 value of the constant by 1024. The MB postfix can be used to multiply the value
 by 2^20. Both postfixes can be used only with decimal constants.
 
-### Reading data at a given offset
+## Reading data at a given offset
 
 There are many situations in which you may want to write conditions that depend
 on data stored at a certain file offset. In those situations you can use one of
@@ -248,7 +248,7 @@ rule IsPE {
 }
 ```
 
-### Sets of patterns
+## Sets of patterns
 
 There are circumstances in which it is necessary to express that the data should
 contain a certain number patterns from a given set. None of the patterns in the
@@ -348,3 +348,56 @@ Or in a specific offset, like this:
 ```yara
 any of ($a*) at 0
 ```
+
+## Applying the same condition to many patterns
+
+There is another operator very similar to `of` but even more powerful,
+the `for..of` operator. The syntax is:
+
+```yara
+for <quantifier> of <pattern_set> : ( <boolean_expression> )
+```
+
+And it means: from those patterns in `<pattern_set>`, at least `<quantifier>` of
+them must satisfy `<boolean_expression>`. In other words: `<boolean_expression>`
+is evaluated for every pattern in `<pattern_set>` and there must be at
+least `<quantifier>` of them returning true.
+
+Of course, `<boolean_expression>` can be any boolean expression accepted in the
+condition section of a rule, except for one important detail: here you can (and
+should) use a dollar sign (`$`) as a place-holder for the pattern being
+evaluated.
+
+Take a look at the following expression:
+
+```yara
+for any of ($a, $b, $c) : ( $ at pe.entry_point  )
+```
+
+The `$` symbol in the boolean expression is not tied to any particular pattern,
+it will be `$a`, and then `$b`, and then `$c` in the three successive
+evaluations of the expression.
+
+Maybe you already realised that the `of` operator is a special case
+of `for..of`. The following expressions are the same:
+
+```yara
+any of ($a, $b, $c)
+```
+
+```yara
+for any of ($a, $b, $c) : ( $ )
+```
+
+You can also employ the symbols `#`, `@`, and `!` to make reference to the
+number of occurrences, the first offset, and the length of each pattern
+respectively.
+
+```yara
+for all of them : ( # > 3 )
+```
+
+```yara
+for all of ($a*) : ( @ > @b )
+```
+

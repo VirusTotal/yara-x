@@ -22,7 +22,7 @@ Hex patterns allow to search for arbitrary byte sequences. They allow four
 special constructions that make them more flexible: wildcards, negations, jumps,
 and alternatives.
 
-### Wildcards
+## Wildcards
 
 Wildcards are simply placeholders that you can put in the pattern indicating
 that some bytes are unknown, and they should match anything. The placeholder
@@ -41,7 +41,7 @@ rule WildcardExample {
 As shown in the example the wildcards are nibble-wise, which means that you can
 define just one nibble of the byte and leave the other unknown (e.g: `A?`).
 
-### Negation
+## Negation
 
 You may also specify that a byte is not a specific value. For that you can use
 the `not` operator:
@@ -62,7 +62,7 @@ except the value specified. In this case the first string will only match if the
 byte is not `00`. The not operator can also be used with nibble-wise wildcards,
 so the second string will only match if the second nibble is not zero.
 
-### Jumps
+## Jumps
 
 Wildcards and `not` operators are useful when defining patterns whose content
 can vary, but you know the length of the variable chunks, however, this is not
@@ -145,7 +145,7 @@ FE 39 45 [-] 89 00
 
 The first one means `[10-infinite]`, the second one means `[0-infinite]`.
 
-### Alternatives
+## Alternatives
 
 There are also situations in which you may want to provide different
 alternatives for a given fragment of your hex pattern. In those situations you

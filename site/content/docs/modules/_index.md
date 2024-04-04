@@ -1,6 +1,6 @@
 ---
-title: "Writing rules"
-description: "Describes how to write YARA rules"
+title: "Modules"
+description: "Describes how to use YARA modules"
 summary: ""
 date: 2023-09-07T16:12:37+02:00
 lastmod: 2023-09-07T16:12:37+02:00
@@ -8,8 +8,8 @@ draft: false
 menu:
   docs:
     parent: ""
-    identifier: "writing-yara-rules"
-weight: 200
+    identifier: "modules"
+weight: 300
 toc: true
 sidebar:
   collapsed: true

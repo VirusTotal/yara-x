@@ -31,7 +31,7 @@ Our guiding principles are:
 This document covers the differences between YARA-X and YARA. They are ordered
 by importance, with the most important differences first.
 
-### Stricter escaped characters in regular expressions
+## Stricter escaped characters in regular expressions
 
 YARA 4.x accepts invalid escaped characters in regular expressions, and simply
 treat them as the character itself. For instance, in `/foo\gbar/` the `\g`
@@ -72,7 +72,7 @@ YARA 4.4 introduced the `--strict-escape` argument that turns on a strict
 check on escaped characters and return an error in such cases. This is also
 the default behaviour in YARA-X.
 
-### Differences in base64 patterns
+## Differences in base64 patterns
 
 In YARA 4.x you can use the `base64` modifier with strings shorter than 3
 characters, but YARA-X requires at least 3 characters. In the other hand, YARA-X
@@ -88,7 +88,7 @@ the documentation:
 YARA-X doesn't suffer from these false positives, but the price to pay is that
 patterns must be at least 3 characters long.
 
-### Alphabets for base64 modifiers
+## Alphabets for base64 modifiers
 
 In YARA 4.x if you use both `base64` and `base64wide` in the same string they
 must use the same alphabet. If you specify a custom alphabet for `base64`, you
@@ -102,12 +102,12 @@ In YARA-X you can specify different alphabets for `base64` and `base64wide`
 in the same pattern. In the example above `base64` will use the default
 alphabet as always, while `base64wide` will use the custom alphabet.
 
-### Negative numbers as array indexes
+## Negative numbers as array indexes
 
 The expression `@a[-1]` is valid in YARA 4.x, but its value is always
 `undefined`. In YARA-X this is an error.
 
-### "of" statement accepts tuples of boolean expressions
+## "of" statement accepts tuples of boolean expressions
 
 In YARA 4.x the `of` statement accepts a tuple of pattern or rule identifiers.
 In both cases the identifiers can contain wildcards. For example, both of these
@@ -145,7 +145,7 @@ But this is not valid...
 1 of (some_rule*)
 ```
 
-### Using xor and fullword together
+## Using xor and fullword together
 
 In YARA 4.x the combination `xor` and `fullword` looks for the bytes before
 and after the XORed pattern and makes sure that they are not alphanumeric, so
@@ -160,7 +160,7 @@ which doesn't match `"mississippi" xor(1) fullword`. In other words, YARA-X
 searches for full words contained inside a longer XORed string, which is
 the intended behavior in most cases.
 
-### Jump bounds in hex patterns
+## Jump bounds in hex patterns
 
 In YARA 4.x the following hex pattern is invalid:
 
@@ -170,7 +170,7 @@ This is because the jump's upper and lower bounds can be expressed in base 10
 only, `0x00` and `0x100` are not valid bounds. In YARA-X hex and octal values
 are accepted.
 
-### Duplicate rule modifiers
+## Duplicate rule modifiers
 
 In YARA 4.x rules can have any number of `global` or `private` modifiers, for
 instance, the following is valid:

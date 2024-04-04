@@ -59,7 +59,7 @@ is found in the scanned data.
 You will learn more about how to write rule conditions in the [Conditions]({{<
 ref "conditions.md" >}}) section.
 
-### Metadata
+## Metadata
 
 Besides the pattern definition and condition sections, rules can also have a
 metadata section where you can put additional information about your rule. The
@@ -88,7 +88,7 @@ Note that identifier/value pairs defined in the metadata section cannot be used
 in the condition section, their only purpose is to store additional information
 about the rule.
 
-### Comments
+## Comments
 
 You can add comments to your YARA rules just as if it was a C source file, both
 single-line and multi-line C-style comments are supported.

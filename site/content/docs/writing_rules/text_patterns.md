@@ -35,7 +35,7 @@ text patterns can have modifiers that alter the way in which the pattern will
 be interpreted. Those modifiers are appended at the end of the pattern
 definition, as discussed below.
 
-### "nocase" modifier
+## "nocase" modifier
 
 Text patterns in YARA are case-sensitive by default, but you can turn your
 pattern into a case-insensitive one by appending the `nocase` modifier at the
@@ -54,7 +54,7 @@ With the `nocase` modifier the pattern "foobar" will match "Foobar", "FOOBAR",
 and "fOoBaR". This modifier can be used in conjunction with any modifier, except
 `base64`, `base64wide` and `xor`.
 
-### "wide" modifier
+## "wide" modifier
 
 The `wide` modifier can be used to search for strings encoded with two bytes per
 character, something typical in many executable binaries.
@@ -91,7 +91,7 @@ The `ascii` modifier can appear alone, without an accompanying `wide` modifier,
 but it's not necessary to write it because in absence of `wide` the string is
 assumed to be ASCII by default.
 
-### "xor" modifier
+## "xor" modifier
 
 The `xor` modifier can be used to search for strings that are XORed with a
 single byte.
@@ -175,7 +175,7 @@ rule XorExample5 {
 The above example will apply the bytes from 0x01 to 0xff, inclusively, to the
 string when searching. The general syntax is xor(minimum-maximum).
 
-### "fullword" modifier
+## "fullword" modifier
 
 Another modifier that can be applied to text patterns is `fullword`. This
 modifier guarantees that the pattern will match only if it appears in the file
@@ -183,7 +183,7 @@ delimited by non-alphanumeric characters. For instance, the string "domain", if
 defined as `fullword`, doesn't match "www.mydomain.com" but it
 matches "www.my-domain.com" and "www.domain.com".
 
-### "base64" modifier
+## "base64" modifier
 
 The `base64` modifier can be used to search for strings that have been base64
 encoded. A good explanation of the technique is at:
