@@ -12,6 +12,13 @@ homepage.workspace = true
 keywords.workspace = true
 rust-version.workspace = true
 
+# Exclude test files from the package published to crates.io, as there's a
+# limit of 10MB for the total package size.
+exclude = [
+    "src/modules/**/*.zip",
+    "src/modules/**/*.out"
+]
+
 [features]
 # When this feature is enabled the OpenSSL library is linked statically. 
 # However, you need to specify the path where the library and its header files
@@ -194,7 +201,6 @@ wasmtime = { workspace = true, features = ["cranelift", "parallel-compilation"] 
 yansi = { workspace = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true }
-yara-x-proto = { workspace = true }
 
 lingua = { version = "1.6.0", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
 

@@ -1,5 +1,6 @@
 mod check;
 mod compile;
+mod completion;
 mod debug;
 mod dump;
 mod fmt;
@@ -7,6 +8,7 @@ mod scan;
 
 pub use check::*;
 pub use compile::*;
+pub use completion::*;
 pub use debug::*;
 pub use dump::*;
 pub use fmt::*;
@@ -18,11 +20,12 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{anyhow, Context};
-use clap::Command;
+use clap::{command, crate_authors, Command};
 use crossterm::tty::IsTty;
 use serde_json::Value;
 use superconsole::{Component, Line, Lines, Span, SuperConsole};
 
+use crate::{commands, APP_HELP_TEMPLATE};
 use yara_x::{Compiler, Rules};
 use yara_x_parser::SourceCode;
 
@@ -37,6 +40,22 @@ pub fn command(name: &'static str) -> Command {
 {all-args}
 "#,
     )
+}
+
+pub fn cli() -> Command {
+    command!()
+        .author(crate_authors!("\n")) // requires `cargo` feature
+        .arg_required_else_help(true)
+        .help_template(APP_HELP_TEMPLATE)
+        .subcommands(vec![
+            commands::scan(),
+            commands::compile(),
+            commands::check(),
+            commands::debug(),
+            commands::dump(),
+            commands::fmt(),
+            commands::completion(),
+        ])
 }
 
 fn external_var_parser(

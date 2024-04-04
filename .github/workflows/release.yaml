@@ -40,6 +40,20 @@ jobs:
     - name: Checkout sources
       uses: actions/checkout@v4
 
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+
+    - name: Check version number
+      shell: bash
+      run: |
+        set -ex
+        version=`cargo pkgid --manifest-path lib/Cargo.toml | cut -d "@" -f2`
+        if [ "${{ github.ref_name }}" != "v$version" ]; then
+          exit 1
+        fi
+
     - name: Install dependencies
       id: vcpkg
       uses: johnwason/vcpkg-action@v6
@@ -47,11 +61,6 @@ jobs:
         pkgs: openssl
         triplet: ${{ matrix.vcpkg_openssl_triplet }}
         token: ${{ github.token }}
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: ${{ matrix.rust }}
 
     - name: Build
       run: cargo build --bin yr --profile release-lto --target ${{ matrix.target }} ${{ matrix.args }}

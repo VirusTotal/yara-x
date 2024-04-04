@@ -61,3 +61,11 @@ Examples:
 yr dump --module pe SOMEFILE
 yr dump --module pe --module dotnet SOMEFILE
 "#;
+
+pub const COMPLETION_LONG_HELP: &str = r#"Output shell completion code for the specified shell
+
+Examples:
+
+yr completion bash > $(brew --prefix)/etc/bash_completion.d/yr
+yr completion zsh > "${fpath[1]}/_kubectl"
+"#;

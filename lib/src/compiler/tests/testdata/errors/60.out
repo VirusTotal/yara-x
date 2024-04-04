@@ -4,3 +4,4 @@ error: invalid regular expression
 5 |     $b = /abc{}/
   |               ^ repetition quantifier expects a valid decimal
   |
+  = note: did you mean `\{` instead of `{`?

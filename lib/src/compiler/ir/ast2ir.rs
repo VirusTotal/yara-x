@@ -1267,7 +1267,7 @@ fn re_error_to_compile_error(
     err: re::parser::Error,
 ) -> CompileError {
     match err {
-        Error::SyntaxError { msg, span } => {
+        Error::SyntaxError { msg, span, note } => {
             CompileError::invalid_regexp(
                 report_builder,
                 msg,
@@ -1275,6 +1275,7 @@ fn re_error_to_compile_error(
                 // the start of the source file, here we make it relative to the
                 // source file.
                 regexp.span.subspan(span.start.offset, span.end.offset),
+                note,
             )
         }
         Error::MixedGreediness {
@@ -1332,8 +1333,6 @@ macro_rules! gen_unary_op {
         ) -> Result<Expr, Box<CompileError>> {
             let operand = Box::new(expr_from_ast(ctx, &expr.operand)?);
 
-            // The `not` operator accepts integers, floats and strings because
-            // those types can be casted to bool.
             check_type(
                 ctx,
                 operand.ty(),

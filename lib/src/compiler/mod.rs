@@ -1482,6 +1482,7 @@ impl<'a> Compiler<'a> {
                 &self.report_builder,
                 "regexp is too large".to_string(),
                 span,
+                None,
             )),
             _ => unreachable!(),
         })?;
@@ -1491,6 +1492,7 @@ impl<'a> Compiler<'a> {
                 &self.report_builder,
                 "this regexp can match empty strings".to_string(),
                 span,
+                None,
             )));
         }
 

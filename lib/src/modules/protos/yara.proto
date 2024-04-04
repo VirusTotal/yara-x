@@ -1,0 +1,53 @@
+// Protocol buffer that specifies the options that can be used in other protos
+// for controlling the generation of YARA modules.
+
+syntax = "proto2";
+
+package yara;
+
+import "google/protobuf/descriptor.proto";
+
+message ModuleOptions {
+  required string name = 1;
+  required string root_message = 2;
+  optional string rust_module = 3;
+  optional string cargo_feature = 4;
+}
+
+message FieldOptions {
+  optional string name = 1;
+  optional bool ignore = 2;
+}
+
+message MessageOptions {
+  optional string name = 1;
+}
+
+message EnumOptions {
+  optional string name = 1;
+  optional bool inline = 2;
+}
+
+message EnumValueOptions {
+  optional int64 i64 = 1;
+}
+
+extend google.protobuf.FileOptions {
+  optional ModuleOptions module_options = 51503;
+}
+
+extend google.protobuf.FieldOptions {
+  optional FieldOptions field_options = 51504;
+}
+
+extend google.protobuf.MessageOptions {
+  optional MessageOptions message_options = 51505;
+}
+
+extend google.protobuf.EnumOptions {
+  optional EnumOptions enum_options = 51506;
+}
+
+extend google.protobuf.EnumValueOptions {
+  optional EnumValueOptions enum_value = 51507;
+}
