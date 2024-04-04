@@ -536,8 +536,15 @@ impl ElfParser {
         str_table: Option<&Shdr>,
         str_idx: u32,
     ) -> Option<String> {
-        let section = match elf.get(str_table?.offset_range()?) {
-            Some(section) => section,
+        // Strictly speaking, the string table size is determined by the size
+        // field in the `Shdr` structure. However, we don't use that field for
+        // computing the string table size, and use all the data from the offset
+        // indicated in `Shdr` until the end of the ELF file. Some files, like
+        // 71adb87ee8ee76f32f54c70584ef14f67a4bc6f55df3f847c344726405927a1e
+        // have an invalid size in `Shdr` even though they have a perfectly
+        // valid string table.
+        let str_table = match elf.get(str_table?.offset as usize..elf.len()) {
+            Some(data) => data,
             None => return None,
         };
         // Take `str_idx` bytes from `section` and from the remaining bytes
@@ -545,7 +552,7 @@ impl ElfParser {
         let (_, (_, str_bytes)) =
             take::<u32, &[u8], nom::error::Error<&[u8]>>(str_idx)
                 .and(take_till(|c| c == 0))
-                .parse(section)
+                .parse(str_table)
                 .ok()?;
 
         Some(String::from_utf8_lossy(str_bytes).to_string())
