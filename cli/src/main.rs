@@ -2,11 +2,12 @@ mod commands;
 mod help;
 mod walk;
 
-use clap::{command, crate_authors};
 use crossterm::tty::IsTty;
 use std::{io, panic, process};
 use yansi::Color::Red;
 use yansi::Paint;
+
+use crate::commands::cli;
 
 const APP_HELP_TEMPLATE: &str = r#"{about-with-newline}
 {author-with-newline}
@@ -33,19 +34,7 @@ fn main() -> anyhow::Result<()> {
         yansi::disable();
     }
 
-    let args = command!()
-        .author(crate_authors!("\n")) // requires `cargo` feature
-        .arg_required_else_help(true)
-        .help_template(APP_HELP_TEMPLATE)
-        .subcommands(vec![
-            commands::scan(),
-            commands::compile(),
-            commands::check(),
-            commands::debug(),
-            commands::dump(),
-            commands::fmt(),
-        ])
-        .get_matches_from(wild::args());
+    let args = cli().get_matches_from(wild::args());
 
     #[cfg(feature = "profiling")]
     let guard = pprof::ProfilerGuardBuilder::default()
@@ -73,6 +62,7 @@ fn main() -> anyhow::Result<()> {
         Some(("scan", args)) => commands::exec_scan(args),
         Some(("dump", args)) => commands::exec_dump(args),
         Some(("compile", args)) => commands::exec_compile(args),
+        Some(("completion", args)) => commands::exec_completion(args),
         _ => unreachable!(),
     };
 
