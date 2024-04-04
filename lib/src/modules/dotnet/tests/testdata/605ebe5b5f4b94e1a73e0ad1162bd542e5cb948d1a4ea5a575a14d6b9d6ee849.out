@@ -9,6 +9,7 @@ number_of_assembly_refs: 1
 number_of_modulerefs: 0
 number_of_user_strings: 1
 number_of_constants: 0
+number_of_field_offsets: 0
 typelib: "63ca6b3c-208c-47ef-9294-fbc91c947d15"
 streams:
   - name: "#~"
