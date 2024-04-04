@@ -58,7 +58,7 @@ jobs:
       run: |
         set -ex
         version=`cargo pkgid --manifest-path lib/Cargo.toml | cut -d "@" -f2`
-        if [ "${{ github.ref_name }}" != "v${{ version }}" ]; then
+        if [ "${{ github.ref_name }}" != "v$version" ]; then
           exit 1
         fi
 
