@@ -101,7 +101,7 @@ jobs:
 
         - build: windows
           os: windows-latest
-          arch: 'x86'
+          arch: 'x86 AMD64'
     
     steps:
     - name: Checkout sources
