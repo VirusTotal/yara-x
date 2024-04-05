@@ -93,7 +93,6 @@ jobs:
         include:
         - build: linux
           os: ubuntu-latest
-          arch: alt
 
         #- build: macos
         #  os: macos-latest
@@ -102,7 +101,7 @@ jobs:
 
         - build: windows
           os: windows-latest
-          arch: alt
+          arch: 'x86'
     
     steps:
     - name: Checkout sources
@@ -142,8 +141,8 @@ jobs:
         CIBW_BUILD: '${{ matrix.python-version }}-*'
         # wasmtime doesn't support i686
         CIBW_SKIP: '*_i686 *-musllinux*'
-        # we build for "alt_arch_name" if it exists, else 'auto'
-        CIBW_ARCHS: ${{ matrix.alt_arch_name || 'auto' }}
+        # we build for "arch" if it exists, else 'auto'
+        CIBW_ARCHS: ${{ matrix.arch || 'auto' }}
 
         CIBW_BEFORE_BUILD_LINUX: >
           curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=minimal -y &&
