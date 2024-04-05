@@ -155,8 +155,7 @@ jobs:
         CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH" OPENSSL_DIR="/usr/local/openssl"'
         CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH" OPENSSL_DIR="C:\\vcpkg\\packages\\openssl_x86-windows-static\\lib"'
 
-        CIBW_TEST_COMMAND: 'pytest {project}/test'
-        CIBW_TEST_REQUIRES: pytest requests
+        CIBW_TEST_COMMAND: 'pytest py'
         CIBW_TEST_SKIP: '*-macosx_arm64 *-macosx_universal2:arm64'
         CIBW_BUILD_VERBOSITY: 1
   
