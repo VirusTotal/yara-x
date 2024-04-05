@@ -153,7 +153,7 @@ jobs:
         CIBW_BEFORE_BUILD_WINDOWS: vcpkg install openssl:x86-windows-static
 
         CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH" OPENSSL_DIR="/usr/local/openssl"'
-        CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH" OPENSSL_DIR="C:\\vcpkg\\packages\\openssl_x86-windows-static\\lib"'
+        CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH" OPENSSL_DIR="$VCPKG_INSTALLATION_ROOT\\packages\\openssl_x86-windows-static\\lib"'
 
         CIBW_TEST_REQUIRES: pytest
         CIBW_TEST_COMMAND: 'pytest py'
