@@ -88,27 +88,21 @@ jobs:
         - pp39
         build:
         - linux
-        - macos
+        #- macos
         - windows
         include:
         - build: linux
           os: ubuntu-latest
-          target: x86_64-unknown-linux-gnu
           arch: alt
-          args: "--features=openssl-static"
 
-        - build: macos
-          os: macos-latest
-          target: x86_64-apple-darwin
-          arch: alt
-          alt_arch_name: 'arm64 universal2'
-          args: "--features=openssl-static"
+        #- build: macos
+        #  os: macos-latest
+        #  arch: alt
+        #  alt_arch_name: 'arm64 universal2'
 
         - build: windows
           os: windows-latest
-          target: x86_64-pc-windows-msvc
           arch: alt
-          args: ""
     
     steps:
     - name: Checkout sources
@@ -146,20 +140,21 @@ jobs:
       run: cibuildwheel --output-dir wheelhouse py
       env:
         CIBW_BUILD: '${{ matrix.python-version }}-*'
-        # rust doesn't seem to be available for musl linux on i686
-        CIBW_SKIP: '*-musllinux_i686'
+        # wasmtime doesn't support i686
+        CIBW_SKIP: '*_i686 *-musllinux*'
         # we build for "alt_arch_name" if it exists, else 'auto'
         CIBW_ARCHS: ${{ matrix.alt_arch_name || 'auto' }}
-        CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH" CARGO_TERM_COLOR="always"'
-        CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH" OPENSSL_DIR="C:\\vcpkg\\packages\\openssl_x86-windows-static\\lib"'
-        CIBW_BEFORE_BUILD: rustup show
+
         CIBW_BEFORE_BUILD_LINUX: >
           curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=minimal -y &&
-          rustup show
+          rustup show &&
+          yum install -y openssl-dev
 
-        CIBW_BEFORE_ALL_LINUX: vcpkg install openssl:x64-linux-release
-        CIBW_BEFORE_ALL_WINDOWS: vcpkg install openssl:x86-windows-static
-        
+        CIBW_BEFORE_BUILD_WINDOWS: vcpkg install openssl:x86-windows-static
+
+        CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH" OPENSSL_DIR="/usr/local/openssl"'
+        CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH" OPENSSL_DIR="C:\\vcpkg\\packages\\openssl_x86-windows-static\\lib"'
+
         CIBW_TEST_COMMAND: 'pytest {project}/test'
         CIBW_TEST_REQUIRES: pytest requests
         CIBW_TEST_SKIP: '*-macosx_arm64 *-macosx_universal2:arm64'

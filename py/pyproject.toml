@@ -14,4 +14,4 @@ classifiers = [
 
 
 [tool.maturin]
-features = ["pyo3/extension-module", "yara-x/openssl-static"]
+features = ["pyo3/extension-module"]
