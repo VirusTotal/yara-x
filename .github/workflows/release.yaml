@@ -140,7 +140,7 @@ jobs:
       env:
         CIBW_BUILD: '${{ matrix.python-version }}-*'
         # wasmtime doesn't support i686
-        CIBW_SKIP: '*_i686 *-musllinux*'
+        CIBW_SKIP: '*_i686 *-musllinux* *-win32'
         # we build for "arch" if it exists, else 'auto'
         CIBW_ARCHS: ${{ matrix.arch || 'auto' }}
 
