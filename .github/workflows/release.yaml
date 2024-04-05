@@ -148,7 +148,7 @@ jobs:
         CIBW_BEFORE_BUILD_LINUX: >
           curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=minimal -y &&
           rustup show &&
-          yum install -y openssl-devel
+          yum install -y openssl-static
 
         CIBW_BEFORE_BUILD_WINDOWS: vcpkg install openssl:x86-windows-static
 
