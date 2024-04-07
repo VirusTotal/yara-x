@@ -208,7 +208,7 @@ impl ElfParser {
     /// The size of an offset or address in an ELF file depends on the class
     /// of file. It is an `u32` in 32-bits ELF files, and `u64` in 64-bits
     /// files. This parser consumes an `u32` while parsing 32-bits files, but
-    /// always returns the value as an `u32`.
+    /// always returns the value as an `u64`.
     fn off_or_addr(&self) -> impl FnMut(&[u8]) -> IResult<&[u8], u64> + '_ {
         move |input: &[u8]| {
             let (remainder, value) = match self.class {
