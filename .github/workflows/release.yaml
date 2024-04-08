@@ -130,10 +130,14 @@ jobs:
       run: pip install -U setuptools wheel twine cibuildwheel platformdirs
 
     - name: Build sdist
-      if: matrix.os == 'ubuntu' && matrix.python-version == 'cp310'
+      if: matrix.build == 'linux' && matrix.python-version == 'cp310'
       run: |
         pip install maturin build
         python -m build --sdist -o wheelhouse py
+
+    - name: Setup tmate session
+      if: matrix.build == 'windows'
+      uses: mxschmitt/action-tmate@v3
 
     - name: Build ${{ matrix.platform || matrix.os }} binaries
       run: cibuildwheel --output-dir wheelhouse py
@@ -155,7 +159,7 @@ jobs:
         CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH" OPENSSL_DIR="$VCPKG_INSTALLATION_ROOT\\packages\\openssl_x86-windows-static"'
 
         CIBW_TEST_REQUIRES: pytest
-        CIBW_TEST_COMMAND: 'pytest {project}/py' 
+        CIBW_TEST_COMMAND: 'pytest {project}/py'
         CIBW_TEST_SKIP: '*-macosx_arm64 *-macosx_universal2:arm64'
         CIBW_BUILD_VERBOSITY: 1
   
