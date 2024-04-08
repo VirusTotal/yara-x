@@ -432,7 +432,7 @@ impl<'a> PE<'a> {
     const MAX_PE_SECTIONS: usize = 96;
     const MAX_PE_IMPORTS: usize = 16384;
     const MAX_PE_EXPORTS: usize = 16384;
-    const MAX_PE_RESOURCES: usize = 65535;
+    const MAX_PE_RESOURCES: usize = 65536;
     const MAX_DIR_ENTRIES: usize = 16;
 
     fn parse_dos_header(input: &[u8]) -> IResult<&[u8], DOSHeader> {
@@ -847,7 +847,7 @@ impl<'a> PE<'a> {
 
             // If the high bit of `name_or_id` is set, then the remaining bits
             // are the offset within the resource section where the resource
-            // name is found. The name is a UTF-16LE string that starts with a
+            // name is found. The name is a UTF-16LE string that starts with an
             // u16 containing its length in characters. If the high bit is not
             // set then `name_or_id` is just the resource ID.
             let id = if name_or_id & 0x80000000 != 0 {
@@ -1328,21 +1328,22 @@ impl<'a> PE<'a> {
                     } else if let Ok((_, rsrc_entry)) =
                         Self::parse_rsrc_entry(entry_data)
                     {
-                        if resources.len() == Self::MAX_PE_RESOURCES {
-                            return Some((resources_info, resources));
+                        if resources.len() < Self::MAX_PE_RESOURCES
+                            && rsrc_entry.size > 0
+                            && (rsrc_entry.size as usize) < self.data.len()
+                        {
+                            resources.push(Resource {
+                                type_id: ids.0,
+                                rsrc_id: ids.1,
+                                lang_id: ids.2,
+                                // `rsrc_entry.offset` is relative to the start of
+                                // the resource section, so it's actually an RVA.
+                                // Here we convert it to a file offset.
+                                offset: self.rva_to_offset(rsrc_entry.offset),
+                                rva: rsrc_entry.offset,
+                                length: rsrc_entry.size,
+                            })
                         }
-
-                        resources.push(Resource {
-                            type_id: ids.0,
-                            rsrc_id: ids.1,
-                            lang_id: ids.2,
-                            // `rsrc_entry.offset` is relative to the start of
-                            // the resource section, so it's actually a RVA.
-                            // Here we convert it to a file offset.
-                            offset: self.rva_to_offset(rsrc_entry.offset),
-                            rva: rsrc_entry.offset,
-                            length: rsrc_entry.size,
-                        })
                     }
                 }
             }
