@@ -6,11 +6,6 @@ use std::iter::zip;
 use std::str::{from_utf8, FromStr};
 use std::sync::OnceLock;
 
-use array_bytes::bytes2hex;
-use authenticode_parser::{
-    Authenticode, AuthenticodeArray, AuthenticodeVerify,
-    CounterSignatureVerify,
-};
 use bstr::{BStr, ByteSlice};
 use itertools::Itertools;
 use memchr::memmem;
@@ -18,12 +13,17 @@ use nom::branch::{alt, permutation};
 use nom::bytes::complete::{take, take_till};
 use nom::combinator::{cond, consumed, iterator, map, opt, success, verify};
 use nom::error::ErrorKind;
-use nom::multi::{count, fold_many1, length_data, many0, many1, many_m_n};
+use nom::multi::{
+    count, fold_many0, fold_many1, length_data, many0, many1, many_m_n,
+};
 use nom::number::complete::{le_u16, le_u32, le_u64, u8};
 use nom::sequence::tuple;
 use nom::{Err, IResult, Parser, ToUsize};
 use protobuf::{EnumOrUnknown, MessageField};
 
+use crate::modules::pe::authenticode::{
+    AuthenticodeParser, AuthenticodeSignature,
+};
 use crate::modules::pe::rva2off;
 use crate::modules::protos;
 
@@ -32,12 +32,6 @@ type Error<'a> = nom::error::Error<&'a [u8]>;
 /// Tuple that contains a DLL name and a vector with functions imported from
 /// that DLL.
 type DllImports<'a> = Vec<(&'a str, Vec<ImportedFunc>)>;
-
-/// The initialization token needed by the authenticode_parser library must be
-/// created only once per process, and it must be done in a thread-safe way.
-static AUTHENTICODE_INIT_TOKEN: OnceLock<
-    authenticode_parser::InitializationToken,
-> = OnceLock::new();
 
 /// Represents a Windows Portable Executable (PE) file.
 ///
@@ -75,7 +69,7 @@ pub struct PE<'a> {
     resources: OnceCell<Option<(ResourceDir, Vec<Resource<'a>>)>>,
 
     /// PE authenticode signatures.
-    signatures: OnceCell<Option<AuthenticodeArray>>,
+    signatures: OnceCell<Option<Vec<AuthenticodeSignature>>>,
 
     /// PE directory entries. Directory entries are parsed lazily when
     /// [`PE::get_dir_entries`] is called for the first time.
@@ -320,6 +314,7 @@ impl<'a> PE<'a> {
         &self,
         index: usize,
         strict_size: bool,
+        addr_to_rva: bool,
     ) -> Option<(u32, u32, &'a [u8])> {
         // Nobody should call this function with an index greater
         // than MAX_DIR_ENTRIES.
@@ -342,17 +337,21 @@ impl<'a> PE<'a> {
             .and_then(|entry| Self::parse_dir_entry(entry).ok())
             .map(|(_reminder, entry)| entry)?;
 
-        let start = self.rva_to_offset(dir_entry.addr)? as usize;
+        let start = if addr_to_rva {
+            self.rva_to_offset(dir_entry.addr)?
+        } else {
+            dir_entry.addr
+        };
 
         let end = if strict_size {
-            min(self.data.len(), start.saturating_add(dir_entry.size as usize))
+            min(self.data.len(), start.saturating_add(dir_entry.size) as usize)
         } else {
             self.data.len()
         };
 
-        let data = self.data.get(start..end)?;
+        let data = self.data.get(start as usize..end)?;
 
-        Some((dir_entry.addr, dir_entry.size, data))
+        Some((start, dir_entry.size, data))
     }
 
     /// Returns information about the functions imported by this PE file.
@@ -397,14 +396,12 @@ impl<'a> PE<'a> {
     }
 
     /// Returns the authenticode signatures in this PE.
-    pub fn get_signatures(&self) -> &[Authenticode<'_>] {
-        if let Some(array) =
-            self.signatures.get_or_init(|| self.parse_signatures())
-        {
-            array.signatures()
-        } else {
-            &[]
-        }
+    pub fn get_signatures(&self) -> &[AuthenticodeSignature] {
+        self.signatures
+            .get_or_init(|| self.parse_signatures())
+            .as_ref()
+            .map(|s| s.as_slice())
+            .unwrap_or(&[])
     }
 }
 
@@ -415,6 +412,7 @@ impl<'a> PE<'a> {
     pub const IMAGE_DIRECTORY_ENTRY_EXPORT: usize = 0;
     pub const IMAGE_DIRECTORY_ENTRY_IMPORT: usize = 1;
     pub const IMAGE_DIRECTORY_ENTRY_RESOURCE: usize = 2;
+    pub const IMAGE_DIRECTORY_ENTRY_SECURITY: usize = 4;
     pub const IMAGE_DIRECTORY_ENTRY_DEBUG: usize = 6;
     pub const IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT: usize = 13;
     pub const IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR: usize = 14;
@@ -1150,7 +1148,7 @@ impl<'a> PE<'a> {
             // Read the structure's length and round it up to a 32-bits
             // boundary.
             let (_, length) = le_u16(input)?;
-            let length = Self::round_up(length);
+            let length = Self::round_up::<4, _>(length);
 
             // Read the structure's bytes.
             let (remainder, structure) = take(length)(input)?;
@@ -1168,7 +1166,7 @@ impl<'a> PE<'a> {
             // aligning the rest of the structure to a 32-bits boundary.
             // Here we get the length of the data consumed so far and round
             // it up to a 32-bits boundary.
-            let alignment = Self::round_up(consumed.len());
+            let alignment = Self::round_up::<4, _>(consumed.len());
 
             // Then take `alignment` bytes from the start of the structure. The
             // remaining bytes contain the value and children.
@@ -1222,9 +1220,9 @@ impl<'a> PE<'a> {
         }
     }
 
-    /// Round up an offset to the next 32-bit boundary.
-    fn round_up<O: ToUsize>(offset: O) -> usize {
-        offset.to_usize().div_ceil(4) * 4
+    /// Round up a `value` to the `ROUND_TO` byte boundary.
+    fn round_up<const ROUND_TO: usize, O: ToUsize>(value: O) -> usize {
+        value.to_usize().div_ceil(ROUND_TO) * ROUND_TO
     }
 
     /// Parses the PE resources.
@@ -1255,8 +1253,11 @@ impl<'a> PE<'a> {
     /// individual resources of that type, and the children of each individual
     /// resource represent the resource in a specific language.
     fn parse_resources(&self) -> Option<(ResourceDir, Vec<Resource<'a>>)> {
-        let (_, _, rsrc_section) = self
-            .get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_RESOURCE, false)?;
+        let (_, _, rsrc_section) = self.get_dir_entry_data(
+            Self::IMAGE_DIRECTORY_ENTRY_RESOURCE,
+            false,
+            true,
+        )?;
 
         let mut queue = VecDeque::new();
         let mut resources = vec![];
@@ -1356,11 +1357,60 @@ impl<'a> PE<'a> {
         Some((resources_info, resources))
     }
 
-    fn parse_signatures(&self) -> Option<AuthenticodeArray> {
-        let token = AUTHENTICODE_INIT_TOKEN.get_or_init(|| unsafe {
-            authenticode_parser::InitializationToken::new()
-        });
-        authenticode_parser::parse_pe(token, self.data)
+    /// Parses the PE Authenticode signatures.
+    fn parse_signatures(&self) -> Option<Vec<AuthenticodeSignature>> {
+        let (_, _, cert_table) = self.get_dir_entry_data(
+            Self::IMAGE_DIRECTORY_ENTRY_SECURITY,
+            true,
+            false,
+        )?;
+
+        // The certificate table is an array of WIN_CERTIFICATE structures.
+        let signatures = fold_many0(
+            Self::parse_win_cert,
+            Vec::new,
+            |mut acc: Vec<_>, signatures| {
+                acc.extend(signatures);
+                acc
+            },
+        )(cert_table)
+        .map(|(_, cert)| cert)
+        .ok()?;
+
+        Some(signatures)
+    }
+
+    fn parse_win_cert(
+        input: &[u8],
+    ) -> IResult<&[u8], Vec<AuthenticodeSignature>> {
+        // Parse the WIN_CERTIFICATE structure.
+        let (remainder, (length, revision, cert_type)) = tuple((
+            le_u32::<&[u8], Error>, // length
+            le_u16, // revision, should be WIN_CERT_REVISION_1_0 (0x0100)
+            le_u16, // certificate type
+        ))(input)?;
+
+        // The length includes the header, compute the length of the signature.
+        let signature_length: u32 = length
+            .checked_sub(8)
+            .ok_or_else(|| Err::Error(Error::new(input, ErrorKind::Fail)))?;
+
+        let (_, signature_data) = take(signature_length)(remainder)?;
+        let (_, signatures) = Self::parse_signature(signature_data)?;
+
+        // The next WIN_CERTIFICATE is aligned to the next 8-bytes boundary.
+        let (remainder, _) = take(Self::round_up::<8, _>(length))(input)?;
+
+        Ok((remainder, signatures))
+    }
+
+    /// Parses the PKCS#7 blob that containing an Authenticode signature.
+    fn parse_signature(
+        input: &[u8],
+    ) -> IResult<&[u8], Vec<AuthenticodeSignature>> {
+        let signatures = AuthenticodeParser::parse(input)
+            .map_err(|_| Err::Error(Error::new(input, ErrorKind::Fail)))?;
+        Ok((&[], signatures))
     }
 
     fn parse_dir_entries(&self) -> Option<Vec<DirEntry>> {
@@ -1378,8 +1428,11 @@ impl<'a> PE<'a> {
 
     /// Parses the PE debug information and extracts the PDB path.
     fn parse_dbg(&self) -> Option<&'a [u8]> {
-        let (_, _, dbg_section) =
-            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_DEBUG, true)?;
+        let (_, _, dbg_section) = self.get_dir_entry_data(
+            Self::IMAGE_DIRECTORY_ENTRY_DEBUG,
+            true,
+            true,
+        )?;
 
         let entries = many0(Self::parse_dbg_dir_entry)(dbg_section)
             .map(|(_, entries)| entries)
@@ -1516,8 +1569,11 @@ impl<'a> PE<'a> {
 
     /// Parses PE imports.
     fn parse_imports(&self) -> Option<Vec<(&'a str, Vec<ImportedFunc>)>> {
-        let (rva, _, import_data) = self
-            .get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_IMPORT, false)?;
+        let (rva, _, import_data) = self.get_dir_entry_data(
+            Self::IMAGE_DIRECTORY_ENTRY_IMPORT,
+            false,
+            true,
+        )?;
 
         if rva == 0 {
             return None;
@@ -1532,6 +1588,7 @@ impl<'a> PE<'a> {
     ) -> Option<Vec<(&'a str, Vec<ImportedFunc>)>> {
         let (rva, _, import_data) = self.get_dir_entry_data(
             Self::IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT,
+            true,
             true,
         )?;
 
@@ -1790,8 +1847,12 @@ impl<'a> PE<'a> {
     }
 
     fn parse_exports(&self) -> Option<ExportInfo<'a>> {
-        let (exports_rva, exports_size, exports_data) =
-            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_EXPORT, true)?;
+        let (exports_rva, exports_size, exports_data) = self
+            .get_dir_entry_data(
+                Self::IMAGE_DIRECTORY_ENTRY_EXPORT,
+                true,
+                true,
+            )?;
 
         if exports_rva == 0 {
             return None;
@@ -2318,6 +2379,7 @@ impl From<&Section<'_>> for protos::pe::Section {
     }
 }
 
+/*
 impl From<&authenticode_parser::Authenticode<'_>> for protos::pe::Signature {
     fn from(value: &authenticode_parser::Authenticode) -> Self {
         let mut sig = protos::pe::Signature::new();
@@ -2461,6 +2523,7 @@ impl From<&authenticode_parser::Certificate<'_>> for protos::pe::Certificate {
         cert
     }
 }
+*/
 
 impl rva2off::Section for Section<'_> {
     fn virtual_address(&self) -> u32 {

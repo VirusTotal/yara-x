@@ -116,7 +116,10 @@ math-module = []
 # The `pe` module parses PE files.
 pe-module = [
     "dep:authenticode-parser",
+    "dep:cms",
+    "dep:const-oid",
     "dep:nom",
+    "dep:sha1",
 ]
 
 # The `string` modules offer some functions for parsing strings as integers,
@@ -168,7 +171,10 @@ bincode = { workspace = true }
 bitmask = { workspace = true }
 bitvec = { workspace = true }
 bstr = { workspace = true, features = ["serde"] }
+cms = { workspace = true, optional = true }
+const-oid = { workspace = true, optional = true }
 crc32fast = { workspace = true, optional = true }
+der = { workspace = true, features = ["derive"] }
 fmmap = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 intaglio = { workspace = true }

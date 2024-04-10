@@ -135,6 +135,7 @@ impl<'a> Dotnet<'a> {
             .get_dir_entry_data(
                 PE::IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR,
                 false,
+                true,
             )
             .ok_or(Error::InvalidDotNet)?;
 
