@@ -2,11 +2,11 @@ use array_bytes::bytes2hex;
 use cms::cert::x509::{spki, Certificate};
 use cms::content_info::CmsVersion;
 use cms::content_info::ContentInfo;
-use cms::signed_data::{SignedData, SignerInfo};
+use cms::signed_data::{SignedData, SignerIdentifier, SignerInfo};
 use const_oid::db::{rfc5912, rfc6268};
 use const_oid::ObjectIdentifier;
 use der::asn1::OctetString;
-use der::{Decode, Encode, EncodeValue};
+use der::{Decode, Encode};
 use der::{Sequence, SliceReader};
 use protobuf::MessageField;
 use sha1::digest::Output;
@@ -106,10 +106,6 @@ pub enum AuthenticodeParseError {
 pub struct AuthenticodeParser {}
 
 impl AuthenticodeParser {
-    pub fn new() -> Self {
-        Self {}
-    }
-
     /// Parses Authenticode signatures from DER-encoded bytes.
     pub fn parse(
         bytes: &[u8],
@@ -295,6 +291,52 @@ impl AuthenticodeSignature {
             }
         })
     }
+
+    /// Returns the certificate chain for this signature.
+    pub fn chain(&self) -> Vec<&Certificate> {
+        if let SignerIdentifier::IssuerAndSerialNumber(signer) =
+            &self.signer_info().sid
+        {
+            self.build_chain(signer)
+        } else {
+            unreachable!()
+        }
+    }
+}
+
+impl AuthenticodeSignature {
+    /// Returns a certificate chain containing the certificate with the given
+    /// issuer and serial number, and all the certificates participating in the
+    /// chain of trust for that certificate, up to the highest level certificate
+    /// found in the Authenticode signature.
+    ///
+    /// The first item in the vector is the requested certificate, and the
+    /// highest level certificate in the chain is the last one.
+    fn build_chain(
+        &self,
+        issuer_and_serial_number: &cms::cert::IssuerAndSerialNumber,
+    ) -> Vec<&Certificate> {
+        let mut chain = vec![];
+
+        let mut current = match self.certificates().find(|cert| {
+            cert.tbs_certificate.serial_number
+                == issuer_and_serial_number.serial_number
+        }) {
+            Some(current) => current,
+            None => return vec![],
+        };
+
+        chain.push(current);
+
+        while let Some(cert) = self.certificates().find(|cert| {
+            cert.tbs_certificate.subject == current.tbs_certificate.issuer
+        }) {
+            chain.push(cert);
+            current = cert;
+        }
+
+        chain
+    }
 }
 
 impl From<&AuthenticodeSignature> for protos::pe::Signature {
@@ -311,6 +353,10 @@ impl From<&AuthenticodeSignature> for protos::pe::Signature {
 
         signer_info.set_digest_alg(value.signer_info_digest_alg());
         signer_info.set_digest(value.signer_info_digest());
+
+        signer_info.chain.extend(
+            value.chain().into_iter().map(protos::pe::Certificate::from),
+        );
 
         sig.signer_info = MessageField::from(Some(signer_info));
 

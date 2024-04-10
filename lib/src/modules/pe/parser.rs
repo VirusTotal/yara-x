@@ -1384,7 +1384,7 @@ impl<'a> PE<'a> {
         input: &[u8],
     ) -> IResult<&[u8], Vec<AuthenticodeSignature>> {
         // Parse the WIN_CERTIFICATE structure.
-        let (remainder, (length, revision, cert_type)) = tuple((
+        let (remainder, (length, _revision, _cert_type)) = tuple((
             le_u32::<&[u8], Error>, // length
             le_u16, // revision, should be WIN_CERT_REVISION_1_0 (0x0100)
             le_u16, // certificate type
