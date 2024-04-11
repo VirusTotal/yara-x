@@ -95,6 +95,8 @@ thiserror = "1.0.58"
 uuid = "1.4.1"
 walrus = "0.20.2"
 wasmtime = "19.0.1"
+x509-cert = "0.2.5"
+x509-tsp = "0.1.0"
 yaml-rust = "0.4.5"
 yansi = "1.0.1"
 yara-x = { path = "lib" }

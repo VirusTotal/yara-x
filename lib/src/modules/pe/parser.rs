@@ -305,7 +305,7 @@ impl<'a> PE<'a> {
 
     /// Returns the RVA, size and data associated to a given directory entry.
     ///
-    /// The returned tuple is `(rva, size, data)`, where `rva` and `size` are
+    /// The returned tuple is `(addr, size, data)`, where `addr` and `size` are
     /// the ones indicated in the directory entry, and `data` is a slice that
     /// contains the file's content from that RVA to the end of the file if
     /// `strict_size` is false. Otherwise, the slice will be limited to the
@@ -314,7 +314,6 @@ impl<'a> PE<'a> {
         &self,
         index: usize,
         strict_size: bool,
-        addr_to_rva: bool,
     ) -> Option<(u32, u32, &'a [u8])> {
         // Nobody should call this function with an index greater
         // than MAX_DIR_ENTRIES.
@@ -330,17 +329,19 @@ impl<'a> PE<'a> {
         // overly strict here and only parse entries which are less than
         // `number_of_rva_and_sizes` we run the risk of missing otherwise
         // perfectly valid files.
-
         let dir_entry = self
             .directory
             .get(index * Self::SIZE_OF_DIR_ENTRY..)
             .and_then(|entry| Self::parse_dir_entry(entry).ok())
             .map(|(_reminder, entry)| entry)?;
 
-        let start = if addr_to_rva {
-            self.rva_to_offset(dir_entry.addr)?
-        } else {
+        // The IMAGE_DIRECTORY_ENTRY_SECURITY is the only one where the `addr`
+        // field is not an RVA, but a file offset, so we don't need to convert
+        // it to offset.
+        let start = if index == Self::IMAGE_DIRECTORY_ENTRY_SECURITY {
             dir_entry.addr
+        } else {
+            self.rva_to_offset(dir_entry.addr)?
         };
 
         let end = if strict_size {
@@ -351,7 +352,7 @@ impl<'a> PE<'a> {
 
         let data = self.data.get(start as usize..end)?;
 
-        Some((start, dir_entry.size, data))
+        Some((dir_entry.addr, dir_entry.size, data))
     }
 
     /// Returns information about the functions imported by this PE file.
@@ -1253,11 +1254,8 @@ impl<'a> PE<'a> {
     /// individual resources of that type, and the children of each individual
     /// resource represent the resource in a specific language.
     fn parse_resources(&self) -> Option<(ResourceDir, Vec<Resource<'a>>)> {
-        let (_, _, rsrc_section) = self.get_dir_entry_data(
-            Self::IMAGE_DIRECTORY_ENTRY_RESOURCE,
-            false,
-            true,
-        )?;
+        let (_, _, rsrc_section) = self
+            .get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_RESOURCE, false)?;
 
         let mut queue = VecDeque::new();
         let mut resources = vec![];
@@ -1359,11 +1357,8 @@ impl<'a> PE<'a> {
 
     /// Parses the PE Authenticode signatures.
     fn parse_signatures(&self) -> Option<Vec<AuthenticodeSignature>> {
-        let (_, _, cert_table) = self.get_dir_entry_data(
-            Self::IMAGE_DIRECTORY_ENTRY_SECURITY,
-            true,
-            false,
-        )?;
+        let (_, _, cert_table) = self
+            .get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_SECURITY, true)?;
 
         // The certificate table is an array of WIN_CERTIFICATE structures.
         let signatures = fold_many0(
@@ -1428,11 +1423,8 @@ impl<'a> PE<'a> {
 
     /// Parses the PE debug information and extracts the PDB path.
     fn parse_dbg(&self) -> Option<&'a [u8]> {
-        let (_, _, dbg_section) = self.get_dir_entry_data(
-            Self::IMAGE_DIRECTORY_ENTRY_DEBUG,
-            true,
-            true,
-        )?;
+        let (_, _, dbg_section) =
+            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_DEBUG, true)?;
 
         let entries = many0(Self::parse_dbg_dir_entry)(dbg_section)
             .map(|(_, entries)| entries)
@@ -1569,13 +1561,10 @@ impl<'a> PE<'a> {
 
     /// Parses PE imports.
     fn parse_imports(&self) -> Option<Vec<(&'a str, Vec<ImportedFunc>)>> {
-        let (rva, _, import_data) = self.get_dir_entry_data(
-            Self::IMAGE_DIRECTORY_ENTRY_IMPORT,
-            false,
-            true,
-        )?;
+        let (addr, _, import_data) = self
+            .get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_IMPORT, false)?;
 
-        if rva == 0 {
+        if addr == 0 {
             return None;
         }
 
@@ -1586,13 +1575,12 @@ impl<'a> PE<'a> {
     fn parse_delayed_imports(
         &self,
     ) -> Option<Vec<(&'a str, Vec<ImportedFunc>)>> {
-        let (rva, _, import_data) = self.get_dir_entry_data(
+        let (addr, _, import_data) = self.get_dir_entry_data(
             Self::IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT,
-            true,
             true,
         )?;
 
-        if rva == 0 {
+        if addr == 0 {
             return None;
         }
 
@@ -1847,12 +1835,8 @@ impl<'a> PE<'a> {
     }
 
     fn parse_exports(&self) -> Option<ExportInfo<'a>> {
-        let (exports_rva, exports_size, exports_data) = self
-            .get_dir_entry_data(
-                Self::IMAGE_DIRECTORY_ENTRY_EXPORT,
-                true,
-                true,
-            )?;
+        let (exports_rva, exports_size, exports_data) =
+            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_EXPORT, true)?;
 
         if exports_rva == 0 {
             return None;

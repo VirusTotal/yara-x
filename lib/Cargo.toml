@@ -120,6 +120,8 @@ pe-module = [
     "dep:const-oid",
     "dep:nom",
     "dep:sha1",
+    "dep:x509-cert",
+    "dep:x509-tsp",
 ]
 
 # The `string` modules offer some functions for parsing strings as integers,
@@ -204,6 +206,8 @@ tlsh-fixed = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true, features = ["v4"] }
 walrus = { workspace = true }
 wasmtime = { workspace = true, features = ["cranelift", "parallel-compilation"] }
+x509-cert = { workspace = true, optional = true }
+x509-tsp = { workspace = true, optional = true }
 yansi = { workspace = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true }
