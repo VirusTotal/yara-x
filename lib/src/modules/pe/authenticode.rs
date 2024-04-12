@@ -1,20 +1,22 @@
-use std::fmt::Write;
+use std::fmt::{Display, Write};
 
 use array_bytes::bytes2hex;
-use cms::attr::{Countersignature, SigningTime};
+use cms::attr::Countersignature;
 use cms::cert::x509::{spki, Certificate};
 use cms::content_info::CmsVersion;
 use cms::content_info::ContentInfo;
 use cms::signed_data::{SignedData, SignerIdentifier, SignerInfo};
-use const_oid::db::{rfc5911, rfc5912, rfc6268};
+use const_oid::db::{rfc5911, rfc5912, rfc6268, DB};
 use const_oid::ObjectIdentifier;
-use der::asn1::{OctetString, UtcTime};
-use der::{Decode, Encode};
-use der::{Sequence, SliceReader};
+use der::asn1::{
+    BmpString, Ia5String, Ia5StringRef, OctetString, PrintableStringRef,
+    TeletexStringRef, UtcTime, Utf8StringRef,
+};
+use der::{Choice, Sequence, SliceReader};
+use der::{Decode, Encode, Tag, Tagged};
 use protobuf::MessageField;
 use sha1::digest::Output;
 use sha1::{Digest, Sha1};
-use x509_tsp::TstInfo;
 
 use crate::modules::protos;
 
@@ -22,13 +24,22 @@ use crate::modules::protos;
 pub const SPC_INDIRECT_DATA_OBJID: ObjectIdentifier =
     ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.2.1.4");
 
+/// OID for [`SpcSpOpusInfo`].
+pub const SPC_SP_OPUS_INFO_OBJID: ObjectIdentifier =
+    ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.2.1.12");
+
 pub const SPC_MS_NESTED_SIGNATURE: ObjectIdentifier =
     ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.2.4.1");
 
 pub const SPC_MS_COUNTERSIGN: ObjectIdentifier =
     ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.3.3.1");
 
-/// Authenticode ASN.1 image and digest data.
+/// ASN.1 SpcIndirectDataContent
+///
+/// SpcIndirectDataContent ::= SEQUENCE {
+///     data                    SpcAttributeTypeAndOptionalValue,
+///     messageDigest           DigestInfo
+/// }
 #[derive(Clone, Debug, Eq, PartialEq, Sequence)]
 pub struct SpcIndirectDataContent {
     /// Image data.
@@ -38,18 +49,25 @@ pub struct SpcIndirectDataContent {
     pub message_digest: DigestInfo,
 }
 
-/// Authenticode ASN.1 image data.
+/// ASN.1 SpcAttributeTypeAndOptionalValue
+///
+/// SpcAttributeTypeAndOptionalValue ::= SEQUENCE {
+///     type                    ObjectID,
+///     value                   [0] EXPLICIT ANY OPTIONAL
+/// }
 #[derive(Clone, Debug, Eq, PartialEq, Sequence)]
 pub struct SpcAttributeTypeAndOptionalValue {
     /// Type of data stored in the `value` field.
     pub value_type: ObjectIdentifier,
-
-    /// Image data.
-    //TODO(nicholasbishop): implement SpcPeImageData.
     pub value: der::Any,
 }
 
-/// Authenticode ASN.1 digest data.
+/// ASN.1 DigestInfo
+///
+/// DigestInfo ::= SEQUENCE {
+///     digestAlgorithm         AlgorithmIdentifier,
+///     digest                  OCTETSTRING
+/// }
 #[derive(Clone, Debug, Eq, PartialEq, Sequence)]
 pub struct DigestInfo {
     /// Authenticode digest algorithm.
@@ -57,6 +75,58 @@ pub struct DigestInfo {
 
     /// Authenticode digest.
     pub digest: OctetString,
+}
+
+/// ASN.1 SpcSpOpusInfo
+///
+/// SpcSpOpusInfo ::= SEQUENCE {
+///     programName              [0] EXPLICIT SpcString OPTIONAL,
+///     moreInfo                 [1] EXPLICIT SpcLink OPTIONAL,
+/// }
+#[derive(Clone, Debug, Eq, PartialEq, Sequence)]
+pub struct SpcSpOpusInfo {
+    #[asn1(context_specific = "0", optional = "true")]
+    pub program_name: Option<SpcString>,
+    #[asn1(context_specific = "1", optional = "true")]
+    pub more_info: Option<SpcLink>,
+}
+
+/// ASN.1 SpcString
+///
+/// SpcString ::= CHOICE {
+///     unicode                 [0] IMPLICIT BMPSTRING,
+///     ascii                   [1] IMPLICIT IA5STRING
+/// }
+#[derive(Clone, Debug, Eq, PartialEq, Choice)]
+pub enum SpcString {
+    #[asn1(context_specific = "0", tag_mode = "IMPLICIT")]
+    Unicode(BmpString),
+    #[asn1(context_specific = "1", tag_mode = "IMPLICIT", type = "IA5String")]
+    Ascii(Ia5String),
+}
+
+impl Display for SpcString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            SpcString::Unicode(unicode) => unicode.to_string(),
+            SpcString::Ascii(ascii) => ascii.to_string(),
+        };
+        write!(f, "{}", str)
+    }
+}
+
+/// ASN.1 SpcLink
+///
+/// SpcLink ::= CHOICE {
+///     url                     [0] IMPLICIT IA5STRING,
+///     moniker                 [1] IMPLICIT SpcSerializedObject,
+///     file                    [2] EXPLICIT SpcString
+/// }
+///
+#[derive(Clone, Debug, Eq, PartialEq, Choice)]
+pub enum SpcLink {
+    #[asn1(context_specific = "0", tag_mode = "IMPLICIT", type = "IA5String")]
+    Url(Ia5String),
 }
 
 /// Error returned by [`AuthenticodeParser::parse`].
@@ -220,6 +290,14 @@ impl AuthenticodeParser {
             );
         };
 
+        let opus_info = signed_attrs
+            .iter()
+            .find(|attr| attr.oid == SPC_SP_OPUS_INFO_OBJID)
+            .and_then(|attr| attr.values.get(0))
+            .and_then(|attr_val| attr_val.decode_as::<SpcSpOpusInfo>().ok());
+
+        let program_name = opus_info.and_then(|oi| oi.program_name);
+
         let mut nested_signatures = Vec::new();
         let mut countersignatures = Vec::new();
 
@@ -286,6 +364,7 @@ impl AuthenticodeParser {
             signed_data,
             indirect_data,
             countersignatures,
+            program_name,
         });
 
         signatures.append(&mut nested_signatures);
@@ -336,6 +415,7 @@ pub struct AuthenticodeSignature {
     signed_data: SignedData,
     indirect_data: SpcIndirectDataContent,
     countersignatures: Vec<AuthenticodeCountersign>,
+    program_name: Option<SpcString>,
 }
 
 impl AuthenticodeSignature {
@@ -408,24 +488,30 @@ impl AuthenticodeSignature {
     ) -> Vec<&Certificate> {
         let mut chain = vec![];
 
-        let mut current = match self.certificates().find(|cert| {
+        let mut cert = match self.certificates().find(|cert| {
             cert.tbs_certificate.serial_number
                 == issuer_and_serial_number.serial_number
         }) {
-            Some(current) => current,
+            Some(cert) => cert,
             None => return vec![],
         };
 
-        chain.push(current);
-
-        while let Some(cert) = self.certificates().find(|cert| {
-            cert.tbs_certificate.subject == current.tbs_certificate.issuer
-        }) {
+        loop {
             chain.push(cert);
-            current = cert;
-        }
 
-        chain
+            // When the certificate is self-signed issuer == subject, in that
+            // case we can't keep going up the chain.
+            if cert.tbs_certificate.subject == cert.tbs_certificate.issuer {
+                return chain;
+            }
+
+            match self.certificates().find(|c| {
+                c.tbs_certificate.subject == cert.tbs_certificate.issuer
+            }) {
+                Some(c) => cert = c,
+                None => return chain,
+            }
+        }
     }
 }
 
@@ -443,10 +529,22 @@ impl From<&AuthenticodeSignature> for protos::pe::Signature {
             value.countersignatures().map(protos::pe::CounterSignature::from),
         );
 
+        sig.set_number_of_certificates(
+            sig.certificates.len().try_into().unwrap(),
+        );
+
+        sig.set_number_of_countersignatures(
+            sig.countersignatures.len().try_into().unwrap(),
+        );
+
         let mut signer_info = protos::pe::SignerInfo::new();
 
         signer_info.set_digest_alg(value.signer_info_digest_alg());
         signer_info.set_digest(value.signer_info_digest());
+
+        if let Some(program_name) = &value.program_name {
+            signer_info.set_program_name(program_name.to_string())
+        }
 
         signer_info.chain.extend(
             value.chain().into_iter().map(protos::pe::Certificate::from),
@@ -570,11 +668,64 @@ impl From<&Certificate> for protos::pe::Certificate {
 ///
 /// [RFC 4514]: https://datatracker.ietf.org/doc/html/rfc4514
 fn format_name(name: &x509_cert::name::Name) -> String {
-    let mut result = String::new();
-    for s in &name.0 {
-        write!(result, "/{}", s).unwrap();
+    let mut n = String::new();
+    for rdn in &name.0 {
+        write!(n, "/").unwrap();
+        for atv in rdn.0.iter() {
+            let val = match atv.value.tag() {
+                Tag::PrintableString => {
+                    PrintableStringRef::try_from(&atv.value)
+                        .ok()
+                        .map(|s| s.as_str())
+                }
+                Tag::Utf8String => Utf8StringRef::try_from(&atv.value)
+                    .ok()
+                    .map(|s| s.as_str()),
+                Tag::Ia5String => {
+                    Ia5StringRef::try_from(&atv.value).ok().map(|s| s.as_str())
+                }
+                Tag::TeletexString => TeletexStringRef::try_from(&atv.value)
+                    .ok()
+                    .map(|s| s.as_str()),
+                _ => None,
+            };
+
+            if let (Some(key), Some(val)) =
+                (shortest_name_by_oid(&atv.oid), val)
+            {
+                write!(n, "{}=", key.to_ascii_uppercase()).unwrap();
+                for char in val.chars() {
+                    n.write_char(char).unwrap();
+                }
+            } else {
+                let value = atv.value.to_der().unwrap();
+                write!(n, "{}=#", atv.oid).unwrap();
+                for c in value {
+                    write!(n, "{:02x}", c).unwrap();
+                }
+            }
+        }
     }
-    result
+
+    n
+}
+
+/// Returns a short name from an OID.
+///
+/// This returns the strings like "C", "CN", "O", "OU", "ST", etc. This strings
+/// represents field names in issuer and subject strings.
+fn shortest_name_by_oid(oid: &ObjectIdentifier) -> Option<&str> {
+    let mut best_match: Option<&str> = None;
+    for m in DB.find_names_for_oid(*oid) {
+        if let Some(previous) = best_match {
+            if m.len() < previous.len() {
+                best_match = Some(m);
+            }
+        } else {
+            best_match = Some(m);
+        }
+    }
+    best_match
 }
 
 /// Produces a printable string of a serial number.
