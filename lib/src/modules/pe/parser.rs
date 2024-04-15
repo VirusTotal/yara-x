@@ -3,6 +3,7 @@ use std::cmp::min;
 use std::collections::{HashMap, VecDeque};
 use std::default::Default;
 use std::iter::zip;
+use std::mem;
 use std::str::{from_utf8, FromStr};
 use std::sync::OnceLock;
 
@@ -404,6 +405,69 @@ impl<'a> PE<'a> {
             .map(|s| s.as_slice())
             .unwrap_or(&[])
     }
+
+    /// Compute an Authenticode hash for this PE file.
+    ///
+    /// The Authenticode covers all the data in the PE file except:
+    ///
+    /// * The checksum in the PE header
+    /// * The security entry in the data directory (which points to the certificate table)
+    /// * The certificate table.
+    ///
+    /// The algorithm is described in the [PE format specification][1].
+    ///
+    /// [1]: https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#process-for-generating-the-authenticode-pe-image-hash
+    pub fn authenticode_hash(
+        &self,
+        digest: &mut dyn digest::Update,
+    ) -> Option<()> {
+        // Offset within the PE file where the checksum field is located. The
+        // checksum is skipped while computing the digest.
+        let checksum_offset = self.dos_stub.len()
+            + Self::SIZE_OF_PE_SIGNATURE
+            + Self::SIZE_OF_FILE_HEADER
+            + 64_usize;
+
+        // Offset of the security entry in the data directory. This entry is skipped
+        // while computing the digest.
+        let security_data_offset = self.dos_stub.len()
+            + Self::SIZE_OF_PE_SIGNATURE
+            + Self::SIZE_OF_FILE_HEADER
+            + if self.optional_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC
+            {
+                Self::SIZE_OF_OPT_HEADER_32
+            } else {
+                Self::SIZE_OF_OPT_HEADER_64
+            }
+            + Self::SIZE_OF_DIR_ENTRY * Self::IMAGE_DIRECTORY_ENTRY_SECURITY;
+
+        // Hash from start of the file to the checksum.
+        digest.update(self.data.get(0..checksum_offset)?);
+
+        // Hash from the end of the checksum to the start of the security entry
+        // in the data directory.
+        digest.update(self.data.get(
+            checksum_offset + mem::size_of::<u32>()..security_data_offset,
+        )?);
+
+        let (cert_table_offset, cert_table_size, _) = self
+            .get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_SECURITY, true)?;
+
+        // Hash from the end of the security entry in the data directory, to the
+        // certificate table.
+        digest.update(self.data.get(
+            security_data_offset + Self::SIZE_OF_DIR_ENTRY
+                ..cert_table_offset as usize,
+        )?);
+
+        // Hash from the end of the certificate table to the end of the file.
+        digest.update(self.data.get(
+            cert_table_offset as usize + cert_table_size as usize
+                ..self.data.len(),
+        )?);
+
+        Some(())
+    }
 }
 
 impl<'a> PE<'a> {
@@ -423,8 +487,20 @@ impl<'a> PE<'a> {
     const RICH_TAG: &'static [u8] = &[0x52_u8, 0x69, 0x63, 0x68];
     const DANS_TAG: u32 = 0x536e6144;
 
-    const SIZE_OF_PE_SIGNATURE: usize = 4; // size of PE signature (PE\0\0).
-    const SIZE_OF_FILE_HEADER: usize = 20; // size of IMAGE_FILE_HEADER
+    // size of PE signature (PE\0\0).
+    const SIZE_OF_PE_SIGNATURE: usize = 4;
+
+    // size of IMAGE_FILE_HEADER
+    const SIZE_OF_FILE_HEADER: usize = 20;
+
+    // size of IMAGE_OPTIONAL_HEADER for 32-bit files.
+    // Without data directory entries.
+    const SIZE_OF_OPT_HEADER_32: usize = 96;
+
+    // size of IMAGE_OPTIONAL_HEADER for 64-bit files.
+    // Without data directory entries.
+    const SIZE_OF_OPT_HEADER_64: usize = 112;
+
     const SIZE_OF_DIR_ENTRY: usize = 8;
     const SIZE_OF_SYMBOL: u32 = 18;
 
@@ -1362,7 +1438,7 @@ impl<'a> PE<'a> {
 
         // The certificate table is an array of WIN_CERTIFICATE structures.
         let signatures = fold_many0(
-            Self::parse_win_cert,
+            self.win_cert_parser(),
             Vec::new,
             |mut acc: Vec<_>, signatures| {
                 acc.extend(signatures);
@@ -1375,37 +1451,47 @@ impl<'a> PE<'a> {
         Some(signatures)
     }
 
-    fn parse_win_cert(
-        input: &[u8],
-    ) -> IResult<&[u8], Vec<AuthenticodeSignature>> {
-        // Parse the WIN_CERTIFICATE structure.
-        let (remainder, (length, _revision, _cert_type)) = tuple((
-            le_u32::<&[u8], Error>, // length
-            le_u16, // revision, should be WIN_CERT_REVISION_1_0 (0x0100)
-            le_u16, // certificate type
-        ))(input)?;
+    /// Returns a parser that parses a WIN_CERTIFICATE structure.
+    fn win_cert_parser(
+        &self,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<AuthenticodeSignature>> + '_
+    {
+        move |input: &'a [u8]| {
+            // Parse the WIN_CERTIFICATE structure.
+            let (remainder, (length, _revision, _cert_type)) =
+                tuple((
+                    le_u32::<&[u8], Error>, // length
+                    le_u16, // revision, should be WIN_CERT_REVISION_1_0 (0x0100)
+                    le_u16, // certificate type
+                ))(input)?;
 
-        // The length includes the header, compute the length of the signature.
-        let signature_length: u32 = length
-            .checked_sub(8)
-            .ok_or_else(|| Err::Error(Error::new(input, ErrorKind::Fail)))?;
+            // The length includes the header, compute the length of the signature.
+            let signature_length: u32 =
+                length.checked_sub(8).ok_or_else(|| {
+                    Err::Error(Error::new(input, ErrorKind::Fail))
+                })?;
 
-        let (_, signature_data) = take(signature_length)(remainder)?;
-        let (_, signatures) = Self::parse_signature(signature_data)?;
+            let (_, signature_data) = take(signature_length)(remainder)?;
+            let (_, signatures) = self.signature_parser()(signature_data)?;
 
-        // The next WIN_CERTIFICATE is aligned to the next 8-bytes boundary.
-        let (remainder, _) = take(Self::round_up::<8, _>(length))(input)?;
+            // The next WIN_CERTIFICATE is aligned to the next 8-bytes boundary.
+            let (remainder, _) = take(Self::round_up::<8, _>(length))(input)?;
 
-        Ok((remainder, signatures))
+            Ok((remainder, signatures))
+        }
     }
 
-    /// Parses the PKCS#7 blob that containing an Authenticode signature.
-    fn parse_signature(
-        input: &[u8],
-    ) -> IResult<&[u8], Vec<AuthenticodeSignature>> {
-        let signatures = AuthenticodeParser::parse(input)
-            .map_err(|_| Err::Error(Error::new(input, ErrorKind::Fail)))?;
-        Ok((&[], signatures))
+    /// Returns a parser that parses the PKCS#7 blob that containing an
+    /// Authenticode signature.
+    fn signature_parser(
+        &self,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<AuthenticodeSignature>> + '_
+    {
+        move |input: &'a [u8]| {
+            let signatures = AuthenticodeParser::parse(input, self)
+                .map_err(|_| Err::Error(Error::new(input, ErrorKind::Fail)))?;
+            Ok((&[], signatures))
+        }
     }
 
     fn parse_dir_entries(&self) -> Option<Vec<DirEntry>> {

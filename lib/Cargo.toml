@@ -118,6 +118,7 @@ pe-module = [
     "dep:authenticode-parser",
     "dep:cms",
     "dep:const-oid",
+    "dep:digest",
     "dep:nom",
     "dep:sha1",
     "dep:x509-cert",
@@ -177,6 +178,7 @@ cms = { workspace = true, optional = true }
 const-oid = { workspace = true, optional = true }
 crc32fast = { workspace = true, optional = true }
 der = { workspace = true, features = ["derive"] }
+digest = { workspace = true, optional = true }
 fmmap = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 intaglio = { workspace = true }

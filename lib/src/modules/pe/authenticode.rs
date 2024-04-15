@@ -1,22 +1,27 @@
 use std::fmt::{Display, Write};
 
+use crate::modules::pe::parser::PE;
 use array_bytes::bytes2hex;
 use cms::attr::Countersignature;
 use cms::cert::x509::{spki, Certificate};
+use cms::cert::IssuerAndSerialNumber;
 use cms::content_info::CmsVersion;
 use cms::content_info::ContentInfo;
-use cms::signed_data::{SignedData, SignerIdentifier, SignerInfo};
+use cms::signed_data::{
+    CertificateSet, SignedData, SignerIdentifier, SignerInfo, SignerInfos,
+};
 use const_oid::db::{rfc5911, rfc5912, rfc6268, DB};
 use const_oid::ObjectIdentifier;
-use der::asn1::{
-    BmpString, Ia5String, Ia5StringRef, OctetString, PrintableStringRef,
-    TeletexStringRef, UtcTime, Utf8StringRef,
-};
+use der::asn1;
+use der::asn1::OctetString;
 use der::{Choice, Sequence, SliceReader};
 use der::{Decode, Encode, Tag, Tagged};
+use digest::Digest;
 use protobuf::MessageField;
 use sha1::digest::Output;
-use sha1::{Digest, Sha1};
+use sha1::Sha1;
+use sha2::Sha256;
+use x509_tsp::TstInfo;
 
 use crate::modules::protos;
 
@@ -100,9 +105,9 @@ pub struct SpcSpOpusInfo {
 #[derive(Clone, Debug, Eq, PartialEq, Choice)]
 pub enum SpcString {
     #[asn1(context_specific = "0", tag_mode = "IMPLICIT")]
-    Unicode(BmpString),
+    Unicode(asn1::BmpString),
     #[asn1(context_specific = "1", tag_mode = "IMPLICIT", type = "IA5String")]
-    Ascii(Ia5String),
+    Ascii(asn1::Ia5String),
 }
 
 impl Display for SpcString {
@@ -126,7 +131,7 @@ impl Display for SpcString {
 #[derive(Clone, Debug, Eq, PartialEq, Choice)]
 pub enum SpcLink {
     #[asn1(context_specific = "0", tag_mode = "IMPLICIT", type = "IA5String")]
-    Url(Ia5String),
+    Url(asn1::Ia5String),
 }
 
 /// Error returned by [`AuthenticodeParser::parse`].
@@ -184,29 +189,34 @@ pub enum ParseError {
 /// https://blog.trailofbits.com/2020/05/27/verifying-windows-binaries-without-windows/
 /// https://docs.clamav.net/appendix/Authenticode.html
 /// https://download.microsoft.com/download/9/c/5/9c5b2167-8017-4bae-9fde-d599bac8184a/authenticode_pe.docx
-#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AuthenticodeParser {}
 
 impl AuthenticodeParser {
     /// Parses Authenticode signatures from DER-encoded bytes.
     pub fn parse(
-        bytes: &[u8],
+        input: &[u8],
+        pe: &PE,
     ) -> Result<Vec<AuthenticodeSignature>, ParseError> {
-        // Use a reader rather than using `Decode::from_der`, because there may
-        // be unused trailing data in `input`, which causes a `TrailingData`
-        // error.
+        // Use a reader rather than using `Decode::from_der`, because
+        // there may be unused trailing data in `input`, which causes a
+        // `TrailingData` error.
         let mut reader =
-            SliceReader::new(bytes).map_err(|_| ParseError::Empty)?;
+            SliceReader::new(input).map_err(|_| ParseError::Empty)?;
 
         let content_info = ContentInfo::decode(&mut reader)
             .map_err(ParseError::InvalidContentInfo)?;
 
-        if content_info.content_type != rfc6268::ID_SIGNED_DATA {
-            return Err(ParseError::InvalidContentType(
-                content_info.content_type,
-            ));
+        if content_info.content_type == rfc6268::ID_SIGNED_DATA {
+            Self::parse_content_info(content_info, pe)
+        } else {
+            Err(ParseError::InvalidContentType(content_info.content_type))
         }
+    }
 
+    fn parse_content_info(
+        content_info: ContentInfo,
+        pe: &PE,
+    ) -> Result<Vec<AuthenticodeSignature>, ParseError> {
         let signed_data = content_info
             .content
             .decode_as::<SignedData>()
@@ -278,25 +288,23 @@ impl AuthenticodeParser {
             return Err(ParseError::MissingContentTypeAuthenticatedAttribute);
         }
 
-        // The messageDigest attribute must be present.
-        let signer_info_digest = if let Some(digest_attr) = signed_attrs
+        let signer_info_digest = signed_attrs
             .iter()
             .find(|attr| attr.oid == rfc6268::ID_MESSAGE_DIGEST)
-        {
-            digest_attr.values.as_slice()[0].value()
-        } else {
-            return Err(
-                ParseError::MissingMessageDigestAuthenticatedAttribute,
-            );
-        };
+            .and_then(|attr| attr.values.get(0))
+            .and_then(|value| value.decode_as::<OctetString>().ok())
+            .ok_or(ParseError::MissingMessageDigestAuthenticatedAttribute)?;
 
         let opus_info = signed_attrs
             .iter()
             .find(|attr| attr.oid == SPC_SP_OPUS_INFO_OBJID)
             .and_then(|attr| attr.values.get(0))
-            .and_then(|attr_val| attr_val.decode_as::<SpcSpOpusInfo>().ok());
+            .and_then(|value| value.decode_as::<SpcSpOpusInfo>().ok());
 
-        let program_name = opus_info.and_then(|oi| oi.program_name);
+        let mut certificates = signed_data
+            .certificates
+            .map(Self::certificate_set_to_vec)
+            .unwrap();
 
         let mut nested_signatures = Vec::new();
         let mut countersignatures = Vec::new();
@@ -307,18 +315,18 @@ impl AuthenticodeParser {
                     // An Authenticode signature can contain nested signatures in
                     // an unsigned attribute with OID 1.3.6.1.4.1.311.2.4.1.
                     SPC_MS_NESTED_SIGNATURE => {
-                        // TODO: can we do this without having to use encode_to_vec?
-                        let mut raw = Vec::new();
-                        if attr.values.as_slice()[0]
-                            .encode_to_vec(&mut raw)
-                            .is_ok()
+                        if let Some(signatures) = attr
+                            .values
+                            .get(0)
+                            .and_then(|value| {
+                                value.decode_as::<ContentInfo>().ok()
+                            })
+                            .and_then(|content_info| {
+                                Self::parse_content_info(content_info, pe).ok()
+                            })
                         {
-                            if let Ok(signatures) =
-                                AuthenticodeParser::parse(raw.as_slice())
-                            {
-                                nested_signatures.extend(signatures);
-                            }
-                        };
+                            nested_signatures.extend(signatures);
+                        }
                     }
                     SPC_MS_COUNTERSIGN => {
                         for value in attr.values.iter() {
@@ -330,15 +338,55 @@ impl AuthenticodeParser {
                                         .decode_as::<SignedData>()
                                 })
                             {
-                                countersignatures.push(
-                                    Self::pkcs9_countersignature(
-                                        signed_data
-                                            .signer_infos
-                                            .as_ref()
-                                            .get(0)
-                                            .unwrap(),
-                                    ),
+                                certificates.extend(
+                                    signed_data
+                                        .certificates
+                                        .map(Self::certificate_set_to_vec)
+                                        .unwrap(),
                                 );
+
+                                let mut cs = Self::pkcs9_countersignature(
+                                    signed_data
+                                        .signer_infos
+                                        .as_ref()
+                                        .get(0)
+                                        .unwrap(),
+                                );
+
+                                let tst_info = signed_data
+                                    .encap_content_info
+                                    .econtent
+                                    .and_then(|content| {
+                                        content.decode_as::<OctetString>().ok()
+                                    })
+                                    .and_then(|octet_string| {
+                                        TstInfo::from_der(
+                                            octet_string.as_bytes(),
+                                        )
+                                        .ok()
+                                    });
+
+                                let tst_info = match tst_info {
+                                    Some(tst_info) => tst_info,
+                                    None => continue,
+                                };
+
+                                cs.digest_alg = oid_to_algorithm_name(
+                                    &tst_info
+                                        .message_imprint
+                                        .hash_algorithm
+                                        .oid,
+                                );
+
+                                cs.digest = Some(bytes2hex(
+                                    "",
+                                    tst_info
+                                        .message_imprint
+                                        .hashed_message
+                                        .as_bytes(),
+                                ));
+
+                                countersignatures.push(cs);
                             }
                         }
                     }
@@ -359,12 +407,28 @@ impl AuthenticodeParser {
 
         let mut signatures = Vec::with_capacity(nested_signatures.len() + 1);
 
+        let file_digest = match signer_info.digest_alg.oid {
+            rfc5912::ID_SHA_1 => {
+                let mut sha1 = Sha1::default();
+                pe.authenticode_hash(&mut sha1);
+                format!("{:x}", sha1.finalize())
+            }
+            rfc5912::ID_SHA_256 => {
+                let mut sha256 = Sha256::default();
+                pe.authenticode_hash(&mut sha256);
+                format!("{:x}", sha256.finalize())
+            }
+            _ => unreachable!(),
+        };
+
         signatures.push(AuthenticodeSignature {
-            signer_info_digest: bytes2hex("", signer_info_digest),
-            signed_data,
+            signer_infos: signed_data.signer_infos,
+            signer_info_digest: bytes2hex("", signer_info_digest.as_bytes()),
+            program_name: opus_info.and_then(|oi| oi.program_name),
+            file_digest,
             indirect_data,
             countersignatures,
-            program_name,
+            certificates,
         });
 
         signatures.append(&mut nested_signatures);
@@ -388,7 +452,8 @@ impl AuthenticodeParser {
                     }
                     rfc6268::ID_SIGNING_TIME => {
                         if let Some(value) = attr.values.get(0) {
-                            signing_time = value.decode_as::<UtcTime>().ok();
+                            signing_time =
+                                value.decode_as::<asn1::UtcTime>().ok();
                         }
                     }
                     _ => {}
@@ -396,32 +461,62 @@ impl AuthenticodeParser {
             }
         }
 
+        let signer = match &cs.sid {
+            SignerIdentifier::IssuerAndSerialNumber(signer) => signer,
+            _ => unreachable!(),
+        };
+
         AuthenticodeCountersign {
+            signer: signer.clone(),
             digest_alg: oid_to_algorithm_name(&cs.digest_alg.oid),
             digest,
             signing_time,
         }
     }
+
+    fn certificate_set_to_vec(cs: CertificateSet) -> Vec<Certificate> {
+        cs.0.into_vec()
+            .into_iter()
+            .map(|cert| {
+                if let cms::cert::CertificateChoices::Certificate(cert) = cert
+                {
+                    cert
+                } else {
+                    panic!()
+                }
+            })
+            .collect()
+    }
 }
 
 pub struct AuthenticodeCountersign {
+    signer: IssuerAndSerialNumber,
     digest_alg: &'static str,
     digest: Option<String>,
-    signing_time: Option<UtcTime>,
+    signing_time: Option<asn1::UtcTime>,
 }
 
 pub struct AuthenticodeSignature {
     signer_info_digest: String,
-    signed_data: SignedData,
     indirect_data: SpcIndirectDataContent,
+    signer_infos: SignerInfos,
+    certificates: Vec<Certificate>,
     countersignatures: Vec<AuthenticodeCountersign>,
     program_name: Option<SpcString>,
+    file_digest: String,
 }
 
 impl AuthenticodeSignature {
     /// Get the authenticode digest stored in the signature.
+    #[inline]
     pub fn digest(&self) -> String {
         bytes2hex("", self.indirect_data.message_digest.digest.as_bytes())
+    }
+
+    /// Get the authenticode digest, as computed by the
+    #[inline]
+    pub fn file_digest(&self) -> String {
+        self.file_digest.clone()
     }
 
     /// Get the name of the digest algorithm.
@@ -433,30 +528,29 @@ impl AuthenticodeSignature {
     }
 
     /// Get [`SignerInfo`].
+    #[inline]
     pub fn signer_info(&self) -> &SignerInfo {
-        // The constructor validates that exactly one signer info is
-        // present, so this won't panic.
-        &self.signed_data.signer_infos.0.as_slice()[0]
+        // The parser validates that exactly one signer info is present, so
+        // this won't panic.
+        &self.signer_infos.0.as_ref()[0]
     }
 
+    #[inline]
     pub fn signer_info_digest_alg(&self) -> String {
         oid_to_algorithm_name(&self.signer_info().digest_alg.oid).to_string()
     }
 
+    #[inline]
     pub fn signer_info_digest(&self) -> String {
         self.signer_info_digest.clone()
     }
 
+    #[inline]
     pub fn certificates(&self) -> impl Iterator<Item = &Certificate> {
-        self.signed_data.certificates.as_ref().unwrap().0.iter().map(|cert| {
-            if let cms::cert::CertificateChoices::Certificate(cert) = cert {
-                cert
-            } else {
-                panic!()
-            }
-        })
+        self.certificates.iter()
     }
 
+    #[inline]
     pub fn countersignatures(
         &self,
     ) -> impl Iterator<Item = &AuthenticodeCountersign> {
@@ -484,7 +578,7 @@ impl AuthenticodeSignature {
     /// highest level certificate in the chain is the last one.
     fn build_chain(
         &self,
-        issuer_and_serial_number: &cms::cert::IssuerAndSerialNumber,
+        issuer_and_serial_number: &IssuerAndSerialNumber,
     ) -> Vec<&Certificate> {
         let mut chain = vec![];
 
@@ -521,13 +615,20 @@ impl From<&AuthenticodeSignature> for protos::pe::Signature {
 
         sig.set_digest(value.digest());
         sig.set_digest_alg(value.digest_alg());
+        sig.set_file_digest(value.file_digest());
 
         sig.certificates
             .extend(value.certificates().map(protos::pe::Certificate::from));
 
-        sig.countersignatures.extend(
-            value.countersignatures().map(protos::pe::CounterSignature::from),
-        );
+        for cs in value.countersignatures() {
+            let mut pbcs = protos::pe::CounterSignature::from(cs);
+            pbcs.chain = value
+                .build_chain(&cs.signer)
+                .into_iter()
+                .map(protos::pe::Certificate::from)
+                .collect();
+            sig.countersignatures.push(pbcs);
+        }
 
         sig.set_number_of_certificates(
             sig.certificates.len().try_into().unwrap(),
@@ -590,13 +691,6 @@ impl From<&AuthenticodeCountersign> for protos::pe::CounterSignature {
         cs.sign_time =
             value.signing_time.map(|t| t.to_unix_duration().as_secs() as i64);
 
-        /*cs.chain.extend(
-            value
-                .certificate_chain()
-                .iter()
-                .map(protos::pe::Certificate::from),
-        );*/
-
         cs
     }
 }
@@ -620,7 +714,7 @@ impl From<&Certificate> for protos::pe::Certificate {
         );
 
         // The certificate thumbprint is the SHA1 of the DER-encoded certificate.
-        let mut hasher = Sha1Hasher::new();
+        let mut hasher = DerHasher::<Sha1>::new();
         value.encode(&mut hasher).unwrap();
         cert.set_thumbprint(format!("{:x}", hasher.finalize()));
 
@@ -674,19 +768,21 @@ fn format_name(name: &x509_cert::name::Name) -> String {
         for atv in rdn.0.iter() {
             let val = match atv.value.tag() {
                 Tag::PrintableString => {
-                    PrintableStringRef::try_from(&atv.value)
+                    asn1::PrintableStringRef::try_from(&atv.value)
                         .ok()
                         .map(|s| s.as_str())
                 }
-                Tag::Utf8String => Utf8StringRef::try_from(&atv.value)
+                Tag::Utf8String => asn1::Utf8StringRef::try_from(&atv.value)
                     .ok()
                     .map(|s| s.as_str()),
-                Tag::Ia5String => {
-                    Ia5StringRef::try_from(&atv.value).ok().map(|s| s.as_str())
+                Tag::Ia5String => asn1::Ia5StringRef::try_from(&atv.value)
+                    .ok()
+                    .map(|s| s.as_str()),
+                Tag::TeletexString => {
+                    asn1::TeletexStringRef::try_from(&atv.value)
+                        .ok()
+                        .map(|s| s.as_str())
                 }
-                Tag::TeletexString => TeletexStringRef::try_from(&atv.value)
-                    .ok()
-                    .map(|s| s.as_str()),
                 _ => None,
             };
 
@@ -731,7 +827,7 @@ fn shortest_name_by_oid(oid: &ObjectIdentifier) -> Option<&str> {
 /// Produces a printable string of a serial number.
 ///
 /// The [`x509_cert::serial_number::SerialNumber`] type implements the
-/// [`std::fmt::Display`] trait, but the resulting string is in uppercase.
+/// [`Display`] trait, but the resulting string is in uppercase.
 fn format_serial_number(
     sn: &x509_cert::serial_number::SerialNumber,
 ) -> String {
@@ -769,20 +865,22 @@ fn oid_to_algorithm_name(oid: &ObjectIdentifier) -> &'static str {
     }
 }
 
-struct Sha1Hasher {
-    hasher: Sha1,
+/// A wrapper that implements the [`der::Writer`] trait for a
+/// [`Digest`].
+struct DerHasher<T: digest::Digest + Default> {
+    hasher: T,
 }
 
-impl Sha1Hasher {
+impl<T: digest::Digest + Default> DerHasher<T> {
     pub fn new() -> Self {
-        Self { hasher: Sha1::new() }
+        Self { hasher: T::default() }
     }
-    pub fn finalize(self) -> Output<Sha1> {
+    pub fn finalize(self) -> Output<T> {
         self.hasher.finalize()
     }
 }
 
-impl der::Writer for Sha1Hasher {
+impl<T: digest::Digest + Default> der::Writer for DerHasher<T> {
     fn write(&mut self, slice: &[u8]) -> der::Result<()> {
         self.hasher.update(slice);
         Ok(())

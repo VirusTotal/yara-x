@@ -4379,6 +4379,7 @@ dependencies = [
  "const-oid",
  "crc32fast",
  "der",
+ "digest 0.10.7",
  "fmmap",
  "globwalk",
  "goldenfile",
