@@ -120,9 +120,11 @@ pe-module = [
     "dep:const-oid",
     "dep:digest",
     "dep:nom",
+    "dep:rsa",
     "dep:sha1",
     "dep:x509-cert",
     "dep:x509-tsp",
+    "dep:x509-verify",
 ]
 
 # The `string` modules offer some functions for parsing strings as integers,
@@ -200,6 +202,7 @@ rustc-hash = { workspace = true }
 regex-syntax = { workspace = true }
 regex-automata = { workspace = true }
 roxmltree = { workspace = true, optional = true }
+rsa = { workspace = true, optional = true }
 smallvec = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true }
@@ -210,6 +213,7 @@ walrus = { workspace = true }
 wasmtime = { workspace = true, features = ["cranelift", "parallel-compilation"] }
 x509-cert = { workspace = true, optional = true }
 x509-tsp = { workspace = true, optional = true }
+x509-verify = { workspace = true, optional = true, features = ["rsa", "sha1"] }
 yansi = { workspace = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true }

@@ -472,7 +472,7 @@ import_details:
         rva: 100456
       - name: "TranslateMessage"
         rva: 100464
-is_signed: false
+is_signed: true
 signatures:
   - subject: "/C=CH/ST=Bern/L=Bolligen/O=Ghisler Software GmbH/OU=Development/CN=Ghisler Software GmbH"
     issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=Terms of use at https://www.verisign.com/rpa (c)10/CN=VeriSign Class 3 Code Signing 2010 CA"
@@ -483,6 +483,7 @@ signatures:
     serial: "03:6c:61:75:7a:92:3f:50:c8:2e:b6:aa:18:d2:1f:c6"
     not_before: 1473379200 # 2016-09-09 00:00:00 UTC
     not_after: 1495756799 # 2017-05-25 23:59:59 UTC
+    verified: true
     digest_alg: "sha1"
     digest: "7383d4bc5c4eb4c78f0358a815886ff643d71728"
     file_digest: "7383d4bc5c4eb4c78f0358a815886ff643d71728"
@@ -579,6 +580,7 @@ signatures:
     serial: "1a:f2:6d:2b:4d:e7:eb:bb:26:05:fd:83:cc:b1:f4:ad"
     not_before: 1464134400 # 2016-05-25 00:00:00 UTC
     not_after: 1495756799 # 2017-05-25 23:59:59 UTC
+    verified: true
     digest_alg: "sha256"
     digest: "b43e10921c479054beeb47518aa62be7f90d45f5e65791681ec687ecb294d502"
     file_digest: "b43e10921c479054beeb47518aa62be7f90d45f5e65791681ec687ecb294d502"

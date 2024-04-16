@@ -8,7 +8,7 @@ use cms::cert::IssuerAndSerialNumber;
 use cms::content_info::CmsVersion;
 use cms::content_info::ContentInfo;
 use cms::signed_data::{
-    CertificateSet, SignedData, SignerIdentifier, SignerInfo, SignerInfos,
+    CertificateSet, SignedData, SignerIdentifier, SignerInfo,
 };
 use const_oid::db::{rfc5911, rfc5912, rfc6268, DB};
 use const_oid::ObjectIdentifier;
@@ -303,6 +303,7 @@ impl AuthenticodeParser {
 
         let mut certificates = signed_data
             .certificates
+            .as_ref()
             .map(Self::certificate_set_to_vec)
             .unwrap();
 
@@ -341,6 +342,7 @@ impl AuthenticodeParser {
                                 certificates.extend(
                                     signed_data
                                         .certificates
+                                        .as_ref()
                                         .map(Self::certificate_set_to_vec)
                                         .unwrap(),
                                 );
@@ -411,20 +413,20 @@ impl AuthenticodeParser {
             rfc5912::ID_SHA_1 => {
                 let mut sha1 = Sha1::default();
                 pe.authenticode_hash(&mut sha1);
-                format!("{:x}", sha1.finalize())
+                sha1.finalize().to_vec()
             }
             rfc5912::ID_SHA_256 => {
                 let mut sha256 = Sha256::default();
                 pe.authenticode_hash(&mut sha256);
-                format!("{:x}", sha256.finalize())
+                sha256.finalize().to_vec()
             }
             _ => unreachable!(),
         };
 
         signatures.push(AuthenticodeSignature {
-            signer_infos: signed_data.signer_infos,
-            signer_info_digest: bytes2hex("", signer_info_digest.as_bytes()),
             program_name: opus_info.and_then(|oi| oi.program_name),
+            signer_info_digest,
+            signed_data,
             file_digest,
             indirect_data,
             countersignatures,
@@ -474,13 +476,12 @@ impl AuthenticodeParser {
         }
     }
 
-    fn certificate_set_to_vec(cs: CertificateSet) -> Vec<Certificate> {
-        cs.0.into_vec()
-            .into_iter()
+    fn certificate_set_to_vec(cs: &CertificateSet) -> Vec<Certificate> {
+        cs.0.iter()
             .map(|cert| {
                 if let cms::cert::CertificateChoices::Certificate(cert) = cert
                 {
-                    cert
+                    cert.clone()
                 } else {
                     panic!()
                 }
@@ -497,26 +498,26 @@ pub struct AuthenticodeCountersign {
 }
 
 pub struct AuthenticodeSignature {
-    signer_info_digest: String,
+    signer_info_digest: OctetString,
     indirect_data: SpcIndirectDataContent,
-    signer_infos: SignerInfos,
+    signed_data: SignedData,
     certificates: Vec<Certificate>,
     countersignatures: Vec<AuthenticodeCountersign>,
     program_name: Option<SpcString>,
-    file_digest: String,
+    file_digest: Vec<u8>,
 }
 
 impl AuthenticodeSignature {
     /// Get the authenticode digest stored in the signature.
     #[inline]
-    pub fn digest(&self) -> String {
-        bytes2hex("", self.indirect_data.message_digest.digest.as_bytes())
+    pub fn digest(&self) -> &[u8] {
+        self.indirect_data.message_digest.digest.as_bytes()
     }
 
     /// Get the authenticode digest, as computed by the
     #[inline]
-    pub fn file_digest(&self) -> String {
-        self.file_digest.clone()
+    pub fn file_digest(&self) -> &[u8] {
+        self.file_digest.as_slice()
     }
 
     /// Get the name of the digest algorithm.
@@ -532,7 +533,7 @@ impl AuthenticodeSignature {
     pub fn signer_info(&self) -> &SignerInfo {
         // The parser validates that exactly one signer info is present, so
         // this won't panic.
-        &self.signer_infos.0.as_ref()[0]
+        &self.signed_data.signer_infos.0.as_ref()[0]
     }
 
     #[inline]
@@ -542,7 +543,7 @@ impl AuthenticodeSignature {
 
     #[inline]
     pub fn signer_info_digest(&self) -> String {
-        self.signer_info_digest.clone()
+        bytes2hex("", self.signer_info_digest.as_bytes())
     }
 
     #[inline]
@@ -558,13 +559,91 @@ impl AuthenticodeSignature {
     }
 
     pub fn chain(&self) -> Vec<&Certificate> {
+        self.build_chain(self.signer())
+    }
+
+    pub fn signer(&self) -> &IssuerAndSerialNumber {
         if let SignerIdentifier::IssuerAndSerialNumber(signer) =
             &self.signer_info().sid
         {
-            self.build_chain(signer)
+            signer
         } else {
             unreachable!()
         }
+    }
+
+    pub fn verify(&self) -> bool {
+        return self.file_digest == self.digest();
+
+        /* let signing_cert_sn = &self.signer().serial_number;
+
+
+
+        // Find the certificate that is signing this Authenticode signature.
+        let signing_cert = match self.certificates().find(|cert| {
+            cert.tbs_certificate.serial_number.eq(signing_cert_sn)
+        }) {
+            Some(cert) => cert,
+            None => return false,
+        };
+
+        let public_key: VerifyingKey = signing_cert
+        .tbs_certificate
+        .subject_public_key_info
+        .owned_to_ref()
+        .try_into()
+        .unwrap();
+
+        let publib_key = rsa::RsaPublicKey::try_from(
+            signing_cert
+                .tbs_certificate
+                .subject_public_key_info
+                .owned_to_ref(),
+        )
+        .unwrap();
+
+        let verifying_key: VerifyingKey = publib_key.try_into().unwrap();
+
+        let d = self.indirect_data.message_diges.to_ber();
+
+        let signature = self.signer_info().signature.as_bytes();
+
+        let d = sha1::Sha1::digest(d.as_bytes());
+
+        publib_key
+            .verify(
+                Pkcs1v15Sign::new::<Sha1>(),
+                d.as_slice(),
+                self.signer_info().signature.as_bytes(),
+            )
+            .unwrap();
+
+        let parent_cert = match self.certificates().find(|cert| {
+            cert.tbs_certificate
+                .subject
+                .eq(&signing_cert.tbs_certificate.issuer)
+        }) {
+            Some(cert) => cert,
+            None => return false,
+        };
+
+        let key: VerifyingKey = parent_cert
+            .tbs_certificate
+            .subject_public_key_info
+            .owned_to_ref()
+            .try_into()
+            .unwrap();
+
+        key.verify(VerifyInfo::new(
+            signing_cert.tbs_certificate.to_der().unwrap().into(),
+            Signature::new(
+                &parent_cert.tbs_certificate.signature,
+                signing_cert.signature.as_bytes().unwrap(),
+            ),
+        ))
+        .unwrap();
+
+         */
     }
 }
 
@@ -613,9 +692,10 @@ impl From<&AuthenticodeSignature> for protos::pe::Signature {
     fn from(value: &AuthenticodeSignature) -> Self {
         let mut sig = protos::pe::Signature::new();
 
-        sig.set_digest(value.digest());
+        sig.set_digest(bytes2hex("", value.digest()));
         sig.set_digest_alg(value.digest_alg());
-        sig.set_file_digest(value.file_digest());
+        sig.set_file_digest(bytes2hex("", value.file_digest()));
+        sig.set_verified(value.verify());
 
         sig.certificates
             .extend(value.certificates().map(protos::pe::Certificate::from));
@@ -867,11 +947,11 @@ fn oid_to_algorithm_name(oid: &ObjectIdentifier) -> &'static str {
 
 /// A wrapper that implements the [`der::Writer`] trait for a
 /// [`Digest`].
-struct DerHasher<T: digest::Digest + Default> {
+struct DerHasher<T: Digest + Default> {
     hasher: T,
 }
 
-impl<T: digest::Digest + Default> DerHasher<T> {
+impl<T: Digest + Default> DerHasher<T> {
     pub fn new() -> Self {
         Self { hasher: T::default() }
     }
@@ -880,7 +960,7 @@ impl<T: digest::Digest + Default> DerHasher<T> {
     }
 }
 
-impl<T: digest::Digest + Default> der::Writer for DerHasher<T> {
+impl<T: Digest + Default> der::Writer for DerHasher<T> {
     fn write(&mut self, slice: &[u8]) -> der::Result<()> {
         self.hasher.update(slice);
         Ok(())

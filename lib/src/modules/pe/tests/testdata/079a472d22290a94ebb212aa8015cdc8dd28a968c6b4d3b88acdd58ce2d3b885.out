@@ -356,7 +356,7 @@ export_details:
     ordinal: 204
     rva: 4624
     offset: 1552
-is_signed: false
+is_signed: true
 signatures:
   - subject: "/C=US/ST=California/L=Menlo Park/O=Quicken, Inc./OU=Operations/CN=Quicken, Inc."
     issuer: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
@@ -367,6 +367,7 @@ signatures:
     serial: "21:bd:b2:cb:ec:e5:43:1e:24:f7:56:74:d6:0e:9c:1d"
     not_before: 1491955200 # 2017-04-12 00:00:00 UTC
     not_after: 1559692799 # 2019-06-04 23:59:59 UTC
+    verified: true
     digest_alg: "sha1"
     digest: "f4ca190ec9052243b8882d492b1c12d04da7817f"
     file_digest: "f4ca190ec9052243b8882d492b1c12d04da7817f"
