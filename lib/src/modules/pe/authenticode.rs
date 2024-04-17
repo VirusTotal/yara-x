@@ -11,7 +11,7 @@ use cms::signed_data::{
     CertificateSet, SignedData, SignerIdentifier, SignerInfo,
 };
 use const_oid::db::{rfc5911, rfc5912, rfc6268, DB};
-use const_oid::{AssociatedOid, ObjectIdentifier};
+use const_oid::ObjectIdentifier;
 use der::asn1;
 use der::asn1::OctetString;
 use der::referenced::OwnedToRef;
@@ -305,11 +305,13 @@ impl AuthenticodeParser {
             .and_then(|attr| attr.values.get(0))
             .and_then(|value| value.decode_as::<SpcSpOpusInfo>().ok());
 
-        let mut certificates = signed_data
+        let mut certificates: Vec<Certificate> = signed_data
             .certificates
             .as_ref()
-            .map(Self::certificate_set_to_vec)
-            .unwrap();
+            .map(Self::certificate_set_to_iter)
+            .unwrap()
+            .cloned()
+            .collect();
 
         let mut nested_signatures = Vec::new();
         let mut countersignatures = Vec::new();
@@ -347,8 +349,10 @@ impl AuthenticodeParser {
                                     signed_data
                                         .certificates
                                         .as_ref()
-                                        .map(Self::certificate_set_to_vec)
-                                        .unwrap(),
+                                        .map(Self::certificate_set_to_iter)
+                                        .unwrap()
+                                        .map(|c| c.clone())
+                                        .collect::<Vec<Certificate>>(),
                                 );
 
                                 let mut cs = Self::pkcs9_countersignature(
@@ -401,6 +405,15 @@ impl AuthenticodeParser {
                             if let Ok(cs) =
                                 value.decode_as::<Countersignature>().as_ref()
                             {
+                                let valid = verify_signer_info(
+                                    cs,
+                                    certificates.as_slice(),
+                                    signer_info.signature.as_bytes(),
+                                );
+
+                                // THIS SHOULD BE TRUE
+                                println!("{}", valid);
+
                                 countersignatures
                                     .push(Self::pkcs9_countersignature(cs));
                             }
@@ -480,17 +493,16 @@ impl AuthenticodeParser {
         }
     }
 
-    fn certificate_set_to_vec(cs: &CertificateSet) -> Vec<Certificate> {
-        cs.0.iter()
-            .map(|cert| {
-                if let cms::cert::CertificateChoices::Certificate(cert) = cert
-                {
-                    cert.clone()
-                } else {
-                    panic!()
-                }
-            })
-            .collect()
+    fn certificate_set_to_iter(
+        cs: &CertificateSet,
+    ) -> impl Iterator<Item = &Certificate> {
+        cs.0.iter().map(|cert| {
+            if let cms::cert::CertificateChoices::Certificate(cert) = cert {
+                cert
+            } else {
+                panic!()
+            }
+        })
     }
 }
 
@@ -551,8 +563,15 @@ impl AuthenticodeSignature {
     }
 
     #[inline]
-    pub fn certificates(&self) -> impl Iterator<Item = &Certificate> {
-        self.certificates.iter()
+    pub fn certificates(&self) -> &[Certificate] {
+        self.certificates.as_slice()
+    }
+
+    #[inline]
+    pub fn chain(&self) -> impl Iterator<Item = &Certificate> {
+        CertificateChain::new(self.certificates.as_slice(), |cert| {
+            cert.tbs_certificate.serial_number == self.signer().serial_number
+        })
     }
 
     #[inline]
@@ -560,12 +579,6 @@ impl AuthenticodeSignature {
         &self,
     ) -> impl Iterator<Item = &AuthenticodeCountersign> {
         self.countersignatures.iter()
-    }
-
-    pub fn chain(&self) -> Vec<&Certificate> {
-        self.certificate_chain(|cert| {
-            cert.tbs_certificate.serial_number == self.signer().serial_number
-        })
     }
 
     pub fn signer(&self) -> &IssuerAndSerialNumber {
@@ -599,154 +612,20 @@ impl AuthenticodeSignature {
     ///
     /// * The signing certificate must be valid.
     pub fn verify(&self) -> bool {
-        match self.signer_info().digest_alg.oid {
-            rfc5912::ID_SHA_1 => self.verify_impl::<Sha1>(),
-            rfc5912::ID_SHA_256 => self.verify_impl::<Sha256>(),
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl AuthenticodeSignature {
-    /// Returns a certificate chain containing the first certificate that
-    /// matches the predicate, and all the certificates participating in the
-    /// chain of trust for that certificate, up to the highest level certificate
-    /// found in the Authenticode signature.
-    ///
-    /// The first item in the vector is the requested certificate, and the
-    /// highest level certificate in the chain is the last one.
-    fn certificate_chain<P>(&self, predicate: P) -> Vec<&Certificate>
-    where
-        P: Fn(&Certificate) -> bool,
-    {
-        let mut chain = vec![];
-
-        let mut cert = match self.certificates().find(|cert| predicate(cert)) {
-            Some(cert) => cert,
-            None => return vec![],
-        };
-
-        loop {
-            chain.push(cert);
-
-            // When the certificate is self-signed issuer == subject, in that
-            // case we can't keep going up the chain.
-            if cert.tbs_certificate.subject == cert.tbs_certificate.issuer {
-                return chain;
-            }
-
-            match self.certificates().find(|c| {
-                c.tbs_certificate.subject == cert.tbs_certificate.issuer
-            }) {
-                Some(c) => cert = c,
-                None => return chain,
-            }
-        }
-    }
-
-    /// Returns `true` if the given certificate is valid.
-    ///
-    /// A certificate is considered valid if it is correctly signed by a parent
-    /// certificate that is included in the PE file, and the parent certificate
-    /// is also valid. The validation process goes up the chain of trust until
-    /// finding a self-signed certificate or a certificate that is signed by
-    /// some other certificate that is not included in the PE.
-    ///
-    /// When the last certificate in the chain is one that is signed by an
-    /// external certificate (not included in the PE) no attempt is made to
-    /// continue the validation by retrieving the external certificate from the
-    /// operating system certificate store.
-    fn is_valid_certificate(&self, cert: &Certificate) -> bool {
-        // Get the certificate chain that starts with the given `cert` and
-        // contains the issuer of `
-        let chain = self.certificate_chain(|c| {
-            c.tbs_certificate.serial_number
-                == cert.tbs_certificate.serial_number
-        });
-
-        // Iterate over the chain taking a certificate and its signer on each
-        // iteration.
-        for (signed, signer) in chain.iter().tuple_windows() {
-            // The `signed` certificate is the one that will be verified.
-            let verify_info = VerifyInfo::new(
-                signed.tbs_certificate.to_der().unwrap().into(),
-                Signature::new(
-                    &signed.signature_algorithm,
-                    signed.signature.as_bytes().unwrap(),
-                ),
-            );
-
-            // The public key in the `signer` certificate is used for
-            // verifying the signature in the `signed` certificate.
-            let key: VerifyingKey = match signer
-                .tbs_certificate
-                .subject_public_key_info
-                .owned_to_ref()
-                .try_into()
-            {
-                Ok(key) => key,
-                Err(_) => return false,
-            };
-
-            if key.verify(verify_info).is_err() {
-                return false;
-            }
-        }
-
-        true
-    }
-
-    /// Generic implementation for [`AuthenticodeSignature::verify`].
-    fn verify_impl<D: Digest + AssociatedOid>(&self) -> bool {
         if self.file_digest != self.digest() {
             return false;
         }
 
-        let content = self
-            .signed_data
-            .encap_content_info
-            .econtent
-            .as_ref()
-            .unwrap()
-            .value();
-
-        if D::digest(content).as_slice() != self.signer_info_digest.as_ref() {
-            return false;
-        }
-
-        // Find the certificate that signed the Authenticode hash.
-        let signing_cert_sn = &self.signer().serial_number;
-
-        let signing_cert = match self.certificates().find(|cert| {
-            cert.tbs_certificate.serial_number.eq(signing_cert_sn)
-        }) {
-            Some(cert) => cert,
-            None => return false,
-        };
-
-        if !self.is_valid_certificate(signing_cert) {
-            return false;
-        }
-
-        let key = match rsa::RsaPublicKey::try_from(
-            signing_cert
-                .tbs_certificate
-                .subject_public_key_info
-                .owned_to_ref(),
-        ) {
-            Ok(key) => key,
-            Err(_) => return false,
-        };
-
-        let attrs_digest =
-            D::digest(self.signer_info().signed_attrs.to_der().unwrap());
-
-        key.verify(
-            Pkcs1v15Sign::new::<D>(),
-            attrs_digest.as_slice(),
-            self.signer_info().signature.as_bytes(),
+        verify_signer_info(
+            self.signer_info(),
+            self.certificates(),
+            self.signed_data
+                .encap_content_info
+                .econtent
+                .as_ref()
+                .unwrap()
+                .value(),
         )
-        .is_ok()
     }
 }
 
@@ -759,17 +638,17 @@ impl From<&AuthenticodeSignature> for protos::pe::Signature {
         sig.set_file_digest(bytes2hex("", value.file_digest()));
         sig.set_verified(value.verify());
 
-        sig.certificates
-            .extend(value.certificates().map(protos::pe::Certificate::from));
+        sig.certificates.extend(
+            value.certificates().iter().map(protos::pe::Certificate::from),
+        );
 
         for cs in value.countersignatures() {
             let mut pbcs = protos::pe::CounterSignature::from(cs);
-            pbcs.chain = value
-                .certificate_chain(|cert| {
+            pbcs.chain =
+                CertificateChain::new(value.certificates.as_slice(), |cert| {
                     cert.tbs_certificate.serial_number
                         == cs.signer.serial_number
                 })
-                .into_iter()
                 .map(protos::pe::Certificate::from)
                 .collect();
             sig.countersignatures.push(pbcs);
@@ -792,9 +671,9 @@ impl From<&AuthenticodeSignature> for protos::pe::Signature {
             signer_info.set_program_name(program_name.to_string())
         }
 
-        signer_info.chain.extend(
-            value.chain().into_iter().map(protos::pe::Certificate::from),
-        );
+        signer_info
+            .chain
+            .extend(value.chain().map(protos::pe::Certificate::from));
 
         sig.signer_info = MessageField::from(Some(signer_info));
 
@@ -951,6 +830,103 @@ fn format_name(name: &x509_cert::name::Name) -> String {
     n
 }
 
+fn verify_signer_info(
+    si: &SignerInfo,
+    certs: &[Certificate],
+    content: &[u8],
+) -> bool {
+    // Find the certificate that signed the data in `content`.
+    let signing_cert_sn =
+        if let SignerIdentifier::IssuerAndSerialNumber(signer) = &si.sid {
+            &signer.serial_number
+        } else {
+            unreachable!()
+        };
+
+    // Get a certificate chain that starts with the certificate that signed
+    // data and contains all the certificates in the chain of truth.
+    let cert_chain = CertificateChain::new(certs, |cert| {
+        cert.tbs_certificate.serial_number.eq(signing_cert_sn)
+    });
+
+    // Make sure that whole certificate chain is valid.
+    if !cert_chain.verify() {
+        return false;
+    }
+
+    let signing_cert = match certs
+        .iter()
+        .find(|cert| cert.tbs_certificate.serial_number.eq(signing_cert_sn))
+    {
+        Some(cert) => cert,
+        None => return false,
+    };
+
+    match si.signature_algorithm.oid {
+        rfc5912::RSA_ENCRYPTION => {}
+        _ => unreachable!(),
+    }
+
+    // Find the attribute that contains the message digest and extract
+    // the digest from it.
+    let message_digest = match si
+        .signed_attrs
+        .as_ref()
+        .unwrap()
+        .iter()
+        .find(|attr| attr.oid == rfc6268::ID_MESSAGE_DIGEST)
+        .and_then(|attr| attr.values.get(0))
+        .and_then(|value| value.decode_as::<OctetString>().ok())
+    {
+        Some(digest) => digest,
+        None => return false,
+    };
+
+    // Get the public key contained in the certificate that signed the data.
+    let key = match rsa::RsaPublicKey::try_from(
+        signing_cert.tbs_certificate.subject_public_key_info.owned_to_ref(),
+    ) {
+        Ok(key) => key,
+        Err(_) => return false,
+    };
+
+    match si.digest_alg.oid {
+        rfc5912::ID_SHA_1 => {
+            // Make sure that the actual digest of the signed data matches the
+            // digest found in SignerInfo.
+            if Sha1::digest(content).as_slice() != message_digest.as_ref() {
+                return false;
+            }
+
+            let attrs_digest = Sha1::digest(si.signed_attrs.to_der().unwrap());
+
+            // Make sure that the
+            key.verify(
+                Pkcs1v15Sign::new::<Sha1>(),
+                attrs_digest.as_slice(),
+                si.signature.as_bytes(),
+            )
+            .is_ok()
+        }
+        rfc5912::ID_SHA_256 => {
+            if Sha256::digest(content).as_slice() != message_digest.as_ref() {
+                return false;
+            }
+
+            let attrs_digest =
+                Sha256::digest(si.signed_attrs.to_der().unwrap());
+
+            key.verify(
+                Pkcs1v15Sign::new::<Sha256>(),
+                attrs_digest.as_slice(),
+                si.signature.as_bytes(),
+            )
+            .is_ok()
+        }
+        _ => unreachable!(),
+    }
+}
+
 /// Returns a short name from an OID.
 ///
 /// This returns the strings like "C", "CN", "O", "OU", "ST", etc. This strings
@@ -1029,5 +1005,85 @@ impl<T: Digest + Default> der::Writer for DerHasher<T> {
     fn write(&mut self, slice: &[u8]) -> der::Result<()> {
         self.hasher.update(slice);
         Ok(())
+    }
+}
+
+struct CertificateChain<'a> {
+    certs: &'a [Certificate],
+    next: Option<&'a Certificate>,
+}
+
+impl<'a> CertificateChain<'a> {
+    pub fn new<P>(certs: &'a [Certificate], predicate: P) -> Self
+    where
+        P: Fn(&Certificate) -> bool,
+    {
+        let next = certs.iter().find(|cert| predicate(cert));
+        Self { certs, next }
+    }
+
+    /// Returns `true` if the certificate chain is valid.
+    ///
+    /// A certificate is considered valid if it is correctly signed by a parent
+    /// certificate that is included in the PE file, and the parent certificate
+    /// is also valid. The validation process goes up the chain of trust until
+    /// finding a self-signed certificate or a certificate that is signed by
+    /// some other certificate that is not included in the PE.
+    ///
+    /// When the last certificate in the chain is one that is signed by an
+    /// external certificate (not included in the PE) no attempt is made to
+    /// continue the validation by retrieving the external certificate from the
+    /// operating system certificate store.
+    pub fn verify(self) -> bool {
+        // Iterate over the chain taking a certificate and its signer on each
+        // iteration.
+        for (signed, signer) in self.tuple_windows() {
+            // The `signed` certificate is the one that will be verified.
+            let verify_info = VerifyInfo::new(
+                signed.tbs_certificate.to_der().unwrap().into(),
+                Signature::new(
+                    &signed.signature_algorithm,
+                    signed.signature.as_bytes().unwrap(),
+                ),
+            );
+
+            // The public key in the `signer` certificate is used for
+            // verifying the signature in the `signed` certificate.
+            let key: VerifyingKey = match signer
+                .tbs_certificate
+                .subject_public_key_info
+                .owned_to_ref()
+                .try_into()
+            {
+                Ok(key) => key,
+                Err(_) => return false,
+            };
+
+            if key.verify(verify_info).is_err() {
+                return false;
+            }
+        }
+
+        true
+    }
+}
+
+impl<'a> Iterator for CertificateChain<'a> {
+    type Item = &'a Certificate;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let next = self.next;
+        if let Some(next) = self.next {
+            // When the certificate is self-signed issuer == subject, in that
+            // case we can't keep going up the chain.
+            if next.tbs_certificate.subject == next.tbs_certificate.issuer {
+                self.next = None
+            } else {
+                self.next = self.certs.iter().find(|c| {
+                    c.tbs_certificate.subject == next.tbs_certificate.issuer
+                });
+            }
+        }
+        next
     }
 }
