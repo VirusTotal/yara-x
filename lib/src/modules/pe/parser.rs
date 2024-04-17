@@ -421,6 +421,9 @@ impl<'a> PE<'a> {
         &self,
         digest: &mut dyn digest::Update,
     ) -> Option<()> {
+        // TODO: according to the specification the sections must be sorted before
+        // computing the hash.
+
         // Offset within the PE file where the checksum field is located. The
         // checksum is skipped while computing the digest.
         let checksum_offset = self.dos_stub.len()
@@ -2448,152 +2451,6 @@ impl From<&Section<'_>> for protos::pe::Section {
         sec
     }
 }
-
-/*
-impl From<&authenticode_parser::Authenticode<'_>> for protos::pe::Signature {
-    fn from(value: &authenticode_parser::Authenticode) -> Self {
-        let mut sig = protos::pe::Signature::new();
-
-        sig.digest = value.digest().map(|v| bytes2hex("", v));
-        sig.digest_alg = value
-            .digest_alg()
-            .and_then(|v| String::from_utf8(v.to_vec()).ok());
-
-        sig.file_digest = value.file_digest().map(|v| bytes2hex("", v));
-
-        sig.certificates
-            .extend(value.certs().iter().map(protos::pe::Certificate::from));
-
-        sig.countersignatures.extend(
-            value.countersigs().iter().map(protos::pe::CounterSignature::from),
-        );
-
-        sig.signer_info = MessageField::from_option(
-            value.signer().map(protos::pe::SignerInfo::from),
-        );
-
-        sig.set_number_of_certificates(
-            sig.certificates.len().try_into().unwrap(),
-        );
-
-        sig.set_number_of_countersignatures(
-            sig.countersignatures.len().try_into().unwrap(),
-        );
-
-        sig.set_verified(
-            value
-                .verify_flags()
-                .is_some_and(|flags| flags == AuthenticodeVerify::Valid),
-        );
-
-        // Some fields from the first certificate in the chain are replicated
-        // in the `pe::Signature` structure for backward compatibility. The
-        // `chain` field in `SignerInfo` didn't exist in previous versions of
-        // YARA.
-        if let Some(signer_info) = sig.signer_info.as_ref() {
-            if let Some(cert) = signer_info.chain.first() {
-                sig.version = cert.version;
-                sig.thumbprint = cert.thumbprint.clone();
-                sig.issuer = cert.issuer.clone();
-                sig.subject = cert.subject.clone();
-                sig.serial = cert.serial.clone();
-                sig.not_after = cert.not_after;
-                sig.not_before = cert.not_before;
-                sig.algorithm = cert.algorithm.clone();
-                sig.algorithm_oid = cert.algorithm_oid.clone();
-            }
-        }
-
-        sig
-    }
-}
-
-impl From<authenticode_parser::Signer<'_>> for protos::pe::SignerInfo {
-    fn from(value: authenticode_parser::Signer) -> Self {
-        let mut signer_info = protos::pe::SignerInfo::new();
-
-        signer_info.digest = value.digest().map(|v| bytes2hex("", v));
-        signer_info.digest_alg = value
-            .digest_alg()
-            .and_then(|v| String::from_utf8(v.to_vec()).ok());
-
-        signer_info.program_name = value
-            .program_name()
-            .and_then(|v| String::from_utf8(v.to_vec()).ok());
-
-        signer_info.chain.extend(
-            value
-                .certificate_chain()
-                .iter()
-                .map(protos::pe::Certificate::from),
-        );
-
-        signer_info
-    }
-}
-
-impl From<&authenticode_parser::Countersignature<'_>>
-    for protos::pe::CounterSignature
-{
-    fn from(value: &authenticode_parser::Countersignature) -> Self {
-        let mut cs = protos::pe::CounterSignature::new();
-
-        cs.digest = value.digest().map(|v| bytes2hex("", v));
-        cs.digest_alg = value
-            .digest_alg()
-            .and_then(|v| String::from_utf8(v.to_vec()).ok());
-
-        cs.set_verified(
-            value
-                .verify_flags()
-                .is_some_and(|flags| flags == CounterSignatureVerify::Valid),
-        );
-
-        cs.set_sign_time(value.sign_time());
-
-        cs.chain.extend(
-            value
-                .certificate_chain()
-                .iter()
-                .map(protos::pe::Certificate::from),
-        );
-
-        cs
-    }
-}
-
-impl From<&authenticode_parser::Certificate<'_>> for protos::pe::Certificate {
-    fn from(value: &authenticode_parser::Certificate) -> Self {
-        let mut cert = protos::pe::Certificate::new();
-
-        // Versions are 0-based, add 1 for getting the actual version.
-        cert.set_version(value.version() + 1);
-
-        cert.issuer =
-            value.issuer().and_then(|v| String::from_utf8(v.to_vec()).ok());
-
-        cert.subject =
-            value.subject().and_then(|v| String::from_utf8(v.to_vec()).ok());
-
-        cert.serial =
-            value.serial().and_then(|v| String::from_utf8(v.to_vec()).ok());
-
-        cert.algorithm =
-            value.sig_alg().and_then(|v| String::from_utf8(v.to_vec()).ok());
-
-        cert.algorithm_oid = value
-            .sig_alg_oid()
-            .and_then(|v| String::from_utf8(v.to_vec()).ok());
-
-        cert.thumbprint = value.sha1().map(|v| bytes2hex("", v));
-
-        cert.set_not_before(value.not_before());
-        cert.set_not_after(value.not_after());
-
-        cert
-    }
-}
-*/
 
 impl rva2off::Section for Section<'_> {
     fn virtual_address(&self) -> u32 {
