@@ -59,7 +59,7 @@ fn md5_data(
 
     let range = offset.try_into().ok()?..(offset + size).try_into().ok()?;
     let data = ctx.scanned_data().get(range)?;
-    let mut hasher = Sha1::new();
+    let mut hasher = Md5::new();
 
     hasher.update(data);
 
