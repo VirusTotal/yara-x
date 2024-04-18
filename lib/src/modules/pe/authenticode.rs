@@ -18,7 +18,6 @@ use der::referenced::OwnedToRef;
 use der::{Choice, Sequence, SliceReader};
 use der::{Decode, Encode, Tag, Tagged};
 use digest::Digest;
-
 use ecdsa::signature::hazmat::PrehashVerifier;
 use itertools::Itertools;
 use md5::Md5;
@@ -28,6 +27,7 @@ use rsa::Pkcs1v15Sign;
 use sha1::digest::Output;
 use sha1::Sha1;
 use sha2::{Sha256, Sha384};
+use x509_cert::spki::AlgorithmIdentifierOwned;
 use x509_tsp::TstInfo;
 use x509_verify::{Signature, VerifyInfo, VerifyingKey};
 
@@ -288,7 +288,7 @@ impl AuthenticodeParser {
                 return Err(ParseError::EmptyAuthenticatedAttributes);
             };
 
-        // The contentType attribute must be present.
+        // The content type attribute must be present.
         if !signed_attrs
             .iter()
             .any(|attr| attr.oid == rfc6268::ID_CONTENT_TYPE)
@@ -296,19 +296,21 @@ impl AuthenticodeParser {
             return Err(ParseError::MissingContentTypeAuthenticatedAttribute);
         }
 
-        let signer_info_digest = signed_attrs
-            .iter()
-            .find(|attr| attr.oid == rfc6268::ID_MESSAGE_DIGEST)
-            .and_then(|attr| attr.values.get(0))
-            .and_then(|value| value.decode_as::<OctetString>().ok())
+        // Get the message digest attribute stored in `SignerInfo`, this is
+        // the digest of `SignedData.EncapsulatedContentInfo.econtent`.
+        let signer_info_digest = get_message_digest(signer_info)
             .ok_or(ParseError::MissingMessageDigestAuthenticatedAttribute)?;
 
+        // Get the opus info attribute and decode it.
         let opus_info = signed_attrs
             .iter()
             .find(|attr| attr.oid == SPC_SP_OPUS_INFO_OBJID)
             .and_then(|attr| attr.values.get(0))
             .and_then(|value| value.decode_as::<SpcSpOpusInfo>().ok());
 
+        // Get all the certificates contained in `SignedData`, more
+        // certificates from nested signatures and countersignatures will
+        // be added later to this vector.
         let mut certificates: Vec<Certificate> = signed_data
             .certificates
             .as_ref()
@@ -402,6 +404,22 @@ impl AuthenticodeParser {
                                         .as_bytes(),
                                 ));
 
+                                countersignature.verified =
+                                    verify_message_digest(
+                                        &tst_info
+                                            .message_imprint
+                                            .hash_algorithm,
+                                        signer_info.signature.as_bytes(),
+                                        tst_info
+                                            .message_imprint
+                                            .hashed_message
+                                            .as_bytes(),
+                                    ) && verify_signer_info(
+                                        cs,
+                                        certificates.as_slice(),
+                                        false,
+                                    );
+
                                 countersignatures.push(countersignature);
                             }
                         }
@@ -414,12 +432,22 @@ impl AuthenticodeParser {
                                 let mut countersignature =
                                     Self::pkcs9_countersignature(cs);
 
-                                countersignature.verified = verify_signed_data(
-                                    cs,
-                                    signer_info.signature.as_bytes(),
-                                    certificates.as_slice(),
-                                    true,
-                                );
+                                let message_digest =
+                                    match get_message_digest(cs) {
+                                        Some(digest) => digest,
+                                        None => continue,
+                                    };
+
+                                countersignature.verified =
+                                    verify_message_digest(
+                                        &cs.digest_alg,
+                                        signer_info.signature.as_bytes(),
+                                        message_digest.as_bytes(),
+                                    ) && verify_signer_info(
+                                        cs,
+                                        certificates.as_slice(),
+                                        true,
+                                    );
 
                                 countersignatures.push(countersignature);
                             }
@@ -432,6 +460,8 @@ impl AuthenticodeParser {
 
         let mut signatures = Vec::with_capacity(nested_signatures.len() + 1);
 
+        // Compute the Authenticode hash by ourselves. This hash will be
+        // compared later with the one included in the PE file.
         let file_digest = match signer_info.digest_alg.oid {
             rfc5912::ID_SHA_1 => {
                 let mut sha1 = Sha1::default();
@@ -460,7 +490,7 @@ impl AuthenticodeParser {
             program_name: opus_info.and_then(|oi| oi.program_name),
             signer_info_digest,
             signed_data,
-            file_digest,
+            computed_authenticode_hash: file_digest,
             indirect_data,
             countersignatures,
             certificates,
@@ -538,31 +568,30 @@ pub struct AuthenticodeSignature {
     certificates: Vec<Certificate>,
     countersignatures: Vec<AuthenticodeCountersign>,
     program_name: Option<SpcString>,
-    file_digest: Vec<u8>,
+    computed_authenticode_hash: Vec<u8>,
 }
 
 impl AuthenticodeSignature {
-    /// Get the authenticode digest stored in the signature.
+    /// Get the Authenticode hash stored in the PE file.
     #[inline]
-    pub fn digest(&self) -> &[u8] {
+    pub fn stored_authenticode_hash(&self) -> &[u8] {
         self.indirect_data.message_digest.digest.as_bytes()
     }
 
-    /// Get the authenticode digest, as computed by the
+    /// Get the Authenticode hash computed by ourselves.
     #[inline]
-    pub fn file_digest(&self) -> &[u8] {
-        self.file_digest.as_slice()
+    pub fn computed_authenticode_hash(&self) -> &[u8] {
+        self.computed_authenticode_hash.as_slice()
     }
 
-    /// Get the name of the digest algorithm.
-    pub fn digest_alg(&self) -> String {
+    /// Get the name of the Authenticode hash algorithm.
+    pub fn authenticode_hash_algorithm(&self) -> &'static str {
         oid_to_algorithm_name(
             &self.indirect_data.message_digest.digest_algorithm.oid,
         )
-        .to_string()
     }
 
-    /// Get [`SignerInfo`].
+    /// Get the [`SignerInfo`] struct.
     #[inline]
     pub fn signer_info(&self) -> &SignerInfo {
         // The parser validates that exactly one signer info is present, so
@@ -615,36 +644,52 @@ impl AuthenticodeSignature {
     ///
     /// * The Authenticode hash included in the file (in the `message_digest`
     ///   field of [`SpcIndirectDataContent`]) must match the hash computed by
-    ///   ourselves using [`PE::authenticode_hash`].
+    ///   ourselves using [`PE::authenticode_hash`]. This ensures that the file
+    ///   has not been modified.
     ///
     /// * The message digest stored the signed attribute [`rfc6268::ID_MESSAGE_DIGEST`]
     ///   of [`SignerInfo`], must match the one computed by ourselves by hashing
-    ///   the `econtent` field in [`EncapsulatedContentInfo`].
+    ///   the `econtent` field in [`EncapsulatedContentInfo`]. This ensures that
+    ///   the Authenticode hash included in the file has not been tampered.
     ///
     /// * The signature in [`SignerInfo`] must be valid. This signature is the
     ///   result of signing the hash of the DER encoding of the signed
     ///   attributes in [`SignerInfo`] with the private key of the signing
     ///   certificate. We compute this hash by ourselves, and then use the
     ///   public key included in the signing certificate to verify that the
-    ///   signature is valid.
+    ///   signature is valid. This ensures that the signed attributes in
+    ///   [`SignerInfo`], including the message digest has not been tampered.
     ///
-    /// * The signing certificate must be valid.
+    /// * The certificate that signed the [`SignerInfo`] struct must be valid,
+    ///   which implies that the chain of trust for that certificate must be
+    ///   validated, until we found a self-signed certificate or a certificate
+    ///   that is not included in the PE file. This last certificate is always
+    ///   considered valid.
     pub fn verify(&self) -> bool {
-        if self.file_digest != self.digest() {
+        if self.computed_authenticode_hash() != self.stored_authenticode_hash()
+        {
             return false;
         }
 
-        verify_signed_data(
-            self.signer_info(),
+        let message_digest = match get_message_digest(self.signer_info()) {
+            Some(digest) => digest,
+            None => return false,
+        };
+
+        if !verify_message_digest(
+            &self.signer_info().digest_alg,
             self.signed_data
                 .encap_content_info
                 .econtent
                 .as_ref()
                 .unwrap()
                 .value(),
-            self.certificates(),
-            false,
-        )
+            message_digest.as_ref(),
+        ) {
+            return false;
+        }
+
+        verify_signer_info(self.signer_info(), self.certificates(), false)
     }
 }
 
@@ -652,9 +697,9 @@ impl From<&AuthenticodeSignature> for protos::pe::Signature {
     fn from(value: &AuthenticodeSignature) -> Self {
         let mut sig = protos::pe::Signature::new();
 
-        sig.set_digest(bytes2hex("", value.digest()));
-        sig.set_digest_alg(value.digest_alg());
-        sig.set_file_digest(bytes2hex("", value.file_digest()));
+        sig.set_digest(bytes2hex("", value.stored_authenticode_hash()));
+        sig.set_digest_alg(value.authenticode_hash_algorithm().to_string());
+        sig.set_file_digest(bytes2hex("", value.computed_authenticode_hash()));
         sig.set_verified(value.verify());
 
         sig.certificates.extend(
@@ -844,24 +889,50 @@ fn format_name(name: &x509_cert::name::Name) -> String {
     n
 }
 
-fn verify_signed_data(
+/// Given a [`SignerInfo`] returns the value of the message digest attribute.
+fn get_message_digest(si: &SignerInfo) -> Option<OctetString> {
+    si.signed_attrs
+        .as_ref()
+        .unwrap()
+        .iter()
+        .find(|attr| attr.oid == rfc6268::ID_MESSAGE_DIGEST)
+        .and_then(|attr| attr.values.get(0))
+        .and_then(|value| value.decode_as::<OctetString>().ok())
+}
+
+/// Given a hashing algorithm and a message, compute the message's hash
+/// and compare it with `digest`. The function returns `true` if they match.
+fn verify_message_digest(
+    algorithm: &AlgorithmIdentifierOwned,
+    message: &[u8],
+    digest: &[u8],
+) -> bool {
+    match algorithm.oid {
+        rfc5912::ID_SHA_1 => Sha1::digest(message).as_slice() == digest,
+        rfc5912::ID_SHA_256 => Sha256::digest(message).as_slice() == digest,
+        rfc5912::ID_SHA_384 => Sha384::digest(message).as_slice() == digest,
+        rfc5912::ID_MD_5 => Md5::digest(message).as_slice() == digest,
+        _ => unimplemented!(),
+    }
+}
+
+fn verify_signer_info(
     si: &SignerInfo,
-    data: &[u8],
     certs: &[Certificate],
     unprefixed: bool,
 ) -> bool {
     match si.digest_alg.oid {
         rfc5912::ID_SHA_1 => {
-            verify_signed_data_impl::<Sha1>(si, data, certs, unprefixed)
+            verify_signed_data_impl::<Sha1>(si, certs, unprefixed)
         }
         rfc5912::ID_SHA_256 => {
-            verify_signed_data_impl::<Sha256>(si, data, certs, unprefixed)
+            verify_signed_data_impl::<Sha256>(si, certs, unprefixed)
         }
         rfc5912::ID_SHA_384 => {
-            verify_signed_data_impl::<Sha384>(si, data, certs, unprefixed)
+            verify_signed_data_impl::<Sha384>(si, certs, unprefixed)
         }
         rfc5912::ID_MD_5 => {
-            verify_signed_data_impl::<Md5>(si, data, certs, unprefixed)
+            verify_signed_data_impl::<Md5>(si, certs, unprefixed)
         }
         oid => unimplemented!("{:?}", oid),
     }
@@ -869,7 +940,6 @@ fn verify_signed_data(
 
 fn verify_signed_data_impl<D: Digest + AssociatedOid + Default>(
     si: &SignerInfo,
-    data: &[u8],
     certs: &[Certificate],
     unprefixed: bool,
 ) -> bool {
@@ -900,31 +970,76 @@ fn verify_signed_data_impl<D: Digest + AssociatedOid + Default>(
         None => return false,
     };
 
-    // Find the attribute that contains the message digest and extract
-    // the digest from it.
-    let message_digest = match si
-        .signed_attrs
-        .as_ref()
-        .unwrap()
-        .iter()
-        .find(|attr| attr.oid == rfc6268::ID_MESSAGE_DIGEST)
-        .and_then(|attr| attr.values.get(0))
-        .and_then(|value| value.decode_as::<OctetString>().ok())
-    {
-        Some(digest) => digest,
-        None => return false,
-    };
-
-    // Make sure that the actual digest of the signed data matches the
-    // digest found in SignerInfo.
-    if D::digest(data).as_slice() != message_digest.as_ref() {
-        return false;
-    }
-
     let mut attrs_digest = DerDigest::<D>::default();
     si.signed_attrs.encode(&mut attrs_digest).unwrap();
     let attrs_digest = attrs_digest.finalize();
 
+    match signing_cert.tbs_certificate.signature.oid {
+        rfc5912::MD_5_WITH_RSA_ENCRYPTION
+        | rfc5912::SHA_1_WITH_RSA_ENCRYPTION
+        | rfc5912::SHA_256_WITH_RSA_ENCRYPTION
+        | rfc5912::SHA_384_WITH_RSA_ENCRYPTION => {
+            let key = match rsa::RsaPublicKey::try_from(
+                signing_cert
+                    .tbs_certificate
+                    .subject_public_key_info
+                    .owned_to_ref(),
+            ) {
+                Ok(key) => key,
+                Err(_) => return false,
+            };
+
+            let signature = if unprefixed {
+                Pkcs1v15Sign::new_unprefixed()
+            } else {
+                Pkcs1v15Sign::new::<D>()
+            };
+
+            signature
+                .verify(&key, attrs_digest.as_slice(), si.signature.as_bytes())
+                .is_ok()
+        }
+        rfc5912::ECDSA_WITH_SHA_256 => {
+            let key = match p256::ecdsa::VerifyingKey::try_from(
+                signing_cert
+                    .tbs_certificate
+                    .subject_public_key_info
+                    .owned_to_ref(),
+            ) {
+                Ok(key) => key,
+                Err(_) => return false,
+            };
+
+            let signature =
+                match ecdsa::Signature::from_der(si.signature.as_bytes()) {
+                    Ok(signature) => signature,
+                    Err(_) => return false,
+                };
+
+            key.verify_prehash(attrs_digest.as_slice(), &signature).is_ok()
+        }
+        rfc5912::ECDSA_WITH_SHA_384 => {
+            let key = match p384::ecdsa::VerifyingKey::try_from(
+                signing_cert
+                    .tbs_certificate
+                    .subject_public_key_info
+                    .owned_to_ref(),
+            ) {
+                Ok(key) => key,
+                Err(_) => return false,
+            };
+
+            let signature =
+                match ecdsa::Signature::from_der(si.signature.as_bytes()) {
+                    Ok(signature) => signature,
+                    Err(_) => return false,
+                };
+
+            key.verify_prehash(attrs_digest.as_slice(), &signature).is_ok()
+        }
+        _ => unimplemented!(),
+    }
+    /*
     match si.signature_algorithm.oid {
         rfc5912::RSA_ENCRYPTION => {
             // Get the public key contained in the certificate that signed the data.
@@ -949,8 +1064,64 @@ fn verify_signed_data_impl<D: Digest + AssociatedOid + Default>(
                 .is_ok()
         }
         rfc5912::ID_EC_PUBLIC_KEY => {
-            // TODO: the hashing algorithm is not always SHA-384
-            let key = match p384::ecdsa::VerifyingKey::try_from(
+            println!("digest algo: {:?}", si.digest_alg.oid);
+            println!(
+                "cert subject public algo: {:?}",
+                signing_cert
+                    .tbs_certificate
+                    .subject_public_key_info
+                    .algorithm
+                    .oid
+            );
+
+            match signing_cert.tbs_certificate.signature.oid {
+                rfc5912::ECDSA_WITH_SHA_256 => {
+                    let key = match p256::ecdsa::VerifyingKey::try_from(
+                        signing_cert
+                            .tbs_certificate
+                            .subject_public_key_info
+                            .owned_to_ref(),
+                    ) {
+                        Ok(key) => key,
+                        Err(_) => return false,
+                    };
+
+                    let signature = match ecdsa::Signature::from_der(
+                        si.signature.as_bytes(),
+                    ) {
+                        Ok(signature) => signature,
+                        Err(_) => return false,
+                    };
+
+                    key.verify_prehash(attrs_digest.as_slice(), &signature)
+                        .is_ok()
+                }
+                rfc5912::ECDSA_WITH_SHA_384 => {
+                    let key = match p384::ecdsa::VerifyingKey::try_from(
+                        signing_cert
+                            .tbs_certificate
+                            .subject_public_key_info
+                            .owned_to_ref(),
+                    ) {
+                        Ok(key) => key,
+                        Err(_) => return false,
+                    };
+
+                    let signature = match ecdsa::Signature::from_der(
+                        si.signature.as_bytes(),
+                    ) {
+                        Ok(signature) => signature,
+                        Err(_) => return false,
+                    };
+
+                    key.verify_prehash(attrs_digest.as_slice(), &signature)
+                        .is_ok()
+                }
+                _ => unimplemented!(),
+            }
+        }
+        rfc5912::ECDSA_WITH_SHA_256 => {
+            let key = match p256::ecdsa::VerifyingKey::try_from(
                 signing_cert
                     .tbs_certificate
                     .subject_public_key_info
@@ -970,6 +1141,7 @@ fn verify_signed_data_impl<D: Digest + AssociatedOid + Default>(
         }
         oid => unimplemented!("{:?}", oid),
     }
+    */
 }
 
 /// Returns a short name from an OID.
@@ -1039,68 +1211,6 @@ impl<T: Digest + Default> DerDigest<T> {
         self.0.finalize()
     }
 }
-
-/*
-impl<T: Digest + Default + FixedOutputReset> OutputSizeUser for DerDigest<T> {
-    type OutputSize = T::OutputSize;
-}
-
-impl<T: Digest + Default + FixedOutputReset> Digest for DerDigest<T> {
-    fn new() -> Self {
-        Self(T::new())
-    }
-
-    fn new_with_prefix(data: impl AsRef<[u8]>) -> Self {
-        Self(T::new_with_prefix(data))
-    }
-
-    fn update(&mut self, data: impl AsRef<[u8]>) {
-        Digest::update(&mut self.0, data)
-    }
-
-    fn chain_update(self, data: impl AsRef<[u8]>) -> Self {
-        Self(self.0.chain_update(data))
-    }
-
-    fn finalize(self) -> Output<Self> {
-        self.0.finalize()
-    }
-
-    fn finalize_into(self, out: &mut Output<Self>) {
-        Digest::finalize_into(self.0, out)
-    }
-
-    fn finalize_reset(&mut self) -> Output<Self>
-    where
-        Self: FixedOutputReset,
-    {
-        Digest::finalize_reset(&mut self.0);
-        GenericArray<u8, Self::OutputSize>
-    }
-
-    fn finalize_into_reset(&mut self, out: &mut Output<Self>)
-    where
-        Self: FixedOutputReset,
-    {
-        Digest::finalize_into_reset(&mut self.0, out)
-    }
-
-    fn reset(&mut self)
-    where
-        Self: Reset,
-    {
-        Digest::reset(&mut self.0)
-    }
-
-    fn output_size() -> usize {
-        <T as Digest>::output_size()
-    }
-
-    fn digest(data: impl AsRef<[u8]>) -> Output<Self> {
-        T::digest(data)
-    }
-}
-*/
 
 impl<T: Digest + Default> der::Writer for DerDigest<T> {
     fn write(&mut self, slice: &[u8]) -> der::Result<()> {

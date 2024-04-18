@@ -110,6 +110,7 @@ pe-module = [
     "dep:nom",
     "dep:rsa",
     "dep:md-5",
+    "dep:p256",
     "dep:p384",
     "dep:sha1",
     "dep:sha2",
@@ -189,6 +190,7 @@ nom = { workspace = true, optional = true }
 num-derive = { workspace = true }
 num-traits = { workspace = true }
 p384 = { workspace = true, optional = true, features = ["ecdsa"] }
+p256 = { workspace = true, optional = true, features = ["ecdsa"] }
 protobuf = { workspace = true }
 rustc-hash = { workspace = true }
 regex-syntax = { workspace = true }
@@ -205,7 +207,7 @@ walrus = { workspace = true }
 wasmtime = { workspace = true, features = ["cranelift", "parallel-compilation"] }
 x509-cert = { workspace = true, optional = true }
 x509-tsp = { workspace = true, optional = true }
-x509-verify = { workspace = true, optional = true, features = ["rsa", "sha1", "ecdsa"] }
+x509-verify = { workspace = true, optional = true, features = ["sha1", "dsa", "ecdsa", "rsa"] }
 yansi = { workspace = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true }

@@ -1141,6 +1141,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "dsa"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "48bc224a9084ad760195584ce5abb3c2c34a225fa312a128ad245a6b412b7689"
+dependencies = [
+ "digest 0.10.7",
+ "num-bigint-dig",
+ "num-traits",
+ "pkcs8",
+ "rfc6979",
+ "sha2 0.10.8",
+ "signature",
+ "zeroize",
+]
+
+[[package]]
 name = "ecdsa"
 version = "0.16.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4685,6 +4701,7 @@ checksum = "8e407b6fb3a8638bc7af2216647e045f3ce6cd71235e84ada35dd03c77a6cd6d"
 dependencies = [
  "const-oid",
  "der",
+ "dsa",
  "ecdsa",
  "ed25519-dalek",
  "k256",
@@ -4757,6 +4774,7 @@ dependencies = [
  "nom 7.1.3",
  "num-derive 0.4.2",
  "num-traits",
+ "p256",
  "p384",
  "pretty_assertions",
  "protobuf",
