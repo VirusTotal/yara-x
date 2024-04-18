@@ -8,6 +8,7 @@ use std::rc::Rc;
 use std::slice::Iter;
 
 use bstr::BStr;
+use digest::Digest;
 use itertools::Itertools;
 use nom::branch::alt;
 use nom::character::complete::u8;
@@ -212,7 +213,7 @@ fn imphash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         return None;
     }
 
-    let mut md5_hash = md5::Context::new();
+    let mut md5_hash = md5::Md5::default();
     let mut first = true;
 
     for import in &pe.import_details {
@@ -225,16 +226,19 @@ fn imphash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         }
         for func in &import.functions {
             if !first {
-                md5_hash.consume(",");
+                Digest::update(&mut md5_hash, ",".as_bytes())
             }
-            md5_hash.consume(dll_name);
-            md5_hash.consume(".");
-            md5_hash.consume(func.name.as_deref().unwrap().to_lowercase());
+            Digest::update(&mut md5_hash, dll_name);
+            Digest::update(&mut md5_hash, ".".as_bytes());
+            Digest::update(
+                &mut md5_hash,
+                func.name.as_deref().unwrap().to_lowercase().as_bytes(),
+            );
             first = false;
         }
     }
 
-    let digest = format!("{:x}", md5_hash.compute());
+    let digest = format!("{:x}", md5_hash.finalize());
     Some(RuntimeString::new(digest))
 }
 

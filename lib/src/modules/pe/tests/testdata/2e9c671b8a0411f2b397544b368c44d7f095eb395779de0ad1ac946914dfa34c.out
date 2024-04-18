@@ -549,7 +549,8 @@ signatures:
         not_before: 1265587200 # 2010-02-08 00:00:00 UTC
         not_after: 1581119999 # 2020-02-07 23:59:59 UTC
     countersignatures:
-      - sign_time: 1474471603 # 2016-09-21 15:26:43 UTC
+      - verified: true
+        sign_time: 1474471603 # 2016-09-21 15:26:43 UTC
         digest: "3ac2b9de4c7d90dc44aae8277d512e789de4c818"
         digest_alg: "sha1"
         chain:
@@ -646,7 +647,8 @@ signatures:
         not_before: 1452556800 # 2016-01-12 00:00:00 UTC
         not_after: 1807487999 # 2027-04-11 23:59:59 UTC
     countersignatures:
-      - sign_time: 1474471604 # 2016-09-21 15:26:44 UTC
+      - verified: false
+        sign_time: 1474471604 # 2016-09-21 15:26:44 UTC
         digest: "e879962bab47112346d0be7e25ed1d8251a89594ee22ab16ddeed0faeb6c0de0"
         digest_alg: "sha256"
         chain:

@@ -68,12 +68,13 @@ dotnet-module = [
 elf-module = [
     "dep:tlsh-fixed",
     "dep:nom",
+    "dep:md-5",
 ]
 
 # The `hash` module provides functions for computing md5, sha1, sha-256,
 # crc32 and checksum.
 hash-module = [
-    "dep:md5",
+    "dep:md-5",
     "dep:sha1",
     "dep:sha2",
     "dep:crc32fast",
@@ -105,9 +106,13 @@ pe-module = [
     "dep:cms",
     "dep:const-oid",
     "dep:digest",
+    "dep:ecdsa",
     "dep:nom",
     "dep:rsa",
+    "dep:md-5",
+    "dep:p384",
     "dep:sha1",
+    "dep:sha2",
     "dep:x509-cert",
     "dep:x509-tsp",
     "dep:x509-verify",
@@ -166,6 +171,7 @@ const-oid = { workspace = true, optional = true }
 crc32fast = { workspace = true, optional = true }
 der = { workspace = true, features = ["derive"] }
 digest = { workspace = true, optional = true }
+ecdsa = { workspace = true, optional = true }
 fmmap = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 intaglio = { workspace = true }
@@ -173,7 +179,7 @@ itertools = { workspace = true }
 lazy_static = { workspace = true }
 linkme = { workspace = true }
 log = { workspace = true, optional = true }
-md5 = { workspace = true, optional = true }
+md-5 = { workspace = true, optional = true, features = ["oid"] }
 sha1 = { workspace = true, optional = true }
 sha2 = { workspace = true, optional = true }
 magic = { workspace = true, optional = true }
@@ -182,6 +188,7 @@ memx = { workspace = true }
 nom = { workspace = true, optional = true }
 num-derive = { workspace = true }
 num-traits = { workspace = true }
+p384 = { workspace = true, optional = true, features = ["ecdsa"] }
 protobuf = { workspace = true }
 rustc-hash = { workspace = true }
 regex-syntax = { workspace = true }
@@ -198,7 +205,7 @@ walrus = { workspace = true }
 wasmtime = { workspace = true, features = ["cranelift", "parallel-compilation"] }
 x509-cert = { workspace = true, optional = true }
 x509-tsp = { workspace = true, optional = true }
-x509-verify = { workspace = true, optional = true, features = ["rsa", "sha1"] }
+x509-verify = { workspace = true, optional = true, features = ["rsa", "sha1", "ecdsa"] }
 yansi = { workspace = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true }

@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 
-use md5 as md5_hash;
+use md5::Md5;
 use rustc_hash::FxHashMap;
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
@@ -59,7 +59,11 @@ fn md5_data(
 
     let range = offset.try_into().ok()?..(offset + size).try_into().ok()?;
     let data = ctx.scanned_data().get(range)?;
-    let digest = format!("{:x}", md5_hash::compute(data));
+    let mut hasher = Sha1::new();
+
+    hasher.update(data);
+
+    let digest = format!("{:x}", hasher.finalize());
 
     MD5_CACHE.with(|cache| {
         cache.borrow_mut().insert((offset, size), digest.clone());
@@ -70,10 +74,10 @@ fn md5_data(
 
 #[module_export(name = "md5")]
 fn md5_str(ctx: &mut ScanContext, s: RuntimeString) -> Option<RuntimeString> {
-    Some(RuntimeString::new(format!(
-        "{:x}",
-        md5_hash::compute(s.as_bstr(ctx))
-    )))
+    let mut hasher = Md5::new();
+    hasher.update(s.as_bstr(ctx));
+
+    Some(RuntimeString::new(format!("{:x}", hasher.finalize())))
 }
 
 #[module_export(name = "sha1")]

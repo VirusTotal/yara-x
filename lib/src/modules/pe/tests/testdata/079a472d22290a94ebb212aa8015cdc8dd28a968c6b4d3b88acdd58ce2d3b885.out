@@ -433,7 +433,8 @@ signatures:
         not_before: 1386633600 # 2013-12-10 00:00:00 UTC
         not_after: 1702166399 # 2023-12-09 23:59:59 UTC
     countersignatures:
-      - sign_time: 1528216551 # 2018-06-05 16:35:51 UTC
+      - verified: true
+        sign_time: 1528216551 # 2018-06-05 16:35:51 UTC
         digest: "9fa1188e4c656d86e2d7fa133ee8138ac1ec4ec1"
         digest_alg: "sha1"
         chain:

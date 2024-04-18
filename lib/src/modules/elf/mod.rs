@@ -6,6 +6,7 @@ and sections information, exported symbols, target platform, etc.
 
 use itertools::Itertools;
 use lazy_static::lazy_static;
+use md5::{Digest, Md5};
 use rustc_hash::FxHashSet;
 use tlsh_fixed as tlsh;
 
@@ -45,7 +46,10 @@ fn import_md5(ctx: &mut ScanContext) -> Option<RuntimeString> {
         .sorted()
         .join(",");
 
-    let digest = format!("{:x}", md5::compute(comma_separated_names));
+    let mut hasher = Md5::new();
+    hasher.update(comma_separated_names.as_bytes());
+
+    let digest = format!("{:x}", hasher.finalize());
 
     Some(RuntimeString::new(digest))
 }
