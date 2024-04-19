@@ -56,6 +56,11 @@ pub const JURISDICTION_ST: ObjectIdentifier =
 pub const JURISDICTION_C: ObjectIdentifier =
     ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.60.2.1.3");
 
+/// Similar to 1.2.840.113549.1.1.5. Obsolete, but still present in some files
+/// like: 111aeddc6a6dbf64b28cb565aa12af9ee3cc0a56ce31e4da0068cf6b474c3288
+pub const SHA1_WITH_RSA_ENCRYPTION: ObjectIdentifier =
+    ObjectIdentifier::new_unwrap("1.3.14.3.2.29");
+
 /// ASN.1 SpcIndirectDataContent
 ///
 /// SpcIndirectDataContent ::= SEQUENCE {
@@ -1015,15 +1020,16 @@ fn oid_to_str(oid: &ObjectIdentifier) -> &'static str {
         &rfc5912::ID_SHA_384 => "sha384",
         &rfc5912::ID_SHA_512 => "sha512",
         &rfc5912::ID_MD_5 => "md5",
-        // OIDs related to issuer and subject names.
-        &JURISDICTION_C => "jurisdictionC",
-        &JURISDICTION_L => "jurisdictionL",
-        &JURISDICTION_ST => "jurisdictionST",
         &rfc4519::C => "C",
         &rfc4519::COMMON_NAME => "CN",
         &rfc4519::O => "O",
         &rfc4519::OU => "OU",
         &rfc4519::ST => "ST",
+        // OIDs not included in const_oid.
+        &JURISDICTION_C => "jurisdictionC",
+        &JURISDICTION_L => "jurisdictionL",
+        &JURISDICTION_ST => "jurisdictionST",
+        &SHA1_WITH_RSA_ENCRYPTION => "sha1WithRSAEncryption",
         // In the default case try to use the string representation provided by
         // the `const-oid` crate. Panics if this fails.
         oid => {
