@@ -15,8 +15,7 @@ use nom::bytes::complete::{take, take_till};
 use nom::combinator::{cond, consumed, iterator, map, opt, success, verify};
 use nom::error::ErrorKind;
 use nom::multi::{
-    count, fold_many0, fold_many1, fold_many_m_n, length_data, many0, many1,
-    many_m_n,
+    count, fold_many0, fold_many1, length_data, many0, many1, many_m_n,
 };
 use nom::number::complete::{le_u16, le_u32, le_u64, u8};
 use nom::sequence::tuple;
@@ -1364,24 +1363,18 @@ impl<'a> PE<'a> {
             };
 
             // Parse a series of IMAGE_RESOURCE_DIRECTORY_ENTRY that come
-            // right after the IMAGE_RESOURCE_DIRECTORY. The number of entries
-            // is extracted from the IMAGE_RESOURCE_DIRECTORY structure.
-            let dir_entries = fold_many_m_n(
-                0,
-                rsrc_dir.number_of_entries,
+            // right after the IMAGE_RESOURCE_DIRECTORY.
+            let mut dir_entries = iterator(
+                raw_entries,
                 Self::parse_rsrc_dir_entry(rsrc_section),
-                Vec::new,
-                |mut entries: Vec<_>, entry| {
-                    // Entries with invalid offsets are ignored, they are a sign
-                    // of PE corruption. This prevents the `dir_entries` vector
-                    // from growing too much with corrupted files.
-                    if entry.offset > 0 && entry.offset < rsrc_section.len() {
-                        entries.push(entry);
-                    }
-                    entries
-                },
-            )(raw_entries)
-            .map(|(_, dir_entries)| dir_entries);
+            );
+
+            // Entries with invalid offsets are ignored, they are a sign
+            // of PE corruption.
+            let dir_entries =
+                dir_entries.take(rsrc_dir.number_of_entries).filter(|entry| {
+                    entry.offset > 0 && entry.offset < rsrc_section.len()
+                });
 
             if level == 0 {
                 resources_info = rsrc_dir;
@@ -1389,7 +1382,7 @@ impl<'a> PE<'a> {
 
             // Iterate over the directory entries. Each entry can be either a
             // subdirectory or a leaf.
-            for dir_entry in dir_entries.iter().flatten() {
+            for dir_entry in dir_entries {
                 if let Some(entry_data) = rsrc_section.get(dir_entry.offset..)
                 {
                     let ids = match level {
@@ -1724,25 +1717,22 @@ impl<'a> PE<'a> {
     where
         P: FnMut(&'a [u8]) -> IResult<&'a [u8], ImportDescriptor>,
     {
-        // Parse import descriptors until finding one that is empty (filled
-        // with null values), which indicates the end of the directory table;
-        // or until `MAX_PE_IMPORTS` is reached.
-        let import_descriptors = many_m_n(
-            0,
-            Self::MAX_PE_IMPORTS,
-            verify(descriptor_parser, |d| {
-                d.import_address_table != 0 || d.import_name_table != 0
-            }),
-        )(input)
-        .map(|(_, import_descriptors)| import_descriptors)
-        .ok()?;
-
         let is_32_bits =
             self.optional_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC;
 
         let mut imported_funcs = Vec::new();
 
-        for mut descriptor in import_descriptors {
+        // Parse import descriptors until finding one that is empty (filled
+        // with null values), which indicates the end of the directory table;
+        // or until `MAX_PE_IMPORTS` is reached.
+        let mut import_descriptors = iterator(
+            input,
+            verify(descriptor_parser, |d| {
+                d.import_address_table != 0 || d.import_name_table != 0
+            }),
+        );
+
+        for mut descriptor in import_descriptors.take(Self::MAX_PE_IMPORTS) {
             // If the values in the descriptor are virtual addresses, convert
             // them to relative virtual addresses (RVAs) by subtracting the
             // image base. This only happens with 32-bits PE files, in 64-bits
@@ -1807,6 +1797,17 @@ impl<'a> PE<'a> {
                     thunk & 0x8000000000000000 != 0
                 };
 
+                // Check that thunk doesn't exceed the maximum possible value.
+                // The maximum possible value occurs when the most significant
+                // bit is set (import by ordinal) and the ordinal number is
+                // 65535, which is the maximum possible ordinal.
+                let max_thunk =
+                    if is_32_bits { 0x8000ffff } else { 0x800000000000ffff };
+
+                if thunk > max_thunk {
+                    continue;
+                }
+
                 let mut func = ImportedFunc {
                     rva: descriptor.import_address_table.saturating_add(
                         (i * if is_32_bits { 4 } else { 8 }) as u32,
@@ -1827,12 +1828,10 @@ impl<'a> PE<'a> {
                     }
 
                     if let Ok(rva) = TryInto::<u32>::try_into(thunk) {
-                        if let Some(name) =
-                            self.parse_at_rva(rva, Self::parse_import_by_name)
-                        {
-                            func.name =
-                                String::from_utf8(name.to_owned()).ok();
-                        }
+                        func.name = self
+                            .parse_at_rva(rva, Self::parse_import_by_name)
+                            .map(|n| n.to_vec())
+                            .and_then(|n| String::from_utf8(n).ok());
                     }
                 }
 
@@ -2127,7 +2126,14 @@ impl<'a> PE<'a> {
         // limit of 256 bytes, though.
         let dll_name = self.str_at_rva(rva)?;
 
+        if dll_name.is_empty() {
+            return None;
+        }
+
         for c in dll_name.chars() {
+            if c.is_ascii_control() {
+                return None;
+            }
             if matches!(c, ' ' | '"' | '*' | '<' | '>' | '?' | '|') {
                 return None;
             }
