@@ -438,13 +438,9 @@ impl AuthenticodeParser {
                 Err(_) => continue,
             };
 
-            println!("{:?}", content_info.content_type);
-
-            let x = content_info.content.decode_as::<SignedData2>();
-
-            println!("{:?}", x);
-
-            if let Ok(signed_data) = x {
+            if let Ok(signed_data) =
+                content_info.content.decode_as::<SignedData>()
+            {
                 certificates.extend(
                     signed_data
                         .certificates
