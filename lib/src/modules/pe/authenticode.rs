@@ -28,6 +28,7 @@ use rsa::Pkcs1v15Sign;
 use sha1::digest::Output;
 use sha1::Sha1;
 use sha2::{Sha256, Sha384, Sha512};
+use x509_cert::attr::Attribute;
 use x509_cert::spki::{AlgorithmIdentifierOwned, SubjectPublicKeyInfoRef};
 use x509_tsp::TstInfo;
 use x509_verify::{VerifyInfo, VerifyingKey};
@@ -357,113 +358,20 @@ impl AuthenticodeParser {
                         }
                     }
                     SPC_MS_COUNTERSIGN => {
-                        for value in attr.values.iter() {
-                            if let Ok(signed_data) = value
-                                .decode_as::<ContentInfo>()
-                                .and_then(|content_info| {
-                                    content_info
-                                        .content
-                                        .decode_as::<SignedData>()
-                                })
-                            {
-                                certificates.extend(
-                                    signed_data
-                                        .certificates
-                                        .as_ref()
-                                        .map(Self::certificate_set_to_iter)
-                                        .unwrap()
-                                        .cloned()
-                                        .collect::<Vec<Certificate>>(),
-                                );
-
-                                let cs = signed_data
-                                    .signer_infos
-                                    .as_ref()
-                                    .get(0)
-                                    .unwrap();
-
-                                let mut countersignature =
-                                    Self::pkcs9_countersignature(cs);
-
-                                let tst_info = signed_data
-                                    .encap_content_info
-                                    .econtent
-                                    .and_then(|content| {
-                                        content.decode_as::<OctetString>().ok()
-                                    })
-                                    .and_then(|octet_string| {
-                                        TstInfo::from_der(
-                                            octet_string.as_bytes(),
-                                        )
-                                        .ok()
-                                    });
-
-                                let tst_info = match tst_info {
-                                    Some(tst_info) => tst_info,
-                                    None => continue,
-                                };
-
-                                countersignature.digest_alg = oid_to_str(
-                                    &tst_info
-                                        .message_imprint
-                                        .hash_algorithm
-                                        .oid,
-                                );
-
-                                countersignature.digest = Some(bytes2hex(
-                                    "",
-                                    tst_info
-                                        .message_imprint
-                                        .hashed_message
-                                        .as_bytes(),
-                                ));
-
-                                countersignature.verified =
-                                    verify_message_digest(
-                                        &tst_info
-                                            .message_imprint
-                                            .hash_algorithm,
-                                        signer_info.signature.as_bytes(),
-                                        tst_info
-                                            .message_imprint
-                                            .hashed_message
-                                            .as_bytes(),
-                                    ) && verify_signer_info(
-                                        cs,
-                                        certificates.as_slice(),
-                                    );
-
-                                countersignatures.push(countersignature);
-                            }
-                        }
+                        Self::parse_ms_countersignature_attr(
+                            signer_info,
+                            attr,
+                            &mut certificates,
+                            &mut countersignatures,
+                        );
                     }
                     rfc5911::ID_COUNTERSIGNATURE => {
-                        for value in attr.values.iter() {
-                            if let Ok(cs) =
-                                value.decode_as::<Countersignature>().as_ref()
-                            {
-                                let mut countersignature =
-                                    Self::pkcs9_countersignature(cs);
-
-                                let message_digest =
-                                    match get_message_digest(cs) {
-                                        Some(digest) => digest,
-                                        None => continue,
-                                    };
-
-                                countersignature.verified =
-                                    verify_message_digest(
-                                        &cs.digest_alg,
-                                        signer_info.signature.as_bytes(),
-                                        message_digest.as_bytes(),
-                                    ) && verify_signer_info(
-                                        cs,
-                                        certificates.as_slice(),
-                                    );
-
-                                countersignatures.push(countersignature);
-                            }
-                        }
+                        Self::parse_pcks9_countersignature_attr(
+                            signer_info,
+                            attr,
+                            &mut certificates,
+                            &mut countersignatures,
+                        );
                     }
                     _ => {}
                 }
@@ -516,6 +424,101 @@ impl AuthenticodeParser {
         signatures.append(&mut nested_signatures);
 
         Ok(signatures)
+    }
+
+    fn parse_ms_countersignature_attr(
+        si: &SignerInfo,
+        attr: &Attribute,
+        certificates: &mut Vec<Certificate>,
+        countersignatures: &mut Vec<AuthenticodeCountersign>,
+    ) {
+        for value in attr.values.iter() {
+            let content_info = match value.decode_as::<ContentInfo>() {
+                Ok(content_info) => content_info,
+                Err(_) => continue,
+            };
+
+            println!("{:?}", content_info.content_type);
+
+            let x = content_info.content.decode_as::<SignedData2>();
+
+            println!("{:?}", x);
+
+            if let Ok(signed_data) = x {
+                certificates.extend(
+                    signed_data
+                        .certificates
+                        .as_ref()
+                        .map(Self::certificate_set_to_iter)
+                        .unwrap()
+                        .cloned()
+                        .collect::<Vec<Certificate>>(),
+                );
+
+                let cs = signed_data.signer_infos.as_ref().get(0).unwrap();
+
+                let mut countersignature = Self::pkcs9_countersignature(cs);
+
+                let tst_info = signed_data
+                    .encap_content_info
+                    .econtent
+                    .and_then(|content| {
+                        content.decode_as::<OctetString>().ok()
+                    })
+                    .and_then(|octet_string| {
+                        TstInfo::from_der(octet_string.as_bytes()).ok()
+                    });
+
+                let tst_info = match tst_info {
+                    Some(tst_info) => tst_info,
+                    None => continue,
+                };
+
+                countersignature.digest_alg =
+                    oid_to_str(&tst_info.message_imprint.hash_algorithm.oid);
+
+                countersignature.digest = Some(bytes2hex(
+                    "",
+                    tst_info.message_imprint.hashed_message.as_bytes(),
+                ));
+
+                countersignature.verified =
+                    verify_message_digest(
+                        &tst_info.message_imprint.hash_algorithm,
+                        si.signature.as_bytes(),
+                        tst_info.message_imprint.hashed_message.as_bytes(),
+                    ) && verify_signer_info(cs, certificates.as_slice());
+
+                countersignatures.push(countersignature);
+            }
+        }
+    }
+
+    fn parse_pcks9_countersignature_attr(
+        si: &SignerInfo,
+        attr: &Attribute,
+        certificates: &mut Vec<Certificate>,
+        countersignatures: &mut Vec<AuthenticodeCountersign>,
+    ) {
+        for value in attr.values.iter() {
+            if let Ok(cs) = value.decode_as::<Countersignature>().as_ref() {
+                let mut countersignature = Self::pkcs9_countersignature(cs);
+
+                let message_digest = match get_message_digest(cs) {
+                    Some(digest) => digest,
+                    None => continue,
+                };
+
+                countersignature.verified =
+                    verify_message_digest(
+                        &cs.digest_alg,
+                        si.signature.as_bytes(),
+                        message_digest.as_bytes(),
+                    ) && verify_signer_info(cs, certificates.as_slice());
+
+                countersignatures.push(countersignature);
+            }
+        }
     }
 
     fn pkcs9_countersignature(
