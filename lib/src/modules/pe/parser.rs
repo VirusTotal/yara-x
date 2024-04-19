@@ -956,7 +956,10 @@ impl<'a> PE<'a> {
                 false
             };
 
-            Ok((remainder, ResourceDirEntry { is_subdir, id, offset }))
+            Ok((
+                remainder,
+                ResourceDirEntry { is_subdir, id, offset: offset as usize },
+            ))
         }
     }
 
@@ -1362,9 +1365,20 @@ impl<'a> PE<'a> {
             // Parse a series of IMAGE_RESOURCE_DIRECTORY_ENTRY that come
             // right after the IMAGE_RESOURCE_DIRECTORY. The number of entries
             // is extracted from the IMAGE_RESOURCE_DIRECTORY structure.
-            let dir_entries = count(
-                Self::parse_rsrc_dir_entry(rsrc_section),
+            let dir_entries = fold_many_m_n(
+                0,
                 rsrc_dir.number_of_entries,
+                Self::parse_rsrc_dir_entry(rsrc_section),
+                Vec::new,
+                |mut entries: Vec<_>, entry| {
+                    // Entries with invalid offsets are ignored, they are a sign
+                    // of PE corruption. This prevents the `dir_entries` vector
+                    // from growing too much with corrupted files.
+                    if entry.offset > 0 && entry.offset < rsrc_section.len() {
+                        entries.push(entry);
+                    }
+                    entries
+                },
             )(raw_entries)
             .map(|(_, dir_entries)| dir_entries);
 
@@ -1375,8 +1389,7 @@ impl<'a> PE<'a> {
             // Iterate over the directory entries. Each entry can be either a
             // subdirectory or a leaf.
             for dir_entry in dir_entries.iter().flatten() {
-                if let Some(entry_data) =
-                    rsrc_section.get(dir_entry.offset as usize..)
+                if let Some(entry_data) = rsrc_section.get(dir_entry.offset..)
                 {
                     let ids = match level {
                         // At level 0 each directory entry corresponds to a
@@ -2499,7 +2512,7 @@ pub struct ResourceDirEntry<'a> {
     /// Resource ID or name.
     id: ResourceId<'a>,
     /// Offset relative to the resources section where the data is found.
-    offset: u32,
+    offset: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
