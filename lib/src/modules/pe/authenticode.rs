@@ -26,7 +26,7 @@ use rsa::traits::SignatureScheme;
 use rsa::Pkcs1v15Sign;
 use sha1::digest::Output;
 use sha1::Sha1;
-use sha2::{Sha256, Sha384};
+use sha2::{Sha256, Sha384, Sha512};
 use x509_cert::spki::{AlgorithmIdentifierOwned, SubjectPublicKeyInfoRef};
 use x509_tsp::TstInfo;
 use x509_verify::{VerifyInfo, VerifyingKey};
@@ -484,6 +484,11 @@ impl AuthenticodeParser {
                 pe.authenticode_hash(&mut sha384);
                 sha384.finalize().to_vec()
             }
+            rfc5912::ID_SHA_512 => {
+                let mut sha512 = Sha512::default();
+                pe.authenticode_hash(&mut sha512);
+                sha512.finalize().to_vec()
+            }
             rfc5912::ID_MD_5 => {
                 let mut md5 = Md5::default();
                 pe.authenticode_hash(&mut md5);
@@ -913,8 +918,9 @@ fn verify_message_digest(
         rfc5912::ID_SHA_1 => Sha1::digest(message).as_slice() == digest,
         rfc5912::ID_SHA_256 => Sha256::digest(message).as_slice() == digest,
         rfc5912::ID_SHA_384 => Sha384::digest(message).as_slice() == digest,
+        rfc5912::ID_SHA_512 => Sha512::digest(message).as_slice() == digest,
         rfc5912::ID_MD_5 => Md5::digest(message).as_slice() == digest,
-        _ => unimplemented!(),
+        oid => unimplemented!("{:?}", oid),
     }
 }
 
@@ -923,6 +929,7 @@ fn verify_signer_info(si: &SignerInfo, certs: &[Certificate]) -> bool {
         rfc5912::ID_SHA_1 => verify_signed_data_impl::<Sha1>(si, certs),
         rfc5912::ID_SHA_256 => verify_signed_data_impl::<Sha256>(si, certs),
         rfc5912::ID_SHA_384 => verify_signed_data_impl::<Sha384>(si, certs),
+        rfc5912::ID_SHA_512 => verify_signed_data_impl::<Sha512>(si, certs),
         rfc5912::ID_MD_5 => verify_signed_data_impl::<Md5>(si, certs),
         oid => unimplemented!("{:?}", oid),
     }
@@ -1006,6 +1013,7 @@ fn oid_to_str(oid: &ObjectIdentifier) -> &'static str {
         &rfc5912::ID_SHA_1 => "sha1",
         &rfc5912::ID_SHA_256 => "sha256",
         &rfc5912::ID_SHA_384 => "sha384",
+        &rfc5912::ID_SHA_512 => "sha512",
         &rfc5912::ID_MD_5 => "md5",
         // OIDs related to issuer and subject names.
         &JURISDICTION_C => "jurisdictionC",
