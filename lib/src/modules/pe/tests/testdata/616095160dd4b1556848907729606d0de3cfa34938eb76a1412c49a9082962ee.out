@@ -414,7 +414,7 @@ import_details:
         rva: 70312
 is_signed: true
 signatures:
-  - subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/SERIALNUMBER=HRB 140833/CN=Quality First Software GmbH/BUSINESSCATEGORY=Private Organization/1.3.6.1.4.1.311.60.2.1.1=#0c084dc3bc6e6368656e/1.3.6.1.4.1.311.60.2.1.2=#0c0642617965726e/1.3.6.1.4.1.311.60.2.1.3=#13024445"
+  - subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/serialNumber=HRB 140833/CN=Quality First Software GmbH/businessCategory=Private Organization/jurisdictionL=München/jurisdictionST=Bayern/jurisdictionC=DE"
     issuer: "/C=US/ST=Texas/L=Houston/O=SSL Corp/CN=SSL.com EV Code Signing Intermediate CA ECC R2"
     thumbprint: "6a63f4e957aa5867f33916e8f57019c2b9987478"
     version: 3
@@ -434,7 +434,7 @@ signatures:
         digest_alg: "sha384"
         chain:
           - issuer: "/C=US/ST=Texas/L=Houston/O=SSL Corp/CN=SSL.com EV Code Signing Intermediate CA ECC R2"
-            subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/SERIALNUMBER=HRB 140833/CN=Quality First Software GmbH/BUSINESSCATEGORY=Private Organization/1.3.6.1.4.1.311.60.2.1.1=#0c084dc3bc6e6368656e/1.3.6.1.4.1.311.60.2.1.2=#0c0642617965726e/1.3.6.1.4.1.311.60.2.1.3=#13024445"
+            subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/serialNumber=HRB 140833/CN=Quality First Software GmbH/businessCategory=Private Organization/jurisdictionL=München/jurisdictionST=Bayern/jurisdictionC=DE"
             thumbprint: "6a63f4e957aa5867f33916e8f57019c2b9987478"
             version: 3
             algorithm: "ecdsa-with-SHA384"
@@ -462,7 +462,7 @@ signatures:
         not_before: 1551987465 # 2019-03-07 19:37:45 UTC
         not_after: 2025027465 # 2034-03-03 19:37:45 UTC
       - issuer: "/C=US/ST=Texas/L=Houston/O=SSL Corp/CN=SSL.com EV Code Signing Intermediate CA ECC R2"
-        subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/SERIALNUMBER=HRB 140833/CN=Quality First Software GmbH/BUSINESSCATEGORY=Private Organization/1.3.6.1.4.1.311.60.2.1.1=#0c084dc3bc6e6368656e/1.3.6.1.4.1.311.60.2.1.2=#0c0642617965726e/1.3.6.1.4.1.311.60.2.1.3=#13024445"
+        subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/serialNumber=HRB 140833/CN=Quality First Software GmbH/businessCategory=Private Organization/jurisdictionL=München/jurisdictionST=Bayern/jurisdictionC=DE"
         thumbprint: "6a63f4e957aa5867f33916e8f57019c2b9987478"
         version: 3
         algorithm: "ecdsa-with-SHA384"

@@ -10,7 +10,7 @@ use cms::content_info::ContentInfo;
 use cms::signed_data::{
     CertificateSet, SignedData, SignerIdentifier, SignerInfo,
 };
-use const_oid::db::{rfc5911, rfc5912, rfc6268, DB};
+use const_oid::db::{rfc4519, rfc5911, rfc5912, rfc6268, DB};
 use const_oid::{AssociatedOid, ObjectIdentifier};
 use der::asn1;
 use der::asn1::OctetString;
@@ -46,6 +46,15 @@ pub const SPC_MS_NESTED_SIGNATURE: ObjectIdentifier =
 
 pub const SPC_MS_COUNTERSIGN: ObjectIdentifier =
     ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.3.3.1");
+
+pub const JURISDICTION_L: ObjectIdentifier =
+    ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.60.2.1.1");
+
+pub const JURISDICTION_ST: ObjectIdentifier =
+    ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.60.2.1.2");
+
+pub const JURISDICTION_C: ObjectIdentifier =
+    ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.60.2.1.3");
 
 /// ASN.1 SpcIndirectDataContent
 ///
@@ -864,10 +873,8 @@ fn format_name(name: &x509_cert::name::Name) -> String {
                 _ => None,
             };
 
-            if let (Some(key), Some(val)) =
-                (shortest_name_by_oid(&atv.oid), val)
-            {
-                write!(n, "{}=", key.to_ascii_uppercase()).unwrap();
+            if let (key, Some(val)) = (oid_to_str(&atv.oid), val) {
+                write!(n, "{}=", key).unwrap();
                 for char in val.chars() {
                     n.write_char(char).unwrap();
                 }
@@ -971,24 +978,6 @@ fn verify_signed_data_impl<D: Digest + AssociatedOid + Default>(
     key.verify::<D>(attrs_digest.as_slice(), si.signature.as_bytes())
 }
 
-/// Returns a short name from an OID.
-///
-/// This returns the strings like "C", "CN", "O", "OU", "ST", etc. This strings
-/// represents field names in issuer and subject strings.
-fn shortest_name_by_oid(oid: &ObjectIdentifier) -> Option<&str> {
-    let mut best_match: Option<&str> = None;
-    for m in DB.find_names_for_oid(*oid) {
-        if let Some(previous) = best_match {
-            if m.len() < previous.len() {
-                best_match = Some(m);
-            }
-        } else {
-            best_match = Some(m);
-        }
-    }
-    best_match
-}
-
 /// Produces a printable string of a serial number.
 ///
 /// The [`x509_cert::serial_number::SerialNumber`] type implements the
@@ -1018,6 +1007,15 @@ fn oid_to_str(oid: &ObjectIdentifier) -> &'static str {
         &rfc5912::ID_SHA_256 => "sha256",
         &rfc5912::ID_SHA_384 => "sha384",
         &rfc5912::ID_MD_5 => "md5",
+        // OIDs related to issuer and subject names.
+        &JURISDICTION_C => "jurisdictionC",
+        &JURISDICTION_L => "jurisdictionL",
+        &JURISDICTION_ST => "jurisdictionST",
+        &rfc4519::C => "C",
+        &rfc4519::COMMON_NAME => "CN",
+        &rfc4519::O => "O",
+        &rfc4519::OU => "OU",
+        &rfc4519::ST => "ST",
         // In the default case try to use the string representation provided by
         // the `const-oid` crate. Panics if this fails.
         oid => {
