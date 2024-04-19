@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fmt::{Display, Write};
 
 use crate::modules::pe::parser::PE;
@@ -571,7 +572,7 @@ impl AuthenticodeParser {
 
 pub struct AuthenticodeCountersign {
     signer: IssuerAndSerialNumber,
-    digest_alg: &'static str,
+    digest_alg: Cow<'static, str>,
     digest: Option<String>,
     signing_time: Option<asn1::UtcTime>,
     verified: bool,
@@ -601,7 +602,7 @@ impl AuthenticodeSignature {
     }
 
     /// Get the name of the Authenticode hash algorithm.
-    pub fn authenticode_hash_algorithm(&self) -> &'static str {
+    pub fn authenticode_hash_algorithm(&self) -> Cow<'static, str> {
         oid_to_str(&self.indirect_data.message_digest.digest_algorithm.oid)
     }
 
@@ -614,8 +615,8 @@ impl AuthenticodeSignature {
     }
 
     #[inline]
-    pub fn signer_info_digest_alg(&self) -> String {
-        oid_to_str(&self.signer_info().digest_alg.oid).to_string()
+    pub fn signer_info_digest_alg(&self) -> Cow<'static, str> {
+        oid_to_str(&self.signer_info().digest_alg.oid)
     }
 
     #[inline]
@@ -712,7 +713,7 @@ impl From<&AuthenticodeSignature> for protos::pe::Signature {
         let mut sig = protos::pe::Signature::new();
 
         sig.set_digest(bytes2hex("", value.stored_authenticode_hash()));
-        sig.set_digest_alg(value.authenticode_hash_algorithm().to_string());
+        sig.set_digest_alg(value.authenticode_hash_algorithm().into_owned());
         sig.set_file_digest(bytes2hex("", value.computed_authenticode_hash()));
         sig.set_verified(value.verify());
 
@@ -742,7 +743,9 @@ impl From<&AuthenticodeSignature> for protos::pe::Signature {
 
         let mut signer_info = protos::pe::SignerInfo::new();
 
-        signer_info.set_digest_alg(value.signer_info_digest_alg());
+        signer_info
+            .set_digest_alg(value.signer_info_digest_alg().into_owned());
+
         signer_info.set_digest(value.signer_info_digest());
 
         if let Some(program_name) = &value.program_name {
@@ -807,7 +810,7 @@ impl From<&Certificate> for protos::pe::Certificate {
 
         cert.set_algorithm_oid(format!("{}", value.signature_algorithm.oid));
         cert.set_algorithm(
-            oid_to_str(&value.signature_algorithm.oid).to_string(),
+            oid_to_str(&value.signature_algorithm.oid).into_owned(),
         );
 
         // The certificate thumbprint is the SHA1 of the DER-encoded certificate.
@@ -966,6 +969,7 @@ fn verify_signed_data_impl<D: Digest + AssociatedOid + Default>(
     // Compute the digest for the DER encoding of the signed attributes, this
     // digest is signed, and its signature is in SignerInfo.signature.
     let mut attrs_digest = DerDigest::<D>::default();
+
     si.signed_attrs.encode(&mut attrs_digest).unwrap();
     let attrs_digest = attrs_digest.finalize();
 
@@ -1008,33 +1012,36 @@ fn format_serial_number(
     result
 }
 
-/// Given an OID returns a string that describes it.
+/// Returns a string that describes an OID.
 ///
-/// # Panics
-///
-/// If the OID is unknown.
-fn oid_to_str(oid: &ObjectIdentifier) -> &'static str {
-    match oid {
-        &rfc5912::ID_SHA_1 => "sha1",
-        &rfc5912::ID_SHA_256 => "sha256",
-        &rfc5912::ID_SHA_384 => "sha384",
-        &rfc5912::ID_SHA_512 => "sha512",
-        &rfc5912::ID_MD_5 => "md5",
-        &rfc4519::C => "C",
-        &rfc4519::COMMON_NAME => "CN",
-        &rfc4519::O => "O",
-        &rfc4519::OU => "OU",
-        &rfc4519::ST => "ST",
+/// When the OID is unknown, returns the numeric representation for
+/// the OID (i.e: "1.3.14.3.2.29").
+fn oid_to_str(oid: &ObjectIdentifier) -> Cow<'static, str> {
+    let oid_str = match oid {
+        &rfc5912::ID_SHA_1 => Some("sha1"),
+        &rfc5912::ID_SHA_256 => Some("sha256"),
+        &rfc5912::ID_SHA_384 => Some("sha384"),
+        &rfc5912::ID_SHA_512 => Some("sha512"),
+        &rfc5912::ID_MD_5 => Some("md5"),
+        &rfc4519::C => Some("C"),
+        &rfc4519::COMMON_NAME => Some("CN"),
+        &rfc4519::O => Some("O"),
+        &rfc4519::OU => Some("OU"),
+        &rfc4519::ST => Some("ST"),
         // OIDs not included in const_oid.
-        &JURISDICTION_C => "jurisdictionC",
-        &JURISDICTION_L => "jurisdictionL",
-        &JURISDICTION_ST => "jurisdictionST",
-        &SHA1_WITH_RSA_ENCRYPTION => "sha1WithRSAEncryption",
+        &JURISDICTION_C => Some("jurisdictionC"),
+        &JURISDICTION_L => Some("jurisdictionL"),
+        &JURISDICTION_ST => Some("jurisdictionST"),
+        &SHA1_WITH_RSA_ENCRYPTION => Some("sha1WithRSAEncryption"),
         // In the default case try to use the string representation provided by
         // the `const-oid` crate. Panics if this fails.
-        oid => {
-            DB.by_oid(oid).unwrap_or_else(|| panic!("unknown OID: {:?}", oid))
-        }
+        oid => DB.by_oid(oid),
+    };
+
+    if let Some(oid) = oid_str {
+        Cow::Borrowed(oid)
+    } else {
+        Cow::Owned(oid.to_string())
     }
 }
 
