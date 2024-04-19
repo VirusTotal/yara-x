@@ -2016,10 +2016,12 @@ impl<'a> PE<'a> {
         let mut exported_funcs: Vec<_> = func_rvas
             .iter()
             .enumerate()
-            .map(|(i, rva)| ExportedFunc {
-                rva: *rva,
-                ordinal: exports.base + i as u32,
-                ..Default::default()
+            .filter_map(|(i, rva)| {
+                Some(ExportedFunc {
+                    rva: *rva,
+                    ordinal: exports.base.checked_add(i as u32)?,
+                    ..Default::default()
+                })
             })
             .collect();
 
