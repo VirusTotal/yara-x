@@ -1945,6 +1945,9 @@ impl<'a> PE<'a> {
             return None;
         }
 
+        let exports_section =
+            exports_rva..exports_rva.saturating_add(exports_size);
+
         // Parse the IMAGE_EXPORT_DIRECTORY structure.
         let (_, exports) = Self::parse_exports_dir_entry(exports_data).ok()?;
 
@@ -2043,7 +2046,7 @@ impl<'a> PE<'a> {
             // forwarded function. In such cases the function's RVA is not
             // really pointing to the function, but to a ASCII string that
             // contains the DLL and function to which this export is forwarded.
-            if (exports_rva..exports_rva + exports_size).contains(&f.rva) {
+            if exports_section.contains(&f.rva) {
                 f.forward_name = self.str_at_rva(f.rva);
             } else {
                 f.offset = self.rva_to_offset(f.rva);
