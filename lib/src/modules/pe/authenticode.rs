@@ -29,7 +29,7 @@ use sha1::Sha1;
 use sha2::{Sha256, Sha384};
 use x509_cert::spki::{AlgorithmIdentifierOwned, SubjectPublicKeyInfoRef};
 use x509_tsp::TstInfo;
-use x509_verify::{Signature, VerifyInfo, VerifyingKey};
+use x509_verify::{VerifyInfo, VerifyingKey};
 
 use crate::modules::protos;
 
@@ -1087,7 +1087,7 @@ impl<'a> CertificateChain<'a> {
             // The `signed` certificate is the one that will be verified.
             let verify_info = VerifyInfo::new(
                 signed.tbs_certificate.to_der().unwrap().into(),
-                Signature::new(
+                x509_verify::Signature::new(
                     &signed.signature_algorithm,
                     signed.signature.as_bytes().unwrap(),
                 ),
@@ -1137,6 +1137,7 @@ impl<'a> Iterator for CertificateChain<'a> {
 /// Represents public key found in certificate.
 enum PublicKey {
     Rsa(rsa::RsaPublicKey),
+    Dsa(dsa::VerifyingKey),
     EcdsaP256(p256::ecdsa::VerifyingKey),
     EcdsaP384(p384::ecdsa::VerifyingKey),
 }
@@ -1148,6 +1149,9 @@ impl TryFrom<SubjectPublicKeyInfoRef<'_>> for PublicKey {
         match value.algorithm.oid {
             rfc5912::RSA_ENCRYPTION => {
                 Ok(Self::Rsa(rsa::RsaPublicKey::try_from(value)?))
+            }
+            rfc5912::ID_DSA => {
+                Ok(Self::Dsa(dsa::VerifyingKey::try_from(value)?))
             }
             rfc5912::ID_EC_PUBLIC_KEY => {
                 match value
@@ -1163,10 +1167,10 @@ impl TryFrom<SubjectPublicKeyInfoRef<'_>> for PublicKey {
                     rfc5912::SECP_384_R_1 => Ok(Self::EcdsaP384(
                         p384::ecdsa::VerifyingKey::try_from(value)?,
                     )),
-                    oid => unimplemented!("{:?}", oid),
+                    oid => Err(Self::Error::OidUnknown { oid }),
                 }
             }
-            oid => unimplemented!("{:?}", oid),
+            oid => Err(Self::Error::OidUnknown { oid }),
         }
     }
 }
@@ -1178,7 +1182,7 @@ impl PublicKey {
         signature: &[u8],
     ) -> bool {
         match self {
-            PublicKey::Rsa(key) => {
+            Self::Rsa(key) => {
                 if Pkcs1v15Sign::new::<D>()
                     .verify(key, hashed, signature)
                     .is_ok()
@@ -1189,14 +1193,12 @@ impl PublicKey {
                     .verify(key, hashed, signature)
                     .is_ok()
             }
-            PublicKey::EcdsaP256(key) => ecdsa::Signature::from_der(signature)
-                .is_ok_and(|signature| {
-                    key.verify_prehash(hashed, &signature).is_ok()
-                }),
-            PublicKey::EcdsaP384(key) => ecdsa::Signature::from_der(signature)
-                .is_ok_and(|signature| {
-                    key.verify_prehash(hashed, &signature).is_ok()
-                }),
+            Self::Dsa(key) => dsa::Signature::from_der(signature)
+                .is_ok_and(|s| key.verify_prehash(hashed, &s).is_ok()),
+            Self::EcdsaP256(key) => ecdsa::Signature::from_der(signature)
+                .is_ok_and(|s| key.verify_prehash(hashed, &s).is_ok()),
+            Self::EcdsaP384(key) => ecdsa::Signature::from_der(signature)
+                .is_ok_and(|s| key.verify_prehash(hashed, &s).is_ok()),
         }
     }
 }

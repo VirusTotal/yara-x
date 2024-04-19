@@ -106,6 +106,7 @@ pe-module = [
     "dep:cms",
     "dep:const-oid",
     "dep:digest",
+    "dep:dsa",
     "dep:ecdsa",
     "dep:nom",
     "dep:rsa",
@@ -172,6 +173,7 @@ const-oid = { workspace = true, optional = true }
 crc32fast = { workspace = true, optional = true }
 der = { workspace = true, features = ["derive"] }
 digest = { workspace = true, optional = true }
+dsa = { workspace = true, optional = true }
 ecdsa = { workspace = true, optional = true }
 fmmap = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
