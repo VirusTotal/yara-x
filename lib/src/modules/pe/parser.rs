@@ -18,9 +18,7 @@ use nom::branch::{alt, permutation};
 use nom::bytes::complete::{take, take_till};
 use nom::combinator::{cond, consumed, iterator, map, opt, success, verify};
 use nom::error::ErrorKind;
-use nom::multi::{
-    count, fold_many1, fold_many_m_n, length_data, many0, many1, many_m_n,
-};
+use nom::multi::{count, fold_many1, length_data, many0, many1, many_m_n};
 use nom::number::complete::{le_u16, le_u32, le_u64, u8};
 use nom::sequence::tuple;
 use nom::{Err, IResult, Parser, ToUsize};
@@ -1287,24 +1285,18 @@ impl<'a> PE<'a> {
             };
 
             // Parse a series of IMAGE_RESOURCE_DIRECTORY_ENTRY that come
-            // right after the IMAGE_RESOURCE_DIRECTORY. The number of entries
-            // is extracted from the IMAGE_RESOURCE_DIRECTORY structure.
-            let dir_entries = fold_many_m_n(
-                0,
-                rsrc_dir.number_of_entries,
+            // right after the IMAGE_RESOURCE_DIRECTORY.
+            let mut dir_entries = iterator(
+                raw_entries,
                 Self::parse_rsrc_dir_entry(rsrc_section),
-                Vec::new,
-                |mut entries: Vec<_>, entry| {
-                    // Entries with invalid offsets are ignored, they are a sign
-                    // of PE corruption. This prevents the `dir_entries` vector
-                    // from growing too much with corrupted files.
-                    if entry.offset > 0 && entry.offset < rsrc_section.len() {
-                        entries.push(entry);
-                    }
-                    entries
-                },
-            )(raw_entries)
-            .map(|(_, dir_entries)| dir_entries);
+            );
+
+            // Entries with invalid offsets are ignored, they are a sign
+            // of PE corruption.
+            let dir_entries =
+                dir_entries.take(rsrc_dir.number_of_entries).filter(|entry| {
+                    entry.offset > 0 && entry.offset < rsrc_section.len()
+                });
 
             if level == 0 {
                 resources_info = rsrc_dir;
@@ -1312,7 +1304,7 @@ impl<'a> PE<'a> {
 
             // Iterate over the directory entries. Each entry can be either a
             // subdirectory or a leaf.
-            for dir_entry in dir_entries.iter().flatten() {
+            for dir_entry in dir_entries {
                 if let Some(entry_data) = rsrc_section.get(dir_entry.offset..)
                 {
                     let ids = match level {
@@ -1591,25 +1583,22 @@ impl<'a> PE<'a> {
     where
         P: FnMut(&'a [u8]) -> IResult<&'a [u8], ImportDescriptor>,
     {
-        // Parse import descriptors until finding one that is empty (filled
-        // with null values), which indicates the end of the directory table;
-        // or until `MAX_PE_IMPORTS` is reached.
-        let import_descriptors = many_m_n(
-            0,
-            Self::MAX_PE_IMPORTS,
-            verify(descriptor_parser, |d| {
-                d.import_address_table != 0 || d.import_name_table != 0
-            }),
-        )(input)
-        .map(|(_, import_descriptors)| import_descriptors)
-        .ok()?;
-
         let is_32_bits =
             self.optional_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC;
 
         let mut imported_funcs = Vec::new();
 
-        for mut descriptor in import_descriptors {
+        // Parse import descriptors until finding one that is empty (filled
+        // with null values), which indicates the end of the directory table;
+        // or until `MAX_PE_IMPORTS` is reached.
+        let mut import_descriptors = iterator(
+            input,
+            verify(descriptor_parser, |d| {
+                d.import_address_table != 0 || d.import_name_table != 0
+            }),
+        );
+
+        for mut descriptor in import_descriptors.take(Self::MAX_PE_IMPORTS) {
             // If the values in the descriptor are virtual addresses, convert
             // them to relative virtual addresses (RVAs) by subtracting the
             // image base. This only happens with 32-bits PE files, in 64-bits
