@@ -489,7 +489,7 @@ signatures:
         not_before: 1573671005 # 2019-11-13 18:50:05 UTC
         not_after: 2046970205 # 2034-11-12 18:50:05 UTC
     countersignatures:
-      - verified: false
+      - verified: true
         sign_time: 1708954610 # 2024-02-26 13:36:50 UTC
         digest: "ebbcb9430ee128c3126285d91988aa775cc579091e3fbbd07290d93cd42f6623"
         digest_alg: "sha256"

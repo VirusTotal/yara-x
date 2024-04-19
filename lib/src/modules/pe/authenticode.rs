@@ -27,7 +27,7 @@ use rsa::Pkcs1v15Sign;
 use sha1::digest::Output;
 use sha1::Sha1;
 use sha2::{Sha256, Sha384};
-use x509_cert::spki::AlgorithmIdentifierOwned;
+use x509_cert::spki::{AlgorithmIdentifierOwned, SubjectPublicKeyInfoRef};
 use x509_tsp::TstInfo;
 use x509_verify::{Signature, VerifyInfo, VerifyingKey};
 
@@ -388,13 +388,12 @@ impl AuthenticodeParser {
                                     None => continue,
                                 };
 
-                                countersignature.digest_alg =
-                                    oid_to_algorithm_name(
-                                        &tst_info
-                                            .message_imprint
-                                            .hash_algorithm
-                                            .oid,
-                                    );
+                                countersignature.digest_alg = oid_to_str(
+                                    &tst_info
+                                        .message_imprint
+                                        .hash_algorithm
+                                        .oid,
+                                );
 
                                 countersignature.digest = Some(bytes2hex(
                                     "",
@@ -417,7 +416,6 @@ impl AuthenticodeParser {
                                     ) && verify_signer_info(
                                         cs,
                                         certificates.as_slice(),
-                                        false,
                                     );
 
                                 countersignatures.push(countersignature);
@@ -446,7 +444,6 @@ impl AuthenticodeParser {
                                     ) && verify_signer_info(
                                         cs,
                                         certificates.as_slice(),
-                                        true,
                                     );
 
                                 countersignatures.push(countersignature);
@@ -533,7 +530,7 @@ impl AuthenticodeParser {
 
         AuthenticodeCountersign {
             signer: signer.clone(),
-            digest_alg: oid_to_algorithm_name(&cs.digest_alg.oid),
+            digest_alg: oid_to_str(&cs.digest_alg.oid),
             digest,
             signing_time,
             verified: false,
@@ -586,9 +583,7 @@ impl AuthenticodeSignature {
 
     /// Get the name of the Authenticode hash algorithm.
     pub fn authenticode_hash_algorithm(&self) -> &'static str {
-        oid_to_algorithm_name(
-            &self.indirect_data.message_digest.digest_algorithm.oid,
-        )
+        oid_to_str(&self.indirect_data.message_digest.digest_algorithm.oid)
     }
 
     /// Get the [`SignerInfo`] struct.
@@ -601,7 +596,7 @@ impl AuthenticodeSignature {
 
     #[inline]
     pub fn signer_info_digest_alg(&self) -> String {
-        oid_to_algorithm_name(&self.signer_info().digest_alg.oid).to_string()
+        oid_to_str(&self.signer_info().digest_alg.oid).to_string()
     }
 
     #[inline]
@@ -689,7 +684,7 @@ impl AuthenticodeSignature {
             return false;
         }
 
-        verify_signer_info(self.signer_info(), self.certificates(), false)
+        verify_signer_info(self.signer_info(), self.certificates())
     }
 }
 
@@ -793,7 +788,7 @@ impl From<&Certificate> for protos::pe::Certificate {
 
         cert.set_algorithm_oid(format!("{}", value.signature_algorithm.oid));
         cert.set_algorithm(
-            oid_to_algorithm_name(&value.signature_algorithm.oid).to_string(),
+            oid_to_str(&value.signature_algorithm.oid).to_string(),
         );
 
         // The certificate thumbprint is the SHA1 of the DER-encoded certificate.
@@ -916,24 +911,12 @@ fn verify_message_digest(
     }
 }
 
-fn verify_signer_info(
-    si: &SignerInfo,
-    certs: &[Certificate],
-    unprefixed: bool,
-) -> bool {
+fn verify_signer_info(si: &SignerInfo, certs: &[Certificate]) -> bool {
     match si.digest_alg.oid {
-        rfc5912::ID_SHA_1 => {
-            verify_signed_data_impl::<Sha1>(si, certs, unprefixed)
-        }
-        rfc5912::ID_SHA_256 => {
-            verify_signed_data_impl::<Sha256>(si, certs, unprefixed)
-        }
-        rfc5912::ID_SHA_384 => {
-            verify_signed_data_impl::<Sha384>(si, certs, unprefixed)
-        }
-        rfc5912::ID_MD_5 => {
-            verify_signed_data_impl::<Md5>(si, certs, unprefixed)
-        }
+        rfc5912::ID_SHA_1 => verify_signed_data_impl::<Sha1>(si, certs),
+        rfc5912::ID_SHA_256 => verify_signed_data_impl::<Sha256>(si, certs),
+        rfc5912::ID_SHA_384 => verify_signed_data_impl::<Sha384>(si, certs),
+        rfc5912::ID_MD_5 => verify_signed_data_impl::<Md5>(si, certs),
         oid => unimplemented!("{:?}", oid),
     }
 }
@@ -941,7 +924,6 @@ fn verify_signer_info(
 fn verify_signed_data_impl<D: Digest + AssociatedOid + Default>(
     si: &SignerInfo,
     certs: &[Certificate],
-    unprefixed: bool,
 ) -> bool {
     // Find the certificate that signed the data in `content`.
     let signing_cert_sn =
@@ -962,6 +944,13 @@ fn verify_signed_data_impl<D: Digest + AssociatedOid + Default>(
         return false;
     }
 
+    // Compute the digest for the DER encoding of the signed attributes, this
+    // digest is signed, and its signature is in SignerInfo.signature.
+    let mut attrs_digest = DerDigest::<D>::default();
+    si.signed_attrs.encode(&mut attrs_digest).unwrap();
+    let attrs_digest = attrs_digest.finalize();
+
+    // Search for the certificate that signed the digest.
     let signing_cert = match certs
         .iter()
         .find(|cert| cert.tbs_certificate.serial_number.eq(signing_cert_sn))
@@ -970,178 +959,16 @@ fn verify_signed_data_impl<D: Digest + AssociatedOid + Default>(
         None => return false,
     };
 
-    let mut attrs_digest = DerDigest::<D>::default();
-    si.signed_attrs.encode(&mut attrs_digest).unwrap();
-    let attrs_digest = attrs_digest.finalize();
+    // Obtain the public key included in the certificate.
+    let key = match PublicKey::try_from(
+        signing_cert.tbs_certificate.subject_public_key_info.owned_to_ref(),
+    ) {
+        Ok(key) => key,
+        Err(_) => return false,
+    };
 
-    match signing_cert.tbs_certificate.signature.oid {
-        rfc5912::MD_5_WITH_RSA_ENCRYPTION
-        | rfc5912::SHA_1_WITH_RSA_ENCRYPTION
-        | rfc5912::SHA_256_WITH_RSA_ENCRYPTION
-        | rfc5912::SHA_384_WITH_RSA_ENCRYPTION => {
-            let key = match rsa::RsaPublicKey::try_from(
-                signing_cert
-                    .tbs_certificate
-                    .subject_public_key_info
-                    .owned_to_ref(),
-            ) {
-                Ok(key) => key,
-                Err(_) => return false,
-            };
-
-            let signature = if unprefixed {
-                Pkcs1v15Sign::new_unprefixed()
-            } else {
-                Pkcs1v15Sign::new::<D>()
-            };
-
-            signature
-                .verify(&key, attrs_digest.as_slice(), si.signature.as_bytes())
-                .is_ok()
-        }
-        rfc5912::ECDSA_WITH_SHA_256 => {
-            let key = match p256::ecdsa::VerifyingKey::try_from(
-                signing_cert
-                    .tbs_certificate
-                    .subject_public_key_info
-                    .owned_to_ref(),
-            ) {
-                Ok(key) => key,
-                Err(_) => return false,
-            };
-
-            let signature =
-                match ecdsa::Signature::from_der(si.signature.as_bytes()) {
-                    Ok(signature) => signature,
-                    Err(_) => return false,
-                };
-
-            key.verify_prehash(attrs_digest.as_slice(), &signature).is_ok()
-        }
-        rfc5912::ECDSA_WITH_SHA_384 => {
-            let key = match p384::ecdsa::VerifyingKey::try_from(
-                signing_cert
-                    .tbs_certificate
-                    .subject_public_key_info
-                    .owned_to_ref(),
-            ) {
-                Ok(key) => key,
-                Err(_) => return false,
-            };
-
-            let signature =
-                match ecdsa::Signature::from_der(si.signature.as_bytes()) {
-                    Ok(signature) => signature,
-                    Err(_) => return false,
-                };
-
-            key.verify_prehash(attrs_digest.as_slice(), &signature).is_ok()
-        }
-        _ => unimplemented!(),
-    }
-    /*
-    match si.signature_algorithm.oid {
-        rfc5912::RSA_ENCRYPTION => {
-            // Get the public key contained in the certificate that signed the data.
-            let key = match rsa::RsaPublicKey::try_from(
-                signing_cert
-                    .tbs_certificate
-                    .subject_public_key_info
-                    .owned_to_ref(),
-            ) {
-                Ok(key) => key,
-                Err(_) => return false,
-            };
-
-            let signature = if unprefixed {
-                Pkcs1v15Sign::new_unprefixed()
-            } else {
-                Pkcs1v15Sign::new::<D>()
-            };
-
-            signature
-                .verify(&key, attrs_digest.as_slice(), si.signature.as_bytes())
-                .is_ok()
-        }
-        rfc5912::ID_EC_PUBLIC_KEY => {
-            println!("digest algo: {:?}", si.digest_alg.oid);
-            println!(
-                "cert subject public algo: {:?}",
-                signing_cert
-                    .tbs_certificate
-                    .subject_public_key_info
-                    .algorithm
-                    .oid
-            );
-
-            match signing_cert.tbs_certificate.signature.oid {
-                rfc5912::ECDSA_WITH_SHA_256 => {
-                    let key = match p256::ecdsa::VerifyingKey::try_from(
-                        signing_cert
-                            .tbs_certificate
-                            .subject_public_key_info
-                            .owned_to_ref(),
-                    ) {
-                        Ok(key) => key,
-                        Err(_) => return false,
-                    };
-
-                    let signature = match ecdsa::Signature::from_der(
-                        si.signature.as_bytes(),
-                    ) {
-                        Ok(signature) => signature,
-                        Err(_) => return false,
-                    };
-
-                    key.verify_prehash(attrs_digest.as_slice(), &signature)
-                        .is_ok()
-                }
-                rfc5912::ECDSA_WITH_SHA_384 => {
-                    let key = match p384::ecdsa::VerifyingKey::try_from(
-                        signing_cert
-                            .tbs_certificate
-                            .subject_public_key_info
-                            .owned_to_ref(),
-                    ) {
-                        Ok(key) => key,
-                        Err(_) => return false,
-                    };
-
-                    let signature = match ecdsa::Signature::from_der(
-                        si.signature.as_bytes(),
-                    ) {
-                        Ok(signature) => signature,
-                        Err(_) => return false,
-                    };
-
-                    key.verify_prehash(attrs_digest.as_slice(), &signature)
-                        .is_ok()
-                }
-                _ => unimplemented!(),
-            }
-        }
-        rfc5912::ECDSA_WITH_SHA_256 => {
-            let key = match p256::ecdsa::VerifyingKey::try_from(
-                signing_cert
-                    .tbs_certificate
-                    .subject_public_key_info
-                    .owned_to_ref(),
-            ) {
-                Ok(key) => key,
-                Err(_) => return false,
-            };
-
-            let signature =
-                match ecdsa::Signature::from_der(si.signature.as_bytes()) {
-                    Ok(signature) => signature,
-                    Err(_) => return false,
-                };
-
-            key.verify_prehash(attrs_digest.as_slice(), &signature).is_ok()
-        }
-        oid => unimplemented!("{:?}", oid),
-    }
-    */
+    // Verify that the signature in SignerInfo.signature is correct.
+    key.verify::<D>(attrs_digest.as_slice(), si.signature.as_bytes())
 }
 
 /// Returns a short name from an OID.
@@ -1180,14 +1007,12 @@ fn format_serial_number(
     result
 }
 
-/// Given an OID that represents an algorithm name, returns a string
-/// that identifies the algorithm.
+/// Given an OID returns a string that describes it.
 ///
 /// # Panics
 ///
-/// If the OID doesn't correspond to some of the supported algorithm
-/// names.
-fn oid_to_algorithm_name(oid: &ObjectIdentifier) -> &'static str {
+/// If the OID is unknown.
+fn oid_to_str(oid: &ObjectIdentifier) -> &'static str {
     match oid {
         &rfc5912::ID_SHA_1 => "sha1",
         &rfc5912::ID_SHA_256 => "sha256",
@@ -1201,8 +1026,7 @@ fn oid_to_algorithm_name(oid: &ObjectIdentifier) -> &'static str {
     }
 }
 
-/// A wrapper that implements the [`der::Writer`] trait for a
-/// [`Digest`].
+/// A wrapper that implements the [`der::Writer`] trait for a [`Digest`].
 #[derive(Default)]
 struct DerDigest<T: Digest + Default>(T);
 
@@ -1219,12 +1043,25 @@ impl<T: Digest + Default> der::Writer for DerDigest<T> {
     }
 }
 
+/// Represents a certificate chain.
+///
+/// A certificate chain starts with an initial certificate, and contains the
+/// certificate that signed the initial certificate, the certificate that
+/// signed the signer, and so on, until finding a self-signed certificate, or
+/// a certificate that is signed by some external certificate that is not
+/// contained in the PE file.
 struct CertificateChain<'a> {
     certs: &'a [Certificate],
     next: Option<&'a Certificate>,
 }
 
 impl<'a> CertificateChain<'a> {
+    /// Creates a new certificate chain.
+    ///
+    /// This function receives a pool of certificates in the `certs` arguments,
+    /// and a `predicate` that identifies the initial certificate in the chain.
+    /// The initial certificate will be the first certificate in the pool that
+    /// matches the predicate.
     pub fn new<P>(certs: &'a [Certificate], predicate: P) -> Self
     where
         P: Fn(&Certificate) -> bool,
@@ -1296,5 +1133,72 @@ impl<'a> Iterator for CertificateChain<'a> {
             }
         }
         next
+    }
+}
+
+/// Represents public key found in certificate.
+enum PublicKey {
+    Rsa(rsa::RsaPublicKey),
+    EcdsaP256(p256::ecdsa::VerifyingKey),
+    EcdsaP384(p384::ecdsa::VerifyingKey),
+}
+
+impl TryFrom<SubjectPublicKeyInfoRef<'_>> for PublicKey {
+    type Error = spki::Error;
+
+    fn try_from(value: SubjectPublicKeyInfoRef) -> Result<Self, Self::Error> {
+        match value.algorithm.oid {
+            rfc5912::RSA_ENCRYPTION => {
+                Ok(Self::Rsa(rsa::RsaPublicKey::try_from(value)?))
+            }
+            rfc5912::ID_EC_PUBLIC_KEY => {
+                match value
+                    .algorithm
+                    .parameters
+                    .ok_or(Self::Error::AlgorithmParametersMissing)?
+                    .decode_as::<ObjectIdentifier>()
+                    .map_err(Self::Error::Asn1)?
+                {
+                    rfc5912::SECP_256_R_1 => Ok(Self::EcdsaP256(
+                        p256::ecdsa::VerifyingKey::try_from(value)?,
+                    )),
+                    rfc5912::SECP_384_R_1 => Ok(Self::EcdsaP384(
+                        p384::ecdsa::VerifyingKey::try_from(value)?,
+                    )),
+                    oid => unimplemented!("{:?}", oid),
+                }
+            }
+            oid => unimplemented!("{:?}", oid),
+        }
+    }
+}
+
+impl PublicKey {
+    fn verify<D: Digest + AssociatedOid>(
+        &self,
+        hashed: &[u8],
+        signature: &[u8],
+    ) -> bool {
+        match self {
+            PublicKey::Rsa(key) => {
+                if Pkcs1v15Sign::new::<D>()
+                    .verify(key, hashed, signature)
+                    .is_ok()
+                {
+                    return true;
+                }
+                Pkcs1v15Sign::new_unprefixed()
+                    .verify(key, hashed, signature)
+                    .is_ok()
+            }
+            PublicKey::EcdsaP256(key) => ecdsa::Signature::from_der(signature)
+                .is_ok_and(|signature| {
+                    key.verify_prehash(hashed, &signature).is_ok()
+                }),
+            PublicKey::EcdsaP384(key) => ecdsa::Signature::from_der(signature)
+                .is_ok_and(|signature| {
+                    key.verify_prehash(hashed, &signature).is_ok()
+                }),
+        }
     }
 }
