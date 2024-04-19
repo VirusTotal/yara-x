@@ -1674,6 +1674,17 @@ impl<'a> PE<'a> {
                     thunk & 0x8000000000000000 != 0
                 };
 
+                // Check that thunk doesn't exceed the maximum possible value.
+                // The maximum possible value occurs when the most significant
+                // bit is set (import by ordinal) and the ordinal number is
+                // 65535, which is the maximum possible ordinal.
+                let max_thunk =
+                    if is_32_bits { 0x8000ffff } else { 0x800000000000ffff };
+
+                if thunk > max_thunk {
+                    continue;
+                }
+
                 let mut func = ImportedFunc {
                     rva: descriptor.import_address_table.saturating_add(
                         (i * if is_32_bits { 4 } else { 8 }) as u32,
@@ -1694,12 +1705,10 @@ impl<'a> PE<'a> {
                     }
 
                     if let Ok(rva) = TryInto::<u32>::try_into(thunk) {
-                        if let Some(name) =
-                            self.parse_at_rva(rva, Self::parse_import_by_name)
-                        {
-                            func.name =
-                                String::from_utf8(name.to_owned()).ok();
-                        }
+                        func.name = self
+                            .parse_at_rva(rva, Self::parse_import_by_name)
+                            .map(|n| n.to_vec())
+                            .and_then(|n| String::from_utf8(n).ok());
                     }
                 }
 
@@ -1994,7 +2003,14 @@ impl<'a> PE<'a> {
         // limit of 256 bytes, though.
         let dll_name = self.str_at_rva(rva)?;
 
+        if dll_name.is_empty() {
+            return None;
+        }
+
         for c in dll_name.chars() {
+            if c.is_ascii_control() {
+                return None;
+            }
             if matches!(c, ' ' | '"' | '*' | '<' | '>' | '?' | '|') {
                 return None;
             }
