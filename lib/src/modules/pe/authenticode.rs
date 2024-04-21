@@ -3,17 +3,16 @@ use std::fmt::{Display, Write};
 
 use crate::modules::pe::parser::PE;
 use array_bytes::bytes2hex;
-use cms::attr::Countersignature;
 use cms::cert::x509::{spki, Certificate};
 use cms::cert::IssuerAndSerialNumber;
 use cms::content_info::CmsVersion;
 use cms::content_info::ContentInfo;
 use cms::signed_data::{
-    CertificateSet, SignedData, SignerIdentifier, SignerInfo,
+    CertificateSet, SignedAttributes, SignedData, SignerIdentifier, SignerInfo, SignerInfos
 };
 use const_oid::db::{rfc4519, rfc5911, rfc5912, rfc6268, DB};
 use const_oid::{AssociatedOid, ObjectIdentifier};
-use der::asn1;
+use der::{asn1, FixedTag, Reader};
 use der::asn1::OctetString;
 use der::referenced::OwnedToRef;
 use der::{Choice, Sequence, SliceReader};
@@ -158,6 +157,161 @@ pub enum SpcLink {
     Url(asn1::Ia5String),
 }
 
+/// ASN.1 SignerInfo
+///
+/// SignerInfo ::= SEQUENCE {
+///     version                 CMSVersion,
+///     sid                     SignerIdentifier,
+///     digestAlgorithm         DigestAlgorithmIdentifier,
+///     signedAttrs             [0] IMPLICIT SignedAttributes OPTIONAL,
+///     signatureAlgorithm      SignatureAlgorithmIdentifier,
+///     signature               SignatureValue,
+///     unsignedAttrs           [1] IMPLICIT UnsignedAttributes OPTIONAL
+/// }
+///
+/// This is a custom deferred structure which delays decoding of [`signerInfos`]
+/// to deal with mixed BER/DER encoding issues. We need to obtain the same data
+/// during verification that was used during signing.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DeferSignerInfo {
+    pub version: cms::content_info::CmsVersion,
+    pub sid: cms::signed_data::SignerIdentifier,
+    pub digest_alg: spki::AlgorithmIdentifierOwned,
+    pub signed_attrs: Option<Vec<u8>>,
+    pub signature_algorithm: spki::AlgorithmIdentifierOwned,
+    pub signature: cms::signed_data::SignatureValue,
+    pub unsigned_attrs: Option<cms::signed_data::UnsignedAttributes>,
+}
+
+/// ASN.1 SignerInfos
+///
+/// SignerInfos ::= SET OF SignerInfo
+///
+/// This is a custom deferred structure which delays decoding of [`signerInfos`]
+/// to deal with mixed BER/DER encoding issues. We need to obtain the same data
+/// during verification that was used during signing.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DeferSignerInfos(pub Vec<DeferSignerInfo>);
+
+/// ASN.1 SignedData
+///
+/// SignedData ::= SEQUENCE {
+///     version                 CMSVersion,
+///     digestAlgorithms        DigestAlgorithmIdentifiers,
+///     encapContentInfo        EncapsulatedContentInfo,
+///     certificates            [0] IMPLICIT CertificateSet OPTIONAL,
+///     crls                    [1] IMPLICIT RevocationInfoChoices OPTIONAL,
+///     signerInfos             SignerInfos
+/// }
+///
+/// This is a custom deferred structure which delays decoding of [`signerInfos`]
+/// to deal with mixed BER/DER encoding issues. We need to obtain the same data
+/// during verification that was used during signing.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DeferSignedData {
+    pub version: cms::content_info::CmsVersion,
+    pub digest_algorithms: cms::signed_data::DigestAlgorithmIdentifiers,
+    pub encap_content_info: cms::signed_data::EncapsulatedContentInfo,
+    pub certificates: Option<cms::signed_data::CertificateSet>,
+    pub crls: Option<cms::revocation::RevocationInfoChoices>,
+    pub signer_infos: DeferSignerInfos,
+}
+
+impl der::FixedTag for DeferSignerInfo {
+    const TAG: Tag = SignerInfo::TAG;
+}
+
+impl<'a> der::DecodeValue<'a> for DeferSignerInfo {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, header: der::Header) -> der::Result<Self> {
+        reader.read_nested(header.length, |reader| {
+            let version = reader.decode()?;
+            let sid = reader.decode()?;
+            let digest_alg = reader.decode()?;
+            let signed_attrs = reader.peek_header()
+                .and_then(|header|
+                    // Signer attributes are implicitly tagged which means that the original tag
+                    // for SET OF is not present. We therefore need to swap the tag to SET due to:
+                    // * Verification - we need to verify against the original data
+                    // * Reencoding - we need to able to reencode this back to SignedAttributes
+                    if header.tag.is_context_specific() && header.tag.is_constructed() && header.tag.number() == der::TagNumber::N0 {
+                        reader.read_slice(header.encoded_len()?)?;
+                        let new_header = der::Header {
+                            tag: SignedAttributes::TAG,
+                            length: header.length
+                        };
+
+                        let mut result = Vec::new();
+                        new_header.encode_to_vec(&mut result)?;
+                        result.extend(reader.read_slice(header.length)?);
+                        Ok(Some(result))
+                    } else {
+                        Ok(None)
+                    })?;
+            let signature_algorithm = reader.decode()?;
+            let signature = reader.decode()?;
+            let unsigned_attrs = reader.context_specific(der::TagNumber::N1, der::TagMode::Implicit)?;
+
+            Ok(Self {
+                version,
+                sid,
+                digest_alg,
+                signed_attrs,
+                signature_algorithm,
+                signature,
+                unsigned_attrs,
+            })
+        })
+    }
+}
+
+impl TryFrom<&DeferSignerInfo> for SignerInfo {
+    type Error = der::Error;
+
+    fn try_from(value: &DeferSignerInfo) -> Result<Self, Self::Error> {
+        Ok(Self {
+            version: value.version,
+            sid: value.sid.clone(),
+            digest_alg: value.digest_alg.clone(),
+            signed_attrs: value.signed_attrs.as_ref().map(|data| SignedAttributes::from_der(data)).transpose()?,
+            signature_algorithm: value.signature_algorithm.clone(),
+            signature: value.signature.clone(),
+            unsigned_attrs: value.unsigned_attrs.clone(),
+        })
+    }
+}
+
+impl der::FixedTag for DeferSignerInfos {
+    const TAG: Tag = SignerInfos::TAG;
+}
+
+impl<'a> der::DecodeValue<'a> for DeferSignerInfos {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, header: der::Header) -> der::Result<Self> {
+        reader.read_nested(header.length, |reader| {
+            Ok(Self(std::iter::from_fn(|| reader.decode().ok()).collect()))
+        })
+
+    }
+}
+
+impl der::FixedTag for DeferSignedData {
+    const TAG: Tag = SignedData::TAG;
+}
+
+impl<'a> der::DecodeValue<'a> for DeferSignedData {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, header: der::Header) -> der::Result<Self> {
+        reader.read_nested(header.length, |reader| {
+            Ok(Self {
+                version: reader.decode()?,
+                digest_algorithms: reader.decode()?,
+                encap_content_info: reader.decode()?,
+                certificates: reader.context_specific(der::TagNumber::N0, der::TagMode::Implicit)?,
+                crls: reader.context_specific(der::TagNumber::N1, der::TagMode::Implicit)?,
+                signer_infos: reader.decode()?,
+            })
+        })
+    }
+}
+
 /// Error returned by [`AuthenticodeParser::parse`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ParseError {
@@ -172,6 +326,9 @@ pub enum ParseError {
 
     /// The content info is not valid [`SignedData`].
     InvalidSignedData(der::Error),
+
+    /// The signer info is not valid [`SignerInfo`].
+    InvalidSignerInfo(der::Error),
 
     /// The version of [`SignedData`] is not 1.
     InvalidSignedDataVersion(CmsVersion),
@@ -243,7 +400,7 @@ impl AuthenticodeParser {
     ) -> Result<Vec<AuthenticodeSignature>, ParseError> {
         let signed_data = content_info
             .content
-            .decode_as::<SignedData>()
+            .decode_as::<DeferSignedData>()
             .map_err(ParseError::InvalidSignedData)?;
 
         if signed_data.version != CmsVersion::V1 {
@@ -284,6 +441,8 @@ impl AuthenticodeParser {
             .map_err(ParseError::InvalidSpcIndirectDataContent)?;
 
         let signer_info = &signed_data.signer_infos.0.as_slice()[0];
+        let decoded_signer_info = SignerInfo::try_from(signer_info)
+            .map_err(ParseError::InvalidSignerInfo)?;
 
         if signer_info.version != CmsVersion::V1 {
             return Err(ParseError::InvalidSignerInfoVersion(
@@ -298,7 +457,7 @@ impl AuthenticodeParser {
         }
 
         let signed_attrs =
-            if let Some(signed_attrs) = &signer_info.signed_attrs {
+            if let Some(signed_attrs) = &decoded_signer_info.signed_attrs {
                 signed_attrs
             } else {
                 return Err(ParseError::EmptyAuthenticatedAttributes);
@@ -314,7 +473,7 @@ impl AuthenticodeParser {
 
         // Get the message digest attribute stored in `SignerInfo`, this is
         // the digest of `SignedData.EncapsulatedContentInfo.econtent`.
-        let signer_info_digest = get_message_digest(signer_info)
+        let signer_info_digest = get_message_digest(signed_attrs)
             .ok_or(ParseError::MissingMessageDigestAuthenticatedAttribute)?;
 
         // Get the opus info attribute and decode it.
@@ -363,15 +522,15 @@ impl AuthenticodeParser {
                             attr,
                             &mut certificates,
                             &mut countersignatures,
-                        );
+                        )?;
                     }
                     rfc5911::ID_COUNTERSIGNATURE => {
-                        Self::parse_pcks9_countersignature_attr(
+                        Self::parse_pkcs9_countersignature_attr(
                             signer_info,
                             attr,
                             &mut certificates,
                             &mut countersignatures,
-                        );
+                        )?;
                     }
                     _ => {}
                 }
@@ -414,9 +573,10 @@ impl AuthenticodeParser {
         signatures.push(AuthenticodeSignature {
             program_name: opus_info.and_then(|oi| oi.program_name),
             signer_info_digest,
-            signed_data,
-            computed_authenticode_hash: file_digest,
             indirect_data,
+            signed_data,
+            signer_info: decoded_signer_info,
+            computed_authenticode_hash: file_digest,
             countersignatures,
             certificates,
         });
@@ -427,11 +587,11 @@ impl AuthenticodeParser {
     }
 
     fn parse_ms_countersignature_attr(
-        si: &SignerInfo,
+        si: &DeferSignerInfo,
         attr: &Attribute,
         certificates: &mut Vec<Certificate>,
         countersignatures: &mut Vec<AuthenticodeCountersign>,
-    ) {
+    ) -> Result<(), ParseError> {
         for value in attr.values.iter() {
             let content_info = match value.decode_as::<ContentInfo>() {
                 Ok(content_info) => content_info,
@@ -439,7 +599,7 @@ impl AuthenticodeParser {
             };
 
             if let Ok(signed_data) =
-                content_info.content.decode_as::<SignedData>()
+                content_info.content.decode_as::<DeferSignedData>()
             {
                 certificates.extend(
                     signed_data
@@ -451,9 +611,14 @@ impl AuthenticodeParser {
                         .collect::<Vec<Certificate>>(),
                 );
 
-                let cs = signed_data.signer_infos.as_ref().get(0).unwrap();
+                let cs_si = signed_data
+                    .signer_infos
+                    .0
+                    .first()
+                    .unwrap();
 
-                let mut countersignature = Self::pkcs9_countersignature(cs);
+                let mut countersignature =
+                    Self::pkcs9_countersignature(cs_si)?;
 
                 let tst_info = signed_data
                     .encap_content_info
@@ -462,7 +627,10 @@ impl AuthenticodeParser {
                         content.decode_as::<OctetString>().ok()
                     })
                     .and_then(|octet_string| {
-                        TstInfo::from_der(octet_string.as_bytes()).ok()
+                        TstInfo::from_der(
+                            octet_string.as_bytes(),
+                        )
+                        .ok()
                     });
 
                 let tst_info = match tst_info {
@@ -471,11 +639,19 @@ impl AuthenticodeParser {
                 };
 
                 countersignature.digest_alg =
-                    oid_to_str(&tst_info.message_imprint.hash_algorithm.oid);
+                    oid_to_str(
+                        &tst_info
+                            .message_imprint
+                            .hash_algorithm
+                            .oid,
+                    );
 
                 countersignature.digest = Some(bytes2hex(
                     "",
-                    tst_info.message_imprint.hashed_message.as_bytes(),
+                    tst_info
+                        .message_imprint
+                        .hashed_message
+                        .as_bytes(),
                 ));
 
                 countersignature.verified =
@@ -483,47 +659,60 @@ impl AuthenticodeParser {
                         &tst_info.message_imprint.hash_algorithm,
                         si.signature.as_bytes(),
                         tst_info.message_imprint.hashed_message.as_bytes(),
-                    ) && verify_signer_info(cs, certificates.as_slice());
+                    ) && verify_signer_info(cs_si, certificates.as_slice());
 
                 countersignatures.push(countersignature);
             }
         }
+
+        Ok(())
     }
 
-    fn parse_pcks9_countersignature_attr(
-        si: &SignerInfo,
+    fn parse_pkcs9_countersignature_attr(
+        si: &DeferSignerInfo,
         attr: &Attribute,
         certificates: &mut Vec<Certificate>,
         countersignatures: &mut Vec<AuthenticodeCountersign>,
-    ) {
+    ) -> Result<(), ParseError> {
         for value in attr.values.iter() {
-            if let Ok(cs) = value.decode_as::<Countersignature>().as_ref() {
-                let mut countersignature = Self::pkcs9_countersignature(cs);
+            if let Ok(cs_si) = value.decode_as::<DeferSignerInfo>().as_ref() {
+                let mut countersignature =
+                    Self::pkcs9_countersignature(cs_si)?;
 
-                let message_digest = match get_message_digest(cs) {
-                    Some(digest) => digest,
-                    None => continue,
-                };
+                let cs_signed_attrs = countersignature.signer_info.signed_attrs
+                    .as_ref()
+                    .ok_or(ParseError::EmptyAuthenticatedAttributes)?;
+
+                let message_digest =
+                    match get_message_digest(cs_signed_attrs) {
+                        Some(digest) => digest,
+                        None => continue,
+                    };
 
                 countersignature.verified =
                     verify_message_digest(
-                        &cs.digest_alg,
+                        &cs_si.digest_alg,
                         si.signature.as_bytes(),
                         message_digest.as_bytes(),
-                    ) && verify_signer_info(cs, certificates.as_slice());
+                    ) && verify_signer_info(cs_si, certificates.as_slice());
 
                 countersignatures.push(countersignature);
             }
         }
+
+        Ok(())
     }
 
     fn pkcs9_countersignature(
-        cs: &Countersignature,
-    ) -> AuthenticodeCountersign {
+        cs: &DeferSignerInfo,
+    ) -> Result<AuthenticodeCountersign, ParseError> {
         let mut digest = None;
         let mut signing_time = None;
 
-        if let Some(signed_attrs) = &cs.signed_attrs {
+        let decoded_cs = SignerInfo::try_from(cs)
+            .map_err(ParseError::InvalidSignerInfo)?;
+
+        if let Some(signed_attrs) = &decoded_cs.signed_attrs {
             for attr in signed_attrs.iter() {
                 match attr.oid {
                     rfc6268::ID_MESSAGE_DIGEST => {
@@ -547,13 +736,14 @@ impl AuthenticodeParser {
             _ => unreachable!(),
         };
 
-        AuthenticodeCountersign {
+        Ok(AuthenticodeCountersign {
             signer: signer.clone(),
+            signer_info: decoded_cs,
             digest_alg: oid_to_str(&cs.digest_alg.oid),
             digest,
             signing_time,
             verified: false,
-        }
+        })
     }
 
     fn certificate_set_to_iter(
@@ -571,6 +761,7 @@ impl AuthenticodeParser {
 
 pub struct AuthenticodeCountersign {
     signer: IssuerAndSerialNumber,
+    signer_info: SignerInfo,
     digest_alg: Cow<'static, str>,
     digest: Option<String>,
     signing_time: Option<asn1::UtcTime>,
@@ -580,7 +771,8 @@ pub struct AuthenticodeCountersign {
 pub struct AuthenticodeSignature {
     signer_info_digest: OctetString,
     indirect_data: SpcIndirectDataContent,
-    signed_data: SignedData,
+    signed_data: DeferSignedData,
+    signer_info: SignerInfo,
     certificates: Vec<Certificate>,
     countersignatures: Vec<AuthenticodeCountersign>,
     program_name: Option<SpcString>,
@@ -605,17 +797,9 @@ impl AuthenticodeSignature {
         oid_to_str(&self.indirect_data.message_digest.digest_algorithm.oid)
     }
 
-    /// Get the [`SignerInfo`] struct.
-    #[inline]
-    pub fn signer_info(&self) -> &SignerInfo {
-        // The parser validates that exactly one signer info is present, so
-        // this won't panic.
-        &self.signed_data.signer_infos.0.as_ref()[0]
-    }
-
     #[inline]
     pub fn signer_info_digest_alg(&self) -> Cow<'static, str> {
-        oid_to_str(&self.signer_info().digest_alg.oid)
+        oid_to_str(&self.signer_info.digest_alg.oid)
     }
 
     #[inline]
@@ -644,7 +828,7 @@ impl AuthenticodeSignature {
 
     pub fn signer(&self) -> &IssuerAndSerialNumber {
         if let SignerIdentifier::IssuerAndSerialNumber(signer) =
-            &self.signer_info().sid
+            &self.signer_info.sid
         {
             signer
         } else {
@@ -685,13 +869,13 @@ impl AuthenticodeSignature {
             return false;
         }
 
-        let message_digest = match get_message_digest(self.signer_info()) {
+        let message_digest = match get_message_digest(self.signer_info.signed_attrs.as_ref().unwrap()) {
             Some(digest) => digest,
             None => return false,
         };
 
         if !verify_message_digest(
-            &self.signer_info().digest_alg,
+            &self.signer_info.digest_alg,
             self.signed_data
                 .encap_content_info
                 .econtent
@@ -703,7 +887,10 @@ impl AuthenticodeSignature {
             return false;
         }
 
-        verify_signer_info(self.signer_info(), self.certificates())
+        verify_signer_info(
+            &self.signed_data.signer_infos.0[0],
+            self.certificates()
+        )
     }
 }
 
@@ -904,10 +1091,8 @@ fn format_name(name: &x509_cert::name::Name) -> String {
 }
 
 /// Given a [`SignerInfo`] returns the value of the message digest attribute.
-fn get_message_digest(si: &SignerInfo) -> Option<OctetString> {
-    si.signed_attrs
-        .as_ref()
-        .unwrap()
+fn get_message_digest(signed_attrs: &SignedAttributes) -> Option<OctetString> {
+    signed_attrs
         .iter()
         .find(|attr| attr.oid == rfc6268::ID_MESSAGE_DIGEST)
         .and_then(|attr| attr.values.get(0))
@@ -931,7 +1116,7 @@ fn verify_message_digest(
     }
 }
 
-fn verify_signer_info(si: &SignerInfo, certs: &[Certificate]) -> bool {
+fn verify_signer_info(si: &DeferSignerInfo, certs: &[Certificate]) -> bool {
     match si.digest_alg.oid {
         rfc5912::ID_SHA_1 => verify_signed_data_impl::<Sha1>(si, certs),
         rfc5912::ID_SHA_256 => verify_signed_data_impl::<Sha256>(si, certs),
@@ -943,7 +1128,7 @@ fn verify_signer_info(si: &SignerInfo, certs: &[Certificate]) -> bool {
 }
 
 fn verify_signed_data_impl<D: Digest + AssociatedOid + Default>(
-    si: &SignerInfo,
+    si: &DeferSignerInfo,
     certs: &[Certificate],
 ) -> bool {
     // Find the certificate that signed the data in `content`.
@@ -967,10 +1152,7 @@ fn verify_signed_data_impl<D: Digest + AssociatedOid + Default>(
 
     // Compute the digest for the DER encoding of the signed attributes, this
     // digest is signed, and its signature is in SignerInfo.signature.
-    let mut attrs_digest = DerDigest::<D>::default();
-
-    si.signed_attrs.encode(&mut attrs_digest).unwrap();
-    let attrs_digest = attrs_digest.finalize();
+    let attrs_digest = D::digest(si.signed_attrs.as_ref().unwrap());
 
     // Search for the certificate that signed the digest.
     let signing_cert = match certs
