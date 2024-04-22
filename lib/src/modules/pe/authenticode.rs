@@ -8,13 +8,14 @@ use cms::cert::IssuerAndSerialNumber;
 use cms::content_info::CmsVersion;
 use cms::content_info::ContentInfo;
 use cms::signed_data::{
-    CertificateSet, SignedAttributes, SignedData, SignerIdentifier, SignerInfo, SignerInfos
+    CertificateSet, SignedAttributes, SignedData, SignerIdentifier,
+    SignerInfo, SignerInfos,
 };
 use const_oid::db::{rfc4519, rfc5911, rfc5912, rfc6268, DB};
 use const_oid::{AssociatedOid, ObjectIdentifier};
-use der::{asn1, FixedTag, Reader};
 use der::asn1::OctetString;
 use der::referenced::OwnedToRef;
+use der::{asn1, FixedTag, Reader};
 use der::{Choice, Sequence, SliceReader};
 use der::{Decode, Encode, Tag, Tagged};
 use digest::Digest;
@@ -222,7 +223,10 @@ impl der::FixedTag for DeferSignerInfo {
 }
 
 impl<'a> der::DecodeValue<'a> for DeferSignerInfo {
-    fn decode_value<R: Reader<'a>>(reader: &mut R, header: der::Header) -> der::Result<Self> {
+    fn decode_value<R: Reader<'a>>(
+        reader: &mut R,
+        header: der::Header,
+    ) -> der::Result<Self> {
         reader.read_nested(header.length, |reader| {
             let version = reader.decode()?;
             let sid = reader.decode()?;
@@ -272,7 +276,11 @@ impl TryFrom<&DeferSignerInfo> for SignerInfo {
             version: value.version,
             sid: value.sid.clone(),
             digest_alg: value.digest_alg.clone(),
-            signed_attrs: value.signed_attrs.as_ref().map(|data| SignedAttributes::from_der(data)).transpose()?,
+            signed_attrs: value
+                .signed_attrs
+                .as_ref()
+                .map(|data| SignedAttributes::from_der(data))
+                .transpose()?,
             signature_algorithm: value.signature_algorithm.clone(),
             signature: value.signature.clone(),
             unsigned_attrs: value.unsigned_attrs.clone(),
@@ -285,11 +293,13 @@ impl der::FixedTag for DeferSignerInfos {
 }
 
 impl<'a> der::DecodeValue<'a> for DeferSignerInfos {
-    fn decode_value<R: Reader<'a>>(reader: &mut R, header: der::Header) -> der::Result<Self> {
+    fn decode_value<R: Reader<'a>>(
+        reader: &mut R,
+        header: der::Header,
+    ) -> der::Result<Self> {
         reader.read_nested(header.length, |reader| {
             Ok(Self(std::iter::from_fn(|| reader.decode().ok()).collect()))
         })
-
     }
 }
 
@@ -298,14 +308,23 @@ impl der::FixedTag for DeferSignedData {
 }
 
 impl<'a> der::DecodeValue<'a> for DeferSignedData {
-    fn decode_value<R: Reader<'a>>(reader: &mut R, header: der::Header) -> der::Result<Self> {
+    fn decode_value<R: Reader<'a>>(
+        reader: &mut R,
+        header: der::Header,
+    ) -> der::Result<Self> {
         reader.read_nested(header.length, |reader| {
             Ok(Self {
                 version: reader.decode()?,
                 digest_algorithms: reader.decode()?,
                 encap_content_info: reader.decode()?,
-                certificates: reader.context_specific(der::TagNumber::N0, der::TagMode::Implicit)?,
-                crls: reader.context_specific(der::TagNumber::N1, der::TagMode::Implicit)?,
+                certificates: reader.context_specific(
+                    der::TagNumber::N0,
+                    der::TagMode::Implicit,
+                )?,
+                crls: reader.context_specific(
+                    der::TagNumber::N1,
+                    der::TagMode::Implicit,
+                )?,
                 signer_infos: reader.decode()?,
             })
         })
@@ -611,11 +630,7 @@ impl AuthenticodeParser {
                         .collect::<Vec<Certificate>>(),
                 );
 
-                let cs_si = signed_data
-                    .signer_infos
-                    .0
-                    .first()
-                    .unwrap();
+                let cs_si = signed_data.signer_infos.0.first().unwrap();
 
                 let mut countersignature =
                     Self::pkcs9_countersignature(cs_si)?;
@@ -627,10 +642,7 @@ impl AuthenticodeParser {
                         content.decode_as::<OctetString>().ok()
                     })
                     .and_then(|octet_string| {
-                        TstInfo::from_der(
-                            octet_string.as_bytes(),
-                        )
-                        .ok()
+                        TstInfo::from_der(octet_string.as_bytes()).ok()
                     });
 
                 let tst_info = match tst_info {
@@ -639,19 +651,11 @@ impl AuthenticodeParser {
                 };
 
                 countersignature.digest_alg =
-                    oid_to_str(
-                        &tst_info
-                            .message_imprint
-                            .hash_algorithm
-                            .oid,
-                    );
+                    oid_to_str(&tst_info.message_imprint.hash_algorithm.oid);
 
                 countersignature.digest = Some(bytes2hex(
                     "",
-                    tst_info
-                        .message_imprint
-                        .hashed_message
-                        .as_bytes(),
+                    tst_info.message_imprint.hashed_message.as_bytes(),
                 ));
 
                 countersignature.verified =
@@ -679,15 +683,17 @@ impl AuthenticodeParser {
                 let mut countersignature =
                     Self::pkcs9_countersignature(cs_si)?;
 
-                let cs_signed_attrs = countersignature.signer_info.signed_attrs
+                let cs_signed_attrs = countersignature
+                    .signer_info
+                    .signed_attrs
                     .as_ref()
                     .ok_or(ParseError::EmptyAuthenticatedAttributes)?;
 
-                let message_digest =
-                    match get_message_digest(cs_signed_attrs) {
-                        Some(digest) => digest,
-                        None => continue,
-                    };
+                let message_digest = match get_message_digest(cs_signed_attrs)
+                {
+                    Some(digest) => digest,
+                    None => continue,
+                };
 
                 countersignature.verified =
                     verify_message_digest(
@@ -709,8 +715,8 @@ impl AuthenticodeParser {
         let mut digest = None;
         let mut signing_time = None;
 
-        let decoded_cs = SignerInfo::try_from(cs)
-            .map_err(ParseError::InvalidSignerInfo)?;
+        let decoded_cs =
+            SignerInfo::try_from(cs).map_err(ParseError::InvalidSignerInfo)?;
 
         if let Some(signed_attrs) = &decoded_cs.signed_attrs {
             for attr in signed_attrs.iter() {
@@ -869,7 +875,9 @@ impl AuthenticodeSignature {
             return false;
         }
 
-        let message_digest = match get_message_digest(self.signer_info.signed_attrs.as_ref().unwrap()) {
+        let message_digest = match get_message_digest(
+            self.signer_info.signed_attrs.as_ref().unwrap(),
+        ) {
             Some(digest) => digest,
             None => return false,
         };
@@ -889,7 +897,7 @@ impl AuthenticodeSignature {
 
         verify_signer_info(
             &self.signed_data.signer_infos.0[0],
-            self.certificates()
+            self.certificates(),
         )
     }
 }
@@ -1150,10 +1158,6 @@ fn verify_signed_data_impl<D: Digest + AssociatedOid + Default>(
         return false;
     }
 
-    // Compute the digest for the DER encoding of the signed attributes, this
-    // digest is signed, and its signature is in SignerInfo.signature.
-    let attrs_digest = D::digest(si.signed_attrs.as_ref().unwrap());
-
     // Search for the certificate that signed the digest.
     let signing_cert = match certs
         .iter()
@@ -1172,7 +1176,7 @@ fn verify_signed_data_impl<D: Digest + AssociatedOid + Default>(
     };
 
     // Verify that the signature in SignerInfo.signature is correct.
-    key.verify::<D>(attrs_digest.as_slice(), si.signature.as_bytes())
+    key.verify::<D>(si.signed_attrs.as_ref().unwrap(), si.signature.as_bytes())
 }
 
 /// Produces a printable string of a serial number.
@@ -1380,27 +1384,35 @@ impl TryFrom<SubjectPublicKeyInfoRef<'_>> for PublicKey {
 impl PublicKey {
     fn verify<D: Digest + AssociatedOid>(
         &self,
-        hashed: &[u8],
+        message: &[u8],
         signature: &[u8],
     ) -> bool {
+        let digest = D::digest(message);
         match self {
             Self::Rsa(key) => {
                 if Pkcs1v15Sign::new::<D>()
-                    .verify(key, hashed, signature)
+                    .verify(key, digest.as_slice(), signature)
                     .is_ok()
                 {
                     return true;
                 }
                 Pkcs1v15Sign::new_unprefixed()
-                    .verify(key, hashed, signature)
+                    .verify(key, digest.as_slice(), signature)
                     .is_ok()
             }
-            Self::Dsa(key) => dsa::Signature::from_der(signature)
-                .is_ok_and(|s| key.verify_prehash(hashed, &s).is_ok()),
+            Self::Dsa(key) => {
+                dsa::Signature::from_der(signature).is_ok_and(|s| {
+                    key.verify_prehash(digest.as_slice(), &s).is_ok()
+                })
+            }
             Self::EcdsaP256(key) => ecdsa::Signature::from_der(signature)
-                .is_ok_and(|s| key.verify_prehash(hashed, &s).is_ok()),
+                .is_ok_and(|s| {
+                    key.verify_prehash(digest.as_slice(), &s).is_ok()
+                }),
             Self::EcdsaP384(key) => ecdsa::Signature::from_der(signature)
-                .is_ok_and(|s| key.verify_prehash(hashed, &s).is_ok()),
+                .is_ok_and(|s| {
+                    key.verify_prehash(digest.as_slice(), &s).is_ok()
+                }),
         }
     }
 }
