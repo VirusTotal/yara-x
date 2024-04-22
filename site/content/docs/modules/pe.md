@@ -39,7 +39,7 @@ rule control_panel_applet {
 
 rule is_dll {
     condition:
-        pe.characteristics & pe.DLL
+        pe.characteristics & pe.DLL != 0
 }
 
 rule is_pe {

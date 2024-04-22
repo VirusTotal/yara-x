@@ -21,7 +21,7 @@ seo:
 The `lnk` module parses Windows Link files (.lnk), and exposes metadata
 contained in those files to YARA.
 
-### Module structure
+## Module structure
 
 | Field               | Type                        | Description                                                                                                                                                                                                                     |
 |---------------------|-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -49,11 +49,20 @@ contained in those files to YARA.
 
 ### TrackerData
 
-This structure contains data that can be used to resolve a link target if it
-is not found in its original location when the link is resolved. This data
-is passed to the Link Tracking
+These are the fields in the `tracker_data` structure, which contains data that
+can be used to resolve a link target if it is not found in its original location
+when the link is resolved. This data is passed to the Link Tracking
 service [[MS-DLTW]](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dltw/fc649f0e-871a-431a-88b5-d5b2f80e9cc9)
 to find the link target.
+
+````
+import "lnk"
+
+rule lnk_cdrom {
+    condition:
+        lnk.tracker_data.machine_id == "chris-xps"
+}
+````
 
 | Field                 | Type    |
 |-----------------------|---------|
@@ -66,27 +75,36 @@ to find the link target.
 
 ### DriveType
 
-| Name        | Number |
-|-------------|-------:|
-| UNKNOWN     |      0 |
-| NO_ROOT_DIR |      1 |
-| REMOVABLE   |      2 |
-| FIXED       |      3 |
-| REMOTE      |      4 |
-| CDROM       |      5 |
-| RAMDISK     |      6 |
+These are the possible values for the `drive_type` field. Example:
+
+````
+import "lnk"
+
+rule lnk_cdrom {
+    condition:
+        lnk.drive_type == lnk.DriveType.CDROM 
+}
+````
+
+| Name                  | Value |
+|-----------------------|------:|
+| DriveType.UNKNOWN     |     0 |
+| DriveType.NO_ROOT_DIR |     1 |
+| DriveType.REMOVABLE   |     2 |
+| DriveType.FIXED       |     3 |
+| DriveType.REMOTE      |     4 |
+| DriveType.CDROM       |     5 |
+| DriveType.RAMDISK     |     6 |
 
 ### FileAttributes
 
-| Name                               | Number |
+| Name                               |  Value |
 |------------------------------------|-------:|
 | FILE_ATTRIBUTE_READONLY            | 0x0001 |
 | FILE_ATTRIBUTE_HIDDEN              | 0x0002 |
 | FILE_ATTRIBUTE_SYSTEM              | 0x0004 |
-| RESERVED_1                         | 0x0008 |
 | FILE_ATTRIBUTE_DIRECTORY           | 0x0010 |
 | FILE_ATTRIBUTE_ARCHIVE             | 0x0020 |
-| RESERVED_2                         | 0x0040 |
 | FILE_ATTRIBUTE_NORMAL              | 0x0080 |
 | FILE_ATTRIBUTE_TEMPORARY           | 0x0100 |
 | FILE_ATTRIBUTE_SPARSE_FILE         | 0x0200 |
@@ -98,8 +116,19 @@ to find the link target.
 
 ### ShowCommand
 
-| Name          | Number |
-|---------------|-------:|
-| NORMAL        |      1 |
-| MAXIMIZED     |      3 |
-| MIN_NO_ACTIVE |      7 |
+These are the possible values for the `show_command` field. Example:
+
+````
+import "lnk"
+
+rule lnk_maximized {
+    condition:
+        lnk.show_command == lnk.ShowCommand.MAXIMIZED
+}
+````
+
+| Name                      | Value |
+|---------------------------|------:|
+| ShowCommand.NORMAL        |     1 |
+| ShowCommand.MAXIMIZED     |     3 |
+| ShowCommand.MIN_NO_ACTIVE |     7 |

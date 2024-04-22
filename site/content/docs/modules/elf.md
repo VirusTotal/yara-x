@@ -108,7 +108,7 @@ rule elf_64 {
 
 ### DynType
 
-| Name            | Number     | Description                       |
+| Name            | Value      | Description                       |
 |-----------------|------------|-----------------------------------|
 | DT_NULL         | 0          | End of the dynamic entries        |
 | DT_NEEDED       | 1          | Name of needed library            |
@@ -161,7 +161,7 @@ rule elf_64 {
 
 ### Machine
 
-| Name           | Number | Description               |
+| Name           | Value  | Description               |
 |----------------|--------|---------------------------|
 | EM_NONE        | 0x0000 | No type                   |
 | EM_M32         | 0x0001 | AT&amp;T WE 32100         |
@@ -182,34 +182,34 @@ rule elf_64 {
 
 ### SectionType
 
-| Name           | Number | Description                       |
-|----------------|--------|-----------------------------------|
-| SHT_NULL       | 0      | Section header table entry unused |
-| SHT_PROGBITS   | 1      | Program data                      |
-| SHT_SYMTAB     | 2      | Symbol table                      |
-| SHT_STRTAB     | 3      | String table                      |
-| SHT_RELA       | 4      | Relocation entries with addends   |
-| SHT_HASH       | 5      | Symbol hash table                 |
-| SHT_DYNAMIC    | 6      | Dynamic linking information       |
-| SHT_NOTE       | 7      | Notes                             |
-| SHT_NOBITS     | 8      | Program space with no data (bss)  |
-| SHT_REL        | 9      | Relocation entries, no addends    |
-| SHT_SHLIB      | 10     | Reserved                          |
-| SHT_DYNSYM     | 11     | Dynamic linker symbol table       |
-| SHT_INIT_ARRAY | 14     | Array of constructors             |
-| SHT_FINI_ARRAY | 15     | Array of destructors              |
+| Name           | Value | Description                       |
+|----------------|-------|-----------------------------------|
+| SHT_NULL       | 0     | Section header table entry unused |
+| SHT_PROGBITS   | 1     | Program data                      |
+| SHT_SYMTAB     | 2     | Symbol table                      |
+| SHT_STRTAB     | 3     | String table                      |
+| SHT_RELA       | 4     | Relocation entries with addends   |
+| SHT_HASH       | 5     | Symbol hash table                 |
+| SHT_DYNAMIC    | 6     | Dynamic linking information       |
+| SHT_NOTE       | 7     | Notes                             |
+| SHT_NOBITS     | 8     | Program space with no data (bss)  |
+| SHT_REL        | 9     | Relocation entries, no addends    |
+| SHT_SHLIB      | 10    | Reserved                          |
+| SHT_DYNSYM     | 11    | Dynamic linker symbol table       |
+| SHT_INIT_ARRAY | 14    | Array of constructors             |
+| SHT_FINI_ARRAY | 15    | Array of destructors              |
 
 ### SegmentFlags
 
-| Name | Number | Description           |
-|------|--------|-----------------------|
-| PF_X | 1      | Segment is executable |
-| PF_W | 2      | Segment is writable   |
-| PF_R | 4      | Segment is readable   |
+| Name | Value | Description           |
+|------|-------|-----------------------|
+| PF_X | 1     | Segment is executable |
+| PF_W | 2     | Segment is writable   |
+| PF_R | 4     | Segment is readable   |
 
 ### SegmentType
 
-| Name            | Number     | Description                               |
+| Name            | Value      | Description                               |
 |-----------------|------------|-------------------------------------------|
 | PT_NULL         | 0          | The array element is unused               |
 | PT_LOAD         | 1          | Loadable segment                          |
@@ -226,36 +226,36 @@ rule elf_64 {
 
 ### SymBind
 
-| Name       | Number | Description   |
-|------------|--------|---------------|
-| STB_LOCAL  | 0      | Local symbol  |
-| STB_GLOBAL | 1      | Global symbol |
-| STB_WEAK   | 2      | Weak symbol   |
+| Name       | Value | Description   |
+|------------|-------|---------------|
+| STB_LOCAL  | 0     | Local symbol  |
+| STB_GLOBAL | 1     | Global symbol |
+| STB_WEAK   | 2     | Weak symbol   |
 
 ### SymType
 
-| Name        | Number | Description                        |
-|-------------|--------|------------------------------------|
-| STT_NOTYPE  | 0      | Symbol type is unspecified         |
-| STT_OBJECT  | 1      | Symbol is a data object            |
-| STT_FUNC    | 2      | Symbol is a code object            |
-| STT_SECTION | 3      | Symbol associated with a section   |
-| STT_FILE    | 4      | Symbol&#39;s name is file name     |
-| STT_COMMON  | 5      | Symbol is a common data object     |
-| STT_TLS     | 6      | Symbol is thread-local data object |
+| Name        | Value | Description                        |
+|-------------|-------|------------------------------------|
+| STT_NOTYPE  | 0     | Symbol type is unspecified         |
+| STT_OBJECT  | 1     | Symbol is a data object            |
+| STT_FUNC    | 2     | Symbol is a code object            |
+| STT_SECTION | 3     | Symbol associated with a section   |
+| STT_FILE    | 4     | Symbol&#39;s name is file name     |
+| STT_COMMON  | 5     | Symbol is a common data object     |
+| STT_TLS     | 6     | Symbol is thread-local data object |
 
 ### SymVisibility
 
-| Name          | Number | Description                               |
-|---------------|--------|-------------------------------------------|
-| STV_DEFAULT   | 0      | Visibility by binding                     |
-| STV_INTERNAL  | 1      | Reserved                                  |
-| STV_HIDDEN    | 2      | Not visible to other components           |
-| STV_PROTECTED | 3      | Visible in other but cannot be preempted. |
+| Name          | Value | Description                               |
+|---------------|-------|-------------------------------------------|
+| STV_DEFAULT   | 0     | Visibility by binding                     |
+| STV_INTERNAL  | 1     | Reserved                                  |
+| STV_HIDDEN    | 2     | Not visible to other components           |
+| STV_PROTECTED | 3     | Visible in other but cannot be preempted. |
 
 ### Type
 
-| Name      | Number | Description        |
+| Name      | Value  | Description        |
 |-----------|--------|--------------------|
 | ET_NONE   | 0x0000 | No type            |
 | ET_REL    | 0x0001 | Relocatable        |

@@ -25,20 +25,23 @@ examples:
 ```
 import "dotnet"
 
-rule not_exactly_five_streams {
+rule GetHashCodeMethod {
     condition:
-        dotnet.number_of_streams != 5
+        for any class in dotnet.classes : (
+           for any method in class.methods : (
+                method.name == "GetHashCode" and
+                method.visibility == "public"
+           )
+        )
 }
 
-rule blop_stream {
+rule BlopStream {
     condition:
-        for any i in (0..dotnet.number_of_streams - 1) :( 
-            dotnet.streams[i].name == "#Blop"
+        for any stream in dotnet.streams :( 
+            stream.name == "#Blop"
         )
 }
 ```
-
-## Functions
 
 ## Module structure
 
@@ -59,17 +62,20 @@ rule blop_stream {
 | number_of_field_offsets      | integer                              |
 | typelib                      | string                               |
 | streams                      | array of [Stream](#stream)           |
-| guids                        | string                               |
+| guids                        | array of string                      |
 | constants                    | array of string                      |
 | assembly                     | [Assembly](#assembly)                |
 | assembly_refs                | array of [AssemblyRef](#assemblyref) |
 | resources                    | array of [Resource](#resource)       |
 | classes                      | array of [Class](#class)             |
-| field_offsets                | integer                              |
+| field_offsets                | array of integer                     |
 | user_strings                 | array of string                      |
-| modulerefs                   | string                               |
+| modulerefs                   | array of string                      |
 
 ### Assembly
+
+This is the structure in the `assembly` field, which contains general
+information about the .NET assembly.
 
 | Field   | Type                |
 |---------|---------------------|
@@ -77,7 +83,20 @@ rule blop_stream {
 | culture | string              |
 | version | [Version](#version) |
 
+###### Example
+
+```
+import "dotnet"
+
+rule RDMCOLib {
+    condition:
+        dotnet.assembly.name == "Interop.RDMCOLib"
+}
+```
+
 ### AssemblyRef
+
+This is the structure of each item in the `assembly_refs` array.
 
 | Field               | Type                |
 |---------------------|---------------------|
@@ -85,7 +104,23 @@ rule blop_stream {
 | public_key_or_token | string              |
 | version             | [Version](#version) |
 
+###### Example
+
+```
+import "dotnet"
+
+rule WindowsFirewallHelper {
+    condition:
+        for any ref in dotnet.assembly_refs : (
+            ref.name == "WindowsFirewallHelper" and
+            ref.version.major == 4
+        )
+}
+```
+
 ### Class
+
+This is the structure of each item in the `classes` array.
 
 | Field                        | Type                       |
 |------------------------------|----------------------------|
@@ -103,7 +138,22 @@ rule blop_stream {
 | generic_parameters           | array of string            |
 | methods                      | array of [Method](#method) |
 
+###### Example
+
+```
+import "dotnet"
+
+rule DebugInfoInPDBAttribute {
+    condition:
+        for any class in dotnet.classes : (
+           class.fullname == "Microsoft.VisualC.DebugInfoInPDBAttribute"
+        )
+}
+```
+
 ### Method
+
+This is the structure of each item in the `methods` array within each Class.
 
 | Field                        | Type                     |
 |------------------------------|--------------------------|
@@ -119,14 +169,51 @@ rule blop_stream {
 | generic_parameters           | array of string          |
 | parameters                   | array of [Param](#param) |
 
+###### Example
+
+```
+import "dotnet"
+
+rule GetHashCode {
+    condition:
+        for any class in dotnet.classes : (
+           for any method in class.methods : (
+                method.name == "GetHashCode" and
+                method.visibility == "public"
+           )
+        )
+}
+```
+
 ### Param
+
+This is the structure of each item in the `parametes` array within each Method.
 
 | Field | Type   |
 |-------|--------|
 | name  | string |
 | type  | string |
 
+###### Example
+
+```
+import "dotnet"
+
+rule FreezeEvents {
+    condition:
+        for any class in dotnet.classes : (
+           for any method in class.methods : (
+                for any param in method.parameters : (
+                    param.name == "pFreezeEvents" 
+                )
+           )
+        )
+}
+```
+
 ### Resource
+
+This is the structure of each item in the `resources` array.
 
 | Field  | Type    |
 |--------|---------|
@@ -134,13 +221,41 @@ rule blop_stream {
 | length | integer |
 | name   | string  |
 
+###### Example
+
+```
+import "dotnet"
+
+rule TurboPing {
+    condition:
+        for any res in dotnet.resources : (
+           res.name startswith "TurboPing"
+        )
+}
+```
+
 ### Stream
+
+This is the structure of each item in the `streams` array.
 
 | Field  | Type    |
 |--------|---------|
 | name   | string  |
 | offset | integer |
 | size   | integer |
+
+###### Example
+
+```
+import "dotnet"
+
+rule DarksProtector {
+    condition:
+        for any stream in dotnet.streams : (
+           stream.name == "DarksProtector"
+        )
+}
+```
 
 ### Version
 
