@@ -22,7 +22,7 @@ Text patterns are the most common type of patterns in YARA rules. They are
 plain text strings, like in the following example:
 
 ```yara
-rule TextExample{
+rule TextExample {
     strings:
         $text = "foobar"
     condition:

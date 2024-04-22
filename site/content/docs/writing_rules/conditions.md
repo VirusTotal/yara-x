@@ -401,3 +401,73 @@ for all of them : ( # > 3 )
 for all of ($a*) : ( @ > @b )
 ```
 
+## Anonymous patterns
+
+When using the `of` and `for..of` operators followed by `them`, the identifier
+assigned to each pattern in the rule is usually superfluous. As we are not
+referencing any pattern individually we do not need to provide a unique
+identifier for each of them. In those situations you can declare anonymous
+patterns with identifiers consisting only of the `$` character, as in the
+following example:
+
+```yara
+rule AnonymousStrings {
+    strings:
+        $ = "dummy1"
+        $ = "dummy2"
+    condition:
+        1 of them
+}
+```
+
+## Iterating over pattern occurrences
+
+As seen in [Finding patterns at specific
+offsets](#finding-patterns-at-specific-offsets), the offsets where a given
+patternst appears can be accessed by using the syntax: `@a[i]`, where `i` is
+an index indicating which occurrence of the pattern `$a` you are referring to.
+(`@a[1]`, `@a[2]`,...). Sometimes you will need to iterate over some of these
+offsets and guarantee they satisfy a given condition. In such cases you can use
+the `for..in` syntax, for example:
+
+```yara
+rule Occurrences {
+    strings:
+        $a = "dummy1"
+        $b = "dummy2"
+    condition:
+        for all i in (1,2,3) : ( @a[i] + 10 == @b[i] )
+}
+```
+
+The previous rule says that the first occurrence of `$b` should be 10 bytes
+after
+the first occurrence of `$a`, and the same should happen with the second and
+third
+occurrences of the two patterns.
+
+The same condition could be written also as:
+
+`for all i in (1..3) : ( @a[i] + 10 == @b[i] )`
+
+Notice that we’re using a range `(1..3)` instead of enumerating the index values
+`(1,2,3)`. Of course, we’re not forced to use constants to specify range
+boundaries, we can use expressions as well, as in the following example:
+
+`for all i in (1..#a) : ( @a[i] < 100 )`
+
+In this case we’re iterating over every occurrence of `$a` (remember that `#a`
+represents the number of occurrences of `$a`). This rule is specifying that
+every occurrence of `$a` should be within the first 100 bytes of the file.
+
+In case you want to express that only some occurrences of the pattern should
+satisfy your condition, the same logic seen in the `for..of` operator applies
+here:
+
+`for any i in (1..#a) : ( @a[i] < 100 )`
+
+`for 2 i in (1..#a) : ( @a[i] < 100 )`
+
+The `for..in` operator is similar to `for..of`, but the latter iterates over a
+set of patterns, while the former iterates over ranges, enumerations, arrays
+and dictionaries.

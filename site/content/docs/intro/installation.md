@@ -30,7 +30,7 @@ If you prefer to build YARA-X yourself, follow the guide below.
 
 For building YARA-X you will need:
 
-* A recent version of the `rustc` (version 1.7.4 or newer) and `cargo`. Follow
+* A recent version of `rustc` (version 1.7.4 or newer) and `cargo`. Follow
   the
   instructions in
   the [Rust official site](https://www.rust-lang.org/learn/get-started).
