@@ -1322,8 +1322,12 @@ impl<'a> PE<'a> {
                         1 => (ids.0, dir_entry.id, ResourceId::Unknown),
                         // At level 3 each directory entry corresponds to a
                         // language. The type ID and resource ID are the ones
-                        // obtained from the parent.
-                        2 => (ids.0, ids.1, dir_entry.id),
+                        // obtained from the parent. As a sanity check we
+                        // make sure that language id is lower than 0xfffff.
+                        2 => match dir_entry.id {
+                            ResourceId::Id(id) if id > 0xfffff => continue,
+                            _ => (ids.0, ids.1, dir_entry.id),
+                        },
                         // Resource trees have 3 levels at most. We must
                         // protect ourselves against corrupted or maliciously
                         // crafted files that have too many levels.
@@ -1332,11 +1336,11 @@ impl<'a> PE<'a> {
 
                     if dir_entry.is_subdir {
                         queue.push_back((level + 1, ids, entry_data));
-                    } else if let Ok((_, rsrc_entry)) =
+                    }
+                    if let Ok((_, rsrc_entry)) =
                         Self::parse_rsrc_entry(entry_data)
                     {
-                        if resources.len() < Self::MAX_PE_RESOURCES
-                            && rsrc_entry.size > 0
+                        if rsrc_entry.size > 0
                             && (rsrc_entry.size as usize) < self.data.len()
                         {
                             resources.push(Resource {
@@ -1349,7 +1353,11 @@ impl<'a> PE<'a> {
                                 offset: self.rva_to_offset(rsrc_entry.offset),
                                 rva: rsrc_entry.offset,
                                 length: rsrc_entry.size,
-                            })
+                            });
+
+                            if resources.len() == Self::MAX_PE_RESOURCES {
+                                return Some((resources_info, resources));
+                            }
                         }
                     }
                 }
