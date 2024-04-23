@@ -61,12 +61,16 @@ rule elf_64 {
 
 ### Dyn
 
+This is the structure of each item in the `dynamic` array.
+
 | Field | Type                    |
 |-------|-------------------------|
 | type  | [DynType](#elf-DynType) |
 | val   | integer                 |
 
 ### Section
+
+This is the structure of each item in the `sections` array.
 
 | Field   | Type                        |
 |---------|-----------------------------|
@@ -77,7 +81,22 @@ rule elf_64 {
 | offset  | integer                     |
 | name    | string                      |
 
+###### Example
+
+```
+import "elf"
+
+rule DebugInfo {
+    condition:
+        for any section in elf.sections : (
+           section.name == ".debug_info"
+        )
+}
+```
+
 ### Segment
+
+This is the structure of each item in the `segments` array.
 
 | Field            | Type                        |
 |------------------|-----------------------------|
@@ -90,9 +109,22 @@ rule elf_64 {
 | memory_size      | integer                     |
 | alignment        | integer                     |
 
-<a name="elf-Sym"></a>
+###### Example
+
+```
+import "elf"
+
+rule NoLargeSegment {
+    condition:
+        for all segment in elf.segments : (
+           segment.file_size < 0x100000
+        )
+}
+```
 
 ### Sym
+
+This is the structure of each item in the `symtab` and `dynsym` arrays.
 
 | Field      | Type                            |
 |------------|---------------------------------|
@@ -104,9 +136,22 @@ rule elf_64 {
 | shndx      | integer                         |
 | visibility | [SymVisibility](#symvisibility) |
 
-<a name="elf-DynType"></a>
+###### Example
+
+```
+import "elf"
+
+rule CrtStuff {
+    condition:
+        for any sym in elf.symtab : (
+           sym.name == "crtstuff.c"
+        )
+}
+```
 
 ### DynType
+
+These are the possible values of the `type` field in the `Dyn` structure.
 
 | Name            | Value      | Description                       |
 |-----------------|------------|-----------------------------------|
@@ -159,7 +204,22 @@ rule elf_64 {
 | DT_LOPROC       | 1879048192 |                                   |
 | DT_HIPROC       | 2147483647 |                                   |
 
+###### Example
+
+```
+import "elf"
+
+rule HasSymTab {
+    condition:
+        for any dyn in elf.dynamic : (
+           dyn.type == elf.DT_SYMTAB
+        )
+}
+```
+
 ### Machine
+
+These are the possible values of the `machine` field.
 
 | Name           | Value  | Description               |
 |----------------|--------|---------------------------|
@@ -180,7 +240,21 @@ rule elf_64 {
 | EM_X86_64      | 0x003E | AMD/Intel x86_64          |
 | EM_AARCH64     | 0x00B7 | 64-bit ARM                |
 
+###### Example
+
+```
+import "elf"
+
+rule SparcELF {
+    condition:
+        elf.machine == elf.EM_SPARC
+}
+```
+
 ### SectionType
+
+Each of the possible values for the `type` field in the `Section`
+structure.
 
 | Name           | Value | Description                       |
 |----------------|-------|-----------------------------------|
@@ -199,13 +273,43 @@ rule elf_64 {
 | SHT_INIT_ARRAY | 14    | Array of constructors             |
 | SHT_FINI_ARRAY | 15    | Array of destructors              |
 
+###### Example
+
+```
+import "elf"
+
+rule ElfWithRelocations {
+    condition:
+        for any section in elf.sections : (
+           section.type == elf.SHT_REL or
+           section.type == elf.SHT_RELA or
+        )
+}
+```
+
 ### SegmentFlags
+
+Possible flags in the `flags` fields of the `Segment` structure.
 
 | Name | Value | Description           |
 |------|-------|-----------------------|
-| PF_X | 1     | Segment is executable |
-| PF_W | 2     | Segment is writable   |
-| PF_R | 4     | Segment is readable   |
+| PF_X | 0x01  | Segment is executable |
+| PF_W | 0x02  | Segment is writable   |
+| PF_R | 0x04  | Segment is readable   |
+
+###### Example
+
+```
+import "elf"
+
+rule WritableExecutableSegment {
+    condition:
+        for any segment in elf.segments : (
+           segment.flags & elf.PF_W != 0 and
+           segment.flags & elf.PF_X != 0
+        )
+}
+```
 
 ### SegmentType
 

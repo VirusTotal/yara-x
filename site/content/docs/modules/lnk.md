@@ -55,15 +55,6 @@ when the link is resolved. This data is passed to the Link Tracking
 service [[MS-DLTW]](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dltw/fc649f0e-871a-431a-88b5-d5b2f80e9cc9)
 to find the link target.
 
-````
-import "lnk"
-
-rule lnk_cdrom {
-    condition:
-        lnk.tracker_data.machine_id == "chris-xps"
-}
-````
-
 | Field                 | Type    |
 |-----------------------|---------|
 | version               | integer |
@@ -73,18 +64,20 @@ rule lnk_cdrom {
 | droid_birth_volume_id | string  |
 | droid_birth_file_id   | string  |
 
-### DriveType
-
-These are the possible values for the `drive_type` field. Example:
+###### Example
 
 ````
 import "lnk"
 
 rule lnk_cdrom {
     condition:
-        lnk.drive_type == lnk.DriveType.CDROM 
+        lnk.tracker_data.machine_id == "chris-xps"
 }
 ````
+
+### DriveType
+
+These are the possible values for the `drive_type` field.
 
 | Name                  | Value |
 |-----------------------|------:|
@@ -95,6 +88,17 @@ rule lnk_cdrom {
 | DriveType.REMOTE      |     4 |
 | DriveType.CDROM       |     5 |
 | DriveType.RAMDISK     |     6 |
+
+###### Example
+
+````
+import "lnk"
+
+rule lnk_cdrom {
+    condition:
+        lnk.drive_type == lnk.DriveType.CDROM 
+}
+````
 
 ### FileAttributes
 
@@ -116,7 +120,15 @@ rule lnk_cdrom {
 
 ### ShowCommand
 
-These are the possible values for the `show_command` field. Example:
+These are the possible values for the `show_command` field.
+
+| Name                      | Value |
+|---------------------------|------:|
+| ShowCommand.NORMAL        |     1 |
+| ShowCommand.MAXIMIZED     |     3 |
+| ShowCommand.MIN_NO_ACTIVE |     7 |
+
+###### Example
 
 ````
 import "lnk"
@@ -126,9 +138,3 @@ rule lnk_maximized {
         lnk.show_command == lnk.ShowCommand.MAXIMIZED
 }
 ````
-
-| Name                      | Value |
-|---------------------------|------:|
-| ShowCommand.NORMAL        |     1 |
-| ShowCommand.MAXIMIZED     |     3 |
-| ShowCommand.MIN_NO_ACTIVE |     7 |
