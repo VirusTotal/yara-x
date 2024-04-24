@@ -432,7 +432,7 @@ impl<'a> PE<'a> {
     const MAX_PE_SECTIONS: usize = 96;
     const MAX_PE_IMPORTS: usize = 16384;
     const MAX_PE_EXPORTS: usize = 16384;
-    const MAX_PE_RESOURCES: usize = 65535;
+    const MAX_PE_RESOURCES: usize = 65536;
     const MAX_DIR_ENTRIES: usize = 16;
 
     fn parse_dos_header(input: &[u8]) -> IResult<&[u8], DOSHeader> {
@@ -847,7 +847,7 @@ impl<'a> PE<'a> {
 
             // If the high bit of `name_or_id` is set, then the remaining bits
             // are the offset within the resource section where the resource
-            // name is found. The name is a UTF-16LE string that starts with a
+            // name is found. The name is a UTF-16LE string that starts with an
             // u16 containing its length in characters. If the high bit is not
             // set then `name_or_id` is just the resource ID.
             let id = if name_or_id & 0x80000000 != 0 {
@@ -878,7 +878,10 @@ impl<'a> PE<'a> {
                 false
             };
 
-            Ok((remainder, ResourceDirEntry { is_subdir, id, offset }))
+            Ok((
+                remainder,
+                ResourceDirEntry { is_subdir, id, offset: offset as usize },
+            ))
         }
     }
 
@@ -1282,13 +1285,18 @@ impl<'a> PE<'a> {
             };
 
             // Parse a series of IMAGE_RESOURCE_DIRECTORY_ENTRY that come
-            // right after the IMAGE_RESOURCE_DIRECTORY. The number of entries
-            // is extracted from the IMAGE_RESOURCE_DIRECTORY structure.
-            let dir_entries = count(
+            // right after the IMAGE_RESOURCE_DIRECTORY.
+            let mut dir_entries = iterator(
+                raw_entries,
                 Self::parse_rsrc_dir_entry(rsrc_section),
-                rsrc_dir.number_of_entries,
-            )(raw_entries)
-            .map(|(_, dir_entries)| dir_entries);
+            );
+
+            // Entries with invalid offsets are ignored, they are a sign
+            // of PE corruption.
+            let dir_entries =
+                dir_entries.take(rsrc_dir.number_of_entries).filter(|entry| {
+                    entry.offset > 0 && entry.offset < rsrc_section.len()
+                });
 
             if level == 0 {
                 resources_info = rsrc_dir;
@@ -1296,9 +1304,8 @@ impl<'a> PE<'a> {
 
             // Iterate over the directory entries. Each entry can be either a
             // subdirectory or a leaf.
-            for dir_entry in dir_entries.iter().flatten() {
-                if let Some(entry_data) =
-                    rsrc_section.get(dir_entry.offset as usize..)
+            for dir_entry in dir_entries {
+                if let Some(entry_data) = rsrc_section.get(dir_entry.offset..)
                 {
                     let ids = match level {
                         // At level 0 each directory entry corresponds to a
@@ -1315,8 +1322,12 @@ impl<'a> PE<'a> {
                         1 => (ids.0, dir_entry.id, ResourceId::Unknown),
                         // At level 3 each directory entry corresponds to a
                         // language. The type ID and resource ID are the ones
-                        // obtained from the parent.
-                        2 => (ids.0, ids.1, dir_entry.id),
+                        // obtained from the parent. As a sanity check we
+                        // make sure that language id is lower than 0xfffff.
+                        2 => match dir_entry.id {
+                            ResourceId::Id(id) if id > 0xfffff => continue,
+                            _ => (ids.0, ids.1, dir_entry.id),
+                        },
                         // Resource trees have 3 levels at most. We must
                         // protect ourselves against corrupted or maliciously
                         // crafted files that have too many levels.
@@ -1325,24 +1336,29 @@ impl<'a> PE<'a> {
 
                     if dir_entry.is_subdir {
                         queue.push_back((level + 1, ids, entry_data));
-                    } else if let Ok((_, rsrc_entry)) =
+                    }
+                    if let Ok((_, rsrc_entry)) =
                         Self::parse_rsrc_entry(entry_data)
                     {
-                        if resources.len() == Self::MAX_PE_RESOURCES {
-                            return Some((resources_info, resources));
-                        }
+                        if rsrc_entry.size > 0
+                            && (rsrc_entry.size as usize) < self.data.len()
+                        {
+                            resources.push(Resource {
+                                type_id: ids.0,
+                                rsrc_id: ids.1,
+                                lang_id: ids.2,
+                                // `rsrc_entry.offset` is relative to the start of
+                                // the resource section, so it's actually an RVA.
+                                // Here we convert it to a file offset.
+                                offset: self.rva_to_offset(rsrc_entry.offset),
+                                rva: rsrc_entry.offset,
+                                length: rsrc_entry.size,
+                            });
 
-                        resources.push(Resource {
-                            type_id: ids.0,
-                            rsrc_id: ids.1,
-                            lang_id: ids.2,
-                            // `rsrc_entry.offset` is relative to the start of
-                            // the resource section, so it's actually a RVA.
-                            // Here we convert it to a file offset.
-                            offset: self.rva_to_offset(rsrc_entry.offset),
-                            rva: rsrc_entry.offset,
-                            length: rsrc_entry.size,
-                        })
+                            if resources.len() == Self::MAX_PE_RESOURCES {
+                                return Some((resources_info, resources));
+                            }
+                        }
                     }
                 }
             }
@@ -1575,25 +1591,22 @@ impl<'a> PE<'a> {
     where
         P: FnMut(&'a [u8]) -> IResult<&'a [u8], ImportDescriptor>,
     {
-        // Parse import descriptors until finding one that is empty (filled
-        // with null values), which indicates the end of the directory table;
-        // or until `MAX_PE_IMPORTS` is reached.
-        let import_descriptors = many_m_n(
-            0,
-            Self::MAX_PE_IMPORTS,
-            verify(descriptor_parser, |d| {
-                d.import_address_table != 0 || d.import_name_table != 0
-            }),
-        )(input)
-        .map(|(_, import_descriptors)| import_descriptors)
-        .ok()?;
-
         let is_32_bits =
             self.optional_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC;
 
         let mut imported_funcs = Vec::new();
 
-        for mut descriptor in import_descriptors {
+        // Parse import descriptors until finding one that is empty (filled
+        // with null values), which indicates the end of the directory table;
+        // or until `MAX_PE_IMPORTS` is reached.
+        let mut import_descriptors = iterator(
+            input,
+            verify(descriptor_parser, |d| {
+                d.import_address_table != 0 || d.import_name_table != 0
+            }),
+        );
+
+        for mut descriptor in import_descriptors.take(Self::MAX_PE_IMPORTS) {
             // If the values in the descriptor are virtual addresses, convert
             // them to relative virtual addresses (RVAs) by subtracting the
             // image base. This only happens with 32-bits PE files, in 64-bits
@@ -1658,6 +1671,17 @@ impl<'a> PE<'a> {
                     thunk & 0x8000000000000000 != 0
                 };
 
+                // Check that thunk doesn't exceed the maximum possible value.
+                // The maximum possible value occurs when the most significant
+                // bit is set (import by ordinal) and the ordinal number is
+                // 65535, which is the maximum possible ordinal.
+                let max_thunk =
+                    if is_32_bits { 0x8000ffff } else { 0x800000000000ffff };
+
+                if thunk > max_thunk {
+                    continue;
+                }
+
                 let mut func = ImportedFunc {
                     rva: descriptor.import_address_table.saturating_add(
                         (i * if is_32_bits { 4 } else { 8 }) as u32,
@@ -1678,12 +1702,10 @@ impl<'a> PE<'a> {
                     }
 
                     if let Ok(rva) = TryInto::<u32>::try_into(thunk) {
-                        if let Some(name) =
-                            self.parse_at_rva(rva, Self::parse_import_by_name)
-                        {
-                            func.name =
-                                String::from_utf8(name.to_owned()).ok();
-                        }
+                        func.name = self
+                            .parse_at_rva(rva, Self::parse_import_by_name)
+                            .map(|n| n.to_vec())
+                            .and_then(|n| String::from_utf8(n).ok());
                     }
                 }
 
@@ -1796,6 +1818,9 @@ impl<'a> PE<'a> {
             return None;
         }
 
+        let exports_section =
+            exports_rva..exports_rva.saturating_add(exports_size);
+
         // Parse the IMAGE_EXPORT_DIRECTORY structure.
         let (_, exports) = Self::parse_exports_dir_entry(exports_data).ok()?;
 
@@ -1867,10 +1892,12 @@ impl<'a> PE<'a> {
         let mut exported_funcs: Vec<_> = func_rvas
             .iter()
             .enumerate()
-            .map(|(i, rva)| ExportedFunc {
-                rva: *rva,
-                ordinal: exports.base + i as u32,
-                ..Default::default()
+            .filter_map(|(i, rva)| {
+                Some(ExportedFunc {
+                    rva: *rva,
+                    ordinal: exports.base.checked_add(i as u32)?,
+                    ..Default::default()
+                })
             })
             .collect();
 
@@ -1892,7 +1919,7 @@ impl<'a> PE<'a> {
             // forwarded function. In such cases the function's RVA is not
             // really pointing to the function, but to a ASCII string that
             // contains the DLL and function to which this export is forwarded.
-            if (exports_rva..exports_rva + exports_size).contains(&f.rva) {
+            if exports_section.contains(&f.rva) {
                 f.forward_name = self.str_at_rva(f.rva);
             } else {
                 f.offset = self.rva_to_offset(f.rva);
@@ -1973,7 +2000,14 @@ impl<'a> PE<'a> {
         // limit of 256 bytes, though.
         let dll_name = self.str_at_rva(rva)?;
 
+        if dll_name.is_empty() {
+            return None;
+        }
+
         for c in dll_name.chars() {
+            if c.is_ascii_control() {
+                return None;
+            }
             if matches!(c, ' ' | '"' | '*' | '<' | '>' | '?' | '|') {
                 return None;
             }
@@ -2508,7 +2542,7 @@ pub struct ResourceDirEntry<'a> {
     /// Resource ID or name.
     id: ResourceId<'a>,
     /// Offset relative to the resources section where the data is found.
-    offset: u32,
+    offset: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

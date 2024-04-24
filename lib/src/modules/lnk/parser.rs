@@ -334,7 +334,7 @@ impl LnkParser {
             let (remainder, volume_id) = take(volume_id_size)(input)?;
 
             // According to the specification if volume_label_offset is 0x14 it
-            // indicates that the volume label is an unicode string. In such
+            // indicates that the volume label is a unicode string. In such
             // cases the value of volume_label_offset must be ignored, and the
             // offset to the unicode string is the 4 bytes offset that comes
             // right after `volume_label_offset`.
@@ -457,7 +457,7 @@ impl LnkParser {
     /// Parses null-terminated UTF-16 LE strings.
     ///
     /// Consumes 16-bit values until it reaches a null terminator, then tries
-    /// to decode those 16-bit values as an UTF-16 string. The null
+    /// to decode those 16-bit values as a UTF-16 string. The null
     /// terminator is not part of the string and is returned as part of the
     /// remainder. If the end of the input is reached without finding the
     /// null terminator, and the input has an even number of bytes, the
