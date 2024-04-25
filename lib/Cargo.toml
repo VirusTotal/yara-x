@@ -105,6 +105,7 @@ math-module = []
 pe-module = [
     "dep:cms",
     "dep:const-oid",
+    "dep:der-parser",
     "dep:digest",
     "dep:dsa",
     "dep:ecdsa",
@@ -115,9 +116,7 @@ pe-module = [
     "dep:p384",
     "dep:sha1",
     "dep:sha2",
-    "dep:x509-cert",
-    "dep:x509-tsp",
-    "dep:x509-verify",
+    "dep:x509-parser"
 ]
 
 # The `string` modules offer some functions for parsing strings as integers,
@@ -172,6 +171,7 @@ cms = { workspace = true, optional = true }
 const-oid = { workspace = true, optional = true }
 crc32fast = { workspace = true, optional = true }
 der = { workspace = true, features = ["derive"] }
+der-parser = { workspace = true, optional = true, features = ["bigint"] }
 digest = { workspace = true, optional = true }
 dsa = { workspace = true, optional = true }
 ecdsa = { workspace = true, optional = true }
@@ -207,9 +207,7 @@ tlsh-fixed = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true, features = ["v4"] }
 walrus = { workspace = true }
 wasmtime = { workspace = true, features = ["cranelift", "parallel-compilation"] }
-x509-cert = { workspace = true, optional = true }
-x509-tsp = { workspace = true, optional = true }
-x509-verify = { workspace = true, optional = true, features = ["sha1", "dsa", "ecdsa", "rsa"] }
+x509-parser = { workspace = true, optional = true, features = ["verify"] }
 yansi = { workspace = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true }

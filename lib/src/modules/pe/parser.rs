@@ -70,7 +70,7 @@ pub struct PE<'a> {
     resources: OnceCell<Option<(ResourceDir, Vec<Resource<'a>>)>>,
 
     /// PE authenticode signatures.
-    signatures: OnceCell<Option<Vec<AuthenticodeSignature>>>,
+    signatures: OnceCell<Option<Vec<AuthenticodeSignature<'a>>>>,
 
     /// PE directory entries. Directory entries are parsed lazily when
     /// [`PE::get_dir_entries`] is called for the first time.
@@ -398,7 +398,7 @@ impl<'a> PE<'a> {
     }
 
     /// Returns the authenticode signatures in this PE.
-    pub fn get_signatures(&self) -> &[AuthenticodeSignature] {
+    pub fn get_signatures(&self) -> &[AuthenticodeSignature<'a>] {
         self.signatures
             .get_or_init(|| self.parse_signatures())
             .as_ref()
@@ -1450,7 +1450,7 @@ impl<'a> PE<'a> {
     }
 
     /// Parses the PE Authenticode signatures.
-    fn parse_signatures(&self) -> Option<Vec<AuthenticodeSignature>> {
+    fn parse_signatures(&self) -> Option<Vec<AuthenticodeSignature<'a>>> {
         let (_, _, cert_table) = self
             .get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_SECURITY, true)?;
 
