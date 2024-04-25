@@ -16,13 +16,13 @@ use rsa::traits::SignatureScheme;
 use rsa::Pkcs1v15Sign;
 use sha1::Sha1;
 use sha2::{Sha256, Sha384, Sha512};
-use x509_parser::num_bigint::BigUint;
+use x509_parser::der_parser::num_bigint::BigUint;
 use x509_parser::prelude::{AlgorithmIdentifier, X509Certificate};
 use x509_parser::x509::X509Name;
 
 use crate::modules::pe::asn1::{
-    oid, oid_to_str, Attribute, ContentInfo, DigestInfo, IndirectDataContent,
-    SignedData, SignerInfo, TstInfo,
+    oid, oid_to_str, Attribute, Certificate, ContentInfo, DigestInfo,
+    IndirectDataContent, SignedData, SignerInfo, TstInfo,
 };
 use crate::modules::pe::parser::PE;
 use crate::modules::protos;
@@ -189,7 +189,7 @@ impl AuthenticodeParser {
         // Get all the certificates contained in `SignedData`, more
         // certificates from nested signatures and countersignatures will
         // be added later to this vector.
-        let mut certificates: Vec<X509Certificate> = signed_data.certificates;
+        let mut certificates: Vec<Certificate> = signed_data.certificates;
 
         let mut nested_signatures = Vec::new();
         let mut countersignatures = Vec::new();
@@ -283,7 +283,7 @@ impl AuthenticodeParser {
     fn parse_ms_countersignature_attr<'a>(
         si: &SignerInfo<'a>,
         attr: &Attribute<'a>,
-        certificates: &mut Vec<X509Certificate<'a>>,
+        certificates: &mut Vec<Certificate<'a>>,
         countersignatures: &mut Vec<AuthenticodeCountersign<'a>>,
     ) -> Result<(), ParseError> {
         for value in &attr.attr_values {
@@ -332,7 +332,7 @@ impl AuthenticodeParser {
     fn parse_pkcs9_countersignature_attr<'a>(
         si: &SignerInfo<'a>,
         attr: &Attribute<'a>,
-        certificates: &mut Vec<X509Certificate<'a>>,
+        certificates: &mut Vec<Certificate<'a>>,
         countersignatures: &mut Vec<AuthenticodeCountersign<'a>>,
     ) -> Result<(), ParseError> {
         for value in &attr.attr_values {
@@ -388,7 +388,7 @@ impl AuthenticodeParser {
 
         Ok(AuthenticodeCountersign {
             signer: si.serial_number.clone(),
-            digest_alg: oid_to_str(&si.digest_algorithm.oid()),
+            digest_alg: oid_to_str(si.digest_algorithm.oid()),
             digest,
             signing_time,
             verified: false,
@@ -409,7 +409,7 @@ pub struct AuthenticodeSignature<'a> {
     signer_info_digest: &'a [u8],
     signer_info_verified: bool,
     authenticode_digest: DigestInfo<'a>,
-    certificates: Vec<X509Certificate<'a>>,
+    certificates: Vec<Certificate<'a>>,
     countersignatures: Vec<AuthenticodeCountersign<'a>>,
     //program_name: Option<SpcString>,
     computed_authenticode_hash: Vec<u8>,
@@ -444,12 +444,12 @@ impl<'a> AuthenticodeSignature<'a> {
     }
 
     #[inline]
-    pub fn certificates(&self) -> &[X509Certificate<'a>] {
+    pub fn certificates(&self) -> &[Certificate<'a>] {
         self.certificates.as_slice()
     }
 
     #[inline]
-    pub fn chain(&self) -> impl Iterator<Item = &X509Certificate<'a>> {
+    pub fn chain(&self) -> impl Iterator<Item = &Certificate<'a>> {
         CertificateChain::new(self.certificates(), |cert| {
             cert.tbs_certificate.issuer.eq(self.issuer())
         })
@@ -527,12 +527,11 @@ impl From<&AuthenticodeSignature<'_>> for protos::pe::Signature {
 
         for cs in value.countersignatures() {
             let mut pbcs = protos::pe::CounterSignature::from(cs);
-            pbcs.chain =
-                CertificateChain::new(value.certificates.as_slice(), |cert| {
-                    cert.tbs_certificate.serial == cs.signer
-                })
-                .map(protos::pe::Certificate::from)
-                .collect();
+            pbcs.chain = CertificateChain::new(value.certificates(), |cert| {
+                cert.tbs_certificate.serial == cs.signer
+            })
+            .map(protos::pe::Certificate::from)
+            .collect();
             sig.countersignatures.push(pbcs);
         }
 
@@ -598,38 +597,36 @@ impl From<&AuthenticodeCountersign<'_>> for protos::pe::CounterSignature {
     }
 }
 
-impl From<&X509Certificate<'_>> for protos::pe::Certificate {
-    fn from(value: &X509Certificate) -> Self {
+impl From<&Certificate<'_>> for protos::pe::Certificate {
+    fn from(value: &Certificate) -> Self {
         let mut cert = protos::pe::Certificate::new();
+
         // Versions are 0-based, add 1 for getting the actual version.
-        cert.set_version(value.tbs_certificate.version.0 as i64 + 1);
+        cert.set_version(value.x509.tbs_certificate.version.0 as i64 + 1);
 
-        cert.set_issuer(format_name(&value.tbs_certificate.issuer));
-        cert.set_subject(format_name(&value.tbs_certificate.subject));
+        cert.set_issuer(format_name(&value.x509.tbs_certificate.issuer));
 
-        cert.set_serial(format_serial_number(&value.tbs_certificate.serial));
+        cert.set_subject(format_name(&value.x509.tbs_certificate.subject));
+
+        cert.set_serial(value.x509.raw_serial_as_string());
 
         cert.set_algorithm_oid(format!(
             "{}",
-            value.signature_algorithm.algorithm
+            value.x509.signature_algorithm.algorithm
         ));
 
         cert.set_algorithm(
-            oid_to_str(&value.signature_algorithm.algorithm).into_owned(),
+            oid_to_str(&value.x509.signature_algorithm.algorithm).into_owned(),
         );
 
-        // The certificate thumbprint is the SHA1 of the DER-encoded certificate.
-        // TODO
-        //let mut hasher = DerDigest::<Sha1>::default();
-        //value.encode(&mut hasher).unwrap();
-        //cert.set_thumbprint(format!("{:x}", hasher.finalize()));
+        cert.set_thumbprint(value.thumbprint.clone());
 
         cert.set_not_before(
-            value.tbs_certificate.validity.not_before.timestamp(),
+            value.x509.tbs_certificate.validity.not_before.timestamp(),
         );
 
         cert.set_not_after(
-            value.tbs_certificate.validity.not_after.timestamp(),
+            value.x509.tbs_certificate.validity.not_after.timestamp(),
         );
 
         cert
@@ -689,7 +686,7 @@ fn verify_message_digest(
     }
 }
 
-fn verify_signer_info(si: &SignerInfo, certs: &[X509Certificate]) -> bool {
+fn verify_signer_info(si: &SignerInfo, certs: &[Certificate]) -> bool {
     match si.digest_algorithm.oid().as_bytes() {
         oid::SHA_1_B => verify_signed_data_impl::<Sha1>(si, certs),
         oid::SHA_256_B => verify_signed_data_impl::<Sha256>(si, certs),
@@ -702,7 +699,7 @@ fn verify_signer_info(si: &SignerInfo, certs: &[X509Certificate]) -> bool {
 
 fn verify_signed_data_impl<D: Digest + Default>(
     si: &SignerInfo,
-    certs: &[X509Certificate<'_>],
+    certs: &[Certificate<'_>],
 ) -> bool {
     // Get a certificate chain that starts with the certificate that signed
     // data and contains all the certificates in the chain of truth.
@@ -718,6 +715,7 @@ fn verify_signed_data_impl<D: Digest + Default>(
     // Search for the certificate that signed the digest.
     let signing_cert = match certs
         .iter()
+        .map(|cert| &cert.x509)
         .find(|cert| cert.tbs_certificate.serial.eq(&si.serial_number))
     {
         Some(cert) => cert,
@@ -743,23 +741,6 @@ fn verify_signed_data_impl<D: Digest + Default>(
     */
 }
 
-/// Produces a printable string of a serial number.
-///
-/// The [`x509_cert::serial_number::SerialNumber`] type implements the
-/// [`Display`] trait, but the resulting string is in uppercase.
-fn format_serial_number(sn: &BigUint) -> String {
-    let bytes = sn.to_bytes_be();
-    let mut iter = bytes.iter().peekable();
-    let mut result = String::new();
-    while let Some(byte) = iter.next() {
-        match iter.peek() {
-            Some(_) => write!(result, "{:02x}:", byte).unwrap(),
-            None => write!(result, "{:02x}", byte).unwrap(),
-        }
-    }
-    result
-}
-
 /// Represents a certificate chain.
 ///
 /// A certificate chain starts with an initial certificate, and contains the
@@ -768,8 +749,8 @@ fn format_serial_number(sn: &BigUint) -> String {
 /// a certificate that is signed by some external certificate that is not
 /// contained in the PE file.
 struct CertificateChain<'a, 'b> {
-    certs: &'b [X509Certificate<'a>],
-    next: Option<&'b X509Certificate<'a>>,
+    certs: &'b [Certificate<'a>],
+    next: Option<&'b Certificate<'a>>,
 }
 
 impl<'a, 'b> CertificateChain<'a, 'b> {
@@ -779,11 +760,12 @@ impl<'a, 'b> CertificateChain<'a, 'b> {
     /// and a `predicate` that identifies the initial certificate in the chain.
     /// The initial certificate will be the first certificate in the pool that
     /// matches the predicate.
-    pub fn new<P>(certs: &'b [X509Certificate<'a>], predicate: P) -> Self
+    pub fn new<P>(certs: &'b [Certificate<'a>], predicate: P) -> Self
     where
         P: Fn(&X509Certificate<'_>) -> bool,
     {
-        let next = certs.iter().find(|cert| predicate(cert));
+        let next = certs.iter().find(|cert| predicate(&cert.x509));
+
         Self { certs, next }
     }
 
@@ -806,10 +788,10 @@ impl<'a, 'b> CertificateChain<'a, 'b> {
             // The `signed` certificate is the one that will be verified.
 
             if x509_parser::verify::verify_signature(
-                &signer.subject_pki,
-                &signed.signature_algorithm,
-                &signed.signature_value,
-                signed.tbs_certificate.as_ref(),
+                &signer.x509.subject_pki,
+                &signed.x509.signature_algorithm,
+                &signed.x509.signature_value,
+                signed.x509.tbs_certificate.as_ref(),
             )
             .is_err()
             {
@@ -847,18 +829,21 @@ impl<'a, 'b> CertificateChain<'a, 'b> {
 }
 
 impl<'a, 'b> Iterator for CertificateChain<'a, 'b> {
-    type Item = &'b X509Certificate<'a>;
+    type Item = &'b Certificate<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.next;
         if let Some(next) = self.next {
             // When the certificate is self-signed issuer == subject, in that
             // case we can't keep going up the chain.
-            if next.tbs_certificate.subject == next.tbs_certificate.issuer {
+            if next.x509.tbs_certificate.subject
+                == next.x509.tbs_certificate.issuer
+            {
                 self.next = None
             } else {
                 self.next = self.certs.iter().find(|c| {
-                    c.tbs_certificate.subject == next.tbs_certificate.issuer
+                    c.x509.tbs_certificate.subject
+                        == next.x509.tbs_certificate.issuer
                 });
             }
         }

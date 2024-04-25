@@ -1,3 +1,4 @@
+use array_bytes::bytes2hex;
 use const_oid::db::{rfc4519, rfc5912};
 use const_oid::ObjectIdentifier;
 use der_parser::der::{
@@ -14,7 +15,9 @@ use der_parser::nom::Err::Incomplete;
 use der_parser::nom::{IResult, Parser};
 use der_parser::num_bigint::BigUint;
 use der_parser::{asn1_rs, parse_der, Oid};
-use nom::combinator::map_res;
+use digest::Digest;
+use nom::combinator::consumed;
+use sha1::Sha1;
 use x509_parser::certificate::X509Certificate;
 use x509_parser::error::X509Error;
 use x509_parser::prelude::{
@@ -191,6 +194,11 @@ impl<'a> TryFrom<&Any<'a>> for ContentInfo<'a> {
     }
 }
 
+pub struct Certificate<'a> {
+    pub x509: X509Certificate<'a>,
+    pub thumbprint: String,
+}
+
 /// ```text
 /// SignedData ::= SEQUENCE {
 ///         version CMSVersion,
@@ -206,7 +214,10 @@ pub struct SignedData<'a> {
     pub version: i32,
     pub digest_algorithms: Vec<AlgorithmIdentifier<'a>>,
     pub content_info: ContentInfo<'a>,
-    pub certificates: Vec<X509Certificate<'a>>,
+    pub certificates: Vec<Certificate<'a>>,
+    /// In general `SignedData` can be signed by multiple signers and therefore
+    /// can contain multiple `SignerInfo` structures. However, in the case of
+    /// Authenticode there's only one signer.
     pub signer_infos: Vec<SignerInfo<'a>>,
 }
 
@@ -252,16 +263,27 @@ impl<'a> SignedData<'a> {
 
     fn parse_certificates(
         input: &[u8],
-    ) -> IResult<&[u8], Vec<X509Certificate>, X509Error> {
+    ) -> IResult<&[u8], Vec<Certificate>, X509Error> {
         let mut remainder = input;
         let mut certificates = Vec::new();
+
+        // A parser that returns both the parsed certificate, and the
+        // raw bytes consumed by the certificate parser.
+        let mut cert_parser =
+            consumed(|input| X509CertificateParser::new().parse(input));
+
         loop {
-            remainder = match X509CertificateParser::new().parse(remainder) {
-                Ok((remainder, cert)) => {
-                    certificates.push(cert);
+            remainder = match cert_parser(remainder) {
+                Ok((remainder, (cert_bytes, cert))) => {
+                    certificates.push(Certificate {
+                        x509: cert,
+                        thumbprint: bytes2hex("", Sha1::digest(cert_bytes)),
+                    });
                     remainder
                 }
-                Err(Incomplete(_)) => return Ok((remainder, certificates)),
+                Err(Incomplete(_)) => {
+                    return Ok((remainder, certificates));
+                }
                 Err(err) => return Err(err),
             }
         }
@@ -369,12 +391,12 @@ impl<'a> SignerInfo<'a> {
     ) -> BerResult<(X509Name, BigUint)> {
         parse_der_sequence_defined_g(|input: &[u8], _| {
             let (remainder, issuer) = X509Name::from_der(input).unwrap(); // TODO: handle error
-            let (remainder, serial_number) = map_res(
-                parse_der_integer,
-                |serial| serial.as_biguint(),
-            )(remainder)?;
-
-            Ok((remainder, (issuer, serial_number)))
+            let (remainder, serial) = parse_der_integer(remainder)?;
+            // RFC 5280 4.1.2.2: "The serial number MUST be a positive integer"
+            // however, many CAs do not respect this and send integers with MSB set,
+            // so we do not use `as_biguint()`.
+            let serial = BigUint::from_bytes_be(serial.content.as_slice()?);
+            Ok((remainder, (issuer, serial)))
         })(input)
     }
 
