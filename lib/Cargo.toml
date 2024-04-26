@@ -49,6 +49,12 @@ logging = ["dep:log"]
 # scan. Notice that profiling itself has a noticeable impact on performance.
 rules-profiling = ["logging"]
 
+
+# When enabled use the logic included in the `x509-parser` crate for verifying
+# certificates. If not enabled we use our ouwn logic. This is disabled by
+# default.
+x509-parser-verify = ['x509-parser/verify']
+
 # Features for enabling/disabling modules.
 #
 # For each module we have a `<module name>-module` feature that controls whether
@@ -207,7 +213,7 @@ tlsh-fixed = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true, features = ["v4"] }
 walrus = { workspace = true }
 wasmtime = { workspace = true, features = ["cranelift", "parallel-compilation"] }
-x509-parser = { workspace = true, optional = true, features = ["verify"] }
+x509-parser = { workspace = true, optional = true }
 yansi = { workspace = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true }

@@ -1,24 +1,25 @@
+use std::borrow::Cow;
+
 use array_bytes::bytes2hex;
 use const_oid::db::{rfc4519, rfc5912};
 use const_oid::ObjectIdentifier;
-use der_parser::der::{
-    parse_der_content, parse_der_integer, parse_der_octetstring,
-    parse_der_oid, parse_der_sequence_defined_g, parse_der_set_of_v,
-    parse_der_tagged_explicit_g, parse_der_tagged_implicit, DerObject,
-};
-use std::borrow::Cow;
 
-use der_parser::asn1_rs::{Any, FromDer, OptTaggedParser};
-use der_parser::ber::parse_ber_any;
+use der_parser::asn1_rs::{Any, FromBer, FromDer, OptTaggedParser};
+use der_parser::ber::*;
+use der_parser::error::Error::BerValueError;
 use der_parser::error::{BerError, BerResult};
+use der_parser::nom;
+use der_parser::nom::branch::alt;
+use der_parser::nom::combinator::{consumed, map_res};
 use der_parser::nom::Err::Incomplete;
-use der_parser::nom::{IResult, Parser};
+use der_parser::nom::IResult;
+use der_parser::nom::Parser;
 use der_parser::num_bigint::BigUint;
-use der_parser::{asn1_rs, parse_der, Oid};
+use der_parser::{asn1_rs, parse_ber, Oid};
+
 use digest::Digest;
-use nom::branch::alt;
-use nom::combinator::{consumed, map_res};
 use sha1::Sha1;
+
 use x509_parser::certificate::X509Certificate;
 use x509_parser::error::X509Error;
 use x509_parser::prelude::{AlgorithmIdentifier, X509CertificateParser};
@@ -161,19 +162,19 @@ pub struct ContentInfo<'a> {
 
 impl<'a> ContentInfo<'a> {
     pub fn parse(data: &'a [u8]) -> BerResult<Self> {
-        parse_der_sequence_defined_g(|i, _| Self::parse_inner(i))(data)
+        parse_ber_sequence_defined_g(|i, _| Self::parse_inner(i))(data)
     }
 
-    pub fn from_der(
+    pub fn from_ber(
         data: &'a [u8],
     ) -> Result<Self, nom::Err<der_parser::error::Error>> {
         Self::parse(data).map(|(_, content_info)| content_info)
     }
 
     fn parse_inner(data: &'a [u8]) -> BerResult<Self> {
-        let (remainder, content_type) = parse_der_oid(data)?;
+        let (remainder, content_type) = parse_ber_oid(data)?;
         let (remainder, content) =
-            parse_der_tagged_explicit_g(0, |content, _| {
+            parse_ber_tagged_explicit_g(0, |content, _| {
                 parse_ber_any(content)
             })(remainder)?;
 
@@ -198,17 +199,24 @@ pub struct Certificate<'a> {
     pub thumbprint: String,
 }
 
+/// [SignedData][1] structure.
+///
 /// ```text
 /// SignedData ::= SEQUENCE {
-///         version CMSVersion,
-///         digestAlgorithms DigestAlgorithmIdentifiers,
-///         encapContentInfo EncapsulatedContentInfo,
-///         certificates [0] IMPLICIT CertificateSet OPTIONAL,
-///         crls [1] IMPLICIT RevocationInfoChoices OPTIONAL,
-///         signerInfos SignerInfos }
+///   version CMSVersion,
+///   digestAlgorithms DigestAlgorithmIdentifiers,
+///   encapContentInfo EncapsulatedContentInfo,
+///   certificates [0] IMPLICIT CertificateSet OPTIONAL,
+///   crls [1] IMPLICIT RevocationInfoChoices OPTIONAL,
+///   signerInfos SignerInfos
+/// }
+///
+/// DigestAlgorithmIdentifiers ::= SET OF DigestAlgorithmIdentifier
+///
+/// SignerInfos ::= SET OF SignerInfo
 /// ```
 ///
-/// https://datatracker.ietf.org/doc/html/rfc5652#section-5.1
+/// [1]: https://datatracker.ietf.org/doc/html/rfc5652#section-5.1
 pub struct SignedData<'a> {
     pub version: i32,
     pub digest_algorithms: Vec<AlgorithmIdentifier<'a>>,
@@ -222,31 +230,31 @@ pub struct SignedData<'a> {
 
 impl<'a> SignedData<'a> {
     pub fn parse(input: &'a [u8]) -> BerResult<Self> {
-        parse_der_sequence_defined_g(|input: &[u8], _| {
+        parse_ber_sequence_defined_g(|input: &[u8], _| {
             Self::parse_inner(input)
         })(input)
     }
 
     fn parse_inner(input: &'a [u8]) -> BerResult<Self> {
-        let (remainder, version) = parse_der_integer(input)?;
+        let (remainder, version) = parse_ber_integer(input)?;
 
         let (remainder, digest_algorithms) =
-            parse_der_set_of_v(AlgorithmIdentifier::from_der)(remainder)
-                .unwrap(); // TODO: handle error
+            parse_ber_set_of_v(AlgorithmIdentifier::from_ber)(remainder)
+                .map_err(|_| BerValueError)?;
 
         let (remainder, content_info) = ContentInfo::parse(remainder)?;
 
         let (remainder, certificates) = OptTaggedParser::from(0)
-            .parse_der(remainder, |_, raw_certs| {
+            .parse_ber(remainder, |_, raw_certs| {
                 Self::parse_certificates(raw_certs)
             })
-            .unwrap(); // TODO:: handle error
+            .map_err(|_| BerValueError)?;
 
         let (remainder, _revocation_info) = OptTaggedParser::from(1)
-            .parse_der(remainder, |_, data| parse_der(data))?;
+            .parse_ber(remainder, |_, data| parse_ber(data))?;
 
         let (remainder, signer_infos) =
-            parse_der_set_of_v(SignerInfo::parse)(remainder)?;
+            parse_ber_set_of_v(SignerInfo::parse)(remainder)?;
 
         Ok((
             remainder,
@@ -298,18 +306,21 @@ impl<'a> TryFrom<Any<'a>> for SignedData<'a> {
     }
 }
 
+/// [SignerInfo][1] structure.
+///
 /// ```text
 /// SignerInfo ::= SEQUENCE {
-///         version CMSVersion,
-///         sid SignerIdentifier,
-///         digestAlgorithm DigestAlgorithmIdentifier,
-///         signedAttrs [0] IMPLICIT SignedAttributes OPTIONAL,
-///         signatureAlgorithm SignatureAlgorithmIdentifier,
-///         signature SignatureValue,
-///         unsignedAttrs [1] IMPLICIT UnsignedAttributes OPTIONAL }
+///   version CMSVersion,
+///   sid SignerIdentifier,
+///   digestAlgorithm DigestAlgorithmIdentifier,
+///   signedAttrs [0] IMPLICIT SignedAttributes OPTIONAL,
+///   signatureAlgorithm SignatureAlgorithmIdentifier,
+///   signature SignatureValue,
+///   unsignedAttrs [1] IMPLICIT UnsignedAttributes OPTIONAL
+/// }
 /// ```
 ///
-/// https://datatracker.ietf.org/doc/html/rfc5652#section-5.3
+/// [1]: https://datatracker.ietf.org/doc/html/rfc5652#section-5.3
 pub struct SignerInfo<'a> {
     pub version: i32,
     pub issuer: X509Name<'a>,
@@ -324,21 +335,22 @@ pub struct SignerInfo<'a> {
 
 impl<'a> SignerInfo<'a> {
     pub fn parse(input: &'a [u8]) -> BerResult<Self> {
-        parse_der_sequence_defined_g(|input: &[u8], _| {
+        parse_ber_sequence_defined_g(|input: &[u8], _| {
             Self::parse_inner(input)
         })(input)
     }
 
     pub fn parse_inner(input: &'a [u8]) -> BerResult<Self> {
-        let (remainder, version) = parse_der_integer(input)?;
+        let (remainder, version) = parse_ber_integer(input)?;
 
         let (remainder, (issuer, serial_number)) =
             Self::parse_issuer_and_serial_number(remainder)?;
 
         let (remainder, digest_algorithm) =
-            AlgorithmIdentifier::from_der(remainder).unwrap(); // TODO: handle error
+            AlgorithmIdentifier::from_ber(remainder)
+                .map_err(|_| BerValueError)?;
 
-        let (remainder, signed_attrs) = OptTaggedParser::from(0).parse_der(
+        let (remainder, signed_attrs) = OptTaggedParser::from(0).parse_ber(
             remainder,
             |_, raw_attrs| {
                 let (remainder, parsed_attrs) =
@@ -349,12 +361,13 @@ impl<'a> SignerInfo<'a> {
         )?;
 
         let (remainder, signature_algorithm) =
-            AlgorithmIdentifier::from_der(remainder).unwrap(); // TODO: handle error
+            AlgorithmIdentifier::from_ber(remainder)
+                .map_err(|_| BerValueError)?;
 
-        let (remainder, signature) = parse_der_octetstring(remainder)?;
+        let (remainder, signature) = parse_ber_octetstring(remainder)?;
 
         let (remainder, unsigned_attrs) = OptTaggedParser::from(1)
-            .parse_der(remainder, |_, raw_attrs| {
+            .parse_ber(remainder, |_, raw_attrs| {
                 Self::parse_attributes(raw_attrs)
             })?;
 
@@ -393,13 +406,17 @@ impl<'a> SignerInfo<'a> {
     fn parse_issuer_and_serial_number(
         input: &[u8],
     ) -> BerResult<(X509Name, BigUint)> {
-        parse_der_sequence_defined_g(|input: &[u8], _| {
-            let (remainder, issuer) = X509Name::from_der(input).unwrap(); // TODO: handle error
-            let (remainder, serial) = parse_der_integer(remainder)?;
+        parse_ber_sequence_defined_g(|input: &[u8], _| {
+            let (remainder, issuer) =
+                X509Name::from_der(input).map_err(|_| BerValueError)?;
+
+            let (remainder, serial) = parse_ber_integer(remainder)?;
+
             // RFC 5280 4.1.2.2: "The serial number MUST be a positive integer"
-            // however, many CAs do not respect this and send integers with MSB set,
-            // so we do not use `as_biguint()`.
+            // however, many CAs do not respect this and send integers with MSB
+            // set, so we do not use `as_biguint()`.
             let serial = BigUint::from_bytes_be(serial.content.as_slice()?);
+
             Ok((remainder, (issuer, serial)))
         })(input)
     }
@@ -429,38 +446,18 @@ impl<'a> TryFrom<&Any<'a>> for SignerInfo<'a> {
     }
 }
 
-/// ```text
-/// AlgorithmIdentifier  ::=  SEQUENCE  {
-///         algorithm               OBJECT IDENTIFIER,
-///         parameters              ANY DEFINED BY algorithm OPTIONAL  }
-/// ```
+/// [Attribute][1] structure.
 ///
-/// https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.1.2
-#[derive(Debug)]
-pub struct MyAlgorithmIdentifier<'a> {
-    pub oid: Oid<'a>,
-    pub parameters: DerObject<'a>,
-}
-
-impl<'a> MyAlgorithmIdentifier<'a> {
-    pub fn parse(input: &'a [u8]) -> BerResult<Self> {
-        parse_der_sequence_defined_g(|input: &[u8], _| {
-            let (remainder, algorithm) = parse_der_oid(input)?;
-            let (remainder, parameters) = parse_der(remainder)?;
-            Ok((remainder, Self { oid: algorithm.as_oid_val()?, parameters }))
-        })(input)
-    }
-}
-
 /// ```text
 /// Attribute ::= SEQUENCE {
-///    attrType OBJECT IDENTIFIER,
-///    attrValues SET OF AttributeValue }
+///   attrType OBJECT IDENTIFIER,
+///   attrValues SET OF AttributeValue
+/// }
 ///
-///  AttributeValue ::= ANY
+/// AttributeValue ::= ANY
 /// ```
 ///
-/// https://datatracker.ietf.org/doc/html/rfc5652#section-5.3
+/// [1]: https://datatracker.ietf.org/doc/html/rfc5652#section-5.3
 pub struct Attribute<'a> {
     pub attr_type: Oid<'a>,
     pub attr_values: Vec<Any<'a>>,
@@ -468,10 +465,10 @@ pub struct Attribute<'a> {
 
 impl<'a> Attribute<'a> {
     pub fn parse(input: &'a [u8]) -> BerResult<Self> {
-        parse_der_sequence_defined_g(|data: &[u8], _| {
-            let (remainder, attr_type) = parse_der_oid(data)?;
+        parse_ber_sequence_defined_g(|data: &[u8], _| {
+            let (remainder, attr_type) = parse_ber_oid(data)?;
             let (remainder, attr_values) =
-                parse_der_set_of_v(parse_ber_any)(remainder)?;
+                parse_ber_set_of_v(parse_ber_any)(remainder)?;
 
             Ok((
                 remainder,
@@ -481,47 +478,54 @@ impl<'a> Attribute<'a> {
     }
 }
 
-/// ASN.1 SpcIndirectDataContent
+/// [SpcIndirectDataContent][1] structure.
 ///
+/// ```text
 /// SpcIndirectDataContent ::= SEQUENCE {
-///     data                    SpcAttributeTypeAndOptionalValue,
-///     messageDigest           DigestInfo
+///   data                    SpcAttributeTypeAndOptionalValue,
+///   messageDigest           DigestInfo
 /// }
+/// ```
 ///
-pub struct IndirectDataContent<'a> {
+/// [1]: https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-oshared/1537695a-28f0-4828-8b7b-d6dab62b8030
+pub struct SpcIndirectDataContent<'a> {
     pub message_digest: DigestInfo<'a>,
 }
 
-impl<'a> IndirectDataContent<'a> {
+impl<'a> SpcIndirectDataContent<'a> {
     pub fn parse(input: &'a [u8]) -> BerResult<Self> {
-        parse_der_sequence_defined_g(|input: &[u8], _| {
+        parse_ber_sequence_defined_g(|input: &[u8], _| {
             Self::parse_inner(input)
         })(input)
     }
 
     pub fn parse_inner(input: &'a [u8]) -> BerResult<Self> {
-        let (remainder, _data) = parse_der(input)?;
+        let (remainder, _data) = parse_ber(input)?;
         let (remainder, message_digest) = DigestInfo::parse(remainder)?;
 
         Ok((remainder, Self { message_digest }))
     }
 }
 
-impl<'a> TryFrom<Any<'a>> for IndirectDataContent<'a> {
+impl<'a> TryFrom<Any<'a>> for SpcIndirectDataContent<'a> {
     type Error = asn1_rs::Error;
 
     fn try_from(any: Any<'a>) -> Result<Self, Self::Error> {
-        any.tag().assert_eq(asn1_rs::Tag::Sequence)?;
+        any.tag().assert_eq(Tag::Sequence)?;
         Ok(Self::parse_inner(any.data).map(|(_, ci)| ci)?)
     }
 }
 
-/// ASN.1 DigestInfo
+/// [DigestInfo][1] structure
 ///
+/// ```text
 /// DigestInfo ::= SEQUENCE {
-///     digestAlgorithm         AlgorithmIdentifier,
-///     digest                  OCTETSTRING
+///   digestAlgorithm     AlgorithmIdentifier,
+///   digest              OCTETSTRING
 /// }
+/// ```
+///
+/// [1]: https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-oshared/1537695a-28f0-4828-8b7b-d6dab62b8030
 pub struct DigestInfo<'a> {
     pub algorithm: AlgorithmIdentifier<'a>,
     pub digest: &'a [u8],
@@ -529,16 +533,78 @@ pub struct DigestInfo<'a> {
 
 impl<'a> DigestInfo<'a> {
     pub fn parse(input: &'a [u8]) -> BerResult<Self> {
-        parse_der_sequence_defined_g(|input: &[u8], _| {
-            let (remainder, algorithm) =
-                AlgorithmIdentifier::from_der(input).unwrap(); // TODO: handler error
-            let (remainder, digest) = parse_der_octetstring(remainder)?;
+        parse_ber_sequence_defined_g(|input: &[u8], _| {
+            let (remainder, algorithm) = AlgorithmIdentifier::from_ber(input)
+                .map_err(|_| BerValueError)?;
+            let (remainder, digest) = parse_ber_octetstring(remainder)?;
             Ok((remainder, Self { algorithm, digest: digest.as_slice()? }))
         })(input)
     }
 }
 
-/// ASN.1 TSTInfo
+/// [SpcSpOpusInfo][1] structure
+///
+/// ```text
+/// SpcSpOpusInfo ::= SEQUENCE {
+///   programName      [0] EXPLICIT SpcString OPTIONAL,
+///   moreInfo         [1] EXPLICIT SpcLink OPTIONAL,
+/// }
+/// ```
+///
+/// [1]: https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-oshared/91755632-4b0d-44ca-89a9-9699afbbd268
+pub struct SpcSpOpusInfo {
+    pub program_name: Option<String>,
+}
+
+impl SpcSpOpusInfo {
+    pub fn parse(input: &[u8]) -> BerResult<Self> {
+        parse_ber_sequence_defined_g(|input: &[u8], _| {
+            Self::parse_inner(input)
+        })(input)
+    }
+
+    fn parse_inner(input: &[u8]) -> BerResult<Self> {
+        let (remainder, program_name) = OptTaggedParser::from(0)
+            .parse_ber(input, |_, content| Self::parse_spc_string(content))?;
+
+        let (remainder, _more_info) =
+            OptTaggedParser::from(1).parse_ber(remainder, |_, content| {
+                let (rem, value) = parse_ber(content)?;
+                Ok((rem, value))
+            })?;
+
+        Ok((remainder, Self { program_name }))
+    }
+
+    fn parse_spc_string(input: &[u8]) -> BerResult<String> {
+        alt((
+            map_res(
+                parse_ber_tagged_implicit(
+                    0,
+                    parse_ber_content(Tag::BmpString),
+                ),
+                |s| string_from_utf16be(s.as_slice()?).ok_or(BerValueError),
+            ),
+            map_res(
+                parse_ber_tagged_implicit(
+                    1,
+                    parse_ber_content(Tag::Ia5String),
+                ),
+                |s| Ok::<String, BerError>(String::from(s.as_str()?)),
+            ),
+        ))(input)
+    }
+}
+
+impl TryFrom<&Any<'_>> for SpcSpOpusInfo {
+    type Error = asn1_rs::Error;
+
+    fn try_from(any: &Any) -> Result<Self, Self::Error> {
+        Ok(Self::parse_inner(any.data).map(|(_, ci)| ci)?)
+    }
+}
+
+/// [TSTInfo][1] structure.
 ///
 /// ```text
 /// TSTInfo ::= SEQUENCE  {
@@ -565,24 +631,23 @@ impl<'a> DigestInfo<'a> {
 ///     hashedMessage                OCTET STRING  }
 /// ```
 ///
-/// https://datatracker.ietf.org/doc/html/rfc3161
-
+/// [1]: https://datatracker.ietf.org/doc/html/rfc3161
 pub struct TstInfo<'a> {
     pub hash_algorithm: AlgorithmIdentifier<'a>,
     pub hashed_message: &'a [u8],
 }
 
 impl<'a> TstInfo<'a> {
-    pub fn from_der(
+    pub fn from_ber(
         data: &'a [u8],
     ) -> Result<Self, nom::Err<der_parser::error::Error>> {
         Self::parse(data).map(|(_, tst_info)| tst_info)
     }
 
     pub fn parse(input: &'a [u8]) -> BerResult<Self> {
-        parse_der_sequence_defined_g(|input: &[u8], _| {
-            let (remainder, _version) = parse_der_integer(input)?;
-            let (remainder, _policy) = parse_der(remainder)?;
+        parse_ber_sequence_defined_g(|input: &[u8], _| {
+            let (remainder, _version) = parse_ber_integer(input)?;
+            let (remainder, _policy) = parse_ber(remainder)?;
 
             let (remainder, (hash_algorithm, hashed_message)) =
                 Self::parse_message_imprint(remainder)?;
@@ -596,74 +661,15 @@ impl<'a> TstInfo<'a> {
     fn parse_message_imprint(
         input: &'a [u8],
     ) -> BerResult<(AlgorithmIdentifier, &'a [u8])> {
-        parse_der_sequence_defined_g(|input: &[u8], _| {
+        parse_ber_sequence_defined_g(|input: &[u8], _| {
             let (remainder, hash_algorithm) =
-                AlgorithmIdentifier::from_der(input).unwrap(); // TODO: handle error
-            let (remainder, hashed_message) = parse_der(remainder)?;
+                AlgorithmIdentifier::from_ber(input)
+                    .map_err(|_| BerValueError)?;
+
+            let (remainder, hashed_message) = parse_ber(remainder)?;
 
             Ok((remainder, (hash_algorithm, hashed_message.as_slice()?)))
         })(input)
-    }
-}
-
-/// ASN.1 SpcSpOpusInfo
-///
-/// SpcSpOpusInfo ::= SEQUENCE {
-///     programName              [0] EXPLICIT SpcString OPTIONAL,
-///     moreInfo                 [1] EXPLICIT SpcLink OPTIONAL,
-/// }
-pub struct SpcSpOpusInfo {
-    pub program_name: Option<String>,
-}
-
-impl SpcSpOpusInfo {
-    pub fn parse(input: &[u8]) -> BerResult<Self> {
-        parse_der_sequence_defined_g(|input: &[u8], _| {
-            Self::parse_inner(input)
-        })(input)
-    }
-
-    fn parse_inner(input: &[u8]) -> BerResult<Self> {
-        let (remainder, program_name) = OptTaggedParser::from(0)
-            .parse_der(input, |_, content| Self::parse_spc_string(content))?;
-
-        let (remainder, more_info) =
-            OptTaggedParser::from(1).parse_der(remainder, |_, content| {
-                let (rem, value) = parse_der(content)?;
-                Ok((rem, value))
-            })?;
-
-        Ok((remainder, Self { program_name }))
-    }
-
-    fn parse_spc_string(input: &[u8]) -> BerResult<String> {
-        alt((
-            map_res(
-                parse_der_tagged_implicit(
-                    0,
-                    parse_der_content(der_parser::der::Tag::BmpString),
-                ),
-                |s| {
-                    string_from_utf16be(s.as_slice()?)
-                        .ok_or(BerError::BerValueError)
-                },
-            ),
-            map_res(
-                parse_der_tagged_implicit(
-                    1,
-                    parse_der_content(der_parser::der::Tag::Ia5String),
-                ),
-                |s| Ok::<String, BerError>(String::from(s.as_str()?)),
-            ),
-        ))(input)
-    }
-}
-
-impl TryFrom<&Any<'_>> for SpcSpOpusInfo {
-    type Error = asn1_rs::Error;
-
-    fn try_from(any: &Any) -> Result<Self, Self::Error> {
-        Ok(Self::parse_inner(any.data).map(|(_, ci)| ci)?)
     }
 }
 

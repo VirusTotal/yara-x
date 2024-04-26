@@ -25,7 +25,7 @@ use x509_parser::x509::{SubjectPublicKeyInfo, X509Name};
 
 use crate::modules::pe::asn1::{
     oid, oid_to_object_identifier, oid_to_str, Attribute, Certificate,
-    ContentInfo, DigestInfo, IndirectDataContent, SignedData, SignerInfo,
+    ContentInfo, DigestInfo, SignedData, SignerInfo, SpcIndirectDataContent,
     SpcSpOpusInfo, TstInfo,
 };
 use crate::modules::pe::parser::PE;
@@ -34,9 +34,6 @@ use crate::modules::protos;
 /// Error returned by [`AuthenticodeParser::parse`].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ParseError {
-    /// The signature data is empty.
-    Empty,
-
     /// The signature data is not valid [`ContentInfo`].
     InvalidContentInfo,
 
@@ -65,7 +62,7 @@ pub enum ParseError {
     InvalidSpcIndirectDataContent,
 
     /// The number of signer infos is not 1.
-    InvalidNumSignerInfo(usize),
+    InvalidNumSignerInfo,
 
     /// The version of [`SignerInfo`] is not 1.
     InvalidSignerInfoVersion(i64),
@@ -79,8 +76,9 @@ pub enum ParseError {
     /// The `contentType` authenticated attribute is missing.
     MissingContentTypeAuthenticatedAttribute,
 
-    /// The `messageDigest` authenticated attribute is missing.
-    MissingMessageDigestAuthenticatedAttribute,
+    /// The attribute containing the Authenticode digest is
+    /// missing.
+    MissingAuthenticodeDigest,
 }
 
 /// Parses Authenticode signatures in a PE file.
@@ -97,22 +95,22 @@ impl AuthenticodeParser {
         input: &'a [u8],
         pe: &PE,
     ) -> Result<Vec<AuthenticodeSignature<'a>>, ParseError> {
-        let content_info = ContentInfo::from_der(input)
+        let content_info = ContentInfo::from_ber(input)
             .map_err(|_| ParseError::InvalidContentInfo)?;
 
-        if content_info.content_type == oid::SIGNED_DATA {
-            Self::parse_content_info(content_info, pe)
-        } else {
-            Err(ParseError::InvalidContentType(
-                content_info.content_type.to_id_string(),
-            ))
-        }
+        Self::parse_content_info(content_info, pe)
     }
 
     fn parse_content_info<'a>(
         content_info: ContentInfo<'a>,
         pe: &PE,
     ) -> Result<Vec<AuthenticodeSignature<'a>>, ParseError> {
+        if content_info.content_type != oid::SIGNED_DATA {
+            return Err(ParseError::InvalidContentType(
+                content_info.content_type.to_id_string(),
+            ));
+        }
+
         let mut signed_data: SignedData = content_info
             .content
             .try_into()
@@ -132,13 +130,8 @@ impl AuthenticodeParser {
             ));
         }
 
-        // Exactly one SignerInfo, as required by the specification.
-        if signed_data.signer_infos.len() != 1 {
-            return Err(ParseError::InvalidNumSignerInfo(
-                signed_data.signer_infos.len(),
-            ));
-        }
-
+        // The content in `SignedData` must be a `SpcIndirectDataContent`
+        // structure.
         if signed_data.content_info.content_type != oid::INDIRECT_DATA_OBJID {
             return Err(ParseError::InvalidEncapsulatedContentType(
                 signed_data.content_info.content_type.to_id_string(),
@@ -146,39 +139,42 @@ impl AuthenticodeParser {
         }
 
         // According to the Authenticode specification there's exactly one
-        // signer info.
+        // signer info, take it.
         let signer_info = match signed_data.signer_infos.pop() {
             Some(si) => si,
-            None => {
-                return Err(ParseError::InvalidNumSignerInfo(
-                    signed_data.signer_infos.len(),
-                ))
-            }
+            None => return Err(ParseError::InvalidNumSignerInfo),
         };
 
+        // No signer infos after taking the only one.
+        if !signed_data.signer_infos.is_empty() {
+            return Err(ParseError::InvalidNumSignerInfo);
+        }
+
+        // `SignerInfo` must have a signed attribute that contains the
+        // Authenticode digest. This attribute is identified by OID
+        // 1.2.840.113549.1.9.4.
         let signer_info_digest = match signer_info
             .get_signed_attr(&oid::MESSAGE_DIGEST)
             .map(|value| value.data.as_bytes())
         {
             Some(md) => md,
-            None => {
-                return Err(
-                    ParseError::MissingMessageDigestAuthenticatedAttribute,
-                )
-            }
+            None => return Err(ParseError::MissingAuthenticodeDigest),
         };
 
         if signer_info.get_signed_attr(&oid::CONTENT_TYPE).is_none() {
             return Err(ParseError::MissingContentTypeAuthenticatedAttribute);
         }
 
+        // `SignerInfo` can have a signed attribute that contains information
+        // about the signed program in a `SpcSpOpusInfo` struct.
         let opus_info: Option<SpcSpOpusInfo> = signer_info
             .get_signed_attr(&oid::OPUS_INFO_OBJID)
             .and_then(|value| value.try_into().ok());
 
         let signed_data_raw = signed_data.content_info.content.data;
 
-        let indirect_data: IndirectDataContent =
+        // Extract the `SpcIndirectDataContent` structure from `SignedData`.
+        let indirect_data: SpcIndirectDataContent =
             match signed_data.content_info.content.try_into() {
                 Ok(idc) => idc,
                 Err(_) => {
@@ -186,7 +182,7 @@ impl AuthenticodeParser {
                 }
             };
 
-        // Get all the certificates contained in `SignedData`, more
+        // Extract all the certificates contained in `SignedData`, more
         // certificates from nested signatures and countersignatures will
         // be added later to this vector.
         let mut certificates: Vec<Certificate> = signed_data.certificates;
@@ -196,11 +192,11 @@ impl AuthenticodeParser {
 
         for attr in signer_info.unsigned_attrs.iter() {
             match attr.attr_type.as_bytes() {
-                // SignerInfo can have attributes containing nested Authenticode
-                // signatures. The type of those attributes is 1.3.6.1.4.1.311.2.4.1
-                // and their content is a ContentInfo structure. Find those attributes,
-                // parse their first (and only) value, and append resulting signatures
-                // to `nested_signatures`.
+                // SignerInfo can have unsigned attributes containing nested
+                // Authenticode signatures. These attributes are identified by
+                // OID 1.3.6.1.4.1.311.2.4.1 and their content is a `ContentInfo`
+                // structure. Find those attributes, parse their first (and only)
+                // value, and append resulting signatures to `nested_signatures`.
                 oid::MS_NESTED_SIGNATURE_B => {
                     if let Some(nested) =
                         attr.attr_values.first().and_then(|first_value| {
@@ -274,6 +270,7 @@ impl AuthenticodeParser {
         //   signed attribute MESSAGE_DIGEST stored in `SignerInfo`.
         // * The `SignerInfo` struct has not been tampered, which is verified
         //   by `verify_signer_info`.
+        //
         let verified = authenticode_digest.digest == file_digest.as_slice()
             && verify_message_digest(
                 &signer_info.digest_algorithm,
@@ -307,40 +304,36 @@ impl AuthenticodeParser {
         countersignatures: &mut Vec<AuthenticodeCountersign<'a>>,
     ) -> Result<(), ParseError> {
         for value in &attr.attr_values {
-            let content_info: ContentInfo = match value.try_into() {
+            let ci: ContentInfo = match value.try_into() {
                 Ok(ci) => ci,
                 Err(_) => continue,
             };
 
-            let signed_data: SignedData = match content_info.content.try_into()
-            {
+            let sd: SignedData = match ci.content.try_into() {
                 Ok(sd) => sd,
                 Err(_) => continue,
             };
 
-            certificates.extend(signed_data.certificates);
+            certificates.extend(sd.certificates);
 
-            let cs_si = signed_data.signer_infos.first().unwrap();
+            let cs_si = sd.signer_infos.first().unwrap();
 
             let mut countersignature = Self::pkcs9_countersignature(cs_si)?;
 
-            let tst_info = match TstInfo::from_der(
-                signed_data.content_info.content.as_bytes(),
-            ) {
-                Ok(tst_info) => tst_info,
-                Err(_) => continue,
-            };
+            let tst =
+                match TstInfo::from_ber(sd.content_info.content.as_bytes()) {
+                    Ok(tst_info) => tst_info,
+                    Err(_) => continue,
+                };
 
-            countersignature.digest_alg =
-                oid_to_str(tst_info.hash_algorithm.oid());
-
-            countersignature.digest = tst_info.hashed_message;
+            countersignature.digest_alg = oid_to_str(tst.hash_algorithm.oid());
+            countersignature.digest = tst.hashed_message;
 
             countersignature.verified =
                 verify_message_digest(
-                    &tst_info.hash_algorithm,
+                    &tst.hash_algorithm,
                     si.signature_value,
-                    tst_info.hashed_message,
+                    tst.hashed_message,
                 ) && verify_signer_info(cs_si, certificates.as_slice());
 
             countersignatures.push(countersignature);
@@ -399,11 +392,7 @@ impl AuthenticodeParser {
 
         let digest = match digest {
             Some(digest) => digest,
-            None => {
-                return Err(
-                    ParseError::MissingMessageDigestAuthenticatedAttribute,
-                )
-            }
+            None => return Err(ParseError::MissingAuthenticodeDigest),
         };
 
         Ok(AuthenticodeCountersign {
@@ -450,12 +439,12 @@ impl<'a> AuthenticodeSignature<'a> {
 
     /// Get the name of the Authenticode hash algorithm.
     pub fn authenticode_hash_algorithm(&self) -> Cow<'static, str> {
-        oid_to_str(&self.authenticode_digest.algorithm.oid())
+        oid_to_str(self.authenticode_digest.algorithm.oid())
     }
 
     #[inline]
     pub fn signer_info_digest_alg(&self) -> Cow<'static, str> {
-        oid_to_str(&self.signer_info.digest_algorithm.oid())
+        oid_to_str(self.signer_info.digest_algorithm.oid())
     }
 
     #[inline]
@@ -607,11 +596,8 @@ impl From<&Certificate<'_>> for protos::pe::Certificate {
 
         // Versions are 0-based, add 1 for getting the actual version.
         cert.set_version(value.x509.tbs_certificate.version.0 as i64 + 1);
-
         cert.set_issuer(format_name(&value.x509.tbs_certificate.issuer));
-
         cert.set_subject(format_name(&value.x509.tbs_certificate.subject));
-
         cert.set_serial(value.x509.raw_serial_as_string());
 
         cert.set_algorithm_oid(format!(
@@ -715,21 +701,7 @@ fn verify_message_digest(
     }
 }
 
-fn verify_signer_info(si: &SignerInfo, certs: &[Certificate]) -> bool {
-    match si.digest_algorithm.oid().as_bytes() {
-        oid::SHA_1_B => verify_signed_data_impl::<Sha1>(si, certs),
-        oid::SHA_256_B => verify_signed_data_impl::<Sha256>(si, certs),
-        oid::SHA_384_B => verify_signed_data_impl::<Sha384>(si, certs),
-        oid::SHA_512_B => verify_signed_data_impl::<Sha512>(si, certs),
-        oid::MD5_B => verify_signed_data_impl::<Md5>(si, certs),
-        _ => unimplemented!("{:?}", si.digest_algorithm.oid()),
-    }
-}
-
-fn verify_signed_data_impl<D: Digest + Default + AssociatedOid>(
-    si: &SignerInfo,
-    certs: &[Certificate<'_>],
-) -> bool {
+fn verify_signer_info(si: &SignerInfo, certs: &[Certificate<'_>]) -> bool {
     // Get a certificate chain that starts with the certificate that signed
     // data and contains all the certificates in the chain of truth.
     let cert_chain = CertificateChain::new(certs, |cert| {
@@ -762,7 +734,11 @@ fn verify_signed_data_impl<D: Digest + Default + AssociatedOid>(
         };
 
     // Verify that the signature in SignerInfo.signature is correct.
-    key.verify::<D>(attrs_set_der.as_slice(), si.signature_value)
+    key.verify(
+        &si.digest_algorithm,
+        attrs_set_der.as_slice(),
+        si.signature_value,
+    )
 }
 
 /// Represents a certificate chain.
@@ -809,43 +785,41 @@ impl<'a, 'b> CertificateChain<'a, 'b> {
         // Iterate over the chain taking a certificate and its signer on each
         // iteration.
         for (signed, signer) in self.tuple_windows() {
-            // The `signed` certificate is the one that will be verified.
-
-            if x509_parser::verify::verify_signature(
-                &signer.x509.subject_pki,
-                &signed.x509.signature_algorithm,
-                &signed.x509.signature_value,
-                signed.x509.tbs_certificate.as_ref(),
-            )
-            .is_err()
+            // When `x509-parser-verify` feature verify certificate signatures
+            // using the `x509_parser` crate.
+            #[cfg(feature = "x509-parser-verify")]
             {
-                return false;
+                if x509_parser::verify::verify_signature(
+                    &signer.x509.subject_pki,
+                    &signed.x509.signature_algorithm,
+                    &signed.x509.signature_value,
+                    signed.x509.tbs_certificate.as_ref(),
+                )
+                .is_err()
+                {
+                    return false;
+                }
             }
 
-            /*
-            let verify_info = VerifyInfo::new(
-                signed.tbs_certificate.to_der().unwrap().into(),
-                x509_verify::Signature::new(
-                    &signed.signature_algorithm,
-                    signed.signature.as_bytes().unwrap(),
-                ),
-            );
-
-            // The public key in the `signer` certificate is used for
-            // verifying the signature in the `signed` certificate.
-            let key: VerifyingKey = match signer
-                .tbs_certificate
-                .subject_public_key_info
-                .owned_to_ref()
-                .try_into()
+            // When `x509-parser-verify` feature is not enabled, use our
+            // own logic.
+            #[cfg(not(feature = "x509-parser-verify"))]
             {
-                Ok(key) => key,
-                Err(_) => return false,
-            };
+                let key = match PublicKey::try_from(
+                    &signer.x509.tbs_certificate.subject_pki,
+                ) {
+                    Ok(key) => key,
+                    Err(_) => return false,
+                };
 
-            if key.verify(verify_info).is_err() {
-                return false;
-            }*/
+                if !key.verify(
+                    &signed.x509.signature_algorithm,
+                    signed.x509.tbs_certificate.as_ref(),
+                    signed.x509.signature_value.as_ref(),
+                ) {
+                    return false;
+                }
+            }
         }
 
         true
@@ -953,7 +927,39 @@ impl TryFrom<&SubjectPublicKeyInfo<'_>> for PublicKey {
 }
 
 impl PublicKey {
-    fn verify<D: Digest + AssociatedOid>(
+    fn verify(
+        &self,
+        digest_algorithm: &AlgorithmIdentifier,
+        message: &[u8],
+        signature: &[u8],
+    ) -> bool {
+        match oid_to_object_identifier(digest_algorithm.oid()) {
+            rfc5912::ID_MD_5 | rfc5912::MD_5_WITH_RSA_ENCRYPTION => {
+                self.verify_impl::<Md5>(message, signature)
+            }
+            rfc5912::ID_SHA_1 | rfc5912::SHA_1_WITH_RSA_ENCRYPTION => {
+                self.verify_impl::<Sha1>(message, signature)
+            }
+            rfc5912::ID_SHA_256
+            | rfc5912::SHA_256_WITH_RSA_ENCRYPTION
+            | rfc5912::ECDSA_WITH_SHA_256 => {
+                self.verify_impl::<Sha256>(message, signature)
+            }
+            rfc5912::ID_SHA_384
+            | rfc5912::SHA_384_WITH_RSA_ENCRYPTION
+            | rfc5912::ECDSA_WITH_SHA_384 => {
+                self.verify_impl::<Sha384>(message, signature)
+            }
+            rfc5912::ID_SHA_512
+            | rfc5912::SHA_512_WITH_RSA_ENCRYPTION
+            | rfc5912::ECDSA_WITH_SHA_512 => {
+                self.verify_impl::<Sha512>(message, signature)
+            }
+            _ => unimplemented!("{:?}", digest_algorithm.oid()),
+        }
+    }
+
+    fn verify_impl<D: Digest + AssociatedOid>(
         &self,
         message: &[u8],
         signature: &[u8],
