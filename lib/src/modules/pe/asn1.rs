@@ -2,27 +2,26 @@ use array_bytes::bytes2hex;
 use const_oid::db::{rfc4519, rfc5912};
 use const_oid::ObjectIdentifier;
 use der_parser::der::{
-    parse_der_integer, parse_der_octetstring, parse_der_oid,
-    parse_der_sequence_defined_g, parse_der_set_of_v,
-    parse_der_tagged_explicit_g, DerObject,
+    parse_der_content, parse_der_integer, parse_der_octetstring,
+    parse_der_oid, parse_der_sequence_defined_g, parse_der_set_of_v,
+    parse_der_tagged_explicit_g, parse_der_tagged_implicit, DerObject,
 };
 use std::borrow::Cow;
 
-use der_parser::asn1_rs::{Any, OptTaggedParser};
+use der_parser::asn1_rs::{Any, FromDer, OptTaggedParser};
 use der_parser::ber::parse_ber_any;
-use der_parser::error::BerResult;
+use der_parser::error::{BerError, BerResult};
 use der_parser::nom::Err::Incomplete;
 use der_parser::nom::{IResult, Parser};
 use der_parser::num_bigint::BigUint;
 use der_parser::{asn1_rs, parse_der, Oid};
 use digest::Digest;
-use nom::combinator::consumed;
+use nom::branch::alt;
+use nom::combinator::{consumed, map_res};
 use sha1::Sha1;
 use x509_parser::certificate::X509Certificate;
 use x509_parser::error::X509Error;
-use x509_parser::prelude::{
-    AlgorithmIdentifier, FromDer, X509CertificateParser,
-};
+use x509_parser::prelude::{AlgorithmIdentifier, X509CertificateParser};
 use x509_parser::x509::X509Name;
 
 #[rustfmt::skip]
@@ -378,12 +377,17 @@ impl<'a> SignerInfo<'a> {
         ))
     }
 
-    pub fn get_signed_attr(&self, oid: &Oid) -> Option<&Attribute<'a>> {
-        self.signed_attrs.iter().find(|attr| attr.attr_type.eq(oid))
-    }
-
-    pub fn get_unsigned_attr(&self, oid: &Oid) -> Option<&Attribute<'a>> {
-        self.unsigned_attrs.iter().find(|attr| attr.attr_type.eq(oid))
+    /// Returns the value of the signed attribute with a given OID.
+    ///
+    /// An attribute can have multiple values, but in Authenticode
+    /// signatures all the attributes we need to work with have a
+    /// single value. This function retrieves the attribute and its
+    /// first value in a single step.
+    pub fn get_signed_attr(&self, oid: &Oid) -> Option<&Any<'a>> {
+        self.signed_attrs
+            .iter()
+            .find(|attr| attr.attr_type.eq(oid))
+            .and_then(|attr| attr.attr_values.first())
     }
 
     fn parse_issuer_and_serial_number(
@@ -600,4 +604,87 @@ impl<'a> TstInfo<'a> {
             Ok((remainder, (hash_algorithm, hashed_message.as_slice()?)))
         })(input)
     }
+}
+
+/// ASN.1 SpcSpOpusInfo
+///
+/// SpcSpOpusInfo ::= SEQUENCE {
+///     programName              [0] EXPLICIT SpcString OPTIONAL,
+///     moreInfo                 [1] EXPLICIT SpcLink OPTIONAL,
+/// }
+pub struct SpcSpOpusInfo {
+    pub program_name: Option<String>,
+}
+
+impl SpcSpOpusInfo {
+    pub fn parse(input: &[u8]) -> BerResult<Self> {
+        parse_der_sequence_defined_g(|input: &[u8], _| {
+            Self::parse_inner(input)
+        })(input)
+    }
+
+    fn parse_inner(input: &[u8]) -> BerResult<Self> {
+        let (remainder, program_name) = OptTaggedParser::from(0)
+            .parse_der(input, |_, content| Self::parse_spc_string(content))?;
+
+        let (remainder, more_info) =
+            OptTaggedParser::from(1).parse_der(remainder, |_, content| {
+                let (rem, value) = parse_der(content)?;
+                Ok((rem, value))
+            })?;
+
+        Ok((remainder, Self { program_name }))
+    }
+
+    fn parse_spc_string(input: &[u8]) -> BerResult<String> {
+        alt((
+            map_res(
+                parse_der_tagged_implicit(
+                    0,
+                    parse_der_content(der_parser::der::Tag::BmpString),
+                ),
+                |s| {
+                    string_from_utf16be(s.as_slice()?)
+                        .ok_or(BerError::BerValueError)
+                },
+            ),
+            map_res(
+                parse_der_tagged_implicit(
+                    1,
+                    parse_der_content(der_parser::der::Tag::Ia5String),
+                ),
+                |s| Ok::<String, BerError>(String::from(s.as_str()?)),
+            ),
+        ))(input)
+    }
+}
+
+impl TryFrom<&Any<'_>> for SpcSpOpusInfo {
+    type Error = asn1_rs::Error;
+
+    fn try_from(any: &Any) -> Result<Self, Self::Error> {
+        Ok(Self::parse_inner(any.data).map(|(_, ci)| ci)?)
+    }
+}
+
+/// Tries to create a string from a byte slice that contains the UTF-16BE
+/// representation of the string.
+///
+/// There's a `String::from_utf16be` function that is currently unstable. If
+/// it becomes stable we can use it and remove this function.
+///
+/// https://doc.rust-lang.org/alloc/string/struct.String.html#method.from_utf16be
+fn string_from_utf16be(v: &[u8]) -> Option<String> {
+    if v.len() % 2 != 0 {
+        return None;
+    }
+
+    let codepoints = v
+        .chunks_exact(2)
+        .map(|chunk| u16::from_be_bytes([chunk[0], chunk[1]]));
+
+    let x: String =
+        char::decode_utf16(codepoints).collect::<Result<_, _>>().ok()?;
+
+    Some(x)
 }

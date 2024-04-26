@@ -587,15 +587,6 @@ signatures:
         serial: "0b:7e:10:90:3c:38:49:0f:fa:2f:67:9a:87:a1:a7:b9"
         not_before: 1382443200 # 2013-10-22 12:00:00 UTC
         not_after: 1855828800 # 2028-10-22 12:00:00 UTC
-      - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID Root CA"
-        subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert SHA2 Assured ID Timestamping CA"
-        thumbprint: "3ba63a6e4841355772debef9cdcf4d5af353a297"
-        version: 3
-        algorithm: "sha256WithRSAEncryption"
-        algorithm_oid: "1.2.840.113549.1.1.11"
-        serial: "0a:a1:25:d6:d6:32:1b:7e:41:e4:05:da:36:97:c2:15"
-        not_before: 1452168000 # 2016-01-07 12:00:00 UTC
-        not_after: 1925553600 # 2031-01-07 12:00:00 UTC
       - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert SHA2 Assured ID Timestamping CA"
         subject: "/C=US/O=DigiCert, Inc./CN=DigiCert SHA2 Timestamp Responder"
         thumbprint: "c636f4dda87cee3d8263bf9a2514b4533468d75e"
@@ -605,6 +596,15 @@ signatures:
         serial: "02:ce:42:94:59:02:a4:f3:c0:40:b0:ff:77:93:d1:4f"
         not_before: 1450915200 # 2015-12-24 00:00:00 UTC
         not_after: 1736208000 # 2025-01-07 00:00:00 UTC
+      - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID Root CA"
+        subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert SHA2 Assured ID Timestamping CA"
+        thumbprint: "3ba63a6e4841355772debef9cdcf4d5af353a297"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "0a:a1:25:d6:d6:32:1b:7e:41:e4:05:da:36:97:c2:15"
+        not_before: 1452168000 # 2016-01-07 12:00:00 UTC
+        not_after: 1925553600 # 2031-01-07 12:00:00 UTC
     countersignatures:
       - verified: true
         sign_time: 1459189265 # 2016-03-28 18:21:05 UTC

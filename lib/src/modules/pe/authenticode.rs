@@ -2,27 +2,31 @@ use std::borrow::Cow;
 use std::fmt::Write;
 
 use array_bytes::bytes2hex;
-use const_oid::AssociatedOid;
-use der::asn1;
+use const_oid::db::{rfc5912, rfc6268};
+use const_oid::{AssociatedOid, ObjectIdentifier};
 use der::Decode;
-use der_parser::asn1_rs::{Set, ToDer};
+use der_parser::asn1_rs::{Set, Tag, ToDer, UtcTime};
 use digest::Digest;
+
 use ecdsa::signature::hazmat::PrehashVerifier;
 use itertools::Itertools;
 use md5::Md5;
 use nom::AsBytes;
 use protobuf::MessageField;
+
 use rsa::traits::SignatureScheme;
 use rsa::Pkcs1v15Sign;
 use sha1::Sha1;
 use sha2::{Sha256, Sha384, Sha512};
+use thiserror::Error;
 use x509_parser::der_parser::num_bigint::BigUint;
 use x509_parser::prelude::{AlgorithmIdentifier, X509Certificate};
-use x509_parser::x509::X509Name;
+use x509_parser::x509::{SubjectPublicKeyInfo, X509Name};
 
 use crate::modules::pe::asn1::{
-    oid, oid_to_str, Attribute, Certificate, ContentInfo, DigestInfo,
-    IndirectDataContent, SignedData, SignerInfo, TstInfo,
+    oid, oid_to_object_identifier, oid_to_str, Attribute, Certificate,
+    ContentInfo, DigestInfo, IndirectDataContent, SignedData, SignerInfo,
+    SpcSpOpusInfo, TstInfo,
 };
 use crate::modules::pe::parser::PE;
 use crate::modules::protos;
@@ -154,7 +158,6 @@ impl AuthenticodeParser {
 
         let signer_info_digest = match signer_info
             .get_signed_attr(&oid::MESSAGE_DIGEST)
-            .and_then(|attr| attr.attr_values.first())
             .map(|value| value.data.as_bytes())
         {
             Some(md) => md,
@@ -165,18 +168,15 @@ impl AuthenticodeParser {
             }
         };
 
-        let signer_info_verified = verify_message_digest(
-            &signer_info.digest_algorithm,
-            signed_data.content_info.content.data,
-            signer_info_digest,
-        ) && verify_signer_info(
-            &signer_info,
-            signed_data.certificates.as_slice(),
-        );
-
         if signer_info.get_signed_attr(&oid::CONTENT_TYPE).is_none() {
             return Err(ParseError::MissingContentTypeAuthenticatedAttribute);
         }
+
+        let opus_info: Option<SpcSpOpusInfo> = signer_info
+            .get_signed_attr(&oid::OPUS_INFO_OBJID)
+            .and_then(|value| value.try_into().ok());
+
+        let signed_data_raw = signed_data.content_info.content.data;
 
         let indirect_data: IndirectDataContent =
             match signed_data.content_info.content.try_into() {
@@ -262,17 +262,37 @@ impl AuthenticodeParser {
             oid => unimplemented!("{:?}", oid),
         };
 
+        let authenticode_digest = indirect_data.message_digest;
+
+        // The Authenticode signature is verified if:
+        //
+        // * The hash stored in the Authenticode signature matches the actual
+        //   hash that we computed by ourselves.
+        // * The content of the `SignedData` structure (which contains the
+        //   authenticode hash) has not been tampered. This is verified by
+        //   comparing the hash of the content with the one stored in the
+        //   signed attribute MESSAGE_DIGEST stored in `SignerInfo`.
+        // * The `SignerInfo` struct has not been tampered, which is verified
+        //   by `verify_signer_info`.
+        let verified = authenticode_digest.digest == file_digest.as_slice()
+            && verify_message_digest(
+                &signer_info.digest_algorithm,
+                signed_data_raw,
+                signer_info_digest,
+            )
+            && verify_signer_info(&signer_info, certificates.as_slice());
+
         let mut signatures = Vec::with_capacity(nested_signatures.len() + 1);
 
         signatures.push(AuthenticodeSignature {
             computed_authenticode_hash: file_digest,
-            //program_name: None, //opus_info.and_then(|oi| oi.program_name),
-            authenticode_digest: indirect_data.message_digest,
+            program_name: opus_info.and_then(|oi| oi.program_name),
+            authenticode_digest,
             signer_info,
             signer_info_digest,
-            signer_info_verified,
             countersignatures,
             certificates,
+            verified,
         });
 
         signatures.append(&mut nested_signatures);
@@ -361,18 +381,18 @@ impl AuthenticodeParser {
         let mut signing_time = None;
 
         for attr in &si.signed_attrs {
-            match attr.attr_type.as_bytes() {
-                oid::MESSAGE_DIGEST_B => {
-                    if let Some(value) = attr.attr_values.first() {
-                        digest = Some(value.data)
-                    }
+            match oid_to_object_identifier(&attr.attr_type) {
+                rfc6268::ID_MESSAGE_DIGEST => {
+                    digest = attr.attr_values.first().map(|v| v.data);
                 }
-                /* => {
-                    if let Some(value) = attr.values.get(0) {
-                        signing_time =
-                            value.decode_as::<asn1::UtcTime>().ok();
-                    }
-                }*/
+                rfc6268::ID_SIGNING_TIME => {
+                    signing_time = attr
+                        .attr_values
+                        .first()
+                        .and_then(|v| v.try_into().ok())
+                        .and_then(|t: UtcTime| t.utc_adjusted_datetime().ok())
+                        .map(|t| t.unix_timestamp());
+                }
                 _ => {}
             }
         }
@@ -400,19 +420,19 @@ pub struct AuthenticodeCountersign<'a> {
     signer: BigUint,
     digest_alg: Cow<'static, str>,
     digest: &'a [u8],
-    signing_time: Option<asn1::UtcTime>,
+    signing_time: Option<i64>,
     verified: bool,
 }
 
 pub struct AuthenticodeSignature<'a> {
     signer_info: SignerInfo<'a>,
     signer_info_digest: &'a [u8],
-    signer_info_verified: bool,
     authenticode_digest: DigestInfo<'a>,
     certificates: Vec<Certificate<'a>>,
     countersignatures: Vec<AuthenticodeCountersign<'a>>,
-    //program_name: Option<SpcString>,
+    program_name: Option<String>,
     computed_authenticode_hash: Vec<u8>,
+    verified: bool,
 }
 
 impl<'a> AuthenticodeSignature<'a> {
@@ -493,22 +513,8 @@ impl<'a> AuthenticodeSignature<'a> {
     ///   validated, until we found a self-signed certificate or a certificate
     ///   that is not included in the PE file. This last certificate is always
     ///   considered valid.
-    pub fn verify(&self) -> bool {
-        if !self.signer_info_verified
-            || self.computed_authenticode_hash()
-                != self.stored_authenticode_hash()
-        {
-            return false;
-        }
-
-        return true;
-
-        // TODO
-        /*
-        verify_signer_info(
-            &self.signed_data.signer_infos.0[0],
-            self.certificates(),
-        )*/
+    pub fn verified(&self) -> bool {
+        self.verified
     }
 }
 
@@ -519,7 +525,7 @@ impl From<&AuthenticodeSignature<'_>> for protos::pe::Signature {
         sig.set_digest(bytes2hex("", value.stored_authenticode_hash()));
         sig.set_digest_alg(value.authenticode_hash_algorithm().into_owned());
         sig.set_file_digest(bytes2hex("", value.computed_authenticode_hash()));
-        sig.set_verified(value.verify());
+        sig.set_verified(value.verified());
 
         sig.certificates.extend(
             value.certificates().iter().map(protos::pe::Certificate::from),
@@ -550,9 +556,9 @@ impl From<&AuthenticodeSignature<'_>> for protos::pe::Signature {
 
         signer_info.set_digest(value.signer_info_digest());
 
-        //if let Some(program_name) = &value.program_name {
-        //    signer_info.set_program_name(program_name.to_string())
-        //}
+        if let Some(program_name) = &value.program_name {
+            signer_info.set_program_name(program_name.clone())
+        }
 
         signer_info
             .chain
@@ -589,9 +595,7 @@ impl From<&AuthenticodeCountersign<'_>> for protos::pe::CounterSignature {
         cs.set_digest(bytes2hex("", value.digest));
         cs.set_digest_alg(value.digest_alg.to_string());
         cs.set_verified(value.verified);
-
-        cs.sign_time =
-            value.signing_time.map(|t| t.to_unix_duration().as_secs() as i64);
+        cs.sign_time = value.signing_time;
 
         cs
     }
@@ -635,15 +639,15 @@ impl From<&Certificate<'_>> for protos::pe::Certificate {
 
 /// Produces a printable string for a x509 name.
 ///
-/// The [`x509_cert::name::Name`] type implements the [`std::fmt::Display`]
-/// trait, but the resulting string follows the [RFC 4514], resulting in
-/// something like:
+/// The [`X509Name`] type implements the [`std::fmt::Display`] trait, but the
+/// resulting string follows the [RFC 4514], resulting in something like:
 ///
 /// ```text
 /// CN=Thawte Timestamping CA,OU=Thawte Certification,O=Thawte,L=Durbanville,ST=Western Cape,C=ZA
 /// ```
 ///
-/// However, the format traditionally used by YARA is inherited from OpenSSL and looks like:
+/// However, the format traditionally used by YARA is inherited from OpenSSL
+/// and looks like:
 ///
 /// ```text
 /// /C=ZA/ST=Western Cape/L=Durbanville/O=Thawte/OU=Thawte Certification/CN=Thawte Timestamping CA
@@ -656,11 +660,36 @@ fn format_name(name: &X509Name) -> String {
         write!(n, "/").unwrap();
         for atv in rdn.iter() {
             let key = oid_to_str(atv.attr_type());
-            let val = atv.as_str().ok();
-            if let (key, Some(val)) = (key, val) {
-                write!(n, "{}=", key).unwrap();
-                for char in val.chars() {
-                    n.write_char(char).unwrap();
+            let attr_val = atv.attr_value();
+            // Not using `atv.as_str()` because it doesn't take into account
+            // the `Tag::TeletexString` case.
+            let val = match attr_val.tag() {
+                Tag::PrintableString => {
+                    attr_val.as_printablestring().ok().map(|s| s.string())
+                }
+                Tag::Utf8String => {
+                    attr_val.as_utf8string().ok().map(|s| s.string())
+                }
+                Tag::Ia5String => {
+                    attr_val.as_ia5string().ok().map(|s| s.string())
+                }
+                Tag::TeletexString => {
+                    attr_val.as_teletexstring().ok().map(|s| s.string())
+                }
+                _ => None,
+            };
+            match (key, val) {
+                (key, Some(val)) => {
+                    write!(n, "{}=", key).unwrap();
+                    for char in val.chars() {
+                        n.write_char(char).unwrap();
+                    }
+                }
+                (key, None) => {
+                    write!(n, "{}=#", key).unwrap();
+                    for c in attr_val.data {
+                        write!(n, "{:02x}", c).unwrap();
+                    }
                 }
             }
         }
@@ -697,7 +726,7 @@ fn verify_signer_info(si: &SignerInfo, certs: &[Certificate]) -> bool {
     }
 }
 
-fn verify_signed_data_impl<D: Digest + Default>(
+fn verify_signed_data_impl<D: Digest + Default + AssociatedOid>(
     si: &SignerInfo,
     certs: &[Certificate<'_>],
 ) -> bool {
@@ -725,20 +754,15 @@ fn verify_signed_data_impl<D: Digest + Default>(
     let attrs_set = Set::new(Cow::Borrowed(si.raw_signed_attrs));
     let attrs_set_der = attrs_set.to_der_vec_raw().unwrap();
 
-    false
-
-    // TODO
-    /*
     // Obtain the public key included in the certificate.
     let key =
-        match PublicKey::try_from(signing_cert.tbs_certificate.subject_pki) {
+        match PublicKey::try_from(&signing_cert.tbs_certificate.subject_pki) {
             Ok(key) => key,
             Err(_) => return false,
         };
 
     // Verify that the signature in SignerInfo.signature is correct.
     key.verify::<D>(attrs_set_der.as_slice(), si.signature_value)
-    */
 }
 
 /// Represents a certificate chain.
@@ -859,39 +883,74 @@ enum PublicKey {
     EcdsaP384(p384::ecdsa::VerifyingKey),
 }
 
-/*
-impl TryFrom<SubjectPublicKeyInfoRef<'_>> for PublicKey {
-    type Error = spki::Error;
+#[derive(Error, Debug)]
+enum PublicKeyError {
+    #[error("PKCS1 error")]
+    Pkcs1(#[from] rsa::pkcs1::Error),
 
-    fn try_from(value: SubjectPublicKeyInfoRef) -> Result<Self, Self::Error> {
-        match value.algorithm.oid {
+    #[error("Missing ECDSA algorithm parameters")]
+    Der(#[from] der_parser::error::Error),
+
+    #[error("ECDSA error")]
+    Ecdsa(#[from] ecdsa::Error),
+
+    #[error("Missing ECDSA algorithm parameters")]
+    MissingAlgorithmParameters,
+
+    #[error("Unknown ECDSA curve")]
+    UnknownEcdsaCurve(ObjectIdentifier),
+
+    #[error("Unknown encryption algorithm")]
+    UnknownAlgorithm(ObjectIdentifier),
+}
+
+impl TryFrom<&SubjectPublicKeyInfo<'_>> for PublicKey {
+    type Error = PublicKeyError;
+
+    fn try_from(
+        value: &SubjectPublicKeyInfo<'_>,
+    ) -> Result<Self, Self::Error> {
+        match oid_to_object_identifier(value.algorithm.oid()) {
             rfc5912::RSA_ENCRYPTION => {
-                Ok(Self::Rsa(rsa::RsaPublicKey::try_from(value)?))
+                use rsa::pkcs1::DecodeRsaPublicKey;
+                Ok(Self::Rsa(rsa::RsaPublicKey::from_pkcs1_der(
+                    value.subject_public_key.as_ref(),
+                )?))
             }
             rfc5912::ID_DSA => {
-                Ok(Self::Dsa(dsa::VerifyingKey::try_from(value)?))
+                todo!()
+                //use dsa::pkcs8::DecodePublicKey;
+                //let key = dsa::VerifyingKey::from_public_key_der(
+                //    value.subject_public_key.as_ref(),
+                //)?;
+                //Ok(Self::Dsa(key))
             }
             rfc5912::ID_EC_PUBLIC_KEY => {
-                match value
+                let curve: der_parser::asn1_rs::Oid = value
                     .algorithm
                     .parameters
-                    .ok_or(Self::Error::AlgorithmParametersMissing)?
-                    .decode_as::<ObjectIdentifier>()
-                    .map_err(Self::Error::Asn1)?
-                {
+                    .as_ref()
+                    .ok_or(Self::Error::MissingAlgorithmParameters)?
+                    .try_into()?;
+
+                match oid_to_object_identifier(&curve) {
                     rfc5912::SECP_256_R_1 => Ok(Self::EcdsaP256(
-                        p256::ecdsa::VerifyingKey::try_from(value)?,
+                        p256::ecdsa::VerifyingKey::try_from(
+                            value.subject_public_key.as_ref(),
+                        )?,
                     )),
                     rfc5912::SECP_384_R_1 => Ok(Self::EcdsaP384(
-                        p384::ecdsa::VerifyingKey::try_from(value)?,
+                        p384::ecdsa::VerifyingKey::try_from(
+                            value.subject_public_key.as_ref(),
+                        )?,
                     )),
-                    oid => Err(Self::Error::OidUnknown { oid }),
+                    oid => Err(Self::Error::UnknownEcdsaCurve(oid)),
                 }
             }
-            oid => Err(Self::Error::OidUnknown { oid }),
+            oid => Err(Self::Error::UnknownAlgorithm(oid)),
         }
     }
-}*/
+}
 
 impl PublicKey {
     fn verify<D: Digest + AssociatedOid>(

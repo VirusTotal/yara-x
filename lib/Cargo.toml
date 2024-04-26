@@ -183,8 +183,8 @@ lazy_static = { workspace = true }
 linkme = { workspace = true }
 log = { workspace = true, optional = true }
 md-5 = { workspace = true, optional = true, features = ["oid"] }
-sha1 = { workspace = true, optional = true }
-sha2 = { workspace = true, optional = true }
+sha1 = { workspace = true, optional = true, features = ["oid"] }
+sha2 = { workspace = true, optional = true, features = ["oid"] }
 magic = { workspace = true, optional = true }
 memchr = { workspace = true }
 memx = { workspace = true }
