@@ -955,7 +955,8 @@ impl PublicKey {
             }
             rfc5912::ID_SHA_1
             | rfc5912::DSA_WITH_SHA_1
-            | rfc5912::SHA_1_WITH_RSA_ENCRYPTION => {
+            | rfc5912::SHA_1_WITH_RSA_ENCRYPTION
+            | oid::SHA1_WITH_RSA_ENCRYPTION_OBSOLETE => {
                 self.verify_impl::<Sha1>(message, signature)
             }
             rfc5912::ID_SHA_256

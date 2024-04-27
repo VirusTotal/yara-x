@@ -102,7 +102,7 @@ pub mod oid {
 
     /// Similar to 1.2.840.113549.1.1.5. Obsolete, but still present in some files
     /// like: 111aeddc6a6dbf64b28cb565aa12af9ee3cc0a56ce31e4da0068cf6b474c3288
-    pub const SHA1_WITH_RSA_ENCRYPTION: ObjectIdentifier =
+    pub const SHA1_WITH_RSA_ENCRYPTION_OBSOLETE: ObjectIdentifier =
         ObjectIdentifier::new_unwrap("1.3.14.3.2.29");
     
 }
@@ -122,7 +122,8 @@ pub fn oid_to_str(oid: &Oid) -> Cow<'static, str> {
         rfc5912::MD_5_WITH_RSA_ENCRYPTION => {
             Cow::Borrowed("md5WithRSAEncryption")
         }
-        oid::SHA1_WITH_RSA_ENCRYPTION | rfc5912::SHA_1_WITH_RSA_ENCRYPTION => {
+        oid::SHA1_WITH_RSA_ENCRYPTION_OBSOLETE
+        | rfc5912::SHA_1_WITH_RSA_ENCRYPTION => {
             Cow::Borrowed("sha1WithRSAEncryption")
         }
         rfc5912::SHA_256_WITH_RSA_ENCRYPTION => {
