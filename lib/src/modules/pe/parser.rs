@@ -414,16 +414,14 @@ impl<'a> PE<'a> {
     /// * The security entry in the data directory (which points to the certificate table)
     /// * The certificate table.
     ///
-    /// The algorithm is described in the [PE format specification][1].
+    /// The algorithm is described in [1] and [2].
     ///
     /// [1]: https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#process-for-generating-the-authenticode-pe-image-hash
+    /// [2]: https://download.microsoft.com/download/9/c/5/9c5b2167-8017-4bae-9fde-d599bac8184a/authenticode_pe.docx
     pub fn authenticode_hash(
         &self,
         digest: &mut dyn digest::Update,
     ) -> Option<()> {
-        // TODO: according to the specification the sections must be sorted before
-        // computing the hash.
-
         // Offset within the PE file where the checksum field is located. The
         // checksum is skipped while computing the digest.
         let checksum_offset = self.dos_stub.len()
@@ -444,6 +442,9 @@ impl<'a> PE<'a> {
             }
             + Self::SIZE_OF_DIR_ENTRY * Self::IMAGE_DIRECTORY_ENTRY_SECURITY;
 
+        let (_, cert_table_size, _) = self
+            .get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_SECURITY, true)?;
+
         // Hash from start of the file to the checksum.
         digest.update(self.data.get(0..checksum_offset)?);
 
@@ -453,20 +454,44 @@ impl<'a> PE<'a> {
             checksum_offset + mem::size_of::<u32>()..security_data_offset,
         )?);
 
-        let (cert_table_offset, cert_table_size, _) = self
-            .get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_SECURITY, true)?;
-
-        // Hash from the end of the security entry in the data directory, to the
-        // certificate table.
+        // Hash from the end of the security entry in the data directory to the
+        // end of the PE header.
         digest.update(self.data.get(
             security_data_offset + Self::SIZE_OF_DIR_ENTRY
-                ..cert_table_offset as usize,
+                ..self.optional_hdr.size_of_headers as usize,
         )?);
 
-        // Hash from the end of the certificate table to the end of the file.
+        // Sections must be sorted by `raw_data_offset`.
+        let sections = self
+            .sections
+            .iter()
+            .sorted_unstable_by_key(|section| section.raw_data_offset);
+
+        let mut sum_of_bytes_hashed =
+            self.optional_hdr.size_of_headers as usize;
+
+        // Hash each section's data.
+        for section in sections {
+            let section_start = section.raw_data_offset as usize;
+            let section_size = section.raw_data_size as usize;
+            let section_end = section_start.saturating_add(section_size);
+            let section_bytes = self.data.get(section_start..section_end)?;
+
+            digest.update(section_bytes);
+
+            sum_of_bytes_hashed =
+                sum_of_bytes_hashed.checked_add(section_size)?;
+        }
+
+        let extra_hash_len = self
+            .data
+            .len()
+            .checked_sub(cert_table_size as usize)?
+            .checked_sub(sum_of_bytes_hashed)?;
+
         digest.update(self.data.get(
-            cert_table_offset as usize + cert_table_size as usize
-                ..self.data.len(),
+            sum_of_bytes_hashed
+                ..sum_of_bytes_hashed.checked_add(extra_hash_len)?,
         )?);
 
         Some(())
