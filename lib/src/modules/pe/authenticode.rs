@@ -188,17 +188,18 @@ impl AuthenticodeParser {
             match attr.attr_type.as_bytes() {
                 // SignerInfo can have unsigned attributes containing nested
                 // Authenticode signatures. These attributes are identified by
-                // OID 1.3.6.1.4.1.311.2.4.1 and their content is a `ContentInfo`
-                // structure. Find those attributes, parse their first (and only)
-                // value, and append resulting signatures to `nested_signatures`.
+                // OID 1.3.6.1.4.1.311.2.4.1 and their values are `ContentInfo`
+                // structures. Find those attributes, parse their values, and
+                // append the resulting signatures to `nested_signatures`.
                 oid::MS_NESTED_SIGNATURE_B => {
-                    if let Some(nested) =
-                        attr.attr_values.first().and_then(|first_value| {
-                            let content_info = first_value.try_into().ok()?;
-                            Self::parse_content_info(content_info, pe).ok()
-                        })
-                    {
-                        nested_signatures.extend(nested);
+                    for value in &attr.attr_values {
+                        if let Ok(content_info) = value.try_into() {
+                            if let Ok(nested) =
+                                Self::parse_content_info(content_info, pe)
+                            {
+                                nested_signatures.extend(nested);
+                            }
+                        };
                     }
                 }
                 oid::MS_COUNTERSIGN_B => {
