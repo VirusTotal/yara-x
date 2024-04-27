@@ -134,6 +134,9 @@ pub fn oid_to_str(oid: &Oid) -> Cow<'static, str> {
         rfc5912::SHA_512_WITH_RSA_ENCRYPTION => {
             Cow::Borrowed("sha512WithRSAEncryption")
         }
+        rfc5912::DSA_WITH_SHA_1 => Cow::Borrowed("dsaWithSHA1"),
+        rfc5912::DSA_WITH_SHA_224 => Cow::Borrowed("dsa_with_SHA224"),
+        rfc5912::DSA_WITH_SHA_256 => Cow::Borrowed("dsa_with_SHA256"),
         rfc4519::C => Cow::Borrowed("C"),
         rfc4519::COMMON_NAME => Cow::Borrowed("CN"),
         rfc4519::O => Cow::Borrowed("O"),

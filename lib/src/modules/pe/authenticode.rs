@@ -4,9 +4,9 @@ use std::fmt::Write;
 use array_bytes::bytes2hex;
 use const_oid::db::{rfc5912, rfc6268};
 use const_oid::{AssociatedOid, ObjectIdentifier};
-use der::Decode;
 use der_parser::asn1_rs::{Set, Tag, ToDer, UtcTime};
 use digest::Digest;
+use dsa::Components;
 
 use ecdsa::signature::hazmat::PrehashVerifier;
 use itertools::Itertools;
@@ -43,9 +43,6 @@ pub enum ParseError {
     /// The content info is not valid [`SignedData`].
     InvalidSignedData,
 
-    /// The signer info is not valid [`SignerInfo`].
-    InvalidSignerInfo(der::Error),
-
     /// The version of [`SignedData`] is not 1.
     InvalidSignedDataVersion(i32),
 
@@ -54,9 +51,6 @@ pub enum ParseError {
 
     /// The encapsulated content type does not match [`SPC_INDIRECT_DATA_OBJID`].
     InvalidEncapsulatedContentType(String),
-
-    /// The encapsulated content is empty.
-    EmptyEncapsulatedContent,
 
     /// The encapsulated content is not valid [`SpcIndirectDataContent`].
     InvalidSpcIndirectDataContent,
@@ -229,34 +223,35 @@ impl AuthenticodeParser {
 
         // Compute the Authenticode hash by ourselves. This hash will be
         // compared later with the one included in the PE file.
-        let file_digest = match signer_info.digest_algorithm.oid().as_bytes() {
-            oid::MD5_B => {
-                let mut md5 = Md5::default();
-                pe.authenticode_hash(&mut md5);
-                md5.finalize().to_vec()
-            }
-            oid::SHA_1_B => {
-                let mut sha1 = Sha1::default();
-                pe.authenticode_hash(&mut sha1);
-                sha1.finalize().to_vec()
-            }
-            oid::SHA_256_B => {
-                let mut sha256 = Sha256::default();
-                pe.authenticode_hash(&mut sha256);
-                sha256.finalize().to_vec()
-            }
-            oid::SHA_384_B => {
-                let mut sha384 = Sha384::default();
-                pe.authenticode_hash(&mut sha384);
-                sha384.finalize().to_vec()
-            }
-            oid::SHA_512_B => {
-                let mut sha512 = Sha512::default();
-                pe.authenticode_hash(&mut sha512);
-                sha512.finalize().to_vec()
-            }
-            oid => unimplemented!("{:?}", oid),
-        };
+        let computed_authenticode_hash =
+            match signer_info.digest_algorithm.oid().as_bytes() {
+                oid::MD5_B => {
+                    let mut md5 = Md5::default();
+                    pe.authenticode_hash(&mut md5);
+                    md5.finalize().to_vec()
+                }
+                oid::SHA_1_B => {
+                    let mut sha1 = Sha1::default();
+                    pe.authenticode_hash(&mut sha1);
+                    sha1.finalize().to_vec()
+                }
+                oid::SHA_256_B => {
+                    let mut sha256 = Sha256::default();
+                    pe.authenticode_hash(&mut sha256);
+                    sha256.finalize().to_vec()
+                }
+                oid::SHA_384_B => {
+                    let mut sha384 = Sha384::default();
+                    pe.authenticode_hash(&mut sha384);
+                    sha384.finalize().to_vec()
+                }
+                oid::SHA_512_B => {
+                    let mut sha512 = Sha512::default();
+                    pe.authenticode_hash(&mut sha512);
+                    sha512.finalize().to_vec()
+                }
+                oid => unimplemented!("{:?}", oid),
+            };
 
         let authenticode_digest = indirect_data.message_digest;
 
@@ -271,7 +266,8 @@ impl AuthenticodeParser {
         // * The `SignerInfo` struct has not been tampered, which is verified
         //   by `verify_signer_info`.
         //
-        let verified = authenticode_digest.digest == file_digest.as_slice()
+        let verified = authenticode_digest.digest
+            == computed_authenticode_hash.as_slice()
             && verify_message_digest(
                 &signer_info.digest_algorithm,
                 signed_data_raw,
@@ -282,7 +278,7 @@ impl AuthenticodeParser {
         let mut signatures = Vec::with_capacity(nested_signatures.len() + 1);
 
         signatures.push(AuthenticodeSignature {
-            computed_authenticode_hash: file_digest,
+            computed_authenticode_hash,
             program_name: opus_info.and_then(|oi| oi.program_name),
             authenticode_digest,
             signer_info,
@@ -727,13 +723,13 @@ fn verify_signer_info(si: &SignerInfo, certs: &[Certificate<'_>]) -> bool {
     let attrs_set_der = attrs_set.to_der_vec_raw().unwrap();
 
     // Obtain the public key included in the certificate.
-    let key =
-        match PublicKey::try_from(&signing_cert.tbs_certificate.subject_pki) {
-            Ok(key) => key,
-            Err(_) => return false,
-        };
+    let spki = &signing_cert.tbs_certificate.subject_pki;
+    let key = match PublicKey::try_from(spki) {
+        Ok(key) => key,
+        Err(_) => return false,
+    };
 
-    // Verify that the signature in SignerInfo.signature is correct.
+    // Verify that the signature in `SignerInfo` is correct.
     key.verify(
         &si.digest_algorithm,
         attrs_set_der.as_slice(),
@@ -765,7 +761,6 @@ impl<'a, 'b> CertificateChain<'a, 'b> {
         P: Fn(&X509Certificate<'_>) -> bool,
     {
         let next = certs.iter().find(|cert| predicate(&cert.x509));
-
         Self { certs, next }
     }
 
@@ -862,13 +857,19 @@ enum PublicKeyError {
     #[error("PKCS1 error")]
     Pkcs1(#[from] rsa::pkcs1::Error),
 
-    #[error("Missing ECDSA algorithm parameters")]
+    #[error("PKCS8 error")]
+    Pkcs8(#[from] rsa::pkcs8::spki::Error),
+
+    #[error("DER parsing error")]
     Der(#[from] der_parser::error::Error),
 
     #[error("ECDSA error")]
     Ecdsa(#[from] ecdsa::Error),
 
-    #[error("Missing ECDSA algorithm parameters")]
+    #[error("DER parsing error")]
+    Nom(#[from] nom::Err<der_parser::error::Error>),
+
+    #[error("Missing algorithm parameters")]
     MissingAlgorithmParameters,
 
     #[error("Unknown ECDSA curve")]
@@ -881,26 +882,41 @@ enum PublicKeyError {
 impl TryFrom<&SubjectPublicKeyInfo<'_>> for PublicKey {
     type Error = PublicKeyError;
 
-    fn try_from(
-        value: &SubjectPublicKeyInfo<'_>,
-    ) -> Result<Self, Self::Error> {
-        match oid_to_object_identifier(value.algorithm.oid()) {
+    fn try_from(spki: &SubjectPublicKeyInfo<'_>) -> Result<Self, Self::Error> {
+        match oid_to_object_identifier(spki.algorithm.oid()) {
             rfc5912::RSA_ENCRYPTION => {
                 use rsa::pkcs1::DecodeRsaPublicKey;
                 Ok(Self::Rsa(rsa::RsaPublicKey::from_pkcs1_der(
-                    value.subject_public_key.as_ref(),
+                    spki.subject_public_key.as_ref(),
                 )?))
             }
             rfc5912::ID_DSA => {
-                todo!()
-                //use dsa::pkcs8::DecodePublicKey;
-                //let key = dsa::VerifyingKey::from_public_key_der(
-                //    value.subject_public_key.as_ref(),
-                //)?;
-                //Ok(Self::Dsa(key))
+                let parameters = spki
+                    .algorithm
+                    .parameters
+                    .as_ref()
+                    .ok_or(Self::Error::MissingAlgorithmParameters)?;
+
+                let key_bytes = spki.subject_public_key.as_ref();
+
+                use der_parser::ber::parse_ber_integer;
+                let (_, y) = parse_ber_integer(key_bytes)?;
+                let (rem, p) = parse_ber_integer(parameters.data)?;
+                let (rem, q) = parse_ber_integer(rem)?;
+                let (_, g) = parse_ber_integer(rem)?;
+
+                let p = dsa::BigUint::from_bytes_be(p.content.as_slice()?);
+                let q = dsa::BigUint::from_bytes_be(q.content.as_slice()?);
+                let g = dsa::BigUint::from_bytes_be(g.content.as_slice()?);
+                let y = dsa::BigUint::from_bytes_be(y.content.as_slice()?);
+
+                let components = Components::from_components(p, q, g)?;
+                let key = dsa::VerifyingKey::from_components(components, y)?;
+
+                Ok(Self::Dsa(key))
             }
             rfc5912::ID_EC_PUBLIC_KEY => {
-                let curve: der_parser::asn1_rs::Oid = value
+                let curve: der_parser::asn1_rs::Oid = spki
                     .algorithm
                     .parameters
                     .as_ref()
@@ -910,12 +926,12 @@ impl TryFrom<&SubjectPublicKeyInfo<'_>> for PublicKey {
                 match oid_to_object_identifier(&curve) {
                     rfc5912::SECP_256_R_1 => Ok(Self::EcdsaP256(
                         p256::ecdsa::VerifyingKey::try_from(
-                            value.subject_public_key.as_ref(),
+                            spki.subject_public_key.as_ref(),
                         )?,
                     )),
                     rfc5912::SECP_384_R_1 => Ok(Self::EcdsaP384(
                         p384::ecdsa::VerifyingKey::try_from(
-                            value.subject_public_key.as_ref(),
+                            spki.subject_public_key.as_ref(),
                         )?,
                     )),
                     oid => Err(Self::Error::UnknownEcdsaCurve(oid)),
@@ -937,11 +953,14 @@ impl PublicKey {
             rfc5912::ID_MD_5 | rfc5912::MD_5_WITH_RSA_ENCRYPTION => {
                 self.verify_impl::<Md5>(message, signature)
             }
-            rfc5912::ID_SHA_1 | rfc5912::SHA_1_WITH_RSA_ENCRYPTION => {
+            rfc5912::ID_SHA_1
+            | rfc5912::DSA_WITH_SHA_1
+            | rfc5912::SHA_1_WITH_RSA_ENCRYPTION => {
                 self.verify_impl::<Sha1>(message, signature)
             }
             rfc5912::ID_SHA_256
             | rfc5912::SHA_256_WITH_RSA_ENCRYPTION
+            | rfc5912::DSA_WITH_SHA_256
             | rfc5912::ECDSA_WITH_SHA_256 => {
                 self.verify_impl::<Sha256>(message, signature)
             }
@@ -978,6 +997,7 @@ impl PublicKey {
                     .is_ok()
             }
             Self::Dsa(key) => {
+                use dsa::pkcs8::der::Decode;
                 dsa::Signature::from_der(signature).is_ok_and(|s| {
                     key.verify_prehash(digest.as_slice(), &s).is_ok()
                 })
