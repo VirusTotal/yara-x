@@ -14,6 +14,12 @@ use md5::Md5;
 use nom::AsBytes;
 use protobuf::MessageField;
 
+use crate::modules::pe::asn1::{
+    oid, oid_to_object_identifier, oid_to_str, Attribute, Certificate,
+    ContentInfo, DigestInfo, SignedData, SignerInfo, SpcIndirectDataContent,
+    SpcSpOpusInfo, TstInfo,
+};
+use crate::modules::protos;
 use rsa::traits::SignatureScheme;
 use rsa::Pkcs1v15Sign;
 use sha1::Sha1;
@@ -22,14 +28,6 @@ use thiserror::Error;
 use x509_parser::der_parser::num_bigint::BigUint;
 use x509_parser::prelude::{AlgorithmIdentifier, X509Certificate};
 use x509_parser::x509::{SubjectPublicKeyInfo, X509Name};
-
-use crate::modules::pe::asn1::{
-    oid, oid_to_object_identifier, oid_to_str, Attribute, Certificate,
-    ContentInfo, DigestInfo, SignedData, SignerInfo, SpcIndirectDataContent,
-    SpcSpOpusInfo, TstInfo,
-};
-use crate::modules::pe::parser::PE;
-use crate::modules::protos;
 
 /// Error returned by [`AuthenticodeParser::parse`].
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -58,21 +56,24 @@ pub enum ParseError {
     /// The number of signer infos is not 1.
     InvalidNumSignerInfo,
 
-    /// The version of [`SignerInfo`] is not 1.
-    InvalidSignerInfoVersion(i64),
-
-    /// The digest algorithm is not internally consistent.
-    AlgorithmMismatch,
-
-    /// No authenticated attributes are present.
-    EmptyAuthenticatedAttributes,
-
     /// The `contentType` authenticated attribute is missing.
     MissingContentTypeAuthenticatedAttribute,
 
     /// The attribute containing the Authenticode digest is
     /// missing.
     MissingAuthenticodeDigest,
+}
+
+/// Trait implemented by any type that is able to compute the Authenticode
+/// hash for a PE file.
+pub trait AuthenticodeHasher {
+    /// Computes the Authenticode digest.
+    ///
+    /// The `digest` argument is any type implementing the [`digest::Update`]
+    /// trait, like [`Md5`], [`Sha1`] and [`Sha256`]. It should be newly created
+    /// digest that hasn't being updated with any data yet. When this function
+    /// returns the digest's output is the Authenticode hash.
+    fn hash(&self, digest: &mut dyn digest::Update) -> Option<()>;
 }
 
 /// Parses Authenticode signatures in a PE file.
@@ -87,17 +88,17 @@ impl AuthenticodeParser {
     /// Parses Authenticode signatures from DER-encoded bytes.
     pub fn parse<'a>(
         input: &'a [u8],
-        pe: &PE,
+        authenticode_hasher: &impl AuthenticodeHasher,
     ) -> Result<Vec<AuthenticodeSignature<'a>>, ParseError> {
         let content_info = ContentInfo::from_ber(input)
             .map_err(|_| ParseError::InvalidContentInfo)?;
 
-        Self::parse_content_info(content_info, pe)
+        Self::parse_content_info(content_info, authenticode_hasher)
     }
 
     fn parse_content_info<'a>(
         content_info: ContentInfo<'a>,
-        pe: &PE,
+        authenticode_hasher: &impl AuthenticodeHasher,
     ) -> Result<Vec<AuthenticodeSignature<'a>>, ParseError> {
         if content_info.content_type != oid::SIGNED_DATA {
             return Err(ParseError::InvalidContentType(
@@ -194,9 +195,10 @@ impl AuthenticodeParser {
                 oid::MS_NESTED_SIGNATURE_B => {
                     for value in &attr.attr_values {
                         if let Ok(content_info) = value.try_into() {
-                            if let Ok(nested) =
-                                Self::parse_content_info(content_info, pe)
-                            {
+                            if let Ok(nested) = Self::parse_content_info(
+                                content_info,
+                                authenticode_hasher,
+                            ) {
                                 nested_signatures.extend(nested);
                             }
                         };
@@ -228,27 +230,27 @@ impl AuthenticodeParser {
             match signer_info.digest_algorithm.oid().as_bytes() {
                 oid::MD5_B => {
                     let mut md5 = Md5::default();
-                    pe.authenticode_hash(&mut md5);
+                    authenticode_hasher.hash(&mut md5);
                     md5.finalize().to_vec()
                 }
                 oid::SHA_1_B => {
                     let mut sha1 = Sha1::default();
-                    pe.authenticode_hash(&mut sha1);
+                    authenticode_hasher.hash(&mut sha1);
                     sha1.finalize().to_vec()
                 }
                 oid::SHA_256_B => {
                     let mut sha256 = Sha256::default();
-                    pe.authenticode_hash(&mut sha256);
+                    authenticode_hasher.hash(&mut sha256);
                     sha256.finalize().to_vec()
                 }
                 oid::SHA_384_B => {
                     let mut sha384 = Sha384::default();
-                    pe.authenticode_hash(&mut sha384);
+                    authenticode_hasher.hash(&mut sha384);
                     sha384.finalize().to_vec()
                 }
                 oid::SHA_512_B => {
                     let mut sha512 = Sha512::default();
-                    pe.authenticode_hash(&mut sha512);
+                    authenticode_hasher.hash(&mut sha512);
                     sha512.finalize().to_vec()
                 }
                 oid => unimplemented!("{:?}", oid),
@@ -698,9 +700,32 @@ fn verify_message_digest(
     }
 }
 
+/// Verifies that the [`SignerInfo`] struct is valid.
+///
+/// `SignerInfo` contains information about the signer of some data stored in
+/// the content field of a [`SignedData`] structure. This information is stored
+/// in signed and unsigned attributes of `SignerInfo`. Signed attributes are
+/// protected from tampering by a digital signature, which is computed by
+/// hashing the attributes first, and then signing the hash. The resulting
+/// signature is added `SignerInfo` itself. This signature can be verified by
+/// using the public key included in the certificate identified by
+/// [`SignerInfo::serial_number`].
+///
+/// This function makes sure that:
+///
+/// * The signature of `SignerInfo` is correct.
+/// * The certificate that produced the signature for `SignerInfo` is also
+///   correct.
+///
+/// The verification of the certificate includes the verification of the whole
+/// certificate chain, until reaching a self-signed certificate or some
+/// certificate that was signed by an "external" one (a certificate that is not
+/// included in the PE).
 fn verify_signer_info(si: &SignerInfo, certs: &[Certificate<'_>]) -> bool {
     // Get a certificate chain that starts with the certificate that signed
-    // data and contains all the certificates in the chain of truth.
+    // the data that this SignerInfo refers to. This chain goes from the
+    // signing certificate up in the chain of truth until a self-signed
+    // certificate or some "external" certificate.
     let cert_chain = CertificateChain::new(certs, |cert| {
         cert.tbs_certificate.serial.eq(&si.serial_number)
     });
@@ -720,6 +745,43 @@ fn verify_signer_info(si: &SignerInfo, certs: &[Certificate<'_>]) -> bool {
         None => return false,
     };
 
+    // We need to compute the hash for the signed attributes. This is a hash of
+    // the DER encoding of the attributes, however, the computation of the hash
+    // is not straightforward. One may think that the hash can be computed over
+    // the bytes in the PE file that correspond to the DER encoding of the
+    // attributes, but that's not the case. In fact, the PE file doesn't
+    // contain the exact byte sequence that must be hashed.
+    //
+    // This is the ASN.1 definition for the signed attributes:
+    //
+    //   SignedAttributes ::= SET SIZE (1..MAX) OF Attribute
+    //
+    // Normally, the raw bytes of an ASN.1 `SET` start with 0x31 (the tag
+    // associated to sets), followed by the set size, and the set contents.
+    // The raw bytes would be `0x31 [size] [content]`. But ASN.1 encoding is
+    // context-sensitive, which means that the 0x31 tag can be missing if
+    // SignedAttributes is used in a parent structure using implicit
+    // tagging, for instance:
+    //
+    //  signedAttrs `[0]` IMPLICIT SignedAttributes OPTIONAL,
+    //
+    // Within the SignerInfo structure, the tag 0 identifies the signedAttrs
+    // field, when this tag is found, the ASN.1 parser already knows that
+    // a SignedAttributes follows, and it already knows that it's a SET,
+    // therefore the 0x31 is not necessary. The raw bytes are:
+    //
+    // 0xA0 [size] [content]
+    //
+    // `0xA0` is the raw encoding for `[0]`.
+    //
+    // In resume, the PE file has:
+    //
+    // 0xA0 [size] [content]
+    //
+    // But the hash is computed for:
+    //
+    // 0x31 [size] [content]
+    //
     let attrs_set = Set::new(Cow::Borrowed(si.raw_signed_attrs));
     let attrs_set_der = attrs_set.to_der_vec_raw().unwrap();
 

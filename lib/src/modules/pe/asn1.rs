@@ -327,14 +327,32 @@ impl<'a> TryFrom<Any<'a>> for SignedData<'a> {
 /// [1]: https://datatracker.ietf.org/doc/html/rfc5652#section-5.3
 pub struct SignerInfo<'a> {
     pub version: i32,
-    pub issuer: X509Name<'a>,
-    pub serial_number: BigUint,
-    pub digest_algorithm: AlgorithmIdentifier<'a>,
-    pub signature_algorithm: AlgorithmIdentifier<'a>,
-    pub signature_value: &'a [u8],
-    pub raw_signed_attrs: &'a [u8],
-    pub signed_attrs: Vec<Attribute<'a>>,
+    /// Unsigned attributes that contain information about the signer.
+    /// These attributes are not protected by the signature, they are usually
+    /// added after the signature has been generated. For example, they
+    /// contain countersignatures, which are signatures of the signatures.
     pub unsigned_attrs: Vec<Attribute<'a>>,
+    /// Signed attributes that contain information about the signer.
+    /// These attributes can't be tampered without invalidating the
+    /// signature in `signature_value`.
+    pub signed_attrs: Vec<Attribute<'a>>,
+    /// The raw bytes of the signed attributes, as they appear in the PE
+    /// files. Used for computing the digest during the validation process.
+    pub raw_signed_attrs: &'a [u8],
+    pub issuer: X509Name<'a>,
+    /// The serial number of the certificate that signed this structure. The
+    /// produced signature is stored in the `signature_value` field.
+    pub serial_number: BigUint,
+    /// The digest algorithm used during the signing process. This digest
+    /// algorithm is applied to the DER encoding of the signed attributes
+    /// in the `signed_attrs` field. Then the digest itself is signed.
+    pub digest_algorithm: AlgorithmIdentifier<'a>,
+    /// The signature algorithm (RSA, DSA, ECDSA) used for producing the
+    /// signature.
+    pub signature_algorithm: AlgorithmIdentifier<'a>,
+    /// The signature itself. This signature can be validated by using
+    /// the public key stored in the certified identified by `serial_number`.
+    pub signature_value: &'a [u8],
 }
 
 impl<'a> SignerInfo<'a> {
