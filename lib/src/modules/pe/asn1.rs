@@ -334,14 +334,14 @@ pub struct SignerInfo<'a> {
     pub unsigned_attrs: Vec<Attribute<'a>>,
     /// Signed attributes that contain information about the signer.
     /// These attributes can't be tampered without invalidating the
-    /// signature in `signature_value`.
+    /// signature in `signature`.
     pub signed_attrs: Vec<Attribute<'a>>,
     /// The raw bytes of the signed attributes, as they appear in the PE
     /// files. Used for computing the digest during the validation process.
     pub raw_signed_attrs: &'a [u8],
     pub issuer: X509Name<'a>,
     /// The serial number of the certificate that signed this structure. The
-    /// produced signature is stored in the `signature_value` field.
+    /// produced signature is stored in the `signature` field.
     pub serial_number: BigUint,
     /// The digest algorithm used during the signing process. This digest
     /// algorithm is applied to the DER encoding of the signed attributes
@@ -352,7 +352,7 @@ pub struct SignerInfo<'a> {
     pub signature_algorithm: AlgorithmIdentifier<'a>,
     /// The signature itself. This signature can be validated by using
     /// the public key stored in the certified identified by `serial_number`.
-    pub signature_value: &'a [u8],
+    pub signature: &'a [u8],
 }
 
 impl<'a> SignerInfo<'a> {
@@ -403,7 +403,7 @@ impl<'a> SignerInfo<'a> {
                 signed_attrs,
                 raw_signed_attrs,
                 unsigned_attrs: unsigned_attrs.unwrap_or_default(),
-                signature_value: signature.content.as_slice()?,
+                signature: signature.content.as_slice()?,
                 issuer,
                 serial_number,
                 digest_algorithm,

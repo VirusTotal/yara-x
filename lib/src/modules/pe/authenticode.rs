@@ -5,7 +5,7 @@ use array_bytes::bytes2hex;
 use const_oid::db::{rfc5912, rfc6268};
 use const_oid::{AssociatedOid, ObjectIdentifier};
 use der_parser::asn1_rs::{Set, Tag, ToDer, UtcTime};
-use digest::Digest;
+use digest::{Digest, Output};
 use dsa::Components;
 
 use ecdsa::signature::hazmat::PrehashVerifier;
@@ -331,7 +331,7 @@ impl AuthenticodeParser {
             countersignature.verified =
                 verify_message_digest(
                     &tst.hash_algorithm,
-                    si.signature_value,
+                    si.signature,
                     tst.hashed_message,
                 ) && verify_signer_info(cs_si, certificates.as_slice());
 
@@ -355,7 +355,7 @@ impl AuthenticodeParser {
                 countersignature.verified =
                     verify_message_digest(
                         &cs_si.digest_algorithm,
-                        si.signature_value,
+                        si.signature,
                         countersignature.digest,
                     ) && verify_signer_info(&cs_si, certificates.as_slice());
 
@@ -745,6 +745,13 @@ fn verify_signer_info(si: &SignerInfo, certs: &[Certificate<'_>]) -> bool {
         None => return false,
     };
 
+    // Obtain the public key included in the certificate.
+    let spki = &signing_cert.tbs_certificate.subject_pki;
+    let key = match PublicKey::try_from(spki) {
+        Ok(key) => key,
+        Err(_) => return false,
+    };
+
     // We need to compute the hash for the signed attributes. This is a hash of
     // the DER encoding of the attributes, however, the computation of the hash
     // is not straightforward. One may think that the hash can be computed over
@@ -783,21 +790,37 @@ fn verify_signer_info(si: &SignerInfo, certs: &[Certificate<'_>]) -> bool {
     // 0x31 [size] [content]
     //
     let attrs_set = Set::new(Cow::Borrowed(si.raw_signed_attrs));
-    let attrs_set_der = attrs_set.to_der_vec_raw().unwrap();
-
-    // Obtain the public key included in the certificate.
-    let spki = &signing_cert.tbs_certificate.subject_pki;
-    let key = match PublicKey::try_from(spki) {
-        Ok(key) => key,
-        Err(_) => return false,
-    };
 
     // Verify that the signature in `SignerInfo` is correct.
-    key.verify(
-        &si.digest_algorithm,
-        attrs_set_der.as_slice(),
-        si.signature_value,
-    )
+    match oid_to_object_identifier(si.digest_algorithm.oid()) {
+        rfc5912::ID_MD_5 => {
+            let mut md5 = Md5::default();
+            attrs_set.write_der(&mut md5).unwrap();
+            key.verify_digest::<Md5>(md5.finalize(), si.signature)
+        }
+        rfc5912::ID_SHA_1 => {
+            let mut sha1 = Sha1::default();
+            attrs_set.write_der(&mut sha1).unwrap();
+            key.verify_digest::<Sha1>(sha1.finalize(), si.signature)
+        }
+        rfc5912::ID_SHA_256 => {
+            let mut sha256 = Sha256::default();
+            attrs_set.write_der(&mut sha256).unwrap();
+            key.verify_digest::<Sha256>(sha256.finalize(), si.signature)
+        }
+        rfc5912::ID_SHA_384 => {
+            let mut sha384 = Sha384::default();
+            attrs_set.write_der(&mut sha384).unwrap();
+            key.verify_digest::<Sha384>(sha384.finalize(), si.signature)
+        }
+        rfc5912::ID_SHA_512 => {
+            let mut sha512 = Sha512::default();
+            attrs_set.write_der(&mut sha512).unwrap();
+            key.verify_digest::<Sha512>(sha512.finalize(), si.signature)
+        }
+
+        oid => unimplemented!("{:?}", oid),
+    }
 }
 
 /// Represents a certificate chain.
@@ -1048,31 +1071,39 @@ impl PublicKey {
         signature: &[u8],
     ) -> bool {
         let digest = D::digest(message);
+        self.verify_digest::<D>(digest, signature)
+    }
+
+    fn verify_digest<D: Digest + AssociatedOid>(
+        &self,
+        hash: Output<D>,
+        signature: &[u8],
+    ) -> bool {
         match self {
             Self::Rsa(key) => {
                 if Pkcs1v15Sign::new::<D>()
-                    .verify(key, digest.as_slice(), signature)
+                    .verify(key, hash.as_slice(), signature)
                     .is_ok()
                 {
                     return true;
                 }
                 Pkcs1v15Sign::new_unprefixed()
-                    .verify(key, digest.as_slice(), signature)
+                    .verify(key, hash.as_slice(), signature)
                     .is_ok()
             }
             Self::Dsa(key) => {
                 use dsa::pkcs8::der::Decode;
                 dsa::Signature::from_der(signature).is_ok_and(|s| {
-                    key.verify_prehash(digest.as_slice(), &s).is_ok()
+                    key.verify_prehash(hash.as_slice(), &s).is_ok()
                 })
             }
             Self::EcdsaP256(key) => ecdsa::Signature::from_der(signature)
                 .is_ok_and(|s| {
-                    key.verify_prehash(digest.as_slice(), &s).is_ok()
+                    key.verify_prehash(hash.as_slice(), &s).is_ok()
                 }),
             Self::EcdsaP384(key) => ecdsa::Signature::from_der(signature)
                 .is_ok_and(|s| {
-                    key.verify_prehash(digest.as_slice(), &s).is_ok()
+                    key.verify_prehash(hash.as_slice(), &s).is_ok()
                 }),
         }
     }
