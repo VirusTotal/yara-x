@@ -1,0 +1,299 @@
+is_pe: true
+machine: MACHINE_AMD64
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version:
+    major: 4
+    minor: 0
+subsystem_version:
+    major: 6
+    minor: 0
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 48
+    minor: 0
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
+characteristics: 34
+dll_characteristics: 34144
+timestamp: 1712829193 # 2024-04-11 09:53:13 UTC
+image_base: 5368709120
+checksum: 36819
+base_of_code: 8192
+entry_point: 0
+entry_point_raw: 0
+section_alignment: 8192
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 240
+size_of_code: 2560
+size_of_initialized_data: 2048
+size_of_uninitialized_data: 0
+size_of_image: 24576
+size_of_headers: 512
+size_of_stack_reserve: 4194304
+size_of_stack_commit: 16384
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 8192
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 2
+number_of_imported_functions: 0
+number_of_delayed_imported_functions: 0
+number_of_resources: 2
+number_of_version_infos: 11
+number_of_imports: 0
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 1
+version_info:
+    "Assembly Version": "5.6.0.1"
+    "Comments": "Continuous Testing Tool for .NET"
+    "CompanyName": "Remco Software Ltd"
+    "FileDescription": " "
+    "FileVersion": "5.6.0.1"
+    "InternalName": "nCrunch.TaskRunner46.x64.exe"
+    "LegalCopyright": "© 2010-2024 Remco Software Ltd"
+    "LegalTrademarks": ""
+    "OriginalFilename": "nCrunch.TaskRunner46.x64.exe"
+    "ProductName": "NCrunch"
+    "ProductVersion": "5.6.0.1"
+version_info_list:
+  - key: "Comments"
+    value: "Continuous Testing Tool for .NET"
+  - key: "CompanyName"
+    value: "Remco Software Ltd"
+  - key: "FileDescription"
+    value: " "
+  - key: "FileVersion"
+    value: "5.6.0.1"
+  - key: "InternalName"
+    value: "nCrunch.TaskRunner46.x64.exe"
+  - key: "LegalCopyright"
+    value: "© 2010-2024 Remco Software Ltd"
+  - key: "LegalTrademarks"
+    value: ""
+  - key: "OriginalFilename"
+    value: "nCrunch.TaskRunner46.x64.exe"
+  - key: "ProductName"
+    value: "NCrunch"
+  - key: "ProductVersion"
+    value: "5.6.0.1"
+  - key: "Assembly Version"
+    value: "5.6.0.1"
+pdb_path: "D:\\BuildAgent\\work\\31f27687fbb308be\\nCrunch.TaskRunner\\46.x64\\obj\\x64\\Release\\nCrunch.TaskRunner46.x64.pdb"
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1610612768
+    raw_data_size: 2560
+    raw_data_offset: 512
+    virtual_address: 8192
+    virtual_size: 2260
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 1073741888
+    raw_data_size: 2048
+    raw_data_offset: 3072
+    virtual_address: 16384
+    virtual_size: 1624
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 16384
+    size: 1624
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 5120
+    size: 9064
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 10140
+    size: 28
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 8192
+    size: 72
+  - virtual_address: 0
+    size: 0
+resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_version:
+    major: 0
+    minor: 0
+resources:
+  - length: 968
+    rva: 16528
+    offset: 3216
+    type: RESOURCE_TYPE_VERSION
+    id: 1
+    language: 0
+  - length: 490
+    rva: 17512
+    offset: 4200
+    type: RESOURCE_TYPE_MANIFEST
+    id: 1
+    language: 0
+is_signed: true
+signatures:
+  - subject: "/C=NZ/ST=Auckland/O=Remco Software Ltd/CN=Remco Software Ltd"
+    issuer: "/C=GB/O=Sectigo Limited/CN=Sectigo Public Code Signing CA E36"
+    thumbprint: "e8fe81981a0fc85d3ce02b09b88d6e6c08dfca5e"
+    version: 3
+    algorithm: "ecdsa-with-SHA256"
+    algorithm_oid: "1.2.840.10045.4.3.2"
+    serial: "66:44:c2:5e:50:8b:bf:5f:a1:b1:e4:30:be:02:6a:3d"
+    not_before: 1683158400 # 2023-05-04 00:00:00 UTC
+    not_after: 1785801599 # 2026-08-03 23:59:59 UTC
+    verified: true
+    digest_alg: "sha1"
+    digest: "060371e73bbdc18a21434b222a5e4de53bdb7127"
+    file_digest: "060371e73bbdc18a21434b222a5e4de53bdb7127"
+    number_of_certificates: 6
+    number_of_countersignatures: 1
+    signer_info:
+        program_name: "NCrunch for Visual Studio"
+        digest: "8bae3e1a555b4f3c0c1e8eb44a9f19d024e95357"
+        digest_alg: "sha1"
+        chain:
+          - issuer: "/C=GB/O=Sectigo Limited/CN=Sectigo Public Code Signing CA E36"
+            subject: "/C=NZ/ST=Auckland/O=Remco Software Ltd/CN=Remco Software Ltd"
+            thumbprint: "e8fe81981a0fc85d3ce02b09b88d6e6c08dfca5e"
+            version: 3
+            algorithm: "ecdsa-with-SHA256"
+            algorithm_oid: "1.2.840.10045.4.3.2"
+            serial: "66:44:c2:5e:50:8b:bf:5f:a1:b1:e4:30:be:02:6a:3d"
+            not_before: 1683158400 # 2023-05-04 00:00:00 UTC
+            not_after: 1785801599 # 2026-08-03 23:59:59 UTC
+          - issuer: "/C=GB/O=Sectigo Limited/CN=Sectigo Public Code Signing Root E46"
+            subject: "/C=GB/O=Sectigo Limited/CN=Sectigo Public Code Signing CA E36"
+            thumbprint: "418293b3ee931f1452bca30e4a587e7124853e86"
+            version: 3
+            algorithm: "ecdsa-with-SHA384"
+            algorithm_oid: "1.2.840.10045.4.3.3"
+            serial: "36:02:61:76:36:e7:03:4b:9c:c1:fc:5f:fe:ac:2d:54"
+            not_before: 1616371200 # 2021-03-22 00:00:00 UTC
+            not_after: 2089756799 # 2036-03-21 23:59:59 UTC
+          - issuer: "/C=GB/ST=Greater Manchester/L=Salford/O=Comodo CA Limited/CN=AAA Certificate Services"
+            subject: "/C=GB/O=Sectigo Limited/CN=Sectigo Public Code Signing Root E46"
+            thumbprint: "b50cb42cacc0ebe698fe39cbd48b481a5a16851f"
+            version: 3
+            algorithm: "sha384WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.12"
+            serial: "00:d5:b3:60:02:89:59:a2:7f:84:65:c9:e6:b1:8d:ba:cb"
+            not_before: 1677542400 # 2023-02-28 00:00:00 UTC
+            not_after: 1861919999 # 2028-12-31 23:59:59 UTC
+    certificates:
+      - issuer: "/C=GB/O=Sectigo Limited/CN=Sectigo Public Code Signing Root E46"
+        subject: "/C=GB/O=Sectigo Limited/CN=Sectigo Public Code Signing CA E36"
+        thumbprint: "418293b3ee931f1452bca30e4a587e7124853e86"
+        version: 3
+        algorithm: "ecdsa-with-SHA384"
+        algorithm_oid: "1.2.840.10045.4.3.3"
+        serial: "36:02:61:76:36:e7:03:4b:9c:c1:fc:5f:fe:ac:2d:54"
+        not_before: 1616371200 # 2021-03-22 00:00:00 UTC
+        not_after: 2089756799 # 2036-03-21 23:59:59 UTC
+      - issuer: "/C=GB/O=Sectigo Limited/CN=Sectigo Public Code Signing CA E36"
+        subject: "/C=NZ/ST=Auckland/O=Remco Software Ltd/CN=Remco Software Ltd"
+        thumbprint: "e8fe81981a0fc85d3ce02b09b88d6e6c08dfca5e"
+        version: 3
+        algorithm: "ecdsa-with-SHA256"
+        algorithm_oid: "1.2.840.10045.4.3.2"
+        serial: "66:44:c2:5e:50:8b:bf:5f:a1:b1:e4:30:be:02:6a:3d"
+        not_before: 1683158400 # 2023-05-04 00:00:00 UTC
+        not_after: 1785801599 # 2026-08-03 23:59:59 UTC
+      - issuer: "/C=GB/ST=Greater Manchester/L=Salford/O=Comodo CA Limited/CN=AAA Certificate Services"
+        subject: "/C=GB/O=Sectigo Limited/CN=Sectigo Public Code Signing Root E46"
+        thumbprint: "b50cb42cacc0ebe698fe39cbd48b481a5a16851f"
+        version: 3
+        algorithm: "sha384WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.12"
+        serial: "00:d5:b3:60:02:89:59:a2:7f:84:65:c9:e6:b1:8d:ba:cb"
+        not_before: 1677542400 # 2023-02-28 00:00:00 UTC
+        not_after: 1861919999 # 2028-12-31 23:59:59 UTC
+      - issuer: "/C=US/O=DigiCert, Inc./CN=DigiCert Trusted G4 RSA4096 SHA256 TimeStamping CA"
+        subject: "/C=US/O=DigiCert, Inc./CN=DigiCert Timestamp 2023"
+        thumbprint: "66f02b32c2c2c90f825dceaa8ac9c64f199ccf40"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "05:44:af:f3:94:9d:08:39:a6:bf:db:3f:5f:e5:61:16"
+        not_before: 1689292800 # 2023-07-14 00:00:00 UTC
+        not_after: 2044396799 # 2034-10-13 23:59:59 UTC
+      - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Trusted Root G4"
+        subject: "/C=US/O=DigiCert, Inc./CN=DigiCert Trusted G4 RSA4096 SHA256 TimeStamping CA"
+        thumbprint: "b6c8af834d4e53b673c76872aa8c950c7c54df5f"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "07:36:37:b7:24:54:7c:d8:47:ac:fd:28:66:2a:5e:5b"
+        not_before: 1647993600 # 2022-03-23 00:00:00 UTC
+        not_after: 2121379199 # 2037-03-22 23:59:59 UTC
+      - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID Root CA"
+        subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Trusted Root G4"
+        thumbprint: "a99d5b79e9f1cda59cdab6373169d5353f5874c6"
+        version: 3
+        algorithm: "sha384WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.12"
+        serial: "0e:9b:18:8e:f9:d0:2d:e7:ef:db:50:e2:08:40:18:5a"
+        not_before: 1659312000 # 2022-08-01 00:00:00 UTC
+        not_after: 1952035199 # 2031-11-09 23:59:59 UTC
+    countersignatures:
+      - verified: true
+        sign_time: 1712829194 # 2024-04-11 09:53:14 UTC
+        digest: "5dd8b869f1aacca4797503e081f18b033049faf1"
+        digest_alg: "sha1"
+        chain:
+          - issuer: "/C=US/O=DigiCert, Inc./CN=DigiCert Trusted G4 RSA4096 SHA256 TimeStamping CA"
+            subject: "/C=US/O=DigiCert, Inc./CN=DigiCert Timestamp 2023"
+            thumbprint: "66f02b32c2c2c90f825dceaa8ac9c64f199ccf40"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "05:44:af:f3:94:9d:08:39:a6:bf:db:3f:5f:e5:61:16"
+            not_before: 1689292800 # 2023-07-14 00:00:00 UTC
+            not_after: 2044396799 # 2034-10-13 23:59:59 UTC
+          - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Trusted Root G4"
+            subject: "/C=US/O=DigiCert, Inc./CN=DigiCert Trusted G4 RSA4096 SHA256 TimeStamping CA"
+            thumbprint: "b6c8af834d4e53b673c76872aa8c950c7c54df5f"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "07:36:37:b7:24:54:7c:d8:47:ac:fd:28:66:2a:5e:5b"
+            not_before: 1647993600 # 2022-03-23 00:00:00 UTC
+            not_after: 2121379199 # 2037-03-22 23:59:59 UTC
+          - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID Root CA"
+            subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Trusted Root G4"
+            thumbprint: "a99d5b79e9f1cda59cdab6373169d5353f5874c6"
+            version: 3
+            algorithm: "sha384WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.12"
+            serial: "0e:9b:18:8e:f9:d0:2d:e7:ef:db:50:e2:08:40:18:5a"
+            not_before: 1659312000 # 2022-08-01 00:00:00 UTC
+            not_after: 1952035199 # 2031-11-09 23:59:59 UTC
+overlay:
+    offset: 5120
+    size: 9064
