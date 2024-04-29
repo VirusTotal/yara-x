@@ -6,7 +6,7 @@ build-backend = "maturin"
 name = "yara-x"
 description = "Python bindings for YARA-X"
 requires-python = ">=3.8"
-readme = { file = "README.md" }
+readme = "README.md"
 keywords = ["pattern-matching", "cybersecurity", "forensics", "malware", "yara"]
 classifiers = [
     "Programming Language :: Rust",
