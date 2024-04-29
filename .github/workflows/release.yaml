@@ -129,10 +129,6 @@ jobs:
         pip install maturin build
         python -m build --sdist -o wheelhouse py
 
-    - name: Setup tmate session
-      if: matrix.build == 'windows'
-      uses: mxschmitt/action-tmate@v3
-
     - name: Build ${{ matrix.platform || matrix.os }} binaries
       run: cibuildwheel --output-dir wheelhouse py
       env:
