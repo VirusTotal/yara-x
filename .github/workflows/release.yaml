@@ -46,6 +46,9 @@ jobs:
           exit 1
         fi
 
+    - run: rustup target add x86_64-apple-darwin
+      if: matrix.build == 'macos'
+
     - name: Build
       run: cargo build --bin yr --profile release-lto --target ${{ matrix.target }}
       env:
