@@ -93,9 +93,7 @@ jobs:
 
         - build: macos
           os: macos-latest
-          arch: alt
-          alt_arch_name: 'arm64 universal2'
-
+          
         - build: windows
           os: windows-latest
           arch: 'x86 AMD64'
