@@ -2,17 +2,24 @@ use std::borrow::Cow;
 use std::fmt::Write;
 
 use array_bytes::bytes2hex;
-use const_oid::db::{rfc5912, rfc6268};
+use const_oid::db::{rfc5911, rfc5912, rfc6268};
 use const_oid::{AssociatedOid, ObjectIdentifier};
 use der_parser::asn1_rs::{Set, Tag, ToDer, UtcTime};
 use digest::{Digest, Output};
 use dsa::Components;
-
 use ecdsa::signature::hazmat::PrehashVerifier;
 use itertools::Itertools;
 use md5::Md5;
 use nom::AsBytes;
 use protobuf::MessageField;
+use rsa::traits::SignatureScheme;
+use rsa::Pkcs1v15Sign;
+use sha1::Sha1;
+use sha2::{Sha256, Sha384, Sha512};
+use thiserror::Error;
+use x509_parser::certificate::X509Certificate;
+use x509_parser::der_parser::num_bigint::BigUint;
+use x509_parser::x509::{AlgorithmIdentifier, SubjectPublicKeyInfo, X509Name};
 
 use crate::modules::pe::asn1::{
     oid, oid_to_object_identifier, oid_to_str, Attribute, Certificate,
@@ -20,14 +27,6 @@ use crate::modules::pe::asn1::{
     SpcSpOpusInfo, TstInfo,
 };
 use crate::modules::protos;
-use rsa::traits::SignatureScheme;
-use rsa::Pkcs1v15Sign;
-use sha1::Sha1;
-use sha2::{Sha256, Sha384, Sha512};
-use thiserror::Error;
-use x509_parser::der_parser::num_bigint::BigUint;
-use x509_parser::prelude::{AlgorithmIdentifier, X509Certificate};
-use x509_parser::x509::{SubjectPublicKeyInfo, X509Name};
 
 /// Error returned by [`AuthenticodeParser::parse`].
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -100,9 +99,9 @@ impl AuthenticodeParser {
         content_info: ContentInfo<'a>,
         authenticode_hasher: &impl AuthenticodeHasher,
     ) -> Result<Vec<AuthenticodeSignature<'a>>, ParseError> {
-        if content_info.content_type != oid::SIGNED_DATA {
+        if content_info.content_type != rfc5911::ID_SIGNED_DATA {
             return Err(ParseError::InvalidContentType(
-                content_info.content_type.to_id_string(),
+                content_info.content_type.to_string(),
             ));
         }
 
@@ -127,9 +126,11 @@ impl AuthenticodeParser {
 
         // The content in `SignedData` must be a `SpcIndirectDataContent`
         // structure.
-        if signed_data.content_info.content_type != oid::INDIRECT_DATA_OBJID {
+        if signed_data.content_info.content_type
+            != oid::MS_SPC_INDIRECT_DATA_OBJID
+        {
             return Err(ParseError::InvalidEncapsulatedContentType(
-                signed_data.content_info.content_type.to_id_string(),
+                signed_data.content_info.content_type.to_string(),
             ));
         }
 
@@ -149,21 +150,21 @@ impl AuthenticodeParser {
         // Authenticode digest. This attribute is identified by OID
         // 1.2.840.113549.1.9.4.
         let signer_info_digest = match signer_info
-            .get_signed_attr(&oid::MESSAGE_DIGEST)
+            .get_signed_attr(&rfc5911::ID_MESSAGE_DIGEST)
             .map(|value| value.data.as_bytes())
         {
             Some(md) => md,
             None => return Err(ParseError::MissingAuthenticodeDigest),
         };
 
-        if signer_info.get_signed_attr(&oid::CONTENT_TYPE).is_none() {
+        if signer_info.get_signed_attr(&rfc5911::ID_CONTENT_TYPE).is_none() {
             return Err(ParseError::MissingContentTypeAuthenticatedAttribute);
         }
 
         // `SignerInfo` can have a signed attribute that contains information
         // about the signed program in a `SpcSpOpusInfo` struct.
         let opus_info: Option<SpcSpOpusInfo> = signer_info
-            .get_signed_attr(&oid::OPUS_INFO_OBJID)
+            .get_signed_attr(&oid::MS_SPC_OPUS_INFO)
             .and_then(|value| value.try_into().ok());
 
         let signed_data_raw = signed_data.content_info.content.data;
@@ -186,13 +187,13 @@ impl AuthenticodeParser {
         let mut countersignatures = Vec::new();
 
         for attr in signer_info.unsigned_attrs.iter() {
-            match attr.attr_type.as_bytes() {
+            match attr.attr_type {
                 // SignerInfo can have unsigned attributes containing nested
                 // Authenticode signatures. These attributes are identified by
                 // OID 1.3.6.1.4.1.311.2.4.1 and their values are `ContentInfo`
                 // structures. Find those attributes, parse their values, and
                 // append the resulting signatures to `nested_signatures`.
-                oid::MS_NESTED_SIGNATURE_B => {
+                oid::MS_SPC_NESTED_SIGNATURE => {
                     for value in &attr.attr_values {
                         if let Ok(content_info) = value.try_into() {
                             if let Ok(nested) = Self::parse_content_info(
@@ -204,7 +205,7 @@ impl AuthenticodeParser {
                         };
                     }
                 }
-                oid::MS_COUNTERSIGN_B => {
+                oid::MS_COUNTERSIGN => {
                     Self::parse_ms_countersignature_attr(
                         &signer_info,
                         attr,
@@ -212,7 +213,7 @@ impl AuthenticodeParser {
                         &mut countersignatures,
                     )?;
                 }
-                oid::PKCS9_COUNTERSIGN_B => {
+                rfc5911::ID_COUNTERSIGNATURE => {
                     Self::parse_pkcs9_countersignature_attr(
                         &signer_info,
                         attr,
@@ -227,28 +228,29 @@ impl AuthenticodeParser {
         // Compute the Authenticode hash by ourselves. This hash will be
         // compared later with the one included in the PE file.
         let computed_authenticode_hash =
-            match signer_info.digest_algorithm.oid().as_bytes() {
-                oid::MD5_B => {
+            match oid_to_object_identifier(signer_info.digest_algorithm.oid())
+            {
+                rfc5912::ID_MD_5 => {
                     let mut md5 = Md5::default();
                     authenticode_hasher.hash(&mut md5);
                     md5.finalize().to_vec()
                 }
-                oid::SHA_1_B => {
+                rfc5912::ID_SHA_1 => {
                     let mut sha1 = Sha1::default();
                     authenticode_hasher.hash(&mut sha1);
                     sha1.finalize().to_vec()
                 }
-                oid::SHA_256_B => {
+                rfc5912::ID_SHA_256 => {
                     let mut sha256 = Sha256::default();
                     authenticode_hasher.hash(&mut sha256);
                     sha256.finalize().to_vec()
                 }
-                oid::SHA_384_B => {
+                rfc5912::ID_SHA_384 => {
                     let mut sha384 = Sha384::default();
                     authenticode_hasher.hash(&mut sha384);
                     sha384.finalize().to_vec()
                 }
-                oid::SHA_512_B => {
+                rfc5912::ID_SHA_512 => {
                     let mut sha512 = Sha512::default();
                     authenticode_hasher.hash(&mut sha512);
                     sha512.finalize().to_vec()
@@ -373,11 +375,11 @@ impl AuthenticodeParser {
         let mut signing_time = None;
 
         for attr in &si.signed_attrs {
-            match oid_to_object_identifier(&attr.attr_type) {
-                rfc6268::ID_MESSAGE_DIGEST => {
+            match &attr.attr_type {
+                &rfc6268::ID_MESSAGE_DIGEST => {
                     digest = attr.attr_values.first().map(|v| v.data);
                 }
-                rfc6268::ID_SIGNING_TIME => {
+                &rfc6268::ID_SIGNING_TIME => {
                     signing_time = attr
                         .attr_values
                         .first()
@@ -690,12 +692,12 @@ fn verify_message_digest(
     message: &[u8],
     digest: &[u8],
 ) -> bool {
-    match algorithm.oid().as_bytes() {
-        oid::SHA_1_B => Sha1::digest(message).as_slice() == digest,
-        oid::SHA_256_B => Sha256::digest(message).as_slice() == digest,
-        oid::SHA_384_B => Sha384::digest(message).as_slice() == digest,
-        oid::SHA_512_B => Sha512::digest(message).as_slice() == digest,
-        oid::MD5_B => Md5::digest(message).as_slice() == digest,
+    match oid_to_object_identifier(algorithm.oid()) {
+        rfc5912::ID_SHA_1 => Sha1::digest(message).as_slice() == digest,
+        rfc5912::ID_SHA_256 => Sha256::digest(message).as_slice() == digest,
+        rfc5912::ID_SHA_384 => Sha384::digest(message).as_slice() == digest,
+        rfc5912::ID_SHA_512 => Sha512::digest(message).as_slice() == digest,
+        rfc5912::ID_MD_5 => Md5::digest(message).as_slice() == digest,
         _ => unimplemented!("{:?}", algorithm.oid()),
     }
 }

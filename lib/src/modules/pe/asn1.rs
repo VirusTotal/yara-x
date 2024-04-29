@@ -29,68 +29,7 @@ use x509_parser::x509::X509Name;
 #[allow(dead_code)]
 pub mod oid {
     use const_oid::ObjectIdentifier;
-    use der_parser::{oid, Oid};
-
-    pub const MD5: Oid = oid!(1.2.840.113549.2.5);
-    pub const MD5_B: &[u8] = &oid!(raw 1.2.840.113549.2.5);
-
-    pub const SHA_1: Oid = oid!(1.3.14.3.2.26);
-    pub const SHA_1_B: &[u8] = &oid!(raw 1.3.14.3.2.26);
-
-    pub const SHA_256: Oid = oid!(2.16.840.1.101.3.4.2.1);
-    pub const SHA_256_B: &[u8] = &oid!(raw 2.16.840.1.101.3.4.2.1);
-
-    pub const SHA_384: Oid = oid!(2.16.840.1.101.3.4.2.2);
-    pub const SHA_384_B: &[u8] = &oid!(raw 2.16.840.1.101.3.4.2.2);
-
-    pub const SHA_512: Oid = oid!(2.16.840.1.101.3.4.2.3);
-    pub const SHA_512_B: &[u8] = &oid!(raw 2.16.840.1.101.3.4.2.3);
-
-    pub const MD5_WITH_RSA_ENCRYPTION: Oid = oid!(1.2.840.113549.1.1.4);
-    pub const MD5_WITH_RSA_ENCRYPTION_B: &[u8] = &oid!(raw 1.2.840.113549.1.1.4);
     
-    pub const SHA_1_WITH_RSA_ENCRYPTION: Oid = oid!(1.2.840.113549.1.1.5);
-    pub const SHA_1_WITH_RSA_ENCRYPTION_B: &[u8] = &oid!(raw 1.2.840.113549.1.1.5);
-
-    pub const SHA_256_WITH_RSA_ENCRYPTION: Oid = oid!(1.2.840.113549.1.1.11);
-    pub const SHA_256_WITH_RSA_ENCRYPTION_B: &[u8] = &oid!(raw 1.2.840.113549.1.1.11);
-
-    pub const SHA_384_WITH_RSA_ENCRYPTION: Oid = oid!(1.2.840.113549.1.1.12);
-    pub const SHA_384_WITH_RSA_ENCRYPTION_B: &[u8] = &oid!(raw 1.2.840.113549.1.1.12);
-
-    pub const SHA_512_WITH_RSA_ENCRYPTION: Oid = oid!(1.2.840.113549.1.1.13);
-    pub const SHA_512_WITH_RSA_ENCRYPTION_B: &[u8] = &oid!(raw 1.2.840.113549.1.1.13);
-
-    pub const RSA_ENCRYPTION: Oid = oid!(1.2.840.113549.1.1.1);
-    pub const RSA_ENCRYPTION_B: &[u8] = &oid!(raw 1.2.840.113549.1.1.1);
-    
-    pub const SIGNED_DATA: Oid = oid!(1.2.840.113549.1.7.2);
-    pub const SIGNED_DATA_B: &[u8] = &oid!(raw 1.2.840.113549.1.7.2);
-
-    pub const MESSAGE_DIGEST: Oid = oid!(1.2.840.113549.1.9.4);
-    pub const MESSAGE_DIGEST_B: &[u8] = &oid!(raw 1.2.840.113549.1.9.4);
-
-    pub const INDIRECT_DATA_OBJID: Oid = oid!(1.3.6.1.4.1.311.2.1.4);
-    pub const INDIRECT_DATA_OBJID_B: &[u8] = &oid!(raw 1.3.6.1.4.1.311.2.1.4);
-
-    pub const CONTENT_TYPE: Oid = oid!(1.2.840.113549.1.9.3);
-    pub const CONTENT_TYPE_B: &[u8] = &oid!(raw 1.2.840.113549.1.9.3);
-
-    pub const OPUS_INFO_OBJID: Oid = oid!(1.3.6.1.4.1.311.2.1.12);
-    pub const OPUS_INFO_OBJID_B: &[u8] = &oid!(raw 1.3.6.1.4.1.311.2.1.12);
-
-    pub const MS_NESTED_SIGNATURE: Oid = oid!(1.3.6.1.4.1.311.2.4.1);
-    pub const MS_NESTED_SIGNATURE_B: &[u8] = &oid!(raw 1.3.6.1.4.1.311.2.4.1);
-
-    pub const MS_COUNTERSIGN: Oid = oid!(1.3.6.1.4.1.311.3.3.1);
-    pub const MS_COUNTERSIGN_B: &[u8] = &oid!(raw 1.3.6.1.4.1.311.3.3.1);
-
-    pub const PKCS9_COUNTERSIGN: Oid = oid!(1.2.840.113549.1.9.6);
-    pub const PKCS9_COUNTERSIGN_B: &[u8] = &oid!(raw 1.2.840.113549.1.9.6);
-
-    pub const COUNTRY: Oid = oid!(2.5.4.6);
-    pub const COUNTRY_B: &[u8] = &oid!(raw 2.5.4.6);
-
     pub const JURISDICTION_L: ObjectIdentifier =
         ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.60.2.1.1");
 
@@ -99,7 +38,19 @@ pub mod oid {
 
     pub const JURISDICTION_C: ObjectIdentifier =
         ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.60.2.1.3");
+    
+    pub const MS_SPC_NESTED_SIGNATURE: ObjectIdentifier =
+        ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.2.4.1");
 
+    pub const MS_SPC_INDIRECT_DATA_OBJID: ObjectIdentifier =
+        ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.2.1.4");
+
+    pub const MS_SPC_OPUS_INFO: ObjectIdentifier =
+        ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.2.1.12");
+    
+    pub const MS_COUNTERSIGN: ObjectIdentifier =
+        ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.3.3.1");
+    
     /// Similar to 1.2.840.113549.1.1.5. Obsolete, but still present in some files
     /// like: 111aeddc6a6dbf64b28cb565aa12af9ee3cc0a56ce31e4da0068cf6b474c3288
     pub const SHA1_WITH_RSA_ENCRYPTION_OBSOLETE: ObjectIdentifier =
@@ -160,7 +111,7 @@ pub fn oid_to_str(oid: &Oid) -> Cow<'static, str> {
 }
 
 pub struct ContentInfo<'a> {
-    pub content_type: Oid<'a>,
+    pub content_type: ObjectIdentifier,
     pub content: Any<'a>,
 }
 
@@ -184,7 +135,10 @@ impl<'a> ContentInfo<'a> {
 
         Ok((
             remainder,
-            Self { content_type: content_type.as_oid_val()?, content },
+            Self {
+                content_type: oid_to_object_identifier(content_type.as_oid()?),
+                content,
+            },
         ))
     }
 }
@@ -233,12 +187,6 @@ pub struct SignedData<'a> {
 }
 
 impl<'a> SignedData<'a> {
-    pub fn parse(input: &'a [u8]) -> BerResult<Self> {
-        parse_ber_sequence_defined_g(|input: &[u8], _| {
-            Self::parse_inner(input)
-        })(input)
-    }
-
     fn parse_inner(input: &'a [u8]) -> BerResult<Self> {
         let (remainder, version) = parse_ber_integer(input)?;
 
@@ -418,7 +366,7 @@ impl<'a> SignerInfo<'a> {
     /// signatures all the attributes we need to work with have a
     /// single value. This function retrieves the attribute and its
     /// first value in a single step.
-    pub fn get_signed_attr(&self, oid: &Oid) -> Option<&Any<'a>> {
+    pub fn get_signed_attr(&self, oid: &ObjectIdentifier) -> Option<&Any<'a>> {
         self.signed_attrs
             .iter()
             .find(|attr| attr.attr_type.eq(oid))
@@ -481,7 +429,7 @@ impl<'a> TryFrom<&Any<'a>> for SignerInfo<'a> {
 ///
 /// [1]: https://datatracker.ietf.org/doc/html/rfc5652#section-5.3
 pub struct Attribute<'a> {
-    pub attr_type: Oid<'a>,
+    pub attr_type: ObjectIdentifier,
     pub attr_values: Vec<Any<'a>>,
 }
 
@@ -494,7 +442,10 @@ impl<'a> Attribute<'a> {
 
             Ok((
                 remainder,
-                Self { attr_type: attr_type.as_oid_val()?, attr_values },
+                Self {
+                    attr_type: oid_to_object_identifier(attr_type.as_oid()?),
+                    attr_values,
+                },
             ))
         })(input)
     }
@@ -515,12 +466,6 @@ pub struct SpcIndirectDataContent<'a> {
 }
 
 impl<'a> SpcIndirectDataContent<'a> {
-    pub fn parse(input: &'a [u8]) -> BerResult<Self> {
-        parse_ber_sequence_defined_g(|input: &[u8], _| {
-            Self::parse_inner(input)
-        })(input)
-    }
-
     pub fn parse_inner(input: &'a [u8]) -> BerResult<Self> {
         let (remainder, _data) = parse_ber(input)?;
         let (remainder, message_digest) = DigestInfo::parse(remainder)?;
@@ -579,12 +524,6 @@ pub struct SpcSpOpusInfo {
 }
 
 impl SpcSpOpusInfo {
-    pub fn parse(input: &[u8]) -> BerResult<Self> {
-        parse_ber_sequence_defined_g(|input: &[u8], _| {
-            Self::parse_inner(input)
-        })(input)
-    }
-
     fn parse_inner(input: &[u8]) -> BerResult<Self> {
         let (remainder, program_name) = OptTaggedParser::from(0)
             .parse_ber(input, |_, content| Self::parse_spc_string(content))?;
