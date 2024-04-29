@@ -375,11 +375,11 @@ impl AuthenticodeParser {
         let mut signing_time = None;
 
         for attr in &si.signed_attrs {
-            match &attr.attr_type {
-                &rfc6268::ID_MESSAGE_DIGEST => {
+            match attr.attr_type {
+                rfc6268::ID_MESSAGE_DIGEST => {
                     digest = attr.attr_values.first().map(|v| v.data);
                 }
-                &rfc6268::ID_SIGNING_TIME => {
+                rfc6268::ID_SIGNING_TIME => {
                     signing_time = attr
                         .attr_values
                         .first()
