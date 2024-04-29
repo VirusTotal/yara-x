@@ -1031,6 +1031,7 @@ impl TryFrom<&SubjectPublicKeyInfo<'_>> for PublicKey {
 }
 
 impl PublicKey {
+    #[cfg(not(feature = "x509-parser-verify"))]
     fn verify(
         &self,
         digest_algorithm: &AlgorithmIdentifier,
@@ -1067,6 +1068,7 @@ impl PublicKey {
         }
     }
 
+    #[cfg(not(feature = "x509-parser-verify"))]
     fn verify_impl<D: Digest + AssociatedOid>(
         &self,
         message: &[u8],
