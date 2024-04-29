@@ -1,6 +1,5 @@
 name: Release
 on:
-  push:
   create:
     tags:
     - 'v*'
@@ -107,14 +106,14 @@ jobs:
       with:
         toolchain: stable
 
-    #- name: Check version number
-    #  shell: bash
-    #  run: |
-    #    set -ex
-    #    version=`cargo pkgid --manifest-path lib/Cargo.toml | cut -d "@" -f2`
-    #    if [ "${{ github.ref_name }}" != "v$version" ]; then
-    #      exit 1
-    #    fi
+    - name: Check version number
+      shell: bash
+      run: |
+        set -ex
+        version=`cargo pkgid --manifest-path lib/Cargo.toml | cut -d "@" -f2`
+        if [ "${{ github.ref_name }}" != "v$version" ]; then
+          exit 1
+        fi
 
     - name: Install Python
       uses: actions/setup-python@v4
@@ -207,13 +206,9 @@ jobs:
         pattern: pypi-*
         merge-multiple: true
         path: dist
-    
-    
-    #- name: Publish package distributions to PyPI
-    #  uses: pypa/gh-action-pypi-publish@release/v1
 
-    - name: Publish package distributions to TestPyPI
+    - name: Publish package distributions to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
-        repository-url: https://test.pypi.org/legacy/
+        #repository-url: https://test.pypi.org/legacy/
         skip-existing: true
