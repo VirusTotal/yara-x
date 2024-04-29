@@ -75,21 +75,7 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y libssl-dev libmagic-dev
-
-    - name: Install dependencies
-      id: vcpkg
-      if: runner.os == 'Windows'
-      uses: johnwason/vcpkg-action@v5
-      with:
-        pkgs: openssl
-        triplet: x64-windows-release
-        token: ${{ github.token }}
-
-    - name: Set OPENSSL_DIR environment variable
-      if: runner.os == 'Windows'
-      shell: bash
-      run: echo "OPENSSL_DIR=${{ github.workspace }}\\vcpkg\\installed\\x64-windows-release" >> $GITHUB_ENV
+        sudo apt-get install -y libmagic-dev
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@master

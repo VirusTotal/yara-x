@@ -21,26 +21,18 @@ jobs:
         - build: linux
           os: ubuntu-latest
           target: x86_64-unknown-linux-gnu
-          vcpkg_openssl_triplet: x64-linux-release
 
         - build: macos
           os: macos-latest
           target: x86_64-apple-darwin
-          vcpkg_openssl_triplet: x64-osx-release
 
         - build: windows
           os: windows-latest
           target: x86_64-pc-windows-msvc
-          vcpkg_openssl_triplet: x64-windows-static
     
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: ${{ matrix.rust }}
 
     - name: Check version number
       shell: bash
@@ -51,14 +43,6 @@ jobs:
           exit 1
         fi
 
-    - name: Install dependencies
-      id: vcpkg
-      uses: johnwason/vcpkg-action@v6
-      with:
-        pkgs: openssl
-        triplet: ${{ matrix.vcpkg_openssl_triplet }}
-        token: ${{ github.token }}
-
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
       with:
@@ -68,7 +52,6 @@ jobs:
       run: cargo build --bin yr --profile release-lto --target ${{ matrix.target }}
       env:
         RUSTFLAGS: "-C target-feature=+crt-static"
-        OPENSSL_DIR: "${{ github.workspace }}/vcpkg/installed/${{ matrix.vcpkg_openssl_triplet }}"
 
     - name: Build archive
       shell: bash
@@ -161,13 +144,10 @@ jobs:
 
         CIBW_BEFORE_BUILD_LINUX: >
           curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=minimal -y &&
-          rustup show &&
-          yum install -y openssl-static
+          rustup show
 
-        CIBW_BEFORE_BUILD_WINDOWS: vcpkg install openssl:x86-windows-static
-
-        CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH" OPENSSL_LIB_DIR="/usr/lib64"  OPENSSL_INCLUDE_DIR="/usr/include/openssl"'
-        CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH" OPENSSL_DIR="$VCPKG_INSTALLATION_ROOT\\packages\\openssl_x86-windows-static"'
+        CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH" '
+        CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH"'
 
         CIBW_TEST_REQUIRES: pytest
         CIBW_TEST_COMMAND: 'pytest {project}/py'
