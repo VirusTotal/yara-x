@@ -184,16 +184,11 @@ jobs:
     permissions:
       id-token: write
     steps:
-    - name: Merge Artifacts
-      uses: actions/upload-artifact/merge@v4
-      with:
-        pattern: cibw-wheels-*
-        name: all-wheels
-
     - name: Download artifacts
       uses: actions/download-artifact@v4
       with:
-        name: all-wheels
+        pattern: cibw-wheels-*
+        merge-multiple: true
         path: dist
     
     
