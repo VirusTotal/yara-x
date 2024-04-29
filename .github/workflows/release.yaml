@@ -113,7 +113,7 @@ jobs:
       with:
         toolchain: stable
 
-    - run: rustup target add aarch64-apple-darwin
+    - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
       if: matrix.build == 'macos'
 
     #- run: rustup toolchain install stable-i686-pc-windows-msvc
