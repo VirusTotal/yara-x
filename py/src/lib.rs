@@ -72,7 +72,11 @@ impl Compiler {
     /// initial value when the [`Rules`] are used for scanning data, however
     /// each scanner can change the variable's value by calling
     /// [`crate::Scanner::set_global`].
-    fn define_global(&mut self, ident: &str, value: &PyAny) -> PyResult<()> {
+    fn define_global(
+        &mut self,
+        ident: &str,
+        value: Bound<PyAny>,
+    ) -> PyResult<()> {
         let result = if value.is_exact_instance_of::<PyBool>() {
             self.inner.define_global(ident, value.extract::<bool>()?)
         } else if value.is_exact_instance_of::<PyString>() {
@@ -168,7 +172,11 @@ impl Scanner {
     ///
     /// The variable will retain the new value in subsequent scans, unless this
     /// function is called again for setting a new value.
-    fn set_global(&mut self, ident: &str, value: &PyAny) -> PyResult<()> {
+    fn set_global(
+        &mut self,
+        ident: &str,
+        value: Bound<PyAny>,
+    ) -> PyResult<()> {
         let result = if value.is_exact_instance_of::<PyBool>() {
             self.inner.set_global(ident, value.extract::<bool>()?)
         } else if value.is_exact_instance_of::<PyString>() {
@@ -206,7 +214,7 @@ impl Scanner {
     /// append it to a file, etc. If no callback is set these messages are
     /// ignored.
     fn console_log(&mut self, callback: PyObject) -> PyResult<()> {
-        if !Python::with_gil(|py| callback.as_ref(py).is_callable()) {
+        if !Python::with_gil(|py| callback.bind(py).is_callable()) {
             return Err(PyValueError::new_err("callback is not callable"));
         }
         self.inner.console_log(move |msg| {
@@ -257,13 +265,15 @@ impl ScanResults {
     #[getter]
     /// Rules that matched during the scan.
     fn matching_rules(&self) -> Py<PyTuple> {
-        Python::with_gil(|py| PyTuple::new(py, &self.matching_rules).into())
+        Python::with_gil(|py| {
+            PyTuple::new_bound(py, &self.matching_rules).into()
+        })
     }
 
     #[getter]
     /// Rules that matched during the scan.
-    fn module_outputs<'py>(&'py self, py: Python<'py>) -> &'py PyDict {
-        self.module_outputs.as_ref(py)
+    fn module_outputs<'py>(&'py self, py: Python<'py>) -> &Bound<'py, PyDict> {
+        self.module_outputs.bind(py)
     }
 }
 
@@ -292,7 +302,7 @@ impl Rule {
     /// Patterns defined by the rule.
     #[getter]
     fn patterns(&self) -> Py<PyTuple> {
-        Python::with_gil(|py| PyTuple::new(py, &self.patterns).into())
+        Python::with_gil(|py| PyTuple::new_bound(py, &self.patterns).into())
     }
 }
 
@@ -314,7 +324,7 @@ impl Pattern {
     /// Matches found for this pattern.
     #[getter]
     fn matches(&self) -> Py<PyTuple> {
-        Python::with_gil(|py| PyTuple::new(py, &self.matches).into())
+        Python::with_gil(|py| PyTuple::new_bound(py, &self.matches).into())
     }
 }
 
@@ -385,7 +395,9 @@ impl Rules {
 
     /// Serializes the rules into a file-like object.
     fn serialize_into(&self, file: PyObject) -> PyResult<()> {
-        let f = PyFileLikeObject::with_requirements(file, false, true, false)?;
+        let f = PyFileLikeObject::with_requirements(
+            file, false, true, false, false,
+        )?;
         self.inner
             .rules
             .serialize_into(f)
@@ -395,7 +407,9 @@ impl Rules {
     /// Deserializes rules from a file-like object.
     #[staticmethod]
     fn deserialize_from(file: PyObject) -> PyResult<Py<Rules>> {
-        let f = PyFileLikeObject::with_requirements(file, true, false, false)?;
+        let f = PyFileLikeObject::with_requirements(
+            file, true, false, false, false,
+        )?;
         let rules = yrx::Rules::deserialize_from(f)
             .map_err(|err| PyIOError::new_err(err.to_string()))?;
 
@@ -416,10 +430,10 @@ fn scan_results_to_py(
         .map(|rule| rule_to_py(py, rule))
         .collect::<PyResult<Vec<_>>>()?;
 
-    let json = PyModule::import(py, "json")?;
+    let json = PyModule::import_bound(py, "json")?;
     let json_loads = json.getattr("loads")?;
 
-    let module_outputs = PyDict::new(py);
+    let module_outputs = PyDict::new_bound(py);
     for (module, output) in scan_results.module_outputs() {
         let module_output_json = print_to_string(output).unwrap();
         let module_output = json_loads.call((module_output_json,), None)?;
@@ -479,7 +493,7 @@ fn match_to_py(py: Python, match_: yrx::Match) -> PyResult<Py<Match>> {
 /// >>> matches = rules.scan(b'some dummy data')
 /// ```
 #[pymodule]
-fn yara_x(_py: Python, m: &PyModule) -> PyResult<()> {
+fn yara_x(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(compile, m)?)?;
     m.add_class::<Rules>()?;
     m.add_class::<Scanner>()?;

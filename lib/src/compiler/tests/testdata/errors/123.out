@@ -1,0 +1,7 @@
+error: invalid regular expression
+ --> line:3:11
+  |
+3 |     $a = /{(foo|bar)/
+  |           ^ repetition operator missing expression
+  |
+  = note: did you mean `\{` instead of `{`?

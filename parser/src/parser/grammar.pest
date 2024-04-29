@@ -473,7 +473,15 @@ iterable = {
 }
 
 quantifier = {
-  k_ALL | k_NONE | k_ANY | primary_expr ~ PERCENT?
+  k_ALL                           | 
+  k_NONE                          | 
+  k_ANY                           |
+  // Quantifier can be either a primary expression followed by a %, or an 
+  // expression not followed by %. We can't simply use expr ~ PERCENT?
+  // (expression followed by an optional %) because that leads to ambiguity
+  // as expressions can contain the % operator (mod).
+  primary_expr ~ PERCENT         |
+  expr ~ !PERCENT                  
 }
 
 range = {

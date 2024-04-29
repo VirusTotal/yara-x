@@ -1,0 +1,380 @@
+type: ET_DYN
+machine: EM_ARM
+sh_offset: 496204
+sh_entry_size: 40
+ph_offset: 52
+ph_entry_size: 32
+number_of_sections: 28
+number_of_segments: 9
+symtab_entries: 0
+dynsym_entries: 9
+dynamic_section_entries: 31
+sections:
+  - type: SHT_NULL
+    flags: 0
+    address: 0
+    size: 0
+    offset: 0
+    name: ""
+  - type: SHT_PROGBITS
+    flags: 2
+    address: 340
+    size: 1
+    offset: 340
+    name: ".interp"
+  - type: SHT_NOTE
+    flags: 2
+    address: 360
+    size: 3
+    offset: 360
+    name: ".note.gnu.build-id"
+  - type: SHT_DYNSYM
+    flags: 2
+    address: 396
+    size: 144
+    offset: 396
+    name: ".dynsym"
+  - type: SHT_STRTAB
+    flags: 2
+    address: 8012
+    size: 8576
+    offset: 8012
+    name: ".dynstr"
+  - type: SHT_HASH
+    flags: 2
+    address: 16588
+    size: 251
+    offset: 16588
+    name: ".hash"
+  - type: 1879048191
+    flags: 2
+    address: 19552
+    size: 66
+    offset: 19552
+    name: ".gnu.version"
+  - type: 1879048189
+    flags: 2
+    address: 20504
+    size: 2
+    offset: 20504
+    name: ".gnu.version_d"
+  - type: 1879048190
+    flags: 2
+    address: 20532
+    size: 8
+    offset: 20532
+    name: ".gnu.version_r"
+  - type: SHT_REL
+    flags: 2
+    address: 20628
+    size: 74
+    offset: 20628
+    name: ".rel.dyn"
+  - type: SHT_REL
+    flags: 66
+    address: 24356
+    size: 73
+    offset: 24356
+    name: ".rel.plt"
+  - type: SHT_PROGBITS
+    flags: 6
+    address: 25172
+    size: 62
+    offset: 25172
+    name: ".plt"
+  - type: SHT_PROGBITS
+    flags: 6
+    address: 26416
+    size: 198
+    offset: 26416
+    name: ".text"
+  - type: SHT_PROGBITS
+    flags: 2
+    address: 468052
+    size: 197
+    offset: 468052
+    name: ".ARM.extab"
+  - type: 1879048193
+    flags: 130
+    address: 472272
+    size: 220
+    offset: 472272
+    name: ".ARM.exidx"
+  - type: SHT_PROGBITS
+    flags: 2
+    address: 476672
+    size: 224
+    offset: 476672
+    name: ".rodata"
+  - type: SHT_PROGBITS
+    flags: 3
+    address: 496776
+    size: 3
+    offset: 492680
+    name: ".data.rel.ro.local"
+  - type: SHT_FINI_ARRAY
+    flags: 3
+    address: 496832
+    size: 1
+    offset: 492736
+    name: ".fini_array"
+  - type: SHT_INIT_ARRAY
+    flags: 3
+    address: 496840
+    size: 1
+    offset: 492744
+    name: ".init_array"
+  - type: SHT_PROGBITS
+    flags: 3
+    address: 496856
+    size: 200
+    offset: 492760
+    name: ".data.rel.ro"
+  - type: SHT_DYNAMIC
+    flags: 3
+    address: 498856
+    size: 296
+    offset: 494760
+    name: ".dynamic"
+  - type: SHT_PROGBITS
+    flags: 3
+    address: 499156
+    size: 50
+    offset: 495060
+    name: ".got"
+  - type: SHT_PROGBITS
+    flags: 3
+    address: 499712
+    size: 8
+    offset: 495616
+    name: ".data"
+  - type: SHT_NOBITS
+    flags: 3
+    address: 499824
+    size: 189
+    offset: 495728
+    name: ".bss"
+  - type: SHT_PROGBITS
+    flags: 48
+    address: 0
+    size: 8
+    offset: 495728
+    name: ".comment"
+  - type: SHT_NOTE
+    flags: 0
+    address: 0
+    size: 2
+    offset: 495832
+    name: ".note.gnu.gold-version"
+  - type: 1879048195
+    flags: 0
+    address: 0
+    size: 4
+    offset: 495860
+    name: ".ARM.attributes"
+  - type: SHT_STRTAB
+    flags: 0
+    address: 0
+    size: 42
+    offset: 495918
+    name: ".shstrtab"
+segments:
+  - type: PT_PHDR
+    flags: 4
+    offset: 52
+    virtual_address: 52
+    physical_address: 52
+    file_size: 288
+    memory_size: 288
+    alignment: 4
+  - type: PT_INTERP
+    flags: 4
+    offset: 340
+    virtual_address: 340
+    physical_address: 340
+    file_size: 19
+    memory_size: 19
+    alignment: 1
+  - type: PT_LOAD
+    flags: 5
+    offset: 0
+    virtual_address: 0
+    physical_address: 0
+    file_size: 491440
+    memory_size: 491440
+    alignment: 4096
+  - type: PT_LOAD
+    flags: 6
+    offset: 492680
+    virtual_address: 496776
+    physical_address: 496776
+    file_size: 3048
+    memory_size: 28460
+    alignment: 4096
+  - type: PT_DYNAMIC
+    flags: 6
+    offset: 494760
+    virtual_address: 498856
+    physical_address: 498856
+    file_size: 296
+    memory_size: 296
+    alignment: 4
+  - type: PT_NOTE
+    flags: 4
+    offset: 360
+    virtual_address: 360
+    physical_address: 360
+    file_size: 36
+    memory_size: 36
+    alignment: 4
+  - type: PT_GNU_STACK
+    flags: 6
+    offset: 0
+    virtual_address: 0
+    physical_address: 0
+    file_size: 0
+    memory_size: 0
+    alignment: 0
+  - type: 1879048193
+    flags: 4
+    offset: 472272
+    virtual_address: 472272
+    physical_address: 472272
+    file_size: 4400
+    memory_size: 4400
+    alignment: 4
+  - type: PT_GNU_RELRO
+    flags: 6
+    offset: 492680
+    virtual_address: 496776
+    physical_address: 496776
+    file_size: 2936
+    memory_size: 2936
+    alignment: 8
+dynsym:
+  - name: ""
+    value: 0
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 0
+    visibility: STV_DEFAULT
+  - name: "__cxa_finalize"
+    value: 0
+    size: 0
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 0
+    visibility: STV_DEFAULT
+  - name: "__cxa_atexit"
+    value: 0
+    size: 0
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 0
+    visibility: STV_DEFAULT
+  - name: "__stack_chk_fail"
+    value: 0
+    size: 0
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 0
+    visibility: STV_DEFAULT
+  - name: "__stack_chk_guard"
+    value: 0
+    size: 0
+    type: STT_OBJECT
+    bind: STB_GLOBAL
+    shndx: 0
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 466724
+    size: 32
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 12
+    visibility: STV_DEFAULT
+  - name: "_ZdlPv"
+    value: 353169
+    size: 12
+    type: STT_FUNC
+    bind: STB_WEAK
+    shndx: 12
+    visibility: STV_DEFAULT
+  - name: "fopen"
+    value: 0
+    size: 0
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 0
+    visibility: STV_DEFAULT
+  - name: "pthread_mutex_lock"
+    value: 0
+    size: 0
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 0
+    visibility: STV_DEFAULT
+dynamic:
+  - type: DT_PLTGOT
+    val: 499292
+  - type: DT_PLTRELSZ
+    val: 816
+  - type: DT_JMPREL
+    val: 24356
+  - type: DT_PLTREL
+    val: 17
+  - type: DT_REL
+    val: 20628
+  - type: DT_RELSZ
+    val: 3728
+  - type: DT_RELENT
+    val: 8
+  - type: DT_RELCOUNT
+    val: 460
+  - type: DT_SYMTAB
+    val: 396
+  - type: DT_SYMENT
+    val: 16
+  - type: DT_STRTAB
+    val: 8012
+  - type: DT_STRSZ
+    val: 8576
+  - type: DT_HASH
+    val: 16588
+  - type: DT_NEEDED
+    val: 8553
+  - type: DT_NEEDED
+    val: 275
+  - type: DT_NEEDED
+    val: 8563
+  - type: DT_NEEDED
+    val: 1399
+  - type: DT_NEEDED
+    val: 21
+  - type: DT_SONAME
+    val: 29
+  - type: DT_FINI_ARRAY
+    val: 496832
+  - type: DT_FINI_ARRAYSZ
+    val: 8
+  - type: DT_INIT_ARRAY
+    val: 496840
+  - type: DT_INIT_ARRAYSZ
+    val: 12
+  - type: DT_SYMBOLIC
+    val: 0
+  - type: DT_FLAGS
+    val: 10
+  - type: DT_FLAGS_1
+    val: 1
+  - type: DT_VERSYM
+    val: 19552
+  - type: DT_VERDEF
+    val: 20504
+  - type: DT_VERDEFNUM
+    val: 1
+  - type: DT_VERNEED
+    val: 20532
+  - type: DT_VERNEEDNUM
+    val: 3

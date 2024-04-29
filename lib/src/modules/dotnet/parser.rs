@@ -99,6 +99,10 @@ pub struct Dotnet<'a> {
     interface_impls: Vec<InterfaceImpl>,
     /// FieldRVA table.
     field_rvas: Vec<u32>,
+    /// field_rvas after converting them to file offsets. This vector can
+    /// contain fewer items than field_rvas, if some RVA can't be converted
+    /// to an offset.
+    field_offsets: Vec<u32>,
     /// Constant table.
     constants: Vec<Constant<'a>>,
     /// CustomAttribute table.
@@ -204,6 +208,12 @@ impl<'a> Dotnet<'a> {
         let _ = tilde_stream
             .and_then(|index| dotnet.get_stream(index))
             .map(|tilde_stream| dotnet.parse_tilde_stream(tilde_stream));
+
+        dotnet.field_offsets = dotnet
+            .field_rvas
+            .iter()
+            .filter_map(|rva| pe.rva_to_offset(*rva))
+            .collect();
 
         Ok(dotnet)
     }
@@ -2725,9 +2735,12 @@ impl From<Dotnet<'_>> for protos::dotnet::Dotnet {
             .user_strings
             .extend(dotnet.get_user_strings().map(|c| c.to_vec()));
 
+        result.field_offsets = dotnet.field_offsets.clone();
+
         result.set_number_of_streams(result.streams.len().try_into().unwrap());
         result.set_number_of_guids(result.guids.len().try_into().unwrap());
         result.set_number_of_classes(result.classes.len().try_into().unwrap());
+
         result.set_number_of_user_strings(
             result.user_strings.len().try_into().unwrap(),
         );
@@ -2746,6 +2759,10 @@ impl From<Dotnet<'_>> for protos::dotnet::Dotnet {
 
         result.set_number_of_modulerefs(
             result.modulerefs.len().try_into().unwrap(),
+        );
+
+        result.set_number_of_field_offsets(
+            result.field_offsets.len().try_into().unwrap(),
         );
 
         result

@@ -1,0 +1,295 @@
+is_pe: true
+machine: MACHINE_AMD64
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version:
+    major: 6
+    minor: 0
+subsystem_version:
+    major: 6
+    minor: 0
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 14
+    minor: 38
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
+characteristics: 8226
+dll_characteristics: 352
+timestamp: 1709628808 # 2024-03-05 08:53:28 UTC
+image_base: 6442450944
+checksum: 59800
+base_of_code: 4096
+entry_point: 1024
+entry_point_raw: 4096
+dll_name: "vcruntime140_1.dll"
+export_timestamp: 4294967295 # 2106-02-07 06:28:15 UTC
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 240
+size_of_code: 1024
+size_of_initialized_data: 5632
+size_of_uninitialized_data: 0
+size_of_image: 24576
+size_of_headers: 1024
+size_of_stack_reserve: 1048576
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 5
+number_of_imported_functions: 10
+number_of_delayed_imported_functions: 0
+number_of_resources: 2
+number_of_version_infos: 8
+number_of_imports: 2
+number_of_delayed_imports: 0
+number_of_exports: 3
+number_of_signatures: 1
+version_info:
+    "CompanyName": "TEAM R2R"
+    "FileDescription": "Witches\' Magic For Ableton Live"
+    "FileVersion": "1.0.0.1"
+    "InternalName": "vcruntime140_1.dll"
+    "LegalCopyright": "Copyright (C) 2024 TEAM R2R"
+    "OriginalFilename": "vcruntime140_1.dll"
+    "ProductName": "Witches\' Magic For Ableton Live"
+    "ProductVersion": "1.0.0.1"
+version_info_list:
+  - key: "CompanyName"
+    value: "TEAM R2R"
+  - key: "FileDescription"
+    value: "Witches\' Magic For Ableton Live"
+  - key: "FileVersion"
+    value: "1.0.0.1"
+  - key: "InternalName"
+    value: "vcruntime140_1.dll"
+  - key: "LegalCopyright"
+    value: "Copyright (C) 2024 TEAM R2R"
+  - key: "OriginalFilename"
+    value: "vcruntime140_1.dll"
+  - key: "ProductName"
+    value: "Witches\' Magic For Ableton Live"
+  - key: "ProductVersion"
+    value: "1.0.0.1"
+rich_signature:
+    offset: 128
+    length: 72
+    key: 3048884457
+    raw_data: "\xad)\xd4\xe6\xe9H\xba\xb5\xe9H\xba\xb5\xe9H\xba\xb5\xa20\xbb\xb4\xecH\xba\xb5\xe9H\xbb\xb5\xe3H\xba\xb5\x84\xc9\xbe\xb4\xe8H\xba\xb5\x84\xc9\xba\xb4\xe8H\xba\xb5\x84\xc9E\xb5\xe8H\xba\xb5\xe9H-\xb5\xe8H\xba\xb5\x84\xc9\xb8\xb4\xe8H\xba\xb5"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00Kx\x01\x01\x05\x00\x00\x00\x00\x00\x01\x00\n\x00\x00\x00m\x81\x04\x01\x01\x00\x00\x00m\x81\x00\x01\x01\x00\x00\x00m\x81\xff\x00\x01\x00\x00\x00\x00\x00\x97\x00\x01\x00\x00\x00m\x81\x02\x01\x01\x00\x00\x00"
+    tools:
+      - toolid: 257
+        version: 30795
+        times: 5
+      - toolid: 1
+        version: 0
+        times: 10
+      - toolid: 260
+        version: 33133
+        times: 1
+      - toolid: 256
+        version: 33133
+        times: 1
+      - toolid: 255
+        version: 33133
+        times: 1
+      - toolid: 151
+        version: 0
+        times: 1
+      - toolid: 258
+        version: 33133
+        times: 1
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1610612768
+    raw_data_size: 1024
+    raw_data_offset: 1024
+    virtual_address: 4096
+    virtual_size: 602
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rdata"
+    full_name: ".rdata"
+    characteristics: 1073741888
+    raw_data_size: 3072
+    raw_data_offset: 2048
+    virtual_address: 8192
+    virtual_size: 2862
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".data"
+    full_name: ".data"
+    characteristics: 3221225536
+    raw_data_size: 512
+    raw_data_offset: 5120
+    virtual_address: 12288
+    virtual_size: 104
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".pdata"
+    full_name: ".pdata"
+    characteristics: 1073741888
+    raw_data_size: 512
+    raw_data_offset: 5632
+    virtual_address: 16384
+    virtual_size: 36
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 1073741888
+    raw_data_size: 1536
+    raw_data_offset: 6144
+    virtual_address: 20480
+    virtual_size: 1360
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 10560
+    size: 140
+  - virtual_address: 10700
+    size: 60
+  - virtual_address: 20480
+    size: 1360
+  - virtual_address: 16384
+    size: 36
+  - virtual_address: 7680
+    size: 1432
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 10144
+    size: 28
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 8192
+    size: 96
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_version:
+    major: 0
+    minor: 0
+resources:
+  - length: 816
+    rva: 20640
+    offset: 6304
+    type: RESOURCE_TYPE_VERSION
+    id: 1
+    language: 1033
+  - length: 381
+    rva: 21456
+    offset: 7120
+    type: RESOURCE_TYPE_MANIFEST
+    id: 2
+    language: 1033
+import_details:
+  - library_name: "SHLWAPI.dll"
+    number_of_functions: 1
+    functions:
+      - name: "PathStripPathW"
+        rva: 8272
+  - library_name: "KERNEL32.dll"
+    number_of_functions: 9
+    functions:
+      - name: "GetModuleHandleA"
+        rva: 8192
+      - name: "lstrcatW"
+        rva: 8200
+      - name: "GetSystemDirectoryW"
+        rva: 8208
+      - name: "VirtualProtect"
+        rva: 8216
+      - name: "FreeLibrary"
+        rva: 8224
+      - name: "GetModuleFileNameW"
+        rva: 8232
+      - name: "LoadLibraryW"
+        rva: 8240
+      - name: "GetProcAddress"
+        rva: 8248
+      - name: "lstrcmpW"
+        rva: 8256
+export_details:
+  - name: "__CxxFrameHandler4"
+    ordinal: 1
+    rva: 4140
+    offset: 1068
+  - name: "__NLG_Dispatch2"
+    ordinal: 2
+    rva: 4148
+    offset: 1076
+  - name: "__NLG_Return2"
+    ordinal: 3
+    rva: 4156
+    offset: 1084
+is_signed: true
+signatures:
+  - subject: "/C=JP/O=R2R/CN=R2R"
+    issuer: "/CN=R2RCA"
+    thumbprint: "004d47889e493832b4fe1db48e95ba7c0dcaa83a"
+    version: 3
+    algorithm: "sha512WithRSAEncryption"
+    algorithm_oid: "1.2.840.113549.1.1.13"
+    serial: "a2:30:db:c7:17:28:5b:a2:4d:01:a0:7d:03:79:12:ce"
+    not_before: 1609426800 # 2020-12-31 15:00:00 UTC
+    not_after: 4102326000 # 2099-12-30 15:00:00 UTC
+    verified: true
+    digest_alg: "sha512"
+    digest: "9d8c6f3e677451a7a20c4b7ec6d0b27f8247483f2024a27c8e29c29cd8d8354e3cf2f206c262403bb2fda6112596f2ededd0a5d4af365f81da47c20aa7564b2f"
+    file_digest: "9d8c6f3e677451a7a20c4b7ec6d0b27f8247483f2024a27c8e29c29cd8d8354e3cf2f206c262403bb2fda6112596f2ededd0a5d4af365f81da47c20aa7564b2f"
+    number_of_certificates: 1
+    number_of_countersignatures: 0
+    signer_info:
+        digest: "b4db2dd0c6c7f015cbdbc469536fc4665d9f0c16fdc3fc73e7d49bfb97ac4dcbdd194a4614a2bbb80c8b1632ba0c0d80bf2cedd6f51497010ad6fd87f05c8882"
+        digest_alg: "sha512"
+        chain:
+          - issuer: "/CN=R2RCA"
+            subject: "/C=JP/O=R2R/CN=R2R"
+            thumbprint: "004d47889e493832b4fe1db48e95ba7c0dcaa83a"
+            version: 3
+            algorithm: "sha512WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.13"
+            serial: "a2:30:db:c7:17:28:5b:a2:4d:01:a0:7d:03:79:12:ce"
+            not_before: 1609426800 # 2020-12-31 15:00:00 UTC
+            not_after: 4102326000 # 2099-12-30 15:00:00 UTC
+    certificates:
+      - issuer: "/CN=R2RCA"
+        subject: "/C=JP/O=R2R/CN=R2R"
+        thumbprint: "004d47889e493832b4fe1db48e95ba7c0dcaa83a"
+        version: 3
+        algorithm: "sha512WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.13"
+        serial: "a2:30:db:c7:17:28:5b:a2:4d:01:a0:7d:03:79:12:ce"
+        not_before: 1609426800 # 2020-12-31 15:00:00 UTC
+        not_after: 4102326000 # 2099-12-30 15:00:00 UTC
+overlay:
+    offset: 7680
+    size: 1432

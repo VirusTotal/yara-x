@@ -1,0 +1,634 @@
+is_pe: true
+machine: MACHINE_AMD64
+subsystem: SUBSYSTEM_NATIVE
+os_version:
+    major: 6
+    minor: 1
+subsystem_version:
+    major: 6
+    minor: 1
+image_version:
+    major: 6
+    minor: 1
+linker_version:
+    major: 9
+    minor: 0
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
+characteristics: 34
+dll_characteristics: 0
+timestamp: 1459189242 # 2016-03-28 18:20:42 UTC
+image_base: 65536
+checksum: 81108
+base_of_code: 4096
+entry_point: 23652
+entry_point_raw: 36964
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 240
+size_of_code: 21504
+size_of_initialized_data: 5632
+size_of_uninitialized_data: 0
+size_of_image: 45056
+size_of_headers: 1024
+size_of_stack_reserve: 262144
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 7
+number_of_imported_functions: 83
+number_of_delayed_imported_functions: 0
+number_of_resources: 1
+number_of_version_infos: 7
+number_of_imports: 2
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 2
+version_info:
+    "CompanyName": "wj32"
+    "FileDescription": "KProcessHacker"
+    "FileVersion": "3.0"
+    "LegalCopyright": "Licensed under the GNU GPL, v3."
+    "OriginalFilename": "kprocesshacker.sys"
+    "ProductName": "KProcessHacker"
+    "ProductVersion": "3.0"
+version_info_list:
+  - key: "CompanyName"
+    value: "wj32"
+  - key: "FileDescription"
+    value: "KProcessHacker"
+  - key: "FileVersion"
+    value: "3.0"
+  - key: "LegalCopyright"
+    value: "Licensed under the GNU GPL, v3."
+  - key: "OriginalFilename"
+    value: "kprocesshacker.sys"
+  - key: "ProductName"
+    value: "KProcessHacker"
+  - key: "ProductVersion"
+    value: "3.0"
+rich_signature:
+    offset: 128
+    length: 72
+    key: 4259651297
+    raw_data: "\xa5\x7f\x8b\xae\xe1\x1e\xe5\xfd\xe1\x1e\xe5\xfd\xe1\x1e\xe5\xfd\xe1\x1e\xe4\xfd\xb5\x1e\xe5\xfd\xe8fv\xfd\xe4\x1e\xe5\xfd\xe8fp\xfd\xe2\x1e\xe5\xfd\xe8ff\xfd\xe4\x1e\xe5\xfd\xe8fl\xfd\xea\x1e\xe5\xfd\xe8fq\xfd\xe0\x1e\xe5\xfd\xe8ft\xfd\xe0\x1e\xe5\xfd"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00T\x00\x00\x00\tx\x93\x00\x05\x00\x00\x00\tx\x95\x00\x03\x00\x00\x00\tx\x83\x00\x05\x00\x00\x00\tx\x89\x00\x0b\x00\x00\x00\tx\x94\x00\x01\x00\x00\x00\tx\x91\x00\x01\x00\x00\x00"
+    tools:
+      - toolid: 1
+        version: 0
+        times: 84
+      - toolid: 147
+        version: 30729
+        times: 5
+      - toolid: 149
+        version: 30729
+        times: 3
+      - toolid: 131
+        version: 30729
+        times: 5
+      - toolid: 137
+        version: 30729
+        times: 11
+      - toolid: 148
+        version: 30729
+        times: 1
+      - toolid: 145
+        version: 30729
+        times: 1
+pdb_path: "d:\\projects\\processhacker2\\kprocesshacker\\bin\\amd64\\kprocesshacker.pdb"
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1744830496
+    raw_data_size: 4096
+    raw_data_offset: 1024
+    virtual_address: 4096
+    virtual_size: 4000
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rdata"
+    full_name: ".rdata"
+    characteristics: 1207959616
+    raw_data_size: 2560
+    raw_data_offset: 5120
+    virtual_address: 8192
+    virtual_size: 2516
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".data"
+    full_name: ".data"
+    characteristics: 3355443264
+    raw_data_size: 512
+    raw_data_offset: 7680
+    virtual_address: 12288
+    virtual_size: 728
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".pdata"
+    full_name: ".pdata"
+    characteristics: 1207959616
+    raw_data_size: 1024
+    raw_data_offset: 8192
+    virtual_address: 16384
+    virtual_size: 564
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: "PAGE"
+    full_name: "PAGE"
+    characteristics: 1610612768
+    raw_data_size: 14336
+    raw_data_offset: 9216
+    virtual_address: 20480
+    virtual_size: 13902
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: "INIT"
+    full_name: "INIT"
+    characteristics: 3791650848
+    raw_data_size: 3072
+    raw_data_offset: 23552
+    virtual_address: 36864
+    virtual_size: 2720
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 1107296320
+    raw_data_size: 1024
+    raw_data_offset: 26624
+    virtual_address: 40960
+    virtual_size: 760
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 36996
+    size: 60
+  - virtual_address: 40960
+    size: 760
+  - virtual_address: 16384
+    size: 564
+  - virtual_address: 27648
+    size: 17560
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 8880
+    size: 28
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 8192
+    size: 680
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_version:
+    major: 0
+    minor: 0
+resources:
+  - length: 664
+    rva: 41056
+    offset: 26720
+    type: RESOURCE_TYPE_VERSION
+    id: 1
+    language: 1033
+import_details:
+  - library_name: "ntoskrnl.exe"
+    number_of_functions: 73
+    functions:
+      - name: "SePrivilegeCheck"
+        rva: 8280
+      - name: "ZwOpenKey"
+        rva: 8288
+      - name: "ProbeForRead"
+        rva: 8296
+      - name: "RtlGetVersion"
+        rva: 8304
+      - name: "PsProcessType"
+        rva: 8312
+      - name: "ObOpenObjectByName"
+        rva: 8320
+      - name: "ObGetObjectType"
+        rva: 8328
+      - name: "PsReleaseProcessExitSynchronization"
+        rva: 8336
+      - name: "ZwQueryObject"
+        rva: 8344
+      - name: "RtlEqualUnicodeString"
+        rva: 8352
+      - name: "KeUnstackDetachProcess"
+        rva: 8360
+      - name: "ExEnumHandleTable"
+        rva: 8368
+      - name: "ObQueryNameString"
+        rva: 8376
+      - name: "IoFileObjectType"
+        rva: 8384
+      - name: "IoDriverObjectType"
+        rva: 8392
+      - name: "ExfUnblockPushLock"
+        rva: 8400
+      - name: "ObReferenceObjectByHandle"
+        rva: 8408
+      - name: "PsAcquireProcessExitSynchronization"
+        rva: 8416
+      - name: "PsInitialSystemProcess"
+        rva: 8424
+      - name: "ObSetHandleAttributes"
+        rva: 8432
+      - name: "ZwQueryInformationProcess"
+        rva: 8440
+      - name: "ObfDereferenceObject"
+        rva: 8448
+      - name: "ExAllocatePoolWithQuotaTag"
+        rva: 8456
+      - name: "ZwQueryInformationThread"
+        rva: 8464
+      - name: "ObOpenObjectByPointer"
+        rva: 8472
+      - name: "KeStackAttachProcess"
+        rva: 8480
+      - name: "PsLookupProcessByProcessId"
+        rva: 8488
+      - name: "PsJobType"
+        rva: 8496
+      - name: "PsReferencePrimaryToken"
+        rva: 8504
+      - name: "SeTokenObjectType"
+        rva: 8512
+      - name: "IoCreateDevice"
+        rva: 8520
+      - name: "PsGetProcessJob"
+        rva: 8528
+      - name: "PsLookupProcessThreadByCid"
+        rva: 8536
+      - name: "ZwTerminateProcess"
+        rva: 8544
+      - name: "PsDereferencePrimaryToken"
+        rva: 8552
+      - name: "IoThreadToProcess"
+        rva: 8560
+      - name: "RtlWalkFrameChain"
+        rva: 8568
+      - name: "KeInitializeApc"
+        rva: 8576
+      - name: "KeSetEvent"
+        rva: 8584
+      - name: "KeInsertQueueApc"
+        rva: 8592
+      - name: "KeWaitForSingleObject"
+        rva: 8600
+      - name: "PsThreadType"
+        rva: 8608
+      - name: "PsLookupThreadByThreadId"
+        rva: 8616
+      - name: "ZwQuerySystemInformation"
+        rva: 8624
+      - name: "ZwQueryVirtualMemory"
+        rva: 8632
+      - name: "ExReleaseFastMutex"
+        rva: 8640
+      - name: "ExAcquireFastMutex"
+        rva: 8648
+      - name: "ZwReadFile"
+        rva: 8656
+      - name: "MmHighestUserAddress"
+        rva: 8664
+      - name: "SeLocateProcessImageName"
+        rva: 8672
+      - name: "KeDelayExecutionThread"
+        rva: 8680
+      - name: "ZwCreateFile"
+        rva: 8688
+      - name: "RtlRandomEx"
+        rva: 8696
+      - name: "ZwQueryInformationFile"
+        rva: 8704
+      - name: "MmUnmapLockedPages"
+        rva: 8712
+      - name: "ExRaiseStatus"
+        rva: 8720
+      - name: "MmMapLockedPagesSpecifyCache"
+        rva: 8728
+      - name: "MmProbeAndLockPages"
+        rva: 8736
+      - name: "MmUnlockPages"
+        rva: 8744
+      - name: "MmIsAddressValid"
+        rva: 8752
+      - name: "KeBugCheckEx"
+        rva: 8760
+      - name: "PsGetCurrentProcessId"
+        rva: 8768
+      - name: "IofCompleteRequest"
+        rva: 8776
+      - name: "ZwClose"
+        rva: 8784
+      - name: "ZwQueryValueKey"
+        rva: 8792
+      - name: "KeInitializeEvent"
+        rva: 8800
+      - name: "ProbeForWrite"
+        rva: 8808
+      - name: "IoDeleteDevice"
+        rva: 8816
+      - name: "RtlInitUnicodeString"
+        rva: 8824
+      - name: "ExFreePoolWithTag"
+        rva: 8832
+      - name: "IoGetCurrentProcess"
+        rva: 8840
+      - name: "ExAllocatePoolWithTag"
+        rva: 8848
+      - name: "__C_specific_handler"
+        rva: 8856
+  - library_name: "ksecdd.sys"
+    number_of_functions: 10
+    functions:
+      - name: "BCryptCreateHash"
+        rva: 8192
+      - name: "BCryptDestroyKey"
+        rva: 8200
+      - name: "BCryptImportKeyPair"
+        rva: 8208
+      - name: "BCryptCloseAlgorithmProvider"
+        rva: 8216
+      - name: "BCryptVerifySignature"
+        rva: 8224
+      - name: "BCryptFinishHash"
+        rva: 8232
+      - name: "BCryptHashData"
+        rva: 8240
+      - name: "BCryptDestroyHash"
+        rva: 8248
+      - name: "BCryptOpenAlgorithmProvider"
+        rva: 8256
+      - name: "BCryptGetProperty"
+        rva: 8264
+is_signed: true
+signatures:
+  - subject: "/C=AU/ST=New South Wales/L=Sydney/O=Wen Jia Liu/CN=Wen Jia Liu"
+    issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance Code Signing CA-1"
+    thumbprint: "32387aec09eb287f202e98398189b460f4c61a0d"
+    version: 3
+    algorithm: "sha1WithRSAEncryption"
+    algorithm_oid: "1.2.840.113549.1.1.5"
+    serial: "0f:f1:ef:66:bd:62:1c:65:b7:4b:4d:e4:14:25:71:7f"
+    not_before: 1383091200 # 2013-10-30 00:00:00 UTC
+    not_after: 1483531200 # 2017-01-04 12:00:00 UTC
+    verified: true
+    digest_alg: "sha1"
+    digest: "c2b8c1b34f09a91efe196f646ef7f9a11190fb8e"
+    file_digest: "c2b8c1b34f09a91efe196f646ef7f9a11190fb8e"
+    number_of_certificates: 5
+    number_of_countersignatures: 1
+    signer_info:
+        digest: "9bb6c4bf0a838bf7ea75e48e9e82581deb6d48ed"
+        digest_alg: "sha1"
+        chain:
+          - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance Code Signing CA-1"
+            subject: "/C=AU/ST=New South Wales/L=Sydney/O=Wen Jia Liu/CN=Wen Jia Liu"
+            thumbprint: "32387aec09eb287f202e98398189b460f4c61a0d"
+            version: 3
+            algorithm: "sha1WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.5"
+            serial: "0f:f1:ef:66:bd:62:1c:65:b7:4b:4d:e4:14:25:71:7f"
+            not_before: 1383091200 # 2013-10-30 00:00:00 UTC
+            not_after: 1483531200 # 2017-01-04 12:00:00 UTC
+          - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance EV Root CA"
+            subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance Code Signing CA-1"
+            thumbprint: "e308f829dc77e80af15edd4151ea47c59399ab46"
+            version: 3
+            algorithm: "sha1WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.5"
+            serial: "02:c4:d1:e5:8a:4a:68:0c:56:8d:a3:04:7e:7e:4d:5f"
+            not_before: 1297425600 # 2011-02-11 12:00:00 UTC
+            not_after: 1770724800 # 2026-02-10 12:00:00 UTC
+          - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Code Verification Root"
+            subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance EV Root CA"
+            thumbprint: "2f2513af3992db0a3f79709ff8143b3f7bd2d143"
+            version: 3
+            algorithm: "sha1WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.5"
+            serial: "61:20:4d:b4:00:00:00:00:00:27"
+            not_before: 1302896733 # 2011-04-15 19:45:33 UTC
+            not_after: 1618516533 # 2021-04-15 19:55:33 UTC
+    certificates:
+      - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance Code Signing CA-1"
+        subject: "/C=AU/ST=New South Wales/L=Sydney/O=Wen Jia Liu/CN=Wen Jia Liu"
+        thumbprint: "32387aec09eb287f202e98398189b460f4c61a0d"
+        version: 3
+        algorithm: "sha1WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.5"
+        serial: "0f:f1:ef:66:bd:62:1c:65:b7:4b:4d:e4:14:25:71:7f"
+        not_before: 1383091200 # 2013-10-30 00:00:00 UTC
+        not_after: 1483531200 # 2017-01-04 12:00:00 UTC
+      - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Code Verification Root"
+        subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance EV Root CA"
+        thumbprint: "2f2513af3992db0a3f79709ff8143b3f7bd2d143"
+        version: 3
+        algorithm: "sha1WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.5"
+        serial: "61:20:4d:b4:00:00:00:00:00:27"
+        not_before: 1302896733 # 2011-04-15 19:45:33 UTC
+        not_after: 1618516533 # 2021-04-15 19:55:33 UTC
+      - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID CA-1"
+        subject: "/C=US/O=DigiCert/CN=DigiCert Timestamp Responder"
+        thumbprint: "614d271d9102e30169822487fde5de00a352b01d"
+        version: 3
+        algorithm: "sha1WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.5"
+        serial: "03:01:9a:02:3a:ff:58:b1:6b:d6:d5:ea:e6:17:f0:66"
+        not_before: 1413936000 # 2014-10-22 00:00:00 UTC
+        not_after: 1729555200 # 2024-10-22 00:00:00 UTC
+      - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance EV Root CA"
+        subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance Code Signing CA-1"
+        thumbprint: "e308f829dc77e80af15edd4151ea47c59399ab46"
+        version: 3
+        algorithm: "sha1WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.5"
+        serial: "02:c4:d1:e5:8a:4a:68:0c:56:8d:a3:04:7e:7e:4d:5f"
+        not_before: 1297425600 # 2011-02-11 12:00:00 UTC
+        not_after: 1770724800 # 2026-02-10 12:00:00 UTC
+      - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID Root CA"
+        subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID CA-1"
+        thumbprint: "19a09b5a36f4dd99727df783c17a51231a56c117"
+        version: 3
+        algorithm: "sha1WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.5"
+        serial: "06:fd:f9:03:96:03:ad:ea:00:0a:eb:3f:27:bb:ba:1b"
+        not_before: 1163116800 # 2006-11-10 00:00:00 UTC
+        not_after: 1636502400 # 2021-11-10 00:00:00 UTC
+    countersignatures:
+      - verified: true
+        sign_time: 1459189265 # 2016-03-28 18:21:05 UTC
+        digest: "e0e1b26a21dda2a4d57236182a51cd3162e502fa"
+        digest_alg: "sha1"
+        chain:
+          - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID CA-1"
+            subject: "/C=US/O=DigiCert/CN=DigiCert Timestamp Responder"
+            thumbprint: "614d271d9102e30169822487fde5de00a352b01d"
+            version: 3
+            algorithm: "sha1WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.5"
+            serial: "03:01:9a:02:3a:ff:58:b1:6b:d6:d5:ea:e6:17:f0:66"
+            not_before: 1413936000 # 2014-10-22 00:00:00 UTC
+            not_after: 1729555200 # 2024-10-22 00:00:00 UTC
+          - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID Root CA"
+            subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID CA-1"
+            thumbprint: "19a09b5a36f4dd99727df783c17a51231a56c117"
+            version: 3
+            algorithm: "sha1WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.5"
+            serial: "06:fd:f9:03:96:03:ad:ea:00:0a:eb:3f:27:bb:ba:1b"
+            not_before: 1163116800 # 2006-11-10 00:00:00 UTC
+            not_after: 1636502400 # 2021-11-10 00:00:00 UTC
+  - subject: "/C=AU/ST=New South Wales/L=Sydney/O=Wen Jia Liu/CN=Wen Jia Liu"
+    issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert SHA2 High Assurance Code Signing CA"
+    thumbprint: "190d956129dde6972d46f46ef98bd86b982e6633"
+    version: 3
+    algorithm: "sha256WithRSAEncryption"
+    algorithm_oid: "1.2.840.113549.1.1.11"
+    serial: "04:0c:b4:1e:4f:b3:70:c4:5c:43:44:76:51:62:58:2f"
+    not_before: 1383091200 # 2013-10-30 00:00:00 UTC
+    not_after: 1483531200 # 2017-01-04 12:00:00 UTC
+    verified: true
+    digest_alg: "sha256"
+    digest: "4ee2a56c1592ff0e951b452c0de064eba05b7c98e3add04c8aa3b4a84eb797a5"
+    file_digest: "4ee2a56c1592ff0e951b452c0de064eba05b7c98e3add04c8aa3b4a84eb797a5"
+    number_of_certificates: 5
+    number_of_countersignatures: 1
+    signer_info:
+        digest: "1939ad5ec9ec5c1ac5b360973aadb5b2308b8e98f36f9684bc874b56b67d6657"
+        digest_alg: "sha256"
+        chain:
+          - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert SHA2 High Assurance Code Signing CA"
+            subject: "/C=AU/ST=New South Wales/L=Sydney/O=Wen Jia Liu/CN=Wen Jia Liu"
+            thumbprint: "190d956129dde6972d46f46ef98bd86b982e6633"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "04:0c:b4:1e:4f:b3:70:c4:5c:43:44:76:51:62:58:2f"
+            not_before: 1383091200 # 2013-10-30 00:00:00 UTC
+            not_after: 1483531200 # 2017-01-04 12:00:00 UTC
+          - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance EV Root CA"
+            subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert SHA2 High Assurance Code Signing CA"
+            thumbprint: "f7e0f449f1a2594f88856c0758f8e6f627e5f5a2"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "0b:7e:10:90:3c:38:49:0f:fa:2f:67:9a:87:a1:a7:b9"
+            not_before: 1382443200 # 2013-10-22 12:00:00 UTC
+            not_after: 1855828800 # 2028-10-22 12:00:00 UTC
+          - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Code Verification Root"
+            subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance EV Root CA"
+            thumbprint: "2f2513af3992db0a3f79709ff8143b3f7bd2d143"
+            version: 3
+            algorithm: "sha1WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.5"
+            serial: "61:20:4d:b4:00:00:00:00:00:27"
+            not_before: 1302896733 # 2011-04-15 19:45:33 UTC
+            not_after: 1618516533 # 2021-04-15 19:55:33 UTC
+    certificates:
+      - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert SHA2 High Assurance Code Signing CA"
+        subject: "/C=AU/ST=New South Wales/L=Sydney/O=Wen Jia Liu/CN=Wen Jia Liu"
+        thumbprint: "190d956129dde6972d46f46ef98bd86b982e6633"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "04:0c:b4:1e:4f:b3:70:c4:5c:43:44:76:51:62:58:2f"
+        not_before: 1383091200 # 2013-10-30 00:00:00 UTC
+        not_after: 1483531200 # 2017-01-04 12:00:00 UTC
+      - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Code Verification Root"
+        subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance EV Root CA"
+        thumbprint: "2f2513af3992db0a3f79709ff8143b3f7bd2d143"
+        version: 3
+        algorithm: "sha1WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.5"
+        serial: "61:20:4d:b4:00:00:00:00:00:27"
+        not_before: 1302896733 # 2011-04-15 19:45:33 UTC
+        not_after: 1618516533 # 2021-04-15 19:55:33 UTC
+      - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance EV Root CA"
+        subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert SHA2 High Assurance Code Signing CA"
+        thumbprint: "f7e0f449f1a2594f88856c0758f8e6f627e5f5a2"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "0b:7e:10:90:3c:38:49:0f:fa:2f:67:9a:87:a1:a7:b9"
+        not_before: 1382443200 # 2013-10-22 12:00:00 UTC
+        not_after: 1855828800 # 2028-10-22 12:00:00 UTC
+      - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert SHA2 Assured ID Timestamping CA"
+        subject: "/C=US/O=DigiCert, Inc./CN=DigiCert SHA2 Timestamp Responder"
+        thumbprint: "c636f4dda87cee3d8263bf9a2514b4533468d75e"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "02:ce:42:94:59:02:a4:f3:c0:40:b0:ff:77:93:d1:4f"
+        not_before: 1450915200 # 2015-12-24 00:00:00 UTC
+        not_after: 1736208000 # 2025-01-07 00:00:00 UTC
+      - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID Root CA"
+        subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert SHA2 Assured ID Timestamping CA"
+        thumbprint: "3ba63a6e4841355772debef9cdcf4d5af353a297"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "0a:a1:25:d6:d6:32:1b:7e:41:e4:05:da:36:97:c2:15"
+        not_before: 1452168000 # 2016-01-07 12:00:00 UTC
+        not_after: 1925553600 # 2031-01-07 12:00:00 UTC
+    countersignatures:
+      - verified: true
+        sign_time: 1459189265 # 2016-03-28 18:21:05 UTC
+        digest: "8d2adfc11c43947d5ea6b7e81429acf0429930be60fd70c41c26e8e7c5b17aee"
+        digest_alg: "sha256"
+        chain:
+          - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert SHA2 Assured ID Timestamping CA"
+            subject: "/C=US/O=DigiCert, Inc./CN=DigiCert SHA2 Timestamp Responder"
+            thumbprint: "c636f4dda87cee3d8263bf9a2514b4533468d75e"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "02:ce:42:94:59:02:a4:f3:c0:40:b0:ff:77:93:d1:4f"
+            not_before: 1450915200 # 2015-12-24 00:00:00 UTC
+            not_after: 1736208000 # 2025-01-07 00:00:00 UTC
+          - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID Root CA"
+            subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert SHA2 Assured ID Timestamping CA"
+            thumbprint: "3ba63a6e4841355772debef9cdcf4d5af353a297"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "0a:a1:25:d6:d6:32:1b:7e:41:e4:05:da:36:97:c2:15"
+            not_before: 1452168000 # 2016-01-07 12:00:00 UTC
+            not_after: 1925553600 # 2031-01-07 12:00:00 UTC
+overlay:
+    offset: 27648
+    size: 17560

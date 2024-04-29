@@ -743,8 +743,10 @@ rule test : foo bar baz {
             r#"
  of_expr
  ├─ quantifier
- │  └─ primary_expr
- │     └─ integer_lit "2"
+ │  └─ expr
+ │     └─ term
+ │        └─ primary_expr
+ │           └─ integer_lit "2"
  ├─ k_OF "of"
  └─ pattern_ident_tuple
     ├─ LPAREN "("
@@ -845,8 +847,10 @@ rule test : foo bar baz {
  for_expr
  ├─ k_FOR "for"
  ├─ quantifier
- │  └─ primary_expr
- │     └─ integer_lit "3"
+ │  └─ expr
+ │     └─ term
+ │        └─ primary_expr
+ │           └─ integer_lit "3"
  ├─ ident "x"
  ├─ k_IN "in"
  ├─ iterable
