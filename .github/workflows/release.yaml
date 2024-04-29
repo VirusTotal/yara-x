@@ -33,6 +33,11 @@ jobs:
     - name: Checkout sources
       uses: actions/checkout@v4
 
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+
     - name: Check version number
       shell: bash
       run: |
@@ -41,11 +46,6 @@ jobs:
         if [ "${{ github.ref_name }}" != "v$version" ]; then
           exit 1
         fi
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        toolchain: stable
 
     - name: Build
       run: cargo build --bin yr --profile release-lto --target ${{ matrix.target }}
@@ -69,7 +69,6 @@ jobs:
         name: yr-${{ matrix.target }}
         path: yara-x-*
   
-  # Build Python extension.
   build-py:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -103,15 +102,24 @@ jobs:
     - name: Checkout sources
       uses: actions/checkout@v3
 
-    - name: Install Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: stable
+
+    - name: Check version number
+      shell: bash
+      run: |
+        set -ex
+        version=`cargo pkgid --manifest-path lib/Cargo.toml | cut -d "@" -f2`
+        if [ "${{ github.ref_name }}" != "v$version" ]; then
+          exit 1
+        fi
+
+    - name: Install Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
 
     - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
       if: matrix.build == 'macos'
@@ -126,7 +134,7 @@ jobs:
       run: pip install -U setuptools wheel twine cibuildwheel platformdirs
 
     - name: Build sdist
-      if: matrix.build == 'linux' && matrix.python-version == 'cp310'
+      if: matrix.build == 'linux' && matrix.python-version == 'cp312'
       run: |
         pip install maturin build
         python -m build --sdist -o wheelhouse py
@@ -155,8 +163,14 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
+        name: pypi-${{ matrix.build }}-${{ matrix.python-version }}
         path: ./wheelhouse/*.whl
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: pypi-source-${{ strategy.job-index }}
+        path: ./wheelhouse/*.tar.gz
   
   publish-cli:
     needs: [ build-cli ]
@@ -190,7 +204,7 @@ jobs:
     - name: Download artifacts
       uses: actions/download-artifact@v4
       with:
-        pattern: cibw-wheels-*
+        pattern: pypi-*
         merge-multiple: true
         path: dist
     
