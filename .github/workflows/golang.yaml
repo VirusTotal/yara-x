@@ -31,28 +31,6 @@ jobs:
       with:
         toolchain: stable
     
-    # Install OpenSSL on Windows
-    - name: Install OpenSSL
-      if: runner.os == 'Windows'
-      id: vcpkg
-      uses: johnwason/vcpkg-action@v5
-      with:
-        pkgs: openssl
-        triplet: x64-windows-static
-        token: ${{ github.token }}
-
-    - name: Set OPENSSL_DIR environment variable
-      if: runner.os == 'Windows'
-      shell: bash
-      run: echo "OPENSSL_DIR=${{ github.workspace }}\\vcpkg\\installed\\x64-windows-static" >> $GITHUB_ENV
-
-    # Install OpenSSL on Linux
-    - name: Install dependencies
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libssl-dev
-
     - name: Install cargo-c
       run: cargo install cargo-c
 
