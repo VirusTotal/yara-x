@@ -3,7 +3,7 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "yara-x-py"
+name = "yara-x"
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Rust",

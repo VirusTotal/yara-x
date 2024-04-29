@@ -149,10 +149,15 @@ jobs:
         CIBW_TEST_COMMAND: 'pytest {project}/py'
         CIBW_TEST_SKIP: '*-macosx_arm64 *-macosx_universal2:arm64'
         CIBW_BUILD_VERBOSITY: 1
-  
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
+        path: ./wheelhouse/*.whl
   
   publish:
-    needs: [ build-cli, build-py ]
+    needs: [ build-cli ]
     runs-on: ubuntu-latest
     
     steps:
@@ -170,3 +175,21 @@ jobs:
       with:
         draft: true
         files: yr-*/yara-x-*
+  
+  pypi-publish:
+    needs: [ build-py ]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/yara-x
+    permissions:
+      id-token: write
+    
+    steps:
+    #- name: Publish package distributions to PyPI
+    #  uses: pypa/gh-action-pypi-publish@release/v1
+
+    - name: Publish package distributions to TestPyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://test.pypi.org/legacy/
