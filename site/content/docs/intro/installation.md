@@ -21,46 +21,16 @@ seo:
 The most straightforward way of installing YARA-X in your system is downloading
 one of the pre-built binaries that we distribute with
 every [release](https://github.com/VirusTotal/yara-x/releases). You will find
-pre-built x86_64 binaries for Linux, macOS, and Windows, unzip the binary in
+pre-built binaries for Linux, MacOS, and Windows, unzip the binary in
 your preferred location, and voilá, you are ready to run YARA-X.
 
 If you prefer to build YARA-X yourself, follow the guide below.
 
 ## Pre-requisites
 
-For building YARA-X you will need:
-
-* A recent version of `rustc` (version 1.7.4 or newer) and `cargo`. Follow
-  the
-  instructions in
-  the [Rust official site](https://www.rust-lang.org/learn/get-started).
-* The `openssl` library and its header files.
-
-{{< tabs "install-openssl" >}}
-{{< tab "Linux" >}}
-
-```bash
-sudo apt install libssl-dev
-```
-
-{{< /tab >}}
-{{< tab "macOS" >}}
-
-```bash
-brew install openssl@3
-```
-
-{{< /tab >}}
-{{< tab "Windows" >}}
-
-```bash
-git clone https://github.com/microsoft/vcpkg.git
-cd vcpkg && bootstrap-vcpkg.bat
-vcpkg install openssl
-```
-
-{{< /tab >}}
-{{< /tabs >}}
+For building YARA-X you will need a recent version of `rustc` and `cargo`.
+Follow the instructions in
+the [Rust official site](https://www.rust-lang.org/learn/get-started).
 
 ## Installing with cargo
 

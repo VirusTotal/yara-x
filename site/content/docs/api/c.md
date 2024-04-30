@@ -29,9 +29,9 @@ and libraries that you will need to integrate YARA-X in your project.
 
 ## Building the C library
 
-The easiest way for building the C library is
-using [`cargo-c`](https://github.com/lu-zero/cargo-c), if you
-didn't install it before, this is the first step:
+For building the C library using [`cargo-c`](https://github.com/lu-zero/cargo-c)
+is the easiest way. If you don't have `cargo-c` installed yet, this is the first
+step:
 
 ```shell
 cargo install cargo-c
