@@ -105,7 +105,14 @@ impl ReportBuilder {
             } else {
                 String::from_utf8_lossy(src.raw.as_ref())
             };
-            CacheEntry { code: s.to_string(), origin: src.origin.clone() }
+            CacheEntry {
+                // Replace tab characters with a single space. This doesn't affect
+                // code spans, because the number of characters remain the same,
+                // but prevents error messages from being wrongly formatted
+                //  when they are printed.
+                code: s.replace('\t', " "),
+                origin: src.origin.clone(),
+            }
         });
         self
     }

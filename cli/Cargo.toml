@@ -39,6 +39,7 @@ logging = ["dep:log", "dep:env_logger"]
 ascii_tree = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
+clap_complete = { workspace = true }
 globwalk = { workspace = true }
 enable-ansi-support = { workspace = true }
 env_logger = { workspace = true, optional = true, features = ["auto-color"] }

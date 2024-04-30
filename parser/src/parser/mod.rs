@@ -30,9 +30,9 @@ mod tests;
 ///
 /// ```text
 /// error: syntax error
-///    ╭─[some_file.yar:8:6]
-///    │
-///    ... more details
+///  --> some_file.yar:4:17
+///   |
+/// 4 | ... more details
 /// ```
 ///
 /// # Example
@@ -83,7 +83,7 @@ impl<'src> From<&'src str> for SourceCode<'src> {
     /// Creates a new [`SourceCode`] from a `&str`.
     fn from(src: &'src str) -> Self {
         // The input is a &str, therefore it's guaranteed to be valid UTF-8
-        // and the `valid` field can initialized.
+        // and the `valid` field can be initialized.
         Self { raw: BStr::new(src), valid: Some(src), origin: None }
     }
 }

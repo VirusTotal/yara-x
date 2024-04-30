@@ -1,0 +1,7 @@
+error: invalid regular expression
+ --> line:3:14
+  |
+3 |     $a = /foo{/
+  |              ^ unclosed counted repetition
+  |
+  = note: did you mean `\{` instead of `{`?

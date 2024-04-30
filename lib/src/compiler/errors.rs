@@ -175,7 +175,13 @@ pub enum CompileError {
 
     #[error("invalid regular expression")]
     #[label("{error}", span)]
-    InvalidRegexp { detailed_report: String, error: String, span: Span },
+    #[note(note)]
+    InvalidRegexp {
+        detailed_report: String,
+        error: String,
+        span: Span,
+        note: Option<String>,
+    },
 
     #[error("mixing greedy and non-greedy quantifiers in regular expression")]
     #[label("this is {quantifier1_greediness}", quantifier1_span)]

@@ -3,27 +3,29 @@ use std::cmp::min;
 use std::collections::{HashMap, VecDeque};
 use std::default::Default;
 use std::iter::zip;
+use std::mem;
 use std::str::{from_utf8, FromStr};
 use std::sync::OnceLock;
 
-use array_bytes::bytes2hex;
-use authenticode_parser::{
-    Authenticode, AuthenticodeArray, AuthenticodeVerify,
-    CounterSignatureVerify,
-};
 use bstr::{BStr, ByteSlice};
+use digest;
 use itertools::Itertools;
 use memchr::memmem;
 use nom::branch::{alt, permutation};
 use nom::bytes::complete::{take, take_till};
 use nom::combinator::{cond, consumed, iterator, map, opt, success, verify};
 use nom::error::ErrorKind;
-use nom::multi::{count, fold_many1, length_data, many0, many1, many_m_n};
+use nom::multi::{
+    count, fold_many0, fold_many1, length_data, many0, many1, many_m_n,
+};
 use nom::number::complete::{le_u16, le_u32, le_u64, u8};
 use nom::sequence::tuple;
 use nom::{Err, IResult, Parser, ToUsize};
 use protobuf::{EnumOrUnknown, MessageField};
 
+use crate::modules::pe::authenticode::{
+    AuthenticodeHasher, AuthenticodeParser, AuthenticodeSignature,
+};
 use crate::modules::pe::rva2off;
 use crate::modules::protos;
 
@@ -32,12 +34,6 @@ type Error<'a> = nom::error::Error<&'a [u8]>;
 /// Tuple that contains a DLL name and a vector with functions imported from
 /// that DLL.
 type DllImports<'a> = Vec<(&'a str, Vec<ImportedFunc>)>;
-
-/// The initialization token needed by the authenticode_parser library must be
-/// created only once per process, and it must be done in a thread-safe way.
-static AUTHENTICODE_INIT_TOKEN: OnceLock<
-    authenticode_parser::InitializationToken,
-> = OnceLock::new();
 
 /// Represents a Windows Portable Executable (PE) file.
 ///
@@ -75,7 +71,7 @@ pub struct PE<'a> {
     resources: OnceCell<Option<(ResourceDir, Vec<Resource<'a>>)>>,
 
     /// PE authenticode signatures.
-    signatures: OnceCell<Option<AuthenticodeArray>>,
+    signatures: OnceCell<Option<Vec<AuthenticodeSignature<'a>>>>,
 
     /// PE directory entries. Directory entries are parsed lazily when
     /// [`PE::get_dir_entries`] is called for the first time.
@@ -105,6 +101,96 @@ pub struct PE<'a> {
 
     /// PE optional header already parsed.
     pub optional_hdr: OptionalHeader,
+}
+
+impl AuthenticodeHasher for PE<'_> {
+    /// Compute an Authenticode hash for this PE file.
+    ///
+    /// The Authenticode covers all the data in the PE file except:
+    ///
+    /// * The checksum in the PE header
+    /// * The security entry in the data directory (which points to the certificate table)
+    /// * The certificate table.
+    ///
+    /// The algorithm is described in [1] and [2].
+    ///
+    /// [1]: https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#process-for-generating-the-authenticode-pe-image-hash
+    /// [2]: https://download.microsoft.com/download/9/c/5/9c5b2167-8017-4bae-9fde-d599bac8184a/authenticode_pe.docx
+    fn hash(&self, digest: &mut dyn digest::Update) -> Option<()> {
+        // Offset within the PE file where the checksum field is located. The
+        // checksum is skipped while computing the digest.
+        let checksum_offset = self.dos_stub.len()
+            + Self::SIZE_OF_PE_SIGNATURE
+            + Self::SIZE_OF_FILE_HEADER
+            + 64_usize;
+
+        // Offset of the security entry in the data directory. This entry is skipped
+        // while computing the digest.
+        let security_data_offset = self.dos_stub.len()
+            + Self::SIZE_OF_PE_SIGNATURE
+            + Self::SIZE_OF_FILE_HEADER
+            + if self.optional_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC
+            {
+                Self::SIZE_OF_OPT_HEADER_32
+            } else {
+                Self::SIZE_OF_OPT_HEADER_64
+            }
+            + Self::SIZE_OF_DIR_ENTRY * Self::IMAGE_DIRECTORY_ENTRY_SECURITY;
+
+        let (_, cert_table_size, _) = self
+            .get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_SECURITY, true)?;
+
+        // Hash from start of the file to the checksum.
+        digest.update(self.data.get(0..checksum_offset)?);
+
+        // Hash from the end of the checksum to the start of the security entry
+        // in the data directory.
+        digest.update(self.data.get(
+            checksum_offset + mem::size_of::<u32>()..security_data_offset,
+        )?);
+
+        // Hash from the end of the security entry in the data directory to the
+        // end of the PE header.
+        digest.update(self.data.get(
+            security_data_offset + Self::SIZE_OF_DIR_ENTRY
+                ..self.optional_hdr.size_of_headers as usize,
+        )?);
+
+        // Sections must be sorted by `raw_data_offset`.
+        let sections = self
+            .sections
+            .iter()
+            .sorted_unstable_by_key(|section| section.raw_data_offset);
+
+        let mut sum_of_bytes_hashed =
+            self.optional_hdr.size_of_headers as usize;
+
+        // Hash each section's data.
+        for section in sections {
+            let section_start = section.raw_data_offset as usize;
+            let section_size = section.raw_data_size as usize;
+            let section_end = section_start.saturating_add(section_size);
+            let section_bytes = self.data.get(section_start..section_end)?;
+
+            digest.update(section_bytes);
+
+            sum_of_bytes_hashed =
+                sum_of_bytes_hashed.checked_add(section_size)?;
+        }
+
+        let extra_hash_len = self
+            .data
+            .len()
+            .checked_sub(cert_table_size as usize)?
+            .checked_sub(sum_of_bytes_hashed)?;
+
+        digest.update(self.data.get(
+            sum_of_bytes_hashed
+                ..sum_of_bytes_hashed.checked_add(extra_hash_len)?,
+        )?);
+
+        Some(())
+    }
 }
 
 impl<'a> PE<'a> {
@@ -311,7 +397,7 @@ impl<'a> PE<'a> {
 
     /// Returns the RVA, size and data associated to a given directory entry.
     ///
-    /// The returned tuple is `(rva, size, data)`, where `rva` and `size` are
+    /// The returned tuple is `(addr, size, data)`, where `addr` and `size` are
     /// the ones indicated in the directory entry, and `data` is a slice that
     /// contains the file's content from that RVA to the end of the file if
     /// `strict_size` is false. Otherwise, the slice will be limited to the
@@ -335,22 +421,28 @@ impl<'a> PE<'a> {
         // overly strict here and only parse entries which are less than
         // `number_of_rva_and_sizes` we run the risk of missing otherwise
         // perfectly valid files.
-
         let dir_entry = self
             .directory
             .get(index * Self::SIZE_OF_DIR_ENTRY..)
             .and_then(|entry| Self::parse_dir_entry(entry).ok())
             .map(|(_reminder, entry)| entry)?;
 
-        let start = self.rva_to_offset(dir_entry.addr)? as usize;
+        // The IMAGE_DIRECTORY_ENTRY_SECURITY is the only one where the `addr`
+        // field is not an RVA, but a file offset, so we don't need to convert
+        // it to offset.
+        let start = if index == Self::IMAGE_DIRECTORY_ENTRY_SECURITY {
+            dir_entry.addr
+        } else {
+            self.rva_to_offset(dir_entry.addr)?
+        };
 
         let end = if strict_size {
-            min(self.data.len(), start.saturating_add(dir_entry.size as usize))
+            min(self.data.len(), start.saturating_add(dir_entry.size) as usize)
         } else {
             self.data.len()
         };
 
-        let data = self.data.get(start..end)?;
+        let data = self.data.get(start as usize..end)?;
 
         Some((dir_entry.addr, dir_entry.size, data))
     }
@@ -397,14 +489,12 @@ impl<'a> PE<'a> {
     }
 
     /// Returns the authenticode signatures in this PE.
-    pub fn get_signatures(&self) -> &[Authenticode<'_>] {
-        if let Some(array) =
-            self.signatures.get_or_init(|| self.parse_signatures())
-        {
-            array.signatures()
-        } else {
-            &[]
-        }
+    pub fn get_signatures(&self) -> &[AuthenticodeSignature<'a>] {
+        self.signatures
+            .get_or_init(|| self.parse_signatures())
+            .as_ref()
+            .map(|s| s.as_slice())
+            .unwrap_or(&[])
     }
 }
 
@@ -415,6 +505,7 @@ impl<'a> PE<'a> {
     pub const IMAGE_DIRECTORY_ENTRY_EXPORT: usize = 0;
     pub const IMAGE_DIRECTORY_ENTRY_IMPORT: usize = 1;
     pub const IMAGE_DIRECTORY_ENTRY_RESOURCE: usize = 2;
+    pub const IMAGE_DIRECTORY_ENTRY_SECURITY: usize = 4;
     pub const IMAGE_DIRECTORY_ENTRY_DEBUG: usize = 6;
     pub const IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT: usize = 13;
     pub const IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR: usize = 14;
@@ -424,15 +515,27 @@ impl<'a> PE<'a> {
     const RICH_TAG: &'static [u8] = &[0x52_u8, 0x69, 0x63, 0x68];
     const DANS_TAG: u32 = 0x536e6144;
 
-    const SIZE_OF_PE_SIGNATURE: usize = 4; // size of PE signature (PE\0\0).
-    const SIZE_OF_FILE_HEADER: usize = 20; // size of IMAGE_FILE_HEADER
+    // size of PE signature (PE\0\0).
+    const SIZE_OF_PE_SIGNATURE: usize = 4;
+
+    // size of IMAGE_FILE_HEADER
+    const SIZE_OF_FILE_HEADER: usize = 20;
+
+    // size of IMAGE_OPTIONAL_HEADER for 32-bit files.
+    // Without data directory entries.
+    const SIZE_OF_OPT_HEADER_32: usize = 96;
+
+    // size of IMAGE_OPTIONAL_HEADER for 64-bit files.
+    // Without data directory entries.
+    const SIZE_OF_OPT_HEADER_64: usize = 112;
+
     const SIZE_OF_DIR_ENTRY: usize = 8;
     const SIZE_OF_SYMBOL: u32 = 18;
 
     const MAX_PE_SECTIONS: usize = 96;
     const MAX_PE_IMPORTS: usize = 16384;
     const MAX_PE_EXPORTS: usize = 16384;
-    const MAX_PE_RESOURCES: usize = 65535;
+    const MAX_PE_RESOURCES: usize = 65536;
     const MAX_DIR_ENTRIES: usize = 16;
 
     fn parse_dos_header(input: &[u8]) -> IResult<&[u8], DOSHeader> {
@@ -847,7 +950,7 @@ impl<'a> PE<'a> {
 
             // If the high bit of `name_or_id` is set, then the remaining bits
             // are the offset within the resource section where the resource
-            // name is found. The name is a UTF-16LE string that starts with a
+            // name is found. The name is a UTF-16LE string that starts with an
             // u16 containing its length in characters. If the high bit is not
             // set then `name_or_id` is just the resource ID.
             let id = if name_or_id & 0x80000000 != 0 {
@@ -878,7 +981,10 @@ impl<'a> PE<'a> {
                 false
             };
 
-            Ok((remainder, ResourceDirEntry { is_subdir, id, offset }))
+            Ok((
+                remainder,
+                ResourceDirEntry { is_subdir, id, offset: offset as usize },
+            ))
         }
     }
 
@@ -1150,7 +1256,7 @@ impl<'a> PE<'a> {
             // Read the structure's length and round it up to a 32-bits
             // boundary.
             let (_, length) = le_u16(input)?;
-            let length = Self::round_up(length);
+            let length = Self::round_up::<4, _>(length);
 
             // Read the structure's bytes.
             let (remainder, structure) = take(length)(input)?;
@@ -1168,7 +1274,7 @@ impl<'a> PE<'a> {
             // aligning the rest of the structure to a 32-bits boundary.
             // Here we get the length of the data consumed so far and round
             // it up to a 32-bits boundary.
-            let alignment = Self::round_up(consumed.len());
+            let alignment = Self::round_up::<4, _>(consumed.len());
 
             // Then take `alignment` bytes from the start of the structure. The
             // remaining bytes contain the value and children.
@@ -1222,9 +1328,9 @@ impl<'a> PE<'a> {
         }
     }
 
-    /// Round up an offset to the next 32-bit boundary.
-    fn round_up<O: ToUsize>(offset: O) -> usize {
-        offset.to_usize().div_ceil(4) * 4
+    /// Round up a `value` to the `ROUND_TO` byte boundary.
+    fn round_up<const ROUND_TO: usize, O: ToUsize>(value: O) -> usize {
+        value.to_usize().div_ceil(ROUND_TO) * ROUND_TO
     }
 
     /// Parses the PE resources.
@@ -1282,13 +1388,18 @@ impl<'a> PE<'a> {
             };
 
             // Parse a series of IMAGE_RESOURCE_DIRECTORY_ENTRY that come
-            // right after the IMAGE_RESOURCE_DIRECTORY. The number of entries
-            // is extracted from the IMAGE_RESOURCE_DIRECTORY structure.
-            let dir_entries = count(
+            // right after the IMAGE_RESOURCE_DIRECTORY.
+            let mut dir_entries = iterator(
+                raw_entries,
                 Self::parse_rsrc_dir_entry(rsrc_section),
-                rsrc_dir.number_of_entries,
-            )(raw_entries)
-            .map(|(_, dir_entries)| dir_entries);
+            );
+
+            // Entries with invalid offsets are ignored, they are a sign
+            // of PE corruption.
+            let dir_entries =
+                dir_entries.take(rsrc_dir.number_of_entries).filter(|entry| {
+                    entry.offset > 0 && entry.offset < rsrc_section.len()
+                });
 
             if level == 0 {
                 resources_info = rsrc_dir;
@@ -1296,9 +1407,8 @@ impl<'a> PE<'a> {
 
             // Iterate over the directory entries. Each entry can be either a
             // subdirectory or a leaf.
-            for dir_entry in dir_entries.iter().flatten() {
-                if let Some(entry_data) =
-                    rsrc_section.get(dir_entry.offset as usize..)
+            for dir_entry in dir_entries {
+                if let Some(entry_data) = rsrc_section.get(dir_entry.offset..)
                 {
                     let ids = match level {
                         // At level 0 each directory entry corresponds to a
@@ -1315,8 +1425,12 @@ impl<'a> PE<'a> {
                         1 => (ids.0, dir_entry.id, ResourceId::Unknown),
                         // At level 3 each directory entry corresponds to a
                         // language. The type ID and resource ID are the ones
-                        // obtained from the parent.
-                        2 => (ids.0, ids.1, dir_entry.id),
+                        // obtained from the parent. As a sanity check we
+                        // make sure that language id is lower than 0xfffff.
+                        2 => match dir_entry.id {
+                            ResourceId::Id(id) if id > 0xfffff => continue,
+                            _ => (ids.0, ids.1, dir_entry.id),
+                        },
                         // Resource trees have 3 levels at most. We must
                         // protect ourselves against corrupted or maliciously
                         // crafted files that have too many levels.
@@ -1325,24 +1439,29 @@ impl<'a> PE<'a> {
 
                     if dir_entry.is_subdir {
                         queue.push_back((level + 1, ids, entry_data));
-                    } else if let Ok((_, rsrc_entry)) =
+                    }
+                    if let Ok((_, rsrc_entry)) =
                         Self::parse_rsrc_entry(entry_data)
                     {
-                        if resources.len() == Self::MAX_PE_RESOURCES {
-                            return Some((resources_info, resources));
-                        }
+                        if rsrc_entry.size > 0
+                            && (rsrc_entry.size as usize) < self.data.len()
+                        {
+                            resources.push(Resource {
+                                type_id: ids.0,
+                                rsrc_id: ids.1,
+                                lang_id: ids.2,
+                                // `rsrc_entry.offset` is relative to the start of
+                                // the resource section, so it's actually an RVA.
+                                // Here we convert it to a file offset.
+                                offset: self.rva_to_offset(rsrc_entry.offset),
+                                rva: rsrc_entry.offset,
+                                length: rsrc_entry.size,
+                            });
 
-                        resources.push(Resource {
-                            type_id: ids.0,
-                            rsrc_id: ids.1,
-                            lang_id: ids.2,
-                            // `rsrc_entry.offset` is relative to the start of
-                            // the resource section, so it's actually a RVA.
-                            // Here we convert it to a file offset.
-                            offset: self.rva_to_offset(rsrc_entry.offset),
-                            rva: rsrc_entry.offset,
-                            length: rsrc_entry.size,
-                        })
+                            if resources.len() == Self::MAX_PE_RESOURCES {
+                                return Some((resources_info, resources));
+                            }
+                        }
                     }
                 }
             }
@@ -1355,11 +1474,67 @@ impl<'a> PE<'a> {
         Some((resources_info, resources))
     }
 
-    fn parse_signatures(&self) -> Option<AuthenticodeArray> {
-        let token = AUTHENTICODE_INIT_TOKEN.get_or_init(|| unsafe {
-            authenticode_parser::InitializationToken::new()
-        });
-        authenticode_parser::parse_pe(token, self.data)
+    /// Parses the PE Authenticode signatures.
+    fn parse_signatures(&self) -> Option<Vec<AuthenticodeSignature<'a>>> {
+        let (_, _, cert_table) = self
+            .get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_SECURITY, true)?;
+
+        // The certificate table is an array of WIN_CERTIFICATE structures.
+        let signatures = fold_many0(
+            self.win_cert_parser(),
+            Vec::new,
+            |mut acc: Vec<_>, signatures| {
+                acc.extend(signatures);
+                acc
+            },
+        )(cert_table)
+        .map(|(_, cert)| cert)
+        .ok()?;
+
+        Some(signatures)
+    }
+
+    /// Returns a parser that parses a WIN_CERTIFICATE structure.
+    fn win_cert_parser(
+        &self,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<AuthenticodeSignature>> + '_
+    {
+        move |input: &'a [u8]| {
+            // Parse the WIN_CERTIFICATE structure.
+            let (remainder, (length, _revision, _cert_type)) =
+                tuple((
+                    le_u32::<&[u8], Error>, // length
+                    le_u16, // revision, should be WIN_CERT_REVISION_1_0 (0x0100)
+                    le_u16, // certificate type
+                ))(input)?;
+
+            // The length includes the header, compute the length of the signature.
+            let signature_length: u32 =
+                length.checked_sub(8).ok_or_else(|| {
+                    Err::Error(Error::new(input, ErrorKind::Fail))
+                })?;
+
+            let (_, signature_data) = take(signature_length)(remainder)?;
+            let (_, signatures) = self.signature_parser()(signature_data)?;
+
+            // The next WIN_CERTIFICATE is aligned to the next 8-bytes boundary.
+            let (remainder, _) = take(Self::round_up::<8, _>(length))(input)?;
+
+            Ok((remainder, signatures))
+        }
+    }
+
+    /// Returns a parser that parses the PKCS#7 blob that containing an
+    /// Authenticode signature.
+    fn signature_parser(
+        &self,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<AuthenticodeSignature>> + '_
+    {
+        move |input: &'a [u8]| {
+            let signatures = AuthenticodeParser::parse(input, self)
+                .map_err(|_| Err::Error(Error::new(input, ErrorKind::Fail)))?;
+            Ok((&[], signatures))
+        }
     }
 
     fn parse_dir_entries(&self) -> Option<Vec<DirEntry>> {
@@ -1515,10 +1690,10 @@ impl<'a> PE<'a> {
 
     /// Parses PE imports.
     fn parse_imports(&self) -> Option<Vec<(&'a str, Vec<ImportedFunc>)>> {
-        let (rva, _, import_data) = self
+        let (addr, _, import_data) = self
             .get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_IMPORT, false)?;
 
-        if rva == 0 {
+        if addr == 0 {
             return None;
         }
 
@@ -1529,12 +1704,12 @@ impl<'a> PE<'a> {
     fn parse_delayed_imports(
         &self,
     ) -> Option<Vec<(&'a str, Vec<ImportedFunc>)>> {
-        let (rva, _, import_data) = self.get_dir_entry_data(
+        let (addr, _, import_data) = self.get_dir_entry_data(
             Self::IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT,
             true,
         )?;
 
-        if rva == 0 {
+        if addr == 0 {
             return None;
         }
 
@@ -1575,25 +1750,22 @@ impl<'a> PE<'a> {
     where
         P: FnMut(&'a [u8]) -> IResult<&'a [u8], ImportDescriptor>,
     {
-        // Parse import descriptors until finding one that is empty (filled
-        // with null values), which indicates the end of the directory table;
-        // or until `MAX_PE_IMPORTS` is reached.
-        let import_descriptors = many_m_n(
-            0,
-            Self::MAX_PE_IMPORTS,
-            verify(descriptor_parser, |d| {
-                d.import_address_table != 0 || d.import_name_table != 0
-            }),
-        )(input)
-        .map(|(_, import_descriptors)| import_descriptors)
-        .ok()?;
-
         let is_32_bits =
             self.optional_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC;
 
         let mut imported_funcs = Vec::new();
 
-        for mut descriptor in import_descriptors {
+        // Parse import descriptors until finding one that is empty (filled
+        // with null values), which indicates the end of the directory table;
+        // or until `MAX_PE_IMPORTS` is reached.
+        let mut import_descriptors = iterator(
+            input,
+            verify(descriptor_parser, |d| {
+                d.import_address_table != 0 || d.import_name_table != 0
+            }),
+        );
+
+        for mut descriptor in import_descriptors.take(Self::MAX_PE_IMPORTS) {
             // If the values in the descriptor are virtual addresses, convert
             // them to relative virtual addresses (RVAs) by subtracting the
             // image base. This only happens with 32-bits PE files, in 64-bits
@@ -1658,6 +1830,17 @@ impl<'a> PE<'a> {
                     thunk & 0x8000000000000000 != 0
                 };
 
+                // Check that thunk doesn't exceed the maximum possible value.
+                // The maximum possible value occurs when the most significant
+                // bit is set (import by ordinal) and the ordinal number is
+                // 65535, which is the maximum possible ordinal.
+                let max_thunk =
+                    if is_32_bits { 0x8000ffff } else { 0x800000000000ffff };
+
+                if thunk > max_thunk {
+                    continue;
+                }
+
                 let mut func = ImportedFunc {
                     rva: descriptor.import_address_table.saturating_add(
                         (i * if is_32_bits { 4 } else { 8 }) as u32,
@@ -1678,12 +1861,10 @@ impl<'a> PE<'a> {
                     }
 
                     if let Ok(rva) = TryInto::<u32>::try_into(thunk) {
-                        if let Some(name) =
-                            self.parse_at_rva(rva, Self::parse_import_by_name)
-                        {
-                            func.name =
-                                String::from_utf8(name.to_owned()).ok();
-                        }
+                        func.name = self
+                            .parse_at_rva(rva, Self::parse_import_by_name)
+                            .map(|n| n.to_vec())
+                            .and_then(|n| String::from_utf8(n).ok());
                     }
                 }
 
@@ -1796,6 +1977,9 @@ impl<'a> PE<'a> {
             return None;
         }
 
+        let exports_section =
+            exports_rva..exports_rva.saturating_add(exports_size);
+
         // Parse the IMAGE_EXPORT_DIRECTORY structure.
         let (_, exports) = Self::parse_exports_dir_entry(exports_data).ok()?;
 
@@ -1867,10 +2051,12 @@ impl<'a> PE<'a> {
         let mut exported_funcs: Vec<_> = func_rvas
             .iter()
             .enumerate()
-            .map(|(i, rva)| ExportedFunc {
-                rva: *rva,
-                ordinal: exports.base + i as u32,
-                ..Default::default()
+            .filter_map(|(i, rva)| {
+                Some(ExportedFunc {
+                    rva: *rva,
+                    ordinal: exports.base.checked_add(i as u32)?,
+                    ..Default::default()
+                })
             })
             .collect();
 
@@ -1892,7 +2078,7 @@ impl<'a> PE<'a> {
             // forwarded function. In such cases the function's RVA is not
             // really pointing to the function, but to a ASCII string that
             // contains the DLL and function to which this export is forwarded.
-            if (exports_rva..exports_rva + exports_size).contains(&f.rva) {
+            if exports_section.contains(&f.rva) {
                 f.forward_name = self.str_at_rva(f.rva);
             } else {
                 f.offset = self.rva_to_offset(f.rva);
@@ -1973,7 +2159,14 @@ impl<'a> PE<'a> {
         // limit of 256 bytes, though.
         let dll_name = self.str_at_rva(rva)?;
 
+        if dll_name.is_empty() {
+            return None;
+        }
+
         for c in dll_name.chars() {
+            if c.is_ascii_control() {
+                return None;
+            }
             if matches!(c, ' ' | '"' | '*' | '<' | '>' | '?' | '|') {
                 return None;
             }
@@ -2317,150 +2510,6 @@ impl From<&Section<'_>> for protos::pe::Section {
     }
 }
 
-impl From<&authenticode_parser::Authenticode<'_>> for protos::pe::Signature {
-    fn from(value: &authenticode_parser::Authenticode) -> Self {
-        let mut sig = protos::pe::Signature::new();
-
-        sig.digest = value.digest().map(|v| bytes2hex("", v));
-        sig.digest_alg = value
-            .digest_alg()
-            .and_then(|v| String::from_utf8(v.to_vec()).ok());
-
-        sig.file_digest = value.file_digest().map(|v| bytes2hex("", v));
-
-        sig.certificates
-            .extend(value.certs().iter().map(protos::pe::Certificate::from));
-
-        sig.countersignatures.extend(
-            value.countersigs().iter().map(protos::pe::CounterSignature::from),
-        );
-
-        sig.signer_info = MessageField::from_option(
-            value.signer().map(protos::pe::SignerInfo::from),
-        );
-
-        sig.set_number_of_certificates(
-            sig.certificates.len().try_into().unwrap(),
-        );
-
-        sig.set_number_of_countersignatures(
-            sig.countersignatures.len().try_into().unwrap(),
-        );
-
-        sig.set_verified(
-            value
-                .verify_flags()
-                .is_some_and(|flags| flags == AuthenticodeVerify::Valid),
-        );
-
-        // Some fields from the first certificate in the chain are replicated
-        // in the `pe::Signature` structure for backward compatibility. The
-        // `chain` field in `SignerInfo` didn't exist in previous versions of
-        // YARA.
-        if let Some(signer_info) = sig.signer_info.as_ref() {
-            if let Some(cert) = signer_info.chain.first() {
-                sig.version = cert.version;
-                sig.thumbprint = cert.thumbprint.clone();
-                sig.issuer = cert.issuer.clone();
-                sig.subject = cert.subject.clone();
-                sig.serial = cert.serial.clone();
-                sig.not_after = cert.not_after;
-                sig.not_before = cert.not_before;
-                sig.algorithm = cert.algorithm.clone();
-                sig.algorithm_oid = cert.algorithm_oid.clone();
-            }
-        }
-
-        sig
-    }
-}
-
-impl From<authenticode_parser::Signer<'_>> for protos::pe::SignerInfo {
-    fn from(value: authenticode_parser::Signer) -> Self {
-        let mut signer_info = protos::pe::SignerInfo::new();
-
-        signer_info.digest = value.digest().map(|v| bytes2hex("", v));
-        signer_info.digest_alg = value
-            .digest_alg()
-            .and_then(|v| String::from_utf8(v.to_vec()).ok());
-
-        signer_info.program_name = value
-            .program_name()
-            .and_then(|v| String::from_utf8(v.to_vec()).ok());
-
-        signer_info.chain.extend(
-            value
-                .certificate_chain()
-                .iter()
-                .map(protos::pe::Certificate::from),
-        );
-
-        signer_info
-    }
-}
-
-impl From<&authenticode_parser::Countersignature<'_>>
-    for protos::pe::CounterSignature
-{
-    fn from(value: &authenticode_parser::Countersignature) -> Self {
-        let mut cs = protos::pe::CounterSignature::new();
-
-        cs.digest = value.digest().map(|v| bytes2hex("", v));
-        cs.digest_alg = value
-            .digest_alg()
-            .and_then(|v| String::from_utf8(v.to_vec()).ok());
-
-        cs.set_verified(
-            value
-                .verify_flags()
-                .is_some_and(|flags| flags == CounterSignatureVerify::Valid),
-        );
-
-        cs.set_sign_time(value.sign_time());
-
-        cs.chain.extend(
-            value
-                .certificate_chain()
-                .iter()
-                .map(protos::pe::Certificate::from),
-        );
-
-        cs
-    }
-}
-
-impl From<&authenticode_parser::Certificate<'_>> for protos::pe::Certificate {
-    fn from(value: &authenticode_parser::Certificate) -> Self {
-        let mut cert = protos::pe::Certificate::new();
-
-        // Versions are 0-based, add 1 for getting the actual version.
-        cert.set_version(value.version() + 1);
-
-        cert.issuer =
-            value.issuer().and_then(|v| String::from_utf8(v.to_vec()).ok());
-
-        cert.subject =
-            value.subject().and_then(|v| String::from_utf8(v.to_vec()).ok());
-
-        cert.serial =
-            value.serial().and_then(|v| String::from_utf8(v.to_vec()).ok());
-
-        cert.algorithm =
-            value.sig_alg().and_then(|v| String::from_utf8(v.to_vec()).ok());
-
-        cert.algorithm_oid = value
-            .sig_alg_oid()
-            .and_then(|v| String::from_utf8(v.to_vec()).ok());
-
-        cert.thumbprint = value.sha1().map(|v| bytes2hex("", v));
-
-        cert.set_not_before(value.not_before());
-        cert.set_not_after(value.not_after());
-
-        cert
-    }
-}
-
 impl rva2off::Section for Section<'_> {
     fn virtual_address(&self) -> u32 {
         self.virtual_address
@@ -2508,7 +2557,7 @@ pub struct ResourceDirEntry<'a> {
     /// Resource ID or name.
     id: ResourceId<'a>,
     /// Offset relative to the resources section where the data is found.
-    offset: u32,
+    offset: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

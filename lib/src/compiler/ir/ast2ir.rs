@@ -1221,24 +1221,6 @@ fn check_type(
     }
 }
 
-fn check_type2(
-    ctx: &CompileContext,
-    expr: &ast::Expr,
-    ty: Type,
-    accepted_types: &[Type],
-) -> Result<(), Box<CompileError>> {
-    if accepted_types.contains(&ty) {
-        Ok(())
-    } else {
-        Err(Box::new(CompileError::wrong_type(
-            ctx.report_builder,
-            ErrorInfo::join_with_or(accepted_types, true),
-            ty.to_string(),
-            expr.span(),
-        )))
-    }
-}
-
 fn check_operands(
     ctx: &CompileContext,
     lhs_ty: Type,
@@ -1285,7 +1267,7 @@ fn re_error_to_compile_error(
     err: re::parser::Error,
 ) -> CompileError {
     match err {
-        Error::SyntaxError { msg, span } => {
+        Error::SyntaxError { msg, span, note } => {
             CompileError::invalid_regexp(
                 report_builder,
                 msg,
@@ -1293,6 +1275,7 @@ fn re_error_to_compile_error(
                 // the start of the source file, here we make it relative to the
                 // source file.
                 regexp.span.subspan(span.start.offset, span.end.offset),
+                note,
             )
         }
         Error::MixedGreediness {
@@ -1350,8 +1333,6 @@ macro_rules! gen_unary_op {
         ) -> Result<Expr, Box<CompileError>> {
             let operand = Box::new(expr_from_ast(ctx, &expr.operand)?);
 
-            // The `not` operator accepts integers, floats and strings because
-            // those types can be casted to bool.
             check_type(
                 ctx,
                 operand.ty(),
@@ -1472,7 +1453,7 @@ macro_rules! gen_n_ary_operation {
 
             // Make sure that all operands have one of the accepted types.
             for (hir, ast) in iter::zip(operands_hir.iter(), expr.operands()) {
-                check_type2(ctx, ast, hir.ty(), accepted_types)?;
+                check_type(ctx, hir.ty(), ast.span(), accepted_types)?;
                 if let Some(check_fn) = check_fn {
                     check_fn(ctx, hir, ast.span())?;
                 }

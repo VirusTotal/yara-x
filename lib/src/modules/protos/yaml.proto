@@ -1,0 +1,13 @@
+syntax = "proto2";
+
+package yaml;
+
+import "google/protobuf/descriptor.proto";
+
+message FieldOptions {
+    optional string fmt = 3;
+}
+
+extend google.protobuf.FieldOptions {
+    optional FieldOptions field = 51504;
+}

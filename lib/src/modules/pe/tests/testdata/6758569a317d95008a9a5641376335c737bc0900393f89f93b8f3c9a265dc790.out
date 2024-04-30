@@ -1,0 +1,506 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_CUI
+os_version:
+    major: 4
+    minor: 0
+subsystem_version:
+    major: 4
+    minor: 0
+image_version:
+    major: 1
+    minor: 0
+linker_version:
+    major: 2
+    minor: 26
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
+characteristics: 783
+dll_characteristics: 1344
+timestamp: 1655157631 # 2022-06-13 22:00:31 UTC
+image_base: 4194304
+checksum: 340992
+base_of_code: 4096
+base_of_data: 24576
+entry_point: 1648
+entry_point_raw: 4720
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 17920
+size_of_initialized_data: 271872
+size_of_uninitialized_data: 36352
+size_of_image: 344064
+size_of_headers: 1024
+size_of_stack_reserve: 2097152
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 6
+number_of_imported_functions: 67
+number_of_delayed_imported_functions: 0
+number_of_resources: 26
+number_of_version_infos: 0
+number_of_imports: 5
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 1
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1613758496
+    raw_data_size: 17920
+    raw_data_offset: 1024
+    virtual_address: 4096
+    virtual_size: 17512
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".data"
+    full_name: ".data"
+    characteristics: 3224371264
+    raw_data_size: 512
+    raw_data_offset: 18944
+    virtual_address: 24576
+    virtual_size: 48
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rdata"
+    full_name: ".rdata"
+    characteristics: 1076887616
+    raw_data_size: 2048
+    raw_data_offset: 19456
+    virtual_address: 28672
+    virtual_size: 1584
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".bss"
+    full_name: ".bss"
+    characteristics: 3224371328
+    raw_data_size: 0
+    raw_data_offset: 0
+    virtual_address: 32768
+    virtual_size: 36352
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".idata"
+    full_name: ".idata"
+    characteristics: 3224371264
+    raw_data_size: 2560
+    raw_data_offset: 21504
+    virtual_address: 69632
+    virtual_size: 2096
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 3224371264
+    raw_data_size: 266752
+    raw_data_offset: 24064
+    virtual_address: 73728
+    virtual_size: 266504
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 69632
+    size: 2096
+  - virtual_address: 73728
+    size: 266504
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 290816
+    size: 1760
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 70060
+    size: 308
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_version:
+    major: 0
+    minor: 0
+resources:
+  - length: 1128
+    rva: 75064
+    offset: 25400
+    type: RESOURCE_TYPE_ICON
+    id: 1
+    language: 1024
+  - length: 2440
+    rva: 76192
+    offset: 26528
+    type: RESOURCE_TYPE_ICON
+    id: 2
+    language: 1024
+  - length: 4264
+    rva: 78632
+    offset: 28968
+    type: RESOURCE_TYPE_ICON
+    id: 3
+    language: 1024
+  - length: 9640
+    rva: 82896
+    offset: 33232
+    type: RESOURCE_TYPE_ICON
+    id: 4
+    language: 1024
+  - length: 16936
+    rva: 92536
+    offset: 42872
+    type: RESOURCE_TYPE_ICON
+    id: 5
+    language: 1024
+  - length: 26600
+    rva: 109472
+    offset: 59808
+    type: RESOURCE_TYPE_ICON
+    id: 6
+    language: 1024
+  - length: 38056
+    rva: 136072
+    offset: 86408
+    type: RESOURCE_TYPE_ICON
+    id: 7
+    language: 1024
+  - length: 52008
+    rva: 174128
+    offset: 124464
+    type: RESOURCE_TYPE_ICON
+    id: 8
+    language: 1024
+  - length: 67624
+    rva: 226136
+    offset: 176472
+    type: RESOURCE_TYPE_ICON
+    id: 9
+    language: 1024
+  - length: 43190
+    rva: 293760
+    offset: 244096
+    type: RESOURCE_TYPE_ICON
+    id: 10
+    language: 1024
+  - length: 6
+    rva: 336952
+    offset: 287288
+    type: RESOURCE_TYPE_RCDATA
+    id: 2
+    language: 1024
+  - length: 2
+    rva: 336960
+    offset: 287296
+    type: RESOURCE_TYPE_RCDATA
+    id: 8
+    language: 1024
+  - length: 10
+    rva: 336968
+    offset: 287304
+    type: RESOURCE_TYPE_RCDATA
+    id: 10
+    language: 1024
+  - length: 18
+    rva: 336984
+    offset: 287320
+    type: RESOURCE_TYPE_RCDATA
+    id: 14
+    language: 1024
+  - length: 24
+    rva: 337008
+    offset: 287344
+    type: RESOURCE_TYPE_RCDATA
+    id: 15
+    language: 1024
+  - length: 2601
+    rva: 337032
+    offset: 287368
+    type: RESOURCE_TYPE_RCDATA
+    id: 16
+    language: 1024
+  - length: 2
+    rva: 339640
+    offset: 289976
+    type: RESOURCE_TYPE_RCDATA
+    id: 18
+    language: 1024
+  - length: 4
+    rva: 339648
+    offset: 289984
+    type: RESOURCE_TYPE_RCDATA
+    id: 20
+    language: 1024
+  - length: 26
+    rva: 339656
+    offset: 289992
+    type: RESOURCE_TYPE_RCDATA
+    id: 21
+    language: 1024
+  - length: 44
+    rva: 339688
+    offset: 290024
+    type: RESOURCE_TYPE_RCDATA
+    id: 22
+    language: 1024
+  - length: 2
+    rva: 339736
+    offset: 290072
+    type: RESOURCE_TYPE_RCDATA
+    id: 30
+    language: 1024
+  - length: 50
+    rva: 339744
+    offset: 290080
+    type: RESOURCE_TYPE_RCDATA
+    id: 101
+    language: 1024
+  - length: 115
+    rva: 339800
+    offset: 290136
+    type: RESOURCE_TYPE_RCDATA
+    id: 102
+    language: 1024
+  - length: 53
+    rva: 339920
+    offset: 290256
+    type: RESOURCE_TYPE_RCDATA
+    id: 103
+    language: 1024
+  - length: 104
+    rva: 339976
+    offset: 290312
+    type: RESOURCE_TYPE_RCDATA
+    id: 104
+    language: 1024
+  - length: 146
+    rva: 340080
+    offset: 290416
+    type: RESOURCE_TYPE_GROUP_ICON
+    id: 1
+    language: 1024
+import_details:
+  - library_name: "ADVAPI32.DLL"
+    number_of_functions: 4
+    functions:
+      - name: "RegCloseKey"
+        rva: 70064
+      - name: "RegEnumKeyExA"
+        rva: 70068
+      - name: "RegOpenKeyExA"
+        rva: 70072
+      - name: "RegQueryValueExA"
+        rva: 70076
+  - library_name: "KERNEL32.dll"
+    number_of_functions: 23
+    functions:
+      - name: "CloseHandle"
+        rva: 70088
+      - name: "CreateMutexA"
+        rva: 70092
+      - name: "CreateProcessA"
+        rva: 70096
+      - name: "ExitProcess"
+        rva: 70100
+      - name: "FindResourceExA"
+        rva: 70104
+      - name: "FormatMessageA"
+        rva: 70108
+      - name: "GetCommandLineA"
+        rva: 70112
+      - name: "GetCurrentDirectoryA"
+        rva: 70116
+      - name: "GetCurrentProcess"
+        rva: 70120
+      - name: "GetEnvironmentVariableA"
+        rva: 70124
+      - name: "GetExitCodeProcess"
+        rva: 70128
+      - name: "GetLastError"
+        rva: 70132
+      - name: "GetModuleFileNameA"
+        rva: 70136
+      - name: "GetModuleHandleA"
+        rva: 70140
+      - name: "GetProcAddress"
+        rva: 70144
+      - name: "GlobalMemoryStatusEx"
+        rva: 70148
+      - name: "LoadResource"
+        rva: 70152
+      - name: "LocalFree"
+        rva: 70156
+      - name: "LockResource"
+        rva: 70160
+      - name: "SetEnvironmentVariableA"
+        rva: 70164
+      - name: "SetLastError"
+        rva: 70168
+      - name: "SetUnhandledExceptionFilter"
+        rva: 70172
+      - name: "WaitForSingleObject"
+        rva: 70176
+  - library_name: "msvcrt.dll"
+    number_of_functions: 38
+    functions:
+      - name: "__getmainargs"
+        rva: 70188
+      - name: "__p__environ"
+        rva: 70192
+      - name: "__p__fmode"
+        rva: 70196
+      - name: "__set_app_type"
+        rva: 70200
+      - name: "_cexit"
+        rva: 70204
+      - name: "_chdir"
+        rva: 70208
+      - name: "_close"
+        rva: 70212
+      - name: "_findclose"
+        rva: 70216
+      - name: "_findfirst"
+        rva: 70220
+      - name: "_findnext"
+        rva: 70224
+      - name: "_iob"
+        rva: 70228
+      - name: "_itoa"
+        rva: 70232
+      - name: "_onexit"
+        rva: 70236
+      - name: "_open"
+        rva: 70240
+      - name: "_read"
+        rva: 70244
+      - name: "_setmode"
+        rva: 70248
+      - name: "_stat"
+        rva: 70252
+      - name: "atexit"
+        rva: 70256
+      - name: "atoi"
+        rva: 70260
+      - name: "fclose"
+        rva: 70264
+      - name: "fopen"
+        rva: 70268
+      - name: "fprintf"
+        rva: 70272
+      - name: "fwrite"
+        rva: 70276
+      - name: "memset"
+        rva: 70280
+      - name: "printf"
+        rva: 70284
+      - name: "puts"
+        rva: 70288
+      - name: "signal"
+        rva: 70292
+      - name: "strcat"
+        rva: 70296
+      - name: "strchr"
+        rva: 70300
+      - name: "strcmp"
+        rva: 70304
+      - name: "strcpy"
+        rva: 70308
+      - name: "strlen"
+        rva: 70312
+      - name: "strncat"
+        rva: 70316
+      - name: "strncpy"
+        rva: 70320
+      - name: "strpbrk"
+        rva: 70324
+      - name: "strrchr"
+        rva: 70328
+      - name: "strstr"
+        rva: 70332
+      - name: "strtok"
+        rva: 70336
+  - library_name: "SHELL32.DLL"
+    number_of_functions: 1
+    functions:
+      - name: "ShellExecuteA"
+        rva: 70348
+  - library_name: "USER32.dll"
+    number_of_functions: 1
+    functions:
+      - name: "MessageBoxA"
+        rva: 70360
+is_signed: true
+signatures:
+  - subject: "/C=DE/L=Berlin/O=Open Source/OU=JSIDPlay2/CN=JSIDPlay2"
+    issuer: "/C=DE/L=Berlin/O=Open Source/OU=JSIDPlay2/CN=JSIDPlay2"
+    thumbprint: "758bc86feadbd23a2c8fbdaa63779115eadbd905"
+    version: 3
+    algorithm: "dsa_with_SHA256"
+    algorithm_oid: "2.16.840.1.101.3.4.3.2"
+    serial: "33:82:2c:5d"
+    not_before: 1655157631 # 2022-06-13 22:00:31 UTC
+    not_after: 1686693631 # 2023-06-13 22:00:31 UTC
+    verified: true
+    digest_alg: "sha256"
+    digest: "066dd89dfe23283d2feb029bcec19c31e41082584d57bd9940bfcafb83419677"
+    file_digest: "066dd89dfe23283d2feb029bcec19c31e41082584d57bd9940bfcafb83419677"
+    number_of_certificates: 1
+    number_of_countersignatures: 0
+    signer_info:
+        program_name: "JSIDPlay2"
+        digest: "01a9b8d4bb48229806d6425d6a1aed0dbdd55f8aaaa6c92c2a450902187abc34"
+        digest_alg: "sha256"
+        chain:
+          - issuer: "/C=DE/L=Berlin/O=Open Source/OU=JSIDPlay2/CN=JSIDPlay2"
+            subject: "/C=DE/L=Berlin/O=Open Source/OU=JSIDPlay2/CN=JSIDPlay2"
+            thumbprint: "758bc86feadbd23a2c8fbdaa63779115eadbd905"
+            version: 3
+            algorithm: "dsa_with_SHA256"
+            algorithm_oid: "2.16.840.1.101.3.4.3.2"
+            serial: "33:82:2c:5d"
+            not_before: 1655157631 # 2022-06-13 22:00:31 UTC
+            not_after: 1686693631 # 2023-06-13 22:00:31 UTC
+    certificates:
+      - issuer: "/C=DE/L=Berlin/O=Open Source/OU=JSIDPlay2/CN=JSIDPlay2"
+        subject: "/C=DE/L=Berlin/O=Open Source/OU=JSIDPlay2/CN=JSIDPlay2"
+        thumbprint: "758bc86feadbd23a2c8fbdaa63779115eadbd905"
+        version: 3
+        algorithm: "dsa_with_SHA256"
+        algorithm_oid: "2.16.840.1.101.3.4.3.2"
+        serial: "33:82:2c:5d"
+        not_before: 1655157631 # 2022-06-13 22:00:31 UTC
+        not_after: 1686693631 # 2023-06-13 22:00:31 UTC
+overlay:
+    offset: 290816
+    size: 1760

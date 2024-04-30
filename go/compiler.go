@@ -1,6 +1,6 @@
 package yara_x
 
-// #include <yara-x.h>
+// #include <yara_x.h>
 import "C"
 import (
 	"errors"

@@ -15,12 +15,12 @@ jobs:
       fail-fast: false
       matrix:
         go-version: [ '1.19', '1.20', '1.21.x' ]
-        os: [ubuntu-latest, macos-latest]
+        os: [ ubuntu-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      
+
     - name: Setup Go ${{ matrix.go-version }}
       uses: actions/setup-go@v4
       with:
@@ -30,38 +30,17 @@ jobs:
       uses: dtolnay/rust-toolchain@master
       with:
         toolchain: stable
-        
-    # Install OpenSSL on Windows
-    - name: Install OpenSSL
-      if: runner.os == 'Windows'
-      id: vcpkg
-      uses: johnwason/vcpkg-action@v5
-      with:
-        pkgs: openssl
-        triplet: x64-windows-static
-        token: ${{ github.token }}
+    
+    - name: Install cargo-c
+      run: cargo install cargo-c
 
-    - name: Set OPENSSL_DIR environment variable
-      if: runner.os == 'Windows'
-      shell: bash
-      run: echo "OPENSSL_DIR=${{ github.workspace }}\\vcpkg\\installed\\x64-windows-static" >> $GITHUB_ENV
+    - name: Build and install Rust library
+      run: cargo cinstall -p yara-x-capi --release --pkgconfigdir=${{ github.workspace }} --includedir=${{ github.workspace }} --libdir=${{ github.workspace }}
 
-    # Install OpenSSL on Linux
-    - name: Install dependencies
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libssl-dev
-        
-    - name: Build Rust library
-      run: cargo build --release -p yara-x -p yara-x-capi
-        
-    - name: Set LD_LIBRARY_PATH environment variable
-      if: runner.os == 'Linux'
-      shell: bash
-      run: echo "LD_LIBRARY_PATH=${{ github.workspace }}/target/release" >> $GITHUB_ENV        
-        
     - name: Run Go tests
       run: |
-          cd go
-          go test
+        cd go
+        go test
+      env:
+        PKG_CONFIG_PATH: ${{ github.workspace }}
+        LD_LIBRARY_PATH: ${{ github.workspace }}

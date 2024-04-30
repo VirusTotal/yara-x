@@ -4,3 +4,4 @@ error: invalid regular expression
 3 |     $a = /abc.{-100}xyz/
   |                ^ repetition quantifier expects a valid decimal
   |
+  = note: did you mean `\{` instead of `{`?
