@@ -52,7 +52,7 @@ jobs:
     #      exit 1
     #    fi
 
-    - run: rustup target add ${ matrix.target }}
+    - run: rustup target add ${{ matrix.target }}
 
     - name: Build
       run: cargo build --bin yr --profile release-lto --target ${{ matrix.target }}
