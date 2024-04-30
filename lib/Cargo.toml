@@ -116,6 +116,7 @@ pe-module = [
     "dep:ecdsa",
     "dep:nom",
     "dep:rsa",
+    "dep:md2",
     "dep:md-5",
     "dep:p256",
     "dep:p384",
@@ -185,6 +186,7 @@ itertools = { workspace = true }
 lazy_static = { workspace = true }
 linkme = { workspace = true }
 log = { workspace = true, optional = true }
+md2 = { workspace = true, optional = true, features = ["oid"] }
 md-5 = { workspace = true, optional = true, features = ["oid"] }
 sha1 = { workspace = true, optional = true, features = ["oid"] }
 sha2 = { workspace = true, optional = true, features = ["oid"] }

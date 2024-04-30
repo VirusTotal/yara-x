@@ -9,6 +9,7 @@ use digest::{Digest, Output};
 use dsa::Components;
 use ecdsa::signature::hazmat::PrehashVerifier;
 use itertools::Itertools;
+use md2::Md2;
 use md5::Md5;
 use nom::AsBytes;
 use protobuf::MessageField;
@@ -693,11 +694,24 @@ fn verify_message_digest(
     digest: &[u8],
 ) -> bool {
     match oid_to_object_identifier(algorithm.oid()) {
-        rfc5912::ID_SHA_1 => Sha1::digest(message).as_slice() == digest,
-        rfc5912::ID_SHA_256 => Sha256::digest(message).as_slice() == digest,
-        rfc5912::ID_SHA_384 => Sha384::digest(message).as_slice() == digest,
-        rfc5912::ID_SHA_512 => Sha512::digest(message).as_slice() == digest,
-        rfc5912::ID_MD_5 => Md5::digest(message).as_slice() == digest,
+        rfc5912::ID_SHA_1 | rfc5912::SHA_1_WITH_RSA_ENCRYPTION => {
+            Sha1::digest(message).as_slice() == digest
+        }
+        rfc5912::ID_SHA_256 | rfc5912::SHA_256_WITH_RSA_ENCRYPTION => {
+            Sha256::digest(message).as_slice() == digest
+        }
+        rfc5912::ID_SHA_384 | rfc5912::SHA_384_WITH_RSA_ENCRYPTION => {
+            Sha384::digest(message).as_slice() == digest
+        }
+        rfc5912::ID_SHA_512 | rfc5912::SHA_512_WITH_RSA_ENCRYPTION => {
+            Sha512::digest(message).as_slice() == digest
+        }
+        rfc5912::ID_MD_2 | rfc5912::MD_2_WITH_RSA_ENCRYPTION => {
+            Md2::digest(message).as_slice() == digest
+        }
+        rfc5912::ID_MD_5 | rfc5912::MD_5_WITH_RSA_ENCRYPTION => {
+            Md5::digest(message).as_slice() == digest
+        }
         _ => unimplemented!("{:?}", algorithm.oid()),
     }
 }
@@ -795,6 +809,11 @@ fn verify_signer_info(si: &SignerInfo, certs: &[Certificate<'_>]) -> bool {
 
     // Verify that the signature in `SignerInfo` is correct.
     match oid_to_object_identifier(si.digest_algorithm.oid()) {
+        rfc5912::ID_MD_2 => {
+            let mut md2 = Md2::default();
+            attrs_set.write_der(&mut md2).unwrap();
+            key.verify_digest::<Md2>(md2.finalize(), si.signature)
+        }
         rfc5912::ID_MD_5 => {
             let mut md5 = Md5::default();
             attrs_set.write_der(&mut md5).unwrap();
@@ -1039,6 +1058,9 @@ impl PublicKey {
         signature: &[u8],
     ) -> bool {
         match oid_to_object_identifier(digest_algorithm.oid()) {
+            rfc5912::ID_MD_2 | rfc5912::MD_2_WITH_RSA_ENCRYPTION => {
+                self.verify_impl::<Md2>(message, signature)
+            }
             rfc5912::ID_MD_5 | rfc5912::MD_5_WITH_RSA_ENCRYPTION => {
                 self.verify_impl::<Md5>(message, signature)
             }
