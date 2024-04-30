@@ -12,7 +12,7 @@ import (
 )
 
 import (
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 // #include <yara_x.h>
@@ -177,7 +177,7 @@ func (s *Scanner) SetModuleOutput(data proto.Message) error {
 		ptr = (*C.uint8_t)(unsafe.Pointer(&(buf[0])))
 	}
 
-	name := C.CString(string(proto.MessageReflect(data).Descriptor().FullName()))
+	name := C.CString(string(data.ProtoReflect().Descriptor().FullName()))
 	defer C.free(unsafe.Pointer(name))
 
 	runtime.LockOSThread()
