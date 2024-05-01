@@ -4780,6 +4780,7 @@ dependencies = [
  "log",
  "magic",
  "md-5",
+ "md2",
  "memchr",
  "memx",
  "nom 7.1.3",

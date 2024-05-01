@@ -809,32 +809,32 @@ fn verify_signer_info(si: &SignerInfo, certs: &[Certificate<'_>]) -> bool {
 
     // Verify that the signature in `SignerInfo` is correct.
     match oid_to_object_identifier(si.digest_algorithm.oid()) {
-        rfc5912::ID_MD_2 => {
+        rfc5912::ID_MD_2 | rfc5912::MD_2_WITH_RSA_ENCRYPTION => {
             let mut md2 = Md2::default();
             attrs_set.write_der(&mut md2).unwrap();
             key.verify_digest::<Md2>(md2.finalize(), si.signature)
         }
-        rfc5912::ID_MD_5 => {
+        rfc5912::ID_MD_5 | rfc5912::MD_5_WITH_RSA_ENCRYPTION => {
             let mut md5 = Md5::default();
             attrs_set.write_der(&mut md5).unwrap();
             key.verify_digest::<Md5>(md5.finalize(), si.signature)
         }
-        rfc5912::ID_SHA_1 => {
+        rfc5912::ID_SHA_1 | rfc5912::SHA_1_WITH_RSA_ENCRYPTION => {
             let mut sha1 = Sha1::default();
             attrs_set.write_der(&mut sha1).unwrap();
             key.verify_digest::<Sha1>(sha1.finalize(), si.signature)
         }
-        rfc5912::ID_SHA_256 => {
+        rfc5912::ID_SHA_256 | rfc5912::SHA_256_WITH_RSA_ENCRYPTION => {
             let mut sha256 = Sha256::default();
             attrs_set.write_der(&mut sha256).unwrap();
             key.verify_digest::<Sha256>(sha256.finalize(), si.signature)
         }
-        rfc5912::ID_SHA_384 => {
+        rfc5912::ID_SHA_384 | rfc5912::SHA_384_WITH_RSA_ENCRYPTION => {
             let mut sha384 = Sha384::default();
             attrs_set.write_der(&mut sha384).unwrap();
             key.verify_digest::<Sha384>(sha384.finalize(), si.signature)
         }
-        rfc5912::ID_SHA_512 => {
+        rfc5912::ID_SHA_512 | rfc5912::SHA_512_WITH_RSA_ENCRYPTION => {
             let mut sha512 = Sha512::default();
             attrs_set.write_der(&mut sha512).unwrap();
             key.verify_digest::<Sha512>(sha512.finalize(), si.signature)
