@@ -691,9 +691,7 @@ impl<'r> Scanner<'r> {
         ctx.limit_reached.clear();
 
         // Clear the unconfirmed matches.
-        for (_, matches) in ctx.unconfirmed_matches.iter_mut() {
-            matches.clear()
-        }
+        ctx.unconfirmed_matches.clear();
 
         // If some pattern or rule matched, clear the matches. Notice that a
         // rule may match without any pattern being matched, because there
@@ -703,17 +701,7 @@ impl<'r> Scanner<'r> {
             || !ctx.non_private_matching_rules.is_empty()
             || !ctx.private_matching_rules.is_empty()
         {
-            // The hash map that tracks the pattern matches is not completely
-            // cleared with pattern_matches.clear() because that would cause
-            // that all the vectors are deallocated. Instead, each of the
-            // vectors are cleared individually, which removes the items
-            // while maintaining the vector capacity. This way the vector may
-            // be reused in later scans without memory allocations.
-            for (_, matches) in ctx.pattern_matches.iter_mut() {
-                matches.clear()
-            }
-
-            // Clear the lists of matching rules.
+            ctx.pattern_matches.clear();
             ctx.non_private_matching_rules.clear();
             ctx.private_matching_rules.clear();
 
