@@ -702,7 +702,7 @@ impl<'r> Scanner<'r> {
         // would be too high.
         for (_, matches) in ctx.unconfirmed_matches.iter_mut() {
             matches.clear();
-            matches.shrink_to(512);
+            matches.shrink_to(32);
         }
 
         // If some pattern or rule matched, clear the matches. Notice that a
@@ -715,7 +715,7 @@ impl<'r> Scanner<'r> {
         {
             for (_, matches) in ctx.pattern_matches.iter_mut() {
                 matches.clear();
-                matches.shrink_to(512);
+                matches.shrink_to(32);
             }
 
             ctx.non_private_matching_rules.clear();
