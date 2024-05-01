@@ -691,12 +691,18 @@ impl<'r> Scanner<'r> {
         ctx.limit_reached.clear();
 
         // Clear the unconfirmed matches.
-        if ctx.unconfirmed_matches.len() < 100 {
-            for (_, matches) in ctx.unconfirmed_matches.iter_mut() {
-                matches.clear()
-            }
-        } else {
-            ctx.unconfirmed_matches.clear();
+        //
+        // We could use `unconfirmed_matches.clear()` for clearing the whole
+        // hash map, but that would cause that all the vectors are deallocated.
+        // Instead, each vector is cleared individually, which removes the items
+        // while maintaining the vector capacity. This way the vector may be
+        // reused in later scans without memory allocations. However, need keep
+        // the size of those vector under control by calling `shrink_to`, if
+        // this map have too many large vectors the overall memory consumption
+        // would be too high.
+        for (_, matches) in ctx.unconfirmed_matches.iter_mut() {
+            matches.clear();
+            matches.shrink_to(512);
         }
 
         // If some pattern or rule matched, clear the matches. Notice that a
@@ -707,12 +713,9 @@ impl<'r> Scanner<'r> {
             || !ctx.non_private_matching_rules.is_empty()
             || !ctx.private_matching_rules.is_empty()
         {
-            if ctx.pattern_matches.len() < 100 {
-                for (_, matches) in ctx.pattern_matches.iter_mut() {
-                    matches.clear()
-                }
-            } else {
-                ctx.pattern_matches.clear();
+            for (_, matches) in ctx.pattern_matches.iter_mut() {
+                matches.clear();
+                matches.shrink_to(512);
             }
 
             ctx.non_private_matching_rules.clear();

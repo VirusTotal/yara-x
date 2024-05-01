@@ -144,6 +144,11 @@ impl MatchList {
     }
 
     #[inline]
+    pub fn shrink_to(&mut self, min_capacity: usize) {
+        self.matches.shrink_to(min_capacity)
+    }
+
+    #[inline]
     pub fn iter(&self) -> Iter<'_, Match> {
         self.matches.iter()
     }
