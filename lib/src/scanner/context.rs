@@ -89,10 +89,9 @@ pub(crate) struct ScanContext<'r> {
     /// as an individual pattern, but the match of one of the pieces doesn't
     /// imply that the whole pattern matches. This partial matches are stored
     /// here until they can be confirmed or discarded. There's no guarantee
-    /// that matches stored in `VecDeque<UnconfirmedMatch>` are sorted by
-    /// matching offset.
-    pub unconfirmed_matches:
-        FxHashMap<SubPatternId, VecDeque<UnconfirmedMatch>>,
+    /// that matches stored in `Vec<UnconfirmedMatch>` are sorted by matching
+    /// offset.
+    pub unconfirmed_matches: FxHashMap<SubPatternId, Vec<UnconfirmedMatch>>,
     /// Set that contains the PatternId for those patterns that have reached
     /// the maximum number of matches indicated by `max_matches_per_pattern`.
     pub limit_reached: FxHashSet<PatternId>,
@@ -685,7 +684,7 @@ impl ScanContext<'_> {
                 self.unconfirmed_matches
                     .entry(sub_pattern_id)
                     .or_default()
-                    .push_back(UnconfirmedMatch {
+                    .push(UnconfirmedMatch {
                         range: match_.range,
                         chain_length: 0,
                     })
@@ -716,7 +715,7 @@ impl ScanContext<'_> {
                         self.unconfirmed_matches
                             .entry(sub_pattern_id)
                             .or_default()
-                            .push_back(UnconfirmedMatch {
+                            .push(UnconfirmedMatch {
                                 range: match_.range,
                                 chain_length: 0,
                             });

@@ -691,7 +691,13 @@ impl<'r> Scanner<'r> {
         ctx.limit_reached.clear();
 
         // Clear the unconfirmed matches.
-        ctx.unconfirmed_matches.clear();
+        if ctx.unconfirmed_matches.len() < 100 {
+            for (_, matches) in ctx.unconfirmed_matches.iter_mut() {
+                matches.clear()
+            }
+        } else {
+            ctx.unconfirmed_matches.clear();
+        }
 
         // If some pattern or rule matched, clear the matches. Notice that a
         // rule may match without any pattern being matched, because there
@@ -701,7 +707,14 @@ impl<'r> Scanner<'r> {
             || !ctx.non_private_matching_rules.is_empty()
             || !ctx.private_matching_rules.is_empty()
         {
-            ctx.pattern_matches.clear();
+            if ctx.pattern_matches.len() < 100 {
+                for (_, matches) in ctx.pattern_matches.iter_mut() {
+                    matches.clear()
+                }
+            } else {
+                ctx.pattern_matches.clear();
+            }
+
             ctx.non_private_matching_rules.clear();
             ctx.private_matching_rules.clear();
 
