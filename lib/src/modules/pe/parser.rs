@@ -1986,6 +1986,9 @@ impl<'a> PE<'a> {
         let num_exports =
             min(exports.number_of_functions as usize, Self::MAX_PE_EXPORTS);
 
+        let num_names =
+            min(exports.number_of_names as usize, Self::MAX_PE_EXPORTS);
+
         // The IMAGE_EXPORT_DIRECTORY structure points to three arrays. The
         // only required array is the Export Address Table (EAT), which is an
         // array of function pointers that contain the address (RVA) of an
@@ -2024,49 +2027,43 @@ impl<'a> PE<'a> {
         // If the RVA from the address_of_functions is within the export
         // directory it is a forwarder RVA and points to a NULL terminated
         // ASCII string.
-
-        let func_rvas = self
-            .parse_at_rva(
-                exports.address_of_functions,
-                count(le_u32, num_exports),
-            )
-            .unwrap_or_default();
-
-        let names = self
-            .parse_at_rva(
-                exports.address_of_names,
-                count(le_u32, exports.number_of_names as usize),
-            )
-            .unwrap_or_default();
-
-        let name_ordinals = self
-            .parse_at_rva(
-                exports.address_of_name_ordinals,
-                count(le_u16, exports.number_of_names as usize),
-            )
-            .unwrap_or_default();
+        let mut func_rvas = iterator(
+            self.data_at_rva(exports.address_of_functions).unwrap_or_default(),
+            le_u32::<&[u8], Error>,
+        );
 
         // Create a vector with one item per exported function. Items in the
         // array initially have function RVA and ordinal only.
         let mut exported_funcs: Vec<_> = func_rvas
-            .iter()
+            .take(num_exports)
             .enumerate()
             .filter_map(|(i, rva)| {
                 Some(ExportedFunc {
-                    rva: *rva,
+                    rva,
                     ordinal: exports.base.checked_add(i as u32)?,
                     ..Default::default()
                 })
             })
             .collect();
 
+        let names = self
+            .parse_at_rva(exports.address_of_names, count(le_u32, num_names))
+            .unwrap_or_default();
+
+        let name_ordinals = self
+            .data_at_rva(exports.address_of_name_ordinals)
+            .unwrap_or_default();
+
         // Set the name field for each exported function, if they are exported
         // by name.
         for f in exported_funcs.iter_mut() {
+            // Find the index of the ordinal.
             if let Some((idx, _)) =
-                name_ordinals.iter().find_position(|ordinal| {
-                    **ordinal as u32 == f.ordinal - exports.base
-                })
+                iterator(name_ordinals, le_u16::<&[u8], Error>)
+                    .take(num_names)
+                    .find_position(|ordinal| {
+                        *ordinal as u32 == f.ordinal - exports.base
+                    })
             {
                 if let Some(name_rva) = names.get(idx) {
                     f.name = self.str_at_rva(*name_rva);
