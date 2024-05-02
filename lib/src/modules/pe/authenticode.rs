@@ -240,27 +240,32 @@ impl AuthenticodeParser {
         // Compute the Authenticode hash by ourselves. This hash will be
         // compared later with the one included in the PE file.
         let computed_authenticode_hash = match digest_algorithm {
-            rfc5912::ID_MD_5 => {
+            rfc5912::ID_MD_2 | rfc5912::MD_2_WITH_RSA_ENCRYPTION => {
+                let mut md2 = Md2::default();
+                authenticode_hasher.hash(&mut md2);
+                md2.finalize().to_vec()
+            }
+            rfc5912::ID_MD_5 | rfc5912::MD_5_WITH_RSA_ENCRYPTION => {
                 let mut md5 = Md5::default();
                 authenticode_hasher.hash(&mut md5);
                 md5.finalize().to_vec()
             }
-            rfc5912::ID_SHA_1 => {
+            rfc5912::ID_SHA_1 | rfc5912::SHA_1_WITH_RSA_ENCRYPTION => {
                 let mut sha1 = Sha1::default();
                 authenticode_hasher.hash(&mut sha1);
                 sha1.finalize().to_vec()
             }
-            rfc5912::ID_SHA_256 => {
+            rfc5912::ID_SHA_256 | rfc5912::SHA_256_WITH_RSA_ENCRYPTION => {
                 let mut sha256 = Sha256::default();
                 authenticode_hasher.hash(&mut sha256);
                 sha256.finalize().to_vec()
             }
-            rfc5912::ID_SHA_384 => {
+            rfc5912::ID_SHA_384 | rfc5912::SHA_384_WITH_RSA_ENCRYPTION => {
                 let mut sha384 = Sha384::default();
                 authenticode_hasher.hash(&mut sha384);
                 sha384.finalize().to_vec()
             }
-            rfc5912::ID_SHA_512 => {
+            rfc5912::ID_SHA_512 | rfc5912::SHA_512_WITH_RSA_ENCRYPTION => {
                 let mut sha512 = Sha512::default();
                 authenticode_hasher.hash(&mut sha512);
                 sha512.finalize().to_vec()
