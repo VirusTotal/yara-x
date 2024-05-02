@@ -29,7 +29,7 @@ use crate::compiler::{
 use crate::re::fast::fastvm::FastVM;
 use crate::re::thompson::pikevm::PikeVM;
 use crate::re::Action;
-use crate::scanner::matches::{Match, MatchList, UnconfirmedMatch};
+use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
 use crate::scanner::HEARTBEAT_COUNTER;
 use crate::types::{Array, Map, Struct};
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
@@ -83,7 +83,7 @@ pub(crate) struct ScanContext<'r> {
     /// Hash map that tracks the matches occurred during a scan. The keys
     /// are the PatternId of the matching pattern, and values are a list
     /// of matches.
-    pub pattern_matches: FxHashMap<PatternId, MatchList>,
+    pub pattern_matches: PatternMatches,
     /// Hash map that tracks the unconfirmed matches for chained patterns. When
     /// a pattern is split into multiple chained pieces, each piece is handled
     /// as an individual pattern, but the match of one of the pieces doesn't
@@ -95,8 +95,6 @@ pub(crate) struct ScanContext<'r> {
     /// Set that contains the PatternId for those patterns that have reached
     /// the maximum number of matches indicated by `max_matches_per_pattern`.
     pub limit_reached: FxHashSet<PatternId>,
-    /// Maximum number of matches per pattern.
-    pub max_matches_per_pattern: usize,
     /// When [`HEARTBEAT_COUNTER`] is larger than this value, the scan is
     /// aborted due to a timeout.
     pub deadline: u64,
@@ -339,11 +337,7 @@ impl ScanContext<'_> {
 
         bits.set(pattern_id.into(), true);
 
-        let matches_list = self.pattern_matches.entry(pattern_id).or_default();
-
-        if matches_list.len() < self.max_matches_per_pattern {
-            matches_list.add(match_, replace);
-        } else {
+        if !self.pattern_matches.add(pattern_id, match_, replace) {
             self.limit_reached.insert(pattern_id);
         }
     }

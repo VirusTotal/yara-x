@@ -36,6 +36,7 @@ use crate::wasm::{ENGINE, MATCHING_RULES_BITMAP_BASE};
 use crate::{modules, wasm, Variable};
 
 pub(crate) use crate::scanner::context::*;
+use crate::scanner::matches::PatternMatches;
 
 mod context;
 mod matches;
@@ -101,7 +102,6 @@ pub struct Scanner<'r> {
 }
 
 impl<'r> Scanner<'r> {
-    const DEFAULT_MAX_MATCHES_PER_PATTERN: usize = 1_000_000;
     const DEFAULT_SCAN_TIMEOUT: u64 = 315_360_000;
 
     /// Creates a new scanner.
@@ -135,11 +135,10 @@ impl<'r> Scanner<'r> {
                 main_memory: None,
                 module_outputs: FxHashMap::default(),
                 user_provided_module_outputs: FxHashMap::default(),
-                pattern_matches: FxHashMap::default(),
+                pattern_matches: PatternMatches::new(),
                 unconfirmed_matches: FxHashMap::default(),
                 deadline: 0,
                 limit_reached: FxHashSet::default(),
-                max_matches_per_pattern: Self::DEFAULT_MAX_MATCHES_PER_PATTERN,
                 regexp_cache: RefCell::new(FxHashMap::default()),
                 #[cfg(feature = "rules-profiling")]
                 time_spent_in_pattern: FxHashMap::default(),
@@ -272,7 +271,7 @@ impl<'r> Scanner<'r> {
     /// When some pattern reaches the maximum number of patterns it won't
     /// produce more matches.
     pub fn max_matches_per_pattern(&mut self, n: usize) -> &mut Self {
-        self.wasm_store.data_mut().max_matches_per_pattern = n;
+        self.wasm_store.data_mut().pattern_matches.max_matches_per_pattern(n);
         self
     }
 
@@ -691,19 +690,7 @@ impl<'r> Scanner<'r> {
         ctx.limit_reached.clear();
 
         // Clear the unconfirmed matches.
-        //
-        // We could use `unconfirmed_matches.clear()` for clearing the whole
-        // hash map, but that would cause that all the vectors are deallocated.
-        // Instead, each vector is cleared individually, which removes the items
-        // while maintaining the vector capacity. This way the vector may be
-        // reused in later scans without memory allocations. However, need keep
-        // the size of those vector under control by calling `shrink_to`, if
-        // this map have too many large vectors the overall memory consumption
-        // would be too high.
-        for (_, matches) in ctx.unconfirmed_matches.iter_mut() {
-            matches.clear();
-            matches.shrink_to(32);
-        }
+        ctx.unconfirmed_matches.clear();
 
         // If some pattern or rule matched, clear the matches. Notice that a
         // rule may match without any pattern being matched, because there
@@ -713,11 +700,7 @@ impl<'r> Scanner<'r> {
             || !ctx.non_private_matching_rules.is_empty()
             || !ctx.private_matching_rules.is_empty()
         {
-            for (_, matches) in ctx.pattern_matches.iter_mut() {
-                matches.clear();
-                matches.shrink_to(32);
-            }
-
+            ctx.pattern_matches.clear();
             ctx.non_private_matching_rules.clear();
             ctx.private_matching_rules.clear();
 
@@ -1007,8 +990,8 @@ impl<'a, 'r> Pattern<'a, 'r> {
             iterator: self
                 .ctx
                 .pattern_matches
-                .get(&self.pattern_id)
-                .map(|match_list| match_list.iter()),
+                .get(self.pattern_id)
+                .map(|matches| matches.iter()),
         }
     }
 }

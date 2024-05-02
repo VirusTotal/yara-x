@@ -1,4 +1,7 @@
+use crate::compiler::PatternId;
 use core::slice::Iter;
+use rustc_hash::FxHashMap;
+use std::collections::hash_map::Entry;
 use std::ops::{Range, RangeInclusive};
 
 /// Represents the match of a pattern.
@@ -22,8 +25,11 @@ pub struct MatchList {
 }
 
 impl MatchList {
-    pub fn new() -> Self {
-        Self { matches: Vec::new() }
+    /// Creates a new [`MatchList`] that can hold at least `capacity` items
+    /// without relocating. The capacity will increase if [`MatchList::add`]
+    /// is called and there's no capacity to store the new item.
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self { matches: Vec::with_capacity(capacity) }
     }
 
     /// Adds a new match to the list while keeping the matches sorted by
@@ -119,6 +125,11 @@ impl MatchList {
     }
 
     #[inline]
+    pub fn capacity(&self) -> usize {
+        self.matches.capacity()
+    }
+
+    #[inline]
     pub fn first(&self) -> Option<&Match> {
         self.matches.first()
     }
@@ -187,6 +198,92 @@ pub struct UnconfirmedMatch {
     pub chain_length: usize,
 }
 
+/// A hash map that tracks matches for each pattern.
+///
+/// Keys in this map are a [`PatternId`], and values are a [`MatchList`] that
+/// contains the matches for that pattern.
+pub struct PatternMatches {
+    matches: FxHashMap<PatternId, MatchList>,
+    max_matches_per_pattern: usize,
+    capacity: usize,
+}
+
+impl PatternMatches {
+    const DEFAULT_MAX_MATCHES_PER_PATTERN: usize = 1_000_000;
+
+    pub fn new() -> Self {
+        Self {
+            matches: FxHashMap::default(),
+            max_matches_per_pattern: Self::DEFAULT_MAX_MATCHES_PER_PATTERN,
+            capacity: 0,
+        }
+    }
+
+    pub fn max_matches_per_pattern(&mut self, n: usize) -> &mut Self {
+        self.max_matches_per_pattern = n;
+        self
+    }
+
+    pub fn get(&self, pattern_id: PatternId) -> Option<&MatchList> {
+        self.matches.get(&pattern_id)
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.matches.is_empty()
+    }
+
+    pub fn clear(&mut self) {
+        if self.capacity > self.max_matches_per_pattern * 10 {
+            self.matches.clear();
+            self.capacity = 0;
+        } else {
+            for (_, matches) in self.matches.iter_mut() {
+                matches.clear();
+            }
+        }
+    }
+
+    /// Adds a new match to the pattern identified by the given [`PatternId`]
+    ///
+    /// If a match at the same offset already exists, the `replace_if_longer`
+    /// argument indicates what to do. If this argument is `true` and the new
+    /// match is longer than the existing one, the existing match will be
+    /// replaced. If the argument is `false` the new match will be ignored and
+    /// the existing one will remain.
+    ///
+    /// This function returns `true` if the new match was added, or `false`
+    /// if the pattern already reached the maximum number of matches and
+    /// therefore the new match was not added.
+    pub fn add(
+        &mut self,
+        pattern_id: PatternId,
+        m: Match,
+        replace_if_longer: bool,
+    ) -> bool {
+        match self.matches.entry(pattern_id) {
+            Entry::Occupied(mut entry) => {
+                let matches = entry.get_mut();
+                if matches.len() < self.max_matches_per_pattern {
+                    self.capacity -= matches.capacity();
+                    matches.add(m, replace_if_longer);
+                    self.capacity += matches.capacity();
+                    true
+                } else {
+                    false
+                }
+            }
+            Entry::Vacant(entry) => {
+                let mut matches = MatchList::with_capacity(8);
+                self.capacity += matches.capacity();
+                matches.add(m, replace_if_longer);
+                entry.insert(matches);
+                true
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::scanner::matches::{Match, MatchList};
@@ -194,7 +291,7 @@ mod test {
 
     #[test]
     fn match_list() {
-        let mut ml = MatchList::new();
+        let mut ml = MatchList::with_capacity(5);
 
         ml.add(Match { range: (2..10), xor_key: None }, false);
         ml.add(Match { range: (1..10), xor_key: None }, false);
