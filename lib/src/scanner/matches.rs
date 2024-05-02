@@ -200,8 +200,11 @@ pub struct UnconfirmedMatch {
 
 /// A hash map that tracks matches for each pattern.
 ///
-/// Keys in this map are a [`PatternId`], and values are a [`MatchList`] that
-/// contains the matches for that pattern.
+/// Each key in this map is a [`PatternId`], and its associated value is a
+/// [`MatchList`] that contains the matches found for the pattern.
+///
+/// Each pattern is limited to a maximum number of matches that may be
+/// configured.
 pub struct PatternMatches {
     matches: FxHashMap<PatternId, MatchList>,
     max_matches_per_pattern: usize,
@@ -209,6 +212,7 @@ pub struct PatternMatches {
 }
 
 impl PatternMatches {
+    /// The maximum number of matches accepted for each pattern by default.
     const DEFAULT_MAX_MATCHES_PER_PATTERN: usize = 1_000_000;
 
     pub fn new() -> Self {
@@ -219,11 +223,15 @@ impl PatternMatches {
         }
     }
 
+    /// Sets the maximum number of matches per pattern.
+    ///
+    /// The default value is [`Self::DEFAULT_MAX_MATCHES_PER_PATTERN`].
     pub fn max_matches_per_pattern(&mut self, n: usize) -> &mut Self {
         self.max_matches_per_pattern = n;
         self
     }
 
+    /// Returns the list of matches for a given pattern.
     pub fn get(&self, pattern_id: PatternId) -> Option<&MatchList> {
         self.matches.get(&pattern_id)
     }
@@ -233,7 +241,20 @@ impl PatternMatches {
         self.matches.is_empty()
     }
 
+    /// Clears the matches for all patterns.
+    ///
+    /// To optimize performance, the memory allocated for storing matches
+    /// is not released every time this function is invoked. Instead, the
+    /// allocated memory is retained and reused in subsequent scans. However,
+    /// due to the potential volume of patterns and matches, persistently
+    /// holding onto this memory can result in a significant memory footprint.
+    /// When the total capacity of stored data exceeds a defined threshold,
+    /// memory is deallocated to manage resource usage efficiently.
     pub fn clear(&mut self) {
+        // If the capacity goes above a certain threshold, completely
+        // clear the matches, which frees the memory associated to the
+        // list of matches. If not, clear the list of matches, but maintain
+        // the memory allocated for them.
         if self.capacity > 10000 {
             self.matches.clear();
             self.capacity = 0;
