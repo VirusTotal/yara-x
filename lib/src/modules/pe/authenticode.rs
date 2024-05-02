@@ -27,6 +27,7 @@ use crate::modules::pe::asn1::{
     ContentInfo, DigestInfo, SignedData, SignerInfo, SpcIndirectDataContent,
     SpcSpOpusInfo, TstInfo,
 };
+use crate::modules::pe::authenticode::PublicKeyError::InvalidAlgorithm;
 use crate::modules::protos;
 
 /// Error returned by [`AuthenticodeParser::parse`].
@@ -62,6 +63,9 @@ pub enum ParseError {
     /// The attribute containing the Authenticode digest is
     /// missing.
     MissingAuthenticodeDigest,
+
+    /// The Authenticode digest algorithm is invalid.
+    InvalidDigestAlgorithm,
 }
 
 /// Trait implemented by any type that is able to compute the Authenticode
@@ -141,6 +145,13 @@ impl AuthenticodeParser {
             Some(si) => si,
             None => return Err(ParseError::InvalidNumSignerInfo),
         };
+
+        let digest_algorithm =
+            match oid_to_object_identifier(signer_info.digest_algorithm.oid())
+            {
+                Ok(oid) => oid,
+                Err(_) => return Err(ParseError::InvalidDigestAlgorithm),
+            };
 
         // No signer infos after taking the only one.
         if !signed_data.signer_infos.is_empty() {
@@ -228,36 +239,34 @@ impl AuthenticodeParser {
 
         // Compute the Authenticode hash by ourselves. This hash will be
         // compared later with the one included in the PE file.
-        let computed_authenticode_hash =
-            match oid_to_object_identifier(signer_info.digest_algorithm.oid())
-            {
-                rfc5912::ID_MD_5 => {
-                    let mut md5 = Md5::default();
-                    authenticode_hasher.hash(&mut md5);
-                    md5.finalize().to_vec()
-                }
-                rfc5912::ID_SHA_1 => {
-                    let mut sha1 = Sha1::default();
-                    authenticode_hasher.hash(&mut sha1);
-                    sha1.finalize().to_vec()
-                }
-                rfc5912::ID_SHA_256 => {
-                    let mut sha256 = Sha256::default();
-                    authenticode_hasher.hash(&mut sha256);
-                    sha256.finalize().to_vec()
-                }
-                rfc5912::ID_SHA_384 => {
-                    let mut sha384 = Sha384::default();
-                    authenticode_hasher.hash(&mut sha384);
-                    sha384.finalize().to_vec()
-                }
-                rfc5912::ID_SHA_512 => {
-                    let mut sha512 = Sha512::default();
-                    authenticode_hasher.hash(&mut sha512);
-                    sha512.finalize().to_vec()
-                }
-                oid => unimplemented!("{:?}", oid),
-            };
+        let computed_authenticode_hash = match digest_algorithm {
+            rfc5912::ID_MD_5 => {
+                let mut md5 = Md5::default();
+                authenticode_hasher.hash(&mut md5);
+                md5.finalize().to_vec()
+            }
+            rfc5912::ID_SHA_1 => {
+                let mut sha1 = Sha1::default();
+                authenticode_hasher.hash(&mut sha1);
+                sha1.finalize().to_vec()
+            }
+            rfc5912::ID_SHA_256 => {
+                let mut sha256 = Sha256::default();
+                authenticode_hasher.hash(&mut sha256);
+                sha256.finalize().to_vec()
+            }
+            rfc5912::ID_SHA_384 => {
+                let mut sha384 = Sha384::default();
+                authenticode_hasher.hash(&mut sha384);
+                sha384.finalize().to_vec()
+            }
+            rfc5912::ID_SHA_512 => {
+                let mut sha512 = Sha512::default();
+                authenticode_hasher.hash(&mut sha512);
+                sha512.finalize().to_vec()
+            }
+            oid => unimplemented!("{:?}", oid),
+        };
 
         let authenticode_digest = indirect_data.message_digest;
 
@@ -693,7 +702,11 @@ fn verify_message_digest(
     message: &[u8],
     digest: &[u8],
 ) -> bool {
-    match oid_to_object_identifier(algorithm.oid()) {
+    let oid = match oid_to_object_identifier(algorithm.oid()) {
+        Ok(oid) => oid,
+        Err(_) => return false,
+    };
+    match oid {
         rfc5912::ID_SHA_1 | rfc5912::SHA_1_WITH_RSA_ENCRYPTION => {
             Sha1::digest(message).as_slice() == digest
         }
@@ -738,6 +751,12 @@ fn verify_message_digest(
 /// certificate that was signed by an "external" one (a certificate that is not
 /// included in the PE).
 fn verify_signer_info(si: &SignerInfo, certs: &[Certificate<'_>]) -> bool {
+    let digest_algorithm =
+        match oid_to_object_identifier(si.digest_algorithm.oid()) {
+            Ok(oid) => oid,
+            Err(_) => return false,
+        };
+
     // Get a certificate chain that starts with the certificate that signed
     // the data that this SignerInfo refers to. This chain goes from the
     // signing certificate up in the chain of truth until a self-signed
@@ -808,7 +827,7 @@ fn verify_signer_info(si: &SignerInfo, certs: &[Certificate<'_>]) -> bool {
     let attrs_set = Set::new(Cow::Borrowed(si.raw_signed_attrs));
 
     // Verify that the signature in `SignerInfo` is correct.
-    match oid_to_object_identifier(si.digest_algorithm.oid()) {
+    match digest_algorithm {
         rfc5912::ID_MD_2 | rfc5912::MD_2_WITH_RSA_ENCRYPTION => {
             let mut md2 = Md2::default();
             attrs_set.write_der(&mut md2).unwrap();
@@ -984,13 +1003,18 @@ enum PublicKeyError {
 
     #[error("Unknown encryption algorithm")]
     UnknownAlgorithm(ObjectIdentifier),
+
+    #[error("Invalid object identifier")]
+    InvalidAlgorithm,
 }
 
 impl TryFrom<&SubjectPublicKeyInfo<'_>> for PublicKey {
     type Error = PublicKeyError;
 
     fn try_from(spki: &SubjectPublicKeyInfo<'_>) -> Result<Self, Self::Error> {
-        match oid_to_object_identifier(spki.algorithm.oid()) {
+        match oid_to_object_identifier(spki.algorithm.oid())
+            .map_err(|_| InvalidAlgorithm)?
+        {
             rfc5912::RSA_ENCRYPTION => {
                 use rsa::pkcs1::DecodeRsaPublicKey;
                 Ok(Self::Rsa(rsa::RsaPublicKey::from_pkcs1_der(
@@ -1030,7 +1054,10 @@ impl TryFrom<&SubjectPublicKeyInfo<'_>> for PublicKey {
                     .ok_or(Self::Error::MissingAlgorithmParameters)?
                     .try_into()?;
 
-                match oid_to_object_identifier(&curve) {
+                let oid = oid_to_object_identifier(&curve)
+                    .map_err(|_| InvalidAlgorithm)?;
+
+                match oid {
                     rfc5912::SECP_256_R_1 => Ok(Self::EcdsaP256(
                         p256::ecdsa::VerifyingKey::try_from(
                             spki.subject_public_key.as_ref(),
@@ -1057,7 +1084,11 @@ impl PublicKey {
         message: &[u8],
         signature: &[u8],
     ) -> bool {
-        match oid_to_object_identifier(digest_algorithm.oid()) {
+        let oid = match oid_to_object_identifier(digest_algorithm.oid()) {
+            Ok(oid) => oid,
+            Err(_) => return false,
+        };
+        match oid {
             rfc5912::ID_MD_2 | rfc5912::MD_2_WITH_RSA_ENCRYPTION => {
                 self.verify_impl::<Md2>(message, signature)
             }

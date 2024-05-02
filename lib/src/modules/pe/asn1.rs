@@ -59,12 +59,18 @@ pub mod oid {
 }
 
 #[inline]
-pub fn oid_to_object_identifier(oid: &Oid) -> ObjectIdentifier {
-    ObjectIdentifier::from_bytes(oid.as_bytes()).unwrap()
+pub fn oid_to_object_identifier(
+    oid: &Oid,
+) -> Result<ObjectIdentifier, const_oid::Error> {
+    ObjectIdentifier::from_bytes(oid.as_bytes())
 }
 
 pub fn oid_to_str(oid: &Oid) -> Cow<'static, str> {
-    match oid_to_object_identifier(oid) {
+    let oid = match oid_to_object_identifier(oid) {
+        Ok(oid) => oid,
+        Err(_) => return Cow::Borrowed("invalid"),
+    };
+    match oid {
         rfc5912::ID_MD_5 => Cow::Borrowed("md5"),
         rfc5912::ID_SHA_1 => Cow::Borrowed("sha1"),
         rfc5912::ID_SHA_256 => Cow::Borrowed("sha256"),
@@ -136,7 +142,8 @@ impl<'a> ContentInfo<'a> {
         Ok((
             remainder,
             Self {
-                content_type: oid_to_object_identifier(content_type.as_oid()?),
+                content_type: oid_to_object_identifier(content_type.as_oid()?)
+                    .map_err(|_| BerValueError)?,
                 content,
             },
         ))
@@ -443,7 +450,8 @@ impl<'a> Attribute<'a> {
             Ok((
                 remainder,
                 Self {
-                    attr_type: oid_to_object_identifier(attr_type.as_oid()?),
+                    attr_type: oid_to_object_identifier(attr_type.as_oid()?)
+                        .map_err(|_| BerValueError)?,
                     attr_values,
                 },
             ))
