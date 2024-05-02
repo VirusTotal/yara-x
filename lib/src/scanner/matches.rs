@@ -234,7 +234,7 @@ impl PatternMatches {
     }
 
     pub fn clear(&mut self) {
-        if self.capacity > self.max_matches_per_pattern * 10 {
+        if self.capacity > 10000 {
             self.matches.clear();
             self.capacity = 0;
         } else {
