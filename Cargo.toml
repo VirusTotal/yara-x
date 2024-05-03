@@ -5,7 +5,7 @@ edition = "2021"
 homepage = "https://github.com/VirusTotal/yara-x"
 repository = "https://github.com/VirusTotal/yara-x"
 readme = "README.md"
-license = "BSD-3"
+license = "BSD-3-Clause"
 keywords = ["pattern-matching", "cybersecurity", "forensics", "malware", "yara"]
 
 # When updating rust-version also update MSRV in:
