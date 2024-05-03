@@ -45,32 +45,32 @@ rule BlopStream {
 
 ## Module structure
 
-| Field                        | Type                                 |
-|------------------------------|--------------------------------------|
-| is_dotnet                    | bool                                 |
-| module_name                  | string                               |
-| version                      | string                               |
-| number_of_streams            | integer                              |
-| number_of_guids              | integer                              |
-| number_of_resources          | integer                              |
-| number_of_generic_parameters | integer                              |
-| number_of_classes            | integer                              |
-| number_of_assembly_refs      | integer                              |
-| number_of_modulerefs         | integer                              |
-| number_of_user_strings       | integer                              |
-| number_of_constants          | integer                              |
-| number_of_field_offsets      | integer                              |
-| typelib                      | string                               |
-| streams                      | array of [Stream](#stream)           |
-| guids                        | array of string                      |
-| constants                    | array of string                      |
-| assembly                     | [Assembly](#assembly)                |
-| assembly_refs                | array of [AssemblyRef](#assemblyref) |
-| resources                    | array of [Resource](#resource)       |
-| classes                      | array of [Class](#class)             |
-| field_offsets                | array of integer                     |
-| user_strings                 | array of string                      |
-| modulerefs                   | array of string                      |
+| Field                        | Type                              |
+|------------------------------|-----------------------------------|
+| is_dotnet                    | bool                              |
+| module_name                  | string                            |
+| version                      | string                            |
+| number_of_streams            | integer                           |
+| number_of_guids              | integer                           |
+| number_of_resources          | integer                           |
+| number_of_generic_parameters | integer                           |
+| number_of_classes            | integer                           |
+| number_of_assembly_refs      | integer                           |
+| number_of_modulerefs         | integer                           |
+| number_of_user_strings       | integer                           |
+| number_of_constants          | integer                           |
+| number_of_field_offsets      | integer                           |
+| typelib                      | string                            |
+| streams                      | [Stream](#stream) array           |
+| guids                        | string array                      |
+| constants                    | string array                      |
+| assembly                     | [Assembly](#assembly) array       |
+| assembly_refs                | [AssemblyRef](#assemblyref) array |
+| resources                    | [Resource](#resource) array       |
+| classes                      | [Class](#class) array             |
+| field_offsets                | integer array                     |
+| user_strings                 | string array                      |
+| modulerefs                   | string array                      |
 
 ### Assembly
 
@@ -122,21 +122,21 @@ rule WindowsFirewallHelper {
 
 This is the structure of each item in the `classes` array.
 
-| Field                        | Type                       |
-|------------------------------|----------------------------|
-| fullname                     | string                     |
-| name                         | string                     |
-| namespace                    | string                     |
-| visibility                   | string                     |
-| type                         | string                     |
-| abstract                     | bool                       |
-| sealed                       | bool                       |
-| number_of_base_types         | integer                    |
-| number_of_generic_parameters | integer                    |
-| number_of_methods            | integer                    |
-| base_types                   | array of string            |
-| generic_parameters           | array of string            |
-| methods                      | array of [Method](#method) |
+| Field                        | Type                    |
+|------------------------------|-------------------------|
+| fullname                     | string                  |
+| name                         | string                  |
+| namespace                    | string                  |
+| visibility                   | string                  |
+| type                         | string                  |
+| abstract                     | bool                    |
+| sealed                       | bool                    |
+| number_of_base_types         | integer                 |
+| number_of_generic_parameters | integer                 |
+| number_of_methods            | integer                 |
+| base_types                   | string array            |
+| generic_parameters           | string array            |
+| methods                      | [Method](#method) array |
 
 ###### Example
 
@@ -155,19 +155,19 @@ rule DebugInfoInPDBAttribute {
 
 This is the structure of each item in the `methods` array within each Class.
 
-| Field                        | Type                     |
-|------------------------------|--------------------------|
-| name                         | string                   |
-| visibility                   | string                   |
-| abstract                     | bool                     |
-| static                       | bool                     |
-| virtual                      | bool                     |
-| final                        | bool                     |
-| return_type                  | string                   |
-| number_of_generic_parameters | integer                  |
-| number_of_parameters         | integer                  |
-| generic_parameters           | array of string          |
-| parameters                   | array of [Param](#param) |
+| Field                        | Type                  |
+|------------------------------|-----------------------|
+| name                         | string                |
+| visibility                   | string                |
+| abstract                     | bool                  |
+| static                       | bool                  |
+| virtual                      | bool                  |
+| final                        | bool                  |
+| return_type                  | string                |
+| number_of_generic_parameters | integer               |
+| number_of_parameters         | integer               |
+| generic_parameters           | string array          |
+| parameters                   | [Param](#param) array |
 
 ###### Example
 

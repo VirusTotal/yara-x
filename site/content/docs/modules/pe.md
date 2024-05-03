@@ -50,297 +50,388 @@ rule is_pe {
 
 ## Functions
 
+### is_32bit()
+
+Returns true if the file is a 32-bit PE.
+
+### is_64bit()
+
+Returns true if the file is a 64-bit PE.
+
+### is_dll()
+
+Returns true if the file is Dynamic Link Library (DLL).
+
+### rva_to_offset(rva)
+
+Given a relative virtual address (RVA) returns the corresponding file offset.
+
+### calculate_checksum()
+
+Calculate the PE checksum. Useful for checking if the checksum in the header is
+correct.
+
+###### Example
+
+```
+import "pe"
+
+rule WrongChecksum {
+    condition:
+        pe.calculate_checksum() != pe.checksum
+}
+```
+
+### section_index(name)
+
+Returns the index into the `sections` array for the section that has the given
+name. The `name` argument is case-sensitive.
+
+### section_index(offset)
+
+Returns the index into the `sections` array for the section that contains
+the given file offset.
+
+### imphash()
+
+Returns the import hash (or imphash) for the PE. The imphash is an MD5 hash of
+the PE's import table after some normalization. The imphash for a PE can be also
+computed with [pefile](https://github.com/erocarrera/pefile) and you can find
+more information
+in [Mandiant's blog](https://www.mandiant.com/resources/blog/tracking-malware-import-hashing).
+
+{{< callout title="Notice">}}
+
+The returned hash string is always in lowercase.
+
+{{< /callout >}}
+
 ## Module structure
 
-| Field                                | Type                             | Description                                       |
-|--------------------------------------|----------------------------------|---------------------------------------------------|
-| is_pe                                | [bool](#bool)                    | True if the file is PE. Example: pe.is_pe.        |
-| machine                              | [Machine](#machine)              | Machine type.                                     |
-| subsystem                            | [Subsystem](#subsystem)          | Subsystem type.                                   |
-| os_version                           | [Version](#version)              | OS version.                                       |
-| subsystem_version                    | [Version](#version)              | Subsystem version.                                |
-| image_version                        | [Version](#version)              |                                                   |
-| linker_version                       | [Version](#version)              |                                                   |
-| opthdr_magic                         | [OptionalMagic](#optionalmagic)  |                                                   |
-| characteristics                      | integer                          |                                                   |
-| dll_characteristics                  | integer                          |                                                   |
-| timestamp                            | integer                          |                                                   |
-| image_base                           | integer                          |                                                   |
-| checksum                             | integer                          |                                                   |
-| base_of_code                         | integer                          |                                                   |
-| base_of_data                         | integer                          |                                                   |
-| entry_point                          | integer                          | Entry point as a file offset.                     |
-| entry_point_raw                      | integer                          | Entry point as it appears in the PE header (RVA). |
-| dll_name                             | string                           |                                                   |
-| export_timestamp                     | integer                          |                                                   |
-| section_alignment                    | integer                          |                                                   |
-| file_alignment                       | integer                          |                                                   |
-| loader_flags                         | integer                          |                                                   |
-| size_of_optional_header              | integer                          |                                                   |
-| size_of_code                         | integer                          |                                                   |
-| size_of_initialized_data             | integer                          |                                                   |
-| size_of_uninitialized_data           | integer                          |                                                   |
-| size_of_image                        | integer                          |                                                   |
-| size_of_headers                      | integer                          |                                                   |
-| size_of_stack_reserve                | integer                          |                                                   |
-| size_of_stack_commit                 | integer                          |                                                   |
-| size_of_heap_reserve                 | integer                          |                                                   |
-| size_of_heap_commit                  | integer                          |                                                   |
-| pointer_to_symbol_table              | integer                          |                                                   |
-| win32_version_value                  | integer                          |                                                   |
-| number_of_symbols                    | integer                          |                                                   |
-| number_of_rva_and_sizes              | integer                          |                                                   |
-| number_of_sections                   | integer                          |                                                   |
-| number_of_imported_functions         | integer                          |                                                   |
-| number_of_delayed_imported_functions | integer                          |                                                   |
-| number_of_resources                  | integer                          |                                                   |
-| number_of_version_infos              | integer                          |                                                   |
-| number_of_imports                    | integer                          |                                                   |
-| number_of_delayed_imports            | integer                          |                                                   |
-| number_of_exports                    | integer                          |                                                   |
-| number_of_signatures                 | integer                          |                                                   |
-| version_info                         | dictionary                       |                                                   |
-| version_info_list                    | array of [KeyValue](#keyvalue)   |                                                   |
-| rich_signature                       | [RichSignature](#richSignature)  |                                                   |
-| pdb_path                             | string                           |                                                   |
-| sections                             | array of [Section](#section)     |                                                   |
-| data_directories                     | array of [DirEntry](#dirEntry)   |                                                   |
-| resource_timestamp                   | integer                          |                                                   |
-| resource_version                     | [Version](#version)              | TODO: implement resource_version?                 |
-| resources                            | array of [Resource](#resource)   |                                                   |
-| import_details                       | array of [Import](#import)       |                                                   |
-| delayed_import_details               | array of [Import](#import)       |                                                   |
-| export_details                       | array of [Export](#export)       |                                                   |
-| is_signed                            | bool                             |                                                   |
-| signatures                           | array of [Signature](#signature) |                                                   |
-| overlay                              | [Overlay](#overlay)              |                                                   |
-
-### VersionInfo
-
-| Field | Type              | Label    | Description |
-|-------|-------------------|----------|-------------|
-| key   | [string](#string) | optional |             |
-| value | [string](#string) | optional |             |
+| Field                                | Type                            | Description                                      |
+|--------------------------------------|---------------------------------|--------------------------------------------------|
+| is_pe                                | bool                            | True if the file is PE                           |
+| is_signed                            | bool                            | True if the Authenticode signature is correct    |
+| machine                              | [Machine](#machine)             | Machine type                                     |
+| subsystem                            | [Subsystem](#subsystem)         | Subsystem type                                   |
+| os_version                           | [Version](#version)             | OS version                                       |
+| subsystem_version                    | [Version](#version)             | Subsystem version                                |
+| image_version                        | [Version](#version)             | Image version                                    |
+| linker_version                       | [Version](#version)             | Linker version                                   |
+| opthdr_magic                         | [OptionalMagic](#optionalmagic) | Magic in optional headers                        |
+| characteristics                      | integer                         | [Characteristics](#characteristics) flags        |
+| dll_characteristics                  | integer                         | [DllCharacteristics](#dllcharacteristics) flags  |
+| timestamp                            | integer                         | PE timestamp (as Unix timestamp)                 |
+| image_base                           | integer                         | Image base                                       |
+| checksum                             | integer                         | PE checksum                                      |
+| base_of_code                         | integer                         | Base of code                                     |
+| base_of_data                         | integer                         | Base of data                                     |
+| entry_point                          | integer                         | Entry point as a file offset                     |
+| entry_point_raw                      | integer                         | Entry point as it appears in the PE header (RVA) |
+| dll_name                             | string                          | DLL name                                         |
+| export_timestamp                     | integer                         | Exports timestamp (as Unix timestamp)            |
+| section_alignment                    | integer                         | Section alignment                                |
+| file_alignment                       | integer                         | File alignment                                   |
+| loader_flags                         | integer                         | Loader flags                                     |
+| size_of_optional_header              | integer                         | Size of optional header                          |
+| size_of_code                         | integer                         | Size of code                                     |
+| size_of_initialized_data             | integer                         | Size of initialized data                         |
+| size_of_uninitialized_data           | integer                         | Size of uninitialized data                       |
+| size_of_image                        | integer                         | Size of image                                    |
+| size_of_headers                      | integer                         | Size of headers                                  |
+| size_of_stack_reserve                | integer                         | Size of stack reserve                            |
+| size_of_stack_commit                 | integer                         | Size of stack commit                             |
+| size_of_heap_reserve                 | integer                         | Size of heap reserve                             |
+| size_of_heap_commit                  | integer                         | Size of heap commit                              |
+| pointer_to_symbol_table              | integer                         | File offset of symbol table                      |
+| win32_version_value                  | integer                         | Win32 version                                    |
+| number_of_symbols                    | integer                         | Number of symbols                                |
+| number_of_rva_and_sizes              | integer                         | Number of                                        |
+| number_of_sections                   | integer                         | Length of `sections`                             |
+| number_of_imported_functions         | integer                         | Total number of imported functions               |
+| number_of_delayed_imported_functions | integer                         | Total number of delayed imported functions       |
+| number_of_resources                  | integer                         | Length of `resources`                            |
+| number_of_version_infos              | integer                         | Length of `version_info_list`                    |
+| number_of_imports                    | integer                         | Length of `import_details`                       |
+| number_of_delayed_imports            | integer                         | Length of `delayed_import_details`               |
+| number_of_exports                    | integer                         | Length of `export_details`                       |
+| number_of_signatures                 | integer                         | Length of `signatures`                           |
+| version_info                         | dictionary                      | Dictionary with PE version information           |
+| version_info_list                    | [KeyValue](#keyvalue) array     | Like `version_info` but as array                 |
+| rich_signature                       | [RichSignature](#richSignature) | Rich signature information                       |
+| pdb_path                             | string                          | PDB path                                         |
+| sections                             | [Section](#section) array       | Sections                                         |
+| data_directories                     | [DirEntry](#dirEntry) array     | Data directory entries                           |
+| resource_timestamp                   | integer                         | Resource timestamp (as Unix timestamp)           |
+| resource_version                     | [Version](#version)             | Resource version                                 |
+| resources                            | [Resource](#resource) array     | Resources                                        |
+| import_details                       | [Import](#import) array         | Imports information                              |
+| delayed_import_details               | [Import](#import) array         | Delayed imports information                      |
+| export_details                       | [Export](#export) array         | Exports information                              |
+| signatures                           | [Signature](#signature) array   | Signatures information                           |
+| overlay                              | [Overlay](#overlay)             | PE overlay details                               |
 
 ### Certificate
 
-| Field         | Type            | Label    | Description |
-|---------------|-----------------|----------|-------------|
-| issuer        | integer         | optional |             |
-| subject       | integer         | optional |             |
-| thumbprint    | integer         | optional |             |
-| version       | [int64](#int64) | optional |             |
-| algorithm     | integer         | optional |             |
-| algorithm_oid | integer         | optional |             |
-| serial        | integer         | optional |             |
-| not_before    | [int64](#int64) | optional |             |
-| not_after     | [int64](#int64) | optional |             |
+This is the structure of each item in the `certificates` array.
 
-<a name="pe-CounterSignature"></a>
+| Field         | Type    |
+|---------------|---------|
+| issuer        | string  |
+| subject       | string  |
+| thumbprint    | string  |
+| version       | integer |
+| algorithm     | string  |
+| algorithm_oid | string  |
+| serial        | string  |
+| not_before    | integer |
+| not_after     | integer |
 
 ### CounterSignature
 
-| Field      | Type                           | Label    | Description |
-|------------|--------------------------------|----------|-------------|
-| verified   | [bool](#bool)                  | optional |             |
-| sign_time  | [int64](#int64)                | optional |             |
-| digest     | integer                        | optional |             |
-| digest_alg | integer                        | optional |             |
-| chain      | [Certificate](#pe-Certificate) | repeated |             |
-
-<a name="pe-DirEntry"></a>
+| Field      | Type                              |
+|------------|-----------------------------------|
+| verified   | bool                              |
+| sign_time  | integer                           |
+| digest     | string                            |
+| digest_alg | string                            |
+| chain      | [Certificate](#certificate) array |
 
 ### DirEntry
 
-| Field           | Type    | Label    | Description |
-|-----------------|---------|----------|-------------|
-| virtual_address | integer | required |             |
-| size            | integer | required |             |
-
-<a name="pe-Export"></a>
+| Field           | Type    |
+|-----------------|---------|
+| virtual_address | integer |
+| size            | integer |
 
 ### Export
 
-| Field        | Type    | Label    | Description |
-|--------------|---------|----------|-------------|
-| name         | integer | optional |             |
-| ordinal      | integer | required |             |
-| rva          | integer | required |             |
-| offset       | integer | optional |             |
-| forward_name | integer | optional |             |
-
-<a name="pe-Function"></a>
+| Field        | Type    |
+|--------------|---------|
+| name         | string  |
+| ordinal      | integer |
+| rva          | integer |
+| offset       | integer |
+| forward_name | string  |
 
 ### Function
 
-| Field   | Type    | Label    | Description |
-|---------|---------|----------|-------------|
-| name    | integer | optional |             |
-| ordinal | integer | optional |             |
-| rva     | integer | required |             |
-
-<a name="pe-Import"></a>
+| Field   | Type    |
+|---------|---------|
+| name    | string  |
+| ordinal | integer |
+| rva     | integer |
 
 ### Import
 
-| Field               | Type                     | Label    | Description |
-|---------------------|--------------------------|----------|-------------|
-| library_name        | integer                  | required |             |
-| number_of_functions | integer                  | required |             |
-| functions           | [Function](#pe-Function) | repeated |             |
-
-<a name="pe-KeyValue"></a>
+| Field               | Type                        |
+|---------------------|-----------------------------|
+| library_name        | string                      |
+| number_of_functions | integer                     |
+| functions           | [Function](#function) array |
 
 ### KeyValue
 
-| Field | Type    | Label    | Description |
-|-------|---------|----------|-------------|
-| key   | integer | required |             |
-| value | integer | required |             |
-
-<a name="pe-Overlay"></a>
+| Field | Type   |
+|-------|--------|
+| key   | string |
+| value | string |
 
 ### Overlay
 
-| Field  | Type    | Label    | Description |
-|--------|---------|----------|-------------|
-| offset | integer | required |             |
-| size   | integer | required |             |
+| Field  | Type    |
+|--------|---------|
+| offset | integer |
+| size   | integer |
 
-<a name="pe-PE"></a>
+### VersionInfoEntry
 
-### PE.VersionInfoEntry
-
-| Field | Type    | Label    | Description |
-|-------|---------|----------|-------------|
-| key   | integer | optional |             |
-| value | integer | optional |             |
-
-<a name="pe-Resource"></a>
+| Field | Type   |
+|-------|--------|
+| key   | string |
+| value | string |
 
 ### Resource
 
-| Field           | Type                             | Label    | Description |
-|-----------------|----------------------------------|----------|-------------|
-| length          | integer                          | required |             |
-| rva             | integer                          | required |             |
-| offset          | integer                          | optional |             |
-| type            | [ResourceType](#pe-ResourceType) | optional |             |
-| id              | integer                          | optional |             |
-| language        | integer                          | optional |             |
-| type_string     | [bytes](#bytes)                  | optional |             |
-| name_string     | [bytes](#bytes)                  | optional |             |
-| language_string | [bytes](#bytes)                  | optional |             |
-
-<a name="pe-RichSignature"></a>
+| Field           | Type                          |
+|-----------------|-------------------------------|
+| length          | integer                       |
+| rva             | integer                       |
+| offset          | integer                       |
+| type            | [ResourceType](#resourcetype) |
+| id              | integer                       |
+| language        | integer                       |
+| type_string     | string                        |
+| name_string     | string                        |
+| language_string | string                        |
 
 ### RichSignature
 
-| Field      | Type                     | Label    | Description |
-|------------|--------------------------|----------|-------------|
-| offset     | integer                  | required |             |
-| length     | integer                  | required |             |
-| key        | integer                  | required |             |
-| raw_data   | [bytes](#bytes)          | required |             |
-| clear_data | [bytes](#bytes)          | required |             |
-| tools      | [RichTool](#pe-RichTool) | repeated |             |
-
-<a name="pe-RichTool"></a>
+| Field      | Type                        |
+|------------|-----------------------------|
+| offset     | integer                     |
+| length     | integer                     |
+| key        | integer                     |
+| raw_data   | string                      |
+| clear_data | string                      |
+| tools      | [RichTool](#richtool) array |
 
 ### RichTool
 
-| Field   | Type    | Label    | Description |
-|---------|---------|----------|-------------|
-| toolid  | integer | required |             |
-| version | integer | required |             |
-| times   | integer | required |             |
-
-<a name="pe-Section"></a>
+| Field   | Type    |
+|---------|---------|
+| toolid  | integer |
+| version | integer |
+| times   | integer |
 
 ### Section
 
-| Field                   | Type            | Description |
-|-------------------------|-----------------|-------------|
-| name                    | [bytes](#bytes) |             |
-| full_name               | [bytes](#bytes) |             | 
-| characteristics         | integer         |             | 
-| raw_data_size           | integer         |             | 
-| raw_data_offset         | integer         |             | 
-| virtual_address         | integer         |             | 
-| virtual_size            | integer         |             | 
-| pointer_to_relocations  | integer         |             | 
-| pointer_to_line_numbers | integer         |             | 
-| number_of_relocations   | integer         |             | 
-| number_of_line_numbers  | integer         |             | 
-
-<a name="pe-Signature"></a>
+| Field                   | Type    |
+|-------------------------|---------|
+| name                    | string  |
+| full_name               | string  |
+| characteristics         | integer |
+| raw_data_size           | integer |
+| raw_data_offset         | integer |
+| virtual_address         | integer |
+| virtual_size            | integer |
+| pointer_to_relocations  | integer |
+| pointer_to_line_numbers | integer |
+| number_of_relocations   | integer |
+| number_of_line_numbers  | integer |
 
 ### Signature
 
-| Field                       | Type                                     | Label    | Description |
-|-----------------------------|------------------------------------------|----------|-------------|
-| subject                     | integer                                  | optional |             |
-| issuer                      | integer                                  | optional |             |
-| thumbprint                  | integer                                  | optional |             |
-| version                     | [int64](#int64)                          | optional |             |
-| algorithm                   | integer                                  | optional |             |
-| algorithm_oid               | integer                                  | optional |             |
-| serial                      | integer                                  | optional |             |
-| not_before                  | [int64](#int64)                          | optional |             |
-| not_after                   | [int64](#int64)                          | optional |             |
-| verified                    | [bool](#bool)                            | optional |             |
-| digest_alg                  | integer                                  | optional |             |
-| digest                      | integer                                  | optional |             |
-| file_digest                 | integer                                  | optional |             |
-| number_of_certificates      | integer                                  | optional |             |
-| number_of_countersignatures | integer                                  | optional |             |
-| signer_info                 | [SignerInfo](#pe-SignerInfo)             | optional |             |
-| certificates                | [Certificate](#pe-Certificate)           | repeated |             |
-| countersignatures           | [CounterSignature](#pe-CounterSignature) | repeated |             |
+Structure of each of the items in the `signatures` array.
 
-<a name="pe-SignerInfo"></a>
+| Field                       | Type                                        |
+|-----------------------------|---------------------------------------------|
+| subject                     | string                                      |
+| issuer                      | string                                      |
+| thumbprint                  | string                                      |
+| version                     | integer                                     |
+| algorithm                   | string                                      |
+| algorithm_oid               | string                                      |
+| serial                      | string                                      |
+| not_before                  | integer                                     |
+| not_after                   | integer                                     |
+| verified                    | bool                                        |
+| digest_alg                  | string                                      |
+| digest                      | string                                      |
+| file_digest                 | string                                      |
+| number_of_certificates      | integer                                     |
+| number_of_countersignatures | integer                                     |
+| signer_info                 | [SignerInfo](#signerinfo)                   |
+| certificates                | [Certificate](#certificate) array           | 
+| countersignatures           | [CounterSignature](#countersignature) array | 
+
+###### Example
+
+```
+import "pe"
+
+rule NotVerified {
+    condition:
+        for any sig in pe.signatures : (
+            sig.subject contains "Microsoft" and
+            not sig.verified
+        )
+}
+```
 
 ### SignerInfo
 
-| Field        | Type                           | Label    | Description |
-|--------------|--------------------------------|----------|-------------|
-| program_name | integer                        | optional |             |
-| digest       | integer                        | optional |             |
-| digest_alg   | integer                        | optional |             |
-| chain        | [Certificate](#pe-Certificate) | repeated |             |
-
-<a name="pe-Version"></a>
+| Field        | Type                              |
+|--------------|-----------------------------------|
+| program_name | string                            |
+| digest       | string                            |
+| digest_alg   | string                            |
+| chain        | [Certificate](#certificate) array |
 
 ### Version
 
-| Field | Type    | Label    | Description |
-|-------|---------|----------|-------------|
-| major | integer | required |             |
-| minor | integer | required |             |
+The structures of fields
+like `os_version`, `subsystem_version`, `image_version`,
+`linker_version` and `resource_version`.
 
-<a name="pe-Characteristics"></a>
+| Field | Type    |
+|-------|---------|
+| major | integer |
+| minor | integer |
+
+###### Example
+
+```
+import "pe"
+
+rule Windows_5_2 {
+    condition:
+        pe.os_version.major == 5 and 
+        pe.os_version.minor == 2
+}
+```
 
 ### Characteristics
 
+Possible flags found in the `characteristics` field.
+
 | Name                    | Number | Description                                                      |
 |-------------------------|--------|------------------------------------------------------------------|
-| RELOCS_STRIPPED         | 1      | Relocation info stripped from file.                              |
-| EXECUTABLE_IMAGE        | 2      | File is executable (i.e. no unresolved external references).     |
-| LINE_NUMS_STRIPPED      | 4      | Line numbers stripped from file.                                 |
-| LOCAL_SYMS_STRIPPED     | 8      | Local symbols stripped from file.                                |
-| AGGRESIVE_WS_TRIM       | 16     | Aggressively trim working set                                    |
-| LARGE_ADDRESS_AWARE     | 32     | App can handle &gt;2gb addresses                                 |
-| BYTES_REVERSED_LO       | 128    | Bytes of machine word are reversed.                              |
-| MACHINE_32BIT           | 256    | 32 bit word machine.                                             |
-| DEBUG_STRIPPED          | 512    | Debugging info stripped from file in .DBG file                   |
-| REMOVABLE_RUN_FROM_SWAP | 1024   | If Image is on removable media, copy and run from the swap file. |
-| NET_RUN_FROM_SWAP       | 2048   | If Image is on Net, copy and run from the swap file.             |
-| SYSTEM                  | 4096   | System File.                                                     |
-| DLL                     | 8192   | File is a DLL.s                                                  |
-| UP_SYSTEM_ONLY          | 16384  | File should only be run on a UP machine                          |
-| BYTES_REVERSED_HI       | 32768  | Bytes of machine word are reversed.                              |
+| RELOCS_STRIPPED         | 0x0001 | Relocation info stripped from file.                              |
+| EXECUTABLE_IMAGE        | 0x0002 | File is executable (i.e. no unresolved external references).     |
+| LINE_NUMS_STRIPPED      | 0x0004 | Line numbers stripped from file.                                 |
+| LOCAL_SYMS_STRIPPED     | 0x0008 | Local symbols stripped from file.                                |
+| AGGRESIVE_WS_TRIM       | 0x0010 | Aggressively trim working set                                    |
+| LARGE_ADDRESS_AWARE     | 0x0020 | App can handle &gt;2gb addresses                                 |
+| BYTES_REVERSED_LO       | 0x0080 | Bytes of machine word are reversed.                              |
+| MACHINE_32BIT           | 0x0100 | 32 bit word machine.                                             |
+| DEBUG_STRIPPED          | 0x0200 | Debugging info stripped from file in .DBG file                   |
+| REMOVABLE_RUN_FROM_SWAP | 0x0400 | If Image is on removable media, copy and run from the swap file. |
+| NET_RUN_FROM_SWAP       | 0x0800 | If Image is on Net, copy and run from the swap file.             |
+| SYSTEM                  | 0x1000 | System File.                                                     |
+| DLL                     | 0x2000 | File is a DLL.s                                                  |
+| UP_SYSTEM_ONLY          | 0x4000 | File should only be run on a UP machine                          |
+| BYTES_REVERSED_HI       | 0x8000 | Bytes of machine word are reversed.                              |
 
-<a name="pe-DirectoryEntry"></a>
+###### Example
+
+```
+import "pe"
+
+rule IsDLL {
+    condition:
+        pe.characteristics & pe.DLL != 0
+}
+```
+
+### DllCharacteristics
+
+Possible flags found in the `dll_characteristics` field.
+
+| Name                  | Number |
+|-----------------------|--------|
+| HIGH_ENTROPY_VA       | 0x0020 |
+| DYNAMIC_BASE          | 0x0040 |
+| FORCE_INTEGRITY       | 0x0080 |
+| NX_COMPAT             | 0x0100 |
+| NO_ISOLATION          | 0x0200 |
+| NO_SEH                | 0x0400 |
+| NO_BIND               | 0x0800 |
+| APPCONTAINER          | 0x1000 |
+| WDM_DRIVER            | 0x2000 |
+| GUARD_CF              | 0x4000 |
+| TERMINAL_SERVER_AWARE | 0x8000 |
+
+###### Example
+
+```
+import "pe"
+
+rule WdmDriver {
+    condition:
+        pe.dll_characteristics & pe.WDM_DRIVER != 0
+}
+```
 
 ### DirectoryEntry
 
@@ -363,26 +454,6 @@ rule is_pe {
 | IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT   | 14     |
 | IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR | 15     |
 
-<a name="pe-DllCharacteristics"></a>
-
-### DllCharacteristics
-
-| Name                  | Number |
-|-----------------------|--------|
-| HIGH_ENTROPY_VA       | 32     |
-| DYNAMIC_BASE          | 64     |
-| FORCE_INTEGRITY       | 128    |
-| NX_COMPAT             | 256    |
-| NO_ISOLATION          | 512    |
-| NO_SEH                | 1024   |
-| NO_BIND               | 2048   |
-| APPCONTAINER          | 4096   |
-| WDM_DRIVER            | 8192   |
-| GUARD_CF              | 16384  |
-| TERMINAL_SERVER_AWARE | 32768  |
-
-<a name="pe-ImportFlags"></a>
-
 ### ImportFlags
 
 | Name            | Number |
@@ -391,9 +462,9 @@ rule is_pe {
 | IMPORT_DELAYED  | 2      |
 | IMPORT_ANY      | 3      |
 
-<a name="pe-Machine"></a>
-
 ### Machine
+
+Each of the possible values in the `machine` field.
 
 | Name              | Number |
 |-------------------|--------|
@@ -420,7 +491,16 @@ rule is_pe {
 | MACHINE_THUMB     | 450    |
 | MACHINE_WCEMIPSV2 | 361    |
 
-<a name="pe-OptionalMagic"></a>
+###### Example
+
+```
+import "pe"
+
+rule ARM {
+    condition:
+        pe.machine == pe.MACHINE_ARM
+}
+```
 
 ### OptionalMagic
 
@@ -429,8 +509,6 @@ rule is_pe {
 | IMAGE_NT_OPTIONAL_HDR32_MAGIC | 267    |
 | IMAGE_NT_OPTIONAL_HDR64_MAGIC | 523    |
 | IMAGE_ROM_OPTIONAL_HDR_MAGIC  | 263    |
-
-<a name="pe-ResourceType"></a>
 
 ### ResourceType
 
@@ -459,8 +537,6 @@ https://learn.microsoft.com/en-us/windows/win32/menurc/resource-types?redirected
 | RESOURCE_TYPE_ANIICON      | 22     |
 | RESOURCE_TYPE_HTML         | 23     |
 | RESOURCE_TYPE_MANIFEST     | 24     |
-
-<a name="pe-SectionCharacteristics"></a>
 
 ### SectionCharacteristics
 
@@ -500,8 +576,6 @@ https://learn.microsoft.com/en-us/windows/win32/menurc/resource-types?redirected
 | SECTION_MEM_READ               | 32     |
 | SECTION_MEM_WRITE              | 33     |
 | SECTION_SCALE_INDEX            | 34     |
-
-<a name="pe-Subsystem"></a>
 
 ### Subsystem
 

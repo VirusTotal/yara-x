@@ -42,19 +42,19 @@ most of the fields present in a Mach-O file header. Let's see some examples:
 | symtab              | [Symtab](#symtab)             |
 | dysymtab            | [Dysymtab](#dysymtab)         |
 | code_signature_data | [LinkedItData](#linkeditdata) |
-| segments            | array of [Segment](#segment)  |
-| dylibs              | array of [Dylib](#dylib)      |
+| segments            | [Segment](#segment) array     |
+| dylibs              | [Dylib](#dylib) array         |
 | dyld_info           | [DyldInfo](#dyldinfo)         |
-| rpaths              | array of string               |
-| entitlements        | array of string               |
+| rpaths              | string array                  |
+| entitlements        | string array                  |
 | certificates        | [Certificates](#certificates) |
 | uuid                | string                        |
 | build_version       | [BuildVersion](#buildversion) |
 | min_version         | [MinVersion](#minversion)     |
 | fat_magic           | integer                       |
 | nfat_arch           | integer                       |
-| fat_arch            | array of [FatArch](#fatarch)  |
-| file                | array of [File](#file)        |
+| fat_arch            | [FatArch](#fatarch) array     |
+| file                | [File](#file) array           |
 
 ### BuildTool
 
@@ -65,22 +65,22 @@ most of the fields present in a Mach-O file header. Let's see some examples:
 
 ### BuildVersion
 
-| Field    | Type                             |
-|----------|----------------------------------|
-| platform | integer                          |
-| minos    | string                           |
-| sdk      | string                           |
-| ntools   | integer                          |
-| tools    | array of [BuildTool](#buildtool) |
+| Field    | Type                          |
+|----------|-------------------------------|
+| platform | integer                       |
+| minos    | string                        |
+| sdk      | string                        |
+| ntools   | integer                       |
+| tools    | [BuildTool](#buildtool) array |
 
 <a name="macho-Certificates"></a>
 
 ### Certificates
 
-| Field        | Type            |
-|--------------|-----------------|
-| common_names | array of string |
-| signer_names | array of string |
+| Field        | Type         |
+|--------------|--------------|
+| common_names | string array |
+| signer_names | string array |
 
 ### DyldInfo
 
@@ -157,10 +157,10 @@ most of the fields present in a Mach-O file header. Let's see some examples:
 | entry_point         | integer                       |
 | stack_size          | integer                       |
 | source_version      | string                        |
-| segments            | array of [Segment](#segment)  |
-| dylibs              | array of [Dylib](#dylib)      |
-| rpaths              | array of string               |
-| entitlements        | array of string               |
+| segments            | [Segment](#segment) array     |
+| dylibs              | [Dylib](#dylib) array         |
+| rpaths              | string array                  |
+| entitlements        | string array                  |
 | symtab              | [Symtab](#symtab)             |
 | dysymtab            | [Dysymtab](#dysymtab)         |
 | dyld_info           | [DyldInfo](#dyldInfo)         |
@@ -204,28 +204,28 @@ most of the fields present in a Mach-O file header. Let's see some examples:
 
 ### Segment
 
-| Field    | Type                         |
-|----------|------------------------------|
-| segname  | string                       |
-| vmaddr   | integer                      |
-| vmsize   | integer                      |
-| fileoff  | integer                      |
-| filesize | integer                      |
-| maxprot  | integer                      |
-| initprot | integer                      |
-| nsects   | integer                      |
-| flags    | integer                      |
-| sections | array of [Section](#section) |
+| Field    | Type                      |
+|----------|---------------------------|
+| segname  | string                    |
+| vmaddr   | integer                   |
+| vmsize   | integer                   |
+| fileoff  | integer                   |
+| filesize | integer                   |
+| maxprot  | integer                   |
+| initprot | integer                   |
+| nsects   | integer                   |
+| flags    | integer                   |
+| sections | [Section](#section) array |
 
 ### Symtab
 
-| Field   | Type            |
-|---------|-----------------|
-| symoff  | integer         |
-| nsyms   | integer         |
-| stroff  | integer         |
-| strsize | integer         |
-| entries | array of string |
+| Field   | Type         |
+|---------|--------------|
+| symoff  | integer      |
+| nsyms   | integer      |
+| stroff  | integer      |
+| strsize | integer      |
+| entries | string array |
 
 ### CPU_ARM_64_SUBTYPE
 

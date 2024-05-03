@@ -37,27 +37,56 @@ rule elf_64 {
 }
 ```
 
+## Functions
+
+### import_md5()
+
+Returns the MD5 of the import table.
+
+### telfhash()
+
+Returns the TrendMicro's `telfhash` for the ELF file. This is a symbol hash for
+ELF files, just like `imphash` is an imports hash for PE files. With `telfhash`,
+you can cluster ELF files by similarity based on symbols.
+
+Find more information in
+TrendMicro's [whitepaper](https://documents.trendmicro.com/assets/pdf/TB_Telfhash-%20An%20Algorithm%20That%20Finds%20Similar%20Malicious%20ELF%20Files%20Used%20in%20Linux%20IoT%20Malware.pdf)
+or
+visit [https://github.com/trendmicro/telfhash](https://github.com/trendmicro/telfhash)
+for tools other tools that compute the `telfhash`.
+
+###### Example
+
+```
+import "elf"
+
+rule FindByTelfhash {
+    condition:
+        elf.telfhash() == "t166a00284751084526486df8b5df5b2fccb3f511dbc188c37156f5e714a11bc5d71014d"
+}
+```
+
 ## Module structure
 
-| Field                   | Type                         |
-|-------------------------|------------------------------|
-| type                    | [Type](#type)                |
-| machine                 | [Machine](#machine)          |
-| entry_point             | integer                      |
-| sh_offset               | integer                      |
-| sh_entry_size           | integer                      |
-| ph_offset               | integer                      |
-| ph_entry_size           | integer                      |
-| number_of_sections      | integer                      |
-| number_of_segments      | integer                      |
-| symtab_entries          | integer                      |
-| dynsym_entries          | integer                      |
-| dynamic_section_entries | integer                      |
-| sections                | array of [Section](#section) |
-| segments                | array of [Segment](#segment) |
-| symtab                  | array of [Sym](#sym)         |
-| dynsym                  | array of [Sym](#sym)         |
-| dynamic                 | array of [Dyn](#dyn)         |
+| Field                   | Type                      |
+|-------------------------|---------------------------|
+| type                    | [Type](#type)             |
+| machine                 | [Machine](#machine)       |
+| entry_point             | integer                   |
+| sh_offset               | integer                   |
+| sh_entry_size           | integer                   |
+| ph_offset               | integer                   |
+| ph_entry_size           | integer                   |
+| number_of_sections      | integer                   |
+| number_of_segments      | integer                   |
+| symtab_entries          | integer                   |
+| dynsym_entries          | integer                   |
+| dynamic_section_entries | integer                   |
+| sections                | [Section](#section) array |
+| segments                | [Segment](#segment) array |
+| symtab                  | [Sym](#sym) array         |
+| dynsym                  | [Sym](#sym) array         |
+| dynamic                 | [Dyn](#dyn) array         |
 
 ### Dyn
 

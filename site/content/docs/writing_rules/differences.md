@@ -9,7 +9,7 @@ menu:
   docs:
     parent: ""
     identifier: "differences"
-weight: 290
+weight: 310
 toc: true
 seo:
   title: "" # custom title (optional)
@@ -92,20 +92,34 @@ patterns must be at least 3 characters long.
 
 In YARA 4.x if you use both `base64` and `base64wide` in the same string they
 must use the same alphabet. If you specify a custom alphabet for `base64`, you
-must do the same for `base64wide`, so this in error:
+must do the same for `base64wide`, this is an error:
 
 ```
 $a = "foo" base64 base64wide("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
 ```
 
 In YARA-X you can specify different alphabets for `base64` and `base64wide`
-in the same pattern. In the example above `base64` will use the default
+in the same pattern. In the example above, `base64` will use the default
 alphabet as always, while `base64wide` will use the custom alphabet.
 
-## Negative numbers as array indexes
+## Global rules can't depend on non-global rules
 
-The expression `@a[-1]` is valid in YARA 4.x, but its value is always
-`undefined`. In YARA-X this is an error.
+In YARA 4.x a global rule can depend on a non-global rule, as long as the
+non-global rule is declared first. For instance, this is valid in YARA 4.x:
+
+```
+rule my_non_global_rule {
+  condition:
+    ....
+}
+
+global rule my_global_rule {
+  condition:
+    my_non_global_rule
+}
+```
+
+In YARA-X this is forbidden, global rules can only depend on other global rules.
 
 ## "of" statement accepts tuples of boolean expressions
 
@@ -159,6 +173,11 @@ if they are alphanumeric, therefore `{lhrrhrrhqqh}` becomes `zmississippiz`,
 which doesn't match `"mississippi" xor(1) fullword`. In other words, YARA-X
 searches for full words contained inside a longer XORed string, which is
 the intended behavior in most cases.
+
+## Negative numbers as array indexes
+
+The expression `@a[-1]` is valid in YARA 4.x, but its value is always
+`undefined`. In YARA-X this is an error.
 
 ## Jump bounds in hex patterns
 
