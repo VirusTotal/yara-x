@@ -1,0 +1,815 @@
+is_pe: true
+machine: MACHINE_AMD64
+subsystem: SUBSYSTEM_NATIVE
+os_version:
+    major: 6
+    minor: 2
+subsystem_version:
+    major: 6
+    minor: 1
+image_version:
+    major: 6
+    minor: 2
+linker_version:
+    major: 11
+    minor: 0
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
+characteristics: 34
+dll_characteristics: 480
+timestamp: 1556010297 # 2019-04-23 09:04:57 UTC
+image_base: 5368709120
+checksum: 250178
+base_of_code: 4096
+entry_point: 199792
+entry_point_raw: 524400
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 240
+size_of_code: 154112
+size_of_initialized_data: 368640
+size_of_uninitialized_data: 0
+size_of_image: 540672
+size_of_headers: 1024
+size_of_stack_reserve: 1048576
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 9
+number_of_imported_functions: 155
+number_of_delayed_imported_functions: 0
+number_of_resources: 1
+number_of_version_infos: 7
+number_of_imports: 2
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 2
+version_info:
+    "CompanyName": "Copyright 2018."
+    "FileDescription": "Advanced Malware Protection"
+    "FileVersion": "3.0.0.000"
+    "LegalCopyright": "Copyright 2018. All rights reserved."
+    "OriginalFilename": "ZAM.exe"
+    "ProductName": "Advanced Malware Protection"
+    "ProductVersion": "3.0.0.000"
+version_info_list:
+  - key: "CompanyName"
+    value: "Copyright 2018."
+  - key: "FileDescription"
+    value: "Advanced Malware Protection"
+  - key: "LegalCopyright"
+    value: "Copyright 2018. All rights reserved."
+  - key: "ProductName"
+    value: "Advanced Malware Protection"
+  - key: "ProductVersion"
+    value: "3.0.0.000"
+  - key: "FileVersion"
+    value: "3.0.0.000"
+  - key: "OriginalFilename"
+    value: "ZAM.exe"
+rich_signature:
+    offset: 128
+    length: 112
+    key: 3033202844
+    raw_data: "\xd8a\xa5\xe7\x9c\x00\xcb\xb4\x9c\x00\xcb\xb4\x9c\x00\xcb\xb4\x95xL\xb4\x9b\x00\xcb\xb4\x95x^\xb4\x9f\x00\xcb\xb4`wp\xb4\x9d\x00\xcb\xb4`ww\xb4\x9f\x00\xcb\xb4\x9c\x00\xca\xb4\x02\x00\xcb\xb4\x95xX\xb4\x99\x00\xcb\xb4\x95xH\xb4\x9f\x00\xcb\xb4\xbb\xc6\x04\xb4\x9d\x00\xcb\xb4\xbb\xc6\x05\xb4\x82\x00\xcb\xb4\xbb\xc6\x02\xb4\x9d\x00\xcb\xb4\x9c\x00\\\xb4\x9d\x00\xcb\xb4\xbb\xc6\x07\xb4\x9d\x00\xcb\xb4"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\tx\x87\x00\x07\x00\x00\x00\tx\x95\x00\x03\x00\x00\x00\xfcw\xbb\x00\x01\x00\x00\x00\xfcw\xbc\x00\x03\x00\x00\x00\x00\x00\x01\x00\x9e\x00\x00\x00\tx\x93\x00\x05\x00\x00\x00\tx\x83\x00\x03\x00\x00\x00\'\xc6\xcf\x00\x01\x00\x00\x00\'\xc6\xce\x00\x1e\x00\x00\x00\'\xc6\xc9\x00\x01\x00\x00\x00\x00\x00\x97\x00\x01\x00\x00\x00\'\xc6\xcc\x00\x01\x00\x00\x00"
+    tools:
+      - toolid: 135
+        version: 30729
+        times: 7
+      - toolid: 149
+        version: 30729
+        times: 3
+      - toolid: 187
+        version: 30716
+        times: 1
+      - toolid: 188
+        version: 30716
+        times: 3
+      - toolid: 1
+        version: 0
+        times: 158
+      - toolid: 147
+        version: 30729
+        times: 5
+      - toolid: 131
+        version: 30729
+        times: 3
+      - toolid: 207
+        version: 50727
+        times: 1
+      - toolid: 206
+        version: 50727
+        times: 30
+      - toolid: 201
+        version: 50727
+        times: 1
+      - toolid: 151
+        version: 0
+        times: 1
+      - toolid: 204
+        version: 50727
+        times: 1
+pdb_path: "Z:\\Zemana\\Projects\\AMSDKCore\\Driver\\zam64.pdb"
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1744830496
+    raw_data_size: 139264
+    raw_data_offset: 1024
+    virtual_address: 4096
+    virtual_size: 138837
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".hook"
+    full_name: ".hook"
+    characteristics: 3892314144
+    raw_data_size: 2560
+    raw_data_offset: 140288
+    virtual_address: 143360
+    virtual_size: 2495
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rdata"
+    full_name: ".rdata"
+    characteristics: 1207959616
+    raw_data_size: 19456
+    raw_data_offset: 142848
+    virtual_address: 147456
+    virtual_size: 19272
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".data"
+    full_name: ".data"
+    characteristics: 3355443264
+    raw_data_size: 27136
+    raw_data_offset: 162304
+    virtual_address: 167936
+    virtual_size: 343944
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".pdata"
+    full_name: ".pdata"
+    characteristics: 1207959616
+    raw_data_size: 3072
+    raw_data_offset: 189440
+    virtual_address: 512000
+    virtual_size: 2640
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: "PAGE"
+    full_name: "PAGE"
+    characteristics: 1610612768
+    raw_data_size: 7168
+    raw_data_offset: 192512
+    virtual_address: 516096
+    virtual_size: 6727
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: "INIT"
+    full_name: "INIT"
+    characteristics: 3791650848
+    raw_data_size: 5120
+    raw_data_offset: 199680
+    virtual_address: 524288
+    virtual_size: 4996
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 1107296320
+    raw_data_size: 1024
+    raw_data_offset: 204800
+    virtual_address: 532480
+    virtual_size: 840
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".reloc"
+    full_name: ".reloc"
+    characteristics: 1107296320
+    raw_data_size: 1024
+    raw_data_offset: 205824
+    virtual_address: 536576
+    virtual_size: 564
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 524444
+    size: 60
+  - virtual_address: 532480
+    size: 840
+  - virtual_address: 512000
+    size: 2640
+  - virtual_address: 206848
+    size: 19616
+  - virtual_address: 536576
+    size: 112
+  - virtual_address: 148720
+    size: 56
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 162976
+    size: 112
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 147456
+    size: 1256
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_version:
+    major: 0
+    minor: 0
+resources:
+  - length: 744
+    rva: 532576
+    offset: 204896
+    type: RESOURCE_TYPE_VERSION
+    id: 1
+    language: 1033
+import_details:
+  - library_name: "FLTMGR.SYS"
+    number_of_functions: 19
+    functions:
+      - name: "FltRegisterFilter"
+        rva: 147456
+      - name: "FltUnregisterFilter"
+        rva: 147464
+      - name: "FltStartFiltering"
+        rva: 147472
+      - name: "FltAllocatePoolAlignedWithTag"
+        rva: 147480
+      - name: "FltFreePoolAlignedWithTag"
+        rva: 147488
+      - name: "FltGetFileNameInformation"
+        rva: 147496
+      - name: "FltReleaseFileNameInformation"
+        rva: 147504
+      - name: "FltParseFileNameInformation"
+        rva: 147512
+      - name: "FltReadFile"
+        rva: 147520
+      - name: "FltQueryInformationFile"
+        rva: 147528
+      - name: "FltCancelFileOpen"
+        rva: 147536
+      - name: "FltAllocateContext"
+        rva: 147544
+      - name: "FltSetStreamHandleContext"
+        rva: 147552
+      - name: "FltGetStreamHandleContext"
+        rva: 147560
+      - name: "FltReleaseContext"
+        rva: 147568
+      - name: "FltCreateCommunicationPort"
+        rva: 147576
+      - name: "FltCloseCommunicationPort"
+        rva: 147584
+      - name: "FltSendMessage"
+        rva: 147592
+      - name: "FltBuildDefaultSecurityDescriptor"
+        rva: 147600
+  - library_name: "ntoskrnl.exe"
+    number_of_functions: 136
+    functions:
+      - name: "strstr"
+        rva: 147616
+      - name: "wcsstr"
+        rva: 147624
+      - name: "RtlInitUnicodeString"
+        rva: 147632
+      - name: "RtlCopyUnicodeString"
+        rva: 147640
+      - name: "DbgPrint"
+        rva: 147648
+      - name: "RtlGetVersion"
+        rva: 147656
+      - name: "KeDelayExecutionThread"
+        rva: 147664
+      - name: "ExAllocatePoolWithTag"
+        rva: 147672
+      - name: "ExFreePoolWithTag"
+        rva: 147680
+      - name: "ProbeForRead"
+        rva: 147688
+      - name: "ObReferenceObjectByHandle"
+        rva: 147696
+      - name: "ObfDereferenceObject"
+        rva: 147704
+      - name: "ZwCreateFile"
+        rva: 147712
+      - name: "ZwClose"
+        rva: 147720
+      - name: "RtlUpperString"
+        rva: 147728
+      - name: "RtlUpcaseUnicodeString"
+        rva: 147736
+      - name: "PsGetCurrentProcessId"
+        rva: 147744
+      - name: "ZwOpenProcess"
+        rva: 147752
+      - name: "PsLookupProcessByProcessId"
+        rva: 147760
+      - name: "ObQueryNameString"
+        rva: 147768
+      - name: "FsRtlIsNameInExpression"
+        rva: 147776
+      - name: "PsGetProcessImageFileName"
+        rva: 147784
+      - name: "ZwQueryInformationProcess"
+        rva: 147792
+      - name: "__C_specific_handler"
+        rva: 147800
+      - name: "strchr"
+        rva: 147808
+      - name: "RtlAppendUnicodeToString"
+        rva: 147816
+      - name: "KeInitializeSemaphore"
+        rva: 147824
+      - name: "KeReleaseSemaphore"
+        rva: 147832
+      - name: "KeWaitForSingleObject"
+        rva: 147840
+      - name: "KeAcquireSpinLockRaiseToDpc"
+        rva: 147848
+      - name: "KeReleaseSpinLock"
+        rva: 147856
+      - name: "PsCreateSystemThread"
+        rva: 147864
+      - name: "PsTerminateSystemThread"
+        rva: 147872
+      - name: "ZwQueryInformationFile"
+        rva: 147880
+      - name: "ZwWriteFile"
+        rva: 147888
+      - name: "PsGetCurrentThreadId"
+        rva: 147896
+      - name: "ZwDeleteFile"
+        rva: 147904
+      - name: "_vsnprintf"
+        rva: 147912
+      - name: "PsThreadType"
+        rva: 147920
+      - name: "PsSetCreateProcessNotifyRoutine"
+        rva: 147928
+      - name: "PsGetProcessSessionId"
+        rva: 147936
+      - name: "RtlAppendUnicodeStringToString"
+        rva: 147944
+      - name: "ZwDeleteValueKey"
+        rva: 147952
+      - name: "ZwSetValueKey"
+        rva: 147960
+      - name: "towupper"
+        rva: 147968
+      - name: "RtlIntegerToUnicodeString"
+        rva: 147976
+      - name: "KeInitializeEvent"
+        rva: 147984
+      - name: "KeSetEvent"
+        rva: 147992
+      - name: "KeAcquireSpinLockAtDpcLevel"
+        rva: 148000
+      - name: "KeReleaseSpinLockFromDpcLevel"
+        rva: 148008
+      - name: "MmProbeAndLockPages"
+        rva: 148016
+      - name: "IoAllocateIrp"
+        rva: 148024
+      - name: "IoAllocateMdl"
+        rva: 148032
+      - name: "IofCallDriver"
+        rva: 148040
+      - name: "IoFreeIrp"
+        rva: 148048
+      - name: "IoFreeMdl"
+        rva: 148056
+      - name: "IoGetDeviceObjectPointer"
+        rva: 148064
+      - name: "IoGetRelatedDeviceObject"
+        rva: 148072
+      - name: "ObCloseHandle"
+        rva: 148080
+      - name: "ObfReferenceObject"
+        rva: 148088
+      - name: "ZwSetInformationFile"
+        rva: 148096
+      - name: "ZwReadFile"
+        rva: 148104
+      - name: "ZwOpenSymbolicLinkObject"
+        rva: 148112
+      - name: "ZwQuerySymbolicLinkObject"
+        rva: 148120
+      - name: "IoCreateFileSpecifyDeviceObjectHint"
+        rva: 148128
+      - name: "IoGetDeviceAttachmentBaseRef"
+        rva: 148136
+      - name: "FsRtlGetFileSize"
+        rva: 148144
+      - name: "ZwQuerySystemInformation"
+        rva: 148152
+      - name: "IoFileObjectType"
+        rva: 148160
+      - name: "KeReadStateEvent"
+        rva: 148168
+      - name: "ExQueueWorkItem"
+        rva: 148176
+      - name: "ExGetPreviousMode"
+        rva: 148184
+      - name: "MmGetSystemRoutineAddress"
+        rva: 148192
+      - name: "NtOpenProcess"
+        rva: 148200
+      - name: "ZwCreateEvent"
+        rva: 148208
+      - name: "ZwWaitForSingleObject"
+        rva: 148216
+      - name: "ZwSetEvent"
+        rva: 148224
+      - name: "NtQuerySystemInformation"
+        rva: 148232
+      - name: "ExEventObjectType"
+        rva: 148240
+      - name: "NtBuildNumber"
+        rva: 148248
+      - name: "ZwDeleteKey"
+        rva: 148256
+      - name: "ObReferenceObjectByName"
+        rva: 148264
+      - name: "IoDriverObjectType"
+        rva: 148272
+      - name: "MmIsDriverVerifying"
+        rva: 148280
+      - name: "IofCompleteRequest"
+        rva: 148288
+      - name: "IoCreateSymbolicLink"
+        rva: 148296
+      - name: "IoDeleteDevice"
+        rva: 148304
+      - name: "IoDeleteSymbolicLink"
+        rva: 148312
+      - name: "RtlSetDaclSecurityDescriptor"
+        rva: 148320
+      - name: "MmMapLockedPagesSpecifyCache"
+        rva: 148328
+      - name: "PsGetProcessId"
+        rva: 148336
+      - name: "IoThreadToProcess"
+        rva: 148344
+      - name: "PsGetCurrentProcessSessionId"
+        rva: 148352
+      - name: "ZwTerminateProcess"
+        rva: 148360
+      - name: "KeStackAttachProcess"
+        rva: 148368
+      - name: "KeUnstackDetachProcess"
+        rva: 148376
+      - name: "ZwOpenThread"
+        rva: 148384
+      - name: "PsProcessType"
+        rva: 148392
+      - name: "ExInterlockedInsertHeadList"
+        rva: 148400
+      - name: "ExInterlockedRemoveHeadList"
+        rva: 148408
+      - name: "CmRegisterCallback"
+        rva: 148416
+      - name: "CmUnRegisterCallback"
+        rva: 148424
+      - name: "RtlCreateRegistryKey"
+        rva: 148432
+      - name: "ZwOpenKey"
+        rva: 148440
+      - name: "ZwEnumerateKey"
+        rva: 148448
+      - name: "ZwQueryKey"
+        rva: 148456
+      - name: "ZwQueryValueKey"
+        rva: 148464
+      - name: "RtlUnicodeStringToAnsiString"
+        rva: 148472
+      - name: "RtlFreeAnsiString"
+        rva: 148480
+      - name: "ProbeForWrite"
+        rva: 148488
+      - name: "PsSetLoadImageNotifyRoutine"
+        rva: 148496
+      - name: "PsRemoveLoadImageNotifyRoutine"
+        rva: 148504
+      - name: "PsGetProcessSectionBaseAddress"
+        rva: 148512
+      - name: "MmSystemRangeStart"
+        rva: 148520
+      - name: "KeBugCheckEx"
+        rva: 148528
+      - name: "IoCreateDevice"
+        rva: 148536
+      - name: "ObOpenObjectByPointer"
+        rva: 148544
+      - name: "ZwSetSecurityObject"
+        rva: 148552
+      - name: "IoDeviceObjectType"
+        rva: 148560
+      - name: "_snwprintf"
+        rva: 148568
+      - name: "RtlLengthSecurityDescriptor"
+        rva: 148576
+      - name: "SeCaptureSecurityDescriptor"
+        rva: 148584
+      - name: "RtlCreateSecurityDescriptor"
+        rva: 148592
+      - name: "RtlAbsoluteToSelfRelativeSD"
+        rva: 148600
+      - name: "IoIsWdmVersionAvailable"
+        rva: 148608
+      - name: "SeExports"
+        rva: 148616
+      - name: "wcschr"
+        rva: 148624
+      - name: "_wcsnicmp"
+        rva: 148632
+      - name: "RtlLengthSid"
+        rva: 148640
+      - name: "RtlAddAccessAllowedAce"
+        rva: 148648
+      - name: "RtlGetSaclSecurityDescriptor"
+        rva: 148656
+      - name: "RtlGetDaclSecurityDescriptor"
+        rva: 148664
+      - name: "RtlGetGroupSecurityDescriptor"
+        rva: 148672
+      - name: "RtlGetOwnerSecurityDescriptor"
+        rva: 148680
+      - name: "ZwCreateKey"
+        rva: 148688
+      - name: "RtlFreeUnicodeString"
+        rva: 148696
+is_signed: true
+signatures:
+  - subject: "/businessCategory=Private Organization/serialNumber=460726/jurisdictionC=US/jurisdictionST=Idaho/C=US/ST=Idaho/L=Boise/streetAddress=702 W Idaho Street Suite 1100/O=WATCHDOGDEVELOPMENT.COM, LLC/CN=WATCHDOGDEVELOPMENT.COM, LLC"
+    issuer: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign GCC R45 EV CodeSigning CA 2020"
+    thumbprint: "73a0b736d2b9354b4c82fdf33b90a8bb7130e5fb"
+    version: 3
+    algorithm: "sha256WithRSAEncryption"
+    algorithm_oid: "1.2.840.113549.1.1.11"
+    serial: "1f:7b:0d:e3:09:0e:e1:3a:43:63:15:a6"
+    not_before: 1619015067 # 2021-04-21 14:24:27 UTC
+    not_after: 1648238268 # 2022-03-25 19:57:48 UTC
+    verified: true
+    digest_alg: "sha256"
+    digest: "60571dbcaec96d9517e0d116d066e70ae747aa4396d7857b2eea0f4c1a5a70b4"
+    file_digest: "60571dbcaec96d9517e0d116d066e70ae747aa4396d7857b2eea0f4c1a5a70b4"
+    number_of_certificates: 6
+    number_of_countersignatures: 1
+    signer_info:
+        digest: "9036096da2275ebc39de2da2a4f394f7667853da0f2734815f4be939e21f83e8"
+        digest_alg: "sha256"
+        chain:
+          - issuer: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign GCC R45 EV CodeSigning CA 2020"
+            subject: "/businessCategory=Private Organization/serialNumber=460726/jurisdictionC=US/jurisdictionST=Idaho/C=US/ST=Idaho/L=Boise/streetAddress=702 W Idaho Street Suite 1100/O=WATCHDOGDEVELOPMENT.COM, LLC/CN=WATCHDOGDEVELOPMENT.COM, LLC"
+            thumbprint: "73a0b736d2b9354b4c82fdf33b90a8bb7130e5fb"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "1f:7b:0d:e3:09:0e:e1:3a:43:63:15:a6"
+            not_before: 1619015067 # 2021-04-21 14:24:27 UTC
+            not_after: 1648238268 # 2022-03-25 19:57:48 UTC
+          - issuer: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign Code Signing Root R45"
+            subject: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign GCC R45 EV CodeSigning CA 2020"
+            thumbprint: "c10bb76ad4ee815242406a1e3e1117ffec743d4f"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "77:bd:0e:05:b7:59:0b:b6:1d:47:61:53:1e:3f:75:ed"
+            not_before: 1595894400 # 2020-07-28 00:00:00 UTC
+            not_after: 1911427200 # 2030-07-28 00:00:00 UTC
+          - issuer: "/OU=GlobalSign Root CA - R3/O=GlobalSign/CN=GlobalSign"
+            subject: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign Code Signing Root R45"
+            thumbprint: "4c5d80d2cd06b1a493c49b2e9bed4a57c2f873e5"
+            version: 3
+            algorithm: "sha384WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.12"
+            serial: "78:03:18:42:45:70:8a:41:cf:6f:01:b8:ee:b4:a9:54"
+            not_before: 1595894400 # 2020-07-28 00:00:00 UTC
+            not_after: 1868486400 # 2029-03-18 00:00:00 UTC
+          - issuer: "/C=BE/O=GlobalSign nv-sa/OU=Root CA/CN=GlobalSign Root CA"
+            subject: "/OU=GlobalSign Root CA - R3/O=GlobalSign/CN=GlobalSign"
+            thumbprint: "0bbfab97059595e8d1ec48e89eb8657c0e5aae71"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "01:ee:5f:16:9d:ff:97:35:2b:64:65:d6:6a"
+            not_before: 1537315200 # 2018-09-19 00:00:00 UTC
+            not_after: 1832673600 # 2028-01-28 12:00:00 UTC
+    certificates:
+      - issuer: "/C=BE/O=GlobalSign nv-sa/OU=Root CA/CN=GlobalSign Root CA"
+        subject: "/OU=GlobalSign Root CA - R3/O=GlobalSign/CN=GlobalSign"
+        thumbprint: "0bbfab97059595e8d1ec48e89eb8657c0e5aae71"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "01:ee:5f:16:9d:ff:97:35:2b:64:65:d6:6a"
+        not_before: 1537315200 # 2018-09-19 00:00:00 UTC
+        not_after: 1832673600 # 2028-01-28 12:00:00 UTC
+      - issuer: "/OU=GlobalSign Root CA - R3/O=GlobalSign/CN=GlobalSign"
+        subject: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign Code Signing Root R45"
+        thumbprint: "4c5d80d2cd06b1a493c49b2e9bed4a57c2f873e5"
+        version: 3
+        algorithm: "sha384WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.12"
+        serial: "78:03:18:42:45:70:8a:41:cf:6f:01:b8:ee:b4:a9:54"
+        not_before: 1595894400 # 2020-07-28 00:00:00 UTC
+        not_after: 1868486400 # 2029-03-18 00:00:00 UTC
+      - issuer: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign GCC R45 EV CodeSigning CA 2020"
+        subject: "/businessCategory=Private Organization/serialNumber=460726/jurisdictionC=US/jurisdictionST=Idaho/C=US/ST=Idaho/L=Boise/streetAddress=702 W Idaho Street Suite 1100/O=WATCHDOGDEVELOPMENT.COM, LLC/CN=WATCHDOGDEVELOPMENT.COM, LLC"
+        thumbprint: "73a0b736d2b9354b4c82fdf33b90a8bb7130e5fb"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "1f:7b:0d:e3:09:0e:e1:3a:43:63:15:a6"
+        not_before: 1619015067 # 2021-04-21 14:24:27 UTC
+        not_after: 1648238268 # 2022-03-25 19:57:48 UTC
+      - issuer: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign Code Signing Root R45"
+        subject: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign GCC R45 EV CodeSigning CA 2020"
+        thumbprint: "c10bb76ad4ee815242406a1e3e1117ffec743d4f"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "77:bd:0e:05:b7:59:0b:b6:1d:47:61:53:1e:3f:75:ed"
+        not_before: 1595894400 # 2020-07-28 00:00:00 UTC
+        not_after: 1911427200 # 2030-07-28 00:00:00 UTC
+      - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2008 VeriSign, Inc. - For authorized use only/CN=VeriSign Universal Root Certification Authority"
+        subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping CA"
+        thumbprint: "6fc9edb5e00ab64151c1cdfcac74ad2c7b7e3be4"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "7b:05:b1:d4:49:68:51:44:f7:c9:89:d2:9c:19:9d:12"
+        not_before: 1452556800 # 2016-01-12 00:00:00 UTC
+        not_after: 1925942399 # 2031-01-11 23:59:59 UTC
+      - issuer: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping CA"
+        subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping Signer - G3"
+        thumbprint: "a9a4121063d71d48e8529a4681de803e3e7954b0"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "7b:d4:e5:af:ba:cc:07:3f:a1:01:23:04:22:41:4d:12"
+        not_before: 1513987200 # 2017-12-23 00:00:00 UTC
+        not_after: 1868918399 # 2029-03-22 23:59:59 UTC
+    countersignatures:
+      - verified: true
+        sign_time: 1634237249 # 2021-10-14 18:47:29 UTC
+        digest: "a6d56d546fb347a798239820467f4871bdd4c2f331548f4fdf5ab961a46c5c45"
+        digest_alg: "sha256"
+        chain:
+          - issuer: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping CA"
+            subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping Signer - G3"
+            thumbprint: "a9a4121063d71d48e8529a4681de803e3e7954b0"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "7b:d4:e5:af:ba:cc:07:3f:a1:01:23:04:22:41:4d:12"
+            not_before: 1513987200 # 2017-12-23 00:00:00 UTC
+            not_after: 1868918399 # 2029-03-22 23:59:59 UTC
+          - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2008 VeriSign, Inc. - For authorized use only/CN=VeriSign Universal Root Certification Authority"
+            subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping CA"
+            thumbprint: "6fc9edb5e00ab64151c1cdfcac74ad2c7b7e3be4"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "7b:05:b1:d4:49:68:51:44:f7:c9:89:d2:9c:19:9d:12"
+            not_before: 1452556800 # 2016-01-12 00:00:00 UTC
+            not_after: 1925942399 # 2031-01-11 23:59:59 UTC
+  - subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Hardware Compatibility Publisher"
+    issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Third Party Component CA 2014"
+    thumbprint: "984e03b613e8c2ae9c692f0db2c031bf3ee3a0fa"
+    version: 3
+    algorithm: "sha256WithRSAEncryption"
+    algorithm_oid: "1.2.840.113549.1.1.11"
+    serial: "33:00:00:00:43:3a:68:18:9e:33:90:29:87:00:00:00:00:00:43"
+    not_before: 1608071128 # 2020-12-15 22:25:28 UTC
+    not_after: 1638483928 # 2021-12-02 22:25:28 UTC
+    verified: true
+    digest_alg: "sha256"
+    digest: "60571dbcaec96d9517e0d116d066e70ae747aa4396d7857b2eea0f4c1a5a70b4"
+    file_digest: "60571dbcaec96d9517e0d116d066e70ae747aa4396d7857b2eea0f4c1a5a70b4"
+    number_of_certificates: 4
+    number_of_countersignatures: 1
+    signer_info:
+        program_name: "Watchdog Development"
+        digest: "9036096da2275ebc39de2da2a4f394f7667853da0f2734815f4be939e21f83e8"
+        digest_alg: "sha256"
+        chain:
+          - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Third Party Component CA 2014"
+            subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Hardware Compatibility Publisher"
+            thumbprint: "984e03b613e8c2ae9c692f0db2c031bf3ee3a0fa"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "33:00:00:00:43:3a:68:18:9e:33:90:29:87:00:00:00:00:00:43"
+            not_before: 1608071128 # 2020-12-15 22:25:28 UTC
+            not_after: 1638483928 # 2021-12-02 22:25:28 UTC
+          - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
+            subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Third Party Component CA 2014"
+            thumbprint: "1906dcf62629b563252c826fdd874efceb6856c6"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "33:00:00:00:0d:69:0d:5d:78:93:d0:76:df:00:00:00:00:00:0d"
+            not_before: 1413405087 # 2014-10-15 20:31:27 UTC
+            not_after: 1886791287 # 2029-10-15 20:41:27 UTC
+    certificates:
+      - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Third Party Component CA 2014"
+        subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Hardware Compatibility Publisher"
+        thumbprint: "984e03b613e8c2ae9c692f0db2c031bf3ee3a0fa"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "33:00:00:00:43:3a:68:18:9e:33:90:29:87:00:00:00:00:00:43"
+        not_before: 1608071128 # 2020-12-15 22:25:28 UTC
+        not_after: 1638483928 # 2021-12-02 22:25:28 UTC
+      - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
+        subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Third Party Component CA 2014"
+        thumbprint: "1906dcf62629b563252c826fdd874efceb6856c6"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "33:00:00:00:0d:69:0d:5d:78:93:d0:76:df:00:00:00:00:00:0d"
+        not_before: 1413405087 # 2014-10-15 20:31:27 UTC
+        not_after: 1886791287 # 2029-10-15 20:41:27 UTC
+      - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
+        subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/OU=Microsoft Operations Puerto Rico/OU=Thales TSS ESN:D9DE-E39A-43FE/CN=Microsoft Time-Stamp Service"
+        thumbprint: "156e52840c397a44c45ef2ffe15d6cd2b6c3cf79"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "33:00:00:01:61:f5:a2:33:5e:a0:2a:24:69:00:00:00:00:01:61"
+        not_before: 1610650941 # 2021-01-14 19:02:21 UTC
+        not_after: 1649703741 # 2022-04-11 19:02:21 UTC
+      - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
+        subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
+        thumbprint: "2aa752fe64c49abe82913c463529cf10ff2f04ee"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "61:09:81:2a:00:00:00:00:00:02"
+        not_before: 1278020215 # 2010-07-01 21:36:55 UTC
+        not_after: 1751406415 # 2025-07-01 21:46:55 UTC
+    countersignatures:
+      - verified: true
+        digest: "96c1924093c6c5f81cb50cb05529b096ebd746eecb41fe87252f2303dd8f0ce4"
+        digest_alg: "sha256"
+        chain:
+          - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
+            subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/OU=Microsoft Operations Puerto Rico/OU=Thales TSS ESN:D9DE-E39A-43FE/CN=Microsoft Time-Stamp Service"
+            thumbprint: "156e52840c397a44c45ef2ffe15d6cd2b6c3cf79"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "33:00:00:01:61:f5:a2:33:5e:a0:2a:24:69:00:00:00:00:01:61"
+            not_before: 1610650941 # 2021-01-14 19:02:21 UTC
+            not_after: 1649703741 # 2022-04-11 19:02:21 UTC
+          - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
+            subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
+            thumbprint: "2aa752fe64c49abe82913c463529cf10ff2f04ee"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "61:09:81:2a:00:00:00:00:00:02"
+            not_before: 1278020215 # 2010-07-01 21:36:55 UTC
+            not_after: 1751406415 # 2025-07-01 21:46:55 UTC
+overlay:
+    offset: 206848
+    size: 19616

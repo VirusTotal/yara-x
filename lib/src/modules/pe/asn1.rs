@@ -4,7 +4,9 @@ use array_bytes::bytes2hex;
 use const_oid::db::{rfc4519, rfc5912};
 use const_oid::ObjectIdentifier;
 
-use der_parser::asn1_rs::{Any, FromBer, FromDer, OptTaggedParser};
+use der_parser::asn1_rs::{
+    Any, FromBer, FromDer, OptTaggedParser, ParseResult,
+};
 use der_parser::ber::*;
 use der_parser::error::Error::BerValueError;
 use der_parser::error::{BerError, BerResult};
@@ -12,7 +14,6 @@ use der_parser::nom;
 use der_parser::nom::branch::alt;
 use der_parser::nom::combinator::{consumed, map_res};
 use der_parser::nom::Err::Incomplete;
-use der_parser::nom::IResult;
 use der_parser::nom::Parser;
 use der_parser::num_bigint::BigUint;
 use der_parser::{asn1_rs, parse_ber, Oid};
@@ -21,7 +22,6 @@ use digest::Digest;
 use sha1::Sha1;
 
 use x509_parser::certificate::X509Certificate;
-use x509_parser::error::X509Error;
 use x509_parser::prelude::{AlgorithmIdentifier, X509CertificateParser};
 use x509_parser::x509::X509Name;
 
@@ -204,8 +204,8 @@ impl<'a> SignedData<'a> {
         let (remainder, content_info) = ContentInfo::parse(remainder)?;
 
         let (remainder, certificates) = OptTaggedParser::from(0)
-            .parse_ber(remainder, |_, raw_certs| {
-                Self::parse_certificates(raw_certs)
+            .parse_ber(remainder, |_, raw_certs| -> ParseResult<'_, Vec<_>> {
+                Ok(Self::parse_certificates(raw_certs))
             })
             .map_err(|_| BerValueError)?;
 
@@ -227,9 +227,7 @@ impl<'a> SignedData<'a> {
         ))
     }
 
-    fn parse_certificates(
-        input: &[u8],
-    ) -> IResult<&[u8], Vec<Certificate>, X509Error> {
+    fn parse_certificates(input: &[u8]) -> (&[u8], Vec<Certificate>) {
         let mut remainder = input;
         let mut certificates = Vec::new();
 
@@ -247,10 +245,9 @@ impl<'a> SignedData<'a> {
                     });
                     remainder
                 }
-                Err(Incomplete(_)) => {
-                    return Ok((remainder, certificates));
+                Err(_) => {
+                    return (remainder, certificates);
                 }
-                Err(err) => return Err(err),
             }
         }
     }

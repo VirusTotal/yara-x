@@ -18115,8 +18115,8 @@ signatures:
     digest_alg: "sha256"
     digest: "d8c60d76740d929f1aec6237c276a99ea7c3662a5f0dbdf083c6d51fc3aed30a"
     file_digest: "d8c60d76740d929f1aec6237c276a99ea7c3662a5f0dbdf083c6d51fc3aed30a"
-    number_of_certificates: 2
-    number_of_countersignatures: 0
+    number_of_certificates: 4
+    number_of_countersignatures: 1
     signer_info:
         program_name: "Advanced Micro Devices, Inc."
         digest: "e26ef3d142bb9053aa7027e34e4de07735a7655a46894f445d4a4dbc6fee40f7"
@@ -18159,6 +18159,47 @@ signatures:
         serial: "61:0b:aa:c1:00:00:00:00:00:09"
         not_before: 1334792918 # 2012-04-18 23:48:38 UTC
         not_after: 1808092718 # 2027-04-18 23:58:38 UTC
+      - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
+        subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/OU=Microsoft Ireland Operations Limited/OU=Thales TSS ESN:D082-4BFD-EEBA/CN=Microsoft Time-Stamp Service"
+        thumbprint: "1c39ff733fb7c9190850225f49b2f77639d012a6"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "33:00:00:01:dc:c1:e0:8c:c2:5f:58:5e:8e:00:01:00:00:01:dc"
+        not_before: 1697137626 # 2023-10-12 19:07:06 UTC
+        not_after: 1736536026 # 2025-01-10 19:07:06 UTC
+      - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
+        subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
+        thumbprint: "36056a5662dcadecf82cc14c8b80ec5e0bcc59a6"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "33:00:00:00:15:c5:e7:6b:9e:02:9b:49:99:00:00:00:00:00:15"
+        not_before: 1633026145 # 2021-09-30 18:22:25 UTC
+        not_after: 1917023545 # 2030-09-30 18:32:25 UTC
+    countersignatures:
+      - verified: true
+        digest: "156b0ab3ff8f0599afe7acb19434dd26f1a87698f43c4a3fa80d22e5e59c481c"
+        digest_alg: "sha256"
+        chain:
+          - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
+            subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/OU=Microsoft Ireland Operations Limited/OU=Thales TSS ESN:D082-4BFD-EEBA/CN=Microsoft Time-Stamp Service"
+            thumbprint: "1c39ff733fb7c9190850225f49b2f77639d012a6"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "33:00:00:01:dc:c1:e0:8c:c2:5f:58:5e:8e:00:01:00:00:01:dc"
+            not_before: 1697137626 # 2023-10-12 19:07:06 UTC
+            not_after: 1736536026 # 2025-01-10 19:07:06 UTC
+          - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
+            subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
+            thumbprint: "36056a5662dcadecf82cc14c8b80ec5e0bcc59a6"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "33:00:00:00:15:c5:e7:6b:9e:02:9b:49:99:00:00:00:00:00:15"
+            not_before: 1633026145 # 2021-09-30 18:22:25 UTC
+            not_after: 1917023545 # 2030-09-30 18:32:25 UTC
   - subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Hardware Compatibility Publisher"
     issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Third Party Component CA 2012"
     thumbprint: "1935420a805a0cefebecdbe59a391a69db32eab3"
@@ -18172,8 +18213,8 @@ signatures:
     digest_alg: "sha256"
     digest: "d8c60d76740d929f1aec6237c276a99ea7c3662a5f0dbdf083c6d51fc3aed30a"
     file_digest: "d8c60d76740d929f1aec6237c276a99ea7c3662a5f0dbdf083c6d51fc3aed30a"
-    number_of_certificates: 2
-    number_of_countersignatures: 0
+    number_of_certificates: 4
+    number_of_countersignatures: 1
     signer_info:
         program_name: "Advanced Micro Devices, Inc."
         digest: "e26ef3d142bb9053aa7027e34e4de07735a7655a46894f445d4a4dbc6fee40f7"
@@ -18216,6 +18257,47 @@ signatures:
         serial: "61:0b:aa:c1:00:00:00:00:00:09"
         not_before: 1334792918 # 2012-04-18 23:48:38 UTC
         not_after: 1808092718 # 2027-04-18 23:58:38 UTC
+      - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
+        subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/OU=Microsoft America Operations/OU=nShield TSS ESN:7F00-05E0-D947/CN=Microsoft Time-Stamp Service"
+        thumbprint: "4e122f92fd95457bac3521ddf59ba2a07b6ea534"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "33:00:00:01:d5:a9:02:cf:c5:a7:c9:e9:5a:00:01:00:00:01:d5"
+        not_before: 1685041950 # 2023-05-25 19:12:30 UTC
+        not_after: 1706814750 # 2024-02-01 19:12:30 UTC
+      - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
+        subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
+        thumbprint: "36056a5662dcadecf82cc14c8b80ec5e0bcc59a6"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "33:00:00:00:15:c5:e7:6b:9e:02:9b:49:99:00:00:00:00:00:15"
+        not_before: 1633026145 # 2021-09-30 18:22:25 UTC
+        not_after: 1917023545 # 2030-09-30 18:32:25 UTC
+    countersignatures:
+      - verified: true
+        digest: "2147aea8471f772ea10df4b2242e09bf62a9a8be287cb782a52567bda91e4740"
+        digest_alg: "sha256"
+        chain:
+          - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
+            subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/OU=Microsoft America Operations/OU=nShield TSS ESN:7F00-05E0-D947/CN=Microsoft Time-Stamp Service"
+            thumbprint: "4e122f92fd95457bac3521ddf59ba2a07b6ea534"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "33:00:00:01:d5:a9:02:cf:c5:a7:c9:e9:5a:00:01:00:00:01:d5"
+            not_before: 1685041950 # 2023-05-25 19:12:30 UTC
+            not_after: 1706814750 # 2024-02-01 19:12:30 UTC
+          - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
+            subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
+            thumbprint: "36056a5662dcadecf82cc14c8b80ec5e0bcc59a6"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "33:00:00:00:15:c5:e7:6b:9e:02:9b:49:99:00:00:00:00:00:15"
+            not_before: 1633026145 # 2021-09-30 18:22:25 UTC
+            not_after: 1917023545 # 2030-09-30 18:32:25 UTC
 overlay:
     offset: 165376
     size: 44192
