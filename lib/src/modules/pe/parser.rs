@@ -660,10 +660,7 @@ impl<'a> PE<'a> {
                     opt_hdr.base_of_code,
                 ),
             ) = tuple((
-                verify(le_u16, |magic| {
-                    *magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC
-                        || *magic == Self::IMAGE_NT_OPTIONAL_HDR64_MAGIC
-                }),
+                le_u16, // magic
                 u8,     // major_linker_ver
                 u8,     // minor_linker_ver
                 le_u32, // size_of_code
@@ -672,6 +669,14 @@ impl<'a> PE<'a> {
                 le_u32, // entry_point
                 le_u32, // base_of_code
             ))(input)?;
+
+            // opt_hdr.magic should be either IMAGE_NT_OPTIONAL_HDR32_MAGIC
+            // or IMAGE_NT_OPTIONAL_HDR64_MAGIC, but when the file is corrupt
+            // and opt_hdr.magic is something else, we assume that the file
+            // is a 32-bit PE for the purpose of continuing parsing the
+            // remaining fields, because that's what YARA does. That's the
+            // case of:
+            // 3df167b04c52b47ae634b8114671ad3b7bf4e8af62a38a3d4bc0903f474ae2d9
 
             (
                 remainder,
@@ -682,11 +687,11 @@ impl<'a> PE<'a> {
                 ),
             ) = tuple((
                 cond(
-                    opt_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC,
+                    opt_hdr.magic != Self::IMAGE_NT_OPTIONAL_HDR64_MAGIC,
                     le_u32,
                 ),
                 cond(
-                    opt_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC,
+                    opt_hdr.magic != Self::IMAGE_NT_OPTIONAL_HDR64_MAGIC,
                     le_u32,
                 ),
                 cond(
@@ -696,8 +701,10 @@ impl<'a> PE<'a> {
             ))(remainder)?;
 
             opt_hdr.base_of_data = base_of_data;
-            opt_hdr.image_base =
-                image_base64.or(image_base32.map(|i| i as u64)).unwrap();
+            opt_hdr.image_base = image_base32
+                .map(|i| i as u64)
+                .or(image_base64)
+                .unwrap_or_default();
 
             (
                 remainder,
@@ -738,10 +745,10 @@ impl<'a> PE<'a> {
                 le_u32, // checksum
                 le_u16, // subsystem
                 le_u16, // dll_characteristics
-                uint(opt_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC),
-                uint(opt_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC),
-                uint(opt_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC),
-                uint(opt_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC),
+                uint(opt_hdr.magic != Self::IMAGE_NT_OPTIONAL_HDR64_MAGIC),
+                uint(opt_hdr.magic != Self::IMAGE_NT_OPTIONAL_HDR64_MAGIC),
+                uint(opt_hdr.magic != Self::IMAGE_NT_OPTIONAL_HDR64_MAGIC),
+                uint(opt_hdr.magic != Self::IMAGE_NT_OPTIONAL_HDR64_MAGIC),
                 le_u32, // loader_flags
                 le_u32, // number_of_rva_and_sizes
             ))(remainder)?;
