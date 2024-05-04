@@ -5,13 +5,27 @@ use crate::compiler::{
     yrx_compiler_destroy, yrx_compiler_new_namespace,
 };
 use crate::{
-    yrx_buffer_destroy, yrx_rules_deserialize, yrx_rules_serialize,
+    yrx_buffer_destroy, yrx_last_error, yrx_patterns_destroy,
+    yrx_rule_identifier, yrx_rule_namespace, yrx_rule_patterns,
+    yrx_rules_deserialize, yrx_rules_destroy, yrx_rules_serialize,
     yrx_scanner_create, yrx_scanner_destroy, yrx_scanner_on_matching_rule,
     yrx_scanner_scan, yrx_scanner_set_global_bool, YRX_BUFFER, YRX_RULE,
 };
 use std::ffi::{c_void, CString};
 
-extern "C" fn callback(_rule: *const YRX_RULE, user_data: *mut c_void) {
+extern "C" fn callback(rule: *const YRX_RULE, user_data: *mut c_void) {
+    let mut ptr = std::ptr::null();
+    let mut len = 0;
+
+    unsafe {
+        yrx_rule_namespace(rule, &mut ptr, &mut len);
+        yrx_rule_identifier(rule, &mut ptr, &mut len);
+
+        let patterns = yrx_rule_patterns(rule);
+        assert_eq!((*patterns).num_patterns, 0);
+        yrx_patterns_destroy(patterns);
+    }
+
     let ptr = user_data as *mut i32;
     let matches = unsafe { ptr.as_mut().unwrap() };
     *matches += 1;
@@ -53,6 +67,8 @@ fn capi() {
         yrx_compiler_new_namespace(compiler, namespace.as_ptr());
         yrx_compiler_add_source(compiler, src.as_ptr());
 
+        assert_eq!(yrx_last_error(), std::ptr::null());
+
         let mut rules = yrx_compiler_build(compiler);
 
         yrx_compiler_destroy(compiler);
@@ -86,5 +102,6 @@ fn capi() {
         assert_eq!(matches, 0);
 
         yrx_scanner_destroy(scanner);
+        yrx_rules_destroy(rules);
     }
 }
