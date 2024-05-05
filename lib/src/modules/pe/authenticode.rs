@@ -200,11 +200,14 @@ impl AuthenticodeParser {
 
         for attr in signer_info.unsigned_attrs.iter() {
             match attr.attr_type {
-                // SignerInfo can have unsigned attributes containing nested
-                // Authenticode signatures. These attributes are identified by
-                // OID 1.3.6.1.4.1.311.2.4.1 and their values are `ContentInfo`
-                // structures. Find those attributes, parse their values, and
-                // append the resulting signatures to `nested_signatures`.
+                // SignerInfo can have an unsigned attribute containing nested
+                // Authenticode signatures. This attribute is identified by
+                // OID 1.3.6.1.4.1.311.2.4.1 and its values are `ContentInfo`
+                // structures. Usually, this attribute has a single value, but
+                // some files, like 6234f03abab2800e7c04aab51ac2dc33 have more
+                // than one. Windows doesn't seem to recognize the signature
+                // stored in the second value, but we extract it and expose it
+                // anyway.
                 oid::MS_SPC_NESTED_SIGNATURE => {
                     for value in &attr.attr_values {
                         if let Ok(content_info) = value.try_into() {
