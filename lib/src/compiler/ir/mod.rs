@@ -845,31 +845,58 @@ impl Expr {
             }
 
             Expr::Add { operands } => {
-                let mut sum = 0.0;
-                let mut is_float = false;
-                for operand in &operands {
-                    match operand.type_value() {
-                        TypeValue::Integer(Value::Const(v)) => {
-                            sum += v as f64;
-                        }
-                        TypeValue::Float(Value::Const(v)) => {
-                            is_float = true;
-                            sum += v;
-                        }
-                        _ => return Expr::Add { operands },
-                    }
+                // If not all operands are constant, there's nothing to fold.
+                if !operands.iter().all(|op| op.type_value().is_const()) {
+                    return Expr::Add { operands };
                 }
-                if is_float {
-                    Expr::Const {
-                        type_value: TypeValue::const_float_from(sum),
-                    }
-                } else {
-                    Expr::Const {
-                        type_value: TypeValue::const_integer_from(sum as i64),
-                    }
+
+                Self::fold_arithmetic(operands, |acc, x| acc + x)
+            }
+            Expr::Sub { operands } => {
+                // If not all operands are constant, there's nothing to fold.
+                if !operands.iter().all(|op| op.type_value().is_const()) {
+                    return Expr::Sub { operands };
                 }
+
+                Self::fold_arithmetic(operands, |acc, x| acc - x)
+            }
+            Expr::Mul { operands } => {
+                // If not all operands are constant, there's nothing to fold.
+                if !operands.iter().all(|op| op.type_value().is_const()) {
+                    return Expr::Mul { operands };
+                }
+
+                Self::fold_arithmetic(operands, |acc, x| acc * x)
             }
             _ => self,
+        }
+    }
+
+    pub fn fold_arithmetic<F>(operands: Vec<Expr>, f: F) -> Self
+    where
+        F: FnMut(f64, f64) -> f64,
+    {
+        let mut is_float = false;
+
+        let result = operands
+            .iter()
+            .map(|operand| match operand.type_value() {
+                TypeValue::Integer(Value::Const(v)) => v as f64,
+                TypeValue::Float(Value::Const(v)) => {
+                    is_float = true;
+                    v
+                }
+                _ => unreachable!(),
+            })
+            .reduce(f)
+            .unwrap();
+
+        if is_float {
+            Expr::Const { type_value: TypeValue::const_float_from(result) }
+        } else {
+            Expr::Const {
+                type_value: TypeValue::const_integer_from(result as i64),
+            }
         }
     }
 }
