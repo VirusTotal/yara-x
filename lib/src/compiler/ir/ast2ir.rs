@@ -217,35 +217,30 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::Filesize { .. } => Ok(Expr::Filesize),
 
         ast::Expr::True { .. } => {
-            Ok(Expr::Const { type_value: TypeValue::const_bool_from(true) })
+            Ok(Expr::Const(TypeValue::const_bool_from(true)))
         }
 
         ast::Expr::False { .. } => {
-            Ok(Expr::Const { type_value: TypeValue::const_bool_from(false) })
+            Ok(Expr::Const(TypeValue::const_bool_from(false)))
         }
 
-        ast::Expr::LiteralInteger(literal) => Ok(Expr::Const {
-            type_value: TypeValue::const_integer_from(literal.value),
-        }),
+        ast::Expr::LiteralInteger(literal) => Ok(Expr::Const(
+           TypeValue::const_integer_from(literal.value))),
 
-        ast::Expr::LiteralFloat(literal) => Ok(Expr::Const {
-            type_value: TypeValue::const_float_from(literal.value),
-        }),
+        ast::Expr::LiteralFloat(literal) => Ok(Expr::Const(
+            TypeValue::const_float_from(literal.value))),
 
-        ast::Expr::LiteralString(literal) => Ok(Expr::Const {
-            type_value: TypeValue::const_string_from(literal.value.as_bytes()),
-        }),
+        ast::Expr::LiteralString(literal) => Ok(Expr::Const(TypeValue::const_string_from(literal.value.as_bytes()))),
 
         ast::Expr::Regexp(regexp) => {
             re::parser::Parser::new().parse(regexp.as_ref()).map_err(|err| {
                 re_error_to_compile_error(ctx.report_builder, regexp, err)
             })?;
 
-            Ok(Expr::Const {
-                type_value: TypeValue::Regexp(Some(Regexp::new(
+            Ok(Expr::Const(TypeValue::Regexp(Some(Regexp::new(
                     regexp.literal,
                 ))),
-            })
+            ))
         }
 
         ast::Expr::Defined(expr) => defined_expr_from_ast(ctx, expr),
@@ -322,10 +317,10 @@ pub(in crate::compiler) fn expr_from_ast(
             // If the last operand is constant, the whole expression is
             // constant.
             #[cfg(feature = "constant-folding")]
-            if let Expr::Const { type_value, .. } = last_operand {
+            if let Expr::Const(type_value) = last_operand {
                 // A constant always have a defined value.
                 assert!(type_value.is_const());
-                return Ok(Expr::Const { type_value });
+                return Ok(Expr::Const(type_value));
             }
 
             operands.push(last_operand);
@@ -405,7 +400,7 @@ pub(in crate::compiler) fn expr_from_ast(
             {
                 let type_value = symbol.type_value();
                 if type_value.is_const() {
-                    return Ok(Expr::Const { type_value: type_value.clone() });
+                    return Ok(Expr::Const(type_value.clone()));
                 }
             }
 

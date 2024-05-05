@@ -275,11 +275,9 @@ impl From<usize> for PatternIdx {
 /// Intermediate representation (IR) for an expression.
 #[derive(Debug)]
 pub(in crate::compiler) enum Expr {
-    /// Constant value (i.e: the value is known at compile time). The value
-    /// in `type_value` is not `None`.
-    Const {
-        type_value: TypeValue,
-    },
+    /// Constant value (i.e: the value is known at compile time).
+    /// The value in `TypeValue` is not `None`.
+    Const(TypeValue),
 
     /// `filesize` expression.
     Filesize,
@@ -646,7 +644,7 @@ pub(in crate::compiler) enum Iterable {
 impl Expr {
     pub fn ty(&self) -> Type {
         match self {
-            Expr::Const { type_value, .. } => type_value.ty(),
+            Expr::Const(type_value) => type_value.ty(),
 
             Expr::Defined { .. }
             | Expr::Not { .. }
@@ -715,7 +713,7 @@ impl Expr {
 
     pub fn type_value(&self) -> TypeValue {
         match self {
-            Expr::Const { type_value, .. } => type_value.clone(),
+            Expr::Const(type_value) => type_value.clone(),
 
             Expr::Defined { .. }
             | Expr::Not { .. }
@@ -798,18 +796,14 @@ impl Expr {
                 // No operands left, all were true and therefore the AND is
                 // also true.
                 if operands.is_empty() {
-                    return Expr::Const {
-                        type_value: TypeValue::const_bool_from(true),
-                    };
+                    return Expr::Const(TypeValue::const_bool_from(true));
                 }
 
                 // If any of the remaining operands is constant it has to be
                 // false because true values were removed, the result is false
                 // regardless of the operands with unknown values.
                 if operands.iter().any(|op| op.type_value().is_const()) {
-                    return Expr::Const {
-                        type_value: TypeValue::const_bool_from(false),
-                    };
+                    return Expr::Const(TypeValue::const_bool_from(false));
                 }
 
                 Expr::And { operands }
@@ -827,18 +821,14 @@ impl Expr {
                 // No operands left, all were false and therefore the OR is
                 // also false.
                 if operands.is_empty() {
-                    return Expr::Const {
-                        type_value: TypeValue::const_bool_from(false),
-                    };
+                    return Expr::Const(TypeValue::const_bool_from(false));
                 }
 
                 // If any of the remaining operands is constant it has to be
                 // true because false values were removed, the result is true
                 // regardless of the operands with unknown values.
                 if operands.iter().any(|op| op.type_value().is_const()) {
-                    return Expr::Const {
-                        type_value: TypeValue::const_bool_from(true),
-                    };
+                    return Expr::Const(TypeValue::const_bool_from(true));
                 }
 
                 Expr::Or { operands }
@@ -892,11 +882,9 @@ impl Expr {
             .unwrap();
 
         if is_float {
-            Expr::Const { type_value: TypeValue::const_float_from(result) }
+            Expr::Const(TypeValue::const_float_from(result))
         } else {
-            Expr::Const {
-                type_value: TypeValue::const_integer_from(result as i64),
-            }
+            Expr::Const(TypeValue::const_integer_from(result as i64))
         }
     }
 }
