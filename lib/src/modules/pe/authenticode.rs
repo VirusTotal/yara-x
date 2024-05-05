@@ -345,12 +345,25 @@ impl AuthenticodeParser {
             countersignature.digest_alg = oid_to_str(tst.hash_algorithm.oid());
             countersignature.digest = tst.hashed_message;
 
+            let cs_si_digest = match cs_si
+                .get_signed_attr(&rfc5911::ID_MESSAGE_DIGEST)
+                .map(|value| value.data.as_bytes())
+            {
+                Some(md) => md,
+                None => return Err(ParseError::MissingAuthenticodeDigest),
+            };
+
             countersignature.verified =
                 verify_message_digest(
                     &tst.hash_algorithm,
                     si.signature,
                     tst.hashed_message,
+                ) && verify_message_digest(
+                    &cs_si.digest_algorithm,
+                    sd.content_info.content.as_bytes(),
+                    cs_si_digest,
                 ) && verify_signer_info(cs_si, certificates.as_slice());
+
 
             countersignatures.push(countersignature);
         }

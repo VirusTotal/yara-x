@@ -689,7 +689,7 @@ signatures:
         not_before: 1513987200 # 2017-12-23 00:00:00 UTC
         not_after: 1868918399 # 2029-03-22 23:59:59 UTC
     countersignatures:
-      - verified: true
+      - verified: false
         sign_time: 1634237249 # 2021-10-14 18:47:29 UTC
         digest: "a6d56d546fb347a798239820467f4871bdd4c2f331548f4fdf5ab961a46c5c45"
         digest_alg: "sha256"
