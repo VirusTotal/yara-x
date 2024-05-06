@@ -5,7 +5,7 @@ import yara_x
 
 def test_syntax_error():
   compiler = yara_x.Compiler()
-  with pytest.raises(SyntaxError):
+  with pytest.raises(yara_x.CompileError):
     compiler.add_source('bad rule')
 
 
@@ -17,7 +17,7 @@ def test_bad_variable_type():
 
 def test_int_globals():
   compiler = yara_x.Compiler()
-  compiler.define_global('some_int', 1);
+  compiler.define_global('some_int', 1)
   compiler.add_source('rule test {condition: some_int == 1}')
   rules = compiler.build()
 
@@ -36,7 +36,7 @@ def test_int_globals():
 
 def test_float_globals():
   compiler = yara_x.Compiler()
-  compiler.define_global('some_float', 1.0);
+  compiler.define_global('some_float', 1.0)
   compiler.add_source('rule test {condition: some_float == 1.0}')
   rules = compiler.build()
 
@@ -55,7 +55,7 @@ def test_float_globals():
 
 def test_str_globals():
   compiler = yara_x.Compiler()
-  compiler.define_global('some_str', 'foo');
+  compiler.define_global('some_str', 'foo')
   compiler.add_source('rule test {condition: some_str == "foo"}')
   rules = compiler.build()
 
@@ -140,7 +140,7 @@ def test_scanner_timeout():
       'rule foo {condition: for all i in (0..10000000000) : ( true )}')
   scanner = yara_x.Scanner(compiler.build())
   scanner.set_timeout(1)
-  with pytest.raises(Exception, match='timeout'):
+  with pytest.raises(yara_x.TimeoutError):
     scanner.scan(b'foobar')
 
 
