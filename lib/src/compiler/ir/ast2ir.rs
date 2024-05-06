@@ -1180,6 +1180,7 @@ fn matches_expr_from_ast(
     ctx: &mut CompileContext,
     expr: &ast::BinaryExpr,
 ) -> Result<Expr, Box<CompileError>> {
+    let span = expr.span();
     let lhs_span = expr.lhs.span();
     let rhs_span = expr.rhs.span();
 
@@ -1192,7 +1193,7 @@ fn matches_expr_from_ast(
     let expr = Expr::Matches { lhs, rhs };
 
     if cfg!(feature = "constant-folding") {
-        Ok(expr.fold())
+        expr.fold(ctx, span)
     } else {
         Ok(expr)
     }
@@ -1326,6 +1327,7 @@ macro_rules! gen_unary_op {
             ctx: &mut CompileContext,
             expr: &ast::UnaryExpr,
         ) -> Result<Expr, Box<CompileError>> {
+            let span = expr.span();
             let operand = Box::new(expr_from_ast(ctx, &expr.operand)?);
 
             check_type(
@@ -1346,7 +1348,7 @@ macro_rules! gen_unary_op {
             let expr = Expr::$variant { operand };
 
             if cfg!(feature = "constant-folding") {
-                Ok(expr.fold())
+                expr.fold(ctx, span)
             } else {
                 Ok(expr)
             }
@@ -1360,6 +1362,7 @@ macro_rules! gen_binary_op {
             ctx: &mut CompileContext,
             expr: &ast::BinaryExpr,
         ) -> Result<Expr, Box<CompileError>> {
+            let span = expr.span();
             let lhs_span = expr.lhs.span();
             let rhs_span = expr.rhs.span();
 
@@ -1387,7 +1390,7 @@ macro_rules! gen_binary_op {
             let expr = Expr::$variant { lhs, rhs };
 
             if cfg!(feature = "constant-folding") {
-                Ok(expr.fold())
+                expr.fold(ctx, span)
             } else {
                 Ok(expr)
             }
@@ -1401,6 +1404,7 @@ macro_rules! gen_string_op {
             ctx: &mut CompileContext,
             expr: &ast::BinaryExpr,
         ) -> Result<Expr, Box<CompileError>> {
+            let span = expr.span();
             let lhs_span = expr.lhs.span();
             let rhs_span = expr.rhs.span();
 
@@ -1420,7 +1424,7 @@ macro_rules! gen_string_op {
             let expr = Expr::$variant { lhs, rhs };
 
             if cfg!(feature = "constant-folding") {
-                Ok(expr.fold())
+                expr.fold(ctx, span)
             } else {
                 Ok(expr)
             }
@@ -1434,6 +1438,7 @@ macro_rules! gen_n_ary_operation {
             ctx: &mut CompileContext,
             expr: &ast::NAryExpr,
         ) -> Result<Expr, Box<CompileError>> {
+            let span = expr.span();
             let accepted_types = &[$( $accepted_types ),+];
             let compatible_types = &[$( $compatible_types ),+];
 
@@ -1488,7 +1493,7 @@ macro_rules! gen_n_ary_operation {
             let expr = Expr::$variant { operands: operands_hir };
 
             if cfg!(feature = "constant-folding") {
-                Ok(expr.fold())
+                expr.fold(ctx, span)
             } else {
                 Ok(expr)
             }
