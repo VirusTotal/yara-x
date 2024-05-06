@@ -42,7 +42,7 @@ number_of_rva_and_sizes: 16
 number_of_sections: 7
 number_of_imported_functions: 0
 number_of_delayed_imported_functions: 0
-number_of_resources: 148
+number_of_resources: 145
 number_of_version_infos: 0
 number_of_imports: 0
 number_of_delayed_imports: 0
@@ -234,10 +234,6 @@ resources:
   - length: 32765
     rva: 3291412832
     type: 842240
-  - length: 2
-    rva: 0
-    offset: 0
-    type: 842400
   - length: 32765
     rva: 2710209520
     type: 657648
@@ -309,9 +305,6 @@ resources:
     type: 0
   - length: 32765
     rva: 2710207392
-  - length: 768
-    rva: 0
-    offset: 0
   - length: 32765
     rva: 2710207280
     type: 0
@@ -542,10 +535,6 @@ resources:
   - length: 32765
     rva: 3291296560
     type: 0
-  - length: 1
-    rva: 0
-    offset: 0
-    type: 147092
   - length: 32765
     rva: 2710207936
     type: 120944

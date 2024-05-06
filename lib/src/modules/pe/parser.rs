@@ -1450,8 +1450,7 @@ impl<'a> PE<'a> {
                     if let Ok((_, rsrc_entry)) =
                         Self::parse_rsrc_entry(entry_data)
                     {
-                        if rsrc_entry.size > 0
-                            && (rsrc_entry.size as usize) < self.data.len()
+                        if rsrc_entry.size > 0 && rsrc_entry.offset > 0 && (rsrc_entry.size as usize) < self.data.len()
                         {
                             resources.push(Resource {
                                 type_id: ids.0,
