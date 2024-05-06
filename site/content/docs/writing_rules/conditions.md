@@ -9,7 +9,7 @@ menu:
   docs:
     parent: ""
     identifier: "conditions"
-weight: 300
+weight: 250
 toc: true
 seo:
   title: "" # custom title (optional)
@@ -471,3 +471,32 @@ here:
 The `for..in` operator is similar to `for..of`, but the latter iterates over a
 set of patterns, while the former iterates over ranges, enumerations, arrays
 and dictionaries.
+
+## Referencing other rules
+
+When writing the condition for a rule, you can also make reference to a
+previously defined rule in a manner that resembles a function invocation of
+traditional programming languages. In this way you can create rules that depend
+on others. Let's see an example:
+
+```yara
+rule Rule1 {
+    strings:
+        $a = "dummy1"
+    condition:
+        $a
+}
+
+rule Rule2 {
+    strings:
+        $a = "dummy2"
+    condition:
+        $a and Rule1
+}
+```
+
+As can be seen in the example, a file will satisfy `Rule2` only if it contains
+the string `dummy2` and satisfies `Rule1`. Note that it is strictly necessary to
+define the rule being invoked before the one that will make the invocation.
+
+

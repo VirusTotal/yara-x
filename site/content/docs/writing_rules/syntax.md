@@ -88,6 +88,32 @@ Note that identifier/value pairs defined in the metadata section cannot be used
 in the condition section, their only purpose is to store additional information
 about the rule.
 
+## Tags
+
+Another useful feature of YARA is the possibility of adding tags to rules. Those
+tags can be used later to filter YARA's output and show only the rules that you
+are interested in. You can add as many tags as you want to a rule, they are
+declared after the rule identifier as shown below:
+
+```yara
+rule TagsExample1 : Foo Bar Baz {
+...
+}
+```
+
+```yara
+rule TagsExample2 : Bar {
+...
+}
+```
+
+Tags must follow the same lexical convention of rule identifiers, therefore only
+alphanumeric characters and underscores are allowed, and the tag cannot start
+with a digit. They are also case-sensitive.
+
+When using YARA you can output only those rules which are tagged with the tag or
+tags that you provide.
+
 ## Comments
 
 You can add comments to your YARA rules just as if it was a C source file, both

@@ -18,7 +18,7 @@ seo:
   noindex: false # false (default) or true
 ---
 
-YARA-X is written in Rust, so, integrating it into your Rust project can't be
-easier. You can start by visiting the [yara-x](https://crates.io/crates/yara-x)
-crate page, or go straight to
+YARA-X is written in Rust, so, integrating it into your own Rust project is
+extremely easy. You can start by visiting
+the [yara-x](https://crates.io/crates/yara-x) crate page, or go straight to
 the [documentation](https:///docs.rs/yara-x/latest).
