@@ -627,6 +627,25 @@ fn errors_2() {
   |      ^^^ duplicate declaration of `foo`
   |"
     );
+
+    #[cfg(feature = "constant-folding")]
+    assert_eq!(
+        Compiler::new()
+            .add_source(
+                "rule test {
+condition:
+  	9223372036854775807 + 1000000000 == 0
+}"
+            )
+            .unwrap_err()
+            .to_string(),
+        "error: number out of range
+ --> line:3:4
+  |
+3 |    9223372036854775807 + 1000000000 == 0
+  |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this number is out of the allowed range [-9223372036854775808-9223372036854775807]
+  |"
+    );
 }
 
 #[test]
