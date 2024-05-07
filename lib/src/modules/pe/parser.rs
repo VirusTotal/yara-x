@@ -1450,7 +1450,9 @@ impl<'a> PE<'a> {
                     if let Ok((_, rsrc_entry)) =
                         Self::parse_rsrc_entry(entry_data)
                     {
-                        if rsrc_entry.size > 0 && rsrc_entry.offset > 0 && (rsrc_entry.size as usize) < self.data.len()
+                        if rsrc_entry.size > 0
+                            && rsrc_entry.offset > 0
+                            && (rsrc_entry.size as usize) < self.data.len()
                         {
                             resources.push(Resource {
                                 type_id: ids.0,
@@ -2161,10 +2163,6 @@ impl<'a> PE<'a> {
         // every byte except the ones listed below. YARA imposes a length
         // limit of 256 bytes, though.
         let dll_name = self.str_at_rva(rva)?;
-
-        if dll_name.is_empty() {
-            return None;
-        }
 
         for c in dll_name.chars() {
             if c.is_ascii_control() {
