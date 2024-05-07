@@ -64,8 +64,8 @@ scanning. During the rule compilation phase you transform YARA rules from text
 into a compiled [Rules](#rules) object. This object is later used for scanning
 data.
 
-To compiler rules, you can either use the [yara_x.compile(...)](#compile)
-function or a [Compiler](#compiler) object. The former is simpler and sufficent
+To compile rules, you can either use the [yara_x.compile(...)](#compile)
+function or a [Compiler](#compiler) object. The former is simpler and sufficient
 for simpler scenarios. For more complex use-cases involving the use of
 namespaces and multiple rule sets, the latter method is necessary.
 
