@@ -110,13 +110,15 @@ must use a [Compiler](#compiler).
 
 Returns: [yara_x.Rules](#rules)
 
-Raises: #TODO
+Raises: [yara_x.CompileError](#compileerror)
 
 ###### Example
 
 ```python
 rules = yara_x.compile("rule test { condition: true }")
 ```
+
+---------
 
 ### Compiler
 
@@ -128,7 +130,7 @@ rules in text form and compile them into a [Rules](#rules) object.
 Adds some YARA source code to be compiled. Raises an exception if the source
 code is not valid.
 
-Raises: #TODO
+Raises: [yara_x.CompileError](#compileerror)
 
 ###### Example
 
@@ -165,7 +167,8 @@ compiler.add_source("rule test { condition: my_int_var == 1 }")
 
 #### .new_namespace(string)
 
-Creates a new namespace. Any further call to `add_source` will put the new rules
+Creates a new namespace. Any further call
+to [Compiler.add_source(...)](#add_sourcestring) will put the new rules
 under the new namespace, isolating them from previously added rules.
 
 ###### Example
@@ -185,7 +188,8 @@ rules = compiler.build()
 #### .build()
 
 Produces a compiled [Rules](#rules) object that contains all the rules
-previously added to the compiler with `add_source`. Once this method is called
+previously added to the compiler
+with [Compiler.add_source(...)](#add_sourcestring). Once this method is called
 the Compiler is reset to its original state, as if it was a newly created
 compiler.
 
@@ -204,9 +208,9 @@ a [Scanner](#scanner).
 
 Returns: [yara_x.ScanResults](#scanresults)
 
-### Rule
+Raises: [yara_x.ScanError](#scanerror), [yara_x.TimeoutError](#timeouterror)
 
-Type that represents an individual YARA rule.
+---------
 
 ### Scanner
 
@@ -228,6 +232,8 @@ Scans in-memory data.
 
 Returns: [yara_x.ScanResults](#scanresults)
 
+Raises: [yara_x.ScanError](#scanerror), [yara_x.TimeoutError](#timeouterror)
+
 ###### Example
 
 ```python
@@ -242,17 +248,26 @@ Scans a file given its path.
 
 Returns: [yara_x.ScanResults](#scanresults)
 
+Raises: [yara_x.ScanError](#scanerror), [yara_x.TimeoutError](#timeouterror)
+
 #### .set_global(identifier, value)
 
 Sets the value of a global variable. The variable must has been previously
 defined during the compilation, for example by calling
-`Compiler.define_global`, and the type it has during the definition must match
-the type of the new value. The variable will retain the new value in subsequent
-scans, unless this function is called again for setting a new value.
+[Compiler.define_global(...)](#define_globalidentifier-value), and the type it
+has
+during the definition must match the type of the new value. The variable will
+retain the new value in subsequent scans, unless this function is called again
+for setting a new value.
+
+Raises: [TypeError](https://docs.python.org/3/library/exceptions.html#TypeError)
+if the type of `value` is not one of the supported ones.
 
 #### .set_timeout(seconds)
 
 Sets a timeout for each scan. Scans will abort after the specified `seconds`.
+
+---------
 
 ### ScanResults
 
@@ -264,4 +279,103 @@ Array of [Rule](#rule) objects with every rule that matched during the scan.
 
 #### .module_outputs
 
-#TODO
+A dictionary containing the information extracted by all YARA-X modules from
+the file. Keys in the dictionary are module names (i.e: "pe", "elf", "dotnet",
+etc), and values are dictionaries with the information produced by each module.
+
+---------
+
+### Rule
+
+Type that represents an individual YARA rule.
+
+#### .identifier
+
+A `str` with the rule's identifier.
+
+#### .namespace
+
+A `str` with the rule's namespace.
+
+#### .patterns
+
+A tuple of [Pattern](#pattern) with every pattern defined by the rule, matching
+or not. Each pattern contains information about the matches that were found
+during the scan, if any.
+
+---------
+
+### Pattern
+
+Type that represents a pattern in a [Rule](#rule). Contains information about
+the pattern, including its identifier and the matches found for that pattern,
+if any.
+
+#### .identifier
+
+A `str` with the pattern's identifier (i.e: `$a`, `$foo`, etc).
+
+#### .matches
+
+A tuple of [Match](#match) objects that contain information about the matches
+found for this pattern.
+
+---------
+
+### Match
+
+Type that represents a match found for a [Pattern](#pattern).
+
+#### .offset
+
+The file offset where the match occurred.
+
+#### .length
+
+The length of the match.
+
+#### .xor_key
+
+If the pattern used the [xor]({{< ref "text_patterns.md" >}}#xor-modifier)
+modifier, this contains the XOR key (it may be 0). If not, this is `None`.
+
+---------
+
+### CompileError
+
+Exception raised when compilation fails.
+
+###### Example
+
+```python
+try:
+    rules = yara_x.compile('invalid rule')
+except yara_x.CompileError as err:
+    print(err)
+```
+
+---------
+
+### ScanError
+
+Exception raised when scanning fails.
+
+```python
+try:
+    scan_results = scanner.scan(b"foobar")
+except yara_x.ScanError as err:
+    print(err)
+```
+
+---------
+
+### TimeoutError
+
+Exception raised when a timeout occurs while scanning.
+
+```python
+try:
+    scan_results = scanner.scan(b"foobar")
+except yara_x.TimeoutError as err:
+    print("A timeout occurred")
+```
