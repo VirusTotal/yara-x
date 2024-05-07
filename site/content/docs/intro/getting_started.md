@@ -18,12 +18,34 @@ seo:
   noindex: false # false (default) or true
 ---
 
-YARA-X is a re-incarnation of [YARA](https://virustotal.github.io/yara), a
-pattern matching tool designed with
-malware researchers in mind, but that can be used in many other use cases.
 
-This new incarnation intends to be faster, safer and more user-friendly than
-its predecesor.
+YARA-X is a re-incarnation of  [YARA](https://virustotal.github.io/yara), a
+pattern matching tool designed with malware researchers in mind. This new
+incarnation intends to be faster, safer and more user-friendly than its
+predecessor. The ultimate goal of YARA-X is to
+serve as the future replacement for YARA.
+
+With YARA-X you can create descriptions of malware families (or whatever you
+want to describe) based on textual or binary patterns. Each description (a.k.a.
+rule) consists of a set of patterns and a boolean expression which determine its
+logic. Let's see an example:
+
+```yara
+rule silent_banker : banker {
+    meta:
+        description = "This is just an example"
+        threat_level = 3
+        in_the_wild = true
+
+    strings:
+        $a = {6A 40 68 00 30 00 00 6A 14 8D 91}
+        $b = {8D 4D B0 2B C1 83 C0 27 99 6A 4E 59 F7 F9}
+        $c = "UVODFRYSIHLNWPEJXQZAKCBGMT"
+
+    condition:
+        $a or $b or $c
+}
+```
 
 ## Further reading
 

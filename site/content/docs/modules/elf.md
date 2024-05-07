@@ -49,11 +49,10 @@ Returns the TrendMicro's `telfhash` for the ELF file. This is a symbol hash for
 ELF files, just like `imphash` is an imports hash for PE files. With `telfhash`,
 you can cluster ELF files by similarity based on symbols.
 
-Find more information in
-TrendMicro's [whitepaper](https://documents.trendmicro.com/assets/pdf/TB_Telfhash-%20An%20Algorithm%20That%20Finds%20Similar%20Malicious%20ELF%20Files%20Used%20in%20Linux%20IoT%20Malware.pdf)
-or
+For more information
 visit [https://github.com/trendmicro/telfhash](https://github.com/trendmicro/telfhash)
-for tools other tools that compute the `telfhash`.
+or read
+TrendMicro's [whitepaper](https://documents.trendmicro.com/assets/pdf/TB_Telfhash-%20An%20Algorithm%20That%20Finds%20Similar%20Malicious%20ELF%20Files%20Used%20in%20Linux%20IoT%20Malware.pdf).
 
 ###### Example
 
