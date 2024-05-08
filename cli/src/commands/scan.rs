@@ -14,7 +14,9 @@ use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
 use yara_x::{Rule, Rules, ScanError, Scanner};
 
-use crate::commands::{compile_rules, external_var_parser, truncate_with_ellipsis};
+use crate::commands::{
+    compile_rules, external_var_parser, truncate_with_ellipsis,
+};
 use crate::walk::Message;
 use crate::{help, walk};
 
@@ -414,4 +416,3 @@ impl Component for ScanState {
         Ok(lines)
     }
 }
-
