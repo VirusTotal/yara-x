@@ -14,7 +14,7 @@ use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
 use yara_x::{Rule, Rules, ScanError, Scanner};
 
-use crate::commands::{compile_rules, external_var_parser};
+use crate::commands::{compile_rules, external_var_parser, truncate_with_ellipsis};
 use crate::walk::Message;
 use crate::{help, walk};
 
@@ -415,10 +415,3 @@ impl Component for ScanState {
     }
 }
 
-fn truncate_with_ellipsis(s: String, max_length: usize) -> String {
-    if s.len() <= max_length {
-        s
-    } else {
-        format!("{}...", &s[..max_length - 3])
-    }
-}
