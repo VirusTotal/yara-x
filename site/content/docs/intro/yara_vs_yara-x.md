@@ -70,8 +70,8 @@ rule bitcoin_address {
 }
 ```
 
-The rule above is very slow in YARA. In fact, YARA complains about it with
-warning like this:
+The rule above is very slow in YARA. In fact, YARA complains about this rule
+with a warning like:
 
 ```
 warning: rule "bitcoin_address" in bitcoin.yar(3): string "$btc" may slow down scanning
