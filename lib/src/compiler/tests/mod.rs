@@ -729,7 +729,7 @@ fn test_warnings() {
 
         let mut output_file = mint.new_goldenfile(out_path).unwrap();
 
-        for w in &compiler.warnings {
+        for w in compiler.warnings.iter() {
             output_file
                 .write_all(w.to_string().as_bytes())
                 .expect("unable to write");

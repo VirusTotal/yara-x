@@ -33,10 +33,8 @@ use bitmask::bitmask;
 use bstr::BStr;
 use yara_x_macros::*;
 
-use crate::warnings::Warning;
-
 pub use crate::ast::span::*;
-use crate::SourceCode;
+use crate::{SourceCode, Warnings};
 
 /// Abstract Syntax Tree (AST) for YARA rules.
 pub struct AST<'src> {
@@ -47,7 +45,7 @@ pub struct AST<'src> {
     /// The list of rules in the AST.
     pub rules: Vec<Rule<'src>>,
     /// Warnings generated while building this AST.
-    pub warnings: Vec<Warning>,
+    pub warnings: Warnings,
 }
 
 #[cfg(feature = "ascii-tree")]

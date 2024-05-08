@@ -298,7 +298,7 @@ impl<'a> Parser<'a> {
     /// Sets the report builder used by the Parser.
     ///
     /// This is optional, if the report builder is not set the Parser will
-    /// create its own. However this allows sharing the same report builder
+    /// create its own. However, this allows sharing the same report builder
     /// with the compiler. Setting a report builder overrides any color
     /// setting specified with [`Parser::colorize_errors`], the errors will
     /// be colorized depending on the settings of the report builder.
