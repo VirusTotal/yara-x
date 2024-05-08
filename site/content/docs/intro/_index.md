@@ -11,6 +11,8 @@ menu:
     identifier: "intro"
 weight: 100
 toc: true
+sidebar:
+  collapsed: true
 seo:
   title: "" # custom title (optional)
   description: "" # custom description (recommended)

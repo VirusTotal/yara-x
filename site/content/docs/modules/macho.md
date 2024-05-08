@@ -19,8 +19,10 @@ seo:
 ---
 
 The `macho` module is very similar to the [pe]({{< ref "pe.md" >}}) module, but
-for [Match-O](https://en.wikipedia.org/wiki/Mach-O) files. This module exposes
-most of the fields present in a Mach-O file header. Let's see some examples:
+for [Mach-O](https://en.wikipedia.org/wiki/Mach-O) files. This module exposes
+most of the fields present in a Mach-O file header.
+
+-------
 
 ### Module structure
 

@@ -21,6 +21,8 @@ seo:
 
 The `string` module implements string utility functions.
 
+-------
+
 ## Functions
 
 ### to_int(string)

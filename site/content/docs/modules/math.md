@@ -21,6 +21,8 @@ seo:
 The `math` module allows you to calculate certain values from portions of your
 file and create signatures based on those results.
 
+-------
+
 ## Functions
 
 ### entropy(offset, size)

@@ -48,7 +48,97 @@ rule is_pe {
 }
 ```
 
+-------
+
 ## Functions
+
+### exports(fn_name)
+
+Returns true if the PE exports a function with the given name, or false
+otherwise.
+
+### exports(fn_regex)
+
+Returns true if the PE exports a function whose name matches the given regular
+expression, or false otherwise.
+
+### exports(ordinal)
+
+Returns true if the PE exports a function with the given ordinal, or false if
+otherwise.
+
+### exports_index(fn_name)
+
+Returns the index into the `export_details` array for the first exported
+function that matches the given name. The result is `undefined` if no
+function with such a name exists.
+
+### exports_index(fn_regex)
+
+Returns the index into the `export_details` array for the first exported
+function that matches the given regular expression. The result is `undefined` if
+none of the functions matches.
+
+### exports_index(ordinal)
+
+Returns the index into the `export_details` array for the first exported
+function that has the given ordinal number. The result is `undefined` if no
+function exists with such an ordinal exists.
+
+### imports(dll_name)
+
+Returns the number of functions that the PE imports from the given DLL. The
+DLL name is case-insensitive.
+
+### imports(dll_name, fn_name)
+
+Returns true if the PE imports the given function from the given DLL. The DLL
+name is case-insensitive, but the function name is case-sensitive.
+
+### imports(dll_name, ordinal)
+
+Returns true if the PE imports the given function by ordinal from the given DLL.
+The DLL name is case-insensitive.
+
+### imports(dll_regex, fn_regex)
+
+Returns the number of functions imported by the PE where the DLL name matches
+`dll_regexp` and the function name matches `fn_regexp`. Both arguments are
+case-sensitive, unless you use the `/i` modifier in the regexp.
+
+###### Example
+
+```
+import "pe"
+
+rule ProcessMemory {
+    condition:
+        pe.imports(/kernel32.dll/i, /(Read|Write)ProcessMemory/) > 0
+}
+```
+
+### imports(type, dll_name, fn_name)
+
+Returns true if the PE imports `fn_name` from `dll_name`. The DLL
+name is case-insensitive. `type` allows to specify the kind of imports should be
+taken into account, the allowed values are:
+
+|                      |                                   |
+|----------------------|-----------------------------------|
+| `pe.IMPORT_STANDARD` | Standard imports only             |
+| `pe.IMPORT_DELAYED`  | Delayed imports only              |
+| `pe.IMPORT_ANY`      | Both standard and delayed imports |
+
+###### Example
+
+```
+import "pe"
+
+rule ProcessMemory {
+    condition:
+        pe.imports(pe.IMPORT_DELAYED, "kernel32.dll", "WriteProcessMemory")
+}
+```
 
 ### is_32bit()
 
@@ -105,6 +195,30 @@ in [Mandiant's blog](https://www.mandiant.com/resources/blog/tracking-malware-im
 The returned hash string is always in lowercase.
 
 {{< /callout >}}
+
+### rich_signature.version(version, [toolid])
+
+The PE rich signature contains information about the tools involved in the
+creation of the PE file. This function returns the number of tools that
+matches the given version and toolid, where toolid is optional.
+
+###### Example
+
+```
+import "pe"
+
+rule WrongChecksum {
+    condition:
+        pe.rich_signature.version(24215, 261) == 61
+}
+```
+
+### rich_signature.toolid(toolid, [version])
+
+This function is similar to `rich_signature.version`, but the toolid argument
+is required while version is optional.
+
+------
 
 ## Module structure
 

@@ -18,14 +18,14 @@ seo:
   noindex: false # false (default) or true
 ---
 
-For over 15 years, YARA has been growing and evolving until it became
-an indispensable tool in every malware researcher's toolbox. Throughout this
-time YARA has seen numerous updates, with new features added and countless bugs
-fixed. But today, I'm excited to announce the biggest change yet: a complete
-rewrite.
+For over 15 years, [YARA](https://github.com/VirusTotal/yara) has been growing
+and evolving until it became an indispensable tool in every malware researcher's
+toolbox. Throughout this time YARA has seen numerous updates, with new features
+added and countless bugs fixed. But today, I'm excited to announce the biggest
+change yet: a full rewrite.
 
-YARA-X is a completely new implementation of YARA, and it has the following
-goals:
+YARA-X is a completely new implementation of YARA in Rust, and it has the
+following goals:
 
 * **Better user experience**: The new command-line interface is more modern and
   colorful, and error reports are now more explicative. More features aimed at

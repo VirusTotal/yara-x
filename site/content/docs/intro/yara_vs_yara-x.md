@@ -46,11 +46,14 @@ its YARA counterpart:
 
 * Colorful output, enhancing readability if the terminal supports it.
 * More information about the files being scanned.
-* Autocompletion support for multiple shells, including bash, zsh, and
-  powershell, improving usability and efficiency during command entry.
+* Autocompletion support for multiple shells, including Bash, Zsh, and
+  PowerShell, improving usability and efficiency during command entry.
 * Access to the output of YARA modules in YAML and JSON formats without
   requiring any YARA rule. This capability transforms YARA-X into a versatile
-  file dissection tool supporting multiple file formats (PE, ELF, Mach-O, LNK).
+  file dissection tool supporting multiple file formats, like
+  [PE](https://en.wikipedia.org/wiki/Portable_Executable), [ELF](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format),
+  [Mach-O](https://en.wikipedia.org/wiki/Mach-O)
+  and LNK (Windows link file).
 
 ### Higher overall performance
 

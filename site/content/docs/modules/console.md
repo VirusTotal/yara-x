@@ -34,6 +34,8 @@ rule example {
 }
 ```
 
+-------
+
 ## Functions
 
 ### log(string)

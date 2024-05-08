@@ -20,6 +20,8 @@ seo:
 
 The `time` module implements time utility functions.
 
+-------
+
 ## Functions
 
 ### now()

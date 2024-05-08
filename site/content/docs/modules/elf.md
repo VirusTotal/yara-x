@@ -37,6 +37,8 @@ rule elf_64 {
 }
 ```
 
+-------
+
 ## Functions
 
 ### import_md5()
@@ -64,6 +66,8 @@ rule FindByTelfhash {
         elf.telfhash() == "t166a00284751084526486df8b5df5b2fccb3f511dbc188c37156f5e714a11bc5d71014d"
 }
 ```
+
+-------
 
 ## Module structure
 

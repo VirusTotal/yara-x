@@ -22,6 +22,8 @@ The `hash` module allows you to calculate hashes (MD5, SHA1, SHA256) and
 checksums from portions of your file and create signatures based on those
 hashes.
 
+-------
+
 ## Functions
 
 {{< callout context="caution" title="Important">}}

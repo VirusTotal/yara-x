@@ -21,6 +21,8 @@ seo:
 The `lnk` module parses Windows Link files (.lnk), and exposes metadata
 contained in those files to YARA.
 
+-------
+
 ## Module structure
 
 | Field               | Type                        | Description                                                                                                                                                                                                                     |

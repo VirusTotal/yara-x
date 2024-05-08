@@ -43,6 +43,8 @@ rule BlopStream {
 }
 ```
 
+-------
+
 ## Module structure
 
 | Field                        | Type                              |

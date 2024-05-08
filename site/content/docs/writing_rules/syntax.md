@@ -30,13 +30,13 @@ rule example {
 ```
 
 Each rule in YARA starts with the keyword `rule` followed by a rule identifier.
-Rules are generally composed of two sections: pattern definitions and condition.
-The pattern definition section is optional, and it can be omitted if the rule
-doesn't rely on any patterns (as in the first example), but the condition
-section is always required. The pattern definition section is where the patterns
-that will be part of the rule are defined. Patterns can be defined as plain
-text, raw bytes, or regular expressions, as shown in the following, more
-realistic, example:
+Rules are generally composed of two sections: patterns (a.k.a. strings)
+and condition. The pattern definition section is optional, and it
+can be omitted if the rule doesn't rely on any patterns (as in the first
+example), but the condition section is always required. The pattern definition
+section is where the patterns that will be part of the rule are defined.
+Patterns can be defined as plain text, raw bytes, or regular expressions, as
+shown in the following, more realistic, example:
 
 ```yara
 rule ExampleRule {
@@ -81,7 +81,7 @@ rule MetadataExample {
 ```
 
 As shown in the example, metadata identifiers are followed by an equal sign and
-the value assigned to them. Values can be strings (valid UTF8 only), integers,
+the value assigned to them. Values can be strings (valid UTF-8 only), integers,
 or one of the boolean values `true` or `false`.
 
 Note that identifier/value pairs defined in the metadata section cannot be used
