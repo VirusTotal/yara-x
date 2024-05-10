@@ -36,14 +36,15 @@ use bitmask::bitmask;
 use bstr::BString;
 use serde::{Deserialize, Serialize};
 
-use crate::compiler::context::{Var, VarStackFrame};
+use crate::compiler::context::{CompileContext, Var, VarStackFrame};
 use crate::symbols::Symbol;
 use crate::types::{Type, TypeValue, Value};
 
 pub(in crate::compiler) use ast2ir::bool_expr_from_ast;
 pub(in crate::compiler) use ast2ir::patterns_from_ast;
+use yara_x_parser::ast::Span;
 
-use crate::re;
+use crate::{re, CompileError};
 
 mod ast2ir;
 mod hex2hir;
@@ -275,11 +276,9 @@ impl From<usize> for PatternIdx {
 /// Intermediate representation (IR) for an expression.
 #[derive(Debug)]
 pub(in crate::compiler) enum Expr {
-    /// Constant value (i.e: the value is known at compile time). The value
-    /// in `type_value` is not `None`.
-    Const {
-        type_value: TypeValue,
-    },
+    /// Constant value (i.e: the value is known at compile time).
+    /// The value in `TypeValue` is not `None`.
+    Const(TypeValue),
 
     /// `filesize` expression.
     Filesize,
@@ -646,7 +645,7 @@ pub(in crate::compiler) enum Iterable {
 impl Expr {
     pub fn ty(&self) -> Type {
         match self {
-            Expr::Const { type_value, .. } => type_value.ty(),
+            Expr::Const(type_value) => type_value.ty(),
 
             Expr::Defined { .. }
             | Expr::Not { .. }
@@ -715,7 +714,7 @@ impl Expr {
 
     pub fn type_value(&self) -> TypeValue {
         match self {
-            Expr::Const { type_value, .. } => type_value.clone(),
+            Expr::Const(type_value) => type_value.clone(),
 
             Expr::Defined { .. }
             | Expr::Not { .. }
@@ -783,7 +782,11 @@ impl Expr {
         }
     }
 
-    pub fn fold(self) -> Self {
+    pub fn fold(
+        self,
+        ctx: &mut CompileContext,
+        span: Span,
+    ) -> Result<Self, Box<CompileError>> {
         match self {
             Expr::And { mut operands } => {
                 // Retain the operands whose value is not constant, or is
@@ -798,21 +801,17 @@ impl Expr {
                 // No operands left, all were true and therefore the AND is
                 // also true.
                 if operands.is_empty() {
-                    return Expr::Const {
-                        type_value: TypeValue::const_bool_from(true),
-                    };
+                    return Ok(Expr::Const(TypeValue::const_bool_from(true)));
                 }
 
                 // If any of the remaining operands is constant it has to be
                 // false because true values were removed, the result is false
                 // regardless of the operands with unknown values.
                 if operands.iter().any(|op| op.type_value().is_const()) {
-                    return Expr::Const {
-                        type_value: TypeValue::const_bool_from(false),
-                    };
+                    return Ok(Expr::Const(TypeValue::const_bool_from(false)));
                 }
 
-                Expr::And { operands }
+                Ok(Expr::And { operands })
             }
             Expr::Or { mut operands } => {
                 // Retain the operands whose value is not constant, or is
@@ -827,49 +826,86 @@ impl Expr {
                 // No operands left, all were false and therefore the OR is
                 // also false.
                 if operands.is_empty() {
-                    return Expr::Const {
-                        type_value: TypeValue::const_bool_from(false),
-                    };
+                    return Ok(Expr::Const(TypeValue::const_bool_from(false)));
                 }
 
                 // If any of the remaining operands is constant it has to be
                 // true because false values were removed, the result is true
                 // regardless of the operands with unknown values.
                 if operands.iter().any(|op| op.type_value().is_const()) {
-                    return Expr::Const {
-                        type_value: TypeValue::const_bool_from(true),
-                    };
+                    return Ok(Expr::Const(TypeValue::const_bool_from(true)));
                 }
 
-                Expr::Or { operands }
+                Ok(Expr::Or { operands })
             }
 
             Expr::Add { operands } => {
-                let mut sum = 0.0;
-                let mut is_float = false;
-                for operand in &operands {
-                    match operand.type_value() {
-                        TypeValue::Integer(Value::Const(v)) => {
-                            sum += v as f64;
-                        }
-                        TypeValue::Float(Value::Const(v)) => {
-                            is_float = true;
-                            sum += v;
-                        }
-                        _ => return Expr::Add { operands },
-                    }
+                // If not all operands are constant, there's nothing to fold.
+                if !operands.iter().all(|op| op.type_value().is_const()) {
+                    return Ok(Expr::Add { operands });
                 }
-                if is_float {
-                    Expr::Const {
-                        type_value: TypeValue::const_float_from(sum),
-                    }
-                } else {
-                    Expr::Const {
-                        type_value: TypeValue::const_integer_from(sum as i64),
-                    }
-                }
+
+                Self::fold_arithmetic(ctx, span, operands, |acc, x| acc + x)
             }
-            _ => self,
+            Expr::Sub { operands } => {
+                // If not all operands are constant, there's nothing to fold.
+                if !operands.iter().all(|op| op.type_value().is_const()) {
+                    return Ok(Expr::Sub { operands });
+                }
+
+                Self::fold_arithmetic(ctx, span, operands, |acc, x| acc - x)
+            }
+            Expr::Mul { operands } => {
+                // If not all operands are constant, there's nothing to fold.
+                if !operands.iter().all(|op| op.type_value().is_const()) {
+                    return Ok(Expr::Mul { operands });
+                }
+
+                Self::fold_arithmetic(ctx, span, operands, |acc, x| acc * x)
+            }
+            _ => Ok(self),
+        }
+    }
+
+    pub fn fold_arithmetic<F>(
+        ctx: &mut CompileContext,
+        span: Span,
+        operands: Vec<Expr>,
+        f: F,
+    ) -> Result<Self, Box<CompileError>>
+    where
+        F: FnMut(f64, f64) -> f64,
+    {
+        debug_assert!(!operands.is_empty());
+
+        let mut is_float = false;
+
+        let result = operands
+            .iter()
+            .map(|operand| match operand.type_value() {
+                TypeValue::Integer(Value::Const(v)) => v as f64,
+                TypeValue::Float(Value::Const(v)) => {
+                    is_float = true;
+                    v
+                }
+                _ => unreachable!(),
+            })
+            .reduce(f)
+            // It's safe to call unwrap because there must be at least
+            // one iterator.
+            .unwrap();
+
+        if is_float {
+            Ok(Expr::Const(TypeValue::const_float_from(result)))
+        } else if result >= i64::MIN as f64 && result <= i64::MAX as f64 {
+            Ok(Expr::Const(TypeValue::const_integer_from(result as i64)))
+        } else {
+            Err(Box::new(CompileError::number_out_of_range(
+                ctx.report_builder,
+                i64::MIN,
+                i64::MAX,
+                span,
+            )))
         }
     }
 }

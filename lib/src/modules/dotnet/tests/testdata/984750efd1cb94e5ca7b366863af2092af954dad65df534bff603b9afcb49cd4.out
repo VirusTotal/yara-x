@@ -9,6 +9,7 @@ number_of_assembly_refs: 2
 number_of_modulerefs: 2
 number_of_user_strings: 45
 number_of_constants: 0
+number_of_field_offsets: 0
 streams:
   - name: "#~"
     offset: 9608

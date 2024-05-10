@@ -791,7 +791,7 @@ pub(crate) fn is_pat_match_at(
     if offset < 0 {
         return false;
     }
-    if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+    if let Some(matches) = caller.data().pattern_matches.get(pattern_id) {
         matches.search(offset.try_into().unwrap()).is_ok()
     } else {
         false
@@ -810,7 +810,7 @@ pub(crate) fn is_pat_match_in(
     lower_bound: i64,
     upper_bound: i64,
 ) -> bool {
-    if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+    if let Some(matches) = caller.data().pattern_matches.get(pattern_id) {
         matches
             .matches_in_range(lower_bound as isize..=upper_bound as isize)
             .is_positive()
@@ -825,7 +825,7 @@ pub(crate) fn pat_matches(
     caller: &mut Caller<'_, ScanContext>,
     pattern_id: PatternId,
 ) -> i64 {
-    if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+    if let Some(matches) = caller.data().pattern_matches.get(pattern_id) {
         matches.len().try_into().unwrap()
     } else {
         0
@@ -844,7 +844,7 @@ pub(crate) fn pat_matches_in(
     lower_bound: i64,
     upper_bound: i64,
 ) -> i64 {
-    if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+    if let Some(matches) = caller.data().pattern_matches.get(pattern_id) {
         matches.matches_in_range(lower_bound as isize..=upper_bound as isize)
     } else {
         0
@@ -862,7 +862,7 @@ pub(crate) fn pat_length(
     pattern_id: PatternId,
     index: i64,
 ) -> Option<i64> {
-    if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+    if let Some(matches) = caller.data().pattern_matches.get(pattern_id) {
         let index: usize = index.try_into().ok()?;
         // Index is 1-based, convert it to 0-based before calling `matches.get`
         let m = matches.get(index.checked_sub(1)?)?;
@@ -883,7 +883,7 @@ pub(crate) fn pat_offset(
     pattern_id: PatternId,
     index: i64,
 ) -> Option<i64> {
-    if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+    if let Some(matches) = caller.data().pattern_matches.get(pattern_id) {
         let index: usize = index.try_into().ok()?;
         // Index is 1-based, convert it to 0-based before calling `matches.get`
         let m = matches.get(index.checked_sub(1)?)?;

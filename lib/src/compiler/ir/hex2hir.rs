@@ -13,8 +13,9 @@ pub(in crate::compiler) fn hex_pattern_hir_from_ast(
 
 fn hex_tokens_hir_from_ast(tokens: &ast::HexTokens) -> hir::Hir {
     let mut hir_tokens = Vec::with_capacity(tokens.tokens.len());
+    let ast_tokens = tokens.tokens.iter();
 
-    for token in &tokens.tokens {
+    for token in ast_tokens {
         match token {
             ast::HexToken::Byte(byte) => {
                 hir_tokens.push(hex_byte_hir_from_ast(byte));
@@ -48,6 +49,37 @@ fn hex_tokens_hir_from_ast(tokens: &ast::HexTokens) -> hir::Hir {
                 hir_tokens.push(hir::Hir::alternation(alternatives))
             }
             ast::HexToken::Jump(jump) => {
+                /*let span = token.span;
+                let mut min = jump.start.unwrap_or(0) as u32;
+                let max = jump.end.map(|x| x as u32);
+
+                while let Some(ast::HexToken::Jump(jump)) = ast_tokens.peek() {
+                    let token = ast_tokens.next();
+
+                    min = min.saturating_add(jump.start.unwrap_or(0) as u32);
+
+                    todo!()
+                }*/
+
+                /*if let Some(prev_token) = hir_tokens.last_mut() {
+                    if let hir::HirKind::Repetition(prev_rep) =
+                        prev_token.kind()
+                    {
+                        *prev_token = hir::Hir::repetition(hir::Repetition {
+                            min: prev_rep
+                                .min
+                                .saturating_add(jump.end.unwrap_or(0) as u32),
+                            max: prev_rep.max.and_then(|x| {
+                                jump.end.map(|y| x.saturating_add(y as u32))
+                            }),
+                            greedy: false,
+                            sub: Box::new(hir::Hir::dot(hir::Dot::AnyByte)),
+                        });
+
+                        continue;
+                    }
+                }*/
+
                 hir_tokens.push(hir::Hir::repetition(hir::Repetition {
                     min: jump.start.map(|start| start as u32).unwrap_or(0),
                     max: jump.end.map(|end| end as u32),

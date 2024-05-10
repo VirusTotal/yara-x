@@ -431,6 +431,7 @@ fn for_in() {
     condition_true!("for 11 i in (0..10) : ( i == i )");
     condition_true!("for 1 i in (0..10) : ( i <= 1 )");
     condition_true!("for 2 i in (0..10) : ( i <= 1 )");
+    condition_true!("for 1+1 i in (0..10) : ( i <= 1 )");
     condition_true!("for 50% i in (0..10) : ( i < 6 )");
     condition_false!("for 50% i in (0..10) : ( i >= 6 )");
     condition_true!("for 10% i in (0..9) : ( i == 0 )");

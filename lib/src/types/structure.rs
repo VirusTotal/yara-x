@@ -13,12 +13,10 @@ use protobuf::reflect::{EnumValueDescriptor, Syntax};
 use protobuf::MessageDyn;
 use serde::{Deserialize, Serialize};
 
+use crate::modules::protos::yara::exts::{
+    enum_options, enum_value, field_options, message_options, module_options,
+};
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup};
-use yara_x_proto::exts::enum_value;
-use yara_x_proto::exts::field_options;
-use yara_x_proto::exts::module_options;
-use yara_x_proto::exts::{enum_options, message_options};
-
 use crate::types::{Array, Map, TypeValue, Value};
 use crate::wasm::WasmExport;
 

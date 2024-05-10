@@ -14,7 +14,9 @@ use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
 use yara_x::{Rule, Rules, ScanError, Scanner};
 
-use crate::commands::{compile_rules, external_var_parser};
+use crate::commands::{
+    compile_rules, external_var_parser, truncate_with_ellipsis,
+};
 use crate::walk::Message;
 use crate::{help, walk};
 
@@ -22,14 +24,15 @@ use crate::{help, walk};
 pub fn scan() -> Command {
     super::command("scan")
         .about("Scan a file or directory")
+        .long_about(help::SCAN_LONG_HELP)
         .arg(
             arg!(<RULES_PATH>)
-                .help("Path to YARA source file")
+                .help("Path to a YARA source file or directory")
                 .value_parser(value_parser!(PathBuf))
                 .action(ArgAction::Append)
         )
         .arg(
-            arg!(<PATH>)
+            arg!(<TARGET_PATH>)
                 .help("Path to the file or directory that will be scanned")
                 .value_parser(value_parser!(PathBuf))
         )
@@ -94,7 +97,7 @@ pub fn scan() -> Command {
 
 pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let mut rules_path = args.get_many::<PathBuf>("RULES_PATH").unwrap();
-    let path = args.get_one::<PathBuf>("PATH").unwrap();
+    let target_path = args.get_one::<PathBuf>("TARGET_PATH").unwrap();
     let compiled_rules = args.get_flag("compiled-rules");
     let num_threads = args.get_one::<u8>("threads");
     let path_as_namespace = args.get_flag("path-as-namespace");
@@ -162,7 +165,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let state = ScanState::new(start_time);
 
     w.walk(
-        path,
+        target_path,
         state,
         // Initialization
         |_, output| {
@@ -411,13 +414,5 @@ impl Component for ScanState {
         }
 
         Ok(lines)
-    }
-}
-
-fn truncate_with_ellipsis(s: String, max_length: usize) -> String {
-    if s.len() <= max_length {
-        s
-    } else {
-        format!("{}...", &s[..max_length - 3])
     }
 }

@@ -12,20 +12,14 @@ homepage.workspace = true
 keywords.workspace = true
 rust-version.workspace = true
 
-[features]
-# When this feature is enabled the OpenSSL library is linked statically. 
-# However, you need to specify the path where the library and its header files
-# are located by setting the environment variable OPENSSL_DIR. For example:
-#
-# OPENSSL_DIR=/usr/local/Cellar/openssl@3/3.2.0_1/ cargo build --features=openssl-static
-#
-# The directory specified in OPENSSL_DIR must contain subdirectories /include 
-# and /lib. The latter must contain `libcrypto.a`.
-#
-# You can also set OPENSSL_INCLUDE_DIR and OPENSSL_LIB_DIR, for setting the
-# two directories independently.
-openssl-static = ['authenticode-parser/openssl-static']
+# Exclude test files from the package published to crates.io, as there's a
+# limit of 10MB for the total package size.
+exclude = [
+    "src/modules/**/*.zip",
+    "src/modules/**/*.out"
+]
 
+[features]
 # Enables constant folding. When constant folding is enabled, expressions
 # like `2+2+2` and `true or false`, whose value can be determined at compile
 # time, will be reduced to its final value, instead of producing code that
@@ -55,6 +49,12 @@ logging = ["dep:log"]
 # scan. Notice that profiling itself has a noticeable impact on performance.
 rules-profiling = ["logging"]
 
+
+# When enabled use the logic included in the `x509-parser` crate for verifying
+# certificates. If not enabled we use our ouwn logic. This is disabled by
+# default.
+x509-parser-verify = ['x509-parser/verify']
+
 # Features for enabling/disabling modules.
 #
 # For each module we have a `<module name>-module` feature that controls whether
@@ -74,12 +74,13 @@ dotnet-module = [
 elf-module = [
     "dep:tlsh-fixed",
     "dep:nom",
+    "dep:md-5",
 ]
 
 # The `hash` module provides functions for computing md5, sha1, sha-256,
 # crc32 and checksum.
 hash-module = [
-    "dep:md5",
+    "dep:md-5",
     "dep:sha1",
     "dep:sha2",
     "dep:crc32fast",
@@ -108,8 +109,20 @@ math-module = []
 
 # The `pe` module parses PE files.
 pe-module = [
-    "dep:authenticode-parser",
+    "dep:const-oid",
+    "dep:der-parser",
+    "dep:digest",
+    "dep:dsa",
+    "dep:ecdsa",
     "dep:nom",
+    "dep:rsa",
+    "dep:md2",
+    "dep:md-5",
+    "dep:p256",
+    "dep:p384",
+    "dep:sha1",
+    "dep:sha2",
+    "dep:x509-parser"
 ]
 
 # The `string` modules offer some functions for parsing strings as integers,
@@ -155,13 +168,17 @@ aho-corasick = { workspace = true, features = ["logging"] }
 anyhow = { workspace = true }
 array-bytes = { workspace = true }
 ascii_tree = { workspace = true }
-authenticode-parser = { workspace = true, optional = true }
 base64 = { workspace = true }
 bincode = { workspace = true }
 bitmask = { workspace = true }
 bitvec = { workspace = true }
 bstr = { workspace = true, features = ["serde"] }
+const-oid = { workspace = true, optional = true, features = ["db"] }
 crc32fast = { workspace = true, optional = true }
+der-parser = { workspace = true, optional = true, features = ["bigint"] }
+digest = { workspace = true, optional = true }
+dsa = { workspace = true, optional = true }
+ecdsa = { workspace = true, optional = true }
 fmmap = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 intaglio = { workspace = true }
@@ -169,20 +186,24 @@ itertools = { workspace = true }
 lazy_static = { workspace = true }
 linkme = { workspace = true }
 log = { workspace = true, optional = true }
-md5 = { workspace = true, optional = true }
-sha1 = { workspace = true, optional = true }
-sha2 = { workspace = true, optional = true }
+md2 = { workspace = true, optional = true, features = ["oid"] }
+md-5 = { workspace = true, optional = true, features = ["oid"] }
+sha1 = { workspace = true, optional = true, features = ["oid"] }
+sha2 = { workspace = true, optional = true, features = ["oid"] }
 magic = { workspace = true, optional = true }
 memchr = { workspace = true }
 memx = { workspace = true }
 nom = { workspace = true, optional = true }
 num-derive = { workspace = true }
 num-traits = { workspace = true }
+p384 = { workspace = true, optional = true, features = ["ecdsa"] }
+p256 = { workspace = true, optional = true, features = ["ecdsa"] }
 protobuf = { workspace = true }
 rustc-hash = { workspace = true }
 regex-syntax = { workspace = true }
 regex-automata = { workspace = true }
 roxmltree = { workspace = true, optional = true }
+rsa = { workspace = true, optional = true }
 smallvec = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true }
@@ -191,10 +212,10 @@ tlsh-fixed = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true, features = ["v4"] }
 walrus = { workspace = true }
 wasmtime = { workspace = true, features = ["cranelift", "parallel-compilation"] }
+x509-parser = { workspace = true, optional = true }
 yansi = { workspace = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true }
-yara-x-proto = { workspace = true }
 
 lingua = { version = "1.6.0", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
 

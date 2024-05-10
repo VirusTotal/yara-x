@@ -1,0 +1,755 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version:
+    major: 5
+    minor: 0
+subsystem_version:
+    major: 5
+    minor: 0
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 9
+    minor: 0
+opthdr_magic: 0
+characteristics: 258
+dll_characteristics: 33088
+timestamp: 1496750700 # 2017-06-06 12:05:00 UTC
+image_base: 4194304
+checksum: 612191
+base_of_code: 4096
+base_of_data: 385024
+entry_point: 238919
+entry_point_raw: 241991
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 378368
+size_of_initialized_data: 173568
+size_of_uninitialized_data: 0
+size_of_image: 585728
+size_of_headers: 1024
+size_of_stack_reserve: 1048576
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 5
+number_of_imported_functions: 76
+number_of_delayed_imported_functions: 0
+number_of_resources: 25
+number_of_version_infos: 8
+number_of_imports: 14
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 2
+version_info:
+    "CompanyName": "360.cn"
+    "FileDescription": "360软件管家迅雷下载支持安全代理程序"
+    "FileVersion": "1, 0, 0, 1090"
+    "InternalName": "SecurityProxy.exe"
+    "LegalCopyright": "(C) 360.cn All Rights Reserved."
+    "OriginalFilename": "SecurityProxy.exe"
+    "ProductName": "360软件管家"
+    "ProductVersion": "1, 0, 0, 1090"
+version_info_list:
+  - key: "CompanyName"
+    value: "360.cn"
+  - key: "FileDescription"
+    value: "360软件管家迅雷下载支持安全代理程序"
+  - key: "FileVersion"
+    value: "1, 0, 0, 1090"
+  - key: "InternalName"
+    value: "SecurityProxy.exe"
+  - key: "LegalCopyright"
+    value: "(C) 360.cn All Rights Reserved."
+  - key: "OriginalFilename"
+    value: "SecurityProxy.exe"
+  - key: "ProductName"
+    value: "360软件管家"
+  - key: "ProductVersion"
+    value: "1, 0, 0, 1090"
+rich_signature:
+    offset: 128
+    length: 96
+    key: 2151320631
+    raw_data: "s\xedT\xd37\x8c:\x807\x8c:\x807\x8c:\x80\x8a\xc3\xac\x804\x8c:\x80>\xf4\xaf\x80*\x8c:\x80>\xf4\xb9\x80\x84\x8c:\x80>\xf4\xbe\x80l\x8c:\x80\x10JW\x800\x8c:\x80\x10JA\x80\x10\x8c:\x807\x8c;\x80\xb4\x8d:\x80>\xf4\xb0\x80\x1c\x8c:\x80)\xde\xae\x806\x8c:\x80>\xf4\xab\x806\x8c:\x80"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xbdO\x96\x00\x03\x00\x00\x00\tx\x95\x00\x1d\x00\x00\x00\tx\x83\x00\xb3\x00\x00\x00\tx\x84\x00[\x00\x00\x00\'\xc6m\x00\x07\x00\x00\x00\'\xc6{\x00\'\x00\x00\x00\x00\x00\x01\x00\x83\x01\x00\x00\tx\x8a\x00+\x00\x00\x00\x1eR\x94\x00\x01\x00\x00\x00\tx\x91\x00\x01\x00\x00\x00"
+    tools:
+      - toolid: 150
+        version: 20413
+        times: 3
+      - toolid: 149
+        version: 30729
+        times: 29
+      - toolid: 131
+        version: 30729
+        times: 179
+      - toolid: 132
+        version: 30729
+        times: 91
+      - toolid: 109
+        version: 50727
+        times: 7
+      - toolid: 123
+        version: 50727
+        times: 39
+      - toolid: 1
+        version: 0
+        times: 387
+      - toolid: 138
+        version: 30729
+        times: 43
+      - toolid: 148
+        version: 21022
+        times: 1
+      - toolid: 145
+        version: 30729
+        times: 1
+pdb_path: "C:\\vmagent_new\\bin\\joblist\\170654\\out\\Release\\SecurityProxy.pdb"
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1610612768
+    raw_data_size: 378368
+    raw_data_offset: 1024
+    virtual_address: 4096
+    virtual_size: 377904
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rdata"
+    full_name: ".rdata"
+    characteristics: 1073741888
+    raw_data_size: 75264
+    raw_data_offset: 379392
+    virtual_address: 385024
+    virtual_size: 74756
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".data"
+    full_name: ".data"
+    characteristics: 3221225536
+    raw_data_size: 17920
+    raw_data_offset: 454656
+    virtual_address: 462848
+    virtual_size: 32840
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 1073741888
+    raw_data_size: 50688
+    raw_data_offset: 472576
+    virtual_address: 499712
+    virtual_size: 50248
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".reloc"
+    full_name: ".reloc"
+    characteristics: 1107296320
+    raw_data_size: 29696
+    raw_data_offset: 523264
+    virtual_address: 552960
+    virtual_size: 29502
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 453236
+    size: 300
+  - virtual_address: 499712
+    size: 50248
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 553624
+    size: 13768
+  - virtual_address: 552960
+    size: 22324
+  - virtual_address: 387200
+    size: 28
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 418904
+    size: 64
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 385024
+    size: 1204
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_version:
+    major: 4
+    minor: 0
+resources:
+  - length: 744
+    rva: 501144
+    offset: 474008
+    type: RESOURCE_TYPE_ICON
+    id: 1
+    language: 2052
+  - length: 296
+    rva: 501888
+    offset: 474752
+    type: RESOURCE_TYPE_ICON
+    id: 2
+    language: 2052
+  - length: 3752
+    rva: 502184
+    offset: 475048
+    type: RESOURCE_TYPE_ICON
+    id: 3
+    language: 2052
+  - length: 2216
+    rva: 505936
+    offset: 478800
+    type: RESOURCE_TYPE_ICON
+    id: 4
+    language: 2052
+  - length: 1384
+    rva: 508152
+    offset: 481016
+    type: RESOURCE_TYPE_ICON
+    id: 5
+    language: 2052
+  - length: 9640
+    rva: 509536
+    offset: 482400
+    type: RESOURCE_TYPE_ICON
+    id: 6
+    language: 2052
+  - length: 4264
+    rva: 519176
+    offset: 492040
+    type: RESOURCE_TYPE_ICON
+    id: 7
+    language: 2052
+  - length: 1128
+    rva: 523440
+    offset: 496304
+    type: RESOURCE_TYPE_ICON
+    id: 8
+    language: 2052
+  - length: 744
+    rva: 524568
+    offset: 497432
+    type: RESOURCE_TYPE_ICON
+    id: 9
+    language: 2052
+  - length: 296
+    rva: 525312
+    offset: 498176
+    type: RESOURCE_TYPE_ICON
+    id: 10
+    language: 2052
+  - length: 3752
+    rva: 525608
+    offset: 498472
+    type: RESOURCE_TYPE_ICON
+    id: 11
+    language: 2052
+  - length: 2216
+    rva: 529360
+    offset: 502224
+    type: RESOURCE_TYPE_ICON
+    id: 12
+    language: 2052
+  - length: 1384
+    rva: 531576
+    offset: 504440
+    type: RESOURCE_TYPE_ICON
+    id: 13
+    language: 2052
+  - length: 9640
+    rva: 532960
+    offset: 505824
+    type: RESOURCE_TYPE_ICON
+    id: 14
+    language: 2052
+  - length: 4264
+    rva: 542600
+    offset: 515464
+    type: RESOURCE_TYPE_ICON
+    id: 15
+    language: 2052
+  - length: 1128
+    rva: 546864
+    offset: 519728
+    type: RESOURCE_TYPE_ICON
+    id: 16
+    language: 2052
+  - length: 80
+    rva: 547992
+    offset: 520856
+    type: RESOURCE_TYPE_MENU
+    id: 109
+    language: 2052
+  - length: 308
+    rva: 548072
+    offset: 520936
+    type: RESOURCE_TYPE_DIALOG
+    id: 103
+    language: 2052
+  - length: 84
+    rva: 548380
+    offset: 521244
+    type: RESOURCE_TYPE_STRING
+    id: 7
+    language: 2052
+  - length: 16
+    rva: 548464
+    offset: 521328
+    type: RESOURCE_TYPE_ACCELERATOR
+    id: 109
+    language: 2052
+  - length: 128
+    rva: 548480
+    offset: 521344
+    type: RESOURCE_TYPE_RCDATA
+    id: 864
+    language: 1033
+  - length: 118
+    rva: 548608
+    offset: 521472
+    type: RESOURCE_TYPE_GROUP_ICON
+    id: 107
+    language: 2052
+  - length: 118
+    rva: 548728
+    offset: 521592
+    type: RESOURCE_TYPE_GROUP_ICON
+    id: 108
+    language: 2052
+  - length: 764
+    rva: 548848
+    offset: 521712
+    type: RESOURCE_TYPE_VERSION
+    id: 1
+    language: 2052
+  - length: 346
+    rva: 549612
+    offset: 522476
+    type: RESOURCE_TYPE_MANIFEST
+    id: 1
+    language: 1033
+import_details:
+  - library_name: "KERNEL32.dll"
+    number_of_functions: 9
+    functions:
+      - name: "GetModuleFileNameW"
+        rva: 385728
+      - name: "LresultFromObject"
+        rva: 385736
+      - name: "GetModuleFileNameExW"
+        rva: 385800
+      - name: "PathFileExistsW"
+        rva: 385880
+      - name: "UpdateWindow"
+        rva: 386112
+      - name: "VerQueryValueW"
+        rva: 386128
+      - name: "InternetSetCookieExW"
+        rva: 386144
+      - name: "CoCreateInstance"
+        rva: 386208
+      - name: "G"
+        rva: 391264
+  - library_name: "USER32.dll"
+    number_of_functions: 5
+    functions:
+      - name: "UpdateWindow"
+        rva: 386112
+      - name: "VerQueryValueW"
+        rva: 386128
+      - name: "InternetSetCookieExW"
+        rva: 386144
+      - name: "CoCreateInstance"
+        rva: 386208
+      - name: "G"
+        rva: 391264
+  - library_name: "GDI32.dll"
+    number_of_functions: 2
+    functions:
+      - name: "SHGetFolderPathW"
+        rva: 385820
+      - name: "UrlMkSetSessionOption"
+        rva: 386220
+  - library_name: "ADVAPI32.dll"
+    number_of_functions: 11
+    functions:
+      - name: "GetObjectW"
+        rva: 385104
+      - name: "ImmDisableIME"
+        rva: 385112
+      - name: "GetModuleFileNameW"
+        rva: 385728
+      - name: "LresultFromObject"
+        rva: 385736
+      - name: "GetModuleFileNameExW"
+        rva: 385800
+      - name: "PathFileExistsW"
+        rva: 385880
+      - name: "UpdateWindow"
+        rva: 386112
+      - name: "VerQueryValueW"
+        rva: 386128
+      - name: "InternetSetCookieExW"
+        rva: 386144
+      - name: "CoCreateInstance"
+        rva: 386208
+      - name: "G"
+        rva: 391264
+  - library_name: "SHELL32.dll"
+    number_of_functions: 6
+    functions:
+      - name: "PathFileExistsW"
+        rva: 385880
+      - name: "UpdateWindow"
+        rva: 386112
+      - name: "VerQueryValueW"
+        rva: 386128
+      - name: "InternetSetCookieExW"
+        rva: 386144
+      - name: "CoCreateInstance"
+        rva: 386208
+      - name: "G"
+        rva: 391264
+  - library_name: "ole32.dll"
+    number_of_functions: 2
+    functions:
+      - name: "CoCreateInstance"
+        rva: 386208
+      - name: "G"
+        rva: 391264
+  - library_name: "OLEAUT32.dll"
+    number_of_functions: 7
+    functions:
+      - name: "GetModuleFileNameExW"
+        rva: 385800
+      - name: "PathFileExistsW"
+        rva: 385880
+      - name: "UpdateWindow"
+        rva: 386112
+      - name: "VerQueryValueW"
+        rva: 386128
+      - name: "InternetSetCookieExW"
+        rva: 386144
+      - name: "CoCreateInstance"
+        rva: 386208
+      - name: "G"
+        rva: 391264
+  - library_name: "SHLWAPI.dll"
+    number_of_functions: 1
+    functions:
+      - name: "UrlMkSetSessionOption"
+        rva: 386220
+  - library_name: "OLEACC.dll"
+    number_of_functions: 8
+    functions:
+      - name: "LresultFromObject"
+        rva: 385736
+      - name: "GetModuleFileNameExW"
+        rva: 385800
+      - name: "PathFileExistsW"
+        rva: 385880
+      - name: "UpdateWindow"
+        rva: 386112
+      - name: "VerQueryValueW"
+        rva: 386128
+      - name: "InternetSetCookieExW"
+        rva: 386144
+      - name: "CoCreateInstance"
+        rva: 386208
+      - name: "G"
+        rva: 391264
+  - library_name: "IMM32.dll"
+    number_of_functions: 10
+    functions:
+      - name: "ImmDisableIME"
+        rva: 385112
+      - name: "GetModuleFileNameW"
+        rva: 385728
+      - name: "LresultFromObject"
+        rva: 385736
+      - name: "GetModuleFileNameExW"
+        rva: 385800
+      - name: "PathFileExistsW"
+        rva: 385880
+      - name: "UpdateWindow"
+        rva: 386112
+      - name: "VerQueryValueW"
+        rva: 386128
+      - name: "InternetSetCookieExW"
+        rva: 386144
+      - name: "CoCreateInstance"
+        rva: 386208
+      - name: "G"
+        rva: 391264
+  - library_name: "urlmon.dll"
+    number_of_functions: 1
+    functions:
+      - name: "G"
+        rva: 391264
+  - library_name: "WININET.dll"
+    number_of_functions: 3
+    functions:
+      - name: "InternetSetCookieExW"
+        rva: 386144
+      - name: "CoCreateInstance"
+        rva: 386208
+      - name: "G"
+        rva: 391264
+  - library_name: "PSAPI.DLL"
+    number_of_functions: 7
+    functions:
+      - name: "GetModuleFileNameExW"
+        rva: 385800
+      - name: "PathFileExistsW"
+        rva: 385880
+      - name: "UpdateWindow"
+        rva: 386112
+      - name: "VerQueryValueW"
+        rva: 386128
+      - name: "InternetSetCookieExW"
+        rva: 386144
+      - name: "CoCreateInstance"
+        rva: 386208
+      - name: "G"
+        rva: 391264
+  - library_name: "VERSION.dll"
+    number_of_functions: 4
+    functions:
+      - name: "VerQueryValueW"
+        rva: 386128
+      - name: "InternetSetCookieExW"
+        rva: 386144
+      - name: "CoCreateInstance"
+        rva: 386208
+      - name: "G"
+        rva: 391264
+is_signed: false
+signatures:
+  - subject: "/C=CN/ST=Beijing/L=Beijing/O=Qihoo 360 Software (Beijing) Company Limited/OU=Tech. Dev. Dept./CN=Qihoo 360 Software (Beijing) Company Limited"
+    issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=Terms of use at https://www.verisign.com/rpa (c)10/CN=VeriSign Class 3 Code Signing 2010 CA"
+    thumbprint: "d4fb2982268b592e3cd46fa78194e71418297741"
+    version: 3
+    algorithm: "sha1WithRSAEncryption"
+    algorithm_oid: "1.2.840.113549.1.1.5"
+    serial: "26:27:9f:0f:2f:11:97:0d:cc:f6:3e:ba:88:f2:d4:c4"
+    not_before: 1452038400 # 2016-01-06 00:00:00 UTC
+    not_after: 1553817599 # 2019-03-28 23:59:59 UTC
+    verified: false
+    digest_alg: "sha1"
+    digest: "1ffb27849b984afa4c04999845c7fb8737f7bbdc"
+    file_digest: "cdf35da1b885423c4eba4729865d6b671ef85daf"
+    number_of_certificates: 4
+    number_of_countersignatures: 1
+    signer_info:
+        digest: "909a40b6ee5af908c0663412696473bdce46738f"
+        digest_alg: "sha1"
+        chain:
+          - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=Terms of use at https://www.verisign.com/rpa (c)10/CN=VeriSign Class 3 Code Signing 2010 CA"
+            subject: "/C=CN/ST=Beijing/L=Beijing/O=Qihoo 360 Software (Beijing) Company Limited/OU=Tech. Dev. Dept./CN=Qihoo 360 Software (Beijing) Company Limited"
+            thumbprint: "d4fb2982268b592e3cd46fa78194e71418297741"
+            version: 3
+            algorithm: "sha1WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.5"
+            serial: "26:27:9f:0f:2f:11:97:0d:cc:f6:3e:ba:88:f2:d4:c4"
+            not_before: 1452038400 # 2016-01-06 00:00:00 UTC
+            not_after: 1553817599 # 2019-03-28 23:59:59 UTC
+          - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2006 VeriSign, Inc. - For authorized use only/CN=VeriSign Class 3 Public Primary Certification Authority - G5"
+            subject: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=Terms of use at https://www.verisign.com/rpa (c)10/CN=VeriSign Class 3 Code Signing 2010 CA"
+            thumbprint: "495847a93187cfb8c71f840cb7b41497ad95c64f"
+            version: 3
+            algorithm: "sha1WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.5"
+            serial: "52:00:e5:aa:25:56:fc:1a:86:ed:96:c9:d4:4b:33:c7"
+            not_before: 1265587200 # 2010-02-08 00:00:00 UTC
+            not_after: 1581119999 # 2020-02-07 23:59:59 UTC
+    certificates:
+      - issuer: "/C=BE/O=GlobalSign nv-sa/OU=Root CA/CN=GlobalSign Root CA"
+        subject: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign Timestamping CA - G2"
+        thumbprint: "c0e49d2d7d90a5cd427f02d9125694d5d6ec5b71"
+        version: 3
+        algorithm: "sha1WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.5"
+        serial: "04:00:00:00:00:01:2f:4e:e1:52:d7"
+        not_before: 1302688800 # 2011-04-13 10:00:00 UTC
+        not_after: 1832673600 # 2028-01-28 12:00:00 UTC
+      - issuer: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign Timestamping CA - G2"
+        subject: "/C=SG/O=GMO GlobalSign Pte Ltd/CN=GlobalSign TSA for MS Authenticode - G2"
+        thumbprint: "63b82fab61f583909695050b00249c502933ec79"
+        version: 3
+        algorithm: "sha1WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.5"
+        serial: "11:21:d6:99:a7:64:97:3e:f1:f8:42:7e:e9:19:cc:53:41:14"
+        not_before: 1464048000 # 2016-05-24 00:00:00 UTC
+        not_after: 1813795200 # 2027-06-24 00:00:00 UTC
+      - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=Terms of use at https://www.verisign.com/rpa (c)10/CN=VeriSign Class 3 Code Signing 2010 CA"
+        subject: "/C=CN/ST=Beijing/L=Beijing/O=Qihoo 360 Software (Beijing) Company Limited/OU=Tech. Dev. Dept./CN=Qihoo 360 Software (Beijing) Company Limited"
+        thumbprint: "d4fb2982268b592e3cd46fa78194e71418297741"
+        version: 3
+        algorithm: "sha1WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.5"
+        serial: "26:27:9f:0f:2f:11:97:0d:cc:f6:3e:ba:88:f2:d4:c4"
+        not_before: 1452038400 # 2016-01-06 00:00:00 UTC
+        not_after: 1553817599 # 2019-03-28 23:59:59 UTC
+      - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2006 VeriSign, Inc. - For authorized use only/CN=VeriSign Class 3 Public Primary Certification Authority - G5"
+        subject: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=Terms of use at https://www.verisign.com/rpa (c)10/CN=VeriSign Class 3 Code Signing 2010 CA"
+        thumbprint: "495847a93187cfb8c71f840cb7b41497ad95c64f"
+        version: 3
+        algorithm: "sha1WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.5"
+        serial: "52:00:e5:aa:25:56:fc:1a:86:ed:96:c9:d4:4b:33:c7"
+        not_before: 1265587200 # 2010-02-08 00:00:00 UTC
+        not_after: 1581119999 # 2020-02-07 23:59:59 UTC
+    countersignatures:
+      - verified: true
+        sign_time: 1496750728 # 2017-06-06 12:05:28 UTC
+        digest: "d23bbbf06acfd49e4977b65a2f2704320edebf9a"
+        digest_alg: "sha1"
+        chain:
+          - issuer: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign Timestamping CA - G2"
+            subject: "/C=SG/O=GMO GlobalSign Pte Ltd/CN=GlobalSign TSA for MS Authenticode - G2"
+            thumbprint: "63b82fab61f583909695050b00249c502933ec79"
+            version: 3
+            algorithm: "sha1WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.5"
+            serial: "11:21:d6:99:a7:64:97:3e:f1:f8:42:7e:e9:19:cc:53:41:14"
+            not_before: 1464048000 # 2016-05-24 00:00:00 UTC
+            not_after: 1813795200 # 2027-06-24 00:00:00 UTC
+          - issuer: "/C=BE/O=GlobalSign nv-sa/OU=Root CA/CN=GlobalSign Root CA"
+            subject: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign Timestamping CA - G2"
+            thumbprint: "c0e49d2d7d90a5cd427f02d9125694d5d6ec5b71"
+            version: 3
+            algorithm: "sha1WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.5"
+            serial: "04:00:00:00:00:01:2f:4e:e1:52:d7"
+            not_before: 1302688800 # 2011-04-13 10:00:00 UTC
+            not_after: 1832673600 # 2028-01-28 12:00:00 UTC
+  - subject: "/C=CN/ST=Beijing/L=Beijing/O=Qihoo 360 Software (Beijing) Company Limited/OU=Tech. Dev. Dept./CN=Qihoo 360 Software (Beijing) Company Limited"
+    issuer: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
+    thumbprint: "978859ce5698f2bfade1129401cf70856be738d3"
+    version: 3
+    algorithm: "sha256WithRSAEncryption"
+    algorithm_oid: "1.2.840.113549.1.1.11"
+    serial: "23:38:91:61:e4:5a:21:8b:d2:4e:6e:85:9a:e1:11:53"
+    not_before: 1451260800 # 2015-12-28 00:00:00 UTC
+    not_after: 1553817599 # 2019-03-28 23:59:59 UTC
+    verified: false
+    digest_alg: "sha256"
+    digest: "c5e0311281c6c29511662aad17d8d3dff9d8d9344e500a31a948ce1887e54fd9"
+    file_digest: "43adec7789587bd7c812bb55a88776b0218a1a70e556fc2d371887326ff5601f"
+    number_of_certificates: 4
+    number_of_countersignatures: 1
+    signer_info:
+        digest: "a8fba4b57dca9d46d4a45fe7d1cbd9395ec1e92d88348944ff634ef1b43773b2"
+        digest_alg: "sha256"
+        chain:
+          - issuer: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
+            subject: "/C=CN/ST=Beijing/L=Beijing/O=Qihoo 360 Software (Beijing) Company Limited/OU=Tech. Dev. Dept./CN=Qihoo 360 Software (Beijing) Company Limited"
+            thumbprint: "978859ce5698f2bfade1129401cf70856be738d3"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "23:38:91:61:e4:5a:21:8b:d2:4e:6e:85:9a:e1:11:53"
+            not_before: 1451260800 # 2015-12-28 00:00:00 UTC
+            not_after: 1553817599 # 2019-03-28 23:59:59 UTC
+          - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2006 VeriSign, Inc. - For authorized use only/CN=VeriSign Class 3 Public Primary Certification Authority - G5"
+            subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
+            thumbprint: "007790f6561dad89b0bcd85585762495e358f8a5"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "3d:78:d7:f9:76:49:60:b2:61:7d:f4:f0:1e:ca:86:2a"
+            not_before: 1386633600 # 2013-12-10 00:00:00 UTC
+            not_after: 1702166399 # 2023-12-09 23:59:59 UTC
+    certificates:
+      - issuer: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
+        subject: "/C=CN/ST=Beijing/L=Beijing/O=Qihoo 360 Software (Beijing) Company Limited/OU=Tech. Dev. Dept./CN=Qihoo 360 Software (Beijing) Company Limited"
+        thumbprint: "978859ce5698f2bfade1129401cf70856be738d3"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "23:38:91:61:e4:5a:21:8b:d2:4e:6e:85:9a:e1:11:53"
+        not_before: 1451260800 # 2015-12-28 00:00:00 UTC
+        not_after: 1553817599 # 2019-03-28 23:59:59 UTC
+      - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2006 VeriSign, Inc. - For authorized use only/CN=VeriSign Class 3 Public Primary Certification Authority - G5"
+        subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
+        thumbprint: "007790f6561dad89b0bcd85585762495e358f8a5"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "3d:78:d7:f9:76:49:60:b2:61:7d:f4:f0:1e:ca:86:2a"
+        not_before: 1386633600 # 2013-12-10 00:00:00 UTC
+        not_after: 1702166399 # 2023-12-09 23:59:59 UTC
+      - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2008 VeriSign, Inc. - For authorized use only/CN=VeriSign Universal Root Certification Authority"
+        subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping CA"
+        thumbprint: "6fc9edb5e00ab64151c1cdfcac74ad2c7b7e3be4"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "7b:05:b1:d4:49:68:51:44:f7:c9:89:d2:9c:19:9d:12"
+        not_before: 1452556800 # 2016-01-12 00:00:00 UTC
+        not_after: 1925942399 # 2031-01-11 23:59:59 UTC
+      - issuer: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping CA"
+        subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping Signer - G2"
+        thumbprint: "625aec3ae4eda1d169c4ee909e85b3bbc61076d3"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "54:58:f2:aa:d7:41:d6:44:bc:84:a9:7b:a0:96:52:e6"
+        not_before: 1483315200 # 2017-01-02 00:00:00 UTC
+        not_after: 1838246399 # 2028-04-01 23:59:59 UTC
+    countersignatures:
+      - verified: true
+        sign_time: 1496750730 # 2017-06-06 12:05:30 UTC
+        digest: "0cff52d085d9af7f5476eae6d50bbf2f79931d5135dddbf4a182b80a5bfb3ff1"
+        digest_alg: "sha256"
+        chain:
+          - issuer: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping CA"
+            subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping Signer - G2"
+            thumbprint: "625aec3ae4eda1d169c4ee909e85b3bbc61076d3"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "54:58:f2:aa:d7:41:d6:44:bc:84:a9:7b:a0:96:52:e6"
+            not_before: 1483315200 # 2017-01-02 00:00:00 UTC
+            not_after: 1838246399 # 2028-04-01 23:59:59 UTC
+          - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2008 VeriSign, Inc. - For authorized use only/CN=VeriSign Universal Root Certification Authority"
+            subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping CA"
+            thumbprint: "6fc9edb5e00ab64151c1cdfcac74ad2c7b7e3be4"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "7b:05:b1:d4:49:68:51:44:f7:c9:89:d2:9c:19:9d:12"
+            not_before: 1452556800 # 2016-01-12 00:00:00 UTC
+            not_after: 1925942399 # 2031-01-11 23:59:59 UTC
+overlay:
+    offset: 552960
+    size: 14432

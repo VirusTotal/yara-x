@@ -1,0 +1,463 @@
+is_pe: true
+machine: MACHINE_AMD64
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version:
+    major: 5
+    minor: 2
+subsystem_version:
+    major: 5
+    minor: 2
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 14
+    minor: 0
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
+characteristics: 35
+dll_characteristics: 33056
+timestamp: 1527751881 # 2018-05-31 07:31:21 UTC
+image_base: 5368709120
+checksum: 121515
+base_of_code: 4096
+entry_point: 2376
+entry_point_raw: 5448
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 240
+size_of_code: 40960
+size_of_initialized_data: 48640
+size_of_uninitialized_data: 0
+size_of_image: 102400
+size_of_headers: 1024
+size_of_stack_reserve: 1048576
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 6
+number_of_imported_functions: 72
+number_of_delayed_imported_functions: 0
+number_of_resources: 2
+number_of_version_infos: 0
+number_of_imports: 1
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 1
+rich_signature:
+    offset: 128
+    length: 112
+    key: 1468968837
+    raw_data: "\xc1\xce\xe0\x04\x85\xaf\x8eW\x85\xaf\x8eW\x85\xaf\x8eW13\x7fW\x81\xaf\x8eW13}W\xfd\xaf\x8eW13|W\x88\xaf\x8eW\xbe\xf1\x8dV\x82\xaf\x8eW\xbe\xf1\x8bV\x99\xaf\x8eW\xbe\xf1\x8aV\x97\xaf\x8eW\x8c\xd7\x1dW\x86\xaf\x8eW\x85\xaf\x8fW\xd9\xaf\x8eW\x12\xf1\x8bV\x87\xaf\x8eW\x17\xf1qW\x84\xaf\x8eW\x85\xaf\x19W\x84\xaf\x8eW\x12\xf1\x8cV\x84\xaf\x8eW"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xb4\x9c\xf1\x00\x04\x00\x00\x00\xb4\x9c\xf3\x00x\x00\x00\x00\xb4\x9c\xf2\x00\r\x00\x00\x00;^\x03\x01\x07\x00\x00\x00;^\x05\x01\x1c\x00\x00\x00;^\x04\x01\x12\x00\x00\x00\tx\x93\x00\x03\x00\x00\x00\x00\x00\x01\x00\\\x00\x00\x00\x97^\x05\x01\x02\x00\x00\x00\x92^\xff\x00\x01\x00\x00\x00\x00\x00\x97\x00\x01\x00\x00\x00\x97^\x02\x01\x01\x00\x00\x00"
+    tools:
+      - toolid: 241
+        version: 40116
+        times: 4
+      - toolid: 243
+        version: 40116
+        times: 120
+      - toolid: 242
+        version: 40116
+        times: 13
+      - toolid: 259
+        version: 24123
+        times: 7
+      - toolid: 261
+        version: 24123
+        times: 28
+      - toolid: 260
+        version: 24123
+        times: 18
+      - toolid: 147
+        version: 30729
+        times: 3
+      - toolid: 1
+        version: 0
+        times: 92
+      - toolid: 261
+        version: 24215
+        times: 2
+      - toolid: 255
+        version: 24210
+        times: 1
+      - toolid: 151
+        version: 0
+        times: 1
+      - toolid: 258
+        version: 24215
+        times: 1
+pdb_path: "D:\\MyProject\\StreetPlayer\\ExtraProgram\\KillPot\\x64\\Release\\KillPot64.pdb"
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1610612768
+    raw_data_size: 40960
+    raw_data_offset: 1024
+    virtual_address: 4096
+    virtual_size: 40464
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rdata"
+    full_name: ".rdata"
+    characteristics: 1073741888
+    raw_data_size: 35840
+    raw_data_offset: 41984
+    virtual_address: 45056
+    virtual_size: 35448
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".data"
+    full_name: ".data"
+    characteristics: 3221225536
+    raw_data_size: 2560
+    raw_data_offset: 77824
+    virtual_address: 81920
+    virtual_size: 7112
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".pdata"
+    full_name: ".pdata"
+    characteristics: 1073741888
+    raw_data_size: 3072
+    raw_data_offset: 80384
+    virtual_address: 90112
+    virtual_size: 3036
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".gfids"
+    full_name: ".gfids"
+    characteristics: 1073741888
+    raw_data_size: 512
+    raw_data_offset: 83456
+    virtual_address: 94208
+    virtual_size: 160
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 1073741888
+    raw_data_size: 2048
+    raw_data_offset: 83968
+    virtual_address: 98304
+    virtual_size: 2008
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 78516
+    size: 40
+  - virtual_address: 98304
+    size: 2008
+  - virtual_address: 90112
+    size: 3036
+  - virtual_address: 86016
+    size: 6072
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 74880
+    size: 84
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 74976
+    size: 148
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 45056
+    size: 584
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_version:
+    major: 0
+    minor: 0
+resources:
+  - length: 899
+    rva: 99408
+    offset: 85072
+    type: RESOURCE_TYPE_MANIFEST
+    id: 1
+    language: 1033
+  - length: 987
+    rva: 98416
+    offset: 84080
+    type: RESOURCE_TYPE_MANIFEST
+    id: 1
+    language: 1042
+import_details:
+  - library_name: "KERNEL32.dll"
+    number_of_functions: 72
+    functions:
+      - name: "OpenProcess"
+        rva: 45056
+      - name: "TerminateProcess"
+        rva: 45064
+      - name: "GetExitCodeProcess"
+        rva: 45072
+      - name: "CloseHandle"
+        rva: 45080
+      - name: "CreateToolhelp32Snapshot"
+        rva: 45088
+      - name: "Process32FirstW"
+        rva: 45096
+      - name: "Process32NextW"
+        rva: 45104
+      - name: "Module32FirstW"
+        rva: 45112
+      - name: "Module32NextW"
+        rva: 45120
+      - name: "RtlCaptureContext"
+        rva: 45128
+      - name: "RtlLookupFunctionEntry"
+        rva: 45136
+      - name: "RtlVirtualUnwind"
+        rva: 45144
+      - name: "UnhandledExceptionFilter"
+        rva: 45152
+      - name: "SetUnhandledExceptionFilter"
+        rva: 45160
+      - name: "GetCurrentProcess"
+        rva: 45168
+      - name: "IsProcessorFeaturePresent"
+        rva: 45176
+      - name: "QueryPerformanceCounter"
+        rva: 45184
+      - name: "GetCurrentProcessId"
+        rva: 45192
+      - name: "GetCurrentThreadId"
+        rva: 45200
+      - name: "GetSystemTimeAsFileTime"
+        rva: 45208
+      - name: "InitializeSListHead"
+        rva: 45216
+      - name: "IsDebuggerPresent"
+        rva: 45224
+      - name: "GetStartupInfoW"
+        rva: 45232
+      - name: "GetModuleHandleW"
+        rva: 45240
+      - name: "RtlUnwindEx"
+        rva: 45248
+      - name: "GetLastError"
+        rva: 45256
+      - name: "SetLastError"
+        rva: 45264
+      - name: "EnterCriticalSection"
+        rva: 45272
+      - name: "LeaveCriticalSection"
+        rva: 45280
+      - name: "DeleteCriticalSection"
+        rva: 45288
+      - name: "InitializeCriticalSectionAndSpinCount"
+        rva: 45296
+      - name: "TlsAlloc"
+        rva: 45304
+      - name: "TlsGetValue"
+        rva: 45312
+      - name: "TlsSetValue"
+        rva: 45320
+      - name: "TlsFree"
+        rva: 45328
+      - name: "FreeLibrary"
+        rva: 45336
+      - name: "GetProcAddress"
+        rva: 45344
+      - name: "LoadLibraryExW"
+        rva: 45352
+      - name: "GetStdHandle"
+        rva: 45360
+      - name: "WriteFile"
+        rva: 45368
+      - name: "GetModuleFileNameW"
+        rva: 45376
+      - name: "MultiByteToWideChar"
+        rva: 45384
+      - name: "WideCharToMultiByte"
+        rva: 45392
+      - name: "ExitProcess"
+        rva: 45400
+      - name: "GetModuleHandleExW"
+        rva: 45408
+      - name: "GetACP"
+        rva: 45416
+      - name: "HeapFree"
+        rva: 45424
+      - name: "HeapAlloc"
+        rva: 45432
+      - name: "FindClose"
+        rva: 45440
+      - name: "FindFirstFileExW"
+        rva: 45448
+      - name: "FindNextFileW"
+        rva: 45456
+      - name: "IsValidCodePage"
+        rva: 45464
+      - name: "GetOEMCP"
+        rva: 45472
+      - name: "GetCPInfo"
+        rva: 45480
+      - name: "GetCommandLineA"
+        rva: 45488
+      - name: "GetCommandLineW"
+        rva: 45496
+      - name: "GetEnvironmentStringsW"
+        rva: 45504
+      - name: "FreeEnvironmentStringsW"
+        rva: 45512
+      - name: "LCMapStringW"
+        rva: 45520
+      - name: "SetStdHandle"
+        rva: 45528
+      - name: "GetFileType"
+        rva: 45536
+      - name: "GetStringTypeW"
+        rva: 45544
+      - name: "GetProcessHeap"
+        rva: 45552
+      - name: "HeapSize"
+        rva: 45560
+      - name: "HeapReAlloc"
+        rva: 45568
+      - name: "FlushFileBuffers"
+        rva: 45576
+      - name: "GetConsoleCP"
+        rva: 45584
+      - name: "GetConsoleMode"
+        rva: 45592
+      - name: "SetFilePointerEx"
+        rva: 45600
+      - name: "WriteConsoleW"
+        rva: 45608
+      - name: "CreateFileW"
+        rva: 45616
+      - name: "RaiseException"
+        rva: 45624
+is_signed: true
+signatures:
+  - subject: "/C=KR/ST=Jeju-do/L=Jeju-si/O=Kakao corp./CN=Kakao corp."
+    issuer: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
+    thumbprint: "3cdab4a20d8b7df798159e227ac98aaf6977f93b"
+    version: 3
+    algorithm: "sha256WithRSAEncryption"
+    algorithm_oid: "1.2.840.113549.1.1.11"
+    serial: "71:d8:85:b4:fe:8c:c7:14:7b:ef:a5:33:62:8e:e3:31"
+    not_before: 1509580800 # 2017-11-02 00:00:00 UTC
+    not_after: 1549065599 # 2019-02-01 23:59:59 UTC
+    verified: true
+    digest_alg: "md5"
+    digest: "3f3e2ded38ad379857f6dcc42ed85854"
+    file_digest: "3f3e2ded38ad379857f6dcc42ed85854"
+    number_of_certificates: 4
+    number_of_countersignatures: 1
+    signer_info:
+        program_name: "PotPlayer"
+        digest: "d4d1962645fb5a5beb8d20c3d50105a8"
+        digest_alg: "md5"
+        chain:
+          - issuer: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
+            subject: "/C=KR/ST=Jeju-do/L=Jeju-si/O=Kakao corp./CN=Kakao corp."
+            thumbprint: "3cdab4a20d8b7df798159e227ac98aaf6977f93b"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "71:d8:85:b4:fe:8c:c7:14:7b:ef:a5:33:62:8e:e3:31"
+            not_before: 1509580800 # 2017-11-02 00:00:00 UTC
+            not_after: 1549065599 # 2019-02-01 23:59:59 UTC
+          - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2006 VeriSign, Inc. - For authorized use only/CN=VeriSign Class 3 Public Primary Certification Authority - G5"
+            subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
+            thumbprint: "007790f6561dad89b0bcd85585762495e358f8a5"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "3d:78:d7:f9:76:49:60:b2:61:7d:f4:f0:1e:ca:86:2a"
+            not_before: 1386633600 # 2013-12-10 00:00:00 UTC
+            not_after: 1702166399 # 2023-12-09 23:59:59 UTC
+    certificates:
+      - issuer: "/C=ZA/ST=Western Cape/L=Durbanville/O=Thawte/OU=Thawte Certification/CN=Thawte Timestamping CA"
+        subject: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services CA - G2"
+        thumbprint: "6c07453ffdda08b83707c09b82fb3d15f35336b1"
+        version: 3
+        algorithm: "sha1WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.5"
+        serial: "7e:93:eb:fb:7c:c6:4e:59:ea:4b:9a:77:d4:06:fc:3b"
+        not_before: 1356048000 # 2012-12-21 00:00:00 UTC
+        not_after: 1609372799 # 2020-12-30 23:59:59 UTC
+      - issuer: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services CA - G2"
+        subject: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services Signer - G4"
+        thumbprint: "65439929b67973eb192d6ff243e6767adf0834e4"
+        version: 3
+        algorithm: "sha1WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.5"
+        serial: "0e:cf:f4:38:c8:fe:bf:35:6e:04:d8:6a:98:1b:1a:50"
+        not_before: 1350518400 # 2012-10-18 00:00:00 UTC
+        not_after: 1609286399 # 2020-12-29 23:59:59 UTC
+      - issuer: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
+        subject: "/C=KR/ST=Jeju-do/L=Jeju-si/O=Kakao corp./CN=Kakao corp."
+        thumbprint: "3cdab4a20d8b7df798159e227ac98aaf6977f93b"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "71:d8:85:b4:fe:8c:c7:14:7b:ef:a5:33:62:8e:e3:31"
+        not_before: 1509580800 # 2017-11-02 00:00:00 UTC
+        not_after: 1549065599 # 2019-02-01 23:59:59 UTC
+      - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2006 VeriSign, Inc. - For authorized use only/CN=VeriSign Class 3 Public Primary Certification Authority - G5"
+        subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
+        thumbprint: "007790f6561dad89b0bcd85585762495e358f8a5"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "3d:78:d7:f9:76:49:60:b2:61:7d:f4:f0:1e:ca:86:2a"
+        not_before: 1386633600 # 2013-12-10 00:00:00 UTC
+        not_after: 1702166399 # 2023-12-09 23:59:59 UTC
+    countersignatures:
+      - verified: true
+        sign_time: 1527751928 # 2018-05-31 07:32:08 UTC
+        digest: "c7aaa562bef28b00380e0b416297e3e7777d3d2e"
+        digest_alg: "sha1"
+        chain:
+          - issuer: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services CA - G2"
+            subject: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services Signer - G4"
+            thumbprint: "65439929b67973eb192d6ff243e6767adf0834e4"
+            version: 3
+            algorithm: "sha1WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.5"
+            serial: "0e:cf:f4:38:c8:fe:bf:35:6e:04:d8:6a:98:1b:1a:50"
+            not_before: 1350518400 # 2012-10-18 00:00:00 UTC
+            not_after: 1609286399 # 2020-12-29 23:59:59 UTC
+          - issuer: "/C=ZA/ST=Western Cape/L=Durbanville/O=Thawte/OU=Thawte Certification/CN=Thawte Timestamping CA"
+            subject: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services CA - G2"
+            thumbprint: "6c07453ffdda08b83707c09b82fb3d15f35336b1"
+            version: 3
+            algorithm: "sha1WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.5"
+            serial: "7e:93:eb:fb:7c:c6:4e:59:ea:4b:9a:77:d4:06:fc:3b"
+            not_before: 1356048000 # 2012-12-21 00:00:00 UTC
+            not_after: 1609372799 # 2020-12-30 23:59:59 UTC
+overlay:
+    offset: 86016
+    size: 6072

@@ -1,0 +1,634 @@
+is_pe: true
+machine: MACHINE_AMD64
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version:
+    major: 10
+    minor: 0
+subsystem_version:
+    major: 10
+    minor: 0
+image_version:
+    major: 10
+    minor: 0
+linker_version:
+    major: 14
+    minor: 20
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
+characteristics: 34
+dll_characteristics: 49504
+timestamp: 93198170 # 1972-12-14 16:22:50 UTC
+image_base: 140700201713664
+checksum: 115556
+base_of_code: 4096
+entry_point: 17024
+entry_point_raw: 20096
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 240
+size_of_code: 26112
+size_of_initialized_data: 23040
+size_of_uninitialized_data: 0
+size_of_image: 69632
+size_of_headers: 1024
+size_of_stack_reserve: 524288
+size_of_stack_commit: 16384
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 7
+number_of_imported_functions: 0
+number_of_delayed_imported_functions: 0
+number_of_resources: 145
+number_of_version_infos: 0
+number_of_imports: 0
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 0
+rich_signature:
+    offset: 128
+    length: 80
+    key: 4190983425
+    raw_data: "E4\xa3\xaa\x01U\xcd\xf9\x01U\xcd\xf9\x01U\xcd\xf9\x15>\xcc\xf8\x03U\xcd\xf9\x15>\xce\xf8\x03U\xcd\xf9\x08-^\xf9:U\xcd\xf9\x01U\xcc\xf9\x95U\xcd\xf9\x15>\xc0\xf8\rU\xcd\xf9\x15>\xc9\xf8\rU\xcd\xf9\x15>2\xf9\x00U\xcd\xf9\x15>\xcf\xf8\x00U\xcd\xf9"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x14k\x01\x01\x02\x00\x00\x00\x14k\x03\x01\x02\x00\x00\x00\tx\x93\x00;\x00\x00\x00\x00\x00\x01\x00\x94\x00\x00\x00\x14k\r\x01\x0c\x00\x00\x00\x14k\x04\x01\x0c\x00\x00\x00\x14k\xff\x00\x01\x00\x00\x00\x14k\x02\x01\x01\x00\x00\x00"
+    tools:
+      - toolid: 257
+        version: 27412
+        times: 2
+      - toolid: 259
+        version: 27412
+        times: 2
+      - toolid: 147
+        version: 30729
+        times: 59
+      - toolid: 1
+        version: 0
+        times: 148
+      - toolid: 269
+        version: 27412
+        times: 12
+      - toolid: 260
+        version: 27412
+        times: 12
+      - toolid: 255
+        version: 27412
+        times: 1
+      - toolid: 258
+        version: 27412
+        times: 1
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1610612768
+    raw_data_size: 26112
+    raw_data_offset: 1024
+    virtual_address: 4096
+    virtual_size: 25981
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rdata"
+    full_name: ".rdata"
+    characteristics: 1073741888
+    raw_data_size: 14848
+    raw_data_offset: 27136
+    virtual_address: 32768
+    virtual_size: 14562
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".data"
+    full_name: ".data"
+    characteristics: 3221225536
+    raw_data_size: 512
+    raw_data_offset: 41984
+    virtual_address: 49152
+    virtual_size: 2184
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".pdata"
+    full_name: ".pdata"
+    characteristics: 1073741888
+    raw_data_size: 2048
+    raw_data_offset: 42496
+    virtual_address: 53248
+    virtual_size: 1692
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".didat"
+    full_name: ".didat"
+    characteristics: 3221225536
+    raw_data_size: 512
+    raw_data_offset: 44544
+    virtual_address: 57344
+    virtual_size: 48
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 1073741888
+    raw_data_size: 2560
+    raw_data_offset: 45056
+    virtual_address: 61440
+    virtual_size: 2080
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".reloc"
+    full_name: ".reloc"
+    characteristics: 1107296320
+    raw_data_size: 512
+    raw_data_offset: 47616
+    virtual_address: 65536
+    virtual_size: 108
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 41696
+    size: 620
+  - virtual_address: 61440
+    size: 2080
+  - virtual_address: 53248
+    size: 1692
+  - virtual_address: 48128
+    size: 9232
+  - virtual_address: 65536
+    size: 108
+  - virtual_address: 37168
+    size: 84
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 33168
+    size: 280
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 33584
+    size: 1248
+  - virtual_address: 41432
+    size: 64
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_version:
+    major: 31648
+    minor: 41354
+resources:
+  - length: 32765
+    rva: 2710207280
+    type: 0
+  - length: 32765
+    rva: 2710513710
+    type: 162480
+  - length: 32765
+    rva: 3291296560
+    type: 0
+  - length: 32765
+    rva: 3279436080
+    type: 1486848
+  - length: 32765
+    rva: 2710209520
+    type: 1139792
+  - length: 32765
+    rva: 2710207936
+    type: 1065552
+  - length: 32765
+    rva: 2711135136
+    type: 1383992
+  - length: 32765
+    rva: 2710513710
+    type: 1036020
+  - length: 255
+    rva: 4294967295
+    type: 1818587694
+  - length: 32765
+    rva: 2748010640
+    type: 1685353280
+  - length: 32765
+    rva: 2710513710
+    type: 84832
+  - length: 32765
+    rva: 3291296560
+    type: 0
+  - length: 32765
+    rva: 3291412832
+    type: 842240
+  - length: 32765
+    rva: 2710209520
+    type: 657648
+  - length: 32765
+    rva: 2710207936
+    type: 565216
+  - length: 32765
+    rva: 2710513710
+    type: 544016
+  - length: 255
+    rva: 4294967295
+    type: 1818587694
+  - length: 32765
+    rva: 2748010640
+    type: 1685353280
+  - length: 32765
+    rva: 2748010640
+    type: 1685353280
+  - length: 32765
+    rva: 2710207280
+    type: 0
+  - length: 32765
+    rva: 2710513710
+    type: 30240
+  - length: 32765
+    rva: 3291296560
+    type: 0
+  - length: 32765
+    rva: 2748010640
+    type: 1317376
+  - length: 32765
+    rva: 2710207936
+    type: 37664
+  - length: 32765
+    rva: 2710513710
+    type: 29568
+  - length: 3
+    rva: 9460301
+    type: 1150506
+  - length: 255
+    rva: 4294967295
+    type: 1818587694
+  - length: 32765
+    rva: 2710513710
+    type: 281824
+  - length: 32765
+    rva: 3291296560
+    type: 0
+  - length: 512
+    rva: 1482752
+    type: 397312
+  - length: 32765
+    rva: 2710209520
+    type: 304216
+  - length: 32765
+    rva: 2710207936
+    type: 303936
+  - length: 32765
+    rva: 2710513710
+    type: 290940
+  - length: 255
+    rva: 4294967295
+    type: 1818587694
+  - length: 32765
+    rva: 3139972256
+    type: 0
+  - length: 32765
+    rva: 2956636536
+    type: 0
+  - length: 32765
+    rva: 2710207392
+  - length: 32765
+    rva: 2710207280
+    type: 0
+  - length: 32765
+    rva: 2710513710
+    type: 336462347
+  - length: 32765
+    rva: 2710513710
+    type: 5136
+  - length: 32765
+    rva: 3291296560
+    type: 0
+  - length: 32765
+    rva: 2710207936
+    type: 8208
+  - length: 32765
+    rva: 2710513710
+    type: 4059
+  - length: 3
+    rva: 9460301
+    type: 5224
+  - length: 32765
+    rva: 2748890144
+    type: 1720
+  - length: 32765
+    rva: 2748010640
+    type: 432
+  - length: 255
+    rva: 4294967295
+    type: 1818587694
+  - length: 32765
+    rva: 2748028970
+    type: 32
+  - length: 32765
+    rva: 2710513710
+    type: 152160
+  - length: 32765
+    rva: 3291296560
+    type: 0
+  - length: 32765
+    rva: 2710209520
+    type: 169432
+  - length: 32765
+    rva: 2710207936
+    type: 169152
+  - length: 32765
+    rva: 3291161680
+    type: 188872
+  - length: 32765
+    rva: 2710513710
+    type: 152283
+  - length: 32765
+    rva: 3125756855
+    type: 35214
+  - length: 255
+    rva: 4294967295
+    type: 1818587694
+  - length: 32765
+    rva: 2710513710
+    type: 139968
+  - length: 32765
+    rva: 3291296560
+    type: 0
+  - length: 32765
+    rva: 2710207936
+    type: 391776
+  - length: 32765
+    rva: 3291161680
+    type: 447088
+  - length: 32765
+    rva: 2710513710
+    type: 378395
+  - length: 255
+    rva: 4294967295
+    type: 1818587694
+  - length: 32765
+    rva: 3291161680
+    type: 1080325235
+  - length: 32765
+    rva: 2748010640
+    type: 1685353280
+  - length: 32765
+    rva: 2748010640
+    type: 1685353280
+  - length: 32765
+    rva: 2748010640
+    type: 1852798053
+  - length: 32765
+    rva: 2748010640
+    type: 1818851136
+  - length: 32765
+    rva: 3291161680
+    type: 1081370223
+  - length: 32765
+    rva: 3291161680
+    type: 1081370223
+  - length: 32765
+    rva: 2748010640
+    type: 1952870259
+  - length: 32765
+    rva: 3291161680
+    type: 1081370223
+  - length: 32765
+    rva: 2748010640
+    type: 1818323059
+  - length: 32765
+    rva: 3291161680
+    type: 1081370223
+  - length: 32765
+    rva: 3291161680
+    type: 1081370223
+  - length: 32765
+    rva: 3291161680
+    type: 1081370223
+  - length: 32765
+    rva: 3291161680
+    type: 1081370223
+  - length: 32765
+    rva: 2748010640
+    type: 1853321070
+  - length: 32765
+    rva: 3291161680
+    type: 1081370223
+  - length: 32765
+    rva: 2748010640
+    type: 1952870259
+  - length: 32765
+    rva: 2748010640
+    type: 1886602342
+  - length: 32765
+    rva: 2748010640
+    type: 1952870259
+  - length: 32765
+    rva: 3291161680
+    type: 1081370223
+  - length: 32765
+    rva: 2748010640
+    type: 1952870259
+  - length: 32765
+    rva: 3291161680
+    type: 1081370223
+  - length: 32765
+    rva: 3291161680
+    type: 1078211439
+  - length: 32765
+    rva: 3291161680
+    type: 1078211439
+  - length: 32765
+    rva: 2748010640
+    type: 1144221545
+  - length: 32765
+    rva: 2748010640
+    type: 1919247465
+  - length: 32765
+    rva: 2748010640
+    type: 1919251570
+  - length: 32765
+    rva: 2710207392
+    type: RESOURCE_TYPE_FONTDIR
+  - length: 32765
+    rva: 2710207392
+    type: RESOURCE_TYPE_FONT
+  - length: 32765
+    rva: 2710207392
+    type: RESOURCE_TYPE_FONT
+  - length: 32765
+    rva: 2710207392
+    type: RESOURCE_TYPE_DIALOG
+  - length: 32765
+    rva: 2710207392
+    type: RESOURCE_TYPE_FONT
+  - length: 32765
+    rva: 2710207392
+    type: RESOURCE_TYPE_FONT
+  - length: 32765
+    rva: 2710207392
+    type: RESOURCE_TYPE_FONT
+  - length: 32765
+    rva: 2710207392
+    type: RESOURCE_TYPE_FONT
+  - length: 32765
+    rva: 2710207392
+    type: RESOURCE_TYPE_DIALOG
+  - length: 32765
+    rva: 2710207392
+    type: RESOURCE_TYPE_FONT
+  - length: 32765
+    rva: 2710207392
+    type: RESOURCE_TYPE_FONT
+  - length: 32765
+    rva: 2710207392
+    type: RESOURCE_TYPE_FONT
+  - length: 32765
+    rva: 2710207392
+    type: RESOURCE_TYPE_FONT
+  - length: 32765
+    rva: 2710513710
+    type: 12960
+  - length: 32765
+    rva: 3291296560
+    type: 0
+  - length: 32765
+    rva: 2710209520
+    type: 345272
+  - length: 32765
+    rva: 2710207936
+    type: 300064
+  - length: 32765
+    rva: 3291412832
+    type: 448752
+  - length: 32765
+    rva: 2710513710
+    type: 293427
+  - length: 255
+    rva: 4294967295
+    type: 1818587694
+  - length: 32765
+    rva: 2748010640
+    type: 1685353280
+  - length: 32765
+    rva: 3279438320
+    type: 1091704238
+  - length: 1
+    rva: 1610618142
+  - length: 32765
+    rva: 2710513710
+    type: 112432
+  - length: 32765
+    rva: 3291296560
+    type: 0
+  - length: 32765
+    rva: 2710207936
+    type: 120944
+  - length: 32765
+    rva: 2710513710
+    type: 113027
+  - length: 32765
+    rva: 3125107174
+    type: 32118
+  - length: 32765
+    rva: 3126205896
+    type: 1824
+  - length: 32765
+    rva: 3125756855
+    type: 11504
+  - length: 3
+    rva: 9460301
+    type: 1032
+  - length: 255
+    rva: 4294967295
+    type: 1818587694
+  - length: 32765
+    rva: 2710513710
+    type: 111008
+  - length: 32765
+    rva: 3291296560
+    type: 0
+  - length: 32765
+    rva: 2748010640
+    type: 1961984
+  - length: 32765
+    rva: 2710207936
+    type: 1472496
+  - length: 32765
+    rva: 3291161680
+    type: 1698140
+  - length: 32765
+    rva: 2710513710
+    type: 1399868
+  - length: 255
+    rva: 4294967295
+    type: 1818587694
+  - length: 32765
+    rva: 2748010640
+    type: 1685353280
+  - length: 32765
+    rva: 2748010640
+    type: 1685353280
+  - length: 32765
+    rva: 2748010640
+    type: 1685353280
+  - length: 32765
+    rva: 3291161680
+    type: 1080325235
+  - length: 32765
+    rva: 2748010640
+    type: 1685353280
+  - length: 32765
+    rva: 3291161680
+    type: 1080325235
+  - length: 32765
+    rva: 2748010640
+    type: 1685353280
+  - length: 32765
+    rva: 2748010640
+    type: 1685353280
+  - length: 32765
+    rva: 3279436256
+    type: 46080
+  - length: 32765
+    rva: 3279436384
+    type: 45184
+  - length: 32765
+    rva: 3279436128
+    type: 17920
+  - length: 32765
+    rva: 3279436000
+    type: 61440
+  - length: 32765
+    rva: 3279436000
+    type: 0
+  - length: 127
+    rva: 4257492275
+    type: 63488
+  - length: 32765
+    rva: 3291161680
+    type: 63488
+  - length: 32765
+    rva: 3279436512
+    type: 16960
+  - length: 32765
+    rva: 3279436640
+    type: 4096
+is_signed: false
+overlay:
+    offset: 48128
+    size: 303828

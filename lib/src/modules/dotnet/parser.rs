@@ -99,6 +99,10 @@ pub struct Dotnet<'a> {
     interface_impls: Vec<InterfaceImpl>,
     /// FieldRVA table.
     field_rvas: Vec<u32>,
+    /// field_rvas after converting them to file offsets. This vector can
+    /// contain fewer items than field_rvas, if some RVA can't be converted
+    /// to an offset.
+    field_offsets: Vec<u32>,
     /// Constant table.
     constants: Vec<Constant<'a>>,
     /// CustomAttribute table.
@@ -204,6 +208,12 @@ impl<'a> Dotnet<'a> {
         let _ = tilde_stream
             .and_then(|index| dotnet.get_stream(index))
             .map(|tilde_stream| dotnet.parse_tilde_stream(tilde_stream));
+
+        dotnet.field_offsets = dotnet
+            .field_rvas
+            .iter()
+            .filter_map(|rva| pe.rva_to_offset(*rva))
+            .collect();
 
         Ok(dotnet)
     }
@@ -1202,19 +1212,28 @@ impl<'a> Dotnet<'a> {
 
                 write!(output, "[")?;
                 for i in 0..dimensions {
-                    let size = sizes.get(i as usize).cloned().unwrap_or(0);
-                    if size > 0 {
-                        let l =
-                            lower_bounds.get(i as usize).cloned().unwrap_or(0);
-                        let h = l + (size as i32);
-                        if l == 0 {
+                    let i = i as usize;
+                    let size = sizes.get(i).cloned().map(|s| s as i32);
+                    let lower_bound = lower_bounds.get(i).cloned();
+
+                    match (lower_bound, size) {
+                        (Some(0), Some(size)) => {
                             write!(output, "{}", size)?;
-                        } else {
-                            write!(output, "{}...{}", l, h)?;
                         }
+                        (Some(l), Some(size)) if size >= 1 => {
+                            write!(output, "{}...{}", l, l + size - 1)?;
+                        }
+                        (Some(l), None) => {
+                            write!(output, "{}...", l)?;
+                        }
+                        (None, Some(size)) => {
+                            write!(output, "{}", size)?;
+                        }
+                        _ => {}
                     }
+
                     // If not the last item, prepend a comma.
-                    if i + 1 != dimensions {
+                    if i + 1 != dimensions as usize {
                         write!(output, ",")?;
                     }
                 }
@@ -2725,9 +2744,12 @@ impl From<Dotnet<'_>> for protos::dotnet::Dotnet {
             .user_strings
             .extend(dotnet.get_user_strings().map(|c| c.to_vec()));
 
+        result.field_offsets = dotnet.field_offsets.clone();
+
         result.set_number_of_streams(result.streams.len().try_into().unwrap());
         result.set_number_of_guids(result.guids.len().try_into().unwrap());
         result.set_number_of_classes(result.classes.len().try_into().unwrap());
+
         result.set_number_of_user_strings(
             result.user_strings.len().try_into().unwrap(),
         );
@@ -2746,6 +2768,10 @@ impl From<Dotnet<'_>> for protos::dotnet::Dotnet {
 
         result.set_number_of_modulerefs(
             result.modulerefs.len().try_into().unwrap(),
+        );
+
+        result.set_number_of_field_offsets(
+            result.field_offsets.len().try_into().unwrap(),
         );
 
         result

@@ -12,7 +12,7 @@ import (
 )
 
 import (
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 // #include <yara_x.h>
@@ -177,16 +177,17 @@ func (s *Scanner) SetModuleOutput(data proto.Message) error {
 		ptr = (*C.uint8_t)(unsafe.Pointer(&(buf[0])))
 	}
 
-	name := C.CString(string(proto.MessageReflect(data).Descriptor().FullName()))
+	name := C.CString(string(data.ProtoReflect().Descriptor().FullName()))
 	defer C.free(unsafe.Pointer(name))
 
 	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	if r := C.yrx_scanner_set_module_output(s.cScanner, name, ptr, C.size_t(len(buf))); r != C.SUCCESS {
 		err = errors.New(C.GoString(C.yrx_last_error()))
 	}
-	runtime.UnlockOSThread()
-	runtime.KeepAlive(s)
 
+	runtime.KeepAlive(s)
 	return err
 }
 
@@ -203,6 +204,8 @@ func (s *Scanner) Scan(buf []byte) ([]*Rule, error) {
 	s.matchingRules = nil
 
 	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	var err error
 	switch r := C.yrx_scanner_scan(s.cScanner, ptr, C.size_t(len(buf))); r {
 	case C.SUCCESS:
@@ -212,7 +215,6 @@ func (s *Scanner) Scan(buf []byte) ([]*Rule, error) {
 	default:
 		err = errors.New(C.GoString(C.yrx_last_error()))
 	}
-	runtime.UnlockOSThread()
 
 	return s.matchingRules, err
 }

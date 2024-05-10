@@ -3,13 +3,13 @@ use std::collections::{HashMap, HashSet};
 use crate::ast::{Ident, Span};
 use crate::cst::CSTNode;
 use crate::report::ReportBuilder;
-use crate::warnings::Warning;
+use crate::Warnings;
 
 /// A structure that holds information about the parsing process.
 pub(crate) struct Context<'src, 'rb> {
     /// Contains the pattern identifiers declared by the rule that is being
     /// currently parsed. The map is filled during the processing of the
-    /// patterns (a.k.a: strings) section of the rule. Identifiers are stored
+    /// patterns (a.k.a. strings) section of the rule. Identifiers are stored
     /// without the `$` prefix.
     pub(crate) declared_patterns: HashMap<&'src str, Ident<'src>>,
 
@@ -20,7 +20,7 @@ pub(crate) struct Context<'src, 'rb> {
     ///
     /// For example, if `$a` appears in the condition, `a` is removed from
     /// this set, if `them` appears, all identifiers are removed because this
-    /// keyword refers to all of the identifiers, if a tuple (`$a*`, `$b*`)
+    /// keyword refers to all the identifiers, if a tuple (`$a*`, `$b*`)
     /// appears in the condition, all identifiers starting with `a` and `b`
     /// are removed.
     ///
@@ -39,7 +39,7 @@ pub(crate) struct Context<'src, 'rb> {
     pub(crate) report_builder: &'rb ReportBuilder,
 
     /// Warnings generated during the parsing process.
-    pub(crate) warnings: Vec<Warning>,
+    pub(crate) warnings: Warnings,
 }
 
 impl<'src, 'rb> Context<'src, 'rb> {
@@ -50,7 +50,7 @@ impl<'src, 'rb> Context<'src, 'rb> {
             unused_patterns: HashSet::new(),
             current_pattern: None,
             report_builder,
-            warnings: Vec::new(),
+            warnings: Warnings::default(),
         }
     }
 

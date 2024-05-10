@@ -9,6 +9,7 @@ number_of_assembly_refs: 12
 number_of_modulerefs: 3
 number_of_user_strings: 758
 number_of_constants: 5
+number_of_field_offsets: 0
 typelib: "b25af9bc-af68-4ae2-886f-af4da29c02e3"
 streams:
   - name: "#-"
