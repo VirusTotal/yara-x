@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::iter::Iterator;
 use std::str;
 
-use crate::ast;
+use crate::{ast, Warning};
 use bstr::{BStr, BString, ByteSlice, ByteVec};
 use lazy_static::lazy_static;
 use num_traits::{Bounded, CheckedMul, FromPrimitive, Num};
@@ -15,7 +15,6 @@ use pest::pratt_parser::{Assoc, Op, PrattParser};
 use crate::ast::*;
 use crate::cst::*;
 use crate::parser::{Context, Error, ErrorInfo, GrammarRule};
-use crate::warnings::Warning;
 
 macro_rules! expect {
     ($next:expr, $parser_rule:expr) => {{
@@ -298,21 +297,6 @@ pub(crate) fn ast_from_cst<'src>(
 
                 let module_name =
                     utf8_string_lit_from_cst(ctx, children.next().unwrap())?;
-
-                let already_imported = imports
-                    .iter()
-                    .find(|import| import.module_name == module_name);
-
-                // If the module had been previously imported, raise
-                // warning about the duplicate import.
-                if let Some(already_imported) = already_imported {
-                    ctx.warnings.push(Warning::duplicate_import(
-                        ctx.report_builder,
-                        module_name.to_string(),
-                        span,
-                        already_imported.span(),
-                    ));
-                }
 
                 imports.push(Import {
                     span,
@@ -644,19 +628,6 @@ fn pattern_from_cst<'src>(
                 span: ctx.span(&node),
                 regexp: regexp_from_cst(ctx, node)?,
             });
-
-            // Raise a warning when the regexp has both the `nocase`
-            // modifier and the `/i` suffix indicating case insensitiveness.
-            if pattern.regexp.case_insensitive
-                && pattern.modifiers.nocase().is_some()
-            {
-                let i_pos = pattern.regexp.literal.rfind('i').unwrap();
-                ctx.warnings.push(Warning::redundant_case_modifier(
-                    ctx.report_builder,
-                    pattern.modifiers.nocase().unwrap().span(),
-                    pattern.span().subspan(i_pos, i_pos + 1),
-                ));
-            }
 
             Pattern::Regexp(pattern)
         }
@@ -2116,12 +2087,16 @@ fn hex_pattern_from_cst<'src>(
                 }
 
                 if consecutive_jumps {
-                    ctx.warnings.push(Warning::consecutive_jumps(
-                        ctx.report_builder,
-                        ctx.current_pattern_ident(),
-                        format!("{}", jump),
-                        jump_span,
-                    ));
+                    let report_builder = ctx.report_builder;
+                    let ident = ctx.current_pattern_ident();
+                    ctx.warnings.add(|| {
+                        Warning::consecutive_jumps(
+                            report_builder,
+                            ident.clone(),
+                            format!("{}", jump),
+                            jump_span,
+                        )
+                    });
                 }
 
                 match (jump.start, jump.end) {

@@ -69,3 +69,17 @@ Examples:
 yr completion bash > $(brew --prefix)/etc/bash_completion.d/yr
 yr completion zsh > "${fpath[1]}/_kubectl"
 "#;
+
+pub const SCAN_LONG_HELP: &str = r#"Scan a file or directory
+
+<RULES_PATH> can be the path to a file containing YARA rules, or the path to a directory
+containing *.yar or *.yara files. When <RULES_PATH> is a directory, it will be traversed 
+recursively looking for rule files. Multiple <RULES_PATH> can be specified.
+
+<TARGET_PATH> is the file or directory that will be scanned.
+
+Examples:
+
+yr scan rules_file.yar scanned_file
+yr scan rules_dir scanned_file
+"#;

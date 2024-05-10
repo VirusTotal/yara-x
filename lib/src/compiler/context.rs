@@ -3,10 +3,9 @@ use std::mem::size_of;
 use std::rc::Rc;
 
 use yara_x_parser::report::ReportBuilder;
-use yara_x_parser::Warning;
 
 use crate::compiler::ir::PatternIdx;
-use crate::compiler::{ir, IdentId, RuleId, RuleInfo};
+use crate::compiler::{ir, IdentId, RuleId, RuleInfo, Warnings};
 use crate::string_pool::StringPool;
 use crate::symbols::{StackedSymbolTable, SymbolLookup};
 use crate::types::Type;
@@ -35,7 +34,7 @@ pub(in crate::compiler) struct CompileContext<'a, 'src, 'sym> {
     pub current_rule_patterns: &'a mut [ir::PatternInRule<'src>],
 
     /// Warnings generated during the compilation.
-    pub warnings: &'a mut Vec<Warning>,
+    pub warnings: &'a mut Warnings,
 
     /// Pool with identifiers used in the rules.
     pub ident_pool: &'a mut StringPool<IdentId>,

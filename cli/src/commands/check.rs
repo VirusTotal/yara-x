@@ -105,7 +105,7 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
                             "WARN".paint(Yellow).bold(),
                             file_path.display()
                         ));
-                        for warning in ast.warnings {
+                        for warning in ast.warnings.iter() {
                             lines.push(warning.to_string());
                         }
                     }

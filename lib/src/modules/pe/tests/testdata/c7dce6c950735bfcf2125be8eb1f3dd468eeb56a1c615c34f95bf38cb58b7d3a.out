@@ -1,0 +1,463 @@
+is_pe: true
+machine: MACHINE_AMD64
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version:
+    major: 6
+    minor: 0
+subsystem_version:
+    major: 6
+    minor: 0
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 14
+    minor: 29
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
+characteristics: 8226
+dll_characteristics: 352
+timestamp: 1692784145 # 2023-08-23 09:49:05 UTC
+image_base: 6442450944
+checksum: 174636
+base_of_code: 4096
+entry_point: 35760
+entry_point_raw: 38832
+dll_name: ""
+export_timestamp: 4294967295 # 2106-02-07 06:28:15 UTC
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 240
+size_of_code: 100352
+size_of_initialized_data: 72192
+size_of_uninitialized_data: 0
+size_of_image: 192512
+size_of_headers: 1024
+size_of_stack_reserve: 1048576
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 6
+number_of_imported_functions: 90
+number_of_delayed_imported_functions: 0
+number_of_resources: 0
+number_of_version_infos: 0
+number_of_imports: 3
+number_of_delayed_imports: 0
+number_of_exports: 4
+number_of_signatures: 1
+rich_signature:
+    offset: 128
+    length: 112
+    key: 893123191
+    raw_data: "3\x9bUfw\xfa;5w\xfa;5w\xfa;5c\x91?4|\xfa;5c\x9184r\xfa;5c\x91>4\xe0\xfa;5%\x8f>4j\xfa;5%\x8f?4y\xfa;5%\x8f84~\xfa;5\xce\x8f84v\xfa;5c\x91:4p\xfa;5w\xfa:5\x1b\xfa;5\xce\x8f34m\xfa;5\xce\x8f;4v\xfa;5\xce\x8f94v\xfa;5"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x14k\x04\x01\x0b\x00\x00\x00\x14k\x03\x01\x05\x00\x00\x00\x14k\x05\x01\x97\x00\x00\x00Ru\x05\x01\x1d\x00\x00\x00Ru\x04\x01\x0e\x00\x00\x00Ru\x03\x01\t\x00\x00\x00\xb9u\x03\x01\x01\x00\x00\x00\x14k\x01\x01\x07\x00\x00\x00\x00\x00\x01\x00l\x00\x00\x00\xb9u\x08\x01\x1a\x00\x00\x00\xb9u\x00\x01\x01\x00\x00\x00\xb9u\x02\x01\x01\x00\x00\x00"
+    tools:
+      - toolid: 260
+        version: 27412
+        times: 11
+      - toolid: 259
+        version: 27412
+        times: 5
+      - toolid: 261
+        version: 27412
+        times: 151
+      - toolid: 261
+        version: 30034
+        times: 29
+      - toolid: 260
+        version: 30034
+        times: 14
+      - toolid: 259
+        version: 30034
+        times: 9
+      - toolid: 259
+        version: 30137
+        times: 1
+      - toolid: 257
+        version: 27412
+        times: 7
+      - toolid: 1
+        version: 0
+        times: 108
+      - toolid: 264
+        version: 30137
+        times: 26
+      - toolid: 256
+        version: 30137
+        times: 1
+      - toolid: 258
+        version: 30137
+        times: 1
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1610612768
+    raw_data_size: 100352
+    raw_data_offset: 1024
+    virtual_address: 4096
+    virtual_size: 100096
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rdata"
+    full_name: ".rdata"
+    characteristics: 1073741888
+    raw_data_size: 47104
+    raw_data_offset: 101376
+    virtual_address: 106496
+    virtual_size: 46636
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".data"
+    full_name: ".data"
+    characteristics: 3221225536
+    raw_data_size: 3584
+    raw_data_offset: 148480
+    virtual_address: 155648
+    virtual_size: 16832
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".pdata"
+    full_name: ".pdata"
+    characteristics: 1073741888
+    raw_data_size: 5632
+    raw_data_offset: 152064
+    virtual_address: 176128
+    virtual_size: 5340
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: "_RDATA"
+    full_name: "_RDATA"
+    characteristics: 1073741888
+    raw_data_size: 512
+    raw_data_offset: 157696
+    virtual_address: 184320
+    virtual_size: 252
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".reloc"
+    full_name: ".reloc"
+    characteristics: 1107296320
+    raw_data_size: 2048
+    raw_data_offset: 158208
+    virtual_address: 188416
+    virtual_size: 1636
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 150432
+    size: 148
+  - virtual_address: 150580
+    size: 80
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 176128
+    size: 5340
+  - virtual_address: 160256
+    size: 3024
+  - virtual_address: 188416
+    size: 1636
+  - virtual_address: 143808
+    size: 56
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 143872
+    size: 312
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 106496
+    size: 744
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+import_details:
+  - library_name: "KERNEL32.dll"
+    number_of_functions: 83
+    functions:
+      - name: "Sleep"
+        rva: 106528
+      - name: "WriteConsoleW"
+        rva: 106536
+      - name: "HeapFree"
+        rva: 106544
+      - name: "GetCurrentProcess"
+        rva: 106552
+      - name: "TerminateProcess"
+        rva: 106560
+      - name: "CreateThread"
+        rva: 106568
+      - name: "HeapAlloc"
+        rva: 106576
+      - name: "GetProcessHeap"
+        rva: 106584
+      - name: "ReadFile"
+        rva: 106592
+      - name: "ExpandEnvironmentStringsW"
+        rva: 106600
+      - name: "GetModuleFileNameW"
+        rva: 106608
+      - name: "CreateFileW"
+        rva: 106616
+      - name: "DeleteFileW"
+        rva: 106624
+      - name: "CloseHandle"
+        rva: 106632
+      - name: "GetFileSize"
+        rva: 106640
+      - name: "CreateDirectoryW"
+        rva: 106648
+      - name: "FindFirstFileW"
+        rva: 106656
+      - name: "VirtualProtect"
+        rva: 106664
+      - name: "EnterCriticalSection"
+        rva: 106672
+      - name: "VirtualFree"
+        rva: 106680
+      - name: "FindNextFileW"
+        rva: 106688
+      - name: "WriteFile"
+        rva: 106696
+      - name: "VirtualAlloc"
+        rva: 106704
+      - name: "RemoveDirectoryW"
+        rva: 106712
+      - name: "LeaveCriticalSection"
+        rva: 106720
+      - name: "InitializeCriticalSection"
+        rva: 106728
+      - name: "SetFilePointer"
+        rva: 106736
+      - name: "FindClose"
+        rva: 106744
+      - name: "GetFileAttributesW"
+        rva: 106752
+      - name: "GetSystemDirectoryW"
+        rva: 106760
+      - name: "LoadLibraryA"
+        rva: 106768
+      - name: "GetWindowsDirectoryW"
+        rva: 106776
+      - name: "GetProcAddress"
+        rva: 106784
+      - name: "DeleteCriticalSection"
+        rva: 106792
+      - name: "GetModuleHandleW"
+        rva: 106800
+      - name: "VirtualQuery"
+        rva: 106808
+      - name: "GetModuleHandleA"
+        rva: 106816
+      - name: "UnhandledExceptionFilter"
+        rva: 106824
+      - name: "SetUnhandledExceptionFilter"
+        rva: 106832
+      - name: "IsProcessorFeaturePresent"
+        rva: 106840
+      - name: "QueryPerformanceCounter"
+        rva: 106848
+      - name: "GetCurrentProcessId"
+        rva: 106856
+      - name: "GetCurrentThreadId"
+        rva: 106864
+      - name: "GetSystemTimeAsFileTime"
+        rva: 106872
+      - name: "InitializeSListHead"
+        rva: 106880
+      - name: "IsDebuggerPresent"
+        rva: 106888
+      - name: "GetStartupInfoW"
+        rva: 106896
+      - name: "RtlUnwindEx"
+        rva: 106904
+      - name: "InterlockedFlushSList"
+        rva: 106912
+      - name: "GetLastError"
+        rva: 106920
+      - name: "SetLastError"
+        rva: 106928
+      - name: "InitializeCriticalSectionAndSpinCount"
+        rva: 106936
+      - name: "TlsAlloc"
+        rva: 106944
+      - name: "TlsGetValue"
+        rva: 106952
+      - name: "TlsSetValue"
+        rva: 106960
+      - name: "TlsFree"
+        rva: 106968
+      - name: "FreeLibrary"
+        rva: 106976
+      - name: "LoadLibraryExW"
+        rva: 106984
+      - name: "RaiseException"
+        rva: 106992
+      - name: "GetCommandLineA"
+        rva: 107000
+      - name: "GetCommandLineW"
+        rva: 107008
+      - name: "ExitProcess"
+        rva: 107016
+      - name: "GetModuleHandleExW"
+        rva: 107024
+      - name: "LCMapStringW"
+        rva: 107032
+      - name: "GetStdHandle"
+        rva: 107040
+      - name: "GetFileType"
+        rva: 107048
+      - name: "FindFirstFileExW"
+        rva: 107056
+      - name: "IsValidCodePage"
+        rva: 107064
+      - name: "GetACP"
+        rva: 107072
+      - name: "GetOEMCP"
+        rva: 107080
+      - name: "GetCPInfo"
+        rva: 107088
+      - name: "MultiByteToWideChar"
+        rva: 107096
+      - name: "WideCharToMultiByte"
+        rva: 107104
+      - name: "GetEnvironmentStringsW"
+        rva: 107112
+      - name: "FreeEnvironmentStringsW"
+        rva: 107120
+      - name: "SetFilePointerEx"
+        rva: 107128
+      - name: "GetConsoleMode"
+        rva: 107136
+      - name: "GetConsoleOutputCP"
+        rva: 107144
+      - name: "GetStringTypeW"
+        rva: 107152
+      - name: "SetStdHandle"
+        rva: 107160
+      - name: "HeapSize"
+        rva: 107168
+      - name: "HeapReAlloc"
+        rva: 107176
+      - name: "FlushFileBuffers"
+        rva: 107184
+  - library_name: "ntdll.dll"
+    number_of_functions: 4
+    functions:
+      - name: "RtlCaptureContext"
+        rva: 107200
+      - name: "RtlGetVersion"
+        rva: 107208
+      - name: "RtlLookupFunctionEntry"
+        rva: 107216
+      - name: "RtlVirtualUnwind"
+        rva: 107224
+  - library_name: "ADVAPI32.dll"
+    number_of_functions: 3
+    functions:
+      - name: "CryptGenRandom"
+        rva: 106496
+      - name: "CryptAcquireContextW"
+        rva: 106504
+      - name: "CryptReleaseContext"
+        rva: 106512
+export_details:
+  - name: "DebugConnect"
+    ordinal: 1
+    rva: 4096
+    offset: 1024
+  - name: "DebugConnectWide"
+    ordinal: 2
+    rva: 4096
+    offset: 1024
+  - name: "DebugCreate"
+    ordinal: 3
+    rva: 4096
+    offset: 1024
+  - name: "DebugCreateEx"
+    ordinal: 4
+    rva: 4096
+    offset: 1024
+is_signed: true
+signatures:
+  - subject: "/C=KR/ST=SEOUL/L=Gangnam-gu/O=CCR INC/OU=IT Team/CN=CCR INC"
+    issuer: "/C=US/O=thawte, Inc./CN=thawte SHA256 Code Signing CA"
+    thumbprint: "d7d1cd9cadb694c84f856a0dbf48ba3f489f82cc"
+    version: 3
+    algorithm: "sha256WithRSAEncryption"
+    algorithm_oid: "1.2.840.113549.1.1.11"
+    serial: "6f:97:f1:3d:a5:5e:9f:70:a6:92:7e:d1:b3:3e:ee:ee"
+    not_before: 1550707200 # 2019-02-21 00:00:00 UTC
+    not_after: 1650585599 # 2022-04-21 23:59:59 UTC
+    verified: true
+    digest_alg: "sha1"
+    digest: "dc8774baf66a9bf251dcf7fd0ae2acbc7ed98135"
+    file_digest: "dc8774baf66a9bf251dcf7fd0ae2acbc7ed98135"
+    number_of_certificates: 2
+    number_of_countersignatures: 0
+    signer_info:
+        digest: "5f994df0dbb20cc7784a13be23e205fe15bc90b0"
+        digest_alg: "sha1"
+        chain:
+          - issuer: "/C=US/O=thawte, Inc./CN=thawte SHA256 Code Signing CA"
+            subject: "/C=KR/ST=SEOUL/L=Gangnam-gu/O=CCR INC/OU=IT Team/CN=CCR INC"
+            thumbprint: "d7d1cd9cadb694c84f856a0dbf48ba3f489f82cc"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "6f:97:f1:3d:a5:5e:9f:70:a6:92:7e:d1:b3:3e:ee:ee"
+            not_before: 1550707200 # 2019-02-21 00:00:00 UTC
+            not_after: 1650585599 # 2022-04-21 23:59:59 UTC
+          - issuer: "/C=US/O=thawte, Inc./OU=Certification Services Division/OU=(c) 2006 thawte, Inc. - For authorized use only/CN=thawte Primary Root CA"
+            subject: "/C=US/O=thawte, Inc./CN=thawte SHA256 Code Signing CA"
+            thumbprint: "d00cfdbf46c98a838bc10dc4e097ae0152c461bc"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "71:a0:b7:36:95:dd:b1:af:c2:3b:2b:9a:18:ee:54:cb"
+            not_before: 1386633600 # 2013-12-10 00:00:00 UTC
+            not_after: 1702166399 # 2023-12-09 23:59:59 UTC
+    certificates:
+      - issuer: "/C=US/O=thawte, Inc./OU=Certification Services Division/OU=(c) 2006 thawte, Inc. - For authorized use only/CN=thawte Primary Root CA"
+        subject: "/C=US/O=thawte, Inc./CN=thawte SHA256 Code Signing CA"
+        thumbprint: "d00cfdbf46c98a838bc10dc4e097ae0152c461bc"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "71:a0:b7:36:95:dd:b1:af:c2:3b:2b:9a:18:ee:54:cb"
+        not_before: 1386633600 # 2013-12-10 00:00:00 UTC
+        not_after: 1702166399 # 2023-12-09 23:59:59 UTC
+      - issuer: "/C=US/O=thawte, Inc./CN=thawte SHA256 Code Signing CA"
+        subject: "/C=KR/ST=SEOUL/L=Gangnam-gu/O=CCR INC/OU=IT Team/CN=CCR INC"
+        thumbprint: "d7d1cd9cadb694c84f856a0dbf48ba3f489f82cc"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "6f:97:f1:3d:a5:5e:9f:70:a6:92:7e:d1:b3:3e:ee:ee"
+        not_before: 1550707200 # 2019-02-21 00:00:00 UTC
+        not_after: 1650585599 # 2022-04-21 23:59:59 UTC
+overlay:
+    offset: 160256
+    size: 3024

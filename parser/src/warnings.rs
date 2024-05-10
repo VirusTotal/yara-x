@@ -1,4 +1,5 @@
 use std::fmt::{Debug, Display, Formatter};
+use std::slice::Iter;
 use yara_x_macros::Error;
 
 use crate::ast::Span;
@@ -99,4 +100,54 @@ pub enum Warning {
         module_name: String,
         span: Span,
     },
+}
+
+/// Represents a list of warnings.
+pub struct Warnings {
+    warnings: Vec<Warning>,
+    max_warnings: usize,
+}
+
+impl Default for Warnings {
+    fn default() -> Self {
+        Self { warnings: Vec::new(), max_warnings: 100 }
+    }
+}
+
+impl Warnings {
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.warnings.is_empty()
+    }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.warnings.len()
+    }
+
+    #[inline]
+    pub fn add(&mut self, f: impl Fn() -> Warning) {
+        if self.warnings.len() < self.max_warnings {
+            self.warnings.push(f());
+        }
+    }
+
+    pub fn iter(&self) -> Iter<'_, Warning> {
+        self.warnings.iter()
+    }
+
+    pub fn append(&mut self, mut warnings: Self) {
+        for w in warnings.warnings.drain(0..) {
+            if self.warnings.len() == self.max_warnings {
+                break;
+            }
+            self.warnings.push(w)
+        }
+    }
+}
+
+impl From<Warnings> for Vec<Warning> {
+    fn from(value: Warnings) -> Self {
+        value.warnings
+    }
 }

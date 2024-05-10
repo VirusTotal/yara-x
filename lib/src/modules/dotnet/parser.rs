@@ -1212,19 +1212,28 @@ impl<'a> Dotnet<'a> {
 
                 write!(output, "[")?;
                 for i in 0..dimensions {
-                    let size = sizes.get(i as usize).cloned().unwrap_or(0);
-                    if size > 0 {
-                        let l =
-                            lower_bounds.get(i as usize).cloned().unwrap_or(0);
-                        let h = l + (size as i32);
-                        if l == 0 {
+                    let i = i as usize;
+                    let size = sizes.get(i).cloned().map(|s| s as i32);
+                    let lower_bound = lower_bounds.get(i).cloned();
+
+                    match (lower_bound, size) {
+                        (Some(0), Some(size)) => {
                             write!(output, "{}", size)?;
-                        } else {
-                            write!(output, "{}...{}", l, h)?;
                         }
+                        (Some(l), Some(size)) if size >= 1 => {
+                            write!(output, "{}...{}", l, l + size - 1)?;
+                        }
+                        (Some(l), None) => {
+                            write!(output, "{}...", l)?;
+                        }
+                        (None, Some(size)) => {
+                            write!(output, "{}", size)?;
+                        }
+                        _ => {}
                     }
+
                     // If not the last item, prepend a comma.
-                    if i + 1 != dimensions {
+                    if i + 1 != dimensions as usize {
                         write!(output, ",")?;
                     }
                 }

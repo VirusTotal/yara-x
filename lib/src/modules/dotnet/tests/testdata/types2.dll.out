@@ -1,0 +1,112 @@
+is_dotnet: true
+module_name: "types2.dll"
+version: "v4.0.30319"
+number_of_streams: 5
+number_of_guids: 1
+number_of_resources: 0
+number_of_classes: 2
+number_of_assembly_refs: 0
+number_of_modulerefs: 0
+number_of_user_strings: 1
+number_of_constants: 0
+number_of_field_offsets: 0
+streams:
+  - name: "#~"
+    offset: 708
+    size: 216
+  - name: "#Strings"
+    offset: 924
+    size: 100
+  - name: "#US"
+    offset: 1024
+    size: 8
+  - name: "#GUID"
+    offset: 1032
+    size: 16
+  - name: "#Blob"
+    offset: 1048
+    size: 172
+guids:
+  - "de63c758-8c65-4928-b244-b60ad6cdb2a0"
+classes:
+  - fullname: "Cmk"
+    name: "Cmk"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: false
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 0
+    base_types:
+      - "<Module>"
+  - fullname: "VolatileMethods"
+    name: "VolatileMethods"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: false
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 3
+    base_types:
+      - "<Module>"
+    methods:
+      - name: "withCmod"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "i"
+            type: "Ptr<int>"
+          - name: "j"
+            type: "int"
+      - name: "withArrays"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 7
+        parameters:
+          - name: "a"
+            type: "int[3]"
+          - name: "b"
+            type: "uint[4,1...2,0,,,]"
+          - name: "c"
+            type: "short[1...2,6...8]"
+          - name: "d"
+            type: "ulong[5,3...5,,]"
+          - name: "e"
+            type: "byte[8...23,0,5,2...2,-5...8,3...4]"
+          - name: "f"
+            type: "sbyte[53...,-34...]"
+          - name: "g"
+            type: "ushort[1032...8388608,-1032...512,-8388608...-1032]"
+      - name: "compressionValues"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 4
+        parameters:
+          - name: "a"
+            type: "sbyte[-65...,-64...,63...,64...]"
+          - name: "b"
+            type: "sbyte[-8193...,-8192...,8191...,8192...]"
+          - name: "c"
+            type: "sbyte[-268435456...,268435455...]"
+          - name: "d"
+            type: "sbyte[0,127,128,256,16383,16384,268435455]"
+user_strings:
+  - " \x00"

@@ -4,46 +4,43 @@ on:
     tags:
     - 'v*'
 jobs:
-  build:
+  build-cli:
     env:
       CARGO_TERM_COLOR: always
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         build:
         - linux
-        - macos
+        - macos-arm
+        - macos-intel
         - windows
         include:
         - build: linux
           os: ubuntu-latest
-          rust: stable
           target: x86_64-unknown-linux-gnu
-          vcpkg_openssl_triplet: x64-linux-release
-          args: "--features=openssl-static"
 
-        - build: macos
+        - build: macos-intel
           os: macos-latest
-          rust: stable
           target: x86_64-apple-darwin
-          vcpkg_openssl_triplet: x64-osx-release
-          args: "--features=openssl-static"
+
+        - build: macos-arm
+          os: macos-latest
+          target: aarch64-apple-darwin
 
         - build: windows
           os: windows-latest
-          rust: stable
           target: x86_64-pc-windows-msvc
-          vcpkg_openssl_triplet: x64-windows-static
-          args: ""
     
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
 
     - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@master
+      uses: dtolnay/rust-toolchain@stable
       with:
-        toolchain: ${{ matrix.rust }}
+        toolchain: stable
 
     - name: Check version number
       shell: bash
@@ -54,19 +51,12 @@ jobs:
           exit 1
         fi
 
-    - name: Install dependencies
-      id: vcpkg
-      uses: johnwason/vcpkg-action@v6
-      with:
-        pkgs: openssl
-        triplet: ${{ matrix.vcpkg_openssl_triplet }}
-        token: ${{ github.token }}
+    - run: rustup target add ${{ matrix.target }}
 
     - name: Build
-      run: cargo build --bin yr --profile release-lto --target ${{ matrix.target }} ${{ matrix.args }}
+      run: cargo build --bin yr --profile release-lto --target ${{ matrix.target }}
       env:
         RUSTFLAGS: "-C target-feature=+crt-static"
-        OPENSSL_DIR: "${{ github.workspace }}/vcpkg/installed/${{ matrix.vcpkg_openssl_triplet }}"
 
     - name: Build archive
       shell: bash
@@ -85,8 +75,105 @@ jobs:
         name: yr-${{ matrix.target }}
         path: yara-x-*
   
-  publish:
-    needs: [ build ]
+  build-py:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+        - cp39
+        - cp310
+        - cp311
+        - cp312
+        - pp38
+        - pp39
+        - pp310
+        build:
+        - linux
+        - macos
+        - windows
+        include:
+        - build: linux
+          os: ubuntu-latest
+
+        - build: macos
+          os: macos-latest
+          arch: 'arm64 x86_64'
+
+        - build: windows
+          os: windows-latest
+          arch: 'x86 AMD64'
+    
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v3
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+
+    - name: Check version number
+      shell: bash
+      run: |
+        set -ex
+        version=`cargo pkgid --manifest-path lib/Cargo.toml | cut -d "@" -f2`
+        if [ "${{ github.ref_name }}" != "v$version" ]; then
+          exit 1
+        fi
+
+    - name: Install Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      if: matrix.build == 'macos'
+
+    - name: Install Python dependencies
+      run: pip install -U setuptools wheel twine cibuildwheel platformdirs
+
+    - name: Build sdist
+      if: matrix.build == 'linux' && matrix.python-version == 'cp312'
+      run: |
+        pip install maturin build
+        python -m build --sdist -o wheelhouse py
+
+    - name: Build ${{ matrix.platform || matrix.os }} binaries
+      run: cibuildwheel --output-dir wheelhouse py
+      env:
+        CIBW_BUILD: '${{ matrix.python-version }}-*'
+        # wasmtime doesn't support i686
+        CIBW_SKIP: '*_i686 *-musllinux* *-win32'
+        # we build for "arch" if it exists, else 'auto'
+        CIBW_ARCHS: ${{ matrix.arch || 'auto' }}
+
+        CIBW_BEFORE_BUILD_LINUX: >
+          curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=minimal -y &&
+          rustup show
+
+        CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH" '
+        CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH"'
+
+        CIBW_TEST_REQUIRES: pytest
+        CIBW_TEST_COMMAND: 'pytest {project}/py'
+        CIBW_TEST_SKIP: '*-macosx_arm64 *-macosx_universal2:arm64'
+        CIBW_BUILD_VERBOSITY: 1
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: pypi-${{ matrix.build }}-${{ matrix.python-version }}
+        path: ./wheelhouse/*.whl
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: pypi-source-${{ strategy.job-index }}
+        path: ./wheelhouse/*.tar.gz
+  
+  publish-cli:
+    needs: [ build-cli ]
     runs-on: ubuntu-latest
     
     steps:
@@ -104,3 +191,25 @@ jobs:
       with:
         draft: true
         files: yr-*/yara-x-*
+  
+  publish-py:
+    needs: [ build-py ]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/yara-x
+    permissions:
+      id-token: write
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: pypi-*
+        merge-multiple: true
+        path: dist
+
+    - name: Publish package distributions to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        #repository-url: https://test.pypi.org/legacy/
+        skip-existing: true

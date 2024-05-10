@@ -17,7 +17,7 @@ use crate::compiler::ir::{
     MatchAnchor, Of, OfItems, Pattern, PatternFlagSet, PatternFlags,
     PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern,
 };
-use crate::compiler::{CompileContext, CompileError};
+use crate::compiler::{CompileContext, CompileError, Warnings};
 use crate::modules::BUILTIN_MODULES;
 use crate::re;
 use crate::re::parser::Error;
@@ -27,27 +27,29 @@ use crate::types::{Map, Regexp, Type, TypeValue, Value};
 pub(in crate::compiler) fn patterns_from_ast<'src>(
     report_builder: &ReportBuilder,
     patterns: Option<&Vec<ast::Pattern<'src>>>,
+    warnings: &mut Warnings,
 ) -> Result<Vec<PatternInRule<'src>>, Box<CompileError>> {
     patterns
         .into_iter()
         .flatten()
-        .map(|p| pattern_from_ast(report_builder, p))
+        .map(|p| pattern_from_ast(report_builder, p, warnings))
         .collect::<Result<Vec<PatternInRule<'src>>, Box<CompileError>>>()
 }
 
 fn pattern_from_ast<'src>(
     report_builder: &ReportBuilder,
     pattern: &ast::Pattern<'src>,
+    warnings: &mut Warnings,
 ) -> Result<PatternInRule<'src>, Box<CompileError>> {
     match pattern {
         ast::Pattern::Text(pattern) => {
-            Ok(text_pattern_from_ast(report_builder, pattern)?)
+            Ok(text_pattern_from_ast(report_builder, pattern, warnings)?)
         }
         ast::Pattern::Hex(pattern) => {
-            Ok(hex_pattern_from_ast(report_builder, pattern)?)
+            Ok(hex_pattern_from_ast(report_builder, pattern, warnings)?)
         }
         ast::Pattern::Regexp(pattern) => {
-            Ok(regexp_pattern_from_ast(report_builder, pattern)?)
+            Ok(regexp_pattern_from_ast(report_builder, pattern, warnings)?)
         }
     }
 }
@@ -55,6 +57,7 @@ fn pattern_from_ast<'src>(
 pub(in crate::compiler) fn text_pattern_from_ast<'src>(
     _report_builder: &ReportBuilder,
     pattern: &ast::TextPattern<'src>,
+    _warnings: &mut Warnings,
 ) -> Result<PatternInRule<'src>, Box<CompileError>> {
     let mut flags = PatternFlagSet::none();
 
@@ -116,6 +119,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
 pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
     _report_builder: &ReportBuilder,
     pattern: &ast::HexPattern<'src>,
+    _warnings: &mut Warnings,
 ) -> Result<PatternInRule<'src>, Box<CompileError>> {
     Ok(PatternInRule {
         identifier: pattern.identifier.name,
@@ -130,6 +134,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
 pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     report_builder: &ReportBuilder,
     pattern: &ast::RegexpPattern<'src>,
+    warnings: &mut Warnings,
 ) -> Result<PatternInRule<'src>, Box<CompileError>> {
     let mut flags = PatternFlagSet::none();
 
@@ -152,6 +157,21 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     if pattern.modifiers.nocase().is_some() || pattern.regexp.case_insensitive
     {
         flags.set(PatternFlags::Nocase);
+    }
+
+    // When both the `nocase` modifier and the `/i` modifier are used together,
+    // raise a warning because one of them is redundant.
+    if pattern.modifiers.nocase().is_some() && pattern.regexp.case_insensitive
+    {
+        let i_pos = pattern.regexp.literal.rfind('i').unwrap();
+
+        warnings.add(|| {
+            Warning::redundant_case_modifier(
+                report_builder,
+                pattern.modifiers.nocase().unwrap().span(),
+                pattern.span().subspan(i_pos, i_pos + 1),
+            )
+        });
     }
 
     // Notice that regexp patterns can't mix greedy and non-greedy repetitions,
@@ -217,35 +237,30 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::Filesize { .. } => Ok(Expr::Filesize),
 
         ast::Expr::True { .. } => {
-            Ok(Expr::Const { type_value: TypeValue::const_bool_from(true) })
+            Ok(Expr::Const(TypeValue::const_bool_from(true)))
         }
 
         ast::Expr::False { .. } => {
-            Ok(Expr::Const { type_value: TypeValue::const_bool_from(false) })
+            Ok(Expr::Const(TypeValue::const_bool_from(false)))
         }
 
-        ast::Expr::LiteralInteger(literal) => Ok(Expr::Const {
-            type_value: TypeValue::const_integer_from(literal.value),
-        }),
+        ast::Expr::LiteralInteger(literal) => Ok(Expr::Const(
+           TypeValue::const_integer_from(literal.value))),
 
-        ast::Expr::LiteralFloat(literal) => Ok(Expr::Const {
-            type_value: TypeValue::const_float_from(literal.value),
-        }),
+        ast::Expr::LiteralFloat(literal) => Ok(Expr::Const(
+            TypeValue::const_float_from(literal.value))),
 
-        ast::Expr::LiteralString(literal) => Ok(Expr::Const {
-            type_value: TypeValue::const_string_from(literal.value.as_bytes()),
-        }),
+        ast::Expr::LiteralString(literal) => Ok(Expr::Const(TypeValue::const_string_from(literal.value.as_bytes()))),
 
         ast::Expr::Regexp(regexp) => {
             re::parser::Parser::new().parse(regexp.as_ref()).map_err(|err| {
                 re_error_to_compile_error(ctx.report_builder, regexp, err)
             })?;
 
-            Ok(Expr::Const {
-                type_value: TypeValue::Regexp(Some(Regexp::new(
+            Ok(Expr::Const(TypeValue::Regexp(Some(Regexp::new(
                     regexp.literal,
                 ))),
-            })
+            ))
         }
 
         ast::Expr::Defined(expr) => defined_expr_from_ast(ctx, expr),
@@ -322,10 +337,10 @@ pub(in crate::compiler) fn expr_from_ast(
             // If the last operand is constant, the whole expression is
             // constant.
             #[cfg(feature = "constant-folding")]
-            if let Expr::Const { type_value, .. } = last_operand {
+            if let Expr::Const(type_value) = last_operand {
                 // A constant always have a defined value.
                 assert!(type_value.is_const());
-                return Ok(Expr::Const { type_value });
+                return Ok(Expr::Const(type_value));
             }
 
             operands.push(last_operand);
@@ -405,7 +420,7 @@ pub(in crate::compiler) fn expr_from_ast(
             {
                 let type_value = symbol.type_value();
                 if type_value.is_const() {
-                    return Ok(Expr::Const { type_value: type_value.clone() });
+                    return Ok(Expr::Const(type_value.clone()));
                 }
             }
 
@@ -668,7 +683,7 @@ fn of_expr_from_ast(
     if let Quantifier::Expr(expr) = &quantifier {
         if let TypeValue::Integer(Value::Const(value)) = expr.type_value() {
             if value > num_items.try_into().unwrap() {
-                ctx.warnings.push(Warning::invariant_boolean_expression(
+                ctx.warnings.add(|| Warning::invariant_boolean_expression(
                     ctx.report_builder,
                     false,
                     of.span(),
@@ -720,11 +735,13 @@ fn of_expr_from_ast(
         };
 
         if raise_warning {
-            ctx.warnings.push(Warning::potentially_wrong_expression(
-                ctx.report_builder,
-                of.quantifier.span(),
-                of.anchor.as_ref().unwrap().span(),
-            ));
+            ctx.warnings.add(|| {
+                Warning::potentially_wrong_expression(
+                    ctx.report_builder,
+                    of.quantifier.span(),
+                    of.anchor.as_ref().unwrap().span(),
+                )
+            });
         }
     }
 
@@ -1185,6 +1202,7 @@ fn matches_expr_from_ast(
     ctx: &mut CompileContext,
     expr: &ast::BinaryExpr,
 ) -> Result<Expr, Box<CompileError>> {
+    let span = expr.span();
     let lhs_span = expr.lhs.span();
     let rhs_span = expr.rhs.span();
 
@@ -1197,7 +1215,7 @@ fn matches_expr_from_ast(
     let expr = Expr::Matches { lhs, rhs };
 
     if cfg!(feature = "constant-folding") {
-        Ok(expr.fold())
+        expr.fold(ctx, span)
     } else {
         Ok(expr)
     }
@@ -1299,29 +1317,30 @@ pub(in crate::compiler) fn warn_if_not_bool(
     ty: Type,
     span: Span,
 ) {
-    let note = match ty {
-        Type::Integer => Some(
-            "non-zero integers are considered `true`, while zero is `false`"
-                .to_string(),
-        ),
-        Type::Float => Some(
-            "non-zero floats are considered `true`, while zero is `false`"
-                .to_string(),
-        ),
-        Type::String => Some(
-            r#"non-empty strings are considered `true`, while the empty string ("") is `false`"#
-                .to_string(),
-        ),
-        _ => None,
-    };
-
     if !matches!(ty, Type::Bool) {
-        ctx.warnings.push(Warning::non_boolean_as_boolean(
-            ctx.report_builder,
-            ty.to_string(),
-            span,
-            note,
-        ));
+        ctx.warnings.add(|| {
+            let note = match ty {
+                Type::Integer => Some(
+                    "non-zero integers are considered `true`, while zero is `false`"
+                        .to_string(),
+                ),
+                Type::Float => Some(
+                    "non-zero floats are considered `true`, while zero is `false`"
+                        .to_string(),
+                ),
+                Type::String => Some(
+                    r#"non-empty strings are considered `true`, while the empty string ("") is `false`"#
+                        .to_string(),
+                ),
+                _ => None,
+            };
+            Warning::non_boolean_as_boolean(
+                ctx.report_builder,
+                ty.to_string(),
+                span,
+                note,
+            )
+        });
     }
 }
 
@@ -1331,6 +1350,7 @@ macro_rules! gen_unary_op {
             ctx: &mut CompileContext,
             expr: &ast::UnaryExpr,
         ) -> Result<Expr, Box<CompileError>> {
+            let span = expr.span();
             let operand = Box::new(expr_from_ast(ctx, &expr.operand)?);
 
             check_type(
@@ -1351,7 +1371,7 @@ macro_rules! gen_unary_op {
             let expr = Expr::$variant { operand };
 
             if cfg!(feature = "constant-folding") {
-                Ok(expr.fold())
+                expr.fold(ctx, span)
             } else {
                 Ok(expr)
             }
@@ -1365,6 +1385,7 @@ macro_rules! gen_binary_op {
             ctx: &mut CompileContext,
             expr: &ast::BinaryExpr,
         ) -> Result<Expr, Box<CompileError>> {
+            let span = expr.span();
             let lhs_span = expr.lhs.span();
             let rhs_span = expr.rhs.span();
 
@@ -1392,7 +1413,7 @@ macro_rules! gen_binary_op {
             let expr = Expr::$variant { lhs, rhs };
 
             if cfg!(feature = "constant-folding") {
-                Ok(expr.fold())
+                expr.fold(ctx, span)
             } else {
                 Ok(expr)
             }
@@ -1406,6 +1427,7 @@ macro_rules! gen_string_op {
             ctx: &mut CompileContext,
             expr: &ast::BinaryExpr,
         ) -> Result<Expr, Box<CompileError>> {
+            let span = expr.span();
             let lhs_span = expr.lhs.span();
             let rhs_span = expr.rhs.span();
 
@@ -1425,7 +1447,7 @@ macro_rules! gen_string_op {
             let expr = Expr::$variant { lhs, rhs };
 
             if cfg!(feature = "constant-folding") {
-                Ok(expr.fold())
+                expr.fold(ctx, span)
             } else {
                 Ok(expr)
             }
@@ -1439,6 +1461,7 @@ macro_rules! gen_n_ary_operation {
             ctx: &mut CompileContext,
             expr: &ast::NAryExpr,
         ) -> Result<Expr, Box<CompileError>> {
+            let span = expr.span();
             let accepted_types = &[$( $accepted_types ),+];
             let compatible_types = &[$( $compatible_types ),+];
 
@@ -1493,7 +1516,7 @@ macro_rules! gen_n_ary_operation {
             let expr = Expr::$variant { operands: operands_hir };
 
             if cfg!(feature = "constant-folding") {
-                Ok(expr.fold())
+                expr.fold(ctx, span)
             } else {
                 Ok(expr)
             }

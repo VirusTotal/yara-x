@@ -1,43 +1,44 @@
 is_pe: true
 machine: MACHINE_I386
-subsystem: SUBSYSTEM_UNKNOWN
+subsystem: 35675
 os_version:
-    major: 0
-    minor: 0
+    major: 9236
+    minor: 39053
 subsystem_version:
-    major: 0
-    minor: 0
+    major: 58241
+    minor: 49152
 image_version:
-    major: 0
+    major: 16383
     minor: 0
 linker_version:
-    major: 0
+    major: 12
     minor: 0
-opthdr_magic: 0
+opthdr_magic: 31619
 characteristics: 3139
-dll_characteristics: 0
+dll_characteristics: 35791
 timestamp: 440487448 # 1983-12-17 05:37:28 UTC
-image_base: 0
-checksum: 0
-base_of_code: 0
-entry_point_raw: 0
-section_alignment: 0
-file_alignment: 0
-loader_flags: 0
+image_base: 1401996123
+checksum: 1943944191
+base_of_code: 3296923785
+base_of_data: 1583308052
+entry_point_raw: 3526566916
+section_alignment: 3296941910
+file_alignment: 2314832876
+loader_flags: 16115896
 size_of_optional_header: 10500
-size_of_code: 0
-size_of_initialized_data: 0
-size_of_uninitialized_data: 0
-size_of_image: 0
-size_of_headers: 0
-size_of_stack_reserve: 0
-size_of_stack_commit: 0
-size_of_heap_reserve: 0
-size_of_heap_commit: 0
+size_of_code: 3280670837
+size_of_initialized_data: 4294613736
+size_of_uninitialized_data: 2332552191
+size_of_image: 2179990308
+size_of_headers: 4290773222
+size_of_stack_reserve: 2345872342
+size_of_stack_commit: 4254722243
+size_of_heap_reserve: 1284374527
+size_of_heap_commit: 3616212004
 pointer_to_symbol_table: 2332557312
-win32_version_value: 0
+win32_version_value: 881590271
 number_of_symbols: 1082860548
-number_of_rva_and_sizes: 0
+number_of_rva_and_sizes: 4200458256
 number_of_sections: 0
 number_of_imported_functions: 0
 number_of_delayed_imported_functions: 0
@@ -47,6 +48,39 @@ number_of_imports: 0
 number_of_delayed_imports: 0
 number_of_exports: 0
 number_of_signatures: 0
+data_directories:
+  - virtual_address: 1552678911
+    size: 3682927652
+  - virtual_address: 1284317044
+    size: 1418398756
+  - virtual_address: 3280668708
+    size: 4294715112
+  - virtual_address: 608472063
+    size: 608471308
+  - virtual_address: 608471812
+    size: 608471312
+  - virtual_address: 612139784
+    size: 343146500
+  - virtual_address: 69489805
+    size: 16115896
+  - virtual_address: 4203866128
+    size: 82575359
+  - virtual_address: 126468147
+    size: 1595196547
+  - virtual_address: 1438866270
+    size: 3526618251
+  - virtual_address: 418801749
+    size: 4284747776
+  - virtual_address: 579429426
+    size: 16103528
+  - virtual_address: 4181321744
+    size: 1031864319
+  - virtual_address: 268496953
+    size: 1745515520
+  - virtual_address: 268498360
+    size: 4294520552
+  - virtual_address: 4124621055
+    size: 2364018688
 is_signed: false
 overlay:
     offset: 0

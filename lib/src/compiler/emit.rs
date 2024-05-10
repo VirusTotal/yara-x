@@ -332,7 +332,7 @@ fn emit_expr(
     expr: &mut Expr,
 ) {
     match expr {
-        Expr::Const { type_value } => match type_value {
+        Expr::Const(type_value) => match type_value {
             TypeValue::Integer(Value::Const(value)) => {
                 instr.i64_const(*value);
             }

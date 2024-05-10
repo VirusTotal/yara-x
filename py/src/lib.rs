@@ -20,7 +20,8 @@ use std::pin::Pin;
 use std::time::Duration;
 
 use protobuf_json_mapping::print_to_string;
-use pyo3::exceptions::{PyIOError, PySyntaxError, PyTypeError, PyValueError};
+use pyo3::create_exception;
+use pyo3::exceptions::{PyException, PyIOError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{
     PyBool, PyBytes, PyDict, PyFloat, PyInt, PyString, PyTuple,
@@ -36,7 +37,7 @@ use ::yara_x as yrx;
 #[pyfunction]
 fn compile(src: &str) -> PyResult<Rules> {
     let rules = yrx::compile(src)
-        .map_err(|err| PyValueError::new_err(err.to_string()))?;
+        .map_err(|err| CompileError::new_err(err.to_string()))?;
 
     Ok(Rules::new(rules))
 }
@@ -61,7 +62,7 @@ impl Compiler {
     fn add_source(&mut self, src: &str) -> PyResult<()> {
         self.inner
             .add_source(src)
-            .map_err(|err| PySyntaxError::new_err(err.to_string()))?;
+            .map_err(|err| CompileError::new_err(err.to_string()))?;
         Ok(())
     }
 
@@ -230,9 +231,7 @@ impl Scanner {
         Python::with_gil(|py| {
             scan_results_to_py(
                 py,
-                self.inner
-                    .scan(data)
-                    .map_err(|err| PyValueError::new_err(err.to_string()))?,
+                self.inner.scan(data).map_err(map_scan_err)?,
             )
         })
     }
@@ -242,9 +241,7 @@ impl Scanner {
         Python::with_gil(|py| {
             scan_results_to_py(
                 py,
-                self.inner
-                    .scan_file(path)
-                    .map_err(|err| PyValueError::new_err(err.to_string()))?,
+                self.inner.scan_file(path).map_err(map_scan_err)?,
             )
         })
     }
@@ -388,7 +385,7 @@ impl Rules {
                 py,
                 scanner
                     .scan(data)
-                    .map_err(|err| PyValueError::new_err(err.to_string()))?,
+                    .map_err(|err| ScanError::new_err(err.to_string()))?,
             )
         })
     }
@@ -484,6 +481,34 @@ fn match_to_py(py: Python, match_: yrx::Match) -> PyResult<Py<Match>> {
     )
 }
 
+create_exception!(
+    yara_x,
+    CompileError,
+    PyException,
+    "Exception raised when compilation fails"
+);
+
+create_exception!(
+    yara_x,
+    TimeoutError,
+    PyException,
+    "Exception raised when a timeout occurs during a scan"
+);
+
+create_exception!(
+    yara_x,
+    ScanError,
+    PyException,
+    "Exception raised when scanning fails"
+);
+
+fn map_scan_err(err: yrx::ScanError) -> PyErr {
+    match err {
+        yrx::ScanError::Timeout => TimeoutError::new_err("timeout"),
+        err => ScanError::new_err(err.to_string()),
+    }
+}
+
 /// Python module for compiling YARA rules and scanning data with them.
 ///
 /// Usage:
@@ -494,6 +519,9 @@ fn match_to_py(py: Python, match_: yrx::Match) -> PyResult<Py<Match>> {
 /// ```
 #[pymodule]
 fn yara_x(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add("CompileError", m.py().get_type_bound::<CompileError>())?;
+    m.add("TimeoutError", m.py().get_type_bound::<TimeoutError>())?;
+    m.add("ScanError", m.py().get_type_bound::<ScanError>())?;
     m.add_function(wrap_pyfunction!(compile, m)?)?;
     m.add_class::<Rules>()?;
     m.add_class::<Scanner>()?;
