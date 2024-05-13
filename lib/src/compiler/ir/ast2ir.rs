@@ -160,7 +160,7 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
 
         ctx.warnings.add(|| {
             Warning::redundant_case_modifier(
-                &ctx.report_builder,
+                ctx.report_builder,
                 pattern.modifiers.nocase().unwrap().span(),
                 pattern.span().subspan(i_pos, i_pos + 1),
             )
