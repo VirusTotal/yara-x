@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::fmt::{Debug, Display, Formatter};
 use std::mem::replace;
@@ -89,11 +90,16 @@ impl Regexp for types::Regexp {
 pub(crate) struct Parser {
     force_case_insensitive: bool,
     allow_mixed_greediness: bool,
+    relaxed_escape_sequences: bool,
 }
 
 impl Parser {
     pub fn new() -> Self {
-        Self { force_case_insensitive: false, allow_mixed_greediness: true }
+        Self {
+            force_case_insensitive: false,
+            allow_mixed_greediness: true,
+            relaxed_escape_sequences: false,
+        }
     }
 
     /// Parses the regexp as a case-insensitive one, no matter whether the regexp
@@ -113,14 +119,93 @@ impl Parser {
         self
     }
 
+    /// Allow invalid escape sequences.
+    ///
+    /// Historically, YARA has accepted any character that is preceded by a
+    /// backslash in a regular expression, even if the sequence is not a valid
+    /// one. For instance, `\n`, `\t` and `\w` are valid escape sequences in a
+    /// regexp, but `\N`, `\T` and `\j` are not. However, YARA accepts all of
+    /// these sequences. The valid escape sequences are interpreted as their
+    /// special meaning (`\n` is a new-line, `\w` is a word character, etc.),
+    /// while invalid escape sequences are interpreted simply as the character
+    /// that appears after the backslash. So, `\N` becomes `N`, and `\j`
+    /// becomes `j`.
+    ///
+    /// This controls whether the compiler should accept invalid escape
+    /// sequences in regular expressions and translate them to plain characters.
+    /// They are not accepted by default.
+    pub fn relaxed_escape_sequences(mut self, yes: bool) -> Self {
+        self.relaxed_escape_sequences = yes;
+        self
+    }
+
     /// Parses the regexp and returns its HIR.
     pub fn parse(&self, regexp: &impl Regexp) -> Result<Hir, Error> {
-        let mut parser =
-            re::ast::parse::ParserBuilder::new().empty_min_range(true).build();
+        let mut re_src = Cow::Borrowed(regexp.source());
+        let mut span_delta = 0_isize;
 
-        let re_src = regexp.source();
+        // Utility function that given a span and a `delta` amount, adds that
+        // amount to both the starting and ending points of the span. It will
+        // be used for adjusting error spans after we have modified the
+        // original regular expression. See comment below.
+        let adjust_span = |span: &re::ast::Span, delta| {
+            re::ast::Span::new(
+                re::ast::Position::new(
+                    span.start.offset.saturating_add_signed(delta),
+                    span.start.line,
+                    span.start.column.saturating_add_signed(delta),
+                ),
+                re::ast::Position::new(
+                    span.end.offset.saturating_add_signed(delta),
+                    span.end.line,
+                    span.end.column.saturating_add_signed(delta),
+                ),
+            )
+        };
 
-        let ast = parser.parse(re_src).map_err(|err| {
+        // When `relaxed_escape_sequences` is set to true, we "fix" any invalid
+        // escape sequence by removing the backslash. For instance, \R is not a
+        // valid escape sequence, and YARA treats it as a plain R. When the
+        // regular expression /\Release/ fails to parse because of the \R
+        // sequence, we remove the backspace and try again with /Release/. This
+        // is done in a loop because the regular expression can contain more
+        // than one invalid escape sequence.
+        let ast = loop {
+            // The parser can't be reused, a new one must be created on
+            // each iteration.
+            let mut parser = re::ast::parse::ParserBuilder::new()
+                .empty_min_range(true)
+                .build();
+
+            match parser.parse(re_src.as_ref()) {
+                Ok(ast) => {
+                    break Ok(ast);
+                }
+                Err(err) => match err.kind() {
+                    ErrorKind::EscapeUnrecognized => {
+                        if self.relaxed_escape_sequences {
+                            let span = err.span();
+                            let mut s = re_src.into_owned();
+                            // Remove the backslash (\) from the original regexp.
+                            s.remove(span.start.offset);
+                            re_src = Cow::Owned(s);
+                            // By removing the backslash we are altering the spans
+                            // of any other error that is found after this change,
+                            // we need to account for that change. The new spans
+                            // are one byte before they should be because we removed
+                            // one byte, so we need to add 1 to fix those spans.
+                            span_delta += 1;
+                        } else {
+                            break Err(err);
+                        }
+                    }
+                    _ => {
+                        break Err(err);
+                    }
+                },
+            };
+        }
+        .map_err(|err| {
             let span = err.span();
             let note = match err.kind() {
                 ErrorKind::EscapeUnrecognized => {
@@ -138,9 +223,10 @@ impl Parser {
                 }
                 _ => None,
             };
+
             Error::SyntaxError {
                 msg: err.kind().to_string(),
-                span: *err.span(),
+                span: adjust_span(span, span_delta),
                 note,
             }
         })?;
@@ -173,10 +259,10 @@ impl Parser {
             .build();
 
         let hir =
-            translator.translate(regexp.source(), &ast).map_err(|err| {
+            translator.translate(re_src.as_ref(), &ast).map_err(|err| {
                 Error::SyntaxError {
                     msg: err.kind().to_string(),
-                    span: *err.span(),
+                    span: adjust_span(err.span(), span_delta),
                     note: None,
                 }
             })?;

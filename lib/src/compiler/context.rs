@@ -29,9 +29,9 @@ pub(in crate::compiler) struct CompileContext<'a, 'src, 'sym> {
     /// Information about the rules compiled so far.
     pub rules: &'a Vec<RuleInfo>,
 
-    /// A slice that contains the IR for the patterns declared in the current
-    /// rule.
-    pub current_rule_patterns: &'a mut [ir::PatternInRule<'src>],
+    /// Reference to a vector that contains the IR for the patterns declared
+    /// in the current rule.
+    pub current_rule_patterns: &'a mut Vec<ir::PatternInRule<'src>>,
 
     /// Warnings generated during the compilation.
     pub warnings: &'a mut Warnings,
@@ -42,6 +42,9 @@ pub(in crate::compiler) struct CompileContext<'a, 'src, 'sym> {
     /// Stack of variables. These are local variables used during the
     /// evaluation of rule conditions, for example for storing loop variables.
     pub vars: VarStack,
+
+    /// Allow invalid escape sequences in regular expressions.
+    pub relaxed_regexp_escape_sequences: bool,
 }
 
 impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {

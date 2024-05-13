@@ -82,12 +82,14 @@ pub fn compile_rules<'a, P>(
     paths: P,
     path_as_namespace: bool,
     external_vars: Option<Vec<(String, Value)>>,
+    relaxed_regexp_escape_sequences: bool,
 ) -> Result<Rules, anyhow::Error>
 where
     P: Iterator<Item = &'a PathBuf>,
 {
-    let mut compiler: Compiler<'_> =
-        Compiler::new().colorize_errors(stdout().is_tty());
+    let mut compiler: Compiler<'_> = Compiler::new()
+        .relaxed_regexp_escape_sequences(relaxed_regexp_escape_sequences)
+        .colorize_errors(stdout().is_tty());
 
     if let Some(vars) = external_vars {
         for (ident, value) in vars {

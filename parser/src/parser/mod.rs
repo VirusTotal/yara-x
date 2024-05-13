@@ -135,8 +135,8 @@ impl<'a> Parser<'a> {
     ///
     /// Colorized error messages contain ANSI escape sequences that make them
     /// look nicer on compatible consoles. The default setting is `false`.
-    pub fn colorize_errors(&mut self, b: bool) -> &mut Self {
-        self.own_report_builder.with_colors(b);
+    pub fn colorize_errors(&mut self, yes: bool) -> &mut Self {
+        self.own_report_builder.with_colors(yes);
         self
     }
 

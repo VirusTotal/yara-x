@@ -17,7 +17,7 @@ use crate::compiler::ir::{
     MatchAnchor, Of, OfItems, Pattern, PatternFlagSet, PatternFlags,
     PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern,
 };
-use crate::compiler::{CompileContext, CompileError, Warnings};
+use crate::compiler::{CompileContext, CompileError};
 use crate::modules::BUILTIN_MODULES;
 use crate::re;
 use crate::re::parser::Error;
@@ -25,39 +25,34 @@ use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
 use crate::types::{Map, Regexp, Type, TypeValue, Value};
 
 pub(in crate::compiler) fn patterns_from_ast<'src>(
-    report_builder: &ReportBuilder,
+    ctx: &mut CompileContext<'_, 'src, '_>,
     patterns: Option<&Vec<ast::Pattern<'src>>>,
-    warnings: &mut Warnings,
-) -> Result<Vec<PatternInRule<'src>>, Box<CompileError>> {
-    patterns
-        .into_iter()
-        .flatten()
-        .map(|p| pattern_from_ast(report_builder, p, warnings))
-        .collect::<Result<Vec<PatternInRule<'src>>, Box<CompileError>>>()
+) -> Result<(), Box<CompileError>> {
+    for pattern_ast in patterns.into_iter().flatten() {
+        let pattern = pattern_from_ast(ctx, pattern_ast)?;
+        ctx.current_rule_patterns.push(pattern);
+    }
+    Ok(())
 }
 
 fn pattern_from_ast<'src>(
-    report_builder: &ReportBuilder,
+    ctx: &mut CompileContext,
     pattern: &ast::Pattern<'src>,
-    warnings: &mut Warnings,
 ) -> Result<PatternInRule<'src>, Box<CompileError>> {
     match pattern {
         ast::Pattern::Text(pattern) => {
-            Ok(text_pattern_from_ast(report_builder, pattern, warnings)?)
+            Ok(text_pattern_from_ast(ctx, pattern)?)
         }
-        ast::Pattern::Hex(pattern) => {
-            Ok(hex_pattern_from_ast(report_builder, pattern, warnings)?)
-        }
+        ast::Pattern::Hex(pattern) => Ok(hex_pattern_from_ast(ctx, pattern)?),
         ast::Pattern::Regexp(pattern) => {
-            Ok(regexp_pattern_from_ast(report_builder, pattern, warnings)?)
+            Ok(regexp_pattern_from_ast(ctx, pattern)?)
         }
     }
 }
 
 pub(in crate::compiler) fn text_pattern_from_ast<'src>(
-    _report_builder: &ReportBuilder,
+    _ctx: &mut CompileContext,
     pattern: &ast::TextPattern<'src>,
-    _warnings: &mut Warnings,
 ) -> Result<PatternInRule<'src>, Box<CompileError>> {
     let mut flags = PatternFlagSet::none();
 
@@ -117,9 +112,8 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
 }
 
 pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
-    _report_builder: &ReportBuilder,
+    _ctx: &mut CompileContext,
     pattern: &ast::HexPattern<'src>,
-    _warnings: &mut Warnings,
 ) -> Result<PatternInRule<'src>, Box<CompileError>> {
     Ok(PatternInRule {
         identifier: pattern.identifier.name,
@@ -132,9 +126,8 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
 }
 
 pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
-    report_builder: &ReportBuilder,
+    ctx: &mut CompileContext,
     pattern: &ast::RegexpPattern<'src>,
-    warnings: &mut Warnings,
 ) -> Result<PatternInRule<'src>, Box<CompileError>> {
     let mut flags = PatternFlagSet::none();
 
@@ -165,9 +158,9 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     {
         let i_pos = pattern.regexp.literal.rfind('i').unwrap();
 
-        warnings.add(|| {
+        ctx.warnings.add(|| {
             Warning::redundant_case_modifier(
-                report_builder,
+                &ctx.report_builder,
                 pattern.modifiers.nocase().unwrap().span(),
                 pattern.span().subspan(i_pos, i_pos + 1),
             )
@@ -203,9 +196,10 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     let hir = re::parser::Parser::new()
         .force_case_insensitive(flags.contains(PatternFlags::Nocase))
         .allow_mixed_greediness(false)
+        .relaxed_escape_sequences(ctx.relaxed_regexp_escape_sequences)
         .parse(&pattern.regexp)
         .map_err(|err| {
-            re_error_to_compile_error(report_builder, &pattern.regexp, err)
+            re_error_to_compile_error(ctx.report_builder, &pattern.regexp, err)
         })?;
 
     // TODO: raise warning when .* used, propose using the non-greedy
@@ -253,8 +247,10 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::LiteralString(literal) => Ok(Expr::Const(TypeValue::const_string_from(literal.value.as_bytes()))),
 
         ast::Expr::Regexp(regexp) => {
-            re::parser::Parser::new().parse(regexp.as_ref()).map_err(|err| {
-                re_error_to_compile_error(ctx.report_builder, regexp, err)
+            re::parser::Parser::new()
+                .relaxed_escape_sequences(ctx.relaxed_regexp_escape_sequences)
+                .parse(regexp.as_ref())
+                .map_err(|err| { re_error_to_compile_error(ctx.report_builder, regexp, err)
             })?;
 
             Ok(Expr::Const(TypeValue::Regexp(Some(Regexp::new(

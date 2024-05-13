@@ -133,6 +133,9 @@ struct Namespace {
 /// ```
 ///
 pub struct Compiler<'a> {
+    /// Allow invalid escape sequences in regexps.
+    relaxed_regexp_escape_sequences: bool,
+
     /// Used for generating error and warning reports.
     report_builder: ReportBuilder,
 
@@ -304,6 +307,7 @@ impl<'a> Compiler<'a> {
             wasm_mod,
             wasm_symbols,
             wasm_exports,
+            relaxed_regexp_escape_sequences: false,
             next_pattern_id: PatternId(0),
             current_pattern_id: PatternId(0),
             current_namespace: default_namespace,
@@ -517,6 +521,8 @@ impl<'a> Compiler<'a> {
 
         let mut rules = Rules {
             serialized_globals,
+            relaxed_regexp_escape_sequences: self
+                .relaxed_regexp_escape_sequences,
             wasm_mod: compiled_wasm_mod,
             ac: None,
             num_patterns: self.next_pattern_id.0 as usize,
@@ -552,8 +558,28 @@ impl<'a> Compiler<'a> {
     ///
     /// Colorized error messages contain ANSI escape sequences that make them
     /// look nicer on compatible consoles. The default setting is `false`.
-    pub fn colorize_errors(mut self, b: bool) -> Self {
-        self.report_builder.with_colors(b);
+    pub fn colorize_errors(mut self, yes: bool) -> Self {
+        self.report_builder.with_colors(yes);
+        self
+    }
+
+    /// Allow invalid escape sequences in regular expressions.
+    ///
+    /// Historically, YARA has accepted any character that is preceded by a
+    /// backslash in a regular expression, even if the sequence is not a valid
+    /// one. For instance, `\n`, `\t` and `\w` are valid escape sequences in a
+    /// regexp, but `\N`, `\T` and `\j` are not. However, YARA accepts all of
+    /// these sequences. The valid escape sequences are interpreted as their
+    /// special meaning (`\n` is a new-line, `\w` is a word character, etc.),
+    /// while invalid escape sequences are interpreted simply as the character
+    /// that appears after the backslash. So, `\N` becomes `N`, and `\j`
+    /// becomes `j`.
+    ///
+    /// This controls whether the parser should accept invalid escape sequences
+    /// and translate them to plain characters. They are not accepted by
+    /// default.
+    pub fn relaxed_regexp_escape_sequences(mut self, yes: bool) -> Self {
+        self.relaxed_regexp_escape_sequences = yes;
         self
     }
 
@@ -686,13 +712,6 @@ impl<'a> Compiler<'a> {
         // corresponding to failed rules.
         let snapshot = self.take_snapshot();
 
-        // Convert the patterns from AST to IR.
-        let mut patterns_in_rule = patterns_from_ast(
-            &self.report_builder,
-            rule.patterns.as_ref(),
-            &mut self.warnings,
-        )?;
-
         // The RuleId for the new rule is current length of `self.rules`. The
         // first rule has RuleId = 0.
         let rule_id = RuleId(self.rules.len() as i32);
@@ -715,22 +734,35 @@ impl<'a> Compiler<'a> {
             is_private: rule.flags.contains(RuleFlag::Private),
         });
 
+        let mut rule_patterns = Vec::new();
+
+        let mut ctx = CompileContext {
+            relaxed_regexp_escape_sequences: self
+                .relaxed_regexp_escape_sequences,
+            current_symbol_table: None,
+            symbol_table: &mut self.symbol_table,
+            ident_pool: &mut self.ident_pool,
+            report_builder: &self.report_builder,
+            rules: &self.rules,
+            current_rule_patterns: &mut rule_patterns,
+            warnings: &mut self.warnings,
+            vars: VarStack::new(),
+        };
+
+        // Convert the patterns from AST to IR. Populates `patterns_in_rule`
+        // vector.
+        if let Err(err) = patterns_from_ast(&mut ctx, rule.patterns.as_ref()) {
+            drop(ctx);
+            self.restore_snapshot(snapshot);
+            return Err(Box::new(*err));
+        };
+
         // Convert the rule condition's AST to the intermediate representation
         // (IR). Also updates the patterns with information about whether they
         // are anchored or not.
-        let condition = bool_expr_from_ast(
-            &mut CompileContext {
-                current_symbol_table: None,
-                symbol_table: &mut self.symbol_table,
-                ident_pool: &mut self.ident_pool,
-                report_builder: &self.report_builder,
-                rules: &self.rules,
-                current_rule_patterns: patterns_in_rule.as_mut_slice(),
-                warnings: &mut self.warnings,
-                vars: VarStack::new(),
-            },
-            &rule.condition,
-        );
+        let condition = bool_expr_from_ast(&mut ctx, &rule.condition);
+
+        drop(ctx);
 
         // In case of error, restore the compiler to the state it was before
         // entering this function. Also, if the error is due to an unknown
@@ -798,14 +830,14 @@ impl<'a> Compiler<'a> {
         // No other symbol with the same identifier should exist.
         assert!(existing_symbol.is_none());
 
-        let mut pattern_ids = Vec::with_capacity(patterns_in_rule.len());
+        let mut pattern_ids = Vec::with_capacity(rule_patterns.len());
         let mut pending_patterns = HashSet::new();
 
         let current_rule = self.rules.last_mut().unwrap();
 
-        for pattern in &patterns_in_rule {
+        for pattern in &rule_patterns {
             // Check if this pattern has been declared before, in this rule or
-            // in some other rule. In such cases the pattern ID is re-used and
+            // in some other rule. In such cases the pattern ID is re-used, and
             // we don't need to process (i.e: extract atoms and add them to
             // Aho-Corasick automaton) the pattern again. Two patterns are
             // considered equal if they are exactly the same, including any
@@ -839,7 +871,7 @@ impl<'a> Compiler<'a> {
         // to `self.sub_patterns`
         for (pattern_id, pattern, span) in izip!(
             pattern_ids.iter(),
-            patterns_in_rule.into_iter(),
+            rule_patterns.into_iter(),
             rule.patterns.iter().flatten().map(|p| p.span())
         ) {
             if pending_patterns.contains(pattern_id) {
