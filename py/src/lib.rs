@@ -102,6 +102,13 @@ impl Compiler {
     /// initial value when the [`Rules`] are used for scanning data, however
     /// each scanner can change the variable's value by calling
     /// [`crate::Scanner::set_global`].
+    ///
+    /// The type of `value` must be: bool, str, bytes, int or float.
+    ///
+    /// # Raises
+    ///
+    /// [TypeError](https://docs.python.org/3/library/exceptions.html#TypeError)
+    /// if the type of `value` is not one of the supported ones.
     fn define_global(
         &mut self,
         ident: &str,
@@ -205,6 +212,13 @@ impl Scanner {
     ///
     /// The variable will retain the new value in subsequent scans, unless this
     /// function is called again for setting a new value.
+    ///
+    /// The type of `value` must be: `bool`, `str`, `bytes`, `int` or `float`.
+    ///
+    /// # Raises
+    ///
+    /// [TypeError](https://docs.python.org/3/library/exceptions.html#TypeError)
+    /// if the type of `value` is not one of the supported ones.
     fn set_global(
         &mut self,
         ident: &str,
