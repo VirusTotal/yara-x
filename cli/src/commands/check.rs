@@ -16,6 +16,8 @@ use crate::{help, walk};
 pub fn check() -> Command {
     super::command("check")
         .about("Check if source files are syntactically correct")
+        // The `check` command is not ready yet.
+        .hide(true)
         .long_about(help::CHECK_LONG_HELP)
         .arg(
             arg!(<RULES_PATH>)
@@ -180,7 +182,7 @@ impl Component for CheckState {
                 );
 
                 Line::from_iter([
-                    Span::new_unstyled(ok.paint(Red).bold())?,
+                    Span::new_unstyled(ok.paint(Green).bold())?,
                     Span::new_unstyled(warnings.paint(Yellow).bold())?,
                     Span::new_unstyled(errors.paint(Red).bold())?,
                 ])

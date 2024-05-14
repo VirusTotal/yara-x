@@ -67,7 +67,7 @@ pub const COMPLETION_LONG_HELP: &str = r#"Output shell completion code for the s
 Examples:
 
 yr completion bash > $(brew --prefix)/etc/bash_completion.d/yr
-yr completion zsh > "${fpath[1]}/_kubectl"
+yr completion zsh > "${fpath[1]}/_yr"
 "#;
 
 pub const SCAN_LONG_HELP: &str = r#"Scan a file or directory
