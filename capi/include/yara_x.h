@@ -16,7 +16,7 @@
 
 // Flag passed to [`yrx_compiler_create`] for producing colorful error
 // messages.
-#define COLORIZE_ERRORS 1
+#define YRX_COLORIZE_ERRORS 1
 
 // Flag passed to [`yrx_compiler_create`] for accepting invalid escape
 // sequences in regular expressions.
@@ -33,7 +33,7 @@
 //
 // When this flag is enabled, the YARA-X compiler exhibits the legacy
 // behaviour and accepts invalid escape sequences.
-#define RELAXED_RE_ESCAPE_SEQUENCES 2
+#define YRX_RELAXED_RE_ESCAPE_SEQUENCES 2
 
 typedef enum YRX_RESULT {
   // Everything was OK.

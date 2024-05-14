@@ -10,7 +10,7 @@ pub struct YRX_COMPILER<'a> {
 
 /// Flag passed to [`yrx_compiler_create`] for producing colorful error
 /// messages.
-pub const COLORIZE_ERRORS: u32 = 1;
+pub const YRX_COLORIZE_ERRORS: u32 = 1;
 
 /// Flag passed to [`yrx_compiler_create`] for accepting invalid escape
 /// sequences in regular expressions.
@@ -27,14 +27,14 @@ pub const COLORIZE_ERRORS: u32 = 1;
 ///
 /// When this flag is enabled, the YARA-X compiler exhibits the legacy
 /// behaviour and accepts invalid escape sequences.
-pub const RELAXED_RE_ESCAPE_SEQUENCES: u32 = 2;
+pub const YRX_RELAXED_RE_ESCAPE_SEQUENCES: u32 = 2;
 
 fn _yrx_compiler_create<'a>(flags: u32) -> yara_x::Compiler<'a> {
     let mut compiler = yara_x::Compiler::new();
-    if flags & RELAXED_RE_ESCAPE_SEQUENCES != 0 {
+    if flags & YRX_RELAXED_RE_ESCAPE_SEQUENCES != 0 {
         compiler.relaxed_re_escape_sequences(true);
     }
-    if flags & COLORIZE_ERRORS != 0 {
+    if flags & YRX_COLORIZE_ERRORS != 0 {
         compiler.colorize_errors(true);
     }
     compiler

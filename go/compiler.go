@@ -94,7 +94,7 @@ func NewCompiler(opts... CompileOption) (*Compiler, error) {
 
 	flags := C.uint32_t(0)
 	if c.relaxedReEscapeSequences {
-		flags |= C.RELAXED_RE_ESCAPE_SEQUENCES
+		flags |= C.YRX_RELAXED_RE_ESCAPE_SEQUENCES
 	}
 
 	C.yrx_compiler_create(flags, &c.cCompiler)
