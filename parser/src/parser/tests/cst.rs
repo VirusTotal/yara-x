@@ -505,15 +505,19 @@ rule test : foo bar baz {
        ├─ primary_expr
        │  └─ ident "foo"
        ├─ LPAREN "("
-       ├─ expr
-       │  └─ term
-       │     └─ primary_expr
-       │        └─ integer_lit "1"
+       ├─ boolean_expr
+       │  └─ boolean_term
+       │     └─ expr
+       │        └─ term
+       │           └─ primary_expr
+       │              └─ integer_lit "1"
        ├─ COMMA ","
-       ├─ expr
-       │  └─ term
-       │     └─ primary_expr
-       │        └─ string_lit ""bar""
+       ├─ boolean_expr
+       │  └─ boolean_term
+       │     └─ expr
+       │        └─ term
+       │           └─ primary_expr
+       │              └─ string_lit ""bar""
        └─ RPAREN ")"
 "#,
         ),
