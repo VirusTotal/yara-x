@@ -11,49 +11,14 @@ import (
 	"unsafe"
 )
 
-// A CompileOption represent an option passed to [Compile].
-type CompileOption func(c *Compiler) error
-
-// Globals is an option for [Compile] that allows defining global variables.
-//
-// Keys in the map are variable names, and values are the initial value for
-// each variable. The value associated to each variable can be modified at
-// scan time with [Scanner.SetGlobal].
-//
-// Valid value types are: int, int32, int64, bool, string, float32 and float64.
-func Globals(vars map[string]interface{}) CompileOption {
-	return func(c *Compiler) error {
-		for ident, value := range vars {
-			if err := c.DefineGlobal(ident, value); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-}
-
-// IgnoreModule is an option for [Compile] that allows ignoring a given module.
-//
-// This option can be passed multiple times with different module names.
-// See [Compiler.IgnoreModule] for details.
-func IgnoreModule(module string) CompileOption {
-	return func(c *Compiler) error {
-		c.IgnoreModule(module)
-		return nil
-	}
-}
 
 // Compile receives YARA source code and returns compiled [Rules] that can be
 // used for scanning data.
 func Compile(src string, opts ...CompileOption) (*Rules, error) {
-	c := NewCompiler()
-
-	for _, opt := range opts {
-		if err := opt(c); err != nil {
-			return nil, err
-		}
+	c, err := NewCompiler(opts...)
+	if err != nil {
+		return nil, err
 	}
-
 	if err := c.AddSource(src); err != nil {
 		return nil, err
 	}

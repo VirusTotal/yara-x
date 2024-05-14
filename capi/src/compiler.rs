@@ -5,16 +5,52 @@ use std::mem;
 /// A compiler that takes YARA source code and produces compiled rules.
 pub struct YRX_COMPILER<'a> {
     inner: yara_x::Compiler<'a>,
+    flags: u64,
+}
+
+/// Flag passed to [`yrx_compiler_create`] for producing colorful error
+/// messages.
+pub const COLORIZE_ERRORS: u64 = 1;
+
+/// Flag passed to [`yrx_compiler_create`] for accepting invalid escape
+/// sequences in regular expressions.
+///
+/// Historically, YARA has accepted any character preceded by a backslash
+/// in a regular expression, regardless of whether the sequence is valid.
+/// For example, `\n`, `\t` and `\w` are valid escape sequences in a
+/// regexp, but `\N`, `\T` and `\j` are not. However, YARA accepts all of
+/// these sequences. Valid escape sequences are interpreted according to
+/// their special meaning (`\n` as a new-line, `\w` as a word character,
+/// etc.), while invalid escape sequences are interpreted simply as the
+/// character that appears after the backslash. Thus, `\N` becomes `N`,
+/// and `\j` becomes `j`.
+///
+/// When this flag is enabled, the YARA-X compiler exhibits the legacy
+/// behaviour and accepts invalid escape sequences.
+pub const RELAXED_RE_ESCAPE_SEQUENCES: u64 = 2;
+
+fn _yrx_compiler_create<'a>(flags: u64) -> yara_x::Compiler<'a> {
+    let mut compiler = yara_x::Compiler::new();
+    if flags & RELAXED_RE_ESCAPE_SEQUENCES != 0 {
+        compiler.relaxed_re_escape_sequences(true);
+    }
+    if flags & COLORIZE_ERRORS != 0 {
+        compiler.colorize_errors(true);
+    }
+    compiler
 }
 
 /// Creates a [`YRX_COMPILER`] object.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_compiler_create(
+    flags: u64,
     compiler: &mut *mut YRX_COMPILER,
 ) -> YRX_RESULT {
     *compiler = Box::into_raw(Box::new(YRX_COMPILER {
-        inner: yara_x::Compiler::new(),
+        inner: _yrx_compiler_create(flags),
+        flags,
     }));
+
     YRX_RESULT::SUCCESS
 }
 
@@ -196,8 +232,8 @@ pub unsafe extern "C" fn yrx_compiler_define_global_float(
 /// Builds the source code previously added to the compiler.
 ///
 /// After calling this function the compiler is reset to its initial state,
-/// you can keep using it by adding more sources and calling this function
-/// again.
+/// (i.e: the state it had after returning from yrx_compiler_create) you can
+/// keep using it by adding more sources and calling this function again.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_compiler_build(
     compiler: *mut YRX_COMPILER,
@@ -214,7 +250,10 @@ pub unsafe extern "C" fn yrx_compiler_build(
     // new compiler.It is replaced with a new compiler, so that users of the
     // C API can keep using the YRX_COMPILER object after calling
     // yrx_compiler_build.
-    let compiler = mem::replace(&mut compiler.inner, yara_x::Compiler::new());
+    let compiler = mem::replace(
+        &mut compiler.inner,
+        _yrx_compiler_create(compiler.flags),
+    );
 
     Box::into_raw(Box::new(YRX_RULES(compiler.build())))
 }

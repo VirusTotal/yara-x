@@ -6,7 +6,9 @@ import (
 )
 
 func TestNamespaces(t *testing.T) {
-	c := NewCompiler()
+	c, err := NewCompiler()
+	assert.NoError(t, err)
+
 	c.NewNamespace("foo")
 	c.AddSource("rule test { condition: true }")
 	c.NewNamespace("bar")
@@ -14,29 +16,35 @@ func TestNamespaces(t *testing.T) {
 
 	s := NewScanner(c.Build())
 	matchingRules, _ := s.Scan([]byte{})
-
 	assert.Len(t, matchingRules, 2)
 }
 
 func TestUnsupportedModules(t *testing.T) {
-	c := NewCompiler()
-	c.IgnoreModule("unsupported_module")
-	c.NewNamespace("foo")
-	c.AddSource(`
+	r, err := Compile(`
 		import "unsupported_module"
-		rule test { condition: true }`)
+		rule test { condition: true }`,
+		IgnoreModule("unsupported_module"))
 
-	s := NewScanner(c.Build())
-	matchingRules, _ := s.Scan([]byte{})
+	assert.NoError(t, err)
+	matchingRules, _ := r.Scan([]byte{})
+	assert.Len(t, matchingRules, 1)
+}
 
+func TestRelaxedReEscapeSequences(t *testing.T) {
+	r, err := Compile(`
+		rule test { strings: $a = /\Release/ condition: $a }`,
+		RelaxedReEscapeSequences(true))
+	assert.NoError(t, err)
+	matchingRules, _ := r.Scan([]byte("Release"))
 	assert.Len(t, matchingRules, 1)
 }
 
 func TestSerialization(t *testing.T) {
-	c := NewCompiler()
-	c.AddSource("rule test { condition: true }")
-	b, _ := c.Build().Serialize()
-	r, _ := Deserialize(b)
+	r, err := Compile("rule test { condition: true }")
+	assert.NoError(t, err)
+
+	b, _ := r.Serialize()
+	r, _ = Deserialize(b)
 
 	s := NewScanner(r)
 	matchingRules, _ := s.Scan([]byte{})
@@ -52,7 +60,8 @@ func TestVariables(t *testing.T) {
 	matchingRules, _ := NewScanner(r).Scan([]byte{})
 	assert.Len(t, matchingRules, 1)
 
-	c := NewCompiler()
+	c, err := NewCompiler()
+	assert.NoError(t, err)
 
 	c.DefineGlobal("var", 1234)
 	c.AddSource("rule test { condition: var == 1234 }")
@@ -84,13 +93,12 @@ func TestVariables(t *testing.T) {
 	matchingRules, _ = NewScanner(c.Build()).Scan([]byte{})
 	assert.Len(t, matchingRules, 1)
 
-	err := c.DefineGlobal("var", struct{}{})
+	err = c.DefineGlobal("var", struct{}{})
 	assert.EqualError(t, err, "variable `var` has unsupported type: struct {}")
 }
 
 func TestError(t *testing.T) {
-	c := NewCompiler()
-	err := c.AddSource("rule test { condition: foo }")
+	_, err := Compile("rule test { condition: foo }")
 	assert.EqualError(t, err, `error: unknown identifier `+"`foo`"+`
  --> line:1:24
   |

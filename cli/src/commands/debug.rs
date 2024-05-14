@@ -76,8 +76,9 @@ fn exec_wasm(args: &ArgMatches) -> anyhow::Result<()> {
 
     rules_path.set_extension("wasm");
 
-    let mut compiler = Compiler::new().colorize_errors(true);
+    let mut compiler = Compiler::new();
 
+    compiler.colorize_errors(true);
     compiler.add_source(src)?;
     compiler.emit_wasm_file(rules_path.as_path())?;
 

@@ -14,6 +14,27 @@
 #include <stdlib.h>
 
 
+// Flag passed to [`yrx_compiler_create`] for producing colorful error
+// messages.
+#define COLORIZE_ERRORS 1
+
+// Flag passed to [`yrx_compiler_create`] for accepting invalid escape
+// sequences in regular expressions.
+//
+// Historically, YARA has accepted any character preceded by a backslash
+// in a regular expression, regardless of whether the sequence is valid.
+// For example, `\n`, `\t` and `\w` are valid escape sequences in a
+// regexp, but `\N`, `\T` and `\j` are not. However, YARA accepts all of
+// these sequences. Valid escape sequences are interpreted according to
+// their special meaning (`\n` as a new-line, `\w` as a word character,
+// etc.), while invalid escape sequences are interpreted simply as the
+// character that appears after the backslash. Thus, `\N` becomes `N`,
+// and `\j` becomes `j`.
+//
+// When this flag is enabled, the YARA-X compiler exhibits the legacy
+// behaviour and accepts invalid escape sequences.
+#define RELAXED_RE_ESCAPE_SEQUENCES 2
+
 typedef enum YRX_RESULT {
   // Everything was OK.
   SUCCESS,
@@ -175,7 +196,8 @@ void yrx_buffer_destroy(struct YRX_BUFFER *buf);
 const char *yrx_last_error(void);
 
 // Creates a [`YRX_COMPILER`] object.
-enum YRX_RESULT yrx_compiler_create(struct YRX_COMPILER **compiler);
+enum YRX_RESULT yrx_compiler_create(uint64_t flags,
+                                    struct YRX_COMPILER **compiler);
 
 // Destroys a [`YRX_COMPILER`] object.
 void yrx_compiler_destroy(struct YRX_COMPILER *compiler);
@@ -228,8 +250,8 @@ enum YRX_RESULT yrx_compiler_define_global_float(struct YRX_COMPILER *compiler,
 // Builds the source code previously added to the compiler.
 //
 // After calling this function the compiler is reset to its initial state,
-// you can keep using it by adding more sources and calling this function
-// again.
+// (i.e: the state it had after returning from yrx_compiler_create) you can
+// keep using it by adding more sources and calling this function again.
 struct YRX_RULES *yrx_compiler_build(struct YRX_COMPILER *compiler);
 
 // Creates a [`YRX_SCANNER`] object that can be used for scanning data with

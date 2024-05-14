@@ -15,6 +15,14 @@ def test_bad_variable_type():
     compiler.define_global()
 
 
+def test_relaxed_re_escape_sequences():
+  compiler = yara_x.Compiler(relaxed_re_escape_sequences=True)
+  compiler.add_source(r'rule test {strings: $a = /\Release/ condition: $a}')
+  rules = compiler.build()
+  matching_rules = rules.scan(b'Release').matching_rules
+  assert len(matching_rules) == 1
+
+
 def test_int_globals():
   compiler = yara_x.Compiler()
   compiler.define_global('some_int', 1)

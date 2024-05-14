@@ -46,14 +46,43 @@ fn compile(src: &str) -> PyResult<Rules> {
 #[pyclass(unsendable)]
 struct Compiler {
     inner: yrx::Compiler<'static>,
+    relaxed_re_escape_sequences: bool,
+}
+
+impl Compiler {
+    fn new_inner(relaxed_re_escape_sequences: bool) -> yrx::Compiler<'static> {
+        let mut compiler = yrx::Compiler::new();
+        if relaxed_re_escape_sequences {
+            compiler.relaxed_re_escape_sequences(true);
+        }
+        compiler
+    }
 }
 
 #[pymethods]
 impl Compiler {
     /// Creates a new [`Compiler`].
+    ///
+    /// The `relaxed_re_escaped_sequence` argument controls whether the
+    /// compiler should accept invalid escape sequences in regular expressions
+    /// and translate them to plain characters. The default value is `False`.
+    ///
+    /// Historically, YARA has accepted any character preceded by a backslash
+    /// in a regular expression, regardless of whether the sequence is valid.
+    /// For example, `\n`, `\t` and `\w` are valid escape sequences in a
+    /// regexp, but `\N`, `\T` and `\j` are not. However, YARA accepts all of
+    /// these sequences. Valid escape sequences are interpreted according to
+    /// their special meaning (`\n` as a new-line, `\w` as a word character,
+    /// etc.), while invalid escape sequences are interpreted simply as the
+    /// character that appears after the backslash. Thus, `\N` becomes `N`,
+    /// and `\j` becomes `j`.
     #[new]
-    fn new() -> Self {
-        Self { inner: yrx::Compiler::new() }
+    #[pyo3(signature = (*, relaxed_re_escape_sequences=false))]
+    fn new(relaxed_re_escape_sequences: bool) -> Self {
+        Self {
+            inner: Self::new_inner(relaxed_re_escape_sequences),
+            relaxed_re_escape_sequences,
+        }
     }
 
     /// Adds a YARA source code to be compiled.
@@ -124,7 +153,10 @@ impl Compiler {
     /// previously added with [`Compiler::add_source`] and sets the compiler
     /// to its initial empty state.
     fn build(&mut self) -> Rules {
-        let compiler = mem::replace(&mut self.inner, yrx::Compiler::new());
+        let compiler = mem::replace(
+            &mut self.inner,
+            Self::new_inner(self.relaxed_re_escape_sequences),
+        );
         Rules::new(compiler.build())
     }
 }

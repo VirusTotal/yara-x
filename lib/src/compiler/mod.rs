@@ -134,7 +134,7 @@ struct Namespace {
 ///
 pub struct Compiler<'a> {
     /// Allow invalid escape sequences in regexps.
-    relaxed_regexp_escape_sequences: bool,
+    relaxed_re_escape_sequences: bool,
 
     /// Used for generating error and warning reports.
     report_builder: ReportBuilder,
@@ -307,7 +307,7 @@ impl<'a> Compiler<'a> {
             wasm_mod,
             wasm_symbols,
             wasm_exports,
-            relaxed_regexp_escape_sequences: false,
+            relaxed_re_escape_sequences: false,
             next_pattern_id: PatternId(0),
             current_pattern_id: PatternId(0),
             current_namespace: default_namespace,
@@ -521,8 +521,7 @@ impl<'a> Compiler<'a> {
 
         let mut rules = Rules {
             serialized_globals,
-            relaxed_regexp_escape_sequences: self
-                .relaxed_regexp_escape_sequences,
+            relaxed_re_escape_sequences: self.relaxed_re_escape_sequences,
             wasm_mod: compiled_wasm_mod,
             ac: None,
             num_patterns: self.next_pattern_id.0 as usize,
@@ -558,28 +557,37 @@ impl<'a> Compiler<'a> {
     ///
     /// Colorized error messages contain ANSI escape sequences that make them
     /// look nicer on compatible consoles. The default setting is `false`.
-    pub fn colorize_errors(mut self, yes: bool) -> Self {
+    pub fn colorize_errors(&mut self, yes: bool) -> &mut Self {
         self.report_builder.with_colors(yes);
         self
     }
 
     /// Allow invalid escape sequences in regular expressions.
     ///
-    /// Historically, YARA has accepted any character that is preceded by a
-    /// backslash in a regular expression, even if the sequence is not a valid
-    /// one. For instance, `\n`, `\t` and `\w` are valid escape sequences in a
+    /// Historically, YARA has accepted any character preceded by a backslash
+    /// in a regular expression, regardless of whether the sequence is valid.
+    /// For example, `\n`, `\t` and `\w` are valid escape sequences in a
     /// regexp, but `\N`, `\T` and `\j` are not. However, YARA accepts all of
-    /// these sequences. The valid escape sequences are interpreted as their
-    /// special meaning (`\n` is a new-line, `\w` is a word character, etc.),
-    /// while invalid escape sequences are interpreted simply as the character
-    /// that appears after the backslash. So, `\N` becomes `N`, and `\j`
-    /// becomes `j`.
+    /// these sequences. Valid escape sequences are interpreted according to
+    /// their special meaning (`\n` as a new-line, `\w` as a word character,
+    /// etc.), while invalid escape sequences are interpreted simply as the
+    /// character that appears after the backslash. Thus, `\N` becomes `N`,
+    /// and `\j` becomes `j`.
     ///
-    /// This controls whether the parser should accept invalid escape sequences
-    /// and translate them to plain characters. They are not accepted by
-    /// default.
-    pub fn relaxed_regexp_escape_sequences(mut self, yes: bool) -> Self {
-        self.relaxed_regexp_escape_sequences = yes;
+    /// This controls whether the compiler should accept invalid escape
+    /// sequences and translate them to plain characters. Invalid escape
+    /// sequences are not accepted by default.
+    ///
+    /// This should be called before any rule is added to the compiler.
+    ///
+    /// # Panics
+    ///
+    /// If called after adding rules to the compiler.
+    pub fn relaxed_re_escape_sequences(&mut self, yes: bool) -> &mut Self {
+        if !self.rules.is_empty() {
+            panic!("calling relaxed_re_escape_sequences in non-empty compiler")
+        }
+        self.relaxed_re_escape_sequences = yes;
         self
     }
 
@@ -737,8 +745,7 @@ impl<'a> Compiler<'a> {
         let mut rule_patterns = Vec::new();
 
         let mut ctx = CompileContext {
-            relaxed_regexp_escape_sequences: self
-                .relaxed_regexp_escape_sequences,
+            relaxed_re_escape_sequences: self.relaxed_re_escape_sequences,
             current_symbol_table: None,
             symbol_table: &mut self.symbol_table,
             ident_pool: &mut self.ident_pool,

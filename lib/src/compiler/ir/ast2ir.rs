@@ -196,7 +196,7 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     let hir = re::parser::Parser::new()
         .force_case_insensitive(flags.contains(PatternFlags::Nocase))
         .allow_mixed_greediness(false)
-        .relaxed_escape_sequences(ctx.relaxed_regexp_escape_sequences)
+        .relaxed_escape_sequences(ctx.relaxed_re_escape_sequences)
         .parse(&pattern.regexp)
         .map_err(|err| {
             re_error_to_compile_error(ctx.report_builder, &pattern.regexp, err)
@@ -248,7 +248,7 @@ pub(in crate::compiler) fn expr_from_ast(
 
         ast::Expr::Regexp(regexp) => {
             re::parser::Parser::new()
-                .relaxed_escape_sequences(ctx.relaxed_regexp_escape_sequences)
+                .relaxed_escape_sequences(ctx.relaxed_re_escape_sequences)
                 .parse(regexp.as_ref())
                 .map_err(|err| { re_error_to_compile_error(ctx.report_builder, regexp, err)
             })?;

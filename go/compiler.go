@@ -9,17 +9,114 @@ import (
 	"unsafe"
 )
 
+// A CompileOption represent an option passed to [NewCompiler] and [Compile].
+type CompileOption func(c *Compiler) error
+
+// The Globals option for [NewCompiler] and [Compile] allows you to define
+// global variables.
+//
+// Keys in the map represent variable names, and values are their initial
+// values. Values associated with variables can be modified at scan time using
+// [Scanner.SetGlobal]. If this option is used multiple times, global variables
+// will be the union of all specified maps. If the same variable appears in
+// multiple maps, the value from the last map will prevail.
+//
+// Alternatively, you can use [Compiler.DefineGlobal] to define global variables.
+// However, variables defined this way are not retained after [Compiler.Build] is
+// called, unlike variables defined with the Globals option.
+//
+// Valid value types include: int, int32, int64, bool, string, float32 and
+// float64.
+func Globals(vars map[string]interface{}) CompileOption {
+	return func(c *Compiler) error {
+		for ident, value := range vars {
+			c.vars[ident] = value
+		}
+		return nil
+	}
+}
+
+// IgnoreModule is an option for [NewCompiler] and [Compile] that allows
+// ignoring a given module.
+//
+// This option can be passed multiple times with different module names.
+// Alternatively, you can use [Compiler.IgnoreModule], but modules ignored this
+// way are not retained after [Compiler.Build] is called, unlike modules ignored
+// with the IgnoreModule option.
+func IgnoreModule(module string) CompileOption {
+	return func(c *Compiler) error {
+		c.ignoredModules[module] = true
+		return nil
+	}
+}
+
+// RelaxedReEscapeSequences is an option for [NewCompiler] and [Compile] that
+// determines whether invalid escape sequences in regular expressions should be
+// accepted.
+//
+// Historically, YARA has accepted any character preceded by a backslash in a
+// regular expression, regardless of whether the sequence is valid. For example,
+// `\n`, `\t` and `\w` are valid escape sequences in a regexp, but `\N`, `\T`
+// and `\j` are not. However, YARA accepts all of these sequences. Valid escape
+// sequences are interpreted according to their special meaning (`\n` as a
+// new-line, `\w` as a word character, etc.), while invalid escape sequences are
+// interpreted simply as the character that appears after the backslash. Thus,
+// `\N` becomes `N`, and `\j` becomes `j`.
+//
+// This option is disabled by default.
+func RelaxedReEscapeSequences(yes bool) CompileOption {
+	return func(c *Compiler) error {
+		c.relaxedReEscapeSequences = yes
+		return nil
+	}
+}
+
 // Compiler represent a YARA compiler.
 type Compiler struct {
 	cCompiler *C.YRX_COMPILER
+	relaxedReEscapeSequences bool
+	ignoredModules map[string]bool
+	vars map[string]interface{}
 }
 
 // NewCompiler creates a new compiler.
-func NewCompiler() *Compiler {
-	c := &Compiler{}
-	C.yrx_compiler_create(&c.cCompiler)
+func NewCompiler(opts... CompileOption) (*Compiler, error) {
+	c := &Compiler{
+		ignoredModules: make(map[string]bool),
+		vars: make(map[string]interface{}),
+	}
+
+	for _, opt := range opts {
+		if err := opt(c); err != nil {
+			return nil, err
+		}
+	}
+
+	flags := C.ulonglong(0)
+	if c.relaxedReEscapeSequences {
+		flags |= C.RELAXED_RE_ESCAPE_SEQUENCES
+	}
+
+	C.yrx_compiler_create(flags, &c.cCompiler)
+
+	if err := c.initialize(); err != nil {
+		return nil, err
+	}
+
 	runtime.SetFinalizer(c, (*Compiler).Destroy)
-	return c
+	return c, nil
+}
+
+func (c *Compiler) initialize() error {
+	for name, _ := range c.ignoredModules {
+		c.IgnoreModule(name)
+	}
+	for ident, value := range c.vars {
+		if err := c.DefineGlobal(ident, value); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // AddSource adds some YARA source code to be compiled.
@@ -146,10 +243,11 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 // Build creates a [Rules] object containing a compiled version of all the
 // YARA rules previously added to the compiler.
 //
-// Once this function is called the compiler is reset to its initial state,
-// as if it was a newly created compiler.
+// Once this function is called the compiler is reset to its initial state
+// (i.e: the state it had after NewCompiler returned).
 func (c *Compiler) Build() *Rules {
 	r := &Rules{cRules: C.yrx_compiler_build(c.cCompiler)}
+	c.initialize()
 	runtime.SetFinalizer(r, (*Rules).Destroy)
 	runtime.KeepAlive(c)
 	return r
