@@ -148,11 +148,33 @@ rules in text form and compile them into a [YRX_RULES](#yrx_rules) object.
 
 ```c
 enum YRX_RESULT yrx_compiler_create(
+    uint32_t flags,
     struct YRX_COMPILER **compiler);
 ```
 
 Creates a new compiler. It must be destroyed
-with [yrx_compiler_destroy](#yrx_compiler_destroy).
+with [yrx_compiler_destroy](#yrx_compiler_destroy). The `flags` argument can be
+0, or any
+combination of the following flags:
+
+* YRX_COLORIZE_ERRORS
+
+  Add colors to error messages.
+
+* YRX_RELAXED_RE_ESCAPE_SEQUENCES
+
+  Historically, YARA has accepted any character preceded by a backslash in a
+  regular expression, regardless of whether the sequence is valid. For example,
+  `\n`, `\t`, and `\w` are valid escape sequences in a regexp, but `\N`, `\T`,
+  and `\j` are not. YARA accepts all of these sequences. Valid escape
+  sequences are interpreted according to their special meaning (`\n` as a
+  new-line, `\w` as a word character, etc.), while invalid escape sequences are
+  interpreted simply as the character that appears after the backslash. Thus,
+  `\N` becomes `N`, and `\j` becomes `j`.
+
+  When this flag is set, YARA-X exhibits the same behaviour as YARA and accepts
+  these invalid escape sequences. By default, invalid escape sequences produce
+  an error in YARA-X.
 
 #### yrx_compiler_destroy
 

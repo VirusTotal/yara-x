@@ -125,6 +125,28 @@ rules = yara_x.compile("rule test { condition: true }")
 Type that represents a YARA-X compiler. It takes one or more sets of YARA
 rules in text form and compile them into a [Rules](#rules) object.
 
+#### .__init__(relaxed_re_escape_sequences=False)
+
+Compiler constructor. The `relaxed_re_escape_sequences` determines whether
+the compiler accepts invalid escape sequences in regular expressions.
+
+Historically, YARA has accepted any character preceded by a backslash in a
+regular expression, regardless of whether the sequence is valid. For example,
+`\n`, `\t` and `\w` are valid escape sequences in a regexp, but `\N`, `\T` and
+`\j` are not. YARA accepts all of these sequences. Valid escape sequences are
+interpreted according to their special meaning (`\n` as a new-line, `\w` as a
+word character, etc.), while invalid escape sequences are interpreted simply as
+the character that appears after the backslash. Thus, `\N` becomes `N`, and `\j`
+becomes `j`. By setting `relaxed_re_escape_sequences` to `True` the compiler
+behaves as the YARA compiler and accepts these invalid escape sequences.
+
+###### Example
+
+```python
+compiler = yara_x.Compiler(relaxed_re_escape_sequences=True)
+compiler.add_source("rule test { $a = /\Release/ condition: $a }")
+```
+
 #### .add_source(string)
 
 Adds some YARA source code to be compiled. Raises an exception if the source
