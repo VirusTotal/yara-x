@@ -157,11 +157,11 @@ with [yrx_compiler_destroy](#yrx_compiler_destroy). The `flags` argument can be
 0, or any
 combination of the following flags:
 
-* YRX_COLORIZE_ERRORS
+* `YRX_COLORIZE_ERRORS`
 
   Add colors to error messages.
 
-* YRX_RELAXED_RE_ESCAPE_SEQUENCES
+* `YRX_RELAXED_RE_ESCAPE_SEQUENCES`
 
   Historically, YARA has accepted any character preceded by a backslash in a
   regular expression, regardless of whether the sequence is valid. For example,

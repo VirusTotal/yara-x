@@ -56,7 +56,7 @@ visit [https://github.com/trendmicro/telfhash](https://github.com/trendmicro/tel
 or read
 TrendMicro's [whitepaper](https://documents.trendmicro.com/assets/pdf/TB_Telfhash-%20An%20Algorithm%20That%20Finds%20Similar%20Malicious%20ELF%20Files%20Used%20in%20Linux%20IoT%20Malware.pdf).
 
-###### Example
+#### Example
 
 ```
 import "elf"
@@ -113,7 +113,7 @@ This is the structure of each item in the `sections` array.
 | offset  | integer                     |
 | name    | string                      |
 
-###### Example
+#### Example
 
 ```
 import "elf"
@@ -141,7 +141,7 @@ This is the structure of each item in the `segments` array.
 | memory_size      | integer                     |
 | alignment        | integer                     |
 
-###### Example
+#### Example
 
 ```
 import "elf"
@@ -168,7 +168,7 @@ This is the structure of each item in the `symtab` and `dynsym` arrays.
 | shndx      | integer                         |
 | visibility | [SymVisibility](#symvisibility) |
 
-###### Example
+#### Example
 
 ```
 import "elf"
@@ -236,7 +236,7 @@ These are the possible values of the `type` field in the `Dyn` structure.
 | DT_LOPROC       | 1879048192 |                                   |
 | DT_HIPROC       | 2147483647 |                                   |
 
-###### Example
+#### Example
 
 ```
 import "elf"
@@ -272,7 +272,7 @@ These are the possible values of the `machine` field.
 | EM_X86_64      | 0x003E | AMD/Intel x86_64          |
 | EM_AARCH64     | 0x00B7 | 64-bit ARM                |
 
-###### Example
+#### Example
 
 ```
 import "elf"
@@ -305,7 +305,7 @@ structure.
 | SHT_INIT_ARRAY | 14    | Array of constructors             |
 | SHT_FINI_ARRAY | 15    | Array of destructors              |
 
-###### Example
+#### Example
 
 ```
 import "elf"
@@ -329,7 +329,7 @@ Possible flags in the `flags` fields of the `Segment` structure.
 | PF_W | 0x02  | Segment is writable   |
 | PF_R | 0x04  | Segment is readable   |
 
-###### Example
+#### Example
 
 ```
 import "elf"

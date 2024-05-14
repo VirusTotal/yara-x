@@ -85,7 +85,7 @@ information about the .NET assembly.
 | culture | string              |
 | version | [Version](#version) |
 
-###### Example
+#### Example
 
 ```
 import "dotnet"
@@ -106,7 +106,7 @@ This is the structure of each item in the `assembly_refs` array.
 | public_key_or_token | string              |
 | version             | [Version](#version) |
 
-###### Example
+#### Example
 
 ```
 import "dotnet"
@@ -140,7 +140,7 @@ This is the structure of each item in the `classes` array.
 | generic_parameters           | string array            |
 | methods                      | [Method](#method) array |
 
-###### Example
+#### Example
 
 ```
 import "dotnet"
@@ -171,7 +171,7 @@ This is the structure of each item in the `methods` array within each Class.
 | generic_parameters           | string array          |
 | parameters                   | [Param](#param) array |
 
-###### Example
+#### Example
 
 ```
 import "dotnet"
@@ -196,7 +196,7 @@ This is the structure of each item in the `parametes` array within each Method.
 | name  | string |
 | type  | string |
 
-###### Example
+#### Example
 
 ```
 import "dotnet"
@@ -223,7 +223,7 @@ This is the structure of each item in the `resources` array.
 | length | integer |
 | name   | string  |
 
-###### Example
+#### Example
 
 ```
 import "dotnet"
@@ -246,7 +246,7 @@ This is the structure of each item in the `streams` array.
 | offset | integer |
 | size   | integer |
 
-###### Example
+#### Example
 
 ```
 import "dotnet"

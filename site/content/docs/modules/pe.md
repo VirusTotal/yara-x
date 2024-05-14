@@ -106,7 +106,7 @@ Returns the number of functions imported by the PE where the DLL name matches
 `dll_regexp` and the function name matches `fn_regexp`. Both arguments are
 case-sensitive, unless you use the `/i` modifier in the regexp.
 
-###### Example
+#### Example
 
 ```
 import "pe"
@@ -129,7 +129,7 @@ taken into account, the allowed values are:
 | `pe.IMPORT_DELAYED`  | Delayed imports only              |
 | `pe.IMPORT_ANY`      | Both standard and delayed imports |
 
-###### Example
+#### Example
 
 ```
 import "pe"
@@ -161,7 +161,7 @@ Given a relative virtual address (RVA) returns the corresponding file offset.
 Calculate the PE checksum. Useful for checking if the checksum in the header is
 correct.
 
-###### Example
+#### Example
 
 ```
 import "pe"
@@ -202,7 +202,7 @@ The PE rich signature contains information about the tools involved in the
 creation of the PE file. This function returns the number of tools that
 matches the given version and toolid, where toolid is optional.
 
-###### Example
+#### Example
 
 ```
 import "pe"
@@ -439,7 +439,7 @@ Structure of each of the items in the `signatures` array.
 | certificates                | [Certificate](#certificate) array           | 
 | countersignatures           | [CounterSignature](#countersignature) array | 
 
-###### Example
+#### Example
 
 ```
 import "pe"
@@ -473,7 +473,7 @@ like `os_version`, `subsystem_version`, `image_version`,
 | major | integer |
 | minor | integer |
 
-###### Example
+#### Example
 
 ```
 import "pe"
@@ -507,7 +507,7 @@ Possible flags found in the `characteristics` field.
 | UP_SYSTEM_ONLY          | 0x4000 | File should only be run on a UP machine                          |
 | BYTES_REVERSED_HI       | 0x8000 | Bytes of machine word are reversed.                              |
 
-###### Example
+#### Example
 
 ```
 import "pe"
@@ -536,7 +536,7 @@ Possible flags found in the `dll_characteristics` field.
 | GUARD_CF              | 0x4000 |
 | TERMINAL_SERVER_AWARE | 0x8000 |
 
-###### Example
+#### Example
 
 ```
 import "pe"
@@ -605,7 +605,7 @@ Each of the possible values in the `machine` field.
 | MACHINE_THUMB     | 450    |
 | MACHINE_WCEMIPSV2 | 361    |
 
-###### Example
+#### Example
 
 ```
 import "pe"

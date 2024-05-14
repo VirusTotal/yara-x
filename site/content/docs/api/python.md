@@ -74,7 +74,7 @@ the [Rules.scan(...)](#scanbytes) method, or create a [Scanner](#scanner).
 Again, the former is the easiest way, but the later gives you more control over
 the scanning process.
 
-###### Examples
+#### Examples
 
 ```python
 # A very simple example
@@ -112,7 +112,7 @@ Returns: [yara_x.Rules](#rules)
 
 Raises: [yara_x.CompileError](#compileerror)
 
-###### Example
+#### Example
 
 ```python
 rules = yara_x.compile("rule test { condition: true }")
@@ -125,7 +125,7 @@ rules = yara_x.compile("rule test { condition: true }")
 Type that represents a YARA-X compiler. It takes one or more sets of YARA
 rules in text form and compile them into a [Rules](#rules) object.
 
-#### .__init__(relaxed_re_escape_sequences=False)
+#### .\_\_init\_\_(relaxed_re_escape_sequences=False)
 
 Compiler constructor. The `relaxed_re_escape_sequences` determines whether
 the compiler accepts invalid escape sequences in regular expressions.
@@ -140,7 +140,7 @@ the character that appears after the backslash. Thus, `\N` becomes `N`, and `\j`
 becomes `j`. By setting `relaxed_re_escape_sequences` to `True` the compiler
 behaves as the YARA compiler and accepts these invalid escape sequences.
 
-###### Example
+##### Example
 
 ```python
 compiler = yara_x.Compiler(relaxed_re_escape_sequences=True)
@@ -154,7 +154,7 @@ code is not valid.
 
 Raises: [yara_x.CompileError](#compileerror)
 
-###### Example
+##### Example
 
 ```python
 compiler = yara_x.Compiler()
@@ -179,7 +179,7 @@ The type of `value` must be: `bool`, `str`, `bytes`, `int` or `float`.
 Raises: [TypeError](https://docs.python.org/3/library/exceptions.html#TypeError)
 if the type of `value` is not one of the supported ones.
 
-###### Example
+##### Example
 
 ```python
 compiler = yara_x.Compiler()
@@ -193,7 +193,7 @@ Creates a new namespace. Any further call
 to [Compiler.add_source(...)](#add_sourcestring) will put the new rules
 under the new namespace, isolating them from previously added rules.
 
-###### Example
+##### Example
 
 ```python
 compiler = yara_x.Compiler()
@@ -241,7 +241,7 @@ provide a [Rules](#rules) object containing the rules that will be used
 during the scan operation. The same [Rules](#rules)  can be used by multiple
 scanner simultaneously.
 
-###### Example
+##### Example
 
 ```python
 rules = yara_x.compile("rule test { condition: true }")
@@ -256,7 +256,7 @@ Returns: [yara_x.ScanResults](#scanresults)
 
 Raises: [yara_x.ScanError](#scanerror), [yara_x.TimeoutError](#timeouterror)
 
-###### Example
+##### Example
 
 ```python
 rules = yara_x.compile('rule foo { strings: $foo = "foo" condition: $foo }')
@@ -367,7 +367,7 @@ modifier, this contains the XOR key (it may be 0). If not, this is `None`.
 
 Exception raised when compilation fails.
 
-###### Example
+##### Example
 
 ```python
 try:

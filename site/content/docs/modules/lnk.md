@@ -66,7 +66,7 @@ to find the link target.
 | droid_birth_volume_id | string  |
 | droid_birth_file_id   | string  |
 
-###### Example
+#### Example
 
 ````
 import "lnk"
@@ -91,7 +91,7 @@ These are the possible values for the `drive_type` field.
 | DriveType.CDROM       |     5 |
 | DriveType.RAMDISK     |     6 |
 
-###### Example
+#### Example
 
 ````
 import "lnk"
@@ -130,7 +130,7 @@ These are the possible values for the `show_command` field.
 | ShowCommand.MAXIMIZED     |     3 |
 | ShowCommand.MIN_NO_ACTIVE |     7 |
 
-###### Example
+#### Example
 
 ````
 import "lnk"
