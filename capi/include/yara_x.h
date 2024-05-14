@@ -196,7 +196,7 @@ void yrx_buffer_destroy(struct YRX_BUFFER *buf);
 const char *yrx_last_error(void);
 
 // Creates a [`YRX_COMPILER`] object.
-enum YRX_RESULT yrx_compiler_create(uint64_t flags,
+enum YRX_RESULT yrx_compiler_create(uint32_t flags,
                                     struct YRX_COMPILER **compiler);
 
 // Destroys a [`YRX_COMPILER`] object.

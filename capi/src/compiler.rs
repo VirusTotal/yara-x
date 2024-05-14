@@ -5,12 +5,12 @@ use std::mem;
 /// A compiler that takes YARA source code and produces compiled rules.
 pub struct YRX_COMPILER<'a> {
     inner: yara_x::Compiler<'a>,
-    flags: u64,
+    flags: u32,
 }
 
 /// Flag passed to [`yrx_compiler_create`] for producing colorful error
 /// messages.
-pub const COLORIZE_ERRORS: u64 = 1;
+pub const COLORIZE_ERRORS: u32 = 1;
 
 /// Flag passed to [`yrx_compiler_create`] for accepting invalid escape
 /// sequences in regular expressions.
@@ -27,9 +27,9 @@ pub const COLORIZE_ERRORS: u64 = 1;
 ///
 /// When this flag is enabled, the YARA-X compiler exhibits the legacy
 /// behaviour and accepts invalid escape sequences.
-pub const RELAXED_RE_ESCAPE_SEQUENCES: u64 = 2;
+pub const RELAXED_RE_ESCAPE_SEQUENCES: u32 = 2;
 
-fn _yrx_compiler_create<'a>(flags: u64) -> yara_x::Compiler<'a> {
+fn _yrx_compiler_create<'a>(flags: u32) -> yara_x::Compiler<'a> {
     let mut compiler = yara_x::Compiler::new();
     if flags & RELAXED_RE_ESCAPE_SEQUENCES != 0 {
         compiler.relaxed_re_escape_sequences(true);
@@ -43,7 +43,7 @@ fn _yrx_compiler_create<'a>(flags: u64) -> yara_x::Compiler<'a> {
 /// Creates a [`YRX_COMPILER`] object.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_compiler_create(
-    flags: u64,
+    flags: u32,
     compiler: &mut *mut YRX_COMPILER,
 ) -> YRX_RESULT {
     *compiler = Box::into_raw(Box::new(YRX_COMPILER {
