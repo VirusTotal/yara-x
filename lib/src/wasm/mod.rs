@@ -310,6 +310,13 @@ impl WasmArg<f32> for ValRaw {
     }
 }
 
+impl WasmArg<bool> for ValRaw {
+    #[inline]
+    fn raw_into(self, _: &mut ScanContext) -> bool {
+        self.get_i32() == 1
+    }
+}
+
 impl WasmArg<RuleId> for ValRaw {
     #[inline]
     fn raw_into(self, _: &mut ScanContext) -> RuleId {

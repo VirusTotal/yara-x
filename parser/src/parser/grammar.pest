@@ -431,7 +431,7 @@ indexing_expr = {
 }
 
 func_call_expr = {
-  primary_expr ~ LPAREN ~ expr? ~ (COMMA ~ expr)* ~ RPAREN
+  primary_expr ~ LPAREN ~ boolean_expr? ~ (COMMA ~ boolean_expr)* ~ RPAREN
 }
 
 primary_expr = {
