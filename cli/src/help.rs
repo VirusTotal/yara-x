@@ -1,7 +1,7 @@
-pub const CHECK_LONG_HELP: &str = r#"Check if YARA source files are syntactically correct
+pub const CHECK_LONG_HELP: &str = r#"Check if YARA source files are correct
 
-If <PATH> is a directory, all files with extensions `yar` and `yara` will be
-checked. The `--filter` option allows changing this behavior."#;
+If <RULES_PATH> is a directory, all files with extensions `.yar` and `.yara` will be checked. 
+This behavior can be changed by using the `--filter` option."#;
 
 pub const THREADS_LONG_HELP: &str = r#"Use the specified number of threads
 
@@ -31,7 +31,7 @@ Patterns can contains the following wildcards:
 This option can be used more than once with different patterns. In such cases
 files matching any of the patterns will be checked.
 
-The absense of this options is equivalent to using this:
+When no filter is specified, the following ones are used by default:
 
 --filter='**/*.yara' --filter='**/*.yar'"#;
 
@@ -51,10 +51,10 @@ this command can be passed later to `yr scan` by using this flag."#;
 
 pub const DUMP_LONG_HELP: &str = r#"Show the data produced by YARA modules for a file
 
-YARA modules analyze files and extract information from them. This command shows
-all the data produced by one ore more YARA module for the given file. If no module
-is explictly specified with the `--module` option, any module for which YARA 
-produces information will be shown. 
+YARA modules analyze files and extract information from them. This command shows all the 
+data produced by one ore more YARA module for the given file. If no module is explictly 
+specified with the `--module` option, any module for which YARA produces information will
+be shown. 
 
 Examples:
 
@@ -74,7 +74,7 @@ pub const SCAN_LONG_HELP: &str = r#"Scan a file or directory
 
 <RULES_PATH> can be the path to a file containing YARA rules, or the path to a directory
 containing *.yar or *.yara files. When <RULES_PATH> is a directory, it will be traversed 
-recursively looking for rule files. Multiple <RULES_PATH> can be specified.
+recursively. Multiple <RULES_PATH> can be specified.
 
 <TARGET_PATH> is the file or directory that will be scanned.
 
