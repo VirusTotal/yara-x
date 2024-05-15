@@ -44,7 +44,7 @@ pub(in crate::compiler) struct CompileContext<'a, 'src, 'sym> {
     pub vars: VarStack,
 
     /// Allow invalid escape sequences in regular expressions.
-    pub relaxed_re_escape_sequences: bool,
+    pub relaxed_re_syntax: bool,
 }
 
 impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {

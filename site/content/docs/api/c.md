@@ -161,20 +161,18 @@ combination of the following flags:
 
   Add colors to error messages.
 
-* `YRX_RELAXED_RE_ESCAPE_SEQUENCES`
+* `YRX_RELAXED_RE_SYNTAX`
 
-  Historically, YARA has accepted any character preceded by a backslash in a
-  regular expression, regardless of whether the sequence is valid. For example,
-  `\n`, `\t`, and `\w` are valid escape sequences in a regexp, but `\N`, `\T`,
-  and `\j` are not. YARA accepts all of these sequences. Valid escape
-  sequences are interpreted according to their special meaning (`\n` as a
-  new-line, `\w` as a word character, etc.), while invalid escape sequences are
-  interpreted simply as the character that appears after the backslash. Thus,
-  `\N` becomes `N`, and `\j` becomes `j`.
+  YARA-X enforces stricter regular expression syntax compared to YARA.
+  For instance, YARA accepts invalid escape sequences and treats them
+  as literal characters (e.g., \R is interpreted as a literal 'R'). It
+  also allows some special characters to appear unescaped, inferring
+  their meaning from the context (e.g., `{` and `}` in `/foo{}bar/` are
+  literal, but in `/foo{0,1}bar/` they form the repetition operator
+  `{0,1}`).
 
-  When this flag is set, YARA-X exhibits the same behaviour as YARA and accepts
-  these invalid escape sequences. By default, invalid escape sequences produce
-  an error in YARA-X.
+  When this flag is set, YARA-X mimics YARA's behavior, allowing
+  constructs that YARA-X doesn't accept by default.
 
 #### yrx_compiler_destroy
 

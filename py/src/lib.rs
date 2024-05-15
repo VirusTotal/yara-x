@@ -46,14 +46,14 @@ fn compile(src: &str) -> PyResult<Rules> {
 #[pyclass(unsendable)]
 struct Compiler {
     inner: yrx::Compiler<'static>,
-    relaxed_re_escape_sequences: bool,
+    relaxed_re_syntax: bool,
 }
 
 impl Compiler {
-    fn new_inner(relaxed_re_escape_sequences: bool) -> yrx::Compiler<'static> {
+    fn new_inner(relaxed_re_syntax: bool) -> yrx::Compiler<'static> {
         let mut compiler = yrx::Compiler::new();
-        if relaxed_re_escape_sequences {
-            compiler.relaxed_re_escape_sequences(true);
+        if relaxed_re_syntax {
+            compiler.relaxed_re_syntax(true);
         }
         compiler
     }
@@ -63,26 +63,21 @@ impl Compiler {
 impl Compiler {
     /// Creates a new [`Compiler`].
     ///
-    /// The `relaxed_re_escaped_sequence` argument controls whether the
-    /// compiler should accept invalid escape sequences in regular expressions
-    /// and translate them to plain characters. The default value is `False`.
+    /// The `relaxed_re_syntax` argument controls whether the compiler should
+    /// adopt a more relaxed syntax check for regular expressions, allowing
+    /// constructs that YARA-X doesn't accept by default.
     ///
-    /// Historically, YARA has accepted any character preceded by a backslash
-    /// in a regular expression, regardless of whether the sequence is valid.
-    /// For example, `\n`, `\t` and `\w` are valid escape sequences in a
-    /// regexp, but `\N`, `\T` and `\j` are not. However, YARA accepts all of
-    /// these sequences. Valid escape sequences are interpreted according to
-    /// their special meaning (`\n` as a new-line, `\w` as a word character,
-    /// etc.), while invalid escape sequences are interpreted simply as the
-    /// character that appears after the backslash. Thus, `\N` becomes `N`,
-    /// and `\j` becomes `j`.
+    /// YARA-X enforces stricter regular expression syntax compared to YARA.
+    /// For instance, YARA accepts invalid escape sequences and treats them
+    /// as literal characters (e.g., \R is interpreted as a literal 'R'). It
+    /// also allows some special characters to appear unescaped, inferring
+    /// their meaning from the context (e.g., `{` and `}` in `/foo{}bar/` are
+    /// literal, but in `/foo{0,1}bar/` they form the repetition operator
+    /// `{0,1}`).
     #[new]
-    #[pyo3(signature = (*, relaxed_re_escape_sequences=false))]
-    fn new(relaxed_re_escape_sequences: bool) -> Self {
-        Self {
-            inner: Self::new_inner(relaxed_re_escape_sequences),
-            relaxed_re_escape_sequences,
-        }
+    #[pyo3(signature = (*, relaxed_re_syntax=false))]
+    fn new(relaxed_re_syntax: bool) -> Self {
+        Self { inner: Self::new_inner(relaxed_re_syntax), relaxed_re_syntax }
     }
 
     /// Adds a YARA source code to be compiled.
@@ -162,7 +157,7 @@ impl Compiler {
     fn build(&mut self) -> Rules {
         let compiler = mem::replace(
             &mut self.inner,
-            Self::new_inner(self.relaxed_re_escape_sequences),
+            Self::new_inner(self.relaxed_re_syntax),
         );
         Rules::new(compiler.build())
     }

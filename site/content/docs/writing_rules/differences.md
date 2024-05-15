@@ -31,12 +31,60 @@ Our guiding principles are:
 This document covers the differences between YARA-X and YARA. They are ordered
 by importance, with the most important differences first.
 
+## The `{` character must be escaped in regular expressions
+
+The `{` character holds special significance in regular expressions,
+particularly as part of the repetition operator (e.g., `{1,3}`). In YARA 4.x,
+the `{` character can be used without escaping, with its interpretation
+depending on the context. For instance, in `/abc{/`, the `{` is treated as a
+literal, while in `/abc{1,2}/`, it is interpreted as part of the repetition
+operator `{1,2}` associated with the `c` literal.
+
+However, in YARA-X `/abc{/` is considered an invalid regular expression because
+YARA-X mandates that the `{` character be escaped when used outside a repetition
+operator. Therefore, `/abc{/` must be written as `/abc\{/`.
+
+At first glance, YARA-X's stricter requirement might seem inconvenient. However,
+there is a valid reason for this. Consider the following regular expression
+from an actual YARA rule:
+
+```
+/http:\/\/[^\/]+:[0-9]{1:5}/
+```
+
+Focus on the `[0-9]{1:5}` portion of the regular expression. The intention was
+to repeat a decimal digit between 1 and 5 times, but the user mistakenly
+wrote `{1:5}` instead of `{1,5}`. As `{1:5}` is not a valid repetition operator,
+the curly brackets are interpreted by YARA 4.x as literals, matching the literal
+string `"{1:5}"`. In YARA-X, this error is flagged because the curly brackets
+must be explicitly escaped.
+
+Here's another real-life example:
+
+```
+ /(http|https):\/\/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):280\/.{,N}[0-9a-zA-Z].zip/
+```
+
+Notice the `.{,N}` part of the regular expression. The intended pattern likely
+was to repeat `.` (any character) an unbounded number of times, typically
+expressed as `.*`. Instead, the user wrote `.{,N}`, which is not a valid
+repetition operator and is interpreted by YARA 4.x as the literal
+string `".{,N}"`. In YARA-X, such an error would be detected because of the
+requirement to escape the curly brackets explicitly.
+
+{{< callout title="Notice">}}
+
+When using the CLI, the `--relaxed-re-syntax` will automatically escape the
+`{` characters that are used outside a repetition operator.
+
+{{< /callout >}}
+
 ## Stricter escaped characters in regular expressions
 
 YARA 4.x accepts invalid escaped characters in regular expressions, and simply
 treat them as the character itself. For instance, in `/foo\gbar/` the `\g`
 sequence is not a valid escaped character and YARA translates `\g` into `g`,
-so `/foo\gbar/` is equivalent to `/foogbar/`.
+thus, `/foo\gbar/` is equivalent to `/foogbar/`.
 
 This has proven to be problematic, because it's rarely the desired behaviour
 and often hides errors in the regular expression. For example, these are
@@ -69,8 +117,16 @@ incorrect. Some other examples are:
 ```
 
 YARA 4.4 introduced the `--strict-escape` argument that turns on a strict
-check on escaped characters and return an error in such cases. This is also
+check on escaped characters and returns an error in such cases. This is also
 the default behaviour in YARA-X.
+
+{{< callout title="Notice">}}
+
+When using the CLI, the `--relaxed-re-syntax` option allows you to force
+YARA-X to behave as YARA does, accepting the invalid escape sequences in regular
+expressions.
+
+{{< /callout >}}
 
 ## Differences in base64 patterns
 

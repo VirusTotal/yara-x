@@ -40,7 +40,7 @@ pub struct Rules {
 
     /// If `true`, the regular expressions in `regexp_pool` are allowed to
     /// contain invalid escape sequences.
-    pub(in crate::compiler) relaxed_re_escape_sequences: bool,
+    pub(in crate::compiler) relaxed_re_syntax: bool,
 
     /// Pool with literal strings used in the rules. Each literal has its
     /// own [`LiteralId`], which can be used for retrieving the literal
@@ -220,7 +220,7 @@ impl Rules {
         let re = types::Regexp::new(self.regexp_pool.get(regexp_id).unwrap());
 
         let parser = re::parser::Parser::new()
-            .relaxed_escape_sequences(self.relaxed_re_escape_sequences);
+            .relaxed_re_syntax(self.relaxed_re_syntax);
 
         let hir = parser.parse(&re).unwrap().into_inner();
 

@@ -30,10 +30,10 @@ func TestUnsupportedModules(t *testing.T) {
 	assert.Len(t, matchingRules, 1)
 }
 
-func TestRelaxedReEscapeSequences(t *testing.T) {
+func TestRelaxedReSyntax(t *testing.T) {
 	r, err := Compile(`
 		rule test { strings: $a = /\Release/ condition: $a }`,
-		RelaxedReEscapeSequences(true))
+		RelaxedReSyntax(true))
 	assert.NoError(t, err)
 	matchingRules, _ := r.Scan([]byte("Release"))
 	assert.Len(t, matchingRules, 1)

@@ -50,32 +50,32 @@ func IgnoreModule(module string) CompileOption {
 	}
 }
 
-// RelaxedReEscapeSequences is an option for [NewCompiler] and [Compile] that
-// determines whether invalid escape sequences in regular expressions should be
-// accepted.
+// RelaxedReSyntax is an option for [NewCompiler] and [Compile] that
+// determines whether the compiler should adopt a more relaxed approach
+// while parsing regular expressions.
 //
-// Historically, YARA has accepted any character preceded by a backslash in a
-// regular expression, regardless of whether the sequence is valid. For example,
-// `\n`, `\t` and `\w` are valid escape sequences in a regexp, but `\N`, `\T`
-// and `\j` are not. However, YARA accepts all of these sequences. Valid escape
-// sequences are interpreted according to their special meaning (`\n` as a
-// new-line, `\w` as a word character, etc.), while invalid escape sequences are
-// interpreted simply as the character that appears after the backslash. Thus,
-// `\N` becomes `N`, and `\j` becomes `j`.
+// YARA-X enforces stricter regular expression syntax compared to YARA.
+// For instance, YARA accepts invalid escape sequences and treats them
+// as literal characters (e.g., \R is interpreted as a literal 'R'). It
+// also allows some special characters to appear unescaped, inferring
+// their meaning from the context (e.g., `{` and `}` in `/foo{}bar/` are
+// literal, but in `/foo{0,1}bar/` they form the repetition operator
+// `{0,1}`).
 //
-// This option is disabled by default.
-func RelaxedReEscapeSequences(yes bool) CompileOption {
+// When this option is set, YARA-X mimics YARA's behavior, allowing
+// constructs that YARA-X doesn't accept by default.
+func RelaxedReSyntax(yes bool) CompileOption {
 	return func(c *Compiler) error {
-		c.relaxedReEscapeSequences = yes
+		c.relaxedReSyntax = yes
 		return nil
 	}
 }
 
 // Compiler represent a YARA compiler.
 type Compiler struct {
-	cCompiler *C.YRX_COMPILER
-	relaxedReEscapeSequences bool
-	ignoredModules map[string]bool
+	cCompiler       *C.YRX_COMPILER
+	relaxedReSyntax bool
+	ignoredModules  map[string]bool
 	vars map[string]interface{}
 }
 
@@ -93,8 +93,8 @@ func NewCompiler(opts... CompileOption) (*Compiler, error) {
 	}
 
 	flags := C.uint32_t(0)
-	if c.relaxedReEscapeSequences {
-		flags |= C.YRX_RELAXED_RE_ESCAPE_SEQUENCES
+	if c.relaxedReSyntax {
+		flags |= C.YRX_RELAXED_RE_SYNTAX
 	}
 
 	C.yrx_compiler_create(flags, &c.cCompiler)

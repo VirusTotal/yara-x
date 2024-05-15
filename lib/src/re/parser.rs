@@ -90,7 +90,7 @@ impl Regexp for types::Regexp {
 pub(crate) struct Parser {
     force_case_insensitive: bool,
     allow_mixed_greediness: bool,
-    relaxed_escape_sequences: bool,
+    relaxed_re_syntax: bool,
 }
 
 impl Parser {
@@ -98,7 +98,7 @@ impl Parser {
         Self {
             force_case_insensitive: false,
             allow_mixed_greediness: true,
-            relaxed_escape_sequences: false,
+            relaxed_re_syntax: false,
         }
     }
 
@@ -119,23 +119,20 @@ impl Parser {
         self
     }
 
-    /// Allow invalid escape sequences.
+    /// Enables a more relaxed syntax check for regular expressions.
     ///
-    /// Historically, YARA has accepted any character that is preceded by a
-    /// backslash in a regular expression, even if the sequence is not a valid
-    /// one. For instance, `\n`, `\t` and `\w` are valid escape sequences in a
-    /// regexp, but `\N`, `\T` and `\j` are not. However, YARA accepts all of
-    /// these sequences. The valid escape sequences are interpreted as their
-    /// special meaning (`\n` is a new-line, `\w` is a word character, etc.),
-    /// while invalid escape sequences are interpreted simply as the character
-    /// that appears after the backslash. So, `\N` becomes `N`, and `\j`
-    /// becomes `j`.
+    /// YARA-X enforces stricter regular expression syntax compared to YARA.
+    /// For instance, YARA accepts invalid escape sequences and treats them
+    /// as literal characters (e.g., \R is interpreted as a literal 'R'). It
+    /// also allows some special characters to appear unescaped, inferring
+    /// their meaning from the context (e.g., `{` and `}` in `/foo{}bar/` are
+    /// literal, but in `/foo{0,1}bar/` they form the repetition operator
+    /// `{0,1}`).
     ///
-    /// This controls whether the compiler should accept invalid escape
-    /// sequences in regular expressions and translate them to plain characters.
-    /// They are not accepted by default.
-    pub fn relaxed_escape_sequences(mut self, yes: bool) -> Self {
-        self.relaxed_escape_sequences = yes;
+    /// This setting controls whether the parser should mimic YARA's behavior,
+    /// allowing constructs that YARA-X doesn't accept by default.
+    pub fn relaxed_re_syntax(mut self, yes: bool) -> Self {
+        self.relaxed_re_syntax = yes;
         self
     }
 
@@ -163,13 +160,18 @@ impl Parser {
             )
         };
 
-        // When `relaxed_escape_sequences` is set to true, we "fix" any invalid
-        // escape sequence by removing the backslash. For instance, \R is not a
-        // valid escape sequence, and YARA treats it as a plain R. When the
-        // regular expression /\Release/ fails to parse because of the \R
-        // sequence, we remove the backspace and try again with /Release/. This
-        // is done in a loop because the regular expression can contain more
-        // than one invalid escape sequence.
+        // YARA-X enforces stricter regular expression syntax compared to YARA.
+        // For instance, YARA accepts invalid escape sequences and treats them
+        // as literal characters (e.g., \R is interpreted as 'R'). It also
+        // allows some special characters to appear unescaped, inferring their
+        // meaning from the context (e.g., `{` and `}` in `/foo{}bar/` are
+        // literal, but in `/foo{0,1}bar/` they form the repetition operator
+        // `{0,1}`).
+        //
+        // When `relaxed_re_syntax` is set to true, YARA-X mimics YARA's
+        // behavior by "fixing" the regular expressions. For instance, it
+        // removes the backslash before invalid escape sequences like \R and
+        // adds a backslash before `{` in cases like `/foo{}bar/`.
         let ast = loop {
             // The parser can't be reused, a new one must be created on
             // each iteration.
@@ -181,9 +183,12 @@ impl Parser {
                 Ok(ast) => {
                     break Ok(ast);
                 }
-                Err(err) => match err.kind() {
-                    ErrorKind::EscapeUnrecognized => {
-                        if self.relaxed_escape_sequences {
+                Err(err) => {
+                    if !self.relaxed_re_syntax {
+                        break Err(err);
+                    }
+                    match err.kind() {
+                        ErrorKind::EscapeUnrecognized => {
                             let span = err.span();
                             let mut s = re_src.into_owned();
                             // Remove the backslash (\) from the original regexp.
@@ -195,14 +200,31 @@ impl Parser {
                             // are one byte before they should be because we removed
                             // one byte, so we need to add 1 to fix those spans.
                             span_delta += 1;
-                        } else {
+                        }
+                        ErrorKind::RepetitionMissing
+                        | ErrorKind::RepetitionCountInvalid
+                        | ErrorKind::RepetitionCountUnclosed
+                        | ErrorKind::RepetitionCountDecimalEmpty => {
+                            let span = err.span();
+                            // Find the `{` that needs to be escaped. In some
+                            // cases the error span starts exactly at the
+                            // position where the `{` is, but in some other
+                            // cases it starts a few characters after the `{`.
+                            let curly_brace = re_src.as_ref()
+                                [0..=span.start.offset]
+                                .rfind('{')
+                                .unwrap();
+                            let mut s = re_src.into_owned();
+                            // Insert a backslash in front of the `{`.
+                            s.insert(curly_brace, '\\');
+                            re_src = Cow::Owned(s);
+                            span_delta -= 1;
+                        }
+                        _ => {
                             break Err(err);
                         }
                     }
-                    _ => {
-                        break Err(err);
-                    }
-                },
+                }
             };
         }
         .map_err(|err| {

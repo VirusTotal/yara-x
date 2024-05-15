@@ -494,7 +494,7 @@ fn globals_json() {
 fn invalid_escape_sequences() {
     let mut compiler = Compiler::new();
 
-    compiler.relaxed_re_escape_sequences(true);
+    compiler.relaxed_re_syntax(true);
     compiler
         .add_source(r#"rule test { strings: $a = /\Release/ condition: $a }"#)
         .unwrap();

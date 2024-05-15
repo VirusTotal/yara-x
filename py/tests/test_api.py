@@ -15,8 +15,8 @@ def test_bad_variable_type():
     compiler.define_global()
 
 
-def test_relaxed_re_escape_sequences():
-  compiler = yara_x.Compiler(relaxed_re_escape_sequences=True)
+def test_relaxed_re_syntax():
+  compiler = yara_x.Compiler(relaxed_re_syntax=True)
   compiler.add_source(r'rule test {strings: $a = /\Release/ condition: $a}')
   rules = compiler.build()
   matching_rules = rules.scan(b'Release').matching_rules

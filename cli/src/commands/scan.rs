@@ -85,8 +85,8 @@ pub fn scan() -> Command {
                 .value_parser(value_parser!(u64).range(1..))
         )
         .arg(
-            arg!(--"relaxed-escape-sequences")
-                .help("Allow invalid escape sequences in regular expressions")
+            arg!(--"relaxed-re-syntax")
+                .help("Use a more relaxed syntax check while parsing regular expressions")
         )
         .arg(
             arg!(-d --"define")
@@ -123,10 +123,10 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
             );
         }
 
-        if args.get_flag("relaxed-escape-sequences") {
+        if args.get_flag("relaxed-re-syntax") {
             bail!(
                 "can't use '{}' together with '{}'",
-                Paint::bold("--relaxed-escape-sequences"),
+                Paint::bold("--relaxed-re-syntax"),
                 Paint::bold("--compiled-rules")
             );
         }
@@ -157,7 +157,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
             rules_path,
             path_as_namespace,
             external_vars.take(),
-            args.get_flag("relaxed-escape-sequences"),
+            args.get_flag("relaxed-re-syntax"),
         )?
     };
 

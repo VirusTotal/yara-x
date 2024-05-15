@@ -125,25 +125,23 @@ rules = yara_x.compile("rule test { condition: true }")
 Type that represents a YARA-X compiler. It takes one or more sets of YARA
 rules in text form and compile them into a [Rules](#rules) object.
 
-#### .\_\_init\_\_(relaxed_re_escape_sequences=False)
+#### .\_\_init\_\_(relaxed_re_syntax=False)
 
-Compiler constructor. The `relaxed_re_escape_sequences` determines whether
-the compiler accepts invalid escape sequences in regular expressions.
+Compiler constructor. The `relaxed_re_syntax` argument controls whether the
+compiler should adopt a more relaxed syntax check for regular expressions,
+allowing constructs that YARA-X doesn't accept by default.
 
-Historically, YARA has accepted any character preceded by a backslash in a
-regular expression, regardless of whether the sequence is valid. For example,
-`\n`, `\t` and `\w` are valid escape sequences in a regexp, but `\N`, `\T` and
-`\j` are not. YARA accepts all of these sequences. Valid escape sequences are
-interpreted according to their special meaning (`\n` as a new-line, `\w` as a
-word character, etc.), while invalid escape sequences are interpreted simply as
-the character that appears after the backslash. Thus, `\N` becomes `N`, and `\j`
-becomes `j`. By setting `relaxed_re_escape_sequences` to `True` the compiler
-behaves as the YARA compiler and accepts these invalid escape sequences.
+YARA-X enforces stricter regular expression syntax compared to YARA. For
+instance, YARA accepts invalid escape sequences and treats them as literal
+characters (e.g., \R is interpreted as a literal 'R'). It also allows some
+special characters to appear unescaped, inferring their meaning from the
+context (e.g., `{` and `}` in `/foo{}bar/` are literal, but in `/foo{0,1}bar/`
+they form the repetition operator `{0,1}`).
 
 ##### Example
 
 ```python
-compiler = yara_x.Compiler(relaxed_re_escape_sequences=True)
+compiler = yara_x.Compiler(relaxed_re_syntax=True)
 compiler.add_source("rule test { $a = /\Release/ condition: $a }")
 ```
 

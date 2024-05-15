@@ -133,8 +133,10 @@ struct Namespace {
 /// ```
 ///
 pub struct Compiler<'a> {
-    /// Allow invalid escape sequences in regexps.
-    relaxed_re_escape_sequences: bool,
+    /// Mimics YARA behaviour with respect to regular expressions, allowing
+    /// some constructs that are invalid in YARA-X by default, like invalid
+    /// escape sequences.
+    relaxed_re_syntax: bool,
 
     /// Used for generating error and warning reports.
     report_builder: ReportBuilder,
@@ -307,7 +309,7 @@ impl<'a> Compiler<'a> {
             wasm_mod,
             wasm_symbols,
             wasm_exports,
-            relaxed_re_escape_sequences: false,
+            relaxed_re_syntax: false,
             next_pattern_id: PatternId(0),
             current_pattern_id: PatternId(0),
             current_namespace: default_namespace,
@@ -521,7 +523,7 @@ impl<'a> Compiler<'a> {
 
         let mut rules = Rules {
             serialized_globals,
-            relaxed_re_escape_sequences: self.relaxed_re_escape_sequences,
+            relaxed_re_syntax: self.relaxed_re_syntax,
             wasm_mod: compiled_wasm_mod,
             ac: None,
             num_patterns: self.next_pattern_id.0 as usize,
@@ -562,32 +564,29 @@ impl<'a> Compiler<'a> {
         self
     }
 
-    /// Allow invalid escape sequences in regular expressions.
+    /// Enables a more relaxed syntax check for regular expressions.
     ///
-    /// Historically, YARA has accepted any character preceded by a backslash
-    /// in a regular expression, regardless of whether the sequence is valid.
-    /// For example, `\n`, `\t` and `\w` are valid escape sequences in a
-    /// regexp, but `\N`, `\T` and `\j` are not. However, YARA accepts all of
-    /// these sequences. Valid escape sequences are interpreted according to
-    /// their special meaning (`\n` as a new-line, `\w` as a word character,
-    /// etc.), while invalid escape sequences are interpreted simply as the
-    /// character that appears after the backslash. Thus, `\N` becomes `N`,
-    /// and `\j` becomes `j`.
+    /// YARA-X enforces stricter regular expression syntax compared to YARA.
+    /// For instance, YARA accepts invalid escape sequences and treats them
+    /// as literal characters (e.g., \R is interpreted as a literal 'R'). It
+    /// also allows some special characters to appear unescaped, inferring
+    /// their meaning from the context (e.g., `{` and `}` in `/foo{}bar/` are
+    /// literal, but in `/foo{0,1}bar/` they form the repetition operator
+    /// `{0,1}`).
     ///
-    /// This controls whether the compiler should accept invalid escape
-    /// sequences and translate them to plain characters. Invalid escape
-    /// sequences are not accepted by default.
+    /// This setting controls whether the compiler should mimic YARA's behavior,
+    /// allowing constructs that YARA-X doesn't accept by default.
     ///
     /// This should be called before any rule is added to the compiler.
     ///
     /// # Panics
     ///
     /// If called after adding rules to the compiler.
-    pub fn relaxed_re_escape_sequences(&mut self, yes: bool) -> &mut Self {
+    pub fn relaxed_re_syntax(&mut self, yes: bool) -> &mut Self {
         if !self.rules.is_empty() {
-            panic!("calling relaxed_re_escape_sequences in non-empty compiler")
+            panic!("calling relaxed_re_syntax in non-empty compiler")
         }
-        self.relaxed_re_escape_sequences = yes;
+        self.relaxed_re_syntax = yes;
         self
     }
 
@@ -751,7 +750,7 @@ impl<'a> Compiler<'a> {
         let mut rule_patterns = Vec::new();
 
         let mut ctx = CompileContext {
-            relaxed_re_escape_sequences: self.relaxed_re_escape_sequences,
+            relaxed_re_syntax: self.relaxed_re_syntax,
             current_symbol_table: None,
             symbol_table: &mut self.symbol_table,
             ident_pool: &mut self.ident_pool,
