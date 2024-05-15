@@ -244,7 +244,8 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::LiteralFloat(literal) => Ok(Expr::Const(
             TypeValue::const_float_from(literal.value))),
 
-        ast::Expr::LiteralString(literal) => Ok(Expr::Const(TypeValue::const_string_from(literal.value.as_bytes()))),
+        ast::Expr::LiteralString(literal) => Ok(Expr::Const(
+            TypeValue::const_string_from(literal.value.as_bytes()))),
 
         ast::Expr::Regexp(regexp) => {
             re::parser::Parser::new()

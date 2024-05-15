@@ -188,7 +188,8 @@ impl Parser {
                         break Err(err);
                     }
                     match err.kind() {
-                        ErrorKind::EscapeUnrecognized => {
+                        ErrorKind::EscapeUnrecognized
+                        | ErrorKind::ClassEscapeInvalid => {
                             let span = err.span();
                             let mut s = re_src.into_owned();
                             // Remove the backslash (\) from the original regexp.
