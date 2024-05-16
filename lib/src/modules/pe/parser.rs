@@ -129,11 +129,11 @@ impl AuthenticodeHasher for PE<'_> {
         let security_data_offset = self.dos_stub.len()
             + Self::SIZE_OF_PE_SIGNATURE
             + Self::SIZE_OF_FILE_HEADER
-            + if self.optional_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC
+            + if self.optional_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR64_MAGIC
             {
-                Self::SIZE_OF_OPT_HEADER_32
-            } else {
                 Self::SIZE_OF_OPT_HEADER_64
+            } else {
+                Self::SIZE_OF_OPT_HEADER_32
             }
             + Self::SIZE_OF_DIR_ENTRY * Self::IMAGE_DIRECTORY_ENTRY_SECURITY;
 
@@ -1758,8 +1758,16 @@ impl<'a> PE<'a> {
     where
         P: FnMut(&'a [u8]) -> IResult<&'a [u8], ImportDescriptor>,
     {
+        // `optional_hdr.magic` must be either IMAGE_NT_OPTIONAL_HDR32_MAGIC
+        // or IMAGE_NT_OPTIONAL_HDR64_MAGIC, but in some corrupted files it
+        // is something else (like 0). That's the case of file
+        // d3e606b4f1f30f3ee9f4263edb513b66ee81348ab8b56060dc05c4b0fc297f32.
+        // In such cases we assume that the file is a 32-bit file, for
+        // compatibility with YARA. That's why we don't use:
+        //let is_32_bits =
+        //  self.optional_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC;
         let is_32_bits =
-            self.optional_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC;
+            self.optional_hdr.magic != Self::IMAGE_NT_OPTIONAL_HDR64_MAGIC;
 
         let mut imported_funcs = Vec::new();
 
