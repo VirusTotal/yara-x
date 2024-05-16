@@ -2,10 +2,11 @@
 name: GitHub Pages
 
 on:
-  # Runs on pushes targeting the default branch
+  # Runs when site/** changes or when this file is modified.
   push:
-    branches:
-    - main
+    paths:
+    - 'site/**'
+    - '.github/workflows/site.yaml'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
