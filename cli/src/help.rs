@@ -56,10 +56,13 @@ data produced by one ore more YARA module for the given file. If no module is ex
 specified with the `--module` option, any module for which YARA produces information will
 be shown. 
 
+If the file is provided it will be read from stdin.
+
 Examples:
 
 yr dump --module pe SOMEFILE
 yr dump --module pe --module dotnet SOMEFILE
+cat SOMEFILE | yr dump
 "#;
 
 pub const COMPLETION_LONG_HELP: &str = r#"Output shell completion code for the specified shell
