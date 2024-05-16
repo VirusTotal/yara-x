@@ -80,7 +80,7 @@ pub fn scan() -> Command {
         )
         .arg(
             arg!(-a --"timeout" <SECONDS>)
-                .help("Abort scanning after the given number seconds")
+                .help("Abort scanning after the given number of seconds")
                 .required(false)
                 .value_parser(value_parser!(u64).range(1..))
         )
