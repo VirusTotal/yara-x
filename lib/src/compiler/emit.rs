@@ -18,7 +18,6 @@ use walrus::ir::{
 };
 use walrus::ValType::{I32, I64};
 use walrus::{FunctionId, InstrSeqBuilder, ValType};
-use yara_x_parser::ast::{RuleFlag, RuleFlags};
 
 use crate::compiler::context::VarStack;
 use crate::compiler::ir::{
@@ -244,7 +243,6 @@ pub(super) fn emit_rule_condition(
     ctx: &mut EmitContext,
     builder: &mut WasmModuleBuilder,
     rule_id: RuleId,
-    rule_flags: RuleFlags,
     condition: &mut Expr,
 ) {
     // Global and non-global rules are put into two independent instruction
@@ -257,7 +255,7 @@ pub(super) fn emit_rule_condition(
     // Global rules can not invoke non-global rule. As global rules will always
     // run before non-global ones, the former can't rely on the result of the
     // latter.
-    let mut instr = if rule_flags.contains(RuleFlag::Global) {
+    let mut instr = if ctx.current_rule.is_global {
         builder.new_global_rule()
     } else {
         builder.new_rule()
@@ -306,7 +304,7 @@ pub(super) fn emit_rule_condition(
             // may be some global rules that matched before, though. The
             // purpose of `global_rule_no_match` is reverting those previous
             // matches.
-            if rule_flags.contains(RuleFlag::Global) {
+            if ctx.current_rule.is_global {
                 // Call `global_rule_no_match`.
                 then_.i32_const(rule_id.0);
                 then_.call(ctx.function_id(

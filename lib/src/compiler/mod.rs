@@ -927,7 +927,6 @@ impl<'a> Compiler<'a> {
             &mut ctx,
             &mut self.wasm_mod,
             rule_id,
-            rule.flags,
             &mut condition,
         );
 
