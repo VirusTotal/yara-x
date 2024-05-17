@@ -202,11 +202,11 @@ jobs:
     - name: Publish crate
       run: |
         cargo login ${{ secrets.CRATES_IO_API_TOKEN }}
-        cargo publish -n -p yara-x-macros
-        cargo publish -n -p yara-x-proto
-        cargo publish -n -p yara-x-proto-yaml
-        cargo publish -n -p yara-x-parser
-        cargo publish -n -p yara-x        
+        cargo publish -p yara-x-macros
+        cargo publish -p yara-x-proto
+        cargo publish -p yara-x-proto-yaml
+        cargo publish -p yara-x-parser
+        cargo publish -p yara-x        
   
   publish-py:
     needs: [ build-py ]
