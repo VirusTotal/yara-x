@@ -192,6 +192,22 @@ jobs:
         draft: true
         files: yr-*/yara-x-*
   
+  publish-crate:
+    needs: [ publish-cli ]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v3
+
+    - name: Publish crate
+      run: |
+        cargo login ${{ secrets.CRATES_IO_API_TOKEN }}
+        cargo publish -n -p yara-x-macros
+        cargo publish -n -p yara-x-proto
+        cargo publish -n -p yara-x-proto-yaml
+        cargo publish -n -p yara-x-parser
+        cargo publish -n -p yara-x        
+  
   publish-py:
     needs: [ build-py ]
     runs-on: ubuntu-latest
