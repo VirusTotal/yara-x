@@ -202,12 +202,26 @@ fn main() {
     // Generate .rs files for .proto files in src/modules/protos
     proto_compiler.run_from_script();
 
-    // Re-generate modules.rs and add_modules.rs
-    //
-    // When the crate is built by doc.rs these files are not re-generated, they
-    // are used as they are in the repository. This is because doc.rs puts the
-    // source code in a read-only file system, and we can't modify the files.
-    if env::var("DOCS_RS").is_err() {
+    // Decide whether the `modules.rs` and `add_modules.rs` files should be
+    // re-generated. By default, they will be re-generated.
+    let mut regenerate_modules_rs = true;
+
+    // If the environment variable `YRX_REGENERATE_MODULES_RS` is present, the
+    // files won't be re-generated if the value is "false", "no" or "0". Any
+    // other value will re-generate the files.
+    if let Ok(env_var) = env::var("YRX_REGENERATE_MODULES_RS") {
+        regenerate_modules_rs =
+            env_var != "false" && env_var != "no" && env_var != "0";
+    }
+
+    // Also, don't re-generate the files if `DOCS_RS` is defined. This is
+    // because doc.rs puts the source code in a read-only file system, and
+    // we can't modify the files.
+    if env::var("DOCS_RS").is_ok() {
+        regenerate_modules_rs = false;
+    }
+
+    if regenerate_modules_rs {
         generate_module_files(
             proto_parser.file_descriptor_set().unwrap().file,
         );
