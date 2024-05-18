@@ -7,6 +7,7 @@
 
 use crate::modules::prelude::*;
 use crate::modules::protos::macho::*;
+use itertools::Itertools;
 use md5::{Digest, Md5};
 
 mod parser;
@@ -282,7 +283,7 @@ fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         return None;
     }
 
-    let mut dylibs: Vec<String> = dylibs_to_hash
+    let dylibs_to_hash: String = dylibs_to_hash
         .iter()
         .map(|d| {
             std::string::String::from_utf8(d.name.clone().unwrap())
@@ -290,12 +291,11 @@ fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
                 .trim()
                 .to_lowercase()
         })
-        .collect();
+        .sorted()
+        .unique()
+        .join(",");
 
-    dylibs.sort();
-    dylibs.dedup();
-    
-    md5_hash.update(dylibs.join(",").as_bytes());
+    md5_hash.update(dylibs_to_hash.as_bytes());
 
     let digest = format!("{:x}", md5_hash.finalize());
     Some(RuntimeString::new(digest))
