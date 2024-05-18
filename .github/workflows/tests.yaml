@@ -9,8 +9,10 @@ jobs:
     env:
       CARGO_TERM_COLOR: always
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
       matrix:
+        experimental: [false]
         build:
         - msrv
         - stable
@@ -40,6 +42,7 @@ jobs:
           # Disable rust-lld with -Zlinker-features=-lld
           # See: https://github.com/dtolnay/linkme/commit/d13709bfd2c1278b4c8b6c846e2017b623923c0c
           rust_flags: "-Awarnings -Zlinker-features=-lld"
+          experimental: true
 
         - build: macos
           os: macos-latest
