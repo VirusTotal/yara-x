@@ -7,6 +7,7 @@
 
 use crate::modules::prelude::*;
 use crate::modules::protos::macho::*;
+use md5::{Digest, Md5};
 
 mod parser;
 #[cfg(test)]
@@ -268,7 +269,7 @@ fn has_rpath(ctx: &ScanContext, rpath: RuntimeString) -> Option<bool> {
 #[module_export]
 fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let macho = ctx.module_output::<Macho>()?;
-    let mut md5_hash = md5::Context::new();
+    let mut md5_hash = Md5::new();
     let mut dylibs_to_hash = &macho.dylibs;
 
     // if there are not any dylibs in the main Macho, the dylibs of the nested file should be hashed
@@ -293,14 +294,10 @@ fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 
     dylibs.sort();
     dylibs.dedup();
+    
+    md5_hash.update(dylibs.join(",").as_bytes());
 
-    for (idx, dylib) in dylibs.iter().enumerate() {
-        md5_hash.consume(dylib);
-        if idx != dylibs.len() - 1 {
-            md5_hash.consume(",")
-        }
-    }
-    let digest = format!("{:x}", md5_hash.compute());
+    let digest = format!("{:x}", md5_hash.finalize());
     Some(RuntimeString::new(digest))
 }
 
