@@ -24,26 +24,34 @@ jobs:
           os: ubuntu-latest
           rust: 1.74.0
           args: "--features=magic-module"
+          rust_flags: "-Awarnings"
 
         - build: stable
           os: ubuntu-latest
           rust: stable
           args: "--features=magic-module"
+          rust_flags: "-Awarnings"
 
         - build: nightly
           os: ubuntu-latest
           rust: nightly
           args: "--features=magic-module"
+          # Link is currently failing with rust-lld (rust-lang/rust#124129)
+          # Disable rust-lld with -Zlinker-features=-lld
+          # See: https://github.com/dtolnay/linkme/commit/d13709bfd2c1278b4c8b6c846e2017b623923c0c
+          rust_flags: "-Awarnings -Zlinker-features=-lld"
 
         - build: macos
           os: macos-latest
           rust: stable
           args: ""
+          rust_flags: "-Awarnings"
 
         - build: win-msvc
           os: windows-latest
           rust: stable
           args: ""
+          rust_flags: "-Awarnings"
         
         # Tests for the `stable-x86_64-pc-windows-gnu` toolchain disabled
         # due to https://github.com/VirusTotal/yara-x/issues/29
@@ -57,6 +65,7 @@ jobs:
           os: ubuntu-latest
           rust: stable
           args: "--package yara-x --no-default-features --features=test_proto2-module,test_proto3-module,string-module,time-module,hash-module,macho-module,magic-module,math-module,lnk-module,elf-module,pe-module,dotnet-module,console-module"
+          rust_flags: "-Awarnings"
 
     steps:
     - name: Checkout sources
@@ -85,4 +94,4 @@ jobs:
     - name: Run cargo test
       run: cargo test --all-targets ${{ matrix.args }}
       env:
-        RUSTFLAGS: -Awarnings # Allow all warnings
+        RUSTFLAGS: ${{ matrix.rust_flags }} 
