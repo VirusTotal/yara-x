@@ -33,6 +33,7 @@
 // constructs that YARA-X doesn't accept by default.
 #define YRX_RELAXED_RE_SYNTAX 2
 
+// Error codes returned by functions in this API.
 typedef enum YRX_RESULT {
   // Everything was OK.
   SUCCESS,
@@ -78,7 +79,9 @@ typedef struct YRX_BUFFER {
 
 // Contains information about a pattern match.
 typedef struct YRX_MATCH {
+  // Offset within the data where the match occurred.
   size_t offset;
+  // Length of the match.
   size_t length;
 } YRX_MATCH;
 
