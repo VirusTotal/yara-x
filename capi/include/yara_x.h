@@ -14,6 +14,25 @@
 #include <stdlib.h>
 
 
+// Flag passed to [`yrx_compiler_create`] for producing colorful error
+// messages.
+#define YRX_COLORIZE_ERRORS 1
+
+// Flag passed to [`yrx_compiler_create`] that enables a more relaxed
+// syntax check for regular expressions.
+//
+// YARA-X enforces stricter regular expression syntax compared to YARA.
+// For instance, YARA accepts invalid escape sequences and treats them
+// as literal characters (e.g., \R is interpreted as a literal 'R'). It
+// also allows some special characters to appear unescaped, inferring
+// their meaning from the context (e.g., `{` and `}` in `/foo{}bar/` are
+// literal, but in `/foo{0,1}bar/` they form the repetition operator
+// `{0,1}`).
+//
+// When this flag is set, YARA-X mimics YARA's behavior, allowing
+// constructs that YARA-X doesn't accept by default.
+#define YRX_RELAXED_RE_SYNTAX 2
+
 typedef enum YRX_RESULT {
   // Everything was OK.
   SUCCESS,
@@ -175,7 +194,8 @@ void yrx_buffer_destroy(struct YRX_BUFFER *buf);
 const char *yrx_last_error(void);
 
 // Creates a [`YRX_COMPILER`] object.
-enum YRX_RESULT yrx_compiler_create(struct YRX_COMPILER **compiler);
+enum YRX_RESULT yrx_compiler_create(uint32_t flags,
+                                    struct YRX_COMPILER **compiler);
 
 // Destroys a [`YRX_COMPILER`] object.
 void yrx_compiler_destroy(struct YRX_COMPILER *compiler);
@@ -228,8 +248,8 @@ enum YRX_RESULT yrx_compiler_define_global_float(struct YRX_COMPILER *compiler,
 // Builds the source code previously added to the compiler.
 //
 // After calling this function the compiler is reset to its initial state,
-// you can keep using it by adding more sources and calling this function
-// again.
+// (i.e: the state it had after returning from yrx_compiler_create) you can
+// keep using it by adding more sources and calling this function again.
 struct YRX_RULES *yrx_compiler_build(struct YRX_COMPILER *compiler);
 
 // Creates a [`YRX_SCANNER`] object that can be used for scanning data with

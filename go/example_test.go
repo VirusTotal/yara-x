@@ -34,7 +34,7 @@ rule bar {
 
 func Example_compilerAndScanner() {
 	// Create a new compiler.
-	compiler := NewCompiler()
+	compiler, _ := NewCompiler()
 
 	// Add some rules to the compiler.
 	err := compiler.AddSource(`rule foo {

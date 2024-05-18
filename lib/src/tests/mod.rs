@@ -1495,6 +1495,12 @@ fn regexp_wide() {
 
     pattern_match!(
         r#"/fo.{0,3}?bar/s wide"#,
+        b"\x00f\x00o\x00b\x00a\x00r\x00",
+        b"f\x00o\x00b\x00a\x00r\x00"
+    );
+
+    pattern_match!(
+        r#"/fo.{0,3}?bar/s wide"#,
         b"f\x00o\x00o\x00b\x00a\x00r\x00",
         b"f\x00o\x00o\x00b\x00a\x00r\x00"
     );

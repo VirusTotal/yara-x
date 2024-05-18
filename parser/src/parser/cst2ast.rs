@@ -1358,8 +1358,8 @@ fn func_call_from_cst<'src>(
         match node.as_rule() {
             // ... if the node is an expression, add it to the function
             // arguments.
-            GrammarRule::expr => {
-                args.push(expr_from_cst(ctx, node)?);
+            GrammarRule::boolean_expr => {
+                args.push(boolean_expr_from_cst(ctx, node)?);
             }
             // ... if the node is a comma separating the arguments, do
             // nothing and continue.

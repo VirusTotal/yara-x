@@ -38,6 +38,10 @@ pub struct Rules {
     /// `i` and `s` if present (e.g: `/foobar/`, `/foo/i`, `/bar/s`).
     pub(in crate::compiler) regexp_pool: StringPool<RegexpId>,
 
+    /// If `true`, the regular expressions in `regexp_pool` are allowed to
+    /// contain invalid escape sequences.
+    pub(in crate::compiler) relaxed_re_syntax: bool,
+
     /// Pool with literal strings used in the rules. Each literal has its
     /// own [`LiteralId`], which can be used for retrieving the literal
     /// string as `&BStr`.
@@ -85,7 +89,7 @@ pub struct Rules {
     pub(in crate::compiler) atoms: Vec<SubPatternAtom>,
 
     /// A vector that contains the code for all regexp patterns (this includes
-    /// hex patterns which are just an special case of regexp). The code for
+    /// hex patterns which are just a special case of regexp). The code for
     /// each regexp is appended to the vector, during the compilation process
     /// and the atoms extracted from the regexp contain offsets within this
     /// vector. This vector contains both forward and backward code.
@@ -214,7 +218,10 @@ impl Rules {
     #[inline]
     pub(crate) fn get_regexp(&self, regexp_id: RegexpId) -> Regex {
         let re = types::Regexp::new(self.regexp_pool.get(regexp_id).unwrap());
-        let parser = re::parser::Parser::new();
+
+        let parser = re::parser::Parser::new()
+            .relaxed_re_syntax(self.relaxed_re_syntax);
+
         let hir = parser.parse(&re).unwrap().into_inner();
 
         // Set a size limit for the NFA automata. The default limit (10MB) is

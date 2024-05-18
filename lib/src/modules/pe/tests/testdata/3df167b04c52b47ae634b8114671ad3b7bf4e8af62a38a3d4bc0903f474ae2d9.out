@@ -41,7 +41,7 @@ win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
 number_of_sections: 5
-number_of_imported_functions: 76
+number_of_imported_functions: 287
 number_of_delayed_imported_functions: 0
 number_of_resources: 25
 number_of_version_infos: 8
@@ -359,199 +359,635 @@ resources:
     language: 1033
 import_details:
   - library_name: "KERNEL32.dll"
-    number_of_functions: 9
+    number_of_functions: 153
     functions:
+      - name: "GlobalUnlock"
+        rva: 385120
+      - name: "TerminateProcess"
+        rva: 385124
+      - name: "MulDiv"
+        rva: 385128
+      - name: "lstrcmpW"
+        rva: 385132
+      - name: "SetFileAttributesW"
+        rva: 385136
+      - name: "DeleteFileW"
+        rva: 385140
+      - name: "GetFileSize"
+        rva: 385144
+      - name: "ReadFile"
+        rva: 385148
+      - name: "CreateToolhelp32Snapshot"
+        rva: 385152
+      - name: "Process32FirstW"
+        rva: 385156
+      - name: "Process32NextW"
+        rva: 385160
+      - name: "GlobalFree"
+        rva: 385164
+      - name: "OpenThread"
+        rva: 385168
+      - name: "CreateFileMappingW"
+        rva: 385172
+      - name: "GetModuleHandleExW"
+        rva: 385176
+      - name: "lstrcpynW"
+        rva: 385180
+      - name: "InterlockedCompareExchange"
+        rva: 385184
+      - name: "GetLogicalDriveStringsW"
+        rva: 385188
+      - name: "GetFileSizeEx"
+        rva: 385192
+      - name: "CreateFileA"
+        rva: 385196
+      - name: "FindFirstFileW"
+        rva: 385200
+      - name: "FindNextFileW"
+        rva: 385204
+      - name: "FindClose"
+        rva: 385208
+      - name: "RemoveDirectoryW"
+        rva: 385212
+      - name: "GetLongPathNameW"
+        rva: 385216
+      - name: "IsBadReadPtr"
+        rva: 385220
+      - name: "DeviceIoControl"
+        rva: 385224
+      - name: "HeapAlloc"
+        rva: 385228
+      - name: "GetProcessHeap"
+        rva: 385232
+      - name: "HeapFree"
+        rva: 385236
+      - name: "LocalFree"
+        rva: 385240
+      - name: "SystemTimeToFileTime"
+        rva: 385244
+      - name: "SetFilePointerEx"
+        rva: 385248
+      - name: "GetLocalTime"
+        rva: 385252
+      - name: "SetUnhandledExceptionFilter"
+        rva: 385256
+      - name: "VirtualProtect"
+        rva: 385260
+      - name: "GetThreadLocale"
+        rva: 385264
+      - name: "SetThreadLocale"
+        rva: 385268
+      - name: "SetErrorMode"
+        rva: 385272
+      - name: "LoadLibraryExW"
+        rva: 385276
+      - name: "lstrcmpiW"
+        rva: 385280
+      - name: "GetModuleHandleW"
+        rva: 385284
+      - name: "WriteConsoleW"
+        rva: 385288
+      - name: "GetConsoleOutputCP"
+        rva: 385292
+      - name: "WriteConsoleA"
+        rva: 385296
+      - name: "GetModuleHandleA"
+        rva: 385300
+      - name: "SetStdHandle"
+        rva: 385304
+      - name: "FlushFileBuffers"
+        rva: 385308
+      - name: "GetLocaleInfoW"
+        rva: 385312
+      - name: "GetConsoleMode"
+        rva: 385316
+      - name: "GetConsoleCP"
+        rva: 385320
+      - name: "IsValidLocale"
+        rva: 385324
+      - name: "EnumSystemLocalesA"
+        rva: 385328
+      - name: "GetLocaleInfoA"
+        rva: 385332
+      - name: "GetUserDefaultLCID"
+        rva: 385336
+      - name: "GlobalLock"
+        rva: 385340
+      - name: "GetStringTypeA"
+        rva: 385344
+      - name: "InitializeCriticalSectionAndSpinCount"
+        rva: 385348
+      - name: "QueryPerformanceCounter"
+        rva: 385352
+      - name: "GetStartupInfoA"
+        rva: 385356
+      - name: "GetFileType"
+        rva: 385360
+      - name: "SetHandleCount"
+        rva: 385364
+      - name: "GetEnvironmentStringsW"
+        rva: 385368
+      - name: "FreeEnvironmentStringsW"
+        rva: 385372
+      - name: "IsValidCodePage"
+        rva: 385376
+      - name: "GetOEMCP"
+        rva: 385380
+      - name: "GetACP"
+        rva: 385384
+      - name: "GetModuleFileNameA"
+        rva: 385388
+      - name: "GetStdHandle"
+        rva: 385392
+      - name: "HeapCreate"
+        rva: 385396
+      - name: "GetStringTypeW"
+        rva: 385400
+      - name: "LCMapStringW"
+        rva: 385404
+      - name: "LCMapStringA"
+        rva: 385408
+      - name: "GetCPInfo"
+        rva: 385412
+      - name: "RtlUnwind"
+        rva: 385416
+      - name: "GetStartupInfoW"
+        rva: 385420
+      - name: "IsDebuggerPresent"
+        rva: 385424
+      - name: "UnhandledExceptionFilter"
+        rva: 385428
+      - name: "CreateThread"
+        rva: 385432
+      - name: "ExitThread"
+        rva: 385436
+      - name: "TlsFree"
+        rva: 385440
+      - name: "DeleteAtom"
+        rva: 385444
+      - name: "FindAtomW"
+        rva: 385448
+      - name: "TlsAlloc"
+        rva: 385452
+      - name: "GlobalAlloc"
+        rva: 385456
+      - name: "CreateProcessW"
+        rva: 385460
+      - name: "Sleep"
+        rva: 385464
+      - name: "CreateEventW"
+        rva: 385468
+      - name: "SetEvent"
+        rva: 385472
+      - name: "SetCurrentDirectoryW"
+        rva: 385476
+      - name: "GetCurrentDirectoryW"
+        rva: 385480
+      - name: "GetTickCount"
+        rva: 385484
+      - name: "WriteFile"
+        rva: 385488
+      - name: "OutputDebugStringW"
+        rva: 385492
+      - name: "CreateFileW"
+        rva: 385496
+      - name: "lstrlenW"
+        rva: 385500
+      - name: "CreateMutexW"
+        rva: 385504
+      - name: "MoveFileExW"
+        rva: 385508
+      - name: "GetCommandLineW"
+        rva: 385512
+      - name: "ExitProcess"
+        rva: 385516
+      - name: "WaitForSingleObject"
+        rva: 385520
+      - name: "OpenProcess"
+        rva: 385524
+      - name: "GetCurrentProcessId"
+        rva: 385528
+      - name: "FreeLibrary"
+        rva: 385532
+      - name: "GetProcAddress"
+        rva: 385536
+      - name: "RaiseException"
+        rva: 385540
+      - name: "SetLastError"
+        rva: 385544
+      - name: "FlushViewOfFile"
+        rva: 385548
+      - name: "FlushInstructionCache"
+        rva: 385552
+      - name: "GetCurrentProcess"
+        rva: 385556
+      - name: "GetCurrentThreadId"
+        rva: 385560
+      - name: "WideCharToMultiByte"
+        rva: 385564
+      - name: "FindResourceExW"
+        rva: 385568
+      - name: "FindResourceW"
+        rva: 385572
+      - name: "LoadResource"
+        rva: 385576
+      - name: "LockResource"
+        rva: 385580
+      - name: "SizeofResource"
+        rva: 385584
+      - name: "GetLastError"
+        rva: 385588
+      - name: "MultiByteToWideChar"
+        rva: 385592
+      - name: "lstrlenA"
+        rva: 385596
+      - name: "LeaveCriticalSection"
+        rva: 385600
+      - name: "EnterCriticalSection"
+        rva: 385604
+      - name: "DeleteCriticalSection"
+        rva: 385608
+      - name: "OpenFileMappingW"
+        rva: 385612
+      - name: "SetFilePointer"
+        rva: 385616
+      - name: "MapViewOfFile"
+        rva: 385620
+      - name: "SetEndOfFile"
+        rva: 385624
+      - name: "CloseHandle"
+        rva: 385628
+      - name: "UnmapViewOfFile"
+        rva: 385632
+      - name: "ReleaseMutex"
+        rva: 385636
+      - name: "AddAtomW"
+        rva: 385640
+      - name: "GetAtomNameW"
+        rva: 385644
+      - name: "TlsSetValue"
+        rva: 385648
+      - name: "TlsGetValue"
+        rva: 385652
+      - name: "GetSystemTime"
+        rva: 385656
+      - name: "FormatMessageW"
+        rva: 385660
+      - name: "LocalFileTimeToFileTime"
+        rva: 385664
+      - name: "GetSystemTimeAsFileTime"
+        rva: 385668
+      - name: "InterlockedExchange"
+        rva: 385672
+      - name: "HeapSize"
+        rva: 385676
+      - name: "HeapReAlloc"
+        rva: 385680
+      - name: "HeapDestroy"
+        rva: 385684
+      - name: "VirtualAlloc"
+        rva: 385688
+      - name: "VirtualFree"
+        rva: 385692
+      - name: "IsProcessorFeaturePresent"
+        rva: 385696
+      - name: "LoadLibraryA"
+        rva: 385700
+      - name: "GetPrivateProfileIntW"
+        rva: 385704
+      - name: "GetPrivateProfileStringW"
+        rva: 385708
+      - name: "LoadLibraryW"
+        rva: 385712
+      - name: "InterlockedIncrement"
+        rva: 385716
+      - name: "InterlockedDecrement"
+        rva: 385720
+      - name: "InitializeCriticalSection"
+        rva: 385724
       - name: "GetModuleFileNameW"
         rva: 385728
-      - name: "LresultFromObject"
-        rva: 385736
-      - name: "GetModuleFileNameExW"
-        rva: 385800
-      - name: "PathFileExistsW"
-        rva: 385880
-      - name: "UpdateWindow"
-        rva: 386112
-      - name: "VerQueryValueW"
-        rva: 386128
-      - name: "InternetSetCookieExW"
-        rva: 386144
-      - name: "CoCreateInstance"
-        rva: 386208
-      - name: "G"
-        rva: 391264
   - library_name: "USER32.dll"
-    number_of_functions: 5
+    number_of_functions: 57
     functions:
+      - name: "SetWindowPos"
+        rva: 385888
+      - name: "GetMessageW"
+        rva: 385892
+      - name: "TranslateMessage"
+        rva: 385896
+      - name: "DispatchMessageW"
+        rva: 385900
+      - name: "CharNextW"
+        rva: 385904
+      - name: "SendMessageW"
+        rva: 385908
+      - name: "GetClientRect"
+        rva: 385912
+      - name: "IsRectEmpty"
+        rva: 385916
+      - name: "GetDesktopWindow"
+        rva: 385920
+      - name: "SendNotifyMessageW"
+        rva: 385924
+      - name: "IsWindow"
+        rva: 385928
+      - name: "IsWindowVisible"
+        rva: 385932
+      - name: "SendMessageTimeoutW"
+        rva: 385936
+      - name: "DestroyAcceleratorTable"
+        rva: 385940
+      - name: "ReleaseDC"
+        rva: 385944
+      - name: "GetDC"
+        rva: 385948
+      - name: "InvalidateRect"
+        rva: 385952
+      - name: "InvalidateRgn"
+        rva: 385956
+      - name: "PostQuitMessage"
+        rva: 385960
+      - name: "RegisterClassExW"
+        rva: 385964
+      - name: "GetClassInfoExW"
+        rva: 385968
+      - name: "UnregisterClassA"
+        rva: 385972
+      - name: "GetWindowThreadProcessId"
+        rva: 385976
+      - name: "FindWindowExW"
+        rva: 385980
+      - name: "FindWindowW"
+        rva: 385984
+      - name: "FillRect"
+        rva: 385988
+      - name: "LoadCursorW"
+        rva: 385992
+      - name: "DefWindowProcW"
+        rva: 385996
+      - name: "DestroyWindow"
+        rva: 386000
+      - name: "ReleaseCapture"
+        rva: 386004
+      - name: "SetWindowLongW"
+        rva: 386008
+      - name: "GetWindowLongW"
+        rva: 386012
+      - name: "CreateWindowExW"
+        rva: 386016
+      - name: "CallWindowProcW"
+        rva: 386020
+      - name: "ShowWindow"
+        rva: 386024
+      - name: "MessageBoxW"
+        rva: 386028
+      - name: "RegisterWindowMessageW"
+        rva: 386032
+      - name: "GetWindowTextLengthW"
+        rva: 386036
+      - name: "GetWindowTextW"
+        rva: 386040
+      - name: "SetWindowTextW"
+        rva: 386044
+      - name: "BeginPaint"
+        rva: 386048
+      - name: "EndPaint"
+        rva: 386052
+      - name: "IsChild"
+        rva: 386056
+      - name: "GetFocus"
+        rva: 386060
+      - name: "SetFocus"
+        rva: 386064
+      - name: "GetWindow"
+        rva: 386068
+      - name: "GetDlgItem"
+        rva: 386072
+      - name: "GetClassNameW"
+        rva: 386076
+      - name: "GetSysColor"
+        rva: 386080
+      - name: "SetCapture"
+        rva: 386084
+      - name: "RedrawWindow"
+        rva: 386088
+      - name: "CreateAcceleratorTableW"
+        rva: 386092
+      - name: "ClientToScreen"
+        rva: 386096
+      - name: "GetParent"
+        rva: 386100
+      - name: "ScreenToClient"
+        rva: 386104
+      - name: "MoveWindow"
+        rva: 386108
       - name: "UpdateWindow"
         rva: 386112
-      - name: "VerQueryValueW"
-        rva: 386128
-      - name: "InternetSetCookieExW"
-        rva: 386144
-      - name: "CoCreateInstance"
-        rva: 386208
-      - name: "G"
-        rva: 391264
   - library_name: "GDI32.dll"
-    number_of_functions: 2
-    functions:
-      - name: "SHGetFolderPathW"
-        rva: 385820
-      - name: "UrlMkSetSessionOption"
-        rva: 386220
-  - library_name: "ADVAPI32.dll"
-    number_of_functions: 11
-    functions:
-      - name: "GetObjectW"
-        rva: 385104
-      - name: "ImmDisableIME"
-        rva: 385112
-      - name: "GetModuleFileNameW"
-        rva: 385728
-      - name: "LresultFromObject"
-        rva: 385736
-      - name: "GetModuleFileNameExW"
-        rva: 385800
-      - name: "PathFileExistsW"
-        rva: 385880
-      - name: "UpdateWindow"
-        rva: 386112
-      - name: "VerQueryValueW"
-        rva: 386128
-      - name: "InternetSetCookieExW"
-        rva: 386144
-      - name: "CoCreateInstance"
-        rva: 386208
-      - name: "G"
-        rva: 391264
-  - library_name: "SHELL32.dll"
-    number_of_functions: 6
-    functions:
-      - name: "PathFileExistsW"
-        rva: 385880
-      - name: "UpdateWindow"
-        rva: 386112
-      - name: "VerQueryValueW"
-        rva: 386128
-      - name: "InternetSetCookieExW"
-        rva: 386144
-      - name: "CoCreateInstance"
-        rva: 386208
-      - name: "G"
-        rva: 391264
-  - library_name: "ole32.dll"
-    number_of_functions: 2
-    functions:
-      - name: "CoCreateInstance"
-        rva: 386208
-      - name: "G"
-        rva: 391264
-  - library_name: "OLEAUT32.dll"
-    number_of_functions: 7
-    functions:
-      - name: "GetModuleFileNameExW"
-        rva: 385800
-      - name: "PathFileExistsW"
-        rva: 385880
-      - name: "UpdateWindow"
-        rva: 386112
-      - name: "VerQueryValueW"
-        rva: 386128
-      - name: "InternetSetCookieExW"
-        rva: 386144
-      - name: "CoCreateInstance"
-        rva: 386208
-      - name: "G"
-        rva: 391264
-  - library_name: "SHLWAPI.dll"
-    number_of_functions: 1
-    functions:
-      - name: "UrlMkSetSessionOption"
-        rva: 386220
-  - library_name: "OLEACC.dll"
-    number_of_functions: 8
-    functions:
-      - name: "LresultFromObject"
-        rva: 385736
-      - name: "GetModuleFileNameExW"
-        rva: 385800
-      - name: "PathFileExistsW"
-        rva: 385880
-      - name: "UpdateWindow"
-        rva: 386112
-      - name: "VerQueryValueW"
-        rva: 386128
-      - name: "InternetSetCookieExW"
-        rva: 386144
-      - name: "CoCreateInstance"
-        rva: 386208
-      - name: "G"
-        rva: 391264
-  - library_name: "IMM32.dll"
     number_of_functions: 10
     functions:
-      - name: "ImmDisableIME"
-        rva: 385112
-      - name: "GetModuleFileNameW"
-        rva: 385728
-      - name: "LresultFromObject"
-        rva: 385736
-      - name: "GetModuleFileNameExW"
-        rva: 385800
-      - name: "PathFileExistsW"
-        rva: 385880
-      - name: "UpdateWindow"
-        rva: 386112
-      - name: "VerQueryValueW"
-        rva: 386128
-      - name: "InternetSetCookieExW"
-        rva: 386144
+      - name: "DeleteObject"
+        rva: 385068
+      - name: "CreateSolidBrush"
+        rva: 385072
+      - name: "CreateCompatibleDC"
+        rva: 385076
+      - name: "CreateCompatibleBitmap"
+        rva: 385080
+      - name: "SelectObject"
+        rva: 385084
+      - name: "GetDeviceCaps"
+        rva: 385088
+      - name: "BitBlt"
+        rva: 385092
+      - name: "DeleteDC"
+        rva: 385096
+      - name: "GetStockObject"
+        rva: 385100
+      - name: "GetObjectW"
+        rva: 385104
+  - library_name: "ADVAPI32.dll"
+    number_of_functions: 10
+    functions:
+      - name: "RegQueryValueExW"
+        rva: 385024
+      - name: "RegDeleteValueW"
+        rva: 385028
+      - name: "RegCreateKeyExW"
+        rva: 385032
+      - name: "RegSetValueExW"
+        rva: 385036
+      - name: "RegOpenKeyExW"
+        rva: 385040
+      - name: "RegEnumKeyExW"
+        rva: 385044
+      - name: "RegQueryInfoKeyW"
+        rva: 385048
+      - name: "RegCloseKey"
+        rva: 385052
+      - name: "RegDeleteKeyW"
+        rva: 385056
+      - name: "RegQueryValueExA"
+        rva: 385060
+  - library_name: "SHELL32.dll"
+    number_of_functions: 4
+    functions:
+      - name: "SHGetSpecialFolderPathW"
+        rva: 385808
+      - name: "ShellExecuteW"
+        rva: 385812
+      - name: "ord165"
+        ordinal: 165
+        rva: 385816
+      - name: "SHGetFolderPathW"
+        rva: 385820
+  - library_name: "ole32.dll"
+    number_of_functions: 15
+    functions:
+      - name: "CLSIDFromString"
+        rva: 386152
+      - name: "CLSIDFromProgID"
+        rva: 386156
+      - name: "OleInitialize"
+        rva: 386160
+      - name: "CoTaskMemFree"
+        rva: 386164
+      - name: "CoTaskMemRealloc"
+        rva: 386168
+      - name: "CoTaskMemAlloc"
+        rva: 386172
+      - name: "CoInitialize"
+        rva: 386176
+      - name: "CoUninitialize"
+        rva: 386180
+      - name: "CreateStreamOnHGlobal"
+        rva: 386184
+      - name: "CoUnmarshalInterface"
+        rva: 386188
+      - name: "StringFromGUID2"
+        rva: 386192
+      - name: "OleLockRunning"
+        rva: 386196
+      - name: "CoGetClassObject"
+        rva: 386200
+      - name: "OleUninitialize"
+        rva: 386204
       - name: "CoCreateInstance"
         rva: 386208
-      - name: "G"
-        rva: 391264
-  - library_name: "urlmon.dll"
+  - library_name: "OLEAUT32.dll"
+    number_of_functions: 13
+    functions:
+      - name: "SysStringByteLen"
+        ordinal: 149
+        rva: 385744
+      - name: "VariantCopy"
+        ordinal: 10
+        rva: 385748
+      - name: "SysStringLen"
+        ordinal: 7
+        rva: 385752
+      - name: "OleCreateFontIndirect"
+        ordinal: 420
+        rva: 385756
+      - name: "LoadRegTypeLib"
+        ordinal: 162
+        rva: 385760
+      - name: "SysAllocStringByteLen"
+        ordinal: 150
+        rva: 385764
+      - name: "SysAllocStringLen"
+        ordinal: 4
+        rva: 385768
+      - name: "VariantClear"
+        ordinal: 9
+        rva: 385772
+      - name: "SysAllocString"
+        ordinal: 2
+        rva: 385776
+      - name: "SysFreeString"
+        ordinal: 6
+        rva: 385780
+      - name: "VarUI4FromStr"
+        ordinal: 277
+        rva: 385784
+      - name: "VariantInit"
+        ordinal: 8
+        rva: 385788
+      - name: "LoadTypeLib"
+        ordinal: 161
+        rva: 385792
+  - library_name: "SHLWAPI.dll"
+    number_of_functions: 14
+    functions:
+      - name: "PathRemoveExtensionW"
+        rva: 385828
+      - name: "StrToIntW"
+        rva: 385832
+      - name: "PathAppendW"
+        rva: 385836
+      - name: "PathCombineW"
+        rva: 385840
+      - name: "PathIsDirectoryW"
+        rva: 385844
+      - name: "PathRemoveFileSpecW"
+        rva: 385848
+      - name: "PathIsPrefixW"
+        rva: 385852
+      - name: "PathRemoveBackslashW"
+        rva: 385856
+      - name: "PathCanonicalizeW"
+        rva: 385860
+      - name: "PathIsRootW"
+        rva: 385864
+      - name: "StrStrIW"
+        rva: 385868
+      - name: "PathFindFileNameW"
+        rva: 385872
+      - name: "PathAddBackslashW"
+        rva: 385876
+      - name: "PathFileExistsW"
+        rva: 385880
+  - library_name: "OLEACC.dll"
     number_of_functions: 1
     functions:
-      - name: "G"
-        rva: 391264
+      - name: "LresultFromObject"
+        rva: 385736
+  - library_name: "IMM32.dll"
+    number_of_functions: 1
+    functions:
+      - name: "ImmDisableIME"
+        rva: 385112
+  - library_name: "urlmon.dll"
+    number_of_functions: 2
+    functions:
+      - name: "ObtainUserAgentString"
+        rva: 386216
+      - name: "UrlMkSetSessionOption"
+        rva: 386220
   - library_name: "WININET.dll"
     number_of_functions: 3
     functions:
+      - name: "InternetSetCookieW"
+        rva: 386136
+      - name: "InternetSetOptionW"
+        rva: 386140
       - name: "InternetSetCookieExW"
         rva: 386144
-      - name: "CoCreateInstance"
-        rva: 386208
-      - name: "G"
-        rva: 391264
   - library_name: "PSAPI.DLL"
-    number_of_functions: 7
+    number_of_functions: 1
     functions:
       - name: "GetModuleFileNameExW"
         rva: 385800
-      - name: "PathFileExistsW"
-        rva: 385880
-      - name: "UpdateWindow"
-        rva: 386112
-      - name: "VerQueryValueW"
-        rva: 386128
-      - name: "InternetSetCookieExW"
-        rva: 386144
-      - name: "CoCreateInstance"
-        rva: 386208
-      - name: "G"
-        rva: 391264
   - library_name: "VERSION.dll"
-    number_of_functions: 4
+    number_of_functions: 3
     functions:
+      - name: "GetFileVersionInfoSizeW"
+        rva: 386120
+      - name: "GetFileVersionInfoW"
+        rva: 386124
       - name: "VerQueryValueW"
         rva: 386128
-      - name: "InternetSetCookieExW"
-        rva: 386144
-      - name: "CoCreateInstance"
-        rva: 386208
-      - name: "G"
-        rva: 391264
 is_signed: false
 signatures:
   - subject: "/C=CN/ST=Beijing/L=Beijing/O=Qihoo 360 Software (Beijing) Company Limited/OU=Tech. Dev. Dept./CN=Qihoo 360 Software (Beijing) Company Limited"
@@ -566,7 +1002,7 @@ signatures:
     verified: false
     digest_alg: "sha1"
     digest: "1ffb27849b984afa4c04999845c7fb8737f7bbdc"
-    file_digest: "cdf35da1b885423c4eba4729865d6b671ef85daf"
+    file_digest: "940c804dac4e254bb2be71e5b0c4246ac684b002"
     number_of_certificates: 4
     number_of_countersignatures: 1
     signer_info:
@@ -664,7 +1100,7 @@ signatures:
     verified: false
     digest_alg: "sha256"
     digest: "c5e0311281c6c29511662aad17d8d3dff9d8d9344e500a31a948ce1887e54fd9"
-    file_digest: "43adec7789587bd7c812bb55a88776b0218a1a70e556fc2d371887326ff5601f"
+    file_digest: "f80578990228a607e446a1c6307a63a43a15a2a64a97d84a3890cb37d69c19d9"
     number_of_certificates: 4
     number_of_countersignatures: 1
     signer_info:

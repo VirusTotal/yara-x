@@ -107,8 +107,8 @@ impl<W: Write> Serializer<W> {
     ///
     /// If true, the output contain ANSI escape sequences that make it
     /// look nicer on compatible consoles. The default setting is `false`.
-    pub fn with_colors(&mut self, b: bool) -> &mut Self {
-        self.colors = if b {
+    pub fn with_colors(&mut self, yes: bool) -> &mut Self {
+        self.colors = if yes {
             Colors {
                 string: Color::Green.foreground(),
                 field_name: Color::Yellow.foreground(),

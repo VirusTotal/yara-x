@@ -26,6 +26,10 @@ pub fn compile() -> Command {
                 .help("Use file path as rule namespace"),
         )
         .arg(
+            arg!(--"relaxed-re-syntax")
+                .help("Use a more relaxed syntax check while parsing regular expressions"),
+        )
+        .arg(
             Arg::new("define")
                 .short('d')
                 .long("define")
@@ -47,7 +51,12 @@ pub fn exec_compile(args: &ArgMatches) -> anyhow::Result<()> {
         .get_many::<(String, serde_json::Value)>("define")
         .map(|var| var.cloned().collect());
 
-    let rules = compile_rules(rules_path, path_as_namespace, external_vars)?;
+    let rules = compile_rules(
+        rules_path,
+        path_as_namespace,
+        external_vars,
+        args.get_flag("relaxed-re-syntax"),
+    )?;
 
     let output_file = File::create(output_path).with_context(|| {
         format!("can not write `{}`", output_path.display())

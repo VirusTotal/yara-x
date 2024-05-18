@@ -37,7 +37,7 @@ extern "C" fn callback(rule: *const YRX_RULE, user_data: *mut c_void) {
 fn capi() {
     unsafe {
         let mut compiler = std::ptr::null_mut();
-        yrx_compiler_create(&mut compiler);
+        yrx_compiler_create(0, &mut compiler);
 
         let src = CString::new(
             b"rule test {\

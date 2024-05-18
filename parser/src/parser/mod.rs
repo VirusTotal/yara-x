@@ -58,7 +58,7 @@ pub struct SourceCode<'src> {
 impl<'src> SourceCode<'src> {
     /// Sets a string that describes the origin of the source code.
     ///
-    /// This is usually the path of the file that contained the source code
+    /// This is usually the path of the file that contained the source code,
     /// but it can be an arbitrary string. The origin appears in error and
     /// warning messages.
     pub fn with_origin(self, origin: &str) -> Self {
@@ -69,13 +69,23 @@ impl<'src> SourceCode<'src> {
         }
     }
 
-    /// Make sure that the source code is valid UTF-8. If that's the case
-    /// sets the `valid` field, if not, returns an error.
-    fn validate_utf8(&mut self) -> Result<(), bstr::Utf8Error> {
-        if self.valid.is_none() {
-            self.valid = Some(self.raw.to_str()?);
+    /// Returns the source code as a `&str`.
+    ///
+    /// If the source code is not valid UTF-8 it will return an error.
+    fn as_str(&mut self) -> Result<&'src str, bstr::Utf8Error> {
+        match self.valid {
+            // We already know that source code is valid UTF-8, return it
+            // as is.
+            Some(s) => Ok(s),
+            // We don't know yet if the source code is valid UTF-8, some
+            // validation must be done. If validation fails an error is
+            // returned.
+            None => {
+                let src = self.raw.to_str()?;
+                self.valid = Some(src);
+                Ok(src)
+            }
         }
-        Ok(())
     }
 }
 
@@ -135,8 +145,8 @@ impl<'a> Parser<'a> {
     ///
     /// Colorized error messages contain ANSI escape sequences that make them
     /// look nicer on compatible consoles. The default setting is `false`.
-    pub fn colorize_errors(&mut self, b: bool) -> &mut Self {
-        self.own_report_builder.with_colors(b);
+    pub fn colorize_errors(&mut self, yes: bool) -> &mut Self {
+        self.own_report_builder.with_colors(yes);
         self
     }
 
@@ -253,9 +263,6 @@ impl<'a> Parser<'a> {
         let report_builder = self.get_report_builder();
         let mut src = src.into();
 
-        // Make sure that source code is valid UTF-8.
-        let utf8_validation = src.validate_utf8();
-
         // Register the source code with the report builder, even if the code
         // is not valid UTF-8, so that we can build the report that tells
         // about the invalid UTF-8. In the registered source code invalid
@@ -263,36 +270,42 @@ impl<'a> Parser<'a> {
         // https://www.compart.com/en/unicode/U+FFFD
         report_builder.register_source(&src);
 
-        // If the code is not valid UTF-8 fail with an error.
-        if let Err(err) = utf8_validation {
-            let span_start = err.valid_up_to();
-            let span_end = if let Some(error_len) = err.error_len() {
-                // `error_len` is the number of invalid UTF-8 bytes found
-                // after `span_start`. Round the number up to the next 3
-                // bytes boundary because invalid bytes are replaced with
-                // the Unicode replacement characters that takes 3 bytes.
-                // This way the span ends at a valid UTF-8 character
-                // boundary.
-                span_start + error_len.next_multiple_of(3)
-            } else {
-                span_start
-            };
-            return Err(Error::from(ErrorInfo::invalid_utf_8(
-                report_builder,
-                Span::new(
-                    report_builder.current_source_id().unwrap(),
-                    span_start,
-                    span_end,
-                ),
-            )));
+        match src.as_str() {
+            Ok(src) => {
+                let pairs = grammar::ParserImpl::parse(rule, src).map_err(
+                    |pest_error| report_builder.convert_pest_error(pest_error),
+                )?;
+
+                Ok(CST {
+                    comments: false,
+                    whitespaces: false,
+                    pairs: Box::new(pairs),
+                })
+            }
+            Err(err) => {
+                let span_start = err.valid_up_to();
+                let span_end = if let Some(error_len) = err.error_len() {
+                    // `error_len` is the number of invalid UTF-8 bytes found
+                    // after `span_start`. Round the number up to the next 3
+                    // bytes boundary because invalid bytes are replaced with
+                    // the Unicode replacement characters that takes 3 bytes.
+                    // This way the span ends at a valid UTF-8 character
+                    // boundary.
+                    span_start + error_len.next_multiple_of(3)
+                } else {
+                    span_start
+                };
+
+                Err(Error::from(ErrorInfo::invalid_utf_8(
+                    report_builder,
+                    Span::new(
+                        report_builder.current_source_id().unwrap(),
+                        span_start,
+                        span_end,
+                    ),
+                )))
+            }
         }
-
-        let pairs = grammar::ParserImpl::parse(rule, src.valid.unwrap())
-            .map_err(|pest_error| {
-                report_builder.convert_pest_error(pest_error)
-            })?;
-
-        Ok(CST { comments: false, whitespaces: false, pairs: Box::new(pairs) })
     }
 
     /// Sets the report builder used by the Parser.

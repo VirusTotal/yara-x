@@ -121,7 +121,7 @@ lazy_static! {
 pub mod mods {
     /*! Utility functions and structures for invoking YARA modules directly.
 
-    The utility functions [`invoke_mod`], [`invoke_mod_dyn`] and [`invoke_all`]
+    The utility functions [`invoke`], [`invoke_dyn`] and [`invoke_all`]
     allow leveraging YARA modules for parsing some file formats independently
     of any YARA rule. With these functions you can pass arbitrary data to a
     YARA module and obtain the same data structure that is accessible to YARA
@@ -135,18 +135,52 @@ pub mod mods {
     ```rust
     # use yara_x;
     # let data = &[];
-    let pe_info = yara_x::mods::invoke_mod::<yara_x::mods::PE>(data);
+    let pe_info = yara_x::mods::invoke::<yara_x::mods::PE>(data);
     ```
      */
 
+    /// Data structures defined by the `dotnet` module.
+    ///
+    /// The main structure produced by the module is [`dotnet::Dotnet`]. The
+    /// rest of them are used by one or more fields in the main structure.
+    ///
+    pub use super::protos::dotnet;
     /// Data structure returned by the `dotnet` module.
     pub use super::protos::dotnet::Dotnet;
+
+    /// Data structures defined by the `elf` module.
+    ///
+    /// The main structure produced by the module is [`elf::ELF`]. The rest of
+    /// them are used by one or more fields in the main structure.
+    ///
+    pub use super::protos::elf;
     /// Data structure returned by the `elf` module.
     pub use super::protos::elf::ELF;
+
+    /// Data structures defined by the `lnk` module.
+    ///     
+    /// The main structure produced by the module is [`lnk::Lnk`]. The rest of
+    /// them are used by one or more fields in the main structure.
+    ///
+    pub use super::protos::lnk;
     /// Data structure returned by the `lnk` module.
     pub use super::protos::lnk::Lnk;
+
+    /// Data structures defined by the `macho` module.
+    ///
+    /// The main structure produced by the module is [`macho::Macho`]. The rest
+    /// of them are used by one or more fields in the main structure.
+    ///
+    pub use super::protos::macho;
     /// Data structure returned by the `macho` module.
     pub use super::protos::macho::Macho;
+
+    /// Data structures defined by the `pe` module.
+    ///
+    /// The main structure produced by the module is [`pe::PE`]. The rest
+    /// of them are used by one or more fields in the main structure.
+    ///
+    pub use super::protos::pe;
     /// Data structure returned by the `pe` module.
     pub use super::protos::pe::PE;
 
@@ -171,27 +205,25 @@ pub mod mods {
     /// the input data.
     ///
     /// `T` must be one of the structure types returned by a YARA module, which
-    /// are defined [`crate::mods`].
+    /// are defined [`crate::mods`], like [`crate::mods::PE`], [`crate::mods::ELF`], etc.
     ///
     /// # Example
     /// ```rust
     /// # use yara_x;
     /// # let data = &[];
-    /// let elf_info = yara_x::mods::invoke_mod::<yara_x::mods::ELF>(data);
+    /// let elf_info = yara_x::mods::invoke::<yara_x::mods::ELF>(data);
     /// ```
-    pub fn invoke_mod<T: protobuf::MessageFull>(
-        data: &[u8],
-    ) -> Option<Box<T>> {
-        let module_output = invoke_mod_dyn::<T>(data)?;
+    pub fn invoke<T: protobuf::MessageFull>(data: &[u8]) -> Option<Box<T>> {
+        let module_output = invoke_dyn::<T>(data)?;
         Some(<dyn protobuf::MessageDyn>::downcast_box(module_output).unwrap())
     }
 
     /// Invoke a YARA module with arbitrary data, but returns a dynamic
     /// structure.
     ///
-    /// This function is similar to [`invoke_mod`] but its result is a dynamic-
+    /// This function is similar to [`invoke`] but its result is a dynamic-
     /// dispatch version of the structure returned by the YARA module.
-    pub fn invoke_mod_dyn<T: protobuf::MessageFull>(
+    pub fn invoke_dyn<T: protobuf::MessageFull>(
         data: &[u8],
     ) -> Option<Box<dyn protobuf::MessageDyn>> {
         let descriptor = T::descriptor();
@@ -206,7 +238,7 @@ pub mod mods {
 
     /// Invoke all YARA modules and return the data produced by them.
     ///
-    /// This function is similar to [`invoke_mod`], but it returns the
+    /// This function is similar to [`invoke`], but it returns the
     /// information produced by all modules at once.
     ///
     /// # Example
@@ -217,11 +249,11 @@ pub mod mods {
     /// ```
     pub fn invoke_all(data: &[u8]) -> Box<Modules> {
         let mut info = Box::new(Modules::new());
-        info.pe = protobuf::MessageField(invoke_mod::<PE>(data));
-        info.elf = protobuf::MessageField(invoke_mod::<ELF>(data));
-        info.dotnet = protobuf::MessageField(invoke_mod::<Dotnet>(data));
-        info.macho = protobuf::MessageField(invoke_mod::<Macho>(data));
-        info.lnk = protobuf::MessageField(invoke_mod::<Lnk>(data));
+        info.pe = protobuf::MessageField(invoke::<PE>(data));
+        info.elf = protobuf::MessageField(invoke::<ELF>(data));
+        info.dotnet = protobuf::MessageField(invoke::<Dotnet>(data));
+        info.macho = protobuf::MessageField(invoke::<Macho>(data));
+        info.lnk = protobuf::MessageField(invoke::<Lnk>(data));
         info
     }
 }

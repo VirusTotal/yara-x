@@ -2528,9 +2528,9 @@ dependencies = [
 
 [[package]]
 name = "pest"
-version = "2.7.8"
+version = "2.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56f8023d0fb78c8e03784ea1c7f3fa36e68a723138990b8d5a47d916b651e7a8"
+checksum = "560131c633294438da9f7c4b08189194b20946c8274c6b9e38881a7874dc8ee8"
 dependencies = [
  "memchr",
  "thiserror",
@@ -4750,7 +4750,7 @@ checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
 
 [[package]]
 name = "yara-x"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -4819,7 +4819,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-capi"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "cbindgen",
  "yara-x",
@@ -4827,7 +4827,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-cli"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "ascii_tree",
@@ -4856,7 +4856,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-fmt"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "bitmask",
@@ -4868,7 +4868,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-macros"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "convert_case",
  "darling",
@@ -4879,7 +4879,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-parser"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "annotate-snippets",
  "ascii_tree",
@@ -4901,7 +4901,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-proto"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "protobuf",
  "protobuf-codegen",
@@ -4910,7 +4910,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-proto-yaml"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "chrono",
  "globwalk",
@@ -4925,7 +4925,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-py"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "protobuf-json-mapping",
  "pyo3",

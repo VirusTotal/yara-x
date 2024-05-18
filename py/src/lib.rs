@@ -46,14 +46,38 @@ fn compile(src: &str) -> PyResult<Rules> {
 #[pyclass(unsendable)]
 struct Compiler {
     inner: yrx::Compiler<'static>,
+    relaxed_re_syntax: bool,
+}
+
+impl Compiler {
+    fn new_inner(relaxed_re_syntax: bool) -> yrx::Compiler<'static> {
+        let mut compiler = yrx::Compiler::new();
+        if relaxed_re_syntax {
+            compiler.relaxed_re_syntax(true);
+        }
+        compiler
+    }
 }
 
 #[pymethods]
 impl Compiler {
     /// Creates a new [`Compiler`].
+    ///
+    /// The `relaxed_re_syntax` argument controls whether the compiler should
+    /// adopt a more relaxed syntax check for regular expressions, allowing
+    /// constructs that YARA-X doesn't accept by default.
+    ///
+    /// YARA-X enforces stricter regular expression syntax compared to YARA.
+    /// For instance, YARA accepts invalid escape sequences and treats them
+    /// as literal characters (e.g., \R is interpreted as a literal 'R'). It
+    /// also allows some special characters to appear unescaped, inferring
+    /// their meaning from the context (e.g., `{` and `}` in `/foo{}bar/` are
+    /// literal, but in `/foo{0,1}bar/` they form the repetition operator
+    /// `{0,1}`).
     #[new]
-    fn new() -> Self {
-        Self { inner: yrx::Compiler::new() }
+    #[pyo3(signature = (*, relaxed_re_syntax=false))]
+    fn new(relaxed_re_syntax: bool) -> Self {
+        Self { inner: Self::new_inner(relaxed_re_syntax), relaxed_re_syntax }
     }
 
     /// Adds a YARA source code to be compiled.
@@ -73,6 +97,13 @@ impl Compiler {
     /// initial value when the [`Rules`] are used for scanning data, however
     /// each scanner can change the variable's value by calling
     /// [`crate::Scanner::set_global`].
+    ///
+    /// The type of `value` must be: bool, str, bytes, int or float.
+    ///
+    /// # Raises
+    ///
+    /// [TypeError](https://docs.python.org/3/library/exceptions.html#TypeError)
+    /// if the type of `value` is not one of the supported ones.
     fn define_global(
         &mut self,
         ident: &str,
@@ -124,7 +155,10 @@ impl Compiler {
     /// previously added with [`Compiler::add_source`] and sets the compiler
     /// to its initial empty state.
     fn build(&mut self) -> Rules {
-        let compiler = mem::replace(&mut self.inner, yrx::Compiler::new());
+        let compiler = mem::replace(
+            &mut self.inner,
+            Self::new_inner(self.relaxed_re_syntax),
+        );
         Rules::new(compiler.build())
     }
 }
@@ -173,6 +207,13 @@ impl Scanner {
     ///
     /// The variable will retain the new value in subsequent scans, unless this
     /// function is called again for setting a new value.
+    ///
+    /// The type of `value` must be: `bool`, `str`, `bytes`, `int` or `float`.
+    ///
+    /// # Raises
+    ///
+    /// [TypeError](https://docs.python.org/3/library/exceptions.html#TypeError)
+    /// if the type of `value` is not one of the supported ones.
     fn set_global(
         &mut self,
         ident: &str,

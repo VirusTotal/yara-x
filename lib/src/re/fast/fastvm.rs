@@ -374,14 +374,16 @@ impl FastVM<'_> {
         wide: bool,
     ) -> bool {
         if wide {
+            // The input must be at least twice the length of the literal,
+            // because of the interleaved zeroes.
             if input.len() < literal.len() * 2 {
                 return false;
             }
             // Iterate the input in chunks of two bytes, where the first one
             // must match a byte in the literal, and the second one is the
             // interleaved zero.
-            for (input, byte) in izip!(input.chunks_exact(2), literal.iter()) {
-                if input[1] != 0 || (input[0] != *byte) {
+            for (chunk, byte) in izip!(input.chunks_exact(2), literal.iter()) {
+                if chunk[0] != *byte || chunk[1] != 0 {
                     return false;
                 }
             }
@@ -402,18 +404,18 @@ impl FastVM<'_> {
         wide: bool,
     ) -> bool {
         if wide {
-            // The input must be twice the length of the literal, because of
-            // the interleaved zeroes.
+            // The input must be at least twice the length of the literal,
+            // because of the interleaved zeroes.
             if input.len() < literal.len() * 2 {
                 return false;
             }
-            // Iterate the input in chunks of two bytes, where the first one
-            // must match a byte in the literal, and the second one is the
-            // interleaved zero.
-            for (input, byte) in
-                izip!(input.chunks_exact(2).rev(), literal.iter().rev())
+            // Iterate the input from right to left, in chunks of two bytes.
+            // The first byte in each chunk must match a byte in the literal,
+            // and the second one is the interleaved zero.
+            for (chunk, byte) in
+                izip!(input.rchunks_exact(2), literal.iter().rev())
             {
-                if input[1] != 0 || (input[0] != *byte) {
+                if chunk[0] != *byte || chunk[1] != 0 {
                     return false;
                 }
             }
@@ -568,16 +570,7 @@ impl FastVM<'_> {
         let jmp_range = &input[range_min..range_max];
 
         let mut on_match_found = |offset| {
-            if flags.contains(JumpFlags::Wide) {
-                // In wide mode we are only interested in bytes found
-                // at even offsets. At odd offsets the input should
-                // have only zeroes and they are not potential matches.
-                if offset % 2 == 0 {
-                    next_positions.insert(position + range_min + offset);
-                }
-            } else {
-                next_positions.insert(position + range_min + offset);
-            }
+            next_positions.insert(position + range_min + offset);
         };
 
         let accept_newlines = flags.contains(JumpFlags::AcceptNewlines);
@@ -671,19 +664,8 @@ impl FastVM<'_> {
         let jmp_range = &input[range_min..range_max];
 
         let mut on_match_found = |offset| {
-            if flags.contains(JumpFlags::Wide) {
-                // In wide mode we are only interested in bytes found
-                // at even offsets. At odd offsets the input should
-                // have only zeroes, and they are not potential matches.
-                if offset % 2 == 0 {
-                    next_positions.insert(
-                        position + n + jmp_range.len() - offset - step,
-                    );
-                }
-            } else {
-                next_positions
-                    .insert(position + n + jmp_range.len() - offset - step);
-            }
+            next_positions
+                .insert(position + n + jmp_range.len() - offset - step);
         };
 
         let accept_newlines = flags.contains(JumpFlags::AcceptNewlines);
