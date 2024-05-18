@@ -594,14 +594,14 @@ impl From<&AuthenticodeSignature<'_>> for protos::pe::Signature {
         if let Some(signer_info) = sig.signer_info.as_ref() {
             if let Some(cert) = signer_info.chain.first() {
                 sig.version = cert.version;
-                sig.thumbprint = cert.thumbprint.clone();
-                sig.issuer = cert.issuer.clone();
-                sig.subject = cert.subject.clone();
-                sig.serial = cert.serial.clone();
+                sig.thumbprint.clone_from(&cert.thumbprint);
+                sig.issuer.clone_from(&cert.issuer);
+                sig.subject.clone_from(&cert.subject);
+                sig.serial.clone_from(&cert.serial);
                 sig.not_after = cert.not_after;
                 sig.not_before = cert.not_before;
-                sig.algorithm = cert.algorithm.clone();
-                sig.algorithm_oid = cert.algorithm_oid.clone();
+                sig.algorithm.clone_from(&cert.algorithm);
+                sig.algorithm_oid.clone_from(&cert.algorithm_oid);
             }
         }
 

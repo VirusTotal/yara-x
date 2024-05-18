@@ -1037,7 +1037,7 @@ fn boolean_term_from_cst<'src>(
             // considered used when the `them` keyword is used, or when the
             // pattern `$*` appears in a pattern identifiers tuple.
             if ident_name != "$" {
-                if ctx.declared_patterns.get(&ident_name[1..]).is_none() {
+                if !ctx.declared_patterns.contains_key(&ident_name[1..]) {
                     return Err(Error::from(ErrorInfo::unknown_pattern(
                         ctx.report_builder,
                         ident_name.to_string(),
@@ -1241,7 +1241,7 @@ fn primary_expr_from_cst<'src>(
             let ident_name = node.as_span().as_str();
 
             if ident_name != "#"
-                && ctx.declared_patterns.get(&ident_name[1..]).is_none()
+                && !ctx.declared_patterns.contains_key(&ident_name[1..])
             {
                 return Err(Error::from(ErrorInfo::unknown_pattern(
                     ctx.report_builder,
@@ -1284,7 +1284,7 @@ fn primary_expr_from_cst<'src>(
             let ident_name = node.as_span().as_str();
 
             if ident_name.len() > 1
-                && ctx.declared_patterns.get(&ident_name[1..]).is_none()
+                && !ctx.declared_patterns.contains_key(&ident_name[1..])
             {
                 return Err(Error::from(ErrorInfo::unknown_pattern(
                     ctx.report_builder,

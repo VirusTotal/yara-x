@@ -1335,7 +1335,7 @@ impl From<MachO<'_>> for protos::macho::Macho {
             result.reserved = m.header.reserved;
             result.entry_point = m.entry_point_offset;
             result.stack_size = m.stack_size;
-            result.source_version = m.source_version.to_owned();
+            m.source_version.clone_into(&mut result.source_version);
             result.dynamic_linker = m.dynamic_linker.map(|dl| dl.into());
 
             if let Some(symtab) = &m.symtab {
@@ -1417,7 +1417,7 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         result.reserved = macho.header.reserved;
         result.entry_point = macho.entry_point_offset;
         result.stack_size = macho.stack_size;
-        result.source_version = macho.source_version.to_owned();
+        macho.source_version.clone_into(&mut result.source_version);
         result.dynamic_linker = macho.dynamic_linker.map(|dl| dl.into());
 
         if let Some(symtab) = &macho.symtab {

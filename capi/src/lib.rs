@@ -107,7 +107,7 @@ mod tests;
 pub use scanner::*;
 
 thread_local! {
-    static LAST_ERROR: RefCell<Option<CString>> = RefCell::new(None);
+    static LAST_ERROR: RefCell<Option<CString>> = const { RefCell::new(None) };
 }
 
 #[repr(C)]
