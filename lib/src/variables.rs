@@ -61,8 +61,11 @@ pub enum VariableError {
         "invalid type for `{variable}`, expecting `{expected_type}`, got `{actual_type}"
     )]
     InvalidType {
+        /// Variable name.
         variable: String,
+        /// Name of the expected type.
         expected_type: String,
+        /// Name of the actual type.
         actual_type: String,
     },
 }
@@ -334,7 +337,7 @@ pub fn is_valid_identifier(ident: &str) -> bool {
         return false;
     }
 
-    // The the remaining characters must be letters, numbers, or underscores.
+    // The remaining characters must be letters, numbers, or underscores.
     chars.all(|c| c.is_alphanumeric() || c == '_')
 }
 

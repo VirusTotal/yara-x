@@ -52,16 +52,34 @@ pub enum ScanError {
     Timeout,
     /// Could not open the scanned file.
     #[error("can not open `{path}`: {source}")]
-    OpenError { path: PathBuf, source: std::io::Error },
+    OpenError {
+        /// Path of the file being scanned.
+        path: PathBuf,
+        /// Error that occurred.
+        source: std::io::Error,
+    },
     /// Could not map the scanned file into memory.
     #[error("can not map `{path}`: {source}")]
-    MapError { path: PathBuf, source: fmmap::error::Error },
+    MapError {
+        /// Path of the file being scanned.
+        path: PathBuf,
+        /// Error that occurred.
+        source: fmmap::error::Error,
+    },
     /// Could not deserialize the protobuf message for some YARA module.
     #[error("can not deserialize protobuf message for YARA module `{module}`: {err}")]
-    ProtoError { module: String, err: protobuf::Error },
+    ProtoError {
+        /// Module name.
+        module: String,
+        /// Error that occurred
+        err: protobuf::Error,
+    },
     /// The module is unknown.
     #[error("unknown module `{module}`")]
-    UnknownModule { module: String },
+    UnknownModule {
+        /// Module name.
+        module: String,
+    },
 }
 
 /// Global counter that gets incremented every 1 second by a dedicated thread.

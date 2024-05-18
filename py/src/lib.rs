@@ -12,6 +12,9 @@ rules = yara_x.compile('rule test {strings: $a = "dummy" condition: $a}')
 matches = rules.scan(b'some dummy data')
 ```
  */
+
+#![deny(missing_docs)]
+
 use std::marker::PhantomPinned;
 use std::mem;
 use std::ops::Deref;
@@ -366,10 +369,15 @@ impl Pattern {
     }
 }
 
+/// Represents a match found for a pattern.
 #[pyclass]
 struct Match {
+    /// Offset within the scanned data where the match occurred.
     offset: usize,
+    /// Length of the match.
     length: usize,
+    /// For patterns that have the `xor` modifier, contains the XOR key that
+    /// applied to matching data. For any other pattern will be `None`.
     xor_key: Option<u8>,
 }
 

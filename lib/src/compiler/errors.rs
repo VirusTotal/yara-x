@@ -13,12 +13,16 @@ use yara_x_parser::Error as ParseError;
 /// Errors returned while serializing/deserializing compiled rules.
 #[derive(Error, Debug)]
 pub enum SerializationError {
+    /// The data being deserialized doesn't contain YARA-X serialized rules.
     #[error("not a YARA-X compiled rules file")]
     InvalidFormat,
 
+    /// The data seems to be YARA-X serialized rules, but it's invalid or
+    /// corrupted.
     #[error("invalid YARA-X compiled rules file")]
     InvalidEncoding(#[from] bincode::Error),
 
+    /// I/O error while trying to read or write serialized data.
     #[error(transparent)]
     IoError(#[from] io::Error),
 }
@@ -31,6 +35,7 @@ pub struct EmitWasmError(#[from] anyhow::Error);
 
 /// Errors returned by the compiler.
 #[derive(Error, Debug, Eq, PartialEq)]
+#[allow(missing_docs)]
 pub enum Error {
     #[error(transparent)]
     ParseError(#[from] ParseError),
@@ -44,6 +49,7 @@ pub enum Error {
 
 /// An error occurred during the compilation process.
 #[derive(DeriveError, Eq, PartialEq)]
+#[allow(missing_docs)]
 #[non_exhaustive]
 pub enum CompileError {
     #[error("wrong type")]

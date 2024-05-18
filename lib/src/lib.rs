@@ -41,6 +41,8 @@ assert_eq!(results.matching_rules().len(), 1);
 ```
 */
 
+#![deny(missing_docs)]
+
 pub use compiler::compile;
 pub use compiler::CompileError;
 pub use compiler::Compiler;

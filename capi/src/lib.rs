@@ -88,6 +88,7 @@ includes:
 [4]: https://learn.microsoft.com/en-us/cpp/build/reference/module-definition-dot-def-files
  */
 
+#![deny(missing_docs)]
 #![allow(non_camel_case_types)]
 #![allow(clippy::missing_safety_doc)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
@@ -110,6 +111,7 @@ thread_local! {
     static LAST_ERROR: RefCell<Option<CString>> = RefCell::new(None);
 }
 
+/// Error codes returned by functions in this API.
 #[repr(C)]
 pub enum YRX_RESULT {
     /// Everything was OK.
@@ -190,7 +192,9 @@ impl Drop for YRX_PATTERN {
 /// Contains information about a pattern match.
 #[repr(C)]
 pub struct YRX_MATCH {
+    /// Offset within the data where the match occurred.
     pub offset: usize,
+    /// Length of the match.
     pub length: usize,
 }
 
