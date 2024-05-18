@@ -2605,7 +2605,7 @@ impl From<&ImportedFunc> for protos::pe::Function {
         let mut func = protos::pe::Function::new();
         func.rva = Some(value.rva);
         func.ordinal = value.ordinal.map(|ordinal| ordinal.into());
-        func.name = value.name.clone();
+        func.name.clone_from(&value.name);
         func
     }
 }

@@ -147,7 +147,7 @@ impl SymbolTable {
     where
         I: AsRef<str>,
     {
-        self.map.get(ident.as_ref()).is_some()
+        self.map.contains_key(ident.as_ref())
     }
 }
 
