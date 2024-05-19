@@ -189,7 +189,7 @@ rule GetHashCode {
 
 ### Param
 
-This is the structure of each item in the `parametes` array within each Method.
+This is the structure of each item in the `parameters` array within each Method.
 
 | Field | Type   |
 |-------|--------|

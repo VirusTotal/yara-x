@@ -83,7 +83,7 @@ impl RuntimeString {
 
     /// Creates a [`RuntimeString`] from a reference to a byte slice.
     ///
-    /// If the original slice is contained withing the scanned data, this
+    /// If the original slice is contained within the scanned data, this
     /// function returns the [`RuntimeString::ScannedDataSlice`] variant, which
     /// doesn't need to copy the string data.
     ///
