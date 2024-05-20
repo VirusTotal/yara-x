@@ -140,7 +140,7 @@ text-module = [
 ]
 
 # The `time` module allows you to retrieve epoch in seconds that can be used in
-# conditions of a rule to check againts other epoch time.
+# conditions of a rule to check against other epoch time.
 time-module = []
 
 

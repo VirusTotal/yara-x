@@ -52,7 +52,7 @@ this command can be passed later to `yr scan` by using this flag."#;
 pub const DUMP_LONG_HELP: &str = r#"Show the data produced by YARA modules for a file
 
 YARA modules analyze files and extract information from them. This command shows all the 
-data produced by one ore more YARA module for the given file. If no module is explictly 
+data produced by one ore more YARA module for the given file. If no module is explicitly
 specified with the `--module` option, any module for which YARA produces information will
 be shown. 
 

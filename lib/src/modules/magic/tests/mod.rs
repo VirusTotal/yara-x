@@ -25,7 +25,7 @@ fn e2e_test() {
       condition: 
         magic.type() == "RISC OS music file" and 
         magic.mime_type() == "text/plain" and 
-        // Call the functions twice, in order to excercise the caching
+        // Call the functions twice, in order to exercise the caching
         // mechanism.
         magic.type() == "RISC OS music file" and 
         magic.mime_type() == "text/plain"

@@ -20,7 +20,7 @@ seo:
 
 C and C++ are still among the most popular languages for systems programming
 and, the *lingua franca* for interoperability between languages. Without the
-posibility of talking to C/C++ code, YARA-X would never get serious adoption.
+possibility of talking to C/C++ code, YARA-X would never get serious adoption.
 For this reason, we provide a C API that allows interacting with YARA-X from
 C/C++ programs.
 

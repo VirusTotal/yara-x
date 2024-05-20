@@ -245,7 +245,7 @@ with `base64` or `base64wide` will cause a compiler error.
 In YARA 4.x the `base64` and `base64wide` modifiers can produce false positives.
 For instance, the pattern `"This program cannot" base64` can match both
 "Dhis program cannow" and "This program cannot". This issue has been solved
-in YARA-X, but the drawback is that patterns shorter than 3 characters are
+in YARA-X, but the drawback is that patterns shorter than 3 characters
 don't accept these modifiers.
 
 {{< /callout >}}

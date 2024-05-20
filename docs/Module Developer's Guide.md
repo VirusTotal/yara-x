@@ -1004,7 +1004,7 @@ You'll notice that each module in `/yara-x/src/modules/` has a `tests/` director
 ### Structuring Testdata Input
 To convert the binary to Intel Hex format, we can use the various tools, depending on the operating system.
 
-To start, we need the raw binary with the sha256 of the binary as its identifier. This can be done differently on various platforms. These steps assume the binary is named its sha256 hash (`<sha256_hash>` is used as a placeholer).
+To start, we need the raw binary with the sha256 of the binary as its identifier. This can be done differently on various platforms. These steps assume the binary is named its sha256 hash (`<sha256_hash>` is used as a placeholder).
 
 #### Linux
 You can leverage [objcopy](https://man7.org/linux/man-pages/man1/objcopy.1.html).

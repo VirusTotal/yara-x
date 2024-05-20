@@ -379,7 +379,7 @@ impl ErrorInfo {
             Rule::PERCENT => "percent `%`",
             Rule::MINUS => "`-`",
             Rule::COLON => "colon `:`",
-            Rule::HYPHEN => "hypen `-`",
+            Rule::HYPHEN => "hyphen `-`",
             Rule::ASTERISK => "asterisk `*`",
             Rule::DOUBLE_QUOTES => "quotes `\"`",
             Rule::TILDE => "tilde `~`",
