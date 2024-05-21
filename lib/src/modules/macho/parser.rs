@@ -1,5 +1,6 @@
 use crate::modules::protos;
 use bstr::{BStr, ByteSlice};
+use itertools::Itertools;
 #[cfg(feature = "logging")]
 use log::error;
 use nom::bytes::complete::take;
@@ -799,8 +800,8 @@ impl<'a> MachOFile<'a> {
                     if blob.magic == CS_MAGIC_EMBEDDED_ENTITLEMENTS {
                         let xml_data = &super_data
                             [offset + size_of_blob..offset + length];
-                        let xml_string = std::str::from_utf8(xml_data)
-                            .unwrap_or_default();
+                        let xml_string =
+                            std::str::from_utf8(xml_data).unwrap_or_default();
 
                         let opt = roxmltree::ParsingOptions {
                             allow_dtd: true,
@@ -812,13 +813,25 @@ impl<'a> MachOFile<'a> {
                                 xml_string, opt,
                             )
                         {
-                            for node in parsed_xml
-                                .descendants()
-                                .filter(|n| n.has_tag_name("key"))
-                            {
+                            for node in parsed_xml.descendants().filter(|n| {
+                                n.has_tag_name("key")
+                                    || n.has_tag_name("array")
+                            }) {
                                 if let Some(entitlement) = node.text() {
-                                    self.entitlements
-                                        .push(entitlement.to_string());
+                                    if node.has_tag_name("array") {
+                                        node.descendants()
+                                            .filter_map(|n| n.text())
+                                            .filter(|t| !t.trim().is_empty())
+                                            .unique()
+                                            .map(|t| t.to_string())
+                                            .for_each(|array_entitlement| {
+                                                self.entitlements
+                                                    .push(array_entitlement)
+                                            });
+                                    } else {
+                                        self.entitlements
+                                            .push(entitlement.to_string());
+                                    }
                                 }
                             }
                         }
