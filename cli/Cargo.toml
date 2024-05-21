@@ -53,9 +53,11 @@ yara-x-parser = { workspace = true, features = ["ascii-tree"] }
 yara-x-proto-yaml = { workspace = true }
 yara-x-fmt = { workspace = true }
 
+chardetng = "0.1.17"
 colored_json = "4.0.0"
 crossbeam = "0.8.2"
 crossterm = "0.27.0"
+encoding_rs = "0.8.33"
 pprof = { version = "0.13.0", features = ["flamegraph"], optional = true }
 strum_macros = "0.25"
 superconsole = "0.2.0"

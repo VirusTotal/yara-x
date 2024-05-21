@@ -58,6 +58,7 @@ fn main() -> anyhow::Result<()> {
     let result = match args.subcommand() {
         Some(("debug", args)) => commands::exec_debug(args),
         Some(("check", args)) => commands::exec_check(args),
+        Some(("fix", args)) => commands::exec_fix(args),
         Some(("fmt", args)) => commands::exec_fmt(args),
         Some(("scan", args)) => commands::exec_scan(args),
         Some(("dump", args)) => commands::exec_dump(args),
