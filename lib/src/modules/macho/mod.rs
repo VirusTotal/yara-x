@@ -291,11 +291,41 @@ fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
                 .trim()
                 .to_lowercase()
         })
-        .sorted()
         .unique()
+        .sorted()
         .join(",");
 
     md5_hash.update(dylibs_to_hash.as_bytes());
+
+    let digest = format!("{:x}", md5_hash.finalize());
+    Some(RuntimeString::new(digest))
+}
+
+/// Returns an md5 hash of the entitlements designated in the mach-o binary
+#[module_export]
+fn entitlement_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
+    let macho = ctx.module_output::<Macho>()?;
+    let mut md5_hash = Md5::new();
+    let mut entitlements_to_hash = &macho.entitlements;
+
+    // if there are not any entitlements in the main Macho, the dylibs of the nested file should be hashed
+    if entitlements_to_hash.is_empty() && !macho.file.is_empty() {
+        entitlements_to_hash = &macho.file[0].entitlements;
+    }
+
+    // we need to check again as the nested file dylibs could be empty too
+    if entitlements_to_hash.is_empty() {
+        return None;
+    }
+
+    let entitlements_str: String = entitlements_to_hash
+        .iter()
+        .map(|e| e.trim().to_lowercase())
+        .unique()
+        .sorted()
+        .join(",");
+
+    md5_hash.update(entitlements_str.as_bytes());
 
     let digest = format!("{:x}", md5_hash.finalize());
     Some(RuntimeString::new(digest))

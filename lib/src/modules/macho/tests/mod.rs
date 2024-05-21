@@ -344,4 +344,26 @@ fn test_macho_module() {
     "#,
         &[]
     );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.entitlement_hash() == "cc9486efb0ce73ba411715273658da80"
+        }
+        "#,
+        &chess_macho_data
+    );
+
+    rule_true!(
+        r#"
+    import "macho"
+    rule macho_test {
+        condition:
+        not defined macho.entitlement_hash()
+    }
+    "#,
+        &[]
+    );
 }
