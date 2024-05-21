@@ -111,12 +111,6 @@ yara-x-proto = { path = "proto", version = "0.3.0" }
 yara-x-proto-yaml = { path = "proto-yaml", version = "0.3.0" }
 zip = "1.1.2"
 
-# Special profile that builds a release binary with link-time optimization. 
-# Compiling with this profile takes a while, but the resulting binary is
-# smaller and better optimized. For building with this profile use:
-#
-# cargo build --profile release-lto
-[profile.release-lto]
-inherits = "release"
+[profile.release]
 lto = true
 codegen-units = 1
