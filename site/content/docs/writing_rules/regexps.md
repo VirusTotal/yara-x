@@ -44,7 +44,7 @@ characters. For example:
 ```yara
 rule RegExpExample2 {
     strings:
-        $re1 = /foo/i    // This regexp is case-insentitive
+        $re1 = /foo/i    // This regexp is case-insensitive
         $re2 = /bar./s   // In this regexp the dot matches everything, including new-line
         $re3 = /baz./is  // Both modifiers can be used together
     condition:
@@ -53,8 +53,8 @@ rule RegExpExample2 {
 ```
 
 Notice that `/foo/i` is equivalent to `/foo/ nocase`, but we recommend the
-latter when defining strings. The `/foo/i` syntax is useful when writting
-case-insentive regular expressions for the `matches` operator.
+latter when defining strings. The `/foo/i` syntax is useful when writing
+case-insensitive regular expressions for the `matches` operator.
 
 YARA’s regular expressions recognise the following metacharacters:
 

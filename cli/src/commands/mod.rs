@@ -3,6 +3,7 @@ mod compile;
 mod completion;
 mod debug;
 mod dump;
+mod fix;
 mod fmt;
 mod scan;
 
@@ -11,6 +12,7 @@ pub use compile::*;
 pub use completion::*;
 pub use debug::*;
 pub use dump::*;
+pub use fix::*;
 pub use fmt::*;
 pub use scan::*;
 
@@ -30,7 +32,7 @@ use crate::{commands, APP_HELP_TEMPLATE};
 use yara_x::{Compiler, Rules};
 use yara_x_parser::SourceCode;
 
-use crate::walk::DirWalker;
+use crate::walk::Walker;
 
 pub fn command(name: &'static str) -> Command {
     Command::new(name).help_template(
@@ -55,6 +57,7 @@ pub fn cli() -> Command {
             commands::debug(),
             commands::dump(),
             commands::fmt(),
+            commands::fix(),
             commands::completion(),
         ])
 }
@@ -99,18 +102,18 @@ where
         }
     }
 
-    let mut w = DirWalker::new();
-
-    w.filter("**/*.yar").filter("**/*.yara");
-
     let mut console =
         if stdout().is_tty() { SuperConsole::new() } else { None };
 
     let mut state = CompileState::new();
 
     for path in paths {
+        let mut w = Walker::path(path);
+
+        w.filter("**/*.yar");
+        w.filter("**/*.yara");
+
         if let Err(err) = w.walk(
-            path,
             |file_path| {
                 state.file_in_progress = Some(file_path.into());
 

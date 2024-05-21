@@ -63,8 +63,13 @@ pub fn scan() -> Command {
         )
         .arg(
             arg!(-C --"compiled-rules")
-                .help("Tells that RULES_PATH is a file with compiled rules")
+                .help("Indicate that RULES_PATH is a file with compiled rules")
                 .long_help(help::COMPILED_RULES_HELP)
+        )
+        .arg(
+            arg!(--"scan-list")
+                .help("Indicate that TARGET_PATH is a file containing the paths to be scanned")
+                .long_help(help::SCAN_LIST_HELP)
         )
         .arg(
             arg!(-z --"skip-larger" <FILE_SIZE>)
@@ -108,6 +113,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let skip_larger = args.get_one::<u64>("skip-larger");
     let negate = args.get_flag("negate");
     let disable_console_logs = args.get_flag("disable-console-logs");
+    let scan_list = args.get_flag("scan-list");
 
     let timeout = args.get_one::<u64>("timeout");
 
@@ -163,7 +169,11 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
     let rules_ref = &rules;
 
-    let mut w = walk::ParDirWalker::new();
+    let mut w = if scan_list {
+        walk::ParWalker::file_list(target_path)
+    } else {
+        walk::ParWalker::path(target_path)
+    };
 
     if let Some(num_threads) = num_threads {
         w.num_threads(*num_threads);
@@ -183,7 +193,6 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let state = ScanState::new(start_time);
 
     w.walk(
-        target_path,
         state,
         // Initialization
         |_, output| {
@@ -268,12 +277,20 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         },
         // Error handler
         |err, output| {
-            let _ = output.send(Message::Error(format!(
-                "{} {}: {}",
-                "error: ".paint(Red).bold(),
-                err,
-                err.root_cause(),
-            )));
+            let error = err.to_string();
+            let root_cause = err.root_cause().to_string();
+            let msg = if error != root_cause {
+                format!(
+                    "{} {}: {}",
+                    "error: ".paint(Red).bold(),
+                    error,
+                    root_cause,
+                )
+            } else {
+                format!("{}: {}", "error: ".paint(Red).bold(), error)
+            };
+
+            let _ = output.send(Message::Error(msg));
 
             // In case of timeout walk is aborted.
             if let Ok(scan_err) = err.downcast::<ScanError>() {

@@ -44,7 +44,7 @@ Examples:
 --define some_bool=true
 --define some_str=\"foobar\""#;
 
-pub const COMPILED_RULES_HELP: &str = r#"Indicates that <RULES_PATH> is a file containing compiled rules
+pub const COMPILED_RULES_HELP: &str = r#"Indicate that <RULES_PATH> is a file containing compiled rules
 
 YARA rules can be compiled with the `yr compile` command. The file produced by
 this command can be passed later to `yr scan` by using this flag."#;
@@ -52,7 +52,7 @@ this command can be passed later to `yr scan` by using this flag."#;
 pub const DUMP_LONG_HELP: &str = r#"Show the data produced by YARA modules for a file
 
 YARA modules analyze files and extract information from them. This command shows all the 
-data produced by one ore more YARA module for the given file. If no module is explictly 
+data produced by one ore more YARA module for the given file. If no module is explicitly
 specified with the `--module` option, any module for which YARA produces information will
 be shown. 
 
@@ -85,4 +85,18 @@ Examples:
 
 yr scan rules_file.yar scanned_file
 yr scan rules_dir scanned_file
+"#;
+
+pub const SCAN_LIST_HELP: &str = r#"Indicate that TARGET_PATH is a file containing the paths to be scanned
+
+<TARGET_PATH> must be a text file containing one path per line. The paths must be either 
+absolute paths, or relative to the current directory."#;
+
+pub const FIX_ENCODING_HELP: &str = r#"Convert source files to UTF-8
+
+YARA-X is stricter that YARA with respect to invalid UTF-8 characters in source code. This 
+command allows to convert your YARA source files to UTF-8 encoding if they are not.
+
+If <RULES_PATH> is a directory, all files with extensions `.yar` and `.yara` will be converted. 
+This behavior can be changed by using the `--filter` option.
 "#;
