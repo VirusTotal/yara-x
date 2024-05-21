@@ -51,7 +51,7 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
     let filters = args.get_many::<String>("filter");
     let num_threads = args.get_one::<u8>("threads");
 
-    let mut w = walk::ParDirWalker::new();
+    let mut w = walk::ParWalker::path(rules_path);
 
     if let Some(max_depth) = max_depth {
         w.max_depth(*max_depth as usize);
@@ -71,7 +71,6 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
     }
 
     w.walk(
-        rules_path,
         CheckState::new(),
         |_, _| {},
         |state, output, file_path, _| {

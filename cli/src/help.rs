@@ -44,7 +44,7 @@ Examples:
 --define some_bool=true
 --define some_str=\"foobar\""#;
 
-pub const COMPILED_RULES_HELP: &str = r#"Indicates that <RULES_PATH> is a file containing compiled rules
+pub const COMPILED_RULES_HELP: &str = r#"Indicate that <RULES_PATH> is a file containing compiled rules
 
 YARA rules can be compiled with the `yr compile` command. The file produced by
 this command can be passed later to `yr scan` by using this flag."#;
@@ -86,3 +86,8 @@ Examples:
 yr scan rules_file.yar scanned_file
 yr scan rules_dir scanned_file
 "#;
+
+pub const SCAN_LIST_HELP: &str = r#"Indicate that TARGET_PATH is a file containing the paths to be scanned
+
+<TARGET_PATH> must be a text file containing one path per line. The paths must be either 
+absolute paths, or relative to the current directory."#;

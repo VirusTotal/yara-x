@@ -127,6 +127,13 @@ they form the repetition operator `{0,1}`).
 This setting controls whether the compiler should mimic YARA's behavior,
 allowing constructs that YARA-X doesn't accept by default.
 
+### --scan-list
+
+Indicate that `<TARGET_PATH>` is a file containing the paths to be scanned.
+
+`<TARGET_PATH>` must be a text file containing one path per line. The paths
+must be either absolute paths, or relative to the current directory.
+
 ### --skip-larger <FILE_SIZE>
 
 Skips files larger than the given size in bytes.
