@@ -339,7 +339,8 @@ impl Rule {
         self.namespace.as_str()
     }
 
-    /// Metadata associated to the rule.
+    /// A tuple of pairs `(identifier, value)` with the metadata associated to
+    /// the rule.
     #[getter]
     fn metadata(&self) -> Py<PyTuple> {
         Python::with_gil(|py| self.metadata.clone_ref(py))
