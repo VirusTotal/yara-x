@@ -126,8 +126,8 @@ impl<'src> Display for MetaValue<'src> {
             Self::Bool(v) => write!(f, "{}", v),
             Self::Integer(v) => write!(f, "{}", v),
             Self::Float(v) => write!(f, "{:.1}", v),
-            Self::String(v) => write!(f, "{}", v),
-            Self::Bytes(v) => write!(f, "{}", v),
+            Self::String(v) => write!(f, "\"{}\"", v),
+            Self::Bytes(v) => write!(f, "\"{}\"", v),
         }
     }
 }

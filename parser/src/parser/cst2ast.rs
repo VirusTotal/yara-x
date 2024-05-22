@@ -867,7 +867,7 @@ fn meta_from_cst<'src>(
             GrammarRule::float_lit => {
                 MetaValue::Float(float_lit_from_cst(ctx, value_node)?)
             }
-            GrammarRule::string_lit => {
+            GrammarRule::string_lit | GrammarRule::multiline_string_lit => {
                 match string_lit_from_cst(ctx, value_node, true)? {
                     // If the result is a string borrowed directly from the
                     // source code, we can be sure that it's a valid UTF-8
@@ -1868,19 +1868,31 @@ fn string_lit_from_cst<'src>(
     string_lit: CSTNode<'src>,
     allow_escape_char: bool,
 ) -> Result<Cow<'src, BStr>, Error> {
-    expect!(string_lit, GrammarRule::string_lit);
+    let num_quotes = match string_lit.as_rule() {
+        GrammarRule::string_lit => {
+            // The string literal must be enclosed in double quotes.
+            debug_assert!(string_lit.as_str().starts_with('\"'));
+            debug_assert!(string_lit.as_str().ends_with('\"'));
+            1
+        }
+        GrammarRule::multiline_string_lit => {
+            // The string literal must be enclosed in 3 double quotes.
+            debug_assert!(string_lit.as_str().starts_with("\"\"\""));
+            debug_assert!(string_lit.as_str().ends_with("\"\"\""));
+            3
+        }
+        _ => {
+            panic!("expecting string literal or multiline string literal but found {:?}", string_lit.as_rule());
+        }
+    };
 
     let literal = string_lit.as_str();
 
-    // The string literal must be enclosed in double quotes.
-    debug_assert!(literal.starts_with('\"'));
-    debug_assert!(literal.ends_with('\"'));
-
     // The span doesn't include the quotes.
-    let string_span = ctx.span(&string_lit).subspan(1, literal.len() - 1);
+    let string_span = ctx.span(&string_lit).subspan(num_quotes, literal.len() - num_quotes);
 
     // From now on ignore the quotes.
-    let literal = &literal[1..literal.len() - 1];
+    let literal = &literal[num_quotes..literal.len() - num_quotes];
 
     // Check if the string contains some backslash.
     let backslash_pos = if let Some(backslash_pos) = literal.find('\\') {

@@ -244,6 +244,25 @@ pattern_length = @{
   "!" ~ ident_chars*
 }
 
+// Multiline string literal. i.e:
+//
+// """
+// I'm a multiline string literal!
+//
+// Hooray!
+// """
+multiline_string_lit = @{
+  DOUBLE_QUOTES{3} ~ (
+    // The escape sequence \\ has precedence, if not, \\" would be interpreted
+    // as a backslash \, followed by the escape sequence \"
+    "\\\\" |
+    // Allow \" inside the double quotes.
+    "\\\"" |
+    // Allow any characters except triple quotes.
+    !DOUBLE_QUOTES{3} ~ ANY
+  )* ~ DOUBLE_QUOTES{3}
+}
+
 // String literal (i.e: "", "foo", "bar").
 string_lit = @{
   DOUBLE_QUOTES ~ (
@@ -306,6 +325,7 @@ meta_def = {
     k_FALSE               |
     float_lit             |
     integer_lit           |
+    multiline_string_lit  |
     string_lit
   )
 }
