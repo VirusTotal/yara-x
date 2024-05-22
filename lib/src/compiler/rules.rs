@@ -453,6 +453,16 @@ impl fmt::Debug for Rules {
     }
 }
 
+/// Metadata values.
+#[derive(Serialize, Deserialize)]
+pub(crate) enum MetaValue {
+    Bool(bool),
+    Integer(i64),
+    Float(f64),
+    String(LiteralId),
+    Bytes(LiteralId),
+}
+
 /// Information about each of the individual rules included in [`Rules`].
 #[derive(Serialize, Deserialize)]
 pub(crate) struct RuleInfo {
@@ -467,6 +477,8 @@ pub(crate) struct RuleInfo {
     /// compilation phase, but not during the scan phase.
     #[serde(skip)]
     pub(crate) ident_span: Span,
+    /// Metadata associated to the rule.
+    pub(crate) metadata: Vec<(IdentId, MetaValue)>,
     /// Vector with all the patterns defined by this rule.
     pub(crate) patterns: Vec<(IdentId, PatternId)>,
     /// True if the rule is global.

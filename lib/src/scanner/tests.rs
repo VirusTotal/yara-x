@@ -3,7 +3,7 @@ use protobuf::MessageDyn;
 use protobuf::{Message, MessageFull};
 
 use crate::mods;
-use crate::scanner::Scanner;
+use crate::scanner::{MetaValue, Scanner};
 use crate::variables::VariableError;
 
 #[test]
@@ -60,8 +60,8 @@ fn matches() {
     let mut scanner = Scanner::new(&rules);
     let results = scanner.scan(b"foobar").expect("scan should not fail");
 
-    for matching_rules in results.matching_rules() {
-        for pattern in matching_rules.patterns() {
+    for matching_rule in results.matching_rules() {
+        for pattern in matching_rule.patterns() {
             matches.extend(
                 pattern
                     .matches()
@@ -73,6 +73,46 @@ fn matches() {
     assert_eq!(
         matches,
         [("$a", 0..6, b"foobar".as_slice()), ("$b", 3..6, b"bar".as_slice())]
+    )
+}
+
+#[test]
+fn metadata() {
+    let rules = crate::compile(
+        r#"
+        rule test {
+            meta:
+                foo = 1
+                bar = 2.0
+                baz = true
+                qux = "qux"
+                quux = "qu\x00x"
+            condition:
+                true
+        } 
+        "#,
+    )
+    .unwrap();
+
+    let mut metas = vec![];
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(b"").expect("scan should not fail");
+
+    for matching_rule in results.matching_rules() {
+        for meta in matching_rule.metadata() {
+            metas.push(meta)
+        }
+    }
+
+    assert_eq!(
+        metas,
+        [
+            ("foo", MetaValue::Integer(1)),
+            ("bar", MetaValue::Float(2.0)),
+            ("baz", MetaValue::Bool(true)),
+            ("qux", MetaValue::String("qux")),
+            ("quux", MetaValue::Bytes(b"qu\0x".into())),
+        ]
     )
 }
 
@@ -92,12 +132,12 @@ fn xor_matches() {
 
     let mut matches = vec![];
 
-    for matching_rules in Scanner::new(&rules)
+    for matching_rule in Scanner::new(&rules)
         .scan(b"lhrrhrrhqqh")
         .expect("scan should not fail")
         .matching_rules()
     {
-        for pattern in matching_rules.patterns() {
+        for pattern in matching_rule.patterns() {
             matches.extend(
                 pattern
                     .matches()

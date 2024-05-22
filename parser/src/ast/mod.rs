@@ -30,7 +30,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::slice::Iter;
 
 use bitmask::bitmask;
-use bstr::BStr;
+use bstr::{BStr, BString};
 use yara_x_macros::*;
 
 pub use crate::ast::span::*;
@@ -117,6 +117,7 @@ pub enum MetaValue<'src> {
     Integer(i64),
     Float(f64),
     String(&'src str),
+    Bytes(BString),
 }
 
 impl<'src> Display for MetaValue<'src> {
@@ -126,6 +127,7 @@ impl<'src> Display for MetaValue<'src> {
             Self::Integer(v) => write!(f, "{}", v),
             Self::Float(v) => write!(f, "{:.1}", v),
             Self::String(v) => write!(f, "{}", v),
+            Self::Bytes(v) => write!(f, "{}", v),
         }
     }
 }

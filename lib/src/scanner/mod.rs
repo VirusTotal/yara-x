@@ -18,6 +18,7 @@ use std::time::Duration;
 use std::{cmp, fs, thread};
 
 use bitvec::prelude::*;
+use bstr::{BStr, ByteSlice};
 use fmmap::{MmapFile, MmapFileExt};
 use indexmap::IndexMap;
 use protobuf::{CodedInputStream, MessageDyn};
@@ -33,7 +34,7 @@ use crate::modules::{Module, BUILTIN_MODULES};
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::{ENGINE, MATCHING_RULES_BITMAP_BASE};
-use crate::{modules, wasm, Variable};
+use crate::{compiler, modules, wasm, Variable};
 
 pub(crate) use crate::scanner::context::*;
 use crate::scanner::matches::PatternMatches;
@@ -947,6 +948,15 @@ impl<'a, 'r> Rule<'a, 'r> {
         self.rules.ident_pool().get(self.rule_info.namespace_ident_id).unwrap()
     }
 
+    /// Returns the metadata associated to this rule.
+    pub fn metadata(&self) -> Metadata<'a, 'r> {
+        Metadata {
+            ctx: self.ctx,
+            iterator: self.rule_info.metadata.iter(),
+            len: self.rule_info.metadata.len(),
+        }
+    }
+
     /// Returns the patterns defined by this rule.
     pub fn patterns(&self) -> Patterns<'a, 'r> {
         Patterns {
@@ -955,6 +965,68 @@ impl<'a, 'r> Rule<'a, 'r> {
             iterator: self.rule_info.patterns.iter(),
             len: self.rule_info.patterns.len(),
         }
+    }
+}
+
+/// Iterator that returns the metadata associated to a rule.
+///
+/// The iterator returns (&str, [`MetaValue`]) pairs, where the first item
+/// is the identifier, and the second one the metadata value.
+pub struct Metadata<'a, 'r> {
+    ctx: &'a ScanContext<'r>,
+    iterator: Iter<'a, (IdentId, compiler::MetaValue)>,
+    len: usize,
+}
+
+/// A metadata value.
+#[derive(Debug, PartialEq)]
+pub enum MetaValue<'r> {
+    /// Integer value.
+    Integer(i64),
+    /// Float value.
+    Float(f64),
+    /// Bool value.
+    Bool(bool),
+    /// A valid UTF-8 string.
+    String(&'r str),
+    /// An arbitrary string. Used when the value contains invalid UTF-8
+    /// characters.
+    Bytes(&'r BStr),
+}
+
+impl<'a, 'r> Iterator for Metadata<'a, 'r> {
+    type Item = (&'r str, MetaValue<'r>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (ident_id, value) = self.iterator.next()?;
+
+        let ident =
+            self.ctx.compiled_rules.ident_pool().get(*ident_id).unwrap();
+
+        let value = match value {
+            compiler::MetaValue::Bool(b) => MetaValue::Bool(*b),
+            compiler::MetaValue::Integer(i) => MetaValue::Integer(*i),
+            compiler::MetaValue::Float(f) => MetaValue::Float(*f),
+            compiler::MetaValue::String(id) => {
+                let s = self.ctx.compiled_rules.lit_pool().get(*id).unwrap();
+                // We can be sure that s is a valid UTF-8 string, because
+                // the type of meta is MetaValue::String.
+                let s = unsafe { s.to_str_unchecked() };
+                MetaValue::String(s)
+            }
+            compiler::MetaValue::Bytes(id) => MetaValue::Bytes(
+                self.ctx.compiled_rules.lit_pool().get(*id).unwrap(),
+            ),
+        };
+
+        Some((ident, value))
+    }
+}
+
+impl<'a, 'r> ExactSizeIterator for Metadata<'a, 'r> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.len
     }
 }
 

@@ -722,12 +722,38 @@ impl<'a> Compiler<'a> {
         // compiling the current rule this snapshot allows restoring the
         // compiler to the state it had before starting compiling the rule.
         // This way we don't leave too much junk, like atoms, or sub-patterns
-        // corresponding to failed rules.
+        // corresponding to failed rules. However, there is some junk left
+        // behind in `ident_pool` and `lit_pool`, because once a string is
+        // added to one of these pools it can't be removed.
         let snapshot = self.take_snapshot();
 
         // The RuleId for the new rule is current length of `self.rules`. The
         // first rule has RuleId = 0.
         let rule_id = RuleId(self.rules.len() as i32);
+
+        // Build a vector of pairs (IdentId, MetaValue) for every meta defined
+        // in the rule.
+        let meta = rule
+            .meta
+            .iter()
+            .flatten()
+            .map(|m| {
+                (
+                    self.ident_pool.get_or_intern(m.identifier.name),
+                    match &m.value {
+                        ast::MetaValue::Integer(i) => MetaValue::Integer(*i),
+                        ast::MetaValue::Float(f) => MetaValue::Float(*f),
+                        ast::MetaValue::Bool(b) => MetaValue::Bool(*b),
+                        ast::MetaValue::String(s) => {
+                            MetaValue::String(self.lit_pool.get_or_intern(s))
+                        }
+                        ast::MetaValue::Bytes(s) => {
+                            MetaValue::Bytes(self.lit_pool.get_or_intern(s))
+                        }
+                    },
+                )
+            })
+            .collect();
 
         // Add the new rule to `self.rules`. The only information about the
         // rule that we don't have right now is the PatternId corresponding to
@@ -745,6 +771,7 @@ impl<'a> Compiler<'a> {
             patterns: vec![],
             is_global: rule.flags.contains(RuleFlag::Global),
             is_private: rule.flags.contains(RuleFlag::Private),
+            metadata: meta,
         });
 
         let mut rule_patterns = Vec::new();

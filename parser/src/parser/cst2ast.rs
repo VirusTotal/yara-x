@@ -867,7 +867,20 @@ fn meta_from_cst<'src>(
             GrammarRule::float_lit => {
                 MetaValue::Float(float_lit_from_cst(ctx, value_node)?)
             }
-            GrammarRule::string_lit => MetaValue::String(value_node.as_str()),
+            GrammarRule::string_lit => {
+                match string_lit_from_cst(ctx, value_node, true)? {
+                    // If the result is a string borrowed directly from the
+                    // source code, we can be sure that it's a valid UTF-8
+                    // string.
+                    Cow::Borrowed(s) => {
+                        MetaValue::String(unsafe { s.to_str_unchecked() })
+                    }
+                    // If the result is an owned string is because it contains
+                    // some escaped character, this string is not guaranteed
+                    // to be a valid UTF-8 string.
+                    Cow::Owned(s) => MetaValue::Bytes(s),
+                }
+            }
             rule => unreachable!("{:?}", rule),
         };
 
