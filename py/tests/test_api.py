@@ -110,6 +110,31 @@ def test_namespaces():
   assert matching_rules[1].patterns[0].matches[0].xor_key is None
 
 
+def test_metadata():
+	rules = yara_x.compile('''
+	rule test {
+		meta:
+			foo = 1
+			bar = 2.0
+			baz = true
+			qux = "qux"
+			quux = "qu\x00x"
+		condition:
+		  true	
+	}
+	''')
+
+	matching_rules = rules.scan(b'').matching_rules
+	
+	assert matching_rules[0].metadata == (
+		("foo", 1), 
+		("bar", 2.0), 
+		("baz", True), 
+		("qux", "qux"), 
+		("quux", "qu\0x")
+	)
+	
+	
 def test_compile_and_scan():
   rules = yara_x.compile('rule foo {strings: $a = "foo" condition: $a}')
   matching_rules = rules.scan(b'foobar').matching_rules

@@ -307,7 +307,7 @@ impl ScanResults {
     /// Rules that matched during the scan.
     fn matching_rules(&self) -> Py<PyTuple> {
         Python::with_gil(|py| {
-            PyTuple::new_bound(py, &self.matching_rules).into()
+            PyTuple::new_bound(py, &self.matching_rules).unbind()
         })
     }
 
@@ -323,6 +323,7 @@ impl ScanResults {
 struct Rule {
     identifier: String,
     namespace: String,
+    metadata: Vec<Py<PyTuple>>,
     patterns: Vec<Py<Pattern>>,
 }
 
@@ -338,6 +339,12 @@ impl Rule {
     #[getter]
     fn namespace(&self) -> &str {
         self.namespace.as_str()
+    }
+
+    /// Metadata associated to the rule.
+    #[getter]
+    fn metadata(&self) -> Py<PyTuple> {
+        Python::with_gil(|py| PyTuple::new_bound(py, &self.metadata).into())
     }
 
     /// Patterns defined by the rule.
@@ -498,12 +505,34 @@ fn rule_to_py(py: Python, rule: yrx::Rule) -> PyResult<Py<Rule>> {
         Rule {
             identifier: rule.identifier().to_string(),
             namespace: rule.namespace().to_string(),
+            metadata: rule
+                .metadata()
+                .map(|(ident, value)| metadata_to_py(py, ident, value))
+                .collect::<Result<Vec<_>, _>>()?,
             patterns: rule
                 .patterns()
                 .map(|pattern| pattern_to_py(py, pattern))
                 .collect::<Result<Vec<_>, _>>()?,
         },
     )
+}
+
+fn metadata_to_py(
+    py: Python,
+    ident: &str,
+    metadata: yrx::MetaValue,
+) -> PyResult<Py<PyTuple>> {
+    let value = match metadata {
+        yrx::MetaValue::Integer(v) => v.to_object(py),
+        yrx::MetaValue::Float(v) => v.to_object(py),
+        yrx::MetaValue::Bool(v) => v.to_object(py),
+        yrx::MetaValue::String(v) => v.to_object(py),
+        yrx::MetaValue::Bytes(v) => v.to_object(py),
+    };
+
+    let tuple = PyTuple::new_bound(py, [ident.to_object(py), value]);
+
+    Ok(tuple.unbind())
 }
 
 fn pattern_to_py(py: Python, pattern: yrx::Pattern) -> PyResult<Py<Pattern>> {
