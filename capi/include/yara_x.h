@@ -55,6 +55,8 @@ typedef enum YRX_RESULT {
   INVALID_UTF8,
   // An error occurred while serializing/deserializing YARA rules.
   SERIALIZATION_ERROR,
+  // An error returned when a rule doesn't have any metadata.
+  NO_METADATA,
 } YRX_RESULT;
 
 // A compiler that takes YARA source code and produces compiled rules.
@@ -135,7 +137,7 @@ enum YRX_RESULT yrx_compile(const char *src,
 // that contains the serialized rules. This structure has a pointer to the
 // data itself, and its length.
 //
-// This [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
+// The [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
 enum YRX_RESULT yrx_rules_serialize(struct YRX_RULES *rules,
                                     struct YRX_BUFFER **buf);
 
@@ -172,6 +174,20 @@ enum YRX_RESULT yrx_rule_identifier(const struct YRX_RULE *rule,
 enum YRX_RESULT yrx_rule_namespace(const struct YRX_RULE *rule,
                                    const uint8_t **ns,
                                    size_t *len);
+
+// Returns the rule metadata encoded as JSON.
+//
+// In the address indicated by the `buf` pointer, the function will copy a
+// `YRX_BUFFER*` pointer. The `YRX_BUFFER` structure represents a buffer
+// that contains the metadata encoded as JSON. This structure has a pointer
+// to the data itself, and its length.
+//
+// The [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
+//
+// If the rule doesn't have any metadata, this function returns
+// [`YRX_RESULT::NO_METADATA`].
+enum YRX_RESULT yrx_rule_metadata_as_json(const struct YRX_RULE *rule,
+                                          struct YRX_BUFFER **buf);
 
 // Returns all the patterns defined by a rule.
 //

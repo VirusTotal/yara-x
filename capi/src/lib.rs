@@ -134,6 +134,8 @@ pub enum YRX_RESULT {
     INVALID_UTF8,
     /// An error occurred while serializing/deserializing YARA rules.
     SERIALIZATION_ERROR,
+    /// An error returned when a rule doesn't have any metadata.
+    NO_METADATA,
 }
 
 /// A set of compiled YARA rules.
@@ -248,7 +250,7 @@ pub unsafe extern "C" fn yrx_compile(
 /// that contains the serialized rules. This structure has a pointer to the
 /// data itself, and its length.
 ///
-/// This [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
+/// The [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
 #[no_mangle]
 pub unsafe extern "C" fn yrx_rules_serialize(
     rules: *mut YRX_RULES,
@@ -345,6 +347,40 @@ pub unsafe extern "C" fn yrx_rule_namespace(
     if let Some(rule) = rule.as_ref() {
         *ns = rule.0.namespace().as_ptr();
         *len = rule.0.namespace().len();
+        LAST_ERROR.set(None);
+        YRX_RESULT::SUCCESS
+    } else {
+        YRX_RESULT::INVALID_ARGUMENT
+    }
+}
+
+/// Returns the rule metadata encoded as JSON.
+///
+/// In the address indicated by the `buf` pointer, the function will copy a
+/// `YRX_BUFFER*` pointer. The `YRX_BUFFER` structure represents a buffer
+/// that contains the metadata encoded as JSON. This structure has a pointer
+/// to the data itself, and its length.
+///
+/// The [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
+///
+/// If the rule doesn't have any metadata, this function returns
+/// [`YRX_RESULT::NO_METADATA`].
+#[no_mangle]
+pub unsafe extern "C" fn yrx_rule_metadata_as_json(
+    rule: *const YRX_RULE,
+    buf: &mut *mut YRX_BUFFER,
+) -> YRX_RESULT {
+    if let Some(rule) = rule.as_ref() {
+        let metadata = rule.0.metadata();
+        if metadata.is_empty() {
+            return YRX_RESULT::NO_METADATA;
+        }
+        let json = metadata.into_json().to_string();
+        let mut json = ManuallyDrop::new(json);
+        *buf = Box::into_raw(Box::new(YRX_BUFFER {
+            data: json.as_mut_ptr(),
+            length: json.len(),
+        }));
         LAST_ERROR.set(None);
         YRX_RESULT::SUCCESS
     } else {
