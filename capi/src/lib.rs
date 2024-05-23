@@ -202,7 +202,10 @@ union YRX_METADATA_VALUE {
 pub struct YRX_METADATA_ENTRY {
     /// Metadata identifier.
     identifier: *mut c_char,
+    /// Type of value.
     value_type: YRX_METADATA_VALUE_TYPE,
+    /// The value itself. This is a union, use the member that matches the
+    /// value type.
     value: YRX_METADATA_VALUE,
 }
 

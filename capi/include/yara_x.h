@@ -109,7 +109,10 @@ typedef union YRX_METADATA_VALUE {
 typedef struct YRX_METADATA_ENTRY {
   // Metadata identifier.
   char *identifier;
+  // Type of value.
   enum YRX_METADATA_VALUE_TYPE value_type;
+  // The value itself. This is a union, use the member that matches the
+  // value type.
   union YRX_METADATA_VALUE value;
 } YRX_METADATA_ENTRY;
 
