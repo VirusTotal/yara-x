@@ -5,28 +5,35 @@ import (
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
-import "github.com/stretchr/testify/assert"
 
 func TestScanner1(t *testing.T) {
-	r, _ := Compile("rule t { condition: true }")
+	r, _ := Compile("rule t { meta: some_int = 1 some_bool = true condition: true }")
 	s := NewScanner(r)
-	matchingRules, _:= s.Scan([]byte{})
+	matchingRules, _ := s.Scan([]byte{})
 
 	assert.Len(t, matchingRules, 1)
 	assert.Equal(t, "t", matchingRules[0].Identifier())
 	assert.Equal(t, "default", matchingRules[0].Namespace())
+	assert.Equal(t, "some_int", matchingRules[0].Metadata()[0].Identifier)
+	assert.Equal(t, float64(1), matchingRules[0].Metadata()[0].Value)
+	assert.Equal(t, "some_bool", matchingRules[0].Metadata()[1].Identifier)
+	assert.Equal(t, true, matchingRules[0].Metadata()[1].Value)
 	assert.Len(t, matchingRules[0].Patterns(), 0)
 }
 
 func TestScanner2(t *testing.T) {
-	r, _ := Compile(`rule t { strings: $bar = "bar" condition: $bar }`)
+	r, _ := Compile(`rule t { meta: some_string = "hello" strings: $bar = "bar" condition: $bar }`)
 	s := NewScanner(r)
 	matchingRules, _ := s.Scan([]byte("foobar"))
 
 	assert.Len(t, matchingRules, 1)
 	assert.Equal(t, "t", matchingRules[0].Identifier())
 	assert.Equal(t, "default", matchingRules[0].Namespace())
+	assert.Equal(t, "some_string", matchingRules[0].Metadata()[0].Identifier)
+	assert.Equal(t, "hello", matchingRules[0].Metadata()[0].Value)
 
 	assert.Len(t, matchingRules[0].Patterns(), 1)
 	assert.Equal(t, "$bar", matchingRules[0].Patterns()[0].Identifier())
@@ -76,7 +83,7 @@ func TestScanner4(t *testing.T) {
 func TestScannerTimeout(t *testing.T) {
 	r, _ := Compile("rule t { strings: $a = /a(.*)*a/ condition: $a }")
 	s := NewScanner(r)
-	s.SetTimeout(1*time.Second)
-	_, err := s.Scan(bytes.Repeat([]byte("a"), 9000))
+	s.SetTimeout(1 * time.Second)
+	_, err := s.Scan(bytes.Repeat([]byte("a"), 10000))
 	assert.ErrorIs(t, err, ErrTimeout)
 }

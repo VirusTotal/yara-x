@@ -6,11 +6,11 @@ package yara_x
 // #include <yara_x.h>
 import "C"
 import (
+	"encoding/json"
 	"errors"
 	"runtime"
 	"unsafe"
 )
-
 
 // Compile receives YARA source code and returns compiled [Rules] that can be
 // used for scanning data.
@@ -88,6 +88,7 @@ type Rule struct {
 	identifier string
 	cPatterns  *C.YRX_PATTERNS
 	patterns   []Pattern
+	metadata   []Metadata
 }
 
 // Creates a new Rule from it's C counterpart.
@@ -107,11 +108,29 @@ func newRule(cRule *C.YRX_RULE) *Rule {
 
 	identifier := C.GoStringN((*C.char)(unsafe.Pointer(str)), C.int(len))
 
+	var metadata []Metadata
+
+	var buf *C.YRX_BUFFER
+	if C.yrx_rule_metadata_as_json(cRule, &buf) == C.SUCCESS {
+		var tmp [][]interface{}
+		if err := json.Unmarshal(C.GoBytes(unsafe.Pointer(buf.data), C.int(buf.length)), &tmp); err != nil {
+			panic("yrx_rule_metadata_as_json")
+		}
+		for _, v := range tmp {
+			metadata = append(metadata, Metadata{
+				Identifier: v[0].(string),
+				Value:      v[1],
+			})
+		}
+		defer C.yrx_buffer_destroy(buf)
+	}
+
 	rule := &Rule{
 		namespace,
 		identifier,
 		C.yrx_rule_patterns(cRule),
 		nil,
+		metadata,
 	}
 
 	runtime.SetFinalizer(rule, (*Rule).destroy)
@@ -131,6 +150,11 @@ func (r *Rule) Identifier() string {
 // Namespace returns the rule's namespace.
 func (r *Rule) Namespace() string {
 	return r.namespace
+}
+
+// Metadata returns the rule's metadata
+func (r *Rule) Metadata() []Metadata {
+	return r.metadata
 }
 
 // Patterns returns the patterns defined by this rule.
@@ -163,6 +187,12 @@ func (r *Rule) Patterns() []Pattern {
 	}
 
 	return r.patterns
+}
+
+// Metadata represents a metadata in a Rule.
+type Metadata struct {
+	Identifier string
+	Value      interface{}
 }
 
 // Pattern represents a pattern in a Rule.
