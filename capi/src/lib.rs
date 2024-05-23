@@ -358,11 +358,18 @@ pub unsafe extern "C" fn yrx_rule_namespace(
 /// in the data it matched. The patterns are represented by a [`YRX_PATTERNS`]
 /// object that must be destroyed with [`yrx_patterns_destroy`] when not needed
 /// anymore.
+///
+/// This function returns a null pointer when `rule` is null.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_rule_patterns(
     rule: *const YRX_RULE,
 ) -> *mut YRX_PATTERNS {
-    let patterns_iter = rule.as_ref().unwrap().0.patterns();
+    let patterns_iter = if let Some(rule) = rule.as_ref() {
+        rule.0.patterns()
+    } else {
+        return std::ptr::null_mut();
+    };
+
     let mut patterns = Vec::with_capacity(patterns_iter.len());
 
     for pattern in patterns_iter {

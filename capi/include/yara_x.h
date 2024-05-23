@@ -179,6 +179,8 @@ enum YRX_RESULT yrx_rule_namespace(const struct YRX_RULE *rule,
 // in the data it matched. The patterns are represented by a [`YRX_PATTERNS`]
 // object that must be destroyed with [`yrx_patterns_destroy`] when not needed
 // anymore.
+//
+// This function returns a null pointer when `rule` is null.
 struct YRX_PATTERNS *yrx_rule_patterns(const struct YRX_RULE *rule);
 
 // Destroys a [`YRX_PATTERNS`] object.
