@@ -273,7 +273,8 @@ fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let mut md5_hash = Md5::new();
     let mut dylibs_to_hash = &macho.dylibs;
 
-    // if there are not any dylibs in the main Macho, the dylibs of the nested file should be hashed
+    // if there are not any dylibs in the main Macho, the dylibs of the nested
+    // file should be hashed
     if dylibs_to_hash.is_empty() && !macho.file.is_empty() {
         dylibs_to_hash = &macho.file[0].dylibs;
     }
@@ -285,11 +286,13 @@ fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 
     let dylibs_to_hash: String = dylibs_to_hash
         .iter()
-        .map(|d| {
-            std::string::String::from_utf8(d.name.clone().unwrap())
-                .unwrap()
-                .trim()
-                .to_lowercase()
+        .filter_map(|d| {
+            Some(
+                String::from_utf8(d.name.clone()?)
+                    .unwrap()
+                    .trim()
+                    .to_lowercase(),
+            )
         })
         .unique()
         .sorted()
@@ -308,7 +311,8 @@ fn entitlement_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let mut md5_hash = Md5::new();
     let mut entitlements_to_hash = &macho.entitlements;
 
-    // if there are not any entitlements in the main Macho, the dylibs of the nested file should be hashed
+    // if there are not any entitlements in the main Macho, the dylibs of the
+    // nested file should be hashed
     if entitlements_to_hash.is_empty() && !macho.file.is_empty() {
         entitlements_to_hash = &macho.file[0].entitlements;
     }
