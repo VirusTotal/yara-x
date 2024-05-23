@@ -336,7 +336,7 @@ impl ErrorInfo {
             Rule::rule_decl => "rule declaration",
             Rule::source_file => "YARA rules",
             Rule::string_lit => "string literal",
-            Rule::multiline_string_lit => "multiline string literal",
+            Rule::multiline_string_lit => "string literal",
             Rule::regexp => "regular expression",
             Rule::pattern_mods => "pattern modifiers",
 
