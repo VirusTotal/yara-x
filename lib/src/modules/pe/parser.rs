@@ -2172,7 +2172,7 @@ impl<'a> PE<'a> {
         // limit of 256 bytes, though.
         let dll_name = self.str_at_rva(rva)?;
 
-        if dll_name.len() == 0 {
+        if dll_name.is_empty() {
             return None;
         }
 
