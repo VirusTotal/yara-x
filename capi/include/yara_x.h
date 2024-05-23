@@ -33,6 +33,15 @@
 // constructs that YARA-X doesn't accept by default.
 #define YRX_RELAXED_RE_SYNTAX 2
 
+// Metadata value types.
+typedef enum YRX_METADATA_VALUE_TYPE {
+  INTEGER,
+  FLOAT,
+  BOOLEAN,
+  STRING,
+  BYTES,
+} YRX_METADATA_VALUE_TYPE;
+
 // Error codes returned by functions in this API.
 typedef enum YRX_RESULT {
   // Everything was OK.
@@ -78,6 +87,41 @@ typedef struct YRX_BUFFER {
   // Length of data in bytes.
   size_t length;
 } YRX_BUFFER;
+
+// Represents a metadata value that contains raw bytes.
+typedef struct YRX_METADATA_BYTES {
+  // Number of bytes.
+  size_t length;
+  // Pointer to the bytes.
+  uint8_t *data;
+} YRX_METADATA_BYTES;
+
+// Metadata value.
+typedef union YRX_METADATA_VALUE {
+  int64_t integer;
+  double float;
+  bool boolean;
+  char *string;
+  struct YRX_METADATA_BYTES bytes;
+} YRX_METADATA_VALUE;
+
+// A metadata entry.
+typedef struct YRX_METADATA_ENTRY {
+  // Metadata identifier.
+  char *identifier;
+  enum YRX_METADATA_VALUE_TYPE value_type;
+  union YRX_METADATA_VALUE value;
+} YRX_METADATA_ENTRY;
+
+// Represents the metadata associated to a rule.
+typedef struct YRX_METADATA {
+  // Number of metadata entries.
+  size_t num_entries;
+  // Pointer to an array of YRX_METADATA_ENTRY structures. The array has
+  // num_entries items. If num_entries is zero this pointer is invalid
+  // and should not be de-referenced.
+  struct YRX_METADATA_ENTRY *entries;
+} YRX_METADATA;
 
 // Contains information about a pattern match.
 typedef struct YRX_MATCH {
@@ -175,19 +219,8 @@ enum YRX_RESULT yrx_rule_namespace(const struct YRX_RULE *rule,
                                    const uint8_t **ns,
                                    size_t *len);
 
-// Returns the rule metadata encoded as JSON.
-//
-// In the address indicated by the `buf` pointer, the function will copy a
-// `YRX_BUFFER*` pointer. The `YRX_BUFFER` structure represents a buffer
-// that contains the metadata encoded as JSON. This structure has a pointer
-// to the data itself, and its length.
-//
-// The [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
-//
-// If the rule doesn't have any metadata, this function returns
-// [`YRX_RESULT::NO_METADATA`].
-enum YRX_RESULT yrx_rule_metadata_as_json(const struct YRX_RULE *rule,
-                                          struct YRX_BUFFER **buf);
+// Destroys a [`YRX_METADATA`] object.
+void yrx_metadata_destroy(struct YRX_METADATA *metadata);
 
 // Returns all the patterns defined by a rule.
 //

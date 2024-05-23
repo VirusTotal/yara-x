@@ -144,6 +144,88 @@ pub struct YRX_RULES(yara_x::Rules);
 /// A single YARA rule.
 pub struct YRX_RULE<'a, 'r>(yara_x::Rule<'a, 'r>);
 
+/// Represents the metadata associated to a rule.
+#[repr(C)]
+pub struct YRX_METADATA {
+    /// Number of metadata entries.
+    num_entries: usize,
+    /// Pointer to an array of YRX_METADATA_ENTRY structures. The array has
+    /// num_entries items. If num_entries is zero this pointer is invalid
+    /// and should not be de-referenced.
+    entries: *mut YRX_METADATA_ENTRY,
+}
+
+impl Drop for YRX_METADATA {
+    fn drop(&mut self) {
+        unsafe {
+            drop(Box::from_raw(slice_from_raw_parts_mut(
+                self.entries,
+                self.num_entries,
+            )));
+        }
+    }
+}
+
+/// Metadata value types.
+#[repr(C)]
+#[allow(missing_docs)]
+pub enum YRX_METADATA_VALUE_TYPE {
+    INTEGER,
+    FLOAT,
+    BOOLEAN,
+    STRING,
+    BYTES,
+}
+
+/// Represents a metadata value that contains raw bytes.
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct YRX_METADATA_BYTES {
+    /// Number of bytes.
+    length: usize,
+    /// Pointer to the bytes.
+    data: *mut u8,
+}
+
+/// Metadata value.
+#[repr(C)]
+union YRX_METADATA_VALUE {
+    integer: i64,
+    float: f64,
+    boolean: bool,
+    string: *mut c_char,
+    bytes: YRX_METADATA_BYTES,
+}
+
+/// A metadata entry.
+#[repr(C)]
+pub struct YRX_METADATA_ENTRY {
+    /// Metadata identifier.
+    identifier: *mut c_char,
+    value_type: YRX_METADATA_VALUE_TYPE,
+    value: YRX_METADATA_VALUE,
+}
+
+impl Drop for YRX_METADATA_ENTRY {
+    fn drop(&mut self) {
+        unsafe {
+            drop(CString::from_raw(self.identifier));
+            match self.value_type {
+                YRX_METADATA_VALUE_TYPE::STRING => {
+                    drop(CString::from_raw(self.value.string));
+                }
+                YRX_METADATA_VALUE_TYPE::BYTES => {
+                    drop(Box::from_raw(slice_from_raw_parts_mut(
+                        self.value.bytes.data,
+                        self.value.bytes.length,
+                    )));
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
 /// A set of patterns declared in a YARA rule.
 #[repr(C)]
 pub struct YRX_PATTERNS {
@@ -354,38 +436,91 @@ pub unsafe extern "C" fn yrx_rule_namespace(
     }
 }
 
-/// Returns the rule metadata encoded as JSON.
+/// Returns the metadata associated to a rule.
 ///
-/// In the address indicated by the `buf` pointer, the function will copy a
-/// `YRX_BUFFER*` pointer. The `YRX_BUFFER` structure represents a buffer
-/// that contains the metadata encoded as JSON. This structure has a pointer
-/// to the data itself, and its length.
+/// The metadata is represented by a [`YRX_METADATA`] object that must be
+/// destroyed with [`yrx_metadata_destroy`] when not needed anymore.
 ///
-/// The [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
-///
-/// If the rule doesn't have any metadata, this function returns
-/// [`YRX_RESULT::NO_METADATA`].
-#[no_mangle]
-pub unsafe extern "C" fn yrx_rule_metadata_as_json(
+/// This function returns a null pointer when `rule` is null or the
+/// rule doesn't have any metadata.
+pub unsafe extern "C" fn yrx_rule_metadata(
     rule: *const YRX_RULE,
-    buf: &mut *mut YRX_BUFFER,
-) -> YRX_RESULT {
-    if let Some(rule) = rule.as_ref() {
-        let metadata = rule.0.metadata();
-        if metadata.is_empty() {
-            return YRX_RESULT::NO_METADATA;
-        }
-        let json = metadata.into_json().to_string();
-        let mut json = ManuallyDrop::new(json);
-        *buf = Box::into_raw(Box::new(YRX_BUFFER {
-            data: json.as_mut_ptr(),
-            length: json.len(),
-        }));
-        LAST_ERROR.set(None);
-        YRX_RESULT::SUCCESS
+) -> *mut YRX_METADATA {
+    let metadata = if let Some(rule) = rule.as_ref() {
+        rule.0.metadata()
     } else {
-        YRX_RESULT::INVALID_ARGUMENT
+        return std::ptr::null_mut();
+    };
+
+    if metadata.is_empty() {
+        return std::ptr::null_mut();
     }
+
+    let mut entries = Vec::with_capacity(metadata.len());
+
+    for (identifier, value) in metadata {
+        let identifier = CString::new(identifier).unwrap().into_raw();
+
+        match value {
+            yara_x::MetaValue::Integer(v) => {
+                entries.push(YRX_METADATA_ENTRY {
+                    identifier,
+                    value_type: YRX_METADATA_VALUE_TYPE::INTEGER,
+                    value: YRX_METADATA_VALUE { integer: v },
+                });
+            }
+            yara_x::MetaValue::Float(v) => {
+                entries.push(YRX_METADATA_ENTRY {
+                    identifier,
+                    value_type: YRX_METADATA_VALUE_TYPE::FLOAT,
+                    value: YRX_METADATA_VALUE { float: v },
+                });
+            }
+            yara_x::MetaValue::Bool(v) => {
+                entries.push(YRX_METADATA_ENTRY {
+                    identifier,
+                    value_type: YRX_METADATA_VALUE_TYPE::BOOLEAN,
+                    value: YRX_METADATA_VALUE { boolean: v },
+                });
+            }
+            yara_x::MetaValue::String(v) => {
+                entries.push(YRX_METADATA_ENTRY {
+                    identifier,
+                    value_type: YRX_METADATA_VALUE_TYPE::STRING,
+                    value: YRX_METADATA_VALUE {
+                        string: CString::new(v).unwrap().into_raw(),
+                    },
+                });
+            }
+            yara_x::MetaValue::Bytes(v) => {
+                let v = v.to_vec().into_boxed_slice();
+                let mut v = ManuallyDrop::new(v);
+                entries.push(YRX_METADATA_ENTRY {
+                    identifier,
+                    value_type: YRX_METADATA_VALUE_TYPE::BYTES,
+                    value: YRX_METADATA_VALUE {
+                        bytes: YRX_METADATA_BYTES {
+                            data: v.as_mut_ptr(),
+                            length: v.len(),
+                        },
+                    },
+                });
+            }
+        };
+    }
+
+    let mut entries = ManuallyDrop::new(entries);
+
+    Box::into_raw(Box::new(YRX_METADATA {
+        num_entries: entries.len(),
+        entries: entries.as_mut_ptr(),
+    }))
+}
+
+/// Destroys a [`YRX_METADATA`] object.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_metadata_destroy(metadata: *mut YRX_METADATA) {
+    drop(Box::from_raw(metadata));
 }
 
 /// Returns all the patterns defined by a rule.
