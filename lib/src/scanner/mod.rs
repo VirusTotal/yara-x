@@ -23,6 +23,7 @@ use fmmap::{MmapFile, MmapFileExt};
 use indexmap::IndexMap;
 use protobuf::{CodedInputStream, MessageDyn};
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde::Serialize;
 use thiserror::Error;
 use wasmtime::{
     AsContext, AsContextMut, Global, GlobalType, MemoryType, Mutability,
@@ -968,18 +969,9 @@ impl<'a, 'r> Rule<'a, 'r> {
     }
 }
 
-/// Iterator that returns the metadata associated to a rule.
-///
-/// The iterator returns (&str, [`MetaValue`]) pairs, where the first item
-/// is the identifier, and the second one the metadata value.
-pub struct Metadata<'a, 'r> {
-    ctx: &'a ScanContext<'r>,
-    iterator: Iter<'a, (IdentId, compiler::MetaValue)>,
-    len: usize,
-}
-
 /// A metadata value.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(untagged)]
 pub enum MetaValue<'r> {
     /// Integer value.
     Integer(i64),
@@ -992,6 +984,69 @@ pub enum MetaValue<'r> {
     /// An arbitrary string. Used when the value contains invalid UTF-8
     /// characters.
     Bytes(&'r BStr),
+}
+
+/// Iterator that returns the metadata associated to a rule.
+///
+/// The iterator returns (`&str`, [`MetaValue`]) pairs, where the first item
+/// is the identifier, and the second one the metadata value.
+pub struct Metadata<'a, 'r> {
+    ctx: &'a ScanContext<'r>,
+    iterator: Iter<'a, (IdentId, compiler::MetaValue)>,
+    len: usize,
+}
+
+impl<'a, 'r> Metadata<'a, 'r> {
+    /// Returns the metadata as a [`serde_json::Value`].
+    ///
+    /// The returned value is an array of tuples `(ident, value)` with all
+    /// the metadata associated to the rule.
+    ///
+    /// ```rust
+    /// # use yara_x;
+    /// let rules = yara_x::compile(r#"
+    /// rule test {
+    ///   meta:
+    ///     some_int = 1
+    ///     some_bool = true
+    ///     some_str = "foo"
+    ///     some_bytes = "\x01\x02\x03"
+    ///   condition:
+    ///     true
+    /// }
+    /// "#).unwrap();     
+    ///
+    /// let mut scanner = yara_x::Scanner::new(&rules);
+    ///
+    /// let scan_results = scanner
+    ///     .scan(&[])
+    ///     .unwrap();
+    ///
+    /// let matching_rule = scan_results
+    ///     .matching_rules()
+    ///     .next()
+    ///     .unwrap();
+    ///
+    /// assert_eq!(
+    ///     matching_rule.metadata().into_json(),
+    ///     serde_json::json!([
+    ///         ("some_int", 1),
+    ///         ("some_bool", true),
+    ///         ("some_str", "foo"),
+    ///         ("some_bytes", [0x01, 0x02, 0x03]),
+    ///     ])
+    /// );
+    /// ```
+    pub fn into_json(self) -> serde_json::Value {
+        let v: Vec<(&'r str, MetaValue<'r>)> = self.collect();
+        serde_json::value::to_value(v).unwrap()
+    }
+
+    /// Returns `true` if the rule doesn't have any metadata.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.iterator.len() == 0
+    }
 }
 
 impl<'a, 'r> Iterator for Metadata<'a, 'r> {

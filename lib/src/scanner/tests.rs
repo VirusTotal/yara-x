@@ -1,6 +1,7 @@
 use pretty_assertions::assert_eq;
 use protobuf::MessageDyn;
 use protobuf::{Message, MessageFull};
+use serde_json::json;
 
 use crate::mods;
 use crate::scanner::{MetaValue, Scanner};
@@ -97,11 +98,10 @@ fn metadata() {
     let mut metas = vec![];
     let mut scanner = Scanner::new(&rules);
     let results = scanner.scan(b"").expect("scan should not fail");
+    let matching_rule = results.matching_rules().next().unwrap();
 
-    for matching_rule in results.matching_rules() {
-        for meta in matching_rule.metadata() {
-            metas.push(meta)
-        }
+    for meta in matching_rule.metadata() {
+        metas.push(meta)
     }
 
     assert_eq!(
@@ -113,6 +113,19 @@ fn metadata() {
             ("qux", MetaValue::String("qux")),
             ("quux", MetaValue::Bytes(b"qu\0x".into())),
         ]
+    );
+
+    let meta_json = matching_rule.metadata().into_json();
+
+    assert_eq!(
+        meta_json,
+        json!([
+            ("foo", 1),
+            ("bar", 2.0),
+            ("baz", true),
+            ("qux", "qux"),
+            ("quux", [113, 117, 0, 120])
+        ])
     )
 }
 
