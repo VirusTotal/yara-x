@@ -2172,6 +2172,10 @@ impl<'a> PE<'a> {
         // limit of 256 bytes, though.
         let dll_name = self.str_at_rva(rva)?;
 
+        if dll_name.len() == 0 {
+            return None;
+        }
+
         for c in dll_name.chars() {
             if c.is_ascii_control() {
                 return None;
