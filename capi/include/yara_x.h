@@ -222,6 +222,15 @@ enum YRX_RESULT yrx_rule_namespace(const struct YRX_RULE *rule,
                                    const uint8_t **ns,
                                    size_t *len);
 
+// Returns the metadata associated to a rule.
+//
+// The metadata is represented by a [`YRX_METADATA`] object that must be
+// destroyed with [`yrx_metadata_destroy`] when not needed anymore.
+//
+// This function returns a null pointer when `rule` is null or the
+// rule doesn't have any metadata.
+struct YRX_METADATA *yrx_rule_metadata(const struct YRX_RULE *rule);
+
 // Destroys a [`YRX_METADATA`] object.
 void yrx_metadata_destroy(struct YRX_METADATA *metadata);
 

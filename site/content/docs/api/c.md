@@ -435,6 +435,15 @@ The `*ns` pointer will be valid as long as the [YRX_RULES](#yrx_rules) object
 that contains the rule is not destroyed. The namespace is guaranteed to be a
 valid UTF-8 string.
 
+#### yrx_rule_metadata
+
+```c
+enum YRX_RESULT yrx_rule_namespace(
+    const struct YRX_RULE *rule,
+    const uint8_t **ns,
+    size_t *len);
+```
+
 #### yrx_rule_patterns
 
 ```c

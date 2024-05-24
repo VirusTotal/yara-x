@@ -446,6 +446,7 @@ pub unsafe extern "C" fn yrx_rule_namespace(
 ///
 /// This function returns a null pointer when `rule` is null or the
 /// rule doesn't have any metadata.
+#[no_mangle]
 pub unsafe extern "C" fn yrx_rule_metadata(
     rule: *const YRX_RULE,
 ) -> *mut YRX_METADATA {
