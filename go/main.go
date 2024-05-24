@@ -1,6 +1,5 @@
 // Package yara_x provides Go bindings to the YARA-X library.
 package yara_x
-import "C"
 
 // #cgo !static_link pkg-config: yara_x_capi
 // #cgo static_link pkg-config: --static yara_x_capi
