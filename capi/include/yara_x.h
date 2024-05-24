@@ -35,8 +35,8 @@
 
 // Metadata value types.
 typedef enum YRX_METADATA_VALUE_TYPE {
-  INTEGER,
-  FLOAT,
+  I64,
+  F64,
   BOOLEAN,
   STRING,
   BYTES,
@@ -98,8 +98,8 @@ typedef struct YRX_METADATA_BYTES {
 
 // Metadata value.
 typedef union YRX_METADATA_VALUE {
-  int64_t integer;
-  double float;
+  int64_t i64;
+  double f64;
   bool boolean;
   char *string;
   struct YRX_METADATA_BYTES bytes;

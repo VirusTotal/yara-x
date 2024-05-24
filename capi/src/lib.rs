@@ -170,8 +170,8 @@ impl Drop for YRX_METADATA {
 #[repr(C)]
 #[allow(missing_docs)]
 pub enum YRX_METADATA_VALUE_TYPE {
-    INTEGER,
-    FLOAT,
+    I64,
+    F64,
     BOOLEAN,
     STRING,
     BYTES,
@@ -190,8 +190,8 @@ pub struct YRX_METADATA_BYTES {
 /// Metadata value.
 #[repr(C)]
 union YRX_METADATA_VALUE {
-    integer: i64,
-    float: f64,
+    r#i64: i64,
+    r#f64: f64,
     boolean: bool,
     string: *mut c_char,
     bytes: YRX_METADATA_BYTES,
@@ -468,15 +468,15 @@ pub unsafe extern "C" fn yrx_rule_metadata(
             yara_x::MetaValue::Integer(v) => {
                 entries.push(YRX_METADATA_ENTRY {
                     identifier,
-                    value_type: YRX_METADATA_VALUE_TYPE::INTEGER,
-                    value: YRX_METADATA_VALUE { integer: v },
+                    value_type: YRX_METADATA_VALUE_TYPE::I64,
+                    value: YRX_METADATA_VALUE { r#i64: v },
                 });
             }
             yara_x::MetaValue::Float(v) => {
                 entries.push(YRX_METADATA_ENTRY {
                     identifier,
-                    value_type: YRX_METADATA_VALUE_TYPE::FLOAT,
-                    value: YRX_METADATA_VALUE { float: v },
+                    value_type: YRX_METADATA_VALUE_TYPE::F64,
+                    value: YRX_METADATA_VALUE { r#f64: v },
                 });
             }
             yara_x::MetaValue::Bool(v) => {
