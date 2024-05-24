@@ -438,11 +438,14 @@ valid UTF-8 string.
 #### yrx_rule_metadata
 
 ```c
-enum YRX_RESULT yrx_rule_namespace(
-    const struct YRX_RULE *rule,
-    const uint8_t **ns,
-    size_t *len);
+struct YRX_METADATA *yrx_rule_metadata(const struct YRX_RULE *rule);
 ```
+
+Returns an array with all the metadata values associated to the rule.
+
+The metadata is represented by a [YRX_METADATA](#yrx_metadata) object that must
+be destroyed with [yrx_metadata_destroy](#yrx_metadata_destroy) when not needed
+anymore.
 
 #### yrx_rule_patterns
 
@@ -477,6 +480,8 @@ typedef struct YRX_PATTERNS {
 } YRX_PATTERNS;
 ```
 
+------
+
 #### yrx_patterns_destroy
 
 ```c
@@ -484,7 +489,6 @@ void yrx_patterns_destroy(struct YRX_PATTERNS *patterns);
 ```
 
 Destroys the [YRX_PATTERNS](#yrx_patterns) object.
-
 
 ------
 
@@ -518,6 +522,107 @@ typedef struct YRX_MATCH {
     size_t offset;
     size_t length;
 } YRX_MATCH;
+```
+
+------
+
+### YRX_METADATA
+
+Contains the metadata values associated to a rule. You will get a pointer to
+one of these structures when calling [yrx_rule_metadata](#yrx_rule_metadata),
+you are responsible for calling [yrx_metadata_destroy](#yrx_metadata_destroy)
+when not using the structure anymore.
+
+```c
+typedef struct YRX_METADATA {
+    // Number of metadata entries.
+    size_t num_entries;
+    // Pointer to an array of YRX_METADATA_ENTRY structures. The array has
+    // num_entries items. If num_entries is zero this pointer is invalid
+    // and should not be de-referenced.
+    struct YRX_METADATA_ENTRY *entries;
+} YRX_METADATA;
+
+```
+
+------
+
+#### yrx_metadata_destroy
+
+```c
+void yrx_metadata_destroy(struct YRX_METADATA *metadata);
+```
+
+Destroys the [YRX_METADATA](#yrx_metadata) object.
+
+------
+
+### YRX_METADATA_ENTRY
+
+An individual metadata entry. The [YRX_METADATA](#yrx_metadata)
+object has a pointer to an array of these structures. The structure
+contains information about the metadata identifier, its type, and
+its value. The `value` field is a union with multiple alternatives,
+you must use the type indicated in the `value_type` for deciding
+which alternative to use while accessing the metadata value.
+
+```c
+typedef struct YRX_METADATA_ENTRY {
+    // Metadata identifier.
+    char *identifier;
+    // Type of value.
+    enum YRX_METADATA_VALUE_TYPE value_type;
+    // The value itself. This is a union, use the member that matches the
+    // value type.
+    union YRX_METADATA_VALUE value;
+}   YRX_METADATA_ENTRY;
+```
+
+### YRX_METADATA_VALUE_TYPE
+
+Each of the possible types of a metadata entry.
+
+------
+
+```c
+typedef enum YRX_METADATA_VALUE_TYPE {
+    I64,
+    F64,
+    BOOLEAN,
+    STRING,
+    BYTES,
+} YRX_METADATA_VALUE_TYPE;
+```
+
+------
+
+### YRX_METADATA_VALUE
+
+Union that represents a metadata value.
+
+```c
+typedef union YRX_METADATA_VALUE {
+    int64_t i64;
+    double f64;
+    bool boolean;
+    char *string;
+    struct YRX_METADATA_BYTES bytes;
+} YRX_METADATA_VALUE;
+```
+
+------
+
+### YRX_METADATA_BYTES
+
+Structure that represents a metadata value with an arbitrary sequence of bytes.
+
+```c
+typedef struct YRX_METADATA_BYTES {
+    // Number of bytes.
+    size_t length;
+    // Pointer to the bytes.
+    uint8_t *data;
+} YRX_METADATA_BYTES;
 ```
 
 ------
