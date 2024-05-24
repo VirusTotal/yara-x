@@ -6,7 +6,6 @@ package yara_x
 // #include <yara_x.h>
 import "C"
 import (
-	"encoding/json"
 	"errors"
 	"runtime"
 	"unsafe"
@@ -88,6 +87,7 @@ type Rule struct {
 	identifier string
 	cPatterns  *C.YRX_PATTERNS
 	patterns   []Pattern
+	cMetadata  *C.YRX_METADATA
 	metadata   []Metadata
 }
 
@@ -108,29 +108,13 @@ func newRule(cRule *C.YRX_RULE) *Rule {
 
 	identifier := C.GoStringN((*C.char)(unsafe.Pointer(str)), C.int(len))
 
-	var metadata []Metadata
-
-	var buf *C.YRX_BUFFER
-	if C.yrx_rule_metadata_as_json(cRule, &buf) == C.SUCCESS {
-		var tmp [][]interface{}
-		if err := json.Unmarshal(C.GoBytes(unsafe.Pointer(buf.data), C.int(buf.length)), &tmp); err != nil {
-			panic("yrx_rule_metadata_as_json")
-		}
-		for _, v := range tmp {
-			metadata = append(metadata, Metadata{
-				Identifier: v[0].(string),
-				Value:      v[1],
-			})
-		}
-		defer C.yrx_buffer_destroy(buf)
-	}
-
 	rule := &Rule{
 		namespace,
 		identifier,
 		C.yrx_rule_patterns(cRule),
 		nil,
-		metadata,
+		C.yrx_rule_metadata(cRule),
+		nil,
 	}
 
 	runtime.SetFinalizer(rule, (*Rule).destroy)
@@ -139,6 +123,9 @@ func newRule(cRule *C.YRX_RULE) *Rule {
 
 func (r *Rule) destroy() {
 	C.yrx_patterns_destroy(r.cPatterns)
+	if r.cMetadata != nil {
+		C.yrx_metadata_destroy(r.cMetadata)
+	}
 	runtime.SetFinalizer(r, nil)
 }
 
@@ -154,7 +141,41 @@ func (r *Rule) Namespace() string {
 
 // Metadata returns the rule's metadata
 func (r *Rule) Metadata() []Metadata {
+	// if this method was called before, return the metadata already cached.
+	if r.metadata != nil {
+		return r.metadata
+	}
+
+	numMetadata := int(r.cMetadata.num_entries)
+	cMetadata := unsafe.Slice(r.cMetadata.entries, numMetadata)
+	r.metadata = make([]Metadata, numMetadata)
+
+	for i, metadata := range cMetadata {
+		r.metadata[i].Identifier = C.GoString(metadata.identifier)
+		switch metadata.value_type {
+		case C.I64:
+			r.metadata[i].Value = int64(*(*C.int)(unsafe.Pointer(&metadata.value)))
+		case C.F64:
+			r.metadata[i].Value = float64(*(*C.double)(unsafe.Pointer(&metadata.value)))
+		case C.BOOLEAN:
+			r.metadata[i].Value = metadata.value[0] != 0
+		case C.STRING:
+			r.metadata[i].Value = C.GoString(*(**C.char)(unsafe.Pointer(&metadata.value)))
+		case C.BYTES:
+			r.metadata[i].Value = C.GoBytes(
+				unsafe.Pointer(&metadata.value[8]),
+				C.int(*(*C.size_t)(unsafe.Pointer(&metadata.value))),
+			)
+		}
+	}
+
 	return r.metadata
+}
+
+// Metadata represents a metadata in a Rule.
+type Metadata struct {
+	Identifier string
+	Value      interface{}
 }
 
 // Patterns returns the patterns defined by this rule.
@@ -187,12 +208,6 @@ func (r *Rule) Patterns() []Pattern {
 	}
 
 	return r.patterns
-}
-
-// Metadata represents a metadata in a Rule.
-type Metadata struct {
-	Identifier string
-	Value      interface{}
 }
 
 // Pattern represents a pattern in a Rule.
