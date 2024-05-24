@@ -1777,7 +1777,9 @@ impl<'a> PE<'a> {
         let mut import_descriptors = iterator(
             input,
             verify(descriptor_parser, |d| {
-                d.import_address_table != 0 || d.import_name_table != 0
+                d.name != 0
+                    && (d.import_address_table != 0
+                        || d.import_name_table != 0)
             }),
         );
 

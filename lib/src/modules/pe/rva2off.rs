@@ -13,9 +13,9 @@ pub(crate) trait Section {
 
 /// Convert a relative virtual address (RVA) to a file offset.
 ///
-/// A RVA is an offset relative to the base address of the executable
+/// An RVA is an offset relative to the base address of the executable
 /// program. The PE format uses RVAs in multiple places and sometimes
-/// is necessary to covert the RVA to a file offset.
+/// is necessary to convert the RVA to a file offset.
 pub(crate) fn rva_to_offset(
     rva: u32,
     sections: &[impl Section],
