@@ -1,9 +1,30 @@
 // Package yara_x provides Go bindings to the YARA-X library.
 package yara_x
+import "C"
 
 // #cgo !static_link pkg-config: yara_x_capi
 // #cgo static_link pkg-config: --static yara_x_capi
 // #include <yara_x.h>
+//
+// uint64_t meta_i64(void* value) {
+//   return ((YRX_METADATA_VALUE*) value)->i64;
+// }
+//
+// double meta_f64(void* value) {
+//   return ((YRX_METADATA_VALUE*) value)->f64;
+// }
+//
+// bool meta_bool(void* value) {
+//   return ((YRX_METADATA_VALUE*) value)->boolean;
+// }
+//
+// char* meta_str(void* value) {
+//   return ((YRX_METADATA_VALUE*) value)->string;
+// }
+//
+// YRX_METADATA_BYTES* meta_bytes(void* value) {
+//   return &(((YRX_METADATA_VALUE*) value)->bytes);
+// }
 import "C"
 import (
 	"errors"
@@ -154,17 +175,22 @@ func (r *Rule) Metadata() []Metadata {
 		r.metadata[i].Identifier = C.GoString(metadata.identifier)
 		switch metadata.value_type {
 		case C.I64:
-			r.metadata[i].Value = int64(*(*C.int)(unsafe.Pointer(&metadata.value)))
+			r.metadata[i].Value = int64(
+				C.meta_i64(unsafe.Pointer(&metadata.value)))
 		case C.F64:
-			r.metadata[i].Value = float64(*(*C.double)(unsafe.Pointer(&metadata.value)))
+			r.metadata[i].Value = float64(
+				C.meta_f64(unsafe.Pointer(&metadata.value)))
 		case C.BOOLEAN:
-			r.metadata[i].Value = metadata.value[0] != 0
+			r.metadata[i].Value = bool(
+				C.meta_bool(unsafe.Pointer(&metadata.value)))
 		case C.STRING:
-			r.metadata[i].Value = C.GoString(*(**C.char)(unsafe.Pointer(&metadata.value)))
+			r.metadata[i].Value = C.GoString(
+				C.meta_str(unsafe.Pointer(&metadata.value)))
 		case C.BYTES:
+			bytes := C.meta_bytes(unsafe.Pointer(&metadata.value))
 			r.metadata[i].Value = C.GoBytes(
-				unsafe.Pointer(&metadata.value[8]),
-				C.int(*(*C.size_t)(unsafe.Pointer(&metadata.value))),
+				unsafe.Pointer(bytes.data),
+				C.int(bytes.length),
 			)
 		}
 	}

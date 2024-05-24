@@ -83,7 +83,16 @@ func TestScannerTimeout(t *testing.T) {
 }
 
 func TestScannerMetadata(t *testing.T) {
-	r, _ := Compile(`rule t { meta: some_int = 1 some_float = 2.3034 some_bool = true some_string = "hello" condition: true }`)
+	r, _ := Compile(`rule t { 
+			meta: 
+				some_int = 1 
+				some_float = 2.3034 
+				some_bool = true 
+				some_string = "hello" 
+				some_bytes = "\x00\x01\x02"
+			condition: 
+				true 
+	}`)
 	s := NewScanner(r)
 	matchingRules, _ := s.Scan([]byte{})
 
@@ -96,4 +105,6 @@ func TestScannerMetadata(t *testing.T) {
 	assert.Equal(t, true, matchingRules[0].Metadata()[2].Value)
 	assert.Equal(t, "some_string", matchingRules[0].Metadata()[3].Identifier)
 	assert.Equal(t, "hello", matchingRules[0].Metadata()[3].Value)
+	assert.Equal(t, "some_bytes", matchingRules[0].Metadata()[4].Identifier)
+  assert.Equal(t, []byte{0, 1, 2}, matchingRules[0].Metadata()[4].Value)
 }
