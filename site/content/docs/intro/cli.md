@@ -160,15 +160,17 @@ re-used for multiple scan operations.
 The syntax for this command is:
 
 ```
-yr compile [OPTIONS] <RULES_PATH>... <OUTPUT_PATH>
+yr compile [OPTIONS] <RULES_PATH>...
 ```
 
 Each `<RULES_PATH>` is the path of YARA source file or a directory containing
 source files. When`<RULES_PATH>` is a directory YARA-X iterates the directory
 recursively looking for any `*.yar` or `*.yara` files.
 
-The `<OUTPUT_PATH>` is the path of the output binary file. The supported
-options are:
+### --output, -o <OUTPUT_PATH>
+
+Specify the path for the output binary file containing the compiled rules. By
+default, is `output.yarc`.
 
 ### --relaxed-re-syntax
 
