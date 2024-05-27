@@ -401,10 +401,15 @@ fn global_rules() {
     compiler
         .add_source(
             r#"
+        // This rule is always true.
+        private rule const_true { 
+            condition:
+                true
+        }
         // This global rule doesn't affect the results because it's true.
         global rule global_true {
             condition:
-                true
+                const_true
         }
         // Even if the condition is true, this rule doesn't match because of
         // the false global rule that follows.

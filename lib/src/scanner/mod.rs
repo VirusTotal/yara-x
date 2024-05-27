@@ -151,7 +151,7 @@ impl<'r> Scanner<'r> {
                 scanned_data_len: 0,
                 private_matching_rules: Vec::new(),
                 non_private_matching_rules: Vec::new(),
-                global_matching_rules: FxHashMap::default(),
+                matching_rules: FxHashMap::default(),
                 main_memory: None,
                 module_outputs: FxHashMap::default(),
                 user_provided_module_outputs: FxHashMap::default(),
@@ -671,10 +671,10 @@ impl<'r> Scanner<'r> {
         // to some struct.
         ctx.current_struct = None;
 
-        // Move all the in `global_matching_rules` to `private_matching_rules`
-        // and `non_private_matching_rules`, leaving `global_matching_rules`
+        // Move all the in `matching_rules` to `private_matching_rules`
+        // and `non_private_matching_rules`, leaving `matching_rules`
         // empty.
-        for rules in ctx.global_matching_rules.values_mut() {
+        for rules in ctx.matching_rules.values_mut() {
             for rule_id in rules.drain(0..) {
                 if ctx.compiled_rules.get(rule_id).is_private {
                     ctx.private_matching_rules.push(rule_id);

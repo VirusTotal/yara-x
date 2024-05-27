@@ -246,21 +246,7 @@ pub(super) fn emit_rule_condition(
     rule_id: RuleId,
     condition: &mut Expr,
 ) {
-    // Global and non-global rules are put into two independent instruction
-    // sequences. The global rules are put into the instruction sequence that
-    // gets executed first, which means that global rules will be executed
-    // before any non-global rule, regardless of their order in the source
-    // code. Within the same group (global and non-global) rules maintain their
-    // relative order, though.
-    //
-    // Global rules can not invoke non-global rule. As global rules will always
-    // run before non-global ones, the former can't rely on the result of the
-    // latter.
-    let mut instr = if ctx.current_rule.is_global {
-        builder.new_global_rule()
-    } else {
-        builder.new_rule()
-    };
+    let mut instr = builder.start_rule(rule_id, ctx.current_rule.is_global);
 
     // When the "logging" feature is enabled, print a log before the starting
     // evaluating the rule's condition. In case of error during the evaluation
@@ -286,42 +272,7 @@ pub(super) fn emit_rule_condition(
         },
     );
 
-    // Check if the result from the condition is zero (false).
-    instr.unop(UnaryOp::I32Eqz);
-    instr.if_else(
-        None,
-        |then_| {
-            // The condition is false. For normal rules we don't do anything,
-            // but for global rules we must call `global_rule_no_match` and
-            // return 1.
-            //
-            // By returning 1 the function that contains the logic for this
-            // rule exits immediately, preventing any other rule (both global
-            // and non-global) in the same namespace is executed, and therefore
-            // they will remain false.
-            //
-            // This guarantees that any global rule that returns false, forces
-            // the non-global rules in the same namespace to be false. There
-            // may be some global rules that matched before, though. The
-            // purpose of `global_rule_no_match` is reverting those previous
-            // matches.
-            if ctx.current_rule.is_global {
-                // Call `global_rule_no_match`.
-                then_.i32_const(rule_id.0);
-                then_.call(ctx.function_id(
-                    wasm::export__global_rule_no_match.mangled_name,
-                ));
-                // Return 1.
-                then_.i32_const(1);
-                then_.return_();
-            }
-        },
-        |else_| {
-            // The condition is true, call `rule_match`.
-            else_.i32_const(rule_id.0);
-            else_.call(ctx.function_id(wasm::export__rule_match.mangled_name));
-        },
-    );
+    builder.finish_rule();
 }
 
 /// Emits WASM code for `expr` into the instruction sequence `instr`.

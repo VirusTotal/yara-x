@@ -385,34 +385,7 @@ pub(in crate::compiler) fn expr_from_ast(
             }
 
             let symbol = symbol.unwrap();
-
-            // Return error if a global rule depends on a non-global rule. This
-            // is an error because global rules are evaluated before non-global
-            // rules, even if the global rule appears after the non-global one
-            // in the source code. This means that by the time the global rule
-            // is being evaluated we can't know if the non-global rule matched
-            // or not.
-            // A global rule can depend on another global rule. And non-global
-            // rules can depend both on global rules and non-global ones.
-            if let SymbolKind::Rule(rule_id) = symbol.kind() {
-                let current_rule = ctx.get_current_rule();
-                let used_rule = ctx.get_rule(*rule_id);
-                if current_rule.is_global && !used_rule.is_global {
-                    return Err(Box::new(CompileError::wrong_rule_dependency(
-                            ctx.report_builder,
-                            ctx.ident_pool
-                                .get(current_rule.ident_id)
-                                .unwrap()
-                                .to_string(),
-                            ident.name.to_string(),
-                            current_rule.ident_span,
-                            used_rule.ident_span,
-                            ident.span,
-                        ),
-                    ));
-                }
-            }
-
+            
             #[cfg(feature = "constant-folding")]
             {
                 let type_value = symbol.type_value();

@@ -780,9 +780,7 @@ impl<'a> Compiler<'a> {
             relaxed_re_syntax: self.relaxed_re_syntax,
             current_symbol_table: None,
             symbol_table: &mut self.symbol_table,
-            ident_pool: &mut self.ident_pool,
             report_builder: &self.report_builder,
-            rules: &self.rules,
             current_rule_patterns: &mut rule_patterns,
             warnings: &mut self.warnings,
             vars: VarStack::new(),
@@ -1722,7 +1720,7 @@ impl From<LiteralId> for u64 {
 pub(crate) struct NamespaceId(i32);
 
 /// ID associated to each rule.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub(crate) struct RuleId(i32);
 
 impl From<i32> for RuleId {
@@ -1743,6 +1741,13 @@ impl From<RuleId> for usize {
     #[inline]
     fn from(value: RuleId) -> Self {
         value.0 as usize
+    }
+}
+
+impl From<RuleId> for i32 {
+    #[inline]
+    fn from(value: RuleId) -> Self {
+        value.0
     }
 }
 
