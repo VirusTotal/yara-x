@@ -671,9 +671,15 @@ impl<'r> Scanner<'r> {
         // to some struct.
         ctx.current_struct = None;
 
-        // Move all the in `matching_rules` to `private_matching_rules`
-        // and `non_private_matching_rules`, leaving `matching_rules`
-        // empty.
+        // Both `private_matching_rules` and `non_private_matching_rules` are
+        // empty at this point. Matching rules were being tracked by the
+        // `matching_rules` map, but we are about to move them to these two
+        // vectors while leaving the map empty.
+        assert!(ctx.private_matching_rules.is_empty());
+        assert!(ctx.non_private_matching_rules.is_empty());
+
+        // Move the matching rules the vectors, leaving the `matching_rules`
+        // map empty.
         for rules in ctx.matching_rules.values_mut() {
             for rule_id in rules.drain(0..) {
                 if ctx.compiled_rules.get(rule_id).is_private {
