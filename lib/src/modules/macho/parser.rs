@@ -2,11 +2,11 @@ use crate::modules::protos;
 use bstr::{BStr, ByteSlice};
 #[cfg(feature = "logging")]
 use log::error;
-use nom::bytes::complete::take;
+use nom::bytes::complete::{tag, take, take_till};
 use nom::combinator::{cond, map, verify};
 use nom::error::ErrorKind;
 use nom::multi::{count, length_count};
-use nom::number::complete::{be_u32, le_u32, u16, u32, u64};
+use nom::number::complete::{be_u32, le_u32, u16, u32, u64, u8};
 use nom::number::Endianness;
 use nom::sequence::tuple;
 use nom::{Err, IResult, Parser};
@@ -34,6 +34,11 @@ const _CS_MAGIC_EMBEDDED_SIGNATURE: u32 = 0xfade0cc0;
 const _CS_MAGIC_DETACHED_SIGNATURE: u32 = 0xfade0cc1;
 const _CS_MAGIC_BLOBWRAPPER: u32 = 0xfade0b01;
 const CS_MAGIC_EMBEDDED_ENTITLEMENTS: u32 = 0xfade7171;
+
+/// Mach-O export flag constants
+const EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION: u64 = 0x00000004;
+const EXPORT_SYMBOL_FLAGS_REEXPORT: u64 = 0x00000008;
+const EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER: u64 = 0x00000010;
 
 /// Mach-O dynamic linker constant
 const LC_REQ_DYLD: u32 = 0x80000000;
@@ -326,6 +331,22 @@ impl<'a> MachO<'a> {
                 // everything else
             };
         }
+
+        if let Some(ref dyld_info) = macho.dyld_info {
+            let offset = dyld_info.export_off as usize;
+            let size = dyld_info.export_size as usize;
+            if offset < data.len() {
+                let export_data = &data[offset..offset + size];
+                if let Err(_err) = macho.exports()(export_data) {
+                    #[cfg(feature = "logging")]
+                    error!("Error parsing Mach-O file: {:?}", _err);
+                    // fail silently if it fails, data was not formatted
+                    // correctly but parsing should still proceed for
+                    // everything else
+                };
+            }
+        }
+
         Ok(macho)
     }
 }
@@ -799,8 +820,8 @@ impl<'a> MachOFile<'a> {
                     if blob.magic == CS_MAGIC_EMBEDDED_ENTITLEMENTS {
                         let xml_data = &super_data
                             [offset + size_of_blob..offset + length];
-                        let xml_string = std::str::from_utf8(xml_data)
-                            .unwrap_or_default();
+                        let xml_string =
+                            std::str::from_utf8(xml_data).unwrap_or_default();
 
                         let opt = roxmltree::ParsingOptions {
                             allow_dtd: true,
@@ -873,6 +894,94 @@ impl<'a> MachOFile<'a> {
                 }
             },
         )
+    }
+
+    fn parse_export_node(
+        &mut self,
+    ) -> impl FnMut(&'a [u8], u64, &BStr) -> IResult<&'a [u8], String> + '_
+    {
+        move |data: &'a [u8], offset: u64, prefix: &BStr| {
+            let strings = Vec::<String>::new();
+            let (remainder, length) = uleb128()(&data[offset as usize..])?;
+            dbg!("Terminal Size: {:#02x}", length);
+            let mut remaining_data = remainder;
+
+            if length != 0 {
+                let (remainder, flags) = uleb128()(remaining_data)?;
+                dbg!("Flags: {:#02x}", flags);
+                match flags {
+                    EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER => {
+                        let (remainder, stub_offset) = uleb128()(remainder)?;
+                        dbg!("Flags: {:#02x}", stub_offset);
+
+                        let (remainder, resolver_offset) =
+                            uleb128()(remainder)?;
+                        dbg!("Node Offset: {:#02x}", resolver_offset);
+                        remaining_data = remainder;
+                    }
+                    EXPORT_SYMBOL_FLAGS_REEXPORT => {
+                        let (remainder, ordinal) = uleb128()(remainder)?;
+                        dbg!("Ordinal: {:#02x}", ordinal);
+
+                        let (remainder, strr) = map(
+                            tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
+                            |(s, _)| s,
+                        )(
+                            remainder
+                        )?;
+
+                        dbg!("Node Label: {}", BStr::new(strr));
+                        remaining_data = remainder;
+                    }
+                    EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION => {
+                        let (remainder, offset) = uleb128()(remainder)?;
+                        dbg!("Weak Offset: {:#02x}", offset);
+                        remaining_data = remainder;
+                    }
+                    _ => {}
+                }
+            }
+
+            let (remainder, edges) = u8(remaining_data)?;
+            dbg!("Edges: {:#02x}", edges);
+            let mut offsets: Vec<u64> = Vec::<u64>::new();
+            let mut edge_remainder = remainder;
+
+            for n_edge in 0..edges {
+                let (remainder, strr) = map(
+                    tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
+                    |(s, _)| s,
+                )(edge_remainder)?;
+                let edge_label = BStr::new(strr);
+                dbg!("Edge Label: {}", edge_label);
+                let (remainder, edge_offset) = uleb128()(remainder)?;
+                dbg!("Edge Offset: {:#02x}", edge_offset);
+                let (_, fin) = self.parse_export_node()(
+                    data,
+                    edge_offset,
+                    BStr::new(&bstr::concat(&[prefix, edge_label])),
+                )?;
+                dbg!(fin);
+                edge_remainder = remainder;
+            }
+
+            Ok((data, prefix.to_str().unwrap().to_string()))
+        }
+    }
+
+    /// Parser that parses the exports at the offsets defined within LC_DYLD_INFO and LC_DYLD_INFO_ONLY
+    fn exports(
+        &mut self,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<String>> + '_ {
+        move |data: &'a [u8]| {
+            let strings = Vec::<String>::new();
+            let Ok((remainder, strr)) =
+                self.parse_export_node()(&data, 0, BStr::new(""))
+            else {
+                todo!()
+            };
+            Ok((remainder, strings))
+        }
     }
 
     /// Parser that parses a LC_ID_DYLINKER, LC_LOAD_DYLINKER or
@@ -1289,6 +1398,30 @@ fn uint(
     }
 }
 
+/// Parser that reads ULEB128
+fn uleb128() -> impl FnMut(&[u8]) -> IResult<&[u8], u64> {
+    move |input: &[u8]| {
+        let mut val: u64 = 0;
+        let mut shift: u64 = 0;
+
+        let mut data = input;
+        let mut byte: u8;
+
+        loop {
+            (data, byte) = u8(data)?;
+
+            val = val | ((byte & !(1 << 7)) as u64) << shift;
+
+            if byte & (1 << 7) == 0 {
+                break;
+            }
+            shift += 7;
+        }
+
+        return Ok((data, val));
+    }
+}
+
 /// Convert a decimal number representation to a version string representation.
 fn convert_to_version_string(decimal_number: u32) -> String {
     let major = decimal_number >> 16;
@@ -1649,4 +1782,35 @@ impl From<&MinVersion> for protos::macho::MinVersion {
         result.set_sdk(convert_to_version_string(mv.sdk));
         result
     }
+}
+
+#[test]
+fn test_uleb_parsing() {
+    let uleb_128_in_0 = vec![0b1000_0001, 0b0000_001];
+    let Ok((_remainder, result)) = uleb128()(&uleb_128_in_0) else { todo!() };
+    assert_eq!(129, result);
+
+    let uleb_128_in_1 = vec![0b1000_0000, 0b0000_0001];
+    let Ok((_remainder, result)) = uleb128()(&uleb_128_in_1) else { todo!() };
+    assert_eq!(128, result);
+
+    let uleb_128_in_2 = vec![0b1111_111];
+    let Ok((_remainder, result)) = uleb128()(&uleb_128_in_2) else { todo!() };
+    assert_eq!(127, result);
+
+    let uleb_128_in_3 = vec![0b1111_110];
+    let Ok((_remainder, result)) = uleb128()(&uleb_128_in_3) else { todo!() };
+    assert_eq!(126, result);
+
+    let uleb_128_in_4 = vec![0b0000_000];
+    let Ok((_remainder, result)) = uleb128()(&uleb_128_in_4) else { todo!() };
+    assert_eq!(0, result);
+
+    let uleb_128_in_4 = vec![0b10100000, 0b00000001];
+    let Ok((_remainder, result)) = uleb128()(&uleb_128_in_4) else { todo!() };
+    assert_eq!(160, result);
+
+    let uleb_128_in_5 = vec![0b10010110, 0b00000101];
+    let Ok((_remainder, result)) = uleb128()(&uleb_128_in_5) else { todo!() };
+    assert_eq!(662, result);
 }

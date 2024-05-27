@@ -1,5 +1,3 @@
-use pretty_assertions::assert_eq;
-
 use crate::modules::tests::create_binary_from_zipped_ihex;
 use crate::tests::rule_false;
 use crate::tests::rule_true;
