@@ -385,7 +385,6 @@ pub(in crate::compiler) fn expr_from_ast(
             }
 
             let symbol = symbol.unwrap();
-            
             #[cfg(feature = "constant-folding")]
             {
                 let type_value = symbol.type_value();
