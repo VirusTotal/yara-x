@@ -949,7 +949,7 @@ impl<'a> MachOFile<'a> {
                 let (_, _) = self.parse_export_node()(
                     data,
                     edge_offset,
-                    BStr::new(&bstr::concat(&[prefix, edge_label])),
+                    BStr::new(&bstr::concat([prefix, edge_label])),
                 )?;
                 edge_remainder = remainder;
             }
@@ -971,7 +971,7 @@ impl<'a> MachOFile<'a> {
         move |data: &'a [u8]| {
             let exports = Vec::<String>::new();
             let Ok((remainder, _)) =
-                self.parse_export_node()(&data, 0, BStr::new(""))
+                self.parse_export_node()(data, 0, BStr::new(""))
             else {
                 todo!()
             };
@@ -1405,7 +1405,7 @@ fn uleb128() -> impl FnMut(&[u8]) -> IResult<&[u8], u64> {
         loop {
             (data, byte) = u8(data)?;
 
-            val = val | ((byte & !(1 << 7)) as u64) << shift;
+            val |= ((byte & !(1 << 7)) as u64) << shift;
 
             if byte & (1 << 7) == 0 {
                 break;
@@ -1413,7 +1413,7 @@ fn uleb128() -> impl FnMut(&[u8]) -> IResult<&[u8], u64> {
             shift += 7;
         }
 
-        return Ok((data, val));
+        Ok((data, val))
     }
 }
 
