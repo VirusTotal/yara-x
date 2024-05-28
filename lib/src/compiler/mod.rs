@@ -138,6 +138,10 @@ pub struct Compiler<'a> {
     /// escape sequences.
     relaxed_re_syntax: bool,
 
+    /// If true, slow patterns produce an error instead of a warning. A slow
+    /// pattern is one with atoms shorter than 2 bytes.
+    error_on_slow_pattern: bool,
+
     /// Used for generating error and warning reports.
     report_builder: ReportBuilder,
 
@@ -310,6 +314,7 @@ impl<'a> Compiler<'a> {
             wasm_symbols,
             wasm_exports,
             relaxed_re_syntax: false,
+            error_on_slow_pattern: true,
             next_pattern_id: PatternId(0),
             current_pattern_id: PatternId(0),
             current_namespace: default_namespace,
@@ -587,6 +592,12 @@ impl<'a> Compiler<'a> {
             panic!("calling relaxed_re_syntax in non-empty compiler")
         }
         self.relaxed_re_syntax = yes;
+        self
+    }
+
+    /// When enabled, slow patterns produce an error instead of a warning.
+    pub fn error_on_slow_pattern(&mut self, yes: bool) -> &mut Self {
+        self.error_on_slow_pattern = yes;
         self
     }
 
@@ -1597,8 +1608,15 @@ impl<'a> Compiler<'a> {
         }
 
         if slow_pattern {
-            self.warnings
-                .add(|| Warning::slow_pattern(&self.report_builder, span));
+            if self.error_on_slow_pattern {
+                return Err(Box::new(CompileError::slow_pattern(
+                    &self.report_builder,
+                    span,
+                )));
+            } else {
+                self.warnings
+                    .add(|| Warning::slow_pattern(&self.report_builder, span));
+            }
         }
 
         Ok((atoms, is_fast_regexp))
