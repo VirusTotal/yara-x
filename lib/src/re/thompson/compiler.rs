@@ -148,7 +148,7 @@ impl Compiler {
         // users can increase the number if they start getting warnings due
         // to 0-length atoms, but for the time being let's use a number that
         // seems to work fine in most cases.
-        lit_extractor.limit_total(2048);
+        lit_extractor.limit_total(MAX_ATOMS_PER_REGEXP);
 
         lit_extractor.limit_literal_len(DESIRED_ATOM_SIZE);
         lit_extractor.limit_repeat(DESIRED_ATOM_SIZE);
