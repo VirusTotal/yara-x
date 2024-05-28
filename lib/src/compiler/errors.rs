@@ -194,7 +194,7 @@ pub enum CompileError {
         note: Option<String>,
     },
 
-    #[warning("slow pattern")]
+    #[error("slow pattern")]
     #[label("this pattern may slow down the scan", span)]
     SlowPattern { detailed_report: String, span: Span },
 }
