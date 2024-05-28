@@ -33,6 +33,10 @@
 // constructs that YARA-X doesn't accept by default.
 #define YRX_RELAXED_RE_SYNTAX 2
 
+// Flag passed to [`yrx_compiler_create`] for treating slow patterns as
+// errors instead of warnings.
+#define YRX_ERROR_ON_SLOW_PATTERN 4
+
 // Metadata value types.
 typedef enum YRX_METADATA_VALUE_TYPE {
   I64,

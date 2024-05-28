@@ -314,7 +314,7 @@ impl<'a> Compiler<'a> {
             wasm_symbols,
             wasm_exports,
             relaxed_re_syntax: false,
-            error_on_slow_pattern: true,
+            error_on_slow_pattern: false,
             next_pattern_id: PatternId(0),
             current_pattern_id: PatternId(0),
             current_namespace: default_namespace,
@@ -596,6 +596,8 @@ impl<'a> Compiler<'a> {
     }
 
     /// When enabled, slow patterns produce an error instead of a warning.
+    ///
+    /// This is disabled by default.
     pub fn error_on_slow_pattern(&mut self, yes: bool) -> &mut Self {
         self.error_on_slow_pattern = yes;
         self
