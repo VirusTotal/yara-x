@@ -1782,31 +1782,31 @@ impl From<&MinVersion> for protos::macho::MinVersion {
 
 #[test]
 fn test_uleb_parsing() {
-    let uleb_128_in_0 = vec![0b1000_0001, 0b0000_001];
-    let Ok((_remainder, result)) = uleb128()(&uleb_128_in_0) else { todo!() };
+    let uleb_128_in = vec![0b1000_0001, 0b000_0001];
+    let Ok((_remainder, result)) = uleb128()(&uleb_128_in) else { todo!() };
     assert_eq!(129, result);
 
-    let uleb_128_in_1 = vec![0b1000_0000, 0b0000_0001];
-    let Ok((_remainder, result)) = uleb128()(&uleb_128_in_1) else { todo!() };
+    let uleb_128_in = vec![0b1000_0000, 0b0000_0001];
+    let Ok((_remainder, result)) = uleb128()(&uleb_128_in) else { todo!() };
     assert_eq!(128, result);
 
-    let uleb_128_in_2 = vec![0b1111_111];
-    let Ok((_remainder, result)) = uleb128()(&uleb_128_in_2) else { todo!() };
+    let uleb_128_in = vec![0b111_1111];
+    let Ok((_remainder, result)) = uleb128()(&uleb_128_in) else { todo!() };
     assert_eq!(127, result);
 
-    let uleb_128_in_3 = vec![0b1111_110];
-    let Ok((_remainder, result)) = uleb128()(&uleb_128_in_3) else { todo!() };
+    let uleb_128_in = vec![0b111_1110];
+    let Ok((_remainder, result)) = uleb128()(&uleb_128_in) else { todo!() };
     assert_eq!(126, result);
 
-    let uleb_128_in_4 = vec![0b0000_000];
-    let Ok((_remainder, result)) = uleb128()(&uleb_128_in_4) else { todo!() };
+    let uleb_128_in = vec![0b000_0000];
+    let Ok((_remainder, result)) = uleb128()(&uleb_128_in) else { todo!() };
     assert_eq!(0, result);
 
-    let uleb_128_in_4 = vec![0b10100000, 0b00000001];
-    let Ok((_remainder, result)) = uleb128()(&uleb_128_in_4) else { todo!() };
+    let uleb_128_in = vec![0b1010_0000, 0b0000_0001];
+    let Ok((_remainder, result)) = uleb128()(&uleb_128_in) else { todo!() };
     assert_eq!(160, result);
 
-    let uleb_128_in_5 = vec![0b10010110, 0b00000101];
-    let Ok((_remainder, result)) = uleb128()(&uleb_128_in_5) else { todo!() };
+    let uleb_128_in = vec![0b10010110, 0b00000101];
+    let Ok((_remainder, result)) = uleb128()(&uleb_128_in) else { todo!() };
     assert_eq!(662, result);
 }
