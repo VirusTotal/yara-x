@@ -274,6 +274,7 @@ impl<'a> MachO<'a> {
             uuid: None,
             build_version: None,
             min_version: None,
+            exports: Vec::new(),
         };
 
         for _ in 0..macho.header.ncmds as usize {
@@ -372,6 +373,7 @@ pub struct MachOFile<'a> {
     certificates: Option<Certificates>,
     build_version: Option<BuildVersionCommand>,
     min_version: Option<MinVersion>,
+    exports: Vec<String>,
 }
 
 impl<'a> MachOFile<'a> {
@@ -901,41 +903,33 @@ impl<'a> MachOFile<'a> {
     ) -> impl FnMut(&'a [u8], u64, &BStr) -> IResult<&'a [u8], String> + '_
     {
         move |data: &'a [u8], offset: u64, prefix: &BStr| {
-            let strings = Vec::<String>::new();
             let (remainder, length) = uleb128()(&data[offset as usize..])?;
-            dbg!("Terminal Size: {:#02x}", length);
             let mut remaining_data = remainder;
 
             if length != 0 {
                 let (remainder, flags) = uleb128()(remaining_data)?;
-                dbg!("Flags: {:#02x}", flags);
                 match flags {
                     EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER => {
-                        let (remainder, stub_offset) = uleb128()(remainder)?;
-                        dbg!("Flags: {:#02x}", stub_offset);
+                        let (remainder, _stub_offset) = uleb128()(remainder)?;
 
-                        let (remainder, resolver_offset) =
+                        let (remainder, _resolver_offset) =
                             uleb128()(remainder)?;
-                        dbg!("Node Offset: {:#02x}", resolver_offset);
                         remaining_data = remainder;
                     }
                     EXPORT_SYMBOL_FLAGS_REEXPORT => {
-                        let (remainder, ordinal) = uleb128()(remainder)?;
-                        dbg!("Ordinal: {:#02x}", ordinal);
+                        let (remainder, _ordinal) = uleb128()(remainder)?;
 
-                        let (remainder, strr) = map(
+                        let (remainder, _label) = map(
                             tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
                             |(s, _)| s,
                         )(
                             remainder
                         )?;
 
-                        dbg!("Node Label: {}", BStr::new(strr));
                         remaining_data = remainder;
                     }
                     EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION => {
-                        let (remainder, offset) = uleb128()(remainder)?;
-                        dbg!("Weak Offset: {:#02x}", offset);
+                        let (remainder, _offset) = uleb128()(remainder)?;
                         remaining_data = remainder;
                     }
                     _ => {}
@@ -943,26 +937,27 @@ impl<'a> MachOFile<'a> {
             }
 
             let (remainder, edges) = u8(remaining_data)?;
-            dbg!("Edges: {:#02x}", edges);
-            let mut offsets: Vec<u64> = Vec::<u64>::new();
             let mut edge_remainder = remainder;
 
-            for n_edge in 0..edges {
+            for _ in 0..edges {
                 let (remainder, strr) = map(
                     tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
                     |(s, _)| s,
                 )(edge_remainder)?;
                 let edge_label = BStr::new(strr);
-                dbg!("Edge Label: {}", edge_label);
                 let (remainder, edge_offset) = uleb128()(remainder)?;
-                dbg!("Edge Offset: {:#02x}", edge_offset);
-                let (_, fin) = self.parse_export_node()(
+                let (_, _) = self.parse_export_node()(
                     data,
                     edge_offset,
                     BStr::new(&bstr::concat(&[prefix, edge_label])),
                 )?;
-                dbg!(fin);
                 edge_remainder = remainder;
+            }
+
+            if length != 0 {
+                if let Ok(prefix) = prefix.to_str() {
+                    self.exports.push(prefix.to_string())
+                }
             }
 
             Ok((data, prefix.to_str().unwrap().to_string()))
@@ -974,13 +969,13 @@ impl<'a> MachOFile<'a> {
         &mut self,
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<String>> + '_ {
         move |data: &'a [u8]| {
-            let strings = Vec::<String>::new();
-            let Ok((remainder, strr)) =
+            let exports = Vec::<String>::new();
+            let Ok((remainder, _)) =
                 self.parse_export_node()(&data, 0, BStr::new(""))
             else {
                 todo!()
             };
-            Ok((remainder, strings))
+            Ok((remainder, exports))
         }
     }
 
@@ -1524,7 +1519,7 @@ impl From<MachO<'_>> for protos::macho::Macho {
                 .rpaths
                 .extend(m.rpaths.iter().map(|rpath: &&[u8]| rpath.to_vec()));
             result.entitlements.extend(m.entitlements.clone());
-
+            result.exports.extend(m.exports.clone());
             result
                 .set_number_of_segments(m.segments.len().try_into().unwrap());
         } else {
@@ -1603,6 +1598,7 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         result.dylibs.extend(macho.dylibs.iter().map(|dylib| dylib.into()));
         result.rpaths.extend(macho.rpaths.iter().map(|rpath| rpath.to_vec()));
         result.entitlements.extend(macho.entitlements.clone());
+        result.exports.extend(macho.exports.clone());
 
         result
             .set_number_of_segments(result.segments.len().try_into().unwrap());

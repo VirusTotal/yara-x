@@ -192,6 +192,10 @@ file:
         device: MACOSX
         version: "10.9.0"
         sdk: "10.10.0"
+    exports:
+      - "__mh_execute_header"
+      - "_factorial"
+      - "_main"
   - magic: 0xcffaedfe
     cputype: 0x1000007
     cpusubtype: 0x80000003
@@ -390,3 +394,7 @@ file:
         device: MACOSX
         version: "10.9.0"
         sdk: "10.10.0"
+    exports:
+      - "__mh_execute_header"
+      - "_factorial"
+      - "_main"

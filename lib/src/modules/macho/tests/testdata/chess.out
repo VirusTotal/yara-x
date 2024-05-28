@@ -830,3 +830,5 @@ build_version:
     tools:
       - tool: 3
         version: "556.4"
+exports:
+  - "__mh_execute_header"
