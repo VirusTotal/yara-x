@@ -23,6 +23,12 @@ def test_relaxed_re_syntax():
   assert len(matching_rules) == 1
 
 
+def test_error_on_slow_pattern():
+	compiler = yara_x.Compiler(error_on_slow_pattern=True)
+	with pytest.raises(yara_x.CompileError):
+		compiler.add_source(r'rule test {strings: $a = /a.*b/ condition: $a}')
+
+
 def test_int_globals():
   compiler = yara_x.Compiler()
   compiler.define_global('some_int', 1)

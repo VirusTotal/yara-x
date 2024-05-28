@@ -50,13 +50,20 @@ fn compile(src: &str) -> PyResult<Rules> {
 struct Compiler {
     inner: yrx::Compiler<'static>,
     relaxed_re_syntax: bool,
+    error_on_slow_pattern: bool,
 }
 
 impl Compiler {
-    fn new_inner(relaxed_re_syntax: bool) -> yrx::Compiler<'static> {
+    fn new_inner(
+        relaxed_re_syntax: bool,
+        error_on_slow_pattern: bool,
+    ) -> yrx::Compiler<'static> {
         let mut compiler = yrx::Compiler::new();
         if relaxed_re_syntax {
             compiler.relaxed_re_syntax(true);
+        }
+        if error_on_slow_pattern {
+            compiler.error_on_slow_pattern(true);
         }
         compiler
     }
@@ -77,10 +84,17 @@ impl Compiler {
     /// their meaning from the context (e.g., `{` and `}` in `/foo{}bar/` are
     /// literal, but in `/foo{0,1}bar/` they form the repetition operator
     /// `{0,1}`).
+    ///
+    /// The `error_on_slow_pattern` argument tells the compiler to treat slow
+    /// patterns as errors, instead of warnings.
     #[new]
-    #[pyo3(signature = (*, relaxed_re_syntax=false))]
-    fn new(relaxed_re_syntax: bool) -> Self {
-        Self { inner: Self::new_inner(relaxed_re_syntax), relaxed_re_syntax }
+    #[pyo3(signature = (*, relaxed_re_syntax=false, error_on_slow_pattern=false))]
+    fn new(relaxed_re_syntax: bool, error_on_slow_pattern: bool) -> Self {
+        Self {
+            inner: Self::new_inner(relaxed_re_syntax, error_on_slow_pattern),
+            relaxed_re_syntax,
+            error_on_slow_pattern,
+        }
     }
 
     /// Adds a YARA source code to be compiled.
@@ -160,7 +174,10 @@ impl Compiler {
     fn build(&mut self) -> Rules {
         let compiler = mem::replace(
             &mut self.inner,
-            Self::new_inner(self.relaxed_re_syntax),
+            Self::new_inner(
+                self.relaxed_re_syntax,
+                self.error_on_slow_pattern,
+            ),
         );
         Rules::new(compiler.build())
     }

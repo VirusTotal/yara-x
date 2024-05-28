@@ -71,10 +71,20 @@ func RelaxedReSyntax(yes bool) CompileOption {
 	}
 }
 
+// ErrorOnSlowPattern is an option for [NewCompiler] and [Compile] that
+// tells the compiler to treat slow patterns as errors instead of warnings.
+func ErrorOnSlowPattern(yes bool) CompileOption {
+		return func(c *Compiler) error {
+  		c.errorOnSlowPattern = yes
+  		return nil
+  	}
+}
+
 // Compiler represent a YARA compiler.
 type Compiler struct {
 	cCompiler       *C.YRX_COMPILER
 	relaxedReSyntax bool
+	errorOnSlowPattern bool
 	ignoredModules  map[string]bool
 	vars map[string]interface{}
 }
@@ -95,6 +105,10 @@ func NewCompiler(opts... CompileOption) (*Compiler, error) {
 	flags := C.uint32_t(0)
 	if c.relaxedReSyntax {
 		flags |= C.YRX_RELAXED_RE_SYNTAX
+	}
+
+	if c.errorOnSlowPattern {
+		flags |= C.YRX_ERROR_ON_SLOW_PATTERN
 	}
 
 	C.yrx_compiler_create(flags, &c.cCompiler)
