@@ -5,8 +5,7 @@ use std::rc::Rc;
 use yara_x_parser::report::ReportBuilder;
 
 use crate::compiler::ir::PatternIdx;
-use crate::compiler::{ir, IdentId, RuleId, RuleInfo, Warnings};
-use crate::string_pool::StringPool;
+use crate::compiler::{ir, Warnings};
 use crate::symbols::{StackedSymbolTable, SymbolLookup};
 use crate::types::Type;
 use crate::wasm;
@@ -26,18 +25,12 @@ pub(in crate::compiler) struct CompileContext<'a, 'src, 'sym> {
     /// (i.e: `symbol_table`) is ignored.
     pub current_symbol_table: Option<Rc<dyn SymbolLookup + 'a>>,
 
-    /// Information about the rules compiled so far.
-    pub rules: &'a Vec<RuleInfo>,
-
     /// Reference to a vector that contains the IR for the patterns declared
     /// in the current rule.
     pub current_rule_patterns: &'a mut Vec<ir::PatternInRule<'src>>,
 
     /// Warnings generated during the compilation.
     pub warnings: &'a mut Warnings,
-
-    /// Pool with identifiers used in the rules.
-    pub ident_pool: &'a mut StringPool<IdentId>,
 
     /// Stack of variables. These are local variables used during the
     /// evaluation of rule conditions, for example for storing loop variables.
@@ -48,23 +41,6 @@ pub(in crate::compiler) struct CompileContext<'a, 'src, 'sym> {
 }
 
 impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
-    /// Returns a [`RuleInfo`] given its [`RuleId`].
-    ///
-    /// # Panics
-    ///
-    /// If no rule with such [`RuleId`] exists.
-    #[inline]
-    pub fn get_rule(&self, rule_id: RuleId) -> &RuleInfo {
-        self.rules.get(rule_id.0 as usize).unwrap()
-    }
-
-    /// Returns the [`RuleInfo`] structure corresponding to the rule currently
-    /// being compiled.
-    #[inline]
-    pub fn get_current_rule(&self) -> &RuleInfo {
-        self.rules.last().unwrap()
-    }
-
     /// Given a pattern identifier (e.g. `$a`, `#a`, `@a`) search for it in
     /// the current rule and return its position.
     ///

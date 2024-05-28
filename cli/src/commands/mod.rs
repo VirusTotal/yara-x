@@ -3,6 +3,7 @@ mod compile;
 mod completion;
 mod debug;
 mod dump;
+mod fix;
 mod fmt;
 mod scan;
 
@@ -11,6 +12,7 @@ pub use compile::*;
 pub use completion::*;
 pub use debug::*;
 pub use dump::*;
+pub use fix::*;
 pub use fmt::*;
 pub use scan::*;
 
@@ -55,6 +57,7 @@ pub fn cli() -> Command {
             commands::debug(),
             commands::dump(),
             commands::fmt(),
+            commands::fix(),
             commands::completion(),
         ])
 }

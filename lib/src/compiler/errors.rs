@@ -155,30 +155,6 @@ pub enum CompileError {
         ident_span: Span,
     },
 
-    #[error("global rule `{global_rule}` depends on non-global rule `{non_global_rule}`")]
-    #[label(
-        "`{non_global_rule}` is used in the condition of `{global_rule}`",
-        non_global_rule_usage_span
-    )]
-    #[label(
-        "non-global rule `{non_global_rule}` declared here",
-        non_global_rule_span,
-        style = "note"
-    )]
-    #[label(
-        "global rule `{global_rule}` declared here",
-        global_rule_span,
-        style = "note"
-    )]
-    WrongRuleDependency {
-        detailed_report: String,
-        global_rule: String,
-        non_global_rule: String,
-        global_rule_span: Span,
-        non_global_rule_span: Span,
-        non_global_rule_usage_span: Span,
-    },
-
     #[error("invalid regular expression")]
     #[label("{error}", span)]
     #[note(note)]
@@ -217,4 +193,8 @@ pub enum CompileError {
         span: Span,
         note: Option<String>,
     },
+
+    #[error("slow pattern")]
+    #[label("this pattern may slow down the scan", span)]
+    SlowPattern { detailed_report: String, span: Span },
 }

@@ -47,7 +47,16 @@ fn generate_module_files(proto_files: Vec<FileDescriptorProto>) {
     //  #[cfg(feature = "foo_module")]
     //  pub mod foo;
     //
-    let mut modules_rs = File::create("src/modules/modules.rs").unwrap();
+    let mut modules_rs = match File::create("src/modules/modules.rs") {
+        Ok(modules_rs) => modules_rs,
+        Err(err) => {
+            println!("cargo:warning=`build.rs` was unable to re-generate `lib/src/modules/modules.rs`");
+            println!("cargo:warning=due to the following error: {}", err);
+            println!("cargo:warning=ignore this warning unless you are trying to add new YARA-X modules");
+            println!("cargo:warning=to disable the warning set the environment variable YRX_REGENERATE_MODULES_RS=false");
+            return;
+        }
+    };
 
     write!(
         modules_rs,

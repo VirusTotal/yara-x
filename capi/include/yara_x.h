@@ -33,6 +33,19 @@
 // constructs that YARA-X doesn't accept by default.
 #define YRX_RELAXED_RE_SYNTAX 2
 
+// Flag passed to [`yrx_compiler_create`] for treating slow patterns as
+// errors instead of warnings.
+#define YRX_ERROR_ON_SLOW_PATTERN 4
+
+// Metadata value types.
+typedef enum YRX_METADATA_VALUE_TYPE {
+  I64,
+  F64,
+  BOOLEAN,
+  STRING,
+  BYTES,
+} YRX_METADATA_VALUE_TYPE;
+
 // Error codes returned by functions in this API.
 typedef enum YRX_RESULT {
   // Everything was OK.
@@ -55,6 +68,8 @@ typedef enum YRX_RESULT {
   INVALID_UTF8,
   // An error occurred while serializing/deserializing YARA rules.
   SERIALIZATION_ERROR,
+  // An error returned when a rule doesn't have any metadata.
+  NO_METADATA,
 } YRX_RESULT;
 
 // A compiler that takes YARA source code and produces compiled rules.
@@ -76,6 +91,44 @@ typedef struct YRX_BUFFER {
   // Length of data in bytes.
   size_t length;
 } YRX_BUFFER;
+
+// Represents a metadata value that contains raw bytes.
+typedef struct YRX_METADATA_BYTES {
+  // Number of bytes.
+  size_t length;
+  // Pointer to the bytes.
+  uint8_t *data;
+} YRX_METADATA_BYTES;
+
+// Metadata value.
+typedef union YRX_METADATA_VALUE {
+  int64_t i64;
+  double f64;
+  bool boolean;
+  char *string;
+  struct YRX_METADATA_BYTES bytes;
+} YRX_METADATA_VALUE;
+
+// A metadata entry.
+typedef struct YRX_METADATA_ENTRY {
+  // Metadata identifier.
+  char *identifier;
+  // Type of value.
+  enum YRX_METADATA_VALUE_TYPE value_type;
+  // The value itself. This is a union, use the member that matches the
+  // value type.
+  union YRX_METADATA_VALUE value;
+} YRX_METADATA_ENTRY;
+
+// Represents the metadata associated to a rule.
+typedef struct YRX_METADATA {
+  // Number of metadata entries.
+  size_t num_entries;
+  // Pointer to an array of YRX_METADATA_ENTRY structures. The array has
+  // num_entries items. If num_entries is zero this pointer is invalid
+  // and should not be de-referenced.
+  struct YRX_METADATA_ENTRY *entries;
+} YRX_METADATA;
 
 // Contains information about a pattern match.
 typedef struct YRX_MATCH {
@@ -135,7 +188,7 @@ enum YRX_RESULT yrx_compile(const char *src,
 // that contains the serialized rules. This structure has a pointer to the
 // data itself, and its length.
 //
-// This [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
+// The [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
 enum YRX_RESULT yrx_rules_serialize(struct YRX_RULES *rules,
                                     struct YRX_BUFFER **buf);
 
@@ -173,12 +226,26 @@ enum YRX_RESULT yrx_rule_namespace(const struct YRX_RULE *rule,
                                    const uint8_t **ns,
                                    size_t *len);
 
+// Returns the metadata associated to a rule.
+//
+// The metadata is represented by a [`YRX_METADATA`] object that must be
+// destroyed with [`yrx_metadata_destroy`] when not needed anymore.
+//
+// This function returns a null pointer when `rule` is null or the
+// rule doesn't have any metadata.
+struct YRX_METADATA *yrx_rule_metadata(const struct YRX_RULE *rule);
+
+// Destroys a [`YRX_METADATA`] object.
+void yrx_metadata_destroy(struct YRX_METADATA *metadata);
+
 // Returns all the patterns defined by a rule.
 //
 // Each pattern contains information about whether it matched or not, and where
 // in the data it matched. The patterns are represented by a [`YRX_PATTERNS`]
 // object that must be destroyed with [`yrx_patterns_destroy`] when not needed
 // anymore.
+//
+// This function returns a null pointer when `rule` is null.
 struct YRX_PATTERNS *yrx_rule_patterns(const struct YRX_RULE *rule);
 
 // Destroys a [`YRX_PATTERNS`] object.

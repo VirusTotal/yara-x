@@ -23,6 +23,12 @@ def test_relaxed_re_syntax():
   assert len(matching_rules) == 1
 
 
+def test_error_on_slow_pattern():
+	compiler = yara_x.Compiler(error_on_slow_pattern=True)
+	with pytest.raises(yara_x.CompileError):
+		compiler.add_source(r'rule test {strings: $a = /a.*b/ condition: $a}')
+
+
 def test_int_globals():
   compiler = yara_x.Compiler()
   compiler.define_global('some_int', 1)
@@ -110,6 +116,31 @@ def test_namespaces():
   assert matching_rules[1].patterns[0].matches[0].xor_key is None
 
 
+def test_metadata():
+	rules = yara_x.compile('''
+	rule test {
+		meta:
+			foo = 1
+			bar = 2.0
+			baz = true
+			qux = "qux"
+			quux = "qu\x00x"
+		condition:
+		  true	
+	}
+	''')
+
+	matching_rules = rules.scan(b'').matching_rules
+	
+	assert matching_rules[0].metadata == (
+		("foo", 1), 
+		("bar", 2.0), 
+		("baz", True), 
+		("qux", "qux"), 
+		("quux", "qu\0x")
+	)
+	
+	
 def test_compile_and_scan():
   rules = yara_x.compile('rule foo {strings: $a = "foo" condition: $a}')
   matching_rules = rules.scan(b'foobar').matching_rules

@@ -118,7 +118,7 @@ But maintaining those parser in-sync with the official one is hard, and very
 often they lag behind.
 
 YARA-X, in contrast, has a more modular design, where the parser is decoupled
-from the rule compilation logic, allowing the re-use of the parser of other
+from the rule compilation logic, allowing the re-use of the parser for other
 purposes.
 
 ## The bad things

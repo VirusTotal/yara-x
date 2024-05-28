@@ -158,25 +158,6 @@ In YARA-X you can specify different alphabets for `base64` and `base64wide`
 in the same pattern. In the example above, `base64` will use the default
 alphabet as always, while `base64wide` will use the custom alphabet.
 
-## Global rules can't depend on non-global rules
-
-In YARA 4.x a global rule can depend on a non-global rule, as long as the
-non-global rule is declared first. For instance, this is valid in YARA 4.x:
-
-```
-rule my_non_global_rule {
-  condition:
-    ....
-}
-
-global rule my_global_rule {
-  condition:
-    my_non_global_rule
-}
-```
-
-In YARA-X this is forbidden, global rules can only depend on other global rules.
-
 ## "of" statement accepts tuples of boolean expressions
 
 In YARA 4.x the `of` statement accepts a tuple of pattern or rule identifiers.

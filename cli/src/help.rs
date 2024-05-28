@@ -91,3 +91,12 @@ pub const SCAN_LIST_HELP: &str = r#"Indicate that TARGET_PATH is a file containi
 
 <TARGET_PATH> must be a text file containing one path per line. The paths must be either 
 absolute paths, or relative to the current directory."#;
+
+pub const FIX_ENCODING_HELP: &str = r#"Convert source files to UTF-8
+
+YARA-X is stricter that YARA with respect to invalid UTF-8 characters in source code. This 
+command allows to convert your YARA source files to UTF-8 encoding if they are not.
+
+If <RULES_PATH> is a directory, all files with extensions `.yar` and `.yara` will be converted. 
+This behavior can be changed by using the `--filter` option.
+"#;

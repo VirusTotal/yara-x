@@ -41,10 +41,10 @@ message Certificates {
 }
 
 message Dylib {
-  optional bytes name = 1;
-  optional uint32 timestamp = 2 [(yaml.field).fmt = "t"];
-  optional string compatibility_version = 3;
-  optional string current_version = 4;
+  required bytes name = 1;
+  required uint32 timestamp = 2 [(yaml.field).fmt = "t"];
+  required string compatibility_version = 3;
+  required string current_version = 4;
 }
 
 message DyldInfo {

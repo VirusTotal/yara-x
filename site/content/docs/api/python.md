@@ -323,6 +323,11 @@ A tuple of [Pattern](#pattern) with every pattern defined by the rule, matching
 or not. Each pattern contains information about the matches that were found
 during the scan, if any.
 
+#### .metadata
+
+A tuple of pairs `(identifier, value)` with the metadata associated to the
+rule.
+
 ---------
 
 ### Pattern

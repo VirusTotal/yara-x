@@ -1777,7 +1777,9 @@ impl<'a> PE<'a> {
         let mut import_descriptors = iterator(
             input,
             verify(descriptor_parser, |d| {
-                d.import_address_table != 0 || d.import_name_table != 0
+                d.name != 0
+                    && (d.import_address_table != 0
+                        || d.import_name_table != 0)
             }),
         );
 
@@ -2171,6 +2173,10 @@ impl<'a> PE<'a> {
         // every byte except the ones listed below. YARA imposes a length
         // limit of 256 bytes, though.
         let dll_name = self.str_at_rva(rva)?;
+
+        if dll_name.is_empty() {
+            return None;
+        }
 
         for c in dll_name.chars() {
             if c.is_ascii_control() {

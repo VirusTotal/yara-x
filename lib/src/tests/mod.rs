@@ -1025,6 +1025,9 @@ fn regexp_patterns_1() {
     pattern_false!(r#"/ab.{1,2}cdef/"#, b"abcdef");
     pattern_match!(r#"/abcd.{1,2}ef/"#, b"abcdxef", b"abcdxef");
     pattern_match!(r#"/ab.{1,2}cdef/"#, b"abxcdef", b"abxcdef");
+    pattern_match!(r#"/ab.{1, 2}cdef/"#, b"abxcdef", b"abxcdef");
+    pattern_match!(r#"/ab.{1 ,2}cdef/"#, b"abxcdef", b"abxcdef");
+    pattern_match!(r#"/ab.{1  ,  2}cdef/"#, b"abxcdef", b"abxcdef");
     pattern_match!(r#"/a(.*)*/"#, b"a", b"a");
     pattern_match!(r#"/a(.*){2}/"#, b"a", b"a");
     pattern_match!(r#"/a(.*){2,4}/"#, b"a", b"a");

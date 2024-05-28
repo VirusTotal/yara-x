@@ -138,6 +138,10 @@ pub struct Compiler<'a> {
     /// escape sequences.
     relaxed_re_syntax: bool,
 
+    /// If true, slow patterns produce an error instead of a warning. A slow
+    /// pattern is one with atoms shorter than 2 bytes.
+    error_on_slow_pattern: bool,
+
     /// Used for generating error and warning reports.
     report_builder: ReportBuilder,
 
@@ -310,6 +314,7 @@ impl<'a> Compiler<'a> {
             wasm_symbols,
             wasm_exports,
             relaxed_re_syntax: false,
+            error_on_slow_pattern: false,
             next_pattern_id: PatternId(0),
             current_pattern_id: PatternId(0),
             current_namespace: default_namespace,
@@ -590,6 +595,14 @@ impl<'a> Compiler<'a> {
         self
     }
 
+    /// When enabled, slow patterns produce an error instead of a warning.
+    ///
+    /// This is disabled by default.
+    pub fn error_on_slow_pattern(&mut self, yes: bool) -> &mut Self {
+        self.error_on_slow_pattern = yes;
+        self
+    }
+
     /// Returns the warnings emitted by the compiler.
     #[inline]
     pub fn warnings(&self) -> &[Warning] {
@@ -722,12 +735,38 @@ impl<'a> Compiler<'a> {
         // compiling the current rule this snapshot allows restoring the
         // compiler to the state it had before starting compiling the rule.
         // This way we don't leave too much junk, like atoms, or sub-patterns
-        // corresponding to failed rules.
+        // corresponding to failed rules. However, there is some junk left
+        // behind in `ident_pool` and `lit_pool`, because once a string is
+        // added to one of these pools it can't be removed.
         let snapshot = self.take_snapshot();
 
         // The RuleId for the new rule is current length of `self.rules`. The
         // first rule has RuleId = 0.
         let rule_id = RuleId(self.rules.len() as i32);
+
+        // Build a vector of pairs (IdentId, MetaValue) for every meta defined
+        // in the rule.
+        let meta = rule
+            .meta
+            .iter()
+            .flatten()
+            .map(|m| {
+                (
+                    self.ident_pool.get_or_intern(m.identifier.name),
+                    match &m.value {
+                        ast::MetaValue::Integer(i) => MetaValue::Integer(*i),
+                        ast::MetaValue::Float(f) => MetaValue::Float(*f),
+                        ast::MetaValue::Bool(b) => MetaValue::Bool(*b),
+                        ast::MetaValue::String(s) => {
+                            MetaValue::String(self.lit_pool.get_or_intern(s))
+                        }
+                        ast::MetaValue::Bytes(s) => {
+                            MetaValue::Bytes(self.lit_pool.get_or_intern(s))
+                        }
+                    },
+                )
+            })
+            .collect();
 
         // Add the new rule to `self.rules`. The only information about the
         // rule that we don't have right now is the PatternId corresponding to
@@ -745,6 +784,7 @@ impl<'a> Compiler<'a> {
             patterns: vec![],
             is_global: rule.flags.contains(RuleFlag::Global),
             is_private: rule.flags.contains(RuleFlag::Private),
+            metadata: meta,
         });
 
         let mut rule_patterns = Vec::new();
@@ -753,9 +793,7 @@ impl<'a> Compiler<'a> {
             relaxed_re_syntax: self.relaxed_re_syntax,
             current_symbol_table: None,
             symbol_table: &mut self.symbol_table,
-            ident_pool: &mut self.ident_pool,
             report_builder: &self.report_builder,
-            rules: &self.rules,
             current_rule_patterns: &mut rule_patterns,
             warnings: &mut self.warnings,
             vars: VarStack::new(),
@@ -1572,8 +1610,15 @@ impl<'a> Compiler<'a> {
         }
 
         if slow_pattern {
-            self.warnings
-                .add(|| Warning::slow_pattern(&self.report_builder, span));
+            if self.error_on_slow_pattern {
+                return Err(Box::new(CompileError::slow_pattern(
+                    &self.report_builder,
+                    span,
+                )));
+            } else {
+                self.warnings
+                    .add(|| Warning::slow_pattern(&self.report_builder, span));
+            }
         }
 
         Ok((atoms, is_fast_regexp))
@@ -1695,7 +1740,7 @@ impl From<LiteralId> for u64 {
 pub(crate) struct NamespaceId(i32);
 
 /// ID associated to each rule.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub(crate) struct RuleId(i32);
 
 impl From<i32> for RuleId {
@@ -1716,6 +1761,13 @@ impl From<RuleId> for usize {
     #[inline]
     fn from(value: RuleId) -> Self {
         value.0 as usize
+    }
+}
+
+impl From<RuleId> for i32 {
+    #[inline]
+    fn from(value: RuleId) -> Self {
+        value.0
     }
 }
 
