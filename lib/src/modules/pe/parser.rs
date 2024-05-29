@@ -965,8 +965,10 @@ impl<'a> PE<'a> {
                     .get((name_or_id & 0x7FFFFFFF) as usize..)
                     .and_then(|string| {
                         length_data(map(
-                            le_u16::<&[u8], Error>,
-                            //  length from characters to bytes
+                            // any string with more than 1000 characters
+                            // (2000 bytes) is ignored.
+                            verify(le_u16::<&[u8], Error>, |len| *len < 1000),
+                            // length from characters to bytes.
                             |len| len.saturating_mul(2),
                         ))(string)
                         .map(|(_, s)| s)

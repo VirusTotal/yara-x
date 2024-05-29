@@ -23,15 +23,12 @@ pub(crate) fn rva_to_offset(
     section_alignment: u32,
 ) -> Option<u32> {
     // Find the RVA for the section with the lowest RVA.
-    let lowest_section_rva = sections
-        .iter()
-        .map(|section| section.virtual_address())
-        .min()
-        .unwrap_or(0);
+    let lowest_section_rva =
+        sections.iter().map(|section| section.virtual_address()).min();
 
-    // The target RVA is lower than the RVA of all sections, in such
-    // cases the RVA is directly mapped to a file offset.
-    if rva < lowest_section_rva {
+    // The target RVA is lower than the RVA of all sections, in such cases
+    // the RVA is directly mapped to a file offset.
+    if matches!(lowest_section_rva, Some(x) if rva < x) {
         return Some(rva);
     }
 
