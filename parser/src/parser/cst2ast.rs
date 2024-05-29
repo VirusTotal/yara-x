@@ -1889,7 +1889,8 @@ fn string_lit_from_cst<'src>(
     let literal = string_lit.as_str();
 
     // The span doesn't include the quotes.
-    let string_span = ctx.span(&string_lit).subspan(num_quotes, literal.len() - num_quotes);
+    let string_span =
+        ctx.span(&string_lit).subspan(num_quotes, literal.len() - num_quotes);
 
     // From now on ignore the quotes.
     let literal = &literal[num_quotes..literal.len() - num_quotes];
