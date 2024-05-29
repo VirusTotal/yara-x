@@ -4,6 +4,8 @@ name: GitHub Pages
 on:
   # Runs when site/** changes or when this file is modified.
   push:
+    tags-ignore:
+    - '**'
     paths:
     - 'site/**'
     - '.github/workflows/site.yaml'
