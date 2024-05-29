@@ -49,7 +49,7 @@ Returns the the index of a Mach-O file within a fat binary based on CPU type.
 
 #### Example
 
-```
+```yara
 import "macho"
 
 rule file_index_example {
@@ -64,7 +64,7 @@ Returns the index of a Mach-O file within a fat binary based on both CPU type an
 
 #### Example
 
-```
+```yara
 import "macho"
 
 rule file_index_example_sub {
@@ -79,7 +79,7 @@ Returns the real entry point offset for a specific CPU type within a fat Mach-O 
 
 #### Example
 
-```
+```yara
 import "macho"
 
 rule entrypoint_example {
@@ -94,7 +94,7 @@ Returns the real entry point offset for a specific CPU type and subtype within a
 
 #### Example
 
-```
+```yara
 import "macho"
 
 rule entrypoint_example_sub {
@@ -110,7 +110,7 @@ Returns true if the Mach-O parsed entitlements contain `entitlement`
   
 #### Example
 
-```
+```yara
 import "macho"
 
 rule has_entitlement_example {
@@ -126,7 +126,7 @@ Returns true if the Mach-O parsed dylibs contain `dylib_name`
 
 #### Example
 
-```
+```yara
 import "macho"
 
 rule has_dylib_example {
@@ -142,7 +142,7 @@ Returns true if the Mach-O parsed rpaths contain `rpath`
 
 #### Example
 
-```
+```yara
 import "macho"
 
 rule has_rpath_example {
@@ -157,7 +157,7 @@ Returns an MD5 hash of the dylibs designated in the Mach-O binary.
 
 #### Example
 
-```
+```yara
 import "macho"
 
 rule dylib_hash_example {
@@ -172,7 +172,7 @@ Returns an MD5 hash of the entitlements designated in the Mach-O binary.
 
 #### Example
 
-```
+```yara
 import "macho"
 
 rule entitlement_hash_example {
@@ -187,7 +187,7 @@ Returns an MD5 hash of the exports designated in the Mach-O binary.
 
 #### Example
 
-```
+```yara
 import "macho"
 
 rule export_hash_example {
