@@ -304,9 +304,9 @@ impl<'a> MachO<'a> {
             let str_end = symtab.strsize as usize;
 
             // We don't want the dyld_shared_cache ones for now
-            if str_offset < data.len() {
-                let string_table: &[u8] =
-                    &data[str_offset..str_offset + str_end];
+            if let Some(string_table) =
+                data.get(str_offset..str_offset.saturating_add(str_end))
+            {
                 let strings: Vec<&'a [u8]> = string_table
                     .split(|&c| c == b'\0')
                     .map(|line| BStr::new(line).trim_end_with(|c| c == '\0'))
@@ -324,21 +324,25 @@ impl<'a> MachO<'a> {
         if let Some(ref code_signature_data) = macho.code_signature_data {
             let offset = code_signature_data.dataoff as usize;
             let size = code_signature_data.datasize as usize;
-            let super_data = &data[offset..offset + size];
-            if let Err(_err) = macho.cs_superblob()(super_data) {
-                #[cfg(feature = "logging")]
-                error!("Error parsing Mach-O file: {:?}", _err);
-                // fail silently if it fails, data was not formatted
-                // correctly but parsing should still proceed for
-                // everything else
-            };
+            if let Some(super_data) =
+                data.get(offset..offset.saturating_add(size))
+            {
+                if let Err(_err) = macho.cs_superblob()(super_data) {
+                    #[cfg(feature = "logging")]
+                    error!("Error parsing Mach-O file: {:?}", _err);
+                    // fail silently if it fails, data was not formatted
+                    // correctly but parsing should still proceed for
+                    // everything else
+                };
+            }
         }
 
         if let Some(ref dyld_info) = macho.dyld_info {
             let offset = dyld_info.export_off as usize;
             let size = dyld_info.export_size as usize;
-            if offset < data.len() {
-                let export_data = &data[offset..offset + size];
+            if let Some(export_data) =
+                data.get(offset..offset.saturating_add(size))
+            {
                 if let Err(_err) = macho.exports()(export_data) {
                     #[cfg(feature = "logging")]
                     error!("Error parsing Mach-O file: {:?}", _err);
