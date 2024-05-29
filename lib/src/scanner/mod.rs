@@ -18,10 +18,12 @@ use std::time::Duration;
 use std::{cmp, fs, thread};
 
 use bitvec::prelude::*;
+use bstr::{BStr, ByteSlice};
 use fmmap::{MmapFile, MmapFileExt};
 use indexmap::IndexMap;
 use protobuf::{CodedInputStream, MessageDyn};
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde::Serialize;
 use thiserror::Error;
 use wasmtime::{
     AsContext, AsContextMut, Global, GlobalType, MemoryType, Mutability,
@@ -33,7 +35,7 @@ use crate::modules::{Module, BUILTIN_MODULES};
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::{ENGINE, MATCHING_RULES_BITMAP_BASE};
-use crate::{modules, wasm, Variable};
+use crate::{compiler, modules, wasm, Variable};
 
 pub(crate) use crate::scanner::context::*;
 use crate::scanner::matches::PatternMatches;
@@ -52,16 +54,34 @@ pub enum ScanError {
     Timeout,
     /// Could not open the scanned file.
     #[error("can not open `{path}`: {source}")]
-    OpenError { path: PathBuf, source: std::io::Error },
+    OpenError {
+        /// Path of the file being scanned.
+        path: PathBuf,
+        /// Error that occurred.
+        source: std::io::Error,
+    },
     /// Could not map the scanned file into memory.
     #[error("can not map `{path}`: {source}")]
-    MapError { path: PathBuf, source: fmmap::error::Error },
+    MapError {
+        /// Path of the file being scanned.
+        path: PathBuf,
+        /// Error that occurred.
+        source: fmmap::error::Error,
+    },
     /// Could not deserialize the protobuf message for some YARA module.
     #[error("can not deserialize protobuf message for YARA module `{module}`: {err}")]
-    ProtoError { module: String, err: protobuf::Error },
+    ProtoError {
+        /// Module name.
+        module: String,
+        /// Error that occurred
+        err: protobuf::Error,
+    },
     /// The module is unknown.
     #[error("unknown module `{module}`")]
-    UnknownModule { module: String },
+    UnknownModule {
+        /// Module name.
+        module: String,
+    },
 }
 
 /// Global counter that gets incremented every 1 second by a dedicated thread.
@@ -131,7 +151,7 @@ impl<'r> Scanner<'r> {
                 scanned_data_len: 0,
                 private_matching_rules: Vec::new(),
                 non_private_matching_rules: Vec::new(),
-                global_matching_rules: FxHashMap::default(),
+                matching_rules: FxHashMap::default(),
                 main_memory: None,
                 module_outputs: FxHashMap::default(),
                 user_provided_module_outputs: FxHashMap::default(),
@@ -651,10 +671,16 @@ impl<'r> Scanner<'r> {
         // to some struct.
         ctx.current_struct = None;
 
-        // Move all the in `global_matching_rules` to `private_matching_rules`
-        // and `non_private_matching_rules`, leaving `global_matching_rules`
-        // empty.
-        for rules in ctx.global_matching_rules.values_mut() {
+        // Both `private_matching_rules` and `non_private_matching_rules` are
+        // empty at this point. Matching rules were being tracked by the
+        // `matching_rules` map, but we are about to move them to these two
+        // vectors while leaving the map empty.
+        assert!(ctx.private_matching_rules.is_empty());
+        assert!(ctx.non_private_matching_rules.is_empty());
+
+        // Move the matching rules the vectors, leaving the `matching_rules`
+        // map empty.
+        for rules in ctx.matching_rules.values_mut() {
             for rule_id in rules.drain(0..) {
                 if ctx.compiled_rules.get(rule_id).is_private {
                     ctx.private_matching_rules.push(rule_id);
@@ -929,6 +955,15 @@ impl<'a, 'r> Rule<'a, 'r> {
         self.rules.ident_pool().get(self.rule_info.namespace_ident_id).unwrap()
     }
 
+    /// Returns the metadata associated to this rule.
+    pub fn metadata(&self) -> Metadata<'a, 'r> {
+        Metadata {
+            ctx: self.ctx,
+            iterator: self.rule_info.metadata.iter(),
+            len: self.rule_info.metadata.len(),
+        }
+    }
+
     /// Returns the patterns defined by this rule.
     pub fn patterns(&self) -> Patterns<'a, 'r> {
         Patterns {
@@ -937,6 +972,122 @@ impl<'a, 'r> Rule<'a, 'r> {
             iterator: self.rule_info.patterns.iter(),
             len: self.rule_info.patterns.len(),
         }
+    }
+}
+
+/// A metadata value.
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum MetaValue<'r> {
+    /// Integer value.
+    Integer(i64),
+    /// Float value.
+    Float(f64),
+    /// Bool value.
+    Bool(bool),
+    /// A valid UTF-8 string.
+    String(&'r str),
+    /// An arbitrary string. Used when the value contains invalid UTF-8
+    /// characters.
+    Bytes(&'r BStr),
+}
+
+/// Iterator that returns the metadata associated to a rule.
+///
+/// The iterator returns (`&str`, [`MetaValue`]) pairs, where the first item
+/// is the identifier, and the second one the metadata value.
+pub struct Metadata<'a, 'r> {
+    ctx: &'a ScanContext<'r>,
+    iterator: Iter<'a, (IdentId, compiler::MetaValue)>,
+    len: usize,
+}
+
+impl<'a, 'r> Metadata<'a, 'r> {
+    /// Returns the metadata as a [`serde_json::Value`].
+    ///
+    /// The returned value is an array of tuples `(ident, value)` with all
+    /// the metadata associated to the rule.
+    ///
+    /// ```rust
+    /// # use yara_x;
+    /// let rules = yara_x::compile(r#"
+    /// rule test {
+    ///   meta:
+    ///     some_int = 1
+    ///     some_bool = true
+    ///     some_str = "foo"
+    ///     some_bytes = "\x01\x02\x03"
+    ///   condition:
+    ///     true
+    /// }
+    /// "#).unwrap();     
+    ///
+    /// let mut scanner = yara_x::Scanner::new(&rules);
+    ///
+    /// let scan_results = scanner
+    ///     .scan(&[])
+    ///     .unwrap();
+    ///
+    /// let matching_rule = scan_results
+    ///     .matching_rules()
+    ///     .next()
+    ///     .unwrap();
+    ///
+    /// assert_eq!(
+    ///     matching_rule.metadata().into_json(),
+    ///     serde_json::json!([
+    ///         ("some_int", 1),
+    ///         ("some_bool", true),
+    ///         ("some_str", "foo"),
+    ///         ("some_bytes", [0x01, 0x02, 0x03]),
+    ///     ])
+    /// );
+    /// ```
+    pub fn into_json(self) -> serde_json::Value {
+        let v: Vec<(&'r str, MetaValue<'r>)> = self.collect();
+        serde_json::value::to_value(v).unwrap()
+    }
+
+    /// Returns `true` if the rule doesn't have any metadata.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.iterator.len() == 0
+    }
+}
+
+impl<'a, 'r> Iterator for Metadata<'a, 'r> {
+    type Item = (&'r str, MetaValue<'r>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (ident_id, value) = self.iterator.next()?;
+
+        let ident =
+            self.ctx.compiled_rules.ident_pool().get(*ident_id).unwrap();
+
+        let value = match value {
+            compiler::MetaValue::Bool(b) => MetaValue::Bool(*b),
+            compiler::MetaValue::Integer(i) => MetaValue::Integer(*i),
+            compiler::MetaValue::Float(f) => MetaValue::Float(*f),
+            compiler::MetaValue::String(id) => {
+                let s = self.ctx.compiled_rules.lit_pool().get(*id).unwrap();
+                // We can be sure that s is a valid UTF-8 string, because
+                // the type of meta is MetaValue::String.
+                let s = unsafe { s.to_str_unchecked() };
+                MetaValue::String(s)
+            }
+            compiler::MetaValue::Bytes(id) => MetaValue::Bytes(
+                self.ctx.compiled_rules.lit_pool().get(*id).unwrap(),
+            ),
+        };
+
+        Some((ident, value))
+    }
+}
+
+impl<'a, 'r> ExactSizeIterator for Metadata<'a, 'r> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.len
     }
 }
 

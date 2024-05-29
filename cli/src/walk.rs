@@ -1,23 +1,23 @@
-use std::fs::Metadata;
+use std::fs::{File, Metadata};
+use std::io::BufRead;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{io, thread};
 
-use anyhow::Context;
+use anyhow::{bail, Context};
 use crossbeam::channel::{RecvTimeoutError, SendError, Sender};
 use crossterm::tty::IsTty;
 use globwalk::FileType;
 use superconsole::{Component, Lines, SuperConsole};
 
-/// Walks a path recursively and runs a given function for each file.
+/// Walks the files in a directory or a text file containing file paths,
+/// running a given function for each file.
 ///
 /// ```text
-/// let mut walker = DirWalker::new();
+/// let mut walker = Walker::path(".");
 ///
 /// walker.walk(
-///     // This is the path to walk.
-///     ".",
 ///     // This function is called for each file.
 ///     |file_path| {
 ///         // ... do something with the file
@@ -29,24 +29,58 @@ use superconsole::{Component, Lines, SuperConsole};
 ///     }
 /// ).unwrap();
 /// ```
-pub struct DirWalker<'a> {
+pub struct Walker<'a> {
+    /// Path to the directory that will be walked, or the text file
+    /// containing a list of paths.
+    path: &'a Path,
+    /// If true, `path` is a file containing a list of paths, one per line.
+    file_list: bool,
+    /// A list of filters applied to the files being walked, those that don't
+    /// match at least one of the filters are ignored.
     filters: Vec<String>,
+    /// When walking a directory, the maximum recursion depth. `None` means
+    /// no limit.
     max_depth: Option<usize>,
+    /// An optional function that allows filtering the walked files based on
+    /// their metadata.
     metadata_filter: Option<Box<dyn Fn(Metadata) -> bool + Send + 'a>>,
 }
 
-impl<'a> DirWalker<'a> {
-    pub fn new() -> Self {
-        Self { filters: Vec::new(), max_depth: None, metadata_filter: None }
+impl<'a> Walker<'a> {
+    /// Creates a [`Walker`] that walks a directory.
+    ///
+    /// `path` can also point to an individual file instead of a directory.
+    pub fn path(path: &'a Path) -> Self {
+        Self {
+            path,
+            filters: Vec::new(),
+            file_list: false,
+            max_depth: None,
+            metadata_filter: None,
+        }
+    }
+
+    /// Creates a [`Walker`] that walks the files listed in a text file
+    /// containing one path per line.
+    ///
+    /// `path` points to the text file that contains the paths to be walked.
+    pub fn file_list(path: &'a Path) -> Self {
+        Self {
+            path,
+            filters: Vec::new(),
+            file_list: true,
+            max_depth: None,
+            metadata_filter: None,
+        }
     }
 
     /// Adds a glob pattern that controls which files will be processed.
     ///
     /// When one or more filters are added, only those files with a path that
-    /// matches at least one of the filters will be processed. By default all
+    /// matches at least one of the filters will be processed. By default, all
     /// files are processed.
     ///
-    /// Patterns can contains the following wildcards:
+    /// Patterns can contain the following wildcards:
     ///
     /// - `?`      matches any single character.
     ///
@@ -86,48 +120,86 @@ impl<'a> DirWalker<'a> {
     /// Sets a maximum depth while traversing the directory tree.
     ///
     /// When the maximum depth is 0 only the files that reside in the given
-    /// directory are processed, subdirectories are not processed. By default
+    /// directory are processed, subdirectories are not processed. By default,
     /// subdirectories are traversed without depth limits.
     pub fn max_depth(&mut self, n: usize) -> &mut Self {
         self.max_depth = Some(n);
         self
     }
 
-    /// Walk the given path recursively, calling `f` for every file.
+    /// Walks the directory or list of files, calling `f` for every file.
     ///
     /// The `e` function is called with any error that occurs during the walk,
     /// including errors returned by `f` itself. `e` must return `Ok(())` for
     /// continuing the walk or `Err` for aborting.
-    pub fn walk<F, E>(
-        &self,
-        path: &Path,
-        mut f: F,
-        mut e: E,
-    ) -> anyhow::Result<()>
+    pub fn walk<F, E>(self, mut f: F, mut e: E) -> anyhow::Result<()>
     where
         F: FnMut(&Path) -> anyhow::Result<()>,
         E: FnMut(anyhow::Error) -> anyhow::Result<()>,
     {
-        let metadata = match path
-            .metadata()
-            .with_context(|| format!("can't open {}", path.display()))
-        {
-            Ok(metadata) => metadata,
-            Err(err) => {
-                return e(err);
-            }
-        };
-
-        if metadata.is_file() {
-            if self.pass_metadata_filter(metadata) {
-                if let Err(err) = f(path) {
+        let metadata =
+            match self.path.metadata().with_context(|| {
+                format!("can't open `{}`", self.path.display())
+            }) {
+                Ok(metadata) => metadata,
+                Err(err) => {
                     return e(err);
                 }
             };
-            return Ok(());
+
+        if self.file_list {
+            if !metadata.is_file() {
+                bail!("`{}` is not a file", self.path.display())
+            }
+            self.walk_file_list(f, e)
+        } else {
+            if metadata.is_file() {
+                if self.pass_metadata_filter(metadata) {
+                    if let Err(err) = f(self.path) {
+                        return e(err);
+                    }
+                };
+                return Ok(());
+            }
+            self.walk_dir(f, e)
+        }
+    }
+
+    fn walk_file_list<F, E>(self, mut f: F, mut e: E) -> anyhow::Result<()>
+    where
+        F: FnMut(&Path) -> anyhow::Result<()>,
+        E: FnMut(anyhow::Error) -> anyhow::Result<()>,
+    {
+        let file = File::open(self.path)?;
+
+        for line in io::BufReader::new(file).lines() {
+            let path = PathBuf::from(line?);
+            let metadata = match path
+                .metadata()
+                .with_context(|| format!("can't open `{}`", path.display()))
+            {
+                Ok(metadata) => metadata,
+                Err(err) => match e(err) {
+                    Ok(_) => continue,
+                    Err(err) => return Err(err),
+                },
+            };
+            if self.pass_metadata_filter(metadata) {
+                if let Err(err) = f(&path) {
+                    e(err)?
+                }
+            }
         }
 
-        let path = match path.canonicalize() {
+        Ok(())
+    }
+
+    fn walk_dir<F, E>(&self, mut f: F, mut e: E) -> anyhow::Result<()>
+    where
+        F: FnMut(&Path) -> anyhow::Result<()>,
+        E: FnMut(anyhow::Error) -> anyhow::Result<()>,
+    {
+        let path = match self.path.canonicalize() {
             Ok(path) => path,
             Err(err) => {
                 return e(err.into());
@@ -181,7 +253,11 @@ impl<'a> DirWalker<'a> {
     }
 }
 
-/// Walks a path recursively and runs a given function for each file.
+/// Walks a directory or a text file containing file paths, calling a given
+/// function for each file.
+///
+/// This is similar to [`Walker`] but uses multiple threads for processing
+/// multiple files simultaneously.
 ///
 /// <br>
 ///
@@ -217,11 +293,9 @@ impl<'a> DirWalker<'a> {
 /// # Examples
 ///
 /// ```text
-/// let mut walker = ParDirWalker::new();
+/// let mut walker = ParWalker::path(".");
 ///
 /// walker.walk(
-///     // The path to be walked.
-///     "."
 ///     // The initial state. This must have some type `S` that implements the
 ///     // `Component` trait.
 ///     state
@@ -246,20 +320,30 @@ impl<'a> DirWalker<'a> {
 ///     }
 /// ).unwrap();
 /// ```
-pub(crate) struct ParDirWalker<'a> {
+pub(crate) struct ParWalker<'a> {
     num_threads: Option<u8>,
-    walker: DirWalker<'a>,
+    walker: Walker<'a>,
 }
 
-impl<'a> ParDirWalker<'a> {
-    /// Creates a [`ParDirWalker`].
-    pub fn new() -> Self {
-        Self { walker: DirWalker::new(), num_threads: None }
+impl<'a> ParWalker<'a> {
+    /// Creates a [`ParWalker`] that walks a directory.
+    ///
+    /// `path` can also point to an individual file instead of a directory.
+    pub fn path(path: &'a Path) -> Self {
+        Self { walker: Walker::path(path), num_threads: None }
+    }
+
+    /// Creates a [`ParWalker`] that walks the files listed in a text file
+    /// containing one path per line.
+    ///
+    /// `path` points to the text file that contains the paths to be walked.
+    pub fn file_list(path: &'a Path) -> Self {
+        Self { walker: Walker::file_list(path), num_threads: None }
     }
 
     /// Sets the number of threads used.
     ///
-    /// By default the number of threads is determined by the number of CPUs
+    /// By default, the number of threads is determined by the number of CPUs
     /// in the current host.
     pub fn num_threads(&mut self, n: u8) -> &mut Self {
         self.num_threads = Some(n);
@@ -269,7 +353,7 @@ impl<'a> ParDirWalker<'a> {
     /// Sets a maximum depth while traversing the directory tree.
     ///
     /// When the maximum depth is 0 only the files that reside in the given
-    /// directory are processed, subdirectories are not processed. By default
+    /// directory are processed, subdirectories are not processed. By default,
     /// subdirectories are traversed without depth limits.
     pub fn max_depth(&mut self, n: usize) -> &mut Self {
         self.walker.max_depth(n);
@@ -278,7 +362,7 @@ impl<'a> ParDirWalker<'a> {
 
     /// Adds a glob pattern that controls which files will be processed.
     ///
-    /// See [`DirWalker::filter`] for details.
+    /// See [`Walker::filter`] for details.
     pub fn filter(&mut self, filter: &str) -> &mut Self {
         self.walker.filter(filter);
         self
@@ -294,10 +378,9 @@ impl<'a> ParDirWalker<'a> {
 
     /// Runs `func` on every file.
     ///
-    /// See [`ParDirWalker`] for details.
+    /// See [`ParWalker`] for details.
     pub fn walk<S, T, I, F, E>(
-        &mut self,
-        path: &Path,
+        self,
         state: S,
         init: I,
         func: F,
@@ -365,8 +448,7 @@ impl<'a> ParDirWalker<'a> {
             // Span a thread that walks the directory and puts file paths in
             // the channel.
             threads.push(s.spawn(move |_| {
-                let _ = self.walker.walk(
-                    path,
+                let res = self.walker.walk(
                     |file_path| Ok(paths_send.send(file_path.to_path_buf())?),
                     |err| {
                         // If an error occurs while sending the file path
@@ -386,6 +468,12 @@ impl<'a> ParDirWalker<'a> {
                         Ok(())
                     },
                 );
+
+                if let Err(err) = res {
+                    if e(err, &msg_send).is_err() {
+                        let _ = msg_send.send(Message::Abort);
+                    }
+                }
             }));
 
             let mut console = if cfg!(feature = "logging") {

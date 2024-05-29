@@ -2,7 +2,7 @@ use clap::{
     arg, value_parser, Arg, ArgAction, ArgMatches, Command, ValueEnum,
 };
 
-use colored_json::ToColoredJson;
+use colored_json::{ColorMode, ToColoredJson};
 use crossterm::tty::IsTty;
 use protobuf::MessageField;
 use protobuf_json_mapping::print_to_string;
@@ -82,7 +82,7 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
     let requested_modules = args.get_many::<SupportedModules>("module");
     let no_colors = args.get_flag("no-colors");
 
-    // By default use colors if output is stdout. When output is a standard
+    // By default, use colors if output is stdout. When output is a standard
     // file colors are disabled, and also when `--no-colors` is used.
     let use_color = stdout().is_tty() && !no_colors;
 
@@ -139,10 +139,11 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
 
     match output_format {
         Some(OutputFormats::Json) => {
+            let mode = if use_color { ColorMode::On } else { ColorMode::Off };
             println!(
                 "{}",
                 print_to_string(module_output.as_ref())?
-                    .to_colored_json_auto()?
+                    .to_colored_json(mode)?
             );
         }
         Some(OutputFormats::Yaml) | None => {

@@ -73,10 +73,10 @@ impl ReportBuilder {
         }
     }
 
-    /// Indicates whether the reports should have colors. By default this is
+    /// Indicates whether the reports should have colors. By default, this is
     /// `false`.
-    pub fn with_colors(&mut self, b: bool) -> &mut Self {
-        self.with_colors = b;
+    pub fn with_colors(&mut self, yes: bool) -> &mut Self {
+        self.with_colors = yes;
         self
     }
 

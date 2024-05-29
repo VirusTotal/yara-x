@@ -129,11 +129,11 @@ impl AuthenticodeHasher for PE<'_> {
         let security_data_offset = self.dos_stub.len()
             + Self::SIZE_OF_PE_SIGNATURE
             + Self::SIZE_OF_FILE_HEADER
-            + if self.optional_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC
+            + if self.optional_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR64_MAGIC
             {
-                Self::SIZE_OF_OPT_HEADER_32
-            } else {
                 Self::SIZE_OF_OPT_HEADER_64
+            } else {
+                Self::SIZE_OF_OPT_HEADER_32
             }
             + Self::SIZE_OF_DIR_ENTRY * Self::IMAGE_DIRECTORY_ENTRY_SECURITY;
 
@@ -965,8 +965,10 @@ impl<'a> PE<'a> {
                     .get((name_or_id & 0x7FFFFFFF) as usize..)
                     .and_then(|string| {
                         length_data(map(
-                            le_u16::<&[u8], Error>,
-                            //  length from characters to bytes
+                            // any string with more than 1000 characters
+                            // (2000 bytes) is ignored.
+                            verify(le_u16::<&[u8], Error>, |len| *len < 1000),
+                            // length from characters to bytes.
                             |len| len.saturating_mul(2),
                         ))(string)
                         .map(|(_, s)| s)
@@ -1758,8 +1760,16 @@ impl<'a> PE<'a> {
     where
         P: FnMut(&'a [u8]) -> IResult<&'a [u8], ImportDescriptor>,
     {
+        // `optional_hdr.magic` must be either IMAGE_NT_OPTIONAL_HDR32_MAGIC
+        // or IMAGE_NT_OPTIONAL_HDR64_MAGIC, but in some corrupted files it
+        // is something else (like 0). That's the case of file
+        // d3e606b4f1f30f3ee9f4263edb513b66ee81348ab8b56060dc05c4b0fc297f32.
+        // In such cases we assume that the file is a 32-bit file, for
+        // compatibility with YARA. That's why we don't use:
+        //let is_32_bits =
+        //  self.optional_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC;
         let is_32_bits =
-            self.optional_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC;
+            self.optional_hdr.magic != Self::IMAGE_NT_OPTIONAL_HDR64_MAGIC;
 
         let mut imported_funcs = Vec::new();
 
@@ -1769,7 +1779,9 @@ impl<'a> PE<'a> {
         let mut import_descriptors = iterator(
             input,
             verify(descriptor_parser, |d| {
-                d.import_address_table != 0 || d.import_name_table != 0
+                d.name != 0
+                    && (d.import_address_table != 0
+                        || d.import_name_table != 0)
             }),
         );
 
@@ -2163,6 +2175,10 @@ impl<'a> PE<'a> {
         // every byte except the ones listed below. YARA imposes a length
         // limit of 256 bytes, though.
         let dll_name = self.str_at_rva(rva)?;
+
+        if dll_name.is_empty() {
+            return None;
+        }
 
         for c in dll_name.chars() {
             if c.is_ascii_control() {
@@ -2597,7 +2613,7 @@ impl From<&ImportedFunc> for protos::pe::Function {
         let mut func = protos::pe::Function::new();
         func.rva = Some(value.rva);
         func.ordinal = value.ordinal.map(|ordinal| ordinal.into());
-        func.name = value.name.clone();
+        func.name.clone_from(&value.name);
         func
     }
 }

@@ -41,10 +41,10 @@ message Certificates {
 }
 
 message Dylib {
-  optional bytes name = 1;
-  optional uint32 timestamp = 2 [(yaml.field).fmt = "t"];
-  optional string compatibility_version = 3;
-  optional string current_version = 4;
+  required bytes name = 1;
+  required uint32 timestamp = 2 [(yaml.field).fmt = "t"];
+  required string compatibility_version = 3;
+  required string current_version = 4;
 }
 
 message DyldInfo {
@@ -152,6 +152,7 @@ message File {
   optional string uuid = 23;
   optional BuildVersion build_version = 24;
   optional MinVersion min_version = 25;
+  repeated string exports = 26;
 }
 
 message Macho {
@@ -181,15 +182,16 @@ message Macho {
   optional string uuid = 23;
   optional BuildVersion build_version = 24;
   optional MinVersion min_version = 25;
+  repeated string exports = 26;
 
   
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 26 [(yaml.field).fmt = "x"];
-  optional uint32 nfat_arch = 27;
-  repeated FatArch fat_arch = 28;
+  optional uint32 fat_magic = 27 [(yaml.field).fmt = "x"];
+  optional uint32 nfat_arch = 28;
+  repeated FatArch fat_arch = 29;
 
   // Nested Mach-O files
-  repeated File file = 29;
+  repeated File file = 30;
 }
 
 enum HEADER {

@@ -47,7 +47,7 @@ use bstr::{BString, ByteVec};
 /// See: https://www.leeholmes.com/searching-for-content-in-base-64-strings/
 ///
 /// This function returns the three patterns that can be used for locating the
-/// string `s` withing some data encoded as base64.
+/// string `s` within some data encoded as base64.
 ///
 /// Each pattern is returned together with the amount of padding applied, that
 /// can be either 0, 1 or 2.

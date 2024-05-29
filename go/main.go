@@ -4,6 +4,26 @@ package yara_x
 // #cgo !static_link pkg-config: yara_x_capi
 // #cgo static_link pkg-config: --static yara_x_capi
 // #include <yara_x.h>
+//
+// uint64_t meta_i64(void* value) {
+//   return ((YRX_METADATA_VALUE*) value)->i64;
+// }
+//
+// double meta_f64(void* value) {
+//   return ((YRX_METADATA_VALUE*) value)->f64;
+// }
+//
+// bool meta_bool(void* value) {
+//   return ((YRX_METADATA_VALUE*) value)->boolean;
+// }
+//
+// char* meta_str(void* value) {
+//   return ((YRX_METADATA_VALUE*) value)->string;
+// }
+//
+// YRX_METADATA_BYTES* meta_bytes(void* value) {
+//   return &(((YRX_METADATA_VALUE*) value)->bytes);
+// }
 import "C"
 import (
 	"errors"
@@ -11,49 +31,13 @@ import (
 	"unsafe"
 )
 
-// A CompileOption represent an option passed to [Compile].
-type CompileOption func(c *Compiler) error
-
-// Globals is an option for [Compile] that allows defining global variables.
-//
-// Keys in the map are variable names, and values are the initial value for
-// each variable. The value associated to each variable can be modified at
-// scan time with [Scanner.SetGlobal].
-//
-// Valid value types are: int, int32, int64, bool, string, float32 and float64.
-func Globals(vars map[string]interface{}) CompileOption {
-	return func(c *Compiler) error {
-		for ident, value := range vars {
-			if err := c.DefineGlobal(ident, value); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-}
-
-// IgnoreModule is an option for [Compile] that allows ignoring a given module.
-//
-// This option can be passed multiple times with different module names.
-// See [Compiler.IgnoreModule] for details.
-func IgnoreModule(module string) CompileOption {
-	return func(c *Compiler) error {
-		c.IgnoreModule(module)
-		return nil
-	}
-}
-
 // Compile receives YARA source code and returns compiled [Rules] that can be
 // used for scanning data.
 func Compile(src string, opts ...CompileOption) (*Rules, error) {
-	c := NewCompiler()
-
-	for _, opt := range opts {
-		if err := opt(c); err != nil {
-			return nil, err
-		}
+	c, err := NewCompiler(opts...)
+	if err != nil {
+		return nil, err
 	}
-
 	if err := c.AddSource(src); err != nil {
 		return nil, err
 	}
@@ -123,6 +107,8 @@ type Rule struct {
 	identifier string
 	cPatterns  *C.YRX_PATTERNS
 	patterns   []Pattern
+	cMetadata  *C.YRX_METADATA
+	metadata   []Metadata
 }
 
 // Creates a new Rule from it's C counterpart.
@@ -147,6 +133,8 @@ func newRule(cRule *C.YRX_RULE) *Rule {
 		identifier,
 		C.yrx_rule_patterns(cRule),
 		nil,
+		C.yrx_rule_metadata(cRule),
+		nil,
 	}
 
 	runtime.SetFinalizer(rule, (*Rule).destroy)
@@ -155,6 +143,9 @@ func newRule(cRule *C.YRX_RULE) *Rule {
 
 func (r *Rule) destroy() {
 	C.yrx_patterns_destroy(r.cPatterns)
+	if r.cMetadata != nil {
+		C.yrx_metadata_destroy(r.cMetadata)
+	}
 	runtime.SetFinalizer(r, nil)
 }
 
@@ -166,6 +157,50 @@ func (r *Rule) Identifier() string {
 // Namespace returns the rule's namespace.
 func (r *Rule) Namespace() string {
 	return r.namespace
+}
+
+// Metadata returns the rule's metadata
+func (r *Rule) Metadata() []Metadata {
+	// if this method was called before, return the metadata already cached.
+	if r.metadata != nil {
+		return r.metadata
+	}
+
+	numMetadata := int(r.cMetadata.num_entries)
+	cMetadata := unsafe.Slice(r.cMetadata.entries, numMetadata)
+	r.metadata = make([]Metadata, numMetadata)
+
+	for i, metadata := range cMetadata {
+		r.metadata[i].Identifier = C.GoString(metadata.identifier)
+		switch metadata.value_type {
+		case C.I64:
+			r.metadata[i].Value = int64(
+				C.meta_i64(unsafe.Pointer(&metadata.value)))
+		case C.F64:
+			r.metadata[i].Value = float64(
+				C.meta_f64(unsafe.Pointer(&metadata.value)))
+		case C.BOOLEAN:
+			r.metadata[i].Value = bool(
+				C.meta_bool(unsafe.Pointer(&metadata.value)))
+		case C.STRING:
+			r.metadata[i].Value = C.GoString(
+				C.meta_str(unsafe.Pointer(&metadata.value)))
+		case C.BYTES:
+			bytes := C.meta_bytes(unsafe.Pointer(&metadata.value))
+			r.metadata[i].Value = C.GoBytes(
+				unsafe.Pointer(bytes.data),
+				C.int(bytes.length),
+			)
+		}
+	}
+
+	return r.metadata
+}
+
+// Metadata represents a metadata in a Rule.
+type Metadata struct {
+	Identifier string
+	Value      interface{}
 }
 
 // Patterns returns the patterns defined by this rule.

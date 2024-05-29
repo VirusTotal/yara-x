@@ -12,6 +12,9 @@ rules = yara_x.compile('rule test {strings: $a = "dummy" condition: $a}')
 matches = rules.scan(b'some dummy data')
 ```
  */
+
+#![deny(missing_docs)]
+
 use std::marker::PhantomPinned;
 use std::mem;
 use std::ops::Deref;
@@ -46,14 +49,52 @@ fn compile(src: &str) -> PyResult<Rules> {
 #[pyclass(unsendable)]
 struct Compiler {
     inner: yrx::Compiler<'static>,
+    relaxed_re_syntax: bool,
+    error_on_slow_pattern: bool,
+}
+
+impl Compiler {
+    fn new_inner(
+        relaxed_re_syntax: bool,
+        error_on_slow_pattern: bool,
+    ) -> yrx::Compiler<'static> {
+        let mut compiler = yrx::Compiler::new();
+        if relaxed_re_syntax {
+            compiler.relaxed_re_syntax(true);
+        }
+        if error_on_slow_pattern {
+            compiler.error_on_slow_pattern(true);
+        }
+        compiler
+    }
 }
 
 #[pymethods]
 impl Compiler {
     /// Creates a new [`Compiler`].
+    ///
+    /// The `relaxed_re_syntax` argument controls whether the compiler should
+    /// adopt a more relaxed syntax check for regular expressions, allowing
+    /// constructs that YARA-X doesn't accept by default.
+    ///
+    /// YARA-X enforces stricter regular expression syntax compared to YARA.
+    /// For instance, YARA accepts invalid escape sequences and treats them
+    /// as literal characters (e.g., \R is interpreted as a literal 'R'). It
+    /// also allows some special characters to appear unescaped, inferring
+    /// their meaning from the context (e.g., `{` and `}` in `/foo{}bar/` are
+    /// literal, but in `/foo{0,1}bar/` they form the repetition operator
+    /// `{0,1}`).
+    ///
+    /// The `error_on_slow_pattern` argument tells the compiler to treat slow
+    /// patterns as errors, instead of warnings.
     #[new]
-    fn new() -> Self {
-        Self { inner: yrx::Compiler::new() }
+    #[pyo3(signature = (*, relaxed_re_syntax=false, error_on_slow_pattern=false))]
+    fn new(relaxed_re_syntax: bool, error_on_slow_pattern: bool) -> Self {
+        Self {
+            inner: Self::new_inner(relaxed_re_syntax, error_on_slow_pattern),
+            relaxed_re_syntax,
+            error_on_slow_pattern,
+        }
     }
 
     /// Adds a YARA source code to be compiled.
@@ -73,6 +114,13 @@ impl Compiler {
     /// initial value when the [`Rules`] are used for scanning data, however
     /// each scanner can change the variable's value by calling
     /// [`crate::Scanner::set_global`].
+    ///
+    /// The type of `value` must be: bool, str, bytes, int or float.
+    ///
+    /// # Raises
+    ///
+    /// [TypeError](https://docs.python.org/3/library/exceptions.html#TypeError)
+    /// if the type of `value` is not one of the supported ones.
     fn define_global(
         &mut self,
         ident: &str,
@@ -124,7 +172,13 @@ impl Compiler {
     /// previously added with [`Compiler::add_source`] and sets the compiler
     /// to its initial empty state.
     fn build(&mut self) -> Rules {
-        let compiler = mem::replace(&mut self.inner, yrx::Compiler::new());
+        let compiler = mem::replace(
+            &mut self.inner,
+            Self::new_inner(
+                self.relaxed_re_syntax,
+                self.error_on_slow_pattern,
+            ),
+        );
         Rules::new(compiler.build())
     }
 }
@@ -173,6 +227,13 @@ impl Scanner {
     ///
     /// The variable will retain the new value in subsequent scans, unless this
     /// function is called again for setting a new value.
+    ///
+    /// The type of `value` must be: `bool`, `str`, `bytes`, `int` or `float`.
+    ///
+    /// # Raises
+    ///
+    /// [TypeError](https://docs.python.org/3/library/exceptions.html#TypeError)
+    /// if the type of `value` is not one of the supported ones.
     fn set_global(
         &mut self,
         ident: &str,
@@ -251,7 +312,7 @@ impl Scanner {
 #[pyclass]
 struct ScanResults {
     /// Vector that contains all the rules that matched during the scan.
-    matching_rules: Vec<Py<Rule>>,
+    matching_rules: Py<PyTuple>,
     /// Dictionary where keys are module names and values are other
     /// dictionaries with the information produced by the corresponding module.
     module_outputs: Py<PyDict>,
@@ -262,9 +323,7 @@ impl ScanResults {
     #[getter]
     /// Rules that matched during the scan.
     fn matching_rules(&self) -> Py<PyTuple> {
-        Python::with_gil(|py| {
-            PyTuple::new_bound(py, &self.matching_rules).into()
-        })
+        Python::with_gil(|py| self.matching_rules.clone_ref(py))
     }
 
     #[getter]
@@ -279,7 +338,8 @@ impl ScanResults {
 struct Rule {
     identifier: String,
     namespace: String,
-    patterns: Vec<Py<Pattern>>,
+    metadata: Py<PyTuple>,
+    patterns: Py<PyTuple>,
 }
 
 #[pymethods]
@@ -296,10 +356,17 @@ impl Rule {
         self.namespace.as_str()
     }
 
+    /// A tuple of pairs `(identifier, value)` with the metadata associated to
+    /// the rule.
+    #[getter]
+    fn metadata(&self) -> Py<PyTuple> {
+        Python::with_gil(|py| self.metadata.clone_ref(py))
+    }
+
     /// Patterns defined by the rule.
     #[getter]
     fn patterns(&self) -> Py<PyTuple> {
-        Python::with_gil(|py| PyTuple::new_bound(py, &self.patterns).into())
+        Python::with_gil(|py| self.patterns.clone_ref(py))
     }
 }
 
@@ -307,7 +374,7 @@ impl Rule {
 #[pyclass]
 struct Pattern {
     identifier: String,
-    matches: Vec<Py<Match>>,
+    matches: Py<PyTuple>,
 }
 
 #[pymethods]
@@ -321,14 +388,19 @@ impl Pattern {
     /// Matches found for this pattern.
     #[getter]
     fn matches(&self) -> Py<PyTuple> {
-        Python::with_gil(|py| PyTuple::new_bound(py, &self.matches).into())
+        Python::with_gil(|py| self.matches.clone_ref(py))
     }
 }
 
+/// Represents a match found for a pattern.
 #[pyclass]
 struct Match {
+    /// Offset within the scanned data where the match occurred.
     offset: usize,
+    /// Length of the match.
     length: usize,
+    /// For patterns that have the `xor` modifier, contains the XOR key that
+    /// applied to matching data. For any other pattern will be `None`.
     xor_key: Option<u8>,
 }
 
@@ -439,7 +511,10 @@ fn scan_results_to_py(
 
     Py::new(
         py,
-        ScanResults { matching_rules, module_outputs: module_outputs.into() },
+        ScanResults {
+            matching_rules: PyTuple::new_bound(py, matching_rules).unbind(),
+            module_outputs: module_outputs.into(),
+        },
     )
 }
 
@@ -449,12 +524,37 @@ fn rule_to_py(py: Python, rule: yrx::Rule) -> PyResult<Py<Rule>> {
         Rule {
             identifier: rule.identifier().to_string(),
             namespace: rule.namespace().to_string(),
-            patterns: rule
-                .patterns()
-                .map(|pattern| pattern_to_py(py, pattern))
-                .collect::<Result<Vec<_>, _>>()?,
+            metadata: PyTuple::new_bound(
+                py,
+                rule.metadata()
+                    .map(|(ident, value)| metadata_to_py(py, ident, value)),
+            )
+            .unbind(),
+            patterns: PyTuple::new_bound(
+                py,
+                rule.patterns()
+                    .map(|pattern| pattern_to_py(py, pattern))
+                    .collect::<Result<Vec<_>, _>>()?,
+            )
+            .unbind(),
         },
     )
+}
+
+fn metadata_to_py(
+    py: Python,
+    ident: &str,
+    metadata: yrx::MetaValue,
+) -> Py<PyTuple> {
+    let value = match metadata {
+        yrx::MetaValue::Integer(v) => v.to_object(py),
+        yrx::MetaValue::Float(v) => v.to_object(py),
+        yrx::MetaValue::Bool(v) => v.to_object(py),
+        yrx::MetaValue::String(v) => v.to_object(py),
+        yrx::MetaValue::Bytes(v) => v.to_object(py),
+    };
+
+    PyTuple::new_bound(py, [ident.to_object(py), value]).unbind()
 }
 
 fn pattern_to_py(py: Python, pattern: yrx::Pattern) -> PyResult<Py<Pattern>> {
@@ -462,10 +562,14 @@ fn pattern_to_py(py: Python, pattern: yrx::Pattern) -> PyResult<Py<Pattern>> {
         py,
         Pattern {
             identifier: pattern.identifier().to_string(),
-            matches: pattern
-                .matches()
-                .map(|match_| match_to_py(py, match_))
-                .collect::<Result<Vec<_>, _>>()?,
+            matches: PyTuple::new_bound(
+                py,
+                pattern
+                    .matches()
+                    .map(|match_| match_to_py(py, match_))
+                    .collect::<Result<Vec<_>, _>>()?,
+            )
+            .unbind(),
         },
     )
 }

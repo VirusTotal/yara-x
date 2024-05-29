@@ -17,13 +17,10 @@ pub fn compile() -> Command {
                 .action(ArgAction::Append),
         )
         .arg(
-            arg!(<OUTPUT_PATH>)
-                .help("Path to file with compiled results")
-                .value_parser(value_parser!(PathBuf)),
-        )
-        .arg(
-            arg!(--"path-as-namespace")
-                .help("Use file path as rule namespace"),
+            arg!(-o --"output" <OUTPUT_PATH>)
+                .help("Output file with compiled results")
+                .default_value("output.yarc")
+                .value_parser(value_parser!(PathBuf))
         )
         .arg(
             Arg::new("define")
@@ -36,18 +33,31 @@ pub fn compile() -> Command {
                 .value_parser(external_var_parser)
                 .action(ArgAction::Append),
         )
+        .arg(
+            arg!(--"path-as-namespace")
+                .help("Use file path as rule namespace"),
+        )
+        .arg(
+            arg!(--"relaxed-re-syntax")
+                .help("Use a more relaxed syntax check while parsing regular expressions"),
+        )
 }
 
 pub fn exec_compile(args: &ArgMatches) -> anyhow::Result<()> {
     let rules_path = args.get_many::<PathBuf>("RULES_PATH").unwrap();
-    let output_path = args.get_one::<PathBuf>("OUTPUT_PATH").unwrap();
     let path_as_namespace = args.get_flag("path-as-namespace");
+    let output_path = args.get_one::<PathBuf>("output").unwrap();
 
     let external_vars: Option<Vec<(String, serde_json::Value)>> = args
         .get_many::<(String, serde_json::Value)>("define")
         .map(|var| var.cloned().collect());
 
-    let rules = compile_rules(rules_path, path_as_namespace, external_vars)?;
+    let rules = compile_rules(
+        rules_path,
+        path_as_namespace,
+        external_vars,
+        args.get_flag("relaxed-re-syntax"),
+    )?;
 
     let output_file = File::create(output_path).with_context(|| {
         format!("can not write `{}`", output_path.display())

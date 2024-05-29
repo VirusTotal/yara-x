@@ -8,7 +8,7 @@ use crossterm::tty::IsTty;
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Green, Red, Yellow};
 use yansi::Paint;
-use yara_x_parser::{Parser, SourceCode};
+use yara_x_parser::SourceCode;
 
 use crate::walk::Message;
 use crate::{help, walk};
@@ -16,6 +16,8 @@ use crate::{help, walk};
 pub fn check() -> Command {
     super::command("check")
         .about("Check if source files are syntactically correct")
+        // The `check` command is not ready yet.
+        .hide(true)
         .long_about(help::CHECK_LONG_HELP)
         .arg(
             arg!(<RULES_PATH>)
@@ -49,7 +51,7 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
     let filters = args.get_many::<String>("filter");
     let num_threads = args.get_one::<u8>("threads");
 
-    let mut w = walk::ParDirWalker::new();
+    let mut w = walk::ParWalker::path(rules_path);
 
     if let Some(max_depth) = max_depth {
         w.max_depth(*max_depth as usize);
@@ -69,7 +71,6 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
     }
 
     w.walk(
-        rules_path,
         CheckState::new(),
         |_, _| {},
         |state, output, file_path, _| {
@@ -83,13 +84,13 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
                 .with_origin(file_path.as_os_str().to_str().unwrap());
 
             let mut lines = Vec::new();
+            let mut compiler = yara_x::Compiler::new();
 
-            match Parser::new()
-                .colorize_errors(io::stdout().is_tty())
-                .build_ast(src)
-            {
-                Ok(ast) => {
-                    if ast.warnings.is_empty() {
+            compiler.colorize_errors(io::stdout().is_tty());
+
+            match compiler.add_source(src) {
+                Ok(compiler) => {
+                    if compiler.warnings().is_empty() {
                         state.files_passed.fetch_add(1, Ordering::Relaxed);
                         lines.push(format!(
                             "[ {} ] {}",
@@ -97,15 +98,16 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
                             file_path.display()
                         ));
                     } else {
-                        state
-                            .warnings
-                            .fetch_add(ast.warnings.len(), Ordering::Relaxed);
+                        state.warnings.fetch_add(
+                            compiler.warnings().len(),
+                            Ordering::Relaxed,
+                        );
                         lines.push(format!(
                             "[ {} ] {}",
                             "WARN".paint(Yellow).bold(),
                             file_path.display()
                         ));
-                        for warning in ast.warnings.iter() {
+                        for warning in compiler.warnings().iter() {
                             lines.push(warning.to_string());
                         }
                     }
@@ -180,7 +182,7 @@ impl Component for CheckState {
                 );
 
                 Line::from_iter([
-                    Span::new_unstyled(ok.paint(Red).bold())?,
+                    Span::new_unstyled(ok.paint(Green).bold())?,
                     Span::new_unstyled(warnings.paint(Yellow).bold())?,
                     Span::new_unstyled(errors.paint(Red).bold())?,
                 ])

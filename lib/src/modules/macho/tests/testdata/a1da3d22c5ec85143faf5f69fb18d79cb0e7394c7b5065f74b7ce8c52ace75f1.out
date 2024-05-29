@@ -238,6 +238,8 @@ file:
         device: MACOSX
         version: "10.6.0"
         sdk: "12.6.0"
+    exports:
+      - "__mh_execute_header"
   - magic: 0xcffaedfe
     cputype: 0x100000c
     cpusubtype: 0x0

@@ -1,5 +1,4 @@
 use std::fmt::{Debug, Display, Formatter};
-use std::slice::Iter;
 use yara_x_macros::Error;
 
 use crate::ast::Span;
@@ -132,8 +131,9 @@ impl Warnings {
         }
     }
 
-    pub fn iter(&self) -> Iter<'_, Warning> {
-        self.warnings.iter()
+    #[inline]
+    pub fn as_slice(&self) -> &[Warning] {
+        self.warnings.as_slice()
     }
 
     pub fn append(&mut self, mut warnings: Self) {

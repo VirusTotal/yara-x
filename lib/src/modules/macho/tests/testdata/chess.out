@@ -817,6 +817,7 @@ dyld_info:
 entitlements:
   - "com.apple.developer.game-center"
   - "com.apple.private.tcc.allow"
+  - "kTCCServiceMicrophone"
   - "com.apple.security.app-sandbox"
   - "com.apple.security.device.microphone"
   - "com.apple.security.files.user-selected.read-write"
@@ -830,3 +831,5 @@ build_version:
     tools:
       - tool: 3
         version: "556.4"
+exports:
+  - "__mh_execute_header"

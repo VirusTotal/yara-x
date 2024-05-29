@@ -49,16 +49,17 @@ pub(crate) struct ScanContext<'r> {
     /// Length of data being scanned.
     pub scanned_data_len: usize,
     /// Vector containing the IDs of the non-private rules that matched,
-    /// including both global and non-global ones. Global rules are initially
-    /// added to `global_matching_rules`, and once all the rules in the
-    /// namespace are evaluated, the global rules that matched are moved
-    /// to this vector.
+    /// including both global and non-global ones. The rules are added first
+    /// to the `matching_rules` map, and then moved to this vector once the
+    /// scan finishes.
     pub non_private_matching_rules: Vec<RuleId>,
     /// Vector containing the IDs of the private rules that matched, including
-    /// both global and non-global ones.
+    /// both global and non-global ones. The rules are added first to the
+    /// `matching_rules` map, and then moved to this vector once the scan
+    /// finishes.
     pub private_matching_rules: Vec<RuleId>,
-    /// Map containing the IDs of the global rules that matched.
-    pub global_matching_rules: FxHashMap<NamespaceId, Vec<RuleId>>,
+    /// Map containing the IDs of rules that matched.
+    pub matching_rules: FxHashMap<NamespaceId, Vec<RuleId>>,
     /// Compiled rules for this scan.
     pub compiled_rules: &'r Rules,
     /// Structure that contains top-level symbols, like module names
@@ -246,21 +247,19 @@ impl ScanContext<'_> {
 
     /// Called during the scan process when a global rule didn't match.
     ///
-    /// When this happens any other global rule in the same namespace that
-    /// matched previously is reset to a non-matching state.
+    /// When this happens any other rule in the same namespace that matched
+    /// previously is reset to a non-matching state.
     pub(crate) fn track_global_rule_no_match(&mut self, rule_id: RuleId) {
         let rule = self.compiled_rules.get(rule_id);
 
         // This function must be called only for global rules.
         debug_assert!(rule.is_global);
 
-        // All the global rules that matched previously, and are in the same
+        // All the rules that matched previously, and are in the same
         // namespace as the non-matching rule, must be removed from the
-        // `global_matching_rules` map. Also, their corresponding bits in
+        // `matching_rules` map. Also, their corresponding bits in
         // the matching rules bitmap must be cleared.
-        if let Some(rules) =
-            self.global_matching_rules.get_mut(&rule.namespace_id)
-        {
+        if let Some(rules) = self.matching_rules.get_mut(&rule.namespace_id) {
             let wasm_store = unsafe { self.wasm_store.as_mut() };
             let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
 
@@ -293,16 +292,10 @@ impl ScanContext<'_> {
             rule_id,
         );
 
-        if rule.is_global {
-            self.global_matching_rules
-                .entry(rule.namespace_id)
-                .or_default()
-                .push(rule_id);
-        } else if rule.is_private {
-            self.private_matching_rules.push(rule_id);
-        } else {
-            self.non_private_matching_rules.push(rule_id);
-        }
+        self.matching_rules
+            .entry(rule.namespace_id)
+            .or_default()
+            .push(rule_id);
 
         let wasm_store = unsafe { self.wasm_store.as_mut() };
         let mem = self.main_memory.unwrap().data_mut(wasm_store);

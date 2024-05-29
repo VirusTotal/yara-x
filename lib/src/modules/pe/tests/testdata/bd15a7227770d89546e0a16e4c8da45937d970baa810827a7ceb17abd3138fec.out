@@ -1,0 +1,87 @@
+is_pe: true
+machine: 5376
+subsystem: 88
+os_version:
+    major: 252
+    minor: 0
+subsystem_version:
+    major: 89
+    minor: 0
+image_version:
+    major: 70
+    minor: 0
+linker_version:
+    major: 0
+    minor: 0
+opthdr_magic: 36
+characteristics: 11854
+dll_characteristics: 0
+timestamp: 0 # 1970-01-01 00:00:00 UTC
+image_base: 0
+checksum: 0
+base_of_code: 3950706940
+base_of_data: 16765563
+entry_point_raw: 28684
+section_alignment: 1634548736
+file_alignment: 6515047
+loader_flags: 2071690107
+size_of_optional_header: 3257
+size_of_code: 176688205
+size_of_initialized_data: 65725
+size_of_uninitialized_data: 4286186044
+size_of_image: 2071690107
+size_of_headers: 16776990
+size_of_stack_reserve: 252
+size_of_stack_commit: 70
+size_of_heap_reserve: 89
+size_of_heap_commit: 2071658748
+pointer_to_symbol_table: 3019898880
+win32_version_value: 2071658748
+number_of_symbols: 3040305
+number_of_rva_and_sizes: 16776990
+number_of_sections: 0
+number_of_imported_functions: 0
+number_of_delayed_imported_functions: 0
+number_of_resources: 0
+number_of_version_infos: 0
+number_of_imports: 0
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 0
+data_directories:
+  - virtual_address: 0
+    size: 89
+  - virtual_address: 252
+    size: 70
+  - virtual_address: 89
+    size: 2071658748
+  - virtual_address: 2071690107
+    size: 16776990
+  - virtual_address: 0
+    size: 89
+  - virtual_address: 252
+    size: 70
+  - virtual_address: 89
+    size: 2071658748
+  - virtual_address: 2071690107
+    size: 16776990
+  - virtual_address: 1970143232
+    size: 1919246957
+  - virtual_address: 1600548703
+    size: 1869833586
+  - virtual_address: 29301
+    size: 89
+  - virtual_address: 252
+    size: 70
+  - virtual_address: 89
+    size: 2071658748
+  - virtual_address: 2071690107
+    size: 16776990
+  - virtual_address: 0
+    size: 89
+  - virtual_address: 252
+    size: 70
+is_signed: false
+overlay:
+    offset: 0
+    size: 0

@@ -5,13 +5,14 @@ use crate::compiler::{
     yrx_compiler_destroy, yrx_compiler_new_namespace,
 };
 use crate::{
-    yrx_buffer_destroy, yrx_last_error, yrx_patterns_destroy,
-    yrx_rule_identifier, yrx_rule_namespace, yrx_rule_patterns,
-    yrx_rules_deserialize, yrx_rules_destroy, yrx_rules_serialize,
-    yrx_scanner_create, yrx_scanner_destroy, yrx_scanner_on_matching_rule,
-    yrx_scanner_scan, yrx_scanner_set_global_bool,
-    yrx_scanner_set_global_float, yrx_scanner_set_global_int,
-    yrx_scanner_set_global_str, yrx_scanner_set_timeout, YRX_BUFFER, YRX_RULE,
+    yrx_buffer_destroy, yrx_last_error, yrx_metadata_destroy,
+    yrx_patterns_destroy, yrx_rule_identifier, yrx_rule_metadata,
+    yrx_rule_namespace, yrx_rule_patterns, yrx_rules_deserialize,
+    yrx_rules_destroy, yrx_rules_serialize, yrx_scanner_create,
+    yrx_scanner_destroy, yrx_scanner_on_matching_rule, yrx_scanner_scan,
+    yrx_scanner_set_global_bool, yrx_scanner_set_global_float,
+    yrx_scanner_set_global_int, yrx_scanner_set_global_str,
+    yrx_scanner_set_timeout, YRX_BUFFER, YRX_RULE,
 };
 use std::ffi::{c_void, CString};
 
@@ -23,8 +24,13 @@ extern "C" fn callback(rule: *const YRX_RULE, user_data: *mut c_void) {
         yrx_rule_namespace(rule, &mut ptr, &mut len);
         yrx_rule_identifier(rule, &mut ptr, &mut len);
 
+        let metadata = yrx_rule_metadata(rule);
         let patterns = yrx_rule_patterns(rule);
+
         assert_eq!((*patterns).num_patterns, 1);
+        assert_eq!((*metadata).num_entries, 3);
+
+        yrx_metadata_destroy(metadata);
         yrx_patterns_destroy(patterns);
     }
 
@@ -37,10 +43,14 @@ extern "C" fn callback(rule: *const YRX_RULE, user_data: *mut c_void) {
 fn capi() {
     unsafe {
         let mut compiler = std::ptr::null_mut();
-        yrx_compiler_create(&mut compiler);
+        yrx_compiler_create(0, &mut compiler);
 
         let src = CString::new(
             b"rule test {\
+                meta: \
+                    some_int = 1 \
+                    some_string = \"foo\" \
+                    some_bytes = \"\\x01\\x00\\x02\" \
                 strings: \
                     $foo = \"foo\" \
                 condition: \

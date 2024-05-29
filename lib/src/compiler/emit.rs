@@ -6,6 +6,7 @@ functions in the module which generate WASM code for specific kinds of
 expressions or language constructs.
  */
 
+use std::collections::VecDeque;
 use std::mem::size_of;
 use std::rc::Rc;
 
@@ -18,7 +19,6 @@ use walrus::ir::{
 };
 use walrus::ValType::{I32, I64};
 use walrus::{FunctionId, InstrSeqBuilder, ValType};
-use yara_x_parser::ast::{RuleFlag, RuleFlags};
 
 use crate::compiler::context::VarStack;
 use crate::compiler::ir::{
@@ -244,24 +244,9 @@ pub(super) fn emit_rule_condition(
     ctx: &mut EmitContext,
     builder: &mut WasmModuleBuilder,
     rule_id: RuleId,
-    rule_flags: RuleFlags,
     condition: &mut Expr,
 ) {
-    // Global and non-global rules are put into two independent instruction
-    // sequences. The global rules are put into the instruction sequence that
-    // gets executed first, which means that global rules will be executed
-    // before any non-global rule, regardless of their order in the source
-    // code. Within the same group (global and non-global) rules maintain their
-    // relative order, though.
-    //
-    // Global rules can not invoke non-global rule. As global rules will always
-    // run before non-global ones, the former can't rely on the result of the
-    // latter.
-    let mut instr = if rule_flags.contains(RuleFlag::Global) {
-        builder.new_global_rule()
-    } else {
-        builder.new_rule()
-    };
+    let mut instr = builder.start_rule(rule_id, ctx.current_rule.is_global);
 
     // When the "logging" feature is enabled, print a log before the starting
     // evaluating the rule's condition. In case of error during the evaluation
@@ -287,42 +272,7 @@ pub(super) fn emit_rule_condition(
         },
     );
 
-    // Check if the result from the condition is zero (false).
-    instr.unop(UnaryOp::I32Eqz);
-    instr.if_else(
-        None,
-        |then_| {
-            // The condition is false. For normal rules we don't do anything,
-            // but for global rules we must call `global_rule_no_match` and
-            // return 1.
-            //
-            // By returning 1 the function that contains the logic for this
-            // rule exits immediately, preventing any other rule (both global
-            // and non-global) in the same namespace is executed, and therefore
-            // they will remain false.
-            //
-            // This guarantees that any global rule that returns false, forces
-            // the non-global rules in the same namespace to be false. There
-            // may be some global rules that matched before, though. The
-            // purpose of `global_rule_no_match` is reverting those previous
-            // matches.
-            if rule_flags.contains(RuleFlag::Global) {
-                // Call `global_rule_no_match`.
-                then_.i32_const(rule_id.0);
-                then_.call(ctx.function_id(
-                    wasm::export__global_rule_no_match.mangled_name,
-                ));
-                // Return 1.
-                then_.i32_const(1);
-                then_.return_();
-            }
-        },
-        |else_| {
-            // The condition is true, call `rule_match`.
-            else_.i32_const(rule_id.0);
-            else_.call(ctx.function_id(wasm::export__rule_match.mangled_name));
-        },
-    );
+    builder.finish_rule();
 }
 
 /// Emits WASM code for `expr` into the instruction sequence `instr`.
@@ -2204,7 +2154,6 @@ fn emit_for<I, B, C, A>(
 ///       block                         ;; block @4
 ///         block                       ;; block @5
 ///           local.get $tmp            ;; put $tmp at the top of the stack
-///
 ///           ;; Look for the i32 at the top of the stack, and depending on its
 ///           ;; value jumps out of some block...
 ///           br_table
@@ -2230,7 +2179,6 @@ fn emit_for<I, B, C, A>(
 ///   block (result i64)
 ///     ;; < code expr 0 goes here >
 ///   end
-///   br 0 (;@1;)                       ;; exits block @1
 /// end                                 ;; block @1
 ///                                     ;; at this point the i64 returned by the
 ///                                     ;; selected expression is at the top of
@@ -2240,7 +2188,7 @@ fn emit_switch<F>(
     ctx: &mut EmitContext,
     ty: ValType,
     instr: &mut InstrSeqBuilder,
-    branch_generator: F,
+    mut branch_generator: F,
 ) where
     F: FnMut(&mut EmitContext, &mut InstrSeqBuilder) -> bool,
 {
@@ -2253,49 +2201,62 @@ fn emit_switch<F>(
     // executed.
     instr.local_set(ctx.wasm_symbols.i32_tmp);
 
-    let block_ids = Vec::new();
+    let mut branch_blocks = VecDeque::new();
+    let mut branch_expr = instr.dangling_instr_seq(ty);
 
-    instr.block(ty, |block| {
-        emit_switch_internal(ctx, ty, block, branch_generator, block_ids);
-    });
-}
-
-fn emit_switch_internal<F>(
-    ctx: &mut EmitContext,
-    ty: ValType,
-    instr: &mut InstrSeqBuilder,
-    mut branch_generator: F,
-    mut block_ids: Vec<InstrSeqId>,
-) where
-    F: FnMut(&mut EmitContext, &mut InstrSeqBuilder) -> bool,
-{
-    block_ids.push(instr.id());
-
-    // Create a dangling instructions sequence, this sequence will be inserting
-    // later in the final code, but for the time being is floating around.
-    let mut expr = instr.dangling_instr_seq(ty);
-
-    // Call the branch generator, that will emit code into the dangling
-    // instruction sequence.
-    if branch_generator(ctx, &mut expr) {
-        // The branch generator function returned true, which means that it
-        // emitted code for a branch.
-        let expr_id = expr.id();
-        let outermost_block = block_ids.first().cloned();
-        instr.block(None, |block| {
-            emit_switch_internal(ctx, ty, block, branch_generator, block_ids);
-        });
-        instr.instr(walrus::ir::Block { seq: expr_id });
-        instr.br(outermost_block.unwrap());
-    } else {
-        // The branch generator function returned false, no more branches will
-        // be emitted. Let's emit the `br_table` which jumps to the appropriate
-        // branch depending on the switch selector.
-        instr.block(None, |block| {
-            block.local_get(ctx.wasm_symbols.i32_tmp);
-            block.br_table(block_ids[1..].into(), block.id());
-        });
+    while branch_generator(ctx, &mut branch_expr) {
+        branch_blocks.push_back(walrus::ir::Block { seq: branch_expr.id() });
+        branch_expr = instr.dangling_instr_seq(ty);
     }
+
+    // The switch statement returns a value of type `ty`.
+    let outermost_block = instr.dangling_instr_seq(ty);
+    let outermost_block_id = outermost_block.id();
+
+    let switch_block = instr.dangling_instr_seq(None);
+    let switch_block_id = switch_block.id();
+
+    // These are the block IDs for the `br_table` instruction.
+    let mut block_ids = Vec::with_capacity(branch_blocks.len());
+
+    let mut block_id = switch_block_id;
+
+    block_ids.push(block_id);
+
+    let first_branch = branch_blocks.pop_front().unwrap();
+
+    // Iterate over the branches of the switch statement in reverse order,
+    // excluding the first branch. The first branch is handled slightly
+    // differently because its code is put directly in the outermost block.
+    while let Some(expr_block) = branch_blocks.pop_back() {
+        let mut branch = instr.dangling_instr_seq(None);
+        // This is the block that contains all the previous branches
+        branch.instr(walrus::ir::Block { seq: block_id });
+        // This is the block for the current branch.
+        branch.instr(expr_block);
+        // The instruction that goes out of the switch statement
+        // after each branch (think of `break` statements in a C switch).
+        branch.br(outermost_block_id);
+        block_id = branch.id();
+        block_ids.push(block_id);
+    }
+
+    block_ids.reverse();
+
+    instr
+        .instr_seq(switch_block_id)
+        .block(None, |block| {
+            block.local_get(ctx.wasm_symbols.i32_tmp);
+            block.br_table(block_ids.into(), block.id());
+        })
+        .unreachable();
+
+    instr
+        .instr_seq(outermost_block_id)
+        .instr(walrus::ir::Block { seq: block_id })
+        .instr(first_branch);
+
+    instr.instr(walrus::ir::Block { seq: outermost_block_id });
 }
 
 /// Sets into a variable the value produced by a code block.

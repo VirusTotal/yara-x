@@ -148,7 +148,7 @@ impl Compiler {
         // users can increase the number if they start getting warnings due
         // to 0-length atoms, but for the time being let's use a number that
         // seems to work fine in most cases.
-        lit_extractor.limit_total(2048);
+        lit_extractor.limit_total(MAX_ATOMS_PER_REGEXP);
 
         lit_extractor.limit_literal_len(DESIRED_ATOM_SIZE);
         lit_extractor.limit_repeat(DESIRED_ATOM_SIZE);
@@ -406,7 +406,7 @@ impl Compiler {
         self.backward_code_chunks.push(self.backward_code().next());
     }
 
-    fn visit_post_concat(&mut self, expressions: &Vec<Hir>) -> Vec<CodeLoc> {
+    fn visit_post_concat(&mut self, expressions: &[Hir]) -> Vec<CodeLoc> {
         // We are here because all the children of a `Concat` node have been
         // processed. The last N chunks in `backward_code_chunks` contain the
         // code produced for each of the N children, but the nodes where
@@ -481,7 +481,7 @@ impl Compiler {
 
     fn visit_pre_alternation(
         &mut self,
-        alternatives: &Vec<Hir>,
+        alternatives: &[Hir],
     ) -> Result<(), Error> {
         // e1|e2|....|eN
         //
@@ -507,7 +507,7 @@ impl Compiler {
 
     fn visit_post_alternation(
         &mut self,
-        expressions: &Vec<Hir>,
+        expressions: &[Hir],
     ) -> Result<CodeLoc, Error> {
         // e1|e2|....|eN
         //

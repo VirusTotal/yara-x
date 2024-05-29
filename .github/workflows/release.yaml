@@ -106,7 +106,7 @@ jobs:
     
     steps:
     - name: Checkout sources
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
@@ -123,7 +123,7 @@ jobs:
         fi
 
     - name: Install Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.9'
 
@@ -191,6 +191,28 @@ jobs:
       with:
         draft: true
         files: yr-*/yara-x-*
+  
+  publish-crate:
+    needs: [ publish-cli ]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v4
+
+    - name: Publish crate
+      env:
+        # Don't re-generate the files `modules.rs` and `add_modules.rs`, use
+        # the ones in the repository. These files can't be regenerated because
+        # `cargo publish` checks that the repository doesn't change during 
+        # the build. See: https://github.com/rust-lang/cargo/pull/5584
+        YRX_REGENERATE_MODULES_RS: "no"
+      run: |
+        cargo login ${{ secrets.CRATES_IO_API_TOKEN }}
+        cargo publish -p yara-x-macros
+        cargo publish -p yara-x-proto
+        cargo publish -p yara-x-proto-yaml
+        cargo publish -p yara-x-parser
+        cargo publish -p yara-x        
   
   publish-py:
     needs: [ build-py ]

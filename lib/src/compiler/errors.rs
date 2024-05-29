@@ -13,12 +13,16 @@ use yara_x_parser::Error as ParseError;
 /// Errors returned while serializing/deserializing compiled rules.
 #[derive(Error, Debug)]
 pub enum SerializationError {
+    /// The data being deserialized doesn't contain YARA-X serialized rules.
     #[error("not a YARA-X compiled rules file")]
     InvalidFormat,
 
+    /// The data seems to be YARA-X serialized rules, but it's invalid or
+    /// corrupted.
     #[error("invalid YARA-X compiled rules file")]
     InvalidEncoding(#[from] bincode::Error),
 
+    /// I/O error while trying to read or write serialized data.
     #[error(transparent)]
     IoError(#[from] io::Error),
 }
@@ -31,6 +35,7 @@ pub struct EmitWasmError(#[from] anyhow::Error);
 
 /// Errors returned by the compiler.
 #[derive(Error, Debug, Eq, PartialEq)]
+#[allow(missing_docs)]
 pub enum Error {
     #[error(transparent)]
     ParseError(#[from] ParseError),
@@ -44,6 +49,7 @@ pub enum Error {
 
 /// An error occurred during the compilation process.
 #[derive(DeriveError, Eq, PartialEq)]
+#[allow(missing_docs)]
 #[non_exhaustive]
 pub enum CompileError {
     #[error("wrong type")]
@@ -149,30 +155,6 @@ pub enum CompileError {
         ident_span: Span,
     },
 
-    #[error("global rule `{global_rule}` depends on non-global rule `{non_global_rule}`")]
-    #[label(
-        "`{non_global_rule}` is used in the condition of `{global_rule}`",
-        non_global_rule_usage_span
-    )]
-    #[label(
-        "non-global rule `{non_global_rule}` declared here",
-        non_global_rule_span,
-        style = "note"
-    )]
-    #[label(
-        "global rule `{global_rule}` declared here",
-        global_rule_span,
-        style = "note"
-    )]
-    WrongRuleDependency {
-        detailed_report: String,
-        global_rule: String,
-        non_global_rule: String,
-        global_rule_span: Span,
-        non_global_rule_span: Span,
-        non_global_rule_usage_span: Span,
-    },
-
     #[error("invalid regular expression")]
     #[label("{error}", span)]
     #[note(note)]
@@ -211,4 +193,8 @@ pub enum CompileError {
         span: Span,
         note: Option<String>,
     },
+
+    #[error("slow pattern")]
+    #[label("this pattern may slow down the scan", span)]
+    SlowPattern { detailed_report: String, span: Span },
 }

@@ -491,6 +491,49 @@ fn globals_json() {
 }
 
 #[test]
+fn relaxed_re_syntax() {
+    let mut compiler = Compiler::new();
+
+    compiler.relaxed_re_syntax(true);
+    compiler
+        .add_source(r#"rule test_1 { strings: $a = /\X\Y\Z/ condition: $a }"#)
+        .unwrap()
+        .add_source(r#"rule test_2 { strings: $a = /xyz{/ condition: $a }"#)
+        .unwrap()
+        .add_source(r#"rule test_3 { strings: $a = /xyz[\>]/ condition: $a }"#)
+        .unwrap();
+
+    let rules = compiler.build();
+
+    assert_eq!(
+        Scanner::new(&rules)
+            .scan(b"XYZ")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    assert_eq!(
+        Scanner::new(&rules)
+            .scan(b"xyz{")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    assert_eq!(
+        Scanner::new(&rules)
+            .scan(b"xyz>")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+}
+
+#[test]
 fn unsupported_modules() {
     let mut compiler = Compiler::new();
 
@@ -729,7 +772,7 @@ fn test_warnings() {
 
         let mut output_file = mint.new_goldenfile(out_path).unwrap();
 
-        for w in compiler.warnings.iter() {
+        for w in compiler.warnings() {
             output_file
                 .write_all(w.to_string().as_bytes())
                 .expect("unable to write");

@@ -57,6 +57,15 @@ fn to_string_base(
     }
 }
 
+#[module_export]
+fn to_number(_ctx: &ScanContext, b: bool) -> i64 {
+    if b {
+        1
+    } else {
+        0
+    }
+}
+
 #[module_export(name = "count")]
 fn count_range(
     ctx: &ScanContext,
@@ -870,6 +879,20 @@ mod tests {
             rule test {
                 condition:
                     not defined math.to_string(32, 7) 
+            }"#,
+            b""
+        );
+    }
+
+    #[test]
+    fn to_number() {
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.to_number(true) == 1 and
+                    math.to_number(false) == 0 
             }"#,
             b""
         );

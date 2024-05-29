@@ -13,9 +13,9 @@ pub(crate) trait Section {
 
 /// Convert a relative virtual address (RVA) to a file offset.
 ///
-/// A RVA is an offset relative to the base address of the executable
+/// An RVA is an offset relative to the base address of the executable
 /// program. The PE format uses RVAs in multiple places and sometimes
-/// is necessary to covert the RVA to a file offset.
+/// is necessary to convert the RVA to a file offset.
 pub(crate) fn rva_to_offset(
     rva: u32,
     sections: &[impl Section],
@@ -23,15 +23,12 @@ pub(crate) fn rva_to_offset(
     section_alignment: u32,
 ) -> Option<u32> {
     // Find the RVA for the section with the lowest RVA.
-    let lowest_section_rva = sections
-        .iter()
-        .map(|section| section.virtual_address())
-        .min()
-        .unwrap_or(0);
+    let lowest_section_rva =
+        sections.iter().map(|section| section.virtual_address()).min();
 
-    // The target RVA is lower than the RVA of all sections, in such
-    // cases the RVA is directly mapped to a file offset.
-    if rva < lowest_section_rva {
+    // The target RVA is lower than the RVA of all sections, in such cases
+    // the RVA is directly mapped to a file offset.
+    if matches!(lowest_section_rva, Some(x) if rva < x) {
         return Some(rva);
     }
 

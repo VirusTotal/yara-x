@@ -1,12 +1,13 @@
 use crate::modules::protos;
 use bstr::{BStr, ByteSlice};
+use itertools::Itertools;
 #[cfg(feature = "logging")]
 use log::error;
-use nom::bytes::complete::take;
+use nom::bytes::complete::{tag, take, take_till};
 use nom::combinator::{cond, map, verify};
 use nom::error::ErrorKind;
 use nom::multi::{count, length_count};
-use nom::number::complete::{be_u32, le_u32, u16, u32, u64};
+use nom::number::complete::{be_u32, le_u32, u16, u32, u64, u8};
 use nom::number::Endianness;
 use nom::sequence::tuple;
 use nom::{Err, IResult, Parser};
@@ -34,6 +35,11 @@ const _CS_MAGIC_EMBEDDED_SIGNATURE: u32 = 0xfade0cc0;
 const _CS_MAGIC_DETACHED_SIGNATURE: u32 = 0xfade0cc1;
 const _CS_MAGIC_BLOBWRAPPER: u32 = 0xfade0b01;
 const CS_MAGIC_EMBEDDED_ENTITLEMENTS: u32 = 0xfade7171;
+
+/// Mach-O export flag constants
+const EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION: u64 = 0x00000004;
+const EXPORT_SYMBOL_FLAGS_REEXPORT: u64 = 0x00000008;
+const EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER: u64 = 0x00000010;
 
 /// Mach-O dynamic linker constant
 const LC_REQ_DYLD: u32 = 0x80000000;
@@ -269,6 +275,7 @@ impl<'a> MachO<'a> {
             uuid: None,
             build_version: None,
             min_version: None,
+            exports: Vec::new(),
         };
 
         for _ in 0..macho.header.ncmds as usize {
@@ -297,9 +304,9 @@ impl<'a> MachO<'a> {
             let str_end = symtab.strsize as usize;
 
             // We don't want the dyld_shared_cache ones for now
-            if str_offset < data.len() {
-                let string_table: &[u8] =
-                    &data[str_offset..str_offset + str_end];
+            if let Some(string_table) =
+                data.get(str_offset..str_offset.saturating_add(str_end))
+            {
                 let strings: Vec<&'a [u8]> = string_table
                     .split(|&c| c == b'\0')
                     .map(|line| BStr::new(line).trim_end_with(|c| c == '\0'))
@@ -317,15 +324,35 @@ impl<'a> MachO<'a> {
         if let Some(ref code_signature_data) = macho.code_signature_data {
             let offset = code_signature_data.dataoff as usize;
             let size = code_signature_data.datasize as usize;
-            let super_data = &data[offset..offset + size];
-            if let Err(_err) = macho.cs_superblob()(super_data) {
-                #[cfg(feature = "logging")]
-                error!("Error parsing Mach-O file: {:?}", _err);
-                // fail silently if it fails, data was not formatted
-                // correctly but parsing should still proceed for
-                // everything else
-            };
+            if let Some(super_data) =
+                data.get(offset..offset.saturating_add(size))
+            {
+                if let Err(_err) = macho.cs_superblob()(super_data) {
+                    #[cfg(feature = "logging")]
+                    error!("Error parsing Mach-O file: {:?}", _err);
+                    // fail silently if it fails, data was not formatted
+                    // correctly but parsing should still proceed for
+                    // everything else
+                };
+            }
         }
+
+        if let Some(ref dyld_info) = macho.dyld_info {
+            let offset = dyld_info.export_off as usize;
+            let size = dyld_info.export_size as usize;
+            if let Some(export_data) =
+                data.get(offset..offset.saturating_add(size))
+            {
+                if let Err(_err) = macho.exports()(export_data) {
+                    #[cfg(feature = "logging")]
+                    error!("Error parsing Mach-O file: {:?}", _err);
+                    // fail silently if it fails, data was not formatted
+                    // correctly but parsing should still proceed for
+                    // everything else
+                };
+            }
+        }
+
         Ok(macho)
     }
 }
@@ -351,6 +378,7 @@ pub struct MachOFile<'a> {
     certificates: Option<Certificates>,
     build_version: Option<BuildVersionCommand>,
     min_version: Option<MinVersion>,
+    exports: Vec<String>,
 }
 
 impl<'a> MachOFile<'a> {
@@ -799,8 +827,8 @@ impl<'a> MachOFile<'a> {
                     if blob.magic == CS_MAGIC_EMBEDDED_ENTITLEMENTS {
                         let xml_data = &super_data
                             [offset + size_of_blob..offset + length];
-                        let xml_string = std::str::from_utf8(xml_data)
-                            .unwrap_or_default();
+                        let xml_string =
+                            std::str::from_utf8(xml_data).unwrap_or_default();
 
                         let opt = roxmltree::ParsingOptions {
                             allow_dtd: true,
@@ -812,13 +840,25 @@ impl<'a> MachOFile<'a> {
                                 xml_string, opt,
                             )
                         {
-                            for node in parsed_xml
-                                .descendants()
-                                .filter(|n| n.has_tag_name("key"))
-                            {
+                            for node in parsed_xml.descendants().filter(|n| {
+                                n.has_tag_name("key")
+                                    || n.has_tag_name("array")
+                            }) {
                                 if let Some(entitlement) = node.text() {
-                                    self.entitlements
-                                        .push(entitlement.to_string());
+                                    if node.has_tag_name("array") {
+                                        node.descendants()
+                                            .filter_map(|n| n.text())
+                                            .filter(|t| !t.trim().is_empty())
+                                            .unique()
+                                            .map(|t| t.to_string())
+                                            .for_each(|array_entitlement| {
+                                                self.entitlements
+                                                    .push(array_entitlement)
+                                            });
+                                    } else {
+                                        self.entitlements
+                                            .push(entitlement.to_string());
+                                    }
                                 }
                             }
                         }
@@ -873,6 +913,85 @@ impl<'a> MachOFile<'a> {
                 }
             },
         )
+    }
+
+    fn parse_export_node(
+        &mut self,
+    ) -> impl FnMut(&'a [u8], u64, &BStr) -> IResult<&'a [u8], String> + '_
+    {
+        move |data: &'a [u8], offset: u64, prefix: &BStr| {
+            let (remainder, length) = uleb128()(&data[offset as usize..])?;
+            let mut remaining_data = remainder;
+
+            if length != 0 {
+                let (remainder, flags) = uleb128()(remaining_data)?;
+                match flags {
+                    EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER => {
+                        let (remainder, _stub_offset) = uleb128()(remainder)?;
+
+                        let (remainder, _resolver_offset) =
+                            uleb128()(remainder)?;
+                        remaining_data = remainder;
+                    }
+                    EXPORT_SYMBOL_FLAGS_REEXPORT => {
+                        let (remainder, _ordinal) = uleb128()(remainder)?;
+
+                        let (remainder, _label) = map(
+                            tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
+                            |(s, _)| s,
+                        )(
+                            remainder
+                        )?;
+
+                        remaining_data = remainder;
+                    }
+                    EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION => {
+                        let (remainder, _offset) = uleb128()(remainder)?;
+                        remaining_data = remainder;
+                    }
+                    _ => {}
+                }
+            }
+
+            let (remainder, edges) = u8(remaining_data)?;
+            let mut edge_remainder = remainder;
+
+            for _ in 0..edges {
+                let (remainder, strr) = map(
+                    tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
+                    |(s, _)| s,
+                )(edge_remainder)?;
+                let edge_label = BStr::new(strr);
+                let (remainder, edge_offset) = uleb128()(remainder)?;
+                let (_, _) = self.parse_export_node()(
+                    data,
+                    edge_offset,
+                    BStr::new(&bstr::concat([prefix, edge_label])),
+                )?;
+                edge_remainder = remainder;
+            }
+
+            if length != 0 {
+                if let Ok(prefix) = prefix.to_str() {
+                    self.exports.push(prefix.to_string())
+                }
+            }
+
+            Ok((data, prefix.to_str().unwrap().to_string()))
+        }
+    }
+
+    /// Parser that parses the exports at the offsets defined within LC_DYLD_INFO and LC_DYLD_INFO_ONLY
+    fn exports(
+        &mut self,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<String>> + '_ {
+        move |data: &'a [u8]| {
+            let exports = Vec::<String>::new();
+            let (remainder, _) =
+                self.parse_export_node()(data, 0, BStr::new(""))?;
+
+            Ok((remainder, exports))
+        }
     }
 
     /// Parser that parses a LC_ID_DYLINKER, LC_LOAD_DYLINKER or
@@ -1289,6 +1408,30 @@ fn uint(
     }
 }
 
+/// Parser that reads ULEB128
+fn uleb128() -> impl FnMut(&[u8]) -> IResult<&[u8], u64> {
+    move |input: &[u8]| {
+        let mut val: u64 = 0;
+        let mut shift: u64 = 0;
+
+        let mut data = input;
+        let mut byte: u8;
+
+        loop {
+            (data, byte) = u8(data)?;
+
+            val |= ((byte & !(1 << 7)) as u64) << shift;
+
+            if byte & (1 << 7) == 0 {
+                break;
+            }
+            shift += 7;
+        }
+
+        Ok((data, val))
+    }
+}
+
 /// Convert a decimal number representation to a version string representation.
 fn convert_to_version_string(decimal_number: u32) -> String {
     let major = decimal_number >> 16;
@@ -1335,7 +1478,7 @@ impl From<MachO<'_>> for protos::macho::Macho {
             result.reserved = m.header.reserved;
             result.entry_point = m.entry_point_offset;
             result.stack_size = m.stack_size;
-            result.source_version = m.source_version.to_owned();
+            m.source_version.clone_into(&mut result.source_version);
             result.dynamic_linker = m.dynamic_linker.map(|dl| dl.into());
 
             if let Some(symtab) = &m.symtab {
@@ -1391,7 +1534,7 @@ impl From<MachO<'_>> for protos::macho::Macho {
                 .rpaths
                 .extend(m.rpaths.iter().map(|rpath: &&[u8]| rpath.to_vec()));
             result.entitlements.extend(m.entitlements.clone());
-
+            result.exports.extend(m.exports.clone());
             result
                 .set_number_of_segments(m.segments.len().try_into().unwrap());
         } else {
@@ -1417,7 +1560,7 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         result.reserved = macho.header.reserved;
         result.entry_point = macho.entry_point_offset;
         result.stack_size = macho.stack_size;
-        result.source_version = macho.source_version.to_owned();
+        macho.source_version.clone_into(&mut result.source_version);
         result.dynamic_linker = macho.dynamic_linker.map(|dl| dl.into());
 
         if let Some(symtab) = &macho.symtab {
@@ -1470,6 +1613,7 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         result.dylibs.extend(macho.dylibs.iter().map(|dylib| dylib.into()));
         result.rpaths.extend(macho.rpaths.iter().map(|rpath| rpath.to_vec()));
         result.entitlements.extend(macho.entitlements.clone());
+        result.exports.extend(macho.exports.clone());
 
         result
             .set_number_of_segments(result.segments.len().try_into().unwrap());
@@ -1649,4 +1793,35 @@ impl From<&MinVersion> for protos::macho::MinVersion {
         result.set_sdk(convert_to_version_string(mv.sdk));
         result
     }
+}
+
+#[test]
+fn test_uleb_parsing() {
+    let uleb_128_in = vec![0b1000_0001, 0b000_0001];
+    let (_remainder, result) = uleb128()(&uleb_128_in).unwrap();
+    assert_eq!(129, result);
+
+    let uleb_128_in = vec![0b1000_0000, 0b0000_0001];
+    let (_remainder, result) = uleb128()(&uleb_128_in).unwrap();
+    assert_eq!(128, result);
+
+    let uleb_128_in = vec![0b111_1111];
+    let (_remainder, result) = uleb128()(&uleb_128_in).unwrap();
+    assert_eq!(127, result);
+
+    let uleb_128_in = vec![0b111_1110];
+    let (_remainder, result) = uleb128()(&uleb_128_in).unwrap();
+    assert_eq!(126, result);
+
+    let uleb_128_in = vec![0b000_0000];
+    let (_remainder, result) = uleb128()(&uleb_128_in).unwrap();
+    assert_eq!(0, result);
+
+    let uleb_128_in = vec![0b1010_0000, 0b0000_0001];
+    let (_remainder, result) = uleb128()(&uleb_128_in).unwrap();
+    assert_eq!(160, result);
+
+    let uleb_128_in = vec![0b10010110, 0b00000101];
+    let (_remainder, result) = uleb128()(&uleb_128_in).unwrap();
+    assert_eq!(662, result);
 }

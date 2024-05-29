@@ -867,7 +867,20 @@ fn meta_from_cst<'src>(
             GrammarRule::float_lit => {
                 MetaValue::Float(float_lit_from_cst(ctx, value_node)?)
             }
-            GrammarRule::string_lit => MetaValue::String(value_node.as_str()),
+            GrammarRule::string_lit | GrammarRule::multiline_string_lit => {
+                match string_lit_from_cst(ctx, value_node, true)? {
+                    // If the result is a string borrowed directly from the
+                    // source code, we can be sure that it's a valid UTF-8
+                    // string.
+                    Cow::Borrowed(s) => {
+                        MetaValue::String(unsafe { s.to_str_unchecked() })
+                    }
+                    // If the result is an owned string is because it contains
+                    // some escaped character, this string is not guaranteed
+                    // to be a valid UTF-8 string.
+                    Cow::Owned(s) => MetaValue::Bytes(s),
+                }
+            }
             rule => unreachable!("{:?}", rule),
         };
 
@@ -1037,7 +1050,7 @@ fn boolean_term_from_cst<'src>(
             // considered used when the `them` keyword is used, or when the
             // pattern `$*` appears in a pattern identifiers tuple.
             if ident_name != "$" {
-                if ctx.declared_patterns.get(&ident_name[1..]).is_none() {
+                if !ctx.declared_patterns.contains_key(&ident_name[1..]) {
                     return Err(Error::from(ErrorInfo::unknown_pattern(
                         ctx.report_builder,
                         ident_name.to_string(),
@@ -1241,7 +1254,7 @@ fn primary_expr_from_cst<'src>(
             let ident_name = node.as_span().as_str();
 
             if ident_name != "#"
-                && ctx.declared_patterns.get(&ident_name[1..]).is_none()
+                && !ctx.declared_patterns.contains_key(&ident_name[1..])
             {
                 return Err(Error::from(ErrorInfo::unknown_pattern(
                     ctx.report_builder,
@@ -1284,7 +1297,7 @@ fn primary_expr_from_cst<'src>(
             let ident_name = node.as_span().as_str();
 
             if ident_name.len() > 1
-                && ctx.declared_patterns.get(&ident_name[1..]).is_none()
+                && !ctx.declared_patterns.contains_key(&ident_name[1..])
             {
                 return Err(Error::from(ErrorInfo::unknown_pattern(
                     ctx.report_builder,
@@ -1358,8 +1371,8 @@ fn func_call_from_cst<'src>(
         match node.as_rule() {
             // ... if the node is an expression, add it to the function
             // arguments.
-            GrammarRule::expr => {
-                args.push(expr_from_cst(ctx, node)?);
+            GrammarRule::boolean_expr => {
+                args.push(boolean_expr_from_cst(ctx, node)?);
             }
             // ... if the node is a comma separating the arguments, do
             // nothing and continue.
@@ -1861,19 +1874,32 @@ fn string_lit_from_cst<'src>(
     string_lit: CSTNode<'src>,
     allow_escape_char: bool,
 ) -> Result<Cow<'src, BStr>, Error> {
-    expect!(string_lit, GrammarRule::string_lit);
+    let num_quotes = match string_lit.as_rule() {
+        GrammarRule::string_lit => {
+            // The string literal must be enclosed in double quotes.
+            debug_assert!(string_lit.as_str().starts_with('\"'));
+            debug_assert!(string_lit.as_str().ends_with('\"'));
+            1
+        }
+        GrammarRule::multiline_string_lit => {
+            // The string literal must be enclosed in 3 double quotes.
+            debug_assert!(string_lit.as_str().starts_with("\"\"\""));
+            debug_assert!(string_lit.as_str().ends_with("\"\"\""));
+            3
+        }
+        _ => {
+            panic!("expecting string literal or multiline string literal but found {:?}", string_lit.as_rule());
+        }
+    };
 
     let literal = string_lit.as_str();
 
-    // The string literal must be enclosed in double quotes.
-    debug_assert!(literal.starts_with('\"'));
-    debug_assert!(literal.ends_with('\"'));
-
     // The span doesn't include the quotes.
-    let string_span = ctx.span(&string_lit).subspan(1, literal.len() - 1);
+    let string_span =
+        ctx.span(&string_lit).subspan(num_quotes, literal.len() - num_quotes);
 
     // From now on ignore the quotes.
-    let literal = &literal[1..literal.len() - 1];
+    let literal = &literal[num_quotes..literal.len() - num_quotes];
 
     // Check if the string contains some backslash.
     let backslash_pos = if let Some(backslash_pos) = literal.find('\\') {

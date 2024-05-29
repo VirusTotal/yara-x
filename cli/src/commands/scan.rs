@@ -63,8 +63,13 @@ pub fn scan() -> Command {
         )
         .arg(
             arg!(-C --"compiled-rules")
-                .help("Tells that RULES_PATH is a file with compiled rules")
+                .help("Indicate that RULES_PATH is a file with compiled rules")
                 .long_help(help::COMPILED_RULES_HELP)
+        )
+        .arg(
+            arg!(--"scan-list")
+                .help("Indicate that TARGET_PATH is a file containing the paths to be scanned")
+                .long_help(help::SCAN_LIST_HELP)
         )
         .arg(
             arg!(-z --"skip-larger" <FILE_SIZE>)
@@ -80,9 +85,13 @@ pub fn scan() -> Command {
         )
         .arg(
             arg!(-a --"timeout" <SECONDS>)
-                .help("Abort scanning after the given number seconds")
+                .help("Abort scanning after the given number of seconds")
                 .required(false)
                 .value_parser(value_parser!(u64).range(1..))
+        )
+        .arg(
+            arg!(--"relaxed-re-syntax")
+                .help("Use a more relaxed syntax check while parsing regular expressions")
         )
         .arg(
             arg!(-d --"define")
@@ -104,6 +113,8 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let skip_larger = args.get_one::<u64>("skip-larger");
     let negate = args.get_flag("negate");
     let disable_console_logs = args.get_flag("disable-console-logs");
+    let scan_list = args.get_flag("scan-list");
+
     let timeout = args.get_one::<u64>("timeout");
 
     let mut external_vars: Option<Vec<(String, serde_json::Value)>> = args
@@ -114,7 +125,15 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         if rules_path.len() > 1 {
             bail!(
                 "can't use '{}' with more than one RULES_PATH",
-                Paint::new("--compiled-rules").bold()
+                Paint::bold("--compiled-rules")
+            );
+        }
+
+        if args.get_flag("relaxed-re-syntax") {
+            bail!(
+                "can't use '{}' together with '{}'",
+                Paint::bold("--relaxed-re-syntax"),
+                Paint::bold("--compiled-rules")
             );
         }
 
@@ -140,12 +159,21 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         // With `take()` we pass the external variables to `compile_rules`,
         // while leaving a `None` in `external_vars`. This way external
         // variables are not set again in the scanner.
-        compile_rules(rules_path, path_as_namespace, external_vars.take())?
+        compile_rules(
+            rules_path,
+            path_as_namespace,
+            external_vars.take(),
+            args.get_flag("relaxed-re-syntax"),
+        )?
     };
 
     let rules_ref = &rules;
 
-    let mut w = walk::ParDirWalker::new();
+    let mut w = if scan_list {
+        walk::ParWalker::file_list(target_path)
+    } else {
+        walk::ParWalker::path(target_path)
+    };
 
     if let Some(num_threads) = num_threads {
         w.num_threads(*num_threads);
@@ -165,7 +193,6 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let state = ScanState::new(start_time);
 
     w.walk(
-        target_path,
         state,
         // Initialization
         |_, output| {
@@ -250,12 +277,20 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         },
         // Error handler
         |err, output| {
-            let _ = output.send(Message::Error(format!(
-                "{} {}: {}",
-                "error: ".paint(Red).bold(),
-                err,
-                err.root_cause(),
-            )));
+            let error = err.to_string();
+            let root_cause = err.root_cause().to_string();
+            let msg = if error != root_cause {
+                format!(
+                    "{} {}: {}",
+                    "error: ".paint(Red).bold(),
+                    error,
+                    root_cause,
+                )
+            } else {
+                format!("{}: {}", "error: ".paint(Red).bold(), error)
+            };
+
+            let _ = output.send(Message::Error(msg));
 
             // In case of timeout walk is aborted.
             if let Ok(scan_err) = err.downcast::<ScanError>() {

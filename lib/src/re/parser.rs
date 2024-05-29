@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::fmt::{Debug, Display, Formatter};
 use std::mem::replace;
@@ -89,11 +90,16 @@ impl Regexp for types::Regexp {
 pub(crate) struct Parser {
     force_case_insensitive: bool,
     allow_mixed_greediness: bool,
+    relaxed_re_syntax: bool,
 }
 
 impl Parser {
     pub fn new() -> Self {
-        Self { force_case_insensitive: false, allow_mixed_greediness: true }
+        Self {
+            force_case_insensitive: false,
+            allow_mixed_greediness: true,
+            relaxed_re_syntax: false,
+        }
     }
 
     /// Parses the regexp as a case-insensitive one, no matter whether the regexp
@@ -113,14 +119,116 @@ impl Parser {
         self
     }
 
+    /// Enables a more relaxed syntax check for regular expressions.
+    ///
+    /// YARA-X enforces stricter regular expression syntax compared to YARA.
+    /// For instance, YARA accepts invalid escape sequences and treats them
+    /// as literal characters (e.g., \R is interpreted as a literal 'R'). It
+    /// also allows some special characters to appear unescaped, inferring
+    /// their meaning from the context (e.g., `{` and `}` in `/foo{}bar/` are
+    /// literal, but in `/foo{0,1}bar/` they form the repetition operator
+    /// `{0,1}`).
+    ///
+    /// This setting controls whether the parser should mimic YARA's behavior,
+    /// allowing constructs that YARA-X doesn't accept by default.
+    pub fn relaxed_re_syntax(mut self, yes: bool) -> Self {
+        self.relaxed_re_syntax = yes;
+        self
+    }
+
     /// Parses the regexp and returns its HIR.
     pub fn parse(&self, regexp: &impl Regexp) -> Result<Hir, Error> {
-        let mut parser =
-            re::ast::parse::ParserBuilder::new().empty_min_range(true).build();
+        let mut re_src = Cow::Borrowed(regexp.source());
+        let mut span_delta = 0_isize;
 
-        let re_src = regexp.source();
+        // Utility function that given a span and a `delta` amount, adds that
+        // amount to both the starting and ending points of the span. It will
+        // be used for adjusting error spans after we have modified the
+        // original regular expression. See comment below.
+        let adjust_span = |span: &re::ast::Span, delta| {
+            re::ast::Span::new(
+                re::ast::Position::new(
+                    span.start.offset.saturating_add_signed(delta),
+                    span.start.line,
+                    span.start.column.saturating_add_signed(delta),
+                ),
+                re::ast::Position::new(
+                    span.end.offset.saturating_add_signed(delta),
+                    span.end.line,
+                    span.end.column.saturating_add_signed(delta),
+                ),
+            )
+        };
 
-        let ast = parser.parse(re_src).map_err(|err| {
+        // YARA-X enforces stricter regular expression syntax compared to YARA.
+        // For instance, YARA accepts invalid escape sequences and treats them
+        // as literal characters (e.g., \R is interpreted as 'R'). It also
+        // allows some special characters to appear unescaped, inferring their
+        // meaning from the context (e.g., `{` and `}` in `/foo{}bar/` are
+        // literal, but in `/foo{0,1}bar/` they form the repetition operator
+        // `{0,1}`).
+        //
+        // When `relaxed_re_syntax` is set to true, YARA-X mimics YARA's
+        // behavior by "fixing" the regular expressions. For instance, it
+        // removes the backslash before invalid escape sequences like \R and
+        // adds a backslash before `{` in cases like `/foo{}bar/`.
+        let ast = loop {
+            // The parser can't be reused, a new one must be created on
+            // each iteration.
+            let mut parser = re::ast::parse::ParserBuilder::new()
+                .empty_min_range(true)
+                .build();
+
+            match parser.parse(re_src.as_ref()) {
+                Ok(ast) => {
+                    break Ok(ast);
+                }
+                Err(err) => {
+                    if !self.relaxed_re_syntax {
+                        break Err(err);
+                    }
+                    match err.kind() {
+                        ErrorKind::EscapeUnrecognized
+                        | ErrorKind::ClassEscapeInvalid => {
+                            let span = err.span();
+                            let mut s = re_src.into_owned();
+                            // Remove the backslash (\) from the original regexp.
+                            s.remove(span.start.offset);
+                            re_src = Cow::Owned(s);
+                            // By removing the backslash we are altering the spans
+                            // of any other error that is found after this change,
+                            // we need to account for that change. The new spans
+                            // are one byte before they should be because we removed
+                            // one byte, so we need to add 1 to fix those spans.
+                            span_delta += 1;
+                        }
+                        ErrorKind::RepetitionMissing
+                        | ErrorKind::RepetitionCountInvalid
+                        | ErrorKind::RepetitionCountUnclosed
+                        | ErrorKind::RepetitionCountDecimalEmpty => {
+                            let span = err.span();
+                            // Find the `{` that needs to be escaped. In some
+                            // cases the error span starts exactly at the
+                            // position where the `{` is, but in some other
+                            // cases it starts a few characters after the `{`.
+                            let curly_brace = re_src.as_ref()
+                                [0..=span.start.offset]
+                                .rfind('{')
+                                .unwrap();
+                            let mut s = re_src.into_owned();
+                            // Insert a backslash in front of the `{`.
+                            s.insert(curly_brace, '\\');
+                            re_src = Cow::Owned(s);
+                            span_delta -= 1;
+                        }
+                        _ => {
+                            break Err(err);
+                        }
+                    }
+                }
+            };
+        }
+        .map_err(|err| {
             let span = err.span();
             let note = match err.kind() {
                 ErrorKind::EscapeUnrecognized => {
@@ -138,9 +246,10 @@ impl Parser {
                 }
                 _ => None,
             };
+
             Error::SyntaxError {
                 msg: err.kind().to_string(),
-                span: *err.span(),
+                span: adjust_span(span, span_delta),
                 note,
             }
         })?;
@@ -173,10 +282,10 @@ impl Parser {
             .build();
 
         let hir =
-            translator.translate(regexp.source(), &ast).map_err(|err| {
+            translator.translate(re_src.as_ref(), &ast).map_err(|err| {
                 Error::SyntaxError {
                     msg: err.kind().to_string(),
-                    span: *err.span(),
+                    span: adjust_span(err.span(), span_delta),
                     note: None,
                 }
             })?;

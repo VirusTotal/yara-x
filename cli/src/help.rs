@@ -1,7 +1,7 @@
-pub const CHECK_LONG_HELP: &str = r#"Check if YARA source files are syntactically correct
+pub const CHECK_LONG_HELP: &str = r#"Check if YARA source files are correct
 
-If <PATH> is a directory, all files with extensions `yar` and `yara` will be
-checked. The `--filter` option allows changing this behavior."#;
+If <RULES_PATH> is a directory, all files with extensions `.yar` and `.yara` will be checked. 
+This behavior can be changed by using the `--filter` option."#;
 
 pub const THREADS_LONG_HELP: &str = r#"Use the specified number of threads
 
@@ -31,7 +31,7 @@ Patterns can contains the following wildcards:
 This option can be used more than once with different patterns. In such cases
 files matching any of the patterns will be checked.
 
-The absense of this options is equivalent to using this:
+When no filter is specified, the following ones are used by default:
 
 --filter='**/*.yara' --filter='**/*.yar'"#;
 
@@ -44,22 +44,25 @@ Examples:
 --define some_bool=true
 --define some_str=\"foobar\""#;
 
-pub const COMPILED_RULES_HELP: &str = r#"Indicates that <RULES_PATH> is a file containing compiled rules
+pub const COMPILED_RULES_HELP: &str = r#"Indicate that <RULES_PATH> is a file containing compiled rules
 
 YARA rules can be compiled with the `yr compile` command. The file produced by
 this command can be passed later to `yr scan` by using this flag."#;
 
 pub const DUMP_LONG_HELP: &str = r#"Show the data produced by YARA modules for a file
 
-YARA modules analyze files and extract information from them. This command shows
-all the data produced by one ore more YARA module for the given file. If no module
-is explictly specified with the `--module` option, any module for which YARA 
-produces information will be shown. 
+YARA modules analyze files and extract information from them. This command shows all the 
+data produced by one ore more YARA module for the given file. If no module is explicitly
+specified with the `--module` option, any module for which YARA produces information will
+be shown. 
+
+If the file is provided it will be read from stdin.
 
 Examples:
 
 yr dump --module pe SOMEFILE
 yr dump --module pe --module dotnet SOMEFILE
+cat SOMEFILE | yr dump
 "#;
 
 pub const COMPLETION_LONG_HELP: &str = r#"Output shell completion code for the specified shell
@@ -67,14 +70,14 @@ pub const COMPLETION_LONG_HELP: &str = r#"Output shell completion code for the s
 Examples:
 
 yr completion bash > $(brew --prefix)/etc/bash_completion.d/yr
-yr completion zsh > "${fpath[1]}/_kubectl"
+yr completion zsh > "${fpath[1]}/_yr"
 "#;
 
 pub const SCAN_LONG_HELP: &str = r#"Scan a file or directory
 
 <RULES_PATH> can be the path to a file containing YARA rules, or the path to a directory
 containing *.yar or *.yara files. When <RULES_PATH> is a directory, it will be traversed 
-recursively looking for rule files. Multiple <RULES_PATH> can be specified.
+recursively. Multiple <RULES_PATH> can be specified.
 
 <TARGET_PATH> is the file or directory that will be scanned.
 
@@ -82,4 +85,18 @@ Examples:
 
 yr scan rules_file.yar scanned_file
 yr scan rules_dir scanned_file
+"#;
+
+pub const SCAN_LIST_HELP: &str = r#"Indicate that TARGET_PATH is a file containing the paths to be scanned
+
+<TARGET_PATH> must be a text file containing one path per line. The paths must be either 
+absolute paths, or relative to the current directory."#;
+
+pub const FIX_ENCODING_HELP: &str = r#"Convert source files to UTF-8
+
+YARA-X is stricter that YARA with respect to invalid UTF-8 characters in source code. This 
+command allows to convert your YARA source files to UTF-8 encoding if they are not.
+
+If <RULES_PATH> is a directory, all files with extensions `.yar` and `.yara` will be converted. 
+This behavior can be changed by using the `--filter` option.
 "#;

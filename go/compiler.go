@@ -9,17 +9,128 @@ import (
 	"unsafe"
 )
 
+// A CompileOption represent an option passed to [NewCompiler] and [Compile].
+type CompileOption func(c *Compiler) error
+
+// The Globals option for [NewCompiler] and [Compile] allows you to define
+// global variables.
+//
+// Keys in the map represent variable names, and values are their initial
+// values. Values associated with variables can be modified at scan time using
+// [Scanner.SetGlobal]. If this option is used multiple times, global variables
+// will be the union of all specified maps. If the same variable appears in
+// multiple maps, the value from the last map will prevail.
+//
+// Alternatively, you can use [Compiler.DefineGlobal] to define global variables.
+// However, variables defined this way are not retained after [Compiler.Build] is
+// called, unlike variables defined with the Globals option.
+//
+// Valid value types include: int, int32, int64, bool, string, float32 and
+// float64.
+func Globals(vars map[string]interface{}) CompileOption {
+	return func(c *Compiler) error {
+		for ident, value := range vars {
+			c.vars[ident] = value
+		}
+		return nil
+	}
+}
+
+// IgnoreModule is an option for [NewCompiler] and [Compile] that allows
+// ignoring a given module.
+//
+// This option can be passed multiple times with different module names.
+// Alternatively, you can use [Compiler.IgnoreModule], but modules ignored this
+// way are not retained after [Compiler.Build] is called, unlike modules ignored
+// with the IgnoreModule option.
+func IgnoreModule(module string) CompileOption {
+	return func(c *Compiler) error {
+		c.ignoredModules[module] = true
+		return nil
+	}
+}
+
+// RelaxedReSyntax is an option for [NewCompiler] and [Compile] that
+// determines whether the compiler should adopt a more relaxed approach
+// while parsing regular expressions.
+//
+// YARA-X enforces stricter regular expression syntax compared to YARA.
+// For instance, YARA accepts invalid escape sequences and treats them
+// as literal characters (e.g., \R is interpreted as a literal 'R'). It
+// also allows some special characters to appear unescaped, inferring
+// their meaning from the context (e.g., `{` and `}` in `/foo{}bar/` are
+// literal, but in `/foo{0,1}bar/` they form the repetition operator
+// `{0,1}`).
+//
+// When this option is set, YARA-X mimics YARA's behavior, allowing
+// constructs that YARA-X doesn't accept by default.
+func RelaxedReSyntax(yes bool) CompileOption {
+	return func(c *Compiler) error {
+		c.relaxedReSyntax = yes
+		return nil
+	}
+}
+
+// ErrorOnSlowPattern is an option for [NewCompiler] and [Compile] that
+// tells the compiler to treat slow patterns as errors instead of warnings.
+func ErrorOnSlowPattern(yes bool) CompileOption {
+		return func(c *Compiler) error {
+  		c.errorOnSlowPattern = yes
+  		return nil
+  	}
+}
+
 // Compiler represent a YARA compiler.
 type Compiler struct {
-	cCompiler *C.YRX_COMPILER
+	cCompiler       *C.YRX_COMPILER
+	relaxedReSyntax bool
+	errorOnSlowPattern bool
+	ignoredModules  map[string]bool
+	vars map[string]interface{}
 }
 
 // NewCompiler creates a new compiler.
-func NewCompiler() *Compiler {
-	c := &Compiler{}
-	C.yrx_compiler_create(&c.cCompiler)
+func NewCompiler(opts... CompileOption) (*Compiler, error) {
+	c := &Compiler{
+		ignoredModules: make(map[string]bool),
+		vars: make(map[string]interface{}),
+	}
+
+	for _, opt := range opts {
+		if err := opt(c); err != nil {
+			return nil, err
+		}
+	}
+
+	flags := C.uint32_t(0)
+	if c.relaxedReSyntax {
+		flags |= C.YRX_RELAXED_RE_SYNTAX
+	}
+
+	if c.errorOnSlowPattern {
+		flags |= C.YRX_ERROR_ON_SLOW_PATTERN
+	}
+
+	C.yrx_compiler_create(flags, &c.cCompiler)
+
+	if err := c.initialize(); err != nil {
+		return nil, err
+	}
+
 	runtime.SetFinalizer(c, (*Compiler).Destroy)
-	return c
+	return c, nil
+}
+
+func (c *Compiler) initialize() error {
+	for name, _ := range c.ignoredModules {
+		c.IgnoreModule(name)
+	}
+	for ident, value := range c.vars {
+		if err := c.DefineGlobal(ident, value); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // AddSource adds some YARA source code to be compiled.
@@ -146,10 +257,11 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 // Build creates a [Rules] object containing a compiled version of all the
 // YARA rules previously added to the compiler.
 //
-// Once this function is called the compiler is reset to its initial state,
-// as if it was a newly created compiler.
+// Once this function is called the compiler is reset to its initial state
+// (i.e: the state it had after NewCompiler returned).
 func (c *Compiler) Build() *Rules {
 	r := &Rules{cRules: C.yrx_compiler_build(c.cCompiler)}
+	c.initialize()
 	runtime.SetFinalizer(r, (*Rules).Destroy)
 	runtime.KeepAlive(c)
 	return r

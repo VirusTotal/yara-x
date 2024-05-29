@@ -9,7 +9,7 @@ process goes like:
 
   `source code -> CST -> AST -> IR -> compiled rules`
 
-Contrary to the AST, the IR doesn't have an one-to-one correspondence to the
+Contrary to the AST, the IR doesn't have a one-to-one correspondence to the
 original source code, the compiler is free to transform the IR in ways that
 maintain the semantics of the original source code but doesn't match the code
 exactly. This could be done for example for optimization purposes. Another

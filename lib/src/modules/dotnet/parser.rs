@@ -2744,7 +2744,7 @@ impl From<Dotnet<'_>> for protos::dotnet::Dotnet {
             .user_strings
             .extend(dotnet.get_user_strings().map(|c| c.to_vec()));
 
-        result.field_offsets = dotnet.field_offsets.clone();
+        result.field_offsets.clone_from(&dotnet.field_offsets);
 
         result.set_number_of_streams(result.streams.len().try_into().unwrap());
         result.set_number_of_guids(result.guids.len().try_into().unwrap());
@@ -2835,7 +2835,7 @@ impl From<&Resource<'_>> for protos::dotnet::Resource {
 impl From<&Class<'_>> for protos::dotnet::Class {
     fn from(value: &Class<'_>) -> Self {
         let mut class = protos::dotnet::Class::new();
-        class.fullname = value.full_name.clone();
+        class.fullname.clone_from(&value.full_name);
         if let Some(fullname) = &value.full_name {
             if let Some((namespace, name)) = fullname.rsplit_once('.') {
                 class.set_namespace(namespace.to_string());
@@ -2845,7 +2845,7 @@ impl From<&Class<'_>> for protos::dotnet::Class {
             }
         }
         class.set_type(value.semantics.to_string());
-        class.base_types = value.base_types.clone();
+        class.base_types.clone_from(&value.base_types);
         class.set_sealed(value.is_sealed);
         class.set_abstract(value.is_abstract);
         class.set_visibility(value.visibility.to_string());
@@ -2897,7 +2897,7 @@ impl From<&Method<'_>> for protos::dotnet::Method {
             method.generic_parameters.len().try_into().unwrap(),
         );
 
-        method.return_type = value.return_type.clone();
+        method.return_type.clone_from(&value.return_type);
         method
     }
 }
@@ -2906,7 +2906,7 @@ impl From<&MethodParam<'_>> for protos::dotnet::Param {
     fn from(value: &MethodParam<'_>) -> Self {
         let mut param = protos::dotnet::Param::new();
         param.set_name(value.name.to_string());
-        param.type_ = value.type_.clone();
+        param.type_.clone_from(&value.type_);
         param
     }
 }
