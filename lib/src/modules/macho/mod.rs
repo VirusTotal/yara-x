@@ -311,13 +311,13 @@ fn entitlement_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let mut md5_hash = Md5::new();
     let mut entitlements_to_hash = &macho.entitlements;
 
-    // if there are not any entitlements in the main Macho, the dylibs of the
+    // if there are not any entitlements in the main Macho, the entitlements of the
     // nested file should be hashed
     if entitlements_to_hash.is_empty() && !macho.file.is_empty() {
         entitlements_to_hash = &macho.file[0].entitlements;
     }
 
-    // we need to check again as the nested file dylibs could be empty too
+    // we need to check again as the nested file entitlements could be empty too
     if entitlements_to_hash.is_empty() {
         return None;
     }
@@ -330,6 +330,37 @@ fn entitlement_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         .join(",");
 
     md5_hash.update(entitlements_str.as_bytes());
+
+    let digest = format!("{:x}", md5_hash.finalize());
+    Some(RuntimeString::new(digest))
+}
+
+/// Returns an md5 hash of the export symbols in the mach-o binary
+#[module_export]
+fn export_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
+    let macho = ctx.module_output::<Macho>()?;
+    let mut md5_hash = Md5::new();
+    let mut exports_to_hash = &macho.exports;
+
+    // if there are not any exports in the main Macho, the exports of the
+    // nested file should be hashed
+    if exports_to_hash.is_empty() && !macho.file.is_empty() {
+        exports_to_hash = &macho.file[0].exports;
+    }
+
+    // we need to check again as the nested file exports could be empty too
+    if exports_to_hash.is_empty() {
+        return None;
+    }
+
+    let exports_str: String = exports_to_hash
+        .iter()
+        .map(|e| e.trim().to_lowercase())
+        .unique()
+        .sorted()
+        .join(",");
+
+    md5_hash.update(exports_str.as_bytes());
 
     let digest = format!("{:x}", md5_hash.finalize());
     Some(RuntimeString::new(digest))
