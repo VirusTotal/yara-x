@@ -155,6 +155,12 @@ rule has_rpath_example {
 
 Returns an MD5 hash of the dylibs designated in the Mach-O binary.
 
+{{< callout title="Notice">}}
+
+The returned hash string is always in lowercase.
+
+{{< /callout >}}
+
 #### Example
 
 ```yara
@@ -170,6 +176,12 @@ rule dylib_hash_example {
 
 Returns an MD5 hash of the entitlements designated in the Mach-O binary.
 
+{{< callout title="Notice">}}
+
+The returned hash string is always in lowercase.
+
+{{< /callout >}}
+
 #### Example
 
 ```yara
@@ -184,6 +196,12 @@ rule entitlement_hash_example {
 ### export_hash()
 
 Returns an MD5 hash of the exports designated in the Mach-O binary.
+
+{{< callout title="Notice">}}
+
+The returned hash string is always in lowercase.
+
+{{< /callout >}}
 
 #### Example
 
