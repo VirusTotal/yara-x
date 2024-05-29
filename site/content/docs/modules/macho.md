@@ -227,7 +227,7 @@ rule export_hash_example {
 | uuid                | string                        |
 | build_version       | [BuildVersion](#buildversion) |
 | min_version         | [MinVersion](#minversion)     |
-| exports             | string                        |
+| exports             | string array                  |
 | fat_magic           | integer                       |
 | nfat_arch           | integer                       |
 | fat_arch            | [FatArch](#fatarch) array     |
