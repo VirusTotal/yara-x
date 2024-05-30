@@ -291,17 +291,19 @@ impl Ord for AtomsQuality {
         // It's better to have a set with a single 3-bytes atom than a set with
         // 256 4-bytes atoms.
         if self.min_atom_len.abs_diff(other.min_atom_len) == 1 {
-            // The `other` set has 256 times more atoms than the `self` set.
-            // `self` is better.
-            if self.num_inexact_atoms.saturating_mul(256)
-                == other.num_inexact_atoms
+            // If `other` has more than 256 times the atoms of `self`, `self`
+            // is better.
+            if self.num_inexact_atoms > 0
+                && self.num_inexact_atoms.saturating_mul(256)
+                    <= other.num_inexact_atoms
             {
                 return Ordering::Greater;
             }
-            // The `self` set has 256 times more atoms than the `other` set.
-            // `other` is better.
-            if other.num_inexact_atoms.saturating_mul(256)
-                == self.num_inexact_atoms
+            // If `self` has more than 256 times the atoms of `other`, `other`
+            // is better.
+            if other.num_inexact_atoms > 0
+                && other.num_inexact_atoms.saturating_mul(256)
+                    <= self.num_inexact_atoms
             {
                 return Ordering::Less;
             }
@@ -310,7 +312,7 @@ impl Ord for AtomsQuality {
         // The most important criteria for determining if a set of atoms is
         // better than another one is the minimum atom quality. The minimum
         // atom quality is the quality of the worst atom in the set, and the
-        // set set with the highest minimum is the best.
+        // set with the highest minimum is the best.
         if self.min_atom_quality != other.min_atom_quality {
             return self.min_atom_quality.cmp(&other.min_atom_quality);
         }
