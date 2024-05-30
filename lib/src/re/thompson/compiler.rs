@@ -1592,26 +1592,104 @@ fn simplify_seq(mut seq: Seq) -> Seq {
     seq
 }
 
+/// Given a slice of [`Seq`] (sequence of literals), produce another [`Seq`]
+/// that is the concatenation of the first N sequences in the slice.
+///
+/// How large is N depends on the sequences being concatenated. This function
+/// will try to produce a sequence where the minimum atom size is the largest
+/// possible, without exceeding [`DESIRED_ATOM_SIZE`], while making sure that
+/// the number of literals in the resulting sequence doesn't exceed
+/// [`MAX_ATOMS_PER_REGEXP`].
 fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
-    let mut result = Seq::singleton(hir::literal::Literal::exact(vec![]));
+    let first_seq = match seqs.first() {
+        Some(seq) => seq,
+        None => return None,
+    };
 
-    let mut seqs_added = 0;
+    match first_seq.len() {
+        // Return None if the first sequence contains 256 possible literals
+        // while the maximum literal length is 1. This means the first sequence
+        // is ??.
+        Some(256) => {
+            if matches!(first_seq.max_literal_len(), Some(1) | None) {
+                return None;
+            }
+        }
+        // Return `None` if the first sequence is infinite.
+        None => return None,
+        _ => {}
+    }
 
-    if let Some(first) = seqs.first() {
-        match first.len() {
-            None => return None,
-            Some(256) => {
-                if matches!(first.max_literal_len(), Some(1) | None) {
-                    return None;
+    let mut pending_seqs_to_add = 0;
+    let mut seqs_to_add = 0;
+    let mut pending_min_literal_len = 0;
+    let mut total_min_literal_len = 0;
+
+    for seq in seqs.iter() {
+        match seq.min_literal_len() {
+            Some(min_literal_len) => {
+                // Is OK to call `.unwrap()` on the sequence's length because
+                // it only returns `None` when the sequence is infinite, but
+                // this one is not infinite.
+                let seq_len = seq.len().unwrap();
+
+                // This is the ratio between the number of possible atoms
+                // (seq_len) and the minimum atom size (min_literal_len).
+                let ratio = seq_len as f64 / min_literal_len as f64;
+
+                // We are sure that we want to add the current sequence to the
+                // final result if the ratio is < 256. For wildcards like ??
+                // the ratio will be exactly 256, because we have 256 possible
+                // combinations for a single additional byte. We don't want this
+                // type of wildcard at the end of a sequence, so, in cases where
+                // the ratio is 256 the sequence is "pending", and will be added
+                // only if the next sequence is added too.
+                if min_literal_len > 0 && ratio < 256.0 {
+                    // If there are amounts from previous sequences that are
+                    // pending to be added to `total_min_literal_len`, do it
+                    // and reset `pending_min_literal_len`.
+                    total_min_literal_len += pending_min_literal_len;
+                    pending_min_literal_len = 0;
+                    // If the desired number of atoms is reached after adding
+                    // the pending sequences we break the loop and don't add
+                    // neither the pending sequences nor the current sequence.
+                    if total_min_literal_len >= DESIRED_ATOM_SIZE {
+                        break;
+                    }
+
+                    seqs_to_add += pending_seqs_to_add;
+                    pending_seqs_to_add = 0;
+
+                    total_min_literal_len += min_literal_len;
+                    seqs_to_add += 1;
+
+                    // The desired atom length as been reached, don't process
+                    // more sequences.
+                    if total_min_literal_len >= DESIRED_ATOM_SIZE {
+                        break;
+                    }
+                } else {
+                    pending_min_literal_len += min_literal_len;
+                    pending_seqs_to_add += 1;
                 }
             }
-            _ => {}
+            // Sequence is infinite
+            None => break,
         }
     }
 
-    let mut it = seqs.iter().take(DESIRED_ATOM_SIZE).peekable();
+    if seqs_to_add == 0 {
+        return None;
+    }
 
-    while let Some(seq) = it.next() {
+    // We should add the first `seqs_to_add` to the final result, but real
+    // number of sequences added can be lower than the maximum number of atoms
+    // is reached. Thus, `seqs_added` will contain the real number of
+    // sequences that were added to the result.
+    let mut seqs_added = 0;
+    let mut result = Seq::singleton(hir::literal::Literal::exact(vec![]));
+
+    for seq in seqs.iter().take(seqs_to_add) {
         // If the cross product of `result` with `seq` produces too many
         // literals, stop trying to add more sequences to the result and
         // return what we have so far.
@@ -1620,20 +1698,6 @@ fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
             Some(len) if len > MAX_ATOMS_PER_REGEXP => break,
             _ => {}
         }
-
-        // If this is the last sequence, and it is a sequence of exactly
-        // 256 bytes, we better ignore it because the last byte is actually
-        // useless. This is the case with a pattern like { 01 02 ?? }, where
-        // the ?? at the end triggers this condition. In a case like this one
-        // don't want 256 3-bytes literals, we better have a single 2-bytes
-        // literal.
-        if it.peek().is_none()
-            && matches!(seq.len(), Some(256))
-            && matches!(seq.max_literal_len(), Some(1))
-        {
-            break;
-        }
-
         // If every element in the sequence is inexact, then a cross
         // product will always be a no-op. Thus, there is nothing else we
         // can add to it and can quit early. Note that this also includes
@@ -1647,9 +1711,7 @@ fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
     }
 
     // If there are sequences that were not added to the result, the result
-    // is inexact. This can happen either because the number of sequences
-    // is larger than DESIRED_ATOM_SIZE, or because the number of literals
-    // is already too large we stopped adding more sequences.
+    // is inexact.
     if seqs_added < seqs.len() {
         result.make_inexact();
     }
@@ -1657,7 +1719,7 @@ fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
     result.keep_first_bytes(DESIRED_ATOM_SIZE);
     result.dedup();
 
-    Some(simplify_seq(result))
+    Some(result)
 }
 
 fn seq_to_atoms(seq: Seq) -> Option<Vec<Atom>> {
