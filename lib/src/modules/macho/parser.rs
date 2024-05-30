@@ -1949,11 +1949,11 @@ fn test_uleb_parsing() {
 
 #[test]
 fn test_sleb_parsing() {
-    let sleb_128_in = vec![0b1100_0111, 0b1001_1111, 0b1111_111];
+    let sleb_128_in = vec![0b1100_0111, 0b1001_1111, 0b111_1111];
     let (_remainder, result) = sleb128()(&sleb_128_in).unwrap();
     assert_eq!(-12345, result);
 
-    let sleb_128_in = vec![0b1001_1100, 0b1111_111];
+    let sleb_128_in = vec![0b1001_1100, 0b111_1111];
     let (_remainder, result) = sleb128()(&sleb_128_in).unwrap();
     assert_eq!(-100, result);
 
