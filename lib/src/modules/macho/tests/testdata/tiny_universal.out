@@ -196,6 +196,10 @@ file:
       - "__mh_execute_header"
       - "_factorial"
       - "_main"
+    imports:
+      - "dyld_stub_binder"
+      - "_printf"
+      - "_scanf"
   - magic: 0xcffaedfe
     cputype: 0x1000007
     cpusubtype: 0x80000003
@@ -398,3 +402,7 @@ file:
       - "__mh_execute_header"
       - "_factorial"
       - "_main"
+    imports:
+      - "dyld_stub_binder"
+      - "_printf"
+      - "_scanf"

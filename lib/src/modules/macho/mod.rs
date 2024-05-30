@@ -366,6 +366,36 @@ fn export_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     Some(RuntimeString::new(digest))
 }
 
+/// Returns an md5 hash of the imported symbols in the mach-o binary
+#[module_export]
+fn import_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
+    let macho = ctx.module_output::<Macho>()?;
+    let mut md5_hash = Md5::new();
+    let mut imports_to_hash = &macho.imports;
+
+    // if there are not any imports in the main Macho, the imports of the
+    // nested file should be hashed
+    if imports_to_hash.is_empty() && !macho.file.is_empty() {
+        imports_to_hash = &macho.file[0].imports;
+    }
+
+    // we need to check again as the nested file imports could be empty too
+    if imports_to_hash.is_empty() {
+        return None;
+    }
+
+    let imports_str: String = imports_to_hash
+        .iter()
+        .map(|e| e.trim().to_lowercase())
+        .unique()
+        .sorted()
+        .join(",");
+    md5_hash.update(imports_str.as_bytes());
+
+    let digest = format!("{:x}", md5_hash.finalize());
+    Some(RuntimeString::new(digest))
+}
+
 #[module_main]
 fn main(input: &[u8]) -> Macho {
     match parser::MachO::parse(input) {
