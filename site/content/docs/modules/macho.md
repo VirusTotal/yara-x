@@ -18,16 +18,208 @@ seo:
   noindex: false # false (default) or true
 ---
 
-The `macho` module is very similar to the [pe]({{< ref "pe.md" >}}) module, but
-for [Mach-O](https://en.wikipedia.org/wiki/Mach-O) files. This module exposes
-most of the fields present in a Mach-O file header.
+The `macho` module allows you to create more fine-grained rules for [Mach-O](https://en.wikipedia.org/wiki/Mach-O) files by using attributes and features of the Mach-O file format. This module exposes most of the fields present in a Mach-O header and provides functions which can be used to write more expressive and targeted rules. Let's see some examples:
+
+```yara
+import "macho"
+
+rule cpu_type {
+  condition:
+    macho.cputype == macho.CPU_TYPE_X86_64
+}
+
+rule frameworks_rpath {
+  condition:
+    macho.has_rpath("@loader_path/../Frameworks")
+}
+
+rule dylib_hash {
+  condition:
+    macho.dylib_hash() == "c92070ad210458d5b3e8f048b1578e6d"
+}
+```
 
 -------
+
+## Functions
+
+### file_index_for_arch(type_arg)
+
+Returns the the index of a Mach-O file within a fat binary based on CPU type.
+
+#### Example
+
+```yara
+import "macho"
+
+rule file_index_example {
+  condition:
+    macho.file_index_for_arch(0x00000008) == 0
+}
+```
+
+### file_index_for_arch(type_arg, subtype_arg)
+
+Returns the index of a Mach-O file within a fat binary based on both CPU type and subtype.
+
+#### Example
+
+```yara
+import "macho"
+
+rule file_index_example_sub {
+  condition:
+    macho.file_index_for_arch(0x00000008, 0x00000004) == 0
+}
+```
+
+### entry_point_for_arch(type_arg)
+
+Returns the real entry point offset for a specific CPU type within a fat Mach-O binary.
+
+#### Example
+
+```yara
+import "macho"
+
+rule entrypoint_example {
+  condition:
+    macho.entry_point_for_arch(0x01000007) == 0x00004EE0
+}
+```
+
+### entry_point_for_arch(type_arg, subtype_arg))
+
+Returns the real entry point offset for a specific CPU type and subtype within a fat Mach-O binary.
+
+#### Example
+
+```yara
+import "macho"
+
+rule entrypoint_example_sub {
+  condition:
+    macho.entry_point_for_arch(0x00000007, 0x00000003) == 0x00001EE0
+}
+```
+
+### has_entitlement(entitlement)
+
+Returns true if the Mach-O parsed entitlements contain `entitlement`
+- `entitlement` is case-insensitive.
+  
+#### Example
+
+```yara
+import "macho"
+
+rule has_entitlement_example {
+  condition:
+    macho.has_entitlement("com.apple.security.network.client")
+}
+```
+
+### has_dylib(dylib_name)
+
+Returns true if the Mach-O parsed dylibs contain `dylib_name`
+- `dylib_name` is case-insensitive.
+
+#### Example
+
+```yara
+import "macho"
+
+rule has_dylib_example {
+  condition:
+    macho.has_dylib("/usr/lib/libSystem.B.dylib")
+}
+```
+
+### has_rpath(rpath)
+
+Returns true if the Mach-O parsed rpaths contain `rpath`
+- `rpath` is case-insensitive.
+
+#### Example
+
+```yara
+import "macho"
+
+rule has_rpath_example {
+  condition:
+    macho.has_rpath("@loader_path/../Frameworks")
+}
+```
+
+### dylib_hash()
+
+Returns an MD5 hash of the dylibs designated in the Mach-O binary.
+
+{{< callout title="Notice">}}
+
+The returned hash string is always in lowercase.
+
+{{< /callout >}}
+
+#### Example
+
+```yara
+import "macho"
+
+rule dylib_hash_example {
+  condition:
+    macho.dylib_hash() == "c92070ad210458d5b3e8f048b1578e6d"
+}
+```
+
+### entitlement_hash()
+
+Returns an MD5 hash of the entitlements designated in the Mach-O binary.
+
+{{< callout title="Notice">}}
+
+The returned hash string is always in lowercase.
+
+{{< /callout >}}
+
+#### Example
+
+```yara
+import "macho"
+
+rule entitlement_hash_example {
+  condition:
+    macho.entitlement_hash() == "cc9486efb0ce73ba411715273658da80"
+}
+```
+
+### export_hash()
+
+Returns an MD5 hash of the exports designated in the Mach-O binary.
+
+{{< callout title="Notice">}}
+
+The returned hash string is always in lowercase.
+
+{{< /callout >}}
+
+#### Example
+
+```yara
+import "macho"
+
+rule export_hash_example {
+  condition:
+    macho.export_hash() == "6bfc6e935c71039e6e6abf097830dceb"
+}
+```
+
+------
 
 ### Module structure
 
 | Field               | Type                          |
-|---------------------|-------------------------------|
+| ------------------- | ----------------------------- |
 | magic               | integer                       |
 | cputype             | integer                       |
 | cpusubtype          | integer                       |
@@ -53,6 +245,7 @@ most of the fields present in a Mach-O file header.
 | uuid                | string                        |
 | build_version       | [BuildVersion](#buildversion) |
 | min_version         | [MinVersion](#minversion)     |
+| exports             | string array                  |
 | fat_magic           | integer                       |
 | nfat_arch           | integer                       |
 | fat_arch            | [FatArch](#fatarch) array     |
@@ -61,14 +254,14 @@ most of the fields present in a Mach-O file header.
 ### BuildTool
 
 | Field   | Type    |
-|---------|---------|
+| ------- | ------- |
 | tool    | integer |
 | version | string  |
 
 ### BuildVersion
 
 | Field    | Type                          |
-|----------|-------------------------------|
+| -------- | ----------------------------- |
 | platform | integer                       |
 | minos    | string                        |
 | sdk      | string                        |
@@ -80,14 +273,14 @@ most of the fields present in a Mach-O file header.
 ### Certificates
 
 | Field        | Type         |
-|--------------|--------------|
+| ------------ | ------------ |
 | common_names | string array |
 | signer_names | string array |
 
 ### DyldInfo
 
 | Field          | Type    |
-|----------------|---------|
+| -------------- | ------- |
 | rebase_off     | integer |
 | rebase_size    | integer |
 | bind_off       | integer |
@@ -102,7 +295,7 @@ most of the fields present in a Mach-O file header.
 ### Dylib
 
 | Field                 | Type    |
-|-----------------------|---------|
+| --------------------- | ------- |
 | name                  | string  |
 | timestamp             | integer |
 | compatibility_version | string  |
@@ -111,7 +304,7 @@ most of the fields present in a Mach-O file header.
 ### Dysymtab
 
 | Field          | Type    |
-|----------------|---------|
+| -------------- | ------- |
 | ilocalsym      | integer |
 | nlocalsym      | integer |
 | iextdefsym     | integer |
@@ -134,7 +327,7 @@ most of the fields present in a Mach-O file header.
 ### FatArch
 
 | Field      | Type    |
-|------------|---------|
+| ---------- | ------- |
 | cputype    | integer |
 | cpusubtype | integer |
 | offset     | integer |
@@ -145,7 +338,7 @@ most of the fields present in a Mach-O file header.
 ### File
 
 | Field               | Type                          |
-|---------------------|-------------------------------|
+| ------------------- | ----------------------------- |
 | magic               | integer                       |
 | cputype             | integer                       |
 | cpusubtype          | integer                       |
@@ -175,14 +368,14 @@ most of the fields present in a Mach-O file header.
 ### LinkedItData
 
 | Field    | Type    |
-|----------|---------|
+| -------- | ------- |
 | dataoff  | integer |
 | datasize | integer |
 
 ### MinVersion
 
 | Field   | Type                        |
-|---------|-----------------------------|
+| ------- | --------------------------- |
 | device  | [DEVICE_TYPE](#device_type) |
 | version | string                      |
 | sdk     | string                      |
@@ -190,7 +383,7 @@ most of the fields present in a Mach-O file header.
 ### Section
 
 | Field     | Type    |
-|-----------|---------|
+| --------- | ------- |
 | segname   | string  |
 | sectname  | string  |
 | addr      | integer |
@@ -207,7 +400,7 @@ most of the fields present in a Mach-O file header.
 ### Segment
 
 | Field    | Type                      |
-|----------|---------------------------|
+| -------- | ------------------------- |
 | segname  | string                    |
 | vmaddr   | integer                   |
 | vmsize   | integer                   |
@@ -222,7 +415,7 @@ most of the fields present in a Mach-O file header.
 ### Symtab
 
 | Field   | Type         |
-|---------|--------------|
+| ------- | ------------ |
 | symoff  | integer      |
 | nsyms   | integer      |
 | stroff  | integer      |
@@ -232,14 +425,14 @@ most of the fields present in a Mach-O file header.
 ### CPU_ARM_64_SUBTYPE
 
 | Name                  | Number |
-|-----------------------|--------|
+| --------------------- | ------ |
 | CPU_SUBTYPE_ARM_V5TEJ | 7      |
 | CPU_SUBTYPE_ARM64_ALL | 0      |
 
 ### CPU_ARM_SUBTYPE
 
 | Name                   | Number |
-|------------------------|--------|
+| ---------------------- | ------ |
 | CPU_SUBTYPE_ARM_ALL    | 0      |
 | CPU_SUBTYPE_ARM_V4T    | 5      |
 | CPU_SUBTYPE_ARM_V6     | 6      |
@@ -256,19 +449,19 @@ most of the fields present in a Mach-O file header.
 ### CPU_I386_SUBTYPE
 
 | Name                 | Number |
-|----------------------|--------|
+| -------------------- | ------ |
 | CPU_SUBTYPE_I386_ALL | 3      |
 
 ### CPU_I386_TYPE
 
 | Name          | Number |
-|---------------|--------|
+| ------------- | ------ |
 | CPU_TYPE_I386 | 7      |
 
 ### CPU_INTEL_PENTIUM_SUBTYPE
 
 | Name                       | Number |
-|----------------------------|--------|
+| -------------------------- | ------ |
 | CPU_SUBTYPE_PENT           | 5      |
 | CPU_SUBTYPE_PENTPRO        | 22     |
 | CPU_SUBTYPE_PENTII_M3      | 54     |
@@ -283,7 +476,7 @@ most of the fields present in a Mach-O file header.
 ### CPU_INTEL_SUBTYPE
 
 | Name                        | Number |
-|-----------------------------|--------|
+| --------------------------- | ------ |
 | CPU_SUBTYPE_INTEL_MODEL_ALL | 0      |
 | CPU_SUBTYPE_386             | 3      |
 | CPU_SUBTYPE_486             | 4      |
@@ -299,14 +492,14 @@ most of the fields present in a Mach-O file header.
 ### CPU_MC_SUBTYPE
 
 | Name                     | Number |
-|--------------------------|--------|
+| ------------------------ | ------ |
 | CPU_SUBTYPE_MC980000_ALL | 0      |
 | CPU_SUBTYPE_MC98601      | 1      |
 
 ### CPU_POWERPC_SUBTYPE
 
 | Name                      | Number |
-|---------------------------|--------|
+| ------------------------- | ------ |
 | CPU_SUBTYPE_POWERPC_ALL   | 0      |
 | CPU_SUBTYPE_POWERPC_601   | 1      |
 | CPU_SUBTYPE_POWERPC_602   | 2      |
@@ -324,13 +517,13 @@ most of the fields present in a Mach-O file header.
 ### CPU_SPARC_SUBTYPE
 
 | Name                  | Number |
-|-----------------------|--------|
+| --------------------- | ------ |
 | CPU_SUBTYPE_SPARC_ALL | 0      |
 
 ### CPU_TYPE
 
 | Name               | Number   |
-|--------------------|----------|
+| ------------------ | -------- |
 | CPU_TYPE_MC680X0   | 6        |
 | CPU_TYPE_X86       | 7        |
 | CPU_TYPE_X86_64    | 16777223 |
@@ -346,13 +539,13 @@ most of the fields present in a Mach-O file header.
 ### CPU_X86_SUBTYPE
 
 | Name                   | Number |
-|------------------------|--------|
+| ---------------------- | ------ |
 | CPU_SUBTYPE_X86_64_ALL | 3      |
 
 ### DEVICE_TYPE
 
 | Name     | Number |
-|----------|--------|
+| -------- | ------ |
 | MACOSX   | 36     |
 | IPHONEOS | 37     |
 | TVOS     | 47     |
@@ -361,7 +554,7 @@ most of the fields present in a Mach-O file header.
 ### FAT_HEADER
 
 | Name         | Number |
-|--------------|--------|
+| ------------ | ------ |
 | FAT_MAGIC    | 0      |
 | FAT_CIGAM    | 1      |
 | FAT_MAGIC_64 | 2      |
@@ -370,7 +563,7 @@ most of the fields present in a Mach-O file header.
 ### FILE_FLAG
 
 | Name                       | Number   |
-|----------------------------|----------|
+| -------------------------- | -------- |
 | MH_NOUNDEFS                | 1        |
 | MH_INCRLINK                | 2        |
 | MH_DYLDLINK                | 4        |
@@ -401,7 +594,7 @@ most of the fields present in a Mach-O file header.
 ### FILE_TYPE
 
 | Name           | Number |
-|----------------|--------|
+| -------------- | ------ |
 | MH_OBJECT      | 1      |
 | MH_EXECUTE     | 2      |
 | MH_FVMLIB      | 3      |
@@ -417,7 +610,7 @@ most of the fields present in a Mach-O file header.
 ### HEADER
 
 | Name        | Number |
-|-------------|--------|
+| ----------- | ------ |
 | MH_MAGIC    | 0      |
 | MH_CIGAM    | 1      |
 | MH_MAGIC_64 | 2      |
@@ -426,14 +619,14 @@ most of the fields present in a Mach-O file header.
 ### MASK_64BIT
 
 | Name              | Number   |
-|-------------------|----------|
+| ----------------- | -------- |
 | CPU_ARCH_ABI64    | 16777216 |
 | CPU_SUBTYPE_LIB64 | 0        |
 
 ### SECTION_ATTRIBUTES
 
 | Name                       | Number     |
-|----------------------------|------------|
+| -------------------------- | ---------- |
 | S_ATTR_PURE_INSTRUCTIONS   | 0          |
 | S_ATTR_NO_TOC              | 1073741824 |
 | S_ATTR_STRIP_STATIC_SYMS   | 536870912  |
@@ -448,7 +641,7 @@ most of the fields present in a Mach-O file header.
 ### SECTION_TYPE
 
 | Name                                  | Number |
-|---------------------------------------|--------|
+| ------------------------------------- | ------ |
 | S_REGULAR                             | 0      |
 | S_ZEROFILL                            | 1      |
 | S_CSTRING_LITERALS                    | 2      |
@@ -475,7 +668,7 @@ most of the fields present in a Mach-O file header.
 ### SEGMENT_FLAG
 
 | Name                   | Number |
-|------------------------|--------|
+| ---------------------- | ------ |
 | SG_HIGHVM              | 1      |
 | SG_FVMLIB              | 2      |
 | SG_NORELOC             | 4      |
