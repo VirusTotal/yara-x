@@ -1596,10 +1596,24 @@ fn simplify_seq(mut seq: Seq) -> Seq {
 /// that is the concatenation of the first N sequences in the slice.
 ///
 /// How large is N depends on the sequences being concatenated. This function
-/// will try to produce a sequence where the minimum atom size is the largest
-/// possible, without exceeding [`DESIRED_ATOM_SIZE`], while making sure that
-/// the number of literals in the resulting sequence doesn't exceed
+/// will try to produce a sequence where the minimum literal size is the largest
+/// possible, without exceeding [`DESIRED_ATOM_SIZE`], while also making sure
+/// that the number of literals in the resulting sequence doesn't exceed
 /// [`MAX_ATOMS_PER_REGEXP`].
+///
+/// This function also tries to obtain a good balance between the number of
+/// literals in the resulting sequence and their lengths. Sometimes the number
+/// of literals can be reduced at the expense of trimming the final bytes of
+/// each literal. For instance, the sequences composed by literals `01 02 XX`,
+/// where XX are all possible bytes, contains 256 literals, each of them 3 
+/// bytes long. This sequence can be reduced to a sequence with a single 
+/// `01 02` literal.
+///
+/// In some cases the function also returns [`None`]. Particularly,
+/// 
+/// * when the input slice is empty.
+/// * when the first sequence in the slice has 256 single byte literals.
+///   
 fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
     let first_seq = match seqs.first() {
         Some(seq) => seq,
@@ -1632,6 +1646,21 @@ fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
                 // it only returns `None` when the sequence is infinite, but
                 // this one is not infinite.
                 let seq_len = seq.len().unwrap();
+
+                // Make sure that all literals in the sequence are either exact
+                // or have 2 byte more (notice that the empty literal is allowed
+                // if it is exact).
+                //
+                // This stops adding more sequences when .* is found, but keeps
+                // adding more if we find something like (foo)*.
+                if !seq
+                    .literals()
+                    .unwrap()
+                    .iter()
+                    .all(|lit| lit.is_exact() || lit.len() >= 2)
+                {
+                    break;
+                }
 
                 // This is the ratio between the number of possible atoms
                 // (seq_len) and the minimum atom size (min_literal_len).
