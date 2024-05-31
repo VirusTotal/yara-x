@@ -1605,12 +1605,12 @@ fn simplify_seq(mut seq: Seq) -> Seq {
 /// literals in the resulting sequence and their lengths. Sometimes the number
 /// of literals can be reduced at the expense of trimming the final bytes of
 /// each literal. For instance, the sequences composed by literals `01 02 XX`,
-/// where XX are all possible bytes, contains 256 literals, each of them 3 
-/// bytes long. This sequence can be reduced to a sequence with a single 
+/// where XX are all possible bytes, contains 256 literals, each of them 3
+/// bytes long. This sequence can be reduced to a sequence with a single
 /// `01 02` literal.
 ///
 /// In some cases the function also returns [`None`]. Particularly,
-/// 
+///
 /// * when the input slice is empty.
 /// * when the first sequence in the slice has 256 single byte literals.
 ///   
