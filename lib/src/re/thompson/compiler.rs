@@ -1648,8 +1648,8 @@ fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
                 let seq_len = seq.len().unwrap();
 
                 // Make sure that all literals in the sequence are either exact
-                // or have 2 byte more (notice that the empty literal is allowed
-                // if it is exact).
+                // or have 2 bytes or more (notice that the empty literal is
+                // allowed if it is exact).
                 //
                 // This stops adding more sequences when .* is found, but keeps
                 // adding more if we find something like (foo)*.
