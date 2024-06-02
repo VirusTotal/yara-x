@@ -169,7 +169,7 @@ rule has_import_example {
 
 ### has_export(export)
 
-Returns true if the Mach-O parsed expors contain `export`
+Returns true if the Mach-O parsed exports contain `export`
 - `export` is case-insensitive.
 
 #### Example
