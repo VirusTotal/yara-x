@@ -430,4 +430,48 @@ fn test_macho_module() {
         "#,
         &chess_macho_data
     );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.has_import("_NSEventTrackingRunLoopMode")
+        }
+        "#,
+        &chess_macho_data
+    );
+
+    rule_false!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.has_import("_NventTrackingRunLoopMode")
+        }
+        "#,
+        &chess_macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.has_export("_factorial")
+        }
+        "#,
+        &tiny_universal_macho_data
+    );
+
+    rule_false!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.has_export("__notfound_export")
+        }
+        "#,
+        &tiny_universal_macho_data
+    );
 }

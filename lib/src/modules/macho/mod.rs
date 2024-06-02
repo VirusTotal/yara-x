@@ -266,6 +266,56 @@ fn has_rpath(ctx: &ScanContext, rpath: RuntimeString) -> Option<bool> {
     Some(false)
 }
 
+/// Returns true if the Mach-O parsed imports contain `import`
+///
+/// `import` is case-insensitive
+#[module_export]
+fn has_import(ctx: &ScanContext, import: RuntimeString) -> Option<bool> {
+    let macho = ctx.module_output::<Macho>()?;
+    let expected_import = import.as_bstr(ctx);
+
+    for im in macho.imports.iter() {
+        if expected_import.eq_ignore_ascii_case(im.as_bytes()) {
+            return Some(true);
+        }
+    }
+
+    for file in macho.file.iter() {
+        for im in file.imports.iter() {
+            if expected_import.eq_ignore_ascii_case(im.as_bytes()) {
+                return Some(true);
+            }
+        }
+    }
+
+    Some(false)
+}
+
+/// Returns true if the Mach-O parsed exports contain `export`
+///
+/// `export` is case-insensitive
+#[module_export]
+fn has_export(ctx: &ScanContext, export: RuntimeString) -> Option<bool> {
+    let macho = ctx.module_output::<Macho>()?;
+    let expected_export = export.as_bstr(ctx);
+
+    for ex in macho.exports.iter() {
+        if expected_export.eq_ignore_ascii_case(ex.as_bytes()) {
+            return Some(true);
+        }
+    }
+
+    for file in macho.file.iter() {
+        for ex in file.exports.iter() {
+            if expected_export.eq_ignore_ascii_case(ex.as_bytes()) {
+                return Some(true);
+            }
+        }
+    }
+
+    Some(false)
+}
+
 /// Returns an md5 hash of the dylibs designated in the mach-o binary
 #[module_export]
 fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
