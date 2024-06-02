@@ -6,6 +6,7 @@ More specifically, the compiler produces two instruction sequences, one that
 matches the regexp left-to-right, and another one that matches right-to-left.
 */
 
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::io::{Cursor, Read, Seek, SeekFrom, Write};
@@ -1569,99 +1570,173 @@ impl Display for InstrSeq {
     }
 }
 
-fn simplify_seq(mut seq: Seq) -> Seq {
-    seq.dedup();
-    // If the literal extractor produced exactly 256 atoms, and those atoms
-    // have a common prefix that is one byte shorter than the longest atom,
-    // we are in the case where we have 256 atoms that differ only in the
-    // last byte. It doesn't make sense to have 256 atoms of length N, when
-    // we can have 1 atom of length N-1 by discarding the last byte.
-    if let Some(256) = seq.len() {
-        if let Some(max_len) = seq.max_literal_len() {
-            if max_len > 1 {
-                if let Some(longest_prefix) = seq.longest_common_prefix() {
-                    if longest_prefix.len() == max_len - 1 {
-                        return Seq::singleton(
-                            hir::literal::Literal::inexact(longest_prefix),
-                        );
-                    }
-                }
+/// Given a slice of [`Seq`] (sequence of literals), produce another [`Seq`]
+/// that is the concatenation of the first N sequences in the slice.
+///
+/// How large is N depends on the sequences being concatenated. This function
+/// will try to produce a sequence where the minimum literal size is the largest
+/// possible, without exceeding [`DESIRED_ATOM_SIZE`], while also making sure
+/// that the number of literals in the resulting sequence doesn't exceed
+/// [`MAX_ATOMS_PER_REGEXP`].
+///
+/// This function also tries to obtain a good balance between the number of
+/// literals in the resulting sequence and their lengths. Sometimes the number
+/// of literals can be reduced at the expense of trimming the final bytes of
+/// each literal. For instance, the sequences composed by literals `01 02 XX`,
+/// where XX are all possible bytes, contains 256 literals, each of them 3
+/// bytes long. This sequence can be reduced to a sequence with a single
+/// `01 02` literal.
+///
+/// In some cases the function also returns [`None`]. Particularly,
+///
+/// * when the input slice is empty.
+/// * when the first sequence in the slice has 256 single byte literals.
+///   
+fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
+    let first_seq = match seqs.first() {
+        Some(seq) => seq,
+        None => return None,
+    };
+
+    match first_seq.len() {
+        // Return None if the first sequence contains 256 possible literals
+        // while the maximum literal length is 1. This means the first sequence
+        // is ??.
+        Some(256) => {
+            if matches!(first_seq.max_literal_len(), Some(1) | None) {
+                return None;
             }
         }
+        // Return `None` if the first sequence is infinite.
+        None => return None,
+        _ => {}
     }
-    seq
-}
-
-fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
-    let mut result = Seq::singleton(hir::literal::Literal::exact(vec![]));
 
     let mut seqs_added = 0;
+    let mut total_min_literal_len = 0;
+    let mut result = Seq::singleton(hir::literal::Literal::exact(vec![]));
 
-    if let Some(first) = seqs.first() {
-        match first.len() {
-            None => return None,
-            Some(256) => {
-                if matches!(first.max_literal_len(), Some(1) | None) {
-                    return None;
+    for seq in seqs.iter() {
+        match seq.min_literal_len() {
+            Some(min_literal_len) => {
+                // If the cross product of `result` with `seq` produces too many
+                // literals, stop trying to add more sequences to the result and
+                // return what we have so far.
+                match result.max_cross_len(seq) {
+                    None => break,
+                    Some(len) if len > MAX_ATOMS_PER_REGEXP => break,
+                    _ => {}
+                }
+
+                result.cross_forward(&mut seq.clone());
+                seqs_added += 1;
+                total_min_literal_len += min_literal_len;
+
+                // The desired atom length as been reached, don't process
+                // more sequences.
+                if total_min_literal_len >= DESIRED_ATOM_SIZE {
+                    break;
+                }
+
+                // If every element in the sequence is inexact, then a cross
+                // product will always be a no-op. Thus, there is nothing else we
+                // can add to it and can quit early. Note that this also includes
+                // infinite sequences.
+                if result.is_inexact() {
+                    break;
                 }
             }
-            _ => {}
-        }
-    }
-
-    let mut it = seqs.iter().take(DESIRED_ATOM_SIZE).peekable();
-
-    while let Some(seq) = it.next() {
-        // If the cross product of `result` with `seq` produces too many
-        // literals, stop trying to add more sequences to the result and
-        // return what we have so far.
-        match result.max_cross_len(seq) {
             None => break,
-            Some(len) if len > MAX_ATOMS_PER_REGEXP => break,
-            _ => {}
         }
-
-        // If this is the last sequence, and it is a sequence of exactly
-        // 256 bytes, we better ignore it because the last byte is actually
-        // useless. This is the case with a pattern like { 01 02 ?? }, where
-        // the ?? at the end triggers this condition. In a case like this one
-        // don't want 256 3-bytes literals, we better have a single 2-bytes
-        // literal.
-        if it.peek().is_none()
-            && matches!(seq.len(), Some(256))
-            && matches!(seq.max_literal_len(), Some(1))
-        {
-            break;
-        }
-
-        // If every element in the sequence is inexact, then a cross
-        // product will always be a no-op. Thus, there is nothing else we
-        // can add to it and can quit early. Note that this also includes
-        // infinite sequences.
-        if result.is_inexact() {
-            break;
-        }
-
-        result.cross_forward(&mut seq.clone());
-        seqs_added += 1;
     }
 
     // If there are sequences that were not added to the result, the result
-    // is inexact. This can happen either because the number of sequences
-    // is larger than DESIRED_ATOM_SIZE, or because the number of literals
-    // is already too large we stopped adding more sequences.
+    // is inexact.
     if seqs_added < seqs.len() {
         result.make_inexact();
     }
 
     result.keep_first_bytes(DESIRED_ATOM_SIZE);
-    result.dedup();
 
-    Some(simplify_seq(result))
+    optimize_seq(result)
+}
+
+/// Optimizes a [`Seq`] (sequence of literals) by removing duplicate literals
+/// and reducing the number of literals at the expense of literal length.
+///
+/// For instance, if the sequence have literals `01 02 XX`, where `XX` means
+/// every possible byte value, those 256 different literals can be replaced
+/// by the single literal `01 02`. This literal is shorter, but it's better
+/// to have a shorter literal than 256 literals that only differ in the last
+/// byte.
+fn optimize_seq(mut seq: Seq) -> Option<Seq> {
+    let literals = seq.literals()?;
+
+    // The sequence has a single literal, nothing to be optimized.
+    if literals.len() == 1 {
+        return Some(seq);
+    }
+
+    // Hash map where keys are literal prefixes (all bytes in the literal
+    // except for the last one), and values are 256-bits bitmaps. Each bit in
+    // the bitmap tells if the corresponding byte was seen at the end of the
+    // literal. For instance, if the sequence contains literals `01 02 03` and
+    // `01 02 04`, the key `01 02` will contain a bitmap where bits 3 and 4
+    // are set, while the rest of the bits are unset.
+    let mut map = HashMap::new();
+
+    for lit in literals {
+        // `prefix` contains all bytes in the literal except the last one.
+        // The literal is not empty, so it's length is >= 1.
+        if let Some((last_byte, prefix)) = lit.as_bytes().split_last() {
+            map.entry(prefix)
+                .or_insert_with(|| BitArray::<[u8; 32], Lsb0>::new([0_u8; 32]))
+                .set(*last_byte as usize, true);
+        }
+    }
+
+    // Keep the entries where the bitmap has 256 bits set to one. This means
+    // that the corresponding prefix has been seen together with all possible
+    // combinations for the last byte. The remaining entries correspond to
+    // literals that can be shortened by truncating the last byte.
+    map.retain(|_, bitmap| bitmap.count_ones() == 256);
+
+    // Nothing to optimize, except literal de-duplication.
+    if map.is_empty() {
+        seq.dedup();
+        return Some(seq);
+    }
+
+    for (_, bitmap) in map.iter_mut() {
+        bitmap.set(0, true);
+    }
+
+    let mut result = Seq::empty();
+
+    for lit in literals {
+        if let Some((_, prefix)) = lit.as_bytes().split_last() {
+            match map.entry(prefix) {
+                Entry::Occupied(mut entry) => {
+                    let bitmap = entry.get_mut();
+                    if *bitmap.get(0).unwrap() {
+                        bitmap.set(0, false);
+                        result.push(hir::literal::Literal::inexact(prefix));
+                    }
+                }
+                Entry::Vacant(_) => result.push(lit.clone()),
+            }
+        } else {
+            // The literal is empty, copy it as is.
+            result.push(lit.clone());
+        }
+    }
+
+    result.dedup();
+    Some(result)
 }
 
 fn seq_to_atoms(seq: Seq) -> Option<Vec<Atom>> {
-    simplify_seq(seq)
+    optimize_seq(seq)?
         .literals()
         .map(|literals| literals.iter().map(Atom::from).collect())
 }

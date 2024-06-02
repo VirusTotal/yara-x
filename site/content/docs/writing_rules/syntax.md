@@ -72,6 +72,11 @@ rule MetadataExample {
         my_identifier_1 = "Some string data"
         my_identifier_2 = 24
         my_identifier_3 = true
+        my_identifier_4 = """
+        A multi-line string with embedded newline characters.
+
+        This can be useful for adding more context about your rule.
+        """
     strings:
         $my_text_string = "text here"
         $my_hex_string = { E2 34 A1 C8 23 FB }
@@ -87,6 +92,11 @@ or one of the boolean values `true` or `false`.
 Note that identifier/value pairs defined in the metadata section cannot be used
 in the condition section, their only purpose is to store additional information
 about the rule.
+
+Starting with YARA-X 0.4.0 multi-line strings are supported in the metadata
+section. This can be useful for adding more context to the rule directly in the
+rule itself, instead of in a comment that someone would have to manually look
+for.
 
 ## Tags
 
