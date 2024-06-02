@@ -214,6 +214,27 @@ rule export_hash_example {
 }
 ```
 
+### import_hash()
+
+Returns an MD5 hash of the imports designated in the Mach-O binary.
+
+{{< callout title="Notice">}}
+
+The returned hash string is always in lowercase.
+
+{{< /callout >}}
+
+#### Example
+
+```yara
+import "macho"
+
+rule import_hash_example {
+  condition:
+    macho.import_hash() == "35ea3b116d319851d93e26f7392e876e"
+}
+```
+
 ------
 
 ### Module structure
