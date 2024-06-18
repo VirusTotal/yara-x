@@ -174,7 +174,7 @@ fn gen_build_func(
 ) -> syn::Result<TokenStream> {
     match &variant.fields {
         syn::Fields::Named(fields) => {
-            // Each error variant has one or more labels (e.g. #[label(...)]), 
+            // Each error variant has one or more labels (e.g. #[label(...)]),
             // get the labels for this variant.
             let labels = get_labels(kind, variant)?;
 
@@ -192,7 +192,7 @@ fn gen_build_func(
             // by get_labels.
             let main_label_span = &main_label.0;
 
-            // The arguments to the function have the same names and types as 
+            // The arguments to the function have the same names and types as
             // the fields in the struct variant. Except for the field named
             // `detailed_report`, which is not included in the arguments.
             let mut args = TokenStream::new();
@@ -224,7 +224,7 @@ fn gen_build_func(
                 "warning" => quote!(Level::Warning),
                 _  => unreachable!(),
             };
-            
+
             Ok(quote!(
                 #[doc(hidden)]
                 pub fn #fn_ident(report_builder: &ReportBuilder, #args) -> Self {
