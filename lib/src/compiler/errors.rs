@@ -7,10 +7,10 @@ use yara_x_macros::Error as DeriveError;
 use yara_x_parser::ast::Span;
 use yara_x_parser::report::Level;
 use yara_x_parser::report::ReportBuilder;
-use yara_x_parser::InvalidWarningCode;
 
 pub use yara_x_parser::Error as ParseError;
 
+use crate::compiler::warnings::InvalidWarningCode;
 use crate::VariableError;
 
 /// Errors returned while serializing/deserializing compiled rules.

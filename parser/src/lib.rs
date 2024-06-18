@@ -26,16 +26,12 @@ to solve.
 
 extern crate core;
 
+mod parser;
+
 pub mod ast;
 pub mod cst;
+
 pub use parser::*;
-
-#[doc(inline)]
-pub use warnings::*;
-
-mod parser;
 
 #[doc(hidden)]
 pub mod report;
-#[doc(hidden)]
-pub mod warnings;

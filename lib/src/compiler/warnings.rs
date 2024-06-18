@@ -4,12 +4,13 @@ use std::fmt::{Debug, Display, Formatter};
 use thiserror::Error;
 use yara_x_macros::Error as DeriveError;
 
-use crate::ast::Span;
-use crate::report::Level;
-use crate::report::ReportBuilder;
+use yara_x_parser::ast::Span;
+use yara_x_parser::report::Level;
+use yara_x_parser::report::ReportBuilder;
 
-/// A warning raised while parsing YARA rules.
+/// A warning raised while compiling YARA rules.
 #[rustfmt::skip]
+#[allow(missing_docs)]
 #[derive(DeriveError)]
 pub enum Warning {
     #[warning("consecutive_jumps", "consecutive jumps in hex pattern `{pattern_ident}`")]

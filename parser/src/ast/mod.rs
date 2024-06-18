@@ -34,7 +34,7 @@ use bstr::{BStr, BString};
 use yara_x_macros::*;
 
 pub use crate::ast::span::*;
-use crate::{SourceCode, Warnings};
+use crate::SourceCode;
 
 /// Abstract Syntax Tree (AST) for YARA rules.
 pub struct AST<'src> {
@@ -44,8 +44,6 @@ pub struct AST<'src> {
     pub imports: Vec<Import>,
     /// The list of rules in the AST.
     pub rules: Vec<Rule<'src>>,
-    /// Warnings generated while building this AST.
-    pub warnings: Warnings,
 }
 
 #[cfg(feature = "ascii-tree")]
@@ -132,7 +130,7 @@ impl<'src> Display for MetaValue<'src> {
     }
 }
 
-/// Types of patterns (a.k.a strings) that can appear in a YARA rule.
+/// Types of patterns (a.k.a. strings) that can appear in a YARA rule.
 ///
 /// Possible types are: text patterns, hex patterns and regular expressions.
 #[derive(Debug)]
@@ -230,7 +228,7 @@ impl<'src> Iterator for PatternModifiersIter<'src> {
     }
 }
 
-/// A pattern (a.k.a string) modifier.
+/// A pattern (a.k.a. string) modifier.
 #[derive(Debug, HasSpan)]
 pub enum PatternModifier<'src> {
     Ascii { span: Span },
@@ -303,7 +301,7 @@ impl Display for PatternModifier<'_> {
     }
 }
 
-/// A text pattern (a.k.a text string) in a YARA rule.
+/// A text pattern (a.k.a. text string) in a YARA rule.
 #[derive(Debug, HasSpan)]
 pub struct TextPattern<'src> {
     pub span: Span,
@@ -321,7 +319,7 @@ pub struct RegexpPattern<'src> {
     pub modifiers: PatternModifiers<'src>,
 }
 
-/// A hex pattern (a.k.a hex string) in a YARA rule.
+/// A hex pattern (a.k.a. hex string) in a YARA rule.
 #[derive(Debug, HasSpan)]
 pub struct HexPattern<'src> {
     pub span: Span,
@@ -330,13 +328,13 @@ pub struct HexPattern<'src> {
     pub modifiers: PatternModifiers<'src>,
 }
 
-/// A sequence of tokens that conform a hex pattern (a.k.a hex string).
+/// A sequence of tokens that conform a hex pattern (a.k.a. hex string).
 #[derive(Debug)]
 pub struct HexTokens {
     pub tokens: Vec<HexToken>,
 }
 
-/// Each of the types of tokens in a hex pattern (a.k.a hex string).
+/// Each of the types of tokens in a hex pattern (a.k.a. hex string).
 ///
 /// A token can be a single byte, a negated byte (e.g. `~XX`), an
 /// alternative (e.g `(XXXX|YYYY)`), or a jump (e.g `[0-10]`).
@@ -348,7 +346,7 @@ pub enum HexToken {
     Jump(HexJump),
 }
 
-/// A single byte in a hex pattern (a.k.a hex string).
+/// A single byte in a hex pattern (a.k.a. hex string).
 ///
 /// The byte's value is accompanied by a mask that indicates which bits in the
 /// value are taken into account during matching, and which are ignored. A bit
@@ -364,7 +362,7 @@ pub struct HexByte {
     pub mask: u8,
 }
 
-/// An alternative in a hex pattern (a.k.a hex string).
+/// An alternative in a hex pattern (a.k.a. hex string).
 ///
 /// Alternatives are sequences of hex tokens separated by `|`.
 #[derive(Debug)]
@@ -372,11 +370,17 @@ pub struct HexAlternative {
     pub alternatives: Vec<HexTokens>,
 }
 
-/// A jump in a hex pattern (a.k.a hex string).
+/// A jump in a hex pattern (a.k.a. hex string).
 #[derive(Debug)]
 pub struct HexJump {
     pub start: Option<u16>,
     pub end: Option<u16>,
+    /// If this jump is the result of coalescing multiple consecutive jumps,
+    /// the `coalesced_span` field contains the [`Span`] that covers all the
+    /// coalesced jumps. This is an internal field, it's declared as `pub`
+    /// because it must be accessed from the `yara_x` crate.
+    #[doc(hidden)]
+    pub coalesced_span: Option<Span>,
 }
 
 impl HexJump {
