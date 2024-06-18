@@ -108,16 +108,16 @@ fn hex_byte_to_class(b: &ast::HexByte) -> hir::ClassBytes {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    
+
     use regex_syntax::hir::{
         Class, ClassBytes, ClassBytesRange, Dot, Hir, HirKind, Repetition,
     };
-    
+
     use yara_x_parser::ast::{
         HexAlternative, HexByte, HexJump, HexPattern, HexToken, HexTokens,
         Ident,
     };
-    
+
     use yara_x_parser::report::ReportBuilder;
 
     use super::hex_byte_to_class;

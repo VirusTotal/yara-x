@@ -4,8 +4,7 @@ use convert_case::{Case, Casing};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens, TokenStreamExt};
 use syn::{
-    Attribute, DataEnum, DeriveInput, Ident, Lit, Meta, NestedMeta,
-    Variant,
+    Attribute, DataEnum, DeriveInput, Ident, Lit, Meta, NestedMeta, Variant,
 };
 
 pub(crate) fn impl_error_macro(
@@ -34,7 +33,7 @@ pub(crate) fn impl_error_macro(
         impl #impl_generics #name #ty_generics #where_clause {
             #(#funcs)*
         }
-        
+
         #[automatically_derived]
         impl #impl_generics #name #ty_generics #where_clause {
             /// Returns a unique error code identifying the type of error/warning.
@@ -45,11 +44,11 @@ pub(crate) fn impl_error_macro(
                     })*,
                 }
             }
-            
+
             fn is_valid_code(code: &str) -> bool {
                 Self::all_codes().iter().any(|c| *c == code)
             }
-            
+
             fn all_codes() -> &'static [&'static str] {
                 &[ #( #codes, )* ]
             }
@@ -100,7 +99,12 @@ fn impl_enum_error_macro(
         for attr in &variant.attrs {
             if let Some((kind, code, description)) = parse_attr(attr)? {
                 variants.push(&variant.ident);
-                funcs.push(gen_build_func(kind, &code, &description, variant)?);
+                funcs.push(gen_build_func(
+                    kind,
+                    &code,
+                    &description,
+                    variant,
+                )?);
                 codes.push(code);
             }
         }
@@ -124,7 +128,7 @@ fn parse_attr(
     };
 
     let mut attr_args = match meta {
-        // `error` and `warning` must be list-style attributes, as in 
+        // `error` and `warning` must be list-style attributes, as in
         // #[error(...)]
         Meta::List(list) => list.nested,
         // any other syntax, like #[error] or #[error = "..."] is not
@@ -152,11 +156,11 @@ fn parse_attr(
                 ),
             ));
     }
-    
+
     // Arguments are popped in reverse order.
     let description = attr_args.pop().unwrap().into_value();
     let code = attr_args.pop().unwrap().into_value();
-    
+
     Ok(Some((kind, code, description)))
 }
 
