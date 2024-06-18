@@ -86,6 +86,7 @@ pub fn compile_rules<'a, P>(
     path_as_namespace: bool,
     external_vars: Option<Vec<(String, Value)>>,
     relaxed_re_syntax: bool,
+    disabled_warnings: Vec<&str>,
 ) -> Result<Rules, anyhow::Error>
 where
     P: Iterator<Item = &'a PathBuf>,
@@ -95,6 +96,17 @@ where
     compiler
         .relaxed_re_syntax(relaxed_re_syntax)
         .colorize_errors(stdout().is_tty());
+
+    // If the `disabled_warnings` vector contains "all", all warnings will
+    // be disabled. Otherwise, only the warnings with codes listed in
+    // `disabled_warnings` will be disabled.
+    if disabled_warnings.iter().any(|w| *w == "all") {
+        compiler.switch_all_warnings(false);
+    } else {
+        for warning in &disabled_warnings {
+            compiler.switch_warning(warning, false)?;
+        }
+    }
 
     if let Some(vars) = external_vars {
         for (ident, value) in vars {

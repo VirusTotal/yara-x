@@ -1,4 +1,4 @@
-warning: duplicate import statement
+warning[duplicate_import]: duplicate import statement
  --> line:2:1
   |
 1 | import "test_proto2"

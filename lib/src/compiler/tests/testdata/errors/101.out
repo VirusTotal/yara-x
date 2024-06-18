@@ -1,4 +1,4 @@
-error: invalid integer
+error[E012]: invalid integer
  --> line:3:18
   |
 3 |     $a = { 11 [0-65536] 22 }

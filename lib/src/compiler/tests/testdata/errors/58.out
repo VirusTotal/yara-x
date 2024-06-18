@@ -1,4 +1,4 @@
-error: wrong arguments
+error[E102]: wrong arguments
  --> line:4:20
   |
 4 |     test_proto2.add(1, "2") == 3

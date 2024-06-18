@@ -1,4 +1,4 @@
-error: wrong type
+error[E100]: wrong type
  --> line:3:17
   |
 3 |     1 of (true, 2, false)

@@ -1,4 +1,4 @@
-error: unused pattern `$c`
+error[E008]: unused pattern `$c`
  --> line:5:6
   |
 5 |      $c = "baz"

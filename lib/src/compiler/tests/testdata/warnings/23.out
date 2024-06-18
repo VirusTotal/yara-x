@@ -1,4 +1,4 @@
-warning: slow pattern
+warning[slow_pattern]: slow pattern
  --> line:3:10
   |
 3 |     $a = {00 [1-10] 01}

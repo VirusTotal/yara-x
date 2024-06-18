@@ -1,4 +1,4 @@
-error: duplicate rule `test`
+error[E110]: duplicate rule `test`
  --> line:1:6
   |
 1 | rule test {

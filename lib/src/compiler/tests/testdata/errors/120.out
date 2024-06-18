@@ -1,4 +1,4 @@
-error: invalid pattern `$a`
+error[E010]: invalid pattern `$a`
  --> line:3:10
   |
 3 |     $a = ""

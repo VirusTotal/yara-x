@@ -1,4 +1,4 @@
-error: invalid regular expression
+error[E112]: invalid regular expression
  --> line:3:15
   |
 3 |     $a = /abc[b-a]/

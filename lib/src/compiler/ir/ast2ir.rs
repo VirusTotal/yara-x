@@ -705,7 +705,7 @@ fn of_expr_from_ast(
 
         if raise_warning {
             ctx.warnings.add(|| {
-                Warning::potentially_wrong_expression(
+                Warning::potentially_unsatisfiable_expression(
                     ctx.report_builder,
                     of.quantifier.span(),
                     of.anchor.as_ref().unwrap().span(),

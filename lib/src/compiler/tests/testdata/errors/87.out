@@ -1,4 +1,4 @@
-error: syntax error
+error[syntax_error]: syntax error
  --> line:3:18
   |
 3 |   any of (a,b,c) in (0..100)

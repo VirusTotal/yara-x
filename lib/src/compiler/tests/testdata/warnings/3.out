@@ -1,4 +1,4 @@
-warning: potentially wrong expression
+warning[unsatisfiable_expr]: potentially unsatisfiable expression
  --> line:6:5
   |
 6 |     all of them at 0

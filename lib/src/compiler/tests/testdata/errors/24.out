@@ -1,4 +1,4 @@
-error: wrong type
+error[E100]: wrong type
  --> line:5:5
   |
 5 |     "1" of them

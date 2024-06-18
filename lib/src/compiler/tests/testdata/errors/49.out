@@ -1,4 +1,4 @@
-error: wrong type
+error[E100]: wrong type
  --> line:4:18
   |
 4 |     for all x in test_proto2.int64_zero : ( true )

@@ -1,4 +1,4 @@
-error: unexpected negative number
+error[E104]: unexpected negative number
  --> line:5:11
   |
 5 |     $a at -1

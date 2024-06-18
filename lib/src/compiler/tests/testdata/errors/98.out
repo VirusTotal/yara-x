@@ -1,4 +1,4 @@
-error: syntax error
+error[E001]: syntax error
  --> line:5:6
   |
 5 |      $

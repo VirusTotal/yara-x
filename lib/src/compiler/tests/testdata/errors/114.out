@@ -1,4 +1,4 @@
-error: invalid modifier combination: `base64wide` `nocase`
+error[E006]: invalid modifier combination: `base64wide` `nocase`
  --> line:3:29
   |
 3 |     $a = "foo" nocase ascii base64wide

@@ -122,7 +122,8 @@ impl ReportBuilder {
         &self,
         level: Level,
         span: Span,
-        title: String,
+        code: &str,
+        title: &str,
         labels: Vec<(Span, String, Level)>,
         note: Option<String>,
     ) -> String {
@@ -131,7 +132,7 @@ impl ReportBuilder {
         let mut cache_entry = cache.data.get(&source_id).unwrap();
         let mut src = cache_entry.code.as_str();
 
-        let mut message = level.title(title.as_str());
+        let mut message = level.title(title).id(code);
 
         let mut snippet = annotate_snippets::Snippet::source(src)
             .origin(cache_entry.origin.as_deref().unwrap_or("line"))
@@ -227,7 +228,8 @@ impl ReportBuilder {
         let detailed_report = self.create_report(
             Level::Error,
             error_span,
-            title.to_string(),
+            "syntax_error",
+            title,
             vec![(error_span, error_msg.clone(), Level::Error)],
             note,
         );

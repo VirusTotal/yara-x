@@ -569,6 +569,28 @@ impl<'a> Compiler<'a> {
         self
     }
 
+    /// Enables or disables a specific type of warning.
+    ///
+    /// Each warning type has a description code (i.e: `slow_pattern`,
+    /// `unsupported_module`, etc.). This function allows to enable or disable
+    /// a specific type of warning identified by the given code.
+    ///
+    /// Returns an error if the given warning code doesn't exist.
+    pub fn switch_warning(
+        &mut self,
+        code: &str,
+        enabled: bool,
+    ) -> Result<&mut Self, Error> {
+        self.warnings.switch_warning(code, enabled)?;
+        Ok(self)
+    }
+
+    /// Enables or disables all warnings.
+    pub fn switch_all_warnings(&mut self, enabled: bool) -> &mut Self {
+        self.warnings.switch_all_warnings(enabled);
+        self
+    }
+
     /// Enables a more relaxed syntax check for regular expressions.
     ///
     /// YARA-X enforces stricter regular expression syntax compared to YARA.
