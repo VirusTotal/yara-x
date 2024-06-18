@@ -1774,6 +1774,9 @@ where
     let mut literal = integer_lit.as_str();
     let mut multiplier = 1;
 
+    let without_underscore = literal.replace('_', "");
+    literal = without_underscore.as_str();
+
     if let Some(without_suffix) = literal.strip_suffix("KB") {
         literal = without_suffix;
         multiplier = 1024;
@@ -1833,8 +1836,11 @@ fn float_lit_from_cst<'src>(
 ) -> Result<f64, Error> {
     expect!(float_lit, GrammarRule::float_lit);
 
-    let literal = float_lit.as_str();
+    let mut literal = float_lit.as_str();
     let span = ctx.span(&float_lit);
+
+    let without_underscore = literal.replace('_', "");
+    literal = without_underscore.as_str();
 
     literal.parse::<f64>().map_err(|err| {
         Error::from(ErrorInfo::invalid_float(
