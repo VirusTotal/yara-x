@@ -79,8 +79,8 @@ pub fn oid_to_str(oid: &Oid) -> Cow<'static, str> {
         rfc5912::MD_5_WITH_RSA_ENCRYPTION => {
             Cow::Borrowed("md5WithRSAEncryption")
         }
-        oid::SHA1_WITH_RSA_ENCRYPTION_OBSOLETE
-        | rfc5912::SHA_1_WITH_RSA_ENCRYPTION => {
+        rfc5912::SHA_1_WITH_RSA_ENCRYPTION
+        | oid::SHA1_WITH_RSA_ENCRYPTION_OBSOLETE => {
             Cow::Borrowed("sha1WithRSAEncryption")
         }
         rfc5912::SHA_256_WITH_RSA_ENCRYPTION => {
