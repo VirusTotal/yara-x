@@ -1,4 +1,4 @@
-warning: non-boolean expression used as boolean
+warning[non_bool_expr]: non-boolean expression used as boolean
  --> line:2:37
   |
 2 |   condition: for any i in (0..1): ( 1 )

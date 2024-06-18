@@ -49,6 +49,7 @@ pub use compiler::Compiler;
 pub use compiler::Error;
 pub use compiler::Rules;
 pub use compiler::SerializationError;
+pub use compiler::Warning;
 
 pub use scanner::Match;
 pub use scanner::Matches;

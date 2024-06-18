@@ -1,4 +1,4 @@
-error: unexpected escape sequence
+error[E015]: unexpected escape sequence
  --> line:3:23
   |
 3 |     $a = "foo" base64("foo\x00")

@@ -1,4 +1,4 @@
-error: invalid integer
+error[E012]: invalid integer
  --> line:3:20
   |
 3 |     $a = "foo" xor(256)

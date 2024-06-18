@@ -3,15 +3,22 @@
 use regex_syntax::hir;
 use yara_x_parser::ast;
 
+use crate::compiler::context::CompileContext;
+use crate::compiler::warnings::Warning;
 use crate::compiler::ByteMaskCombinator;
 
 pub(in crate::compiler) fn hex_pattern_hir_from_ast(
+    ctx: &mut CompileContext,
     pattern: &ast::HexPattern,
 ) -> hir::Hir {
-    hex_tokens_hir_from_ast(&pattern.tokens)
+    hex_tokens_hir_from_ast(ctx, &pattern.identifier, &pattern.tokens)
 }
 
-fn hex_tokens_hir_from_ast(tokens: &ast::HexTokens) -> hir::Hir {
+fn hex_tokens_hir_from_ast(
+    ctx: &mut CompileContext,
+    pattern_ident: &ast::Ident,
+    tokens: &ast::HexTokens,
+) -> hir::Hir {
     let mut hir_tokens = Vec::with_capacity(tokens.tokens.len());
     let ast_tokens = tokens.tokens.iter();
 
@@ -43,42 +50,26 @@ fn hex_tokens_hir_from_ast(tokens: &ast::HexTokens) -> hir::Hir {
                     Vec::with_capacity(alt.alternatives.len());
 
                 for alt in &alt.as_ref().alternatives {
-                    alternatives.push(hex_tokens_hir_from_ast(alt));
+                    alternatives.push(hex_tokens_hir_from_ast(
+                        ctx,
+                        pattern_ident,
+                        alt,
+                    ));
                 }
 
                 hir_tokens.push(hir::Hir::alternation(alternatives))
             }
             ast::HexToken::Jump(jump) => {
-                /*let span = token.span;
-                let mut min = jump.start.unwrap_or(0) as u32;
-                let max = jump.end.map(|x| x as u32);
-
-                while let Some(ast::HexToken::Jump(jump)) = ast_tokens.peek() {
-                    let token = ast_tokens.next();
-
-                    min = min.saturating_add(jump.start.unwrap_or(0) as u32);
-
-                    todo!()
-                }*/
-
-                /*if let Some(prev_token) = hir_tokens.last_mut() {
-                    if let hir::HirKind::Repetition(prev_rep) =
-                        prev_token.kind()
-                    {
-                        *prev_token = hir::Hir::repetition(hir::Repetition {
-                            min: prev_rep
-                                .min
-                                .saturating_add(jump.end.unwrap_or(0) as u32),
-                            max: prev_rep.max.and_then(|x| {
-                                jump.end.map(|y| x.saturating_add(y as u32))
-                            }),
-                            greedy: false,
-                            sub: Box::new(hir::Hir::dot(hir::Dot::AnyByte)),
-                        });
-
-                        continue;
-                    }
-                }*/
+                if let Some(coalesced_span) = jump.coalesced_span {
+                    ctx.warnings.add(|| {
+                        Warning::consecutive_jumps(
+                            ctx.report_builder,
+                            pattern_ident.name.to_string(),
+                            format!("{}", jump),
+                            coalesced_span,
+                        )
+                    });
+                }
 
                 hir_tokens.push(hir::Hir::repetition(hir::Repetition {
                     min: jump.start.map(|start| start as u32).unwrap_or(0),
@@ -116,15 +107,24 @@ fn hex_byte_to_class(b: &ast::HexByte) -> hir::ClassBytes {
 
 #[cfg(test)]
 mod tests {
-    use super::hex_byte_to_class;
-    use crate::re::hir::class_to_masked_byte;
     use pretty_assertions::assert_eq;
+
     use regex_syntax::hir::{
         Class, ClassBytes, ClassBytesRange, Dot, Hir, HirKind, Repetition,
     };
+
     use yara_x_parser::ast::{
-        HexAlternative, HexByte, HexJump, HexToken, HexTokens,
+        HexAlternative, HexByte, HexJump, HexPattern, HexToken, HexTokens,
+        Ident,
     };
+
+    use yara_x_parser::report::ReportBuilder;
+
+    use super::hex_byte_to_class;
+    use crate::compiler::context::{CompileContext, VarStack};
+    use crate::compiler::Warnings;
+    use crate::re::hir::class_to_masked_byte;
+    use crate::symbols::StackedSymbolTable;
 
     #[test]
     fn hex_byte_to_hir() {
@@ -146,20 +146,40 @@ mod tests {
 
     #[test]
     fn hex_tokens_to_hir() {
-        let tokens = HexTokens {
-            tokens: vec![
-                HexToken::Byte(HexByte { value: b'a', mask: 0xff }),
-                HexToken::Byte(HexByte { value: b'b', mask: 0xff }),
-                HexToken::Byte(HexByte { value: b'c', mask: 0xff }),
-            ],
+        let mut report_builder = ReportBuilder::default();
+        let mut symbol_table = StackedSymbolTable::new();
+        let mut warnings = Warnings::default();
+        let mut rule_patterns = vec![];
+
+        let mut ctx = CompileContext {
+            relaxed_re_syntax: false,
+            current_symbol_table: None,
+            symbol_table: &mut symbol_table,
+            report_builder: &mut report_builder,
+            current_rule_patterns: &mut rule_patterns,
+            warnings: &mut warnings,
+            vars: VarStack::new(),
+        };
+
+        let mut pattern = HexPattern {
+            span: Default::default(),
+            identifier: Ident { span: Default::default(), name: "test_ident" },
+            tokens: HexTokens {
+                tokens: vec![
+                    HexToken::Byte(HexByte { value: b'a', mask: 0xff }),
+                    HexToken::Byte(HexByte { value: b'b', mask: 0xff }),
+                    HexToken::Byte(HexByte { value: b'c', mask: 0xff }),
+                ],
+            },
+            modifiers: Default::default(),
         };
 
         assert_eq!(
-            super::hex_tokens_hir_from_ast(&tokens),
+            super::hex_pattern_hir_from_ast(&mut ctx, &pattern),
             Hir::literal("abc".as_bytes())
         );
 
-        let tokens = HexTokens {
+        pattern.tokens = HexTokens {
             tokens: vec![
                 HexToken::Byte(HexByte { value: 0x01, mask: 0xff }),
                 HexToken::Byte(HexByte { value: 0x02, mask: 0xff }),
@@ -168,11 +188,11 @@ mod tests {
         };
 
         assert_eq!(
-            super::hex_tokens_hir_from_ast(&tokens),
+            super::hex_pattern_hir_from_ast(&mut ctx, &pattern),
             Hir::literal([0x01, 0x02, 0x03])
         );
 
-        let tokens = HexTokens {
+        pattern.tokens = HexTokens {
             tokens: vec![
                 HexToken::Byte(HexByte { value: 0x01, mask: 0xff }),
                 HexToken::Byte(HexByte { value: 0x02, mask: 0xff }),
@@ -184,7 +204,7 @@ mod tests {
         };
 
         assert_eq!(
-            super::hex_tokens_hir_from_ast(&tokens),
+            super::hex_pattern_hir_from_ast(&mut ctx, &pattern),
             Hir::concat(vec![
                 Hir::literal([0x01, 0x02, 0x03]),
                 Hir::dot(Dot::AnyByte),
@@ -192,7 +212,7 @@ mod tests {
             ])
         );
 
-        let tokens = HexTokens {
+        pattern.tokens = HexTokens {
             tokens: vec![
                 HexToken::Byte(HexByte { value: 0x01, mask: 0xff }),
                 HexToken::NotByte(HexByte { value: 0x02, mask: 0xff }),
@@ -201,7 +221,7 @@ mod tests {
         };
 
         assert_eq!(
-            super::hex_tokens_hir_from_ast(&tokens),
+            super::hex_pattern_hir_from_ast(&mut ctx, &pattern),
             Hir::concat(vec![
                 Hir::literal([0x01]),
                 Hir::class(Class::Bytes(ClassBytes::new(vec![
@@ -212,7 +232,7 @@ mod tests {
             ])
         );
 
-        let tokens = HexTokens {
+        pattern.tokens = HexTokens {
             tokens: vec![
                 HexToken::Byte(HexByte { value: 0x01, mask: 0xff }),
                 HexToken::NotByte(HexByte { value: 0x40, mask: 0xfe }),
@@ -221,7 +241,7 @@ mod tests {
         };
 
         assert_eq!(
-            super::hex_tokens_hir_from_ast(&tokens),
+            super::hex_pattern_hir_from_ast(&mut ctx, &pattern),
             Hir::concat(vec![
                 Hir::literal([0x01]),
                 Hir::class(Class::Bytes(ClassBytes::new(vec![
@@ -232,7 +252,7 @@ mod tests {
             ])
         );
 
-        let tokens = HexTokens {
+        pattern.tokens = HexTokens {
             tokens: vec![HexToken::Alternative(Box::new(HexAlternative {
                 alternatives: vec![
                     HexTokens {
@@ -252,25 +272,29 @@ mod tests {
         };
 
         assert_eq!(
-            super::hex_tokens_hir_from_ast(&tokens),
+            super::hex_pattern_hir_from_ast(&mut ctx, &pattern),
             Hir::alternation(
                 vec![Hir::literal([0x01]), Hir::literal([0x02]),]
             )
         );
 
-        let tokens = HexTokens {
+        pattern.tokens = HexTokens {
             tokens: vec![
                 HexToken::Byte(HexByte { value: 0x01, mask: 0xff }),
                 HexToken::Byte(HexByte { value: 0x02, mask: 0xff }),
                 HexToken::Byte(HexByte { value: 0x03, mask: 0xff }),
-                HexToken::Jump(HexJump { start: None, end: None }),
+                HexToken::Jump(HexJump {
+                    start: None,
+                    end: None,
+                    coalesced_span: None,
+                }),
                 HexToken::Byte(HexByte { value: 0x05, mask: 0xff }),
                 HexToken::Byte(HexByte { value: 0x06, mask: 0xff }),
             ],
         };
 
         assert_eq!(
-            super::hex_tokens_hir_from_ast(&tokens),
+            super::hex_pattern_hir_from_ast(&mut ctx, &pattern),
             Hir::concat(vec![
                 Hir::literal([0x01, 0x02, 0x03]),
                 Hir::repetition(Repetition {

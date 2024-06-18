@@ -1,4 +1,4 @@
-error: no matching patterns
+error[E114]: no matching patterns
  --> line:3:12
   |
 3 |     all of them

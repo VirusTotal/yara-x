@@ -1,4 +1,4 @@
-error: invalid escape sequence
+error[E014]: invalid escape sequence
  --> line:2:17
   |
 2 |   condition: "\xZZ" == "\xZZ"

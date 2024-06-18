@@ -9,7 +9,7 @@ use bstr::ByteSlice;
 use itertools::Itertools;
 use yara_x_parser::ast::{HasSpan, Span};
 use yara_x_parser::report::ReportBuilder;
-use yara_x_parser::{ast, ErrorInfo, Warning};
+use yara_x_parser::{ast, ErrorInfo};
 
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
@@ -17,6 +17,7 @@ use crate::compiler::ir::{
     MatchAnchor, Of, OfItems, Pattern, PatternFlagSet, PatternFlags,
     PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern,
 };
+use crate::compiler::warnings::Warning;
 use crate::compiler::{CompileContext, CompileError};
 use crate::modules::BUILTIN_MODULES;
 use crate::re;
@@ -112,14 +113,14 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
 }
 
 pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
-    _ctx: &mut CompileContext,
+    ctx: &mut CompileContext,
     pattern: &ast::HexPattern<'src>,
 ) -> Result<PatternInRule<'src>, Box<CompileError>> {
     Ok(PatternInRule {
         identifier: pattern.identifier.name,
         pattern: Pattern::Regexp(RegexpPattern {
             flags: PatternFlagSet::from(PatternFlags::Ascii),
-            hir: re::hir::Hir::from(hex_pattern_hir_from_ast(pattern)),
+            hir: re::hir::Hir::from(hex_pattern_hir_from_ast(ctx, pattern)),
             anchored_at: None,
         }),
     })
@@ -705,7 +706,7 @@ fn of_expr_from_ast(
 
         if raise_warning {
             ctx.warnings.add(|| {
-                Warning::potentially_wrong_expression(
+                Warning::potentially_unsatisfiable_expression(
                     ctx.report_builder,
                     of.quantifier.span(),
                     of.anchor.as_ref().unwrap().span(),

@@ -1,5 +1,6 @@
 use std::fmt::{Debug, Display, Formatter};
-use yara_x_macros::Error as Err;
+
+use yara_x_macros::Error as DeriveError;
 
 use crate::ast::Span;
 use crate::parser::grammar::Rule;
@@ -16,7 +17,14 @@ use crate::report::ReportBuilder;
 pub struct Error(Box<ErrorInfo>);
 
 impl Error {
+    /// Returns a unique error code identifying the type of error.
+    #[inline]
+    pub fn code(&self) -> &'static str {
+        self.0.code()
+    }
+
     /// Returns additional information about the error.
+    #[inline]
     pub fn info(&self) -> &ErrorInfo {
         self.0.as_ref()
     }
@@ -38,9 +46,9 @@ impl std::error::Error for Error {}
 
 /// Additional information about an error occurred during parsing.
 #[rustfmt::skip]
-#[derive(Err, Eq, PartialEq)]
+#[derive(DeriveError, Eq, PartialEq)]
 pub enum ErrorInfo {
-    #[error("syntax error")]
+    #[error("E001", "syntax error")]
     #[label("{error_msg}", error_span)]
     SyntaxError {
         detailed_report: String,
@@ -48,7 +56,7 @@ pub enum ErrorInfo {
         error_span: Span
     },
 
-    #[error("duplicate tag `{tag}`")]
+    #[error("E002", "duplicate tag `{tag}`")]
     #[label("duplicate tag", tag_span)]
     DuplicateTag {
         detailed_report: String,
@@ -56,7 +64,7 @@ pub enum ErrorInfo {
         tag_span: Span,
     },
     
-    #[error("duplicate pattern `{pattern_ident}`")]
+    #[error("E003", "duplicate pattern `{pattern_ident}`")]
     #[label(
         "duplicate declaration of `{pattern_ident}`",
         new_pattern_span
@@ -73,7 +81,7 @@ pub enum ErrorInfo {
         existing_pattern_span: Span,
     },
 
-    #[error("invalid pattern modifier")]
+    #[error("E004", "invalid pattern modifier")]
     #[label("{error_msg}", error_span)]
     InvalidModifier {
         detailed_report: String,
@@ -81,16 +89,14 @@ pub enum ErrorInfo {
         error_span: Span,
     },
 
-    #[error("duplicate pattern modifier")]
+    #[error("E005", "duplicate pattern modifier")]
     #[label("duplicate modifier", modifier_span)]
     DuplicateModifier {
         detailed_report: String,
         modifier_span: Span,
     },
 
-    #[error(
-        "invalid modifier combination: `{modifier1}` `{modifier2}`",
-    )]
+    #[error("E006", "invalid modifier combination: `{modifier1}` `{modifier2}`")]
     #[label("`{modifier1}` modifier used here", modifier1_span)]
     #[label("`{modifier2}` modifier used here", modifier2_span)]
     #[note(note)]
@@ -103,14 +109,14 @@ pub enum ErrorInfo {
         note: Option<String>,
     },
 
-    #[error("invalid base64 alphabet")]
+    #[error("E007", "invalid base64 alphabet")]
     #[label("{error_msg}", error_span)]
     InvalidBase64Alphabet {
         detailed_report: String,
         error_msg: String,
         error_span: Span},
     
-    #[error("unused pattern `{pattern_ident}`")]
+    #[error("E008", "unused pattern `{pattern_ident}`")]
     #[label("this pattern was not used in the condition", pattern_ident_span)]
     UnusedPattern {
         detailed_report: String,
@@ -118,7 +124,7 @@ pub enum ErrorInfo {
         pattern_ident_span: Span,
     },
 
-    #[error("unknown pattern `{pattern_ident}`")]
+    #[error("E009", "unknown pattern `{pattern_ident}`")]
     #[label("this pattern is not declared in the `strings` section", pattern_ident_span)]
     UnknownPattern {
         detailed_report: String,
@@ -126,7 +132,7 @@ pub enum ErrorInfo {
         pattern_ident_span: Span,
     },
 
-    #[error("invalid pattern `{pattern_ident}`")]
+    #[error("E010", "invalid pattern `{pattern_ident}`")]
     #[label("{error_msg}", error_span)]
     #[note(note)]
     InvalidPattern {
@@ -137,7 +143,7 @@ pub enum ErrorInfo {
         note: Option<String>,
     },
 
-    #[error("invalid range")]
+    #[error("E011", "invalid range")]
     #[label("{error_msg}", error_span)]
     InvalidRange {
         detailed_report: String,
@@ -145,7 +151,7 @@ pub enum ErrorInfo {
         error_span: Span,
     },
 
-    #[error("invalid integer")]
+    #[error("E012", "invalid integer")]
     #[label("{error_msg}", error_span)]
     InvalidInteger {
         detailed_report: String,
@@ -153,7 +159,7 @@ pub enum ErrorInfo {
         error_span: Span,
     },
 
-    #[error("invalid float")]
+    #[error("E013", "invalid float")]
     #[label("{error_msg}", error_span)]
     InvalidFloat {
         detailed_report: String,
@@ -161,7 +167,7 @@ pub enum ErrorInfo {
         error_span: Span,
     },
 
-    #[error("invalid escape sequence")]
+    #[error("E014", "invalid escape sequence")]
     #[label("{error_msg}", error_span)]
     InvalidEscapeSequence {
         detailed_report: String,
@@ -169,14 +175,14 @@ pub enum ErrorInfo {
         error_span: Span,
     },
 
-    #[error("unexpected escape sequence")]
+    #[error("E015", "unexpected escape sequence")]
     #[label("escape sequences are not allowed in this string", error_span)]
     UnexpectedEscapeSequence {
         detailed_report: String,
         error_span: Span,
     },
 
-    #[error("invalid regexp modifier `{modifier}`")]
+    #[error("E016", "invalid regexp modifier `{modifier}`")]
     #[label("invalid modifier", error_span)]
     InvalidRegexpModifier {
         detailed_report: String,
@@ -184,7 +190,7 @@ pub enum ErrorInfo {
         error_span: Span,
     },
     
-    #[error("invalid UTF-8")]
+    #[error("E017", "invalid UTF-8")]
     #[label("invalid UTF-8 character", error_span)]
     InvalidUTF8 {
         detailed_report: String,

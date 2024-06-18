@@ -1,4 +1,4 @@
-error: invalid pattern modifier
+error[E004]: invalid pattern modifier
  --> line:3:20
   |
 3 |     $a = { 01 02 } nocase

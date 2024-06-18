@@ -94,6 +94,14 @@ pub fn scan() -> Command {
                 .help("Use a more relaxed syntax check while parsing regular expressions")
         )
         .arg(
+            arg!(-w --"disable-warnings" [ID])
+                .help("Disable warnings")
+                .default_missing_value("all")
+                .num_args(0..)
+                .require_equals(true)
+                .action(ArgAction::Append)
+        )
+        .arg(
             arg!(-d --"define")
                 .help("Define external variable")
                 .long_help(help::DEFINE_LONG_HELP)
@@ -156,6 +164,13 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
         rules
     } else {
+        // Vector with the IDs of the warnings that should be disabled, if the
+        // vector contains "all", all warnings are disabled.
+        let disabled_warnings = args
+            .get_many::<String>("disable-warnings")
+            .map(|warnings| warnings.map(|id| id.as_str()).collect())
+            .unwrap_or_default();
+
         // With `take()` we pass the external variables to `compile_rules`,
         // while leaving a `None` in `external_vars`. This way external
         // variables are not set again in the scanner.
@@ -164,6 +179,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
             path_as_namespace,
             external_vars.take(),
             args.get_flag("relaxed-re-syntax"),
+            disabled_warnings,
         )?
     };
 

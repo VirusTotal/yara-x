@@ -1,4 +1,4 @@
-error: assignment mismatch
+error[E103]: assignment mismatch
  --> line:4:13
   |
 4 |     for all x in test_proto2.map_string_int64 : ( true )

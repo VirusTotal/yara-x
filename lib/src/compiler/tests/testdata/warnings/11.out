@@ -1,4 +1,4 @@
-warning: redundant case-insensitive modifier
+warning[redundant_modifier]: redundant case-insensitive modifier
  --> line:3:15
   |
 3 |     $a = /foo/i nocase

@@ -1,4 +1,4 @@
-error: duplicate tag `tag1`
+error[E002]: duplicate tag `tag1`
  --> line:1:18
   |
 1 | rule test : tag1 tag1 { condition: true }

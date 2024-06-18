@@ -1,4 +1,4 @@
-error: wrong type
+error[E100]: wrong type
  --> line:4:29
   |
 4 |     test_proto2.array_int64["foo"]

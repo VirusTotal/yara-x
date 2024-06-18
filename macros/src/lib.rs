@@ -14,7 +14,7 @@ mod wasm_export;
 /// will add to it a `span` method that returns the value from the field with
 /// the same name.
 ///
-/// When used with a enum, all variants must be either a struct that has a
+/// When used with an enum, all variants must be either a struct that has a
 /// field named `span` or a single-item tuple where the item implements the
 /// [`HasSpan`] trait.
 ///
@@ -31,7 +31,7 @@ mod wasm_export;
 /// }
 /// ```
 ///
-/// Using `HasSpan` on a enum. The `True` variant is a struct that has a `span`
+/// Using `HasSpan` on an enum. The `True` variant is a struct that has a `span`
 /// field, and the `LiteralInt` variant contains a `Box<LiteralInt>`, which
 /// implements the [`HasSpan`] trait.
 ///
@@ -70,7 +70,7 @@ pub fn span_macro_derive(input: TokenStream) -> TokenStream {
 /// this one...
 ///
 /// ```text
-/// error: duplicate tag `tag1`
+/// error[E100]: duplicate tag `tag1`
 ///    ╭─[line:1:18]
 ///    │
 ///  1 │ rule test : tag1 tag1 { condition: true }
@@ -83,13 +83,14 @@ pub fn span_macro_derive(input: TokenStream) -> TokenStream {
 /// contain information that is used for rendering the detailed report.
 ///
 /// Each variant in the enum must be tagged with `#[error(...)]` or
-/// `#[warning(...)]` where the arguments inside the parenthesis are directly
-/// passed to [`format!`] for building the error/warning title. For example...
+/// `#[warning(...)]`, both of these tags receive two arguments: code and
+/// description. The code is a string that uniquely identify the error,
+/// like "E201", and the description is a brief text describing the error.
 ///
 /// ```text
-/// #[macros(Error)]
+/// #[derive(Error)]
 /// pub enum Error {
-///    #[error("duplicate tag `{tag}`")]
+///    #[error("E102", "duplicate tag `{tag}`")]
 ///    #[label("duplicate tag", tag_span)]
 ///    DuplicateTag {
 ///      detailed_report: String,
@@ -108,7 +109,7 @@ pub fn span_macro_derive(input: TokenStream) -> TokenStream {
 /// also have at least one label, defined with `#[label(...)]`. The arguments
 /// passed to `#[label(...)]` are also passed to [`format!`] for creating a
 /// label, except for the last one, which should be the name of a field of
-/// type `Span` in the structure. The label will associated to the code
+/// type `Span` in the structure. The label will be associated to the code
 /// span indicated by that field.
 ///
 /// In the example above we use `#[label("duplicate tag", tag_span)]` for
@@ -133,15 +134,13 @@ pub fn span_macro_derive(input: TokenStream) -> TokenStream {
 /// Each function receives as arguments the fields declared in the
 /// corresponding structure, with the same names and types. Except for the
 /// `detailed_report` field, which won't appear in the function arguments.
-/// Also, the first two arguments for the function are always
-/// `&ReportBuilder`, and `&SourceCode`.
+/// Also, the first argument for the function is always `&ReportBuilder`.
 ///
 /// So, the function for the `DuplicateTag` example above will be...
 ///
 /// ```text
 /// duplicate_tag(
 ///     report_builder: &ReportBuilder,
-///     src: &SourceCode,
 ///     tag: String,
 ///     tag_span: Span) -> Error
 /// ```

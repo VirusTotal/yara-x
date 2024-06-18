@@ -1,4 +1,4 @@
-error: syntax error
+error[syntax_error]: syntax error
  --> line:1:8
   |
 1 | global foo rule test { condition: true }

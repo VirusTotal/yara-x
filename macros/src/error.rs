@@ -3,20 +3,16 @@ extern crate proc_macro;
 use convert_case::{Case, Casing};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens, TokenStreamExt};
-use syn::punctuated::Punctuated;
 use syn::{
-    Attribute, DataEnum, DeriveInput, Ident, Lit, Meta, NestedMeta, Token,
-    Variant,
+    Attribute, DataEnum, DeriveInput, Ident, Lit, Meta, NestedMeta, Variant,
 };
-
-type AttrArgs = Punctuated<NestedMeta, Token![,]>;
 
 pub(crate) fn impl_error_macro(
     input: DeriveInput,
 ) -> syn::Result<TokenStream> {
     let name = &input.ident;
 
-    let (variants, funcs) = match &input.data {
+    let (codes, variants, funcs) = match &input.data {
         syn::Data::Struct(_) | syn::Data::Union(_) => {
             return Err(syn::Error::new(
                 name.span(),
@@ -30,12 +26,32 @@ pub(crate) fn impl_error_macro(
     let (impl_generics, ty_generics, where_clause) =
         input.generics.split_for_impl();
 
-    syn::Result::Ok(quote! {
+    Ok(quote! {
         use yansi::Color;
 
         #[automatically_derived]
         impl #impl_generics #name #ty_generics #where_clause {
             #(#funcs)*
+        }
+
+        #[automatically_derived]
+        impl #impl_generics #name #ty_generics #where_clause {
+            /// Returns a unique error code identifying the type of error/warning.
+            pub fn code(&self) -> &'static str {
+                match self {
+                    #(Self::#variants { .. } => {
+                        #codes
+                    })*,
+                }
+            }
+
+            fn is_valid_code(code: &str) -> bool {
+                Self::all_codes().iter().any(|c| *c == code)
+            }
+
+            fn all_codes() -> &'static [&'static str] {
+                &[ #( #codes, )* ]
+            }
         }
 
         #[automatically_derived]
@@ -71,32 +87,39 @@ pub(crate) fn impl_error_macro(
 
 fn impl_enum_error_macro(
     data_enum: &DataEnum,
-) -> syn::Result<(Vec<&Ident>, Vec<TokenStream>)> {
-    // Generate a proto function for each variant in the enum labelled
+) -> syn::Result<(Vec<NestedMeta>, Vec<&Ident>, Vec<TokenStream>)> {
+    // Generate a function for each variant in the enum labelled
     // with #[error(...)] or #[warning(...)].
     let mut funcs = Vec::new();
     let mut variants = Vec::new();
+    let mut codes = Vec::new();
     // For each variant in the enum...
     for variant in &data_enum.variants {
-        // ...look for #[error(...)] or #[warning(...)] attributes.
+        // ...look for #[error(...)] or #[warning(...)] attribute.
         for attr in &variant.attrs {
-            if let Some((attr_type, attr_args)) = parse_attr(attr)? {
+            if let Some((kind, code, description)) = parse_attr(attr)? {
                 variants.push(&variant.ident);
-                funcs.push(gen_build_func(attr_type, attr_args, variant)?);
+                funcs.push(gen_build_func(
+                    kind,
+                    &code,
+                    &description,
+                    variant,
+                )?);
+                codes.push(code);
             }
         }
     }
-    Ok((variants, funcs))
+    Ok((codes, variants, funcs))
 }
 
-// Checks if an attribute is #[error(...)] and returns its arguments if that's
-// the case. Otherwise it returns None.
+// Checks if an attribute is #[error(...)] or #[warning(...)] and returns its
+// arguments. Otherwise, it returns None.
 fn parse_attr(
     attr: &Attribute,
-) -> syn::Result<Option<(&'static str, AttrArgs)>> {
+) -> syn::Result<Option<(&'static str, NestedMeta, NestedMeta)>> {
     let meta = attr.parse_meta()?;
 
-    let attr_type = if meta.path().is_ident("error") {
+    let kind = if meta.path().is_ident("error") {
         "error"
     } else if meta.path().is_ident("warning") {
         "warning"
@@ -104,35 +127,56 @@ fn parse_attr(
         return Ok(None);
     };
 
-    let attr_args = match meta {
-        // `error` and `warning` must be list-style attributes, as in 
+    let mut attr_args = match meta {
+        // `error` and `warning` must be list-style attributes, as in
         // #[error(...)]
-        Meta::List(list) => list,
+        Meta::List(list) => list.nested,
         // any other syntax, like #[error] or #[error = "..."] is not
         // supported.
         _ => {
             return Err(syn::Error::new_spanned(
                 meta,
-                "expected a list-style attribute (e.g. #[error(...)], #[warning(...)])",
+                format!(
+                    "expected a list-style attribute (e.g. #[{}(...)])",
+                    kind
+                ),
             ))
         }
     };
 
-    Ok(Some((attr_type, attr_args.nested)))
+    // There must be exactly 2 arguments, the first one is the error/warning
+    // code, and the second one is its description.
+    if attr_args.len() != 2 {
+        return Err(
+            syn::Error::new_spanned(
+                attr,
+                format!(
+                    "#[{}(...)] must have exactly 2 arguments: code and description",
+                    kind
+                ),
+            ));
+    }
+
+    // Arguments are popped in reverse order.
+    let description = attr_args.pop().unwrap().into_value();
+    let code = attr_args.pop().unwrap().into_value();
+
+    Ok(Some((kind, code, description)))
 }
 
 // Given an error or warning variant, generates the function that builds
 // an instance of this error or warning.
 fn gen_build_func(
-    report_type: &str,
-    attr_args: AttrArgs,
+    kind: &str,
+    code: &NestedMeta,
+    description: &NestedMeta,
     variant: &Variant,
 ) -> syn::Result<TokenStream> {
     match &variant.fields {
         syn::Fields::Named(fields) => {
-            // Each error variant has one or more labels (e.g. #[label(...)]), 
+            // Each error variant has one or more labels (e.g. #[label(...)]),
             // get the labels for this variant.
-            let labels = get_labels(report_type, variant)?;
+            let labels = get_labels(kind, variant)?;
 
             // The variant can also have a note (e.g. #[note(...)]).
             let note = get_note(variant)?;
@@ -148,7 +192,7 @@ fn gen_build_func(
             // by get_labels.
             let main_label_span = &main_label.0;
 
-            // The arguments to the function have the same names and types as 
+            // The arguments to the function have the same names and types as
             // the fields in the struct variant. Except for the field named
             // `detailed_report`, which is not included in the arguments.
             let mut args = TokenStream::new();
@@ -175,7 +219,7 @@ fn gen_build_func(
             // to a vector of TokenStream, Idents are dropped.
             let labels = labels.iter().map(|(_, labels)| labels);
 
-            let report_type = match report_type {
+            let report_type = match kind {
                 "error" => quote!(Level::Error),
                 "warning" => quote!(Level::Warning),
                 _  => unreachable!(),
@@ -187,7 +231,8 @@ fn gen_build_func(
                     let detailed_report = report_builder.create_report(
                         #report_type,
                         #main_label_span,
-                        format!(#attr_args),
+                        #code,
+                        &format!(#description),
                         vec![
                             #( #labels ),*
                         ],
@@ -266,7 +311,7 @@ fn get_note(variant: &Variant) -> syn::Result<TokenStream> {
 }
 
 fn get_labels(
-    report_type: &str,
+    kind: &str,
     variant: &Variant,
 ) -> syn::Result<Vec<(Ident, TokenStream)>> {
     let mut labels = Vec::new();
@@ -304,7 +349,7 @@ fn get_labels(
 
         // The default label style depends on the type of report. It's red
         // for errors and yellow for warnings.
-        let mut level = match report_type {
+        let mut level = match kind {
             "error" => quote!(Level::Error),
             "warning" => quote!(Level::Warning),
             _ => unreachable!(),

@@ -1,4 +1,4 @@
-error: wrong type
+error[E100]: wrong type
  --> line:3:10
   |
 3 |      for 3.14 x in (0..10) : (false)
