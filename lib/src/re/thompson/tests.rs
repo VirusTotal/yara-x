@@ -87,7 +87,7 @@ macro_rules! assert_re_atoms {
         let atoms = assert_re_atoms_impl!($re);
         let atoms: Vec<Atom> =
             atoms.into_iter().map(|re_atom| re_atom.atom).collect();
-        assert_eq!(atoms, $atoms);
+        assert_eq!($atoms, atoms);
     }};
 }
 
@@ -1143,29 +1143,152 @@ fn re_code_22() {
     );
 }
 
+#[rustfmt::skip]
 #[test]
 fn re_atoms() {
-    assert_re_atoms!(r#"abcd"#, vec![Atom::exact(b"abcd")]);
-    assert_re_atoms!(r#"abcd1234"#, vec![Atom::inexact(b"1234")]);
-    assert_re_atoms!(r#".abc"#, vec![Atom::inexact(b"abc")]);
-    assert_re_atoms!(r#"abc."#, vec![Atom::inexact(b"abc")]);
-    assert_re_atoms!(r#"a.bcd"#, vec![Atom::inexact(b"bcd")]);
-    assert_re_atoms!(r#"abc.d"#, vec![Atom::inexact(b"abc")]);
-
     assert_re_atoms!(
-        r#"(ab|cd)"#,
-        vec![Atom::exact(b"ab"), Atom::exact(b"cd")]
+        r#"abcd"#, 
+        vec![Atom::exact(b"abcd")]
+    );
+    
+    assert_re_atoms!(
+        r#"abcd1234"#, 
+        vec![Atom::inexact(b"1234")]
+    );
+    
+    assert_re_atoms!(
+        r#".abc"#, 
+        vec![Atom::inexact(b"abc")]
+    );
+    
+    assert_re_atoms!(
+        r#"abc."#, 
+        vec![Atom::inexact(b"abc")]
+    );
+    
+    assert_re_atoms!(
+        r#"a.bcd"#,
+        vec![Atom::inexact(b"bcd")]
+    );
+    
+    assert_re_atoms!(
+        r#"abc.d"#, 
+        vec![Atom::inexact(b"abc")]
+    );
+    
+    assert_re_atoms!(
+        r#"ab.*cd"#, 
+        vec![
+            Atom::inexact(b"ab"),
+            Atom::exact("abcd"),
+        ]
+    );
+    
+    assert_re_atoms!(
+        r#"ab.*cde"#, 
+        vec![Atom::inexact(b"cde")]
     );
 
-    assert_re_atoms!(r#"ab|cd"#, vec![Atom::exact(b"ab"), Atom::exact(b"cd")]);
+    assert_re_atoms!(
+        r#"ab?c"#, 
+        vec![
+            Atom::exact(b"abc"),
+            Atom::exact(b"ac"),
+        ]
+    );
+
+    assert_re_atoms!(
+        r#"ab??c"#, 
+        vec![
+            Atom::exact(b"ac"),
+            Atom::exact(b"abc"),
+        ]
+    );
+
+    assert_re_atoms!(
+        r#"ab+"#, 
+        vec![Atom::inexact(b"ab")]
+    );
+    
+    assert_re_atoms!(
+        r#"a.."#, 
+        vec![Atom::inexact(b"a")]
+    );
+    
+    assert_re_atoms!(
+        r#"ab.."#, 
+        vec![Atom::inexact(b"ab")]
+    );
+    
+    assert_re_atoms!(
+        r#"(ab|cd)"#,
+        vec![
+            Atom::exact(b"ab"), 
+            Atom::exact(b"cd")
+        ]
+    );
+
+    assert_re_atoms!(
+        r#"ab|cd"#, 
+        vec![
+            Atom::exact(b"ab"), 
+            Atom::exact(b"cd")
+        ]);
 
     assert_re_atoms!(
         r#"a(b|c)d"#,
-        vec![Atom::exact(b"abd"), Atom::exact(b"acd")]
+        vec![
+            Atom::exact(b"abd"), 
+            Atom::exact(b"acd")
+        ]
+    );
+    
+    assert_re_atoms!(
+        r#"ab(c|d|e|g).."#,
+        vec![
+            Atom::inexact(b"abc"),
+            Atom::inexact(b"abd"),
+            Atom::inexact(b"abe"),
+            Atom::inexact(b"abg"),
+        ]
     );
 
-    assert_re_atoms!(r#"ab.*cd"#, vec![Atom::inexact(b"ab")]);
-    assert_re_atoms!(r#"ab.*cde"#, vec![Atom::inexact(b"cde")]);
+    assert_re_atoms!(
+        r#"a[bc]d.e"#,
+        vec![
+            Atom::inexact(b"abd"), 
+            Atom::inexact(b"acd")
+        ]
+    );
+
+    assert_re_atoms!(
+        r#"a(bcd.*)*e"#,
+        vec![
+            Atom::inexact(b"abcd"),
+            Atom::exact(b"ae"), 
+        ]
+    );
+
+    assert_re_atoms!(
+        r#"a(bcd.*)*?e"#,
+        vec![
+            Atom::exact(b"ae"),
+            Atom::inexact(b"abcd"),
+        ]
+    );
+    
+    assert_re_atoms!(
+        r#"a(b.*)*c"#,
+        vec![
+            Atom::inexact(b"ab"),
+            Atom::exact(b"ac"), 
+        ]
+    );
+
+    assert_re_atoms!(
+        "\x00\x00\x00\x00.{2,3}abc", 
+        vec![Atom::inexact(b"abc")]
+    );
 
     assert_re_atoms!(
         r#"(?i)ab"#,
@@ -1175,6 +1298,11 @@ fn re_atoms() {
             Atom::exact(b"aB"),
             Atom::exact(b"ab")
         ]
+    );
+
+    assert_re_atoms!(
+        r#"(?i)abc.*123"#, 
+        vec![Atom::inexact(b"123")]
     );
 
     assert_re_atoms!(
@@ -1190,21 +1318,45 @@ fn re_atoms() {
             Atom::inexact(b"bcd"),
         ]
     );
-
-    assert_re_atoms!(r#"(?i)abc.*123"#, vec![Atom::inexact(b"123")]);
-
-    assert_re_atoms!("\x00\x00\x00\x00.{2,3}abc", vec![Atom::inexact(b"abc")]);
-
+    
     assert_re_atoms!(
-        r#"(?s)a.b.c.d"#,
-        // Atoms a\x00b, a\x01b, a\x02b, .... up to a\xffb
-        [(b'a'..=b'a'), (0x00..=0xff), (b'b'..=b'b'),]
+        "(?s)a.\x00\x00\x00[A-Za-z0-9]{128,256}",
+        [b'a'..=b'a', 0x00..=0xff, 0x00..=0x00, 0x00..=0x00]
             .into_iter()
             .multi_cartesian_product()
             .map(Atom::inexact)
             .collect::<Vec<Atom>>()
     );
 
+    assert_re_atoms!(
+        r#"(?s)a.b.c.d"#,
+        [b'a'..=b'a', 0x00..=0xff, b'b'..=b'b',]
+            .into_iter()
+            .multi_cartesian_product()
+            .map(Atom::inexact)
+            .collect::<Vec<Atom>>()
+    );
+
+    assert_re_atoms!(r#"(?s)ab.?cd"#, {
+        let mut v = [b'a'..=b'a', b'b'..=b'b', 0x00..=0xff, b'c'..=b'c']
+            .into_iter()
+            .multi_cartesian_product()
+            .map(Atom::inexact)
+            .collect::<Vec<Atom>>();
+        v.push(Atom::exact(b"abcd"));
+        v
+    });
+
+    assert_re_atoms!(r#"(?s)ab.??cd"#, {
+        let mut v = vec![Atom::exact(b"abcd")];
+        v.append(&mut [b'a'..=b'a', b'b'..=b'b', 0x00..=0xff, b'c'..=b'c']
+            .into_iter()
+            .multi_cartesian_product()
+            .map(Atom::inexact)
+            .collect::<Vec<Atom>>());
+        v
+    });
+    
     assert_re_atoms!(
         r#"(?s)a(b.b|c.c|d.d|e.e|f.f|g.g|h.h|i.i|j.j|k.k|l.l|m.m|n.n|o.o|p.p|q.q|r.r)"#,
         vec![Atom::inexact(b"a")]

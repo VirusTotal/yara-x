@@ -226,8 +226,14 @@ impl AtomsQuality {
         AtomsQuality::new(seq.literals().unwrap_or(&[]), |lit| lit.is_exact())
     }
 
+    #[inline]
     pub fn from_atoms<T: AsRef<[Atom]>>(atoms: T) -> Self {
         AtomsQuality::new(atoms.as_ref().iter(), |atom| atom.is_exact())
+    }
+
+    #[inline]
+    pub fn num_atoms(&self) -> usize {
+        self.num_exact_atoms + self.num_inexact_atoms
     }
 
     #[inline]
@@ -291,17 +297,21 @@ impl Ord for AtomsQuality {
         // It's better to have a set with a single 3-bytes atom than a set with
         // 256 4-bytes atoms.
         if self.min_atom_len.abs_diff(other.min_atom_len) == 1 {
-            // The `other` set has 256 times more atoms than the `self` set.
-            // `self` is better.
-            if self.num_inexact_atoms.saturating_mul(256)
-                == other.num_inexact_atoms
+            // If `other` has 256 times the atoms of `self`, `self` is better,
+            // except if the minimum atom quality of `self` is less than half
+            // the quality of `other`.
+            if self.num_atoms() > 0
+                && self.num_atoms().saturating_mul(256) == other.num_atoms()
+                && self.avg_atom_quality() * 2.0 >= other.avg_atom_quality()
             {
                 return Ordering::Greater;
             }
-            // The `self` set has 256 times more atoms than the `other` set.
-            // `other` is better.
-            if other.num_inexact_atoms.saturating_mul(256)
-                == self.num_inexact_atoms
+            // If `self` has 256 times the atoms of `other`, `other` is better,
+            // except if the minimum atom quality of `other` is less than half
+            // the quality of `self`.
+            if other.num_atoms() > 0
+                && other.num_atoms().saturating_mul(256) == self.num_atoms()
+                && other.avg_atom_quality() * 2.0 >= self.avg_atom_quality()
             {
                 return Ordering::Less;
             }
@@ -310,7 +320,7 @@ impl Ord for AtomsQuality {
         // The most important criteria for determining if a set of atoms is
         // better than another one is the minimum atom quality. The minimum
         // atom quality is the quality of the worst atom in the set, and the
-        // set set with the highest minimum is the best.
+        // set with the highest minimum is the best.
         if self.min_atom_quality != other.min_atom_quality {
             return self.min_atom_quality.cmp(&other.min_atom_quality);
         }
@@ -381,8 +391,8 @@ pub(crate) fn best_range_in_masked_bytes(
 
 /// Returns the best possible atom from a slice of bytes.
 ///
-/// The returned atom will have the have [`DESIRED_ATOM_SIZE`] bytes if
-/// possible, but it can be shorter if the slice is shorter.
+/// The returned atom will have [`DESIRED_ATOM_SIZE`] bytes if possible, but it
+/// can be shorter if the slice is shorter.
 ///
 /// The atom's backtrack value will be equal to the position of the atom within
 /// the slice. This means that once the atom is found, the reported offset will
@@ -416,6 +426,7 @@ mod test {
     use super::atom_quality;
     use crate::compiler::atoms::quality::masked_atom_quality;
     use crate::compiler::{atoms, AtomsQuality};
+    use itertools::Itertools;
     use regex_syntax::hir::literal::Literal;
     use regex_syntax::hir::literal::Seq;
 
@@ -518,53 +529,95 @@ mod test {
     fn test_seq_quality() {
         let s1 = &Seq::new(vec![Literal::exact("abcd")]);
         let s2 = &Seq::new(vec![Literal::exact("abc")]);
+        let q1 = AtomsQuality::from_seq(s1);
+        let q2 = AtomsQuality::from_seq(s2);
 
-        assert!(AtomsQuality::from_seq(s1) > AtomsQuality::from_seq(s2));
+        assert!(q1 > q2);
+        assert!(q2 < q1);
 
         let s1 = &Seq::new(vec![Literal::exact("abc")]);
         let s2 = &Seq::new(vec![Literal::exact("abc"), Literal::exact("ab")]);
+        let q1 = AtomsQuality::from_seq(s1);
+        let q2 = AtomsQuality::from_seq(s2);
 
-        assert!(AtomsQuality::from_seq(s1) > AtomsQuality::from_seq(s2));
+        assert!(q1 > q2);
+        assert!(q2 < q1);
 
         let s1 = &Seq::new(vec![Literal::exact("ab"), Literal::exact("cd")]);
         let s2 = &Seq::new(vec![Literal::exact("abc"), Literal::exact("a")]);
+        let q1 = AtomsQuality::from_seq(s1);
+        let q2 = AtomsQuality::from_seq(s2);
 
-        assert!(AtomsQuality::from_seq(s1) > AtomsQuality::from_seq(s2));
+        assert!(q1 > q2);
+        assert!(q2 < q1);
 
         let s1 = &Seq::new(vec![Literal::exact("abc"), Literal::exact("cde")]);
-
         let s2 = &Seq::new(vec![
             Literal::exact("abc"),
             Literal::exact("cde"),
             Literal::exact("fgh"),
         ]);
 
-        assert!(AtomsQuality::from_seq(s1) > AtomsQuality::from_seq(s2));
+        let q1 = AtomsQuality::from_seq(s1);
+        let q2 = AtomsQuality::from_seq(s2);
+
+        assert!(q1 > q2);
+        assert!(q2 < q1);
 
         let s1 = &Seq::new(vec![Literal::exact("abcd")]);
         let s2 = &Seq::new(vec![Literal::exact("\x00\x00\x00\x00")]);
+        let q1 = AtomsQuality::from_seq(s1);
+        let q2 = AtomsQuality::from_seq(s2);
 
-        assert!(AtomsQuality::from_seq(s1) > AtomsQuality::from_seq(s2));
+        assert!(q1 > q2);
+        assert!(q2 < q1);
 
         let s1 = &Seq::new(vec![Literal::exact("abc")]);
         let s2 = &Seq::new(vec![Literal::exact("\x00\x00\x00\x00")]);
+        let q1 = AtomsQuality::from_seq(s1);
+        let q2 = AtomsQuality::from_seq(s2);
 
-        assert!(AtomsQuality::from_seq(s1) > AtomsQuality::from_seq(s2));
+        assert!(q1 > q2);
+        assert!(q2 < q1);
 
         let s1 = &Seq::new(vec![Literal::exact("abc")]);
         let s2 = &Seq::new(vec![Literal::exact("\x00\x00\x00\x01")]);
+        let q1 = AtomsQuality::from_seq(s1);
+        let q2 = AtomsQuality::from_seq(s2);
 
-        assert!(AtomsQuality::from_seq(s1) > AtomsQuality::from_seq(s2));
+        assert!(q1 > q2);
+        assert!(q2 < q1);
 
         let s1 = &Seq::new(vec![Literal::exact("\x01\0x02\0x03")]);
         let s2 = &Seq::new(vec![Literal::exact("\x00\x00\x00\x01")]);
+        let q1 = AtomsQuality::from_seq(s1);
+        let q2 = AtomsQuality::from_seq(s2);
 
-        assert!(AtomsQuality::from_seq(s1) > AtomsQuality::from_seq(s2));
+        assert!(q1 > q2);
+        assert!(q2 < q1);
 
         let s1 = &Seq::new(vec![Literal::exact("ab")]);
         let s2 = &Seq::new(vec![Literal::exact("\x00\x00\x00\x00")]);
+        let q1 = AtomsQuality::from_seq(s1);
+        let q2 = AtomsQuality::from_seq(s2);
 
-        assert!(AtomsQuality::from_seq(s1) > AtomsQuality::from_seq(s2));
+        assert!(q1 > q2);
+        assert!(q2 < q1);
+
+        let s1 = &Seq::new(
+            [0x01..=0x01, 0x00..=0xff, 0x00..=0x00]
+                .into_iter()
+                .multi_cartesian_product()
+                .map(Literal::exact)
+                .collect::<Vec<Literal>>(),
+        );
+        let s2 = &Seq::new(vec![Literal::exact("\x00\x00\x00\x00")]);
+
+        let q1 = AtomsQuality::from_seq(s1);
+        let q2 = AtomsQuality::from_seq(s2);
+
+        assert!(q1 > q2);
+        assert!(q2 < q1);
     }
 
     #[test]

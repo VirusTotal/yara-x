@@ -253,7 +253,9 @@ impl AuthenticodeParser {
                 authenticode_hasher.hash(&mut md5);
                 md5.finalize().to_vec()
             }
-            rfc5912::ID_SHA_1 | rfc5912::SHA_1_WITH_RSA_ENCRYPTION => {
+            rfc5912::ID_SHA_1
+            | rfc5912::SHA_1_WITH_RSA_ENCRYPTION
+            | oid::SHA1_WITH_RSA_ENCRYPTION_OBSOLETE => {
                 let mut sha1 = Sha1::default();
                 authenticode_hasher.hash(&mut sha1);
                 sha1.finalize().to_vec()
@@ -366,7 +368,6 @@ impl AuthenticodeParser {
                     sd.content_info.content.as_bytes(),
                     cs_si_digest,
                 ) && verify_signer_info(cs_si, certificates.as_slice());
-
 
             countersignatures.push(countersignature);
         }
@@ -728,7 +729,9 @@ fn verify_message_digest(
         Err(_) => return false,
     };
     match oid {
-        rfc5912::ID_SHA_1 | rfc5912::SHA_1_WITH_RSA_ENCRYPTION => {
+        rfc5912::ID_SHA_1
+        | rfc5912::SHA_1_WITH_RSA_ENCRYPTION
+        | oid::SHA1_WITH_RSA_ENCRYPTION_OBSOLETE => {
             Sha1::digest(message).as_slice() == digest
         }
         rfc5912::ID_SHA_256 | rfc5912::SHA_256_WITH_RSA_ENCRYPTION => {
@@ -859,7 +862,9 @@ fn verify_signer_info(si: &SignerInfo, certs: &[Certificate<'_>]) -> bool {
             attrs_set.write_der(&mut md5).unwrap();
             key.verify_digest::<Md5>(md5.finalize(), si.signature)
         }
-        rfc5912::ID_SHA_1 | rfc5912::SHA_1_WITH_RSA_ENCRYPTION => {
+        rfc5912::ID_SHA_1
+        | rfc5912::SHA_1_WITH_RSA_ENCRYPTION
+        | oid::SHA1_WITH_RSA_ENCRYPTION_OBSOLETE => {
             let mut sha1 = Sha1::default();
             attrs_set.write_der(&mut sha1).unwrap();
             key.verify_digest::<Sha1>(sha1.finalize(), si.signature)
