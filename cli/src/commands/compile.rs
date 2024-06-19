@@ -34,11 +34,13 @@ pub fn compile() -> Command {
                 .action(ArgAction::Append),
         )
         .arg(
-            arg!(-w --"disable-warnings" [ID])
+            arg!(-w --"disable-warnings" [WARNING_ID])
                 .help("Disable warnings")
+                .long_help(help::DISABLE_WARNINGS_LONG_HELP)
                 .default_missing_value("all")
                 .num_args(0..)
                 .require_equals(true)
+                .value_delimiter(',')
                 .action(ArgAction::Append)
         )
         .arg(

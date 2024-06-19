@@ -60,6 +60,7 @@ pub fn dump() -> Command {
                 .help("Module name")
                 .required(false)
                 .action(ArgAction::Append)
+                .value_delimiter(',')
                 .value_parser(value_parser!(SupportedModules)),
         )
 }

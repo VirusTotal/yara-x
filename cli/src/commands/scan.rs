@@ -64,12 +64,12 @@ pub fn scan() -> Command {
         .arg(
             arg!(-C --"compiled-rules")
                 .help("Indicate that RULES_PATH is a file with compiled rules")
-                .long_help(help::COMPILED_RULES_HELP)
+                .long_help(help::COMPILED_RULES_LONG_HELP)
         )
         .arg(
             arg!(--"scan-list")
                 .help("Indicate that TARGET_PATH is a file containing the paths to be scanned")
-                .long_help(help::SCAN_LIST_HELP)
+                .long_help(help::SCAN_LIST_LONG_HELP)
         )
         .arg(
             arg!(-z --"skip-larger" <FILE_SIZE>)
@@ -94,11 +94,13 @@ pub fn scan() -> Command {
                 .help("Use a more relaxed syntax check while parsing regular expressions")
         )
         .arg(
-            arg!(-w --"disable-warnings" [ID])
+            arg!(-w --"disable-warnings" [WARNING_ID])
                 .help("Disable warnings")
+                .long_help(help::DISABLE_WARNINGS_LONG_HELP)
                 .default_missing_value("all")
                 .num_args(0..)
                 .require_equals(true)
+                .value_delimiter(',')
                 .action(ArgAction::Append)
         )
         .arg(
