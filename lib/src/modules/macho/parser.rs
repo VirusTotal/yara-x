@@ -981,7 +981,8 @@ impl<'a> MachOFile<'a> {
         }
     }
 
-    /// Parser that parses the exports at the offsets defined within LC_DYLD_INFO and LC_DYLD_INFO_ONLY
+    /// Parser that parses the exports at the offsets defined within
+    /// LC_DYLD_INFO and LC_DYLD_INFO_ONLY.
     fn exports(
         &mut self,
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<String>> + '_ {
@@ -1408,7 +1409,8 @@ fn uint(
     }
 }
 
-/// Parser that reads ULEB128
+/// Parser that reads ULEB128.
+/// https://en.wikipedia.org/wiki/LEB128
 fn uleb128(input: &[u8]) -> IResult<&[u8], u64> {
     let mut val: u64 = 0;
     let mut shift: u64 = 0;
@@ -1424,6 +1426,7 @@ fn uleb128(input: &[u8]) -> IResult<&[u8], u64> {
         if byte & (1 << 7) == 0 {
             break;
         }
+
         shift += 7;
     }
 
