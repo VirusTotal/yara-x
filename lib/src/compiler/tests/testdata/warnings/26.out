@@ -1,14 +1,14 @@
 warning[non_bool_expr]: non-boolean expression used as boolean
- --> line:3:5
+ --> line:4:5
   |
-3 |     1+1
+4 |     1+1
   |     --- this expression is `integer` but is being used as `bool`
   |
   = note: non-zero integers are considered `true`, while zero is `false`
 warning[invariant_expr]: invariant boolean expression
- --> line:3:5
+ --> line:4:5
   |
-3 |     1+1
+4 |     1+1
   |     --- this expression is always true
   |
   = note: rule `test` is always `true`

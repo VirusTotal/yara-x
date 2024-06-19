@@ -1,7 +1,7 @@
 warning[invariant_expr]: invariant boolean expression
- --> line:3:5
+ --> line:4:5
   |
-3 |     true or false
+4 |     true or false
   |     ------------- this expression is always true
   |
   = note: rule `test` is always `true`
