@@ -1,4 +1,4 @@
-error: `entrypoint` is unsupported`
+error[E115]: `entrypoint` is unsupported`
  --> line:3:5
   |
 3 |     entrypoint == 0x1000

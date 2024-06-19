@@ -1,4 +1,4 @@
-error: syntax error
+error[syntax_error]: syntax error
  --> line:2:17
   |
 2 |   condition: 1  1 == 1

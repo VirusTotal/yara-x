@@ -1,4 +1,4 @@
-error: wrong type
+error[E100]: wrong type
  --> line:2:19
   |
 2 |   condition: 1 + -"1" == 0

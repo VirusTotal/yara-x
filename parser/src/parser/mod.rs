@@ -204,7 +204,7 @@ impl<'a> Parser<'a> {
 
         let (imports, rules) = ast_from_cst(&mut ctx, root.into_inner())?;
 
-        Ok(AST { source: src, imports, rules, warnings: ctx.warnings })
+        Ok(AST { source: src, imports, rules })
     }
 
     /// Build the Concrete Syntax Tree (CST) for a YARA source.

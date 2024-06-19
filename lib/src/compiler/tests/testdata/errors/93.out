@@ -1,4 +1,4 @@
-error: unknown pattern `@a`
+error[E009]: unknown pattern `@a`
  --> line:3:6
   |
 3 |      @a == 1

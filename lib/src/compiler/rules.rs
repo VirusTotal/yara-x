@@ -11,9 +11,9 @@ use regex_automata::meta::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use yara_x_parser::ast::Span;
-use yara_x_parser::Warning;
 
 use crate::compiler::atoms::Atom;
+use crate::compiler::warnings::Warning;
 use crate::compiler::{
     IdentId, Imports, LiteralId, NamespaceId, PatternId, RegexpId, RuleId,
     SubPattern, SubPatternId,

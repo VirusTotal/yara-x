@@ -1,4 +1,4 @@
-error: unexpected escape sequence
+error[E015]: unexpected escape sequence
  --> line:1:8
   |
 1 | import "foo\x00"

@@ -1,4 +1,4 @@
-warning: consecutive jumps in hex pattern `$a`
+warning[consecutive_jumps]: consecutive jumps in hex pattern `$a`
  --> line:3:18
   |
 3 |     $a = { 0F 84 [4] [0-7] 8D } 

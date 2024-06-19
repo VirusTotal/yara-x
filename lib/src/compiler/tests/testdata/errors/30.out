@@ -1,4 +1,4 @@
-error: unknown module `foo`
+error[E108]: unknown module `foo`
  --> line:1:1
   |
 1 | import "foo"

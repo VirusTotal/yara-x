@@ -1,4 +1,4 @@
-warning: invariant boolean expression
+warning[invariant_expr]: invariant boolean expression
  --> line:6:5
   |
 6 |       3 of them

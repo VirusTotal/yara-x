@@ -3,7 +3,6 @@ use std::collections::{HashMap, HashSet};
 use crate::ast::{Ident, Span};
 use crate::cst::CSTNode;
 use crate::report::ReportBuilder;
-use crate::Warnings;
 
 /// A structure that holds information about the parsing process.
 pub(crate) struct Context<'src, 'rb> {
@@ -37,9 +36,6 @@ pub(crate) struct Context<'src, 'rb> {
 
     /// Used for building error messages and warnings.
     pub(crate) report_builder: &'rb ReportBuilder,
-
-    /// Warnings generated during the parsing process.
-    pub(crate) warnings: Warnings,
 }
 
 impl<'src, 'rb> Context<'src, 'rb> {
@@ -50,7 +46,6 @@ impl<'src, 'rb> Context<'src, 'rb> {
             unused_patterns: HashSet::new(),
             current_pattern: None,
             report_builder,
-            warnings: Warnings::default(),
         }
     }
 

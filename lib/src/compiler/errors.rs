@@ -3,12 +3,15 @@ use std::io;
 
 use thiserror::Error;
 
-use crate::VariableError;
 use yara_x_macros::Error as DeriveError;
 use yara_x_parser::ast::Span;
 use yara_x_parser::report::Level;
 use yara_x_parser::report::ReportBuilder;
-use yara_x_parser::Error as ParseError;
+
+pub use yara_x_parser::Error as ParseError;
+
+use crate::compiler::warnings::InvalidWarningCode;
+use crate::VariableError;
 
 /// Errors returned while serializing/deserializing compiled rules.
 #[derive(Error, Debug)]
@@ -45,6 +48,9 @@ pub enum Error {
 
     #[error(transparent)]
     VariableError(#[from] VariableError),
+
+    #[error(transparent)]
+    InvalidWarningCode(#[from] InvalidWarningCode),
 }
 
 /// An error occurred during the compilation process.
@@ -52,7 +58,7 @@ pub enum Error {
 #[allow(missing_docs)]
 #[non_exhaustive]
 pub enum CompileError {
-    #[error("wrong type")]
+    #[error("E100", "wrong type")]
     #[label(
         "expression should be {expected_types}, but is `{actual_type}`",
         expression_span
@@ -64,7 +70,7 @@ pub enum CompileError {
         expression_span: Span,
     },
 
-    #[error("mismatching types")]
+    #[error("E101", "mismatching types")]
     #[label("this expression is `{type1}`", type1_span)]
     #[label("this expression is `{type2}`", type2_span)]
     MismatchingTypes {
@@ -75,7 +81,7 @@ pub enum CompileError {
         type2_span: Span,
     },
 
-    #[error("wrong arguments")]
+    #[error("E102", "wrong arguments")]
     #[label("wrong arguments in this call", args_span)]
     #[note(note)]
     WrongArguments {
@@ -84,7 +90,7 @@ pub enum CompileError {
         note: Option<String>,
     },
 
-    #[error("assignment mismatch")]
+    #[error("E103", "assignment mismatch")]
     #[label("this expects {expected_values} value(s)", error_span)]
     #[label("this produces {actual_values} value(s)", iterable_span)]
     AssignmentMismatch {
@@ -95,11 +101,11 @@ pub enum CompileError {
         error_span: Span,
     },
 
-    #[error("unexpected negative number")]
+    #[error("E104", "unexpected negative number")]
     #[label("this number can not be negative", span)]
     UnexpectedNegativeNumber { detailed_report: String, span: Span },
 
-    #[error("number out of range")]
+    #[error("E105", "number out of range")]
     #[label("this number is out of the allowed range [{min}-{max}]", span)]
     NumberOutOfRange {
         detailed_report: String,
@@ -108,11 +114,11 @@ pub enum CompileError {
         span: Span,
     },
 
-    #[error("unknown field or method `{identifier}`")]
+    #[error("E106", "unknown field or method `{identifier}`")]
     #[label("this field or method doesn't exist", span)]
     UnknownField { detailed_report: String, identifier: String, span: Span },
 
-    #[error("unknown identifier `{identifier}`")]
+    #[error("E107", "unknown identifier `{identifier}`")]
     #[label("this identifier has not been declared", span)]
     #[note(note)]
     UnknownIdentifier {
@@ -122,15 +128,15 @@ pub enum CompileError {
         note: Option<String>,
     },
 
-    #[error("unknown module `{identifier}`")]
+    #[error("E108", "unknown module `{identifier}`")]
     #[label("module `{identifier}` not found", span)]
     UnknownModule { detailed_report: String, identifier: String, span: Span },
 
-    #[error("invalid range")]
+    #[error("E109", "invalid range")]
     #[label("higher bound must be greater or equal than lower bound", span)]
     InvalidRange { detailed_report: String, span: Span },
 
-    #[error("duplicate rule `{new_rule}`")]
+    #[error("E110", "duplicate rule `{new_rule}`")]
     #[label(
         "`{new_rule}` declared here for the first time",
         existing_rule_span,
@@ -144,7 +150,7 @@ pub enum CompileError {
         existing_rule_span: Span,
     },
 
-    #[error("rule `{ident}` conflicts with an existing identifier")]
+    #[error("E111", "rule `{ident}` conflicts with an existing identifier")]
     #[label(
         "identifier already in use by a module or global variable",
         ident_span
@@ -155,7 +161,7 @@ pub enum CompileError {
         ident_span: Span,
     },
 
-    #[error("invalid regular expression")]
+    #[error("E112", "invalid regular expression")]
     #[label("{error}", span)]
     #[note(note)]
     InvalidRegexp {
@@ -165,7 +171,10 @@ pub enum CompileError {
         note: Option<String>,
     },
 
-    #[error("mixing greedy and non-greedy quantifiers in regular expression")]
+    #[error(
+        "E113",
+        "mixing greedy and non-greedy quantifiers in regular expression"
+    )]
     #[label("this is {quantifier1_greediness}", quantifier1_span)]
     #[label("this is {quantifier2_greediness}", quantifier2_span)]
     MixedGreediness {
@@ -176,7 +185,7 @@ pub enum CompileError {
         quantifier2_span: Span,
     },
 
-    #[error("no matching patterns")]
+    #[error("E114", "no matching patterns")]
     #[label("there's no pattern in this set", span)]
     #[note(note)]
     EmptyPatternSet {
@@ -185,7 +194,7 @@ pub enum CompileError {
         note: Option<String>,
     },
 
-    #[error("`entrypoint` is unsupported`")]
+    #[error("E115", "`entrypoint` is unsupported`")]
     #[label("the `entrypoint` keyword is not supported anymore", span)]
     #[note(note)]
     EntrypointUnsupported {
@@ -194,7 +203,7 @@ pub enum CompileError {
         note: Option<String>,
     },
 
-    #[error("slow pattern")]
+    #[error("E116", "slow pattern")]
     #[label("this pattern may slow down the scan", span)]
     SlowPattern { detailed_report: String, span: Span },
 }

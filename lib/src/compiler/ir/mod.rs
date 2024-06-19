@@ -58,7 +58,7 @@ bitmask! {
     /// the `Ascii` flag, which will be set when `Wide` is not set regardless
     /// of what the source code says. This follows the semantics of YARA
     /// pattern modifiers, in which a pattern is considered `ascii` by default
-    /// when neither `ascii` or `wide` modifiers are used.
+    /// when neither `ascii` nor `wide` modifiers are used.
     ///
     /// In resume either the `Ascii` or the `Wide` flags (or both) will be set.
     #[derive(Debug, Hash, Serialize, Deserialize)]
@@ -112,7 +112,7 @@ impl<'src> PatternInRule<'src> {
 
     /// Anchor the pattern to a given offset. This means that the pattern can
     /// match only at that offset and nowhere else. This is a no-op for
-    /// for patterns that are flagged as non-anchorable.
+    /// patterns that are flagged as non-anchorable.
     ///
     /// Also, if this function is called twice with different offsets, the
     /// pattern becomes non-anchorable because it can't be anchored to two
@@ -130,10 +130,10 @@ impl<'src> PatternInRule<'src> {
     ///
     /// This function is used to indicate that a certain pattern can't be
     /// anchored at any fixed offset because it is used in ways that require
-    /// require finding all the possible matches. For example, in a condition
-    /// condition like `#a > 0 and $a at 0`, the use of `#a` (which returns
-    /// the number of occurrences of `$a`), makes `$a` non-anchorable because
-    /// we need to find all occurrences of `$a`.
+    /// finding all the possible matches. For example, in a condition like
+    /// `#a > 0 and $a at 0`, the use of `#a` (which returns the number of
+    /// occurrences of `$a`), makes `$a` non-anchorable because we need to find
+    /// all occurrences of `$a`.
     pub fn make_non_anchorable(&mut self) {
         self.pattern.make_non_anchorable();
     }
@@ -185,7 +185,7 @@ impl Pattern {
 
     /// Anchor the pattern to a given offset. This means that the pattern can
     /// match only at that offset and nowhere else. This is a no-op for
-    /// for patterns that are flagged as non-anchorable.
+    /// patterns that are flagged as non-anchorable.
     ///
     /// Also, if this function is called twice with different offsets, the
     /// pattern becomes non-anchorable because it can't be anchored to two
@@ -222,10 +222,10 @@ impl Pattern {
     ///
     /// This function is used to indicate that a certain pattern can't be
     /// anchored at any fixed offset because it is used in ways that require
-    /// require finding all the possible matches. For example, in a condition
-    /// condition like `#a > 0 and $a at 0`, the use of `#a` (which returns
-    /// the number of occurrences of `$a`), makes `$a` non-anchorable because
-    /// we need to find all occurrences of `$a`.
+    /// finding all the possible matches. For example, in a condition like
+    /// `#a > 0 and $a at 0`, the use of `#a` (which returns the number of
+    /// occurrences of `$a`), makes `$a` non-anchorable because we need to
+    /// find all occurrences of `$a`.
     pub fn make_non_anchorable(&mut self) {
         match self {
             Pattern::Literal(literal) => literal.anchored_at = None,

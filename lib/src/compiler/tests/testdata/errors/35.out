@@ -1,4 +1,4 @@
-error: unknown identifier `y`
+error[E107]: unknown identifier `y`
  --> line:7:11
   |
 7 |       and y == 1

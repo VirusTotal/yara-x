@@ -5,13 +5,13 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::iter::Iterator;
 use std::str;
 
-use crate::{ast, Warning};
 use bstr::{BStr, BString, ByteSlice, ByteVec};
 use lazy_static::lazy_static;
 use num_traits::{Bounded, CheckedMul, FromPrimitive, Num};
 use pest::iterators::Pair;
 use pest::pratt_parser::{Assoc, Op, PrattParser};
 
+use crate::ast;
 use crate::ast::*;
 use crate::cst::*;
 use crate::parser::{Context, Error, ErrorInfo, GrammarRule};
@@ -2095,7 +2095,6 @@ fn hex_pattern_from_cst<'src>(
             GrammarRule::hex_jump => {
                 let mut jump_span = ctx.span(&node);
                 let mut jump = hex_jump_from_cst(ctx, node)?;
-                let mut consecutive_jumps = false;
 
                 // If there are two consecutive jumps they will be coalesced
                 // together. For example: [1-2][2-3] is converted into [3-5].
@@ -2109,20 +2108,7 @@ fn hex_pattern_from_cst<'src>(
                         children.next().unwrap(),
                     )?);
                     jump_span = jump_span.combine(&span);
-                    consecutive_jumps = true;
-                }
-
-                if consecutive_jumps {
-                    let report_builder = ctx.report_builder;
-                    let ident = ctx.current_pattern_ident();
-                    ctx.warnings.add(|| {
-                        Warning::consecutive_jumps(
-                            report_builder,
-                            ident.clone(),
-                            format!("{}", jump),
-                            jump_span,
-                        )
-                    });
+                    jump.coalesced_span = Some(jump_span);
                 }
 
                 match (jump.start, jump.end) {
@@ -2144,7 +2130,7 @@ fn hex_pattern_from_cst<'src>(
                                 "lower bound ({}) is greater than upper bound ({})",
                                 start, end),
                             jump_span,
-                            if consecutive_jumps {
+                            if jump.coalesced_span.is_some() {
                                 Some("consecutive jumps were coalesced into a single one".to_string())
                             } else {
                                 None
@@ -2200,7 +2186,7 @@ fn hex_jump_from_cst<'src>(
 
     expect!(node, GrammarRule::RBRACKET);
 
-    Ok(HexJump { start, end })
+    Ok(HexJump { start, end, coalesced_span: None })
 }
 
 /// From a CST node corresponding to the grammar rule `hex_alternative`,

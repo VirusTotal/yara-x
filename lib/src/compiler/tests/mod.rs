@@ -643,7 +643,7 @@ fn errors_2() {
             .add_source("rule foo  {condition: true}")
             .unwrap_err()
             .to_string(),
-        "error: rule `foo` conflicts with an existing identifier
+        "error[E111]: rule `foo` conflicts with an existing identifier
  --> line:1:6
   |
 1 | rule foo  {condition: true}
@@ -658,7 +658,7 @@ fn errors_2() {
             .add_source("rule foo : second {condition: true}")
             .unwrap_err()
             .to_string(),
-        "error: duplicate rule `foo`
+        "error[E110]: duplicate rule `foo`
  --> line:1:6
   |
 1 | rule foo : first {condition: true}
@@ -682,7 +682,7 @@ condition:
             )
             .unwrap_err()
             .to_string(),
-        "error: number out of range
+        "error[E105]: number out of range
  --> line:3:4
   |
 3 |    9223372036854775807 + 1000000000 == 0
@@ -704,7 +704,7 @@ fn utf8_errors() {
             .build_ast(src.as_slice())
             .expect_err("expected error")
             .to_string(),
-        "error: invalid UTF-8
+        "error[E017]: invalid UTF-8
  --> line:1:5
   |
 1 | rule� test {condition: true}
