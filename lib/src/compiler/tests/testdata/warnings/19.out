@@ -4,4 +4,10 @@ warning[non_bool_expr]: non-boolean expression used as boolean
 2 |   condition: true or "false"
   |                      ------- this expression is `string` but is being used as `bool`
   |
-  = note: non-empty strings are considered `true`, while the empty string ("") is `false`
+  = note: non-empty strings are considered `true`, while the empty string ("") is `false`warning[invariant_expr]: invariant boolean expression
+ --> line:2:14
+  |
+2 |   condition: true or "false"
+  |              --------------- this expression is always true
+  |
+  = note: rule `test` is always `true`
