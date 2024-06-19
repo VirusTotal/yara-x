@@ -374,7 +374,7 @@ fn globals() {
         .new_namespace("test")
         .add_source(
             r#"
-            rule foo {strings: $a = "foo" condition: $a} 
+            rule foo {strings: $a = "foo" condition: $a}
             global rule always_true { condition: true }"#,
         )
         .unwrap();
@@ -401,7 +401,7 @@ fn globals() {
                 r#"
             import "test_proto2"
             rule foo {
-                condition: 
+                condition:
                     str_foo == "foo" and
                     for any s in test_proto2.array_string: (s == str_foo)
              }"#,
@@ -440,7 +440,7 @@ fn globals_json() {
         .add_source(
             r#"
             rule foo {
-            condition: 
+            condition:
                 some_struct.some_int == 1 and
                 some_struct.some_bool and
                 some_struct.some_string == "foo" and
@@ -568,13 +568,13 @@ fn import_modules() {
     assert!(compiler
         .add_source(
             r#"
-            import "test_proto2" 
+            import "test_proto2"
             rule foo {condition: test_proto2.int32_zero == 0}"#
         )
         .unwrap()
         .add_source(
             r#"
-            import "test_proto2" 
+            import "test_proto2"
             rule bar {condition: test_proto2.int32_zero == 0}"#
         )
         .is_ok());
@@ -583,14 +583,14 @@ fn import_modules() {
     assert!(compiler
         .add_source(
             r#"
-            import "test_proto2" 
+            import "test_proto2"
             rule foo {condition: test_proto2.int32_zero == 0}"#
         )
         .unwrap()
         .new_namespace("namespace1")
         .add_source(
             r#"
-            import "test_proto2" 
+            import "test_proto2"
             rule bar {condition: test_proto2.int32_zero == 0}"#
         )
         .is_ok());
@@ -604,9 +604,9 @@ fn continue_after_error() {
     assert!(compiler
         .add_source(
             r#"
-            rule test { 
-                condition: 
-                    for any x in (1,2,3) : ( x contains "foo") 
+            rule test {
+                condition:
+                    for any x in (1,2,3) : ( x contains "foo")
             }"#
         )
         .is_err());
@@ -622,9 +622,9 @@ fn continue_after_error() {
     assert!(compiler
         .add_source(
             r#"
-            rule test { 
-                condition: 
-                    for any x in (1,2,3) : ( x contains "foo") 
+            rule test {
+                condition:
+                    for any x in (1,2,3) : ( x contains "foo")
             }"#
         )
         .is_err());
@@ -773,9 +773,9 @@ fn test_warnings() {
         let mut output_file = mint.new_goldenfile(out_path).unwrap();
 
         for w in compiler.warnings() {
-            output_file
-                .write_all(w.to_string().as_bytes())
-                .expect("unable to write");
+            let mut s = w.to_string();
+            s.push('\n');
+            output_file.write_all(s.as_bytes()).expect("unable to write");
         }
     }
 }
