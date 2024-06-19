@@ -883,7 +883,7 @@ impl<'a> Compiler<'a> {
                 return Err(Box::new(err));
             }
         };
-        
+
         // Check if the value of the condition is known at compile time and
         // raise a warning if that's the case. Rules with constant conditions
         // are not very useful in real life, except for testing.
