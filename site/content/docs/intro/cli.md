@@ -91,6 +91,35 @@ Examples:
 
 Disables the output produced by the [console]({{< ref "console.md" >}}) module.
 
+### --disable-warnings, -w
+
+Disables all warnings when used alone, or disable specific warnings when
+followed by comma-separated list of warnings identifiers.
+
+Disable all warnings:
+
+```
+--disable-warnings
+```
+
+Disable warning `slow_patterns`:
+
+```
+--disable-warnings=slow_patterns
+```
+
+Disable warnings `slow_patterns` and `redundant_modifier`:
+
+```
+--disable-warnings=slow_patterns,redundant_modifier"
+```
+
+Equivalent to the previous one, but using `--disable-warnings` multiple times:
+
+```
+--disable-warnings=slow_patterns --disable-warnings=redundant_modifier
+```
+
 ### --negate, -n
 
 Prints the rules that doesn't match instead of those that match.
@@ -167,19 +196,22 @@ Each `<RULES_PATH>` is the path of YARA source file or a directory containing
 source files. When`<RULES_PATH>` is a directory YARA-X iterates the directory
 recursively looking for any `*.yar` or `*.yara` files.
 
+### --disable-warnings
+
+See [--disable-warnings](#--disable-warnings) for the scan command.
+
 ### --output, -o <OUTPUT_PATH>
 
 Specify the path for the output binary file containing the compiled rules. By
 default, is `output.yarc`.
 
-### --relaxed-re-syntax
-
-See [--relaxed-re-syntax](#--relaxed-re-syntax) for the scan command.
-
 ### --path-as-namespace
 
 See [--path-as-namespace](#--path-as-namespace) for the scan command.
 
+### --relaxed-re-syntax
+
+See [--relaxed-re-syntax](#--relaxed-re-syntax) for the scan command.
 
 ------
 
