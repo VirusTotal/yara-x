@@ -763,6 +763,13 @@ fn test_warnings() {
         let mut src = String::new();
         let rules = fs::read_to_string(&in_path).expect("unable to read");
 
+        // If the `constant-folding` feature is not enabled ignore files
+        // starting with "// constant-folding required".
+        #[cfg(not(feature = "constant-folding"))]
+        if rules.starts_with("// constant-folding required") {
+            continue;
+        }
+
         src.push_str(rules.as_str());
 
         let mut compiler = Compiler::new();

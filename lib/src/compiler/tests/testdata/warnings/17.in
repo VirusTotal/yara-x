@@ -1,3 +1,4 @@
+// constant-folding required
 rule test {
   condition: 2 and 3
 }

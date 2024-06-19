@@ -1,3 +1,4 @@
+// constant-folding required
 rule test {
   condition: "foo" or true
 }
