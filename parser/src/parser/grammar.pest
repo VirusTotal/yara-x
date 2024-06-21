@@ -277,9 +277,11 @@ string_lit = @{
 }
 
 integer_lit = @{
-  "-"? ~ "0x" ~ ASCII_HEX_DIGIT+ |
-  "-"? ~ "0o" ~ ASCII_OCT_DIGIT+ |
-  "-"? ~ ASCII_DIGIT+ ~ ("KB" | "MB")?
+  "-"? ~ (
+  	"0x" ~ ASCII_HEX_DIGIT+ |
+  	"0o" ~ ASCII_OCT_DIGIT+ |
+     ASCII_DIGIT+ ~ ("KB" | "MB")?
+  )
 }
 
 float_lit = @{
@@ -287,13 +289,12 @@ float_lit = @{
 }
 
 regexp = @{
-  "/" ~
-  (
-      // Anything except backslashes, slashes and newlines.
-      (!("\\" | "/" | NEWLINE) ~ ANY)  |
+  "/" ~ (
+    // Anything except backslashes, slashes and newlines.
+    (!("\\" | "/" | NEWLINE) ~ ANY)  |
 
-      // Escape sequences.
-      "\\" ~ ANY
+    // Escape sequences.
+    "\\" ~ ANY
   )+ ~
   "/" ~
   // Zero or more modifiers like "s" and "i". The grammar accepts any letter,
@@ -374,34 +375,36 @@ hex_tokens = {
 }
 
 hex_byte = @{
-  TILDE? ~ ASCII_HEX_DIGIT ~ ASCII_HEX_DIGIT             |
-  TILDE? ~ ASCII_HEX_DIGIT ~ "?"                         |
-  TILDE? ~ "?" ~ ASCII_HEX_DIGIT                         |
+  TILDE? ~ (
+  	ASCII_HEX_DIGIT ~ ASCII_HEX_DIGIT             |
+    ASCII_HEX_DIGIT ~ "?"                         |
+    "?" ~ ASCII_HEX_DIGIT                         |
 
-  // ~?? is not actually valid, but it is accepted by the grammar and rejected
-  // later on, during the creation of the AST. This is in order to keep the
-  // grammar simple and provide a more meaningful error message when ~?? is
-  // used.
-  TILDE? ~ "?" ~ "?"                                     |
+    // ~?? is not actually valid, but it is accepted by the grammar and rejected
+    // later on, during the creation of the AST. This is in order to keep the
+    // grammar simple and provide a more meaningful error message when ~?? is
+    // used.
+  	"?" ~ "?"                                     |
 
-  // A single-digit byte is not valid, but it is accepted by the grammar and
-  // rejected later on, during the creation of the AST. This allows more
-  // meaningful error messages in the case an odd number of hex digits. For
-  // example, this error is not very clear, as it doesn't talk about the
-  // real issue:
-  //
-  //   $a = {EB3D8212C3A}
-  //                   │
-  //                   ╰─ expected byte, closing brace `}`, opening bracket ...
-  //
-  // This is more descriptive:
-  //
-  //   $a = {EB3D8212C3A}
-  //                   │
-  //                   ╰─ odd number of hex digits
-  //
-  // For that reason the grammar accepts a single digit here..
-  TILDE? ~ ASCII_HEX_DIGIT
+    // A single-digit byte is not valid, but it is accepted by the grammar and
+    // rejected later on, during the creation of the AST. This allows more
+    // meaningful error messages in the case an odd number of hex digits. For
+    // example, this error is not very clear, as it doesn't talk about the
+    // real issue:
+    //
+    //   $a = {EB3D8212C3A}
+    //                   │
+    //                   ╰─ expected byte, closing brace `}`, opening bracket ...
+    //
+    // This is more descriptive:
+    //
+    //   $a = {EB3D8212C3A}
+    //                   │
+    //                   ╰─ odd number of hex digits
+    //
+    // For that reason the grammar accepts a single digit here..
+  	ASCII_HEX_DIGIT
+  )
 }
 
 hex_alternative = {
@@ -409,8 +412,11 @@ hex_alternative = {
 }
 
 hex_jump = {
-  LBRACKET ~ integer_lit? ~ HYPHEN ~ integer_lit? ~ RBRACKET |
-  LBRACKET ~ integer_lit ~ RBRACKET
+  LBRACKET ~ (
+  	integer_lit? ~ HYPHEN ~ integer_lit? |
+  	integer_lit
+  ) ~
+  RBRACKET
 }
 
 boolean_expr = {
@@ -471,16 +477,18 @@ primary_expr = {
 }
 
 of_expr = {
-  // "of" expression that accepts a tuple of string identifiers.
-  quantifier ~ k_OF ~ (k_THEM | pattern_ident_tuple) ~ (k_AT ~ expr | k_IN ~ range)? |
-  // "of" expression that accepts a tuple of boolean expressions.
-  quantifier ~ k_OF ~ boolean_expr_tuple ~ !(k_AT | k_IN)
+	quantifier ~ k_OF ~ (
+    // "of" expression that accepts a tuple of string identifiers.
+  	(k_THEM | pattern_ident_tuple) ~ (k_AT ~ expr | k_IN ~ range)? |
+  	// "of" expression that accepts a tuple of boolean expressions.
+  	boolean_expr_tuple ~ !(k_AT | k_IN)
+  )
 }
 
 for_expr = {
-  (
-    k_FOR ~ quantifier ~ k_OF ~ (k_THEM | pattern_ident_tuple)   |
-    k_FOR ~ quantifier ~ ident ~ (COMMA ~ ident)* ~ k_IN ~ iterable
+  k_FOR ~ quantifier ~ (
+    k_OF ~ (k_THEM | pattern_ident_tuple)   |
+    ident ~ (COMMA ~ ident)* ~ k_IN ~ iterable
   ) ~
   COLON ~
   LPAREN ~
@@ -493,15 +501,15 @@ iterable = {
 }
 
 quantifier = {
-  k_ALL                           | 
-  k_NONE                          | 
+  k_ALL                           |
+  k_NONE                          |
   k_ANY                           |
-  // Quantifier can be either a primary expression followed by a %, or an 
+  // Quantifier can be either a primary expression followed by a %, or an
   // expression not followed by %. We can't simply use expr ~ PERCENT?
   // (expression followed by an optional %) because that leads to ambiguity
   // as expressions can contain the % operator (mod).
   primary_expr ~ PERCENT         |
-  expr ~ !PERCENT                  
+  expr ~ !PERCENT
 }
 
 range = {
