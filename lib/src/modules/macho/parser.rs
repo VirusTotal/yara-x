@@ -963,21 +963,21 @@ impl<'a> MachOFile<'a> {
     ) -> impl FnMut(&'a [u8], u64, &BStr) -> IResult<&'a [u8], String> + '_
     {
         move |data: &'a [u8], offset: u64, prefix: &BStr| {
-            let (remainder, length) = uleb128()(&data[offset as usize..])?;
+            let (remainder, length) = uleb128(&data[offset as usize..])?;
             let mut remaining_data = remainder;
 
             if length != 0 {
-                let (remainder, flags) = uleb128()(remaining_data)?;
+                let (remainder, flags) = uleb128(remaining_data)?;
                 match flags {
                     EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER => {
-                        let (remainder, _stub_offset) = uleb128()(remainder)?;
+                        let (remainder, _stub_offset) = uleb128(remainder)?;
 
                         let (remainder, _resolver_offset) =
-                            uleb128()(remainder)?;
+                            uleb128(remainder)?;
                         remaining_data = remainder;
                     }
                     EXPORT_SYMBOL_FLAGS_REEXPORT => {
-                        let (remainder, _ordinal) = uleb128()(remainder)?;
+                        let (remainder, _ordinal) = uleb128(remainder)?;
 
                         let (remainder, _label) = map(
                             tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
@@ -989,7 +989,7 @@ impl<'a> MachOFile<'a> {
                         remaining_data = remainder;
                     }
                     EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION => {
-                        let (remainder, _offset) = uleb128()(remainder)?;
+                        let (remainder, _offset) = uleb128(remainder)?;
                         remaining_data = remainder;
                     }
                     _ => {}
@@ -1005,7 +1005,7 @@ impl<'a> MachOFile<'a> {
                     |(s, _)| s,
                 )(edge_remainder)?;
                 let edge_label = BStr::new(strr);
-                let (remainder, edge_offset) = uleb128()(remainder)?;
+                let (remainder, edge_offset) = uleb128(remainder)?;
                 let (_, _) = self.parse_export_node()(
                     data,
                     edge_offset,
@@ -1024,7 +1024,8 @@ impl<'a> MachOFile<'a> {
         }
     }
 
-    /// Parser that parses the exports at the offsets defined within LC_DYLD_INFO and LC_DYLD_INFO_ONLY
+    /// Parser that parses the exports at the offsets defined within
+    /// LC_DYLD_INFO and LC_DYLD_INFO_ONLY.
     fn exports(
         &mut self,
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<String>> + '_ {
@@ -1498,28 +1499,28 @@ fn uint(
     }
 }
 
-/// Parser that reads ULEB128
-fn uleb128() -> impl FnMut(&[u8]) -> IResult<&[u8], u64> {
-    move |input: &[u8]| {
-        let mut val: u64 = 0;
-        let mut shift: u64 = 0;
+/// Parser that reads ULEB128.
+/// https://en.wikipedia.org/wiki/LEB128
+fn uleb128(input: &[u8]) -> IResult<&[u8], u64> {
+    let mut val: u64 = 0;
+    let mut shift: u64 = 0;
 
-        let mut data = input;
-        let mut byte: u8;
+    let mut data = input;
+    let mut byte: u8;
 
-        loop {
-            (data, byte) = u8(data)?;
+    loop {
+        (data, byte) = u8(data)?;
 
-            val |= ((byte & !(1 << 7)) as u64) << shift;
+        val |= ((byte & !(1 << 7)) as u64) << shift;
 
-            if byte & (1 << 7) == 0 {
-                break;
-            }
-            shift += 7;
+        if byte & (1 << 7) == 0 {
+            break;
         }
 
-        Ok((data, val))
+        shift += 7;
     }
+
+    Ok((data, val))
 }
 
 /// Parser that reads SLEB128
@@ -1919,31 +1920,31 @@ impl From<&MinVersion> for protos::macho::MinVersion {
 #[test]
 fn test_uleb_parsing() {
     let uleb_128_in = vec![0b1000_0001, 0b000_0001];
-    let (_remainder, result) = uleb128()(&uleb_128_in).unwrap();
+    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
     assert_eq!(129, result);
 
     let uleb_128_in = vec![0b1000_0000, 0b0000_0001];
-    let (_remainder, result) = uleb128()(&uleb_128_in).unwrap();
+    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
     assert_eq!(128, result);
 
     let uleb_128_in = vec![0b111_1111];
-    let (_remainder, result) = uleb128()(&uleb_128_in).unwrap();
+    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
     assert_eq!(127, result);
 
     let uleb_128_in = vec![0b111_1110];
-    let (_remainder, result) = uleb128()(&uleb_128_in).unwrap();
+    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
     assert_eq!(126, result);
 
     let uleb_128_in = vec![0b000_0000];
-    let (_remainder, result) = uleb128()(&uleb_128_in).unwrap();
+    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
     assert_eq!(0, result);
 
     let uleb_128_in = vec![0b1010_0000, 0b0000_0001];
-    let (_remainder, result) = uleb128()(&uleb_128_in).unwrap();
+    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
     assert_eq!(160, result);
 
     let uleb_128_in = vec![0b10010110, 0b00000101];
-    let (_remainder, result) = uleb128()(&uleb_128_in).unwrap();
+    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
     assert_eq!(662, result);
 }
 

@@ -389,8 +389,8 @@ impl<'a> Compiler<'a> {
         Ok(self)
     }
 
-    /// Defines a global variable and sets its initial value.    
-    ///   
+    /// Defines a global variable and sets its initial value.
+    ///
     /// Global variables must be defined before using [`Compiler::add_source`]
     /// for adding any YARA source code that uses those variables. The variable
     /// will retain its initial value when the compiled [`Rules`] are used for
@@ -883,6 +883,25 @@ impl<'a> Compiler<'a> {
                 return Err(Box::new(err));
             }
         };
+
+        // Check if the value of the condition is known at compile time and
+        // raise a warning if that's the case. Rules with constant conditions
+        // are not very useful in real life, except for testing.
+        if let Some(value) =
+            condition.type_value().cast_to_bool().try_as_bool()
+        {
+            self.warnings.add(|| {
+                Warning::invariant_boolean_expression(
+                    &self.report_builder,
+                    value,
+                    rule.condition.span(),
+                    Some(format!(
+                        "rule `{}` is always `{}`",
+                        rule.identifier.name, value
+                    )),
+                )
+            });
+        }
 
         // Create a new symbol of bool type for the rule.
         let new_symbol = Symbol::new(

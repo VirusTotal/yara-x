@@ -5,3 +5,10 @@ warning[non_bool_expr]: non-boolean expression used as boolean
   |              - this expression is `integer` but is being used as `bool`
   |
   = note: non-zero integers are considered `true`, while zero is `false`
+warning[invariant_expr]: invariant boolean expression
+ --> line:2:14
+  |
+2 |   condition: 0
+  |              - this expression is always false
+  |
+  = note: rule `test` is always `false`

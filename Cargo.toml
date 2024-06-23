@@ -87,7 +87,7 @@ regex-syntax = "0.8.3"
 regex-automata = "0.4.6"
 roxmltree = "0.20.0"
 rsa = "0.9.6"
-rustc-hash = "1.1.0"
+rustc-hash = "2.0.0"
 serde = "1.0"
 serde_json = "1.0"
 sha1 = "0.10.6"
@@ -111,7 +111,7 @@ yara-x-proto = { path = "proto", version = "0.4.0" }
 yara-x-proto-yaml = { path = "proto-yaml", version = "0.4.0" }
 zip = "2.1.1"
 
-# Special profile that builds a release binary with link-time optimization. 
+# Special profile that builds a release binary with link-time optimization.
 # Compiling with this profile takes a while, but the resulting binary is
 # smaller and better optimized. For building with this profile use:
 #

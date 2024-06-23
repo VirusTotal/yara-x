@@ -1,4 +1,5 @@
 // constant-folding required
 rule test {
-  condition: true or "false"
+  condition:
+    1+1
 }

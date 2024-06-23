@@ -257,7 +257,7 @@ impl<'a> Dotnet<'a> {
 
 impl<'a> Dotnet<'a> {
     const MAX_PARAMS: u32 = 1000;
-    const MAX_ROWS_PER_TABLE: u32 = 10000;
+    const MAX_ROWS_PER_TABLE: u32 = 15000;
     const MAX_ARRAY_DIMENSION: u32 = 50;
     const MAX_RECURSION: usize = 16;
 
@@ -431,7 +431,7 @@ impl<'a> Dotnet<'a> {
         &mut self,
         input: &'a [u8],
     ) -> IResult<&'a [u8], ()> {
-        // The `#~` starts with a header that is followed the tables.
+        // The `#~` starts with a header that is followed by the tables.
         let (remainder, (_, _, _, heap_sizes, _, valid, _sorted)) =
             tuple((
                 le_u32, // reserved, always 0
@@ -802,8 +802,8 @@ impl<'a> Dotnet<'a> {
                 })
                 .collect();
 
-            // The methods belonging to this type in in the MethodDef table
-            // go from the index specified by `method_list` to the index specified
+            // The methods belonging to this type in the MethodDef table go
+            // from the index specified by `method_list` to the index specified
             // by the next type's `method_list`. If this is the last type, then
             // it goes to the end of the MethodDef table.
             let method_defs =

@@ -23,7 +23,7 @@ pub fn fix() -> Command {
 pub fn fix_encoding() -> Command {
     super::command("encoding")
         .about("Convert source files to UTF-8")
-        .long_about(help::FIX_ENCODING_HELP)
+        .long_about(help::FIX_ENCODING_LONG_HELP)
         .arg(
             arg!(<RULES_PATH>)
                 .help("Path to YARA source file or directory")
