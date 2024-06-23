@@ -1055,14 +1055,14 @@ impl<'a> MachOFile<'a> {
                     | BIND_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB
                     | BIND_OPCODE_ADD_ADDR_ULEB
                     | BIND_OPCODE_DO_BIND_ADD_ADDR_ULEB => {
-                        (remainder, _) = uleb128()(remainder)?;
+                        (remainder, _) = uleb128(remainder)?;
                     }
                     BIND_OPCODE_DO_BIND_ULEB_TIMES_SKIPPING_ULEB => {
-                        (remainder, _) = uleb128()(remainder)?;
-                        (remainder, _) = uleb128()(remainder)?;
+                        (remainder, _) = uleb128(remainder)?;
+                        (remainder, _) = uleb128(remainder)?;
                     }
                     BIND_OPCODE_SET_ADDEND_SLEB => {
-                        (remainder, _) = sleb128()(remainder)?;
+                        (remainder, _) = sleb128(remainder)?;
                     }
 
                     BIND_OPCODE_SET_SYMBOL_TRAILING_FLAGS_IMM => {
@@ -1524,31 +1524,29 @@ fn uleb128(input: &[u8]) -> IResult<&[u8], u64> {
 }
 
 /// Parser that reads SLEB128
-fn sleb128() -> impl FnMut(&[u8]) -> IResult<&[u8], i64> {
-    move |input: &[u8]| {
-        let mut val: i64 = 0;
-        let mut shift: i64 = 0;
+fn sleb128(input: &[u8]) -> IResult<&[u8], i64> {
+    let mut val: i64 = 0;
+    let mut shift: i64 = 0;
 
-        let mut data = input;
-        let mut byte: u8;
+    let mut data = input;
+    let mut byte: u8;
 
-        loop {
-            (data, byte) = u8(data)?;
+    loop {
+        (data, byte) = u8(data)?;
 
-            val |= ((byte & !(1 << 7)) as i64) << shift;
-            shift += 7;
+        val |= ((byte & !(1 << 7)) as i64) << shift;
+        shift += 7;
 
-            if byte & (1 << 7) == 0 {
-                break;
-            }
+        if byte & (1 << 7) == 0 {
+            break;
         }
-
-        if shift < 8 * mem::size_of::<i64>() as i64 && (byte & 1 << 6) != 0 {
-            val |= !0 << shift;
-        }
-
-        Ok((data, val))
     }
+
+    if shift < 8 * mem::size_of::<i64>() as i64 && (byte & 1 << 6) != 0 {
+        val |= !0 << shift;
+    }
+
+    Ok((data, val))
 }
 
 /// Convert a decimal number representation to a version string representation.
@@ -1951,26 +1949,26 @@ fn test_uleb_parsing() {
 #[test]
 fn test_sleb_parsing() {
     let sleb_128_in = vec![0b1100_0111, 0b1001_1111, 0b111_1111];
-    let (_remainder, result) = sleb128()(&sleb_128_in).unwrap();
+    let (_remainder, result) = sleb128(&sleb_128_in).unwrap();
     assert_eq!(-12345, result);
 
     let sleb_128_in = vec![0b1001_1100, 0b111_1111];
-    let (_remainder, result) = sleb128()(&sleb_128_in).unwrap();
+    let (_remainder, result) = sleb128(&sleb_128_in).unwrap();
     assert_eq!(-100, result);
 
     let sleb_128_in = vec![0b1111_1111, 0b0];
-    let (_remainder, result) = sleb128()(&sleb_128_in).unwrap();
+    let (_remainder, result) = sleb128(&sleb_128_in).unwrap();
     assert_eq!(127, result);
 
     let sleb_128_in = vec![0b111_1111];
-    let (_remainder, result) = sleb128()(&sleb_128_in).unwrap();
+    let (_remainder, result) = sleb128(&sleb_128_in).unwrap();
     assert_eq!(-1, result);
 
     let sleb_128_in = vec![0b1111_1110, 0b0];
-    let (_remainder, result) = sleb128()(&sleb_128_in).unwrap();
+    let (_remainder, result) = sleb128(&sleb_128_in).unwrap();
     assert_eq!(126, result);
 
     let sleb_128_in = vec![0b000_0000];
-    let (_remainder, result) = sleb128()(&sleb_128_in).unwrap();
+    let (_remainder, result) = sleb128(&sleb_128_in).unwrap();
     assert_eq!(0, result);
 }
