@@ -936,8 +936,11 @@ impl<'a> MachOFile<'a> {
                     let (remainder, length) =
                         uleb128(&data[export_node.offset..])?;
                     let mut remaining_data = remainder;
-                    if !visited.contains_key(&export_node.offset) {
-                        visited.insert(export_node.offset, true);
+
+                    if let std::collections::hash_map::Entry::Vacant(e) =
+                        visited.entry(export_node.offset)
+                    {
+                        e.insert(true);
                         if length != 0 {
                             let (remainder, flags) = uleb128(remaining_data)?;
                             match flags {
