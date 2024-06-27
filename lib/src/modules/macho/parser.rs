@@ -940,10 +940,12 @@ impl<'a> MachOFile<'a> {
                     continue;
                 }
 
-                let (remainder, length) =
-                    uleb128(&data[export_node.offset..])?;
+                let node_data = match data.get(export_node.offset..) {
+                    Some(data) => data,
+                    None => continue,
+                };
 
-                let mut remaining_data = remainder;
+                let (mut remaining_data, length) = uleb128(node_data)?;
 
                 if length != 0 {
                     let (remainder, flags) = uleb128(remaining_data)?;
@@ -978,8 +980,7 @@ impl<'a> MachOFile<'a> {
                     }
                 }
 
-                let (remainder, edges) = u8(remaining_data)?;
-                let mut edge_remainder = remainder;
+                let (mut edge_remainder, edges) = u8(remaining_data)?;
 
                 for _ in 0..edges {
                     let (remainder, strr) =
