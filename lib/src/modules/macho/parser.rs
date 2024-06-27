@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::modules::protos;
 use bstr::{BStr, ByteSlice};
 use itertools::Itertools;
@@ -917,67 +919,94 @@ impl<'a> MachOFile<'a> {
 
     fn parse_export_node(
         &mut self,
-    ) -> impl FnMut(&'a [u8], u64, &BStr) -> IResult<&'a [u8], String> + '_
-    {
-        move |data: &'a [u8], offset: u64, prefix: &BStr| {
-            let (remainder, length) = uleb128(&data[offset as usize..])?;
-            let mut remaining_data = remainder;
+    ) -> impl FnMut(&'a [u8], u64) -> IResult<&'a [u8], usize> + '_ {
+        move |data: &'a [u8], offset: u64| {
+            let mut stack = Vec::<ExportNode>::new();
+            let mut visited = HashMap::<usize, bool>::new();
+            stack.push(ExportNode {
+                offset: offset as usize,
+                prefix: "".to_string(),
+            });
 
-            if length != 0 {
-                let (remainder, flags) = uleb128(remaining_data)?;
-                match flags {
-                    EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER => {
-                        let (remainder, _stub_offset) = uleb128(remainder)?;
+            while !data.is_empty()
+                && (offset as usize) < data.len()
+                && !stack.is_empty()
+            {
+                if let Some(export_node) = stack.pop() {
+                    let (remainder, length) =
+                        uleb128(&data[export_node.offset..])?;
+                    let mut remaining_data = remainder;
+                    if !visited.contains_key(&export_node.offset) {
+                        visited.insert(export_node.offset, true);
+                        if length != 0 {
+                            let (remainder, flags) = uleb128(remaining_data)?;
+                            match flags {
+                                EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER => {
+                                    let (remainder, _stub_offset) =
+                                        uleb128(remainder)?;
 
-                        let (remainder, _resolver_offset) =
-                            uleb128(remainder)?;
-                        remaining_data = remainder;
+                                    let (remainder, _resolver_offset) =
+                                        uleb128(remainder)?;
+                                    remaining_data = remainder;
+                                }
+                                EXPORT_SYMBOL_FLAGS_REEXPORT => {
+                                    let (remainder, _ordinal) =
+                                        uleb128(remainder)?;
+
+                                    let (remainder, _label) = map(
+                                        tuple((
+                                            take_till(|b| b == b'\x00'),
+                                            tag(b"\x00"),
+                                        )),
+                                        |(s, _)| s,
+                                    )(
+                                        remainder
+                                    )?;
+
+                                    remaining_data = remainder;
+                                }
+                                EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION => {
+                                    let (remainder, _offset) =
+                                        uleb128(remainder)?;
+                                    remaining_data = remainder;
+                                }
+                                _ => {}
+                            }
+                        }
+
+                        let (remainder, edges) = u8(remaining_data)?;
+                        let mut edge_remainder = remainder;
+                        for _ in 0..edges {
+                            let (remainder, strr) = map(
+                                tuple((
+                                    take_till(|b| b == b'\x00'),
+                                    tag(b"\x00"),
+                                )),
+                                |(s, _)| s,
+                            )(
+                                edge_remainder
+                            )?;
+                            let edge_label = BStr::new(strr);
+                            let (remainder, edge_offset) = uleb128(remainder)?;
+                            if let Ok(edge_label_str) = edge_label.to_str() {
+                                stack.push(ExportNode {
+                                    offset: edge_offset as usize,
+                                    prefix: format!(
+                                        "{}{}",
+                                        export_node.prefix, edge_label_str
+                                    ),
+                                });
+                            }
+                            edge_remainder = remainder;
+                        }
+
+                        if length != 0 {
+                            self.exports.push(export_node.prefix)
+                        }
                     }
-                    EXPORT_SYMBOL_FLAGS_REEXPORT => {
-                        let (remainder, _ordinal) = uleb128(remainder)?;
-
-                        let (remainder, _label) = map(
-                            tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
-                            |(s, _)| s,
-                        )(
-                            remainder
-                        )?;
-
-                        remaining_data = remainder;
-                    }
-                    EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION => {
-                        let (remainder, _offset) = uleb128(remainder)?;
-                        remaining_data = remainder;
-                    }
-                    _ => {}
                 }
             }
-
-            let (remainder, edges) = u8(remaining_data)?;
-            let mut edge_remainder = remainder;
-
-            for _ in 0..edges {
-                let (remainder, strr) = map(
-                    tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
-                    |(s, _)| s,
-                )(edge_remainder)?;
-                let edge_label = BStr::new(strr);
-                let (remainder, edge_offset) = uleb128(remainder)?;
-                let (_, _) = self.parse_export_node()(
-                    data,
-                    edge_offset,
-                    BStr::new(&bstr::concat([prefix, edge_label])),
-                )?;
-                edge_remainder = remainder;
-            }
-
-            if length != 0 {
-                if let Ok(prefix) = prefix.to_str() {
-                    self.exports.push(prefix.to_string())
-                }
-            }
-
-            Ok((data, prefix.to_str().unwrap().to_string()))
+            Ok((data, 0))
         }
     }
 
@@ -988,8 +1017,7 @@ impl<'a> MachOFile<'a> {
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<String>> + '_ {
         move |data: &'a [u8]| {
             let exports = Vec::<String>::new();
-            let (remainder, _) =
-                self.parse_export_node()(data, 0, BStr::new(""))?;
+            let (remainder, _) = self.parse_export_node()(data, 0)?;
 
             Ok((remainder, exports))
         }
@@ -1392,6 +1420,11 @@ struct MinVersion {
     device: u32,
     version: u32,
     sdk: u32,
+}
+
+struct ExportNode {
+    offset: usize,
+    prefix: String,
 }
 
 /// Parser that reads a 32-bits or 64-bits
