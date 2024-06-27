@@ -1443,21 +1443,33 @@ fn uint(
     }
 }
 
-/// Parser that reads ULEB128.
-/// https://en.wikipedia.org/wiki/LEB128
+/// Parser that reads [ULEB128][1].
+///
+/// Notice however that this function returns a `u64`, is able to parse
+/// number up to 72057594037927935. When parsing larger number it fails,
+/// even if they are valid ULEB128.
+///
+/// [1]: https://en.wikipedia.org/wiki/LEB128
 fn uleb128(input: &[u8]) -> IResult<&[u8], u64> {
     let mut val: u64 = 0;
-    let mut shift: u64 = 0;
+    let mut shift: u32 = 0;
 
     let mut data = input;
     let mut byte: u8;
 
     loop {
+        // Read one byte of data.
         (data, byte) = u8(data)?;
 
-        val |= ((byte & !(1 << 7)) as u64) << shift;
+        // Use all the bits, except the most significant one.
+        let b = (byte & 0x7f) as u64;
 
-        if byte & (1 << 7) == 0 {
+        val |= b
+            .checked_shl(shift)
+            .ok_or(Err::Error(Error::new(input, ErrorKind::TooLarge)))?;
+
+        // Break if the most significant bit is zero.
+        if byte & 0x80 == 0 {
             break;
         }
 
@@ -1832,31 +1844,43 @@ impl From<&MinVersion> for protos::macho::MinVersion {
 
 #[test]
 fn test_uleb_parsing() {
-    let uleb_128_in = vec![0b1000_0001, 0b000_0001];
-    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
-    assert_eq!(129, result);
+    let (_, n) = uleb128(&[0b1000_0001, 0b000_0001]).unwrap();
+    assert_eq!(129, n);
 
-    let uleb_128_in = vec![0b1000_0000, 0b0000_0001];
-    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
-    assert_eq!(128, result);
+    let (_, n) = uleb128(&[0b1000_0000, 0b0000_0001]).unwrap();
+    assert_eq!(128, n);
 
-    let uleb_128_in = vec![0b111_1111];
-    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
-    assert_eq!(127, result);
+    let (_, n) = uleb128(&[0b111_1111]).unwrap();
+    assert_eq!(127, n);
 
-    let uleb_128_in = vec![0b111_1110];
-    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
-    assert_eq!(126, result);
+    let (_, n) = uleb128(&[0b111_1110]).unwrap();
+    assert_eq!(126, n);
 
-    let uleb_128_in = vec![0b000_0000];
-    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
-    assert_eq!(0, result);
+    let (_, n) = uleb128(&[0b000_0000]).unwrap();
+    assert_eq!(0, n);
 
-    let uleb_128_in = vec![0b1010_0000, 0b0000_0001];
-    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
-    assert_eq!(160, result);
+    let (_, n) = uleb128(&[0b1010_0000, 0b0000_0001]).unwrap();
+    assert_eq!(160, n);
 
-    let uleb_128_in = vec![0b10010110, 0b00000101];
-    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
-    assert_eq!(662, result);
+    let (_, n) = uleb128(&[0b1001_0110, 0b0000_0101]).unwrap();
+    assert_eq!(662, n);
+
+    let (_, n) = uleb128(&[0b1110_0101, 0b1000_1110, 0b0010_0110]).unwrap();
+    assert_eq!(624485, n);
+
+    let (_, n) = uleb128(&[0x80, 0x80, 0x80, 0x00]).unwrap();
+    assert_eq!(0, n);
+
+    let (_, n) =
+        uleb128(&[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00]).unwrap();
+    assert_eq!(0, n);
+
+    let (_, n) =
+        uleb128(&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f]).unwrap();
+    assert_eq!(72057594037927935, n);
+
+    assert!(uleb128(&[
+        0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00,
+    ])
+    .is_err());
 }
