@@ -144,6 +144,11 @@ impl<'src> Parser<'src> {
         }
     }
 
+    fn begin_alt(&mut self) -> Alt {
+        let bookmark = self.bookmark();
+        Alt { parser: self, matched: false, bookmark }
+    }
+
     fn opt<F>(&mut self, f: F) -> ParseResult
     where
         F: Fn(&mut Parser) -> ParseResult,
@@ -226,13 +231,14 @@ impl<'src> Parser<'src> {
     /// Parses a rule declaration.
     ///
     /// ```text
-    /// RULE_DECL ::= RULE_MODS? rule IDENT {
+    /// RULE_DECL ::= RULE_MODS? `rule` IDENT `{`
     ///   META_DEF?
-    /// }
+    ///   `condition` `:` BOOLEAN_EXPR
+    /// `}`
     /// ```
     fn rule_decl(&mut self) -> ParseResult {
         self.begin(SyntaxKind::RULE_DECL)
-            .opt(|p| p.p_rule_mods())
+            .opt(|p| p.rule_mods())
             .ws()
             .expect(t!(RULE_KW))
             .ws()
@@ -240,7 +246,11 @@ impl<'src> Parser<'src> {
             .ws()
             .expect(t!(L_BRACE))
             .ws()
-            .opt(|p| p.p_meta_defs())
+            .opt(|p| p.meta_defs())
+            .ws()
+            .expect(t!(CONDITION_KW))
+            .ws()
+            .expect(t!(COLON))
             .ws()
             .expect(t!(R_BRACE))
             .end()
@@ -251,7 +261,7 @@ impl<'src> Parser<'src> {
     /// ```text
     /// RULE_MODS := ( `private` `global`? | `global` `private`? )
     /// ```
-    fn p_rule_mods(&mut self) -> ParseResult {
+    fn rule_mods(&mut self) -> ParseResult {
         self.begin(SyntaxKind::RULE_MODS)
             .begin_alt()
             .alt(|p| {
@@ -272,17 +282,17 @@ impl<'src> Parser<'src> {
             .end()
     }
 
-    fn p_meta_defs(&mut self) -> ParseResult {
+    fn meta_defs(&mut self) -> ParseResult {
         self.begin(SyntaxKind::META_DEFS)
             .expect(t!(META_KW))
             .ws()
             .expect(t!(COLON))
             .ws()
-            .n_or_more(1, |p| p.p_meta_def())
+            .n_or_more(1, |p| p.meta_def())
             .end()
     }
 
-    fn p_meta_def(&mut self) -> ParseResult {
+    fn meta_def(&mut self) -> ParseResult {
         self.begin(SyntaxKind::META_DEF)
             .expect(t!(IDENT))
             .ws()
@@ -294,6 +304,31 @@ impl<'src> Parser<'src> {
                 | FLOAT_LIT
                 | STRING_LIT))
             .end()
+    }
+
+    /// Parses a boolean expression.
+    ///
+    /// ```text
+    /// BOOLEAN_EXPR := BOOLEAN_TERM ((AND_KW | OR_KW) BOOLEAN_TERM)*
+    /// ``
+    fn boolean_expr(&mut self) -> ParseResult {
+        self.begin(SyntaxKind::BOOLEAN_EXPR)
+            .then(|p| p.boolean_term())
+            .ws()
+            .n_or_more(0, |p| todo!())
+            .end()
+    }
+
+    /// Parses a boolean term.
+    ///
+    /// ```text
+    /// BOOLEAN_TERM := (
+    ///    TRUE_KW |
+    ///    FALSE_KW
+    /// )
+    /// ``
+    fn boolean_term(&mut self) -> ParseResult {
+        self.begin(SyntaxKind::BOOLEAN_TERM).end()
     }
 }
 
@@ -379,7 +414,7 @@ impl<'a, 'src> ParserRule<'a, 'src> {
         self
     }
 
-    fn expect_opt(mut self, expected_tokens: &[Token]) -> Self {
+    fn expect_opt(self, expected_tokens: &[Token]) -> Self {
         if !self.failed {
             let _ = self.parser.expect_opt(expected_tokens);
         }

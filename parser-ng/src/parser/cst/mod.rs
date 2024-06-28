@@ -13,7 +13,7 @@ group them according to operator precedence rules.
  */
 use crate::{Parser, Span};
 use rowan::GreenNodeBuilder;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Formatter};
 use std::str::from_utf8;
 
 pub(crate) mod syntax_kind;
@@ -48,8 +48,9 @@ impl From<Parser<'_>> for CST {
     fn from(parser: Parser) -> Self {
         let source = parser.tokens.source();
         let mut builder = GreenNodeBuilder::new();
-
+        let mut prev_token_span: Option<Span> = None;
         let mut errors = Vec::new();
+
         builder.start_node(SyntaxKind::SOURCE_FILE.into());
 
         for node in parser {
@@ -57,6 +58,17 @@ impl From<Parser<'_>> for CST {
                 Event::Begin(kind) => builder.start_node(kind.into()),
                 Event::End(_) => builder.finish_node(),
                 Event::Token { kind, span } => {
+                    // Make sure that the CST covers the whole source code,
+                    // each must start where the previous one ended.
+                    if let Some(prev_token_span) = prev_token_span {
+                        assert_eq!(
+                            prev_token_span.end(),
+                            span.start(),
+                            "gap in the CST, one token ends at {} and the next one starts at {}",
+                            prev_token_span.end(),
+                            span.start(),
+                        );
+                    }
                     // The span must within the source code, this unwrap
                     // can't fail.
                     let token = source.get(span.range()).unwrap();
@@ -65,6 +77,7 @@ impl From<Parser<'_>> for CST {
                     // TODO: use from_utf8_unchecked?
                     let token = from_utf8(token).unwrap();
                     builder.token(kind.into(), token);
+                    prev_token_span = Some(span);
                 }
                 Event::Error { message, span } => errors.push((span, message)),
             }

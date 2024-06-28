@@ -141,6 +141,8 @@ enum Mode<'src> {
 #[logos(source = [u8])]
 enum NormalToken<'src> {
     // Keywords
+    #[token("and")]
+    And,
     #[token("condition")]
     Condition,
     #[token("false")]
@@ -151,6 +153,10 @@ enum NormalToken<'src> {
     Import,
     #[token("meta")]
     Meta,
+    #[token("not")]
+    Not,
+    #[token("or")]
+    Or,
     #[token("private")]
     Private,
     #[token("rule")]
@@ -167,6 +173,10 @@ enum NormalToken<'src> {
     LBrace,
     #[token("}")]
     RBrace,
+    #[token("(")]
+    LParen,
+    #[token(")")]
+    RParen,
 
     // Identifiers must start with underscore or letter, followed by any
     // number of underscores, letters, or digits.
@@ -269,11 +279,14 @@ where
 
 fn convert_normal_token(token: NormalToken, span: Span) -> Token {
     match token {
+        NormalToken::And => Token::AND_KW(span),
         NormalToken::Condition => Token::CONDITION_KW(span),
         NormalToken::False => Token::FALSE_KW(span),
         NormalToken::Global => Token::GLOBAL_KW(span),
         NormalToken::Import => Token::IMPORT_KW(span),
         NormalToken::Meta => Token::META_KW(span),
+        NormalToken::Not => Token::NOT_KW(span),
+        NormalToken::Or => Token::OR_KW(span),
         NormalToken::Private => Token::PRIVATE_KW(span),
         NormalToken::Rule => Token::RULE_KW(span),
         NormalToken::True => Token::TRUE_KW(span),
@@ -281,6 +294,8 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
         NormalToken::Equal => Token::EQUAL(span),
         NormalToken::LBrace => Token::L_BRACE(span),
         NormalToken::RBrace => Token::R_BRACE(span),
+        NormalToken::LParen => Token::L_PAREN(span),
+        NormalToken::RParen => Token::R_PAREN(span),
         NormalToken::Whitespace => Token::WHITESPACE(span),
         NormalToken::Newline => Token::NEWLINE(span),
         NormalToken::Identifier(ident) => {

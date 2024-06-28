@@ -25,4 +25,7 @@ logos = "0.14.0"
 rowan = "0.15.15"
 
 [dev-dependencies]
+globwalk = { workspace = true }
+goldenfile = { workspace = true }
 pretty_assertions = { workspace = true }
+rayon = { workspace = true }

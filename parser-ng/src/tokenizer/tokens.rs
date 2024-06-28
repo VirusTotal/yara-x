@@ -6,11 +6,14 @@ use crate::Span;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     // Keywords
+    AND_KW(Span),
     CONDITION_KW(Span),
     FALSE_KW(Span),
     GLOBAL_KW(Span),
     IMPORT_KW(Span),
     META_KW(Span),
+    NOT_KW(Span),
+    OR_KW(Span),
     PRIVATE_KW(Span),
     RULE_KW(Span),
     TRUE_KW(Span),
@@ -28,6 +31,8 @@ pub enum Token {
     EQUAL(Span),
     L_BRACE(Span),
     R_BRACE(Span),
+    L_PAREN(Span),
+    R_PAREN(Span),
 
     // Hex patterns
     HEX_BYTE(Span),
@@ -49,11 +54,14 @@ impl Token {
     pub fn span(&self) -> Span {
         match self {
             // Keywords
-            Token::CONDITION_KW(span)
+            Token::AND_KW(span)
+            | Token::CONDITION_KW(span)
             | Token::FALSE_KW(span)
             | Token::GLOBAL_KW(span)
             | Token::IMPORT_KW(span)
             | Token::META_KW(span)
+            | Token::NOT_KW(span)
+            | Token::OR_KW(span)
             | Token::PRIVATE_KW(span)
             | Token::RULE_KW(span)
             | Token::TRUE_KW(span)
@@ -68,6 +76,8 @@ impl Token {
             | Token::EQUAL(span)
             | Token::L_BRACE(span)
             | Token::R_BRACE(span)
+            | Token::L_PAREN(span)
+            | Token::R_PAREN(span)
             // Hex patterns
             | Token::HEX_BYTE(span)
             // Trivia

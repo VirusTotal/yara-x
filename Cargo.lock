@@ -5012,8 +5012,11 @@ dependencies = [
 name = "yara-x-parser-ng"
 version = "0.4.0"
 dependencies = [
+ "globwalk",
+ "goldenfile",
  "logos",
  "pretty_assertions",
+ "rayon",
  "rowan",
 ]
 
