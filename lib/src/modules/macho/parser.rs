@@ -784,12 +784,12 @@ impl<'a> MachOFile<'a> {
         &self,
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], CSBlobIndex> + '_ {
         move |input: &'a [u8]| {
-            let (input, (blobtype, offset)) = tuple((
+            let (input, (_blobtype, offset)) = tuple((
                 u32(Endianness::Big), // blobtype
                 u32(Endianness::Big), // offset,
             ))(input)?;
 
-            Ok((input, CSBlobIndex { blobtype, offset, blob: None }))
+            Ok((input, CSBlobIndex { _blobtype, offset, blob: None }))
         }
     }
 
@@ -811,65 +811,66 @@ impl<'a> MachOFile<'a> {
 
             for _ in 0..super_blob.count {
                 (remainder, cs_index) = self.cs_index()(remainder)?;
-                let offset = cs_index.offset as usize;
 
-                let (_, blob) = match input.get(offset..) {
-                    Some(data) => self.cs_blob()(data)?,
-                    None => continue,
-                };
+                cs_index.blob = input
+                    .get(cs_index.offset as usize..)
+                    .and_then(|blob_data| self.cs_blob()(blob_data).ok())
+                    .map(|(_, blob)| blob);
 
-                cs_index.blob = Some(blob);
                 super_blob.index.push(cs_index);
             }
 
             let super_data = input;
 
-            for blob_index in &super_blob.index {
-                let _blob_type = blob_index.blobtype as usize;
-                if let Some(blob) = &blob_index.blob {
-                    let offset = blob_index.offset as usize;
-                    let length = blob.length as usize;
-                    let size_of_blob = std::mem::size_of::<CSBlob>();
-                    if blob.magic == CS_MAGIC_EMBEDDED_ENTITLEMENTS {
-                        let xml_data = match super_data
-                            .get(offset + size_of_blob..offset + length)
-                        {
-                            Some(data) => data,
-                            None => continue,
-                        };
+            // Iterator over the `CSBlobIndex` entries that have some blob.
+            let blobs = super_blob.index.iter().filter_map(|blob_index| {
+                blob_index
+                    .blob
+                    .as_ref()
+                    .map(|blob| (blob_index.offset as usize, blob))
+            });
 
-                        let xml_string =
-                            std::str::from_utf8(xml_data).unwrap_or_default();
+            for (offset, blob) in blobs {
+                let length = blob.length as usize;
+                let size_of_blob = std::mem::size_of::<CSBlob>();
+                if blob.magic == CS_MAGIC_EMBEDDED_ENTITLEMENTS {
+                    let xml_data = match super_data
+                        .get(offset + size_of_blob..offset + length)
+                    {
+                        Some(data) => data,
+                        None => continue,
+                    };
 
-                        let opt = roxmltree::ParsingOptions {
-                            allow_dtd: true,
-                            ..roxmltree::ParsingOptions::default()
-                        };
+                    let xml_string =
+                        std::str::from_utf8(xml_data).unwrap_or_default();
 
-                        if let Ok(parsed_xml) =
-                            roxmltree::Document::parse_with_options(
-                                xml_string, opt,
-                            )
-                        {
-                            for node in parsed_xml.descendants().filter(|n| {
-                                n.has_tag_name("key")
-                                    || n.has_tag_name("array")
-                            }) {
-                                if let Some(entitlement) = node.text() {
-                                    if node.has_tag_name("array") {
-                                        node.descendants()
-                                            .filter_map(|n| n.text())
-                                            .filter(|t| !t.trim().is_empty())
-                                            .unique()
-                                            .map(|t| t.to_string())
-                                            .for_each(|array_entitlement| {
-                                                self.entitlements
-                                                    .push(array_entitlement)
-                                            });
-                                    } else {
-                                        self.entitlements
-                                            .push(entitlement.to_string());
-                                    }
+                    let opt = roxmltree::ParsingOptions {
+                        allow_dtd: true,
+                        ..roxmltree::ParsingOptions::default()
+                    };
+
+                    if let Ok(parsed_xml) =
+                        roxmltree::Document::parse_with_options(
+                            xml_string, opt,
+                        )
+                    {
+                        for node in parsed_xml.descendants().filter(|n| {
+                            n.has_tag_name("key") || n.has_tag_name("array")
+                        }) {
+                            if let Some(entitlement) = node.text() {
+                                if node.has_tag_name("array") {
+                                    node.descendants()
+                                        .filter_map(|n| n.text())
+                                        .filter(|t| !t.trim().is_empty())
+                                        .unique()
+                                        .map(|t| t.to_string())
+                                        .for_each(|array_entitlement| {
+                                            self.entitlements
+                                                .push(array_entitlement)
+                                        });
+                                } else {
+                                    self.entitlements
+                                        .push(entitlement.to_string());
                                 }
                             }
                         }
@@ -1350,7 +1351,7 @@ struct CSBlob {
 }
 
 struct CSBlobIndex {
-    blobtype: u32,
+    _blobtype: u32,
     offset: u32,
     blob: Option<CSBlob>,
 }
