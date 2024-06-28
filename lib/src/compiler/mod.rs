@@ -1315,8 +1315,11 @@ impl<'a> Compiler<'a> {
             //   /foo|bar|baz/
             //   { 01 02 03 }
             //   { (01 02 03 | 04 05 06 ) }
-            self.c_alternation_literal(head, anchored_at, pattern.flags);
-            return Ok(());
+            return self.c_alternation_literal(
+                head,
+                anchored_at,
+                pattern.flags,
+            );
         }
 
         // If this point is reached, this is a pattern that can't be split into
@@ -1367,7 +1370,7 @@ impl<'a> Compiler<'a> {
         hir: re::hir::Hir,
         anchored_at: Option<usize>,
         flags: PatternFlagSet,
-    ) {
+    ) -> Result<(), Box<CompileError>> {
         let ascii = flags.contains(PatternFlags::Ascii);
         let wide = flags.contains(PatternFlags::Wide);
         let case_insensitive = flags.contains(PatternFlags::Nocase);
@@ -1449,6 +1452,8 @@ impl<'a> Compiler<'a> {
             }
             _ => unreachable!(),
         }
+
+        Ok(())
     }
 
     fn c_chain(
