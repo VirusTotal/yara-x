@@ -831,8 +831,13 @@ impl<'a> MachOFile<'a> {
                     let length = blob.length as usize;
                     let size_of_blob = std::mem::size_of::<CSBlob>();
                     if blob.magic == CS_MAGIC_EMBEDDED_ENTITLEMENTS {
-                        let xml_data = &super_data
-                            [offset + size_of_blob..offset + length];
+                        let xml_data = match super_data
+                            .get(offset + size_of_blob..offset + length)
+                        {
+                            Some(data) => data,
+                            None => continue,
+                        };
+
                         let xml_string =
                             std::str::from_utf8(xml_data).unwrap_or_default();
 
@@ -984,7 +989,7 @@ impl<'a> MachOFile<'a> {
                             tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
                             |(s, _)| BStr::new(s),
                         )(edge_remainder)?;
-                    
+
                     let (remainder, edge_offset) = uleb128(remainder)?;
 
                     if let Ok(edge_label_str) = edge_label.to_str() {
