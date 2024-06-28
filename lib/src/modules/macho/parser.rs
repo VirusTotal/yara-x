@@ -796,29 +796,33 @@ impl<'a> MachOFile<'a> {
     fn cs_superblob(
         &mut self,
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], CSSuperBlob> + '_ {
-        move |data: &'a [u8]| {
-            let (remainder, (_magic, _length, count)) = tuple((
-                u32(Endianness::Big), // magic
-                u32(Endianness::Big), // offset,
-                u32(Endianness::Big), // count,
-            ))(data)?;
+        move |input: &'a [u8]| {
+            let (mut remainder, (_magic, _length, count)) =
+                tuple((
+                    u32(Endianness::Big), // magic
+                    u32(Endianness::Big), // offset,
+                    u32(Endianness::Big), // count,
+                ))(input)?;
 
             let mut super_blob =
                 CSSuperBlob { _magic, _length, count, index: Vec::new() };
 
-            let mut input: &[u8] = remainder;
             let mut cs_index: CSBlobIndex;
 
             for _ in 0..super_blob.count {
-                (input, cs_index) = self.cs_index()(input)?;
-                let offset: usize = cs_index.offset as usize;
-                let (_, blob) = self.cs_blob()(&data[offset..])?;
+                (remainder, cs_index) = self.cs_index()(remainder)?;
+                let offset = cs_index.offset as usize;
+
+                let (_, blob) = match input.get(offset..) {
+                    Some(data) => self.cs_blob()(data)?,
+                    None => continue,
+                };
 
                 cs_index.blob = Some(blob);
                 super_blob.index.push(cs_index);
             }
 
-            let super_data = data;
+            let super_data = input;
 
             for blob_index in &super_blob.index {
                 let _blob_type = blob_index.blobtype as usize;
