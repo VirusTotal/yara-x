@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::mem;
 
 use crate::modules::protos;
@@ -825,83 +826,93 @@ impl<'a> MachOFile<'a> {
         &self,
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], CSBlobIndex> + '_ {
         move |input: &'a [u8]| {
-            let (input, (blobtype, offset)) = tuple((
+            let (input, (_blobtype, offset)) = tuple((
                 u32(Endianness::Big), // blobtype
                 u32(Endianness::Big), // offset,
             ))(input)?;
 
-            Ok((input, CSBlobIndex { blobtype, offset, blob: None }))
+            Ok((input, CSBlobIndex { _blobtype, offset, blob: None }))
         }
     }
 
     fn cs_superblob(
         &mut self,
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], CSSuperBlob> + '_ {
-        move |data: &'a [u8]| {
-            let (remainder, (_magic, _length, count)) = tuple((
-                u32(Endianness::Big), // magic
-                u32(Endianness::Big), // offset,
-                u32(Endianness::Big), // count,
-            ))(data)?;
+        move |input: &'a [u8]| {
+            let (mut remainder, (_magic, _length, count)) =
+                tuple((
+                    u32(Endianness::Big), // magic
+                    u32(Endianness::Big), // offset,
+                    u32(Endianness::Big), // count,
+                ))(input)?;
 
             let mut super_blob =
                 CSSuperBlob { _magic, _length, count, index: Vec::new() };
 
-            let mut input: &[u8] = remainder;
             let mut cs_index: CSBlobIndex;
 
             for _ in 0..super_blob.count {
-                (input, cs_index) = self.cs_index()(input)?;
-                let offset: usize = cs_index.offset as usize;
-                let (_, blob) = self.cs_blob()(&data[offset..])?;
+                (remainder, cs_index) = self.cs_index()(remainder)?;
 
-                cs_index.blob = Some(blob);
+                cs_index.blob = input
+                    .get(cs_index.offset as usize..)
+                    .and_then(|blob_data| self.cs_blob()(blob_data).ok())
+                    .map(|(_, blob)| blob);
+
                 super_blob.index.push(cs_index);
             }
 
-            let super_data = data;
+            let super_data = input;
 
-            for blob_index in &super_blob.index {
-                let _blob_type = blob_index.blobtype as usize;
-                if let Some(blob) = &blob_index.blob {
-                    let offset = blob_index.offset as usize;
-                    let length = blob.length as usize;
-                    let size_of_blob = std::mem::size_of::<CSBlob>();
-                    if blob.magic == CS_MAGIC_EMBEDDED_ENTITLEMENTS {
-                        let xml_data = &super_data
-                            [offset + size_of_blob..offset + length];
-                        let xml_string =
-                            std::str::from_utf8(xml_data).unwrap_or_default();
+            // Iterator over the `CSBlobIndex` entries that have some blob.
+            let blobs = super_blob.index.iter().filter_map(|blob_index| {
+                blob_index
+                    .blob
+                    .as_ref()
+                    .map(|blob| (blob_index.offset as usize, blob))
+            });
 
-                        let opt = roxmltree::ParsingOptions {
-                            allow_dtd: true,
-                            ..roxmltree::ParsingOptions::default()
-                        };
+            for (offset, blob) in blobs {
+                let length = blob.length as usize;
+                let size_of_blob = std::mem::size_of::<CSBlob>();
+                if blob.magic == CS_MAGIC_EMBEDDED_ENTITLEMENTS {
+                    let xml_data = match super_data
+                        .get(offset + size_of_blob..offset + length)
+                    {
+                        Some(data) => data,
+                        None => continue,
+                    };
 
-                        if let Ok(parsed_xml) =
-                            roxmltree::Document::parse_with_options(
-                                xml_string, opt,
-                            )
-                        {
-                            for node in parsed_xml.descendants().filter(|n| {
-                                n.has_tag_name("key")
-                                    || n.has_tag_name("array")
-                            }) {
-                                if let Some(entitlement) = node.text() {
-                                    if node.has_tag_name("array") {
-                                        node.descendants()
-                                            .filter_map(|n| n.text())
-                                            .filter(|t| !t.trim().is_empty())
-                                            .unique()
-                                            .map(|t| t.to_string())
-                                            .for_each(|array_entitlement| {
-                                                self.entitlements
-                                                    .push(array_entitlement)
-                                            });
-                                    } else {
-                                        self.entitlements
-                                            .push(entitlement.to_string());
-                                    }
+                    let xml_string =
+                        std::str::from_utf8(xml_data).unwrap_or_default();
+
+                    let opt = roxmltree::ParsingOptions {
+                        allow_dtd: true,
+                        ..roxmltree::ParsingOptions::default()
+                    };
+
+                    if let Ok(parsed_xml) =
+                        roxmltree::Document::parse_with_options(
+                            xml_string, opt,
+                        )
+                    {
+                        for node in parsed_xml.descendants().filter(|n| {
+                            n.has_tag_name("key") || n.has_tag_name("array")
+                        }) {
+                            if let Some(entitlement) = node.text() {
+                                if node.has_tag_name("array") {
+                                    node.descendants()
+                                        .filter_map(|n| n.text())
+                                        .filter(|t| !t.trim().is_empty())
+                                        .unique()
+                                        .map(|t| t.to_string())
+                                        .for_each(|array_entitlement| {
+                                            self.entitlements
+                                                .push(array_entitlement)
+                                        });
+                                } else {
+                                    self.entitlements
+                                        .push(entitlement.to_string());
                                 }
                             }
                         }
@@ -960,67 +971,89 @@ impl<'a> MachOFile<'a> {
 
     fn parse_export_node(
         &mut self,
-    ) -> impl FnMut(&'a [u8], u64, &BStr) -> IResult<&'a [u8], String> + '_
-    {
-        move |data: &'a [u8], offset: u64, prefix: &BStr| {
-            let (remainder, length) = uleb128(&data[offset as usize..])?;
-            let mut remaining_data = remainder;
+    ) -> impl FnMut(&'a [u8], usize) -> IResult<&'a [u8], usize> + '_ {
+        move |data: &'a [u8], offset: usize| {
+            let mut stack = Vec::<ExportNode>::new();
+            let mut visited = HashSet::<usize>::new();
 
-            if length != 0 {
-                let (remainder, flags) = uleb128(remaining_data)?;
-                match flags {
-                    EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER => {
-                        let (remainder, _stub_offset) = uleb128(remainder)?;
+            stack.push(ExportNode { offset, prefix: "".to_string() });
 
-                        let (remainder, _resolver_offset) =
-                            uleb128(remainder)?;
-                        remaining_data = remainder;
+            while !stack.is_empty() && !data.is_empty() && offset < data.len()
+            {
+                let export_node = stack.pop().unwrap();
+
+                // If node was already visited, continue without processing it.
+                if !visited.insert(export_node.offset) {
+                    continue;
+                }
+
+                let node_data = match data.get(export_node.offset..) {
+                    Some(data) => data,
+                    None => continue,
+                };
+
+                let (mut remaining_data, length) = uleb128(node_data)?;
+
+                if length != 0 {
+                    let (remainder, flags) = uleb128(remaining_data)?;
+                    match flags {
+                        EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER => {
+                            let (remainder, (_stub_offset, _resolver_offset)) =
+                                tuple((uleb128, uleb128))(remainder)?;
+                            remaining_data = remainder;
+                        }
+                        EXPORT_SYMBOL_FLAGS_REEXPORT => {
+                            let (remainder, _ordinal) = uleb128(remainder)?;
+
+                            let (remainder, _label) =
+                                map(
+                                    tuple((
+                                        take_till(|b| b == b'\x00'),
+                                        tag(b"\x00"),
+                                    )),
+                                    |(s, _)| s,
+                                )(remainder)?;
+
+                            remaining_data = remainder;
+                        }
+                        EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION => {
+                            let (remainder, _offset) = uleb128(remainder)?;
+                            remaining_data = remainder;
+                        }
+                        _ => {}
                     }
-                    EXPORT_SYMBOL_FLAGS_REEXPORT => {
-                        let (remainder, _ordinal) = uleb128(remainder)?;
+                }
 
-                        let (remainder, _label) = map(
+                let (mut edge_remainder, edges) = u8(remaining_data)?;
+
+                for _ in 0..edges {
+                    let (remainder, edge_label) =
+                        map(
                             tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
-                            |(s, _)| s,
-                        )(
-                            remainder
-                        )?;
+                            |(s, _)| BStr::new(s),
+                        )(edge_remainder)?;
 
-                        remaining_data = remainder;
+                    let (remainder, edge_offset) = uleb128(remainder)?;
+
+                    if let Ok(edge_label_str) = edge_label.to_str() {
+                        stack.push(ExportNode {
+                            offset: edge_offset as usize,
+                            prefix: format!(
+                                "{}{}",
+                                export_node.prefix, edge_label_str
+                            ),
+                        });
                     }
-                    EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION => {
-                        let (remainder, _offset) = uleb128(remainder)?;
-                        remaining_data = remainder;
-                    }
-                    _ => {}
+
+                    edge_remainder = remainder;
+                }
+
+                if length != 0 {
+                    self.exports.push(export_node.prefix)
                 }
             }
 
-            let (remainder, edges) = u8(remaining_data)?;
-            let mut edge_remainder = remainder;
-
-            for _ in 0..edges {
-                let (remainder, strr) = map(
-                    tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
-                    |(s, _)| s,
-                )(edge_remainder)?;
-                let edge_label = BStr::new(strr);
-                let (remainder, edge_offset) = uleb128(remainder)?;
-                let (_, _) = self.parse_export_node()(
-                    data,
-                    edge_offset,
-                    BStr::new(&bstr::concat([prefix, edge_label])),
-                )?;
-                edge_remainder = remainder;
-            }
-
-            if length != 0 {
-                if let Ok(prefix) = prefix.to_str() {
-                    self.exports.push(prefix.to_string())
-                }
-            }
-
-            Ok((data, prefix.to_str().unwrap().to_string()))
+            Ok((data, 0))
         }
     }
 
@@ -1031,8 +1064,7 @@ impl<'a> MachOFile<'a> {
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<String>> + '_ {
         move |data: &'a [u8]| {
             let exports = Vec::<String>::new();
-            let (remainder, _) =
-                self.parse_export_node()(data, 0, BStr::new(""))?;
+            let (remainder, _) = self.parse_export_node()(data, 0)?;
 
             Ok((remainder, exports))
         }
@@ -1408,7 +1440,7 @@ struct CSBlob {
 }
 
 struct CSBlobIndex {
-    blobtype: u32,
+    _blobtype: u32,
     offset: u32,
     blob: Option<CSBlob>,
 }
@@ -1484,6 +1516,11 @@ struct MinVersion {
     sdk: u32,
 }
 
+struct ExportNode {
+    offset: usize,
+    prefix: String,
+}
+
 /// Parser that reads a 32-bits or 64-bits
 fn uint(
     endianness: Endianness,
@@ -1499,21 +1536,33 @@ fn uint(
     }
 }
 
-/// Parser that reads ULEB128.
-/// https://en.wikipedia.org/wiki/LEB128
+/// Parser that reads [ULEB128][1].
+///
+/// Notice however that this function returns a `u64`, is able to parse
+/// number up to 72057594037927935. When parsing larger number it fails,
+/// even if they are valid ULEB128.
+///
+/// [1]: https://en.wikipedia.org/wiki/LEB128
 fn uleb128(input: &[u8]) -> IResult<&[u8], u64> {
     let mut val: u64 = 0;
-    let mut shift: u64 = 0;
+    let mut shift: u32 = 0;
 
     let mut data = input;
     let mut byte: u8;
 
     loop {
+        // Read one byte of data.
         (data, byte) = u8(data)?;
 
-        val |= ((byte & !(1 << 7)) as u64) << shift;
+        // Use all the bits, except the most significant one.
+        let b = (byte & 0x7f) as u64;
 
-        if byte & (1 << 7) == 0 {
+        val |= b
+            .checked_shl(shift)
+            .ok_or(Err::Error(Error::new(input, ErrorKind::TooLarge)))?;
+
+        // Break if the most significant bit is zero.
+        if byte & 0x80 == 0 {
             break;
         }
 
@@ -1917,33 +1966,45 @@ impl From<&MinVersion> for protos::macho::MinVersion {
 
 #[test]
 fn test_uleb_parsing() {
-    let uleb_128_in = vec![0b1000_0001, 0b000_0001];
-    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
-    assert_eq!(129, result);
+    let (_, n) = uleb128(&[0b1000_0001, 0b000_0001]).unwrap();
+    assert_eq!(129, n);
 
-    let uleb_128_in = vec![0b1000_0000, 0b0000_0001];
-    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
-    assert_eq!(128, result);
+    let (_, n) = uleb128(&[0b1000_0000, 0b0000_0001]).unwrap();
+    assert_eq!(128, n);
 
-    let uleb_128_in = vec![0b111_1111];
-    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
-    assert_eq!(127, result);
+    let (_, n) = uleb128(&[0b111_1111]).unwrap();
+    assert_eq!(127, n);
 
-    let uleb_128_in = vec![0b111_1110];
-    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
-    assert_eq!(126, result);
+    let (_, n) = uleb128(&[0b111_1110]).unwrap();
+    assert_eq!(126, n);
 
-    let uleb_128_in = vec![0b000_0000];
-    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
-    assert_eq!(0, result);
+    let (_, n) = uleb128(&[0b000_0000]).unwrap();
+    assert_eq!(0, n);
 
-    let uleb_128_in = vec![0b1010_0000, 0b0000_0001];
-    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
-    assert_eq!(160, result);
+    let (_, n) = uleb128(&[0b1010_0000, 0b0000_0001]).unwrap();
+    assert_eq!(160, n);
 
-    let uleb_128_in = vec![0b10010110, 0b00000101];
-    let (_remainder, result) = uleb128(&uleb_128_in).unwrap();
-    assert_eq!(662, result);
+    let (_, n) = uleb128(&[0b1001_0110, 0b0000_0101]).unwrap();
+    assert_eq!(662, n);
+
+    let (_, n) = uleb128(&[0b1110_0101, 0b1000_1110, 0b0010_0110]).unwrap();
+    assert_eq!(624485, n);
+
+    let (_, n) = uleb128(&[0x80, 0x80, 0x80, 0x00]).unwrap();
+    assert_eq!(0, n);
+
+    let (_, n) =
+        uleb128(&[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00]).unwrap();
+    assert_eq!(0, n);
+
+    let (_, n) =
+        uleb128(&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f]).unwrap();
+    assert_eq!(72057594037927935, n);
+
+    assert!(uleb128(&[
+        0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00,
+    ])
+    .is_err());
 }
 
 #[test]

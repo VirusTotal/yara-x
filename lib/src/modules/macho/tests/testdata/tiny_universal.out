@@ -193,9 +193,9 @@ file:
         version: "10.9.0"
         sdk: "10.10.0"
     exports:
-      - "__mh_execute_header"
-      - "_factorial"
       - "_main"
+      - "_factorial"
+      - "__mh_execute_header"
     imports:
       - "dyld_stub_binder"
       - "_printf"
@@ -399,9 +399,9 @@ file:
         version: "10.9.0"
         sdk: "10.10.0"
     exports:
-      - "__mh_execute_header"
-      - "_factorial"
       - "_main"
+      - "_factorial"
+      - "__mh_execute_header"
     imports:
       - "dyld_stub_binder"
       - "_printf"
