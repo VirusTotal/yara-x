@@ -24,44 +24,54 @@ use crate::parser::token_stream::TokenStream;
 use crate::tokenizer::{Token, Tokenizer};
 use crate::Span;
 
-enum Error {
-    NoMatch,
-}
-
-type ParseResult = Result<(), Error>;
-
 /// Produces a Concrete Syntax-Tree ([`CST`]) for a given YARA source code.
-pub struct Parser<'src> {
-    tokens: TokenStream<'src>,
-    output: SyntaxStream,
-}
+pub struct Parser<'src>(InternalParser<'src>);
 
 impl<'src> Parser<'src> {
     /// Creates a new parser for the given source code.
     pub fn new(source: &'src [u8]) -> Self {
-        Self {
-            tokens: TokenStream::new(Tokenizer::new(source)),
-            output: SyntaxStream::new(),
-        }
+        Self(InternalParser::from(Tokenizer::new(source)))
+    }
+
+    /// Returns the source code passed to the parser.
+    #[inline]
+    pub fn source(&self) -> &'src [u8] {
+        self.0.tokens.source()
+    }
+
+    /// Returns the CST as sequence of events.
+    #[inline]
+    pub fn events(self) -> impl Iterator<Item = Event> + 'src {
+        self.0
     }
 
     /// Consumes the parser and builds a Concrete Syntax Tree (CST).
+    #[inline]
     pub fn build_cst(self) -> CST {
         CST::from(self)
     }
 }
 
-impl<'src> From<Tokenizer<'src>> for Parser<'src> {
+/// Internal implementation of the parser. The [`Parser`] type is only a
+/// wrapper around this type.
+struct InternalParser<'src> {
+    tokens: TokenStream<'src>,
+    output: SyntaxStream,
+    failed: bool,
+}
+
+impl<'src> From<Tokenizer<'src>> for InternalParser<'src> {
     /// Creates a new parser that receives tokens from the given [`Tokenizer`].
     fn from(tokenizer: Tokenizer<'src>) -> Self {
         Self {
             tokens: TokenStream::new(tokenizer),
             output: SyntaxStream::new(),
+            failed: false,
         }
     }
 }
 
-impl<'src> Iterator for Parser<'src> {
+impl Iterator for InternalParser<'_> {
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -77,14 +87,26 @@ impl<'src> Iterator for Parser<'src> {
     }
 }
 
-// Parser private API.
-//
-// This section contains utility functions that are used by the grammar rules.
-impl<'src> Parser<'src> {
-    fn begin<'a>(&'a mut self, kind: SyntaxKind) -> ParserRule<'a, 'src> {
-        ParserRule::new(self).begin(kind)
+/// Parser private API.
+///
+/// This section contains utility functions that are used by the grammar rules.
+impl<'src> InternalParser<'src> {
+    /// Returns the next token, without advancing the parser.
+    fn peek(&mut self) -> Option<&Token> {
+        self.tokens.peek_token(0)
     }
 
+    /// Returns the next token and advances the parser.
+    fn bump(&mut self) -> Option<Token> {
+        let token = self.tokens.next_token();
+        match &token {
+            Some(token) => self.output.push_token(token.into(), token.span()),
+            None => {}
+        }
+        token
+    }
+
+    /// Creates a bookmark at the current token.
     fn bookmark(&mut self) -> Bookmark {
         Bookmark {
             tokens: self.tokens.bookmark(),
@@ -92,6 +114,8 @@ impl<'src> Parser<'src> {
         }
     }
 
+    /// Restores the parser to the position it was when the bookmark was
+    /// created.
     fn restore(&mut self, bookmark: &Bookmark) {
         self.tokens.restore(&bookmark.tokens);
         self.output.truncate(&bookmark.output);
@@ -102,75 +126,142 @@ impl<'src> Parser<'src> {
         self.output.drop(bookmark.output);
     }
 
-    fn peek(&mut self) -> Option<&Token> {
-        self.tokens.peek_token(0)
+    fn begin(&mut self, kind: SyntaxKind) -> &mut Self {
+        self.output.begin(kind);
+        self
     }
 
-    fn bump(&mut self) -> Option<Token> {
-        let token = self.tokens.next_token();
-        match &token {
-            Some(token) => self.output.push_token(token.into(), token.span()),
-            None => {}
+    fn end(&mut self) -> &mut Self {
+        if self.failed {
+            self.output.end_with_error();
+        } else {
+            self.output.end();
         }
-        token
+        self
     }
 
-    fn expect(&mut self, expected_tokens: &[Token]) -> ParseResult {
-        let token = self.peek().ok_or(NoMatch)?;
+    fn expect(&mut self, expected_tokens: &[Token]) -> &mut Self {
+        let token = match self.peek() {
+            Some(token) => token,
+            None => {
+                self.failed = true;
+                return self;
+            }
+        };
         if expected_tokens.iter().any(|expected| {
             mem::discriminant(expected) == mem::discriminant(token)
         }) {
             self.bump();
-            Ok(())
         } else {
             let span = token.span();
             self.bump();
             self.output.push_error("foo", span);
-            Err(NoMatch)
+            self.failed = true;
         }
+        self
     }
 
-    fn expect_opt(&mut self, expected_tokens: &[Token]) -> ParseResult {
-        match self.peek() {
-            Some(token) => {
-                if expected_tokens.iter().any(|expected| {
-                    mem::discriminant(expected) == mem::discriminant(token)
-                }) {
-                    self.bump();
-                }
-                Ok(())
-            }
-            None => Ok(()),
-        }
-    }
-
-    fn begin_alt(&mut self) -> Alt {
+    fn begin_alt(&mut self) -> Alt<'_, 'src> {
         let bookmark = self.bookmark();
         Alt { parser: self, matched: false, bookmark }
     }
 
-    fn opt<F>(&mut self, f: F) -> ParseResult
+    fn opt<F>(&mut self, f: F) -> &mut Self
     where
-        F: Fn(&mut Parser) -> ParseResult,
+        F: Fn(&mut Self) -> &mut Self,
     {
+        if self.failed {
+            return self;
+        }
+
         let bookmark = self.bookmark();
-        if f(self).is_err() {
+        f(self);
+
+        // Any error occurred while parsing the optional production is ignored.
+        if self.failed {
+            self.failed = false;
             self.restore(&bookmark);
         }
+
         self.drop(bookmark);
-        Ok(())
+        self
     }
 
-    fn ws(&mut self) -> ParseResult {
+    fn n_or_more<F>(&mut self, n: usize, f: F) -> &mut Self
+    where
+        F: Fn(&mut Self) -> &mut Self,
+    {
+        if self.failed {
+            return self;
+        }
+        // The first N times that `f` is called it must match.
+        for _ in 0..n {
+            f(self);
+            if self.failed {
+                return self;
+            }
+        }
+        // If the first N matches were ok, keep matching `f` as much as
+        // possible.
+        if !self.failed {
+            loop {
+                let bookmark = self.bookmark();
+                f(self);
+                if self.failed {
+                    self.failed = false;
+                    self.restore(&bookmark);
+                    self.drop(bookmark);
+                    break;
+                } else {
+                    self.drop(bookmark);
+                }
+            }
+        }
+        self
+    }
+
+    #[inline]
+    fn zero_or_more<F>(&mut self, f: F) -> &mut Self
+    where
+        F: Fn(&mut Self) -> &mut Self,
+    {
+        self.n_or_more(0, f)
+    }
+
+    #[inline]
+    fn one_or_more<F>(&mut self, f: F) -> &mut Self
+    where
+        F: Fn(&mut Self) -> &mut Self,
+    {
+        self.n_or_more(1, f)
+    }
+
+    fn one<F>(&mut self, f: F) -> &mut Self
+    where
+        F: Fn(&mut Self) -> &mut Self,
+    {
+        if self.failed {
+            return self;
+        }
+        f(self);
+        if self.failed {
+            self.failed = true;
+        }
+        self
+    }
+
+    fn ws(&mut self) -> &mut Self {
+        if self.failed {
+            return self;
+        }
         while let Some(WHITESPACE(_)) | Some(NEWLINE(_)) = self.peek() {
             self.bump();
         }
-        Ok(())
+        self
     }
 }
 
 use crate::cst::{syntax_stream, CST};
-use crate::parser::Error::NoMatch;
 use Token::*;
 
 macro_rules! t {
@@ -189,7 +280,7 @@ macro_rules! t {
 ///
 /// These functions return a [`ParseResult`] that will be [`Ok`] if the
 /// parsing was successful or [`NoMatch`] if otherwise.
-impl<'src> Parser<'src> {
+impl<'src> InternalParser<'src> {
     /// Parses a top-level item in YARA source file.
     ///
     /// A top-level item is either an import statement or a rule declaration.
@@ -197,8 +288,15 @@ impl<'src> Parser<'src> {
     /// ```text
     /// TOP_LEVEL_ITEM ::= ( IMPORT_STMT | RULE_DECL )
     /// ```
-    fn top_level_item(&mut self) -> ParseResult {
-        match self.peek().ok_or(NoMatch)? {
+    fn top_level_item(&mut self) -> &mut Self {
+        let token = match self.peek() {
+            Some(token) => token,
+            None => {
+                self.failed = true;
+                return self;
+            }
+        };
+        match token {
             IMPORT_KW(_) => self.import_stmt(),
             GLOBAL_KW(_) | PRIVATE_KW(_) | RULE_KW(_) => self.rule_decl(),
             token => {
@@ -210,7 +308,8 @@ impl<'src> Parser<'src> {
                 self.output.begin(SyntaxKind::ERROR);
                 self.bump();
                 self.output.end();
-                Err(NoMatch)
+                self.failed = true;
+                self
             }
         }
     }
@@ -220,7 +319,7 @@ impl<'src> Parser<'src> {
     /// ```text
     /// IMPORT_STMT ::= `import` STRING_LIT
     /// ```
-    fn import_stmt(&mut self) -> ParseResult {
+    fn import_stmt(&mut self) -> &mut Self {
         self.begin(SyntaxKind::IMPORT_STMT)
             .expect(t!(IMPORT_KW))
             .ws()
@@ -236,7 +335,7 @@ impl<'src> Parser<'src> {
     ///   `condition` `:` BOOLEAN_EXPR
     /// `}`
     /// ```
-    fn rule_decl(&mut self) -> ParseResult {
+    fn rule_decl(&mut self) -> &mut Self {
         self.begin(SyntaxKind::RULE_DECL)
             .opt(|p| p.rule_mods())
             .ws()
@@ -252,6 +351,8 @@ impl<'src> Parser<'src> {
             .ws()
             .expect(t!(COLON))
             .ws()
+            .one(|p| p.boolean_expr())
+            .ws()
             .expect(t!(R_BRACE))
             .end()
     }
@@ -261,38 +362,30 @@ impl<'src> Parser<'src> {
     /// ```text
     /// RULE_MODS := ( `private` `global`? | `global` `private`? )
     /// ```
-    fn rule_mods(&mut self) -> ParseResult {
+    fn rule_mods(&mut self) -> &mut Self {
         self.begin(SyntaxKind::RULE_MODS)
             .begin_alt()
             .alt(|p| {
-                p.expect(t!(PRIVATE_KW))?;
-                p.opt(|p| {
-                    p.ws()?;
-                    p.expect(t!(GLOBAL_KW))
-                })
+                p.expect(t!(PRIVATE_KW)).opt(|p| p.ws().expect(t!(GLOBAL_KW)))
             })
             .alt(|p| {
-                p.expect(t!(GLOBAL_KW))?;
-                p.opt(|p| {
-                    p.ws()?;
-                    p.expect(t!(PRIVATE_KW))
-                })
+                p.expect(t!(GLOBAL_KW)).opt(|p| p.ws().expect(t!(PRIVATE_KW)))
             })
             .end_alt()
             .end()
     }
 
-    fn meta_defs(&mut self) -> ParseResult {
+    fn meta_defs(&mut self) -> &mut Self {
         self.begin(SyntaxKind::META_DEFS)
             .expect(t!(META_KW))
             .ws()
             .expect(t!(COLON))
             .ws()
-            .n_or_more(1, |p| p.meta_def())
+            .one_or_more(|p| p.meta_def())
             .end()
     }
 
-    fn meta_def(&mut self) -> ParseResult {
+    fn meta_def(&mut self) -> &mut Self {
         self.begin(SyntaxKind::META_DEF)
             .expect(t!(IDENT))
             .ws()
@@ -311,11 +404,15 @@ impl<'src> Parser<'src> {
     /// ```text
     /// BOOLEAN_EXPR := BOOLEAN_TERM ((AND_KW | OR_KW) BOOLEAN_TERM)*
     /// ``
-    fn boolean_expr(&mut self) -> ParseResult {
+    fn boolean_expr(&mut self) -> &mut Self {
         self.begin(SyntaxKind::BOOLEAN_EXPR)
-            .then(|p| p.boolean_term())
-            .ws()
-            .n_or_more(0, |p| todo!())
+            .one(|p| p.boolean_term())
+            .zero_or_more(|p| {
+                p.ws()
+                    .expect(t!(AND_KW | OR_KW))
+                    .ws()
+                    .one(|p| p.boolean_term())
+            })
             .end()
     }
 
@@ -327,8 +424,13 @@ impl<'src> Parser<'src> {
     ///    FALSE_KW
     /// )
     /// ``
-    fn boolean_term(&mut self) -> ParseResult {
-        self.begin(SyntaxKind::BOOLEAN_TERM).end()
+    fn boolean_term(&mut self) -> &mut Self {
+        self.begin(SyntaxKind::BOOLEAN_TERM)
+            .begin_alt()
+            .alt(|p| p.expect(t!(TRUE_KW)))
+            .alt(|p| p.expect(t!(FALSE_KW)))
+            .end_alt()
+            .end()
     }
 }
 
@@ -338,7 +440,7 @@ struct Bookmark {
 }
 
 struct Alt<'a, 'src> {
-    parser: &'a mut Parser<'src>,
+    parser: &'a mut InternalParser<'src>,
     matched: bool,
     bookmark: Bookmark,
 }
@@ -346,125 +448,32 @@ struct Alt<'a, 'src> {
 impl<'a, 'src> Alt<'a, 'src> {
     fn alt<F>(mut self, f: F) -> Self
     where
-        F: Fn(&mut Parser) -> ParseResult,
+        F: Fn(&'a mut InternalParser<'src>) -> &'a mut InternalParser<'src>,
     {
         // Don't try to match the current alternative if a previous one
         // already matched.
         if !self.matched {
-            match f(self.parser) {
+            self.parser = f(self.parser);
+            match self.parser.failed {
                 // The current alternative matched.
-                Ok(()) => self.matched = true,
+                false => {
+                    self.matched = true;
+                }
                 // The current alternative didn't match, restore the token
                 // stream to the position it has before trying to match.
-                Err(NoMatch) => self.parser.restore(&self.bookmark),
+                true => {
+                    self.parser.failed = false;
+                    self.parser.restore(&self.bookmark);
+                }
             };
         }
         self
     }
 
-    fn end_alt(self) -> ParserRule<'a, 'src> {
+    fn end_alt(self) -> &'a mut InternalParser<'src> {
         self.parser.drop(self.bookmark);
         // If none of the alternatives matched, that's a failure.
-        let failed = !self.matched;
-        ParserRule { parser: self.parser, failed }
-    }
-}
-
-struct ParserRule<'a, 'src> {
-    parser: &'a mut Parser<'src>,
-    failed: bool,
-}
-
-impl<'a, 'src> ParserRule<'a, 'src> {
-    fn new(parser: &'a mut Parser<'src>) -> Self {
-        Self { parser, failed: false }
-    }
-
-    fn begin(self, kind: SyntaxKind) -> Self {
-        self.parser.output.begin(kind);
-        self
-    }
-
-    fn end(self) -> ParseResult {
-        if self.failed {
-            self.parser.output.end_with_error();
-            Err(NoMatch)
-        } else {
-            self.parser.output.end();
-            Ok(())
-        }
-    }
-
-    fn ws(self) -> Self {
-        if !self.failed {
-            let _ = self.parser.ws();
-        }
-        self
-    }
-
-    fn begin_alt(self) -> Alt<'a, 'src> {
-        let bookmark = self.parser.bookmark();
-        Alt { parser: self.parser, bookmark, matched: false }
-    }
-
-    fn expect(mut self, expected_tokens: &[Token]) -> Self {
-        if !self.failed && self.parser.expect(expected_tokens).is_err() {
-            self.failed = true;
-        }
-        self
-    }
-
-    fn expect_opt(self, expected_tokens: &[Token]) -> Self {
-        if !self.failed {
-            let _ = self.parser.expect_opt(expected_tokens);
-        }
-        self
-    }
-
-    fn then<F>(mut self, f: F) -> Self
-    where
-        F: Fn(&mut Parser) -> ParseResult,
-    {
-        if f(self.parser).is_err() {
-            self.failed = true;
-        }
-        self
-    }
-
-    #[inline]
-    fn opt<F>(self, f: F) -> Self
-    where
-        F: Fn(&mut Parser) -> ParseResult,
-    {
-        let _ = self.parser.opt(f);
-        self
-    }
-
-    fn n_or_more<F>(mut self, n: usize, f: F) -> Self
-    where
-        F: Fn(&mut Parser) -> ParseResult,
-    {
-        // The first N times that `f` is called it must match.
-        for _ in 0..n {
-            if !self.failed && f(self.parser).is_err() {
-                self.failed = true;
-            }
-        }
-        // If the first N matches were ok, keep matching `f` as much as
-        // possible.
-        if !self.failed {
-            loop {
-                let bookmark = self.parser.bookmark();
-                match f(self.parser) {
-                    Ok(()) => self.parser.drop(bookmark),
-                    Err(NoMatch) => {
-                        self.parser.restore(&bookmark);
-                        self.parser.drop(bookmark);
-                        break;
-                    }
-                }
-            }
-        }
-        self
+        self.parser.failed = !self.matched;
+        self.parser
     }
 }

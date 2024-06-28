@@ -46,14 +46,14 @@ impl Debug for CST {
 impl From<Parser<'_>> for CST {
     /// Crates a [`CST`] from the given parser.
     fn from(parser: Parser) -> Self {
-        let source = parser.tokens.source();
+        let source = parser.source();
         let mut builder = GreenNodeBuilder::new();
         let mut prev_token_span: Option<Span> = None;
         let mut errors = Vec::new();
 
         builder.start_node(SyntaxKind::SOURCE_FILE.into());
 
-        for node in parser {
+        for node in parser.events() {
             match node {
                 Event::Begin(kind) => builder.start_node(kind.into()),
                 Event::End(_) => builder.finish_node(),

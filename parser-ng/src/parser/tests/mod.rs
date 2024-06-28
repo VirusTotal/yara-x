@@ -3,25 +3,16 @@ use std::fs;
 use std::io::BufWriter;
 use std::io::Write;
 
-use crate::parser::cst::Event;
 use crate::parser::cst::CST;
 use crate::Parser;
 
 #[test]
-fn parser() {
-    let cst: Vec<Event> = Parser::new(b"rule{{}").collect();
-
-    println!("{:#?}", cst);
-}
-
-#[test]
-fn parser2() {
+fn test() {
     let cst = CST::from(Parser::new(
         r#"
-        ff
-private global rule foo {
-    meta:
-        foo = true
+rule test {
+	condition:
+		true and false
 }
 "#
         .as_bytes(),

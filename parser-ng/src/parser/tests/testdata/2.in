@@ -1,4 +1,4 @@
 rule test {
 	condition:
-		true
+		true and false
 }

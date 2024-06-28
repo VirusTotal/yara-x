@@ -219,7 +219,7 @@ enum NormalToken<'src> {
     ]
     StringLit(&'src [u8]),
 
-    #[regex(" ")]
+    #[regex("[ \t]+")]
     Whitespace,
 
     #[token("\n")]
