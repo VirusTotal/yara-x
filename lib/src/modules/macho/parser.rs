@@ -923,19 +923,14 @@ impl<'a> MachOFile<'a> {
 
     fn parse_export_node(
         &mut self,
-    ) -> impl FnMut(&'a [u8], u64) -> IResult<&'a [u8], usize> + '_ {
-        move |data: &'a [u8], offset: u64| {
+    ) -> impl FnMut(&'a [u8], usize) -> IResult<&'a [u8], usize> + '_ {
+        move |data: &'a [u8], offset: usize| {
             let mut stack = Vec::<ExportNode>::new();
             let mut visited = HashSet::<usize>::new();
 
-            stack.push(ExportNode {
-                offset: offset as usize,
-                prefix: "".to_string(),
-            });
+            stack.push(ExportNode { offset, prefix: "".to_string() });
 
-            while !data.is_empty()
-                && (offset as usize) < data.len()
-                && !stack.is_empty()
+            while !stack.is_empty() && !data.is_empty() && offset < data.len()
             {
                 let export_node = stack.pop().unwrap();
 
@@ -955,11 +950,8 @@ impl<'a> MachOFile<'a> {
                     let (remainder, flags) = uleb128(remaining_data)?;
                     match flags {
                         EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER => {
-                            let (remainder, _stub_offset) =
-                                uleb128(remainder)?;
-
-                            let (remainder, _resolver_offset) =
-                                uleb128(remainder)?;
+                            let (remainder, (_stub_offset, _resolver_offset)) =
+                                tuple((uleb128, uleb128))(remainder)?;
                             remaining_data = remainder;
                         }
                         EXPORT_SYMBOL_FLAGS_REEXPORT => {
@@ -987,13 +979,14 @@ impl<'a> MachOFile<'a> {
                 let (mut edge_remainder, edges) = u8(remaining_data)?;
 
                 for _ in 0..edges {
-                    let (remainder, strr) =
+                    let (remainder, edge_label) =
                         map(
                             tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
-                            |(s, _)| s,
+                            |(s, _)| BStr::new(s),
                         )(edge_remainder)?;
-                    let edge_label = BStr::new(strr);
+                    
                     let (remainder, edge_offset) = uleb128(remainder)?;
+
                     if let Ok(edge_label_str) = edge_label.to_str() {
                         stack.push(ExportNode {
                             offset: edge_offset as usize,
@@ -1003,6 +996,7 @@ impl<'a> MachOFile<'a> {
                             ),
                         });
                     }
+
                     edge_remainder = remainder;
                 }
 
