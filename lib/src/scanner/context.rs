@@ -58,8 +58,10 @@ pub(crate) struct ScanContext<'r> {
     /// `matching_rules` map, and then moved to this vector once the scan
     /// finishes.
     pub private_matching_rules: Vec<RuleId>,
-    /// Map containing the IDs of rules that matched.
-    pub matching_rules: FxHashMap<NamespaceId, Vec<RuleId>>,
+    /// Map containing the IDs of rules that matched. Using an `IndexMap`
+    /// because we want to keep the insertion order, so that rules in
+    /// namespaces that were declared first, appear first in scan results.
+    pub matching_rules: IndexMap<NamespaceId, Vec<RuleId>>,
     /// Compiled rules for this scan.
     pub compiled_rules: &'r Rules,
     /// Structure that contains top-level symbols, like module names
