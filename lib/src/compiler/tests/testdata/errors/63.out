@@ -1,4 +1,4 @@
-error[syntax_error]: syntax error
+error[E001]: syntax error
  --> line:2:5
   |
 2 |     true }

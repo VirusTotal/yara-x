@@ -228,7 +228,7 @@ impl ReportBuilder {
         let detailed_report = self.create_report(
             Level::Error,
             error_span,
-            "syntax_error",
+            "E001",
             title,
             vec![(error_span, error_msg.clone(), Level::Error)],
             note,
