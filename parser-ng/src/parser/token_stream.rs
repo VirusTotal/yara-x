@@ -17,7 +17,7 @@ use crate::tokenizer::{Token, Tokenizer};
 /// - [`TokenStream::next_token`]: Advances to the next token, similar to [`Tokenizer::next_token`].
 /// - [`TokenStream::peek_token`]: Peeks at  upcoming tokens without advancing.
 /// - [`TokenStream::bookmark`]: Creates a bookmark in the stream.
-/// - [`TokenStream::restore`]: Restores the stream to a bookmarked position.
+/// - [`TokenStream::restore_bookmark`]: Restores the stream to a bookmarked position.
 ///
 pub struct TokenStream<'src> {
     /// The tokenizer from where the tokens are retrieved.
@@ -86,7 +86,7 @@ impl<'src> TokenStream<'src> {
 
     /// Returns a bookmark for the current stream position.
     ///
-    /// By passing the bookmark to [`TokenStream::restore`] you can go back
+    /// By passing the bookmark to [`TokenStream::restore_bookmark`] you can go back
     /// to a previous stream position.
     pub fn bookmark(&mut self) -> Bookmark {
         self.bookmarks.push(Reverse(self.current_token));
@@ -96,7 +96,7 @@ impl<'src> TokenStream<'src> {
     /// Restores the stream to a position previously bookmarked with
     /// [`TokenStream::bookmark`].
     #[inline]
-    pub fn restore(&mut self, bookmark: &Bookmark) {
+    pub fn restore_bookmark(&mut self, bookmark: &Bookmark) {
         self.current_token = bookmark.0;
     }
 
@@ -106,7 +106,7 @@ impl<'src> TokenStream<'src> {
     /// back to the bookmarked position again, therefore is safe for the stream
     /// to purge past tokens that are not reachable anymore because there are
     /// no bookmarks pointing to them.
-    pub fn drop(&mut self, bookmark: Bookmark) {
+    pub fn remove_bookmark(&mut self, bookmark: Bookmark) {
         self.bookmarks.retain(|x| x.ne(&Reverse(bookmark.0)))
     }
 }
@@ -223,7 +223,7 @@ mod test {
         assert_eq!(t.next_token(), Some(Token::IDENT(Span(8..12))));
         assert_eq!(t.next_token(), None);
 
-        t.restore(&b);
+        t.restore_bookmark(&b);
 
         assert_eq!(t.next_token(), Some(Token::IDENT(Span(0..3))));
         assert_eq!(t.next_token(), Some(Token::WHITESPACE(Span(3..4))));
@@ -232,8 +232,8 @@ mod test {
         assert_eq!(t.next_token(), Some(Token::IDENT(Span(8..12))));
         assert_eq!(t.next_token(), None);
 
-        t.restore(&b);
-        t.drop(b);
+        t.restore_bookmark(&b);
+        t.remove_bookmark(b);
 
         assert_eq!(t.next_token(), Some(Token::IDENT(Span(0..3))));
         assert_eq!(t.next_token(), Some(Token::WHITESPACE(Span(3..4))));
@@ -254,7 +254,7 @@ mod test {
         assert_eq!(t.next_token(), Some(Token::WHITESPACE(Span(3..4))));
         assert_eq!(t.next_token(), Some(Token::IDENT(Span(4..7))));
 
-        t.restore(&b1);
+        t.restore_bookmark(&b1);
 
         assert_eq!(t.next_token(), Some(Token::WHITESPACE(Span(3..4))));
 
@@ -264,15 +264,15 @@ mod test {
         assert_eq!(t.next_token(), Some(Token::WHITESPACE(Span(7..8))));
         assert_eq!(t.next_token(), Some(Token::IDENT(Span(8..12))));
 
-        t.restore(&b2);
-        t.drop(b2);
+        t.restore_bookmark(&b2);
+        t.remove_bookmark(b2);
 
         assert_eq!(t.next_token(), Some(Token::IDENT(Span(4..7))));
         assert_eq!(t.next_token(), Some(Token::WHITESPACE(Span(7..8))));
         assert_eq!(t.next_token(), Some(Token::IDENT(Span(8..12))));
         assert_eq!(t.next_token(), None);
 
-        t.restore(&b1);
+        t.restore_bookmark(&b1);
 
         assert_eq!(t.next_token(), Some(Token::WHITESPACE(Span(3..4))));
         assert_eq!(t.next_token(), Some(Token::IDENT(Span(4..7))));

@@ -167,7 +167,7 @@ impl SyntaxStream {
         self.events.truncate(bookmark.0)
     }
 
-    pub(crate) fn drop(&mut self, bookmark: Bookmark) {
+    pub(crate) fn remove_bookmark(&mut self, bookmark: Bookmark) {
         assert!(bookmark.0 <= self.events.len());
         self.num_bookmarks = self
             .num_bookmarks
@@ -219,7 +219,7 @@ mod tests {
         s.push_token(SyntaxKind::R_BRACE, Span(0..1));
         s.push_token(SyntaxKind::L_BRACE, Span(1..2));
         s.truncate(&bookmark);
-        s.drop(bookmark);
+        s.remove_bookmark(bookmark);
         assert_eq!(s.pop(), None);
     }
 

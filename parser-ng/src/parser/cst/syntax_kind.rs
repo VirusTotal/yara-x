@@ -25,6 +25,7 @@ pub enum SyntaxKind {
     L_PAREN,
     R_PAREN,
 
+    COMMENT,
     WHITESPACE,
     NEWLINE,
 
@@ -87,6 +88,7 @@ impl From<&Token> for SyntaxKind {
             // Identifiers
             Token::IDENT(_) => SyntaxKind::IDENT,
             // Trivia
+            Token::COMMENT(_) => SyntaxKind::COMMENT,
             Token::WHITESPACE(_) => SyntaxKind::WHITESPACE,
             Token::NEWLINE(_) => SyntaxKind::NEWLINE,
             Token::UNKNOWN(_) => {

@@ -1,7 +1,7 @@
 /*! This module contains a handwritten [PEG][1] parser for YARA rules.
 
 The parser receives a sequence of tokens produced by the [`Tokenizer`], and
-produces a Concrete Syntax-Tree ([`CST`]), also known as lossless syntax
+produces a Concrete Syntax-Tree ([`CST`]), also known as a lossless syntax
 tree.
 
 Under the hood, the parser uses the [rowan][2] create.
@@ -39,7 +39,7 @@ impl<'src> Parser<'src> {
         self.0.tokens.source()
     }
 
-    /// Returns the CST as sequence of events.
+    /// Returns the CST as a sequence of events.
     #[inline]
     pub fn events(self) -> impl Iterator<Item = Event> + 'src {
         self.0
@@ -71,14 +71,21 @@ impl<'src> From<Tokenizer<'src>> for InternalParser<'src> {
     }
 }
 
+/// The parser behaves as an iterator that returns events of type [`Event`].
 impl Iterator for InternalParser<'_> {
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // When the output buffer is not empty, return one of buffered
-        // events. When the output buffer is empty and there are pending
-        // tokens, invoke the parser so that it consumes more tokens and
-        // produce events.
+        // If the output buffer isn't empty, return a buffered event.
+        // If the output buffer is empty and there are pending tokens, invoke
+        // the parser to consume tokens and put more events in the output
+        // buffer.
+        //
+        // Each call to `next` parses one top-level item (either an import
+        // statement or rule declaration). This approach parses the source
+        // code lazily, one top-level item at a time, saving memory by
+        // avoiding tokenizing the entire input at once, or producing all
+        // the events before they are consumed.
         if self.output.is_empty() && self.tokens.has_more() {
             let _ = self.ws();
             let _ = self.top_level_item();
@@ -91,12 +98,17 @@ impl Iterator for InternalParser<'_> {
 ///
 /// This section contains utility functions that are used by the grammar rules.
 impl<'src> InternalParser<'src> {
-    /// Returns the next token, without advancing the parser.
+    /// Returns the next token, without consuming it.
+    ///
+    /// Returns `None` if there are no more tokens.
     fn peek(&mut self) -> Option<&Token> {
         self.tokens.peek_token(0)
     }
 
-    /// Returns the next token and advances the parser.
+    /// Consumes the next token and returns it. The consumed token is also
+    /// appended to the output.
+    ///
+    /// Returns `None` if there are no more tokens.
     fn bump(&mut self) -> Option<Token> {
         let token = self.tokens.next_token();
         match &token {
@@ -106,7 +118,11 @@ impl<'src> InternalParser<'src> {
         token
     }
 
-    /// Creates a bookmark at the current token.
+    /// Sets a bookmark at the current parser state.
+    ///
+    /// This saves the current parser state, allowing the parser to try
+    /// a grammar production, and if it fails, go back to the saved state
+    /// and try a different grammar production.
     fn bookmark(&mut self) -> Bookmark {
         Bookmark {
             tokens: self.tokens.bookmark(),
@@ -114,23 +130,31 @@ impl<'src> InternalParser<'src> {
         }
     }
 
-    /// Restores the parser to the position it was when the bookmark was
-    /// created.
-    fn restore(&mut self, bookmark: &Bookmark) {
-        self.tokens.restore(&bookmark.tokens);
+    /// Restores the parser to the state indicated by the bookmark.
+    fn restore_bookmark(&mut self, bookmark: &Bookmark) {
+        self.tokens.restore_bookmark(&bookmark.tokens);
         self.output.truncate(&bookmark.output);
     }
 
-    fn drop(&mut self, bookmark: Bookmark) {
-        self.tokens.drop(bookmark.tokens);
-        self.output.drop(bookmark.output);
+    /// Removes a bookmark.
+    ///
+    /// Once a bookmark is removed the parser can't be restored to the
+    /// state indicated by the bookmark.
+    fn remove_bookmark(&mut self, bookmark: Bookmark) {
+        self.tokens.remove_bookmark(bookmark.tokens);
+        self.output.remove_bookmark(bookmark.output);
     }
 
+    /// Indicates the start of a non-terminal symbol of a given kind.
+    ///
+    /// Must be followed by a matching [`Parser::end`].
     fn begin(&mut self, kind: SyntaxKind) -> &mut Self {
         self.output.begin(kind);
         self
     }
 
+    /// Indicates the end of the non-terminal symbol that was previously
+    /// started with [`Parser::begin`].
     fn end(&mut self) -> &mut Self {
         if self.failed {
             self.output.end_with_error();
@@ -140,6 +164,10 @@ impl<'src> InternalParser<'src> {
         self
     }
 
+    /// Expects one of the tokens in `expected_tokens`.
+    ///
+    /// If the next token is not one of the expected ones, the parser enters
+    /// the failed state.
     fn expect(&mut self, expected_tokens: &[Token]) -> &mut Self {
         let token = match self.peek() {
             Some(token) => token,
@@ -166,37 +194,56 @@ impl<'src> InternalParser<'src> {
         Alt { parser: self, matched: false, bookmark }
     }
 
-    fn opt<F>(&mut self, f: F) -> &mut Self
+    fn opt<P>(&mut self, p: P) -> &mut Self
     where
-        F: Fn(&mut Self) -> &mut Self,
+        P: Fn(&mut Self) -> &mut Self,
     {
         if self.failed {
             return self;
         }
 
         let bookmark = self.bookmark();
-        f(self);
+        p(self);
 
         // Any error occurred while parsing the optional production is ignored.
         if self.failed {
             self.failed = false;
-            self.restore(&bookmark);
+            self.restore_bookmark(&bookmark);
         }
 
-        self.drop(bookmark);
+        self.remove_bookmark(bookmark);
         self
     }
 
-    fn n_or_more<F>(&mut self, n: usize, f: F) -> &mut Self
+    /// Matches zero or more instances of whatever the parser `P` matches.
+    #[inline]
+    fn zero_or_more<P>(&mut self, p: P) -> &mut Self
     where
-        F: Fn(&mut Self) -> &mut Self,
+        P: Fn(&mut Self) -> &mut Self,
+    {
+        self.n_or_more(0, p)
+    }
+
+    /// Matches one or more instances of whatever the parser `P` matches.
+    #[inline]
+    fn one_or_more<P>(&mut self, p: P) -> &mut Self
+    where
+        P: Fn(&mut Self) -> &mut Self,
+    {
+        self.n_or_more(1, p)
+    }
+
+    /// Matches `n` or more instances of whatever the parser `P` matches.
+    fn n_or_more<P>(&mut self, n: usize, p: P) -> &mut Self
+    where
+        P: Fn(&mut Self) -> &mut Self,
     {
         if self.failed {
             return self;
         }
         // The first N times that `f` is called it must match.
         for _ in 0..n {
-            f(self);
+            p(self);
             if self.failed {
                 return self;
             }
@@ -206,55 +253,42 @@ impl<'src> InternalParser<'src> {
         if !self.failed {
             loop {
                 let bookmark = self.bookmark();
-                f(self);
+                p(self);
                 if self.failed {
                     self.failed = false;
-                    self.restore(&bookmark);
-                    self.drop(bookmark);
+                    self.restore_bookmark(&bookmark);
+                    self.remove_bookmark(bookmark);
                     break;
                 } else {
-                    self.drop(bookmark);
+                    self.remove_bookmark(bookmark);
                 }
             }
         }
         self
     }
 
-    #[inline]
-    fn zero_or_more<F>(&mut self, f: F) -> &mut Self
+    fn one<P>(&mut self, p: P) -> &mut Self
     where
-        F: Fn(&mut Self) -> &mut Self,
-    {
-        self.n_or_more(0, f)
-    }
-
-    #[inline]
-    fn one_or_more<F>(&mut self, f: F) -> &mut Self
-    where
-        F: Fn(&mut Self) -> &mut Self,
-    {
-        self.n_or_more(1, f)
-    }
-
-    fn one<F>(&mut self, f: F) -> &mut Self
-    where
-        F: Fn(&mut Self) -> &mut Self,
+        P: Fn(&mut Self) -> &mut Self,
     {
         if self.failed {
             return self;
         }
-        f(self);
+        p(self);
         if self.failed {
             self.failed = true;
         }
         self
     }
 
+    /// Matches zero or more whitespaces, newlines or comments.
     fn ws(&mut self) -> &mut Self {
         if self.failed {
             return self;
         }
-        while let Some(WHITESPACE(_)) | Some(NEWLINE(_)) = self.peek() {
+        while let Some(WHITESPACE(_)) | Some(NEWLINE(_)) | Some(COMMENT(_)) =
+            self.peek()
+        {
             self.bump();
         }
         self
@@ -278,8 +312,44 @@ macro_rules! t {
 /// associated to a non-terminal symbol in the grammar, and the function's
 /// code defines the grammar production rule for that symbol.
 ///
-/// These functions return a [`ParseResult`] that will be [`Ok`] if the
-/// parsing was successful or [`NoMatch`] if otherwise.
+/// Let's use the following grammar rule as an example:
+///
+/// ```text
+/// A := a B (C | D)
+/// ```
+///
+/// `A`, `B`, `C` and `D` are non-terminal symbols, while `a` is a terminal
+/// symbol (or token). This rule can be read: `A` is expanded as the token
+/// `a` followed by the non-terminal symbol `B`, followed by either `C` or
+/// `D`.
+///
+/// This rule would be expressed as:
+///
+/// ```text
+/// fn A(&mut self) -> &mut Self {
+///   self.begin(SyntaxKind::A)
+///       .expect(t!(a))
+///       .ws()
+///       .one(|p| p.B())
+///       .ws()
+///       .begin_alt()
+///          .alt(|p| p.C())
+///          .alt(|p| p.D())
+///       .end_alt()
+///       .end()
+/// }
+/// ```
+///
+/// Notice the use of `ws()` to indicate where whitespace, newlines, or
+/// comments are allowed. The `ws()` function accepts and consumes zero or
+/// more whitespaces newlines or comments.
+///
+/// Also notice the use of `begin_alt` and `end_alt` for enclosing alternatives
+/// like `(C | D)`. In PEG parsers the order of alternatives is important, the
+/// parser tries them sequentially and accepts the first successful match.
+/// Thus, a rule like `( a | a B )` is problematic because `a B` won't ever
+/// match. If `a B` matches, then `a` also matches, but `a` has a higher
+/// priority and prevents `a B` from matching.
 impl<'src> InternalParser<'src> {
     /// Parses a top-level item in YARA source file.
     ///
@@ -347,6 +417,8 @@ impl<'src> InternalParser<'src> {
             .ws()
             .opt(|p| p.meta_defs())
             .ws()
+            .opt(|p| p.pattern_defs())
+            .ws()
             .expect(t!(CONDITION_KW))
             .ws()
             .expect(t!(COLON))
@@ -375,6 +447,11 @@ impl<'src> InternalParser<'src> {
             .end()
     }
 
+    /// Parses metadata definitions
+    ///
+    /// ```text
+    /// META_DEFS :=  `meta` `:` META_DEF+
+    /// ``
     fn meta_defs(&mut self) -> &mut Self {
         self.begin(SyntaxKind::META_DEFS)
             .expect(t!(META_KW))
@@ -385,6 +462,17 @@ impl<'src> InternalParser<'src> {
             .end()
     }
 
+    /// Parses a metadata definition
+    ///
+    /// ```text
+    /// META_DEF := IDENT `=` (
+    ///     `true`      |
+    ///     `false`     |
+    ///     INTEGER_LIT |
+    ///     FLOAT_LIT   |
+    ///     STRING_LIT
+    /// )
+    /// ``
     fn meta_def(&mut self) -> &mut Self {
         self.begin(SyntaxKind::META_DEF)
             .expect(t!(IDENT))
@@ -397,6 +485,35 @@ impl<'src> InternalParser<'src> {
                 | FLOAT_LIT
                 | STRING_LIT))
             .end()
+    }
+
+    fn pattern_defs(&mut self) -> &mut Self {
+        // TODO
+        self
+    }
+
+    fn pattern_def(&mut self) -> &mut Self {
+        todo!()
+    }
+
+    fn pattern_mods(&mut self) -> &mut Self {
+        todo!()
+    }
+
+    fn hex_pattern(&mut self) -> &mut Self {
+        todo!()
+    }
+
+    fn hex_tokens(&mut self) -> &mut Self {
+        todo!()
+    }
+
+    fn hex_alternative(&mut self) -> &mut Self {
+        todo!()
+    }
+
+    fn hex_jump(&mut self) -> &mut Self {
+        todo!()
     }
 
     /// Parses a boolean expression.
@@ -432,6 +549,14 @@ impl<'src> InternalParser<'src> {
             .end_alt()
             .end()
     }
+
+    fn expr(&mut self) -> &mut Self {
+        todo!()
+    }
+
+    fn term(&mut self) -> &mut Self {
+        todo!()
+    }
 }
 
 struct Bookmark {
@@ -450,7 +575,10 @@ impl<'a, 'src> Alt<'a, 'src> {
     where
         F: Fn(&'a mut InternalParser<'src>) -> &'a mut InternalParser<'src>,
     {
-        // Don't try to match the current alternative if a previous one
+        if self.parser.failed {
+            return self;
+        }
+        // Don't try to match the current alternative if the parser a previous one
         // already matched.
         if !self.matched {
             self.parser = f(self.parser);
@@ -463,7 +591,7 @@ impl<'a, 'src> Alt<'a, 'src> {
                 // stream to the position it has before trying to match.
                 true => {
                     self.parser.failed = false;
-                    self.parser.restore(&self.bookmark);
+                    self.parser.restore_bookmark(&self.bookmark);
                 }
             };
         }
@@ -471,7 +599,7 @@ impl<'a, 'src> Alt<'a, 'src> {
     }
 
     fn end_alt(self) -> &'a mut InternalParser<'src> {
-        self.parser.drop(self.bookmark);
+        self.parser.remove_bookmark(self.bookmark);
         // If none of the alternatives matched, that's a failure.
         self.parser.failed = !self.matched;
         self.parser

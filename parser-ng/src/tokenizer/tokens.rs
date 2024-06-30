@@ -38,8 +38,9 @@ pub enum Token {
     HEX_BYTE(Span),
 
     // Trivia
-    WHITESPACE(Span),
+    COMMENT(Span),
     NEWLINE(Span),
+    WHITESPACE(Span),
 
     /// Not a real token. Used when a portion of the source code doesn't match
     /// any of the tokens.
@@ -81,6 +82,7 @@ impl Token {
             // Hex patterns
             | Token::HEX_BYTE(span)
             // Trivia
+            | Token::COMMENT(span)
             | Token::WHITESPACE(span)
             | Token::NEWLINE(span)
             | Token::UNKNOWN(span)
