@@ -151,7 +151,7 @@ impl<'r> Scanner<'r> {
                 scanned_data_len: 0,
                 private_matching_rules: Vec::new(),
                 non_private_matching_rules: Vec::new(),
-                matching_rules: FxHashMap::default(),
+                matching_rules: IndexMap::new(),
                 main_memory: None,
                 module_outputs: FxHashMap::default(),
                 user_provided_module_outputs: FxHashMap::default(),
@@ -1020,7 +1020,7 @@ impl<'a, 'r> Metadata<'a, 'r> {
     ///   condition:
     ///     true
     /// }
-    /// "#).unwrap();     
+    /// "#).unwrap();
     ///
     /// let mut scanner = yara_x::Scanner::new(&rules);
     ///

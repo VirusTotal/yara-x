@@ -52,7 +52,7 @@ fn matches() {
                 $c = "baz"
             condition:
                 any of them
-        } 
+        }
         "#,
     )
     .unwrap();
@@ -90,7 +90,7 @@ fn metadata() {
                 quux = "qu\x00x"
             condition:
                 true
-        } 
+        }
         "#,
     )
     .unwrap();
@@ -138,7 +138,7 @@ fn xor_matches() {
                 $a = "mississippi" xor
             condition:
                 $a
-        } 
+        }
         "#,
     )
     .unwrap();
@@ -172,7 +172,7 @@ fn reuse_scanner() {
         rule test {
             condition:
                 test_proto2.file_size == 3
-        } 
+        }
         "#,
     )
     .unwrap();
@@ -214,7 +214,7 @@ fn module_output() {
         rule test {
             condition:
                 test_proto2.file_size == 3
-        } 
+        }
         "#,
     )
     .unwrap();
@@ -241,7 +241,7 @@ fn module_outputs() {
         rule test {
             condition:
                 test_proto2.file_size == 3
-        } 
+        }
         "#,
     )
     .unwrap();
@@ -276,7 +276,7 @@ fn variables_1() {
         rule test {
             condition:
             bool_var
-        } 
+        }
         "#,
         )
         .unwrap();
@@ -346,7 +346,7 @@ fn variables_2() {
             condition:
                 some_bool and
                 some_str == "foo"
-        } 
+        }
         "#,
         )
         .unwrap();
@@ -402,7 +402,7 @@ fn global_rules() {
         .add_source(
             r#"
         // This rule is always true.
-        private rule const_true { 
+        private rule const_true {
             condition:
                 true
         }
@@ -429,7 +429,7 @@ fn global_rules() {
         .new_namespace("matching")
         .add_source(
             r#"
-            // This rule matches because it is in separate namespace not 
+            // This rule matches because it is in separate namespace not
             // which is not affected by the global rule.
             rule matching {
                 condition:
@@ -621,4 +621,28 @@ fn set_module_output() {
         .unwrap();
     let scan_results = scanner.scan(b"").expect("scan should not fail");
     assert_eq!(scan_results.matching_rules().len(), 1);
+}
+
+#[test]
+fn namespaces() {
+    let mut compiler = crate::Compiler::new();
+
+    compiler
+        .new_namespace("foo")
+        .add_source(r#"rule foo {strings: $foo = "foo" condition: $foo }"#)
+        .unwrap()
+        .new_namespace("bar")
+        .add_source(r#"rule bar {strings: $bar = "bar" condition: $bar }"#)
+        .unwrap();
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    let scan_results = scanner.scan(b"foobar").expect("scan should not fail");
+    let matching_rules: Vec<_> = scan_results.matching_rules().collect();
+
+    assert_eq!(matching_rules.len(), 2);
+    assert_eq!(matching_rules[0].identifier(), "foo");
+    assert_eq!(matching_rules[0].namespace(), "foo");
+    assert_eq!(matching_rules[1].identifier(), "bar");
+    assert_eq!(matching_rules[1].namespace(), "bar");
 }
