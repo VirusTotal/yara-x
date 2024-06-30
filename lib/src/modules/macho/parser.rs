@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::mem;
 
 use crate::modules::protos;
 use bstr::{BStr, ByteSlice};
@@ -42,6 +43,23 @@ const CS_MAGIC_EMBEDDED_ENTITLEMENTS: u32 = 0xfade7171;
 const EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION: u64 = 0x00000004;
 const EXPORT_SYMBOL_FLAGS_REEXPORT: u64 = 0x00000008;
 const EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER: u64 = 0x00000010;
+
+/// Mach-O import opcode consants
+const BIND_OPCODE_MASK: u8 = 0xF0;
+const BIND_IMMEDIATE_MASK: u8 = 0x0F;
+const _BIND_OPCODE_DONE: u8 = 0x00;
+const _BIND_OPCODE_SET_DYLIB_ORDINAL_IMM: u8 = 0x10;
+const BIND_OPCODE_SET_DYLIB_ORDINAL_ULEB: u8 = 0x20;
+const _BIND_OPCODE_SET_DYLIB_SPECIAL_IMM: u8 = 0x30;
+const BIND_OPCODE_SET_SYMBOL_TRAILING_FLAGS_IMM: u8 = 0x40;
+const _BIND_OPCODE_SET_TYPE_IMM: u8 = 0x50;
+const BIND_OPCODE_SET_ADDEND_SLEB: u8 = 0x60;
+const BIND_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB: u8 = 0x70;
+const BIND_OPCODE_ADD_ADDR_ULEB: u8 = 0x80;
+const _BIND_OPCODE_DO_BIND: u8 = 0x90;
+const BIND_OPCODE_DO_BIND_ADD_ADDR_ULEB: u8 = 0xA0;
+const _BIND_OPCODE_DO_BIND_ADD_ADDR_IMM_SCALED: u8 = 0xB0;
+const BIND_OPCODE_DO_BIND_ULEB_TIMES_SKIPPING_ULEB: u8 = 0xC0;
 
 /// Mach-O dynamic linker constant
 const LC_REQ_DYLD: u32 = 0x80000000;
@@ -278,6 +296,7 @@ impl<'a> MachO<'a> {
             build_version: None,
             min_version: None,
             exports: Vec::new(),
+            imports: Vec::new(),
         };
 
         for _ in 0..macho.header.ncmds as usize {
@@ -355,6 +374,28 @@ impl<'a> MachO<'a> {
             }
         }
 
+        if let Some(ref dyld_info) = macho.dyld_info {
+            for (offset, size) in [
+                (dyld_info.bind_off, dyld_info.bind_size),
+                (dyld_info.lazy_bind_off, dyld_info.lazy_bind_size),
+                (dyld_info.weak_bind_off, dyld_info.weak_bind_size),
+            ] {
+                let offset = offset as usize;
+                let size = size as usize;
+                if let Some(import_data) =
+                    data.get(offset..offset.saturating_add(size))
+                {
+                    if let Err(_err) = macho.imports()(import_data) {
+                        #[cfg(feature = "logging")]
+                        error!("Error parsing Mach-O file: {:?}", _err);
+                        // fail silently if it fails, data was not formatted
+                        // correctly but parsing should still proceed for
+                        // everything else
+                    };
+                }
+            }
+        }
+
         Ok(macho)
     }
 }
@@ -381,6 +422,7 @@ pub struct MachOFile<'a> {
     build_version: Option<BuildVersionCommand>,
     min_version: Option<MinVersion>,
     exports: Vec<String>,
+    imports: Vec<String>,
 }
 
 impl<'a> MachOFile<'a> {
@@ -1028,6 +1070,53 @@ impl<'a> MachOFile<'a> {
         }
     }
 
+    /// Parser that parses the imports at the offsets defined within LC_DYLD_INFO and LC_DYLD_INFO_ONLY
+    fn imports(
+        &mut self,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u8> + '_ {
+        move |data: &'a [u8]| {
+            let mut remainder: &[u8] = data;
+            let mut entry: u8;
+
+            while !remainder.is_empty() {
+                (remainder, entry) = u8(remainder)?;
+                let opcode = entry & BIND_OPCODE_MASK;
+                let _immediate = entry & BIND_IMMEDIATE_MASK;
+                match opcode {
+                    BIND_OPCODE_SET_DYLIB_ORDINAL_ULEB
+                    | BIND_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB
+                    | BIND_OPCODE_ADD_ADDR_ULEB
+                    | BIND_OPCODE_DO_BIND_ADD_ADDR_ULEB => {
+                        (remainder, _) = uleb128(remainder)?;
+                    }
+                    BIND_OPCODE_DO_BIND_ULEB_TIMES_SKIPPING_ULEB => {
+                        (remainder, _) = uleb128(remainder)?;
+                        (remainder, _) = uleb128(remainder)?;
+                    }
+                    BIND_OPCODE_SET_ADDEND_SLEB => {
+                        (remainder, _) = sleb128(remainder)?;
+                    }
+
+                    BIND_OPCODE_SET_SYMBOL_TRAILING_FLAGS_IMM => {
+                        let (import_remainder, strr) = map(
+                            tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
+                            |(s, _)| s,
+                        )(
+                            remainder
+                        )?;
+                        remainder = import_remainder;
+                        if let Ok(import) = strr.to_str() {
+                            self.imports.push(import.to_string());
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            Ok((remainder, 0))
+        }
+    }
+
     /// Parser that parses a LC_ID_DYLINKER, LC_LOAD_DYLINKER or
     /// LC_DYLD_ENVIRONMENT  command.
     fn dylinker_command(
@@ -1483,6 +1572,32 @@ fn uleb128(input: &[u8]) -> IResult<&[u8], u64> {
     Ok((data, val))
 }
 
+/// Parser that reads SLEB128
+fn sleb128(input: &[u8]) -> IResult<&[u8], i64> {
+    let mut val: i64 = 0;
+    let mut shift: i64 = 0;
+
+    let mut data = input;
+    let mut byte: u8;
+
+    loop {
+        (data, byte) = u8(data)?;
+
+        val |= ((byte & !(1 << 7)) as i64) << shift;
+        shift += 7;
+
+        if byte & (1 << 7) == 0 {
+            break;
+        }
+    }
+
+    if shift < 8 * mem::size_of::<i64>() as i64 && (byte & 1 << 6) != 0 {
+        val |= !0 << shift;
+    }
+
+    Ok((data, val))
+}
+
 /// Convert a decimal number representation to a version string representation.
 fn convert_to_version_string(decimal_number: u32) -> String {
     let major = decimal_number >> 16;
@@ -1586,6 +1701,8 @@ impl From<MachO<'_>> for protos::macho::Macho {
                 .extend(m.rpaths.iter().map(|rpath: &&[u8]| rpath.to_vec()));
             result.entitlements.extend(m.entitlements.clone());
             result.exports.extend(m.exports.clone());
+            result.imports.extend(m.imports.clone());
+
             result
                 .set_number_of_segments(m.segments.len().try_into().unwrap());
         } else {
@@ -1665,6 +1782,7 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         result.rpaths.extend(macho.rpaths.iter().map(|rpath| rpath.to_vec()));
         result.entitlements.extend(macho.entitlements.clone());
         result.exports.extend(macho.exports.clone());
+        result.imports.extend(macho.imports.clone());
 
         result
             .set_number_of_segments(result.segments.len().try_into().unwrap());
@@ -1887,4 +2005,31 @@ fn test_uleb_parsing() {
         0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00,
     ])
     .is_err());
+}
+
+#[test]
+fn test_sleb_parsing() {
+    let sleb_128_in = vec![0b1100_0111, 0b1001_1111, 0b111_1111];
+    let (_remainder, result) = sleb128(&sleb_128_in).unwrap();
+    assert_eq!(-12345, result);
+
+    let sleb_128_in = vec![0b1001_1100, 0b111_1111];
+    let (_remainder, result) = sleb128(&sleb_128_in).unwrap();
+    assert_eq!(-100, result);
+
+    let sleb_128_in = vec![0b1111_1111, 0b0];
+    let (_remainder, result) = sleb128(&sleb_128_in).unwrap();
+    assert_eq!(127, result);
+
+    let sleb_128_in = vec![0b111_1111];
+    let (_remainder, result) = sleb128(&sleb_128_in).unwrap();
+    assert_eq!(-1, result);
+
+    let sleb_128_in = vec![0b1111_1110, 0b0];
+    let (_remainder, result) = sleb128(&sleb_128_in).unwrap();
+    assert_eq!(126, result);
+
+    let sleb_128_in = vec![0b000_0000];
+    let (_remainder, result) = sleb128(&sleb_128_in).unwrap();
+    assert_eq!(0, result);
 }

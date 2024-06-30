@@ -266,6 +266,56 @@ fn has_rpath(ctx: &ScanContext, rpath: RuntimeString) -> Option<bool> {
     Some(false)
 }
 
+/// Returns true if the Mach-O parsed imports contain `import`
+///
+/// `import` is case-insensitive
+#[module_export]
+fn has_import(ctx: &ScanContext, import: RuntimeString) -> Option<bool> {
+    let macho = ctx.module_output::<Macho>()?;
+    let expected_import = import.as_bstr(ctx);
+
+    for im in macho.imports.iter() {
+        if expected_import.eq_ignore_ascii_case(im.as_bytes()) {
+            return Some(true);
+        }
+    }
+
+    for file in macho.file.iter() {
+        for im in file.imports.iter() {
+            if expected_import.eq_ignore_ascii_case(im.as_bytes()) {
+                return Some(true);
+            }
+        }
+    }
+
+    Some(false)
+}
+
+/// Returns true if the Mach-O parsed exports contain `export`
+///
+/// `export` is case-insensitive
+#[module_export]
+fn has_export(ctx: &ScanContext, export: RuntimeString) -> Option<bool> {
+    let macho = ctx.module_output::<Macho>()?;
+    let expected_export = export.as_bstr(ctx);
+
+    for ex in macho.exports.iter() {
+        if expected_export.eq_ignore_ascii_case(ex.as_bytes()) {
+            return Some(true);
+        }
+    }
+
+    for file in macho.file.iter() {
+        for ex in file.exports.iter() {
+            if expected_export.eq_ignore_ascii_case(ex.as_bytes()) {
+                return Some(true);
+            }
+        }
+    }
+
+    Some(false)
+}
+
 /// Returns an md5 hash of the dylibs designated in the mach-o binary
 #[module_export]
 fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
@@ -361,6 +411,36 @@ fn export_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         .join(",");
 
     md5_hash.update(exports_str.as_bytes());
+
+    let digest = format!("{:x}", md5_hash.finalize());
+    Some(RuntimeString::new(digest))
+}
+
+/// Returns an md5 hash of the imported symbols in the mach-o binary
+#[module_export]
+fn import_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
+    let macho = ctx.module_output::<Macho>()?;
+    let mut md5_hash = Md5::new();
+    let mut imports_to_hash = &macho.imports;
+
+    // if there are not any imports in the main Macho, the imports of the
+    // nested file should be hashed
+    if imports_to_hash.is_empty() && !macho.file.is_empty() {
+        imports_to_hash = &macho.file[0].imports;
+    }
+
+    // we need to check again as the nested file imports could be empty too
+    if imports_to_hash.is_empty() {
+        return None;
+    }
+
+    let imports_str: String = imports_to_hash
+        .iter()
+        .map(|e| e.trim().to_lowercase())
+        .unique()
+        .sorted()
+        .join(",");
+    md5_hash.update(imports_str.as_bytes());
 
     let digest = format!("{:x}", md5_hash.finalize());
     Some(RuntimeString::new(digest))

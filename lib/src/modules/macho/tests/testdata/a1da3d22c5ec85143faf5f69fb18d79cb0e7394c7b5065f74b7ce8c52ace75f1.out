@@ -240,6 +240,11 @@ file:
         sdk: "12.6.0"
     exports:
       - "__mh_execute_header"
+    imports:
+      - "dyld_stub_binder"
+      - "_CallComponentDispatch"
+      - "_OpenDefaultComponent"
+      - "_exit"
   - magic: 0xcffaedfe
     cputype: 0x100000c
     cpusubtype: 0x0
