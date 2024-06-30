@@ -42,7 +42,7 @@ func TestRelaxedReSyntax(t *testing.T) {
 
 func TestErrorOnSlowPattern(t *testing.T) {
 	_, err := Compile(`
-		rule test { strings: $a = /a.*b/ condition: $a }`,
+		rule test { strings: $a = /a.*/ condition: $a }`,
 		ErrorOnSlowPattern(true))
 	assert.Error(t, err)
 }
