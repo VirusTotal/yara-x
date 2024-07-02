@@ -63,6 +63,17 @@ fn integer_literals() {
 }
 
 #[test]
+fn float_literals() {
+    let mut lexer = super::Tokenizer::new(r#"3.14 10.0 1.0"#.as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::FLOAT_LIT(Span(0..4))));
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(4..5))));
+    assert_eq!(lexer.next_token(), Some(Token::FLOAT_LIT(Span(5..9))));
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(9..10))));
+    assert_eq!(lexer.next_token(), Some(Token::FLOAT_LIT(Span(10..13))));
+    assert_eq!(lexer.next_token(), None);
+}
+
+#[test]
 fn string_literals() {
     let mut lexer = super::Tokenizer::new(r#""foo \"bar\" baz""#.as_bytes());
     assert_eq!(lexer.next_token(), Some(Token::STRING_LIT(Span(0..17))));

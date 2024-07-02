@@ -189,6 +189,18 @@ enum NormalToken<'src> {
     ]
     Identifier(&'src [u8]),
 
+    // Float literals
+    #[regex(
+        r#"(?x)                         # allow comments in the regexp
+            -?                          # optional minus sign
+            [0-9]+                      # one or more digits
+            \.                          # a dot
+            [0-9]+                      # one more digits
+        "#,
+        |token| token.slice())
+    ]
+    FloatLit(&'src [u8]),
+
     // Integer literals.
     #[regex(
         r#"(?x)
@@ -301,6 +313,12 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
         NormalToken::Identifier(ident) => {
             return match from_utf8(ident) {
                 Ok(_) => Token::IDENT(span),
+                Err(_) => unreachable!(),
+            }
+        }
+        NormalToken::FloatLit(lit) => {
+            return match from_utf8(lit) {
+                Ok(_) => Token::FLOAT_LIT(span),
                 Err(_) => unreachable!(),
             }
         }

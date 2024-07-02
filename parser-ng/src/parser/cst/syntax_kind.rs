@@ -25,6 +25,10 @@ pub enum SyntaxKind {
     L_PAREN,
     R_PAREN,
 
+    FLOAT_LIT,
+    STRING_LIT,
+    INTEGER_LIT,
+
     COMMENT,
     WHITESPACE,
     NEWLINE,
@@ -66,15 +70,9 @@ impl From<&Token> for SyntaxKind {
             Token::RULE_KW(_) => SyntaxKind::RULE_KW,
             Token::TRUE_KW(_) => SyntaxKind::TRUE_KW,
             // Literals
-            Token::FLOAT_LIT(_) => {
-                todo!()
-            }
-            Token::INTEGER_LIT(_) => {
-                todo!()
-            }
-            Token::STRING_LIT(_) => {
-                todo!()
-            }
+            Token::FLOAT_LIT(_) => SyntaxKind::FLOAT_LIT,
+            Token::INTEGER_LIT(_) => SyntaxKind::INTEGER_LIT,
+            Token::STRING_LIT(_) => SyntaxKind::STRING_LIT,
             // Punctuation
             Token::COLON(_) => SyntaxKind::COLON,
             Token::EQUAL(_) => SyntaxKind::EQUAL,
