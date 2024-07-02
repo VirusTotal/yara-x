@@ -118,7 +118,7 @@ impl Token {
             Token::NEWLINE(_) => "newline",
             Token::WHITESPACE(_) => "whitespace",
             Token::UNKNOWN(_) => "unknown",
-            Token::INVALID_UTF8(_) => unreachable!()
+            Token::INVALID_UTF8(_) => unreachable!(),
         }
     }
 }
