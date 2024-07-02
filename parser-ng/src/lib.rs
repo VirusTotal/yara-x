@@ -21,6 +21,7 @@ Deciding whether to use a CST or AST depends on the kind of problem you want to
 solve.
  */
 
+use std::fmt::{Display, Formatter};
 use std::ops::Range;
 
 mod parser;
@@ -36,6 +37,12 @@ pub struct Span(Range<u32>);
 impl From<logos::Span> for Span {
     fn from(value: logos::Span) -> Self {
         Self(value.start as u32..value.end as u32)
+    }
+}
+
+impl Display for Span {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{}..{}]", self.start(), self.end())
     }
 }
 

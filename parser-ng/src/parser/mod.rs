@@ -2,14 +2,20 @@
 
 The parser receives a sequence of tokens produced by the [`Tokenizer`], and
 produces a Concrete Syntax-Tree ([`CST`]), also known as a lossless syntax
-tree.
+tree. The CST is initially represented as a stream of [events][`Event`], but
+this stream is later converted to a tree using the [rowan][2] create.
 
-Under the hood, the parser uses the [rowan][2] create.
+This parser is error-tolerant, it is able to parse YARA code that contains
+syntax errors. After each error, the parser recovers and keeps parsing the
+remaining code. The resulting CST may contain error nodes containing portions
+of the code that are not syntactically correct, but anything outside of those
+error nodes is valid YARA code.
 
 [1]: https://en.wikipedia.org/wiki/Parsing_expression_grammar
 [2]: https://github.com/rust-analyzer/rowan
  */
 
+use std::collections::HashMap;
 use std::mem;
 
 pub mod cst;
@@ -57,6 +63,9 @@ impl<'src> Parser<'src> {
 struct InternalParser<'src> {
     tokens: TokenStream<'src>,
     output: SyntaxStream,
+    pending_errors: Vec<(String, Span)>,
+    expected_tokens: HashMap<usize, Vec<&'static str>>,
+    opt_depth: usize,
     failed: bool,
 }
 
@@ -66,6 +75,9 @@ impl<'src> From<Tokenizer<'src>> for InternalParser<'src> {
         Self {
             tokens: TokenStream::new(tokenizer),
             output: SyntaxStream::new(),
+            pending_errors: Vec::new(),
+            expected_tokens: HashMap::new(),
+            opt_depth: 0,
             failed: false,
         }
     }
@@ -89,6 +101,7 @@ impl Iterator for InternalParser<'_> {
         if self.output.is_empty() && self.tokens.has_more() {
             let _ = self.ws();
             let _ = self.top_level_item();
+            self.failed = false;
         }
         self.output.pop()
     }
@@ -164,28 +177,85 @@ impl<'src> InternalParser<'src> {
         self
     }
 
+    fn recover(&mut self, tokens: &TokenSet) -> &mut Self {
+        match self.peek() {
+            None => {}
+            Some(token) if tokens.contains(token) => {}
+            Some(_) => {
+                self.output.begin(SyntaxKind::ERROR);
+                while let Some(token) = self.peek() {
+                    if tokens.contains(token) {
+                        break;
+                    } else {
+                        self.bump();
+                    }
+                }
+                self.output.end();
+            }
+        }
+        self.failed = false;
+        self
+    }
+
+    fn expect_and_recover(&mut self, tokens: &TokenSet) -> &mut Self {
+        self.expect(tokens);
+        if self.failed {
+            self.recover(tokens);
+            self.bump();
+        }
+        self
+    }
+
     /// Expects one of the tokens in `expected_tokens`.
     ///
     /// If the next token is not one of the expected ones, the parser enters
     /// the failed state.
-    fn expect(&mut self, expected_tokens: &[Token]) -> &mut Self {
+    fn expect(&mut self, tokens: &TokenSet) -> &mut Self {
         let token = match self.peek() {
-            Some(token) => token,
             None => {
                 self.failed = true;
                 return self;
             }
+            Some(token) if tokens.contains(token) => {
+                self.bump();
+                return self;
+            }
+            Some(token) => token,
         };
-        if expected_tokens.iter().any(|expected| {
-            mem::discriminant(expected) == mem::discriminant(token)
-        }) {
-            self.bump();
+
+        let span = token.span();
+        let token_str = token.as_str();
+
+        let expected_tokens =
+            self.expected_tokens.entry(span.start()).or_default();
+
+        expected_tokens.extend(tokens.iter().map(|t| t.as_str()));
+
+        let (last, all_except_last) = expected_tokens.split_last().unwrap();
+
+        let error_msg = if all_except_last.is_empty() {
+            format!("expecting {last}, found {}", token_str)
         } else {
-            let span = token.span();
-            self.bump();
-            self.output.push_error("foo", span);
-            self.failed = true;
+            format!(
+                "expecting {} or {last}, found {}",
+                all_except_last.join(", "),
+                token_str,
+            )
+        };
+
+        self.pending_errors.push((error_msg, span));
+
+        if self.opt_depth == 0 {
+            if let Some((error, span)) = self
+                .pending_errors
+                .drain(0..)
+                .max_by_key(|(_, span)| span.start())
+            {
+                self.output.push_error(error, span);
+            }
         }
+
+        self.failed = true;
         self
     }
 
@@ -203,7 +273,10 @@ impl<'src> InternalParser<'src> {
         }
 
         let bookmark = self.bookmark();
+
+        self.opt_depth += 1;
         p(self);
+        self.opt_depth -= 1;
 
         // Any error occurred while parsing the optional production is ignored.
         if self.failed {
@@ -253,7 +326,9 @@ impl<'src> InternalParser<'src> {
         if !self.failed {
             loop {
                 let bookmark = self.bookmark();
+                self.opt_depth += 1;
                 p(self);
+                self.opt_depth -= 1;
                 if self.failed {
                     self.failed = false;
                     self.restore_bookmark(&bookmark);
@@ -300,7 +375,7 @@ use Token::*;
 
 macro_rules! t {
     ($( $tokens:path )|*) => {
-       &[$( $tokens(Span::default()) ),*]
+       &TokenSet(&[$( $tokens(Span::default()) ),*])
     };
 }
 
@@ -413,17 +488,16 @@ impl<'src> InternalParser<'src> {
             .ws()
             .expect(t!(IDENT))
             .ws()
-            .expect(t!(L_BRACE))
+            .opt(|p| p.rule_tags())
+            .ws()
+            .expect_and_recover(t!(L_BRACE))
             .ws()
             .opt(|p| p.meta_defs())
             .ws()
             .opt(|p| p.pattern_defs())
             .ws()
-            .expect(t!(CONDITION_KW))
-            .ws()
-            .expect(t!(COLON))
-            .ws()
-            .one(|p| p.boolean_expr())
+            .recover(t!(CONDITION_KW))
+            .one(|p| p.condition_blk())
             .ws()
             .expect(t!(R_BRACE))
             .end()
@@ -444,6 +518,13 @@ impl<'src> InternalParser<'src> {
                 p.expect(t!(GLOBAL_KW)).opt(|p| p.ws().expect(t!(PRIVATE_KW)))
             })
             .end_alt()
+            .end()
+    }
+
+    fn rule_tags(&mut self) -> &mut Self {
+        self.begin(SyntaxKind::RULE_TAGS)
+            .expect(t!(COLON))
+            .one_or_more(|p| p.ws().expect(t!(IDENT)))
             .end()
     }
 
@@ -498,6 +579,16 @@ impl<'src> InternalParser<'src> {
 
     fn pattern_mods(&mut self) -> &mut Self {
         todo!()
+    }
+
+    fn condition_blk(&mut self) -> &mut Self {
+        self.begin(SyntaxKind::CONDITION_BLK)
+            .expect(t!(CONDITION_KW))
+            .ws()
+            .expect(t!(COLON))
+            .ws()
+            .one(|p| p.boolean_expr())
+            .end()
     }
 
     fn hex_pattern(&mut self) -> &mut Self {
@@ -562,6 +653,23 @@ impl<'src> InternalParser<'src> {
 struct Bookmark {
     tokens: token_stream::Bookmark,
     output: syntax_stream::Bookmark,
+}
+
+struct TokenSet<'a>(&'a [Token]);
+
+impl<'a> TokenSet<'a> {
+    #[inline]
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    fn contains(&self, token: &Token) -> bool {
+        self.0.iter().any(|t| mem::discriminant(t) == mem::discriminant(token))
+    }
+
+    fn iter(&self) -> impl Iterator<Item = &'a Token> {
+        self.0.iter()
+    }
 }
 
 struct Alt<'a, 'src> {

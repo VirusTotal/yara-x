@@ -89,4 +89,36 @@ impl Token {
             | Token::INVALID_UTF8(span) => span.clone(),
         }
     }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Token::AND_KW(_) => "`and`",
+            Token::CONDITION_KW(_) => "`condition`",
+            Token::FALSE_KW(_) => "`false`",
+            Token::GLOBAL_KW(_) => "`global`",
+            Token::IMPORT_KW(_) => "`import`",
+            Token::META_KW(_) => "`meta`",
+            Token::NOT_KW(_) => "`not`",
+            Token::OR_KW(_) => "`or`",
+            Token::PRIVATE_KW(_) => "`private`",
+            Token::RULE_KW(_) => "`rule`",
+            Token::TRUE_KW(_) => "`true`",
+            Token::FLOAT_LIT(_) => "FLOAT",
+            Token::INTEGER_LIT(_) => "INTEGER",
+            Token::STRING_LIT(_) => "STRING",
+            Token::IDENT(_) => "IDENT",
+            Token::COLON(_) => "`:`",
+            Token::EQUAL(_) => "`=`",
+            Token::L_BRACE(_) => "`{`",
+            Token::R_BRACE(_) => "`}`",
+            Token::L_PAREN(_) => "`(`",
+            Token::R_PAREN(_) => "`)`",
+            Token::HEX_BYTE(_) => "BYTE",
+            Token::COMMENT(_) => "comment",
+            Token::NEWLINE(_) => "newline",
+            Token::WHITESPACE(_) => "whitespace",
+            Token::UNKNOWN(_) => "unknown",
+            Token::INVALID_UTF8(_) => unreachable!()
+        }
+    }
 }

@@ -29,18 +29,19 @@ pub enum SyntaxKind {
     WHITESPACE,
     NEWLINE,
 
-    ERROR,
     IDENT,
     IMPORT_STMT,
     RULE_DECL,
     RULE_MODS,
     RULE_TAGS,
-    CONDITION,
+    CONDITION_BLK,
     META_DEF,
     META_DEFS,
     SOURCE_FILE,
     BOOLEAN_EXPR,
     BOOLEAN_TERM,
+
+    ERROR,
 }
 
 impl From<SyntaxKind> for rowan::SyntaxKind {

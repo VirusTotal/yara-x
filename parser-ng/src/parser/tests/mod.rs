@@ -10,9 +10,9 @@ use crate::Parser;
 fn test() {
     let cst = CST::from(Parser::new(
         r#"
-rule test {
-	condition:
-		true and false
+rule test : {
+  condition:
+	  true
 }
 "#
         .as_bytes(),

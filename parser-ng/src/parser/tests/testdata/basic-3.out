@@ -1,0 +1,30 @@
+SOURCE_FILE@0..52
+  RULE_DECL@0..51
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..13 "\t"
+    CONDITION_BLK@13..49
+      CONDITION_KW@13..22 "condition"
+      COLON@22..23 ":"
+      NEWLINE@23..24 "\n"
+      WHITESPACE@24..26 "\t\t"
+      BOOLEAN_EXPR@26..49
+        BOOLEAN_TERM@26..30
+          TRUE_KW@26..30 "true"
+        WHITESPACE@30..31 " "
+        AND_KW@31..34 "and"
+        WHITESPACE@34..35 " "
+        BOOLEAN_TERM@35..40
+          FALSE_KW@35..40 "false"
+        WHITESPACE@40..41 " "
+        OR_KW@41..43 "or"
+        WHITESPACE@43..44 " "
+        BOOLEAN_TERM@44..49
+          FALSE_KW@44..49 "false"
+    NEWLINE@49..50 "\n"
+    R_BRACE@50..51 "}"
+  NEWLINE@51..52 "\n"
