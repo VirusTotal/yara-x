@@ -40,7 +40,7 @@ pub enum SyntaxKind {
     RULE_TAGS,
     CONDITION_BLK,
     META_DEF,
-    META_DEFS,
+    META_BLK,
     SOURCE_FILE,
     BOOLEAN_EXPR,
     BOOLEAN_TERM,

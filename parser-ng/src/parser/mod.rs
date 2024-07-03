@@ -268,27 +268,30 @@ impl<'src> InternalParser<'src> {
         self
     }
 
-    fn expect_and_recover(&mut self, tokens: &TokenSet) -> &mut Self {
-        self.expect(tokens);
-        if self.failed {
-            self.recover(tokens);
-            self.bump();
-        }
-        self
-    }
-
-    /// Expects one of the tokens in `expected_tokens`.
+    /// Checks that the next token matches one of the expected tokens.
     ///
-    /// If the next token is not one of the expected ones, the parser enters
-    /// the failed state.
-    fn expect(&mut self, tokens: &TokenSet) -> &mut Self {
+    /// If the next token does not match any of the expected tokens, the parser
+    /// will transition to a failure state and generate an error message. If
+    /// the token matches, no action is taken. In both cases the token remains
+    /// unconsumed. For a version of this function that consumes the token, see
+    /// [`InternalParser::expect`].
+    ///
+    /// # Panics
+    ///
+    /// If `expected_tokens` is empty.
+    fn check(&mut self, expected_tokens: &TokenSet) -> &mut Self {
+        assert!(!expected_tokens.is_empty());
+
+        if self.failed {
+            return self;
+        }
+
         let token = match self.peek() {
             None => {
                 self.failed = true;
                 return self;
             }
-            Some(token) if tokens.contains(token) => {
-                self.bump();
+            Some(token) if expected_tokens.contains(token) => {
                 return self;
             }
             Some(token) => token,
@@ -297,12 +300,10 @@ impl<'src> InternalParser<'src> {
         let span = token.span();
         let token_str = token.as_str();
 
-        let expected_tokens =
-            self.expected_tokens.entry(span.start()).or_default();
+        let tokens = self.expected_tokens.entry(span.start()).or_default();
+        tokens.extend(expected_tokens.iter().map(|t| t.as_str()));
 
-        expected_tokens.extend(tokens.iter().map(|t| t.as_str()));
-
-        let (last, all_except_last) = expected_tokens.split_last().unwrap();
+        let (last, all_except_last) = tokens.split_last().unwrap();
 
         let error_msg = if all_except_last.is_empty() {
             format!("expecting {last}, found {}", token_str)
@@ -330,12 +331,154 @@ impl<'src> InternalParser<'src> {
         self
     }
 
+    /// Similar to [`InternalParser::check`] but consumes any non-matching
+    /// token until it finds one that matches.
+    ///
+    /// If the next token matches one of the expected tokens. this function
+    /// behaves as `check`. However, if the next token does not match any of
+    /// the expected tokens, this function will consume tokens until it finds
+    /// a match. The non-matching tokens will be sent to the output under an
+    /// error node in the tree.
+    ///
+    /// The purpose of this function is establishing a point for the parser to
+    /// recover from parsing errors. For instance, consider the following
+    /// grammar rules:
+    ///
+    /// ```text
+    /// A := aBC
+    /// B := bb
+    /// C := ccc
+    /// ```
+    ///
+    /// `A` is roughly expressed as:
+    ///
+    /// ```text
+    /// self.begin(A)
+    ///     .expect(a)
+    ///     .one(|p| p.B())
+    ///     .one(|p| p.C())
+    ///     .end()
+    /// ```
+    ///
+    /// Suppose that we are parsing the sequence `axxc`. The sequence starts
+    /// with `a`, so `expect(a)` is successful. However, `one(|p| p.B())`
+    /// fails because `x` is found instead of the expected `b`. As a result,
+    /// `one(|p| p.C())` is not attempted, and the entire `A` production fails,
+    /// resulting a CST that looks like:
+    ///
+    /// ```text
+    /// error
+    ///   a
+    ///   x
+    ///   x
+    ///   c
+    /// ```
+    ///
+    /// By inserting `check_and_recover(c)`, we can recover from previous errors
+    /// before trying to match `C`:
+    ///
+    /// ```text
+    /// self.begin(A)
+    ///     .expect(a)
+    ///     .one(|p| p.B())
+    ///     .check_and_recover(c)
+    ///     .one(|p| p.C())
+    ///     .end()
+    /// ```
+    ///
+    /// If the parser fails at `one(|p| p.B())`, leaving the `xx` tokens
+    /// unconsumed, `check_and_recover(c)` will consume them until it finds a
+    /// `c` token and will recover from the error. This allows `one(|p| p.C())`
+    /// to consume the `c` and succeed. The resulting CST would be like:
+    ///
+    /// ```text
+    /// A
+    ///   a
+    ///   error
+    ///     x
+    ///     x
+    ///   c
+    /// ```
+    ///
+    /// Notice how the error is now more localized.
+    fn check_and_recover(&mut self, expected_tokens: &TokenSet) -> &mut Self {
+        self.check(expected_tokens);
+        if self.failed {
+            self.recover(expected_tokens);
+        }
+        self
+    }
+
+    /// Checks that the next token matches one of the expected tokens.
+    ///
+    /// If the next token does not match any of the expected tokens, the parser
+    /// will transition to a failure state and generate an error message. If
+    /// the token matches, it will be consumed and sent to the output. For a
+    /// version of this function that does not consume the token, see
+    /// [`InternalParser::check`].
+    ///
+    /// # Panics
+    ///
+    /// If `expected_tokens` is empty.
+    fn expect(&mut self, expected_tokens: &TokenSet) -> &mut Self {
+        if self.failed {
+            return self;
+        }
+
+        self.check(expected_tokens);
+
+        if !self.failed {
+            self.bump();
+            // After matching a token that is not inside an "optional" branch
+            // in the grammar, it's guaranteed that the parser won't go back
+            // to a position at the left of the matched token. This is a good
+            // opportunity for clearing the `expected_tokens` map, as the parser
+            // can't fail again at any earlier position.
+            if self.opt_depth == 0 {
+                self.expected_tokens.clear();
+            }
+        }
+
+        self
+    }
+
+    /// Similar to [`InternalParser::check_and_recover`], but also consumes the
+    /// expected token.
+    fn expect_and_recover(&mut self, tokens: &TokenSet) -> &mut Self {
+        self.expect(tokens);
+        if self.failed {
+            self.recover(tokens);
+            self.bump();
+        }
+        self
+    }
+
+    /// Begins an alternative.
+    ///
+    /// # Example
+    ///
+    /// ```text
+    /// p.begin_alt()
+    ///   .alt(..)
+    ///   .alt(..)
+    ///  .end_alt()
+    /// ```
     fn begin_alt(&mut self) -> Alt<'_, 'src> {
         let bookmark = self.bookmark();
         Alt { parser: self, matched: false, bookmark }
     }
 
-    fn opt<P>(&mut self, p: P) -> &mut Self
+    /// Applies `parser` optionally.
+    ///
+    /// If `parser` fails, the failure is ignored and the parser is reset to
+    /// its previous state.
+    ///
+    /// # Example
+    ///
+    /// ```text
+    /// p.opt(|p| p.something_optional())
+    /// ```
+    fn opt<P>(&mut self, parser: P) -> &mut Self
     where
         P: Fn(&mut Self) -> &mut Self,
     {
@@ -346,7 +489,7 @@ impl<'src> InternalParser<'src> {
         let bookmark = self.bookmark();
 
         self.opt_depth += 1;
-        p(self);
+        parser(self);
         self.opt_depth -= 1;
 
         // Any error occurred while parsing the optional production is ignored.
@@ -359,26 +502,26 @@ impl<'src> InternalParser<'src> {
         self
     }
 
-    /// Matches zero or more instances of whatever the parser `P` matches.
+    /// Applies `parser` zero or more times.
     #[inline]
-    fn zero_or_more<P>(&mut self, p: P) -> &mut Self
+    fn zero_or_more<P>(&mut self, parser: P) -> &mut Self
     where
         P: Fn(&mut Self) -> &mut Self,
     {
-        self.n_or_more(0, p)
+        self.n_or_more(0, parser)
     }
 
-    /// Matches one or more instances of whatever the parser `P` matches.
+    /// Applies `parser` one or more times.
     #[inline]
-    fn one_or_more<P>(&mut self, p: P) -> &mut Self
+    fn one_or_more<P>(&mut self, parser: P) -> &mut Self
     where
         P: Fn(&mut Self) -> &mut Self,
     {
-        self.n_or_more(1, p)
+        self.n_or_more(1, parser)
     }
 
-    /// Matches `n` or more instances of whatever the parser `P` matches.
-    fn n_or_more<P>(&mut self, n: usize, p: P) -> &mut Self
+    /// Applies `parser` N or more times.
+    fn n_or_more<P>(&mut self, n: usize, parser: P) -> &mut Self
     where
         P: Fn(&mut Self) -> &mut Self,
     {
@@ -387,7 +530,7 @@ impl<'src> InternalParser<'src> {
         }
         // The first N times that `f` is called it must match.
         for _ in 0..n {
-            p(self);
+            parser(self);
             if self.failed {
                 return self;
             }
@@ -398,7 +541,7 @@ impl<'src> InternalParser<'src> {
             loop {
                 let bookmark = self.bookmark();
                 self.opt_depth += 1;
-                p(self);
+                parser(self);
                 self.opt_depth -= 1;
                 if self.failed {
                     self.failed = false;
@@ -413,14 +556,15 @@ impl<'src> InternalParser<'src> {
         self
     }
 
-    fn one<P>(&mut self, p: P) -> &mut Self
+    /// Applies `parser` exactly one time.
+    fn one<P>(&mut self, parser: P) -> &mut Self
     where
         P: Fn(&mut Self) -> &mut Self,
     {
         if self.failed {
             return self;
         }
-        p(self);
+        parser(self);
         if self.failed {
             self.failed = true;
         }
@@ -547,8 +691,9 @@ impl<'src> InternalParser<'src> {
     ///
     /// ```text
     /// RULE_DECL ::= RULE_MODS? `rule` IDENT `{`
-    ///   META_DEF?
-    ///   `condition` `:` BOOLEAN_EXPR
+    ///   META_BLK?
+    ///   PATTERNS_BLK?
+    ///   CONDITION_BLK
     /// `}`
     /// ```
     fn rule_decl(&mut self) -> &mut Self {
@@ -563,11 +708,11 @@ impl<'src> InternalParser<'src> {
             .ws()
             .expect_and_recover(t!(L_BRACE))
             .ws()
-            .opt(|p| p.meta_defs())
+            .opt(|p| p.meta_blk())
             .ws()
-            .opt(|p| p.pattern_defs())
+            .opt(|p| p.patterns_blk())
             .ws()
-            .recover(t!(CONDITION_KW))
+            .check_and_recover(t!(CONDITION_KW))
             .one(|p| p.condition_blk())
             .ws()
             .expect(t!(R_BRACE))
@@ -592,6 +737,11 @@ impl<'src> InternalParser<'src> {
             .end()
     }
 
+    /// Parsers rule tags.
+    ///
+    /// ```text
+    /// RULE_TAGS := `:` IDENT+
+    /// ```
     fn rule_tags(&mut self) -> &mut Self {
         self.begin(SyntaxKind::RULE_TAGS)
             .expect(t!(COLON))
@@ -599,18 +749,18 @@ impl<'src> InternalParser<'src> {
             .end()
     }
 
-    /// Parses metadata definitions
+    /// Parses metadata block.
     ///
     /// ```text
-    /// META_DEFS :=  `meta` `:` META_DEF+
+    /// META_BLK := `meta` `:` META_DEF+
     /// ``
-    fn meta_defs(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::META_DEFS)
+    fn meta_blk(&mut self) -> &mut Self {
+        self.begin(SyntaxKind::META_BLK)
             .expect(t!(META_KW))
             .ws()
             .expect(t!(COLON))
             .ws()
-            .one_or_more(|p| p.meta_def())
+            .one_or_more(|p| p.ws().meta_def())
             .end()
     }
 
@@ -639,7 +789,7 @@ impl<'src> InternalParser<'src> {
             .end()
     }
 
-    fn pattern_defs(&mut self) -> &mut Self {
+    fn patterns_blk(&mut self) -> &mut Self {
         // TODO
         self
     }
@@ -652,6 +802,11 @@ impl<'src> InternalParser<'src> {
         todo!()
     }
 
+    /// Parses the condition block.
+    ///
+    /// ```text
+    /// CONDITION_BLK := `condition` `:` BOOLEAN_EXPR
+    /// ``
     fn condition_blk(&mut self) -> &mut Self {
         self.begin(SyntaxKind::CONDITION_BLK)
             .expect(t!(CONDITION_KW))
@@ -757,8 +912,8 @@ impl<'a, 'src> Alt<'a, 'src> {
         if self.parser.failed {
             return self;
         }
-        // Don't try to match the current alternative if the parser a previous one
-        // already matched.
+        // Don't try to match the current alternative if the parser a previous
+        // one already matched.
         if !self.matched {
             self.parser = f(self.parser);
             match self.parser.failed {
