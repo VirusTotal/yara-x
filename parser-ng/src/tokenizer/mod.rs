@@ -143,36 +143,105 @@ enum Mode<'src> {
 #[logos(source = [u8])]
 enum NormalToken<'src> {
     // Keywords
+    #[token("all")]
+    All,
     #[token("and")]
     And,
+    #[token("any")]
+    Any,
+    #[token("ascii")]
+    Ascii,
+    #[token("at")]
+    At,
+    #[token("base64")]
+    Base64,
+    #[token("base64wide")]
+    Base64Wide,
     #[token("condition")]
     Condition,
+    #[token("contains")]
+    Contains,
+    #[token("defined")]
+    Defined,
+    #[token("endswith")]
+    EndsWith,
+    #[token("entrypoint")]
+    Entrypoint,
     #[token("false")]
     False,
+    #[token("filesize")]
+    Filesize,
+    #[token("for")]
+    For,
+    #[token("fullword")]
+    Fullword,
     #[token("global")]
     Global,
+    #[token("icontains")]
+    IContains,
+    #[token("iendswith")]
+    IEndsWith,
+    #[token("iequals")]
+    IEquals,
     #[token("import")]
     Import,
+    #[token("in")]
+    In,
+    #[token("istartswith")]
+    IStarsWith,
+    #[token("matches")]
+    Matches,
     #[token("meta")]
     Meta,
+    #[token("nocase")]
+    Nocase,
+    #[token("none")]
+    None,
     #[token("not")]
     Not,
+    #[token("of")]
+    Of,
     #[token("or")]
     Or,
     #[token("private")]
     Private,
     #[token("rule")]
     Rule,
+    #[token("startswith")]
+    StartsWith,
     #[token("strings")]
     Strings,
+    #[token("them")]
+    Them,
     #[token("true")]
     True,
+    #[token("wide")]
+    Wide,
+    #[token("xor")]
+    Xor,
 
     // Punctuation
+    #[token("&")]
+    Ampersand,
+    #[token("*")]
+    Asterisk,
+    #[token("\\")]
+    Backslash,
     #[token(":")]
     Colon,
+    #[token(".")]
+    Dot,
     #[token("=")]
     Equal,
+    #[token("-")]
+    Minus,
+    #[token("%")]
+    Percent,
+    #[token("|")]
+    Pipe,
+    #[token("~")]
+    Tilde,
+
     #[token("{")]
     LBrace,
     #[token("}")]
@@ -181,10 +250,10 @@ enum NormalToken<'src> {
     LParen,
     #[token(")")]
     RParen,
-
-    // Arithmetic operations
-    #[token("\\")]
-    Div,
+    #[token("[")]
+    LBracket,
+    #[token("]")]
+    RBracket,
 
     // Pattern identifiers.
     #[regex(
@@ -330,25 +399,65 @@ where
 
 fn convert_normal_token(token: NormalToken, span: Span) -> Token {
     match token {
+        // Keywords.
+        NormalToken::All => Token::ALL_KW(span),
         NormalToken::And => Token::AND_KW(span),
+        NormalToken::Any => Token::ANY_KW(span),
+        NormalToken::Ascii => Token::ASCII_KW(span),
+        NormalToken::At => Token::AT_KW(span),
+        NormalToken::Base64 => Token::BASE64_KW(span),
+        NormalToken::Base64Wide => Token::BASE64WIDE_KW(span),
         NormalToken::Condition => Token::CONDITION_KW(span),
-        NormalToken::Div => Token::DIV(span),
+        NormalToken::Contains => Token::CONTAINS_KW(span),
+        NormalToken::Defined => Token::DEFINED_KW(span),
+        NormalToken::EndsWith => Token::ENDSWITH_KW(span),
+        NormalToken::Entrypoint => Token::ENTRYPOINT_KW(span),
         NormalToken::False => Token::FALSE_KW(span),
+        NormalToken::Filesize => Token::FILESIZE_KW(span),
+        NormalToken::For => Token::FOR_KW(span),
+        NormalToken::Fullword => Token::FULLWORD_KW(span),
         NormalToken::Global => Token::GLOBAL_KW(span),
+        NormalToken::IContains => Token::ICONTAINS_KW(span),
+        NormalToken::IEndsWith => Token::IENDSWITH_KW(span),
+        NormalToken::IEquals => Token::IEQUALS_KW(span),
         NormalToken::Import => Token::IMPORT_KW(span),
+        NormalToken::In => Token::IN_KW(span),
+        NormalToken::IStarsWith => Token::ISTARTSWITH_KW(span),
+        NormalToken::Matches => Token::MATCHES_KW(span),
         NormalToken::Meta => Token::META_KW(span),
+        NormalToken::Nocase => Token::NOCASE_KW(span),
+        NormalToken::None => Token::NONE_KW(span),
         NormalToken::Not => Token::NOT_KW(span),
+        NormalToken::Of => Token::OF_KW(span),
         NormalToken::Or => Token::OR_KW(span),
         NormalToken::Private => Token::PRIVATE_KW(span),
         NormalToken::Rule => Token::RULE_KW(span),
+        NormalToken::StartsWith => Token::STARTSWITH_KW(span),
         NormalToken::Strings => Token::STRINGS_KW(span),
+        NormalToken::Them => Token::THEM_KW(span),
         NormalToken::True => Token::TRUE_KW(span),
+        NormalToken::Wide => Token::WIDE_KW(span),
+        NormalToken::Xor => Token::XOR_KW(span),
+
+        // Punctuation.
+        NormalToken::Ampersand => Token::AMPERSAND(span),
+        NormalToken::Asterisk => Token::ASTERISK(span),
+        NormalToken::Backslash => Token::BACKSLASH(span),
         NormalToken::Colon => Token::COLON(span),
+        NormalToken::Dot => Token::DOT(span),
         NormalToken::Equal => Token::EQUAL(span),
+        NormalToken::Minus => Token::MINUS(span),
+        NormalToken::Percent => Token::PERCENT(span),
+        NormalToken::Pipe => Token::PIPE(span),
+        NormalToken::Tilde => Token::TILDE(span),
+
         NormalToken::LBrace => Token::L_BRACE(span),
         NormalToken::RBrace => Token::R_BRACE(span),
         NormalToken::LParen => Token::L_PAREN(span),
         NormalToken::RParen => Token::R_PAREN(span),
+        NormalToken::LBracket => Token::L_BRACKET(span),
+        NormalToken::RBracket => Token::R_BRACKET(span),
+
         NormalToken::Whitespace => Token::WHITESPACE(span),
         NormalToken::Newline => Token::NEWLINE(span),
         NormalToken::Ident(ident) => {
