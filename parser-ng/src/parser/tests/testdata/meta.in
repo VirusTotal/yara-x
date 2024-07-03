@@ -1,0 +1,10 @@
+rule test {
+	meta:
+	  some_int = 1
+	  some_float = 3.14
+	  some_bool = true
+	  some_bool = false
+	  some_str = "foo"
+	condition:
+		true
+}
