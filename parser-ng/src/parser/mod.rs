@@ -546,20 +546,18 @@ impl<'src> InternalParser<'src> {
         }
         // If the first N matches were ok, keep matching `f` as much as
         // possible.
-        if !self.failed {
-            loop {
-                let bookmark = self.bookmark();
-                self.opt_depth += 1;
-                parser(self);
-                self.opt_depth -= 1;
-                if self.failed {
-                    self.failed = false;
-                    self.restore_bookmark(&bookmark);
-                    self.remove_bookmark(bookmark);
-                    break;
-                } else {
-                    self.remove_bookmark(bookmark);
-                }
+        loop {
+            let bookmark = self.bookmark();
+            self.opt_depth += 1;
+            parser(self);
+            self.opt_depth -= 1;
+            if self.failed {
+                self.failed = false;
+                self.restore_bookmark(&bookmark);
+                self.remove_bookmark(bookmark);
+                break;
+            } else {
+                self.remove_bookmark(bookmark);
             }
         }
         self
@@ -827,14 +825,18 @@ impl<'src> InternalParser<'src> {
             .expect(t!(EQUAL))
             .ws()
             .begin_alt()
-            .alt(|p| p.expect(t!(STRING_LIT | REGEXP)))
-            .alt(|p| p.hex_pattern())
+            .alt(|p| {
+                p.expect(t!(STRING_LIT | REGEXP))
+                    .opt(|p| p.ws().pattern_mods())
+            })
+            .alt(|p| p.hex_pattern().opt(|p| p.ws().pattern_mods()))
             .end_alt()
             .end()
     }
 
     fn pattern_mods(&mut self) -> &mut Self {
-        todo!()
+        // TODO
+        self.begin(SyntaxKind::PATTERN_MODS).expect(t!(PRIVATE_KW)).end()
     }
 
     /// Parses the condition block.
