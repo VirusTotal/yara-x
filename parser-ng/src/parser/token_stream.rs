@@ -109,6 +109,14 @@ impl<'src> TokenStream<'src> {
     pub fn remove_bookmark(&mut self, bookmark: Bookmark) {
         self.bookmarks.retain(|x| x.ne(&Reverse(bookmark.0)))
     }
+
+    /// Switches to hex pattern operation mode.
+    ///
+    /// See: [`Tokenizer::enter_hex_pattern_mode`].
+    #[inline]
+    pub fn enter_hex_pattern_mode(&mut self) {
+        self.tokenizer.enter_hex_pattern_mode()
+    }
 }
 
 impl<'src> TokenStream<'src> {

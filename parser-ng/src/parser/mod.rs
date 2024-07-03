@@ -229,6 +229,15 @@ impl<'src> InternalParser<'src> {
         self.output.remove_bookmark(bookmark.output);
     }
 
+    /// Switches to hex pattern mode.
+    fn enter_hex_pattern_mode(&mut self) -> &mut Self {
+        if self.failed {
+            return self;
+        }
+        self.tokens.enter_hex_pattern_mode();
+        self
+    }
+
     /// Indicates the start of a non-terminal symbol of a given kind.
     ///
     /// Must be followed by a matching [`Parser::end`].
@@ -759,12 +768,11 @@ impl<'src> InternalParser<'src> {
             .expect(t!(META_KW))
             .ws()
             .expect(t!(COLON))
-            .ws()
             .one_or_more(|p| p.ws().meta_def())
             .end()
     }
 
-    /// Parses a metadata definition
+    /// Parses a metadata definition.
     ///
     /// ```text
     /// META_DEF := IDENT `=` (
@@ -789,13 +797,40 @@ impl<'src> InternalParser<'src> {
             .end()
     }
 
+    /// Parses the patterns block.
+    ///
+    /// ```text
+    /// PATTERNS_BLK := `strings` `:` PATTERN_DEF+
+    /// ``
     fn patterns_blk(&mut self) -> &mut Self {
-        // TODO
-        self
+        self.begin(SyntaxKind::PATTERNS_BLK)
+            .expect(t!(STRINGS_KW))
+            .ws()
+            .expect(t!(COLON))
+            .one_or_more(|p| p.ws().pattern_def())
+            .end()
     }
 
+    /// Parses a pattern definition.
+    ///
+    /// ```text
+    /// PATTERN_DEF := PATTERN_IDENT `=` (
+    ///     STRING_LIT  |
+    ///     REGEXP      |
+    ///     HEX_PATTERN
+    /// )
+    /// ``
     fn pattern_def(&mut self) -> &mut Self {
-        todo!()
+        self.begin(SyntaxKind::PATTERN_DEF)
+            .expect(t!(PATTERN_IDENT))
+            .ws()
+            .expect(t!(EQUAL))
+            .ws()
+            .begin_alt()
+            .alt(|p| p.expect(t!(STRING_LIT | REGEXP)))
+            .alt(|p| p.hex_pattern())
+            .end_alt()
+            .end()
     }
 
     fn pattern_mods(&mut self) -> &mut Self {
@@ -818,11 +853,18 @@ impl<'src> InternalParser<'src> {
     }
 
     fn hex_pattern(&mut self) -> &mut Self {
-        todo!()
+        self.begin(SyntaxKind::HEX_PATTERN)
+            .expect(t!(L_BRACE))
+            .enter_hex_pattern_mode()
+            .ws()
+            .one(|p| p.hex_tokens())
+            .ws()
+            .expect(t!(R_BRACE))
+            .end()
     }
 
     fn hex_tokens(&mut self) -> &mut Self {
-        todo!()
+        self.one_or_more(|p| p.ws().expect(t!(HEX_BYTE)))
     }
 
     fn hex_alternative(&mut self) -> &mut Self {

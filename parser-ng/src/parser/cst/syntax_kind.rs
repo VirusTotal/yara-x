@@ -16,8 +16,10 @@ pub enum SyntaxKind {
     OR_KW,
     PRIVATE_KW,
     RULE_KW,
+    STRINGS_KW,
     TRUE_KW,
 
+    DIV,
     COLON,
     EQUAL,
     L_BRACE,
@@ -39,13 +41,21 @@ pub enum SyntaxKind {
     RULE_MODS,
     RULE_TAGS,
     CONDITION_BLK,
+    PATTERN_DEF,
+    PATTERN_IDENT,
+    PATTERNS_BLK,
+    REGEXP,
     META_DEF,
     META_BLK,
     SOURCE_FILE,
     BOOLEAN_EXPR,
     BOOLEAN_TERM,
 
+    HEX_PATTERN,
+    HEX_BYTE,
+
     ERROR,
+    UNKNOWN,
 }
 
 impl From<SyntaxKind> for rowan::SyntaxKind {
@@ -62,12 +72,15 @@ impl From<&Token> for SyntaxKind {
             Token::CONDITION_KW(_) => SyntaxKind::CONDITION_KW,
             Token::FALSE_KW(_) => SyntaxKind::FALSE_KW,
             Token::GLOBAL_KW(_) => SyntaxKind::GLOBAL_KW,
+            Token::DIV(_) => SyntaxKind::DIV,
             Token::IMPORT_KW(_) => SyntaxKind::IMPORT_KW,
             Token::META_KW(_) => SyntaxKind::META_KW,
             Token::NOT_KW(_) => SyntaxKind::NOT_KW,
             Token::OR_KW(_) => SyntaxKind::OR_KW,
             Token::PRIVATE_KW(_) => SyntaxKind::PRIVATE_KW,
+            Token::REGEXP(_) => SyntaxKind::REGEXP,
             Token::RULE_KW(_) => SyntaxKind::RULE_KW,
+            Token::STRINGS_KW(_) => SyntaxKind::STRINGS_KW,
             Token::TRUE_KW(_) => SyntaxKind::TRUE_KW,
             // Literals
             Token::FLOAT_LIT(_) => SyntaxKind::FLOAT_LIT,
@@ -81,18 +94,15 @@ impl From<&Token> for SyntaxKind {
             Token::L_PAREN(_) => SyntaxKind::L_PAREN,
             Token::R_PAREN(_) => SyntaxKind::R_PAREN,
             // Hex patterns
-            Token::HEX_BYTE(_) => {
-                todo!()
-            }
+            Token::HEX_BYTE(_) => SyntaxKind::HEX_BYTE,
             // Identifiers
             Token::IDENT(_) => SyntaxKind::IDENT,
+            Token::PATTERN_IDENT(_) => SyntaxKind::PATTERN_IDENT,
             // Trivia
             Token::COMMENT(_) => SyntaxKind::COMMENT,
             Token::WHITESPACE(_) => SyntaxKind::WHITESPACE,
             Token::NEWLINE(_) => SyntaxKind::NEWLINE,
-            Token::UNKNOWN(_) => {
-                todo!()
-            }
+            Token::UNKNOWN(_) => SyntaxKind::UNKNOWN,
             Token::INVALID_UTF8(_) => {
                 todo!()
             }

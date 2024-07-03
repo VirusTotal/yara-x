@@ -16,7 +16,10 @@ pub enum Token {
     OR_KW(Span),
     PRIVATE_KW(Span),
     RULE_KW(Span),
+    STRINGS_KW(Span),
     TRUE_KW(Span),
+
+    DIV(Span),
 
     // Literals
     FLOAT_LIT(Span),
@@ -25,6 +28,7 @@ pub enum Token {
 
     // Identifiers
     IDENT(Span),
+    PATTERN_IDENT(Span),
 
     // Punctuation
     COLON(Span),
@@ -33,6 +37,8 @@ pub enum Token {
     R_BRACE(Span),
     L_PAREN(Span),
     R_PAREN(Span),
+
+    REGEXP(Span),
 
     // Hex patterns
     HEX_BYTE(Span),
@@ -57,6 +63,7 @@ impl Token {
             // Keywords
             Token::AND_KW(span)
             | Token::CONDITION_KW(span)
+            | Token::DIV(span)
             | Token::FALSE_KW(span)
             | Token::GLOBAL_KW(span)
             | Token::IMPORT_KW(span)
@@ -64,7 +71,9 @@ impl Token {
             | Token::NOT_KW(span)
             | Token::OR_KW(span)
             | Token::PRIVATE_KW(span)
+            | Token::REGEXP(span)
             | Token::RULE_KW(span)
+            | Token::STRINGS_KW(span)
             | Token::TRUE_KW(span)
             // Literals
             | Token::FLOAT_LIT(span)
@@ -72,6 +81,7 @@ impl Token {
             | Token::STRING_LIT(span)
             // Identifiers
             | Token::IDENT(span)
+            | Token::PATTERN_IDENT(span)
             // Punctuation
             | Token::COLON(span)
             | Token::EQUAL(span)
@@ -94,6 +104,7 @@ impl Token {
         match self {
             Token::AND_KW(_) => "`and`",
             Token::CONDITION_KW(_) => "`condition`",
+            Token::DIV(_) => "`\\`",
             Token::FALSE_KW(_) => "`false`",
             Token::GLOBAL_KW(_) => "`global`",
             Token::IMPORT_KW(_) => "`import`",
@@ -101,12 +112,15 @@ impl Token {
             Token::NOT_KW(_) => "`not`",
             Token::OR_KW(_) => "`or`",
             Token::PRIVATE_KW(_) => "`private`",
+            Token::REGEXP(_) => "regexp",
             Token::RULE_KW(_) => "`rule`",
             Token::TRUE_KW(_) => "`true`",
             Token::FLOAT_LIT(_) => "FLOAT",
             Token::INTEGER_LIT(_) => "INTEGER",
             Token::STRING_LIT(_) => "STRING",
+            Token::STRINGS_KW(_) => "`strings`",
             Token::IDENT(_) => "IDENT",
+            Token::PATTERN_IDENT(_) => "IDENT",
             Token::COLON(_) => "`:`",
             Token::EQUAL(_) => "`=`",
             Token::L_BRACE(_) => "`{`",

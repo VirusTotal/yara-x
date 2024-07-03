@@ -7,21 +7,6 @@ use crate::parser::cst::CST;
 use crate::Parser;
 
 #[test]
-fn test() {
-    let cst = CST::from(Parser::new(
-        r#"
-rule test : {
-  condition:
-	  true
-}
-"#
-        .as_bytes(),
-    ));
-
-    println!("{:#?}", cst);
-}
-
-#[test]
 fn cst() {
     let files: Vec<_> = globwalk::glob("src/parser/tests/testdata/*.in")
         .unwrap()
@@ -40,4 +25,21 @@ fn cst() {
         let mut w = BufWriter::new(output_file);
         write!(&mut w, "{:?}", cst).unwrap();
     });
+}
+
+#[test]
+fn test() {
+    let cst = CST::from(Parser::new(
+        r#"
+rule test {
+	strings:
+	  $c = { ab
+  condition:
+	  true
+}
+"#
+        .as_bytes(),
+    ));
+
+    println!("{:#?}", cst);
 }

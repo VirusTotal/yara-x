@@ -47,6 +47,7 @@ mod tests;
 /// will continue tokenizing the remaining content.
 pub struct Tokenizer<'src> {
     source: &'src [u8],
+    lexer_start: usize,
     mode: Mode<'src>,
 }
 
@@ -55,7 +56,11 @@ impl<'src> Tokenizer<'src> {
     pub fn new(source: &'src [u8]) -> Self {
         // Can't handle source files greater than the maximum span size.
         assert!(source.len() < Span::MAX);
-        Self { source, mode: Mode::Normal(Logos::lexer(source)) }
+        Self {
+            source,
+            lexer_start: 0,
+            mode: Mode::Normal(Logos::lexer(source)),
+        }
     }
 
     /// Returns the source code passed to the tokenizer.
@@ -66,31 +71,39 @@ impl<'src> Tokenizer<'src> {
 
     /// Returns the next token.
     pub fn next_token(&mut self) -> Option<Token> {
-        match &mut self.mode {
-            Mode::Normal(lexer) => match lexer.next()? {
-                Ok(token) => {
-                    Some(convert_normal_token(token, lexer.span().into()))
-                }
-                Err(()) => Some(unexpected_token(lexer)),
-            },
-            Mode::HexPattern(lexer) => match lexer.next()? {
-                Ok(token) => {
-                    Some(convert_hex_pattern_token(token, lexer.span().into()))
-                }
-                Err(()) => {
-                    let span = lexer.span().into();
-                    // If the unexpected input is the closing brace `}`
-                    // every thing is ok, return the RBrace token and
-                    // go back to normal parsing mode.
-                    if lexer.slice() == b"}" {
-                        self.toggle_mode();
-                        Some(Token::R_BRACE(span))
-                    } else {
-                        Some(unexpected_token(lexer))
+        loop {
+            match &mut self.mode {
+                Mode::Normal(lexer) => match lexer.next()? {
+                    Ok(token) => {
+                        return Some(convert_normal_token(
+                            token,
+                            Span::from(lexer.span()).offset(self.lexer_start),
+                        ));
                     }
-                }
-            },
-            Mode::Undefined => unreachable!(),
+                    Err(()) => return Some(unexpected_token(lexer)),
+                },
+                Mode::HexPattern(lexer) => match lexer.next()? {
+                    Ok(token) => {
+                        return Some(convert_hex_pattern_token(
+                            token,
+                            Span::from(lexer.span()).offset(self.lexer_start),
+                        ))
+                    }
+                    Err(()) => {
+                        // Found a token that was not expected in hex pattern
+                        // mode, switch back to normal mode and try again. The 
+                        // new lexer start position is where the unexpected
+                        // token was found.
+                        self.lexer_start += match &self.mode {
+                            Mode::HexPattern(lexer) => lexer.span().start,
+                            Mode::Normal(_) => unreachable!(),
+                        };
+                        self.mode = Mode::Normal(Logos::lexer(
+                            &self.source[self.lexer_start..],
+                        ));
+                    }
+                },
+            }
         }
     }
 
@@ -106,21 +119,14 @@ impl<'src> Tokenizer<'src> {
     ///
     /// If the tokenizer is already in hex pattern operation mode.
     pub fn enter_hex_pattern_mode(&mut self) {
-        assert!(matches!(self.mode, Mode::Normal(_)));
-        self.toggle_mode();
-    }
-
-    /// Toggles the operation mode from normal to hex pattern and vice versa.
-    fn toggle_mode(&mut self) {
-        self.mode = match mem::take(&mut self.mode) {
-            Mode::Normal(lexer) => {
-                Mode::HexPattern(lexer.morph::<HexPatternToken>())
-            }
-            Mode::HexPattern(lexer) => {
-                Mode::Normal(lexer.morph::<NormalToken>())
-            }
-            Mode::Undefined => unreachable!(),
+        self.lexer_start += match &self.mode {
+            Mode::Normal(lexer) => lexer.span().end,
+            Mode::HexPattern(_) => panic!(
+                "enter_hex_pattern_mode called while already in hex pattern mode" ),
         };
+
+        self.mode =
+            Mode::HexPattern(Logos::lexer(&self.source[self.lexer_start..]));
     }
 }
 
@@ -129,10 +135,7 @@ impl<'src> Tokenizer<'src> {
 /// [`Tokenizer`] uses the [`logos`] crate under the hood for doing the actual
 /// work. It uses two different logos lexers, one for the normal mode, and
 /// another one for the hex pattern mode.
-#[derive(Default)]
 enum Mode<'src> {
-    #[default]
-    Undefined,
     Normal(logos::Lexer<'src, NormalToken<'src>>),
     HexPattern(logos::Lexer<'src, HexPatternToken>),
 }
@@ -161,6 +164,8 @@ enum NormalToken<'src> {
     Private,
     #[token("rule")]
     Rule,
+    #[token("strings")]
+    Strings,
     #[token("true")]
     True,
 
@@ -178,6 +183,20 @@ enum NormalToken<'src> {
     #[token(")")]
     RParen,
 
+    // Arithmetic operations
+    #[token("\\")]
+    Div,
+
+    // Pattern identifiers.
+    #[regex(
+        r#"(?x)                         # allow comments in the regexp
+            \$                          # first character is $
+            ([[:alpha:]]|\d|_)*         # any number of letters, digits, or _
+        "#,
+        |token| token.slice())
+    ]
+    PatternIdent(&'src [u8]),
+
     // Identifiers must start with underscore or letter, followed by any
     // number of underscores, letters, or digits.
     #[regex(
@@ -187,7 +206,7 @@ enum NormalToken<'src> {
         "#,
         |token| token.slice())
     ]
-    Identifier(&'src [u8]),
+    Ident(&'src [u8]),
 
     // Float literals
     #[regex(
@@ -223,13 +242,29 @@ enum NormalToken<'src> {
         (                               # any number of
           \\"                           #   the \" escape sequence
           |                             #   or..
-          [^"\n]                        #   anything except quotes or newlines
+          [^"\n]                        #   anything except quotes and newlines
         )*
         "                               # ends with double quotes
         "#,
         |token| token.slice())
     ]
     StringLit(&'src [u8]),
+
+    // Regular expression.
+    #[regex(
+        r#"(?x)                         # allow comments in the regexp
+        /                               # starts /
+        (                               # one or more..
+          [^\\/\n]                      #   anything except backslashed, slashes and newlines
+          |                             #   or..
+          \\.                           #   escape sequences
+        )+
+        /                               # ends with /
+        [[:alpha:]]*                    # zero or more modifiers like "s" and "i"
+        "#,
+        |token| token.slice())
+    ]
+    Regexp(&'src [u8]),
 
     #[regex("[ \t]+")]
     Whitespace,
@@ -244,7 +279,7 @@ enum HexPatternToken {
     #[regex("[0-9a-fA-F]{2}")]
     Byte,
 
-    #[regex(" ")]
+    #[regex("[ \t]+")]
     Whitespace,
 
     #[token("\n")]
@@ -283,7 +318,12 @@ where
             }
         }
     };
+
     let unexpected = unexpected.split(char::is_whitespace).next().unwrap();
+
+    // `unexpected` shouldn't be empty, if it happens is because the whitespace
+    // was unexpected.
+    debug_assert!(!unexpected.is_empty());
 
     lexer.bump(unexpected.len() - lexer.span().len());
     Token::UNKNOWN(Span(start as u32..(start + unexpected.len()) as u32))
@@ -293,6 +333,7 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
     match token {
         NormalToken::And => Token::AND_KW(span),
         NormalToken::Condition => Token::CONDITION_KW(span),
+        NormalToken::Div => Token::DIV(span),
         NormalToken::False => Token::FALSE_KW(span),
         NormalToken::Global => Token::GLOBAL_KW(span),
         NormalToken::Import => Token::IMPORT_KW(span),
@@ -301,6 +342,7 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
         NormalToken::Or => Token::OR_KW(span),
         NormalToken::Private => Token::PRIVATE_KW(span),
         NormalToken::Rule => Token::RULE_KW(span),
+        NormalToken::Strings => Token::STRINGS_KW(span),
         NormalToken::True => Token::TRUE_KW(span),
         NormalToken::Colon => Token::COLON(span),
         NormalToken::Equal => Token::EQUAL(span),
@@ -310,9 +352,15 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
         NormalToken::RParen => Token::R_PAREN(span),
         NormalToken::Whitespace => Token::WHITESPACE(span),
         NormalToken::Newline => Token::NEWLINE(span),
-        NormalToken::Identifier(ident) => {
+        NormalToken::Ident(ident) => {
             return match from_utf8(ident) {
                 Ok(_) => Token::IDENT(span),
+                Err(_) => unreachable!(),
+            }
+        }
+        NormalToken::PatternIdent(ident) => {
+            return match from_utf8(ident) {
+                Ok(_) => Token::PATTERN_IDENT(span),
                 Err(_) => unreachable!(),
             }
         }
@@ -331,6 +379,12 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
         NormalToken::StringLit(lit) => {
             return match from_utf8(lit) {
                 Ok(_) => Token::STRING_LIT(span),
+                Err(_) => unreachable!(),
+            }
+        }
+        NormalToken::Regexp(lit) => {
+            return match from_utf8(lit) {
+                Ok(_) => Token::REGEXP(span),
                 Err(_) => unreachable!(),
             }
         }

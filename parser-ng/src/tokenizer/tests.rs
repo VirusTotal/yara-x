@@ -23,7 +23,8 @@ fn keywords() {
 
 #[test]
 fn identifiers() {
-    let mut lexer = super::Tokenizer::new("foo _bar baz0 qux_1".as_bytes());
+    let mut lexer =
+        super::Tokenizer::new("foo _bar baz0 qux_1 $ $_ $foo".as_bytes());
 
     assert_eq!(lexer.next_token(), Some(Token::IDENT(Span(0..3))));
     assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(3..4))));
@@ -32,6 +33,12 @@ fn identifiers() {
     assert_eq!(lexer.next_token(), Some(Token::IDENT(Span(9..13))));
     assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(13..14))));
     assert_eq!(lexer.next_token(), Some(Token::IDENT(Span(14..19))));
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(19..20))));
+    assert_eq!(lexer.next_token(), Some(Token::PATTERN_IDENT(Span(20..21))));
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(21..22))));
+    assert_eq!(lexer.next_token(), Some(Token::PATTERN_IDENT(Span(22..24))));
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(24..25))));
+    assert_eq!(lexer.next_token(), Some(Token::PATTERN_IDENT(Span(25..29))));
     assert_eq!(lexer.next_token(), None);
 }
 
@@ -89,6 +96,44 @@ fn string_literals() {
 
     let mut lexer = super::Tokenizer::new(r#""标识符""#.as_bytes());
     assert_eq!(lexer.next_token(), Some(Token::STRING_LIT(Span(0..11))));
+    assert_eq!(lexer.next_token(), None);
+}
+
+#[test]
+fn regexps() {
+    let mut lexer = super::Tokenizer::new(r#"/foobar/ /.*/"#.as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::REGEXP(Span(0..8))));
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(8..9))));
+    assert_eq!(lexer.next_token(), Some(Token::REGEXP(Span(9..13))));
+    assert_eq!(lexer.next_token(), None);
+
+    let mut lexer =
+        super::Tokenizer::new(r#"/foobar/i /(foo|bar)/s"#.as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::REGEXP(Span(0..9))));
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(9..10))));
+    assert_eq!(lexer.next_token(), Some(Token::REGEXP(Span(10..22))));
+    assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new(r#"/\x00/"#.as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::REGEXP(Span(0..6))));
+    assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new(r#"///"#.as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::UNKNOWN(Span(0..3))));
+    assert_eq!(lexer.next_token(), None);
+}
+
+#[test]
+fn hex_pattern() {
+    let mut lexer = super::Tokenizer::new(r#"$a={a0}a0"#.as_bytes());
+
+    assert_eq!(lexer.next_token(), Some(Token::PATTERN_IDENT(Span(0..2))));
+    assert_eq!(lexer.next_token(), Some(Token::EQUAL(Span(2..3))));
+    assert_eq!(lexer.next_token(), Some(Token::L_BRACE(Span(3..4))));
+    lexer.enter_hex_pattern_mode();
+    assert_eq!(lexer.next_token(), Some(Token::HEX_BYTE(Span(4..6))));
+    assert_eq!(lexer.next_token(), Some(Token::R_BRACE(Span(6..7))));
+    assert_eq!(lexer.next_token(), Some(Token::IDENT(Span(7..9))));
     assert_eq!(lexer.next_token(), None);
 }
 

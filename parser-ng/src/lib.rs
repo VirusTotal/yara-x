@@ -32,13 +32,14 @@ pub use parser::Parser;
 
 /// Starting and ending positions of some token inside the source code.
 #[derive(Default, Clone, Debug, PartialEq)]
-pub struct Span(Range<u32>);
+pub struct Span(pub Range<u32>);
 
 impl From<logos::Span> for Span {
     fn from(value: logos::Span) -> Self {
         Self(value.start as u32..value.end as u32)
     }
 }
+
 
 impl Display for Span {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -48,6 +49,19 @@ impl Display for Span {
 
 impl Span {
     const MAX: usize = u32::MAX as usize;
+
+    /// Displace the span to the left, incrementing both the starting and
+    /// ending positions by the given offset
+    ///
+    /// ```
+    /// # use yara_x_parser_ng::Span;
+    /// assert_eq!(Span(0..1).offset(1), Span(1..2))
+    /// ```
+    pub fn offset(mut self, offset: usize) -> Self {
+        self.0.start = self.0.start.saturating_add(offset as u32);
+        self.0.end = self.0.end.saturating_add(offset as u32);
+        self
+    }
 
     /// Offset within the source code (in bytes) were the span starts.
     #[inline]
