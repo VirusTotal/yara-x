@@ -40,7 +40,6 @@ impl From<logos::Span> for Span {
     }
 }
 
-
 impl Display for Span {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "[{}..{}]", self.start(), self.end())
