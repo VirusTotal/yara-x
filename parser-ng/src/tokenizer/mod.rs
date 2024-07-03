@@ -9,7 +9,6 @@ Each token is represented by a variant of the [`Token`] type.
 
 use logos::Logos;
 use logos::Source;
-use std::mem;
 use std::str;
 use std::str::from_utf8;
 
@@ -91,7 +90,7 @@ impl<'src> Tokenizer<'src> {
                     }
                     Err(()) => {
                         // Found a token that was not expected in hex pattern
-                        // mode, switch back to normal mode and try again. The 
+                        // mode, switch back to normal mode and try again. The
                         // new lexer start position is where the unexpected
                         // token was found.
                         self.lexer_start += match &self.mode {
