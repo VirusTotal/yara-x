@@ -4,9 +4,10 @@ SOURCE_FILE@0..38
     WHITESPACE@4..5 " "
     IDENT@5..9 "test"
     WHITESPACE@9..10 " "
-    ERROR@10..14
+    ERROR@10..12
       COLON@10..11 ":"
       WHITESPACE@11..12 " "
+    ERROR@12..14
       EQUAL@12..13 "="
       WHITESPACE@13..14 " "
     L_BRACE@14..15 "{"
@@ -24,4 +25,4 @@ SOURCE_FILE@0..38
     R_BRACE@37..38 "}"
 
 ERRORS:
-- [12..13]: expecting IDENT, found `=`
+- [12..13]: expecting identifier, found `=`

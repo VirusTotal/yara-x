@@ -291,10 +291,6 @@ impl<'src> InternalParser<'src> {
     fn check(&mut self, expected_tokens: &TokenSet) -> &mut Self {
         assert!(!expected_tokens.is_empty());
 
-        if self.failed {
-            return self;
-        }
-
         let token = match self.peek() {
             None => {
                 self.failed = true;
@@ -327,6 +323,10 @@ impl<'src> InternalParser<'src> {
         self.pending_errors.push((error_msg, span));
 
         if self.opt_depth == 0 {
+            // Find the pending error starting at the largest offset. If several
+            // errors start at the same offset, the last one is used (this is
+            // guaranteed by the `max_by_key` function). `self.pending_errors`
+            // is left empty.
             if let Some((error, span)) = self
                 .pending_errors
                 .drain(0..)
@@ -445,6 +445,7 @@ impl<'src> InternalParser<'src> {
             // can't fail again at any earlier position.
             if self.opt_depth == 0 {
                 self.expected_tokens.clear();
+                self.pending_errors.clear();
             }
         }
 
@@ -511,6 +512,51 @@ impl<'src> InternalParser<'src> {
         self
     }
 
+    /// If the next token matches one of the expected tokens, applies `parser`.
+    ///
+    /// `if_found(TOKEN, |p| p.expect(TOKEN))` is logically equivalent to
+    /// `opt(|p| p.expect(TOKEN))`, but the former is more efficient because it
+    /// doesn't do any backtracking. The closure `|p| p.expect(TOKEN)` is
+    /// executed only after we are sure that the next token is `TOKEN`.
+    ///
+    /// This can be used for replacing `opt` when the optional production can
+    /// be unequivocally distinguished by its first token. For instance, in a
+    /// YARA rule the metadata section is optional, but always starts with
+    /// the `meta` keyword, so, instead of:
+    ///
+    /// `opt(|p| p.meta_blk()`)
+    ///
+    /// We can use:
+    ///
+    /// `if_found(t!(META_KW), |p| p.meta_blk())`
+    ///
+    fn if_found<P>(
+        &mut self,
+        expected_tokens: &TokenSet,
+        parser: P,
+    ) -> &mut Self
+    where
+        P: Fn(&mut Self) -> &mut Self,
+    {
+        if self.failed {
+            return self;
+        }
+        match self.peek() {
+            None => {}
+            Some(token) => {
+                if expected_tokens.contains(token) {
+                    parser(self);
+                } else {
+                    let span = token.span();
+                    let tokens =
+                        self.expected_tokens.entry(span.start()).or_default();
+                    tokens.extend(expected_tokens.iter().map(|t| t.as_str()));
+                }
+            }
+        }
+        self
+    }
+
     /// Applies `parser` zero or more times.
     #[inline]
     fn zero_or_more<P>(&mut self, parser: P) -> &mut Self
@@ -572,9 +618,6 @@ impl<'src> InternalParser<'src> {
             return self;
         }
         parser(self);
-        if self.failed {
-            self.failed = true;
-        }
         self
     }
 
@@ -711,13 +754,13 @@ impl<'src> InternalParser<'src> {
             .ws()
             .expect(t!(IDENT))
             .ws()
-            .opt(|p| p.rule_tags())
+            .if_found(t!(COLON), |p| p.rule_tags())
             .ws()
             .expect_and_recover(t!(L_BRACE))
             .ws()
-            .opt(|p| p.meta_blk())
+            .if_found(t!(META_KW), |p| p.meta_blk())
             .ws()
-            .opt(|p| p.patterns_blk())
+            .if_found(t!(STRINGS_KW), |p| p.patterns_blk())
             .ws()
             .check_and_recover(t!(CONDITION_KW))
             .one(|p| p.condition_blk())
@@ -806,6 +849,8 @@ impl<'src> InternalParser<'src> {
             .ws()
             .expect(t!(COLON))
             .one_or_more(|p| p.ws().pattern_def())
+            //.ws()
+            //.check_and_recover(t!(CONDITION_KW))
             .end()
     }
 
@@ -825,18 +870,19 @@ impl<'src> InternalParser<'src> {
             .expect(t!(EQUAL))
             .ws()
             .begin_alt()
-            .alt(|p| {
-                p.expect(t!(STRING_LIT | REGEXP))
-                    .opt(|p| p.ws().pattern_mods())
-            })
-            .alt(|p| p.hex_pattern().opt(|p| p.ws().pattern_mods()))
+            .alt(|p| p.expect(t!(STRING_LIT)))
+            .alt(|p| p.expect(t!(REGEXP)))
+            .alt(|p| p.hex_pattern())
             .end_alt()
+            .opt(|p| p.ws().pattern_mods())
             .end()
     }
 
     fn pattern_mods(&mut self) -> &mut Self {
         // TODO
-        self.begin(SyntaxKind::PATTERN_MODS).expect(t!(PRIVATE_KW)).end()
+        self.begin(SyntaxKind::PATTERN_MODS)
+            .expect(t!(ASCII_KW | WIDE_KW | PRIVATE_KW))
+            .end()
     }
 
     /// Parses the condition block.
@@ -959,7 +1005,9 @@ impl<'a, 'src> Alt<'a, 'src> {
         // Don't try to match the current alternative if the parser a previous
         // one already matched.
         if !self.matched {
+            self.parser.opt_depth += 1;
             self.parser = f(self.parser);
+            self.parser.opt_depth -= 1;
             match self.parser.failed {
                 // The current alternative matched.
                 false => {

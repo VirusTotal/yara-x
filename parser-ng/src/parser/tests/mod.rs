@@ -33,7 +33,7 @@ fn test() {
         r#"
 rule test {
 	strings:
-	  $c = { ab
+	  $c = { ab }
   condition:
 	  true
 }

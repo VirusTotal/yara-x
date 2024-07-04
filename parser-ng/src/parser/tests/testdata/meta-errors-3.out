@@ -12,11 +12,12 @@ SOURCE_FILE@0..52
       COLON@18..19 ":"
       NEWLINE@19..20 "\n"
       WHITESPACE@20..24 "    "
-      IDENT@24..27 "foo"
-      WHITESPACE@27..28 " "
-      EQUAL@28..29 "="
-      NEWLINE@29..30 "\n"
-      WHITESPACE@30..32 "  "
+      ERROR@24..32
+        IDENT@24..27 "foo"
+        WHITESPACE@27..28 " "
+        EQUAL@28..29 "="
+        NEWLINE@29..30 "\n"
+        WHITESPACE@30..32 "  "
     CONDITION_BLK@32..50
       CONDITION_KW@32..41 "condition"
       COLON@41..42 ":"
