@@ -189,6 +189,37 @@ impl<'src> InternalParser<'src> {
         self.tokens.peek_token(0)
     }
 
+    fn peek_non_ws(&mut self) -> Option<&Token> {
+        let mut i = 0;
+        // First find the position of the first token that is not a whitespace
+        // and then use `peek_token` again for returning it. This is necessary
+        // due to a current limitation in the borrow checker that doesn't allow
+        // this:
+        //
+        // loop {
+        //     match self.tokens.peek_token(i) {
+        //         Some(token) => match token {
+        //             WHITESPACE(_) | COMMENT(_) | NEWLINE(_) => i += 1,
+        //             token => return Some(token),
+        //         },
+        //         None => return None,
+        //     }
+        // }
+        //
+        let token_pos = loop {
+            match self.tokens.peek_token(i) {
+                Some(token) => match token {
+                    WHITESPACE(_) | COMMENT(_) | NEWLINE(_) => {
+                        i += 1;
+                    }
+                    _ => break i,
+                },
+                None => return None,
+            }
+        };
+        self.tokens.peek_token(token_pos)
+    }
+
     /// Consumes the next token and returns it. The consumed token is also
     /// appended to the output.
     ///
@@ -257,26 +288,6 @@ impl<'src> InternalParser<'src> {
         self
     }
 
-    fn recover(&mut self, tokens: &TokenSet) -> &mut Self {
-        match self.peek() {
-            None => {}
-            Some(token) if tokens.contains(token) => {}
-            Some(_) => {
-                self.output.begin(SyntaxKind::ERROR);
-                while let Some(token) = self.peek() {
-                    if tokens.contains(token) {
-                        break;
-                    } else {
-                        self.bump();
-                    }
-                }
-                self.output.end();
-            }
-        }
-        self.failed = false;
-        self
-    }
-
     /// Checks that the next token matches one of the expected tokens.
     ///
     /// If the next token does not match any of the expected tokens, the parser
@@ -291,12 +302,13 @@ impl<'src> InternalParser<'src> {
     fn check(&mut self, expected_tokens: &TokenSet) -> &mut Self {
         assert!(!expected_tokens.is_empty());
 
-        let token = match self.peek() {
+        let token = match self.peek_non_ws() {
             None => {
                 self.failed = true;
                 return self;
             }
             Some(token) if expected_tokens.contains(token) => {
+                self.failed = false;
                 return self;
             }
             Some(token) => token,
@@ -410,10 +422,43 @@ impl<'src> InternalParser<'src> {
     /// ```
     ///
     /// Notice how the error is now more localized.
+    /*fn check_and_recover(&mut self, expected_tokens: &TokenSet) -> &mut Self {
+        let found = match self.peek_non_ws() {
+            Some(token) if expected_tokens.contains(token) => true,
+            Some(token) => false,
+            None => false,
+        };
+
+        if !found {
+            self.failed = false;
+            self.ws();
+            self.output.begin(SyntaxKind::ERROR);
+            while let Some(token) = self.peek() {
+                if expected_tokens.contains(token) {
+                    break;
+                } else {
+                    self.bump();
+                }
+            }
+            self.output.end();
+        }
+        self
+    }*/
+
     fn check_and_recover(&mut self, expected_tokens: &TokenSet) -> &mut Self {
         self.check(expected_tokens);
         if self.failed {
-            self.recover(expected_tokens);
+            self.failed = false;
+            self.ws();
+            self.output.begin(SyntaxKind::ERROR);
+            while let Some(token) = self.peek() {
+                if expected_tokens.contains(token) {
+                    break;
+                } else {
+                    self.bump();
+                }
+            }
+            self.output.end();
         }
         self
     }
@@ -437,6 +482,9 @@ impl<'src> InternalParser<'src> {
         self.check(expected_tokens);
 
         if !self.failed {
+            // Consume any leading whitespace that may exist.
+            self.ws();
+            // Consume the expected token.
             self.bump();
             // After matching a token that is not inside an "optional" branch
             // in the grammar, it's guaranteed that the parser won't go back
@@ -452,16 +500,29 @@ impl<'src> InternalParser<'src> {
         self
     }
 
+    /*
     /// Similar to [`InternalParser::check_and_recover`], but also consumes the
     /// expected token.
-    fn expect_and_recover(&mut self, tokens: &TokenSet) -> &mut Self {
-        self.expect(tokens);
+    fn expect_and_recover(&mut self, expected_tokens: &TokenSet) -> &mut Self {
+        self.failed = false;
+        self.expect(expected_tokens);
         if self.failed {
-            self.recover(tokens);
+            self.failed = false;
+            self.ws();
+            self.output.begin(SyntaxKind::ERROR);
+            while let Some(token) = self.peek() {
+                if expected_tokens.contains(token) {
+                    break;
+                } else {
+                    self.bump();
+                }
+            }
+            self.output.end();
             self.bump();
         }
         self
     }
+    */
 
     /// Begins an alternative.
     ///
@@ -711,8 +772,9 @@ impl<'src> InternalParser<'src> {
             GLOBAL_KW(_) | PRIVATE_KW(_) | RULE_KW(_) => self.rule_decl(),
             token => {
                 let span = token.span();
+                let token_str = token.as_str();
                 self.output.push_error(
-                    "expecting import statement or rule definition",
+                    format!("expecting import statement or rule definition, found {}", token_str),
                     span,
                 );
                 self.output.begin(SyntaxKind::ERROR);
@@ -732,7 +794,6 @@ impl<'src> InternalParser<'src> {
     fn import_stmt(&mut self) -> &mut Self {
         self.begin(SyntaxKind::IMPORT_STMT)
             .expect(t!(IMPORT_KW))
-            .ws()
             .expect(t!(STRING_LIT))
             .end()
     }
@@ -749,22 +810,19 @@ impl<'src> InternalParser<'src> {
     fn rule_decl(&mut self) -> &mut Self {
         self.begin(SyntaxKind::RULE_DECL)
             .opt(|p| p.rule_mods())
-            .ws()
             .expect(t!(RULE_KW))
-            .ws()
             .expect(t!(IDENT))
             .ws()
             .if_found(t!(COLON), |p| p.rule_tags())
-            .ws()
-            .expect_and_recover(t!(L_BRACE))
+            //.check_and_recover(t!(L_BRACE))
+            .expect(t!(L_BRACE))
             .ws()
             .if_found(t!(META_KW), |p| p.meta_blk())
             .ws()
             .if_found(t!(STRINGS_KW), |p| p.patterns_blk())
-            .ws()
             .check_and_recover(t!(CONDITION_KW))
+            .ws() // todo: remove
             .one(|p| p.condition_blk())
-            .ws()
             .expect(t!(R_BRACE))
             .end()
     }
@@ -777,12 +835,8 @@ impl<'src> InternalParser<'src> {
     fn rule_mods(&mut self) -> &mut Self {
         self.begin(SyntaxKind::RULE_MODS)
             .begin_alt()
-            .alt(|p| {
-                p.expect(t!(PRIVATE_KW)).opt(|p| p.ws().expect(t!(GLOBAL_KW)))
-            })
-            .alt(|p| {
-                p.expect(t!(GLOBAL_KW)).opt(|p| p.ws().expect(t!(PRIVATE_KW)))
-            })
+            .alt(|p| p.expect(t!(PRIVATE_KW)).opt(|p| p.expect(t!(GLOBAL_KW))))
+            .alt(|p| p.expect(t!(GLOBAL_KW)).opt(|p| p.expect(t!(PRIVATE_KW))))
             .end_alt()
             .end()
     }
@@ -795,7 +849,7 @@ impl<'src> InternalParser<'src> {
     fn rule_tags(&mut self) -> &mut Self {
         self.begin(SyntaxKind::RULE_TAGS)
             .expect(t!(COLON))
-            .one_or_more(|p| p.ws().expect(t!(IDENT)))
+            .one_or_more(|p| p.expect(t!(IDENT)))
             .end()
     }
 
@@ -807,7 +861,6 @@ impl<'src> InternalParser<'src> {
     fn meta_blk(&mut self) -> &mut Self {
         self.begin(SyntaxKind::META_BLK)
             .expect(t!(META_KW))
-            .ws()
             .expect(t!(COLON))
             .one_or_more(|p| p.ws().meta_def())
             .end()
@@ -827,9 +880,7 @@ impl<'src> InternalParser<'src> {
     fn meta_def(&mut self) -> &mut Self {
         self.begin(SyntaxKind::META_DEF)
             .expect(t!(IDENT))
-            .ws()
             .expect(t!(EQUAL))
-            .ws()
             .expect(t!(TRUE_KW
                 | FALSE_KW
                 | INTEGER_LIT
@@ -846,11 +897,9 @@ impl<'src> InternalParser<'src> {
     fn patterns_blk(&mut self) -> &mut Self {
         self.begin(SyntaxKind::PATTERNS_BLK)
             .expect(t!(STRINGS_KW))
-            .ws()
             .expect(t!(COLON))
             .one_or_more(|p| p.ws().pattern_def())
-            //.ws()
-            //.check_and_recover(t!(CONDITION_KW))
+            .check_and_recover(t!(CONDITION_KW))
             .end()
     }
 
@@ -866,7 +915,6 @@ impl<'src> InternalParser<'src> {
     fn pattern_def(&mut self) -> &mut Self {
         self.begin(SyntaxKind::PATTERN_DEF)
             .expect(t!(PATTERN_IDENT))
-            .ws()
             .expect(t!(EQUAL))
             .ws()
             .begin_alt()
@@ -893,7 +941,6 @@ impl<'src> InternalParser<'src> {
     fn condition_blk(&mut self) -> &mut Self {
         self.begin(SyntaxKind::CONDITION_BLK)
             .expect(t!(CONDITION_KW))
-            .ws()
             .expect(t!(COLON))
             .ws()
             .one(|p| p.boolean_expr())
@@ -906,7 +953,6 @@ impl<'src> InternalParser<'src> {
             .enter_hex_pattern_mode()
             .ws()
             .one(|p| p.hex_tokens())
-            .ws()
             .expect(t!(R_BRACE))
             .end()
     }
@@ -932,10 +978,7 @@ impl<'src> InternalParser<'src> {
         self.begin(SyntaxKind::BOOLEAN_EXPR)
             .one(|p| p.boolean_term())
             .zero_or_more(|p| {
-                p.ws()
-                    .expect(t!(AND_KW | OR_KW))
-                    .ws()
-                    .one(|p| p.boolean_term())
+                p.expect(t!(AND_KW | OR_KW)).ws().one(|p| p.boolean_term())
             })
             .end()
     }

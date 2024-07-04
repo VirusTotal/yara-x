@@ -32,8 +32,7 @@ fn test() {
     let cst = CST::from(Parser::new(
         r#"
 rule test {
-	strings:
-	  $c = { ab }
+  foo
   condition:
 	  true
 }
