@@ -31,8 +31,7 @@ fn cst() {
 fn test() {
     let cst = CST::from(Parser::new(
         r#"
-rule test {
-  foo
+rule test : = {
   condition:
 	  true
 }

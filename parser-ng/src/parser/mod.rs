@@ -15,6 +15,8 @@ error nodes is valid YARA code.
 [2]: https://github.com/rust-analyzer/rowan
  */
 
+use indexmap::map::Entry;
+use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::mem;
 
@@ -102,6 +104,8 @@ struct InternalParser<'src> {
     /// source code where the error occurred.
     pending_errors: Vec<(String, Span)>,
 
+    ready_errors: IndexMap<Span, String>,
+
     /// Hash map where keys are positions within the source code, and values
     /// are a list of tokens that were expected to match at that position.
     ///
@@ -147,6 +151,7 @@ impl<'src> From<Tokenizer<'src>> for InternalParser<'src> {
             tokens: TokenStream::new(tokenizer),
             output: SyntaxStream::new(),
             pending_errors: Vec::new(),
+            ready_errors: IndexMap::new(),
             expected_tokens: HashMap::new(),
             opt_depth: 0,
             failed: false,
@@ -344,7 +349,15 @@ impl<'src> InternalParser<'src> {
                 .drain(0..)
                 .max_by_key(|(_, span)| span.start())
             {
-                self.output.push_error(error, span);
+                match self.ready_errors.entry(span) {
+                    Entry::Occupied(_) => {
+                        // already present, don't replace.
+                    }
+                    Entry::Vacant(v) => {
+                        v.insert(error);
+                    }
+                }
+                //self.output.push_error(error, span);
             }
         }
 
@@ -423,13 +436,19 @@ impl<'src> InternalParser<'src> {
     ///
     /// Notice how the error is now more localized.
     /*fn check_and_recover(&mut self, expected_tokens: &TokenSet) -> &mut Self {
-        let found = match self.peek_non_ws() {
+        let expected_token_found = match self.peek_non_ws() {
             Some(token) if expected_tokens.contains(token) => true,
-            Some(token) => false,
+            Some(token) => {
+                let span = token.span();
+                let token_str = token.as_str();
+                self.output
+                    .push_error(format!("unexpected {}", token_str), span);
+                false
+            }
             None => false,
         };
 
-        if !found {
+        if !expected_token_found {
             self.failed = false;
             self.ws();
             self.output.begin(SyntaxKind::ERROR);
@@ -445,10 +464,34 @@ impl<'src> InternalParser<'src> {
         self
     }*/
 
-    fn check_and_recover(&mut self, expected_tokens: &TokenSet) -> &mut Self {
+    fn recover(&mut self) -> &mut Self {
+        self.failed = false;
+        self
+    }
+
+    fn sync(&mut self, expected_tokens: &TokenSet) -> &mut Self {
+        let failed = self.failed;
         self.check(expected_tokens);
         if self.failed {
-            self.failed = false;
+            self.ws();
+            self.output.begin(SyntaxKind::ERROR);
+            while let Some(token) = self.peek() {
+                if expected_tokens.contains(token) {
+                    break;
+                } else {
+                    self.bump();
+                }
+            }
+            self.output.end();
+        }
+        self.failed = failed;
+        self
+    }
+
+    fn sync_and_recover(&mut self, expected_tokens: &TokenSet) -> &mut Self {
+        self.check(expected_tokens);
+        if self.failed {
+            self.recover();
             self.ws();
             self.output.begin(SyntaxKind::ERROR);
             while let Some(token) = self.peek() {
@@ -494,6 +537,9 @@ impl<'src> InternalParser<'src> {
             if self.opt_depth == 0 {
                 self.expected_tokens.clear();
                 self.pending_errors.clear();
+                for (span, error) in self.ready_errors.drain(0..) {
+                    self.output.push_error(error, span);
+                }
             }
         }
 
@@ -814,13 +860,13 @@ impl<'src> InternalParser<'src> {
             .expect(t!(IDENT))
             .ws()
             .if_found(t!(COLON), |p| p.rule_tags())
-            .check_and_recover(t!(L_BRACE))
+            .sync_and_recover(t!(L_BRACE))
             .expect(t!(L_BRACE))
             .ws()
             .if_found(t!(META_KW), |p| p.meta_blk())
             .ws()
             .if_found(t!(STRINGS_KW), |p| p.patterns_blk())
-            .check_and_recover(t!(CONDITION_KW))
+            .sync_and_recover(t!(CONDITION_KW))
             .ws() // todo: remove
             .one(|p| p.condition_blk())
             .expect(t!(R_BRACE))
@@ -899,7 +945,6 @@ impl<'src> InternalParser<'src> {
             .expect(t!(STRINGS_KW))
             .expect(t!(COLON))
             .one_or_more(|p| p.ws().pattern_def())
-            .check_and_recover(t!(CONDITION_KW))
             .end()
     }
 

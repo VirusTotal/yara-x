@@ -26,4 +26,3 @@ SOURCE_FILE@0..38
 
 ERRORS:
 - [12..13]: expecting identifier, found `=`
-- [12..13]: expecting identifier or `{`, found `=`

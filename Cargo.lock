@@ -5014,6 +5014,7 @@ version = "0.5.0"
 dependencies = [
  "globwalk",
  "goldenfile",
+ "indexmap 2.2.6",
  "logos",
  "pretty_assertions",
  "rayon",
