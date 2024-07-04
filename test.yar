@@ -1,0 +1,6 @@
+rule test {
+	strings:
+	
+  condition:
+	  true
+}

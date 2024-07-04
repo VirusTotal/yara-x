@@ -814,7 +814,7 @@ impl<'src> InternalParser<'src> {
             .expect(t!(IDENT))
             .ws()
             .if_found(t!(COLON), |p| p.rule_tags())
-            //.check_and_recover(t!(L_BRACE))
+            .check_and_recover(t!(L_BRACE))
             .expect(t!(L_BRACE))
             .ws()
             .if_found(t!(META_KW), |p| p.meta_blk())
