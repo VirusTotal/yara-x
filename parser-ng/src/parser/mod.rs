@@ -403,6 +403,11 @@ impl<'src> InternalParser<'src> {
     /// Notice how the error is now more localized.
     fn recover_and_sync(&mut self, recovery_set: &TokenSet) -> &mut Self {
         self.recover();
+        /*if let Some(t) = self.peek_non_ws() {
+            if recovery_set.contains(t) {
+                return self;
+            }
+        }*/
         self.sync(recovery_set);
         self
     }
@@ -631,7 +636,7 @@ impl<'src> InternalParser<'src> {
     }
 
     /// Applies `parser` exactly one time.
-    fn one<P>(&mut self, parser: P) -> &mut Self
+    fn then<P>(&mut self, parser: P) -> &mut Self
     where
         P: Fn(&mut Self) -> &mut Self,
     {
@@ -802,10 +807,12 @@ impl<'src> InternalParser<'src> {
             .if_found(t!(COLON), |p| p.rule_tags())
             .recover_and_sync(t!(L_BRACE))
             .expect(t!(L_BRACE))
+            .recover_and_sync(t!(META_KW | STRINGS_KW | CONDITION_KW))
             .if_found(t!(META_KW), |p| p.meta_blk())
+            .recover_and_sync(t!(STRINGS_KW | CONDITION_KW))
             .if_found(t!(STRINGS_KW), |p| p.patterns_blk())
-            .recover_and_sync(t!(CONDITION_KW)) // todo: remove
-            .one(|p| p.condition_blk())
+            .recover_and_sync(t!(CONDITION_KW))
+            .then(|p| p.condition_blk())
             .expect(t!(R_BRACE))
             .end()
     }
@@ -846,6 +853,14 @@ impl<'src> InternalParser<'src> {
             .expect(t!(META_KW))
             .expect(t!(COLON))
             .one_or_more(|p| p.meta_def())
+            /*.then(|p| {
+                while matches!(p.peek_non_ws(), Some(IDENT(_))) {
+                    p.trivia();
+                    p.meta_def();
+                    p.recover_and_sync(t!(IDENT | STRINGS_KW | CONDITION_KW));
+                }
+                p
+            })*/
             .end()
     }
 
@@ -923,7 +938,7 @@ impl<'src> InternalParser<'src> {
         self.begin(SyntaxKind::CONDITION_BLK)
             .expect(t!(CONDITION_KW))
             .expect(t!(COLON))
-            .one(|p| p.boolean_expr())
+            .then(|p| p.boolean_expr())
             .end()
     }
 
@@ -931,7 +946,7 @@ impl<'src> InternalParser<'src> {
         self.begin(SyntaxKind::HEX_PATTERN)
             .expect(t!(L_BRACE))
             .enter_hex_pattern_mode()
-            .one(|p| p.hex_tokens())
+            .then(|p| p.hex_tokens())
             .expect(t!(R_BRACE))
             .end()
     }
@@ -955,9 +970,9 @@ impl<'src> InternalParser<'src> {
     /// ``
     fn boolean_expr(&mut self) -> &mut Self {
         self.begin(SyntaxKind::BOOLEAN_EXPR)
-            .one(|p| p.boolean_term())
+            .then(|p| p.boolean_term())
             .zero_or_more(|p| {
-                p.expect(t!(AND_KW | OR_KW)).one(|p| p.boolean_term())
+                p.expect(t!(AND_KW | OR_KW)).then(|p| p.boolean_term())
             })
             .end()
     }
