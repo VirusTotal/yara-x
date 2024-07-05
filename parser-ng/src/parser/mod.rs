@@ -183,6 +183,7 @@ impl Iterator for InternalParser<'_> {
         if self.output.is_empty() && self.tokens.has_more() {
             let _ = self.trivia();
             let _ = self.top_level_item();
+            self.flush_errors();
             self.failed = false;
         }
         self.output.pop()
@@ -286,6 +287,15 @@ impl<'src> InternalParser<'src> {
             return self;
         }
         self.tokens.enter_hex_pattern_mode();
+        self
+    }
+
+    /// Switches to hex jump mode.
+    fn enter_hex_jump_mode(&mut self) -> &mut Self {
+        if self.failed {
+            return self;
+        }
+        self.tokens.enter_hex_jump_mode();
         self
     }
 
@@ -489,14 +499,9 @@ impl<'src> InternalParser<'src> {
             // After matching a token that is not inside an "optional" branch
             // in the grammar, it's guaranteed that the parser won't go back
             // to a position at the left of the matched token. This is a good
-            // opportunity for clearing the `expected_tokens` map, as the parser
-            // can't fail again at any earlier position.
+            // opportunity for flushing errors.
             if self.opt_depth == 0 {
-                self.expected_tokens.clear();
-                self.pending_errors.clear();
-                for (span, error) in self.ready_errors.drain(0..) {
-                    self.output.push_error(error, span);
-                }
+                self.flush_errors()
             }
         } else {
             self.failed = true;
@@ -553,6 +558,11 @@ impl<'src> InternalParser<'src> {
 
         self.remove_bookmark(bookmark);
         self
+    }
+
+    /// Like [`InternalParser::expect`], but optional.
+    fn opt_expect(&mut self, expected_tokens: &TokenSet) -> &mut Self {
+        self.opt(|p| p.expect(expected_tokens))
     }
 
     /// If the next non-trivia token matches one of the expected tokens,
@@ -670,6 +680,14 @@ impl<'src> InternalParser<'src> {
         self.trivia();
         parser(self);
         self
+    }
+
+    fn flush_errors(&mut self) {
+        self.expected_tokens.clear();
+        self.pending_errors.clear();
+        for (span, error) in self.ready_errors.drain(0..) {
+            self.output.push_error(error, span);
+        }
     }
 
     fn unexpected_token_error(
@@ -855,8 +873,8 @@ impl<'src> InternalParser<'src> {
     fn rule_mods(&mut self) -> &mut Self {
         self.begin(SyntaxKind::RULE_MODS)
             .begin_alt()
-            .alt(|p| p.expect(t!(PRIVATE_KW)).opt(|p| p.expect(t!(GLOBAL_KW))))
-            .alt(|p| p.expect(t!(GLOBAL_KW)).opt(|p| p.expect(t!(PRIVATE_KW))))
+            .alt(|p| p.expect(t!(PRIVATE_KW)).opt_expect(t!(GLOBAL_KW)))
+            .alt(|p| p.expect(t!(GLOBAL_KW)).opt_expect(t!(PRIVATE_KW)))
             .end_alt()
             .end()
     }
@@ -1006,7 +1024,7 @@ impl<'src> InternalParser<'src> {
                 p.expect_d(t!(XOR_KW), DESC).opt(|p| {
                     p.expect(t!(L_PAREN))
                         .expect(t!(INTEGER_LIT))
-                        .opt(|p| p.expect(t!(MINUS)).expect(t!(INTEGER_LIT)))
+                        .opt(|p| p.expect(t!(HYPEN)).expect(t!(INTEGER_LIT)))
                         .expect(t!(R_PAREN))
                 })
             })
@@ -1027,25 +1045,75 @@ impl<'src> InternalParser<'src> {
             .end()
     }
 
+    /// Parses the condition block.
+    ///
+    /// ```text
+    /// HEX_PATTERN := `{` HEX_SUB_PATTERN `}`
+    /// ``
     fn hex_pattern(&mut self) -> &mut Self {
         self.begin(SyntaxKind::HEX_PATTERN)
             .expect(t!(L_BRACE))
             .enter_hex_pattern_mode()
-            .then(|p| p.hex_tokens())
+            .then(|p| p.hex_sub_pattern())
             .expect(t!(R_BRACE))
             .end()
     }
 
-    fn hex_tokens(&mut self) -> &mut Self {
-        self.one_or_more(|p| p.expect(t!(HEX_BYTE)))
+    /// Parses the condition block.
+    ///
+    /// ```text
+    /// HEX_SUB_PATTERN :=
+    ///   (HEX_BYTE | HEX_ALTERNATIVE) (HEX_JUMP* (HEX_BYTE | HEX_ALTERNATIVE))*
+    /// ``
+    fn hex_sub_pattern(&mut self) -> &mut Self {
+        self.begin(SyntaxKind::HEX_SUB_PATTERN)
+            .begin_alt()
+            .alt(|p| p.expect(t!(HEX_BYTE)))
+            .alt(|p| p.hex_alternative())
+            .end_alt()
+            .zero_or_more(|p| {
+                p.zero_or_more(|p| p.hex_jump())
+                    .begin_alt()
+                    .alt(|p| p.expect(t!(HEX_BYTE)))
+                    .alt(|p| p.hex_alternative())
+                    .end_alt()
+            })
+            .end()
     }
 
+    /// Parses a hex pattern alternative.
+    ///
+    /// ```text
+    /// HEX_ALTERNATIVE := `(` HEX_SUB_PATTERN ( `|` HEX_SUB_PATTERN )* `)`
+    /// ``
     fn hex_alternative(&mut self) -> &mut Self {
-        todo!()
+        self.begin(SyntaxKind::HEX_ALTERNATIVE)
+            .expect(t!(L_PAREN))
+            .then(|p| p.hex_sub_pattern())
+            .zero_or_more(|p| p.expect(t!(PIPE)).then(|p| p.hex_sub_pattern()))
+            .expect(t!(R_PAREN))
+            .end()
     }
 
+    /// Parses a hex jump
+    ///
+    /// ```text
+    /// HEX_JUMP := `[` ( INTEGER_LIT? `-` INTEGER_LIT? | INTEGER_LIT ) `]`
+    /// ``
     fn hex_jump(&mut self) -> &mut Self {
-        todo!()
+        self.begin(SyntaxKind::HEX_JUMP)
+            .expect(t!(L_BRACKET))
+            .enter_hex_jump_mode()
+            .begin_alt()
+            .alt(|p| {
+                p.opt_expect(t!(INTEGER_LIT))
+                    .expect(t!(HYPEN))
+                    .opt_expect(t!(INTEGER_LIT))
+            })
+            .alt(|p| p.expect(t!(INTEGER_LIT)))
+            .end_alt()
+            .expect(t!(R_BRACKET))
+            .end()
     }
 
     /// Parses a boolean expression.

@@ -105,8 +105,11 @@ pub enum SyntaxKind {
     BOOLEAN_EXPR,
     BOOLEAN_TERM,
 
-    HEX_PATTERN,
+    HEX_ALTERNATIVE,
+    HEX_JUMP,
     HEX_BYTE,
+    HEX_PATTERN,
+    HEX_SUB_PATTERN,
 
     ERROR,
     UNKNOWN,
@@ -187,7 +190,7 @@ impl From<&Token> for SyntaxKind {
             Token::COMMA(_) => SyntaxKind::COMMA,
             Token::DOT(_) => SyntaxKind::DOT,
             Token::EQUAL(_) => SyntaxKind::EQUAL,
-            Token::MINUS(_) => SyntaxKind::MINUS,
+            Token::HYPEN(_) => SyntaxKind::MINUS,
             Token::PERCENT(_) => SyntaxKind::PERCENT,
             Token::PIPE(_) => SyntaxKind::PIPE,
             Token::PLUS(_) => SyntaxKind::PLUS,

@@ -135,6 +135,27 @@ fn hex_pattern() {
     assert_eq!(lexer.next_token(), Some(Token::R_BRACE(Span(6..7))));
     assert_eq!(lexer.next_token(), Some(Token::IDENT(Span(7..9))));
     assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new(r#"AA0?BB?0[1-10]CC"#.as_bytes());
+
+    lexer.enter_hex_pattern_mode();
+    assert_eq!(lexer.next_token(), Some(Token::HEX_BYTE(Span(0..2))));
+    assert_eq!(lexer.next_token(), Some(Token::HEX_BYTE(Span(2..4))));
+    assert_eq!(lexer.next_token(), Some(Token::HEX_BYTE(Span(4..6))));
+    assert_eq!(lexer.next_token(), Some(Token::HEX_BYTE(Span(6..8))));
+    assert_eq!(lexer.next_token(), Some(Token::L_BRACKET(Span(8..9))));
+    lexer.enter_hex_jump_mode();
+    assert_eq!(lexer.next_token(), Some(Token::INTEGER_LIT(Span(9..10))));
+    assert_eq!(lexer.next_token(), Some(Token::HYPEN(Span(10..11))));
+    assert_eq!(lexer.next_token(), Some(Token::INTEGER_LIT(Span(11..13))));
+    assert_eq!(lexer.next_token(), Some(Token::R_BRACKET(Span(13..14))));
+    assert_eq!(lexer.next_token(), Some(Token::HEX_BYTE(Span(14..16))));
+    assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new(r#"11 [0] 22 [1-2] "#.as_bytes());
+
+    lexer.enter_hex_pattern_mode();
+    assert_eq!(lexer.next_token(), Some(Token::HEX_BYTE(Span(0..2))));
 }
 
 #[test]

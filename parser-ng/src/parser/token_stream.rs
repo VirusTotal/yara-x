@@ -117,6 +117,14 @@ impl<'src> TokenStream<'src> {
     pub fn enter_hex_pattern_mode(&mut self) {
         self.tokenizer.enter_hex_pattern_mode()
     }
+
+    /// Switches to hex jump operation mode.
+    ///
+    /// See: [`Tokenizer::enter_hex_jump_mode`].
+    #[inline]
+    pub fn enter_hex_jump_mode(&mut self) {
+        self.tokenizer.enter_hex_jump_mode()
+    }
 }
 
 impl<'src> TokenStream<'src> {

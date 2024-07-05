@@ -23,22 +23,31 @@ mod tests;
 
 /// Takes YARA source code and produces a sequence of tokens.
 ///
-/// The tokenizer has two modes of operation: normal mode and hex pattern mode.
+/// The tokenizer has three modes of operation: normal mode, hex pattern mode,
+/// and hex jump.
+///
 /// In normal mode the tokenizer recognizes most of the tokens in YARA's syntax,
 /// like keywords (e.g: `rule`, `condition`, `for`, etc.), identifiers, string
 /// literals, etc. In hex pattern mode, the tokenizer only recognizes the tokens
-/// that can appear in a hex pattern.
+/// that can appear in a hex pattern, and in hex jump only the tokens that can
+/// appear inside a hex jump.
 ///
 /// This distinction is crucial because certain tokens, like `a0`, have
 /// different meanings depending on the mode. Outside a hex pattern, `a0` is an
-/// identifier; inside, it's a byte literal.
+/// identifier; inside, it's a byte literal. Another example is `10` which is
+/// an integer literal in normal mode, a hex byte in hex pattern mode, and
+/// also an integer literal in hex jump mode.
 ///
-/// The tokenizer itself is unable to know whether `a0` is inside a hex pattern,
-/// only the parser can know that. Therefore, it is the parser's responsibility
-/// to switch the tokenizer to hex pattern mode after parsing the opening brace
-/// (`{`) of a hex pattern. This is done by invoking
-/// [`Tokenizer::enter_hex_pattern_mode`]. The tokenizer will automatically
-/// revert to normal mode when it encounters the closing brace (`}`).
+/// The tokenizer itself is unable to know whether a token is inside a hex
+/// pattern, or inside a hex jump, only the parser can know that. Therefore,
+/// it is the parser's responsibility to switch the tokenizer to hex pattern
+/// mode after parsing the opening brace (`{`) of a hex pattern. This is done
+/// by invoking [`Tokenizer::enter_hex_pattern_mode`]. The tokenizer will
+/// automatically revert to normal mode when it encounters the closing brace
+/// (`}`). Similarly, the parser must call [`Tokenizer::enter_hex_jump_mode`]
+/// after parsing the opening bracket (`[`) of a jump in a hex pattern, and
+/// the tokenizer will go back to hex pattern mode when the closing bracket
+/// (`]`) is found.
 ///
 /// The source code passed to the tokenizer doesn't need to be valid UTF-8,
 /// when the tokenizer finds some invalid UTF-8 sequence, it will return the
@@ -91,13 +100,34 @@ impl<'src> Tokenizer<'src> {
                     Err(()) => {
                         // Found a token that was not expected in hex pattern
                         // mode, switch back to normal mode and try again. The
-                        // new lexer start position is where the unexpected
-                        // token was found.
+                        // start position for the new lexer is where the token
+                        // was found.
                         self.lexer_start += match &self.mode {
                             Mode::HexPattern(lexer) => lexer.span().start,
-                            Mode::Normal(_) => unreachable!(),
+                            _ => unreachable!(),
                         };
                         self.mode = Mode::Normal(Logos::lexer(
+                            &self.source[self.lexer_start..],
+                        ));
+                    }
+                },
+                Mode::HexJump(lexer) => match lexer.next()? {
+                    Ok(token) => {
+                        return Some(convert_hex_jump_token(
+                            token,
+                            Span::from(lexer.span()).offset(self.lexer_start),
+                        ))
+                    }
+                    Err(()) => {
+                        // Found a token that was not expected in hex jump
+                        // mode, switch back to hex pattern mode and try again.
+                        // The start position for the new lexer is where the
+                        // token was found.
+                        self.lexer_start += match &self.mode {
+                            Mode::HexJump(lexer) => lexer.span().start,
+                            _ => unreachable!(),
+                        };
+                        self.mode = Mode::HexPattern(Logos::lexer(
                             &self.source[self.lexer_start..],
                         ));
                     }
@@ -109,34 +139,58 @@ impl<'src> Tokenizer<'src> {
     /// Switches the tokenizer to hex pattern operation mode.
     ///
     /// The parser must invoke this function after processing the opening
-    /// brace of a hex pattern. The tokenizer will automatically revert back to
-    /// normal mode when encounters the closing brace.
+    /// brace (`{`) of a hex pattern. The tokenizer will automatically revert
+    /// back to normal mode when encounters the closing brace (`}`).
     ///
     /// See [`Tokenizer`] for more details about operation modes.
     ///
     /// # Panics
     ///
-    /// If the tokenizer is already in hex pattern operation mode.
+    /// If the tokenizer is not currently in normal mode.
     pub fn enter_hex_pattern_mode(&mut self) {
         self.lexer_start += match &self.mode {
             Mode::Normal(lexer) => lexer.span().end,
-            Mode::HexPattern(_) => panic!(
-                "enter_hex_pattern_mode called while already in hex pattern mode" ),
+            mode => {
+                panic!(r"enter_hex_pattern_mode called from mode: {:?}", mode)
+            }
         };
-
         self.mode =
             Mode::HexPattern(Logos::lexer(&self.source[self.lexer_start..]));
+    }
+
+    /// Switches the tokenizer to hex jump operation mode.
+    ///
+    /// The parser must invoke this function after processing the opening
+    /// bracket (`[`) of a hex jump. The tokenizer will automatically revert
+    /// back to hex pattern mode when encounters the closing bracket (`]`).
+    ///
+    /// See [`Tokenizer`] for more details about operation modes.
+    ///
+    /// # Panics
+    ///
+    /// If the tokenizer is not currently in hex pattern mode.
+    pub fn enter_hex_jump_mode(&mut self) {
+        self.lexer_start += match &self.mode {
+            Mode::HexPattern(lexer) => lexer.span().end,
+            mode => {
+                panic!(r"enter_hex_jump_mode called from mode: {:?}", mode)
+            }
+        };
+        self.mode =
+            Mode::HexJump(Logos::lexer(&self.source[self.lexer_start..]));
     }
 }
 
 /// Describes the current mode of operation for a tokenizer.
 ///
 /// [`Tokenizer`] uses the [`logos`] crate under the hood for doing the actual
-/// work. It uses two different logos lexers, one for the normal mode, and
-/// another one for the hex pattern mode.
+/// work. It uses three different logos lexers, one for each of the three
+/// modes of operation of the lexer: normal, hex pattern and hex jump.
+#[derive(Debug)]
 enum Mode<'src> {
     Normal(logos::Lexer<'src, NormalToken<'src>>),
     HexPattern(logos::Lexer<'src, HexPatternToken>),
+    HexJump(logos::Lexer<'src, HexJumpToken<'src>>),
 }
 
 #[derive(logos::Logos, Debug, PartialEq)]
@@ -343,8 +397,57 @@ enum NormalToken<'src> {
 #[derive(logos::Logos, Debug, PartialEq)]
 #[logos(source = [u8])]
 enum HexPatternToken {
-    #[regex("[0-9a-fA-F]{2}")]
+    // A hex byte is an optional tilde ~, followed by two hex digits or
+    // question marks. The following are valid tokens:
+    //
+    // 10, A0, ef, 3?, ?3, ??, ~AB, ~A?, ~??
+    //
+    // Some tokens like ~?? are not actually valid, but the tokenizer accepts
+    // them, and they are rejected later on during the compilation process.
+    // This way we can provide meaningful error messages.
+    #[regex("~?[?0-9a-fA-F]{2}")]
     Byte,
+
+    #[token("|")]
+    Pipe,
+
+    #[token("(")]
+    LParen,
+
+    #[token(")")]
+    RParen,
+
+    #[token("[")]
+    LBracket,
+
+    #[token("]")]
+    RBracket,
+
+    #[regex("[ \t]+")]
+    Whitespace,
+
+    #[token("\n")]
+    Newline,
+}
+
+#[derive(logos::Logos, Debug, PartialEq)]
+#[logos(source = [u8])]
+enum HexJumpToken<'src> {
+    #[token("-")]
+    Hypen,
+
+    // Integer literals.
+    #[regex(
+        r#"(?x)
+           (
+             0x[a-fA-F0-9]+ |           # hexadecimal number
+             0o[0-7]+       |           # octal number
+             [0-9]+                     # decimal number
+           )
+        "#,
+        |token| token.slice())
+    ]
+    IntegerLit(&'src [u8]),
 
     #[regex("[ \t]+")]
     Whitespace,
@@ -445,7 +548,7 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
         NormalToken::Colon => Token::COLON(span),
         NormalToken::Dot => Token::DOT(span),
         NormalToken::Equal => Token::EQUAL(span),
-        NormalToken::Minus => Token::MINUS(span),
+        NormalToken::Minus => Token::HYPEN(span),
         NormalToken::Percent => Token::PERCENT(span),
         NormalToken::Pipe => Token::PIPE(span),
         NormalToken::Tilde => Token::TILDE(span),
@@ -503,5 +606,24 @@ fn convert_hex_pattern_token(token: HexPatternToken, span: Span) -> Token {
         HexPatternToken::Byte => Token::HEX_BYTE(span),
         HexPatternToken::Whitespace => Token::WHITESPACE(span),
         HexPatternToken::Newline => Token::NEWLINE(span),
+        HexPatternToken::Pipe => Token::PIPE(span),
+        HexPatternToken::LParen => Token::L_PAREN(span),
+        HexPatternToken::RParen => Token::R_PAREN(span),
+        HexPatternToken::LBracket => Token::L_BRACKET(span),
+        HexPatternToken::RBracket => Token::R_BRACKET(span),
+    }
+}
+
+fn convert_hex_jump_token(token: HexJumpToken, span: Span) -> Token {
+    match token {
+        HexJumpToken::Hypen => Token::HYPEN(span),
+        HexJumpToken::Whitespace => Token::WHITESPACE(span),
+        HexJumpToken::Newline => Token::NEWLINE(span),
+        HexJumpToken::IntegerLit(lit) => {
+            return match from_utf8(lit) {
+                Ok(_) => Token::INTEGER_LIT(span),
+                Err(_) => unreachable!(),
+            }
+        }
     }
 }

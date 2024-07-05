@@ -1,6 +1,7 @@
 rule test {
 	strings:
-	
+	 $a = { aa b
   condition:
-	  true
+	 $a
+
 }

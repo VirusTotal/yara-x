@@ -74,7 +74,7 @@ pub enum Token {
     COMMA(Span),
     DOT(Span),
     EQUAL(Span),
-    MINUS(Span),
+    HYPEN(Span),
     PERCENT(Span),
     PIPE(Span),
     PLUS(Span),
@@ -180,7 +180,7 @@ impl Token {
             | Token::COLON(span)
             | Token::COMMA(span)
             | Token::DOT(span)
-            | Token::MINUS(span)
+            | Token::HYPEN(span)
             | Token::PERCENT(span)
             | Token::PIPE(span)
             | Token::TILDE(span)
@@ -269,7 +269,6 @@ impl Token {
             Token::GE(_) => "`>=`",
 
             // Punctuation.
-            Token::PLUS(_) => "`+`",
             Token::AMPERSAND(_) => "&",
             Token::ASTERISK(_) => "`*`",
             Token::BACKSLASH(_) => "`\\`",
@@ -277,9 +276,10 @@ impl Token {
             Token::COMMA(_) => "`,`",
             Token::DOT(_) => "`.`",
             Token::EQUAL(_) => "`=`",
-            Token::MINUS(_) => "`-`",
+            Token::HYPEN(_) => "`-`",
             Token::PERCENT(_) => "`%`",
             Token::PIPE(_) => "`|`",
+            Token::PLUS(_) => "`+`",
             Token::TILDE(_) => "`~`",
 
             Token::L_BRACE(_) => "`{`",
