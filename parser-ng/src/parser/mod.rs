@@ -15,6 +15,8 @@ error nodes is valid YARA code.
 [2]: https://github.com/rust-analyzer/rowan
  */
 
+use indexmap::map::Entry;
+use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::mem;
 
@@ -80,16 +82,16 @@ struct InternalParser<'src> {
     /// and the "zero or more" operation (examples: `(A|B)`, `A*`).
     opt_depth: usize,
 
-    /// Errors found during parsing that haven't been sent to the `output`
-    /// stream yet.
+    /// Errors found during parsing that haven't been sent to `ready_errors`
+    /// yet.
     ///
     /// When the parser expects a token, and that tokens is not the next one
     /// in input, it produces an error like `expecting "foo", found "bar"`.
-    /// However, these errors are not sent immediately to the `output` stream
-    /// because some the errors may occur while parsing optional code, or while
-    /// parsing some branch in an alternation. For instance, in the grammar
-    /// rule `A := (B | C)`, if the parser finds an error while parsing `B`,
-    /// but `C` succeeds, then `A` is successful and the error found while
+    /// However, these errors are not sent immediately to `ready_errors`
+    /// stream because some the errors may occur while parsing optional code,
+    /// or while parsing some branch in an alternation. For instance, in the
+    /// grammar rule `A := (B | C)`, if the parser finds an error while parsing
+    /// `B`, but `C` succeeds, then `A` is successful and the error found while
     /// parsing `B` is not reported.
     ///
     /// In the other hand, if both `B` and `C` produce errors, then `A` has
@@ -98,9 +100,17 @@ struct InternalParser<'src> {
     /// the one with the largest span start). This approach tends to produce
     /// more meaningful errors.
     ///
-    /// The items in the vector error messages accompanied by the span in the
-    /// source code where the error occurred.
+    /// The items in the vector are error messages accompanied by the span in
+    /// the source code where the error occurred.
     pending_errors: Vec<(String, Span)>,
+
+    /// Errors go from `pending_errors` to `ready_errors` before they are
+    /// finally pushed to the `output` stream. This extra step has the purpose
+    /// of removing duplicate messages for the same code span. In certain cases
+    /// the parser can produce two different error messages for the same span,
+    /// but this map guarantees that only the first error is taken into account
+    /// and that any further error for the same span is ignored.
+    ready_errors: IndexMap<Span, String>,
 
     /// Hash map where keys are positions within the source code, and values
     /// are a list of tokens that were expected to match at that position.
@@ -147,6 +157,7 @@ impl<'src> From<Tokenizer<'src>> for InternalParser<'src> {
             tokens: TokenStream::new(tokenizer),
             output: SyntaxStream::new(),
             pending_errors: Vec::new(),
+            ready_errors: IndexMap::new(),
             expected_tokens: HashMap::new(),
             opt_depth: 0,
             failed: false,
@@ -170,7 +181,7 @@ impl Iterator for InternalParser<'_> {
         // avoiding tokenizing the entire input at once, or producing all
         // the events before they are consumed.
         if self.output.is_empty() && self.tokens.has_more() {
-            let _ = self.ws();
+            let _ = self.trivia();
             let _ = self.top_level_item();
             self.failed = false;
         }
@@ -187,6 +198,46 @@ impl<'src> InternalParser<'src> {
     /// Returns `None` if there are no more tokens.
     fn peek(&mut self) -> Option<&Token> {
         self.tokens.peek_token(0)
+    }
+
+    /// Returns the next non-trivia token, without consuming any token.
+    ///
+    /// Trivia tokens are those that are not really relevant and can be ignored,
+    /// like whitespaces, newlines, and comments. This function skips trivia
+    /// tokens until finding one that is non-trivia.
+    fn peek_non_ws(&mut self) -> Option<&Token> {
+        let mut i = 0;
+        // First find the position of the first token that is not a whitespace
+        // and then use `peek_token` again for returning it. This is necessary
+        // due to a current limitation in the borrow checker that doesn't allow
+        // this:
+        //
+        // loop {
+        //     match self.tokens.peek_token(i) {
+        //         Some(token) => {
+        //             if token.is_trivia() {
+        //                 i += 1;
+        //             } else {
+        //                 return Some(token);
+        //             }
+        //         }
+        //         None => return None,
+        //     }
+        // }
+        //
+        let token_pos = loop {
+            match self.tokens.peek_token(i) {
+                Some(token) => {
+                    if token.is_trivia() {
+                        i += 1;
+                    } else {
+                        break i;
+                    }
+                }
+                None => return None,
+            }
+        };
+        self.tokens.peek_token(token_pos)
     }
 
     /// Consumes the next token and returns it. The consumed token is also
@@ -257,97 +308,37 @@ impl<'src> InternalParser<'src> {
         self
     }
 
-    fn recover(&mut self, tokens: &TokenSet) -> &mut Self {
-        match self.peek() {
-            None => {}
-            Some(token) if tokens.contains(token) => {}
-            Some(_) => {
-                self.output.begin(SyntaxKind::ERROR);
-                while let Some(token) = self.peek() {
-                    if tokens.contains(token) {
-                        break;
-                    } else {
-                        self.bump();
-                    }
-                }
-                self.output.end();
-            }
-        }
+    fn recover(&mut self) -> &mut Self {
         self.failed = false;
         self
     }
 
-    /// Checks that the next token matches one of the expected tokens.
-    ///
-    /// If the next token does not match any of the expected tokens, the parser
-    /// will transition to a failure state and generate an error message. If
-    /// the token matches, no action is taken. In both cases the token remains
-    /// unconsumed. For a version of this function that consumes the token, see
-    /// [`InternalParser::expect`].
-    ///
-    /// # Panics
-    ///
-    /// If `expected_tokens` is empty.
-    fn check(&mut self, expected_tokens: &TokenSet) -> &mut Self {
-        assert!(!expected_tokens.is_empty());
-
-        let token = match self.peek() {
-            None => {
-                self.failed = true;
-                return self;
-            }
-            Some(token) if expected_tokens.contains(token) => {
-                return self;
-            }
-            Some(token) => token,
-        };
-
-        let span = token.span();
-        let token_str = token.as_str();
-
-        let tokens = self.expected_tokens.entry(span.start()).or_default();
-        tokens.extend(expected_tokens.iter().map(|t| t.as_str()));
-
-        let (last, all_except_last) = tokens.split_last().unwrap();
-
-        let error_msg = if all_except_last.is_empty() {
-            format!("expecting {last}, found {}", token_str)
-        } else {
-            format!(
-                "expecting {} or {last}, found {}",
-                all_except_last.join(", "),
-                token_str,
-            )
-        };
-
-        self.pending_errors.push((error_msg, span));
-
-        if self.opt_depth == 0 {
-            // Find the pending error starting at the largest offset. If several
-            // errors start at the same offset, the last one is used (this is
-            // guaranteed by the `max_by_key` function). `self.pending_errors`
-            // is left empty.
-            if let Some((error, span)) = self
-                .pending_errors
-                .drain(0..)
-                .max_by_key(|(_, span)| span.start())
-            {
-                self.output.push_error(error, span);
+    fn sync(&mut self, recovery_set: &TokenSet) -> &mut Self {
+        self.trivia();
+        match self.peek() {
+            None => return self,
+            Some(token) if recovery_set.contains(token) => return self,
+            Some(token) => {
+                let span = token.span();
+                let token_str = token.as_str();
+                self.unexpected_token_error(token_str, span, recovery_set);
             }
         }
-
-        self.failed = true;
+        self.output.begin(SyntaxKind::ERROR);
+        while let Some(token) = self.peek() {
+            if recovery_set.contains(token) {
+                break;
+            } else {
+                self.bump();
+            }
+        }
+        self.output.end();
         self
     }
 
-    /// Similar to [`InternalParser::check`] but consumes any non-matching
-    /// token until it finds one that matches.
-    ///
-    /// If the next token matches one of the expected tokens. this function
-    /// behaves as `check`. However, if the next token does not match any of
-    /// the expected tokens, this function will consume tokens until it finds
-    /// a match. The non-matching tokens will be sent to the output under an
-    /// error node in the tree.
+    /// Recovers the parser from a previous error, consuming any token that is
+    /// not in the recovery set and putting them under an error node in the
+    /// resulting tree.
     ///
     /// The purpose of this function is establishing a point for the parser to
     /// recover from parsing errors. For instance, consider the following
@@ -383,20 +374,20 @@ impl<'src> InternalParser<'src> {
     ///   c
     /// ```
     ///
-    /// By inserting `check_and_recover(c)`, we can recover from previous errors
+    /// By inserting `recover_and_sync(c)`, we can recover from previous errors
     /// before trying to match `C`:
     ///
     /// ```text
     /// self.begin(A)
     ///     .expect(a)
     ///     .one(|p| p.B())
-    ///     .check_and_recover(c)
+    ///     .recover_and_sync(c)
     ///     .one(|p| p.C())
     ///     .end()
     /// ```
     ///
     /// If the parser fails at `one(|p| p.B())`, leaving the `xx` tokens
-    /// unconsumed, `check_and_recover(c)` will consume them until it finds a
+    /// unconsumed, `recover_and_sync(c)` will consume them until it finds a
     /// `c` token and will recover from the error. This allows `one(|p| p.C())`
     /// to consume the `c` and succeed. The resulting CST would be like:
     ///
@@ -410,33 +401,68 @@ impl<'src> InternalParser<'src> {
     /// ```
     ///
     /// Notice how the error is now more localized.
-    fn check_and_recover(&mut self, expected_tokens: &TokenSet) -> &mut Self {
-        self.check(expected_tokens);
+    fn recover_and_sync(&mut self, recovery_set: &TokenSet) -> &mut Self {
+        self.recover();
+        /*if let Some(t) = self.peek_non_ws() {
+            if recovery_set.contains(t) {
+                return self;
+            }
+        }*/
+        self.sync(recovery_set);
+        self
+    }
+
+    /// Consumes trivia tokens until finding one that is non-trivia.
+    ///
+    /// Trivia tokens those that are not really part of the language, like
+    /// whitespaces, newlines and comments.
+    fn trivia(&mut self) -> &mut Self {
         if self.failed {
-            self.recover(expected_tokens);
+            return self;
+        }
+        while let Some(WHITESPACE(_)) | Some(NEWLINE(_)) | Some(COMMENT(_)) =
+            self.peek()
+        {
+            self.bump();
         }
         self
     }
 
-    /// Checks that the next token matches one of the expected tokens.
+    /// Checks that the next non-trivia token matches one of the expected
+    /// tokens.
     ///
-    /// If the next token does not match any of the expected tokens, the parser
-    /// will transition to a failure state and generate an error message. If
-    /// the token matches, it will be consumed and sent to the output. For a
-    /// version of this function that does not consume the token, see
-    /// [`InternalParser::check`].
+    /// If the next non-trivia token does not match any of the expected tokens,
+    /// no token will be consumed, the parser will transition to a failure
+    /// state and generate an error message. If it matches, the non-trivia
+    /// token and any trivia token that appears in front of it will be
+    /// consumed and sent to the output.
     ///
     /// # Panics
     ///
     /// If `expected_tokens` is empty.
     fn expect(&mut self, expected_tokens: &TokenSet) -> &mut Self {
+        assert!(!expected_tokens.is_empty());
+
         if self.failed {
             return self;
         }
 
-        self.check(expected_tokens);
+        let found_expected_token = match self.peek_non_ws() {
+            None => false,
+            Some(token) if expected_tokens.contains(token) => true,
+            Some(token) => {
+                let span = token.span();
+                let token_str = token.as_str();
+                self.unexpected_token_error(token_str, span, expected_tokens);
+                false
+            }
+        };
 
-        if !self.failed {
+        if found_expected_token {
+            // Consume any trivia token in front of the non-trivia expected
+            // token.
+            self.trivia();
+            // Consume the expected token.
             self.bump();
             // After matching a token that is not inside an "optional" branch
             // in the grammar, it's guaranteed that the parser won't go back
@@ -446,20 +472,14 @@ impl<'src> InternalParser<'src> {
             if self.opt_depth == 0 {
                 self.expected_tokens.clear();
                 self.pending_errors.clear();
+                for (span, error) in self.ready_errors.drain(0..) {
+                    self.output.push_error(error, span);
+                }
             }
+        } else {
+            self.failed = true;
         }
 
-        self
-    }
-
-    /// Similar to [`InternalParser::check_and_recover`], but also consumes the
-    /// expected token.
-    fn expect_and_recover(&mut self, tokens: &TokenSet) -> &mut Self {
-        self.expect(tokens);
-        if self.failed {
-            self.recover(tokens);
-            self.bump();
-        }
         self
     }
 
@@ -498,6 +518,7 @@ impl<'src> InternalParser<'src> {
 
         let bookmark = self.bookmark();
 
+        self.trivia();
         self.opt_depth += 1;
         parser(self);
         self.opt_depth -= 1;
@@ -512,12 +533,14 @@ impl<'src> InternalParser<'src> {
         self
     }
 
-    /// If the next token matches one of the expected tokens, applies `parser`.
+    /// If the next non-trivia token matches one of the expected tokens,
+    /// consume all trivia tokens and applies `parser`.
     ///
     /// `if_found(TOKEN, |p| p.expect(TOKEN))` is logically equivalent to
     /// `opt(|p| p.expect(TOKEN))`, but the former is more efficient because it
     /// doesn't do any backtracking. The closure `|p| p.expect(TOKEN)` is
-    /// executed only after we are sure that the next token is `TOKEN`.
+    /// executed only after we are sure that the next non-trivia token is
+    /// `TOKEN`.
     ///
     /// This can be used for replacing `opt` when the optional production can
     /// be unequivocally distinguished by its first token. For instance, in a
@@ -541,10 +564,11 @@ impl<'src> InternalParser<'src> {
         if self.failed {
             return self;
         }
-        match self.peek() {
+        match self.peek_non_ws() {
             None => {}
             Some(token) => {
                 if expected_tokens.contains(token) {
+                    self.trivia();
                     parser(self);
                 } else {
                     let span = token.span();
@@ -585,6 +609,7 @@ impl<'src> InternalParser<'src> {
         }
         // The first N times that `f` is called it must match.
         for _ in 0..n {
+            self.trivia();
             parser(self);
             if self.failed {
                 return self;
@@ -594,6 +619,7 @@ impl<'src> InternalParser<'src> {
         // possible.
         loop {
             let bookmark = self.bookmark();
+            self.trivia();
             self.opt_depth += 1;
             parser(self);
             self.opt_depth -= 1;
@@ -610,28 +636,61 @@ impl<'src> InternalParser<'src> {
     }
 
     /// Applies `parser` exactly one time.
-    fn one<P>(&mut self, parser: P) -> &mut Self
+    fn then<P>(&mut self, parser: P) -> &mut Self
     where
         P: Fn(&mut Self) -> &mut Self,
     {
         if self.failed {
             return self;
         }
+        self.trivia();
         parser(self);
         self
     }
 
-    /// Matches zero or more whitespaces, newlines or comments.
-    fn ws(&mut self) -> &mut Self {
-        if self.failed {
-            return self;
+    fn unexpected_token_error(
+        &mut self,
+        token_str: &str,
+        span: Span,
+        expected_tokens: &TokenSet,
+    ) {
+        let tokens = self.expected_tokens.entry(span.start()).or_default();
+        tokens.extend(expected_tokens.iter().map(|t| t.as_str()));
+
+        let (last, all_except_last) = tokens.split_last().unwrap();
+
+        let error_msg = if all_except_last.is_empty() {
+            format!("expecting {last}, found {}", token_str)
+        } else {
+            format!(
+                "expecting {} or {last}, found {}",
+                all_except_last.join(", "),
+                token_str,
+            )
+        };
+
+        self.pending_errors.push((error_msg, span));
+
+        if self.opt_depth == 0 {
+            // Find the pending error starting at the largest offset. If several
+            // errors start at the same offset, the last one is used (this is
+            // guaranteed by the `max_by_key` function). `self.pending_errors`
+            // is left empty.
+            if let Some((error, span)) = self
+                .pending_errors
+                .drain(0..)
+                .max_by_key(|(_, span)| span.start())
+            {
+                match self.ready_errors.entry(span) {
+                    Entry::Occupied(_) => {
+                        // already present, don't replace.
+                    }
+                    Entry::Vacant(v) => {
+                        v.insert(error);
+                    }
+                }
+            }
         }
-        while let Some(WHITESPACE(_)) | Some(NEWLINE(_)) | Some(COMMENT(_)) =
-            self.peek()
-        {
-            self.bump();
-        }
-        self
     }
 }
 
@@ -669,9 +728,7 @@ macro_rules! t {
 /// fn A(&mut self) -> &mut Self {
 ///   self.begin(SyntaxKind::A)
 ///       .expect(t!(a))
-///       .ws()
 ///       .one(|p| p.B())
-///       .ws()
 ///       .begin_alt()
 ///          .alt(|p| p.C())
 ///          .alt(|p| p.D())
@@ -679,10 +736,6 @@ macro_rules! t {
 ///       .end()
 /// }
 /// ```
-///
-/// Notice the use of `ws()` to indicate where whitespace, newlines, or
-/// comments are allowed. The `ws()` function accepts and consumes zero or
-/// more whitespaces newlines or comments.
 ///
 /// Also notice the use of `begin_alt` and `end_alt` for enclosing alternatives
 /// like `(C | D)`. In PEG parsers the order of alternatives is important, the
@@ -711,8 +764,9 @@ impl<'src> InternalParser<'src> {
             GLOBAL_KW(_) | PRIVATE_KW(_) | RULE_KW(_) => self.rule_decl(),
             token => {
                 let span = token.span();
+                let token_str = token.as_str();
                 self.output.push_error(
-                    "expecting import statement or rule definition",
+                    format!("expecting import statement or rule definition, found {}", token_str),
                     span,
                 );
                 self.output.begin(SyntaxKind::ERROR);
@@ -732,7 +786,6 @@ impl<'src> InternalParser<'src> {
     fn import_stmt(&mut self) -> &mut Self {
         self.begin(SyntaxKind::IMPORT_STMT)
             .expect(t!(IMPORT_KW))
-            .ws()
             .expect(t!(STRING_LIT))
             .end()
     }
@@ -749,22 +802,17 @@ impl<'src> InternalParser<'src> {
     fn rule_decl(&mut self) -> &mut Self {
         self.begin(SyntaxKind::RULE_DECL)
             .opt(|p| p.rule_mods())
-            .ws()
             .expect(t!(RULE_KW))
-            .ws()
             .expect(t!(IDENT))
-            .ws()
             .if_found(t!(COLON), |p| p.rule_tags())
-            .ws()
-            .expect_and_recover(t!(L_BRACE))
-            .ws()
+            .recover_and_sync(t!(L_BRACE))
+            .expect(t!(L_BRACE))
+            .recover_and_sync(t!(META_KW | STRINGS_KW | CONDITION_KW))
             .if_found(t!(META_KW), |p| p.meta_blk())
-            .ws()
+            .recover_and_sync(t!(STRINGS_KW | CONDITION_KW))
             .if_found(t!(STRINGS_KW), |p| p.patterns_blk())
-            .ws()
-            .check_and_recover(t!(CONDITION_KW))
-            .one(|p| p.condition_blk())
-            .ws()
+            .recover_and_sync(t!(CONDITION_KW))
+            .then(|p| p.condition_blk())
             .expect(t!(R_BRACE))
             .end()
     }
@@ -777,12 +825,8 @@ impl<'src> InternalParser<'src> {
     fn rule_mods(&mut self) -> &mut Self {
         self.begin(SyntaxKind::RULE_MODS)
             .begin_alt()
-            .alt(|p| {
-                p.expect(t!(PRIVATE_KW)).opt(|p| p.ws().expect(t!(GLOBAL_KW)))
-            })
-            .alt(|p| {
-                p.expect(t!(GLOBAL_KW)).opt(|p| p.ws().expect(t!(PRIVATE_KW)))
-            })
+            .alt(|p| p.expect(t!(PRIVATE_KW)).opt(|p| p.expect(t!(GLOBAL_KW))))
+            .alt(|p| p.expect(t!(GLOBAL_KW)).opt(|p| p.expect(t!(PRIVATE_KW))))
             .end_alt()
             .end()
     }
@@ -795,7 +839,7 @@ impl<'src> InternalParser<'src> {
     fn rule_tags(&mut self) -> &mut Self {
         self.begin(SyntaxKind::RULE_TAGS)
             .expect(t!(COLON))
-            .one_or_more(|p| p.ws().expect(t!(IDENT)))
+            .one_or_more(|p| p.expect(t!(IDENT)))
             .end()
     }
 
@@ -807,9 +851,16 @@ impl<'src> InternalParser<'src> {
     fn meta_blk(&mut self) -> &mut Self {
         self.begin(SyntaxKind::META_BLK)
             .expect(t!(META_KW))
-            .ws()
             .expect(t!(COLON))
-            .one_or_more(|p| p.ws().meta_def())
+            .one_or_more(|p| p.meta_def())
+            /*.then(|p| {
+                while matches!(p.peek_non_ws(), Some(IDENT(_))) {
+                    p.trivia();
+                    p.meta_def();
+                    p.recover_and_sync(t!(IDENT | STRINGS_KW | CONDITION_KW));
+                }
+                p
+            })*/
             .end()
     }
 
@@ -827,9 +878,7 @@ impl<'src> InternalParser<'src> {
     fn meta_def(&mut self) -> &mut Self {
         self.begin(SyntaxKind::META_DEF)
             .expect(t!(IDENT))
-            .ws()
             .expect(t!(EQUAL))
-            .ws()
             .expect(t!(TRUE_KW
                 | FALSE_KW
                 | INTEGER_LIT
@@ -846,11 +895,8 @@ impl<'src> InternalParser<'src> {
     fn patterns_blk(&mut self) -> &mut Self {
         self.begin(SyntaxKind::PATTERNS_BLK)
             .expect(t!(STRINGS_KW))
-            .ws()
             .expect(t!(COLON))
-            .one_or_more(|p| p.ws().pattern_def())
-            //.ws()
-            //.check_and_recover(t!(CONDITION_KW))
+            .one_or_more(|p| p.pattern_def())
             .end()
     }
 
@@ -866,15 +912,13 @@ impl<'src> InternalParser<'src> {
     fn pattern_def(&mut self) -> &mut Self {
         self.begin(SyntaxKind::PATTERN_DEF)
             .expect(t!(PATTERN_IDENT))
-            .ws()
             .expect(t!(EQUAL))
-            .ws()
             .begin_alt()
             .alt(|p| p.expect(t!(STRING_LIT)))
             .alt(|p| p.expect(t!(REGEXP)))
             .alt(|p| p.hex_pattern())
             .end_alt()
-            .opt(|p| p.ws().pattern_mods())
+            .opt(|p| p.pattern_mods())
             .end()
     }
 
@@ -893,10 +937,8 @@ impl<'src> InternalParser<'src> {
     fn condition_blk(&mut self) -> &mut Self {
         self.begin(SyntaxKind::CONDITION_BLK)
             .expect(t!(CONDITION_KW))
-            .ws()
             .expect(t!(COLON))
-            .ws()
-            .one(|p| p.boolean_expr())
+            .then(|p| p.boolean_expr())
             .end()
     }
 
@@ -904,15 +946,13 @@ impl<'src> InternalParser<'src> {
         self.begin(SyntaxKind::HEX_PATTERN)
             .expect(t!(L_BRACE))
             .enter_hex_pattern_mode()
-            .ws()
-            .one(|p| p.hex_tokens())
-            .ws()
+            .then(|p| p.hex_tokens())
             .expect(t!(R_BRACE))
             .end()
     }
 
     fn hex_tokens(&mut self) -> &mut Self {
-        self.one_or_more(|p| p.ws().expect(t!(HEX_BYTE)))
+        self.one_or_more(|p| p.expect(t!(HEX_BYTE)))
     }
 
     fn hex_alternative(&mut self) -> &mut Self {
@@ -930,12 +970,9 @@ impl<'src> InternalParser<'src> {
     /// ``
     fn boolean_expr(&mut self) -> &mut Self {
         self.begin(SyntaxKind::BOOLEAN_EXPR)
-            .one(|p| p.boolean_term())
+            .then(|p| p.boolean_term())
             .zero_or_more(|p| {
-                p.ws()
-                    .expect(t!(AND_KW | OR_KW))
-                    .ws()
-                    .one(|p| p.boolean_term())
+                p.expect(t!(AND_KW | OR_KW)).then(|p| p.boolean_term())
             })
             .end()
     }
@@ -1005,6 +1042,7 @@ impl<'a, 'src> Alt<'a, 'src> {
         // Don't try to match the current alternative if the parser a previous
         // one already matched.
         if !self.matched {
+            self.parser.trivia();
             self.parser.opt_depth += 1;
             self.parser = f(self.parser);
             self.parser.opt_depth -= 1;

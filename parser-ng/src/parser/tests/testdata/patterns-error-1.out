@@ -7,16 +7,16 @@ SOURCE_FILE@0..57
     L_BRACE@10..11 "{"
     NEWLINE@11..12 "\n"
     WHITESPACE@12..13 "\t"
-    ERROR@13..30
+    ERROR@13..29
       STRINGS_KW@13..20 "strings"
       COLON@20..21 ":"
       NEWLINE@21..22 "\n"
       WHITESPACE@22..25 "\t  "
-      ERROR@25..30
+      ERROR@25..29
         PATTERN_IDENT@25..27 "$c"
         WHITESPACE@27..28 " "
         EQUAL@28..29 "="
-        WHITESPACE@29..30 " "
+    WHITESPACE@29..30 " "
     ERROR@30..37
       L_BRACE@30..31 "{"
       WHITESPACE@31..32 " "

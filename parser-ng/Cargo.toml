@@ -21,6 +21,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
+indexmap = { workspace = true }
 logos = "0.14.0"
 rowan = "0.15.15"
 

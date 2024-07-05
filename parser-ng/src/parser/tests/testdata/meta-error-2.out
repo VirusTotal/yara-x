@@ -7,15 +7,15 @@ SOURCE_FILE@0..50
     L_BRACE@10..11 "{"
     NEWLINE@11..12 "\n"
     WHITESPACE@12..14 "  "
-    ERROR@14..30
+    ERROR@14..27
       META_KW@14..18 "meta"
       COLON@18..19 ":"
       NEWLINE@19..20 "\n"
       WHITESPACE@20..24 "    "
-      ERROR@24..30
+      ERROR@24..27
         IDENT@24..27 "foo"
-        NEWLINE@27..28 "\n"
-        WHITESPACE@28..30 "  "
+    NEWLINE@27..28 "\n"
+    WHITESPACE@28..30 "  "
     CONDITION_BLK@30..48
       CONDITION_KW@30..39 "condition"
       COLON@39..40 ":"
