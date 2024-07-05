@@ -1,0 +1,13 @@
+rule test_1 {
+	strings:
+	  $a = "a" foo
+  condition:
+	  true
+}
+
+rule test_2 {
+	strings:
+	  $a = "a" base64()
+  condition:
+	  true
+}

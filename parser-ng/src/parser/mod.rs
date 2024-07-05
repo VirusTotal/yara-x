@@ -16,7 +16,7 @@ error nodes is valid YARA code.
  */
 
 use indexmap::map::Entry;
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
 use std::mem;
 
@@ -147,7 +147,7 @@ struct InternalParser<'src> {
     /// position of `c`. When `expect(b)` fails later, the parser looks up
     /// any other token (besides `b`) that were expected to match at the
     /// position and produces a comprehensive error message.
-    expected_tokens: HashMap<usize, Vec<&'static str>>,
+    expected_tokens: HashMap<usize, IndexSet<&'static str>>,
 }
 
 impl<'src> From<Tokenizer<'src>> for InternalParser<'src> {
@@ -320,8 +320,13 @@ impl<'src> InternalParser<'src> {
             Some(token) if recovery_set.contains(token) => return self,
             Some(token) => {
                 let span = token.span();
-                let token_str = token.as_str();
-                self.unexpected_token_error(token_str, span, recovery_set);
+                let token_str = token.description();
+                self.unexpected_token_error(
+                    token_str,
+                    span,
+                    recovery_set,
+                    None,
+                );
             }
         }
         self.output.begin(SyntaxKind::ERROR);
@@ -441,6 +446,16 @@ impl<'src> InternalParser<'src> {
     ///
     /// If `expected_tokens` is empty.
     fn expect(&mut self, expected_tokens: &TokenSet) -> &mut Self {
+        self.expect_d(expected_tokens, None)
+    }
+
+    /// Like [`InternalParser::expect`], but allows specifying a custom
+    /// description for the expected tokens.
+    fn expect_d(
+        &mut self,
+        expected_tokens: &TokenSet,
+        description: Option<&'static str>,
+    ) -> &mut Self {
         assert!(!expected_tokens.is_empty());
 
         if self.failed {
@@ -452,8 +467,13 @@ impl<'src> InternalParser<'src> {
             Some(token) if expected_tokens.contains(token) => true,
             Some(token) => {
                 let span = token.span();
-                let token_str = token.as_str();
-                self.unexpected_token_error(token_str, span, expected_tokens);
+                let token_str = token.description();
+                self.unexpected_token_error(
+                    token_str,
+                    span,
+                    expected_tokens,
+                    description,
+                );
                 false
             }
         };
@@ -574,7 +594,9 @@ impl<'src> InternalParser<'src> {
                     let span = token.span();
                     let tokens =
                         self.expected_tokens.entry(span.start()).or_default();
-                    tokens.extend(expected_tokens.iter().map(|t| t.as_str()));
+                    tokens.extend(
+                        expected_tokens.iter().map(|t| t.description()),
+                    );
                 }
             }
         }
@@ -653,18 +675,24 @@ impl<'src> InternalParser<'src> {
         token_str: &str,
         span: Span,
         expected_tokens: &TokenSet,
+        description: Option<&'static str>,
     ) {
         let tokens = self.expected_tokens.entry(span.start()).or_default();
-        tokens.extend(expected_tokens.iter().map(|t| t.as_str()));
 
-        let (last, all_except_last) = tokens.split_last().unwrap();
+        if let Some(description) = description {
+            tokens.insert(description);
+        } else {
+            tokens.extend(expected_tokens.iter().map(|t| t.description()));
+        }
+
+        let (last, all_except_last) = tokens.as_slice().split_last().unwrap();
 
         let error_msg = if all_except_last.is_empty() {
             format!("expecting {last}, found {}", token_str)
         } else {
             format!(
                 "expecting {} or {last}, found {}",
-                all_except_last.join(", "),
+                itertools::join(all_except_last.iter(), ", "),
                 token_str,
             )
         };
@@ -764,7 +792,7 @@ impl<'src> InternalParser<'src> {
             GLOBAL_KW(_) | PRIVATE_KW(_) | RULE_KW(_) => self.rule_decl(),
             token => {
                 let span = token.span();
-                let token_str = token.as_str();
+                let token_str = token.description();
                 self.output.push_error(
                     format!("expecting import statement or rule definition, found {}", token_str),
                     span,
@@ -922,10 +950,65 @@ impl<'src> InternalParser<'src> {
             .end()
     }
 
+    /// Parses pattern modifiers.
+    ///
+    /// ```text
+    /// PATTERN_MODS := PATTERN_MOD+
+    /// ``
     fn pattern_mods(&mut self) -> &mut Self {
-        // TODO
         self.begin(SyntaxKind::PATTERN_MODS)
-            .expect(t!(ASCII_KW | WIDE_KW | PRIVATE_KW))
+            .one_or_more(|p| p.pattern_mod())
+            .end()
+    }
+
+    /// Parses a pattern modifier.
+    ///
+    /// ```text
+    /// PATTERN_MOD := (
+    ///   `ascii`                                                  |
+    ///   `wide`                                                   |
+    ///   `nocase`                                                 |
+    ///   `private`                                                |
+    ///   `fullword`                                               |
+    ///   `base64` | `base64wide` ( `(` STRING_LIT `)` )?          |
+    ///   `xor` (
+    ///       `(`
+    ///         INTEGER_LIT ( `-` INTEGER_LIT) )?
+    ///       `)`
+    ///    )?
+    /// )
+    /// ``
+    fn pattern_mod(&mut self) -> &mut Self {
+        const DESC: Option<&'static str> = Some("pattern modifier");
+
+        self.begin(SyntaxKind::PATTERN_MOD)
+            .begin_alt()
+            .alt(|p| {
+                p.expect_d(
+                    t!(ASCII_KW
+                        | WIDE_KW
+                        | NOCASE_KW
+                        | PRIVATE_KW
+                        | FULLWORD_KW),
+                    DESC,
+                )
+            })
+            .alt(|p| {
+                p.expect_d(t!(BASE64_KW | BASE64WIDE_KW), DESC).opt(|p| {
+                    p.expect(t!(L_PAREN))
+                        .expect(t!(STRING_LIT))
+                        .expect(t!(R_PAREN))
+                })
+            })
+            .alt(|p| {
+                p.expect_d(t!(XOR_KW), DESC).opt(|p| {
+                    p.expect(t!(L_PAREN))
+                        .expect(t!(INTEGER_LIT))
+                        .opt(|p| p.expect(t!(MINUS)).expect(t!(INTEGER_LIT)))
+                        .expect(t!(R_PAREN))
+                })
+            })
+            .end_alt()
             .end()
     }
 

@@ -5015,6 +5015,7 @@ dependencies = [
  "globwalk",
  "goldenfile",
  "indexmap 2.2.6",
+ "itertools 0.13.0",
  "logos",
  "pretty_assertions",
  "rayon",

@@ -97,6 +97,7 @@ pub enum SyntaxKind {
     PATTERN_IDENT,
     PATTERNS_BLK,
     PATTERN_MODS,
+    PATTERN_MOD,
     REGEXP,
     META_DEF,
     META_BLK,

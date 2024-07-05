@@ -214,7 +214,7 @@ impl Token {
         }
     }
 
-    pub fn as_str(&self) -> &'static str {
+    pub fn description(&self) -> &'static str {
         match self {
             // Keywords.
             Token::ALL_KW(_) => "`all`",

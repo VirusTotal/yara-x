@@ -279,7 +279,6 @@ enum NormalToken<'src> {
     // Float literals
     #[regex(
         r#"(?x)                         # allow comments in the regexp
-            -?                          # optional minus sign
             [0-9]+                      # one or more digits
             \.                          # a dot
             [0-9]+                      # one more digits
