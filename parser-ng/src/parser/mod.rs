@@ -69,7 +69,7 @@ struct InternalParser<'src> {
     /// Stream where the parser puts the events that conform the resulting CST.
     output: SyntaxStream,
 
-    /// If true, the parser is "failure" state. The parser enters the "failure"
+    /// If true, the parser is in "failure" state. The parser enters this
     /// state when some syntax rule expects a token that doesn't match the
     /// next token in the input.
     failed: bool,
@@ -425,10 +425,12 @@ impl<'src> InternalParser<'src> {
         if self.failed {
             return self;
         }
-        while let Some(WHITESPACE(_)) | Some(NEWLINE(_)) | Some(COMMENT(_)) =
-            self.peek()
-        {
-            self.bump();
+        while let Some(token) = self.peek() {
+            if token.is_trivia() {
+                self.bump();
+            } else {
+                break;
+            }
         }
         self
     }
