@@ -107,6 +107,17 @@ pub enum Token {
 }
 
 impl Token {
+    /// Returns true if this is trivia token.
+    ///
+    /// Trivia tokens are those that are not really relevant and can be
+    /// ignored, like whitespaces, newlines, and comments.
+    pub fn is_trivia(&self) -> bool {
+        matches!(
+            self,
+            Token::NEWLINE(_) | Token::WHITESPACE(_) | Token::COMMENT(_)
+        )
+    }
+
     pub fn span(&self) -> Span {
         match self {
             // Keywords
