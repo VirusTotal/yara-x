@@ -322,44 +322,7 @@ impl<'src> InternalParser<'src> {
         let span = token.span();
         let token_str = token.as_str();
 
-        let tokens = self.expected_tokens.entry(span.start()).or_default();
-        tokens.extend(expected_tokens.iter().map(|t| t.as_str()));
-
-        let (last, all_except_last) = tokens.split_last().unwrap();
-
-        let error_msg = if all_except_last.is_empty() {
-            format!("expecting {last}, found {}", token_str)
-        } else {
-            format!(
-                "expecting {} or {last}, found {}",
-                all_except_last.join(", "),
-                token_str,
-            )
-        };
-
-        self.pending_errors.push((error_msg, span));
-
-        if self.opt_depth == 0 {
-            // Find the pending error starting at the largest offset. If several
-            // errors start at the same offset, the last one is used (this is
-            // guaranteed by the `max_by_key` function). `self.pending_errors`
-            // is left empty.
-            if let Some((error, span)) = self
-                .pending_errors
-                .drain(0..)
-                .max_by_key(|(_, span)| span.start())
-            {
-                match self.ready_errors.entry(span) {
-                    Entry::Occupied(_) => {
-                        // already present, don't replace.
-                    }
-                    Entry::Vacant(v) => {
-                        v.insert(error);
-                    }
-                }
-                //self.output.push_error(error, span);
-            }
-        }
+        self.unexpected_token_error(token_str, span, expected_tokens);
 
         self.failed = true;
         self
@@ -464,45 +427,82 @@ impl<'src> InternalParser<'src> {
         self
     }*/
 
+    fn unexpected_token_error(
+        &mut self,
+        token_str: &str,
+        span: Span,
+        expected_tokens: &TokenSet,
+    ) {
+        let tokens = self.expected_tokens.entry(span.start()).or_default();
+        tokens.extend(expected_tokens.iter().map(|t| t.as_str()));
+
+        let (last, all_except_last) = tokens.split_last().unwrap();
+
+        let error_msg = if all_except_last.is_empty() {
+            format!("expecting {last}, found {}", token_str)
+        } else {
+            format!(
+                "expecting {} or {last}, found {}",
+                all_except_last.join(", "),
+                token_str,
+            )
+        };
+
+        self.pending_errors.push((error_msg, span));
+
+        if self.opt_depth == 0 {
+            // Find the pending error starting at the largest offset. If several
+            // errors start at the same offset, the last one is used (this is
+            // guaranteed by the `max_by_key` function). `self.pending_errors`
+            // is left empty.
+            if let Some((error, span)) = self
+                .pending_errors
+                .drain(0..)
+                .max_by_key(|(_, span)| span.start())
+            {
+                match self.ready_errors.entry(span) {
+                    Entry::Occupied(_) => {
+                        // already present, don't replace.
+                    }
+                    Entry::Vacant(v) => {
+                        v.insert(error);
+                    }
+                }
+            }
+        }
+    }
+
     fn recover(&mut self) -> &mut Self {
         self.failed = false;
         self
     }
 
     fn sync(&mut self, expected_tokens: &TokenSet) -> &mut Self {
-        let failed = self.failed;
-        self.check(expected_tokens);
-        if self.failed {
-            self.ws();
-            self.output.begin(SyntaxKind::ERROR);
-            while let Some(token) = self.peek() {
-                if expected_tokens.contains(token) {
-                    break;
-                } else {
-                    self.bump();
-                }
+        self.ws();
+        match self.peek() {
+            None => return self,
+            Some(token) if expected_tokens.contains(token) => return self,
+            Some(token) => {
+                let span = token.span();
+                let token_str = token.as_str();
+                self.unexpected_token_error(token_str, span, expected_tokens);
             }
-            self.output.end();
         }
-        self.failed = failed;
+        self.output.begin(SyntaxKind::ERROR);
+        while let Some(token) = self.peek() {
+            if expected_tokens.contains(token) {
+                break;
+            } else {
+                self.bump();
+            }
+        }
+        self.output.end();
         self
     }
 
-    fn sync_and_recover(&mut self, expected_tokens: &TokenSet) -> &mut Self {
-        self.check(expected_tokens);
-        if self.failed {
-            self.recover();
-            self.ws();
-            self.output.begin(SyntaxKind::ERROR);
-            while let Some(token) = self.peek() {
-                if expected_tokens.contains(token) {
-                    break;
-                } else {
-                    self.bump();
-                }
-            }
-            self.output.end();
-        }
+    fn recover_and_sync(&mut self, expected_tokens: &TokenSet) -> &mut Self {
+        self.recover();
+        self.sync(expected_tokens);
         self
     }
 
@@ -545,30 +545,6 @@ impl<'src> InternalParser<'src> {
 
         self
     }
-
-    /*
-    /// Similar to [`InternalParser::check_and_recover`], but also consumes the
-    /// expected token.
-    fn expect_and_recover(&mut self, expected_tokens: &TokenSet) -> &mut Self {
-        self.failed = false;
-        self.expect(expected_tokens);
-        if self.failed {
-            self.failed = false;
-            self.ws();
-            self.output.begin(SyntaxKind::ERROR);
-            while let Some(token) = self.peek() {
-                if expected_tokens.contains(token) {
-                    break;
-                } else {
-                    self.bump();
-                }
-            }
-            self.output.end();
-            self.bump();
-        }
-        self
-    }
-    */
 
     /// Begins an alternative.
     ///
@@ -860,13 +836,13 @@ impl<'src> InternalParser<'src> {
             .expect(t!(IDENT))
             .ws()
             .if_found(t!(COLON), |p| p.rule_tags())
-            .sync_and_recover(t!(L_BRACE))
+            .recover_and_sync(t!(L_BRACE))
             .expect(t!(L_BRACE))
             .ws()
             .if_found(t!(META_KW), |p| p.meta_blk())
             .ws()
             .if_found(t!(STRINGS_KW), |p| p.patterns_blk())
-            .sync_and_recover(t!(CONDITION_KW))
+            .recover_and_sync(t!(CONDITION_KW))
             .ws() // todo: remove
             .one(|p| p.condition_blk())
             .expect(t!(R_BRACE))
@@ -909,6 +885,14 @@ impl<'src> InternalParser<'src> {
             .expect(t!(META_KW))
             .expect(t!(COLON))
             .one_or_more(|p| p.ws().meta_def())
+            /*.one(|p| {
+                while !p.failed {
+                    p.ws()
+                        .meta_def()
+                        .sync(t!(IDENT | STRINGS_KW | CONDITION_KW));
+                }
+                p.recover()
+            })*/
             .end()
     }
 

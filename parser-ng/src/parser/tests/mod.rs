@@ -31,9 +31,13 @@ fn cst() {
 fn test() {
     let cst = CST::from(Parser::new(
         r#"
-rule test : = {
+rule test {
+  strings:
+    $a = "foo"
+    $b = bar
+    $c = "baz"
   condition:
-	  true
+    true
 }
 "#
         .as_bytes(),
