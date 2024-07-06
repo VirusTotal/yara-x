@@ -293,6 +293,8 @@ enum NormalToken<'src> {
     Percent,
     #[token("|")]
     Pipe,
+    #[token("^")]
+    Caret,
     #[token("~")]
     Tilde,
 
@@ -545,6 +547,7 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
         NormalToken::Ampersand => Token::AMPERSAND(span),
         NormalToken::Asterisk => Token::ASTERISK(span),
         NormalToken::Backslash => Token::BACKSLASH(span),
+        NormalToken::Caret => Token::CARET(span),
         NormalToken::Colon => Token::COLON(span),
         NormalToken::Dot => Token::DOT(span),
         NormalToken::Equal => Token::EQUAL(span),

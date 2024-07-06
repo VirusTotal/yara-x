@@ -1134,25 +1134,96 @@ impl<'src> InternalParser<'src> {
     ///
     /// ```text
     /// BOOLEAN_TERM := (
-    ///    TRUE_KW |
-    ///    FALSE_KW
+    ///    `true`                 |
+    ///    `false`                |
+    ///    `not` BOOLEAN_TERM     |
+    ///    `defined` BOOLEAN_TERM |
+    ///    `(` BOOLEAN_EXPR `)`
     /// )
     /// ``
     fn boolean_term(&mut self) -> &mut Self {
         self.begin(SyntaxKind::BOOLEAN_TERM)
             .begin_alt()
-            .alt(|p| p.expect(t!(TRUE_KW)))
-            .alt(|p| p.expect(t!(FALSE_KW)))
+            .alt(|p| {
+                p.expect(t!(PATTERN_IDENT))
+                    .if_found(t!(AT_KW), |p| {
+                        p.expect(t!(AT_KW)).then(|p| p.expr())
+                    })
+                    .if_found(t!(IN_KW), |p| {
+                        p.expect(t!(IN_KW)).then(|p| p.range())
+                    })
+            })
+            .alt(|p| p.expect(t!(TRUE_KW | FALSE_KW)))
+            .alt(|p| p.expect(t!(NOT_KW)).then(|p| p.boolean_term()))
+            .alt(|p| p.expect(t!(DEFINED_KW)).then(|p| p.boolean_term()))
+            .alt(|p| {
+                p.expect(t!(L_PAREN))
+                    .then(|p| p.boolean_expr())
+                    .expect(t!(R_PAREN))
+            })
             .end_alt()
             .end()
     }
 
     fn expr(&mut self) -> &mut Self {
-        todo!()
+        self.begin(SyntaxKind::EXPR)
+            .then(|p| p.term())
+            .zero_or_more(|p| {
+                p.expect(t!(PLUS
+                    | HYPEN
+                    | ASTERISK
+                    | BACKSLASH
+                    | PERCENT
+                    | SHL
+                    | SHR
+                    | AMPERSAND
+                    | PIPE
+                    | TILDE
+                    | DOT))
+                    .then(|p| p.term())
+            })
+            .end()
     }
 
     fn term(&mut self) -> &mut Self {
-        todo!()
+        self.begin(SyntaxKind::TERM)
+            .begin_alt()
+            .alt(|p| p.indexing_expr())
+            .alt(|p| p.func_call_expr())
+            .alt(|p| p.primary_expr())
+            .end_alt()
+            .end()
+    }
+
+    /// Parses a range.
+    ///
+    /// ```text
+    /// RANGE := `(` EXPR `.` `.` EXPR `)`
+    /// ``
+    fn range(&mut self) -> &mut Self {
+        self.begin(SyntaxKind::RANGE)
+            .expect(t!(L_PAREN))
+            .then(|p| p.expr())
+            .expect(t!(DOT))
+            .expect(t!(DOT))
+            .then(|p| p.expr())
+            .expect(t!(R_PAREN))
+            .end()
+    }
+
+    fn indexing_expr(&mut self) -> &mut Self {
+        // TODO
+        self
+    }
+
+    fn func_call_expr(&mut self) -> &mut Self {
+        // TODO
+        self
+    }
+
+    fn primary_expr(&mut self) -> &mut Self {
+        // TODO
+        self
     }
 }
 

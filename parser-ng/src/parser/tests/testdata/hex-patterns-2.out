@@ -1,5 +1,5 @@
-SOURCE_FILE@0..74
-  RULE_DECL@0..74
+SOURCE_FILE@0..72
+  RULE_DECL@0..72
     RULE_KW@0..4 "rule"
     WHITESPACE@4..5 " "
     IDENT@5..9 "test"
@@ -41,13 +41,13 @@ SOURCE_FILE@0..74
           R_BRACE@50..51 "}"
     NEWLINE@51..52 "\n"
     WHITESPACE@52..54 "  "
-    CONDITION_BLK@54..72
+    CONDITION_BLK@54..70
       CONDITION_KW@54..63 "condition"
       COLON@63..64 ":"
       NEWLINE@64..65 "\n"
       WHITESPACE@65..68 "\t  "
-      BOOLEAN_EXPR@68..72
-        BOOLEAN_TERM@68..72
-          TRUE_KW@68..72 "true"
-    NEWLINE@72..73 "\n"
-    R_BRACE@73..74 "}"
+      BOOLEAN_EXPR@68..70
+        BOOLEAN_TERM@68..70
+          PATTERN_IDENT@68..70 "$a"
+    NEWLINE@70..71 "\n"
+    R_BRACE@71..72 "}"

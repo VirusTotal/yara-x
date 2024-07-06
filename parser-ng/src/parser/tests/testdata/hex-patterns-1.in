@@ -2,5 +2,5 @@ rule test {
 	strings:
 	  $a = { 00 11 AA ?? B? ?2 ~02 11223344 }
   condition:
-	  true
+	  $a
 }
