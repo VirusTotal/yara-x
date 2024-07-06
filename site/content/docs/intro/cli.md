@@ -111,7 +111,7 @@ Disable warning `slow_patterns`:
 Disable warnings `slow_patterns` and `redundant_modifier`:
 
 ```
---disable-warnings=slow_patterns,redundant_modifier"
+--disable-warnings=slow_patterns,redundant_modifier
 ```
 
 Equivalent to the previous one, but using `--disable-warnings` multiple times:
