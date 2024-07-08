@@ -190,7 +190,7 @@ impl<'src> Tokenizer<'src> {
 #[derive(Debug)]
 enum Mode<'src> {
     Normal(logos::Lexer<'src, NormalToken<'src>>),
-    HexPattern(logos::Lexer<'src, HexPatternToken>),
+    HexPattern(logos::Lexer<'src, HexPatternToken<'src>>),
     HexJump(logos::Lexer<'src, HexJumpToken<'src>>),
 }
 
@@ -410,6 +410,24 @@ enum NormalToken<'src> {
     ]
     Regexp(&'src [u8]),
 
+    // Block comment.
+    #[regex(r#"(?x)                    # allow comments in the regexp
+        /\*                            # starts with /*
+        (                              # one or more..
+            [^*]                       #   anything except asterisk
+            |                          #   or..
+            \*[^/]                     #   asterisk followed by something that is not /
+        )*
+        \*/                            # ends with */
+
+        "#, |token| token.slice())]
+    BlockComment(&'src [u8]),
+
+    // Single-line comment
+    #[regex(r#"//[^\n]*"#, |token| token.slice())]
+    Comment(&'src [u8]),
+
+    //  /\*([^*]|\*[^/])*\*/
     #[regex("[ \t]+")]
     Whitespace,
 
@@ -419,7 +437,7 @@ enum NormalToken<'src> {
 
 #[derive(logos::Logos, Debug, PartialEq)]
 #[logos(source = [u8])]
-enum HexPatternToken {
+enum HexPatternToken<'src> {
     // A hex byte is an optional tilde ~, followed by two hex digits or
     // question marks. The following are valid tokens:
     //
@@ -451,6 +469,23 @@ enum HexPatternToken {
 
     #[token("\n")]
     Newline,
+
+    // Block comment.
+    #[regex(r#"(?x)                    # allow comments in the regexp
+        /\*                            # starts with /*
+        (                              # one or more..
+            [^*]                       #   anything except asterisk
+            |                          #   or..
+            \*[^/]                     #   asterisk followed by something that is not /
+        )*
+        \*/                            # ends with */
+
+        "#, |token| token.slice())]
+    BlockComment(&'src [u8]),
+
+    // Single-line comment
+    #[regex(r#"//[^\n]*"#, |token| token.slice())]
+    Comment(&'src [u8]),
 }
 
 #[derive(logos::Logos, Debug, PartialEq)]
@@ -634,6 +669,12 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
                 Err(_) => unreachable!(),
             }
         }
+        NormalToken::BlockComment(c) | NormalToken::Comment(c) => {
+            return match from_utf8(c) {
+                Ok(_) => Token::COMMENT(span),
+                Err(_) => unreachable!(),
+            }
+        }
     }
 }
 
@@ -647,6 +688,12 @@ fn convert_hex_pattern_token(token: HexPatternToken, span: Span) -> Token {
         HexPatternToken::RParen => Token::R_PAREN(span),
         HexPatternToken::LBracket => Token::L_BRACKET(span),
         HexPatternToken::RBracket => Token::R_BRACKET(span),
+        HexPatternToken::BlockComment(c) | HexPatternToken::Comment(c) => {
+            return match from_utf8(c) {
+                Ok(_) => Token::COMMENT(span),
+                Err(_) => unreachable!(),
+            }
+        }
     }
 }
 

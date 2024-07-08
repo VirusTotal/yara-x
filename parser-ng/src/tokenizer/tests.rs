@@ -100,6 +100,26 @@ fn string_literals() {
 }
 
 #[test]
+fn comments() {
+    let mut lexer = super::Tokenizer::new(r#"/* comment */"#.as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::COMMENT(Span(0..13))));
+    assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new(
+        r#"/*
+  comment * /
+*/"#
+        .as_bytes(),
+    );
+    assert_eq!(lexer.next_token(), Some(Token::COMMENT(Span(0..19))));
+    assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new(r#"// comment "#.as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::COMMENT(Span(0..11))));
+    assert_eq!(lexer.next_token(), None);
+}
+
+#[test]
 fn regexps() {
     let mut lexer = super::Tokenizer::new(r#"/foobar/ /.*/"#.as_bytes());
     assert_eq!(lexer.next_token(), Some(Token::REGEXP(Span(0..8))));

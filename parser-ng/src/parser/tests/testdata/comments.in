@@ -1,0 +1,34 @@
+/*
+   This
+   is
+   a
+   multi-line
+   comment.
+*/
+
+rule test {
+  // Comment
+	condition:
+		1 + 2
+		// Comment
+		== // Comment
+		4 - 1   // Comment
+}
+
+rule test {
+  strings:
+    $ = {
+    	 // Comment
+    	 00 01
+    	 /* Comment */
+    	 02 03
+    	 /*
+    	    Comment
+
+    	 */
+    	 04 05
+    }
+
+	condition:
+		$a
+}
