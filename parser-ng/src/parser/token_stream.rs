@@ -197,12 +197,6 @@ impl<'src> TokenStream<'src> {
         self.purged_tokens += n;
     }
 
-    /// Converts a relative position (i.e: an index into `token`) to an
-    /// absolute one.
-    fn abs_pos(&self, rel_pos: usize) -> usize {
-        self.purged_tokens + rel_pos
-    }
-
     /// Converts an absolute position to a relative one.
     fn rel_pos(&self, abs_pos: usize) -> usize {
         abs_pos - self.purged_tokens
