@@ -35,4 +35,4 @@ SOURCE_FILE@0..57
     R_BRACE@56..57 "}"
 
 ERRORS:
-- [37..46]: expecting `[`, BYTE, `(` or `}`, found `condition`
+- [37..46]: expecting `[`, BYTE, `(` or `}`

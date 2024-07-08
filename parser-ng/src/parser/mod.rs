@@ -81,38 +81,8 @@ struct InternalParser<'src> {
     /// and the "zero or more" operation (examples: `(A|B)`, `A*`).
     opt_depth: usize,
 
-    /// Errors found during parsing that haven't been sent to `ready_errors`
-    /// yet.
-    ///
-    /// When the parser expects a token, and that tokens is not the next one
-    /// in input, it produces an error like `expecting "foo", found "bar"`.
-    /// However, these errors are not sent immediately to `ready_errors`
-    /// stream because some the errors may occur while parsing optional code,
-    /// or while parsing some branch in an alternation. For instance, in the
-    /// grammar rule `A := (B | C)`, if the parser finds an error while parsing
-    /// `B`, but `C` succeeds, then `A` is successful and the error found while
-    /// parsing `B` is not reported.
-    ///
-    /// In the other hand, if both `B` and `C` produce errors, then `A` has
-    /// failed, but only one of the two errors is reported. The error that
-    /// gets reported is the one that advanced more in the source code (i.e:
-    /// the one with the largest span start). This approach tends to produce
-    /// more meaningful errors.
-    ///
-    /// The items in the vector are error messages accompanied by the span in
-    /// the source code where the error occurred.
-    pending_errors: Vec<(String, Span)>,
-
-    /// Errors go from `pending_errors` to `ready_errors` before they are
-    /// finally pushed to the `output` stream. This extra step has the purpose
-    /// of removing duplicate messages for the same code span. In certain cases
-    /// the parser can produce two different error messages for the same span,
-    /// but this map guarantees that only the first error is taken into account
-    /// and that any further error for the same span is ignored.
-    ready_errors: IndexMap<Span, String>,
-
-    /// Hash map where keys are positions within the source code, and values
-    /// are a list of tokens that were expected to match at that position.
+    /// Hash map where keys are spans within the source code, and values
+    /// are a list of tokens that were expected to match at that span.
     ///
     /// This hash map plays a crucial role in error reporting during parsing.
     /// Consider the following grammar rule:
@@ -139,14 +109,22 @@ struct InternalParser<'src> {
     /// that both `a` and `b` are valid tokens at the position where `c` was
     /// found?
     ///
-    /// This is where the `expected_tokens` hash map comes into play. We know
-    /// that `a` is also a valid alternative because the `expect(a)` inside the
-    /// `opt` was tried and failed. The parser doesn't fail at that point
-    /// because `a` is optional, but it records that `a` was expected at the
-    /// position of `c`. When `expect(b)` fails later, the parser looks up
+    /// This is where the `expected_token_errors` hash map comes into play. We
+    /// know that `a` is also a valid alternative because the `expect(a)`
+    /// inside the `opt` was tried and failed. The parser doesn't fail at that
+    /// point because `a` is optional, but it records that `a` was expected at
+    /// the position of `c`. When `expect(b)` fails later, the parser looks up
     /// any other token (besides `b`) that were expected to match at the
     /// position and produces a comprehensive error message.
-    expected_tokens: HashMap<usize, IndexSet<&'static str>>,
+    expected_token_errors: HashMap<Span, IndexSet<&'static str>>,
+
+    /// Errors that are not yet sent to the `output` stream. The purpose of
+    /// this map is removing duplicate messages for the same code span. In
+    /// certain cases the parser can produce two different error messages for
+    /// the same span, but this map guarantees that only the first error is
+    /// taken into account and that any further error for the same span is
+    /// ignored.
+    pending_errors: IndexMap<Span, String>,
 }
 
 impl<'src> From<Tokenizer<'src>> for InternalParser<'src> {
@@ -155,9 +133,8 @@ impl<'src> From<Tokenizer<'src>> for InternalParser<'src> {
         Self {
             tokens: TokenStream::new(tokenizer),
             output: SyntaxStream::new(),
-            pending_errors: Vec::new(),
-            ready_errors: IndexMap::new(),
-            expected_tokens: HashMap::new(),
+            pending_errors: IndexMap::new(),
+            expected_token_errors: HashMap::new(),
             opt_depth: 0,
             failed: false,
         }
@@ -323,7 +300,7 @@ impl<'src> InternalParser<'src> {
         self
     }
 
-    fn sync(&mut self, recovery_set: &TokenSet) -> &mut Self {
+    fn sync(&mut self, recovery_set: &'static TokenSet) -> &mut Self {
         self.trivia();
         match self.peek() {
             None => return self,
@@ -332,13 +309,7 @@ impl<'src> InternalParser<'src> {
                     return self;
                 } else {
                     let span = token.span();
-                    let token_str = token.description();
-                    self.unexpected_token_error(
-                        token_str,
-                        span,
-                        recovery_set,
-                        None,
-                    );
+                    self.unexpected_token_error(span, recovery_set, None);
                 }
             }
         }
@@ -419,7 +390,10 @@ impl<'src> InternalParser<'src> {
     /// ```
     ///
     /// Notice how the error is now more localized.
-    fn recover_and_sync(&mut self, recovery_set: &TokenSet) -> &mut Self {
+    fn recover_and_sync(
+        &mut self,
+        recovery_set: &'static TokenSet,
+    ) -> &mut Self {
         self.recover();
         /*if let Some(t) = self.peek_non_ws() {
             if recovery_set.contains(t) {
@@ -460,7 +434,7 @@ impl<'src> InternalParser<'src> {
     /// # Panics
     ///
     /// If `expected_tokens` is empty.
-    fn expect(&mut self, expected_tokens: &TokenSet) -> &mut Self {
+    fn expect(&mut self, expected_tokens: &'static TokenSet) -> &mut Self {
         self.expect_d(expected_tokens, None)
     }
 
@@ -468,7 +442,7 @@ impl<'src> InternalParser<'src> {
     /// description for the expected tokens.
     fn expect_d(
         &mut self,
-        expected_tokens: &TokenSet,
+        expected_tokens: &'static TokenSet,
         description: Option<&'static str>,
     ) -> &mut Self {
         assert!(!expected_tokens.is_empty());
@@ -483,9 +457,7 @@ impl<'src> InternalParser<'src> {
                 let t = expected_tokens.contains(token);
                 if t.is_none() {
                     let span = token.span();
-                    let token_str = token.description();
                     self.unexpected_token_error(
-                        token_str,
                         span,
                         expected_tokens,
                         description,
@@ -567,7 +539,7 @@ impl<'src> InternalParser<'src> {
     }
 
     /// Like [`InternalParser::expect`], but optional.
-    fn opt_expect(&mut self, expected_tokens: &TokenSet) -> &mut Self {
+    fn opt_expect(&mut self, expected_tokens: &'static TokenSet) -> &mut Self {
         self.opt(|p| p.expect(expected_tokens))
     }
 
@@ -593,7 +565,7 @@ impl<'src> InternalParser<'src> {
     ///
     fn if_found<P>(
         &mut self,
-        expected_tokens: &TokenSet,
+        expected_tokens: &'static TokenSet,
         parser: P,
     ) -> &mut Self
     where
@@ -610,11 +582,14 @@ impl<'src> InternalParser<'src> {
                     parser(self);
                 } else {
                     let span = token.span();
-                    let tokens =
-                        self.expected_tokens.entry(span.start()).or_default();
-                    tokens.extend(
-                        expected_tokens.token_ids().map(|t| t.description()),
-                    );
+                    self.expected_token_errors
+                        .entry(span)
+                        .or_default()
+                        .extend(
+                            expected_tokens
+                                .token_ids()
+                                .map(|t| t.description()),
+                        );
                 }
             }
         }
@@ -689,59 +664,56 @@ impl<'src> InternalParser<'src> {
     }
 
     fn flush_errors(&mut self) {
-        self.expected_tokens.clear();
-        self.pending_errors.clear();
-        for (span, error) in self.ready_errors.drain(0..) {
+        self.expected_token_errors.clear();
+        for (span, error) in self.pending_errors.drain(0..) {
             self.output.push_error(error, span);
         }
     }
 
     fn unexpected_token_error(
         &mut self,
-        token_str: &str,
         span: Span,
-        expected_tokens: &TokenSet,
+        expected_tokens: &'static TokenSet,
         description: Option<&'static str>,
     ) {
-        let tokens = self.expected_tokens.entry(span.start()).or_default();
+        let tokens =
+            self.expected_token_errors.entry(span.clone()).or_default();
 
         if let Some(description) = description {
             tokens.insert(description);
         } else {
-            tokens
-                .extend(expected_tokens.token_ids().map(|t| t.description()));
+            tokens.extend(
+                expected_tokens.token_ids().map(|token| token.description()),
+            );
         }
 
-        let (last, all_except_last) = tokens.as_slice().split_last().unwrap();
-
-        let error_msg = if all_except_last.is_empty() {
-            format!("expecting {last}, found {}", token_str)
-        } else {
-            format!(
-                "expecting {} or {last}, found {}",
-                itertools::join(all_except_last.iter(), ", "),
-                token_str,
-            )
-        };
-
-        self.pending_errors.push((error_msg, span));
-
         if self.opt_depth == 0 {
-            // Find the pending error starting at the largest offset. If several
-            // errors start at the same offset, the last one is used (this is
-            // guaranteed by the `max_by_key` function). `self.pending_errors`
-            // is left empty.
-            if let Some((error, span)) = self
-                .pending_errors
-                .drain(0..)
-                .max_by_key(|(_, span)| span.start())
+            // From all the unexpected token errors, use the one at the largest
+            // offset. If several errors start at the same offset, the last one
+            // is used. `self.expected_tokens` is left empty.
+            if let Some((span, tokens)) = self
+                .expected_token_errors
+                .drain()
+                .max_by_key(|(span, _)| span.start())
             {
-                match self.ready_errors.entry(span) {
+                match self.pending_errors.entry(span) {
                     Entry::Occupied(_) => {
                         // already present, don't replace.
                     }
-                    Entry::Vacant(v) => {
-                        v.insert(error);
+                    Entry::Vacant(entry) => {
+                        let (last, all_except_last) =
+                            tokens.as_slice().split_last().unwrap();
+
+                        let error_msg = if all_except_last.is_empty() {
+                            format!("expecting {last}")
+                        } else {
+                            format!(
+                                "expecting {} or {last}",
+                                itertools::join(all_except_last.iter(), ", "),
+                            )
+                        };
+
+                        entry.insert(error_msg);
                     }
                 }
             }

@@ -34,4 +34,4 @@ SOURCE_FILE@0..58
     R_BRACE@57..58 "}"
 
 ERRORS:
-- [11..12]: expecting `meta`, `strings` or `condition`, found `{`
+- [11..12]: expecting `meta`, `strings` or `condition`

@@ -75,5 +75,5 @@ SOURCE_FILE@0..131
     R_BRACE@130..131 "}"
 
 ERRORS:
-- [36..39]: expecting pattern modifier, pattern identifier or `condition`, found identifier
-- [107..108]: expecting STRING, found `)`
+- [36..39]: expecting pattern modifier, pattern identifier or `condition`
+- [107..108]: expecting STRING

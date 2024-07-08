@@ -73,5 +73,5 @@ SOURCE_FILE@0..118
     R_BRACE@117..118 "}"
 
 ERRORS:
-- [33..34]: expecting `[`, BYTE, `(` or `}`, found INTEGER
-- [93..94]: expecting `[`, BYTE, `(` or `}`, found identifier
+- [33..34]: expecting `[`, BYTE, `(` or `}`
+- [93..94]: expecting `[`, BYTE, `(` or `}`

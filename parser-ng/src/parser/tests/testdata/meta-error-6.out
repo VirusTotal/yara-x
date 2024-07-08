@@ -53,5 +53,5 @@ SOURCE_FILE@0..105
     R_BRACE@104..105 "}"
 
 ERRORS:
-- [32..39]: expecting `true`, `false`, INTEGER, FLOAT or STRING, found `strings`
-- [44..47]: expecting `:`, found identifier
+- [32..39]: expecting `true`, `false`, INTEGER, FLOAT or STRING
+- [44..47]: expecting `:`

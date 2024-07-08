@@ -25,4 +25,4 @@ SOURCE_FILE@0..38
     R_BRACE@37..38 "}"
 
 ERRORS:
-- [12..13]: expecting identifier, found `=`
+- [12..13]: expecting identifier

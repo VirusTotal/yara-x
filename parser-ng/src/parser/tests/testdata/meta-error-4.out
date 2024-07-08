@@ -40,4 +40,4 @@ SOURCE_FILE@0..73
     R_BRACE@72..73 "}"
 
 ERRORS:
-- [30..34]: expecting `true`, `false`, INTEGER, FLOAT or STRING, found `meta`
+- [30..34]: expecting `true`, `false`, INTEGER, FLOAT or STRING

@@ -30,4 +30,4 @@ SOURCE_FILE@0..52
     R_BRACE@51..52 "}"
 
 ERRORS:
-- [32..41]: expecting `true`, `false`, INTEGER, FLOAT or STRING, found `condition`
+- [32..41]: expecting `true`, `false`, INTEGER, FLOAT or STRING

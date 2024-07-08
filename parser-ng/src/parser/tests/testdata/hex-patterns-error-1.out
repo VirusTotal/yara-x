@@ -79,5 +79,5 @@ SOURCE_FILE@0..124
     R_BRACE@123..124 "}"
 
 ERRORS:
-- [40..41]: expecting BYTE or `(`, found `)`
-- [100..101]: expecting BYTE or `(`, found `}`
+- [40..41]: expecting BYTE or `(`
+- [100..101]: expecting BYTE or `(`
