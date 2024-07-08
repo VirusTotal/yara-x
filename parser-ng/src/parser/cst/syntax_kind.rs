@@ -234,6 +234,7 @@ impl SyntaxKind {
             SyntaxKind::PATTERN_IDENT => TokenId::PATTERN_IDENT,
 
             SyntaxKind::COLON => TokenId::COLON,
+            SyntaxKind::COMMA => TokenId::COMMA,
             SyntaxKind::DOT => TokenId::DOT,
             SyntaxKind::EQUAL => TokenId::EQUAL,
             SyntaxKind::HYPEN => TokenId::HYPEN,

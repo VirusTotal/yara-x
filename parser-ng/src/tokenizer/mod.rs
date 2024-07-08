@@ -302,6 +302,8 @@ enum NormalToken<'src> {
     Backslash,
     #[token(":")]
     Colon,
+    #[token(",")]
+    Comma,
     #[token(".")]
     Dot,
     #[token("=")]
@@ -615,6 +617,7 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
         NormalToken::Asterisk => Token::ASTERISK(span),
         NormalToken::Backslash => Token::BACKSLASH(span),
         NormalToken::Caret => Token::CARET(span),
+        NormalToken::Comma => Token::COMMA(span),
         NormalToken::Colon => Token::COLON(span),
         NormalToken::Dot => Token::DOT(span),
         NormalToken::Equal => Token::EQUAL(span),
