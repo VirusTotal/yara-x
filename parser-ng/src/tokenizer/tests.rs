@@ -139,7 +139,7 @@ fn regexps() {
     assert_eq!(lexer.next_token(), None);
 
     let mut lexer = super::Tokenizer::new(r#"///"#.as_bytes());
-    assert_eq!(lexer.next_token(), Some(Token::UNKNOWN(Span(0..3))));
+    assert_eq!(lexer.next_token(), Some(Token::COMMENT(Span(0..3))));
     assert_eq!(lexer.next_token(), None);
 }
 
