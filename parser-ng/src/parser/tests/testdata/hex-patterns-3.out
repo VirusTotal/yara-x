@@ -33,7 +33,7 @@ SOURCE_FILE@0..190
             HEX_JUMP@44..49
               L_BRACKET@44..45 "["
               INTEGER_LIT@45..46 "1"
-              MINUS@46..47 "-"
+              HYPEN@46..47 "-"
               INTEGER_LIT@47..48 "2"
               R_BRACKET@48..49 "]"
             WHITESPACE@49..50 " "
@@ -41,7 +41,7 @@ SOURCE_FILE@0..190
             WHITESPACE@52..53 " "
             HEX_JUMP@53..59
               L_BRACKET@53..54 "["
-              MINUS@54..55 "-"
+              HYPEN@54..55 "-"
               INTEGER_LIT@55..58 "100"
               R_BRACKET@58..59 "]"
             WHITESPACE@59..60 " "
@@ -50,14 +50,14 @@ SOURCE_FILE@0..190
             HEX_JUMP@63..69
               L_BRACKET@63..64 "["
               INTEGER_LIT@64..67 "100"
-              MINUS@67..68 "-"
+              HYPEN@67..68 "-"
               R_BRACKET@68..69 "]"
             WHITESPACE@69..70 " "
             HEX_BYTE@70..72 "55"
             WHITESPACE@72..73 " "
             HEX_JUMP@73..76
               L_BRACKET@73..74 "["
-              MINUS@74..75 "-"
+              HYPEN@74..75 "-"
               R_BRACKET@75..76 "]"
             WHITESPACE@76..77 " "
             HEX_BYTE@77..79 "66"
@@ -111,14 +111,14 @@ SOURCE_FILE@0..190
             HEX_JUMP@150..155
               L_BRACKET@150..151 "["
               INTEGER_LIT@151..152 "1"
-              MINUS@152..153 "-"
+              HYPEN@152..153 "-"
               INTEGER_LIT@153..154 "2"
               R_BRACKET@154..155 "]"
             WHITESPACE@155..156 " "
             HEX_JUMP@156..162
               L_BRACKET@156..157 "["
               INTEGER_LIT@157..160 "100"
-              MINUS@160..161 "-"
+              HYPEN@160..161 "-"
               R_BRACKET@161..162 "]"
             WHITESPACE@162..163 " "
             HEX_BYTE@163..165 "33"

@@ -1,0 +1,47 @@
+SOURCE_FILE@0..54
+  RULE_DECL@0..53
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..11 "test_1"
+    WHITESPACE@11..12 " "
+    L_BRACE@12..13 "{"
+    NEWLINE@13..14 "\n"
+    WHITESPACE@14..15 "\t"
+    CONDITION_BLK@15..51
+      CONDITION_KW@15..24 "condition"
+      COLON@24..25 ":"
+      NEWLINE@25..26 "\n"
+      WHITESPACE@26..28 "\t\t"
+      BOOLEAN_EXPR@28..51
+        BOOLEAN_TERM@28..51
+          EXPR@28..45
+            TERM@28..31
+              PRIMARY_EXPR@28..31
+                FLOAT_LIT@28..31 "3.4"
+            WHITESPACE@31..32 " "
+            ADD@32..33 "+"
+            WHITESPACE@33..34 " "
+            TERM@34..45
+              PRIMARY_EXPR@34..45
+                L_PAREN@34..35 "("
+                EXPR@35..44
+                  TERM@35..38
+                    PRIMARY_EXPR@35..38
+                      FLOAT_LIT@35..38 "2.3"
+                  WHITESPACE@38..39 " "
+                  SUB@39..40 "-"
+                  WHITESPACE@40..41 " "
+                  TERM@41..44
+                    PRIMARY_EXPR@41..44
+                      FLOAT_LIT@41..44 "1.0"
+                R_PAREN@44..45 ")"
+          WHITESPACE@45..46 " "
+          GT@46..47 ">"
+          WHITESPACE@47..48 " "
+          EXPR@48..51
+            TERM@48..51
+              PRIMARY_EXPR@48..51
+                FLOAT_LIT@48..51 "1.0"
+    NEWLINE@51..52 "\n"
+    R_BRACE@52..53 "}"
+  NEWLINE@53..54 "\n"

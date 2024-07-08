@@ -1,0 +1,4 @@
+rule test_1 {
+	condition:
+		3.4 + (2.3 - 1.0) > 1.0
+}

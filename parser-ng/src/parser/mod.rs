@@ -18,7 +18,6 @@ error nodes is valid YARA code.
 use indexmap::map::Entry;
 use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
-use std::mem;
 
 pub mod cst;
 
@@ -29,7 +28,7 @@ mod tests;
 
 use crate::parser::cst::{Event, SyntaxKind, SyntaxStream};
 use crate::parser::token_stream::TokenStream;
-use crate::tokenizer::{Token, Tokenizer};
+use crate::tokenizer::{Token, TokenId, Tokenizer};
 use crate::Span;
 
 /// Produces a Concrete Syntax-Tree ([`CST`]) for a given YARA source code.
@@ -303,6 +302,7 @@ impl<'src> InternalParser<'src> {
     ///
     /// Must be followed by a matching [`Parser::end`].
     fn begin(&mut self, kind: SyntaxKind) -> &mut Self {
+        self.trivia();
         self.output.begin(kind);
         self
     }
@@ -327,21 +327,24 @@ impl<'src> InternalParser<'src> {
         self.trivia();
         match self.peek() {
             None => return self,
-            Some(token) if recovery_set.contains(token) => return self,
             Some(token) => {
-                let span = token.span();
-                let token_str = token.description();
-                self.unexpected_token_error(
-                    token_str,
-                    span,
-                    recovery_set,
-                    None,
-                );
+                if recovery_set.contains(token).is_some() {
+                    return self;
+                } else {
+                    let span = token.span();
+                    let token_str = token.description();
+                    self.unexpected_token_error(
+                        token_str,
+                        span,
+                        recovery_set,
+                        None,
+                    );
+                }
             }
         }
-        self.output.begin(SyntaxKind::ERROR);
+        self.output.begin(ERROR);
         while let Some(token) = self.peek() {
-            if recovery_set.contains(token) {
+            if recovery_set.contains(token).is_some() {
                 break;
             } else {
                 self.bump();
@@ -475,27 +478,30 @@ impl<'src> InternalParser<'src> {
         }
 
         let found_expected_token = match self.peek_non_ws() {
-            None => false,
-            Some(token) if expected_tokens.contains(token) => true,
+            None => None,
             Some(token) => {
-                let span = token.span();
-                let token_str = token.description();
-                self.unexpected_token_error(
-                    token_str,
-                    span,
-                    expected_tokens,
-                    description,
-                );
-                false
+                let t = expected_tokens.contains(token);
+                if t.is_none() {
+                    let span = token.span();
+                    let token_str = token.description();
+                    self.unexpected_token_error(
+                        token_str,
+                        span,
+                        expected_tokens,
+                        description,
+                    );
+                }
+                t
             }
         };
 
-        if found_expected_token {
+        if let Some(t) = found_expected_token {
             // Consume any trivia token in front of the non-trivia expected
             // token.
             self.trivia();
             // Consume the expected token.
-            self.bump();
+            let token = self.tokens.next_token().unwrap();
+            self.output.push_token(*t, token.span());
             // After matching a token that is not inside an "optional" branch
             // in the grammar, it's guaranteed that the parser won't go back
             // to a position at the left of the matched token. This is a good
@@ -599,7 +605,7 @@ impl<'src> InternalParser<'src> {
         match self.peek_non_ws() {
             None => {}
             Some(token) => {
-                if expected_tokens.contains(token) {
+                if expected_tokens.contains(token).is_some() {
                     self.trivia();
                     parser(self);
                 } else {
@@ -607,7 +613,7 @@ impl<'src> InternalParser<'src> {
                     let tokens =
                         self.expected_tokens.entry(span.start()).or_default();
                     tokens.extend(
-                        expected_tokens.iter().map(|t| t.description()),
+                        expected_tokens.token_ids().map(|t| t.description()),
                     );
                 }
             }
@@ -702,7 +708,8 @@ impl<'src> InternalParser<'src> {
         if let Some(description) = description {
             tokens.insert(description);
         } else {
-            tokens.extend(expected_tokens.iter().map(|t| t.description()));
+            tokens
+                .extend(expected_tokens.token_ids().map(|t| t.description()));
         }
 
         let (last, all_except_last) = tokens.as_slice().split_last().unwrap();
@@ -743,11 +750,11 @@ impl<'src> InternalParser<'src> {
 }
 
 use crate::cst::{syntax_stream, CST};
-use Token::*;
+use SyntaxKind::*;
 
 macro_rules! t {
     ($( $tokens:path )|*) => {
-       &TokenSet(&[$( $tokens(Span::default()) ),*])
+       &TokenSet(&[$( $tokens ),*])
     };
 }
 
@@ -808,8 +815,10 @@ impl<'src> InternalParser<'src> {
             }
         };
         match token {
-            IMPORT_KW(_) => self.import_stmt(),
-            GLOBAL_KW(_) | PRIVATE_KW(_) | RULE_KW(_) => self.rule_decl(),
+            Token::IMPORT_KW(_) => self.import_stmt(),
+            Token::GLOBAL_KW(_) | Token::PRIVATE_KW(_) | Token::RULE_KW(_) => {
+                self.rule_decl()
+            }
             token => {
                 let span = token.span();
                 let token_str = token.description();
@@ -817,7 +826,7 @@ impl<'src> InternalParser<'src> {
                     format!("expecting import statement or rule definition, found {}", token_str),
                     span,
                 );
-                self.output.begin(SyntaxKind::ERROR);
+                self.output.begin(ERROR);
                 self.bump();
                 self.output.end();
                 self.failed = true;
@@ -832,7 +841,7 @@ impl<'src> InternalParser<'src> {
     /// IMPORT_STMT ::= `import` STRING_LIT
     /// ```
     fn import_stmt(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::IMPORT_STMT)
+        self.begin(IMPORT_STMT)
             .expect(t!(IMPORT_KW))
             .expect(t!(STRING_LIT))
             .end()
@@ -848,7 +857,7 @@ impl<'src> InternalParser<'src> {
     /// `}`
     /// ```
     fn rule_decl(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::RULE_DECL)
+        self.begin(RULE_DECL)
             .opt(|p| p.rule_mods())
             .expect(t!(RULE_KW))
             .expect(t!(IDENT))
@@ -860,7 +869,7 @@ impl<'src> InternalParser<'src> {
             .recover_and_sync(t!(STRINGS_KW | CONDITION_KW))
             .if_found(t!(STRINGS_KW), |p| p.patterns_blk())
             .recover_and_sync(t!(CONDITION_KW))
-            .then(|p| p.condition_blk())
+            .condition_blk()
             .expect(t!(R_BRACE))
             .end()
     }
@@ -871,7 +880,7 @@ impl<'src> InternalParser<'src> {
     /// RULE_MODS := ( `private` `global`? | `global` `private`? )
     /// ```
     fn rule_mods(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::RULE_MODS)
+        self.begin(RULE_MODS)
             .begin_alt()
             .alt(|p| p.expect(t!(PRIVATE_KW)).opt_expect(t!(GLOBAL_KW)))
             .alt(|p| p.expect(t!(GLOBAL_KW)).opt_expect(t!(PRIVATE_KW)))
@@ -885,7 +894,7 @@ impl<'src> InternalParser<'src> {
     /// RULE_TAGS := `:` IDENT+
     /// ```
     fn rule_tags(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::RULE_TAGS)
+        self.begin(RULE_TAGS)
             .expect(t!(COLON))
             .one_or_more(|p| p.expect(t!(IDENT)))
             .end()
@@ -897,7 +906,7 @@ impl<'src> InternalParser<'src> {
     /// META_BLK := `meta` `:` META_DEF+
     /// ``
     fn meta_blk(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::META_BLK)
+        self.begin(META_BLK)
             .expect(t!(META_KW))
             .expect(t!(COLON))
             .one_or_more(|p| p.meta_def())
@@ -924,7 +933,7 @@ impl<'src> InternalParser<'src> {
     /// )
     /// ``
     fn meta_def(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::META_DEF)
+        self.begin(META_DEF)
             .expect(t!(IDENT))
             .expect(t!(EQUAL))
             .expect(t!(TRUE_KW
@@ -941,7 +950,7 @@ impl<'src> InternalParser<'src> {
     /// PATTERNS_BLK := `strings` `:` PATTERN_DEF+
     /// ``
     fn patterns_blk(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::PATTERNS_BLK)
+        self.begin(PATTERNS_BLK)
             .expect(t!(STRINGS_KW))
             .expect(t!(COLON))
             .one_or_more(|p| p.pattern_def())
@@ -958,7 +967,7 @@ impl<'src> InternalParser<'src> {
     /// )
     /// ``
     fn pattern_def(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::PATTERN_DEF)
+        self.begin(PATTERN_DEF)
             .expect(t!(PATTERN_IDENT))
             .expect(t!(EQUAL))
             .begin_alt()
@@ -976,9 +985,7 @@ impl<'src> InternalParser<'src> {
     /// PATTERN_MODS := PATTERN_MOD+
     /// ``
     fn pattern_mods(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::PATTERN_MODS)
-            .one_or_more(|p| p.pattern_mod())
-            .end()
+        self.begin(PATTERN_MODS).one_or_more(|p| p.pattern_mod()).end()
     }
 
     /// Parses a pattern modifier.
@@ -1001,7 +1008,7 @@ impl<'src> InternalParser<'src> {
     fn pattern_mod(&mut self) -> &mut Self {
         const DESC: Option<&'static str> = Some("pattern modifier");
 
-        self.begin(SyntaxKind::PATTERN_MOD)
+        self.begin(PATTERN_MOD)
             .begin_alt()
             .alt(|p| {
                 p.expect_d(
@@ -1038,10 +1045,10 @@ impl<'src> InternalParser<'src> {
     /// CONDITION_BLK := `condition` `:` BOOLEAN_EXPR
     /// ``
     fn condition_blk(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::CONDITION_BLK)
+        self.begin(CONDITION_BLK)
             .expect(t!(CONDITION_KW))
             .expect(t!(COLON))
-            .then(|p| p.boolean_expr())
+            .boolean_expr()
             .end()
     }
 
@@ -1051,10 +1058,10 @@ impl<'src> InternalParser<'src> {
     /// HEX_PATTERN := `{` HEX_SUB_PATTERN `}`
     /// ``
     fn hex_pattern(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::HEX_PATTERN)
+        self.begin(HEX_PATTERN)
             .expect(t!(L_BRACE))
             .enter_hex_pattern_mode()
-            .then(|p| p.hex_sub_pattern())
+            .hex_sub_pattern()
             .expect(t!(R_BRACE))
             .end()
     }
@@ -1066,7 +1073,7 @@ impl<'src> InternalParser<'src> {
     ///   (HEX_BYTE | HEX_ALTERNATIVE) (HEX_JUMP* (HEX_BYTE | HEX_ALTERNATIVE))*
     /// ``
     fn hex_sub_pattern(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::HEX_SUB_PATTERN)
+        self.begin(HEX_SUB_PATTERN)
             .begin_alt()
             .alt(|p| p.expect(t!(HEX_BYTE)))
             .alt(|p| p.hex_alternative())
@@ -1087,10 +1094,10 @@ impl<'src> InternalParser<'src> {
     /// HEX_ALTERNATIVE := `(` HEX_SUB_PATTERN ( `|` HEX_SUB_PATTERN )* `)`
     /// ``
     fn hex_alternative(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::HEX_ALTERNATIVE)
+        self.begin(HEX_ALTERNATIVE)
             .expect(t!(L_PAREN))
-            .then(|p| p.hex_sub_pattern())
-            .zero_or_more(|p| p.expect(t!(PIPE)).then(|p| p.hex_sub_pattern()))
+            .hex_sub_pattern()
+            .zero_or_more(|p| p.expect(t!(PIPE)).hex_sub_pattern())
             .expect(t!(R_PAREN))
             .end()
     }
@@ -1101,7 +1108,7 @@ impl<'src> InternalParser<'src> {
     /// HEX_JUMP := `[` ( INTEGER_LIT? `-` INTEGER_LIT? | INTEGER_LIT ) `]`
     /// ``
     fn hex_jump(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::HEX_JUMP)
+        self.begin(HEX_JUMP)
             .expect(t!(L_BRACKET))
             .enter_hex_jump_mode()
             .begin_alt()
@@ -1122,11 +1129,9 @@ impl<'src> InternalParser<'src> {
     /// BOOLEAN_EXPR := BOOLEAN_TERM ((AND_KW | OR_KW) BOOLEAN_TERM)*
     /// ``
     fn boolean_expr(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::BOOLEAN_EXPR)
-            .then(|p| p.boolean_term())
-            .zero_or_more(|p| {
-                p.expect(t!(AND_KW | OR_KW)).then(|p| p.boolean_term())
-            })
+        self.begin(BOOLEAN_EXPR)
+            .boolean_term()
+            .zero_or_more(|p| p.expect(t!(AND_KW | OR_KW)).boolean_term())
             .end()
     }
 
@@ -1142,51 +1147,77 @@ impl<'src> InternalParser<'src> {
     /// )
     /// ``
     fn boolean_term(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::BOOLEAN_TERM)
+        self.begin(BOOLEAN_TERM)
             .begin_alt()
             .alt(|p| {
                 p.expect(t!(PATTERN_IDENT))
-                    .if_found(t!(AT_KW), |p| {
-                        p.expect(t!(AT_KW)).then(|p| p.expr())
-                    })
-                    .if_found(t!(IN_KW), |p| {
-                        p.expect(t!(IN_KW)).then(|p| p.range())
-                    })
+                    .if_found(t!(AT_KW), |p| p.expect(t!(AT_KW)).expr())
+                    .if_found(t!(IN_KW), |p| p.expect(t!(IN_KW)).range())
+            })
+            .alt(|p| {
+                p.expr().zero_or_more(|p| {
+                    p.expect(t!(EQ
+                        | NE
+                        | LE
+                        | LT
+                        | GE
+                        | GT
+                        | CONTAINS_KW
+                        | ICONTAINS_KW
+                        | STARTSWITH_KW
+                        | ISTARTSWITH_KW
+                        | ENDSWITH_KW
+                        | IENDSWITH_KW
+                        | MATCHES_KW))
+                        .expr()
+                })
             })
             .alt(|p| p.expect(t!(TRUE_KW | FALSE_KW)))
-            .alt(|p| p.expect(t!(NOT_KW)).then(|p| p.boolean_term()))
-            .alt(|p| p.expect(t!(DEFINED_KW)).then(|p| p.boolean_term()))
-            .alt(|p| {
-                p.expect(t!(L_PAREN))
-                    .then(|p| p.boolean_expr())
-                    .expect(t!(R_PAREN))
-            })
+            .alt(|p| p.expect(t!(NOT_KW)).boolean_term())
+            .alt(|p| p.expect(t!(DEFINED_KW)).boolean_term())
+            .alt(|p| p.expect(t!(L_PAREN)).boolean_expr().expect(t!(R_PAREN)))
             .end_alt()
             .end()
     }
 
+    /// Parses an expression.
+    ///
+    /// ```text
+    /// EXPR := (
+    ///    TERM  ( (arithmetic_op | bitwise_op | `.`) TERM)*
+    /// )
+    /// ``
     fn expr(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::EXPR)
-            .then(|p| p.term())
+        self.begin(EXPR)
+            .term()
             .zero_or_more(|p| {
-                p.expect(t!(PLUS
-                    | HYPEN
-                    | ASTERISK
-                    | BACKSLASH
-                    | PERCENT
+                p.expect(t!(ADD
+                    | SUB
+                    | MUL
+                    | DIV
+                    | MOD
                     | SHL
                     | SHR
-                    | AMPERSAND
-                    | PIPE
-                    | TILDE
+                    | BITWISE_AND
+                    | BITWISE_OR
+                    | BITWISE_NOT
                     | DOT))
-                    .then(|p| p.term())
+                    .term()
             })
             .end()
     }
 
+    /// Parses a term.
+    ///
+    /// ```text
+    /// TERM := (
+    ///     indexing_expr   |
+    ///     func_call_expr  |
+    ///     primary_expr    |
+    /// )
+    /// ``
     fn term(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::TERM)
+        self.begin(TERM)
             .begin_alt()
             .alt(|p| p.indexing_expr())
             .alt(|p| p.func_call_expr())
@@ -1201,29 +1232,80 @@ impl<'src> InternalParser<'src> {
     /// RANGE := `(` EXPR `.` `.` EXPR `)`
     /// ``
     fn range(&mut self) -> &mut Self {
-        self.begin(SyntaxKind::RANGE)
+        self.begin(RANGE)
             .expect(t!(L_PAREN))
-            .then(|p| p.expr())
+            .expr()
             .expect(t!(DOT))
             .expect(t!(DOT))
-            .then(|p| p.expr())
+            .expr()
             .expect(t!(R_PAREN))
             .end()
     }
 
+    /// Parses an indexing expression.
+    ///
+    /// ```text
+    /// INDEXING_EXPR := PRIMARY_EXPR `[` EXPR `]`
+    /// ``
     fn indexing_expr(&mut self) -> &mut Self {
-        // TODO
-        self
+        self.begin(INDEXING_EXPR)
+            .primary_expr()
+            .expect(t!(L_BRACKET))
+            .expr()
+            .expect(t!(R_BRACKET))
+            .end()
     }
 
+    /// Parses an indexing expression.
+    ///
+    /// ```text
+    /// INDEXING_EXPR := PRIMARY_EXPR `[` EXPR `]`
+    /// ``
     fn func_call_expr(&mut self) -> &mut Self {
-        // TODO
-        self
+        self.begin(FUNC_CALL_EXPR)
+            .primary_expr()
+            .expect(t!(L_PAREN))
+            .opt(|p| p.boolean_expr())
+            .zero_or_more(|p| p.expect(t!(COMMA)).boolean_expr())
+            .expect(t!(R_PAREN))
+            .end()
     }
 
+    /// Parsers a primary expression.
+    ///
+    /// ```text
+    /// PRIMARY_EXPR := (
+    ///     FLOAT_LIT           |
+    ///     INTEGER_LIT         |
+    ///     STRING_LIT          |
+    ///     REGEXP              |
+    ///     `filesize`          |
+    ///     `entrypoint`        |
+    ///     `-` TERM            |
+    ///     `~` TERM            |
+    ///     `(` EXPR `)`        |
+    ///     IDENT (`.` IDENT)*
+    /// )
+    /// ``
     fn primary_expr(&mut self) -> &mut Self {
-        // TODO
-        self
+        self.begin(PRIMARY_EXPR)
+            .begin_alt()
+            .alt(|p| {
+                p.expect(t!(FLOAT_LIT
+                    | INTEGER_LIT
+                    | STRING_LIT
+                    | REGEXP
+                    | FILESIZE_KW
+                    | ENTRYPOINT_KW))
+            })
+            .alt(|p| p.expect(t!(BITWISE_NOT)).term())
+            .alt(|p| p.expect(t!(L_PAREN)).expr().expect(t!(R_PAREN)))
+            .alt(|p| {
+                p.expect(t!(IDENT))
+                    .zero_or_more(|p| p.expect(t!(DOT)).expect(t!(IDENT)))
+            })
+            .end_alt()
+            .end()
     }
 }
 
@@ -1232,20 +1314,28 @@ struct Bookmark {
     output: syntax_stream::Bookmark,
 }
 
-struct TokenSet<'a>(&'a [Token]);
+/// A set of tokens passed to the [`InternalParser::expect`]
+/// function.
+///
+/// The set is represented by a list of [`SyntaxKind`].
+struct TokenSet(&'static [SyntaxKind]);
 
-impl<'a> TokenSet<'a> {
+impl TokenSet {
     #[inline]
     fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
-    fn contains(&self, token: &Token) -> bool {
-        self.0.iter().any(|t| mem::discriminant(t) == mem::discriminant(token))
+    /// If the set contains the give `token`, returns `Some` with the
+    /// [`SyntaxKind`] that corresponds to the matching token. Otherwise, it
+    /// returns `None`.
+    fn contains(&self, token: &Token) -> Option<&SyntaxKind> {
+        self.0.iter().find(|t| t.token_id() == token.id())
     }
 
-    fn iter(&self) -> impl Iterator<Item = &'a Token> {
-        self.0.iter()
+    /// Returns the token IDs associated to the tokens in the set.
+    fn token_ids(&self) -> impl Iterator<Item = TokenId> + 'static {
+        self.0.iter().map(move |t| t.token_id())
     }
 }
 

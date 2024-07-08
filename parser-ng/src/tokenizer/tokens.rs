@@ -1,110 +1,309 @@
 use crate::Span;
 
+#[allow(non_camel_case_types)]
+#[allow(clippy::upper_case_acronyms)]
+#[derive(Copy, Clone, PartialEq, Eq)]
+#[repr(u8)]
+pub(crate) enum TokenId {
+    // Keywords.
+    ALL_KW,
+    AND_KW,
+    ANY_KW,
+    ASCII_KW,
+    AT_KW,
+    BASE64_KW,
+    BASE64WIDE_KW,
+    CONDITION_KW,
+    CONTAINS_KW,
+    DEFINED_KW,
+    ENDSWITH_KW,
+    ENTRYPOINT_KW,
+    FALSE_KW,
+    FILESIZE_KW,
+    FOR_KW,
+    FULLWORD_KW,
+    GLOBAL_KW,
+    ICONTAINS_KW,
+    IENDSWITH_KW,
+    IEQUALS_KW,
+    IMPORT_KW,
+    IN_KW,
+    ISTARTSWITH_KW,
+    MATCHES_KW,
+    META_KW,
+    NOCASE_KW,
+    NONE_KW,
+    NOT_KW,
+    OF_KW,
+    OR_KW,
+    PRIVATE_KW,
+    RULE_KW,
+    STARTSWITH_KW,
+    STRINGS_KW,
+    THEM_KW,
+    TRUE_KW,
+    WIDE_KW,
+    XOR_KW,
+
+    // Bitwise operators.
+    SHL,
+    SHR,
+
+    // Comparison operators.
+    EQ,
+    NE,
+    LT,
+    LE,
+    GT,
+    GE,
+
+    // Literals.
+    FLOAT_LIT,
+    INTEGER_LIT,
+    STRING_LIT,
+    REGEXP,
+
+    // Identifiers.
+    IDENT,
+    PATTERN_IDENT,
+
+    // Punctuation.
+    AMPERSAND,
+    ASTERISK,
+    BACKSLASH,
+    CARET,
+    COLON,
+    COMMA,
+    DOT,
+    EQUAL,
+    HYPEN,
+    PERCENT,
+    PIPE,
+    PLUS,
+    TILDE,
+
+    L_BRACE,
+    R_BRACE,
+    L_BRACKET,
+    R_BRACKET,
+    L_PAREN,
+    R_PAREN,
+
+    // Hex patterns
+    HEX_BYTE,
+
+    // Trivia
+    COMMENT,
+    NEWLINE,
+    WHITESPACE,
+
+    /// Not a real token. Used when a portion of the source code doesn't match
+    /// any of the tokens.
+    UNKNOWN,
+
+    /// Not a real token. Used when a portion of the source code is not valid
+    /// UTF-8.
+    INVALID_UTF8,
+}
+
+impl TokenId {
+    pub fn description(&self) -> &'static str {
+        match self {
+            // Keywords.
+            TokenId::ALL_KW => "`all`",
+            TokenId::AND_KW => "`and`",
+            TokenId::ANY_KW => "`any`",
+            TokenId::ASCII_KW => "`ascii`",
+            TokenId::AT_KW => "`at`",
+            TokenId::BASE64_KW => "`base64`",
+            TokenId::BASE64WIDE_KW => "`base64wide`",
+            TokenId::CONDITION_KW => "`condition`",
+            TokenId::CONTAINS_KW => "`contains`",
+            TokenId::DEFINED_KW => "`defined`",
+            TokenId::ENDSWITH_KW => "`endswith`",
+            TokenId::ENTRYPOINT_KW => "`entrypoint`",
+            TokenId::FALSE_KW => "`false`",
+            TokenId::FILESIZE_KW => "`filesize`",
+            TokenId::FOR_KW => "`for`",
+            TokenId::FULLWORD_KW => "`fullword`",
+            TokenId::GLOBAL_KW => "`global`",
+            TokenId::ICONTAINS_KW => "`icontains`",
+            TokenId::IENDSWITH_KW => "`iendswith`",
+            TokenId::IEQUALS_KW => "`iequals`",
+            TokenId::IMPORT_KW => "`import`",
+            TokenId::IN_KW => "`in`",
+            TokenId::ISTARTSWITH_KW => "`istartswith`",
+            TokenId::MATCHES_KW => "`matches`",
+            TokenId::META_KW => "`meta`",
+            TokenId::NOCASE_KW => "`nocase`",
+            TokenId::NONE_KW => "`none`",
+            TokenId::NOT_KW => "`not`",
+            TokenId::OF_KW => "`of`",
+            TokenId::OR_KW => "`or`",
+            TokenId::PRIVATE_KW => "`private`",
+            TokenId::RULE_KW => "`rule`",
+            TokenId::STARTSWITH_KW => "`startswith",
+            TokenId::STRINGS_KW => "`strings`",
+            TokenId::THEM_KW => "`them`",
+            TokenId::TRUE_KW => "`true`",
+            TokenId::WIDE_KW => "`wide`",
+            TokenId::XOR_KW => "`xor`",
+
+            // Bitwise operators.
+            TokenId::SHL => "`<<`",
+            TokenId::SHR => "`>>`",
+
+            // Comparison operators.
+            TokenId::EQ => "`==`",
+            TokenId::NE => "`!=`",
+            TokenId::LT => "`<`",
+            TokenId::LE => "`<=`",
+            TokenId::GT => "`>`",
+            TokenId::GE => "`>=`",
+
+            // Punctuation.
+            TokenId::AMPERSAND => "&",
+            TokenId::ASTERISK => "`*`",
+            TokenId::BACKSLASH => "`\\`",
+            TokenId::CARET => "`^`",
+            TokenId::COLON => "`:`",
+            TokenId::COMMA => "`,`",
+            TokenId::DOT => "`.`",
+            TokenId::EQUAL => "`=`",
+            TokenId::HYPEN => "`-`",
+            TokenId::PERCENT => "`%`",
+            TokenId::PIPE => "`|`",
+            TokenId::PLUS => "`+`",
+            TokenId::TILDE => "`~`",
+
+            TokenId::L_BRACE => "`{`",
+            TokenId::R_BRACE => "`}`",
+            TokenId::L_BRACKET => "`[`",
+            TokenId::R_BRACKET => "`]`",
+            TokenId::L_PAREN => "`(`",
+            TokenId::R_PAREN => "`)`",
+
+            TokenId::REGEXP => "regexp",
+            TokenId::FLOAT_LIT => "FLOAT",
+            TokenId::INTEGER_LIT => "INTEGER",
+            TokenId::STRING_LIT => "STRING",
+            TokenId::IDENT => "identifier",
+            TokenId::PATTERN_IDENT => "pattern identifier",
+            TokenId::HEX_BYTE => "BYTE",
+            TokenId::COMMENT => "comment",
+            TokenId::NEWLINE => "newline",
+            TokenId::WHITESPACE => "whitespace",
+            TokenId::UNKNOWN => "unknown",
+            TokenId::INVALID_UTF8 => unreachable!(),
+        }
+    }
+}
+
 /// Each of the tokens produced by the lexer.
 #[allow(non_camel_case_types)]
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Debug, PartialEq)]
+#[repr(u8)]
 pub enum Token {
     // Keywords.
-    ALL_KW(Span),
-    AND_KW(Span),
-    ANY_KW(Span),
-    ASCII_KW(Span),
-    AT_KW(Span),
-    BASE64_KW(Span),
-    BASE64WIDE_KW(Span),
-    CONDITION_KW(Span),
-    CONTAINS_KW(Span),
-    DEFINED_KW(Span),
-    ENDSWITH_KW(Span),
-    ENTRYPOINT_KW(Span),
-    FALSE_KW(Span),
-    FILESIZE_KW(Span),
-    FOR_KW(Span),
-    FULLWORD_KW(Span),
-    GLOBAL_KW(Span),
-    ICONTAINS_KW(Span),
-    IENDSWITH_KW(Span),
-    IEQUALS_KW(Span),
-    IMPORT_KW(Span),
-    IN_KW(Span),
-    ISTARTSWITH_KW(Span),
-    MATCHES_KW(Span),
-    META_KW(Span),
-    NOCASE_KW(Span),
-    NONE_KW(Span),
-    NOT_KW(Span),
-    OF_KW(Span),
-    OR_KW(Span),
-    PRIVATE_KW(Span),
-    RULE_KW(Span),
-    STARTSWITH_KW(Span),
-    STRINGS_KW(Span),
-    THEM_KW(Span),
-    TRUE_KW(Span),
-    WIDE_KW(Span),
-    XOR_KW(Span),
+    ALL_KW(Span) = TokenId::ALL_KW as u8,
+    AND_KW(Span) = TokenId::AND_KW as u8,
+    ANY_KW(Span) = TokenId::ANY_KW as u8,
+    ASCII_KW(Span) = TokenId::ASCII_KW as u8,
+    AT_KW(Span) = TokenId::AT_KW as u8,
+    BASE64_KW(Span) = TokenId::BASE64_KW as u8,
+    BASE64WIDE_KW(Span) = TokenId::BASE64WIDE_KW as u8,
+    CONDITION_KW(Span) = TokenId::CONDITION_KW as u8,
+    CONTAINS_KW(Span) = TokenId::CONTAINS_KW as u8,
+    DEFINED_KW(Span) = TokenId::DEFINED_KW as u8,
+    ENDSWITH_KW(Span) = TokenId::ENDSWITH_KW as u8,
+    ENTRYPOINT_KW(Span) = TokenId::ENTRYPOINT_KW as u8,
+    FALSE_KW(Span) = TokenId::FALSE_KW as u8,
+    FILESIZE_KW(Span) = TokenId::FILESIZE_KW as u8,
+    FOR_KW(Span) = TokenId::FOR_KW as u8,
+    FULLWORD_KW(Span) = TokenId::FULLWORD_KW as u8,
+    GLOBAL_KW(Span) = TokenId::GLOBAL_KW as u8,
+    ICONTAINS_KW(Span) = TokenId::ICONTAINS_KW as u8,
+    IENDSWITH_KW(Span) = TokenId::IENDSWITH_KW as u8,
+    IEQUALS_KW(Span) = TokenId::IEQUALS_KW as u8,
+    IMPORT_KW(Span) = TokenId::IMPORT_KW as u8,
+    IN_KW(Span) = TokenId::IN_KW as u8,
+    ISTARTSWITH_KW(Span) = TokenId::ISTARTSWITH_KW as u8,
+    MATCHES_KW(Span) = TokenId::MATCHES_KW as u8,
+    META_KW(Span) = TokenId::META_KW as u8,
+    NOCASE_KW(Span) = TokenId::NOCASE_KW as u8,
+    NONE_KW(Span) = TokenId::NONE_KW as u8,
+    NOT_KW(Span) = TokenId::NOT_KW as u8,
+    OF_KW(Span) = TokenId::OF_KW as u8,
+    OR_KW(Span) = TokenId::OR_KW as u8,
+    PRIVATE_KW(Span) = TokenId::PRIVATE_KW as u8,
+    RULE_KW(Span) = TokenId::RULE_KW as u8,
+    STARTSWITH_KW(Span) = TokenId::STARTSWITH_KW as u8,
+    STRINGS_KW(Span) = TokenId::STRINGS_KW as u8,
+    THEM_KW(Span) = TokenId::THEM_KW as u8,
+    TRUE_KW(Span) = TokenId::TRUE_KW as u8,
+    WIDE_KW(Span) = TokenId::WIDE_KW as u8,
+    XOR_KW(Span) = TokenId::XOR_KW as u8,
 
     // Bitwise operators.
-    SHL(Span),
-    SHR(Span),
+    SHL(Span) = TokenId::SHL as u8,
+    SHR(Span) = TokenId::SHR as u8,
 
     // Comparison operators.
-    EQ(Span),
-    NE(Span),
-    LT(Span),
-    LE(Span),
-    GT(Span),
-    GE(Span),
+    EQ(Span) = TokenId::EQ as u8,
+    NE(Span) = TokenId::NE as u8,
+    LT(Span) = TokenId::LT as u8,
+    LE(Span) = TokenId::LE as u8,
+    GT(Span) = TokenId::GT as u8,
+    GE(Span) = TokenId::GE as u8,
 
     // Literals.
-    FLOAT_LIT(Span),
-    INTEGER_LIT(Span),
-    STRING_LIT(Span),
+    FLOAT_LIT(Span) = TokenId::FLOAT_LIT as u8,
+    INTEGER_LIT(Span) = TokenId::INTEGER_LIT as u8,
+    STRING_LIT(Span) = TokenId::STRING_LIT as u8,
+    REGEXP(Span) = TokenId::REGEXP as u8,
 
     // Identifiers.
-    IDENT(Span),
-    PATTERN_IDENT(Span),
+    IDENT(Span) = TokenId::IDENT as u8,
+    PATTERN_IDENT(Span) = TokenId::PATTERN_IDENT as u8,
 
     // Punctuation.
-    AMPERSAND(Span),
-    ASTERISK(Span),
-    BACKSLASH(Span),
-    CARET(Span),
-    COLON(Span),
-    COMMA(Span),
-    DOT(Span),
-    EQUAL(Span),
-    HYPEN(Span),
-    PERCENT(Span),
-    PIPE(Span),
-    PLUS(Span),
-    TILDE(Span),
+    AMPERSAND(Span) = TokenId::AMPERSAND as u8,
+    ASTERISK(Span) = TokenId::ASTERISK as u8,
+    BACKSLASH(Span) = TokenId::BACKSLASH as u8,
+    CARET(Span) = TokenId::CARET as u8,
+    COLON(Span) = TokenId::COLON as u8,
+    COMMA(Span) = TokenId::COMMA as u8,
+    DOT(Span) = TokenId::DOT as u8,
+    EQUAL(Span) = TokenId::EQUAL as u8,
+    HYPEN(Span) = TokenId::HYPEN as u8,
+    PERCENT(Span) = TokenId::PERCENT as u8,
+    PIPE(Span) = TokenId::PIPE as u8,
+    PLUS(Span) = TokenId::PLUS as u8,
+    TILDE(Span) = TokenId::TILDE as u8,
 
-    L_BRACE(Span),
-    R_BRACE(Span),
-    L_BRACKET(Span),
-    R_BRACKET(Span),
-    L_PAREN(Span),
-    R_PAREN(Span),
-
-    REGEXP(Span),
+    L_BRACE(Span) = TokenId::L_BRACE as u8,
+    R_BRACE(Span) = TokenId::R_BRACE as u8,
+    L_BRACKET(Span) = TokenId::L_BRACKET as u8,
+    R_BRACKET(Span) = TokenId::R_BRACKET as u8,
+    L_PAREN(Span) = TokenId::L_PAREN as u8,
+    R_PAREN(Span) = TokenId::R_PAREN as u8,
 
     // Hex patterns
-    HEX_BYTE(Span),
+    HEX_BYTE(Span) = TokenId::HEX_BYTE as u8,
 
     // Trivia
-    COMMENT(Span),
-    NEWLINE(Span),
-    WHITESPACE(Span),
+    COMMENT(Span) = TokenId::COMMENT as u8,
+    NEWLINE(Span) = TokenId::NEWLINE as u8,
+    WHITESPACE(Span) = TokenId::WHITESPACE as u8,
 
     /// Not a real token. Used when a portion of the source code doesn't match
     /// any of the tokens.
-    UNKNOWN(Span),
+    UNKNOWN(Span) = TokenId::UNKNOWN as u8,
 
     /// Not a real token. Used when a portion of the source code is not valid
     /// UTF-8.
-    INVALID_UTF8(Span),
+    INVALID_UTF8(Span) = TokenId::INVALID_UTF8 as u8,
 }
 
 impl Token {
@@ -215,95 +414,18 @@ impl Token {
             | Token::INVALID_UTF8(span) => span.clone(),
         }
     }
+}
 
-    pub fn description(&self) -> &'static str {
-        match self {
-            // Keywords.
-            Token::ALL_KW(_) => "`all`",
-            Token::AND_KW(_) => "`and`",
-            Token::ANY_KW(_) => "`any`",
-            Token::ASCII_KW(_) => "`ascii`",
-            Token::AT_KW(_) => "`at`",
-            Token::BASE64_KW(_) => "`base64`",
-            Token::BASE64WIDE_KW(_) => "`base64wide`",
-            Token::CONDITION_KW(_) => "`condition`",
-            Token::CONTAINS_KW(_) => "`contains`",
-            Token::DEFINED_KW(_) => "`defined`",
-            Token::ENDSWITH_KW(_) => "`endswith`",
-            Token::ENTRYPOINT_KW(_) => "`entrypoint`",
-            Token::FALSE_KW(_) => "`false`",
-            Token::FILESIZE_KW(_) => "`filesize`",
-            Token::FOR_KW(_) => "`for`",
-            Token::FULLWORD_KW(_) => "`fullword`",
-            Token::GLOBAL_KW(_) => "`global`",
-            Token::ICONTAINS_KW(_) => "`icontains`",
-            Token::IENDSWITH_KW(_) => "`iendswith`",
-            Token::IEQUALS_KW(_) => "`iequals`",
-            Token::IMPORT_KW(_) => "`import`",
-            Token::IN_KW(_) => "`in`",
-            Token::ISTARTSWITH_KW(_) => "`istartswith`",
-            Token::MATCHES_KW(_) => "`matches`",
-            Token::META_KW(_) => "`meta`",
-            Token::NOCASE_KW(_) => "`nocase`",
-            Token::NONE_KW(_) => "`none`",
-            Token::NOT_KW(_) => "`not`",
-            Token::OF_KW(_) => "`of`",
-            Token::OR_KW(_) => "`or`",
-            Token::PRIVATE_KW(_) => "`private`",
-            Token::RULE_KW(_) => "`rule`",
-            Token::STARTSWITH_KW(_) => "`startswith",
-            Token::STRINGS_KW(_) => "`strings`",
-            Token::THEM_KW(_) => "`them`",
-            Token::TRUE_KW(_) => "`true`",
-            Token::WIDE_KW(_) => "`wide`",
-            Token::XOR_KW(_) => "`xor`",
+impl Token {
+    /// Returns the token ID associated to this token.
+    pub(crate) fn id(&self) -> TokenId {
+        // SAFETY: Because `Token` is marked `repr(u8)`, `self` can be casted
+        // to a pointer, and `u8` pointed to by the pointer is the discriminant
+        unsafe { *<*const _>::from(self).cast::<TokenId>() }
+    }
 
-            // Bitwise operators.
-            Token::SHL(_) => "`<<`",
-            Token::SHR(_) => "`>>`",
-
-            // Comparison operators.
-            Token::EQ(_) => "`==`",
-            Token::NE(_) => "`!=`",
-            Token::LT(_) => "`<`",
-            Token::LE(_) => "`<=`",
-            Token::GT(_) => "`>`",
-            Token::GE(_) => "`>=`",
-
-            // Punctuation.
-            Token::AMPERSAND(_) => "&",
-            Token::ASTERISK(_) => "`*`",
-            Token::BACKSLASH(_) => "`\\`",
-            Token::CARET(_) => "`^`",
-            Token::COLON(_) => "`:`",
-            Token::COMMA(_) => "`,`",
-            Token::DOT(_) => "`.`",
-            Token::EQUAL(_) => "`=`",
-            Token::HYPEN(_) => "`-`",
-            Token::PERCENT(_) => "`%`",
-            Token::PIPE(_) => "`|`",
-            Token::PLUS(_) => "`+`",
-            Token::TILDE(_) => "`~`",
-
-            Token::L_BRACE(_) => "`{`",
-            Token::R_BRACE(_) => "`}`",
-            Token::L_BRACKET(_) => "`[`",
-            Token::R_BRACKET(_) => "`]`",
-            Token::L_PAREN(_) => "`(`",
-            Token::R_PAREN(_) => "`)`",
-
-            Token::REGEXP(_) => "regexp",
-            Token::FLOAT_LIT(_) => "FLOAT",
-            Token::INTEGER_LIT(_) => "INTEGER",
-            Token::STRING_LIT(_) => "STRING",
-            Token::IDENT(_) => "identifier",
-            Token::PATTERN_IDENT(_) => "pattern identifier",
-            Token::HEX_BYTE(_) => "BYTE",
-            Token::COMMENT(_) => "comment",
-            Token::NEWLINE(_) => "newline",
-            Token::WHITESPACE(_) => "whitespace",
-            Token::UNKNOWN(_) => "unknown",
-            Token::INVALID_UTF8(_) => unreachable!(),
-        }
+    #[inline]
+    pub(crate) fn description(&self) -> &'static str {
+        self.id().description()
     }
 }

@@ -1,4 +1,4 @@
-use crate::tokenizer::Token;
+use crate::tokenizer::{Token, TokenId};
 
 /// Each of the node types in a Concrete Syntax Tree (CST).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -45,10 +45,18 @@ pub enum SyntaxKind {
     XOR_KW,
 
     // Arithmetic operators
+    ADD,
+    SUB,
+    MUL,
+    DIV,
+    MOD,
 
     // Bitwise operators
     SHL,
     SHR,
+    BITWISE_AND,
+    BITWISE_OR,
+    BITWISE_NOT,
 
     // Comparison operators.
     EQ,
@@ -67,7 +75,7 @@ pub enum SyntaxKind {
     BACKSLASH,
     DOT,
     EQUAL,
-    MINUS,
+    HYPEN,
     PERCENT,
     PIPE,
     PLUS,
@@ -89,13 +97,14 @@ pub enum SyntaxKind {
     NEWLINE,
 
     IDENT,
+    PATTERN_IDENT,
+
     IMPORT_STMT,
     RULE_DECL,
     RULE_MODS,
     RULE_TAGS,
     CONDITION_BLK,
     PATTERN_DEF,
-    PATTERN_IDENT,
     PATTERNS_BLK,
     PATTERN_MODS,
     PATTERN_MOD,
@@ -125,6 +134,117 @@ pub enum SyntaxKind {
 impl From<SyntaxKind> for rowan::SyntaxKind {
     fn from(value: SyntaxKind) -> Self {
         rowan::SyntaxKind(value as u16)
+    }
+}
+
+impl SyntaxKind {
+    /// Returns the token ID associated to a [`SyntaxKind`].
+    ///
+    /// When [`SyntaxKind`] represents a non-terminal symbol, like
+    /// [`SyntaxKind::RULE_DECL`] and [`SyntaxKind::IMPORT_STMT`], they
+    /// don't have an associated token ID. However, when it represents a
+    /// terminal symbol like [`SyntaxKind::ALL_KW`], [`SyntaxKind::EQ`]
+    /// or [`SyntaxKind::IDENT`] they have a corresponding token ID, which
+    /// usually have the same name ([`TokenId::ALL_KW`], [`TokenId::EQ`]
+    /// and [`TokenId::IDENT`])
+    ///
+    /// In some cases, multiple variants of [`SyntaxKind`] are associated to
+    /// the same token ID. For instance, both [`SyntaxKind::MOD`] (the module
+    /// operation) and [`SyntaxKind::PERCENT`] are associated to
+    /// [`TokenId::PERCENT`], because both are represented by the same token
+    /// `%`.
+    ///
+    /// # Panics
+    ///
+    /// If the current [`SyntaxKind`] doesn't have an associated token ID.
+    pub(crate) fn token_id(&self) -> TokenId {
+        match self {
+            SyntaxKind::ALL_KW => TokenId::ALL_KW,
+            SyntaxKind::AND_KW => TokenId::AND_KW,
+            SyntaxKind::ANY_KW => TokenId::ANY_KW,
+            SyntaxKind::ASCII_KW => TokenId::ASCII_KW,
+            SyntaxKind::AT_KW => TokenId::AT_KW,
+            SyntaxKind::BASE64_KW => TokenId::BASE64_KW,
+            SyntaxKind::BASE64WIDE_KW => TokenId::BASE64WIDE_KW,
+            SyntaxKind::CONDITION_KW => TokenId::CONDITION_KW,
+            SyntaxKind::CONTAINS_KW => TokenId::CONTAINS_KW,
+            SyntaxKind::DEFINED_KW => TokenId::DEFINED_KW,
+            SyntaxKind::ENDSWITH_KW => TokenId::ENDSWITH_KW,
+            SyntaxKind::ENTRYPOINT_KW => TokenId::ENTRYPOINT_KW,
+            SyntaxKind::FALSE_KW => TokenId::FALSE_KW,
+            SyntaxKind::FILESIZE_KW => TokenId::FILESIZE_KW,
+            SyntaxKind::FOR_KW => TokenId::FOR_KW,
+            SyntaxKind::FULLWORD_KW => TokenId::FULLWORD_KW,
+            SyntaxKind::GLOBAL_KW => TokenId::GLOBAL_KW,
+            SyntaxKind::ICONTAINS_KW => TokenId::ICONTAINS_KW,
+            SyntaxKind::IENDSWITH_KW => TokenId::IENDSWITH_KW,
+            SyntaxKind::IEQUALS_KW => TokenId::IEQUALS_KW,
+            SyntaxKind::IMPORT_KW => TokenId::IMPORT_KW,
+            SyntaxKind::IN_KW => TokenId::IN_KW,
+            SyntaxKind::ISTARTSWITH_KW => TokenId::ISTARTSWITH_KW,
+            SyntaxKind::MATCHES_KW => TokenId::MATCHES_KW,
+            SyntaxKind::META_KW => TokenId::META_KW,
+            SyntaxKind::NOCASE_KW => TokenId::NOCASE_KW,
+            SyntaxKind::NONE_KW => TokenId::NONE_KW,
+            SyntaxKind::NOT_KW => TokenId::NOT_KW,
+            SyntaxKind::OF_KW => TokenId::OF_KW,
+            SyntaxKind::OR_KW => TokenId::OR_KW,
+            SyntaxKind::PRIVATE_KW => TokenId::PRIVATE_KW,
+            SyntaxKind::RULE_KW => TokenId::RULE_KW,
+            SyntaxKind::STARTSWITH_KW => TokenId::STARTSWITH_KW,
+            SyntaxKind::STRINGS_KW => TokenId::STRINGS_KW,
+            SyntaxKind::THEM_KW => TokenId::THEM_KW,
+            SyntaxKind::TRUE_KW => TokenId::TRUE_KW,
+            SyntaxKind::WIDE_KW => TokenId::WIDE_KW,
+            SyntaxKind::XOR_KW => TokenId::XOR_KW,
+
+            SyntaxKind::ADD => TokenId::PLUS,
+            SyntaxKind::SUB => TokenId::HYPEN,
+            SyntaxKind::MUL => TokenId::ASTERISK,
+            SyntaxKind::DIV => TokenId::BACKSLASH,
+            SyntaxKind::MOD => TokenId::PERCENT,
+
+            SyntaxKind::SHL => TokenId::SHL,
+            SyntaxKind::SHR => TokenId::SHR,
+            SyntaxKind::BITWISE_AND => TokenId::AMPERSAND,
+            SyntaxKind::BITWISE_OR => TokenId::PIPE,
+            SyntaxKind::BITWISE_NOT => TokenId::TILDE,
+
+            SyntaxKind::EQ => TokenId::EQ,
+            SyntaxKind::NE => TokenId::NE,
+            SyntaxKind::LT => TokenId::LT,
+            SyntaxKind::LE => TokenId::LE,
+            SyntaxKind::GT => TokenId::GT,
+            SyntaxKind::GE => TokenId::GE,
+
+            SyntaxKind::L_BRACE => TokenId::L_BRACE,
+            SyntaxKind::R_BRACE => TokenId::R_BRACE,
+            SyntaxKind::L_BRACKET => TokenId::L_BRACKET,
+            SyntaxKind::R_BRACKET => TokenId::R_BRACKET,
+            SyntaxKind::L_PAREN => TokenId::L_PAREN,
+            SyntaxKind::R_PAREN => TokenId::R_PAREN,
+
+            SyntaxKind::FLOAT_LIT => TokenId::FLOAT_LIT,
+            SyntaxKind::STRING_LIT => TokenId::STRING_LIT,
+            SyntaxKind::INTEGER_LIT => TokenId::INTEGER_LIT,
+            SyntaxKind::REGEXP => TokenId::REGEXP,
+            SyntaxKind::IDENT => TokenId::IDENT,
+            SyntaxKind::PATTERN_IDENT => TokenId::PATTERN_IDENT,
+
+            SyntaxKind::COLON => TokenId::COLON,
+            SyntaxKind::DOT => TokenId::DOT,
+            SyntaxKind::EQUAL => TokenId::EQUAL,
+            SyntaxKind::HYPEN => TokenId::HYPEN,
+            SyntaxKind::PIPE => TokenId::PIPE,
+
+            SyntaxKind::HEX_BYTE => TokenId::HEX_BYTE,
+
+            SyntaxKind::COMMENT => TokenId::COMMENT,
+            SyntaxKind::NEWLINE => TokenId::NEWLINE,
+            SyntaxKind::WHITESPACE => TokenId::WHITESPACE,
+
+            _ => unreachable!("{:#?} doesn't have an associated token", self,),
+        }
     }
 }
 
@@ -198,7 +318,7 @@ impl From<&Token> for SyntaxKind {
             Token::COMMA(_) => SyntaxKind::COMMA,
             Token::DOT(_) => SyntaxKind::DOT,
             Token::EQUAL(_) => SyntaxKind::EQUAL,
-            Token::HYPEN(_) => SyntaxKind::MINUS,
+            Token::HYPEN(_) => SyntaxKind::HYPEN,
             Token::PERCENT(_) => SyntaxKind::PERCENT,
             Token::PIPE(_) => SyntaxKind::PIPE,
             Token::PLUS(_) => SyntaxKind::PLUS,

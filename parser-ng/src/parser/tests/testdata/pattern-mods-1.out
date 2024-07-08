@@ -132,7 +132,7 @@ SOURCE_FILE@0..251
             XOR_KW@210..213 "xor"
             L_PAREN@213..214 "("
             INTEGER_LIT@214..216 "20"
-            MINUS@216..217 "-"
+            HYPEN@216..217 "-"
             INTEGER_LIT@217..219 "30"
             R_PAREN@219..220 ")"
           WHITESPACE@220..221 " "

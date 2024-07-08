@@ -17,6 +17,7 @@ use crate::Span;
 mod tokens;
 
 pub use tokens::Token;
+pub(crate) use tokens::TokenId;
 
 #[cfg(test)]
 mod tests;
@@ -274,6 +275,18 @@ enum NormalToken<'src> {
     #[token("xor")]
     Xor,
 
+    // Comparison
+    #[token("==")]
+    Eq,
+    #[token("<=")]
+    Le,
+    #[token(">=")]
+    Ge,
+    #[token("<")]
+    Lt,
+    #[token(">")]
+    Gt,
+
     // Punctuation
     #[token("&")]
     Ampersand,
@@ -287,6 +300,8 @@ enum NormalToken<'src> {
     Dot,
     #[token("=")]
     Equal,
+    #[token("+")]
+    Plus,
     #[token("-")]
     Minus,
     #[token("%")]
@@ -543,6 +558,13 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
         NormalToken::Wide => Token::WIDE_KW(span),
         NormalToken::Xor => Token::XOR_KW(span),
 
+        // Comparison
+        NormalToken::Eq => Token::EQ(span),
+        NormalToken::Lt => Token::LT(span),
+        NormalToken::Gt => Token::GT(span),
+        NormalToken::Le => Token::LE(span),
+        NormalToken::Ge => Token::GE(span),
+
         // Punctuation.
         NormalToken::Ampersand => Token::AMPERSAND(span),
         NormalToken::Asterisk => Token::ASTERISK(span),
@@ -554,6 +576,7 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
         NormalToken::Minus => Token::HYPEN(span),
         NormalToken::Percent => Token::PERCENT(span),
         NormalToken::Pipe => Token::PIPE(span),
+        NormalToken::Plus => Token::PLUS(span),
         NormalToken::Tilde => Token::TILDE(span),
 
         NormalToken::LBrace => Token::L_BRACE(span),

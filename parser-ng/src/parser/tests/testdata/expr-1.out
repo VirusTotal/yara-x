@@ -1,0 +1,95 @@
+SOURCE_FILE@0..99
+  RULE_DECL@0..44
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..11 "test_1"
+    WHITESPACE@11..12 " "
+    L_BRACE@12..13 "{"
+    NEWLINE@13..14 "\n"
+    WHITESPACE@14..15 "\t"
+    CONDITION_BLK@15..42
+      CONDITION_KW@15..24 "condition"
+      COLON@24..25 ":"
+      NEWLINE@25..26 "\n"
+      WHITESPACE@26..28 "\t\t"
+      BOOLEAN_EXPR@28..42
+        BOOLEAN_TERM@28..42
+          EXPR@28..33
+            TERM@28..29
+              PRIMARY_EXPR@28..29
+                INTEGER_LIT@28..29 "1"
+            WHITESPACE@29..30 " "
+            ADD@30..31 "+"
+            WHITESPACE@31..32 " "
+            TERM@32..33
+              PRIMARY_EXPR@32..33
+                INTEGER_LIT@32..33 "2"
+          WHITESPACE@33..34 " "
+          EQ@34..36 "=="
+          WHITESPACE@36..37 " "
+          EXPR@37..42
+            TERM@37..38
+              PRIMARY_EXPR@37..38
+                INTEGER_LIT@37..38 "4"
+            WHITESPACE@38..39 " "
+            SUB@39..40 "-"
+            WHITESPACE@40..41 " "
+            TERM@41..42
+              PRIMARY_EXPR@41..42
+                INTEGER_LIT@41..42 "1"
+    NEWLINE@42..43 "\n"
+    R_BRACE@43..44 "}"
+  NEWLINE@44..45 "\n"
+  NEWLINE@45..46 "\n"
+  RULE_DECL@46..99
+    RULE_KW@46..50 "rule"
+    WHITESPACE@50..51 " "
+    IDENT@51..57 "test_2"
+    WHITESPACE@57..58 " "
+    L_BRACE@58..59 "{"
+    NEWLINE@59..60 "\n"
+    WHITESPACE@60..61 "\t"
+    CONDITION_BLK@61..97
+      CONDITION_KW@61..70 "condition"
+      COLON@70..71 ":"
+      NEWLINE@71..72 "\n"
+      WHITESPACE@72..74 "\t\t"
+      BOOLEAN_EXPR@74..97
+        BOOLEAN_TERM@74..97
+          EXPR@74..83
+            TERM@74..75
+              PRIMARY_EXPR@74..75
+                INTEGER_LIT@74..75 "1"
+            WHITESPACE@75..76 " "
+            ADD@76..77 "+"
+            WHITESPACE@77..78 " "
+            TERM@78..79
+              PRIMARY_EXPR@78..79
+                INTEGER_LIT@78..79 "2"
+            WHITESPACE@79..80 " "
+            MUL@80..81 "*"
+            WHITESPACE@81..82 " "
+            TERM@82..83
+              PRIMARY_EXPR@82..83
+                INTEGER_LIT@82..83 "3"
+          WHITESPACE@83..85 "  "
+          GE@85..87 ">="
+          WHITESPACE@87..88 " "
+          EXPR@88..97
+            TERM@88..89
+              PRIMARY_EXPR@88..89
+                INTEGER_LIT@88..89 "4"
+            WHITESPACE@89..90 " "
+            DIV@90..91 "\\"
+            WHITESPACE@91..92 " "
+            TERM@92..93
+              PRIMARY_EXPR@92..93
+                INTEGER_LIT@92..93 "2"
+            WHITESPACE@93..94 " "
+            MOD@94..95 "%"
+            WHITESPACE@95..96 " "
+            TERM@96..97
+              PRIMARY_EXPR@96..97
+                INTEGER_LIT@96..97 "1"
+    NEWLINE@97..98 "\n"
+    R_BRACE@98..99 "}"
