@@ -1,5 +1,5 @@
-use std::cmp::Reverse;
-use std::collections::{BinaryHeap, VecDeque};
+use itertools::Itertools;
+use std::collections::VecDeque;
 
 use crate::tokenizer::{Token, Tokenizer};
 
@@ -25,10 +25,10 @@ pub struct TokenStream<'src> {
     /// Temporary token storage. Tokens are obtained from the tokenizer and
     /// pushed into this deque for later consumption.
     tokens: VecDeque<Token>,
-    /// Binary heap that contains the existing bookmarks. Each bookmark is
-    /// the absolute index of the token being bookmarked. This is a min-heap,
-    /// that allows us to obtain the left-most bookmark in *O*(1).
-    bookmarks: BinaryHeap<Reverse<usize>>,
+    /// Existing bookmarks. Each bookmark is the absolute index of the token
+    /// being bookmarked. This is kept sorted in ascending order, the leftmost
+    /// bookmark is always at the front of the deque.
+    bookmarks: VecDeque<usize>,
     /// Absolute index of the current token. Tokens are indexed as 0, 1, 2,
     /// etc. With absolute, we mean that the position is not an index in the
     /// `tokens` deque, but the position of the token in the overall stream
@@ -47,7 +47,7 @@ impl<'src> TokenStream<'src> {
         Self {
             tokenizer,
             tokens: VecDeque::new(),
-            bookmarks: BinaryHeap::new(),
+            bookmarks: VecDeque::new(),
             current_token: 0,
             purged_tokens: 0,
         }
@@ -89,7 +89,22 @@ impl<'src> TokenStream<'src> {
     /// By passing the bookmark to [`TokenStream::restore_bookmark`] you can go back
     /// to a previous stream position.
     pub fn bookmark(&mut self) -> Bookmark {
-        self.bookmarks.push(Reverse(self.current_token));
+        match self.bookmarks.back() {
+            // No bookmarks yet, simply insert at the end.
+            None => {
+                self.bookmarks.push_back(self.current_token);
+            }
+            // There are bookmarks, but the rightmost one is lower than the
+            // current offset, inserting at the end keeps the order.
+            Some(rightmost) if *rightmost <= self.current_token => {
+                self.bookmarks.push_back(self.current_token)
+            }
+            // There are bookmarks, but they need to be sorted after insertion.
+            Some(_) => {
+                self.bookmarks.push_back(self.current_token);
+                self.bookmarks.make_contiguous().sort();
+            }
+        }
         Bookmark(self.current_token)
     }
 
@@ -106,8 +121,19 @@ impl<'src> TokenStream<'src> {
     /// back to the bookmarked position again, therefore is safe for the stream
     /// to purge past tokens that are not reachable anymore because there are
     /// no bookmarks pointing to them.
+    ///
+    /// # Panics
+    ///
+    /// If the bookmark doesn't exist or was previously removed.
     pub fn remove_bookmark(&mut self, bookmark: Bookmark) {
-        self.bookmarks.retain(|x| x.ne(&Reverse(bookmark.0)))
+        match self.bookmarks.iter().find_position(|b| **b == bookmark.0) {
+            Some((pos, _)) => {
+                self.bookmarks.remove(pos);
+            }
+            None => {
+                panic!("trying to remove a non-existing bookmark");
+            }
+        }
     }
 
     /// Switches to hex pattern operation mode.
@@ -153,13 +179,12 @@ impl<'src> TokenStream<'src> {
     /// the leftmost bookmark, if a bookmark exist, or at the left of the
     /// current token.
     fn purge(&mut self) {
-        let n = if let Some(Reverse(leftmost_bookmark)) = self.bookmarks.peek()
-        {
+        let n = if let Some(leftmost_bookmark) = self.bookmarks.front() {
             // Ensure that the token referenced by the left-most bookmark has
             // not being purged yet.
             assert!(*leftmost_bookmark >= self.purged_tokens);
             // Purge all tokens at the left of the left-most bookmark.
-            leftmost_bookmark - self.abs_pos(0)
+            self.rel_pos(*leftmost_bookmark)
         } else {
             // Purge all tokens at the left of the current token.
             self.rel_pos(self.current_token)
@@ -295,5 +320,33 @@ mod test {
         assert_eq!(t.next_token(), Some(Token::WHITESPACE(Span(7..8))));
         assert_eq!(t.next_token(), Some(Token::IDENT(Span(8..12))));
         assert_eq!(t.next_token(), None);
+    }
+
+    #[test]
+    fn bookmarks_3() {
+        let mut t = TokenStream::new(Tokenizer::new(b"uno dos tres"));
+
+        assert_eq!(t.next_token(), Some(Token::IDENT(Span(0..3))));
+
+        let b1 = t.bookmark();
+        let b2 = t.bookmark();
+        let b3 = t.bookmark();
+
+        assert_eq!(t.next_token(), Some(Token::WHITESPACE(Span(3..4))));
+        assert_eq!(t.next_token(), Some(Token::IDENT(Span(4..7))));
+
+        t.remove_bookmark(b3);
+        t.restore_bookmark(&b2);
+
+        assert_eq!(t.next_token(), Some(Token::WHITESPACE(Span(3..4))));
+        assert_eq!(t.next_token(), Some(Token::IDENT(Span(4..7))));
+
+        t.remove_bookmark(b2);
+        t.restore_bookmark(&b1);
+
+        assert_eq!(t.next_token(), Some(Token::WHITESPACE(Span(3..4))));
+        assert_eq!(t.next_token(), Some(Token::IDENT(Span(4..7))));
+
+        t.remove_bookmark(b1);
     }
 }
