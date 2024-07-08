@@ -66,6 +66,9 @@ pub(crate) enum TokenId {
     // Identifiers.
     IDENT,
     PATTERN_IDENT,
+    PATTERN_COUNT,
+    PATTERN_OFFSET,
+    PATTERN_LENGTH,
 
     // Punctuation.
     AMPERSAND,
@@ -189,6 +192,9 @@ impl TokenId {
             TokenId::STRING_LIT => "STRING",
             TokenId::IDENT => "identifier",
             TokenId::PATTERN_IDENT => "pattern identifier",
+            TokenId::PATTERN_COUNT => "pattern count",
+            TokenId::PATTERN_LENGTH => "pattern length",
+            TokenId::PATTERN_OFFSET => "pattern offset",
             TokenId::HEX_BYTE => "BYTE",
             TokenId::COMMENT => "comment",
             TokenId::NEWLINE => "newline",
@@ -266,6 +272,9 @@ pub enum Token {
     // Identifiers.
     IDENT(Span) = TokenId::IDENT as u8,
     PATTERN_IDENT(Span) = TokenId::PATTERN_IDENT as u8,
+    PATTERN_OFFSET(Span) = TokenId::PATTERN_OFFSET as u8,
+    PATTERN_COUNT(Span) = TokenId::PATTERN_COUNT as u8,
+    PATTERN_LENGTH(Span) = TokenId::PATTERN_LENGTH as u8,
 
     // Punctuation.
     AMPERSAND(Span) = TokenId::AMPERSAND as u8,
@@ -403,6 +412,9 @@ impl Token {
             // Identifiers
             | Token::IDENT(span)
             | Token::PATTERN_IDENT(span)
+            | Token::PATTERN_COUNT(span)
+            | Token::PATTERN_OFFSET(span)
+            | Token::PATTERN_LENGTH(span)
 
             // Hex patterns
             | Token::HEX_BYTE(span)

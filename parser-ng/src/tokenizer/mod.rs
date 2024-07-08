@@ -334,7 +334,7 @@ enum NormalToken<'src> {
     #[token("]")]
     RBracket,
 
-    // Pattern identifiers.
+    // Pattern identifiers (i.e: $, $a, $b, $foo, $bar).
     #[regex(
         r#"(?x)                         # allow comments in the regexp
             \$                          # first character is $
@@ -343,6 +343,36 @@ enum NormalToken<'src> {
         |token| token.slice())
     ]
     PatternIdent(&'src [u8]),
+
+    // Pattern count (i.e: #a, #b, #foo, #bar).
+    #[regex(
+        r#"(?x)                         # allow comments in the regexp
+            \#                          # first character is #
+            ([[:alpha:]]|\d|_)*         # any number of letters, digits, or _
+        "#,
+        |token| token.slice())
+    ]
+    PatternCount(&'src [u8]),
+
+    // Pattern offset (i.e: @a, @b, @foo, @bar).
+    #[regex(
+        r#"(?x)                         # allow comments in the regexp
+            @                           # first character is @
+            ([[:alpha:]]|\d|_)*         # any number of letters, digits, or _
+        "#,
+        |token| token.slice())
+    ]
+    PatternOffset(&'src [u8]),
+
+    // Pattern offset (i.e: @a, @b, @foo, @bar).
+    #[regex(
+        r#"(?x)                         # allow comments in the regexp
+            !                           # first character is !
+            ([[:alpha:]]|\d|_)*         # any number of letters, digits, or _
+        "#,
+        |token| token.slice())
+    ]
+    PatternLength(&'src [u8]),
 
     // Identifiers must start with underscore or letter, followed by any
     // number of underscores, letters, or digits.
@@ -645,6 +675,24 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
         NormalToken::PatternIdent(ident) => {
             return match from_utf8(ident) {
                 Ok(_) => Token::PATTERN_IDENT(span),
+                Err(_) => unreachable!(),
+            }
+        }
+        NormalToken::PatternCount(ident) => {
+            return match from_utf8(ident) {
+                Ok(_) => Token::PATTERN_COUNT(span),
+                Err(_) => unreachable!(),
+            }
+        }
+        NormalToken::PatternOffset(ident) => {
+            return match from_utf8(ident) {
+                Ok(_) => Token::PATTERN_OFFSET(span),
+                Err(_) => unreachable!(),
+            }
+        }
+        NormalToken::PatternLength(ident) => {
+            return match from_utf8(ident) {
+                Ok(_) => Token::PATTERN_LENGTH(span),
                 Err(_) => unreachable!(),
             }
         }

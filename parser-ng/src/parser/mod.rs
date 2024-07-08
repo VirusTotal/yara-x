@@ -1246,15 +1246,18 @@ impl<'src> InternalParser<'src> {
     ///
     /// ```text
     /// PRIMARY_EXPR := (
-    ///     FLOAT_LIT           |
-    ///     INTEGER_LIT         |
-    ///     STRING_LIT          |
-    ///     REGEXP              |
-    ///     `filesize`          |
-    ///     `entrypoint`        |
-    ///     `-` TERM            |
-    ///     `~` TERM            |
-    ///     `(` EXPR `)`        |
+    ///     FLOAT_LIT                          |
+    ///     INTEGER_LIT                        |
+    ///     STRING_LIT                         |
+    ///     REGEXP                             |
+    ///     `filesize`                         |
+    ///     `entrypoint`                       |
+    ///     PATTERN_COUNT (`in` RANGE)?        |
+    ///     PATTERN_OFFSET (`[` EXPR `]`)?     |
+    ///     PATTERN_LENGTH (`[` EXPR `]`)?     |
+    ///     `-` TERM                           |
+    ///     `~` TERM                           |
+    ///     `(` EXPR `)`                       |
     ///     IDENT (`.` IDENT)*
     /// )
     /// ``
@@ -1268,6 +1271,15 @@ impl<'src> InternalParser<'src> {
                     | REGEXP
                     | FILESIZE_KW
                     | ENTRYPOINT_KW))
+            })
+            .alt(|p| {
+                p.expect(t!(PATTERN_COUNT))
+                    .opt(|p| p.expect(t!(IN_KW)).range())
+            })
+            .alt(|p| {
+                p.expect(t!(PATTERN_OFFSET | PATTERN_LENGTH)).opt(|p| {
+                    p.expect(t!(L_BRACKET)).expr().expect(t!(R_BRACKET))
+                })
             })
             .alt(|p| p.expect(t!(MINUS)).term())
             .alt(|p| p.expect(t!(BITWISE_NOT)).term())

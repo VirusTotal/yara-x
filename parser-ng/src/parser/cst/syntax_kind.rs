@@ -99,6 +99,9 @@ pub enum SyntaxKind {
 
     IDENT,
     PATTERN_IDENT,
+    PATTERN_LENGTH,
+    PATTERN_OFFSET,
+    PATTERN_COUNT,
 
     IMPORT_STMT,
     RULE_DECL,
@@ -232,6 +235,9 @@ impl SyntaxKind {
             SyntaxKind::REGEXP => TokenId::REGEXP,
             SyntaxKind::IDENT => TokenId::IDENT,
             SyntaxKind::PATTERN_IDENT => TokenId::PATTERN_IDENT,
+            SyntaxKind::PATTERN_LENGTH => TokenId::PATTERN_LENGTH,
+            SyntaxKind::PATTERN_OFFSET => TokenId::PATTERN_OFFSET,
+            SyntaxKind::PATTERN_COUNT => TokenId::PATTERN_COUNT,
 
             SyntaxKind::COLON => TokenId::COLON,
             SyntaxKind::COMMA => TokenId::COMMA,
@@ -339,6 +345,10 @@ impl From<&Token> for SyntaxKind {
             // Identifiers
             Token::IDENT(_) => SyntaxKind::IDENT,
             Token::PATTERN_IDENT(_) => SyntaxKind::PATTERN_IDENT,
+            Token::PATTERN_OFFSET(_) => SyntaxKind::PATTERN_OFFSET,
+            Token::PATTERN_COUNT(_) => SyntaxKind::PATTERN_COUNT,
+            Token::PATTERN_LENGTH(_) => SyntaxKind::PATTERN_LENGTH,
+
             // Trivia
             Token::COMMENT(_) => SyntaxKind::COMMENT,
             Token::WHITESPACE(_) => SyntaxKind::WHITESPACE,
