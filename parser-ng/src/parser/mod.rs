@@ -1126,6 +1126,8 @@ impl<'src> InternalParser<'src> {
                     .if_found(t!(AT_KW), |p| p.expect(t!(AT_KW)).expr())
                     .if_found(t!(IN_KW), |p| p.expect(t!(IN_KW)).range())
             })
+            .alt(|p| p.expect(t!(TRUE_KW | FALSE_KW)))
+            .alt(|p| p.expect(t!(NOT_KW | DEFINED_KW)).boolean_term())
             .alt(|p| {
                 p.expr().zero_or_more(|p| {
                     p.expect(t!(EQ
@@ -1144,9 +1146,6 @@ impl<'src> InternalParser<'src> {
                         .expr()
                 })
             })
-            .alt(|p| p.expect(t!(TRUE_KW | FALSE_KW)))
-            .alt(|p| p.expect(t!(NOT_KW)).boolean_term())
-            .alt(|p| p.expect(t!(DEFINED_KW)).boolean_term())
             .alt(|p| p.expect(t!(L_PAREN)).boolean_expr().expect(t!(R_PAREN)))
             .end_alt()
             .end()
@@ -1270,6 +1269,7 @@ impl<'src> InternalParser<'src> {
                     | FILESIZE_KW
                     | ENTRYPOINT_KW))
             })
+            .alt(|p| p.expect(t!(MINUS)).term())
             .alt(|p| p.expect(t!(BITWISE_NOT)).term())
             .alt(|p| p.expect(t!(L_PAREN)).expr().expect(t!(R_PAREN)))
             .alt(|p| {

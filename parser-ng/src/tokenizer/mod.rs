@@ -275,6 +275,12 @@ enum NormalToken<'src> {
     #[token("xor")]
     Xor,
 
+    // Bitwise
+    #[token(">>")]
+    Shl,
+    #[token("<<")]
+    Shr,
+
     // Comparison
     #[token("==")]
     Eq,
@@ -558,7 +564,11 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
         NormalToken::Wide => Token::WIDE_KW(span),
         NormalToken::Xor => Token::XOR_KW(span),
 
-        // Comparison
+        // Bitwise.
+        NormalToken::Shl => Token::SHL(span),
+        NormalToken::Shr => Token::SHR(span),
+
+        // Comparison.
         NormalToken::Eq => Token::EQ(span),
         NormalToken::Lt => Token::LT(span),
         NormalToken::Gt => Token::GT(span),

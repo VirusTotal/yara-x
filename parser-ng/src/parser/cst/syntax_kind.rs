@@ -50,6 +50,7 @@ pub enum SyntaxKind {
     MUL,
     DIV,
     MOD,
+    MINUS,
 
     // Bitwise operators
     SHL,
@@ -203,6 +204,7 @@ impl SyntaxKind {
             SyntaxKind::MUL => TokenId::ASTERISK,
             SyntaxKind::DIV => TokenId::BACKSLASH,
             SyntaxKind::MOD => TokenId::PERCENT,
+            SyntaxKind::MINUS => TokenId::HYPEN,
 
             SyntaxKind::SHL => TokenId::SHL,
             SyntaxKind::SHR => TokenId::SHR,
