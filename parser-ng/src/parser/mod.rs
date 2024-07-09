@@ -1136,6 +1136,7 @@ impl<'src> InternalParser<'src> {
             .alt(|p| p.expect(t!(TRUE_KW | FALSE_KW)))
             .alt(|p| {
                 p.expect(t!(NOT_KW | DEFINED_KW))
+                    //.cut()
                     .then(|p| p.boolean_term())
             })
             .alt(|p| p.for_expr())
