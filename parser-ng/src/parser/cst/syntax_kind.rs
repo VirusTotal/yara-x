@@ -124,6 +124,13 @@ pub enum SyntaxKind {
     SOURCE_FILE,
     BOOLEAN_EXPR,
     BOOLEAN_TERM,
+    FOR_EXPR,
+    OF_EXPR,
+    ITERABLE,
+    QUANTIFIER,
+    EXPR_TUPLE,
+    BOOLEAN_EXPR_TUPLE,
+    PATTERN_IDENT_TUPLE,
 
     HEX_ALTERNATIVE,
     HEX_JUMP,
@@ -239,11 +246,13 @@ impl SyntaxKind {
             SyntaxKind::PATTERN_OFFSET => TokenId::PATTERN_OFFSET,
             SyntaxKind::PATTERN_COUNT => TokenId::PATTERN_COUNT,
 
+            SyntaxKind::ASTERISK => TokenId::ASTERISK,
             SyntaxKind::COLON => TokenId::COLON,
             SyntaxKind::COMMA => TokenId::COMMA,
             SyntaxKind::DOT => TokenId::DOT,
             SyntaxKind::EQUAL => TokenId::EQUAL,
             SyntaxKind::HYPEN => TokenId::HYPEN,
+            SyntaxKind::PERCENT => TokenId::PERCENT,
             SyntaxKind::PIPE => TokenId::PIPE,
 
             SyntaxKind::HEX_BYTE => TokenId::HEX_BYTE,

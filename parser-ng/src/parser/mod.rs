@@ -842,6 +842,7 @@ impl<'src> InternalParser<'src> {
             .if_found(t!(STRINGS_KW), |p| p.patterns_blk())
             .recover_and_sync(t!(CONDITION_KW))
             .condition_blk()
+            .recover_and_sync(t!(R_BRACE))
             .expect(t!(R_BRACE))
             .end()
     }
@@ -1020,7 +1021,7 @@ impl<'src> InternalParser<'src> {
         self.begin(CONDITION_BLK)
             .expect(t!(CONDITION_KW))
             .expect(t!(COLON))
-            .boolean_expr()
+            .then(|p| p.boolean_expr())
             .end()
     }
 
@@ -1033,7 +1034,7 @@ impl<'src> InternalParser<'src> {
         self.begin(HEX_PATTERN)
             .expect(t!(L_BRACE))
             .enter_hex_pattern_mode()
-            .hex_sub_pattern()
+            .then(|p| p.hex_sub_pattern())
             .expect(t!(R_BRACE))
             .end()
     }
@@ -1068,8 +1069,8 @@ impl<'src> InternalParser<'src> {
     fn hex_alternative(&mut self) -> &mut Self {
         self.begin(HEX_ALTERNATIVE)
             .expect(t!(L_PAREN))
-            .hex_sub_pattern()
-            .zero_or_more(|p| p.expect(t!(PIPE)).hex_sub_pattern())
+            .then(|p| p.hex_sub_pattern())
+            .zero_or_more(|p| p.expect(t!(PIPE)).then(|p| p.hex_sub_pattern()))
             .expect(t!(R_PAREN))
             .end()
     }
@@ -1103,7 +1104,9 @@ impl<'src> InternalParser<'src> {
     fn boolean_expr(&mut self) -> &mut Self {
         self.begin(BOOLEAN_EXPR)
             .boolean_term()
-            .zero_or_more(|p| p.expect(t!(AND_KW | OR_KW)).boolean_term())
+            .zero_or_more(|p| {
+                p.expect(t!(AND_KW | OR_KW)).then(|p| p.boolean_term())
+            })
             .end()
     }
 
@@ -1123,11 +1126,20 @@ impl<'src> InternalParser<'src> {
             .begin_alt()
             .alt(|p| {
                 p.expect(t!(PATTERN_IDENT))
-                    .if_found(t!(AT_KW), |p| p.expect(t!(AT_KW)).expr())
-                    .if_found(t!(IN_KW), |p| p.expect(t!(IN_KW)).range())
+                    .if_found(t!(AT_KW), |p| {
+                        p.expect(t!(AT_KW)).then(|p| p.expr())
+                    })
+                    .if_found(t!(IN_KW), |p| {
+                        p.expect(t!(IN_KW)).then(|p| p.range())
+                    })
             })
             .alt(|p| p.expect(t!(TRUE_KW | FALSE_KW)))
-            .alt(|p| p.expect(t!(NOT_KW | DEFINED_KW)).boolean_term())
+            .alt(|p| {
+                p.expect(t!(NOT_KW | DEFINED_KW))
+                    .then(|p| p.boolean_term())
+            })
+            .alt(|p| p.for_expr())
+            .alt(|p| p.of_expr())
             .alt(|p| {
                 p.expr().zero_or_more(|p| {
                     p.expect(t!(EQ
@@ -1146,7 +1158,11 @@ impl<'src> InternalParser<'src> {
                         .expr()
                 })
             })
-            .alt(|p| p.expect(t!(L_PAREN)).boolean_expr().expect(t!(R_PAREN)))
+            .alt(|p| {
+                p.expect(t!(L_PAREN))
+                    .then(|p| p.boolean_expr())
+                    .expect(t!(R_PAREN))
+            })
             .end_alt()
             .end()
     }
@@ -1173,7 +1189,7 @@ impl<'src> InternalParser<'src> {
                     | BITWISE_OR
                     | BITWISE_NOT
                     | DOT))
-                    .term()
+                    .then(|p| p.term())
             })
             .end()
     }
@@ -1205,10 +1221,10 @@ impl<'src> InternalParser<'src> {
     fn range(&mut self) -> &mut Self {
         self.begin(RANGE)
             .expect(t!(L_PAREN))
-            .expr()
+            .then(|p| p.expr())
             .expect(t!(DOT))
             .expect(t!(DOT))
-            .expr()
+            .then(|p| p.expr())
             .expect(t!(R_PAREN))
             .end()
     }
@@ -1220,9 +1236,9 @@ impl<'src> InternalParser<'src> {
     /// ``
     fn indexing_expr(&mut self) -> &mut Self {
         self.begin(INDEXING_EXPR)
-            .primary_expr()
+            .then(|p| p.primary_expr())
             .expect(t!(L_BRACKET))
-            .expr()
+            .then(|p| p.expr())
             .expect(t!(R_BRACKET))
             .end()
     }
@@ -1234,10 +1250,10 @@ impl<'src> InternalParser<'src> {
     /// ``
     fn func_call_expr(&mut self) -> &mut Self {
         self.begin(FUNC_CALL_EXPR)
-            .primary_expr()
+            .then(|p| p.primary_expr())
             .expect(t!(L_PAREN))
             .opt(|p| p.boolean_expr())
-            .zero_or_more(|p| p.expect(t!(COMMA)).boolean_expr())
+            .zero_or_more(|p| p.expect(t!(COMMA)).then(|p| p.boolean_expr()))
             .expect(t!(R_PAREN))
             .end()
     }
@@ -1274,21 +1290,188 @@ impl<'src> InternalParser<'src> {
             })
             .alt(|p| {
                 p.expect(t!(PATTERN_COUNT))
-                    .opt(|p| p.expect(t!(IN_KW)).range())
+                    .opt(|p| p.expect(t!(IN_KW)).then(|p| p.range()))
             })
             .alt(|p| {
                 p.expect(t!(PATTERN_OFFSET | PATTERN_LENGTH)).opt(|p| {
-                    p.expect(t!(L_BRACKET)).expr().expect(t!(R_BRACKET))
+                    p.expect(t!(L_BRACKET))
+                        .then(|p| p.expr())
+                        .expect(t!(R_BRACKET))
                 })
             })
-            .alt(|p| p.expect(t!(MINUS)).term())
-            .alt(|p| p.expect(t!(BITWISE_NOT)).term())
-            .alt(|p| p.expect(t!(L_PAREN)).expr().expect(t!(R_PAREN)))
+            .alt(|p| {
+                p.expect(t!(MINUS)) /*.cut()*/
+                    .then(|p| p.term())
+            })
+            .alt(|p| {
+                p.expect(t!(BITWISE_NOT)) /*.cut()*/
+                    .then(|p| p.term())
+            })
+            .alt(|p| {
+                p.expect(t!(L_PAREN))
+                    //.cut()
+                    .then(|p| p.expr())
+                    .expect(t!(R_PAREN))
+            })
             .alt(|p| {
                 p.expect(t!(IDENT))
                     .zero_or_more(|p| p.expect(t!(DOT)).expect(t!(IDENT)))
             })
             .end_alt()
+            .end()
+    }
+
+    /// Parses `for` expression.
+    ///
+    /// ```text
+    /// FOR_EXPR := `for` QUANTIFIER (
+    ///     `of` ( `them` | PATTERN_IDENT_TUPLE ) |
+    ///     IDENT ( `,` IDENT )* `in` ITERABLE
+    /// )
+    /// `:` `(` BOOLEAN_EXPR `)
+    /// ``
+    fn for_expr(&mut self) -> &mut Self {
+        self.begin(FOR_EXPR)
+            .expect(t!(FOR_KW))
+            .then(|p| p.quantifier())
+            .begin_alt()
+            .alt(|p| {
+                p.expect(t!(OF_KW))
+                    .begin_alt()
+                    .alt(|p| p.expect(t!(THEM_KW)))
+                    .alt(|p| p.pattern_ident_tuple())
+                    .end_alt()
+            })
+            .alt(|p| {
+                p.expect(t!(IDENT))
+                    .zero_or_more(|p| p.expect(t!(COMMA)).expect(t!(IDENT)))
+                    .expect(t!(IN_KW))
+                    .then(|p| p.iterable())
+            })
+            .end_alt()
+            .expect(t!(COLON))
+            .expect(t!(L_PAREN))
+            .then(|p| p.boolean_expr())
+            .expect(t!(R_PAREN))
+            .end()
+    }
+
+    /// Parses `of` expression.
+    ///
+    /// ```text
+    /// OF := QUANTIFIER (
+    ///     `of` ( `them` | PATTERN_IDENT_TUPLE ) ( `at` EXPR | `in` RANGE )? |
+    ///     BOOLEAN_EXPR_TUPLE
+    /// )
+    /// ``
+    fn of_expr(&mut self) -> &mut Self {
+        self.begin(OF_EXPR)
+            .then(|p| p.quantifier())
+            .expect(t!(OF_KW))
+            .begin_alt()
+            .alt(|p| {
+                p.begin_alt()
+                    .alt(|p| p.expect(t!(THEM_KW)))
+                    .alt(|p| p.pattern_ident_tuple())
+                    .end_alt()
+                    .if_found(t!(AT_KW), |p| {
+                        p.expect(t!(AT_KW)).then(|p| p.expr())
+                    })
+                    .if_found(t!(IN_KW), |p| {
+                        p.expect(t!(IN_KW)).then(|p| p.range())
+                    })
+            })
+            .alt(|p| {
+                p.boolean_expr_tuple().not(|p| p.expect(t!(AT_KW | IN_KW)))
+            }) // TODO
+            .end_alt()
+            .end()
+    }
+
+    /// Parses quantifier.
+    ///
+    /// ```text
+    /// QUANTIFIER := (
+    ///     `all`                           |
+    ///     `none`                          |
+    ///     `any`                           |
+    ///     (INTEGER_LIT | FLOAT_LIT ) `%`  |
+    ///     EXPR
+    /// )
+    /// ```
+    fn quantifier(&mut self) -> &mut Self {
+        self.begin(QUANTIFIER)
+            .begin_alt()
+            .alt(|p| p.expect(t!(ALL_KW | NONE_KW | ANY_KW)))
+            .alt(|p| p.expect(t!(INTEGER_LIT | FLOAT_LIT)).expect(t!(PERCENT)))
+            .alt(|p| p.expr())
+            .end_alt()
+            .end()
+    }
+
+    /// Parses iterable.
+    ///
+    /// ```text
+    /// ITERABLE := (
+    ///     RANGE              |
+    ///     EXPR_TUPLE         |
+    ///     EXPR
+    /// )
+    /// ```
+    fn iterable(&mut self) -> &mut Self {
+        self.begin(ITERABLE)
+            .begin_alt()
+            .alt(|p| p.range())
+            .alt(|p| p.expr_tuple())
+            .alt(|p| p.expr())
+            .end_alt()
+            .end()
+    }
+
+    /// Parses a tuple of boolean expressions.
+    ///
+    /// ```text
+    /// BOOLEAN_EXPR_TUPLE := `(` BOOLEAN_EXPR ( `,` BOOLEAN_EXPR )* `)`
+    /// ```
+    fn boolean_expr_tuple(&mut self) -> &mut Self {
+        self.begin(BOOLEAN_EXPR_TUPLE)
+            .expect(t!(L_PAREN))
+            .then(|p| p.boolean_expr())
+            .zero_or_more(|p| p.expect(t!(COMMA)).then(|p| p.boolean_expr()))
+            .expect(t!(R_PAREN))
+            .end()
+    }
+
+    /// Parses a tuple of expressions.
+    ///
+    /// ```text
+    /// EXPR_TUPLE := `(` EXPR ( `,` EXPR )* `)`
+    /// ```
+    fn expr_tuple(&mut self) -> &mut Self {
+        self.begin(EXPR_TUPLE)
+            .expect(t!(L_PAREN))
+            .then(|p| p.expr())
+            .zero_or_more(|p| p.expect(t!(COMMA)).then(|p| p.expr()))
+            .expect(t!(R_PAREN))
+            .end()
+    }
+
+    /// Parses a tuple of pattern identifiers.
+    ///
+    /// ```text
+    /// PATTERN_IDENT_TUPLE := `(` PATTERN_IDENT `*`? ( `,` PATTERN_IDENT `*`? )* `)`
+    /// ```
+    fn pattern_ident_tuple(&mut self) -> &mut Self {
+        self.begin(PATTERN_IDENT_TUPLE)
+            .expect(t!(L_PAREN))
+            .expect(t!(PATTERN_IDENT))
+            .opt_expect(t!(ASTERISK)) // TODO white spaces between ident and *
+            .zero_or_more(|p| {
+                p.expect(t!(COMMA))
+                    .expect(t!(PATTERN_IDENT))
+                    .opt_expect(t!(ASTERISK))
+            })
+            .expect(t!(R_PAREN))
             .end()
     }
 }
