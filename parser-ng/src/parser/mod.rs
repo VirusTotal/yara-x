@@ -1206,11 +1206,20 @@ impl<'src> InternalParser<'src> {
     /// ``
     fn term(&mut self) -> &mut Self {
         self.begin(TERM)
-            .begin_alt()
-            .alt(|p| p.indexing_expr())
-            .alt(|p| p.func_call_expr())
-            .alt(|p| p.primary_expr())
-            .end_alt()
+            .then(|p| p.primary_expr())
+            .if_found(t!(L_BRACKET), |p| {
+                p.expect(t!(L_BRACKET))
+                    .then(|p| p.expr())
+                    .expect(t!(R_BRACKET))
+            })
+            .if_found(t!(L_PAREN), |p| {
+                p.expect(t!(L_PAREN))
+                    .opt(|p| p.boolean_expr())
+                    .zero_or_more(|p| {
+                        p.expect(t!(COMMA)).then(|p| p.boolean_expr())
+                    })
+                    .expect(t!(R_PAREN))
+            })
             .end()
     }
 
@@ -1226,35 +1235,6 @@ impl<'src> InternalParser<'src> {
             .expect(t!(DOT))
             .expect(t!(DOT))
             .then(|p| p.expr())
-            .expect(t!(R_PAREN))
-            .end()
-    }
-
-    /// Parses an indexing expression.
-    ///
-    /// ```text
-    /// INDEXING_EXPR := PRIMARY_EXPR `[` EXPR `]`
-    /// ``
-    fn indexing_expr(&mut self) -> &mut Self {
-        self.begin(INDEXING_EXPR)
-            .then(|p| p.primary_expr())
-            .expect(t!(L_BRACKET))
-            .then(|p| p.expr())
-            .expect(t!(R_BRACKET))
-            .end()
-    }
-
-    /// Parses an indexing expression.
-    ///
-    /// ```text
-    /// INDEXING_EXPR := PRIMARY_EXPR `[` EXPR `]`
-    /// ``
-    fn func_call_expr(&mut self) -> &mut Self {
-        self.begin(FUNC_CALL_EXPR)
-            .then(|p| p.primary_expr())
-            .expect(t!(L_PAREN))
-            .opt(|p| p.boolean_expr())
-            .zero_or_more(|p| p.expect(t!(COMMA)).then(|p| p.boolean_expr()))
             .expect(t!(R_PAREN))
             .end()
     }
