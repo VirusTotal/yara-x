@@ -17,7 +17,7 @@ error nodes is valid YARA code.
 
 use indexmap::map::Entry;
 use indexmap::{IndexMap, IndexSet};
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 pub mod cst;
 
@@ -116,7 +116,7 @@ struct InternalParser<'src> {
     /// the position of `c`. When `expect(b)` fails later, the parser looks up
     /// any other token (besides `b`) that were expected to match at the
     /// position and produces a comprehensive error message.
-    expected_token_errors: HashMap<Span, IndexSet<&'static str>>,
+    expected_token_errors: FxHashMap<Span, IndexSet<&'static str>>,
 
     /// Errors that are not yet sent to the `output` stream. The purpose of
     /// this map is removing duplicate messages for the same code span. In
