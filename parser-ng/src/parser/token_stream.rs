@@ -53,9 +53,19 @@ impl<'src> TokenStream<'src> {
         }
     }
 
+    /// Returns the source associated to this token stream.
     #[inline]
     pub fn source(&self) -> &'src [u8] {
         self.tokenizer.source()
+    }
+
+    /// Returns the index of the current token.
+    ///
+    /// Tokens in the stream have an associated zero-based index. The first
+    /// token is 0, the second is 1, etc. This function returns the index
+    /// of the current token.
+    pub fn current_token_index(&self) -> usize {
+        self.current_token
     }
 
     /// Returns the current token and advance to the next one.
@@ -64,7 +74,9 @@ impl<'src> TokenStream<'src> {
     pub fn next_token(&mut self) -> Option<Token> {
         self.fetch_tokens(self.current_token);
         let token = self.tokens.get(self.rel_pos(self.current_token)).cloned();
-        self.bump();
+        if token.is_some() {
+            self.bump();
+        }
         token
     }
 
@@ -215,13 +227,21 @@ mod test {
     fn next() {
         let mut t = TokenStream::new(Tokenizer::new(b"uno dos tres"));
 
+        assert_eq!(t.current_token, 0);
         assert_eq!(t.next_token(), Some(Token::IDENT(Span(0..3))));
+        assert_eq!(t.current_token, 1);
         assert_eq!(t.next_token(), Some(Token::WHITESPACE(Span(3..4))));
+        assert_eq!(t.current_token, 2);
         assert_eq!(t.next_token(), Some(Token::IDENT(Span(4..7))));
+        assert_eq!(t.current_token, 3);
         assert_eq!(t.next_token(), Some(Token::WHITESPACE(Span(7..8))));
+        assert_eq!(t.current_token, 4);
         assert_eq!(t.next_token(), Some(Token::IDENT(Span(8..12))));
+        assert_eq!(t.current_token, 5);
         assert_eq!(t.next_token(), None);
+        assert_eq!(t.current_token, 5);
         assert_eq!(t.next_token(), None);
+        assert_eq!(t.current_token, 5);
     }
 
     #[test]
