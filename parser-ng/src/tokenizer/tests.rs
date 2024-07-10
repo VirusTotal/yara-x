@@ -174,7 +174,7 @@ fn hex_pattern() {
     assert_eq!(lexer.next_token(), Some(Token::L_BRACKET(Span(8..9))));
     lexer.enter_hex_jump_mode();
     assert_eq!(lexer.next_token(), Some(Token::INTEGER_LIT(Span(9..10))));
-    assert_eq!(lexer.next_token(), Some(Token::HYPEN(Span(10..11))));
+    assert_eq!(lexer.next_token(), Some(Token::HYPHEN(Span(10..11))));
     assert_eq!(lexer.next_token(), Some(Token::INTEGER_LIT(Span(11..13))));
     assert_eq!(lexer.next_token(), Some(Token::R_BRACKET(Span(13..14))));
     assert_eq!(lexer.next_token(), Some(Token::HEX_BYTE(Span(14..16))));

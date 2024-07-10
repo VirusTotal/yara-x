@@ -524,7 +524,7 @@ enum HexPatternToken<'src> {
 #[logos(source = [u8])]
 enum HexJumpToken<'src> {
     #[token("-")]
-    Hypen,
+    Hyphen,
 
     // Integer literals.
     #[regex(
@@ -651,7 +651,7 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
         NormalToken::Colon => Token::COLON(span),
         NormalToken::Dot => Token::DOT(span),
         NormalToken::Equal => Token::EQUAL(span),
-        NormalToken::Minus => Token::HYPEN(span),
+        NormalToken::Minus => Token::HYPHEN(span),
         NormalToken::Percent => Token::PERCENT(span),
         NormalToken::Pipe => Token::PIPE(span),
         NormalToken::Plus => Token::PLUS(span),
@@ -750,7 +750,7 @@ fn convert_hex_pattern_token(token: HexPatternToken, span: Span) -> Token {
 
 fn convert_hex_jump_token(token: HexJumpToken, span: Span) -> Token {
     match token {
-        HexJumpToken::Hypen => Token::HYPEN(span),
+        HexJumpToken::Hyphen => Token::HYPHEN(span),
         HexJumpToken::Whitespace => Token::WHITESPACE(span),
         HexJumpToken::Newline => Token::NEWLINE(span),
         HexJumpToken::IntegerLit(lit) => {

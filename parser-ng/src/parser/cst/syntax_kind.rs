@@ -336,7 +336,7 @@ impl From<&Token> for SyntaxKind {
             Token::COMMA(_) => SyntaxKind::COMMA,
             Token::DOT(_) => SyntaxKind::DOT,
             Token::EQUAL(_) => SyntaxKind::EQUAL,
-            Token::HYPEN(_) => SyntaxKind::HYPHEN,
+            Token::HYPHEN(_) => SyntaxKind::HYPHEN,
             Token::PERCENT(_) => SyntaxKind::PERCENT,
             Token::PIPE(_) => SyntaxKind::PIPE,
             Token::PLUS(_) => SyntaxKind::PLUS,

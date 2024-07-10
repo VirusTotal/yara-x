@@ -285,7 +285,7 @@ pub enum Token {
     COMMA(Span) = TokenId::COMMA as u8,
     DOT(Span) = TokenId::DOT as u8,
     EQUAL(Span) = TokenId::EQUAL as u8,
-    HYPEN(Span) = TokenId::HYPHEN as u8,
+    HYPHEN(Span) = TokenId::HYPHEN as u8,
     PERCENT(Span) = TokenId::PERCENT as u8,
     PIPE(Span) = TokenId::PIPE as u8,
     PLUS(Span) = TokenId::PLUS as u8,
@@ -390,7 +390,7 @@ impl Token {
             | Token::COMMA(span)
             | Token::DOT(span)
             | Token::EQUAL(span)
-            | Token::HYPEN(span)
+            | Token::HYPHEN(span)
             | Token::PERCENT(span)
             | Token::PIPE(span)
             | Token::PLUS(span)
