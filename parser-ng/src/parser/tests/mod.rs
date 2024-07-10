@@ -8,6 +8,9 @@ use crate::Parser;
 
 #[test]
 fn cst() {
+    #[cfg(feature = "logging")]
+    env_logger::init();
+
     let files: Vec<_> = globwalk::glob("src/parser/tests/testdata/*.in")
         .unwrap()
         .flatten()
@@ -25,21 +28,4 @@ fn cst() {
         let mut w = BufWriter::new(output_file);
         write!(&mut w, "{:?}", cst).unwrap();
     });
-}
-
-#[test]
-fn test() {
-    let cst = CST::from(Parser::new(
-        r#"
-rule test {{
-  meta:
-     foo = 1
-  condition:
-     true
-}
-"#
-        .as_bytes(),
-    ));
-
-    println!("{:#?}", cst);
 }

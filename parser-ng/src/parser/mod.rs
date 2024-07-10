@@ -17,6 +17,10 @@ error nodes is valid YARA code.
 
 use indexmap::{IndexMap, IndexSet};
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::fmt::Debug;
+
+#[cfg(feature = "logging")]
+use log::*;
 
 pub mod cst;
 
@@ -82,6 +86,10 @@ struct InternalParser<'src> {
 
     /// How deep is the parse into "not" branches of the grammar.
     not_depth: usize,
+
+    /// How deep is the parser into grammar branches.
+    #[cfg(feature = "logging")]
+    depth: usize,
 
     /// Hash map where keys are spans within the source code, and values
     /// are a list of tokens that were expected to match at that span.
@@ -161,6 +169,8 @@ impl<'src> From<Tokenizer<'src>> for InternalParser<'src> {
             cache: FxHashSet::default(),
             opt_depth: 0,
             not_depth: 0,
+            #[cfg(feature = "logging")]
+            depth: 0,
             failed: false,
         }
     }
@@ -306,6 +316,21 @@ impl<'src> InternalParser<'src> {
     /// Must be followed by a matching [`Parser::end`].
     fn begin(&mut self, kind: SyntaxKind) -> &mut Self {
         self.trivia();
+
+        #[cfg(feature = "logging")]
+        {
+            debug!(
+                "{}{:?}    -- next token: {}",
+                "  ".repeat(self.depth),
+                kind,
+                self.tokens
+                    .peek_token(0)
+                    .map(|t| format!("{:?}", t))
+                    .unwrap_or_default()
+            );
+            self.depth += 1;
+        }
+
         self.output.begin(kind);
         self
     }
@@ -313,6 +338,11 @@ impl<'src> InternalParser<'src> {
     /// Indicates the end of the non-terminal symbol that was previously
     /// started with [`Parser::begin`].
     fn end(&mut self) -> &mut Self {
+        #[cfg(feature = "logging")]
+        {
+            self.depth -= 1;
+        }
+
         if self.failed {
             self.output.end_with_error();
         } else {
