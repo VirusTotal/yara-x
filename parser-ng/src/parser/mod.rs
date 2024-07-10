@@ -1161,7 +1161,7 @@ impl<'src> InternalParser<'src> {
                 p.expect_d(t!(XOR_KW), DESC).opt(|p| {
                     p.expect(t!(L_PAREN))
                         .expect(t!(INTEGER_LIT))
-                        .opt(|p| p.expect(t!(HYPEN)).expect(t!(INTEGER_LIT)))
+                        .opt(|p| p.expect(t!(HYPHEN)).expect(t!(INTEGER_LIT)))
                         .expect(t!(R_PAREN))
                 })
             })
@@ -1244,7 +1244,7 @@ impl<'src> InternalParser<'src> {
             .begin_alt()
             .alt(|p| {
                 p.opt_expect(t!(INTEGER_LIT))
-                    .expect(t!(HYPEN))
+                    .expect(t!(HYPHEN))
                     .opt_expect(t!(INTEGER_LIT))
             })
             .alt(|p| p.expect(t!(INTEGER_LIT)))
