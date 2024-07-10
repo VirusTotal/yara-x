@@ -15,7 +15,6 @@ error nodes is valid YARA code.
 [2]: https://github.com/rust-analyzer/rowan
  */
 
-use indexmap::map::Entry;
 use indexmap::{IndexMap, IndexSet};
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -81,6 +80,9 @@ struct InternalParser<'src> {
     /// and the "zero or more" operation (examples: `(A|B)`, `A*`).
     opt_depth: usize,
 
+    /// How deep is the parse into "not" branches of the grammar.
+    not_depth: usize,
+
     /// Hash map where keys are spans within the source code, and values
     /// are a list of tokens that were expected to match at that span.
     ///
@@ -118,6 +120,12 @@ struct InternalParser<'src> {
     /// position and produces a comprehensive error message.
     expected_token_errors: FxHashMap<Span, IndexSet<&'static str>>,
 
+    /// Similar to `expected_token_errors` but tracks the positions where
+    /// unexpected tokens were found. This type of error is produced when
+    /// [`InternalParser::not`] is used. This only stores the span were the
+    /// unexpected token was found.
+    unexpected_token_errors: FxHashSet<Span>,
+
     /// Errors that are not yet sent to the `output` stream. The purpose of
     /// this map is removing duplicate messages for the same code span. In
     /// certain cases the parser can produce two different error messages for
@@ -149,8 +157,10 @@ impl<'src> From<Tokenizer<'src>> for InternalParser<'src> {
             output: SyntaxStream::new(),
             pending_errors: IndexMap::new(),
             expected_token_errors: FxHashMap::default(),
+            unexpected_token_errors: FxHashSet::default(),
             cache: FxHashSet::default(),
             opt_depth: 0,
+            not_depth: 0,
             failed: false,
         }
     }
@@ -325,7 +335,15 @@ impl<'src> InternalParser<'src> {
                     return self;
                 } else {
                     let span = token.span();
-                    self.unexpected_token_error(span, recovery_set, None);
+                    self.expected_token_errors
+                        .entry(span)
+                        .or_default()
+                        .extend(
+                            recovery_set
+                                .token_ids()
+                                .map(|token| token.description()),
+                        );
+                    self.handle_errors();
                 }
             }
         }
@@ -470,16 +488,41 @@ impl<'src> InternalParser<'src> {
         let found_expected_token = match self.peek_non_ws() {
             None => None,
             Some(token) => {
-                let t = expected_tokens.contains(token);
-                if t.is_none() {
-                    let span = token.span();
-                    self.unexpected_token_error(
-                        span,
-                        expected_tokens,
-                        description,
-                    );
+                let span = token.span();
+                let token = expected_tokens.contains(token);
+
+                match (self.not_depth, token) {
+                    // The expected token was found, but we are inside a "not".
+                    // When we are inside a "not", any "expect" is negated, and
+                    // actually means that the token was *not* expected.
+                    (not_depth, Some(_)) if not_depth > 0 => {
+                        self.unexpected_token_errors.insert(span);
+                        self.handle_errors()
+                    }
+                    // We are not inside a "not", and the expected token was
+                    // not found.
+                    (0, None) => {
+                        let tokens = self
+                            .expected_token_errors
+                            .entry(span.clone())
+                            .or_default();
+
+                        if let Some(description) = description {
+                            tokens.insert(description);
+                        } else {
+                            tokens.extend(
+                                expected_tokens
+                                    .token_ids()
+                                    .map(|token| token.description()),
+                            );
+                        }
+
+                        self.handle_errors();
+                    }
+                    _ => {}
                 }
-                t
+
+                token
             }
         };
 
@@ -550,6 +593,32 @@ impl<'src> InternalParser<'src> {
             self.restore_bookmark(&bookmark);
         }
 
+        self.remove_bookmark(bookmark);
+        self
+    }
+
+    /// Negates the result of `parser`.
+    ///
+    /// If `parser` is successful the parser transitions to failure state.
+    fn not<P>(&mut self, parser: P) -> &mut Self
+    where
+        P: Fn(&mut Self) -> &mut Self,
+    {
+        if self.failed {
+            return self;
+        }
+
+        let bookmark = self.bookmark();
+
+        self.trivia();
+
+        self.not_depth += 1;
+        parser(self);
+        self.not_depth -= 1;
+
+        self.failed = !self.failed;
+
+        self.restore_bookmark(&bookmark);
         self.remove_bookmark(bookmark);
         self
     }
@@ -706,54 +775,60 @@ impl<'src> InternalParser<'src> {
         }
     }
 
-    fn unexpected_token_error(
-        &mut self,
-        span: Span,
-        expected_tokens: &'static TokenSet,
-        description: Option<&'static str>,
-    ) {
-        let tokens =
-            self.expected_token_errors.entry(span.clone()).or_default();
-
-        if let Some(description) = description {
-            tokens.insert(description);
-        } else {
-            tokens.extend(
-                expected_tokens.token_ids().map(|token| token.description()),
-            );
+    fn handle_errors(&mut self) {
+        if self.opt_depth > 0 {
+            return;
         }
 
-        if self.opt_depth == 0 {
-            // From all the unexpected token errors, use the one at the largest
-            // offset. If several errors start at the same offset, the last one
-            // is used. `self.expected_tokens` is left empty.
-            if let Some((span, tokens)) = self
-                .expected_token_errors
-                .drain()
-                .max_by_key(|(span, _)| span.start())
-            {
-                match self.pending_errors.entry(span) {
-                    Entry::Occupied(_) => {
-                        // already present, don't replace.
-                    }
-                    Entry::Vacant(entry) => {
-                        let (last, all_except_last) =
-                            tokens.as_slice().split_last().unwrap();
+        // From all errors in expected_token_errors, use the one at the largest
+        // offset. If several errors start at the same offset, the last one is
+        // used.
+        let expected_token = self
+            .expected_token_errors
+            .drain()
+            .max_by_key(|(span, _)| span.start());
 
-                        let error_msg = if all_except_last.is_empty() {
-                            format!("expecting {last}")
-                        } else {
-                            format!(
-                                "expecting {} or {last}",
-                                itertools::join(all_except_last.iter(), ", "),
-                            )
-                        };
+        // From all errors in unexpected_token_errors, use the one at the
+        // largest offset. If several errors start at the same offset, the last
+        // one is used.
+        let unexpected_token = self
+            .unexpected_token_errors
+            .drain()
+            .max_by_key(|span| span.start());
 
-                        entry.insert(error_msg);
-                    }
-                }
+        let (span, expected) = match (expected_token, unexpected_token) {
+            (Some((e, _)), Some(u)) if u.start() > e.start() => (u, None),
+            (None, Some(u)) => (u, None),
+            (Some((e, expected)), _) => (e, Some(expected)),
+            _ => unreachable!(),
+        };
+
+        // There's a previous error for the same span, ignore this one.
+        if self.pending_errors.contains_key(&span) {
+            return;
+        }
+
+        let actual_token = String::from_utf8_lossy(
+            self.tokens.source().get(span.range()).unwrap(),
+        );
+
+        let error_msg = if let Some(expected) = expected {
+            let (last, all_except_last) =
+                expected.as_slice().split_last().unwrap();
+
+            if all_except_last.is_empty() {
+                format!("expecting {last}, found `{actual_token}`")
+            } else {
+                format!(
+                    "expecting {} or {last}, found `{actual_token}`",
+                    itertools::join(all_except_last.iter(), ", "),
+                )
             }
-        }
+        } else {
+            format!("unexpected `{actual_token}`")
+        };
+
+        self.pending_errors.insert(span, error_msg);
     }
 }
 
@@ -1401,8 +1476,8 @@ impl<'src> InternalParser<'src> {
                     })
             })
             .alt(|p| {
-                p.boolean_expr_tuple() //.not(|p| p.expect(t!(AT_KW | IN_KW)))
-            }) // TODO
+                p.boolean_expr_tuple().not(|p| p.expect(t!(AT_KW | IN_KW)))
+            })
             .end_alt()
             .end()
     }

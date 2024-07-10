@@ -59,4 +59,4 @@ SOURCE_FILE@0..94
     R_BRACE@93..94 "}"
 
 ERRORS:
-- [77..79]: expecting FLOAT, INTEGER, STRING, regexp, `filesize`, `entrypoint`, pattern count, pattern offset, pattern length, `-`, `~`, `(` or identifier
+- [77..79]: expecting FLOAT, INTEGER, STRING, regexp, `filesize`, `entrypoint`, pattern count, pattern offset, pattern length, `-`, `~`, `(` or identifier, found `of`

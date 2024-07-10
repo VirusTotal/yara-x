@@ -47,4 +47,4 @@ SOURCE_FILE@0..89
     R_BRACE@88..89 "}"
 
 ERRORS:
-- [47..50]: expecting STRING, regexp or `{`
+- [47..50]: expecting STRING, regexp or `{`, found `bar`

@@ -28,4 +28,4 @@ SOURCE_FILE@0..50
     R_BRACE@49..50 "}"
 
 ERRORS:
-- [30..39]: expecting `=`
+- [30..39]: expecting `=`, found `condition`
