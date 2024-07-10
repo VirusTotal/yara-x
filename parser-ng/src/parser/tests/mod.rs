@@ -8,7 +8,6 @@ use crate::Parser;
 
 #[test]
 fn cst() {
-    #[cfg(feature = "logging")]
     env_logger::init();
 
     let files: Vec<_> = globwalk::glob("src/parser/tests/testdata/*.in")

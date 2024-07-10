@@ -458,11 +458,6 @@ impl<'src> InternalParser<'src> {
         recovery_set: &'static TokenSet,
     ) -> &mut Self {
         self.recover();
-        /*if let Some(t) = self.peek_non_ws() {
-            if recovery_set.contains(t) {
-                return self;
-            }
-        }*/
         self.sync(recovery_set);
         self
     }
