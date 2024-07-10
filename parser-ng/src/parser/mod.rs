@@ -631,7 +631,7 @@ impl<'src> InternalParser<'src> {
     /// If the next non-trivia token matches one of the expected tokens,
     /// consume all trivia tokens and applies `parser`.
     ///
-    /// `if_found(TOKEN, |p| p.expect(TOKEN))` is logically equivalent to
+    /// `if_next(TOKEN, |p| p.expect(TOKEN))` is logically equivalent to
     /// `opt(|p| p.expect(TOKEN))`, but the former is more efficient because it
     /// doesn't do any backtracking. The closure `|p| p.expect(TOKEN)` is
     /// executed only after we are sure that the next non-trivia token is
@@ -646,9 +646,9 @@ impl<'src> InternalParser<'src> {
     ///
     /// We can use:
     ///
-    /// `if_found(t!(META_KW), |p| p.meta_blk())`
+    /// `if_next(t!(META_KW), |p| p.meta_blk())`
     ///
-    fn if_found<P>(
+    fn if_next<P>(
         &mut self,
         expected_tokens: &'static TokenSet,
         parser: P,
@@ -678,6 +678,28 @@ impl<'src> InternalParser<'src> {
                 }
             }
         }
+        self
+    }
+
+    /// If the next non-trivia token matches one of the expected tokens,
+    /// consume all trivia tokens, consume the expected token, and applies
+    /// `parser`.
+    ///
+    /// This is similar to [`InternalParser::if_next`], the difference between
+    /// both functions reside on how they handle the expected token. `if_next`
+    /// leave the expected token in the stream, to be consumed by `parser`,
+    /// while `cond` consumes the expected token too.
+    fn cond<P>(
+        &mut self,
+        expected_tokens: &'static TokenSet,
+        parser: P,
+    ) -> &mut Self
+    where
+        P: Fn(&mut Self) -> &mut Self,
+    {
+        self.if_next(expected_tokens, |p| {
+            p.expect(expected_tokens).then(|p| parser(p))
+        });
         self
     }
 
@@ -944,13 +966,13 @@ impl<'src> InternalParser<'src> {
             .opt(|p| p.rule_mods())
             .expect(t!(RULE_KW))
             .expect(t!(IDENT))
-            .if_found(t!(COLON), |p| p.rule_tags())
+            .if_next(t!(COLON), |p| p.rule_tags())
             .recover_and_sync(t!(L_BRACE))
             .expect(t!(L_BRACE))
             .recover_and_sync(t!(META_KW | STRINGS_KW | CONDITION_KW))
-            .if_found(t!(META_KW), |p| p.meta_blk())
+            .if_next(t!(META_KW), |p| p.meta_blk())
             .recover_and_sync(t!(STRINGS_KW | CONDITION_KW))
-            .if_found(t!(STRINGS_KW), |p| p.patterns_blk())
+            .if_next(t!(STRINGS_KW), |p| p.patterns_blk())
             .recover_and_sync(t!(CONDITION_KW))
             .condition_blk()
             .recover_and_sync(t!(R_BRACE))
@@ -1237,18 +1259,12 @@ impl<'src> InternalParser<'src> {
             .begin_alt()
             .alt(|p| {
                 p.expect(t!(PATTERN_IDENT))
-                    .if_found(t!(AT_KW), |p| {
-                        p.expect(t!(AT_KW)).then(|p| p.expr())
-                    })
-                    .if_found(t!(IN_KW), |p| {
-                        p.expect(t!(IN_KW)).then(|p| p.range())
-                    })
+                    .cond(t!(AT_KW), |p| p.expr())
+                    .cond(t!(IN_KW), |p| p.range())
             })
             .alt(|p| p.expect(t!(TRUE_KW | FALSE_KW)))
             .alt(|p| {
-                p.expect(t!(NOT_KW | DEFINED_KW))
-                    //.cut()
-                    .then(|p| p.boolean_term())
+                p.expect(t!(NOT_KW | DEFINED_KW)).then(|p| p.boolean_term())
             })
             .alt(|p| p.for_expr())
             .alt(|p| p.of_expr())
@@ -1318,14 +1334,9 @@ impl<'src> InternalParser<'src> {
     fn term(&mut self) -> &mut Self {
         self.begin(TERM)
             .then(|p| p.primary_expr())
-            .if_found(t!(L_BRACKET), |p| {
-                p.expect(t!(L_BRACKET))
-                    .then(|p| p.expr())
-                    .expect(t!(R_BRACKET))
-            })
-            .if_found(t!(L_PAREN), |p| {
-                p.expect(t!(L_PAREN))
-                    .opt(|p| p.boolean_expr())
+            .cond(t!(L_BRACKET), |p| p.expr().expect(t!(R_BRACKET)))
+            .cond(t!(L_PAREN), |p| {
+                p.opt(|p| p.boolean_expr())
                     .zero_or_more(|p| {
                         p.expect(t!(COMMA)).then(|p| p.boolean_expr())
                     })
@@ -1399,17 +1410,10 @@ impl<'src> InternalParser<'src> {
                         },
                     )
                 })
-                .alt(|p| {
-                    p.expect_d(t!(MINUS), DESC) /*.cut()*/
-                        .then(|p| p.term())
-                })
-                .alt(|p| {
-                    p.expect_d(t!(BITWISE_NOT), DESC) /*.cut()*/
-                        .then(|p| p.term())
-                })
+                .alt(|p| p.expect_d(t!(MINUS), DESC).then(|p| p.term()))
+                .alt(|p| p.expect_d(t!(BITWISE_NOT), DESC).then(|p| p.term()))
                 .alt(|p| {
                     p.expect_d(t!(L_PAREN), DESC)
-                        //.cut()
                         .then(|p| p.expr())
                         .expect(t!(R_PAREN))
                 })
@@ -1475,12 +1479,8 @@ impl<'src> InternalParser<'src> {
                     .alt(|p| p.expect(t!(THEM_KW)))
                     .alt(|p| p.pattern_ident_tuple())
                     .end_alt()
-                    .if_found(t!(AT_KW), |p| {
-                        p.expect(t!(AT_KW)).then(|p| p.expr())
-                    })
-                    .if_found(t!(IN_KW), |p| {
-                        p.expect(t!(IN_KW)).then(|p| p.range())
-                    })
+                    .cond(t!(AT_KW), |p| p.expr())
+                    .cond(t!(IN_KW), |p| p.range())
             })
             .alt(|p| {
                 p.boolean_expr_tuple().not(|p| p.expect(t!(AT_KW | IN_KW)))
