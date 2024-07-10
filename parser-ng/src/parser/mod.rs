@@ -1370,44 +1370,51 @@ impl<'src> InternalParser<'src> {
     /// )
     /// ``
     fn primary_expr(&mut self) -> &mut Self {
+        const DESC: Option<&'static str> = Some("expression");
+
         self.cached(PRIMARY_EXPR, |p| {
             p.begin(PRIMARY_EXPR)
                 .begin_alt()
                 .alt(|p| {
-                    p.expect(t!(FLOAT_LIT
-                        | INTEGER_LIT
-                        | STRING_LIT
-                        | REGEXP
-                        | FILESIZE_KW
-                        | ENTRYPOINT_KW))
+                    p.expect_d(
+                        t!(FLOAT_LIT
+                            | INTEGER_LIT
+                            | STRING_LIT
+                            | REGEXP
+                            | FILESIZE_KW
+                            | ENTRYPOINT_KW),
+                        DESC,
+                    )
                 })
                 .alt(|p| {
-                    p.expect(t!(PATTERN_COUNT))
+                    p.expect_d(t!(PATTERN_COUNT), DESC)
                         .opt(|p| p.expect(t!(IN_KW)).then(|p| p.range()))
                 })
                 .alt(|p| {
-                    p.expect(t!(PATTERN_OFFSET | PATTERN_LENGTH)).opt(|p| {
-                        p.expect(t!(L_BRACKET))
-                            .then(|p| p.expr())
-                            .expect(t!(R_BRACKET))
-                    })
+                    p.expect_d(t!(PATTERN_OFFSET | PATTERN_LENGTH), DESC).opt(
+                        |p| {
+                            p.expect(t!(L_BRACKET))
+                                .then(|p| p.expr())
+                                .expect(t!(R_BRACKET))
+                        },
+                    )
                 })
                 .alt(|p| {
-                    p.expect(t!(MINUS)) /*.cut()*/
+                    p.expect_d(t!(MINUS), DESC) /*.cut()*/
                         .then(|p| p.term())
                 })
                 .alt(|p| {
-                    p.expect(t!(BITWISE_NOT)) /*.cut()*/
+                    p.expect_d(t!(BITWISE_NOT), DESC) /*.cut()*/
                         .then(|p| p.term())
                 })
                 .alt(|p| {
-                    p.expect(t!(L_PAREN))
+                    p.expect_d(t!(L_PAREN), DESC)
                         //.cut()
                         .then(|p| p.expr())
                         .expect(t!(R_PAREN))
                 })
                 .alt(|p| {
-                    p.expect(t!(IDENT))
+                    p.expect_d(t!(IDENT), DESC)
                         .zero_or_more(|p| p.expect(t!(DOT)).expect(t!(IDENT)))
                 })
                 .end_alt()
@@ -1490,15 +1497,19 @@ impl<'src> InternalParser<'src> {
     ///     `none`                          |
     ///     `any`                           |
     ///     (INTEGER_LIT | FLOAT_LIT ) `%`  |
-    ///     EXPR
+    ///     EXPR !`%`
     /// )
     /// ```
     fn quantifier(&mut self) -> &mut Self {
         self.begin(QUANTIFIER)
             .begin_alt()
             .alt(|p| p.expect(t!(ALL_KW | NONE_KW | ANY_KW)))
-            .alt(|p| p.expect(t!(INTEGER_LIT | FLOAT_LIT)).expect(t!(PERCENT)))
-            .alt(|p| p.expr())
+            // Quantifier can be either a primary expression followed by a %,
+            // or an expression not followed by %. We can't make it an expression
+            // followed by an optional % because that leads to ambiguity, as
+            // expressions can contain the % operator (mod).
+            .alt(|p| p.primary_expr().expect(t!(PERCENT)))
+            .alt(|p| p.expr().not(|p| p.expect(t!(PERCENT))))
             .end_alt()
             .end()
     }

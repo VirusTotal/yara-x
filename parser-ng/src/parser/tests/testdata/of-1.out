@@ -146,7 +146,8 @@ SOURCE_FILE@0..295
         BOOLEAN_TERM@216..227
           OF_EXPR@216..227
             QUANTIFIER@216..219
-              INTEGER_LIT@216..218 "10"
+              PRIMARY_EXPR@216..218
+                INTEGER_LIT@216..218 "10"
               PERCENT@218..219 "%"
             WHITESPACE@219..220 " "
             OF_KW@220..222 "of"
