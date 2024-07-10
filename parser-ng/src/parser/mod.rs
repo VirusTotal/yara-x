@@ -17,7 +17,6 @@ error nodes is valid YARA code.
 
 use indexmap::{IndexMap, IndexSet};
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::fmt::Debug;
 
 #[cfg(feature = "logging")]
 use log::*;
@@ -1313,7 +1312,7 @@ impl<'src> InternalParser<'src> {
                         | ENDSWITH_KW
                         | IENDSWITH_KW
                         | MATCHES_KW))
-                        .expr()
+                        .then(|p| p.expr())
                 })
             })
             .alt(|p| {
