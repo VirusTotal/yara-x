@@ -136,13 +136,27 @@ impl SyntaxStream {
         }
     }
 
+    /// Similar to [`SyntaxStream::end`], but the kind of the closed block is
+    /// changed to [`SyntaxKind::ERROR`].
+    ///
+    /// Also, if the block being closed is empty, (i.e: the `Begin` event is
+    /// immediately followed by the `End` event) the block is completely
+    /// removed from the stream.
+    ///
+    /// # Panics
+    ///
+    /// * If no matching `Begin` exists for this `End`.
     pub(crate) fn end_with_error(&mut self) {
         match self.last_open_begin() {
             Some((pos, _)) => {
-                let node = self.events.get_mut(pos).unwrap();
-                *node = Event::Begin(SyntaxKind::ERROR);
+                if pos + 1 == self.events.len() {
+                    self.events.pop_back();
+                } else {
+                    let node = self.events.get_mut(pos).unwrap();
+                    *node = Event::Begin(SyntaxKind::ERROR);
+                    self.events.push_back(Event::End(SyntaxKind::ERROR));
+                }
                 self.open_begins.pop_back().unwrap();
-                self.events.push_back(Event::End(SyntaxKind::ERROR));
             }
             None => {
                 panic!("`End` without a corresponding `Begin`")
@@ -194,6 +208,7 @@ pub(crate) struct Bookmark(usize);
 mod tests {
     use super::SyntaxKind;
     use super::SyntaxStream;
+    use crate::cst::Event;
     use crate::Span;
 
     #[test]
@@ -231,6 +246,22 @@ mod tests {
         s.push_token(SyntaxKind::COLON, Span(0..1));
         s.end_with_error();
         assert_eq!(s.last_open_begin(), Some((0, SyntaxKind::RULE_DECL)));
+
+        let mut s = SyntaxStream::new();
+        s.begin(SyntaxKind::ERROR);
+        s.push_token(SyntaxKind::COLON, Span(0..1));
+        s.end_with_error();
+        assert_eq!(s.pop(), Some(Event::Begin(SyntaxKind::ERROR)));
+        assert_eq!(
+            s.pop(),
+            Some(Event::Token { kind: SyntaxKind::COLON, span: Span(0..1) })
+        );
+        assert_eq!(s.pop(), Some(Event::End(SyntaxKind::ERROR)));
+
+        let mut s = SyntaxStream::new();
+        s.begin(SyntaxKind::RULE_DECL);
+        s.end_with_error();
+        assert_eq!(s.pop(), None);
     }
 
     #[test]

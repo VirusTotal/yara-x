@@ -33,8 +33,6 @@ SOURCE_FILE@0..94
       COLON@61..62 ":"
       NEWLINE@62..63 "\n"
       WHITESPACE@63..65 "\t\t"
-      ERROR@65..65
-        ERROR@65..65
     ERROR@65..93
       FOR_KW@65..68 "for"
       WHITESPACE@68..69 " "
