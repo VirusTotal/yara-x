@@ -17,7 +17,7 @@ error nodes is valid YARA code.
 
 use indexmap::map::Entry;
 use indexmap::{IndexMap, IndexSet};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 pub mod cst;
 
@@ -125,6 +125,20 @@ struct InternalParser<'src> {
     /// taken into account and that any further error for the same span is
     /// ignored.
     pending_errors: IndexMap<Span, String>,
+
+    /// A cache for storing partial parser results. Each item in the set is a
+    /// (position, SyntaxKind) tuple, where position is the absolute index
+    /// of a token withing the source code. The presence of a tuple in the
+    /// cache indicates that the non-terminal indicated by SyntaxKind failed
+    /// to match that position. Notice that only parser failures are cached,
+    /// but successes are not cached. [packrat][1] parsers usually cache both
+    /// failure and successes, but we cache only failures because this enough
+    /// for speeding up some edge cases, while memory consumption remains low
+    /// because we don't need to store the actual result of the parser, only
+    /// the fact that if failed.
+    ///
+    /// [1]: https://en.wikipedia.org/wiki/Packrat_parser
+    cache: FxHashSet<(usize, SyntaxKind)>,
 }
 
 impl<'src> From<Tokenizer<'src>> for InternalParser<'src> {
@@ -134,7 +148,8 @@ impl<'src> From<Tokenizer<'src>> for InternalParser<'src> {
             tokens: TokenStream::new(tokenizer),
             output: SyntaxStream::new(),
             pending_errors: IndexMap::new(),
-            expected_token_errors: HashMap::new(),
+            expected_token_errors: FxHashMap::default(),
+            cache: FxHashSet::default(),
             opt_depth: 0,
             failed: false,
         }
@@ -160,6 +175,7 @@ impl Iterator for InternalParser<'_> {
             let _ = self.trivia();
             let _ = self.top_level_item();
             self.flush_errors();
+            self.cache.clear();
             self.failed = false;
         }
         self.output.pop()
@@ -660,6 +676,26 @@ impl<'src> InternalParser<'src> {
         }
         self.trivia();
         parser(self);
+        self
+    }
+
+    fn cached<P>(&mut self, kind: SyntaxKind, parser: P) -> &mut Self
+    where
+        P: Fn(&mut Self) -> &mut Self,
+    {
+        let start_index = self.tokens.current_token_index();
+
+        if self.cache.contains(&(start_index, kind)) {
+            self.failed = true;
+            return self;
+        }
+
+        parser(self);
+
+        if self.failed {
+            self.cache.insert((start_index, kind));
+        }
+
         self
     }
 
@@ -1259,47 +1295,49 @@ impl<'src> InternalParser<'src> {
     /// )
     /// ``
     fn primary_expr(&mut self) -> &mut Self {
-        self.begin(PRIMARY_EXPR)
-            .begin_alt()
-            .alt(|p| {
-                p.expect(t!(FLOAT_LIT
-                    | INTEGER_LIT
-                    | STRING_LIT
-                    | REGEXP
-                    | FILESIZE_KW
-                    | ENTRYPOINT_KW))
-            })
-            .alt(|p| {
-                p.expect(t!(PATTERN_COUNT))
-                    .opt(|p| p.expect(t!(IN_KW)).then(|p| p.range()))
-            })
-            .alt(|p| {
-                p.expect(t!(PATTERN_OFFSET | PATTERN_LENGTH)).opt(|p| {
-                    p.expect(t!(L_BRACKET))
-                        .then(|p| p.expr())
-                        .expect(t!(R_BRACKET))
+        self.cached(PRIMARY_EXPR, |p| {
+            p.begin(PRIMARY_EXPR)
+                .begin_alt()
+                .alt(|p| {
+                    p.expect(t!(FLOAT_LIT
+                        | INTEGER_LIT
+                        | STRING_LIT
+                        | REGEXP
+                        | FILESIZE_KW
+                        | ENTRYPOINT_KW))
                 })
-            })
-            .alt(|p| {
-                p.expect(t!(MINUS)) /*.cut()*/
-                    .then(|p| p.term())
-            })
-            .alt(|p| {
-                p.expect(t!(BITWISE_NOT)) /*.cut()*/
-                    .then(|p| p.term())
-            })
-            .alt(|p| {
-                p.expect(t!(L_PAREN))
-                    //.cut()
-                    .then(|p| p.expr())
-                    .expect(t!(R_PAREN))
-            })
-            .alt(|p| {
-                p.expect(t!(IDENT))
-                    .zero_or_more(|p| p.expect(t!(DOT)).expect(t!(IDENT)))
-            })
-            .end_alt()
-            .end()
+                .alt(|p| {
+                    p.expect(t!(PATTERN_COUNT))
+                        .opt(|p| p.expect(t!(IN_KW)).then(|p| p.range()))
+                })
+                .alt(|p| {
+                    p.expect(t!(PATTERN_OFFSET | PATTERN_LENGTH)).opt(|p| {
+                        p.expect(t!(L_BRACKET))
+                            .then(|p| p.expr())
+                            .expect(t!(R_BRACKET))
+                    })
+                })
+                .alt(|p| {
+                    p.expect(t!(MINUS)) /*.cut()*/
+                        .then(|p| p.term())
+                })
+                .alt(|p| {
+                    p.expect(t!(BITWISE_NOT)) /*.cut()*/
+                        .then(|p| p.term())
+                })
+                .alt(|p| {
+                    p.expect(t!(L_PAREN))
+                        //.cut()
+                        .then(|p| p.expr())
+                        .expect(t!(R_PAREN))
+                })
+                .alt(|p| {
+                    p.expect(t!(IDENT))
+                        .zero_or_more(|p| p.expect(t!(DOT)).expect(t!(IDENT)))
+                })
+                .end_alt()
+                .end()
+        })
     }
 
     /// Parses `for` expression.
