@@ -1,0 +1,34 @@
+rule test_1 {
+	condition:
+		1 + 2 == 4 - 1
+}
+
+rule test_2 {
+	condition:
+		1 + 2 * 3  >= 4 \ 2 % 1
+}
+
+rule test_3 {
+	condition:
+		(1.0 + 2.3) <= 3.0
+}
+
+rule test_4 {
+	condition:
+		1 >> 2 == 1 & 1
+}
+
+rule test_4 {
+	condition:
+		1 << 2 == ~1
+}
+
+rule test_5 {
+	condition:
+		-1 + -1 == 0
+}
+
+rule test_5 {
+	condition:
+		-(0x01 + 0x10) == 0o10
+}

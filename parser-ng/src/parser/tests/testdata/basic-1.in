@@ -1,0 +1,29 @@
+rule test_1 {
+	condition:
+		true
+}
+
+rule test_2 {
+	condition:
+		(true)
+}
+
+rule test_3 {
+	condition:
+		not true and false
+}
+
+rule test_4 {
+	condition:
+		true or true or false
+}
+
+rule test_5 {
+	condition:
+		(true or true) or false
+}
+
+rule test_6 {
+	condition:
+		true or (true or false)
+}

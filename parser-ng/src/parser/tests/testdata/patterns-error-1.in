@@ -1,0 +1,6 @@
+rule test {
+	strings:
+	  $c = { ab
+  condition:
+	  true
+}

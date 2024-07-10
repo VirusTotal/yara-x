@@ -1,0 +1,38 @@
+[package]
+name = "yara-x-parser-ng"
+description = """
+A parsing library for YARA rules.
+"""
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+readme.workspace = true
+license.workspace = true
+homepage.workspace = true
+rust-version.workspace = true
+
+[features]
+# Enables debug logs.
+logging = ["dep:log"]
+
+# Configuration for docs.rs.
+[package.metadata.docs.rs]
+# While generating the documentation for doc.rs all features are enabled
+all-features = true
+# Pass "docsrs" config to rustdoc while generating documentation for doc.rs
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+indexmap = { workspace = true }
+itertools = { workspace = true }
+log = { workspace = true, optional = true }
+rustc-hash = { workspace = true }
+logos = "0.14.0"
+rowan = "0.15.15"
+
+[dev-dependencies]
+env_logger = { workspace = true, features = ["auto-color"] }
+globwalk = { workspace = true }
+goldenfile = { workspace = true }
+pretty_assertions = { workspace = true }
+rayon = { workspace = true }

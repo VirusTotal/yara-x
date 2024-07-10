@@ -1,0 +1,5 @@
+rule test {
+  foo
+  condition:
+	  true
+}
