@@ -434,15 +434,19 @@ impl<'src> ParserImpl<'src> {
                     return self;
                 } else {
                     let span = token.span();
-                    self.expected_token_errors
-                        .entry(span)
-                        .or_default()
-                        .extend(
-                            recovery_set
-                                .token_ids()
-                                .map(|token| token.description()),
-                        );
+                    // If there were previous errors, flush those errors and
+                    // don't produce new ones, but if no previous error exist
+                    // then create an error that tells that we are expecting
+                    // any of the tokens in the recovery set.
                     if self.pending_errors.is_empty() {
+                        self.expected_token_errors
+                            .entry(span)
+                            .or_default()
+                            .extend(
+                                recovery_set
+                                    .token_ids()
+                                    .map(|token| token.description()),
+                            );
                         self.handle_errors();
                     } else {
                         self.flush_errors();
