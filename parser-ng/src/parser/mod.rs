@@ -924,7 +924,7 @@ impl<'src> ParserImpl<'src> {
             (Some((e, _)), Some(u)) if u.start() > e.start() => (u, None),
             (None, Some(u)) => (u, None),
             (Some((e, expected)), _) => (e, Some(expected)),
-            _ => unreachable!(),
+            (None, None) => return,
         };
 
         // There's a previous error for the same span, ignore this one.
