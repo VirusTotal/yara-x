@@ -402,7 +402,7 @@ enum NormalToken<'src> {
            (
              0x[a-fA-F0-9]+ |           # hexadecimal number
              0o[0-7]+       |           # octal number
-             [0-9]+                     # decimal number
+             [0-9]+(KB|MB)?             # decimal number followed by optional KB or MB
            )
         "#,
         |token| token.slice())
