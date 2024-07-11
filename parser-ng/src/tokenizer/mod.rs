@@ -194,6 +194,7 @@ enum Mode<'src> {
     HexJump(logos::Lexer<'src, HexJumpToken<'src>>),
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(logos::Logos, Debug, PartialEq)]
 #[logos(source = [u8])]
 enum NormalToken<'src> {
@@ -475,6 +476,7 @@ enum NormalToken<'src> {
     CRLF,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(logos::Logos, Debug, PartialEq)]
 #[logos(source = [u8])]
 enum HexPatternToken<'src> {
@@ -534,6 +536,7 @@ enum HexPatternToken<'src> {
     Comment(&'src [u8]),
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(logos::Logos, Debug, PartialEq)]
 #[logos(source = [u8])]
 enum HexJumpToken<'src> {
