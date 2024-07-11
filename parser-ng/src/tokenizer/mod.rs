@@ -410,15 +410,15 @@ enum NormalToken<'src> {
     IntegerLit(&'src [u8]),
 
     // String literals start and ends with double quotes, in-between the quotes
-    // they contain either the \" escape sequence, or anything that is not a
-    // quote or newline.
+    // they contain either an escape sequence, or anything that is not a
+    // quote, newline or backslash.
     #[regex(
         r#"(?x)                         # allow comments in the regexp
         "                               # starts with double quotes
         (                               # any number of
-          \\"                           #   the \" escape sequence
-          |                             #   or..
-          [^"\n]                        #   anything except quotes and newlines
+          \\.                           #   escape sequence
+          |                             #   or ..
+          [^"\n\\]                      #   anything except quotes, newlines and backslashes
         )*
         "                               # ends with double quotes
         "#,
@@ -464,7 +464,13 @@ enum NormalToken<'src> {
     Whitespace,
 
     #[token("\n")]
-    Newline,
+    LF,
+
+    #[token("\r")]
+    CR,
+
+    #[token("\r\n")]
+    CRLF,
 }
 
 #[derive(logos::Logos, Debug, PartialEq)]
@@ -500,7 +506,13 @@ enum HexPatternToken<'src> {
     Whitespace,
 
     #[token("\n")]
-    Newline,
+    LF,
+
+    #[token("\r")]
+    CR,
+
+    #[token("\r\n")]
+    CRLF,
 
     // Block comment.
     #[regex(r#"(?x)                    # allow comments in the regexp
@@ -543,7 +555,13 @@ enum HexJumpToken<'src> {
     Whitespace,
 
     #[token("\n")]
-    Newline,
+    LF,
+
+    #[token("\r")]
+    CR,
+
+    #[token("\r\n")]
+    CRLF,
 }
 
 fn unexpected_token<'src, T>(lexer: &mut logos::Lexer<'src, T>) -> Token
@@ -665,7 +683,11 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
         NormalToken::RBracket => Token::R_BRACKET(span),
 
         NormalToken::Whitespace => Token::WHITESPACE(span),
-        NormalToken::Newline => Token::NEWLINE(span),
+
+        NormalToken::LF | NormalToken::CR | NormalToken::CRLF => {
+            Token::NEWLINE(span)
+        }
+
         NormalToken::Ident(ident) => {
             return match from_utf8(ident) {
                 Ok(_) => Token::IDENT(span),
@@ -732,13 +754,15 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
 fn convert_hex_pattern_token(token: HexPatternToken, span: Span) -> Token {
     match token {
         HexPatternToken::Byte => Token::HEX_BYTE(span),
-        HexPatternToken::Whitespace => Token::WHITESPACE(span),
-        HexPatternToken::Newline => Token::NEWLINE(span),
         HexPatternToken::Pipe => Token::PIPE(span),
         HexPatternToken::LParen => Token::L_PAREN(span),
         HexPatternToken::RParen => Token::R_PAREN(span),
         HexPatternToken::LBracket => Token::L_BRACKET(span),
         HexPatternToken::RBracket => Token::R_BRACKET(span),
+        HexPatternToken::Whitespace => Token::WHITESPACE(span),
+        HexPatternToken::LF | HexPatternToken::CR | HexPatternToken::CRLF => {
+            Token::NEWLINE(span)
+        }
         HexPatternToken::BlockComment(c) | HexPatternToken::Comment(c) => {
             return match from_utf8(c) {
                 Ok(_) => Token::COMMENT(span),
@@ -752,7 +776,9 @@ fn convert_hex_jump_token(token: HexJumpToken, span: Span) -> Token {
     match token {
         HexJumpToken::Hyphen => Token::HYPHEN(span),
         HexJumpToken::Whitespace => Token::WHITESPACE(span),
-        HexJumpToken::Newline => Token::NEWLINE(span),
+        HexJumpToken::LF | HexJumpToken::CR | HexJumpToken::CRLF => {
+            Token::NEWLINE(span)
+        }
         HexJumpToken::IntegerLit(lit) => {
             return match from_utf8(lit) {
                 Ok(_) => Token::INTEGER_LIT(span),

@@ -98,8 +98,15 @@ fn string_literals() {
     assert_eq!(lexer.next_token(), Some(Token::STRING_LIT(Span(0..17))));
     assert_eq!(lexer.next_token(), None);
 
-    let mut lexer = super::Tokenizer::new(r#""foo \\"""#.as_bytes());
-    assert_eq!(lexer.next_token(), Some(Token::STRING_LIT(Span(0..9))));
+    let mut lexer = super::Tokenizer::new(r#""foo \\" bar""#.as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::STRING_LIT(Span(0..8))));
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(8..9))));
+    assert_eq!(lexer.next_token(), Some(Token::IDENT(Span(9..12))));
+    assert_eq!(lexer.next_token(), Some(Token::UNKNOWN(Span(12..13))));
+    assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new(r#""foo \x0 bar""#.as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::STRING_LIT(Span(0..13))));
     assert_eq!(lexer.next_token(), None);
 
     let mut lexer = super::Tokenizer::new(r#""标识符""#.as_bytes());
@@ -184,6 +191,28 @@ fn hex_pattern() {
 
     lexer.enter_hex_pattern_mode();
     assert_eq!(lexer.next_token(), Some(Token::HEX_BYTE(Span(0..2))));
+}
+
+#[test]
+fn whitespaces() {
+    let mut lexer = super::Tokenizer::new(" \t".as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..2))));
+    assert_eq!(lexer.next_token(), None);
+}
+
+#[test]
+fn newline() {
+    let mut lexer = super::Tokenizer::new("\n".as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::NEWLINE(Span(0..1))));
+    assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new("\r".as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::NEWLINE(Span(0..1))));
+    assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new("\r\n".as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::NEWLINE(Span(0..2))));
+    assert_eq!(lexer.next_token(), None);
 }
 
 #[test]
