@@ -51,8 +51,6 @@ impl From<Parser<'_>> for CST {
         let mut prev_token_span: Option<Span> = None;
         let mut errors = Vec::new();
 
-        builder.start_node(SyntaxKind::SOURCE_FILE.into());
-
         for node in parser.events() {
             match node {
                 Event::Begin(kind) => builder.start_node(kind.into()),
@@ -82,8 +80,6 @@ impl From<Parser<'_>> for CST {
                 Event::Error { message, span } => errors.push((span, message)),
             }
         }
-
-        builder.finish_node();
 
         Self { tree: rowan::SyntaxNode::new_root(builder.finish()), errors }
     }

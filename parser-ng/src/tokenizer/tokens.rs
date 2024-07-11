@@ -432,7 +432,8 @@ impl Token {
     /// Returns the token ID associated to this token.
     pub(crate) fn id(&self) -> TokenId {
         // SAFETY: Because `Token` is marked `repr(u8)`, `self` can be casted
-        // to a pointer, and `u8` pointed to by the pointer is the discriminant
+        // to a pointer, and the `u8` pointed to by the pointer is the
+        // discriminant.
         unsafe { *<*const _>::from(self).cast::<TokenId>() }
     }
 

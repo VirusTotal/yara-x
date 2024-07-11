@@ -28,7 +28,7 @@ mod parser;
 mod tokenizer;
 
 pub use parser::cst;
-pub use parser::Parser;
+pub use parser::{Events, Parser};
 
 /// Starting and ending positions of some token inside the source code.
 #[derive(Default, Clone, Debug, Hash, Eq, PartialEq)]

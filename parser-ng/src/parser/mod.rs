@@ -34,24 +34,40 @@ use crate::tokenizer::{Token, TokenId, Tokenizer};
 use crate::Span;
 
 /// Produces a Concrete Syntax-Tree ([`CST`]) for a given YARA source code.
-pub struct Parser<'src>(InternalParser<'src>);
+pub struct Parser<'src> {
+    parser: ParserImpl<'src>,
+    whitespaces: bool,
+}
 
 impl<'src> Parser<'src> {
     /// Creates a new parser for the given source code.
     pub fn new(source: &'src [u8]) -> Self {
-        Self(InternalParser::from(Tokenizer::new(source)))
+        Self {
+            parser: ParserImpl::from(Tokenizer::new(source)),
+            whitespaces: true,
+        }
+    }
+
+    /// Enables or disables whitespaces in the returned CST.
+    ///
+    /// If false, the resulting CST won't contain whitespaces.
+    ///
+    /// Default value is `true`.
+    pub fn whitespaces(mut self, yes: bool) -> Self {
+        self.whitespaces = yes;
+        self
     }
 
     /// Returns the source code passed to the parser.
     #[inline]
     pub fn source(&self) -> &'src [u8] {
-        self.0.tokens.source()
+        self.parser.tokens.source()
     }
 
     /// Returns the CST as a sequence of events.
     #[inline]
-    pub fn events(self) -> impl Iterator<Item = Event> + 'src {
-        self.0
+    pub fn events(self) -> Events<'src> {
+        Events { parser: self.parser, whitespaces: self.whitespaces }
     }
 
     /// Consumes the parser and builds a Concrete Syntax Tree (CST).
@@ -61,19 +77,54 @@ impl<'src> Parser<'src> {
     }
 }
 
+/// An CST in the form of a sequence of [`events`][`Event`].
+pub struct Events<'src> {
+    parser: ParserImpl<'src>,
+    whitespaces: bool,
+}
+
+impl<'src> Iterator for Events<'src> {
+    type Item = Event;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.whitespaces {
+            self.parser.next()
+        } else {
+            loop {
+                match self.parser.next()? {
+                    // ignore whitespace and get next event
+                    Event::Token { kind: WHITESPACE, .. } => {}
+                    token => break Some(token),
+                }
+            }
+        }
+    }
+}
+
+/// Describes the state of the parser.
+enum ParserState {
+    /// Indicates that the parser is as the start of the input.
+    StartOfInput,
+    /// Indicates that the parser is at the end of the input.
+    EndOfInput,
+    /// The parser is OK, it can continue parsing.
+    OK,
+    /// The parser has failed to parse some portion of the source code. It can
+    /// recover from the failure and go back to OK.
+    Failure,
+}
+
 /// Internal implementation of the parser. The [`Parser`] type is only a
 /// wrapper around this type.
-struct InternalParser<'src> {
+struct ParserImpl<'src> {
     /// Stream from where the parser consumes the input tokens.
     tokens: TokenStream<'src>,
 
     /// Stream where the parser puts the events that conform the resulting CST.
     output: SyntaxStream,
 
-    /// If true, the parser is in "failure" state. The parser enters this
-    /// state when some syntax rule expects a token that doesn't match the
-    /// next token in the input.
-    failed: bool,
+    /// The current state of the parser.
+    state: ParserState,
 
     /// How deep is the parser into "optional" branches of the grammar. An
     /// optional branch is one that can fail without the whole production
@@ -129,7 +180,7 @@ struct InternalParser<'src> {
 
     /// Similar to `expected_token_errors` but tracks the positions where
     /// unexpected tokens were found. This type of error is produced when
-    /// [`InternalParser::not`] is used. This only stores the span were the
+    /// [`ParserImpl::not`] is used. This only stores the span were the
     /// unexpected token was found.
     unexpected_token_errors: FxHashSet<Span>,
 
@@ -156,7 +207,7 @@ struct InternalParser<'src> {
     cache: FxHashSet<(usize, SyntaxKind)>,
 }
 
-impl<'src> From<Tokenizer<'src>> for InternalParser<'src> {
+impl<'src> From<Tokenizer<'src>> for ParserImpl<'src> {
     /// Creates a new parser that receives tokens from the given [`Tokenizer`].
     fn from(tokenizer: Tokenizer<'src>) -> Self {
         Self {
@@ -170,41 +221,60 @@ impl<'src> From<Tokenizer<'src>> for InternalParser<'src> {
             not_depth: 0,
             #[cfg(feature = "logging")]
             depth: 0,
-            failed: false,
+            state: ParserState::StartOfInput,
         }
     }
 }
 
 /// The parser behaves as an iterator that returns events of type [`Event`].
-impl Iterator for InternalParser<'_> {
+impl Iterator for ParserImpl<'_> {
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // If the output buffer isn't empty, return a buffered event.
-        // If the output buffer is empty and there are pending tokens, invoke
-        // the parser to consume tokens and put more events in the output
-        // buffer.
-        //
-        // Each call to `next` parses one top-level item (either an import
-        // statement or rule declaration). This approach parses the source
-        // code lazily, one top-level item at a time, saving memory by
-        // avoiding tokenizing the entire input at once, or producing all
-        // the events before they are consumed.
-        if self.output.is_empty() && self.tokens.has_more() {
-            let _ = self.trivia();
-            let _ = self.top_level_item();
-            self.flush_errors();
-            self.cache.clear();
-            self.failed = false;
+        match self.state {
+            ParserState::StartOfInput => {
+                self.state = ParserState::OK;
+                Some(Event::Begin(SOURCE_FILE))
+            }
+            ParserState::EndOfInput => None,
+            _ => {
+                // If the output buffer isn't empty, return a buffered event.
+                if let Some(token) = self.output.pop() {
+                    return Some(token);
+                }
+                // If the output buffer is empty and there are pending tokens, invoke
+                // the parser to consume tokens and put more events in the output
+                // buffer.
+                //
+                // Each call to `next` parses one top-level item (either an import
+                // statement or rule declaration). This approach parses the source
+                // code lazily, one top-level item at a time, saving memory by
+                // avoiding tokenizing the entire input at once, or producing all
+                // the events before they are consumed.
+                if self.tokens.has_more() {
+                    let _ = self.trivia();
+                    let _ = self.top_level_item();
+                    self.flush_errors();
+                    self.cache.clear();
+                    self.state = ParserState::OK;
+                }
+                // If still there are no more tokens, we have reached the end of
+                // the input.
+                if let Some(token) = self.output.pop() {
+                    Some(token)
+                } else {
+                    self.state = ParserState::EndOfInput;
+                    Some(Event::End(SOURCE_FILE))
+                }
+            }
         }
-        self.output.pop()
     }
 }
 
 /// Parser private API.
 ///
 /// This section contains utility functions that are used by the grammar rules.
-impl<'src> InternalParser<'src> {
+impl<'src> ParserImpl<'src> {
     /// Returns the next token, without consuming it.
     ///
     /// Returns `None` if there are no more tokens.
@@ -294,7 +364,7 @@ impl<'src> InternalParser<'src> {
 
     /// Switches to hex pattern mode.
     fn enter_hex_pattern_mode(&mut self) -> &mut Self {
-        if self.failed {
+        if matches!(self.state, ParserState::Failure) {
             return self;
         }
         self.tokens.enter_hex_pattern_mode();
@@ -303,7 +373,7 @@ impl<'src> InternalParser<'src> {
 
     /// Switches to hex jump mode.
     fn enter_hex_jump_mode(&mut self) -> &mut Self {
-        if self.failed {
+        if matches!(self.state, ParserState::Failure) {
             return self;
         }
         self.tokens.enter_hex_jump_mode();
@@ -342,7 +412,7 @@ impl<'src> InternalParser<'src> {
             self.depth -= 1;
         }
 
-        if self.failed {
+        if matches!(self.state, ParserState::Failure) {
             self.output.end_with_error();
         } else {
             self.output.end();
@@ -351,7 +421,7 @@ impl<'src> InternalParser<'src> {
     }
 
     fn recover(&mut self) -> &mut Self {
-        self.failed = false;
+        self.state = ParserState::OK;
         self
     }
 
@@ -467,7 +537,7 @@ impl<'src> InternalParser<'src> {
     /// Trivia tokens those that are not really part of the language, like
     /// whitespaces, newlines and comments.
     fn trivia(&mut self) -> &mut Self {
-        if self.failed {
+        if matches!(self.state, ParserState::Failure) {
             return self;
         }
         while let Some(token) = self.peek() {
@@ -496,7 +566,7 @@ impl<'src> InternalParser<'src> {
         self.expect_d(expected_tokens, None)
     }
 
-    /// Like [`InternalParser::expect`], but allows specifying a custom
+    /// Like [`ParserImpl::expect`], but allows specifying a custom
     /// description for the expected tokens.
     fn expect_d(
         &mut self,
@@ -505,7 +575,7 @@ impl<'src> InternalParser<'src> {
     ) -> &mut Self {
         assert!(!expected_tokens.is_empty());
 
-        if self.failed {
+        if matches!(self.state, ParserState::Failure) {
             return self;
         }
 
@@ -565,7 +635,7 @@ impl<'src> InternalParser<'src> {
                 self.flush_errors()
             }
         } else {
-            self.failed = true;
+            self.state = ParserState::Failure;
         }
 
         self
@@ -600,7 +670,7 @@ impl<'src> InternalParser<'src> {
     where
         P: Fn(&mut Self) -> &mut Self,
     {
-        if self.failed {
+        if matches!(self.state, ParserState::Failure) {
             return self;
         }
 
@@ -612,8 +682,8 @@ impl<'src> InternalParser<'src> {
         self.opt_depth -= 1;
 
         // Any error occurred while parsing the optional production is ignored.
-        if self.failed {
-            self.failed = false;
+        if matches!(self.state, ParserState::Failure) {
+            self.recover();
             self.restore_bookmark(&bookmark);
         }
 
@@ -628,7 +698,7 @@ impl<'src> InternalParser<'src> {
     where
         P: Fn(&mut Self) -> &mut Self,
     {
-        if self.failed {
+        if matches!(self.state, ParserState::Failure) {
             return self;
         }
 
@@ -640,14 +710,18 @@ impl<'src> InternalParser<'src> {
         parser(self);
         self.not_depth -= 1;
 
-        self.failed = !self.failed;
+        self.state = match self.state {
+            ParserState::OK => ParserState::Failure,
+            ParserState::Failure => ParserState::OK,
+            _ => unreachable!(),
+        };
 
         self.restore_bookmark(&bookmark);
         self.remove_bookmark(bookmark);
         self
     }
 
-    /// Like [`InternalParser::expect`], but optional.
+    /// Like [`ParserImpl::expect`], but optional.
     fn opt_expect(&mut self, expected_tokens: &'static TokenSet) -> &mut Self {
         self.opt(|p| p.expect(expected_tokens))
     }
@@ -680,7 +754,7 @@ impl<'src> InternalParser<'src> {
     where
         P: Fn(&mut Self) -> &mut Self,
     {
-        if self.failed {
+        if matches!(self.state, ParserState::Failure) {
             return self;
         }
         match self.peek_non_ws() {
@@ -709,7 +783,7 @@ impl<'src> InternalParser<'src> {
     /// consume all trivia tokens, consume the expected token, and applies
     /// `parser`.
     ///
-    /// This is similar to [`InternalParser::if_next`], the difference between
+    /// This is similar to [`ParserImpl::if_next`], the difference between
     /// both functions reside on how they handle the expected token. `if_next`
     /// leave the expected token in the stream, to be consumed by `parser`,
     /// while `cond` consumes the expected token too.
@@ -750,14 +824,14 @@ impl<'src> InternalParser<'src> {
     where
         P: Fn(&mut Self) -> &mut Self,
     {
-        if self.failed {
+        if matches!(self.state, ParserState::Failure) {
             return self;
         }
         // The first N times that `f` is called it must match.
         for _ in 0..n {
             self.trivia();
             parser(self);
-            if self.failed {
+            if matches!(self.state, ParserState::Failure) {
                 return self;
             }
         }
@@ -769,8 +843,8 @@ impl<'src> InternalParser<'src> {
             self.opt_depth += 1;
             parser(self);
             self.opt_depth -= 1;
-            if self.failed {
-                self.failed = false;
+            if matches!(self.state, ParserState::Failure) {
+                self.recover();
                 self.restore_bookmark(&bookmark);
                 self.remove_bookmark(bookmark);
                 break;
@@ -786,7 +860,7 @@ impl<'src> InternalParser<'src> {
     where
         P: Fn(&mut Self) -> &mut Self,
     {
-        if self.failed {
+        if matches!(self.state, ParserState::Failure) {
             return self;
         }
         self.trivia();
@@ -801,13 +875,13 @@ impl<'src> InternalParser<'src> {
         let start_index = self.tokens.current_token_index();
 
         if self.cache.contains(&(start_index, kind)) {
-            self.failed = true;
+            self.state = ParserState::Failure;
             return self;
         }
 
         parser(self);
 
-        if self.failed {
+        if matches!(self.state, ParserState::Failure) {
             self.cache.insert((start_index, kind));
         }
 
@@ -927,7 +1001,7 @@ macro_rules! t {
 /// Thus, a rule like `( a | a B )` is problematic because `a B` won't ever
 /// match. If `a B` matches, then `a` also matches, but `a` has a higher
 /// priority and prevents `a B` from matching.
-impl<'src> InternalParser<'src> {
+impl<'src> ParserImpl<'src> {
     /// Parses a top-level item in YARA source file.
     ///
     /// A top-level item is either an import statement or a rule declaration.
@@ -939,7 +1013,7 @@ impl<'src> InternalParser<'src> {
         let token = match self.peek() {
             Some(token) => token,
             None => {
-                self.failed = true;
+                self.state = ParserState::Failure;
                 return self;
             }
         };
@@ -958,7 +1032,7 @@ impl<'src> InternalParser<'src> {
                 self.output.begin(ERROR);
                 self.bump();
                 self.output.end();
-                self.failed = true;
+                self.state = ParserState::Failure;
                 self
             }
         }
@@ -1610,7 +1684,7 @@ struct Bookmark {
     output: syntax_stream::Bookmark,
 }
 
-/// A set of tokens passed to the [`InternalParser::expect`]
+/// A set of tokens passed to the [`ParserImpl::expect`]
 /// function.
 ///
 /// The set is represented by a list of [`SyntaxKind`].
@@ -1636,7 +1710,7 @@ impl TokenSet {
 }
 
 struct Alt<'a, 'src> {
-    parser: &'a mut InternalParser<'src>,
+    parser: &'a mut ParserImpl<'src>,
     matched: bool,
     bookmark: Bookmark,
 }
@@ -1644,9 +1718,9 @@ struct Alt<'a, 'src> {
 impl<'a, 'src> Alt<'a, 'src> {
     fn alt<F>(mut self, f: F) -> Self
     where
-        F: Fn(&'a mut InternalParser<'src>) -> &'a mut InternalParser<'src>,
+        F: Fn(&'a mut ParserImpl<'src>) -> &'a mut ParserImpl<'src>,
     {
-        if self.parser.failed {
+        if matches!(self.parser.state, ParserState::Failure) {
             return self;
         }
         // Don't try to match the current alternative if the parser a previous
@@ -1656,26 +1730,28 @@ impl<'a, 'src> Alt<'a, 'src> {
             self.parser.opt_depth += 1;
             self.parser = f(self.parser);
             self.parser.opt_depth -= 1;
-            match self.parser.failed {
+            match self.parser.state {
                 // The current alternative matched.
-                false => {
+                ParserState::OK => {
                     self.matched = true;
                 }
                 // The current alternative didn't match, restore the token
                 // stream to the position it has before trying to match.
-                true => {
-                    self.parser.failed = false;
+                ParserState::Failure => {
+                    self.parser.recover();
                     self.parser.restore_bookmark(&self.bookmark);
                 }
+                _ => unreachable!(),
             };
         }
         self
     }
 
-    fn end_alt(self) -> &'a mut InternalParser<'src> {
+    fn end_alt(self) -> &'a mut ParserImpl<'src> {
         self.parser.remove_bookmark(self.bookmark);
         // If none of the alternatives matched, that's a failure.
-        self.parser.failed = !self.matched;
+        self.parser.state =
+            if self.matched { ParserState::OK } else { ParserState::Failure };
         self.parser
     }
 }
