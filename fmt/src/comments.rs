@@ -139,8 +139,8 @@ where
     /// This function works like an automaton with two states `PreComment`
     /// and `Comment`. The automaton remains in the `PreComment` state
     /// while it processes any whitespaces and newlines that precede the
-    /// the comment. When it finds a [`Token::Comment`], it switches to
-    /// the `Comment` state.
+    /// comment. When it finds a [`Token::Comment`], it switches to the
+    /// `Comment` state.
     fn process_input_buffer(&mut self) {
         // Start at PreComment state, `leading_newline` is initialized with
         // the value of `start_of_input` because comments that are at the
@@ -204,7 +204,7 @@ where
                     // ```
                     // // This is a comment block.
                     // // These three lines are
-                    // // are put in the same BlockComment.
+                    // // put in the same BlockComment.
                     //
                     // // However, this other block is separated from
                     // // the previous one by an empty line, therefore
@@ -267,7 +267,7 @@ where
             }
         }
 
-        // Handle the case in which a comment was found but it wasn't followed
+        // Handle the case in which a comment was found, but it wasn't followed
         // by a newline.
         if let State::Comment {
             lines,
@@ -337,7 +337,7 @@ where
 /// that are actually part of the indentation. For example:
 ///
 /// ```text
-/// <-- indentation -->/*  
+/// <-- indentation -->/*
 /// <-- indentation -->    This comment is indented
 /// <-- indentation -->*/
 /// ```
