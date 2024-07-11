@@ -32,3 +32,12 @@ rule test {
 	condition:
 		$a
 }
+
+
+rule test {
+    strings:
+        $a = "foo"  /* Comment */ascii
+        $b = "bar"  /* Comment */wide
+    condition:
+        $a and $b
+}

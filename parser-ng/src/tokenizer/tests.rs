@@ -132,6 +132,11 @@ fn comments() {
     let mut lexer = super::Tokenizer::new(r#"// comment "#.as_bytes());
     assert_eq!(lexer.next_token(), Some(Token::COMMENT(Span(0..11))));
     assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new(r#"/* Comment */s"#.as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::COMMENT(Span(0..13))));
+    assert_eq!(lexer.next_token(), Some(Token::IDENT(Span(13..14))));
+    assert_eq!(lexer.next_token(), None);
 }
 
 #[test]

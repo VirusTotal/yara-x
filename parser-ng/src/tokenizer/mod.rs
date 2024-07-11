@@ -432,7 +432,8 @@ enum NormalToken<'src> {
     // Regular expression.
     #[regex(
         r#"(?x)                         # allow comments in the regexp
-        /                               # starts /
+        /[^*/]                          # starts with / but not followed by * or /. This
+                                        # prevents collision with commments.
         (                               # one or more..
           [^\\/\n]                      #   anything except backslashed, slashes and newlines
           |                             #   or..
@@ -454,8 +455,9 @@ enum NormalToken<'src> {
             \*[^/]                     #   asterisk followed by something that is not /
         )*
         \*/                            # ends with */
-
-        "#, |token| token.slice())]
+        "#,
+        |token| token.slice())
+    ]
     BlockComment(&'src [u8]),
 
     // Single-line comment
