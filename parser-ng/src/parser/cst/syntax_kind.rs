@@ -57,6 +57,7 @@ pub enum SyntaxKind {
     SHR,
     BITWISE_AND,
     BITWISE_OR,
+    BITWISE_XOR,
     BITWISE_NOT,
 
     // Comparison operators.
@@ -220,6 +221,7 @@ impl SyntaxKind {
             SyntaxKind::SHR => TokenId::SHR,
             SyntaxKind::BITWISE_AND => TokenId::AMPERSAND,
             SyntaxKind::BITWISE_OR => TokenId::PIPE,
+            SyntaxKind::BITWISE_XOR => TokenId::CARET,
             SyntaxKind::BITWISE_NOT => TokenId::TILDE,
 
             SyntaxKind::EQ => TokenId::EQ,
