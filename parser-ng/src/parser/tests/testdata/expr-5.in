@@ -5,5 +5,5 @@ rule test_1 {
 
 rule test_2 {
    condition:
-     filesize < 1MB
+     filesize != 1MB
 }

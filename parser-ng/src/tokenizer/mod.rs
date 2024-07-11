@@ -284,6 +284,8 @@ enum NormalToken<'src> {
     // Comparison
     #[token("==")]
     Eq,
+    #[token("!=")]
+    Ne,
     #[token("<=")]
     Le,
     #[token(">=")]
@@ -655,6 +657,7 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
 
         // Comparison.
         NormalToken::Eq => Token::EQ(span),
+        NormalToken::Ne => Token::NE(span),
         NormalToken::Lt => Token::LT(span),
         NormalToken::Gt => Token::GT(span),
         NormalToken::Le => Token::LE(span),
