@@ -442,7 +442,11 @@ impl<'src> ParserImpl<'src> {
                                 .token_ids()
                                 .map(|token| token.description()),
                         );
-                    self.handle_errors();
+                    if self.pending_errors.is_empty() {
+                        self.handle_errors();
+                    } else {
+                        self.flush_errors();
+                    }
                 }
             }
         }
@@ -1140,11 +1144,12 @@ impl<'src> ParserImpl<'src> {
         self.begin(META_DEF)
             .expect(t!(IDENT))
             .expect(t!(EQUAL))
-            .expect(t!(TRUE_KW
-                | FALSE_KW
-                | INTEGER_LIT
-                | FLOAT_LIT
-                | STRING_LIT))
+            .begin_alt()
+            .alt(|p| {
+                p.opt_expect(t!(MINUS)).expect(t!(INTEGER_LIT | FLOAT_LIT))
+            })
+            .alt(|p| p.expect(t!(STRING_LIT | TRUE_KW | FALSE_KW)))
+            .end_alt()
             .end()
     }
 
@@ -1413,6 +1418,7 @@ impl<'src> ParserImpl<'src> {
                     | SHR
                     | BITWISE_AND
                     | BITWISE_OR
+                    | BITWISE_XOR
                     | BITWISE_NOT
                     | DOT))
                     .then(|p| p.term())
@@ -1750,8 +1756,12 @@ impl<'a, 'src> Alt<'a, 'src> {
     fn end_alt(self) -> &'a mut ParserImpl<'src> {
         self.parser.remove_bookmark(self.bookmark);
         // If none of the alternatives matched, that's a failure.
-        self.parser.state =
-            if self.matched { ParserState::OK } else { ParserState::Failure };
+        if self.matched {
+            self.parser.state = ParserState::OK;
+        } else {
+            self.parser.state = ParserState::Failure;
+            self.parser.handle_errors();
+        };
         self.parser
     }
 }

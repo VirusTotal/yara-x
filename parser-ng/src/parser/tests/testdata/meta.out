@@ -1,5 +1,5 @@
-SOURCE_FILE@0..138
-  RULE_DECL@0..137
+SOURCE_FILE@0..177
+  RULE_DECL@0..176
     RULE_KW@0..4 "rule"
     WHITESPACE@4..5 " "
     IDENT@5..9 "test"
@@ -7,7 +7,7 @@ SOURCE_FILE@0..138
     L_BRACE@10..11 "{"
     NEWLINE@11..12 "\n"
     WHITESPACE@12..13 "\t"
-    META_BLK@13..116
+    META_BLK@13..155
       META_KW@13..17 "meta"
       COLON@17..18 ":"
       NEWLINE@18..19 "\n"
@@ -20,46 +20,64 @@ SOURCE_FILE@0..138
         INTEGER_LIT@33..34 "1"
       NEWLINE@34..35 "\n"
       WHITESPACE@35..38 "\t  "
-      META_DEF@38..55
-        IDENT@38..48 "some_float"
+      META_DEF@38..51
+        IDENT@38..46 "some_int"
+        WHITESPACE@46..47 " "
+        EQUAL@47..48 "="
         WHITESPACE@48..49 " "
-        EQUAL@49..50 "="
-        WHITESPACE@50..51 " "
-        FLOAT_LIT@51..55 "3.14"
-      NEWLINE@55..56 "\n"
-      WHITESPACE@56..59 "\t  "
-      META_DEF@59..75
-        IDENT@59..68 "some_bool"
-        WHITESPACE@68..69 " "
-        EQUAL@69..70 "="
-        WHITESPACE@70..71 " "
-        TRUE_KW@71..75 "true"
-      NEWLINE@75..76 "\n"
-      WHITESPACE@76..79 "\t  "
-      META_DEF@79..96
-        IDENT@79..88 "some_bool"
+        MINUS@49..50 "-"
+        INTEGER_LIT@50..51 "2"
+      NEWLINE@51..52 "\n"
+      WHITESPACE@52..55 "\t  "
+      META_DEF@55..72
+        IDENT@55..65 "some_float"
+        WHITESPACE@65..66 " "
+        EQUAL@66..67 "="
+        WHITESPACE@67..68 " "
+        FLOAT_LIT@68..72 "3.14"
+      NEWLINE@72..73 "\n"
+      WHITESPACE@73..76 "\t  "
+      META_DEF@76..94
+        IDENT@76..86 "some_float"
+        WHITESPACE@86..87 " "
+        EQUAL@87..88 "="
         WHITESPACE@88..89 " "
-        EQUAL@89..90 "="
-        WHITESPACE@90..91 " "
-        FALSE_KW@91..96 "false"
-      NEWLINE@96..97 "\n"
-      WHITESPACE@97..100 "\t  "
-      META_DEF@100..116
-        IDENT@100..108 "some_str"
-        WHITESPACE@108..109 " "
-        EQUAL@109..110 "="
-        WHITESPACE@110..111 " "
-        STRING_LIT@111..116 "\"foo\""
-    NEWLINE@116..117 "\n"
-    WHITESPACE@117..118 "\t"
-    CONDITION_BLK@118..135
-      CONDITION_KW@118..127 "condition"
-      COLON@127..128 ":"
-      NEWLINE@128..129 "\n"
-      WHITESPACE@129..131 "\t\t"
-      BOOLEAN_EXPR@131..135
-        BOOLEAN_TERM@131..135
-          TRUE_KW@131..135 "true"
-    NEWLINE@135..136 "\n"
-    R_BRACE@136..137 "}"
-  NEWLINE@137..138 "\n"
+        MINUS@89..90 "-"
+        FLOAT_LIT@90..94 "3.14"
+      NEWLINE@94..95 "\n"
+      WHITESPACE@95..98 "\t  "
+      META_DEF@98..114
+        IDENT@98..107 "some_bool"
+        WHITESPACE@107..108 " "
+        EQUAL@108..109 "="
+        WHITESPACE@109..110 " "
+        TRUE_KW@110..114 "true"
+      NEWLINE@114..115 "\n"
+      WHITESPACE@115..118 "\t  "
+      META_DEF@118..135
+        IDENT@118..127 "some_bool"
+        WHITESPACE@127..128 " "
+        EQUAL@128..129 "="
+        WHITESPACE@129..130 " "
+        FALSE_KW@130..135 "false"
+      NEWLINE@135..136 "\n"
+      WHITESPACE@136..139 "\t  "
+      META_DEF@139..155
+        IDENT@139..147 "some_str"
+        WHITESPACE@147..148 " "
+        EQUAL@148..149 "="
+        WHITESPACE@149..150 " "
+        STRING_LIT@150..155 "\"foo\""
+    NEWLINE@155..156 "\n"
+    WHITESPACE@156..157 "\t"
+    CONDITION_BLK@157..174
+      CONDITION_KW@157..166 "condition"
+      COLON@166..167 ":"
+      NEWLINE@167..168 "\n"
+      WHITESPACE@168..170 "\t\t"
+      BOOLEAN_EXPR@170..174
+        BOOLEAN_TERM@170..174
+          TRUE_KW@170..174 "true"
+    NEWLINE@174..175 "\n"
+    R_BRACE@175..176 "}"
+  NEWLINE@176..177 "\n"
