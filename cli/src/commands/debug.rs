@@ -17,6 +17,16 @@ pub fn ast() -> Command {
         )
 }
 
+pub fn cst() -> Command {
+    super::command("cst")
+        .about("Print Concrete Syntax Tree (CST) for a YARA source file")
+        .arg(
+            arg!(<RULES_PATH>)
+                .help("Path to YARA source file")
+                .value_parser(value_parser!(PathBuf)),
+        )
+}
+
 pub fn wasm() -> Command {
     super::command("wasm")
         .about(
@@ -35,12 +45,14 @@ pub fn debug() -> Command {
         .arg_required_else_help(true)
         .hide(true)
         .subcommand(ast())
+        .subcommand(cst())
         .subcommand(wasm())
 }
 
 pub fn exec_debug(args: &ArgMatches) -> anyhow::Result<()> {
     match args.subcommand() {
         Some(("ast", args)) => exec_ast(args),
+        Some(("cst", args)) => exec_cst(args),
         Some(("wasm", args)) => exec_wasm(args),
         _ => unreachable!(),
     }
@@ -61,6 +73,19 @@ pub fn exec_ast(args: &ArgMatches) -> anyhow::Result<()> {
     ascii_tree::write_tree(&mut output, &ast.ascii_tree())?;
 
     println!("{output}");
+    Ok(())
+}
+
+pub fn exec_cst(args: &ArgMatches) -> anyhow::Result<()> {
+    let rules_path = args.get_one::<PathBuf>("RULES_PATH").unwrap();
+
+    let src = fs::read(rules_path)
+        .with_context(|| format!("can not read `{}`", rules_path.display()))?;
+
+    let parser = yara_x_parser_ng::Parser::new(src.as_slice());
+    let cst = parser.build_cst();
+
+    println!("{cst:?}");
     Ok(())
 }
 
