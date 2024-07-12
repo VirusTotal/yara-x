@@ -1,0 +1,87 @@
+SOURCE_FILE@0..175
+  RULE_DECL@0..46
+    RULE_MODS@0..14
+      GLOBAL_KW@0..6 "global"
+      WHITESPACE@6..7 " "
+      PRIVATE_KW@7..14 "private"
+    WHITESPACE@14..15 " "
+    RULE_KW@15..19 "rule"
+    WHITESPACE@19..20 " "
+    IDENT@20..26 "test_1"
+    WHITESPACE@26..27 " "
+    L_BRACE@27..28 "{"
+    WHITESPACE@28..29 " "
+    CONDITION_BLK@29..44
+      CONDITION_KW@29..38 "condition"
+      COLON@38..39 ":"
+      WHITESPACE@39..40 " "
+      BOOLEAN_EXPR@40..44
+        BOOLEAN_TERM@40..44
+          TRUE_KW@40..44 "true"
+    WHITESPACE@44..45 " "
+    R_BRACE@45..46 "}"
+  NEWLINE@46..47 "\n"
+  NEWLINE@47..48 "\n"
+  RULE_DECL@48..94
+    RULE_MODS@48..62
+      PRIVATE_KW@48..55 "private"
+      WHITESPACE@55..56 " "
+      GLOBAL_KW@56..62 "global"
+    WHITESPACE@62..63 " "
+    RULE_KW@63..67 "rule"
+    WHITESPACE@67..68 " "
+    IDENT@68..74 "test_2"
+    WHITESPACE@74..75 " "
+    L_BRACE@75..76 "{"
+    WHITESPACE@76..77 " "
+    CONDITION_BLK@77..92
+      CONDITION_KW@77..86 "condition"
+      COLON@86..87 ":"
+      WHITESPACE@87..88 " "
+      BOOLEAN_EXPR@88..92
+        BOOLEAN_TERM@88..92
+          TRUE_KW@88..92 "true"
+    WHITESPACE@92..93 " "
+    R_BRACE@93..94 "}"
+  NEWLINE@94..95 "\n"
+  NEWLINE@95..96 "\n"
+  RULE_DECL@96..134
+    RULE_MODS@96..102
+      GLOBAL_KW@96..102 "global"
+    WHITESPACE@102..103 " "
+    RULE_KW@103..107 "rule"
+    WHITESPACE@107..108 " "
+    IDENT@108..114 "test_3"
+    WHITESPACE@114..115 " "
+    L_BRACE@115..116 "{"
+    WHITESPACE@116..117 " "
+    CONDITION_BLK@117..132
+      CONDITION_KW@117..126 "condition"
+      COLON@126..127 ":"
+      WHITESPACE@127..128 " "
+      BOOLEAN_EXPR@128..132
+        BOOLEAN_TERM@128..132
+          TRUE_KW@128..132 "true"
+    WHITESPACE@132..133 " "
+    R_BRACE@133..134 "}"
+  NEWLINE@134..135 "\n"
+  NEWLINE@135..136 "\n"
+  RULE_DECL@136..175
+    RULE_MODS@136..143
+      PRIVATE_KW@136..143 "private"
+    WHITESPACE@143..144 " "
+    RULE_KW@144..148 "rule"
+    WHITESPACE@148..149 " "
+    IDENT@149..155 "test_4"
+    WHITESPACE@155..156 " "
+    L_BRACE@156..157 "{"
+    WHITESPACE@157..158 " "
+    CONDITION_BLK@158..173
+      CONDITION_KW@158..167 "condition"
+      COLON@167..168 ":"
+      WHITESPACE@168..169 " "
+      BOOLEAN_EXPR@169..173
+        BOOLEAN_TERM@169..173
+          TRUE_KW@169..173 "true"
+    WHITESPACE@173..174 " "
+    R_BRACE@174..175 "}"

@@ -1,3 +1,5 @@
+import "foo"
+
 rule test {
 	condition:
 		true and not false or (false or true)
