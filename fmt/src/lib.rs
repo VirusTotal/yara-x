@@ -89,8 +89,8 @@ impl Formatter {
         // Read the source code from input and store it in buf.
         input.read_to_string(&mut buf).map_err(Error::ReadError)?;
 
-        let events = Parser::new(buf.as_bytes()).events();
-        let tokens = Tokens::new(buf.as_str(), events);
+        let stream = Parser::new(buf.as_bytes()).into_cst_stream();
+        let tokens = Tokens::new(stream);
 
         Formatter::formatter(tokens)
             .write_to(output)

@@ -30,9 +30,9 @@ fn spacer() {
 
     for t in tests {
         let mut output = Vec::new();
-
-        let parser = Parser::new(t.0.as_bytes()).whitespaces(false);
-        let tokens = Tokens::new(t.0, parser.events());
+        let rules = t.0.as_bytes();
+        let events = Parser::new(rules).into_cst_stream().whitespaces(false);
+        let tokens = Tokens::new(events);
 
         Formatter::add_spacing(tokens).write_to(&mut output).unwrap();
         assert_eq!(str::from_utf8(&output).unwrap(), t.1);

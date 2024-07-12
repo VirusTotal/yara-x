@@ -26,34 +26,25 @@ mod token_stream;
 #[cfg(test)]
 mod tests;
 
-use crate::cst::{Event, SyntaxKind, SyntaxStream};
+use crate::ast::AST;
+use crate::cst::syntax_stream::SyntaxStream;
+use crate::cst::SyntaxKind::*;
+use crate::cst::{syntax_stream, CST};
+use crate::cst::{CSTStream, Event, SyntaxKind};
 use crate::parser::token_stream::TokenStream;
 use crate::tokenizer::{Token, TokenId, Tokenizer};
 use crate::Span;
 
-/// Produces a Concrete Syntax-Tree ([`CST`]) for a given YARA source code.
+/// Produces a Concrete Syntax Tree (CST) or Abstract Syntax Tree (AST) given
+/// some YARA source code.
 pub struct Parser<'src> {
-    parser: ParserImpl<'src>,
-    whitespaces: bool,
+    pub(crate) parser: ParserImpl<'src>,
 }
 
 impl<'src> Parser<'src> {
     /// Creates a new parser for the given source code.
     pub fn new(source: &'src [u8]) -> Self {
-        Self {
-            parser: ParserImpl::from(Tokenizer::new(source)),
-            whitespaces: true,
-        }
-    }
-
-    /// Enables or disables whitespaces in the returned CST.
-    ///
-    /// If false, the resulting CST won't contain whitespaces.
-    ///
-    /// Default value is `true`.
-    pub fn whitespaces(mut self, yes: bool) -> Self {
-        self.whitespaces = yes;
-        self
+        Self { parser: ParserImpl::from(Tokenizer::new(source)) }
     }
 
     /// Returns the source code passed to the parser.
@@ -62,40 +53,23 @@ impl<'src> Parser<'src> {
         self.parser.tokens.source()
     }
 
-    /// Returns the CST as a sequence of events.
+    /// Consumes the parser and returns a Concrete Syntax Tree (CST).
     #[inline]
-    pub fn events(self) -> Events<'src> {
-        Events { parser: self.parser, whitespaces: self.whitespaces }
-    }
-
-    /// Consumes the parser and builds a Concrete Syntax Tree (CST).
-    #[inline]
-    pub fn build_cst(self) -> CST {
+    pub fn into_cst(self) -> CST {
         CST::from(self)
     }
-}
 
-/// An CST in the form of a sequence of [`events`][`Event`].
-pub struct Events<'src> {
-    parser: ParserImpl<'src>,
-    whitespaces: bool,
-}
+    /// Consumes the parser and returns a Concrete Syntax Tree (CST) as
+    /// a stream of events.
+    #[inline]
+    pub fn into_cst_stream(self) -> CSTStream<'src> {
+        CSTStream::from(self)
+    }
 
-impl<'src> Iterator for Events<'src> {
-    type Item = Event;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.whitespaces {
-            self.parser.next()
-        } else {
-            loop {
-                match self.parser.next()? {
-                    // ignore whitespace and get next event
-                    Event::Token { kind: WHITESPACE, .. } => {}
-                    token => break Some(token),
-                }
-            }
-        }
+    /// Consumes the parser and returns an Abstract Syntax Tree (AST).
+    #[inline]
+    pub fn into_ast(self) -> AST<'src> {
+        AST::from(self)
     }
 }
 
@@ -114,7 +88,7 @@ enum ParserState {
 
 /// Internal implementation of the parser. The [`Parser`] type is only a
 /// wrapper around this type.
-struct ParserImpl<'src> {
+pub(crate) struct ParserImpl<'src> {
     /// Stream from where the parser consumes the input tokens.
     tokens: TokenStream<'src>,
 
@@ -957,9 +931,6 @@ impl<'src> ParserImpl<'src> {
         self.pending_errors.insert(span, error_msg);
     }
 }
-
-use crate::cst::{syntax_stream, CST};
-use SyntaxKind::*;
 
 macro_rules! t {
     ($( $tokens:path )|*) => {

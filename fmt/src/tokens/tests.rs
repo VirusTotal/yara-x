@@ -15,23 +15,24 @@ fn token_generation() {
             condition: true
         }"#;
 
-    let events = Parser::new(rule.as_bytes()).whitespaces(false).events();
-    let tokens: Vec<Token> = Tokens::new(rule, events).collect();
+    let events = Parser::new(rule.as_bytes())
+        .into_cst_stream()
+        .whitespaces(false)
+        .newlines(false);
+
+    let tokens: Vec<Token> = Tokens::new(events).collect();
 
     assert_eq!(
         tokens,
         vec![
             Begin(SyntaxKind::SOURCE_FILE),
-            Newline,
             Begin(SyntaxKind::RULE_DECL),
             Keyword("rule"),
             Identifier("test"),
             Punctuation("{"),
-            Newline,
             Begin(SyntaxKind::PATTERNS_BLK),
             Keyword("strings"),
             Punctuation(":"),
-            Newline,
             Begin(SyntaxKind::PATTERN_DEF),
             Identifier("$a"),
             Punctuation("="),
@@ -44,7 +45,6 @@ fn token_generation() {
             Punctuation("}"),
             End(SyntaxKind::HEX_PATTERN),
             End(SyntaxKind::PATTERN_DEF),
-            Newline,
             Begin(SyntaxKind::PATTERN_DEF),
             Identifier("$b"),
             Punctuation("="),
@@ -59,7 +59,6 @@ fn token_generation() {
             End(SyntaxKind::PATTERN_MODS),
             End(SyntaxKind::PATTERN_DEF),
             End(SyntaxKind::PATTERNS_BLK),
-            Newline,
             Begin(SyntaxKind::CONDITION_BLK),
             Keyword("condition"),
             Punctuation(":"),
@@ -69,7 +68,6 @@ fn token_generation() {
             End(SyntaxKind::BOOLEAN_TERM),
             End(SyntaxKind::BOOLEAN_EXPR),
             End(SyntaxKind::CONDITION_BLK),
-            Newline,
             Punctuation("}"),
             End(SyntaxKind::RULE_DECL),
             End(SyntaxKind::SOURCE_FILE),
@@ -79,10 +77,13 @@ fn token_generation() {
 
 #[test]
 fn whitespaces() {
-    let rule = r#"rule  test { condition: true }"#;
+    let rule = r#"rule test {
+        condition:
+            true
+    }"#;
 
-    let events = Parser::new(rule.as_bytes()).events();
-    let tokens: Vec<Token> = Tokens::new(rule, events).collect();
+    let events = Parser::new(rule.as_bytes()).into_cst_stream();
+    let tokens: Vec<Token> = Tokens::new(events).collect();
 
     assert_eq!(
         tokens,
@@ -91,14 +92,33 @@ fn whitespaces() {
             Begin(SyntaxKind::RULE_DECL),
             Keyword("rule"),
             Whitespace,
-            Whitespace,
             Identifier("test"),
             Whitespace,
             Punctuation("{"),
+            Newline,
+            Whitespace,
+            Whitespace,
+            Whitespace,
+            Whitespace,
+            Whitespace,
+            Whitespace,
+            Whitespace,
             Whitespace,
             Begin(SyntaxKind::CONDITION_BLK),
             Keyword("condition"),
             Punctuation(":"),
+            Newline,
+            Whitespace,
+            Whitespace,
+            Whitespace,
+            Whitespace,
+            Whitespace,
+            Whitespace,
+            Whitespace,
+            Whitespace,
+            Whitespace,
+            Whitespace,
+            Whitespace,
             Whitespace,
             Begin(SyntaxKind::BOOLEAN_EXPR),
             Begin(SyntaxKind::BOOLEAN_TERM),
@@ -106,6 +126,10 @@ fn whitespaces() {
             End(SyntaxKind::BOOLEAN_TERM),
             End(SyntaxKind::BOOLEAN_EXPR),
             End(SyntaxKind::CONDITION_BLK),
+            Newline,
+            Whitespace,
+            Whitespace,
+            Whitespace,
             Whitespace,
             Punctuation("}"),
             End(SyntaxKind::RULE_DECL),

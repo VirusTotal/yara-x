@@ -83,7 +83,7 @@ pub fn exec_cst(args: &ArgMatches) -> anyhow::Result<()> {
         .with_context(|| format!("can not read `{}`", rules_path.display()))?;
 
     let parser = yara_x_parser_ng::Parser::new(src.as_slice());
-    let cst = parser.build_cst();
+    let cst = parser.into_cst();
 
     println!("{cst:?}");
     Ok(())

@@ -1,7 +1,7 @@
 /*! Parses YARA source code and produces either a Concrete Syntax Tree (CST)
 or an Abstract Syntax Tree (AST).
 
-A CST (also known as lossless syntax tree) is a structured representation of
+A CST (also known as a lossless syntax tree) is a structured representation of
 the source code that retains all its details, including punctuation, spacing,
 comments, etc. The CST is appropriate for traversing the source code as it
 appears in its original form.
@@ -30,7 +30,7 @@ mod tokenizer;
 pub mod ast;
 pub mod cst;
 
-pub use parser::{Events, Parser};
+pub use parser::Parser;
 
 /// Starting and ending positions of some token inside the source code.
 #[derive(Default, Clone, Debug, Hash, Eq, PartialEq)]

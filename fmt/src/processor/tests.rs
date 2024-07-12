@@ -8,8 +8,9 @@ use crate::tokens::Token::*;
 use crate::tokens::{categories, Token};
 
 fn tokenize(source: &str) -> Vec<Token> {
-    let parser = Parser::new(source.as_bytes()).whitespaces(false);
-    tokens::Tokens::new(source, parser.events()).collect()
+    let events =
+        Parser::new(source.as_bytes()).into_cst_stream().whitespaces(false);
+    tokens::Tokens::new(events).collect()
 }
 
 #[test]

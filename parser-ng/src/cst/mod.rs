@@ -1,6 +1,6 @@
-/*! A Concrete Syntax Tree (CST) for YARA source code.
+/*! Concrete Syntax Tree (CST) for YARA rules.
 
-A CST (also known as lossless syntax tree) is a structured representation of
+A CST (also known as a lossless syntax tree) is a structured representation of
 the source code that retains all its details, including punctuation, spacing,
 comments, etc. The CST is appropriate for traversing the source code as it
 appears in its original form.
@@ -19,9 +19,118 @@ use std::str::from_utf8;
 pub(crate) mod syntax_kind;
 pub(crate) mod syntax_stream;
 
+use crate::cst::SyntaxKind::{NEWLINE, WHITESPACE};
 pub use syntax_kind::SyntaxKind;
-pub use syntax_stream::Event;
-pub use syntax_stream::SyntaxStream;
+
+/// Each of the events in a [`CSTStream`].
+///
+/// See the documentation of [`CSTStream`] for more details.
+#[derive(Debug, PartialEq)]
+pub enum Event {
+    /// Indicates the beginning of a non-terminal production in the grammar.
+    Begin(SyntaxKind),
+    /// Indicates the end of a non-terminal production in the grammar.
+    End(SyntaxKind),
+    /// A terminal symbol in the grammar.
+    Token { kind: SyntaxKind, span: Span },
+    /// An error found during the parsing of the source.
+    Error { message: String, span: Span },
+}
+
+/// A Concrete Syntax Tree (CST) represented as a stream of [`Event`].
+///
+/// This is an alternative representation of the CST as a sequence of events
+/// of the following types:
+///
+/// - [`Event::Token`],
+/// - [`Event::Begin`]
+/// - [`Event::End`]
+/// - [`Event::Error`]
+///
+/// `Token` events represent terminal symbols in the grammar, such as keywords,
+/// punctuation, identifiers, comments and even whitespace. Each `Token` has an
+/// associated [`Span`] that indicates its position in the source code.
+///
+/// `Begin` and `End` events are related to non-terminal symbols, such as
+/// expressions and statements. They appear in pairs, with every `Begin`
+/// followed by a corresponding `End` of the same kind. A `Begin`/`End` pair
+/// represents a non-terminal node in the syntax tree, and everything in between
+/// is a child of this node.
+///
+/// `Error` events are not technically part of the syntax tree. They contain
+/// error messages generated during parsing. While these errors could be in a
+/// separate stream, they are integrated into the syntax tree for simplicity.
+/// Each error message is placed under the tree node that was being parsed when
+/// the error occurred.
+///
+/// [`CSTStream`] is an iterator that returns items of type [`Event`].
+pub struct CSTStream<'src> {
+    parser: Parser<'src>,
+    whitespaces: bool,
+    newlines: bool,
+}
+
+impl<'src> CSTStream<'src> {
+    /// Returns the source code associated to this CSTStream.
+    #[inline]
+    pub fn source(&self) -> &'src [u8] {
+        self.parser.source()
+    }
+
+    /// Enables or disables whitespaces in the returned CST.
+    ///
+    /// If false, the resulting CST won't contain whitespaces.
+    ///
+    /// Default value is `true`.
+    pub fn whitespaces(mut self, yes: bool) -> Self {
+        self.whitespaces = yes;
+        self
+    }
+
+    /// Enables or disables newlines in the returned CST.
+    ///
+    /// If false, the resulting CST won't contain newlines.
+    ///
+    /// Default value is `true`.
+    pub fn newlines(mut self, yes: bool) -> Self {
+        self.newlines = yes;
+        self
+    }
+}
+
+impl<'src> From<Parser<'src>> for CSTStream<'src> {
+    /// Creates a [`CSTStream`] from the given parser.
+    fn from(parser: Parser<'src>) -> Self {
+        Self { parser, whitespaces: true, newlines: true }
+    }
+}
+
+impl<'src> Iterator for CSTStream<'src> {
+    type Item = Event;
+
+    /// Returns the next event in the stream.
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.whitespaces && self.newlines {
+            self.parser.parser.next()
+        } else {
+            loop {
+                match self.parser.parser.next()? {
+                    token @ Event::Token { kind: WHITESPACE, .. } => {
+                        if self.whitespaces {
+                            break Some(token);
+                        }
+                    }
+                    token @ Event::Token { kind: NEWLINE, .. } => {
+                        if self.newlines {
+                            break Some(token);
+                        }
+                    }
+                    token => break Some(token),
+                }
+            }
+        }
+    }
+}
 
 /// A Concrete Syntax Tree (CST) representing the structure of some YARA
 /// source code.
@@ -51,7 +160,7 @@ impl From<Parser<'_>> for CST {
         let mut prev_token_span: Option<Span> = None;
         let mut errors = Vec::new();
 
-        for node in parser.events() {
+        for node in parser.into_cst_stream() {
             match node {
                 Event::Begin(kind) => builder.start_node(kind.into()),
                 Event::End(_) => builder.finish_node(),

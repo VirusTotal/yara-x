@@ -1,16 +1,7 @@
 use std::collections::VecDeque;
 
-use crate::cst::SyntaxKind;
+use crate::cst::{Event, SyntaxKind};
 use crate::Span;
-
-/// Each of the event types in a [`SyntaxStream`].
-#[derive(Debug, PartialEq)]
-pub enum Event {
-    Begin(SyntaxKind),
-    End(SyntaxKind),
-    Token { kind: SyntaxKind, span: Span },
-    Error { message: String, span: Span },
-}
 
 /// A Concrete Syntax Tree (CST) represented as a stream of events.
 ///
@@ -23,20 +14,19 @@ pub enum Event {
 ///
 /// `Token` events represent terminal symbols in the grammar, such as keywords,
 /// punctuation, identifiers, comments and even whitespace. Each `Token` has an
-/// [`Span`] its position in the source code.
+/// associated [`Span`] that indicates its position in the source code.
 ///
-/// `Begin` and `End` events are associated with non-terminal symbols, such as
+/// `Begin` and `End` events are related to non-terminal symbols, such as
 /// expressions and statements. They appear in pairs, with every `Begin`
-/// followed by a corresponding `End` of the same type. A `Begin`/`End` pair
+/// followed by a corresponding `End` of the same kind. A `Begin`/`End` pair
 /// represents a non-terminal node in the syntax tree, and everything in between
 /// is a child of this node.
 ///
 /// `Error` events are not technically part of the syntax tree. They contain
 /// error messages generated during parsing. While these errors could be in a
-/// separate stream, they are integrated into the syntax tree to provide more
-/// context. Each error message is placed under the tree node that was being
-/// parsed when the error occurred, offering more insight into the error's
-/// context.
+/// separate stream, they are integrated into the syntax tree for simplicity.
+/// Each error message is placed under the tree node that was being parsed when
+/// the error occurred.
 pub struct SyntaxStream {
     events: VecDeque<Event>,
     /// Positions within `events` where `Begin` events are located. This allows
