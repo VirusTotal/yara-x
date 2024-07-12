@@ -27,7 +27,6 @@ use std::ops::Range;
 mod parser;
 mod tokenizer;
 
-pub mod ast;
 pub mod cst;
 
 pub use parser::Parser;

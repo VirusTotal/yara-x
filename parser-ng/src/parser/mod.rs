@@ -26,7 +26,6 @@ mod token_stream;
 #[cfg(test)]
 mod tests;
 
-use crate::ast::AST;
 use crate::cst::syntax_stream::SyntaxStream;
 use crate::cst::SyntaxKind::*;
 use crate::cst::{syntax_stream, CST};
@@ -64,12 +63,6 @@ impl<'src> Parser<'src> {
     #[inline]
     pub fn into_cst_stream(self) -> CSTStream<'src> {
         CSTStream::from(self)
-    }
-
-    /// Consumes the parser and returns an Abstract Syntax Tree (AST).
-    #[inline]
-    pub fn into_ast(self) -> AST<'src> {
-        AST::from(self)
     }
 }
 

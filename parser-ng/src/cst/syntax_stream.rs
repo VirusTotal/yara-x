@@ -38,14 +38,6 @@ pub struct SyntaxStream {
 }
 
 impl SyntaxStream {
-    /// Returns `true` if the stream has no events.
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.events.is_empty()
-    }
-}
-
-impl SyntaxStream {
     /// Creates a new [`SyntaxStream`].
     pub(crate) fn new() -> Self {
         Self {
