@@ -21,14 +21,12 @@ use rustc_hash::{FxHashMap, FxHashSet};
 #[cfg(feature = "logging")]
 use log::*;
 
-pub mod cst;
-
 mod token_stream;
 
 #[cfg(test)]
 mod tests;
 
-use crate::parser::cst::{Event, SyntaxKind, SyntaxStream};
+use crate::cst::{Event, SyntaxKind, SyntaxStream};
 use crate::parser::token_stream::TokenStream;
 use crate::tokenizer::{Token, TokenId, Tokenizer};
 use crate::Span;

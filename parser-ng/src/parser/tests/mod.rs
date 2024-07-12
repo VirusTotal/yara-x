@@ -3,7 +3,7 @@ use std::fs;
 use std::io::BufWriter;
 use std::io::Write;
 
-use crate::parser::cst::CST;
+use crate::cst::CST;
 use crate::Parser;
 
 #[test]

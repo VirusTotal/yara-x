@@ -27,7 +27,9 @@ use std::ops::Range;
 mod parser;
 mod tokenizer;
 
-pub use parser::cst;
+pub mod ast;
+pub mod cst;
+
 pub use parser::{Events, Parser};
 
 /// Starting and ending positions of some token inside the source code.

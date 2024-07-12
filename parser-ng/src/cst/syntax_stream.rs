@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::parser::cst::SyntaxKind;
+use crate::cst::SyntaxKind;
 use crate::Span;
 
 /// Each of the event types in a [`SyntaxStream`].
