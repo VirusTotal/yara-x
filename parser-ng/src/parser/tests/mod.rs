@@ -1,3 +1,4 @@
+use crate::ast::AST;
 use rayon::prelude::*;
 use std::fs;
 use std::io::BufWriter;
@@ -27,4 +28,45 @@ fn cst() {
         let mut w = BufWriter::new(output_file);
         write!(&mut w, "{:?}", cst).unwrap();
     });
+}
+
+#[test]
+fn ast() {
+    env_logger::init();
+
+    let files: Vec<_> = globwalk::glob("src/parser/tests/testdata/*.in")
+        .unwrap()
+        .flatten()
+        .map(|entry| entry.into_path())
+        .collect();
+
+    files.into_par_iter().for_each(|path| {
+        let mut mint = goldenfile::Mint::new(".");
+        // Path to the .out file, replace the .in extension with .out.
+        let output_path = path.with_extension("ast");
+        let output_file = mint.new_goldenfile(output_path).unwrap();
+
+        let source = fs::read_to_string(path).unwrap();
+        let ast = AST::from(Parser::new(source.as_bytes()));
+        let mut w = BufWriter::new(output_file);
+        write!(&mut w, "{:?}", ast).unwrap();
+    });
+}
+
+#[test]
+fn ast2() {
+    let r = r#"
+
+rule test {
+  strings:
+  	$a = "foo"
+  	$b = "bar"
+	condition:
+		for 1+1 of them : ( $ )
+}
+
+    "#;
+    let parser = Parser::new(r.as_bytes());
+    let ast = AST::from(parser);
+    //println!("{:?}", ast);
 }

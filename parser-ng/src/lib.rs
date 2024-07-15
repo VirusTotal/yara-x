@@ -27,6 +27,7 @@ use std::ops::Range;
 mod parser;
 mod tokenizer;
 
+pub mod ast;
 pub mod cst;
 
 pub use parser::Parser;
@@ -50,19 +51,6 @@ impl Display for Span {
 impl Span {
     const MAX: usize = u32::MAX as usize;
 
-    /// Displace the span to the left, incrementing both the starting and
-    /// ending positions by the given offset
-    ///
-    /// ```
-    /// # use yara_x_parser_ng::Span;
-    /// assert_eq!(Span(0..1).offset(1), Span(1..2))
-    /// ```
-    pub fn offset(mut self, offset: usize) -> Self {
-        self.0.start = self.0.start.saturating_add(offset as u32);
-        self.0.end = self.0.end.saturating_add(offset as u32);
-        self
-    }
-
     /// Offset within the source code (in bytes) were the span starts.
     #[inline]
     pub fn start(&self) -> usize {
@@ -80,4 +68,40 @@ impl Span {
     pub fn range(&self) -> Range<usize> {
         self.0.start as usize..self.0.end as usize
     }
+
+    /// Returns a new [`Span`] that combines this span with `other`.
+    ///
+    /// The resulting span goes from `self.start()` to `other.end()`.
+    pub fn combine(&self, other: &Self) -> Self {
+        Self(self.0.start..other.0.end)
+    }
+
+    /// Returns a new [`Span`] that is a subspan of the original one.
+    ///
+    /// `start` and `end` are the starting and ending offset of the subspan,
+    /// relative to the start of the original span.
+    pub fn subspan(&self, start: usize, end: usize) -> Span {
+        assert!(start <= self.end() - self.start());
+        assert!(end <= self.end() - self.start());
+        Self(self.0.start + start as u32..self.0.start + end as u32)
+    }
+
+    /// Displace the span to the left, incrementing both the starting and
+    /// ending positions by the given offset
+    ///
+    /// ```
+    /// # use yara_x_parser_ng::Span;
+    /// assert_eq!(Span(0..1).offset(1), Span(1..2))
+    /// ```
+    pub fn offset(mut self, offset: usize) -> Self {
+        self.0.start = self.0.start.saturating_add(offset as u32);
+        self.0.end = self.0.end.saturating_add(offset as u32);
+        self
+    }
+}
+
+pub trait WithSpan {
+    /// Returns the starting and ending position within the source code for
+    /// some node in the AST.
+    fn span(&self) -> Span;
 }

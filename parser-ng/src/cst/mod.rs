@@ -19,7 +19,7 @@ use std::str::from_utf8;
 pub(crate) mod syntax_kind;
 pub(crate) mod syntax_stream;
 
-use crate::cst::SyntaxKind::{NEWLINE, WHITESPACE};
+use crate::cst::SyntaxKind::{COMMENT, NEWLINE, WHITESPACE};
 pub use syntax_kind::SyntaxKind;
 
 /// Each of the events in a [`CSTStream`].
@@ -37,37 +37,43 @@ pub enum Event {
     Error { message: String, span: Span },
 }
 
-/// A Concrete Syntax Tree (CST) represented as a stream of [`Event`].
+/// A Concrete Syntax Tree (CST) represented as a stream of events.
 ///
-/// This is an alternative representation of the CST as a sequence of events
-/// of the following types:
+/// Each event in the stream has one of the following types:
 ///
 /// - [`Event::Token`],
 /// - [`Event::Begin`]
 /// - [`Event::End`]
 /// - [`Event::Error`]
 ///
-/// `Token` events represent terminal symbols in the grammar, such as keywords,
-/// punctuation, identifiers, comments and even whitespace. Each `Token` has an
-/// associated [`Span`] that indicates its position in the source code.
+/// [`Event::Token`] represents terminal symbols in the grammar, such as
+/// keywords, punctuation, identifiers, comments and even whitespace. Each
+/// [`Event::Token`] is associated with a [`Span`] that indicates its position
+/// in the source code.
 ///
-/// `Begin` and `End` events are related to non-terminal symbols, such as
-/// expressions and statements. They appear in pairs, with every `Begin`
+/// [`Event::Begin`] and [`Event::End`] relate to non-terminal symbols, such as
+/// expressions and statements. These events appear in pairs, with each `Begin`
 /// followed by a corresponding `End` of the same kind. A `Begin`/`End` pair
-/// represents a non-terminal node in the syntax tree, and everything in between
-/// is a child of this node.
+/// represents a non-terminal node in the syntax tree, with everything in
+/// between being a child of this node.
 ///
-/// `Error` events are not technically part of the syntax tree. They contain
-/// error messages generated during parsing. While these errors could be in a
-/// separate stream, they are integrated into the syntax tree for simplicity.
-/// Each error message is placed under the tree node that was being parsed when
-/// the error occurred.
+/// [`Event::Error`] events are not technically part of the syntax tree. They
+/// contain error messages generated during parsing. Although these errors could
+/// be in a separate stream, they are integrated into the syntax tree for
+/// simplicity. Each error message is placed under the tree node that was being
+/// parsed when the error occurred.
 ///
-/// [`CSTStream`] is an iterator that returns items of type [`Event`].
+/// Notice that [`Event::Error`] and `Event::Begin(ERROR)` are not the same,
+/// and both of them can appear in the stream. The former is an error message
+/// issued by the parser, while the latter indicates the start of a CST
+/// subtree that contains portions of the syntax tree that were not correctly
+/// parsed. Of course, `Event::Begin(ERROR)` must be accompanied by a matching
+/// `Event::End(ERROR)`.
 pub struct CSTStream<'src> {
     parser: Parser<'src>,
     whitespaces: bool,
     newlines: bool,
+    comments: bool,
 }
 
 impl<'src> CSTStream<'src> {
@@ -96,12 +102,22 @@ impl<'src> CSTStream<'src> {
         self.newlines = yes;
         self
     }
+
+    /// Enables or disables comments in the returned CST.
+    ///
+    /// If false, the resulting CST won't contain comments.
+    ///
+    /// Default value is `true`.
+    pub fn comments(mut self, yes: bool) -> Self {
+        self.comments = yes;
+        self
+    }
 }
 
 impl<'src> From<Parser<'src>> for CSTStream<'src> {
     /// Creates a [`CSTStream`] from the given parser.
     fn from(parser: Parser<'src>) -> Self {
-        Self { parser, whitespaces: true, newlines: true }
+        Self { parser, whitespaces: true, newlines: true, comments: true }
     }
 }
 
@@ -122,6 +138,11 @@ impl<'src> Iterator for CSTStream<'src> {
                     }
                     token @ Event::Token { kind: NEWLINE, .. } => {
                         if self.newlines {
+                            break Some(token);
+                        }
+                    }
+                    token @ Event::Token { kind: COMMENT, .. } => {
+                        if self.comments {
                             break Some(token);
                         }
                     }

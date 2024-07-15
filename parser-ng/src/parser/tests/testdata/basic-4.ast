@@ -1,0 +1,11 @@
+ rule test
+ └─ condition
+    └─ or
+       ├─ and
+       │  ├─ true
+       │  └─ not
+       │     └─ false
+       └─ or
+          ├─ false
+          └─ true
+
