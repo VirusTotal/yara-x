@@ -112,6 +112,15 @@ fn string_literals() {
     let mut lexer = super::Tokenizer::new(r#""标识符""#.as_bytes());
     assert_eq!(lexer.next_token(), Some(Token::STRING_LIT(Span(0..11))));
     assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new(
+        r#""""foo
+    bar
+    baz""""#
+            .as_bytes(),
+    );
+    assert_eq!(lexer.next_token(), Some(Token::STRING_LIT(Span(0..25))));
+    assert_eq!(lexer.next_token(), None);
 }
 
 #[test]

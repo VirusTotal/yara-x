@@ -429,6 +429,23 @@ enum NormalToken<'src> {
     ]
     StringLit(&'src [u8]),
 
+    // Multi-line string literals start and ends with 3 double quotes, in-between the
+    // quotes they contain either an escape sequence, or anything that is not a
+    // quote or backslash.
+    #[regex(
+        r#"(?x)                         # allow comments in the regexp
+        """                             # starts with 3 double quotes
+        (                               # any number of
+          \\.                           #   escape sequence
+          |                             #   or ..
+          [^"\\]                        #   anything except quotes, newlines and backslashes
+        )*
+        """                             # ends with 3 double quotes
+        "#,
+        |token| token.slice())
+    ]
+    MultiLineStringLit(&'src [u8]),
+
     // Regular expression.
     #[regex(
         r#"(?x)                         # allow comments in the regexp
@@ -740,7 +757,7 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
                 Err(_) => unreachable!(),
             }
         }
-        NormalToken::StringLit(lit) => {
+        NormalToken::StringLit(lit) | NormalToken::MultiLineStringLit(lit) => {
             return match from_utf8(lit) {
                 Ok(_) => Token::STRING_LIT(span),
                 Err(_) => unreachable!(),
