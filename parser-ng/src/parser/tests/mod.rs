@@ -20,7 +20,7 @@ fn cst() {
     files.into_par_iter().for_each(|path| {
         let mut mint = goldenfile::Mint::new(".");
         // Path to the .out file, replace the .in extension with .out.
-        let output_path = path.with_extension("out");
+        let output_path = path.with_extension("cst");
         let output_file = mint.new_goldenfile(output_path).unwrap();
 
         let source = fs::read_to_string(path).unwrap();
