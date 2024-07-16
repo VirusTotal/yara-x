@@ -2,9 +2,7 @@
 
 Tokenization is the first step in the compilation process. The tokenizer takes
 YARA source code and produces a sequence of tokens that is later processed by
-the parser.
-
-Each token is represented by a variant of the [`Token`] type.
+the parser. Each token is represented by a variant of the [`Token`] type.
 */
 
 use logos::Logos;
@@ -50,10 +48,13 @@ mod tests;
 /// the tokenizer will go back to hex pattern mode when the closing bracket
 /// (`]`) is found.
 ///
-/// The source code passed to the tokenizer doesn't need to be valid UTF-8,
-/// when the tokenizer finds some invalid UTF-8 sequence, it will return the
-/// special token [`Token::INVALID_UTF8`] containing the invalid bytes, and
-/// will continue tokenizing the remaining content.
+/// The input to the tokenizer is a byte slice, it doesn't require the source
+/// code to be valid UTF-8. However, most of the tokens produced are guaranteed
+/// to be valid UTF-8, except literal strings, regular expressions and
+/// comments. Also, when the tokenizer finds some invalid UTF-8 characters,
+/// outside a literal string, a regular expression, or a comment, it issues
+/// the special token [`Token::INVALID_UTF8`] containing the invalid bytes,
+/// and continues tokenizing the remaining content.
 pub struct Tokenizer<'src> {
     source: &'src [u8],
     lexer_start: usize,
@@ -185,8 +186,8 @@ impl<'src> Tokenizer<'src> {
 /// Describes the current mode of operation for a tokenizer.
 ///
 /// [`Tokenizer`] uses the [`logos`] crate under the hood for doing the actual
-/// work. It uses three different logos lexers, one for each of the three
-/// modes of operation of the lexer: normal, hex pattern and hex jump.
+/// work. It uses three different logos lexers, one for each of the three modes
+/// of operation of the lexer: normal, hex pattern and hex jump.
 #[derive(Debug)]
 enum Mode<'src> {
     Normal(logos::Lexer<'src, NormalToken<'src>>),
@@ -194,6 +195,7 @@ enum Mode<'src> {
     HexJump(logos::Lexer<'src, HexJumpToken<'src>>),
 }
 
+/// Tokens recognized in normal mode.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(logos::Logos, Debug, PartialEq)]
 #[logos(source = [u8])]
@@ -493,6 +495,7 @@ enum NormalToken<'src> {
     CRLF,
 }
 
+/// Tokens recognized in hex pattern mode.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(logos::Logos, Debug, PartialEq)]
 #[logos(source = [u8])]
@@ -553,6 +556,7 @@ enum HexPatternToken {
     Comment,
 }
 
+/// Tokens recognized in hex jump mode.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(logos::Logos, Debug, PartialEq)]
 #[logos(source = [u8])]

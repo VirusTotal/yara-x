@@ -233,18 +233,74 @@ impl<'src> Builder<'src> {
         }
     }
 
+    /// Pratt parser that applies operator precedence rules to a sequence
+    /// of operations.
+    ///
+    /// This function is called when we are about to parse a sequence of one or
+    /// more expressions with interleaved operators:
+    ///
+    /// ```text
+    /// expression (operator expression)*
+    /// ```
+    /// `parse_expr` is called for parsing each of the expressions. And the
+    /// result of `pratt_parser` is another expression representing the whole
+    /// sequence of operations, with operations grouped according to operator
+    /// precedence rules.
+    ///
+    /// Pratt parsing is a well-known algorithm. For more information see [1],
+    /// [2] and [3].
+    ///
+    /// [1]: https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
+    /// [2]: https://martin.janiczek.cz/2023/07/03/demystifying-pratt-parsers.html
+    /// [3]: https://abarker.github.io/typped/pratt_parsing_intro.html
     fn pratt_parser(
         &mut self,
-        f: fn(&mut Self) -> Result<Expr<'src>, Abort>,
+        parse_expr: fn(&mut Self) -> Result<Expr<'src>, Abort>,
         min_bp: u8,
     ) -> Result<Expr<'src>, Abort> {
-        let mut lhs = f(self)?;
+        let mut lhs = parse_expr(self)?;
+
+        // Operator precedence table. For each operator there's a tuple
+        // (left binding power, right binding power). The higher the
+        // operator's precedence, the higher the binding power. Right
+        // binding power is slightly higher than left binding power for
+        // left-associative operators.
+        let binding_power = |operator| -> (u8, u8) {
+            match operator {
+                OR_KW => (1, 2),
+                AND_KW => (3, 4),
+                EQ => (5, 6),
+                NE => (5, 6),
+                CONTAINS_KW => (5, 6),
+                ICONTAINS_KW => (5, 6),
+                STARTSWITH_KW => (5, 6),
+                ISTARTSWITH_KW => (5, 6),
+                ENDSWITH_KW => (5, 6),
+                IENDSWITH_KW => (5, 6),
+                IEQUALS_KW => (5, 6),
+                MATCHES_KW => (5, 6),
+                LT => (7, 8),
+                LE => (7, 8),
+                GT => (7, 8),
+                GE => (7, 8),
+                BITWISE_OR => (9, 10),
+                BITWISE_XOR => (11, 12),
+                BITWISE_AND => (13, 14),
+                SHL => (15, 16),
+                SHR => (15, 16),
+                ADD => (17, 18),
+                SUB => (17, 18),
+                MUL => (19, 20),
+                DIV => (19, 20),
+                MOD => (19, 20),
+                DOT => (21, 22),
+                operator => panic!("unknown operator: {operator:?}"),
+            }
+        };
 
         loop {
             let (operator, (l_bp, r_bp)) = match self.peek() {
-                Event::Token { kind, .. } => {
-                    (*kind, infix_binding_power(*kind))
-                }
+                Event::Token { kind, .. } => (*kind, binding_power(*kind)),
                 Event::End(_) => break,
                 event => panic!("unexpected {:?}", event),
             };
@@ -255,7 +311,7 @@ impl<'src> Builder<'src> {
 
             self.next()?;
 
-            let rhs = self.pratt_parser(f, r_bp)?;
+            let rhs = self.pratt_parser(parse_expr, r_bp)?;
 
             lhs = match operator {
                 OR_KW => {
@@ -339,7 +395,7 @@ impl<'src> Builder<'src> {
                 SHR => {
                     new_binary_expr!(Expr::Shr, lhs, rhs)
                 }
-                _ => unreachable!(),
+                operator => panic!("unknown operator: {operator:?}"),
             };
         }
 
@@ -1589,38 +1645,5 @@ impl<'src> Builder<'src> {
         }
 
         Ok((Cow::Owned(result), literal, span))
-    }
-}
-
-fn infix_binding_power(op: SyntaxKind) -> (u8, u8) {
-    match op {
-        OR_KW => (1, 2),
-        AND_KW => (3, 4),
-        EQ => (5, 6),
-        NE => (5, 6),
-        CONTAINS_KW => (5, 6),
-        ICONTAINS_KW => (5, 6),
-        STARTSWITH_KW => (5, 6),
-        ISTARTSWITH_KW => (5, 6),
-        ENDSWITH_KW => (5, 6),
-        IENDSWITH_KW => (5, 6),
-        IEQUALS_KW => (5, 6),
-        MATCHES_KW => (5, 6),
-        LT => (7, 8),
-        LE => (7, 8),
-        GT => (7, 8),
-        GE => (7, 8),
-        BITWISE_OR => (9, 10),
-        BITWISE_XOR => (11, 12),
-        BITWISE_AND => (13, 14),
-        SHL => (15, 16),
-        SHR => (15, 16),
-        ADD => (17, 18),
-        SUB => (17, 18),
-        MUL => (19, 20),
-        DIV => (19, 20),
-        MOD => (19, 20),
-        DOT => (21, 22),
-        op => panic!("unknown operator: {op:?}"),
     }
 }
