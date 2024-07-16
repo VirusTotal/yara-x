@@ -178,7 +178,7 @@ mod tests {
     fn test_nest() {
         let input = vec![
             Token::Begin(SyntaxKind::RULE_TAGS),
-            Token::Identifier("foo"),
+            Token::Identifier(b"foo"),
             Token::Whitespace,
             Token::Whitespace,
             Token::Newline,
@@ -200,7 +200,7 @@ mod tests {
             output,
             vec![
                 Token::Begin(SyntaxKind::RULE_TAGS),
-                Token::Identifier("foo"),
+                Token::Identifier(b"foo"),
                 Token::Whitespace,
                 Token::Whitespace,
                 Token::Newline,
@@ -217,7 +217,7 @@ mod tests {
     fn test_unnest() {
         let input = vec![
             Token::Begin(SyntaxKind::RULE_TAGS),
-            Token::Identifier("foo"),
+            Token::Identifier(b"foo"),
             Token::Whitespace,
             Token::Whitespace,
             Token::Newline,
@@ -239,7 +239,7 @@ mod tests {
             output,
             vec![
                 Token::Begin(SyntaxKind::RULE_TAGS),
-                Token::Identifier("foo"),
+                Token::Identifier(b"foo"),
                 Token::End(SyntaxKind::RULE_TAGS),
                 Token::End(SyntaxKind::RULE_DECL),
                 Token::Whitespace,

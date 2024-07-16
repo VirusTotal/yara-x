@@ -4970,6 +4970,7 @@ version = "0.5.0"
 dependencies = [
  "anyhow",
  "bitmask",
+ "bstr 1.9.1",
  "lazy_static",
  "pretty_assertions",
  "thiserror",

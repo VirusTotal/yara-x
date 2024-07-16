@@ -134,16 +134,16 @@ pub(crate) mod categories {
 }
 
 lazy_static! {
-    pub(crate) static ref COLON: Token<'static> = Token::Punctuation(":");
-    pub(crate) static ref DOT: Token<'static> = Token::Punctuation(".");
-    pub(crate) static ref EQUAL: Token<'static> = Token::Punctuation("=");
-    pub(crate) static ref HYPHEN: Token<'static> = Token::Punctuation("-");
-    pub(crate) static ref LBRACE: Token<'static> = Token::Punctuation("{");
-    pub(crate) static ref RBRACE: Token<'static> = Token::Punctuation("}");
-    pub(crate) static ref LBRACKET: Token<'static> = Token::LGrouping("[");
-    pub(crate) static ref RBRACKET: Token<'static> = Token::RGrouping("]");
-    pub(crate) static ref LPAREN: Token<'static> = Token::LGrouping("(");
-    pub(crate) static ref RPAREN: Token<'static> = Token::RGrouping(")");
+    pub(crate) static ref COLON: Token<'static> = Token::Punctuation(b":");
+    pub(crate) static ref DOT: Token<'static> = Token::Punctuation(b".");
+    pub(crate) static ref EQUAL: Token<'static> = Token::Punctuation(b"=");
+    pub(crate) static ref HYPHEN: Token<'static> = Token::Punctuation(b"-");
+    pub(crate) static ref LBRACE: Token<'static> = Token::Punctuation(b"{");
+    pub(crate) static ref RBRACE: Token<'static> = Token::Punctuation(b"}");
+    pub(crate) static ref LBRACKET: Token<'static> = Token::LGrouping(b"[");
+    pub(crate) static ref RBRACKET: Token<'static> = Token::RGrouping(b"]");
+    pub(crate) static ref LPAREN: Token<'static> = Token::LGrouping(b"(");
+    pub(crate) static ref RPAREN: Token<'static> = Token::RGrouping(b")");
 }
 
 /// Type that represents the tokens used by the formatter.
@@ -216,23 +216,23 @@ pub(crate) enum Token<'a> {
     // Non-control tokens
     //
     Whitespace,
-    Comment(&'a str),
+    Comment(&'a [u8]),
 
-    BlockComment(Vec<String>),
-    HeadComment(Vec<String>),
-    TailComment(Vec<String>),
-    InlineComment(Vec<String>),
+    BlockComment(Vec<Vec<u8>>),
+    HeadComment(Vec<Vec<u8>>),
+    TailComment(Vec<Vec<u8>>),
+    InlineComment(Vec<Vec<u8>>),
 
     Newline,
-    Identifier(&'a str),
-    Keyword(&'a str),
-    Punctuation(&'a str),
-    Literal(&'a str),
+    Identifier(&'a [u8]),
+    Keyword(&'a [u8]),
+    Punctuation(&'a [u8]),
+    Literal(&'a [u8]),
 
     // Left parenthesis and brackets.
-    LGrouping(&'a str),
+    LGrouping(&'a [u8]),
     // Right parenthesis and brackets.
-    RGrouping(&'a str),
+    RGrouping(&'a [u8]),
 }
 
 impl<'a> Token<'a> {
@@ -289,12 +289,13 @@ impl<'a> Token<'a> {
         !self.eq(token)
     }
 
-    /// Returns the token as a string slice. Some control tokens return an
-    /// empty string,
-    pub fn as_str(&self) -> &'a str {
+    /// Returns the token as a byte slice.
+    ///
+    /// Some control tokens return an empty slice.
+    pub fn as_bytes(&self) -> &'a [u8] {
         match self {
-            Token::Whitespace => " ",
-            Token::Newline => "\n",
+            Token::Whitespace => b" ",
+            Token::Newline => b"\n",
             Token::Identifier(s)
             | Token::Keyword(s)
             | Token::Punctuation(s)
@@ -315,7 +316,7 @@ impl<'a> Token<'a> {
             | Token::BlockComment(_)
             | Token::HeadComment(_)
             | Token::TailComment(_)
-            | Token::InlineComment(_) => "",
+            | Token::InlineComment(_) => b"",
         }
     }
 
@@ -323,11 +324,11 @@ impl<'a> Token<'a> {
     ///
     /// The length of control tokens is zero.
     pub fn len(&self) -> usize {
-        self.as_str().len()
+        self.as_bytes().len()
     }
 
     /// Create a token from a parser rule and its associated span.
-    fn from_rule(kind: SyntaxKind, src: &'a str) -> Token<'a> {
+    fn new(kind: SyntaxKind, src: &'a [u8]) -> Token<'a> {
         match kind {
             // Trivia.
             SyntaxKind::COMMENT => Token::Comment(src),
@@ -420,7 +421,7 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
         for token in self {
             match token {
                 Token::Newline => {
-                    w.write_all("\n".as_bytes())?;
+                    w.write_all(b"\n")?;
                     col_num = 0;
                 }
                 Token::Whitespace
@@ -431,7 +432,7 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
                 | Token::LGrouping(_)
                 | Token::RGrouping(_)
                 | Token::Punctuation(_) => {
-                    w.write_all(token.as_str().as_bytes())?;
+                    w.write_all(token.as_bytes())?;
                     col_num += token.len() as i16;
                 }
 
@@ -445,7 +446,7 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
                     // The first line of the comment is already indented.
                     if let Some(first_line) = lines.next() {
                         col_num += first_line.len() as i16;
-                        w.write_all(first_line.as_bytes())?;
+                        w.write_all(first_line)?;
                     }
 
                     // For all remaining lines in a multi-line comment we
@@ -456,7 +457,7 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
                         w.write_all(
                             " ".repeat(message_col as usize).as_bytes(),
                         )?;
-                        w.write_all(line.as_bytes())?;
+                        w.write_all(line)?;
                         col_num = message_col + line.len() as i16;
                     }
                 }
@@ -509,22 +510,22 @@ impl<'src> Iterator for Tokens<'src> {
                 Event::Begin(kind) => return Some(Token::Begin(kind)),
                 Event::End(kind) => return Some(Token::End(kind)),
                 Event::Token { kind, span } => {
-                    let token_str = unsafe {
-                        from_utf8_unchecked(
-                            &self.events.source()[span.range()],
-                        )
-                    };
+                    let token_bytes = &self.events.source()[span.range()];
                     // The whitespace token has a different treatment because
                     // the parser returns a single whitespace token when
                     // multiple whitespaces appear together. Here we separate
                     // them into individual spaces.
                     return if kind == SyntaxKind::WHITESPACE {
-                        for _ in token_str.chars() {
+                        // SAFETY: It's safe to assume that the whitespace
+                        // token is composed of valid UTF-8 characters. The
+                        // tokenizer guarantees this.
+                        let s = unsafe { from_utf8_unchecked(token_bytes) };
+                        for _ in s.chars() {
                             self.buffer.push_back(Token::Whitespace);
                         }
                         Some(self.buffer.pop_front().unwrap())
                     } else {
-                        Some(Token::from_rule(kind, token_str))
+                        Some(Token::new(kind, token_bytes))
                     };
                 }
                 Event::Error { .. } => { /* ignore errors */ }

@@ -97,14 +97,14 @@ fn passthrough() {
 #[test]
 fn swap() {
     let input_tokens =
-        vec![Keyword("foo"), Begin(SyntaxKind::RULE_DECL), Keyword("bar")];
+        vec![Keyword(b"foo"), Begin(SyntaxKind::RULE_DECL), Keyword(b"bar")];
 
     let processor = Processor::new(input_tokens.clone().into_iter())
         .set_passthrough(*categories::CONTROL)
         .add_rule(
             |ctx| {
-                ctx.token(1) == &Keyword("foo")
-                    && ctx.token(2) == &Keyword("bar")
+                ctx.token(1) == &Keyword(b"foo")
+                    && ctx.token(2) == &Keyword(b"bar")
             },
             actions::swap(1, 2),
         );
@@ -113,7 +113,7 @@ fn swap() {
 
     assert_eq!(
         output_tokens,
-        vec![Keyword("bar"), Begin(SyntaxKind::RULE_DECL), Keyword("foo")]
+        vec![Keyword(b"bar"), Begin(SyntaxKind::RULE_DECL), Keyword(b"foo")]
     )
 }
 
@@ -137,20 +137,20 @@ fn drop_identifiers() {
         vec![
             Begin(SyntaxKind::SOURCE_FILE),
             Begin(SyntaxKind::RULE_DECL),
-            Keyword("rule"),
+            Keyword(b"rule"),
             // This is the dropped identifier.
             // Identifier("test"),
-            Punctuation("{"),
+            Punctuation(b"{"),
             Begin(SyntaxKind::CONDITION_BLK),
-            Keyword("condition"),
-            Punctuation(":"),
+            Keyword(b"condition"),
+            Punctuation(b":"),
             Begin(SyntaxKind::BOOLEAN_EXPR),
             Begin(SyntaxKind::BOOLEAN_TERM),
-            Keyword("true"),
+            Keyword(b"true"),
             End(SyntaxKind::BOOLEAN_TERM),
             End(SyntaxKind::BOOLEAN_EXPR),
             End(SyntaxKind::CONDITION_BLK),
-            Punctuation("}"),
+            Punctuation(b"}"),
             End(SyntaxKind::RULE_DECL),
             End(SyntaxKind::SOURCE_FILE),
         ]
@@ -170,13 +170,13 @@ fn insert_global() {
         |c| match (c.token(-1), c.token(1)) {
             // The "rule" keyword is already preceded by "global", do
             // nothing.
-            (Keyword("global"), Keyword("rule")) => false,
+            (Keyword(b"global"), Keyword(b"rule")) => false,
             // In all other cases where "rule" is found insert "global".
-            (_, Keyword("rule")) => true,
+            (_, Keyword(b"rule")) => true,
             // For all other tokens do nothing.
             _ => false,
         },
-        actions::insert(Keyword("global")),
+        actions::insert(Keyword(b"global")),
     );
 
     let output_tokens: Vec<Token> = processor.collect();
@@ -186,20 +186,20 @@ fn insert_global() {
         vec![
             Begin(SyntaxKind::SOURCE_FILE),
             Begin(SyntaxKind::RULE_DECL),
-            Keyword("global"),
-            Keyword("rule"),
-            Identifier("test"),
-            Punctuation("{"),
+            Keyword(b"global"),
+            Keyword(b"rule"),
+            Identifier(b"test"),
+            Punctuation(b"{"),
             Begin(SyntaxKind::CONDITION_BLK),
-            Keyword("condition"),
-            Punctuation(":"),
+            Keyword(b"condition"),
+            Punctuation(b":"),
             Begin(SyntaxKind::BOOLEAN_EXPR),
             Begin(SyntaxKind::BOOLEAN_TERM),
-            Keyword("true"),
+            Keyword(b"true"),
             End(SyntaxKind::BOOLEAN_TERM),
             End(SyntaxKind::BOOLEAN_EXPR),
             End(SyntaxKind::CONDITION_BLK),
-            Punctuation("}"),
+            Punctuation(b"}"),
             End(SyntaxKind::RULE_DECL),
             End(SyntaxKind::SOURCE_FILE),
         ]
@@ -217,16 +217,18 @@ fn in_rule() {
     .add_rule(
         |c| {
             c.in_rule(SyntaxKind::BOOLEAN_EXPR, false)
-                && c.token(-1).neq(&Literal("<next token is in boolean_expr>"))
+                && c.token(-1)
+                    .neq(&Literal(b"<next token is in boolean_expr>"))
         },
-        actions::insert(Literal("<next token is in boolean_expr>")),
+        actions::insert(Literal(b"<next token is in boolean_expr>")),
     )
     .add_rule(
         |c| {
             c.in_rule(SyntaxKind::BOOLEAN_TERM, false)
-                && c.token(-1).neq(&Literal("<next token is in boolean_term>"))
+                && c.token(-1)
+                    .neq(&Literal(b"<next token is in boolean_term>"))
         },
-        actions::insert(Literal("<next token is in boolean_term>")),
+        actions::insert(Literal(b"<next token is in boolean_term>")),
     );
 
     let output_tokens: Vec<Token> = tokens.collect();
@@ -236,22 +238,22 @@ fn in_rule() {
         vec![
             Begin(SyntaxKind::SOURCE_FILE),
             Begin(SyntaxKind::RULE_DECL),
-            Keyword("rule"),
-            Identifier("test"),
-            Punctuation("{"),
+            Keyword(b"rule"),
+            Identifier(b"test"),
+            Punctuation(b"{"),
             Begin(SyntaxKind::CONDITION_BLK),
-            Keyword("condition"),
-            Punctuation(":"),
+            Keyword(b"condition"),
+            Punctuation(b":"),
             Begin(SyntaxKind::BOOLEAN_EXPR),
-            Literal("<next token is in boolean_expr>"),
+            Literal(b"<next token is in boolean_expr>"),
             Begin(SyntaxKind::BOOLEAN_TERM),
-            Literal("<next token is in boolean_term>"),
-            Keyword("true"),
-            Literal("<next token is in boolean_expr>"),
+            Literal(b"<next token is in boolean_term>"),
+            Keyword(b"true"),
+            Literal(b"<next token is in boolean_expr>"),
             End(SyntaxKind::BOOLEAN_TERM),
             End(SyntaxKind::BOOLEAN_EXPR),
             End(SyntaxKind::CONDITION_BLK),
-            Punctuation("}"),
+            Punctuation(b"}"),
             End(SyntaxKind::RULE_DECL),
             End(SyntaxKind::SOURCE_FILE),
         ]

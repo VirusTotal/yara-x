@@ -84,12 +84,12 @@ impl Formatter {
         R: io::Read,
         W: io::Write,
     {
-        let mut buf = String::new();
+        let mut buf = Vec::new();
 
         // Read the source code from input and store it in buf.
-        input.read_to_string(&mut buf).map_err(Error::ReadError)?;
+        input.read_to_end(&mut buf).map_err(Error::ReadError)?;
 
-        let stream = Parser::new(buf.as_bytes()).into_cst_stream();
+        let stream = Parser::new(buf.as_slice()).into_cst_stream();
         let tokens = Tokens::new(stream);
 
         Formatter::formatter(tokens)
@@ -331,9 +331,9 @@ impl Formatter {
                 |ctx| {
                     matches!(
                         ctx.token(1),
-                        Keyword("meta")
-                            | Keyword("strings")
-                            | Keyword("condition")
+                        Keyword(b"meta")
+                            | Keyword(b"strings")
+                            | Keyword(b"condition")
                     ) && ctx.token(-1).is_not(*NEWLINE)
                 },
                 processor::actions::newline,
@@ -345,9 +345,9 @@ impl Formatter {
                         && ctx.token(-1).eq(&COLON)
                         && matches!(
                             ctx.token(-2),
-                            Keyword("meta")
-                                | Keyword("strings")
-                                | Keyword("condition")
+                            Keyword(b"meta")
+                                | Keyword(b"strings")
+                                | Keyword(b"condition")
                         )
                 },
                 processor::actions::newline,

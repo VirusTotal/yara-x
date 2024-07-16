@@ -88,14 +88,14 @@ mod tests {
     #[test]
     fn test2() {
         let input =
-            vec![Token::Whitespace, Token::Keyword("foo"), Token::Newline];
+            vec![Token::Whitespace, Token::Keyword(b"foo"), Token::Newline];
 
         let output = RemoveTrailingSpaces::new(input.into_iter())
             .collect::<Vec<Token>>();
 
         assert_eq!(
             output,
-            vec![Token::Whitespace, Token::Keyword("foo"), Token::Newline]
+            vec![Token::Whitespace, Token::Keyword(b"foo"), Token::Newline]
         )
     }
 }
