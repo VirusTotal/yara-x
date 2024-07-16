@@ -158,20 +158,24 @@ impl<'src> Builder<'src> {
         );
     }
 
-    /// Returns the fragment of source code defined by `span`.
+    /// Returns the slice of source code defined by `span`.
     fn get_source(&self, span: &Span) -> &'src [u8] {
         self.source.get(span.range()).unwrap()
     }
 
-    /// Returns the fragment of source code defined by `span` as a UTF-8
-    /// string.
+    /// Returns the slice of source code defined by `span`, and checks if it
+    /// is valid UTF-8.
     ///
-    /// # Panics
-    ///
-    /// If the source code contains non-valid UTF-8 characters in the given
-    /// span.
-    fn get_source_utf8(&self, span: &Span) -> &'src str {
-        from_utf8(self.get_source(span)).unwrap()
+    /// Most of the tokens returned by the tokenizer are guaranteed to be valid
+    /// UTF-8, but there are some exceptions, like literal strings, comments,
+    /// regular expressions, and of course, the `INVALID_UTF8` token.
+    fn get_source_str(&mut self, span: &Span) -> Result<&'src str, Abort> {
+        from_utf8(self.get_source(span)).map_err(|err| {
+            self.errors.push(Error::InvalidUTF8(
+                span.subspan(err.valid_up_to(), err.valid_up_to() + 1),
+            ));
+            Abort
+        })
     }
 
     /// Returns a reference to the next non-error [`Event`] in the CST stream
@@ -687,7 +691,8 @@ impl<'src> Builder<'src> {
             sub_patterns.push(match self.peek() {
                 Event::Token { kind: HEX_BYTE, .. } => {
                     let span = self.expect(HEX_BYTE)?;
-                    let mut byte_literal = self.get_source_utf8(&span);
+                    let mut byte_literal = self.get_source_str(&span)?;
+
                     let mut value: u8 = 0x00;
                     let mut mask: u8 = 0xFF;
                     let mut negated = false;
@@ -1155,7 +1160,7 @@ impl<'src> Builder<'src> {
             }
             Event::Token { kind: PATTERN_COUNT, .. } => {
                 let mut span = self.expect(PATTERN_COUNT)?;
-                let name = self.get_source_utf8(&span);
+                let name = self.get_source_str(&span)?;
 
                 let mut range = None;
 
@@ -1174,7 +1179,7 @@ impl<'src> Builder<'src> {
             }
             Event::Token { kind: PATTERN_OFFSET, .. } => {
                 let mut span = self.expect(PATTERN_OFFSET)?;
-                let name = self.get_source_utf8(&span);
+                let name = self.get_source_str(&span)?;
 
                 let mut index = None;
 
@@ -1194,7 +1199,7 @@ impl<'src> Builder<'src> {
             }
             Event::Token { kind: PATTERN_LENGTH, .. } => {
                 let mut span = self.expect(PATTERN_LENGTH)?;
-                let name = self.get_source_utf8(&span);
+                let name = self.get_source_str(&span)?;
 
                 let mut index = None;
 
@@ -1259,12 +1264,12 @@ impl<'src> Builder<'src> {
 
     fn identifier(&mut self) -> Result<Ident<'src>, Abort> {
         let span = self.expect(IDENT)?;
-        Ok(Ident { name: self.get_source_utf8(&span), span })
+        Ok(Ident { name: self.get_source_str(&span)?, span })
     }
 
     fn pattern_ident(&mut self) -> Result<Ident<'src>, Abort> {
         let span = self.expect(PATTERN_IDENT)?;
-        Ok(Ident { name: self.get_source_utf8(&span), span })
+        Ok(Ident { name: self.get_source_str(&span)?, span })
     }
 
     fn pattern_ident_tuple(
@@ -1308,7 +1313,7 @@ impl<'src> Builder<'src> {
         T: Num + Bounded + CheckedMul + FromPrimitive + std::fmt::Display,
     {
         let span = self.expect(INTEGER_LIT)?;
-        let mut literal = self.get_source_utf8(&span);
+        let mut literal = self.get_source_str(&span)?;
         let mut multiplier = 1;
 
         if let Some(without_suffix) = literal.strip_suffix("KB") {
@@ -1365,7 +1370,7 @@ impl<'src> Builder<'src> {
 
     fn float_lit(&mut self) -> Result<(f64, &'src str, Span), Abort> {
         let span = self.expect(FLOAT_LIT)?;
-        let literal = self.get_source_utf8(&span);
+        let literal = self.get_source_str(&span)?;
         let value = literal.parse::<f64>().map_err(|err| {
             self.errors.push(Error::InvalidFloat {
                 message: err.to_string(),
@@ -1379,7 +1384,7 @@ impl<'src> Builder<'src> {
 
     fn regexp(&mut self) -> Result<Regexp<'src>, Abort> {
         let span = self.expect(REGEXP)?;
-        let re = self.get_source_utf8(&span);
+        let re = self.get_source_str(&span)?;
 
         // Regular expressions must start with a slash (/)
         debug_assert!(re.starts_with('/'));
@@ -1460,7 +1465,7 @@ impl<'src> Builder<'src> {
         allow_escape_char: bool,
     ) -> Result<(Cow<'src, BStr>, &'src str, Span), Abort> {
         let span = self.expect(STRING_LIT)?;
-        let literal = self.get_source_utf8(&span);
+        let literal = self.get_source_str(&span)?;
 
         let num_quotes = if literal.starts_with("\"\"\"") {
             debug_assert!(literal.starts_with("\"\"\""));

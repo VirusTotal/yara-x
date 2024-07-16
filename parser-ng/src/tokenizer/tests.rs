@@ -121,6 +121,19 @@ fn string_literals() {
     );
     assert_eq!(lexer.next_token(), Some(Token::STRING_LIT(Span(0..25))));
     assert_eq!(lexer.next_token(), None);
+
+    // String literals can contain invalid UTF-8 characters.
+    let mut lexer = super::Tokenizer::new(b"\"foo \xFF\xFF\"");
+    assert_eq!(lexer.next_token(), Some(Token::STRING_LIT(Span(0..8))));
+    assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new(
+        b"\"\"\"foo
+    bar
+     \xFF\xFF\"\"\"",
+    );
+    assert_eq!(lexer.next_token(), Some(Token::STRING_LIT(Span(0..25))));
+    assert_eq!(lexer.next_token(), None);
 }
 
 #[test]
@@ -145,6 +158,15 @@ fn comments() {
     let mut lexer = super::Tokenizer::new(r#"/* Comment */s"#.as_bytes());
     assert_eq!(lexer.next_token(), Some(Token::COMMENT(Span(0..13))));
     assert_eq!(lexer.next_token(), Some(Token::IDENT(Span(13..14))));
+    assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new(b"/* \xFF\xFF Comment */s");
+    assert_eq!(lexer.next_token(), Some(Token::COMMENT(Span(0..16))));
+    assert_eq!(lexer.next_token(), Some(Token::IDENT(Span(16..17))));
+    assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new(b"// \xFF\xFF Comment ");
+    assert_eq!(lexer.next_token(), Some(Token::COMMENT(Span(0..14))));
     assert_eq!(lexer.next_token(), None);
 }
 
@@ -176,6 +198,10 @@ fn regexps() {
     assert_eq!(lexer.next_token(), None);
 
     let mut lexer = super::Tokenizer::new(r#"/foobar\\/"#.as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::REGEXP(Span(0..10))));
+    assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new(b"/foobar\xFF\xFF/");
     assert_eq!(lexer.next_token(), Some(Token::REGEXP(Span(0..10))));
     assert_eq!(lexer.next_token(), None);
 }

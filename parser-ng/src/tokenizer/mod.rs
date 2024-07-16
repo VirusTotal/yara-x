@@ -190,7 +190,7 @@ impl<'src> Tokenizer<'src> {
 #[derive(Debug)]
 enum Mode<'src> {
     Normal(logos::Lexer<'src, NormalToken<'src>>),
-    HexPattern(logos::Lexer<'src, HexPatternToken<'src>>),
+    HexPattern(logos::Lexer<'src, HexPatternToken>),
     HexJump(logos::Lexer<'src, HexJumpToken<'src>>),
 }
 
@@ -413,8 +413,8 @@ enum NormalToken<'src> {
     IntegerLit(&'src [u8]),
 
     // String literals start and ends with double quotes, in-between the quotes
-    // they contain either an escape sequence, or anything that is not a
-    // quote, newline or backslash.
+    // they contain either an escape sequence, or anything that is not a quote
+    // newline or backslash, including non UTF-8 characters.
     #[regex(
         r#"(?x)                         # allow comments in the regexp
         "                               # starts with double quotes
@@ -424,14 +424,13 @@ enum NormalToken<'src> {
           [^"\n\\]                      #   anything except quotes, newlines and backslashes
         )*
         "                               # ends with double quotes
-        "#,
-        |token| token.slice())
+        "#)
     ]
-    StringLit(&'src [u8]),
+    StringLit,
 
     // Multi-line string literals start and ends with 3 double quotes, in-between the
     // quotes they contain either an escape sequence, or anything that is not a
-    // quote or backslash.
+    // quote or backslash, including non UTF-8 characters.
     #[regex(
         r#"(?x)                         # allow comments in the regexp
         """                             # starts with 3 double quotes
@@ -441,10 +440,9 @@ enum NormalToken<'src> {
           [^"\\]                        #   anything except quotes, newlines and backslashes
         )*
         """                             # ends with 3 double quotes
-        "#,
-        |token| token.slice())
+        "#)
     ]
-    MultiLineStringLit(&'src [u8]),
+    MultiLineStringLit,
 
     // Regular expression.
     #[regex(
@@ -460,10 +458,9 @@ enum NormalToken<'src> {
         )+
         /                               # ends with /
         [[:alpha:]]*                    # zero or more modifiers like "s" and "i"
-        "#,
-        |token| token.slice())
+        "#)
     ]
-    Regexp(&'src [u8]),
+    Regexp,
 
     // Block comment.
     #[regex(r#"(?x)                    # allow comments in the regexp
@@ -474,14 +471,13 @@ enum NormalToken<'src> {
             \*[^/]                     #   asterisk followed by something that is not /
         )*
         \*/                            # ends with */
-        "#,
-        |token| token.slice())
+        "#)
     ]
-    BlockComment(&'src [u8]),
+    BlockComment,
 
     // Single-line comment
-    #[regex(r#"//[^\n]*"#, |token| token.slice())]
-    Comment(&'src [u8]),
+    #[regex(r#"//[^\n]*"#)]
+    Comment,
 
     //  /\*([^*]|\*[^/])*\*/
     #[regex("[ \t]+")]
@@ -500,7 +496,7 @@ enum NormalToken<'src> {
 #[allow(clippy::upper_case_acronyms)]
 #[derive(logos::Logos, Debug, PartialEq)]
 #[logos(source = [u8])]
-enum HexPatternToken<'src> {
+enum HexPatternToken {
     // A hex byte is an optional tilde ~, followed by two hex digits or
     // question marks. The following are valid tokens:
     //
@@ -548,13 +544,13 @@ enum HexPatternToken<'src> {
             \*[^/]                     #   asterisk followed by something that is not /
         )*
         \*/                            # ends with */
-
-        "#, |token| token.slice())]
-    BlockComment(&'src [u8]),
+        "#)
+    ]
+    BlockComment,
 
     // Single-line comment
-    #[regex(r#"//[^\n]*"#, |token| token.slice())]
-    Comment(&'src [u8]),
+    #[regex(r#"//[^\n]*"#)]
+    Comment,
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -629,7 +625,10 @@ where
     // was unexpected.
     debug_assert!(!unexpected.is_empty());
 
-    lexer.bump(unexpected.len() - lexer.span().len());
+    // If `unexpected` is larger than the current token, bump the lexer to the
+    // end of `unexpected`.
+    lexer.bump(unexpected.len().saturating_sub(lexer.span().len()));
+
     Token::UNKNOWN(Span(start as u32..(start + unexpected.len()) as u32))
 }
 
@@ -709,6 +708,16 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
         NormalToken::LBracket => Token::L_BRACKET(span),
         NormalToken::RBracket => Token::R_BRACKET(span),
 
+        NormalToken::StringLit | NormalToken::MultiLineStringLit => {
+            Token::STRING_LIT(span)
+        }
+
+        NormalToken::Regexp => Token::REGEXP(span),
+
+        NormalToken::BlockComment | NormalToken::Comment => {
+            Token::COMMENT(span)
+        }
+
         NormalToken::Whitespace => Token::WHITESPACE(span),
 
         NormalToken::LF | NormalToken::CR | NormalToken::CRLF => {
@@ -757,24 +766,6 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
                 Err(_) => unreachable!(),
             }
         }
-        NormalToken::StringLit(lit) | NormalToken::MultiLineStringLit(lit) => {
-            return match from_utf8(lit) {
-                Ok(_) => Token::STRING_LIT(span),
-                Err(_) => unreachable!(),
-            }
-        }
-        NormalToken::Regexp(lit) => {
-            return match from_utf8(lit) {
-                Ok(_) => Token::REGEXP(span),
-                Err(_) => unreachable!(),
-            }
-        }
-        NormalToken::BlockComment(c) | NormalToken::Comment(c) => {
-            return match from_utf8(c) {
-                Ok(_) => Token::COMMENT(span),
-                Err(_) => unreachable!(),
-            }
-        }
     }
 }
 
@@ -790,11 +781,8 @@ fn convert_hex_pattern_token(token: HexPatternToken, span: Span) -> Token {
         HexPatternToken::LF | HexPatternToken::CR | HexPatternToken::CRLF => {
             Token::NEWLINE(span)
         }
-        HexPatternToken::BlockComment(c) | HexPatternToken::Comment(c) => {
-            return match from_utf8(c) {
-                Ok(_) => Token::COMMENT(span),
-                Err(_) => unreachable!(),
-            }
+        HexPatternToken::BlockComment | HexPatternToken::Comment => {
+            Token::COMMENT(span)
         }
     }
 }
