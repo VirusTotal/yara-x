@@ -7,7 +7,7 @@ language, like a rule, expression, identifier, import statement, etc.
 
 use std::borrow::Cow;
 use std::collections::btree_map::Values;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::slice::Iter;
@@ -65,7 +65,7 @@ pub struct Import<'src> {
 pub struct Rule<'src> {
     pub flags: RuleFlags,
     pub identifier: Ident<'src>,
-    pub tags: Option<HashSet<&'src str>>,
+    pub tags: Option<Vec<Ident<'src>>>,
     pub meta: Option<Vec<Meta<'src>>>,
     pub patterns: Option<Vec<Pattern<'src>>>,
     pub condition: Expr<'src>,
@@ -158,14 +158,13 @@ pub enum Pattern<'src> {
 pub struct TextPattern<'src> {
     pub span: Span,
     pub identifier: Ident<'src>,
-    pub text: Cow<'src, BStr>,
+    pub text: Cow<'src, BStr>, // TODO: make this a LiteralString and remove span?
     pub modifiers: PatternModifiers<'src>,
 }
 
 /// A regular expression pattern in a YARA rule.
 #[derive(Debug)]
 pub struct RegexpPattern<'src> {
-    pub span: Span,
     pub identifier: Ident<'src>,
     pub regexp: Regexp<'src>,
     pub modifiers: PatternModifiers<'src>,
@@ -183,6 +182,7 @@ pub struct HexPattern<'src> {
 /// A sequence of tokens that conform a hex pattern (a.k.a. hex string).
 #[derive(Debug)]
 pub struct HexTokens {
+    // TODO: rename to HexSubPattern
     pub tokens: Vec<HexToken>,
 }
 
@@ -350,6 +350,7 @@ pub enum PatternSet<'src> {
 pub struct PatternSetItem<'src> {
     pub span: Span,
     pub identifier: &'src str,
+    pub wildcard: bool,
 }
 
 /// An expression in the AST.
@@ -749,7 +750,6 @@ pub struct LiteralFloat<'src> {
 /// of a `matches` operator.
 #[derive(Debug)]
 pub struct Regexp<'src> {
-    /// The span that covers the regexp's source code.
     pub span: Span,
     /// The regular expressions as it appears in the source code, including
     /// the opening and closing slashes (`/`), and the modifiers `i` and `s`,

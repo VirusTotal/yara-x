@@ -1,0 +1,14 @@
+ rule test
+ ├─ strings
+ │  ├─ $a = "a" ascii
+ │  ├─ $b = "b" ascii wide
+ │  ├─ $c = "c" base64
+ │  ├─ $d = "d" base64wide
+ │  ├─ $e = "e" base64(foo)
+ │  ├─ $f = "f" base64wide(foo)
+ │  ├─ $g = "g" xor(0)
+ │  ├─ $h = "h" xor(1-0)
+ │  └─ $i = "i" private xor(20-30)
+ └─ condition
+    └─ true
+

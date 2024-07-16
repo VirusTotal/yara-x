@@ -7,6 +7,7 @@ use std::str::from_utf8;
 use bstr::{ByteSlice, ByteVec};
 use itertools::Itertools;
 use num_traits::{Bounded, CheckedMul, FromPrimitive, Num};
+use yansi::Paint;
 
 use crate::ast::*;
 use crate::cst::SyntaxKind::*;
@@ -23,6 +24,7 @@ enum Error {
     InvalidEscapeSequence { message: String, span: Span },
     InvalidInteger { message: String, span: Span },
     InvalidFloat { message: String, span: Span },
+    InvalidRegexpModifier { message: String, span: Span },
 }
 
 /// Creates an Abstract Syntax Tree from a [`Parser`].
@@ -79,6 +81,52 @@ impl<'src> Builder<'src> {
 
         AST { imports, rules }
     }
+}
+
+// Macro that returns an AST node for a binary operation.
+//
+// If `lhs` represents an operation than is equal to the one being processed,
+// then `rhs` can be added to `lhs` without creating new nodes in the AST tree.
+// For example, if `lhs` is an AST node that represents the expression `a + b`,
+// `rhs` represents the expression `c`, and the new operation is `+`, we don't
+// need to create a new AST node for representing the sum of `a + b` plus `c`,
+// instead, we can simply add `c` to the list of operands of the `lhs` node,
+// which becomes `a + b + c`.
+//
+// This way, instead of having this AST tree:
+//
+//  add (+)
+//  ├ add (+)
+//  │ ├─ a
+//  │ └─ b
+//  └─ c
+//
+// We have this other AST:
+//
+//  add (+)
+//  ├─ a
+//  ├─ b
+//  └─ c
+//
+// The more flat is our AST the better, as it reduces the stack size required
+// for recursive tree traversal and the amount of memory required for storing
+// the AST.
+macro_rules! new_n_ary_expr {
+    ($variant:path, $lhs:ident, $rhs:ident) => {{
+        match $lhs {
+            $variant(ref mut operands) => {
+                operands.add($rhs);
+                $lhs
+            }
+            _ => $variant(Box::new(NAryExpr::new($lhs, $rhs))),
+        }
+    }};
+}
+
+macro_rules! new_binary_expr {
+    ($variant:path, $lhs:ident, $rhs:ident) => {{
+        $variant(Box::new(BinaryExpr::new($lhs, $rhs)))
+    }};
 }
 
 impl<'src> Builder<'src> {
@@ -212,11 +260,89 @@ impl<'src> Builder<'src> {
             self.next()?;
 
             let rhs = self.pratt_parser(f, r_bp)?;
-            let e = Box::new(NAryExpr::new(lhs, rhs));
 
             lhs = match operator {
-                OR_KW => Expr::Or(e),
-                AND_KW => Expr::And(e),
+                OR_KW => {
+                    new_n_ary_expr!(Expr::Or, lhs, rhs)
+                }
+                AND_KW => {
+                    new_n_ary_expr!(Expr::And, lhs, rhs)
+                }
+                ADD => {
+                    new_n_ary_expr!(Expr::Add, lhs, rhs)
+                }
+                SUB => {
+                    new_n_ary_expr!(Expr::Sub, lhs, rhs)
+                }
+                MUL => {
+                    new_n_ary_expr!(Expr::Mul, lhs, rhs)
+                }
+                DIV => {
+                    new_n_ary_expr!(Expr::Div, lhs, rhs)
+                }
+                MOD => {
+                    new_n_ary_expr!(Expr::Mod, lhs, rhs)
+                }
+                DOT => {
+                    new_n_ary_expr!(Expr::FieldAccess, lhs, rhs)
+                }
+                EQ => {
+                    new_binary_expr!(Expr::Eq, lhs, rhs)
+                }
+                NE => {
+                    new_binary_expr!(Expr::Ne, lhs, rhs)
+                }
+                CONTAINS_KW => {
+                    new_binary_expr!(Expr::Contains, lhs, rhs)
+                }
+                ICONTAINS_KW => {
+                    new_binary_expr!(Expr::IContains, lhs, rhs)
+                }
+                STARTSWITH_KW => {
+                    new_binary_expr!(Expr::StartsWith, lhs, rhs)
+                }
+                ISTARTSWITH_KW => {
+                    new_binary_expr!(Expr::IStartsWith, lhs, rhs)
+                }
+                ENDSWITH_KW => {
+                    new_binary_expr!(Expr::EndsWith, lhs, rhs)
+                }
+                IENDSWITH_KW => {
+                    new_binary_expr!(Expr::IEndsWith, lhs, rhs)
+                }
+                IEQUALS_KW => {
+                    new_binary_expr!(Expr::IEquals, lhs, rhs)
+                }
+                MATCHES_KW => {
+                    new_binary_expr!(Expr::Matches, lhs, rhs)
+                }
+                LT => {
+                    new_binary_expr!(Expr::Lt, lhs, rhs)
+                }
+                LE => {
+                    new_binary_expr!(Expr::Le, lhs, rhs)
+                }
+                GT => {
+                    new_binary_expr!(Expr::Gt, lhs, rhs)
+                }
+                GE => {
+                    new_binary_expr!(Expr::Ge, lhs, rhs)
+                }
+                BITWISE_OR => {
+                    new_binary_expr!(Expr::BitwiseOr, lhs, rhs)
+                }
+                BITWISE_XOR => {
+                    new_binary_expr!(Expr::BitwiseXor, lhs, rhs)
+                }
+                BITWISE_AND => {
+                    new_binary_expr!(Expr::BitwiseAnd, lhs, rhs)
+                }
+                SHL => {
+                    new_binary_expr!(Expr::Shl, lhs, rhs)
+                }
+                SHR => {
+                    new_binary_expr!(Expr::Shr, lhs, rhs)
+                }
                 _ => unreachable!(),
             };
         }
@@ -237,7 +363,7 @@ impl<'src> Builder<'src> {
     fn rule_decl(&mut self) -> Result<Rule<'src>, Abort> {
         self.begin(RULE_DECL)?;
 
-        let flags = if self.peek() == &Event::Begin(RULE_MODS) {
+        let flags = if let Event::Begin(RULE_MODS) = self.peek() {
             self.rule_mods()?
         } else {
             RuleFlags::none()
@@ -247,15 +373,21 @@ impl<'src> Builder<'src> {
 
         let identifier = self.identifier()?;
 
+        let tags = if let Event::Begin(RULE_TAGS) = self.peek() {
+            Some(self.rule_tags()?)
+        } else {
+            None
+        };
+
         self.expect(L_BRACE)?;
 
-        let meta = if self.peek() == &Event::Begin(META_BLK) {
+        let meta = if let Event::Begin(META_BLK) = self.peek() {
             Some(self.meta_blk()?)
         } else {
             None
         };
 
-        let patterns = if self.peek() == &Event::Begin(PATTERNS_BLK) {
+        let patterns = if let Event::Begin(PATTERNS_BLK) = self.peek() {
             Some(self.patterns_blk()?)
         } else {
             None
@@ -271,7 +403,7 @@ impl<'src> Builder<'src> {
         self.expect(R_BRACE)?;
         self.end(RULE_DECL)?;
 
-        Ok(Rule { flags, identifier, tags: None, meta, patterns, condition })
+        Ok(Rule { flags, identifier, tags, meta, patterns, condition })
     }
 
     fn rule_mods(&mut self) -> Result<RuleFlags, Abort> {
@@ -295,6 +427,21 @@ impl<'src> Builder<'src> {
         Ok(flags)
     }
 
+    fn rule_tags(&mut self) -> Result<Vec<Ident<'src>>, Abort> {
+        self.begin(RULE_TAGS)?;
+        self.expect(COLON)?;
+
+        let mut tags = Vec::new();
+
+        while let Event::Token { kind: IDENT, .. } = self.peek() {
+            tags.push(self.identifier()?);
+        }
+
+        self.end(RULE_TAGS)?;
+
+        Ok(tags)
+    }
+
     fn meta_blk(&mut self) -> Result<Vec<Meta<'src>>, Abort> {
         self.begin(META_BLK)?;
         self.expect(META_KW)?;
@@ -302,12 +449,8 @@ impl<'src> Builder<'src> {
 
         let mut meta = Vec::new();
 
-        loop {
-            match self.peek() {
-                Event::Begin(META_DEF) => meta.push(self.meta_def()?),
-                Event::End(META_BLK) => break,
-                event => panic!("unexpected {:?}", event),
-            }
+        while let Event::Begin(META_DEF) = self.peek() {
+            meta.push(self.meta_def()?)
         }
 
         self.end(META_BLK)?;
@@ -322,14 +465,8 @@ impl<'src> Builder<'src> {
 
         let mut patterns = Vec::new();
 
-        loop {
-            match self.peek() {
-                Event::Begin(PATTERN_DEF) => {
-                    patterns.push(self.pattern_def()?);
-                }
-                Event::End(PATTERNS_BLK) => break,
-                event => panic!("unexpected {:?}", event),
-            }
+        while let Event::Begin(PATTERN_DEF) = self.peek() {
+            patterns.push(self.pattern_def()?);
         }
 
         self.end(PATTERNS_BLK)?;
@@ -366,13 +503,13 @@ impl<'src> Builder<'src> {
                     // If the result is a string borrowed directly from the
                     // source code, we can be sure that it's a valid UTF-8
                     // string.
-                    (Cow::Borrowed(s), _span) => {
+                    (Cow::Borrowed(s), _lit, _span) => {
                         MetaValue::String(unsafe { s.to_str_unchecked() })
                     }
                     // If the result is an owned string is because it contains
                     // some escaped character, this string is not guaranteed
                     // to be a valid UTF-8 string.
-                    (Cow::Owned(s), _span) => MetaValue::Bytes(s),
+                    (Cow::Owned(s), _lit, _span) => MetaValue::Bytes(s),
                 }
             }
             Event::Token { kind: TRUE_KW, .. } => {
@@ -400,25 +537,37 @@ impl<'src> Builder<'src> {
 
         let pattern = match self.peek() {
             Event::Token { kind: STRING_LIT, .. } => {
-                let (text, span) = self.string_lit(true)?;
-
-                let mods = if let Event::Begin(PATTERN_MODS) = self.peek() {
-                    self.pattern_mods()?
-                } else {
-                    PatternModifiers::default()
-                };
+                let (text, _lit, span) = self.string_lit(true)?;
+                let modifiers = self.pattern_mods_opt()?;
 
                 Pattern::Text(Box::new(TextPattern {
                     span,
                     identifier,
                     text,
-                    modifiers: mods,
+                    modifiers,
                 }))
             }
             Event::Token { kind: REGEXP, .. } => {
-                todo!()
+                let regexp = self.regexp()?;
+                let modifiers = self.pattern_mods_opt()?;
+
+                Pattern::Regexp(Box::new(RegexpPattern {
+                    identifier,
+                    regexp,
+                    modifiers,
+                }))
             }
-            Event::Begin(HEX_PATTERN) => todo!(),
+            Event::Begin(HEX_PATTERN) => {
+                let tokens = self.hex_pattern()?;
+                let modifiers = self.pattern_mods_opt()?;
+
+                Pattern::Hex(Box::new(HexPattern {
+                    span: Default::default(), // TODO
+                    identifier,
+                    tokens,
+                    modifiers,
+                }))
+            }
             event => panic!("unexpected {:?}", event),
         };
 
@@ -427,85 +576,101 @@ impl<'src> Builder<'src> {
         Ok(pattern)
     }
 
+    fn pattern_mods_opt(&mut self) -> Result<PatternModifiers<'src>, Abort> {
+        if let Event::Begin(PATTERN_MODS) = self.peek() {
+            self.pattern_mods()
+        } else {
+            Ok(PatternModifiers::default())
+        }
+    }
+
     fn pattern_mods(&mut self) -> Result<PatternModifiers<'src>, Abort> {
         self.begin(PATTERN_MODS)?;
 
         let mut modifiers = BTreeMap::new();
 
-        loop {
-            match self.peek() {
-                Event::End(PATTERN_MODS) => break,
-                Event::Begin(PATTERN_MOD) => {
-                    self.begin(PATTERN_MOD)?;
-                    match self.next()? {
-                        Event::Token { kind: ASCII_KW, span } => {
-                            modifiers.insert(
-                                ASCII_KW,
-                                PatternModifier::Ascii { span },
-                            );
-                        }
-                        Event::Token { kind: WIDE_KW, span } => {
-                            modifiers.insert(
-                                WIDE_KW,
-                                PatternModifier::Wide { span },
-                            );
-                        }
-                        Event::Token { kind: PRIVATE_KW, span } => {
-                            modifiers.insert(
-                                PRIVATE_KW,
-                                PatternModifier::Private { span },
-                            );
-                        }
-                        Event::Token { kind: FULLWORD_KW, span } => {
-                            modifiers.insert(
-                                FULLWORD_KW,
-                                PatternModifier::Fullword { span },
-                            );
-                        }
-                        Event::Token { kind: NOCASE_KW, span } => {
-                            modifiers.insert(
-                                NOCASE_KW,
-                                PatternModifier::Nocase { span },
-                            );
-                        }
-                        Event::Token { kind: XOR_KW, span } => {
-                            let mut start = 0;
-                            let mut end = 0;
+        while let Event::Begin(PATTERN_MOD) = self.peek() {
+            self.begin(PATTERN_MOD)?;
+            match self.next()? {
+                Event::Token { kind: ASCII_KW, span } => {
+                    modifiers
+                        .insert(ASCII_KW, PatternModifier::Ascii { span });
+                }
+                Event::Token { kind: WIDE_KW, span } => {
+                    modifiers.insert(WIDE_KW, PatternModifier::Wide { span });
+                }
+                Event::Token { kind: PRIVATE_KW, span } => {
+                    modifiers
+                        .insert(PRIVATE_KW, PatternModifier::Private { span });
+                }
+                Event::Token { kind: FULLWORD_KW, span } => {
+                    modifiers.insert(
+                        FULLWORD_KW,
+                        PatternModifier::Fullword { span },
+                    );
+                }
+                Event::Token { kind: NOCASE_KW, span } => {
+                    modifiers
+                        .insert(NOCASE_KW, PatternModifier::Nocase { span });
+                }
+                Event::Token { kind: XOR_KW, span } => {
+                    let mut start = 0;
+                    let mut end = 0;
 
-                            if let Event::Token { kind: L_PAREN, .. } =
-                                self.peek()
-                            {
-                                self.expect(L_PAREN)?;
-                                start = self.integer_lit::<u8>()?.0;
+                    if let Event::Token { kind: L_PAREN, .. } = self.peek() {
+                        self.expect(L_PAREN)?;
+                        start = self.integer_lit::<u8>()?.0;
 
-                                match self.next()? {
-                                    Event::Token { kind: R_PAREN, .. } => {}
-                                    Event::Token { kind: HYPHEN, .. } => {
-                                        end = self.integer_lit::<u8>()?.0;
-                                        self.expect(R_PAREN)?;
-                                    }
-                                    event => panic!("unexpected {:?}", event),
-                                }
+                        match self.next()? {
+                            Event::Token { kind: R_PAREN, .. } => {}
+                            Event::Token { kind: HYPHEN, .. } => {
+                                end = self.integer_lit::<u8>()?.0;
+                                self.expect(R_PAREN)?;
                             }
-
+                            event => panic!("unexpected {:?}", event),
+                        }
+                    }
+                    modifiers.insert(
+                        XOR_KW,
+                        PatternModifier::Xor { span, start, end },
+                    );
+                }
+                token @ Event::Token {
+                    kind: BASE64_KW | BASE64WIDE_KW,
+                    ..
+                } => {
+                    let mut alphabet = None;
+                    if let Event::Token { kind: L_PAREN, .. } = self.peek() {
+                        self.expect(L_PAREN)?;
+                        let (lit, _) = self.utf8_string_lit()?;
+                        self.expect(R_PAREN)?;
+                        alphabet = Some(lit);
+                    }
+                    match token {
+                        Event::Token { kind: BASE64_KW, .. } => {
                             modifiers.insert(
-                                XOR_KW,
-                                PatternModifier::Xor { span, start, end },
+                                BASE64_KW,
+                                PatternModifier::Base64 {
+                                    span: Span::default(), // TODO,
+                                    alphabet,
+                                },
                             );
                         }
-                        Event::Token {
-                            kind: BASE64_KW | BASE64WIDE_KW,
-                            span,
-                        } => {
-                            todo!()
+                        Event::Token { kind: BASE64WIDE_KW, .. } => {
+                            modifiers.insert(
+                                BASE64WIDE_KW,
+                                PatternModifier::Base64Wide {
+                                    span: Span::default(), // TODO,
+                                    alphabet,
+                                },
+                            );
                         }
                         event => panic!("unexpected {:?}", event),
-                    }
-
-                    self.end(PATTERN_MOD)?;
+                    };
                 }
                 event => panic!("unexpected {:?}", event),
             }
+            self.end(PATTERN_MOD)?;
         }
 
         self.end(PATTERN_MODS)?;
@@ -513,11 +678,142 @@ impl<'src> Builder<'src> {
         Ok(PatternModifiers::new(modifiers))
     }
 
+    fn hex_pattern(&mut self) -> Result<HexTokens, Abort> {
+        self.begin(HEX_PATTERN)?;
+        self.expect(L_BRACE)?;
+
+        let sub_pattern = self.hex_sub_pattern()?;
+
+        self.expect(R_BRACE)?;
+        self.end(HEX_PATTERN)?;
+
+        Ok(sub_pattern)
+    }
+
+    fn hex_sub_pattern(&mut self) -> Result<HexTokens, Abort> {
+        self.begin(HEX_SUB_PATTERN)?;
+
+        let mut sub_patterns = Vec::new();
+
+        loop {
+            sub_patterns.push(match self.peek() {
+                Event::Token { kind: HEX_BYTE, .. } => {
+                    let span = self.expect(HEX_BYTE)?;
+                    let mut byte_literal = self.get_span_utf8(&span);
+                    let mut value: u8 = 0x00;
+                    let mut mask: u8 = 0xFF;
+                    let mut negated = false;
+
+                    // If the byte starts with `~` is a negated byte.
+                    if let Some(b) = byte_literal.strip_prefix('~') {
+                        negated = true;
+                        byte_literal = b;
+                    }
+
+                    let mut nibbles = byte_literal.chars();
+
+                    let high = nibbles.next().unwrap();
+                    // High nibble is `?`, then it should be masked out.
+                    if high == '?' {
+                        mask &= 0x0F;
+                    } else {
+                        value |= (high.to_digit(16).unwrap() << 4) as u8;
+                    }
+
+                    let low = nibbles.next().unwrap();
+                    // Low nibble is `?`, then it should be masked out.
+                    if low == '?' {
+                        mask &= 0xF0;
+                    } else {
+                        value |= low.to_digit(16).unwrap() as u8;
+                    }
+
+                    if negated {
+                        HexToken::NotByte(HexByte { value, mask })
+                    } else {
+                        HexToken::Byte(HexByte { value, mask })
+                    }
+                }
+                Event::Begin(HEX_ALTERNATIVE) => {
+                    HexToken::Alternative(Box::new(self.hex_alternative()?))
+                }
+                Event::Begin(HEX_JUMP) => HexToken::Jump(self.hex_jump()?),
+                _ => break,
+            });
+        }
+
+        self.end(HEX_SUB_PATTERN)?;
+
+        Ok(HexTokens { tokens: sub_patterns })
+    }
+
+    fn hex_alternative(&mut self) -> Result<HexAlternative, Abort> {
+        self.begin(HEX_ALTERNATIVE)?;
+        self.expect(L_PAREN)?;
+
+        let mut alternatives = vec![self.hex_sub_pattern()?];
+
+        while let Event::Token { kind: PIPE, .. } = self.peek() {
+            self.expect(PIPE)?;
+            alternatives.push(self.hex_sub_pattern()?);
+        }
+
+        self.expect(R_PAREN)?;
+        self.end(HEX_ALTERNATIVE)?;
+
+        Ok(HexAlternative { alternatives })
+    }
+
+    fn hex_jump(&mut self) -> Result<HexJump, Abort> {
+        self.begin(HEX_JUMP)?;
+        self.expect(L_BRACKET)?;
+
+        let mut start = None;
+        let mut end = None;
+
+        if let Event::Token { kind: INTEGER_LIT, .. } = self.peek() {
+            let (value, _lit, _span) = self.integer_lit::<u16>()?;
+            start = Some(value);
+        };
+
+        if let Event::Token { kind: HYPHEN, .. } = self.peek() {
+            self.expect(HYPHEN)?;
+            if let Event::Token { kind: INTEGER_LIT, .. } = self.peek() {
+                let (value, _lit, _span) = self.integer_lit::<u16>()?;
+                end = Some(value);
+            };
+        } else {
+            end = start;
+        }
+
+        self.expect(R_BRACKET)?;
+        self.end(HEX_JUMP)?;
+
+        Ok(HexJump { start, end, coalesced_span: None })
+    }
+
     fn boolean_expr(&mut self) -> Result<Expr<'src>, Abort> {
         self.begin(BOOLEAN_EXPR)?;
         let expr = self.pratt_parser(Self::boolean_term, 0)?;
         self.end(BOOLEAN_EXPR)?;
         Ok(expr)
+    }
+
+    fn boolean_expr_tuple(&mut self) -> Result<Vec<Expr<'src>>, Abort> {
+        self.begin(BOOLEAN_EXPR_TUPLE)?;
+        self.expect(L_PAREN)?;
+
+        let mut exprs = vec![self.boolean_expr()?];
+
+        while let Event::Token { kind: COMMA, .. } = self.peek() {
+            self.expect(COMMA)?;
+            exprs.push(self.boolean_expr()?);
+        }
+
+        self.expect(R_PAREN)?;
+        self.end(BOOLEAN_EXPR_TUPLE)?;
+
+        Ok(exprs)
     }
 
     fn boolean_term(&mut self) -> Result<Expr<'src>, Abort> {
@@ -558,7 +854,7 @@ impl<'src> Builder<'src> {
             }
             Event::Begin(FOR_EXPR) => self.for_expr()?,
             Event::Begin(OF_EXPR) => self.of_expr()?,
-            Event::Begin(EXPR) => self.expr()?,
+            Event::Begin(EXPR) => self.pratt_parser(Self::expr, 0)?,
             event => panic!("unexpected {:?}", event),
         };
 
@@ -584,7 +880,7 @@ impl<'src> Builder<'src> {
                     Event::Token { kind: THEM_KW, .. } => {
                         Some(PatternSet::Them { span: self.expect(THEM_KW)? })
                     }
-                    Event::Token { kind: L_PAREN, .. } => {
+                    Event::Begin(PATTERN_IDENT_TUPLE) => {
                         Some(PatternSet::Set(self.pattern_ident_tuple()?))
                     }
                     event => panic!("unexpected {:?}", event),
@@ -641,8 +937,34 @@ impl<'src> Builder<'src> {
 
     fn of_expr(&mut self) -> Result<Expr<'src>, Abort> {
         self.begin(OF_EXPR)?;
+        let quantifier = self.quantifier()?;
+        self.expect(OF_KW)?;
+
+        let items = match self.peek() {
+            Event::Token { kind: THEM_KW, .. } => {
+                OfItems::PatternSet(PatternSet::Them {
+                    span: self.expect(THEM_KW)?,
+                })
+            }
+            Event::Begin(PATTERN_IDENT_TUPLE) => OfItems::PatternSet(
+                PatternSet::Set(self.pattern_ident_tuple()?),
+            ),
+            Event::Begin(BOOLEAN_EXPR_TUPLE) => {
+                OfItems::BoolExprTuple(self.boolean_expr_tuple()?)
+            }
+            event => panic!("unexpected {:?}", event),
+        };
+
+        let anchor = self.anchor()?;
+
         self.end(OF_EXPR)?;
-        todo!()
+
+        Ok(Expr::Of(Box::new(Of {
+            span: Default::default(), // TODO
+            quantifier,
+            items,
+            anchor,
+        })))
     }
 
     fn quantifier(&mut self) -> Result<Quantifier<'src>, Abort> {
@@ -659,7 +981,7 @@ impl<'src> Builder<'src> {
                 Quantifier::Any { span: self.expect(ANY_KW)? }
             }
             Event::Begin(PRIMARY_EXPR) => {
-                let expr = self.expr()?;
+                let expr = self.primary_expr()?;
                 self.expect(PERCENT)?;
                 Quantifier::Percentage(expr)
             }
@@ -679,16 +1001,14 @@ impl<'src> Builder<'src> {
     fn anchor(&mut self) -> Result<Option<MatchAnchor<'src>>, Abort> {
         match self.peek() {
             Event::Token { kind: AT_KW, .. } => {
-                let span = self.expect(AT_KW)?;
                 Ok(Some(MatchAnchor::At(Box::new(At {
-                    span,
+                    span: self.expect(AT_KW)?,
                     expr: self.expr()?,
                 }))))
             }
             Event::Token { kind: IN_KW, .. } => {
-                let span = self.expect(IN_KW)?;
                 Ok(Some(MatchAnchor::In(Box::new(In {
-                    span,
+                    span: self.expect(IN_KW)?,
                     range: self.range()?,
                 }))))
             }
@@ -744,8 +1064,24 @@ impl<'src> Builder<'src> {
             }
             // Function call
             Event::Token { kind: L_PAREN, .. } => {
-                let span = self.expect(L_PAREN)?;
-                todo!()
+                let l_paren_span = self.expect(L_PAREN)?;
+                let mut args = Vec::new();
+
+                while let Event::Begin(BOOLEAN_EXPR) = self.peek() {
+                    args.push(self.boolean_expr()?);
+                    if let Event::Token { kind: COMMA, .. } = self.peek() {
+                        self.expect(COMMA)?;
+                    }
+                }
+
+                let r_paren_span = self.expect(R_PAREN)?;
+
+                expr = Expr::FuncCall(Box::new(FuncCall {
+                    span: expr.span(), // TODO
+                    args_span: l_paren_span.combine(&r_paren_span),
+                    callable: expr,
+                    args,
+                }));
             }
             _ => {}
         }
@@ -775,7 +1111,110 @@ impl<'src> Builder<'src> {
                     value,
                 }))
             }
-            _ => unreachable!(),
+            Event::Token { kind: STRING_LIT, .. } => {
+                let (value, literal, span) = self.string_lit(true)?;
+                Expr::LiteralString(Box::new(LiteralString {
+                    span,
+                    literal,
+                    value,
+                }))
+            }
+            Event::Token { kind: REGEXP, .. } => {
+                Expr::Regexp(Box::new(self.regexp()?))
+            }
+            Event::Token { kind: FILESIZE_KW, .. } => {
+                Expr::Filesize { span: self.expect(FILESIZE_KW)? }
+            }
+            Event::Token { kind: ENTRYPOINT_KW, .. } => {
+                Expr::Entrypoint { span: self.expect(ENTRYPOINT_KW)? }
+            }
+            Event::Token { kind: PATTERN_COUNT, .. } => {
+                let span = self.expect(PATTERN_COUNT)?;
+                let name = self.get_span_utf8(&span);
+
+                let mut range = None;
+
+                if let Event::Token { kind: IN_KW, .. } = self.peek() {
+                    self.expect(IN_KW)?;
+                    range = Some(self.range()?);
+                }
+
+                Expr::PatternCount(Box::new(IdentWithRange {
+                    span, // TODO
+                    name,
+                    range,
+                }))
+            }
+            Event::Token { kind: PATTERN_OFFSET, .. } => {
+                let span = self.expect(PATTERN_OFFSET)?;
+                let name = self.get_span_utf8(&span);
+
+                let mut index = None;
+
+                if let Event::Token { kind: L_BRACKET, .. } = self.peek() {
+                    self.expect(L_BRACKET)?;
+                    index = Some(self.expr()?);
+                    self.expect(R_BRACKET)?;
+                }
+
+                Expr::PatternOffset(Box::new(IdentWithIndex {
+                    span, // TODO
+                    name,
+                    index,
+                }))
+            }
+            Event::Token { kind: PATTERN_LENGTH, .. } => {
+                let span = self.expect(PATTERN_LENGTH)?;
+                let name = self.get_span_utf8(&span);
+
+                let mut index = None;
+
+                if let Event::Token { kind: L_BRACKET, .. } = self.peek() {
+                    self.expect(L_BRACKET)?;
+                    index = Some(self.expr()?);
+                    self.expect(R_BRACKET)?;
+                }
+
+                Expr::PatternLength(Box::new(IdentWithIndex {
+                    span, // TODO
+                    name,
+                    index,
+                }))
+            }
+            Event::Token { kind: BITWISE_NOT, .. } => {
+                Expr::BitwiseNot(Box::new(UnaryExpr {
+                    span: self.expect(BITWISE_NOT)?, // TODO
+                    operand: self.term()?,
+                }))
+            }
+            Event::Token { kind: MINUS, .. } => {
+                Expr::Minus(Box::new(UnaryExpr {
+                    span: self.expect(MINUS)?, // TODO
+                    operand: self.term()?,
+                }))
+            }
+            Event::Token { kind: L_PAREN, .. } => {
+                self.expect(L_PAREN)?;
+                let expr = self.expr()?;
+                self.expect(R_PAREN)?;
+                expr
+            }
+            Event::Token { kind: IDENT, .. } => {
+                let mut idents =
+                    vec![Expr::Ident(Box::new(self.identifier()?))];
+
+                while let Event::Token { kind: DOT, .. } = self.peek() {
+                    self.expect(DOT)?;
+                    idents.push(Expr::Ident(Box::new(self.identifier()?)));
+                }
+
+                if idents.len() == 1 {
+                    idents.pop().unwrap()
+                } else {
+                    Expr::FieldAccess(Box::new(NAryExpr::from(idents)))
+                }
+            }
+            event => panic!("unexpected {:?}", event),
         };
 
         self.end(PRIMARY_EXPR)?;
@@ -796,7 +1235,37 @@ impl<'src> Builder<'src> {
     fn pattern_ident_tuple(
         &mut self,
     ) -> Result<Vec<PatternSetItem<'src>>, Abort> {
-        todo!()
+        self.begin(PATTERN_IDENT_TUPLE)?;
+        self.expect(L_PAREN)?;
+
+        let item = |s: &mut Self| -> Result<PatternSetItem<'src>, Abort> {
+            let ident = s.pattern_ident()?;
+            Ok(PatternSetItem {
+                span: ident.span,
+                identifier: ident.name,
+                wildcard: if matches!(
+                    s.peek(),
+                    Event::Token { kind: ASTERISK, .. }
+                ) {
+                    s.expect(ASTERISK)?;
+                    true
+                } else {
+                    false
+                },
+            })
+        };
+
+        let mut items = vec![item(self)?];
+
+        while let Event::Token { kind: COMMA, .. } = self.peek() {
+            self.expect(COMMA)?;
+            items.push(item(self)?);
+        }
+
+        self.expect(R_PAREN)?;
+        self.end(PATTERN_IDENT_TUPLE)?;
+
+        Ok(items)
     }
 
     fn integer_lit<T>(&mut self) -> Result<(T, &'src str, Span), Abort>
@@ -873,6 +1342,50 @@ impl<'src> Builder<'src> {
         Ok((value, literal, span))
     }
 
+    fn regexp(&mut self) -> Result<Regexp<'src>, Abort> {
+        let span = self.expect(REGEXP)?;
+        let re = self.get_span_utf8(&span);
+
+        // Regular expressions must start with a slash (/)
+        debug_assert!(re.starts_with('/'));
+
+        // It must contain a closing slash too, but not necessarily at the end
+        // because the closing slash may be followed by a regexp modifier like "i"
+        // and "s" (e.g. /foo/i)
+        let closing_slash = re.rfind('/').unwrap();
+
+        let mut case_insensitive = false;
+        let mut dot_matches_new_line = false;
+
+        for (i, modifier) in re[closing_slash + 1..].char_indices() {
+            match modifier {
+                'i' => case_insensitive = true,
+                's' => dot_matches_new_line = true,
+                c => {
+                    let span = span.subspan(
+                        closing_slash + 1 + i,
+                        closing_slash + 1 + i + c.len_utf8(),
+                    );
+
+                    self.errors.push(Error::InvalidRegexpModifier {
+                        message: format!("{}", c),
+                        span,
+                    });
+
+                    return Err(Abort);
+                }
+            }
+        }
+
+        Ok(Regexp {
+            span,
+            literal: re,
+            src: &re[1..closing_slash],
+            case_insensitive,
+            dot_matches_new_line,
+        })
+    }
+
     /// This function is similar [`string_lit`] but guarantees that the
     /// string is a valid UTF-8 string.
     fn utf8_string_lit(&mut self) -> Result<(&'src str, Span), Abort> {
@@ -881,7 +1394,7 @@ impl<'src> Builder<'src> {
         // and is valid UTF-8, therefore is safe to convert it to &str without
         // additional checks.
         match self.string_lit(false)? {
-            (Cow::Borrowed(a), span) => unsafe {
+            (Cow::Borrowed(a), _, span) => unsafe {
                 Ok((a.to_str_unchecked(), span))
             },
             _ => unreachable!(),
@@ -910,7 +1423,7 @@ impl<'src> Builder<'src> {
     fn string_lit(
         &mut self,
         allow_escape_char: bool,
-    ) -> Result<(Cow<'src, BStr>, Span), Abort> {
+    ) -> Result<(Cow<'src, BStr>, &'src str, Span), Abort> {
         let span = self.expect(STRING_LIT)?;
         let literal = self.get_span_utf8(&span);
 
@@ -928,10 +1441,12 @@ impl<'src> Builder<'src> {
         let string_span = span.subspan(num_quotes, literal.len() - num_quotes);
 
         // Remove the quotes.
-        let literal = self.get_span_utf8(&span).trim_matches('"');
+        let without_quotes = literal.trim_matches('"');
 
         // Check if the string contains some backslash.
-        let backslash_pos = if let Some(backslash_pos) = literal.find('\\') {
+        let backslash_pos = if let Some(backslash_pos) =
+            without_quotes.find('\\')
+        {
             if !allow_escape_char {
                 self.errors.push(Error::UnexpectedEscapeSequence(span));
                 return Err(Abort);
@@ -942,16 +1457,16 @@ impl<'src> Builder<'src> {
             // characters, the literal is exactly as it appears in the source code.
             // Therefore, we can return a reference to it in the form of a &BStr,
             // allocating a new BString is not necessary.
-            return Ok((Cow::from(BStr::new(literal)), span));
+            return Ok((Cow::from(BStr::new(without_quotes)), literal, span));
         };
 
         // Initially the result is a copy of the literal string up to the first
         // backslash found.
-        let mut result = BString::from(&literal[..backslash_pos]);
+        let mut result = BString::from(&without_quotes[..backslash_pos]);
 
         // Process the remaining part of the literal, starting at the backslash.
-        let literal = &literal[backslash_pos..];
-        let mut chars = literal.char_indices();
+        let without_quotes = &without_quotes[backslash_pos..];
+        let mut chars = without_quotes.char_indices();
 
         while let Some((backslash_pos, b)) = chars.next() {
             match b {
@@ -972,7 +1487,7 @@ impl<'src> Builder<'src> {
                         'x' => match (chars.next(), chars.next()) {
                             (Some((start, _)), Some((end, _))) => {
                                 if let Ok(hex_value) = u8::from_str_radix(
-                                    &literal[start..=end],
+                                    &without_quotes[start..=end],
                                     16,
                                 ) {
                                     result.push(hex_value);
@@ -981,7 +1496,7 @@ impl<'src> Builder<'src> {
                                         Error::InvalidEscapeSequence {
                                             message: format!(
                                                 r"invalid hex value `{}` after `\x`",
-                                                &literal[start..=end]
+                                                &without_quotes[start..=end]
                                             ),
                                             span: string_span
                                                 .subspan(start, end + 1),
@@ -1015,7 +1530,7 @@ impl<'src> Builder<'src> {
                             self.errors.push(Error::InvalidEscapeSequence {
                                 message: format!(
                                     "invalid escape sequence `{}`",
-                                    &literal
+                                    &without_quotes
                                         [backslash_pos..escaped_char_end_pos]
                                 ),
                                 span: string_span.subspan(
@@ -1033,7 +1548,7 @@ impl<'src> Builder<'src> {
             }
         }
 
-        Ok((Cow::Owned(result), span))
+        Ok((Cow::Owned(result), literal, span))
     }
 }
 

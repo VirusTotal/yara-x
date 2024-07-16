@@ -1,4 +1,4 @@
-SOURCE_FILE@0..295
+SOURCE_FILE@0..382
   RULE_DECL@0..41
     RULE_KW@0..4 "rule"
     WHITESPACE@4..5 " "
@@ -160,7 +160,7 @@ SOURCE_FILE@0..295
   RULE_DECL@231..294
     RULE_KW@231..235 "rule"
     WHITESPACE@235..236 " "
-    IDENT@236..242 "test_1"
+    IDENT@236..242 "test_6"
     WHITESPACE@242..243 " "
     L_BRACE@243..244 "{"
     NEWLINE@244..245 "\n"
@@ -218,3 +218,60 @@ SOURCE_FILE@0..295
     NEWLINE@292..293 "\n"
     R_BRACE@293..294 "}"
   NEWLINE@294..295 "\n"
+  NEWLINE@295..296 "\n"
+  RULE_DECL@296..381
+    RULE_KW@296..300 "rule"
+    WHITESPACE@300..301 " "
+    IDENT@301..307 "test_7"
+    WHITESPACE@307..308 " "
+    L_BRACE@308..309 "{"
+    NEWLINE@309..310 "\n"
+    WHITESPACE@310..312 "  "
+    PATTERNS_BLK@312..350
+      STRINGS_KW@312..319 "strings"
+      COLON@319..320 ":"
+      NEWLINE@320..321 "\n"
+      WHITESPACE@321..325 "    "
+      PATTERN_DEF@325..335
+        PATTERN_IDENT@325..327 "$a"
+        WHITESPACE@327..328 " "
+        EQUAL@328..329 "="
+        WHITESPACE@329..330 " "
+        STRING_LIT@330..335 "\"foo\""
+      NEWLINE@335..336 "\n"
+      WHITESPACE@336..340 "    "
+      PATTERN_DEF@340..350
+        PATTERN_IDENT@340..342 "$b"
+        WHITESPACE@342..343 " "
+        EQUAL@343..344 "="
+        WHITESPACE@344..345 " "
+        STRING_LIT@345..350 "\"bar\""
+    NEWLINE@350..351 "\n"
+    WHITESPACE@351..352 "\t"
+    CONDITION_BLK@352..379
+      CONDITION_KW@352..361 "condition"
+      COLON@361..362 ":"
+      NEWLINE@362..363 "\n"
+      WHITESPACE@363..365 "\t\t"
+      BOOLEAN_EXPR@365..379
+        BOOLEAN_TERM@365..379
+          OF_EXPR@365..379
+            QUANTIFIER@365..366
+              EXPR@365..366
+                TERM@365..366
+                  PRIMARY_EXPR@365..366
+                    INTEGER_LIT@365..366 "2"
+            WHITESPACE@366..367 " "
+            OF_KW@367..369 "of"
+            WHITESPACE@369..370 " "
+            PATTERN_IDENT_TUPLE@370..379
+              L_PAREN@370..371 "("
+              PATTERN_IDENT@371..373 "$a"
+              COMMA@373..374 ","
+              WHITESPACE@374..375 " "
+              PATTERN_IDENT@375..377 "$b"
+              ASTERISK@377..378 "*"
+              R_PAREN@378..379 ")"
+    NEWLINE@379..380 "\n"
+    R_BRACE@380..381 "}"
+  NEWLINE@381..382 "\n"

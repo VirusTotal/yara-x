@@ -40,12 +40,13 @@ fn ast() {
         .map(|entry| entry.into_path())
         .collect();
 
-    files.into_par_iter().for_each(|path| {
+    files.into_iter().for_each(|path| {
         let mut mint = goldenfile::Mint::new(".");
         // Path to the .out file, replace the .in extension with .out.
         let output_path = path.with_extension("ast");
         let output_file = mint.new_goldenfile(output_path).unwrap();
 
+        println!("file: {:?}", path);
         let source = fs::read_to_string(path).unwrap();
         let ast = AST::from(Parser::new(source.as_bytes()));
         let mut w = BufWriter::new(output_file);
@@ -62,11 +63,11 @@ rule test {
   	$a = "foo"
   	$b = "bar"
 	condition:
-		for 1+1 of them : ( $ )
+		for 10% of ($*) : ( $ )
 }
 
     "#;
     let parser = Parser::new(r.as_bytes());
     let ast = AST::from(parser);
-    //println!("{:?}", ast);
+    println!("{:?}", ast);
 }

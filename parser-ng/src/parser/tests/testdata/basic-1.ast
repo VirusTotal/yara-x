@@ -16,17 +16,15 @@
  rule test_4
  └─ condition
     └─ or
-       ├─ or
-       │  ├─ true
-       │  └─ true
+       ├─ true
+       ├─ true
        └─ false
 
  rule test_5
  └─ condition
     └─ or
-       ├─ or
-       │  ├─ true
-       │  └─ true
+       ├─ true
+       ├─ true
        └─ false
 
  rule test_6
