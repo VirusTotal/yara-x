@@ -32,8 +32,6 @@ fn cst() {
 
 #[test]
 fn ast() {
-    env_logger::init();
-
     let files: Vec<_> = globwalk::glob("src/parser/tests/testdata/*.in")
         .unwrap()
         .flatten()
