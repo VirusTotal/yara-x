@@ -99,9 +99,3 @@ impl Span {
         self
     }
 }
-
-pub trait WithSpan {
-    /// Returns the starting and ending position within the source code for
-    /// some node in the AST.
-    fn span(&self) -> Span;
-}

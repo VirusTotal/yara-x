@@ -1,0 +1,2 @@
+ERRORS:
+- SyntaxError { message: "unexpected `at`", span: Span(41..43) }

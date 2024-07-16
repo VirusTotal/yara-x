@@ -7,8 +7,8 @@ use std::str::from_utf8;
 use bstr::{ByteSlice, ByteVec};
 use itertools::Itertools;
 use num_traits::{Bounded, CheckedMul, FromPrimitive, Num};
-use yansi::Paint;
 
+use crate::ast::errors::Error;
 use crate::ast::*;
 use crate::cst::SyntaxKind::*;
 use crate::cst::{CSTStream, Event, SyntaxKind};
@@ -16,16 +16,6 @@ use crate::Span;
 
 #[derive(Debug)]
 struct Abort;
-
-#[derive(Debug)]
-enum Error {
-    SyntaxError { message: String, span: Span },
-    UnexpectedEscapeSequence(Span),
-    InvalidEscapeSequence { message: String, span: Span },
-    InvalidInteger { message: String, span: Span },
-    InvalidFloat { message: String, span: Span },
-    InvalidRegexpModifier { message: String, span: Span },
-}
 
 /// Creates an Abstract Syntax Tree from a [`Parser`].
 pub(super) struct Builder<'src> {
@@ -79,7 +69,7 @@ impl<'src> Builder<'src> {
 
         self.end(SOURCE_FILE).unwrap();
 
-        AST { imports, rules }
+        AST { imports, rules, errors: self.errors }
     }
 }
 

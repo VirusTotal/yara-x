@@ -22,12 +22,13 @@ use crate::cst::SyntaxKind::{
     ASCII_KW, BASE64WIDE_KW, BASE64_KW, FULLWORD_KW, NOCASE_KW, WIDE_KW,
     XOR_KW,
 };
-use crate::{Parser, Span, WithSpan};
+use crate::{Parser, Span};
 
 mod ascii_tree;
-
 mod cst2ast;
 mod errors;
+
+pub use errors::Error;
 
 /// Abstract Syntax Tree (AST) for YARA rules.
 pub struct AST<'src> {
@@ -35,6 +36,8 @@ pub struct AST<'src> {
     pub imports: Vec<Import<'src>>,
     /// The list of rules in the AST.
     pub rules: Vec<Rule<'src>>,
+    /// Errors that occurred while parsing the rules.
+    pub errors: Vec<Error>,
 }
 
 impl<'src> From<Parser<'src>> for AST<'src> {
@@ -50,6 +53,14 @@ impl Debug for AST<'_> {
             write_tree(f, &ascii_tree::rule_ascii_tree(rule))?;
             writeln!(f)?;
         }
+
+        if !self.errors.is_empty() {
+            writeln!(f, "ERRORS:")?;
+            for err in &self.errors {
+                writeln!(f, "- {:?}", err)?;
+            }
+        }
+
         Ok(())
     }
 }
@@ -834,6 +845,16 @@ impl<'src> From<Vec<Expr<'src>>> for NAryExpr<'src> {
     fn from(value: Vec<Expr<'src>>) -> Self {
         Self { operands: value }
     }
+}
+
+/// Trait implemented by every node in the AST that has an associated span.
+///
+/// [`WithSpan::span`] returns a [`Span`] that indicates the starting and ending
+/// position of the AST node in the original source code.
+pub trait WithSpan {
+    /// Returns the starting and ending position within the source code for
+    /// some node in the AST.
+    fn span(&self) -> Span;
 }
 
 impl WithSpan for LiteralString<'_> {

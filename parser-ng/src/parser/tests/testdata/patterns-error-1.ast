@@ -1,0 +1,2 @@
+ERRORS:
+- SyntaxError { message: "expecting `[`, BYTE, `(` or `}`, found `condition`", span: Span(37..46) }
