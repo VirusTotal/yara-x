@@ -53,21 +53,3 @@ fn ast() {
         write!(&mut w, "{:?}", ast).unwrap();
     });
 }
-
-#[test]
-fn ast2() {
-    let r = r#"
-
-rule test {
-  strings:
-  	$a = "foo"
-  	$b = "bar"
-	condition:
-		for 10% of ($*) : ( $ )
-}
-
-    "#;
-    let parser = Parser::new(r.as_bytes());
-    let ast = AST::from(parser);
-    println!("{:?}", ast);
-}

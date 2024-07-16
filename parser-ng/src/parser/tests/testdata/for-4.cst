@@ -1,0 +1,45 @@
+SOURCE_FILE@0..71
+  RULE_DECL@0..71
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..14 "  "
+    CONDITION_BLK@14..69
+      CONDITION_KW@14..23 "condition"
+      COLON@23..24 ":"
+      NEWLINE@24..25 "\n"
+      WHITESPACE@25..29 "    "
+      BOOLEAN_EXPR@29..69
+        BOOLEAN_TERM@29..69
+          FOR_EXPR@29..69
+            FOR_KW@29..32 "for"
+            WHITESPACE@32..33 " "
+            QUANTIFIER@33..36
+              ANY_KW@33..36 "any"
+            WHITESPACE@36..37 " "
+            IDENT@37..40 "key"
+            COMMA@40..41 ","
+            IDENT@41..46 "value"
+            WHITESPACE@46..47 " "
+            IN_KW@47..49 "in"
+            WHITESPACE@49..50 " "
+            ITERABLE@50..58
+              EXPR@50..58
+                TERM@50..58
+                  PRIMARY_EXPR@50..58
+                    IDENT@50..58 "some_dic"
+            WHITESPACE@58..59 " "
+            COLON@59..60 ":"
+            WHITESPACE@60..61 " "
+            L_PAREN@61..62 "("
+            WHITESPACE@62..63 " "
+            BOOLEAN_EXPR@63..67
+              BOOLEAN_TERM@63..67
+                TRUE_KW@63..67 "true"
+            WHITESPACE@67..68 " "
+            R_PAREN@68..69 ")"
+    NEWLINE@69..70 "\n"
+    R_BRACE@70..71 "}"

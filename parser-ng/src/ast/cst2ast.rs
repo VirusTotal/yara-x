@@ -881,20 +881,19 @@ impl<'src> Builder<'src> {
                     event => panic!("unexpected {:?}", event),
                 };
             }
-            Event::Token { kind: IDENT, .. } => loop {
-                variables.push(self.identifier()?);
-                match self.next()? {
-                    Event::Token { kind: COMMA, .. } => {
-                        variables.push(self.identifier()?);
+            Event::Token { kind: IDENT, .. } => {
+                loop {
+                    variables.push(self.identifier()?);
+                    match self.next()? {
+                        Event::Token { kind: COMMA, .. } => {}
+                        Event::Token { kind: IN_KW, .. } => {
+                            break;
+                        }
+                        event => panic!("unexpected {:?}", event),
                     }
-                    Event::Token { kind: IN_KW, .. } => {
-                        break;
-                    }
-                    event => panic!("unexpected {:?}", event),
                 }
-
                 iterable = Some(self.iterable()?);
-            },
+            }
             event => panic!("unexpected {:?}", event),
         }
 
@@ -991,7 +990,20 @@ impl<'src> Builder<'src> {
     }
 
     fn iterable(&mut self) -> Result<Iterable<'src>, Abort> {
-        todo!()
+        self.begin(ITERABLE)?;
+
+        let iterable = match self.peek() {
+            Event::Begin(RANGE) => Iterable::Range(self.range()?),
+            Event::Begin(EXPR_TUPLE) => {
+                Iterable::ExprTuple(self.expr_tuple()?)
+            }
+            Event::Begin(EXPR) => Iterable::Expr(self.expr()?),
+            event => panic!("unexpected {:?}", event),
+        };
+
+        self.end(ITERABLE)?;
+
+        Ok(iterable)
     }
 
     fn anchor(&mut self) -> Result<Option<MatchAnchor<'src>>, Abort> {
@@ -1038,6 +1050,23 @@ impl<'src> Builder<'src> {
         let expr = self.pratt_parser(Self::term, 0)?;
         self.end(EXPR)?;
         Ok(expr)
+    }
+
+    fn expr_tuple(&mut self) -> Result<Vec<Expr<'src>>, Abort> {
+        self.begin(EXPR_TUPLE)?;
+        self.expect(L_PAREN)?;
+
+        let mut exprs = vec![self.boolean_expr()?];
+
+        while let Event::Token { kind: COMMA, .. } = self.peek() {
+            self.expect(COMMA)?;
+            exprs.push(self.expr()?);
+        }
+
+        self.expect(R_PAREN)?;
+        self.end(EXPR_TUPLE)?;
+
+        Ok(exprs)
     }
 
     fn term(&mut self) -> Result<Expr<'src>, Abort> {
