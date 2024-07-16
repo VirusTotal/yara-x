@@ -125,7 +125,7 @@ impl<'src> Display for MetaValue<'src> {
 /// An identifier (e.g. `some_ident`).
 #[derive(Debug, Clone)]
 pub struct Ident<'src> {
-    pub span: Span,
+    span: Span,
     #[doc(hidden)]
     pub name: &'src str,
 }
@@ -137,7 +137,7 @@ pub struct Ident<'src> {
 /// represented by this struct.
 #[derive(Debug)]
 pub struct IdentWithRange<'src> {
-    pub span: Span,
+    span: Span,
     pub name: &'src str,
     pub range: Option<Range<'src>>,
 }
@@ -149,7 +149,7 @@ pub struct IdentWithRange<'src> {
 /// represented by this struct.
 #[derive(Debug)]
 pub struct IdentWithIndex<'src> {
-    pub span: Span,
+    span: Span,
     pub name: &'src str,
     pub index: Option<Expr<'src>>,
 }
@@ -167,7 +167,7 @@ pub enum Pattern<'src> {
 /// A text pattern (a.k.a. text string) in a YARA rule.
 #[derive(Debug)]
 pub struct TextPattern<'src> {
-    pub span: Span,
+    span: Span,
     pub identifier: Ident<'src>,
     pub text: Cow<'src, BStr>, // TODO: make this a LiteralString and remove span?
     pub modifiers: PatternModifiers<'src>,
@@ -176,6 +176,7 @@ pub struct TextPattern<'src> {
 /// A regular expression pattern in a YARA rule.
 #[derive(Debug)]
 pub struct RegexpPattern<'src> {
+    span: Span,
     pub identifier: Ident<'src>,
     pub regexp: Regexp<'src>,
     pub modifiers: PatternModifiers<'src>,
@@ -184,7 +185,7 @@ pub struct RegexpPattern<'src> {
 /// A hex pattern (a.k.a. hex string) in a YARA rule.
 #[derive(Debug)]
 pub struct HexPattern<'src> {
-    pub span: Span,
+    span: Span,
     pub identifier: Ident<'src>,
     pub tokens: HexTokens,
     pub modifiers: PatternModifiers<'src>,
@@ -219,8 +220,9 @@ pub enum HexToken {
 ///
 /// For example, for pattern `A?` the value is `A0` and the mask is `F0`, and
 /// for pattern `?1` the value is `01` and the mask is `0F`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HexByte {
+    span: Span,
     pub value: u8,
     pub mask: u8,
 }
@@ -230,45 +232,16 @@ pub struct HexByte {
 /// Alternatives are sequences of hex tokens separated by `|`.
 #[derive(Debug)]
 pub struct HexAlternative {
+    span: Span,
     pub alternatives: Vec<HexTokens>,
 }
 
 /// A jump in a hex pattern (a.k.a. hex string).
 #[derive(Debug)]
 pub struct HexJump {
+    span: Span,
     pub start: Option<u16>,
     pub end: Option<u16>,
-    /// If this jump is the result of coalescing multiple consecutive jumps,
-    /// the `coalesced_span` field contains the [`Span`] that covers all the
-    /// coalesced jumps. This is an internal field, it's declared as `pub`
-    /// because it must be accessed from the `yara_x` crate.
-    #[doc(hidden)]
-    pub coalesced_span: Option<Span>,
-}
-
-impl HexJump {
-    /// Coalesce this jump with another one.
-    ///
-    /// This is useful when two or more consecutive jumps appear in a hex
-    /// pattern. In such cases the jumps can be coalesced together into a
-    /// single one. For example:
-    ///
-    ///  `[1-2][3-4]` becomes `[4-6]`
-    ///  `[0-2][5-]` becomes `[5-]`
-    ///  `[4][0-7]`  becomes `[4-11]`
-    ///
-    pub(crate) fn coalesce(&mut self, other: HexJump) {
-        match (self.start, other.start) {
-            (Some(s1), Some(s2)) => self.start = Some(s1 + s2),
-            (Some(s1), None) => self.start = Some(s1),
-            (None, Some(s2)) => self.start = Some(s2),
-            (None, None) => self.start = None,
-        }
-        match (self.end, other.end) {
-            (Some(e1), Some(e2)) => self.end = Some(e1 + e2),
-            (_, _) => self.end = None,
-        }
-    }
 }
 
 impl Display for HexJump {
@@ -286,7 +259,7 @@ impl Display for HexJump {
 /// `any of (true, false)`)
 #[derive(Debug)]
 pub struct Of<'src> {
-    pub span: Span,
+    span: Span,
     pub quantifier: Quantifier<'src>,
     pub items: OfItems<'src>,
     pub anchor: Option<MatchAnchor<'src>>,
@@ -296,7 +269,7 @@ pub struct Of<'src> {
 /// `for 1 of ($a,$b) : (..)`)
 #[derive(Debug)]
 pub struct ForOf<'src> {
-    pub span: Span,
+    span: Span,
     pub quantifier: Quantifier<'src>,
     pub pattern_set: PatternSet<'src>,
     pub condition: Expr<'src>,
@@ -305,7 +278,7 @@ pub struct ForOf<'src> {
 /// A `for .. in` expression (e.g `for all x in iterator : (..)`)
 #[derive(Debug)]
 pub struct ForIn<'src> {
-    pub span: Span,
+    span: Span,
     pub quantifier: Quantifier<'src>,
     pub variables: Vec<Ident<'src>>,
     pub iterable: Iterable<'src>,
@@ -359,7 +332,7 @@ pub enum PatternSet<'src> {
 /// [`PatternSetItem`].
 #[derive(Debug)]
 pub struct PatternSetItem<'src> {
-    pub span: Span,
+    span: Span,
     pub identifier: &'src str,
     pub wildcard: bool,
 }
@@ -685,14 +658,14 @@ pub enum MatchAnchor<'src> {
 /// (e.g. `at <expr>`).
 #[derive(Debug)]
 pub struct At<'src> {
-    pub span: Span,
+    span: Span,
     pub expr: Expr<'src>,
 }
 
 /// A pair of values conforming a range (e.g. `(0..10)`).
 #[derive(Debug)]
 pub struct Range<'src> {
-    pub span: Span,
+    span: Span,
     pub lower_bound: Expr<'src>,
     pub upper_bound: Expr<'src>,
 }
@@ -701,23 +674,30 @@ pub struct Range<'src> {
 /// e.g. `in <range>`).
 #[derive(Debug)]
 pub struct In<'src> {
-    pub span: Span,
+    span: Span,
     pub range: Range<'src>,
 }
 
 /// An expression representing a function call.
 #[derive(Debug)]
 pub struct FuncCall<'src> {
-    pub span: Span,
-    pub args_span: Span,
+    span: Span,
+    args_span: Span,
     pub callable: Expr<'src>,
     pub args: Vec<Expr<'src>>,
+}
+
+impl FuncCall<'_> {
+    /// Span covered by the function's arguments in the source code.
+    pub fn args_span(&self) -> Span {
+        self.args_span.clone()
+    }
 }
 
 /// A lookup operation in an array or dictionary.
 #[derive(Debug)]
 pub struct Lookup<'src> {
-    pub span: Span,
+    span: Span,
     pub primary: Expr<'src>,
     pub index: Expr<'src>,
 }
@@ -725,8 +705,7 @@ pub struct Lookup<'src> {
 /// A literal string (e.g: `"abcd"`).
 #[derive(Debug)]
 pub struct LiteralString<'src> {
-    /// The span that covers the literal string, including the quotes.
-    pub span: Span,
+    span: Span,
     /// The literal string as it appears in the source code, including the
     /// quotes.
     pub literal: &'src str,
@@ -738,7 +717,7 @@ pub struct LiteralString<'src> {
 /// A literal integer (e.g: `1`, `0xAB`).
 #[derive(Debug)]
 pub struct LiteralInteger<'src> {
-    pub span: Span,
+    span: Span,
     /// The literal value as it appears in the source code.
     pub literal: &'src str,
     /// The value of the integer literal.
@@ -748,7 +727,7 @@ pub struct LiteralInteger<'src> {
 /// A literal float (e.g: `2.0`, `3.14`).
 #[derive(Debug)]
 pub struct LiteralFloat<'src> {
-    pub span: Span,
+    span: Span,
     /// The literal value as it appears in the source code.
     pub literal: &'src str,
     /// The value of the integer literal.
@@ -761,7 +740,7 @@ pub struct LiteralFloat<'src> {
 /// of a `matches` operator.
 #[derive(Debug)]
 pub struct Regexp<'src> {
-    pub span: Span,
+    span: Span,
     /// The regular expressions as it appears in the source code, including
     /// the opening and closing slashes (`/`), and the modifiers `i` and `s`,
     /// if they are present.
@@ -777,14 +756,8 @@ pub struct Regexp<'src> {
 /// An expression with a single operand.
 #[derive(Debug)]
 pub struct UnaryExpr<'src> {
-    pub span: Span,
+    span: Span,
     pub operand: Expr<'src>,
-}
-
-impl<'src> UnaryExpr<'src> {
-    pub(crate) fn new(operand: Expr<'src>, span: Span) -> Self {
-        Self { operand, span }
-    }
 }
 
 /// An expression with two operands.
@@ -796,12 +769,6 @@ pub struct BinaryExpr<'src> {
     pub rhs: Expr<'src>,
 }
 
-impl<'src> BinaryExpr<'src> {
-    pub(crate) fn new(lhs: Expr<'src>, rhs: Expr<'src>) -> Self {
-        Self { lhs, rhs }
-    }
-}
-
 /// An expression with multiple operands.
 #[derive(Debug)]
 pub struct NAryExpr<'src> {
@@ -809,10 +776,6 @@ pub struct NAryExpr<'src> {
 }
 
 impl<'src> NAryExpr<'src> {
-    pub(crate) fn new(lhs: Expr<'src>, rhs: Expr<'src>) -> Self {
-        Self { operands: vec![lhs, rhs] }
-    }
-
     #[inline]
     pub fn operands(&self) -> Iter<'_, Expr<'src>> {
         self.operands.iter()
@@ -875,6 +838,51 @@ impl WithSpan for LiteralFloat<'_> {
     }
 }
 
+impl WithSpan for Regexp<'_> {
+    fn span(&self) -> Span {
+        self.span.clone()
+    }
+}
+
+impl WithSpan for HexAlternative {
+    fn span(&self) -> Span {
+        self.span.clone()
+    }
+}
+
+impl WithSpan for HexByte {
+    fn span(&self) -> Span {
+        self.span.clone()
+    }
+}
+
+impl WithSpan for HexJump {
+    fn span(&self) -> Span {
+        self.span.clone()
+    }
+}
+
+impl WithSpan for HexToken {
+    fn span(&self) -> Span {
+        match self {
+            HexToken::Byte(byte) => byte.span(),
+            HexToken::NotByte(byte) => byte.span(),
+            HexToken::Alternative(alt) => alt.span(),
+            HexToken::Jump(jump) => jump.span(),
+        }
+    }
+}
+
+impl WithSpan for HexTokens {
+    fn span(&self) -> Span {
+        let span = self.tokens.first().map(|t| t.span()).unwrap_or_default();
+        if self.tokens.len() == 1 {
+            return span;
+        }
+        span.combine(&self.tokens.last().map(|t| t.span()).unwrap_or_default())
+    }
+}
+
 impl WithSpan for Ident<'_> {
     fn span(&self) -> Span {
         self.span.clone()
@@ -908,6 +916,83 @@ impl WithSpan for ForIn<'_> {
 impl WithSpan for Of<'_> {
     fn span(&self) -> Span {
         self.span.clone()
+    }
+}
+
+impl WithSpan for OfItems<'_> {
+    fn span(&self) -> Span {
+        match self {
+            OfItems::PatternSet(patterns) => patterns.span(),
+            OfItems::BoolExprTuple(tuple) => tuple.span(),
+        }
+    }
+}
+
+impl WithSpan for FuncCall<'_> {
+    fn span(&self) -> Span {
+        self.span.clone()
+    }
+}
+
+impl WithSpan for TextPattern<'_> {
+    fn span(&self) -> Span {
+        self.span.clone()
+    }
+}
+
+impl WithSpan for HexPattern<'_> {
+    fn span(&self) -> Span {
+        self.span.clone()
+    }
+}
+
+impl WithSpan for RegexpPattern<'_> {
+    fn span(&self) -> Span {
+        self.span.clone()
+    }
+}
+
+impl WithSpan for Range<'_> {
+    fn span(&self) -> Span {
+        self.span.clone()
+    }
+}
+
+impl WithSpan for PatternSet<'_> {
+    fn span(&self) -> Span {
+        match self {
+            PatternSet::Them { span } => span.clone(),
+            PatternSet::Set(items) => {
+                let span =
+                    items.first().map(|item| item.span()).unwrap_or_default();
+
+                if items.len() == 1 {
+                    return span;
+                }
+
+                span.combine(
+                    &items.last().map(|item| item.span()).unwrap_or_default(),
+                )
+            }
+        }
+    }
+}
+
+impl WithSpan for PatternSetItem<'_> {
+    fn span(&self) -> Span {
+        self.span.clone()
+    }
+}
+
+impl WithSpan for Quantifier<'_> {
+    fn span(&self) -> Span {
+        match self {
+            Quantifier::None { span } => span.clone(),
+            Quantifier::All { span } => span.clone(),
+            Quantifier::Any { span } => span.clone(),
+            Quantifier::Percentage(expr) => expr.span(),
+            Quantifier::Expr(expr) => expr.span(),
+        }
     }
 }
 
