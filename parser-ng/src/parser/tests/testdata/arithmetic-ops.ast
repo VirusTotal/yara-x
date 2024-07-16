@@ -1,0 +1,58 @@
+ rule test_1
+ └─ condition
+    └─ eq
+       ├─ add
+       │  ├─ 1
+       │  └─ mul
+       │     ├─ 2.5
+       │     ├─ minus
+       │     │  └─ 2
+       │     └─ minus
+       │        └─ 1.0
+       └─ add
+          ├─ div
+          │  ├─ 10.0
+          │  └─ 2
+          └─ minus
+             └─ minus
+                └─ 1
+
+ rule test_2
+ └─ condition
+    └─ eq
+       ├─ mul
+       │  ├─ add
+       │  │  ├─ 1
+       │  │  └─ 2.5
+       │  ├─ minus
+       │  │  └─ 2
+       │  └─ minus
+       │     └─ 1.0
+       └─ div
+          ├─ 10.0
+          └─ add
+             ├─ 2
+             └─ minus
+                └─ minus
+                   └─ 1
+
+ rule test_3
+ └─ condition
+    └─ eq
+       ├─ div
+       │  ├─ 5
+       │  └─ 2
+       └─ mod
+          ├─ 8
+          └─ 3
+
+ rule test_4
+ └─ condition
+    └─ ne
+       ├─ sub
+       │  ├─ 5
+       │  └─ 2
+       └─ sub
+          ├─ 6
+          └─ 3
+

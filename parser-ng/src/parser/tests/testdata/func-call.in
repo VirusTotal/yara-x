@@ -1,0 +1,14 @@
+rule test_1 {
+  condition:
+    foo.bar[0].baz == foo.bar.baz()
+}
+
+rule test_2 {
+  condition:
+    foo.bar(1,2).baz
+}
+
+rule test_3 {
+  condition:
+    foo("a", "b", 2.0, true)
+}

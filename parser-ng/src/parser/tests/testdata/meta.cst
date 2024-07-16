@@ -1,5 +1,5 @@
-SOURCE_FILE@0..177
-  RULE_DECL@0..176
+SOURCE_FILE@0..208
+  RULE_DECL@0..207
     RULE_KW@0..4 "rule"
     WHITESPACE@4..5 " "
     IDENT@5..9 "test"
@@ -7,7 +7,7 @@ SOURCE_FILE@0..177
     L_BRACE@10..11 "{"
     NEWLINE@11..12 "\n"
     WHITESPACE@12..13 "\t"
-    META_BLK@13..155
+    META_BLK@13..186
       META_KW@13..17 "meta"
       COLON@17..18 ":"
       NEWLINE@18..19 "\n"
@@ -68,16 +68,24 @@ SOURCE_FILE@0..177
         EQUAL@148..149 "="
         WHITESPACE@149..150 " "
         STRING_LIT@150..155 "\"foo\""
-    NEWLINE@155..156 "\n"
-    WHITESPACE@156..157 "\t"
-    CONDITION_BLK@157..174
-      CONDITION_KW@157..166 "condition"
-      COLON@166..167 ":"
-      NEWLINE@167..168 "\n"
-      WHITESPACE@168..170 "\t\t"
-      BOOLEAN_EXPR@170..174
-        BOOLEAN_TERM@170..174
-          TRUE_KW@170..174 "true"
-    NEWLINE@174..175 "\n"
-    R_BRACE@175..176 "}"
-  NEWLINE@176..177 "\n"
+      NEWLINE@155..156 "\n"
+      WHITESPACE@156..159 "\t  "
+      META_DEF@159..186
+        IDENT@159..167 "some_str"
+        WHITESPACE@167..168 " "
+        EQUAL@168..169 "="
+        WHITESPACE@169..170 " "
+        STRING_LIT@170..186 "\"\"\"foo\n\t  bar\"\"\""
+    NEWLINE@186..187 "\n"
+    WHITESPACE@187..188 "\t"
+    CONDITION_BLK@188..205
+      CONDITION_KW@188..197 "condition"
+      COLON@197..198 ":"
+      NEWLINE@198..199 "\n"
+      WHITESPACE@199..201 "\t\t"
+      BOOLEAN_EXPR@201..205
+        BOOLEAN_TERM@201..205
+          TRUE_KW@201..205 "true"
+    NEWLINE@205..206 "\n"
+    R_BRACE@206..207 "}"
+  NEWLINE@207..208 "\n"

@@ -141,6 +141,7 @@ pub enum SyntaxKind {
 
     ERROR,
     UNKNOWN,
+    INVALID_UTF8,
 }
 
 impl From<SyntaxKind> for rowan::SyntaxKind {
@@ -364,10 +365,10 @@ impl From<&Token> for SyntaxKind {
             Token::COMMENT(_) => SyntaxKind::COMMENT,
             Token::WHITESPACE(_) => SyntaxKind::WHITESPACE,
             Token::NEWLINE(_) => SyntaxKind::NEWLINE,
+
+            // Errors
             Token::UNKNOWN(_) => SyntaxKind::UNKNOWN,
-            Token::INVALID_UTF8(_) => {
-                todo!()
-            }
+            Token::INVALID_UTF8(_) => SyntaxKind::INVALID_UTF8,
         }
     }
 }

@@ -7,6 +7,8 @@ rule test {
 	  some_bool = true
 	  some_bool = false
 	  some_str = "foo"
+	  some_str = """foo
+	  bar"""
 	condition:
 		true
 }

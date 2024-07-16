@@ -1,0 +1,2 @@
+ERRORS:
+- SyntaxError { message: "expecting `-`, INTEGER, FLOAT, STRING, `true` or `false`, found `bar`", span: Span(30..33) }

@@ -1,0 +1,31 @@
+ rule test_1
+ ├─ strings
+ │  └─ $a
+ │     └─ hex
+ │        ├─ 0x11 mask: 0xFF
+ │        ├─ [0-0]
+ │        ├─ 0x22 mask: 0xFF
+ │        ├─ [1-2]
+ │        ├─ 0x33 mask: 0xFF
+ │        ├─ [-100]
+ │        ├─ 0x44 mask: 0xFF
+ │        ├─ [100-]
+ │        ├─ 0x55 mask: 0xFF
+ │        ├─ [-]
+ │        └─ 0x66 mask: 0xFF
+ └─ condition
+    └─ true
+
+ rule test_2
+ ├─ strings
+ │  └─ $a
+ │     └─ hex
+ │        ├─ 0x11 mask: 0xFF
+ │        ├─ [0-0]
+ │        ├─ 0x22 mask: 0xFF
+ │        ├─ [1-2]
+ │        ├─ [100-]
+ │        └─ 0x33 mask: 0xFF
+ └─ condition
+    └─ true
+

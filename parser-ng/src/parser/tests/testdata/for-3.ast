@@ -1,0 +1,14 @@
+ rule test
+ ├─ strings
+ │  ├─ $a = "foo" 
+ │  └─ $b = "bar" 
+ └─ condition
+    └─ for <quantifier> of <items> : ( <condition> )
+       ├─ <quantifier>
+       │  └─ percentage
+       │     └─ 10
+       ├─ <items>
+       │  └─ them
+       └─ <condition>
+          └─ $
+

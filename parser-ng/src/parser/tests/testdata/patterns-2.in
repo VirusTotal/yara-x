@@ -1,0 +1,22 @@
+rule test_1 {
+  strings:
+    $a = "foo"
+  condition:
+    $a at 100 + 200
+}
+
+
+rule test_2 {
+  strings:
+    $a = "foo"
+  condition:
+    #a in (100+100..400) == 2
+}
+
+
+rule test_3 {
+  strings:
+    $a = "foo"
+  condition:
+    @a[2] == 0x1000
+}

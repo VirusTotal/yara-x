@@ -4960,6 +4960,7 @@ dependencies = [
  "yara-x",
  "yara-x-fmt",
  "yara-x-parser",
+ "yara-x-parser-ng",
  "yara-x-proto-yaml",
 ]
 
@@ -4972,7 +4973,7 @@ dependencies = [
  "lazy_static",
  "pretty_assertions",
  "thiserror",
- "yara-x-parser",
+ "yara-x-parser-ng",
 ]
 
 [[package]]
@@ -5012,14 +5013,22 @@ dependencies = [
 name = "yara-x-parser-ng"
 version = "0.5.0"
 dependencies = [
+ "ascii_tree",
+ "bitmask",
+ "bstr 1.9.1",
+ "env_logger",
  "globwalk",
  "goldenfile",
  "indexmap 2.2.6",
  "itertools 0.13.0",
+ "log",
  "logos",
+ "num-traits",
  "pretty_assertions",
  "rayon",
  "rowan",
+ "rustc-hash 2.0.0",
+ "yansi 1.0.1",
 ]
 
 [[package]]

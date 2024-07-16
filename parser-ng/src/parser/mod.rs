@@ -17,6 +17,7 @@ error nodes is valid YARA code.
 
 use indexmap::{IndexMap, IndexSet};
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::str::from_utf8;
 
 #[cfg(feature = "logging")]
 use log::*;
@@ -26,6 +27,7 @@ mod token_stream;
 #[cfg(test)]
 mod tests;
 
+use crate::ast::AST;
 use crate::cst::syntax_stream::SyntaxStream;
 use crate::cst::SyntaxKind::*;
 use crate::cst::{syntax_stream, CST};
@@ -50,6 +52,12 @@ impl<'src> Parser<'src> {
     #[inline]
     pub fn source(&self) -> &'src [u8] {
         self.parser.tokens.source()
+    }
+
+    /// Consumes the parser and returns an Abstract Syntax Tree (AST).
+    #[inline]
+    pub fn into_ast(self) -> AST<'src> {
+        AST::from(self)
     }
 
     /// Consumes the parser and returns a Concrete Syntax Tree (CST).
@@ -872,7 +880,6 @@ impl<'src> ParserImpl<'src> {
         if self.opt_depth > 0 {
             return;
         }
-
         // From all errors in expected_token_errors, use the one at the largest
         // offset. If several errors start at the same offset, the last one is
         // used.
@@ -901,24 +908,25 @@ impl<'src> ParserImpl<'src> {
             return;
         }
 
-        let actual_token = String::from_utf8_lossy(
-            self.tokens.source().get(span.range()).unwrap(),
-        );
+        let error_msg = match from_utf8(&self.tokens.source()[span.range()]) {
+            Ok(actual_token) => {
+                if let Some(expected) = expected {
+                    let (last, all_except_last) =
+                        expected.as_slice().split_last().unwrap();
 
-        let error_msg = if let Some(expected) = expected {
-            let (last, all_except_last) =
-                expected.as_slice().split_last().unwrap();
-
-            if all_except_last.is_empty() {
-                format!("expecting {last}, found `{actual_token}`")
-            } else {
-                format!(
-                    "expecting {} or {last}, found `{actual_token}`",
-                    itertools::join(all_except_last.iter(), ", "),
-                )
+                    if all_except_last.is_empty() {
+                        format!("expecting {last}, found `{actual_token}`")
+                    } else {
+                        format!(
+                            "expecting {} or {last}, found `{actual_token}`",
+                            itertools::join(all_except_last.iter(), ", "),
+                        )
+                    }
+                } else {
+                    format!("unexpected `{actual_token}`")
+                }
             }
-        } else {
-            format!("unexpected `{actual_token}`")
+            Err(_) => "invalid UTF-8 character".to_string(),
         };
 
         self.pending_errors.insert(span, error_msg);

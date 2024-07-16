@@ -1,0 +1,72 @@
+ rule test_1
+ └─ condition
+    └─ <quantifier> of <items>
+       ├─ <quantifier>
+       │  └─ all
+       └─ <items: pattern_set>
+          └─ them
+
+ rule test_2
+ └─ condition
+    └─ <quantifier> of <items> at <expr>
+       ├─ <quantifier>
+       │  └─ any
+       ├─ <items: pattern_set>
+       │  └─ them
+       └─ <expr>
+          └─ 0
+
+ rule test_3
+ └─ condition
+    └─ <quantifier> of <items> in (<start>..<end>)
+       ├─ <quantifier>
+       │  └─ none
+       ├─ <items: pattern_set>
+       │  └─ them
+       ├─ <start>
+       │  └─ 0
+       └─ <end>
+          └─ 10
+
+ rule test_4
+ └─ condition
+    └─ <quantifier> of <items>
+       ├─ <quantifier>
+       │  └─ 10
+       └─ <items: pattern_set>
+          └─ them
+
+ rule test_5
+ └─ condition
+    └─ <quantifier> of <items>
+       ├─ <quantifier>
+       │  └─ percentage
+       │     └─ 10
+       └─ <items: pattern_set>
+          └─ them
+
+ rule test_6
+ └─ condition
+    └─ <quantifier> of <items>
+       ├─ <quantifier>
+       │  └─ 2
+       └─ <items: boolean_expr_set>
+          ├─ true
+          ├─ false
+          ├─ ident
+          └─ eq
+             ├─ 2
+             └─ 2
+
+ rule test_7
+ ├─ strings
+ │  ├─ $a = "foo" 
+ │  └─ $b = "bar" 
+ └─ condition
+    └─ <quantifier> of <items>
+       ├─ <quantifier>
+       │  └─ 2
+       └─ <items: pattern_set>
+          └─ $a
+             $b
+

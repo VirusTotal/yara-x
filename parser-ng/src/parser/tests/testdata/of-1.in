@@ -23,7 +23,15 @@ rule test_5 {
 		10% of them
 }
 
-rule test_1 {
+rule test_6 {
 	condition:
 		2 of (true, false, ident, 2 == 2)
+}
+
+rule test_7 {
+  strings:
+    $a = "foo"
+    $b = "bar"
+	condition:
+		2 of ($a, $b*)
 }

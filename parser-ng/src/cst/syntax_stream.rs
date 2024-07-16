@@ -5,28 +5,8 @@ use crate::Span;
 
 /// A Concrete Syntax Tree (CST) represented as a stream of events.
 ///
-/// Each event in the stream has one of the following types:
-///
-/// - [`Event::Token`],
-/// - [`Event::Begin`]
-/// - [`Event::End`]
-/// - [`Event::Error`]
-///
-/// `Token` events represent terminal symbols in the grammar, such as keywords,
-/// punctuation, identifiers, comments and even whitespace. Each `Token` has an
-/// associated [`Span`] that indicates its position in the source code.
-///
-/// `Begin` and `End` events are related to non-terminal symbols, such as
-/// expressions and statements. They appear in pairs, with every `Begin`
-/// followed by a corresponding `End` of the same kind. A `Begin`/`End` pair
-/// represents a non-terminal node in the syntax tree, and everything in between
-/// is a child of this node.
-///
-/// `Error` events are not technically part of the syntax tree. They contain
-/// error messages generated during parsing. While these errors could be in a
-/// separate stream, they are integrated into the syntax tree for simplicity.
-/// Each error message is placed under the tree node that was being parsed when
-/// the error occurred.
+/// See the documentation for [`crate::cst::CSTStream`], which is the public
+/// facing API that exposes the concept to the public.
 pub struct SyntaxStream {
     events: VecDeque<Event>,
     /// Positions within `events` where `Begin` events are located. This allows

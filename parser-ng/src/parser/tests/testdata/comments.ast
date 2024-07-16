@@ -1,0 +1,32 @@
+ rule test
+ └─ condition
+    └─ eq
+       ├─ add
+       │  ├─ 1
+       │  └─ 2
+       └─ sub
+          ├─ 4
+          └─ 1
+
+ rule test
+ ├─ strings
+ │  └─ $
+ │     └─ hex
+ │        ├─ 0x00 mask: 0xFF
+ │        ├─ 0x01 mask: 0xFF
+ │        ├─ 0x02 mask: 0xFF
+ │        ├─ 0x03 mask: 0xFF
+ │        ├─ 0x04 mask: 0xFF
+ │        └─ 0x05 mask: 0xFF
+ └─ condition
+    └─ $a
+
+ rule test
+ ├─ strings
+ │  ├─ $a = "foo" ascii
+ │  └─ $b = "bar" wide
+ └─ condition
+    └─ and
+       ├─ $a
+       └─ $b
+

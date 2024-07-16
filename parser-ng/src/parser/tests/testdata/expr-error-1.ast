@@ -1,0 +1,4 @@
+ERRORS:
+- SyntaxError { message: "expecting expression, found `}`", span: Span(37..38) }
+- SyntaxError { message: "expecting expression, found `+`", span: Span(71..72) }
+- SyntaxError { message: "expecting expression, found `==`", span: Span(115..117) }

@@ -1,0 +1,2 @@
+ERRORS:
+- SyntaxError { message: "expecting STRING, regexp or `{`, found `bar`", span: Span(47..50) }
