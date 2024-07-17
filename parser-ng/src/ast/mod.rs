@@ -135,7 +135,7 @@ pub struct Ident<'src> {
 #[derive(Debug)]
 pub struct IdentWithRange<'src> {
     span: Span,
-    pub name: &'src str,
+    pub ident: Ident<'src>,
     pub range: Option<Range<'src>>,
 }
 
@@ -147,7 +147,7 @@ pub struct IdentWithRange<'src> {
 #[derive(Debug)]
 pub struct IdentWithIndex<'src> {
     span: Span,
-    pub name: &'src str,
+    pub ident: Ident<'src>,
     pub index: Option<Expr<'src>>,
 }
 

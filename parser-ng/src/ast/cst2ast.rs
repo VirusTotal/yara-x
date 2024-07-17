@@ -1211,61 +1211,73 @@ impl<'src> Builder<'src> {
                 Expr::Entrypoint { span: self.expect(ENTRYPOINT_KW)? }
             }
             Event::Token { kind: PATTERN_COUNT, .. } => {
-                let mut span = self.expect(PATTERN_COUNT)?;
+                let span = self.expect(PATTERN_COUNT)?;
                 let name = self.get_source_str(&span)?;
 
-                let mut range = None;
+                let (span_with_range, range) =
+                    if let Event::Token { kind: IN_KW, .. } = self.peek() {
+                        self.expect(IN_KW)?;
+                        let range = self.range()?;
+                        (span.combine(&range.span()), Some(range))
+                    } else {
+                        (span.clone(), None)
+                    };
 
-                if let Event::Token { kind: IN_KW, .. } = self.peek() {
-                    self.expect(IN_KW)?;
-                    let r = self.range()?;
-                    span = span.combine(&r.span());
-                    range = Some(r);
-                }
+                let ident = Ident { span, name };
 
                 Expr::PatternCount(Box::new(IdentWithRange {
-                    span,
-                    name,
+                    span: span_with_range,
+                    ident,
                     range,
                 }))
             }
             Event::Token { kind: PATTERN_OFFSET, .. } => {
-                let mut span = self.expect(PATTERN_OFFSET)?;
+                let span = self.expect(PATTERN_OFFSET)?;
                 let name = self.get_source_str(&span)?;
 
-                let mut index = None;
-
-                if let Event::Token { kind: L_BRACKET, .. } = self.peek() {
+                let (span_with_index, index) = if let Event::Token {
+                    kind: L_BRACKET,
+                    ..
+                } = self.peek()
+                {
                     self.expect(L_BRACKET)?;
-                    let expr = self.expr()?;
+                    let index = self.expr()?;
                     self.expect(R_BRACKET)?;
-                    span = span.combine(&expr.span());
-                    index = Some(expr);
-                }
+                    (span.combine(&index.span()), Some(index))
+                } else {
+                    (span.clone(), None)
+                };
+
+                let ident = Ident { span, name };
 
                 Expr::PatternOffset(Box::new(IdentWithIndex {
-                    span,
-                    name,
+                    span: span_with_index,
+                    ident,
                     index,
                 }))
             }
             Event::Token { kind: PATTERN_LENGTH, .. } => {
-                let mut span = self.expect(PATTERN_LENGTH)?;
+                let span = self.expect(PATTERN_LENGTH)?;
                 let name = self.get_source_str(&span)?;
 
-                let mut index = None;
-
-                if let Event::Token { kind: L_BRACKET, .. } = self.peek() {
+                let (span_with_index, index) = if let Event::Token {
+                    kind: L_BRACKET,
+                    ..
+                } = self.peek()
+                {
                     self.expect(L_BRACKET)?;
-                    let expr = self.expr()?;
+                    let index = self.expr()?;
                     self.expect(R_BRACKET)?;
-                    span = span.combine(&expr.span());
-                    index = Some(expr);
-                }
+                    (span.combine(&index.span()), Some(index))
+                } else {
+                    (span.clone(), None)
+                };
+
+                let ident = Ident { span, name };
 
                 Expr::PatternLength(Box::new(IdentWithIndex {
-                    span,
-                    name,
+                    span: span_with_index,
+                    ident,
                     index,
                 }))
             }
