@@ -82,14 +82,6 @@ pub enum ErrorInfo {
         note: Option<String>,
     },
 
-    #[error("E011", "invalid range")]
-    #[label("{error_msg}", error_span)]
-    InvalidRange {
-        detailed_report: String,
-        error_msg: String,
-        error_span: Span,
-    },
-
     #[error("E012", "invalid integer")]
     #[label("{error_msg}", error_span)]
     InvalidInteger {
