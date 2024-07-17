@@ -55,7 +55,7 @@ pub enum ErrorInfo {
         error_msg: String,
         error_span: Span
     },
-    
+
     #[error("E003", "duplicate pattern `{pattern_ident}`")]
     #[label(
         "duplicate declaration of `{pattern_ident}`",
@@ -79,15 +79,7 @@ pub enum ErrorInfo {
         detailed_report: String,
         error_msg: String,
         error_span: Span},
-
-    #[error("E008", "unused pattern `{pattern_ident}`")]
-    #[label("this pattern was not used in the condition", pattern_ident_span)]
-    UnusedPattern {
-        detailed_report: String,
-        pattern_ident: String,
-        pattern_ident_span: Span,
-    },
-
+    
     #[error("E009", "unknown pattern `{pattern_ident}`")]
     #[label("this pattern is not declared in the `strings` section", pattern_ident_span)]
     UnknownPattern {

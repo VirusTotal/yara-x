@@ -334,21 +334,6 @@ fn rule_from_cst<'src>(
     let condition = boolean_expr_from_cst(ctx, node)?;
     node = children.next().unwrap();
 
-    // Any identifier left in ctx.unused_pattern is not being
-    // used in the condition.
-    for unused_pattern in ctx.unused_patterns.drain() {
-        let ident = ctx.declared_patterns.get(unused_pattern).unwrap();
-        // Pattern identifiers that start with underscore (e.g: `$_a`) are
-        // allowed to remain unused.
-        if !unused_pattern.starts_with('_') {
-            return Err(Error::from(ErrorInfo::unused_pattern(
-                ctx.report_builder,
-                ident.name.to_string(),
-                ident.span,
-            )));
-        }
-    }
-
     // Clear `declared_patterns` so that the next call to `rule_from_cst`
     // finds it empty.
     ctx.declared_patterns.clear();
@@ -398,13 +383,6 @@ fn patterns_from_cst<'src>(
                 )));
             }
         }
-
-        // String identifiers are also stored in `unused_patterns`, they will
-        // be removed from the set when they are used in the condition.
-        // Any identifier left in the set when the condition has been fully
-        // parsed is an unused pattern. Notice that identifiers are stored
-        // without the `$` prefix.
-        ctx.unused_patterns.insert(&new_pattern_ident.name[1..]);
 
         // Store the identifiers for each pattern declared in the rule.
         // They are stored without the `$` prefix.
@@ -946,7 +924,6 @@ fn boolean_term_from_cst<'src>(
                         ctx.span(&ident),
                     )));
                 }
-                ctx.unused_patterns.remove(&ident_name[1..]);
             }
             // `$` used outside a `for .. of` statement, that's invalid.
             else if !ctx.inside_for_of {
@@ -1152,10 +1129,6 @@ fn primary_expr_from_cst<'src>(
                 )));
             }
 
-            // Remove from ctx.unused_patterns, indicating that the
-            // identifier has been used.
-            ctx.unused_patterns.remove(&ident_name[1..]);
-
             Expr::PatternCount(Box::new(IdentWithRange {
                 span: term_span,
                 name: ident_name,
@@ -1194,10 +1167,6 @@ fn primary_expr_from_cst<'src>(
                     ctx.span(&node),
                 )));
             }
-
-            // Remove from ctx.unused_patterns, indicating that the
-            // identifier has been used.
-            ctx.unused_patterns.remove(&ident_name[1..]);
 
             expr_type(Box::new(IdentWithIndex {
                 span: term_span,
@@ -1332,8 +1301,6 @@ fn of_expr_from_cst<'src>(
 
     let items = match node.as_rule() {
         GrammarRule::k_THEM => {
-            // `them` was used in the condition, all the patterns are used.
-            ctx.unused_patterns.clear();
             OfItems::PatternSet(PatternSet::Them { span: ctx.span(&node) })
         }
         GrammarRule::pattern_ident_tuple => OfItems::PatternSet(
@@ -1381,11 +1348,7 @@ fn for_expr_from_cst<'src>(
         // identifiers.
         let node = children.next().unwrap();
         pattern_set = Some(match node.as_rule() {
-            GrammarRule::k_THEM => {
-                // `them` was used in the condition, all the patterns are used.
-                ctx.unused_patterns.clear();
-                PatternSet::Them { span: ctx.span(&node) }
-            }
+            GrammarRule::k_THEM => PatternSet::Them { span: ctx.span(&node) },
             GrammarRule::pattern_ident_tuple => {
                 PatternSet::Set(pattern_ident_tuple(ctx, node)?)
             }
@@ -1525,20 +1488,6 @@ fn pattern_ident_tuple<'src>(
         match node.as_rule() {
             // ... if the node is pattern_ident_wildcarded
             GrammarRule::pattern_ident_wildcarded => {
-                // The pattern can be simply a pattern identifier, like `$a`
-                // or a pattern identifier ending in a wildcard, like `$a*`.
-                // Notice however that the `$` is ignored.
-                let pattern = &node.as_str()[1..];
-
-                if let Some(prefix) = pattern.strip_suffix('*') {
-                    // If the pattern has a wildcard, remove all identifiers
-                    // that starts with the prefix before the wildcard.
-                    ctx.unused_patterns
-                        .retain(|ident| !ident.starts_with(prefix));
-                } else {
-                    ctx.unused_patterns.remove(pattern);
-                }
-
                 result.push(PatternSetItem {
                     span: ctx.span(&node),
                     identifier: node.as_str(),
