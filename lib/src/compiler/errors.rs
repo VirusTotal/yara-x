@@ -206,4 +206,32 @@ pub enum CompileError {
     #[error("E116", "slow pattern")]
     #[label("this pattern may slow down the scan", span)]
     SlowPattern { detailed_report: String, span: Span },
+
+    #[error("E117", "invalid pattern modifier")]
+    #[label("{error_msg}", error_span)]
+    InvalidModifier {
+        detailed_report: String,
+        error_msg: String,
+        error_span: Span,
+    },
+
+    #[error(
+        "E118",
+        "invalid modifier combination: `{modifier1}` `{modifier2}`"
+    )]
+    #[label("`{modifier1}` modifier used here", modifier1_span)]
+    #[label("`{modifier2}` modifier used here", modifier2_span)]
+    #[note(note)]
+    InvalidModifierCombination {
+        detailed_report: String,
+        modifier1: String,
+        modifier2: String,
+        modifier1_span: Span,
+        modifier2_span: Span,
+        note: Option<String>,
+    },
+
+    #[error("E119", "duplicate pattern modifier")]
+    #[label("duplicate modifier", modifier_span)]
+    DuplicateModifier { detailed_report: String, modifier_span: Span },
 }

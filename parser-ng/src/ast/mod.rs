@@ -6,8 +6,6 @@ language, like a rule, expression, identifier, import statement, etc.
 */
 
 use std::borrow::Cow;
-use std::collections::btree_map::Values;
-use std::collections::BTreeMap;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::slice::Iter;
@@ -17,7 +15,6 @@ use bitmask::bitmask;
 use bstr::{BStr, BString};
 
 use crate::ast::cst2ast::Builder;
-use crate::cst::SyntaxKind;
 use crate::cst::SyntaxKind::{
     ASCII_KW, BASE64WIDE_KW, BASE64_KW, FULLWORD_KW, NOCASE_KW, WIDE_KW,
     XOR_KW,
@@ -162,6 +159,24 @@ pub enum Pattern<'src> {
     Text(Box<TextPattern<'src>>),
     Hex(Box<HexPattern<'src>>),
     Regexp(Box<RegexpPattern<'src>>),
+}
+
+impl<'src> Pattern<'src> {
+    pub fn identifier(&self) -> &Ident<'src> {
+        match self {
+            Pattern::Text(p) => &p.identifier,
+            Pattern::Regexp(p) => &p.identifier,
+            Pattern::Hex(p) => &p.identifier,
+        }
+    }
+
+    pub fn modifiers(&self) -> &PatternModifiers<'src> {
+        match self {
+            Pattern::Text(p) => &p.modifiers,
+            Pattern::Hex(p) => &p.modifiers,
+            Pattern::Regexp(p) => &p.modifiers,
+        }
+    }
 }
 
 /// A text pattern (a.k.a. text string) in a YARA rule.
@@ -495,55 +510,67 @@ pub enum Expr<'src> {
 /// A set of modifiers associated to a pattern.
 #[derive(Debug, Default)]
 pub struct PatternModifiers<'src> {
-    modifiers: BTreeMap<SyntaxKind, PatternModifier<'src>>,
+    modifiers: Vec<PatternModifier<'src>>,
 }
 
 impl<'src> PatternModifiers<'src> {
-    pub(crate) fn new(
-        modifiers: BTreeMap<SyntaxKind, PatternModifier<'src>>,
-    ) -> Self {
+    pub(crate) fn new(modifiers: Vec<PatternModifier<'src>>) -> Self {
         Self { modifiers }
     }
 
     /// Returns an iterator for all the modifiers associated to the pattern.
     #[inline]
     pub fn iter(&self) -> PatternModifiersIter {
-        PatternModifiersIter { iter: self.modifiers.values() }
+        PatternModifiersIter { iter: self.modifiers.iter() }
     }
 
     #[inline]
     pub fn ascii(&self) -> Option<&PatternModifier<'src>> {
-        self.modifiers.get(&ASCII_KW)
+        self.modifiers
+            .iter()
+            .find(|m| matches!(m, PatternModifier::Ascii { .. }))
     }
 
     #[inline]
     pub fn wide(&self) -> Option<&PatternModifier<'src>> {
-        self.modifiers.get(&WIDE_KW)
+        self.modifiers
+            .iter()
+            .find(|m| matches!(m, PatternModifier::Wide { .. }))
     }
 
     #[inline]
     pub fn base64(&self) -> Option<&PatternModifier<'src>> {
-        self.modifiers.get(&BASE64_KW)
+        self.modifiers
+            .iter()
+            .find(|m| matches!(m, PatternModifier::Base64 { .. }))
     }
 
     #[inline]
     pub fn base64wide(&self) -> Option<&PatternModifier<'src>> {
-        self.modifiers.get(&BASE64WIDE_KW)
+        self.modifiers
+            .iter()
+            .find(|m| matches!(m, PatternModifier::Base64Wide { .. }))
     }
 
     #[inline]
     pub fn fullword(&self) -> Option<&PatternModifier<'src>> {
-        self.modifiers.get(&FULLWORD_KW)
+        self.modifiers
+            .iter()
+            .find(|m| matches!(m, PatternModifier::Fullword { .. }))
     }
 
     #[inline]
     pub fn nocase(&self) -> Option<&PatternModifier<'src>> {
-        self.modifiers.get(&NOCASE_KW)
+        self.modifiers
+            .iter()
+            .find(|m| matches!(m, PatternModifier::Nocase { .. }))
     }
 
     #[inline]
     pub fn xor(&self) -> Option<&PatternModifier<'src>> {
-        self.modifiers.get(&XOR_KW)
+        self.modifiers
+            .iter()
+            .find(|m| matches!(m, PatternModifier::Xor { .. }))
     }
 }
 
@@ -551,7 +578,7 @@ impl<'src> PatternModifiers<'src> {
 ///
 /// This is the result of [`PatternModifiers::iter`].
 pub struct PatternModifiersIter<'src> {
-    iter: Values<'src, SyntaxKind, PatternModifier<'src>>,
+    iter: Iter<'src, PatternModifier<'src>>,
 }
 
 impl<'src> Iterator for PatternModifiersIter<'src> {
