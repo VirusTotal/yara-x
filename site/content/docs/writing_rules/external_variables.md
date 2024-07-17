@@ -67,6 +67,11 @@ rule EndsWithExample {
         string_ext_var endswith "suffix"
 }
 
+rule CaseInsensitiveEqualsExample {
+    condition:
+        string_ext_var iequals "FoO"
+}
+
 rule MatchesExample {
     condition:
         string_ext_var matches /[a-z]+/

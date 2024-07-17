@@ -36,11 +36,17 @@
 
  rule test_7
  └─ condition
+    └─ iequals
+       ├─ "foo"
+       └─ "FoO"
+
+ rule test_8
+ └─ condition
     └─ matches
        ├─ "foo"
        └─ /foo/
 
- rule test_7
+ rule test_9
  └─ condition
     └─ matches
        ├─ "foo"
