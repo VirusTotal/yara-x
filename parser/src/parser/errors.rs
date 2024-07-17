@@ -55,15 +55,7 @@ pub enum ErrorInfo {
         error_msg: String,
         error_span: Span
     },
-
-    #[error("E002", "duplicate tag `{tag}`")]
-    #[label("duplicate tag", tag_span)]
-    DuplicateTag {
-        detailed_report: String,
-        tag: String,
-        tag_span: Span,
-    },
-
+    
     #[error("E003", "duplicate pattern `{pattern_ident}`")]
     #[label(
         "duplicate declaration of `{pattern_ident}`",
@@ -80,7 +72,7 @@ pub enum ErrorInfo {
         new_pattern_span: Span,
         existing_pattern_span: Span,
     },
-    
+
     #[error("E007", "invalid base64 alphabet")]
     #[label("{error_msg}", error_span)]
     InvalidBase64Alphabet {
