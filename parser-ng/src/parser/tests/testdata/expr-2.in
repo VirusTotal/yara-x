@@ -28,12 +28,17 @@ rule test_6 {
 		"foo" iendswith "foo"
 }
 
-rule test_7{
+rule test_7 {
 	condition:
 		"foo" matches /foo/
 }
 
-rule test_7{
+rule test_8 {
 	condition:
 		"foo" matches /foo/is
+}
+
+rule test_9 {
+	condition:
+		"foo" iequals "foo"
 }

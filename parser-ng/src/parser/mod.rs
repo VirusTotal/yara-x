@@ -1359,6 +1359,7 @@ impl<'src> ParserImpl<'src> {
                         | ISTARTSWITH_KW
                         | ENDSWITH_KW
                         | IENDSWITH_KW
+                        | IEQUALS_KW
                         | MATCHES_KW))
                         .then(|p| p.expr())
                 })

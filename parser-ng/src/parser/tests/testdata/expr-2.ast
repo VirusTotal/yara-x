@@ -40,9 +40,15 @@
        ├─ "foo"
        └─ /foo/
 
- rule test_7
+ rule test_8
  └─ condition
     └─ matches
        ├─ "foo"
        └─ /foo/is
+
+ rule test_9
+ └─ condition
+    └─ iequals
+       ├─ "foo"
+       └─ "foo"
 
