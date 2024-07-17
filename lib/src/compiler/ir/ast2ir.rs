@@ -1,7 +1,7 @@
 /*! Functions for converting an AST into an IR. */
 
 use std::borrow::Borrow;
-use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::iter;
 use std::ops::RangeInclusive;
 use std::rc::Rc;
@@ -42,10 +42,9 @@ fn pattern_from_ast<'src>(
     pattern: &ast::Pattern<'src>,
 ) -> Result<PatternInRule<'src>, Box<CompileError>> {
     // Check for duplicate pattern modifiers.
-    let mut modifiers = BTreeMap::new();
+    let mut modifiers = BTreeSet::new();
     for modifier in pattern.modifiers().iter() {
-        if let Some(_) = modifiers.insert(modifier.as_text(), modifier.span())
-        {
+        if !modifiers.insert(modifier.as_text()) {
             return Err(Box::new(CompileError::duplicate_modifier(
                 ctx.report_builder,
                 modifier.span(),
