@@ -444,24 +444,6 @@ fn pattern_from_cst<'src>(
                 PatternModifiers::default()
             };
 
-            let (min_len, note) = if modifiers.base64().is_some() {
-                (3, Some("`base64` requires that pattern is at least 3 bytes long".to_string()))
-            } else if modifiers.base64wide().is_some() {
-                (3, Some("`base64wide` requires that pattern is at least 3 bytes long".to_string()))
-            } else {
-                (1, None)
-            };
-
-            if text.len() < min_len {
-                return Err(Error::from(ErrorInfo::invalid_pattern(
-                    ctx.report_builder,
-                    ctx.current_pattern_ident(),
-                    "this pattern is too short".to_string(),
-                    span,
-                    note,
-                )));
-            }
-
             // Take the identifier and set ctx.current_pattern
             // to None.
             let identifier = ctx.current_pattern.take().unwrap();

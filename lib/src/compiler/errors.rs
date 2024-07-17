@@ -260,4 +260,15 @@ pub enum CompileError {
         new_pattern_span: Span,
         existing_pattern_span: Span,
     },
+
+    #[error("E123", "invalid pattern `{pattern_ident}`")]
+    #[label("{error_msg}", error_span)]
+    #[note(note)]
+    InvalidPattern {
+        detailed_report: String,
+        pattern_ident: String,
+        error_msg: String,
+        error_span: Span,
+        note: Option<String>,
+    },
 }

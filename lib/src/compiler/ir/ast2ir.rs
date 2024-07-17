@@ -6,7 +6,7 @@ use std::iter;
 use std::ops::RangeInclusive;
 use std::rc::Rc;
 
-use bstr::ByteSlice;
+use bstr::{BString, ByteSlice};
 use itertools::Itertools;
 use yara_x_parser::ast::{HasSpan, PatternModifier, Span};
 use yara_x_parser::report::ReportBuilder;
@@ -166,6 +166,38 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
         _ => None,
     };
 
+    let (min_len, note) = if base64.is_some() {
+        (
+            3,
+            Some(
+                "`base64` requires that pattern is at least 3 bytes long"
+                    .to_string(),
+            ),
+        )
+    } else if base64wide.is_some() {
+        (
+            3,
+            Some(
+                "`base64wide` requires that pattern is at least 3 bytes long"
+                    .to_string(),
+            ),
+        )
+    } else {
+        (1, None)
+    };
+
+    let text: BString = pattern.text.as_ref().into();
+
+    if text.len() < min_len {
+        return Err(Box::new(CompileError::invalid_pattern(
+            ctx.report_builder,
+            pattern.identifier.name.to_string(),
+            "this pattern is too short".to_string(),
+            pattern.span(),
+            note,
+        )));
+    }
+
     Ok(PatternInRule {
         identifier: pattern.identifier.clone(),
         in_use: false,
@@ -175,7 +207,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
             base64_alphabet: base64_alphabet.map(String::from),
             base64wide_alphabet: base64wide_alphabet.map(String::from),
             anchored_at: None,
-            text: pattern.text.as_ref().into(),
+            text,
         }),
     })
 }
