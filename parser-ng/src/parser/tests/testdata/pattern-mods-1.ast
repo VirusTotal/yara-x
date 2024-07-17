@@ -8,7 +8,7 @@
  │  ├─ $f = "f" base64wide(foo)
  │  ├─ $g = "g" xor(0)
  │  ├─ $h = "h" xor(1-0)
- │  └─ $i = "i" private xor(20-30)
+ │  └─ $i = "i" xor(20-30) private
  └─ condition
     └─ true
 

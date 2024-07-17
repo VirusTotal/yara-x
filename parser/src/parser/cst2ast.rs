@@ -1,7 +1,6 @@
 /*! Functions for converting a CST into an AST. */
 
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashMap, HashSet};
 use std::iter::Iterator;
 use std::str;
 
@@ -195,91 +194,6 @@ fn create_binary_expr<'src>(
     }
 }
 
-lazy_static! {
-    // Map that indicates which modifiers are accepted by each type of patterns.
-    // For example, the `private` modifier is accepted by text patterns, hex patterns
-    // and regexps, while `base64` is only accepted by text patterns.
-    static ref ACCEPTED_MODIFIERS: HashMap<&'static str, Vec<GrammarRule>> =
-        HashMap::from([
-            (
-                "private",
-                vec![
-                    GrammarRule::string_lit,
-                    GrammarRule::regexp,
-                    GrammarRule::hex_pattern,
-                ],
-            ),
-            ("ascii", vec![GrammarRule::string_lit, GrammarRule::regexp]),
-            ("wide", vec![GrammarRule::string_lit, GrammarRule::regexp]),
-            ("nocase", vec![GrammarRule::string_lit, GrammarRule::regexp]),
-            ("fullword", vec![GrammarRule::string_lit, GrammarRule::regexp]),
-            ("base64", vec![GrammarRule::string_lit]),
-            ("base64wide", vec![GrammarRule::string_lit]),
-            ("xor", vec![GrammarRule::string_lit]),
-        ]);
-}
-
-/// Check if the set of modifiers for a pattern are valid.
-///
-/// Certain modifiers can't be used in conjunction, and this function
-/// returns an error in those cases.
-fn check_pattern_modifiers(
-    ctx: &Context<'_, '_>,
-    rule_type: GrammarRule,
-    modifiers: &PatternModifiers,
-) -> Result<(), Error> {
-    let xor = modifiers.xor();
-    let nocase = modifiers.nocase();
-    let fullword = modifiers.fullword();
-    let base64 = modifiers.base64();
-    let base64wide = modifiers.base64wide();
-
-    for modifier in modifiers.iter() {
-        if !ACCEPTED_MODIFIERS[modifier.as_text()].contains(&rule_type) {
-            let error_detail = match rule_type {
-                GrammarRule::hex_pattern => {
-                    "this modifier can't be applied to a hex pattern"
-                }
-                GrammarRule::regexp => {
-                    "this modifier can't be applied to a regexp"
-                }
-                _ => unreachable!(),
-            };
-
-            return Err(Error::from(ErrorInfo::invalid_modifier(
-                ctx.report_builder,
-                error_detail.to_string(),
-                modifier.span(),
-            )));
-        }
-    }
-
-    let invalid_combinations = [
-        ("xor", xor, "nocase", nocase),
-        ("base64", base64, "nocase", nocase),
-        ("base64wide", base64wide, "nocase", nocase),
-        ("base64", base64, "fullword", fullword),
-        ("base64wide", base64wide, "fullword", fullword),
-        ("base64", base64, "xor", xor),
-        ("base64wide", base64wide, "xor", xor),
-    ];
-
-    for (name1, modifier1, name2, modifier2) in invalid_combinations {
-        if let (Some(modifier1), Some(modifier2)) = (modifier1, modifier2) {
-            return Err(Error::from(ErrorInfo::invalid_modifier_combination(
-                ctx.report_builder,
-                name1.to_string(),
-                name2.to_string(),
-                modifier1.span(),
-                modifier2.span(),
-                Some("these two modifiers can't be used together".to_string()),
-            )));
-        };
-    }
-
-    Ok(())
-}
-
 pub(crate) fn ast_from_cst<'src>(
     ctx: &mut Context<'src, '_>,
     cst: CST<'src>,
@@ -370,27 +284,16 @@ fn rule_from_cst<'src>(
     // └─ ident "baz"
     //
     let tags = if let GrammarRule::rule_tags = node.as_rule() {
-        let mut tags = HashSet::new();
-
         // Iterate over all `ident`s that are children of `rule_tags`,
         // ignoring other grammar rules like `COLON`.
         let idents = node
             .into_inner()
-            .filter(|item| item.as_rule() == GrammarRule::ident);
-
-        for ident in idents {
-            if !tags.insert(ident.as_str()) {
-                return Err(Error::from(ErrorInfo::duplicate_tag(
-                    ctx.report_builder,
-                    ident.as_str().to_string(),
-                    ctx.span(&ident),
-                )));
-            }
-        }
+            .filter(|node| node.as_rule() == GrammarRule::ident)
+            .map(|node| ident_from_cst(ctx, node))
+            .collect();
 
         node = children.next().unwrap();
-
-        Some(tags)
+        Some(idents)
     } else {
         None
     };
@@ -431,21 +334,6 @@ fn rule_from_cst<'src>(
     let condition = boolean_expr_from_cst(ctx, node)?;
     node = children.next().unwrap();
 
-    // Any identifier left in ctx.unused_pattern is not being
-    // used in the condition.
-    for unused_pattern in ctx.unused_patterns.drain() {
-        let ident = ctx.declared_patterns.get(unused_pattern).unwrap();
-        // Pattern identifiers that start with underscore (e.g: `$_a`) are
-        // allowed to remain unused.
-        if !unused_pattern.starts_with('_') {
-            return Err(Error::from(ErrorInfo::unused_pattern(
-                ctx.report_builder,
-                ident.name.to_string(),
-                ident.span,
-            )));
-        }
-    }
-
     // Clear `declared_patterns` so that the next call to `rule_from_cst`
     // finds it empty.
     ctx.declared_patterns.clear();
@@ -480,28 +368,6 @@ fn patterns_from_cst<'src>(
         expect!(pattern_def, GrammarRule::pattern_def);
         let new_pattern = pattern_from_cst(ctx, pattern_def)?;
         let new_pattern_ident = new_pattern.identifier().clone();
-
-        // Check if another pattern with the same identifier already exists,
-        // but only if the identifier is not `$`.
-        if new_pattern_ident.name != "$" {
-            if let Some(existing_pattern_ident) =
-                ctx.declared_patterns.get(&new_pattern_ident.name[1..])
-            {
-                return Err(Error::from(ErrorInfo::duplicate_pattern(
-                    ctx.report_builder,
-                    new_pattern_ident.name.to_string(),
-                    new_pattern_ident.span,
-                    existing_pattern_ident.span,
-                )));
-            }
-        }
-
-        // String identifiers are also stored in `unused_patterns`, they will
-        // be removed from the set when they are used in the condition.
-        // Any identifier left in the set when the condition has been fully
-        // parsed is an unused pattern. Notice that identifiers are stored
-        // without the `$` prefix.
-        ctx.unused_patterns.insert(&new_pattern_ident.name[1..]);
 
         // Store the identifiers for each pattern declared in the rule.
         // They are stored without the `$` prefix.
@@ -557,11 +423,7 @@ fn pattern_from_cst<'src>(
             expect!(hex_pattern.next().unwrap(), GrammarRule::RBRACE);
 
             let modifiers = if let Some(modifiers) = children.next() {
-                pattern_mods_from_cst(
-                    ctx,
-                    GrammarRule::hex_pattern,
-                    modifiers,
-                )?
+                pattern_mods_from_cst(ctx, modifiers)?
             } else {
                 PatternModifiers::default()
             };
@@ -577,7 +439,7 @@ fn pattern_from_cst<'src>(
             let span = ctx.span(&node);
             let text = string_lit_from_cst(ctx, node, true)?;
             let modifiers = if let Some(modifiers) = children.next() {
-                pattern_mods_from_cst(ctx, GrammarRule::string_lit, modifiers)?
+                pattern_mods_from_cst(ctx, modifiers)?
             } else {
                 PatternModifiers::default()
             };
@@ -613,7 +475,7 @@ fn pattern_from_cst<'src>(
         }
         GrammarRule::regexp => {
             let modifiers = if let Some(modifiers) = children.next() {
-                pattern_mods_from_cst(ctx, GrammarRule::regexp, modifiers)?
+                pattern_mods_from_cst(ctx, modifiers)?
             } else {
                 PatternModifiers::default()
             };
@@ -691,13 +553,12 @@ fn regexp_from_cst<'src>(
 /// a [`PatternModifiers`] struct describing the modifiers.
 fn pattern_mods_from_cst<'src>(
     ctx: &Context<'src, '_>,
-    rule_type: GrammarRule,
     pattern_mods: CSTNode<'src>,
 ) -> Result<PatternModifiers<'src>, Error> {
     expect!(pattern_mods, GrammarRule::pattern_mods);
 
     let mut children = pattern_mods.into_inner().peekable();
-    let mut modifiers = BTreeMap::new();
+    let mut modifiers = Vec::new();
 
     while let Some(node) = children.next() {
         let modifier = match node.as_rule() {
@@ -815,19 +676,10 @@ fn pattern_mods_from_cst<'src>(
             rule => unreachable!("{:?}", rule),
         };
 
-        let span = modifier.span();
-        if modifiers.insert(node.as_str(), modifier).is_some() {
-            return Err(Error::from(ErrorInfo::duplicate_modifier(
-                ctx.report_builder,
-                span,
-            )));
-        }
+        modifiers.push(modifier);
     }
 
     let modifiers = PatternModifiers::new(modifiers);
-
-    // Check for invalid combinations of modifiers.
-    check_pattern_modifiers(ctx, rule_type, &modifiers)?;
 
     Ok(modifiers)
 }
@@ -1057,7 +909,6 @@ fn boolean_term_from_cst<'src>(
                         ctx.span(&ident),
                     )));
                 }
-                ctx.unused_patterns.remove(&ident_name[1..]);
             }
             // `$` used outside a `for .. of` statement, that's invalid.
             else if !ctx.inside_for_of {
@@ -1263,10 +1114,6 @@ fn primary_expr_from_cst<'src>(
                 )));
             }
 
-            // Remove from ctx.unused_patterns, indicating that the
-            // identifier has been used.
-            ctx.unused_patterns.remove(&ident_name[1..]);
-
             Expr::PatternCount(Box::new(IdentWithRange {
                 span: term_span,
                 name: ident_name,
@@ -1305,10 +1152,6 @@ fn primary_expr_from_cst<'src>(
                     ctx.span(&node),
                 )));
             }
-
-            // Remove from ctx.unused_patterns, indicating that the
-            // identifier has been used.
-            ctx.unused_patterns.remove(&ident_name[1..]);
 
             expr_type(Box::new(IdentWithIndex {
                 span: term_span,
@@ -1443,8 +1286,6 @@ fn of_expr_from_cst<'src>(
 
     let items = match node.as_rule() {
         GrammarRule::k_THEM => {
-            // `them` was used in the condition, all the patterns are used.
-            ctx.unused_patterns.clear();
             OfItems::PatternSet(PatternSet::Them { span: ctx.span(&node) })
         }
         GrammarRule::pattern_ident_tuple => OfItems::PatternSet(
@@ -1492,11 +1333,7 @@ fn for_expr_from_cst<'src>(
         // identifiers.
         let node = children.next().unwrap();
         pattern_set = Some(match node.as_rule() {
-            GrammarRule::k_THEM => {
-                // `them` was used in the condition, all the patterns are used.
-                ctx.unused_patterns.clear();
-                PatternSet::Them { span: ctx.span(&node) }
-            }
+            GrammarRule::k_THEM => PatternSet::Them { span: ctx.span(&node) },
             GrammarRule::pattern_ident_tuple => {
                 PatternSet::Set(pattern_ident_tuple(ctx, node)?)
             }
@@ -1636,20 +1473,6 @@ fn pattern_ident_tuple<'src>(
         match node.as_rule() {
             // ... if the node is pattern_ident_wildcarded
             GrammarRule::pattern_ident_wildcarded => {
-                // The pattern can be simply a pattern identifier, like `$a`
-                // or a pattern identifier ending in a wildcard, like `$a*`.
-                // Notice however that the `$` is ignored.
-                let pattern = &node.as_str()[1..];
-
-                if let Some(prefix) = pattern.strip_suffix('*') {
-                    // If the pattern has a wildcard, remove all identifiers
-                    // that starts with the prefix before the wildcard.
-                    ctx.unused_patterns
-                        .retain(|ident| !ident.starts_with(prefix));
-                } else {
-                    ctx.unused_patterns.remove(pattern);
-                }
-
                 result.push(PatternSetItem {
                     span: ctx.span(&node),
                     identifier: node.as_str(),

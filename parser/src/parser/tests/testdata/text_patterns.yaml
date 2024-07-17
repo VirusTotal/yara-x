@@ -11,7 +11,7 @@
     root
     └─ rule test
        ├─ strings
-       │  └─ $a = "foo" ascii fullword private wide xor
+       │  └─ $a = "foo" ascii wide xor private fullword
        └─ condition
           └─ $a
 

@@ -23,8 +23,6 @@ mod ascii_tree;
 mod span;
 
 use std::borrow::Cow;
-use std::collections::btree_map::Values;
-use std::collections::{BTreeMap, HashSet};
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::slice::Iter;
@@ -95,7 +93,7 @@ pub struct Import {
 pub struct Rule<'src> {
     pub flags: RuleFlags,
     pub identifier: Ident<'src>,
-    pub tags: Option<HashSet<&'src str>>,
+    pub tags: Option<Vec<Ident<'src>>>,
     pub meta: Option<Vec<Meta<'src>>>,
     pub patterns: Option<Vec<Pattern<'src>>>,
     pub condition: Expr<'src>,
@@ -103,6 +101,7 @@ pub struct Rule<'src> {
 
 /// A metadata entry in a YARA rule.
 #[derive(Debug)]
+
 pub struct Meta<'src> {
     pub identifier: Ident<'src>,
     pub value: MetaValue<'src>,
@@ -149,6 +148,14 @@ impl<'src> Pattern<'src> {
         }
     }
 
+    pub fn modifiers(&self) -> &PatternModifiers<'src> {
+        match self {
+            Pattern::Text(p) => &p.modifiers,
+            Pattern::Hex(p) => &p.modifiers,
+            Pattern::Regexp(p) => &p.modifiers,
+        }
+    }
+
     pub fn span(&self) -> Span {
         match self {
             Pattern::Text(p) => p.span,
@@ -161,55 +168,67 @@ impl<'src> Pattern<'src> {
 /// A set of modifiers associated to a pattern.
 #[derive(Debug, Default)]
 pub struct PatternModifiers<'src> {
-    modifiers: BTreeMap<&'src str, PatternModifier<'src>>,
+    modifiers: Vec<PatternModifier<'src>>,
 }
 
 impl<'src> PatternModifiers<'src> {
-    pub(crate) fn new(
-        modifiers: BTreeMap<&'src str, PatternModifier<'src>>,
-    ) -> Self {
+    pub(crate) fn new(modifiers: Vec<PatternModifier<'src>>) -> Self {
         Self { modifiers }
     }
 
     /// Returns an iterator for all the modifiers associated to the pattern.
     #[inline]
     pub fn iter(&self) -> PatternModifiersIter {
-        PatternModifiersIter { iter: self.modifiers.values() }
+        PatternModifiersIter { iter: self.modifiers.iter() }
     }
 
     #[inline]
     pub fn ascii(&self) -> Option<&PatternModifier<'src>> {
-        self.modifiers.get("ascii")
+        self.modifiers
+            .iter()
+            .find(|m| matches!(m, PatternModifier::Ascii { .. }))
     }
 
     #[inline]
     pub fn wide(&self) -> Option<&PatternModifier<'src>> {
-        self.modifiers.get("wide")
+        self.modifiers
+            .iter()
+            .find(|m| matches!(m, PatternModifier::Wide { .. }))
     }
 
     #[inline]
     pub fn base64(&self) -> Option<&PatternModifier<'src>> {
-        self.modifiers.get("base64")
+        self.modifiers
+            .iter()
+            .find(|m| matches!(m, PatternModifier::Base64 { .. }))
     }
 
     #[inline]
     pub fn base64wide(&self) -> Option<&PatternModifier<'src>> {
-        self.modifiers.get("base64wide")
+        self.modifiers
+            .iter()
+            .find(|m| matches!(m, PatternModifier::Base64Wide { .. }))
     }
 
     #[inline]
     pub fn fullword(&self) -> Option<&PatternModifier<'src>> {
-        self.modifiers.get("fullword")
+        self.modifiers
+            .iter()
+            .find(|m| matches!(m, PatternModifier::Fullword { .. }))
     }
 
     #[inline]
     pub fn nocase(&self) -> Option<&PatternModifier<'src>> {
-        self.modifiers.get("nocase")
+        self.modifiers
+            .iter()
+            .find(|m| matches!(m, PatternModifier::Nocase { .. }))
     }
 
     #[inline]
     pub fn xor(&self) -> Option<&PatternModifier<'src>> {
-        self.modifiers.get("xor")
+        self.modifiers
+            .iter()
+            .find(|m| matches!(m, PatternModifier::Xor { .. }))
     }
 }
 
@@ -217,7 +236,7 @@ impl<'src> PatternModifiers<'src> {
 ///
 /// This is the result of [`PatternModifiers::iter`].
 pub struct PatternModifiersIter<'src> {
-    iter: Values<'src, &'src str, PatternModifier<'src>>,
+    iter: Iter<'src, PatternModifier<'src>>,
 }
 
 impl<'src> Iterator for PatternModifiersIter<'src> {
@@ -630,6 +649,10 @@ impl<'src> Ident<'src> {
     pub(crate) fn new(name: &'src str, span: Span) -> Self {
         Self { name, span }
     }
+
+    pub fn starts_with(&self, pat: &str) -> bool {
+        self.name.starts_with(pat)
+    }
 }
 
 /// An expression where an identifier can be accompanied by a range
@@ -917,11 +940,11 @@ impl PatternSetItem<'_> {
     ///
     /// For example, identifiers `$a` and `$abc` both match the
     /// [`PatternSetItem`] for `$a*`.
-    pub fn matches(&self, ident: &str) -> bool {
+    pub fn matches(&self, ident: &Ident) -> bool {
         if let Some(prefix) = self.identifier.strip_suffix('*') {
-            ident.starts_with(prefix)
+            ident.name.starts_with(prefix)
         } else {
-            ident == self.identifier
+            ident.name == self.identifier
         }
     }
 }

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::ast::{Ident, Span};
 use crate::cst::CSTNode;
@@ -11,21 +11,6 @@ pub(crate) struct Context<'src, 'rb> {
     /// patterns (a.k.a. strings) section of the rule. Identifiers are stored
     /// without the `$` prefix.
     pub(crate) declared_patterns: HashMap<&'src str, Ident<'src>>,
-
-    /// Similarly to `declared_patterns` this is filled with the identifiers
-    /// of the patterns declared by the current rule. However, during the
-    /// parsing of the rule's condition, identifiers are removed from this
-    /// set as they are used in the condition.
-    ///
-    /// For example, if `$a` appears in the condition, `a` is removed from
-    /// this set, if `them` appears, all identifiers are removed because this
-    /// keyword refers to all the identifiers, if a tuple (`$a*`, `$b*`)
-    /// appears in the condition, all identifiers starting with `a` and `b`
-    /// are removed.
-    ///
-    /// After the whole condition is parsed, the remaining identifiers are
-    /// the unused ones.
-    pub(crate) unused_patterns: HashSet<&'src str>,
 
     /// Boolean that indicates if the parser is currently inside the expression
     /// of a `for .. of .. : (<expr>)` statement.
@@ -43,7 +28,6 @@ impl<'src, 'rb> Context<'src, 'rb> {
         Self {
             inside_for_of: false,
             declared_patterns: HashMap::new(),
-            unused_patterns: HashSet::new(),
             current_pattern: None,
             report_builder,
         }

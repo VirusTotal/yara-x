@@ -672,7 +672,7 @@ impl<'a> Compiler<'a> {
         sub_pattern_id
     }
 
-    /// Check if another rule, module or variable has the given identifier and
+    /// Checks if another rule, module or variable has the given identifier and
     /// return an error in that case.
     fn check_for_existing_identifier(
         &self,
@@ -694,6 +694,24 @@ impl<'a> Compiler<'a> {
                     ident.span,
                 ))),
             };
+        }
+        Ok(())
+    }
+
+    /// Checks that tags are not duplicate.
+    fn check_for_duplicate_tags(
+        &self,
+        tags: &[Ident],
+    ) -> Result<(), Box<CompileError>> {
+        let mut s = HashSet::new();
+        for tag in tags {
+            if !s.insert(tag.name) {
+                return Err(Box::new(CompileError::duplicate_tag(
+                    &self.report_builder,
+                    tag.name.to_string(),
+                    tag.span,
+                )));
+            }
         }
         Ok(())
     }
@@ -752,6 +770,11 @@ impl<'a> Compiler<'a> {
         // Check if another rule, module or variable has the same identifier
         // and return an error in that case.
         self.check_for_existing_identifier(&rule.identifier)?;
+
+        // Check that rule tags, if any, doesn't contain duplicates.
+        if let Some(tags) = &rule.tags {
+            self.check_for_duplicate_tags(tags.as_slice())?;
+        }
 
         // Take snapshot of the current compiler state. In case of error
         // compiling the current rule this snapshot allows restoring the
@@ -831,7 +854,7 @@ impl<'a> Compiler<'a> {
 
         // Convert the rule condition's AST to the intermediate representation
         // (IR). Also updates the patterns with information about whether they
-        // are anchored or not.
+        // are used in the condition and if they are anchored or not.
         let condition = bool_expr_from_ast(&mut ctx, &rule.condition);
 
         drop(ctx);
@@ -927,6 +950,16 @@ impl<'a> Compiler<'a> {
         let current_rule = self.rules.last_mut().unwrap();
 
         for pattern in &rule_patterns {
+            // Raise error is some pattern was not used, except if the pattern
+            // identifier starts with underscore.
+            if !pattern.in_use() && !pattern.identifier().starts_with("$_") {
+                return Err(Box::new(CompileError::unused_pattern(
+                    &self.report_builder,
+                    pattern.identifier().name.to_string(),
+                    pattern.identifier().span(),
+                )));
+            }
+
             // Check if this pattern has been declared before, in this rule or
             // in some other rule. In such cases the pattern ID is re-used, and
             // we don't need to process (i.e: extract atoms and add them to
@@ -949,7 +982,7 @@ impl<'a> Compiler<'a> {
                 };
 
             current_rule.patterns.push((
-                self.ident_pool.get_or_intern(pattern.identifier()),
+                self.ident_pool.get_or_intern(pattern.identifier().name),
                 pattern_id,
             ));
 

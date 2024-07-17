@@ -206,4 +206,58 @@ pub enum CompileError {
     #[error("E116", "slow pattern")]
     #[label("this pattern may slow down the scan", span)]
     SlowPattern { detailed_report: String, span: Span },
+
+    #[error("E117", "invalid pattern modifier")]
+    #[label("{error_msg}", error_span)]
+    InvalidModifier {
+        detailed_report: String,
+        error_msg: String,
+        error_span: Span,
+    },
+
+    #[error(
+        "E118",
+        "invalid modifier combination: `{modifier1}` `{modifier2}`"
+    )]
+    #[label("`{modifier1}` modifier used here", modifier1_span)]
+    #[label("`{modifier2}` modifier used here", modifier2_span)]
+    #[note(note)]
+    InvalidModifierCombination {
+        detailed_report: String,
+        modifier1: String,
+        modifier2: String,
+        modifier1_span: Span,
+        modifier2_span: Span,
+        note: Option<String>,
+    },
+
+    #[error("E119", "duplicate pattern modifier")]
+    #[label("duplicate modifier", modifier_span)]
+    DuplicateModifier { detailed_report: String, modifier_span: Span },
+
+    #[error("E120", "duplicate tag `{tag}`")]
+    #[label("duplicate tag", tag_span)]
+    DuplicateTag { detailed_report: String, tag: String, tag_span: Span },
+
+    #[error("E121", "unused pattern `{pattern_ident}`")]
+    #[label("this pattern was not used in the condition", pattern_ident_span)]
+    UnusedPattern {
+        detailed_report: String,
+        pattern_ident: String,
+        pattern_ident_span: Span,
+    },
+
+    #[error("E122", "duplicate pattern `{pattern_ident}`")]
+    #[label("duplicate declaration of `{pattern_ident}`", new_pattern_span)]
+    #[label(
+        "`{pattern_ident}` declared here for the first time",
+        existing_pattern_span,
+        style = "note"
+    )]
+    DuplicatePattern {
+        detailed_report: String,
+        pattern_ident: String,
+        new_pattern_span: Span,
+        existing_pattern_span: Span,
+    },
 }
