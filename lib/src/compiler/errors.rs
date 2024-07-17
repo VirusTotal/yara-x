@@ -246,4 +246,18 @@ pub enum CompileError {
         pattern_ident: String,
         pattern_ident_span: Span,
     },
+
+    #[error("E122", "duplicate pattern `{pattern_ident}`")]
+    #[label("duplicate declaration of `{pattern_ident}`", new_pattern_span)]
+    #[label(
+        "`{pattern_ident}` declared here for the first time",
+        existing_pattern_span,
+        style = "note"
+    )]
+    DuplicatePattern {
+        detailed_report: String,
+        pattern_ident: String,
+        new_pattern_span: Span,
+        existing_pattern_span: Span,
+    },
 }

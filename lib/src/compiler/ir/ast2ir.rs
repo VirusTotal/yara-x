@@ -32,6 +32,22 @@ pub(in crate::compiler) fn patterns_from_ast<'src>(
 ) -> Result<(), Box<CompileError>> {
     for pattern_ast in patterns.into_iter().flatten() {
         let pattern = pattern_from_ast(ctx, pattern_ast)?;
+
+        if pattern.identifier().name != "$" {
+            if let Some(existing) = ctx
+                .current_rule_patterns
+                .iter()
+                .find(|p| p.identifier.name == pattern.identifier.name)
+            {
+                return Err(Box::new(CompileError::duplicate_pattern(
+                    ctx.report_builder,
+                    pattern.identifier().name.to_string(),
+                    pattern.identifier().span,
+                    existing.identifier.span,
+                )));
+            }
+        }
+
         ctx.current_rule_patterns.push(pattern);
     }
     Ok(())
