@@ -234,4 +234,8 @@ pub enum CompileError {
     #[error("E119", "duplicate pattern modifier")]
     #[label("duplicate modifier", modifier_span)]
     DuplicateModifier { detailed_report: String, modifier_span: Span },
+
+    #[error("E120", "duplicate tag `{tag}`")]
+    #[label("duplicate tag", tag_span)]
+    DuplicateTag { detailed_report: String, tag: String, tag_span: Span },
 }

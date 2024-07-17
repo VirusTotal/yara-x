@@ -1,7 +1,6 @@
 /*! Functions for converting a CST into an AST. */
 
 use std::borrow::Cow;
-use std::collections::HashSet;
 use std::iter::Iterator;
 use std::str;
 
@@ -285,27 +284,16 @@ fn rule_from_cst<'src>(
     // └─ ident "baz"
     //
     let tags = if let GrammarRule::rule_tags = node.as_rule() {
-        let mut tags = HashSet::new();
-
         // Iterate over all `ident`s that are children of `rule_tags`,
         // ignoring other grammar rules like `COLON`.
         let idents = node
             .into_inner()
-            .filter(|item| item.as_rule() == GrammarRule::ident);
-
-        for ident in idents {
-            if !tags.insert(ident.as_str()) {
-                return Err(Error::from(ErrorInfo::duplicate_tag(
-                    ctx.report_builder,
-                    ident.as_str().to_string(),
-                    ctx.span(&ident),
-                )));
-            }
-        }
+            .filter(|node| node.as_rule() == GrammarRule::ident)
+            .map(|node| ident_from_cst(ctx, node))
+            .collect();
 
         node = children.next().unwrap();
-
-        Some(tags)
+        Some(idents)
     } else {
         None
     };

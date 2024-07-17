@@ -23,7 +23,6 @@ mod ascii_tree;
 mod span;
 
 use std::borrow::Cow;
-use std::collections::HashSet;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::slice::Iter;
@@ -94,7 +93,7 @@ pub struct Import {
 pub struct Rule<'src> {
     pub flags: RuleFlags,
     pub identifier: Ident<'src>,
-    pub tags: Option<HashSet<&'src str>>,
+    pub tags: Option<Vec<Ident<'src>>>,
     pub meta: Option<Vec<Meta<'src>>>,
     pub patterns: Option<Vec<Pattern<'src>>>,
     pub condition: Expr<'src>,
@@ -102,6 +101,7 @@ pub struct Rule<'src> {
 
 /// A metadata entry in a YARA rule.
 #[derive(Debug)]
+
 pub struct Meta<'src> {
     pub identifier: Ident<'src>,
     pub value: MetaValue<'src>,

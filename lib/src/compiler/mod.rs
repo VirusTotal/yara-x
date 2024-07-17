@@ -672,7 +672,7 @@ impl<'a> Compiler<'a> {
         sub_pattern_id
     }
 
-    /// Check if another rule, module or variable has the given identifier and
+    /// Checks if another rule, module or variable has the given identifier and
     /// return an error in that case.
     fn check_for_existing_identifier(
         &self,
@@ -694,6 +694,24 @@ impl<'a> Compiler<'a> {
                     ident.span,
                 ))),
             };
+        }
+        Ok(())
+    }
+
+    /// Checks that tags are not duplicate.
+    fn check_for_duplicate_tags(
+        &self,
+        tags: &[Ident],
+    ) -> Result<(), Box<CompileError>> {
+        let mut s = HashSet::new();
+        for tag in tags {
+            if !s.insert(tag.name) {
+                return Err(Box::new(CompileError::duplicate_tag(
+                    &self.report_builder,
+                    tag.name.to_string(),
+                    tag.span,
+                )));
+            }
         }
         Ok(())
     }
@@ -752,6 +770,11 @@ impl<'a> Compiler<'a> {
         // Check if another rule, module or variable has the same identifier
         // and return an error in that case.
         self.check_for_existing_identifier(&rule.identifier)?;
+
+        // Check that rule tags, if any, doesn't contain duplicates.
+        if let Some(tags) = &rule.tags {
+            self.check_for_duplicate_tags(tags.as_slice())?;
+        }
 
         // Take snapshot of the current compiler state. In case of error
         // compiling the current rule this snapshot allows restoring the
