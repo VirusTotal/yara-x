@@ -663,7 +663,7 @@ impl<'src> Ident<'src> {
 #[derive(Debug, HasSpan)]
 pub struct IdentWithRange<'src> {
     pub span: Span,
-    pub name: &'src str,
+    pub ident: Ident<'src>,
     pub range: Option<Range<'src>>,
 }
 
@@ -675,7 +675,7 @@ pub struct IdentWithRange<'src> {
 #[derive(Debug, HasSpan)]
 pub struct IdentWithIndex<'src> {
     pub span: Span,
-    pub name: &'src str,
+    pub ident: Ident<'src>,
     pub index: Option<Expr<'src>>,
 }
 

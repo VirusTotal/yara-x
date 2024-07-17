@@ -545,7 +545,9 @@ pub(in crate::compiler) fn expr_from_ast(
                     anchor,
                 }),
                 _ => {
-                    let pattern = ctx.get_pattern_mut(p.identifier.name).mark_as_used();
+                    let pattern = ctx
+                        .get_pattern_mut(&p.identifier)?
+                        .mark_as_used();
 
                     if let Some(offset) = anchor.at() {
                         pattern.anchor_at(offset as usize);
@@ -554,7 +556,7 @@ pub(in crate::compiler) fn expr_from_ast(
                     }
 
                     Ok(Expr::PatternMatch {
-                        pattern: ctx.get_pattern_index(p.identifier.name),
+                        pattern: ctx.get_pattern_index(&p.identifier),
                         anchor,
                     })
                 }
@@ -567,7 +569,7 @@ pub(in crate::compiler) fn expr_from_ast(
             // pattern on each iteration. In those cases the symbol table must
             // contain an entry for `$`, corresponding to the variable that
             // holds the current PatternId for the loop.
-            match (p.name, &p.range) {
+            match (p.ident.name, &p.range) {
                 // Cases where the identifier is `#`.
                 ("#", Some(range)) => Ok(Expr::PatternCountVar {
                     symbol: ctx.symbol_table.lookup("$").unwrap(),
@@ -579,20 +581,20 @@ pub(in crate::compiler) fn expr_from_ast(
                 }),
                 // Cases where the identifier is not `#`.
                 (_, Some(range)) => {
-                    ctx.get_pattern_mut(p.name)
+                    ctx.get_pattern_mut(&p.ident)?
                         .make_non_anchorable()
                         .mark_as_used();
                     Ok(Expr::PatternCount {
-                        pattern: ctx.get_pattern_index(p.name),
+                        pattern: ctx.get_pattern_index(&p.ident),
                         range: Some(range_from_ast(ctx, range)?),
                     })
                 }
                 (_, None) => {
-                    ctx.get_pattern_mut(p.name)
+                    ctx.get_pattern_mut(&p.ident)?
                         .make_non_anchorable()
                         .mark_as_used();
                     Ok(Expr::PatternCount {
-                        pattern: ctx.get_pattern_index(p.name),
+                        pattern: ctx.get_pattern_index(&p.ident),
                         range: None,
                     })
                 }
@@ -605,7 +607,7 @@ pub(in crate::compiler) fn expr_from_ast(
             // pattern on each iteration. In those cases the symbol table must
             // contain an entry for `$`, corresponding to the variable that
             // holds the current PatternId for the loop.
-            match (p.name, &p.index) {
+            match (p.ident.name, &p.index) {
                 // Cases where the identifier is `@`.
                 ("@", Some(index)) => Ok(Expr::PatternOffsetVar {
                     symbol: ctx.symbol_table.lookup("$").unwrap(),
@@ -621,11 +623,11 @@ pub(in crate::compiler) fn expr_from_ast(
                 }),
                 // Cases where the identifier is not `@`.
                 (_, Some(index)) => {
-                    ctx.get_pattern_mut(p.name)
+                    ctx.get_pattern_mut(&p.ident)?
                         .make_non_anchorable()
                         .mark_as_used();
                     Ok(Expr::PatternOffset {
-                        pattern: ctx.get_pattern_index(p.name),
+                        pattern: ctx.get_pattern_index(&p.ident),
                         index: Some(Box::new(integer_in_range_from_ast(
                             ctx,
                             index,
@@ -634,11 +636,11 @@ pub(in crate::compiler) fn expr_from_ast(
                     })
                 }
                 (_, None) => {
-                    ctx.get_pattern_mut(p.name)
+                    ctx.get_pattern_mut(&p.ident)?
                         .make_non_anchorable()
                         .mark_as_used();
                     Ok(Expr::PatternOffset {
-                        pattern: ctx.get_pattern_index(p.name),
+                        pattern: ctx.get_pattern_index(&p.ident),
                         index: None,
                     })
                 }
@@ -651,7 +653,7 @@ pub(in crate::compiler) fn expr_from_ast(
             // pattern on each iteration. In those cases the symbol table must
             // contain an entry for `$`, corresponding to the variable that
             // holds the current PatternId for the loop.
-            match (p.name, &p.index) {
+            match (p.ident.name, &p.index) {
                 // Cases where the identifier is `!`.
                 ("!", Some(index)) => Ok(Expr::PatternLengthVar {
                     symbol: ctx.symbol_table.lookup("$").unwrap(),
@@ -667,11 +669,11 @@ pub(in crate::compiler) fn expr_from_ast(
                 }),
                 // Cases where the identifier is not `!`.
                 (_, Some(index)) => {
-                    ctx.get_pattern_mut(p.name)
+                    ctx.get_pattern_mut(&p.ident)?
                         .make_non_anchorable()
                         .mark_as_used();
                     Ok(Expr::PatternLength {
-                        pattern: ctx.get_pattern_index(p.name),
+                        pattern: ctx.get_pattern_index(&p.ident),
                         index: Some(Box::new(integer_in_range_from_ast(
                             ctx,
                             index,
@@ -680,11 +682,11 @@ pub(in crate::compiler) fn expr_from_ast(
                     })
                 }
                 (_, None) => {
-                    ctx.get_pattern_mut(p.name)
+                    ctx.get_pattern_mut(&p.ident)?
                         .make_non_anchorable()
                         .mark_as_used();
                     Ok(Expr::PatternLength {
-                        pattern: ctx.get_pattern_index(p.name),
+                        pattern: ctx.get_pattern_index(&p.ident),
                         index: None,
                     })
                 }

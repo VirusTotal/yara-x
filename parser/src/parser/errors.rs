@@ -63,14 +63,6 @@ pub enum ErrorInfo {
         error_msg: String,
         error_span: Span},
 
-    #[error("E009", "unknown pattern `{pattern_ident}`")]
-    #[label("this pattern is not declared in the `strings` section", pattern_ident_span)]
-    UnknownPattern {
-        detailed_report: String,
-        pattern_ident: String,
-        pattern_ident_span: Span,
-    },
-
     #[error("E010", "invalid pattern `{pattern_ident}`")]
     #[label("{error_msg}", error_span)]
     #[note(note)]

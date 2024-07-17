@@ -867,21 +867,7 @@ fn boolean_term_from_cst<'src>(
             let ident_name = ident.as_str();
             let anchor = anchor_from_cst(ctx, children)?;
 
-            // The use of `$` in the condition doesn't mean that all anonymous
-            // pattern identifiers are used. Anonymous pattern identifiers are
-            // considered used when the `them` keyword is used, or when the
-            // pattern `$*` appears in a pattern identifiers tuple.
-            if ident_name != "$" {
-                if !ctx.declared_patterns.contains_key(&ident_name[1..]) {
-                    return Err(Error::from(ErrorInfo::unknown_pattern(
-                        ctx.report_builder,
-                        ident_name.to_string(),
-                        ctx.span(&ident),
-                    )));
-                }
-            }
-            // `$` used outside a `for .. of` statement, that's invalid.
-            else if !ctx.inside_for_of {
+            if ident_name == "$" && !ctx.inside_for_of {
                 return Err(Error::from(ErrorInfo::syntax_error(
                     ctx.report_builder,
                     "this `$` is outside of the condition of a `for .. of` statement".to_string(),
@@ -1072,21 +1058,12 @@ fn primary_expr_from_cst<'src>(
                 None
             };
 
+            let span = ctx.span(&node);
             let ident_name = node.as_span().as_str();
-
-            if ident_name != "#"
-                && !ctx.declared_patterns.contains_key(&ident_name[1..])
-            {
-                return Err(Error::from(ErrorInfo::unknown_pattern(
-                    ctx.report_builder,
-                    ident_name.to_string(),
-                    ctx.span(&node),
-                )));
-            }
 
             Expr::PatternCount(Box::new(IdentWithRange {
                 span: term_span,
-                name: ident_name,
+                ident: Ident::new(ident_name, span),
                 range,
             }))
         }
@@ -1111,21 +1088,12 @@ fn primary_expr_from_cst<'src>(
                 _ => unreachable!(),
             };
 
+            let span = ctx.span(&node);
             let ident_name = node.as_span().as_str();
-
-            if ident_name.len() > 1
-                && !ctx.declared_patterns.contains_key(&ident_name[1..])
-            {
-                return Err(Error::from(ErrorInfo::unknown_pattern(
-                    ctx.report_builder,
-                    ident_name.to_string(),
-                    ctx.span(&node),
-                )));
-            }
 
             expr_type(Box::new(IdentWithIndex {
                 span: term_span,
-                name: ident_name,
+                ident: Ident::new(ident_name, span),
                 index,
             }))
         }

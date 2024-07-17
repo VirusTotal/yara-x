@@ -2,13 +2,14 @@ use itertools::Itertools;
 use std::mem::size_of;
 use std::rc::Rc;
 
+use yara_x_parser::ast::Ident;
 use yara_x_parser::report::ReportBuilder;
 
 use crate::compiler::ir::PatternIdx;
 use crate::compiler::{ir, Warnings};
 use crate::symbols::{StackedSymbolTable, SymbolLookup};
 use crate::types::Type;
-use crate::wasm;
+use crate::{wasm, CompileError};
 
 /// Structure that contains information and data structures required during the
 /// current compilation process.
@@ -50,10 +51,11 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
     /// # Panics
     ///
     /// Panics if the current rule does not have the requested pattern.
-    pub fn get_pattern_index(&self, ident: &str) -> PatternIdx {
+    pub fn get_pattern_index(&self, ident: &Ident) -> PatternIdx {
         // Make sure that identifier starts with `$`, `#`, `@` or `!`.
         debug_assert!("$#@!".contains(
             ident
+                .name
                 .chars()
                 .next()
                 .expect("identifier must be at least 1 character long")
@@ -63,7 +65,7 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
             .current_rule_patterns
             .iter()
             .find_position(|pattern| {
-                pattern.identifier().name[1..] == ident[1..]
+                pattern.identifier().name[1..] == ident.name[1..]
             })
             .expect("pattern not found");
 
@@ -76,29 +78,29 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
     ///
     /// Notice that this function accepts identifiers with any of the valid
     /// prefixes `$`, `#`, `@` and `!`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the current rule does not have the requested pattern.
     pub fn get_pattern_mut(
         &mut self,
-        ident: &str,
-    ) -> &mut ir::PatternInRule<'src> {
+        ident: &Ident,
+    ) -> Result<&mut ir::PatternInRule<'src>, Box<CompileError>> {
         // Make sure that identifier starts with `$`, `#`, `@` or `!`.
         debug_assert!("$#@!".contains(
             ident
+                .name
                 .chars()
                 .next()
                 .expect("identifier must be at least 1 character long")
         ));
 
-        for pattern in self.current_rule_patterns.iter_mut() {
-            if pattern.identifier().name[1..] == ident[1..] {
-                return pattern;
-            }
-        }
-
-        panic!("pattern `{}` not found", ident);
+        self.current_rule_patterns
+            .iter_mut()
+            .find(|p| p.identifier().name[1..] == ident.name[1..])
+            .ok_or_else(|| {
+                Box::new(CompileError::unknown_pattern(
+                    self.report_builder,
+                    ident.name.to_string(),
+                    ident.span,
+                ))
+            })
     }
 }
 

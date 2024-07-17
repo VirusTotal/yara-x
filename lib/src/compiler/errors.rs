@@ -271,4 +271,15 @@ pub enum CompileError {
         error_span: Span,
         note: Option<String>,
     },
+
+    #[error("E124", "unknown pattern `{pattern_ident}`")]
+    #[label(
+        "this pattern is not declared in the `strings` section",
+        pattern_ident_span
+    )]
+    UnknownPattern {
+        detailed_report: String,
+        pattern_ident: String,
+        pattern_ident_span: Span,
+    },
 }
