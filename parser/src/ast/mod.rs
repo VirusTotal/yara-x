@@ -649,6 +649,10 @@ impl<'src> Ident<'src> {
     pub(crate) fn new(name: &'src str, span: Span) -> Self {
         Self { name, span }
     }
+
+    pub fn starts_with(&self, pat: &str) -> bool {
+        self.name.starts_with(pat)
+    }
 }
 
 /// An expression where an identifier can be accompanied by a range
@@ -936,11 +940,11 @@ impl PatternSetItem<'_> {
     ///
     /// For example, identifiers `$a` and `$abc` both match the
     /// [`PatternSetItem`] for `$a*`.
-    pub fn matches(&self, ident: &str) -> bool {
+    pub fn matches(&self, ident: &Ident) -> bool {
         if let Some(prefix) = self.identifier.strip_suffix('*') {
-            ident.starts_with(prefix)
+            ident.name.starts_with(prefix)
         } else {
-            ident == self.identifier
+            ident.name == self.identifier
         }
     }
 }

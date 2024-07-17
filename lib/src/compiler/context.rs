@@ -62,7 +62,9 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
         let (position, _) = self
             .current_rule_patterns
             .iter()
-            .find_position(|pattern| pattern.identifier()[1..] == ident[1..])
+            .find_position(|pattern| {
+                pattern.identifier().name[1..] == ident[1..]
+            })
             .expect("pattern not found");
 
         position.into()
@@ -91,7 +93,7 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
         ));
 
         for pattern in self.current_rule_patterns.iter_mut() {
-            if pattern.identifier()[1..] == ident[1..] {
+            if pattern.identifier().name[1..] == ident[1..] {
                 return pattern;
             }
         }

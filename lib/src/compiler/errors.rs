@@ -238,4 +238,12 @@ pub enum CompileError {
     #[error("E120", "duplicate tag `{tag}`")]
     #[label("duplicate tag", tag_span)]
     DuplicateTag { detailed_report: String, tag: String, tag_span: Span },
+
+    #[error("E121", "unused pattern `{pattern_ident}`")]
+    #[label("this pattern was not used in the condition", pattern_ident_span)]
+    UnusedPattern {
+        detailed_report: String,
+        pattern_ident: String,
+        pattern_ident_span: Span,
+    },
 }

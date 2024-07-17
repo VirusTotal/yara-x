@@ -42,7 +42,7 @@ use crate::types::{Type, TypeValue, Value};
 
 pub(in crate::compiler) use ast2ir::bool_expr_from_ast;
 pub(in crate::compiler) use ast2ir::patterns_from_ast;
-use yara_x_parser::ast::Span;
+use yara_x_parser::ast::{Ident, Span};
 
 use crate::{re, CompileError};
 
@@ -85,14 +85,15 @@ bitmask! {
 /// precisely the same pattern, including any modifiers, they will reference
 /// the same [`Pattern`] instance.
 pub(in crate::compiler) struct PatternInRule<'src> {
-    identifier: &'src str,
+    identifier: Ident<'src>,
     pattern: Pattern,
+    in_use: bool,
 }
 
 impl<'src> PatternInRule<'src> {
     #[inline]
-    pub fn identifier(&self) -> &'src str {
-        self.identifier
+    pub fn identifier(&self) -> &Ident<'src> {
+        &self.identifier
     }
 
     #[inline]
@@ -110,6 +111,11 @@ impl<'src> PatternInRule<'src> {
         self.pattern.anchored_at()
     }
 
+    #[inline]
+    pub fn in_use(&self) -> bool {
+        self.in_use
+    }
+
     /// Anchor the pattern to a given offset. This means that the pattern can
     /// match only at that offset and nowhere else. This is a no-op for
     /// patterns that are flagged as non-anchorable.
@@ -121,8 +127,9 @@ impl<'src> PatternInRule<'src> {
     /// This is used when the condition contains an expression like `$a at 0`
     /// in order to indicate that the pattern (the `$a` pattern in this case)
     /// can match only at a fixed offset.
-    pub fn anchor_at(&mut self, offset: usize) {
+    pub fn anchor_at(&mut self, offset: usize) -> &mut Self {
         self.pattern.anchor_at(offset);
+        self
     }
 
     /// Make the pattern non-anchorable. Any existing anchor is removed and
@@ -134,8 +141,18 @@ impl<'src> PatternInRule<'src> {
     /// `#a > 0 and $a at 0`, the use of `#a` (which returns the number of
     /// occurrences of `$a`), makes `$a` non-anchorable because we need to find
     /// all occurrences of `$a`.
-    pub fn make_non_anchorable(&mut self) {
+    pub fn make_non_anchorable(&mut self) -> &mut Self {
         self.pattern.make_non_anchorable();
+        self
+    }
+
+    /// Marks the pattern as used.
+    ///
+    /// When a pattern is used in the condition this function is called to
+    /// indicate that the pattern is in use.
+    pub fn mark_as_used(&mut self) -> &mut Self {
+        self.in_use = true;
+        self
     }
 }
 
