@@ -43,45 +43,17 @@ pub(in crate::compiler) struct CompileContext<'a, 'src, 'sym> {
 
 impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
     /// Given a pattern identifier (e.g. `$a`, `#a`, `@a`) search for it in
-    /// the current rule and return its position.
-    ///
-    /// Notice that this function accepts identifiers with any of the valid
-    /// prefixes `$`, `#`, `@` and `!`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the current rule does not have the requested pattern.
-    pub fn get_pattern_index(&self, ident: &Ident) -> PatternIdx {
-        // Make sure that identifier starts with `$`, `#`, `@` or `!`.
-        debug_assert!("$#@!".contains(
-            ident
-                .name
-                .chars()
-                .next()
-                .expect("identifier must be at least 1 character long")
-        ));
-
-        let (position, _) = self
-            .current_rule_patterns
-            .iter()
-            .find_position(|pattern| {
-                pattern.identifier().name[1..] == ident.name[1..]
-            })
-            .expect("pattern not found");
-
-        position.into()
-    }
-
-    /// Given a pattern identifier (e.g. `$a`, `#a`, `@a`) search for it in
-    /// the current rule and return a mutable reference the [ir::PatternInRule]
-    /// node in the IR.
+    /// the current rule and return a tuple containing the [`PatternIdx`]
+    /// associated to the pattern and a mutable reference the
+    /// [`ir::PatternInRule`] node in the IR.
     ///
     /// Notice that this function accepts identifiers with any of the valid
     /// prefixes `$`, `#`, `@` and `!`.
     pub fn get_pattern_mut(
         &mut self,
         ident: &Ident,
-    ) -> Result<&mut ir::PatternInRule<'src>, Box<CompileError>> {
+    ) -> Result<(PatternIdx, &mut ir::PatternInRule<'src>), Box<CompileError>>
+    {
         // Make sure that identifier starts with `$`, `#`, `@` or `!`.
         debug_assert!("$#@!".contains(
             ident
@@ -93,7 +65,8 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
 
         self.current_rule_patterns
             .iter_mut()
-            .find(|p| p.identifier().name[1..] == ident.name[1..])
+            .find_position(|p| p.identifier().name[1..] == ident.name[1..])
+            .map(|(pos, pattern)| (PatternIdx::from(pos), pattern))
             .ok_or_else(|| {
                 Box::new(CompileError::unknown_pattern(
                     self.report_builder,
