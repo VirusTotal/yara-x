@@ -1,7 +1,7 @@
 /*! Functions for converting a CST into an AST. */
 
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::HashSet;
 use std::iter::Iterator;
 use std::str;
 
@@ -193,91 +193,6 @@ fn create_binary_expr<'src>(
 
         rule => unreachable!("{:?}", rule),
     }
-}
-
-lazy_static! {
-    // Map that indicates which modifiers are accepted by each type of patterns.
-    // For example, the `private` modifier is accepted by text patterns, hex patterns
-    // and regexps, while `base64` is only accepted by text patterns.
-    static ref ACCEPTED_MODIFIERS: HashMap<&'static str, Vec<GrammarRule>> =
-        HashMap::from([
-            (
-                "private",
-                vec![
-                    GrammarRule::string_lit,
-                    GrammarRule::regexp,
-                    GrammarRule::hex_pattern,
-                ],
-            ),
-            ("ascii", vec![GrammarRule::string_lit, GrammarRule::regexp]),
-            ("wide", vec![GrammarRule::string_lit, GrammarRule::regexp]),
-            ("nocase", vec![GrammarRule::string_lit, GrammarRule::regexp]),
-            ("fullword", vec![GrammarRule::string_lit, GrammarRule::regexp]),
-            ("base64", vec![GrammarRule::string_lit]),
-            ("base64wide", vec![GrammarRule::string_lit]),
-            ("xor", vec![GrammarRule::string_lit]),
-        ]);
-}
-
-/// Check if the set of modifiers for a pattern are valid.
-///
-/// Certain modifiers can't be used in conjunction, and this function
-/// returns an error in those cases.
-fn check_pattern_modifiers(
-    ctx: &Context<'_, '_>,
-    rule_type: GrammarRule,
-    modifiers: &PatternModifiers,
-) -> Result<(), Error> {
-    let xor = modifiers.xor();
-    let nocase = modifiers.nocase();
-    let fullword = modifiers.fullword();
-    let base64 = modifiers.base64();
-    let base64wide = modifiers.base64wide();
-
-    for modifier in modifiers.iter() {
-        if !ACCEPTED_MODIFIERS[modifier.as_text()].contains(&rule_type) {
-            let error_detail = match rule_type {
-                GrammarRule::hex_pattern => {
-                    "this modifier can't be applied to a hex pattern"
-                }
-                GrammarRule::regexp => {
-                    "this modifier can't be applied to a regexp"
-                }
-                _ => unreachable!(),
-            };
-
-            return Err(Error::from(ErrorInfo::invalid_modifier(
-                ctx.report_builder,
-                error_detail.to_string(),
-                modifier.span(),
-            )));
-        }
-    }
-
-    let invalid_combinations = [
-        ("xor", xor, "nocase", nocase),
-        ("base64", base64, "nocase", nocase),
-        ("base64wide", base64wide, "nocase", nocase),
-        ("base64", base64, "fullword", fullword),
-        ("base64wide", base64wide, "fullword", fullword),
-        ("base64", base64, "xor", xor),
-        ("base64wide", base64wide, "xor", xor),
-    ];
-
-    for (name1, modifier1, name2, modifier2) in invalid_combinations {
-        if let (Some(modifier1), Some(modifier2)) = (modifier1, modifier2) {
-            return Err(Error::from(ErrorInfo::invalid_modifier_combination(
-                ctx.report_builder,
-                name1.to_string(),
-                name2.to_string(),
-                modifier1.span(),
-                modifier2.span(),
-                Some("these two modifiers can't be used together".to_string()),
-            )));
-        };
-    }
-
-    Ok(())
 }
 
 pub(crate) fn ast_from_cst<'src>(
@@ -557,11 +472,7 @@ fn pattern_from_cst<'src>(
             expect!(hex_pattern.next().unwrap(), GrammarRule::RBRACE);
 
             let modifiers = if let Some(modifiers) = children.next() {
-                pattern_mods_from_cst(
-                    ctx,
-                    GrammarRule::hex_pattern,
-                    modifiers,
-                )?
+                pattern_mods_from_cst(ctx, modifiers)?
             } else {
                 PatternModifiers::default()
             };
@@ -577,7 +488,7 @@ fn pattern_from_cst<'src>(
             let span = ctx.span(&node);
             let text = string_lit_from_cst(ctx, node, true)?;
             let modifiers = if let Some(modifiers) = children.next() {
-                pattern_mods_from_cst(ctx, GrammarRule::string_lit, modifiers)?
+                pattern_mods_from_cst(ctx, modifiers)?
             } else {
                 PatternModifiers::default()
             };
@@ -613,7 +524,7 @@ fn pattern_from_cst<'src>(
         }
         GrammarRule::regexp => {
             let modifiers = if let Some(modifiers) = children.next() {
-                pattern_mods_from_cst(ctx, GrammarRule::regexp, modifiers)?
+                pattern_mods_from_cst(ctx, modifiers)?
             } else {
                 PatternModifiers::default()
             };
@@ -691,13 +602,12 @@ fn regexp_from_cst<'src>(
 /// a [`PatternModifiers`] struct describing the modifiers.
 fn pattern_mods_from_cst<'src>(
     ctx: &Context<'src, '_>,
-    rule_type: GrammarRule,
     pattern_mods: CSTNode<'src>,
 ) -> Result<PatternModifiers<'src>, Error> {
     expect!(pattern_mods, GrammarRule::pattern_mods);
 
     let mut children = pattern_mods.into_inner().peekable();
-    let mut modifiers = BTreeMap::new();
+    let mut modifiers = Vec::new();
 
     while let Some(node) = children.next() {
         let modifier = match node.as_rule() {
@@ -815,19 +725,10 @@ fn pattern_mods_from_cst<'src>(
             rule => unreachable!("{:?}", rule),
         };
 
-        let span = modifier.span();
-        if modifiers.insert(node.as_str(), modifier).is_some() {
-            return Err(Error::from(ErrorInfo::duplicate_modifier(
-                ctx.report_builder,
-                span,
-            )));
-        }
+        modifiers.push(modifier);
     }
 
     let modifiers = PatternModifiers::new(modifiers);
-
-    // Check for invalid combinations of modifiers.
-    check_pattern_modifiers(ctx, rule_type, &modifiers)?;
 
     Ok(modifiers)
 }

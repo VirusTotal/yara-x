@@ -63,7 +63,7 @@ pub enum ErrorInfo {
         tag: String,
         tag_span: Span,
     },
-    
+
     #[error("E003", "duplicate pattern `{pattern_ident}`")]
     #[label(
         "duplicate declaration of `{pattern_ident}`",
@@ -80,42 +80,14 @@ pub enum ErrorInfo {
         new_pattern_span: Span,
         existing_pattern_span: Span,
     },
-
-    #[error("E004", "invalid pattern modifier")]
-    #[label("{error_msg}", error_span)]
-    InvalidModifier {
-        detailed_report: String,
-        error_msg: String,
-        error_span: Span,
-    },
-
-    #[error("E005", "duplicate pattern modifier")]
-    #[label("duplicate modifier", modifier_span)]
-    DuplicateModifier {
-        detailed_report: String,
-        modifier_span: Span,
-    },
-
-    #[error("E006", "invalid modifier combination: `{modifier1}` `{modifier2}`")]
-    #[label("`{modifier1}` modifier used here", modifier1_span)]
-    #[label("`{modifier2}` modifier used here", modifier2_span)]
-    #[note(note)]
-    InvalidModifierCombination {
-        detailed_report: String,
-        modifier1: String,
-        modifier2: String,
-        modifier1_span: Span,
-        modifier2_span: Span,
-        note: Option<String>,
-    },
-
+    
     #[error("E007", "invalid base64 alphabet")]
     #[label("{error_msg}", error_span)]
     InvalidBase64Alphabet {
         detailed_report: String,
         error_msg: String,
         error_span: Span},
-    
+
     #[error("E008", "unused pattern `{pattern_ident}`")]
     #[label("this pattern was not used in the condition", pattern_ident_span)]
     UnusedPattern {
@@ -189,7 +161,7 @@ pub enum ErrorInfo {
         modifier: String,
         error_span: Span,
     },
-    
+
     #[error("E017", "invalid UTF-8")]
     #[label("invalid UTF-8 character", error_span)]
     InvalidUTF8 {

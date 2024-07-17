@@ -1,13 +1,14 @@
 /*! Functions for converting an AST into an IR. */
 
 use std::borrow::Borrow;
+use std::collections::BTreeMap;
 use std::iter;
 use std::ops::RangeInclusive;
 use std::rc::Rc;
 
 use bstr::ByteSlice;
 use itertools::Itertools;
-use yara_x_parser::ast::{HasSpan, Span};
+use yara_x_parser::ast::{HasSpan, PatternModifier, Span};
 use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::{ast, ErrorInfo};
 
@@ -40,6 +41,18 @@ fn pattern_from_ast<'src>(
     ctx: &mut CompileContext,
     pattern: &ast::Pattern<'src>,
 ) -> Result<PatternInRule<'src>, Box<CompileError>> {
+    // Check for duplicate pattern modifiers.
+    let mut modifiers = BTreeMap::new();
+    for modifier in pattern.modifiers().iter() {
+        if let Some(_) = modifiers.insert(modifier.as_text(), modifier.span())
+        {
+            return Err(Box::new(CompileError::duplicate_modifier(
+                ctx.report_builder,
+                modifier.span(),
+            )));
+        }
+    }
+
     match pattern {
         ast::Pattern::Text(pattern) => {
             Ok(text_pattern_from_ast(ctx, pattern)?)
@@ -52,47 +65,76 @@ fn pattern_from_ast<'src>(
 }
 
 pub(in crate::compiler) fn text_pattern_from_ast<'src>(
-    _ctx: &mut CompileContext,
+    ctx: &mut CompileContext,
     pattern: &ast::TextPattern<'src>,
 ) -> Result<PatternInRule<'src>, Box<CompileError>> {
+    let ascii = pattern.modifiers.ascii();
+    let xor = pattern.modifiers.xor();
+    let nocase = pattern.modifiers.nocase();
+    let fullword = pattern.modifiers.fullword();
+    let base64 = pattern.modifiers.base64();
+    let base64wide = pattern.modifiers.base64wide();
+    let wide = pattern.modifiers.wide();
+
+    let invalid_combinations = [
+        ("xor", xor, "nocase", nocase),
+        ("base64", base64, "nocase", nocase),
+        ("base64wide", base64wide, "nocase", nocase),
+        ("base64", base64, "fullword", fullword),
+        ("base64wide", base64wide, "fullword", fullword),
+        ("base64", base64, "xor", xor),
+        ("base64wide", base64wide, "xor", xor),
+    ];
+
+    for (name1, modifier1, name2, modifier2) in invalid_combinations {
+        if let (Some(modifier1), Some(modifier2)) = (modifier1, modifier2) {
+            return Err(Box::new(CompileError::invalid_modifier_combination(
+                ctx.report_builder,
+                name1.to_string(),
+                name2.to_string(),
+                modifier1.span(),
+                modifier2.span(),
+                Some("these two modifiers can't be used together".to_string()),
+            )));
+        };
+    }
+
     let mut flags = PatternFlagSet::none();
 
-    if pattern.modifiers.ascii().is_some()
-        || pattern.modifiers.wide().is_none()
-    {
+    if ascii.is_some() || wide.is_none() {
         flags.set(PatternFlags::Ascii);
     }
 
-    if pattern.modifiers.wide().is_some() {
+    if wide.is_some() {
         flags.set(PatternFlags::Wide);
     }
 
-    if pattern.modifiers.nocase().is_some() {
+    if nocase.is_some() {
         flags.set(PatternFlags::Nocase);
     }
 
-    if pattern.modifiers.fullword().is_some() {
+    if fullword.is_some() {
         flags.set(PatternFlags::Fullword);
     }
 
-    let xor_range = match pattern.modifiers.xor() {
-        Some(ast::PatternModifier::Xor { start, end, .. }) => {
+    let xor_range = match xor {
+        Some(PatternModifier::Xor { start, end, .. }) => {
             flags.set(PatternFlags::Xor);
             Some(*start..=*end)
         }
         _ => None,
     };
 
-    let base64_alphabet = match pattern.modifiers.base64() {
-        Some(ast::PatternModifier::Base64 { alphabet, .. }) => {
+    let base64_alphabet = match base64 {
+        Some(PatternModifier::Base64 { alphabet, .. }) => {
             flags.set(PatternFlags::Base64);
             *alphabet
         }
         _ => None,
     };
 
-    let base64wide_alphabet = match pattern.modifiers.base64wide() {
-        Some(ast::PatternModifier::Base64Wide { alphabet, .. }) => {
+    let base64wide_alphabet = match base64wide {
+        Some(PatternModifier::Base64Wide { alphabet, .. }) => {
             flags.set(PatternFlags::Base64Wide);
             *alphabet
         }
@@ -116,6 +158,21 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
     ctx: &mut CompileContext,
     pattern: &ast::HexPattern<'src>,
 ) -> Result<PatternInRule<'src>, Box<CompileError>> {
+    // The only modifier accepted by hex patterns is `private`.
+    for modifier in pattern.modifiers.iter() {
+        match modifier {
+            PatternModifier::Private { .. } => {}
+            _ => {
+                return Err(Box::new(CompileError::invalid_modifier(
+                    ctx.report_builder,
+                    "this modifier can't be applied to a hex pattern"
+                        .to_string(),
+                    modifier.span(),
+                )));
+            }
+        }
+    }
+
     Ok(PatternInRule {
         identifier: pattern.identifier.name,
         pattern: Pattern::Regexp(RegexpPattern {
@@ -130,6 +187,23 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     ctx: &mut CompileContext,
     pattern: &ast::RegexpPattern<'src>,
 ) -> Result<PatternInRule<'src>, Box<CompileError>> {
+    // Regular expressions don't accept `base64`, `base64wide` and `xor`
+    // modifiers.
+    for modifier in pattern.modifiers.iter() {
+        match modifier {
+            PatternModifier::Base64 { .. }
+            | PatternModifier::Base64Wide { .. }
+            | PatternModifier::Xor { .. } => {
+                return Err(Box::new(CompileError::invalid_modifier(
+                    ctx.report_builder,
+                    "this modifier can't be applied to a regexp".to_string(),
+                    modifier.span(),
+                )));
+            }
+            _ => {}
+        }
+    }
+
     let mut flags = PatternFlagSet::none();
 
     if pattern.modifiers.ascii().is_some()

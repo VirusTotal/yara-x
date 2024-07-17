@@ -641,31 +641,25 @@ impl<'src> Builder<'src> {
     fn pattern_mods(&mut self) -> Result<PatternModifiers<'src>, Abort> {
         self.begin(PATTERN_MODS)?;
 
-        let mut modifiers = BTreeMap::new();
+        let mut modifiers = Vec::new();
 
         while let Event::Begin(PATTERN_MOD) = self.peek() {
             self.begin(PATTERN_MOD)?;
             match self.next()? {
                 Event::Token { kind: ASCII_KW, span } => {
-                    modifiers
-                        .insert(ASCII_KW, PatternModifier::Ascii { span });
+                    modifiers.push(PatternModifier::Ascii { span });
                 }
                 Event::Token { kind: WIDE_KW, span } => {
-                    modifiers.insert(WIDE_KW, PatternModifier::Wide { span });
+                    modifiers.push(PatternModifier::Wide { span });
                 }
                 Event::Token { kind: PRIVATE_KW, span } => {
-                    modifiers
-                        .insert(PRIVATE_KW, PatternModifier::Private { span });
+                    modifiers.push(PatternModifier::Private { span });
                 }
                 Event::Token { kind: FULLWORD_KW, span } => {
-                    modifiers.insert(
-                        FULLWORD_KW,
-                        PatternModifier::Fullword { span },
-                    );
+                    modifiers.push(PatternModifier::Fullword { span });
                 }
                 Event::Token { kind: NOCASE_KW, span } => {
-                    modifiers
-                        .insert(NOCASE_KW, PatternModifier::Nocase { span });
+                    modifiers.push(PatternModifier::Nocase { span });
                 }
                 Event::Token { kind: XOR_KW, span } => {
                     let mut start = 0;
@@ -684,10 +678,7 @@ impl<'src> Builder<'src> {
                             event => panic!("unexpected {:?}", event),
                         }
                     }
-                    modifiers.insert(
-                        XOR_KW,
-                        PatternModifier::Xor { span, start, end },
-                    );
+                    modifiers.push(PatternModifier::Xor { span, start, end });
                 }
                 token @ Event::Token {
                     kind: BASE64_KW | BASE64WIDE_KW,
@@ -702,16 +693,16 @@ impl<'src> Builder<'src> {
                     }
                     match token {
                         Event::Token { kind: BASE64_KW, span } => {
-                            modifiers.insert(
-                                BASE64_KW,
-                                PatternModifier::Base64 { span, alphabet },
-                            );
+                            modifiers.push(PatternModifier::Base64 {
+                                span,
+                                alphabet,
+                            });
                         }
                         Event::Token { kind: BASE64WIDE_KW, span } => {
-                            modifiers.insert(
-                                BASE64WIDE_KW,
-                                PatternModifier::Base64Wide { span, alphabet },
-                            );
+                            modifiers.push(PatternModifier::Base64Wide {
+                                span,
+                                alphabet,
+                            });
                         }
                         event => panic!("unexpected {:?}", event),
                     };
