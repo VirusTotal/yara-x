@@ -369,21 +369,6 @@ fn patterns_from_cst<'src>(
         let new_pattern = pattern_from_cst(ctx, pattern_def)?;
         let new_pattern_ident = new_pattern.identifier().clone();
 
-        // Check if another pattern with the same identifier already exists,
-        // but only if the identifier is not `$`.
-        if new_pattern_ident.name != "$" {
-            if let Some(existing_pattern_ident) =
-                ctx.declared_patterns.get(&new_pattern_ident.name[1..])
-            {
-                return Err(Error::from(ErrorInfo::duplicate_pattern(
-                    ctx.report_builder,
-                    new_pattern_ident.name.to_string(),
-                    new_pattern_ident.span,
-                    existing_pattern_ident.span,
-                )));
-            }
-        }
-
         // Store the identifiers for each pattern declared in the rule.
         // They are stored without the `$` prefix.
         ctx.declared_patterns

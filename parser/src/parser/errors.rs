@@ -56,30 +56,13 @@ pub enum ErrorInfo {
         error_span: Span
     },
 
-    #[error("E003", "duplicate pattern `{pattern_ident}`")]
-    #[label(
-        "duplicate declaration of `{pattern_ident}`",
-        new_pattern_span
-    )]
-    #[label(
-        "`{pattern_ident}` declared here for the first time",
-        existing_pattern_span,
-        style="note"
-    )]
-    DuplicatePattern {
-        detailed_report: String,
-        pattern_ident: String,
-        new_pattern_span: Span,
-        existing_pattern_span: Span,
-    },
-
     #[error("E007", "invalid base64 alphabet")]
     #[label("{error_msg}", error_span)]
     InvalidBase64Alphabet {
         detailed_report: String,
         error_msg: String,
         error_span: Span},
-    
+
     #[error("E009", "unknown pattern `{pattern_ident}`")]
     #[label("this pattern is not declared in the `strings` section", pattern_ident_span)]
     UnknownPattern {
