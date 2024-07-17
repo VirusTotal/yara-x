@@ -133,8 +133,8 @@ pub enum CompileError {
     UnknownModule { detailed_report: String, identifier: String, span: Span },
 
     #[error("E109", "invalid range")]
-    #[label("higher bound must be greater or equal than lower bound", span)]
-    InvalidRange { detailed_report: String, span: Span },
+    #[label("{error_msg}", span)]
+    InvalidRange { detailed_report: String, error_msg: String, span: Span },
 
     #[error("E110", "duplicate rule `{new_rule}`")]
     #[label(

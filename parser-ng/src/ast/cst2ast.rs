@@ -661,7 +661,7 @@ impl<'src> Builder<'src> {
                 Event::Token { kind: NOCASE_KW, span } => {
                     modifiers.push(PatternModifier::Nocase { span });
                 }
-                Event::Token { kind: XOR_KW, span } => {
+                Event::Token { kind: XOR_KW, mut span } => {
                     let mut start = 0;
                     let mut end = 0;
 
@@ -670,10 +670,15 @@ impl<'src> Builder<'src> {
                         start = self.integer_lit::<u8>()?.0;
 
                         match self.next()? {
-                            Event::Token { kind: R_PAREN, .. } => {}
+                            Event::Token {
+                                kind: R_PAREN,
+                                span: r_paren_span,
+                            } => {
+                                span = span.combine(&r_paren_span);
+                            }
                             Event::Token { kind: HYPHEN, .. } => {
                                 end = self.integer_lit::<u8>()?.0;
-                                self.expect(R_PAREN)?;
+                                span = span.combine(&self.expect(R_PAREN)?);
                             }
                             event => panic!("unexpected {:?}", event),
                         }

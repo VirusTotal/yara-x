@@ -2,5 +2,5 @@ error[E109]: invalid range
  --> line:5:11
   |
 5 |     $a in (2..1)
-  |           ^^^^^^ higher bound must be greater or equal than lower bound
+  |           ^^^^^^ lower bound (2) is greater than upper bound (1)
   |

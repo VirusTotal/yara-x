@@ -586,9 +586,7 @@ fn pattern_mods_from_cst<'src>(
                 if let Some(node) = children.peek() {
                     if node.as_rule() == GrammarRule::LPAREN {
                         children.next().unwrap();
-
                         let node = children.next().unwrap();
-                        let lower_bound_span = ctx.span(&node);
 
                         // Parse the integer after the opening parenthesis `(`.
                         lower_bound = integer_lit_from_cst::<u8>(ctx, node)?;
@@ -616,16 +614,6 @@ fn pattern_mods_from_cst<'src>(
                             }
                             rule => unreachable!("{:?}", rule),
                         };
-
-                        if lower_bound > upper_bound {
-                            return Err(Error::from(ErrorInfo::invalid_range(
-                               ctx.report_builder,
-                               format!(
-                                   "lower bound ({}) is greater than upper bound ({})",
-                                   lower_bound, upper_bound),
-                                lower_bound_span,
-                            )));
-                        }
                     }
                 }
 

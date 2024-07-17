@@ -133,7 +133,17 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
     }
 
     let xor_range = match xor {
-        Some(PatternModifier::Xor { start, end, .. }) => {
+        Some(modifier @ PatternModifier::Xor { start, end, .. }) => {
+            if *end < *start {
+                return Err(Box::new(CompileError::invalid_range(
+                    ctx.report_builder,
+                    format!(
+                        "lower bound ({}) is greater than upper bound ({})",
+                        start, end
+                    ),
+                    modifier.span(),
+                )));
+            }
             flags.set(PatternFlags::Xor);
             Some(*start..=*end)
         }
@@ -1047,6 +1057,10 @@ fn range_from_ast(
         if lower_bound > upper_bound {
             return Err(Box::new(CompileError::invalid_range(
                 ctx.report_builder,
+                format!(
+                    "lower bound ({}) is greater than upper bound ({})",
+                    lower_bound, upper_bound
+                ),
                 range.span,
             )));
         }
