@@ -8,9 +8,9 @@ use std::rc::Rc;
 
 use bstr::{BString, ByteSlice};
 use itertools::Itertools;
-use yara_x_parser::ast::{HasSpan, LiteralString, PatternModifier, Span};
+use yara_x_parser::ast;
+use yara_x_parser::ast::{HasSpan, Span};
 use yara_x_parser::report::ReportBuilder;
-use yara_x_parser::{ast, ErrorInfo};
 
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
@@ -133,7 +133,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
     }
 
     let xor_range = match xor {
-        Some(modifier @ PatternModifier::Xor { start, end, .. }) => {
+        Some(modifier @ ast::PatternModifier::Xor { start, end, .. }) => {
             if *end < *start {
                 return Err(Box::new(CompileError::invalid_range(
                     ctx.report_builder,
@@ -150,35 +150,34 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
         _ => None,
     };
 
-    let validate_alphabet = |alphabet: &Option<LiteralString>| {
-        if let Some(alphabet) = alphabet {
-            // Make sure the base64 alphabet is a valid one.
-            if let Err(err) = base64::alphabet::Alphabet::new(alphabet.literal)
-            {
-                return Err(Box::new(CompileError::invalid_base_64_alphabet(
-                    ctx.report_builder,
-                    err.to_string().to_lowercase(),
-                    alphabet.span(),
-                )));
-            }
+    let validate_alphabet = |alphabet: &Option<ast::LiteralString>| {
+        if alphabet.is_none() {
+            return Ok(None);
         }
-        Ok(())
+        let alphabet = alphabet.as_ref().unwrap();
+        let alphabet_str = alphabet.as_str().unwrap();
+        match base64::alphabet::Alphabet::new(alphabet_str) {
+            Ok(_) => Ok(Some(String::from(alphabet_str))),
+            Err(err) => Err(Box::new(CompileError::invalid_base_64_alphabet(
+                ctx.report_builder,
+                err.to_string().to_lowercase(),
+                alphabet.span(),
+            ))),
+        }
     };
 
     let base64_alphabet = match base64 {
-        Some(PatternModifier::Base64 { alphabet, .. }) => {
-            validate_alphabet(alphabet)?;
+        Some(ast::PatternModifier::Base64 { alphabet, .. }) => {
             flags.set(PatternFlags::Base64);
-            alphabet.as_ref().map(|l| String::from(l.literal))
+            validate_alphabet(alphabet)?
         }
         _ => None,
     };
 
     let base64wide_alphabet = match base64wide {
-        Some(PatternModifier::Base64Wide { alphabet, .. }) => {
-            validate_alphabet(alphabet)?;
+        Some(ast::PatternModifier::Base64Wide { alphabet, .. }) => {
             flags.set(PatternFlags::Base64Wide);
-            alphabet.as_ref().map(|l| String::from(l.literal))
+            validate_alphabet(alphabet)?
         }
         _ => None,
     };
@@ -236,7 +235,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
     // The only modifier accepted by hex patterns is `private`.
     for modifier in pattern.modifiers.iter() {
         match modifier {
-            PatternModifier::Private { .. } => {}
+            ast::PatternModifier::Private { .. } => {}
             _ => {
                 return Err(Box::new(CompileError::invalid_modifier(
                     ctx.report_builder,
@@ -267,9 +266,9 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     // modifiers.
     for modifier in pattern.modifiers.iter() {
         match modifier {
-            PatternModifier::Base64 { .. }
-            | PatternModifier::Base64Wide { .. }
-            | PatternModifier::Xor { .. } => {
+            ast::PatternModifier::Base64 { .. }
+            | ast::PatternModifier::Base64Wide { .. }
+            | ast::PatternModifier::Xor { .. } => {
                 return Err(Box::new(CompileError::invalid_modifier(
                     ctx.report_builder,
                     "this modifier can't be applied to a regexp".to_string(),
@@ -1392,7 +1391,7 @@ fn check_type(
     } else {
         Err(Box::new(CompileError::wrong_type(
             ctx.report_builder,
-            ErrorInfo::join_with_or(accepted_types, true),
+            CompileError::join_with_or(accepted_types, true),
             ty.to_string(),
             span,
         )))

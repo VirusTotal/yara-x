@@ -12,7 +12,7 @@ use std::slice::Iter;
 
 use ::ascii_tree::write_tree;
 use bitmask::bitmask;
-use bstr::{BStr, BString};
+use bstr::{BStr, BString, ByteSlice, Utf8Error};
 
 use crate::ast::cst2ast::Builder;
 use crate::cst::SyntaxKind::{
@@ -739,6 +739,21 @@ pub struct LiteralString<'src> {
     /// The value of the string literal. Escaped characters, if any, are
     /// unescaped. Doesn't include the quotes.
     pub value: Cow<'src, BStr>,
+}
+
+impl LiteralString<'_> {
+    pub fn as_str(&self) -> Result<&str, Utf8Error> {
+        match &self.value {
+            // SAFETY: When the literal string is borrowed from the original
+            // source code, it's safe to assume that it's valid UTF-8. This
+            // has been already checked during parsing.
+            Cow::Borrowed(s) => Ok(unsafe { s.to_str_unchecked() }),
+            // When the literal string is owned is because the original string
+            // contained some escaped character. It may contain invalid UTF-8
+            // characters.
+            Cow::Owned(s) => s.to_str(),
+        }
+    }
 }
 
 /// A literal integer (e.g: `1`, `0xAB`).

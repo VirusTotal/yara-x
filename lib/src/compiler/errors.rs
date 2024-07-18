@@ -299,3 +299,47 @@ pub enum CompileError {
         error_span: Span,
     },
 }
+
+impl CompileError {
+    /// Utility function that receives an array of strings and joins them
+    /// together separated by commas and with "or" before the last one.
+    /// For example, if input is `["s1", "s2", "s3"]` the result is:
+    ///
+    /// ```text
+    /// str1, str2 or str3
+    /// ```
+    ///
+    /// If `quotes` is true, the strings are enclosed in back tilts, like this:
+    ///
+    /// ```text
+    /// `str1`, `str2` or `str3`
+    /// ```
+    ///
+    pub fn join_with_or<S: ToString>(s: &[S], quotes: bool) -> String {
+        let mut strings = if quotes {
+            s.iter()
+                .map(|s| format!("`{}`", s.to_string()))
+                .collect::<Vec<String>>()
+        } else {
+            s.iter().map(|s| s.to_string()).collect::<Vec<String>>()
+        };
+
+        // Sort alphabetically.
+        strings.sort();
+
+        // Deduplicate repeated items.
+        strings.dedup();
+
+        match strings.len() {
+            1 => strings[0].to_owned(),
+            2 => format!("{} or {}", strings[0], strings[1]),
+            l => {
+                format!(
+                    "{}, or {}",
+                    strings[..l - 1].join(", "),
+                    strings[l - 1]
+                )
+            }
+        }
+    }
+}

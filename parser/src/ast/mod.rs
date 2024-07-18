@@ -28,7 +28,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::slice::Iter;
 
 use bitmask::bitmask;
-use bstr::{BStr, BString};
+use bstr::{BStr, BString, ByteSlice, Utf8Error};
 use yara_x_macros::*;
 
 pub use crate::ast::span::*;
@@ -705,7 +705,7 @@ pub struct LiteralString<'src> {
     /// The span that covers the literal string, including the quotes.
     pub span: Span,
     /// The literal string as it appears in the source code, including the
-    /// quotes.
+    /// quotes. Escaped characters, if any, are kept escaped.
     pub literal: &'src str,
     /// The value of the string literal. Escaped characters, if any, are
     /// unescaped. Doesn't include the quotes.
@@ -719,6 +719,19 @@ impl<'src> LiteralString<'src> {
         value: Cow<'src, BStr>,
     ) -> Self {
         Self { literal, span, value }
+    }
+
+    pub fn as_str(&self) -> Result<&str, Utf8Error> {
+        match &self.value {
+            // SAFETY: When the literal string is borrowed from the original
+            // source code, it's safe to assume that it's valid UTF-8. This
+            // has been already checked during parsing.
+            Cow::Borrowed(s) => Ok(unsafe { s.to_str_unchecked() }),
+            // When the literal string is owned is because the original string
+            // contained some escaped character. It may contain invalid UTF-8
+            // characters.
+            Cow::Owned(s) => s.to_str(),
+        }
     }
 }
 
