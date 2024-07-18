@@ -597,8 +597,8 @@ pub enum PatternModifier<'src> {
     Nocase { span: Span },
     Private { span: Span },
     Fullword { span: Span },
-    Base64 { span: Span, alphabet: Option<&'src str> },
-    Base64Wide { span: Span, alphabet: Option<&'src str> },
+    Base64 { span: Span, alphabet: Option<LiteralString<'src>> },
+    Base64Wide { span: Span, alphabet: Option<LiteralString<'src>> },
     Xor { span: Span, start: u8, end: u8 },
 }
 
@@ -637,14 +637,14 @@ impl Display for PatternModifier<'_> {
             }
             PatternModifier::Base64 { alphabet, .. } => {
                 if let Some(alphabet) = alphabet {
-                    write!(f, "base64({})", alphabet)
+                    write!(f, "base64({})", alphabet.literal)
                 } else {
                     write!(f, "base64")
                 }
             }
             PatternModifier::Base64Wide { alphabet, .. } => {
                 if let Some(alphabet) = alphabet {
-                    write!(f, "base64wide({})", alphabet)
+                    write!(f, "base64wide({})", alphabet.literal)
                 } else {
                     write!(f, "base64wide")
                 }

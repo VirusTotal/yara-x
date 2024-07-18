@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 use bstr::{BString, ByteSlice};
 use itertools::Itertools;
-use yara_x_parser::ast::{HasSpan, PatternModifier, Span};
+use yara_x_parser::ast::{HasSpan, LiteralString, PatternModifier, Span};
 use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::{ast, ErrorInfo};
 
@@ -150,18 +150,35 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
         _ => None,
     };
 
+    let validate_alphabet = |alphabet: &Option<LiteralString>| {
+        if let Some(alphabet) = alphabet {
+            // Make sure the base64 alphabet is a valid one.
+            if let Err(err) = base64::alphabet::Alphabet::new(alphabet.literal)
+            {
+                return Err(Box::new(CompileError::invalid_base_64_alphabet(
+                    ctx.report_builder,
+                    err.to_string().to_lowercase(),
+                    alphabet.span(),
+                )));
+            }
+        }
+        Ok(())
+    };
+
     let base64_alphabet = match base64 {
         Some(PatternModifier::Base64 { alphabet, .. }) => {
+            validate_alphabet(alphabet)?;
             flags.set(PatternFlags::Base64);
-            *alphabet
+            alphabet.as_ref().map(|l| String::from(l.literal))
         }
         _ => None,
     };
 
     let base64wide_alphabet = match base64wide {
         Some(PatternModifier::Base64Wide { alphabet, .. }) => {
+            validate_alphabet(alphabet)?;
             flags.set(PatternFlags::Base64Wide);
-            *alphabet
+            alphabet.as_ref().map(|l| String::from(l.literal))
         }
         _ => None,
     };
@@ -204,8 +221,8 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
         pattern: Pattern::Literal(LiteralPattern {
             flags,
             xor_range,
-            base64_alphabet: base64_alphabet.map(String::from),
-            base64wide_alphabet: base64wide_alphabet.map(String::from),
+            base64_alphabet,
+            base64wide_alphabet,
             anchored_at: None,
             text,
         }),

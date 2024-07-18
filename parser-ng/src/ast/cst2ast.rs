@@ -692,9 +692,10 @@ impl<'src> Builder<'src> {
                     let mut alphabet = None;
                     if let Event::Token { kind: L_PAREN, .. } = self.peek() {
                         self.expect(L_PAREN)?;
-                        let (lit, _) = self.utf8_string_lit()?;
+                        let (value, literal, span) = self.string_lit(false)?;
                         self.expect(R_PAREN)?;
-                        alphabet = Some(lit);
+                        alphabet =
+                            Some(LiteralString { value, literal, span });
                     }
                     match token {
                         Event::Token { kind: BASE64_KW, span } => {

@@ -290,4 +290,12 @@ pub enum CompileError {
         pattern_ident: String,
         pattern_ident_span: Span,
     },
+
+    #[error("E125", "invalid base64 alphabet")]
+    #[label("{error_msg}", error_span)]
+    InvalidBase64Alphabet {
+        detailed_report: String,
+        error_msg: String,
+        error_span: Span,
+    },
 }

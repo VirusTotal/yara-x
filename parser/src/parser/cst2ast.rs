@@ -611,20 +611,13 @@ fn pattern_mods_from_cst<'src>(
                     if node.as_rule() == GrammarRule::LPAREN {
                         children.next().unwrap();
                         let node = children.next().unwrap();
-                        let span = ctx.span(&node);
-                        let lit = utf8_string_lit_from_cst(ctx, node)?;
-
-                        // Make sure the base64 alphabet is a valid one.
-                        if let Err(err) = base64::alphabet::Alphabet::new(lit)
-                        {
-                            return Err(Error::from(
-                                ErrorInfo::invalid_base_64_alphabet(
-                                    ctx.report_builder,
-                                    err.to_string().to_lowercase(),
-                                    span,
-                                ),
-                            ));
-                        }
+                        let lit = LiteralString::new(
+                            node.as_str(),
+                            ctx.span(&node),
+                            Cow::Borrowed(BStr::new(
+                                utf8_string_lit_from_cst(ctx, node)?,
+                            )),
+                        );
 
                         alphabet = Some(lit);
 

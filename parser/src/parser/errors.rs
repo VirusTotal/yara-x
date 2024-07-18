@@ -55,14 +55,7 @@ pub enum ErrorInfo {
         error_msg: String,
         error_span: Span
     },
-
-    #[error("E007", "invalid base64 alphabet")]
-    #[label("{error_msg}", error_span)]
-    InvalidBase64Alphabet {
-        detailed_report: String,
-        error_msg: String,
-        error_span: Span},
-
+    
     #[error("E010", "invalid pattern `{pattern_ident}`")]
     #[label("{error_msg}", error_span)]
     #[note(note)]
