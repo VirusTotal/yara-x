@@ -1,0 +1,18 @@
+ rule test
+ └─ condition
+    └─ for <quantifier> <vars> in (<expr0>, <expr1>, <expr2>) : ( <condition> )
+       ├─ <quantifier>
+       │  └─ any
+       ├─ <vars>
+       │  └─ e
+       ├─ <expr0>
+       │  └─ 1
+       ├─ <expr1>
+       │  └─ 2
+       ├─ <expr2>
+       │  └─ 3
+       └─ <condition>
+          └─ eq
+             ├─ e
+             └─ 3
+

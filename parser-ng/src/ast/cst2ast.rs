@@ -1115,7 +1115,7 @@ impl<'src> Builder<'src> {
         self.begin(EXPR_TUPLE)?;
         self.expect(L_PAREN)?;
 
-        let mut exprs = vec![self.boolean_expr()?];
+        let mut exprs = vec![self.expr()?];
 
         while let Event::Token { kind: COMMA, .. } = self.peek() {
             self.expect(COMMA)?;
