@@ -33,7 +33,7 @@
  rule test_4
  └─ condition
     └─ eq
-       ├─ shl
+       ├─ shr
        │  ├─ 1
        │  └─ 2
        └─ bitwise_and
@@ -43,7 +43,7 @@
  rule test_4
  └─ condition
     └─ eq
-       ├─ shr
+       ├─ shl
        │  ├─ 1
        │  └─ 2
        └─ bitwise_not

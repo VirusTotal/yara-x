@@ -279,9 +279,9 @@ enum NormalToken<'src> {
     Xor,
 
     // Bitwise
-    #[token(">>")]
-    Shl,
     #[token("<<")]
+    Shl,
+    #[token(">>")]
     Shr,
 
     // Comparison

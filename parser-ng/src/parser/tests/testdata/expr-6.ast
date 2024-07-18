@@ -1,7 +1,7 @@
  rule test_1
  └─ condition
     └─ eq
-       ├─ shr
+       ├─ shl
        │  ├─ 1
        │  └─ 1
        └─ 2
@@ -9,7 +9,7 @@
  rule test_2
  └─ condition
     └─ eq
-       ├─ shl
+       ├─ shr
        │  ├─ 2
        │  └─ 1
        └─ 1

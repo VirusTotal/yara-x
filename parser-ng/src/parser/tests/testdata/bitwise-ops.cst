@@ -1,4 +1,4 @@
-SOURCE_FILE@0..181
+SOURCE_FILE@0..273
   RULE_DECL@0..73
     RULE_KW@0..4 "rule"
     WHITESPACE@4..5 " "
@@ -162,3 +162,75 @@ SOURCE_FILE@0..181
                 INTEGER_LIT@175..179 "0xAA"
     NEWLINE@179..180 "\n"
     R_BRACE@180..181 "}"
+  NEWLINE@181..182 "\n"
+  NEWLINE@182..183 "\n"
+  RULE_DECL@183..227
+    RULE_KW@183..187 "rule"
+    WHITESPACE@187..188 " "
+    IDENT@188..194 "test_4"
+    WHITESPACE@194..195 " "
+    L_BRACE@195..196 "{"
+    NEWLINE@196..197 "\n"
+    WHITESPACE@197..199 "  "
+    CONDITION_BLK@199..225
+      CONDITION_KW@199..208 "condition"
+      COLON@208..209 ":"
+      NEWLINE@209..210 "\n"
+      WHITESPACE@210..214 "    "
+      BOOLEAN_EXPR@214..225
+        BOOLEAN_TERM@214..225
+          EXPR@214..220
+            TERM@214..215
+              PRIMARY_EXPR@214..215
+                INTEGER_LIT@214..215 "1"
+            WHITESPACE@215..216 " "
+            SHR@216..218 "<<"
+            WHITESPACE@218..219 " "
+            TERM@219..220
+              PRIMARY_EXPR@219..220
+                INTEGER_LIT@219..220 "3"
+          WHITESPACE@220..221 " "
+          EQ@221..223 "=="
+          WHITESPACE@223..224 " "
+          EXPR@224..225
+            TERM@224..225
+              PRIMARY_EXPR@224..225
+                INTEGER_LIT@224..225 "8"
+    NEWLINE@225..226 "\n"
+    R_BRACE@226..227 "}"
+  NEWLINE@227..228 "\n"
+  NEWLINE@228..229 "\n"
+  RULE_DECL@229..273
+    RULE_KW@229..233 "rule"
+    WHITESPACE@233..234 " "
+    IDENT@234..240 "test_4"
+    WHITESPACE@240..241 " "
+    L_BRACE@241..242 "{"
+    NEWLINE@242..243 "\n"
+    WHITESPACE@243..245 "  "
+    CONDITION_BLK@245..271
+      CONDITION_KW@245..254 "condition"
+      COLON@254..255 ":"
+      NEWLINE@255..256 "\n"
+      WHITESPACE@256..260 "    "
+      BOOLEAN_EXPR@260..271
+        BOOLEAN_TERM@260..271
+          EXPR@260..266
+            TERM@260..261
+              PRIMARY_EXPR@260..261
+                INTEGER_LIT@260..261 "8"
+            WHITESPACE@261..262 " "
+            SHL@262..264 ">>"
+            WHITESPACE@264..265 " "
+            TERM@265..266
+              PRIMARY_EXPR@265..266
+                INTEGER_LIT@265..266 "3"
+          WHITESPACE@266..267 " "
+          EQ@267..269 "=="
+          WHITESPACE@269..270 " "
+          EXPR@270..271
+            TERM@270..271
+              PRIMARY_EXPR@270..271
+                INTEGER_LIT@270..271 "1"
+    NEWLINE@271..272 "\n"
+    R_BRACE@272..273 "}"
