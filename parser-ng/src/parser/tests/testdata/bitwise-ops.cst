@@ -184,7 +184,7 @@ SOURCE_FILE@0..273
               PRIMARY_EXPR@214..215
                 INTEGER_LIT@214..215 "1"
             WHITESPACE@215..216 " "
-            SHR@216..218 "<<"
+            SHL@216..218 "<<"
             WHITESPACE@218..219 " "
             TERM@219..220
               PRIMARY_EXPR@219..220
@@ -220,7 +220,7 @@ SOURCE_FILE@0..273
               PRIMARY_EXPR@260..261
                 INTEGER_LIT@260..261 "8"
             WHITESPACE@261..262 " "
-            SHL@262..264 ">>"
+            SHR@262..264 ">>"
             WHITESPACE@264..265 " "
             TERM@265..266
               PRIMARY_EXPR@265..266

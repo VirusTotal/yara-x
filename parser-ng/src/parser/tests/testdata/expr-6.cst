@@ -19,7 +19,7 @@ SOURCE_FILE@0..279
               PRIMARY_EXPR@33..34
                 INTEGER_LIT@33..34 "1"
             WHITESPACE@34..35 " "
-            SHR@35..37 "<<"
+            SHL@35..37 "<<"
             WHITESPACE@37..38 " "
             TERM@38..39
               PRIMARY_EXPR@38..39
@@ -55,7 +55,7 @@ SOURCE_FILE@0..279
               PRIMARY_EXPR@81..82
                 INTEGER_LIT@81..82 "2"
             WHITESPACE@82..83 " "
-            SHL@83..85 ">>"
+            SHR@83..85 ">>"
             WHITESPACE@85..86 " "
             TERM@86..87
               PRIMARY_EXPR@86..87
