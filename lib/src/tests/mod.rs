@@ -1796,7 +1796,7 @@ fn match_at() {
             condition:
                 $a at 0
         }
-        
+
         rule test2 {
             strings:
                 $a = "bar"
@@ -2185,7 +2185,7 @@ fn match_offset() {
                 // the result must be undefined. We use test_proto2.add(0,0)
                 // because using a literal causes a compilation error when
                 // the compiler notices that the index is 0.
-                not defined @a[test_proto2.add(0,0)] 
+                not defined @a[test_proto2.add(0,0)]
         }
         "#,
         b"foo"
@@ -2281,7 +2281,7 @@ fn match_length() {
                 // the result must be undefined. We use test_proto2.add(0,0)
                 // because using a literal causes a compilation error when
                 // the compiler notices that the index is 0.
-                not defined !a[test_proto2.add(0,0)] 
+                not defined !a[test_proto2.add(0,0)]
         }
         "#,
         b"foo"

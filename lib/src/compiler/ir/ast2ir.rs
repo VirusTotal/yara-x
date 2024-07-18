@@ -8,9 +8,9 @@ use std::rc::Rc;
 
 use bstr::{BString, ByteSlice};
 use itertools::Itertools;
-use yara_x_parser::ast;
-use yara_x_parser::ast::{HasSpan, Span};
-use yara_x_parser::report::ReportBuilder;
+use yara_x_parser_ng::ast;
+use yara_x_parser_ng::ast::WithSpan;
+use yara_x_parser_ng::Span;
 
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
@@ -18,6 +18,7 @@ use crate::compiler::ir::{
     MatchAnchor, Of, OfItems, Pattern, PatternFlagSet, PatternFlags,
     PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern,
 };
+use crate::compiler::report::ReportBuilder;
 use crate::compiler::warnings::Warning;
 use crate::compiler::{CompileContext, CompileError};
 use crate::modules::BUILTIN_MODULES;
@@ -42,8 +43,8 @@ pub(in crate::compiler) fn patterns_from_ast<'src>(
                 return Err(Box::new(CompileError::duplicate_pattern(
                     ctx.report_builder,
                     pattern.identifier().name.to_string(),
-                    pattern.identifier().span,
-                    existing.identifier.span,
+                    pattern.identifier().span().into(),
+                    existing.identifier.span().into(),
                 )));
             }
         }
@@ -63,7 +64,7 @@ fn pattern_from_ast<'src>(
         if !modifiers.insert(modifier.as_text()) {
             return Err(Box::new(CompileError::duplicate_modifier(
                 ctx.report_builder,
-                modifier.span(),
+                modifier.span().into(),
             )));
         }
     }
@@ -107,8 +108,8 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
                 ctx.report_builder,
                 name1.to_string(),
                 name2.to_string(),
-                modifier1.span(),
-                modifier2.span(),
+                modifier1.span().into(),
+                modifier2.span().into(),
                 Some("these two modifiers can't be used together".to_string()),
             )));
         };
@@ -141,7 +142,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
                         "lower bound ({}) is greater than upper bound ({})",
                         start, end
                     ),
-                    modifier.span(),
+                    modifier.span().into(),
                 )));
             }
             flags.set(PatternFlags::Xor);
@@ -161,7 +162,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
             Err(err) => Err(Box::new(CompileError::invalid_base_64_alphabet(
                 ctx.report_builder,
                 err.to_string().to_lowercase(),
-                alphabet.span(),
+                alphabet.span().into(),
             ))),
         }
     };
@@ -209,7 +210,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
             ctx.report_builder,
             pattern.identifier.name.to_string(),
             "this pattern is too short".to_string(),
-            pattern.span(),
+            pattern.span().into(),
             note,
         )));
     }
@@ -241,7 +242,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
                     ctx.report_builder,
                     "this modifier can't be applied to a hex pattern"
                         .to_string(),
-                    modifier.span(),
+                    modifier.span().into(),
                 )));
             }
         }
@@ -272,7 +273,7 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
                 return Err(Box::new(CompileError::invalid_modifier(
                     ctx.report_builder,
                     "this modifier can't be applied to a regexp".to_string(),
-                    modifier.span(),
+                    modifier.span().into(),
                 )));
             }
             _ => {}
@@ -311,8 +312,8 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
         ctx.warnings.add(|| {
             Warning::redundant_case_modifier(
                 ctx.report_builder,
-                pattern.modifiers.nocase().unwrap().span(),
-                pattern.span().subspan(i_pos, i_pos + 1),
+                pattern.modifiers.nocase().unwrap().span().into(),
+                pattern.span().subspan(i_pos, i_pos + 1).into(),
             )
         });
     }
@@ -375,7 +376,7 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::Entrypoint { span } => {
             Err(Box::new(CompileError::entrypoint_unsupported(
                 ctx.report_builder,
-                *span,
+                span.into(),
                 Some("use `pe.entry_point`, `elf.entry_point` or `macho.entry_point`".to_string()),
             )))
         }
@@ -512,7 +513,7 @@ pub(in crate::compiler) fn expr_from_ast(
                     Err(Box::new(CompileError::unknown_identifier(
                         ctx.report_builder,
                         ident.name.to_string(),
-                        ident.span(),
+                        ident.span().into(),
                         // Add a note about the missing import statement if
                         // the unknown identifier is a module name.
                         if BUILTIN_MODULES.contains_key(ident.name)
@@ -530,7 +531,7 @@ pub(in crate::compiler) fn expr_from_ast(
                     Err(Box::new(CompileError::unknown_field(
                         ctx.report_builder,
                         ident.name.to_string(),
-                        ident.span(),
+                        ident.span().into(),
                     )))
                 }
             }
@@ -558,7 +559,7 @@ pub(in crate::compiler) fn expr_from_ast(
                         return Err(Box::new(CompileError::syntax_error(
                             ctx.report_builder,
                             "this `$` is outside of the condition of a `for .. of` statement".to_string(),
-                            p.identifier.span(),
+                            p.identifier.span().into(),
                         )));
                     }
                     // If we are inside a loop, we don't know which is the
@@ -763,7 +764,7 @@ pub(in crate::compiler) fn expr_from_ast(
                                 ctx.report_builder,
                                 format!("`{}`", key_ty),
                                 ty.to_string(),
-                                expr.index.span(),
+                                expr.index.span().into(),
                             ),
                         ));
                     }
@@ -779,7 +780,7 @@ pub(in crate::compiler) fn expr_from_ast(
                         ctx.report_builder,
                         format!("`{}` or `{}`", Type::Array, Type::Map),
                         type_value.ty().to_string(),
-                        expr.primary.span(),
+                        expr.primary.span().into(),
                     )))
                 }
             }
@@ -837,7 +838,7 @@ fn of_expr_from_ast(
                 ctx.warnings.add(|| Warning::invariant_boolean_expression(
                     ctx.report_builder,
                     false,
-                    of.span(),
+                    of.span().into(),
                     Some(format!(
                         "the expression requires {} matching patterns out of {}",
                         value, num_items
@@ -889,8 +890,8 @@ fn of_expr_from_ast(
             ctx.warnings.add(|| {
                 Warning::potentially_unsatisfiable_expression(
                     ctx.report_builder,
-                    of.quantifier.span(),
-                    of.anchor.as_ref().unwrap().span(),
+                    of.quantifier.span().into(),
+                    of.anchor.as_ref().unwrap().span().into(),
                 )
             });
         }
@@ -992,8 +993,8 @@ fn for_in_expr_from_ast(
             ctx.report_builder,
             loop_vars.len() as u8,
             expected_vars.len() as u8,
-            for_in.iterable.span(),
-            span,
+            for_in.iterable.span().into(),
+            span.into(),
         )));
     }
 
@@ -1062,7 +1063,7 @@ fn iterable_from_ast(
                 check_type(
                     ctx,
                     ty,
-                    span,
+                    span.clone(),
                     &[Type::Integer, Type::Float, Type::String, Type::Bool],
                 )?;
                 // All items in the item must have the same type. Compare
@@ -1075,8 +1076,8 @@ fn iterable_from_ast(
                                 ctx.report_builder,
                                 prev_ty.to_string(),
                                 ty.to_string(),
-                                prev_span,
-                                span,
+                                prev_span.into(),
+                                span.into(),
                             ),
                         ));
                     }
@@ -1130,7 +1131,7 @@ fn range_from_ast(
                     "lower bound ({}) is greater than upper bound ({})",
                     lower_bound, upper_bound
                 ),
-                range.span,
+                range.span().into(),
             )));
         }
     }
@@ -1146,13 +1147,13 @@ fn non_negative_integer_from_ast(
     let expr = expr_from_ast(ctx, expr)?;
     let type_value = expr.type_value();
 
-    check_type(ctx, type_value.ty(), span, &[Type::Integer])?;
+    check_type(ctx, type_value.ty(), span.clone(), &[Type::Integer])?;
 
     if let TypeValue::Integer(Value::Const(value)) = type_value {
         if value < 0 {
             return Err(Box::new(CompileError::unexpected_negative_number(
                 ctx.report_builder,
-                span,
+                span.into(),
             )));
         }
     }
@@ -1169,7 +1170,7 @@ fn integer_in_range_from_ast(
     let expr = expr_from_ast(ctx, expr)?;
     let type_value = expr.type_value();
 
-    check_type(ctx, type_value.ty(), span, &[Type::Integer])?;
+    check_type(ctx, type_value.ty(), span.clone(), &[Type::Integer])?;
 
     // If the value is known at compile time make sure that it is within
     // the given range.
@@ -1179,7 +1180,7 @@ fn integer_in_range_from_ast(
                 ctx.report_builder,
                 *range.start(),
                 *range.end(),
-                span,
+                span.into(),
             )));
         }
     }
@@ -1224,7 +1225,7 @@ fn pattern_set_from_ast(
             if pattern_indexes.is_empty() {
                 return Err(Box::new(CompileError::empty_pattern_set(
                     ctx.report_builder,
-                    *span,
+                    span.into(),
                     Some("this rule doesn't define any patterns".to_string()),
                 )));
             }
@@ -1247,7 +1248,7 @@ fn pattern_set_from_ast(
                 {
                     return Err(Box::new(CompileError::empty_pattern_set(
                         ctx.report_builder,
-                        item.span(),
+                        item.span().into(),
                         Some(format!(
                             "`{}` doesn't match any pattern identifier",
                             item.identifier,
@@ -1327,7 +1328,7 @@ fn func_call_from_ast(
     if matching_signature.is_none() {
         return Err(Box::new(CompileError::wrong_arguments(
             ctx.report_builder,
-            func_call.args_span,
+            func_call.args_span().into(),
             Some(format!(
                 "accepted argument combinations:\n\n{}",
                 expected_args
@@ -1393,7 +1394,7 @@ fn check_type(
             ctx.report_builder,
             CompileError::join_with_or(accepted_types, true),
             ty.to_string(),
-            span,
+            span.into(),
         )))
     }
 }
@@ -1411,8 +1412,8 @@ fn check_operands(
     assert!(!matches!(lhs_ty, Type::Unknown));
     assert!(!matches!(rhs_ty, Type::Unknown));
 
-    check_type(ctx, lhs_ty, lhs_span, accepted_types)?;
-    check_type(ctx, rhs_ty, rhs_span, accepted_types)?;
+    check_type(ctx, lhs_ty, lhs_span.clone(), accepted_types)?;
+    check_type(ctx, rhs_ty, rhs_span.clone(), accepted_types)?;
 
     let types_are_compatible = {
         // If the types are the same, they are compatible.
@@ -1430,8 +1431,8 @@ fn check_operands(
             ctx.report_builder,
             lhs_ty.to_string(),
             rhs_ty.to_string(),
-            lhs_span,
-            rhs_span,
+            lhs_span.into(),
+            rhs_span.into(),
         )));
     }
 
@@ -1451,7 +1452,10 @@ fn re_error_to_compile_error(
                 // the error span is relative to the start of the regexp, not to
                 // the start of the source file, here we make it relative to the
                 // source file.
-                regexp.span.subspan(span.start.offset, span.end.offset),
+                regexp
+                    .span()
+                    .subspan(span.start.offset, span.end.offset)
+                    .into(),
                 note,
             )
         }
@@ -1464,8 +1468,14 @@ fn re_error_to_compile_error(
             report_builder,
             if is_greedy_1 { "greedy" } else { "non-greedy" }.to_string(),
             if is_greedy_2 { "greedy" } else { "non-greedy" }.to_string(),
-            regexp.span.subspan(span_1.start.offset, span_1.end.offset),
-            regexp.span.subspan(span_2.start.offset, span_2.end.offset),
+            regexp
+                .span()
+                .subspan(span_1.start.offset, span_1.end.offset)
+                .into(),
+            regexp
+                .span()
+                .subspan(span_2.start.offset, span_2.end.offset)
+                .into(),
         ),
     }
 }
@@ -1496,7 +1506,7 @@ pub(in crate::compiler) fn warn_if_not_bool(
             Warning::non_boolean_as_boolean(
                 ctx.report_builder,
                 ty.to_string(),
-                span,
+                span.clone().into(),
                 note,
             )
         });
@@ -1555,8 +1565,8 @@ macro_rules! gen_binary_op {
                 ctx,
                 lhs.ty(),
                 rhs.ty(),
-                lhs_span,
-                rhs_span,
+                lhs_span.clone(),
+                rhs_span.clone(),
                 &[$( $accepted_types ),+],
                 &[$( $compatible_types ),+],
             )?;
@@ -1597,8 +1607,8 @@ macro_rules! gen_string_op {
                 ctx,
                 lhs.ty(),
                 rhs.ty(),
-                lhs_span,
-                rhs_span,
+                lhs_span.clone(),
+                rhs_span.clone(),
                 &[Type::String],
                 &[Type::String],
             )?;
@@ -1665,8 +1675,8 @@ macro_rules! gen_n_ary_operation {
                             ctx.report_builder,
                             lhs_ty.to_string(),
                             rhs_ty.to_string(),
-                            expr.first().span().combine(&lhs_ast.span()),
-                            rhs_ast.span(),
+                            expr.first().span().combine(&lhs_ast.span()).into(),
+                            rhs_ast.span().into(),
                         ),
                     ));
                 }
@@ -1786,7 +1796,7 @@ gen_binary_op!(
                 return Err(Box::new(
                     CompileError::unexpected_negative_number(
                         ctx.report_builder,
-                        rhs_span,
+                        rhs_span.into(),
                     ),
                 ));
             }
@@ -1806,7 +1816,7 @@ gen_binary_op!(
                 return Err(Box::new(
                     CompileError::unexpected_negative_number(
                         ctx.report_builder,
-                        rhs_span,
+                        rhs_span.into(),
                     ),
                 ));
             }

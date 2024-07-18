@@ -65,6 +65,7 @@ impl Debug for AST<'_> {
 /// An import statement.
 #[derive(Debug)]
 pub struct Import<'src> {
+    span: Span,
     pub module_name: &'src str,
 }
 
@@ -125,6 +126,12 @@ pub struct Ident<'src> {
     span: Span,
     #[doc(hidden)]
     pub name: &'src str,
+}
+
+impl Ident<'_> {
+    pub fn starts_with(&self, pat: &str) -> bool {
+        self.name.starts_with(pat)
+    }
 }
 
 /// An expression where an identifier can be accompanied by a range
@@ -350,6 +357,20 @@ pub struct PatternSetItem<'src> {
     span: Span,
     pub identifier: &'src str,
     pub wildcard: bool,
+}
+
+impl PatternSetItem<'_> {
+    /// Returns true if `ident` matches this [`PatternSetItem`].
+    ///
+    /// For example, identifiers `$a` and `$abc` both match the
+    /// [`PatternSetItem`] for `$a*`.
+    pub fn matches(&self, ident: &Ident) -> bool {
+        if self.wildcard {
+            ident.name.starts_with(self.identifier)
+        } else {
+            ident.name == self.identifier
+        }
+    }
 }
 
 /// An expression in the AST.
@@ -970,9 +991,35 @@ impl WithSpan for OfItems<'_> {
     }
 }
 
+impl WithSpan for Iterable<'_> {
+    fn span(&self) -> Span {
+        match self {
+            Iterable::Range(range) => range.span(),
+            Iterable::ExprTuple(tuple) => tuple.span(),
+            Iterable::Expr(expr) => expr.span(),
+        }
+    }
+}
+
+impl WithSpan for Import<'_> {
+    fn span(&self) -> Span {
+        self.span.clone()
+    }
+}
+
 impl WithSpan for FuncCall<'_> {
     fn span(&self) -> Span {
         self.span.clone()
+    }
+}
+
+impl WithSpan for Pattern<'_> {
+    fn span(&self) -> Span {
+        match self {
+            Pattern::Text(p) => p.span(),
+            Pattern::Hex(p) => p.span(),
+            Pattern::Regexp(p) => p.span(),
+        }
     }
 }
 
@@ -1016,6 +1063,21 @@ impl WithSpan for PatternSet<'_> {
                     &items.last().map(|item| item.span()).unwrap_or_default(),
                 )
             }
+        }
+    }
+}
+
+impl WithSpan for PatternModifier<'_> {
+    fn span(&self) -> Span {
+        match self {
+            PatternModifier::Ascii { span }
+            | PatternModifier::Wide { span }
+            | PatternModifier::Nocase { span }
+            | PatternModifier::Private { span }
+            | PatternModifier::Fullword { span }
+            | PatternModifier::Base64 { span, .. }
+            | PatternModifier::Base64Wide { span, .. }
+            | PatternModifier::Xor { span, .. } => span.clone(),
         }
     }
 }

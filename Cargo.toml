@@ -21,7 +21,6 @@ members = [
     "cli",
     "fmt",
     "macros",
-    "parser",
     "parser-ng",
     "proto",
     "proto-yaml",

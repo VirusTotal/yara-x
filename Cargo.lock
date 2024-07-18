@@ -4860,6 +4860,7 @@ name = "yara-x"
 version = "0.5.0"
 dependencies = [
  "aho-corasick",
+ "annotate-snippets",
  "anyhow",
  "array-bytes",
  "ascii_tree",
@@ -4918,7 +4919,7 @@ dependencies = [
  "x509-parser",
  "yansi 1.0.1",
  "yara-x-macros",
- "yara-x-parser",
+ "yara-x-parser-ng",
  "yara-x-proto",
  "yara-x-proto-yaml",
  "zip",

@@ -2,10 +2,10 @@ use itertools::Itertools;
 use std::mem::size_of;
 use std::rc::Rc;
 
-use yara_x_parser::ast::Ident;
-use yara_x_parser::report::ReportBuilder;
+use yara_x_parser_ng::ast::{Ident, WithSpan};
 
 use crate::compiler::ir::PatternIdx;
+use crate::compiler::report::ReportBuilder;
 use crate::compiler::{ir, Warnings};
 use crate::symbols::{StackedSymbolTable, SymbolLookup};
 use crate::types::Type;
@@ -74,7 +74,7 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
                 Box::new(CompileError::unknown_pattern(
                     self.report_builder,
                     ident.name.to_string(),
-                    ident.span,
+                    ident.span().into(),
                 ))
             })
     }

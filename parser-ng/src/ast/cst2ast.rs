@@ -406,10 +406,10 @@ impl<'src> Builder<'src> {
 impl<'src> Builder<'src> {
     fn import_stmt(&mut self) -> Result<Import<'src>, Abort> {
         self.begin(IMPORT_STMT)?;
-        self.expect(IMPORT_KW)?;
-        let (module_name, _span) = self.utf8_string_lit()?;
+        let span = self.expect(IMPORT_KW)?;
+        let (module_name, module_name_span) = self.utf8_string_lit()?;
         self.end(IMPORT_STMT)?;
-        Ok(Import { module_name })
+        Ok(Import { module_name, span: span.combine(&module_name_span) })
     }
 
     fn rule_decl(&mut self) -> Result<Rule<'src>, Abort> {

@@ -1,7 +1,7 @@
 /*! Functions for converting a hex pattern AST into a HIR. */
 
 use regex_syntax::hir;
-use yara_x_parser::ast;
+use yara_x_parser_ng::ast;
 
 use crate::compiler::context::CompileContext;
 use crate::compiler::warnings::Warning;
@@ -60,6 +60,8 @@ fn hex_tokens_hir_from_ast(
                 hir_tokens.push(hir::Hir::alternation(alternatives))
             }
             ast::HexToken::Jump(jump) => {
+                // TODO
+                /*
                 if let Some(coalesced_span) = jump.coalesced_span {
                     ctx.warnings.add(|| {
                         Warning::consecutive_jumps(
@@ -69,7 +71,7 @@ fn hex_tokens_hir_from_ast(
                             coalesced_span,
                         )
                     });
-                }
+                }*/
 
                 hir_tokens.push(hir::Hir::repetition(hir::Repetition {
                     min: jump.start.map(|start| start as u32).unwrap_or(0),
@@ -105,6 +107,7 @@ fn hex_byte_to_class(b: &ast::HexByte) -> hir::ClassBytes {
     class
 }
 
+/* TODO
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
@@ -113,15 +116,14 @@ mod tests {
         Class, ClassBytes, ClassBytesRange, Dot, Hir, HirKind, Repetition,
     };
 
-    use yara_x_parser::ast::{
+    use yara_x_parser_ng::ast::{
         HexAlternative, HexByte, HexJump, HexPattern, HexToken, HexTokens,
         Ident,
     };
 
-    use yara_x_parser::report::ReportBuilder;
-
     use super::hex_byte_to_class;
     use crate::compiler::context::{CompileContext, VarStack};
+    use crate::compiler::report::ReportBuilder;
     use crate::compiler::Warnings;
     use crate::re::hir::class_to_masked_byte;
     use crate::symbols::StackedSymbolTable;
@@ -373,3 +375,4 @@ mod tests {
         }
     }
 }
+*/

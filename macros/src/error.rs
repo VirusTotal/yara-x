@@ -228,9 +228,10 @@ fn gen_build_func(
             Ok(quote!(
                 #[doc(hidden)]
                 pub fn #fn_ident(report_builder: &ReportBuilder, #args) -> Self {
+                    use crate::compiler::report::SourceRef;
                     let detailed_report = report_builder.create_report(
                         #report_type,
-                        #main_label_span,
+                        &#main_label_span,
                         #code,
                         &format!(#description),
                         vec![
@@ -450,7 +451,7 @@ fn get_labels(
         labels.push((
             label_span_field.clone(),
             quote!(
-                (#label_span_field, format!(#label_fmt_args), #level)
+                (&#label_span_field, format!(#label_fmt_args), #level)
             ),
         ));
     }

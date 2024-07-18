@@ -4,12 +4,8 @@ use std::io;
 use thiserror::Error;
 
 use yara_x_macros::Error as DeriveError;
-use yara_x_parser::ast::Span;
-use yara_x_parser::report::Level;
-use yara_x_parser::report::ReportBuilder;
 
-pub use yara_x_parser::Error as ParseError;
-
+use crate::compiler::report::{Level, ReportBuilder, SourceRef};
 use crate::compiler::warnings::InvalidWarningCode;
 use crate::VariableError;
 
@@ -41,9 +37,6 @@ pub struct EmitWasmError(#[from] anyhow::Error);
 #[allow(missing_docs)]
 pub enum Error {
     #[error(transparent)]
-    ParseError(#[from] ParseError),
-
-    #[error(transparent)]
     CompileError(#[from] Box<CompileError>),
 
     #[error(transparent)]
@@ -63,7 +56,7 @@ pub enum CompileError {
     SyntaxError {
         detailed_report: String,
         error_msg: String,
-        error_span: Span,
+        error_span: SourceRef,
     },
 
     #[error("E100", "wrong type")]
@@ -75,7 +68,7 @@ pub enum CompileError {
         detailed_report: String,
         expected_types: String,
         actual_type: String,
-        expression_span: Span,
+        expression_span: SourceRef,
     },
 
     #[error("E101", "mismatching types")]
@@ -85,8 +78,8 @@ pub enum CompileError {
         detailed_report: String,
         type1: String,
         type2: String,
-        type1_span: Span,
-        type2_span: Span,
+        type1_span: SourceRef,
+        type2_span: SourceRef,
     },
 
     #[error("E102", "wrong arguments")]
@@ -94,7 +87,7 @@ pub enum CompileError {
     #[note(note)]
     WrongArguments {
         detailed_report: String,
-        args_span: Span,
+        args_span: SourceRef,
         note: Option<String>,
     },
 
@@ -105,13 +98,13 @@ pub enum CompileError {
         detailed_report: String,
         expected_values: u8,
         actual_values: u8,
-        iterable_span: Span,
-        error_span: Span,
+        iterable_span: SourceRef,
+        error_span: SourceRef,
     },
 
     #[error("E104", "unexpected negative number")]
     #[label("this number can not be negative", span)]
-    UnexpectedNegativeNumber { detailed_report: String, span: Span },
+    UnexpectedNegativeNumber { detailed_report: String, span: SourceRef },
 
     #[error("E105", "number out of range")]
     #[label("this number is out of the allowed range [{min}-{max}]", span)]
@@ -119,12 +112,16 @@ pub enum CompileError {
         detailed_report: String,
         min: i64,
         max: i64,
-        span: Span,
+        span: SourceRef,
     },
 
     #[error("E106", "unknown field or method `{identifier}`")]
     #[label("this field or method doesn't exist", span)]
-    UnknownField { detailed_report: String, identifier: String, span: Span },
+    UnknownField {
+        detailed_report: String,
+        identifier: String,
+        span: SourceRef,
+    },
 
     #[error("E107", "unknown identifier `{identifier}`")]
     #[label("this identifier has not been declared", span)]
@@ -132,17 +129,25 @@ pub enum CompileError {
     UnknownIdentifier {
         detailed_report: String,
         identifier: String,
-        span: Span,
+        span: SourceRef,
         note: Option<String>,
     },
 
     #[error("E108", "unknown module `{identifier}`")]
     #[label("module `{identifier}` not found", span)]
-    UnknownModule { detailed_report: String, identifier: String, span: Span },
+    UnknownModule {
+        detailed_report: String,
+        identifier: String,
+        span: SourceRef,
+    },
 
     #[error("E109", "invalid range")]
     #[label("{error_msg}", span)]
-    InvalidRange { detailed_report: String, error_msg: String, span: Span },
+    InvalidRange {
+        detailed_report: String,
+        error_msg: String,
+        span: SourceRef,
+    },
 
     #[error("E110", "duplicate rule `{new_rule}`")]
     #[label(
@@ -154,8 +159,8 @@ pub enum CompileError {
     DuplicateRule {
         detailed_report: String,
         new_rule: String,
-        new_rule_span: Span,
-        existing_rule_span: Span,
+        new_rule_span: SourceRef,
+        existing_rule_span: SourceRef,
     },
 
     #[error("E111", "rule `{ident}` conflicts with an existing identifier")]
@@ -166,7 +171,7 @@ pub enum CompileError {
     ConflictingRuleIdentifier {
         detailed_report: String,
         ident: String,
-        ident_span: Span,
+        ident_span: SourceRef,
     },
 
     #[error("E112", "invalid regular expression")]
@@ -175,7 +180,7 @@ pub enum CompileError {
     InvalidRegexp {
         detailed_report: String,
         error: String,
-        span: Span,
+        span: SourceRef,
         note: Option<String>,
     },
 
@@ -189,8 +194,8 @@ pub enum CompileError {
         detailed_report: String,
         quantifier1_greediness: String,
         quantifier2_greediness: String,
-        quantifier1_span: Span,
-        quantifier2_span: Span,
+        quantifier1_span: SourceRef,
+        quantifier2_span: SourceRef,
     },
 
     #[error("E114", "no matching patterns")]
@@ -198,7 +203,7 @@ pub enum CompileError {
     #[note(note)]
     EmptyPatternSet {
         detailed_report: String,
-        span: Span,
+        span: SourceRef,
         note: Option<String>,
     },
 
@@ -207,20 +212,20 @@ pub enum CompileError {
     #[note(note)]
     EntrypointUnsupported {
         detailed_report: String,
-        span: Span,
+        span: SourceRef,
         note: Option<String>,
     },
 
     #[error("E116", "slow pattern")]
     #[label("this pattern may slow down the scan", span)]
-    SlowPattern { detailed_report: String, span: Span },
+    SlowPattern { detailed_report: String, span: SourceRef },
 
     #[error("E117", "invalid pattern modifier")]
     #[label("{error_msg}", error_span)]
     InvalidModifier {
         detailed_report: String,
         error_msg: String,
-        error_span: Span,
+        error_span: SourceRef,
     },
 
     #[error(
@@ -234,25 +239,25 @@ pub enum CompileError {
         detailed_report: String,
         modifier1: String,
         modifier2: String,
-        modifier1_span: Span,
-        modifier2_span: Span,
+        modifier1_span: SourceRef,
+        modifier2_span: SourceRef,
         note: Option<String>,
     },
 
     #[error("E119", "duplicate pattern modifier")]
     #[label("duplicate modifier", modifier_span)]
-    DuplicateModifier { detailed_report: String, modifier_span: Span },
+    DuplicateModifier { detailed_report: String, modifier_span: SourceRef },
 
     #[error("E120", "duplicate tag `{tag}`")]
     #[label("duplicate tag", tag_span)]
-    DuplicateTag { detailed_report: String, tag: String, tag_span: Span },
+    DuplicateTag { detailed_report: String, tag: String, tag_span: SourceRef },
 
     #[error("E121", "unused pattern `{pattern_ident}`")]
     #[label("this pattern was not used in the condition", pattern_ident_span)]
     UnusedPattern {
         detailed_report: String,
         pattern_ident: String,
-        pattern_ident_span: Span,
+        pattern_ident_span: SourceRef,
     },
 
     #[error("E122", "duplicate pattern `{pattern_ident}`")]
@@ -265,8 +270,8 @@ pub enum CompileError {
     DuplicatePattern {
         detailed_report: String,
         pattern_ident: String,
-        new_pattern_span: Span,
-        existing_pattern_span: Span,
+        new_pattern_span: SourceRef,
+        existing_pattern_span: SourceRef,
     },
 
     #[error("E123", "invalid pattern `{pattern_ident}`")]
@@ -276,7 +281,7 @@ pub enum CompileError {
         detailed_report: String,
         pattern_ident: String,
         error_msg: String,
-        error_span: Span,
+        error_span: SourceRef,
         note: Option<String>,
     },
 
@@ -288,7 +293,7 @@ pub enum CompileError {
     UnknownPattern {
         detailed_report: String,
         pattern_ident: String,
-        pattern_ident_span: Span,
+        pattern_ident_span: SourceRef,
     },
 
     #[error("E125", "invalid base64 alphabet")]
@@ -296,7 +301,7 @@ pub enum CompileError {
     InvalidBase64Alphabet {
         detailed_report: String,
         error_msg: String,
-        error_span: Span,
+        error_span: SourceRef,
     },
 }
 

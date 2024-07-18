@@ -2,11 +2,11 @@ use std::collections::HashSet;
 use std::fmt::{Debug, Display, Formatter};
 
 use thiserror::Error;
+
 use yara_x_macros::Error as DeriveError;
 
-use yara_x_parser::ast::Span;
-use yara_x_parser::report::Level;
-use yara_x_parser::report::ReportBuilder;
+use crate::compiler::report::Level;
+use crate::compiler::report::{ReportBuilder, SourceRef};
 
 /// A warning raised while compiling YARA rules.
 #[rustfmt::skip]
@@ -19,16 +19,16 @@ pub enum Warning {
         detailed_report: String,
         pattern_ident: String,
         coalesced_jump: String,
-        jumps_span: Span,
+        jumps_span: SourceRef ,
     },
-    
+
     #[warning("unsatisfiable_expr", "potentially unsatisfiable expression")]
     #[label("this implies that multiple patterns must match", quantifier_span)]
     #[label("but they must match at the same offset", at_span)]
     PotentiallyUnsatisfiableExpression {
         detailed_report: String,
-        quantifier_span: Span,
-        at_span: Span,
+        quantifier_span: SourceRef,
+        at_span: SourceRef,
     },
 
     #[warning("invariant_expr", "invariant boolean expression")]
@@ -37,7 +37,7 @@ pub enum Warning {
     InvariantBooleanExpression {
         detailed_report: String,
         value: bool,
-        span: Span,
+        span: SourceRef,
         note: Option<String>,
     },
 
@@ -47,10 +47,10 @@ pub enum Warning {
     NonBooleanAsBoolean {
         detailed_report: String,
         expression_type: String,
-        span: Span,
+        span: SourceRef,
         note: Option<String>,
     },
-    
+
     #[warning("duplicate_import", "duplicate import statement")]
     #[label(
       "duplicate import",
@@ -64,8 +64,8 @@ pub enum Warning {
     DuplicateImport {
         detailed_report: String,
         module_name: String,
-        new_import_span: Span,
-        existing_import_span: Span,
+        new_import_span: SourceRef,
+        existing_import_span: SourceRef,
     },
 
     #[warning("redundant_modifier", "redundant case-insensitive modifier")]
@@ -73,15 +73,15 @@ pub enum Warning {
     #[label("the `nocase` modifier does the same", nocase_span)]
     RedundantCaseModifier {
         detailed_report: String,
-        nocase_span: Span,
-        i_span: Span,
+        nocase_span: SourceRef,
+        i_span: SourceRef,
     },
 
     #[warning("slow_pattern", "slow pattern")]
     #[label("this pattern may slow down the scan", span)]
     SlowPattern {
         detailed_report: String,
-        span: Span,
+        span: SourceRef,
     },
 
     #[warning("unsupported_module", "module `{module_name}` is not supported")]
@@ -90,12 +90,12 @@ pub enum Warning {
     IgnoredModule {
         detailed_report: String,
         module_name: String,
-        span: Span,
+        span: SourceRef,
         note: Option<String>,
     },
 
     #[warning(
-        "ignored_rule", 
+        "ignored_rule",
         "rule `{ignored_rule}` will be ignored due to an indirect dependency on module `{module_name}`"
     )]
     #[label("this other rule depends on module `{module_name}`, which is unsupported", span)]
@@ -104,7 +104,7 @@ pub enum Warning {
         ignored_rule: String,
         dependency: String,
         module_name: String,
-        span: Span,
+        span: SourceRef,
     },
 }
 
