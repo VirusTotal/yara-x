@@ -663,7 +663,7 @@ impl<'src> Builder<'src> {
                 }
                 Event::Token { kind: XOR_KW, mut span } => {
                     let mut start = 0;
-                    let mut end = 0;
+                    let mut end = 255;
 
                     if let Event::Token { kind: L_PAREN, .. } = self.peek() {
                         self.expect(L_PAREN)?;
@@ -674,6 +674,7 @@ impl<'src> Builder<'src> {
                                 kind: R_PAREN,
                                 span: r_paren_span,
                             } => {
+                                end = start;
                                 span = span.combine(&r_paren_span);
                             }
                             Event::Token { kind: HYPHEN, .. } => {
