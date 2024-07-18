@@ -842,6 +842,7 @@ impl<'a> Compiler<'a> {
             current_rule_patterns: &mut rule_patterns,
             warnings: &mut self.warnings,
             vars: VarStack::new(),
+            for_of_depth: 0,
         };
 
         // Convert the patterns from AST to IR. This populates the

@@ -864,16 +864,7 @@ fn boolean_term_from_cst<'src>(
         }
         GrammarRule::pattern_ident => {
             let ident = children.next().unwrap();
-            let ident_name = ident.as_str();
             let anchor = anchor_from_cst(ctx, children)?;
-
-            if ident_name == "$" && !ctx.inside_for_of {
-                return Err(Error::from(ErrorInfo::syntax_error(
-                    ctx.report_builder,
-                    "this `$` is outside of the condition of a `for .. of` statement".to_string(),
-                    ctx.span(&ident),
-                )));
-            }
 
             Expr::PatternMatch(Box::new(PatternMatch {
                 // TODO: this is not the best way of computing the span for
@@ -1277,8 +1268,6 @@ fn for_expr_from_cst<'src>(
             }
             rule => unreachable!("{:?}", rule),
         });
-
-        ctx.inside_for_of = true
     } else {
         // It's a `for .. in ..` expression. After the `for` keyword
         // follows one or more identifiers separated by commas, as in..
@@ -1305,8 +1294,6 @@ fn for_expr_from_cst<'src>(
     expect!(children.next().unwrap(), GrammarRule::LPAREN);
 
     let condition = boolean_expr_from_cst(ctx, children.next().unwrap())?;
-
-    ctx.inside_for_of = false;
 
     expect!(children.next().unwrap(), GrammarRule::RPAREN);
 

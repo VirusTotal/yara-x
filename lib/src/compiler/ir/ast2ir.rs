@@ -534,16 +534,27 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::PatternMatch(p) => {
             let anchor = anchor_from_ast(ctx, &p.anchor)?;
 
-            // If the identifier is just `$` we are inside a loop and we don't
-            // know which is the PatternId because `$` refers to a different
-            // pattern on each iteration. In those cases the symbol table must
-            // contain an entry for `$`, corresponding to the variable that
-            // holds the current PatternId for the loop.
             match p.identifier.name {
-                "$" => Ok(Expr::PatternMatchVar {
-                    symbol: ctx.symbol_table.lookup("$").unwrap(),
-                    anchor,
-                }),
+                "$" => {
+                    // If the identifier is just `$`, and we are not inside a
+                    // loop, that's an error.
+                    if ctx.for_of_depth == 0 {
+                        return Err(Box::new(CompileError::syntax_error(
+                            ctx.report_builder,
+                            "this `$` is outside of the condition of a `for .. of` statement".to_string(),
+                            p.identifier.span(),
+                        )));
+                    }
+                    // If we are inside a loop, we don't know which is the
+                    // PatternId because `$` refers to a different pattern on
+                    // each iteration. In those cases the symbol table must
+                    // contain an entry for `$`, corresponding to the variable
+                    // that holds the current PatternId for the loop.
+                    Ok(Expr::PatternMatchVar {
+                        symbol: ctx.symbol_table.lookup("$").unwrap(),
+                        anchor,
+                    })
+                },
                 _ => {
                     let (pattern_idx, pattern) = ctx.get_pattern_mut(&p.identifier)?;
 
@@ -898,9 +909,11 @@ fn for_of_expr_from_ast(
     );
 
     ctx.symbol_table.push(Rc::new(loop_vars));
+    ctx.for_of_depth += 1;
 
     let condition = bool_expr_from_ast(ctx, &for_of.condition)?;
 
+    ctx.for_of_depth -= 1;
     ctx.symbol_table.pop();
     ctx.vars.unwind(&stack_frame);
 

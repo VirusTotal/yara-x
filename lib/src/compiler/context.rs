@@ -39,6 +39,9 @@ pub(in crate::compiler) struct CompileContext<'a, 'src, 'sym> {
 
     /// Allow invalid escape sequences in regular expressions.
     pub relaxed_re_syntax: bool,
+
+    /// Indicates how deep we are inside `for .. of` statements.
+    pub(crate) for_of_depth: usize,
 }
 
 impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {

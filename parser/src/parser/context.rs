@@ -12,10 +12,6 @@ pub(crate) struct Context<'src, 'rb> {
     /// without the `$` prefix.
     pub(crate) declared_patterns: HashMap<&'src str, Ident<'src>>,
 
-    /// Boolean that indicates if the parser is currently inside the expression
-    /// of a `for .. of .. : (<expr>)` statement.
-    pub(crate) inside_for_of: bool,
-
     /// While parsing a pattern declaration this holds its identifier.
     pub(crate) current_pattern: Option<Ident<'src>>,
 
@@ -26,7 +22,6 @@ pub(crate) struct Context<'src, 'rb> {
 impl<'src, 'rb> Context<'src, 'rb> {
     pub(crate) fn new(report_builder: &'rb ReportBuilder) -> Self {
         Self {
-            inside_for_of: false,
             declared_patterns: HashMap::new(),
             current_pattern: None,
             report_builder,

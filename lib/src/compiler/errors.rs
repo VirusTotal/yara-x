@@ -58,6 +58,14 @@ pub enum Error {
 #[allow(missing_docs)]
 #[non_exhaustive]
 pub enum CompileError {
+    #[error("E001", "syntax error")]
+    #[label("{error_msg}", error_span)]
+    SyntaxError {
+        detailed_report: String,
+        error_msg: String,
+        error_span: Span,
+    },
+
     #[error("E100", "wrong type")]
     #[label(
         "expression should be {expected_types}, but is `{actual_type}`",

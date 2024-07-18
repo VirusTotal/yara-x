@@ -159,6 +159,7 @@ mod tests {
             current_rule_patterns: &mut rule_patterns,
             warnings: &mut warnings,
             vars: VarStack::new(),
+            for_of_depth: 0,
         };
 
         let mut pattern = HexPattern {
