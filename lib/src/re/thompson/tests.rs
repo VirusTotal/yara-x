@@ -1,18 +1,14 @@
-/* TODO
-
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
-
-use yara_x_parser::ast;
 
 use crate::compiler::Atom;
 use crate::re;
 use crate::re::bitmapset::BitmapSet;
 use crate::re::{BckCodeLoc, FwdCodeLoc};
+use crate::types::Regexp;
 
 use super::compiler::{CodeLoc, Compiler, RegexpAtom};
 use super::pikevm::{epsilon_closure, EpsilonClosureState};
-
 
 macro_rules! assert_re_code {
     ($re:expr, $fwd:expr, $bck:expr, $atoms:expr, $fwd_closure:expr, $bck_closure:expr) => {{
@@ -20,15 +16,7 @@ macro_rules! assert_re_code {
 
         let (fwd_code, bck_code, atoms) = Compiler::new()
             .compile_internal(
-                &parser
-                    .parse(&ast::Regexp {
-                        literal: format!("/{}/", $re).as_str(),
-                        src: $re,
-                        case_insensitive: false,
-                        dot_matches_new_line: true,
-                        span: ast::Span::default(),
-                    })
-                    .unwrap(),
+                &parser.parse(&Regexp::new(format!("/{}/s", $re))).unwrap(),
             )
             .unwrap();
 
@@ -69,15 +57,7 @@ macro_rules! assert_re_atoms_impl {
         let parser = re::parser::Parser::new();
         let (_, _, atoms) = Compiler::new()
             .compile_internal(
-                &parser
-                    .parse(&ast::Regexp {
-                        literal: format!("/{}/", $re).as_str(),
-                        src: $re,
-                        case_insensitive: false,
-                        dot_matches_new_line: true,
-                        span: ast::Span::default(),
-                    })
-                    .unwrap(),
+                &parser.parse(&Regexp::new(format!("/{}/s", $re))).unwrap(),
             )
             .unwrap();
 
@@ -460,7 +440,7 @@ fn re_code_9() {
 00000: LIT 0x61
 00001: LIT 0x62
 00002: LIT 0x63
-00003: CLASS_RANGES [0x30-0x32] [0x78-0x79]
+00003: CLASS_RANGES [0x30-0x32] [0x78-0x79] 
 0000a: LIT 0x64
 0000b: LIT 0x65
 0000c: LIT 0x66
@@ -471,7 +451,7 @@ fn re_code_9() {
 00000: LIT 0x66
 00001: LIT 0x65
 00002: LIT 0x64
-00003: CLASS_RANGES [0x30-0x32] [0x78-0x79]
+00003: CLASS_RANGES [0x30-0x32] [0x78-0x79] 
 0000a: LIT 0x63
 0000b: LIT 0x62
 0000c: LIT 0x61
@@ -517,7 +497,7 @@ fn re_code_10() {
 00001: LIT 0x62
 00002: LIT 0x63
 00003: LIT 0x64
-00004: CLASS_BITMAP 0x30 0x32 0x34 0x61 0x63 0x65 0x67 0x69 0x6b 0x6d 0x6f 0x71 0x73 0x75 0x77 0x79
+00004: CLASS_BITMAP 0x30 0x32 0x34 0x61 0x63 0x65 0x67 0x69 0x6b 0x6d 0x6f 0x71 0x73 0x75 0x77 0x79 
 00026: LIT 0x65
 00027: LIT 0x66
 00028: MATCH
@@ -526,7 +506,7 @@ fn re_code_10() {
         r#"
 00000: LIT 0x66
 00001: LIT 0x65
-00002: CLASS_BITMAP 0x30 0x32 0x34 0x61 0x63 0x65 0x67 0x69 0x6b 0x6d 0x6f 0x71 0x73 0x75 0x77 0x79
+00002: CLASS_BITMAP 0x30 0x32 0x34 0x61 0x63 0x65 0x67 0x69 0x6b 0x6d 0x6f 0x71 0x73 0x75 0x77 0x79 
 00024: LIT 0x64
 00025: LIT 0x63
 00026: LIT 0x62
@@ -1049,9 +1029,9 @@ fn re_code_21() {
         r#"(?is)[a-z]{1,2}ab"#,
         // Forward code
         r#"
-00000: CLASS_RANGES [0x41-0x5a] [0x61-0x7a]
+00000: CLASS_RANGES [0x41-0x5a] [0x61-0x7a] 
 00007: SPLIT_A(0) 00016
-0000f: CLASS_RANGES [0x41-0x5a] [0x61-0x7a]
+0000f: CLASS_RANGES [0x41-0x5a] [0x61-0x7a] 
 00016: MASKED_BYTE 0x41 0xdf
 0001a: MASKED_BYTE 0x42 0xdf
 0001e: MATCH
@@ -1060,9 +1040,9 @@ fn re_code_21() {
         r#"
 00000: MASKED_BYTE 0x42 0xdf
 00004: MASKED_BYTE 0x41 0xdf
-00008: CLASS_RANGES [0x41-0x5a] [0x61-0x7a]
+00008: CLASS_RANGES [0x41-0x5a] [0x61-0x7a] 
 0000f: SPLIT_A(0) 0001e
-00017: CLASS_RANGES [0x41-0x5a] [0x61-0x7a]
+00017: CLASS_RANGES [0x41-0x5a] [0x61-0x7a] 
 0001e: MATCH
 "#,
         // Atoms
@@ -1375,4 +1355,3 @@ fn re_atoms() {
         400
     );
 }
-*/
