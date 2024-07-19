@@ -1,6 +1,7 @@
+// constant-folding required
 rule test {
   strings:
     $a = "foo"
-  condition: 
+  condition:
     $a in (-1..0)
 }
