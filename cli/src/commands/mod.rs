@@ -29,8 +29,7 @@ use yansi::Color::Green;
 use yansi::Paint;
 
 use crate::{commands, APP_HELP_TEMPLATE};
-use yara_x::{Compiler, Rules};
-use yara_x_parser::SourceCode;
+use yara_x::{Compiler, Rules, SourceCode};
 
 use crate::walk::Walker;
 

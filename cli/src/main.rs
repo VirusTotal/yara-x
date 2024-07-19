@@ -78,8 +78,7 @@ fn main() -> anyhow::Result<()> {
         match err.downcast_ref::<yara_x::Error>() {
             // Errors produced by the compiler already have colors and start
             // with "error:", in such cases the error is printed as is.
-            Some(yara_x::Error::ParseError(_))
-            | Some(yara_x::Error::CompileError(_)) => {
+            Some(yara_x::Error::CompileError(_)) => {
                 eprintln!("{}", err);
             }
             // In all other cases imitate the style of compiler errors, so that

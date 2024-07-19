@@ -2,5 +2,5 @@ error[E001]: syntax error
  --> line:1:23
   |
 1 | rule test { meta: a = condition: true }
-  |                       ^ expected `false`, `true`, number, or string literal
+  |                       ^^^^^^^^^ expecting `-`, INTEGER, FLOAT, STRING, `true` or `false`, found `condition`
   |

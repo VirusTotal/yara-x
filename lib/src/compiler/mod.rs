@@ -31,7 +31,7 @@ use yara_x_parser_ng::{Parser, Span};
 
 use crate::compiler::base64::base64_patterns;
 use crate::compiler::emit::{emit_rule_condition, EmitContext};
-use crate::compiler::report::ReportBuilder;
+use crate::compiler::report::{ReportBuilder, SourceRef};
 use crate::compiler::{CompileContext, VarStack};
 use crate::modules::BUILTIN_MODULES;
 use crate::re;
@@ -448,6 +448,13 @@ impl<'a> Compiler<'a> {
         // Parse the source code and build the Abstract Syntax Tree.
         let ast = Parser::new(src.raw.as_bytes()).into_ast();
 
+        if !ast.errors().is_empty() {
+            return Err(Error::CompileError(Box::new(CompileError::from(
+                &self.report_builder,
+                ast.into_errors().remove(0),
+            ))));
+        }
+
         let mut already_imported = FxHashMap::default();
 
         // Process import statements. Checks that all imported modules
@@ -463,7 +470,7 @@ impl<'a> Compiler<'a> {
                         &self.report_builder,
                         import.module_name.to_string(),
                         import.span().into(),
-                        span.clone().into(),
+                        span.into(),
                     )
                 })
             }
@@ -476,7 +483,7 @@ impl<'a> Compiler<'a> {
         // Iterate over the list of declared rules and verify that their
         // conditions are semantically valid. For each rule add a symbol
         // to the current namespace.
-        for rule in &ast.rules {
+        for rule in ast.rules() {
             self.c_rule(rule)?;
         }
 
@@ -774,6 +781,7 @@ impl<'a> Compiler<'a> {
     ) -> Result<(), Box<CompileError>> {
         if let Some(symbol) = self.symbol_table.lookup(ident.name) {
             return match symbol.kind() {
+                // Found another rule with the same name.
                 SymbolKind::Rule(rule_id) => {
                     Err(Box::new(CompileError::duplicate_rule(
                         &self.report_builder,
@@ -782,11 +790,12 @@ impl<'a> Compiler<'a> {
                         self.rules
                             .get(rule_id.0 as usize)
                             .unwrap()
-                            .ident_span
-                            .clone()
-                            .into(),
+                            .ident_ref
+                            .clone(),
                     )))
                 }
+                // Found another symbol that is not a rule, but has the same
+                // name.
                 _ => Err(Box::new(CompileError::conflicting_rule_identifier(
                     &self.report_builder,
                     ident.name.to_string(),
@@ -924,7 +933,10 @@ impl<'a> Compiler<'a> {
             namespace_id: self.current_namespace.id,
             namespace_ident_id: self.current_namespace.ident_id,
             ident_id: self.ident_pool.get_or_intern(rule.identifier.name),
-            ident_span: rule.identifier.span(),
+            ident_ref: SourceRef::new(
+                self.report_builder.current_source_id(),
+                rule.identifier.span(),
+            ),
             patterns: vec![],
             is_global: rule.flags.contains(RuleFlag::Global),
             is_private: rule.flags.contains(RuleFlag::Private),
@@ -966,7 +978,9 @@ impl<'a> Compiler<'a> {
         let mut condition = match condition.map_err(|err| *err) {
             Ok(condition) => condition,
             Err(CompileError::UnknownIdentifier {
-                identifier, span, ..
+                identifier,
+                span: identifier_ref,
+                ..
             }) if self.ignored_modules.contains(&identifier)
                 || self.ignored_rules.contains_key(&identifier) =>
             {
@@ -978,9 +992,9 @@ impl<'a> Compiler<'a> {
                         Warning::ignored_rule(
                             &self.report_builder,
                             rule.identifier.name.to_string(),
-                            identifier.clone(),
+                            identifier,
                             module_name.clone(),
-                            span.clone(),
+                            identifier_ref,
                         )
                     });
                 } else {
@@ -988,7 +1002,7 @@ impl<'a> Compiler<'a> {
                         Warning::ignored_module(
                             &self.report_builder,
                             identifier.clone(),
-                            span.clone(),
+                            identifier_ref,
                             Some(format!(
                                 "the whole rule `{}` will be ignored",
                                 rule.identifier.name
@@ -1794,14 +1808,11 @@ impl<'a> Compiler<'a> {
             if self.error_on_slow_pattern {
                 return Err(Box::new(CompileError::slow_pattern(
                     &self.report_builder,
-                    span.clone().into(),
+                    span.into(),
                 )));
             } else {
                 self.warnings.add(|| {
-                    Warning::slow_pattern(
-                        &self.report_builder,
-                        span.clone().into(),
-                    )
+                    Warning::slow_pattern(&self.report_builder, span.into())
                 });
             }
         }

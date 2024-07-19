@@ -728,6 +728,8 @@ fn test_errors() {
         // Path to the .in file.
         let in_path = entry.into_path();
 
+        println!("{:?}", in_path);
+
         // Path to the .out file.
         let out_path = in_path.with_extension("out");
 
@@ -735,11 +737,17 @@ fn test_errors() {
 
         let rules = fs::read_to_string(&in_path).expect("unable to read");
 
+        // If the `constant-folding` feature is not enabled ignore files
+        // starting with "// constant-folding required".
+        #[cfg(not(feature = "constant-folding"))]
+        if rules.starts_with("// constant-folding required") {
+            continue;
+        }
+        
         src.push_str(rules.as_str());
 
         let err = compile(src.as_str()).expect_err(
-            format!("file {:?} should have failed with error", in_path)
-                .as_str(),
+            format!("file {:?} should have failed", in_path).as_str(),
         );
 
         let mut output_file = mint.new_goldenfile(out_path).unwrap();

@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use anyhow::Context;
 use clap::{arg, value_parser, ArgMatches, Command};
 
-use yara_x::Compiler;
-use yara_x_parser::{Parser, SourceCode};
+use yara_x::{Compiler, SourceCode};
+use yara_x_parser_ng::Parser;
 
 pub fn ast() -> Command {
     super::command("ast")
@@ -64,15 +64,10 @@ pub fn exec_ast(args: &ArgMatches) -> anyhow::Result<()> {
     let src = fs::read(rules_path)
         .with_context(|| format!("can not read `{}`", rules_path.display()))?;
 
-    let src = SourceCode::from(src.as_slice())
-        .with_origin(rules_path.as_os_str().to_str().unwrap());
+    let parser = Parser::new(src.as_slice());
+    let ast = parser.into_ast();
 
-    let ast = Parser::new().colorize_errors(true).build_ast(src)?;
-
-    let mut output = String::new();
-    ascii_tree::write_tree(&mut output, &ast.ascii_tree())?;
-
-    println!("{output}");
+    println!("{ast:?}");
     Ok(())
 }
 
@@ -82,7 +77,7 @@ pub fn exec_cst(args: &ArgMatches) -> anyhow::Result<()> {
     let src = fs::read(rules_path)
         .with_context(|| format!("can not read `{}`", rules_path.display()))?;
 
-    let parser = yara_x_parser_ng::Parser::new(src.as_slice());
+    let parser = Parser::new(src.as_slice());
     let cst = parser.into_cst();
 
     println!("{cst:?}");

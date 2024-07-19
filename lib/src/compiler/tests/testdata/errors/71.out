@@ -2,5 +2,5 @@ error[E001]: syntax error
  --> line:1:13
   |
 1 | rule test : rule { condition: true }
-  |             ^ expected identifier
+  |             ^^^^ expecting identifier, found `rule`
   |

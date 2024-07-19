@@ -203,14 +203,14 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
         (1, None)
     };
 
-    let text: BString = pattern.text.as_ref().into();
+    let text: BString = pattern.text.value.as_ref().into();
 
     if text.len() < min_len {
         return Err(Box::new(CompileError::invalid_pattern(
             ctx.report_builder,
             pattern.identifier.name.to_string(),
             "this pattern is too short".to_string(),
-            pattern.span().into(),
+            pattern.text.span().into(),
             note,
         )));
     }
@@ -253,7 +253,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
         in_use: false,
         pattern: Pattern::Regexp(RegexpPattern {
             flags: PatternFlagSet::from(PatternFlags::Ascii),
-            hir: re::hir::Hir::from(hex_pattern_hir_from_ast(ctx, pattern)),
+            hir: re::hir::Hir::from(hex_pattern_hir_from_ast(ctx, pattern)?),
             anchored_at: None,
         }),
     })
@@ -313,7 +313,7 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
             Warning::redundant_case_modifier(
                 ctx.report_builder,
                 pattern.modifiers.nocase().unwrap().span().into(),
-                pattern.span().subspan(i_pos, i_pos + 1).into(),
+                pattern.regexp.span().subspan(i_pos, i_pos + 1).into(),
             )
         });
     }
@@ -1117,7 +1117,7 @@ fn range_from_ast(
 
     // If both the lower and upper bounds are known at compile time, make sure
     // that lower_bound <= upper_bound. If they are not know (because they are
-    // variables, for example) we can't raise an error at compile time but it
+    // variables, for example) we can't raise an error at compile time, but it
     // will be handled at scan time.
     if let (
         TypeValue::Integer(Value::Const(lower_bound)),
@@ -1249,10 +1249,17 @@ fn pattern_set_from_ast(
                     return Err(Box::new(CompileError::empty_pattern_set(
                         ctx.report_builder,
                         item.span().into(),
-                        Some(format!(
-                            "`{}` doesn't match any pattern identifier",
-                            item.identifier,
-                        )),
+                        Some(if item.wildcard {
+                            format!(
+                                "`{}*` doesn't match any pattern identifier",
+                                item.identifier,
+                            )
+                        } else {
+                            format!(
+                                "`{}` doesn't match any pattern identifier",
+                                item.identifier,
+                            )
+                        }),
                     )));
                 }
             }
@@ -1449,12 +1456,19 @@ fn re_error_to_compile_error(
             CompileError::invalid_regexp(
                 report_builder,
                 msg,
-                // the error span is relative to the start of the regexp, not to
+                // The error span is relative to the start of the regexp, not to
                 // the start of the source file, here we make it relative to the
-                // source file.
+                // source file. Notice that the resulting span must be shifted one
+                // character to the left, because the error span doesn't include
+                // the opening slash (/) but the regexp span does.
+                //
+                // /someregexp/
+                //  ^ this is position 0 for error spans
+                // ^ this is where the regexp starts according to the regexp span
                 regexp
                     .span()
                     .subspan(span.start.offset, span.end.offset)
+                    .offset(1)
                     .into(),
                 note,
             )
@@ -1471,10 +1485,12 @@ fn re_error_to_compile_error(
             regexp
                 .span()
                 .subspan(span_1.start.offset, span_1.end.offset)
+                .offset(1)
                 .into(),
             regexp
                 .span()
                 .subspan(span_2.start.offset, span_2.end.offset)
+                .offset(1)
                 .into(),
         ),
     }
@@ -1506,7 +1522,7 @@ pub(in crate::compiler) fn warn_if_not_bool(
             Warning::non_boolean_as_boolean(
                 ctx.report_builder,
                 ty.to_string(),
-                span.clone().into(),
+                span.into(),
                 note,
             )
         });

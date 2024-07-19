@@ -2,5 +2,5 @@ error[E001]: syntax error
  --> line:2:5
   |
 2 |     true }
-  |     ^ expected `condition`, `meta`, or `strings`
+  |     ^^^^ expecting `meta`, `strings` or `condition`, found `true`
   |

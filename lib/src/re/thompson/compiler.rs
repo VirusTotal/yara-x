@@ -748,6 +748,8 @@ impl Compiler {
             // end:
             //
             (min, Some(max), greedy) => {
+                debug_assert!(min < max);
+
                 // `start` and `end` are the locations where the code for `e`
                 // starts and ends.
                 let start = self.bookmarks.pop().unwrap();

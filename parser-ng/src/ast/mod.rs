@@ -32,15 +32,42 @@ pub struct AST<'src> {
     /// The list of imports.
     pub imports: Vec<Import<'src>>,
     /// The list of rules in the AST.
-    pub rules: Vec<Rule<'src>>,
+    rules: Vec<Rule<'src>>,
     /// Errors that occurred while parsing the rules.
-    pub errors: Vec<Error>,
+    errors: Vec<Error>,
 }
 
 impl<'src> From<Parser<'src>> for AST<'src> {
     /// Crates an [`AST`] from the given parser.
     fn from(parser: Parser<'src>) -> Self {
         Builder::new(parser).build_ast()
+    }
+}
+
+impl<'src> AST<'src> {
+    /// Returns the import statements in the AST.
+    #[inline]
+    pub fn imports(&self) -> &[Import<'src>] {
+        self.imports.as_slice()
+    }
+
+    /// Returns the rules in the AST.
+    #[inline]
+    pub fn rules(&self) -> &[Rule<'src>] {
+        self.rules.as_slice()
+    }
+
+    /// Returns the errors found while parsing the source code.
+    #[inline]
+    pub fn errors(&self) -> &[Error] {
+        self.errors.as_slice()
+    }
+
+    /// Consumes the parser, and returns the errors found while
+    /// parsing the source code as a vector.
+    #[inline]
+    pub fn into_errors(self) -> Vec<Error> {
+        self.errors
     }
 }
 
@@ -189,16 +216,14 @@ impl<'src> Pattern<'src> {
 /// A text pattern (a.k.a. text string) in a YARA rule.
 #[derive(Debug)]
 pub struct TextPattern<'src> {
-    span: Span,
     pub identifier: Ident<'src>,
-    pub text: Cow<'src, BStr>, // TODO: make this a LiteralString and remove span?
+    pub text: LiteralString<'src>,
     pub modifiers: PatternModifiers<'src>,
 }
 
 /// A regular expression pattern in a YARA rule.
 #[derive(Debug)]
 pub struct RegexpPattern<'src> {
-    span: Span,
     pub identifier: Ident<'src>,
     pub regexp: Regexp<'src>,
     pub modifiers: PatternModifiers<'src>,
@@ -207,7 +232,6 @@ pub struct RegexpPattern<'src> {
 /// A hex pattern (a.k.a. hex string) in a YARA rule.
 #[derive(Debug)]
 pub struct HexPattern<'src> {
-    span: Span,
     pub identifier: Ident<'src>,
     pub tokens: HexTokens,
     pub modifiers: PatternModifiers<'src>,
@@ -259,7 +283,7 @@ pub struct HexAlternative {
 }
 
 /// A jump in a hex pattern (a.k.a. hex string).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HexJump {
     span: Span,
     pub start: Option<u16>,
@@ -543,6 +567,12 @@ impl<'src> PatternModifiers<'src> {
     #[inline]
     pub fn iter(&self) -> PatternModifiersIter {
         PatternModifiersIter { iter: self.modifiers.iter() }
+    }
+
+    /// Returns true if the pattern has no modifiers.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.modifiers.is_empty()
     }
 
     #[inline]
@@ -1025,19 +1055,31 @@ impl WithSpan for Pattern<'_> {
 
 impl WithSpan for TextPattern<'_> {
     fn span(&self) -> Span {
-        self.span.clone()
+        if self.modifiers.is_empty() {
+            self.identifier.span().combine(&self.text.span)
+        } else {
+            self.identifier.span().combine(&self.modifiers.span())
+        }
     }
 }
 
 impl WithSpan for HexPattern<'_> {
     fn span(&self) -> Span {
-        self.span.clone()
+        if self.modifiers.is_empty() {
+            self.identifier.span().combine(&self.tokens.span())
+        } else {
+            self.identifier.span().combine(&self.modifiers.span())
+        }
     }
 }
 
 impl WithSpan for RegexpPattern<'_> {
     fn span(&self) -> Span {
-        self.span.clone()
+        if self.modifiers.is_empty() {
+            self.identifier.span().combine(&self.regexp.span)
+        } else {
+            self.identifier.span().combine(&self.modifiers.span())
+        }
     }
 }
 
@@ -1078,6 +1120,22 @@ impl WithSpan for PatternModifier<'_> {
             | PatternModifier::Base64 { span, .. }
             | PatternModifier::Base64Wide { span, .. }
             | PatternModifier::Xor { span, .. } => span.clone(),
+        }
+    }
+}
+
+impl WithSpan for PatternModifiers<'_> {
+    fn span(&self) -> Span {
+        let span = self
+            .modifiers
+            .first()
+            .expect("calling span() on an empty Vec<PatternModifier>")
+            .span();
+
+        if self.modifiers.len() > 1 {
+            span.combine(&self.modifiers.last().unwrap().span())
+        } else {
+            span
         }
     }
 }
@@ -1123,7 +1181,11 @@ impl WithSpan for &Vec<Expr<'_>> {
         let span =
             self.first().expect("calling span() on an empty Vec<Expr>").span();
 
-        span.combine(&self.last().unwrap().span())
+        if self.len() > 1 {
+            span.combine(&self.last().unwrap().span())
+        } else {
+            span
+        }
     }
 }
 

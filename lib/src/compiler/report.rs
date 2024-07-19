@@ -22,10 +22,16 @@ pub struct SourceId(u32);
 ///
 /// The [`SourceId`] is optional, if it is [`None`] it means that the [`Span`]
 /// is relative to the current source file.
-#[derive(PartialEq, Clone, Eq)]
+#[derive(PartialEq, Clone, Eq, Default)]
 pub struct SourceRef {
     source_id: Option<SourceId>,
     span: Span,
+}
+
+impl SourceRef {
+    pub(crate) fn new(source_id: Option<SourceId>, span: Span) -> Self {
+        Self { source_id, span }
+    }
 }
 
 impl From<&Span> for SourceRef {

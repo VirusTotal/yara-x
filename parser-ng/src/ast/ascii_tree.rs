@@ -451,9 +451,9 @@ pub(crate) fn pattern_set_ascii_tree(pattern_set: &PatternSet) -> Tree {
 pub(crate) fn pattern_ascii_tree(pattern: &Pattern) -> Tree {
     match pattern {
         Pattern::Text(s) => Leaf(vec![format!(
-            "{} = \"{}\" {}",
+            "{} = {} {}",
             s.identifier.name,
-            s.text,
+            s.text.literal,
             s.modifiers.iter().map(|m| m.to_string()).join(" ")
         )]),
         Pattern::Hex(h) => Node(

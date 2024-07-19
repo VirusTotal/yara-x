@@ -807,6 +807,15 @@ impl Expr {
         span: Span,
     ) -> Result<Self, Box<CompileError>> {
         match self {
+            Expr::Minus { ref operand } => match operand.type_value() {
+                TypeValue::Integer(Value::Const(v)) => {
+                    Ok(Expr::Const(TypeValue::const_integer_from(-v)))
+                }
+                TypeValue::Float(Value::Const(v)) => {
+                    Ok(Expr::Const(TypeValue::const_float_from(-v)))
+                }
+                _ => Ok(self),
+            },
             Expr::And { mut operands } => {
                 // Retain the operands whose value is not constant, or is
                 // constant but false, remove those that are known to be
@@ -857,7 +866,6 @@ impl Expr {
 
                 Ok(Expr::Or { operands })
             }
-
             Expr::Add { operands } => {
                 // If not all operands are constant, there's nothing to fold.
                 if !operands.iter().all(|op| op.type_value().is_const()) {

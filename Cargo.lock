@@ -1764,12 +1764,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "indenter"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce23b50ad8242c51a442f3ff322d56b02f08852c77e4c0b4d3fd684abc89c683"
-
-[[package]]
 name = "indexmap"
 version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2023,12 +2017,6 @@ checksum = "d45be9bede9b9d6d53b6e06047822a18dbd83e5d515736afecd85c1e71cc6070"
 dependencies = [
  "include_dir",
 ]
-
-[[package]]
-name = "linked-hash-map"
-version = "0.5.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0717cef1bc8b636c6e1c1bbdefc09e6322da8a9321966e8928ef80d20f7f770f"
 
 [[package]]
 name = "linkme"
@@ -4835,15 +4823,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "yaml-rust"
-version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56c1936c4cc7a1c9ab21a1ebb602eb942ba868cbd44a99cb7cdc5892335e1c85"
-dependencies = [
- "linked-hash-map",
-]
-
-[[package]]
 name = "yansi"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4960,7 +4939,6 @@ dependencies = [
  "yansi 1.0.1",
  "yara-x",
  "yara-x-fmt",
- "yara-x-parser",
  "yara-x-parser-ng",
  "yara-x-proto-yaml",
 ]
@@ -4987,28 +4965,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "yara-x-parser"
-version = "0.5.0"
-dependencies = [
- "annotate-snippets",
- "ascii_tree",
- "base64 0.22.1",
- "bitmask",
- "bstr 1.9.1",
- "indenter",
- "itertools 0.13.0",
- "lazy_static",
- "num-traits",
- "pest",
- "pest_derive",
- "pretty_assertions",
- "thiserror",
- "yaml-rust",
- "yansi 1.0.1",
- "yara-x-macros",
 ]
 
 [[package]]

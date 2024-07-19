@@ -1,6 +1,6 @@
 error[E112]: invalid regular expression
- --> line:3:10
+ --> line:3:5
   |
 3 |     $a = /(foo|)/
-  |          ^^^^^^^^ this regexp can match empty strings
+  |     ^^^^^^^^^^^^^ this regexp can match empty strings
   |

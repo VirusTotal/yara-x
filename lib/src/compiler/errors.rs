@@ -4,6 +4,7 @@ use std::io;
 use thiserror::Error;
 
 use yara_x_macros::Error as DeriveError;
+use yara_x_parser_ng::ast;
 
 use crate::compiler::report::{Level, ReportBuilder, SourceRef};
 use crate::compiler::warnings::InvalidWarningCode;
@@ -303,6 +304,100 @@ pub enum CompileError {
         error_msg: String,
         error_span: SourceRef,
     },
+
+    #[error("E012", "invalid integer")]
+    #[label("{error_msg}", error_span)]
+    InvalidInteger {
+        detailed_report: String,
+        error_msg: String,
+        error_span: SourceRef,
+    },
+
+    #[error("E013", "invalid float")]
+    #[label("{error_msg}", error_span)]
+    InvalidFloat {
+        detailed_report: String,
+        error_msg: String,
+        error_span: SourceRef,
+    },
+
+    #[error("E014", "invalid escape sequence")]
+    #[label("{error_msg}", error_span)]
+    InvalidEscapeSequence {
+        detailed_report: String,
+        error_msg: String,
+        error_span: SourceRef,
+    },
+
+    #[error("E016", "invalid regexp modifier `{modifier}`")]
+    #[label("invalid modifier", error_span)]
+    InvalidRegexpModifier {
+        detailed_report: String,
+        modifier: String,
+        error_span: SourceRef,
+    },
+
+    #[error("E015", "unexpected escape sequence")]
+    #[label("escape sequences are not allowed in this string", error_span)]
+    UnexpectedEscapeSequence { detailed_report: String, error_span: SourceRef },
+
+    #[error("E017", "invalid UTF-8")]
+    #[label("invalid UTF-8 character", error_span)]
+    InvalidUTF8 { detailed_report: String, error_span: SourceRef },
+}
+
+impl CompileError {
+    pub(crate) fn from(
+        report_builder: &ReportBuilder,
+        err: ast::Error,
+    ) -> Self {
+        match err {
+            ast::Error::SyntaxError { message, span } => {
+                CompileError::syntax_error(
+                    report_builder,
+                    message,
+                    span.into(),
+                )
+            }
+            ast::Error::InvalidInteger { message, span } => {
+                CompileError::invalid_integer(
+                    report_builder,
+                    message,
+                    span.into(),
+                )
+            }
+            ast::Error::InvalidFloat { message, span } => {
+                CompileError::invalid_float(
+                    report_builder,
+                    message,
+                    span.into(),
+                )
+            }
+            ast::Error::InvalidRegexpModifier { message, span } => {
+                CompileError::invalid_regexp_modifier(
+                    report_builder,
+                    message,
+                    span.into(),
+                )
+            }
+            ast::Error::InvalidEscapeSequence { message, span } => {
+                CompileError::invalid_escape_sequence(
+                    report_builder,
+                    message,
+                    span.into(),
+                )
+            }
+            ast::Error::UnexpectedEscapeSequence(span) => {
+                CompileError::unexpected_escape_sequence(
+                    report_builder,
+                    span.into(),
+                )
+            }
+            ast::Error::InvalidUTF8(span) => {
+                CompileError::invalid_utf_8(report_builder, span.into())
+            }
+        }
+    }
 }
 
 impl CompileError {

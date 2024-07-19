@@ -1,6 +1,6 @@
 warning[slow_pattern]: slow pattern
- --> line:3:10
+ --> line:3:5
   |
 3 |     $a = {00 [1-10] 01}
-  |          -------------- this pattern may slow down the scan
+  |     ------------------ this pattern may slow down the scan
   |

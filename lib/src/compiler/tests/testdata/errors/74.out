@@ -2,5 +2,5 @@ error[E001]: syntax error
  --> line:1:8
   |
 1 | global foo rule test { condition: true }
-  |        ^ expected `private` or `rule`
+  |        ^^^ expecting `private` or `rule`, found `foo`
   |

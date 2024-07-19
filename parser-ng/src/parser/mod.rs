@@ -560,48 +560,49 @@ impl<'src> ParserImpl<'src> {
             return self;
         }
 
-        let found_expected_token = match self.peek_non_ws() {
-            None => None,
-            Some(token) => {
-                let span = token.span();
-                let token = expected_tokens.contains(token);
-
-                match (self.not_depth, token) {
-                    // The expected token was found, but we are inside a "not".
-                    // When we are inside a "not", any "expect" is negated, and
-                    // actually means that the token was *not* expected.
-                    (not_depth, Some(_)) if not_depth > 0 => {
-                        self.unexpected_token_errors.insert(span);
-                        self.handle_errors()
-                    }
-                    // We are not inside a "not", and the expected token was
-                    // not found.
-                    (0, None) => {
-                        let tokens = self
-                            .expected_token_errors
-                            .entry(span.clone())
-                            .or_default();
-
-                        if let Some(description) = description {
-                            tokens.insert(description);
-                        } else {
-                            tokens.extend(
-                                expected_tokens
-                                    .token_ids()
-                                    .map(|token| token.description()),
-                            );
-                        }
-
-                        self.handle_errors();
-                    }
-                    _ => {}
-                }
-
-                token
+        let (token_found, span) = match self.peek_non_ws() {
+            None => {
+                // Special case when the end of the source is reached. The span
+                // used for error reporting is a zero-length span pointing to
+                // last byte in the source code.
+                let last = self.tokens.source().len().saturating_sub(1) as u32;
+                (None, Span(last..last))
             }
+            Some(token) => (expected_tokens.contains(token), token.span()),
         };
 
-        if let Some(t) = found_expected_token {
+        match (self.not_depth, token_found) {
+            // The expected token was found, but we are inside a "not".
+            // When we are inside a "not", any "expect" is negated, and
+            // actually means that the token was *not* expected.
+            (not_depth, Some(_)) if not_depth > 0 => {
+                self.unexpected_token_errors.insert(span);
+                self.handle_errors()
+            }
+            // We are not inside a "not", and the expected token was
+            // not found.
+            (0, None) => {
+                let tokens = self
+                    .expected_token_errors
+                    .entry(span.clone())
+                    .or_default();
+
+                if let Some(description) = description {
+                    tokens.insert(description);
+                } else {
+                    tokens.extend(
+                        expected_tokens
+                            .token_ids()
+                            .map(|token| token.description()),
+                    );
+                }
+
+                self.handle_errors();
+            }
+            _ => {}
+        }
+
+        if let Some(t) = token_found {
             // Consume any trivia token in front of the non-trivia expected
             // token.
             self.trivia();
@@ -914,7 +915,9 @@ impl<'src> ParserImpl<'src> {
                     let (last, all_except_last) =
                         expected.as_slice().split_last().unwrap();
 
-                    if all_except_last.is_empty() {
+                    if actual_token.is_empty() {
+                        format!("expecting {last}, found end of file")
+                    } else if all_except_last.is_empty() {
                         format!("expecting {last}, found `{actual_token}`")
                     } else {
                         format!(
@@ -922,6 +925,8 @@ impl<'src> ParserImpl<'src> {
                             itertools::join(all_except_last.iter(), ", "),
                         )
                     }
+                } else if actual_token.is_empty() {
+                    "unexpected end of file".to_string()
                 } else {
                     format!("unexpected `{actual_token}`")
                 }
@@ -1315,7 +1320,8 @@ impl<'src> ParserImpl<'src> {
         self.begin(BOOLEAN_EXPR)
             .boolean_term()
             .zero_or_more(|p| {
-                p.expect(t!(AND_KW | OR_KW)).then(|p| p.boolean_term())
+                p.expect_d(t!(AND_KW | OR_KW), Some("operator"))
+                    .then(|p| p.boolean_term())
             })
             .end()
     }
@@ -1332,40 +1338,46 @@ impl<'src> ParserImpl<'src> {
     /// )
     /// ``
     fn boolean_term(&mut self) -> &mut Self {
+        const DESC: Option<&'static str> = Some("expression");
+
         self.begin(BOOLEAN_TERM)
             .begin_alt()
             .alt(|p| {
-                p.expect(t!(PATTERN_IDENT))
+                p.expect_d(t!(PATTERN_IDENT), DESC)
                     .cond(t!(AT_KW), |p| p.expr())
                     .cond(t!(IN_KW), |p| p.range())
             })
-            .alt(|p| p.expect(t!(TRUE_KW | FALSE_KW)))
+            .alt(|p| p.expect_d(t!(TRUE_KW | FALSE_KW), DESC))
             .alt(|p| {
-                p.expect(t!(NOT_KW | DEFINED_KW)).then(|p| p.boolean_term())
+                p.expect_d(t!(NOT_KW | DEFINED_KW), DESC)
+                    .then(|p| p.boolean_term())
             })
             .alt(|p| p.for_expr())
             .alt(|p| p.of_expr())
             .alt(|p| {
                 p.expr().zero_or_more(|p| {
-                    p.expect(t!(EQ
-                        | NE
-                        | LE
-                        | LT
-                        | GE
-                        | GT
-                        | CONTAINS_KW
-                        | ICONTAINS_KW
-                        | STARTSWITH_KW
-                        | ISTARTSWITH_KW
-                        | ENDSWITH_KW
-                        | IENDSWITH_KW
-                        | IEQUALS_KW
-                        | MATCHES_KW))
-                        .then(|p| p.expr())
+                    p.expect_d(
+                        t!(EQ
+                            | NE
+                            | LE
+                            | LT
+                            | GE
+                            | GT
+                            | CONTAINS_KW
+                            | ICONTAINS_KW
+                            | STARTSWITH_KW
+                            | ISTARTSWITH_KW
+                            | ENDSWITH_KW
+                            | IENDSWITH_KW
+                            | IEQUALS_KW
+                            | MATCHES_KW),
+                        DESC,
+                    )
+                    .then(|p| p.expr())
                 })
             })
             .alt(|p| {
-                p.expect(t!(L_PAREN))
+                p.expect_d(t!(L_PAREN), DESC)
                     .then(|p| p.boolean_expr())
                     .expect(t!(R_PAREN))
             })
@@ -1384,19 +1396,22 @@ impl<'src> ParserImpl<'src> {
         self.begin(EXPR)
             .term()
             .zero_or_more(|p| {
-                p.expect(t!(ADD
-                    | SUB
-                    | MUL
-                    | DIV
-                    | MOD
-                    | SHL
-                    | SHR
-                    | BITWISE_AND
-                    | BITWISE_OR
-                    | BITWISE_XOR
-                    | BITWISE_NOT
-                    | DOT))
-                    .then(|p| p.term())
+                p.expect_d(
+                    t!(ADD
+                        | SUB
+                        | MUL
+                        | DIV
+                        | MOD
+                        | SHL
+                        | SHR
+                        | BITWISE_AND
+                        | BITWISE_OR
+                        | BITWISE_XOR
+                        | BITWISE_NOT
+                        | DOT),
+                    Some("operator"),
+                )
+                .then(|p| p.term())
             })
             .end()
     }

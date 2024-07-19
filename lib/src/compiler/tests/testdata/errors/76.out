@@ -2,5 +2,5 @@ error[E001]: syntax error
  --> line:1:28
   |
 1 | rule test { condition: 4 + }
-  |                            ^ expected expression
+  |                            ^ expecting expression, found `}`
   |

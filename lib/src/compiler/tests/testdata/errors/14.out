@@ -1,6 +1,6 @@
 error[E104]: unexpected negative number
- --> line:5:15
+ --> line:6:15
   |
-5 |     $a in (0..-2)
+6 |     $a in (0..-2)
   |               ^^ this number can not be negative
   |

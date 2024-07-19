@@ -2,5 +2,5 @@ error[E001]: syntax error
  --> line:1:12
   |
 1 | rule test {}
-  |            ^ expected `condition`, `meta`, or `strings`
+  |            ^ expecting `meta`, `strings` or `condition`, found `}`
   |

@@ -143,7 +143,7 @@ impl Warnings {
     }
 
     #[inline]
-    pub fn add(&mut self, f: impl Fn() -> Warning) {
+    pub fn add(&mut self, f: impl FnOnce() -> Warning) {
         if self.warnings.len() < self.max_warnings {
             let warning = f();
             if !self.disabled_warnings.contains(warning.code()) {

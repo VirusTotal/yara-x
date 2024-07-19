@@ -2,5 +2,5 @@ error[E001]: syntax error
  --> line:1:24
   |
 1 | rule test { condition: }
-  |                        ^ expected boolean expression
+  |                        ^ expecting expression, `for`, `all`, `none` or `any`, found `}`
   |

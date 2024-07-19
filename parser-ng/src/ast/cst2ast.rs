@@ -46,7 +46,7 @@ impl<'src> Builder<'src> {
 
         loop {
             match self.peek() {
-                &Event::Begin(RULE_DECL) => match self.rule_decl() {
+                Event::Begin(RULE_DECL) => match self.rule_decl() {
                     Ok(rule) => rules.push(rule),
                     // If `rule_decl` returns an error the rule is ignored,
                     // but we try to continue at the next rule declaration
@@ -54,7 +54,7 @@ impl<'src> Builder<'src> {
                     // everything until finding the next rule or import.
                     Err(Abort) => self.recover(),
                 },
-                &Event::Begin(IMPORT_STMT) => match self.import_stmt() {
+                Event::Begin(IMPORT_STMT) => match self.import_stmt() {
                     Ok(import) => imports.push(import),
                     // If `import_stmt` returns an error the import is ignored,
                     // but we try to continue at the next rule declaration
@@ -62,8 +62,8 @@ impl<'src> Builder<'src> {
                     // everything until finding the next rule or import.
                     Err(Abort) => self.recover(),
                 },
-                &Event::End(SOURCE_FILE) => break,
-                event => unreachable!("unexpected event {:?}", event),
+                Event::End(SOURCE_FILE) => break,
+                _ => self.recover(),
             }
         }
 
@@ -582,21 +582,17 @@ impl<'src> Builder<'src> {
 
     fn pattern_def(&mut self) -> Result<Pattern<'src>, Abort> {
         self.begin(PATTERN_DEF)?;
-
         let identifier = self.pattern_ident()?;
-        let identifier_span = identifier.span();
-
         self.expect(EQUAL)?;
 
         let pattern = match self.peek() {
             Event::Token { kind: STRING_LIT, .. } => {
-                let (text, _lit, span) = self.string_lit(true)?;
+                let (value, literal, span) = self.string_lit(true)?;
                 let modifiers = self.pattern_mods_opt()?;
 
                 Pattern::Text(Box::new(TextPattern {
-                    span: identifier_span.combine(&span),
                     identifier,
-                    text,
+                    text: LiteralString { span, literal, value },
                     modifiers,
                 }))
             }
@@ -605,7 +601,6 @@ impl<'src> Builder<'src> {
                 let modifiers = self.pattern_mods_opt()?;
 
                 Pattern::Regexp(Box::new(RegexpPattern {
-                    span: identifier_span.combine(&regexp.span()),
                     identifier,
                     regexp,
                     modifiers,
@@ -616,7 +611,6 @@ impl<'src> Builder<'src> {
                 let modifiers = self.pattern_mods_opt()?;
 
                 Pattern::Hex(Box::new(HexPattern {
-                    span: identifier_span.combine(&tokens.span()),
                     identifier,
                     tokens,
                     modifiers,
@@ -1068,15 +1062,19 @@ impl<'src> Builder<'src> {
     fn anchor(&mut self) -> Result<Option<MatchAnchor<'src>>, Abort> {
         match self.peek() {
             Event::Token { kind: AT_KW, .. } => {
+                let at_span = self.expect(AT_KW)?;
+                let expr = self.expr()?;
                 Ok(Some(MatchAnchor::At(Box::new(At {
-                    span: self.expect(AT_KW)?,
-                    expr: self.expr()?,
+                    span: at_span.combine(&expr.span()),
+                    expr,
                 }))))
             }
             Event::Token { kind: IN_KW, .. } => {
+                let in_span = self.expect(IN_KW)?;
+                let range = self.range()?;
                 Ok(Some(MatchAnchor::In(Box::new(In {
-                    span: self.expect(IN_KW)?,
-                    range: self.range()?,
+                    span: in_span.combine(&range.span()),
+                    range,
                 }))))
             }
             _ => Ok(None),
@@ -1244,8 +1242,8 @@ impl<'src> Builder<'src> {
                 {
                     self.expect(L_BRACKET)?;
                     let index = self.expr()?;
-                    self.expect(R_BRACKET)?;
-                    (span.combine(&index.span()), Some(index))
+                    let r_bracket_span = self.expect(R_BRACKET)?;
+                    (span.combine(&r_bracket_span), Some(index))
                 } else {
                     (span.clone(), None)
                 };
@@ -1269,8 +1267,8 @@ impl<'src> Builder<'src> {
                 {
                     self.expect(L_BRACKET)?;
                     let index = self.expr()?;
-                    self.expect(R_BRACKET)?;
-                    (span.combine(&index.span()), Some(index))
+                    let r_bracket_span = self.expect(R_BRACKET)?;
+                    (span.combine(&r_bracket_span), Some(index))
                 } else {
                     (span.clone(), None)
                 };
@@ -1346,19 +1344,15 @@ impl<'src> Builder<'src> {
 
         let item = |s: &mut Self| -> Result<PatternSetItem<'src>, Abort> {
             let ident = s.pattern_ident()?;
-            Ok(PatternSetItem {
-                span: ident.span,
-                identifier: ident.name,
-                wildcard: if matches!(
-                    s.peek(),
-                    Event::Token { kind: ASTERISK, .. }
-                ) {
-                    s.expect(ASTERISK)?;
+            let mut span = ident.span();
+            let wildcard =
+                if matches!(s.peek(), Event::Token { kind: ASTERISK, .. }) {
+                    span = span.combine(&s.expect(ASTERISK)?);
                     true
                 } else {
                     false
-                },
-            })
+                };
+            Ok(PatternSetItem { span, identifier: ident.name, wildcard })
         };
 
         let mut items = vec![item(self)?];

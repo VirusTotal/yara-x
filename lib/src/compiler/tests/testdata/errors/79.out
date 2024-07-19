@@ -2,5 +2,5 @@ error[E001]: syntax error
  --> line:3:19
   |
 3 |   $a = { 00 [0-1] }
-  |                   ^ expected byte, opening bracket `[`, or opening parenthesis `(`
+  |                   ^ expecting `[`, BYTE or `(`, found `}`
   |

@@ -1,6 +1,6 @@
 error[E001]: syntax error
- --> line:1:28
+ --> line:1:27
   |
 1 | rule test { condition: true
-  |                            ^ expected closing brace `}` or operator
+  |                           ^ expecting `}`, found end of file
   |
