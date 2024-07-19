@@ -121,25 +121,6 @@ impl<'src> SourceCode<'src> {
             origin: Some(origin.to_owned()),
         }
     }
-
-    /// Returns the source code as a `&str`.
-    ///
-    /// If the source code is not valid UTF-8 it will return an error.
-    fn as_str(&mut self) -> Result<&'src str, bstr::Utf8Error> {
-        match self.valid {
-            // We already know that source code is valid UTF-8, return it
-            // as is.
-            Some(s) => Ok(s),
-            // We don't know yet if the source code is valid UTF-8, some
-            // validation must be done. If validation fails an error is
-            // returned.
-            None => {
-                let src = self.raw.to_str()?;
-                self.valid = Some(src);
-                Ok(src)
-            }
-        }
-    }
 }
 
 impl<'src> From<&'src str> for SourceCode<'src> {
