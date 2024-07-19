@@ -1,0 +1,32 @@
+SOURCE_FILE@0..59
+  RULE_DECL@0..59
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..13 "\t"
+    PATTERNS_BLK@13..39
+      STRINGS_KW@13..20 "strings"
+      COLON@20..21 ":"
+      NEWLINE@21..22 "\n"
+      WHITESPACE@22..24 "\t\t"
+      PATTERN_DEF@24..39
+        PATTERN_IDENT@24..26 "$b"
+        WHITESPACE@26..27 " "
+        EQUAL@27..28 "="
+        WHITESPACE@28..29 " "
+        STRING_LIT@29..39 "\"foobar\\\"\""
+    NEWLINE@39..40 "\n"
+    WHITESPACE@40..41 "\t"
+    CONDITION_BLK@41..57
+      CONDITION_KW@41..50 "condition"
+      COLON@50..51 ":"
+      NEWLINE@51..52 "\n"
+      WHITESPACE@52..55 "\t  "
+      BOOLEAN_EXPR@55..57
+        BOOLEAN_TERM@55..57
+          PATTERN_IDENT@55..57 "$a"
+    NEWLINE@57..58 "\n"
+    R_BRACE@58..59 "}"

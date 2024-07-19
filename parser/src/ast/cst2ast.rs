@@ -1541,7 +1541,7 @@ impl<'src> Builder<'src> {
         let string_span = span.subspan(num_quotes, literal.len() - num_quotes);
 
         // Remove the quotes.
-        let without_quotes = literal.trim_matches('"');
+        let without_quotes = &literal[num_quotes..literal.len() - num_quotes];
 
         // Check if the string contains some backslash.
         let backslash_pos = if let Some(backslash_pos) =
@@ -1575,7 +1575,12 @@ impl<'src> Builder<'src> {
                     // Consume the backslash and see what's next. A character must
                     // follow the backslash, this is guaranteed by the grammar
                     // itself.
-                    let escaped_char = chars.next().unwrap();
+                    let escaped_char = if let Some(x) = chars.next() {
+                        x
+                    } else {
+                        //
+                        panic!()
+                    };
 
                     match escaped_char.1 {
                         '\\' => result.push(b'\\'),
