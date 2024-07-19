@@ -172,7 +172,7 @@ mod tests {
     use crate::tokens::Token;
     use crate::{NEWLINE, WHITESPACE};
     use pretty_assertions::assert_eq;
-    use yara_x_parser_ng::cst::SyntaxKind;
+    use yara_x_parser::cst::SyntaxKind;
 
     #[test]
     fn test_nest() {

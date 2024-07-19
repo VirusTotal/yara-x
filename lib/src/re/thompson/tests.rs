@@ -3,7 +3,7 @@
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
 
-use yara_x_parser_ng::ast;
+use yara_x_parser::ast;
 
 use crate::compiler::Atom;
 use crate::re;

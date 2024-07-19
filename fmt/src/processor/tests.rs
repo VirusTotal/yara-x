@@ -1,6 +1,6 @@
 use pretty_assertions::assert_eq;
-use yara_x_parser_ng::cst::SyntaxKind;
-use yara_x_parser_ng::Parser;
+use yara_x_parser::cst::SyntaxKind;
+use yara_x_parser::Parser;
 
 use crate::processor::{actions, Processor};
 use crate::tokens;

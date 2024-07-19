@@ -1,10 +1,8 @@
-use bstr::ByteSlice;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::fs;
 use std::io::Write;
 use std::mem::size_of;
-use yara_x_parser_ng::Parser;
 
 use crate::compiler::{
     SerializationError, SubPattern, Var, VarStack, VariableError,

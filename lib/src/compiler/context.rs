@@ -2,7 +2,7 @@ use itertools::Itertools;
 use std::mem::size_of;
 use std::rc::Rc;
 
-use yara_x_parser_ng::ast::{Ident, WithSpan};
+use yara_x_parser::ast::{Ident, WithSpan};
 
 use crate::compiler::ir::PatternIdx;
 use crate::compiler::report::ReportBuilder;

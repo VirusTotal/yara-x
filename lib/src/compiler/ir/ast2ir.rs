@@ -8,9 +8,9 @@ use std::rc::Rc;
 
 use bstr::{BString, ByteSlice};
 use itertools::Itertools;
-use yara_x_parser_ng::ast;
-use yara_x_parser_ng::ast::WithSpan;
-use yara_x_parser_ng::Span;
+use yara_x_parser::ast;
+use yara_x_parser::ast::WithSpan;
+use yara_x_parser::Span;
 
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{

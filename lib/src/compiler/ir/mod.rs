@@ -43,8 +43,8 @@ use crate::types::{Type, TypeValue, Value};
 pub(in crate::compiler) use ast2ir::bool_expr_from_ast;
 pub(in crate::compiler) use ast2ir::patterns_from_ast;
 
-use yara_x_parser_ng::ast::Ident;
-use yara_x_parser_ng::Span;
+use yara_x_parser::ast::Ident;
+use yara_x_parser::Span;
 
 use crate::{re, CompileError};
 

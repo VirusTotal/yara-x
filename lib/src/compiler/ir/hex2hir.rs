@@ -2,8 +2,8 @@
 
 use crate::CompileError;
 use regex_syntax::hir;
-use yara_x_parser_ng::ast;
-use yara_x_parser_ng::ast::WithSpan;
+use yara_x_parser::ast;
+use yara_x_parser::ast::WithSpan;
 
 use crate::compiler::context::CompileContext;
 use crate::compiler::warnings::Warning;
@@ -182,7 +182,7 @@ mod tests {
         Class, ClassBytes, ClassBytesRange, Dot, Hir, HirKind, Repetition,
     };
 
-    use yara_x_parser_ng::ast::{
+    use yara_x_parser::ast::{
         HexAlternative, HexByte, HexJump, HexPattern, HexToken, HexTokens,
         Ident,
     };

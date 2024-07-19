@@ -5,7 +5,7 @@ use anyhow::Context;
 use clap::{arg, value_parser, ArgMatches, Command};
 
 use yara_x::{Compiler, SourceCode};
-use yara_x_parser_ng::Parser;
+use yara_x_parser::Parser;
 
 pub fn ast() -> Command {
     super::command("ast")

@@ -25,9 +25,9 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use walrus::FunctionId;
 
-use yara_x_parser_ng::ast;
-use yara_x_parser_ng::ast::{Ident, Import, RuleFlag, WithSpan};
-use yara_x_parser_ng::{Parser, Span};
+use yara_x_parser::ast;
+use yara_x_parser::ast::{Ident, Import, RuleFlag, WithSpan};
+use yara_x_parser::{Parser, Span};
 
 use crate::compiler::base64::base64_patterns;
 use crate::compiler::emit::{emit_rule_condition, EmitContext};

@@ -1,9 +1,9 @@
 use pretty_assertions::assert_eq;
-use yara_x_parser_ng::cst::SyntaxKind;
+use yara_x_parser::cst::SyntaxKind;
 
 use crate::tokens::Token::*;
 use crate::tokens::{Token, Tokens};
-use yara_x_parser_ng::Parser;
+use yara_x_parser::Parser;
 
 #[test]
 fn token_generation() {

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::{fs, str};
 
 use pretty_assertions::assert_eq;
-use yara_x_parser_ng::Parser;
+use yara_x_parser::Parser;
 
 use crate::tokens::{TokenStream, Tokens};
 use crate::Formatter;

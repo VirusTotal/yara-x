@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::iter::Peekable;
-use yara_x_parser_ng::cst::SyntaxKind;
+use yara_x_parser::cst::SyntaxKind;
 
 use crate::tokens::{categories, Token, TokenStream};
 

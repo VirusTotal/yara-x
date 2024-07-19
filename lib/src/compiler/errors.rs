@@ -4,7 +4,7 @@ use std::io;
 use thiserror::Error;
 
 use yara_x_macros::Error as DeriveError;
-use yara_x_parser_ng::ast;
+use yara_x_parser::ast;
 
 use crate::compiler::report::{Level, ReportBuilder, SourceRef};
 use crate::compiler::warnings::InvalidWarningCode;

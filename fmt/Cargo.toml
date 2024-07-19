@@ -16,7 +16,7 @@ bitmask = { workspace = true }
 bstr = { workspace = true }
 lazy_static = { workspace = true }
 thiserror = { workspace = true }
-yara-x-parser-ng = { workspace = true }
+yara-x-parser = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

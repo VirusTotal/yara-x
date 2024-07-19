@@ -21,8 +21,8 @@ use thiserror::Error;
 
 use tokens::Token::*;
 use tokens::TokenStream;
-use yara_x_parser_ng::cst::SyntaxKind;
-use yara_x_parser_ng::Parser;
+use yara_x_parser::cst::SyntaxKind;
+use yara_x_parser::Parser;
 
 use crate::align::Align;
 use crate::tokens::categories::*;
@@ -53,7 +53,7 @@ pub enum Error {
     // TODO
     // Error while parsing the input.
     //#[error("Parse error")]
-    //ParseError(#[from] yara_x_parser_ng::Error),
+    //ParseError(#[from] yara_x_parser::Error),
 }
 
 /// Formats YARA source code automatically.

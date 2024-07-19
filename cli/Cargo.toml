@@ -49,7 +49,7 @@ protobuf-json-mapping = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 yansi = { workspace = true }
 yara-x = { workspace = true }
-yara-x-parser-ng = { workspace = true }
+yara-x-parser = { workspace = true }
 yara-x-proto-yaml = { workspace = true }
 yara-x-fmt = { workspace = true }
 

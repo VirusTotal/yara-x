@@ -4898,7 +4898,7 @@ dependencies = [
  "x509-parser",
  "yansi 1.0.1",
  "yara-x-macros",
- "yara-x-parser-ng",
+ "yara-x-parser",
  "yara-x-proto",
  "yara-x-proto-yaml",
  "zip",
@@ -4939,7 +4939,7 @@ dependencies = [
  "yansi 1.0.1",
  "yara-x",
  "yara-x-fmt",
- "yara-x-parser-ng",
+ "yara-x-parser",
  "yara-x-proto-yaml",
 ]
 
@@ -4953,7 +4953,7 @@ dependencies = [
  "lazy_static",
  "pretty_assertions",
  "thiserror",
- "yara-x-parser-ng",
+ "yara-x-parser",
 ]
 
 [[package]]
@@ -4968,7 +4968,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "yara-x-parser-ng"
+name = "yara-x-parser"
 version = "0.5.0"
 dependencies = [
  "ascii_tree",

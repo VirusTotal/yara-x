@@ -3,7 +3,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-use yara_x_parser_ng::Span;
+use yara_x_parser::Span;
 
 use crate::SourceCode;
 

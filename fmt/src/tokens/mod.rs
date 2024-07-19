@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 use std::collections::VecDeque;
 use std::str::from_utf8_unchecked;
 
-use yara_x_parser_ng::cst::{CSTStream, Event, SyntaxKind};
+use yara_x_parser::cst::{CSTStream, Event, SyntaxKind};
 
 #[cfg(test)]
 mod tests;

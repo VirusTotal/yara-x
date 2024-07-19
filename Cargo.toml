@@ -21,7 +21,7 @@ members = [
     "cli",
     "fmt",
     "macros",
-    "parser-ng",
+    "parser",
     "proto",
     "proto-yaml",
     "py",
@@ -107,7 +107,6 @@ yara-x = { path = "lib" }
 yara-x-fmt = { path = "fmt", version = "0.5.0" }
 yara-x-macros = { path = "macros", version = "0.5.0" }
 yara-x-parser = { path = "parser", version = "0.5.0" }
-yara-x-parser-ng = { path = "parser-ng", version = "0.5.0" }
 yara-x-proto = { path = "proto", version = "0.5.0" }
 yara-x-proto-yaml = { path = "proto-yaml", version = "0.5.0" }
 zip = "2.1.1"

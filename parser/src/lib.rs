@@ -90,7 +90,7 @@ impl Span {
     /// ending positions by the given offset
     ///
     /// ```
-    /// # use yara_x_parser_ng::Span;
+    /// # use yara_x_parser::Span;
     /// assert_eq!(Span(0..1).offset(1), Span(1..2))
     /// ```
     pub fn offset(mut self, offset: usize) -> Self {

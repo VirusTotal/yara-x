@@ -1,5 +1,5 @@
 [package]
-name = "yara-x-parser-ng"
+name = "yara-x-parser"
 description = """
 A parsing library for YARA rules.
 """
