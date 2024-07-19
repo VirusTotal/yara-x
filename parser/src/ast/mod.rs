@@ -148,14 +148,19 @@ impl<'src> Display for MetaValue<'src> {
 }
 
 /// An identifier (e.g. `some_ident`).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Ident<'src> {
     span: Span,
     #[doc(hidden)]
     pub name: &'src str,
 }
 
-impl Ident<'_> {
+impl<'src> Ident<'src> {
+    #[doc(hidden)]
+    pub fn new(name: &'src str) -> Self {
+        Self { name, span: Default::default() }
+    }
+
     pub fn starts_with(&self, pat: &str) -> bool {
         self.name.starts_with(pat)
     }
@@ -230,7 +235,7 @@ pub struct RegexpPattern<'src> {
 }
 
 /// A hex pattern (a.k.a. hex string) in a YARA rule.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct HexPattern<'src> {
     pub identifier: Ident<'src>,
     pub tokens: HexTokens,
@@ -238,7 +243,7 @@ pub struct HexPattern<'src> {
 }
 
 /// A sequence of tokens that conform a hex pattern (a.k.a. hex string).
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct HexTokens {
     // TODO: rename to HexSubPattern
     pub tokens: Vec<HexToken>,
@@ -273,21 +278,42 @@ pub struct HexByte {
     pub mask: u8,
 }
 
+impl HexByte {
+    #[doc(hidden)]
+    pub fn new(value: u8, mask: u8) -> Self {
+        Self { value, mask, span: Span::default() }
+    }
+}
+
 /// An alternative in a hex pattern (a.k.a. hex string).
 ///
 /// Alternatives are sequences of hex tokens separated by `|`.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct HexAlternative {
     span: Span,
     pub alternatives: Vec<HexTokens>,
 }
 
+impl HexAlternative {
+    #[doc(hidden)]
+    pub fn new(alternatives: Vec<HexTokens>) -> Self {
+        Self { alternatives, span: Span::default() }
+    }
+}
+
 /// A jump in a hex pattern (a.k.a. hex string).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct HexJump {
     span: Span,
     pub start: Option<u16>,
     pub end: Option<u16>,
+}
+
+impl HexJump {
+    #[doc(hidden)]
+    pub fn new(start: Option<u16>, end: Option<u16>) -> Self {
+        Self { start, end, span: Span::default() }
+    }
 }
 
 impl Display for HexJump {

@@ -173,7 +173,6 @@ fn hex_byte_to_class(b: &ast::HexByte) -> hir::ClassBytes {
     class
 }
 
-/* TODO
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
@@ -181,31 +180,29 @@ mod tests {
     use regex_syntax::hir::{
         Class, ClassBytes, ClassBytesRange, Dot, Hir, HirKind, Repetition,
     };
+    use yara_x_parser::ast;
 
     use yara_x_parser::ast::{
-        HexAlternative, HexByte, HexJump, HexPattern, HexToken, HexTokens,
-        Ident,
+        HexAlternative, HexJump, HexPattern, HexToken, HexTokens, Ident,
     };
 
     use super::hex_byte_to_class;
     use crate::compiler::context::{CompileContext, VarStack};
     use crate::compiler::report::ReportBuilder;
     use crate::compiler::Warnings;
+    use crate::re::hir;
     use crate::re::hir::class_to_masked_byte;
     use crate::symbols::StackedSymbolTable;
 
     #[test]
     fn hex_byte_to_hir() {
-        let hir =
-            super::hex_byte_hir_from_ast(&HexByte { value: 0x00, mask: 0x00 });
+        let hir = super::hex_byte_hir_from_ast(&ast::HexByte::new(0x00, 0x00));
         assert_eq!(hir.to_string(), r"(?-u:[\x00-\xFF])");
 
-        let hir =
-            super::hex_byte_hir_from_ast(&HexByte { value: 0x10, mask: 0xf0 });
+        let hir = super::hex_byte_hir_from_ast(&ast::HexByte::new(0x10, 0xf0));
         assert_eq!(hir.to_string(), r"(?-u:[\x10-\x1F])");
 
-        let hir =
-            super::hex_byte_hir_from_ast(&HexByte { value: 0x02, mask: 0x0f });
+        let hir = super::hex_byte_hir_from_ast(&ast::HexByte::new(0x02, 0x0f));
         assert_eq!(
             hir.to_string(),
             r#"(?-u:[\x02\x12"2BRbr\x82\x92\xA2\xB2\xC2\xD2\xE2\xF2])"#
@@ -231,140 +228,133 @@ mod tests {
         };
 
         let mut pattern = HexPattern {
-            span: Default::default(),
-            identifier: Ident { span: Default::default(), name: "test_ident" },
+            identifier: Ident::new("test_ident"),
             tokens: HexTokens {
                 tokens: vec![
-                    HexToken::Byte(HexByte { value: b'a', mask: 0xff }),
-                    HexToken::Byte(HexByte { value: b'b', mask: 0xff }),
-                    HexToken::Byte(HexByte { value: b'c', mask: 0xff }),
+                    HexToken::Byte(ast::HexByte::new(b'a', 0xff)),
+                    HexToken::Byte(ast::HexByte::new(b'b', 0xff)),
+                    HexToken::Byte(ast::HexByte::new(b'c', 0xff)),
                 ],
             },
-            modifiers: Default::default(),
+            ..Default::default()
         };
 
         assert_eq!(
             super::hex_pattern_hir_from_ast(&mut ctx, &pattern),
-            Hir::literal("abc".as_bytes())
+            Ok(Hir::literal("abc".as_bytes()))
         );
 
         pattern.tokens = HexTokens {
             tokens: vec![
-                HexToken::Byte(HexByte { value: 0x01, mask: 0xff }),
-                HexToken::Byte(HexByte { value: 0x02, mask: 0xff }),
-                HexToken::Byte(HexByte { value: 0x03, mask: 0xff }),
+                HexToken::Byte(ast::HexByte::new(0x01, 0xff)),
+                HexToken::Byte(ast::HexByte::new(0x02, 0xff)),
+                HexToken::Byte(ast::HexByte::new(0x03, 0xff)),
             ],
         };
 
         assert_eq!(
             super::hex_pattern_hir_from_ast(&mut ctx, &pattern),
-            Hir::literal([0x01, 0x02, 0x03])
+            Ok(Hir::literal([0x01, 0x02, 0x03]))
         );
 
         pattern.tokens = HexTokens {
             tokens: vec![
-                HexToken::Byte(HexByte { value: 0x01, mask: 0xff }),
-                HexToken::Byte(HexByte { value: 0x02, mask: 0xff }),
-                HexToken::Byte(HexByte { value: 0x03, mask: 0xff }),
-                HexToken::Byte(HexByte { value: 0x00, mask: 0x00 }),
-                HexToken::Byte(HexByte { value: 0x05, mask: 0xff }),
-                HexToken::Byte(HexByte { value: 0x06, mask: 0xff }),
+                HexToken::Byte(ast::HexByte::new(0x01, 0xff)),
+                HexToken::Byte(ast::HexByte::new(0x02, 0xff)),
+                HexToken::Byte(ast::HexByte::new(0x03, 0xff)),
+                HexToken::Byte(ast::HexByte::new(0x00, 0x00)),
+                HexToken::Byte(ast::HexByte::new(0x05, 0xff)),
+                HexToken::Byte(ast::HexByte::new(0x06, 0xff)),
             ],
         };
 
         assert_eq!(
             super::hex_pattern_hir_from_ast(&mut ctx, &pattern),
-            Hir::concat(vec![
+            Ok(Hir::concat(vec![
                 Hir::literal([0x01, 0x02, 0x03]),
                 Hir::dot(Dot::AnyByte),
                 Hir::literal([0x05, 0x06]),
-            ])
+            ]))
         );
 
         pattern.tokens = HexTokens {
             tokens: vec![
-                HexToken::Byte(HexByte { value: 0x01, mask: 0xff }),
-                HexToken::NotByte(HexByte { value: 0x02, mask: 0xff }),
-                HexToken::Byte(HexByte { value: 0x03, mask: 0xff }),
+                HexToken::Byte(ast::HexByte::new(0x01, 0xff)),
+                HexToken::NotByte(ast::HexByte::new(0x02, 0xff)),
+                HexToken::Byte(ast::HexByte::new(0x03, 0xff)),
             ],
         };
 
         assert_eq!(
             super::hex_pattern_hir_from_ast(&mut ctx, &pattern),
-            Hir::concat(vec![
+            Ok(Hir::concat(vec![
                 Hir::literal([0x01]),
                 Hir::class(Class::Bytes(ClassBytes::new(vec![
                     ClassBytesRange::new(0, 1),
                     ClassBytesRange::new(3, 255)
                 ]))),
                 Hir::literal([0x03]),
-            ])
+            ]))
         );
 
         pattern.tokens = HexTokens {
             tokens: vec![
-                HexToken::Byte(HexByte { value: 0x01, mask: 0xff }),
-                HexToken::NotByte(HexByte { value: 0x40, mask: 0xfe }),
-                HexToken::Byte(HexByte { value: 0x03, mask: 0xff }),
+                HexToken::Byte(ast::HexByte::new(0x01, 0xff)),
+                HexToken::NotByte(ast::HexByte::new(0x40, 0xff)),
+                HexToken::Byte(ast::HexByte::new(0x03, 0xff)),
             ],
         };
 
         assert_eq!(
             super::hex_pattern_hir_from_ast(&mut ctx, &pattern),
-            Hir::concat(vec![
+            Ok(Hir::concat(vec![
                 Hir::literal([0x01]),
                 Hir::class(Class::Bytes(ClassBytes::new(vec![
                     ClassBytesRange::new(0, 0x3f),
                     ClassBytesRange::new(0x42, 0xff),
                 ]))),
                 Hir::literal([0x03]),
-            ])
+            ]))
         );
 
         pattern.tokens = HexTokens {
-            tokens: vec![HexToken::Alternative(Box::new(HexAlternative {
-                alternatives: vec![
+            tokens: vec![HexToken::Alternative(Box::new(
+                HexAlternative::new(vec![
                     HexTokens {
-                        tokens: vec![HexToken::Byte(HexByte {
-                            value: 0x01,
-                            mask: 0xff,
-                        })],
+                        tokens: vec![HexToken::Byte(ast::HexByte::new(
+                            0x01, 0xff,
+                        ))],
                     },
                     HexTokens {
-                        tokens: vec![HexToken::Byte(HexByte {
-                            value: 0x02,
-                            mask: 0xff,
-                        })],
+                        tokens: vec![HexToken::Byte(ast::HexByte::new(
+                            0x02, 0xff,
+                        ))],
                     },
-                ],
-            }))],
+                ]),
+            ))],
         };
-
         assert_eq!(
             super::hex_pattern_hir_from_ast(&mut ctx, &pattern),
-            Hir::alternation(
-                vec![Hir::literal([0x01]), Hir::literal([0x02]),]
-            )
+            Ok(Hir::alternation(vec![
+                Hir::literal([0x01]),
+                Hir::literal([0x02]),
+            ]))
         );
 
         pattern.tokens = HexTokens {
             tokens: vec![
-                HexToken::Byte(HexByte { value: 0x01, mask: 0xff }),
-                HexToken::Byte(HexByte { value: 0x02, mask: 0xff }),
-                HexToken::Byte(HexByte { value: 0x03, mask: 0xff }),
-                HexToken::Jump(HexJump {
-                    start: None,
-                    end: None,
-                    coalesced_span: None,
-                }),
-                HexToken::Byte(HexByte { value: 0x05, mask: 0xff }),
-                HexToken::Byte(HexByte { value: 0x06, mask: 0xff }),
+                HexToken::Byte(ast::HexByte::new(0x01, 0xff)),
+                HexToken::Byte(ast::HexByte::new(0x02, 0xff)),
+                HexToken::Byte(ast::HexByte::new(0x03, 0xff)),
+                HexToken::Jump(HexJump::new(None, None)),
+                HexToken::Byte(ast::HexByte::new(0x05, 0xff)),
+                HexToken::Byte(ast::HexByte::new(0x06, 0xff)),
             ],
         };
 
         assert_eq!(
             super::hex_pattern_hir_from_ast(&mut ctx, &pattern),
-            Hir::concat(vec![
+            Ok(Hir::concat(vec![
                 Hir::literal([0x01, 0x02, 0x03]),
                 Hir::repetition(Repetition {
                     min: 0,
@@ -373,34 +363,31 @@ mod tests {
                     sub: Box::new(Hir::dot(Dot::AnyByte)),
                 }),
                 Hir::literal([0x05, 0x06]),
-            ])
+            ]))
         );
     }
 
     #[test]
     fn class_to_hex() {
         assert_eq!(
-            class_to_masked_byte(&hex_byte_to_class(&HexByte {
-                value: 0x30,
-                mask: 0xF0
-            })),
-            Some(HexByte { value: 0x30, mask: 0xF0 })
+            class_to_masked_byte(&hex_byte_to_class(&ast::HexByte::new(
+                0x30, 0xff
+            ))),
+            Some(hir::HexByte { value: 0, mask: 0xff })
         );
 
         assert_eq!(
-            class_to_masked_byte(&hex_byte_to_class(&HexByte {
-                value: 0x05,
-                mask: 0x0F
-            })),
-            Some(HexByte { value: 0x05, mask: 0x0F })
+            class_to_masked_byte(&hex_byte_to_class(&ast::HexByte::new(
+                0x05, 0x0f
+            ))),
+            Some(hir::HexByte { value: 0x05, mask: 0x0f })
         );
 
         assert_eq!(
-            class_to_masked_byte(&hex_byte_to_class(&HexByte {
-                value: 0x08,
-                mask: 0xAA
-            })),
-            Some(HexByte { value: 0x08, mask: 0xAA })
+            class_to_masked_byte(&hex_byte_to_class(&ast::HexByte::new(
+                0x03, 0xff
+            ))),
+            Some(hir::HexByte { value: 0x03, mask: 0xff })
         );
 
         assert_eq!(
@@ -434,11 +421,10 @@ mod tests {
         {
             assert_eq!(
                 class_to_masked_byte(class),
-                Some(HexByte { value: 0x00, mask: 0x00 })
+                Some(hir::HexByte { value: 0x00, mask: 0x00 })
             );
         } else {
             unreachable!()
         }
     }
 }
-*/
