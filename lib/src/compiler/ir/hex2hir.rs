@@ -300,7 +300,7 @@ mod tests {
         pattern.tokens = HexTokens {
             tokens: vec![
                 HexToken::Byte(ast::HexByte::new(0x01, 0xff)),
-                HexToken::NotByte(ast::HexByte::new(0x40, 0xff)),
+                HexToken::NotByte(ast::HexByte::new(0x40, 0xfe)),
                 HexToken::Byte(ast::HexByte::new(0x03, 0xff)),
             ],
         };
@@ -373,7 +373,7 @@ mod tests {
             class_to_masked_byte(&hex_byte_to_class(&ast::HexByte::new(
                 0x30, 0xff
             ))),
-            Some(hir::HexByte { value: 0, mask: 0xff })
+            Some(hir::HexByte { value: 0x30, mask: 0xff })
         );
 
         assert_eq!(
