@@ -743,7 +743,7 @@ fn test_errors() {
         if rules.starts_with("// constant-folding required") {
             continue;
         }
-        
+
         src.push_str(rules.as_str());
 
         let err = compile(src.as_str()).expect_err(
