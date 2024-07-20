@@ -121,6 +121,25 @@ impl<'src> SourceCode<'src> {
             origin: Some(origin.to_owned()),
         }
     }
+
+    /// Returns the source code as a `&str`.
+    ///
+    /// If the source code is not valid UTF-8 it will return an error.
+    fn as_str(&mut self) -> Result<&'src str, bstr::Utf8Error> {
+        match self.valid {
+            // We already know that source code is valid UTF-8, return it
+            // as is.
+            Some(s) => Ok(s),
+            // We don't know yet if the source code is valid UTF-8, some
+            // validation must be done. If validation fails an error is
+            // returned.
+            None => {
+                let src = self.raw.to_str()?;
+                self.valid = Some(src);
+                Ok(src)
+            }
+        }
+    }
 }
 
 impl<'src> From<&'src str> for SourceCode<'src> {
@@ -422,12 +441,39 @@ impl<'a> Compiler<'a> {
     {
         // Convert `src` into an instance of `SourceCode` if it is something
         // else, like a &str.
-        let src = src.into();
+        let mut src = src.into();
 
+        // Register source code, even before validating that it is UTF-8. In
+        // case of UTF-8 encoding errors we want to report that error too,
+        // and we need the source code registered for creating the report.
         self.report_builder.register_source(&src);
 
-        // Parse the source code and build the Abstract Syntax Tree.
-        let ast = Parser::new(src.raw.as_bytes()).into_ast();
+        let ast = match src.as_str() {
+            Ok(src) => {
+                // Parse the source code and build the Abstract Syntax Tree.
+                Parser::new(src.as_bytes()).into_ast()
+            }
+            Err(err) => {
+                let span_start = err.valid_up_to();
+                let span_end = if let Some(error_len) = err.error_len() {
+                    // `error_len` is the number of invalid UTF-8 bytes found
+                    // after `span_start`. Round the number up to the next 3
+                    // bytes boundary because invalid bytes are replaced with
+                    // the Unicode replacement characters that takes 3 bytes.
+                    // This way the span ends at a valid UTF-8 character
+                    // boundary.
+                    span_start + error_len.next_multiple_of(3)
+                } else {
+                    span_start
+                };
+                return Err(Error::CompileError(Box::new(
+                    CompileError::invalid_utf_8(
+                        &self.report_builder,
+                        Span(span_start as u32..span_end as u32).into(),
+                    ),
+                )));
+            }
+        };
 
         if !ast.errors().is_empty() {
             return Err(Error::CompileError(Box::new(CompileError::from(

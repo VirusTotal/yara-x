@@ -625,15 +625,11 @@ where
 
     let unexpected = unexpected.split(char::is_whitespace).next().unwrap();
 
-    // `unexpected` shouldn't be empty, if it happens is because the whitespace
-    // was unexpected.
-    debug_assert!(!unexpected.is_empty());
-
     // If `unexpected` is larger than the current token, bump the lexer to the
     // end of `unexpected`.
     lexer.bump(unexpected.len().saturating_sub(lexer.span().len()));
 
-    Token::UNKNOWN(Span(start as u32..(start + unexpected.len()) as u32))
+    Token::UNKNOWN(Span(lexer.span().start as u32..lexer.span().end as u32))
 }
 
 fn convert_normal_token(token: NormalToken, span: Span) -> Token {

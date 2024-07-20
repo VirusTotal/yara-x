@@ -183,16 +183,7 @@ impl ReportBuilder {
             }
 
             let span_start = label_ref.span.start();
-            let mut span_end = label_ref.span.end();
-
-            // Adjust the end of the span to the next UTF-8 char boundary.
-            // Some error spans, particularly those associated to UTF-8
-            // errors, are not guaranteed to end at a char boundary. Here
-            // we expand the span to the right until it ends at a char
-            // boundary.
-            while !src.is_char_boundary(span_end) {
-                span_end += 1;
-            }
+            let span_end = label_ref.span.end();
 
             snippet = snippet.annotation(
                 level.span(span_start..span_end).label(label.as_str()),
