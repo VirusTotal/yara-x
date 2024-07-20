@@ -1402,7 +1402,6 @@ impl<'src> ParserImpl<'src> {
                         | BITWISE_AND
                         | BITWISE_OR
                         | BITWISE_XOR
-                        | BITWISE_NOT
                         | DOT),
                     Some("operator"),
                 )
