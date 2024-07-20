@@ -458,15 +458,15 @@ impl<'src> ParserImpl<'src> {
     /// ```text
     /// self.begin(A)
     ///     .expect(a)
-    ///     .one(|p| p.B())
-    ///     .one(|p| p.C())
+    ///     .then(|p| p.B())
+    ///     .then(|p| p.C())
     ///     .end()
     /// ```
     ///
     /// Suppose that we are parsing the sequence `axxc`. The sequence starts
-    /// with `a`, so `expect(a)` is successful. However, `one(|p| p.B())`
+    /// with `a`, so `expect(a)` is successful. However, `then(|p| p.B())`
     /// fails because `x` is found instead of the expected `b`. As a result,
-    /// `one(|p| p.C())` is not attempted, and the entire `A` production fails,
+    /// `then(|p| p.C())` is not attempted, and the entire `A` production fails,
     /// resulting a CST that looks like:
     ///
     /// ```text
@@ -483,15 +483,15 @@ impl<'src> ParserImpl<'src> {
     /// ```text
     /// self.begin(A)
     ///     .expect(a)
-    ///     .one(|p| p.B())
+    ///     .then(|p| p.B())
     ///     .recover_and_sync(c)
-    ///     .one(|p| p.C())
+    ///     .then(|p| p.C())
     ///     .end()
     /// ```
     ///
-    /// If the parser fails at `one(|p| p.B())`, leaving the `xx` tokens
+    /// If the parser fails at `then(|p| p.B())`, leaving the `xx` tokens
     /// unconsumed, `recover_and_sync(c)` will consume them until it finds a
-    /// `c` token and will recover from the error. This allows `one(|p| p.C())`
+    /// `c` token and will recover from the error. This allows `then(|p| p.C())`
     /// to consume the `c` and succeed. The resulting CST would be like:
     ///
     /// ```text
@@ -629,8 +629,8 @@ impl<'src> ParserImpl<'src> {
     ///
     /// ```text
     /// p.begin_alt()
-    ///   .alt(..)
-    ///   .alt(..)
+    ///  .alt(..)
+    ///  .alt(..)
     ///  .end_alt()
     /// ```
     fn begin_alt(&mut self) -> Alt<'_, 'src> {
@@ -969,7 +969,7 @@ macro_rules! t {
 /// fn A(&mut self) -> &mut Self {
 ///   self.begin(SyntaxKind::A)
 ///       .expect(t!(a))
-///       .one(|p| p.B())
+///       .then(|p| p.B())
 ///       .begin_alt()
 ///          .alt(|p| p.C())
 ///          .alt(|p| p.D())

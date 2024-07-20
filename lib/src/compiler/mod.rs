@@ -448,6 +448,8 @@ impl<'a> Compiler<'a> {
         // and we need the source code registered for creating the report.
         self.report_builder.register_source(&src);
 
+        // Make sure that the source code is valid UTF-8, or return an error
+        // if otherwise.
         let ast = match src.as_str() {
             Ok(src) => {
                 // Parse the source code and build the Abstract Syntax Tree.
@@ -611,6 +613,7 @@ impl<'a> Compiler<'a> {
             symbols: self.symbol_table.push_new(),
         };
         self.ignored_rules.clear();
+        self.report_builder.clear_cache();
         self.wasm_mod.new_namespace();
         self
     }
