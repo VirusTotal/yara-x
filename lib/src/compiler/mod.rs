@@ -613,7 +613,6 @@ impl<'a> Compiler<'a> {
             symbols: self.symbol_table.push_new(),
         };
         self.ignored_rules.clear();
-        self.report_builder.clear_cache();
         self.wasm_mod.new_namespace();
         self
     }
