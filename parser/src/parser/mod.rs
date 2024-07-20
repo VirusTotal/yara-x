@@ -539,10 +539,6 @@ impl<'src> ParserImpl<'src> {
     /// state and generate an error message. If it matches, the non-trivia
     /// token and any trivia token that appears in front of it will be
     /// consumed and sent to the output.
-    ///
-    /// # Panics
-    ///
-    /// If `expected_tokens` is empty.
     fn expect(&mut self, expected_tokens: &'static TokenSet) -> &mut Self {
         self.expect_d(expected_tokens, None)
     }
@@ -554,7 +550,7 @@ impl<'src> ParserImpl<'src> {
         expected_tokens: &'static TokenSet,
         description: Option<&'static str>,
     ) -> &mut Self {
-        assert!(!expected_tokens.is_empty());
+        debug_assert!(!expected_tokens.is_empty());
 
         if matches!(self.state, ParserState::Failure) {
             return self;
