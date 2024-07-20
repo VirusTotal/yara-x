@@ -7,9 +7,10 @@ SOURCE_FILE@0..36
     ERROR@10..12
       COLON@10..11 ":"
       WHITESPACE@11..12 " "
-    L_BRACE@12..13 "{"
-    NEWLINE@13..14 "\n"
-    WHITESPACE@14..16 "  "
+    ERROR@12..16
+      L_BRACE@12..13 "{"
+      NEWLINE@13..14 "\n"
+      WHITESPACE@14..16 "  "
     CONDITION_BLK@16..34
       CONDITION_KW@16..25 "condition"
       COLON@25..26 ":"
