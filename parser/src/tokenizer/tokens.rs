@@ -200,7 +200,7 @@ impl TokenId {
             TokenId::NEWLINE => "newline",
             TokenId::WHITESPACE => "whitespace",
             TokenId::UNKNOWN => "unknown",
-            TokenId::INVALID_UTF8 => unreachable!(),
+            TokenId::INVALID_UTF8 => "invalid UTF-8",
         }
     }
 }

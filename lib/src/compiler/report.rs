@@ -160,7 +160,6 @@ impl ReportBuilder {
         let mut src = cache_entry.code.as_str();
 
         let mut message = level.title(title).id(code);
-
         let mut snippet = annotate_snippets::Snippet::source(src)
             .origin(cache_entry.origin.as_deref().unwrap_or("line"))
             .fold(true);
@@ -171,25 +170,33 @@ impl ReportBuilder {
                 .or_else(|| self.current_source_id())
                 .unwrap();
 
-            if label_source_id == source_id {
-                snippet = snippet.annotation(
-                    level
-                        .span(label_ref.span.start()..label_ref.span.end())
-                        .label(label.as_str()),
-                );
-            } else {
-                message = message.snippet(snippet);
+            // If the current label doesn't belong to the same source file
+            // finish the current snippet, add it to the error message and
+            // start a new snippet for the label's source file.
+            if label_source_id != source_id {
                 cache_entry = cache.data.get(&label_source_id).unwrap();
                 src = cache_entry.code.as_str();
+                message = message.snippet(snippet);
                 snippet = annotate_snippets::Snippet::source(src)
                     .origin(cache_entry.origin.as_deref().unwrap_or("line"))
                     .fold(true)
-                    .annotation(
-                        level
-                            .span(label_ref.span.start()..label_ref.span.end())
-                            .label(label.as_str()),
-                    )
             }
+
+            let span_start = label_ref.span.start();
+            let mut span_end = label_ref.span.end();
+
+            // Adjust the end of the span to the next UTF-8 char boundary.
+            // Some error spans, particularly those associated to UTF-8
+            // errors, are not guaranteed to end at a char boundary. Here
+            // we expand the span to the right until it ends at a char
+            // boundary.
+            while !src.is_char_boundary(span_end) {
+                span_end += 1;
+            }
+
+            snippet = snippet.annotation(
+                level.span(span_start..span_end).label(label.as_str()),
+            );
         }
 
         message = message.snippet(snippet);
