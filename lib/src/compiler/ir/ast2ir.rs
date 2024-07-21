@@ -592,11 +592,15 @@ pub(in crate::compiler) fn expr_from_ast(
         }
 
         ast::Expr::PatternCount(p) => {
-            // If the identifier is just `#` we are inside a loop and we don't
-            // know which is the PatternId because `#` refers to a different
-            // pattern on each iteration. In those cases the symbol table must
-            // contain an entry for `$`, corresponding to the variable that
-            // holds the current PatternId for the loop.
+            // If the identifier is just `#`, and we are not inside a loop,
+            // that's an error.
+            if p.ident.name == "#" && ctx.for_of_depth == 0 {
+                return Err(Box::new(CompileError::syntax_error(
+                    ctx.report_builder,
+                    "this `#` is outside of the condition of a `for .. of` statement".to_string(),
+                    p.ident.span().into(),
+                )));
+            }
             match (p.ident.name, &p.range) {
                 // Cases where the identifier is `#`.
                 ("#", Some(range)) => Ok(Expr::PatternCountVar {
@@ -632,11 +636,15 @@ pub(in crate::compiler) fn expr_from_ast(
         }
 
         ast::Expr::PatternOffset(p) => {
-            // If the identifier is just `@` we are inside a loop and we don't
-            // know which is the PatternId because `@` refers to a different
-            // pattern on each iteration. In those cases the symbol table must
-            // contain an entry for `$`, corresponding to the variable that
-            // holds the current PatternId for the loop.
+            // If the identifier is just `@`, and we are not inside a loop,
+            // that's an error.
+            if p.ident.name == "@" && ctx.for_of_depth == 0 {
+                return Err(Box::new(CompileError::syntax_error(
+                    ctx.report_builder,
+                    "this `@` is outside of the condition of a `for .. of` statement".to_string(),
+                    p.ident.span().into(),
+                )));
+            }
             match (p.ident.name, &p.index) {
                 // Cases where the identifier is `@`.
                 ("@", Some(index)) => Ok(Expr::PatternOffsetVar {
@@ -680,11 +688,15 @@ pub(in crate::compiler) fn expr_from_ast(
         }
 
         ast::Expr::PatternLength(p) => {
-            // If the identifier is just `!` we are inside a loop and we don't
-            // know which is the PatternId because `!` refers to a different
-            // pattern on each iteration. In those cases the symbol table must
-            // contain an entry for `$`, corresponding to the variable that
-            // holds the current PatternId for the loop.
+            // If the identifier is just `!`, and we are not inside a loop,
+            // that's an error.
+            if p.ident.name == "!" && ctx.for_of_depth == 0 {
+                return Err(Box::new(CompileError::syntax_error(
+                    ctx.report_builder,
+                    "this `!` is outside of the condition of a `for .. of` statement".to_string(),
+                    p.ident.span().into(),
+                )));
+            }
             match (p.ident.name, &p.index) {
                 // Cases where the identifier is `!`.
                 ("!", Some(index)) => Ok(Expr::PatternLengthVar {

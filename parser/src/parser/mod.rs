@@ -260,7 +260,7 @@ impl<'src> ParserImpl<'src> {
     /// Trivia tokens are those that are not really relevant and can be ignored,
     /// like whitespaces, newlines, and comments. This function skips trivia
     /// tokens until finding one that is non-trivia.
-    fn peek_non_ws(&mut self) -> Option<&Token> {
+    fn peek_non_trivia(&mut self) -> Option<&Token> {
         let mut i = 0;
         // First find the position of the first token that is not a whitespace
         // and then use `peek_token` again for returning it. This is necessary
@@ -384,7 +384,6 @@ impl<'src> ParserImpl<'src> {
         {
             self.depth -= 1;
         }
-
         if matches!(self.state, ParserState::Failure) {
             self.output.end_with_error();
         } else {
@@ -393,123 +392,63 @@ impl<'src> ParserImpl<'src> {
         self
     }
 
-    fn recover(&mut self) -> &mut Self {
-        self.state = ParserState::OK;
-        self
-    }
-
-    fn sync(&mut self, recovery_set: &'static TokenSet) -> &mut Self {
-        self.trivia();
-        match self.peek() {
-            None => return self,
-            Some(token) => {
-                if recovery_set.contains(token).is_some() {
-                    return self;
-                } else {
-                    let span = token.span();
-                    // If there were previous errors, flush those errors and
-                    // don't produce new ones, but if no previous error exist
-                    // then create an error that tells that we are expecting
-                    // any of the tokens in the recovery set.
-                    if self.pending_errors.is_empty() {
-                        self.expected_token_errors
-                            .entry(span)
-                            .or_default()
-                            .extend(
-                                recovery_set
-                                    .token_ids()
-                                    .map(|token| token.description()),
-                            );
-                        self.handle_errors();
-                    } else {
-                        self.flush_errors();
-                    }
-                }
-            }
-        }
-        self.output.begin(ERROR);
-        while let Some(token) = self.peek() {
-            if recovery_set.contains(token).is_some() {
-                break;
-            } else {
-                self.bump();
-            }
-        }
-        self.output.end();
-        self
-    }
-
-    /// Recovers the parser from a previous error, consuming any token that is
-    /// not in the recovery set and putting them under an error node in the
-    /// resulting tree.
-    ///
-    /// The purpose of this function is establishing a point for the parser to
-    /// recover from parsing errors. For instance, consider the following
-    /// grammar rules:
-    ///
-    /// ```text
-    /// A := aBC
-    /// B := bb
-    /// C := ccc
-    /// ```
-    ///
-    /// `A` is roughly expressed as:
-    ///
-    /// ```text
-    /// self.begin(A)
-    ///     .expect(a)
-    ///     .then(|p| p.B())
-    ///     .then(|p| p.C())
-    ///     .end()
-    /// ```
-    ///
-    /// Suppose that we are parsing the sequence `axxc`. The sequence starts
-    /// with `a`, so `expect(a)` is successful. However, `then(|p| p.B())`
-    /// fails because `x` is found instead of the expected `b`. As a result,
-    /// `then(|p| p.C())` is not attempted, and the entire `A` production fails,
-    /// resulting a CST that looks like:
-    ///
-    /// ```text
-    /// error
-    ///   a
-    ///   x
-    ///   x
-    ///   c
-    /// ```
-    ///
-    /// By inserting `recover_and_sync(c)`, we can recover from previous errors
-    /// before trying to match `C`:
-    ///
-    /// ```text
-    /// self.begin(A)
-    ///     .expect(a)
-    ///     .then(|p| p.B())
-    ///     .recover_and_sync(c)
-    ///     .then(|p| p.C())
-    ///     .end()
-    /// ```
-    ///
-    /// If the parser fails at `then(|p| p.B())`, leaving the `xx` tokens
-    /// unconsumed, `recover_and_sync(c)` will consume them until it finds a
-    /// `c` token and will recover from the error. This allows `then(|p| p.C())`
-    /// to consume the `c` and succeed. The resulting CST would be like:
-    ///
-    /// ```text
-    /// A
-    ///   a
-    ///   error
-    ///     x
-    ///     x
-    ///   c
-    /// ```
-    ///
-    /// Notice how the error is now more localized.
-    fn recover_and_sync(
+    /// Similar to [`Parser::end`] but also recovers the parser from previous
+    /// errors, consuming all tokens until finding one that is in the recovery
+    /// set.
+    fn end_with_recovery(
         &mut self,
         recovery_set: &'static TokenSet,
     ) -> &mut Self {
+        if let Some(token) = self.peek_non_trivia() {
+            if recovery_set.contains(token).is_some() {
+                self.end();
+                self.recover();
+                return self;
+            } else {
+                let span = token.span();
+
+                self.trivia();
+                self.bump();
+                self.state = ParserState::Failure;
+
+                // If there were previous errors, flush those errors and
+                // don't produce new ones, but if no previous error exist
+                // then create an error that tells that we are expecting
+                // any of the tokens in the recovery set.
+                if self.pending_errors.is_empty() {
+                    self.expected_token_errors
+                        .entry(span)
+                        .or_default()
+                        .extend(
+                            recovery_set
+                                .token_ids()
+                                .map(|token| token.description()),
+                        );
+                    self.handle_errors();
+                } else {
+                    self.flush_errors();
+                }
+            }
+        }
+
+        while let Some(token) = self.peek_non_trivia() {
+            if recovery_set.contains(token).is_some() {
+                break;
+            } else {
+                self.trivia();
+                self.bump();
+            }
+        }
+
+        self.end();
         self.recover();
-        self.sync(recovery_set);
+        self
+    }
+
+    /// Sets the parser state to [`ParserState::OK`], regardless of the
+    /// previous state.
+    fn recover(&mut self) -> &mut Self {
+        self.state = ParserState::OK;
         self
     }
 
@@ -556,7 +495,7 @@ impl<'src> ParserImpl<'src> {
             return self;
         }
 
-        let (token_found, span) = match self.peek_non_ws() {
+        let (token_found, span) = match self.peek_non_trivia() {
             None => {
                 // Special case when the end of the source is reached. The span
                 // used for error reporting is a zero-length span pointing to
@@ -735,7 +674,7 @@ impl<'src> ParserImpl<'src> {
         if matches!(self.state, ParserState::Failure) {
             return self;
         }
-        match self.peek_non_ws() {
+        match self.peek_non_trivia() {
             None => {}
             Some(token) => {
                 if expected_tokens.contains(token).is_some() {
@@ -1009,7 +948,18 @@ impl<'src> ParserImpl<'src> {
                     span,
                 );
                 self.output.begin(ERROR);
-                self.bump();
+                while let Some(token) = self.peek_non_trivia() {
+                    if matches!(
+                        token,
+                        Token::GLOBAL_KW(_)
+                            | Token::PRIVATE_KW(_)
+                            | Token::RULE_KW(_)
+                    ) {
+                        break;
+                    }
+                    self.trivia();
+                    self.bump();
+                }
                 self.output.end();
                 self.state = ParserState::Failure;
                 self
@@ -1045,15 +995,14 @@ impl<'src> ParserImpl<'src> {
             .expect(t!(IDENT))
             .if_next(t!(COLON), |p| p.rule_tags())
             .expect(t!(L_BRACE))
-            .recover_and_sync(t!(META_KW | STRINGS_KW | CONDITION_KW))
             .if_next(t!(META_KW), |p| p.meta_blk())
-            .recover_and_sync(t!(STRINGS_KW | CONDITION_KW))
             .if_next(t!(STRINGS_KW), |p| p.patterns_blk())
-            .recover_and_sync(t!(CONDITION_KW))
             .then(|p| p.condition_blk())
-            .recover_and_sync(t!(R_BRACE))
             .expect(t!(R_BRACE))
-            .end()
+            .end_with_recovery(t!(GLOBAL_KW
+                | PRIVATE_KW
+                | RULE_KW
+                | IMPORT_KW))
     }
 
     /// Parses rule modifiers.
@@ -1079,7 +1028,7 @@ impl<'src> ParserImpl<'src> {
         self.begin(RULE_TAGS)
             .expect(t!(COLON))
             .one_or_more(|p| p.expect(t!(IDENT)))
-            .end()
+            .end_with_recovery(t!(L_BRACE))
     }
 
     /// Parses metadata block.
@@ -1092,15 +1041,7 @@ impl<'src> ParserImpl<'src> {
             .expect(t!(META_KW))
             .expect(t!(COLON))
             .one_or_more(|p| p.meta_def())
-            /*.then(|p| {
-                while matches!(p.peek_non_ws(), Some(IDENT(_))) {
-                    p.trivia();
-                    p.meta_def();
-                    p.recover_and_sync(t!(IDENT | STRINGS_KW | CONDITION_KW));
-                }
-                p
-            })*/
-            .end()
+            .end_with_recovery(t!(STRINGS_KW | CONDITION_KW))
     }
 
     /// Parses a metadata definition.
@@ -1137,7 +1078,7 @@ impl<'src> ParserImpl<'src> {
             .expect(t!(STRINGS_KW))
             .expect(t!(COLON))
             .one_or_more(|p| p.pattern_def())
-            .end()
+            .end_with_recovery(t!(CONDITION_KW))
     }
 
     /// Parses a pattern definition.
@@ -1232,7 +1173,7 @@ impl<'src> ParserImpl<'src> {
             .expect(t!(CONDITION_KW))
             .expect(t!(COLON))
             .then(|p| p.boolean_expr())
-            .end()
+            .end_with_recovery(t!(R_BRACE))
     }
 
     /// Parses the condition block.

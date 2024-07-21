@@ -28,12 +28,13 @@ SOURCE_FILE@0..94
         STRING_LIT@45..50 "\"bar\""
     NEWLINE@50..51 "\n"
     WHITESPACE@51..52 "\t"
-    ERROR@52..65
+    ERROR@52..92
       CONDITION_KW@52..61 "condition"
       COLON@61..62 ":"
       NEWLINE@62..63 "\n"
       WHITESPACE@63..65 "\t\t"
-    ERROR@65..93
+      ERROR@65..65
+        ERROR@65..65
       FOR_KW@65..68 "for"
       WHITESPACE@68..69 " "
       IDENT@69..72 "foo"
@@ -53,7 +54,7 @@ SOURCE_FILE@0..94
       PATTERN_IDENT@89..90 "$"
       WHITESPACE@90..91 " "
       R_PAREN@91..92 ")"
-      NEWLINE@92..93 "\n"
+    NEWLINE@92..93 "\n"
     R_BRACE@93..94 "}"
 
 ERRORS:

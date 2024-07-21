@@ -4,15 +4,14 @@ SOURCE_FILE@0..38
     WHITESPACE@4..5 " "
     IDENT@5..9 "test"
     WHITESPACE@9..10 " "
-    ERROR@10..12
+    ERROR@10..13
       COLON@10..11 ":"
       WHITESPACE@11..12 " "
-    ERROR@12..18
       EQUAL@12..13 "="
-      WHITESPACE@13..14 " "
-      L_BRACE@14..15 "{"
-      NEWLINE@15..16 "\n"
-      WHITESPACE@16..18 "  "
+    WHITESPACE@13..14 " "
+    L_BRACE@14..15 "{"
+    NEWLINE@15..16 "\n"
+    WHITESPACE@16..18 "  "
     CONDITION_BLK@18..36
       CONDITION_KW@18..27 "condition"
       COLON@27..28 ":"

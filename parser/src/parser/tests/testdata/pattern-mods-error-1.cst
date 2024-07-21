@@ -7,7 +7,7 @@ SOURCE_FILE@0..131
     L_BRACE@12..13 "{"
     NEWLINE@13..14 "\n"
     WHITESPACE@14..15 "\t"
-    PATTERNS_BLK@15..35
+    ERROR@15..39
       STRINGS_KW@15..22 "strings"
       COLON@22..23 ":"
       NEWLINE@23..24 "\n"
@@ -18,11 +18,10 @@ SOURCE_FILE@0..131
         EQUAL@30..31 "="
         WHITESPACE@31..32 " "
         STRING_LIT@32..35 "\"a\""
-    WHITESPACE@35..36 " "
-    ERROR@36..42
+      WHITESPACE@35..36 " "
       IDENT@36..39 "foo"
-      NEWLINE@39..40 "\n"
-      WHITESPACE@40..42 "  "
+    NEWLINE@39..40 "\n"
+    WHITESPACE@40..42 "  "
     CONDITION_BLK@42..60
       CONDITION_KW@42..51 "condition"
       COLON@51..52 ":"
@@ -43,7 +42,7 @@ SOURCE_FILE@0..131
     L_BRACE@76..77 "{"
     NEWLINE@77..78 "\n"
     WHITESPACE@78..79 "\t"
-    PATTERNS_BLK@79..106
+    ERROR@79..108
       STRINGS_KW@79..86 "strings"
       COLON@86..87 ":"
       NEWLINE@87..88 "\n"
@@ -58,11 +57,10 @@ SOURCE_FILE@0..131
         PATTERN_MODS@100..106
           PATTERN_MOD@100..106
             BASE64_KW@100..106 "base64"
-    ERROR@106..111
       L_PAREN@106..107 "("
       R_PAREN@107..108 ")"
-      NEWLINE@108..109 "\n"
-      WHITESPACE@109..111 "  "
+    NEWLINE@108..109 "\n"
+    WHITESPACE@109..111 "  "
     CONDITION_BLK@111..129
       CONDITION_KW@111..120 "condition"
       COLON@120..121 ":"

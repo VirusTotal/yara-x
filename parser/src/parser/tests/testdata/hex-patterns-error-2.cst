@@ -7,7 +7,7 @@ SOURCE_FILE@0..118
     L_BRACE@10..11 "{"
     NEWLINE@11..12 "\n"
     WHITESPACE@12..13 "\t"
-    ERROR@13..29
+    ERROR@13..35
       STRINGS_KW@13..20 "strings"
       COLON@20..21 ":"
       NEWLINE@21..22 "\n"
@@ -16,14 +16,13 @@ SOURCE_FILE@0..118
         PATTERN_IDENT@25..27 "$a"
         WHITESPACE@27..28 " "
         EQUAL@28..29 "="
-    WHITESPACE@29..30 " "
-    ERROR@30..38
+      WHITESPACE@29..30 " "
       L_BRACE@30..31 "{"
       HEX_BYTE@31..33 "00"
       INTEGER_LIT@33..34 "0"
       R_BRACE@34..35 "}"
-      NEWLINE@35..36 "\n"
-      WHITESPACE@36..38 "  "
+    NEWLINE@35..36 "\n"
+    WHITESPACE@36..38 "  "
     CONDITION_BLK@38..56
       CONDITION_KW@38..47 "condition"
       COLON@47..48 ":"
@@ -44,7 +43,7 @@ SOURCE_FILE@0..118
     L_BRACE@70..71 "{"
     NEWLINE@71..72 "\n"
     WHITESPACE@72..73 "\t"
-    ERROR@73..89
+    ERROR@73..95
       STRINGS_KW@73..80 "strings"
       COLON@80..81 ":"
       NEWLINE@81..82 "\n"
@@ -53,14 +52,13 @@ SOURCE_FILE@0..118
         PATTERN_IDENT@85..87 "$a"
         WHITESPACE@87..88 " "
         EQUAL@88..89 "="
-    WHITESPACE@89..90 " "
-    ERROR@90..98
+      WHITESPACE@89..90 " "
       L_BRACE@90..91 "{"
       HEX_BYTE@91..93 "00"
       IDENT@93..94 "a"
       R_BRACE@94..95 "}"
-      NEWLINE@95..96 "\n"
-      WHITESPACE@96..98 "  "
+    NEWLINE@95..96 "\n"
+    WHITESPACE@96..98 "  "
     CONDITION_BLK@98..116
       CONDITION_KW@98..107 "condition"
       COLON@107..108 ":"

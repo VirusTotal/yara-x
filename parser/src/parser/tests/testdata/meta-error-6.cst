@@ -18,11 +18,10 @@ SOURCE_FILE@0..105
         EQUAL@28..29 "="
     NEWLINE@29..30 "\n"
     WHITESPACE@30..32 "  "
-    ERROR@32..39
+    ERROR@32..81
       STRINGS_KW@32..39 "strings"
-    NEWLINE@39..40 "\n"
-    WHITESPACE@40..44 "    "
-    ERROR@44..84
+      NEWLINE@39..40 "\n"
+      WHITESPACE@40..44 "    "
       IDENT@44..47 "bar"
       WHITESPACE@47..48 " "
       EQUAL@48..49 "="
@@ -39,8 +38,8 @@ SOURCE_FILE@0..105
       EQUAL@74..75 "="
       WHITESPACE@75..76 " "
       STRING_LIT@76..81 "\"foo\""
-      NEWLINE@81..82 "\n"
-      WHITESPACE@82..84 "  "
+    NEWLINE@81..82 "\n"
+    WHITESPACE@82..84 "  "
     CONDITION_BLK@84..103
       CONDITION_KW@84..93 "condition"
       COLON@93..94 ":"

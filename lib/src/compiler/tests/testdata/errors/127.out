@@ -1,0 +1,6 @@
+error[E001]: syntax error
+ --> line:3:5
+  |
+3 |     @
+  |     ^ this `@` is outside of the condition of a `for .. of` statement
+  |

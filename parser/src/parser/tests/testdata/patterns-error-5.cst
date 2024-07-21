@@ -1,0 +1,22 @@
+SOURCE_FILE@0..30
+  RULE_DECL@0..30
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..13 "\t"
+    CONDITION_BLK@13..28
+      CONDITION_KW@13..22 "condition"
+      COLON@22..23 ":"
+      NEWLINE@23..24 "\n"
+      WHITESPACE@24..27 "\t  "
+      BOOLEAN_EXPR@27..28
+        BOOLEAN_TERM@27..28
+          EXPR@27..28
+            TERM@27..28
+              PRIMARY_EXPR@27..28
+                PATTERN_COUNT@27..28 "#"
+    NEWLINE@28..29 "\n"
+    R_BRACE@29..30 "}"

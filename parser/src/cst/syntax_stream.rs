@@ -101,23 +101,15 @@ impl SyntaxStream {
     /// Similar to [`SyntaxStream::end`], but the kind of the closed block is
     /// changed to [`SyntaxKind::ERROR`].
     ///
-    /// Also, if the block being closed is empty, (i.e: the `Begin` event is
-    /// immediately followed by the `End` event) the block is completely
-    /// removed from the stream.
-    ///
     /// # Panics
     ///
     /// * If no matching `Begin` exists for this `End`.
     pub(crate) fn end_with_error(&mut self) {
         match self.last_open_begin() {
             Some((pos, _)) => {
-                if pos + 1 == self.events.len() {
-                    self.events.pop_back();
-                } else {
-                    let node = self.events.get_mut(pos).unwrap();
-                    *node = Event::Begin(SyntaxKind::ERROR);
-                    self.events.push_back(Event::End(SyntaxKind::ERROR));
-                }
+                let node = self.events.get_mut(pos).unwrap();
+                *node = Event::Begin(SyntaxKind::ERROR);
+                self.events.push_back(Event::End(SyntaxKind::ERROR));
                 self.open_begins.pop_back().unwrap();
             }
             None => {
@@ -223,7 +215,8 @@ mod tests {
         let mut s = SyntaxStream::new();
         s.begin(SyntaxKind::RULE_DECL);
         s.end_with_error();
-        assert_eq!(s.pop(), None);
+        assert_eq!(s.pop(), Some(Event::Begin(SyntaxKind::ERROR)));
+        assert_eq!(s.pop(), Some(Event::End(SyntaxKind::ERROR)));
     }
 
     #[test]
