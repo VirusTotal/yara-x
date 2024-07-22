@@ -57,8 +57,14 @@ mod tests;
 /// and continues tokenizing the remaining content.
 pub struct Tokenizer<'src> {
     source: &'src [u8],
-    lexer_start: usize,
     mode: Mode<'src>,
+    /// Absolute offset within the source code where the lexer started, all
+    /// spans reported by the lexer will be relative to the point were the
+    /// lexer started, so we must offset those spans by this amount.
+    /// For instance, if the source code is "abcde", and the lexer starts
+    /// at the "c", from the lexer standpoint the span for the "c" is 0..1,
+    /// but `lexer_starting_pos` will be 2, so the real span for "c" is 2..3.
+    lexer_starting_pos: usize,
 }
 
 impl<'src> Tokenizer<'src> {
@@ -68,7 +74,7 @@ impl<'src> Tokenizer<'src> {
         assert!(source.len() < Span::MAX);
         Self {
             source,
-            lexer_start: 0,
+            lexer_starting_pos: 0,
             mode: Mode::Normal(Logos::lexer(source)),
         }
     }
@@ -87,7 +93,7 @@ impl<'src> Tokenizer<'src> {
                     Ok(token) => {
                         return Some(convert_normal_token(
                             token,
-                            Span::from(lexer.span()).offset(self.lexer_start),
+                            Span::from(lexer.span()).offset(self.lexer_starting_pos),
                         ));
                     }
                     Err(()) => return Some(self.unexpected_token()),
@@ -96,7 +102,7 @@ impl<'src> Tokenizer<'src> {
                     Ok(token) => {
                         return Some(convert_hex_pattern_token(
                             token,
-                            Span::from(lexer.span()).offset(self.lexer_start),
+                            Span::from(lexer.span()).offset(self.lexer_starting_pos),
                         ))
                     }
                     Err(()) => {
@@ -104,12 +110,12 @@ impl<'src> Tokenizer<'src> {
                         // mode, switch back to normal mode and try again. The
                         // start position for the new lexer is where the token
                         // was found.
-                        self.lexer_start += match &self.mode {
+                        self.lexer_starting_pos += match &self.mode {
                             Mode::HexPattern(lexer) => lexer.span().start,
                             _ => unreachable!(),
                         };
                         self.mode = Mode::Normal(Logos::lexer(
-                            &self.source[self.lexer_start..],
+                            &self.source[self.lexer_starting_pos..],
                         ));
                     }
                 },
@@ -117,7 +123,7 @@ impl<'src> Tokenizer<'src> {
                     Ok(token) => {
                         return Some(convert_hex_jump_token(
                             token,
-                            Span::from(lexer.span()).offset(self.lexer_start),
+                            Span::from(lexer.span()).offset(self.lexer_starting_pos),
                         ))
                     }
                     Err(()) => {
@@ -125,12 +131,12 @@ impl<'src> Tokenizer<'src> {
                         // mode, switch back to hex pattern mode and try again.
                         // The start position for the new lexer is where the
                         // token was found.
-                        self.lexer_start += match &self.mode {
+                        self.lexer_starting_pos += match &self.mode {
                             Mode::HexJump(lexer) => lexer.span().start,
                             _ => unreachable!(),
                         };
                         self.mode = Mode::HexPattern(Logos::lexer(
-                            &self.source[self.lexer_start..],
+                            &self.source[self.lexer_starting_pos..],
                         ));
                     }
                 },
@@ -150,14 +156,14 @@ impl<'src> Tokenizer<'src> {
     ///
     /// If the tokenizer is not currently in normal mode.
     pub fn enter_hex_pattern_mode(&mut self) {
-        self.lexer_start += match &self.mode {
+        self.lexer_starting_pos += match &self.mode {
             Mode::Normal(lexer) => lexer.span().end,
             mode => {
                 panic!(r"enter_hex_pattern_mode called from mode: {:?}", mode)
             }
         };
         self.mode =
-            Mode::HexPattern(Logos::lexer(&self.source[self.lexer_start..]));
+            Mode::HexPattern(Logos::lexer(&self.source[self.lexer_starting_pos..]));
     }
 
     /// Switches the tokenizer to hex jump operation mode.
@@ -172,14 +178,14 @@ impl<'src> Tokenizer<'src> {
     ///
     /// If the tokenizer is not currently in hex pattern mode.
     pub fn enter_hex_jump_mode(&mut self) {
-        self.lexer_start += match &self.mode {
+        self.lexer_starting_pos += match &self.mode {
             Mode::HexPattern(lexer) => lexer.span().end,
             mode => {
                 panic!(r"enter_hex_jump_mode called from mode: {:?}", mode)
             }
         };
         self.mode =
-            Mode::HexJump(Logos::lexer(&self.source[self.lexer_start..]));
+            Mode::HexJump(Logos::lexer(&self.source[self.lexer_starting_pos..]));
     }
 }
 
@@ -190,7 +196,7 @@ impl<'src> Tokenizer<'src> {
             // This function is called only in Normal mode.
             _ => unreachable!(),
         };
-        let start = self.lexer_start + lexer.span().start;
+        let start = lexer.span().start;
         let end = lexer.source().len();
         let unexpected = lexer.source().get(start..end).unwrap();
         // Make sure that `unexpected` contains a valid UTF-8 string, or take the
@@ -205,9 +211,10 @@ impl<'src> Tokenizer<'src> {
             Ok(unexpected) => unexpected,
             Err(err) => {
                 if err.valid_up_to() == 0 {
-                    return Token::INVALID_UTF8(Span(
-                        start as u32..(start + 1) as u32,
-                    ));
+                    return Token::INVALID_UTF8(
+                        Span(start as u32..(start + 1) as u32)
+                            .offset(self.lexer_starting_pos),
+                    );
                 } else {
                     // unexpected[0..err.valid_up_to()] is guaranteed to be valid
                     // UTF-8.
@@ -226,7 +233,7 @@ impl<'src> Tokenizer<'src> {
         // end of `unexpected`.
         lexer.bump(unexpected.len().saturating_sub(lexer.span().len()));
 
-        Token::UNKNOWN(Span::from(lexer.span()).offset(self.lexer_start))
+        Token::UNKNOWN(Span::from(lexer.span()).offset(self.lexer_starting_pos))
     }
 }
 
