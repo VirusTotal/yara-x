@@ -93,7 +93,8 @@ impl<'src> Tokenizer<'src> {
                     Ok(token) => {
                         return Some(convert_normal_token(
                             token,
-                            Span::from(lexer.span()).offset(self.lexer_starting_pos),
+                            Span::from(lexer.span())
+                                .offset(self.lexer_starting_pos),
                         ));
                     }
                     Err(()) => return Some(self.unexpected_token()),
@@ -102,7 +103,8 @@ impl<'src> Tokenizer<'src> {
                     Ok(token) => {
                         return Some(convert_hex_pattern_token(
                             token,
-                            Span::from(lexer.span()).offset(self.lexer_starting_pos),
+                            Span::from(lexer.span())
+                                .offset(self.lexer_starting_pos),
                         ))
                     }
                     Err(()) => {
@@ -123,7 +125,8 @@ impl<'src> Tokenizer<'src> {
                     Ok(token) => {
                         return Some(convert_hex_jump_token(
                             token,
-                            Span::from(lexer.span()).offset(self.lexer_starting_pos),
+                            Span::from(lexer.span())
+                                .offset(self.lexer_starting_pos),
                         ))
                     }
                     Err(()) => {
@@ -162,8 +165,9 @@ impl<'src> Tokenizer<'src> {
                 panic!(r"enter_hex_pattern_mode called from mode: {:?}", mode)
             }
         };
-        self.mode =
-            Mode::HexPattern(Logos::lexer(&self.source[self.lexer_starting_pos..]));
+        self.mode = Mode::HexPattern(Logos::lexer(
+            &self.source[self.lexer_starting_pos..],
+        ));
     }
 
     /// Switches the tokenizer to hex jump operation mode.
@@ -184,8 +188,9 @@ impl<'src> Tokenizer<'src> {
                 panic!(r"enter_hex_jump_mode called from mode: {:?}", mode)
             }
         };
-        self.mode =
-            Mode::HexJump(Logos::lexer(&self.source[self.lexer_starting_pos..]));
+        self.mode = Mode::HexJump(Logos::lexer(
+            &self.source[self.lexer_starting_pos..],
+        ));
     }
 }
 
@@ -233,7 +238,9 @@ impl<'src> Tokenizer<'src> {
         // end of `unexpected`.
         lexer.bump(unexpected.len().saturating_sub(lexer.span().len()));
 
-        Token::UNKNOWN(Span::from(lexer.span()).offset(self.lexer_starting_pos))
+        Token::UNKNOWN(
+            Span::from(lexer.span()).offset(self.lexer_starting_pos),
+        )
     }
 }
 
