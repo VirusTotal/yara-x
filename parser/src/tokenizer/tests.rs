@@ -201,6 +201,14 @@ fn regexps() {
     assert_eq!(lexer.next_token(), Some(Token::COMMENT(Span(0..3))));
     assert_eq!(lexer.next_token(), None);
 
+    let mut lexer = super::Tokenizer::new(r#"/a/"#.as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::REGEXP(Span(0..4))));
+    assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new(r#"/\\/"#.as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::REGEXP(Span(0..4))));
+    assert_eq!(lexer.next_token(), None);
+
     let mut lexer = super::Tokenizer::new(r#"/\/foo/"#.as_bytes());
     assert_eq!(lexer.next_token(), Some(Token::REGEXP(Span(0..7))));
     assert_eq!(lexer.next_token(), None);

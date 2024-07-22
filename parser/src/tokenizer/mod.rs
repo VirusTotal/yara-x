@@ -518,7 +518,7 @@ enum NormalToken<'src> {
           \\.                           #   escape sequence
           |                             #   or ..
           [^\\/\n]                      #   anything except \, / and newlines
-        )+
+        )*
         /                               # ends with /
         [[:alpha:]]*                    # zero or more modifiers like "s" and "i"
         "#)
