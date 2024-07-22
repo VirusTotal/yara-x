@@ -4,62 +4,7 @@ use syn::{parse_macro_input, AttributeArgs, DeriveInput, ItemFn};
 mod error;
 mod module_export;
 mod module_main;
-mod span;
 mod wasm_export;
-
-/// The `HasSpan` derive macro implements the [`HasSpan`] trait for structs and
-/// enums.
-///
-/// The struct must have a field named `span` of type `Span`, and the macro
-/// will add to it a `span` method that returns the value from the field with
-/// the same name.
-///
-/// When used with an enum, all variants must be either a struct that has a
-/// field named `span` or a single-item tuple where the item implements the
-/// [`HasSpan`] trait.
-///
-/// # Examples
-///
-/// Using `HasSpan` on a structure. Notice the required `span` field in the
-/// structure.
-///
-/// ```text
-/// #[macros(Debug, HasSpan)]
-/// pub struct LiteralStr<'src> {
-///     pub(crate) span: Span,
-///     pub value: &'src str,
-/// }
-/// ```
-///
-/// Using `HasSpan` on an enum. The `True` variant is a struct that has a `span`
-/// field, and the `LiteralInt` variant contains a `Box<LiteralInt>`, which
-/// implements the [`HasSpan`] trait.
-///
-/// ```text
-/// #[macros(Debug, HasSpan)]
-/// pub enum Expr<'src> {
-///     // Ok. The struct has a `span` field of type `Span`.
-///     True {
-///         span: Span,
-///     },
-///
-///     // Ok. It's a single-element tuple where `Box<LiteralInt>` implements
-///     // the `HasSpan` trait.
-///     LiteralInt(Box<LiteralInt>),
-///
-///     // Wrong. Unitary variants are not allowed. There's no way for
-///     // determining its span.
-///     False
-/// }
-/// ```
-///
-#[proc_macro_derive(HasSpan)]
-pub fn span_macro_derive(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    span::impl_span_macro(input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
 
 /// The `Error` derive macro generates boilerplate code for YARA error types.
 ///
@@ -74,7 +19,7 @@ pub fn span_macro_derive(input: TokenStream) -> TokenStream {
 ///    ╭─[line:1:18]
 ///    │
 ///  1 │ rule test : tag1 tag1 { condition: true }
-///    ·                  ──┬─  
+///    ·                  ──┬─
 ///    ·                    ╰─── duplicate tag
 /// ───╯
 /// ```
@@ -164,7 +109,7 @@ pub fn error_macro_derive(input: TokenStream) -> TokenStream {
 ///
 /// ```text
 /// #[module_main]
-/// fn main(data: &[u8]) -> SomeProto {   
+/// fn main(data: &[u8]) -> SomeProto {
 ///     let some_proto = SomeProto::new();
 ///     // ... fill some_proto with data ...
 ///     some_proto
@@ -204,7 +149,7 @@ pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// ```text
 /// #[wasm_export]
-/// fn add(caller: Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {   
+/// fn add(caller: Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {
 ///     a + b
 /// }
 /// ```
@@ -221,12 +166,12 @@ pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
 /// use wasmtime::Caller;
 ///
 /// #[wasm_export(name = "add")]
-/// fn add_i64(caller: Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {   
+/// fn add_i64(caller: Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {
 ///     a + b
 /// }
 ///
 /// #[wasm_export(name = "add")]
-/// fn add_f64(caller: Caller<'_, ScanContext>, a: f64, b: f64) -> f64 {   
+/// fn add_f64(caller: Caller<'_, ScanContext>, a: f64, b: f64) -> f64 {
 ///      a + b
 /// }
 /// ```
@@ -277,7 +222,7 @@ pub fn wasm_export(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// ```text
 /// #[module_export]
-/// fn add(ctx: &ScanContext, a: i64, b: i64) -> i64 {   
+/// fn add(ctx: &ScanContext, a: i64, b: i64) -> i64 {
 ///     a + b
 /// }
 /// ```
@@ -294,7 +239,7 @@ pub fn wasm_export(args: TokenStream, input: TokenStream) -> TokenStream {
 /// }
 ///
 /// #[module_export(add)]
-/// fn add_f64(ctx: &ScanContext, a: f64, b: f64) -> f64 {   
+/// fn add_f64(ctx: &ScanContext, a: f64, b: f64) -> f64 {
 ///     a + b
 /// }
 /// ```
