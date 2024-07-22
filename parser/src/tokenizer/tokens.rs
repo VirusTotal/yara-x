@@ -436,9 +436,4 @@ impl Token {
         // discriminant.
         unsafe { *<*const _>::from(self).cast::<TokenId>() }
     }
-
-    #[inline]
-    pub(crate) fn description(&self) -> &'static str {
-        self.id().description()
-    }
 }

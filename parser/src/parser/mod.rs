@@ -948,9 +948,8 @@ impl<'src> ParserImpl<'src> {
             }
             token => {
                 let span = token.span();
-                let token_str = token.description();
                 self.output.push_error(
-                    format!("expecting import statement or rule definition, found {}", token_str),
+                    "expecting import statement or rule definition",
                     span,
                 );
                 self.output.begin(ERROR);
