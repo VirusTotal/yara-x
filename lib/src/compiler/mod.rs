@@ -1026,6 +1026,10 @@ impl<'a> Compiler<'a> {
                             identifier_ref,
                         )
                     });
+                    self.ignored_rules.insert(
+                        rule.identifier.name.to_string(),
+                        module_name.clone(),
+                    );
                 } else {
                     self.warnings.add(|| {
                         Warning::ignored_module(

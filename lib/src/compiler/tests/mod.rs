@@ -541,8 +541,19 @@ fn unsupported_modules() {
         .add_source(
             r#"
             import "foo_module"
-            rule ignored { condition: foo_module.some_field == 1 }
-            // This rule should match even if the previous one was ignored.
+
+            // This rule is ignored because it uses an ignored module.
+            rule ignored_1 { condition: foo_module.some_field == 1 }
+
+            // This rule is ignored because it depends on a rule that directly
+            // depends on an ignored moduled.
+            rule ignored_2 { condition: ignored_1 }
+
+            // This rule is ignored because it depends on a rule that indirectly
+            // depends on an ignored module.
+            rule ignored_3 { condition: ignored_2 }
+
+            // This rule should match even if the previous ones were ignored.
             rule always_true { condition: true }
             "#,
         )
