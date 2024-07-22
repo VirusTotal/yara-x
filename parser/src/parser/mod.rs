@@ -856,15 +856,28 @@ impl<'src> ParserImpl<'src> {
                     let (last, all_except_last) =
                         expected.as_slice().split_last().unwrap();
 
-                    if actual_token.is_empty() {
-                        format!("expecting {last}, found end of file")
-                    } else if all_except_last.is_empty() {
-                        format!("expecting {last}, found `{actual_token}`")
-                    } else {
-                        format!(
+                    match (actual_token.len(), all_except_last.len()) {
+                        (0, 0) => {
+                            format!("expecting {last}, found end of file")
+                        }
+                        (l, 0) if l > 15 => format!("expecting {last}"),
+                        (_, 0) => {
+                            format!("expecting {last}, found `{actual_token}`")
+                        }
+                        (0, _) => {
+                            format!(
+                                "expecting {} or {last}, found end of file",
+                                itertools::join(all_except_last.iter(), ", "),
+                            )
+                        }
+                        (l, _) if l > 15 => format!(
+                            "expecting {} or {last}",
+                            itertools::join(all_except_last.iter(), ", ")
+                        ),
+                        (_, _) => format!(
                             "expecting {} or {last}, found `{actual_token}`",
                             itertools::join(all_except_last.iter(), ", "),
-                        )
+                        ),
                     }
                 } else if actual_token.is_empty() {
                     "unexpected end of file".to_string()

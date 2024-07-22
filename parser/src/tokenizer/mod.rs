@@ -5,12 +5,12 @@ YARA source code and produces a sequence of tokens that is later processed by
 the parser. Each token is represented by a variant of the [`Token`] type.
 */
 
-use logos::Logos;
-use logos::Source;
 use std::str;
 use std::str::from_utf8;
 
 use crate::Span;
+
+use logos::Logos;
 
 mod tokens;
 
@@ -90,7 +90,7 @@ impl<'src> Tokenizer<'src> {
                             Span::from(lexer.span()).offset(self.lexer_start),
                         ));
                     }
-                    Err(()) => return Some(unexpected_token(lexer)),
+                    Err(()) => return Some(self.unexpected_token()),
                 },
                 Mode::HexPattern(lexer) => match lexer.next()? {
                     Ok(token) => {
@@ -180,6 +180,53 @@ impl<'src> Tokenizer<'src> {
         };
         self.mode =
             Mode::HexJump(Logos::lexer(&self.source[self.lexer_start..]));
+    }
+}
+
+impl<'src> Tokenizer<'src> {
+    fn unexpected_token(&mut self) -> Token {
+        let lexer = match &mut self.mode {
+            Mode::Normal(lexer) => lexer,
+            // This function is called only in Normal mode.
+            _ => unreachable!(),
+        };
+        let start = self.lexer_start + lexer.span().start;
+        let end = lexer.source().len();
+        let unexpected = lexer.source().get(start..end).unwrap();
+        // Make sure that `unexpected` contains a valid UTF-8 string, or take the
+        // first few bytes that are valid and ignore the rest.
+        // TODO: This could be implemented more efficiently using Utf8Chunks, but
+        // it was introduced in Rust 1.79. With Utf8Chunks we can iterate over the
+        // byte slice until finding an invalid UTF-8 character or a whitespace,
+        // whatever comes first. We don't need to use `str::from_utf8`, which
+        // validates the whole string until the end.
+        // https://doc.rust-lang.org/std/str/struct.Utf8Chunks.html
+        let unexpected = match from_utf8(unexpected) {
+            Ok(unexpected) => unexpected,
+            Err(err) => {
+                if err.valid_up_to() == 0 {
+                    return Token::INVALID_UTF8(Span(
+                        start as u32..(start + 1) as u32,
+                    ));
+                } else {
+                    // unexpected[0..err.valid_up_to()] is guaranteed to be valid
+                    // UTF-8.
+                    unsafe {
+                        str::from_utf8_unchecked(
+                            &unexpected[0..err.valid_up_to()],
+                        )
+                    }
+                }
+            }
+        };
+
+        let unexpected = unexpected.split(char::is_whitespace).next().unwrap();
+
+        // If `unexpected` is larger than the current token, bump the lexer to the
+        // end of `unexpected`.
+        lexer.bump(unexpected.len().saturating_sub(lexer.span().len()));
+
+        Token::UNKNOWN(Span::from(lexer.span()).offset(self.lexer_start))
     }
 }
 
@@ -591,48 +638,6 @@ enum HexJumpToken<'src> {
 
     #[token("\r\n")]
     CRLF,
-}
-
-fn unexpected_token<'src, T>(lexer: &mut logos::Lexer<'src, T>) -> Token
-where
-    T: Logos<'src>,
-    T::Source: AsRef<[u8]>,
-{
-    let start = lexer.span().start;
-    let end = lexer.source().len();
-    let unexpected = lexer.source().as_ref().get(start..end).unwrap();
-    // Make sure that `unexpected` contains a valid UTF-8 string, or take the
-    // first few bytes that are valid and ignore the rest.
-    // TODO: This could be implemented more efficiently using Utf8Chunks, but
-    // it was introduced in Rust 1.79. With Utf8Chunks we can iterate over the
-    // byte slice until finding an invalid UTF-8 character or a whitespace,
-    // whatever comes first. We don't need to use `str::from_utf8`, which
-    // validates the whole string until the end.
-    // https://doc.rust-lang.org/std/str/struct.Utf8Chunks.html
-    let unexpected = match from_utf8(unexpected) {
-        Ok(unexpected) => unexpected,
-        Err(err) => {
-            if err.valid_up_to() == 0 {
-                return Token::INVALID_UTF8(Span(
-                    start as u32..(start + 1) as u32,
-                ));
-            } else {
-                // unexpected[0..err.valid_up_to()] is guaranteed to be valid
-                // UTF-8.
-                unsafe {
-                    str::from_utf8_unchecked(&unexpected[0..err.valid_up_to()])
-                }
-            }
-        }
-    };
-
-    let unexpected = unexpected.split(char::is_whitespace).next().unwrap();
-
-    // If `unexpected` is larger than the current token, bump the lexer to the
-    // end of `unexpected`.
-    lexer.bump(unexpected.len().saturating_sub(lexer.span().len()));
-
-    Token::UNKNOWN(Span(lexer.span().start as u32..lexer.span().end as u32))
 }
 
 fn convert_normal_token(token: NormalToken, span: Span) -> Token {

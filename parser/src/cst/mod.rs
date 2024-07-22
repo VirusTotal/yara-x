@@ -41,14 +41,14 @@ pub enum Event {
 ///
 /// Each event in the stream has one of the following types:
 ///
-/// - [`Event::Token`],
+/// - [`Event::Token`]
 /// - [`Event::Begin`]
 /// - [`Event::End`]
 /// - [`Event::Error`]
 ///
 /// [`Event::Token`] represents terminal symbols in the grammar, such as
 /// keywords, punctuation, identifiers, comments and even whitespace. Each
-/// [`Event::Token`] is associated with a [`Span`] that indicates its position
+/// [`Event::Token`] has an associated [`Span`] that indicates its position
 /// in the source code.
 ///
 /// [`Event::Begin`] and [`Event::End`] relate to non-terminal symbols, such as

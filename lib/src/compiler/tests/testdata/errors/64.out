@@ -2,5 +2,5 @@ error[E001]: syntax error
  --> line:1:27
   |
 1 | rule test { condition: true
-  |                           ^ expecting `}`, found end of file
+  |                           ^ expecting operator or `}`, found end of file
   |
