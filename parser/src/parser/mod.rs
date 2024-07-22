@@ -15,7 +15,7 @@ error nodes is valid YARA code.
 [2]: https://github.com/rust-analyzer/rowan
  */
 
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexSet;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::str::from_utf8;
 
@@ -158,12 +158,13 @@ pub(crate) struct ParserImpl<'src> {
     unexpected_token_errors: FxHashSet<Span>,
 
     /// Errors that are not yet sent to the `output` stream. The purpose of
-    /// this map is removing duplicate messages for the same code span. In
+    /// this vector is removing duplicate messages for the same code span. In
     /// certain cases the parser can produce two different error messages for
-    /// the same span, but this map guarantees that only the first error is
-    /// taken into account and that any further error for the same span is
-    /// ignored.
-    pending_errors: IndexMap<Span, String>,
+    /// the same span, but they won't be added to this vector if another error
+    /// with the same span already exists. We don't use a `HashMap` because
+    /// the number of items is usually small, and using a vector offers a
+    /// better performance.
+    pending_errors: Vec<(Span, String)>,
 
     /// A cache for storing partial parser results. Each item in the set is a
     /// (position, SyntaxKind) tuple, where position is the absolute index
@@ -186,7 +187,7 @@ impl<'src> From<Tokenizer<'src>> for ParserImpl<'src> {
         Self {
             tokens: TokenStream::new(tokenizer),
             output: SyntaxStream::new(),
-            pending_errors: IndexMap::new(),
+            pending_errors: Vec::new(),
             expected_token_errors: FxHashMap::default(),
             unexpected_token_errors: FxHashSet::default(),
             cache: FxHashSet::default(),
@@ -807,6 +808,7 @@ impl<'src> ParserImpl<'src> {
 
     fn flush_errors(&mut self) {
         self.expected_token_errors.clear();
+        self.unexpected_token_errors.clear();
         for (span, error) in self.pending_errors.drain(0..) {
             self.output.push_error(error, span);
         }
@@ -839,8 +841,12 @@ impl<'src> ParserImpl<'src> {
             (None, None) => return,
         };
 
-        // There's a previous error for the same span, ignore this one.
-        if self.pending_errors.contains_key(&span) {
+        // If there's a previous error for the same span, ignore this one.
+        if self
+            .pending_errors
+            .iter()
+            .any(|(error_span, _)| error_span.eq(&span))
+        {
             return;
         }
 
@@ -869,7 +875,7 @@ impl<'src> ParserImpl<'src> {
             Err(_) => "invalid UTF-8 character".to_string(),
         };
 
-        self.pending_errors.insert(span, error_msg);
+        self.pending_errors.push((span, error_msg));
     }
 }
 
