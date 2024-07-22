@@ -160,6 +160,14 @@ fn comments() {
     assert_eq!(lexer.next_token(), Some(Token::IDENT(Span(13..14))));
     assert_eq!(lexer.next_token(), None);
 
+    let mut lexer = super::Tokenizer::new(r#"/** Comment **/"#.as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::COMMENT(Span(0..15))));
+    assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new(r#"/***/"#.as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::COMMENT(Span(0..5))));
+    assert_eq!(lexer.next_token(), None);
+
     let mut lexer = super::Tokenizer::new(b"/* \xFF\xFF Comment */s");
     assert_eq!(lexer.next_token(), Some(Token::COMMENT(Span(0..16))));
     assert_eq!(lexer.next_token(), Some(Token::IDENT(Span(16..17))));
