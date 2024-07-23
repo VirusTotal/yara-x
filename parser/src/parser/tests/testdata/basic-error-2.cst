@@ -32,4 +32,4 @@ SOURCE_FILE@0..62
     R_BRACE@61..62 "}"
 
 ERRORS:
-- [33..37]: expecting STRING, regexp or `{`, found `"foo`
+- [33..37]: unclosed literal string

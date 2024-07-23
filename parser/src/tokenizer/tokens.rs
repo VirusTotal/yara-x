@@ -2,7 +2,7 @@ use crate::Span;
 
 #[allow(non_camel_case_types)]
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Default)]
 #[repr(u8)]
 pub(crate) enum TokenId {
     // Keywords.
@@ -100,13 +100,14 @@ pub(crate) enum TokenId {
     NEWLINE,
     WHITESPACE,
 
-    /// Not a real token. Used when a portion of the source code doesn't match
-    /// any of the tokens.
-    UNKNOWN,
-
     /// Not a real token. Used when a portion of the source code is not valid
     /// UTF-8.
     INVALID_UTF8,
+
+    /// Not a real token. Used when a portion of the source code doesn't match
+    /// any of the tokens.
+    #[default]
+    UNKNOWN,
 }
 
 impl TokenId {

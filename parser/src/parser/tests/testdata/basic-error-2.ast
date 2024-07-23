@@ -1,2 +1,2 @@
 ERRORS:
-- SyntaxError { message: "expecting STRING, regexp or `{`, found `\"foo`", span: Span(33..37) }
+- SyntaxError { message: "unclosed literal string", span: Span(33..37) }

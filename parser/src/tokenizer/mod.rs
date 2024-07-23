@@ -520,7 +520,7 @@ enum NormalToken<'src> {
           [^\\/\n]                      #   anything except \, / and newlines
         )*
         /                               # ends with /
-        [[:alpha:]]*                    # zero or more modifiers like "s" and "i"
+        [[:alpha:]]{0,2}                # up to 2 optional modifiers like "s" and "i"
         "#)
     ]
     Regexp,

@@ -1,0 +1,6 @@
+error[E001]: syntax error
+ --> line:3:8
+  |
+3 |   $a = "foo
+  |        ^^^^ unclosed literal string
+  |

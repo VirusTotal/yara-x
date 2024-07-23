@@ -115,7 +115,8 @@ pub(crate) struct ParserImpl<'src> {
     depth: usize,
 
     /// Hash map where keys are spans within the source code, and values
-    /// are a list of tokens that were expected to match at that span.
+    /// are tuples containing the ID of the token actually found and a list of
+    /// tokens that were expected to match at that span.
     ///
     /// This hash map plays a crucial role in error reporting during parsing.
     /// Consider the following grammar rule:
@@ -149,7 +150,7 @@ pub(crate) struct ParserImpl<'src> {
     /// the position of `c`. When `expect(b)` fails later, the parser looks up
     /// any other token (besides `b`) that were expected to match at the
     /// position and produces a comprehensive error message.
-    expected_token_errors: FxHashMap<Span, IndexSet<&'static str>>,
+    expected_token_errors: FxHashMap<Span, (TokenId, IndexSet<&'static str>)>,
 
     /// Similar to `expected_token_errors` but tracks the positions where
     /// unexpected tokens were found. This type of error is produced when
@@ -406,7 +407,8 @@ impl<'src> ParserImpl<'src> {
                 self.recover();
                 return self;
             } else {
-                let span = token.span();
+                let token_span = token.span();
+                let token_id = token.id();
 
                 self.trivia();
                 self.bump();
@@ -417,14 +419,19 @@ impl<'src> ParserImpl<'src> {
                 // then create an error that tells that we are expecting
                 // any of the tokens in the recovery set.
                 if self.pending_errors.is_empty() {
-                    self.expected_token_errors
-                        .entry(span)
-                        .or_default()
-                        .extend(
-                            recovery_set
-                                .token_ids()
-                                .map(|token| token.description()),
-                        );
+                    let (actual_token_id, expected) = self
+                        .expected_token_errors
+                        .entry(token_span)
+                        .or_default();
+
+                    *actual_token_id = token_id;
+
+                    expected.extend(
+                        recovery_set
+                            .token_ids()
+                            .map(|token| token.description()),
+                    );
+
                     self.handle_errors();
                 } else {
                     self.flush_errors();
@@ -496,37 +503,42 @@ impl<'src> ParserImpl<'src> {
             return self;
         }
 
-        let (token_found, span) = match self.peek_non_trivia() {
+        let (token_id, token_match, token_span) = match self.peek_non_trivia()
+        {
             None => {
                 // Special case when the end of the source is reached. The span
                 // used for error reporting is a zero-length span pointing to
                 // last byte in the source code.
                 let last = self.tokens.source().len().saturating_sub(1) as u32;
-                (None, Span(last..last))
+                (None, None, Span(last..last))
             }
-            Some(token) => (expected_tokens.contains(token), token.span()),
+            Some(token) => (
+                Some(token.id()),
+                expected_tokens.contains(token),
+                token.span(),
+            ),
         };
 
-        match (self.not_depth, token_found) {
+        match (self.not_depth, token_match) {
             // The expected token was found, but we are inside a "not".
             // When we are inside a "not", any "expect" is negated, and
             // actually means that the token was *not* expected.
             (not_depth, Some(_)) if not_depth > 0 => {
-                self.unexpected_token_errors.insert(span);
+                self.unexpected_token_errors.insert(token_span);
                 self.handle_errors()
             }
             // We are not inside a "not", and the expected token was
             // not found.
             (0, None) => {
-                let tokens = self
-                    .expected_token_errors
-                    .entry(span.clone())
-                    .or_default();
+                let (actual_token_id, expected) =
+                    self.expected_token_errors.entry(token_span).or_default();
+
+                *actual_token_id = token_id.unwrap_or(TokenId::UNKNOWN);
 
                 if let Some(description) = description {
-                    tokens.insert(description);
+                    expected.insert(description);
                 } else {
-                    tokens.extend(
+                    expected.extend(
                         expected_tokens
                             .token_ids()
                             .map(|token| token.description()),
@@ -538,7 +550,7 @@ impl<'src> ParserImpl<'src> {
             _ => {}
         }
 
-        if let Some(t) = token_found {
+        if let Some(t) = token_match {
             // Consume any trivia token in front of the non-trivia expected
             // token.
             self.trivia();
@@ -682,15 +694,21 @@ impl<'src> ParserImpl<'src> {
                     self.trivia();
                     parser(self);
                 } else {
-                    let span = token.span();
-                    self.expected_token_errors
-                        .entry(span)
-                        .or_default()
-                        .extend(
-                            expected_tokens
-                                .token_ids()
-                                .map(|t| t.description()),
-                        );
+                    let token_span = token.span();
+                    let token_id = token.id();
+
+                    let (actual_token, expected) = self
+                        .expected_token_errors
+                        .entry(token_span)
+                        .or_default();
+
+                    *actual_token = token_id;
+
+                    expected.extend(
+                        expected_tokens
+                            .token_ids()
+                            .map(|token| token.description()),
+                    );
                 }
             }
         }
@@ -852,32 +870,57 @@ impl<'src> ParserImpl<'src> {
 
         let error_msg = match from_utf8(&self.tokens.source()[span.range()]) {
             Ok(actual_token) => {
-                if let Some(expected) = expected {
-                    let (last, all_except_last) =
-                        expected.as_slice().split_last().unwrap();
+                if let Some((actual_token_id, expected)) = expected {
+                    // When the token actually found in the source code is
+                    // unknown, but starts with /*, it's an unclosed comment.
+                    // The token is unknown because the missing */ prevents it
+                    // from matching the COMMENT token.
+                    if actual_token_id == TokenId::UNKNOWN
+                        && actual_token.starts_with("/*")
+                    {
+                        "unclosed comment".to_string()
+                    }
+                    // When the token actually found in the source code is
+                    // unknown, but starts with ", it's an unclosed literal
+                    // string.
+                    else if actual_token_id == TokenId::UNKNOWN
+                        && actual_token.starts_with('"')
+                    {
+                        "unclosed literal string".to_string()
+                    }
+                    // When the token actually found in the source code is
+                    // unknown, but starts with /, it's an unclosed regexp.
+                    else if actual_token_id == TokenId::UNKNOWN
+                        && actual_token.starts_with('/')
+                    {
+                        "unclosed regular expression".to_string()
+                    } else {
+                        let (last, all_except_last) =
+                            expected.as_slice().split_last().unwrap();
 
-                    match (actual_token.len(), all_except_last.len()) {
-                        (0, 0) => {
-                            format!("expecting {last}, found end of file")
-                        }
-                        (l, 0) if l > 15 => format!("expecting {last}"),
-                        (_, 0) => {
-                            format!("expecting {last}, found `{actual_token}`")
-                        }
-                        (0, _) => {
-                            format!(
-                                "expecting {} or {last}, found end of file",
+                        match (actual_token.len(), all_except_last.len()) {
+                            (0, 0) => {
+                                format!("expecting {last}, found end of file")
+                            }
+                            (l, 0) if l > 15 => format!("expecting {last}"),
+                            (_, 0) => {
+                                format!("expecting {last}, found `{actual_token}`")
+                            }
+                            (0, _) => {
+                                format!(
+                                    "expecting {} or {last}, found end of file",
+                                    itertools::join(all_except_last.iter(), ", "),
+                                )
+                            }
+                            (l, _) if l > 15 => format!(
+                                "expecting {} or {last}",
+                                itertools::join(all_except_last.iter(), ", ")
+                            ),
+                            (_, _) => format!(
+                                "expecting {} or {last}, found `{actual_token}`",
                                 itertools::join(all_except_last.iter(), ", "),
-                            )
+                            ),
                         }
-                        (l, _) if l > 15 => format!(
-                            "expecting {} or {last}",
-                            itertools::join(all_except_last.iter(), ", ")
-                        ),
-                        (_, _) => format!(
-                            "expecting {} or {last}, found `{actual_token}`",
-                            itertools::join(all_except_last.iter(), ", "),
-                        ),
                     }
                 } else if actual_token.is_empty() {
                     "unexpected end of file".to_string()

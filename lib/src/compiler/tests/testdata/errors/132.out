@@ -1,0 +1,6 @@
+error[E001]: syntax error
+ --> line:3:10
+  |
+3 |     true "foo"
+  |          ^^^^^ expecting operator or `}`, found `"foo"`
+  |
