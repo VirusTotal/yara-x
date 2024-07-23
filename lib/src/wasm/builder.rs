@@ -10,15 +10,25 @@ use super::WasmSymbols;
 
 macro_rules! global_var {
     ($module:ident, $name:ident, $ty:ident) => {
-        let ($name, _) =
-            $module.add_import_global("yara_x", stringify!($name), $ty, true);
+        let ($name, _) = $module.add_import_global(
+            "yara_x",
+            stringify!($name),
+            $ty,
+            true,  // mutable
+            false, // shared
+        );
     };
 }
 
 macro_rules! global_const {
     ($module:ident, $name:ident, $ty:ident) => {
-        let ($name, _) =
-            $module.add_import_global("yara_x", stringify!($name), $ty, false);
+        let ($name, _) = $module.add_import_global(
+            "yara_x",
+            stringify!($name),
+            $ty,
+            false, // mutable
+            false, // shared
+        );
     };
 }
 
@@ -91,7 +101,7 @@ macro_rules! global_const {
 ///   ... code for rule 1
 ///   ... code for rule 2
 ///   ... code for global rule 1
-///   
+///
 ///   ...
 ///   return 0
 /// }
@@ -147,8 +157,15 @@ impl WasmModuleBuilder {
         global_var!(module, pattern_search_done, I32);
         global_var!(module, timeout_occurred, I32);
 
-        let (main_memory, _) =
-            module.add_import_memory("yara_x", "main_memory", false, 1, None);
+        let (main_memory, _) = module.add_import_memory(
+            "yara_x",
+            "main_memory",
+            false, // shared
+            false, // memory64
+            1,
+            None,
+            None,
+        );
 
         let wasm_symbols = WasmSymbols {
             main_memory,

@@ -12,7 +12,7 @@ keywords = ["pattern-matching", "cybersecurity", "forensics", "malware", "yara"]
 #   .github/workflows/tests.yaml
 #   .github/workflows/code_health.yaml
 #
-rust-version = "1.74.0"
+rust-version = "1.76.0"
 
 [workspace]
 members = [
@@ -96,8 +96,8 @@ thiserror = "1.0.61"
 # issue: https://github.com/1crcbl/tlsh-rs/issues/2.
 tlsh-fixed = "0.1.1"
 uuid = "1.4.1"
-walrus = "0.20.1"
-wasmtime = "19.0.2"
+walrus = "0.21.1"
+wasmtime = "22.0.0"
 x509-parser = "0.16.0"
 yaml-rust = "0.4.5"
 yansi = "1.0.1"
