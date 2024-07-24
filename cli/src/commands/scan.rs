@@ -566,7 +566,7 @@ impl Component for ScanState {
             for (file, start_time) in
                 self.files_in_progress.lock().unwrap().iter()
             {
-                let path = file.display().to_string();
+                let path = format!("{:?}", file.display().to_string());
                 // The length of the elapsed is 7 characters.
                 let spaces = " "
                     .repeat(dimensions.width.saturating_sub(path.len() + 7));
