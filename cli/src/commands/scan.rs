@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Error};
-use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
+use clap::{arg, value_parser, ArgAction, ArgMatches, Command, ValueEnum};
 use crossbeam::channel::Sender;
 use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
@@ -19,6 +19,15 @@ use crate::commands::{
 };
 use crate::walk::Message;
 use crate::{help, walk};
+
+#[derive(Clone, ValueEnum)]
+enum OutputFormats {
+    Text,
+    Json,
+    JsonPretty,
+}
+
+const STRINGS_LIMIT: usize = 120;
 
 #[rustfmt::skip]
 pub fn scan() -> Command {
@@ -111,6 +120,13 @@ pub fn scan() -> Command {
                 .value_name("VAR=VALUE")
                 .value_parser(external_var_parser)
                 .action(ArgAction::Append)
+        )
+        .arg(
+            arg!(-o --"output-format" <FORMAT>)
+                .help("Output format for results")
+                .long_help(help::OUTPUT_FORMAT_LONG_HELP)
+                .required(false)
+                .value_parser(value_parser!(OutputFormats))
         )
 }
 
@@ -325,7 +341,90 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn print_matching_rules(
+fn print_rules_as_json(
+    args: &ArgMatches,
+    file_path: &Path,
+    rules: &mut dyn Iterator<Item = Rule>,
+    output: &Sender<Message>,
+) {
+    let print_namespace = args.get_flag("print-namespace");
+    let print_strings = args.get_flag("print-strings");
+    let print_strings_limit = args.get_one::<usize>("print-strings-limit");
+
+    // One JSON object per file, with a "rules" key that contains a list of
+    // matched rules.
+    let mut json = serde_json::json!({"path": file_path.to_str().unwrap()});
+    let mut json_rules: Vec<serde_json::Value> = Vec::new();
+
+    // Clippy insists on replacing the `while let` statement with
+    // `for matching_rule in rules.by_ref()`, but that fails with
+    // `the `by_ref` method cannot be invoked on a trait object`
+    #[allow(clippy::while_let_on_iterator)]
+    while let Some(matching_rule) = rules.next() {
+        let mut json_rule = if print_namespace {
+            serde_json::json!({
+                "namespace": matching_rule.namespace(),
+                "identifier": matching_rule.identifier()
+            })
+        } else {
+            serde_json::json!({
+                "identifier": matching_rule.identifier()
+            })
+        };
+
+        if print_strings || print_strings_limit.is_some() {
+            let limit = print_strings_limit.unwrap_or(&STRINGS_LIMIT);
+            for p in matching_rule.patterns() {
+                let mut match_vec: Vec<serde_json::Value> = Vec::new();
+                for m in p.matches() {
+                    let match_range = m.range();
+                    let match_data = m.data();
+
+                    let mut s = String::new();
+
+                    for b in &match_data[..min(match_data.len(), *limit)] {
+                        for c in b.escape_ascii() {
+                            s.push_str(format!("{}", c as char).as_str());
+                        }
+                    }
+
+                    if match_data.len() > *limit {
+                        s.push_str(
+                            format!(
+                                " ... {} more bytes",
+                                match_data.len().saturating_sub(*limit)
+                            )
+                            .as_str(),
+                        );
+                    }
+                    let match_json = serde_json::json!({
+                        "identifier": p.identifier(),
+                        "start": match_range.start,
+                        "length": match_range.len(),
+                        "data": s.as_str()
+                    });
+                    match_vec.push(match_json);
+                }
+                json_rule["strings"] = serde_json::json!(match_vec);
+            }
+        }
+        json_rules.push(json_rule);
+    }
+
+    json["rules"] = serde_json::json!(json_rules);
+
+    match args.get_one::<OutputFormats>("output-format") {
+        Some(OutputFormats::Json) => {
+            output.send(Message::Info(format!("{}", json))).unwrap();
+        }
+        Some(OutputFormats::JsonPretty) => {
+            output.send(Message::Info(format!("{:#}", json))).unwrap();
+        }
+        _ => {}
+    }
+}
+
+fn print_rules_as_text(
     args: &ArgMatches,
     file_path: &Path,
     rules: &mut dyn Iterator<Item = Rule>,
@@ -354,11 +453,10 @@ fn print_matching_rules(
                 file_path.display()
             )
         };
-
         output.send(Message::Info(line)).unwrap();
 
         if print_strings || print_strings_limit.is_some() {
-            let limit = print_strings_limit.unwrap_or(&120);
+            let limit = print_strings_limit.unwrap_or(&STRINGS_LIMIT);
             for p in matching_rule.patterns() {
                 for m in p.matches() {
                     let match_range = m.range();
@@ -392,6 +490,22 @@ fn print_matching_rules(
             }
         }
     }
+}
+
+fn print_matching_rules(
+    args: &ArgMatches,
+    file_path: &Path,
+    rules: &mut dyn Iterator<Item = Rule>,
+    output: &Sender<Message>,
+) {
+    match args.get_one::<OutputFormats>("output-format") {
+        Some(OutputFormats::Json) | Some(OutputFormats::JsonPretty) => {
+            print_rules_as_json(args, file_path, rules, output);
+        }
+        Some(OutputFormats::Text) | None => {
+            print_rules_as_text(args, file_path, rules, output);
+        }
+    };
 }
 
 struct ScanState {
