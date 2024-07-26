@@ -2,7 +2,7 @@ use crate::cst::SyntaxKind;
 use crate::{Parser, Span};
 
 #[test]
-fn cst_tree() {
+fn cst_1() {
     let cst =
         Parser::new("rule test { condition: true }".as_bytes()).into_cst();
 
@@ -79,7 +79,48 @@ fn cst_tree() {
 }
 
 #[test]
-fn cst_tree_text() {
+fn cst_2() {
+    let cst =
+        Parser::new("rule test { condition: true }".as_bytes()).into_cst();
+
+    let mut c = cst.root().first_child().unwrap().children_with_tokens();
+
+    assert_eq!(c.next().map(|n| n.kind()), Some(SyntaxKind::RULE_KW));
+    assert_eq!(c.next().map(|n| n.kind()), Some(SyntaxKind::WHITESPACE));
+    assert_eq!(c.next().map(|n| n.kind()), Some(SyntaxKind::IDENT));
+    assert_eq!(c.next().map(|n| n.kind()), Some(SyntaxKind::WHITESPACE));
+    assert_eq!(c.next().map(|n| n.kind()), Some(SyntaxKind::L_BRACE));
+    assert_eq!(c.next().map(|n| n.kind()), Some(SyntaxKind::WHITESPACE));
+    assert_eq!(c.next().map(|n| n.kind()), Some(SyntaxKind::CONDITION_BLK));
+    assert_eq!(c.next().map(|n| n.kind()), Some(SyntaxKind::WHITESPACE));
+    assert_eq!(c.next().map(|n| n.kind()), Some(SyntaxKind::R_BRACE));
+    assert_eq!(c.next().map(|n| n.kind()), None);
+
+    let c = cst.root().first_child().unwrap().first_child_or_token().unwrap();
+
+    assert_eq!(c.parent().map(|n| n.kind()), Some(SyntaxKind::RULE_DECL));
+
+    let mut a = c.ancestors();
+
+    assert_eq!(a.next().map(|n| n.kind()), Some(SyntaxKind::RULE_DECL));
+    assert_eq!(a.next().map(|n| n.kind()), Some(SyntaxKind::SOURCE_FILE));
+    assert_eq!(a.next().map(|n| n.kind()), None);
+
+    assert_eq!(
+        c.next_sibling_or_token().map(|n| n.kind()),
+        Some(SyntaxKind::WHITESPACE)
+    );
+
+    let c = cst.root().first_child().unwrap().last_child_or_token().unwrap();
+
+    assert_eq!(
+        c.prev_sibling_or_token().map(|n| n.kind()),
+        Some(SyntaxKind::WHITESPACE)
+    );
+}
+
+#[test]
+fn cst_3() {
     let cst =
         Parser::new("rule test { condition: true }".as_bytes()).into_cst();
 
@@ -87,6 +128,9 @@ fn cst_tree_text() {
         cst.root().first_child().unwrap().first_child().unwrap();
 
     let text = condition_blk.text();
+
+    assert!(!text.is_empty());
+    assert_eq!(text.len(), 15);
 
     let chunks = text
         .try_fold_chunks::<_, _, anyhow::Error>(Vec::new(), |mut acc, s| {

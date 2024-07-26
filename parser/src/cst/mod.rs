@@ -567,7 +567,7 @@ impl Node {
     }
 
     /// Returns the last child or token of this node.
-    pub fn first_last_or_token(&self) -> Option<NodeOrToken> {
+    pub fn last_child_or_token(&self) -> Option<NodeOrToken> {
         self.0.last_child_or_token().map(|x| x.into())
     }
 
