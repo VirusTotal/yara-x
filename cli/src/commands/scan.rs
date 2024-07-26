@@ -530,7 +530,7 @@ impl ScanState {
 // superconsole will not print any string that contains Unicode characters that
 // are spaces but are not the ASCII space character, so we replace them all.
 // See https://github.com/VirusTotal/yara-x/pull/163 for discussion.
-fn replace_whitespace(path: &PathBuf) -> Cow<str> {
+fn replace_whitespace(path: &Path) -> Cow<str> {
     let mut s = path.to_string_lossy();
     if s.chars().any(|c| c != ' ' && c.is_whitespace()) {
         let mut r = String::with_capacity(s.len());
