@@ -1,6 +1,6 @@
 use crate::tokenizer::{Token, TokenId};
 
-/// Each of the node types in a Concrete Syntax Tree (CST).
+/// Each of the node or token types in a CST.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[repr(u16)]
 #[allow(non_camel_case_types)]

@@ -4965,6 +4965,7 @@ dependencies = [
 name = "yara-x-parser"
 version = "0.5.0"
 dependencies = [
+ "anyhow",
  "ascii_tree",
  "bitmask",
  "bstr 1.9.1",

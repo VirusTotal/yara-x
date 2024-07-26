@@ -39,6 +39,7 @@ logos = "0.14.0"
 rowan = "0.15.15"
 
 [dev-dependencies]
+anyhow = { workspace = true }
 env_logger = { workspace = true, features = ["auto-color"] }
 globwalk = { workspace = true }
 goldenfile = { workspace = true }
