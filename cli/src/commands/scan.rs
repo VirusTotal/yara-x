@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cmp::min;
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -529,16 +530,20 @@ impl ScanState {
 // superconsole will not print any string that contains Unicode characters that
 // are spaces but are not the ASCII space character, so we replace them all.
 // See https://github.com/VirusTotal/yara-x/pull/163 for discussion.
-fn replace_whitespace(s: String) -> String {
-    let mut new: String = String::new();
-    for c in s.chars() {
-        if c.is_whitespace() {
-            new.push(' ');
-        } else {
-            new.push(c);
+fn replace_whitespace(path: &PathBuf) -> Cow<str> {
+    let mut s = path.to_string_lossy();
+    if s.chars().any(|c| c != ' ' && c.is_whitespace()) {
+        let mut r = String::with_capacity(s.len());
+        for c in s.chars() {
+            if c.is_whitespace() {
+                r.push(' ')
+            } else {
+                r.push(c)
+            }
         }
+        s = Cow::Owned(r);
     }
-    new
+    s
 }
 
 impl Component for ScanState {
@@ -581,7 +586,7 @@ impl Component for ScanState {
             for (file, start_time) in
                 self.files_in_progress.lock().unwrap().iter()
             {
-                let path = replace_whitespace(file.display().to_string());
+                let path = replace_whitespace(file);
                 // The length of the elapsed is 7 characters.
                 let spaces = " "
                     .repeat(dimensions.width.saturating_sub(path.len() + 7));
