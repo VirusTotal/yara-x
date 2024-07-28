@@ -3,8 +3,7 @@ use crate::{Parser, Span};
 
 #[test]
 fn cst_1() {
-    let cst =
-        Parser::new("rule test { condition: true }".as_bytes()).into_cst();
+    let cst = Parser::new(b"rule test { condition: true }").into_cst();
 
     let source_file = cst.root();
 
@@ -80,8 +79,7 @@ fn cst_1() {
 
 #[test]
 fn cst_2() {
-    let cst =
-        Parser::new("rule test { condition: true }".as_bytes()).into_cst();
+    let cst = Parser::new(b"rule test { condition: true }").into_cst();
 
     let mut c = cst.root().first_child().unwrap().children_with_tokens();
 
@@ -121,8 +119,7 @@ fn cst_2() {
 
 #[test]
 fn cst_3() {
-    let cst =
-        Parser::new("rule test { condition: true }".as_bytes()).into_cst();
+    let cst = Parser::new(b"rule test { condition: true }").into_cst();
 
     let condition_blk =
         cst.root().first_child().unwrap().first_child().unwrap();
