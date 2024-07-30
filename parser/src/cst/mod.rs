@@ -10,14 +10,6 @@ code analysis tools, and similar applications. However, a key limitation is
 that the CST does not account for operator associativity or precedence rules.
 Expressions are represented in the CST exactly as they appear in the source
 code, without any grouping based on operator precedence.
-
-# Tokens and nodes
-
-In a CST, there is a clear distinction between tokens and nodes. All leaves in
-a CST are tokens, each representing a keyword, identifier, comment, punctuation
-symbol, delimiter, etc. Conversely, nodes are the inner (non-leaf) components
-of the CST, corresponding to non-terminal symbols in the grammar, such as rule
-declarations, expressions, import statements, and more.
  */
 use rowan::{GreenNodeBuilder, GreenToken, SyntaxNode};
 use std::fmt::{Debug, Display, Formatter};
@@ -186,6 +178,9 @@ impl rowan::Language for YARA {
 }
 
 /// A Concrete Syntax Tree (CST).
+///
+/// NOTE: This API is still unstable and should not be used by third-party code.
+#[doc(hidden)]
 pub struct CST {
     tree: rowan::SyntaxNode<YARA>,
     errors: Vec<(Span, String)>,
@@ -257,6 +252,9 @@ impl From<Parser<'_>> for CST {
 }
 
 /// Sibling traversal direction.
+///
+/// NOTE: This API is still unstable and should not be used by third-party code.
+#[doc(hidden)]
 pub enum Direction {
     Next,
     Prev,
@@ -272,7 +270,10 @@ pub enum Direction {
 /// Instead, we use the [`Text`] type to represent a logically
 /// contiguous portion of the code, even though it is physically
 /// composed of non-contiguous chunks, each owned by a [`Token`].
+///
+/// NOTE: This API is still unstable and should not be used by third-party code.
 #[derive(PartialEq, Eq)]
+#[doc(hidden)]
 pub struct Text(rowan::SyntaxText);
 
 impl Text {
@@ -362,7 +363,10 @@ pub struct Immutable;
 /// the grammar, such as keywords, identifiers, whitespaces, punctuation, etc.
 ///
 /// The inner (non-leave) nodes in the CST are of type [`Node`].
+///
+/// NOTE: This API is still unstable and should not be used by third-party code.
 #[derive(PartialEq, Eq)]
+#[doc(hidden)]
 pub struct Token<M> {
     inner: rowan::SyntaxToken<YARA>,
     _state: PhantomData<M>,
@@ -529,7 +533,10 @@ impl Token<Mutable> {
 /// Either a  [`Node`] or a [`Token`].
 ///
 /// In a CST, nodes are the inner nodes of the tree, leaves are tokens.
+///
+/// NOTE: This API is still unstable and should not be used by third-party code.
 #[derive(PartialEq, Eq, Debug)]
+#[doc(hidden)]
 pub enum NodeOrToken<M> {
     Node(Node<M>),
     Token(Token<M>),
@@ -588,23 +595,6 @@ impl NodeOrToken<Mutable> {
     }
 }
 
-/*
-impl<M> From<SyntaxKind> for NodeOrToken<M> {
-    fn from(kind: SyntaxKind) -> Self {
-        let x = rowan::GreenToken::new(kind.into(), "");
-
-        let y = rowan::SyntaxToken::from(x);
-
-        match kind {
-            SyntaxKind::FALSE_KW => {
-                NodeOrToken::Token(Token::new(kind.into()))
-            }
-            _ => unreachable!(),
-        }
-    }
-}
-*/
-
 #[doc(hidden)]
 impl<M> From<rowan::SyntaxElement<YARA>> for NodeOrToken<M> {
     fn from(value: rowan::SyntaxElement<YARA>) -> Self {
@@ -633,7 +623,10 @@ impl<M> From<NodeOrToken<M>> for rowan::SyntaxElement<YARA> {
 /// non-terminal symbols in the grammar.
 ///
 /// The leaves in a CST are of type [`Token`].
+///
+/// NOTE: This API is still unstable and should not be used by third-party code.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[doc(hidden)]
 pub struct Node<M> {
     inner: rowan::SyntaxNode<YARA>,
     _mutability: PhantomData<M>,
@@ -855,6 +848,9 @@ impl Node<Mutable> {
 /// nodes, not tokens.
 ///
 /// This is the value returned by [`Node::children`].
+///
+/// NOTE: This API is still unstable and should not be used by third-party code.
+#[doc(hidden)]
 pub struct Nodes<M> {
     inner: rowan::SyntaxNodeChildren<YARA>,
     _mutability: PhantomData<M>,
@@ -872,6 +868,9 @@ impl<M> Iterator for Nodes<M> {
 /// and tokens.
 ///
 /// This is the value returned by [`Node::children_with_tokens`].
+///
+/// NOTE: This API is still unstable and should not be used by third-party code.
+#[doc(hidden)]
 pub struct NodesAndTokens<M> {
     inner: rowan::SyntaxElementChildren<YARA>,
     _mutability: PhantomData<M>,
