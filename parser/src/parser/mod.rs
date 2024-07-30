@@ -61,7 +61,11 @@ impl<'src> Parser<'src> {
     }
 
     /// Consumes the parser and returns a Concrete Syntax Tree (CST).
+    ///
+    /// NOTE: This API is still unstable and should not be used by
+    /// third-party code.
     #[inline]
+    #[doc(hidden)]
     pub fn into_cst(self) -> CST {
         CST::from(self)
     }
