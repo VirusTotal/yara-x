@@ -415,12 +415,7 @@ fn print_rules_as_json(
 
     json["rules"] = serde_json::json!(json_rules);
 
-    match args.get_one::<OutputFormats>("output-format") {
-        Some(OutputFormats::Ndjson) => {
-            output.send(Message::Info(format!("{}", json))).unwrap();
-        }
-        _ => {}
-    }
+    output.send(Message::Info(format!("{}", json))).unwrap();
 }
 
 fn print_rules_as_text(
