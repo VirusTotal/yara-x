@@ -19,7 +19,7 @@ symbol, delimiter, etc. Conversely, nodes are the inner (non-leaf) components
 of the CST, corresponding to non-terminal symbols in the grammar, such as rule
 declarations, expressions, import statements, and more.
  */
-use rowan::GreenNodeBuilder;
+use rowan::{GreenNodeBuilder, GreenToken, SyntaxNode};
 use std::fmt::{Debug, Display, Formatter};
 use std::iter;
 use std::marker::PhantomData;
@@ -407,17 +407,79 @@ impl<M> Token<M> {
         self.inner.parent_ancestors().map(Node::new)
     }
 
-    /// Returns the previous token in the tree.
+    /// Returns the token before the current one.
     ///
-    /// The previous token is not necessary a sibling.
+    /// The token before the current one is not necessary a sibling of the
+    /// current one. This function performs a depth-first traversal of the CST,
+    /// returning tokens right-to-left.
+    ///
+    /// ```rust
+    /// # use yara_x_parser::cst::SyntaxKind;
+    /// # use yara_x_parser::Parser;
+    /// let mut token = Parser::new(b"rule test {condition:true}")
+    ///     .into_cst()
+    ///     .root()
+    ///     .last_token()
+    ///     .unwrap();
+    ///
+    /// assert_eq!(token.kind(), SyntaxKind::R_BRACE);
+    /// token = token.prev_token().unwrap();
+    /// assert_eq!(token.kind(), SyntaxKind::TRUE_KW);
+    /// token = token.prev_token().unwrap();
+    /// assert_eq!(token.kind(), SyntaxKind::COLON);
+    /// token = token.prev_token().unwrap();
+    /// assert_eq!(token.kind(), SyntaxKind::CONDITION_KW);
+    /// token = token.prev_token().unwrap();
+    /// assert_eq!(token.kind(), SyntaxKind::L_BRACE);
+    /// token = token.prev_token().unwrap();
+    /// assert_eq!(token.kind(), SyntaxKind::WHITESPACE);
+    /// token = token.prev_token().unwrap();
+    /// assert_eq!(token.kind(), SyntaxKind::IDENT);
+    /// token = token.prev_token().unwrap();
+    /// assert_eq!(token.kind(), SyntaxKind::WHITESPACE);
+    /// token = token.prev_token().unwrap();
+    /// assert_eq!(token.kind(), SyntaxKind::RULE_KW);
+    /// assert_eq!(token.prev_token(), None);
+    /// ```
     #[inline]
     pub fn prev_token(&self) -> Option<Token<M>> {
         self.inner.prev_token().map(Token::new)
     }
 
-    /// Returns the next token in the tree.
+    /// Returns the token after the current one.
     ///
-    /// The next token is not necessary a sibling.
+    /// The next token is not necessary a sibling of the current one. This
+    /// function performs a depth-first traversal of the CST, returning
+    /// tokens left-to-right.
+    ///
+    /// ```rust
+    /// # use yara_x_parser::cst::SyntaxKind;
+    /// # use yara_x_parser::Parser;
+    /// let mut token = Parser::new(b"rule test {condition:true}")
+    ///     .into_cst()
+    ///     .root()
+    ///     .first_token()
+    ///     .unwrap();
+    ///
+    /// assert_eq!(token.kind(), SyntaxKind::RULE_KW);
+    /// token = token.next_token().unwrap();
+    /// assert_eq!(token.kind(), SyntaxKind::WHITESPACE);
+    /// token = token.next_token().unwrap();
+    /// assert_eq!(token.kind(), SyntaxKind::IDENT);
+    /// token = token.next_token().unwrap();
+    /// assert_eq!(token.kind(), SyntaxKind::WHITESPACE);
+    /// token = token.next_token().unwrap();
+    /// assert_eq!(token.kind(), SyntaxKind::L_BRACE);
+    /// token = token.next_token().unwrap();
+    /// assert_eq!(token.kind(), SyntaxKind::CONDITION_KW);
+    /// token = token.next_token().unwrap();
+    /// assert_eq!(token.kind(), SyntaxKind::COLON);
+    /// token = token.next_token().unwrap();
+    /// assert_eq!(token.kind(), SyntaxKind::TRUE_KW);
+    /// token = token.next_token().unwrap();
+    /// assert_eq!(token.kind(), SyntaxKind::R_BRACE);
+    /// assert_eq!(token.next_token(), None);
+    /// ```
     #[inline]
     pub fn next_token(&self) -> Option<Token<M>> {
         self.inner.next_token().map(Token::new)
@@ -450,10 +512,24 @@ impl<M> Debug for Token<M> {
     }
 }
 
+impl Token<Mutable> {
+    #[inline]
+    /// Detach the token from the CST it belongs to.
+    pub fn detach(&self) {
+        self.inner.detach()
+    }
+
+    pub fn replace(&mut self, text: &str) -> Node<Mutable> {
+        Node::new(SyntaxNode::new_root(
+            self.inner.replace_with(GreenToken::new(self.kind().into(), text)),
+        ))
+    }
+}
+
 /// Either a  [`Node`] or a [`Token`].
 ///
 /// In a CST, nodes are the inner nodes of the tree, leaves are tokens.
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum NodeOrToken<M> {
     Node(Node<M>),
     Token(Token<M>),
@@ -502,6 +578,33 @@ impl<M> NodeOrToken<M> {
     }
 }
 
+impl NodeOrToken<Mutable> {
+    /// Detach the node or token from the CST it belongs to.
+    pub fn detach(&self) {
+        match self {
+            NodeOrToken::Node(n) => n.detach(),
+            NodeOrToken::Token(t) => t.detach(),
+        }
+    }
+}
+
+/*
+impl<M> From<SyntaxKind> for NodeOrToken<M> {
+    fn from(kind: SyntaxKind) -> Self {
+        let x = rowan::GreenToken::new(kind.into(), "");
+
+        let y = rowan::SyntaxToken::from(x);
+
+        match kind {
+            SyntaxKind::FALSE_KW => {
+                NodeOrToken::Token(Token::new(kind.into()))
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+*/
+
 #[doc(hidden)]
 impl<M> From<rowan::SyntaxElement<YARA>> for NodeOrToken<M> {
     fn from(value: rowan::SyntaxElement<YARA>) -> Self {
@@ -510,6 +613,16 @@ impl<M> From<rowan::SyntaxElement<YARA>> for NodeOrToken<M> {
             rowan::SyntaxElement::Token(token) => {
                 Self::Token(Token::new(token))
             }
+        }
+    }
+}
+
+#[doc(hidden)]
+impl<M> From<NodeOrToken<M>> for rowan::SyntaxElement<YARA> {
+    fn from(value: NodeOrToken<M>) -> Self {
+        match value {
+            NodeOrToken::Node(n) => rowan::SyntaxElement::Node(n.inner),
+            NodeOrToken::Token(t) => rowan::SyntaxElement::Token(t.inner),
         }
     }
 }
@@ -587,11 +700,19 @@ impl<M> Node<M> {
     }
 
     /// Returns the first token of this node.
+    ///
+    /// The token returned is not necessarily a children of this node, this
+    /// function will perform depth-first traversal of the tree and will
+    /// return the left-most token that is a descendant of this node.
     pub fn first_token(&self) -> Option<Token<M>> {
         self.inner.first_token().map(Token::new)
     }
 
     /// Returns the last token of this node.
+    ///
+    /// The token returned is not necessarily a children of this node, this
+    /// function will perform depth-first traversal of the tree and will
+    /// return the right-most token that is a descendant of this node.
     pub fn last_token(&self) -> Option<Token<M>> {
         self.inner.last_token().map(Token::new)
     }
@@ -627,6 +748,31 @@ impl<M> Node<M> {
     }
 
     /// Returns an iterator over the siblings of this node.
+    ///
+    /// ```rust
+    /// # use yara_x_parser::cst::{Direction, SyntaxKind};
+    /// # use yara_x_parser::Parser;
+    /// // Get the first child of the root node, which corresponds to the
+    /// // rule declaration for `test_1`.
+    /// let mut rule_decl = Parser::new(b"
+    /// rule test_1 {condition:true}
+    /// rule test_2 {condition:true}
+    /// ")
+    ///     .into_cst()
+    ///     .root()
+    ///     .first_child()
+    ///     .unwrap();
+    ///
+    /// // The rule `test_1` doesn't have any previous sibling.
+    /// let mut sibilings = rule_decl.siblings(Direction::Prev);
+    /// assert_eq!(sibilings.next(), None);    ///
+    ///
+    /// // The rule only sibling after `test_1` is the rule declaration
+    /// // for `test_2`.
+    /// let mut sibilings = rule_decl.siblings(Direction::Next);
+    /// assert_eq!(sibilings.next().map(|node| node.kind()), Some(SyntaxKind::RULE_DECL));
+    /// assert_eq!(sibilings.next().map(|node| node.kind()), None);
+    /// ```
     pub fn siblings(
         &self,
         direction: Direction,
@@ -635,10 +781,46 @@ impl<M> Node<M> {
             Direction::Next => rowan::Direction::Next,
             Direction::Prev => rowan::Direction::Prev,
         };
-        self.inner.siblings(direction).map(Node::new)
+        // `inner.siblings()` always returns the current node as the first
+        // sibling. To me, this is not really helpful, and causes confusion
+        // to the API users, so we skip the current node and return only the
+        // real siblings.
+        self.inner.siblings(direction).skip(1).map(Node::new)
     }
 
     /// Returns an iterator over the siblings of this node, including tokens.
+    ///
+    /// Depending on the direction it will return the previous siblings or the
+    /// next siblings.
+    ///
+    /// ```rust
+    /// # use yara_x_parser::cst::{Direction, SyntaxKind};
+    /// # use yara_x_parser::Parser;     ///
+    /// // Get the first child of the root node, which corresponds to the
+    /// // rule declaration for `test_1`.
+    /// let mut rule_decl = Parser::new(b"
+    /// rule test_1 {condition:true}
+    /// rule test_2 {condition:true}
+    /// ")
+    ///     .into_cst()
+    ///     .root()
+    ///     .first_child()
+    ///     .unwrap();
+    ///
+    /// // The rule `test_1` doesn't have any sibling node before it, but
+    /// // there's a newline token before it.
+    /// let mut sibilings = rule_decl.siblings_with_tokens(Direction::Prev);
+    /// assert_eq!(sibilings.next().map(|node| node.kind()), Some(SyntaxKind::NEWLINE));
+    /// assert_eq!(sibilings.next(), None);
+    ///
+    /// // After the rule `test_1` there's a newline token, followed by the rule
+    /// // declaration node for `test_2`, and then another newline.
+    /// let mut sibilings = rule_decl.siblings_with_tokens(Direction::Next);
+    /// assert_eq!(sibilings.next().map(|node| node.kind()), Some(SyntaxKind::NEWLINE));
+    /// assert_eq!(sibilings.next().map(|node| node.kind()), Some(SyntaxKind::RULE_DECL));
+    /// assert_eq!(sibilings.next().map(|node| node.kind()), Some(SyntaxKind::NEWLINE));
+    /// assert_eq!(sibilings.next().map(|node| node.kind()), None);
+    /// ```
     pub fn siblings_with_tokens(
         &self,
         direction: Direction,
@@ -647,7 +829,11 @@ impl<M> Node<M> {
             Direction::Next => rowan::Direction::Next,
             Direction::Prev => rowan::Direction::Prev,
         };
-        self.inner.siblings_with_tokens(direction).map(|x| x.into())
+        // `inner.siblings()` always returns the current node as the first
+        // sibling. To me, this is not really helpful, and causes confusion
+        // to the API users, so we skip the current node and return only the
+        // real siblings.
+        self.inner.siblings_with_tokens(direction).skip(1).map(|x| x.into())
     }
 }
 
@@ -659,6 +845,7 @@ impl Node<Immutable> {
 }
 
 impl Node<Mutable> {
+    /// Detach the node from the CST it belongs to.
     pub fn detach(&self) {
         self.inner.detach()
     }

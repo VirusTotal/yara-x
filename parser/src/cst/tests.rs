@@ -138,6 +138,14 @@ fn cst_3() {
 
     assert_eq!(chunks, ["condition", ":", " ", "true"]);
 
+    let mut chunks = Vec::new();
+
+    text.for_each_chunks(|s| {
+        chunks.push(s.to_string());
+    });
+
+    assert_eq!(chunks, ["condition", ":", " ", "true"]);
+
     let result = text.try_for_each_chunks(|s| {
         if s == ":" {
             anyhow::bail!("colon found")
@@ -146,5 +154,38 @@ fn cst_3() {
         }
     });
 
-    assert!(result.is_err())
+    assert!(result.is_err());
+}
+
+#[test]
+fn cst_4() {
+    let cst = Parser::new(b"rule test { condition: true }").into_cst();
+    let source_file = cst.root().into_mut();
+
+    // Detach the first token, which is the `rule` keyword.
+    source_file.first_token().unwrap().detach();
+
+    // After detaching the `rule` keyword, the first token is the
+    // whitespace that comes after the keyword.
+    assert_eq!(
+        source_file.first_token().map(|x| x.kind()),
+        Some(SyntaxKind::WHITESPACE)
+    );
+
+    // Detach the last token, which is the closing }.
+    source_file.last_token().unwrap().detach();
+
+    // After detaching the closing }, the first token is the
+    // whitespace that comes before.
+    assert_eq!(
+        source_file.last_token().map(|x| x.kind()),
+        Some(SyntaxKind::WHITESPACE)
+    );
+
+    // Detach the first child of token of SOURCE_CODE, this node has a single
+    // child that is the RULE_DECL node.
+    source_file.first_child_or_token().unwrap().detach();
+
+    // After detaching the RULE_DECL node, SOURCE_CODE is empty.
+    assert_eq!(source_file.last_token().map(|x| x.kind()), None);
 }
