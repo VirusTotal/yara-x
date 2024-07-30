@@ -138,8 +138,8 @@ jobs:
       # Using maturin 1.5.1 because the latest version (1.7.0) has the
       # following issue: https://github.com/PyO3/maturin/issues/2154
       run: |
-        pip install maturin==1.5.1 build
-        python -m build --sdist -o wheelhouse py
+        pip install maturin==1.5.1
+        maturin sdist --manifest-path py/Cargo.toml -o wheelhouse
 
     - name: Build ${{ matrix.platform || matrix.os }} binaries
       run: cibuildwheel --output-dir wheelhouse py
