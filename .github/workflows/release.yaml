@@ -135,10 +135,10 @@ jobs:
 
     - name: Build sdist
       if: matrix.build == 'linux' && matrix.python-version == 'cp312'
-      # Using maturin 1.6.0 because the latest version (1.7.0) has the
+      # Using maturin 1.5.1 because the latest version (1.7.0) has the
       # following issue: https://github.com/PyO3/maturin/issues/2154
       run: |
-        pip install maturin==1.6.0 build
+        pip install maturin==1.5.1 build
         python -m build --sdist -o wheelhouse py
 
     - name: Build ${{ matrix.platform || matrix.os }} binaries
