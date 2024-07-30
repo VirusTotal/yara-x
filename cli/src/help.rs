@@ -112,4 +112,8 @@ yr scan rules_dir scanned_file"#;
 pub const OUTPUT_FORMAT_LONG_HELP: &str = r#"Output format
 
 The format in which results will be displayed. Any errors or warnings will not be
-in this format, only results."#;
+in this format, only results.
+
+Examples:
+
+--output-format=ndjson"#;
