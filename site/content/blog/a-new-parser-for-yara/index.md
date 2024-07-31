@@ -2,8 +2,8 @@
 title: "An new parser for YARA"
 description: ""
 summary: ""
-date: 2024-07-30T00:00:00+01:00
-lastmod: 2024-07-30T00:00:00+01:00
+date: 2024-07-31T00:00:00+01:00
+lastmod: 2024-07-31T00:00:00+01:00
 draft: true
 weight: 50
 categories: [ ]
@@ -56,13 +56,15 @@ prototyping, I embarked on a major refactoring effort. This resulted in the
 complete removal of the Pest-based parser and the creation of a new parser that
 addresses all the previously mentioned shortcomings.
 
-The new parser is not only error-resilient and capable of producing a modifiable
-CST, but it is also faster for certain rules that were problematic for the
-Pest-based parser. For instance, this seemingly simple YARA rule fails to
-compile with YARA-X 0.5.0 but works perfectly with version 0.6.0.
+The new parser is error-resilient, and in the future it will be capable of
+producing a modifiable CST. Additionally, it is faster for certain rules that
+were pathologically bad cases for the Pest-based parser. For instance, this
+seemingly simple YARA rule fails to compile with YARA-X 0.5.0 but works
+perfectly with version 0.6.0.
 
 ```yara
 rule bad { condition: (((((((((( true )))))))))) }
 ```
 
-
+With these changes, the groundwork has been laid for developing more advanced
+and powerful tools that can leverage the improved parsing capabilities.
