@@ -63,7 +63,7 @@ seemingly simple YARA rule fails to compile with YARA-X 0.5.0 but works
 perfectly with version 0.6.0.
 
 ```yara
-rule bad { condition: (((((((((( true )))))))))) }
+rule bad { condition: ((((((((((( true ))))))))))) }
 ```
 
 With these changes, the groundwork has been laid for developing more advanced
