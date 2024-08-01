@@ -354,6 +354,7 @@ fn print_rules_as_json(
     output: &Sender<Message>,
 ) {
     let print_namespace = args.get_flag("print-namespace");
+    let print_meta = args.get_flag("print-meta");
     let print_strings = args.get_flag("print-strings");
     let print_strings_limit = args.get_one::<usize>("print-strings-limit");
 
@@ -378,14 +379,9 @@ fn print_rules_as_json(
             })
         };
 
-        /*
-        output
-            .send(Message::Info(format!(
-                "{}",
-                matching_rule.metadata().into_json()
-            )))
-            .unwrap();
-        */
+        if print_meta {
+            json_rule["meta"] = matching_rule.metadata().into_json();
+        }
 
         if print_strings || print_strings_limit.is_some() {
             let limit = print_strings_limit.unwrap_or(&STRINGS_LIMIT);
