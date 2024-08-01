@@ -36,8 +36,7 @@ use crate::parser::token_stream::TokenStream;
 use crate::tokenizer::{Token, TokenId, Tokenizer};
 use crate::Span;
 
-/// Produces a Concrete Syntax Tree (CST) or Abstract Syntax Tree (AST) given
-/// some YARA source code.
+/// Produces a CST or AST given some YARA source code.
 pub struct Parser<'src> {
     pub(crate) parser: ParserImpl<'src>,
 }
@@ -61,7 +60,11 @@ impl<'src> Parser<'src> {
     }
 
     /// Consumes the parser and returns a Concrete Syntax Tree (CST).
+    ///
+    /// NOTE: This API is still unstable and should not be used by
+    /// third-party code.
     #[inline]
+    #[doc(hidden)]
     pub fn into_cst(self) -> CST {
         CST::from(self)
     }

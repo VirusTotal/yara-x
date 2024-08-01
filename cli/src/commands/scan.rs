@@ -23,9 +23,10 @@ use crate::{help, walk};
 
 #[derive(Clone, ValueEnum)]
 enum OutputFormats {
+    /// Default output format.
     Text,
-    Json,
-    JsonPretty,
+    /// Newline delimited JSON (i.e: one JSON object per line).
+    Ndjson,
 }
 
 const STRINGS_LIMIT: usize = 120;
@@ -427,15 +428,7 @@ fn print_rules_as_json(
 
     json["rules"] = serde_json::json!(json_rules);
 
-    match args.get_one::<OutputFormats>("output-format") {
-        Some(OutputFormats::Json) => {
-            output.send(Message::Info(format!("{}", json))).unwrap();
-        }
-        Some(OutputFormats::JsonPretty) => {
-            output.send(Message::Info(format!("{:#}", json))).unwrap();
-        }
-        _ => {}
-    }
+    output.send(Message::Info(format!("{}", json))).unwrap();
 }
 
 fn print_rules_as_text(
@@ -538,7 +531,7 @@ fn print_matching_rules(
     output: &Sender<Message>,
 ) {
     match args.get_one::<OutputFormats>("output-format") {
-        Some(OutputFormats::Json) | Some(OutputFormats::JsonPretty) => {
+        Some(OutputFormats::Ndjson) => {
             print_rules_as_json(args, file_path, rules, output);
         }
         Some(OutputFormats::Text) | None => {
