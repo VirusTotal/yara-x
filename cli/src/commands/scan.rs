@@ -13,7 +13,7 @@ use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
-use yara_x::{Rule, Rules, ScanError, Scanner};
+use yara_x::{MetaValue, Rule, Rules, ScanError, Scanner};
 
 use crate::commands::{
     compile_rules, external_var_parser, truncate_with_ellipsis,
@@ -47,6 +47,13 @@ pub fn scan() -> Command {
                 .value_parser(value_parser!(PathBuf))
         )
         .arg(
+            arg!(-o --"output-format" <FORMAT>)
+                .help("Output format for results")
+                .long_help(help::OUTPUT_FORMAT_LONG_HELP)
+                .required(false)
+                .value_parser(value_parser!(OutputFormats))
+        )
+        .arg(
             arg!(-e --"print-namespace")
                 .help("Print rule namespace")
         )
@@ -58,6 +65,10 @@ pub fn scan() -> Command {
             arg!(--"print-strings-limit" <N>)
                 .help("Print matching patterns, limited to the first N bytes")
                 .value_parser(value_parser!(usize))
+        )
+        .arg(
+            arg!(-m --"print-meta")
+                .help("Print rule metadata")
         )
         .arg(
             arg!(--"disable-console-logs")
@@ -121,13 +132,6 @@ pub fn scan() -> Command {
                 .value_name("VAR=VALUE")
                 .value_parser(external_var_parser)
                 .action(ArgAction::Append)
-        )
-        .arg(
-            arg!(-o --"output-format" <FORMAT>)
-                .help("Output format for results")
-                .long_help(help::OUTPUT_FORMAT_LONG_HELP)
-                .required(false)
-                .value_parser(value_parser!(OutputFormats))
         )
 }
 
@@ -373,6 +377,15 @@ fn print_rules_as_json(
             })
         };
 
+        /*
+        output
+            .send(Message::Info(format!(
+                "{}",
+                matching_rule.metadata().into_json()
+            )))
+            .unwrap();
+        */
+
         if print_strings || print_strings_limit.is_some() {
             let limit = print_strings_limit.unwrap_or(&STRINGS_LIMIT);
             for p in matching_rule.patterns() {
@@ -432,6 +445,7 @@ fn print_rules_as_text(
     output: &Sender<Message>,
 ) {
     let print_namespace = args.get_flag("print-namespace");
+    let print_meta = args.get_flag("print-meta");
     let print_strings = args.get_flag("print-strings");
     let print_strings_limit = args.get_one::<usize>("print-strings-limit");
 
@@ -440,20 +454,44 @@ fn print_rules_as_text(
     // `the `by_ref` method cannot be invoked on a trait object`
     #[allow(clippy::while_let_on_iterator)]
     while let Some(matching_rule) = rules.next() {
-        let line = if print_namespace {
+        let name = if print_namespace {
             format!(
-                "{}:{} {}",
+                "{}:{}",
                 matching_rule.namespace().paint(Cyan).bold(),
-                matching_rule.identifier().paint(Cyan).bold(),
-                file_path.display(),
+                matching_rule.identifier().paint(Cyan).bold()
             )
         } else {
-            format!(
-                "{} {}",
-                matching_rule.identifier().paint(Cyan).bold(),
-                file_path.display()
-            )
+            format!("{}", matching_rule.identifier().paint(Cyan).bold())
         };
+
+        let meta = if print_meta {
+            let mut meta_str: String = String::from("");
+            for (m, v) in matching_rule.metadata() {
+                // [a="b",c =1,d=true]
+                match v {
+                    MetaValue::Bool(v) => {
+                        meta_str.push_str(format!("{}={},", m, v).as_str())
+                    }
+                    MetaValue::Integer(v) => {
+                        meta_str.push_str(format!("{}={},", m, v).as_str())
+                    }
+                    MetaValue::Float(v) => {
+                        meta_str.push_str(format!("{}={},", m, v).as_str())
+                    }
+                    MetaValue::String(v) => {
+                        meta_str.push_str(format!("{}=\"{}\",", m, v).as_str())
+                    }
+                    MetaValue::Bytes(v) => meta_str.push_str(
+                        format!("{}=\"{}\",", m, v.escape_ascii()).as_str(),
+                    ),
+                };
+            }
+            format!("[{}]", &meta_str.as_str()[0..meta_str.len() - 1])
+        } else {
+            format!("")
+        };
+
+        let line = format!("{} {} {}", name, meta, file_path.display());
         output.send(Message::Info(line)).unwrap();
 
         if print_strings || print_strings_limit.is_some() {
