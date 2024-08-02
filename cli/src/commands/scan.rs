@@ -385,8 +385,8 @@ fn print_rules_as_json(
 
         if print_strings || print_strings_limit.is_some() {
             let limit = print_strings_limit.unwrap_or(&STRINGS_LIMIT);
+            let mut match_vec: Vec<serde_json::Value> = Vec::new();
             for p in matching_rule.patterns() {
-                let mut match_vec: Vec<serde_json::Value> = Vec::new();
                 for m in p.matches() {
                     let match_range = m.range();
                     let match_data = m.data();
@@ -408,12 +408,32 @@ fn print_rules_as_json(
                             .as_str(),
                         );
                     }
-                    let match_json = serde_json::json!({
+
+                    let mut match_json = serde_json::json!({
                         "identifier": p.identifier(),
                         "start": match_range.start,
                         "length": match_range.len(),
                         "data": s.as_str()
                     });
+
+                    match m.xor_key() {
+                        Some(k) => {
+                            let mut p = String::with_capacity(s.len());
+                            for b in
+                                &match_data[..min(match_data.len(), *limit)]
+                            {
+                                for c in (b ^ k).escape_ascii() {
+                                    p.push_str(
+                                        format!("{}", c as char).as_str(),
+                                    );
+                                }
+                            }
+                            match_json["xor_key"] = serde_json::json!(k);
+                            match_json["plaintext"] = serde_json::json!(p);
+                        }
+                        _ => {}
+                    }
+
                     match_vec.push(match_json);
                 }
                 json_rule["strings"] = serde_json::json!(match_vec);
@@ -456,7 +476,6 @@ fn print_rules_as_text(
         if print_meta {
             let mut meta_str: String = String::from("");
             for (m, v) in matching_rule.metadata() {
-                // [a="b",c =1,d=true]
                 match v {
                     MetaValue::Bool(v) => {
                         meta_str.push_str(format!("{}={},", m, v).as_str())
@@ -493,11 +512,30 @@ fn print_rules_as_text(
                     let match_data = m.data();
 
                     let mut msg = format!(
-                        "{:#x}:{}:{}: ",
+                        "{:#x}:{}:{}",
                         match_range.start,
                         match_range.len(),
                         p.identifier(),
                     );
+
+                    match m.xor_key() {
+                        Some(k) => {
+                            msg.push_str(format!(" xor({:#x},", k).as_str());
+                            for b in
+                                &match_data[..min(match_data.len(), *limit)]
+                            {
+                                for c in (b ^ k).escape_ascii() {
+                                    msg.push_str(
+                                        format!("{}", c as char).as_str(),
+                                    );
+                                }
+                            }
+                            msg.push_str(format!("): ").as_str());
+                        }
+                        _ => {
+                            msg.push_str(format!(": ").as_str());
+                        }
+                    }
 
                     for b in &match_data[..min(match_data.len(), *limit)] {
                         for c in b.escape_ascii() {
