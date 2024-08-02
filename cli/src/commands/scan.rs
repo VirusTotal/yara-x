@@ -419,19 +419,14 @@ fn print_rules_as_json(
 
                     if let Some(k) = m.xor_key() {
                         let mut p = String::with_capacity(s.len());
-                        for b in
-                            &match_data[..min(match_data.len(), *limit)]
-                        {
+                        for b in &match_data[..min(match_data.len(), *limit)] {
                             for c in (b ^ k).escape_ascii() {
-                                p.push_str(
-                                    format!("{}", c as char).as_str(),
-                                );
+                                p.push_str(format!("{}", c as char).as_str());
                             }
                         }
                         match_json["xor_key"] = serde_json::json!(k);
                         match_json["plaintext"] = serde_json::json!(p);
                     }
-
                     match_vec.push(match_json);
                 }
                 json_rule["strings"] = serde_json::json!(match_vec);
