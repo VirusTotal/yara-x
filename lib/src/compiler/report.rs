@@ -137,6 +137,20 @@ impl ReportBuilder {
         self
     }
 
+    /// Returns the fragment of source code indicated by `source_ref`.
+    pub fn get_snippet(&self, source_ref: &SourceRef) -> String {
+        let source_id = source_ref
+            .source_id
+            .or_else(|| self.current_source_id())
+            .expect("create_report without registering any source code");
+
+        let cache = self.cache.borrow();
+        let cache_entry = cache.data.get(&source_id).unwrap();
+        let src = cache_entry.code.as_str();
+
+        src[source_ref.span.range()].to_string()
+    }
+
     /// Creates a new error or warning report.
     pub fn create_report(
         &self,

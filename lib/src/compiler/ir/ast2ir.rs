@@ -438,7 +438,52 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::BitwiseXor(expr) => bitwise_xor_expr_from_ast(ctx, expr),
 
         // Comparison operations
-        ast::Expr::Eq(expr) => eq_expr_from_ast(ctx, expr),
+        ast::Expr::Eq(expr) => {
+            let span = expr.span();
+
+            let lhs_span = expr.lhs.span();
+            let rhs_span = expr.rhs.span();
+
+            let lhs = expr_from_ast(ctx, &expr.lhs)?;
+            let rhs = expr_from_ast(ctx, &expr.rhs)?;
+
+            // Detect cases in which the equal operator is comparing a boolean
+            // expression with an integer constant (e.g: `pe.is_signed == 0`).
+            // This is quite common in YARA rules, it is accepted without
+            // errors, but a warning is raised.
+            let replacement = match (lhs.type_value(), rhs.type_value()) {
+                (TypeValue::Bool(_), TypeValue::Integer(Value::Const(0))) => {
+                    Some((
+                        Expr::Not { operand: Box::new(lhs) },
+                        format!("not {}", ctx.report_builder.get_snippet(&lhs_span.into()))
+                    ))
+                }
+                (TypeValue::Integer(Value::Const(0)), TypeValue::Bool(_)) => {
+                    Some((
+                        Expr::Not { operand: Box::new(rhs) },
+                        format!("not {}", ctx.report_builder.get_snippet(&rhs_span.into()))
+                    ))
+                }
+                (TypeValue::Bool(_), TypeValue::Integer(Value::Const(1))) => {
+                    Some((lhs, ctx.report_builder.get_snippet(&lhs_span.into())))
+                }
+                (TypeValue::Integer(Value::Const(1)), TypeValue::Bool(_)) => {
+                    Some((rhs, ctx.report_builder.get_snippet(&rhs_span.into())))
+                }
+                _ => None
+            };
+
+            if let Some((expr, msg)) = replacement {
+                ctx.warnings.add(|| Warning::boolean_integer_comparison(
+                    ctx.report_builder,
+                    span.into(),
+                    msg,
+                ));
+                Ok(expr)
+            } else {
+                eq_expr_from_ast(ctx, expr)
+            }
+        },
         ast::Expr::Ne(expr) => ne_expr_from_ast(ctx, expr),
         ast::Expr::Gt(expr) => gt_expr_from_ast(ctx, expr),
         ast::Expr::Ge(expr) => ge_expr_from_ast(ctx, expr),

@@ -1,0 +1,5 @@
+import "test_proto2"
+
+rule test {
+	condition: 0 == test_proto2.array_bool[0]
+}

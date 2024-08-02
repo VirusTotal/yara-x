@@ -75,6 +75,11 @@ fn test_proto2_module() {
     condition_false!(r#"test_proto2.array_bool[0]"#);
     condition_true!(r#"test_proto2.array_bool[1]"#);
 
+    condition_false!(r#"test_proto2.array_bool[0] == 1"#);
+    condition_true!(r#"test_proto2.array_bool[0] == 0"#);
+    condition_false!(r#"1 == test_proto2.array_bool[0]"#);
+    condition_true!(r#"0 == test_proto2.array_bool[0]"#);
+
     // array_int64[3] is undefined, so both conditions are false.
     condition_false!(r#"test_proto2.array_int64[3] == 0"#);
     condition_false!(r#"test_proto2.array_int64[3] != 0"#);
