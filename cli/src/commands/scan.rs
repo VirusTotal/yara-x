@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 use anyhow::{bail, Context, Error};
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command, ValueEnum};
 use crossbeam::channel::Sender;
+use itertools::Itertools;
 use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Cyan, Red, Yellow};
@@ -473,35 +474,40 @@ fn print_rules_as_text(
             format!("{}", matching_rule.identifier().paint(Cyan).bold())
         };
 
-        if print_meta {
-            let mut meta_str: String = String::from("");
-            for (m, v) in matching_rule.metadata() {
+        let metadata = matching_rule.metadata();
+
+        if print_meta && !metadata.is_empty() {
+            line.push_str(" [");
+            for (pos, (m, v)) in metadata.with_position() {
                 match v {
                     MetaValue::Bool(v) => {
-                        meta_str.push_str(format!("{}={},", m, v).as_str())
+                        line.push_str(&format!("{}={}", m, v))
                     }
                     MetaValue::Integer(v) => {
-                        meta_str.push_str(format!("{}={},", m, v).as_str())
+                        line.push_str(&format!("{}={}", m, v))
                     }
                     MetaValue::Float(v) => {
-                        meta_str.push_str(format!("{}={},", m, v).as_str())
+                        line.push_str(&format!("{}={}", m, v))
                     }
                     MetaValue::String(v) => {
-                        meta_str.push_str(format!("{}=\"{}\",", m, v).as_str())
+                        line.push_str(&format!("{}=\"{}\"", m, v))
                     }
-                    MetaValue::Bytes(v) => meta_str.push_str(
-                        format!("{}=\"{}\",", m, v.escape_ascii()).as_str(),
-                    ),
+                    MetaValue::Bytes(v) => line.push_str(&format!(
+                        "{}=\"{}\"",
+                        m,
+                        v.escape_ascii()
+                    )),
                 };
+                if !matches!(pos, itertools::Position::Last) {
+                    line.push(',');
+                }
             }
-            line = format!(
-                "{} [{}]",
-                line,
-                &meta_str.as_str()[0..meta_str.len() - 1]
-            );
+            line.push(']');
         }
 
-        line = format!("{} {}", line, file_path.display());
+        line.push(' ');
+        line.push_str(&file_path.display().to_string());
+
         output.send(Message::Info(line)).unwrap();
 
         if print_strings || print_strings_limit.is_some() {
