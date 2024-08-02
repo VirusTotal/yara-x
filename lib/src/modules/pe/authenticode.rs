@@ -755,7 +755,7 @@ fn verify_message_digest(
         _ => {
             #[cfg(feature = "logging")]
             error!("unknown digest algorithm: {:?}", algorithm.oid());
-            return false;
+            false
         }
     }
 }
