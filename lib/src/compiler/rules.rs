@@ -10,9 +10,8 @@ use log::*;
 use regex_automata::meta::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use yara_x_parser::ast::Span;
-
 use crate::compiler::atoms::Atom;
+use crate::compiler::report::SourceRef;
 use crate::compiler::warnings::Warning;
 use crate::compiler::{
     IdentId, Imports, LiteralId, NamespaceId, PatternId, RegexpId, RuleId,
@@ -472,11 +471,12 @@ pub(crate) struct RuleInfo {
     pub(crate) namespace_ident_id: IdentId,
     /// The ID of the rule identifier in the identifiers pool.
     pub(crate) ident_id: IdentId,
-    /// Span of the rule identifier. This field is ignored while serializing
-    /// and deserializing compiles rules, as it is used only during the
-    /// compilation phase, but not during the scan phase.
+    /// Reference to the rule identifier in the source code. This field is
+    /// ignored while serializing and deserializing compiles rules, as it
+    /// is used only during the compilation phase, but not during the scan
+    /// phase.
     #[serde(skip)]
-    pub(crate) ident_span: Span,
+    pub(crate) ident_ref: SourceRef,
     /// Metadata associated to the rule.
     pub(crate) metadata: Vec<(IdentId, MetaValue)>,
     /// Vector with all the patterns defined by this rule.

@@ -1,0 +1,42 @@
+SOURCE_FILE@0..73
+  RULE_DECL@0..73
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..14 "  "
+    ERROR@14..50
+      META_KW@14..18 "meta"
+      COLON@18..19 ":"
+      NEWLINE@19..20 "\n"
+      WHITESPACE@20..24 "    "
+      ERROR@24..29
+        IDENT@24..27 "foo"
+        WHITESPACE@27..28 " "
+        EQUAL@28..29 "="
+      WHITESPACE@29..30 " "
+      META_KW@30..34 "meta"
+      NEWLINE@34..35 "\n"
+      WHITESPACE@35..39 "    "
+      IDENT@39..42 "bar"
+      WHITESPACE@42..43 " "
+      EQUAL@43..44 "="
+      WHITESPACE@44..45 " "
+      STRING_LIT@45..50 "\"bar\""
+    NEWLINE@50..51 "\n"
+    WHITESPACE@51..53 "  "
+    CONDITION_BLK@53..71
+      CONDITION_KW@53..62 "condition"
+      COLON@62..63 ":"
+      NEWLINE@63..64 "\n"
+      WHITESPACE@64..67 "\t  "
+      BOOLEAN_EXPR@67..71
+        BOOLEAN_TERM@67..71
+          TRUE_KW@67..71 "true"
+    NEWLINE@71..72 "\n"
+    R_BRACE@72..73 "}"
+
+ERRORS:
+- [30..34]: expecting `-`, INTEGER, FLOAT, STRING, `true` or `false`, found `meta`

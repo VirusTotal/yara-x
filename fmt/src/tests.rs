@@ -4,20 +4,17 @@ use std::path::PathBuf;
 use std::{fs, str};
 
 use pretty_assertions::assert_eq;
+use yara_x_parser::Parser;
 
 use crate::tokens::{TokenStream, Tokens};
 use crate::Formatter;
-use yara_x_parser::Parser;
 
 #[test]
 fn spacer() {
     let tests = vec![
         (
             // Spacer's input
-            r#"
-            rule test {
-              condition  :  true
-            }"#,
+            r#"rule test {condition  :  true}"#,
             // Spacer's expected output
             r#"rule test { condition: true }"#,
         ),
@@ -33,7 +30,9 @@ fn spacer() {
 
     for t in tests {
         let mut output = Vec::new();
-        let tokens = Tokens::new(Parser::new().build_cst(t.0).unwrap());
+        let rules = t.0.as_bytes();
+        let events = Parser::new(rules).into_cst_stream().whitespaces(false);
+        let tokens = Tokens::new(events);
 
         Formatter::add_spacing(tokens).write_to(&mut output).unwrap();
         assert_eq!(str::from_utf8(&output).unwrap(), t.1);

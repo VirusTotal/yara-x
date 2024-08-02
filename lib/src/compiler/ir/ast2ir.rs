@@ -1,15 +1,16 @@
 /*! Functions for converting an AST into an IR. */
 
 use std::borrow::Borrow;
+use std::collections::BTreeSet;
 use std::iter;
 use std::ops::RangeInclusive;
 use std::rc::Rc;
 
-use bstr::ByteSlice;
+use bstr::{BString, ByteSlice};
 use itertools::Itertools;
-use yara_x_parser::ast::{HasSpan, Span};
-use yara_x_parser::report::ReportBuilder;
-use yara_x_parser::{ast, ErrorInfo};
+use yara_x_parser::ast;
+use yara_x_parser::ast::WithSpan;
+use yara_x_parser::Span;
 
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
@@ -17,6 +18,7 @@ use crate::compiler::ir::{
     MatchAnchor, Of, OfItems, Pattern, PatternFlagSet, PatternFlags,
     PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern,
 };
+use crate::compiler::report::ReportBuilder;
 use crate::compiler::warnings::Warning;
 use crate::compiler::{CompileContext, CompileError};
 use crate::modules::BUILTIN_MODULES;
@@ -31,6 +33,22 @@ pub(in crate::compiler) fn patterns_from_ast<'src>(
 ) -> Result<(), Box<CompileError>> {
     for pattern_ast in patterns.into_iter().flatten() {
         let pattern = pattern_from_ast(ctx, pattern_ast)?;
+
+        if pattern.identifier().name != "$" {
+            if let Some(existing) = ctx
+                .current_rule_patterns
+                .iter()
+                .find(|p| p.identifier.name == pattern.identifier.name)
+            {
+                return Err(Box::new(CompileError::duplicate_pattern(
+                    ctx.report_builder,
+                    pattern.identifier().name.to_string(),
+                    pattern.identifier().span().into(),
+                    existing.identifier.span().into(),
+                )));
+            }
+        }
+
         ctx.current_rule_patterns.push(pattern);
     }
     Ok(())
@@ -40,6 +58,17 @@ fn pattern_from_ast<'src>(
     ctx: &mut CompileContext,
     pattern: &ast::Pattern<'src>,
 ) -> Result<PatternInRule<'src>, Box<CompileError>> {
+    // Check for duplicate pattern modifiers.
+    let mut modifiers = BTreeSet::new();
+    for modifier in pattern.modifiers().iter() {
+        if !modifiers.insert(modifier.as_text()) {
+            return Err(Box::new(CompileError::duplicate_modifier(
+                ctx.report_builder,
+                modifier.span().into(),
+            )));
+        }
+    }
+
     match pattern {
         ast::Pattern::Text(pattern) => {
             Ok(text_pattern_from_ast(ctx, pattern)?)
@@ -52,62 +81,150 @@ fn pattern_from_ast<'src>(
 }
 
 pub(in crate::compiler) fn text_pattern_from_ast<'src>(
-    _ctx: &mut CompileContext,
+    ctx: &mut CompileContext,
     pattern: &ast::TextPattern<'src>,
 ) -> Result<PatternInRule<'src>, Box<CompileError>> {
+    let ascii = pattern.modifiers.ascii();
+    let xor = pattern.modifiers.xor();
+    let nocase = pattern.modifiers.nocase();
+    let fullword = pattern.modifiers.fullword();
+    let base64 = pattern.modifiers.base64();
+    let base64wide = pattern.modifiers.base64wide();
+    let wide = pattern.modifiers.wide();
+
+    let invalid_combinations = [
+        ("xor", xor, "nocase", nocase),
+        ("base64", base64, "nocase", nocase),
+        ("base64wide", base64wide, "nocase", nocase),
+        ("base64", base64, "fullword", fullword),
+        ("base64wide", base64wide, "fullword", fullword),
+        ("base64", base64, "xor", xor),
+        ("base64wide", base64wide, "xor", xor),
+    ];
+
+    for (name1, modifier1, name2, modifier2) in invalid_combinations {
+        if let (Some(modifier1), Some(modifier2)) = (modifier1, modifier2) {
+            return Err(Box::new(CompileError::invalid_modifier_combination(
+                ctx.report_builder,
+                name1.to_string(),
+                name2.to_string(),
+                modifier1.span().into(),
+                modifier2.span().into(),
+                Some("these two modifiers can't be used together".to_string()),
+            )));
+        };
+    }
+
     let mut flags = PatternFlagSet::none();
 
-    if pattern.modifiers.ascii().is_some()
-        || pattern.modifiers.wide().is_none()
-    {
+    if ascii.is_some() || wide.is_none() {
         flags.set(PatternFlags::Ascii);
     }
 
-    if pattern.modifiers.wide().is_some() {
+    if wide.is_some() {
         flags.set(PatternFlags::Wide);
     }
 
-    if pattern.modifiers.nocase().is_some() {
+    if nocase.is_some() {
         flags.set(PatternFlags::Nocase);
     }
 
-    if pattern.modifiers.fullword().is_some() {
+    if fullword.is_some() {
         flags.set(PatternFlags::Fullword);
     }
 
-    let xor_range = match pattern.modifiers.xor() {
-        Some(ast::PatternModifier::Xor { start, end, .. }) => {
+    let xor_range = match xor {
+        Some(modifier @ ast::PatternModifier::Xor { start, end, .. }) => {
+            if *end < *start {
+                return Err(Box::new(CompileError::invalid_range(
+                    ctx.report_builder,
+                    format!(
+                        "lower bound ({}) is greater than upper bound ({})",
+                        start, end
+                    ),
+                    modifier.span().into(),
+                )));
+            }
             flags.set(PatternFlags::Xor);
             Some(*start..=*end)
         }
         _ => None,
     };
 
-    let base64_alphabet = match pattern.modifiers.base64() {
+    let validate_alphabet = |alphabet: &Option<ast::LiteralString>| {
+        if alphabet.is_none() {
+            return Ok(None);
+        }
+        let alphabet = alphabet.as_ref().unwrap();
+        let alphabet_str = alphabet.as_str().unwrap();
+        match base64::alphabet::Alphabet::new(alphabet_str) {
+            Ok(_) => Ok(Some(String::from(alphabet_str))),
+            Err(err) => Err(Box::new(CompileError::invalid_base_64_alphabet(
+                ctx.report_builder,
+                err.to_string().to_lowercase(),
+                alphabet.span().into(),
+            ))),
+        }
+    };
+
+    let base64_alphabet = match base64 {
         Some(ast::PatternModifier::Base64 { alphabet, .. }) => {
             flags.set(PatternFlags::Base64);
-            *alphabet
+            validate_alphabet(alphabet)?
         }
         _ => None,
     };
 
-    let base64wide_alphabet = match pattern.modifiers.base64wide() {
+    let base64wide_alphabet = match base64wide {
         Some(ast::PatternModifier::Base64Wide { alphabet, .. }) => {
             flags.set(PatternFlags::Base64Wide);
-            *alphabet
+            validate_alphabet(alphabet)?
         }
         _ => None,
     };
 
+    let (min_len, note) = if base64.is_some() {
+        (
+            3,
+            Some(
+                "`base64` requires that pattern is at least 3 bytes long"
+                    .to_string(),
+            ),
+        )
+    } else if base64wide.is_some() {
+        (
+            3,
+            Some(
+                "`base64wide` requires that pattern is at least 3 bytes long"
+                    .to_string(),
+            ),
+        )
+    } else {
+        (1, None)
+    };
+
+    let text: BString = pattern.text.value.as_ref().into();
+
+    if text.len() < min_len {
+        return Err(Box::new(CompileError::invalid_pattern(
+            ctx.report_builder,
+            pattern.identifier.name.to_string(),
+            "this pattern is too short".to_string(),
+            pattern.text.span().into(),
+            note,
+        )));
+    }
+
     Ok(PatternInRule {
-        identifier: pattern.identifier.name,
+        identifier: pattern.identifier.clone(),
+        in_use: false,
         pattern: Pattern::Literal(LiteralPattern {
             flags,
             xor_range,
-            base64_alphabet: base64_alphabet.map(String::from),
-            base64wide_alphabet: base64wide_alphabet.map(String::from),
+            base64_alphabet,
+            base64wide_alphabet,
             anchored_at: None,
-            text: pattern.text.as_ref().into(),
+            text,
         }),
     })
 }
@@ -116,11 +233,27 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
     ctx: &mut CompileContext,
     pattern: &ast::HexPattern<'src>,
 ) -> Result<PatternInRule<'src>, Box<CompileError>> {
+    // The only modifier accepted by hex patterns is `private`.
+    for modifier in pattern.modifiers.iter() {
+        match modifier {
+            ast::PatternModifier::Private { .. } => {}
+            _ => {
+                return Err(Box::new(CompileError::invalid_modifier(
+                    ctx.report_builder,
+                    "this modifier can't be applied to a hex pattern"
+                        .to_string(),
+                    modifier.span().into(),
+                )));
+            }
+        }
+    }
+
     Ok(PatternInRule {
-        identifier: pattern.identifier.name,
+        identifier: pattern.identifier.clone(),
+        in_use: false,
         pattern: Pattern::Regexp(RegexpPattern {
             flags: PatternFlagSet::from(PatternFlags::Ascii),
-            hir: re::hir::Hir::from(hex_pattern_hir_from_ast(ctx, pattern)),
+            hir: re::hir::Hir::from(hex_pattern_hir_from_ast(ctx, pattern)?),
             anchored_at: None,
         }),
     })
@@ -130,6 +263,23 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     ctx: &mut CompileContext,
     pattern: &ast::RegexpPattern<'src>,
 ) -> Result<PatternInRule<'src>, Box<CompileError>> {
+    // Regular expressions don't accept `base64`, `base64wide` and `xor`
+    // modifiers.
+    for modifier in pattern.modifiers.iter() {
+        match modifier {
+            ast::PatternModifier::Base64 { .. }
+            | ast::PatternModifier::Base64Wide { .. }
+            | ast::PatternModifier::Xor { .. } => {
+                return Err(Box::new(CompileError::invalid_modifier(
+                    ctx.report_builder,
+                    "this modifier can't be applied to a regexp".to_string(),
+                    modifier.span().into(),
+                )));
+            }
+            _ => {}
+        }
+    }
+
     let mut flags = PatternFlagSet::none();
 
     if pattern.modifiers.ascii().is_some()
@@ -162,8 +312,8 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
         ctx.warnings.add(|| {
             Warning::redundant_case_modifier(
                 ctx.report_builder,
-                pattern.modifiers.nocase().unwrap().span(),
-                pattern.span().subspan(i_pos, i_pos + 1),
+                pattern.modifiers.nocase().unwrap().span().into(),
+                pattern.regexp.span().subspan(i_pos, i_pos + 1).into(),
             )
         });
     }
@@ -207,7 +357,8 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     // variant .*?
 
     Ok(PatternInRule {
-        identifier: pattern.identifier.name,
+        identifier: pattern.identifier.clone(),
+        in_use: false,
         pattern: Pattern::Regexp(RegexpPattern {
             flags,
             hir,
@@ -225,7 +376,7 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::Entrypoint { span } => {
             Err(Box::new(CompileError::entrypoint_unsupported(
                 ctx.report_builder,
-                *span,
+                span.into(),
                 Some("use `pe.entry_point`, `elf.entry_point` or `macho.entry_point`".to_string()),
             )))
         }
@@ -287,7 +438,52 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::BitwiseXor(expr) => bitwise_xor_expr_from_ast(ctx, expr),
 
         // Comparison operations
-        ast::Expr::Eq(expr) => eq_expr_from_ast(ctx, expr),
+        ast::Expr::Eq(expr) => {
+            let span = expr.span();
+
+            let lhs_span = expr.lhs.span();
+            let rhs_span = expr.rhs.span();
+
+            let lhs = expr_from_ast(ctx, &expr.lhs)?;
+            let rhs = expr_from_ast(ctx, &expr.rhs)?;
+
+            // Detect cases in which the equal operator is comparing a boolean
+            // expression with an integer constant (e.g: `pe.is_signed == 0`).
+            // This is quite common in YARA rules, it is accepted without
+            // errors, but a warning is raised.
+            let replacement = match (lhs.type_value(), rhs.type_value()) {
+                (TypeValue::Bool(_), TypeValue::Integer(Value::Const(0))) => {
+                    Some((
+                        Expr::Not { operand: Box::new(lhs) },
+                        format!("not {}", ctx.report_builder.get_snippet(&lhs_span.into()))
+                    ))
+                }
+                (TypeValue::Integer(Value::Const(0)), TypeValue::Bool(_)) => {
+                    Some((
+                        Expr::Not { operand: Box::new(rhs) },
+                        format!("not {}", ctx.report_builder.get_snippet(&rhs_span.into()))
+                    ))
+                }
+                (TypeValue::Bool(_), TypeValue::Integer(Value::Const(1))) => {
+                    Some((lhs, ctx.report_builder.get_snippet(&lhs_span.into())))
+                }
+                (TypeValue::Integer(Value::Const(1)), TypeValue::Bool(_)) => {
+                    Some((rhs, ctx.report_builder.get_snippet(&rhs_span.into())))
+                }
+                _ => None
+            };
+
+            if let Some((expr, msg)) = replacement {
+                ctx.warnings.add(|| Warning::boolean_integer_comparison(
+                    ctx.report_builder,
+                    span.into(),
+                    msg,
+                ));
+                Ok(expr)
+            } else {
+                eq_expr_from_ast(ctx, expr)
+            }
+        },
         ast::Expr::Ne(expr) => ne_expr_from_ast(ctx, expr),
         ast::Expr::Gt(expr) => gt_expr_from_ast(ctx, expr),
         ast::Expr::Ge(expr) => ge_expr_from_ast(ctx, expr),
@@ -362,7 +558,7 @@ pub(in crate::compiler) fn expr_from_ast(
                     Err(Box::new(CompileError::unknown_identifier(
                         ctx.report_builder,
                         ident.name.to_string(),
-                        ident.span(),
+                        ident.span().into(),
                         // Add a note about the missing import statement if
                         // the unknown identifier is a module name.
                         if BUILTIN_MODULES.contains_key(ident.name)
@@ -380,7 +576,7 @@ pub(in crate::compiler) fn expr_from_ast(
                     Err(Box::new(CompileError::unknown_field(
                         ctx.report_builder,
                         ident.name.to_string(),
-                        ident.span(),
+                        ident.span().into(),
                     )))
                 }
             }
@@ -400,18 +596,31 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::PatternMatch(p) => {
             let anchor = anchor_from_ast(ctx, &p.anchor)?;
 
-            // If the identifier is just `$` we are inside a loop and we don't
-            // know which is the PatternId because `$` refers to a different
-            // pattern on each iteration. In those cases the symbol table must
-            // contain an entry for `$`, corresponding to the variable that
-            // holds the current PatternId for the loop.
             match p.identifier.name {
-                "$" => Ok(Expr::PatternMatchVar {
-                    symbol: ctx.symbol_table.lookup("$").unwrap(),
-                    anchor,
-                }),
+                "$" => {
+                    // If the identifier is just `$`, and we are not inside a
+                    // loop, that's an error.
+                    if ctx.for_of_depth == 0 {
+                        return Err(Box::new(CompileError::syntax_error(
+                            ctx.report_builder,
+                            "this `$` is outside of the condition of a `for .. of` statement".to_string(),
+                            p.identifier.span().into(),
+                        )));
+                    }
+                    // If we are inside a loop, we don't know which is the
+                    // PatternId because `$` refers to a different pattern on
+                    // each iteration. In those cases the symbol table must
+                    // contain an entry for `$`, corresponding to the variable
+                    // that holds the current PatternId for the loop.
+                    Ok(Expr::PatternMatchVar {
+                        symbol: ctx.symbol_table.lookup("$").unwrap(),
+                        anchor,
+                    })
+                },
                 _ => {
-                    let pattern = ctx.get_pattern_mut(p.identifier.name);
+                    let (pattern_idx, pattern) = ctx.get_pattern_mut(&p.identifier)?;
+
+                    pattern.mark_as_used();
 
                     if let Some(offset) = anchor.at() {
                         pattern.anchor_at(offset as usize);
@@ -420,7 +629,7 @@ pub(in crate::compiler) fn expr_from_ast(
                     }
 
                     Ok(Expr::PatternMatch {
-                        pattern: ctx.get_pattern_index(p.identifier.name),
+                        pattern: pattern_idx,
                         anchor,
                     })
                 }
@@ -428,12 +637,16 @@ pub(in crate::compiler) fn expr_from_ast(
         }
 
         ast::Expr::PatternCount(p) => {
-            // If the identifier is just `#` we are inside a loop and we don't
-            // know which is the PatternId because `#` refers to a different
-            // pattern on each iteration. In those cases the symbol table must
-            // contain an entry for `$`, corresponding to the variable that
-            // holds the current PatternId for the loop.
-            match (p.name, &p.range) {
+            // If the identifier is just `#`, and we are not inside a loop,
+            // that's an error.
+            if p.ident.name == "#" && ctx.for_of_depth == 0 {
+                return Err(Box::new(CompileError::syntax_error(
+                    ctx.report_builder,
+                    "this `#` is outside of the condition of a `for .. of` statement".to_string(),
+                    p.ident.span().into(),
+                )));
+            }
+            match (p.ident.name, &p.range) {
                 // Cases where the identifier is `#`.
                 ("#", Some(range)) => Ok(Expr::PatternCountVar {
                     symbol: ctx.symbol_table.lookup("$").unwrap(),
@@ -445,16 +658,22 @@ pub(in crate::compiler) fn expr_from_ast(
                 }),
                 // Cases where the identifier is not `#`.
                 (_, Some(range)) => {
-                    ctx.get_pattern_mut(p.name).make_non_anchorable();
+                    let (pattern_idx, pattern) = ctx.get_pattern_mut(&p.ident)?;
+                    pattern
+                        .make_non_anchorable()
+                        .mark_as_used();
                     Ok(Expr::PatternCount {
-                        pattern: ctx.get_pattern_index(p.name),
+                        pattern: pattern_idx,
                         range: Some(range_from_ast(ctx, range)?),
                     })
                 }
                 (_, None) => {
-                    ctx.get_pattern_mut(p.name).make_non_anchorable();
+                    let (pattern_idx, pattern) = ctx.get_pattern_mut(&p.ident)?;
+                    pattern
+                        .make_non_anchorable()
+                        .mark_as_used();
                     Ok(Expr::PatternCount {
-                        pattern: ctx.get_pattern_index(p.name),
+                        pattern: pattern_idx,
                         range: None,
                     })
                 }
@@ -462,12 +681,16 @@ pub(in crate::compiler) fn expr_from_ast(
         }
 
         ast::Expr::PatternOffset(p) => {
-            // If the identifier is just `@` we are inside a loop and we don't
-            // know which is the PatternId because `@` refers to a different
-            // pattern on each iteration. In those cases the symbol table must
-            // contain an entry for `$`, corresponding to the variable that
-            // holds the current PatternId for the loop.
-            match (p.name, &p.index) {
+            // If the identifier is just `@`, and we are not inside a loop,
+            // that's an error.
+            if p.ident.name == "@" && ctx.for_of_depth == 0 {
+                return Err(Box::new(CompileError::syntax_error(
+                    ctx.report_builder,
+                    "this `@` is outside of the condition of a `for .. of` statement".to_string(),
+                    p.ident.span().into(),
+                )));
+            }
+            match (p.ident.name, &p.index) {
                 // Cases where the identifier is `@`.
                 ("@", Some(index)) => Ok(Expr::PatternOffsetVar {
                     symbol: ctx.symbol_table.lookup("$").unwrap(),
@@ -483,9 +706,12 @@ pub(in crate::compiler) fn expr_from_ast(
                 }),
                 // Cases where the identifier is not `@`.
                 (_, Some(index)) => {
-                    ctx.get_pattern_mut(p.name).make_non_anchorable();
+                    let (pattern_idx, pattern) = ctx.get_pattern_mut(&p.ident)?;
+                    pattern
+                        .make_non_anchorable()
+                        .mark_as_used();
                     Ok(Expr::PatternOffset {
-                        pattern: ctx.get_pattern_index(p.name),
+                        pattern: pattern_idx,
                         index: Some(Box::new(integer_in_range_from_ast(
                             ctx,
                             index,
@@ -494,9 +720,12 @@ pub(in crate::compiler) fn expr_from_ast(
                     })
                 }
                 (_, None) => {
-                    ctx.get_pattern_mut(p.name).make_non_anchorable();
+                    let (pattern_idx, pattern) = ctx.get_pattern_mut(&p.ident)?;
+                    pattern
+                        .make_non_anchorable()
+                        .mark_as_used();
                     Ok(Expr::PatternOffset {
-                        pattern: ctx.get_pattern_index(p.name),
+                        pattern: pattern_idx,
                         index: None,
                     })
                 }
@@ -504,12 +733,16 @@ pub(in crate::compiler) fn expr_from_ast(
         }
 
         ast::Expr::PatternLength(p) => {
-            // If the identifier is just `!` we are inside a loop and we don't
-            // know which is the PatternId because `!` refers to a different
-            // pattern on each iteration. In those cases the symbol table must
-            // contain an entry for `$`, corresponding to the variable that
-            // holds the current PatternId for the loop.
-            match (p.name, &p.index) {
+            // If the identifier is just `!`, and we are not inside a loop,
+            // that's an error.
+            if p.ident.name == "!" && ctx.for_of_depth == 0 {
+                return Err(Box::new(CompileError::syntax_error(
+                    ctx.report_builder,
+                    "this `!` is outside of the condition of a `for .. of` statement".to_string(),
+                    p.ident.span().into(),
+                )));
+            }
+            match (p.ident.name, &p.index) {
                 // Cases where the identifier is `!`.
                 ("!", Some(index)) => Ok(Expr::PatternLengthVar {
                     symbol: ctx.symbol_table.lookup("$").unwrap(),
@@ -525,9 +758,12 @@ pub(in crate::compiler) fn expr_from_ast(
                 }),
                 // Cases where the identifier is not `!`.
                 (_, Some(index)) => {
-                    ctx.get_pattern_mut(p.name).make_non_anchorable();
+                    let (pattern_idx, pattern) = ctx.get_pattern_mut(&p.ident)?;
+                    pattern
+                        .make_non_anchorable()
+                        .mark_as_used();
                     Ok(Expr::PatternLength {
-                        pattern: ctx.get_pattern_index(p.name),
+                        pattern: pattern_idx,
                         index: Some(Box::new(integer_in_range_from_ast(
                             ctx,
                             index,
@@ -536,9 +772,12 @@ pub(in crate::compiler) fn expr_from_ast(
                     })
                 }
                 (_, None) => {
-                    ctx.get_pattern_mut(p.name).make_non_anchorable();
+                    let (pattern_idx, pattern) = ctx.get_pattern_mut(&p.ident)?;
+                    pattern
+                        .make_non_anchorable()
+                        .mark_as_used();
                     Ok(Expr::PatternLength {
-                        pattern: ctx.get_pattern_index(p.name),
+                        pattern: pattern_idx,
                         index: None,
                     })
                 }
@@ -582,7 +821,7 @@ pub(in crate::compiler) fn expr_from_ast(
                                 ctx.report_builder,
                                 format!("`{}`", key_ty),
                                 ty.to_string(),
-                                expr.index.span(),
+                                expr.index.span().into(),
                             ),
                         ));
                     }
@@ -598,7 +837,7 @@ pub(in crate::compiler) fn expr_from_ast(
                         ctx.report_builder,
                         format!("`{}` or `{}`", Type::Array, Type::Map),
                         type_value.ty().to_string(),
-                        expr.primary.span(),
+                        expr.primary.span().into(),
                     )))
                 }
             }
@@ -656,7 +895,7 @@ fn of_expr_from_ast(
                 ctx.warnings.add(|| Warning::invariant_boolean_expression(
                     ctx.report_builder,
                     false,
-                    of.span(),
+                    of.span().into(),
                     Some(format!(
                         "the expression requires {} matching patterns out of {}",
                         value, num_items
@@ -708,8 +947,8 @@ fn of_expr_from_ast(
             ctx.warnings.add(|| {
                 Warning::potentially_unsatisfiable_expression(
                     ctx.report_builder,
-                    of.quantifier.span(),
-                    of.anchor.as_ref().unwrap().span(),
+                    of.quantifier.span().into(),
+                    of.anchor.as_ref().unwrap().span().into(),
                 )
             });
         }
@@ -744,9 +983,11 @@ fn for_of_expr_from_ast(
     );
 
     ctx.symbol_table.push(Rc::new(loop_vars));
+    ctx.for_of_depth += 1;
 
     let condition = bool_expr_from_ast(ctx, &for_of.condition)?;
 
+    ctx.for_of_depth -= 1;
     ctx.symbol_table.pop();
     ctx.vars.unwind(&stack_frame);
 
@@ -809,8 +1050,8 @@ fn for_in_expr_from_ast(
             ctx.report_builder,
             loop_vars.len() as u8,
             expected_vars.len() as u8,
-            for_in.iterable.span(),
-            span,
+            for_in.iterable.span().into(),
+            span.into(),
         )));
     }
 
@@ -879,7 +1120,7 @@ fn iterable_from_ast(
                 check_type(
                     ctx,
                     ty,
-                    span,
+                    span.clone(),
                     &[Type::Integer, Type::Float, Type::String, Type::Bool],
                 )?;
                 // All items in the item must have the same type. Compare
@@ -892,8 +1133,8 @@ fn iterable_from_ast(
                                 ctx.report_builder,
                                 prev_ty.to_string(),
                                 ty.to_string(),
-                                prev_span,
-                                span,
+                                prev_span.into(),
+                                span.into(),
                             ),
                         ));
                     }
@@ -933,7 +1174,7 @@ fn range_from_ast(
 
     // If both the lower and upper bounds are known at compile time, make sure
     // that lower_bound <= upper_bound. If they are not know (because they are
-    // variables, for example) we can't raise an error at compile time but it
+    // variables, for example) we can't raise an error at compile time, but it
     // will be handled at scan time.
     if let (
         TypeValue::Integer(Value::Const(lower_bound)),
@@ -943,7 +1184,11 @@ fn range_from_ast(
         if lower_bound > upper_bound {
             return Err(Box::new(CompileError::invalid_range(
                 ctx.report_builder,
-                range.span,
+                format!(
+                    "lower bound ({}) is greater than upper bound ({})",
+                    lower_bound, upper_bound
+                ),
+                range.span().into(),
             )));
         }
     }
@@ -959,13 +1204,13 @@ fn non_negative_integer_from_ast(
     let expr = expr_from_ast(ctx, expr)?;
     let type_value = expr.type_value();
 
-    check_type(ctx, type_value.ty(), span, &[Type::Integer])?;
+    check_type(ctx, type_value.ty(), span.clone(), &[Type::Integer])?;
 
     if let TypeValue::Integer(Value::Const(value)) = type_value {
         if value < 0 {
             return Err(Box::new(CompileError::unexpected_negative_number(
                 ctx.report_builder,
-                span,
+                span.into(),
             )));
         }
     }
@@ -982,7 +1227,7 @@ fn integer_in_range_from_ast(
     let expr = expr_from_ast(ctx, expr)?;
     let type_value = expr.type_value();
 
-    check_type(ctx, type_value.ty(), span, &[Type::Integer])?;
+    check_type(ctx, type_value.ty(), span.clone(), &[Type::Integer])?;
 
     // If the value is known at compile time make sure that it is within
     // the given range.
@@ -992,7 +1237,7 @@ fn integer_in_range_from_ast(
                 ctx.report_builder,
                 *range.start(),
                 *range.end(),
-                span,
+                span.into(),
             )));
         }
     }
@@ -1037,14 +1282,15 @@ fn pattern_set_from_ast(
             if pattern_indexes.is_empty() {
                 return Err(Box::new(CompileError::empty_pattern_set(
                     ctx.report_builder,
-                    *span,
+                    span.into(),
                     Some("this rule doesn't define any patterns".to_string()),
                 )));
             }
 
-            // Make all the patterns in the set non-anchorable.
+            // Make all the patterns in the set non-anchorable and mark them
+            // as used.
             for pattern in ctx.current_rule_patterns.iter_mut() {
-                pattern.make_non_anchorable();
+                pattern.make_non_anchorable().mark_as_used();
             }
 
             pattern_indexes
@@ -1059,11 +1305,18 @@ fn pattern_set_from_ast(
                 {
                     return Err(Box::new(CompileError::empty_pattern_set(
                         ctx.report_builder,
-                        item.span(),
-                        Some(format!(
-                            "`{}` doesn't match any pattern identifier",
-                            item.identifier,
-                        )),
+                        item.span().into(),
+                        Some(if item.wildcard {
+                            format!(
+                                "`{}*` doesn't match any pattern identifier",
+                                item.identifier,
+                            )
+                        } else {
+                            format!(
+                                "`{}` doesn't match any pattern identifier",
+                                item.identifier,
+                            )
+                        }),
                     )));
                 }
             }
@@ -1075,8 +1328,9 @@ fn pattern_set_from_ast(
                 // check if some of them matches the identifier.
                 if set.iter().any(|p| p.matches(pattern.identifier())) {
                     pattern_indexes.push(i.into());
-                    // All the patterns in the set are made non-anchorable.
-                    pattern.make_non_anchorable();
+                    // All the patterns in the set are made non-anchorable, and
+                    // marked as used.
+                    pattern.make_non_anchorable().mark_as_used();
                 }
             }
             pattern_indexes
@@ -1138,7 +1392,7 @@ fn func_call_from_ast(
     if matching_signature.is_none() {
         return Err(Box::new(CompileError::wrong_arguments(
             ctx.report_builder,
-            func_call.args_span,
+            func_call.args_span().into(),
             Some(format!(
                 "accepted argument combinations:\n\n{}",
                 expected_args
@@ -1202,9 +1456,9 @@ fn check_type(
     } else {
         Err(Box::new(CompileError::wrong_type(
             ctx.report_builder,
-            ErrorInfo::join_with_or(accepted_types, true),
+            CompileError::join_with_or(accepted_types, true),
             ty.to_string(),
-            span,
+            span.into(),
         )))
     }
 }
@@ -1222,8 +1476,8 @@ fn check_operands(
     assert!(!matches!(lhs_ty, Type::Unknown));
     assert!(!matches!(rhs_ty, Type::Unknown));
 
-    check_type(ctx, lhs_ty, lhs_span, accepted_types)?;
-    check_type(ctx, rhs_ty, rhs_span, accepted_types)?;
+    check_type(ctx, lhs_ty, lhs_span.clone(), accepted_types)?;
+    check_type(ctx, rhs_ty, rhs_span.clone(), accepted_types)?;
 
     let types_are_compatible = {
         // If the types are the same, they are compatible.
@@ -1241,8 +1495,8 @@ fn check_operands(
             ctx.report_builder,
             lhs_ty.to_string(),
             rhs_ty.to_string(),
-            lhs_span,
-            rhs_span,
+            lhs_span.into(),
+            rhs_span.into(),
         )));
     }
 
@@ -1259,10 +1513,20 @@ fn re_error_to_compile_error(
             CompileError::invalid_regexp(
                 report_builder,
                 msg,
-                // the error span is relative to the start of the regexp, not to
+                // The error span is relative to the start of the regexp, not to
                 // the start of the source file, here we make it relative to the
-                // source file.
-                regexp.span.subspan(span.start.offset, span.end.offset),
+                // source file. Notice that the resulting span must be shifted one
+                // character to the left, because the error span doesn't include
+                // the opening slash (/) but the regexp span does.
+                //
+                // /someregexp/
+                //  ^ this is position 0 for error spans
+                // ^ this is where the regexp starts according to the regexp span
+                regexp
+                    .span()
+                    .subspan(span.start.offset, span.end.offset)
+                    .offset(1)
+                    .into(),
                 note,
             )
         }
@@ -1275,8 +1539,16 @@ fn re_error_to_compile_error(
             report_builder,
             if is_greedy_1 { "greedy" } else { "non-greedy" }.to_string(),
             if is_greedy_2 { "greedy" } else { "non-greedy" }.to_string(),
-            regexp.span.subspan(span_1.start.offset, span_1.end.offset),
-            regexp.span.subspan(span_2.start.offset, span_2.end.offset),
+            regexp
+                .span()
+                .subspan(span_1.start.offset, span_1.end.offset)
+                .offset(1)
+                .into(),
+            regexp
+                .span()
+                .subspan(span_2.start.offset, span_2.end.offset)
+                .offset(1)
+                .into(),
         ),
     }
 }
@@ -1307,7 +1579,7 @@ pub(in crate::compiler) fn warn_if_not_bool(
             Warning::non_boolean_as_boolean(
                 ctx.report_builder,
                 ty.to_string(),
-                span,
+                span.into(),
                 note,
             )
         });
@@ -1366,8 +1638,8 @@ macro_rules! gen_binary_op {
                 ctx,
                 lhs.ty(),
                 rhs.ty(),
-                lhs_span,
-                rhs_span,
+                lhs_span.clone(),
+                rhs_span.clone(),
                 &[$( $accepted_types ),+],
                 &[$( $compatible_types ),+],
             )?;
@@ -1408,8 +1680,8 @@ macro_rules! gen_string_op {
                 ctx,
                 lhs.ty(),
                 rhs.ty(),
-                lhs_span,
-                rhs_span,
+                lhs_span.clone(),
+                rhs_span.clone(),
                 &[Type::String],
                 &[Type::String],
             )?;
@@ -1476,8 +1748,8 @@ macro_rules! gen_n_ary_operation {
                             ctx.report_builder,
                             lhs_ty.to_string(),
                             rhs_ty.to_string(),
-                            expr.first().span().combine(&lhs_ast.span()),
-                            rhs_ast.span(),
+                            expr.first().span().combine(&lhs_ast.span()).into(),
+                            rhs_ast.span().into(),
                         ),
                     ));
                 }
@@ -1597,7 +1869,7 @@ gen_binary_op!(
                 return Err(Box::new(
                     CompileError::unexpected_negative_number(
                         ctx.report_builder,
-                        rhs_span,
+                        rhs_span.into(),
                     ),
                 ));
             }
@@ -1617,7 +1889,7 @@ gen_binary_op!(
                 return Err(Box::new(
                     CompileError::unexpected_negative_number(
                         ctx.report_builder,
-                        rhs_span,
+                        rhs_span.into(),
                     ),
                 ));
             }

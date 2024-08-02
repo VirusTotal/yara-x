@@ -1,0 +1,13 @@
+rule test {
+	strings:
+	  $a = { 00 (00 |) }
+  condition:
+	  true
+}
+
+rule test {
+	strings:
+	  $a = { }
+  condition:
+	  true
+}

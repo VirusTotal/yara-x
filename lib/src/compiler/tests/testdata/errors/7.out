@@ -1,6 +1,6 @@
 error[E104]: unexpected negative number
- --> line:2:19
+ --> line:3:19
   |
-2 |   condition: 1 << -1 == 0
+3 |   condition: 1 << -1 == 0
   |                   ^^ this number can not be negative
   |

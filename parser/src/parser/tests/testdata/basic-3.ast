@@ -1,0 +1,8 @@
+ rule test
+ └─ condition
+    └─ or
+       ├─ and
+       │  ├─ true
+       │  └─ false
+       └─ false
+

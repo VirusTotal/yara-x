@@ -1,0 +1,37 @@
+SOURCE_FILE@0..57
+  RULE_DECL@0..57
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..13 "\t"
+    ERROR@13..34
+      STRINGS_KW@13..20 "strings"
+      COLON@20..21 ":"
+      NEWLINE@21..22 "\n"
+      WHITESPACE@22..25 "\t  "
+      ERROR@25..29
+        PATTERN_IDENT@25..27 "$c"
+        WHITESPACE@27..28 " "
+        EQUAL@28..29 "="
+      WHITESPACE@29..30 " "
+      L_BRACE@30..31 "{"
+      WHITESPACE@31..32 " "
+      HEX_BYTE@32..34 "ab"
+    NEWLINE@34..35 "\n"
+    WHITESPACE@35..37 "  "
+    CONDITION_BLK@37..55
+      CONDITION_KW@37..46 "condition"
+      COLON@46..47 ":"
+      NEWLINE@47..48 "\n"
+      WHITESPACE@48..51 "\t  "
+      BOOLEAN_EXPR@51..55
+        BOOLEAN_TERM@51..55
+          TRUE_KW@51..55 "true"
+    NEWLINE@55..56 "\n"
+    R_BRACE@56..57 "}"
+
+ERRORS:
+- [37..46]: expecting `[`, BYTE, `(` or `}`, found `condition`

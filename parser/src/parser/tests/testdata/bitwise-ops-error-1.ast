@@ -1,0 +1,2 @@
+ERRORS:
+- SyntaxError { message: "expecting `.`, `%`, `[`, `(`, operator, `of`, expression or `}`, found `~`", span: Span(30..31) }

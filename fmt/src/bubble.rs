@@ -57,15 +57,15 @@ Begin(pattern_def),
 Identifier("$b"),
 ... more tokens
 
-Notice how the the newline tokens that follow after the `wide` keyword is
+Notice how the newline tokens that follow after the `wide` keyword is
 considered part of the `pattern_mods` grammar rule. This feels unnatural
-because that newline character is actually separating the the two pattern
+because that newline character is actually separating the two pattern
 definitions, `$foo` and `$bar`. When creating rules that checks for the
 existence of newlines characters in-between pattern definitions, the fact
 that this newline character is buried deep inside the `pattern_mods` rule
 makes things a lot of harder.
 
-This other sequence feels more much natural and it's easier to work with:
+This other sequence feels more much natural, and it's easier to work with:
 
 Begin(pattern_def),
     Identifier("$a"),
@@ -172,19 +172,19 @@ mod tests {
     use crate::tokens::Token;
     use crate::{NEWLINE, WHITESPACE};
     use pretty_assertions::assert_eq;
-    use yara_x_parser::GrammarRule;
+    use yara_x_parser::cst::SyntaxKind;
 
     #[test]
     fn test_nest() {
         let input = vec![
-            Token::Begin(GrammarRule::rule_tags),
-            Token::Identifier("foo"),
+            Token::Begin(SyntaxKind::RULE_TAGS),
+            Token::Identifier(b"foo"),
             Token::Whitespace,
             Token::Whitespace,
             Token::Newline,
-            Token::End(GrammarRule::rule_tags),
+            Token::End(SyntaxKind::RULE_TAGS),
             Token::Newline,
-            Token::End(GrammarRule::rule_decl),
+            Token::End(SyntaxKind::RULE_DECL),
             Token::Whitespace,
             Token::Newline,
         ];
@@ -199,16 +199,16 @@ mod tests {
         assert_eq!(
             output,
             vec![
-                Token::Begin(GrammarRule::rule_tags),
-                Token::Identifier("foo"),
+                Token::Begin(SyntaxKind::RULE_TAGS),
+                Token::Identifier(b"foo"),
                 Token::Whitespace,
                 Token::Whitespace,
                 Token::Newline,
                 Token::Newline,
                 Token::Whitespace,
                 Token::Newline,
-                Token::End(GrammarRule::rule_tags),
-                Token::End(GrammarRule::rule_decl),
+                Token::End(SyntaxKind::RULE_TAGS),
+                Token::End(SyntaxKind::RULE_DECL),
             ]
         )
     }
@@ -216,14 +216,14 @@ mod tests {
     #[test]
     fn test_unnest() {
         let input = vec![
-            Token::Begin(GrammarRule::rule_tags),
-            Token::Identifier("foo"),
+            Token::Begin(SyntaxKind::RULE_TAGS),
+            Token::Identifier(b"foo"),
             Token::Whitespace,
             Token::Whitespace,
             Token::Newline,
-            Token::End(GrammarRule::rule_tags),
+            Token::End(SyntaxKind::RULE_TAGS),
             Token::Newline,
-            Token::End(GrammarRule::rule_decl),
+            Token::End(SyntaxKind::RULE_DECL),
             Token::Whitespace,
             Token::Newline,
         ];
@@ -238,10 +238,10 @@ mod tests {
         assert_eq!(
             output,
             vec![
-                Token::Begin(GrammarRule::rule_tags),
-                Token::Identifier("foo"),
-                Token::End(GrammarRule::rule_tags),
-                Token::End(GrammarRule::rule_decl),
+                Token::Begin(SyntaxKind::RULE_TAGS),
+                Token::Identifier(b"foo"),
+                Token::End(SyntaxKind::RULE_TAGS),
+                Token::End(SyntaxKind::RULE_DECL),
                 Token::Whitespace,
                 Token::Whitespace,
                 Token::Newline,

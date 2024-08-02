@@ -1,4 +1,5 @@
 use crate::{COMMENT, CONTROL, NEWLINE, WHITESPACE};
+use bstr::{BStr, ByteSlice};
 use std::collections::vec_deque::VecDeque;
 
 use crate::tokens::{Token, TokenStream};
@@ -86,7 +87,7 @@ enum State {
         indentation: usize,
         leading_newline: bool,
         trailing_newline: bool,
-        lines: Vec<String>,
+        lines: Vec<Vec<u8>>,
     },
 }
 
@@ -107,7 +108,7 @@ where
 
     fn push_comment(
         &mut self,
-        comment_lines: Vec<String>,
+        comment_lines: Vec<Vec<u8>>,
         leading_newline: bool,
         trailing_newline: bool,
     ) {
@@ -139,8 +140,8 @@ where
     /// This function works like an automaton with two states `PreComment`
     /// and `Comment`. The automaton remains in the `PreComment` state
     /// while it processes any whitespaces and newlines that precede the
-    /// the comment. When it finds a [`Token::Comment`], it switches to
-    /// the `Comment` state.
+    /// comment. When it finds a [`Token::Comment`], it switches to the
+    /// `Comment` state.
     fn process_input_buffer(&mut self) {
         // Start at PreComment state, `leading_newline` is initialized with
         // the value of `start_of_input` because comments that are at the
@@ -204,7 +205,7 @@ where
                     // ```
                     // // This is a comment block.
                     // // These three lines are
-                    // // are put in the same BlockComment.
+                    // // put in the same BlockComment.
                     //
                     // // However, this other block is separated from
                     // // the previous one by an empty line, therefore
@@ -267,7 +268,7 @@ where
             }
         }
 
-        // Handle the case in which a comment was found but it wasn't followed
+        // Handle the case in which a comment was found, but it wasn't followed
         // by a newline.
         if let State::Comment {
             lines,
@@ -337,7 +338,7 @@ where
 /// that are actually part of the indentation. For example:
 ///
 /// ```text
-/// <-- indentation -->/*  
+/// <-- indentation -->/*
 /// <-- indentation -->    This comment is indented
 /// <-- indentation -->*/
 /// ```
@@ -345,12 +346,13 @@ where
 /// Notice how the comment contains some spaces (here represented by
 /// `<-- indentation -->`) that should be removed/adjusted when the comment
 /// is re-indented.
-fn split_comment_lines(comment: &str, indentation: usize) -> Vec<String> {
-    let indent = " ".repeat(indentation);
+fn split_comment_lines(comment: &[u8], indentation: usize) -> Vec<Vec<u8>> {
+    let comment = BStr::new(comment);
+    let indent = b" ".repeat(indentation);
     let mut result = Vec::new();
     for line in comment.lines() {
-        if let Some(line_without_indent) = line.strip_prefix(indent.as_str()) {
-            result.push(line_without_indent.to_string())
+        if let Some(line_no_indent) = line.strip_prefix(indent.as_slice()) {
+            result.push(line_no_indent.to_vec())
         } else {
             result.push(line.to_owned())
         }
@@ -375,24 +377,24 @@ mod tests {
     #[test]
     fn tests() {
         test(
-            vec![Token::Comment("// some comment")],
+            vec![Token::Comment(b"// some comment")],
             vec![
-                Token::BlockComment(vec!["// some comment".to_string()]),
+                Token::BlockComment(vec![b"// some comment".to_vec()]),
                 Token::Newline,
             ],
         );
 
         test(
             vec![
-                Token::Comment("// some comment"),
+                Token::Comment(b"// some comment"),
                 Token::Newline,
                 Token::Whitespace,
-                Token::Comment("// some other comment"),
+                Token::Comment(b"// some other comment"),
             ],
             vec![
-                Token::BlockComment(vec!["// some comment".to_string()]),
+                Token::BlockComment(vec![b"// some comment".to_vec()]),
                 Token::Newline,
-                Token::BlockComment(vec!["// some other comment".to_string()]),
+                Token::BlockComment(vec![b"// some other comment".to_vec()]),
                 Token::Newline,
             ],
         );
@@ -400,16 +402,16 @@ mod tests {
         test(
             vec![
                 Token::Whitespace,
-                Token::Comment("// some comment"),
+                Token::Comment(b"// some comment"),
                 Token::Newline,
                 Token::Whitespace,
-                Token::Comment("// some other comment"),
+                Token::Comment(b"// some other comment"),
             ],
             vec![
                 Token::Whitespace,
                 Token::BlockComment(vec![
-                    "// some comment".to_string(),
-                    "// some other comment".to_string(),
+                    b"// some comment".to_vec(),
+                    b"// some other comment".to_vec(),
                 ]),
                 Token::Newline,
             ],
@@ -417,56 +419,56 @@ mod tests {
 
         test(
             vec![
-                Token::Comment("// some comment"),
+                Token::Comment(b"// some comment"),
                 Token::Newline,
                 Token::Newline,
-                Token::Comment("// some other comment"),
+                Token::Comment(b"// some other comment"),
             ],
             vec![
-                Token::BlockComment(vec!["// some comment".to_string()]),
+                Token::BlockComment(vec![b"// some comment".to_vec()]),
                 Token::Newline,
                 Token::Newline,
-                Token::BlockComment(vec!["// some other comment".to_string()]),
-                Token::Newline,
-            ],
-        );
-
-        test(
-            vec![
-                Token::Identifier("foo"),
-                Token::Whitespace,
-                Token::Comment("// some comment"),
-                Token::Newline,
-                Token::Comment("// some other comment"),
-            ],
-            vec![
-                Token::Identifier("foo"),
-                Token::Whitespace,
-                Token::TailComment(vec!["// some comment".to_string()]),
-                Token::Newline,
-                Token::BlockComment(vec!["// some other comment".to_string()]),
+                Token::BlockComment(vec![b"// some other comment".to_vec()]),
                 Token::Newline,
             ],
         );
 
         test(
             vec![
-                Token::Identifier("foo"),
+                Token::Identifier(b"foo"),
                 Token::Whitespace,
-                Token::Comment("// some comment"),
+                Token::Comment(b"// some comment"),
+                Token::Newline,
+                Token::Comment(b"// some other comment"),
+            ],
+            vec![
+                Token::Identifier(b"foo"),
+                Token::Whitespace,
+                Token::TailComment(vec![b"// some comment".to_vec()]),
+                Token::Newline,
+                Token::BlockComment(vec![b"// some other comment".to_vec()]),
+                Token::Newline,
+            ],
+        );
+
+        test(
+            vec![
+                Token::Identifier(b"foo"),
+                Token::Whitespace,
+                Token::Comment(b"// some comment"),
                 Token::Newline,
                 Token::Whitespace,
                 Token::Whitespace,
                 Token::Whitespace,
                 Token::Whitespace,
-                Token::Comment("// some other comment"),
+                Token::Comment(b"// some other comment"),
             ],
             vec![
-                Token::Identifier("foo"),
+                Token::Identifier(b"foo"),
                 Token::Whitespace,
                 Token::TailComment(vec![
-                    "// some comment".to_string(),
-                    "// some other comment".to_string(),
+                    b"// some comment".to_vec(),
+                    b"// some other comment".to_vec(),
                 ]),
                 Token::Newline,
             ],
@@ -474,30 +476,30 @@ mod tests {
 
         test(
             vec![
-                Token::Identifier("foo"),
+                Token::Identifier(b"foo"),
                 Token::Whitespace,
-                Token::Comment("/* some comment */"),
+                Token::Comment(b"/* some comment */"),
                 Token::Whitespace,
-                Token::Identifier("foo"),
+                Token::Identifier(b"foo"),
             ],
             vec![
-                Token::Identifier("foo"),
+                Token::Identifier(b"foo"),
                 Token::Whitespace,
-                Token::InlineComment(vec!["/* some comment */".to_string()]),
-                Token::Identifier("foo"),
+                Token::InlineComment(vec![b"/* some comment */".to_vec()]),
+                Token::Identifier(b"foo"),
             ],
         );
 
         test(
             vec![
-                Token::Comment("// comment"),
+                Token::Comment(b"// comment"),
                 Token::Newline,
                 Token::Newline,
                 Token::Whitespace,
                 Token::Whitespace,
             ],
             vec![
-                Token::BlockComment(vec!["// comment".to_string()]),
+                Token::BlockComment(vec![b"// comment".to_vec()]),
                 Token::Newline,
                 Token::Newline,
                 Token::Whitespace,

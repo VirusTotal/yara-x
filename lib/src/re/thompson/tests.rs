@@ -1,12 +1,11 @@
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
 
-use yara_x_parser::ast;
-
 use crate::compiler::Atom;
 use crate::re;
 use crate::re::bitmapset::BitmapSet;
 use crate::re::{BckCodeLoc, FwdCodeLoc};
+use crate::types::Regexp;
 
 use super::compiler::{CodeLoc, Compiler, RegexpAtom};
 use super::pikevm::{epsilon_closure, EpsilonClosureState};
@@ -17,15 +16,7 @@ macro_rules! assert_re_code {
 
         let (fwd_code, bck_code, atoms) = Compiler::new()
             .compile_internal(
-                &parser
-                    .parse(&ast::Regexp {
-                        literal: format!("/{}/", $re).as_str(),
-                        src: $re,
-                        case_insensitive: false,
-                        dot_matches_new_line: true,
-                        span: ast::Span::default(),
-                    })
-                    .unwrap(),
+                &parser.parse(&Regexp::new(format!("/{}/s", $re))).unwrap(),
             )
             .unwrap();
 
@@ -66,15 +57,7 @@ macro_rules! assert_re_atoms_impl {
         let parser = re::parser::Parser::new();
         let (_, _, atoms) = Compiler::new()
             .compile_internal(
-                &parser
-                    .parse(&ast::Regexp {
-                        literal: format!("/{}/", $re).as_str(),
-                        src: $re,
-                        case_insensitive: false,
-                        dot_matches_new_line: true,
-                        span: ast::Span::default(),
-                    })
-                    .unwrap(),
+                &parser.parse(&Regexp::new(format!("/{}/s", $re))).unwrap(),
             )
             .unwrap();
 
@@ -1147,50 +1130,50 @@ fn re_code_22() {
 #[test]
 fn re_atoms() {
     assert_re_atoms!(
-        r#"abcd"#, 
+        r#"abcd"#,
         vec![Atom::exact(b"abcd")]
     );
-    
+
     assert_re_atoms!(
-        r#"abcd1234"#, 
+        r#"abcd1234"#,
         vec![Atom::inexact(b"1234")]
     );
-    
+
     assert_re_atoms!(
-        r#".abc"#, 
+        r#".abc"#,
         vec![Atom::inexact(b"abc")]
     );
-    
+
     assert_re_atoms!(
-        r#"abc."#, 
+        r#"abc."#,
         vec![Atom::inexact(b"abc")]
     );
-    
+
     assert_re_atoms!(
         r#"a.bcd"#,
         vec![Atom::inexact(b"bcd")]
     );
-    
+
     assert_re_atoms!(
-        r#"abc.d"#, 
+        r#"abc.d"#,
         vec![Atom::inexact(b"abc")]
     );
-    
+
     assert_re_atoms!(
-        r#"ab.*cd"#, 
+        r#"ab.*cd"#,
         vec![
             Atom::inexact(b"ab"),
             Atom::exact("abcd"),
         ]
     );
-    
+
     assert_re_atoms!(
-        r#"ab.*cde"#, 
+        r#"ab.*cde"#,
         vec![Atom::inexact(b"cde")]
     );
 
     assert_re_atoms!(
-        r#"ab?c"#, 
+        r#"ab?c"#,
         vec![
             Atom::exact(b"abc"),
             Atom::exact(b"ac"),
@@ -1198,7 +1181,7 @@ fn re_atoms() {
     );
 
     assert_re_atoms!(
-        r#"ab??c"#, 
+        r#"ab??c"#,
         vec![
             Atom::exact(b"ac"),
             Atom::exact(b"abc"),
@@ -1206,43 +1189,43 @@ fn re_atoms() {
     );
 
     assert_re_atoms!(
-        r#"ab+"#, 
+        r#"ab+"#,
         vec![Atom::inexact(b"ab")]
     );
-    
+
     assert_re_atoms!(
-        r#"a.."#, 
+        r#"a.."#,
         vec![Atom::inexact(b"a")]
     );
-    
+
     assert_re_atoms!(
-        r#"ab.."#, 
+        r#"ab.."#,
         vec![Atom::inexact(b"ab")]
     );
-    
+
     assert_re_atoms!(
         r#"(ab|cd)"#,
         vec![
-            Atom::exact(b"ab"), 
+            Atom::exact(b"ab"),
             Atom::exact(b"cd")
         ]
     );
 
     assert_re_atoms!(
-        r#"ab|cd"#, 
+        r#"ab|cd"#,
         vec![
-            Atom::exact(b"ab"), 
+            Atom::exact(b"ab"),
             Atom::exact(b"cd")
         ]);
 
     assert_re_atoms!(
         r#"a(b|c)d"#,
         vec![
-            Atom::exact(b"abd"), 
+            Atom::exact(b"abd"),
             Atom::exact(b"acd")
         ]
     );
-    
+
     assert_re_atoms!(
         r#"ab(c|d|e|g).."#,
         vec![
@@ -1256,7 +1239,7 @@ fn re_atoms() {
     assert_re_atoms!(
         r#"a[bc]d.e"#,
         vec![
-            Atom::inexact(b"abd"), 
+            Atom::inexact(b"abd"),
             Atom::inexact(b"acd")
         ]
     );
@@ -1265,7 +1248,7 @@ fn re_atoms() {
         r#"a(bcd.*)*e"#,
         vec![
             Atom::inexact(b"abcd"),
-            Atom::exact(b"ae"), 
+            Atom::exact(b"ae"),
         ]
     );
 
@@ -1276,17 +1259,17 @@ fn re_atoms() {
             Atom::inexact(b"abcd"),
         ]
     );
-    
+
     assert_re_atoms!(
         r#"a(b.*)*c"#,
         vec![
             Atom::inexact(b"ab"),
-            Atom::exact(b"ac"), 
+            Atom::exact(b"ac"),
         ]
     );
 
     assert_re_atoms!(
-        "\x00\x00\x00\x00.{2,3}abc", 
+        "\x00\x00\x00\x00.{2,3}abc",
         vec![Atom::inexact(b"abc")]
     );
 
@@ -1301,7 +1284,7 @@ fn re_atoms() {
     );
 
     assert_re_atoms!(
-        r#"(?i)abc.*123"#, 
+        r#"(?i)abc.*123"#,
         vec![Atom::inexact(b"123")]
     );
 
@@ -1318,7 +1301,7 @@ fn re_atoms() {
             Atom::inexact(b"bcd"),
         ]
     );
-    
+
     assert_re_atoms!(
         "(?s)a.\x00\x00\x00[A-Za-z0-9]{128,256}",
         [b'a'..=b'a', 0x00..=0xff, 0x00..=0x00, 0x00..=0x00]
@@ -1356,7 +1339,7 @@ fn re_atoms() {
             .collect::<Vec<Atom>>());
         v
     });
-    
+
     assert_re_atoms!(
         r#"(?s)a(b.b|c.c|d.d|e.e|f.f|g.g|h.h|i.i|j.j|k.k|l.l|m.m|n.n|o.o|p.p|q.q|r.r)"#,
         vec![Atom::inexact(b"a")]

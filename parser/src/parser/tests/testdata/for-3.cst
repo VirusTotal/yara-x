@@ -1,0 +1,60 @@
+SOURCE_FILE@0..90
+  RULE_DECL@0..90
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..14 "  "
+    PATTERNS_BLK@14..50
+      STRINGS_KW@14..21 "strings"
+      COLON@21..22 ":"
+      NEWLINE@22..23 "\n"
+      WHITESPACE@23..26 "  \t"
+      PATTERN_DEF@26..36
+        PATTERN_IDENT@26..28 "$a"
+        WHITESPACE@28..29 " "
+        EQUAL@29..30 "="
+        WHITESPACE@30..31 " "
+        STRING_LIT@31..36 "\"foo\""
+      NEWLINE@36..37 "\n"
+      WHITESPACE@37..40 "  \t"
+      PATTERN_DEF@40..50
+        PATTERN_IDENT@40..42 "$b"
+        WHITESPACE@42..43 " "
+        EQUAL@43..44 "="
+        WHITESPACE@44..45 " "
+        STRING_LIT@45..50 "\"bar\""
+    NEWLINE@50..51 "\n"
+    WHITESPACE@51..52 "\t"
+    CONDITION_BLK@52..88
+      CONDITION_KW@52..61 "condition"
+      COLON@61..62 ":"
+      NEWLINE@62..63 "\n"
+      WHITESPACE@63..65 "\t\t"
+      BOOLEAN_EXPR@65..88
+        BOOLEAN_TERM@65..88
+          FOR_EXPR@65..88
+            FOR_KW@65..68 "for"
+            WHITESPACE@68..69 " "
+            QUANTIFIER@69..72
+              PRIMARY_EXPR@69..71
+                INTEGER_LIT@69..71 "10"
+              PERCENT@71..72 "%"
+            WHITESPACE@72..73 " "
+            OF_KW@73..75 "of"
+            WHITESPACE@75..76 " "
+            THEM_KW@76..80 "them"
+            WHITESPACE@80..81 " "
+            COLON@81..82 ":"
+            WHITESPACE@82..83 " "
+            L_PAREN@83..84 "("
+            WHITESPACE@84..85 " "
+            BOOLEAN_EXPR@85..86
+              BOOLEAN_TERM@85..86
+                PATTERN_IDENT@85..86 "$"
+            WHITESPACE@86..87 " "
+            R_PAREN@87..88 ")"
+    NEWLINE@88..89 "\n"
+    R_BRACE@89..90 "}"

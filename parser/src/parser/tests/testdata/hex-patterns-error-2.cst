@@ -1,0 +1,75 @@
+SOURCE_FILE@0..118
+  RULE_DECL@0..58
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..13 "\t"
+    ERROR@13..35
+      STRINGS_KW@13..20 "strings"
+      COLON@20..21 ":"
+      NEWLINE@21..22 "\n"
+      WHITESPACE@22..25 "\t  "
+      ERROR@25..29
+        PATTERN_IDENT@25..27 "$a"
+        WHITESPACE@27..28 " "
+        EQUAL@28..29 "="
+      WHITESPACE@29..30 " "
+      L_BRACE@30..31 "{"
+      HEX_BYTE@31..33 "00"
+      INTEGER_LIT@33..34 "0"
+      R_BRACE@34..35 "}"
+    NEWLINE@35..36 "\n"
+    WHITESPACE@36..38 "  "
+    CONDITION_BLK@38..56
+      CONDITION_KW@38..47 "condition"
+      COLON@47..48 ":"
+      NEWLINE@48..49 "\n"
+      WHITESPACE@49..52 "\t  "
+      BOOLEAN_EXPR@52..56
+        BOOLEAN_TERM@52..56
+          TRUE_KW@52..56 "true"
+    NEWLINE@56..57 "\n"
+    R_BRACE@57..58 "}"
+  NEWLINE@58..59 "\n"
+  NEWLINE@59..60 "\n"
+  RULE_DECL@60..118
+    RULE_KW@60..64 "rule"
+    WHITESPACE@64..65 " "
+    IDENT@65..69 "test"
+    WHITESPACE@69..70 " "
+    L_BRACE@70..71 "{"
+    NEWLINE@71..72 "\n"
+    WHITESPACE@72..73 "\t"
+    ERROR@73..95
+      STRINGS_KW@73..80 "strings"
+      COLON@80..81 ":"
+      NEWLINE@81..82 "\n"
+      WHITESPACE@82..85 "\t  "
+      ERROR@85..89
+        PATTERN_IDENT@85..87 "$a"
+        WHITESPACE@87..88 " "
+        EQUAL@88..89 "="
+      WHITESPACE@89..90 " "
+      L_BRACE@90..91 "{"
+      HEX_BYTE@91..93 "00"
+      IDENT@93..94 "a"
+      R_BRACE@94..95 "}"
+    NEWLINE@95..96 "\n"
+    WHITESPACE@96..98 "  "
+    CONDITION_BLK@98..116
+      CONDITION_KW@98..107 "condition"
+      COLON@107..108 ":"
+      NEWLINE@108..109 "\n"
+      WHITESPACE@109..112 "\t  "
+      BOOLEAN_EXPR@112..116
+        BOOLEAN_TERM@112..116
+          TRUE_KW@112..116 "true"
+    NEWLINE@116..117 "\n"
+    R_BRACE@117..118 "}"
+
+ERRORS:
+- [33..34]: expecting `[`, BYTE, `(` or `}`, found `0`
+- [93..94]: expecting `[`, BYTE, `(` or `}`, found `a`

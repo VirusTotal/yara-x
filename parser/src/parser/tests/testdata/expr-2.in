@@ -1,0 +1,44 @@
+rule test_1 {
+	condition:
+		"foo" contains "foo"
+}
+
+rule test_2 {
+	condition:
+		"foo" icontains "foo"
+}
+
+rule test_3 {
+	condition:
+		"foo" startswith "foo"
+}
+
+rule test_4 {
+	condition:
+		"foo" istartswith "foo"
+}
+
+rule test_5 {
+	condition:
+		"foo" endswith "foo"
+}
+
+rule test_6 {
+	condition:
+		"foo" iendswith "foo"
+}
+
+rule test_7 {
+	condition:
+		"foo" matches /foo/
+}
+
+rule test_8 {
+	condition:
+		"foo" matches /foo/is
+}
+
+rule test_9 {
+	condition:
+		"foo" iequals "foo"
+}

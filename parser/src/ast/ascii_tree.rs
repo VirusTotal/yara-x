@@ -225,7 +225,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
         Expr::PatternCount(s) => {
             if let Some(range) = &s.range {
                 Node(
-                    format!("{} in <range>", s.name),
+                    format!("{} in <range>", s.ident.name),
                     vec![Node(
                         "<range>".to_string(),
                         vec![
@@ -235,20 +235,20 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
                     )],
                 )
             } else {
-                Leaf(vec![s.name.to_string()])
+                Leaf(vec![s.ident.name.to_string()])
             }
         }
         Expr::PatternOffset(s) | Expr::PatternLength(s) => {
             if let Some(index) = &s.index {
                 Node(
-                    format!("{}[<index>]", s.name),
+                    format!("{}[<index>]", s.ident.name),
                     vec![Node(
                         "<index>".to_string(),
                         vec![expr_ascii_tree(index)],
                     )],
                 )
             } else {
-                Leaf(vec![s.name.to_string()])
+                Leaf(vec![s.ident.name.to_string()])
             }
         }
         Expr::Lookup(l) => Node(
@@ -451,9 +451,9 @@ pub(crate) fn pattern_set_ascii_tree(pattern_set: &PatternSet) -> Tree {
 pub(crate) fn pattern_ascii_tree(pattern: &Pattern) -> Tree {
     match pattern {
         Pattern::Text(s) => Leaf(vec![format!(
-            "{} = \"{}\" {}",
+            "{} = {} {}",
             s.identifier.name,
-            s.text,
+            s.text.literal,
             s.modifiers.iter().map(|m| m.to_string()).join(" ")
         )]),
         Pattern::Hex(h) => Node(

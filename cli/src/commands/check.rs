@@ -8,7 +8,7 @@ use crossterm::tty::IsTty;
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Green, Red, Yellow};
 use yansi::Paint;
-use yara_x_parser::SourceCode;
+use yara_x::SourceCode;
 
 use crate::walk::Message;
 use crate::{help, walk};

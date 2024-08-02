@@ -1,0 +1,16 @@
+ private global rule test_1
+ └─ condition
+    └─ true
+
+ private global rule test_2
+ └─ condition
+    └─ true
+
+ global rule test_3
+ └─ condition
+    └─ true
+
+ private rule test_4
+ └─ condition
+    └─ true
+

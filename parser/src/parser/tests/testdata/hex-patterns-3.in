@@ -1,0 +1,13 @@
+rule test_1 {
+	strings:
+	  $a = { 11 [0] 22 [1-2] 33 [-100] 44 [100-] 55 [-] 66 }
+  condition:
+	  true
+}
+
+rule test_2 {
+	strings:
+	  $a = { 11 [0] 22 [1-2] [100-] 33 }
+  condition:
+	  true
+}

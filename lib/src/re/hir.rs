@@ -3,11 +3,6 @@ use std::mem;
 use std::ops::RangeInclusive;
 
 use regex_syntax;
-
-use yara_x_parser::ast::HexByte;
-
-use crate::utils::cast;
-
 pub use regex_syntax::hir::Class;
 pub use regex_syntax::hir::ClassBytes;
 pub use regex_syntax::hir::ClassBytesRange;
@@ -16,6 +11,22 @@ pub use regex_syntax::hir::ClassUnicodeRange;
 pub use regex_syntax::hir::Dot;
 pub use regex_syntax::hir::HirKind;
 pub use regex_syntax::hir::Repetition;
+
+use yara_x_parser::ast;
+
+use crate::utils::cast;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct HexByte {
+    pub value: u8,
+    pub mask: u8,
+}
+
+impl From<ast::HexByte> for HexByte {
+    fn from(hex_byte: ast::HexByte) -> Self {
+        Self { value: hex_byte.value, mask: hex_byte.mask }
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct ChainedPattern {

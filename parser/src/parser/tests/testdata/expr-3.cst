@@ -1,0 +1,147 @@
+SOURCE_FILE@0..197
+  RULE_DECL@0..51
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..11 "test_1"
+    WHITESPACE@11..12 " "
+    L_BRACE@12..13 "{"
+    NEWLINE@13..14 "\n"
+    WHITESPACE@14..15 "\t"
+    CONDITION_BLK@15..49
+      CONDITION_KW@15..24 "condition"
+      COLON@24..25 ":"
+      NEWLINE@25..26 "\n"
+      WHITESPACE@26..29 "\t  "
+      BOOLEAN_EXPR@29..49
+        BOOLEAN_TERM@29..49
+          EXPR@29..40
+            TERM@29..40
+              PRIMARY_EXPR@29..40
+                IDENT@29..32 "foo"
+                DOT@32..33 "."
+                IDENT@33..36 "bar"
+                DOT@36..37 "."
+                IDENT@37..40 "baz"
+          WHITESPACE@40..41 " "
+          EQ@41..43 "=="
+          WHITESPACE@43..44 " "
+          EXPR@44..49
+            TERM@44..49
+              PRIMARY_EXPR@44..47
+                IDENT@44..47 "foo"
+              L_PAREN@47..48 "("
+              R_PAREN@48..49 ")"
+    NEWLINE@49..50 "\n"
+    R_BRACE@50..51 "}"
+  NEWLINE@51..52 "\n"
+  NEWLINE@52..53 "\n"
+  RULE_DECL@53..135
+    RULE_KW@53..57 "rule"
+    WHITESPACE@57..58 " "
+    IDENT@58..64 "test_2"
+    WHITESPACE@64..65 " "
+    L_BRACE@65..66 "{"
+    NEWLINE@66..67 "\n"
+    WHITESPACE@67..68 "\t"
+    CONDITION_BLK@68..133
+      CONDITION_KW@68..77 "condition"
+      COLON@77..78 ":"
+      NEWLINE@78..79 "\n"
+      WHITESPACE@79..82 "\t  "
+      BOOLEAN_EXPR@82..133
+        BOOLEAN_TERM@82..133
+          EXPR@82..115
+            TERM@82..115
+              PRIMARY_EXPR@82..93
+                IDENT@82..85 "foo"
+                DOT@85..86 "."
+                IDENT@86..89 "bar"
+                DOT@89..90 "."
+                IDENT@90..93 "baz"
+              L_PAREN@93..94 "("
+              BOOLEAN_EXPR@94..99
+                BOOLEAN_TERM@94..99
+                  EXPR@94..99
+                    TERM@94..99
+                      PRIMARY_EXPR@94..99
+                        STRING_LIT@94..99 "\"foo\""
+              COMMA@99..100 ","
+              WHITESPACE@100..101 " "
+              BOOLEAN_EXPR@101..102
+                BOOLEAN_TERM@101..102
+                  EXPR@101..102
+                    TERM@101..102
+                      PRIMARY_EXPR@101..102
+                        INTEGER_LIT@101..102 "1"
+              COMMA@102..103 ","
+              WHITESPACE@103..104 " "
+              BOOLEAN_EXPR@104..108
+                BOOLEAN_TERM@104..108
+                  EXPR@104..108
+                    TERM@104..108
+                      PRIMARY_EXPR@104..108
+                        FLOAT_LIT@104..108 "3.14"
+              COMMA@108..109 ","
+              WHITESPACE@109..110 " "
+              BOOLEAN_EXPR@110..114
+                BOOLEAN_TERM@110..114
+                  TRUE_KW@110..114 "true"
+              R_PAREN@114..115 ")"
+          WHITESPACE@115..116 " "
+          EQ@116..118 "=="
+          WHITESPACE@118..119 " "
+          EXPR@119..133
+            TERM@119..133
+              PRIMARY_EXPR@119..130
+                IDENT@119..122 "foo"
+                DOT@122..123 "."
+                IDENT@123..126 "bar"
+                DOT@126..127 "."
+                IDENT@127..130 "baz"
+              L_BRACKET@130..131 "["
+              EXPR@131..132
+                TERM@131..132
+                  PRIMARY_EXPR@131..132
+                    INTEGER_LIT@131..132 "1"
+              R_BRACKET@132..133 "]"
+    NEWLINE@133..134 "\n"
+    R_BRACE@134..135 "}"
+  NEWLINE@135..136 "\n"
+  NEWLINE@136..137 "\n"
+  NEWLINE@137..138 "\n"
+  RULE_DECL@138..195
+    RULE_KW@138..142 "rule"
+    WHITESPACE@142..143 " "
+    IDENT@143..149 "test_3"
+    WHITESPACE@149..150 " "
+    L_BRACE@150..151 "{"
+    NEWLINE@151..152 "\n"
+    WHITESPACE@152..153 "\t"
+    CONDITION_BLK@153..193
+      CONDITION_KW@153..162 "condition"
+      COLON@162..163 ":"
+      NEWLINE@163..164 "\n"
+      WHITESPACE@164..167 "\t  "
+      BOOLEAN_EXPR@167..193
+        BOOLEAN_TERM@167..193
+          DEFINED_KW@167..174 "defined"
+          WHITESPACE@174..175 " "
+          BOOLEAN_TERM@175..193
+            EXPR@175..193
+              TERM@175..193
+                PRIMARY_EXPR@175..186
+                  IDENT@175..178 "foo"
+                  DOT@178..179 "."
+                  IDENT@179..182 "bar"
+                  DOT@182..183 "."
+                  IDENT@183..186 "baz"
+                L_BRACKET@186..187 "["
+                EXPR@187..192
+                  TERM@187..192
+                    PRIMARY_EXPR@187..192
+                      STRING_LIT@187..192 "\"foo\""
+                R_BRACKET@192..193 "]"
+    NEWLINE@193..194 "\n"
+    R_BRACE@194..195 "}"
+  NEWLINE@195..196 "\n"
+  NEWLINE@196..197 "\n"

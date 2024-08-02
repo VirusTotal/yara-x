@@ -1,0 +1,70 @@
+ rule test_1
+ └─ condition
+    └─ eq
+       ├─ add
+       │  ├─ 1
+       │  └─ 2
+       └─ sub
+          ├─ 4
+          └─ 1
+
+ rule test_2
+ └─ condition
+    └─ ge
+       ├─ add
+       │  ├─ 1
+       │  └─ mul
+       │     ├─ 2
+       │     └─ 3
+       └─ mod
+          ├─ div
+          │  ├─ 4
+          │  └─ 2
+          └─ 1
+
+ rule test_3
+ └─ condition
+    └─ le
+       ├─ add
+       │  ├─ 1.0
+       │  └─ 2.3
+       └─ 3.0
+
+ rule test_4
+ └─ condition
+    └─ eq
+       ├─ shr
+       │  ├─ 1
+       │  └─ 2
+       └─ bitwise_and
+          ├─ 1
+          └─ 1
+
+ rule test_4
+ └─ condition
+    └─ eq
+       ├─ shl
+       │  ├─ 1
+       │  └─ 2
+       └─ bitwise_not
+          └─ 1
+
+ rule test_5
+ └─ condition
+    └─ eq
+       ├─ add
+       │  ├─ minus
+       │  │  └─ 1
+       │  └─ minus
+       │     └─ 1
+       └─ 0
+
+ rule test_5
+ └─ condition
+    └─ eq
+       ├─ minus
+       │  └─ add
+       │     ├─ 0x01
+       │     └─ 0x10
+       └─ 0o10
+

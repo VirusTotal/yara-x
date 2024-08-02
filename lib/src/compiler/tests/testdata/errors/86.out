@@ -1,6 +1,6 @@
-error[E010]: invalid pattern `$a`
+error[E001]: syntax error
  --> line:3:13
   |
 3 |   $a = { 01 ~0 11 }
-  |             ^^ uneven number of nibbles
+  |             ^ expecting `[`, BYTE, `(` or `}`, found `~`
   |

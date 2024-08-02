@@ -1,0 +1,12 @@
+SOURCE_FILE@0..12
+  RULE_DECL@0..12
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    ERROR@11..11
+    R_BRACE@11..12 "}"
+
+ERRORS:
+- [11..12]: expecting `meta`, `strings` or `condition`, found `}`

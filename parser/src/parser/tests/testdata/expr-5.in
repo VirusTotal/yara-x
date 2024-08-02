@@ -1,0 +1,9 @@
+rule test_1 {
+   condition:
+     filesize > 1KB
+}
+
+rule test_2 {
+   condition:
+     filesize != 1MB
+}

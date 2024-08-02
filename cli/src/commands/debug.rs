@@ -4,12 +4,22 @@ use std::path::PathBuf;
 use anyhow::Context;
 use clap::{arg, value_parser, ArgMatches, Command};
 
-use yara_x::Compiler;
-use yara_x_parser::{Parser, SourceCode};
+use yara_x::{Compiler, SourceCode};
+use yara_x_parser::Parser;
 
 pub fn ast() -> Command {
     super::command("ast")
         .about("Print Abstract Syntax Tree (AST) for a YARA source file")
+        .arg(
+            arg!(<RULES_PATH>)
+                .help("Path to YARA source file")
+                .value_parser(value_parser!(PathBuf)),
+        )
+}
+
+pub fn cst() -> Command {
+    super::command("cst")
+        .about("Print Concrete Syntax Tree (CST) for a YARA source file")
         .arg(
             arg!(<RULES_PATH>)
                 .help("Path to YARA source file")
@@ -35,12 +45,14 @@ pub fn debug() -> Command {
         .arg_required_else_help(true)
         .hide(true)
         .subcommand(ast())
+        .subcommand(cst())
         .subcommand(wasm())
 }
 
 pub fn exec_debug(args: &ArgMatches) -> anyhow::Result<()> {
     match args.subcommand() {
         Some(("ast", args)) => exec_ast(args),
+        Some(("cst", args)) => exec_cst(args),
         Some(("wasm", args)) => exec_wasm(args),
         _ => unreachable!(),
     }
@@ -52,15 +64,23 @@ pub fn exec_ast(args: &ArgMatches) -> anyhow::Result<()> {
     let src = fs::read(rules_path)
         .with_context(|| format!("can not read `{}`", rules_path.display()))?;
 
-    let src = SourceCode::from(src.as_slice())
-        .with_origin(rules_path.as_os_str().to_str().unwrap());
+    let parser = Parser::new(src.as_slice());
+    let ast = parser.into_ast();
 
-    let ast = Parser::new().colorize_errors(true).build_ast(src)?;
+    println!("{ast:?}");
+    Ok(())
+}
 
-    let mut output = String::new();
-    ascii_tree::write_tree(&mut output, &ast.ascii_tree())?;
+pub fn exec_cst(args: &ArgMatches) -> anyhow::Result<()> {
+    let rules_path = args.get_one::<PathBuf>("RULES_PATH").unwrap();
 
-    println!("{output}");
+    let src = fs::read(rules_path)
+        .with_context(|| format!("can not read `{}`", rules_path.display()))?;
+
+    let parser = Parser::new(src.as_slice());
+    let cst = parser.into_cst();
+
+    println!("{cst:?}");
     Ok(())
 }
 

@@ -1,6 +1,6 @@
-error[E011]: invalid range
- --> line:3:20
+error[E109]: invalid range
+ --> line:3:16
   |
 3 |     $a = "foo" xor(2-1)
-  |                    ^ lower bound (2) is greater than upper bound (1)
+  |                ^^^^^^^^ lower bound (2) is greater than upper bound (1)
   |

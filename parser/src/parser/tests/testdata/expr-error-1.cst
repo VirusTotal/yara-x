@@ -1,0 +1,96 @@
+SOURCE_FILE@0..121
+  RULE_DECL@0..38
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..11 "test_1"
+    WHITESPACE@11..12 " "
+    L_BRACE@12..13 "{"
+    NEWLINE@13..14 "\n"
+    WHITESPACE@14..15 "\t"
+    ERROR@15..36
+      CONDITION_KW@15..24 "condition"
+      COLON@24..25 ":"
+      NEWLINE@25..26 "\n"
+      WHITESPACE@26..28 "\t\t"
+      BOOLEAN_EXPR@28..33
+        BOOLEAN_TERM@28..33
+          EXPR@28..33
+            TERM@28..29
+              PRIMARY_EXPR@28..29
+                INTEGER_LIT@28..29 "1"
+            WHITESPACE@29..30 " "
+            ADD@30..31 "+"
+            WHITESPACE@31..32 " "
+            TERM@32..33
+              PRIMARY_EXPR@32..33
+                INTEGER_LIT@32..33 "2"
+      WHITESPACE@33..34 " "
+      EQ@34..36 "=="
+    NEWLINE@36..37 "\n"
+    R_BRACE@37..38 "}"
+  NEWLINE@38..39 "\n"
+  NEWLINE@39..40 "\n"
+  RULE_DECL@40..81
+    RULE_KW@40..44 "rule"
+    WHITESPACE@44..45 " "
+    IDENT@45..51 "test_2"
+    WHITESPACE@51..52 " "
+    L_BRACE@52..53 "{"
+    NEWLINE@53..54 "\n"
+    WHITESPACE@54..55 "\t"
+    ERROR@55..79
+      CONDITION_KW@55..64 "condition"
+      COLON@64..65 ":"
+      NEWLINE@65..66 "\n"
+      WHITESPACE@66..68 "\t\t"
+      BOOLEAN_EXPR@68..69
+        BOOLEAN_TERM@68..69
+          EXPR@68..69
+            TERM@68..69
+              PRIMARY_EXPR@68..69
+                INTEGER_LIT@68..69 "1"
+      WHITESPACE@69..70 " "
+      PLUS@70..71 "+"
+      PLUS@71..72 "+"
+      WHITESPACE@72..73 " "
+      INTEGER_LIT@73..74 "2"
+      WHITESPACE@74..75 " "
+      EQ@75..77 "=="
+      WHITESPACE@77..78 " "
+      INTEGER_LIT@78..79 "3"
+    NEWLINE@79..80 "\n"
+    R_BRACE@80..81 "}"
+  NEWLINE@81..82 "\n"
+  NEWLINE@82..83 "\n"
+  RULE_DECL@83..121
+    RULE_KW@83..87 "rule"
+    WHITESPACE@87..88 " "
+    IDENT@88..94 "test_3"
+    WHITESPACE@94..95 " "
+    L_BRACE@95..96 "{"
+    NEWLINE@96..97 "\n"
+    WHITESPACE@97..98 "\t"
+    ERROR@98..119
+      CONDITION_KW@98..107 "condition"
+      COLON@107..108 ":"
+      NEWLINE@108..109 "\n"
+      WHITESPACE@109..111 "\t\t"
+      BOOLEAN_EXPR@111..112
+        BOOLEAN_TERM@111..112
+          EXPR@111..112
+            TERM@111..112
+              PRIMARY_EXPR@111..112
+                INTEGER_LIT@111..112 "1"
+      WHITESPACE@112..113 " "
+      PLUS@113..114 "+"
+      WHITESPACE@114..115 " "
+      EQ@115..117 "=="
+      WHITESPACE@117..118 " "
+      INTEGER_LIT@118..119 "3"
+    NEWLINE@119..120 "\n"
+    R_BRACE@120..121 "}"
+
+ERRORS:
+- [37..38]: expecting expression, found `}`
+- [71..72]: expecting expression, found `+`
+- [115..117]: expecting expression, found `==`

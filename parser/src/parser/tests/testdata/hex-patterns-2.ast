@@ -1,0 +1,14 @@
+ rule test
+ ├─ strings
+ │  └─ $a
+ │     └─ hex
+ │        ├─ 0x11 mask: 0xFF
+ │        ├─ alt
+ │        │  ├─ hex
+ │        │  │  └─ 0x22 mask: 0xFF
+ │        │  └─ hex
+ │        │     └─ 0x33 mask: 0xFF
+ │        └─ 0x44 mask: 0xFF
+ └─ condition
+    └─ $a
+

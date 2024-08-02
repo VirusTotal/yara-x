@@ -93,7 +93,7 @@ where
                     _ => {
                         // With every other token the column number is
                         // incremented by the token's length.
-                        column += token.as_str().len();
+                        column += token.as_bytes().len();
                         block_tokens.push_back(token);
                     }
                 }

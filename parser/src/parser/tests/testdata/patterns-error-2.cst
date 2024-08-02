@@ -1,0 +1,44 @@
+SOURCE_FILE@0..70
+  RULE_DECL@0..70
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..13 "\t"
+    ERROR@13..47
+      STRINGS_KW@13..20 "strings"
+      COLON@20..21 ":"
+      NEWLINE@21..22 "\n"
+      WHITESPACE@22..24 "\t\t"
+      PATTERN_DEF@24..34
+        PATTERN_IDENT@24..26 "$b"
+        WHITESPACE@26..27 " "
+        EQUAL@27..28 "="
+        WHITESPACE@28..29 " "
+        STRING_LIT@29..34 "\"foo\""
+      NEWLINE@34..35 "\n"
+      WHITESPACE@35..38 "\t  "
+      PATTERN_IDENT@38..40 "$a"
+      WHITESPACE@40..41 " "
+      EQUAL@41..42 "="
+      WHITESPACE@42..43 " "
+      L_BRACE@43..44 "{"
+      WHITESPACE@44..45 " "
+      HEX_BYTE@45..47 "ab"
+    NEWLINE@47..48 "\n"
+    WHITESPACE@48..50 "  "
+    CONDITION_BLK@50..68
+      CONDITION_KW@50..59 "condition"
+      COLON@59..60 ":"
+      NEWLINE@60..61 "\n"
+      WHITESPACE@61..64 "\t  "
+      BOOLEAN_EXPR@64..68
+        BOOLEAN_TERM@64..68
+          TRUE_KW@64..68 "true"
+    NEWLINE@68..69 "\n"
+    R_BRACE@69..70 "}"
+
+ERRORS:
+- [50..59]: expecting `[`, BYTE, `(` or `}`, found `condition`

@@ -8,6 +8,9 @@ on:
   push:
     paths:
     - '.github/workflows/coverage.yaml'
+  # Also run manually from the Actions tab
+  workflow_dispatch:
+
 jobs:
   coverage:
     name: Coverage

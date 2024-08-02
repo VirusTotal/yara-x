@@ -1,0 +1,4 @@
+rule test : foo bar {
+  condition:
+	  true
+}

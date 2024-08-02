@@ -1,0 +1,55 @@
+SOURCE_FILE@0..97
+  RULE_DECL@0..97
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..14 "  "
+    ERROR@14..49
+      META_KW@14..18 "meta"
+      COLON@18..19 ":"
+      NEWLINE@19..20 "\n"
+      WHITESPACE@20..24 "    "
+      ERROR@24..29
+        IDENT@24..27 "foo"
+        WHITESPACE@27..28 " "
+        EQUAL@28..29 "="
+      WHITESPACE@29..30 " "
+      IDENT@30..33 "bar"
+      NEWLINE@33..34 "\n"
+      WHITESPACE@34..38 "    "
+      IDENT@38..41 "bar"
+      WHITESPACE@41..42 " "
+      EQUAL@42..43 "="
+      WHITESPACE@43..44 " "
+      STRING_LIT@44..49 "\"bar\""
+    NEWLINE@49..50 "\n"
+    WHITESPACE@50..52 "  "
+    PATTERNS_BLK@52..74
+      STRINGS_KW@52..59 "strings"
+      COLON@59..60 ":"
+      NEWLINE@60..61 "\n"
+      WHITESPACE@61..64 "  \t"
+      PATTERN_DEF@64..74
+        PATTERN_IDENT@64..66 "$a"
+        WHITESPACE@66..67 " "
+        EQUAL@67..68 "="
+        WHITESPACE@68..69 " "
+        STRING_LIT@69..74 "\"foo\""
+    NEWLINE@74..75 "\n"
+    WHITESPACE@75..77 "  "
+    CONDITION_BLK@77..95
+      CONDITION_KW@77..86 "condition"
+      COLON@86..87 ":"
+      NEWLINE@87..88 "\n"
+      WHITESPACE@88..91 "\t  "
+      BOOLEAN_EXPR@91..95
+        BOOLEAN_TERM@91..95
+          TRUE_KW@91..95 "true"
+    NEWLINE@95..96 "\n"
+    R_BRACE@96..97 "}"
+
+ERRORS:
+- [30..33]: expecting `-`, INTEGER, FLOAT, STRING, `true` or `false`, found `bar`

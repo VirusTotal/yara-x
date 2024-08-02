@@ -1,0 +1,37 @@
+rule test_1 {
+	condition:
+		all of them
+}
+
+rule test_2 {
+	condition:
+		any of them at 0
+}
+
+rule test_3 {
+	condition:
+		none of them in (0..10)
+}
+
+rule test_4 {
+	condition:
+		10 of them
+}
+
+rule test_5 {
+	condition:
+		10% of them
+}
+
+rule test_6 {
+	condition:
+		2 of (true, false, ident, 2 == 2)
+}
+
+rule test_7 {
+  strings:
+    $a = "foo"
+    $b = "bar"
+	condition:
+		2 of ($a, $b*)
+}

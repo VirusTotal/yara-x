@@ -1,0 +1,10 @@
+ rule test
+ ├─ strings
+ │  ├─ $a = "foo" 
+ │  ├─ $b = /foo/ 
+ │  └─ $c
+ │     └─ hex
+ │        └─ 0xAB mask: 0xFF
+ └─ condition
+    └─ true
+

@@ -1,6 +1,6 @@
-error[syntax_error]: syntax error
+error[E001]: syntax error
  --> line:1:1
   |
 1 | foo rule test { condition: true }
-  | ^ expected YARA rules
+  | ^^^ expecting import statement or rule definition
   |

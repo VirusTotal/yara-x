@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cmp::min;
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -6,19 +7,30 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Error};
-use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
+use clap::{arg, value_parser, ArgAction, ArgMatches, Command, ValueEnum};
 use crossbeam::channel::Sender;
+use itertools::Itertools;
 use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
-use yara_x::{Rule, Rules, ScanError, Scanner};
+use yara_x::{MetaValue, Rule, Rules, ScanError, Scanner};
 
 use crate::commands::{
     compile_rules, external_var_parser, truncate_with_ellipsis,
 };
 use crate::walk::Message;
 use crate::{help, walk};
+
+#[derive(Clone, ValueEnum)]
+enum OutputFormats {
+    /// Default output format.
+    Text,
+    /// Newline delimited JSON (i.e: one JSON object per line).
+    Ndjson,
+}
+
+const STRINGS_LIMIT: usize = 120;
 
 #[rustfmt::skip]
 pub fn scan() -> Command {
@@ -37,6 +49,13 @@ pub fn scan() -> Command {
                 .value_parser(value_parser!(PathBuf))
         )
         .arg(
+            arg!(-o --"output-format" <FORMAT>)
+                .help("Output format for results")
+                .long_help(help::OUTPUT_FORMAT_LONG_HELP)
+                .required(false)
+                .value_parser(value_parser!(OutputFormats))
+        )
+        .arg(
             arg!(-e --"print-namespace")
                 .help("Print rule namespace")
         )
@@ -48,6 +67,10 @@ pub fn scan() -> Command {
             arg!(--"print-strings-limit" <N>)
                 .help("Print matching patterns, limited to the first N bytes")
                 .value_parser(value_parser!(usize))
+        )
+        .arg(
+            arg!(-m --"print-meta")
+                .help("Print rule metadata")
         )
         .arg(
             arg!(--"disable-console-logs")
@@ -325,13 +348,106 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn print_matching_rules(
+fn print_rules_as_json(
     args: &ArgMatches,
     file_path: &Path,
     rules: &mut dyn Iterator<Item = Rule>,
     output: &Sender<Message>,
 ) {
     let print_namespace = args.get_flag("print-namespace");
+    let print_meta = args.get_flag("print-meta");
+    let print_strings = args.get_flag("print-strings");
+    let print_strings_limit = args.get_one::<usize>("print-strings-limit");
+
+    // One JSON object per file, with a "rules" key that contains a list of
+    // matched rules.
+    let mut json = serde_json::json!({"path": file_path.to_str().unwrap()});
+    let mut json_rules: Vec<serde_json::Value> = Vec::new();
+
+    // Clippy insists on replacing the `while let` statement with
+    // `for matching_rule in rules.by_ref()`, but that fails with
+    // `the `by_ref` method cannot be invoked on a trait object`
+    #[allow(clippy::while_let_on_iterator)]
+    while let Some(matching_rule) = rules.next() {
+        let mut json_rule = if print_namespace {
+            serde_json::json!({
+                "namespace": matching_rule.namespace(),
+                "identifier": matching_rule.identifier()
+            })
+        } else {
+            serde_json::json!({
+                "identifier": matching_rule.identifier()
+            })
+        };
+
+        if print_meta {
+            json_rule["meta"] = matching_rule.metadata().into_json();
+        }
+
+        if print_strings || print_strings_limit.is_some() {
+            let limit = print_strings_limit.unwrap_or(&STRINGS_LIMIT);
+            let mut match_vec: Vec<serde_json::Value> = Vec::new();
+            for p in matching_rule.patterns() {
+                for m in p.matches() {
+                    let match_range = m.range();
+                    let match_data = m.data();
+
+                    let mut s = String::new();
+
+                    for b in &match_data[..min(match_data.len(), *limit)] {
+                        for c in b.escape_ascii() {
+                            s.push_str(format!("{}", c as char).as_str());
+                        }
+                    }
+
+                    if match_data.len() > *limit {
+                        s.push_str(
+                            format!(
+                                " ... {} more bytes",
+                                match_data.len().saturating_sub(*limit)
+                            )
+                            .as_str(),
+                        );
+                    }
+
+                    let mut match_json = serde_json::json!({
+                        "identifier": p.identifier(),
+                        "start": match_range.start,
+                        "length": match_range.len(),
+                        "data": s.as_str()
+                    });
+
+                    if let Some(k) = m.xor_key() {
+                        let mut p = String::with_capacity(s.len());
+                        for b in &match_data[..min(match_data.len(), *limit)] {
+                            for c in (b ^ k).escape_ascii() {
+                                p.push_str(format!("{}", c as char).as_str());
+                            }
+                        }
+                        match_json["xor_key"] = serde_json::json!(k);
+                        match_json["plaintext"] = serde_json::json!(p);
+                    }
+                    match_vec.push(match_json);
+                }
+                json_rule["strings"] = serde_json::json!(match_vec);
+            }
+        }
+        json_rules.push(json_rule);
+    }
+
+    json["rules"] = serde_json::json!(json_rules);
+
+    output.send(Message::Info(format!("{}", json))).unwrap();
+}
+
+fn print_rules_as_text(
+    args: &ArgMatches,
+    file_path: &Path,
+    rules: &mut dyn Iterator<Item = Rule>,
+    output: &Sender<Message>,
+) {
+    let print_namespace = args.get_flag("print-namespace");
+    let print_meta = args.get_flag("print-meta");
     let print_strings = args.get_flag("print-strings");
     let print_strings_limit = args.get_one::<usize>("print-strings-limit");
 
@@ -340,36 +456,84 @@ fn print_matching_rules(
     // `the `by_ref` method cannot be invoked on a trait object`
     #[allow(clippy::while_let_on_iterator)]
     while let Some(matching_rule) = rules.next() {
-        let line = if print_namespace {
+        let mut line = if print_namespace {
             format!(
-                "{}:{} {}",
+                "{}:{}",
                 matching_rule.namespace().paint(Cyan).bold(),
-                matching_rule.identifier().paint(Cyan).bold(),
-                file_path.display(),
+                matching_rule.identifier().paint(Cyan).bold()
             )
         } else {
-            format!(
-                "{} {}",
-                matching_rule.identifier().paint(Cyan).bold(),
-                file_path.display()
-            )
+            format!("{}", matching_rule.identifier().paint(Cyan).bold())
         };
+
+        let metadata = matching_rule.metadata();
+
+        if print_meta && !metadata.is_empty() {
+            line.push_str(" [");
+            for (pos, (m, v)) in metadata.with_position() {
+                match v {
+                    MetaValue::Bool(v) => {
+                        line.push_str(&format!("{}={}", m, v))
+                    }
+                    MetaValue::Integer(v) => {
+                        line.push_str(&format!("{}={}", m, v))
+                    }
+                    MetaValue::Float(v) => {
+                        line.push_str(&format!("{}={}", m, v))
+                    }
+                    MetaValue::String(v) => {
+                        line.push_str(&format!("{}=\"{}\"", m, v))
+                    }
+                    MetaValue::Bytes(v) => line.push_str(&format!(
+                        "{}=\"{}\"",
+                        m,
+                        v.escape_ascii()
+                    )),
+                };
+                if !matches!(pos, itertools::Position::Last) {
+                    line.push(',');
+                }
+            }
+            line.push(']');
+        }
+
+        line.push(' ');
+        line.push_str(&file_path.display().to_string());
 
         output.send(Message::Info(line)).unwrap();
 
         if print_strings || print_strings_limit.is_some() {
-            let limit = print_strings_limit.unwrap_or(&120);
+            let limit = print_strings_limit.unwrap_or(&STRINGS_LIMIT);
             for p in matching_rule.patterns() {
                 for m in p.matches() {
                     let match_range = m.range();
                     let match_data = m.data();
 
                     let mut msg = format!(
-                        "{:#x}:{}:{}: ",
+                        "{:#x}:{}:{}",
                         match_range.start,
                         match_range.len(),
                         p.identifier(),
                     );
+
+                    match m.xor_key() {
+                        Some(k) => {
+                            msg.push_str(format!(" xor({:#x},", k).as_str());
+                            for b in
+                                &match_data[..min(match_data.len(), *limit)]
+                            {
+                                for c in (b ^ k).escape_ascii() {
+                                    msg.push_str(
+                                        format!("{}", c as char).as_str(),
+                                    );
+                                }
+                            }
+                            msg.push_str("): ");
+                        }
+                        _ => {
+                            msg.push_str(": ");
+                        }
+                    }
 
                     for b in &match_data[..min(match_data.len(), *limit)] {
                         for c in b.escape_ascii() {
@@ -394,6 +558,22 @@ fn print_matching_rules(
     }
 }
 
+fn print_matching_rules(
+    args: &ArgMatches,
+    file_path: &Path,
+    rules: &mut dyn Iterator<Item = Rule>,
+    output: &Sender<Message>,
+) {
+    match args.get_one::<OutputFormats>("output-format") {
+        Some(OutputFormats::Ndjson) => {
+            print_rules_as_json(args, file_path, rules, output);
+        }
+        Some(OutputFormats::Text) | None => {
+            print_rules_as_text(args, file_path, rules, output);
+        }
+    };
+}
+
 struct ScanState {
     start_time: Instant,
     num_scanned_files: AtomicUsize,
@@ -410,6 +590,25 @@ impl ScanState {
             files_in_progress: Mutex::new(Vec::new()),
         }
     }
+}
+
+// superconsole will not print any string that contains Unicode characters that
+// are spaces but are not the ASCII space character, so we replace them all.
+// See https://github.com/VirusTotal/yara-x/pull/163 for discussion.
+fn replace_whitespace(path: &Path) -> Cow<str> {
+    let mut s = path.to_string_lossy();
+    if s.chars().any(|c| c != ' ' && c.is_whitespace()) {
+        let mut r = String::with_capacity(s.len());
+        for c in s.chars() {
+            if c.is_whitespace() {
+                r.push(' ')
+            } else {
+                r.push(c)
+            }
+        }
+        s = Cow::Owned(r);
+    }
+    s
 }
 
 impl Component for ScanState {
@@ -452,7 +651,7 @@ impl Component for ScanState {
             for (file, start_time) in
                 self.files_in_progress.lock().unwrap().iter()
             {
-                let path = file.display().to_string();
+                let path = replace_whitespace(file);
                 // The length of the elapsed is 7 characters.
                 let spaces = " "
                     .repeat(dimensions.width.saturating_sub(path.len() + 7));

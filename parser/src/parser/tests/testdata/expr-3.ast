@@ -1,0 +1,49 @@
+ rule test_1
+ └─ condition
+    └─ eq
+       ├─ field access
+       │  ├─ foo
+       │  ├─ bar
+       │  └─ baz
+       └─ <callable>()
+          └─ <callable>
+             └─ foo
+
+ rule test_2
+ └─ condition
+    └─ eq
+       ├─ <callable>(<arg0>, <arg1>, <arg2>, <arg3>)
+       │  ├─ <callable>
+       │  │  └─ field access
+       │  │     ├─ foo
+       │  │     ├─ bar
+       │  │     └─ baz
+       │  ├─ <arg0>
+       │  │  └─ "foo"
+       │  ├─ <arg1>
+       │  │  └─ 1
+       │  ├─ <arg2>
+       │  │  └─ 3.14
+       │  └─ <arg3>
+       │     └─ true
+       └─ <expr>[<index>]
+          ├─ <expr>
+          │  └─ field access
+          │     ├─ foo
+          │     ├─ bar
+          │     └─ baz
+          └─ <index>
+             └─ 1
+
+ rule test_3
+ └─ condition
+    └─ defined
+       └─ <expr>[<index>]
+          ├─ <expr>
+          │  └─ field access
+          │     ├─ foo
+          │     ├─ bar
+          │     └─ baz
+          └─ <index>
+             └─ "foo"
+

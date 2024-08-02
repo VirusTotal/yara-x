@@ -1,0 +1,35 @@
+SOURCE_FILE@0..62
+  RULE_DECL@0..62
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..14 "  "
+    ERROR@14..37
+      STRINGS_KW@14..21 "strings"
+      COLON@21..22 ":"
+      NEWLINE@22..23 "\n"
+      WHITESPACE@23..28 "     "
+      ERROR@28..32
+        PATTERN_IDENT@28..30 "$a"
+        WHITESPACE@30..31 " "
+        EQUAL@31..32 "="
+      WHITESPACE@32..33 " "
+      UNKNOWN@33..37 "\"foo"
+    NEWLINE@37..38 "\n"
+    WHITESPACE@38..40 "  "
+    CONDITION_BLK@40..60
+      CONDITION_KW@40..49 "condition"
+      COLON@49..50 ":"
+      NEWLINE@50..51 "\n"
+      WHITESPACE@51..56 "     "
+      BOOLEAN_EXPR@56..60
+        BOOLEAN_TERM@56..60
+          TRUE_KW@56..60 "true"
+    NEWLINE@60..61 "\n"
+    R_BRACE@61..62 "}"
+
+ERRORS:
+- [33..37]: unclosed literal string

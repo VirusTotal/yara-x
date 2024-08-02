@@ -1,0 +1,5 @@
+rule test {
+	condition:
+		for any e in (1,2,3) : (e == 3)
+}
+

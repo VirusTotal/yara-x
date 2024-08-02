@@ -1,0 +1,29 @@
+rule test_1 {
+   condition:
+     1 << 1 == 2
+}
+
+rule test_2 {
+   condition:
+     2 >> 1 == 1
+}
+
+rule test_3 {
+   condition:
+     2 | 1 == 3
+}
+
+rule test_4 {
+   condition:
+     2 & 2 == 2
+}
+
+rule test_5 {
+   condition:
+     2 ^ 1 == 0
+}
+
+rule test_6 {
+   condition:
+     ~1 != 1
+}

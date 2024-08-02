@@ -1,6 +1,6 @@
 error[E105]: number out of range
- --> line:5:8
+ --> line:6:8
   |
-5 |     !a[-1]
+6 |     !a[-1]
   |        ^^ this number is out of the allowed range [1-9223372036854775807]
   |

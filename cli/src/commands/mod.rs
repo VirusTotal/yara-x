@@ -16,6 +16,7 @@ pub use fix::*;
 pub use fmt::*;
 pub use scan::*;
 
+use std::borrow::Cow;
 use std::fs;
 use std::io::stdout;
 use std::path::PathBuf;
@@ -29,8 +30,7 @@ use yansi::Color::Green;
 use yansi::Paint;
 
 use crate::{commands, APP_HELP_TEMPLATE};
-use yara_x::{Compiler, Rules};
-use yara_x_parser::SourceCode;
+use yara_x::{Compiler, Rules, SourceCode};
 
 use crate::walk::Walker;
 
@@ -212,10 +212,10 @@ impl Component for CompileState {
     }
 }
 
-fn truncate_with_ellipsis(s: String, max_length: usize) -> String {
+fn truncate_with_ellipsis(s: Cow<str>, max_length: usize) -> Cow<str> {
     if s.len() <= max_length {
         s
     } else {
-        format!("{}...", &s[..max_length - 3])
+        format!("{}...", &s[..max_length - 3]).into()
     }
 }

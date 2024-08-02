@@ -1,0 +1,15 @@
+ rule test
+ ├─ strings
+ │  ├─ $a = "foo" 
+ │  └─ $b = "bar" 
+ └─ condition
+    └─ for <quantifier> of <items> : ( <condition> )
+       ├─ <quantifier>
+       │  └─ add
+       │     ├─ 1
+       │     └─ 1
+       ├─ <items>
+       │  └─ them
+       └─ <condition>
+          └─ $
+

@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: dtolnay/rust-toolchain@1.74.0
+    - uses: dtolnay/rust-toolchain@1.76.0
       with:
         components: clippy
     - run: cargo clippy --tests --no-deps --all-features -- --deny clippy::all
@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: dtolnay/rust-toolchain@1.74.0
+    - uses: dtolnay/rust-toolchain@1.76.0
       with:
         components: rustfmt
     - run: cargo fmt --all --check

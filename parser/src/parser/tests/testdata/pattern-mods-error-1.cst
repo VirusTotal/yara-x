@@ -1,0 +1,77 @@
+SOURCE_FILE@0..131
+  RULE_DECL@0..62
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..11 "test_1"
+    WHITESPACE@11..12 " "
+    L_BRACE@12..13 "{"
+    NEWLINE@13..14 "\n"
+    WHITESPACE@14..15 "\t"
+    ERROR@15..39
+      STRINGS_KW@15..22 "strings"
+      COLON@22..23 ":"
+      NEWLINE@23..24 "\n"
+      WHITESPACE@24..27 "\t  "
+      PATTERN_DEF@27..35
+        PATTERN_IDENT@27..29 "$a"
+        WHITESPACE@29..30 " "
+        EQUAL@30..31 "="
+        WHITESPACE@31..32 " "
+        STRING_LIT@32..35 "\"a\""
+      WHITESPACE@35..36 " "
+      IDENT@36..39 "foo"
+    NEWLINE@39..40 "\n"
+    WHITESPACE@40..42 "  "
+    CONDITION_BLK@42..60
+      CONDITION_KW@42..51 "condition"
+      COLON@51..52 ":"
+      NEWLINE@52..53 "\n"
+      WHITESPACE@53..56 "\t  "
+      BOOLEAN_EXPR@56..60
+        BOOLEAN_TERM@56..60
+          TRUE_KW@56..60 "true"
+    NEWLINE@60..61 "\n"
+    R_BRACE@61..62 "}"
+  NEWLINE@62..63 "\n"
+  NEWLINE@63..64 "\n"
+  RULE_DECL@64..131
+    RULE_KW@64..68 "rule"
+    WHITESPACE@68..69 " "
+    IDENT@69..75 "test_2"
+    WHITESPACE@75..76 " "
+    L_BRACE@76..77 "{"
+    NEWLINE@77..78 "\n"
+    WHITESPACE@78..79 "\t"
+    ERROR@79..108
+      STRINGS_KW@79..86 "strings"
+      COLON@86..87 ":"
+      NEWLINE@87..88 "\n"
+      WHITESPACE@88..91 "\t  "
+      PATTERN_DEF@91..106
+        PATTERN_IDENT@91..93 "$a"
+        WHITESPACE@93..94 " "
+        EQUAL@94..95 "="
+        WHITESPACE@95..96 " "
+        STRING_LIT@96..99 "\"a\""
+        WHITESPACE@99..100 " "
+        PATTERN_MODS@100..106
+          PATTERN_MOD@100..106
+            BASE64_KW@100..106 "base64"
+      L_PAREN@106..107 "("
+      R_PAREN@107..108 ")"
+    NEWLINE@108..109 "\n"
+    WHITESPACE@109..111 "  "
+    CONDITION_BLK@111..129
+      CONDITION_KW@111..120 "condition"
+      COLON@120..121 ":"
+      NEWLINE@121..122 "\n"
+      WHITESPACE@122..125 "\t  "
+      BOOLEAN_EXPR@125..129
+        BOOLEAN_TERM@125..129
+          TRUE_KW@125..129 "true"
+    NEWLINE@129..130 "\n"
+    R_BRACE@130..131 "}"
+
+ERRORS:
+- [36..39]: expecting pattern modifier, pattern identifier or `condition`, found `foo`
+- [107..108]: expecting STRING, found `)`

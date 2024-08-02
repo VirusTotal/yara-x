@@ -1,0 +1,33 @@
+ rule test_1
+ ├─ strings
+ │  └─ $a = "foo" 
+ └─ condition
+    └─ $a at <expr>
+       └─ <expr>
+          └─ add
+             ├─ 100
+             └─ 200
+
+ rule test_2
+ ├─ strings
+ │  └─ $a = "foo" 
+ └─ condition
+    └─ eq
+       ├─ #a in <range>
+       │  └─ <range>
+       │     ├─ add
+       │     │  ├─ 100
+       │     │  └─ 100
+       │     └─ 400
+       └─ 2
+
+ rule test_3
+ ├─ strings
+ │  └─ $a = "foo" 
+ └─ condition
+    └─ eq
+       ├─ @a[<index>]
+       │  └─ <index>
+       │     └─ 2
+       └─ 0x1000
+

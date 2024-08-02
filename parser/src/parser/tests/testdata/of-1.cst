@@ -1,0 +1,277 @@
+SOURCE_FILE@0..382
+  RULE_DECL@0..41
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..11 "test_1"
+    WHITESPACE@11..12 " "
+    L_BRACE@12..13 "{"
+    NEWLINE@13..14 "\n"
+    WHITESPACE@14..15 "\t"
+    CONDITION_BLK@15..39
+      CONDITION_KW@15..24 "condition"
+      COLON@24..25 ":"
+      NEWLINE@25..26 "\n"
+      WHITESPACE@26..28 "\t\t"
+      BOOLEAN_EXPR@28..39
+        BOOLEAN_TERM@28..39
+          OF_EXPR@28..39
+            QUANTIFIER@28..31
+              ALL_KW@28..31 "all"
+            WHITESPACE@31..32 " "
+            OF_KW@32..34 "of"
+            WHITESPACE@34..35 " "
+            THEM_KW@35..39 "them"
+    NEWLINE@39..40 "\n"
+    R_BRACE@40..41 "}"
+  NEWLINE@41..42 "\n"
+  NEWLINE@42..43 "\n"
+  RULE_DECL@43..89
+    RULE_KW@43..47 "rule"
+    WHITESPACE@47..48 " "
+    IDENT@48..54 "test_2"
+    WHITESPACE@54..55 " "
+    L_BRACE@55..56 "{"
+    NEWLINE@56..57 "\n"
+    WHITESPACE@57..58 "\t"
+    CONDITION_BLK@58..87
+      CONDITION_KW@58..67 "condition"
+      COLON@67..68 ":"
+      NEWLINE@68..69 "\n"
+      WHITESPACE@69..71 "\t\t"
+      BOOLEAN_EXPR@71..87
+        BOOLEAN_TERM@71..87
+          OF_EXPR@71..87
+            QUANTIFIER@71..74
+              ANY_KW@71..74 "any"
+            WHITESPACE@74..75 " "
+            OF_KW@75..77 "of"
+            WHITESPACE@77..78 " "
+            THEM_KW@78..82 "them"
+            WHITESPACE@82..83 " "
+            AT_KW@83..85 "at"
+            WHITESPACE@85..86 " "
+            EXPR@86..87
+              TERM@86..87
+                PRIMARY_EXPR@86..87
+                  INTEGER_LIT@86..87 "0"
+    NEWLINE@87..88 "\n"
+    R_BRACE@88..89 "}"
+  NEWLINE@89..90 "\n"
+  NEWLINE@90..91 "\n"
+  RULE_DECL@91..144
+    RULE_KW@91..95 "rule"
+    WHITESPACE@95..96 " "
+    IDENT@96..102 "test_3"
+    WHITESPACE@102..103 " "
+    L_BRACE@103..104 "{"
+    NEWLINE@104..105 "\n"
+    WHITESPACE@105..106 "\t"
+    CONDITION_BLK@106..142
+      CONDITION_KW@106..115 "condition"
+      COLON@115..116 ":"
+      NEWLINE@116..117 "\n"
+      WHITESPACE@117..119 "\t\t"
+      BOOLEAN_EXPR@119..142
+        BOOLEAN_TERM@119..142
+          OF_EXPR@119..142
+            QUANTIFIER@119..123
+              NONE_KW@119..123 "none"
+            WHITESPACE@123..124 " "
+            OF_KW@124..126 "of"
+            WHITESPACE@126..127 " "
+            THEM_KW@127..131 "them"
+            WHITESPACE@131..132 " "
+            IN_KW@132..134 "in"
+            WHITESPACE@134..135 " "
+            RANGE@135..142
+              L_PAREN@135..136 "("
+              EXPR@136..137
+                TERM@136..137
+                  PRIMARY_EXPR@136..137
+                    INTEGER_LIT@136..137 "0"
+              DOT@137..138 "."
+              DOT@138..139 "."
+              EXPR@139..141
+                TERM@139..141
+                  PRIMARY_EXPR@139..141
+                    INTEGER_LIT@139..141 "10"
+              R_PAREN@141..142 ")"
+    NEWLINE@142..143 "\n"
+    R_BRACE@143..144 "}"
+  NEWLINE@144..145 "\n"
+  NEWLINE@145..146 "\n"
+  RULE_DECL@146..186
+    RULE_KW@146..150 "rule"
+    WHITESPACE@150..151 " "
+    IDENT@151..157 "test_4"
+    WHITESPACE@157..158 " "
+    L_BRACE@158..159 "{"
+    NEWLINE@159..160 "\n"
+    WHITESPACE@160..161 "\t"
+    CONDITION_BLK@161..184
+      CONDITION_KW@161..170 "condition"
+      COLON@170..171 ":"
+      NEWLINE@171..172 "\n"
+      WHITESPACE@172..174 "\t\t"
+      BOOLEAN_EXPR@174..184
+        BOOLEAN_TERM@174..184
+          OF_EXPR@174..184
+            QUANTIFIER@174..176
+              EXPR@174..176
+                TERM@174..176
+                  PRIMARY_EXPR@174..176
+                    INTEGER_LIT@174..176 "10"
+            WHITESPACE@176..177 " "
+            OF_KW@177..179 "of"
+            WHITESPACE@179..180 " "
+            THEM_KW@180..184 "them"
+    NEWLINE@184..185 "\n"
+    R_BRACE@185..186 "}"
+  NEWLINE@186..187 "\n"
+  NEWLINE@187..188 "\n"
+  RULE_DECL@188..229
+    RULE_KW@188..192 "rule"
+    WHITESPACE@192..193 " "
+    IDENT@193..199 "test_5"
+    WHITESPACE@199..200 " "
+    L_BRACE@200..201 "{"
+    NEWLINE@201..202 "\n"
+    WHITESPACE@202..203 "\t"
+    CONDITION_BLK@203..227
+      CONDITION_KW@203..212 "condition"
+      COLON@212..213 ":"
+      NEWLINE@213..214 "\n"
+      WHITESPACE@214..216 "\t\t"
+      BOOLEAN_EXPR@216..227
+        BOOLEAN_TERM@216..227
+          OF_EXPR@216..227
+            QUANTIFIER@216..219
+              PRIMARY_EXPR@216..218
+                INTEGER_LIT@216..218 "10"
+              PERCENT@218..219 "%"
+            WHITESPACE@219..220 " "
+            OF_KW@220..222 "of"
+            WHITESPACE@222..223 " "
+            THEM_KW@223..227 "them"
+    NEWLINE@227..228 "\n"
+    R_BRACE@228..229 "}"
+  NEWLINE@229..230 "\n"
+  NEWLINE@230..231 "\n"
+  RULE_DECL@231..294
+    RULE_KW@231..235 "rule"
+    WHITESPACE@235..236 " "
+    IDENT@236..242 "test_6"
+    WHITESPACE@242..243 " "
+    L_BRACE@243..244 "{"
+    NEWLINE@244..245 "\n"
+    WHITESPACE@245..246 "\t"
+    CONDITION_BLK@246..292
+      CONDITION_KW@246..255 "condition"
+      COLON@255..256 ":"
+      NEWLINE@256..257 "\n"
+      WHITESPACE@257..259 "\t\t"
+      BOOLEAN_EXPR@259..292
+        BOOLEAN_TERM@259..292
+          OF_EXPR@259..292
+            QUANTIFIER@259..260
+              EXPR@259..260
+                TERM@259..260
+                  PRIMARY_EXPR@259..260
+                    INTEGER_LIT@259..260 "2"
+            WHITESPACE@260..261 " "
+            OF_KW@261..263 "of"
+            WHITESPACE@263..264 " "
+            BOOLEAN_EXPR_TUPLE@264..292
+              L_PAREN@264..265 "("
+              BOOLEAN_EXPR@265..269
+                BOOLEAN_TERM@265..269
+                  TRUE_KW@265..269 "true"
+              COMMA@269..270 ","
+              WHITESPACE@270..271 " "
+              BOOLEAN_EXPR@271..276
+                BOOLEAN_TERM@271..276
+                  FALSE_KW@271..276 "false"
+              COMMA@276..277 ","
+              WHITESPACE@277..278 " "
+              BOOLEAN_EXPR@278..283
+                BOOLEAN_TERM@278..283
+                  EXPR@278..283
+                    TERM@278..283
+                      PRIMARY_EXPR@278..283
+                        IDENT@278..283 "ident"
+              COMMA@283..284 ","
+              WHITESPACE@284..285 " "
+              BOOLEAN_EXPR@285..291
+                BOOLEAN_TERM@285..291
+                  EXPR@285..286
+                    TERM@285..286
+                      PRIMARY_EXPR@285..286
+                        INTEGER_LIT@285..286 "2"
+                  WHITESPACE@286..287 " "
+                  EQ@287..289 "=="
+                  WHITESPACE@289..290 " "
+                  EXPR@290..291
+                    TERM@290..291
+                      PRIMARY_EXPR@290..291
+                        INTEGER_LIT@290..291 "2"
+              R_PAREN@291..292 ")"
+    NEWLINE@292..293 "\n"
+    R_BRACE@293..294 "}"
+  NEWLINE@294..295 "\n"
+  NEWLINE@295..296 "\n"
+  RULE_DECL@296..381
+    RULE_KW@296..300 "rule"
+    WHITESPACE@300..301 " "
+    IDENT@301..307 "test_7"
+    WHITESPACE@307..308 " "
+    L_BRACE@308..309 "{"
+    NEWLINE@309..310 "\n"
+    WHITESPACE@310..312 "  "
+    PATTERNS_BLK@312..350
+      STRINGS_KW@312..319 "strings"
+      COLON@319..320 ":"
+      NEWLINE@320..321 "\n"
+      WHITESPACE@321..325 "    "
+      PATTERN_DEF@325..335
+        PATTERN_IDENT@325..327 "$a"
+        WHITESPACE@327..328 " "
+        EQUAL@328..329 "="
+        WHITESPACE@329..330 " "
+        STRING_LIT@330..335 "\"foo\""
+      NEWLINE@335..336 "\n"
+      WHITESPACE@336..340 "    "
+      PATTERN_DEF@340..350
+        PATTERN_IDENT@340..342 "$b"
+        WHITESPACE@342..343 " "
+        EQUAL@343..344 "="
+        WHITESPACE@344..345 " "
+        STRING_LIT@345..350 "\"bar\""
+    NEWLINE@350..351 "\n"
+    WHITESPACE@351..352 "\t"
+    CONDITION_BLK@352..379
+      CONDITION_KW@352..361 "condition"
+      COLON@361..362 ":"
+      NEWLINE@362..363 "\n"
+      WHITESPACE@363..365 "\t\t"
+      BOOLEAN_EXPR@365..379
+        BOOLEAN_TERM@365..379
+          OF_EXPR@365..379
+            QUANTIFIER@365..366
+              EXPR@365..366
+                TERM@365..366
+                  PRIMARY_EXPR@365..366
+                    INTEGER_LIT@365..366 "2"
+            WHITESPACE@366..367 " "
+            OF_KW@367..369 "of"
+            WHITESPACE@369..370 " "
+            PATTERN_IDENT_TUPLE@370..379
+              L_PAREN@370..371 "("
+              PATTERN_IDENT@371..373 "$a"
+              COMMA@373..374 ","
+              WHITESPACE@374..375 " "
+              PATTERN_IDENT@375..377 "$b"
+              ASTERISK@377..378 "*"
+              R_PAREN@378..379 ")"
+    NEWLINE@379..380 "\n"
+    R_BRACE@380..381 "}"
+  NEWLINE@381..382 "\n"

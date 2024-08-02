@@ -7,10 +7,10 @@ use regex_syntax as re;
 use regex_syntax::ast::{AssertionKind, Ast, ErrorKind, Literal, LiteralKind};
 use thiserror::Error;
 
+use yara_x_parser::ast;
+
 use crate::re::hir::Hir;
 use crate::types;
-
-use yara_x_parser::ast;
 
 #[derive(Error, Debug)]
 pub(crate) enum Error {

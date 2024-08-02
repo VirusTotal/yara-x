@@ -1,0 +1,48 @@
+SOURCE_FILE@0..80
+  IMPORT_STMT@0..12
+    IMPORT_KW@0..6 "import"
+    WHITESPACE@6..7 " "
+    STRING_LIT@7..12 "\"foo\""
+  NEWLINE@12..13 "\n"
+  NEWLINE@13..14 "\n"
+  RULE_DECL@14..79
+    RULE_KW@14..18 "rule"
+    WHITESPACE@18..19 " "
+    IDENT@19..23 "test"
+    WHITESPACE@23..24 " "
+    L_BRACE@24..25 "{"
+    NEWLINE@25..26 "\n"
+    WHITESPACE@26..27 "\t"
+    CONDITION_BLK@27..77
+      CONDITION_KW@27..36 "condition"
+      COLON@36..37 ":"
+      NEWLINE@37..38 "\n"
+      WHITESPACE@38..40 "\t\t"
+      BOOLEAN_EXPR@40..77
+        BOOLEAN_TERM@40..44
+          TRUE_KW@40..44 "true"
+        WHITESPACE@44..45 " "
+        AND_KW@45..48 "and"
+        WHITESPACE@48..49 " "
+        BOOLEAN_TERM@49..58
+          NOT_KW@49..52 "not"
+          WHITESPACE@52..53 " "
+          BOOLEAN_TERM@53..58
+            FALSE_KW@53..58 "false"
+        WHITESPACE@58..59 " "
+        OR_KW@59..61 "or"
+        WHITESPACE@61..62 " "
+        BOOLEAN_TERM@62..77
+          L_PAREN@62..63 "("
+          BOOLEAN_EXPR@63..76
+            BOOLEAN_TERM@63..68
+              FALSE_KW@63..68 "false"
+            WHITESPACE@68..69 " "
+            OR_KW@69..71 "or"
+            WHITESPACE@71..72 " "
+            BOOLEAN_TERM@72..76
+              TRUE_KW@72..76 "true"
+          R_PAREN@76..77 ")"
+    NEWLINE@77..78 "\n"
+    R_BRACE@78..79 "}"
+  NEWLINE@79..80 "\n"

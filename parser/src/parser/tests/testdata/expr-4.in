@@ -1,0 +1,42 @@
+rule test_1 {
+   strings:
+     $a = "foo"
+   condition:
+     $a
+}
+
+rule test_2 {
+   strings:
+     $a = "foo"
+   condition:
+     $a in (0..10)
+}
+
+
+rule test_3 {
+   strings:
+     $a = "foo"
+   condition:
+     $a at filesize
+}
+
+rule test_4 {
+   strings:
+     $a = "foo"
+   condition:
+     #a in (0..10)
+}
+
+rule test_5 {
+   strings:
+     $a = "foo"
+   condition:
+     @a == 10 and @a[0] == 10
+ }
+
+ rule test_6 {
+    strings:
+      $a = "foo"
+    condition:
+      !a == 10 and !a[1+1] == 10
+  }

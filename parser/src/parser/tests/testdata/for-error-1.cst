@@ -1,0 +1,61 @@
+SOURCE_FILE@0..94
+  RULE_DECL@0..94
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..14 "  "
+    PATTERNS_BLK@14..50
+      STRINGS_KW@14..21 "strings"
+      COLON@21..22 ":"
+      NEWLINE@22..23 "\n"
+      WHITESPACE@23..26 "  \t"
+      PATTERN_DEF@26..36
+        PATTERN_IDENT@26..28 "$a"
+        WHITESPACE@28..29 " "
+        EQUAL@29..30 "="
+        WHITESPACE@30..31 " "
+        STRING_LIT@31..36 "\"foo\""
+      NEWLINE@36..37 "\n"
+      WHITESPACE@37..40 "  \t"
+      PATTERN_DEF@40..50
+        PATTERN_IDENT@40..42 "$b"
+        WHITESPACE@42..43 " "
+        EQUAL@43..44 "="
+        WHITESPACE@44..45 " "
+        STRING_LIT@45..50 "\"bar\""
+    NEWLINE@50..51 "\n"
+    WHITESPACE@51..52 "\t"
+    ERROR@52..92
+      CONDITION_KW@52..61 "condition"
+      COLON@61..62 ":"
+      NEWLINE@62..63 "\n"
+      WHITESPACE@63..65 "\t\t"
+      ERROR@65..65
+        ERROR@65..65
+      FOR_KW@65..68 "for"
+      WHITESPACE@68..69 " "
+      IDENT@69..72 "foo"
+      L_BRACKET@72..73 "["
+      INTEGER_LIT@73..74 "1"
+      R_BRACKET@74..75 "]"
+      PERCENT@75..76 "%"
+      WHITESPACE@76..77 " "
+      OF_KW@77..79 "of"
+      WHITESPACE@79..80 " "
+      THEM_KW@80..84 "them"
+      WHITESPACE@84..85 " "
+      COLON@85..86 ":"
+      WHITESPACE@86..87 " "
+      L_PAREN@87..88 "("
+      WHITESPACE@88..89 " "
+      PATTERN_IDENT@89..90 "$"
+      WHITESPACE@90..91 " "
+      R_PAREN@91..92 ")"
+    NEWLINE@92..93 "\n"
+    R_BRACE@93..94 "}"
+
+ERRORS:
+- [77..79]: expecting expression, found `of`

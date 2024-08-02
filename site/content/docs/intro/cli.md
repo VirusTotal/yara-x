@@ -111,7 +111,7 @@ Disable warning `slow_patterns`:
 Disable warnings `slow_patterns` and `redundant_modifier`:
 
 ```
---disable-warnings=slow_patterns,redundant_modifier"
+--disable-warnings=slow_patterns,redundant_modifier
 ```
 
 Equivalent to the previous one, but using `--disable-warnings` multiple times:
@@ -123,6 +123,30 @@ Equivalent to the previous one, but using `--disable-warnings` multiple times:
 ### --negate, -n
 
 Prints the rules that doesn't match instead of those that match.
+
+### --output-format, -o <FORMAT>
+
+Specify the output format. Available options are `text` and `ndjson`. By
+default, the output format is `text`. The `ndjson` format, which stands for
+newline-delimited JSON, presents the results as one JSON object per line. Each
+JSON object details the matches for a single file. Here is an example output:
+
+```text
+{"path": "onefile.exe","rules": [{"identifier": "some_rule"}]}
+{"path": "anotherfile.exe","rules":[{"identifier": "another_urle"}]}
+```
+
+Other options like `--print-strings` and `--print-namespace` also affect the
+fields included in the JSON object. For example, using the `--print-namespace`
+option adds a "namespace" field to each JSON object.
+
+To parse the `ndjson` format, you can use the [jq](https://jqlang.github.io/jq/)
+tool. For instance, to extract only the paths of the matching files, you can
+run:
+
+```shell
+yr scan --output-format ndjson rules/test.yara /bin | jq .path
+```
 
 ### --print-strings, -s
 

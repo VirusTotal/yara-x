@@ -1,0 +1,13 @@
+ rule test
+ └─ condition
+    └─ for <quantifier> <vars> in <expr> : ( <condition> )
+       ├─ <quantifier>
+       │  └─ any
+       ├─ <vars>
+       │  └─ key
+       │     value
+       ├─ <expr>
+       │  └─ some_dic
+       └─ <condition>
+          └─ true
+

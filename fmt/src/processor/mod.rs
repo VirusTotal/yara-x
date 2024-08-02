@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::iter::Peekable;
-use yara_x_parser::GrammarRule;
+use yara_x_parser::cst::SyntaxKind;
 
 use crate::tokens::{categories, Token, TokenStream};
 
@@ -32,10 +32,10 @@ use crate::tokens::{categories, Token, TokenStream};
 /// action will be executed, which is moving the token from the input to the
 /// output (i.e: executing the "copy" action).
 ///
-/// The main idea is described in [`A Pretty Good Formatting Pipeline`], but
+/// The main idea is described in [`A Pretty Good Formatting Pipeline`][1], but
 /// some modifications has been made.
 ///
-/// [`A Pretty Good Formatting Pipeline`]: https://bora.uib.no/bora-xmlui/handle/1956/8915
+/// [1]: https://bora.uib.no/bora-xmlui/handle/1956/8915
 pub(crate) struct Processor<'a, T>
 where
     T: TokenStream<'a>,
@@ -158,7 +158,7 @@ where
 {
     input: Peekable<T>,
     output: VecDeque<Token<'a>>,
-    stack: Vec<super::GrammarRule>,
+    stack: Vec<SyntaxKind>,
     /// A list with the last N tokens that has been written into the output
     /// (N <= MAX_PREV_TOKENS). Contains only non-pass-through tokens.
     prev_tokens: VecDeque<Token<'a>>,
@@ -300,7 +300,7 @@ where
         self.next_tokens.swap(index_i, index_j)
     }
 
-    /// Returns true if the the next token is within a given grammar rule.
+    /// Returns true if the next token is within a given grammar rule.
     ///
     /// If `deep` is `false` this function returns true only when the token is
     /// a direct child of the grammar rule, tokens within sub-rules won't be
@@ -311,26 +311,26 @@ where
     /// following sequence of tokens (indentation was added for highlighting
     /// the hierarchical structure of parsing rules):
     ///
-    ///   Begin(Rule::rule_decl),
+    ///   Begin(SyntaxKind::RULE_DECL),
     ///      Keyword("rule"),
     ///      Identifier("test"),
     ///      Grouping("{"),
     ///      Keyword("condition"),
     ///      Punctuation(":"),
-    ///      Begin(Rule::boolean_expr),
+    ///      Begin(SyntaxKind::BOOLEAN_EXPR),
     ///         Keyword("true"),
-    ///      End(Rule::boolean_expr),
+    ///      End(SyntaxKind::BOOLEAN_EXPR),
     ///      Grouping("}"),
-    ///   End(Rule::rule_decl),
+    ///   End(Rule::RULE_DECL),
     ///
     /// Now let's suppose the next token is the `true` keyword. In that state,
     /// `in_rule(Rule::rule_decl, false)` returns `false` because the `true`
-    /// keyword it not a direct child of `Rule::rule_decl`.  
+    /// keyword it not a direct child of `Rule::rule_decl`.
     ///
     /// However, calling `in_rule(Rule::rule_decl, true)` returns `true`,
     /// because the `true` keyword is somewhere inside `Rule::rule_decl`,
     /// although not directly.
-    pub fn in_rule(&self, rule: GrammarRule, deep: bool) -> bool {
+    pub fn in_rule(&self, rule: SyntaxKind, deep: bool) -> bool {
         // The logic for determining if the next token is within the scope of
         // a rule goes as follows:
         //
@@ -352,7 +352,7 @@ where
 
         // If the next token indicates the end of a rule, make sure that the
         // top of the stack is that same rule, but remove it from the iterator
-        // so that it won't taken into account in next step.
+        // so that it won't be taken into account in next step.
         if let Some(&Token::End(rule)) = self.next_tokens.front() {
             let top = stack_iter.next();
             debug_assert_eq!(*top.unwrap(), rule);

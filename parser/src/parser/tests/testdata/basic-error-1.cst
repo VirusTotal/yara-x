@@ -1,0 +1,32 @@
+SOURCE_FILE@0..58
+  RULE_DECL@0..58
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    ERROR@11..56
+      L_BRACE@11..12 "{"
+      NEWLINE@12..13 "\n"
+      WHITESPACE@13..15 "  "
+      META_KW@15..19 "meta"
+      COLON@19..20 ":"
+      NEWLINE@20..21 "\n"
+      WHITESPACE@21..26 "     "
+      IDENT@26..29 "foo"
+      WHITESPACE@29..30 " "
+      EQUAL@30..31 "="
+      WHITESPACE@31..32 " "
+      INTEGER_LIT@32..33 "1"
+      NEWLINE@33..34 "\n"
+      WHITESPACE@34..36 "  "
+      CONDITION_KW@36..45 "condition"
+      COLON@45..46 ":"
+      NEWLINE@46..47 "\n"
+      WHITESPACE@47..52 "     "
+      TRUE_KW@52..56 "true"
+    NEWLINE@56..57 "\n"
+    R_BRACE@57..58 "}"
+
+ERRORS:
+- [11..12]: expecting `meta`, `strings` or `condition`, found `{`

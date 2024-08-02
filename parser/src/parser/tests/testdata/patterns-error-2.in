@@ -1,0 +1,7 @@
+rule test {
+	strings:
+		$b = "foo"
+	  $a = { ab
+  condition:
+	  true
+}

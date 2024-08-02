@@ -1,0 +1,49 @@
+SOURCE_FILE@0..89
+  RULE_DECL@0..89
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..14 "  "
+    ERROR@14..65
+      STRINGS_KW@14..21 "strings"
+      COLON@21..22 ":"
+      NEWLINE@22..23 "\n"
+      WHITESPACE@23..27 "    "
+      PATTERN_DEF@27..37
+        PATTERN_IDENT@27..29 "$a"
+        WHITESPACE@29..30 " "
+        EQUAL@30..31 "="
+        WHITESPACE@31..32 " "
+        STRING_LIT@32..37 "\"foo\""
+      NEWLINE@37..38 "\n"
+      WHITESPACE@38..42 "    "
+      PATTERN_IDENT@42..44 "$b"
+      WHITESPACE@44..45 " "
+      EQUAL@45..46 "="
+      WHITESPACE@46..47 " "
+      IDENT@47..50 "bar"
+      NEWLINE@50..51 "\n"
+      WHITESPACE@51..55 "    "
+      PATTERN_IDENT@55..57 "$c"
+      WHITESPACE@57..58 " "
+      EQUAL@58..59 "="
+      WHITESPACE@59..60 " "
+      STRING_LIT@60..65 "\"baz\""
+    NEWLINE@65..66 "\n"
+    WHITESPACE@66..68 "  "
+    CONDITION_BLK@68..87
+      CONDITION_KW@68..77 "condition"
+      COLON@77..78 ":"
+      NEWLINE@78..79 "\n"
+      WHITESPACE@79..83 "    "
+      BOOLEAN_EXPR@83..87
+        BOOLEAN_TERM@83..87
+          TRUE_KW@83..87 "true"
+    NEWLINE@87..88 "\n"
+    R_BRACE@88..89 "}"
+
+ERRORS:
+- [47..50]: expecting STRING, regexp or `{`, found `bar`

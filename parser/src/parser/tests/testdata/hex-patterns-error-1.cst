@@ -1,0 +1,81 @@
+SOURCE_FILE@0..124
+  RULE_DECL@0..66
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..13 "\t"
+    ERROR@13..43
+      STRINGS_KW@13..20 "strings"
+      COLON@20..21 ":"
+      NEWLINE@21..22 "\n"
+      WHITESPACE@22..25 "\t  "
+      ERROR@25..29
+        PATTERN_IDENT@25..27 "$a"
+        WHITESPACE@27..28 " "
+        EQUAL@28..29 "="
+      WHITESPACE@29..30 " "
+      L_BRACE@30..31 "{"
+      WHITESPACE@31..32 " "
+      HEX_BYTE@32..34 "00"
+      WHITESPACE@34..35 " "
+      L_PAREN@35..36 "("
+      HEX_BYTE@36..38 "00"
+      WHITESPACE@38..39 " "
+      PIPE@39..40 "|"
+      R_PAREN@40..41 ")"
+      WHITESPACE@41..42 " "
+      R_BRACE@42..43 "}"
+    NEWLINE@43..44 "\n"
+    WHITESPACE@44..46 "  "
+    CONDITION_BLK@46..64
+      CONDITION_KW@46..55 "condition"
+      COLON@55..56 ":"
+      NEWLINE@56..57 "\n"
+      WHITESPACE@57..60 "\t  "
+      BOOLEAN_EXPR@60..64
+        BOOLEAN_TERM@60..64
+          TRUE_KW@60..64 "true"
+    NEWLINE@64..65 "\n"
+    R_BRACE@65..66 "}"
+  NEWLINE@66..67 "\n"
+  NEWLINE@67..68 "\n"
+  RULE_DECL@68..124
+    RULE_KW@68..72 "rule"
+    WHITESPACE@72..73 " "
+    IDENT@73..77 "test"
+    WHITESPACE@77..78 " "
+    L_BRACE@78..79 "{"
+    NEWLINE@79..80 "\n"
+    WHITESPACE@80..81 "\t"
+    ERROR@81..101
+      STRINGS_KW@81..88 "strings"
+      COLON@88..89 ":"
+      NEWLINE@89..90 "\n"
+      WHITESPACE@90..93 "\t  "
+      ERROR@93..97
+        PATTERN_IDENT@93..95 "$a"
+        WHITESPACE@95..96 " "
+        EQUAL@96..97 "="
+      WHITESPACE@97..98 " "
+      L_BRACE@98..99 "{"
+      WHITESPACE@99..100 " "
+      R_BRACE@100..101 "}"
+    NEWLINE@101..102 "\n"
+    WHITESPACE@102..104 "  "
+    CONDITION_BLK@104..122
+      CONDITION_KW@104..113 "condition"
+      COLON@113..114 ":"
+      NEWLINE@114..115 "\n"
+      WHITESPACE@115..118 "\t  "
+      BOOLEAN_EXPR@118..122
+        BOOLEAN_TERM@118..122
+          TRUE_KW@118..122 "true"
+    NEWLINE@122..123 "\n"
+    R_BRACE@123..124 "}"
+
+ERRORS:
+- [40..41]: expecting BYTE or `(`, found `)`
+- [100..101]: expecting BYTE or `(`, found `}`

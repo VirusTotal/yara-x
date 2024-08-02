@@ -1,6 +1,6 @@
-error[E012]: invalid integer
- --> line:3:16
+error[E001]: syntax error
+ --> line:3:18
   |
 3 |     $a = { 11 [-1-65535] 22 }
-  |                ^^ this number is out of the valid range: [0, 65535]
+  |                  ^ expecting `]`, found `-`
   |

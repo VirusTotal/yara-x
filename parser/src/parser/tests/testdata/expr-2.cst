@@ -1,0 +1,269 @@
+SOURCE_FILE@0..472
+  RULE_DECL@0..50
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..11 "test_1"
+    WHITESPACE@11..12 " "
+    L_BRACE@12..13 "{"
+    NEWLINE@13..14 "\n"
+    WHITESPACE@14..15 "\t"
+    CONDITION_BLK@15..48
+      CONDITION_KW@15..24 "condition"
+      COLON@24..25 ":"
+      NEWLINE@25..26 "\n"
+      WHITESPACE@26..28 "\t\t"
+      BOOLEAN_EXPR@28..48
+        BOOLEAN_TERM@28..48
+          EXPR@28..33
+            TERM@28..33
+              PRIMARY_EXPR@28..33
+                STRING_LIT@28..33 "\"foo\""
+          WHITESPACE@33..34 " "
+          CONTAINS_KW@34..42 "contains"
+          WHITESPACE@42..43 " "
+          EXPR@43..48
+            TERM@43..48
+              PRIMARY_EXPR@43..48
+                STRING_LIT@43..48 "\"foo\""
+    NEWLINE@48..49 "\n"
+    R_BRACE@49..50 "}"
+  NEWLINE@50..51 "\n"
+  NEWLINE@51..52 "\n"
+  RULE_DECL@52..103
+    RULE_KW@52..56 "rule"
+    WHITESPACE@56..57 " "
+    IDENT@57..63 "test_2"
+    WHITESPACE@63..64 " "
+    L_BRACE@64..65 "{"
+    NEWLINE@65..66 "\n"
+    WHITESPACE@66..67 "\t"
+    CONDITION_BLK@67..101
+      CONDITION_KW@67..76 "condition"
+      COLON@76..77 ":"
+      NEWLINE@77..78 "\n"
+      WHITESPACE@78..80 "\t\t"
+      BOOLEAN_EXPR@80..101
+        BOOLEAN_TERM@80..101
+          EXPR@80..85
+            TERM@80..85
+              PRIMARY_EXPR@80..85
+                STRING_LIT@80..85 "\"foo\""
+          WHITESPACE@85..86 " "
+          ICONTAINS_KW@86..95 "icontains"
+          WHITESPACE@95..96 " "
+          EXPR@96..101
+            TERM@96..101
+              PRIMARY_EXPR@96..101
+                STRING_LIT@96..101 "\"foo\""
+    NEWLINE@101..102 "\n"
+    R_BRACE@102..103 "}"
+  NEWLINE@103..104 "\n"
+  NEWLINE@104..105 "\n"
+  RULE_DECL@105..157
+    RULE_KW@105..109 "rule"
+    WHITESPACE@109..110 " "
+    IDENT@110..116 "test_3"
+    WHITESPACE@116..117 " "
+    L_BRACE@117..118 "{"
+    NEWLINE@118..119 "\n"
+    WHITESPACE@119..120 "\t"
+    CONDITION_BLK@120..155
+      CONDITION_KW@120..129 "condition"
+      COLON@129..130 ":"
+      NEWLINE@130..131 "\n"
+      WHITESPACE@131..133 "\t\t"
+      BOOLEAN_EXPR@133..155
+        BOOLEAN_TERM@133..155
+          EXPR@133..138
+            TERM@133..138
+              PRIMARY_EXPR@133..138
+                STRING_LIT@133..138 "\"foo\""
+          WHITESPACE@138..139 " "
+          STARTSWITH_KW@139..149 "startswith"
+          WHITESPACE@149..150 " "
+          EXPR@150..155
+            TERM@150..155
+              PRIMARY_EXPR@150..155
+                STRING_LIT@150..155 "\"foo\""
+    NEWLINE@155..156 "\n"
+    R_BRACE@156..157 "}"
+  NEWLINE@157..158 "\n"
+  NEWLINE@158..159 "\n"
+  RULE_DECL@159..212
+    RULE_KW@159..163 "rule"
+    WHITESPACE@163..164 " "
+    IDENT@164..170 "test_4"
+    WHITESPACE@170..171 " "
+    L_BRACE@171..172 "{"
+    NEWLINE@172..173 "\n"
+    WHITESPACE@173..174 "\t"
+    CONDITION_BLK@174..210
+      CONDITION_KW@174..183 "condition"
+      COLON@183..184 ":"
+      NEWLINE@184..185 "\n"
+      WHITESPACE@185..187 "\t\t"
+      BOOLEAN_EXPR@187..210
+        BOOLEAN_TERM@187..210
+          EXPR@187..192
+            TERM@187..192
+              PRIMARY_EXPR@187..192
+                STRING_LIT@187..192 "\"foo\""
+          WHITESPACE@192..193 " "
+          ISTARTSWITH_KW@193..204 "istartswith"
+          WHITESPACE@204..205 " "
+          EXPR@205..210
+            TERM@205..210
+              PRIMARY_EXPR@205..210
+                STRING_LIT@205..210 "\"foo\""
+    NEWLINE@210..211 "\n"
+    R_BRACE@211..212 "}"
+  NEWLINE@212..213 "\n"
+  NEWLINE@213..214 "\n"
+  RULE_DECL@214..264
+    RULE_KW@214..218 "rule"
+    WHITESPACE@218..219 " "
+    IDENT@219..225 "test_5"
+    WHITESPACE@225..226 " "
+    L_BRACE@226..227 "{"
+    NEWLINE@227..228 "\n"
+    WHITESPACE@228..229 "\t"
+    CONDITION_BLK@229..262
+      CONDITION_KW@229..238 "condition"
+      COLON@238..239 ":"
+      NEWLINE@239..240 "\n"
+      WHITESPACE@240..242 "\t\t"
+      BOOLEAN_EXPR@242..262
+        BOOLEAN_TERM@242..262
+          EXPR@242..247
+            TERM@242..247
+              PRIMARY_EXPR@242..247
+                STRING_LIT@242..247 "\"foo\""
+          WHITESPACE@247..248 " "
+          ENDSWITH_KW@248..256 "endswith"
+          WHITESPACE@256..257 " "
+          EXPR@257..262
+            TERM@257..262
+              PRIMARY_EXPR@257..262
+                STRING_LIT@257..262 "\"foo\""
+    NEWLINE@262..263 "\n"
+    R_BRACE@263..264 "}"
+  NEWLINE@264..265 "\n"
+  NEWLINE@265..266 "\n"
+  RULE_DECL@266..317
+    RULE_KW@266..270 "rule"
+    WHITESPACE@270..271 " "
+    IDENT@271..277 "test_6"
+    WHITESPACE@277..278 " "
+    L_BRACE@278..279 "{"
+    NEWLINE@279..280 "\n"
+    WHITESPACE@280..281 "\t"
+    CONDITION_BLK@281..315
+      CONDITION_KW@281..290 "condition"
+      COLON@290..291 ":"
+      NEWLINE@291..292 "\n"
+      WHITESPACE@292..294 "\t\t"
+      BOOLEAN_EXPR@294..315
+        BOOLEAN_TERM@294..315
+          EXPR@294..299
+            TERM@294..299
+              PRIMARY_EXPR@294..299
+                STRING_LIT@294..299 "\"foo\""
+          WHITESPACE@299..300 " "
+          IENDSWITH_KW@300..309 "iendswith"
+          WHITESPACE@309..310 " "
+          EXPR@310..315
+            TERM@310..315
+              PRIMARY_EXPR@310..315
+                STRING_LIT@310..315 "\"foo\""
+    NEWLINE@315..316 "\n"
+    R_BRACE@316..317 "}"
+  NEWLINE@317..318 "\n"
+  NEWLINE@318..319 "\n"
+  RULE_DECL@319..368
+    RULE_KW@319..323 "rule"
+    WHITESPACE@323..324 " "
+    IDENT@324..330 "test_7"
+    WHITESPACE@330..331 " "
+    L_BRACE@331..332 "{"
+    NEWLINE@332..333 "\n"
+    WHITESPACE@333..334 "\t"
+    CONDITION_BLK@334..366
+      CONDITION_KW@334..343 "condition"
+      COLON@343..344 ":"
+      NEWLINE@344..345 "\n"
+      WHITESPACE@345..347 "\t\t"
+      BOOLEAN_EXPR@347..366
+        BOOLEAN_TERM@347..366
+          EXPR@347..352
+            TERM@347..352
+              PRIMARY_EXPR@347..352
+                STRING_LIT@347..352 "\"foo\""
+          WHITESPACE@352..353 " "
+          MATCHES_KW@353..360 "matches"
+          WHITESPACE@360..361 " "
+          EXPR@361..366
+            TERM@361..366
+              PRIMARY_EXPR@361..366
+                REGEXP@361..366 "/foo/"
+    NEWLINE@366..367 "\n"
+    R_BRACE@367..368 "}"
+  NEWLINE@368..369 "\n"
+  NEWLINE@369..370 "\n"
+  RULE_DECL@370..421
+    RULE_KW@370..374 "rule"
+    WHITESPACE@374..375 " "
+    IDENT@375..381 "test_8"
+    WHITESPACE@381..382 " "
+    L_BRACE@382..383 "{"
+    NEWLINE@383..384 "\n"
+    WHITESPACE@384..385 "\t"
+    CONDITION_BLK@385..419
+      CONDITION_KW@385..394 "condition"
+      COLON@394..395 ":"
+      NEWLINE@395..396 "\n"
+      WHITESPACE@396..398 "\t\t"
+      BOOLEAN_EXPR@398..419
+        BOOLEAN_TERM@398..419
+          EXPR@398..403
+            TERM@398..403
+              PRIMARY_EXPR@398..403
+                STRING_LIT@398..403 "\"foo\""
+          WHITESPACE@403..404 " "
+          MATCHES_KW@404..411 "matches"
+          WHITESPACE@411..412 " "
+          EXPR@412..419
+            TERM@412..419
+              PRIMARY_EXPR@412..419
+                REGEXP@412..419 "/foo/is"
+    NEWLINE@419..420 "\n"
+    R_BRACE@420..421 "}"
+  NEWLINE@421..422 "\n"
+  NEWLINE@422..423 "\n"
+  RULE_DECL@423..472
+    RULE_KW@423..427 "rule"
+    WHITESPACE@427..428 " "
+    IDENT@428..434 "test_9"
+    WHITESPACE@434..435 " "
+    L_BRACE@435..436 "{"
+    NEWLINE@436..437 "\n"
+    WHITESPACE@437..438 "\t"
+    CONDITION_BLK@438..470
+      CONDITION_KW@438..447 "condition"
+      COLON@447..448 ":"
+      NEWLINE@448..449 "\n"
+      WHITESPACE@449..451 "\t\t"
+      BOOLEAN_EXPR@451..470
+        BOOLEAN_TERM@451..470
+          EXPR@451..456
+            TERM@451..456
+              PRIMARY_EXPR@451..456
+                STRING_LIT@451..456 "\"foo\""
+          WHITESPACE@456..457 " "
+          IEQUALS_KW@457..464 "iequals"
+          WHITESPACE@464..465 " "
+          EXPR@465..470
+            TERM@465..470
+              PRIMARY_EXPR@465..470
+                STRING_LIT@465..470 "\"foo\""
+    NEWLINE@470..471 "\n"
+    R_BRACE@471..472 "}"

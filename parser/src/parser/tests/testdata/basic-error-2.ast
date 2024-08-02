@@ -1,0 +1,2 @@
+ERRORS:
+- SyntaxError { message: "unclosed literal string", span: Span(33..37) }

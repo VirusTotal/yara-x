@@ -1,0 +1,59 @@
+SOURCE_FILE@0..101
+  RULE_DECL@0..49
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..11 "test_1"
+    WHITESPACE@11..12 " "
+    L_BRACE@12..13 "{"
+    NEWLINE@13..14 "\n"
+    WHITESPACE@14..17 "   "
+    CONDITION_BLK@17..47
+      CONDITION_KW@17..26 "condition"
+      COLON@26..27 ":"
+      NEWLINE@27..28 "\n"
+      WHITESPACE@28..33 "     "
+      BOOLEAN_EXPR@33..47
+        BOOLEAN_TERM@33..47
+          EXPR@33..41
+            TERM@33..41
+              PRIMARY_EXPR@33..41
+                FILESIZE_KW@33..41 "filesize"
+          WHITESPACE@41..42 " "
+          GT@42..43 ">"
+          WHITESPACE@43..44 " "
+          EXPR@44..47
+            TERM@44..47
+              PRIMARY_EXPR@44..47
+                INTEGER_LIT@44..47 "1KB"
+    NEWLINE@47..48 "\n"
+    R_BRACE@48..49 "}"
+  NEWLINE@49..50 "\n"
+  NEWLINE@50..51 "\n"
+  RULE_DECL@51..101
+    RULE_KW@51..55 "rule"
+    WHITESPACE@55..56 " "
+    IDENT@56..62 "test_2"
+    WHITESPACE@62..63 " "
+    L_BRACE@63..64 "{"
+    NEWLINE@64..65 "\n"
+    WHITESPACE@65..68 "   "
+    CONDITION_BLK@68..99
+      CONDITION_KW@68..77 "condition"
+      COLON@77..78 ":"
+      NEWLINE@78..79 "\n"
+      WHITESPACE@79..84 "     "
+      BOOLEAN_EXPR@84..99
+        BOOLEAN_TERM@84..99
+          EXPR@84..92
+            TERM@84..92
+              PRIMARY_EXPR@84..92
+                FILESIZE_KW@84..92 "filesize"
+          WHITESPACE@92..93 " "
+          NE@93..95 "!="
+          WHITESPACE@95..96 " "
+          EXPR@96..99
+            TERM@96..99
+              PRIMARY_EXPR@96..99
+                INTEGER_LIT@96..99 "1MB"
+    NEWLINE@99..100 "\n"
+    R_BRACE@100..101 "}"

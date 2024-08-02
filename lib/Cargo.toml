@@ -27,9 +27,9 @@ exclude = [
 constant-folding = []
 
 # Enables the use of exact atoms for speeding up matches. Exact atoms are those
-# that don't require further verification, the sole presence of the atom 
+# that don't require further verification, the sole presence of the atom
 # indicates that the pattern containing the atom matches. For instance, in
-# pattern /abc(d|e)/, the atom "abcd" is an exact atom, by finding the atom 
+# pattern /abc(d|e)/, the atom "abcd" is an exact atom, by finding the atom
 # "abcd" we can be sure that the whole regexp matches. However, the atom "abc"
 # is not exact, finding "abc" is not enough, the regexp must be evaluated in
 # order to verify if it matches. If this feature is not enabled exact atoms are
@@ -45,7 +45,7 @@ fast-regexp = []
 logging = ["dep:log"]
 
 # Enables rules profiling. When this is enabled together with `logging` the
-# logs will contain information about the most expensive rules after each 
+# logs will contain information about the most expensive rules after each
 # scan. Notice that profiling itself has a noticeable impact on performance.
 rules-profiling = ["logging"]
 
@@ -165,6 +165,7 @@ default = [
 
 [dependencies]
 aho-corasick = { workspace = true, features = ["logging"] }
+annotate-snippets = { workspace = true }
 anyhow = { workspace = true }
 array-bytes = { workspace = true }
 ascii_tree = { workspace = true }

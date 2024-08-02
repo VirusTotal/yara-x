@@ -1,0 +1,18 @@
+SOURCE_FILE@0..27
+  ERROR@0..27
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    WHITESPACE@11..12 " "
+    CONDITION_BLK@12..27
+      CONDITION_KW@12..21 "condition"
+      COLON@21..22 ":"
+      WHITESPACE@22..23 " "
+      BOOLEAN_EXPR@23..27
+        BOOLEAN_TERM@23..27
+          TRUE_KW@23..27 "true"
+
+ERRORS:
+- [26..26]: expecting operator or `}`, found end of file

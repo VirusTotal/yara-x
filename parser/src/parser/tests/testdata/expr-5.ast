@@ -1,0 +1,12 @@
+ rule test_1
+ └─ condition
+    └─ gt
+       ├─ filesize
+       └─ 1
+
+ rule test_2
+ └─ condition
+    └─ ne
+       ├─ filesize
+       └─ 1
+

@@ -23,8 +23,6 @@ use regex_syntax::hir::{
     visit, Class, ClassBytes, Hir, HirKind, Literal, Look, Repetition, Visitor,
 };
 
-use yara_x_parser::ast::HexByte;
-
 use super::instr;
 use super::instr::{literal_code_length, Instr, NumAlt, OPCODE_PREFIX};
 
@@ -34,6 +32,7 @@ use crate::compiler::{
 };
 
 use crate::re;
+use crate::re::hir::HexByte;
 use crate::re::thompson::instr::{InstrParser, SplitId};
 use crate::re::{BckCodeLoc, Error, FwdCodeLoc, MAX_ALTERNATIVES};
 
@@ -749,6 +748,8 @@ impl Compiler {
             // end:
             //
             (min, Some(max), greedy) => {
+                debug_assert!(min <= max);
+
                 // `start` and `end` are the locations where the code for `e`
                 // starts and ends.
                 let start = self.bookmarks.pop().unwrap();
@@ -1591,7 +1592,7 @@ impl Display for InstrSeq {
 ///
 /// * when the input slice is empty.
 /// * when the first sequence in the slice has 256 single byte literals.
-///   
+///
 fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
     let first_seq = match seqs.first() {
         Some(seq) => seq,

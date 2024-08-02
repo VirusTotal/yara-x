@@ -41,6 +41,7 @@ anyhow = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 clap_complete = { workspace = true }
 globwalk = { workspace = true }
+itertools = { workspace = true }
 enable-ansi-support = { workspace = true }
 env_logger = { workspace = true, optional = true, features = ["auto-color"] }
 log = { workspace = true, optional = true }
@@ -49,7 +50,7 @@ protobuf-json-mapping = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 yansi = { workspace = true }
 yara-x = { workspace = true }
-yara-x-parser = { workspace = true, features = ["ascii-tree"] }
+yara-x-parser = { workspace = true }
 yara-x-proto-yaml = { workspace = true }
 yara-x-fmt = { workspace = true }
 

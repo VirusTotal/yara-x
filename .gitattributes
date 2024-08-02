@@ -2,4 +2,6 @@
 *.formatted text eol=lf
 *.in text eol=lf
 *.out text eol=lf
+*.ast text eol=lf
+*.cst text eol=lf
 *.unformatted text eol=lf

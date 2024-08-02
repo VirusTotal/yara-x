@@ -1,0 +1,33 @@
+SOURCE_FILE@0..52
+  RULE_DECL@0..52
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..14 "  "
+    ERROR@14..29
+      META_KW@14..18 "meta"
+      COLON@18..19 ":"
+      NEWLINE@19..20 "\n"
+      WHITESPACE@20..24 "    "
+      ERROR@24..29
+        IDENT@24..27 "foo"
+        WHITESPACE@27..28 " "
+        EQUAL@28..29 "="
+    NEWLINE@29..30 "\n"
+    WHITESPACE@30..32 "  "
+    CONDITION_BLK@32..50
+      CONDITION_KW@32..41 "condition"
+      COLON@41..42 ":"
+      NEWLINE@42..43 "\n"
+      WHITESPACE@43..46 "\t  "
+      BOOLEAN_EXPR@46..50
+        BOOLEAN_TERM@46..50
+          TRUE_KW@46..50 "true"
+    NEWLINE@50..51 "\n"
+    R_BRACE@51..52 "}"
+
+ERRORS:
+- [32..41]: expecting `-`, INTEGER, FLOAT, STRING, `true` or `false`, found `condition`

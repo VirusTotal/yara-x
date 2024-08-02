@@ -1,0 +1,10 @@
+error[E001]: syntax error
+  --> line:8:1
+   |
+ 8 | / /*/
+ 9 | | rule test_2
+...  |
+14 | |     $a
+15 | | }
+   | |_^ unclosed comment
+   |

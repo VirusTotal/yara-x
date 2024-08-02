@@ -1,0 +1,25 @@
+SOURCE_FILE@0..36
+  RULE_DECL@0..36
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    ERROR@10..12
+      COLON@10..11 ":"
+      WHITESPACE@11..12 " "
+    L_BRACE@12..13 "{"
+    NEWLINE@13..14 "\n"
+    WHITESPACE@14..16 "  "
+    CONDITION_BLK@16..34
+      CONDITION_KW@16..25 "condition"
+      COLON@25..26 ":"
+      NEWLINE@26..27 "\n"
+      WHITESPACE@27..30 "\t  "
+      BOOLEAN_EXPR@30..34
+        BOOLEAN_TERM@30..34
+          TRUE_KW@30..34 "true"
+    NEWLINE@34..35 "\n"
+    R_BRACE@35..36 "}"
+
+ERRORS:
+- [12..13]: expecting identifier, found `{`

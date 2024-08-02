@@ -1,0 +1,27 @@
+SOURCE_FILE@0..38
+  RULE_DECL@0..38
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    ERROR@10..13
+      COLON@10..11 ":"
+      WHITESPACE@11..12 " "
+      EQUAL@12..13 "="
+    WHITESPACE@13..14 " "
+    L_BRACE@14..15 "{"
+    NEWLINE@15..16 "\n"
+    WHITESPACE@16..18 "  "
+    CONDITION_BLK@18..36
+      CONDITION_KW@18..27 "condition"
+      COLON@27..28 ":"
+      NEWLINE@28..29 "\n"
+      WHITESPACE@29..32 "\t  "
+      BOOLEAN_EXPR@32..36
+        BOOLEAN_TERM@32..36
+          TRUE_KW@32..36 "true"
+    NEWLINE@36..37 "\n"
+    R_BRACE@37..38 "}"
+
+ERRORS:
+- [12..13]: expecting identifier, found `=`

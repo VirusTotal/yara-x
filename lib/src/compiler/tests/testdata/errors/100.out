@@ -1,6 +1,6 @@
 error[E012]: invalid integer
- --> line:2:14
+ --> line:2:15
   |
 2 |   condition: -99999999999999999999
-  |              ^^^^^^^^^^^^^^^^^^^^^ this number is out of the valid range: [-9223372036854775808, 9223372036854775807]
+  |               ^^^^^^^^^^^^^^^^^^^^ this number is out of the valid range: [-9223372036854775808, 9223372036854775807]
   |

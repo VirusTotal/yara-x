@@ -1,0 +1,8 @@
+error[E001]: syntax error
+ --> line:1:1
+  |
+1 | / /*/
+2 | | 
+3 | | rule test { condition: true }
+  | |_____________________________^ expecting import statement or rule definition
+  |

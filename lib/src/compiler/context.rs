@@ -2,13 +2,14 @@ use itertools::Itertools;
 use std::mem::size_of;
 use std::rc::Rc;
 
-use yara_x_parser::report::ReportBuilder;
+use yara_x_parser::ast::{Ident, WithSpan};
 
 use crate::compiler::ir::PatternIdx;
+use crate::compiler::report::ReportBuilder;
 use crate::compiler::{ir, Warnings};
 use crate::symbols::{StackedSymbolTable, SymbolLookup};
 use crate::types::Type;
-use crate::wasm;
+use crate::{wasm, CompileError};
 
 /// Structure that contains information and data structures required during the
 /// current compilation process.
@@ -38,65 +39,44 @@ pub(in crate::compiler) struct CompileContext<'a, 'src, 'sym> {
 
     /// Allow invalid escape sequences in regular expressions.
     pub relaxed_re_syntax: bool,
+
+    /// Indicates how deep we are inside `for .. of` statements.
+    pub(crate) for_of_depth: usize,
 }
 
 impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
     /// Given a pattern identifier (e.g. `$a`, `#a`, `@a`) search for it in
-    /// the current rule and return its position.
+    /// the current rule and return a tuple containing the [`PatternIdx`]
+    /// associated to the pattern and a mutable reference the
+    /// [`ir::PatternInRule`] node in the IR.
     ///
     /// Notice that this function accepts identifiers with any of the valid
     /// prefixes `$`, `#`, `@` and `!`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the current rule does not have the requested pattern.
-    pub fn get_pattern_index(&self, ident: &str) -> PatternIdx {
-        // Make sure that identifier starts with `$`, `#`, `@` or `!`.
-        debug_assert!("$#@!".contains(
-            ident
-                .chars()
-                .next()
-                .expect("identifier must be at least 1 character long")
-        ));
-
-        let (position, _) = self
-            .current_rule_patterns
-            .iter()
-            .find_position(|pattern| pattern.identifier()[1..] == ident[1..])
-            .expect("pattern not found");
-
-        position.into()
-    }
-
-    /// Given a pattern identifier (e.g. `$a`, `#a`, `@a`) search for it in
-    /// the current rule and return a mutable reference the [ir::PatternInRule]
-    /// node in the IR.
-    ///
-    /// Notice that this function accepts identifiers with any of the valid
-    /// prefixes `$`, `#`, `@` and `!`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the current rule does not have the requested pattern.
     pub fn get_pattern_mut(
         &mut self,
-        ident: &str,
-    ) -> &mut ir::PatternInRule<'src> {
+        ident: &Ident,
+    ) -> Result<(PatternIdx, &mut ir::PatternInRule<'src>), Box<CompileError>>
+    {
         // Make sure that identifier starts with `$`, `#`, `@` or `!`.
         debug_assert!("$#@!".contains(
             ident
+                .name
                 .chars()
                 .next()
                 .expect("identifier must be at least 1 character long")
         ));
 
-        for pattern in self.current_rule_patterns.iter_mut() {
-            if pattern.identifier()[1..] == ident[1..] {
-                return pattern;
-            }
-        }
-
-        panic!("pattern `{}` not found", ident);
+        self.current_rule_patterns
+            .iter_mut()
+            .find_position(|p| p.identifier().name[1..] == ident.name[1..])
+            .map(|(pos, pattern)| (PatternIdx::from(pos), pattern))
+            .ok_or_else(|| {
+                Box::new(CompileError::unknown_pattern(
+                    self.report_builder,
+                    ident.name.to_string(),
+                    ident.span().into(),
+                ))
+            })
     }
 }
 

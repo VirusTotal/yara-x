@@ -1,0 +1,23 @@
+SOURCE_FILE@0..40
+  RULE_DECL@0..40
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..14 "  "
+    ERROR@14..38
+      IDENT@14..17 "foo"
+      NEWLINE@17..18 "\n"
+      WHITESPACE@18..20 "  "
+      CONDITION_KW@20..29 "condition"
+      COLON@29..30 ":"
+      NEWLINE@30..31 "\n"
+      WHITESPACE@31..34 "\t  "
+      TRUE_KW@34..38 "true"
+    NEWLINE@38..39 "\n"
+    R_BRACE@39..40 "}"
+
+ERRORS:
+- [14..17]: expecting `meta`, `strings` or `condition`, found `foo`

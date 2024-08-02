@@ -1,0 +1,3 @@
+ERRORS:
+- SyntaxError { message: "expecting BYTE or `(`, found `)`", span: Span(40..41) }
+- SyntaxError { message: "expecting BYTE or `(`, found `}`", span: Span(100..101) }

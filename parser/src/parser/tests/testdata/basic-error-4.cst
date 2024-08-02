@@ -1,0 +1,16 @@
+SOURCE_FILE@0..26
+  ERROR@0..26
+    RULE_KW@0..4 "rule"
+    L_BRACE@4..5 "{"
+    NEWLINE@5..6 "\n"
+    WHITESPACE@6..7 "\t"
+    CONDITION_KW@7..16 "condition"
+    COLON@16..17 ":"
+    NEWLINE@17..18 "\n"
+    WHITESPACE@18..20 "\t\t"
+    TRUE_KW@20..24 "true"
+    NEWLINE@24..25 "\n"
+    R_BRACE@25..26 "}"
+
+ERRORS:
+- [4..5]: expecting identifier, found `{`

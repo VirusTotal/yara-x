@@ -1,0 +1,15 @@
+rule test_1 {
+  strings:
+    $a = { 11 22 33 44 55 }
+  condition:
+    $a
+}
+
+/*/
+rule test_2
+{
+  strings:
+    $a = { 11 22 33 44 55 }
+  condition:
+    $a
+}
