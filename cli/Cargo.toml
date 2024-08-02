@@ -41,6 +41,7 @@ anyhow = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 clap_complete = { workspace = true }
 globwalk = { workspace = true }
+itertools = { workspace = true }
 enable-ansi-support = { workspace = true }
 env_logger = { workspace = true, optional = true, features = ["auto-color"] }
 log = { workspace = true, optional = true }

@@ -9,11 +9,12 @@ use std::time::{Duration, Instant};
 use anyhow::{bail, Context, Error};
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command, ValueEnum};
 use crossbeam::channel::Sender;
+use itertools::Itertools;
 use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
-use yara_x::{Rule, Rules, ScanError, Scanner};
+use yara_x::{MetaValue, Rule, Rules, ScanError, Scanner};
 
 use crate::commands::{
     compile_rules, external_var_parser, truncate_with_ellipsis,
@@ -48,6 +49,13 @@ pub fn scan() -> Command {
                 .value_parser(value_parser!(PathBuf))
         )
         .arg(
+            arg!(-o --"output-format" <FORMAT>)
+                .help("Output format for results")
+                .long_help(help::OUTPUT_FORMAT_LONG_HELP)
+                .required(false)
+                .value_parser(value_parser!(OutputFormats))
+        )
+        .arg(
             arg!(-e --"print-namespace")
                 .help("Print rule namespace")
         )
@@ -59,6 +67,10 @@ pub fn scan() -> Command {
             arg!(--"print-strings-limit" <N>)
                 .help("Print matching patterns, limited to the first N bytes")
                 .value_parser(value_parser!(usize))
+        )
+        .arg(
+            arg!(-m --"print-meta")
+                .help("Print rule metadata")
         )
         .arg(
             arg!(--"disable-console-logs")
@@ -122,13 +134,6 @@ pub fn scan() -> Command {
                 .value_name("VAR=VALUE")
                 .value_parser(external_var_parser)
                 .action(ArgAction::Append)
-        )
-        .arg(
-            arg!(-o --"output-format" <FORMAT>)
-                .help("Output format for results")
-                .long_help(help::OUTPUT_FORMAT_LONG_HELP)
-                .required(false)
-                .value_parser(value_parser!(OutputFormats))
         )
 }
 
@@ -350,6 +355,7 @@ fn print_rules_as_json(
     output: &Sender<Message>,
 ) {
     let print_namespace = args.get_flag("print-namespace");
+    let print_meta = args.get_flag("print-meta");
     let print_strings = args.get_flag("print-strings");
     let print_strings_limit = args.get_one::<usize>("print-strings-limit");
 
@@ -374,10 +380,14 @@ fn print_rules_as_json(
             })
         };
 
+        if print_meta {
+            json_rule["meta"] = matching_rule.metadata().into_json();
+        }
+
         if print_strings || print_strings_limit.is_some() {
             let limit = print_strings_limit.unwrap_or(&STRINGS_LIMIT);
+            let mut match_vec: Vec<serde_json::Value> = Vec::new();
             for p in matching_rule.patterns() {
-                let mut match_vec: Vec<serde_json::Value> = Vec::new();
                 for m in p.matches() {
                     let match_range = m.range();
                     let match_data = m.data();
@@ -399,12 +409,24 @@ fn print_rules_as_json(
                             .as_str(),
                         );
                     }
-                    let match_json = serde_json::json!({
+
+                    let mut match_json = serde_json::json!({
                         "identifier": p.identifier(),
                         "start": match_range.start,
                         "length": match_range.len(),
                         "data": s.as_str()
                     });
+
+                    if let Some(k) = m.xor_key() {
+                        let mut p = String::with_capacity(s.len());
+                        for b in &match_data[..min(match_data.len(), *limit)] {
+                            for c in (b ^ k).escape_ascii() {
+                                p.push_str(format!("{}", c as char).as_str());
+                            }
+                        }
+                        match_json["xor_key"] = serde_json::json!(k);
+                        match_json["plaintext"] = serde_json::json!(p);
+                    }
                     match_vec.push(match_json);
                 }
                 json_rule["strings"] = serde_json::json!(match_vec);
@@ -425,6 +447,7 @@ fn print_rules_as_text(
     output: &Sender<Message>,
 ) {
     let print_namespace = args.get_flag("print-namespace");
+    let print_meta = args.get_flag("print-meta");
     let print_strings = args.get_flag("print-strings");
     let print_strings_limit = args.get_one::<usize>("print-strings-limit");
 
@@ -433,20 +456,50 @@ fn print_rules_as_text(
     // `the `by_ref` method cannot be invoked on a trait object`
     #[allow(clippy::while_let_on_iterator)]
     while let Some(matching_rule) = rules.next() {
-        let line = if print_namespace {
+        let mut line = if print_namespace {
             format!(
-                "{}:{} {}",
+                "{}:{}",
                 matching_rule.namespace().paint(Cyan).bold(),
-                matching_rule.identifier().paint(Cyan).bold(),
-                file_path.display(),
+                matching_rule.identifier().paint(Cyan).bold()
             )
         } else {
-            format!(
-                "{} {}",
-                matching_rule.identifier().paint(Cyan).bold(),
-                file_path.display()
-            )
+            format!("{}", matching_rule.identifier().paint(Cyan).bold())
         };
+
+        let metadata = matching_rule.metadata();
+
+        if print_meta && !metadata.is_empty() {
+            line.push_str(" [");
+            for (pos, (m, v)) in metadata.with_position() {
+                match v {
+                    MetaValue::Bool(v) => {
+                        line.push_str(&format!("{}={}", m, v))
+                    }
+                    MetaValue::Integer(v) => {
+                        line.push_str(&format!("{}={}", m, v))
+                    }
+                    MetaValue::Float(v) => {
+                        line.push_str(&format!("{}={}", m, v))
+                    }
+                    MetaValue::String(v) => {
+                        line.push_str(&format!("{}=\"{}\"", m, v))
+                    }
+                    MetaValue::Bytes(v) => line.push_str(&format!(
+                        "{}=\"{}\"",
+                        m,
+                        v.escape_ascii()
+                    )),
+                };
+                if !matches!(pos, itertools::Position::Last) {
+                    line.push(',');
+                }
+            }
+            line.push(']');
+        }
+
+        line.push(' ');
+        line.push_str(&file_path.display().to_string());
+
         output.send(Message::Info(line)).unwrap();
 
         if print_strings || print_strings_limit.is_some() {
@@ -457,11 +510,30 @@ fn print_rules_as_text(
                     let match_data = m.data();
 
                     let mut msg = format!(
-                        "{:#x}:{}:{}: ",
+                        "{:#x}:{}:{}",
                         match_range.start,
                         match_range.len(),
                         p.identifier(),
                     );
+
+                    match m.xor_key() {
+                        Some(k) => {
+                            msg.push_str(format!(" xor({:#x},", k).as_str());
+                            for b in
+                                &match_data[..min(match_data.len(), *limit)]
+                            {
+                                for c in (b ^ k).escape_ascii() {
+                                    msg.push_str(
+                                        format!("{}", c as char).as_str(),
+                                    );
+                                }
+                            }
+                            msg.push_str("): ");
+                        }
+                        _ => {
+                            msg.push_str(": ");
+                        }
+                    }
 
                     for b in &match_data[..min(match_data.len(), *limit)] {
                         for c in b.escape_ascii() {

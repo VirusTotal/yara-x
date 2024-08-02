@@ -4902,6 +4902,7 @@ dependencies = [
  "encoding_rs",
  "env_logger",
  "globwalk",
+ "itertools 0.13.0",
  "log",
  "pprof",
  "protobuf",
