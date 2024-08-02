@@ -443,7 +443,7 @@ fn print_rules_as_text(
     // `the `by_ref` method cannot be invoked on a trait object`
     #[allow(clippy::while_let_on_iterator)]
     while let Some(matching_rule) = rules.next() {
-        let name = if print_namespace {
+        let mut line = if print_namespace {
             format!(
                 "{}:{}",
                 matching_rule.namespace().paint(Cyan).bold(),
@@ -453,7 +453,7 @@ fn print_rules_as_text(
             format!("{}", matching_rule.identifier().paint(Cyan).bold())
         };
 
-        let meta = if print_meta {
+        if print_meta {
             let mut meta_str: String = String::from("");
             for (m, v) in matching_rule.metadata() {
                 // [a="b",c =1,d=true]
@@ -475,12 +475,14 @@ fn print_rules_as_text(
                     ),
                 };
             }
-            format!("[{}]", &meta_str.as_str()[0..meta_str.len() - 1])
-        } else {
-            format!("")
-        };
+            line = format!(
+                "{} [{}]",
+                line,
+                &meta_str.as_str()[0..meta_str.len() - 1]
+            );
+        }
 
-        let line = format!("{} {} {}", name, meta, file_path.display());
+        line = format!("{} {}", line, file_path.display());
         output.send(Message::Info(line)).unwrap();
 
         if print_strings || print_strings_limit.is_some() {
