@@ -417,22 +417,19 @@ fn print_rules_as_json(
                         "data": s.as_str()
                     });
 
-                    match m.xor_key() {
-                        Some(k) => {
-                            let mut p = String::with_capacity(s.len());
-                            for b in
-                                &match_data[..min(match_data.len(), *limit)]
-                            {
-                                for c in (b ^ k).escape_ascii() {
-                                    p.push_str(
-                                        format!("{}", c as char).as_str(),
-                                    );
-                                }
+                    if let Some(k) = m.xor_key() {
+                        let mut p = String::with_capacity(s.len());
+                        for b in
+                            &match_data[..min(match_data.len(), *limit)]
+                        {
+                            for c in (b ^ k).escape_ascii() {
+                                p.push_str(
+                                    format!("{}", c as char).as_str(),
+                                );
                             }
-                            match_json["xor_key"] = serde_json::json!(k);
-                            match_json["plaintext"] = serde_json::json!(p);
                         }
-                        _ => {}
+                        match_json["xor_key"] = serde_json::json!(k);
+                        match_json["plaintext"] = serde_json::json!(p);
                     }
 
                     match_vec.push(match_json);
@@ -536,10 +533,10 @@ fn print_rules_as_text(
                                     );
                                 }
                             }
-                            msg.push_str(format!("): ").as_str());
+                            msg.push_str("): ");
                         }
                         _ => {
-                            msg.push_str(format!(": ").as_str());
+                            msg.push_str(": ");
                         }
                     }
 
