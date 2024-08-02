@@ -1,0 +1,6 @@
+warning[bool_int_comparison]: comparison between boolean and integer
+ --> line:4:13
+  |
+4 |  condition: test_proto2.array_bool[0] == 1
+  |             ------------------------------ this comparison can be replaced with: `test_proto2.array_bool[0]`
+  |

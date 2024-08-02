@@ -51,6 +51,14 @@ pub enum Warning {
         note: Option<String>,
     },
 
+    #[warning("bool_int_comparison", "comparison between boolean and integer")]
+    #[label("this comparison can be replaced with: `{replacement}`", span)]
+    BooleanIntegerComparison {
+        detailed_report: String,
+        span: SourceRef,
+        replacement: String,
+    },
+
     #[warning("duplicate_import", "duplicate import statement")]
     #[label(
       "duplicate import",
