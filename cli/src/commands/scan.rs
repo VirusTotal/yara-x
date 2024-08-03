@@ -81,6 +81,12 @@ pub fn scan() -> Command {
                 .help("Disable printing console log messages")
         )
         .arg(
+            arg!(-t --"tag" <TAG>)
+                .help("Print only rules tagged as TAG")
+                .required(false)
+                .value_parser(value_parser!(String))
+        )
+        .arg(
             arg!(-n --"negate")
                 .help("Print non-satisfied rules only")
         )
@@ -359,6 +365,7 @@ fn print_rules_as_json(
     output: &Sender<Message>,
 ) {
     let print_namespace = args.get_flag("print-namespace");
+    let only_tag = args.get_one::<String>("tag");
     let print_tags = args.get_flag("print-tags");
     let print_meta = args.get_flag("print-meta");
     let print_strings = args.get_flag("print-strings");
@@ -374,6 +381,14 @@ fn print_rules_as_json(
     // `the `by_ref` method cannot be invoked on a trait object`
     #[allow(clippy::while_let_on_iterator)]
     while let Some(matching_rule) = rules.next() {
+        if only_tag.is_some()
+            && !matching_rule
+                .tags()
+                .any(|t| t.identifier() == only_tag.unwrap())
+        {
+            return;
+        }
+
         let mut json_rule = if print_namespace {
             serde_json::json!({
                 "namespace": matching_rule.namespace(),
@@ -458,6 +473,7 @@ fn print_rules_as_text(
     output: &Sender<Message>,
 ) {
     let print_namespace = args.get_flag("print-namespace");
+    let only_tag = args.get_one::<String>("tag");
     let print_tags = args.get_flag("print-tags");
     let print_meta = args.get_flag("print-meta");
     let print_strings = args.get_flag("print-strings");
@@ -468,6 +484,14 @@ fn print_rules_as_text(
     // `the `by_ref` method cannot be invoked on a trait object`
     #[allow(clippy::while_let_on_iterator)]
     while let Some(matching_rule) = rules.next() {
+        if only_tag.is_some()
+            && !matching_rule
+                .tags()
+                .any(|t| t.identifier() == only_tag.unwrap())
+        {
+            return;
+        }
+
         let mut line = if print_namespace {
             format!(
                 "{}:{}",
