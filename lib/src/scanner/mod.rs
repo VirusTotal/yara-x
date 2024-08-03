@@ -964,6 +964,15 @@ impl<'a, 'r> Rule<'a, 'r> {
         }
     }
 
+    /// Returns the tags associated to this rule.
+    pub fn tags(&self) -> Tags<'a, 'r> {
+        Tags {
+            ctx: self.ctx,
+            iterator: self.rule_info.tags.iter(),
+            len: self.rule_info.tags.len(),
+        }
+    }
+
     /// Returns the patterns defined by this rule.
     pub fn patterns(&self) -> Patterns<'a, 'r> {
         Patterns {
@@ -1088,6 +1097,50 @@ impl<'a, 'r> ExactSizeIterator for Metadata<'a, 'r> {
     #[inline]
     fn len(&self) -> usize {
         self.len
+    }
+}
+
+/// An iterator that returns the tags defined by a rule.
+pub struct Tags<'a, 'r> {
+    ctx: &'a ScanContext<'r>,
+    iterator: Iter<'a, IdentId>,
+    len: usize,
+}
+
+impl<'a, 'r> Tags<'a, 'r> {
+    /// Returns `true` if the rule doesn't have any tags.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.iterator.len() == 0
+    }
+}
+
+impl<'a, 'r> Iterator for Tags<'a, 'r> {
+    type Item = Tag<'a, 'r>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let ident_id = self.iterator.next()?;
+        Some(Tag { ctx: self.ctx, ident_id: *ident_id })
+    }
+}
+
+impl<'a, 'r> ExactSizeIterator for Tags<'a, 'r> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.len
+    }
+}
+
+/// Represents a tag defined by a rule.
+pub struct Tag<'a, 'r> {
+    ctx: &'a ScanContext<'r>,
+    ident_id: IdentId,
+}
+
+impl<'a, 'r> Tag<'a, 'r> {
+    /// Returns the tag's identifier.
+    pub fn identifier(&self) -> &'r str {
+        self.ctx.compiled_rules.ident_pool().get(self.ident_id).unwrap()
     }
 }
 
