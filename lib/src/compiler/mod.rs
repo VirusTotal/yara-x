@@ -973,7 +973,7 @@ impl<'a> Compiler<'a> {
                 self.report_builder.current_source_id(),
                 rule.identifier.span(),
             ),
-            tags: tags,
+            tags,
             patterns: vec![],
             is_global: rule.flags.contains(RuleFlag::Global),
             is_private: rule.flags.contains(RuleFlag::Private),
