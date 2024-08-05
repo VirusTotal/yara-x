@@ -344,7 +344,10 @@ impl AuthenticodeParser {
 
             certificates.extend(sd.certificates);
 
-            let cs_si = sd.signer_infos.first().unwrap();
+            let cs_si = match sd.signer_infos.first() {
+                Some(cs_si) => cs_si,
+                None => continue,
+            };
 
             let mut countersignature = Self::pkcs9_countersignature(cs_si)?;
 
