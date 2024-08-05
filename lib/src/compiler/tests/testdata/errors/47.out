@@ -1,4 +1,4 @@
-error[E103]: assignment mismatch
+error[E005]: assignment mismatch
  --> line:4:13
   |
 4 |     for all x,y in test_proto2.array_int64 : ( true )

@@ -60,7 +60,7 @@ pub enum CompileError {
         error_span: SourceRef,
     },
 
-    #[error("E100", "wrong type")]
+    #[error("E002", "wrong type")]
     #[label(
         "expression should be {expected_types}, but is `{actual_type}`",
         expression_span
@@ -72,7 +72,7 @@ pub enum CompileError {
         expression_span: SourceRef,
     },
 
-    #[error("E101", "mismatching types")]
+    #[error("E003", "mismatching types")]
     #[label("this expression is `{type1}`", type1_span)]
     #[label("this expression is `{type2}`", type2_span)]
     MismatchingTypes {
@@ -83,7 +83,7 @@ pub enum CompileError {
         type2_span: SourceRef,
     },
 
-    #[error("E102", "wrong arguments")]
+    #[error("E004", "wrong arguments")]
     #[label("wrong arguments in this call", args_span)]
     #[note(note)]
     WrongArguments {
@@ -92,7 +92,7 @@ pub enum CompileError {
         note: Option<String>,
     },
 
-    #[error("E103", "assignment mismatch")]
+    #[error("E005", "assignment mismatch")]
     #[label("this expects {expected_values} value(s)", error_span)]
     #[label("this produces {actual_values} value(s)", iterable_span)]
     AssignmentMismatch {
@@ -103,11 +103,11 @@ pub enum CompileError {
         error_span: SourceRef,
     },
 
-    #[error("E104", "unexpected negative number")]
+    #[error("E006", "unexpected negative number")]
     #[label("this number can not be negative", span)]
     UnexpectedNegativeNumber { detailed_report: String, span: SourceRef },
 
-    #[error("E105", "number out of range")]
+    #[error("E007", "number out of range")]
     #[label("this number is out of the allowed range [{min}-{max}]", span)]
     NumberOutOfRange {
         detailed_report: String,
@@ -116,7 +116,7 @@ pub enum CompileError {
         span: SourceRef,
     },
 
-    #[error("E106", "unknown field or method `{identifier}`")]
+    #[error("E008", "unknown field or method `{identifier}`")]
     #[label("this field or method doesn't exist", span)]
     UnknownField {
         detailed_report: String,
@@ -124,7 +124,7 @@ pub enum CompileError {
         span: SourceRef,
     },
 
-    #[error("E107", "unknown identifier `{identifier}`")]
+    #[error("E009", "unknown identifier `{identifier}`")]
     #[label("this identifier has not been declared", span)]
     #[note(note)]
     UnknownIdentifier {
@@ -134,7 +134,7 @@ pub enum CompileError {
         note: Option<String>,
     },
 
-    #[error("E108", "unknown module `{identifier}`")]
+    #[error("E010", "unknown module `{identifier}`")]
     #[label("module `{identifier}` not found", span)]
     UnknownModule {
         detailed_report: String,
@@ -142,7 +142,7 @@ pub enum CompileError {
         span: SourceRef,
     },
 
-    #[error("E109", "invalid range")]
+    #[error("E011", "invalid range")]
     #[label("{error_msg}", span)]
     InvalidRange {
         detailed_report: String,
@@ -150,7 +150,7 @@ pub enum CompileError {
         span: SourceRef,
     },
 
-    #[error("E110", "duplicate rule `{new_rule}`")]
+    #[error("E012", "duplicate rule `{new_rule}`")]
     #[label(
         "`{new_rule}` declared here for the first time",
         existing_rule_span,
@@ -164,7 +164,7 @@ pub enum CompileError {
         existing_rule_span: SourceRef,
     },
 
-    #[error("E111", "rule `{ident}` conflicts with an existing identifier")]
+    #[error("E013", "rule `{ident}` conflicts with an existing identifier")]
     #[label(
         "identifier already in use by a module or global variable",
         ident_span
@@ -175,7 +175,7 @@ pub enum CompileError {
         ident_span: SourceRef,
     },
 
-    #[error("E112", "invalid regular expression")]
+    #[error("E014", "invalid regular expression")]
     #[label("{error}", span)]
     #[note(note)]
     InvalidRegexp {
@@ -186,7 +186,7 @@ pub enum CompileError {
     },
 
     #[error(
-        "E113",
+        "E015",
         "mixing greedy and non-greedy quantifiers in regular expression"
     )]
     #[label("this is {quantifier1_greediness}", quantifier1_span)]
@@ -199,7 +199,7 @@ pub enum CompileError {
         quantifier2_span: SourceRef,
     },
 
-    #[error("E114", "no matching patterns")]
+    #[error("E016", "no matching patterns")]
     #[label("there's no pattern in this set", span)]
     #[note(note)]
     EmptyPatternSet {
@@ -208,7 +208,7 @@ pub enum CompileError {
         note: Option<String>,
     },
 
-    #[error("E115", "`entrypoint` is unsupported`")]
+    #[error("E017", "`entrypoint` is unsupported`")]
     #[label("the `entrypoint` keyword is not supported anymore", span)]
     #[note(note)]
     EntrypointUnsupported {
@@ -217,7 +217,7 @@ pub enum CompileError {
         note: Option<String>,
     },
 
-    #[error("E116", "slow pattern")]
+    #[error("E018", "slow pattern")]
     #[label("this pattern may slow down the scan", span)]
     SlowPattern { detailed_report: String, span: SourceRef },
 
@@ -230,7 +230,7 @@ pub enum CompileError {
     },
 
     #[error(
-        "E118",
+        "E019",
         "invalid modifier combination: `{modifier1}` `{modifier2}`"
     )]
     #[label("`{modifier1}` modifier used here", modifier1_span)]
@@ -245,15 +245,15 @@ pub enum CompileError {
         note: Option<String>,
     },
 
-    #[error("E119", "duplicate pattern modifier")]
+    #[error("E020", "duplicate pattern modifier")]
     #[label("duplicate modifier", modifier_span)]
     DuplicateModifier { detailed_report: String, modifier_span: SourceRef },
 
-    #[error("E120", "duplicate tag `{tag}`")]
+    #[error("E021", "duplicate tag `{tag}`")]
     #[label("duplicate tag", tag_span)]
     DuplicateTag { detailed_report: String, tag: String, tag_span: SourceRef },
 
-    #[error("E121", "unused pattern `{pattern_ident}`")]
+    #[error("E022", "unused pattern `{pattern_ident}`")]
     #[label("this pattern was not used in the condition", pattern_ident_span)]
     UnusedPattern {
         detailed_report: String,
@@ -261,7 +261,7 @@ pub enum CompileError {
         pattern_ident_span: SourceRef,
     },
 
-    #[error("E122", "duplicate pattern `{pattern_ident}`")]
+    #[error("E023", "duplicate pattern `{pattern_ident}`")]
     #[label("duplicate declaration of `{pattern_ident}`", new_pattern_span)]
     #[label(
         "`{pattern_ident}` declared here for the first time",
@@ -275,7 +275,7 @@ pub enum CompileError {
         existing_pattern_span: SourceRef,
     },
 
-    #[error("E123", "invalid pattern `{pattern_ident}`")]
+    #[error("E024", "invalid pattern `{pattern_ident}`")]
     #[label("{error_msg}", error_span)]
     #[note(note)]
     InvalidPattern {
@@ -286,7 +286,7 @@ pub enum CompileError {
         note: Option<String>,
     },
 
-    #[error("E124", "unknown pattern `{pattern_ident}`")]
+    #[error("E025", "unknown pattern `{pattern_ident}`")]
     #[label(
         "this pattern is not declared in the `strings` section",
         pattern_ident_span
@@ -297,7 +297,7 @@ pub enum CompileError {
         pattern_ident_span: SourceRef,
     },
 
-    #[error("E125", "invalid base64 alphabet")]
+    #[error("E026", "invalid base64 alphabet")]
     #[label("{error_msg}", error_span)]
     InvalidBase64Alphabet {
         detailed_report: String,
@@ -305,7 +305,7 @@ pub enum CompileError {
         error_span: SourceRef,
     },
 
-    #[error("E012", "invalid integer")]
+    #[error("E027", "invalid integer")]
     #[label("{error_msg}", error_span)]
     InvalidInteger {
         detailed_report: String,
@@ -313,7 +313,7 @@ pub enum CompileError {
         error_span: SourceRef,
     },
 
-    #[error("E013", "invalid float")]
+    #[error("E028", "invalid float")]
     #[label("{error_msg}", error_span)]
     InvalidFloat {
         detailed_report: String,
@@ -321,7 +321,7 @@ pub enum CompileError {
         error_span: SourceRef,
     },
 
-    #[error("E014", "invalid escape sequence")]
+    #[error("E029", "invalid escape sequence")]
     #[label("{error_msg}", error_span)]
     InvalidEscapeSequence {
         detailed_report: String,
@@ -329,7 +329,7 @@ pub enum CompileError {
         error_span: SourceRef,
     },
 
-    #[error("E016", "invalid regexp modifier `{modifier}`")]
+    #[error("E030", "invalid regexp modifier `{modifier}`")]
     #[label("invalid modifier", error_span)]
     InvalidRegexpModifier {
         detailed_report: String,
@@ -337,11 +337,11 @@ pub enum CompileError {
         error_span: SourceRef,
     },
 
-    #[error("E015", "unexpected escape sequence")]
+    #[error("E031", "unexpected escape sequence")]
     #[label("escape sequences are not allowed in this string", error_span)]
     UnexpectedEscapeSequence { detailed_report: String, error_span: SourceRef },
 
-    #[error("E017", "invalid UTF-8")]
+    #[error("E032", "invalid UTF-8")]
     #[label("invalid UTF-8 character", error_span)]
     InvalidUTF8 { detailed_report: String, error_span: SourceRef },
 }

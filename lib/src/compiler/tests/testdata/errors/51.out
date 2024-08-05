@@ -1,4 +1,4 @@
-error[E101]: mismatching types
+error[E003]: mismatching types
  --> line:4:53
   |
 4 |     for all k,v in test_proto2.map_int64_string : ( v == 1 )

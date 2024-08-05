@@ -1,4 +1,4 @@
-error[E125]: invalid base64 alphabet
+error[E026]: invalid base64 alphabet
  --> line:3:23
   |
 3 |     $a = "foo" base64("ff")

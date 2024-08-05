@@ -1,4 +1,4 @@
-error[E118]: invalid modifier combination: `xor` `nocase`
+error[E019]: invalid modifier combination: `xor` `nocase`
  --> line:3:16
   |
 3 |     $a = "foo" xor nocase

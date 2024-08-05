@@ -1,4 +1,4 @@
-error[E100]: wrong type
+error[E002]: wrong type
  --> line:5:15
   |
 5 |     #a in (0.."10")

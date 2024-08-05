@@ -1,4 +1,4 @@
-error[E123]: invalid pattern `$a`
+error[E024]: invalid pattern `$a`
  --> line:3:13
   |
 3 |   $a = { 01 [0] 02 }

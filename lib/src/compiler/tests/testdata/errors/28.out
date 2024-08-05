@@ -1,4 +1,4 @@
-error[E107]: unknown identifier `undeclared_ident`
+error[E009]: unknown identifier `undeclared_ident`
  --> line:3:5
   |
 3 |     undeclared_ident

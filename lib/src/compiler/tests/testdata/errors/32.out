@@ -1,4 +1,4 @@
-error[E101]: mismatching types
+error[E003]: mismatching types
  --> line:4:7
   |
 4 |       n == "3"

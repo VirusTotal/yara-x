@@ -1,4 +1,4 @@
-error[E122]: duplicate pattern `$a`
+error[E023]: duplicate pattern `$a`
  --> line:4:6
   |
 3 |      $a = "foo"

@@ -1,4 +1,4 @@
-error[E105]: number out of range
+error[E007]: number out of range
  --> line:6:8
   |
 6 |     !a[-1]

@@ -1,4 +1,4 @@
-error[E124]: unknown pattern `$a`
+error[E025]: unknown pattern `$a`
  --> line:3:6
   |
 3 |      $a
