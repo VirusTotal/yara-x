@@ -913,6 +913,13 @@ impl<'a> Compiler<'a> {
             self.check_for_duplicate_tags(tags.as_slice())?;
         }
 
+        let tags: Vec<IdentId> = rule
+            .tags
+            .iter()
+            .flatten()
+            .map(|t| self.ident_pool.get_or_intern(t.name))
+            .collect();
+
         // Take snapshot of the current compiler state. In case of error
         // compiling the current rule this snapshot allows restoring the
         // compiler to the state it had before starting compiling the rule.
@@ -966,6 +973,7 @@ impl<'a> Compiler<'a> {
                 self.report_builder.current_source_id(),
                 rule.identifier.span(),
             ),
+            tags,
             patterns: vec![],
             is_global: rule.flags.contains(RuleFlag::Global),
             is_private: rule.flags.contains(RuleFlag::Private),

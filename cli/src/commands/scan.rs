@@ -73,8 +73,18 @@ pub fn scan() -> Command {
                 .help("Print rule metadata")
         )
         .arg(
+            arg!(-g --"print-tags")
+                .help("Print rule tags")
+        )
+        .arg(
             arg!(--"disable-console-logs")
                 .help("Disable printing console log messages")
+        )
+        .arg(
+            arg!(-t --"tag" <TAG>)
+                .help("Print only rules tagged as TAG")
+                .required(false)
+                .value_parser(value_parser!(String))
         )
         .arg(
             arg!(-n --"negate")
@@ -355,6 +365,8 @@ fn print_rules_as_json(
     output: &Sender<Message>,
 ) {
     let print_namespace = args.get_flag("print-namespace");
+    let only_tag = args.get_one::<String>("tag");
+    let print_tags = args.get_flag("print-tags");
     let print_meta = args.get_flag("print-meta");
     let print_strings = args.get_flag("print-strings");
     let print_strings_limit = args.get_one::<usize>("print-strings-limit");
@@ -369,6 +381,14 @@ fn print_rules_as_json(
     // `the `by_ref` method cannot be invoked on a trait object`
     #[allow(clippy::while_let_on_iterator)]
     while let Some(matching_rule) = rules.next() {
+        if only_tag.is_some()
+            && !matching_rule
+                .tags()
+                .any(|t| t.identifier() == only_tag.unwrap())
+        {
+            return;
+        }
+
         let mut json_rule = if print_namespace {
             serde_json::json!({
                 "namespace": matching_rule.namespace(),
@@ -382,6 +402,12 @@ fn print_rules_as_json(
 
         if print_meta {
             json_rule["meta"] = matching_rule.metadata().into_json();
+        }
+
+        if print_tags {
+            let tags: Vec<&str> =
+                matching_rule.tags().map(|t| t.identifier()).collect();
+            json_rule["tags"] = serde_json::json!(tags);
         }
 
         if print_strings || print_strings_limit.is_some() {
@@ -447,6 +473,8 @@ fn print_rules_as_text(
     output: &Sender<Message>,
 ) {
     let print_namespace = args.get_flag("print-namespace");
+    let only_tag = args.get_one::<String>("tag");
+    let print_tags = args.get_flag("print-tags");
     let print_meta = args.get_flag("print-meta");
     let print_strings = args.get_flag("print-strings");
     let print_strings_limit = args.get_one::<usize>("print-strings-limit");
@@ -456,6 +484,14 @@ fn print_rules_as_text(
     // `the `by_ref` method cannot be invoked on a trait object`
     #[allow(clippy::while_let_on_iterator)]
     while let Some(matching_rule) = rules.next() {
+        if only_tag.is_some()
+            && !matching_rule
+                .tags()
+                .any(|t| t.identifier() == only_tag.unwrap())
+        {
+            return;
+        }
+
         let mut line = if print_namespace {
             format!(
                 "{}:{}",
@@ -465,6 +501,19 @@ fn print_rules_as_text(
         } else {
             format!("{}", matching_rule.identifier().paint(Cyan).bold())
         };
+
+        let tags = matching_rule.tags();
+
+        if print_tags && !tags.is_empty() {
+            line.push_str(" [");
+            for (pos, tag) in tags.with_position() {
+                line.push_str(tag.identifier());
+                if !matches!(pos, itertools::Position::Last) {
+                    line.push(',');
+                }
+            }
+            line.push(']');
+        }
 
         let metadata = matching_rule.metadata();
 
