@@ -148,14 +148,6 @@ run:
 yr scan --output-format ndjson rules/test.yara /bin | jq .path
 ```
 
-### --print-strings, -s
-
-Prints the matching patterns or strings.
-
-### --print-namespace, -e
-
-Prints the namespace of matching rules.
-
 ### --path-as-namespace
 
 Use the path of each YARA source file as its namespace.
@@ -165,6 +157,22 @@ rules with the same names. If you put the rules from all the files under the
 same namespace, YARA is going to complain about the duplicated rule identifiers.
 However, if every file is put under its own namespace the rule names won't
 collide.
+
+### --print-meta, -m
+
+Prints the metadata associated to matching rules.
+
+### --print-namespace, -e
+
+Prints the namespace of matching rules.
+
+### --print-strings, -s
+
+Prints the matching patterns or strings.
+
+### --print-tags, -g
+
+Print the tags associated to matching rules.
 
 ### --relaxed-re-syntax
 
@@ -190,6 +198,10 @@ must be either absolute paths, or relative to the current directory.
 ### --skip-larger <FILE_SIZE>
 
 Skips files larger than the given size in bytes.
+
+### --tag <TAG>, -t <TAG>
+
+Print only the matching rules that have the given tag.
 
 ### --threads, -p <NUM_THREADS>
 
