@@ -26,7 +26,11 @@ yara-x = { workspace = true }
 cbindgen = { workspace = true }
 
 
-# This section is used by `cargo-c`, for generating the header file and
+# This section is used by `cargo-c` for generating the header and library
+# files. Use:
+#
+# cargo cbuild --package yara-x-capi
+#
 [package.metadata.capi.header]
 # Name of the header file, without the `.h` extension. 
 name = "yara_x"
@@ -35,3 +39,32 @@ name = "yara_x"
 subdirectory = ""
 # Generate the header file with `cbindgen`.
 generation = true
+
+
+# This section is used by `cargo-deb` for generating a .deb file that installs 
+# the C library in Debian systems. For generating the .deb file use:
+#
+# cargo deb --package yara-x-capi --cargo-build cbuild
+#
+# The .deb file will put under target/debian.
+[package.metadata.deb]
+depends = "$auto"
+section = "utility"
+priority = "optional"
+assets = [
+    [
+        "../target/x86_64-unknown-linux-gnu/release/yara_x.h",
+        "usr/local/include/yara_x.h",
+        "644",
+    ],
+    [
+        "../target/x86_64-unknown-linux-gnu/release/libyara_x_capi.so",
+        "usr/local/lib/libyara_x_capi.so",
+        "755",
+    ],
+    [
+        "../target/x86_64-unknown-linux-gnu/release/yara_x_capi.pc",
+        "usr/local/lib/pkgconfig/yara_x_capi.pc",
+        "644",
+    ],
+]
