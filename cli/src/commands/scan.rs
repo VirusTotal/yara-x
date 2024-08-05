@@ -507,7 +507,7 @@ fn print_rules_as_text(
         if print_tags && !tags.is_empty() {
             line.push_str(" [");
             for (pos, tag) in tags.with_position() {
-                line.push_str(&format!("{}", tag.identifier()));
+                line.push_str(tag.identifier());
                 if !matches!(pos, itertools::Position::Last) {
                     line.push(',');
                 }
