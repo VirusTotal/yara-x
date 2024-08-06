@@ -29,7 +29,7 @@ use x509_parser::x509::X509Name;
 #[allow(dead_code)]
 pub mod oid {
     use const_oid::ObjectIdentifier;
-    
+
     pub const JURISDICTION_L: ObjectIdentifier =
         ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.60.2.1.1");
 
@@ -38,7 +38,7 @@ pub mod oid {
 
     pub const JURISDICTION_C: ObjectIdentifier =
         ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.60.2.1.3");
-    
+
     pub const MS_SPC_NESTED_SIGNATURE: ObjectIdentifier =
         ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.2.4.1");
 
@@ -47,15 +47,15 @@ pub mod oid {
 
     pub const MS_SPC_OPUS_INFO: ObjectIdentifier =
         ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.2.1.12");
-    
+
     pub const MS_COUNTERSIGN: ObjectIdentifier =
         ObjectIdentifier::new_unwrap("1.3.6.1.4.1.311.3.3.1");
-    
+
     /// Similar to 1.2.840.113549.1.1.5. Obsolete, but still present in some files
     /// like: 111aeddc6a6dbf64b28cb565aa12af9ee3cc0a56ce31e4da0068cf6b474c3288
     pub const SHA1_WITH_RSA_ENCRYPTION_OBSOLETE: ObjectIdentifier =
         ObjectIdentifier::new_unwrap("1.3.14.3.2.29");
-    
+
 }
 
 #[inline]
@@ -278,7 +278,7 @@ impl<'a> TryFrom<Any<'a>> for SignedData<'a> {
 ///
 /// [1]: https://datatracker.ietf.org/doc/html/rfc5652#section-5.3
 pub struct SignerInfo<'a> {
-    pub version: i32,
+    pub _version: i32,
     /// Unsigned attributes that contain information about the signer.
     /// These attributes are not protected by the signature, they are usually
     /// added after the signature has been generated. For example, they
@@ -301,7 +301,7 @@ pub struct SignerInfo<'a> {
     pub digest_algorithm: AlgorithmIdentifier<'a>,
     /// The signature algorithm (RSA, DSA, ECDSA) used for producing the
     /// signature.
-    pub signature_algorithm: AlgorithmIdentifier<'a>,
+    pub _signature_algorithm: AlgorithmIdentifier<'a>,
     /// The signature itself. This signature can be validated by using
     /// the public key stored in the certified identified by `serial_number`.
     pub signature: &'a [u8],
@@ -334,7 +334,7 @@ impl<'a> SignerInfo<'a> {
             },
         )?;
 
-        let (remainder, signature_algorithm) =
+        let (remainder, _signature_algorithm) =
             AlgorithmIdentifier::from_ber(remainder)
                 .map_err(|_| BerValueError)?;
 
@@ -351,7 +351,7 @@ impl<'a> SignerInfo<'a> {
         Ok((
             remainder,
             Self {
-                version: version.as_i32()?,
+                _version: version.as_i32()?,
                 signed_attrs,
                 raw_signed_attrs,
                 unsigned_attrs: unsigned_attrs.unwrap_or_default(),
@@ -359,7 +359,7 @@ impl<'a> SignerInfo<'a> {
                 issuer,
                 serial_number,
                 digest_algorithm,
-                signature_algorithm,
+                _signature_algorithm,
             },
         ))
     }
