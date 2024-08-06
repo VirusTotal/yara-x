@@ -77,6 +77,10 @@ pub fn scan() -> Command {
                 .help("Print rule tags")
         )
         .arg(
+            arg!(-c --"count")
+                .help("Print only number of matches")
+        )
+        .arg(
             arg!(--"disable-console-logs")
                 .help("Disable printing console log messages")
         )
@@ -155,6 +159,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let path_as_namespace = args.get_flag("path-as-namespace");
     let skip_larger = args.get_one::<u64>("skip-larger");
     let negate = args.get_flag("negate");
+    let count = args.get_flag("count");
     let disable_console_logs = args.get_flag("disable-console-logs");
     let scan_list = args.get_flag("scan-list");
 
@@ -298,7 +303,25 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
             let scan_results = scan_results?;
 
-            if negate {
+            if count {
+                // The behavior of original YARA is to ignore things like -n and
+                // -t when using -c so we are doing it here also.
+                let match_count = scan_results.matching_rules().len();
+                let line = format!(
+                    "{}: {}",
+                    &file_path.display().to_string(),
+                    match_count
+                );
+                output.send(Message::Info(line)).unwrap();
+
+                // Update the total number of matching, so the "summary" is
+                // correct at the end of the run.
+                if match_count > 0 {
+                    state
+                        .num_matching_files
+                        .fetch_add(match_count, Ordering::Relaxed);
+                }
+            } else if negate {
                 let mut matching_rules = scan_results.non_matching_rules();
                 if matching_rules.len() > 0 {
                     state.num_matching_files.fetch_add(1, Ordering::Relaxed);
