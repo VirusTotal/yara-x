@@ -98,7 +98,7 @@ impl SplitId {
     }
 
     /// Add a given amount to the split id, returning [`None`] if the result
-    /// is exceeds the maximum allowed value, which depends on the number of
+    /// is exceeding the maximum allowed value, which depends on the number of
     /// bits indicated by [`SplitId::BITS`].
     #[inline]
     pub fn add(self, amount: u16) -> Option<Self> {
