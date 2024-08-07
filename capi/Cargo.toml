@@ -12,8 +12,10 @@ homepage.workspace = true
 
 [features]
 # The `capi` feature is required by `cargo-c`.
-capi = []
 default = ["capi"]
+
+capi = []
+magic-module = ["yara-x/magic-module"]
 
 [lib]
 name = "yara_x_capi"
@@ -32,7 +34,7 @@ cbindgen = { workspace = true }
 # cargo cbuild --package yara-x-capi
 #
 [package.metadata.capi.header]
-# Name of the header file, without the `.h` extension. 
+# Name of the header file, without the `.h` extension.
 name = "yara_x"
 # Install the header into a subdirectory with the name of the crate. This
 # is enabled by default, pass `false` or "" to disable it.
@@ -41,12 +43,12 @@ subdirectory = ""
 generation = true
 
 
-# This section is used by `cargo-deb` for generating a .deb file that installs 
+# This section is used by `cargo-deb` for generating a .deb file that installs
 # the C library in Debian systems. For generating the .deb file use:
 #
 # cargo deb --package yara-x-capi --cargo-build cbuild
 #
-# The .deb file will put under target/debian.
+# The .deb file will pput under target/debian.
 [package.metadata.deb]
 depends = "$auto"
 section = "utility"
