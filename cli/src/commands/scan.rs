@@ -301,10 +301,10 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
             let scan_results = scan_results?;
             let matched_count = process_scan_results(
-                &args,
+                args,
                 &file_path,
                 &scan_results,
-                &output,
+                output,
             );
 
             state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
@@ -641,21 +641,23 @@ fn process_scan_results(
     let negate = args.get_flag("negate");
     let count = args.get_flag("count");
 
-    if count {
-        // The behavior of original YARA is to ignore things like -n and
-        // -t when using -c so we are doing it here also.
-        let match_count = scan_results.matching_rules().len();
-        print_match_count(args, file_path, &match_count, output);
-        return match_count;
-    } else if negate {
-        let mut matching_rules = scan_results.non_matching_rules();
-        let match_count = matching_rules.len();
-        print_matching_rules(args, &file_path, &mut matching_rules, output);
+    if negate {
+        let mut rules = scan_results.non_matching_rules();
+        let match_count = rules.len();
+        if count {
+            print_match_count(args, file_path, &match_count, output);
+        } else {
+            print_matching_rules(args, file_path, &mut rules, output);
+        }
         return match_count;
     } else {
-        let mut matching_rules = scan_results.matching_rules();
-        let match_count = matching_rules.len();
-        print_matching_rules(args, &file_path, &mut matching_rules, output);
+        let mut rules = scan_results.matching_rules();
+        let match_count = rules.len();
+        if count {
+            print_match_count(args, file_path, &match_count, output);
+        } else {
+            print_matching_rules(args, file_path, &mut rules, output);
+        }
         return match_count;
     };
 }
