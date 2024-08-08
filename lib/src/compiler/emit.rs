@@ -199,10 +199,6 @@ pub(in crate::compiler) struct EmitContext<'a> {
     /// identified by `InstrSeqId`.
     pub exception_handler_stack: Vec<(InstrSeqId, ExceptionHandler)>,
 
-    /// Stack of variables. These are local variables used during the
-    /// evaluation of rule conditions, for example for storing loop variables.
-    pub vars: VarStack,
-
     /// The lookup_list contains a sequence of field IDs that will be used
     /// in the next field lookup operation. Each field ID is accompanied by a
     /// boolean that is true if the field belongs to the root structure. Only

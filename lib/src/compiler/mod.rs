@@ -1187,7 +1187,6 @@ impl<'a> Compiler<'a> {
             wasm_exports: &self.wasm_exports,
             exception_handler_stack: Vec::new(),
             lookup_list: Vec::new(),
-            vars: VarStack::new(),
         };
 
         emit_rule_condition(
@@ -1196,10 +1195,6 @@ impl<'a> Compiler<'a> {
             rule_id,
             &mut condition,
         );
-
-        // After emitting the whole condition, the stack of variables should
-        // be empty.
-        assert_eq!(ctx.vars.used, 0);
 
         Ok(())
     }
