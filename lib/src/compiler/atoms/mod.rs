@@ -1,4 +1,4 @@
-/*! This modules contains the logic for extracting atoms from patterns,
+/*! This module contains the logic for extracting atoms from patterns,
 computing atom quality, choosing the best atoms from a pattern, etc.
 
 Atoms are undivided substrings found in patterns, for example, let's consider

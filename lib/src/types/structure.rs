@@ -552,7 +552,7 @@ impl Struct {
     /// ```
     ///
     /// In this enum the value of `ITEM_0` is 0, and the value of `ITEM_1` is
-    /// 1. The tag number associated to each item determines its value. However
+    /// 1. The tag number associated to each item determines its value. However,
     /// this approach has one limitation, tag number are of type `i32` and
     /// therefore they are limited to the range `-2147483648,2147483647`. For
     /// larger values you need to use the second approach:

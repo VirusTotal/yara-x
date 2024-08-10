@@ -12,7 +12,7 @@ use std::path::Path;
 use std::rc::Rc;
 #[cfg(feature = "logging")]
 use std::time::Instant;
-use std::{fmt, iter, u32};
+use std::{fmt, iter};
 
 use bincode::Options;
 use bitmask::bitmask;

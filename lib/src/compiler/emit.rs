@@ -20,7 +20,6 @@ use walrus::ir::{
 use walrus::ValType::{I32, I64};
 use walrus::{FunctionId, InstrSeqBuilder, ValType};
 
-use crate::compiler::context::VarStack;
 use crate::compiler::ir::{
     Expr, ForIn, ForOf, Iterable, MatchAnchor, Of, OfItems, PatternIdx,
     Quantifier,

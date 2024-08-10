@@ -53,7 +53,6 @@ solely matches the `0xAA` byte.
 
 use std::fmt::{Display, Formatter};
 use std::mem::size_of;
-use std::u8;
 
 use bitvec::order::Lsb0;
 use bitvec::slice::{BitSlice, IterOnes};
