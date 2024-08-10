@@ -14,7 +14,7 @@ use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
-use yara_x::{MetaValue, Rule, Rules, ScanError, Scanner};
+use yara_x::{MetaValue, Rule, Rules, ScanError, ScanResults, Scanner};
 
 use crate::commands::{
     compile_rules, external_var_parser, truncate_with_ellipsis,
@@ -75,6 +75,10 @@ pub fn scan() -> Command {
         .arg(
             arg!(-g --"print-tags")
                 .help("Print rule tags")
+        )
+        .arg(
+            arg!(-c --"count")
+                .help("Print only number of matches")
         )
         .arg(
             arg!(--"disable-console-logs")
@@ -154,7 +158,6 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let num_threads = args.get_one::<u8>("threads");
     let path_as_namespace = args.get_flag("path-as-namespace");
     let skip_larger = args.get_one::<u64>("skip-larger");
-    let negate = args.get_flag("negate");
     let disable_console_logs = args.get_flag("disable-console-logs");
     let scan_list = args.get_flag("scan-list");
 
@@ -297,32 +300,13 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 .retain(|(p, _)| !file_path.eq(p));
 
             let scan_results = scan_results?;
-
-            if negate {
-                let mut matching_rules = scan_results.non_matching_rules();
-                if matching_rules.len() > 0 {
-                    state.num_matching_files.fetch_add(1, Ordering::Relaxed);
-                }
-                print_matching_rules(
-                    args,
-                    &file_path,
-                    &mut matching_rules,
-                    output,
-                );
-            } else {
-                let mut matching_rules = scan_results.matching_rules();
-                if matching_rules.len() > 0 {
-                    state.num_matching_files.fetch_add(1, Ordering::Relaxed);
-                }
-                print_matching_rules(
-                    args,
-                    &file_path,
-                    &mut matching_rules,
-                    output,
-                );
-            };
+            let matched_count =
+                process_scan_results(args, &file_path, &scan_results, output);
 
             state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
+            if matched_count > 0 {
+                state.num_matching_files.fetch_add(1, Ordering::Relaxed);
+            }
 
             Ok(())
         },
@@ -639,6 +623,59 @@ impl ScanState {
             files_in_progress: Mutex::new(Vec::new()),
         }
     }
+}
+
+// Process scan results and output matches, non-matches, or count of matches
+// based upon command line arguments. Return the number of "matched" files so
+// the state can be updated.
+fn process_scan_results(
+    args: &ArgMatches,
+    file_path: &Path,
+    scan_results: &ScanResults,
+    output: &Sender<Message>,
+) -> usize {
+    let negate = args.get_flag("negate");
+    let count = args.get_flag("count");
+
+    if negate {
+        let mut rules = scan_results.non_matching_rules();
+        let match_count = rules.len();
+        if count {
+            print_match_count(args, file_path, &match_count, output);
+        } else {
+            print_matching_rules(args, file_path, &mut rules, output);
+        }
+        match_count
+    } else {
+        let mut rules = scan_results.matching_rules();
+        let match_count = rules.len();
+        if count {
+            print_match_count(args, file_path, &match_count, output);
+        } else {
+            print_matching_rules(args, file_path, &mut rules, output);
+        }
+        match_count
+    }
+}
+
+fn print_match_count(
+    args: &ArgMatches,
+    file_path: &Path,
+    count: &usize,
+    output: &Sender<Message>,
+) {
+    let line = match args.get_one::<OutputFormats>("output-format") {
+        Some(OutputFormats::Ndjson) => {
+            format!(
+                "{}",
+                serde_json::json!({"path": file_path.to_str().unwrap(), "count": count})
+            )
+        }
+        Some(OutputFormats::Text) | None => {
+            format!("{}: {}", &file_path.display().to_string(), count)
+        }
+    };
+    output.send(Message::Info(line)).unwrap();
 }
 
 // superconsole will not print any string that contains Unicode characters that
