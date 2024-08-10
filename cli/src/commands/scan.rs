@@ -78,7 +78,7 @@ pub fn scan() -> Command {
         )
         .arg(
             arg!(-c --"count")
-                .help("Print only number of matches")
+                .help("Print only the number of matches per file")
         )
         .arg(
             arg!(--"disable-console-logs")

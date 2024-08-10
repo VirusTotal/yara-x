@@ -74,6 +74,12 @@ can compile multiple YARA source files into a single compiled file.
 
 YARA rules are compiled using the [compile](#compile) command.
 
+### --count, -c
+
+Prints the number of matching rules per file. Instead of printing the
+names of the rules that matches each file, it prints the number the
+total number of rules matching each file.
+
 ### --define, -d <VAR=VALUE>
 
 Defines external variables.
