@@ -300,12 +300,8 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 .retain(|(p, _)| !file_path.eq(p));
 
             let scan_results = scan_results?;
-            let matched_count = process_scan_results(
-                args,
-                &file_path,
-                &scan_results,
-                output,
-            );
+            let matched_count =
+                process_scan_results(args, &file_path, &scan_results, output);
 
             state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
             if matched_count > 0 {
@@ -649,7 +645,7 @@ fn process_scan_results(
         } else {
             print_matching_rules(args, file_path, &mut rules, output);
         }
-        return match_count;
+        match_count
     } else {
         let mut rules = scan_results.matching_rules();
         let match_count = rules.len();
@@ -658,8 +654,8 @@ fn process_scan_results(
         } else {
             print_matching_rules(args, file_path, &mut rules, output);
         }
-        return match_count;
-    };
+        match_count
+    }
 }
 
 fn print_match_count(
