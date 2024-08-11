@@ -39,10 +39,10 @@ use crate::ScanError;
 pub(crate) struct ScanContext<'r> {
     /// Pointer to the WASM store.
     pub wasm_store: NonNull<Store<ScanContext<'r>>>,
-    /// Map where keys are object handles and keys are objects used during the
-    /// evaluation of rule conditions. Handles are opaque integer values that
-    /// can be passed to and received from WASM code. Each handle identify an
-    /// object (string, struct, array or map).
+    /// Map where keys are object handles and values are objects used during
+    /// the evaluation of rule conditions. Handles are opaque integer values 
+    /// that can be passed to and received from WASM code. Each handle identify
+    /// an object (string, struct, array or map).
     pub runtime_objects: IndexMap<RuntimeObjectHandle, RuntimeObject>,
     /// Pointer to the data being scanned.
     pub scanned_data: *const u8,
