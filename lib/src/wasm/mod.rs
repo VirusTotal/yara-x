@@ -1452,10 +1452,8 @@ macro_rules! gen_xint_fn {
                 .data()
                 .scanned_data()
                 .get(offset..offset + mem::size_of::<$return_type>())
-                .map_or(None, |bytes| {
-                    let value =
-                        <$return_type>::$from_fn(bytes.try_into().unwrap());
-                    Some(value as i64)
+                .map(|bytes| {
+                    <$return_type>::$from_fn(bytes.try_into().unwrap()) as i64
                 })
         }
     };
