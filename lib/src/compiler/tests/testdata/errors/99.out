@@ -1,4 +1,4 @@
-error[E012]: invalid integer
+error[E027]: invalid integer
  --> line:2:15
   |
 2 |    condition: 99999999999999999999

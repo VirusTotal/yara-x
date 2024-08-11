@@ -1,4 +1,4 @@
-error[E100]: wrong type
+error[E002]: wrong type
  --> line:5:11
   |
 5 |     $a at "1"

@@ -1,4 +1,4 @@
-error[E109]: invalid range
+error[E011]: invalid range
  --> line:3:16
   |
 3 |     $a = "foo" xor(2-1)

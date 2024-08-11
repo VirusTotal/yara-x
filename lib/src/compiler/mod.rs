@@ -12,7 +12,7 @@ use std::path::Path;
 use std::rc::Rc;
 #[cfg(feature = "logging")]
 use std::time::Instant;
-use std::{fmt, iter, u32};
+use std::{fmt, iter};
 
 use bincode::Options;
 use bitmask::bitmask;
@@ -913,6 +913,13 @@ impl<'a> Compiler<'a> {
             self.check_for_duplicate_tags(tags.as_slice())?;
         }
 
+        let tags: Vec<IdentId> = rule
+            .tags
+            .iter()
+            .flatten()
+            .map(|t| self.ident_pool.get_or_intern(t.name))
+            .collect();
+
         // Take snapshot of the current compiler state. In case of error
         // compiling the current rule this snapshot allows restoring the
         // compiler to the state it had before starting compiling the rule.
@@ -966,6 +973,7 @@ impl<'a> Compiler<'a> {
                 self.report_builder.current_source_id(),
                 rule.identifier.span(),
             ),
+            tags,
             patterns: vec![],
             is_global: rule.flags.contains(RuleFlag::Global),
             is_private: rule.flags.contains(RuleFlag::Private),
@@ -1179,7 +1187,6 @@ impl<'a> Compiler<'a> {
             wasm_exports: &self.wasm_exports,
             exception_handler_stack: Vec::new(),
             lookup_list: Vec::new(),
-            vars: VarStack::new(),
         };
 
         emit_rule_condition(
@@ -1188,10 +1195,6 @@ impl<'a> Compiler<'a> {
             rule_id,
             &mut condition,
         );
-
-        // After emitting the whole condition, the stack of variables should
-        // be empty.
-        assert_eq!(ctx.vars.used, 0);
 
         Ok(())
     }

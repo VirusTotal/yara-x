@@ -1,4 +1,4 @@
-error[E102]: wrong arguments
+error[E004]: wrong arguments
  --> line:4:21
   |
 4 |     test_proto2.head() == "foo"

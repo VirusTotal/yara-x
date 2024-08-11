@@ -1840,7 +1840,9 @@ impl<'a> PE<'a> {
 
             let mut funcs = Vec::new();
 
-            for (i, mut thunk) in &mut thunks.enumerate() {
+            for (i, mut thunk) in
+                &mut thunks.take(Self::MAX_PE_IMPORTS).enumerate()
+            {
                 // If the most significant bit is set, this is an import by
                 // ordinal. The most significant bit depends on whether this
                 // is a 64-bits PE.
@@ -1895,6 +1897,10 @@ impl<'a> PE<'a> {
 
             if !funcs.is_empty() {
                 imported_funcs.push((dll_name, funcs));
+            }
+
+            if imported_funcs.len() >= Self::MAX_PE_IMPORTS {
+                break;
             }
         }
 

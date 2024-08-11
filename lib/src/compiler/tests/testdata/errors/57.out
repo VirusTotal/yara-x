@@ -1,4 +1,4 @@
-error[E106]: unknown field or method `ignored`
+error[E008]: unknown field or method `ignored`
  --> line:4:17
   |
 4 |     test_proto2.ignored

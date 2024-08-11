@@ -131,13 +131,13 @@ impl<'r> Scanner<'r> {
 
         // The ScanContext structure belongs to the WASM store, but at the same
         // time it must have a reference to the store because it is required
-        // for accessing the WASM memory from code that only has a reference
-        // to ScanContext. This kind of circular data structures are not
-        // natural to Rust, and they can be achieved either by using unsafe
-        // pointers, or by using Rc::Weak. In this case we are storing a
-        // pointer to the store in ScanContext. The store is put into a
-        // pinned box in order to make sure that it doesn't move from
-        // its original memory address and the pointer remains valid.
+        // for accessing the WASM memory from code that only has a reference to
+        // ScanContext. This kind of circular data structures are not natural
+        // to Rust, and they can be achieved either by using unsafe pointers,
+        // or by using Rc::Weak. In this case we are storing a pointer to the
+        // store in ScanContext. The store is put into a pinned box in order to
+        // make sure that it doesn't move from its original memory address and
+        // the pointer remains valid.
         let mut wasm_store = Box::pin(Store::new(
             &crate::wasm::ENGINE,
             ScanContext {
@@ -199,10 +199,10 @@ impl<'r> Scanner<'r> {
         .unwrap();
 
         // Compute the base offset for the bitmap that contains matching
-        // information for patterns. This bitmap has 1 bit per pattern,
-        // the N-th bit is set if pattern with PatternId = N matched. The
-        // bitmap starts right after the bitmap that contains matching
-        // information for rules.
+        // information for patterns. This bitmap has 1 bit per pattern, the
+        // N-th bit is set if pattern with PatternId = N matched. The bitmap
+        // starts right after the bitmap that contains matching information
+        // for rules.
         let matching_patterns_bitmap_base =
             MATCHING_RULES_BITMAP_BASE as u32 + num_rules.div_ceil(8);
 
@@ -591,8 +591,8 @@ impl<'r> Scanner<'r> {
             };
 
             if let Some(module_output) = &module_output {
-                // Make sure that the module is returning a protobuf message of the
-                // expected type.
+                // Make sure that the module is returning a protobuf message of
+                // the expected type.
                 debug_assert_eq!(
                     module_output.descriptor_dyn().full_name(),
                     module.root_struct_descriptor.full_name(),
@@ -602,10 +602,10 @@ impl<'r> Scanner<'r> {
                     module_output.descriptor_dyn().full_name(),
                 );
 
-                // Make sure that the module is returning a protobuf message where
-                // all required fields are initialized. This only applies to
-                // proto2, proto3 doesn't have "required" fields, all
-                // fields are optional.
+                // Make sure that the module is returning a protobuf message
+                // where all required fields are initialized. This only applies
+                // to proto2, proto3 doesn't have "required" fields, all fields
+                // are optional.
                 debug_assert!(
                     module_output.is_initialized_dyn(),
                     "module `{}` returned a protobuf `{}` where some required fields are not initialized ",
@@ -736,10 +736,9 @@ impl<'r> Scanner<'r> {
                 .data_mut(self.wasm_store.as_context_mut());
 
             // Starting at MATCHING_RULES_BITMAP in main memory there's a
-            // bitmap were the N-th bit indicates if the rule with
-            // ID = N matched or not, If some rule matched in a
-            // previous call the bitmap will contain some
-            // bits set to 1 and need to be cleared.
+            // bitmap were the N-th bit indicates if the rule with ID = N
+            // matched or not, If some rule matched in a previous call the
+            // bitmap will contain some bits set to 1 and need to be cleared.
             let base = MATCHING_RULES_BITMAP_BASE as usize;
             let bitmap = BitSlice::<_, Lsb0>::from_slice_mut(
                 &mut mem[base..base
@@ -868,8 +867,7 @@ impl<'a, 'r> NonMatchingRules<'a, 'r> {
             data,
             iterator: matching_rules_bitmap.iter_zeros(),
             // The number of non-matching rules is the total number of rules
-            // minus the number of matching rules, both private and
-            // non-private.
+            // minus the number of matching rules, both private and non-private.
             len: ctx.compiled_rules.num_rules()
                 - ctx.private_matching_rules.len()
                 - ctx.non_private_matching_rules.len(),
@@ -961,6 +959,15 @@ impl<'a, 'r> Rule<'a, 'r> {
             ctx: self.ctx,
             iterator: self.rule_info.metadata.iter(),
             len: self.rule_info.metadata.len(),
+        }
+    }
+
+    /// Returns the tags associated to this rule.
+    pub fn tags(&self) -> Tags<'a, 'r> {
+        Tags {
+            ctx: self.ctx,
+            iterator: self.rule_info.tags.iter(),
+            len: self.rule_info.tags.len(),
         }
     }
 
@@ -1088,6 +1095,50 @@ impl<'a, 'r> ExactSizeIterator for Metadata<'a, 'r> {
     #[inline]
     fn len(&self) -> usize {
         self.len
+    }
+}
+
+/// An iterator that returns the tags defined by a rule.
+pub struct Tags<'a, 'r> {
+    ctx: &'a ScanContext<'r>,
+    iterator: Iter<'a, IdentId>,
+    len: usize,
+}
+
+impl<'a, 'r> Tags<'a, 'r> {
+    /// Returns `true` if the rule doesn't have any tags.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.iterator.len() == 0
+    }
+}
+
+impl<'a, 'r> Iterator for Tags<'a, 'r> {
+    type Item = Tag<'a, 'r>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let ident_id = self.iterator.next()?;
+        Some(Tag { ctx: self.ctx, ident_id: *ident_id })
+    }
+}
+
+impl<'a, 'r> ExactSizeIterator for Tags<'a, 'r> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.len
+    }
+}
+
+/// Represents a tag defined by a rule.
+pub struct Tag<'a, 'r> {
+    ctx: &'a ScanContext<'r>,
+    ident_id: IdentId,
+}
+
+impl<'a, 'r> Tag<'a, 'r> {
+    /// Returns the tag's identifier.
+    pub fn identifier(&self) -> &'r str {
+        self.ctx.compiled_rules.ident_pool().get(self.ident_id).unwrap()
     }
 }
 

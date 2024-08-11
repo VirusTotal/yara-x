@@ -599,6 +599,7 @@ fn type_id_to_wasmtime(
 /// and implements the [`WasmExportedFn`] trait for them.
 macro_rules! impl_wasm_exported_fn {
     ($name:ident $($args:ident)*) => {
+        #[allow(dead_code)]
         pub(super) struct $name <$($args,)* R>
         where
             $($args: 'static,)*
@@ -610,6 +611,7 @@ macro_rules! impl_wasm_exported_fn {
                           + 'static),
         }
 
+        #[allow(dead_code)]
         impl<$($args,)* R> WasmExportedFn for $name<$($args,)* R>
         where
             $(ValRaw: WasmArg<$args>,)*
@@ -1097,7 +1099,7 @@ pub(crate) fn array_indexing_struct(
     _: &mut Caller<'_, ScanContext>,
     array: Rc<Array>,
     index: i64,
-) -> Option<Rc<Struct>> { 
+) -> Option<Rc<Struct>> {
     array
         .as_struct_array()
         .get(index as usize)
@@ -1450,10 +1452,8 @@ macro_rules! gen_xint_fn {
                 .data()
                 .scanned_data()
                 .get(offset..offset + mem::size_of::<$return_type>())
-                .map_or(None, |bytes| {
-                    let value =
-                        <$return_type>::$from_fn(bytes.try_into().unwrap());
-                    Some(value as i64)
+                .map(|bytes| {
+                    <$return_type>::$from_fn(bytes.try_into().unwrap()) as i64
                 })
         }
     };

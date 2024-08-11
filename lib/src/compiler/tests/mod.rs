@@ -653,7 +653,7 @@ fn errors_2() {
             .add_source("rule foo  {condition: true}")
             .unwrap_err()
             .to_string(),
-        "error[E111]: rule `foo` conflicts with an existing identifier
+        "error[E013]: rule `foo` conflicts with an existing identifier
  --> line:1:6
   |
 1 | rule foo  {condition: true}
@@ -668,7 +668,7 @@ fn errors_2() {
             .add_source("rule foo : second {condition: true}")
             .unwrap_err()
             .to_string(),
-        "error[E110]: duplicate rule `foo`
+        "error[E012]: duplicate rule `foo`
  --> line:1:6
   |
 1 | rule foo : first {condition: true}
@@ -692,7 +692,7 @@ condition:
             )
             .unwrap_err()
             .to_string(),
-        "error[E105]: number out of range
+        "error[E007]: number out of range
  --> line:3:4
   |
 3 |    9223372036854775807 + 1000000000 == 0
@@ -701,8 +701,6 @@ condition:
     );
 }
 
-// TODO
-/*
 #[test]
 fn utf8_errors() {
     let mut src =
@@ -712,11 +710,11 @@ fn utf8_errors() {
     src.insert(4, 0xff);
 
     assert_eq!(
-        Parser::new(src.as_slice().as_bytes())
-            .into_ast(src.as_slice())
+        Compiler::new()
+            .add_source(src.as_slice())
             .expect_err("expected error")
             .to_string(),
-        "error[E017]: invalid UTF-8
+        "error[E032]: invalid UTF-8
  --> line:1:5
   |
 1 | rule� test {condition: true}
@@ -724,7 +722,6 @@ fn utf8_errors() {
   |"
     );
 }
-*/
 
 #[test]
 fn test_errors() {

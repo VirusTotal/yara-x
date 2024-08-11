@@ -1,4 +1,4 @@
-error[E119]: duplicate pattern modifier
+error[E020]: duplicate pattern modifier
  --> line:3:23
   |
 3 |     $a = "foo" xor(0) xor(1-2)

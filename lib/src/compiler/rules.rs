@@ -471,6 +471,8 @@ pub(crate) struct RuleInfo {
     pub(crate) namespace_ident_id: IdentId,
     /// The ID of the rule identifier in the identifiers pool.
     pub(crate) ident_id: IdentId,
+    /// Tags associated to the rule.
+    pub(crate) tags: Vec<IdentId>,
     /// Reference to the rule identifier in the source code. This field is
     /// ignored while serializing and deserializing compiles rules, as it
     /// is used only during the compilation phase, but not during the scan

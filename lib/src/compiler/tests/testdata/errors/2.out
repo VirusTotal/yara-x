@@ -1,4 +1,4 @@
-error[E101]: mismatching types
+error[E003]: mismatching types
  --> line:3:4
   |
 3 |    "foo" == 2

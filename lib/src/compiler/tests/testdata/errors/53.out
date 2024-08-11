@@ -1,4 +1,4 @@
-error[E100]: wrong type
+error[E002]: wrong type
  --> line:4:5
   |
 4 |     test_proto2.int64_zero[0]

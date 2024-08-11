@@ -1,4 +1,4 @@
-error[E100]: wrong type
+error[E002]: wrong type
  --> line:2:29
   |
 2 |   condition: "111" contains 1

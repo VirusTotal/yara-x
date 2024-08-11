@@ -1,4 +1,4 @@
-error[E101]: mismatching types
+error[E003]: mismatching types
  --> line:3:20
   |
 3 |     for 1 n in (1, 2, "3") : (

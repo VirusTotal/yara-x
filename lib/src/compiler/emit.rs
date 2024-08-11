@@ -20,7 +20,6 @@ use walrus::ir::{
 use walrus::ValType::{I32, I64};
 use walrus::{FunctionId, InstrSeqBuilder, ValType};
 
-use crate::compiler::context::VarStack;
 use crate::compiler::ir::{
     Expr, ForIn, ForOf, Iterable, MatchAnchor, Of, OfItems, PatternIdx,
     Quantifier,
@@ -198,10 +197,6 @@ pub(in crate::compiler) struct EmitContext<'a> {
     /// When an exception occurs the execution flow will jump out of the block
     /// identified by `InstrSeqId`.
     pub exception_handler_stack: Vec<(InstrSeqId, ExceptionHandler)>,
-
-    /// Stack of variables. These are local variables used during the
-    /// evaluation of rule conditions, for example for storing loop variables.
-    pub vars: VarStack,
 
     /// The lookup_list contains a sequence of field IDs that will be used
     /// in the next field lookup operation. Each field ID is accompanied by a

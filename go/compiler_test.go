@@ -107,7 +107,7 @@ func TestVariables(t *testing.T) {
 
 func TestError(t *testing.T) {
 	_, err := Compile("rule test { condition: foo }")
-	assert.EqualError(t, err, `error[E107]: unknown identifier `+"`foo`"+`
+	assert.EqualError(t, err, `error[E009]: unknown identifier `+"`foo`"+`
  --> line:1:24
   |
 1 | rule test { condition: foo }

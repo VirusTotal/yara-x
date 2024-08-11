@@ -1,4 +1,4 @@
-error[E103]: assignment mismatch
+error[E005]: assignment mismatch
  --> line:3:13
   |
 3 |     for all x,y in (1, 2, 3) : ( true )

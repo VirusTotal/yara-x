@@ -1,4 +1,4 @@
-error[E101]: mismatching types
+error[E003]: mismatching types
  --> line:5:8
   |
 5 |        struct.nested_int64_zero == "0" 

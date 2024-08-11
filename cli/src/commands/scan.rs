@@ -14,7 +14,7 @@ use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
-use yara_x::{MetaValue, Rule, Rules, ScanError, Scanner};
+use yara_x::{MetaValue, Rule, Rules, ScanError, ScanResults, Scanner};
 
 use crate::commands::{
     compile_rules, external_var_parser, truncate_with_ellipsis,
@@ -73,8 +73,22 @@ pub fn scan() -> Command {
                 .help("Print rule metadata")
         )
         .arg(
+            arg!(-g --"print-tags")
+                .help("Print rule tags")
+        )
+        .arg(
+            arg!(-c --"count")
+                .help("Print only the number of matches per file")
+        )
+        .arg(
             arg!(--"disable-console-logs")
                 .help("Disable printing console log messages")
+        )
+        .arg(
+            arg!(-t --"tag" <TAG>)
+                .help("Print only rules tagged as TAG")
+                .required(false)
+                .value_parser(value_parser!(String))
         )
         .arg(
             arg!(-n --"negate")
@@ -144,7 +158,6 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let num_threads = args.get_one::<u8>("threads");
     let path_as_namespace = args.get_flag("path-as-namespace");
     let skip_larger = args.get_one::<u64>("skip-larger");
-    let negate = args.get_flag("negate");
     let disable_console_logs = args.get_flag("disable-console-logs");
     let scan_list = args.get_flag("scan-list");
 
@@ -287,32 +300,13 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 .retain(|(p, _)| !file_path.eq(p));
 
             let scan_results = scan_results?;
-
-            if negate {
-                let mut matching_rules = scan_results.non_matching_rules();
-                if matching_rules.len() > 0 {
-                    state.num_matching_files.fetch_add(1, Ordering::Relaxed);
-                }
-                print_matching_rules(
-                    args,
-                    &file_path,
-                    &mut matching_rules,
-                    output,
-                );
-            } else {
-                let mut matching_rules = scan_results.matching_rules();
-                if matching_rules.len() > 0 {
-                    state.num_matching_files.fetch_add(1, Ordering::Relaxed);
-                }
-                print_matching_rules(
-                    args,
-                    &file_path,
-                    &mut matching_rules,
-                    output,
-                );
-            };
+            let matched_count =
+                process_scan_results(args, &file_path, &scan_results, output);
 
             state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
+            if matched_count > 0 {
+                state.num_matching_files.fetch_add(1, Ordering::Relaxed);
+            }
 
             Ok(())
         },
@@ -355,6 +349,8 @@ fn print_rules_as_json(
     output: &Sender<Message>,
 ) {
     let print_namespace = args.get_flag("print-namespace");
+    let only_tag = args.get_one::<String>("tag");
+    let print_tags = args.get_flag("print-tags");
     let print_meta = args.get_flag("print-meta");
     let print_strings = args.get_flag("print-strings");
     let print_strings_limit = args.get_one::<usize>("print-strings-limit");
@@ -369,6 +365,14 @@ fn print_rules_as_json(
     // `the `by_ref` method cannot be invoked on a trait object`
     #[allow(clippy::while_let_on_iterator)]
     while let Some(matching_rule) = rules.next() {
+        if only_tag.is_some()
+            && !matching_rule
+                .tags()
+                .any(|t| t.identifier() == only_tag.unwrap())
+        {
+            return;
+        }
+
         let mut json_rule = if print_namespace {
             serde_json::json!({
                 "namespace": matching_rule.namespace(),
@@ -382,6 +386,12 @@ fn print_rules_as_json(
 
         if print_meta {
             json_rule["meta"] = matching_rule.metadata().into_json();
+        }
+
+        if print_tags {
+            let tags: Vec<&str> =
+                matching_rule.tags().map(|t| t.identifier()).collect();
+            json_rule["tags"] = serde_json::json!(tags);
         }
 
         if print_strings || print_strings_limit.is_some() {
@@ -447,6 +457,8 @@ fn print_rules_as_text(
     output: &Sender<Message>,
 ) {
     let print_namespace = args.get_flag("print-namespace");
+    let only_tag = args.get_one::<String>("tag");
+    let print_tags = args.get_flag("print-tags");
     let print_meta = args.get_flag("print-meta");
     let print_strings = args.get_flag("print-strings");
     let print_strings_limit = args.get_one::<usize>("print-strings-limit");
@@ -456,6 +468,14 @@ fn print_rules_as_text(
     // `the `by_ref` method cannot be invoked on a trait object`
     #[allow(clippy::while_let_on_iterator)]
     while let Some(matching_rule) = rules.next() {
+        if only_tag.is_some()
+            && !matching_rule
+                .tags()
+                .any(|t| t.identifier() == only_tag.unwrap())
+        {
+            return;
+        }
+
         let mut line = if print_namespace {
             format!(
                 "{}:{}",
@@ -465,6 +485,19 @@ fn print_rules_as_text(
         } else {
             format!("{}", matching_rule.identifier().paint(Cyan).bold())
         };
+
+        let tags = matching_rule.tags();
+
+        if print_tags && !tags.is_empty() {
+            line.push_str(" [");
+            for (pos, tag) in tags.with_position() {
+                line.push_str(tag.identifier());
+                if !matches!(pos, itertools::Position::Last) {
+                    line.push(',');
+                }
+            }
+            line.push(']');
+        }
 
         let metadata = matching_rule.metadata();
 
@@ -590,6 +623,59 @@ impl ScanState {
             files_in_progress: Mutex::new(Vec::new()),
         }
     }
+}
+
+// Process scan results and output matches, non-matches, or count of matches
+// based upon command line arguments. Return the number of "matched" files so
+// the state can be updated.
+fn process_scan_results(
+    args: &ArgMatches,
+    file_path: &Path,
+    scan_results: &ScanResults,
+    output: &Sender<Message>,
+) -> usize {
+    let negate = args.get_flag("negate");
+    let count = args.get_flag("count");
+
+    if negate {
+        let mut rules = scan_results.non_matching_rules();
+        let match_count = rules.len();
+        if count {
+            print_match_count(args, file_path, &match_count, output);
+        } else {
+            print_matching_rules(args, file_path, &mut rules, output);
+        }
+        match_count
+    } else {
+        let mut rules = scan_results.matching_rules();
+        let match_count = rules.len();
+        if count {
+            print_match_count(args, file_path, &match_count, output);
+        } else {
+            print_matching_rules(args, file_path, &mut rules, output);
+        }
+        match_count
+    }
+}
+
+fn print_match_count(
+    args: &ArgMatches,
+    file_path: &Path,
+    count: &usize,
+    output: &Sender<Message>,
+) {
+    let line = match args.get_one::<OutputFormats>("output-format") {
+        Some(OutputFormats::Ndjson) => {
+            format!(
+                "{}",
+                serde_json::json!({"path": file_path.to_str().unwrap(), "count": count})
+            )
+        }
+        Some(OutputFormats::Text) | None => {
+            format!("{}: {}", &file_path.display().to_string(), count)
+        }
+    };
+    output.send(Message::Info(line)).unwrap();
 }
 
 // superconsole will not print any string that contains Unicode characters that

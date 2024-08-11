@@ -1,4 +1,4 @@
-error[E016]: invalid regexp modifier `x`
+error[E030]: invalid regexp modifier `x`
  --> line:3:24
   |
 3 |     "foo" matches /foo/x

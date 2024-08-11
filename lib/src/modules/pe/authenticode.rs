@@ -278,7 +278,11 @@ impl AuthenticodeParser {
                 authenticode_hasher.hash(&mut sha512);
                 sha512.finalize().to_vec()
             }
-            oid => unimplemented!("{:?}", oid),
+            _ => {
+                #[cfg(feature = "logging")]
+                error!("unknown digest algorithm: {:?}", digest_algorithm);
+                return Err(ParseError::InvalidDigestAlgorithm);
+            }
         };
 
         let authenticode_digest = indirect_data.message_digest;
@@ -340,7 +344,10 @@ impl AuthenticodeParser {
 
             certificates.extend(sd.certificates);
 
-            let cs_si = sd.signer_infos.first().unwrap();
+            let cs_si = match sd.signer_infos.first() {
+                Some(cs_si) => cs_si,
+                None => continue,
+            };
 
             let mut countersignature = Self::pkcs9_countersignature(cs_si)?;
 

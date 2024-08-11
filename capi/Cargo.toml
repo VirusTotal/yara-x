@@ -12,8 +12,10 @@ homepage.workspace = true
 
 [features]
 # The `capi` feature is required by `cargo-c`.
-capi = []
 default = ["capi"]
+
+capi = []
+magic-module = ["yara-x/magic-module"]
 
 [lib]
 name = "yara_x_capi"
@@ -26,9 +28,13 @@ yara-x = { workspace = true }
 cbindgen = { workspace = true }
 
 
-# This section is used by `cargo-c`, for generating the header file and
+# This section is used by `cargo-c` for generating the header and library
+# files. Use:
+#
+# cargo cbuild --package yara-x-capi
+#
 [package.metadata.capi.header]
-# Name of the header file, without the `.h` extension. 
+# Name of the header file, without the `.h` extension.
 name = "yara_x"
 # Install the header into a subdirectory with the name of the crate. This
 # is enabled by default, pass `false` or "" to disable it.

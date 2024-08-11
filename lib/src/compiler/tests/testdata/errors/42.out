@@ -1,4 +1,4 @@
-error[E113]: mixing greedy and non-greedy quantifiers in regular expression
+error[E015]: mixing greedy and non-greedy quantifiers in regular expression
  --> line:3:15
   |
 3 |     $a = /a.*b.*?c/

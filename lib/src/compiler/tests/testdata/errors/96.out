@@ -1,4 +1,4 @@
-error[E121]: unused pattern `$`
+error[E022]: unused pattern `$`
  --> line:3:6
   |
 3 |      $ = "foo"
