@@ -311,7 +311,7 @@ fn get_labels(variant: &Variant) -> Result<Vec<(Ident, TokenStream)>> {
         let args =
             args.parse_args_with(Punctuated::<Expr, Comma>::parse_terminated)?;
 
-        // It should have two arguments, the first argument should be the 
+        // It should have two arguments, the first argument should be the
         // label's format string, and the second argument is the name of the
         // field that contains the span for the label.
         if args.len() != 2 {
