@@ -1,14 +1,15 @@
 extern crate proc_macro;
 
-use darling::FromMeta;
-use proc_macro2::TokenStream;
-use quote::{format_ident, quote, ToTokens};
 use std::borrow::Cow;
 use std::collections::vec_deque::VecDeque;
 use std::ops::Add;
+
+use darling::FromMeta;
+use proc_macro2::TokenStream;
+use quote::{format_ident, quote, ToTokens};
 use syn::visit::Visit;
 use syn::{
-    AttributeArgs, GenericArgument, Ident, ItemFn, PatType, PathArguments,
+    Error, GenericArgument, Ident, ItemFn, PatType, PathArguments, Result,
     ReturnType, Type, TypePath,
 };
 
@@ -29,7 +30,7 @@ impl<'ast> FuncSignatureParser<'ast> {
 
     fn type_path_to_mangled_named(
         type_path: &TypePath,
-    ) -> syn::Result<Cow<'static, str>> {
+    ) -> Result<Cow<'static, str>> {
         match Self::type_ident(type_path).to_string().as_str() {
             "i32" | "i64" => Ok(Cow::Borrowed("i")),
             "f32" | "f64" => Ok(Cow::Borrowed("f")),
@@ -39,7 +40,7 @@ impl<'ast> FuncSignatureParser<'ast> {
             "RuntimeString" => Ok(Cow::Borrowed("s")),
             "RuntimeObjectHandle" => Ok(Cow::Borrowed("i")),
             "Rc" => Ok(Cow::Borrowed("i")),
-            type_ident => Err(syn::Error::new_spanned(
+            type_ident => Err(Error::new_spanned(
                 type_path,
                 format!(
                     "type `{}` is not supported as argument or return type",
@@ -49,7 +50,7 @@ impl<'ast> FuncSignatureParser<'ast> {
         }
     }
 
-    fn mangled_type(ty: &Type) -> syn::Result<Cow<'static, str>> {
+    fn mangled_type(ty: &Type) -> Result<Cow<'static, str>> {
         match ty {
             Type::Path(type_path) => {
                 if Self::type_ident(type_path) == "Option" {
@@ -78,11 +79,11 @@ impl<'ast> FuncSignatureParser<'ast> {
                 }
                 Ok(Cow::Owned(result))
             }
-            _ => Err(syn::Error::new_spanned(ty, "unsupported type")),
+            _ => Err(Error::new_spanned(ty, "unsupported type")),
         }
     }
 
-    fn mangled_return_type(ty: &ReturnType) -> syn::Result<Cow<'static, str>> {
+    fn mangled_return_type(ty: &ReturnType) -> Result<Cow<'static, str>> {
         match ty {
             // The function doesn't return anything.
             ReturnType::Default => Ok(Cow::Borrowed("")),
@@ -91,7 +92,7 @@ impl<'ast> FuncSignatureParser<'ast> {
         }
     }
 
-    fn parse(&mut self, func: &'ast syn::ItemFn) -> syn::Result<String> {
+    fn parse(&mut self, func: &'ast ItemFn) -> Result<String> {
         self.arg_types = Some(VecDeque::new());
 
         // This loop traverses the function arguments' AST, populating
@@ -112,7 +113,7 @@ impl<'ast> FuncSignatureParser<'ast> {
         }
 
         if !first_argument_is_ok {
-            return Err(syn::Error::new_spanned(
+            return Err(Error::new_spanned(
                 &func.sig,
                 format!(
                     "the first argument for function `{}` must be `&mut Caller<'_, ScanContext>`",
@@ -161,7 +162,7 @@ pub struct WasmExportArgs {
 ///
 /// ```text
 /// #[wasm_export]
-/// fn add(caller: &mut Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {   
+/// fn add(caller: &mut Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {
 ///     a + b
 /// }
 /// ```
@@ -183,14 +184,14 @@ pub struct WasmExportArgs {
 /// receives two parameters (not counting `caller: &mut Caller<'_, ScanContext>`)
 ///
 pub(crate) fn impl_wasm_export_macro(
-    attr_args: AttributeArgs,
+    attr_args: Vec<darling::ast::NestedMeta>,
     func: ItemFn,
-) -> syn::Result<TokenStream> {
-    let attr_args = WasmExportArgs::from_list(&attr_args)?;
+) -> Result<TokenStream> {
+    let attr_args = WasmExportArgs::from_list(attr_args.as_slice())?;
     let rust_fn_name = &func.sig.ident;
 
     if func.sig.inputs.is_empty() {
-        return Err(syn::Error::new_spanned(
+        return Err(Error::new_spanned(
             &func.sig,
             format!(
                 "function `{}` must have at least one argument of type `&mut Caller<'_, ScanContext>`",

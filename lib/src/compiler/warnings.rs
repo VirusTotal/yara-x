@@ -14,7 +14,7 @@ use crate::compiler::report::{ReportBuilder, SourceRef};
 #[derive(DeriveError)]
 pub enum Warning {
     #[warning("consecutive_jumps", "consecutive jumps in hex pattern `{pattern_ident}`")]
-    #[label("these consecutive jumps will be treated as {coalesced_jump}", jumps_span)]
+    #[label_warn("these consecutive jumps will be treated as {coalesced_jump}", jumps_span)]
     ConsecutiveJumps {
         detailed_report: String,
         pattern_ident: String,
@@ -23,8 +23,8 @@ pub enum Warning {
     },
 
     #[warning("unsatisfiable_expr", "potentially unsatisfiable expression")]
-    #[label("this implies that multiple patterns must match", quantifier_span)]
-    #[label("but they must match at the same offset", at_span)]
+    #[label_warn("this implies that multiple patterns must match", quantifier_span)]
+    #[label_warn("but they must match at the same offset", at_span)]
     PotentiallyUnsatisfiableExpression {
         detailed_report: String,
         quantifier_span: SourceRef,
@@ -32,7 +32,7 @@ pub enum Warning {
     },
 
     #[warning("invariant_expr", "invariant boolean expression")]
-    #[label("this expression is always {value}", span)]
+    #[label_warn("this expression is always {value}", span)]
     #[note(note)]
     InvariantBooleanExpression {
         detailed_report: String,
@@ -42,7 +42,7 @@ pub enum Warning {
     },
 
     #[warning("non_bool_expr", "non-boolean expression used as boolean")]
-    #[label("this expression is `{expression_type}` but is being used as `bool`", span)]
+    #[label_warn("this expression is `{expression_type}` but is being used as `bool`", span)]
     #[note(note)]
     NonBooleanAsBoolean {
         detailed_report: String,
@@ -52,7 +52,7 @@ pub enum Warning {
     },
 
     #[warning("bool_int_comparison", "comparison between boolean and integer")]
-    #[label("this comparison can be replaced with: `{replacement}`", span)]
+    #[label_warn("this comparison can be replaced with: `{replacement}`", span)]
     BooleanIntegerComparison {
         detailed_report: String,
         span: SourceRef,
@@ -60,14 +60,13 @@ pub enum Warning {
     },
 
     #[warning("duplicate_import", "duplicate import statement")]
-    #[label(
+    #[label_warn(
       "duplicate import",
       new_import_span
     )]
-    #[label(
+    #[label_note(
       "`{module_name}` imported here for the first time",
-      existing_import_span,
-      style="note"
+      existing_import_span
     )]
     DuplicateImport {
         detailed_report: String,
@@ -77,8 +76,8 @@ pub enum Warning {
     },
 
     #[warning("redundant_modifier", "redundant case-insensitive modifier")]
-    #[label("the `i` suffix indicates that the pattern is case-insensitive", i_span)]
-    #[label("the `nocase` modifier does the same", nocase_span)]
+    #[label_warn("the `i` suffix indicates that the pattern is case-insensitive", i_span)]
+    #[label_warn("the `nocase` modifier does the same", nocase_span)]
     RedundantCaseModifier {
         detailed_report: String,
         nocase_span: SourceRef,
@@ -86,14 +85,14 @@ pub enum Warning {
     },
 
     #[warning("slow_pattern", "slow pattern")]
-    #[label("this pattern may slow down the scan", span)]
+    #[label_warn("this pattern may slow down the scan", span)]
     SlowPattern {
         detailed_report: String,
         span: SourceRef,
     },
 
     #[warning("unsupported_module", "module `{module_name}` is not supported")]
-    #[label("module `{module_name}` used here", span)]
+    #[label_warn("module `{module_name}` used here", span)]
     #[note(note)]
     IgnoredModule {
         detailed_report: String,
@@ -106,7 +105,7 @@ pub enum Warning {
         "ignored_rule",
         "rule `{ignored_rule}` will be ignored due to an indirect dependency on module `{module_name}`"
     )]
-    #[label("this other rule depends on module `{module_name}`, which is unsupported", span)]
+    #[label_warn("this other rule depends on module `{module_name}`, which is unsupported", span)]
     IgnoredRule {
         detailed_report: String,
         ignored_rule: String,

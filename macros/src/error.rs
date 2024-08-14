@@ -2,25 +2,27 @@ extern crate proc_macro;
 
 use convert_case::{Case, Casing};
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens, TokenStreamExt};
+use quote::{quote, TokenStreamExt};
+use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
+use syn::token::Comma;
 use syn::{
-    Attribute, DataEnum, DeriveInput, Ident, Lit, Meta, NestedMeta, Variant,
+    Attribute, Data, DataEnum, DeriveInput, Error, Expr, Fields, Ident,
+    LitStr, Result, Variant,
 };
 
-pub(crate) fn impl_error_macro(
-    input: DeriveInput,
-) -> syn::Result<TokenStream> {
+pub(crate) fn impl_error_macro(input: DeriveInput) -> Result<TokenStream> {
     let name = &input.ident;
 
     let (codes, variants, funcs) = match &input.data {
-        syn::Data::Struct(_) | syn::Data::Union(_) => {
-            return Err(syn::Error::new(
+        Data::Struct(_) | Data::Union(_) => {
+            return Err(Error::new(
                 name.span(),
                 "macros macro Error can be used with only with enum types"
                     .to_string(),
             ))
         }
-        syn::Data::Enum(data_enum) => impl_enum_error_macro(data_enum)?,
+        Data::Enum(data_enum) => impl_enum_error_macro(data_enum)?,
     };
 
     let (impl_generics, ty_generics, where_clause) =
@@ -87,7 +89,7 @@ pub(crate) fn impl_error_macro(
 
 fn impl_enum_error_macro(
     data_enum: &DataEnum,
-) -> syn::Result<(Vec<NestedMeta>, Vec<&Ident>, Vec<TokenStream>)> {
+) -> Result<(Vec<LitStr>, Vec<&Ident>, Vec<TokenStream>)> {
     // Generate a function for each variant in the enum labelled
     // with #[error(...)] or #[warning(...)].
     let mut funcs = Vec::new();
@@ -97,93 +99,82 @@ fn impl_enum_error_macro(
     for variant in &data_enum.variants {
         // ...look for #[error(...)] or #[warning(...)] attribute.
         for attr in &variant.attrs {
-            if let Some((kind, code, description)) = parse_attr(attr)? {
+            if let Some((kind, error_attr)) = parse_attr(attr)? {
                 variants.push(&variant.ident);
                 funcs.push(gen_build_func(
                     kind,
-                    &code,
-                    &description,
+                    &error_attr.code,
+                    &error_attr.description,
                     variant,
                 )?);
-                codes.push(code);
+                codes.push(error_attr.code);
             }
         }
     }
     Ok((codes, variants, funcs))
 }
 
+#[derive(Debug)]
+struct ErrorArgs {
+    code: LitStr,
+    description: LitStr,
+}
+
+impl Parse for ErrorArgs {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut args = Punctuated::<LitStr, Comma>::parse_terminated(input)?;
+
+        if args.len() != 2 {
+            return Err(
+                Error::new_spanned(
+                    args,
+                    "#[error(...)] must have exactly 2 arguments: code and description".to_string(),
+                ));
+        }
+
+        let description = args.pop().unwrap().into_value();
+        let code = args.pop().unwrap().into_value();
+
+        Ok(ErrorArgs { code, description })
+    }
+}
+
 // Checks if an attribute is #[error(...)] or #[warning(...)] and returns its
 // arguments. Otherwise, it returns None.
-fn parse_attr(
-    attr: &Attribute,
-) -> syn::Result<Option<(&'static str, NestedMeta, NestedMeta)>> {
-    let meta = attr.parse_meta()?;
-
-    let kind = if meta.path().is_ident("error") {
+fn parse_attr(attr: &Attribute) -> Result<Option<(&'static str, ErrorArgs)>> {
+    let kind = if attr.path().is_ident("error") {
         "error"
-    } else if meta.path().is_ident("warning") {
+    } else if attr.path().is_ident("warning") {
         "warning"
     } else {
         return Ok(None);
     };
 
-    let mut attr_args = match meta {
-        // `error` and `warning` must be list-style attributes, as in
-        // #[error(...)]
-        Meta::List(list) => list.nested,
-        // any other syntax, like #[error] or #[error = "..."] is not
-        // supported.
-        _ => {
-            return Err(syn::Error::new_spanned(
-                meta,
-                format!(
-                    "expected a list-style attribute (e.g. #[{}(...)])",
-                    kind
-                ),
-            ))
-        }
-    };
+    let args = attr.meta.require_list()?.parse_args::<ErrorArgs>()?;
 
-    // There must be exactly 2 arguments, the first one is the error/warning
-    // code, and the second one is its description.
-    if attr_args.len() != 2 {
-        return Err(
-            syn::Error::new_spanned(
-                attr,
-                format!(
-                    "#[{}(...)] must have exactly 2 arguments: code and description",
-                    kind
-                ),
-            ));
-    }
-
-    // Arguments are popped in reverse order.
-    let description = attr_args.pop().unwrap().into_value();
-    let code = attr_args.pop().unwrap().into_value();
-
-    Ok(Some((kind, code, description)))
+    Ok(Some((kind, args)))
 }
 
 // Given an error or warning variant, generates the function that builds
 // an instance of this error or warning.
 fn gen_build_func(
     kind: &str,
-    code: &NestedMeta,
-    description: &NestedMeta,
+    code: &LitStr,
+    description: &LitStr,
     variant: &Variant,
-) -> syn::Result<TokenStream> {
+) -> Result<TokenStream> {
     match &variant.fields {
-        syn::Fields::Named(fields) => {
+        Fields::Named(fields) => {
             // Each error variant has one or more labels (e.g. #[label(...)]),
             // get the labels for this variant.
-            let labels = get_labels(kind, variant)?;
+            let labels = get_labels(variant)?;
 
             // The variant can also have a note (e.g. #[note(...)]).
             let note = get_note(variant)?;
 
             // The main label is the first label in the tuple.
             let main_label = &labels.first().ok_or_else(|| {
-                syn::Error::new_spanned(
+                Error::new_spanned(
                     variant,
                     "#[error(...)] must be accompanied by at least one instance of #[label(...)}",
                 )})?;
@@ -245,8 +236,8 @@ fn gen_build_func(
                 }
             ))
         }
-        syn::Fields::Unnamed(_) | syn::Fields::Unit => {
-            Err(syn::Error::new_spanned(
+        Fields::Unnamed(_) | Fields::Unit => {
+            Err(Error::new_spanned(
                 variant,
                 format!(
                     "{} not a struct variant, #[error(...)] can be used only with struct variants",
@@ -257,183 +248,105 @@ fn gen_build_func(
     }
 }
 
-fn get_note(variant: &Variant) -> syn::Result<TokenStream> {
-    // Iterate over the attributes of this variant, looking for #[note(...)]
-    for attr in &variant.attrs {
-        let meta = attr.parse_meta()?;
-        // This attribute is not #[note(...)], skip it and continue iterating.
-        if !meta.path().is_ident("note") {
-            continue;
-        }
-        // This is a note attribute, let's check that it has a list of
-        // arguments...
-        let attr_args = match meta {
-            Meta::List(list) => list,
-            _ => {
-                return Err(syn::Error::new_spanned(
-                    meta,
-                    "expected a list-style attribute (e.g. #[note(...)])",
-                ))
-            }
-        };
-        // It should have exactly one argument, which is the field that
-        // contains the note.
-        if attr_args.nested.len() != 1 {
-            return Err(syn::Error::new_spanned(
-                attr_args.nested,
-                "#[note(...)] must receive exactly one argument",
-            ));
-        }
-
-        // Get the argument of #[note(...)], which should be the field that
-        // contains the note.
-        let note_field = &attr_args.nested.first().unwrap();
-
-        // Make sure that it's an identifier.
-        let note_field = match note_field {
-            NestedMeta::Meta(Meta::Path(path)) => path.get_ident(),
-            _ => None,
+fn get_note(variant: &Variant) -> Result<TokenStream> {
+    // Try to find a #[note(...)] attribute.
+    let note_attr =
+        match variant.attrs.iter().find(|attr| attr.path().is_ident("note")) {
+            Some(attr) => attr,
+            None => return Ok(quote!(None)),
         };
 
-        let note_field = note_field.ok_or_else(|| {
-            syn::Error::new_spanned(
-                note_field,
-                format!(
-                    "the argument for #[note(...)] must be a field in `{}`",
-                    variant.ident
-                ),
-            )
-        })?;
+    // Let's check that it has a list of arguments...
+    let args = note_attr.meta.require_list()?;
 
-        return Ok(note_field.to_token_stream());
+    // The arguments are a comma-separated list of expressions.
+    let args =
+        args.parse_args_with(Punctuated::<Expr, Comma>::parse_terminated)?;
+
+    // It should have exactly one argument, which is the field that
+    // contains the note.
+    if args.len() != 1 {
+        return Err(Error::new_spanned(
+            args,
+            "#[note(...)] must receive exactly one argument",
+        ));
     }
 
-    Ok(quote!(None))
+    let node_field = &args[0];
+
+    // Make sure that label_span_field it's an identifier.
+    let node_field = match node_field {
+        Expr::Path(expr) => expr.path.get_ident(),
+        _ => None,
+    };
+
+    let node_field = node_field.ok_or_else(|| {
+        Error::new_spanned(
+            node_field,
+            format!(
+                "the argument for #[note(...)] must be a field in `{}`",
+                variant.ident
+            ),
+        )
+    })?;
+
+    Ok(quote!(#node_field))
 }
 
-fn get_labels(
-    kind: &str,
-    variant: &Variant,
-) -> syn::Result<Vec<(Ident, TokenStream)>> {
+fn get_labels(variant: &Variant) -> Result<Vec<(Ident, TokenStream)>> {
     let mut labels = Vec::new();
 
-    // Iterate over the attributes of this variant, looking for #[label(...)]
-    for attr in &variant.attrs {
-        let meta = attr.parse_meta()?;
-        // This attribute is not #[label(...)], skip it and continue iterating.
-        if !meta.path().is_ident("label") {
-            continue;
-        }
-        // This is a label attribute, let's check that it has a list of
-        // arguments...
-        let attr_args = match meta {
-            Meta::List(list) => list,
-            _ => {
-                return Err(syn::Error::new_spanned(
-                    meta,
-                    "expected a list-style attribute (e.g. #[label(...)])",
-                ))
-            }
-        };
-        // It should have at least two arguments, the first argument should be
-        // the label's text, which can contain placeholders that are filled
-        // with the arguments that follows. The last argument should be the
+    // Iterate over the #[label_xxxx(...)] attributes.
+    for attr in variant.attrs.iter().filter(|attr| {
+        attr.path().is_ident("label_error")
+            || attr.path().is_ident("label_warn")
+            || attr.path().is_ident("label_info")
+            || attr.path().is_ident("label_note")
+            || attr.path().is_ident("label_help")
+    }) {
+        // Check that the attribute has a list of arguments.
+        let args = attr.meta.require_list()?;
+
+        // The arguments are a comma-separated list of expressions.
+        let args =
+            args.parse_args_with(Punctuated::<Expr, Comma>::parse_terminated)?;
+
+        // It should have two arguments, the first argument should be the 
+        // label's format string, and the second argument is the name of the
         // field that contains the span for the label.
-        if attr_args.nested.len() < 2 {
-            return Err(syn::Error::new_spanned(
-                attr_args.nested,
-                "#[label(...)] must receive at least two arguments",
+        if args.len() != 2 {
+            return Err(Error::new_spanned(
+                args,
+                "#[label_xxxx(...)] must receive two arguments",
             ));
         }
 
-        let mut args = attr_args.nested.pairs();
+        let label_fmt = &args[0];
+        let label_span_field = &args[1];
 
-        // The default label style depends on the type of report. It's red
-        // for errors and yellow for warnings.
-        let mut level = match kind {
-            "error" => quote!(Level::Error),
-            "warning" => quote!(Level::Warning),
-            _ => unreachable!(),
-        };
-
-        // Take the last argument, which should be either the style or the
-        // name of the field containing the span for the label.
-        let last_arg = args.next_back().unwrap();
-
-        // If the last argument is a named value (e.g. foo = "bar") it can't be
-        // the name of the span field, so it should be the style.
-        let label_span_field =
-            if let NestedMeta::Meta(Meta::NameValue(value)) = last_arg.value()
-            {
-                // The argument is a named value, but return an error if the
-                // name is not "style".
-                if !value.path.is_ident("style") {
-                    return Err(syn::Error::new_spanned(
-                        value,
-                        format!(
-                            "unknown argument {}",
-                            value.path.get_ident().unwrap()
-                        ),
-                    ));
-                }
-                // Make sure that the style is a literal string.
-                let style_name = match &value.lit {
-                    Lit::Str(l) => l.value(),
-                    _ => {
-                        return Err(syn::Error::new_spanned(
-                            value,
-                            "argument style must be a string literal",
-                        ));
-                    }
-                };
-
-                // Override the label style with the one specified as an
-                // argument. (e.g. #[label(..., style="<style>")]).
-                level = match style_name.as_str() {
-                    "error" => quote!(Level::Error),
-                    "warning" => quote!(Level::Warning),
-                    "note" => quote!(Level::Note),
-                    s => {
-                        return Err(syn::Error::new_spanned(
-                            &last_arg,
-                            format!("invalid style `{}`", s),
-                        ))
-                    }
-                };
-
-                // Now return the argument next argument from the right, which
-                // should be the name of the span field.
-                args.next_back().unwrap()
-            } else {
-                // The last argument is not a named value, so it should be the
-                // name of the span field.
-                last_arg
-            };
-
-        // Make sure that it's an identifier.
-        let label_span_field = match label_span_field.value() {
-            NestedMeta::Meta(Meta::Path(path)) => path.get_ident(),
+        // Make sure that label_span_field it's an identifier.
+        let label_span_field = match label_span_field {
+            Expr::Path(expr) => expr.path.get_ident(),
             _ => None,
         };
 
         let label_span_field = label_span_field.ok_or_else(|| {
-            syn::Error::new_spanned(
+            Error::new_spanned(
                 label_span_field,
                 format!(
-                    "the second argument for #[label(...)] must be a field in `{}`",
+                    "the second argument for #[label_xxxx(...)] must be a field in `{}`",
                     variant.ident
                 ),
             )
         })?;
 
         // Also make sure that the field actually exists in the structure.
-        let field_found = variant
+        if !variant
             .fields
             .iter()
-            .any(|field| field.ident.as_ref() == Some(label_span_field));
-
-        if !field_found {
-            return Err(syn::Error::new_spanned(
+            .any(|field| field.ident.as_ref() == Some(label_span_field))
+        {
+            return Err(Error::new_spanned(
                 label_span_field,
                 format!(
                     "field `{}` not found in `{}`",
@@ -442,16 +355,22 @@ fn get_labels(
             ));
         }
 
-        let mut label_fmt_args = TokenStream::new();
-
-        for arg in args {
-            arg.to_tokens(&mut label_fmt_args);
-        }
+        let level = if attr.meta.path().is_ident("label_warn") {
+            quote!(Level::Warning)
+        } else if attr.meta.path().is_ident("label_info") {
+            quote!(Level::Info)
+        } else if attr.meta.path().is_ident("label_note") {
+            quote!(Level::Note)
+        } else if attr.meta.path().is_ident("label_help") {
+            quote!(Level::Help)
+        } else {
+            quote!(Level::Error)
+        };
 
         labels.push((
             label_span_field.clone(),
             quote!(
-                (&#label_span_field, format!(#label_fmt_args), #level)
+                (&#label_span_field, format!(#label_fmt), #level)
             ),
         ));
     }
