@@ -380,7 +380,8 @@ enum YRX_RESULT yrx_scanner_on_matching_rule(struct YRX_SCANNER *scanner,
 //
 // 1) When the module does not produce any output on its own.
 // 2) When you already know the output of the module for the upcoming file to
-// be scanned, and you prefer to reuse this data instead of generating it again.
+//    be scanned, and you prefer to reuse this data instead of generating it
+//    again.
 //
 // Case 1) applies to certain modules lacking a main function, thus incapable of
 // producing any output on their own. For such modules, you must set the output

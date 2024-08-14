@@ -22,7 +22,7 @@ crate parses regular expressions and produce the corresponding [Hir]. For hex
 patterns the [Hir] is generated from the AST by the [`hex2hir`] module.
 
 Using a common representation for both regular expressions and hex patterns
-allows using the same regexp engine for matching both types of patterns.
+allows using the same regex engine for matching both types of patterns.
 
 [Rules]: crate::compiler::Rules
 [regex_syntax]: https://docs.rs/regex-syntax/latest/regex_syntax/
