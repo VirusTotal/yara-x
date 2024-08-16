@@ -10,6 +10,7 @@ mod scan;
 pub use check::*;
 pub use compile::*;
 pub use completion::*;
+#[cfg(feature = "developer")]
 pub use debug::*;
 pub use dump::*;
 pub use fix::*;
@@ -54,6 +55,7 @@ pub fn cli() -> Command {
             commands::scan(),
             commands::compile(),
             commands::check(),
+            #[cfg(feature = "developer")]
             commands::debug(),
             commands::dump(),
             commands::fmt(),

@@ -1,3 +1,4 @@
+#![cfg(feature = "developer")]
 use std::fs;
 use std::path::PathBuf;
 
@@ -47,7 +48,6 @@ pub fn debug() -> Command {
     super::command("debug")
         .about("Debug utilities")
         .arg_required_else_help(true)
-        .hide(true)
         .subcommand(ast())
         .subcommand(cst())
         .subcommand(wasm())
