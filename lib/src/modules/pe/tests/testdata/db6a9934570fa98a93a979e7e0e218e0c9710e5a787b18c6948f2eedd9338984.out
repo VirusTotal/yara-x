@@ -14,9 +14,9 @@ linker_version:
     major: 14
     minor: 0
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
-characteristics: 34
-dll_characteristics: 33056
-timestamp: 1629390430 # 2021-08-19 16:27:10 UTC
+characteristics: 0x22  # EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE
+dll_characteristics: 0x8120  # HIGH_ENTROPY_VA | NX_COMPAT | TERMINAL_SERVER_AWARE
+timestamp: 1629390430  # 2021-08-19 16:27:10 UTC
 image_base: 5368709120
 checksum: 0
 base_of_code: 4096
@@ -268,7 +268,7 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
-resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 4
     minor: 0

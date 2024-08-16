@@ -45,7 +45,16 @@ type Scanner struct {
 	matchingRules []*Rule
 }
 
-type ScanResults struct{}
+
+// ScanResults contains the results of a Scanner.Scan.
+type ScanResults struct{
+	matchingRules []*Rule
+}
+
+// MatchingRules returns the rules that matched during the scan.
+func (s ScanResults) MatchingRules() []*Rule {
+	return s.matchingRules
+}
 
 // NewScanner creates a Scanner that will use the provided YARA rules.
 //
@@ -192,7 +201,7 @@ func (s *Scanner) SetModuleOutput(data proto.Message) error {
 }
 
 // Scan scans the provided data with the Rules associated to the Scanner.
-func (s *Scanner) Scan(buf []byte) ([]*Rule, error) {
+func (s *Scanner) Scan(buf []byte) (*ScanResults, error) {
 	var ptr *C.uint8_t
 	// When `buf` is an empty slice `ptr` will be nil. That's ok, because
 	// yrx_scanner_scan allows the data pointer to be null as long as the data
@@ -200,8 +209,6 @@ func (s *Scanner) Scan(buf []byte) ([]*Rule, error) {
 	if len(buf) > 0 {
 		ptr = (*C.uint8_t)(unsafe.Pointer(&(buf[0])))
 	}
-
-	s.matchingRules = nil
 
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -216,7 +223,10 @@ func (s *Scanner) Scan(buf []byte) ([]*Rule, error) {
 		err = errors.New(C.GoString(C.yrx_last_error()))
 	}
 
-	return s.matchingRules, err
+	scanResults := &ScanResults{ s.matchingRules }
+	s.matchingRules = nil
+
+	return scanResults, err
 }
 
 // Destroy destroys the scanner.

@@ -1,5 +1,6 @@
+use darling::ast::NestedMeta;
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, AttributeArgs, DeriveInput, ItemFn};
+use syn::{parse_macro_input, DeriveInput, Error, ItemFn};
 
 mod error;
 mod module_export;
@@ -36,7 +37,7 @@ mod wasm_export;
 /// #[derive(Error)]
 /// pub enum Error {
 ///    #[error("E102", "duplicate tag `{tag}`")]
-///    #[label("duplicate tag", tag_span)]
+///    #[label_error("duplicate tag", tag_span)]
 ///    DuplicateTag {
 ///      detailed_report: String,
 ///      tag: String,
@@ -51,25 +52,22 @@ mod wasm_export;
 /// "duplicate rule `foo`"
 ///
 /// In addition to `#[error(...)]` or `#[warning(...)]`, each variant must
-/// also have at least one label, defined with `#[label(...)]`. The arguments
-/// passed to `#[label(...)]` are also passed to [`format!`] for creating a
-/// label, except for the last one, which should be the name of a field of
-/// type `Span` in the structure. The label will be associated to the code
-/// span indicated by that field.
+/// also have at least one label, defined with one of the following macros:
 ///
-/// In the example above we use `#[label("duplicate tag", tag_span)]` for
+/// `#[label_error(...)]`
+/// `#[label_warn(...)]`
+/// `#[label_info(...)]`
+/// `#[label_note(...)]`
+/// `#[label_help(...)]`
+///
+/// The arguments passed to `#[label_xxxx(...)]` are also passed to [`format!`]
+/// for creating a label, except for the last one, which should be the name of
+/// a field of type `Span` in the structure. The label will be associated to
+/// the code span indicated by that field.
+///
+/// In the example above we use `#[label_error("duplicate tag", tag_span)]` for
 /// creating a label with the text "duplicate tag" associated to the span
-/// indicated in `tag_span`. You can specify more than one label if
-/// necessary.
-///
-/// For changing the style of a label you can use `style="style"` as an
-/// optional last argument. For example:
-///
-/// `#[label("duplicate tag", tag_span, style="note")]`
-///
-/// Valid styles are: "error", "warning" and "note", the default one is
-/// "error" for labels accompanied by `#[error(...)]` and "warning" for
-/// those accompanied by `#[warning(...)]`.
+/// indicated in `tag_span`.
 ///
 /// Also, for each variant a new function for creating instances of that
 /// variant is automatically generated. The functions have a name similar to
@@ -89,11 +87,23 @@ mod wasm_export;
 ///     tag: String,
 ///     tag_span: Span) -> Error
 /// ```
-#[proc_macro_derive(Error, attributes(error, warning, label, note))]
+#[proc_macro_derive(
+    Error,
+    attributes(
+        error,
+        warning,
+        label_error,
+        label_warn,
+        label_info,
+        label_note,
+        label_help,
+        note
+    )
+)]
 pub fn error_macro_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     error::impl_error_macro(input)
-        .unwrap_or_else(syn::Error::into_compile_error)
+        .unwrap_or_else(Error::into_compile_error)
         .into()
 }
 
@@ -119,7 +129,7 @@ pub fn error_macro_derive(input: TokenStream) -> TokenStream {
 pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemFn);
     module_main::impl_module_main_macro(input)
-        .unwrap_or_else(syn::Error::into_compile_error)
+        .unwrap_or_else(Error::into_compile_error)
         .into()
 }
 
@@ -189,11 +199,16 @@ pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro_attribute]
 pub fn wasm_export(args: TokenStream, input: TokenStream) -> TokenStream {
-    let args = parse_macro_input!(args as AttributeArgs);
-    let input = parse_macro_input!(input as ItemFn);
-    wasm_export::impl_wasm_export_macro(args, input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
+    let args = match NestedMeta::parse_meta_list(args.into()) {
+        Ok(args) => args,
+        Err(e) => return darling::Error::from(e).write_errors().into(),
+    };
+    wasm_export::impl_wasm_export_macro(
+        args,
+        parse_macro_input!(input as ItemFn),
+    )
+    .unwrap_or_else(Error::into_compile_error)
+    .into()
 }
 
 /// Indicates that a function is exported from a YARA module and therefore
@@ -256,9 +271,14 @@ pub fn wasm_export(args: TokenStream, input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro_attribute]
 pub fn module_export(args: TokenStream, input: TokenStream) -> TokenStream {
-    let args = parse_macro_input!(args as AttributeArgs);
-    let input = parse_macro_input!(input as ItemFn);
-    module_export::impl_module_export_macro(args, input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
+    let args = match NestedMeta::parse_meta_list(args.into()) {
+        Ok(args) => args,
+        Err(e) => return darling::Error::from(e).write_errors().into(),
+    };
+    module_export::impl_module_export_macro(
+        args,
+        parse_macro_input!(input as ItemFn),
+    )
+    .unwrap_or_else(Error::into_compile_error)
+    .into()
 }

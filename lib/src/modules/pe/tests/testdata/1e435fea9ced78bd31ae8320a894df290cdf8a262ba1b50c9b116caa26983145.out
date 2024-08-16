@@ -14,9 +14,9 @@ linker_version:
     major: 8
     minor: 0
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
-characteristics: 8450
-dll_characteristics: 0
-timestamp: 1231923061 # 2009-01-14 08:51:01 UTC
+characteristics: 0x2102  # EXECUTABLE_IMAGE | MACHINE_32BIT | DLL
+dll_characteristics: 0x0
+timestamp: 1231923061  # 2009-01-14 08:51:01 UTC
 image_base: 268435456
 checksum: 336327
 base_of_code: 4096
@@ -24,7 +24,7 @@ base_of_data: 176128
 entry_point: 114418
 entry_point_raw: 114418
 dll_name: "Core.DLL"
-export_timestamp: 1231923061 # 2009-01-14 08:51:01 UTC
+export_timestamp: 1231923061  # 2009-01-14 08:51:01 UTC
 section_alignment: 4096
 file_alignment: 4096
 loader_flags: 0
@@ -204,7 +204,7 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
-resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 4
     minor: 0
@@ -689,8 +689,8 @@ signatures:
     algorithm: "sha1WithRSAEncryption"
     algorithm_oid: "1.2.840.113549.1.1.5"
     serial: "00:fc:cd:b2:29:ae:96:24:8f:45:b3:ad:45:52:9b:e0:94"
-    not_before: 1191542400 # 2007-10-05 00:00:00 UTC
-    not_after: 1286236799 # 2010-10-04 23:59:59 UTC
+    not_before: 1191542400  # 2007-10-05 00:00:00 UTC
+    not_after: 1286236799  # 2010-10-04 23:59:59 UTC
     verified: true
     digest_alg: "sha1WithRSAEncryption"
     digest: "e321c9dd8338ff314891962f40acf6e412f52b02"
@@ -708,8 +708,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "00:fc:cd:b2:29:ae:96:24:8f:45:b3:ad:45:52:9b:e0:94"
-            not_before: 1191542400 # 2007-10-05 00:00:00 UTC
-            not_after: 1286236799 # 2010-10-04 23:59:59 UTC
+            not_before: 1191542400  # 2007-10-05 00:00:00 UTC
+            not_after: 1286236799  # 2010-10-04 23:59:59 UTC
     certificates:
       - issuer: "/C=US/ST=UT/L=Salt Lake City/O=The USERTRUST Network/OU=http://www.usertrust.com/CN=UTN-USERFirst-Object"
         subject: "/C=KN/postalCode=KN/ST=Nevis/L=Charlestown/streetAddress=Main Street,Charlestown/O=Disk Software Ltd/CN=Disk Software Ltd"
@@ -718,8 +718,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "00:fc:cd:b2:29:ae:96:24:8f:45:b3:ad:45:52:9b:e0:94"
-        not_before: 1191542400 # 2007-10-05 00:00:00 UTC
-        not_after: 1286236799 # 2010-10-04 23:59:59 UTC
+        not_before: 1191542400  # 2007-10-05 00:00:00 UTC
+        not_after: 1286236799  # 2010-10-04 23:59:59 UTC
       - issuer: "/C=US/O=VeriSign, Inc./CN=VeriSign Time Stamping Services CA"
         subject: "/C=US/O=VeriSign, Inc./CN=VeriSign Time Stamping Services Signer - G2"
         thumbprint: "ada8aaa643ff7dc38dd40fa4c97ad559ff4846de"
@@ -727,8 +727,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "38:25:d7:fa:f8:61:af:9e:f4:90:e7:26:b5:d6:5a:d5"
-        not_before: 1181865600 # 2007-06-15 00:00:00 UTC
-        not_after: 1339718399 # 2012-06-14 23:59:59 UTC
+        not_before: 1181865600  # 2007-06-15 00:00:00 UTC
+        not_after: 1339718399  # 2012-06-14 23:59:59 UTC
       - issuer: "/C=ZA/ST=Western Cape/L=Durbanville/O=Thawte/OU=Thawte Certification/CN=Thawte Timestamping CA"
         subject: "/C=US/O=VeriSign, Inc./CN=VeriSign Time Stamping Services CA"
         thumbprint: "f46ac0c6efbb8c6a14f55f09e2d37df4c0de012d"
@@ -736,11 +736,11 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "47:bf:19:95:df:8d:52:46:43:f7:db:6d:48:0d:31:a4"
-        not_before: 1070496000 # 2003-12-04 00:00:00 UTC
-        not_after: 1386115199 # 2013-12-03 23:59:59 UTC
+        not_before: 1070496000  # 2003-12-04 00:00:00 UTC
+        not_after: 1386115199  # 2013-12-03 23:59:59 UTC
     countersignatures:
       - verified: true
-        sign_time: 1231923084 # 2009-01-14 08:51:24 UTC
+        sign_time: 1231923084  # 2009-01-14 08:51:24 UTC
         digest: "90da95d6824aca73a512f5b86929243d8acb2703"
         digest_alg: "sha1"
         chain:
@@ -751,8 +751,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "38:25:d7:fa:f8:61:af:9e:f4:90:e7:26:b5:d6:5a:d5"
-            not_before: 1181865600 # 2007-06-15 00:00:00 UTC
-            not_after: 1339718399 # 2012-06-14 23:59:59 UTC
+            not_before: 1181865600  # 2007-06-15 00:00:00 UTC
+            not_after: 1339718399  # 2012-06-14 23:59:59 UTC
           - issuer: "/C=ZA/ST=Western Cape/L=Durbanville/O=Thawte/OU=Thawte Certification/CN=Thawte Timestamping CA"
             subject: "/C=US/O=VeriSign, Inc./CN=VeriSign Time Stamping Services CA"
             thumbprint: "f46ac0c6efbb8c6a14f55f09e2d37df4c0de012d"
@@ -760,8 +760,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "47:bf:19:95:df:8d:52:46:43:f7:db:6d:48:0d:31:a4"
-            not_before: 1070496000 # 2003-12-04 00:00:00 UTC
-            not_after: 1386115199 # 2013-12-03 23:59:59 UTC
+            not_before: 1070496000  # 2003-12-04 00:00:00 UTC
+            not_after: 1386115199  # 2013-12-03 23:59:59 UTC
 overlay:
     offset: 270336
     size: 4272

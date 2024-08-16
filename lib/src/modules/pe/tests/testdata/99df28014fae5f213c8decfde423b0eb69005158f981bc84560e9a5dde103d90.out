@@ -14,9 +14,9 @@ linker_version:
     major: 2
     minor: 26
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
-characteristics: 783
-dll_characteristics: 0
-timestamp: 1459377848 # 2016-03-30 22:44:08 UTC
+characteristics: 0x30f  # RELOCS_STRIPPED | EXECUTABLE_IMAGE | LINE_NUMS_STRIPPED | LOCAL_SYMS_STRIPPED | MACHINE_32BIT | DEBUG_STRIPPED
+dll_characteristics: 0x0
+timestamp: 1459377848  # 2016-03-30 22:44:08 UTC
 image_base: 4194304
 checksum: 43228
 base_of_code: 4096

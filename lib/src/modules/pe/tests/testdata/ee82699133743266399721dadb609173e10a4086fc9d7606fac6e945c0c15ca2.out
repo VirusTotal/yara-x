@@ -14,9 +14,9 @@ linker_version:
     major: 2
     minor: 25
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
-characteristics: 41358
-dll_characteristics: 1
-timestamp: 708992537 # 1992-06-19 22:22:17 UTC
+characteristics: 0xa18e  # EXECUTABLE_IMAGE | LINE_NUMS_STRIPPED | LOCAL_SYMS_STRIPPED | BYTES_REVERSED_LO | MACHINE_32BIT | DLL | BYTES_REVERSED_HI
+dll_characteristics: 0x1
+timestamp: 708992537  # 1992-06-19 22:22:17 UTC
 image_base: 8388608
 checksum: 0
 base_of_code: 4096
@@ -160,7 +160,7 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
-resource_timestamp: 1116228524 # 2005-05-16 07:28:44 UTC
+resource_timestamp: 1116228524  # 2005-05-16 07:28:44 UTC
 resource_version:
     major: 0
     minor: 0

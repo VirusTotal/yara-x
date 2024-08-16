@@ -14,9 +14,9 @@ linker_version:
     major: 2
     minor: 51
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
-characteristics: 47
-dll_characteristics: 0
-timestamp: 0 # 1970-01-01 00:00:00 UTC
+characteristics: 0x2f  # RELOCS_STRIPPED | EXECUTABLE_IMAGE | LINE_NUMS_STRIPPED | LOCAL_SYMS_STRIPPED | LARGE_ADDRESS_AWARE
+dll_characteristics: 0x0
+timestamp: 0  # 1970-01-01 00:00:00 UTC
 image_base: 4194304
 checksum: 138527
 base_of_code: 4096
@@ -159,7 +159,7 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
-resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0
@@ -481,8 +481,8 @@ signatures:
     algorithm: "sha1WithRSAEncryption"
     algorithm_oid: "1.2.840.113549.1.1.5"
     serial: "03:6c:61:75:7a:92:3f:50:c8:2e:b6:aa:18:d2:1f:c6"
-    not_before: 1473379200 # 2016-09-09 00:00:00 UTC
-    not_after: 1495756799 # 2017-05-25 23:59:59 UTC
+    not_before: 1473379200  # 2016-09-09 00:00:00 UTC
+    not_after: 1495756799  # 2017-05-25 23:59:59 UTC
     verified: true
     digest_alg: "sha1"
     digest: "7383d4bc5c4eb4c78f0358a815886ff643d71728"
@@ -500,8 +500,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "03:6c:61:75:7a:92:3f:50:c8:2e:b6:aa:18:d2:1f:c6"
-            not_before: 1473379200 # 2016-09-09 00:00:00 UTC
-            not_after: 1495756799 # 2017-05-25 23:59:59 UTC
+            not_before: 1473379200  # 2016-09-09 00:00:00 UTC
+            not_after: 1495756799  # 2017-05-25 23:59:59 UTC
           - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2006 VeriSign, Inc. - For authorized use only/CN=VeriSign Class 3 Public Primary Certification Authority - G5"
             subject: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=Terms of use at https://www.verisign.com/rpa (c)10/CN=VeriSign Class 3 Code Signing 2010 CA"
             thumbprint: "495847a93187cfb8c71f840cb7b41497ad95c64f"
@@ -509,8 +509,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "52:00:e5:aa:25:56:fc:1a:86:ed:96:c9:d4:4b:33:c7"
-            not_before: 1265587200 # 2010-02-08 00:00:00 UTC
-            not_after: 1581119999 # 2020-02-07 23:59:59 UTC
+            not_before: 1265587200  # 2010-02-08 00:00:00 UTC
+            not_after: 1581119999  # 2020-02-07 23:59:59 UTC
     certificates:
       - issuer: "/C=ZA/ST=Western Cape/L=Durbanville/O=Thawte/OU=Thawte Certification/CN=Thawte Timestamping CA"
         subject: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services CA - G2"
@@ -519,8 +519,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "7e:93:eb:fb:7c:c6:4e:59:ea:4b:9a:77:d4:06:fc:3b"
-        not_before: 1356048000 # 2012-12-21 00:00:00 UTC
-        not_after: 1609372799 # 2020-12-30 23:59:59 UTC
+        not_before: 1356048000  # 2012-12-21 00:00:00 UTC
+        not_after: 1609372799  # 2020-12-30 23:59:59 UTC
       - issuer: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services CA - G2"
         subject: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services Signer - G4"
         thumbprint: "65439929b67973eb192d6ff243e6767adf0834e4"
@@ -528,8 +528,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "0e:cf:f4:38:c8:fe:bf:35:6e:04:d8:6a:98:1b:1a:50"
-        not_before: 1350518400 # 2012-10-18 00:00:00 UTC
-        not_after: 1609286399 # 2020-12-29 23:59:59 UTC
+        not_before: 1350518400  # 2012-10-18 00:00:00 UTC
+        not_after: 1609286399  # 2020-12-29 23:59:59 UTC
       - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=Terms of use at https://www.verisign.com/rpa (c)10/CN=VeriSign Class 3 Code Signing 2010 CA"
         subject: "/C=CH/ST=Bern/L=Bolligen/O=Ghisler Software GmbH/OU=Development/CN=Ghisler Software GmbH"
         thumbprint: "88c56839d75f5ecbf0f1c7614c6c916cde2b4055"
@@ -537,8 +537,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "03:6c:61:75:7a:92:3f:50:c8:2e:b6:aa:18:d2:1f:c6"
-        not_before: 1473379200 # 2016-09-09 00:00:00 UTC
-        not_after: 1495756799 # 2017-05-25 23:59:59 UTC
+        not_before: 1473379200  # 2016-09-09 00:00:00 UTC
+        not_after: 1495756799  # 2017-05-25 23:59:59 UTC
       - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2006 VeriSign, Inc. - For authorized use only/CN=VeriSign Class 3 Public Primary Certification Authority - G5"
         subject: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=Terms of use at https://www.verisign.com/rpa (c)10/CN=VeriSign Class 3 Code Signing 2010 CA"
         thumbprint: "495847a93187cfb8c71f840cb7b41497ad95c64f"
@@ -546,11 +546,11 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "52:00:e5:aa:25:56:fc:1a:86:ed:96:c9:d4:4b:33:c7"
-        not_before: 1265587200 # 2010-02-08 00:00:00 UTC
-        not_after: 1581119999 # 2020-02-07 23:59:59 UTC
+        not_before: 1265587200  # 2010-02-08 00:00:00 UTC
+        not_after: 1581119999  # 2020-02-07 23:59:59 UTC
     countersignatures:
       - verified: true
-        sign_time: 1474471603 # 2016-09-21 15:26:43 UTC
+        sign_time: 1474471603  # 2016-09-21 15:26:43 UTC
         digest: "3ac2b9de4c7d90dc44aae8277d512e789de4c818"
         digest_alg: "sha1"
         chain:
@@ -561,8 +561,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "0e:cf:f4:38:c8:fe:bf:35:6e:04:d8:6a:98:1b:1a:50"
-            not_before: 1350518400 # 2012-10-18 00:00:00 UTC
-            not_after: 1609286399 # 2020-12-29 23:59:59 UTC
+            not_before: 1350518400  # 2012-10-18 00:00:00 UTC
+            not_after: 1609286399  # 2020-12-29 23:59:59 UTC
           - issuer: "/C=ZA/ST=Western Cape/L=Durbanville/O=Thawte/OU=Thawte Certification/CN=Thawte Timestamping CA"
             subject: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services CA - G2"
             thumbprint: "6c07453ffdda08b83707c09b82fb3d15f35336b1"
@@ -570,8 +570,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "7e:93:eb:fb:7c:c6:4e:59:ea:4b:9a:77:d4:06:fc:3b"
-            not_before: 1356048000 # 2012-12-21 00:00:00 UTC
-            not_after: 1609372799 # 2020-12-30 23:59:59 UTC
+            not_before: 1356048000  # 2012-12-21 00:00:00 UTC
+            not_after: 1609372799  # 2020-12-30 23:59:59 UTC
   - subject: "/C=CH/ST=Bern/L=Bolligen/O=Ghisler Software GmbH/OU=Development/CN=Ghisler Software GmbH"
     issuer: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
     thumbprint: "2ed9c2b73335c44fe37b3a9553292a5a754850a4"
@@ -579,8 +579,8 @@ signatures:
     algorithm: "sha256WithRSAEncryption"
     algorithm_oid: "1.2.840.113549.1.1.11"
     serial: "1a:f2:6d:2b:4d:e7:eb:bb:26:05:fd:83:cc:b1:f4:ad"
-    not_before: 1464134400 # 2016-05-25 00:00:00 UTC
-    not_after: 1495756799 # 2017-05-25 23:59:59 UTC
+    not_before: 1464134400  # 2016-05-25 00:00:00 UTC
+    not_after: 1495756799  # 2017-05-25 23:59:59 UTC
     verified: true
     digest_alg: "sha256"
     digest: "b43e10921c479054beeb47518aa62be7f90d45f5e65791681ec687ecb294d502"
@@ -598,8 +598,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "1a:f2:6d:2b:4d:e7:eb:bb:26:05:fd:83:cc:b1:f4:ad"
-            not_before: 1464134400 # 2016-05-25 00:00:00 UTC
-            not_after: 1495756799 # 2017-05-25 23:59:59 UTC
+            not_before: 1464134400  # 2016-05-25 00:00:00 UTC
+            not_after: 1495756799  # 2017-05-25 23:59:59 UTC
           - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2006 VeriSign, Inc. - For authorized use only/CN=VeriSign Class 3 Public Primary Certification Authority - G5"
             subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
             thumbprint: "007790f6561dad89b0bcd85585762495e358f8a5"
@@ -607,8 +607,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "3d:78:d7:f9:76:49:60:b2:61:7d:f4:f0:1e:ca:86:2a"
-            not_before: 1386633600 # 2013-12-10 00:00:00 UTC
-            not_after: 1702166399 # 2023-12-09 23:59:59 UTC
+            not_before: 1386633600  # 2013-12-10 00:00:00 UTC
+            not_after: 1702166399  # 2023-12-09 23:59:59 UTC
     certificates:
       - issuer: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
         subject: "/C=CH/ST=Bern/L=Bolligen/O=Ghisler Software GmbH/OU=Development/CN=Ghisler Software GmbH"
@@ -617,8 +617,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "1a:f2:6d:2b:4d:e7:eb:bb:26:05:fd:83:cc:b1:f4:ad"
-        not_before: 1464134400 # 2016-05-25 00:00:00 UTC
-        not_after: 1495756799 # 2017-05-25 23:59:59 UTC
+        not_before: 1464134400  # 2016-05-25 00:00:00 UTC
+        not_after: 1495756799  # 2017-05-25 23:59:59 UTC
       - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2006 VeriSign, Inc. - For authorized use only/CN=VeriSign Class 3 Public Primary Certification Authority - G5"
         subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
         thumbprint: "007790f6561dad89b0bcd85585762495e358f8a5"
@@ -626,8 +626,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "3d:78:d7:f9:76:49:60:b2:61:7d:f4:f0:1e:ca:86:2a"
-        not_before: 1386633600 # 2013-12-10 00:00:00 UTC
-        not_after: 1702166399 # 2023-12-09 23:59:59 UTC
+        not_before: 1386633600  # 2013-12-10 00:00:00 UTC
+        not_after: 1702166399  # 2023-12-09 23:59:59 UTC
       - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2008 VeriSign, Inc. - For authorized use only/CN=VeriSign Universal Root Certification Authority"
         subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping CA"
         thumbprint: "6fc9edb5e00ab64151c1cdfcac74ad2c7b7e3be4"
@@ -635,8 +635,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "7b:05:b1:d4:49:68:51:44:f7:c9:89:d2:9c:19:9d:12"
-        not_before: 1452556800 # 2016-01-12 00:00:00 UTC
-        not_after: 1925942399 # 2031-01-11 23:59:59 UTC
+        not_before: 1452556800  # 2016-01-12 00:00:00 UTC
+        not_after: 1925942399  # 2031-01-11 23:59:59 UTC
       - issuer: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping CA"
         subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping Signer - G1"
         thumbprint: "87cecc250809894434d4be53ce840f6f9dbd4b06"
@@ -644,11 +644,11 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "54:f3:7d:a1:71:67:51:bc:6a:8d:0a:d2:74:b2:8b:13"
-        not_before: 1452556800 # 2016-01-12 00:00:00 UTC
-        not_after: 1807487999 # 2027-04-11 23:59:59 UTC
+        not_before: 1452556800  # 2016-01-12 00:00:00 UTC
+        not_after: 1807487999  # 2027-04-11 23:59:59 UTC
     countersignatures:
       - verified: true
-        sign_time: 1474471604 # 2016-09-21 15:26:44 UTC
+        sign_time: 1474471604  # 2016-09-21 15:26:44 UTC
         digest: "e879962bab47112346d0be7e25ed1d8251a89594ee22ab16ddeed0faeb6c0de0"
         digest_alg: "sha256"
         chain:
@@ -659,8 +659,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "54:f3:7d:a1:71:67:51:bc:6a:8d:0a:d2:74:b2:8b:13"
-            not_before: 1452556800 # 2016-01-12 00:00:00 UTC
-            not_after: 1807487999 # 2027-04-11 23:59:59 UTC
+            not_before: 1452556800  # 2016-01-12 00:00:00 UTC
+            not_after: 1807487999  # 2027-04-11 23:59:59 UTC
           - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2008 VeriSign, Inc. - For authorized use only/CN=VeriSign Universal Root Certification Authority"
             subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping CA"
             thumbprint: "6fc9edb5e00ab64151c1cdfcac74ad2c7b7e3be4"
@@ -668,8 +668,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "7b:05:b1:d4:49:68:51:44:f7:c9:89:d2:9c:19:9d:12"
-            not_before: 1452556800 # 2016-01-12 00:00:00 UTC
-            not_after: 1925942399 # 2031-01-11 23:59:59 UTC
+            not_before: 1452556800  # 2016-01-12 00:00:00 UTC
+            not_after: 1925942399  # 2031-01-11 23:59:59 UTC
 overlay:
     offset: 84480
     size: 13416

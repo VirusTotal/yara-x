@@ -20,10 +20,10 @@ rule bar {
 }`)
 
 	// Use the compiled rules for scanning some data.
-	matchingRules, _ := rules.Scan([]byte("foobar"))
+	scanResults, _ := rules.Scan([]byte("foobar"))
 
 	// Iterate over the matching rules.
-	for _, r := range matchingRules {
+	for _, r := range scanResults.MatchingRules() {
 		fmt.Printf("rule %s matched\n", r.Identifier())
 	}
 
@@ -62,10 +62,10 @@ func Example_compilerAndScanner() {
 	scanner := NewScanner(rules)
 
 	// Use the scanner for scanning some data.
-	matchingRules, _ := scanner.Scan([]byte("foobar"))
+	scanResults, _ := scanner.Scan([]byte("foobar"))
 
 	// Iterate over the matching rules.
-	for _, r := range matchingRules {
+	for _, r := range scanResults.MatchingRules() {
 		fmt.Printf("rule %s matched\n", r.Identifier())
 	}
 

@@ -377,7 +377,6 @@ pub(in crate::compiler) fn expr_from_ast(
             Err(Box::new(CompileError::entrypoint_unsupported(
                 ctx.report_builder,
                 span.into(),
-                Some("use `pe.entry_point`, `elf.entry_point` or `macho.entry_point`".to_string()),
             )))
         }
         ast::Expr::Filesize { .. } => Ok(Expr::Filesize),
@@ -390,26 +389,29 @@ pub(in crate::compiler) fn expr_from_ast(
             Ok(Expr::Const(TypeValue::const_bool_from(false)))
         }
 
-        ast::Expr::LiteralInteger(literal) => Ok(Expr::Const(
-           TypeValue::const_integer_from(literal.value))),
+        ast::Expr::LiteralInteger(literal) => {
+            Ok(Expr::Const(TypeValue::const_integer_from(literal.value)))
+        }
 
-        ast::Expr::LiteralFloat(literal) => Ok(Expr::Const(
-            TypeValue::const_float_from(literal.value))),
+        ast::Expr::LiteralFloat(literal) => {
+            Ok(Expr::Const(TypeValue::const_float_from(literal.value)))
+        }
 
         ast::Expr::LiteralString(literal) => Ok(Expr::Const(
-            TypeValue::const_string_from(literal.value.as_bytes()))),
+            TypeValue::const_string_from(literal.value.as_bytes()),
+        )),
 
         ast::Expr::Regexp(regexp) => {
             re::parser::Parser::new()
                 .relaxed_re_syntax(ctx.relaxed_re_syntax)
                 .parse(regexp.as_ref())
-                .map_err(|err| { re_error_to_compile_error(ctx.report_builder, regexp, err)
-            })?;
+                .map_err(|err| {
+                    re_error_to_compile_error(ctx.report_builder, regexp, err)
+                })?;
 
             Ok(Expr::Const(TypeValue::Regexp(Some(Regexp::new(
-                    regexp.literal,
-                ))),
-            ))
+                regexp.literal,
+            )))))
         }
 
         ast::Expr::Defined(expr) => defined_expr_from_ast(ctx, expr),
@@ -455,35 +457,49 @@ pub(in crate::compiler) fn expr_from_ast(
                 (TypeValue::Bool(_), TypeValue::Integer(Value::Const(0))) => {
                     Some((
                         Expr::Not { operand: Box::new(lhs) },
-                        format!("not {}", ctx.report_builder.get_snippet(&lhs_span.into()))
+                        format!(
+                            "not {}",
+                            ctx.report_builder.get_snippet(&lhs_span.into())
+                        ),
                     ))
                 }
                 (TypeValue::Integer(Value::Const(0)), TypeValue::Bool(_)) => {
                     Some((
                         Expr::Not { operand: Box::new(rhs) },
-                        format!("not {}", ctx.report_builder.get_snippet(&rhs_span.into()))
+                        format!(
+                            "not {}",
+                            ctx.report_builder.get_snippet(&rhs_span.into())
+                        ),
                     ))
                 }
                 (TypeValue::Bool(_), TypeValue::Integer(Value::Const(1))) => {
-                    Some((lhs, ctx.report_builder.get_snippet(&lhs_span.into())))
+                    Some((
+                        lhs,
+                        ctx.report_builder.get_snippet(&lhs_span.into()),
+                    ))
                 }
                 (TypeValue::Integer(Value::Const(1)), TypeValue::Bool(_)) => {
-                    Some((rhs, ctx.report_builder.get_snippet(&rhs_span.into())))
+                    Some((
+                        rhs,
+                        ctx.report_builder.get_snippet(&rhs_span.into()),
+                    ))
                 }
-                _ => None
+                _ => None,
             };
 
             if let Some((expr, msg)) = replacement {
-                ctx.warnings.add(|| Warning::boolean_integer_comparison(
-                    ctx.report_builder,
-                    span.into(),
-                    msg,
-                ));
+                ctx.warnings.add(|| {
+                    Warning::boolean_integer_comparison(
+                        ctx.report_builder,
+                        span.into(),
+                        msg,
+                    )
+                });
                 Ok(expr)
             } else {
                 eq_expr_from_ast(ctx, expr)
             }
-        },
+        }
         ast::Expr::Ne(expr) => ne_expr_from_ast(ctx, expr),
         ast::Expr::Gt(expr) => gt_expr_from_ast(ctx, expr),
         ast::Expr::Ge(expr) => ge_expr_from_ast(ctx, expr),
@@ -561,8 +577,7 @@ pub(in crate::compiler) fn expr_from_ast(
                         ident.span().into(),
                         // Add a note about the missing import statement if
                         // the unknown identifier is a module name.
-                        if BUILTIN_MODULES.contains_key(ident.name)
-                        {
+                        if BUILTIN_MODULES.contains_key(ident.name) {
                             Some(format!(
                                 "there is a module named `{}`, but the `import \"{}\"` statement is missing",
                                 ident.name,
@@ -578,7 +593,7 @@ pub(in crate::compiler) fn expr_from_ast(
                         ident.name.to_string(),
                         ident.span().into(),
                     )))
-                }
+                };
             }
 
             let symbol = symbol.unwrap();
@@ -616,9 +631,10 @@ pub(in crate::compiler) fn expr_from_ast(
                         symbol: ctx.symbol_table.lookup("$").unwrap(),
                         anchor,
                     })
-                },
+                }
                 _ => {
-                    let (pattern_idx, pattern) = ctx.get_pattern_mut(&p.identifier)?;
+                    let (pattern_idx, pattern) =
+                        ctx.get_pattern_mut(&p.identifier)?;
 
                     pattern.mark_as_used();
 
@@ -628,10 +644,7 @@ pub(in crate::compiler) fn expr_from_ast(
                         pattern.make_non_anchorable();
                     }
 
-                    Ok(Expr::PatternMatch {
-                        pattern: pattern_idx,
-                        anchor,
-                    })
+                    Ok(Expr::PatternMatch { pattern: pattern_idx, anchor })
                 }
             }
         }
@@ -658,20 +671,18 @@ pub(in crate::compiler) fn expr_from_ast(
                 }),
                 // Cases where the identifier is not `#`.
                 (_, Some(range)) => {
-                    let (pattern_idx, pattern) = ctx.get_pattern_mut(&p.ident)?;
-                    pattern
-                        .make_non_anchorable()
-                        .mark_as_used();
+                    let (pattern_idx, pattern) =
+                        ctx.get_pattern_mut(&p.ident)?;
+                    pattern.make_non_anchorable().mark_as_used();
                     Ok(Expr::PatternCount {
                         pattern: pattern_idx,
                         range: Some(range_from_ast(ctx, range)?),
                     })
                 }
                 (_, None) => {
-                    let (pattern_idx, pattern) = ctx.get_pattern_mut(&p.ident)?;
-                    pattern
-                        .make_non_anchorable()
-                        .mark_as_used();
+                    let (pattern_idx, pattern) =
+                        ctx.get_pattern_mut(&p.ident)?;
+                    pattern.make_non_anchorable().mark_as_used();
                     Ok(Expr::PatternCount {
                         pattern: pattern_idx,
                         range: None,
@@ -706,10 +717,9 @@ pub(in crate::compiler) fn expr_from_ast(
                 }),
                 // Cases where the identifier is not `@`.
                 (_, Some(index)) => {
-                    let (pattern_idx, pattern) = ctx.get_pattern_mut(&p.ident)?;
-                    pattern
-                        .make_non_anchorable()
-                        .mark_as_used();
+                    let (pattern_idx, pattern) =
+                        ctx.get_pattern_mut(&p.ident)?;
+                    pattern.make_non_anchorable().mark_as_used();
                     Ok(Expr::PatternOffset {
                         pattern: pattern_idx,
                         index: Some(Box::new(integer_in_range_from_ast(
@@ -720,10 +730,9 @@ pub(in crate::compiler) fn expr_from_ast(
                     })
                 }
                 (_, None) => {
-                    let (pattern_idx, pattern) = ctx.get_pattern_mut(&p.ident)?;
-                    pattern
-                        .make_non_anchorable()
-                        .mark_as_used();
+                    let (pattern_idx, pattern) =
+                        ctx.get_pattern_mut(&p.ident)?;
+                    pattern.make_non_anchorable().mark_as_used();
                     Ok(Expr::PatternOffset {
                         pattern: pattern_idx,
                         index: None,
@@ -758,10 +767,9 @@ pub(in crate::compiler) fn expr_from_ast(
                 }),
                 // Cases where the identifier is not `!`.
                 (_, Some(index)) => {
-                    let (pattern_idx, pattern) = ctx.get_pattern_mut(&p.ident)?;
-                    pattern
-                        .make_non_anchorable()
-                        .mark_as_used();
+                    let (pattern_idx, pattern) =
+                        ctx.get_pattern_mut(&p.ident)?;
+                    pattern.make_non_anchorable().mark_as_used();
                     Ok(Expr::PatternLength {
                         pattern: pattern_idx,
                         index: Some(Box::new(integer_in_range_from_ast(
@@ -772,10 +780,9 @@ pub(in crate::compiler) fn expr_from_ast(
                     })
                 }
                 (_, None) => {
-                    let (pattern_idx, pattern) = ctx.get_pattern_mut(&p.ident)?;
-                    pattern
-                        .make_non_anchorable()
-                        .mark_as_used();
+                    let (pattern_idx, pattern) =
+                        ctx.get_pattern_mut(&p.ident)?;
+                    pattern.make_non_anchorable().mark_as_used();
                     Ok(Expr::PatternLength {
                         pattern: pattern_idx,
                         index: None,
@@ -818,12 +825,11 @@ pub(in crate::compiler) fn expr_from_ast(
                     // with the type of the map's keys.
                     if key_ty != ty {
                         return Err(Box::new(CompileError::wrong_type(
-                                ctx.report_builder,
-                                format!("`{}`", key_ty),
-                                ty.to_string(),
-                                expr.index.span().into(),
-                            ),
-                        ));
+                            ctx.report_builder,
+                            format!("`{}`", key_ty),
+                            ty.to_string(),
+                            expr.index.span().into(),
+                        )));
                     }
 
                     Ok(Expr::Lookup(Box::new(Lookup {
@@ -832,14 +838,12 @@ pub(in crate::compiler) fn expr_from_ast(
                         index,
                     })))
                 }
-                type_value => {
-                    Err(Box::new(CompileError::wrong_type(
-                        ctx.report_builder,
-                        format!("`{}` or `{}`", Type::Array, Type::Map),
-                        type_value.ty().to_string(),
-                        expr.primary.span().into(),
-                    )))
-                }
+                type_value => Err(Box::new(CompileError::wrong_type(
+                    ctx.report_builder,
+                    format!("`{}` or `{}`", Type::Array, Type::Map),
+                    type_value.ty().to_string(),
+                    expr.primary.span().into(),
+                ))),
             }
         }
     }

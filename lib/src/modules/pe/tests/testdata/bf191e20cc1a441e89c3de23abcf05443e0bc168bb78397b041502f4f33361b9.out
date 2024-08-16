@@ -14,9 +14,9 @@ linker_version:
     major: 12
     minor: 0
 opthdr_magic: 31619
-characteristics: 3139
-dll_characteristics: 35791
-timestamp: 440487448 # 1983-12-17 05:37:28 UTC
+characteristics: 0xc43  # RELOCS_STRIPPED | EXECUTABLE_IMAGE | REMOVABLE_RUN_FROM_SWAP | NET_RUN_FROM_SWAP
+dll_characteristics: 0x8bcf  # DYNAMIC_BASE | FORCE_INTEGRITY | NX_COMPAT | NO_ISOLATION | NO_BIND | TERMINAL_SERVER_AWARE
+timestamp: 440487448  # 1983-12-17 05:37:28 UTC
 image_base: 1401996123
 checksum: 1943944191
 base_of_code: 3296923785

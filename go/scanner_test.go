@@ -12,7 +12,8 @@ import (
 func TestScanner1(t *testing.T) {
 	r, _ := Compile("rule t { condition: true }")
 	s := NewScanner(r)
-	matchingRules, _ := s.Scan([]byte{})
+	scanResults, _ := s.Scan([]byte{})
+	matchingRules := scanResults.MatchingRules()
 
 	assert.Len(t, matchingRules, 1)
 	assert.Equal(t, "t", matchingRules[0].Identifier())
@@ -23,7 +24,8 @@ func TestScanner1(t *testing.T) {
 func TestScanner2(t *testing.T) {
 	r, _ := Compile(`rule t { strings: $bar = "bar" condition: $bar }`)
 	s := NewScanner(r)
-	matchingRules, _ := s.Scan([]byte("foobar"))
+	scanResults, _ := s.Scan([]byte("foobar"))
+	matchingRules := scanResults.MatchingRules()
 
 	assert.Len(t, matchingRules, 1)
 	assert.Equal(t, "t", matchingRules[0].Identifier())
@@ -44,12 +46,12 @@ func TestScanner3(t *testing.T) {
 		Globals(map[string]interface{}{"var_bool": true}))
 
 	s := NewScanner(r)
-	matchingRules, _ := s.Scan([]byte{})
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ := s.Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 1)
 
 	s.SetGlobal("var_bool", false)
-	matchingRules, _ = s.Scan([]byte{})
-	assert.Len(t, matchingRules, 0)
+	scanResults, _ = s.Scan([]byte{})
+	assert.Len(t,  scanResults.MatchingRules(), 0)
 }
 
 func TestScanner4(t *testing.T) {
@@ -58,20 +60,20 @@ func TestScanner4(t *testing.T) {
 		Globals(map[string]interface{}{"var_int": 0}))
 
 	s := NewScanner(r)
-	matchingRules, _ := s.Scan([]byte{})
-	assert.Len(t, matchingRules, 0)
+	scanResults, _ := s.Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 0)
 
 	assert.NoError(t, s.SetGlobal("var_int", 1))
-	matchingRules, _ = s.Scan([]byte{})
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ = s.Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 1)
 
 	assert.NoError(t, s.SetGlobal("var_int", int32(1)))
-	matchingRules, _ = s.Scan([]byte{})
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ = s.Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 1)
 
 	assert.NoError(t, s.SetGlobal("var_int", int64(1)))
-	matchingRules, _ = s.Scan([]byte{})
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ = s.Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 1)
 }
 
 func TestScannerTimeout(t *testing.T) {
@@ -94,7 +96,8 @@ func TestScannerMetadata(t *testing.T) {
 				true 
 	}`)
 	s := NewScanner(r)
-	matchingRules, _ := s.Scan([]byte{})
+	scanResults, _ := s.Scan([]byte{})
+	matchingRules := scanResults.MatchingRules()
 
 	assert.Len(t, matchingRules, 1)
 	assert.Equal(t, "some_int", matchingRules[0].Metadata()[0].Identifier)
@@ -106,5 +109,5 @@ func TestScannerMetadata(t *testing.T) {
 	assert.Equal(t, "some_string", matchingRules[0].Metadata()[3].Identifier)
 	assert.Equal(t, "hello", matchingRules[0].Metadata()[3].Value)
 	assert.Equal(t, "some_bytes", matchingRules[0].Metadata()[4].Identifier)
-  assert.Equal(t, []byte{0, 1, 2}, matchingRules[0].Metadata()[4].Value)
+  	assert.Equal(t, []byte{0, 1, 2}, matchingRules[0].Metadata()[4].Value)
 }

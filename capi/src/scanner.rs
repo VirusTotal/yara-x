@@ -118,7 +118,7 @@ pub unsafe extern "C" fn yrx_scanner_scan(
 /// callback function is being executed, but it may be freed after the callback
 /// function returns, so you cannot use the pointer outside the callback.
 ///
-/// It also receives the `user_data` pointer that was passed to the  
+/// It also receives the `user_data` pointer that was passed to the
 /// [`yrx_scanner_on_matching_rule`] function, which can point to arbitrary
 /// data owned by the user.
 pub type YRX_ON_MATCHING_RULE = extern "C" fn(
@@ -161,7 +161,8 @@ pub unsafe extern "C" fn yrx_scanner_on_matching_rule(
 ///
 /// 1) When the module does not produce any output on its own.
 /// 2) When you already know the output of the module for the upcoming file to
-/// be scanned, and you prefer to reuse this data instead of generating it again.
+///    be scanned, and you prefer to reuse this data instead of generating it
+///    again.
 ///
 /// Case 1) applies to certain modules lacking a main function, thus incapable of
 /// producing any output on their own. For such modules, you must set the output

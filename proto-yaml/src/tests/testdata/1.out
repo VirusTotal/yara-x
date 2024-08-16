@@ -1,5 +1,5 @@
 int32_hex: 0x7b
-timestamp: 999999999 # 2001-09-09 01:46:39 UTC
+timestamp: 999999999  # 2001-09-09 01:46:39 UTC
 int32_dec: 123
 str: "foo"
 repeated_msg:

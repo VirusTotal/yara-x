@@ -14,16 +14,16 @@ linker_version:
     major: 8
     minor: 0
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
-characteristics: 8226
-dll_characteristics: 0
-timestamp: 1348452037 # 2012-09-24 02:00:37 UTC
+characteristics: 0x2022  # EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE | DLL
+dll_characteristics: 0x0
+timestamp: 1348452037  # 2012-09-24 02:00:37 UTC
 image_base: 268435456
 checksum: 150385
 base_of_code: 4096
 entry_point: 27616
 entry_point_raw: 30688
 dll_name: "Rockey4ND.dll"
-export_timestamp: 1348452037 # 2012-09-24 02:00:37 UTC
+export_timestamp: 1348452037  # 2012-09-24 02:00:37 UTC
 section_alignment: 4096
 file_alignment: 512
 loader_flags: 0
@@ -211,7 +211,7 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
-resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0
@@ -428,8 +428,8 @@ signatures:
     algorithm: "sha1WithRSAEncryption"
     algorithm_oid: "1.2.840.113549.1.1.5"
     serial: "2d:b7:d0:7d:62:33:55:2f:85:e5:69:0e:44:6b:1c:2c"
-    not_before: 1273881600 # 2010-05-15 00:00:00 UTC
-    not_after: 1370131199 # 2013-06-01 23:59:59 UTC
+    not_before: 1273881600  # 2010-05-15 00:00:00 UTC
+    not_after: 1370131199  # 2013-06-01 23:59:59 UTC
     verified: true
     digest_alg: "sha1"
     digest: "40c10a1fbb3df6e90f4b92d9145bbfcdba4e2535"
@@ -447,8 +447,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "2d:b7:d0:7d:62:33:55:2f:85:e5:69:0e:44:6b:1c:2c"
-            not_before: 1273881600 # 2010-05-15 00:00:00 UTC
-            not_after: 1370131199 # 2013-06-01 23:59:59 UTC
+            not_before: 1273881600  # 2010-05-15 00:00:00 UTC
+            not_after: 1370131199  # 2013-06-01 23:59:59 UTC
           - issuer: "/C=US/O=VeriSign, Inc./OU=Class 3 Public Primary Certification Authority"
             subject: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=Terms of use at https://www.verisign.com/rpa (c)09/CN=VeriSign Class 3 Code Signing 2009-2 CA"
             thumbprint: "12d4872bc3ef019e7e0b6f132480ae29db5b1ca3"
@@ -456,8 +456,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "65:52:26:e1:b2:2e:18:e1:59:0f:29:85:ac:22:e7:5c"
-            not_before: 1242864000 # 2009-05-21 00:00:00 UTC
-            not_after: 1558396799 # 2019-05-20 23:59:59 UTC
+            not_before: 1242864000  # 2009-05-21 00:00:00 UTC
+            not_after: 1558396799  # 2019-05-20 23:59:59 UTC
           - issuer: "/C=US/O=VeriSign, Inc./OU=Class 3 Public Primary Certification Authority"
             subject: "/C=US/O=VeriSign, Inc./OU=Class 3 Public Primary Certification Authority"
             thumbprint: "742c3192e607e424eb4549542be1bbc53e6174e2"
@@ -465,8 +465,8 @@ signatures:
             algorithm: "md2WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.2"
             serial: "70:ba:e4:1d:10:d9:29:34:b6:38:ca:7b:03:cc:ba:bf"
-            not_before: 822873600 # 1996-01-29 00:00:00 UTC
-            not_after: 1848787199 # 2028-08-01 23:59:59 UTC
+            not_before: 822873600  # 1996-01-29 00:00:00 UTC
+            not_after: 1848787199  # 2028-08-01 23:59:59 UTC
     certificates:
       - issuer: "/C=US/O=VeriSign, Inc./OU=Class 3 Public Primary Certification Authority"
         subject: "/C=US/O=VeriSign, Inc./OU=Class 3 Public Primary Certification Authority"
@@ -475,8 +475,8 @@ signatures:
         algorithm: "md2WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.2"
         serial: "70:ba:e4:1d:10:d9:29:34:b6:38:ca:7b:03:cc:ba:bf"
-        not_before: 822873600 # 1996-01-29 00:00:00 UTC
-        not_after: 1848787199 # 2028-08-01 23:59:59 UTC
+        not_before: 822873600  # 1996-01-29 00:00:00 UTC
+        not_after: 1848787199  # 2028-08-01 23:59:59 UTC
       - issuer: "/C=US/O=VeriSign, Inc./CN=VeriSign Time Stamping Services CA"
         subject: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services Signer - G3"
         thumbprint: "8fd99d63fb3afbd534a4f6e31dacd27f59504021"
@@ -484,8 +484,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "79:a2:a5:85:f9:d1:15:42:13:d9:b8:3e:f6:b6:8d:ed"
-        not_before: 1335830400 # 2012-05-01 00:00:00 UTC
-        not_after: 1356998399 # 2012-12-31 23:59:59 UTC
+        not_before: 1335830400  # 2012-05-01 00:00:00 UTC
+        not_after: 1356998399  # 2012-12-31 23:59:59 UTC
       - issuer: "/C=ZA/ST=Western Cape/L=Durbanville/O=Thawte/OU=Thawte Certification/CN=Thawte Timestamping CA"
         subject: "/C=US/O=VeriSign, Inc./CN=VeriSign Time Stamping Services CA"
         thumbprint: "f46ac0c6efbb8c6a14f55f09e2d37df4c0de012d"
@@ -493,8 +493,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "47:bf:19:95:df:8d:52:46:43:f7:db:6d:48:0d:31:a4"
-        not_before: 1070496000 # 2003-12-04 00:00:00 UTC
-        not_after: 1386115199 # 2013-12-03 23:59:59 UTC
+        not_before: 1070496000  # 2003-12-04 00:00:00 UTC
+        not_after: 1386115199  # 2013-12-03 23:59:59 UTC
       - issuer: "/C=US/O=VeriSign, Inc./OU=Class 3 Public Primary Certification Authority"
         subject: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=Terms of use at https://www.verisign.com/rpa (c)09/CN=VeriSign Class 3 Code Signing 2009-2 CA"
         thumbprint: "12d4872bc3ef019e7e0b6f132480ae29db5b1ca3"
@@ -502,8 +502,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "65:52:26:e1:b2:2e:18:e1:59:0f:29:85:ac:22:e7:5c"
-        not_before: 1242864000 # 2009-05-21 00:00:00 UTC
-        not_after: 1558396799 # 2019-05-20 23:59:59 UTC
+        not_before: 1242864000  # 2009-05-21 00:00:00 UTC
+        not_after: 1558396799  # 2019-05-20 23:59:59 UTC
       - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=Terms of use at https://www.verisign.com/rpa (c)09/CN=VeriSign Class 3 Code Signing 2009-2 CA"
         subject: "/C=CN/ST=Beijing,China/L=Beijing,China/O=Feitian Technologies Co., Ltd./OU=Digital ID Class 3 - Microsoft Software Validation v2/CN=Feitian Technologies Co., Ltd."
         thumbprint: "8da58c274e5e1027929a16e8ca84c21f202e4e71"
@@ -511,11 +511,11 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "2d:b7:d0:7d:62:33:55:2f:85:e5:69:0e:44:6b:1c:2c"
-        not_before: 1273881600 # 2010-05-15 00:00:00 UTC
-        not_after: 1370131199 # 2013-06-01 23:59:59 UTC
+        not_before: 1273881600  # 2010-05-15 00:00:00 UTC
+        not_after: 1370131199  # 2013-06-01 23:59:59 UTC
     countersignatures:
       - verified: true
-        sign_time: 1350891308 # 2012-10-22 07:35:08 UTC
+        sign_time: 1350891308  # 2012-10-22 07:35:08 UTC
         digest: "3da1b686d82d3caa44ddbc0d59fdc2dc10a2b512"
         digest_alg: "sha1"
         chain:
@@ -526,8 +526,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "79:a2:a5:85:f9:d1:15:42:13:d9:b8:3e:f6:b6:8d:ed"
-            not_before: 1335830400 # 2012-05-01 00:00:00 UTC
-            not_after: 1356998399 # 2012-12-31 23:59:59 UTC
+            not_before: 1335830400  # 2012-05-01 00:00:00 UTC
+            not_after: 1356998399  # 2012-12-31 23:59:59 UTC
           - issuer: "/C=ZA/ST=Western Cape/L=Durbanville/O=Thawte/OU=Thawte Certification/CN=Thawte Timestamping CA"
             subject: "/C=US/O=VeriSign, Inc./CN=VeriSign Time Stamping Services CA"
             thumbprint: "f46ac0c6efbb8c6a14f55f09e2d37df4c0de012d"
@@ -535,8 +535,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "47:bf:19:95:df:8d:52:46:43:f7:db:6d:48:0d:31:a4"
-            not_before: 1070496000 # 2003-12-04 00:00:00 UTC
-            not_after: 1386115199 # 2013-12-03 23:59:59 UTC
+            not_before: 1070496000  # 2003-12-04 00:00:00 UTC
+            not_after: 1386115199  # 2013-12-03 23:59:59 UTC
 overlay:
     offset: 94208
     size: 6096

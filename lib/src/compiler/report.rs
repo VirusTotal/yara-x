@@ -22,7 +22,7 @@ pub struct SourceId(u32);
 ///
 /// The [`SourceId`] is optional, if it is [`None`] it means that the [`Span`]
 /// is relative to the current source file.
-#[derive(PartialEq, Clone, Eq, Default)]
+#[derive(PartialEq, Debug, Clone, Eq, Default)]
 pub struct SourceRef {
     source_id: Option<SourceId>,
     span: Span,

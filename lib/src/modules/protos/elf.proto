@@ -1,5 +1,6 @@
 syntax = "proto2";
 import "yara.proto";
+import "yaml.proto";
 
 package elf;
 
@@ -92,7 +93,7 @@ enum SectionType {
 
 message Segment {
   required SegmentType type = 1;
-  required uint32 flags = 2;
+  required uint32 flags = 2 [(yaml.field).fmt = "flags:SegmentFlags"];
   required uint64 offset = 3;
   required uint64 virtual_address = 4;
   required uint64 physical_address = 5;

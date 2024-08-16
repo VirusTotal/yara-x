@@ -15,8 +15,8 @@ func TestNamespaces(t *testing.T) {
 	c.AddSource("rule test { condition: true }")
 
 	s := NewScanner(c.Build())
-	matchingRules, _ := s.Scan([]byte{})
-	assert.Len(t, matchingRules, 2)
+	scanResults, _ := s.Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 2)
 }
 
 func TestUnsupportedModules(t *testing.T) {
@@ -26,8 +26,8 @@ func TestUnsupportedModules(t *testing.T) {
 		IgnoreModule("unsupported_module"))
 
 	assert.NoError(t, err)
-	matchingRules, _ := r.Scan([]byte{})
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ := r.Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 1)
 }
 
 func TestRelaxedReSyntax(t *testing.T) {
@@ -35,8 +35,8 @@ func TestRelaxedReSyntax(t *testing.T) {
 		rule test { strings: $a = /\Release/ condition: $a }`,
 		RelaxedReSyntax(true))
 	assert.NoError(t, err)
-	matchingRules, _ := r.Scan([]byte("Release"))
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ := r.Scan([]byte("Release"))
+	assert.Len(t, scanResults.MatchingRules(), 1)
 }
 
 
@@ -55,9 +55,9 @@ func TestSerialization(t *testing.T) {
 	r, _ = Deserialize(b)
 
 	s := NewScanner(r)
-	matchingRules, _ := s.Scan([]byte{})
+	scanResults, _ := s.Scan([]byte{})
 
-	assert.Len(t, matchingRules, 1)
+	assert.Len(t, scanResults.MatchingRules(), 1)
 }
 
 func TestVariables(t *testing.T) {
@@ -65,41 +65,41 @@ func TestVariables(t *testing.T) {
 		"rule test { condition: var == 1234 }",
 		Globals(map[string]interface{}{"var": 1234}))
 
-	matchingRules, _ := NewScanner(r).Scan([]byte{})
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ := NewScanner(r).Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 1)
 
 	c, err := NewCompiler()
 	assert.NoError(t, err)
 
 	c.DefineGlobal("var", 1234)
 	c.AddSource("rule test { condition: var == 1234 }")
-	matchingRules, _ = NewScanner(c.Build()).Scan([]byte{})
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ = NewScanner(c.Build()).Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 1)
 
 	c.DefineGlobal("var", -1234)
 	c.AddSource("rule test { condition: var == -1234 }")
-	matchingRules, _ = NewScanner(c.Build()).Scan([]byte{})
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ = NewScanner(c.Build()).Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 1)
 
 	c.DefineGlobal("var", true)
 	c.AddSource("rule test { condition: var }")
-	matchingRules, _ = NewScanner(c.Build()).Scan([]byte{})
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ = NewScanner(c.Build()).Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 1)
 
 	c.DefineGlobal("var", false)
 	c.AddSource("rule test { condition: var }")
-	matchingRules, _ = NewScanner(c.Build()).Scan([]byte{})
-	assert.Len(t, matchingRules, 0)
+	scanResults, _ = NewScanner(c.Build()).Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 0)
 
 	c.DefineGlobal("var", "foo")
 	c.AddSource("rule test { condition: var == \"foo\" }")
-	matchingRules, _ = NewScanner(c.Build()).Scan([]byte{})
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ = NewScanner(c.Build()).Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 1)
 
 	c.DefineGlobal("var", 3.4)
 	c.AddSource("rule test { condition: var == 3.4 }")
-	matchingRules, _ = NewScanner(c.Build()).Scan([]byte{})
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ = NewScanner(c.Build()).Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 1)
 
 	err = c.DefineGlobal("var", struct{}{})
 	assert.EqualError(t, err, "variable `var` has unsupported type: struct {}")

@@ -14,9 +14,9 @@ linker_version:
     major: 9
     minor: 0
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
-characteristics: 258
-dll_characteristics: 1024
-timestamp: 1301987779 # 2011-04-05 07:16:19 UTC
+characteristics: 0x102  # EXECUTABLE_IMAGE | MACHINE_32BIT
+dll_characteristics: 0x400  # NO_SEH
+timestamp: 1301987779  # 2011-04-05 07:16:19 UTC
 image_base: 65536
 checksum: 60403
 base_of_code: 1152

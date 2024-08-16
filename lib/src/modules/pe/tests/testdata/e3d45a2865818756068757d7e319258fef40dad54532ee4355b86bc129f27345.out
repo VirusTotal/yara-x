@@ -14,9 +14,9 @@ linker_version:
     major: 9
     minor: 0
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
-characteristics: 8450
-dll_characteristics: 0
-timestamp: 1299001425 # 2011-03-01 17:43:45 UTC
+characteristics: 0x2102  # EXECUTABLE_IMAGE | MACHINE_32BIT | DLL
+dll_characteristics: 0x0
+timestamp: 1299001425  # 2011-03-01 17:43:45 UTC
 image_base: 268435456
 checksum: 0
 base_of_code: 28672
@@ -24,7 +24,7 @@ base_of_data: 36864
 entry_point: 5520
 entry_point_raw: 33168
 dll_name: "cosnaming.dll"
-export_timestamp: 1299001425 # 2011-03-01 17:43:45 UTC
+export_timestamp: 1299001425  # 2011-03-01 17:43:45 UTC
 section_alignment: 4096
 file_alignment: 512
 loader_flags: 0

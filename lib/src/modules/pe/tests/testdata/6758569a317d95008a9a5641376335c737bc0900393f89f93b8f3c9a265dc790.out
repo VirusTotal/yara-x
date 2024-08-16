@@ -14,9 +14,9 @@ linker_version:
     major: 2
     minor: 26
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
-characteristics: 783
-dll_characteristics: 1344
-timestamp: 1655157631 # 2022-06-13 22:00:31 UTC
+characteristics: 0x30f  # RELOCS_STRIPPED | EXECUTABLE_IMAGE | LINE_NUMS_STRIPPED | LOCAL_SYMS_STRIPPED | MACHINE_32BIT | DEBUG_STRIPPED
+dll_characteristics: 0x540  # DYNAMIC_BASE | NX_COMPAT | NO_SEH
+timestamp: 1655157631  # 2022-06-13 22:00:31 UTC
 image_base: 4194304
 checksum: 340992
 base_of_code: 4096
@@ -149,7 +149,7 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
-resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0
@@ -469,8 +469,8 @@ signatures:
     algorithm: "dsa_with_SHA256"
     algorithm_oid: "2.16.840.1.101.3.4.3.2"
     serial: "33:82:2c:5d"
-    not_before: 1655157631 # 2022-06-13 22:00:31 UTC
-    not_after: 1686693631 # 2023-06-13 22:00:31 UTC
+    not_before: 1655157631  # 2022-06-13 22:00:31 UTC
+    not_after: 1686693631  # 2023-06-13 22:00:31 UTC
     verified: true
     digest_alg: "sha256"
     digest: "066dd89dfe23283d2feb029bcec19c31e41082584d57bd9940bfcafb83419677"
@@ -489,8 +489,8 @@ signatures:
             algorithm: "dsa_with_SHA256"
             algorithm_oid: "2.16.840.1.101.3.4.3.2"
             serial: "33:82:2c:5d"
-            not_before: 1655157631 # 2022-06-13 22:00:31 UTC
-            not_after: 1686693631 # 2023-06-13 22:00:31 UTC
+            not_before: 1655157631  # 2022-06-13 22:00:31 UTC
+            not_after: 1686693631  # 2023-06-13 22:00:31 UTC
     certificates:
       - issuer: "/C=DE/L=Berlin/O=Open Source/OU=JSIDPlay2/CN=JSIDPlay2"
         subject: "/C=DE/L=Berlin/O=Open Source/OU=JSIDPlay2/CN=JSIDPlay2"
@@ -499,8 +499,8 @@ signatures:
         algorithm: "dsa_with_SHA256"
         algorithm_oid: "2.16.840.1.101.3.4.3.2"
         serial: "33:82:2c:5d"
-        not_before: 1655157631 # 2022-06-13 22:00:31 UTC
-        not_after: 1686693631 # 2023-06-13 22:00:31 UTC
+        not_before: 1655157631  # 2022-06-13 22:00:31 UTC
+        not_after: 1686693631  # 2023-06-13 22:00:31 UTC
 overlay:
     offset: 290816
     size: 1760

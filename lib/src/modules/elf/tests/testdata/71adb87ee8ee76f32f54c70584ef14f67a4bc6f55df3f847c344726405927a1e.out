@@ -180,7 +180,7 @@ sections:
     name: ".shstrtab"
 segments:
   - type: PT_PHDR
-    flags: 4
+    flags: 0x4  # PF_R
     offset: 52
     virtual_address: 52
     physical_address: 52
@@ -188,7 +188,7 @@ segments:
     memory_size: 288
     alignment: 4
   - type: PT_INTERP
-    flags: 4
+    flags: 0x4  # PF_R
     offset: 340
     virtual_address: 340
     physical_address: 340
@@ -196,7 +196,7 @@ segments:
     memory_size: 19
     alignment: 1
   - type: PT_LOAD
-    flags: 5
+    flags: 0x5  # PF_X | PF_R
     offset: 0
     virtual_address: 0
     physical_address: 0
@@ -204,7 +204,7 @@ segments:
     memory_size: 491440
     alignment: 4096
   - type: PT_LOAD
-    flags: 6
+    flags: 0x6  # PF_W | PF_R
     offset: 492680
     virtual_address: 496776
     physical_address: 496776
@@ -212,7 +212,7 @@ segments:
     memory_size: 28460
     alignment: 4096
   - type: PT_DYNAMIC
-    flags: 6
+    flags: 0x6  # PF_W | PF_R
     offset: 494760
     virtual_address: 498856
     physical_address: 498856
@@ -220,7 +220,7 @@ segments:
     memory_size: 296
     alignment: 4
   - type: PT_NOTE
-    flags: 4
+    flags: 0x4  # PF_R
     offset: 360
     virtual_address: 360
     physical_address: 360
@@ -228,7 +228,7 @@ segments:
     memory_size: 36
     alignment: 4
   - type: PT_GNU_STACK
-    flags: 6
+    flags: 0x6  # PF_W | PF_R
     offset: 0
     virtual_address: 0
     physical_address: 0
@@ -236,7 +236,7 @@ segments:
     memory_size: 0
     alignment: 0
   - type: 1879048193
-    flags: 4
+    flags: 0x4  # PF_R
     offset: 472272
     virtual_address: 472272
     physical_address: 472272
@@ -244,7 +244,7 @@ segments:
     memory_size: 4400
     alignment: 4
   - type: PT_GNU_RELRO
-    flags: 6
+    flags: 0x6  # PF_W | PF_R
     offset: 492680
     virtual_address: 496776
     physical_address: 496776
