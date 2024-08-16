@@ -256,4 +256,12 @@ pub mod mods {
         info.lnk = protobuf::MessageField(invoke::<Lnk>(data));
         info
     }
+
+    /// A vector of all module names. Useful for displaying currently compiled
+    /// modules.
+    ///
+    /// See the "debug modules" command.
+    pub fn module_names() -> Vec<&'static str> {
+        super::BUILTIN_MODULES.keys().map(|&k| k).collect()
+    }
 }

@@ -39,6 +39,10 @@ pub fn wasm() -> Command {
         )
 }
 
+pub fn modules() -> Command {
+    super::command("modules").about("List available modules")
+}
+
 pub fn debug() -> Command {
     super::command("debug")
         .about("Debug utilities")
@@ -47,6 +51,7 @@ pub fn debug() -> Command {
         .subcommand(ast())
         .subcommand(cst())
         .subcommand(wasm())
+        .subcommand(modules())
 }
 
 pub fn exec_debug(args: &ArgMatches) -> anyhow::Result<()> {
@@ -54,6 +59,7 @@ pub fn exec_debug(args: &ArgMatches) -> anyhow::Result<()> {
         Some(("ast", args)) => exec_ast(args),
         Some(("cst", args)) => exec_cst(args),
         Some(("wasm", args)) => exec_wasm(args),
+        Some(("modules", args)) => exec_modules(args),
         _ => unreachable!(),
     }
 }
@@ -102,5 +108,12 @@ fn exec_wasm(args: &ArgMatches) -> anyhow::Result<()> {
     compiler.add_source(src)?;
     compiler.emit_wasm_file(rules_path.as_path())?;
 
+    Ok(())
+}
+
+fn exec_modules(_args: &ArgMatches) -> anyhow::Result<()> {
+    for name in yara_x::mods::module_names() {
+        println!("{}", name);
+    }
     Ok(())
 }
