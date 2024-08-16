@@ -12,7 +12,7 @@ dynsym_entries: 0
 dynamic_section_entries: 0
 segments:
   - type: PT_LOAD
-    flags: 7
+    flags: 0x7  # PF_X | PF_W | PF_R
     offset: 0
     virtual_address: 4194304
     physical_address: 4194304

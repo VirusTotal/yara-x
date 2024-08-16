@@ -150,7 +150,7 @@ segments:
     flags: 0x0
 dylibs:
   - name: "/usr/lib/libSystem.B.dylib"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "1213.0.0"
 dyld_info:

@@ -14,16 +14,16 @@ linker_version:
     major: 14
     minor: 34
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
-characteristics: 8226
-dll_characteristics: 352
-timestamp: 1700014107 # 2023-11-15 02:08:27 UTC
+characteristics: 0x2022  # EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE | DLL
+dll_characteristics: 0x160  # HIGH_ENTROPY_VA | DYNAMIC_BASE | NX_COMPAT
+timestamp: 1700014107  # 2023-11-15 02:08:27 UTC
 image_base: 65536
 checksum: 274295
 base_of_code: 4096
 entry_point: 29256
 entry_point_raw: 32328
 dll_name: "AVEDLL.dll"
-export_timestamp: 4294967295 # 2106-02-07 06:28:15 UTC
+export_timestamp: 4294967295  # 2106-02-07 06:28:15 UTC
 section_alignment: 4096
 file_alignment: 512
 loader_flags: 0
@@ -264,7 +264,7 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
-resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0
@@ -17859,8 +17859,8 @@ signatures:
     algorithm: "sha1WithRSAEncryption"
     algorithm_oid: "1.2.840.113549.1.1.5"
     serial: "61:06:84:e2:00:07:00:00:00:64"
-    not_before: 1643646292 # 2022-01-31 16:24:52 UTC
-    not_after: 1675182892 # 2023-01-31 16:34:52 UTC
+    not_before: 1643646292  # 2022-01-31 16:24:52 UTC
+    not_after: 1675182892  # 2023-01-31 16:34:52 UTC
     verified: true
     digest_alg: "sha1"
     digest: "a4c814f6fc0ecf302b231589a8010403b134075b"
@@ -17878,8 +17878,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "61:06:84:e2:00:07:00:00:00:64"
-            not_before: 1643646292 # 2022-01-31 16:24:52 UTC
-            not_after: 1675182892 # 2023-01-31 16:34:52 UTC
+            not_before: 1643646292  # 2022-01-31 16:24:52 UTC
+            not_after: 1675182892  # 2023-01-31 16:34:52 UTC
           - issuer: "/CN=Microsoft Digital Media Authority 2005"
             subject: "/DC=com/DC=amd/CN=AMD PVP Certificate Authority v1"
             thumbprint: "1210c599d6c1823fbde6572ccb301f525c44ac1f"
@@ -17887,8 +17887,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "61:03:ff:8f:00:07:00:00:00:87"
-            not_before: 1519946887 # 2018-03-01 23:28:07 UTC
-            not_after: 1678577887 # 2023-03-11 23:38:07 UTC
+            not_before: 1519946887  # 2018-03-01 23:28:07 UTC
+            not_after: 1678577887  # 2023-03-11 23:38:07 UTC
     certificates:
       - issuer: "/DC=com/DC=amd/CN=AMD PVP Certificate Authority v1"
         subject: "/CN=AMD PMP-PE CB Code Signer v20220131"
@@ -17897,8 +17897,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "61:06:84:e2:00:07:00:00:00:64"
-        not_before: 1643646292 # 2022-01-31 16:24:52 UTC
-        not_after: 1675182892 # 2023-01-31 16:34:52 UTC
+        not_before: 1643646292  # 2022-01-31 16:24:52 UTC
+        not_after: 1675182892  # 2023-01-31 16:34:52 UTC
       - issuer: "/CN=Microsoft Digital Media Authority 2005"
         subject: "/DC=com/DC=amd/CN=AMD PVP Certificate Authority v1"
         thumbprint: "1210c599d6c1823fbde6572ccb301f525c44ac1f"
@@ -17906,8 +17906,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "61:03:ff:8f:00:07:00:00:00:87"
-        not_before: 1519946887 # 2018-03-01 23:28:07 UTC
-        not_after: 1678577887 # 2023-03-11 23:38:07 UTC
+        not_before: 1519946887  # 2018-03-01 23:28:07 UTC
+        not_after: 1678577887  # 2023-03-11 23:38:07 UTC
       - issuer: "/C=US/O=DigiCert, Inc./CN=DigiCert Trusted G4 RSA4096 SHA256 TimeStamping CA"
         subject: "/C=US/O=DigiCert, Inc./CN=DigiCert Timestamp 2023"
         thumbprint: "66f02b32c2c2c90f825dceaa8ac9c64f199ccf40"
@@ -17915,8 +17915,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "05:44:af:f3:94:9d:08:39:a6:bf:db:3f:5f:e5:61:16"
-        not_before: 1689292800 # 2023-07-14 00:00:00 UTC
-        not_after: 2044396799 # 2034-10-13 23:59:59 UTC
+        not_before: 1689292800  # 2023-07-14 00:00:00 UTC
+        not_after: 2044396799  # 2034-10-13 23:59:59 UTC
       - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Trusted Root G4"
         subject: "/C=US/O=DigiCert, Inc./CN=DigiCert Trusted G4 RSA4096 SHA256 TimeStamping CA"
         thumbprint: "b6c8af834d4e53b673c76872aa8c950c7c54df5f"
@@ -17924,8 +17924,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "07:36:37:b7:24:54:7c:d8:47:ac:fd:28:66:2a:5e:5b"
-        not_before: 1647993600 # 2022-03-23 00:00:00 UTC
-        not_after: 2121379199 # 2037-03-22 23:59:59 UTC
+        not_before: 1647993600  # 2022-03-23 00:00:00 UTC
+        not_after: 2121379199  # 2037-03-22 23:59:59 UTC
       - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID Root CA"
         subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Trusted Root G4"
         thumbprint: "a99d5b79e9f1cda59cdab6373169d5353f5874c6"
@@ -17933,11 +17933,11 @@ signatures:
         algorithm: "sha384WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.12"
         serial: "0e:9b:18:8e:f9:d0:2d:e7:ef:db:50:e2:08:40:18:5a"
-        not_before: 1659312000 # 2022-08-01 00:00:00 UTC
-        not_after: 1952035199 # 2031-11-09 23:59:59 UTC
+        not_before: 1659312000  # 2022-08-01 00:00:00 UTC
+        not_after: 1952035199  # 2031-11-09 23:59:59 UTC
     countersignatures:
       - verified: true
-        sign_time: 1700015367 # 2023-11-15 02:29:27 UTC
+        sign_time: 1700015367  # 2023-11-15 02:29:27 UTC
         digest: "d82e2c104f3ad8c0bca01e264166ce51bc527cd6"
         digest_alg: "sha1"
         chain:
@@ -17948,8 +17948,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "05:44:af:f3:94:9d:08:39:a6:bf:db:3f:5f:e5:61:16"
-            not_before: 1689292800 # 2023-07-14 00:00:00 UTC
-            not_after: 2044396799 # 2034-10-13 23:59:59 UTC
+            not_before: 1689292800  # 2023-07-14 00:00:00 UTC
+            not_after: 2044396799  # 2034-10-13 23:59:59 UTC
           - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Trusted Root G4"
             subject: "/C=US/O=DigiCert, Inc./CN=DigiCert Trusted G4 RSA4096 SHA256 TimeStamping CA"
             thumbprint: "b6c8af834d4e53b673c76872aa8c950c7c54df5f"
@@ -17957,8 +17957,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "07:36:37:b7:24:54:7c:d8:47:ac:fd:28:66:2a:5e:5b"
-            not_before: 1647993600 # 2022-03-23 00:00:00 UTC
-            not_after: 2121379199 # 2037-03-22 23:59:59 UTC
+            not_before: 1647993600  # 2022-03-23 00:00:00 UTC
+            not_after: 2121379199  # 2037-03-22 23:59:59 UTC
           - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID Root CA"
             subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Trusted Root G4"
             thumbprint: "a99d5b79e9f1cda59cdab6373169d5353f5874c6"
@@ -17966,8 +17966,8 @@ signatures:
             algorithm: "sha384WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.12"
             serial: "0e:9b:18:8e:f9:d0:2d:e7:ef:db:50:e2:08:40:18:5a"
-            not_before: 1659312000 # 2022-08-01 00:00:00 UTC
-            not_after: 1952035199 # 2031-11-09 23:59:59 UTC
+            not_before: 1659312000  # 2022-08-01 00:00:00 UTC
+            not_after: 1952035199  # 2031-11-09 23:59:59 UTC
   - subject: "/C=US/ST=California/L=Santa Clara/O=Advanced Micro Devices Inc./CN=Advanced Micro Devices Inc."
     issuer: "/C=GB/ST=Greater Manchester/L=Salford/O=Sectigo Limited/CN=Sectigo RSA Code Signing CA"
     thumbprint: "26f54ee84758ba716117321707bb08b3274a578a"
@@ -17975,8 +17975,8 @@ signatures:
     algorithm: "sha256WithRSAEncryption"
     algorithm_oid: "1.2.840.113549.1.1.11"
     serial: "53:50:91:e6:ca:b1:3a:f3:93:b5:1e:ad:08:25:f6:27"
-    not_before: 1620691200 # 2021-05-11 00:00:00 UTC
-    not_after: 1715385599 # 2024-05-10 23:59:59 UTC
+    not_before: 1620691200  # 2021-05-11 00:00:00 UTC
+    not_after: 1715385599  # 2024-05-10 23:59:59 UTC
     verified: true
     digest_alg: "sha256"
     digest: "d8c60d76740d929f1aec6237c276a99ea7c3662a5f0dbdf083c6d51fc3aed30a"
@@ -17994,8 +17994,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "53:50:91:e6:ca:b1:3a:f3:93:b5:1e:ad:08:25:f6:27"
-            not_before: 1620691200 # 2021-05-11 00:00:00 UTC
-            not_after: 1715385599 # 2024-05-10 23:59:59 UTC
+            not_before: 1620691200  # 2021-05-11 00:00:00 UTC
+            not_after: 1715385599  # 2024-05-10 23:59:59 UTC
           - issuer: "/C=US/ST=New Jersey/L=Jersey City/O=The USERTRUST Network/CN=USERTrust RSA Certification Authority"
             subject: "/C=GB/ST=Greater Manchester/L=Salford/O=Sectigo Limited/CN=Sectigo RSA Code Signing CA"
             thumbprint: "94c95da1e850bd85209a4a2af3e1fb1604f9bb66"
@@ -18003,8 +18003,8 @@ signatures:
             algorithm: "sha384WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.12"
             serial: "1d:a2:48:30:6f:9b:26:18:d0:82:e0:96:7d:33:d3:6a"
-            not_before: 1541116800 # 2018-11-02 00:00:00 UTC
-            not_after: 1924991999 # 2030-12-31 23:59:59 UTC
+            not_before: 1541116800  # 2018-11-02 00:00:00 UTC
+            not_after: 1924991999  # 2030-12-31 23:59:59 UTC
           - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Code Verification Root"
             subject: "/C=US/ST=New Jersey/L=Jersey City/O=The USERTRUST Network/CN=USERTrust RSA Certification Authority"
             thumbprint: "beb914182a829d0c69556907e37f2799bfffd891"
@@ -18012,8 +18012,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "33:00:00:00:44:b7:3f:fc:ef:5a:cf:a2:7a:00:00:00:00:00:44"
-            not_before: 1437599029 # 2015-07-22 21:03:49 UTC
-            not_after: 1753218229 # 2025-07-22 21:03:49 UTC
+            not_before: 1437599029  # 2015-07-22 21:03:49 UTC
+            not_after: 1753218229  # 2025-07-22 21:03:49 UTC
     certificates:
       - issuer: "/C=GB/ST=Greater Manchester/L=Salford/O=Sectigo Limited/CN=Sectigo RSA Code Signing CA"
         subject: "/C=US/ST=California/L=Santa Clara/O=Advanced Micro Devices Inc./CN=Advanced Micro Devices Inc."
@@ -18022,8 +18022,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "53:50:91:e6:ca:b1:3a:f3:93:b5:1e:ad:08:25:f6:27"
-        not_before: 1620691200 # 2021-05-11 00:00:00 UTC
-        not_after: 1715385599 # 2024-05-10 23:59:59 UTC
+        not_before: 1620691200  # 2021-05-11 00:00:00 UTC
+        not_after: 1715385599  # 2024-05-10 23:59:59 UTC
       - issuer: "/C=US/ST=New Jersey/L=Jersey City/O=The USERTRUST Network/CN=USERTrust RSA Certification Authority"
         subject: "/C=GB/ST=Greater Manchester/L=Salford/O=Sectigo Limited/CN=Sectigo RSA Code Signing CA"
         thumbprint: "94c95da1e850bd85209a4a2af3e1fb1604f9bb66"
@@ -18031,8 +18031,8 @@ signatures:
         algorithm: "sha384WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.12"
         serial: "1d:a2:48:30:6f:9b:26:18:d0:82:e0:96:7d:33:d3:6a"
-        not_before: 1541116800 # 2018-11-02 00:00:00 UTC
-        not_after: 1924991999 # 2030-12-31 23:59:59 UTC
+        not_before: 1541116800  # 2018-11-02 00:00:00 UTC
+        not_after: 1924991999  # 2030-12-31 23:59:59 UTC
       - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Code Verification Root"
         subject: "/C=US/ST=New Jersey/L=Jersey City/O=The USERTRUST Network/CN=USERTrust RSA Certification Authority"
         thumbprint: "beb914182a829d0c69556907e37f2799bfffd891"
@@ -18040,8 +18040,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "33:00:00:00:44:b7:3f:fc:ef:5a:cf:a2:7a:00:00:00:00:00:44"
-        not_before: 1437599029 # 2015-07-22 21:03:49 UTC
-        not_after: 1753218229 # 2025-07-22 21:03:49 UTC
+        not_before: 1437599029  # 2015-07-22 21:03:49 UTC
+        not_after: 1753218229  # 2025-07-22 21:03:49 UTC
       - issuer: "/C=US/O=DigiCert, Inc./CN=DigiCert Trusted G4 RSA4096 SHA256 TimeStamping CA"
         subject: "/C=US/O=DigiCert, Inc./CN=DigiCert Timestamp 2023"
         thumbprint: "66f02b32c2c2c90f825dceaa8ac9c64f199ccf40"
@@ -18049,8 +18049,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "05:44:af:f3:94:9d:08:39:a6:bf:db:3f:5f:e5:61:16"
-        not_before: 1689292800 # 2023-07-14 00:00:00 UTC
-        not_after: 2044396799 # 2034-10-13 23:59:59 UTC
+        not_before: 1689292800  # 2023-07-14 00:00:00 UTC
+        not_after: 2044396799  # 2034-10-13 23:59:59 UTC
       - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Trusted Root G4"
         subject: "/C=US/O=DigiCert, Inc./CN=DigiCert Trusted G4 RSA4096 SHA256 TimeStamping CA"
         thumbprint: "b6c8af834d4e53b673c76872aa8c950c7c54df5f"
@@ -18058,8 +18058,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "07:36:37:b7:24:54:7c:d8:47:ac:fd:28:66:2a:5e:5b"
-        not_before: 1647993600 # 2022-03-23 00:00:00 UTC
-        not_after: 2121379199 # 2037-03-22 23:59:59 UTC
+        not_before: 1647993600  # 2022-03-23 00:00:00 UTC
+        not_after: 2121379199  # 2037-03-22 23:59:59 UTC
       - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID Root CA"
         subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Trusted Root G4"
         thumbprint: "a99d5b79e9f1cda59cdab6373169d5353f5874c6"
@@ -18067,11 +18067,11 @@ signatures:
         algorithm: "sha384WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.12"
         serial: "0e:9b:18:8e:f9:d0:2d:e7:ef:db:50:e2:08:40:18:5a"
-        not_before: 1659312000 # 2022-08-01 00:00:00 UTC
-        not_after: 1952035199 # 2031-11-09 23:59:59 UTC
+        not_before: 1659312000  # 2022-08-01 00:00:00 UTC
+        not_after: 1952035199  # 2031-11-09 23:59:59 UTC
     countersignatures:
       - verified: true
-        sign_time: 1700015370 # 2023-11-15 02:29:30 UTC
+        sign_time: 1700015370  # 2023-11-15 02:29:30 UTC
         digest: "8fc84c2bd5aa498b76698c0737ce8902efd766bf5d7a5dbd3eb1033c9bd71522"
         digest_alg: "sha256"
         chain:
@@ -18082,8 +18082,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "05:44:af:f3:94:9d:08:39:a6:bf:db:3f:5f:e5:61:16"
-            not_before: 1689292800 # 2023-07-14 00:00:00 UTC
-            not_after: 2044396799 # 2034-10-13 23:59:59 UTC
+            not_before: 1689292800  # 2023-07-14 00:00:00 UTC
+            not_after: 2044396799  # 2034-10-13 23:59:59 UTC
           - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Trusted Root G4"
             subject: "/C=US/O=DigiCert, Inc./CN=DigiCert Trusted G4 RSA4096 SHA256 TimeStamping CA"
             thumbprint: "b6c8af834d4e53b673c76872aa8c950c7c54df5f"
@@ -18091,8 +18091,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "07:36:37:b7:24:54:7c:d8:47:ac:fd:28:66:2a:5e:5b"
-            not_before: 1647993600 # 2022-03-23 00:00:00 UTC
-            not_after: 2121379199 # 2037-03-22 23:59:59 UTC
+            not_before: 1647993600  # 2022-03-23 00:00:00 UTC
+            not_after: 2121379199  # 2037-03-22 23:59:59 UTC
           - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID Root CA"
             subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Trusted Root G4"
             thumbprint: "a99d5b79e9f1cda59cdab6373169d5353f5874c6"
@@ -18100,8 +18100,8 @@ signatures:
             algorithm: "sha384WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.12"
             serial: "0e:9b:18:8e:f9:d0:2d:e7:ef:db:50:e2:08:40:18:5a"
-            not_before: 1659312000 # 2022-08-01 00:00:00 UTC
-            not_after: 1952035199 # 2031-11-09 23:59:59 UTC
+            not_before: 1659312000  # 2022-08-01 00:00:00 UTC
+            not_after: 1952035199  # 2031-11-09 23:59:59 UTC
   - subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Hardware Compatibility Publisher"
     issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Third Party Component CA 2012"
     thumbprint: "1935420a805a0cefebecdbe59a391a69db32eab3"
@@ -18109,8 +18109,8 @@ signatures:
     algorithm: "sha256WithRSAEncryption"
     algorithm_oid: "1.2.840.113549.1.1.11"
     serial: "33:00:00:01:09:5e:de:a2:12:7e:92:81:cc:00:00:00:00:01:09"
-    not_before: 1694718863 # 2023-09-14 19:14:23 UTC
-    not_after: 1725477263 # 2024-09-04 19:14:23 UTC
+    not_before: 1694718863  # 2023-09-14 19:14:23 UTC
+    not_after: 1725477263  # 2024-09-04 19:14:23 UTC
     verified: true
     digest_alg: "sha256"
     digest: "d8c60d76740d929f1aec6237c276a99ea7c3662a5f0dbdf083c6d51fc3aed30a"
@@ -18129,8 +18129,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "33:00:00:01:09:5e:de:a2:12:7e:92:81:cc:00:00:00:00:01:09"
-            not_before: 1694718863 # 2023-09-14 19:14:23 UTC
-            not_after: 1725477263 # 2024-09-04 19:14:23 UTC
+            not_before: 1694718863  # 2023-09-14 19:14:23 UTC
+            not_after: 1725477263  # 2024-09-04 19:14:23 UTC
           - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
             subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Third Party Component CA 2012"
             thumbprint: "77a10ebf07542725218cd83a01b521c57bc67f73"
@@ -18138,8 +18138,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "61:0b:aa:c1:00:00:00:00:00:09"
-            not_before: 1334792918 # 2012-04-18 23:48:38 UTC
-            not_after: 1808092718 # 2027-04-18 23:58:38 UTC
+            not_before: 1334792918  # 2012-04-18 23:48:38 UTC
+            not_after: 1808092718  # 2027-04-18 23:58:38 UTC
     certificates:
       - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Third Party Component CA 2012"
         subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Hardware Compatibility Publisher"
@@ -18148,8 +18148,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "33:00:00:01:09:5e:de:a2:12:7e:92:81:cc:00:00:00:00:01:09"
-        not_before: 1694718863 # 2023-09-14 19:14:23 UTC
-        not_after: 1725477263 # 2024-09-04 19:14:23 UTC
+        not_before: 1694718863  # 2023-09-14 19:14:23 UTC
+        not_after: 1725477263  # 2024-09-04 19:14:23 UTC
       - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
         subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Third Party Component CA 2012"
         thumbprint: "77a10ebf07542725218cd83a01b521c57bc67f73"
@@ -18157,8 +18157,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "61:0b:aa:c1:00:00:00:00:00:09"
-        not_before: 1334792918 # 2012-04-18 23:48:38 UTC
-        not_after: 1808092718 # 2027-04-18 23:58:38 UTC
+        not_before: 1334792918  # 2012-04-18 23:48:38 UTC
+        not_after: 1808092718  # 2027-04-18 23:58:38 UTC
       - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
         subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/OU=Microsoft Ireland Operations Limited/OU=Thales TSS ESN:D082-4BFD-EEBA/CN=Microsoft Time-Stamp Service"
         thumbprint: "1c39ff733fb7c9190850225f49b2f77639d012a6"
@@ -18166,8 +18166,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "33:00:00:01:dc:c1:e0:8c:c2:5f:58:5e:8e:00:01:00:00:01:dc"
-        not_before: 1697137626 # 2023-10-12 19:07:06 UTC
-        not_after: 1736536026 # 2025-01-10 19:07:06 UTC
+        not_before: 1697137626  # 2023-10-12 19:07:06 UTC
+        not_after: 1736536026  # 2025-01-10 19:07:06 UTC
       - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
         subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
         thumbprint: "36056a5662dcadecf82cc14c8b80ec5e0bcc59a6"
@@ -18175,8 +18175,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "33:00:00:00:15:c5:e7:6b:9e:02:9b:49:99:00:00:00:00:00:15"
-        not_before: 1633026145 # 2021-09-30 18:22:25 UTC
-        not_after: 1917023545 # 2030-09-30 18:32:25 UTC
+        not_before: 1633026145  # 2021-09-30 18:22:25 UTC
+        not_after: 1917023545  # 2030-09-30 18:32:25 UTC
     countersignatures:
       - verified: true
         digest: "156b0ab3ff8f0599afe7acb19434dd26f1a87698f43c4a3fa80d22e5e59c481c"
@@ -18189,8 +18189,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "33:00:00:01:dc:c1:e0:8c:c2:5f:58:5e:8e:00:01:00:00:01:dc"
-            not_before: 1697137626 # 2023-10-12 19:07:06 UTC
-            not_after: 1736536026 # 2025-01-10 19:07:06 UTC
+            not_before: 1697137626  # 2023-10-12 19:07:06 UTC
+            not_after: 1736536026  # 2025-01-10 19:07:06 UTC
           - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
             subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
             thumbprint: "36056a5662dcadecf82cc14c8b80ec5e0bcc59a6"
@@ -18198,8 +18198,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "33:00:00:00:15:c5:e7:6b:9e:02:9b:49:99:00:00:00:00:00:15"
-            not_before: 1633026145 # 2021-09-30 18:22:25 UTC
-            not_after: 1917023545 # 2030-09-30 18:32:25 UTC
+            not_before: 1633026145  # 2021-09-30 18:22:25 UTC
+            not_after: 1917023545  # 2030-09-30 18:32:25 UTC
   - subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Hardware Compatibility Publisher"
     issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Third Party Component CA 2012"
     thumbprint: "1935420a805a0cefebecdbe59a391a69db32eab3"
@@ -18207,8 +18207,8 @@ signatures:
     algorithm: "sha256WithRSAEncryption"
     algorithm_oid: "1.2.840.113549.1.1.11"
     serial: "33:00:00:01:09:5e:de:a2:12:7e:92:81:cc:00:00:00:00:01:09"
-    not_before: 1694718863 # 2023-09-14 19:14:23 UTC
-    not_after: 1725477263 # 2024-09-04 19:14:23 UTC
+    not_before: 1694718863  # 2023-09-14 19:14:23 UTC
+    not_after: 1725477263  # 2024-09-04 19:14:23 UTC
     verified: true
     digest_alg: "sha256"
     digest: "d8c60d76740d929f1aec6237c276a99ea7c3662a5f0dbdf083c6d51fc3aed30a"
@@ -18227,8 +18227,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "33:00:00:01:09:5e:de:a2:12:7e:92:81:cc:00:00:00:00:01:09"
-            not_before: 1694718863 # 2023-09-14 19:14:23 UTC
-            not_after: 1725477263 # 2024-09-04 19:14:23 UTC
+            not_before: 1694718863  # 2023-09-14 19:14:23 UTC
+            not_after: 1725477263  # 2024-09-04 19:14:23 UTC
           - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
             subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Third Party Component CA 2012"
             thumbprint: "77a10ebf07542725218cd83a01b521c57bc67f73"
@@ -18236,8 +18236,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "61:0b:aa:c1:00:00:00:00:00:09"
-            not_before: 1334792918 # 2012-04-18 23:48:38 UTC
-            not_after: 1808092718 # 2027-04-18 23:58:38 UTC
+            not_before: 1334792918  # 2012-04-18 23:48:38 UTC
+            not_after: 1808092718  # 2027-04-18 23:58:38 UTC
     certificates:
       - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Third Party Component CA 2012"
         subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Hardware Compatibility Publisher"
@@ -18246,8 +18246,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "33:00:00:01:09:5e:de:a2:12:7e:92:81:cc:00:00:00:00:01:09"
-        not_before: 1694718863 # 2023-09-14 19:14:23 UTC
-        not_after: 1725477263 # 2024-09-04 19:14:23 UTC
+        not_before: 1694718863  # 2023-09-14 19:14:23 UTC
+        not_after: 1725477263  # 2024-09-04 19:14:23 UTC
       - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
         subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Third Party Component CA 2012"
         thumbprint: "77a10ebf07542725218cd83a01b521c57bc67f73"
@@ -18255,8 +18255,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "61:0b:aa:c1:00:00:00:00:00:09"
-        not_before: 1334792918 # 2012-04-18 23:48:38 UTC
-        not_after: 1808092718 # 2027-04-18 23:58:38 UTC
+        not_before: 1334792918  # 2012-04-18 23:48:38 UTC
+        not_after: 1808092718  # 2027-04-18 23:58:38 UTC
       - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
         subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/OU=Microsoft America Operations/OU=nShield TSS ESN:7F00-05E0-D947/CN=Microsoft Time-Stamp Service"
         thumbprint: "4e122f92fd95457bac3521ddf59ba2a07b6ea534"
@@ -18264,8 +18264,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "33:00:00:01:d5:a9:02:cf:c5:a7:c9:e9:5a:00:01:00:00:01:d5"
-        not_before: 1685041950 # 2023-05-25 19:12:30 UTC
-        not_after: 1706814750 # 2024-02-01 19:12:30 UTC
+        not_before: 1685041950  # 2023-05-25 19:12:30 UTC
+        not_after: 1706814750  # 2024-02-01 19:12:30 UTC
       - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
         subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
         thumbprint: "36056a5662dcadecf82cc14c8b80ec5e0bcc59a6"
@@ -18273,8 +18273,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "33:00:00:00:15:c5:e7:6b:9e:02:9b:49:99:00:00:00:00:00:15"
-        not_before: 1633026145 # 2021-09-30 18:22:25 UTC
-        not_after: 1917023545 # 2030-09-30 18:32:25 UTC
+        not_before: 1633026145  # 2021-09-30 18:22:25 UTC
+        not_after: 1917023545  # 2030-09-30 18:32:25 UTC
     countersignatures:
       - verified: true
         digest: "2147aea8471f772ea10df4b2242e09bf62a9a8be287cb782a52567bda91e4740"
@@ -18287,8 +18287,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "33:00:00:01:d5:a9:02:cf:c5:a7:c9:e9:5a:00:01:00:00:01:d5"
-            not_before: 1685041950 # 2023-05-25 19:12:30 UTC
-            not_after: 1706814750 # 2024-02-01 19:12:30 UTC
+            not_before: 1685041950  # 2023-05-25 19:12:30 UTC
+            not_after: 1706814750  # 2024-02-01 19:12:30 UTC
           - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
             subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
             thumbprint: "36056a5662dcadecf82cc14c8b80ec5e0bcc59a6"
@@ -18296,8 +18296,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "33:00:00:00:15:c5:e7:6b:9e:02:9b:49:99:00:00:00:00:00:15"
-            not_before: 1633026145 # 2021-09-30 18:22:25 UTC
-            not_after: 1917023545 # 2030-09-30 18:32:25 UTC
+            not_before: 1633026145  # 2021-09-30 18:22:25 UTC
+            not_after: 1917023545  # 2030-09-30 18:32:25 UTC
 overlay:
     offset: 165376
     size: 44192

@@ -14,9 +14,9 @@ linker_version:
     major: 14
     minor: 29
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
-characteristics: 258
-dll_characteristics: 33088
-timestamp: 1626863112 # 2021-07-21 10:25:12 UTC
+characteristics: 0x102  # EXECUTABLE_IMAGE | MACHINE_32BIT
+dll_characteristics: 0x8140  # DYNAMIC_BASE | NX_COMPAT | TERMINAL_SERVER_AWARE
+timestamp: 1626863112  # 2021-07-21 10:25:12 UTC
 image_base: 4194304
 checksum: 0
 base_of_code: 4096

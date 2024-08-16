@@ -14,9 +14,9 @@ linker_version:
     major: 11
     minor: 0
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
-characteristics: 34
-dll_characteristics: 480
-timestamp: 1556010297 # 2019-04-23 09:04:57 UTC
+characteristics: 0x22  # EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE
+dll_characteristics: 0x1e0  # HIGH_ENTROPY_VA | DYNAMIC_BASE | FORCE_INTEGRITY | NX_COMPAT
+timestamp: 1556010297  # 2019-04-23 09:04:57 UTC
 image_base: 5368709120
 checksum: 250178
 base_of_code: 4096
@@ -248,7 +248,7 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
-resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0
@@ -585,8 +585,8 @@ signatures:
     algorithm: "sha256WithRSAEncryption"
     algorithm_oid: "1.2.840.113549.1.1.11"
     serial: "1f:7b:0d:e3:09:0e:e1:3a:43:63:15:a6"
-    not_before: 1619015067 # 2021-04-21 14:24:27 UTC
-    not_after: 1648238268 # 2022-03-25 19:57:48 UTC
+    not_before: 1619015067  # 2021-04-21 14:24:27 UTC
+    not_after: 1648238268  # 2022-03-25 19:57:48 UTC
     verified: true
     digest_alg: "sha256"
     digest: "60571dbcaec96d9517e0d116d066e70ae747aa4396d7857b2eea0f4c1a5a70b4"
@@ -604,8 +604,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "1f:7b:0d:e3:09:0e:e1:3a:43:63:15:a6"
-            not_before: 1619015067 # 2021-04-21 14:24:27 UTC
-            not_after: 1648238268 # 2022-03-25 19:57:48 UTC
+            not_before: 1619015067  # 2021-04-21 14:24:27 UTC
+            not_after: 1648238268  # 2022-03-25 19:57:48 UTC
           - issuer: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign Code Signing Root R45"
             subject: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign GCC R45 EV CodeSigning CA 2020"
             thumbprint: "c10bb76ad4ee815242406a1e3e1117ffec743d4f"
@@ -613,8 +613,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "77:bd:0e:05:b7:59:0b:b6:1d:47:61:53:1e:3f:75:ed"
-            not_before: 1595894400 # 2020-07-28 00:00:00 UTC
-            not_after: 1911427200 # 2030-07-28 00:00:00 UTC
+            not_before: 1595894400  # 2020-07-28 00:00:00 UTC
+            not_after: 1911427200  # 2030-07-28 00:00:00 UTC
           - issuer: "/OU=GlobalSign Root CA - R3/O=GlobalSign/CN=GlobalSign"
             subject: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign Code Signing Root R45"
             thumbprint: "4c5d80d2cd06b1a493c49b2e9bed4a57c2f873e5"
@@ -622,8 +622,8 @@ signatures:
             algorithm: "sha384WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.12"
             serial: "78:03:18:42:45:70:8a:41:cf:6f:01:b8:ee:b4:a9:54"
-            not_before: 1595894400 # 2020-07-28 00:00:00 UTC
-            not_after: 1868486400 # 2029-03-18 00:00:00 UTC
+            not_before: 1595894400  # 2020-07-28 00:00:00 UTC
+            not_after: 1868486400  # 2029-03-18 00:00:00 UTC
           - issuer: "/C=BE/O=GlobalSign nv-sa/OU=Root CA/CN=GlobalSign Root CA"
             subject: "/OU=GlobalSign Root CA - R3/O=GlobalSign/CN=GlobalSign"
             thumbprint: "0bbfab97059595e8d1ec48e89eb8657c0e5aae71"
@@ -631,8 +631,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "01:ee:5f:16:9d:ff:97:35:2b:64:65:d6:6a"
-            not_before: 1537315200 # 2018-09-19 00:00:00 UTC
-            not_after: 1832673600 # 2028-01-28 12:00:00 UTC
+            not_before: 1537315200  # 2018-09-19 00:00:00 UTC
+            not_after: 1832673600  # 2028-01-28 12:00:00 UTC
     certificates:
       - issuer: "/C=BE/O=GlobalSign nv-sa/OU=Root CA/CN=GlobalSign Root CA"
         subject: "/OU=GlobalSign Root CA - R3/O=GlobalSign/CN=GlobalSign"
@@ -641,8 +641,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "01:ee:5f:16:9d:ff:97:35:2b:64:65:d6:6a"
-        not_before: 1537315200 # 2018-09-19 00:00:00 UTC
-        not_after: 1832673600 # 2028-01-28 12:00:00 UTC
+        not_before: 1537315200  # 2018-09-19 00:00:00 UTC
+        not_after: 1832673600  # 2028-01-28 12:00:00 UTC
       - issuer: "/OU=GlobalSign Root CA - R3/O=GlobalSign/CN=GlobalSign"
         subject: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign Code Signing Root R45"
         thumbprint: "4c5d80d2cd06b1a493c49b2e9bed4a57c2f873e5"
@@ -650,8 +650,8 @@ signatures:
         algorithm: "sha384WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.12"
         serial: "78:03:18:42:45:70:8a:41:cf:6f:01:b8:ee:b4:a9:54"
-        not_before: 1595894400 # 2020-07-28 00:00:00 UTC
-        not_after: 1868486400 # 2029-03-18 00:00:00 UTC
+        not_before: 1595894400  # 2020-07-28 00:00:00 UTC
+        not_after: 1868486400  # 2029-03-18 00:00:00 UTC
       - issuer: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign GCC R45 EV CodeSigning CA 2020"
         subject: "/businessCategory=Private Organization/serialNumber=460726/jurisdictionC=US/jurisdictionST=Idaho/C=US/ST=Idaho/L=Boise/streetAddress=702 W Idaho Street Suite 1100/O=WATCHDOGDEVELOPMENT.COM, LLC/CN=WATCHDOGDEVELOPMENT.COM, LLC"
         thumbprint: "73a0b736d2b9354b4c82fdf33b90a8bb7130e5fb"
@@ -659,8 +659,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "1f:7b:0d:e3:09:0e:e1:3a:43:63:15:a6"
-        not_before: 1619015067 # 2021-04-21 14:24:27 UTC
-        not_after: 1648238268 # 2022-03-25 19:57:48 UTC
+        not_before: 1619015067  # 2021-04-21 14:24:27 UTC
+        not_after: 1648238268  # 2022-03-25 19:57:48 UTC
       - issuer: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign Code Signing Root R45"
         subject: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign GCC R45 EV CodeSigning CA 2020"
         thumbprint: "c10bb76ad4ee815242406a1e3e1117ffec743d4f"
@@ -668,8 +668,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "77:bd:0e:05:b7:59:0b:b6:1d:47:61:53:1e:3f:75:ed"
-        not_before: 1595894400 # 2020-07-28 00:00:00 UTC
-        not_after: 1911427200 # 2030-07-28 00:00:00 UTC
+        not_before: 1595894400  # 2020-07-28 00:00:00 UTC
+        not_after: 1911427200  # 2030-07-28 00:00:00 UTC
       - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2008 VeriSign, Inc. - For authorized use only/CN=VeriSign Universal Root Certification Authority"
         subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping CA"
         thumbprint: "6fc9edb5e00ab64151c1cdfcac74ad2c7b7e3be4"
@@ -677,8 +677,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "7b:05:b1:d4:49:68:51:44:f7:c9:89:d2:9c:19:9d:12"
-        not_before: 1452556800 # 2016-01-12 00:00:00 UTC
-        not_after: 1925942399 # 2031-01-11 23:59:59 UTC
+        not_before: 1452556800  # 2016-01-12 00:00:00 UTC
+        not_after: 1925942399  # 2031-01-11 23:59:59 UTC
       - issuer: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping CA"
         subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping Signer - G3"
         thumbprint: "a9a4121063d71d48e8529a4681de803e3e7954b0"
@@ -686,11 +686,11 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "7b:d4:e5:af:ba:cc:07:3f:a1:01:23:04:22:41:4d:12"
-        not_before: 1513987200 # 2017-12-23 00:00:00 UTC
-        not_after: 1868918399 # 2029-03-22 23:59:59 UTC
+        not_before: 1513987200  # 2017-12-23 00:00:00 UTC
+        not_after: 1868918399  # 2029-03-22 23:59:59 UTC
     countersignatures:
       - verified: false
-        sign_time: 1634237249 # 2021-10-14 18:47:29 UTC
+        sign_time: 1634237249  # 2021-10-14 18:47:29 UTC
         digest: "a6d56d546fb347a798239820467f4871bdd4c2f331548f4fdf5ab961a46c5c45"
         digest_alg: "sha256"
         chain:
@@ -701,8 +701,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "7b:d4:e5:af:ba:cc:07:3f:a1:01:23:04:22:41:4d:12"
-            not_before: 1513987200 # 2017-12-23 00:00:00 UTC
-            not_after: 1868918399 # 2029-03-22 23:59:59 UTC
+            not_before: 1513987200  # 2017-12-23 00:00:00 UTC
+            not_after: 1868918399  # 2029-03-22 23:59:59 UTC
           - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2008 VeriSign, Inc. - For authorized use only/CN=VeriSign Universal Root Certification Authority"
             subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec SHA256 TimeStamping CA"
             thumbprint: "6fc9edb5e00ab64151c1cdfcac74ad2c7b7e3be4"
@@ -710,8 +710,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "7b:05:b1:d4:49:68:51:44:f7:c9:89:d2:9c:19:9d:12"
-            not_before: 1452556800 # 2016-01-12 00:00:00 UTC
-            not_after: 1925942399 # 2031-01-11 23:59:59 UTC
+            not_before: 1452556800  # 2016-01-12 00:00:00 UTC
+            not_after: 1925942399  # 2031-01-11 23:59:59 UTC
   - subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Hardware Compatibility Publisher"
     issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Third Party Component CA 2014"
     thumbprint: "984e03b613e8c2ae9c692f0db2c031bf3ee3a0fa"
@@ -719,8 +719,8 @@ signatures:
     algorithm: "sha256WithRSAEncryption"
     algorithm_oid: "1.2.840.113549.1.1.11"
     serial: "33:00:00:00:43:3a:68:18:9e:33:90:29:87:00:00:00:00:00:43"
-    not_before: 1608071128 # 2020-12-15 22:25:28 UTC
-    not_after: 1638483928 # 2021-12-02 22:25:28 UTC
+    not_before: 1608071128  # 2020-12-15 22:25:28 UTC
+    not_after: 1638483928  # 2021-12-02 22:25:28 UTC
     verified: true
     digest_alg: "sha256"
     digest: "60571dbcaec96d9517e0d116d066e70ae747aa4396d7857b2eea0f4c1a5a70b4"
@@ -739,8 +739,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "33:00:00:00:43:3a:68:18:9e:33:90:29:87:00:00:00:00:00:43"
-            not_before: 1608071128 # 2020-12-15 22:25:28 UTC
-            not_after: 1638483928 # 2021-12-02 22:25:28 UTC
+            not_before: 1608071128  # 2020-12-15 22:25:28 UTC
+            not_after: 1638483928  # 2021-12-02 22:25:28 UTC
           - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
             subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Third Party Component CA 2014"
             thumbprint: "1906dcf62629b563252c826fdd874efceb6856c6"
@@ -748,8 +748,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "33:00:00:00:0d:69:0d:5d:78:93:d0:76:df:00:00:00:00:00:0d"
-            not_before: 1413405087 # 2014-10-15 20:31:27 UTC
-            not_after: 1886791287 # 2029-10-15 20:41:27 UTC
+            not_before: 1413405087  # 2014-10-15 20:31:27 UTC
+            not_after: 1886791287  # 2029-10-15 20:41:27 UTC
     certificates:
       - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Third Party Component CA 2014"
         subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Hardware Compatibility Publisher"
@@ -758,8 +758,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "33:00:00:00:43:3a:68:18:9e:33:90:29:87:00:00:00:00:00:43"
-        not_before: 1608071128 # 2020-12-15 22:25:28 UTC
-        not_after: 1638483928 # 2021-12-02 22:25:28 UTC
+        not_before: 1608071128  # 2020-12-15 22:25:28 UTC
+        not_after: 1638483928  # 2021-12-02 22:25:28 UTC
       - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
         subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows Third Party Component CA 2014"
         thumbprint: "1906dcf62629b563252c826fdd874efceb6856c6"
@@ -767,8 +767,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "33:00:00:00:0d:69:0d:5d:78:93:d0:76:df:00:00:00:00:00:0d"
-        not_before: 1413405087 # 2014-10-15 20:31:27 UTC
-        not_after: 1886791287 # 2029-10-15 20:41:27 UTC
+        not_before: 1413405087  # 2014-10-15 20:31:27 UTC
+        not_after: 1886791287  # 2029-10-15 20:41:27 UTC
       - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
         subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/OU=Microsoft Operations Puerto Rico/OU=Thales TSS ESN:D9DE-E39A-43FE/CN=Microsoft Time-Stamp Service"
         thumbprint: "156e52840c397a44c45ef2ffe15d6cd2b6c3cf79"
@@ -776,8 +776,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "33:00:00:01:61:f5:a2:33:5e:a0:2a:24:69:00:00:00:00:01:61"
-        not_before: 1610650941 # 2021-01-14 19:02:21 UTC
-        not_after: 1649703741 # 2022-04-11 19:02:21 UTC
+        not_before: 1610650941  # 2021-01-14 19:02:21 UTC
+        not_after: 1649703741  # 2022-04-11 19:02:21 UTC
       - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
         subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
         thumbprint: "2aa752fe64c49abe82913c463529cf10ff2f04ee"
@@ -785,8 +785,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "61:09:81:2a:00:00:00:00:00:02"
-        not_before: 1278020215 # 2010-07-01 21:36:55 UTC
-        not_after: 1751406415 # 2025-07-01 21:46:55 UTC
+        not_before: 1278020215  # 2010-07-01 21:36:55 UTC
+        not_after: 1751406415  # 2025-07-01 21:46:55 UTC
     countersignatures:
       - verified: true
         digest: "96c1924093c6c5f81cb50cb05529b096ebd746eecb41fe87252f2303dd8f0ce4"
@@ -799,8 +799,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "33:00:00:01:61:f5:a2:33:5e:a0:2a:24:69:00:00:00:00:01:61"
-            not_before: 1610650941 # 2021-01-14 19:02:21 UTC
-            not_after: 1649703741 # 2022-04-11 19:02:21 UTC
+            not_before: 1610650941  # 2021-01-14 19:02:21 UTC
+            not_after: 1649703741  # 2022-04-11 19:02:21 UTC
           - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Root Certificate Authority 2010"
             subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Time-Stamp PCA 2010"
             thumbprint: "2aa752fe64c49abe82913c463529cf10ff2f04ee"
@@ -808,8 +808,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "61:09:81:2a:00:00:00:00:00:02"
-            not_before: 1278020215 # 2010-07-01 21:36:55 UTC
-            not_after: 1751406415 # 2025-07-01 21:46:55 UTC
+            not_before: 1278020215  # 2010-07-01 21:36:55 UTC
+            not_after: 1751406415  # 2025-07-01 21:46:55 UTC
 overlay:
     offset: 206848
     size: 19616

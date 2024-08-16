@@ -14,9 +14,9 @@ linker_version:
     major: 6
     minor: 0
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
-characteristics: 8462
-dll_characteristics: 0
-timestamp: 1157380595 # 2006-09-04 14:36:35 UTC
+characteristics: 0x210e  # EXECUTABLE_IMAGE | LINE_NUMS_STRIPPED | LOCAL_SYMS_STRIPPED | MACHINE_32BIT | DLL
+dll_characteristics: 0x0
+timestamp: 1157380595  # 2006-09-04 14:36:35 UTC
 image_base: 268435456
 checksum: 0
 base_of_code: 4096
@@ -24,7 +24,7 @@ base_of_data: 36864
 entry_point: 14285
 entry_point_raw: 14285
 dll_name: "sens32.dll"
-export_timestamp: 1157380595 # 2006-09-04 14:36:35 UTC
+export_timestamp: 1157380595  # 2006-09-04 14:36:35 UTC
 section_alignment: 4096
 file_alignment: 4096
 loader_flags: 0

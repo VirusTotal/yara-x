@@ -14,9 +14,9 @@ linker_version:
     major: 2
     minor: 56
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
-characteristics: 8974
-dll_characteristics: 0
-timestamp: 1274346651 # 2010-05-20 09:10:51 UTC
+characteristics: 0x230e  # EXECUTABLE_IMAGE | LINE_NUMS_STRIPPED | LOCAL_SYMS_STRIPPED | MACHINE_32BIT | DEBUG_STRIPPED | DLL
+dll_characteristics: 0x0
+timestamp: 1274346651  # 2010-05-20 09:10:51 UTC
 image_base: 268435456
 checksum: 0
 base_of_code: 40960
@@ -24,7 +24,7 @@ base_of_data: 49152
 entry_point: 6256
 entry_point_raw: 46704
 dll_name: "socks55.dll"
-export_timestamp: 1274346651 # 2010-05-20 09:10:51 UTC
+export_timestamp: 1274346651  # 2010-05-20 09:10:51 UTC
 section_alignment: 4096
 file_alignment: 512
 loader_flags: 0

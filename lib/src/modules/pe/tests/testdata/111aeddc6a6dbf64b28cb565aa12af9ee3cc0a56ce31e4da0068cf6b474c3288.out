@@ -14,9 +14,9 @@ linker_version:
     major: 7
     minor: 0
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
-characteristics: 271
-dll_characteristics: 32768
-timestamp: 998098977 # 2001-08-18 01:42:57 UTC
+characteristics: 0x10f  # RELOCS_STRIPPED | EXECUTABLE_IMAGE | LINE_NUMS_STRIPPED | LOCAL_SYMS_STRIPPED | MACHINE_32BIT
+dll_characteristics: 0x8000  # TERMINAL_SERVER_AWARE
+timestamp: 998098977  # 2001-08-18 01:42:57 UTC
 image_base: 16777216
 checksum: 330575
 base_of_code: 4096
@@ -165,7 +165,7 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
-resource_timestamp: 1773781709 # 2026-03-17 21:08:29 UTC
+resource_timestamp: 1773781709  # 2026-03-17 21:08:29 UTC
 resource_version:
     major: 4
     minor: 0
@@ -637,8 +637,8 @@ signatures:
     algorithm: "sha1WithRSAEncryption"
     algorithm_oid: "1.2.840.113549.1.1.5"
     serial: "61:01:cf:3e:00:00:00:00:00:0f"
-    not_before: 1260225629 # 2009-12-07 22:40:29 UTC
-    not_after: 1299537629 # 2011-03-07 22:40:29 UTC
+    not_before: 1260225629  # 2009-12-07 22:40:29 UTC
+    not_after: 1299537629  # 2011-03-07 22:40:29 UTC
     verified: true
     digest_alg: "sha1"
     digest: "47b88536046e466d2f58b318fd1843f0b84b28d3"
@@ -657,8 +657,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "61:01:cf:3e:00:00:00:00:00:0f"
-            not_before: 1260225629 # 2009-12-07 22:40:29 UTC
-            not_after: 1299537629 # 2011-03-07 22:40:29 UTC
+            not_before: 1260225629  # 2009-12-07 22:40:29 UTC
+            not_after: 1299537629  # 2011-03-07 22:40:29 UTC
           - issuer: "/OU=Copyright (c) 1997 Microsoft Corp./OU=Microsoft Corporation/CN=Microsoft Root Authority"
             subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Code Signing PCA"
             thumbprint: "3036e3b25b88a55b86fc90e6e9eaad5081445166"
@@ -666,8 +666,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.3.14.3.2.29"
             serial: "2e:ab:11:dc:50:ff:5c:9d:cb:c0"
-            not_before: 1187821862 # 2007-08-22 22:31:02 UTC
-            not_after: 1345878000 # 2012-08-25 07:00:00 UTC
+            not_before: 1187821862  # 2007-08-22 22:31:02 UTC
+            not_after: 1345878000  # 2012-08-25 07:00:00 UTC
     certificates:
       - issuer: "/OU=Copyright (c) 1997 Microsoft Corp./OU=Microsoft Corporation/CN=Microsoft Root Authority"
         subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Code Signing PCA"
@@ -676,8 +676,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.3.14.3.2.29"
         serial: "2e:ab:11:dc:50:ff:5c:9d:cb:c0"
-        not_before: 1187821862 # 2007-08-22 22:31:02 UTC
-        not_after: 1345878000 # 2012-08-25 07:00:00 UTC
+        not_before: 1187821862  # 2007-08-22 22:31:02 UTC
+        not_after: 1345878000  # 2012-08-25 07:00:00 UTC
       - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Code Signing PCA"
         subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/OU=MOPR/CN=Microsoft Corporation"
         thumbprint: "9617094a1cfb59ae7c1f7dfdb6739e4e7c40508f"
@@ -685,8 +685,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "61:01:cf:3e:00:00:00:00:00:0f"
-        not_before: 1260225629 # 2009-12-07 22:40:29 UTC
-        not_after: 1299537629 # 2011-03-07 22:40:29 UTC
+        not_before: 1260225629  # 2009-12-07 22:40:29 UTC
+        not_after: 1299537629  # 2011-03-07 22:40:29 UTC
       - issuer: "/OU=Copyright (c) 1997 Microsoft Corp./OU=Microsoft Corporation/CN=Microsoft Root Authority"
         subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Timestamping PCA"
         thumbprint: "3ea99a60058275e0ed83b892a909449f8c33b245"
@@ -694,8 +694,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "6a:0b:99:4f:c0:00:25:ab:11:db:45:1f:58:7a:67:a2"
-        not_before: 1158368687 # 2006-09-16 01:04:47 UTC
-        not_after: 1568530800 # 2019-09-15 07:00:00 UTC
+        not_before: 1158368687  # 2006-09-16 01:04:47 UTC
+        not_after: 1568530800  # 2019-09-15 07:00:00 UTC
       - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Timestamping PCA"
         subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/OU=MOPR/OU=nCipher DSE ESN:85D3-305C-5BCF/CN=Microsoft Time-Stamp Service"
         thumbprint: "4d6f357f0e6434da97b1afc540fb6fdd0e85a89f"
@@ -703,11 +703,11 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "61:05:a2:30:00:00:00:00:00:08"
-        not_before: 1217012475 # 2008-07-25 19:01:15 UTC
-        not_after: 1374779475 # 2013-07-25 19:11:15 UTC
+        not_before: 1217012475  # 2008-07-25 19:01:15 UTC
+        not_after: 1374779475  # 2013-07-25 19:11:15 UTC
     countersignatures:
       - verified: true
-        sign_time: 1275479951 # 2010-06-02 11:59:11 UTC
+        sign_time: 1275479951  # 2010-06-02 11:59:11 UTC
         digest: "8816bffcc2a048cf661dc8d8b32648bdc20ab06e"
         digest_alg: "sha1"
         chain:
@@ -718,8 +718,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "61:05:a2:30:00:00:00:00:00:08"
-            not_before: 1217012475 # 2008-07-25 19:01:15 UTC
-            not_after: 1374779475 # 2013-07-25 19:11:15 UTC
+            not_before: 1217012475  # 2008-07-25 19:01:15 UTC
+            not_after: 1374779475  # 2013-07-25 19:11:15 UTC
           - issuer: "/OU=Copyright (c) 1997 Microsoft Corp./OU=Microsoft Corporation/CN=Microsoft Root Authority"
             subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Timestamping PCA"
             thumbprint: "3ea99a60058275e0ed83b892a909449f8c33b245"
@@ -727,8 +727,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "6a:0b:99:4f:c0:00:25:ab:11:db:45:1f:58:7a:67:a2"
-            not_before: 1158368687 # 2006-09-16 01:04:47 UTC
-            not_after: 1568530800 # 2019-09-15 07:00:00 UTC
+            not_before: 1158368687  # 2006-09-16 01:04:47 UTC
+            not_after: 1568530800  # 2019-09-15 07:00:00 UTC
 overlay:
     offset: 282112
     size: 5976

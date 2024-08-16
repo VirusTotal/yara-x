@@ -280,39 +280,39 @@ segments:
     flags: 0x0
 dylibs:
   - name: "/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "15.0.0"
   - name: "/usr/lib/libobjc.A.dylib"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "227.0.0"
   - name: "/System/Library/Frameworks/ExceptionHandling.framework/Versions/A/ExceptionHandling"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "10.0.0"
   - name: "@executable_path/libmozglue.dylib"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "1.0.0"
   - name: "/usr/lib/libstdc++.6.dylib"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "7.0.0"
     current_version: "7.9.0"
   - name: "/usr/lib/libSystem.B.dylib"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "125.2.11"
   - name: "/usr/lib/libgcc_s.1.dylib"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "697.0.0"
   - name: "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "150.0.0"
     current_version: "550.43.0"
   - name: "/System/Library/Frameworks/ApplicationServices.framework/Versions/A/ApplicationServices"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "38.0.0"
 uuid: "EF07AAD0-F2AB-34DF-940C-2965C1872F0C"

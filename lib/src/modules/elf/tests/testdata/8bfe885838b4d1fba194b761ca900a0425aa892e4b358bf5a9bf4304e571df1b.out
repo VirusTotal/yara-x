@@ -216,7 +216,7 @@ sections:
     name: ".shstrtab"
 segments:
   - type: PT_LOAD
-    flags: 4
+    flags: 0x4  # PF_R
     offset: 0
     virtual_address: 0
     physical_address: 0
@@ -224,7 +224,7 @@ segments:
     memory_size: 2168
     alignment: 4096
   - type: PT_LOAD
-    flags: 5
+    flags: 0x5  # PF_X | PF_R
     offset: 4096
     virtual_address: 4096
     physical_address: 4096
@@ -232,7 +232,7 @@ segments:
     memory_size: 577
     alignment: 4096
   - type: PT_LOAD
-    flags: 4
+    flags: 0x4  # PF_R
     offset: 8192
     virtual_address: 8192
     physical_address: 8192
@@ -240,7 +240,7 @@ segments:
     memory_size: 172
     alignment: 4096
   - type: PT_LOAD
-    flags: 6
+    flags: 0x6  # PF_W | PF_R
     offset: 11744
     virtual_address: 15840
     physical_address: 15840
@@ -248,7 +248,7 @@ segments:
     memory_size: 664
     alignment: 4096
   - type: PT_DYNAMIC
-    flags: 6
+    flags: 0x6  # PF_W | PF_R
     offset: 11760
     virtual_address: 15856
     physical_address: 15856
@@ -256,7 +256,7 @@ segments:
     memory_size: 464
     alignment: 8
   - type: PT_NOTE
-    flags: 4
+    flags: 0x4  # PF_R
     offset: 680
     virtual_address: 680
     physical_address: 680
@@ -264,7 +264,7 @@ segments:
     memory_size: 48
     alignment: 8
   - type: PT_NOTE
-    flags: 4
+    flags: 0x4  # PF_R
     offset: 728
     virtual_address: 728
     physical_address: 728
@@ -272,7 +272,7 @@ segments:
     memory_size: 36
     alignment: 4
   - type: PT_GNU_PROPERTY
-    flags: 4
+    flags: 0x4  # PF_R
     offset: 680
     virtual_address: 680
     physical_address: 680
@@ -280,7 +280,7 @@ segments:
     memory_size: 48
     alignment: 8
   - type: PT_GNU_EH_FRAME
-    flags: 4
+    flags: 0x4  # PF_R
     offset: 8192
     virtual_address: 8192
     physical_address: 8192
@@ -288,7 +288,7 @@ segments:
     memory_size: 36
     alignment: 4
   - type: PT_GNU_STACK
-    flags: 6
+    flags: 0x6  # PF_W | PF_R
     offset: 0
     virtual_address: 0
     physical_address: 0
@@ -296,7 +296,7 @@ segments:
     memory_size: 0
     alignment: 16
   - type: PT_GNU_RELRO
-    flags: 4
+    flags: 0x4  # PF_R
     offset: 11744
     virtual_address: 15840
     physical_address: 15840

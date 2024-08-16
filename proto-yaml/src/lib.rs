@@ -22,11 +22,17 @@ The `[(yaml.field).fmt = "x"]` modifier, when applied to some field, indicates
 that values of that field must be rendered in hexadecimal form. The list of
 supported format modifiers is:
 
-- `x`: Serializes the value an hexadecimal number. Only valid for integer
+- `x`: Serializes the value as a hexadecimal number. Only valid for integer
        fields.
+
 - `t`: Serializes the field as a timestamp. The value itself is rendered as a
        decimal integer, but a comment is added with the timestamp in a
        human-friendly format. Only valid for integer fields.
+
+- `flag:ENUM_TYPE_NAME`: Serializes the field as a set of flags. The value
+                         is rendered as a hexadecimal number. but a comment is
+                         added withe flags set. `ENUM_TYPE_NAME` must be the
+                         name of enum where each value represents a flag.
 
 # Examples
 
@@ -38,6 +44,13 @@ import "yaml.proto";
 message MyMessage {
   optional int32 some_field = 1 [(yaml.field).fmt = "x"];
   optional int64 some_timestamp = 2 [(yaml.field).fmt = "t"];
+  optional int32 some_flag = 3 [(yaml.field).fmt = "flags:MyFlags"];
+}
+
+enum MyFlags {
+    FOO = 0x01;
+    BAR = 0x02;
+    BAZ = 0x04;
 }
 ```
 
@@ -45,7 +58,8 @@ YAML output:
 
 ```yaml
 some_field: 0x8b1;
-timestamp: 999999999 # 2001-09-09 01:46:39 UTC
+some_timestamp: 999999999  # 2001-09-09 01:46:39 UTC
+some_flag: 0x06  # BAR | BAZ
 ```
  */
 
@@ -54,11 +68,11 @@ use itertools::Itertools;
 use protobuf::MessageDyn;
 use std::cmp::Ordering;
 use std::io::{Error, Write};
+use std::ops::BitAnd;
 use yansi::{Color, Paint, Style};
 
-use protobuf::descriptor::FieldDescriptorProto;
 use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
-use protobuf::reflect::ReflectValueRef;
+use protobuf::reflect::{EnumDescriptor, ReflectValueRef};
 use protobuf::reflect::{FieldDescriptor, MessageRef};
 
 use crate::yaml::exts::field as field_options;
@@ -79,11 +93,13 @@ struct Colors {
     comment: Style,
 }
 
-/// A struct that represents options for a field values
-#[derive(Debug, Default, Clone)]
-struct ValueOptions {
-    is_hex: bool,
-    is_timestamp: bool,
+/// A struct that represents the format applied to values.
+#[derive(Debug, Clone)]
+enum ValueFormat {
+    None,
+    Hex,
+    Timestamp,
+    Flags(EnumDescriptor),
 }
 
 /// Serializes a protobuf to YAML format.
@@ -128,36 +144,84 @@ impl<W: Write> Serializer<W> {
 }
 
 impl<W: Write> Serializer<W> {
-    fn get_value_options(
-        &mut self,
-        field_descriptor: &FieldDescriptorProto,
-    ) -> ValueOptions {
-        field_options
-            .get(&field_descriptor.options)
-            .map(|options| ValueOptions {
-                // Default for boolean is false
-                is_hex: options.fmt() == "x",
-                is_timestamp: options.fmt() == "t",
-            })
-            .unwrap_or_default()
+    fn get_value_format(
+        &self,
+        field_descriptor: &FieldDescriptor,
+    ) -> ValueFormat {
+        let opts = match field_options.get(&field_descriptor.proto().options) {
+            Some(opts) => opts,
+            None => return ValueFormat::None,
+        };
+
+        let fmt = opts.fmt();
+
+        if fmt == "x" {
+            return ValueFormat::Hex;
+        } else if fmt == "t" {
+            return ValueFormat::Timestamp;
+        }
+
+        let msg_descriptor = field_descriptor.containing_message();
+        let file_descriptor = msg_descriptor.file_descriptor();
+
+        // Check if format is something like `flags:ENUM_TYPE`.
+        if let Some(flags_enum) = fmt.strip_prefix("flags:") {
+            if let Some(flags_enum) =
+                file_descriptor.enums().find(|e| e.name() == flags_enum)
+            {
+                return ValueFormat::Flags(flags_enum);
+            } else {
+                panic!(
+                    "field `{}` declared as `flags:{}`, but enum `{}` was not found",
+                    field_descriptor.full_name(),
+                    flags_enum,
+                    flags_enum
+                )
+            }
+        }
+
+        panic!(
+            "invalid format option `{}` for field `{}`",
+            fmt,
+            field_descriptor.full_name(),
+        );
     }
 
-    fn print_integer_value_with_options<T: Into<i64> + ToString + Copy>(
+    fn print_integer_value<T: Into<i64> + ToString + Copy>(
         &mut self,
         value: T,
-        value_options: &ValueOptions,
+        value_format: ValueFormat,
     ) -> Result<(), std::io::Error> {
-        if value_options.is_hex {
-            write!(self.output, "0x{:x}", value.into())?;
-        } else if value_options.is_timestamp {
-            let timestamp =
-                DateTime::from_timestamp(value.into(), 0).unwrap().to_string();
-
-            write!(self.output, "{} ", value.to_string())?;
-            self.write_comment(&timestamp)?;
-        } else {
-            write!(self.output, "{}", value.to_string())?;
-        };
+        match value_format {
+            ValueFormat::Flags(flags_enum) => {
+                let value = value.into();
+                write!(self.output, "0x{:x}", value)?;
+                let mut f = vec![];
+                for v in flags_enum.values() {
+                    if value.bitand(v.value() as i64) != 0 {
+                        f.push(v.name().to_string());
+                    }
+                }
+                if !f.is_empty() {
+                    self.write_comment(f.into_iter().join(" | ").as_str())?;
+                }
+            }
+            ValueFormat::Hex => {
+                write!(self.output, "0x{:x}", value.into())?;
+            }
+            ValueFormat::Timestamp => {
+                write!(self.output, "{}", value.to_string())?;
+                self.write_comment(
+                    DateTime::from_timestamp(value.into(), 0)
+                        .unwrap()
+                        .to_string()
+                        .as_str(),
+                )?;
+            }
+            _ => {
+                write!(self.output, "{}", value.to_string())?;
+            }
+        }
 
         Ok(())
     }
@@ -202,7 +266,7 @@ impl<W: Write> Serializer<W> {
     }
 
     fn write_comment(&mut self, comment: &str) -> Result<(), Error> {
-        let comment = format!("# {}", comment);
+        let comment = format!("  # {}", comment);
         write!(self.output, "{}", comment.paint(self.colors.comment))
     }
 
@@ -304,19 +368,23 @@ impl<W: Write> Serializer<W> {
         field_descriptor: &FieldDescriptor,
         value: &ReflectValueRef,
     ) -> Result<(), Error> {
-        let value_options = self.get_value_options(field_descriptor.proto());
         match value {
-            ReflectValueRef::U32(v) => {
-                self.print_integer_value_with_options(*v, &value_options)?
-            }
-            ReflectValueRef::U64(v) => self
-                .print_integer_value_with_options(*v as i64, &value_options)?,
-            ReflectValueRef::I32(v) => {
-                self.print_integer_value_with_options(*v, &value_options)?
-            }
-            ReflectValueRef::I64(v) => {
-                self.print_integer_value_with_options(*v, &value_options)?
-            }
+            ReflectValueRef::U32(v) => self.print_integer_value(
+                *v,
+                self.get_value_format(field_descriptor),
+            )?,
+            ReflectValueRef::U64(v) => self.print_integer_value(
+                *v as i64,
+                self.get_value_format(field_descriptor),
+            )?,
+            ReflectValueRef::I32(v) => self.print_integer_value(
+                *v,
+                self.get_value_format(field_descriptor),
+            )?,
+            ReflectValueRef::I64(v) => self.print_integer_value(
+                *v,
+                self.get_value_format(field_descriptor),
+            )?,
             ReflectValueRef::F32(v) => write!(self.output, "{:.1}", v)?,
             ReflectValueRef::F64(v) => write!(self.output, "{:.1}", v)?,
             ReflectValueRef::Bool(v) => write!(self.output, "{}", v)?,

@@ -14,9 +14,9 @@ linker_version:
     major: 10
     minor: 0
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
-characteristics: 34
-dll_characteristics: 33088
-timestamp: 1642150359 # 2022-01-14 08:52:39 UTC
+characteristics: 0x22  # EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE
+dll_characteristics: 0x8140  # DYNAMIC_BASE | NX_COMPAT | TERMINAL_SERVER_AWARE
+timestamp: 1642150359  # 2022-01-14 08:52:39 UTC
 image_base: 5368709120
 checksum: 119600
 base_of_code: 4096
@@ -213,7 +213,7 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
-resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 4
     minor: 0
@@ -421,8 +421,8 @@ signatures:
     algorithm: "ecdsa-with-SHA384"
     algorithm_oid: "1.2.840.10045.4.3.3"
     serial: "45:53:b4:49:3b:42:23:e9:f7:56:9d:fd:73:09:c4:23"
-    not_before: 1694439952 # 2023-09-11 13:45:52 UTC
-    not_after: 1720705552 # 2024-07-11 13:45:52 UTC
+    not_before: 1694439952  # 2023-09-11 13:45:52 UTC
+    not_after: 1720705552  # 2024-07-11 13:45:52 UTC
     verified: true
     digest_alg: "sha384"
     digest: "98fac37de4e8498bd8873304491f8d5b4039730c010843c0d38c798d302557cf2eea5da1702a2fb774c9e19a6d8b7d8c"
@@ -440,8 +440,8 @@ signatures:
             algorithm: "ecdsa-with-SHA384"
             algorithm_oid: "1.2.840.10045.4.3.3"
             serial: "45:53:b4:49:3b:42:23:e9:f7:56:9d:fd:73:09:c4:23"
-            not_before: 1694439952 # 2023-09-11 13:45:52 UTC
-            not_after: 1720705552 # 2024-07-11 13:45:52 UTC
+            not_before: 1694439952  # 2023-09-11 13:45:52 UTC
+            not_after: 1720705552  # 2024-07-11 13:45:52 UTC
           - issuer: "/C=US/ST=Texas/L=Houston/O=SSL Corporation/CN=SSL.com EV Root Certification Authority ECC"
             subject: "/C=US/ST=Texas/L=Houston/O=SSL Corp/CN=SSL.com EV Code Signing Intermediate CA ECC R2"
             thumbprint: "7dc509cc760f073ee038040507c27858402d3b19"
@@ -449,8 +449,8 @@ signatures:
             algorithm: "ecdsa-with-SHA384"
             algorithm_oid: "1.2.840.10045.4.3.3"
             serial: "6e:dd:4f:25:e7:31:7d:39:81:57:31:34:cf:c1:dc:a0"
-            not_before: 1551987465 # 2019-03-07 19:37:45 UTC
-            not_after: 2025027465 # 2034-03-03 19:37:45 UTC
+            not_before: 1551987465  # 2019-03-07 19:37:45 UTC
+            not_after: 2025027465  # 2034-03-03 19:37:45 UTC
     certificates:
       - issuer: "/C=US/ST=Texas/L=Houston/O=SSL Corporation/CN=SSL.com EV Root Certification Authority ECC"
         subject: "/C=US/ST=Texas/L=Houston/O=SSL Corp/CN=SSL.com EV Code Signing Intermediate CA ECC R2"
@@ -459,8 +459,8 @@ signatures:
         algorithm: "ecdsa-with-SHA384"
         algorithm_oid: "1.2.840.10045.4.3.3"
         serial: "6e:dd:4f:25:e7:31:7d:39:81:57:31:34:cf:c1:dc:a0"
-        not_before: 1551987465 # 2019-03-07 19:37:45 UTC
-        not_after: 2025027465 # 2034-03-03 19:37:45 UTC
+        not_before: 1551987465  # 2019-03-07 19:37:45 UTC
+        not_after: 2025027465  # 2034-03-03 19:37:45 UTC
       - issuer: "/C=US/ST=Texas/L=Houston/O=SSL Corp/CN=SSL.com EV Code Signing Intermediate CA ECC R2"
         subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/serialNumber=HRB 140833/CN=Quality First Software GmbH/businessCategory=Private Organization/jurisdictionL=München/jurisdictionST=Bayern/jurisdictionC=DE"
         thumbprint: "6a63f4e957aa5867f33916e8f57019c2b9987478"
@@ -468,8 +468,8 @@ signatures:
         algorithm: "ecdsa-with-SHA384"
         algorithm_oid: "1.2.840.10045.4.3.3"
         serial: "45:53:b4:49:3b:42:23:e9:f7:56:9d:fd:73:09:c4:23"
-        not_before: 1694439952 # 2023-09-11 13:45:52 UTC
-        not_after: 1720705552 # 2024-07-11 13:45:52 UTC
+        not_before: 1694439952  # 2023-09-11 13:45:52 UTC
+        not_after: 1720705552  # 2024-07-11 13:45:52 UTC
       - issuer: "/C=US/ST=Texas/L=Houston/O=SSL Corp/CN=SSL.com Timestamping Issuing RSA CA R1"
         subject: "/C=US/ST=Texas/L=Houston/O=SSL Corp/CN=SSL.com Timestamping Unit 2022"
         thumbprint: "aac9f9414b41c33a2dff9d8f4bd25244305489b2"
@@ -477,8 +477,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "1a:d6:08:a7:d6:34:b5:cd:de:97:cb:a3:cc:f0:d0:4b"
-        not_before: 1670610651 # 2022-12-09 18:30:51 UTC
-        not_after: 1985970650 # 2032-12-06 18:30:50 UTC
+        not_before: 1670610651  # 2022-12-09 18:30:51 UTC
+        not_after: 1985970650  # 2032-12-06 18:30:50 UTC
       - issuer: "/C=US/ST=Texas/L=Houston/O=SSL Corporation/CN=SSL.com Root Certification Authority RSA"
         subject: "/C=US/ST=Texas/L=Houston/O=SSL Corp/CN=SSL.com Timestamping Issuing RSA CA R1"
         thumbprint: "84dc2f563a1aaa690c468f3b56ef2d63aec7ca39"
@@ -486,11 +486,11 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "6d:52:18:70:87:e8:23:4d:85:60:00:d0:80:8f:93:56"
-        not_before: 1573671005 # 2019-11-13 18:50:05 UTC
-        not_after: 2046970205 # 2034-11-12 18:50:05 UTC
+        not_before: 1573671005  # 2019-11-13 18:50:05 UTC
+        not_after: 2046970205  # 2034-11-12 18:50:05 UTC
     countersignatures:
       - verified: true
-        sign_time: 1708954610 # 2024-02-26 13:36:50 UTC
+        sign_time: 1708954610  # 2024-02-26 13:36:50 UTC
         digest: "ebbcb9430ee128c3126285d91988aa775cc579091e3fbbd07290d93cd42f6623"
         digest_alg: "sha256"
         chain:
@@ -501,8 +501,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "1a:d6:08:a7:d6:34:b5:cd:de:97:cb:a3:cc:f0:d0:4b"
-            not_before: 1670610651 # 2022-12-09 18:30:51 UTC
-            not_after: 1985970650 # 2032-12-06 18:30:50 UTC
+            not_before: 1670610651  # 2022-12-09 18:30:51 UTC
+            not_after: 1985970650  # 2032-12-06 18:30:50 UTC
           - issuer: "/C=US/ST=Texas/L=Houston/O=SSL Corporation/CN=SSL.com Root Certification Authority RSA"
             subject: "/C=US/ST=Texas/L=Houston/O=SSL Corp/CN=SSL.com Timestamping Issuing RSA CA R1"
             thumbprint: "84dc2f563a1aaa690c468f3b56ef2d63aec7ca39"
@@ -510,8 +510,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "6d:52:18:70:87:e8:23:4d:85:60:00:d0:80:8f:93:56"
-            not_before: 1573671005 # 2019-11-13 18:50:05 UTC
-            not_after: 2046970205 # 2034-11-12 18:50:05 UTC
+            not_before: 1573671005  # 2019-11-13 18:50:05 UTC
+            not_after: 2046970205  # 2034-11-12 18:50:05 UTC
 overlay:
     offset: 93184
     size: 6456
