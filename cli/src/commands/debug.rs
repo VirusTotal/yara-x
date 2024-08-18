@@ -1,4 +1,4 @@
-#![cfg(feature = "developer")]
+#![cfg(feature = "debug-cmd")]
 use std::fs;
 use std::path::PathBuf;
 

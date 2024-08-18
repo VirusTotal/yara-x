@@ -22,9 +22,8 @@ path = "src/main.rs"
 # to work fine in Linux.
 profiling = ["pprof"]
 
-# Enable the "debug" command. Calling it "developer" here because calling it
-# "debug" is confusing as that implies a debug build.
-developer = []
+# Enable the "debug" command for developers.
+debug-cmd = []
 
 # When this feature is enabled the CLI program prints debug logs if
 # the RUST_LOG environment variable is set to any of the debug levels:
