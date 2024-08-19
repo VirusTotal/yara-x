@@ -456,7 +456,7 @@ pub(in crate::compiler) fn expr_from_ast(
             let replacement = match (lhs.type_value(), rhs.type_value()) {
                 (TypeValue::Bool(_), TypeValue::Integer(Value::Const(0))) => {
                     Some((
-                        Expr::Not { operand: Box::new(lhs) },
+                        Expr::not(lhs),
                         format!(
                             "not {}",
                             ctx.report_builder.get_snippet(&lhs_span.into())
@@ -465,7 +465,7 @@ pub(in crate::compiler) fn expr_from_ast(
                 }
                 (TypeValue::Integer(Value::Const(0)), TypeValue::Bool(_)) => {
                     Some((
-                        Expr::Not { operand: Box::new(rhs) },
+                        Expr::not(rhs),
                         format!(
                             "not {}",
                             ctx.report_builder.get_snippet(&rhs_span.into())
@@ -555,7 +555,7 @@ pub(in crate::compiler) fn expr_from_ast(
 
             operands.push(last_operand);
 
-            Ok(Expr::FieldAccess { operands })
+            Ok(Expr::field_access(operands))
         }
 
         ast::Expr::Ident(ident) => {
@@ -1635,8 +1635,8 @@ macro_rules! gen_binary_op {
             let lhs_span = expr.lhs.span();
             let rhs_span = expr.rhs.span();
 
-            let lhs = Box::new(expr_from_ast(ctx, &expr.lhs)?);
-            let rhs = Box::new(expr_from_ast(ctx, &expr.rhs)?);
+            let lhs = expr_from_ast(ctx, &expr.lhs)?;
+            let rhs = expr_from_ast(ctx, &expr.rhs)?;
 
             check_operands(
                 ctx,
@@ -1656,7 +1656,7 @@ macro_rules! gen_binary_op {
                 check_fn(ctx, &lhs, &rhs, lhs_span, rhs_span)?;
             }
 
-            let expr = Expr::$variant { lhs, rhs };
+            let expr = Expr::$variant(lhs, rhs);
 
             if cfg!(feature = "constant-folding") {
                 expr.fold(ctx, span)
@@ -1677,8 +1677,8 @@ macro_rules! gen_string_op {
             let lhs_span = expr.lhs.span();
             let rhs_span = expr.rhs.span();
 
-            let lhs = Box::new(expr_from_ast(ctx, &expr.lhs)?);
-            let rhs = Box::new(expr_from_ast(ctx, &expr.rhs)?);
+            let lhs = expr_from_ast(ctx, &expr.lhs)?;
+            let rhs = expr_from_ast(ctx, &expr.rhs)?;
 
             check_operands(
                 ctx,
@@ -1690,7 +1690,7 @@ macro_rules! gen_string_op {
                 &[Type::String],
             )?;
 
-            let expr = Expr::$variant { lhs, rhs };
+            let expr = Expr::$variant(lhs, rhs);
 
             if cfg!(feature = "constant-folding") {
                 expr.fold(ctx, span)
@@ -1759,7 +1759,7 @@ macro_rules! gen_n_ary_operation {
                 }
             }
 
-            let expr = Expr::$variant { operands: operands_hir };
+            let expr = Expr::$variant(operands_hir);
 
             if cfg!(feature = "constant-folding") {
                 expr.fold(ctx, span)
@@ -1792,7 +1792,7 @@ gen_unary_op!(
 
 gen_n_ary_operation!(
     and_expr_from_ast,
-    And,
+    and,
     // Boolean operations accept integer, float and string operands.
     // If operands are not boolean they are casted to boolean.
     Type::Bool | Type::Integer | Type::Float | Type::String,
@@ -1807,7 +1807,7 @@ gen_n_ary_operation!(
 
 gen_n_ary_operation!(
     or_expr_from_ast,
-    Or,
+    or,
     // Boolean operations accept integer, float and string operands.
     // If operands are not boolean they are casted to boolean.
     Type::Bool | Type::Integer | Type::Float | Type::String,
@@ -1824,7 +1824,7 @@ gen_unary_op!(minus_expr_from_ast, Minus, Type::Integer | Type::Float, None);
 
 gen_n_ary_operation!(
     add_expr_from_ast,
-    Add,
+    add,
     Type::Integer | Type::Float,
     Type::Integer | Type::Float,
     None
@@ -1832,7 +1832,7 @@ gen_n_ary_operation!(
 
 gen_n_ary_operation!(
     sub_expr_from_ast,
-    Sub,
+    sub,
     Type::Integer | Type::Float,
     Type::Integer | Type::Float,
     None
@@ -1840,7 +1840,7 @@ gen_n_ary_operation!(
 
 gen_n_ary_operation!(
     mul_expr_from_ast,
-    Mul,
+    mul,
     Type::Integer | Type::Float,
     Type::Integer | Type::Float,
     None
@@ -1848,7 +1848,7 @@ gen_n_ary_operation!(
 
 gen_n_ary_operation!(
     div_expr_from_ast,
-    Div,
+    div,
     Type::Integer | Type::Float,
     Type::Integer | Type::Float,
     None
@@ -1856,7 +1856,7 @@ gen_n_ary_operation!(
 
 gen_n_ary_operation!(
     mod_expr_from_ast,
-    Mod,
+    modulus,
     Type::Integer,
     Type::Integer,
     None
@@ -1864,7 +1864,7 @@ gen_n_ary_operation!(
 
 gen_binary_op!(
     shl_expr_from_ast,
-    Shl,
+    shl,
     Type::Integer,
     Type::Integer,
     Some(|ctx, _lhs, rhs, _lhs_span, rhs_span| {
@@ -1884,7 +1884,7 @@ gen_binary_op!(
 
 gen_binary_op!(
     shr_expr_from_ast,
-    Shr,
+    shr,
     Type::Integer,
     Type::Integer,
     Some(|ctx, _lhs, rhs, _lhs_span, rhs_span| {
@@ -1906,7 +1906,7 @@ gen_unary_op!(bitwise_not_expr_from_ast, BitwiseNot, Type::Integer, None);
 
 gen_binary_op!(
     bitwise_and_expr_from_ast,
-    BitwiseAnd,
+    bitwise_and,
     Type::Integer,
     Type::Integer,
     None
@@ -1914,7 +1914,7 @@ gen_binary_op!(
 
 gen_binary_op!(
     bitwise_or_expr_from_ast,
-    BitwiseOr,
+    bitwise_or,
     Type::Integer,
     Type::Integer,
     None
@@ -1922,7 +1922,7 @@ gen_binary_op!(
 
 gen_binary_op!(
     bitwise_xor_expr_from_ast,
-    BitwiseXor,
+    bitwise_xor,
     Type::Integer,
     Type::Integer,
     None
@@ -1930,7 +1930,7 @@ gen_binary_op!(
 
 gen_binary_op!(
     eq_expr_from_ast,
-    Eq,
+    eq,
     // Integers, floats and strings can be compared.
     Type::Integer | Type::Float | Type::String,
     // Integers can be compared with floats, but strings can be
@@ -1941,7 +1941,7 @@ gen_binary_op!(
 
 gen_binary_op!(
     ne_expr_from_ast,
-    Ne,
+    ne,
     // Integers, floats and strings can be compared.
     Type::Integer | Type::Float | Type::String,
     // Integers can be compared with floats, but strings can be
@@ -1952,7 +1952,7 @@ gen_binary_op!(
 
 gen_binary_op!(
     gt_expr_from_ast,
-    Gt,
+    gt,
     // Integers, floats and strings can be compared.
     Type::Integer | Type::Float | Type::String,
     // Integers can be compared with floats, but strings can be
@@ -1963,7 +1963,7 @@ gen_binary_op!(
 
 gen_binary_op!(
     ge_expr_from_ast,
-    Ge,
+    ge,
     // Integers, floats and strings can be compared.
     Type::Integer | Type::Float | Type::String,
     // Integers can be compared with floats, but strings can be
@@ -1974,7 +1974,7 @@ gen_binary_op!(
 
 gen_binary_op!(
     lt_expr_from_ast,
-    Lt,
+    lt,
     // Integers, floats and strings can be compared.
     Type::Integer | Type::Float | Type::String,
     // Integers can be compared with floats, but strings can be
@@ -1985,7 +1985,7 @@ gen_binary_op!(
 
 gen_binary_op!(
     le_expr_from_ast,
-    Le,
+    le,
     // Integers, floats and strings can be compared.
     Type::Integer | Type::Float | Type::String,
     // Integers can be compared with floats, but strings can be
@@ -1994,10 +1994,10 @@ gen_binary_op!(
     None
 );
 
-gen_string_op!(contains_expr_from_ast, Contains);
-gen_string_op!(icontains_expr_from_ast, IContains);
-gen_string_op!(startswith_expr_from_ast, StartsWith);
-gen_string_op!(istartswith_expr_from_ast, IStartsWith);
-gen_string_op!(endswith_expr_from_ast, EndsWith);
-gen_string_op!(iendswith_expr_from_ast, IEndsWith);
-gen_string_op!(iequals_expr_from_ast, IEquals);
+gen_string_op!(contains_expr_from_ast, contains);
+gen_string_op!(icontains_expr_from_ast, icontains);
+gen_string_op!(startswith_expr_from_ast, starts_with);
+gen_string_op!(istartswith_expr_from_ast, istarts_with);
+gen_string_op!(endswith_expr_from_ast, ends_with);
+gen_string_op!(iendswith_expr_from_ast, iends_with);
+gen_string_op!(iequals_expr_from_ast, iequals);
