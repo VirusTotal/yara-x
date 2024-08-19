@@ -12,8 +12,13 @@ fn ir() {
 
     files.into_iter().for_each(|path| {
         let mut mint = goldenfile::Mint::new(".");
-        // Path to the .ir file, replace the .in extension with .ir.
-        let output_path = path.with_extension("ir");
+
+        let output_path = if cfg!(feature = "constant-folding") {
+            path.with_extension("folding.ir")
+        } else {
+            path.with_extension("no-folding.ir")
+        };
+
         let output_file = mint.new_goldenfile(output_path).unwrap();
 
         println!("file: {:?}", path);
