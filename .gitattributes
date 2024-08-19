@@ -4,4 +4,5 @@
 *.out text eol=lf
 *.ast text eol=lf
 *.cst text eol=lf
+*.ir eol=lf
 *.unformatted text eol=lf
