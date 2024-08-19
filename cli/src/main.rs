@@ -56,6 +56,7 @@ fn main() -> anyhow::Result<()> {
     }));
 
     let result = match args.subcommand() {
+        #[cfg(feature = "debug-cmd")]
         Some(("debug", args)) => commands::exec_debug(args),
         Some(("check", args)) => commands::exec_check(args),
         Some(("fix", args)) => commands::exec_fix(args),
