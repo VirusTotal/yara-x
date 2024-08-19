@@ -158,7 +158,7 @@ pub mod mods {
     pub use super::protos::elf::ELF;
 
     /// Data structures defined by the `lnk` module.
-    ///     
+    ///
     /// The main structure produced by the module is [`lnk::Lnk`]. The rest of
     /// them are used by one or more fields in the main structure.
     ///

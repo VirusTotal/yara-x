@@ -29,6 +29,7 @@ allows using the same regex engine for matching both types of patterns.
 [Hir]: regex_syntax::hir::Hir
 */
 
+use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
 use std::ops::RangeInclusive;
 
@@ -46,10 +47,15 @@ pub(in crate::compiler) use ast2ir::patterns_from_ast;
 use yara_x_parser::ast::Ident;
 use yara_x_parser::Span;
 
+use crate::compiler::ir::dfs::{DepthFirstSearch, Event};
 use crate::{re, CompileError};
 
 mod ast2ir;
+mod dfs;
 mod hex2hir;
+
+#[cfg(test)]
+mod tests;
 
 bitmask! {
     /// Flags associated to rule patterns.
@@ -293,7 +299,6 @@ impl From<usize> for PatternIdx {
 }
 
 /// Intermediate representation (IR) for an expression.
-#[derive(Debug)]
 pub(in crate::compiler) enum Expr {
     /// Constant value (i.e: the value is known at compile time).
     /// The value in `TypeValue` is not `None`.
@@ -662,6 +667,19 @@ pub(in crate::compiler) enum Iterable {
 }
 
 impl Expr {
+    /// Creates a new [`Expr::Add`].
+    pub fn add(operands: Vec<Expr>) -> Self {
+        Self::Add { operands }
+    }
+
+    /// Returns an iterator that does a DFS traversal of the IR tree.
+    ///
+    /// See [`DepthFirstSearch`] for details.
+    pub fn depth_first_search(&self) -> DepthFirstSearch {
+        DepthFirstSearch::new(self)
+    }
+
+    /// Returns the type of this expression.
     pub fn ty(&self) -> Type {
         match self {
             Expr::Const(type_value) => type_value.ty(),
@@ -934,5 +952,129 @@ impl Expr {
                 span.into(),
             )))
         }
+    }
+}
+
+impl Debug for Expr {
+    #[rustfmt::skip]
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut level = 0;
+
+        let anchor_str = |anchor: &MatchAnchor| match anchor {
+            MatchAnchor::None => "",
+            MatchAnchor::At(_) => " AT",
+            MatchAnchor::In(_) => " IN",
+        };
+
+        let range_str = |range: &Option<_>| {
+            if range.is_some() { " IN" } else { "" }
+        };
+
+        let index_str = |index: &Option<_>| {
+            if index.is_some() { " INDEX" } else { "" }
+        };
+
+        for event in self.depth_first_search() {
+            match event {
+                Event::Leave(_) => level -= 1,
+                Event::Enter(expr) => {
+                    for _ in 0..level {
+                        write!(f, "  ")?;
+                    }
+                    level += 1;
+                    match expr {
+                        Expr::Const(c) => writeln!(f, "CONST {}", c)?,
+                        Expr::Filesize => writeln!(f, "FILESIZE")?,
+                        Expr::Not { .. } => writeln!(f, "NOT")?,
+                        Expr::And { .. } => writeln!(f, "AND")?,
+                        Expr::Or { .. } => writeln!(f, "OR")?,
+                        Expr::Minus { .. } => writeln!(f, "MINUS")?,
+                        Expr::Add { .. } => writeln!(f, "ADD")?,
+                        Expr::Sub { .. } => writeln!(f, "SUB")?,
+                        Expr::Mul { .. } => writeln!(f, "MUL")?,
+                        Expr::Div { .. } => writeln!(f, "DIV")?,
+                        Expr::Mod { .. } => writeln!(f, "MOD")?,
+                        Expr::Shl { .. } => writeln!(f, "SHL")?,
+                        Expr::Shr { .. } => writeln!(f, "SHR")?,
+                        Expr::Eq { .. } => writeln!(f, "EQ")?,
+                        Expr::Ne { .. } => writeln!(f, "NE")?,
+                        Expr::Lt { .. } => writeln!(f, "LT")?,
+                        Expr::Gt { .. } => writeln!(f, "GT")?,
+                        Expr::Le { .. } => writeln!(f, "LE")?,
+                        Expr::Ge { .. } => writeln!(f, "GE")?,
+                        Expr::BitwiseNot { .. } => writeln!(f, "BITWISE_NOT")?,
+                        Expr::BitwiseAnd { .. } => writeln!(f, "BITWISE_AND")?,
+                        Expr::BitwiseOr { .. } => writeln!(f, "BITWISE_OR")?,
+                        Expr::BitwiseXor { .. } => writeln!(f, "BITWISE_XOR")?,
+                        Expr::Contains { .. } => writeln!(f, "CONTAINS")?,
+                        Expr::IContains { .. } => writeln!(f, "ICONTAINS")?,
+                        Expr::StartsWith { .. } => writeln!(f, "STARTS_WITH")?,
+                        Expr::IStartsWith { .. } => writeln!(f, "ISTARTS_WITH")?,
+                        Expr::EndsWith { .. } => writeln!(f, "ENDS_WITH")?,
+                        Expr::IEndsWith { .. } => writeln!(f, "IENDS_WITH")?,
+                        Expr::IEquals { .. } => writeln!(f, "IEQUALS")?,
+                        Expr::Matches { .. } => writeln!(f, "MATCHES")?,
+                        Expr::Defined { .. } => writeln!(f, "DEFINED")?,
+                        Expr::FieldAccess { .. } => writeln!(f, "FIELD_ACCESS")?,
+                        Expr::Ident { symbol } => writeln!(f, "IDENT {:?}", symbol)?,
+                        Expr::FuncCall(_) => writeln!(f, "FN_CALL")?,
+                        Expr::Of(_) => writeln!(f, "OF")?,
+                        Expr::ForOf(_) => writeln!(f, "FOR_OF")?,
+                        Expr::ForIn(_) => writeln!(f, "FOR_IN")?,
+                        Expr::Lookup(_) => writeln!(f, "LOOKUP")?,
+                        Expr::PatternMatch { pattern, anchor } => writeln!(
+                            f,
+                            "PATTERN_MATCH {:?}{}",
+                            pattern,
+                            anchor_str(anchor),
+                        )?,
+                        Expr::PatternMatchVar { symbol, anchor } => writeln!(
+                            f,
+                            "PATTERN_MATCH {:?}{}",
+                            symbol,
+                            anchor_str(anchor),
+                        )?,
+                        Expr::PatternCount { pattern, range } => writeln!(
+                            f,
+                            "PATTERN_COUNT {:?}{}",
+                            pattern,
+                            range_str(range),
+                        )?,
+                        Expr::PatternCountVar { symbol, range } => writeln!(
+                            f,
+                            "PATTERN_COUNT {:?}{}",
+                            symbol,
+                            range_str(range),
+                        )?,
+                        Expr::PatternOffset { pattern, index } => writeln!(
+                            f,
+                            "PATTERN_OFFSET {:?}{}",
+                            pattern,
+                            index_str(index),
+                        )?,
+                        Expr::PatternOffsetVar { symbol, index } => writeln!(
+                            f,
+                            "PATTERN_OFFSET {:?}{}",
+                            symbol,
+                            index_str(index),
+                        )?,
+                        Expr::PatternLength { pattern, index } => writeln!(
+                            f,
+                            "PATTERN_LENGTH {:?}{}",
+                            pattern,
+                            index_str(index),
+                        )?,
+                        Expr::PatternLengthVar { symbol, index } => writeln!(
+                            f,
+                            "PATTERN_LENGTH {:?}{}",
+                            symbol,
+                            index_str(index),
+                        )?,
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 }

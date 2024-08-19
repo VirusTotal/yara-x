@@ -1,0 +1,6 @@
+AND
+  EQ
+    FIELD_ACCESS
+      IDENT Symbol { type_value: struct, kind: Field(0, true) }
+      IDENT Symbol { type_value: integer(unknown), kind: Field(1, false) }
+    CONST integer(0)

@@ -7,6 +7,8 @@ module implements the YARA compiler.
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
 use std::collections::HashSet;
+#[cfg(test)]
+use std::io::Write;
 use std::ops::RangeInclusive;
 use std::path::Path;
 use std::rc::Rc;
@@ -323,7 +325,7 @@ pub struct Compiler<'a> {
     atoms: Vec<SubPatternAtom>,
 
     /// A vector that contains the code for all regexp patterns (this includes
-    /// hex patterns which are just an special case of regexp). The code for
+    /// hex patterns which are just a special case of regexp). The code for
     /// each regexp is appended to the vector, during the compilation process
     /// and the atoms extracted from the regexp contain offsets within this
     /// vector. This vector contains both forward and backward code.
@@ -352,6 +354,11 @@ pub struct Compiler<'a> {
 
     /// Warnings generated while compiling the rules.
     warnings: Warnings,
+
+    /// Optional writer where the compiler writes the IR produced by each rule.
+    /// This is used for test cases and debugging.
+    #[cfg(test)]
+    ir_writer: Option<Box<dyn Write>>,
 }
 
 impl<'a> Compiler<'a> {
@@ -429,6 +436,8 @@ impl<'a> Compiler<'a> {
             lit_pool: BStringPool::new(),
             regexp_pool: StringPool::new(),
             patterns: FxHashMap::default(),
+            #[cfg(test)]
+            ir_writer: None,
         }
     }
 
@@ -900,6 +909,16 @@ impl<'a> Compiler<'a> {
         self.atoms.truncate(snapshot.atoms_len);
         self.symbol_table.truncate(snapshot.symbol_table_len);
     }
+
+    /// Sets a writer where the compiler will write the Intermediate
+    /// Representation (IR) of compiled conditions.
+    ///
+    /// This is used for testing and debugging purposes.
+    #[cfg(test)]
+    fn set_ir_writer<W: Write + 'static>(&mut self, w: W) -> &mut Self {
+        self.ir_writer = Some(Box::new(w));
+        self
+    }
 }
 
 impl<'a> Compiler<'a> {
@@ -1061,6 +1080,13 @@ impl<'a> Compiler<'a> {
                 return Err(Box::new(err));
             }
         };
+
+        #[cfg(test)]
+        if let Some(w) = &mut self.ir_writer {
+            write!(w, "{:?}", condition).unwrap_or_else(|_| {
+                panic!("error writing IR for rule `{}`", rule.identifier.name)
+            });
+        }
 
         // Check if the value of the condition is known at compile time and
         // raise a warning if that's the case. Rules with constant conditions

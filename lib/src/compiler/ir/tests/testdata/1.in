@@ -1,0 +1,6 @@
+import "test_proto2"
+
+rule test {
+	condition:
+		test_proto2.int64_zero == 0 and true
+}
