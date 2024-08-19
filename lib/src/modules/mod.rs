@@ -27,7 +27,7 @@ include!("modules.rs");
 type MainFn = fn(&[u8]) -> Box<dyn MessageDyn>;
 
 /// Describes a YARA module.
-pub struct Module {
+pub(crate) struct Module {
     /// Pointer to the module's main function.
     pub main_fn: Option<MainFn>,
     /// Name of the Rust module, if any, that contains code for this YARA
@@ -260,9 +260,7 @@ pub mod mods {
     /// Iterator over built-in module names.
     ///
     /// See the "debug modules" command.
-    pub fn module_names(
-    ) -> std::collections::hash_map::Keys<'static, &'static str, super::Module>
-    {
-        super::BUILTIN_MODULES.keys()
+    pub fn module_names() -> impl Iterator<Item = &'static str> {
+        super::BUILTIN_MODULES.keys().copied()
     }
 }
