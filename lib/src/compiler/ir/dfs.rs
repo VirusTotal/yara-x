@@ -1,4 +1,4 @@
-use crate::compiler::ir::{Expr, MatchAnchor};
+use crate::compiler::ir::{Expr, Iterable, MatchAnchor, Quantifier};
 
 #[allow(dead_code)]
 pub enum Event<'a> {
@@ -76,6 +76,30 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.stack.pop()?;
 
+        let push_quantifier =
+            |quantifier: &'a Quantifier, stack: &mut Vec<Event<'a>>| {
+                match quantifier {
+                    Quantifier::None => {}
+                    Quantifier::All => {}
+                    Quantifier::Any => {}
+                    Quantifier::Percentage(_) => {}
+                    Quantifier::Expr(expr) => stack.push(Event::Enter(expr)),
+                }
+            };
+
+        let push_anchor =
+            |anchor: &'a MatchAnchor, stack: &mut Vec<Event<'a>>| match anchor
+            {
+                MatchAnchor::None => {}
+                MatchAnchor::At(expr) => {
+                    stack.push(Event::Enter(expr));
+                }
+                MatchAnchor::In(range) => {
+                    stack.push(Event::Enter(&range.upper_bound));
+                    stack.push(Event::Enter(&range.lower_bound));
+                }
+            };
+
         if let Event::Enter(expr) = next {
             self.stack.push(Event::Leave(expr));
             match expr {
@@ -127,16 +151,9 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
                 }
 
                 Expr::PatternMatch { anchor, .. }
-                | Expr::PatternMatchVar { anchor, .. } => match anchor {
-                    MatchAnchor::None => {}
-                    MatchAnchor::At(expr) => {
-                        self.stack.push(Event::Enter(expr));
-                    }
-                    MatchAnchor::In(range) => {
-                        self.stack.push(Event::Enter(&range.upper_bound));
-                        self.stack.push(Event::Enter(&range.lower_bound));
-                    }
-                },
+                | Expr::PatternMatchVar { anchor, .. } => {
+                    push_anchor(anchor, &mut self.stack);
+                }
 
                 Expr::PatternCount { range, .. }
                 | Expr::PatternCountVar { range, .. } => {
@@ -162,10 +179,38 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
                     self.stack.push(Event::Enter(&fn_call.callable));
                 }
 
-                Expr::Of(_) => {}
-                Expr::ForOf(_) => {}
-                Expr::ForIn(_) => {}
-                Expr::Lookup(_) => {}
+                Expr::Of(of) => {
+                    push_anchor(&of.anchor, &mut self.stack);
+                    push_quantifier(&of.quantifier, &mut self.stack);
+                }
+
+                Expr::ForOf(for_of) => {
+                    self.stack.push(Event::Enter(&for_of.condition));
+                    push_quantifier(&for_of.quantifier, &mut self.stack);
+                }
+
+                Expr::ForIn(for_in) => {
+                    self.stack.push(Event::Enter(&for_in.condition));
+                    match &for_in.iterable {
+                        Iterable::Range(range) => {
+                            self.stack.push(Event::Enter(&range.upper_bound));
+                            self.stack.push(Event::Enter(&range.lower_bound));
+                        }
+                        Iterable::ExprTuple(expr_tuple) => {
+                            for expr in expr_tuple.iter().rev() {
+                                self.stack.push(Event::Enter(expr))
+                            }
+                        }
+                        Iterable::Expr(expr) => {
+                            self.stack.push(Event::Enter(expr))
+                        }
+                    }
+                    push_quantifier(&for_in.quantifier, &mut self.stack);
+                }
+                Expr::Lookup(lookup) => {
+                    self.stack.push(Event::Enter(&lookup.index));
+                    self.stack.push(Event::Enter(&lookup.primary));
+                }
             }
         }
 
