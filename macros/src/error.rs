@@ -169,20 +169,17 @@ fn gen_build_func(
             // get the labels for this variant.
             let labels = get_labels(variant)?;
 
-            // The variant can also have a note (e.g. #[note(...)]).
-            let note = get_note(variant)?;
-
-            // The main label is the first label in the tuple.
-            let main_label = &labels.first().ok_or_else(|| {
-                Error::new_spanned(
+            // Make sure that there's at least one label.
+            if labels.is_empty() {
+                return Err(Error::new_spanned(
                     variant,
                     "#[error(...)] must be accompanied by at least one instance of #[label(...)}",
-                )})?;
+                ));
+            }
 
-            // The span identifier is the first item in the tuples returned
-            // by get_labels.
-            let main_label_span = &main_label.0;
-
+            // The variant can also have a note (e.g. #[note(...)]).
+            let note = get_note(variant)?;
+            
             // The arguments to the function have the same names and types as
             // the fields in the struct variant. Except for the field named
             // `detailed_report`, which is not included in the arguments.
@@ -222,9 +219,8 @@ fn gen_build_func(
                     use crate::compiler::report::SourceRef;
                     let detailed_report = report_builder.create_report(
                         #report_type,
-                        &#main_label_span,
                         #code,
-                        &format!(#description),
+                        format!(#description),
                         vec![
                             #( #labels ),*
                         ],
@@ -370,7 +366,7 @@ fn get_labels(variant: &Variant) -> Result<Vec<(Ident, TokenStream)>> {
         labels.push((
             label_span_field.clone(),
             quote!(
-                (&#label_span_field, format!(#label_fmt), #level)
+                (#label_span_field.clone(), format!(#label_fmt), #level)
             ),
         ));
     }

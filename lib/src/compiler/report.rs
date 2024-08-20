@@ -155,17 +155,20 @@ impl ReportBuilder {
     pub fn create_report(
         &self,
         level: Level,
-        source_ref: &SourceRef,
-        code: &str,
-        title: &str,
-        labels: Vec<(&SourceRef, String, Level)>,
+        code: &'static str,
+        title: String,
+        labels: Vec<(SourceRef, String, Level)>,
         note: Option<String>,
     ) -> String {
-        // Use the SourceId indicated in the SourceRef, or SourceId
+        // Make sure there's at least one label.
+        assert!(!labels.is_empty());
+
+        // Use the SourceId indicated by the first label, or the one
         // corresponding to the current source file (i.e: the most
         // recently registered).
-        let source_id = source_ref
-            .source_id
+        let source_id = labels
+            .first()
+            .and_then(|label| label.0.source_id)
             .or_else(|| self.current_source_id())
             .expect("create_report without registering any source code");
 
@@ -173,7 +176,7 @@ impl ReportBuilder {
         let mut cache_entry = cache.data.get(&source_id).unwrap();
         let mut src = cache_entry.code.as_str();
 
-        let mut message = level.title(title).id(code);
+        let mut message = level.title(title.as_str()).id(code);
         let mut snippet = annotate_snippets::Snippet::source(src)
             .origin(cache_entry.origin.as_deref().unwrap_or("line"))
             .fold(true);
