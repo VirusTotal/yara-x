@@ -1084,7 +1084,7 @@ impl<'a> Compiler<'a> {
         #[cfg(test)]
         if let Some(w) = &mut self.ir_writer {
             writeln!(w, "RULE {}", rule.identifier.name).unwrap();
-            write!(w, "{:?}\n", condition).unwrap();
+            writeln!(w, "{:?}", condition).unwrap();
         }
 
         // Check if the value of the condition is known at compile time and
