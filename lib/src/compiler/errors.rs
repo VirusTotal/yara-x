@@ -424,7 +424,7 @@ impl CompileError {
     /// `str1`, `str2` or `str3`
     /// ```
     ///
-    pub fn join_with_or<S: ToString>(s: &[S], quotes: bool) -> String {
+    pub(crate) fn join_with_or<S: ToString>(s: &[S], quotes: bool) -> String {
         let mut strings = if quotes {
             s.iter()
                 .map(|s| format!("`{}`", s.to_string()))
