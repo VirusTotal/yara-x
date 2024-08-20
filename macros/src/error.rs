@@ -179,7 +179,7 @@ fn gen_build_func(
 
             // The variant can also have a note (e.g. #[note(...)]).
             let note = get_note(variant)?;
-            
+
             // The arguments to the function have the same names and types as
             // the fields in the struct variant. Except for the field named
             // `detailed_report`, which is not included in the arguments.
