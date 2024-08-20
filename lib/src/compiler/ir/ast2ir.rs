@@ -1597,7 +1597,7 @@ macro_rules! gen_unary_op {
             expr: &ast::UnaryExpr,
         ) -> Result<Expr, Box<CompileError>> {
             let span = expr.span();
-            let operand = Box::new(expr_from_ast(ctx, &expr.operand)?);
+            let operand = expr_from_ast(ctx, &expr.operand)?;
 
             check_type(
                 ctx,
@@ -1614,7 +1614,7 @@ macro_rules! gen_unary_op {
                 check_fn(ctx, &operand, expr.operand.span())?;
             }
 
-            let expr = Expr::$variant { operand };
+            let expr = Expr::$variant(operand);
 
             if cfg!(feature = "constant-folding") {
                 expr.fold(ctx, span)
@@ -1772,14 +1772,14 @@ macro_rules! gen_n_ary_operation {
 
 gen_unary_op!(
     defined_expr_from_ast,
-    Defined,
+    defined,
     Type::Bool | Type::Integer | Type::Float | Type::String,
     None
 );
 
 gen_unary_op!(
     not_expr_from_ast,
-    Not,
+    not,
     // Boolean operations accept integer, float and string operands.
     // If operands are not boolean they are casted to boolean.
     Type::Bool | Type::Integer | Type::Float | Type::String,
@@ -1820,7 +1820,7 @@ gen_n_ary_operation!(
     })
 );
 
-gen_unary_op!(minus_expr_from_ast, Minus, Type::Integer | Type::Float, None);
+gen_unary_op!(minus_expr_from_ast, minus, Type::Integer | Type::Float, None);
 
 gen_n_ary_operation!(
     add_expr_from_ast,
@@ -1902,7 +1902,7 @@ gen_binary_op!(
     })
 );
 
-gen_unary_op!(bitwise_not_expr_from_ast, BitwiseNot, Type::Integer, None);
+gen_unary_op!(bitwise_not_expr_from_ast, bitwise_not, Type::Integer, None);
 
 gen_binary_op!(
     bitwise_and_expr_from_ast,
