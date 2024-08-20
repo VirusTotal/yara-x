@@ -1103,7 +1103,7 @@ impl Expr {
 impl Debug for Expr {
     #[rustfmt::skip]
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut level = 0;
+        let mut level = 1;
 
         let anchor_str = |anchor: &MatchAnchor| match anchor {
             MatchAnchor::None => "",
