@@ -705,7 +705,8 @@ impl<'r> Scanner<'r> {
     }
 
     /// Resets the scanner to its initial state, making it ready for another
-    /// scan. This clears all the information generated the previous scan.
+    /// scan. This clears all the information generated during the previous
+    /// scan.
     fn reset(&mut self) {
         let ctx = self.wasm_store.data_mut();
         let num_rules = ctx.compiled_rules.num_rules();
