@@ -156,16 +156,15 @@ pub(crate) fn impl_error_struct_macro(
                 report_builder: &ReportBuilder,
                 #( #fn_args ),*
             ) -> #associated_enum {
-                let report = report_builder.create_report(
-                    #level,
-                    #code,
-                    format!(#title),
-                    vec![#( #labels ),*],
-                    #note.clone(),
-                );
                 #associated_enum::#struct_name(
                     Box::new(Self {
-                        report: Report { text: report },
+                        report: report_builder.create_report(
+                            #level,
+                            #code,
+                            format!(#title),
+                            vec![#( #labels ),*],
+                            #note.clone(),
+                        ),
                         #( #field_names ),*
                     })
                 )
@@ -174,9 +173,19 @@ pub(crate) fn impl_error_struct_macro(
 
         #[automatically_derived]
         impl #impl_generics #struct_name #ty_generics #where_clause {
-            /// Returns a unique error code identifying the type of error/warning.
+            /// Returns a unique code identifying the type of error/warning.
+            ///
+            /// In the case of errors the codes have the form "Eddd", where "ddd"
+            /// is an error number (examples: "E001", "E020"). Warnings have
+            /// more descriptive codes, like: "slow_pattern", "unsatisfiable_expr",
+            /// etc.
             pub const fn code() -> &'static str {
                 #code
+            }
+            /// Returns the report associated to this error/warning.
+            #[inline]
+            pub fn report(&self) -> &Report {
+                &self.report
             }
         }
 

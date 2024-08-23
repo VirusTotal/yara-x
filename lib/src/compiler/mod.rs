@@ -58,6 +58,7 @@ pub(crate) use crate::compiler::context::*;
 pub(crate) use crate::compiler::ir::*;
 
 pub use report::CodeLoc;
+pub use report::Report;
 
 #[doc(inline)]
 pub use crate::compiler::rules::*;

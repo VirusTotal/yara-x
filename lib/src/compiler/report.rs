@@ -1,7 +1,8 @@
 use std::borrow::Cow;
-use std::cell::{Cell, RefCell};
+use std::cell::Cell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use yara_x_parser::Span;
 
@@ -54,9 +55,40 @@ impl From<Span> for CodeLoc {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+/// Represents an error or warning report.
+///
+/// A report is the message shown to the user when some error or warning
+/// occurs. This type implements the [`Display`] trait, and when printed
+/// it shows the typical error message you get from YARA-X. Like this one:
+///
+/// ```text
+/// error[E006]: unexpected negative number
+///  --> line:6:12
+///   |
+/// 6 |     $a in (-1..0)
+///   |            ^^ this number can not be negative
+///   |
+/// ```
+///
+/// Besides printing the report, this type give access to each of the
+/// components of the report.
 pub struct Report {
-    pub(crate) text: String,
+    text: String,
+    code_cache: Arc<CodeCache>,
+}
+
+impl PartialEq for Report {
+    fn eq(&self, other: &Self) -> bool {
+        self.text.eq(&other.text)
+    }
+}
+
+impl Eq for Report {}
+
+impl Debug for Report {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.text)
+    }
 }
 
 impl Display for Report {
@@ -77,18 +109,34 @@ pub struct ReportBuilder {
     with_colors: bool,
     current_source_id: Cell<Option<SourceId>>,
     next_source_id: Cell<SourceId>,
-    // RefCell allows getting a mutable reference to the cache, even if we have
-    // an immutable reference to the report builder.
-    cache: RefCell<Cache>,
+    code_cache: Arc<CodeCache>,
 }
 
 /// A cache containing source files registered in a [`ReportBuilder`].
-struct Cache {
-    data: HashMap<SourceId, CacheEntry>,
+struct CodeCache {
+    data: RwLock<HashMap<SourceId, CodeCacheEntry>>,
 }
 
-/// Each of the entries stored in [`Cache`].
-struct CacheEntry {
+impl CodeCache {
+    fn new() -> Self {
+        Self { data: RwLock::new(HashMap::new()) }
+    }
+
+    pub fn read(
+        &self,
+    ) -> RwLockReadGuard<'_, HashMap<SourceId, CodeCacheEntry>> {
+        self.data.read().unwrap()
+    }
+
+    pub fn write(
+        &self,
+    ) -> RwLockWriteGuard<'_, HashMap<SourceId, CodeCacheEntry>> {
+        self.data.write().unwrap()
+    }
+}
+
+/// Each of the entries stored in [`CodeCache`].
+struct CodeCacheEntry {
     code: String,
     origin: Option<String>,
 }
@@ -106,7 +154,7 @@ impl ReportBuilder {
             with_colors: false,
             current_source_id: Cell::new(None),
             next_source_id: Cell::new(SourceId(0)),
-            cache: RefCell::new(Cache { data: HashMap::new() }),
+            code_cache: Arc::new(CodeCache::new()),
         }
     }
 
@@ -132,17 +180,17 @@ impl ReportBuilder {
     /// replaces the invalid characters with the UTF-8 replacement character.
     pub fn register_source(&self, src: &SourceCode) -> &Self {
         let source_id = self.next_source_id.get();
+
         self.next_source_id.set(SourceId(source_id.0 + 1));
         self.current_source_id.set(Some(source_id));
 
-        let map = &mut self.cache.borrow_mut().data;
-        map.entry(source_id).or_insert_with(|| {
+        self.code_cache.write().entry(source_id).or_insert_with(|| {
             let s = if let Some(s) = src.valid {
                 Cow::Borrowed(s)
             } else {
                 String::from_utf8_lossy(src.raw.as_ref())
             };
-            CacheEntry {
+            CodeCacheEntry {
                 // Replace tab characters with a single space. This doesn't
                 // affect code spans, because the number of characters remain
                 // the same, but prevents error messages from being wrongly
@@ -151,6 +199,7 @@ impl ReportBuilder {
                 origin: src.origin.clone(),
             }
         });
+
         self
     }
 
@@ -161,8 +210,8 @@ impl ReportBuilder {
             .or_else(|| self.current_source_id())
             .expect("create_report without registering any source code");
 
-        let cache = self.cache.borrow();
-        let cache_entry = cache.data.get(&source_id).unwrap();
+        let code_cache = self.code_cache.read();
+        let cache_entry = code_cache.get(&source_id).unwrap();
         let src = cache_entry.code.as_str();
 
         src[source_ref.span.range()].to_string()
@@ -176,7 +225,7 @@ impl ReportBuilder {
         title: String,
         labels: Vec<(CodeLoc, String, Level)>,
         note: Option<String>,
-    ) -> String {
+    ) -> Report {
         // Make sure there's at least one label.
         assert!(!labels.is_empty());
 
@@ -189,8 +238,8 @@ impl ReportBuilder {
             .or_else(|| self.current_source_id())
             .expect("create_report without registering any source code");
 
-        let cache = self.cache.borrow();
-        let mut cache_entry = cache.data.get(&source_id).unwrap();
+        let code_cache = self.code_cache.read();
+        let mut cache_entry = code_cache.get(&source_id).unwrap();
         let mut src = cache_entry.code.as_str();
 
         let mut message = level.title(title.as_str()).id(code);
@@ -208,7 +257,7 @@ impl ReportBuilder {
             // finish the current snippet, add it to the error message and
             // start a new snippet for the label's source file.
             if label_source_id != source_id {
-                cache_entry = cache.data.get(&label_source_id).unwrap();
+                cache_entry = code_cache.get(&label_source_id).unwrap();
                 src = cache_entry.code.as_str();
                 message = message.snippet(snippet);
                 snippet = annotate_snippets::Snippet::source(src)
@@ -238,6 +287,9 @@ impl ReportBuilder {
 
         let message = renderer.render(message);
 
-        message.to_string()
+        Report {
+            code_cache: self.code_cache.clone(),
+            text: message.to_string(),
+        }
     }
 }

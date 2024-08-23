@@ -46,6 +46,7 @@ assert_eq!(results.matching_rules().len(), 1);
 pub use compiler::compile;
 pub use compiler::CodeLoc;
 pub use compiler::Compiler;
+pub use compiler::Report;
 pub use compiler::Rules;
 pub use compiler::SourceCode;
 
