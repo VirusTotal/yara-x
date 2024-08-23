@@ -17,16 +17,16 @@ use std::iter;
 use std::marker::PhantomData;
 use std::str::from_utf8;
 
+use crate::cst::SyntaxKind::{COMMENT, NEWLINE, WHITESPACE};
 use crate::{Parser, Span};
+
+pub use syntax_kind::SyntaxKind;
 
 pub(crate) mod syntax_kind;
 pub(crate) mod syntax_stream;
 
 #[cfg(test)]
 mod tests;
-
-use crate::cst::SyntaxKind::{COMMENT, NEWLINE, WHITESPACE};
-pub use syntax_kind::SyntaxKind;
 
 /// Each of the events in a [`CSTStream`].
 ///

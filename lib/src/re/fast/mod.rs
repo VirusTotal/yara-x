@@ -34,9 +34,9 @@ regular expression.
 [PikeVM]: crate::re::thompson::pikevm::PikeVM
 */
 
-pub(crate) mod fastvm;
+pub(crate) use compiler::Compiler;
+pub(crate) use fastvm::FastVM;
 
 mod compiler;
+mod fastvm;
 mod instr;
-
-pub(crate) use compiler::Compiler;

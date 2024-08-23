@@ -32,13 +32,15 @@ use wasmtime::{
 
 use crate::compiler::{IdentId, PatternId, RuleId, RuleInfo, Rules};
 use crate::modules::{Module, BUILTIN_MODULES};
+use crate::scanner::matches::PatternMatches;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::{ENGINE, MATCHING_RULES_BITMAP_BASE};
 use crate::{compiler, modules, wasm, Variable};
 
-pub(crate) use crate::scanner::context::*;
-use crate::scanner::matches::PatternMatches;
+pub(crate) use crate::scanner::context::RuntimeObject;
+pub(crate) use crate::scanner::context::RuntimeObjectHandle;
+pub(crate) use crate::scanner::context::ScanContext;
 
 mod context;
 mod matches;
@@ -705,7 +707,8 @@ impl<'r> Scanner<'r> {
     }
 
     /// Resets the scanner to its initial state, making it ready for another
-    /// scan. This clears all the information generated the previous scan.
+    /// scan. This clears all the information generated during the previous
+    /// scan.
     fn reset(&mut self) {
         let ctx = self.wasm_store.data_mut();
         let num_rules = ctx.compiled_rules.num_rules();

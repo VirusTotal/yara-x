@@ -24,13 +24,13 @@ solve.
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
 
-mod parser;
-mod tokenizer;
+pub use parser::Parser;
 
 pub mod ast;
 pub mod cst;
 
-pub use parser::Parser;
+mod parser;
+mod tokenizer;
 
 /// Starting and ending positions of some token inside the source code.
 #[derive(Default, Clone, Debug, Hash, Eq, PartialEq)]
