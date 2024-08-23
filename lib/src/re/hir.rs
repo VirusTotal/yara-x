@@ -2,15 +2,14 @@ use std::hash::{Hash, Hasher};
 use std::mem;
 use std::ops::RangeInclusive;
 
-use regex_syntax;
-pub use regex_syntax::hir::Class;
-pub use regex_syntax::hir::ClassBytes;
-pub use regex_syntax::hir::ClassBytesRange;
-pub use regex_syntax::hir::ClassUnicode;
-pub use regex_syntax::hir::ClassUnicodeRange;
-pub use regex_syntax::hir::Dot;
-pub use regex_syntax::hir::HirKind;
-pub use regex_syntax::hir::Repetition;
+use regex_syntax::hir::Class;
+use regex_syntax::hir::ClassBytes;
+use regex_syntax::hir::ClassBytesRange;
+use regex_syntax::hir::ClassUnicode;
+use regex_syntax::hir::ClassUnicodeRange;
+use regex_syntax::hir::Dot;
+use regex_syntax::hir::HirKind;
+use regex_syntax::hir::Repetition;
 
 use yara_x_parser::ast;
 

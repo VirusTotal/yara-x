@@ -324,7 +324,7 @@ impl From<Variable> for TypeValue {
 ///
 /// Valid identifiers are composed of letters, digits, and the underscore (_)
 /// character, but they can't start with a digit.
-pub fn is_valid_identifier(ident: &str) -> bool {
+pub(crate) fn is_valid_identifier(ident: &str) -> bool {
     let mut chars = ident.chars();
 
     if let Some(first) = chars.next() {

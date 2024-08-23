@@ -22,7 +22,7 @@ type HashBuilder = BuildHasherDefault<FxHasher>;
 /// stored in the pool.
 ///
 /// The type `T` must be convertible from and into `u32`.
-pub struct StringPool<T>
+pub(crate) struct StringPool<T>
 where
     T: From<u32> + Into<u32>,
 {

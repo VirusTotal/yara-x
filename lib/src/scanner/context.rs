@@ -26,8 +26,8 @@ use crate::compiler::{
     NamespaceId, PatternId, RegexpId, RuleId, Rules, SubPattern,
     SubPatternAtom, SubPatternFlagSet, SubPatternFlags, SubPatternId,
 };
-use crate::re::fast::fastvm::FastVM;
-use crate::re::thompson::pikevm::PikeVM;
+use crate::re::fast::FastVM;
+use crate::re::thompson::PikeVM;
 use crate::re::Action;
 use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
 use crate::scanner::HEARTBEAT_COUNTER;

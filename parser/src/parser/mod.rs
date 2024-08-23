@@ -22,11 +22,6 @@ use std::str::from_utf8;
 #[cfg(feature = "logging")]
 use log::*;
 
-mod token_stream;
-
-#[cfg(test)]
-mod tests;
-
 use crate::ast::AST;
 use crate::cst::syntax_stream::SyntaxStream;
 use crate::cst::SyntaxKind::*;
@@ -35,6 +30,11 @@ use crate::cst::{CSTStream, Event, SyntaxKind};
 use crate::parser::token_stream::TokenStream;
 use crate::tokenizer::{Token, TokenId, Tokenizer};
 use crate::Span;
+
+mod token_stream;
+
+#[cfg(test)]
+mod tests;
 
 /// Produces a CST or AST given some YARA source code.
 pub struct Parser<'src> {
