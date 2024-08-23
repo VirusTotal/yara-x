@@ -4,11 +4,10 @@ use std::fs;
 use std::io::Write;
 use std::mem::size_of;
 
-use crate::compiler::{
-    SerializationError, SubPattern, Var, VarStack, VariableError,
-};
+use crate::compiler::{SubPattern, Var, VarStack};
+use crate::errors::{SerializationError, VariableError};
 use crate::types::Type;
-use crate::{compile, Compiler, Error, Rules, Scanner};
+use crate::{compile, Compiler, Rules, Scanner};
 
 #[test]
 fn serialization() {
@@ -122,9 +121,7 @@ fn globals() {
 
     assert_eq!(
         compiler.define_global("#invalid", true).err().unwrap(),
-        Error::VariableError(VariableError::InvalidIdentifier(
-            "#invalid".to_string()
-        ))
+        VariableError::InvalidIdentifier("#invalid".to_string())
     );
 
     let mut compiler = Compiler::new();
@@ -136,7 +133,7 @@ fn globals() {
             .define_global("a", false)
             .err()
             .unwrap(),
-        Error::VariableError(VariableError::AlreadyExists("a".to_string()))
+        VariableError::AlreadyExists("a".to_string())
     );
 
     let mut compiler = Compiler::new();
@@ -464,28 +461,28 @@ fn globals_json() {
         Compiler::new()
             .define_global("invalid_array", json!([1, "foo", 3]))
             .unwrap_err(),
-        Error::VariableError(VariableError::InvalidArray)
+        VariableError::InvalidArray
     );
 
     assert_eq!(
         Compiler::new()
             .define_global("invalid_array", json!([1, [2, 3], 4]))
             .unwrap_err(),
-        Error::VariableError(VariableError::InvalidArray)
+        VariableError::InvalidArray
     );
 
     assert_eq!(
         Compiler::new()
             .define_global("invalid_array", json!([1, null]))
             .unwrap_err(),
-        Error::VariableError(VariableError::InvalidArray)
+        VariableError::InvalidArray
     );
 
     assert_eq!(
         Compiler::new()
             .define_global("invalid_array", json!({ "foo": null }))
             .unwrap_err(),
-        Error::VariableError(VariableError::UnexpectedNull)
+        VariableError::UnexpectedNull
     );
 }
 
@@ -671,13 +668,13 @@ fn errors_2() {
         "error[E012]: duplicate rule `foo`
  --> line:1:6
   |
-1 | rule foo : first {condition: true}
-  |      --- note: `foo` declared here for the first time
+1 | rule foo : second {condition: true}
+  |      ^^^ duplicate declaration of `foo`
   |
  ::: line:1:6
   |
-1 | rule foo : second {condition: true}
-  |      ^^^ duplicate declaration of `foo`
+1 | rule foo : first {condition: true}
+  |      --- note: `foo` declared here for the first time
   |"
     );
 

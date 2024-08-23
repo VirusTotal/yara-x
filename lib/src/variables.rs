@@ -22,7 +22,7 @@ use crate::types::{Array, TypeValue, Value};
 /// implement [`Into<Variable>`].
 pub struct Variable(TypeValue);
 
-/// Errors returned while defining or setting variables.
+/// Error returned while defining or setting variables.
 #[derive(Error, Debug, Eq, PartialEq)]
 pub enum VariableError {
     /// The variable has not being defined. Before calling

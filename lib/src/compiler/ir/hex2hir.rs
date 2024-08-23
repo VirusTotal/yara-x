@@ -1,18 +1,17 @@
 /*! Functions for converting a hex pattern AST into a HIR. */
 
-use crate::CompileError;
 use regex_syntax::hir;
 use yara_x_parser::ast;
 use yara_x_parser::ast::WithSpan;
 
 use crate::compiler::context::CompileContext;
-use crate::compiler::warnings::Warning;
-use crate::compiler::ByteMaskCombinator;
+use crate::compiler::errors::{CompileError, InvalidPattern};
+use crate::compiler::{warnings, ByteMaskCombinator};
 
 pub(in crate::compiler) fn hex_pattern_hir_from_ast(
     ctx: &mut CompileContext,
     pattern: &ast::HexPattern,
-) -> Result<hir::Hir, Box<CompileError>> {
+) -> Result<hir::Hir, CompileError> {
     hex_tokens_hir_from_ast(ctx, &pattern.identifier, &pattern.tokens)
 }
 
@@ -20,7 +19,7 @@ fn hex_tokens_hir_from_ast(
     ctx: &mut CompileContext,
     pattern_ident: &ast::Ident,
     tokens: &ast::HexTokens,
-) -> Result<hir::Hir, Box<CompileError>> {
+) -> Result<hir::Hir, CompileError> {
     let mut hir_tokens = Vec::with_capacity(tokens.tokens.len());
     let mut ast_tokens = tokens.tokens.iter().peekable();
 
@@ -32,13 +31,13 @@ fn hex_tokens_hir_from_ast(
             ast::HexToken::NotByte(byte) => {
                 // ~?? is not allowed.
                 if byte.mask == 0 {
-                    return Err(Box::new(CompileError::invalid_pattern(
+                    return Err(InvalidPattern::build(
                         ctx.report_builder,
                         pattern_ident.name.to_string(),
                         "negation of `??` is not allowed".to_string(),
                         token.span().into(),
                         None,
-                    )));
+                    ));
                 }
 
                 let class = match hex_byte_hir_from_ast(byte).into_kind() {
@@ -102,7 +101,7 @@ fn hex_tokens_hir_from_ast(
 
                 if coalesced {
                     ctx.warnings.add(|| {
-                        Warning::consecutive_jumps(
+                        warnings::ConsecutiveJumps::build(
                             ctx.report_builder,
                             pattern_ident.name.to_string(),
                             format!("{jump}"),
@@ -113,17 +112,17 @@ fn hex_tokens_hir_from_ast(
 
                 match (jump.start, jump.end) {
                     (Some(0), Some(0)) => {
-                        return Err(Box::new(CompileError::invalid_pattern(
+                        return Err(InvalidPattern::build(
                             ctx.report_builder,
                             pattern_ident.name.to_string(),
                             "zero-length jumps are useless, remove it"
                                 .to_string(),
                             span.into(),
                             None,
-                        )));
+                        ));
                     }
                     (Some(start), Some(end)) if start > end => {
-                        return Err(Box::new(CompileError::invalid_pattern(
+                        return Err(InvalidPattern::build(
                             ctx.report_builder,
                             pattern_ident.name.to_string(),
                             format!(
@@ -134,7 +133,7 @@ fn hex_tokens_hir_from_ast(
                             } else {
                                 None
                             }
-                        )));
+                        ));
                     }
                     _ => {}
                 }

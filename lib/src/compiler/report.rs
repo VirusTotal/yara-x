@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 
 use yara_x_parser::Span;
 
@@ -15,7 +15,7 @@ pub type Level = annotate_snippets::Level;
 #[derive(Hash, Eq, PartialEq, Clone, Copy, Debug, Default)]
 pub struct SourceId(u32);
 
-/// A `SourceRef` points to a fragment of source code.
+/// A `CodeLoc` points to a fragment of source code.
 ///
 /// It consists of a [`SourceId`] and a [`Span`], where the former identifies
 /// the source file, and the latter a span of text within that source file.
@@ -23,28 +23,45 @@ pub struct SourceId(u32);
 /// The [`SourceId`] is optional, if it is [`None`] it means that the [`Span`]
 /// is relative to the current source file.
 #[derive(PartialEq, Debug, Clone, Eq, Default)]
-pub struct SourceRef {
+pub struct CodeLoc {
     source_id: Option<SourceId>,
     span: Span,
 }
 
-impl SourceRef {
+impl CodeLoc {
     pub(crate) fn new(source_id: Option<SourceId>, span: Span) -> Self {
         Self { source_id, span }
     }
+
+    /// Returns the span within the source code.
+    #[inline]
+    pub fn span(&self) -> &Span {
+        &self.span
+    }
 }
 
-impl From<&Span> for SourceRef {
-    /// Creates a [`SourceRef`] from a reference to a [`Span`].
+impl From<&Span> for CodeLoc {
+    /// Creates a [`CodeLoc`] from a reference to a [`Span`].
     fn from(span: &Span) -> Self {
         Self { source_id: None, span: span.clone() }
     }
 }
 
-impl From<Span> for SourceRef {
-    /// Creates a [`SourceRef`] from a [`Span`].
+impl From<Span> for CodeLoc {
+    /// Creates a [`CodeLoc`] from a [`Span`].
     fn from(span: Span) -> Self {
         Self { source_id: None, span }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Report {
+    pub(crate) text: String,
+}
+
+impl Display for Report {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.text)
     }
 }
 
@@ -138,7 +155,7 @@ impl ReportBuilder {
     }
 
     /// Returns the fragment of source code indicated by `source_ref`.
-    pub fn get_snippet(&self, source_ref: &SourceRef) -> String {
+    pub fn get_snippet(&self, source_ref: &CodeLoc) -> String {
         let source_id = source_ref
             .source_id
             .or_else(|| self.current_source_id())
@@ -157,7 +174,7 @@ impl ReportBuilder {
         level: Level,
         code: &'static str,
         title: String,
-        labels: Vec<(SourceRef, String, Level)>,
+        labels: Vec<(CodeLoc, String, Level)>,
         note: Option<String>,
     ) -> String {
         // Make sure there's at least one label.

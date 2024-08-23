@@ -1,7 +1,8 @@
 use std::ffi::{c_char, CStr, CString};
 use std::slice;
 use std::time::Duration;
-use yara_x::ScanError;
+
+use yara_x::errors::ScanError;
 
 use crate::{LAST_ERROR, YRX_RESULT, YRX_RULE, YRX_RULES};
 
@@ -220,7 +221,7 @@ pub unsafe extern "C" fn yrx_scanner_set_module_output(
 }
 
 unsafe extern "C" fn yrx_scanner_set_global<
-    T: TryInto<yara_x::Variable, Error = yara_x::VariableError>,
+    T: TryInto<yara_x::Variable, Error = yara_x::errors::VariableError>,
 >(
     scanner: *mut YRX_SCANNER,
     ident: *const c_char,

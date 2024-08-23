@@ -1,213 +1,393 @@
-use std::collections::HashSet;
+#![allow(missing_docs)]
+#![cfg_attr(any(), rustfmt::skip)]
+
 use std::fmt::{Debug, Display, Formatter};
 
 use thiserror::Error;
 
-use yara_x_macros::Error as DeriveError;
+use yara_x_macros::ErrorEnum;
+use yara_x_macros::ErrorStruct;
 
-use crate::compiler::report::Level;
-use crate::compiler::report::{ReportBuilder, SourceRef};
+use crate::compiler::report::{Level, Report};
+use crate::compiler::report::{ReportBuilder, CodeLoc};
 
 /// A warning raised while compiling YARA rules.
-#[rustfmt::skip]
 #[allow(missing_docs)]
-#[derive(DeriveError)]
+#[derive(ErrorEnum, Error, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Warning {
-    #[warning("consecutive_jumps", "consecutive jumps in hex pattern `{pattern_ident}`")]
-    #[label_warn("these consecutive jumps will be treated as {coalesced_jump}", jumps_span)]
-    ConsecutiveJumps {
-        detailed_report: String,
-        pattern_ident: String,
-        coalesced_jump: String,
-        jumps_span: SourceRef ,
-    },
-
-    #[warning("unsatisfiable_expr", "potentially unsatisfiable expression")]
-    #[label_warn("this implies that multiple patterns must match", quantifier_span)]
-    #[label_warn("but they must match at the same offset", at_span)]
-    PotentiallyUnsatisfiableExpression {
-        detailed_report: String,
-        quantifier_span: SourceRef,
-        at_span: SourceRef,
-    },
-
-    #[warning("invariant_expr", "invariant boolean expression")]
-    #[label_warn("this expression is always {value}", span)]
-    #[note(note)]
-    InvariantBooleanExpression {
-        detailed_report: String,
-        value: bool,
-        span: SourceRef,
-        note: Option<String>,
-    },
-
-    #[warning("non_bool_expr", "non-boolean expression used as boolean")]
-    #[label_warn("this expression is `{expression_type}` but is being used as `bool`", span)]
-    #[note(note)]
-    NonBooleanAsBoolean {
-        detailed_report: String,
-        expression_type: String,
-        span: SourceRef,
-        note: Option<String>,
-    },
-
-    #[warning("bool_int_comparison", "comparison between boolean and integer")]
-    #[label_warn("this comparison can be replaced with: `{replacement}`", span)]
-    BooleanIntegerComparison {
-        detailed_report: String,
-        span: SourceRef,
-        replacement: String,
-    },
-
-    #[warning("duplicate_import", "duplicate import statement")]
-    #[label_warn(
-      "duplicate import",
-      new_import_span
-    )]
-    #[label_note(
-      "`{module_name}` imported here for the first time",
-      existing_import_span
-    )]
-    DuplicateImport {
-        detailed_report: String,
-        module_name: String,
-        new_import_span: SourceRef,
-        existing_import_span: SourceRef,
-    },
-
-    #[warning("redundant_modifier", "redundant case-insensitive modifier")]
-    #[label_warn("the `i` suffix indicates that the pattern is case-insensitive", i_span)]
-    #[label_warn("the `nocase` modifier does the same", nocase_span)]
-    RedundantCaseModifier {
-        detailed_report: String,
-        nocase_span: SourceRef,
-        i_span: SourceRef,
-    },
-
-    #[warning("slow_pattern", "slow pattern")]
-    #[label_warn("this pattern may slow down the scan", span)]
-    SlowPattern {
-        detailed_report: String,
-        span: SourceRef,
-    },
-
-    #[warning("unsupported_module", "module `{module_name}` is not supported")]
-    #[label_warn("module `{module_name}` used here", span)]
-    #[note(note)]
-    IgnoredModule {
-        detailed_report: String,
-        module_name: String,
-        span: SourceRef,
-        note: Option<String>,
-    },
-
-    #[warning(
-        "ignored_rule",
-        "rule `{ignored_rule}` will be ignored due to an indirect dependency on module `{module_name}`"
-    )]
-    #[label_warn("this other rule depends on module `{module_name}`, which is unsupported", span)]
-    IgnoredRule {
-        detailed_report: String,
-        ignored_rule: String,
-        dependency: String,
-        module_name: String,
-        span: SourceRef,
-    },
+    ConsecutiveJumps(Box<ConsecutiveJumps>),
+    PotentiallyUnsatisfiableExpression(Box<PotentiallyUnsatisfiableExpression>),
+    InvariantBooleanExpression(Box<InvariantBooleanExpression>),
+    NonBooleanAsBoolean(Box<NonBooleanAsBoolean>),
+    BooleanIntegerComparison(Box<BooleanIntegerComparison>),
+    DuplicateImport(Box<DuplicateImport>),
+    RedundantCaseModifier(Box<RedundantCaseModifier>),
+    SlowPattern(Box<SlowPattern>),
+    IgnoredModule(Box<IgnoredModule>),
+    IgnoredRule(Box<IgnoredRule>),
 }
 
-/// Error returned by [`Warnings::switch_warning`] when the warning code is
-/// not valid.
-#[derive(Error, Debug, Eq, PartialEq)]
-#[error("`{0}` is not a valid warning code")]
-pub struct InvalidWarningCode(String);
-
-/// Represents a list of warnings.
-pub struct Warnings {
-    warnings: Vec<Warning>,
-    max_warnings: usize,
-    disabled_warnings: HashSet<String>,
+/// A hex pattern contains two or more consecutive jumps.
+///
+/// For instance, in `{01 02 [0-2] [1-3] 03 04 }` the jumps `[0-2]` and `[1-3]`
+/// appear one after the other. Consecutive jumps are useless, and they can be
+/// folded into a single one. In this case they can be replaced by `[1-5]`.
+///
+/// ## Example
+///
+/// ```text
+/// warning[consecutive_jumps]: consecutive jumps in hex pattern `$a`
+/// --> line:3:18
+///   |
+/// 3 |     $a = { 0F 84 [4] [0-7] 8D }
+///   |                  --------- these consecutive jumps will be treated as [4-11]
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "consecutive_jumps",
+    title = "consecutive jumps in hex pattern `{pattern_ident}`",
+)]
+#[label(
+    "these consecutive jumps will be treated as {coalesced_jump}",
+    coalesced_jump_loc
+)]
+pub struct ConsecutiveJumps {
+    report: Report,
+    pattern_ident: String,
+    coalesced_jump: String,
+    coalesced_jump_loc: CodeLoc,
 }
 
-impl Default for Warnings {
-    fn default() -> Self {
-        Self {
-            warnings: Vec::new(),
-            max_warnings: 100,
-            disabled_warnings: HashSet::default(),
-        }
+impl ConsecutiveJumps {
+    /// Identifier of the pattern containing the consecutive jumps.
+    #[inline]
+    pub fn pattern(&self) -> &str {
+        self.pattern_ident.as_str()
     }
 }
 
-impl Warnings {
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.warnings.is_empty()
-    }
-
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.warnings.len()
-    }
-
-    #[inline]
-    pub fn add(&mut self, f: impl FnOnce() -> Warning) {
-        if self.warnings.len() < self.max_warnings {
-            let warning = f();
-            if !self.disabled_warnings.contains(warning.code()) {
-                self.warnings.push(warning);
-            }
-        }
-    }
-
-    /// Enables or disables a specific warning identified by `code`.
-    ///
-    /// Returns `true` if the warning was previously enabled, or `false` if
-    /// otherwise. Returns an error if the code doesn't correspond to any
-    /// of the existing warnings.
-    #[inline]
-    pub fn switch_warning(
-        &mut self,
-        code: &str,
-        enabled: bool,
-    ) -> Result<bool, InvalidWarningCode> {
-        if !Warning::is_valid_code(code) {
-            return Err(InvalidWarningCode(code.to_string()));
-        }
-        if enabled {
-            Ok(!self.disabled_warnings.remove(code))
-        } else {
-            Ok(self.disabled_warnings.insert(code.to_string()))
-        }
-    }
-
-    /// Enable or disables all warnings.
-    pub fn switch_all_warnings(&mut self, enabled: bool) {
-        if enabled {
-            self.disabled_warnings.clear();
-        } else {
-            for c in Warning::all_codes() {
-                self.disabled_warnings.insert(c.to_string());
-            }
-        }
-    }
-
-    #[inline]
-    pub fn as_slice(&self) -> &[Warning] {
-        self.warnings.as_slice()
-    }
-
-    pub fn append(&mut self, mut warnings: Self) {
-        for w in warnings.warnings.drain(0..) {
-            if self.warnings.len() == self.max_warnings {
-                break;
-            }
-            self.warnings.push(w)
-        }
-    }
+/// A boolean expression may be impossible to match.
+///
+/// For instance, the condition `2 of ($a, $b) at 0` is impossible
+/// to match, unless that both `$a` and `$b` are the same pattern,
+/// or one is a prefix of the other. In most cases this expression
+/// is unsatisfiable because two different matches can match at the
+/// same file offset.
+///
+/// ## Example
+///
+/// ```text
+/// warning[unsatisfiable_expr]: potentially unsatisfiable expression
+/// --> line:6:5
+///   |
+/// 6 |     2 of ($*) at 0
+///   |     - this implies that multiple patterns must match
+///   |               ---- but they must match at the same offset
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "unsatisfiable_expr",
+    title = "potentially unsatisfiable expression"
+)]
+#[label(
+    "this implies that multiple patterns must match",
+    quantifier_loc
+)]
+#[label(
+    "but they must match at the same offset",
+    at_loc
+)]
+pub struct PotentiallyUnsatisfiableExpression {
+    report: Report,
+    quantifier_loc: CodeLoc,
+    at_loc: CodeLoc,
 }
 
-impl From<Warnings> for Vec<Warning> {
-    fn from(value: Warnings) -> Self {
-        value.warnings
-    }
+
+/// A boolean expression always has the same value.
+///
+/// This warning indicates that some boolean expression is always true or false,
+/// regardless of the data being scanned.
+///
+/// ## Example
+///
+/// ```text
+/// warning[invariant_expr]: invariant boolean expression
+///  --> line:6:5
+///   |
+/// 6 |     3 of them
+///   |     --------- this expression is always false
+///   |
+///   = note: the expression requires 3 matching patterns out of 2
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "invariant_expr",
+    title = "invariant boolean expression"
+)]
+#[label(
+    "this expression is always {expr_value}",
+    expr_loc
+)]
+#[note(note)]
+pub struct InvariantBooleanExpression {
+    report: Report,
+    expr_value: bool,
+    expr_loc: CodeLoc,
+    note: Option<String>,
 }
+
+/// A non-boolean expression is being used as a boolean.
+///
+/// ## Example
+///
+/// ```text
+/// warning[non_bool_expr]: non-boolean expression used as boolean
+/// --> line:3:14
+///   |
+/// 3 |   condition: 2 and 3
+///   |              - this expression is `integer` but is being used as `bool`
+///   |
+///   = note: non-zero integers are considered `true`, while zero is `false`
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "non_bool_expr",
+    title = "non-boolean expression used as boolean"
+)]
+#[label(
+    "this expression is `{expr_type}` but is being used as `bool`",
+    expr_loc
+)]
+#[note(note)]
+pub struct NonBooleanAsBoolean {
+    report: Report,
+    expr_type: String,
+    expr_loc: CodeLoc,
+    note: Option<String>,
+}
+
+/// Comparison between boolean and integer.
+///
+/// This warning indicates that some expression is a comparison between
+/// boolean and integer values.
+///
+/// ## Example
+///
+/// ```text
+/// warning[bool_int_comparison]: comparison between boolean and integer
+/// --> line:4:13
+///   |
+/// 4 |  condition: test_proto2.array_bool[0] == 1
+///   |             ------------------------------ this comparison can be replaced with: `test_proto2.array_bool[0]`
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "bool_int_comparison",
+    title = "comparison between boolean and integer"
+)]
+#[label(
+    "this comparison can be replaced with: `{replacement}`",
+    expr_loc
+)]
+pub struct BooleanIntegerComparison {
+    report: Report,
+    replacement: String,
+    expr_loc: CodeLoc,
+}
+
+/// Duplicate import statement.
+///
+/// This warning indicates that some module has been imported multiple times.
+///
+/// ## Example
+///
+/// ```text
+/// warning[duplicate_import]: duplicate import statement
+/// --> line:1:21
+///   |
+/// 1 | import "test_proto2"
+///   | -------------------- note: `test_proto2` imported here for the first time
+/// 2 | import "test_proto2"
+///   | -------------------- duplicate import
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "duplicate_import",
+    title = "duplicate import statement"
+)]
+#[label(
+    "duplicate import",
+    new_import_loc
+)]
+#[label(
+    "`{module_name}` imported here for the first time",
+    existing_import_loc,
+    Level::Note
+)]
+pub struct DuplicateImport {
+    report: Report,
+    module_name: String,
+    new_import_loc: CodeLoc,
+    existing_import_loc: CodeLoc,
+}
+
+
+/// Redundant case-insensitive modifier for a regular expression.
+///
+/// A regular expression can be made case-insensitive in two ways: by using the
+/// `nocase` modifier or by appending the `i` suffix to the pattern. Both
+/// methods achieve the same result, making it redundant to use them
+/// simultaneously.
+///
+/// For example, the following patterns are equivalent:
+///
+/// ```text
+/// $re = /some regexp/i
+/// $re = /some regexp/ nocase
+/// ```
+///
+/// ## Example
+///
+/// ```text
+/// warning[redundant_modifier]: redundant case-insensitive modifier
+/// --> line:3:15
+///   |
+/// 3 |     $a = /foo/i nocase
+///   |               - the `i` suffix indicates that the pattern is case-insensitive
+///   |                 ------ the `nocase` modifier does the same
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "redundant_modifier",
+    title = "redundant case-insensitive modifier"
+)]
+#[label(
+    "the `i` suffix indicates that the pattern is case-insensitive",
+    i_loc
+)]
+#[label(
+    "the `nocase` modifier does the same",
+    nocase_loc
+)]
+pub struct RedundantCaseModifier {
+    report: Report,
+    nocase_loc: CodeLoc,
+    i_loc: CodeLoc,
+}
+
+/// Some pattern may be potentially slow.
+///
+/// This warning indicates that a pattern may be very slow to match, and can
+/// degrade rule's the performance. In most cases this is caused by patterns
+/// that doesn't contain any large fixed sub-pattern that be used for speeding
+/// up the scan. For example, `{00 [1-10] 01}` is very slow because the only
+/// fixed sub-patterns (`00` and `01`) are only one byte long.
+///
+/// ## Example
+///
+/// ```text
+/// warning[slow_pattern]: slow pattern
+/// --> line:3:5
+///   |
+/// 3 |     $a = {00 [1-10] 01}
+///   |     ------------------ this pattern may slow down the scan
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "slow_pattern",
+    title = "slow pattern"
+)]
+#[label(
+    "this pattern may slow down the scan",
+    pattern_loc
+)]
+pub struct SlowPattern {
+    report: Report,
+    pattern_loc: CodeLoc,
+}
+
+/// An unsupported module has been used.
+///
+/// If you use [`crate::Compiler::ignore_module`] for telling the compiler
+/// that some module is not supported, the compiler will raise this warning
+/// when the module is used in some of your rules.
+///
+/// ## Example
+///
+/// ```text
+/// warning[unsupported_module]: module `magic` is not supported
+/// --> line:4:5
+///   |
+/// 4 |     magic.type()
+///   |     ----- module `magic` used here
+///   |
+/// = note: the whole rule `foo` will be ignored
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "unsupported_module",
+    title = "module `{module_name}` is not supported"
+)]
+#[label(
+    "module `{module_name}` used here",
+    module_name_loc
+)]
+#[note(note)]
+pub struct IgnoredModule {
+    report: Report,
+    module_name: String,
+    module_name_loc: CodeLoc,
+    note: Option<String>,
+}
+
+/// A rule indirectly depends on some unsupported module.
+///
+/// If you use [`crate::Compiler::ignore_module`] for telling the compiler
+/// that some module is not supported, the compiler will raise this warning
+/// when a rule `A` uses some rule `B` that uses the module.
+///
+/// ## Example
+///
+/// ```text
+/// warning[ignored_rule]: rule `foo` will be ignored due to an indirect dependency on module `magic`
+/// --> line:9:5
+///   |
+/// 9 |     bar
+///   |     --- this other rule depends on module `magic`, which is unsupported
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "ignored_rule",
+    title = "rule `{ignored_rule}` will be ignored due to an indirect dependency on module `{module_name}`"
+)]
+#[label(
+    "this other rule depends on module `{module_name}`, which is unsupported",
+    ignored_rule_loc
+)]
+pub struct IgnoredRule {
+    report: Report,
+    module_name: String,
+    ignored_rule: String,
+    ignored_rule_loc: CodeLoc,
+}
+
+

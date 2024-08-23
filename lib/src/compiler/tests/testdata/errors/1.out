@@ -1,5 +1,5 @@
 error[E012]: duplicate rule `test`
- --> line:1:6
+ --> line:5:6
   |
 1 | rule test {
   |      ---- note: `test` declared here for the first time

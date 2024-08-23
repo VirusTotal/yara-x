@@ -158,7 +158,7 @@ pub unsafe extern "C" fn yrx_compiler_new_namespace(
 /// scanning data, however each scanner can change the variable’s initial
 /// value by calling `yrx_scanner_set_global`.
 unsafe fn yrx_compiler_define_global<
-    T: TryInto<yara_x::Variable, Error = yara_x::VariableError>,
+    T: TryInto<yara_x::Variable, Error = yara_x::errors::VariableError>,
 >(
     compiler: *mut YRX_COMPILER,
     ident: *const c_char,

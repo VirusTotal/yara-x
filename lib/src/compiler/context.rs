@@ -4,12 +4,13 @@ use std::rc::Rc;
 
 use yara_x_parser::ast::{Ident, WithSpan};
 
+use crate::compiler::errors::{CompileError, UnknownPattern};
 use crate::compiler::ir::PatternIdx;
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{ir, Warnings};
 use crate::symbols::{StackedSymbolTable, SymbolLookup};
 use crate::types::Type;
-use crate::{wasm, CompileError};
+use crate::wasm;
 
 /// Structure that contains information and data structures required during the
 /// current compilation process.
@@ -55,8 +56,7 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
     pub fn get_pattern_mut(
         &mut self,
         ident: &Ident,
-    ) -> Result<(PatternIdx, &mut ir::PatternInRule<'src>), Box<CompileError>>
-    {
+    ) -> Result<(PatternIdx, &mut ir::PatternInRule<'src>), CompileError> {
         // Make sure that identifier starts with `$`, `#`, `@` or `!`.
         debug_assert!("$#@!".contains(
             ident
@@ -71,11 +71,11 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
             .find_position(|p| p.identifier().name[1..] == ident.name[1..])
             .map(|(pos, pattern)| (PatternIdx::from(pos), pattern))
             .ok_or_else(|| {
-                Box::new(CompileError::unknown_pattern(
+                UnknownPattern::build(
                     self.report_builder,
                     ident.name.to_string(),
                     ident.span().into(),
-                ))
+                )
             })
     }
 }

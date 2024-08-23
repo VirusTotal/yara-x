@@ -606,9 +606,9 @@ create_exception!(
     "Exception raised when scanning fails"
 );
 
-fn map_scan_err(err: yrx::ScanError) -> PyErr {
+fn map_scan_err(err: yrx::errors::ScanError) -> PyErr {
     match err {
-        yrx::ScanError::Timeout => TimeoutError::new_err("timeout"),
+        yrx::errors::ScanError::Timeout => TimeoutError::new_err("timeout"),
         err => ScanError::new_err(err.to_string()),
     }
 }

@@ -1,375 +1,275 @@
 extern crate proc_macro;
 
-use convert_case::{Case, Casing};
-use proc_macro2::{Span, TokenStream};
-use quote::{quote, TokenStreamExt};
+use proc_macro2::TokenStream;
+use quote::quote;
 use syn::parse::{Parse, ParseStream};
-use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
 use syn::token::Comma;
-use syn::{
-    Attribute, Data, DataEnum, DeriveInput, Error, Expr, Fields, Ident,
-    LitStr, Result, Variant,
-};
+use syn::{Data, DeriveInput, Error, Expr, Field, Ident, LitStr, Result};
 
-pub(crate) fn impl_error_macro(input: DeriveInput) -> Result<TokenStream> {
-    let name = &input.ident;
+/// Describes a label in an error/warning message.
+#[derive(Debug)]
+struct Label {
+    label_fmt: LitStr,
+    label_ref: Ident,
+    level: Option<Expr>,
+}
 
-    let (codes, variants, funcs) = match &input.data {
-        Data::Struct(_) | Data::Union(_) => {
-            return Err(Error::new(
-                name.span(),
-                "macros macro Error can be used with only with enum types"
-                    .to_string(),
-            ))
+impl Parse for Label {
+    /// Parses a label with like the one below.
+    ///
+    /// ```text
+    /// #[label("{error_msg}", error_ref, Level::Info)]
+    /// ```
+    ///
+    /// The last argument is optional, the default value is `Level::Error`.
+    fn parse(input: ParseStream) -> Result<Self> {
+        let label_fmt: LitStr = input.parse()?;
+        let _ = input.parse::<Comma>()?;
+        let label_ref: Ident = input.parse()?;
+        let mut level = None;
+        if input.peek(Comma) {
+            input.parse::<Comma>()?;
+            level = Some(input.parse::<Expr>()?);
         }
-        Data::Enum(data_enum) => impl_enum_error_macro(data_enum)?,
+        Ok(Label { label_fmt, label_ref, level })
+    }
+}
+
+pub(crate) fn impl_error_struct_macro(
+    input: DeriveInput,
+) -> Result<TokenStream> {
+    let fields =
+        match &input.data {
+            Data::Struct(s) => &s.fields,
+            Data::Enum(_) | Data::Union(_) => return Err(Error::new(
+                input.ident.span(),
+                "macro ErrorStruct can be used with only with struct types"
+                    .to_string(),
+            )),
+        };
+
+    let mut level = None;
+    let mut code = None;
+    let mut title = None;
+    let mut note = None;
+    let mut associated_enum = None;
+    let mut labels = Vec::new();
+
+    for attr in input.attrs {
+        if attr.path().is_ident("doc") {
+            // `doc` attributes are ignored, they are actually the
+            //  documentation comments added in front of structures.
+            continue;
+        } else if attr.path().is_ident("associated_enum") {
+            associated_enum = Some(attr.parse_args::<Ident>()?);
+        } else if attr.path().is_ident("label") {
+            labels.push(attr.parse_args::<Label>()?);
+        } else if attr.path().is_ident("note") {
+            note = Some(attr.parse_args::<Ident>()?);
+        } else {
+            if attr.path().is_ident("error") {
+                level = Some(quote!(Level::Error))
+            } else if attr.path().is_ident("warning") {
+                level = Some(quote!(Level::Warning))
+            } else {
+                return Err(Error::new(
+                    attr.path().span(),
+                    "unexpected attribute".to_string(),
+                ));
+            }
+            attr.parse_nested_meta(|meta| {
+                match meta.path.get_ident() {
+                    Some(ident) if ident == "code" => {
+                        code = Some(meta.value()?.parse::<LitStr>()?);
+                    }
+                    Some(ident) if ident == "title" => {
+                        title = Some(meta.value()?.parse::<LitStr>()?);
+                    }
+                    _ => {
+                        return Err(Error::new(
+                            meta.path.span(),
+                            "unknown argument, expecting `code = \"...\", title = \"...\"`".to_string(),
+                        ));
+                    }
+                };
+                Ok(())
+            })?;
+        }
+    }
+
+    let associated_enum = match associated_enum {
+        Some(e) => e,
+        None => {
+            return Err(Error::new(
+                input.ident.span(),
+                "struct doesn't have associated enum, use #[associated_enum(EnumType)]".to_string(),
+            ));
+        }
     };
+
+    let struct_name = input.ident;
 
     let (impl_generics, ty_generics, where_clause) =
         input.generics.split_for_impl();
 
+    let labels = labels.iter().map(|label| {
+        let label_fmt = &label.label_fmt;
+        let label_ref = &label.label_ref;
+        // If a level is explicitly specified as part of the label definition,
+        // use the specified level, if not, use Level::Error for #[error(...)]
+        // and Level::Warning for #[warning(...)].
+        match &label.level {
+            Some(expr) => {
+                quote!((#label_ref.clone(), format!(#label_fmt), #expr))
+            }
+            None => {
+                quote!((#label_ref.clone(), format!(#label_fmt), #level))
+            }
+        }
+    });
+
+    let note = note.map(|expr| quote!(#expr)).unwrap_or_else(|| quote!(None));
+
+    // Get all fields in the structure, except the `report` field.
+    let fields: Vec<&Field> = fields
+        .iter()
+        .filter(|field| {
+            field.ident.as_ref().is_some_and(|ident| ident != "report")
+        })
+        .collect();
+
+    // The function arguments have the same name and type than the fields.
+    let fn_args = fields.iter().map(|field| {
+        let name = field.ident.as_ref().unwrap();
+        let ty = &field.ty;
+        quote!(#name : #ty)
+    });
+
+    // Get the names of the fields.
+    let field_names = fields.iter().map(|field| field.ident.as_ref().unwrap());
+
     Ok(quote! {
-        use yansi::Color;
-
         #[automatically_derived]
-        impl #impl_generics #name #ty_generics #where_clause {
-            #(#funcs)*
+        impl #impl_generics #struct_name #ty_generics #where_clause {
+            pub(crate) fn build(
+                report_builder: &ReportBuilder,
+                #( #fn_args ),*
+            ) -> #associated_enum {
+                let report = report_builder.create_report(
+                    #level,
+                    #code,
+                    format!(#title),
+                    vec![#( #labels ),*],
+                    #note.clone(),
+                );
+                #associated_enum::#struct_name(
+                    Box::new(Self {
+                        report: Report { text: report },
+                        #( #field_names ),*
+                    })
+                )
+            }
         }
 
         #[automatically_derived]
-        impl #impl_generics #name #ty_generics #where_clause {
+        impl #impl_generics #struct_name #ty_generics #where_clause {
             /// Returns a unique error code identifying the type of error/warning.
-            pub fn code(&self) -> &'static str {
-                match self {
-                    #(Self::#variants { .. } => {
-                        #codes
-                    })*,
-                }
-            }
-
-            fn is_valid_code(code: &str) -> bool {
-                Self::all_codes().iter().any(|c| *c == code)
-            }
-
-            fn all_codes() -> &'static [&'static str] {
-                &[ #( #codes, )* ]
+            pub const fn code() -> &'static str {
+                #code
             }
         }
 
         #[automatically_derived]
-        impl #impl_generics Display for #name #ty_generics #where_clause {
-            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-                match self {
-                    #(Self::#variants { detailed_report, .. })|* => {
-                         write!(f, "{}", detailed_report)
-                    }
-                }
-            }
-        }
-
-        #[automatically_derived]
-        impl #impl_generics Debug for #name #ty_generics #where_clause {
-            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-                match self {
-                    #(Self::#variants { detailed_report, .. })|* => {
-                         write!(f, "{}", detailed_report)
-                    }
-                }
-            }
-        }
-
-        #[automatically_derived]
-        impl #impl_generics std::error::Error for #name #ty_generics #where_clause {
+        impl #impl_generics std::error::Error for #struct_name #ty_generics #where_clause {
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
                 None
+            }
+        }
+
+        #[automatically_derived]
+        impl #impl_generics Display for #struct_name #ty_generics #where_clause {
+            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}", self.report)
             }
         }
     })
 }
 
-fn impl_enum_error_macro(
-    data_enum: &DataEnum,
-) -> Result<(Vec<LitStr>, Vec<&Ident>, Vec<TokenStream>)> {
-    // Generate a function for each variant in the enum labelled
-    // with #[error(...)] or #[warning(...)].
-    let mut funcs = Vec::new();
-    let mut variants = Vec::new();
-    let mut codes = Vec::new();
-    // For each variant in the enum...
-    for variant in &data_enum.variants {
-        // ...look for #[error(...)] or #[warning(...)] attribute.
-        for attr in &variant.attrs {
-            if let Some((kind, error_attr)) = parse_attr(attr)? {
-                variants.push(&variant.ident);
-                funcs.push(gen_build_func(
-                    kind,
-                    &error_attr.code,
-                    &error_attr.description,
-                    variant,
-                )?);
-                codes.push(error_attr.code);
-            }
-        }
-    }
-    Ok((codes, variants, funcs))
-}
-
-#[derive(Debug)]
-struct ErrorArgs {
-    code: LitStr,
-    description: LitStr,
-}
-
-impl Parse for ErrorArgs {
-    fn parse(input: ParseStream) -> Result<Self> {
-        let mut args = Punctuated::<LitStr, Comma>::parse_terminated(input)?;
-
-        if args.len() != 2 {
-            return Err(
-                Error::new_spanned(
-                    args,
-                    "#[error(...)] must have exactly 2 arguments: code and description".to_string(),
-                ));
-        }
-
-        let description = args.pop().unwrap().into_value();
-        let code = args.pop().unwrap().into_value();
-
-        Ok(ErrorArgs { code, description })
-    }
-}
-
-// Checks if an attribute is #[error(...)] or #[warning(...)] and returns its
-// arguments. Otherwise, it returns None.
-fn parse_attr(attr: &Attribute) -> Result<Option<(&'static str, ErrorArgs)>> {
-    let kind = if attr.path().is_ident("error") {
-        "error"
-    } else if attr.path().is_ident("warning") {
-        "warning"
-    } else {
-        return Ok(None);
-    };
-
-    let args = attr.meta.require_list()?.parse_args::<ErrorArgs>()?;
-
-    Ok(Some((kind, args)))
-}
-
-// Given an error or warning variant, generates the function that builds
-// an instance of this error or warning.
-fn gen_build_func(
-    kind: &str,
-    code: &LitStr,
-    description: &LitStr,
-    variant: &Variant,
+pub(crate) fn impl_error_enum_macro(
+    input: DeriveInput,
 ) -> Result<TokenStream> {
-    match &variant.fields {
-        Fields::Named(fields) => {
-            // Each error variant has one or more labels (e.g. #[label(...)]),
-            // get the labels for this variant.
-            let labels = get_labels(variant)?;
-
-            // Make sure that there's at least one label.
-            if labels.is_empty() {
-                return Err(Error::new_spanned(
-                    variant,
-                    "#[error(...)] must be accompanied by at least one instance of #[label(...)}",
-                ));
-            }
-
-            // The variant can also have a note (e.g. #[note(...)]).
-            let note = get_note(variant)?;
-
-            // The arguments to the function have the same names and types as
-            // the fields in the struct variant. Except for the field named
-            // `detailed_report`, which is not included in the arguments.
-            let mut args = TokenStream::new();
-            args.append_all(
-                fields
-                    .named
-                    .pairs()
-                    .filter(
-                        |pair| *pair.value().ident.as_ref().unwrap() != "detailed_report"
-                    ),
-            );
-
-            let field_identifiers =
-                fields
-                    .named
-                    .iter()
-                    .map(|field| field.ident.as_ref().unwrap());
-
-            let variant_ident = &variant.ident;
-            let fn_ident = Ident::new(
-                &variant_ident.to_string().to_case(Case::Snake), Span::call_site());
-
-            // Labels is a vector of tuples (Ident, TokenStream), convert it
-            // to a vector of TokenStream, Idents are dropped.
-            let labels = labels.iter().map(|(_, labels)| labels);
-
-            let report_type = match kind {
-                "error" => quote!(Level::Error),
-                "warning" => quote!(Level::Warning),
-                _  => unreachable!(),
-            };
-
-            Ok(quote!(
-                #[doc(hidden)]
-                pub fn #fn_ident(report_builder: &ReportBuilder, #args) -> Self {
-                    use crate::compiler::report::SourceRef;
-                    let detailed_report = report_builder.create_report(
-                        #report_type,
-                        #code,
-                        format!(#description),
-                        vec![
-                            #( #labels ),*
-                        ],
-                        #note.clone(),
-                    );
-                    Self::#variant_ident{
-                        #( #field_identifiers ),*
-                    }
-                }
+    let variants = match &input.data {
+        Data::Enum(s) => &s.variants,
+        Data::Struct(_) | Data::Union(_) => {
+            return Err(Error::new(
+                input.ident.span(),
+                "macro ErrorEnum can be used with only with enum types"
+                    .to_string(),
             ))
         }
-        Fields::Unnamed(_) | Fields::Unit => {
-            Err(Error::new_spanned(
-                variant,
-                format!(
-                    "{} not a struct variant, #[error(...)] can be used only with struct variants",
-                    variant.ident
-                ),
-            ))
-        }
-    }
-}
-
-fn get_note(variant: &Variant) -> Result<TokenStream> {
-    // Try to find a #[note(...)] attribute.
-    let note_attr =
-        match variant.attrs.iter().find(|attr| attr.path().is_ident("note")) {
-            Some(attr) => attr,
-            None => return Ok(quote!(None)),
-        };
-
-    // Let's check that it has a list of arguments...
-    let args = note_attr.meta.require_list()?;
-
-    // The arguments are a comma-separated list of expressions.
-    let args =
-        args.parse_args_with(Punctuated::<Expr, Comma>::parse_terminated)?;
-
-    // It should have exactly one argument, which is the field that
-    // contains the note.
-    if args.len() != 1 {
-        return Err(Error::new_spanned(
-            args,
-            "#[note(...)] must receive exactly one argument",
-        ));
-    }
-
-    let node_field = &args[0];
-
-    // Make sure that label_span_field it's an identifier.
-    let node_field = match node_field {
-        Expr::Path(expr) => expr.path.get_ident(),
-        _ => None,
     };
 
-    let node_field = node_field.ok_or_else(|| {
-        Error::new_spanned(
-            node_field,
-            format!(
-                "the argument for #[note(...)] must be a field in `{}`",
-                variant.ident
-            ),
-        )
-    })?;
+    let variant_idents: Vec<&Ident> =
+        variants.iter().map(|variant| &variant.ident).collect();
 
-    Ok(quote!(#node_field))
-}
+    let num_variants = variant_idents.len();
 
-fn get_labels(variant: &Variant) -> Result<Vec<(Ident, TokenStream)>> {
-    let mut labels = Vec::new();
+    let enum_name = input.ident;
 
-    // Iterate over the #[label_xxxx(...)] attributes.
-    for attr in variant.attrs.iter().filter(|attr| {
-        attr.path().is_ident("label_error")
-            || attr.path().is_ident("label_warn")
-            || attr.path().is_ident("label_info")
-            || attr.path().is_ident("label_note")
-            || attr.path().is_ident("label_help")
-    }) {
-        // Check that the attribute has a list of arguments.
-        let args = attr.meta.require_list()?;
+    let (impl_generics, ty_generics, where_clause) =
+        input.generics.split_for_impl();
 
-        // The arguments are a comma-separated list of expressions.
-        let args =
-            args.parse_args_with(Punctuated::<Expr, Comma>::parse_terminated)?;
-
-        // It should have two arguments, the first argument should be the
-        // label's format string, and the second argument is the name of the
-        // field that contains the span for the label.
-        if args.len() != 2 {
-            return Err(Error::new_spanned(
-                args,
-                "#[label_xxxx(...)] must receive two arguments",
-            ));
+    Ok(quote!(
+        #[automatically_derived]
+        impl #impl_generics Debug for #enum_name #ty_generics #where_clause {
+            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+                match self {
+                    #(
+                        Self::#variant_idents(v) => {
+                            write!(f, "{}", v)?;
+                        }
+                    ),*
+                };
+                Ok(())
+            }
         }
 
-        let label_fmt = &args[0];
-        let label_span_field = &args[1];
-
-        // Make sure that label_span_field it's an identifier.
-        let label_span_field = match label_span_field {
-            Expr::Path(expr) => expr.path.get_ident(),
-            _ => None,
-        };
-
-        let label_span_field = label_span_field.ok_or_else(|| {
-            Error::new_spanned(
-                label_span_field,
-                format!(
-                    "the second argument for #[label_xxxx(...)] must be a field in `{}`",
-                    variant.ident
-                ),
-            )
-        })?;
-
-        // Also make sure that the field actually exists in the structure.
-        if !variant
-            .fields
-            .iter()
-            .any(|field| field.ident.as_ref() == Some(label_span_field))
-        {
-            return Err(Error::new_spanned(
-                label_span_field,
-                format!(
-                    "field `{}` not found in `{}`",
-                    label_span_field, variant.ident
-                ),
-            ));
+        #[automatically_derived]
+        impl #impl_generics Display for #enum_name #ty_generics #where_clause {
+            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+                match self {
+                    #(
+                        Self::#variant_idents(v) => {
+                            write!(f, "{}", v)?;
+                        }
+                    ),*
+                };
+                Ok(())
+            }
         }
 
-        let level = if attr.meta.path().is_ident("label_warn") {
-            quote!(Level::Warning)
-        } else if attr.meta.path().is_ident("label_info") {
-            quote!(Level::Info)
-        } else if attr.meta.path().is_ident("label_note") {
-            quote!(Level::Note)
-        } else if attr.meta.path().is_ident("label_help") {
-            quote!(Level::Help)
-        } else {
-            quote!(Level::Error)
-        };
+        impl #impl_generics #enum_name #ty_generics #where_clause {
+            /// Returns a unique code that identifies the error or warning.
+            #[rustfmt::skip]
+            pub fn code(&self) -> &'static str {
+                match self {
+                    #(
+                        Self::#variant_idents(v) => {
+                            #variant_idents::code()
+                        }
+                    ),*
+                }
+            }
 
-        labels.push((
-            label_span_field.clone(),
-            quote!(
-                (#label_span_field.clone(), format!(#label_fmt), #level)
-            ),
-        ));
-    }
-
-    Ok(labels)
+            /// Returns all the existing error or warning codes.
+            pub const fn all_codes() -> [&'static str; #num_variants] {
+                [
+                    #(
+                        #variant_idents::code()
+                    ),*
+                ]
+            }
+        }
+    ))
 }
