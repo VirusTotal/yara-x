@@ -31,10 +31,8 @@ use thiserror::Error;
 
 use crate::compiler::Atom;
 
-#[cfg(feature = "fast-regexp")]
-pub(crate) mod fast;
-
 pub(crate) mod bitmapset;
+pub(crate) mod fast;
 pub(crate) mod hir;
 pub(crate) mod parser;
 pub(crate) mod thompson;
