@@ -38,7 +38,7 @@ use crate::compiler::errors::{
     CompileError, ConflictingRuleIdentifier, DuplicateRule, DuplicateTag,
     EmitWasmError, InvalidRegexp, InvalidUTF8, UnknownModule, UnusedPattern,
 };
-use crate::compiler::report::ReportBuilder;
+use crate::compiler::report::{CodeLoc, ReportBuilder};
 use crate::compiler::{CompileContext, VarStack};
 use crate::modules::BUILTIN_MODULES;
 use crate::re;
@@ -57,7 +57,6 @@ pub(crate) use crate::compiler::atoms::*;
 pub(crate) use crate::compiler::context::*;
 pub(crate) use crate::compiler::ir::*;
 
-pub use report::CodeLoc;
 pub use report::Report;
 
 #[doc(inline)]
