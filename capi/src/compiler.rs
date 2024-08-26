@@ -1,6 +1,9 @@
-use crate::{LAST_ERROR, YRX_RESULT, YRX_RULES};
-use std::ffi::{c_char, CStr, CString};
+use std::ffi::{c_char, CStr};
 use std::mem;
+
+use yara_x::errors::{CompileError, VariableError};
+
+use crate::{_yrx_set_last_error, YRX_RESULT, YRX_RULES};
 
 /// A compiler that takes YARA source code and produces compiled rules.
 pub struct YRX_COMPILER<'a> {
@@ -83,11 +86,11 @@ pub unsafe extern "C" fn yrx_compiler_add_source(
 
     match compiler.inner.add_source(src.to_bytes()) {
         Ok(_) => {
-            LAST_ERROR.set(None);
+            _yrx_set_last_error::<CompileError>(None);
             YRX_RESULT::SUCCESS
         }
         Err(err) => {
-            LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
+            _yrx_set_last_error(Some(err));
             YRX_RESULT::SYNTAX_ERROR
         }
     }
@@ -178,11 +181,11 @@ unsafe fn yrx_compiler_define_global<
 
     match compiler.inner.define_global(ident, value) {
         Ok(_) => {
-            LAST_ERROR.set(None);
+            _yrx_set_last_error::<VariableError>(None);
             YRX_RESULT::SUCCESS
         }
         Err(err) => {
-            LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
+            _yrx_set_last_error(Some(err));
             YRX_RESULT::VARIABLE_ERROR
         }
     }
