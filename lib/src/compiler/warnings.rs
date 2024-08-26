@@ -1,4 +1,3 @@
-#![allow(missing_docs)]
 #![cfg_attr(any(), rustfmt::skip)]
 
 use std::fmt::{Debug, Display, Formatter};

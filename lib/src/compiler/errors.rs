@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+#![cfg_attr(any(), rustfmt::skip)]
 
 use std::fmt::{Debug, Display, Formatter};
 use std::io;
@@ -155,6 +155,7 @@ impl CompileError {
     }
 }
 
+/// A syntax error was found in the rule.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E001", title = "syntax error")]
@@ -165,6 +166,7 @@ pub struct SyntaxError {
     error_loc: CodeLoc,
 }
 
+/// Some expression has an unexpected type.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E002", title = "wrong type")]
@@ -179,6 +181,7 @@ pub struct WrongType {
     error_loc: CodeLoc,
 }
 
+/// Operands have mismatching types.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E003", title = "mismatching types")]
@@ -192,6 +195,7 @@ pub struct MismatchingTypes {
     type2_loc: CodeLoc,
 }
 
+/// Wrong arguments when calling a function.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E004", title = "wrong arguments")]
@@ -203,6 +207,8 @@ pub struct WrongArguments {
     note: Option<String>,
 }
 
+/// Mismatch between number of variables and number of values in a loop
+/// expression.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E005", title = "assignment mismatch")]
@@ -216,6 +222,7 @@ pub struct AssignmentMismatch {
     error_loc: CodeLoc,
 }
 
+/// Negative number used where positive number was expected.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E006", title = "unexpected negative number")]
@@ -225,6 +232,7 @@ pub struct UnexpectedNegativeNumber {
     error_loc: CodeLoc,
 }
 
+/// A number is out of the allowed range.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E007", title = "number out of range")]
@@ -236,6 +244,7 @@ pub struct NumberOutOfRange {
     error_loc: CodeLoc,
 }
 
+/// Unknown field or method name.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E008", title = "unknown field or method `{identifier}`")]
@@ -246,6 +255,7 @@ pub struct UnknownField {
     error_loc: CodeLoc,
 }
 
+/// Unknown identifier.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E009", title = "unknown identifier `{identifier}`")]
@@ -259,15 +269,18 @@ pub struct UnknownIdentifier {
 }
 
 impl UnknownIdentifier {
+    /// Name of the unknown identifier.
     #[inline]
     pub fn identifier(&self) -> &str {
         self.identifier.as_str()
     }
-    pub fn identifier_location(&self) -> &CodeLoc {
+    /// Location of the unknown identifier.
+    pub(crate) fn identifier_location(&self) -> &CodeLoc {
         &self.identifier_loc
     }
 }
 
+/// Unknown module.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E010", title = "unknown module `{identifier}`")]
@@ -278,6 +291,7 @@ pub struct UnknownModule {
     error_loc: CodeLoc,
 }
 
+/// Invalid range.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E011", title = "invalid range")]
@@ -288,6 +302,7 @@ pub struct InvalidRange {
     error_loc: CodeLoc,
 }
 
+/// Two rules have the same name.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E012", title = "duplicate rule `{new_rule}`")]
@@ -308,6 +323,8 @@ pub struct DuplicateRule {
     existing_rule_loc: CodeLoc,
 }
 
+
+/// A rule has the same name as a module or global variable.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(
@@ -321,6 +338,7 @@ pub struct ConflictingRuleIdentifier {
     error_loc: CodeLoc,
 }
 
+/// A regular expression is invalid.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E014", title = "invalid regular expression")]
@@ -333,6 +351,7 @@ pub struct InvalidRegexp {
     note: Option<String>,
 }
 
+/// A regular expression contains a mixture of greedy and non-greedy quantifiers.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(
@@ -349,6 +368,7 @@ pub struct MixedGreediness {
     quantifier2_loc: CodeLoc,
 }
 
+/// A set of patterns doesn't contain any patterns.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E016", title = "no matching patterns")]
@@ -360,6 +380,7 @@ pub struct EmptyPatternSet {
     note: Option<String>,
 }
 
+/// The `entrypoint` keyword is not supported.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E017", title = "`entrypoint` is unsupported")]
@@ -374,6 +395,7 @@ pub struct EntrypointUnsupported {
     error_loc: CodeLoc,
 }
 
+/// Some pattern may be potentially slow.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E018", title = "slow pattern")]
@@ -383,6 +405,7 @@ pub struct SlowPattern {
     error_loc: CodeLoc,
 }
 
+/// A pattern has modifiers that can't be used together.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(
@@ -401,6 +424,7 @@ pub struct InvalidModifierCombination {
     note: Option<String>,
 }
 
+/// A pattern has duplicate modifiers.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E020", title = "duplicate pattern modifier")]
@@ -410,6 +434,7 @@ pub struct DuplicateModifier {
     error_loc: CodeLoc,
 }
 
+/// A rule has duplicate tags.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E021", title = "duplicate tag `{tag}`")]
@@ -420,6 +445,7 @@ pub struct DuplicateTag {
     error_loc: CodeLoc,
 }
 
+/// A rule defines a pattern that is not used in the condition.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E022", title = "unused pattern `{pattern_ident}`")]
@@ -430,6 +456,7 @@ pub struct UnusedPattern {
     error_loc: CodeLoc,
 }
 
+/// A rule has two patterns with the same identifier.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E023", title = "duplicate pattern `{pattern_ident}`")]
@@ -446,6 +473,7 @@ pub struct DuplicatePattern {
     note_loc: CodeLoc,
 }
 
+/// A rule has an invalid pattern.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E024", title = "invalid pattern `{pattern_ident}`")]
@@ -459,6 +487,7 @@ pub struct InvalidPattern {
     note: Option<String>,
 }
 
+/// Some rule condition uses a pattern that was not defined.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E025", title = "unknown pattern `{pattern_ident}`")]
@@ -469,6 +498,7 @@ pub struct UnknownPattern {
     error_loc: CodeLoc,
 }
 
+/// Wrong alphabet for the `base64` or `base64wide` modifiers.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E026", title = "invalid base64 alphabet")]
@@ -479,6 +509,7 @@ pub struct InvalidBase64Alphabet {
     error_loc: CodeLoc,
 }
 
+/// Invalid integer.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E027", title = "invalid integer")]
@@ -489,6 +520,7 @@ pub struct InvalidInteger {
     error_loc: CodeLoc,
 }
 
+/// Invalid float.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E028", title = "invalid float")]
@@ -499,6 +531,7 @@ pub struct InvalidFloat {
     error_loc: CodeLoc,
 }
 
+/// A text pattern contains an invalid escape sequence.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E029", title = "invalid escape sequence")]
@@ -509,6 +542,7 @@ pub struct InvalidEscapeSequence {
     error_loc: CodeLoc,
 }
 
+/// Invalid modifier for a regular expression.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E030", title = "invalid regexp modifier `{modifier}`")]
@@ -519,6 +553,7 @@ pub struct InvalidRegexpModifier {
     error_loc: CodeLoc,
 }
 
+/// A string literal contains escaped sequences and it shouldn't.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E031", title = "unexpected escape sequence")]
@@ -528,6 +563,8 @@ pub struct UnexpectedEscapeSequence {
     error_loc: CodeLoc,
 }
 
+
+/// Source code contains invalid UTF-8 characters.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E032", title = "invalid UTF-8")]
@@ -537,6 +574,7 @@ pub struct InvalidUTF8 {
     error_loc: CodeLoc,
 }
 
+/// Some pattern has an invalid modifier.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E033", title = "invalid pattern modifier")]
