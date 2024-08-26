@@ -26,6 +26,7 @@ use std::ops::Range;
 
 pub use parser::Parser;
 
+#[cfg(feature = "serde")]
 use serde::Serialize;
 
 pub mod ast;
@@ -35,7 +36,8 @@ mod parser;
 mod tokenizer;
 
 /// Starting and ending positions of some token inside the source code.
-#[derive(Default, Clone, Debug, Hash, Eq, PartialEq, Serialize)]
+#[derive(Default, Clone, Debug, Hash, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Span(pub Range<u32>);
 
 impl From<logos::Span> for Span {
