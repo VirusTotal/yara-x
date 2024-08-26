@@ -2,6 +2,7 @@
 
 use std::fmt::{Debug, Display, Formatter};
 use std::io;
+use serde::Serialize;
 
 use thiserror::Error;
 
@@ -9,7 +10,7 @@ use yara_x_macros::ErrorEnum;
 use yara_x_macros::ErrorStruct;
 use yara_x_parser::ast;
 
-use crate::compiler::report::{CodeLoc, Level, Report, ReportBuilder};
+use crate::compiler::report::{Level, Report, ReportBuilder, CodeLoc, Label};
 
 /// Error returned while serializing/deserializing compiled rules.
 #[derive(Error, Debug)]
@@ -36,8 +37,10 @@ pub struct EmitWasmError(#[from] anyhow::Error);
 
 /// Error returned when rule compilation fails.
 #[allow(missing_docs)]
-#[derive(ErrorEnum, Error, PartialEq, Eq)]
 #[non_exhaustive]
+#[derive(ErrorEnum, Error, PartialEq, Eq)]
+#[derive(Serialize)]
+#[serde(tag = "type")]
 pub enum CompileError {
     AssignmentMismatch(Box<AssignmentMismatch>),
     ConflictingRuleIdentifier(Box<ConflictingRuleIdentifier>),

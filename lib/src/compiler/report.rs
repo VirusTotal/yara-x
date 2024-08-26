@@ -1,3 +1,5 @@
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 use std::borrow::Cow;
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -57,9 +59,9 @@ impl From<Span> for CodeLoc {
 
 /// Represents an error or warning report.
 ///
-/// A report is the message shown to the user when some error or warning
-/// occurs. This type implements the [`Display`] trait, and when printed
-/// it shows the typical error message you get from YARA-X. Like this one:
+/// This structure represents the message displayed to the user when an error
+/// or warning occurs. It implements the [`Display`] trait, ensuring that when
+/// printed, it reflects the standard error format used by YARA-X. For example:
 ///
 /// ```text
 /// error[E006]: unexpected negative number
@@ -70,16 +72,81 @@ impl From<Span> for CodeLoc {
 ///   |
 /// ```
 ///
-/// Besides printing the report, this type give access to each of the
-/// components of the report.
-pub struct Report {
-    text: String,
+/// In addition to generating the report, this type provides access to the
+/// individual components of the report, which include:
+///
+/// - `level`: Indicates the severity, either `Level::Error` or `Level::Warning`.
+/// - `code`: A unique code that identifies the specific error or warning
+///           (e.g., "E006").
+/// - `title`: The title of the report (e.g., "unexpected negative number").
+/// - `labels`: A collection of labels included in the report. Each label
+///             contains a level, a span, and associated text.
+pub(crate) struct Report {
     code_cache: Arc<CodeCache>,
+    default_source_id: SourceId,
+    with_colors: bool,
+    level: Level,
+    code: &'static str,
+    title: String,
+    labels: Vec<(Level, CodeLoc, String)>,
+    note: Option<String>,
+}
+
+impl Report {
+    /// Returns the report's title.
+    #[inline]
+    pub(crate) fn title(&self) -> &str {
+        self.title.as_str()
+    }
+
+    /// Returns the report's labels.
+    pub(crate) fn labels(&self) -> impl Iterator<Item = Label> {
+        self.labels.iter().map(|(level, code_loc, text)| {
+            let source_id =
+                code_loc.source_id.unwrap_or(self.default_source_id);
+
+            let code_cache = self.code_cache.read();
+            let code_origin =
+                code_cache.get(&source_id).unwrap().origin.clone();
+
+            let level = match level {
+                Level::Error => "error",
+                Level::Warning => "warning",
+                _ => unreachable!(),
+            };
+
+            Label { level, code_origin, span: code_loc.span.clone(), text }
+        })
+    }
+
+    /// Returns the report's note.
+    #[inline]
+    pub(crate) fn note(&self) -> Option<&str> {
+        self.note.as_deref()
+    }
+}
+
+impl Serialize for Report {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_struct("report", 4)?;
+        s.serialize_field("code", &self.code)?;
+        s.serialize_field("title", &self.title)?;
+        s.serialize_field("labels", &self.labels().collect::<Vec<_>>())?;
+        s.serialize_field("note", &self.note)?;
+        s.end()
+    }
 }
 
 impl PartialEq for Report {
     fn eq(&self, other: &Self) -> bool {
-        self.text.eq(&other.text)
+        self.level.eq(&other.level)
+            && self.code.eq(other.code)
+            && self.title.eq(&other.title)
+            && self.labels.eq(&other.labels)
+            && self.note.eq(&other.note)
     }
 }
 
@@ -87,14 +154,79 @@ impl Eq for Report {}
 
 impl Debug for Report {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.text)
+        write!(f, "{}", self)
     }
 }
 
 impl Display for Report {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.text)
+        // Use the SourceId indicated by the first label, or the one
+        // corresponding to the current source file (i.e: the most
+        // recently registered).
+        let source_id = self
+            .labels
+            .first()
+            .and_then(|label| label.1.source_id)
+            .unwrap_or(self.default_source_id);
+
+        let code_cache = self.code_cache.read();
+        let mut cache_entry = code_cache.get(&source_id).unwrap();
+        let mut src = cache_entry.code.as_str();
+
+        let mut message = self.level.title(self.title.as_str()).id(self.code);
+        let mut snippet = annotate_snippets::Snippet::source(src)
+            .origin(cache_entry.origin.as_deref().unwrap_or("line"))
+            .fold(true);
+
+        for (level, label_ref, label) in &self.labels {
+            let label_source_id =
+                label_ref.source_id.unwrap_or(self.default_source_id);
+
+            // If the current label doesn't belong to the same source file
+            // finish the current snippet, add it to the error message and
+            // start a new snippet for the label's source file.
+            if label_source_id != source_id {
+                cache_entry = code_cache.get(&label_source_id).unwrap();
+                src = cache_entry.code.as_str();
+                message = message.snippet(snippet);
+                snippet = annotate_snippets::Snippet::source(src)
+                    .origin(cache_entry.origin.as_deref().unwrap_or("line"))
+                    .fold(true)
+            }
+
+            let span_start = label_ref.span.start();
+            let span_end = label_ref.span.end();
+
+            snippet = snippet.annotation(
+                level.span(span_start..span_end).label(label.as_str()),
+            );
+        }
+
+        message = message.snippet(snippet);
+
+        if let Some(note) = &self.note {
+            message = message.footer(Level::Note.title(note.as_str()));
+        }
+
+        let renderer = if self.with_colors {
+            annotate_snippets::Renderer::styled()
+        } else {
+            annotate_snippets::Renderer::plain()
+        };
+
+        let text = renderer.render(message);
+
+        write!(f, "{}", text)
     }
+}
+
+/// Represents a label in an error or warning report.
+#[derive(Serialize)]
+pub struct Label<'a> {
+    level: &'a str,
+    code_origin: Option<String>,
+    span: Span,
+    text: &'a str,
 }
 
 /// Builds error and warning reports.
@@ -223,73 +355,23 @@ impl ReportBuilder {
         level: Level,
         code: &'static str,
         title: String,
-        labels: Vec<(CodeLoc, String, Level)>,
+        labels: Vec<(Level, CodeLoc, String)>,
         note: Option<String>,
     ) -> Report {
         // Make sure there's at least one label.
         assert!(!labels.is_empty());
 
-        // Use the SourceId indicated by the first label, or the one
-        // corresponding to the current source file (i.e: the most
-        // recently registered).
-        let source_id = labels
-            .first()
-            .and_then(|label| label.0.source_id)
-            .or_else(|| self.current_source_id())
-            .expect("create_report without registering any source code");
-
-        let code_cache = self.code_cache.read();
-        let mut cache_entry = code_cache.get(&source_id).unwrap();
-        let mut src = cache_entry.code.as_str();
-
-        let mut message = level.title(title.as_str()).id(code);
-        let mut snippet = annotate_snippets::Snippet::source(src)
-            .origin(cache_entry.origin.as_deref().unwrap_or("line"))
-            .fold(true);
-
-        for (label_ref, label, level) in &labels {
-            let label_source_id = label_ref
-                .source_id
-                .or_else(|| self.current_source_id())
-                .unwrap();
-
-            // If the current label doesn't belong to the same source file
-            // finish the current snippet, add it to the error message and
-            // start a new snippet for the label's source file.
-            if label_source_id != source_id {
-                cache_entry = code_cache.get(&label_source_id).unwrap();
-                src = cache_entry.code.as_str();
-                message = message.snippet(snippet);
-                snippet = annotate_snippets::Snippet::source(src)
-                    .origin(cache_entry.origin.as_deref().unwrap_or("line"))
-                    .fold(true)
-            }
-
-            let span_start = label_ref.span.start();
-            let span_end = label_ref.span.end();
-
-            snippet = snippet.annotation(
-                level.span(span_start..span_end).label(label.as_str()),
-            );
-        }
-
-        message = message.snippet(snippet);
-
-        if let Some(note) = &note {
-            message = message.footer(Level::Note.title(note.as_str()));
-        }
-
-        let renderer = if self.with_colors {
-            annotate_snippets::Renderer::styled()
-        } else {
-            annotate_snippets::Renderer::plain()
-        };
-
-        let message = renderer.render(message);
-
         Report {
             code_cache: self.code_cache.clone(),
-            text: message.to_string(),
+            with_colors: self.with_colors,
+            default_source_id: self.current_source_id().expect(
+                "`create_report` called without registering any source",
+            ),
+            level,
+            code,
+            title,
+            labels,
+            note,
         }
     }
 }

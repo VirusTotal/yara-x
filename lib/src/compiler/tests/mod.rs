@@ -7,7 +7,7 @@ use std::mem::size_of;
 use crate::compiler::{SubPattern, Var, VarStack};
 use crate::errors::{SerializationError, VariableError};
 use crate::types::Type;
-use crate::{compile, Compiler, Rules, Scanner};
+use crate::{compile, Compiler, Rules, Scanner, SourceCode};
 
 #[test]
 fn serialization() {
@@ -718,6 +718,36 @@ fn utf8_errors() {
   |     ^ invalid UTF-8 character
   |"
     );
+}
+
+#[test]
+fn serialize_error() {
+    let err = Compiler::new()
+        .add_source(
+            SourceCode::from("rule test {condition: foo}")
+                .with_origin("test.yar"),
+        )
+        .err()
+        .unwrap();
+
+    let json_error = serde_json::to_string(&err).unwrap();
+
+    let expected = json!({
+        "type": "UnknownIdentifier",
+        "code": "E009",
+        "title": "unknown identifier `foo`",
+        "labels":[
+            {
+                "level": "error",
+                "code_origin": "test.yar",
+                "span": { "start": 22, "end": 25 },
+                "text": "this identifier has not been declared"
+            }
+        ],
+        "note": null
+    });
+
+    assert_eq!(json_error, expected.to_string());
 }
 
 #[test]

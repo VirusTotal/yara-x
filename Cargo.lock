@@ -4896,6 +4896,7 @@ dependencies = [
  "rayon",
  "rowan",
  "rustc-hash 2.0.0",
+ "serde",
  "yansi 1.0.1",
 ]
 

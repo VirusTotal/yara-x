@@ -121,10 +121,10 @@ pub(crate) fn impl_error_struct_macro(
         // and Level::Warning for #[warning(...)].
         match &label.level {
             Some(expr) => {
-                quote!((#label_ref.clone(), format!(#label_fmt), #expr))
+                quote!((#expr, #label_ref.clone(), format!(#label_fmt)))
             }
             None => {
-                quote!((#label_ref.clone(), format!(#label_fmt), #level))
+                quote!((#level, #label_ref.clone(), format!(#label_fmt)))
             }
         }
     });
@@ -175,17 +175,30 @@ pub(crate) fn impl_error_struct_macro(
         impl #impl_generics #struct_name #ty_generics #where_clause {
             /// Returns a unique code identifying the type of error/warning.
             ///
-            /// In the case of errors the codes have the form "Eddd", where "ddd"
-            /// is an error number (examples: "E001", "E020"). Warnings have
-            /// more descriptive codes, like: "slow_pattern", "unsatisfiable_expr",
-            /// etc.
+            /// Error codes have the form "Eddd", where "ddd" is an error number
+            /// (examples: "E001", "E020"). Warnings have more descriptive codes,
+            /// like: "slow_pattern", "unsatisfiable_expr", etc.
+            #[inline]
             pub const fn code() -> &'static str {
                 #code
             }
-            /// Returns the report associated to this error/warning.
+
+            /// Returns the title of this error/warning.
             #[inline]
-            pub fn report(&self) -> &Report {
-                &self.report
+            pub fn title(&self) -> &str {
+                self.report.title()
+            }
+
+            /// Returns the labels associated to this error/warning.
+            #[inline]
+            pub fn labels(&self) -> impl Iterator<Item = Label> {
+                self.report.labels()
+            }
+
+            /// Returns the note associated to this error/warning.
+            #[inline]
+            pub fn note(&self) -> Option<&str> {
+                self.report.note()
             }
         }
 
@@ -200,6 +213,16 @@ pub(crate) fn impl_error_struct_macro(
         impl #impl_generics Display for #struct_name #ty_generics #where_clause {
             fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
                 write!(f, "{}", self.report)
+            }
+        }
+
+        #[automatically_derived]
+        impl #impl_generics serde::Serialize for #struct_name #ty_generics #where_clause {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                self.report.serialize(serializer)
             }
         }
     })
@@ -259,8 +282,20 @@ pub(crate) fn impl_error_enum_macro(
         }
 
         impl #impl_generics #enum_name #ty_generics #where_clause {
-            /// Returns a unique code that identifies the error or warning.
-            #[rustfmt::skip]
+            /// Returns all the existing error or warning codes.
+            ///
+            /// Error codes have the form "Eddd", where "ddd" is an error number
+            /// (examples: "E001", "E020"). Warnings have more descriptive codes,
+            /// like: "slow_pattern", "unsatisfiable_expr", etc.
+            pub const fn all_codes() -> [&'static str; #num_variants] {
+                [
+                    #(
+                        #variant_idents::code()
+                    ),*
+                ]
+            }
+
+            /// Returns the error code for this error or warning.
             pub fn code(&self) -> &'static str {
                 match self {
                     #(
@@ -271,13 +306,40 @@ pub(crate) fn impl_error_enum_macro(
                 }
             }
 
-            /// Returns all the existing error or warning codes.
-            pub const fn all_codes() -> [&'static str; #num_variants] {
-                [
+            /// Returns the title of this error/warning.
+            #[inline]
+            pub fn title(&self) -> &str {
+                match self {
                     #(
-                        #variant_idents::code()
+                        Self::#variant_idents(v) => {
+                             v.report.title()
+                        }
                     ),*
-                ]
+                }
+            }
+
+            /// Returns the labels associated to this error/warning.
+            #[inline]
+            pub fn labels(&self) -> impl Iterator<Item = Label> {
+                 match self {
+                    #(
+                        Self::#variant_idents(v) => {
+                             v.report.labels()
+                        }
+                    ),*
+                 }
+            }
+
+            /// Returns the note associated to this error/warning.
+            #[inline]
+            pub fn note(&self) -> Option<&str> {
+                match self {
+                    #(
+                        Self::#variant_idents(v) => {
+                             v.report.note()
+                        }
+                    ),*
+                }
             }
         }
     ))

@@ -1,19 +1,21 @@
 #![cfg_attr(any(), rustfmt::skip)]
 
 use std::fmt::{Debug, Display, Formatter};
+use serde::Serialize;
 
 use thiserror::Error;
 
 use yara_x_macros::ErrorEnum;
 use yara_x_macros::ErrorStruct;
 
-use crate::compiler::report::{Level, Report};
-use crate::compiler::report::{ReportBuilder, CodeLoc};
+use crate::compiler::report::{Level, Report, ReportBuilder, CodeLoc, Label};
 
 /// A warning raised while compiling YARA rules.
 #[allow(missing_docs)]
-#[derive(ErrorEnum, Error, PartialEq, Eq)]
 #[non_exhaustive]
+#[derive(ErrorEnum, Error, PartialEq, Eq)]
+#[derive(Serialize)]
+#[serde(tag = "type")]
 pub enum Warning {
     ConsecutiveJumps(Box<ConsecutiveJumps>),
     PotentiallyUnsatisfiableExpression(Box<PotentiallyUnsatisfiableExpression>),
