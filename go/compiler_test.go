@@ -107,10 +107,42 @@ func TestVariables(t *testing.T) {
 
 func TestError(t *testing.T) {
 	_, err := Compile("rule test { condition: foo }")
-	assert.EqualError(t, err, `error[E009]: unknown identifier `+"`foo`"+`
+	expected := `error[E009]: unknown identifier `+"`foo`"+`
  --> line:1:24
   |
 1 | rule test { condition: foo }
   |                        ^^^ this identifier has not been declared
-  |`)
+  |`
+	assert.EqualError(t, err, expected)
+}
+
+
+func TestErrors(t *testing.T) {
+	c, err := NewCompiler()
+	assert.NoError(t, err)
+
+	c.AddSource("rule test_1 { condition: true }")
+	assert.Equal(t, []CompileError{}, c.Errors())
+
+	c.AddSource("rule test_2 { condition: foo }")
+	assert.Equal(t, []CompileError{
+		{
+			Code: "E009",
+			Title: "unknown identifier `foo`",
+			Labels: []Label{
+				{
+					Level: "error",
+					CodeOrigin: "",
+					Span: Span { Start: 25, End: 28 },
+					Text: "this identifier has not been declared",
+				},
+			},
+			Text: `error[E009]: unknown identifier `+"`foo`"+`
+ --> line:1:26
+  |
+1 | rule test_2 { condition: foo }
+  |                          ^^^ this identifier has not been declared
+  |`,
+		},
+	}, c.Errors())
 }

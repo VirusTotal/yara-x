@@ -48,7 +48,7 @@ mod matches;
 #[cfg(test)]
 mod tests;
 
-/// Error returned by [`Scanner::scan`] and [`Scanner::scan_file`].
+/// Error returned when a scan operation fails.
 #[derive(Error, Debug)]
 pub enum ScanError {
     /// The scan was aborted after the timeout period.

@@ -94,12 +94,11 @@ use yara_x_macros::wasm_export;
 
 use crate::compiler::{LiteralId, PatternId, RegexpId, RuleId};
 use crate::modules::BUILTIN_MODULES;
-use crate::scanner::{RuntimeObjectHandle, ScanContext};
+use crate::scanner::{RuntimeObjectHandle, ScanContext, ScanError};
 use crate::types::{
     Array, Func, FuncSignature, Map, Struct, TypeValue, Value,
 };
 use crate::wasm::string::RuntimeString;
-use crate::ScanError;
 
 pub(crate) mod builder;
 pub(crate) mod string;

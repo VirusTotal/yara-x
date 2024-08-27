@@ -22,7 +22,7 @@ use std::fs;
 use std::io::stdout;
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use clap::{command, crate_authors, Command};
 use crossterm::tty::IsTty;
 use serde_json::Value;
@@ -147,11 +147,9 @@ where
                         .new_namespace(file_path.to_string_lossy().as_ref());
                 }
 
-                let result = compiler.add_source(src);
+                let _ = compiler.add_source(src);
 
                 state.file_in_progress = None;
-
-                result?;
 
                 state.num_compiled_files =
                     state.num_compiled_files.saturating_add(1);
@@ -168,15 +166,23 @@ where
         }
     }
 
-    let rules = compiler.build();
-
     if let Some(console) = console {
         console.finalize(&state).unwrap();
     }
 
-    for warning in rules.warnings() {
+    for error in compiler.errors() {
+        eprintln!("{}", error);
+    }
+
+    for warning in compiler.warnings() {
         eprintln!("{}", warning);
     }
+
+    if !compiler.errors().is_empty() {
+        bail!("{} errors found", compiler.errors().len());
+    }
+
+    let rules = compiler.build();
 
     Ok(rules)
 }

@@ -16,6 +16,9 @@ repository.workspace = true
 # Enables debug logs.
 logging = ["dep:log"]
 
+# Enables serialization/deserialization
+serde = ["dep:serde"]
+
 # Configuration for docs.rs.
 [package.metadata.docs.rs]
 # While generating the documentation for doc.rs all features are enabled
@@ -32,8 +35,8 @@ itertools = { workspace = true }
 log = { workspace = true, optional = true }
 num-traits = { workspace = true }
 rustc-hash = { workspace = true }
+serde = { workspace = true, features = ["derive"], optional = true }
 yansi = { workspace = true }
-
 
 logos = "0.14.0"
 rowan = "0.15.15"

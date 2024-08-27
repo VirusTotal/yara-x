@@ -76,26 +76,10 @@ fn main() -> anyhow::Result<()> {
     };
 
     if let Err(err) = result {
-        match err.downcast_ref::<yara_x::Error>() {
-            // Errors produced by the compiler already have colors and start
-            // with "error:", in such cases the error is printed as is.
-            Some(yara_x::Error::CompileError(_)) => {
-                eprintln!("{}", err);
-            }
-            // In all other cases imitate the style of compiler errors, so that
-            // they all look in the same way.
-            _ => {
-                if let Some(source) = err.source() {
-                    eprintln!(
-                        "{} {}: {}",
-                        "error:".paint(Red).bold(),
-                        err,
-                        source
-                    );
-                } else {
-                    eprintln!("{} {}", "error:".paint(Red).bold(), err);
-                }
-            }
+        if let Some(source) = err.source() {
+            eprintln!("{} {}: {}", "error:".paint(Red).bold(), err, source);
+        } else {
+            eprintln!("{} {}", "error:".paint(Red).bold(), err);
         }
         process::exit(1);
     }

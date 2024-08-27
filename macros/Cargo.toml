@@ -16,4 +16,3 @@ darling = "0.20.10"
 syn = { version = "2.0.74", features = ["full", "derive", "parsing", "visit"] }
 quote = "1.0"
 proc-macro2 = "1.0.86"
-convert_case = "0.6.0"

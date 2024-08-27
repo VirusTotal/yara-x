@@ -47,8 +47,9 @@ pub(in crate::compiler) use ast2ir::patterns_from_ast;
 use yara_x_parser::ast::Ident;
 use yara_x_parser::Span;
 
+use crate::compiler::errors::{CompileError, NumberOutOfRange};
 use crate::compiler::ir::dfs::{DepthFirstSearch, Event};
-use crate::{re, CompileError};
+use crate::re;
 
 mod ast2ir;
 mod dfs;
@@ -968,7 +969,7 @@ impl Expr {
         self,
         ctx: &mut CompileContext,
         span: Span,
-    ) -> Result<Self, Box<CompileError>> {
+    ) -> Result<Self, CompileError> {
         match self {
             Expr::Minus { ref operand } => match operand.type_value() {
                 TypeValue::Integer(Value::Const(v)) => {
@@ -1062,7 +1063,7 @@ impl Expr {
         span: Span,
         operands: Vec<Expr>,
         f: F,
-    ) -> Result<Self, Box<CompileError>>
+    ) -> Result<Self, CompileError>
     where
         F: FnMut(f64, f64) -> f64,
     {
@@ -1090,12 +1091,12 @@ impl Expr {
         } else if result >= i64::MIN as f64 && result <= i64::MAX as f64 {
             Ok(Expr::Const(TypeValue::const_integer_from(result as i64)))
         } else {
-            Err(Box::new(CompileError::number_out_of_range(
+            Err(NumberOutOfRange::build(
                 ctx.report_builder,
                 i64::MIN,
                 i64::MAX,
                 span.into(),
-            )))
+            ))
         }
     }
 }

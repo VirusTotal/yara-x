@@ -99,19 +99,29 @@ use std::mem::ManuallyDrop;
 use std::ptr::slice_from_raw_parts_mut;
 use std::slice;
 
+use yara_x::errors::{CompileError, SerializationError};
+
+pub use scanner::*;
+
 mod compiler;
 mod scanner;
 
 #[cfg(test)]
 mod tests;
 
-pub use scanner::*;
-
 thread_local! {
     static LAST_ERROR: RefCell<Option<CString>> = const { RefCell::new(None) };
 }
 
+fn _yrx_set_last_error<E>(err: Option<E>)
+where
+    E: ToString,
+{
+    LAST_ERROR.set(err.map(|err| CString::new(err.to_string()).unwrap()))
+}
+
 /// Error codes returned by functions in this API.
+#[derive(PartialEq, Debug)]
 #[repr(C)]
 pub enum YRX_RESULT {
     /// Everything was OK.
@@ -318,11 +328,11 @@ pub unsafe extern "C" fn yrx_compile(
     match yara_x::compile(c_str.to_bytes()) {
         Ok(r) => {
             *rules = Box::into_raw(Box::new(YRX_RULES(r)));
-            LAST_ERROR.set(None);
+            _yrx_set_last_error::<CompileError>(None);
             YRX_RESULT::SUCCESS
         }
         Err(err) => {
-            LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
+            _yrx_set_last_error(Some(err));
             YRX_RESULT::SYNTAX_ERROR
         }
     }
@@ -350,11 +360,11 @@ pub unsafe extern "C" fn yrx_rules_serialize(
                     data: serialized.as_mut_ptr(),
                     length: serialized.len(),
                 }));
-                LAST_ERROR.set(None);
+                _yrx_set_last_error::<SerializationError>(None);
                 YRX_RESULT::SUCCESS
             }
             Err(err) => {
-                LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
+                _yrx_set_last_error(Some(err));
                 YRX_RESULT::SERIALIZATION_ERROR
             }
         }
@@ -375,11 +385,11 @@ pub unsafe extern "C" fn yrx_rules_deserialize(
     match yara_x::Rules::deserialize(slice::from_raw_parts(data, len)) {
         Ok(r) => {
             *rules = Box::into_raw(Box::new(YRX_RULES(r)));
-            LAST_ERROR.set(None);
+            _yrx_set_last_error::<SerializationError>(None);
             YRX_RESULT::SUCCESS
         }
         Err(err) => {
-            LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
+            _yrx_set_last_error(Some(err));
             YRX_RESULT::SERIALIZATION_ERROR
         }
     }
@@ -408,7 +418,7 @@ pub unsafe extern "C" fn yrx_rule_identifier(
     if let Some(rule) = rule.as_ref() {
         *ident = rule.0.identifier().as_ptr();
         *len = rule.0.identifier().len();
-        LAST_ERROR.set(None);
+        _yrx_set_last_error::<String>(None);
         YRX_RESULT::SUCCESS
     } else {
         YRX_RESULT::INVALID_ARGUMENT
@@ -432,7 +442,7 @@ pub unsafe extern "C" fn yrx_rule_namespace(
     if let Some(rule) = rule.as_ref() {
         *ns = rule.0.namespace().as_ptr();
         *len = rule.0.namespace().len();
-        LAST_ERROR.set(None);
+        _yrx_set_last_error::<String>(None);
         YRX_RESULT::SUCCESS
     } else {
         YRX_RESULT::INVALID_ARGUMENT
@@ -599,9 +609,9 @@ pub unsafe extern "C" fn yrx_buffer_destroy(buf: *mut YRX_BUFFER) {
 /// the most recent function was successfully.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_last_error() -> *const c_char {
-    LAST_ERROR.with_borrow(|last_error| {
-        if let Some(last_error) = last_error {
-            last_error.as_ptr()
+    LAST_ERROR.with_borrow(|err| {
+        if let Some(err) = err {
+            err.as_ptr()
         } else {
             std::ptr::null()
         }
