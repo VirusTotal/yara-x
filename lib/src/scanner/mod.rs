@@ -911,12 +911,24 @@ impl<'a, 'r> ExactSizeIterator for NonMatchingRules<'a, 'r> {
 /// Iterator that returns the outputs produced by YARA modules.
 pub struct ModuleOutputs<'a, 'r> {
     ctx: &'a ScanContext<'r>,
+    len: usize,
     iterator: hash_map::Iter<'a, &'a str, Module>,
 }
 
 impl<'a, 'r> ModuleOutputs<'a, 'r> {
     fn new(ctx: &'a ScanContext<'r>) -> Self {
-        Self { ctx, iterator: BUILTIN_MODULES.iter() }
+        Self {
+            ctx,
+            len: ctx.module_outputs.len(),
+            iterator: BUILTIN_MODULES.iter(),
+        }
+    }
+}
+
+impl<'a, 'r> ExactSizeIterator for ModuleOutputs<'a, 'r> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.len
     }
 }
 
