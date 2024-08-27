@@ -4933,6 +4933,7 @@ dependencies = [
  "pyo3",
  "pyo3-build-config",
  "pyo3-file",
+ "serde_json",
  "yara-x",
 ]
 

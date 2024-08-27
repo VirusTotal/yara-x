@@ -15,6 +15,7 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 = { version = "0.21.2", features = ["abi3", "abi3-py38", "extension-module"] }
 pyo3-file = "0.8.0"
+serde_json = { workspace = true }
 
 protobuf-json-mapping = { workspace = true }
 yara-x = { workspace = true }
