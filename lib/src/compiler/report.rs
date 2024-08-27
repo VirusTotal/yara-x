@@ -81,6 +81,7 @@ impl From<Span> for CodeLoc {
 /// - `title`: The title of the report (e.g., "unexpected negative number").
 /// - `labels`: A collection of labels included in the report. Each label
 ///             contains a level, a span, and associated text.
+#[derive(Clone)]
 pub(crate) struct Report {
     code_cache: Arc<CodeCache>,
     default_source_id: SourceId,
