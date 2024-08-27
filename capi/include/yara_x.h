@@ -319,8 +319,39 @@ enum YRX_RESULT yrx_compiler_define_global_float(struct YRX_COMPILER *compiler,
 //
 // In the address indicated by the `buf` pointer, the function will copy a
 // `YRX_BUFFER*` pointer. The `YRX_BUFFER` structure represents a buffer
-// that contains the JSON representation of the compilation errors. The
-// [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
+// that contains the JSON representation of the compilation errors.
+//
+// The JSON consists on an array of objects, each object representing a
+// compilation error. The object has the following fields:
+//
+// * type: A string that describes the type of error.
+// * code: Error code (e.g: "E009").
+// * title: Error title (e.g: ""unknown identifier `foo`").
+// * labels: Array of labels.
+// * text: The full text of the error report, as shown by the command-line tool.
+//
+// Here is an example:
+//
+// ```json
+// [
+//     {
+//         "type": "UnknownIdentifier",
+//         "code": "E009",
+//         "title": "unknown identifier `foo`",
+//         "labels": [
+//             {
+//                 "level": "error",
+//                 "code_origin": null,
+//                 "span": {"start":25,"end":28},
+//                 "text": "this identifier has not been declared"
+//             }
+//         ],
+//         "text": "... <full report here> ..."
+//     }
+// ]
+// ```
+//
+// The [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
 enum YRX_RESULT yrx_compiler_errors_json(struct YRX_COMPILER *compiler,
                                          struct YRX_BUFFER **buf);
 

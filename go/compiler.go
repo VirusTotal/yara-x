@@ -3,6 +3,7 @@ package yara_x
 // #include <yara_x.h>
 import "C"
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"runtime"
@@ -78,6 +79,41 @@ func ErrorOnSlowPattern(yes bool) CompileOption {
   		c.errorOnSlowPattern = yes
   		return nil
   	}
+}
+
+// CompileError represents each of the errors returned by [Compiler.Errors].
+type CompileError struct {
+	// Error code (e.g: "E001").
+	Code string
+	// Error title (e.g: "unknown identifier `foo`").
+	Title string
+	// Each of the labels in the error report.
+	Labels []Label
+	// The error's full report, as shown by the command-line tool.
+	Text string
+}
+
+// Label represents a label in a [CompileError].
+type Label struct {
+	// Label's level (e.g: "error", "warning", "info", "note", "help").
+	Level string
+	CodeOrigin string
+	// The code span covered by the label.
+	Span Span
+	// Text associated to the label.
+	Text string
+}
+
+// Span represents the starting and ending point of some piece of source
+// code.
+type Span struct {
+	Start int
+	End int
+}
+
+// Error returns the error's full report.
+func (c CompileError) Error() string {
+	return c.Text
 }
 
 // Compiler represent a YARA compiler.
@@ -252,6 +288,29 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 	}
 
 	return nil
+}
+
+
+// Errors that occurred during the compilation, across multiple calls to
+// [Compiler.AddSource].
+func (c *Compiler) Errors() []CompileError {
+	var buf *C.YRX_BUFFER
+	if C.yrx_compiler_errors_json(c.cCompiler, &buf) != C.SUCCESS {
+		panic("yrx_compiler_errors_json failed")
+	}
+
+	defer C.yrx_buffer_destroy(buf)
+	runtime.KeepAlive(c)
+
+	jsonErrors := C.GoBytes(unsafe.Pointer(buf.data), C.int(buf.length))
+	
+	var result []CompileError
+
+	if err := json.Unmarshal(jsonErrors, &result); err != nil {
+		panic(err)
+	}
+
+	return result
 }
 
 // Build creates a [Rules] object containing a compiled version of all the
