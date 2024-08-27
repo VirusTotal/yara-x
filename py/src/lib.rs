@@ -22,7 +22,7 @@ use std::path::PathBuf;
 use std::pin::Pin;
 use std::time::Duration;
 
-use protobuf_json_mapping::print_to_string;
+use protobuf_json_mapping::print_to_string as proto_to_json;
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyIOError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
@@ -499,14 +499,20 @@ fn scan_results_to_py(
         .map(|rule| rule_to_py(py, rule))
         .collect::<PyResult<Vec<_>>>()?;
 
-    let json = PyModule::import_bound(py, "json")?;
-    let json_loads = json.getattr("loads")?;
-
     let module_outputs = PyDict::new_bound(py);
-    for (module, output) in scan_results.module_outputs() {
-        let module_output_json = print_to_string(output).unwrap();
-        let module_output = json_loads.call((module_output_json,), None)?;
-        module_outputs.set_item(module, module_output)?;
+    let outputs = scan_results.module_outputs();
+
+    // For better performance we only load the "json" module if there's
+    // some module output.
+    if outputs.len() > 0 {
+        let json = PyModule::import_bound(py, "json")?;
+        let json_loads = json.getattr("loads")?;
+        for (module, output) in outputs {
+            let module_output_json = proto_to_json(output).unwrap();
+            let module_output =
+                json_loads.call((module_output_json,), None)?;
+            module_outputs.set_item(module, module_output)?;
+        }
     }
 
     Py::new(
