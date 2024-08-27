@@ -124,7 +124,7 @@ func TestErrors(t *testing.T) {
 	c.AddSource("rule test_1 { condition: true }")
 	assert.Equal(t, []CompileError{}, c.Errors())
 
-	c.AddSource("rule test_2 { condition: foo }")
+	c.AddSource("rule test_2 { condition: foo }", WithOrigin("test.yar"))
 	assert.Equal(t, []CompileError{
 		{
 			Code: "E009",
@@ -138,7 +138,7 @@ func TestErrors(t *testing.T) {
 				},
 			},
 			Text: `error[E009]: unknown identifier `+"`foo`"+`
- --> line:1:26
+ --> test.yar:1:26
   |
 1 | rule test_2 { condition: foo }
   |                          ^^^ this identifier has not been declared

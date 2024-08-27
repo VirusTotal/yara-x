@@ -81,6 +81,39 @@ func ErrorOnSlowPattern(yes bool) CompileOption {
   	}
 }
 
+// A structure that contains the options passed to [Compiler.AddSource].
+type sourceOptions struct {
+	origin string
+}
+
+// A SourceOption represent an option passed to [Compiler.AddSource].
+type SourceOption func(opt *sourceOptions) error
+
+// WithOrigin is an option for [Compiler.AddSource] that specifies the
+// origin of the source code.
+//
+// The origin is usually the path of the file containing the source code,
+// but it can be any arbitrary string that conveys information of the
+// source's origin. This origin appears in error reports, for instance, if
+// if origin is "some_file.yar", error reports will look like:
+//
+//  error: syntax error
+//   --> some_file.yar:4:17
+//    |
+//  4 | ... more details
+//
+//
+// Example:
+//
+//  c := NewCompiler()
+//  c.AddSource("rule some_rule { condition: true }", WithOrigin("some_file.yar"))
+func WithOrigin(origin string) SourceOption {
+		return func(opts *sourceOptions) error {
+			opts.origin = origin
+			return nil
+		}
+}
+
 // CompileError represents each of the errors returned by [Compiler.Errors].
 type CompileError struct {
 	// Error code (e.g: "E001").
@@ -173,15 +206,27 @@ func (c *Compiler) initialize() error {
 //
 // This function can be called multiple times.
 //
-// Example:
+// Examples:
 //
 //  c := NewCompiler()
 //  c.AddSource("rule foo { condition: true }")
 //  c.AddSource("rule bar { condition: true }")
-//
-func (c *Compiler) AddSource(src string) error {
+//  c.AddSource("rule baz { condition: true }", WithOrigin("baz.yar"))
+func (c *Compiler) AddSource(src string, opts... SourceOption) error {
+	options := &sourceOptions{}
+	for _, opt := range opts {
+		opt(options)
+	}
+
 	cSrc := C.CString(src)
 	defer C.free(unsafe.Pointer(cSrc))
+
+	var cOrigin *C.char
+  if options.origin != "" {
+  	cOrigin = C.CString(options.origin)
+  	defer C.free(unsafe.Pointer(cOrigin))
+  }
+
 	// The call to runtime.LockOSThread() is necessary to make sure that
 	// yrx_compiler_add_source and yrx_last_error are called from the same OS
 	// thread. Otherwise, yrx_last_error could return an error message that
@@ -190,7 +235,7 @@ func (c *Compiler) AddSource(src string) error {
 	// different thread in-between the two calls to the C API.
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-	if C.yrx_compiler_add_source(c.cCompiler, cSrc) == C.SYNTAX_ERROR {
+	if C.yrx_compiler_add_source_with_origin(c.cCompiler, cSrc, cOrigin) == C.SYNTAX_ERROR {
 		return errors.New(C.GoString(C.yrx_last_error()))
 	}
 	// After the call to yrx_compiler_add_source, c is not live anymore and
@@ -303,7 +348,7 @@ func (c *Compiler) Errors() []CompileError {
 	runtime.KeepAlive(c)
 
 	jsonErrors := C.GoBytes(unsafe.Pointer(buf.data), C.int(buf.length))
-	
+
 	var result []CompileError
 
 	if err := json.Unmarshal(jsonErrors, &result); err != nil {
