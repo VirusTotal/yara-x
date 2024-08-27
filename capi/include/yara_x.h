@@ -276,6 +276,18 @@ void yrx_compiler_destroy(struct YRX_COMPILER *compiler);
 enum YRX_RESULT yrx_compiler_add_source(struct YRX_COMPILER *compiler,
                                         const char *src);
 
+// Adds a YARA source code to be compiled, specifying an origin for the
+// source code.
+//
+// This function is similar to [`yrx_compiler_add_source`], but in addition
+// to the source code itself it provides a string that identifies the origin
+// of the code, usually the file path from where the source was obtained.
+//
+// This origin is shown in error reports.
+enum YRX_RESULT yrx_compiler_add_source_with_origin(struct YRX_COMPILER *compiler,
+                                                    const char *src,
+                                                    const char *origin);
+
 // Tell the compiler that a YARA module is not supported.
 //
 // Import statements for ignored modules will be ignored without errors but a

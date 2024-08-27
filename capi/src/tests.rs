@@ -1,8 +1,9 @@
 use crate::compiler::{
-    yrx_compiler_add_source, yrx_compiler_build, yrx_compiler_create,
-    yrx_compiler_define_global_bool, yrx_compiler_define_global_float,
-    yrx_compiler_define_global_int, yrx_compiler_define_global_str,
-    yrx_compiler_destroy, yrx_compiler_new_namespace,
+    yrx_compiler_add_source, yrx_compiler_add_source_with_origin,
+    yrx_compiler_build, yrx_compiler_create, yrx_compiler_define_global_bool,
+    yrx_compiler_define_global_float, yrx_compiler_define_global_int,
+    yrx_compiler_define_global_str, yrx_compiler_destroy,
+    yrx_compiler_new_namespace,
 };
 use crate::{
     yrx_buffer_destroy, yrx_last_error, yrx_metadata_destroy,
@@ -146,9 +147,14 @@ fn capi_errors() {
         yrx_compiler_create(0, &mut compiler);
 
         let src = CString::new(b"rule test { condition: foo }").unwrap();
+        let origin = CString::new("test.yar").unwrap();
 
         assert_eq!(
-            yrx_compiler_add_source(compiler, src.as_ptr()),
+            yrx_compiler_add_source_with_origin(
+                compiler,
+                src.as_ptr(),
+                origin.as_ptr()
+            ),
             YRX_RESULT::SYNTAX_ERROR
         );
 
@@ -156,7 +162,7 @@ fn capi_errors() {
             CStr::from_ptr(yrx_last_error()),
             CStr::from_bytes_with_nul(
                 b"error[E009]: unknown identifier `foo`
- --> line:1:24
+ --> test.yar:1:24
   |
 1 | rule test { condition: foo }
   |                        ^^^ this identifier has not been declared

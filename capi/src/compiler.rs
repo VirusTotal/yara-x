@@ -3,6 +3,7 @@ use std::mem;
 use std::mem::ManuallyDrop;
 
 use yara_x::errors::{CompileError, SerializationError, VariableError};
+use yara_x::SourceCode;
 
 use crate::{_yrx_set_last_error, YRX_BUFFER, YRX_RESULT, YRX_RULES};
 
@@ -77,6 +78,23 @@ pub unsafe extern "C" fn yrx_compiler_add_source(
     compiler: *mut YRX_COMPILER,
     src: *const c_char,
 ) -> YRX_RESULT {
+    yrx_compiler_add_source_with_origin(compiler, src, std::ptr::null())
+}
+
+/// Adds a YARA source code to be compiled, specifying an origin for the
+/// source code.
+///
+/// This function is similar to [`yrx_compiler_add_source`], but in addition
+/// to the source code itself it provides a string that identifies the origin
+/// of the code, usually the file path from where the source was obtained.
+///
+/// This origin is shown in error reports.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_compiler_add_source_with_origin(
+    compiler: *mut YRX_COMPILER,
+    src: *const c_char,
+    origin: *const c_char,
+) -> YRX_RESULT {
     let compiler = if let Some(compiler) = compiler.as_mut() {
         compiler
     } else {
@@ -84,8 +102,17 @@ pub unsafe extern "C" fn yrx_compiler_add_source(
     };
 
     let src = CStr::from_ptr(src);
+    let mut src = SourceCode::from(src.to_bytes());
 
-    match compiler.inner.add_source(src.to_bytes()) {
+    if !origin.is_null() {
+        let origin = CStr::from_ptr(origin);
+        src = match origin.to_str() {
+            Ok(origin) => src.with_origin(origin),
+            Err(_) => return YRX_RESULT::INVALID_ARGUMENT,
+        };
+    }
+
+    match compiler.inner.add_source(src) {
         Ok(_) => {
             _yrx_set_last_error::<CompileError>(None);
             YRX_RESULT::SUCCESS
