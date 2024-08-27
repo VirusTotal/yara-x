@@ -721,7 +721,7 @@ fn utf8_errors() {
 }
 
 #[test]
-fn serialize_error() {
+fn errors_serialization() {
     let err = Compiler::new()
         .add_source(
             SourceCode::from("rule test {condition: foo}")
@@ -744,7 +744,13 @@ fn serialize_error() {
                 "text": "this identifier has not been declared"
             }
         ],
-        "note": null
+        "note": null,
+        "text": r#"error[E009]: unknown identifier `foo`
+ --> test.yar:1:23
+  |
+1 | rule test {condition: foo}
+  |                       ^^^ this identifier has not been declared
+  |"#
     });
 
     assert_eq!(json_error, expected.to_string());

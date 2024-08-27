@@ -113,7 +113,9 @@ impl Report {
             let level = match level {
                 Level::Error => "error",
                 Level::Warning => "warning",
-                _ => unreachable!(),
+                Level::Info => "info",
+                Level::Note => "note",
+                Level::Help => "help",
             };
 
             Label { level, code_origin, span: code_loc.span.clone(), text }
@@ -137,6 +139,7 @@ impl Serialize for Report {
         s.serialize_field("title", &self.title)?;
         s.serialize_field("labels", &self.labels().collect::<Vec<_>>())?;
         s.serialize_field("note", &self.note)?;
+        s.serialize_field("text", &self.to_string())?;
         s.end()
     }
 }
