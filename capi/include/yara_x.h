@@ -315,6 +315,15 @@ enum YRX_RESULT yrx_compiler_define_global_float(struct YRX_COMPILER *compiler,
                                                  const char *ident,
                                                  double value);
 
+// Returns the errors encountered during the compilation in JSON format.
+//
+// In the address indicated by the `buf` pointer, the function will copy a
+// `YRX_BUFFER*` pointer. The `YRX_BUFFER` structure represents a buffer
+// that contains the JSON representation of the compilation errors. The
+// [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
+enum YRX_RESULT yrx_compiler_errors_json(struct YRX_COMPILER *compiler,
+                                         struct YRX_BUFFER **buf);
+
 // Builds the source code previously added to the compiler.
 //
 // After calling this function the compiler is reset to its initial state,

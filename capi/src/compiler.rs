@@ -1,9 +1,10 @@
 use std::ffi::{c_char, CStr};
 use std::mem;
+use std::mem::ManuallyDrop;
 
-use yara_x::errors::{CompileError, VariableError};
+use yara_x::errors::{CompileError, SerializationError, VariableError};
 
-use crate::{_yrx_set_last_error, YRX_RESULT, YRX_RULES};
+use crate::{_yrx_set_last_error, YRX_BUFFER, YRX_RESULT, YRX_RULES};
 
 /// A compiler that takes YARA source code and produces compiled rules.
 pub struct YRX_COMPILER<'a> {
@@ -235,6 +236,41 @@ pub unsafe extern "C" fn yrx_compiler_define_global_float(
     value: f64,
 ) -> YRX_RESULT {
     yrx_compiler_define_global(compiler, ident, value)
+}
+
+/// Returns the errors encountered during the compilation in JSON format.
+///
+/// In the address indicated by the `buf` pointer, the function will copy a
+/// `YRX_BUFFER*` pointer. The `YRX_BUFFER` structure represents a buffer
+/// that contains the JSON representation of the compilation errors. The
+/// [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
+#[no_mangle]
+pub unsafe extern "C" fn yrx_compiler_errors_json(
+    compiler: *mut YRX_COMPILER,
+    buf: &mut *mut YRX_BUFFER,
+) -> YRX_RESULT {
+    let compiler = if let Some(compiler) = compiler.as_mut() {
+        compiler
+    } else {
+        return YRX_RESULT::INVALID_ARGUMENT;
+    };
+
+    match serde_json::to_vec(compiler.inner.errors()) {
+        Ok(json) => {
+            let json = json.into_boxed_slice();
+            let mut json = ManuallyDrop::new(json);
+            *buf = Box::into_raw(Box::new(YRX_BUFFER {
+                data: json.as_mut_ptr(),
+                length: json.len(),
+            }));
+            _yrx_set_last_error::<SerializationError>(None);
+            YRX_RESULT::SUCCESS
+        }
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            YRX_RESULT::SERIALIZATION_ERROR
+        }
+    }
 }
 
 /// Builds the source code previously added to the compiler.

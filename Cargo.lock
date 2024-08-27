@@ -4818,6 +4818,7 @@ name = "yara-x-capi"
 version = "0.6.0"
 dependencies = [
  "cbindgen",
+ "serde_json",
  "yara-x",
 ]
 
