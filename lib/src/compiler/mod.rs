@@ -462,8 +462,8 @@ impl<'a> Compiler<'a> {
     /// [`Compiler::errors`].
     ///
     /// Even if a previous invocation resulted in a compilation error, you can
-    /// continue calling this function for adding more rules. In such cases, any 
-    /// rules that failed to compile will not be included in the final compiled 
+    /// continue calling this function for adding more rules. In such cases, any
+    /// rules that failed to compile will not be included in the final compiled
     /// set.
     pub fn add_source<'src, S>(
         &mut self,
