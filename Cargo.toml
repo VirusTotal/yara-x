@@ -2,7 +2,7 @@
 version = "0.7.0"
 authors = ["Victor M. Alvarez <vmalvarez@virustotal.com>"]
 edition = "2021"
-homepage = "https://github.com/VirusTotal/yara-x"
+homepage = "https://virustotal.github.io/yara-x"
 repository = "https://github.com/VirusTotal/yara-x"
 readme = "README.md"
 license = "BSD-3-Clause"
