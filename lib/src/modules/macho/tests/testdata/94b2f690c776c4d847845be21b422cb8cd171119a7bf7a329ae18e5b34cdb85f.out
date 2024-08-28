@@ -21,7 +21,7 @@ segments:
     maxprot: 0x0
     initprot: 0x0
     nsects: 0
-    flags: 0x4
+    flags: 0x4  # SG_NORELOC
   - segname: "__TEXT"
     vmaddr: 0x2000
     vmsize: 0x8000
@@ -138,4 +138,4 @@ segments:
     maxprot: 0x7
     initprot: 0x5
     nsects: 0
-    flags: 0x4
+    flags: 0x4  # SG_NORELOC

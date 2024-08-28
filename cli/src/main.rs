@@ -56,6 +56,7 @@ fn main() -> anyhow::Result<()> {
     }));
 
     let result = match args.subcommand() {
+        #[cfg(feature = "debug-cmd")]
         Some(("debug", args)) => commands::exec_debug(args),
         Some(("check", args)) => commands::exec_check(args),
         Some(("fix", args)) => commands::exec_fix(args),
@@ -75,26 +76,10 @@ fn main() -> anyhow::Result<()> {
     };
 
     if let Err(err) = result {
-        match err.downcast_ref::<yara_x::Error>() {
-            // Errors produced by the compiler already have colors and start
-            // with "error:", in such cases the error is printed as is.
-            Some(yara_x::Error::CompileError(_)) => {
-                eprintln!("{}", err);
-            }
-            // In all other cases imitate the style of compiler errors, so that
-            // they all look in the same way.
-            _ => {
-                if let Some(source) = err.source() {
-                    eprintln!(
-                        "{} {}: {}",
-                        "error:".paint(Red).bold(),
-                        err,
-                        source
-                    );
-                } else {
-                    eprintln!("{} {}", "error:".paint(Red).bold(), err);
-                }
-            }
+        if let Some(source) = err.source() {
+            eprintln!("{} {}: {}", "error:".paint(Red).bold(), err, source);
+        } else {
+            eprintln!("{} {}", "error:".paint(Red).bold(), err);
         }
         process::exit(1);
     }

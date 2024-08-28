@@ -26,23 +26,23 @@ use crate::compiler::{
     NamespaceId, PatternId, RegexpId, RuleId, Rules, SubPattern,
     SubPatternAtom, SubPatternFlagSet, SubPatternFlags, SubPatternId,
 };
-use crate::re::fast::fastvm::FastVM;
-use crate::re::thompson::pikevm::PikeVM;
+use crate::re::fast::FastVM;
+use crate::re::thompson::PikeVM;
 use crate::re::Action;
 use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
+use crate::scanner::ScanError;
 use crate::scanner::HEARTBEAT_COUNTER;
 use crate::types::{Array, Map, Struct};
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-use crate::ScanError;
 
 /// Structure that holds information about the current scan.
 pub(crate) struct ScanContext<'r> {
     /// Pointer to the WASM store.
     pub wasm_store: NonNull<Store<ScanContext<'r>>>,
-    /// Map where keys are object handles and keys are objects used during the
-    /// evaluation of rule conditions. Handles are opaque integer values that
-    /// can be passed to and received from WASM code. Each handle identify an
-    /// object (string, struct, array or map).
+    /// Map where keys are object handles and values are objects used during
+    /// the evaluation of rule conditions. Handles are opaque integer values
+    /// that can be passed to and received from WASM code. Each handle identify
+    /// an object (string, struct, array or map).
     pub runtime_objects: IndexMap<RuntimeObjectHandle, RuntimeObject>,
     /// Pointer to the data being scanned.
     pub scanned_data: *const u8,

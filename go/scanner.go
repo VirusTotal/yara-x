@@ -45,7 +45,16 @@ type Scanner struct {
 	matchingRules []*Rule
 }
 
-type ScanResults struct{}
+
+// ScanResults contains the results of a call to [Scanner.Scan] or [Rules.Scan].
+type ScanResults struct{
+	matchingRules []*Rule
+}
+
+// MatchingRules returns the rules that matched during the scan.
+func (s ScanResults) MatchingRules() []*Rule {
+	return s.matchingRules
+}
 
 // NewScanner creates a Scanner that will use the provided YARA rules.
 //
@@ -97,7 +106,7 @@ var ErrTimeout = errors.New("timeout")
 // value.
 //
 // The variable will retain the new value in subsequent scans, unless this
-// function is called again for setting a new value.
+// method is called again for setting a new value.
 func (s *Scanner) SetGlobal(ident string, value interface{}) error {
 	cIdent := C.CString(ident)
 	defer C.free(unsafe.Pointer(cIdent))
@@ -152,13 +161,13 @@ func (s *Scanner) SetGlobal(ident string, value interface{}) error {
 // Case 1) applies to certain modules lacking a main function, thus incapable of
 // producing any output on their own. For such modules, you must set the output
 // before scanning the associated data. Since the module's output typically varies
-// with each scanned file, you need to call this function prior to each invocation
+// with each scanned file, you need to call this method prior to each invocation
 // of [Scanner.Scan]. Once [Scanner.Scan] is executed, the module's output is
 // consumed and will be empty unless set again before the subsequent call.
 //
 // Case 2) applies when you have previously stored the module's output for certain
 // scanned data. In such cases, when rescanning the data, you can utilize this
-// function to supply the module's output, thereby preventing redundant computation
+// method to supply the module's output, thereby preventing redundant computation
 // by the module. This optimization enhances performance by eliminating the need
 // for the module to reparse the scanned data.
 //
@@ -192,7 +201,7 @@ func (s *Scanner) SetModuleOutput(data proto.Message) error {
 }
 
 // Scan scans the provided data with the Rules associated to the Scanner.
-func (s *Scanner) Scan(buf []byte) ([]*Rule, error) {
+func (s *Scanner) Scan(buf []byte) (*ScanResults, error) {
 	var ptr *C.uint8_t
 	// When `buf` is an empty slice `ptr` will be nil. That's ok, because
 	// yrx_scanner_scan allows the data pointer to be null as long as the data
@@ -200,8 +209,6 @@ func (s *Scanner) Scan(buf []byte) ([]*Rule, error) {
 	if len(buf) > 0 {
 		ptr = (*C.uint8_t)(unsafe.Pointer(&(buf[0])))
 	}
-
-	s.matchingRules = nil
 
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -216,7 +223,10 @@ func (s *Scanner) Scan(buf []byte) ([]*Rule, error) {
 		err = errors.New(C.GoString(C.yrx_last_error()))
 	}
 
-	return s.matchingRules, err
+	scanResults := &ScanResults{ s.matchingRules }
+	s.matchingRules = nil
+
+	return scanResults, err
 }
 
 // Destroy destroys the scanner.

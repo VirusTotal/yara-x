@@ -157,7 +157,7 @@ sections:
     name: ".shstrtab"
 segments:
   - type: PT_PHDR
-    flags: 5
+    flags: 0x5  # PF_X | PF_R
     offset: 52
     virtual_address: 65588
     physical_address: 0
@@ -165,7 +165,7 @@ segments:
     memory_size: 160
     alignment: 0
   - type: PT_INTERP
-    flags: 4
+    flags: 0x4  # PF_R
     offset: 212
     virtual_address: 0
     physical_address: 0
@@ -173,7 +173,7 @@ segments:
     memory_size: 0
     alignment: 0
   - type: PT_LOAD
-    flags: 5
+    flags: 0x5  # PF_X | PF_R
     offset: 0
     virtual_address: 65536
     physical_address: 0
@@ -181,7 +181,7 @@ segments:
     memory_size: 11897
     alignment: 65536
   - type: PT_LOAD
-    flags: 7
+    flags: 0x7  # PF_X | PF_W | PF_R
     offset: 11900
     virtual_address: 142972
     physical_address: 0
@@ -189,7 +189,7 @@ segments:
     memory_size: 3868
     alignment: 65536
   - type: PT_DYNAMIC
-    flags: 7
+    flags: 0x7  # PF_X | PF_W | PF_R
     offset: 11904
     virtual_address: 142976
     physical_address: 0

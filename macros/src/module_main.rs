@@ -2,11 +2,9 @@ extern crate proc_macro;
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::ItemFn;
+use syn::{ItemFn, Result};
 
-pub(crate) fn impl_module_main_macro(
-    input: ItemFn,
-) -> syn::Result<TokenStream> {
+pub(crate) fn impl_module_main_macro(input: ItemFn) -> Result<TokenStream> {
     let fn_name = &input.sig.ident;
 
     let main_stub = quote! {
@@ -20,5 +18,5 @@ pub(crate) fn impl_module_main_macro(
 
     token_stream.extend(main_stub);
 
-    syn::Result::Ok(token_stream)
+    Ok(token_stream)
 }

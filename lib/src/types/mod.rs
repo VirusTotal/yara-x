@@ -6,17 +6,17 @@ use serde::{Deserialize, Serialize};
 use walrus::ir::InstrSeqType;
 use walrus::ValType;
 
-mod array;
-mod func;
-mod map;
-mod structure;
-
 use crate::symbols::SymbolLookup;
 
 pub(crate) use array::*;
 pub(crate) use func::*;
 pub(crate) use map::*;
 pub(crate) use structure::*;
+
+mod array;
+mod func;
+mod map;
+mod structure;
 
 /// The type of YARA expression or identifier.
 #[derive(Clone, Copy, PartialEq)]

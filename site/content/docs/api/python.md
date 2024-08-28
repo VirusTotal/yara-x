@@ -145,10 +145,15 @@ compiler = yara_x.Compiler(relaxed_re_syntax=True)
 compiler.add_source("rule test { $a = /\Release/ condition: $a }")
 ```
 
-#### .add_source(string)
+#### .add_source(string, origin=None)
 
 Adds some YARA source code to be compiled. Raises an exception if the source
 code is not valid.
+
+The optional `origin` parameter is a string that specifies the origin of the
+source code. This is usually the path of the file containing the source code,
+but it can be any arbitrary string conveying information about the source's
+origin.
 
 Raises: [yara_x.CompileError](#compileerror)
 
@@ -157,7 +162,7 @@ Raises: [yara_x.CompileError](#compileerror)
 ```python
 compiler = yara_x.Compiler()
 compiler.add_source("rule test_1 { condition: true }")
-compiler.add_source("rule test_2 { condition: false }")
+compiler.add_source("rule test_2 { condition: false }", origin="test.yar")
 rules = compiler.build()
 ```
 
@@ -166,8 +171,8 @@ rules = compiler.build()
 Defines a global variable and sets its initial value.
 
 Global variables must be defined before
-calling [Compiler.add_source(...)](#add_sourcestring) with some YARA rule that
-uses the variable. The variable will retain its initial value when
+calling [Compiler.add_source(...)](#add_sourcestring-originnone) with some YARA
+rule that uses the variable. The variable will retain its initial value when
 the [Rules](#rules) are used for scanning data, however each scanner can change
 the variable's value by
 calling [Scanner.set_global(...)](#set_globalidentifier-value).
@@ -181,15 +186,15 @@ if the type of `value` is not one of the supported ones.
 
 ```python
 compiler = yara_x.Compiler()
-compiler.define_global("my_int_var", 1) 
+compiler.define_global("my_int_var", 1)
 compiler.add_source("rule test { condition: my_int_var == 1 }")
 ```
 
 #### .new_namespace(string)
 
 Creates a new namespace. Any further call
-to [Compiler.add_source(...)](#add_sourcestring) will put the new rules
-under the new namespace, isolating them from previously added rules.
+to [Compiler.add_source(...)](#add_sourcestring-originnone) will put the new
+rules under the new namespace, isolating them from previously added rules.
 
 ##### Example
 
@@ -205,20 +210,77 @@ compiler.add_source("rule test { condition: false }")
 rules = compiler.build()
 ```
 
+#### .errors()
+
+Returns the errors found during the compilation, across all calls to
+[Compiler.add_source(...)](#add_sourcestring-originnone). The result is an
+array of dictionaries, where each dictionary represents an error. This
+is an example:
+
+```json
+ [
+  {
+    "type": "UnknownIdentifier",
+    "code": "E009",
+    "title": "unknown identifier `foo`",
+    "labels": [
+      {
+        "level": "error",
+        "code_origin": null,
+        "span": {
+          "start": 25,
+          "end": 28
+        },
+        "text": "this identifier has not been declared"
+      }
+    ],
+    "text": "... <full report here> ..."
+  }
+]
+```
+
+#### .warnings()
+
+Returns the warnings found during the compilation, across all calls to
+[Compiler.add_source(...)](#add_sourcestring-originnone). The result is an
+array of dictionaries, where each dictionary represents a warning. This is
+an example:
+
+```json
+[
+  {
+    "type": "SlowPattern",
+    "code": "slow_pattern",
+    "title": "slow pattern",
+    "labels": [
+      {
+        "level": "warning",
+        "code_origin": null,
+        "span": {
+          "start": 25,
+          "end": 28
+        },
+        "text": "this pattern may slow down the scan"
+      }
+    ],
+    "text": "... <full report here> ..."
+  }
+]
+```
+
 #### .build()
 
 Produces a compiled [Rules](#rules) object that contains all the rules
 previously added to the compiler
-with [Compiler.add_source(...)](#add_sourcestring). Once this method is called
-the Compiler is reset to its original state, as if it was a newly created
-compiler.
+with [Compiler.add_source(...)](#add_sourcestring-originnone). Once this method
+is called the Compiler is reset to its original state, as if it was a newly
+created compiler.
 
 ### Rules
 
 Type that represents a set of compiled rules. The compiled rules can be used for
 scanning data by calling the [Rules.scan(...)](#scanbytes) method or passing
-the [`Rules`](#rules)
-object to a [Scanner](#scanner).
+the [`Rules`](#rules) object to a [Scanner](#scanner).
 
 #### .scan(bytes)
 
@@ -374,9 +436,9 @@ Exception raised when compilation fails.
 
 ```python
 try:
-    rules = yara_x.compile('invalid rule')
+  rules = yara_x.compile('invalid rule')
 except yara_x.CompileError as err:
-    print(err)
+  print(err)
 ```
 
 ---------
@@ -387,9 +449,9 @@ Exception raised when scanning fails.
 
 ```python
 try:
-    scan_results = scanner.scan(b"foobar")
+  scan_results = scanner.scan(b"foobar")
 except yara_x.ScanError as err:
-    print(err)
+  print(err)
 ```
 
 ---------
@@ -400,7 +462,7 @@ Exception raised when a timeout occurs while scanning.
 
 ```python
 try:
-    scan_results = scanner.scan(b"foobar")
+  scan_results = scanner.scan(b"foobar")
 except yara_x.TimeoutError as err:
-    print("A timeout occurred")
+  print("A timeout occurred")
 ```

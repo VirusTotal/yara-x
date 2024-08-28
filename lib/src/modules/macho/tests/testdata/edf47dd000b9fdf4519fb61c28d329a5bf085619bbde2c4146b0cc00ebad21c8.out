@@ -633,91 +633,91 @@ segments:
     flags: 0x0
 dylibs:
   - name: "@rpath/FBSharedDynamicFramework.framework/FBSharedDynamicFramework"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "0.0.0"
     current_version: "0.0.0"
   - name: "/usr/lib/libobjc.A.dylib"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "1.0.0"
     current_version: "228.0.0"
   - name: "/usr/lib/libc++.1.dylib"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "1.0.0"
     current_version: "1600.151.0"
   - name: "/System/Library/Frameworks/Foundation.framework/Foundation"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "300.0.0"
     current_version: "2048.1.101"
   - name: "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "150.0.0"
     current_version: "2048.1.101"
   - name: "/System/Library/Frameworks/UIKit.framework/UIKit"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "1.0.0"
     current_version: "7082.1.111"
   - name: "/System/Library/Frameworks/FileProvider.framework/FileProvider"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "1.0.0"
     current_version: "1.0.0"
   - name: "/System/Library/Frameworks/Contacts.framework/Contacts"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "0.0.0"
     current_version: "3616.1.0"
   - name: "/System/Library/Frameworks/AVFoundation.framework/AVFoundation"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "1.0.0"
     current_version: "2.0.0"
   - name: "/System/Library/Frameworks/CoreMedia.framework/CoreMedia"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "1.0.0"
     current_version: "1.0.0"
   - name: "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "64.0.0"
     current_version: "1774.0.1"
   - name: "/System/Library/Frameworks/CoreLocation.framework/CoreLocation"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "1.0.0"
     current_version: "2886.1.7"
   - name: "/System/Library/Frameworks/QuartzCore.framework/QuartzCore"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "1.2.0"
     current_version: "1.11.0"
   - name: "/System/Library/Frameworks/CoreVideo.framework/CoreVideo"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "1.2.0"
     current_version: "1.5.0"
   - name: "/System/Library/Frameworks/GLKit.framework/GLKit"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "1.0.0"
     current_version: "126.0.0"
   - name: "/System/Library/Frameworks/OpenGLES.framework/OpenGLES"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "1.0.0"
     current_version: "1.0.0"
   - name: "/System/Library/Frameworks/CoreImage.framework/CoreImage"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "1.0.0"
     current_version: "6.0.0"
   - name: "/System/Library/Frameworks/ImageIO.framework/ImageIO"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "1.0.0"
     current_version: "1.0.0"
   - name: "/System/Library/Frameworks/CoreText.framework/CoreText"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "1.0.0"
     current_version: "1.0.0"
   - name: "/System/Library/Frameworks/Security.framework/Security"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "1.0.0"
     current_version: "61040.2.2"
   - name: "/System/Library/Frameworks/CFNetwork.framework/CFNetwork"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "1.0.0"
     current_version: "1474.0.0"
   - name: "/System/Library/Frameworks/MobileCoreServices.framework/MobileCoreServices"
-    timestamp: 0 # 1970-01-01 00:00:00 UTC
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
     compatibility_version: "1.0.0"
     current_version: "1226.0.0"
 rpaths:

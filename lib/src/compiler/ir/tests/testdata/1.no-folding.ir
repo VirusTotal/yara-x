@@ -1,0 +1,59 @@
+RULE test_1
+  EQ
+    SUB
+      ADD
+        CONST integer(1)
+        CONST integer(1)
+      CONST integer(1)
+    CONST integer(1)
+
+RULE test_2
+  GT
+    DIV
+      MUL
+        CONST integer(1)
+        CONST integer(2)
+      CONST integer(1)
+    CONST integer(1)
+
+RULE test_3
+  LE
+    SHR
+      SHL
+        CONST integer(1)
+        CONST integer(2)
+      CONST integer(1)
+    CONST integer(2)
+
+RULE test_4
+  AND
+    EQ
+      FIELD_ACCESS
+        IDENT Symbol { type_value: struct, kind: Field(0, true) }
+        IDENT Symbol { type_value: integer(unknown), kind: Field(1, false) }
+      CONST integer(0)
+    CONST boolean(true)
+    NOT
+      CONST boolean(false)
+
+RULE test_5
+  AND
+    CONTAINS
+      CONST string("foobar")
+      CONST string("bar")
+    ICONTAINS
+      CONST string("foobar")
+      CONST string("BAR")
+    STARTS_WITH
+      CONST string("foobar")
+      CONST string("foo")
+    ISTARTS_WITH
+      CONST string("foobar")
+      CONST string("FOO")
+    ENDS_WITH
+      CONST string("foobar")
+      CONST string("bar")
+    IENDS_WITH
+      CONST string("foobar")
+      CONST string("BAR")
+

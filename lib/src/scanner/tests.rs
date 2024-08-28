@@ -251,6 +251,8 @@ fn module_outputs() {
 
     let mut outputs = scan_results.module_outputs();
 
+    assert_eq!(outputs.len(), 1);
+
     let (name, output) = outputs
         .next()
         .expect("module outputs iterator should produce at least one item");

@@ -1,8 +1,10 @@
-use crate::compiler::PatternId;
-use core::slice::Iter;
-use rustc_hash::FxHashMap;
 use std::collections::hash_map::Entry;
 use std::ops::{Range, RangeInclusive};
+
+use core::slice::Iter;
+use rustc_hash::FxHashMap;
+
+use crate::compiler::PatternId;
 
 /// Represents the match of a pattern.
 #[derive(Debug, Clone)]

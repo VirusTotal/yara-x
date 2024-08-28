@@ -11,7 +11,8 @@ use regex_automata::meta::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::compiler::atoms::Atom;
-use crate::compiler::report::SourceRef;
+use crate::compiler::errors::SerializationError;
+use crate::compiler::report::CodeLoc;
 use crate::compiler::warnings::Warning;
 use crate::compiler::{
     IdentId, Imports, LiteralId, NamespaceId, PatternId, RegexpId, RuleId,
@@ -19,7 +20,7 @@ use crate::compiler::{
 };
 use crate::re::{BckCodeLoc, FwdCodeLoc, RegexpAtom};
 use crate::string_pool::{BStringPool, StringPool};
-use crate::{re, types, SerializationError};
+use crate::{re, types};
 
 /// A set of YARA rules in compiled form.
 ///
@@ -478,7 +479,7 @@ pub(crate) struct RuleInfo {
     /// is used only during the compilation phase, but not during the scan
     /// phase.
     #[serde(skip)]
-    pub(crate) ident_ref: SourceRef,
+    pub(crate) ident_ref: CodeLoc,
     /// Metadata associated to the rule.
     pub(crate) metadata: Vec<(IdentId, MetaValue)>,
     /// Vector with all the patterns defined by this rule.

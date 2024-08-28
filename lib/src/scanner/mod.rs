@@ -32,13 +32,15 @@ use wasmtime::{
 
 use crate::compiler::{IdentId, PatternId, RuleId, RuleInfo, Rules};
 use crate::modules::{Module, BUILTIN_MODULES};
+use crate::scanner::matches::PatternMatches;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::{ENGINE, MATCHING_RULES_BITMAP_BASE};
 use crate::{compiler, modules, wasm, Variable};
 
-pub(crate) use crate::scanner::context::*;
-use crate::scanner::matches::PatternMatches;
+pub(crate) use crate::scanner::context::RuntimeObject;
+pub(crate) use crate::scanner::context::RuntimeObjectHandle;
+pub(crate) use crate::scanner::context::ScanContext;
 
 mod context;
 mod matches;
@@ -46,7 +48,7 @@ mod matches;
 #[cfg(test)]
 mod tests;
 
-/// Error returned by [`Scanner::scan`] and [`Scanner::scan_file`].
+/// Error returned when a scan operation fails.
 #[derive(Error, Debug)]
 pub enum ScanError {
     /// The scan was aborted after the timeout period.
@@ -406,8 +408,8 @@ impl<'r> Scanner<'r> {
     ///
     /// 1) When the module does not produce any output on its own.
     /// 2) When you already know the output of the module for the upcoming file
-    /// to be scanned, and you prefer to reuse this data instead of generating
-    /// it again.
+    ///    to be scanned, and you prefer to reuse this data instead of generating
+    ///    it again.
     ///
     /// Case 1) applies to certain modules lacking a main function, thus
     /// incapable of producing any output on their own. For such modules, you
@@ -705,7 +707,8 @@ impl<'r> Scanner<'r> {
     }
 
     /// Resets the scanner to its initial state, making it ready for another
-    /// scan. This clears all the information generated the previous scan.
+    /// scan. This clears all the information generated during the previous
+    /// scan.
     fn reset(&mut self) {
         let ctx = self.wasm_store.data_mut();
         let num_rules = ctx.compiled_rules.num_rules();
@@ -908,12 +911,24 @@ impl<'a, 'r> ExactSizeIterator for NonMatchingRules<'a, 'r> {
 /// Iterator that returns the outputs produced by YARA modules.
 pub struct ModuleOutputs<'a, 'r> {
     ctx: &'a ScanContext<'r>,
+    len: usize,
     iterator: hash_map::Iter<'a, &'a str, Module>,
 }
 
 impl<'a, 'r> ModuleOutputs<'a, 'r> {
     fn new(ctx: &'a ScanContext<'r>) -> Self {
-        Self { ctx, iterator: BUILTIN_MODULES.iter() }
+        Self {
+            ctx,
+            len: ctx.module_outputs.len(),
+            iterator: BUILTIN_MODULES.iter(),
+        }
+    }
+}
+
+impl<'a, 'r> ExactSizeIterator for ModuleOutputs<'a, 'r> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.len
     }
 }
 

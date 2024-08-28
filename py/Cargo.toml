@@ -5,6 +5,9 @@ Python bindings for YARA-X library.
 """
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
@@ -15,6 +18,7 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 = { version = "0.21.2", features = ["abi3", "abi3-py38", "extension-module"] }
 pyo3-file = "0.8.0"
+serde_json = { workspace = true }
 
 protobuf-json-mapping = { workspace = true }
 yara-x = { workspace = true }

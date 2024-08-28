@@ -15,8 +15,8 @@ func TestNamespaces(t *testing.T) {
 	c.AddSource("rule test { condition: true }")
 
 	s := NewScanner(c.Build())
-	matchingRules, _ := s.Scan([]byte{})
-	assert.Len(t, matchingRules, 2)
+	scanResults, _ := s.Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 2)
 }
 
 func TestUnsupportedModules(t *testing.T) {
@@ -26,8 +26,8 @@ func TestUnsupportedModules(t *testing.T) {
 		IgnoreModule("unsupported_module"))
 
 	assert.NoError(t, err)
-	matchingRules, _ := r.Scan([]byte{})
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ := r.Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 1)
 }
 
 func TestRelaxedReSyntax(t *testing.T) {
@@ -35,8 +35,8 @@ func TestRelaxedReSyntax(t *testing.T) {
 		rule test { strings: $a = /\Release/ condition: $a }`,
 		RelaxedReSyntax(true))
 	assert.NoError(t, err)
-	matchingRules, _ := r.Scan([]byte("Release"))
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ := r.Scan([]byte("Release"))
+	assert.Len(t, scanResults.MatchingRules(), 1)
 }
 
 
@@ -55,9 +55,9 @@ func TestSerialization(t *testing.T) {
 	r, _ = Deserialize(b)
 
 	s := NewScanner(r)
-	matchingRules, _ := s.Scan([]byte{})
+	scanResults, _ := s.Scan([]byte{})
 
-	assert.Len(t, matchingRules, 1)
+	assert.Len(t, scanResults.MatchingRules(), 1)
 }
 
 func TestVariables(t *testing.T) {
@@ -65,41 +65,41 @@ func TestVariables(t *testing.T) {
 		"rule test { condition: var == 1234 }",
 		Globals(map[string]interface{}{"var": 1234}))
 
-	matchingRules, _ := NewScanner(r).Scan([]byte{})
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ := NewScanner(r).Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 1)
 
 	c, err := NewCompiler()
 	assert.NoError(t, err)
 
 	c.DefineGlobal("var", 1234)
 	c.AddSource("rule test { condition: var == 1234 }")
-	matchingRules, _ = NewScanner(c.Build()).Scan([]byte{})
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ = NewScanner(c.Build()).Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 1)
 
 	c.DefineGlobal("var", -1234)
 	c.AddSource("rule test { condition: var == -1234 }")
-	matchingRules, _ = NewScanner(c.Build()).Scan([]byte{})
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ = NewScanner(c.Build()).Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 1)
 
 	c.DefineGlobal("var", true)
 	c.AddSource("rule test { condition: var }")
-	matchingRules, _ = NewScanner(c.Build()).Scan([]byte{})
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ = NewScanner(c.Build()).Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 1)
 
 	c.DefineGlobal("var", false)
 	c.AddSource("rule test { condition: var }")
-	matchingRules, _ = NewScanner(c.Build()).Scan([]byte{})
-	assert.Len(t, matchingRules, 0)
+	scanResults, _ = NewScanner(c.Build()).Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 0)
 
 	c.DefineGlobal("var", "foo")
 	c.AddSource("rule test { condition: var == \"foo\" }")
-	matchingRules, _ = NewScanner(c.Build()).Scan([]byte{})
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ = NewScanner(c.Build()).Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 1)
 
 	c.DefineGlobal("var", 3.4)
 	c.AddSource("rule test { condition: var == 3.4 }")
-	matchingRules, _ = NewScanner(c.Build()).Scan([]byte{})
-	assert.Len(t, matchingRules, 1)
+	scanResults, _ = NewScanner(c.Build()).Scan([]byte{})
+	assert.Len(t, scanResults.MatchingRules(), 1)
 
 	err = c.DefineGlobal("var", struct{}{})
 	assert.EqualError(t, err, "variable `var` has unsupported type: struct {}")
@@ -107,10 +107,89 @@ func TestVariables(t *testing.T) {
 
 func TestError(t *testing.T) {
 	_, err := Compile("rule test { condition: foo }")
-	assert.EqualError(t, err, `error[E009]: unknown identifier `+"`foo`"+`
+	expected := `error[E009]: unknown identifier `+"`foo`"+`
  --> line:1:24
   |
 1 | rule test { condition: foo }
   |                        ^^^ this identifier has not been declared
-  |`)
+  |`
+	assert.EqualError(t, err, expected)
+}
+
+
+func TestErrors(t *testing.T) {
+	c, err := NewCompiler()
+	assert.NoError(t, err)
+
+	c.AddSource("rule test_1 { condition: true }")
+	assert.Equal(t, []CompileError{}, c.Errors())
+
+	c.AddSource("rule test_2 { condition: foo }", WithOrigin("test.yar"))
+	assert.Equal(t, []CompileError{
+		{
+			Code: "E009",
+			Title: "unknown identifier `foo`",
+			Labels: []Label{
+				{
+					Level: "error",
+					CodeOrigin: "",
+					Span: Span { Start: 25, End: 28 },
+					Text: "this identifier has not been declared",
+				},
+			},
+			Text: `error[E009]: unknown identifier `+"`foo`"+`
+ --> test.yar:1:26
+  |
+1 | rule test_2 { condition: foo }
+  |                          ^^^ this identifier has not been declared
+  |`,
+		},
+	}, c.Errors())
+}
+
+
+func TestWarnings(t *testing.T) {
+	c, err := NewCompiler()
+	assert.NoError(t, err)
+
+	c.AddSource("rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }")
+
+	assert.Equal(t, []Warning{
+		{
+			Code: "consecutive_jumps",
+			Title: "consecutive jumps in hex pattern `$a`",
+			Labels: []Label{
+				{
+					Level: "warning",
+					CodeOrigin: "",
+					Span: Span { Start: 30, End: 40 },
+					Text: "these consecutive jumps will be treated as [0-2]",
+				},
+			},
+			Text: `warning[consecutive_jumps]: consecutive jumps in hex pattern `+"`$a`"+`
+ --> line:1:31
+  |
+1 | rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }
+  |                               ---------- these consecutive jumps will be treated as [0-2]
+  |`,
+		},
+			{
+  			Code: "slow_pattern",
+  			Title: "slow pattern",
+  			Labels: []Label{
+  				{
+  					Level: "warning",
+  					CodeOrigin: "",
+  					Span: Span { Start: 21, End: 43 },
+  					Text: "this pattern may slow down the scan",
+  				},
+  			},
+  			Text: `warning[slow_pattern]: slow pattern
+ --> line:1:22
+  |
+1 | rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }
+  |                      ---------------------- this pattern may slow down the scan
+  |`,
+  		},
+	}, c.Warnings())
 }

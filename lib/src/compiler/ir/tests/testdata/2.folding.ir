@@ -1,0 +1,45 @@
+RULE test
+  FOR_IN
+    CONST integer(0)
+    PATTERN_COUNT PatternIdx(0)
+    FOR_IN
+      CONST integer(0)
+      PATTERN_COUNT PatternIdx(1)
+      FOR_IN
+        FIELD_ACCESS
+          IDENT Symbol { type_value: struct, kind: Field(0, true) }
+          IDENT Symbol { type_value: array, kind: Field(19, false) }
+        AND
+          LE
+            FIELD_ACCESS
+              IDENT Symbol { type_value: struct, kind: Var(Var { ty: struct, index: 12 }) }
+              IDENT Symbol { type_value: integer(unknown), kind: Field(0, false) }
+            PATTERN_OFFSET PatternIdx(0) INDEX
+              IDENT Symbol { type_value: integer(unknown), kind: Var(Var { ty: integer, index: 0 }) }
+          LE
+            PATTERN_OFFSET PatternIdx(0) INDEX
+              IDENT Symbol { type_value: integer(unknown), kind: Var(Var { ty: integer, index: 0 }) }
+            ADD
+              FIELD_ACCESS
+                IDENT Symbol { type_value: struct, kind: Var(Var { ty: struct, index: 12 }) }
+                IDENT Symbol { type_value: integer(unknown), kind: Field(0, false) }
+              FIELD_ACCESS
+                IDENT Symbol { type_value: struct, kind: Var(Var { ty: struct, index: 12 }) }
+                IDENT Symbol { type_value: integer(unknown), kind: Field(1, false) }
+          LE
+            FIELD_ACCESS
+              IDENT Symbol { type_value: struct, kind: Var(Var { ty: struct, index: 12 }) }
+              IDENT Symbol { type_value: integer(unknown), kind: Field(0, false) }
+            PATTERN_OFFSET PatternIdx(1) INDEX
+              IDENT Symbol { type_value: integer(unknown), kind: Var(Var { ty: integer, index: 6 }) }
+          LE
+            PATTERN_OFFSET PatternIdx(1) INDEX
+              IDENT Symbol { type_value: integer(unknown), kind: Var(Var { ty: integer, index: 6 }) }
+            ADD
+              FIELD_ACCESS
+                IDENT Symbol { type_value: struct, kind: Var(Var { ty: struct, index: 12 }) }
+                IDENT Symbol { type_value: integer(unknown), kind: Field(0, false) }
+              FIELD_ACCESS
+                IDENT Symbol { type_value: struct, kind: Var(Var { ty: struct, index: 12 }) }
+                IDENT Symbol { type_value: integer(unknown), kind: Field(1, false) }
+

@@ -14,16 +14,16 @@ linker_version:
     major: 6
     minor: 0
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
-characteristics: 271
-dll_characteristics: 0
-timestamp: 1132705302 # 2005-11-23 00:21:42 UTC
+characteristics: 0x10f  # RELOCS_STRIPPED | EXECUTABLE_IMAGE | LINE_NUMS_STRIPPED | LOCAL_SYMS_STRIPPED | MACHINE_32BIT
+dll_characteristics: 0x0
+timestamp: 1132705302  # 2005-11-23 00:21:42 UTC
 image_base: 4194304
 checksum: 0
 base_of_code: 1015808
 base_of_data: 2134016
 entry_point: 1118256
 entry_point_raw: 2133040
-export_timestamp: 1307160866 # 2011-06-04 04:14:26 UTC
+export_timestamp: 1307160866  # 2011-06-04 04:14:26 UTC
 section_alignment: 4096
 file_alignment: 512
 loader_flags: 0
@@ -203,7 +203,7 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
-resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0

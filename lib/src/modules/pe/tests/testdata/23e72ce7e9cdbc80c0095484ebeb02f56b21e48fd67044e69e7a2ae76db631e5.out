@@ -14,16 +14,16 @@ linker_version:
     major: 14
     minor: 13
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
-characteristics: 8226
-dll_characteristics: 16736
-timestamp: 1827812126 # 2027-12-03 05:35:26 UTC
+characteristics: 0x2022  # EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE | DLL
+dll_characteristics: 0x4160  # HIGH_ENTROPY_VA | DYNAMIC_BASE | NX_COMPAT | GUARD_CF
+timestamp: 1827812126  # 2027-12-03 05:35:26 UTC
 image_base: 6442450944
 checksum: 57102
 base_of_code: 4096
 entry_point: 1920
 entry_point_raw: 4992
 dll_name: "mtxex.dll"
-export_timestamp: 1827812126 # 2027-12-03 05:35:26 UTC
+export_timestamp: 1827812126  # 2027-12-03 05:35:26 UTC
 section_alignment: 4096
 file_alignment: 512
 loader_flags: 0
@@ -208,7 +208,7 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
-resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0

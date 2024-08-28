@@ -376,67 +376,67 @@ segments:
     flags: 0x0
 dylibs:
   - name: "/System/Library/Frameworks/WebKit.framework/Versions/A/WebKit"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "604.4.7"
   - name: "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "275.0.0"
   - name: "/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "22.0.0"
   - name: "/System/Library/Frameworks/AudioToolbox.framework/Versions/A/AudioToolbox"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "492.0.0"
   - name: "/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "1.0.0"
   - name: "/System/Library/Frameworks/QTKit.framework/Versions/A/QTKit"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "1.0.0"
   - name: "/Library/Application Support/EFI/Calibrator3/libAPFInterface.dylib"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "0.0.0"
     current_version: "0.0.0"
   - name: "/Library/Application Support/EFI/Calibrator3/lib/hcxp/hcxp10.framework/hcxp10"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "1.0.0"
   - name: "/Library/Application Support/EFI/Calibrator3/lib/hcxp/hcxpgasetup.framework/hcxpgasetup"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "1.0.0"
   - name: "/Library/Application Support/EFI/Calibrator3/lib/hcxp/hcxpglobobj.framework/hcxpglobobj"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "1.0.0"
   - name: "/Library/Application Support/EFI/Calibrator3/lib/hcxp/hcxpmtx.framework/hcxpmtx"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "1.0.0"
   - name: "/Library/Application Support/EFI/Calibrator3/lib/hcxp/hcxppcat.framework/hcxppcat"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "1.0.0"
   - name: "/Library/Application Support/EFI/Calibrator3/lib/hcxp/hcxpefim.framework/hcxpefim"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "1.0.0"
   - name: "/Library/Application Support/EFI/Calibrator3/lib/libwx_mac-3.1_xc_9.2.dylib"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "3.1.0"
     current_version: "3.1.1"
   - name: "/usr/lib/libc++.1.dylib"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "400.9.0"
   - name: "/usr/lib/libSystem.B.dylib"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "1252.0.0"
 dyld_info:

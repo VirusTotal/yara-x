@@ -1,8 +1,8 @@
 [workspace.package]
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Victor M. Alvarez <vmalvarez@virustotal.com>"]
 edition = "2021"
-homepage = "https://github.com/VirusTotal/yara-x"
+homepage = "https://virustotal.github.io/yara-x"
 repository = "https://github.com/VirusTotal/yara-x"
 readme = "README.md"
 license = "BSD-3-Clause"
@@ -40,7 +40,7 @@ bincode = "1.3.3"
 bitmask = "0.5.0"
 bitvec = "1.0.1"
 bstr = "1.9.1"
-cbindgen = "0.26.0"
+cbindgen = "0.27.0"
 chrono = "0.4.38"
 clap = "4.5.11"
 clap_complete = "4.5.11"
@@ -102,11 +102,11 @@ x509-parser = "0.16.0"
 yaml-rust = "0.4.5"
 yansi = "1.0.1"
 yara-x = { path = "lib" }
-yara-x-fmt = { path = "fmt", version = "0.6.0" }
-yara-x-macros = { path = "macros", version = "0.6.0" }
-yara-x-parser = { path = "parser", version = "0.6.0" }
-yara-x-proto = { path = "proto", version = "0.6.0" }
-yara-x-proto-yaml = { path = "proto-yaml", version = "0.6.0" }
+yara-x-fmt = { path = "fmt", version = "0.7.0" }
+yara-x-macros = { path = "macros", version = "0.7.0" }
+yara-x-parser = { path = "parser", version = "0.7.0" }
+yara-x-proto = { path = "proto", version = "0.7.0" }
+yara-x-proto-yaml = { path = "proto-yaml", version = "0.7.0" }
 zip = "2.1.1"
 
 # Special profile that builds a release binary with link-time optimization.

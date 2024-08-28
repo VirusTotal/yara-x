@@ -7,7 +7,7 @@ use crate::re::fast::instr::Instr::{
 };
 
 /// Instructions supported by the Fast VM.
-pub enum Instr<'a> {
+pub(crate) enum Instr<'a> {
     /// Match for the regexp has been found.
     Match,
 
@@ -59,7 +59,7 @@ impl<'a> Instr<'a> {
 
 /// Parses a slice of bytes that contains Fast VM instructions, returning
 /// individual instructions and their arguments.
-pub struct InstrParser<'a> {
+pub(crate) struct InstrParser<'a> {
     code: &'a [u8],
 }
 

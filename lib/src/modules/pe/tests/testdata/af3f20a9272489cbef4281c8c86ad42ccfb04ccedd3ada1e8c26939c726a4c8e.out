@@ -14,9 +14,9 @@ linker_version:
     major: 2
     minor: 20
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
-characteristics: 518
-dll_characteristics: 0
-timestamp: 0 # 1970-01-01 00:00:00 UTC
+characteristics: 0x206  # EXECUTABLE_IMAGE | LINE_NUMS_STRIPPED | DEBUG_STRIPPED
+dll_characteristics: 0x0
+timestamp: 0  # 1970-01-01 00:00:00 UTC
 image_base: 16777216
 checksum: 3991994
 base_of_code: 512
@@ -115,8 +115,8 @@ signatures:
     algorithm: "sha256WithRSAEncryption"
     algorithm_oid: "1.2.840.113549.1.1.11"
     serial: "01"
-    not_before: 1615365865 # 2021-03-10 08:44:25 UTC
-    not_after: 2246431465 # 2041-03-09 08:44:25 UTC
+    not_before: 1615365865  # 2021-03-10 08:44:25 UTC
+    not_after: 2246431465  # 2041-03-09 08:44:25 UTC
     verified: true
     digest_alg: "sha256"
     digest: "2a344e5a930211be79c3d2a867d8923d154af27c9be0f8e5b6fd7a5411934375"
@@ -134,8 +134,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "01"
-            not_before: 1615365865 # 2021-03-10 08:44:25 UTC
-            not_after: 2246431465 # 2041-03-09 08:44:25 UTC
+            not_before: 1615365865  # 2021-03-10 08:44:25 UTC
+            not_after: 2246431465  # 2041-03-09 08:44:25 UTC
     certificates:
       - issuer: "/C=AT/O=Security Coding Factory GmbH/OU=Security Coding Factory Certificate Authority/CN=Security Coding Factory Software CA"
         subject: "/C=AT/O=Security Coding Factory GmbH/OU=Security Coding Factory Certificate Authority/CN=Security Coding Factory Software CA"
@@ -144,8 +144,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "01"
-        not_before: 1615365865 # 2021-03-10 08:44:25 UTC
-        not_after: 2246431465 # 2041-03-09 08:44:25 UTC
+        not_before: 1615365865  # 2021-03-10 08:44:25 UTC
+        not_after: 2246431465  # 2041-03-09 08:44:25 UTC
 overlay:
     offset: 3964192
     size: 2832

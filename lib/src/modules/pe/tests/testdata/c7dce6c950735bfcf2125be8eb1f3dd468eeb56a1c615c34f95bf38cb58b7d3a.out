@@ -14,16 +14,16 @@ linker_version:
     major: 14
     minor: 29
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
-characteristics: 8226
-dll_characteristics: 352
-timestamp: 1692784145 # 2023-08-23 09:49:05 UTC
+characteristics: 0x2022  # EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE | DLL
+dll_characteristics: 0x160  # HIGH_ENTROPY_VA | DYNAMIC_BASE | NX_COMPAT
+timestamp: 1692784145  # 2023-08-23 09:49:05 UTC
 image_base: 6442450944
 checksum: 174636
 base_of_code: 4096
 entry_point: 35760
 entry_point_raw: 38832
 dll_name: ""
-export_timestamp: 4294967295 # 2106-02-07 06:28:15 UTC
+export_timestamp: 4294967295  # 2106-02-07 06:28:15 UTC
 section_alignment: 4096
 file_alignment: 512
 loader_flags: 0
@@ -409,8 +409,8 @@ signatures:
     algorithm: "sha256WithRSAEncryption"
     algorithm_oid: "1.2.840.113549.1.1.11"
     serial: "6f:97:f1:3d:a5:5e:9f:70:a6:92:7e:d1:b3:3e:ee:ee"
-    not_before: 1550707200 # 2019-02-21 00:00:00 UTC
-    not_after: 1650585599 # 2022-04-21 23:59:59 UTC
+    not_before: 1550707200  # 2019-02-21 00:00:00 UTC
+    not_after: 1650585599  # 2022-04-21 23:59:59 UTC
     verified: true
     digest_alg: "sha1"
     digest: "dc8774baf66a9bf251dcf7fd0ae2acbc7ed98135"
@@ -428,8 +428,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "6f:97:f1:3d:a5:5e:9f:70:a6:92:7e:d1:b3:3e:ee:ee"
-            not_before: 1550707200 # 2019-02-21 00:00:00 UTC
-            not_after: 1650585599 # 2022-04-21 23:59:59 UTC
+            not_before: 1550707200  # 2019-02-21 00:00:00 UTC
+            not_after: 1650585599  # 2022-04-21 23:59:59 UTC
           - issuer: "/C=US/O=thawte, Inc./OU=Certification Services Division/OU=(c) 2006 thawte, Inc. - For authorized use only/CN=thawte Primary Root CA"
             subject: "/C=US/O=thawte, Inc./CN=thawte SHA256 Code Signing CA"
             thumbprint: "d00cfdbf46c98a838bc10dc4e097ae0152c461bc"
@@ -437,8 +437,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "71:a0:b7:36:95:dd:b1:af:c2:3b:2b:9a:18:ee:54:cb"
-            not_before: 1386633600 # 2013-12-10 00:00:00 UTC
-            not_after: 1702166399 # 2023-12-09 23:59:59 UTC
+            not_before: 1386633600  # 2013-12-10 00:00:00 UTC
+            not_after: 1702166399  # 2023-12-09 23:59:59 UTC
     certificates:
       - issuer: "/C=US/O=thawte, Inc./OU=Certification Services Division/OU=(c) 2006 thawte, Inc. - For authorized use only/CN=thawte Primary Root CA"
         subject: "/C=US/O=thawte, Inc./CN=thawte SHA256 Code Signing CA"
@@ -447,8 +447,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "71:a0:b7:36:95:dd:b1:af:c2:3b:2b:9a:18:ee:54:cb"
-        not_before: 1386633600 # 2013-12-10 00:00:00 UTC
-        not_after: 1702166399 # 2023-12-09 23:59:59 UTC
+        not_before: 1386633600  # 2013-12-10 00:00:00 UTC
+        not_after: 1702166399  # 2023-12-09 23:59:59 UTC
       - issuer: "/C=US/O=thawte, Inc./CN=thawte SHA256 Code Signing CA"
         subject: "/C=KR/ST=SEOUL/L=Gangnam-gu/O=CCR INC/OU=IT Team/CN=CCR INC"
         thumbprint: "d7d1cd9cadb694c84f856a0dbf48ba3f489f82cc"
@@ -456,8 +456,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "6f:97:f1:3d:a5:5e:9f:70:a6:92:7e:d1:b3:3e:ee:ee"
-        not_before: 1550707200 # 2019-02-21 00:00:00 UTC
-        not_after: 1650585599 # 2022-04-21 23:59:59 UTC
+        not_before: 1550707200  # 2019-02-21 00:00:00 UTC
+        not_after: 1650585599  # 2022-04-21 23:59:59 UTC
 overlay:
     offset: 160256
     size: 3024

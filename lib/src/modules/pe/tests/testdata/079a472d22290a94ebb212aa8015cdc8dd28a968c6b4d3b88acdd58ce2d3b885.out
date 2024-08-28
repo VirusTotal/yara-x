@@ -14,9 +14,9 @@ linker_version:
     major: 10
     minor: 0
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
-characteristics: 8450
-dll_characteristics: 320
-timestamp: 1528213185 # 2018-06-05 15:39:45 UTC
+characteristics: 0x2102  # EXECUTABLE_IMAGE | MACHINE_32BIT | DLL
+dll_characteristics: 0x140  # DYNAMIC_BASE | NX_COMPAT
+timestamp: 1528213185  # 2018-06-05 15:39:45 UTC
 image_base: 268435456
 checksum: 82308
 base_of_code: 4096
@@ -24,7 +24,7 @@ base_of_data: 12288
 entry_point: 2605
 entry_point_raw: 5677
 dll_name: "CUSTPROF.dll"
-export_timestamp: 1528213185 # 2018-06-05 15:39:45 UTC
+export_timestamp: 1528213185  # 2018-06-05 15:39:45 UTC
 section_alignment: 4096
 file_alignment: 512
 loader_flags: 0
@@ -213,7 +213,7 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
-resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 4
     minor: 0
@@ -365,8 +365,8 @@ signatures:
     algorithm: "sha256WithRSAEncryption"
     algorithm_oid: "1.2.840.113549.1.1.11"
     serial: "21:bd:b2:cb:ec:e5:43:1e:24:f7:56:74:d6:0e:9c:1d"
-    not_before: 1491955200 # 2017-04-12 00:00:00 UTC
-    not_after: 1559692799 # 2019-06-04 23:59:59 UTC
+    not_before: 1491955200  # 2017-04-12 00:00:00 UTC
+    not_after: 1559692799  # 2019-06-04 23:59:59 UTC
     verified: true
     digest_alg: "sha1"
     digest: "f4ca190ec9052243b8882d492b1c12d04da7817f"
@@ -384,8 +384,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "21:bd:b2:cb:ec:e5:43:1e:24:f7:56:74:d6:0e:9c:1d"
-            not_before: 1491955200 # 2017-04-12 00:00:00 UTC
-            not_after: 1559692799 # 2019-06-04 23:59:59 UTC
+            not_before: 1491955200  # 2017-04-12 00:00:00 UTC
+            not_after: 1559692799  # 2019-06-04 23:59:59 UTC
           - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2006 VeriSign, Inc. - For authorized use only/CN=VeriSign Class 3 Public Primary Certification Authority - G5"
             subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
             thumbprint: "007790f6561dad89b0bcd85585762495e358f8a5"
@@ -393,8 +393,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "3d:78:d7:f9:76:49:60:b2:61:7d:f4:f0:1e:ca:86:2a"
-            not_before: 1386633600 # 2013-12-10 00:00:00 UTC
-            not_after: 1702166399 # 2023-12-09 23:59:59 UTC
+            not_before: 1386633600  # 2013-12-10 00:00:00 UTC
+            not_after: 1702166399  # 2023-12-09 23:59:59 UTC
     certificates:
       - issuer: "/C=ZA/ST=Western Cape/L=Durbanville/O=Thawte/OU=Thawte Certification/CN=Thawte Timestamping CA"
         subject: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services CA - G2"
@@ -403,8 +403,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "7e:93:eb:fb:7c:c6:4e:59:ea:4b:9a:77:d4:06:fc:3b"
-        not_before: 1356048000 # 2012-12-21 00:00:00 UTC
-        not_after: 1609372799 # 2020-12-30 23:59:59 UTC
+        not_before: 1356048000  # 2012-12-21 00:00:00 UTC
+        not_after: 1609372799  # 2020-12-30 23:59:59 UTC
       - issuer: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services CA - G2"
         subject: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services Signer - G4"
         thumbprint: "65439929b67973eb192d6ff243e6767adf0834e4"
@@ -412,8 +412,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "0e:cf:f4:38:c8:fe:bf:35:6e:04:d8:6a:98:1b:1a:50"
-        not_before: 1350518400 # 2012-10-18 00:00:00 UTC
-        not_after: 1609286399 # 2020-12-29 23:59:59 UTC
+        not_before: 1350518400  # 2012-10-18 00:00:00 UTC
+        not_after: 1609286399  # 2020-12-29 23:59:59 UTC
       - issuer: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
         subject: "/C=US/ST=California/L=Menlo Park/O=Quicken, Inc./OU=Operations/CN=Quicken, Inc."
         thumbprint: "c1bf1b8f751bf97626ed77f755f0a393106f2454"
@@ -421,8 +421,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "21:bd:b2:cb:ec:e5:43:1e:24:f7:56:74:d6:0e:9c:1d"
-        not_before: 1491955200 # 2017-04-12 00:00:00 UTC
-        not_after: 1559692799 # 2019-06-04 23:59:59 UTC
+        not_before: 1491955200  # 2017-04-12 00:00:00 UTC
+        not_after: 1559692799  # 2019-06-04 23:59:59 UTC
       - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2006 VeriSign, Inc. - For authorized use only/CN=VeriSign Class 3 Public Primary Certification Authority - G5"
         subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
         thumbprint: "007790f6561dad89b0bcd85585762495e358f8a5"
@@ -430,11 +430,11 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "3d:78:d7:f9:76:49:60:b2:61:7d:f4:f0:1e:ca:86:2a"
-        not_before: 1386633600 # 2013-12-10 00:00:00 UTC
-        not_after: 1702166399 # 2023-12-09 23:59:59 UTC
+        not_before: 1386633600  # 2013-12-10 00:00:00 UTC
+        not_after: 1702166399  # 2023-12-09 23:59:59 UTC
     countersignatures:
       - verified: true
-        sign_time: 1528216551 # 2018-06-05 16:35:51 UTC
+        sign_time: 1528216551  # 2018-06-05 16:35:51 UTC
         digest: "9fa1188e4c656d86e2d7fa133ee8138ac1ec4ec1"
         digest_alg: "sha1"
         chain:
@@ -445,8 +445,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "0e:cf:f4:38:c8:fe:bf:35:6e:04:d8:6a:98:1b:1a:50"
-            not_before: 1350518400 # 2012-10-18 00:00:00 UTC
-            not_after: 1609286399 # 2020-12-29 23:59:59 UTC
+            not_before: 1350518400  # 2012-10-18 00:00:00 UTC
+            not_after: 1609286399  # 2020-12-29 23:59:59 UTC
           - issuer: "/C=ZA/ST=Western Cape/L=Durbanville/O=Thawte/OU=Thawte Certification/CN=Thawte Timestamping CA"
             subject: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services CA - G2"
             thumbprint: "6c07453ffdda08b83707c09b82fb3d15f35336b1"
@@ -454,8 +454,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "7e:93:eb:fb:7c:c6:4e:59:ea:4b:9a:77:d4:06:fc:3b"
-            not_before: 1356048000 # 2012-12-21 00:00:00 UTC
-            not_after: 1609372799 # 2020-12-30 23:59:59 UTC
+            not_before: 1356048000  # 2012-12-21 00:00:00 UTC
+            not_after: 1609372799  # 2020-12-30 23:59:59 UTC
 overlay:
     offset: 10752
     size: 6048

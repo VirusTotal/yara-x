@@ -69,9 +69,7 @@ func Deserialize(data []byte) (*Rules, error) {
 type Rules struct{ cRules *C.YRX_RULES }
 
 // Scan some data with the compiled rules.
-//
-// Returns a slice with the rules that matched.
-func (r *Rules) Scan(data []byte) ([]*Rule, error) {
+func (r *Rules) Scan(data []byte) (*ScanResults, error) {
 	scanner := NewScanner(r)
 	return scanner.Scan(data)
 }

@@ -8,14 +8,14 @@ the parser. Each token is represented by a variant of the [`Token`] type.
 use std::str;
 use std::str::from_utf8;
 
-use crate::Span;
-
 use logos::Logos;
 
-mod tokens;
+use crate::Span;
 
-pub use tokens::Token;
+pub(crate) use tokens::Token;
 pub(crate) use tokens::TokenId;
+
+mod tokens;
 
 #[cfg(test)]
 mod tests;

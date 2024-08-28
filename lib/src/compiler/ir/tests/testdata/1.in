@@ -1,0 +1,31 @@
+import "test_proto2"
+
+rule test_1 {
+	condition:
+		1 + 1 - 1 == 1
+}
+
+rule test_2 {
+	condition:
+		1 * 2 \ 1 > 1
+}
+
+rule test_3 {
+	condition:
+		(1 << 2) >> 1 <= 2
+}
+
+rule test_4 {
+	condition:
+		test_proto2.int64_zero == 0 and true and not false
+}
+
+rule test_5 {
+  condition:
+     "foobar" contains "bar" and
+     "foobar" icontains "BAR" and
+     "foobar" startswith "foo" and
+     "foobar" istartswith "FOO" and
+     "foobar" endswith "bar" and
+     "foobar" iendswith "BAR"
+}

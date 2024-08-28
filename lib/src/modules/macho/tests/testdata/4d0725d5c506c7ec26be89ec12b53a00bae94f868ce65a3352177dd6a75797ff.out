@@ -460,35 +460,35 @@ segments:
     flags: 0x0
 dylibs:
   - name: "/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "11.0.0"
   - name: "@executable_path/libbassmod.dylib"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "1.0.0"
   - name: "/usr/lib/libgcc_s.1.dylib"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "1.0.0"
   - name: "/usr/lib/libSystem.B.dylib"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "88.3.11"
   - name: "/System/Library/Frameworks/CoreServices.framework/Versions/A/CoreServices"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "18.0.0"
   - name: "/System/Library/Frameworks/ApplicationServices.framework/Versions/A/ApplicationServices"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "22.0.0"
   - name: "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "300.0.0"
     current_version: "567.42.0"
   - name: "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit"
-    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
     compatibility_version: "45.0.0"
     current_version: "824.48.0"
 uuid: "E8EEF819-E139-DC6C-30B0-67A3792D3913"

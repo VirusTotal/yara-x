@@ -21,8 +21,8 @@ message PE {
   optional Version image_version = 6;
   optional Version linker_version = 7;
   optional OptHdrMagic opthdr_magic = 8;
-  optional uint32 characteristics = 9;
-  optional uint32 dll_characteristics = 10;
+  optional uint32 characteristics = 9 [(yaml.field).fmt = "flags:Characteristics"];
+  optional uint32 dll_characteristics = 10 [(yaml.field).fmt = "flags:DllCharacteristics"];
   optional uint32 timestamp = 11 [(yaml.field).fmt = "t"];
   optional uint64 image_base = 12;
   optional uint32 checksum = 13;
@@ -84,7 +84,7 @@ message PE {
   repeated Export export_details = 57;
   optional bool is_signed = 58;
   repeated Signature signatures = 59;
-  
+
   optional Overlay overlay = 60;
 }
 

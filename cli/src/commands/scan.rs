@@ -14,7 +14,8 @@ use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
-use yara_x::{MetaValue, Rule, Rules, ScanError, ScanResults, Scanner};
+use yara_x::errors::ScanError;
+use yara_x::{MetaValue, Rule, Rules, ScanResults, Scanner};
 
 use crate::commands::{
     compile_rules, external_var_parser, truncate_with_ellipsis,

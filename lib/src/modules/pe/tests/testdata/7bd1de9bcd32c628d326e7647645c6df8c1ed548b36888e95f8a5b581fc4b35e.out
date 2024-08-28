@@ -14,16 +14,16 @@ linker_version:
     major: 14
     minor: 38
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
-characteristics: 8226
-dll_characteristics: 352
-timestamp: 1709628808 # 2024-03-05 08:53:28 UTC
+characteristics: 0x2022  # EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE | DLL
+dll_characteristics: 0x160  # HIGH_ENTROPY_VA | DYNAMIC_BASE | NX_COMPAT
+timestamp: 1709628808  # 2024-03-05 08:53:28 UTC
 image_base: 6442450944
 checksum: 59800
 base_of_code: 4096
 entry_point: 1024
 entry_point_raw: 4096
 dll_name: "vcruntime140_1.dll"
-export_timestamp: 4294967295 # 2106-02-07 06:28:15 UTC
+export_timestamp: 4294967295  # 2106-02-07 06:28:15 UTC
 section_alignment: 4096
 file_alignment: 512
 loader_flags: 0
@@ -193,7 +193,7 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
-resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0
@@ -259,8 +259,8 @@ signatures:
     algorithm: "sha512WithRSAEncryption"
     algorithm_oid: "1.2.840.113549.1.1.13"
     serial: "a2:30:db:c7:17:28:5b:a2:4d:01:a0:7d:03:79:12:ce"
-    not_before: 1609426800 # 2020-12-31 15:00:00 UTC
-    not_after: 4102326000 # 2099-12-30 15:00:00 UTC
+    not_before: 1609426800  # 2020-12-31 15:00:00 UTC
+    not_after: 4102326000  # 2099-12-30 15:00:00 UTC
     verified: true
     digest_alg: "sha512"
     digest: "9d8c6f3e677451a7a20c4b7ec6d0b27f8247483f2024a27c8e29c29cd8d8354e3cf2f206c262403bb2fda6112596f2ededd0a5d4af365f81da47c20aa7564b2f"
@@ -278,8 +278,8 @@ signatures:
             algorithm: "sha512WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.13"
             serial: "a2:30:db:c7:17:28:5b:a2:4d:01:a0:7d:03:79:12:ce"
-            not_before: 1609426800 # 2020-12-31 15:00:00 UTC
-            not_after: 4102326000 # 2099-12-30 15:00:00 UTC
+            not_before: 1609426800  # 2020-12-31 15:00:00 UTC
+            not_after: 4102326000  # 2099-12-30 15:00:00 UTC
     certificates:
       - issuer: "/CN=R2RCA"
         subject: "/C=JP/O=R2R/CN=R2R"
@@ -288,8 +288,8 @@ signatures:
         algorithm: "sha512WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.13"
         serial: "a2:30:db:c7:17:28:5b:a2:4d:01:a0:7d:03:79:12:ce"
-        not_before: 1609426800 # 2020-12-31 15:00:00 UTC
-        not_after: 4102326000 # 2099-12-30 15:00:00 UTC
+        not_before: 1609426800  # 2020-12-31 15:00:00 UTC
+        not_after: 4102326000  # 2099-12-30 15:00:00 UTC
 overlay:
     offset: 7680
     size: 1432

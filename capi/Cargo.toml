@@ -22,6 +22,7 @@ name = "yara_x_capi"
 crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
+serde_json = { workspace = true }
 yara-x = { workspace = true }
 
 [build-dependencies]

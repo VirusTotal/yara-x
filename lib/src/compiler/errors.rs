@@ -1,16 +1,18 @@
+#![cfg_attr(any(), rustfmt::skip)]
+
 use std::fmt::{Debug, Display, Formatter};
 use std::io;
+use serde::Serialize;
 
 use thiserror::Error;
 
-use yara_x_macros::Error as DeriveError;
+use yara_x_macros::ErrorEnum;
+use yara_x_macros::ErrorStruct;
 use yara_x_parser::ast;
 
-use crate::compiler::report::{Level, ReportBuilder, SourceRef};
-use crate::compiler::warnings::InvalidWarningCode;
-use crate::VariableError;
+use crate::compiler::report::{Level, Report, ReportBuilder, CodeLoc, Label};
 
-/// Errors returned while serializing/deserializing compiled rules.
+/// Error returned while serializing/deserializing compiled rules.
 #[derive(Error, Debug)]
 pub enum SerializationError {
     /// The data being deserialized doesn't contain YARA-X serialized rules.
@@ -33,317 +35,46 @@ pub enum SerializationError {
 #[doc(hidden)]
 pub struct EmitWasmError(#[from] anyhow::Error);
 
-/// Errors returned by the compiler.
-#[derive(Error, Debug, Eq, PartialEq)]
-#[allow(missing_docs)]
-pub enum Error {
-    #[error(transparent)]
-    CompileError(#[from] Box<CompileError>),
-
-    #[error(transparent)]
-    VariableError(#[from] VariableError),
-
-    #[error(transparent)]
-    InvalidWarningCode(#[from] InvalidWarningCode),
-}
-
-/// An error occurred during the compilation process.
-#[derive(DeriveError, Eq, PartialEq)]
+/// Error returned when rule compilation fails.
 #[allow(missing_docs)]
 #[non_exhaustive]
+#[derive(ErrorEnum, Error, Clone, PartialEq, Eq)]
+#[derive(Serialize)]
+#[serde(tag = "type")]
 pub enum CompileError {
-    #[error("E001", "syntax error")]
-    #[label("{error_msg}", error_span)]
-    SyntaxError {
-        detailed_report: String,
-        error_msg: String,
-        error_span: SourceRef,
-    },
-
-    #[error("E002", "wrong type")]
-    #[label(
-        "expression should be {expected_types}, but is `{actual_type}`",
-        expression_span
-    )]
-    WrongType {
-        detailed_report: String,
-        expected_types: String,
-        actual_type: String,
-        expression_span: SourceRef,
-    },
-
-    #[error("E003", "mismatching types")]
-    #[label("this expression is `{type1}`", type1_span)]
-    #[label("this expression is `{type2}`", type2_span)]
-    MismatchingTypes {
-        detailed_report: String,
-        type1: String,
-        type2: String,
-        type1_span: SourceRef,
-        type2_span: SourceRef,
-    },
-
-    #[error("E004", "wrong arguments")]
-    #[label("wrong arguments in this call", args_span)]
-    #[note(note)]
-    WrongArguments {
-        detailed_report: String,
-        args_span: SourceRef,
-        note: Option<String>,
-    },
-
-    #[error("E005", "assignment mismatch")]
-    #[label("this expects {expected_values} value(s)", error_span)]
-    #[label("this produces {actual_values} value(s)", iterable_span)]
-    AssignmentMismatch {
-        detailed_report: String,
-        expected_values: u8,
-        actual_values: u8,
-        iterable_span: SourceRef,
-        error_span: SourceRef,
-    },
-
-    #[error("E006", "unexpected negative number")]
-    #[label("this number can not be negative", span)]
-    UnexpectedNegativeNumber { detailed_report: String, span: SourceRef },
-
-    #[error("E007", "number out of range")]
-    #[label("this number is out of the allowed range [{min}-{max}]", span)]
-    NumberOutOfRange {
-        detailed_report: String,
-        min: i64,
-        max: i64,
-        span: SourceRef,
-    },
-
-    #[error("E008", "unknown field or method `{identifier}`")]
-    #[label("this field or method doesn't exist", span)]
-    UnknownField {
-        detailed_report: String,
-        identifier: String,
-        span: SourceRef,
-    },
-
-    #[error("E009", "unknown identifier `{identifier}`")]
-    #[label("this identifier has not been declared", span)]
-    #[note(note)]
-    UnknownIdentifier {
-        detailed_report: String,
-        identifier: String,
-        span: SourceRef,
-        note: Option<String>,
-    },
-
-    #[error("E010", "unknown module `{identifier}`")]
-    #[label("module `{identifier}` not found", span)]
-    UnknownModule {
-        detailed_report: String,
-        identifier: String,
-        span: SourceRef,
-    },
-
-    #[error("E011", "invalid range")]
-    #[label("{error_msg}", span)]
-    InvalidRange {
-        detailed_report: String,
-        error_msg: String,
-        span: SourceRef,
-    },
-
-    #[error("E012", "duplicate rule `{new_rule}`")]
-    #[label(
-        "`{new_rule}` declared here for the first time",
-        existing_rule_span,
-        style = "note"
-    )]
-    #[label("duplicate declaration of `{new_rule}`", new_rule_span)]
-    DuplicateRule {
-        detailed_report: String,
-        new_rule: String,
-        new_rule_span: SourceRef,
-        existing_rule_span: SourceRef,
-    },
-
-    #[error("E013", "rule `{ident}` conflicts with an existing identifier")]
-    #[label(
-        "identifier already in use by a module or global variable",
-        ident_span
-    )]
-    ConflictingRuleIdentifier {
-        detailed_report: String,
-        ident: String,
-        ident_span: SourceRef,
-    },
-
-    #[error("E014", "invalid regular expression")]
-    #[label("{error}", span)]
-    #[note(note)]
-    InvalidRegexp {
-        detailed_report: String,
-        error: String,
-        span: SourceRef,
-        note: Option<String>,
-    },
-
-    #[error(
-        "E015",
-        "mixing greedy and non-greedy quantifiers in regular expression"
-    )]
-    #[label("this is {quantifier1_greediness}", quantifier1_span)]
-    #[label("this is {quantifier2_greediness}", quantifier2_span)]
-    MixedGreediness {
-        detailed_report: String,
-        quantifier1_greediness: String,
-        quantifier2_greediness: String,
-        quantifier1_span: SourceRef,
-        quantifier2_span: SourceRef,
-    },
-
-    #[error("E016", "no matching patterns")]
-    #[label("there's no pattern in this set", span)]
-    #[note(note)]
-    EmptyPatternSet {
-        detailed_report: String,
-        span: SourceRef,
-        note: Option<String>,
-    },
-
-    #[error("E017", "`entrypoint` is unsupported`")]
-    #[label("the `entrypoint` keyword is not supported anymore", span)]
-    #[note(note)]
-    EntrypointUnsupported {
-        detailed_report: String,
-        span: SourceRef,
-        note: Option<String>,
-    },
-
-    #[error("E018", "slow pattern")]
-    #[label("this pattern may slow down the scan", span)]
-    SlowPattern { detailed_report: String, span: SourceRef },
-
-    #[error("E117", "invalid pattern modifier")]
-    #[label("{error_msg}", error_span)]
-    InvalidModifier {
-        detailed_report: String,
-        error_msg: String,
-        error_span: SourceRef,
-    },
-
-    #[error(
-        "E019",
-        "invalid modifier combination: `{modifier1}` `{modifier2}`"
-    )]
-    #[label("`{modifier1}` modifier used here", modifier1_span)]
-    #[label("`{modifier2}` modifier used here", modifier2_span)]
-    #[note(note)]
-    InvalidModifierCombination {
-        detailed_report: String,
-        modifier1: String,
-        modifier2: String,
-        modifier1_span: SourceRef,
-        modifier2_span: SourceRef,
-        note: Option<String>,
-    },
-
-    #[error("E020", "duplicate pattern modifier")]
-    #[label("duplicate modifier", modifier_span)]
-    DuplicateModifier { detailed_report: String, modifier_span: SourceRef },
-
-    #[error("E021", "duplicate tag `{tag}`")]
-    #[label("duplicate tag", tag_span)]
-    DuplicateTag { detailed_report: String, tag: String, tag_span: SourceRef },
-
-    #[error("E022", "unused pattern `{pattern_ident}`")]
-    #[label("this pattern was not used in the condition", pattern_ident_span)]
-    UnusedPattern {
-        detailed_report: String,
-        pattern_ident: String,
-        pattern_ident_span: SourceRef,
-    },
-
-    #[error("E023", "duplicate pattern `{pattern_ident}`")]
-    #[label("duplicate declaration of `{pattern_ident}`", new_pattern_span)]
-    #[label(
-        "`{pattern_ident}` declared here for the first time",
-        existing_pattern_span,
-        style = "note"
-    )]
-    DuplicatePattern {
-        detailed_report: String,
-        pattern_ident: String,
-        new_pattern_span: SourceRef,
-        existing_pattern_span: SourceRef,
-    },
-
-    #[error("E024", "invalid pattern `{pattern_ident}`")]
-    #[label("{error_msg}", error_span)]
-    #[note(note)]
-    InvalidPattern {
-        detailed_report: String,
-        pattern_ident: String,
-        error_msg: String,
-        error_span: SourceRef,
-        note: Option<String>,
-    },
-
-    #[error("E025", "unknown pattern `{pattern_ident}`")]
-    #[label(
-        "this pattern is not declared in the `strings` section",
-        pattern_ident_span
-    )]
-    UnknownPattern {
-        detailed_report: String,
-        pattern_ident: String,
-        pattern_ident_span: SourceRef,
-    },
-
-    #[error("E026", "invalid base64 alphabet")]
-    #[label("{error_msg}", error_span)]
-    InvalidBase64Alphabet {
-        detailed_report: String,
-        error_msg: String,
-        error_span: SourceRef,
-    },
-
-    #[error("E027", "invalid integer")]
-    #[label("{error_msg}", error_span)]
-    InvalidInteger {
-        detailed_report: String,
-        error_msg: String,
-        error_span: SourceRef,
-    },
-
-    #[error("E028", "invalid float")]
-    #[label("{error_msg}", error_span)]
-    InvalidFloat {
-        detailed_report: String,
-        error_msg: String,
-        error_span: SourceRef,
-    },
-
-    #[error("E029", "invalid escape sequence")]
-    #[label("{error_msg}", error_span)]
-    InvalidEscapeSequence {
-        detailed_report: String,
-        error_msg: String,
-        error_span: SourceRef,
-    },
-
-    #[error("E030", "invalid regexp modifier `{modifier}`")]
-    #[label("invalid modifier", error_span)]
-    InvalidRegexpModifier {
-        detailed_report: String,
-        modifier: String,
-        error_span: SourceRef,
-    },
-
-    #[error("E031", "unexpected escape sequence")]
-    #[label("escape sequences are not allowed in this string", error_span)]
-    UnexpectedEscapeSequence { detailed_report: String, error_span: SourceRef },
-
-    #[error("E032", "invalid UTF-8")]
-    #[label("invalid UTF-8 character", error_span)]
-    InvalidUTF8 { detailed_report: String, error_span: SourceRef },
+    AssignmentMismatch(Box<AssignmentMismatch>),
+    ConflictingRuleIdentifier(Box<ConflictingRuleIdentifier>),
+    DuplicateModifier(Box<DuplicateModifier>),
+    DuplicatePattern(Box<DuplicatePattern>),
+    DuplicateRule(Box<DuplicateRule>),
+    DuplicateTag(Box<DuplicateTag>),
+    EmptyPatternSet(Box<EmptyPatternSet>),
+    EntrypointUnsupported(Box<EntrypointUnsupported>),
+    InvalidBase64Alphabet(Box<InvalidBase64Alphabet>),
+    InvalidEscapeSequence(Box<InvalidEscapeSequence>),
+    InvalidFloat(Box<InvalidFloat>),
+    InvalidInteger(Box<InvalidInteger>),
+    InvalidModifier(Box<InvalidModifier>),
+    InvalidModifierCombination(Box<InvalidModifierCombination>),
+    InvalidPattern(Box<InvalidPattern>),
+    InvalidRange(Box<InvalidRange>),
+    InvalidRegexp(Box<InvalidRegexp>),
+    InvalidRegexpModifier(Box<InvalidRegexpModifier>),
+    InvalidUTF8(Box<InvalidUTF8>),
+    MismatchingTypes(Box<MismatchingTypes>),
+    MixedGreediness(Box<MixedGreediness>),
+    NumberOutOfRange(Box<NumberOutOfRange>),
+    SlowPattern(Box<SlowPattern>),
+    SyntaxError(Box<SyntaxError>),
+    UnexpectedEscapeSequence(Box<UnexpectedEscapeSequence>),
+    UnexpectedNegativeNumber(Box<UnexpectedNegativeNumber>),
+    UnknownField(Box<UnknownField>),
+    UnknownIdentifier(Box<UnknownIdentifier>),
+    UnknownModule(Box<UnknownModule>),
+    UnknownPattern(Box<UnknownPattern>),
+    UnusedPattern(Box<UnusedPattern>),
+    WrongArguments(Box<WrongArguments>),
+    WrongType(Box<WrongType>),
 }
 
 impl CompileError {
@@ -353,54 +84,37 @@ impl CompileError {
     ) -> Self {
         match err {
             ast::Error::SyntaxError { message, span } => {
-                CompileError::syntax_error(
-                    report_builder,
-                    message,
-                    span.into(),
-                )
+                SyntaxError::build(report_builder, message, span.into())
             }
             ast::Error::InvalidInteger { message, span } => {
-                CompileError::invalid_integer(
-                    report_builder,
-                    message,
-                    span.into(),
-                )
+                InvalidInteger::build(report_builder, message, span.into())
             }
             ast::Error::InvalidFloat { message, span } => {
-                CompileError::invalid_float(
-                    report_builder,
-                    message,
-                    span.into(),
-                )
+                InvalidFloat::build(report_builder, message, span.into())
             }
             ast::Error::InvalidRegexpModifier { message, span } => {
-                CompileError::invalid_regexp_modifier(
+                InvalidRegexpModifier::build(
                     report_builder,
                     message,
                     span.into(),
                 )
             }
             ast::Error::InvalidEscapeSequence { message, span } => {
-                CompileError::invalid_escape_sequence(
+                InvalidEscapeSequence::build(
                     report_builder,
                     message,
                     span.into(),
                 )
             }
             ast::Error::UnexpectedEscapeSequence(span) => {
-                CompileError::unexpected_escape_sequence(
-                    report_builder,
-                    span.into(),
-                )
+                UnexpectedEscapeSequence::build(report_builder, span.into())
             }
             ast::Error::InvalidUTF8(span) => {
-                CompileError::invalid_utf_8(report_builder, span.into())
+                InvalidUTF8::build(report_builder, span.into())
             }
         }
     }
-}
 
-impl CompileError {
     /// Utility function that receives an array of strings and joins them
     /// together separated by commas and with "or" before the last one.
     /// For example, if input is `["s1", "s2", "s3"]` the result is:
@@ -415,7 +129,7 @@ impl CompileError {
     /// `str1`, `str2` or `str3`
     /// ```
     ///
-    pub fn join_with_or<S: ToString>(s: &[S], quotes: bool) -> String {
+    pub(crate) fn join_with_or<S: ToString>(s: &[S], quotes: bool) -> String {
         let mut strings = if quotes {
             s.iter()
                 .map(|s| format!("`{}`", s.to_string()))
@@ -442,4 +156,434 @@ impl CompileError {
             }
         }
     }
+}
+
+/// A syntax error was found in the rule.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E001", title = "syntax error")]
+#[label("{error}", error_loc)]
+pub struct SyntaxError {
+    report: Report,
+    error: String,
+    error_loc: CodeLoc,
+}
+
+/// Some expression has an unexpected type.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E002", title = "wrong type")]
+#[label(
+    "expression should be {expected_types}, but is `{actual_type}`",
+    error_loc
+)]
+pub struct WrongType {
+    report: Report,
+    expected_types: String,
+    actual_type: String,
+    error_loc: CodeLoc,
+}
+
+/// Operands have mismatching types.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E003", title = "mismatching types")]
+#[label("this expression is `{type1}`", type1_loc)]
+#[label("this expression is `{type2}`", type2_loc)]
+pub struct MismatchingTypes {
+    report: Report,
+    type1: String,
+    type2: String,
+    type1_loc: CodeLoc,
+    type2_loc: CodeLoc,
+}
+
+/// Wrong arguments when calling a function.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E004", title = "wrong arguments")]
+#[label("wrong arguments in this call", error_loc)]
+#[note(note)]
+pub struct WrongArguments {
+    report: Report,
+    error_loc: CodeLoc,
+    note: Option<String>,
+}
+
+/// Mismatch between number of variables and number of values in a loop
+/// expression.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E005", title = "assignment mismatch")]
+#[label("this expects {expected_values} value(s)", error_loc)]
+#[label("this produces {actual_values} value(s)", iterable_loc)]
+pub struct AssignmentMismatch {
+    report: Report,
+    expected_values: u8,
+    actual_values: u8,
+    iterable_loc: CodeLoc,
+    error_loc: CodeLoc,
+}
+
+/// Negative number used where positive number was expected.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E006", title = "unexpected negative number")]
+#[label("this number can not be negative", error_loc)]
+pub struct UnexpectedNegativeNumber {
+    report: Report,
+    error_loc: CodeLoc,
+}
+
+/// A number is out of the allowed range.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E007", title = "number out of range")]
+#[label("this number is out of the allowed range [{min}-{max}]", error_loc)]
+pub struct NumberOutOfRange {
+    report: Report,
+    min: i64,
+    max: i64,
+    error_loc: CodeLoc,
+}
+
+/// Unknown field or method name.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E008", title = "unknown field or method `{identifier}`")]
+#[label("this field or method doesn't exist", error_loc)]
+pub struct UnknownField {
+    report: Report,
+    identifier: String,
+    error_loc: CodeLoc,
+}
+
+/// Unknown identifier.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E009", title = "unknown identifier `{identifier}`")]
+#[label("this identifier has not been declared", identifier_loc)]
+#[note(note)]
+pub struct UnknownIdentifier {
+    report: Report,
+    identifier: String,
+    identifier_loc: CodeLoc,
+    note: Option<String>,
+}
+
+impl UnknownIdentifier {
+    /// Name of the unknown identifier.
+    #[inline]
+    pub fn identifier(&self) -> &str {
+        self.identifier.as_str()
+    }
+    /// Location of the unknown identifier.
+    pub(crate) fn identifier_location(&self) -> &CodeLoc {
+        &self.identifier_loc
+    }
+}
+
+/// Unknown module.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E010", title = "unknown module `{identifier}`")]
+#[label("module `{identifier}` not found", error_loc)]
+pub struct UnknownModule {
+    report: Report,
+    identifier: String,
+    error_loc: CodeLoc,
+}
+
+/// Invalid range.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E011", title = "invalid range")]
+#[label("{error}", error_loc)]
+pub struct InvalidRange {
+    report: Report,
+    error: String,
+    error_loc: CodeLoc,
+}
+
+/// Two rules have the same name.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E012", title = "duplicate rule `{new_rule}`")]
+#[label(
+    "duplicate declaration of `{new_rule}`",
+    duplicate_rule_loc,
+    Level::Error
+)]
+#[label(
+    "`{new_rule}` declared here for the first time",
+    existing_rule_loc,
+    Level::Note
+)]
+pub struct DuplicateRule {
+    report: Report,
+    new_rule: String,
+    duplicate_rule_loc: CodeLoc,
+    existing_rule_loc: CodeLoc,
+}
+
+
+/// A rule has the same name as a module or global variable.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(
+    code = "E013",
+    title = "rule `{identifier}` conflicts with an existing identifier"
+)]
+#[label("identifier already in use by a module or global variable", error_loc)]
+pub struct ConflictingRuleIdentifier {
+    report: Report,
+    identifier: String,
+    error_loc: CodeLoc,
+}
+
+/// A regular expression is invalid.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E014", title = "invalid regular expression")]
+#[label("{error}", error_loc)]
+#[note(note)]
+pub struct InvalidRegexp {
+    report: Report,
+    error: String,
+    error_loc: CodeLoc,
+    note: Option<String>,
+}
+
+/// A regular expression contains a mixture of greedy and non-greedy quantifiers.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(
+    code = "E015",
+    title = "mixing greedy and non-greedy quantifiers in regular expression"
+)]
+#[label("this is {quantifier1_greediness}", quantifier1_loc)]
+#[label("this is {quantifier2_greediness}", quantifier2_loc)]
+pub struct MixedGreediness {
+    report: Report,
+    quantifier1_greediness: String,
+    quantifier2_greediness: String,
+    quantifier1_loc: CodeLoc,
+    quantifier2_loc: CodeLoc,
+}
+
+/// A set of patterns doesn't contain any patterns.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E016", title = "no matching patterns")]
+#[label("there's no pattern in this set", error_loc)]
+#[note(note)]
+pub struct EmptyPatternSet {
+    report: Report,
+    error_loc: CodeLoc,
+    note: Option<String>,
+}
+
+/// The `entrypoint` keyword is not supported.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E017", title = "`entrypoint` is unsupported")]
+#[label("the `entrypoint` keyword is not supported anymore", error_loc)]
+#[label(
+    "use `pe.entry_point` or `elf.entry_point` or `macho.entry_point`",
+    error_loc,
+    Level::Help
+)]
+pub struct EntrypointUnsupported {
+    report: Report,
+    error_loc: CodeLoc,
+}
+
+/// Some pattern may be potentially slow.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E018", title = "slow pattern")]
+#[label("this pattern may slow down the scan", error_loc)]
+pub struct SlowPattern {
+    report: Report,
+    error_loc: CodeLoc,
+}
+
+/// A pattern has modifiers that can't be used together.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(
+    code = "E019",
+    title = "invalid modifier combination: `{modifier1}` `{modifier2}`"
+)]
+#[label("`{modifier1}` modifier used here", modifier1_loc)]
+#[label("`{modifier2}` modifier used here", modifier2_loc)]
+#[note(note)]
+pub struct InvalidModifierCombination {
+    report: Report,
+    modifier1: String,
+    modifier2: String,
+    modifier1_loc: CodeLoc,
+    modifier2_loc: CodeLoc,
+    note: Option<String>,
+}
+
+/// A pattern has duplicate modifiers.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E020", title = "duplicate pattern modifier")]
+#[label("duplicate modifier", error_loc)]
+pub struct DuplicateModifier {
+    report: Report,
+    error_loc: CodeLoc,
+}
+
+/// A rule has duplicate tags.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E021", title = "duplicate tag `{tag}`")]
+#[label("duplicate tag", error_loc)]
+pub struct DuplicateTag {
+    report: Report,
+    tag: String,
+    error_loc: CodeLoc,
+}
+
+/// A rule defines a pattern that is not used in the condition.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E022", title = "unused pattern `{pattern_ident}`")]
+#[label("this pattern was not used in the condition", error_loc)]
+pub struct UnusedPattern {
+    report: Report,
+    pattern_ident: String,
+    error_loc: CodeLoc,
+}
+
+/// A rule has two patterns with the same identifier.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E023", title = "duplicate pattern `{pattern_ident}`")]
+#[label("duplicate declaration of `{pattern_ident}`", error_loc)]
+#[label(
+    "`{pattern_ident}` declared here for the first time",
+    note_loc,
+    Level::Note
+)]
+pub struct DuplicatePattern {
+    report: Report,
+    pattern_ident: String,
+    error_loc: CodeLoc,
+    note_loc: CodeLoc,
+}
+
+/// A rule has an invalid pattern.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E024", title = "invalid pattern `{pattern_ident}`")]
+#[label("{error}", error_loc)]
+#[note(note)]
+pub struct InvalidPattern {
+    report: Report,
+    pattern_ident: String,
+    error: String,
+    error_loc: CodeLoc,
+    note: Option<String>,
+}
+
+/// Some rule condition uses a pattern that was not defined.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E025", title = "unknown pattern `{pattern_ident}`")]
+#[label("this pattern is not declared in the `strings` section", error_loc)]
+pub struct UnknownPattern {
+    report: Report,
+    pattern_ident: String,
+    error_loc: CodeLoc,
+}
+
+/// Wrong alphabet for the `base64` or `base64wide` modifiers.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E026", title = "invalid base64 alphabet")]
+#[label("{error}", error_loc)]
+pub struct InvalidBase64Alphabet {
+    report: Report,
+    error: String,
+    error_loc: CodeLoc,
+}
+
+/// Invalid integer.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E027", title = "invalid integer")]
+#[label("{error}", error_loc)]
+pub struct InvalidInteger {
+    report: Report,
+    error: String,
+    error_loc: CodeLoc,
+}
+
+/// Invalid float.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E028", title = "invalid float")]
+#[label("{error}", error_loc)]
+pub struct InvalidFloat {
+    report: Report,
+    error: String,
+    error_loc: CodeLoc,
+}
+
+/// A text pattern contains an invalid escape sequence.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E029", title = "invalid escape sequence")]
+#[label("{error}", error_loc)]
+pub struct InvalidEscapeSequence {
+    report: Report,
+    error: String,
+    error_loc: CodeLoc,
+}
+
+/// Invalid modifier for a regular expression.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E030", title = "invalid regexp modifier `{modifier}`")]
+#[label("invalid modifier", error_loc)]
+pub struct InvalidRegexpModifier {
+    report: Report,
+    modifier: String,
+    error_loc: CodeLoc,
+}
+
+/// A string literal contains escaped sequences and it shouldn't.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E031", title = "unexpected escape sequence")]
+#[label("escape sequences are not allowed in this string", error_loc)]
+pub struct UnexpectedEscapeSequence {
+    report: Report,
+    error_loc: CodeLoc,
+}
+
+
+/// Source code contains invalid UTF-8 characters.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E032", title = "invalid UTF-8")]
+#[label("invalid UTF-8 character", error_loc)]
+pub struct InvalidUTF8 {
+    report: Report,
+    error_loc: CodeLoc,
+}
+
+/// Some pattern has an invalid modifier.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E033", title = "invalid pattern modifier")]
+#[label("{error}", error_loc)]
+pub struct InvalidModifier {
+    report: Report,
+    error: String,
+    error_loc: CodeLoc,
 }

@@ -14,9 +14,9 @@ linker_version:
     major: 9
     minor: 0
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
-characteristics: 34
-dll_characteristics: 0
-timestamp: 1459189242 # 2016-03-28 18:20:42 UTC
+characteristics: 0x22  # EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE
+dll_characteristics: 0x0
+timestamp: 1459189242  # 2016-03-28 18:20:42 UTC
 image_base: 65536
 checksum: 81108
 base_of_code: 4096
@@ -211,7 +211,7 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
-resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0
@@ -404,8 +404,8 @@ signatures:
     algorithm: "sha1WithRSAEncryption"
     algorithm_oid: "1.2.840.113549.1.1.5"
     serial: "0f:f1:ef:66:bd:62:1c:65:b7:4b:4d:e4:14:25:71:7f"
-    not_before: 1383091200 # 2013-10-30 00:00:00 UTC
-    not_after: 1483531200 # 2017-01-04 12:00:00 UTC
+    not_before: 1383091200  # 2013-10-30 00:00:00 UTC
+    not_after: 1483531200  # 2017-01-04 12:00:00 UTC
     verified: true
     digest_alg: "sha1"
     digest: "c2b8c1b34f09a91efe196f646ef7f9a11190fb8e"
@@ -423,8 +423,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "0f:f1:ef:66:bd:62:1c:65:b7:4b:4d:e4:14:25:71:7f"
-            not_before: 1383091200 # 2013-10-30 00:00:00 UTC
-            not_after: 1483531200 # 2017-01-04 12:00:00 UTC
+            not_before: 1383091200  # 2013-10-30 00:00:00 UTC
+            not_after: 1483531200  # 2017-01-04 12:00:00 UTC
           - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance EV Root CA"
             subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance Code Signing CA-1"
             thumbprint: "e308f829dc77e80af15edd4151ea47c59399ab46"
@@ -432,8 +432,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "02:c4:d1:e5:8a:4a:68:0c:56:8d:a3:04:7e:7e:4d:5f"
-            not_before: 1297425600 # 2011-02-11 12:00:00 UTC
-            not_after: 1770724800 # 2026-02-10 12:00:00 UTC
+            not_before: 1297425600  # 2011-02-11 12:00:00 UTC
+            not_after: 1770724800  # 2026-02-10 12:00:00 UTC
           - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Code Verification Root"
             subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance EV Root CA"
             thumbprint: "2f2513af3992db0a3f79709ff8143b3f7bd2d143"
@@ -441,8 +441,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "61:20:4d:b4:00:00:00:00:00:27"
-            not_before: 1302896733 # 2011-04-15 19:45:33 UTC
-            not_after: 1618516533 # 2021-04-15 19:55:33 UTC
+            not_before: 1302896733  # 2011-04-15 19:45:33 UTC
+            not_after: 1618516533  # 2021-04-15 19:55:33 UTC
     certificates:
       - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance Code Signing CA-1"
         subject: "/C=AU/ST=New South Wales/L=Sydney/O=Wen Jia Liu/CN=Wen Jia Liu"
@@ -451,8 +451,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "0f:f1:ef:66:bd:62:1c:65:b7:4b:4d:e4:14:25:71:7f"
-        not_before: 1383091200 # 2013-10-30 00:00:00 UTC
-        not_after: 1483531200 # 2017-01-04 12:00:00 UTC
+        not_before: 1383091200  # 2013-10-30 00:00:00 UTC
+        not_after: 1483531200  # 2017-01-04 12:00:00 UTC
       - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Code Verification Root"
         subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance EV Root CA"
         thumbprint: "2f2513af3992db0a3f79709ff8143b3f7bd2d143"
@@ -460,8 +460,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "61:20:4d:b4:00:00:00:00:00:27"
-        not_before: 1302896733 # 2011-04-15 19:45:33 UTC
-        not_after: 1618516533 # 2021-04-15 19:55:33 UTC
+        not_before: 1302896733  # 2011-04-15 19:45:33 UTC
+        not_after: 1618516533  # 2021-04-15 19:55:33 UTC
       - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID CA-1"
         subject: "/C=US/O=DigiCert/CN=DigiCert Timestamp Responder"
         thumbprint: "614d271d9102e30169822487fde5de00a352b01d"
@@ -469,8 +469,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "03:01:9a:02:3a:ff:58:b1:6b:d6:d5:ea:e6:17:f0:66"
-        not_before: 1413936000 # 2014-10-22 00:00:00 UTC
-        not_after: 1729555200 # 2024-10-22 00:00:00 UTC
+        not_before: 1413936000  # 2014-10-22 00:00:00 UTC
+        not_after: 1729555200  # 2024-10-22 00:00:00 UTC
       - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance EV Root CA"
         subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance Code Signing CA-1"
         thumbprint: "e308f829dc77e80af15edd4151ea47c59399ab46"
@@ -478,8 +478,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "02:c4:d1:e5:8a:4a:68:0c:56:8d:a3:04:7e:7e:4d:5f"
-        not_before: 1297425600 # 2011-02-11 12:00:00 UTC
-        not_after: 1770724800 # 2026-02-10 12:00:00 UTC
+        not_before: 1297425600  # 2011-02-11 12:00:00 UTC
+        not_after: 1770724800  # 2026-02-10 12:00:00 UTC
       - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID Root CA"
         subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID CA-1"
         thumbprint: "19a09b5a36f4dd99727df783c17a51231a56c117"
@@ -487,11 +487,11 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "06:fd:f9:03:96:03:ad:ea:00:0a:eb:3f:27:bb:ba:1b"
-        not_before: 1163116800 # 2006-11-10 00:00:00 UTC
-        not_after: 1636502400 # 2021-11-10 00:00:00 UTC
+        not_before: 1163116800  # 2006-11-10 00:00:00 UTC
+        not_after: 1636502400  # 2021-11-10 00:00:00 UTC
     countersignatures:
       - verified: true
-        sign_time: 1459189265 # 2016-03-28 18:21:05 UTC
+        sign_time: 1459189265  # 2016-03-28 18:21:05 UTC
         digest: "e0e1b26a21dda2a4d57236182a51cd3162e502fa"
         digest_alg: "sha1"
         chain:
@@ -502,8 +502,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "03:01:9a:02:3a:ff:58:b1:6b:d6:d5:ea:e6:17:f0:66"
-            not_before: 1413936000 # 2014-10-22 00:00:00 UTC
-            not_after: 1729555200 # 2024-10-22 00:00:00 UTC
+            not_before: 1413936000  # 2014-10-22 00:00:00 UTC
+            not_after: 1729555200  # 2024-10-22 00:00:00 UTC
           - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID Root CA"
             subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID CA-1"
             thumbprint: "19a09b5a36f4dd99727df783c17a51231a56c117"
@@ -511,8 +511,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "06:fd:f9:03:96:03:ad:ea:00:0a:eb:3f:27:bb:ba:1b"
-            not_before: 1163116800 # 2006-11-10 00:00:00 UTC
-            not_after: 1636502400 # 2021-11-10 00:00:00 UTC
+            not_before: 1163116800  # 2006-11-10 00:00:00 UTC
+            not_after: 1636502400  # 2021-11-10 00:00:00 UTC
   - subject: "/C=AU/ST=New South Wales/L=Sydney/O=Wen Jia Liu/CN=Wen Jia Liu"
     issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert SHA2 High Assurance Code Signing CA"
     thumbprint: "190d956129dde6972d46f46ef98bd86b982e6633"
@@ -520,8 +520,8 @@ signatures:
     algorithm: "sha256WithRSAEncryption"
     algorithm_oid: "1.2.840.113549.1.1.11"
     serial: "04:0c:b4:1e:4f:b3:70:c4:5c:43:44:76:51:62:58:2f"
-    not_before: 1383091200 # 2013-10-30 00:00:00 UTC
-    not_after: 1483531200 # 2017-01-04 12:00:00 UTC
+    not_before: 1383091200  # 2013-10-30 00:00:00 UTC
+    not_after: 1483531200  # 2017-01-04 12:00:00 UTC
     verified: true
     digest_alg: "sha256"
     digest: "4ee2a56c1592ff0e951b452c0de064eba05b7c98e3add04c8aa3b4a84eb797a5"
@@ -539,8 +539,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "04:0c:b4:1e:4f:b3:70:c4:5c:43:44:76:51:62:58:2f"
-            not_before: 1383091200 # 2013-10-30 00:00:00 UTC
-            not_after: 1483531200 # 2017-01-04 12:00:00 UTC
+            not_before: 1383091200  # 2013-10-30 00:00:00 UTC
+            not_after: 1483531200  # 2017-01-04 12:00:00 UTC
           - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance EV Root CA"
             subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert SHA2 High Assurance Code Signing CA"
             thumbprint: "f7e0f449f1a2594f88856c0758f8e6f627e5f5a2"
@@ -548,8 +548,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "0b:7e:10:90:3c:38:49:0f:fa:2f:67:9a:87:a1:a7:b9"
-            not_before: 1382443200 # 2013-10-22 12:00:00 UTC
-            not_after: 1855828800 # 2028-10-22 12:00:00 UTC
+            not_before: 1382443200  # 2013-10-22 12:00:00 UTC
+            not_after: 1855828800  # 2028-10-22 12:00:00 UTC
           - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Code Verification Root"
             subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance EV Root CA"
             thumbprint: "2f2513af3992db0a3f79709ff8143b3f7bd2d143"
@@ -557,8 +557,8 @@ signatures:
             algorithm: "sha1WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.5"
             serial: "61:20:4d:b4:00:00:00:00:00:27"
-            not_before: 1302896733 # 2011-04-15 19:45:33 UTC
-            not_after: 1618516533 # 2021-04-15 19:55:33 UTC
+            not_before: 1302896733  # 2011-04-15 19:45:33 UTC
+            not_after: 1618516533  # 2021-04-15 19:55:33 UTC
     certificates:
       - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert SHA2 High Assurance Code Signing CA"
         subject: "/C=AU/ST=New South Wales/L=Sydney/O=Wen Jia Liu/CN=Wen Jia Liu"
@@ -567,8 +567,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "04:0c:b4:1e:4f:b3:70:c4:5c:43:44:76:51:62:58:2f"
-        not_before: 1383091200 # 2013-10-30 00:00:00 UTC
-        not_after: 1483531200 # 2017-01-04 12:00:00 UTC
+        not_before: 1383091200  # 2013-10-30 00:00:00 UTC
+        not_after: 1483531200  # 2017-01-04 12:00:00 UTC
       - issuer: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Code Verification Root"
         subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance EV Root CA"
         thumbprint: "2f2513af3992db0a3f79709ff8143b3f7bd2d143"
@@ -576,8 +576,8 @@ signatures:
         algorithm: "sha1WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.5"
         serial: "61:20:4d:b4:00:00:00:00:00:27"
-        not_before: 1302896733 # 2011-04-15 19:45:33 UTC
-        not_after: 1618516533 # 2021-04-15 19:55:33 UTC
+        not_before: 1302896733  # 2011-04-15 19:45:33 UTC
+        not_after: 1618516533  # 2021-04-15 19:55:33 UTC
       - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert High Assurance EV Root CA"
         subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert SHA2 High Assurance Code Signing CA"
         thumbprint: "f7e0f449f1a2594f88856c0758f8e6f627e5f5a2"
@@ -585,8 +585,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "0b:7e:10:90:3c:38:49:0f:fa:2f:67:9a:87:a1:a7:b9"
-        not_before: 1382443200 # 2013-10-22 12:00:00 UTC
-        not_after: 1855828800 # 2028-10-22 12:00:00 UTC
+        not_before: 1382443200  # 2013-10-22 12:00:00 UTC
+        not_after: 1855828800  # 2028-10-22 12:00:00 UTC
       - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert SHA2 Assured ID Timestamping CA"
         subject: "/C=US/O=DigiCert, Inc./CN=DigiCert SHA2 Timestamp Responder"
         thumbprint: "c636f4dda87cee3d8263bf9a2514b4533468d75e"
@@ -594,8 +594,8 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "02:ce:42:94:59:02:a4:f3:c0:40:b0:ff:77:93:d1:4f"
-        not_before: 1450915200 # 2015-12-24 00:00:00 UTC
-        not_after: 1736208000 # 2025-01-07 00:00:00 UTC
+        not_before: 1450915200  # 2015-12-24 00:00:00 UTC
+        not_after: 1736208000  # 2025-01-07 00:00:00 UTC
       - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID Root CA"
         subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert SHA2 Assured ID Timestamping CA"
         thumbprint: "3ba63a6e4841355772debef9cdcf4d5af353a297"
@@ -603,11 +603,11 @@ signatures:
         algorithm: "sha256WithRSAEncryption"
         algorithm_oid: "1.2.840.113549.1.1.11"
         serial: "0a:a1:25:d6:d6:32:1b:7e:41:e4:05:da:36:97:c2:15"
-        not_before: 1452168000 # 2016-01-07 12:00:00 UTC
-        not_after: 1925553600 # 2031-01-07 12:00:00 UTC
+        not_before: 1452168000  # 2016-01-07 12:00:00 UTC
+        not_after: 1925553600  # 2031-01-07 12:00:00 UTC
     countersignatures:
       - verified: true
-        sign_time: 1459189265 # 2016-03-28 18:21:05 UTC
+        sign_time: 1459189265  # 2016-03-28 18:21:05 UTC
         digest: "8d2adfc11c43947d5ea6b7e81429acf0429930be60fd70c41c26e8e7c5b17aee"
         digest_alg: "sha256"
         chain:
@@ -618,8 +618,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "02:ce:42:94:59:02:a4:f3:c0:40:b0:ff:77:93:d1:4f"
-            not_before: 1450915200 # 2015-12-24 00:00:00 UTC
-            not_after: 1736208000 # 2025-01-07 00:00:00 UTC
+            not_before: 1450915200  # 2015-12-24 00:00:00 UTC
+            not_after: 1736208000  # 2025-01-07 00:00:00 UTC
           - issuer: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert Assured ID Root CA"
             subject: "/C=US/O=DigiCert Inc/OU=www.digicert.com/CN=DigiCert SHA2 Assured ID Timestamping CA"
             thumbprint: "3ba63a6e4841355772debef9cdcf4d5af353a297"
@@ -627,8 +627,8 @@ signatures:
             algorithm: "sha256WithRSAEncryption"
             algorithm_oid: "1.2.840.113549.1.1.11"
             serial: "0a:a1:25:d6:d6:32:1b:7e:41:e4:05:da:36:97:c2:15"
-            not_before: 1452168000 # 2016-01-07 12:00:00 UTC
-            not_after: 1925553600 # 2031-01-07 12:00:00 UTC
+            not_before: 1452168000  # 2016-01-07 12:00:00 UTC
+            not_after: 1925553600  # 2031-01-07 12:00:00 UTC
 overlay:
     offset: 27648
     size: 17560

@@ -1,0 +1,18 @@
+import "dotnet"
+import "hash"
+
+rule test
+{
+    strings:
+        $ps = { 89504E470D0A1A0A }
+        $pe = { 0000000049454E44 }
+    condition:
+        for any i in (0..#ps) : (
+            for any j in (0..#pe) : (
+                for any res in dotnet.resources : (
+                    res.offset <= @ps[i] and @ps[i] <= res.offset+res.length and
+                    res.offset <= @pe[j] and @pe[j] <= res.offset+res.length
+                )
+            )
+        )
+}

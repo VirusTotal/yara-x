@@ -39,7 +39,7 @@ segments:
     maxprot: 0x0
     initprot: 0x0
     nsects: 0
-    flags: 0x4
+    flags: 0x4  # SG_NORELOC
   - segname: "__TEXT"
     vmaddr: 0x1000
     vmsize: 0xf000
@@ -211,9 +211,9 @@ segments:
     maxprot: 0x7
     initprot: 0x1
     nsects: 0
-    flags: 0x4
+    flags: 0x4  # SG_NORELOC
 dylibs:
   - name: "/usr/lib/libSystem.B.dylib"
-    timestamp: 1111112572 # 2005-03-18 02:22:52 UTC
+    timestamp: 1111112572  # 2005-03-18 02:22:52 UTC
     compatibility_version: "1.0.0"
     current_version: "71.1.1"

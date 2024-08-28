@@ -3,7 +3,7 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{AttributeArgs, Expr, FnArg, ItemFn, Pat};
+use syn::{Expr, FnArg, ItemFn, Pat, Result};
 
 #[derive(Debug, FromMeta)]
 /// Arguments received by the `#[module_export]` macro.
@@ -45,10 +45,10 @@ pub struct ModuleExportsArgs {
 /// }
 /// ```
 pub(crate) fn impl_module_export_macro(
-    attr_args: AttributeArgs,
+    attr_args: Vec<darling::ast::NestedMeta>,
     mut func: ItemFn,
-) -> syn::Result<TokenStream> {
-    let attr_args = ModuleExportsArgs::from_list(&attr_args)?;
+) -> Result<TokenStream> {
+    let attr_args = ModuleExportsArgs::from_list(attr_args.as_slice())?;
 
     // Include the original function in the output without changes.
     let mut token_stream = quote! {

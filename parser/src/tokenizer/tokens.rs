@@ -211,7 +211,7 @@ impl TokenId {
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Debug, PartialEq)]
 #[repr(u8)]
-pub enum Token {
+pub(crate) enum Token {
     // Keywords.
     ALL_KW(Span) = TokenId::ALL_KW as u8,
     AND_KW(Span) = TokenId::AND_KW as u8,

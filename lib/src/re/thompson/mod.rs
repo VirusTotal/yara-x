@@ -6,11 +6,12 @@ produces code for the Pike VM described in Russ Cox's article
 [2]: https://swtch.com/~rsc/regexp/regexp2.html
 */
 
-pub(crate) mod pikevm;
+pub(crate) use compiler::Compiler;
+pub(crate) use pikevm::PikeVM;
 
 mod compiler;
 mod instr;
+mod pikevm;
+
 #[cfg(test)]
 mod tests;
-
-pub(crate) use compiler::Compiler;

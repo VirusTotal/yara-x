@@ -31,13 +31,11 @@ use thiserror::Error;
 
 use crate::compiler::Atom;
 
-//#[cfg(feature = "fast-regexp")]
-pub mod fast;
-
-pub mod bitmapset;
-pub mod hir;
-pub mod parser;
-pub mod thompson;
+pub(crate) mod bitmapset;
+pub(crate) mod fast;
+pub(crate) mod hir;
+pub(crate) mod parser;
+pub(crate) mod thompson;
 
 /// When it comes to matching a regular expression, the initial step involves
 /// locating an "atom" within the data under examination. Once this atom is
@@ -49,14 +47,14 @@ pub mod thompson;
 /// for every atom match, the regex engine will read, at most, 2 times the
 /// scan limit bytes while confirming the match. This is the default value for
 /// the scan limit.
-pub const DEFAULT_SCAN_LIMIT: u16 = 4096;
+pub(crate) const DEFAULT_SCAN_LIMIT: u16 = 4096;
 
 /// Maximum number of alternatives in a regexp alternation
 /// (e.g: `(foo|bar|baz..)`)
-pub const MAX_ALTERNATIVES: u8 = 255;
+pub(crate) const MAX_ALTERNATIVES: u8 = 255;
 
 #[derive(Error, Debug)]
-pub enum Error {
+pub(crate) enum Error {
     /// The regular expression is too large.
     #[error("regexp too large")]
     TooLarge,
