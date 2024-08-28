@@ -338,7 +338,7 @@ enum YRX_RESULT yrx_compiler_define_global_float(struct YRX_COMPILER *compiler,
 //
 // * type: A string that describes the type of error.
 // * code: Error code (e.g: "E009").
-// * title: Error title (e.g: ""unknown identifier `foo`").
+// * title: Error title (e.g: "unknown identifier `foo`").
 // * labels: Array of labels.
 // * text: The full text of the error report, as shown by the command-line tool.
 //
@@ -366,6 +366,46 @@ enum YRX_RESULT yrx_compiler_define_global_float(struct YRX_COMPILER *compiler,
 // The [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
 enum YRX_RESULT yrx_compiler_errors_json(struct YRX_COMPILER *compiler,
                                          struct YRX_BUFFER **buf);
+
+// Returns the warnings encountered during the compilation in JSON format.
+//
+// In the address indicated by the `buf` pointer, the function will copy a
+// `YRX_BUFFER*` pointer. The `YRX_BUFFER` structure represents a buffer
+// that contains the JSON representation of the warnings.
+//
+// The JSON consists on an array of objects, each object representing a
+// warning. The object has the following fields:
+//
+// * type: A string that describes the type of warning.
+// * code: Warning code (e.g: "slow_pattern").
+// * title: Error title (e.g: "slow pattern").
+// * labels: Array of labels.
+// * text: The full text of the warning report, as shown by the command-line tool.
+//
+// Here is an example:
+//
+// ```json
+// [
+//     {
+//         "type": "SlowPattern",
+//         "code": "slow_pattern",
+//         "title": "slow pattern",
+//         "labels": [
+//             {
+//                 "level": "warning",
+//                 "code_origin": null,
+//                 "span": {"start":25,"end":28},
+//                 "text": "this pattern may slow down the scan"
+//             }
+//         ],
+//         "text": "... <full report here> ..."
+//     }
+// ]
+// ```
+//
+// The [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
+enum YRX_RESULT yrx_compiler_warnings_json(struct YRX_COMPILER *compiler,
+                                           struct YRX_BUFFER **buf);
 
 // Builds the source code previously added to the compiler.
 //

@@ -126,6 +126,18 @@ type CompileError struct {
 	Text string
 }
 
+// Warning represents each of the warnings returned by [Compiler.Warnings].
+type Warning struct {
+	// Error code (e.g: "slow_pattern").
+	Code string
+	// Error title (e.g: "slow pattern").
+	Title string
+	// Each of the labels in the error report.
+	Labels []Label
+	// The error's full report, as shown by the command-line tool.
+	Text string
+}
+
 // Label represents a label in a [CompileError].
 type Label struct {
 	// Label's level (e.g: "error", "warning", "info", "note", "help").
@@ -350,7 +362,6 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 	return nil
 }
 
-
 // Errors that occurred during the compilation, across multiple calls to
 // [Compiler.AddSource].
 func (c *Compiler) Errors() []CompileError {
@@ -367,6 +378,28 @@ func (c *Compiler) Errors() []CompileError {
 	var result []CompileError
 
 	if err := json.Unmarshal(jsonErrors, &result); err != nil {
+		panic(err)
+	}
+
+	return result
+}
+
+// Warnings that occurred during the compilation, across multiple calls to
+// [Compiler.AddSource].
+func (c *Compiler) Warnings() []Warning {
+	var buf *C.YRX_BUFFER
+	if C.yrx_compiler_warnings_json(c.cCompiler, &buf) != C.SUCCESS {
+		panic("yrx_compiler_warnings_json failed")
+	}
+
+	defer C.yrx_buffer_destroy(buf)
+	runtime.KeepAlive(c)
+
+	jsonWarnings := C.GoBytes(unsafe.Pointer(buf.data), C.int(buf.length))
+
+	var result []Warning
+
+	if err := json.Unmarshal(jsonWarnings, &result); err != nil {
 		panic(err)
 	}
 

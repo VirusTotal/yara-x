@@ -146,3 +146,50 @@ func TestErrors(t *testing.T) {
 		},
 	}, c.Errors())
 }
+
+
+func TestWarnings(t *testing.T) {
+	c, err := NewCompiler()
+	assert.NoError(t, err)
+
+	c.AddSource("rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }")
+
+	assert.Equal(t, []Warning{
+		{
+			Code: "consecutive_jumps",
+			Title: "consecutive jumps in hex pattern `$a`",
+			Labels: []Label{
+				{
+					Level: "warning",
+					CodeOrigin: "",
+					Span: Span { Start: 30, End: 40 },
+					Text: "these consecutive jumps will be treated as [0-2]",
+				},
+			},
+			Text: `warning[consecutive_jumps]: consecutive jumps in hex pattern `+"`$a`"+`
+ --> line:1:31
+  |
+1 | rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }
+  |                               ---------- these consecutive jumps will be treated as [0-2]
+  |`,
+		},
+			{
+  			Code: "slow_pattern",
+  			Title: "slow pattern",
+  			Labels: []Label{
+  				{
+  					Level: "warning",
+  					CodeOrigin: "",
+  					Span: Span { Start: 21, End: 43 },
+  					Text: "this pattern may slow down the scan",
+  				},
+  			},
+  			Text: `warning[slow_pattern]: slow pattern
+ --> line:1:22
+  |
+1 | rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }
+  |                      ---------------------- this pattern may slow down the scan
+  |`,
+  		},
+	}, c.Warnings())
+}

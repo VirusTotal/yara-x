@@ -221,6 +221,25 @@ def tests_compiler_errors():
   assert errors[0]['title'] == "unknown identifier `bar`"
 
 
+def tests_compiler_warnings():
+  compiler = yara_x.Compiler()
+
+  compiler.add_source(
+      'rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }')
+
+  warnings = compiler.warnings()
+
+  assert len(warnings) == 2
+
+  assert warnings[0]['type'] == "ConsecutiveJumps"
+  assert warnings[0]['code'] == "consecutive_jumps"
+  assert warnings[0]['title'] == "consecutive jumps in hex pattern `$a`"
+
+  assert warnings[1]['type'] == "SlowPattern"
+  assert warnings[1]['code'] == "slow_pattern"
+  assert warnings[1]['title'] == "slow pattern"
+
+
 def test_console_log():
   ok = False
 
