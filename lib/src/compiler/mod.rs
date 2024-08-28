@@ -448,7 +448,7 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Adds YARA rules in source form for compilation.
+    /// Adds some YARA source code to be compiled.
     ///
     /// The `src` parameter accepts any type that implements [`Into<SourceCode>`],
     /// such as `&str`, `&[u8]`, and naturally, [`SourceCode`] itself. This input
@@ -462,8 +462,9 @@ impl<'a> Compiler<'a> {
     /// [`Compiler::errors`].
     ///
     /// Even if a previous invocation resulted in a compilation error, you can
-    /// continue calling this function. In such cases, any rules that failed to
-    /// compile will not be included in the final compiled set.
+    /// continue calling this function for adding more rules. In such cases, any 
+    /// rules that failed to compile will not be included in the final compiled 
+    /// set.
     pub fn add_source<'src, S>(
         &mut self,
         src: S,
