@@ -9,9 +9,9 @@
 # https://github.com/rust-lang/rust/issues/81987
 rustflags = ["-C", "relocation-model=static"]
 # This is not necessary when building from a host where gcc already links
-# against musl by default, and it can be commented out (e.g: when building 
-# from a Alpine Linux host). But in most cases what we want is cross-compiling 
-# a host with a standard gcc that links against glibc. In such cases from we 
+# against musl by default, and it can be commented out (e.g: when building
+# from an Alpine Linux host). But in most cases what we want is cross-compiling
+# from a host with a standard gcc that links against glibc. In such cases we
 # must link using musl-gcc.
 #
 # In Debian/Ubuntu you need to install the musl-tools package in order to
