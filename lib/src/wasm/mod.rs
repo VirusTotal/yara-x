@@ -707,8 +707,20 @@ pub(crate) struct WasmSymbols {
 lazy_static! {
     pub(crate) static ref CONFIG: Config = {
         let mut config = Config::default();
+        // Wasmtime produces a nasty warning when linked against musl. The
+        // warning can be fixed by disabling native unwind information.
+        //
+        // More details:
+        //
+        // https://github.com/bytecodealliance/wasmtime/issues/8897
+        // https://github.com/VirusTotal/yara-x/issues/181
+        //
+        #[cfg(target_env = "musl")]
+        config.native_unwind_info(false);
+
         config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
         config.epoch_interruption(true);
+
         config
     };
     pub(crate) static ref ENGINE: Engine = Engine::new(&CONFIG).unwrap();
