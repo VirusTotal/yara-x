@@ -1,9 +1,9 @@
-use crate::modules::prelude::*;
 use crate::modules::protos::time::*;
+use crate::{modules::prelude::*, ScanInputRaw};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[module_main]
-fn main(_data: &[u8]) -> Time {
+fn main(_data: &ScanInputRaw) -> Time {
     // Nothing to do, but we have to return our protobuf
     Time::new()
 }

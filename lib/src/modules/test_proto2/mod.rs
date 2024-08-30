@@ -2,6 +2,7 @@ use crate::modules::prelude::*;
 use crate::modules::protos::test_proto2::NestedProto2;
 use crate::modules::protos::test_proto2::TestProto2;
 use crate::types::Struct;
+use crate::ScanInputRaw;
 use std::rc::Rc;
 
 #[cfg(test)]
@@ -66,7 +67,7 @@ fn to_int(ctx: &ScanContext, string: RuntimeString) -> Option<i64> {
 }
 
 #[module_main]
-fn main(data: &[u8]) -> TestProto2 {
+fn main(data: &ScanInputRaw) -> TestProto2 {
     let mut test = TestProto2::new();
 
     test.set_int32_zero(0);
@@ -102,7 +103,7 @@ fn main(data: &[u8]) -> TestProto2 {
     test.set_bytes_bar("bar".as_bytes().to_vec());
 
     test.set_bool_proto(true);
-    test.set_file_size(data.len() as u64);
+    test.set_file_size(data.target.len() as u64);
 
     test.array_int64.push(1);
     test.array_int64.push(10);

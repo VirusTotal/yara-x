@@ -40,6 +40,11 @@ fn generate_module_files(proto_files: Vec<FileDescriptorProto>) {
         }
     }
 
+    // Sort the modules by name to avoid non-deterministic builds
+    modules.sort_by_key(|it| it.3.to_owned());
+
+    let modules = modules;
+
     // Create the modules.rs files, with an entry for each YARA module
     // that has an associated Rust module. Each entry in the file looks
     // like:

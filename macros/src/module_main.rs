@@ -9,7 +9,7 @@ pub(crate) fn impl_module_main_macro(input: ItemFn) -> Result<TokenStream> {
 
     let main_stub = quote! {
         use protobuf::MessageDyn;
-        pub(crate) fn __main__(data: &[u8]) -> Box<dyn MessageDyn> {
+        pub(crate) fn __main__(data: &crate::ScanInputRaw) -> Box<dyn MessageDyn> {
             Box::new(#fn_name(data))
         }
     };

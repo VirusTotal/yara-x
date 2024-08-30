@@ -1,8 +1,9 @@
 use crate::modules::prelude::*;
 use crate::modules::protos::string::*;
+use crate::ScanInputRaw;
 
 #[module_main]
-fn main(_data: &[u8]) -> String {
+fn main(_data: &ScanInputRaw) -> String {
     // Nothing to do, but we have to return our protobuf
     String::new()
 }

@@ -6,9 +6,10 @@ use num_traits::Pow;
 
 use crate::modules::prelude::*;
 use crate::modules::protos::math::*;
+use crate::ScanInputRaw;
 
 #[module_main]
-fn main(_data: &[u8]) -> Math {
+fn main(_data: &ScanInputRaw) -> Math {
     // Nothing to do, but we have to return our protobuf
     Math::new()
 }

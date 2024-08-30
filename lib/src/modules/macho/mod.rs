@@ -5,8 +5,8 @@
 //! both protobuf structure fields and constants. This together with
 //! also exported functions can be later used in YARA rules.
 
-use crate::modules::prelude::*;
 use crate::modules::protos::macho::*;
+use crate::{modules::prelude::*, ScanInputRaw};
 use itertools::Itertools;
 use md5::{Digest, Md5};
 
@@ -367,8 +367,8 @@ fn export_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 }
 
 #[module_main]
-fn main(input: &[u8]) -> Macho {
-    match parser::MachO::parse(input) {
+fn main(input: &ScanInputRaw) -> Macho {
+    match parser::MachO::parse(input.target) {
         Ok(macho) => macho.into(),
         Err(_) => Macho::new(),
     }

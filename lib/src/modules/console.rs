@@ -1,8 +1,9 @@
 use crate::modules::prelude::*;
 use crate::modules::protos::console::*;
+use crate::ScanInputRaw;
 
 #[module_main]
-fn main(_data: &[u8]) -> Console {
+fn main(_data: &ScanInputRaw) -> Console {
     // Nothing to do, but we have to return our protobuf
     Console::new()
 }

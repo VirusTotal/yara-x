@@ -7,6 +7,7 @@ use sha2::{Digest, Sha256};
 
 use crate::modules::prelude::*;
 use crate::modules::protos::hash::*;
+use crate::ScanInputRaw;
 
 #[cfg(test)]
 mod tests;
@@ -29,7 +30,7 @@ thread_local!(
 );
 
 #[module_main]
-fn main(_data: &[u8]) -> Hash {
+fn main(_data: &ScanInputRaw) -> Hash {
     // With every scanned file the cache must be cleared.
     SHA256_CACHE.with(|cache| cache.borrow_mut().clear());
     SHA1_CACHE.with(|cache| cache.borrow_mut().clear());

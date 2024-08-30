@@ -15,7 +15,7 @@ use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
 use yara_x::errors::ScanError;
-use yara_x::{MetaValue, Rule, Rules, ScanResults, Scanner};
+use yara_x::{MetaValue, Rule, Rules, ScanInput, ScanResults, Scanner};
 
 use crate::commands::{
     compile_rules, external_var_parser, truncate_with_ellipsis,
@@ -157,6 +157,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let target_path = args.get_one::<PathBuf>("TARGET_PATH").unwrap();
     let compiled_rules = args.get_flag("compiled-rules");
     let num_threads = args.get_one::<u8>("threads");
+    let metadata_path = args.get_one::<PathBuf>("module-data");
     let path_as_namespace = args.get_flag("path-as-namespace");
     let skip_larger = args.get_one::<u64>("skip-larger");
     let disable_console_logs = args.get_flag("disable-console-logs");
@@ -290,8 +291,13 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 .unwrap()
                 .push((file_path.clone(), now));
 
+            let target_file = file_path.as_path();
+            let metadata_file = metadata_path.map(|p| p.as_path());
+
+            let scan_input = ScanInput { target_file, metadata_file };
+
             let scan_results = scanner
-                .scan_file(&file_path)
+                .scan_file(&scan_input)
                 .with_context(|| format!("scanning {:?}", &file_path));
 
             state
