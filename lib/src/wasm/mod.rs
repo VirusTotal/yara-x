@@ -699,7 +699,8 @@ pub(crate) struct WasmSymbols {
     pub timeout_occurred: walrus::GlobalId,
 
     /// Local variables used for temporary storage.
-    pub i64_tmp: walrus::LocalId,
+    pub i64_tmp_a: walrus::LocalId,
+    pub i64_tmp_b: walrus::LocalId,
     pub i32_tmp: walrus::LocalId,
     pub f64_tmp: walrus::LocalId,
 }
@@ -720,6 +721,7 @@ lazy_static! {
 
         config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
         config.epoch_interruption(true);
+        config.wasm_bulk_memory(false);
 
         config
     };

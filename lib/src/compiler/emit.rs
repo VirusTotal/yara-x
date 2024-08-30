@@ -132,24 +132,33 @@ macro_rules! emit_shift_op {
                 //
                 //  eval lhs
                 //  eval rhs
-                //  move rhs to tmp while leaving it in the stack (local_tee)
-                //  push result form shift operation
-                //  push 0
-                //  push rhs (from tmp)
+                //  move rhs to tmp_b
+                //  move lhs to tmp_a
+                //  push rhs
                 //  push 64
                 //  is rhs less than 64?
-                //  if true                               ┐
-                //     push result form shift operation   │  select
-                //  else                                  │
-                //     push 0                             ┘
+                //  if true
+                //     push lhs
+                //     push rhs
+                //  else
+                //     push 0
                 //
-                $instr.local_tee($ctx.wasm_symbols.i64_tmp);
-                $instr.binop(BinaryOp::$int_op);
-                $instr.i64_const(0);
-                $instr.local_get($ctx.wasm_symbols.i64_tmp);
+                $instr.local_set($ctx.wasm_symbols.i64_tmp_b);
+                $instr.local_set($ctx.wasm_symbols.i64_tmp_a);
+                $instr.local_get($ctx.wasm_symbols.i64_tmp_b);
                 $instr.i64_const(64);
                 $instr.binop(BinaryOp::I64LtS);
-                $instr.select(Some(I64));
+                $instr.if_else(
+                    I64,
+                    |then_| {
+                        then_.local_get($ctx.wasm_symbols.i64_tmp_a);
+                        then_.local_get($ctx.wasm_symbols.i64_tmp_b);
+                        then_.binop(BinaryOp::$int_op);
+                    },
+                    |else_| {
+                        else_.i64_const(0);
+                    },
+                )
             }
             _ => unreachable!(),
         };
@@ -1574,7 +1583,7 @@ fn emit_for_in_range(
 
                         // Store lower_bound in temp variable, without removing
                         // it from the stack.
-                        instr.local_tee(ctx.wasm_symbols.i64_tmp);
+                        instr.local_tee(ctx.wasm_symbols.i64_tmp_a);
 
                         // Compute upper_bound - lower_bound + 1.
                         instr.binop(BinaryOp::I64Sub);
@@ -1602,7 +1611,7 @@ fn emit_for_in_range(
 
             // Store lower_bound in `next_item`.
             set_var(ctx, instr, next_item, |ctx, instr| {
-                instr.local_get(ctx.wasm_symbols.i64_tmp);
+                instr.local_get(ctx.wasm_symbols.i64_tmp_a);
             });
         },
         // Before each iteration.
@@ -2342,9 +2351,9 @@ fn set_vars<B>(
             | Type::Struct
             | Type::Array
             | Type::Map => {
-                instr.local_set(ctx.wasm_symbols.i64_tmp);
+                instr.local_set(ctx.wasm_symbols.i64_tmp_a);
                 instr.i32_const(var.index * Var::mem_size());
-                instr.local_get(ctx.wasm_symbols.i64_tmp);
+                instr.local_get(ctx.wasm_symbols.i64_tmp_a);
                 instr.store(
                     ctx.wasm_symbols.main_memory,
                     StoreKind::I64 { atomic: false },
@@ -2779,7 +2788,7 @@ fn throw_undef(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
 fn throw_undef_if_zero(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
     // Save the top of the stack into temp variable, but leave a copy in the
     // stack.
-    let tmp = ctx.wasm_symbols.i64_tmp;
+    let tmp = ctx.wasm_symbols.i64_tmp_a;
     instr.local_tee(tmp);
     // Is top of the stack zero? The comparison removes the value from the
     // stack.

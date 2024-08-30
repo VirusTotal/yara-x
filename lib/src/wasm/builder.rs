@@ -173,7 +173,8 @@ impl WasmModuleBuilder {
             filesize,
             pattern_search_done,
             timeout_occurred,
-            i64_tmp: module.locals.add(I64),
+            i64_tmp_a: module.locals.add(I64),
+            i64_tmp_b: module.locals.add(I64),
             i32_tmp: module.locals.add(I32),
             f64_tmp: module.locals.add(F64),
         };

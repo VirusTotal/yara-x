@@ -36,7 +36,7 @@ pub(crate) type RuntimeStringWasm = i64;
 
 /// String types handled by YARA's WASM runtime.
 ///
-/// At runtime, when the the WASM code generated for rule conditions is
+/// At runtime, when the WASM code generated for rule conditions is
 /// being executed, text strings can adopt multiple forms. The difference
 /// between them resides in the place in which the string's data is stored.
 ///
