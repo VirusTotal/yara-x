@@ -26,7 +26,6 @@ pub(crate) mod prelude {
 include!("modules.rs");
 
 /// Type of module's main function.
-// type MainFn = fn(&[u8]) -> Box<dyn MessageDyn>;
 type MainFn = fn(&ScanInputRaw) -> Box<dyn MessageDyn>;
 
 /// Describes a YARA module.
