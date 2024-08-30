@@ -49,12 +49,56 @@ pub fn scan() -> Command {
                 .help("Path to the file or directory that will be scanned")
                 .value_parser(value_parser!(PathBuf))
         )
+        // Keep options sorted alphabetically by their long name.
+        // For instance, --bar goes before --foo.
+        .arg(
+            arg!(-C --"compiled-rules")
+                .help("Indicate that RULES_PATH is a file with compiled rules")
+                .long_help(help::COMPILED_RULES_LONG_HELP)
+        )
+        .arg(
+            arg!(-c --"count")
+                .help("Print only the number of matches per file")
+        )
+        .arg(
+            arg!(-d --"define")
+                .help("Define external variable")
+                .long_help(help::DEFINE_LONG_HELP)
+                .value_name("VAR=VALUE")
+                .value_parser(external_var_parser)
+                .action(ArgAction::Append)
+        )
+        .arg(
+            arg!(--"disable-console-logs")
+                .help("Disable printing console log messages")
+        )
+        .arg(
+            arg!(-w --"disable-warnings" [WARNING_ID])
+                .help("Disable warnings")
+                .long_help(help::DISABLE_WARNINGS_LONG_HELP)
+                .default_missing_value("all")
+                .num_args(0..)
+                .require_equals(true)
+                .value_delimiter(',')
+                .action(ArgAction::Append)
+        )
+        .arg(
+            arg!(-n --"negate")
+                .help("Print non-satisfied rules only")
+        )
         .arg(
             arg!(-o --"output-format" <FORMAT>)
                 .help("Output format for results")
                 .long_help(help::OUTPUT_FORMAT_LONG_HELP)
-                .required(false)
                 .value_parser(value_parser!(OutputFormats))
+        )
+        .arg(
+            arg!(--"path-as-namespace")
+                .help("Use file path as rule namespace")
+        )
+        .arg(
+            arg!(-m --"print-meta")
+                .help("Print rule metadata")
         )
         .arg(
             arg!(-e --"print-namespace")
@@ -70,39 +114,12 @@ pub fn scan() -> Command {
                 .value_parser(value_parser!(usize))
         )
         .arg(
-            arg!(-m --"print-meta")
-                .help("Print rule metadata")
-        )
-        .arg(
             arg!(-g --"print-tags")
                 .help("Print rule tags")
         )
         .arg(
-            arg!(-c --"count")
-                .help("Print only the number of matches per file")
-        )
-        .arg(
-            arg!(--"disable-console-logs")
-                .help("Disable printing console log messages")
-        )
-        .arg(
-            arg!(-t --"tag" <TAG>)
-                .help("Print only rules tagged as TAG")
-                .required(false)
-                .value_parser(value_parser!(String))
-        )
-        .arg(
-            arg!(-n --"negate")
-                .help("Print non-satisfied rules only")
-        )
-        .arg(
-            arg!(--"path-as-namespace")
-                .help("Use file path as rule namespace")
-        )
-        .arg(
-            arg!(-C --"compiled-rules")
-                .help("Indicate that RULES_PATH is a file with compiled rules")
-                .long_help(help::COMPILED_RULES_LONG_HELP)
+            arg!(--"relaxed-re-syntax")
+                .help("Use a more relaxed syntax check while parsing regular expressions")
         )
         .arg(
             arg!(--"scan-list")
@@ -115,40 +132,20 @@ pub fn scan() -> Command {
                 .value_parser(value_parser!(u64))
         )
         .arg(
+            arg!(-t --"tag" <TAG>)
+                .help("Print only rules tagged as TAG")
+                .value_parser(value_parser!(String))
+        )
+        .arg(
             arg!(-p --"threads" <NUM_THREADS>)
                 .help("Use the given number of threads")
                 .long_help(help::THREADS_LONG_HELP)
-                .required(false)
                 .value_parser(value_parser!(u8).range(1..))
         )
         .arg(
             arg!(-a --"timeout" <SECONDS>)
                 .help("Abort scanning after the given number of seconds")
-                .required(false)
                 .value_parser(value_parser!(u64).range(1..))
-        )
-        .arg(
-            arg!(--"relaxed-re-syntax")
-                .help("Use a more relaxed syntax check while parsing regular expressions")
-        )
-        .arg(
-            arg!(-w --"disable-warnings" [WARNING_ID])
-                .help("Disable warnings")
-                .long_help(help::DISABLE_WARNINGS_LONG_HELP)
-                .default_missing_value("all")
-                .num_args(0..)
-                .require_equals(true)
-                .value_delimiter(',')
-                .action(ArgAction::Append)
-        )
-        .arg(
-            arg!(-d --"define")
-                .help("Define external variable")
-                .long_help(help::DEFINE_LONG_HELP)
-                .required(false)
-                .value_name("VAR=VALUE")
-                .value_parser(external_var_parser)
-                .action(ArgAction::Append)
         )
 }
 

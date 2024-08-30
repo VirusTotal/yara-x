@@ -2,7 +2,7 @@ use std::fs::File;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use clap::{arg, value_parser, Arg, ArgAction, ArgMatches, Command};
+use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 
 use crate::commands::{compile_rules, external_var_parser};
 use crate::help;
@@ -10,6 +10,8 @@ use crate::help;
 pub fn compile() -> Command {
     super::command("compile")
         .about("Compile rules to binary form")
+        // Keep options sorted alphabetically by their long name.
+        // For instance, --bar goes before --foo.
         .arg(
             arg!(<RULES_PATH>)
                 .help("Path to YARA source file")
@@ -17,18 +19,9 @@ pub fn compile() -> Command {
                 .action(ArgAction::Append),
         )
         .arg(
-            arg!(-o --"output" <OUTPUT_PATH>)
-                .help("Output file with compiled results")
-                .default_value("output.yarc")
-                .value_parser(value_parser!(PathBuf))
-        )
-        .arg(
-            Arg::new("define")
-                .short('d')
-                .long("define")
+            arg!(-d --"define")
                 .help("Define external variable")
                 .long_help(help::DEFINE_LONG_HELP)
-                .required(false)
                 .value_name("VAR=VALUE")
                 .value_parser(external_var_parser)
                 .action(ArgAction::Append),
@@ -42,6 +35,12 @@ pub fn compile() -> Command {
                 .require_equals(true)
                 .value_delimiter(',')
                 .action(ArgAction::Append)
+        )
+        .arg(
+            arg!(-o --"output" <OUTPUT_PATH>)
+                .help("Output file with compiled results")
+                .default_value("output.yarc")
+                .value_parser(value_parser!(PathBuf))
         )
         .arg(
             arg!(--"path-as-namespace")
