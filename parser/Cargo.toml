@@ -39,7 +39,7 @@ serde = { workspace = true, features = ["derive"], optional = true }
 yansi = { workspace = true }
 
 logos = "0.14.1"
-rowan = "0.15.16"
+rowan = "0.15.15"
 
 [dev-dependencies]
 anyhow = { workspace = true }
