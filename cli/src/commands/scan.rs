@@ -159,7 +159,8 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let disable_console_logs = args.get_flag("disable-console-logs");
     let scan_list = args.get_flag("scan-list");
 
-    let timeout = args.get_one::<u64>("timeout");
+    let timeout =
+        args.get_one::<u64>("timeout").map(|t| Duration::from_secs(*t));
 
     let mut external_vars: Option<Vec<(String, serde_json::Value)>> = args
         .get_many::<(String, serde_json::Value)>("define")
@@ -235,12 +236,6 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         w.metadata_filter(|metadata| metadata.len() <= *max_file_size);
     }
 
-    let timeout = if let Some(timeout) = timeout {
-        Duration::from_secs(*timeout)
-    } else {
-        Duration::from_secs(u64::MAX)
-    };
-
     let start_time = Instant::now();
     let state = ScanState::new(start_time);
 
@@ -273,10 +268,14 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         |state, output, file_path, scanner| {
             let elapsed_time = Instant::elapsed(&start_time);
 
-            if let Some(timeout) = timeout.checked_sub(elapsed_time) {
-                scanner.set_timeout(timeout);
-            } else {
-                return Err(Error::from(ScanError::Timeout));
+            if let Some(timeout) = timeout {
+                // Discount the already elapsed time from the timeout passed to
+                // the scanner.
+                if let Some(timeout) = timeout.checked_sub(elapsed_time) {
+                    scanner.set_timeout(timeout);
+                } else {
+                    return Err(Error::from(ScanError::Timeout));
+                }
             }
 
             let now = Instant::now();
