@@ -87,6 +87,13 @@ command allows to convert your YARA source files to UTF-8 encoding if they are n
 If <RULES_PATH> is a directory, all files with extensions `.yar` and `.yara` will be converted.
 This behavior can be changed by using the `--filter` option."#;
 
+pub const IGNORE_MODULE_LONG_HELP: &str = r#"Ignore rules that use the specified module
+
+Rules that use the specified module will be ignored, as well as any rules that depends
+directly or indirectly on such rules.
+
+This option can be used more than once for ignored different modules."#;
+
 pub const THREADS_LONG_HELP: &str = r#"Use the specified number of threads
 
 The default value is automatically determined based on the number of CPU cores."#;

@@ -83,6 +83,12 @@ pub fn scan() -> Command {
                 .action(ArgAction::Append)
         )
         .arg(
+            arg!(--"ignore-module" <MODULE>)
+                .help("Ignore rules that use the specified module")
+                .long_help(help::IGNORE_MODULE_LONG_HELP)
+                .action(ArgAction::Append)
+        )
+        .arg(
             arg!(-n --"negate")
                 .help("Print non-satisfied rules only")
         )
@@ -154,7 +160,6 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let target_path = args.get_one::<PathBuf>("TARGET_PATH").unwrap();
     let compiled_rules = args.get_flag("compiled-rules");
     let num_threads = args.get_one::<u8>("threads");
-    let path_as_namespace = args.get_flag("path-as-namespace");
     let skip_larger = args.get_one::<u64>("skip-larger");
     let disable_console_logs = args.get_flag("disable-console-logs");
     let scan_list = args.get_flag("scan-list");
@@ -201,23 +206,10 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
         rules
     } else {
-        // Vector with the IDs of the warnings that should be disabled, if the
-        // vector contains "all", all warnings are disabled.
-        let disabled_warnings = args
-            .get_many::<String>("disable-warnings")
-            .map(|warnings| warnings.map(|id| id.as_str()).collect())
-            .unwrap_or_default();
-
         // With `take()` we pass the external variables to `compile_rules`,
         // while leaving a `None` in `external_vars`. This way external
         // variables are not set again in the scanner.
-        compile_rules(
-            rules_path,
-            path_as_namespace,
-            external_vars.take(),
-            args.get_flag("relaxed-re-syntax"),
-            disabled_warnings,
-        )?
+        compile_rules(rules_path, external_vars.take(), args)?
     };
 
     let rules_ref = &rules;

@@ -126,6 +126,12 @@ Equivalent to the previous one, but using `--disable-warnings` multiple times:
 --disable-warnings=slow_patterns --disable-warnings=redundant_modifier
 ```
 
+### --ignore-module <MODULE>
+
+Rules that use the specified module will be ignored, as well as any rules that
+depends directly or indirectly on such rules. This option can be used more than
+once for ignored different modules.
+
 ### --negate, -n
 
 Prints the rules that doesn't match instead of those that match.
@@ -241,6 +247,10 @@ recursively looking for any `*.yar` or `*.yara` files.
 ### --disable-warnings
 
 See [--disable-warnings](#--disable-warnings) for the scan command.
+
+### --ignore-module <MODULE>
+
+See [--ignore-module](#--ignore-module-module) for the scan command.
 
 ### --output, -o <OUTPUT_PATH>
 

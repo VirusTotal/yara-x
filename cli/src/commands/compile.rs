@@ -37,6 +37,12 @@ pub fn compile() -> Command {
                 .action(ArgAction::Append)
         )
         .arg(
+            arg!(--"ignore-module" <MODULE>)
+                .help("Ignore rules that use the specified module")
+                .long_help(help::IGNORE_MODULE_LONG_HELP)
+                .action(ArgAction::Append)
+        )
+        .arg(
             arg!(-o --"output" <OUTPUT_PATH>)
                 .help("Output file with compiled results")
                 .default_value("output.yarc")
@@ -54,25 +60,13 @@ pub fn compile() -> Command {
 
 pub fn exec_compile(args: &ArgMatches) -> anyhow::Result<()> {
     let rules_path = args.get_many::<PathBuf>("RULES_PATH").unwrap();
-    let path_as_namespace = args.get_flag("path-as-namespace");
     let output_path = args.get_one::<PathBuf>("output").unwrap();
 
     let external_vars: Option<Vec<(String, serde_json::Value)>> = args
         .get_many::<(String, serde_json::Value)>("define")
         .map(|var| var.cloned().collect());
 
-    let disabled_warnings = args
-        .get_many::<String>("disable-warnings")
-        .map(|warnings| warnings.map(|id| id.as_str()).collect())
-        .unwrap_or_default();
-
-    let rules = compile_rules(
-        rules_path,
-        path_as_namespace,
-        external_vars,
-        args.get_flag("relaxed-re-syntax"),
-        disabled_warnings,
-    )?;
+    let rules = compile_rules(rules_path, external_vars, args)?;
 
     let output_file = File::create(output_path).with_context(|| {
         format!("can not write `{}`", output_path.display())
