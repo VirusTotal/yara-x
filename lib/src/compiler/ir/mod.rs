@@ -115,7 +115,7 @@ impl<'src> PatternInRule<'src> {
     pub fn pattern(&self) -> &Pattern {
         &self.pattern
     }
-    
+
     #[inline]
     pub fn span(&self) -> &Span {
         &self.span
