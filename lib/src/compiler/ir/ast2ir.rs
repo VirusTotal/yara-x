@@ -1016,7 +1016,26 @@ fn for_in_expr_from_ast(
     let iterable = iterable_from_ast(ctx, &for_in.iterable)?;
 
     let expected_vars = match &iterable {
-        Iterable::Range(_) => vec![TypeValue::Integer(Value::Unknown)],
+        Iterable::Range(range) => {
+            // Raise warning when the for loop iterates over a range where
+            // the upper bound is based in `filesize`. These loops are
+            // potentially slow.
+            if range.lower_bound.type_value().is_const()
+                && range
+                    .upper_bound
+                    .dfs_find(|node| matches!(node, Expr::Filesize))
+                    .is_some()
+            {
+                ctx.warnings.add(|| {
+                    warnings::PotentiallySlowLoop::build(
+                        ctx.report_builder,
+                        for_in.iterable.span().into(),
+                    )
+                })
+            }
+
+            vec![TypeValue::Integer(Value::Unknown)]
+        }
         Iterable::ExprTuple(expressions) => {
             // All expressions in the tuple have the same type, we can use
             // the type of the first item in the tuple as the type of the

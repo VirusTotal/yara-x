@@ -234,7 +234,7 @@ mod test {
             ]),
         ]);
 
-        let mut dfs = expr.depth_first_search();
+        let mut dfs = expr.dfs_iter();
 
         assert!(matches!(dfs.next(), Some(Event::Enter(&Expr::Add { .. }))));
         assert!(matches!(dfs.next(), Some(Event::Enter(&Expr::Const(_)))));
@@ -248,14 +248,14 @@ mod test {
         assert!(matches!(dfs.next(), Some(Event::Leave(&Expr::Add { .. }))));
         assert!(dfs.next().is_none());
 
-        let mut dfs = expr.depth_first_search();
+        let mut dfs = expr.dfs_iter();
 
         assert!(matches!(dfs.next(), Some(Event::Enter(&Expr::Add { .. }))));
         dfs.prune();
         assert!(matches!(dfs.next(), Some(Event::Leave(&Expr::Add { .. }))));
         assert!(dfs.next().is_none());
 
-        let mut dfs = expr.depth_first_search();
+        let mut dfs = expr.dfs_iter();
 
         assert!(matches!(dfs.next(), Some(Event::Enter(&Expr::Add { .. }))));
         assert!(matches!(dfs.next(), Some(Event::Enter(&Expr::Const(_)))));
@@ -266,7 +266,7 @@ mod test {
         assert!(matches!(dfs.next(), Some(Event::Leave(&Expr::Add { .. }))));
         assert!(dfs.next().is_none());
 
-        let mut dfs = expr.depth_first_search();
+        let mut dfs = expr.dfs_iter();
 
         assert!(matches!(dfs.next(), Some(Event::Enter(&Expr::Add { .. }))));
         assert!(matches!(dfs.next(), Some(Event::Enter(&Expr::Const(_)))));
