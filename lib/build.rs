@@ -81,6 +81,12 @@ fn generate_module_files(proto_files: Vec<FileDescriptorProto>) {
 
     write!(add_modules_rs, "{{").unwrap();
 
+    // Sort modules by name, so that they always appear in the same order
+    // no matter the platform. If modules are not sorted, the order will
+    // vary from one platform to the other, in the same way that HashMap
+    // doesn't produce consistent key order.
+    modules.sort();
+
     for m in modules {
         let name = m.0;
         let proto_mod = m.1;
