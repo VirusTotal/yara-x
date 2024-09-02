@@ -44,6 +44,14 @@ fast-regexp = []
 # Enables debug logs.
 logging = ["dep:log"]
 
+# Enables parallel compilation of WASM code. When compiling large number of
+# rules this noticeable reduces compilation time. However, this creates new
+# threads, which can be problematic in some scenarios. See:
+# https://github.com/VirusTotal/yara-x/issues/182
+#
+# This feature is enabled by default.
+parallel-compilation = ["wasmtime/parallel-compilation"]
+
 # Enables rules profiling. When this is enabled together with `logging` the
 # logs will contain information about the most expensive rules after each
 # scan. Notice that profiling itself has a noticeable impact on performance.
@@ -53,7 +61,7 @@ rules-profiling = ["logging"]
 # When enabled use the logic included in the `x509-parser` crate for verifying
 # certificates. If not enabled we use our ouwn logic. This is disabled by
 # default.
-x509-parser-verify = ['x509-parser/verify']
+x509-parser-verify = ["x509-parser/verify"]
 
 # Features for enabling/disabling modules.
 #
@@ -149,6 +157,7 @@ default = [
     "constant-folding",
     "exact-atoms",
     "fast-regexp",
+    "parallel-compilation",
     "console-module",
     "dotnet-module",
     "elf-module",
