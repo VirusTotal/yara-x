@@ -1,3 +1,4 @@
+use bstr::ByteSlice;
 use std::hash::{Hash, Hasher};
 use std::mem;
 use std::ops::RangeInclusive;
@@ -252,6 +253,15 @@ impl Hir {
                     && !matches!(cap.sub.kind(), HirKind::Concat(_))
             }
             _ => false,
+        }
+    }
+
+    /// If the HIR represents a regular expression that can be reduced
+    /// to a literal sequence of bytes, returns the bytes.
+    pub fn as_literal_bytes(&self) -> Option<&[u8]> {
+        match self.inner.kind() {
+            HirKind::Literal(literal) => Some(literal.0.as_bytes()),
+            _ => None,
         }
     }
 }

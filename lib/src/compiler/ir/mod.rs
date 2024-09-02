@@ -96,6 +96,7 @@ bitmask! {
 pub(in crate::compiler) struct PatternInRule<'src> {
     identifier: Ident<'src>,
     pattern: Pattern,
+    span: Span,
     in_use: bool,
 }
 
@@ -113,6 +114,11 @@ impl<'src> PatternInRule<'src> {
     #[inline]
     pub fn pattern(&self) -> &Pattern {
         &self.pattern
+    }
+    
+    #[inline]
+    pub fn span(&self) -> &Span {
+        &self.span
     }
 
     #[inline]

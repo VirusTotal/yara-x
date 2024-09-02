@@ -1,0 +1,43 @@
+rule test_1 {
+	strings:
+		$a = { 00 00 00 00 }
+		$b = { 90 90 90 90 90 }
+		$c = { CC CC CC }
+	condition:
+		any of them
+}
+
+rule test_2 {
+	strings:
+		$a = "\x00\x00\x00\x00"
+		$b = "\x90\x90\x90\x90\x90"
+		$c = "\xCC\xCC\xCC"
+	condition:
+		any of them
+}
+
+rule test_3 {
+	strings:
+		$a = /\x00\x00\x00\x00/
+		$b = /\x90\x90\x90\x90\x90/
+		$c = "\xCC\xCC\xCC"
+	condition:
+		any of them
+}
+
+rule test_4 {
+	strings:
+		$a = "\x00\x00\x00\x00" base64
+		$b = "\x90\x90\x90\x90\x90" xor
+		$c = "\xCC\xCC\xCC" fullword
+		$d = "\x90x90\x90\x90" 
+	condition:
+		any of them
+}
+
+rule test_5 {
+	strings:
+		$a = "\x00\x00\x00\x00"
+	condition:
+		$a at 0
+}

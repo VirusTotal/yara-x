@@ -1,0 +1,36 @@
+warning[slow_pattern]: slow pattern
+ --> line:3:3
+  |
+3 |   $a = { 00 00 00 00 }
+  |   ------------------ this pattern may slow down the scan
+  |
+warning[slow_pattern]: slow pattern
+ --> line:4:3
+  |
+4 |   $b = { 90 90 90 90 90 }
+  |   --------------------- this pattern may slow down the scan
+  |
+warning[slow_pattern]: slow pattern
+  --> line:12:3
+   |
+12 |   $a = "\x00\x00\x00\x00"
+   |   ----------------------- this pattern may slow down the scan
+   |
+warning[slow_pattern]: slow pattern
+  --> line:13:3
+   |
+13 |   $b = "\x90\x90\x90\x90\x90"
+   |   --------------------------- this pattern may slow down the scan
+   |
+warning[slow_pattern]: slow pattern
+  --> line:21:3
+   |
+21 |   $a = /\x00\x00\x00\x00/
+   |   ----------------------- this pattern may slow down the scan
+   |
+warning[slow_pattern]: slow pattern
+  --> line:22:3
+   |
+22 |   $b = /\x90\x90\x90\x90\x90/
+   |   --------------------------- this pattern may slow down the scan
+   |
