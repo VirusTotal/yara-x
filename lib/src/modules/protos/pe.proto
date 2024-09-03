@@ -20,7 +20,7 @@ message PE {
   optional Version subsystem_version = 5;
   optional Version image_version = 6;
   optional Version linker_version = 7;
-  optional OptHdrMagic opthdr_magic = 8;
+  optional OptionalMagic opthdr_magic = 8;
   optional uint32 characteristics = 9 [(yaml.field).fmt = "flags:Characteristics"];
   optional uint32 dll_characteristics = 10 [(yaml.field).fmt = "flags:DllCharacteristics"];
   optional uint32 timestamp = 11 [(yaml.field).fmt = "t"];
@@ -122,7 +122,7 @@ message Import {
 }
 
 message Export {
-  optional string name= 1;
+  optional string name = 1;
   required uint32 ordinal = 2;
   required uint32 rva = 3;
   optional uint32 offset = 4;
@@ -263,45 +263,45 @@ message Overlay {
 
 enum Machine {
   option (yara.enum_options).inline = true;
-  MACHINE_UNKNOWN   = 0x0000;
-  MACHINE_AM33      = 0x01d3;
-  MACHINE_AMD64     = 0x8664;
-  MACHINE_ARM       = 0x01c0;
-  MACHINE_ARMNT     = 0x01c4;
-  MACHINE_ARM64     = 0xaa64;
-  MACHINE_EBC       = 0x0ebc;
-  MACHINE_I386      = 0x014c;
-  MACHINE_IA64      = 0x0200;
-  MACHINE_M32R      = 0x9041;
-  MACHINE_MIPS16    = 0x0266;
-  MACHINE_MIPSFPU   = 0x0366;
+  MACHINE_UNKNOWN = 0x0000;
+  MACHINE_AM33 = 0x01d3;
+  MACHINE_AMD64 = 0x8664;
+  MACHINE_ARM = 0x01c0;
+  MACHINE_ARMNT = 0x01c4;
+  MACHINE_ARM64 = 0xaa64;
+  MACHINE_EBC = 0x0ebc;
+  MACHINE_I386 = 0x014c;
+  MACHINE_IA64 = 0x0200;
+  MACHINE_M32R = 0x9041;
+  MACHINE_MIPS16 = 0x0266;
+  MACHINE_MIPSFPU = 0x0366;
   MACHINE_MIPSFPU16 = 0x0466;
-  MACHINE_POWERPC   = 0x01f0;
+  MACHINE_POWERPC = 0x01f0;
   MACHINE_POWERPCFP = 0x01f1;
-  MACHINE_R4000     = 0x0166;
-  MACHINE_SH3       = 0x01a2;
-  MACHINE_SH3DSP    = 0x01a3;
-  MACHINE_SH4       = 0x01a6;
-  MACHINE_SH5       = 0x01a8;
-  MACHINE_THUMB     = 0x01c2;
+  MACHINE_R4000 = 0x0166;
+  MACHINE_SH3 = 0x01a2;
+  MACHINE_SH3DSP = 0x01a3;
+  MACHINE_SH4 = 0x01a6;
+  MACHINE_SH5 = 0x01a8;
+  MACHINE_THUMB = 0x01c2;
   MACHINE_WCEMIPSV2 = 0x0169;
 }
 
 enum Subsystem {
   option (yara.enum_options).inline = true;
-  SUBSYSTEM_UNKNOWN                  = 0;
-  SUBSYSTEM_NATIVE                   = 1;
-  SUBSYSTEM_WINDOWS_GUI              = 2;
-  SUBSYSTEM_WINDOWS_CUI              = 3;
-  SUBSYSTEM_OS2_CUI                  = 5;
-  SUBSYSTEM_POSIX_CUI                = 7;
-  SUBSYSTEM_NATIVE_WINDOWS           = 8;
-  SUBSYSTEM_WINDOWS_CE_GUI           = 9;
-  SUBSYSTEM_EFI_APPLICATION          = 10;
-  SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER  = 11;
-  SUBSYSTEM_EFI_RUNTIME_DRIVER       = 12;
-  SUBSYSTEM_EFI_ROM_IMAGE            = 13;
-  SUBSYSTEM_XBOX                     = 14;
+  SUBSYSTEM_UNKNOWN = 0;
+  SUBSYSTEM_NATIVE = 1;
+  SUBSYSTEM_WINDOWS_GUI = 2;
+  SUBSYSTEM_WINDOWS_CUI = 3;
+  SUBSYSTEM_OS2_CUI = 5;
+  SUBSYSTEM_POSIX_CUI = 7;
+  SUBSYSTEM_NATIVE_WINDOWS = 8;
+  SUBSYSTEM_WINDOWS_CE_GUI = 9;
+  SUBSYSTEM_EFI_APPLICATION = 10;
+  SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER = 11;
+  SUBSYSTEM_EFI_RUNTIME_DRIVER = 12;
+  SUBSYSTEM_EFI_ROM_IMAGE = 13;
+  SUBSYSTEM_XBOX = 14;
   SUBSYSTEM_WINDOWS_BOOT_APPLICATION = 16;
 }
 
@@ -312,123 +312,118 @@ enum ImportFlags {
   IMPORT_ANY = 0x03;
 }
 
-enum OptHdrMagic {
-  IMAGE_NT_OPTIONAL_HDR32_MAGIC = 0x10b;
-  IMAGE_NT_OPTIONAL_HDR64_MAGIC = 0x20b;
-}
-
 enum Characteristics {
   option (yara.enum_options).inline = true;
   // Relocation info stripped from file.
-  RELOCS_STRIPPED         = 0x0001;
+  RELOCS_STRIPPED = 0x0001;
   // File is executable (i.e. no unresolved external references).
-  EXECUTABLE_IMAGE        = 0x0002;
+  EXECUTABLE_IMAGE = 0x0002;
   // Line numbers stripped from file.
-  LINE_NUMS_STRIPPED      = 0x0004;
+  LINE_NUMS_STRIPPED = 0x0004;
   // Local symbols stripped from file.
-  LOCAL_SYMS_STRIPPED     = 0x0008;
+  LOCAL_SYMS_STRIPPED = 0x0008;
   // Aggressively trim working set
-  AGGRESIVE_WS_TRIM       = 0x0010;
+  AGGRESIVE_WS_TRIM = 0x0010;
   // App can handle >2gb addresses
-  LARGE_ADDRESS_AWARE     = 0x0020;
+  LARGE_ADDRESS_AWARE = 0x0020;
   // Bytes of machine word are reversed.
-  BYTES_REVERSED_LO       = 0x0080;
+  BYTES_REVERSED_LO = 0x0080;
   // 32 bit word machine.
-  MACHINE_32BIT           = 0x0100;
+  MACHINE_32BIT = 0x0100;
   // Debugging info stripped from file in .DBG file
-  DEBUG_STRIPPED          = 0x0200;
+  DEBUG_STRIPPED = 0x0200;
   // If Image is on removable media, copy and run from the swap file.
   REMOVABLE_RUN_FROM_SWAP = 0x0400;
   // If Image is on Net, copy and run from the swap file.
-  NET_RUN_FROM_SWAP       = 0x0800;
+  NET_RUN_FROM_SWAP = 0x0800;
   // System File.
-  SYSTEM                  = 0x1000;
+  SYSTEM = 0x1000;
   // File is a DLL.s
-  DLL                     = 0x2000;
+  DLL = 0x2000;
   // File should only be run on a UP machine
-  UP_SYSTEM_ONLY          = 0x4000;
+  UP_SYSTEM_ONLY = 0x4000;
   // Bytes of machine word are reversed.
-  BYTES_REVERSED_HI       = 0x8000;
+  BYTES_REVERSED_HI = 0x8000;
 }
 
 enum OptionalMagic {
   option (yara.enum_options).inline = true;
   IMAGE_NT_OPTIONAL_HDR32_MAGIC = 0x10b;
   IMAGE_NT_OPTIONAL_HDR64_MAGIC = 0x20b;
-  IMAGE_ROM_OPTIONAL_HDR_MAGIC  = 0x107;
+  IMAGE_ROM_OPTIONAL_HDR_MAGIC = 0x107;
 }
 
 enum DirectoryEntry {
   option (yara.enum_options).inline = true;
-  IMAGE_DIRECTORY_ENTRY_EXPORT        =  0  [(yara.enum_value).i64 = 0];
-  IMAGE_DIRECTORY_ENTRY_IMPORT        =  1  [(yara.enum_value).i64 = 1];
-  IMAGE_DIRECTORY_ENTRY_RESOURCE      =  2  [(yara.enum_value).i64 = 2];
-  IMAGE_DIRECTORY_ENTRY_EXCEPTION     =  3  [(yara.enum_value).i64 = 3];
-  IMAGE_DIRECTORY_ENTRY_SECURITY      =  4  [(yara.enum_value).i64 = 4];
-  IMAGE_DIRECTORY_ENTRY_BASERELOC     =  5  [(yara.enum_value).i64 = 5];
-  IMAGE_DIRECTORY_ENTRY_DEBUG         =  6  [(yara.enum_value).i64 = 6];
+  IMAGE_DIRECTORY_ENTRY_EXPORT = 0  [(yara.enum_value).i64 = 0];
+  IMAGE_DIRECTORY_ENTRY_IMPORT = 1  [(yara.enum_value).i64 = 1];
+  IMAGE_DIRECTORY_ENTRY_RESOURCE = 2  [(yara.enum_value).i64 = 2];
+  IMAGE_DIRECTORY_ENTRY_EXCEPTION = 3  [(yara.enum_value).i64 = 3];
+  IMAGE_DIRECTORY_ENTRY_SECURITY = 4  [(yara.enum_value).i64 = 4];
+  IMAGE_DIRECTORY_ENTRY_BASERELOC = 5  [(yara.enum_value).i64 = 5];
+  IMAGE_DIRECTORY_ENTRY_DEBUG = 6  [(yara.enum_value).i64 = 6];
   // IMAGE_DIRECTORY_ENTRY_COPYRIGHT and IMAGE_DIRECTORY_ENTRY_ARCHITECTURE
   // have the same value (7).
-  IMAGE_DIRECTORY_ENTRY_COPYRIGHT     =  7  [(yara.enum_value).i64 = 7];
-  IMAGE_DIRECTORY_ENTRY_ARCHITECTURE  =  8  [(yara.enum_value).i64 = 7];
-  IMAGE_DIRECTORY_ENTRY_GLOBALPTR     =  9  [(yara.enum_value).i64 = 8];
-  IMAGE_DIRECTORY_ENTRY_TLS           =  10 [(yara.enum_value).i64 = 9];
-  IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG    = 11 [(yara.enum_value).i64 = 10];
-  IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT   = 12 [(yara.enum_value).i64 = 11];
-  IMAGE_DIRECTORY_ENTRY_IAT            = 13 [(yara.enum_value).i64 = 12];
-  IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT   = 14 [(yara.enum_value).i64 = 13];
+  IMAGE_DIRECTORY_ENTRY_COPYRIGHT = 7  [(yara.enum_value).i64 = 7];
+  IMAGE_DIRECTORY_ENTRY_ARCHITECTURE = 8  [(yara.enum_value).i64 = 7];
+  IMAGE_DIRECTORY_ENTRY_GLOBALPTR = 9  [(yara.enum_value).i64 = 8];
+  IMAGE_DIRECTORY_ENTRY_TLS = 10 [(yara.enum_value).i64 = 9];
+  IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG = 11 [(yara.enum_value).i64 = 10];
+  IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT = 12 [(yara.enum_value).i64 = 11];
+  IMAGE_DIRECTORY_ENTRY_IAT = 13 [(yara.enum_value).i64 = 12];
+  IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT = 14 [(yara.enum_value).i64 = 13];
   IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR = 15 [(yara.enum_value).i64 = 14];
 }
 
 enum SectionCharacteristics {
   option (yara.enum_options).inline = true;
-  SECTION_NO_PAD                 = 1 [(yara.enum_value).i64 = 0x00000008];
-  SECTION_CNT_CODE               = 2 [(yara.enum_value).i64 = 0x00000020];
-  SECTION_CNT_INITIALIZED_DATA   = 3 [(yara.enum_value).i64 = 0x00000040];
+  SECTION_NO_PAD = 1 [(yara.enum_value).i64 = 0x00000008];
+  SECTION_CNT_CODE = 2 [(yara.enum_value).i64 = 0x00000020];
+  SECTION_CNT_INITIALIZED_DATA = 3 [(yara.enum_value).i64 = 0x00000040];
   SECTION_CNT_UNINITIALIZED_DATA = 4 [(yara.enum_value).i64 = 0x00000080];
-  SECTION_LNK_OTHER              = 5 [(yara.enum_value).i64 = 0x00000100];
-  SECTION_LNK_INFO               = 6 [(yara.enum_value).i64 = 0x00000200];
-  SECTION_LNK_REMOVE             = 7 [(yara.enum_value).i64 = 0x00000800];
-  SECTION_LNK_COMDAT             = 8 [(yara.enum_value).i64 = 0x00001000];
-  SECTION_NO_DEFER_SPEC_EXC      = 9 [(yara.enum_value).i64 = 0x00004000];
-  SECTION_GPREL                  = 10 [(yara.enum_value).i64 = 0x00008000];
-  SECTION_ALIGN_1BYTES           = 11 [(yara.enum_value).i64 = 0x00100000];
-  SECTION_ALIGN_2BYTES           = 12 [(yara.enum_value).i64 = 0x00200000];
-  SECTION_ALIGN_4BYTES           = 13 [(yara.enum_value).i64 = 0x00300000];
-  SECTION_ALIGN_8BYTES           = 14 [(yara.enum_value).i64 = 0x00400000];
-  SECTION_ALIGN_16BYTES          = 15 [(yara.enum_value).i64 = 0x00500000];
-  SECTION_ALIGN_32BYTES          = 16 [(yara.enum_value).i64 = 0x00600000];
-  SECTION_ALIGN_64BYTES          = 17 [(yara.enum_value).i64 = 0x00700000];
-  SECTION_ALIGN_128BYTES         = 18 [(yara.enum_value).i64 = 0x00800000];
-  SECTION_ALIGN_256BYTES         = 19 [(yara.enum_value).i64 = 0x00900000];
-  SECTION_ALIGN_512BYTES         = 20 [(yara.enum_value).i64 = 0x00A00000];
-  SECTION_ALIGN_1024BYTES        = 21 [(yara.enum_value).i64 = 0x00B00000];
-  SECTION_ALIGN_2048BYTES        = 22 [(yara.enum_value).i64 = 0x00C00000];
-  SECTION_ALIGN_4096BYTES        = 23 [(yara.enum_value).i64 = 0x00D00000];
-  SECTION_ALIGN_8192BYTES        = 24 [(yara.enum_value).i64 = 0x00E00000];
-  SECTION_ALIGN_MASK             = 25 [(yara.enum_value).i64 = 0x00F00000];
-  SECTION_LNK_NRELOC_OVFL        = 26 [(yara.enum_value).i64 = 0x01000000];
-  SECTION_MEM_DISCARDABLE        = 27 [(yara.enum_value).i64 = 0x02000000];
-  SECTION_MEM_NOT_CACHED         = 28 [(yara.enum_value).i64 = 0x04000000];
-  SECTION_MEM_NOT_PAGED          = 29 [(yara.enum_value).i64 = 0x08000000];
-  SECTION_MEM_SHARED             = 30 [(yara.enum_value).i64 = 0x10000000];
-  SECTION_MEM_EXECUTE            = 31 [(yara.enum_value).i64 = 0x20000000];
-  SECTION_MEM_READ               = 32 [(yara.enum_value).i64 = 0x40000000];
-  SECTION_MEM_WRITE              = 33 [(yara.enum_value).i64 = 0x80000000];
-  SECTION_SCALE_INDEX            = 34 [(yara.enum_value).i64 = 0x00000001];
+  SECTION_LNK_OTHER = 5 [(yara.enum_value).i64 = 0x00000100];
+  SECTION_LNK_INFO = 6 [(yara.enum_value).i64 = 0x00000200];
+  SECTION_LNK_REMOVE = 7 [(yara.enum_value).i64 = 0x00000800];
+  SECTION_LNK_COMDAT = 8 [(yara.enum_value).i64 = 0x00001000];
+  SECTION_NO_DEFER_SPEC_EXC = 9 [(yara.enum_value).i64 = 0x00004000];
+  SECTION_GPREL = 10 [(yara.enum_value).i64 = 0x00008000];
+  SECTION_ALIGN_1BYTES = 11 [(yara.enum_value).i64 = 0x00100000];
+  SECTION_ALIGN_2BYTES = 12 [(yara.enum_value).i64 = 0x00200000];
+  SECTION_ALIGN_4BYTES = 13 [(yara.enum_value).i64 = 0x00300000];
+  SECTION_ALIGN_8BYTES = 14 [(yara.enum_value).i64 = 0x00400000];
+  SECTION_ALIGN_16BYTES = 15 [(yara.enum_value).i64 = 0x00500000];
+  SECTION_ALIGN_32BYTES = 16 [(yara.enum_value).i64 = 0x00600000];
+  SECTION_ALIGN_64BYTES = 17 [(yara.enum_value).i64 = 0x00700000];
+  SECTION_ALIGN_128BYTES = 18 [(yara.enum_value).i64 = 0x00800000];
+  SECTION_ALIGN_256BYTES = 19 [(yara.enum_value).i64 = 0x00900000];
+  SECTION_ALIGN_512BYTES = 20 [(yara.enum_value).i64 = 0x00A00000];
+  SECTION_ALIGN_1024BYTES = 21 [(yara.enum_value).i64 = 0x00B00000];
+  SECTION_ALIGN_2048BYTES = 22 [(yara.enum_value).i64 = 0x00C00000];
+  SECTION_ALIGN_4096BYTES = 23 [(yara.enum_value).i64 = 0x00D00000];
+  SECTION_ALIGN_8192BYTES = 24 [(yara.enum_value).i64 = 0x00E00000];
+  SECTION_ALIGN_MASK = 25 [(yara.enum_value).i64 = 0x00F00000];
+  SECTION_LNK_NRELOC_OVFL = 26 [(yara.enum_value).i64 = 0x01000000];
+  SECTION_MEM_DISCARDABLE = 27 [(yara.enum_value).i64 = 0x02000000];
+  SECTION_MEM_NOT_CACHED = 28 [(yara.enum_value).i64 = 0x04000000];
+  SECTION_MEM_NOT_PAGED = 29 [(yara.enum_value).i64 = 0x08000000];
+  SECTION_MEM_SHARED = 30 [(yara.enum_value).i64 = 0x10000000];
+  SECTION_MEM_EXECUTE = 31 [(yara.enum_value).i64 = 0x20000000];
+  SECTION_MEM_READ = 32 [(yara.enum_value).i64 = 0x40000000];
+  SECTION_MEM_WRITE = 33 [(yara.enum_value).i64 = 0x80000000];
+  SECTION_SCALE_INDEX = 34 [(yara.enum_value).i64 = 0x00000001];
 }
 
 enum DllCharacteristics {
   option (yara.enum_options).inline = true;
-  HIGH_ENTROPY_VA       = 0x0020;
-  DYNAMIC_BASE          = 0x0040;
-  FORCE_INTEGRITY       = 0x0080;
-  NX_COMPAT             = 0x0100;
-  NO_ISOLATION          = 0x0200;
-  NO_SEH                = 0x0400;
-  NO_BIND               = 0x0800;
-  APPCONTAINER          = 0x1000;
-  WDM_DRIVER            = 0x2000;
-  GUARD_CF              = 0x4000;
+  HIGH_ENTROPY_VA = 0x0020;
+  DYNAMIC_BASE = 0x0040;
+  FORCE_INTEGRITY = 0x0080;
+  NX_COMPAT = 0x0100;
+  NO_ISOLATION = 0x0200;
+  NO_SEH = 0x0400;
+  NO_BIND = 0x0800;
+  APPCONTAINER = 0x1000;
+  WDM_DRIVER = 0x2000;
+  GUARD_CF = 0x4000;
   TERMINAL_SERVER_AWARE = 0x8000;
 }

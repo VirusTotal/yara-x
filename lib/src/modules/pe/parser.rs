@@ -2213,7 +2213,7 @@ impl From<PE<'_>> for protos::pe::PE {
         result.set_number_of_symbols(pe.pe_hdr.number_of_symbols);
         result.set_size_of_optional_header(pe.pe_hdr.size_of_optional_header.into());
 
-        result.opthdr_magic = Some(EnumOrUnknown::<protos::pe::OptHdrMagic>::from_i32(pe
+        result.opthdr_magic = Some(EnumOrUnknown::<protos::pe::OptionalMagic>::from_i32(pe
             .optional_hdr
             .magic.into()));
 
