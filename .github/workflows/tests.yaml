@@ -21,6 +21,7 @@ jobs:
         - win-msvc
         # - win-gnu
         - no-default-features
+        - protoc
         include:
         - build: msrv
           os: ubuntu-latest
