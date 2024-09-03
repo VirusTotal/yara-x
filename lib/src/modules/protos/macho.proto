@@ -113,7 +113,7 @@ message Segment {
   optional uint32 maxprot = 8 [(yaml.field).fmt = "x"];
   optional uint32 initprot = 9 [(yaml.field).fmt = "x"];
   optional uint32 nsects = 10;
-  optional uint32 flags = 11 [(yaml.field).fmt = "flags:SEGMENT_FLAG"];
+  optional uint32 flags = 11 [(yaml.field).fmt = "flags:SegmentFlag"];
   repeated Section sections = 12;
 }
 
@@ -133,7 +133,7 @@ message File {
   optional uint32 filetype = 4;
   optional uint32 ncmds = 5;
   optional uint32 sizeofcmds = 6;
-  optional uint32 flags = 7 [(yaml.field).fmt = "flags:FILE_FLAG"];
+  optional uint32 flags = 7 [(yaml.field).fmt = "flags:FileFlag"];
   optional uint32 reserved = 8;
   optional uint64 number_of_segments = 9;
   optional bytes dynamic_linker = 10;
