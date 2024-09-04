@@ -31,7 +31,7 @@ use pyo3::types::{
 };
 use pyo3_file::PyFileLikeObject;
 
-use ::yara_x::{self as yrx, ScanInput};
+use ::yara_x as yrx;
 
 /// Compiles a YARA source code producing a set of compiled [`Rules`].
 ///
@@ -354,13 +354,10 @@ impl Scanner {
 
     /// Scans a file.
     fn scan_file(&mut self, path: PathBuf) -> PyResult<Py<ScanResults>> {
-        let scan_input =
-            ScanInput { target_file: path.as_path(), metadata_file: None };
-
         Python::with_gil(|py| {
             scan_results_to_py(
                 py,
-                self.inner.scan_file(&scan_input).map_err(map_scan_err)?,
+                self.inner.scan_file(path.as_path()).map_err(map_scan_err)?,
             )
         })
     }

@@ -5,13 +5,12 @@ This allows creating YARA rules based on .NET metadata.
 
 use crate::modules::prelude::*;
 use crate::modules::protos::dotnet::*;
-use crate::ScanInputRaw;
 
 pub mod parser;
 
 #[module_main]
-fn main(input: &ScanInputRaw) -> Dotnet {
-    match parser::Dotnet::parse(input.target) {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Dotnet {
+    match parser::Dotnet::parse(data) {
         Ok(dotnet) => dotnet.into(),
         Err(_) => {
             let mut dotnet = Dotnet::new();

@@ -12,7 +12,6 @@ use tlsh_fixed as tlsh;
 
 use crate::modules::prelude::*;
 use crate::modules::protos::elf::*;
-use crate::ScanInputRaw;
 
 pub mod parser;
 
@@ -20,8 +19,8 @@ pub mod parser;
 mod tests;
 
 #[module_main]
-fn main(data: &ScanInputRaw) -> ELF {
-    match parser::ElfParser::new().parse(data.target) {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> ELF {
+    match parser::ElfParser::new().parse(data) {
         Ok(elf) => elf,
         Err(_) => ELF::new(),
     }

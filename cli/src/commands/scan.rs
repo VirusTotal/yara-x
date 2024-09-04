@@ -3,7 +3,7 @@ use std::cmp::min;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Error};
@@ -15,13 +15,15 @@ use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
 use yara_x::errors::ScanError;
-use yara_x::{MetaValue, Rule, Rules, ScanInput, ScanResults, Scanner};
+use yara_x::{MetaValue, Rule, Rules, ScanResults, Scanner};
 
 use crate::commands::{
     compile_rules, external_var_parser, truncate_with_ellipsis,
 };
 use crate::walk::Message;
 use crate::{help, walk};
+
+use super::meta_file_value_parser;
 
 #[derive(Clone, ValueEnum)]
 enum OutputFormats {
@@ -150,6 +152,16 @@ pub fn scan() -> Command {
                 .value_parser(external_var_parser)
                 .action(ArgAction::Append)
         )
+        .arg(
+            arg!(-x --"module-data")
+                .help("Pass FILE's content as extra data to MODULE")
+                .long_help(help::MODULE_DATA_LONG_HELP)
+                .required(false)
+                .value_name("MODULE=FILE")
+                .value_parser(value_parser!(PathBuf))
+                .value_parser(meta_file_value_parser)
+                .action(ArgAction::Append)
+        )
 }
 
 pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
@@ -168,6 +180,13 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let mut external_vars: Option<Vec<(String, serde_json::Value)>> = args
         .get_many::<(String, serde_json::Value)>("define")
         .map(|var| var.cloned().collect());
+
+    let metadata = args
+        .get_many::<(String, PathBuf)>("module-data")
+        .into_iter()
+        .flatten()
+        // collect to eagerly call the parser on each element
+        .collect::<Vec<_>>();
 
     let rules = if compiled_rules {
         if rules_path.len() > 1 {
@@ -248,6 +267,18 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let start_time = Instant::now();
     let state = ScanState::new(start_time);
 
+    let all_metadata = {
+        let mut all_metadata = Vec::new();
+        for (module_full_name, metadata_path) in metadata {
+            let meta = std::fs::read(Path::new(metadata_path))?;
+
+            let arcd_meta = Arc::<[u8]>::from(meta);
+
+            all_metadata.push((module_full_name.to_string(), arcd_meta));
+        }
+        all_metadata
+    };
+
     w.walk(
         state,
         // Initialization
@@ -292,12 +323,13 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 .push((file_path.clone(), now));
 
             let target_file = file_path.as_path();
-            let metadata_file = metadata_path.map(|p| p.as_path());
 
-            let scan_input = ScanInput { target_file, metadata_file };
+            for (module_full_name, meta) in all_metadata.iter() {
+                scanner.set_module_meta(module_full_name, Some(meta));
+            }
 
             let scan_results = scanner
-                .scan_file(&scan_input)
+                .scan_file(target_file)
                 .with_context(|| format!("scanning {:?}", &file_path));
 
             state

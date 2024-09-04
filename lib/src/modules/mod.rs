@@ -3,8 +3,6 @@ use protobuf::reflect::MessageDescriptor;
 use protobuf::MessageDyn;
 use rustc_hash::FxHashMap;
 
-use crate::scanner::ScanInputRaw;
-
 pub mod protos {
     include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 }
@@ -26,7 +24,7 @@ pub(crate) mod prelude {
 include!("modules.rs");
 
 /// Type of module's main function.
-type MainFn = fn(&ScanInputRaw) -> Box<dyn MessageDyn>;
+type MainFn = fn(&[u8], Option<&[u8]>) -> Box<dyn MessageDyn>;
 
 /// Describes a YARA module.
 pub(crate) struct Module {
@@ -136,13 +134,9 @@ pub mod mods {
 
     ```rust
     # use yara_x;
-    # use yara_x::ScanInputRaw;
-    # let data = ScanInputRaw { target: &[], meta: None };
-    let pe_info = yara_x::mods::invoke::<yara_x::mods::PE>(&data);
+    let pe_info = yara_x::mods::invoke::<yara_x::mods::PE>(&[], None);
     ```
      */
-
-    use crate::ScanInputRaw;
 
     /// Data structures defined by the `dotnet` module.
     ///
@@ -215,14 +209,13 @@ pub mod mods {
     /// # Example
     /// ```rust
     /// # use yara_x;
-    /// # use yara_x::ScanInputRaw;
-    /// # let data = ScanInputRaw { target: &[], meta: None };
-    /// let elf_info = yara_x::mods::invoke::<yara_x::mods::ELF>(&data);
+    /// let elf_info = yara_x::mods::invoke::<yara_x::mods::ELF>(&[], None);
     /// ```
     pub fn invoke<T: protobuf::MessageFull>(
-        data: &ScanInputRaw,
+        data: &[u8],
+        meta: Option<&[u8]>,
     ) -> Option<Box<T>> {
-        let module_output = invoke_dyn::<T>(data)?;
+        let module_output = invoke_dyn::<T>(data, meta)?;
         Some(<dyn protobuf::MessageDyn>::downcast_box(module_output).unwrap())
     }
 
@@ -232,7 +225,8 @@ pub mod mods {
     /// This function is similar to [`invoke`] but its result is a dynamic-
     /// dispatch version of the structure returned by the YARA module.
     pub fn invoke_dyn<T: protobuf::MessageFull>(
-        data: &ScanInputRaw,
+        data: &[u8],
+        meta: Option<&[u8]>,
     ) -> Option<Box<dyn protobuf::MessageDyn>> {
         let descriptor = T::descriptor();
         let proto_name = descriptor.full_name();
@@ -241,7 +235,7 @@ pub mod mods {
                 module.root_struct_descriptor.full_name() == proto_name
             })?;
 
-        Some(module.main_fn?(data))
+        Some(module.main_fn?(data, meta))
     }
 
     /// Invoke all YARA modules and return the data produced by them.
@@ -252,17 +246,15 @@ pub mod mods {
     /// # Example
     /// ```rust
     /// # use yara_x;
-    /// # use yara_x::ScanInputRaw;
-    /// # let data = ScanInputRaw { target: &[], meta: None };
-    /// let modules_output = yara_x::mods::invoke_all(&data);
+    /// let modules_output = yara_x::mods::invoke_all(&[], None);
     /// ```
-    pub fn invoke_all(data: &ScanInputRaw) -> Box<Modules> {
+    pub fn invoke_all(data: &[u8], meta: Option<&[u8]>) -> Box<Modules> {
         let mut info = Box::new(Modules::new());
-        info.pe = protobuf::MessageField(invoke::<PE>(data));
-        info.elf = protobuf::MessageField(invoke::<ELF>(data));
-        info.dotnet = protobuf::MessageField(invoke::<Dotnet>(data));
-        info.macho = protobuf::MessageField(invoke::<Macho>(data));
-        info.lnk = protobuf::MessageField(invoke::<Lnk>(data));
+        info.pe = protobuf::MessageField(invoke::<PE>(data, meta));
+        info.elf = protobuf::MessageField(invoke::<ELF>(data, meta));
+        info.dotnet = protobuf::MessageField(invoke::<Dotnet>(data, meta));
+        info.macho = protobuf::MessageField(invoke::<Macho>(data, meta));
+        info.lnk = protobuf::MessageField(invoke::<Lnk>(data, meta));
         info
     }
 

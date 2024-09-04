@@ -4,6 +4,7 @@ use std::ops::{Range, RangeInclusive};
 use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
 #[cfg(feature = "logging")]
 use log::*;
@@ -83,6 +84,18 @@ pub(crate) struct ScanContext<'r> {
     /// operation. Keys are the fully qualified protobuf message names, and
     /// values are the protobuf messages set with [`Scanner::set_module_output`].
     pub user_provided_module_outputs: FxHashMap<String, Box<dyn MessageDyn>>,
+    /// Hash map that contains the metadata for modules for *the next scan*.
+    /// The reasoning behind having an `Arc<[u8]>` instead of a `Vec<u8>` is
+    /// the fact that we need to set this hashmap way too often for batch scans
+    /// (metadata must be set for each file). The overhead of cloning the
+    /// vector alternative could be non-trivial (`O(1)` vs `O(n)`) for a single
+    /// iteration/file.
+    ///
+    /// Chose `Arc<_>` over `Rc<_>` for `Arc<_>` compatibility with `Send` and
+    /// `Sync` traits.
+    ///
+    /// Avoided `&[u8]` because of lifetimes
+    pub module_meta: FxHashMap<String, Arc<[u8]>>,
     /// Hash map that tracks the matches occurred during a scan. The keys
     /// are the PatternId of the matching pattern, and values are a list
     /// of matches.

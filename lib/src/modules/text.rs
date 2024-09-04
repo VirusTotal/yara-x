@@ -1,7 +1,7 @@
 // Example "text" module described in the Module's Developer Guide.
 //
+use crate::modules::prelude::*;
 use crate::modules::protos::text::*;
-use crate::{modules::prelude::*, ScanInputRaw};
 
 use std::io;
 use std::io::BufRead;
@@ -18,7 +18,7 @@ use lingua::{Language, LanguageDetectorBuilder};
 /// This function must return an instance of the protobuf message indicated
 /// in the `root_message` option in `text.proto`.
 #[module_main]
-fn main(data: &ScanInputRaw) -> Text {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Text {
     // Create an empty instance of the Text protobuf.
     let mut text_proto = Text::new();
 
@@ -26,7 +26,7 @@ fn main(data: &ScanInputRaw) -> Text {
     let mut num_words = 0;
 
     // Create cursor for iterating over the lines.
-    let cursor = io::Cursor::new(data.target);
+    let cursor = io::Cursor::new(data);
 
     // Count the lines and words in the file.
     for line in cursor.lines() {

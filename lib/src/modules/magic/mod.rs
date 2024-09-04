@@ -7,7 +7,6 @@ This allows creating YARA rules that use the file type provided by [libmagic][1]
 
 use crate::modules::prelude::*;
 use crate::modules::protos::magic::*;
-use crate::ScanInputRaw;
 use std::cell::RefCell;
 
 #[cfg(feature = "logging")]
@@ -35,7 +34,7 @@ thread_local! {
 }
 
 #[module_main]
-fn main(_data: &ScanInputRaw) -> Magic {
+fn main(_data: &[u8], _meta: Option<&[u8]>) -> Magic {
     // With every scanned file the cache must be cleared.
     TYPE_CACHE.set(None);
     MIME_TYPE_CACHE.set(None);

@@ -19,7 +19,6 @@ use crate::compiler::RegexpId;
 use crate::modules::prelude::*;
 use crate::modules::protos::pe::*;
 use crate::types::Struct;
-use crate::ScanInputRaw;
 
 #[cfg(test)]
 mod tests;
@@ -30,8 +29,8 @@ pub mod parser;
 mod rva2off;
 
 #[module_main]
-fn main(input: &ScanInputRaw) -> PE {
-    match parser::PE::parse(input.target) {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> PE {
+    match parser::PE::parse(data) {
         Ok(pe) => pe.into(),
         Err(_) => {
             let mut pe = PE::new();
