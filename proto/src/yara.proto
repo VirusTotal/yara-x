@@ -17,6 +17,13 @@ message ModuleOptions {
 message FieldOptions {
   optional string name = 1;
   optional bool ignore = 2;
+  repeated AclEntry acl = 3;
+}
+
+message AclEntry {
+  required string allow_if = 1;
+  required string error_title = 2;
+  required string error_label = 3;
 }
 
 message MessageOptions {

@@ -6,7 +6,7 @@ use std::rc::Rc;
 use bstr::{BStr, ByteSlice};
 
 use crate::compiler::{RuleId, Var};
-use crate::types::{Func, TypeValue};
+use crate::types::{AclEntry, Func, TypeValue};
 
 /// Trait implemented by types that allow looking up for a symbol.
 pub(crate) trait SymbolLookup {
@@ -27,12 +27,17 @@ pub(crate) struct Symbol {
 pub(crate) enum SymbolKind {
     /// The symbol refers to a WASM-side variable.
     Var(Var),
-    /// The symbol refers to a field in a structure. Fields in the tuple
-    /// are a `usize` containing the index the field occupies in the
-    /// structure and `bool` that is `true` if the symbol refers to a
-    /// field in the root structure. If it is `false` it refers to the
-    /// structure whose reference is at the top of the WASM stack.
-    Field(usize, bool),
+    /// The symbol refers to a field in a structure.
+    Field {
+        /// Index the field occupies in its parent structure.
+        index: usize,
+        /// `true` if the symbol refers to a field in the root structure. If it
+        /// is `false` it refers to the structure whose reference is at the top
+        /// of the WASM stack.
+        is_root: bool,
+        /// Access control list (ACL) for accessing this field.
+        acl: Option<Vec<AclEntry>>,
+    },
     /// The symbol refers to a rule.
     Rule(RuleId),
     /// The symbol refers to a function.

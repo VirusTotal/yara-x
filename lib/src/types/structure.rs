@@ -20,6 +20,14 @@ use crate::symbols::{Symbol, SymbolKind, SymbolLookup};
 use crate::types::{Array, Map, TypeValue, Value};
 use crate::wasm::WasmExport;
 
+/// A feature required for accessing some struct field.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct AclEntry {
+    pub allow_if: String,
+    pub error_title: String,
+    pub error_label: String,
+}
+
 /// A field in a [`Struct`].
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct StructField {
@@ -28,6 +36,8 @@ pub(crate) struct StructField {
     pub number: u64,
     /// Field type and value.
     pub type_value: TypeValue,
+    /// Access control list (ACL) for accessing this struct field.
+    pub acl: Option<Vec<AclEntry>>,
 }
 
 /// A dynamic structure with one or more fields.
@@ -65,7 +75,11 @@ impl SymbolLookup for Struct {
         let (field, index) = self.field_and_index_by_name(ident)?;
         Some(Symbol::new(
             field.type_value.clone(),
-            SymbolKind::Field(index, self.is_root),
+            SymbolKind::Field {
+                index,
+                is_root: self.is_root,
+                acl: field.acl.clone(),
+            },
         ))
     }
 }
@@ -117,6 +131,7 @@ impl Struct {
                 .or_insert_with(|| StructField {
                     type_value: TypeValue::Struct(Rc::new(Struct::new())),
                     number: 0,
+                    acl: None,
                 });
 
             if let TypeValue::Struct(ref mut s) = field.type_value {
@@ -132,8 +147,10 @@ impl Struct {
                 panic!("field `{}` is not a struct", &name[0..dot])
             }
         } else {
-            self.fields
-                .insert(name, StructField { type_value: value, number: 0 })
+            self.fields.insert(
+                name,
+                StructField { type_value: value, number: 0, acl: None },
+            )
         }
     }
 
@@ -333,6 +350,7 @@ impl Struct {
                 StructField {
                     // Index is initially zero, will be adjusted later.
                     type_value: value,
+                    acl: Self::required_features(&fd),
                     number,
                 },
             ));
@@ -604,6 +622,30 @@ impl Struct {
             .get(&field_descriptor.proto().options)
             .and_then(|options| options.ignore)
             .unwrap_or(false)
+    }
+
+    fn required_features(
+        field_descriptor: &FieldDescriptor,
+    ) -> Option<Vec<AclEntry>> {
+        field_options
+            .get(&field_descriptor.proto().options)
+            .map(|options| options.acl)
+            .filter(|acl| !acl.is_empty())
+            .map(|acl| {
+                acl.into_iter()
+                    .map(|entry| AclEntry {
+                        allow_if: entry
+                            .allow_if
+                            .expect("the `feature` field is required"),
+                        error_title: entry
+                            .error_title
+                            .expect("the `error_title` field is required"),
+                        error_label: entry
+                            .error_label
+                            .expect("the `error_label` field is required"),
+                    })
+                    .collect()
+            })
     }
 
     /// Given a protobuf type and value returns a [`TypeValue`].

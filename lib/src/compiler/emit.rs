@@ -331,36 +331,36 @@ fn emit_expr(
                 SymbolKind::Func(func) => {
                     emit_func_call(ctx, instr, func);
                 }
-                SymbolKind::Field(index, root) => {
+                SymbolKind::Field { index, is_root, .. } => {
                     let index: i32 = (*index).try_into().unwrap();
                     match symbol.type_value() {
                         TypeValue::Integer(_) => {
-                            ctx.lookup_list.push((index, *root));
+                            ctx.lookup_list.push((index, *is_root));
                             emit_lookup_integer(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
                         TypeValue::Float(_) => {
-                            ctx.lookup_list.push((index, *root));
+                            ctx.lookup_list.push((index, *is_root));
                             emit_lookup_float(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
                         TypeValue::Bool(_) => {
-                            ctx.lookup_list.push((index, *root));
+                            ctx.lookup_list.push((index, *is_root));
                             emit_lookup_bool(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
                         TypeValue::String(_) => {
-                            ctx.lookup_list.push((index, *root));
+                            ctx.lookup_list.push((index, *is_root));
                             emit_lookup_string(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
                         TypeValue::Struct(_) => {
-                            ctx.lookup_list.push((index, *root));
+                            ctx.lookup_list.push((index, *is_root));
                             emit_lookup_object(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
                         TypeValue::Array(_) | TypeValue::Map(_) => {
-                            ctx.lookup_list.push((index, *root));
+                            ctx.lookup_list.push((index, *is_root));
                             emit_lookup_object(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
@@ -909,8 +909,8 @@ fn emit_field_access(
     // Rust code.
     for operand in operands.iter_mut().dropping_back(1) {
         if let Expr::Ident { symbol } = operand {
-            if let SymbolKind::Field(index, root) = symbol.kind() {
-                ctx.lookup_list.push((*index as i32, *root));
+            if let SymbolKind::Field { index, is_root, .. } = symbol.kind() {
+                ctx.lookup_list.push((*index as i32, *is_root));
                 continue;
             }
         }

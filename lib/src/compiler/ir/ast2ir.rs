@@ -28,6 +28,7 @@ use crate::compiler::ir::{
 };
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{warnings, CompileContext, CompileError};
+use crate::errors::CustomError;
 use crate::modules::BUILTIN_MODULES;
 use crate::re;
 use crate::re::parser::Error;
@@ -599,6 +600,23 @@ pub(in crate::compiler) fn expr_from_ast(
             }
 
             let symbol = symbol.unwrap();
+
+            // If the symbol is a structure field, and it has an ACL, check if
+            // the conditions imposed in the ACL are met. If the conditions are
+            // not met an error is raised.
+            if let SymbolKind::Field { acl: Some(acl), .. } = symbol.kind() {
+                for entry in acl {
+                    if !ctx.features.contains(&entry.allow_if) {
+                        return Err(CustomError::build(
+                            ctx.report_builder,
+                            entry.error_title.clone(),
+                            entry.error_label.clone(),
+                            ident.span().into(),
+                        ));
+                    }
+                }
+            }
+
             #[cfg(feature = "constant-folding")]
             {
                 let type_value = symbol.type_value();

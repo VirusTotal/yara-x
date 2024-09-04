@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use rustc_hash::FxHashSet;
 use std::mem::size_of;
 use std::rc::Rc;
 
@@ -33,6 +34,9 @@ pub(in crate::compiler) struct CompileContext<'a, 'src, 'sym> {
 
     /// Warnings generated during the compilation.
     pub warnings: &'a mut Warnings,
+
+    /// Enabled features. See [`crate::Compiler::enable_feature`] for details.
+    pub features: &'a FxHashSet<String>,
 
     /// Stack of variables. These are local variables used during the
     /// evaluation of rule conditions, for example for storing loop variables.

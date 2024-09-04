@@ -642,7 +642,7 @@ fn continue_after_error() {
 }
 
 #[test]
-fn errors_2() {
+fn conflicting_identifiers_error() {
     assert_eq!(
         Compiler::new()
             .define_global("foo", 1)
@@ -657,7 +657,10 @@ fn errors_2() {
   |      ^^^ identifier already in use by a module or global variable
   |"
     );
+}
 
+#[test]
+fn duplicate_rule_error() {
     assert_eq!(
         Compiler::new()
             .add_source("rule foo : first {condition: true}")
@@ -677,8 +680,11 @@ fn errors_2() {
   |      --- note: `foo` declared here for the first time
   |"
     );
+}
 
-    #[cfg(feature = "constant-folding")]
+#[cfg(feature = "constant-folding")]
+#[test]
+fn number_out_of_range_error() {
     assert_eq!(
         Compiler::new()
             .add_source(

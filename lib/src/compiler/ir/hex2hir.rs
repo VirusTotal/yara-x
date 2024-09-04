@@ -175,12 +175,12 @@ fn hex_byte_to_class(b: &ast::HexByte) -> hir::ClassBytes {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-
     use regex_syntax::hir::{
         Class, ClassBytes, ClassBytesRange, Dot, Hir, HirKind, Repetition,
     };
-    use yara_x_parser::ast;
+    use rustc_hash::FxHashSet;
 
+    use yara_x_parser::ast;
     use yara_x_parser::ast::{
         HexAlternative, HexJump, HexPattern, HexToken, HexTokens, Ident,
     };
@@ -218,6 +218,7 @@ mod tests {
         let mut ctx = CompileContext {
             relaxed_re_syntax: false,
             current_symbol_table: None,
+            features: &FxHashSet::default(),
             symbol_table: &mut symbol_table,
             report_builder: &mut report_builder,
             current_rule_patterns: &mut rule_patterns,

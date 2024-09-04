@@ -7,13 +7,13 @@ RULE test
       PATTERN_COUNT PatternIdx(1)
       FOR_IN
         FIELD_ACCESS
-          IDENT Symbol { type_value: struct, kind: Field(0, true) }
-          IDENT Symbol { type_value: array, kind: Field(19, false) }
+          IDENT Symbol { type_value: struct, kind: Field { index: 0, is_root: true, acl: None } }
+          IDENT Symbol { type_value: array, kind: Field { index: 19, is_root: false, acl: None } }
         AND
           LE
             FIELD_ACCESS
               IDENT Symbol { type_value: struct, kind: Var(Var { ty: struct, index: 12 }) }
-              IDENT Symbol { type_value: integer(unknown), kind: Field(0, false) }
+              IDENT Symbol { type_value: integer(unknown), kind: Field { index: 0, is_root: false, acl: None } }
             PATTERN_OFFSET PatternIdx(0) INDEX
               IDENT Symbol { type_value: integer(unknown), kind: Var(Var { ty: integer, index: 0 }) }
           LE
@@ -22,14 +22,14 @@ RULE test
             ADD
               FIELD_ACCESS
                 IDENT Symbol { type_value: struct, kind: Var(Var { ty: struct, index: 12 }) }
-                IDENT Symbol { type_value: integer(unknown), kind: Field(0, false) }
+                IDENT Symbol { type_value: integer(unknown), kind: Field { index: 0, is_root: false, acl: None } }
               FIELD_ACCESS
                 IDENT Symbol { type_value: struct, kind: Var(Var { ty: struct, index: 12 }) }
-                IDENT Symbol { type_value: integer(unknown), kind: Field(1, false) }
+                IDENT Symbol { type_value: integer(unknown), kind: Field { index: 1, is_root: false, acl: None } }
           LE
             FIELD_ACCESS
               IDENT Symbol { type_value: struct, kind: Var(Var { ty: struct, index: 12 }) }
-              IDENT Symbol { type_value: integer(unknown), kind: Field(0, false) }
+              IDENT Symbol { type_value: integer(unknown), kind: Field { index: 0, is_root: false, acl: None } }
             PATTERN_OFFSET PatternIdx(1) INDEX
               IDENT Symbol { type_value: integer(unknown), kind: Var(Var { ty: integer, index: 6 }) }
           LE
@@ -38,8 +38,8 @@ RULE test
             ADD
               FIELD_ACCESS
                 IDENT Symbol { type_value: struct, kind: Var(Var { ty: struct, index: 12 }) }
-                IDENT Symbol { type_value: integer(unknown), kind: Field(0, false) }
+                IDENT Symbol { type_value: integer(unknown), kind: Field { index: 0, is_root: false, acl: None } }
               FIELD_ACCESS
                 IDENT Symbol { type_value: struct, kind: Var(Var { ty: struct, index: 12 }) }
-                IDENT Symbol { type_value: integer(unknown), kind: Field(1, false) }
+                IDENT Symbol { type_value: integer(unknown), kind: Field { index: 1, is_root: false, acl: None } }
 
