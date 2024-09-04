@@ -134,7 +134,7 @@ pub mod mods {
 
     ```rust
     # use yara_x;
-    let pe_info = yara_x::mods::invoke::<yara_x::mods::PE>(&[], None);
+    let pe_info = yara_x::mods::invoke::<yara_x::mods::PE>(&[]);
     ```
      */
 
@@ -209,9 +209,14 @@ pub mod mods {
     /// # Example
     /// ```rust
     /// # use yara_x;
-    /// let elf_info = yara_x::mods::invoke::<yara_x::mods::ELF>(&[], None);
+    /// let elf_info = yara_x::mods::invoke::<yara_x::mods::ELF>(&[]);
     /// ```
-    pub fn invoke<T: protobuf::MessageFull>(
+    pub fn invoke<T: protobuf::MessageFull>(data: &[u8]) -> Option<Box<T>> {
+        invoke_with_meta::<T>(data, None)
+    }
+
+    /// Like [`invoke`], but allows passing metadata to the module.
+    pub fn invoke_with_meta<T: protobuf::MessageFull>(
         data: &[u8],
         meta: Option<&[u8]>,
     ) -> Option<Box<T>> {
@@ -250,11 +255,13 @@ pub mod mods {
     /// ```
     pub fn invoke_all(data: &[u8], meta: Option<&[u8]>) -> Box<Modules> {
         let mut info = Box::new(Modules::new());
-        info.pe = protobuf::MessageField(invoke::<PE>(data, meta));
-        info.elf = protobuf::MessageField(invoke::<ELF>(data, meta));
-        info.dotnet = protobuf::MessageField(invoke::<Dotnet>(data, meta));
-        info.macho = protobuf::MessageField(invoke::<Macho>(data, meta));
-        info.lnk = protobuf::MessageField(invoke::<Lnk>(data, meta));
+        info.pe = protobuf::MessageField(invoke_with_meta::<PE>(data, meta));
+        info.elf = protobuf::MessageField(invoke_with_meta::<ELF>(data, meta));
+        info.dotnet =
+            protobuf::MessageField(invoke_with_meta::<Dotnet>(data, meta));
+        info.macho =
+            protobuf::MessageField(invoke_with_meta::<Macho>(data, meta));
+        info.lnk = protobuf::MessageField(invoke_with_meta::<Lnk>(data, meta));
         info
     }
 
