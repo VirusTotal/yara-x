@@ -12,7 +12,7 @@ option (yara.module_options) = {
 };
 
 message MinVersion {
-  optional DEVICE_TYPE device = 1;
+  optional DeviceType device = 1;
   optional string version = 2;
   optional string sdk = 3;
 }
@@ -113,7 +113,7 @@ message Segment {
   optional uint32 maxprot = 8 [(yaml.field).fmt = "x"];
   optional uint32 initprot = 9 [(yaml.field).fmt = "x"];
   optional uint32 nsects = 10;
-  optional uint32 flags = 11 [(yaml.field).fmt = "flags:SEGMENT_FLAG"];
+  optional uint32 flags = 11 [(yaml.field).fmt = "flags:SegmentFlag"];
   repeated Section sections = 12;
 }
 
@@ -133,7 +133,7 @@ message File {
   optional uint32 filetype = 4;
   optional uint32 ncmds = 5;
   optional uint32 sizeofcmds = 6;
-  optional uint32 flags = 7 [(yaml.field).fmt = "flags:FILE_FLAG"];
+  optional uint32 flags = 7 [(yaml.field).fmt = "flags:FileFlag"];
   optional uint32 reserved = 8;
   optional uint64 number_of_segments = 9;
   optional bytes dynamic_linker = 10;
@@ -194,7 +194,7 @@ message Macho {
   repeated File file = 30;
 }
 
-enum HEADER {
+enum Header {
   option (yara.enum_options).inline = true;
   MH_MAGIC = 0 [(yara.enum_value).i64 = 0xfeedface];
   MH_CIGAM = 1 [(yara.enum_value).i64 = 0xcefaedfe];
@@ -202,7 +202,7 @@ enum HEADER {
   MH_CIGAM_64 = 3 [(yara.enum_value).i64 = 0xcffaedfe];
 }
 
-enum FAT_HEADER {
+enum FatHeader {
   option (yara.enum_options).inline = true;
   FAT_MAGIC = 0 [(yara.enum_value).i64 = 0xcafebabe];
   FAT_CIGAM = 1 [(yara.enum_value).i64 = 0xbebafeca];
@@ -210,13 +210,13 @@ enum FAT_HEADER {
   FAT_CIGAM_64 = 3 [(yara.enum_value).i64 = 0xbfbafeca];
 }
 
-enum MASK_64BIT {
+enum Mask64Bit {
   option (yara.enum_options).inline = true;
   CPU_ARCH_ABI64 = 0x01000000;
   CPU_SUBTYPE_LIB64 = 0 [(yara.enum_value).i64 = 0x80000000];
 }
 
-enum CPU_TYPE {
+enum CpuType {
   option (yara.enum_options).inline = true;
   CPU_TYPE_MC680X0 = 0x00000006;
   CPU_TYPE_X86 = 0x00000007;
@@ -231,12 +231,12 @@ enum CPU_TYPE {
   CPU_TYPE_POWERPC64 = 0x01000012;
 }
 
-enum CPU_I386_TYPE {
+enum CpuI386Type {
   option (yara.enum_options).inline = true;
   CPU_TYPE_I386 = 0x00000007;
 }
 
-enum CPU_INTEL_SUBTYPE {
+enum CpuIntelSubType {
   option (yara.enum_options).inline = true;
   CPU_SUBTYPE_INTEL_MODEL_ALL = 0x00000000;
   CPU_SUBTYPE_386 = 0x00000003;
@@ -251,17 +251,17 @@ enum CPU_INTEL_SUBTYPE {
   CPU_SUBTYPE_XEON_MP = 0x0000001c;
 }
 
-enum CPU_I386_SUBTYPE {
+enum CpuI386SubType {
   option (yara.enum_options).inline = true;
   CPU_SUBTYPE_I386_ALL = 0x00000003;
 }
 
-enum CPU_X86_SUBTYPE {
+enum CpuX86SubType {
   option (yara.enum_options).inline = true;
   CPU_SUBTYPE_X86_64_ALL = 0x00000003;
 }
 
-enum CPU_INTEL_PENTIUM_SUBTYPE {
+enum CpuIntelPentiumSubType {
   option (yara.enum_options).inline = true;
   CPU_SUBTYPE_PENT = 0x00000005;
   CPU_SUBTYPE_PENTPRO = 0x00000016;
@@ -275,7 +275,7 @@ enum CPU_INTEL_PENTIUM_SUBTYPE {
   CPU_SUBTYPE_PENTIUM_4_M = 0x0000001a;
 }
 
-enum CPU_ARM_SUBTYPE {
+enum CpuArmSubType {
   option (yara.enum_options).inline = true;
   CPU_SUBTYPE_ARM_ALL = 0x00000000;
   CPU_SUBTYPE_ARM_V4T = 0x00000005;
@@ -291,18 +291,18 @@ enum CPU_ARM_SUBTYPE {
   CPU_SUBTYPE_ARM_V7EM = 0x00000010;
 }
 
-enum CPU_ARM_64_SUBTYPE {
+enum CpuArm64SubType {
   option (yara.enum_options).inline = true;
   CPU_SUBTYPE_ARM_V5TEJ = 0x00000007;
   CPU_SUBTYPE_ARM64_ALL = 0x00000000;
 }
 
-enum CPU_SPARC_SUBTYPE {
+enum CpuSparcSubType {
   option (yara.enum_options).inline = true;
   CPU_SUBTYPE_SPARC_ALL = 0x00000000;
 }
 
-enum CPU_POWERPC_SUBTYPE {
+enum CpuPowerPCSubType {
   option (yara.enum_options).inline = true;
   CPU_SUBTYPE_POWERPC_ALL = 0x00000000;
   CPU_SUBTYPE_POWERPC_601 = 0x00000001;
@@ -319,13 +319,13 @@ enum CPU_POWERPC_SUBTYPE {
   CPU_SUBTYPE_POWERPC_970 = 0x00000064;
 }
 
-enum CPU_MC_SUBTYPE {
+enum CpuMcSubType {
   option (yara.enum_options).inline = true;
   CPU_SUBTYPE_MC980000_ALL = 0x00000000;
   CPU_SUBTYPE_MC98601 = 0x00000001;
 }
 
-enum FILE_TYPE {
+enum FileType {
   option (yara.enum_options).inline = true;
   MH_OBJECT = 0x00000001;
   MH_EXECUTE = 0x00000002;
@@ -340,7 +340,7 @@ enum FILE_TYPE {
   MH_KEXT_BUNDLE = 0x0000000b;
 }
 
-enum FILE_FLAG {
+enum FileFlag {
   option (yara.enum_options).inline = true;
   MH_NOUNDEFS = 0x00000001;
   MH_INCRLINK = 0x00000002;
@@ -370,7 +370,7 @@ enum FILE_FLAG {
   MH_APP_EXTENSION_SAFE = 0x02000000;
 }
 
-enum SEGMENT_FLAG {
+enum SegmentFlag {
   option (yara.enum_options).inline = true;
   SG_HIGHVM = 0x00000001;
   SG_FVMLIB = 0x00000002;
@@ -378,13 +378,13 @@ enum SEGMENT_FLAG {
   SG_PROTECTED_VERSION_1 = 0x00000008;
 }
 
-enum SECTION_FLAG_MASK {
+enum SectionFlagMask {
   option (yara.enum_options).inline = true;
   SECTION_TYPE = 0x000000ff;
   SECTION_ATTRIBUTES = 0 [(yara.enum_value).i64 = 0xffffff00];
 }
 
-enum SECTION_TYPE {
+enum SectionType {
   option (yara.enum_options).inline = true;
   S_REGULAR = 0x00000000;
   S_ZEROFILL = 0x00000001;
@@ -410,7 +410,7 @@ enum SECTION_TYPE {
   S_THREAD_LOCAL_INIT_FUNCTION_POINTERS = 0x00000015;
 }
 
-enum SECTION_ATTRIBUTES {
+enum SectionAttributes {
   option (yara.enum_options).inline = true;
   S_ATTR_PURE_INSTRUCTIONS = 0 [(yara.enum_value).i64 = 0x80000000];
   S_ATTR_NO_TOC = 0x40000000;
@@ -424,7 +424,7 @@ enum SECTION_ATTRIBUTES {
   S_ATTR_LOC_RELOC = 0x00000100;
 }
 
-enum DEVICE_TYPE {
+enum DeviceType {
   option (yara.enum_options).inline = true;
   MACOSX = 0x00000024;
   IPHONEOS = 0x00000025;

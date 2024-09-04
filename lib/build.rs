@@ -143,11 +143,15 @@ fn main() {
     let mut proto_compiler = Codegen::new();
     let mut proto_parser = Parser::new();
 
-    proto_compiler
-        .pure()
-        .cargo_out_dir("protos")
-        .include("src/modules/protos");
+    if cfg!(feature = "protoc") {
+        proto_compiler.protoc();
+        proto_parser.protoc();
+    } else {
+        proto_compiler.pure();
+        proto_parser.pure();
+    }
 
+    proto_compiler.cargo_out_dir("protos").include("src/modules/protos");
     proto_parser.include("src/modules/protos");
 
     // All `.proto` files in src/modules/protos must be compiled

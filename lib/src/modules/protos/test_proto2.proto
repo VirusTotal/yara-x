@@ -181,8 +181,8 @@ message TestProto2 {
   /// This field will be visible in YARA as `items` instead of `Enumeration2`.
   enum Enumeration2 {
     option (yara.enum_options).name = "items";
-    ITEM_0 = 0;
-    ITEM_1 = 1;
+    ITEM_4 = 0;
+    ITEM_5 = 1;
   }
 
   optional uint64 file_size = 400;

@@ -21,6 +21,7 @@ jobs:
         - win-msvc
         # - win-gnu
         - no-default-features
+        - protoc
         include:
         - build: msrv
           os: ubuntu-latest
@@ -76,6 +77,13 @@ jobs:
           rust_flags: "-Awarnings"
           experimental: false
 
+        - build: protoc
+          os: ubuntu-latest
+          rust: stable
+          args: "--package yara-x --features=protoc,magic-module"
+          rust_flags: "-Awarnings"
+          experimental: false
+
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
@@ -94,6 +102,12 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y libmagic-dev
+
+    - name: Install protoc
+      if: matrix.build == 'protoc'
+      run: |
+        sudo apt-get install -y protobuf-compiler
+        cargo install protobuf-codegen
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@master
