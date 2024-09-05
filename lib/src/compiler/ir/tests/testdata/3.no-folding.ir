@@ -3,16 +3,16 @@ RULE test
     EQ
       FN_CALL
         FIELD_ACCESS
-          IDENT Symbol { type_value: struct, kind: Field(0, true) }
-          IDENT Symbol { type_value: function, kind: Field(4, false) }
+          IDENT Symbol { type_value: struct, kind: Field(0, true), acl: None }
+          IDENT Symbol { type_value: function, kind: Field(4, false), acl: None }
         CONST integer(0)
         FILESIZE
       CONST string("feba6c919e3797e7778e8f2e85fa033d")
     EQ
       FN_CALL
         FIELD_ACCESS
-          IDENT Symbol { type_value: struct, kind: Field(0, true) }
-          IDENT Symbol { type_value: function, kind: Field(4, false) }
+          IDENT Symbol { type_value: struct, kind: Field(0, true), acl: None }
+          IDENT Symbol { type_value: function, kind: Field(4, false), acl: None }
         CONST integer(0)
         FILESIZE
       CONST string("275876e34cf609db118f3d84b799a790")
