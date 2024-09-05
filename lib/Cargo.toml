@@ -159,13 +159,13 @@ text-module = [
 # conditions of a rule to check against other epoch time.
 time-module = []
 
-
-# Features that are enabled by default.
-default = [
+# feature set always included in default, it aims to provide
+# a stable way for library users to use yara-x without wasmtime
+# parallel compilation.
+default-minimal = [
     "constant-folding",
     "exact-atoms",
     "fast-regexp",
-    "parallel-compilation",
     "console-module",
     "dotnet-module",
     "elf-module",
@@ -179,6 +179,9 @@ default = [
     "test_proto2-module",
     "test_proto3-module",
 ]
+
+# Features that are enabled by default.
+default = ["parallel-compilation", "default-minimal"]
 
 [dependencies]
 aho-corasick = { workspace = true, features = ["logging"] }
