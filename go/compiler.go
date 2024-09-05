@@ -300,7 +300,6 @@ func (c *Compiler) enableFeature(feature string) {
 	runtime.KeepAlive(c)
 }
 
-// IgnoreModule tells the compiler to ignore the module with the given name.
 // ignoreModule tells the compiler to ignore the module with the given name.
 //
 // Any YARA rule using the module will be ignored, as well as rules that depends
