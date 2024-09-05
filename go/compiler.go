@@ -205,7 +205,7 @@ func NewCompiler(opts... CompileOption) (*Compiler, error) {
 
 func (c *Compiler) initialize() error {
 	for name, _ := range c.ignoredModules {
-		c.IgnoreModule(name)
+		c.ignoreModule(name)
 	}
 	for ident, value := range c.vars {
 		if err := c.DefineGlobal(ident, value); err != nil {
@@ -273,12 +273,12 @@ func (c *Compiler) AddSource(src string, opts... SourceOption) error {
 	return nil
 }
 
-// IgnoreModule tells the compiler to ignore the module with the given name.
+// ignoreModule tells the compiler to ignore the module with the given name.
 //
 // Any YARA rule using the module will be ignored, as well as rules that depends
 // on some other rule that uses the module. The compiler will issue warnings
 // about the ignored rules, but otherwise the compilation will succeed.
-func (c *Compiler) IgnoreModule(module string) {
+func (c *Compiler) ignoreModule(module string) {
 	cModule := C.CString(module)
 	defer C.free(unsafe.Pointer(cModule))
 	result := C.yrx_compiler_ignore_module(c.cCompiler, cModule)
