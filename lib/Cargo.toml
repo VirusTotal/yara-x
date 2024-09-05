@@ -80,7 +80,15 @@ x509-parser-verify = ["x509-parser/verify"]
 # The `console` module exports functions for printing text from YARA rules.
 console-module = []
 
-# The `dotnet` module parsers .NET files.
+# The `cuckoo` module parses behaviour reports from the Cuckoo Sandbox
+# https://cuckoosandbox.org/
+#
+# The use of this module is currently discouraged. It is here for backward
+# compatiblity with YARA, but it won't be actively mantained or improved as
+# the Cuckoo Sandbox seems to be abandoned since 2017.
+cuckoo-module = []
+
+# The `dotnet` module parses .NET files.
 dotnet-module = [
     "pe-module",
     "dep:nom",
@@ -163,6 +171,7 @@ time-module = []
 # Features that are enabled by default.
 default = [
     "constant-folding",
+    "cuckoo-module",
     "exact-atoms",
     "fast-regexp",
     "parallel-compilation",

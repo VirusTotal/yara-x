@@ -1,0 +1,1301 @@
+{
+  "info": {
+    "started": "2018-11-12 19:43:44",
+    "version": "v0.1"
+  },
+  "network": {
+    "http": [
+      {
+        "body": "",
+        "uri": "http://checkip.dyndns.org/",
+        "user-agent": "Mozilla/3.0 (compatible; Indy Library)",
+        "method": "GET",
+        "host": "checkip.dyndns.org",
+        "version": "1.1",
+        "path": "/",
+        "data": "GET / HTTP/1.1\r\nHost: checkip.dyndns.org\r\nAccept: text/html, */*\r\nAccept-Encoding: identity\r\nUser-Agent: Mozilla/3.0 (compatible; Indy Library)\r\n\r\n",
+        "port": 80
+      }
+    ],
+    "udp": [
+      {
+        "dport": 67,
+        "src": "0.0.0.0",
+        "dst": "255.255.255.255",
+        "sport": 68
+      },
+      {
+        "dport": 68,
+        "src": "10.0.2.2",
+        "dst": "10.0.2.15",
+        "sport": 67
+      },
+      {
+        "dport": 67,
+        "src": "0.0.0.0",
+        "dst": "255.255.255.255",
+        "sport": 68
+      },
+      {
+        "dport": 68,
+        "src": "10.0.2.2",
+        "dst": "10.0.2.15",
+        "sport": 67
+      },
+      {
+        "dport": 1900,
+        "src": "10.0.2.15",
+        "dst": "239.255.255.250",
+        "sport": 1042
+      },
+      {
+        "dport": 53,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.2",
+        "sport": 1031
+      },
+      {
+        "dport": 1031,
+        "src": "10.0.2.2",
+        "dst": "10.0.2.15",
+        "sport": 53
+      },
+      {
+        "dport": 123,
+        "src": "10.0.2.15",
+        "dst": "13.79.239.69",
+        "sport": 123
+      },
+      {
+        "dport": 1900,
+        "src": "10.0.2.15",
+        "dst": "239.255.255.250",
+        "sport": 1046
+      },
+      {
+        "dport": 123,
+        "src": "13.79.239.69",
+        "dst": "10.0.2.15",
+        "sport": 123
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 1900,
+        "src": "10.0.2.15",
+        "dst": "239.255.255.250",
+        "sport": 1046
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 1900,
+        "src": "10.0.2.15",
+        "dst": "239.255.255.250",
+        "sport": 1046
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 138,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 138
+      },
+      {
+        "dport": 138,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 138
+      },
+      {
+        "dport": 138,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 138
+      },
+      {
+        "dport": 138,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 138
+      },
+      {
+        "dport": 138,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 138
+      },
+      {
+        "dport": 138,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 138
+      },
+      {
+        "dport": 138,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 138
+      },
+      {
+        "dport": 138,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 138
+      },
+      {
+        "dport": 138,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 138
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 137,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 137
+      },
+      {
+        "dport": 138,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 138
+      },
+      {
+        "dport": 138,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 138
+      },
+      {
+        "dport": 138,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 138
+      },
+      {
+        "dport": 138,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.255",
+        "sport": 138
+      },
+      {
+        "dport": 53,
+        "src": "10.0.2.15",
+        "dst": "10.0.2.2",
+        "sport": 1031
+      },
+      {
+        "dport": 1031,
+        "src": "10.0.2.2",
+        "dst": "10.0.2.15",
+        "sport": 53
+      }
+    ],
+    "hosts": [
+      "0.0.0.0",
+      "255.255.255.255",
+      "10.0.2.2",
+      "10.0.2.15",
+      "239.255.255.250",
+      "224.0.0.22",
+      "13.79.239.69",
+      "10.0.2.255",
+      "216.146.38.70"
+    ],
+    "dns": [
+      {
+        "ip": "216.146.43.71",
+        "hostname": "checkip.dyndns.org"
+      }
+    ],
+    "tcp": [
+      {
+        "dport": 80,
+        "src": "10.0.2.15",
+        "dst": "216.146.38.70",
+        "sport": 1049
+      },
+      {
+        "dport": 1049,
+        "src": "216.146.38.70",
+        "dst": "10.0.2.15",
+        "sport": 80
+      }
+    ]
+  },
+  "behavior": {
+    "processes": [
+      {
+        "parent_id": "1072",
+        "process_name": "0000023e41ac65febbbb447addbd73736dff01f134877be4e504f046c17bc5ba",
+        "process_id": "1116",
+        "first_seen": "20181112184400.787",
+        "calls": [
+          {
+            "category": "memory",
+            "status": "SUCCESS",
+            "return": "0x00160000",
+            "timestamp": "20181112184400.787",
+            "repeated": 0,
+            "api": "VirtualAllocEx",
+            "arguments": [
+              {
+                "name": "th32ProcessID",
+                "value": "1116"
+              },
+              {
+                "name": "szExeFile",
+                "value": "0000023e41ac65febbbb447addbd73736dff01f134877be4e504f046c17bc5ba"
+              },
+              {
+                "name": "lpAddress",
+                "value": "0x00000000"
+              },
+              {
+                "name": "dwSize",
+                "value": "1310704"
+              },
+              {
+                "name": "flAllocationType",
+                "value": "0x00001000"
+              },
+              {
+                "name": "flProtect",
+                "value": "0x00000004"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "FAILURE",
+            "return": "",
+            "timestamp": "20181112184400.787",
+            "repeated": 0,
+            "api": "RegOpenKeyExW",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "HKEY_CURRENT_USER"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "Software\\CodeGear\\Locales"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "FAILURE",
+            "return": "",
+            "timestamp": "20181112184400.787",
+            "repeated": 0,
+            "api": "RegOpenKeyExW",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "HKEY_LOCAL_MACHINE"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "Software\\CodeGear\\Locales"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "FAILURE",
+            "return": "",
+            "timestamp": "20181112184400.787",
+            "repeated": 0,
+            "api": "RegOpenKeyExW",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "HKEY_CURRENT_USER"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "Software\\Borland\\Locales"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "FAILURE",
+            "return": "",
+            "timestamp": "20181112184400.787",
+            "repeated": 0,
+            "api": "RegOpenKeyExW",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "HKEY_CURRENT_USER"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "Software\\Borland\\Delphi\\Locales"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x00000084",
+            "timestamp": "20181112184400.797",
+            "repeated": 0,
+            "api": "RegOpenKeyExW",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "HKEY_LOCAL_MACHINE"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\FontSubstitutes"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "",
+            "timestamp": "20181112184400.797",
+            "repeated": 0,
+            "api": "RegQueryValueExW",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x00000084"
+              },
+              {
+                "name": "lpValueName",
+                "value": "MS Shell Dlg 2"
+              }
+            ]
+          },
+          {
+            "category": "system",
+            "status": "SUCCESS",
+            "return": "0x76390000",
+            "timestamp": "20181112184400.797",
+            "repeated": 0,
+            "api": "LoadLibraryW",
+            "arguments": [
+              {
+                "name": "lpFileName",
+                "value": "C:\\WINDOWS\\system32\\IMM32.DLL"
+              }
+            ]
+          },
+          {
+            "category": "system",
+            "status": "SUCCESS",
+            "return": "0x76390000",
+            "timestamp": "20181112184400.797",
+            "repeated": 0,
+            "api": "LoadLibraryW",
+            "arguments": [
+              {
+                "name": "lpFileName",
+                "value": "imm32.dll"
+              }
+            ]
+          },
+          {
+            "category": "memory",
+            "status": "SUCCESS",
+            "return": "0x002a0000",
+            "timestamp": "20181112184400.797",
+            "repeated": 0,
+            "api": "VirtualAllocEx",
+            "arguments": [
+              {
+                "name": "th32ProcessID",
+                "value": "1116"
+              },
+              {
+                "name": "szExeFile",
+                "value": "0000023e41ac65febbbb447addbd73736dff01f134877be4e504f046c17bc5ba"
+              },
+              {
+                "name": "lpAddress",
+                "value": "0x00000000"
+              },
+              {
+                "name": "dwSize",
+                "value": "4096"
+              },
+              {
+                "name": "flAllocationType",
+                "value": "0x00001000"
+              },
+              {
+                "name": "flProtect",
+                "value": "0x00000040"
+              }
+            ]
+          },
+          {
+            "category": "memory",
+            "status": "SUCCESS",
+            "return": "0x002b0000",
+            "timestamp": "20181112184400.817",
+            "repeated": 0,
+            "api": "VirtualAllocEx",
+            "arguments": [
+              {
+                "name": "th32ProcessID",
+                "value": "1116"
+              },
+              {
+                "name": "szExeFile",
+                "value": "0000023e41ac65febbbb447addbd73736dff01f134877be4e504f046c17bc5ba"
+              },
+              {
+                "name": "lpAddress",
+                "value": "0x00000000"
+              },
+              {
+                "name": "dwSize",
+                "value": "65536"
+              },
+              {
+                "name": "flAllocationType",
+                "value": "0x00001000"
+              },
+              {
+                "name": "flProtect",
+                "value": "0x00000004"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "FAILURE",
+            "return": "",
+            "timestamp": "20181112184400.857",
+            "repeated": 0,
+            "api": "RegOpenKeyExW",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "HKEY_CURRENT_USER"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "Software\\Borland\\Delphi"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "FAILURE",
+            "return": "",
+            "timestamp": "20181112184400.857",
+            "repeated": 0,
+            "api": "RegOpenKeyExW",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "HKEY_CURRENT_USER"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "Software\\Borland\\C++Builder"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "FAILURE",
+            "return": "",
+            "timestamp": "20181112184400.857",
+            "repeated": 0,
+            "api": "RegOpenKeyExW",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "HKEY_CURRENT_USER"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "Software\\CodeGear\\BDS"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "FAILURE",
+            "return": "",
+            "timestamp": "20181112184400.857",
+            "repeated": 0,
+            "api": "RegOpenKeyExW",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "HKEY_CURRENT_USER"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "Software\\Embarcadero"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "FAILURE",
+            "return": "",
+            "timestamp": "20181112184400.857",
+            "repeated": 0,
+            "api": "RegOpenKeyExW",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "HKEY_CURRENT_USER"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "Software\\Borland\\BDS"
+              }
+            ]
+          },
+          {
+            "category": "system",
+            "status": "SUCCESS",
+            "return": "0x77120000",
+            "timestamp": "20181112184400.877",
+            "repeated": 0,
+            "api": "LoadLibraryA",
+            "arguments": [
+              {
+                "name": "lpFileName",
+                "value": "oleaut32.dll"
+              }
+            ]
+          },
+          {
+            "category": "system",
+            "status": "SUCCESS",
+            "return": "0x5edd0000",
+            "timestamp": "20181112184400.887",
+            "repeated": 0,
+            "api": "LoadLibraryW",
+            "arguments": [
+              {
+                "name": "lpFileName",
+                "value": "olepro32.dll"
+              }
+            ]
+          },
+          {
+            "category": "synchronization",
+            "status": "SUCCESS",
+            "return": "0x00000090",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "CreateMutexW",
+            "arguments": [
+              {
+                "name": "lpName",
+                "value": "LALALAGh"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x00000084",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExW",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x00000094"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "Software\\Microsoft\\Windows\\CurrentVersion\\ThemeManager"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "FAILURE",
+            "return": "",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegQueryValueExW",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x00000084"
+              },
+              {
+                "name": "lpValueName",
+                "value": "Compositing"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x00000084",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExW",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x00000094"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "Control Panel\\Desktop"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "FAILURE",
+            "return": "",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegQueryValueExW",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x00000084"
+              },
+              {
+                "name": "lpValueName",
+                "value": "LameButtonText"
+              }
+            ]
+          },
+          {
+            "category": "system",
+            "status": "SUCCESS",
+            "return": "0x5ad70000",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "LoadLibraryW",
+            "arguments": [
+              {
+                "name": "lpFileName",
+                "value": "uxtheme.dll"
+              }
+            ]
+          },
+          {
+            "category": "system",
+            "status": "SUCCESS",
+            "return": "0x71ab0000",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "LoadLibraryW",
+            "arguments": [
+              {
+                "name": "lpFileName",
+                "value": "WS2_32.DLL"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x00000094",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "HKEY_LOCAL_MACHINE"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "System\\CurrentControlSet\\Services\\WinSock2\\Parameters"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x00000098",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x00000094"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "Protocol_Catalog9"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "FAILURE",
+            "return": "",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x00000098"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "00000004"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x0000009c",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x00000098"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "Catalog_Entries"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x000000a0",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x0000009c"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "000000000001"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x000000a0",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x0000009c"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "000000000002"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x000000a0",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x0000009c"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "000000000003"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x000000a0",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x0000009c"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "000000000004"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x000000a0",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x0000009c"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "000000000005"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x000000a0",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x0000009c"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "000000000006"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x000000a0",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x0000009c"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "000000000007"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x000000a0",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x0000009c"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "000000000008"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x000000a0",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x0000009c"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "000000000009"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x000000a0",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x0000009c"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "000000000010"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x000000a0",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x0000009c"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "000000000011"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x000000a0",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x00000094"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "NameSpace_Catalog5"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "FAILURE",
+            "return": "",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x000000a0"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "00000004"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x000000a4",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x000000a0"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "Catalog_Entries"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x000000a8",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x000000a4"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "000000000001"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x000000a8",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x000000a4"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "000000000002"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x000000a8",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "0x000000a4"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "000000000003"
+              }
+            ]
+          },
+          {
+            "category": "registry",
+            "status": "SUCCESS",
+            "return": "0x00000094",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "RegOpenKeyExA",
+            "arguments": [
+              {
+                "name": "hKey",
+                "value": "HKEY_LOCAL_MACHINE"
+              },
+              {
+                "name": "lpSubKey",
+                "value": "System\\CurrentControlSet\\Services\\Winsock2\\Parameters"
+              }
+            ]
+          },
+          {
+            "category": "system",
+            "status": "FAILURE",
+            "return": "",
+            "timestamp": "20181112184446.482",
+            "repeated": 0,
+            "api": "LoadLibraryW",
+            "arguments": [
+              {
+                "name": "lpFileName",
+                "value": "Fwpuclnt.dll"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "processtree": [
+      {
+        "pid": 1116,
+        "name": "0000023e41ac65febbbb447addbd73736dff01f134877be4e504f046c17bc5ba",
+        "children": []
+      }
+    ],
+    "summary": {
+      "files": [],
+      "keys": [
+        "HKEY_CURRENT_USER\\\\Software\\CodeGear\\Locales",
+        "HKEY_LOCAL_MACHINE\\\\Software\\CodeGear\\Locales",
+        "HKEY_CURRENT_USER\\\\Software\\Borland\\Locales",
+        "HKEY_CURRENT_USER\\\\Software\\Borland\\Delphi\\Locales",
+        "HKEY_LOCAL_MACHINE\\\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\FontSubstitutes",
+        "HKEY_CURRENT_USER\\\\Software\\Borland\\Delphi",
+        "HKEY_CURRENT_USER\\\\Software\\Borland\\C++Builder",
+        "HKEY_CURRENT_USER\\\\Software\\CodeGear\\BDS",
+        "HKEY_CURRENT_USER\\\\Software\\Embarcadero",
+        "HKEY_CURRENT_USER\\\\Software\\Borland\\BDS",
+        "0x00000094\\\\Software\\Microsoft\\Windows\\CurrentVersion\\ThemeManager",
+        "0x00000094\\\\Control Panel\\Desktop",
+        "HKEY_LOCAL_MACHINE\\\\System\\CurrentControlSet\\Services\\WinSock2\\Parameters",
+        "0x00000094\\\\Protocol_Catalog9",
+        "0x00000098\\\\00000004",
+        "0x00000098\\\\Catalog_Entries",
+        "0x0000009c\\\\000000000001",
+        "0x0000009c\\\\000000000002",
+        "0x0000009c\\\\000000000003",
+        "0x0000009c\\\\000000000004",
+        "0x0000009c\\\\000000000005",
+        "0x0000009c\\\\000000000006",
+        "0x0000009c\\\\000000000007",
+        "0x0000009c\\\\000000000008",
+        "0x0000009c\\\\000000000009",
+        "0x0000009c\\\\000000000010",
+        "0x0000009c\\\\000000000011",
+        "0x00000094\\\\NameSpace_Catalog5",
+        "0x000000a0\\\\00000004",
+        "0x000000a0\\\\Catalog_Entries",
+        "0x000000a4\\\\000000000001",
+        "0x000000a4\\\\000000000002",
+        "0x000000a4\\\\000000000003",
+        "HKEY_LOCAL_MACHINE\\\\System\\CurrentControlSet\\Services\\Winsock2\\Parameters"
+      ],
+      "mutexes": [
+        "LALALAGh"
+      ]
+    }
+  }
+}
