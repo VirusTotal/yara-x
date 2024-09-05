@@ -75,16 +75,16 @@ num-derive = "0.4.2"
 p256 = "0.13.2"
 p384 = "0.13.0"
 pretty_assertions = "1.4.0"
-#protobuf = { path = "../rust-protobuf/protobuf" }
-#protobuf-codegen = { path = "../rust-protobuf/protobuf-codegen" }
-#protobuf-json-mapping = { path = "../rust-protobuf/protobuf-json-mapping" }
-#protobuf-parse = { path = "../rust-protobuf/protobuf-parse" }
-#protobuf-support = { path = "../rust-protobuf/protobuf-support" }
-protobuf = "3.5.0"
-protobuf-codegen = "3.5.0"
-protobuf-json-mapping = "3.5.0"
-protobuf-parse = "3.5.0"
-protobuf-support = "3.5.0"
+# protobuf = "3.5.0"
+# protobuf-codegen = "3.5.0"
+# protobuf-json-mapping = "3.5.0"
+# protobuf-parse = "3.5.0"
+# protobuf-support = "3.5.0"
+protobuf = { git = "https://github.com/plusvic/rust-protobuf", rev = "53091cb35870e8fea17971326b7d1f84e2d832a2" }
+protobuf-codegen = { git = "https://github.com/plusvic/rust-protobuf", rev = "53091cb35870e8fea17971326b7d1f84e2d832a2" }
+protobuf-json-mapping = { git = "https://github.com/plusvic/rust-protobuf", rev = "53091cb35870e8fea17971326b7d1f84e2d832a2" }
+protobuf-parse = { git = "https://github.com/plusvic/rust-protobuf", rev = "53091cb35870e8fea17971326b7d1f84e2d832a2" }
+protobuf-support = { git = "https://github.com/plusvic/rust-protobuf", rev = "53091cb35870e8fea17971326b7d1f84e2d832a2" }
 rayon = "1.10.0"
 regex-syntax = "0.8.4"
 regex-automata = "0.4.7"

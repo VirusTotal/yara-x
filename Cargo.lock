@@ -2706,9 +2706,8 @@ dependencies = [
 
 [[package]]
 name = "protobuf"
-version = "3.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bcc343da15609eaecd65f8aa76df8dc4209d325131d8219358c0aaaebab0bf6"
+version = "4.0.0-alpha.0"
+source = "git+https://github.com/plusvic/rust-protobuf?rev=53091cb35870e8fea17971326b7d1f84e2d832a2#53091cb35870e8fea17971326b7d1f84e2d832a2"
 dependencies = [
  "once_cell",
  "protobuf-support",
@@ -2717,9 +2716,8 @@ dependencies = [
 
 [[package]]
 name = "protobuf-codegen"
-version = "3.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4d0cde5642ea4df842b13eb9f59ea6fafa26dcb43e3e1ee49120e9757556189"
+version = "4.0.0-alpha.0"
+source = "git+https://github.com/plusvic/rust-protobuf?rev=53091cb35870e8fea17971326b7d1f84e2d832a2#53091cb35870e8fea17971326b7d1f84e2d832a2"
 dependencies = [
  "anyhow",
  "once_cell",
@@ -2732,9 +2730,8 @@ dependencies = [
 
 [[package]]
 name = "protobuf-json-mapping"
-version = "3.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b07993d14c66dfb74c639dc1b90381773b85cff66ef47bff35bad0778150a3aa"
+version = "4.0.0-alpha.0"
+source = "git+https://github.com/plusvic/rust-protobuf?rev=53091cb35870e8fea17971326b7d1f84e2d832a2#53091cb35870e8fea17971326b7d1f84e2d832a2"
 dependencies = [
  "protobuf",
  "protobuf-support",
@@ -2743,9 +2740,8 @@ dependencies = [
 
 [[package]]
 name = "protobuf-parse"
-version = "3.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b0e9b447d099ae2c4993c0cbb03c7a9d6c937b17f2d56cfc0b1550e6fcfdb76"
+version = "4.0.0-alpha.0"
+source = "git+https://github.com/plusvic/rust-protobuf?rev=53091cb35870e8fea17971326b7d1f84e2d832a2#53091cb35870e8fea17971326b7d1f84e2d832a2"
 dependencies = [
  "anyhow",
  "indexmap 2.4.0",
@@ -2759,9 +2755,8 @@ dependencies = [
 
 [[package]]
 name = "protobuf-support"
-version = "3.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0766e3675a627c327e4b3964582594b0e8741305d628a98a5de75a1d15f99b9"
+version = "4.0.0-alpha.0"
+source = "git+https://github.com/plusvic/rust-protobuf?rev=53091cb35870e8fea17971326b7d1f84e2d832a2#53091cb35870e8fea17971326b7d1f84e2d832a2"
 dependencies = [
  "thiserror",
 ]
@@ -4290,7 +4285,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
