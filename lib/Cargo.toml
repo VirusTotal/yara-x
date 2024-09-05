@@ -229,7 +229,10 @@ thiserror = { workspace = true }
 tlsh-fixed = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true, features = ["v4"] }
 walrus = { workspace = true }
-wasmtime = { workspace = true, default-features = false, features = ["cranelift", "parallel-compilation", "runtime"] }
+wasmtime = { workspace = true, default-features = false, features = [
+    "cranelift",
+    "runtime",
+] }
 x509-parser = { workspace = true, optional = true }
 yansi = { workspace = true }
 yara-x-macros = { workspace = true }
