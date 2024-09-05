@@ -29,7 +29,7 @@ thread_local!(
 );
 
 #[module_main]
-fn main(_data: &[u8]) -> Hash {
+fn main(_data: &[u8], _meta: Option<&[u8]>) -> Hash {
     // With every scanned file the cache must be cleared.
     SHA256_CACHE.with(|cache| cache.borrow_mut().clear());
     SHA1_CACHE.with(|cache| cache.borrow_mut().clear());

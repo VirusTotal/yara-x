@@ -18,7 +18,7 @@ use lingua::{Language, LanguageDetectorBuilder};
 /// This function must return an instance of the protobuf message indicated
 /// in the `root_message` option in `text.proto`.
 #[module_main]
-fn main(data: &[u8]) -> Text {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Text {
     // Create an empty instance of the Text protobuf.
     let mut text_proto = Text::new();
 

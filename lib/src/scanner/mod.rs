@@ -4,7 +4,7 @@ The scanner takes the rules produces by the compiler and scans data with them.
 */
 
 use std::cell::RefCell;
-use std::collections::hash_map;
+use std::collections::{hash_map, HashMap};
 use std::io::Read;
 use std::ops::{Deref, Range};
 use std::path::{Path, PathBuf};
@@ -107,6 +107,32 @@ impl<'a> AsRef<[u8]> for ScannedData<'a> {
             ScannedData::Vec(v) => v.as_ref(),
             ScannedData::Mmap(m) => m.as_slice(),
         }
+    }
+}
+
+/// Optional information for the scan operation.
+#[derive(Debug, Default)]
+pub struct ScanOptions<'a> {
+    module_metadata: HashMap<&'a str, &'a [u8]>,
+}
+
+impl<'a> ScanOptions<'a> {
+    /// Creates a new instance of `ScanOptions` with no additional information
+    /// for the scan operation.
+    ///
+    /// Use other methods to add additional information.
+    pub fn new() -> Self {
+        Self { module_metadata: Default::default() }
+    }
+
+    /// Adds metadata for a YARA module.
+    pub fn set_module_metadata(
+        mut self,
+        module_name: &'a str,
+        metadata: &'a [u8],
+    ) -> Self {
+        self.module_metadata.insert(module_name, metadata);
+        self
     }
 }
 
@@ -312,49 +338,45 @@ impl<'r> Scanner<'r> {
         self
     }
 
-    /// Scans a file.
-    pub fn scan_file<'a, P>(
-        &'a mut self,
-        path: P,
-    ) -> Result<ScanResults<'a, 'r>, ScanError>
-    where
-        P: AsRef<Path>,
-    {
-        let path = path.as_ref();
-
-        let mut file = fs::File::open(path).map_err(|err| {
-            ScanError::OpenError { path: path.to_path_buf(), source: err }
-        })?;
-
-        let size = file.metadata().map(|m| m.len()).unwrap_or(0);
-
-        let mut buffered_file;
-        let mapped_file;
-
-        // For files smaller than ~500MB reading the whole file is faster than
-        // using a memory-mapped file.
-        let data = if size < 500_000_000 {
-            buffered_file = Vec::with_capacity(size as usize);
-            file.read_to_end(&mut buffered_file).map_err(|err| {
-                ScanError::OpenError { path: path.to_path_buf(), source: err }
-            })?;
-            ScannedData::Vec(buffered_file)
-        } else {
-            mapped_file = MmapFile::open(path).map_err(|err| {
-                ScanError::MapError { path: path.to_path_buf(), source: err }
-            })?;
-            ScannedData::Mmap(mapped_file)
-        };
-
-        self.scan_impl(data)
-    }
-
     /// Scans in-memory data.
     pub fn scan<'a>(
         &'a mut self,
         data: &'a [u8],
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_impl(ScannedData::Slice(data))
+        self.scan_impl(ScannedData::Slice(data), None)
+    }
+
+    /// Scans a file.
+    pub fn scan_file<'a, P>(
+        &'a mut self,
+        target: P,
+    ) -> Result<ScanResults<'a, 'r>, ScanError>
+    where
+        P: AsRef<Path>,
+    {
+        self.scan_impl(Self::load_file(target.as_ref())?, None)
+    }
+
+    /// Like [`Scanner::scan`], but allows to specify additional scan options.
+    pub fn scan_with_options<'a, 'opts>(
+        &'a mut self,
+        data: &'a [u8],
+        options: ScanOptions<'opts>,
+    ) -> Result<ScanResults<'a, 'r>, ScanError> {
+        self.scan_impl(ScannedData::Slice(data), Some(options))
+    }
+
+    /// Like [`Scanner::scan_file`], but allows to specify additional scan
+    /// options.
+    pub fn scan_file_with_options<'a, 'opts, P>(
+        &'a mut self,
+        target: P,
+        options: ScanOptions<'opts>,
+    ) -> Result<ScanResults<'a, 'r>, ScanError>
+    where
+        P: AsRef<Path>,
+    {
+        self.scan_impl(Self::load_file(target.as_ref())?, Some(options))
     }
 
     /// Sets the value of a global variable.
@@ -502,9 +524,38 @@ impl<'r> Scanner<'r> {
 }
 
 impl<'r> Scanner<'r> {
-    fn scan_impl<'a>(
+    fn load_file(path: &Path) -> Result<ScannedData<'static>, ScanError> {
+        let mut file = fs::File::open(path).map_err(|err| {
+            ScanError::OpenError { path: path.to_path_buf(), source: err }
+        })?;
+
+        let size = file.metadata().map(|m| m.len()).unwrap_or(0);
+
+        let mut buffered_file;
+        let mapped_file;
+
+        // For files smaller than ~500MB reading the whole file is faster than
+        // using a memory-mapped file.
+        let data = if size < 500_000_000 {
+            buffered_file = Vec::with_capacity(size as usize);
+            file.read_to_end(&mut buffered_file).map_err(|err| {
+                ScanError::OpenError { path: path.to_path_buf(), source: err }
+            })?;
+            ScannedData::Vec(buffered_file)
+        } else {
+            mapped_file = MmapFile::open(path).map_err(|err| {
+                ScanError::MapError { path: path.to_path_buf(), source: err }
+            })?;
+            ScannedData::Mmap(mapped_file)
+        };
+
+        Ok(data)
+    }
+
+    fn scan_impl<'a, 'opts>(
         &'a mut self,
         data: ScannedData<'a>,
+        options: Option<ScanOptions<'opts>>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
         // Clear information about matches found in a previous scan, if any.
         self.reset();
@@ -598,7 +649,11 @@ impl<'r> Scanner<'r> {
             {
                 Some(output)
             } else {
-                module.main_fn.map(|main_fn| main_fn(data.as_ref()))
+                let meta = options.as_ref().and_then(|options| {
+                    options.module_metadata.get(module_name).copied()
+                });
+
+                module.main_fn.map(|main_fn| main_fn(data.as_ref(), meta))
             };
 
             if let Some(module_output) = &module_output {

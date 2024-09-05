@@ -24,6 +24,20 @@ Examples:
 --define some_bool=true
 --define some_str=\"foobar\""#;
 
+pub const MODULE_DATA_LONG_HELP: &str = r#"Pass FILE's content as extra data to MODULE
+
+Some modules require supplementary data to work, in addition to the scanned file. This
+option allows you to provide that extra data. The flag can be used multiple times to
+supply data to different modules. The content of the FILE is loaded and interpreted by
+the respective module.
+
+Examples:
+
+--module-data=mymodule0=./example0.json --module-data=mymodule1=./example1.json
+
+In this example, the contents of example0.json and example1.json will be passed to
+mymodule0 and mymodule1, respectively."#;
+
 pub const DEPTH_LONG_HELP: &str = r#"Walk directories recursively up to a given depth
 
 This is ignored if <RULES_PATH> is not a directory. When <MAX_DEPTH> is 0 it means

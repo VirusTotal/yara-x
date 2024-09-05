@@ -59,6 +59,8 @@ pub use scanner::NonMatchingRules;
 pub use scanner::Pattern;
 pub use scanner::Patterns;
 pub use scanner::Rule;
+pub use scanner::ScanError;
+pub use scanner::ScanOptions;
 pub use scanner::ScanResults;
 pub use scanner::Scanner;
 pub use variables::Variable;

@@ -24,7 +24,7 @@ pub(crate) mod prelude {
 include!("modules.rs");
 
 /// Type of module's main function.
-type MainFn = fn(&[u8]) -> Box<dyn MessageDyn>;
+type MainFn = fn(&[u8], Option<&[u8]>) -> Box<dyn MessageDyn>;
 
 /// Describes a YARA module.
 pub(crate) struct Module {
@@ -134,8 +134,7 @@ pub mod mods {
 
     ```rust
     # use yara_x;
-    # let data = &[];
-    let pe_info = yara_x::mods::invoke::<yara_x::mods::PE>(data);
+    let pe_info = yara_x::mods::invoke::<yara_x::mods::PE>(&[]);
     ```
      */
 
@@ -210,11 +209,19 @@ pub mod mods {
     /// # Example
     /// ```rust
     /// # use yara_x;
-    /// # let data = &[];
-    /// let elf_info = yara_x::mods::invoke::<yara_x::mods::ELF>(data);
+    /// let elf_info = yara_x::mods::invoke::<yara_x::mods::ELF>(&[]);
     /// ```
     pub fn invoke<T: protobuf::MessageFull>(data: &[u8]) -> Option<Box<T>> {
         let module_output = invoke_dyn::<T>(data)?;
+        Some(<dyn protobuf::MessageDyn>::downcast_box(module_output).unwrap())
+    }
+
+    /// Like [`invoke`], but allows passing metadata to the module.
+    pub fn invoke_with_meta<T: protobuf::MessageFull>(
+        data: &[u8],
+        meta: Option<&[u8]>,
+    ) -> Option<Box<T>> {
+        let module_output = invoke_with_meta_dyn::<T>(data, meta)?;
         Some(<dyn protobuf::MessageDyn>::downcast_box(module_output).unwrap())
     }
 
@@ -226,6 +233,14 @@ pub mod mods {
     pub fn invoke_dyn<T: protobuf::MessageFull>(
         data: &[u8],
     ) -> Option<Box<dyn protobuf::MessageDyn>> {
+        invoke_with_meta_dyn::<T>(data, None)
+    }
+
+    /// Like [`invoke_dyn`], but allows passing metadata to the module.
+    pub fn invoke_with_meta_dyn<T: protobuf::MessageFull>(
+        data: &[u8],
+        meta: Option<&[u8]>,
+    ) -> Option<Box<dyn protobuf::MessageDyn>> {
         let descriptor = T::descriptor();
         let proto_name = descriptor.full_name();
         let (_, module) =
@@ -233,7 +248,7 @@ pub mod mods {
                 module.root_struct_descriptor.full_name() == proto_name
             })?;
 
-        Some(module.main_fn?(data))
+        Some(module.main_fn?(data, meta))
     }
 
     /// Invoke all YARA modules and return the data produced by them.
@@ -244,8 +259,7 @@ pub mod mods {
     /// # Example
     /// ```rust
     /// # use yara_x;
-    /// # let data = &[];
-    /// let modules_output = yara_x::mods::invoke_all(data);
+    /// let modules_output = yara_x::mods::invoke_all(&[]);
     /// ```
     pub fn invoke_all(data: &[u8]) -> Box<Modules> {
         let mut info = Box::new(Modules::new());
