@@ -2,6 +2,8 @@
 {
 #[cfg(feature = "console-module")]
 add_module!(modules, "console", console, "console.Console", Some("console"), Some(console::__main__ as MainFn));
+#[cfg(feature = "cuckoo-module")]
+add_module!(modules, "cuckoo", cuckoo, "cuckoo.Cuckoo", Some("cuckoo"), Some(cuckoo::__main__ as MainFn));
 #[cfg(feature = "dotnet-module")]
 add_module!(modules, "dotnet", dotnet, "dotnet.Dotnet", Some("dotnet"), Some(dotnet::__main__ as MainFn));
 #[cfg(feature = "elf-module")]
