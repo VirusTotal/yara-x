@@ -357,7 +357,7 @@ impl Scanner {
         Python::with_gil(|py| {
             scan_results_to_py(
                 py,
-                self.inner.scan_file(path.as_path()).map_err(map_scan_err)?,
+                self.inner.scan_file(path).map_err(map_scan_err)?,
             )
         })
     }

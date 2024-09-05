@@ -123,43 +123,6 @@ pub struct Scanner<'r> {
     timeout: Option<Duration>,
 }
 
-#[derive(Clone, PartialEq, Eq)]
-/// Holds paths to files necessary for scanning.
-pub struct ScanInput<'trgt, 'meta> {
-    /// The path to the target file that will be scanned.
-    pub target_file: &'trgt Path,
-    /// An optional path to a metadata file associated with the target file.
-    pub metadata_file: Option<&'meta Path>,
-}
-
-impl<'trgt, 'meta> ScanInput<'trgt, 'meta> {
-    /// Creates a new `ScanInput`.
-    pub fn new(
-        target_file: &'trgt Path,
-        metadata_file: Option<&'meta Path>,
-    ) -> Self {
-        Self { target_file, metadata_file }
-    }
-
-    /// Creates a new `ScanInput` with only the target file. (metadata None)
-    pub fn just_target(target_file: &'trgt Path) -> Self {
-        Self { target_file, metadata_file: None }
-    }
-}
-
-pub(crate) struct ScanInputLoaded<'a, 'b> {
-    pub target: ScannedData<'a>,
-    pub meta: Option<ScannedData<'b>>,
-}
-
-/// Holds the data that will be scanned.
-pub struct ScanInputRaw<'a, 'b> {
-    /// The target data that will be scanned.
-    pub target: &'a [u8],
-    /// An optional metadata associated with the target data.
-    pub meta: Option<&'b [u8]>,
-}
-
 impl<'r> Scanner<'r> {
     const DEFAULT_SCAN_TIMEOUT: u64 = 315_360_000;
 
@@ -506,16 +469,16 @@ impl<'r> Scanner<'r> {
     /// See [`Scanner::module_meta`] for the reasoning behind choosing `Arc<_>`
     pub fn set_module_meta(
         &mut self,
-        module_full_name: &str,
+        module_name: &str,
         meta: Option<&Arc<[u8]>>,
     ) {
         if let Some(meta) = meta {
             self.wasm_store
                 .data_mut()
                 .module_meta
-                .insert(module_full_name.to_string(), meta.clone());
+                .insert(module_name.to_string(), meta.clone());
         } else {
-            self.wasm_store.data_mut().module_meta.remove(module_full_name);
+            self.wasm_store.data_mut().module_meta.remove(module_name);
         }
     }
 

@@ -212,7 +212,8 @@ pub mod mods {
     /// let elf_info = yara_x::mods::invoke::<yara_x::mods::ELF>(&[]);
     /// ```
     pub fn invoke<T: protobuf::MessageFull>(data: &[u8]) -> Option<Box<T>> {
-        invoke_with_meta::<T>(data, None)
+        let module_output = invoke_dyn::<T>(data)?;
+        Some(<dyn protobuf::MessageDyn>::downcast_box(module_output).unwrap())
     }
 
     /// Like [`invoke`], but allows passing metadata to the module.
@@ -220,7 +221,7 @@ pub mod mods {
         data: &[u8],
         meta: Option<&[u8]>,
     ) -> Option<Box<T>> {
-        let module_output = invoke_dyn::<T>(data, meta)?;
+        let module_output = invoke_with_meta_dyn::<T>(data, meta)?;
         Some(<dyn protobuf::MessageDyn>::downcast_box(module_output).unwrap())
     }
 
@@ -230,6 +231,13 @@ pub mod mods {
     /// This function is similar to [`invoke`] but its result is a dynamic-
     /// dispatch version of the structure returned by the YARA module.
     pub fn invoke_dyn<T: protobuf::MessageFull>(
+        data: &[u8],
+    ) -> Option<Box<dyn protobuf::MessageDyn>> {
+        invoke_with_meta_dyn::<T>(data, None)
+    }
+
+    /// Like [`invoke_dyn`], but allows passing metadata to the module.
+    pub fn invoke_with_meta_dyn<T: protobuf::MessageFull>(
         data: &[u8],
         meta: Option<&[u8]>,
     ) -> Option<Box<dyn protobuf::MessageDyn>> {
