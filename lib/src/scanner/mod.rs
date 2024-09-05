@@ -377,7 +377,7 @@ impl<'r> Scanner<'r> {
     {
         let target = Self::load_file(target.as_ref())?;
 
-        self.scan_with_options_impl(target, scan_options)
+        self.scan_with_options_impl(target, Some(scan_options))
     }
 
     /// Scans a file.
@@ -388,7 +388,9 @@ impl<'r> Scanner<'r> {
     where
         P: AsRef<Path>,
     {
-        self.scan_file_with_options(target, ScanOptions::new())
+        let target = Self::load_file(target.as_ref())?;
+
+        self.scan_with_options_impl(target, None)
     }
 
     /// Like [`scan`], but allows to specify additional scan options.
@@ -397,7 +399,10 @@ impl<'r> Scanner<'r> {
         data: &'a [u8],
         scan_options: ScanOptions<'opts>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_with_options_impl(ScannedData::Slice(data), scan_options)
+        self.scan_with_options_impl(
+            ScannedData::Slice(data),
+            Some(scan_options),
+        )
     }
 
     /// scans in-memory data (with optional metadata)
@@ -405,7 +410,7 @@ impl<'r> Scanner<'r> {
         &'a mut self,
         data: &'a [u8],
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_with_options(data, ScanOptions::new())
+        self.scan_with_options_impl(ScannedData::Slice(data), None)
     }
 
     /// Sets the value of a global variable.
@@ -556,7 +561,7 @@ impl<'r> Scanner<'r> {
     fn scan_with_options_impl<'a, 'opts>(
         &'a mut self,
         data: ScannedData<'a>,
-        scan_options: ScanOptions<'opts>, // todo use
+        scan_options: Option<ScanOptions<'opts>>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
         // Clear information about matches found in a previous scan, if any.
         self.reset();
@@ -641,8 +646,9 @@ impl<'r> Scanner<'r> {
             {
                 Some(output)
             } else {
-                let meta =
-                    scan_options.module_metadata.get(module_name).copied();
+                let meta = scan_options.as_ref().and_then(|options| {
+                    options.module_metadata.get(module_name).copied()
+                });
 
                 let data = data.as_ref();
 
