@@ -3,7 +3,7 @@ use std::cmp::min;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Error};
@@ -15,7 +15,7 @@ use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
 use yara_x::errors::ScanError;
-use yara_x::{MetaValue, Rule, Rules, ScanResults, Scanner};
+use yara_x::{MetaValue, Rule, Rules, ScanOptions, ScanResults, Scanner};
 
 use crate::commands::{
     compile_rules, external_var_parser, truncate_with_ellipsis,
@@ -271,9 +271,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         for (module_full_name, metadata_path) in metadata {
             let meta = std::fs::read(Path::new(metadata_path))?;
 
-            let arcd_meta = Arc::<[u8]>::from(meta);
-
-            all_metadata.push((module_full_name.to_string(), arcd_meta));
+            all_metadata.push((module_full_name.to_string(), meta));
         }
         all_metadata
     };
@@ -321,12 +319,15 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 .unwrap()
                 .push((file_path.clone(), now));
 
-            for (module_full_name, meta) in all_metadata.iter() {
-                scanner.set_module_meta(module_full_name, Some(meta));
-            }
+            let scan_options = all_metadata.iter().fold(
+                ScanOptions::new(),
+                |acc, (module_name, meta)| {
+                    acc.set_module_metadata(module_name, meta)
+                },
+            );
 
             let scan_results = scanner
-                .scan_file(file_path.as_path())
+                .scan_file_with_options(file_path.as_path(), scan_options)
                 .with_context(|| format!("scanning {:?}", &file_path));
 
             state

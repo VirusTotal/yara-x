@@ -4,7 +4,7 @@ The scanner takes the rules produces by the compiler and scans data with them.
 */
 
 use std::cell::RefCell;
-use std::collections::hash_map;
+use std::collections::{hash_map, HashMap};
 use std::io::Read;
 use std::ops::{Deref, Range};
 use std::path::{Path, PathBuf};
@@ -13,7 +13,7 @@ use std::ptr::{null, NonNull};
 use std::rc::Rc;
 use std::slice::Iter;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Once};
+use std::sync::Once;
 use std::time::Duration;
 use std::{cmp, fs, thread};
 
@@ -110,6 +110,32 @@ impl<'a> AsRef<[u8]> for ScannedData<'a> {
     }
 }
 
+/// Optional information for the scan operation.
+#[derive(Debug, Default)]
+pub struct ScanOptions<'a> {
+    module_metadata: HashMap<&'a str, &'a [u8]>,
+}
+
+impl<'a> ScanOptions<'a> {
+    /// Creates a new instance of `ScanOptions` with no additional information
+    /// for the scan operation.
+    ///
+    /// Use other methods to add additional information.
+    pub fn new() -> Self {
+        Self { module_metadata: Default::default() }
+    }
+
+    /// Adds metadata for a YARA module.
+    pub fn set_module_metadata(
+        mut self,
+        module_name: &'a str,
+        metadata: &'a [u8],
+    ) -> Self {
+        self.module_metadata.insert(module_name, metadata);
+        self
+    }
+}
+
 /// Scans data with already compiled YARA rules.
 ///
 /// The scanner receives a set of compiled [`Rules`] and scans data with those
@@ -157,7 +183,6 @@ impl<'r> Scanner<'r> {
                 main_memory: None,
                 module_outputs: FxHashMap::default(),
                 user_provided_module_outputs: FxHashMap::default(),
-                module_meta: FxHashMap::default(),
                 pattern_matches: PatternMatches::new(),
                 unconfirmed_matches: FxHashMap::default(),
                 deadline: 0,
@@ -341,6 +366,20 @@ impl<'r> Scanner<'r> {
         Ok(data)
     }
 
+    /// Like [`scan_file`], but allows to specify additional scan options.
+    pub fn scan_file_with_options<'a, 'opts, P>(
+        &'a mut self,
+        target: P,
+        scan_options: ScanOptions<'opts>,
+    ) -> Result<ScanResults<'a, 'r>, ScanError>
+    where
+        P: AsRef<Path>,
+    {
+        let target = Self::load_file(target.as_ref())?;
+
+        self.scan_with_options_impl(target, scan_options)
+    }
+
     /// Scans a file.
     pub fn scan_file<'a, P>(
         &'a mut self,
@@ -349,9 +388,16 @@ impl<'r> Scanner<'r> {
     where
         P: AsRef<Path>,
     {
-        let target = Self::load_file(target.as_ref())?;
+        self.scan_file_with_options(target, ScanOptions::new())
+    }
 
-        self.scan_impl(target)
+    /// Like [`scan`], but allows to specify additional scan options.
+    pub fn scan_with_options<'a, 'opts>(
+        &'a mut self,
+        data: &'a [u8],
+        scan_options: ScanOptions<'opts>,
+    ) -> Result<ScanResults<'a, 'r>, ScanError> {
+        self.scan_with_options_impl(ScannedData::Slice(data), scan_options)
     }
 
     /// scans in-memory data (with optional metadata)
@@ -359,7 +405,7 @@ impl<'r> Scanner<'r> {
         &'a mut self,
         data: &'a [u8],
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_impl(ScannedData::Slice(data))
+        self.scan_with_options(data, ScanOptions::new())
     }
 
     /// Sets the value of a global variable.
@@ -462,26 +508,6 @@ impl<'r> Scanner<'r> {
         Ok(())
     }
 
-    /// Updates the metadata for a module specified by its fully-qualified name.
-    ///
-    /// If the `meta` argument is `None`, the metadata for the module is removed.
-    ///
-    /// See [`Scanner::module_meta`] for the reasoning behind choosing `Arc<_>`
-    pub fn set_module_meta(
-        &mut self,
-        module_name: &str,
-        meta: Option<&Arc<[u8]>>,
-    ) {
-        if let Some(meta) = meta {
-            self.wasm_store
-                .data_mut()
-                .module_meta
-                .insert(module_name.to_string(), meta.clone());
-        } else {
-            self.wasm_store.data_mut().module_meta.remove(module_name);
-        }
-    }
-
     /// Similar to [`Scanner::set_module_output`], but receives a module name
     /// and the protobuf message as raw data.
     ///
@@ -527,9 +553,10 @@ impl<'r> Scanner<'r> {
 }
 
 impl<'r> Scanner<'r> {
-    fn scan_impl<'a>(
+    fn scan_with_options_impl<'a, 'opts>(
         &'a mut self,
         data: ScannedData<'a>,
+        scan_options: ScanOptions<'opts>, // todo use
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
         // Clear information about matches found in a previous scan, if any.
         self.reset();
@@ -615,7 +642,7 @@ impl<'r> Scanner<'r> {
                 Some(output)
             } else {
                 let meta =
-                    ctx.module_meta.get(module_name).map(|data| &**data);
+                    scan_options.module_metadata.get(module_name).copied();
 
                 let data = data.as_ref();
 
@@ -721,9 +748,6 @@ impl<'r> Scanner<'r> {
                 }
             }
         }
-
-        // clear the metadata for all modules
-        self.wasm_store.data_mut().module_meta.clear();
 
         match func_result {
             Ok(0) => Ok(ScanResults::new(self.wasm_store.data(), data)),

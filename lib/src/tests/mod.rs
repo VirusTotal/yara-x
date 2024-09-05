@@ -61,12 +61,14 @@ macro_rules! test_rule {
 
         let mut scanner = crate::scanner::Scanner::new(&rules);
 
-        for (module_name, module_data) in $metadata {
-            scanner.set_module_meta(module_name, Some(module_data));
+        let mut scan_options = crate::ScanOptions::new();
+
+        for (module_name, meta) in $metadata {
+            scan_options = scan_options.set_module_metadata(module_name, meta);
         }
 
         let num_matching_rules = scanner
-            .scan($data)
+            .scan_with_options($data, scan_options)
             .expect("scan should not fail")
             .matching_rules()
             .len();
