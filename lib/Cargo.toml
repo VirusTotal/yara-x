@@ -229,13 +229,20 @@ thiserror = { workspace = true }
 tlsh-fixed = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true, features = ["v4"] }
 walrus = { workspace = true }
-wasmtime = { workspace = true, default-features = false, features = ["cranelift", "parallel-compilation", "runtime"] }
+wasmtime = { workspace = true, default-features = false, features = [
+    "cranelift",
+    "runtime",
+] }
 x509-parser = { workspace = true, optional = true }
 yansi = { workspace = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true, features = ["serde"] }
 
 lingua = { version = "1.6.2", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
+
+# syscalls crate is only available for Linux
+[target.'cfg(target_os = "linux")'.dependencies]
+syscalls = "0.6.18"
 
 [build-dependencies]
 anyhow = { workspace = true }
