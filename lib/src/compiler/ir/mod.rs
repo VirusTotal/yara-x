@@ -96,6 +96,7 @@ bitmask! {
 pub(in crate::compiler) struct PatternInRule<'src> {
     identifier: Ident<'src>,
     pattern: Pattern,
+    span: Span,
     in_use: bool,
 }
 
@@ -113,6 +114,11 @@ impl<'src> PatternInRule<'src> {
     #[inline]
     pub fn pattern(&self) -> &Pattern {
         &self.pattern
+    }
+
+    #[inline]
+    pub fn span(&self) -> &Span {
+        &self.span
     }
 
     #[inline]
@@ -821,8 +827,28 @@ impl Expr {
     /// Returns an iterator that does a DFS traversal of the IR tree.
     ///
     /// See [`DepthFirstSearch`] for details.
-    pub fn depth_first_search(&self) -> DepthFirstSearch {
+    pub fn dfs_iter(&self) -> DepthFirstSearch {
         DepthFirstSearch::new(self)
+    }
+
+    /// Finds the first expression in DFS order that matches the given
+    /// predicate.
+    ///
+    /// This function performs a DFS traversal starting at the current
+    /// expression and returns the first expression that matches the
+    /// predicate.
+    pub fn dfs_find<P>(&self, predicate: P) -> Option<&Expr>
+    where
+        P: Fn(&Expr) -> bool,
+    {
+        for evt in self.dfs_iter() {
+            if let Event::Enter(expr) = evt {
+                if predicate(expr) {
+                    return Some(expr);
+                }
+            }
+        }
+        None
     }
 
     /// Returns the type of this expression.
@@ -1120,7 +1146,7 @@ impl Debug for Expr {
             if index.is_some() { " INDEX" } else { "" }
         };
 
-        for event in self.depth_first_search() {
+        for event in self.dfs_iter() {
             match event {
                 Event::Leave(_) => level -= 1,
                 Event::Enter(expr) => {

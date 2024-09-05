@@ -5,9 +5,9 @@ package yaml;
 import "google/protobuf/descriptor.proto";
 
 message FieldOptions {
-    optional string fmt = 3;
+  optional string fmt = 3;
 }
 
 extend google.protobuf.FieldOptions {
-    optional FieldOptions field = 51504;
+  optional FieldOptions field = 60000;
 }

@@ -80,7 +80,7 @@ impl Symbol {
 /// Implements [`SymbolLookup`] for `Option<Symbol>` so that lookup
 /// operations can be chained.
 ///
-/// For example you can do:
+/// For example, you can do:
 ///
 /// ```text
 /// symbol_table.lookup("foo").lookup("bar")
@@ -295,8 +295,8 @@ mod tests {
         );
 
         assert_eq!(
-            test.lookup("items").lookup("ITEM_1").unwrap().as_integer(),
-            Some(Enumeration2::ITEM_1.value() as i64)
+            test.lookup("items").lookup("ITEM_4").unwrap().as_integer(),
+            Some(Enumeration2::ITEM_4.value() as i64)
         );
     }
 

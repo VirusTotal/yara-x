@@ -44,10 +44,10 @@ pub const DUMP_LONG_HELP: &str = r#"Show the data produced by YARA modules for a
 
 YARA modules analyze files and extract information from them. This command shows all the
 data produced by one ore more YARA module for the given file. If no module is explicitly
-specified with the `--module` option, any module for which YARA produces information will
-be shown.
+specified with the `--module` option, any module for which YARA produced some information
+will be shown.
 
-If the file is provided it will be read from stdin.
+If the file is not provided it will be read from stdin.
 
 Examples:
 
@@ -96,6 +96,13 @@ command allows to convert your YARA source files to UTF-8 encoding if they are n
 
 If <RULES_PATH> is a directory, all files with extensions `.yar` and `.yara` will be converted.
 This behavior can be changed by using the `--filter` option."#;
+
+pub const IGNORE_MODULE_LONG_HELP: &str = r#"Ignore rules that use the specified module
+
+Rules that use the specified module will be ignored, as well as any rules that depends
+directly or indirectly on such rules.
+
+This option can be used more than once for ignored different modules."#;
 
 pub const THREADS_LONG_HELP: &str = r#"Use the specified number of threads
 

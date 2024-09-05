@@ -18,6 +18,7 @@ use crate::compiler::report::{Level, Report, ReportBuilder, CodeLoc, Label};
 #[serde(tag = "type")]
 pub enum Warning {
     ConsecutiveJumps(Box<ConsecutiveJumps>),
+    PotentiallySlowLoop(Box<PotentiallySlowLoop>),
     PotentiallyUnsatisfiableExpression(Box<PotentiallyUnsatisfiableExpression>),
     InvariantBooleanExpression(Box<InvariantBooleanExpression>),
     NonBooleanAsBoolean(Box<NonBooleanAsBoolean>),
@@ -68,6 +69,38 @@ impl ConsecutiveJumps {
     pub fn pattern(&self) -> &str {
         self.pattern_ident.as_str()
     }
+}
+
+/// A rule contains a loop that could be very slow.
+///
+/// This warning indicates that a rule contains a `for` loop that may be very
+/// slow because it iterates over a range with an upper bound that depends on
+/// `filesize`. For very large files this may mean hundreds of millions of
+/// iterations.
+///
+/// # Example
+///
+/// ```text
+/// warning[potentially_slow_loop]: potentially slow loop
+///  --> test.yar:1:34
+///   |
+/// 1 | rule t { condition: for any i in (0..filesize-1) : ( int32(i) == 0xcafebabe ) }
+///   |                                  --------------- this range can be very large
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "potentially_slow_loop",
+    title = "potentially slow loop",
+)]
+#[label(
+"this range can be very large",
+    loc
+)]
+pub struct PotentiallySlowLoop {
+    report: Report,
+    loc: CodeLoc,
 }
 
 /// A boolean expression may be impossible to match.

@@ -960,6 +960,36 @@ impl<'a> Compiler<'a> {
         self.ir_writer = Some(Box::new(w));
         self
     }
+
+    /// Returns true if the bytes in the slice are all 0x00, 0x90, or 0xff.
+    fn common_byte_repetition(bytes: &[u8]) -> bool {
+        let mut all_x00 = true;
+        let mut all_x90 = true;
+        let mut all_xff = true;
+
+        for b in bytes {
+            match *b {
+                0x00 => {
+                    all_x90 = false;
+                    all_xff = false;
+                }
+                0x90 => {
+                    all_x00 = false;
+                    all_xff = false;
+                }
+                0xff => {
+                    all_x00 = false;
+                    all_x90 = false;
+                }
+                _ => return false,
+            }
+            if !all_x00 && !all_x90 && !all_xff {
+                return false;
+            }
+        }
+
+        true
+    }
 }
 
 impl<'a> Compiler<'a> {
@@ -1067,6 +1097,50 @@ impl<'a> Compiler<'a> {
         let condition = bool_expr_from_ast(&mut ctx, &rule.condition);
 
         drop(ctx);
+
+        // Search for patterns that are very common byte repetitions like:
+        //
+        //   00 00 00 00 00 00 ....
+        //   90 90 09 90 90 90 ....
+        //   FF FF FF FF FF FF ....
+        //
+        // Raise a warning when such a pattern is found, except in the
+        // following cases:
+        //
+        // 1) When the pattern is anchored, because anchored pattern can appear
+        //    only at a fixed pattern and are not searched by Aho-Corasick.
+        // 2) When the pattern has attributes: xor, fullword, base64 or
+        //    base64wide, because in those cases the real pattern is not that
+        //    common.
+        //
+        // Note: this can't be done before calling `bool_expr_from_ast`, because
+        // we don't know which patterns are anchored until the condition is
+        // processed.
+        for pat in rule_patterns.iter() {
+            if pat.anchored_at().is_none()
+                && !pat.pattern().flags().intersects(
+                    PatternFlags::Xor
+                        | PatternFlags::Fullword
+                        | PatternFlags::Base64
+                        | PatternFlags::Base64Wide,
+                )
+            {
+                let literal_bytes = match pat.pattern() {
+                    Pattern::Literal(lit) => Some(lit.text.as_bytes()),
+                    Pattern::Regexp(re) => re.hir.as_literal_bytes(),
+                };
+                if let Some(literal_bytes) = literal_bytes {
+                    if Self::common_byte_repetition(literal_bytes) {
+                        self.warnings.add(|| {
+                            warnings::SlowPattern::build(
+                                &self.report_builder,
+                                pat.span().into(),
+                            )
+                        });
+                    }
+                }
+            }
+        }
 
         // In case of error, restore the compiler to the state it was before
         // entering this function. Also, if the error is due to an unknown

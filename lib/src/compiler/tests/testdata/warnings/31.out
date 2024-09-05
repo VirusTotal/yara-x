@@ -1,0 +1,12 @@
+warning[potentially_slow_loop]: potentially slow loop
+ --> line:1:39
+  |
+1 | rule test_1 { condition: for any i in (0..filesize) : ( int32(i) == 0 ) }
+  |                                       ------------- this range can be very large
+  |
+warning[potentially_slow_loop]: potentially slow loop
+ --> line:3:39
+  |
+3 | rule test_2 { condition: for any i in (0..filesize-1) : ( int32(i) == 0 ) }
+  |                                       --------------- this range can be very large
+  |

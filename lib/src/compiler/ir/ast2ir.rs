@@ -75,15 +75,10 @@ fn pattern_from_ast<'src>(
             ));
         }
     }
-
     match pattern {
-        ast::Pattern::Text(pattern) => {
-            Ok(text_pattern_from_ast(ctx, pattern)?)
-        }
-        ast::Pattern::Hex(pattern) => Ok(hex_pattern_from_ast(ctx, pattern)?),
-        ast::Pattern::Regexp(pattern) => {
-            Ok(regexp_pattern_from_ast(ctx, pattern)?)
-        }
+        ast::Pattern::Text(pat) => Ok(text_pattern_from_ast(ctx, pat)?),
+        ast::Pattern::Hex(pat) => Ok(hex_pattern_from_ast(ctx, pat)?),
+        ast::Pattern::Regexp(pat) => Ok(regexp_pattern_from_ast(ctx, pat)?),
     }
 }
 
@@ -225,6 +220,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
     Ok(PatternInRule {
         identifier: pattern.identifier.clone(),
         in_use: false,
+        span: pattern.span(),
         pattern: Pattern::Literal(LiteralPattern {
             flags,
             xor_range,
@@ -258,6 +254,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
     Ok(PatternInRule {
         identifier: pattern.identifier.clone(),
         in_use: false,
+        span: pattern.span(),
         pattern: Pattern::Regexp(RegexpPattern {
             flags: PatternFlagSet::from(PatternFlags::Ascii),
             hir: re::hir::Hir::from(hex_pattern_hir_from_ast(ctx, pattern)?),
@@ -366,6 +363,7 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     Ok(PatternInRule {
         identifier: pattern.identifier.clone(),
         in_use: false,
+        span: pattern.span(),
         pattern: Pattern::Regexp(RegexpPattern {
             flags,
             hir,
@@ -1016,7 +1014,26 @@ fn for_in_expr_from_ast(
     let iterable = iterable_from_ast(ctx, &for_in.iterable)?;
 
     let expected_vars = match &iterable {
-        Iterable::Range(_) => vec![TypeValue::Integer(Value::Unknown)],
+        Iterable::Range(range) => {
+            // Raise warning when the for loop iterates over a range where
+            // the upper bound is based in `filesize`. These loops are
+            // potentially slow.
+            if range.lower_bound.type_value().is_const()
+                && range
+                    .upper_bound
+                    .dfs_find(|node| matches!(node, Expr::Filesize))
+                    .is_some()
+            {
+                ctx.warnings.add(|| {
+                    warnings::PotentiallySlowLoop::build(
+                        ctx.report_builder,
+                        for_in.iterable.span().into(),
+                    )
+                })
+            }
+
+            vec![TypeValue::Integer(Value::Unknown)]
+        }
         Iterable::ExprTuple(expressions) => {
             // All expressions in the tuple have the same type, we can use
             // the type of the first item in the tuple as the type of the

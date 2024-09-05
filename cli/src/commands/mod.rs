@@ -23,7 +23,7 @@ use std::io::stdout;
 use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Context};
-use clap::{command, crate_authors, Command};
+use clap::{command, crate_authors, ArgMatches, Command};
 use crossterm::tty::IsTty;
 use serde_json::Value;
 use superconsole::{Component, Line, Lines, Span, SuperConsole};
@@ -98,10 +98,8 @@ fn meta_file_value_parser(
 
 pub fn compile_rules<'a, P>(
     paths: P,
-    path_as_namespace: bool,
     external_vars: Option<Vec<(String, Value)>>,
-    relaxed_re_syntax: bool,
-    disabled_warnings: Vec<&str>,
+    args: &ArgMatches,
 ) -> Result<Rules, anyhow::Error>
 where
     P: Iterator<Item = &'a PathBuf>,
@@ -109,8 +107,18 @@ where
     let mut compiler: Compiler<'_> = Compiler::new();
 
     compiler
-        .relaxed_re_syntax(relaxed_re_syntax)
+        .relaxed_re_syntax(args.get_flag("relaxed-re-syntax"))
         .colorize_errors(stdout().is_tty());
+
+    for m in args.get_many::<String>("ignore-module").into_iter().flatten() {
+        compiler.ignore_module(m);
+    }
+
+    let disabled_warnings: Vec<_> = args
+        .get_many::<String>("disable-warnings")
+        .into_iter()
+        .flatten()
+        .collect();
 
     // If the `disabled_warnings` vector contains "all", all warnings will
     // be disabled. Otherwise, only the warnings with codes listed in
@@ -155,7 +163,7 @@ where
                 let src = SourceCode::from(src.as_slice())
                     .with_origin(file_path.as_os_str().to_str().unwrap());
 
-                if path_as_namespace {
+                if args.get_flag("path-as-namespace") {
                     compiler
                         .new_namespace(file_path.to_string_lossy().as_ref());
                 }

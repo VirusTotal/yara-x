@@ -41,8 +41,24 @@ exact-atoms = []
 # the fast regexp matching mechanism for testing purposes.
 fast-regexp = []
 
+# Whether to use protoc for parsing and compiling .proto files. By default,
+# .proto files are parsed and compiled by the pure-Rust compiler implemented
+# by the `rust-protobuf` crate. With this feature you can change this behavior
+# and use protoc, the official Protocol Buffer compiler. You'll need to have
+# protoc installed in your system, together with the protoc-gen-rust plugin.
+# Follow the instructions in: https://lib.rs/crates/protobuf-codegen3
+protoc = []
+
 # Enables debug logs.
 logging = ["dep:log"]
+
+# Enables parallel compilation of WASM code. When compiling large number of
+# rules this noticeable reduces compilation time. However, this creates new
+# threads, which can be problematic in some scenarios. See:
+# https://github.com/VirusTotal/yara-x/issues/182
+#
+# This feature is enabled by default.
+parallel-compilation = ["wasmtime/parallel-compilation"]
 
 # Enables rules profiling. When this is enabled together with `logging` the
 # logs will contain information about the most expensive rules after each
@@ -53,7 +69,7 @@ rules-profiling = ["logging"]
 # When enabled use the logic included in the `x509-parser` crate for verifying
 # certificates. If not enabled we use our ouwn logic. This is disabled by
 # default.
-x509-parser-verify = ['x509-parser/verify']
+x509-parser-verify = ["x509-parser/verify"]
 
 # Features for enabling/disabling modules.
 #
@@ -149,6 +165,7 @@ default = [
     "constant-folding",
     "exact-atoms",
     "fast-regexp",
+    "parallel-compilation",
     "console-module",
     "dotnet-module",
     "elf-module",
@@ -212,13 +229,20 @@ thiserror = { workspace = true }
 tlsh-fixed = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true, features = ["v4"] }
 walrus = { workspace = true }
-wasmtime = { workspace = true, default-features = false, features = ["cranelift", "parallel-compilation", "runtime"] }
+wasmtime = { workspace = true, default-features = false, features = [
+    "cranelift",
+    "runtime",
+] }
 x509-parser = { workspace = true, optional = true }
 yansi = { workspace = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true, features = ["serde"] }
 
 lingua = { version = "1.6.2", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
+
+# syscalls crate is only available for Linux
+[target.'cfg(target_os = "linux")'.dependencies]
+syscalls = "0.6.18"
 
 [build-dependencies]
 anyhow = { workspace = true }
