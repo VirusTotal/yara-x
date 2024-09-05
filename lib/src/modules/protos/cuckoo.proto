@@ -1,0 +1,15 @@
+syntax = "proto2";
+import "yara.proto";
+
+package cuckoo;
+
+option (yara.module_options) = {
+  name : "cuckoo"
+  root_message: "cuckoo.Cuckoo"
+  rust_module: "cuckoo"
+  cargo_feature: "cuckoo-module"
+};
+
+message Cuckoo {
+  // This module contains only exported functions, and doesn't return any data
+}
