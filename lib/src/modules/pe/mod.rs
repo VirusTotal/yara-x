@@ -29,8 +29,8 @@ pub mod parser;
 mod rva2off;
 
 #[module_main]
-fn main(input: &[u8]) -> PE {
-    match parser::PE::parse(input) {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> PE {
+    match parser::PE::parse(data) {
         Ok(pe) => pe.into(),
         Err(_) => {
             let mut pe = PE::new();

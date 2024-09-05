@@ -19,7 +19,7 @@ pub mod parser;
 mod tests;
 
 #[module_main]
-fn main(data: &[u8]) -> ELF {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> ELF {
     match parser::ElfParser::new().parse(data) {
         Ok(elf) => elf,
         Err(_) => ELF::new(),

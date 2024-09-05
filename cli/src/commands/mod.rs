@@ -83,6 +83,19 @@ fn external_var_parser(
     Ok((var.to_string(), value))
 }
 
+fn meta_file_value_parser(
+    option: &str,
+) -> Result<(String, PathBuf), anyhow::Error> {
+    let (var, value) = option.split_once('=').ok_or(anyhow!(
+        "the equal sign is missing, use the syntax MODULE=FILE (example: {}=file)",
+        option
+    ))?;
+
+    let value = PathBuf::from(value);
+
+    Ok((var.to_string(), value))
+}
+
 pub fn compile_rules<'a, P>(
     paths: P,
     external_vars: Option<Vec<(String, Value)>>,

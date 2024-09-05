@@ -55,21 +55,40 @@ macro_rules! condition_false {
 }
 
 macro_rules! test_rule {
-    ($rule:expr,  $data:expr, $expected_result:expr) => {{
+    // Helper macro to avoid repetition
+    (__impl $rule:expr, $data:expr, $metadata:expr, $expected_result:expr) => {{
         let rules = crate::compile($rule).unwrap();
 
-        let num_matching_rules = crate::scanner::Scanner::new(&rules)
-            .scan($data)
+        let mut scanner = crate::scanner::Scanner::new(&rules);
+
+        let mut scan_options = crate::ScanOptions::new();
+
+        for (module_name, meta) in $metadata {
+            scan_options = scan_options.set_module_metadata(module_name, meta);
+        }
+
+        let num_matching_rules = scanner
+            .scan_with_options($data, scan_options)
             .expect("scan should not fail")
             .matching_rules()
             .len();
 
         assert_eq!(
             num_matching_rules, $expected_result as usize,
-            "\n\n`{}` should be {}, but it is {}",
-            $rule, $expected_result, !$expected_result
+            "\n\n`{}` expected {} rule(s) to match, but {} did",
+            $rule, $expected_result, num_matching_rules
         );
     }};
+
+    ($rule:expr, $data:expr, $metadata:expr, $expected_result:expr) => {{
+        let arcd_meta = ($metadata).map(|(name, meta)| (name, std::sync::Arc::<[u8]>::from(meta.to_vec())));
+        test_rule!(__impl $rule, $data, arcd_meta.as_ref(), $expected_result);
+    }};
+
+    ($rule:expr, $data:expr, $expected_result:expr) => {{
+        test_rule!(__impl $rule, $data, [] /* no metadata */, $expected_result);
+    }};
+
     ($rule:expr) => {{
         rule_true!($rule, &[]);
     }};
