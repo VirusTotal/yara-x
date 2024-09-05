@@ -3,7 +3,7 @@ use crate::compiler::{
     yrx_compiler_build, yrx_compiler_create, yrx_compiler_define_global_bool,
     yrx_compiler_define_global_float, yrx_compiler_define_global_int,
     yrx_compiler_define_global_str, yrx_compiler_destroy,
-    yrx_compiler_new_namespace,
+    yrx_compiler_enable_feature, yrx_compiler_new_namespace,
 };
 use crate::{
     yrx_buffer_destroy, yrx_last_error, yrx_metadata_destroy,
@@ -81,6 +81,9 @@ fn capi() {
             some_str.as_ptr(),
             some_str.as_ptr(),
         );
+
+        let feature = CString::new(b"foo").unwrap();
+        yrx_compiler_enable_feature(compiler, feature.as_ptr());
 
         let namespace = CString::new(b"foo").unwrap();
         yrx_compiler_new_namespace(compiler, namespace.as_ptr());

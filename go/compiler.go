@@ -51,6 +51,16 @@ func IgnoreModule(module string) CompileOption {
 	}
 }
 
+// WithFeature enables a feature while compiling rules.
+//
+// NOTE: This API is still experimental and subject to change.
+func WithFeature(feature string) CompileOption {
+	return func(c *Compiler) error {
+		c.features = append(c.features, feature)
+		return nil
+	}
+}
+
 // RelaxedReSyntax is an option for [NewCompiler] and [Compile] that
 // determines whether the compiler should adopt a more relaxed approach
 // while parsing regular expressions.
@@ -169,6 +179,7 @@ type Compiler struct {
 	errorOnSlowPattern bool
 	ignoredModules  map[string]bool
 	vars map[string]interface{}
+	features []string
 }
 
 // NewCompiler creates a new compiler.
@@ -176,6 +187,7 @@ func NewCompiler(opts... CompileOption) (*Compiler, error) {
 	c := &Compiler{
 		ignoredModules: make(map[string]bool),
 		vars: make(map[string]interface{}),
+		features: make([]string, 0),
 	}
 
 	for _, opt := range opts {
@@ -206,6 +218,9 @@ func NewCompiler(opts... CompileOption) (*Compiler, error) {
 func (c *Compiler) initialize() error {
 	for name, _ := range c.ignoredModules {
 		c.IgnoreModule(name)
+	}
+	for _, feature := range c.features {
+		c.enableFeature(feature)
 	}
 	for ident, value := range c.vars {
 		if err := c.DefineGlobal(ident, value); err != nil {
@@ -271,6 +286,18 @@ func (c *Compiler) AddSource(src string, opts... SourceOption) error {
 	// until yrx_compiler_add_source finishes.
 	runtime.KeepAlive(c)
 	return nil
+}
+
+/// enableFeature enables a compiler feature.
+//  See: [WithFeature].
+func (c *Compiler) enableFeature(feature string) {
+	cFeature := C.CString(feature)
+	defer C.free(unsafe.Pointer(cFeature))
+	result := C.yrx_compiler_enable_feature(c.cCompiler, cFeature)
+	if result != C.SUCCESS {
+		panic("yrx_compiler_enable_feature failed")
+	}
+	runtime.KeepAlive(c)
 }
 
 // IgnoreModule tells the compiler to ignore the module with the given name.

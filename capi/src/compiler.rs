@@ -152,6 +152,75 @@ pub unsafe extern "C" fn yrx_compiler_ignore_module(
     YRX_RESULT::SUCCESS
 }
 
+/// Enables a feature on this compiler.
+///
+/// When defining the structure of a module in a `.proto` file, you can
+/// specify that certain fields are accessible only when one or more
+/// features are enabled. For example, the snippet below shows the
+/// definition of a field named `requires_foo_and_bar`, which can be
+/// accessed only when both features "foo" and "bar" are enabled.
+///
+/// ```protobuf
+/// optional uint64 requires_foo_and_bar = 500 [
+///   (yara.field_options) = {
+///     acl: [
+///       {
+///         allow_if: "foo",
+///         error_title: "foo is required",
+///         error_label: "this field was used without foo"
+///       },
+///       {
+///         allow_if: "bar",
+///         error_title: "bar is required",
+///         error_label: "this field was used without bar"
+///       }
+///     ]
+///   }
+/// ];
+/// ```
+///
+/// If some of the required features are not enabled, using this field in
+/// a YARA rule will cause an error while compiling the rules. The error
+/// looks like:
+///
+/// ```text
+/// error[E034]: foo is required
+///  --> line:5:29
+///   |
+/// 5 |  test_proto2.requires_foo_and_bar == 0
+///   |              ^^^^^^^^^^^^^^^^^^^^ this field was used without foo
+///   |
+/// ```
+///
+/// Notice that both the title and label in the error message are defined
+/// in the .proto file.
+///
+/// # Important
+///
+/// This API is hidden from the public documentation because it is unstable
+/// and subject to change.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_compiler_enable_feature(
+    compiler: *mut YRX_COMPILER,
+    feature: *const c_char,
+) -> YRX_RESULT {
+    let compiler = if let Some(compiler) = compiler.as_mut() {
+        compiler
+    } else {
+        return YRX_RESULT::INVALID_ARGUMENT;
+    };
+
+    let feature = if let Ok(module) = CStr::from_ptr(feature).to_str() {
+        module
+    } else {
+        return YRX_RESULT::INVALID_ARGUMENT;
+    };
+
+    compiler.inner.enable_feature(feature);
+
+    YRX_RESULT::SUCCESS
+}
+
 /// Creates a new namespace.
 ///
 /// Further calls to `yrx_compiler_add_source` will put the rules under the
