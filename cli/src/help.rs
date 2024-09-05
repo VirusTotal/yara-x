@@ -26,30 +26,30 @@ Examples:
 
 pub const MODULE_DATA_LONG_HELP: &str = r#"Pass FILE's content as extra data to MODULE
 
-Some modules require supplementary data to work, in addition to the scanned file. This
-option allows you to provide that extra data. The flag can be used multiple times to
-supply data to different modules. The content of the FILE is loaded and interpreted by
-the respective module.
+Some modules require supplementary data to work, in addition to the scanned
+file. This option allows you to provide that extra data. The flag can be used
+multiple times to supply data to different modules. The content of the FILE is
+loaded and interpreted by the respective module.
 
 Examples:
 
 --module-data=mymodule0=./example0.json --module-data=mymodule1=./example1.json
 
-In this example, the contents of example0.json and example1.json will be passed to
-mymodule0 and mymodule1, respectively."#;
+In this example, the contents of example0.json and example1.json will be passed
+to mymodule0 and mymodule1, respectively."#;
 
 pub const DEPTH_LONG_HELP: &str = r#"Walk directories recursively up to a given depth
 
-This is ignored if <RULES_PATH> is not a directory. When <MAX_DEPTH> is 0 it means
-that files located in the specified directory will be processed, but subdirectories
-won't be traversed. By default <MAX_DEPTH> is infinite."#;
+This is ignored if <RULES_PATH> is not a directory. When <MAX_DEPTH> is 0 it
+means that files located in the specified directory will be processed, but
+subdirectories won't be traversed. By default <MAX_DEPTH> is infinite."#;
 
 pub const DUMP_LONG_HELP: &str = r#"Show the data produced by YARA modules for a file
 
-YARA modules analyze files and extract information from them. This command shows all the
-data produced by one ore more YARA module for the given file. If no module is explicitly
-specified with the `--module` option, any module for which YARA produced some information
-will be shown.
+YARA modules analyze files and extract information from them. This command shows all
+the data produced by one ore more YARA module for the given file. If no module is
+explicitly specified with the `--module` option, any module for which YARA produced
+some information will be shown.
 
 If the file is not provided it will be read from stdin.
 
@@ -95,16 +95,17 @@ When no filter is specified, the following ones are used by default:
 
 pub const FIX_ENCODING_LONG_HELP: &str = r#"Convert source files to UTF-8
 
-YARA-X is stricter that YARA with respect to invalid UTF-8 characters in source code. This
-command allows to convert your YARA source files to UTF-8 encoding if they are not.
+YARA-X is stricter that YARA with respect to invalid UTF-8 characters in source
+code. This command allows to convert your YARA source files to UTF-8 encoding if
+they are not.
 
-If <RULES_PATH> is a directory, all files with extensions `.yar` and `.yara` will be converted.
-This behavior can be changed by using the `--filter` option."#;
+If <RULES_PATH> is a directory, all files with extensions `.yar` and `.yara` will
+be converted. This behavior can be changed by using the `--filter` option."#;
 
 pub const IGNORE_MODULE_LONG_HELP: &str = r#"Ignore rules that use the specified module
 
-Rules that use the specified module will be ignored, as well as any rules that depends
-directly or indirectly on such rules.
+Rules that use the specified module will be ignored, as well as any rules that
+depends directly or indirectly on such rules.
 
 This option can be used more than once for ignored different modules."#;
 
@@ -114,8 +115,8 @@ The default value is automatically determined based on the number of CPU cores."
 
 pub const SCAN_LIST_LONG_HELP: &str = r#"Indicate that TARGET_PATH is a file containing the paths to be scanned
 
-<TARGET_PATH> must be a text file containing one path per line. The paths must be either
-absolute paths, or relative to the current directory."#;
+<TARGET_PATH> must be a text file containing one path per line. The paths must
+be either absolute paths, or relative to the current directory."#;
 
 pub const SCAN_LONG_HELP: &str = r#"Scan a file or directory
 
@@ -132,8 +133,8 @@ yr scan rules_dir scanned_file"#;
 
 pub const OUTPUT_FORMAT_LONG_HELP: &str = r#"Output format
 
-The format in which results will be displayed. Any errors or warnings will not be
-in this format, only results.
+The format in which results will be displayed. Any errors or warnings will not
+be in this format, only results.
 
 Examples:
 
