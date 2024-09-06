@@ -401,7 +401,6 @@ impl Formatter {
             );
 
         let tokens = Self::add_spacing(tokens);
-
         let tokens = Self::align_comments_in_hex_patterns(tokens);
         let tokens = Self::align_patterns(tokens);
 
@@ -772,6 +771,10 @@ impl Formatter {
                         // or "[".
                         || prev_token.is(*IDENTIFIER)
                             && next_token.is(*LGROUPING)
+                        // don't insert space in-between some identifier and "*"
+                        // like in $a*
+                        || prev_token.is(*IDENTIFIER)
+                            && next_token.eq(&ASTERISK)
                         // don't insert spaces before "(" in pattern modifiers.
                         || ctx.in_rule(SyntaxKind::PATTERN_MOD, false)
                             && next_token.is(*LGROUPING)

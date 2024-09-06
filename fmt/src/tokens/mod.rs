@@ -42,11 +42,10 @@ pub(crate) mod categories {
             Newline             = 0b00000000000000000000100000000000,
             Punctuation         = 0b00000000000000000001000000000000,
             Identifier          = 0b00000000000000000010000000000000,
-            Operator            = 0b00000000000000000100000000000000,
-            Keyword             = 0b00000000000000001000000000000000,
-            Literal             = 0b00000000000000010000000000000000,
-            LGrouping           = 0b00000000000000100000000000000000,
-            RGrouping           = 0b00000000000001000000000000000000,
+            Keyword             = 0b00000000000000000100000000000000,
+            Literal             = 0b00000000000000001000000000000000,
+            LGrouping           = 0b00000000000000010000000000000000,
+            RGrouping           = 0b00000000000000100000000000000000,
         }
     }
     lazy_static! {
@@ -96,9 +95,6 @@ pub(crate) mod categories {
         pub static ref IDENTIFIER: Category =
             Category::from(BaseCategory::Identifier);
 
-        pub static ref OPERATOR: Category =
-            Category::from(BaseCategory::Operator);
-
         pub static ref LITERAL: Category =
             Category::from(BaseCategory::Literal);
 
@@ -128,12 +124,12 @@ pub(crate) mod categories {
             *LGROUPING |
             *RGROUPING |
             *IDENTIFIER |
-            *OPERATOR |
             *LITERAL;
     }
 }
 
 lazy_static! {
+    pub(crate) static ref ASTERISK: Token<'static> = Token::Punctuation(b"*");
     pub(crate) static ref COLON: Token<'static> = Token::Punctuation(b":");
     pub(crate) static ref DOT: Token<'static> = Token::Punctuation(b".");
     pub(crate) static ref EQUAL: Token<'static> = Token::Punctuation(b"=");
@@ -401,7 +397,6 @@ impl<'a> Token<'a> {
 
             // Whitespaces have a special treatment see Tokens::next.
             SyntaxKind::WHITESPACE => unreachable!(),
-
             // Literals.
             _ => Token::Literal(src),
         }

@@ -4716,7 +4716,6 @@ dependencies = [
 name = "yara-x-fmt"
 version = "0.7.0"
 dependencies = [
- "anyhow",
  "bitmask",
  "bstr",
  "globwalk",
