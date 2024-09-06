@@ -321,4 +321,18 @@ fn test_acl() {
     c.enable_feature("bar");
 
     assert!(c.add_source(rules).is_ok());
+
+    let mut c = crate::Compiler::new();
+
+    c.enable_feature("foo").enable_feature("bar").enable_feature("baz");
+
+    assert_eq!(
+        c.add_source(rules).err().unwrap().to_string(),
+        r#"error[E034]: baz is forbidden
+ --> line:5:29
+  |
+5 |                 test_proto2.requires_foo_and_bar == 0
+  |                             ^^^^^^^^^^^^^^^^^^^^ this field was used with baz
+  |"#
+    );
 }

@@ -606,7 +606,23 @@ pub(in crate::compiler) fn expr_from_ast(
             // not met an error is raised.
             if let SymbolKind::Field { acl: Some(acl), .. } = symbol.kind() {
                 for entry in acl {
-                    if !ctx.features.contains(&entry.allow_if) {
+                    // True if any of the features in the `accept_if` list is
+                    // present in the compiler. If the list is empty it's also
+                    // accepted.
+                    let accepted = entry.accept_if.is_empty()
+                        || entry
+                            .accept_if
+                            .iter()
+                            .any(|accepted| ctx.features.contains(accepted));
+
+                    // True if any of the features in the `reject_if` list is
+                    // present in the compiler.
+                    let rejected = entry
+                        .reject_if
+                        .iter()
+                        .any(|rejected| ctx.features.contains(rejected));
+
+                    if !accepted || rejected {
                         return Err(CustomError::build(
                             ctx.report_builder,
                             entry.error_title.clone(),

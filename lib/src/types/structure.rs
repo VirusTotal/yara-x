@@ -20,12 +20,55 @@ use crate::symbols::{Symbol, SymbolKind, SymbolLookup};
 use crate::types::{Array, Map, TypeValue, Value};
 use crate::wasm::WasmExport;
 
-/// A feature required for accessing some struct field.
+/// Each of the entries in an Access Control List (ACL)
+///
+/// When defining the structure of a module in a `.proto` file, you can specify
+/// that certain fields are accessible only when one or more features are
+/// enabled in the compiler with using [`crate::Compiler::enable_feature`]. For
+/// example, the field ``requires_foo_and_bar` in the snippet below has an ACL
+/// indicating that the field can be accessed only if features "foo" and "bar"
+/// are enabled in the compiler.
+///
+/// ```protobuf
+/// optional uint64 requires_foo_and_bar = 500 [
+///   (yara.field_options) = {
+///     acl: [
+///       {
+///         accept_if: "foo",
+///         error_title: "foo is required",
+///         error_label: "this field was used without foo"
+///       },
+///       {
+///         accept_if: "bar",
+///         error_title: "bar is required",
+///         error_label: "this field was used without bar"
+///       }
+///     ]
+///   }
+/// ];
+/// ```
+///
+/// If some of the required features are not enabled, using this field in
+/// a YARA rule will cause an error while compiling the rules. The error
+/// looks like:
+///
+/// ```text
+/// error[E034]: foo is required
+///  --> line:5:29
+///   |
+/// 5 |  test_proto2.requires_foo_and_bar == 0
+///   |              ^^^^^^^^^^^^^^^^^^^^ this field was used without foo
+///   |
+/// ```
+///
+/// Notice that both the title and label in the error message are defined
+/// in the .proto file.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct AclEntry {
-    pub allow_if: String,
     pub error_title: String,
     pub error_label: String,
+    pub accept_if: Vec<String>,
+    pub reject_if: Vec<String>,
 }
 
 /// A field in a [`Struct`].
@@ -350,7 +393,7 @@ impl Struct {
                 StructField {
                     // Index is initially zero, will be adjusted later.
                     type_value: value,
-                    acl: Self::required_features(&fd),
+                    acl: Self::acl(&fd),
                     number,
                 },
             ));
@@ -624,9 +667,11 @@ impl Struct {
             .unwrap_or(false)
     }
 
-    fn required_features(
-        field_descriptor: &FieldDescriptor,
-    ) -> Option<Vec<AclEntry>> {
+    /// Given a [`FieldDescriptor`] returns the Access Control List (ACL)
+    /// associated to that field.
+    ///
+    /// See [`AclEntry`] for details.
+    fn acl(field_descriptor: &FieldDescriptor) -> Option<Vec<AclEntry>> {
         field_options
             .get(&field_descriptor.proto().options)
             .map(|options| options.acl)
@@ -634,9 +679,8 @@ impl Struct {
             .map(|acl| {
                 acl.into_iter()
                     .map(|entry| AclEntry {
-                        allow_if: entry
-                            .allow_if
-                            .expect("the `feature` field is required"),
+                        accept_if: entry.accept_if,
+                        reject_if: entry.reject_if,
                         error_title: entry
                             .error_title
                             .expect("the `error_title` field is required"),

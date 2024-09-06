@@ -15,15 +15,106 @@ message ModuleOptions {
 }
 
 message FieldOptions {
+  // Name of the field in YARA rules.
+  //
+  // By default, the name of the field in YARA rules is the same it has in
+  // the protobuf, but sometimes it's useful to override this behaviour and
+  // specify our own name. For instance, suppose we have the following field
+  // definition:
+  //
+  // FileMetadata metadata = 32 [(yara.field_options).name = "meta"];
+  //
+  // The name of the field in the protobuf is "metadata", but this is a
+  // reserved keyword in YARA, so we use (yara.field_options).name = "meta"
+  // for specifying a different name.
   optional string name = 1;
+
+  // Ignore the field and don't use it in YARA.
+  //
+  // This useful when the protobuf definition has some fields that we don't
+  // want to expose to YARA rules. For example:
+  //
+  // string some_private_data = 32 [(yara.field_options).ignore = true];
   optional bool ignore = 2;
+
+  // Control under which circumstances the field is accessible by YARA rules.
+  //
+  // In some cases, a field should only be used in YARA rules when certain
+  // requirements are satisfied. Consider the following field definition:
+  //
+  // uint64 my_field = 1 [
+  //   (yara.field_options) = {
+  //     acl: [
+  //       {
+  //         accept_if: ["foo", "FOO"],
+  //         error_title: "foo is required",
+  //         error_label: "this field was used without foo"
+  //       },
+  //       {
+  //         accept_if: "bar",
+  //         error_title: "bar is required",
+  //         error_label: "this field was used without bar"
+  //       },
+  //       {
+  //         reject_if: "baz",
+  //         error_title: "baz is forbidden",
+  //         error_label: "this field was used with baz"
+  //       }
+  //     ]
+  //   }
+  // ];
+  //
+  // The field "my_field" can be used in YARA rules, but only if the features
+  // "foo" (or "FOO") and "bar" are enabled in the YARA compiler, while "baz"
+  // must not be enabled. If these conditions are not met, the compiler will
+  // return an error. For example, if "FOO" and "baz" are enabled, the following
+  // error will occur:
+  //
+  // error[E034]: bar is required
+  //  --> line:5:29
+  //   |
+  // 5 |  my_module.my_field == 0
+  //   |            ^^^^^^^^ this field was used without bar
+  //   |
+  //
+  // Notice that the error message's title and label are derived from the ACL
+  // entry that was not satisfied.
+  //
+  // Also, keep in mind that ACL entries are evaluated sequentially. The first
+  // entry that fails will trigger the corresponding error message.
   repeated AclEntry acl = 3;
 }
 
+// An entry in a field's ACL.
+//
+// Each entry in the ACL is a condition that must be met. If some of the
+// conditions in the ACL is not met, the compiler shows an error message that
+// is defined by the ACL entry itself.
+//
+// The condition depends on the features listed in "accept_if" and "reject_if".
+// Let's see some examples:
+//
+// accept_if: "foo"
+//
+// In the example above, the field can be used if the feature "foo" is enabled,
+// otherwise the compiler shows an error.
+//
+// accept_if: ["foo", "bar"]
+//
+// In the example above, the field can be used if any of the features in the
+// list is enabled, otherwise the error is shown. This can be read as: accept
+// if "foo" or "bar".
+//
+// reject_if: ["foo", "bar"]
+//
+// In the example above, the field can be used if none of the features in the
+// list is enabled, otherwise the error is shown. This can be read as: reject
+// if "foo" or "bar".
 message AclEntry {
-  required string allow_if = 1;
-  required string error_title = 2;
-  required string error_label = 3;
+  required string error_title = 1;
+  required string error_label = 2;
+  repeated string accept_if = 3;
+  repeated string reject_if = 4;
 }
 
 message MessageOptions {
