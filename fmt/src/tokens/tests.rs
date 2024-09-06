@@ -12,7 +12,8 @@ fn token_generation() {
             strings:
                 $a = { 00 01 }
                 $b = "foo" ascii wide
-            condition: true
+            condition:
+                $a and $b and foo * 1 == 2
         }"#;
 
     let events = Parser::new(rule.as_bytes())
@@ -64,7 +65,35 @@ fn token_generation() {
             Punctuation(b":"),
             Begin(SyntaxKind::BOOLEAN_EXPR),
             Begin(SyntaxKind::BOOLEAN_TERM),
-            Keyword(b"true"),
+            Identifier(b"$a"),
+            End(SyntaxKind::BOOLEAN_TERM),
+            Keyword(b"and"),
+            Begin(SyntaxKind::BOOLEAN_TERM),
+            Identifier(b"$b"),
+            End(SyntaxKind::BOOLEAN_TERM),
+            Keyword(b"and"),
+            Begin(SyntaxKind::BOOLEAN_TERM),
+            Begin(SyntaxKind::EXPR),
+            Begin(SyntaxKind::TERM),
+            Begin(SyntaxKind::PRIMARY_EXPR),
+            Identifier(b"foo"),
+            End(SyntaxKind::PRIMARY_EXPR),
+            End(SyntaxKind::TERM),
+            Literal(b"*"),
+            Begin(SyntaxKind::TERM),
+            Begin(SyntaxKind::PRIMARY_EXPR),
+            Literal(b"1"),
+            End(SyntaxKind::PRIMARY_EXPR),
+            End(SyntaxKind::TERM),
+            End(SyntaxKind::EXPR),
+            Literal(b"=="),
+            Begin(SyntaxKind::EXPR),
+            Begin(SyntaxKind::TERM),
+            Begin(SyntaxKind::PRIMARY_EXPR),
+            Literal(b"2"),
+            End(SyntaxKind::PRIMARY_EXPR),
+            End(SyntaxKind::TERM),
+            End(SyntaxKind::EXPR),
             End(SyntaxKind::BOOLEAN_TERM),
             End(SyntaxKind::BOOLEAN_EXPR),
             End(SyntaxKind::CONDITION_BLK),

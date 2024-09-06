@@ -1,6 +1,3 @@
-use anyhow::Context;
-use std::io::Cursor;
-use std::path::PathBuf;
 use std::{fs, str};
 
 use pretty_assertions::assert_eq;
@@ -41,7 +38,7 @@ fn spacer() {
 }
 
 #[test]
-fn format() -> Result<(), anyhow::Error> {
+fn format() {
     let files: Vec<_> = globwalk::glob("src/testdata/*.unformatted")
         .unwrap()
         .flatten()
@@ -59,6 +56,4 @@ fn format() -> Result<(), anyhow::Error> {
             .format(input.as_bytes(), &mut output)
             .expect("format failed");
     });
-
-    Ok(())
 }
