@@ -4719,8 +4719,11 @@ dependencies = [
  "anyhow",
  "bitmask",
  "bstr",
+ "globwalk",
+ "goldenfile",
  "lazy_static",
  "pretty_assertions",
+ "rayon",
  "thiserror",
  "yara-x-parser",
 ]
