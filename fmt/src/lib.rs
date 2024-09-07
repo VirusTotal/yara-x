@@ -402,6 +402,7 @@ impl Formatter {
 
         let tokens = Self::add_spacing(tokens);
         let tokens = Self::align_comments_in_hex_patterns(tokens);
+        let tokens = Self::align_meta(tokens);
         let tokens = Self::align_patterns(tokens);
 
         let tokens = indentation::AddIndentationSpaces::new(tokens);
@@ -628,26 +629,45 @@ impl Formatter {
     where
         I: TokenStream<'a> + 'a,
     {
+        Self::align(input, SyntaxKind::PATTERNS_BLK, SyntaxKind::PATTERN_DEF)
+    }
+
+    /// Aligns the equals signs in metadata definitions.
+    ///
+    /// This is similar to [`Formatter::align_patterns`] but for metadata.
+    fn align_meta<'a, I>(input: I) -> impl TokenStream<'a> + 'a
+    where
+        I: TokenStream<'a> + 'a,
+    {
+        Self::align(input, SyntaxKind::META_BLK, SyntaxKind::META_DEF)
+    }
+
+    fn align<'a, I>(
+        input: I,
+        block_kind: SyntaxKind,
+        item_kind: SyntaxKind,
+    ) -> impl TokenStream<'a> + 'a
+    where
+        I: TokenStream<'a> + 'a,
+    {
         // First insert the alignment markers at the appropriate places...
         let input_with_markers = processor::Processor::new(input)
-            // Insert `AlignmentBlockBegin` after the start of the pattern
-            // definitions block.
+            // Insert `AlignmentBlockBegin` after the start of each block.
             .add_rule(
-                |ctx| ctx.token(-1).eq(&Begin(SyntaxKind::PATTERNS_BLK)),
+                move |ctx| ctx.token(-1).eq(&Begin(block_kind)),
                 processor::actions::insert(AlignmentBlockBegin),
             )
-            // Insert `AlignmentBlockEnd` just before the end of the pattern
-            // definitions block.
+            // Insert `AlignmentBlockEnd` just before the end each block.
             .add_rule(
-                |ctx| {
-                    ctx.token(1).eq(&End(SyntaxKind::PATTERNS_BLK))
+                move |ctx| {
+                    ctx.token(1).eq(&End(block_kind))
                         && ctx.token(-1).neq(&AlignmentBlockEnd)
                 },
                 processor::actions::insert(AlignmentBlockEnd),
             )
             .add_rule(
-                |ctx| {
-                    ctx.in_rule(SyntaxKind::PATTERNS_BLK, false)
+                move |ctx| {
+                    ctx.in_rule(block_kind, false)
                         && ctx.token(-2).eq(&Newline)
                         && ctx.token(-1).eq(&Newline)
                 },
@@ -656,11 +676,10 @@ impl Formatter {
                     ctx.push_output_token(Some(AlignmentBlockBegin));
                 },
             )
-            // Insert `AlignmentMarker` before each equal sign in a pattern
-            // definition.
+            // Insert `AlignmentMarker` before each equal sign.
             .add_rule(
-                |ctx| {
-                    ctx.in_rule(SyntaxKind::PATTERN_DEF, false)
+                move |ctx| {
+                    ctx.in_rule(item_kind, false)
                         && ctx.token(1).eq(&EQUAL)
                         && ctx.token(-1).neq(&AlignmentMarker)
                 },
