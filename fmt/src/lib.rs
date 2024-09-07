@@ -57,7 +57,10 @@ pub enum Error {
 }
 
 /// Formats YARA source code automatically.
-pub struct Formatter {}
+pub struct Formatter {
+    align_metadata: bool,
+    align_patterns: bool,
+}
 
 impl Default for Formatter {
     fn default() -> Self {
@@ -69,7 +72,75 @@ impl Default for Formatter {
 impl Formatter {
     /// Creates a new formatter.
     pub fn new() -> Self {
-        Formatter {}
+        Formatter { align_metadata: true, align_patterns: true }
+    }
+
+    /// Specify if the metadata block must be aligned.
+    ///
+    /// If true, the metadata block will be converted from this...
+    ///
+    /// ```text
+    /// rule test {
+    ///   meta:
+    ///     short = "foo"
+    ///     very_long = "bar"
+    ///     even_longer = "baz"
+    ///   condition:
+    ///     ...
+    /// }
+    /// ```
+    ///
+    /// ... to this ...
+    ///
+    /// ```text
+    /// rule test {
+    ///   meta:
+    ///     short       = "foo"
+    ///     very_long   = "bar"
+    ///     even_longer = "baz"
+    ///   condition:
+    ///     ...
+    /// }
+    /// ```
+    ///
+    /// The default value is `true`.
+    pub fn align_metadata(mut self, yes: bool) -> Self {
+        self.align_metadata = yes;
+        self
+    }
+
+    /// Specify if the patterns definitions must be aligned.
+    ///
+    /// If true, the strings block will be converted from this...
+    ///
+    /// ```text
+    /// rule test {
+    ///   strings:
+    ///     $short = "foo"
+    ///     $very_long = "bar"
+    ///     $even_longer = "baz"
+    ///   condition:
+    ///     ...
+    /// }
+    /// ```
+    ///
+    /// ... to this ...
+    ///
+    /// ```text
+    /// rule test {
+    ///   strings:
+    ///     $short       = "foo"
+    ///     $very_long   = "bar"
+    ///     $even_longer = "baz"
+    ///   condition:
+    ///     ...
+    /// }
+    /// ```
+    ///
+    /// The default value is `true`.
+    pub fn align_patterns(mut self, yes: bool) -> Self {
+        self.align_patterns = yes;
+        self
     }
 
     /// Reads YARA source code from `input` and write it into `output` after
@@ -92,15 +163,13 @@ impl Formatter {
         let stream = Parser::new(buf.as_slice()).into_cst_stream();
         let tokens = Tokens::new(stream);
 
-        Formatter::formatter(tokens)
-            .write_to(output)
-            .map_err(Error::WriteError)
+        self.format_impl(tokens).write_to(output).map_err(Error::WriteError)
     }
 }
 
 // Private API for formatter.
 impl Formatter {
-    fn formatter<'a, I>(input: I) -> impl TokenStream<'a> + 'a
+    fn format_impl<'a, I>(&self, input: I) -> impl TokenStream<'a> + 'a
     where
         I: TokenStream<'a> + 'a,
     {
@@ -402,8 +471,20 @@ impl Formatter {
 
         let tokens = Self::add_spacing(tokens);
         let tokens = Self::align_comments_in_hex_patterns(tokens);
-        let tokens = Self::align_meta(tokens);
-        let tokens = Self::align_patterns(tokens);
+
+        let tokens: Box<dyn Iterator<Item = Token<'a>>> =
+            if self.align_metadata {
+                Box::new(Self::align_meta_section(tokens))
+            } else {
+                Box::new(tokens)
+            };
+
+        let tokens: Box<dyn Iterator<Item = Token<'a>>> =
+            if self.align_patterns {
+                Box::new(Self::align_patterns_section(tokens))
+            } else {
+                Box::new(tokens)
+            };
 
         let tokens = indentation::AddIndentationSpaces::new(tokens);
         let tokens = trailing_spaces::RemoveTrailingSpaces::new(tokens);
@@ -625,7 +706,7 @@ impl Formatter {
     ///
     /// The input must contain at least one newline character after each
     /// pattern definition.
-    fn align_patterns<'a, I>(input: I) -> impl TokenStream<'a> + 'a
+    fn align_patterns_section<'a, I>(input: I) -> impl TokenStream<'a> + 'a
     where
         I: TokenStream<'a> + 'a,
     {
@@ -634,8 +715,8 @@ impl Formatter {
 
     /// Aligns the equals signs in metadata definitions.
     ///
-    /// This is similar to [`Formatter::align_patterns`] but for metadata.
-    fn align_meta<'a, I>(input: I) -> impl TokenStream<'a> + 'a
+    /// This is similar to [`Formatter::align_patterns_section`] but for metadata.
+    fn align_meta_section<'a, I>(input: I) -> impl TokenStream<'a> + 'a
     where
         I: TokenStream<'a> + 'a,
     {
