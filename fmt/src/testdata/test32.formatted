@@ -2,3 +2,10 @@ rule test {
   condition:
     true
 }
+
+rule test
+// Some comment
+{
+  condition:
+    true
+}
