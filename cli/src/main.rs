@@ -9,10 +9,11 @@ use yansi::Paint;
 
 use crate::commands::cli;
 
-const APP_HELP_TEMPLATE: &str = r#"{about-with-newline}
+const APP_HELP_TEMPLATE: &str = r#"YARA-X {version}, the pattern matching swiss army knife.
+
 {author-with-newline}
 {before-help}{usage-heading}
-    {usage}
+  {usage}
 
 {all-args}{after-help}
 "#;
