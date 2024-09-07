@@ -248,8 +248,8 @@ impl Formatter {
             // Remove all newlines at the beginning of the file. When the
             // processor is at the beginning of the file token(-1) is None.
             // Notice that this works because all these newlines have been
-            // moved up and placed Token::Begin(source_file) by the first
-            // bubble pipeline.
+            // moved up and placed before Token::Begin(source_file) by the
+            // first bubble pipeline.
             .add_rule(
                 |ctx| ctx.token(-1).eq(&None) && ctx.token(1).is(*NEWLINE),
                 processor::actions::drop,
@@ -258,9 +258,9 @@ impl Formatter {
             // newlines are allowed.
             .add_rule(
                 |ctx| {
-                    ctx.token(-2).is(*NEWLINE)
-                        && ctx.token(-1).is(*NEWLINE)
-                        && ctx.token(1).is(*NEWLINE)
+                    ctx.token(1).is(*NEWLINE)
+                        && ctx.token(2).is(*NEWLINE)
+                        && ctx.token(3).is(*NEWLINE)
                 },
                 processor::actions::drop,
             )
@@ -282,11 +282,28 @@ impl Formatter {
                 },
                 processor::actions::drop,
             )
-            // Remove newlines after rule tags
+            // Remove newlines after rule tags.
             .add_rule(
                 |ctx| {
                     ctx.token(-1).eq(&End(SyntaxKind::RULE_TAGS))
                         && ctx.token(1).is(*NEWLINE)
+                },
+                processor::actions::drop,
+            )
+            // Remove newlines before the opening "{" in a rule declaration.
+            // It takes into account that we can have one or two newlines
+            // before the "{" character. In a previous step we have removed
+            // consecutive newlines leaving two at most.
+            .add_rule(
+                |ctx| {
+                    ctx.in_rule(SyntaxKind::RULE_DECL, false)
+                        && ctx.token(1).is(*NEWLINE)
+                        && (
+                            // Newline followed by "{"  or ...
+                            ctx.token(2).eq(&LBRACE) ||
+                            // ... two newlines followed by "{"
+                            ctx.token(2).is(*NEWLINE) && ctx.token(3).eq(&LBRACE)
+                        )
                 },
                 processor::actions::drop,
             )
@@ -380,7 +397,6 @@ impl Formatter {
                 },
                 processor::actions::newline,
             )
-            //
             //
             // Insert empty line at the end of the file
             //

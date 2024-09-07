@@ -1,5 +1,4 @@
-rule test
-{
+rule test {
   meta:
     description = "Contains CRLF newlines"
   strings:
