@@ -39,7 +39,7 @@ pub fn command(name: &'static str) -> Command {
     Command::new(name).help_template(
         r#"{about-with-newline}
 {usage-heading}
-    {usage}
+  {usage}
 
 {all-args}
 "#,
