@@ -7,7 +7,9 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Error};
-use clap::{arg, value_parser, ArgAction, ArgMatches, Command, ValueEnum};
+use clap::{
+    arg, value_parser, ArgAction, ArgGroup, ArgMatches, Command, ValueEnum,
+};
 use crossbeam::channel::Sender;
 use itertools::Itertools;
 use superconsole::style::Stylize;
@@ -165,6 +167,7 @@ pub fn scan() -> Command {
                 .help("Abort scanning after the given number of seconds")
                 .value_parser(value_parser!(u64).range(1..))
         )
+        .group(ArgGroup::new("incompatible-options").args(["relaxed-re-syntax", "compiled-rules"]))
 
 }
 
@@ -195,14 +198,6 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         if rules_path.len() > 1 {
             bail!(
                 "can't use '{}' with more than one RULES_PATH",
-                Paint::bold("--compiled-rules")
-            );
-        }
-
-        if args.get_flag("relaxed-re-syntax") {
-            bail!(
-                "can't use '{}' together with '{}'",
-                Paint::bold("--relaxed-re-syntax"),
                 Paint::bold("--compiled-rules")
             );
         }
