@@ -25,12 +25,16 @@ use yara_x_parser::cst::SyntaxKind;
 use yara_x_parser::Parser;
 
 use crate::align::Align;
+use crate::format_hex_patterns::FormatHexPatterns;
+use crate::indentation::AddIndentationSpaces;
 use crate::tokens::categories::*;
 use crate::tokens::*;
+use crate::trailing_spaces::RemoveTrailingSpaces;
 
 mod align;
 mod bubble;
 mod comments;
+mod format_hex_patterns;
 mod indentation;
 mod processor;
 mod tokens;
@@ -457,8 +461,11 @@ impl Formatter {
                 processor::actions::newline,
             );
 
+        let tokens = FormatHexPatterns::new(tokens);
+
         let tokens = Self::indent_body(tokens);
         let tokens = Self::indent_sections(tokens);
+        let tokens = Self::indent_hex_patterns(tokens);
         let tokens = Self::indent_parenthesized_exprs(tokens);
 
         // indent_body and indent_sections will insert Indentation tokens, but
@@ -502,8 +509,16 @@ impl Formatter {
                 Box::new(tokens)
             };
 
-        let tokens = indentation::AddIndentationSpaces::new(tokens);
-        let tokens = trailing_spaces::RemoveTrailingSpaces::new(tokens);
+        /*let tokens = processor::Processor::new(tokens).add_rule(
+            |ctx| {
+                println!("{:?}", ctx.token(1));
+                true
+            },
+            processor::actions::copy,
+        );*/
+
+        let tokens = AddIndentationSpaces::new(tokens);
+        let tokens = RemoveTrailingSpaces::new(tokens);
 
         tokens
     }
@@ -511,21 +526,25 @@ impl Formatter {
     /// Indents the sections (meta, strings, condition) of a rule one level up.
     /// For example, for this input:
     ///
+    /// ```text
     /// rule foo {
     /// strings:
     /// $a = "foo"
     /// condition:
     /// true
     /// }
+    /// ```
     ///
     /// ... the result is ...
     ///
+    /// ```text
     /// rule foo {
     /// strings:
     ///   $a = "foo"
     /// condition:
     ///   true
     /// }
+    /// ```
     fn indent_sections<'a, I>(input: I) -> impl TokenStream<'a> + 'a
     where
         I: TokenStream<'a> + 'a,
@@ -585,21 +604,24 @@ impl Formatter {
 
     /// Indents the body of a rule. For this input...
     ///
+    /// ```text
     /// rule foo {
     /// strings:
     /// $a = "foo"
     /// condition:
     /// true
     /// }
-    ///
+    /// ```
     /// ... the result is ...
     ///
+    /// ```text
     /// rule foo {
     ///   strings:
     ///   $a = "foo"
     ///   condition:
     ///   true
     /// }
+    /// ```
     ///
     fn indent_body<'a, I>(input: I) -> impl TokenStream<'a> + 'a
     where
@@ -627,8 +649,9 @@ impl Formatter {
             )
     }
 
-    /// Indent parenthesized expressions in rule conditions.
+    /// Indent parenthesized expressions in rule conditions. For this input...
     ///
+    /// ```text
     /// rule foo {
     /// strings:
     ///   $a = "foo"
@@ -638,9 +661,11 @@ impl Formatter {
     ///    $a and $b
     ///    )
     /// }
+    /// ```
     ///
     /// ... the result is ...
     ///
+    /// ```text
     /// rule foo {
     /// strings:
     ///   $a = "foo"
@@ -650,7 +675,7 @@ impl Formatter {
     ///      $a and $b
     ///    )
     /// }
-    ///
+    /// ```
     fn indent_parenthesized_exprs<'a, I>(input: I) -> impl TokenStream<'a> + 'a
     where
         I: TokenStream<'a> + 'a,
@@ -668,6 +693,50 @@ impl Formatter {
                 |ctx| {
                     ctx.in_rule(SyntaxKind::BOOLEAN_EXPR, true)
                         && ctx.token(1).eq(&RPAREN)
+                        && ctx.token(-1).neq(&Indentation(-1))
+                },
+                processor::actions::insert(Indentation(-1)),
+            )
+    }
+
+    /// Indent hex patterns. For this input...
+    ///
+    /// ```text
+    ///   $a = {
+    ///   00 ..
+    ///   01 ..
+    ///   02
+    ///   }
+    /// }
+    /// ```
+    ///
+    /// ... the result is ...
+    ///
+    /// ```text
+    ///   $a = {
+    ///     00 ..
+    ///     01 ..
+    ///     02
+    ///   }
+    /// }
+    /// ```
+    fn indent_hex_patterns<'a, I>(input: I) -> impl TokenStream<'a> + 'a
+    where
+        I: TokenStream<'a> + 'a,
+    {
+        processor::Processor::new(input)
+            .set_passthrough(*COMMENT)
+            .add_rule(
+                |ctx| {
+                    ctx.in_rule(SyntaxKind::HEX_PATTERN, true)
+                        && ctx.token(-1).eq(&LBRACE)
+                },
+                processor::actions::insert(Indentation(1)),
+            )
+            .add_rule(
+                |ctx| {
+                    ctx.in_rule(SyntaxKind::HEX_PATTERN, true)
+                        && ctx.token(1).eq(&RBRACE)
                         && ctx.token(-1).neq(&Indentation(-1))
                 },
                 processor::actions::insert(Indentation(-1)),
@@ -789,8 +858,9 @@ impl Formatter {
         Align::new(input_with_markers)
     }
 
-    /// Aligns tail comments inside hex patterns
+    /// Aligns tail comments inside hex patterns. For this input...
     ///
+    /// ```text
     /// rule foo {
     ///   strings:
     ///     $hex = {
@@ -800,9 +870,11 @@ impl Formatter {
     ///   condition:
     ///     true
     /// }
+    /// ```
     ///
     /// ... the result is ...
     ///
+    /// ```text
     /// rule foo {
     ///   strings:
     ///     $hex = {
@@ -812,6 +884,7 @@ impl Formatter {
     ///   condition:
     ///     true
     /// }
+    /// ```
     ///
     fn align_comments_in_hex_patterns<'a, I>(
         input: I,
