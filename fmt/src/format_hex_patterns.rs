@@ -47,6 +47,8 @@ where
             match next {
                 Token::Begin(SyntaxKind::HEX_PATTERN) => {
                     self.in_hex_pattern = true;
+                    self.multi_line = false;
+                    self.buffering = false;
                     self.output_buffer.push_back(next);
                     return self.output_buffer.pop_front();
                 }
