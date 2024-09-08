@@ -89,14 +89,15 @@ where
                     // insert of a newline at the front of the output buffer
                     // if not already there. This inserts a newline after the
                     // opening { for multi-line patterns.
-                    if !self.multi_line {
-                        if !matches!(
+                    if !self.multi_line
+                        && !matches!(
                             self.output_buffer.front(),
                             Some(Token::Newline)
-                        ) {
-                            self.output_buffer.push_front(Token::Newline)
-                        }
+                        )
+                    {
+                        self.output_buffer.push_front(Token::Newline)
                     }
+
                     self.multi_line = true;
                     return self.output_buffer.pop_front();
                 }
