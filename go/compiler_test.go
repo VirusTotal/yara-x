@@ -39,7 +39,6 @@ func TestRelaxedReSyntax(t *testing.T) {
 	assert.Len(t, scanResults.MatchingRules(), 1)
 }
 
-
 func TestErrorOnSlowPattern(t *testing.T) {
 	_, err := Compile(`
 		rule test { strings: $a = /a.*/ condition: $a }`,
@@ -107,7 +106,7 @@ func TestVariables(t *testing.T) {
 
 func TestError(t *testing.T) {
 	_, err := Compile("rule test { condition: foo }")
-	expected := `error[E009]: unknown identifier `+"`foo`"+`
+	expected := `error[E009]: unknown identifier ` + "`foo`" + `
  --> line:1:24
   |
 1 | rule test { condition: foo }
@@ -115,7 +114,6 @@ func TestError(t *testing.T) {
   |`
 	assert.EqualError(t, err, expected)
 }
-
 
 func TestErrors(t *testing.T) {
 	c, err := NewCompiler()
@@ -127,17 +125,17 @@ func TestErrors(t *testing.T) {
 	c.AddSource("rule test_2 { condition: foo }", WithOrigin("test.yar"))
 	assert.Equal(t, []CompileError{
 		{
-			Code: "E009",
+			Code:  "E009",
 			Title: "unknown identifier `foo`",
 			Labels: []Label{
 				{
-					Level: "error",
+					Level:      "error",
 					CodeOrigin: "",
-					Span: Span { Start: 25, End: 28 },
-					Text: "this identifier has not been declared",
+					Span:       Span{Start: 25, End: 28},
+					Text:       "this identifier has not been declared",
 				},
 			},
-			Text: `error[E009]: unknown identifier `+"`foo`"+`
+			Text: `error[E009]: unknown identifier ` + "`foo`" + `
  --> test.yar:1:26
   |
 1 | rule test_2 { condition: foo }
@@ -147,7 +145,6 @@ func TestErrors(t *testing.T) {
 	}, c.Errors())
 }
 
-
 func TestWarnings(t *testing.T) {
 	c, err := NewCompiler()
 	assert.NoError(t, err)
@@ -156,40 +153,40 @@ func TestWarnings(t *testing.T) {
 
 	assert.Equal(t, []Warning{
 		{
-			Code: "consecutive_jumps",
+			Code:  "consecutive_jumps",
 			Title: "consecutive jumps in hex pattern `$a`",
 			Labels: []Label{
 				{
-					Level: "warning",
+					Level:      "warning",
 					CodeOrigin: "",
-					Span: Span { Start: 30, End: 40 },
-					Text: "these consecutive jumps will be treated as [0-2]",
+					Span:       Span{Start: 30, End: 40},
+					Text:       "these consecutive jumps will be treated as [0-2]",
 				},
 			},
-			Text: `warning[consecutive_jumps]: consecutive jumps in hex pattern `+"`$a`"+`
+			Text: `warning[consecutive_jumps]: consecutive jumps in hex pattern ` + "`$a`" + `
  --> line:1:31
   |
 1 | rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }
   |                               ---------- these consecutive jumps will be treated as [0-2]
   |`,
 		},
-			{
-  			Code: "slow_pattern",
-  			Title: "slow pattern",
-  			Labels: []Label{
-  				{
-  					Level: "warning",
-  					CodeOrigin: "",
-  					Span: Span { Start: 21, End: 43 },
-  					Text: "this pattern may slow down the scan",
-  				},
-  			},
-  			Text: `warning[slow_pattern]: slow pattern
+		{
+			Code:  "slow_pattern",
+			Title: "slow pattern",
+			Labels: []Label{
+				{
+					Level:      "warning",
+					CodeOrigin: "",
+					Span:       Span{Start: 21, End: 43},
+					Text:       "this pattern may slow down the scan",
+				},
+			},
+			Text: `warning[slow_pattern]: slow pattern
  --> line:1:22
   |
 1 | rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }
   |                      ---------------------- this pattern may slow down the scan
   |`,
-  		},
+		},
 	}, c.Warnings())
 }

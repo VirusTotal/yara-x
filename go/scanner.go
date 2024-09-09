@@ -45,9 +45,8 @@ type Scanner struct {
 	matchingRules []*Rule
 }
 
-
 // ScanResults contains the results of a call to [Scanner.Scan] or [Rules.Scan].
-type ScanResults struct{
+type ScanResults struct {
 	matchingRules []*Rule
 }
 
@@ -223,7 +222,7 @@ func (s *Scanner) Scan(buf []byte) (*ScanResults, error) {
 		err = errors.New(C.GoString(C.yrx_last_error()))
 	}
 
-	scanResults := &ScanResults{ s.matchingRules }
+	scanResults := &ScanResults{s.matchingRules}
 	s.matchingRules = nil
 
 	return scanResults, err
