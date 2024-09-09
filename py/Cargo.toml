@@ -21,7 +21,7 @@ pyo3-file = "0.8.0"
 serde_json = { workspace = true }
 
 protobuf-json-mapping = { workspace = true }
-yara-x = { workspace = true }
+yara-x = { workspace = true, features = ["parallel-compilation"] }
 
 [build-dependencies]
 pyo3-build-config = "0.21.2"

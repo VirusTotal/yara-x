@@ -57,14 +57,13 @@ logging = ["dep:log"]
 # threads, which can be problematic in some scenarios. See:
 # https://github.com/VirusTotal/yara-x/issues/182
 #
-# This feature is enabled by default.
+# This feature is disabled by default.
 parallel-compilation = ["wasmtime/parallel-compilation"]
 
 # Enables rules profiling. When this is enabled together with `logging` the
 # logs will contain information about the most expensive rules after each
 # scan. Notice that profiling itself has a noticeable impact on performance.
 rules-profiling = ["logging"]
-
 
 # When enabled use the logic included in the `x509-parser` crate for verifying
 # certificates. If not enabled we use our ouwn logic. This is disabled by
@@ -167,14 +166,12 @@ text-module = [
 # conditions of a rule to check against other epoch time.
 time-module = []
 
-
 # Features that are enabled by default.
 default = [
     "constant-folding",
     "cuckoo-module",
     "exact-atoms",
     "fast-regexp",
-    "parallel-compilation",
     "console-module",
     "dotnet-module",
     "elf-module",
