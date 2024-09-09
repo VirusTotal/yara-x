@@ -176,7 +176,7 @@ def test_xor_key():
 def test_scanner_timeout():
   compiler = yara_x.Compiler()
   compiler.add_source(
-      'rule foo {condition: for all i in (0..10000000000) : ( true )}')
+      'rule foo {condition: for all i in (0..100000000000) : ( true )}')
   scanner = yara_x.Scanner(compiler.build())
   scanner.set_timeout(1)
   with pytest.raises(yara_x.TimeoutError):
