@@ -4602,7 +4602,7 @@ checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
 
 [[package]]
 name = "yara-x"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "aho-corasick",
  "annotate-snippets",
@@ -4673,7 +4673,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-capi"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "cbindgen",
  "serde_json",
@@ -4682,7 +4682,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-cli"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "ascii_tree",
@@ -4714,7 +4714,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-fmt"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "bitmask",
  "bstr",
@@ -4729,7 +4729,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-macros"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -4739,7 +4739,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-parser"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "ascii_tree",
@@ -4763,7 +4763,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-proto"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "protobuf",
  "protobuf-codegen",
@@ -4772,7 +4772,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-proto-yaml"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "chrono",
  "globwalk",
@@ -4787,7 +4787,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-py"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "protobuf-json-mapping",
  "pyo3",
