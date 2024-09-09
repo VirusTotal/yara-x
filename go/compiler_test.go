@@ -130,7 +130,7 @@ func TestErrors(t *testing.T) {
 			Labels: []Label{
 				{
 					Level:      "error",
-					CodeOrigin: "",
+					CodeOrigin: "test.yar",
 					Span:       Span{Start: 25, End: 28},
 					Text:       "this identifier has not been declared",
 				},
