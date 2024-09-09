@@ -34,6 +34,7 @@ Commands:
   scan        Scan a file or directory
   compile     Compile rules to binary form
   dump        Show the data produced by YARA modules for a file
+  fmt         Format YARA source files
   completion  Output shell completion code for the specified shell
   help        Print this message or the help of the given subcommand(s)
 
@@ -299,7 +300,7 @@ This option can be used multiple times for specifying more than one module.
 For example:
 
 ```
-yr dump --module=pe --module=dotnet [FILE]
+yr dump --module=pe --module=dotnet <FILE>
 ```
 
 ### --no-colors
@@ -310,3 +311,20 @@ By default, both YAML and JSON outputs contains colors that improves their
 legibility, this option turns off colors. When the output of this command is
 redirected from stdout to a file, colors are turned off automatically, even
 if `--no-colors` is missing.
+
+## fmt
+
+Format YARA source files.
+
+This command is similar in spirit to other code formatting tools like `gofmt`
+and `rustfmt`.
+
+```
+yr fmt <FILE>...
+```
+
+### ---check, -c
+
+Run in "check" mode. Doesn't modify any file, but exits error code 0 if the
+files are formatted correctly and no change is necessary, or error code 1
+if otherwise.
