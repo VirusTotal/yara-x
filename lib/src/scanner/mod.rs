@@ -591,15 +591,6 @@ impl<'r> Scanner<'r> {
         if self.timeout.is_some() {
             INIT_HEARTBEAT.call_once(|| {
                 thread::spawn(|| loop {
-                    #[cfg(target_os = "linux")]
-                    unsafe {
-                        // unshare(CLONE_FS) preventing setns syscall to fail
-                        // if a timeout is set for the scanner.
-                        // see issue: https://github.com/VirusTotal/yara-x/issues/182
-                        syscalls::syscall!(syscalls::Sysno::unshare, 512)
-                            .unwrap();
-                    }
-
                     thread::sleep(Duration::from_secs(1));
                     ENGINE.increment_epoch();
                     HEARTBEAT_COUNTER
