@@ -62,6 +62,7 @@ impl<'a> DepthFirstSearch<'a> {
     /// (i.e., the siblings of the node that was just left) from being visited.
     /// The next event will then be the [`Event::Leave`] for the parent of the
     /// node that was exited.
+    #[allow(dead_code)] // TODO: remove when this is used.
     pub fn prune(&mut self) {
         // Remove all Event::Enter from the stack until an Event::Leave.
         while let Some(Event::Enter(_)) = self.stack.last() {

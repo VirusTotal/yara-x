@@ -350,7 +350,7 @@ impl ReportBuilder {
         let cache_entry = code_cache.get(&source_id).unwrap();
         let src = cache_entry.code.as_str();
 
-        src[source_ref.span.range()].to_string()
+        src[source_ref.span().range()].to_string()
     }
 
     /// Creates a new error or warning report.
