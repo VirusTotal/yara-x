@@ -23,7 +23,7 @@ crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
 serde_json = { workspace = true }
-yara-x = { workspace = true }
+yara-x = { workspace = true, features = ["parallel-compilation"] }
 
 [build-dependencies]
 cbindgen = { workspace = true }
