@@ -50,10 +50,14 @@ fn format() {
         let output_path = path.with_extension("formatted");
 
         let input = fs::read_to_string(&path).expect("error reading file");
-        let mut output = mint.new_goldenfile(output_path).unwrap();
+        let mut output = mint.new_goldenfile(&output_path).unwrap();
 
-        Formatter::new()
+        let changed = Formatter::new()
             .format(input.as_bytes(), &mut output)
             .expect("format failed");
+
+        if !changed {
+            panic!("{:?} and {:?} are equal", path, output_path)
+        }
     });
 }

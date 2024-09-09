@@ -139,3 +139,8 @@ be in this format, only results.
 Examples:
 
 --output-format=ndjson"#;
+
+pub const FMT_CHECK_MODE: &str = r#"Run in 'check' mode
+
+Doesn't modify the files. Exits with 0 if files are formatted correctly. Exits
+with 1 if formatting is required."#;

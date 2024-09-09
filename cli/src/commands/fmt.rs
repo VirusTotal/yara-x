@@ -1,51 +1,43 @@
-use std::fs;
 use std::fs::File;
-use std::io::{stdin, stdout, Cursor, Seek, Write};
 use std::path::PathBuf;
+use std::{fs, io, process};
 
+use crate::help::FMT_CHECK_MODE;
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 use yara_x_fmt::Formatter;
 
 pub fn fmt() -> Command {
     super::command("fmt")
         .about("Format YARA source files")
-        // The `fmt` command is not ready yet.
-        .hide(true)
         .arg(
             arg!(<FILE>)
-            .help("Path to YARA source file")
-            .value_parser(value_parser!(PathBuf))
-            .action(ArgAction::Append),
+                .help("Path to YARA source file")
+                .required(true)
+                .value_parser(value_parser!(PathBuf))
+                .action(ArgAction::Append),
         )
-        .arg(
-            arg!(-w  --write ... "Write output to source file instead of stdout")
-                .action(ArgAction::SetTrue),
-        )
+        .arg(arg!(-c --check  "Run in 'check' mode").long_help(FMT_CHECK_MODE))
 }
 
 pub fn exec_fmt(args: &ArgMatches) -> anyhow::Result<()> {
-    let files = args.get_many::<PathBuf>("FILE");
-    let write = args.get_one::<bool>("write");
+    let files = args.get_many::<PathBuf>("FILE").unwrap();
+    let check = args.get_flag("check");
 
     let formatter = Formatter::new();
+    let mut changed = false;
 
-    if let Some(files) = files {
-        for file in files {
-            let input = fs::read(file.as_path())?;
-            if *write.unwrap() {
-                let mut formatted = Cursor::new(Vec::new());
+    for file in files {
+        let input = fs::read(file.as_path())?;
+        changed = if check {
+            formatter.format(input.as_slice(), io::sink())?
+        } else {
+            let output_file = File::create(file.as_path())?;
+            formatter.format(input.as_slice(), output_file)?
+        } || changed;
+    }
 
-                formatter.format(input.as_slice(), &mut formatted)?;
-                formatted.rewind()?;
-
-                File::create(file.as_path())?
-                    .write_all(formatted.into_inner().as_slice())?;
-            } else {
-                formatter.format(input.as_slice(), stdout())?;
-            };
-        }
-    } else {
-        formatter.format(stdin(), stdout())?;
+    if changed {
+        process::exit(1)
     }
 
     Ok(())
