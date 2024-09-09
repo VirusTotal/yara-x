@@ -16,6 +16,7 @@ Formatter::new().format(input, output).unwrap();
 ```
 */
 use std::io;
+use std::io::Cursor;
 
 use thiserror::Error;
 
@@ -150,24 +151,40 @@ impl Formatter {
     /// Reads YARA source code from `input` and write it into `output` after
     /// formatting.
     ///
+    /// Returns `true` if the output differs from the input.
+    ///
     /// This function will fail if it can't read from the input, write to the
     /// output, or when the input doesn't contain syntactically valid YARA
     /// rules.
+    ///
     /// TODO: syntactically invalid rules may be formatted
-    pub fn format<R, W>(&self, mut input: R, output: W) -> Result<(), Error>
+    pub fn format<R, W>(
+        &self,
+        mut input: R,
+        mut output: W,
+    ) -> Result<bool, Error>
     where
         R: io::Read,
         W: io::Write,
     {
-        let mut buf = Vec::new();
+        let mut in_buf = Vec::new();
 
-        // Read the source code from input and store it in buf.
-        input.read_to_end(&mut buf).map_err(Error::ReadError)?;
+        input.read_to_end(&mut in_buf).map_err(Error::ReadError)?;
 
-        let stream = Parser::new(buf.as_slice()).into_cst_stream();
+        let stream = Parser::new(in_buf.as_slice()).into_cst_stream();
         let tokens = Tokens::new(stream);
 
-        self.format_impl(tokens).write_to(output).map_err(Error::WriteError)
+        let mut out_buf = Cursor::new(Vec::new());
+
+        self.format_impl(tokens)
+            .write_to(&mut out_buf)
+            .map_err(Error::WriteError)?;
+
+        let modified = in_buf.ne(out_buf.get_ref());
+
+        output.write_all(out_buf.get_ref()).map_err(Error::WriteError)?;
+
+        Ok(modified)
     }
 }
 
