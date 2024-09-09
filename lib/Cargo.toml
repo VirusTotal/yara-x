@@ -246,10 +246,6 @@ yara-x-parser = { workspace = true, features = ["serde"] }
 
 lingua = { version = "1.6.2", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
 
-# syscalls crate is only available for Linux
-[target.'cfg(target_os = "linux")'.dependencies]
-syscalls = "0.6.18"
-
 [build-dependencies]
 anyhow = { workspace = true }
 globwalk = { workspace = true }
