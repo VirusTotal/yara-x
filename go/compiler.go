@@ -85,10 +85,10 @@ func RelaxedReSyntax(yes bool) CompileOption {
 // ErrorOnSlowPattern is an option for [NewCompiler] and [Compile] that
 // tells the compiler to treat slow patterns as errors instead of warnings.
 func ErrorOnSlowPattern(yes bool) CompileOption {
-		return func(c *Compiler) error {
-  		c.errorOnSlowPattern = yes
-  		return nil
-  	}
+	return func(c *Compiler) error {
+		c.errorOnSlowPattern = yes
+		return nil
+	}
 }
 
 // A structure that contains the options passed to [Compiler.AddSource].
@@ -107,64 +107,63 @@ type SourceOption func(opt *sourceOptions) error
 // source's origin. This origin appears in error reports, for instance, if
 // if origin is "some_file.yar", error reports will look like:
 //
-//  error: syntax error
-//   --> some_file.yar:4:17
-//    |
-//  4 | ... more details
-//
+//	error: syntax error
+//	 --> some_file.yar:4:17
+//	  |
+//	4 | ... more details
 //
 // Example:
 //
-//  c := NewCompiler()
-//  c.AddSource("rule some_rule { condition: true }", WithOrigin("some_file.yar"))
+//	c := NewCompiler()
+//	c.AddSource("rule some_rule { condition: true }", WithOrigin("some_file.yar"))
 func WithOrigin(origin string) SourceOption {
-		return func(opts *sourceOptions) error {
-			opts.origin = origin
-			return nil
-		}
+	return func(opts *sourceOptions) error {
+		opts.origin = origin
+		return nil
+	}
 }
 
 // CompileError represents each of the errors returned by [Compiler.Errors].
 type CompileError struct {
 	// Error code (e.g: "E001").
-	Code string
+	Code string `json:"code"`
 	// Error title (e.g: "unknown identifier `foo`").
-	Title string
+	Title string `json:"title"`
 	// Each of the labels in the error report.
-	Labels []Label
+	Labels []Label `json:"labels"`
 	// The error's full report, as shown by the command-line tool.
-	Text string
+	Text string `json:"text"`
 }
 
 // Warning represents each of the warnings returned by [Compiler.Warnings].
 type Warning struct {
 	// Error code (e.g: "slow_pattern").
-	Code string
+	Code string `json:"code"`
 	// Error title (e.g: "slow pattern").
-	Title string
+	Title string `json:"title"`
 	// Each of the labels in the error report.
-	Labels []Label
+	Labels []Label `json:"labels"`
 	// The error's full report, as shown by the command-line tool.
-	Text string
+	Text string `json:"text"`
 }
 
 // Label represents a label in a [CompileError].
 type Label struct {
 	// Label's level (e.g: "error", "warning", "info", "note", "help").
-	Level string
+	Level string `json:"level"`
 	// Origin of the code where the error occurred.
-	CodeOrigin string
+	CodeOrigin string `json:"code_origin"`
 	// The code span highlighted by this label.
-	Span Span
+	Span Span `json:"span"`
 	// Text associated to the label.
-	Text string
+	Text string `json:"text"`
 }
 
 // Span represents the starting and ending point of some piece of source
 // code.
 type Span struct {
-	Start int
-	End int
+	Start int `json:"start"`
+	End   int `json:"end"`
 }
 
 // Error returns the error's full report.
@@ -174,8 +173,8 @@ func (c CompileError) Error() string {
 
 // Compiler represent a YARA compiler.
 type Compiler struct {
-	cCompiler       *C.YRX_COMPILER
-	relaxedReSyntax bool
+	cCompiler          *C.YRX_COMPILER
+	relaxedReSyntax    bool
 	errorOnSlowPattern bool
 	ignoredModules  map[string]bool
 	vars map[string]interface{}
@@ -183,7 +182,7 @@ type Compiler struct {
 }
 
 // NewCompiler creates a new compiler.
-func NewCompiler(opts... CompileOption) (*Compiler, error) {
+func NewCompiler(opts ...CompileOption) (*Compiler, error) {
 	c := &Compiler{
 		ignoredModules: make(map[string]bool),
 		vars: make(map[string]interface{}),
@@ -250,11 +249,11 @@ func (c *Compiler) initialize() error {
 //
 // Examples:
 //
-//  c := NewCompiler()
-//  c.AddSource("rule foo { condition: true }")
-//  c.AddSource("rule bar { condition: true }")
-//  c.AddSource("rule baz { condition: true }", WithOrigin("baz.yar"))
-func (c *Compiler) AddSource(src string, opts... SourceOption) error {
+//	c := NewCompiler()
+//	c.AddSource("rule foo { condition: true }")
+//	c.AddSource("rule bar { condition: true }")
+//	c.AddSource("rule baz { condition: true }", WithOrigin("baz.yar"))
+func (c *Compiler) AddSource(src string, opts ...SourceOption) error {
 	options := &sourceOptions{}
 	for _, opt := range opts {
 		opt(options)
@@ -264,10 +263,10 @@ func (c *Compiler) AddSource(src string, opts... SourceOption) error {
 	defer C.free(unsafe.Pointer(cSrc))
 
 	var cOrigin *C.char
-  if options.origin != "" {
-  	cOrigin = C.CString(options.origin)
-  	defer C.free(unsafe.Pointer(cOrigin))
-  }
+	if options.origin != "" {
+		cOrigin = C.CString(options.origin)
+		defer C.free(unsafe.Pointer(cOrigin))
+	}
 
 	// The call to runtime.LockOSThread() is necessary to make sure that
 	// yrx_compiler_add_source and yrx_last_error are called from the same OS
@@ -322,16 +321,16 @@ func (c *Compiler) ignoreModule(module string) {
 //
 // Examples:
 //
-//  c := NewCompiler()
-//  // Add some rule named "foo" under the default namespace
-//  c.AddSource("rule foo { condition: true }")
+//	c := NewCompiler()
+//	// Add some rule named "foo" under the default namespace
+//	c.AddSource("rule foo { condition: true }")
 //
-//  // Create a new namespace named "bar"
-//  c.NewNamespace("bar")
+//	// Create a new namespace named "bar"
+//	c.NewNamespace("bar")
 //
-//  // It's ok to add another rule named "foo", as it is in a different
-//  // namespace than the previous one.
-//  c.AddSource("rule foo { condition: true }")
+//	// It's ok to add another rule named "foo", as it is in a different
+//	// namespace than the previous one.
+//	c.AddSource("rule foo { condition: true }")
 func (c *Compiler) NewNamespace(namespace string) {
 	cNamespace := C.CString(namespace)
 	defer C.free(unsafe.Pointer(cNamespace))

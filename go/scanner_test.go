@@ -51,7 +51,7 @@ func TestScanner3(t *testing.T) {
 
 	s.SetGlobal("var_bool", false)
 	scanResults, _ = s.Scan([]byte{})
-	assert.Len(t,  scanResults.MatchingRules(), 0)
+	assert.Len(t, scanResults.MatchingRules(), 0)
 }
 
 func TestScanner4(t *testing.T) {
@@ -109,5 +109,5 @@ func TestScannerMetadata(t *testing.T) {
 	assert.Equal(t, "some_string", matchingRules[0].Metadata()[3].Identifier)
 	assert.Equal(t, "hello", matchingRules[0].Metadata()[3].Value)
 	assert.Equal(t, "some_bytes", matchingRules[0].Metadata()[4].Identifier)
-  	assert.Equal(t, []byte{0, 1, 2}, matchingRules[0].Metadata()[4].Value)
+	assert.Equal(t, []byte{0, 1, 2}, matchingRules[0].Metadata()[4].Value)
 }
