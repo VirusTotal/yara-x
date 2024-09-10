@@ -42,7 +42,7 @@ number_of_rva_and_sizes: 16
 number_of_sections: 7
 number_of_imported_functions: 0
 number_of_delayed_imported_functions: 0
-number_of_resources: 145
+number_of_resources: 203
 number_of_version_infos: 0
 number_of_imports: 0
 number_of_delayed_imports: 0
@@ -195,18 +195,27 @@ resource_version:
     major: 31648
     minor: 41354
 resources:
+  - length: 8388035
+    rva: 2017157120
+    type: RESOURCE_TYPE_MENU
   - length: 32765
     rva: 2710207280
     type: 0
   - length: 32765
     rva: 2710513710
     type: 162480
+  - length: 858783744
+    rva: 2147328394
+    type: RESOURCE_TYPE_RCDATA
   - length: 32765
     rva: 3291296560
     type: 0
   - length: 32765
     rva: 3279436080
     type: 1486848
+  - length: 16843009
+    rva: 4294967295
+    type: 1552384
   - length: 32765
     rva: 2710209520
     type: 1139792
@@ -225,15 +234,27 @@ resources:
   - length: 32765
     rva: 2748010640
     type: 1685353280
+  - length: 8388036
+    rva: 758329344
+    type: RESOURCE_TYPE_CURSOR
+  - length: 8388035
+    rva: 2017157120
+    type: RESOURCE_TYPE_MENU
   - length: 32765
     rva: 2710513710
     type: 84832
+  - length: 858783744
+    rva: 2147328394
+    type: RESOURCE_TYPE_RCDATA
   - length: 32765
     rva: 3291296560
     type: 0
   - length: 32765
     rva: 3291412832
     type: 842240
+  - length: 6292015
+    rva: 715974112
+    type: 918528
   - length: 32765
     rva: 2710209520
     type: 657648
@@ -252,18 +273,29 @@ resources:
   - length: 32765
     rva: 2748010640
     type: 1685353280
+  - length: 1011875840
+    rva: 2147337080
+  - length: 8388035
+    rva: 2017157120
+    type: RESOURCE_TYPE_MENU
   - length: 32765
     rva: 2710207280
     type: 0
   - length: 32765
     rva: 2710513710
     type: 30240
+  - length: 858783744
+    rva: 2147328394
+    type: RESOURCE_TYPE_RCDATA
   - length: 32765
     rva: 3291296560
     type: 0
   - length: 32765
     rva: 2748010640
     type: 1317376
+  - length: 1048576
+    rva: 1129727304
+    type: 1220608
   - length: 32765
     rva: 2710207936
     type: 37664
@@ -276,9 +308,15 @@ resources:
   - length: 255
     rva: 4294967295
     type: 1818587694
+  - length: 8388035
+    rva: 2017157120
+    type: RESOURCE_TYPE_MENU
   - length: 32765
     rva: 2710513710
     type: 281824
+  - length: 858783744
+    rva: 2147328394
+    type: RESOURCE_TYPE_RCDATA
   - length: 32765
     rva: 3291296560
     type: 0
@@ -305,6 +343,12 @@ resources:
     type: 0
   - length: 32765
     rva: 2710207392
+  - length: 8388001
+    rva: 2323357696
+    type: 49710
+  - length: 8388035
+    rva: 2017157120
+    type: RESOURCE_TYPE_MENU
   - length: 32765
     rva: 2710207280
     type: 0
@@ -314,6 +358,9 @@ resources:
   - length: 32765
     rva: 2710513710
     type: 5136
+  - length: 858783744
+    rva: 2147328394
+    type: RESOURCE_TYPE_RCDATA
   - length: 32765
     rva: 3291296560
     type: 0
@@ -338,9 +385,18 @@ resources:
   - length: 32765
     rva: 2748028970
     type: 32
+  - length: 8388035
+    rva: 2017157120
+    type: RESOURCE_TYPE_MENU
+  - length: 300057105
+    rva: 1868869061
+    type: 336462347
   - length: 32765
     rva: 2710513710
     type: 152160
+  - length: 858783744
+    rva: 2147328394
+    type: RESOURCE_TYPE_RCDATA
   - length: 32765
     rva: 3291296560
     type: 0
@@ -362,9 +418,18 @@ resources:
   - length: 255
     rva: 4294967295
     type: 1818587694
+  - length: 775946240
+    rva: 1073741824
+    type: 290431350
+  - length: 8388035
+    rva: 2017157120
+    type: RESOURCE_TYPE_MENU
   - length: 32765
     rva: 2710513710
     type: 139968
+  - length: 858783744
+    rva: 2147328394
+    type: RESOURCE_TYPE_RCDATA
   - length: 32765
     rva: 3291296560
     type: 0
@@ -461,15 +526,32 @@ resources:
   - length: 32765
     rva: 2748010640
     type: 1919251570
+  - length: 805306495
+    rva: 4257445953
   - length: 32765
     rva: 2710207392
     type: RESOURCE_TYPE_FONTDIR
   - length: 32765
     rva: 2710207392
     type: RESOURCE_TYPE_FONT
+  - length: 858783744
+    rva: 2147328394
+    type: RESOURCE_TYPE_RCDATA
+  - length: 858783744
+    rva: 2147328394
+    type: RESOURCE_TYPE_RCDATA
   - length: 32765
     rva: 2710207392
     type: RESOURCE_TYPE_FONT
+  - length: 858783744
+    rva: 2147328394
+    type: RESOURCE_TYPE_RCDATA
+  - length: 858783744
+    rva: 2147328394
+    type: RESOURCE_TYPE_RCDATA
+  - length: 858783744
+    rva: 2147328394
+    type: RESOURCE_TYPE_RCDATA
   - length: 32765
     rva: 2710207392
     type: RESOURCE_TYPE_DIALOG
@@ -485,6 +567,27 @@ resources:
   - length: 32765
     rva: 2710207392
     type: RESOURCE_TYPE_FONT
+  - length: 858783744
+    rva: 2147328394
+    type: RESOURCE_TYPE_ACCELERATOR
+  - length: 858783744
+    rva: 2147328394
+    type: RESOURCE_TYPE_RCDATA
+  - length: 8388036
+    rva: 758329344
+    type: 13
+  - length: 8388036
+    rva: 758329344
+    type: 15
+  - length: 8388036
+    rva: 758329344
+    type: 15
+  - length: 8388036
+    rva: 758329344
+    type: 15
+  - length: 8388036
+    rva: 758329344
+    type: 15
   - length: 32765
     rva: 2710207392
     type: RESOURCE_TYPE_DIALOG
@@ -500,9 +603,36 @@ resources:
   - length: 32765
     rva: 2710207392
     type: RESOURCE_TYPE_FONT
+  - length: 858783744
+    rva: 2147328394
+    type: RESOURCE_TYPE_ACCELERATOR
+  - length: 858783744
+    rva: 2147328394
+    type: RESOURCE_TYPE_RCDATA
+  - length: 8388036
+    rva: 758329344
+    type: 13
+  - length: 8388036
+    rva: 758329344
+    type: 15
+  - length: 8388036
+    rva: 758329344
+    type: 15
+  - length: 8388036
+    rva: 758329344
+    type: 15
+  - length: 8388036
+    rva: 758329344
+    type: 15
+  - length: 8388035
+    rva: 2017157120
+    type: RESOURCE_TYPE_MENU
   - length: 32765
     rva: 2710513710
     type: 12960
+  - length: 858783744
+    rva: 2147328394
+    type: RESOURCE_TYPE_RCDATA
   - length: 32765
     rva: 3291296560
     type: 0
@@ -529,9 +659,15 @@ resources:
     type: 1091704238
   - length: 1
     rva: 1610618142
+  - length: 8388035
+    rva: 2017157120
+    type: RESOURCE_TYPE_MENU
   - length: 32765
     rva: 2710513710
     type: 112432
+  - length: 858783744
+    rva: 2147328394
+    type: RESOURCE_TYPE_RCDATA
   - length: 32765
     rva: 3291296560
     type: 0
@@ -556,9 +692,15 @@ resources:
   - length: 255
     rva: 4294967295
     type: 1818587694
+  - length: 8388035
+    rva: 2017157120
+    type: RESOURCE_TYPE_MENU
   - length: 32765
     rva: 2710513710
     type: 111008
+  - length: 858783744
+    rva: 2147328394
+    type: RESOURCE_TYPE_RCDATA
   - length: 32765
     rva: 3291296560
     type: 0
@@ -577,6 +719,12 @@ resources:
   - length: 255
     rva: 4294967295
     type: 1818587694
+  - length: 4210805
+    rva: 1883465070
+    type: 60670
+  - length: 4210805
+    rva: 1883465070
+    type: 15789823
   - length: 32765
     rva: 2748010640
     type: 1685353280
@@ -601,6 +749,14 @@ resources:
   - length: 32765
     rva: 2748010640
     type: 1685353280
+  - length: 536871039
+    rva: 4255373500
+  - length: 8388035
+    rva: 2017157120
+    type: 258
+  - length: 8388036
+    rva: 758329344
+    type: 288
   - length: 32765
     rva: 3279436256
     type: 46080
@@ -610,6 +766,12 @@ resources:
   - length: 32765
     rva: 3279436128
     type: 17920
+  - length: 8388001
+    rva: 2323357696
+    type: RESOURCE_TYPE_FONT
+  - length: 805306495
+    rva: 4255222395
+    type: 65280
   - length: 32765
     rva: 3279436000
     type: 61440
@@ -619,12 +781,21 @@ resources:
   - length: 127
     rva: 4257492275
     type: 63488
+  - length: 8388035
+    rva: 2017095680
+    type: 18176
+  - length: 825504358
+    rva: 942956902
+    type: 0
   - length: 32765
     rva: 3291161680
     type: 63488
   - length: 32765
     rva: 3279436512
     type: 16960
+  - length: 8388001
+    rva: 2323357696
+    type: 128
   - length: 32765
     rva: 3279436640
     type: 4096
