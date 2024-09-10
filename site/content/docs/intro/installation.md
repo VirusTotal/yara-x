@@ -21,8 +21,14 @@ seo:
 The most straightforward way of installing YARA-X in your system is downloading
 one of the pre-built binaries that we distribute with
 every [release](https://github.com/VirusTotal/yara-x/releases). You will find
-pre-built binaries for Linux, MacOS, and Windows, unzip the binary in
+pre-built binaries for Linux, macOS, and Windows, unzip the binary in
 your preferred location, and that's all, you are ready to run YARA-X.
+
+In macOS, you can also use `brew`:
+
+```shell
+brew install yara-x
+```
 
 If you prefer to build YARA-X yourself, follow the guide below.
 
