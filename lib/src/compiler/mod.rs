@@ -794,9 +794,19 @@ impl<'a> Compiler<'a> {
     /// Specifies whether the compiler should produce colorful error messages.
     ///
     /// Colorized error messages contain ANSI escape sequences that make them
-    /// look nicer on compatible consoles. The default setting is `false`.
+    /// look nicer on compatible consoles.
+    ///
+    /// The default setting is `false`.
     pub fn colorize_errors(&mut self, yes: bool) -> &mut Self {
         self.report_builder.with_colors(yes);
+        self
+    }
+
+    /// Sets the maximum number of columns in error messages.
+    ///
+    /// The default value is 140.
+    pub fn errors_max_with(&mut self, with: usize) -> &mut Self {
+        self.report_builder.max_with(with);
         self
     }
 
