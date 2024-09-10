@@ -278,12 +278,15 @@
       "wrap"
     ],
     "ids": [
+      "---check--c",
       "--compiled-rules--c",
       "--count--c",
       "--define--d-varvalue",
       "--disable-console-logs",
       "--disable-warnings",
       "--disable-warnings--w",
+      "--ignore-module-module",
+      "--ignore-module-module-1",
       "--module--m-module",
       "--negate--n",
       "--no-colors",
@@ -419,6 +422,7 @@
       "fileattributes",
       "filtering-with-regular-expressions",
       "finding-patterns-at-specific-offsets",
+      "fmt",
       "fullword-modifier",
       "function",
       "functions",
