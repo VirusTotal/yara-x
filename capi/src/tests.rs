@@ -9,7 +9,7 @@ use crate::{
     yrx_buffer_destroy, yrx_last_error, yrx_metadata_destroy,
     yrx_patterns_destroy, yrx_rule_identifier, yrx_rule_metadata,
     yrx_rule_namespace, yrx_rule_patterns, yrx_rules_deserialize,
-    yrx_rules_destroy, yrx_rules_iter, yrx_rules_serialize,
+    yrx_rules_destroy, yrx_rules_iterate, yrx_rules_serialize,
     yrx_scanner_create, yrx_scanner_destroy, yrx_scanner_on_matching_rule,
     yrx_scanner_scan, yrx_scanner_set_global_bool,
     yrx_scanner_set_global_float, yrx_scanner_set_global_int,
@@ -19,7 +19,7 @@ use crate::{
 
 use std::ffi::{c_void, CStr, CString};
 
-extern "C" fn on_rule_iter(rule: *const YRX_RULE, user_data: *mut c_void) {
+extern "C" fn on_rule_iter(_rule: *const YRX_RULE, user_data: *mut c_void) {
     let ptr = user_data as *mut i32;
     let count = unsafe { ptr.as_mut().unwrap() };
     *count += 1;
@@ -100,7 +100,7 @@ fn capi() {
         yrx_compiler_destroy(compiler);
 
         let mut num_rules = 0;
-        yrx_rules_iter(
+        yrx_rules_iterate(
             rules,
             on_rule_iter,
             &mut num_rules as *mut i32 as *mut c_void,

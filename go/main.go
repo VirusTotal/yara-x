@@ -103,7 +103,7 @@ func (r *Rules) Destroy() {
 	runtime.SetFinalizer(r, nil)
 }
 
-// This is the callback called by yrx_rules_iter, when Rules.GetRules is
+// This is the callback called by yrx_rules_iterate, when Rules.GetRules is
 // called.
 //export onRule
 func onRule(rule *C.YRX_RULE, handle unsafe.Pointer) {

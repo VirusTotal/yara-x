@@ -198,7 +198,7 @@ enum YRX_RESULT yrx_rules_deserialize(const uint8_t *data,
                                       size_t len,
                                       struct YRX_RULES **rules);
 
-// Iterates over the compiled rules, calling the callback  function for each
+// Iterates over the compiled rules, calling the callback function for each
 // rule.
 //
 // The `user_data` pointer can be used to provide additional context to your
