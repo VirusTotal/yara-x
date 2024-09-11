@@ -94,7 +94,7 @@ includes:
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 use std::cell::RefCell;
-use std::ffi::{c_char, CStr, CString};
+use std::ffi::{c_char, c_void, CStr, CString};
 use std::mem::ManuallyDrop;
 use std::ptr::slice_from_raw_parts_mut;
 use std::slice;
@@ -392,6 +392,43 @@ pub unsafe extern "C" fn yrx_rules_deserialize(
             _yrx_set_last_error(Some(err));
             YRX_RESULT::SERIALIZATION_ERROR
         }
+    }
+}
+
+/// Callback function passed to [`yrx_scanner_on_matching_rule`] or
+/// [`yrx_rules_iterate`].
+///
+/// The callback receives a pointer to a rule, represented by a [`YRX_RULE`]
+/// structure. This pointer is guaranteed to be valid while the callback
+/// function is being executed, but it may be freed after the callback function
+/// returns, so you cannot use the pointer outside the callback.
+///
+/// It also receives the `user_data` pointer that can point to arbitrary data
+/// owned by the user.
+pub type YRX_RULE_CALLBACK =
+    extern "C" fn(rule: *const YRX_RULE, user_data: *mut c_void) -> ();
+
+/// Iterates over the compiled rules, calling the callback function for each
+/// rule.
+///
+/// The `user_data` pointer can be used to provide additional context to your
+/// callback function.
+///
+/// See [`YRX_RULE_CALLBACK`] for more details.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_rules_iterate(
+    rules: *mut YRX_RULES,
+    callback: YRX_RULE_CALLBACK,
+    user_data: *mut c_void,
+) -> YRX_RESULT {
+    if let Some(rules) = rules.as_ref() {
+        for r in rules.0.iter() {
+            let rule = YRX_RULE(r);
+            callback(&rule as *const YRX_RULE, user_data);
+        }
+        YRX_RESULT::SUCCESS
+    } else {
+        YRX_RESULT::INVALID_ARGUMENT
     }
 }
 

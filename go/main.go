@@ -5,29 +5,33 @@ package yara_x
 // #cgo static_link pkg-config: --static yara_x_capi
 // #include <yara_x.h>
 //
-// uint64_t meta_i64(void* value) {
+// static uint64_t meta_i64(void* value) {
 //   return ((YRX_METADATA_VALUE*) value)->i64;
 // }
 //
-// double meta_f64(void* value) {
+// static double meta_f64(void* value) {
 //   return ((YRX_METADATA_VALUE*) value)->f64;
 // }
 //
-// bool meta_bool(void* value) {
+// static bool meta_bool(void* value) {
 //   return ((YRX_METADATA_VALUE*) value)->boolean;
 // }
 //
-// char* meta_str(void* value) {
+// static char* meta_str(void* value) {
 //   return ((YRX_METADATA_VALUE*) value)->string;
 // }
 //
-// YRX_METADATA_BYTES* meta_bytes(void* value) {
+// static YRX_METADATA_BYTES* meta_bytes(void* value) {
 //   return &(((YRX_METADATA_VALUE*) value)->bytes);
 // }
+//
+// void onRule(YRX_RULE*, void*);
 import "C"
+
 import (
 	"errors"
 	"runtime"
+	"runtime/cgo"
 	"unsafe"
 )
 
@@ -97,6 +101,34 @@ func (r *Rules) Destroy() {
 		r.cRules = nil
 	}
 	runtime.SetFinalizer(r, nil)
+}
+
+// This is the callback called by yrx_rules_iter, when Rules.GetRules is
+// called.
+//export onRule
+func onRule(rule *C.YRX_RULE, handle unsafe.Pointer) {
+	h := (cgo.Handle)(handle)
+	rules, ok := h.Value().(*[]*Rule)
+	if !ok {
+		panic("onRule didn't receive a *[]Rule")
+	}
+	*rules = append(*rules, newRule(rule))
+}
+
+// Slice returns a slice with all the individual rules contained in this
+// set of compiled rules.
+func (r *Rules) Slice() []*Rule {
+	rules := make([]*Rule, 0)
+	handle := cgo.NewHandle(&rules)
+	defer handle.Delete()
+
+	C.yrx_rules_iterate(
+		r.cRules,
+		C.YRX_RULE_CALLBACK(C.onRule),
+		unsafe.Pointer(handle))
+
+	runtime.KeepAlive(r)
+	return rules
 }
 
 // Rule represents a YARA rule.

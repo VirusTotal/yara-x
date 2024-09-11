@@ -92,6 +92,19 @@ typedef struct YRX_BUFFER {
   size_t length;
 } YRX_BUFFER;
 
+// Callback function passed to [`yrx_scanner_on_matching_rule`] or
+// [`yrx_rules_iterate`].
+//
+// The callback receives a pointer to a rule, represented by a [`YRX_RULE`]
+// structure. This pointer is guaranteed to be valid while the callback
+// function is being executed, but it may be freed after the callback function
+// returns, so you cannot use the pointer outside the callback.
+//
+// It also receives the `user_data` pointer that can point to arbitrary data
+// owned by the user.
+typedef void (*YRX_RULE_CALLBACK)(const struct YRX_RULE *rule,
+                                  void *user_data);
+
 // Represents a metadata value that contains raw bytes.
 typedef struct YRX_METADATA_BYTES {
   // Number of bytes.
@@ -160,20 +173,6 @@ typedef struct YRX_PATTERNS {
   struct YRX_PATTERN *patterns;
 } YRX_PATTERNS;
 
-// Callback function passed to the scanner via [`yrx_scanner_on_matching_rule`]
-// which receives notifications about matching rules.
-//
-// The callback receives a pointer to the matching rule, represented by a
-// [`YRX_RULE`] structure. This pointer is guaranteed to be valid while the
-// callback function is being executed, but it may be freed after the callback
-// function returns, so you cannot use the pointer outside the callback.
-//
-// It also receives the `user_data` pointer that was passed to the
-// [`yrx_scanner_on_matching_rule`] function, which can point to arbitrary
-// data owned by the user.
-typedef void (*YRX_ON_MATCHING_RULE)(const struct YRX_RULE *rule,
-                                     void *user_data);
-
 // Compiles YARA source code and creates a [`YRX_RULES`] object that contains
 // the compiled rules.
 //
@@ -198,6 +197,17 @@ enum YRX_RESULT yrx_rules_serialize(struct YRX_RULES *rules,
 enum YRX_RESULT yrx_rules_deserialize(const uint8_t *data,
                                       size_t len,
                                       struct YRX_RULES **rules);
+
+// Iterates over the compiled rules, calling the callback  function for each
+// rule.
+//
+// The `user_data` pointer can be used to provide additional context to your
+// callback function.
+//
+// See [`YRX_RULE_CALLBACK`] for more details.
+enum YRX_RESULT yrx_rules_iterate(struct YRX_RULES *rules,
+                                  YRX_RULE_CALLBACK callback,
+                                  void *user_data);
 
 // Destroys a [`YRX_RULES`] object.
 void yrx_rules_destroy(struct YRX_RULES *rules);
@@ -454,9 +464,9 @@ enum YRX_RESULT yrx_scanner_scan(struct YRX_SCANNER *scanner,
 // callback function. If the callback is not set, the scanner doesn't notify
 // about matching rules.
 //
-// See [`YRX_ON_MATCHING_RULE`] for more details.
+// See [`YRX_RULE_CALLBACK`] for more details.
 enum YRX_RESULT yrx_scanner_on_matching_rule(struct YRX_SCANNER *scanner,
-                                             YRX_ON_MATCHING_RULE callback,
+                                             YRX_RULE_CALLBACK callback,
                                              void *user_data);
 
 // Specifies the output data structure for a module.
