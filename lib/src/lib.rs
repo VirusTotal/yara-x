@@ -46,19 +46,19 @@ assert_eq!(results.matching_rules().len(), 1);
 pub use compiler::compile;
 pub use compiler::Compiler;
 pub use compiler::Rules;
+pub use compiler::RulesIter;
 pub use compiler::SourceCode;
-
+pub use models::Match;
+pub use models::Matches;
+pub use models::MetaValue;
+pub use models::Metadata;
+pub use models::Pattern;
+pub use models::Patterns;
+pub use models::Rule;
 pub use modules::mods;
-pub use scanner::Match;
-pub use scanner::Matches;
 pub use scanner::MatchingRules;
-pub use scanner::MetaValue;
-pub use scanner::Metadata;
 pub use scanner::ModuleOutputs;
 pub use scanner::NonMatchingRules;
-pub use scanner::Pattern;
-pub use scanner::Patterns;
-pub use scanner::Rule;
 pub use scanner::ScanError;
 pub use scanner::ScanOptions;
 pub use scanner::ScanResults;
@@ -75,6 +75,7 @@ mod types;
 mod variables;
 mod wasm;
 
+mod models;
 #[cfg(test)]
 mod tests;
 

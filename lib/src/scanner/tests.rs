@@ -3,9 +3,10 @@ use protobuf::MessageDyn;
 use protobuf::{Message, MessageFull};
 use serde_json::json;
 
+use crate::models::MetaValue;
 use crate::mods;
-use crate::scanner::{MetaValue, Scanner};
 use crate::variables::VariableError;
+use crate::Scanner;
 
 #[test]
 fn iterators() {

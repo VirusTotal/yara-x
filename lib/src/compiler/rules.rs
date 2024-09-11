@@ -1,5 +1,6 @@
 use std::fmt;
 use std::io::{BufWriter, Read, Write};
+use std::slice::Iter;
 #[cfg(feature = "logging")]
 use std::time::Instant;
 
@@ -20,7 +21,7 @@ use crate::compiler::{
 };
 use crate::re::{BckCodeLoc, FwdCodeLoc, RegexpAtom};
 use crate::string_pool::{BStringPool, StringPool};
-use crate::{re, types};
+use crate::{re, types, Rule};
 
 /// A set of YARA rules in compiled form.
 ///
@@ -199,6 +200,29 @@ impl Rules {
         let mut bytes = Vec::new();
         let _ = reader.read_to_end(&mut bytes)?;
         Self::deserialize(bytes)
+    }
+
+    /// Returns an iterator that yields the compiled rules.
+    ///
+    /// ```rust
+    /// # use yara_x::Compiler;
+    /// let mut compiler = Compiler::new();
+    ///
+    /// assert!(compiler
+    ///     .add_source("rule foo {condition: true}")
+    ///     .unwrap()
+    ///     .add_source("rule bar {condition: true}")
+    ///     .is_ok());
+    ///
+    /// let rules = compiler.build();
+    /// let mut iter = rules.iter();
+    ///
+    /// assert_eq!(iter.len(), 2);
+    /// assert_eq!(iter.next().map(|r| r.identifier()), Some("foo"));
+    /// assert_eq!(iter.next().map(|r| r.identifier()), Some("bar"));
+    /// ```
+    pub fn iter(&self) -> RulesIter {
+        RulesIter { rules: self, iterator: self.rules.iter() }
     }
 
     /// Returns a [`RuleInfo`] given its [`RuleId`].
@@ -398,6 +422,32 @@ impl Rules {
     #[inline]
     pub(crate) fn wasm_mod(&self) -> &wasmtime::Module {
         &self.wasm_mod
+    }
+}
+
+/// Iterator that yields the of the compiled rules.
+pub struct RulesIter<'a> {
+    rules: &'a Rules,
+    iterator: Iter<'a, RuleInfo>,
+}
+
+impl<'a> Iterator for RulesIter<'a> {
+    type Item = Rule<'a, 'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(Rule {
+            ctx: None,
+            data: None,
+            rules: self.rules,
+            rule_info: self.iterator.next()?,
+        })
+    }
+}
+
+impl ExactSizeIterator for RulesIter<'_> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.iterator.len()
     }
 }
 
