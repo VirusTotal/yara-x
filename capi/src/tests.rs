@@ -9,16 +9,23 @@ use crate::{
     yrx_buffer_destroy, yrx_last_error, yrx_metadata_destroy,
     yrx_patterns_destroy, yrx_rule_identifier, yrx_rule_metadata,
     yrx_rule_namespace, yrx_rule_patterns, yrx_rules_deserialize,
-    yrx_rules_destroy, yrx_rules_serialize, yrx_scanner_create,
-    yrx_scanner_destroy, yrx_scanner_on_matching_rule, yrx_scanner_scan,
-    yrx_scanner_set_global_bool, yrx_scanner_set_global_float,
-    yrx_scanner_set_global_int, yrx_scanner_set_global_str,
-    yrx_scanner_set_timeout, YRX_BUFFER, YRX_RESULT, YRX_RULE,
+    yrx_rules_destroy, yrx_rules_iter, yrx_rules_serialize,
+    yrx_scanner_create, yrx_scanner_destroy, yrx_scanner_on_matching_rule,
+    yrx_scanner_scan, yrx_scanner_set_global_bool,
+    yrx_scanner_set_global_float, yrx_scanner_set_global_int,
+    yrx_scanner_set_global_str, yrx_scanner_set_timeout, YRX_BUFFER,
+    YRX_RESULT, YRX_RULE,
 };
 
 use std::ffi::{c_void, CStr, CString};
 
-extern "C" fn callback(rule: *const YRX_RULE, user_data: *mut c_void) {
+extern "C" fn on_rule_iter(rule: *const YRX_RULE, user_data: *mut c_void) {
+    let ptr = user_data as *mut i32;
+    let count = unsafe { ptr.as_mut().unwrap() };
+    *count += 1;
+}
+
+extern "C" fn on_rule_match(rule: *const YRX_RULE, user_data: *mut c_void) {
     let mut ptr = std::ptr::null();
     let mut len = 0;
 
@@ -95,6 +102,14 @@ fn capi() {
 
         yrx_compiler_destroy(compiler);
 
+        let mut num_rules = 0;
+        yrx_rules_iter(
+            rules,
+            on_rule_iter,
+            &mut num_rules as *mut i32 as *mut c_void,
+        );
+        assert_eq!(num_rules, 1);
+
         let mut buf: *mut YRX_BUFFER = std::ptr::null_mut();
 
         yrx_rules_serialize(rules, &mut buf);
@@ -109,7 +124,7 @@ fn capi() {
         yrx_scanner_set_timeout(scanner, 60);
         yrx_scanner_on_matching_rule(
             scanner,
-            callback,
+            on_rule_match,
             &mut matches as *mut i32 as *mut c_void,
         );
 
