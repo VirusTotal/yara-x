@@ -25,7 +25,7 @@ use std::path::PathBuf;
 use anyhow::{anyhow, bail, Context};
 use clap::{command, crate_authors, ArgMatches, Command};
 use crossterm::tty::IsTty;
-use serde_json::Value;
+use serde_json;
 use superconsole::{Component, Line, Lines, Span, SuperConsole};
 use yansi::Color::Green;
 use yansi::Paint;
@@ -64,6 +64,10 @@ pub fn cli() -> Command {
         ])
 }
 
+/// Parses the arguments to the `--define` option, which have the form
+/// `VAR=VALUE`.
+///
+/// Returns the variable name and the value as a [`serde_json::Value`].
 fn external_var_parser(
     option: &str,
 ) -> Result<(String, serde_json::Value), anyhow::Error> {
@@ -83,6 +87,8 @@ fn external_var_parser(
     Ok((var.to_string(), value))
 }
 
+/// Parses the argument to the `--module-data` option, which have the form
+/// `MODULE=FILE`.
 fn meta_file_value_parser(
     option: &str,
 ) -> Result<(String, PathBuf), anyhow::Error> {
@@ -92,17 +98,34 @@ fn meta_file_value_parser(
     ))?;
 
     let value = PathBuf::from(value);
-
     Ok((var.to_string(), value))
+}
+
+/// Parses a path prefixed by an optional namespace. Like this:
+/// `[NAMESPACE:]PATH`.
+///
+/// Returns the namespace and the path. If the namespace is not provided
+/// returns "default".
+fn path_with_namespace_parser(
+    input: &str,
+) -> Result<(String, PathBuf), anyhow::Error> {
+    let (namespace, path) =
+        if let Some((namespace, path)) = input.split_once(':') {
+            (namespace, path)
+        } else {
+            ("default", input)
+        };
+    let path = PathBuf::from(path);
+    Ok((namespace.to_string(), path))
 }
 
 pub fn compile_rules<'a, P>(
     paths: P,
-    external_vars: Option<Vec<(String, Value)>>,
+    external_vars: Option<Vec<(String, serde_json::Value)>>,
     args: &ArgMatches,
 ) -> Result<Rules, anyhow::Error>
 where
-    P: Iterator<Item = &'a PathBuf>,
+    P: Iterator<Item = &'a (String, PathBuf)>,
 {
     let mut compiler: Compiler<'_> = Compiler::new();
 
@@ -142,11 +165,13 @@ where
 
     let mut state = CompileState::new();
 
-    for path in paths {
+    for (namespace, path) in paths {
         let mut w = Walker::path(path);
 
         w.filter("**/*.yar");
         w.filter("**/*.yara");
+
+        compiler.new_namespace(namespace.as_str());
 
         if let Err(err) = w.walk(
             |file_path| {

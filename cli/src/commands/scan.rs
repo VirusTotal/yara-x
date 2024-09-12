@@ -8,7 +8,8 @@ use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Error};
 use clap::{
-    arg, value_parser, ArgAction, ArgGroup, ArgMatches, Command, ValueEnum,
+    arg, value_parser, Arg, ArgAction, ArgGroup, ArgMatches, Command,
+    ValueEnum,
 };
 use crossbeam::channel::Sender;
 use itertools::Itertools;
@@ -20,12 +21,11 @@ use yara_x::errors::ScanError;
 use yara_x::{MetaValue, Rule, Rules, ScanOptions, ScanResults, Scanner};
 
 use crate::commands::{
-    compile_rules, external_var_parser, truncate_with_ellipsis,
+    compile_rules, external_var_parser, meta_file_value_parser,
+    path_with_namespace_parser, truncate_with_ellipsis,
 };
 use crate::walk::Message;
 use crate::{help, walk};
-
-use super::meta_file_value_parser;
 
 #[derive(Clone, ValueEnum)]
 enum OutputFormats {
@@ -43,9 +43,10 @@ pub fn scan() -> Command {
         .about("Scan a file or directory")
         .long_about(help::SCAN_LONG_HELP)
         .arg(
-            arg!(<RULES_PATH>)
-                .help("Path to a YARA source file or directory")
-                .value_parser(value_parser!(PathBuf))
+            Arg::new("[NAMESPACE:]RULES_PATH")
+                .required(true)
+                .help("Path to a YARA source file or directory (optionally prefixed with a namespace)")
+                .value_parser(path_with_namespace_parser)
                 .action(ArgAction::Append)
         )
         .arg(
@@ -98,7 +99,6 @@ pub fn scan() -> Command {
                 .long_help(help::MODULE_DATA_LONG_HELP)
                 .required(false)
                 .value_name("MODULE=FILE")
-                .value_parser(value_parser!(PathBuf))
                 .value_parser(meta_file_value_parser)
                 .action(ArgAction::Append)
         )
@@ -172,7 +172,9 @@ pub fn scan() -> Command {
 }
 
 pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
-    let mut rules_path = args.get_many::<PathBuf>("RULES_PATH").unwrap();
+    let mut rules_path =
+        args.get_many::<(String, PathBuf)>("[NAMESPACE:]RULES_PATH").unwrap();
+
     let target_path = args.get_one::<PathBuf>("TARGET_PATH").unwrap();
     let compiled_rules = args.get_flag("compiled-rules");
     let num_threads = args.get_one::<u8>("threads");
@@ -202,7 +204,14 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
             );
         }
 
-        let rules_path = rules_path.next().unwrap();
+        let (namespace, rules_path) = rules_path.next().unwrap();
+
+        if namespace != "" {
+            bail!(
+                "can't use namespace with '{}'",
+                Paint::bold("--compiled-rules")
+            );
+        }
 
         let file = File::open(rules_path)
             .with_context(|| format!("can not open {:?}", &rules_path))?;
