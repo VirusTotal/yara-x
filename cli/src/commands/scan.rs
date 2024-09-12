@@ -139,6 +139,7 @@ pub fn scan() -> Command {
         .arg(
             arg!(--"relaxed-re-syntax")
                 .help("Use a more relaxed syntax check while parsing regular expressions")
+                .conflicts_with("compiled-rules")
         )
         .arg(
             arg!(--"scan-list")
