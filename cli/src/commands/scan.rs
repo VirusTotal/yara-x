@@ -204,7 +204,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
         let (namespace, rules_path) = rules_path.next().unwrap();
 
-        if namespace != "" {
+        if !namespace.is_empty() {
             bail!(
                 "can't use namespace with '{}'",
                 Paint::bold("--compiled-rules")
