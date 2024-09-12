@@ -221,7 +221,8 @@ enum YRX_RESULT yrx_rules_iterate(struct YRX_RULES *rules,
                                   YRX_RULE_CALLBACK callback,
                                   void *user_data);
 
-// Iterates over the modules imported by the rules.
+// Iterates over the modules imported by the rules, calling the callback with
+// the name of each imported module.
 //
 // The `user_data` pointer can be used to provide additional context to your
 // callback function.
