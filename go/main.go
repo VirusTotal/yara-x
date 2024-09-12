@@ -26,6 +26,7 @@ package yara_x
 // }
 //
 // void onRule(YRX_RULE*, void*);
+// void onImport(char*, void*);
 import "C"
 
 import (
@@ -138,6 +139,33 @@ func (r *Rules) Count() int {
 	count := C.yrx_rules_count(r.cRules)
 	runtime.KeepAlive(r)
 	return int(count)
+}
+
+// This is the callback called by yrx_rules_iterate_imports, when Rules.Imports
+// is called.
+//export onImport
+func onImport(module_name *C.char, handle unsafe.Pointer) {
+	h := (cgo.Handle)(handle)
+	imports, ok := h.Value().(*[]string)
+	if !ok {
+		panic("onImport didn't receive a *[]string")
+	}
+	*imports = append(*imports, C.GoString(module_name))
+}
+
+// Count returns the total number of rules.
+func (r *Rules) Imports() []string {
+	imports := make([]string, 0)
+	handle := cgo.NewHandle(&imports)
+	defer handle.Delete()
+
+	C.yrx_rules_iterate_imports(
+		r.cRules,
+		C.YRX_RULE_CALLBACK(C.onImport),
+		unsafe.Pointer(handle))
+
+	runtime.KeepAlive(r)
+	return imports
 }
 
 // Rule represents a YARA rule.

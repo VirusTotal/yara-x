@@ -432,6 +432,42 @@ pub unsafe extern "C" fn yrx_rules_iterate(
     }
 }
 
+/// Callback function passed to [`yrx_rules_iterate_imports`].
+///
+/// The callback receives a pointer to module name. This pointer is guaranteed
+/// to be valid while the callback function is being executed, but it may be
+/// freed after the callback function returns, so you cannot use the pointer
+/// outside the callback.
+///
+/// It also receives the `user_data` pointer that can point to arbitrary data
+/// owned by the user.
+pub type YRX_IMPORT_CALLBACK =
+    extern "C" fn(module_name: *const c_char, user_data: *mut c_void) -> ();
+
+/// Iterates over the modules imported by the rules, calling the callback with
+/// the name of each imported module.
+///
+/// The `user_data` pointer can be used to provide additional context to your
+/// callback function.
+///
+/// See [`YRX_IMPORT_CALLBACK`] for more details.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_rules_iterate_imports(
+    rules: *mut YRX_RULES,
+    callback: YRX_IMPORT_CALLBACK,
+    user_data: *mut c_void,
+) -> YRX_RESULT {
+    if let Some(rules) = rules.as_ref() {
+        for import in rules.0.imports() {
+            let import = CString::new(import).unwrap();
+            callback(import.as_ptr(), user_data);
+        }
+        YRX_RESULT::SUCCESS
+    } else {
+        YRX_RESULT::INVALID_ARGUMENT
+    }
+}
+
 /// Returns the total number of rules.
 ///
 /// Returns -1 in case of error.
