@@ -8,8 +8,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Error};
 use clap::{
-    arg, value_parser, Arg, ArgAction, ArgGroup, ArgMatches, Command,
-    ValueEnum,
+    arg, value_parser, Arg, ArgAction, ArgMatches, Command, ValueEnum,
 };
 use crossbeam::channel::Sender;
 use itertools::Itertools;
@@ -140,6 +139,7 @@ pub fn scan() -> Command {
         .arg(
             arg!(--"relaxed-re-syntax")
                 .help("Use a more relaxed syntax check while parsing regular expressions")
+                .conflicts_with("compiled-rules")
         )
         .arg(
             arg!(--"scan-list")
@@ -167,8 +167,6 @@ pub fn scan() -> Command {
                 .help("Abort scanning after the given number of seconds")
                 .value_parser(value_parser!(u64).range(1..))
         )
-        .group(ArgGroup::new("incompatible-options").args(["relaxed-re-syntax", "compiled-rules"]))
-
 }
 
 pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
