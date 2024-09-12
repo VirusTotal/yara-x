@@ -205,28 +205,35 @@ func (r *Rule) Metadata() []Metadata {
 		return r.metadata
 	}
 
+	// if cMetadata is nil the rule doesn't have any metadata, return an
+	// empty list.
+	if r.cMetadata == nil {
+		r.metadata = make([]Metadata, 0)
+		return r.metadata
+	}
+
 	numMetadata := int(r.cMetadata.num_entries)
 	cMetadata := unsafe.Slice(r.cMetadata.entries, numMetadata)
 	r.metadata = make([]Metadata, numMetadata)
 
 	for i, metadata := range cMetadata {
-		r.metadata[i].Identifier = C.GoString(metadata.identifier)
+		r.metadata[i].identifier = C.GoString(metadata.identifier)
 		switch metadata.value_type {
 		case C.I64:
-			r.metadata[i].Value = int64(
+			r.metadata[i].value = int64(
 				C.meta_i64(unsafe.Pointer(&metadata.value)))
 		case C.F64:
-			r.metadata[i].Value = float64(
+			r.metadata[i].value = float64(
 				C.meta_f64(unsafe.Pointer(&metadata.value)))
 		case C.BOOLEAN:
-			r.metadata[i].Value = bool(
+			r.metadata[i].value = bool(
 				C.meta_bool(unsafe.Pointer(&metadata.value)))
 		case C.STRING:
-			r.metadata[i].Value = C.GoString(
+			r.metadata[i].value = C.GoString(
 				C.meta_str(unsafe.Pointer(&metadata.value)))
 		case C.BYTES:
 			bytes := C.meta_bytes(unsafe.Pointer(&metadata.value))
-			r.metadata[i].Value = C.GoBytes(
+			r.metadata[i].value = C.GoBytes(
 				unsafe.Pointer(bytes.data),
 				C.int(bytes.length),
 			)
@@ -238,8 +245,18 @@ func (r *Rule) Metadata() []Metadata {
 
 // Metadata represents a metadata in a Rule.
 type Metadata struct {
-	Identifier string
-	Value      interface{}
+	identifier string
+	value      interface{}
+}
+
+// Identifier associated to the metadata.
+func (m *Metadata) Identifier() string {
+	return m.identifier
+}
+
+// Value associated to the metadata.
+func (m *Metadata) Value() interface{} {
+	return m.value
 }
 
 // Patterns returns the patterns defined by this rule.

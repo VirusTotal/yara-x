@@ -85,29 +85,29 @@ func TestScannerTimeout(t *testing.T) {
 }
 
 func TestScannerMetadata(t *testing.T) {
-	r, _ := Compile(`rule t { 
-			meta: 
-				some_int = 1 
-				some_float = 2.3034 
-				some_bool = true 
-				some_string = "hello" 
+	r, _ := Compile(`rule t {
+			meta:
+				some_int = 1
+				some_float = 2.3034
+				some_bool = true
+				some_string = "hello"
 				some_bytes = "\x00\x01\x02"
-			condition: 
-				true 
+			condition:
+				true
 	}`)
 	s := NewScanner(r)
 	scanResults, _ := s.Scan([]byte{})
 	matchingRules := scanResults.MatchingRules()
 
 	assert.Len(t, matchingRules, 1)
-	assert.Equal(t, "some_int", matchingRules[0].Metadata()[0].Identifier)
-	assert.Equal(t, int64(1), matchingRules[0].Metadata()[0].Value)
-	assert.Equal(t, "some_float", matchingRules[0].Metadata()[1].Identifier)
-	assert.Equal(t, float64(2.3034), matchingRules[0].Metadata()[1].Value)
-	assert.Equal(t, "some_bool", matchingRules[0].Metadata()[2].Identifier)
-	assert.Equal(t, true, matchingRules[0].Metadata()[2].Value)
-	assert.Equal(t, "some_string", matchingRules[0].Metadata()[3].Identifier)
-	assert.Equal(t, "hello", matchingRules[0].Metadata()[3].Value)
-	assert.Equal(t, "some_bytes", matchingRules[0].Metadata()[4].Identifier)
-	assert.Equal(t, []byte{0, 1, 2}, matchingRules[0].Metadata()[4].Value)
+	assert.Equal(t, "some_int", matchingRules[0].Metadata()[0].Identifier())
+	assert.Equal(t, int64(1), matchingRules[0].Metadata()[0].Value())
+	assert.Equal(t, "some_float", matchingRules[0].Metadata()[1].Identifier())
+	assert.Equal(t, float64(2.3034), matchingRules[0].Metadata()[1].Value())
+	assert.Equal(t, "some_bool", matchingRules[0].Metadata()[2].Identifier())
+	assert.Equal(t, true, matchingRules[0].Metadata()[2].Value())
+	assert.Equal(t, "some_string", matchingRules[0].Metadata()[3].Identifier())
+	assert.Equal(t, "hello", matchingRules[0].Metadata()[3].Value())
+	assert.Equal(t, "some_bytes", matchingRules[0].Metadata()[4].Identifier())
+	assert.Equal(t, []byte{0, 1, 2}, matchingRules[0].Metadata()[4].Value())
 }
