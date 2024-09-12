@@ -2,9 +2,11 @@ use std::fs::File;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
+use clap::{arg, value_parser, Arg, ArgAction, ArgMatches, Command};
 
-use crate::commands::{compile_rules, external_var_parser};
+use crate::commands::{
+    compile_rules, external_var_parser, path_with_namespace_parser,
+};
 use crate::help;
 
 pub fn compile() -> Command {
@@ -13,10 +15,11 @@ pub fn compile() -> Command {
         // Keep options sorted alphabetically by their long name.
         // For instance, --bar goes before --foo.
         .arg(
-            arg!(<RULES_PATH>)
-                .help("Path to YARA source file")
-                .value_parser(value_parser!(PathBuf))
-                .action(ArgAction::Append),
+            Arg::new("[NAMESPACE:]RULES_PATH")
+                .required(true)
+                .help("Path to a YARA source file or directory (optionally prefixed with a namespace)")
+                .value_parser(path_with_namespace_parser)
+                .action(ArgAction::Append)
         )
         .arg(
             arg!(-d --"define")
@@ -59,7 +62,9 @@ pub fn compile() -> Command {
 }
 
 pub fn exec_compile(args: &ArgMatches) -> anyhow::Result<()> {
-    let rules_path = args.get_many::<PathBuf>("RULES_PATH").unwrap();
+    let rules_path =
+        args.get_many::<(String, PathBuf)>("[NAMESPACE:]RULES_PATH").unwrap();
+
     let output_path = args.get_one::<PathBuf>("output").unwrap();
 
     let external_vars: Option<Vec<(String, serde_json::Value)>> = args
