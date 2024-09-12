@@ -48,10 +48,10 @@ cargo cinstall -p yara-x-capi --release
 
 The command above will put the library and header files in the correct path
 in your system (usually `/usr/local/lib` and `/usr/local/include` for Linux
-and MacOS users), and will generate a `.pc` file so that `pkg-config` knows
+and macOS users), and will generate a `.pc` file so that `pkg-config` knows
 about the library.
 
-In Linux and MacOS you can check if everything went fine by compiling a simple
+In Linux and macOS you can check if everything went fine by compiling a simple
 test program, like this:
 
 ```text
@@ -94,7 +94,7 @@ includes:
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 use std::cell::RefCell;
-use std::ffi::{c_char, c_void, CStr, CString};
+use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::mem::ManuallyDrop;
 use std::ptr::slice_from_raw_parts_mut;
 use std::slice;
@@ -429,6 +429,18 @@ pub unsafe extern "C" fn yrx_rules_iterate(
         YRX_RESULT::SUCCESS
     } else {
         YRX_RESULT::INVALID_ARGUMENT
+    }
+}
+
+/// Returns the total number of rules.
+///
+/// Returns -1 in case of error.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_rules_count(rules: *mut YRX_RULES) -> c_int {
+    if let Some(rules) = rules.as_ref() {
+        rules.0.iter().len() as c_int
+    } else {
+        -1
     }
 }
 

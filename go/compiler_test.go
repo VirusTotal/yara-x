@@ -155,11 +155,13 @@ func TestRulesIter(t *testing.T) {
 	c.AddSource("rule test_2 { condition: true }")
 	assert.NoError(t, err)
 
-	rules := c.Build().Slice()
+  rules := c.Build()
+  assert.Equal(t, 2, rules.Count())
 
-	assert.Len(t, rules, 2)
-	assert.Equal(t, rules[0].Identifier(), "test_1")
-	assert.Equal(t, rules[1].Identifier(), "test_2")
+	slice := rules.Slice()
+	assert.Len(t, slice, 2)
+	assert.Equal(t, "test_1", slice[0].Identifier())
+	assert.Equal(t, "test_2", slice[1].Identifier())
 }
 
 func TestWarnings(t *testing.T) {
