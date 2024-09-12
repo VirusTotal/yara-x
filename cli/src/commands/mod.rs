@@ -25,7 +25,6 @@ use std::path::PathBuf;
 use anyhow::{anyhow, bail, Context};
 use clap::{command, crate_authors, ArgMatches, Command};
 use crossterm::tty::IsTty;
-use serde_json;
 use superconsole::{Component, Line, Lines, Span, SuperConsole};
 use yansi::Color::Green;
 use yansi::Paint;
