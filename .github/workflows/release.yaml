@@ -5,6 +5,7 @@ on:
     - 'v*'
 jobs:
   build-cli:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     env:
       CARGO_TERM_COLOR: always
     runs-on: ${{ matrix.os }}
@@ -76,6 +77,7 @@ jobs:
         path: yara-x-*
 
   build-py:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
