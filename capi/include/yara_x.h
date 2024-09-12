@@ -209,6 +209,11 @@ enum YRX_RESULT yrx_rules_iterate(struct YRX_RULES *rules,
                                   YRX_RULE_CALLBACK callback,
                                   void *user_data);
 
+// Returns the total number of rules.
+//
+// Returns -1 in case of error.
+int yrx_rules_count(struct YRX_RULES *rules);
+
 // Destroys a [`YRX_RULES`] object.
 void yrx_rules_destroy(struct YRX_RULES *rules);
 

@@ -131,6 +131,15 @@ func (r *Rules) Slice() []*Rule {
 	return rules
 }
 
+// Count returns the total number of rules.
+//
+// This is more a more efficient alternative to len(rules.Slice()).
+func (r *Rules) Count() int {
+	count := C.yrx_rules_count(r.cRules)
+	runtime.KeepAlive(r)
+	return int(count)
+}
+
 // Rule represents a YARA rule.
 type Rule struct {
 	namespace  string
