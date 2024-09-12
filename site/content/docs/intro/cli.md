@@ -54,13 +54,18 @@ This is probably the most used command in the CLI, it allows to scan a file
 or directory with one or more YARA rules. The syntax for this command is:
 
 ```
-yr scan [OPTIONS] <RULES_PATH>... <TARGET_PATH>
+yr scan [OPTIONS] <[NAMESPACE:]RULES_PATH>... <TARGET_PATH>
 ```
 
 The command receives one or more `<RULES_PATH>` arguments. Each `<RULES_PATH>`
 is the path of YARA source file or a directory containing source files. When
 `<RULES_PATH>` is a directory YARA-X iterates the directory recursively looking
 for any `*.yar` or `*.yara` files.
+
+Each path can be prefixed with a namespace, the namespace and the path are
+separated by a semicolon (`:`), like in `my_namespace:my_rules.yar`. All
+rules in the path will be put under the specified namespace, isolated from
+rules in other namespaces.
 
 `<TARGET_PATH>` is the path of the file or directory to be scanned.
 
@@ -238,12 +243,17 @@ re-used for multiple scan operations.
 The syntax for this command is:
 
 ```
-yr compile [OPTIONS] <RULES_PATH>...
+yr compile [OPTIONS] <[NAMESPACE:]RULES_PATH>...
 ```
 
 Each `<RULES_PATH>` is the path of YARA source file or a directory containing
 source files. When`<RULES_PATH>` is a directory YARA-X iterates the directory
 recursively looking for any `*.yar` or `*.yara` files.
+
+Each path can be prefixed with a namespace, the namespace and the path are
+separated by a semicolon (`:`), like in `my_namespace:my_rules.yar`. All
+rules in the path will be put under the specified namespace, isolated from
+rules in other namespaces.
 
 ### --disable-warnings
 

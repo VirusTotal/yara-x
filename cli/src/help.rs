@@ -124,12 +124,18 @@ pub const SCAN_LONG_HELP: &str = r#"Scan a file or directory
 containing *.yar or *.yara files. When <RULES_PATH> is a directory, it will be traversed
 recursively. Multiple <RULES_PATH> can be specified.
 
+Each path can be prefixed with a namespace, the namespace and the path are separated by
+a semicolon (`:`), like in `namespace:rules_file.yar`. All rules in the path will be put
+under the specified namespace, isolated from rules in other namespaces.
+
 <TARGET_PATH> is the file or directory that will be scanned.
 
 Examples:
 
 yr scan rules_file.yar scanned_file
-yr scan rules_dir scanned_file"#;
+yr scan rules_dir scanned_file
+yr scan namespace:rules_file.yar scanned_file
+yr scan namespace:rules_dir scanned_file"#;
 
 pub const OUTPUT_FORMAT_LONG_HELP: &str = r#"Output format
 
