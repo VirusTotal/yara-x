@@ -172,10 +172,18 @@ func TestRulesIter(t *testing.T) {
 	c, err := NewCompiler()
 	assert.NoError(t, err)
 
-	c.AddSource("rule test_1 { condition: true }")
+	c.AddSource(`rule test_1 {
+			condition:
+				true
+	}`)
 	assert.NoError(t, err)
 
-	c.AddSource("rule test_2 { condition: true }")
+	c.AddSource(`rule test_2 {
+			meta:
+				foo = "foo"
+	 		condition:
+	 			true
+	}`)
 	assert.NoError(t, err)
 
   rules := c.Build()
@@ -185,6 +193,11 @@ func TestRulesIter(t *testing.T) {
 	assert.Len(t, slice, 2)
 	assert.Equal(t, "test_1", slice[0].Identifier())
 	assert.Equal(t, "test_2", slice[1].Identifier())
+
+	assert.Len(t, slice[0].Metadata(), 0)
+	assert.Len(t, slice[1].Metadata(), 1)
+
+  assert.Equal(t, "foo", slice[1].Metadata()[0].Identifier())
 }
 
 func TestWarnings(t *testing.T) {
