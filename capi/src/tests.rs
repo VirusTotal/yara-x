@@ -9,17 +9,23 @@ use crate::{
     yrx_buffer_destroy, yrx_last_error, yrx_metadata_destroy,
     yrx_patterns_destroy, yrx_rule_identifier, yrx_rule_metadata,
     yrx_rule_namespace, yrx_rule_patterns, yrx_rules_deserialize,
-    yrx_rules_destroy, yrx_rules_iterate, yrx_rules_serialize,
-    yrx_scanner_create, yrx_scanner_destroy, yrx_scanner_on_matching_rule,
-    yrx_scanner_scan, yrx_scanner_set_global_bool,
-    yrx_scanner_set_global_float, yrx_scanner_set_global_int,
-    yrx_scanner_set_global_str, yrx_scanner_set_timeout, YRX_BUFFER,
-    YRX_RESULT, YRX_RULE,
+    yrx_rules_destroy, yrx_rules_iterate, yrx_rules_iterate_imports,
+    yrx_rules_serialize, yrx_scanner_create, yrx_scanner_destroy,
+    yrx_scanner_on_matching_rule, yrx_scanner_scan,
+    yrx_scanner_set_global_bool, yrx_scanner_set_global_float,
+    yrx_scanner_set_global_int, yrx_scanner_set_global_str,
+    yrx_scanner_set_timeout, YRX_BUFFER, YRX_RESULT, YRX_RULE,
 };
 
-use std::ffi::{c_void, CStr, CString};
+use std::ffi::{c_char, c_void, CStr, CString};
 
 extern "C" fn on_rule_iter(_rule: *const YRX_RULE, user_data: *mut c_void) {
+    let ptr = user_data as *mut i32;
+    let count = unsafe { ptr.as_mut().unwrap() };
+    *count += 1;
+}
+
+extern "C" fn on_import_iter(_module: *const c_char, user_data: *mut c_void) {
     let ptr = user_data as *mut i32;
     let count = unsafe { ptr.as_mut().unwrap() };
     *count += 1;
@@ -58,7 +64,9 @@ fn capi() {
         // is bumped to 1.77.
         // https://doc.rust-lang.org/edition-guide/rust-2021/c-string-literals.html
         let src = CString::new(
-            br#"rule test {
+            br#"
+            import "pe"
+            rule test {
                 meta:
                     some_int = 1
                     some_string = "foo"
@@ -109,6 +117,14 @@ fn capi() {
             &mut num_rules as *mut i32 as *mut c_void,
         );
         assert_eq!(num_rules, 1);
+
+        let mut num_imports = 0;
+        yrx_rules_iterate_imports(
+            rules,
+            on_import_iter,
+            &mut num_imports as *mut i32 as *mut c_void,
+        );
+        assert_eq!(num_imports, 1);
 
         let mut buf: *mut YRX_BUFFER = std::ptr::null_mut();
 

@@ -194,10 +194,34 @@ func TestRulesIter(t *testing.T) {
 	assert.Equal(t, "test_1", slice[0].Identifier())
 	assert.Equal(t, "test_2", slice[1].Identifier())
 
+	assert.Equal(t, "default", slice[0].Namespace())
+	assert.Equal(t, "default", slice[1].Namespace())
+
 	assert.Len(t, slice[0].Metadata(), 0)
 	assert.Len(t, slice[1].Metadata(), 1)
 
   assert.Equal(t, "foo", slice[1].Metadata()[0].Identifier())
+}
+
+func TestImportsIter(t *testing.T) {
+	c, err := NewCompiler()
+	assert.NoError(t, err)
+
+	c.AddSource(`
+	import "pe"
+	import "elf"
+	rule test {
+			condition:
+				true
+	}`)
+	assert.NoError(t, err)
+
+  rules := c.Build()
+  imports := rules.Imports()
+
+  assert.Len(t, imports, 2)
+  assert.Equal(t, "pe", imports[0])
+  assert.Equal(t, "elf", imports[1])
 }
 
 func TestWarnings(t *testing.T) {

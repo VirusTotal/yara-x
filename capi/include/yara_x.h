@@ -105,6 +105,18 @@ typedef struct YRX_BUFFER {
 typedef void (*YRX_RULE_CALLBACK)(const struct YRX_RULE *rule,
                                   void *user_data);
 
+// Callback function passed to [`yrx_rules_iterate_imports`].
+//
+// The callback receives a pointer to module name. This pointer is guaranteed
+// to be valid while the callback function is being executed, but it may be
+// freed after the callback function returns, so you cannot use the pointer
+// outside the callback.
+//
+// It also receives the `user_data` pointer that can point to arbitrary data
+// owned by the user.
+typedef void (*YRX_IMPORT_CALLBACK)(const char *module_name,
+                                    void *user_data);
+
 // Represents a metadata value that contains raw bytes.
 typedef struct YRX_METADATA_BYTES {
   // Number of bytes.
@@ -208,6 +220,16 @@ enum YRX_RESULT yrx_rules_deserialize(const uint8_t *data,
 enum YRX_RESULT yrx_rules_iterate(struct YRX_RULES *rules,
                                   YRX_RULE_CALLBACK callback,
                                   void *user_data);
+
+// Iterates over the modules imported by the rules.
+//
+// The `user_data` pointer can be used to provide additional context to your
+// callback function.
+//
+// See [`YRX_IMPORT_CALLBACK`] for more details.
+enum YRX_RESULT yrx_rules_iterate_imports(struct YRX_RULES *rules,
+                                          YRX_IMPORT_CALLBACK callback,
+                                          void *user_data);
 
 // Returns the total number of rules.
 //
