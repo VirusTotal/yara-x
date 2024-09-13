@@ -63,6 +63,18 @@ fn namespaces() {
         .new_namespace("bar")
         .add_source("rule bar {condition: foo}")
         .is_err());
+
+    let mut compiler = Compiler::new();
+
+    // `bar` can use `foo` because they are in the same namespace, the second
+    // call to `new_namespace` has no effect.
+    assert!(compiler
+        .new_namespace("foo")
+        .add_source("rule foo {condition: true}")
+        .unwrap()
+        .new_namespace("foo")
+        .add_source("rule bar {condition: foo}")
+        .is_ok());
 }
 
 #[test]
