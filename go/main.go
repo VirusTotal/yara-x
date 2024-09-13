@@ -31,6 +31,8 @@ import "C"
 
 import (
 	"errors"
+	"io"
+	"reflect"
 	"runtime"
 	"runtime/cgo"
 	"unsafe"
@@ -49,25 +51,30 @@ func Compile(src string, opts ...CompileOption) (*Rules, error) {
 	return c.Build(), nil
 }
 
-// Deserialize deserializes rules from a byte slice.
+// ReadFrom reads compiled rules from a reader.
 //
-// The counterpart is [Rules.Serialize]
-func Deserialize(data []byte) (*Rules, error) {
+// The counterpart is [Rules.WriteTo].
+func ReadFrom(r io.Reader) (*Rules, error) {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+
 	var ptr *C.uint8_t
 	if len(data) > 0 {
 		ptr = (*C.uint8_t)(unsafe.Pointer(&(data[0])))
 	}
 
-	r := &Rules{cRules: nil}
+	rules := &Rules{cRules: nil}
 
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	if C.yrx_rules_deserialize(ptr, C.size_t(len(data)), &r.cRules) != C.SUCCESS {
+	if C.yrx_rules_deserialize(ptr, C.size_t(len(data)), &rules.cRules) != C.SUCCESS {
 		return nil, errors.New(C.GoString(C.yrx_last_error()))
 	}
 
-	return r, nil
+	return rules, nil
 }
 
 // Rules represents a set of compiled YARA rules.
@@ -79,17 +86,60 @@ func (r *Rules) Scan(data []byte) (*ScanResults, error) {
 	return scanner.Scan(data)
 }
 
-// Serialize converts the compiled rules into a byte slice.
-func (r *Rules) Serialize() ([]byte, error) {
+// WriteTo writes the compiled rules into a writer.
+//
+// The counterpart is [ReadFrom].
+func (r *Rules) WriteTo(w io.Writer) (int64, error) {
 	var buf *C.YRX_BUFFER
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	if C.yrx_rules_serialize(r.cRules, &buf) != C.SUCCESS {
-		return nil, errors.New(C.GoString(C.yrx_last_error()))
+		return 0, errors.New(C.GoString(C.yrx_last_error()))
 	}
 	defer C.yrx_buffer_destroy(buf)
 	runtime.KeepAlive(r)
-	return C.GoBytes(unsafe.Pointer(buf.data), C.int(buf.length)), nil
+
+	// We are going to write into `w` in chunks of 64MB.
+	const chunkSize = 1 << 26
+
+	// This is the slice that contains the next chunk that will be written.
+	var chunk []byte
+
+	// Modify the `chunk` slice, making it point to the buffer returned
+	// by yrx_rules_serialize. This allows us to access the buffer from
+	// Go without copying the data. This is safe because the slice won't
+	// be used after the buffer is destroyed.
+	chunkHdr := (*reflect.SliceHeader)(unsafe.Pointer(&chunk))
+	chunkHdr.Data = uintptr(unsafe.Pointer(buf.data))
+	chunkHdr.Len = chunkSize
+	chunkHdr.Cap = chunkSize
+
+	bufLen := C.ulong(buf.length)
+	bytesWritten := int64(0)
+
+	for {
+		// If the data to be written is shorted than `chunkSize`, set the length
+		// of the `chunk` slice to this length.
+		if bufLen < chunkSize {
+			chunkHdr.Len = int(bufLen)
+			chunkHdr.Cap = int(bufLen)
+		}
+		if n, err := w.Write(chunk); err == nil {
+			bytesWritten += int64(n)
+		} else {
+			return 0, err
+		}
+		// If `bufLen` is still greater than `chunkSize`, there's more data to
+		// write, if not, we are done.
+		if bufLen > chunkSize {
+			chunkHdr.Data += chunkSize
+			bufLen -= chunkSize
+		} else {
+			break
+		}
+	}
+
+	return bytesWritten, nil
 }
 
 // Destroy destroys the compiled YARA rules represented by [Rules].
@@ -106,6 +156,7 @@ func (r *Rules) Destroy() {
 
 // This is the callback called by yrx_rules_iterate, when Rules.GetRules is
 // called.
+//
 //export onRule
 func onRule(rule *C.YRX_RULE, handle unsafe.Pointer) {
 	h := (cgo.Handle)(handle)
@@ -143,6 +194,7 @@ func (r *Rules) Count() int {
 
 // This is the callback called by yrx_rules_iterate_imports, when Rules.Imports
 // is called.
+//
 //export onImport
 func onImport(module_name *C.char, handle unsafe.Pointer) {
 	h := (cgo.Handle)(handle)
