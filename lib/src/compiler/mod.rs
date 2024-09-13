@@ -267,7 +267,7 @@ pub struct Compiler<'a> {
     /// Pool that contains all the identifiers used in the rules. Each
     /// identifier appears only once, even if they are used by multiple
     /// rules. For example, the pool contains a single copy of the common
-    /// identifier `$a`. Each identifier have an unique 32-bits [`IdentId`]
+    /// identifier `$a`. Each identifier have a unique 32-bits [`IdentId`]
     /// that can be used for retrieving the identifier from the pool.
     ident_pool: StringPool<IdentId>,
 
@@ -611,7 +611,8 @@ impl<'a> Compiler<'a> {
     /// Creates a new namespace.
     ///
     /// Further calls to [`Compiler::add_source`] will put the rules under the
-    /// newly created namespace.
+    /// newly created namespace. If the current namespace is already named as
+    /// the current one, no new namespace is created.
     ///
     /// In the example below both rules `foo` and `bar` are put into the same
     /// namespace (the default namespace), therefore `bar` can use `foo` as
@@ -643,7 +644,16 @@ impl<'a> Compiler<'a> {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn new_namespace(&mut self, namespace: &str) -> &mut Self {
-        // Remove the symbol table corresponding to the previous namespace.
+        let current_namespace = self
+            .ident_pool
+            .get(self.current_namespace.ident_id)
+            .expect("expecting a namespace");
+        // If the current namespace is already named as the new namespace
+        // this function has no effect.
+        if namespace == current_namespace {
+            return self;
+        }
+        // Remove the symbol table corresponding to the current namespace.
         self.symbol_table.pop().expect("expecting a namespace");
         // Create a new namespace. The NamespaceId is simply the ID of the
         // previous namespace + 1.
