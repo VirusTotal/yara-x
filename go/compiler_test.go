@@ -1,6 +1,7 @@
 package yara_x
 
 import (
+	"bytes"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -50,12 +51,20 @@ func TestSerialization(t *testing.T) {
 	r, err := Compile("rule test { condition: true }")
 	assert.NoError(t, err)
 
-	b, _ := r.Serialize()
-	r, _ = Deserialize(b)
+	var buf bytes.Buffer
 
+	// Write rules into buffer
+	n, err := r.WriteTo(&buf)
+
+	assert.NoError(t, err)
+	assert.Len(t, buf.Bytes(), int(n))
+
+	// Read rules from buffer
+	r, _ = ReadFrom(&buf)
+
+	// Make sure the rules work properly.
 	s := NewScanner(r)
 	scanResults, _ := s.Scan([]byte{})
-
 	assert.Len(t, scanResults.MatchingRules(), 1)
 }
 
@@ -163,8 +172,8 @@ func TestRulesIter(t *testing.T) {
 	}`)
 	assert.NoError(t, err)
 
-  rules := c.Build()
-  assert.Equal(t, 2, rules.Count())
+	rules := c.Build()
+	assert.Equal(t, 2, rules.Count())
 
 	slice := rules.Slice()
 	assert.Len(t, slice, 2)
@@ -177,7 +186,7 @@ func TestRulesIter(t *testing.T) {
 	assert.Len(t, slice[0].Metadata(), 0)
 	assert.Len(t, slice[1].Metadata(), 1)
 
-  assert.Equal(t, "foo", slice[1].Metadata()[0].Identifier())
+	assert.Equal(t, "foo", slice[1].Metadata()[0].Identifier())
 }
 
 func TestImportsIter(t *testing.T) {
@@ -193,12 +202,12 @@ func TestImportsIter(t *testing.T) {
 	}`)
 	assert.NoError(t, err)
 
-  rules := c.Build()
-  imports := rules.Imports()
+	rules := c.Build()
+	imports := rules.Imports()
 
-  assert.Len(t, imports, 2)
-  assert.Equal(t, "pe", imports[0])
-  assert.Equal(t, "elf", imports[1])
+	assert.Len(t, imports, 2)
+	assert.Equal(t, "pe", imports[0])
+	assert.Equal(t, "elf", imports[1])
 }
 
 func TestWarnings(t *testing.T) {

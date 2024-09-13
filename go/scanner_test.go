@@ -19,6 +19,14 @@ func TestScanner1(t *testing.T) {
 	assert.Equal(t, "t", matchingRules[0].Identifier())
 	assert.Equal(t, "default", matchingRules[0].Namespace())
 	assert.Len(t, matchingRules[0].Patterns(), 0)
+
+	scanResults, _ = s.Scan(nil)
+	matchingRules = scanResults.MatchingRules()
+
+	assert.Len(t, matchingRules, 1)
+	assert.Equal(t, "t", matchingRules[0].Identifier())
+	assert.Equal(t, "default", matchingRules[0].Namespace())
+	assert.Len(t, matchingRules[0].Patterns(), 0)
 }
 
 func TestScanner2(t *testing.T) {
