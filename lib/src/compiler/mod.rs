@@ -267,7 +267,7 @@ pub struct Compiler<'a> {
     /// Pool that contains all the identifiers used in the rules. Each
     /// identifier appears only once, even if they are used by multiple
     /// rules. For example, the pool contains a single copy of the common
-    /// identifier `$a`. Each identifier have an unique 32-bits [`IdentId`]
+    /// identifier `$a`. Each identifier have a unique 32-bits [`IdentId`]
     /// that can be used for retrieving the identifier from the pool.
     ident_pool: StringPool<IdentId>,
 
@@ -611,7 +611,8 @@ impl<'a> Compiler<'a> {
     /// Creates a new namespace.
     ///
     /// Further calls to [`Compiler::add_source`] will put the rules under the
-    /// newly created namespace.
+    /// newly created namespace. If the current namespace is already named as
+    /// the current one, no new namespace is created.
     ///
     /// In the example below both rules `foo` and `bar` are put into the same
     /// namespace (the default namespace), therefore `bar` can use `foo` as
@@ -643,7 +644,16 @@ impl<'a> Compiler<'a> {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn new_namespace(&mut self, namespace: &str) -> &mut Self {
-        // Remove the symbol table corresponding to the previous namespace.
+        let current_namespace = self
+            .ident_pool
+            .get(self.current_namespace.ident_id)
+            .expect("expecting a namespace");
+        // If the current namespace is already named as the new namespace
+        // this function has no effect.
+        if namespace == current_namespace {
+            return self;
+        }
+        // Remove the symbol table corresponding to the current namespace.
         self.symbol_table.pop().expect("expecting a namespace");
         // Create a new namespace. The NamespaceId is simply the ID of the
         // previous namespace + 1.
@@ -733,9 +743,19 @@ impl<'a> Compiler<'a> {
     /// Specifies whether the compiler should produce colorful error messages.
     ///
     /// Colorized error messages contain ANSI escape sequences that make them
-    /// look nicer on compatible consoles. The default setting is `false`.
+    /// look nicer on compatible consoles.
+    ///
+    /// The default setting is `false`.
     pub fn colorize_errors(&mut self, yes: bool) -> &mut Self {
         self.report_builder.with_colors(yes);
+        self
+    }
+
+    /// Sets the maximum number of columns in error messages.
+    ///
+    /// The default value is 140.
+    pub fn errors_max_with(&mut self, with: usize) -> &mut Self {
+        self.report_builder.max_with(with);
         self
     }
 
@@ -960,6 +980,36 @@ impl<'a> Compiler<'a> {
         self.ir_writer = Some(Box::new(w));
         self
     }
+
+    /// Returns true if the bytes in the slice are all 0x00, 0x90, or 0xff.
+    fn common_byte_repetition(bytes: &[u8]) -> bool {
+        let mut all_x00 = true;
+        let mut all_x90 = true;
+        let mut all_xff = true;
+
+        for b in bytes {
+            match *b {
+                0x00 => {
+                    all_x90 = false;
+                    all_xff = false;
+                }
+                0x90 => {
+                    all_x00 = false;
+                    all_xff = false;
+                }
+                0xff => {
+                    all_x00 = false;
+                    all_x90 = false;
+                }
+                _ => return false,
+            }
+            if !all_x00 && !all_x90 && !all_xff {
+                return false;
+            }
+        }
+
+        true
+    }
 }
 
 impl<'a> Compiler<'a> {
@@ -1067,6 +1117,50 @@ impl<'a> Compiler<'a> {
         let condition = bool_expr_from_ast(&mut ctx, &rule.condition);
 
         drop(ctx);
+
+        // Search for patterns that are very common byte repetitions like:
+        //
+        //   00 00 00 00 00 00 ....
+        //   90 90 09 90 90 90 ....
+        //   FF FF FF FF FF FF ....
+        //
+        // Raise a warning when such a pattern is found, except in the
+        // following cases:
+        //
+        // 1) When the pattern is anchored, because anchored pattern can appear
+        //    only at a fixed pattern and are not searched by Aho-Corasick.
+        // 2) When the pattern has attributes: xor, fullword, base64 or
+        //    base64wide, because in those cases the real pattern is not that
+        //    common.
+        //
+        // Note: this can't be done before calling `bool_expr_from_ast`, because
+        // we don't know which patterns are anchored until the condition is
+        // processed.
+        for pat in rule_patterns.iter() {
+            if pat.anchored_at().is_none()
+                && !pat.pattern().flags().intersects(
+                    PatternFlags::Xor
+                        | PatternFlags::Fullword
+                        | PatternFlags::Base64
+                        | PatternFlags::Base64Wide,
+                )
+            {
+                let literal_bytes = match pat.pattern() {
+                    Pattern::Literal(lit) => Some(lit.text.as_bytes()),
+                    Pattern::Regexp(re) => re.hir.as_literal_bytes(),
+                };
+                if let Some(literal_bytes) = literal_bytes {
+                    if Self::common_byte_repetition(literal_bytes) {
+                        self.warnings.add(|| {
+                            warnings::SlowPattern::build(
+                                &self.report_builder,
+                                pat.span().into(),
+                            )
+                        });
+                    }
+                }
+            }
+        }
 
         // In case of error, restore the compiler to the state it was before
         // entering this function. Also, if the error is due to an unknown

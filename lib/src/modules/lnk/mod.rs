@@ -17,7 +17,7 @@ use crate::modules::protos::lnk::*;
 pub mod parser;
 
 #[module_main]
-fn main(data: &[u8]) -> Lnk {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Lnk {
     match parser::LnkParser::new().parse(data) {
         Ok(lnk) => lnk,
         Err(_) => {

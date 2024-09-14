@@ -1,0 +1,6 @@
+rule test_1 { condition: for any i in (0..filesize) : ( int32(i) == 0 ) }
+
+rule test_2 { condition: for any i in (0..filesize-1) : ( int32(i) == 0 ) }
+
+// No warning
+rule test_3 { condition: for any i in (filesize-10..filesize) : ( int32(i) == 0 ) }

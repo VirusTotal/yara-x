@@ -9,13 +9,16 @@ use yansi::Paint;
 
 use crate::commands::cli;
 
-const APP_HELP_TEMPLATE: &str = r#"{about-with-newline}
+const APP_HELP_TEMPLATE: &str = r#"YARA-X {version}, the pattern matching swiss army knife.
+
 {author-with-newline}
 {before-help}{usage-heading}
-    {usage}
+  {usage}
 
 {all-args}{after-help}
 "#;
+
+const EXIT_ERROR: i32 = 1;
 
 fn main() -> anyhow::Result<()> {
     // Enable support for ANSI escape codes in Windows. In other platforms
@@ -52,7 +55,7 @@ fn main() -> anyhow::Result<()> {
     panic::set_hook(Box::new(move |panic_info| {
         // invoke the default handler and exit the process
         orig_hook(panic_info);
-        process::exit(1);
+        process::exit(EXIT_ERROR);
     }));
 
     let result = match args.subcommand() {
@@ -81,7 +84,7 @@ fn main() -> anyhow::Result<()> {
         } else {
             eprintln!("{} {}", "error:".paint(Red).bold(), err);
         }
-        process::exit(1);
+        process::exit(EXIT_ERROR);
     }
 
     Ok(())

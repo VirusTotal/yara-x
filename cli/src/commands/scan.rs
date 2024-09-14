@@ -7,7 +7,9 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Error};
-use clap::{arg, value_parser, ArgAction, ArgMatches, Command, ValueEnum};
+use clap::{
+    arg, value_parser, Arg, ArgAction, ArgMatches, Command, ValueEnum,
+};
 use crossbeam::channel::Sender;
 use itertools::Itertools;
 use superconsole::style::Stylize;
@@ -15,10 +17,11 @@ use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
 use yara_x::errors::ScanError;
-use yara_x::{MetaValue, Rule, Rules, ScanResults, Scanner};
+use yara_x::{MetaValue, Rule, Rules, ScanOptions, ScanResults, Scanner};
 
 use crate::commands::{
-    compile_rules, external_var_parser, truncate_with_ellipsis,
+    compile_rules, external_var_parser, meta_file_value_parser,
+    path_with_namespace_parser, truncate_with_ellipsis,
 };
 use crate::walk::Message;
 use crate::{help, walk};
@@ -39,9 +42,10 @@ pub fn scan() -> Command {
         .about("Scan a file or directory")
         .long_about(help::SCAN_LONG_HELP)
         .arg(
-            arg!(<RULES_PATH>)
-                .help("Path to a YARA source file or directory")
-                .value_parser(value_parser!(PathBuf))
+            Arg::new("[NAMESPACE:]RULES_PATH")
+                .required(true)
+                .help("Path to a YARA source file or directory (optionally prefixed with a namespace)")
+                .value_parser(path_with_namespace_parser)
                 .action(ArgAction::Append)
         )
         .arg(
@@ -49,12 +53,71 @@ pub fn scan() -> Command {
                 .help("Path to the file or directory that will be scanned")
                 .value_parser(value_parser!(PathBuf))
         )
+        // Keep options sorted alphabetically by their long name.
+        // For instance, --bar goes before --foo.
+        .arg(
+            arg!(-C --"compiled-rules")
+                .help("Indicate that RULES_PATH is a file with compiled rules")
+                .long_help(help::COMPILED_RULES_LONG_HELP)
+        )
+        .arg(
+            arg!(-c --"count")
+                .help("Print only the number of matches per file")
+        )
+        .arg(
+            arg!(-d --"define")
+                .help("Define external variable")
+                .long_help(help::DEFINE_LONG_HELP)
+                .value_name("VAR=VALUE")
+                .value_parser(external_var_parser)
+                .action(ArgAction::Append)
+        )
+        .arg(
+            arg!(--"disable-console-logs")
+                .help("Disable printing console log messages")
+        )
+        .arg(
+            arg!(-w --"disable-warnings" [WARNING_ID])
+                .help("Disable warnings")
+                .long_help(help::DISABLE_WARNINGS_LONG_HELP)
+                .default_missing_value("all")
+                .num_args(0..)
+                .require_equals(true)
+                .value_delimiter(',')
+                .action(ArgAction::Append)
+        )
+        .arg(
+            arg!(--"ignore-module" <MODULE>)
+                .help("Ignore rules that use the specified module")
+                .long_help(help::IGNORE_MODULE_LONG_HELP)
+                .action(ArgAction::Append)
+        )
+        .arg(
+            arg!(-x --"module-data")
+                .help("Pass FILE's content as extra data to MODULE")
+                .long_help(help::MODULE_DATA_LONG_HELP)
+                .required(false)
+                .value_name("MODULE=FILE")
+                .value_parser(meta_file_value_parser)
+                .action(ArgAction::Append)
+        )
+        .arg(
+            arg!(-n --"negate")
+                .help("Print non-satisfied rules only")
+        )
         .arg(
             arg!(-o --"output-format" <FORMAT>)
                 .help("Output format for results")
                 .long_help(help::OUTPUT_FORMAT_LONG_HELP)
-                .required(false)
                 .value_parser(value_parser!(OutputFormats))
+        )
+        .arg(
+            arg!(--"path-as-namespace")
+                .help("Use file path as rule namespace")
+        )
+        .arg(
+            arg!(-m --"print-meta")
+                .help("Print rule metadata")
         )
         .arg(
             arg!(-e --"print-namespace")
@@ -70,39 +133,13 @@ pub fn scan() -> Command {
                 .value_parser(value_parser!(usize))
         )
         .arg(
-            arg!(-m --"print-meta")
-                .help("Print rule metadata")
-        )
-        .arg(
             arg!(-g --"print-tags")
                 .help("Print rule tags")
         )
         .arg(
-            arg!(-c --"count")
-                .help("Print only the number of matches per file")
-        )
-        .arg(
-            arg!(--"disable-console-logs")
-                .help("Disable printing console log messages")
-        )
-        .arg(
-            arg!(-t --"tag" <TAG>)
-                .help("Print only rules tagged as TAG")
-                .required(false)
-                .value_parser(value_parser!(String))
-        )
-        .arg(
-            arg!(-n --"negate")
-                .help("Print non-satisfied rules only")
-        )
-        .arg(
-            arg!(--"path-as-namespace")
-                .help("Use file path as rule namespace")
-        )
-        .arg(
-            arg!(-C --"compiled-rules")
-                .help("Indicate that RULES_PATH is a file with compiled rules")
-                .long_help(help::COMPILED_RULES_LONG_HELP)
+            arg!(--"relaxed-re-syntax")
+                .help("Use a more relaxed syntax check while parsing regular expressions")
+                .conflicts_with("compiled-rules")
         )
         .arg(
             arg!(--"scan-list")
@@ -115,58 +152,47 @@ pub fn scan() -> Command {
                 .value_parser(value_parser!(u64))
         )
         .arg(
+            arg!(-t --"tag" <TAG>)
+                .help("Print only rules tagged as TAG")
+                .value_parser(value_parser!(String))
+        )
+        .arg(
             arg!(-p --"threads" <NUM_THREADS>)
                 .help("Use the given number of threads")
                 .long_help(help::THREADS_LONG_HELP)
-                .required(false)
                 .value_parser(value_parser!(u8).range(1..))
         )
         .arg(
             arg!(-a --"timeout" <SECONDS>)
                 .help("Abort scanning after the given number of seconds")
-                .required(false)
                 .value_parser(value_parser!(u64).range(1..))
-        )
-        .arg(
-            arg!(--"relaxed-re-syntax")
-                .help("Use a more relaxed syntax check while parsing regular expressions")
-        )
-        .arg(
-            arg!(-w --"disable-warnings" [WARNING_ID])
-                .help("Disable warnings")
-                .long_help(help::DISABLE_WARNINGS_LONG_HELP)
-                .default_missing_value("all")
-                .num_args(0..)
-                .require_equals(true)
-                .value_delimiter(',')
-                .action(ArgAction::Append)
-        )
-        .arg(
-            arg!(-d --"define")
-                .help("Define external variable")
-                .long_help(help::DEFINE_LONG_HELP)
-                .required(false)
-                .value_name("VAR=VALUE")
-                .value_parser(external_var_parser)
-                .action(ArgAction::Append)
         )
 }
 
 pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
-    let mut rules_path = args.get_many::<PathBuf>("RULES_PATH").unwrap();
+    let mut rules_path =
+        args.get_many::<(String, PathBuf)>("[NAMESPACE:]RULES_PATH").unwrap();
+
     let target_path = args.get_one::<PathBuf>("TARGET_PATH").unwrap();
     let compiled_rules = args.get_flag("compiled-rules");
     let num_threads = args.get_one::<u8>("threads");
-    let path_as_namespace = args.get_flag("path-as-namespace");
     let skip_larger = args.get_one::<u64>("skip-larger");
     let disable_console_logs = args.get_flag("disable-console-logs");
     let scan_list = args.get_flag("scan-list");
 
-    let timeout = args.get_one::<u64>("timeout");
+    let timeout =
+        args.get_one::<u64>("timeout").map(|t| Duration::from_secs(*t));
 
     let mut external_vars: Option<Vec<(String, serde_json::Value)>> = args
         .get_many::<(String, serde_json::Value)>("define")
         .map(|var| var.cloned().collect());
+
+    let metadata = args
+        .get_many::<(String, PathBuf)>("module-data")
+        .into_iter()
+        .flatten()
+        // collect to eagerly call the parser on each element
+        .collect::<Vec<_>>();
 
     let rules = if compiled_rules {
         if rules_path.len() > 1 {
@@ -176,15 +202,14 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
             );
         }
 
-        if args.get_flag("relaxed-re-syntax") {
+        let (namespace, rules_path) = rules_path.next().unwrap();
+
+        if !namespace.is_empty() {
             bail!(
-                "can't use '{}' together with '{}'",
-                Paint::bold("--relaxed-re-syntax"),
+                "can't use namespace with '{}'",
                 Paint::bold("--compiled-rules")
             );
         }
-
-        let rules_path = rules_path.next().unwrap();
 
         let file = File::open(rules_path)
             .with_context(|| format!("can not open {:?}", &rules_path))?;
@@ -203,23 +228,10 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
         rules
     } else {
-        // Vector with the IDs of the warnings that should be disabled, if the
-        // vector contains "all", all warnings are disabled.
-        let disabled_warnings = args
-            .get_many::<String>("disable-warnings")
-            .map(|warnings| warnings.map(|id| id.as_str()).collect())
-            .unwrap_or_default();
-
         // With `take()` we pass the external variables to `compile_rules`,
         // while leaving a `None` in `external_vars`. This way external
         // variables are not set again in the scanner.
-        compile_rules(
-            rules_path,
-            path_as_namespace,
-            external_vars.take(),
-            args.get_flag("relaxed-re-syntax"),
-            disabled_warnings,
-        )?
+        compile_rules(rules_path, external_vars.take(), args)?
     };
 
     let rules_ref = &rules;
@@ -238,14 +250,18 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         w.metadata_filter(|metadata| metadata.len() <= *max_file_size);
     }
 
-    let timeout = if let Some(timeout) = timeout {
-        Duration::from_secs(*timeout)
-    } else {
-        Duration::from_secs(u64::MAX)
-    };
-
     let start_time = Instant::now();
     let state = ScanState::new(start_time);
+
+    let all_metadata = {
+        let mut all_metadata = Vec::new();
+        for (module_full_name, metadata_path) in metadata {
+            let meta = std::fs::read(Path::new(metadata_path))?;
+
+            all_metadata.push((module_full_name.to_string(), meta));
+        }
+        all_metadata
+    };
 
     w.walk(
         state,
@@ -276,10 +292,14 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         |state, output, file_path, scanner| {
             let elapsed_time = Instant::elapsed(&start_time);
 
-            if let Some(timeout) = timeout.checked_sub(elapsed_time) {
-                scanner.set_timeout(timeout);
-            } else {
-                return Err(Error::from(ScanError::Timeout));
+            if let Some(timeout) = timeout {
+                // Discount the already elapsed time from the timeout passed to
+                // the scanner.
+                if let Some(timeout) = timeout.checked_sub(elapsed_time) {
+                    scanner.set_timeout(timeout);
+                } else {
+                    return Err(Error::from(ScanError::Timeout));
+                }
             }
 
             let now = Instant::now();
@@ -290,8 +310,15 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 .unwrap()
                 .push((file_path.clone(), now));
 
+            let scan_options = all_metadata.iter().fold(
+                ScanOptions::new(),
+                |acc, (module_name, meta)| {
+                    acc.set_module_metadata(module_name, meta)
+                },
+            );
+
             let scan_results = scanner
-                .scan_file(&file_path)
+                .scan_file_with_options(file_path.as_path(), scan_options)
                 .with_context(|| format!("scanning {:?}", &file_path));
 
             state

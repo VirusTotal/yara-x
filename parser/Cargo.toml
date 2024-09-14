@@ -38,7 +38,7 @@ rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 yansi = { workspace = true }
 
-logos = "0.14.0"
+logos = "0.14.1"
 rowan = "0.15.15"
 
 [dev-dependencies]

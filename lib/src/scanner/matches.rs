@@ -8,7 +8,7 @@ use crate::compiler::PatternId;
 
 /// Represents the match of a pattern.
 #[derive(Debug, Clone)]
-pub struct Match {
+pub(crate) struct Match {
     /// Range within the scanned data where the match was found.
     pub range: Range<usize>,
     /// For patterns that have the `xor` modifier this is always `Some(k)`
@@ -22,7 +22,7 @@ pub struct Match {
 /// The matches are kept sorted by starting offset in ascending order. Two
 /// different matches can't have the same starting offset.
 #[derive(Debug, Default)]
-pub struct MatchList {
+pub(crate) struct MatchList {
     matches: Vec<Match>,
 }
 
@@ -82,11 +82,6 @@ impl MatchList {
     }
 
     #[inline]
-    pub fn remove(&mut self, i: usize) -> Match {
-        self.matches.remove(i)
-    }
-
-    #[inline]
     pub fn get(&self, i: usize) -> Option<&Match> {
         self.matches.get(i)
     }
@@ -132,16 +127,6 @@ impl MatchList {
     }
 
     #[inline]
-    pub fn first(&self) -> Option<&Match> {
-        self.matches.first()
-    }
-
-    #[inline]
-    pub fn as_slice(&self) -> &[Match] {
-        self.matches.as_slice()
-    }
-
-    #[inline]
     pub fn clear(&mut self) {
         self.matches.clear()
     }
@@ -149,16 +134,6 @@ impl MatchList {
     #[inline]
     pub fn len(&self) -> usize {
         self.matches.len()
-    }
-
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.matches.is_empty()
-    }
-
-    #[inline]
-    pub fn shrink_to(&mut self, min_capacity: usize) {
-        self.matches.shrink_to(min_capacity)
     }
 
     #[inline]
@@ -207,7 +182,7 @@ pub struct UnconfirmedMatch {
 ///
 /// Each pattern is limited to a maximum number of matches that may be
 /// configured.
-pub struct PatternMatches {
+pub(crate) struct PatternMatches {
     matches: FxHashMap<PatternId, MatchList>,
     max_matches_per_pattern: usize,
     capacity: usize,

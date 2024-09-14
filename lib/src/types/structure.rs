@@ -460,13 +460,10 @@ impl Struct {
     /// Here the `Foo` structure will be named `Bar` when the protobuf is
     /// converted into a [`Struct`].
     fn message_name(msg_descriptor: &MessageDescriptor) -> String {
-        if let Some(options) =
-            message_options.get(&msg_descriptor.proto().options)
-        {
-            options.name.unwrap_or_else(|| msg_descriptor.name().to_owned())
-        } else {
-            msg_descriptor.name().to_owned()
-        }
+        message_options
+            .get(&msg_descriptor.proto().options)
+            .and_then(|options| options.name)
+            .unwrap_or_else(|| msg_descriptor.name().to_owned())
     }
 
     /// Given a [`EnumDescriptor`] returns the name that this enum will
@@ -486,13 +483,10 @@ impl Struct {
     ///
     /// Here the enum will be named `my_enum` instead of `Enumeration`.
     fn enum_name(enum_descriptor: &EnumDescriptor) -> String {
-        if let Some(options) =
-            enum_options.get(&enum_descriptor.proto().options)
-        {
-            options.name.unwrap_or_else(|| enum_descriptor.name().to_owned())
-        } else {
-            enum_descriptor.name().to_owned()
-        }
+        enum_options
+            .get(&enum_descriptor.proto().options)
+            .and_then(|options| options.name)
+            .unwrap_or_else(|| enum_descriptor.name().to_owned())
     }
 
     /// Given a [`EnumDescriptor`] returns whether this enum is declared as
@@ -528,13 +522,10 @@ impl Struct {
     /// in the enum are added directly as fields of the module, or the struct
     /// that contains the enum.
     fn enum_is_inline(enum_descriptor: &EnumDescriptor) -> bool {
-        if let Some(options) =
-            enum_options.get(&enum_descriptor.proto().options)
-        {
-            options.inline.unwrap_or(false)
-        } else {
-            false
-        }
+        enum_options
+            .get(&enum_descriptor.proto().options)
+            .and_then(|options| options.inline)
+            .unwrap_or(false)
     }
 
     /// Given a [`EnumValueDescriptor`] returns the value associated to that
@@ -565,7 +556,7 @@ impl Struct {
     /// ```
     ///
     /// In this other case tag number are maintained because they are required
-    /// in every protobuf enum, however, the value associated to each items is
+    /// in every protobuf enum, however, the value associated to each item is
     /// not determined by the field number, but by the `(yara.enum_value).i64`
     /// option.
     ///
@@ -573,13 +564,10 @@ impl Struct {
     /// returning the value set via the `(yara.enum_value).i64` option, if any,
     /// or the tag number.
     fn enum_value(enum_value_descriptor: &EnumValueDescriptor) -> i64 {
-        if let Some(options) =
-            enum_value.get(&enum_value_descriptor.proto().options)
-        {
-            options.i64.unwrap_or_else(|| enum_value_descriptor.value() as i64)
-        } else {
-            enum_value_descriptor.value() as i64
-        }
+        enum_value
+            .get(&enum_value_descriptor.proto().options)
+            .and_then(|options| options.i64)
+            .unwrap_or_else(|| enum_value_descriptor.value() as i64)
     }
 
     /// Given a [`FieldDescriptor`] returns the name that this field will
@@ -596,13 +584,10 @@ impl Struct {
     /// Here the `foo` field will be named `bar` when the protobuf is converted
     /// into a [`Struct`].
     fn field_name(field_descriptor: &FieldDescriptor) -> String {
-        if let Some(options) =
-            field_options.get(&field_descriptor.proto().options)
-        {
-            options.name.unwrap_or_else(|| field_descriptor.name().to_owned())
-        } else {
-            field_descriptor.name().to_owned()
-        }
+        field_options
+            .get(&field_descriptor.proto().options)
+            .and_then(|options| options.name)
+            .unwrap_or_else(|| field_descriptor.name().to_owned())
     }
 
     /// Given a [`FieldDescriptor`] returns `true` if the field should be
@@ -615,13 +600,10 @@ impl Struct {
     /// int64 foo = 1 [(yara.field_options).ignore = true];
     /// ```
     fn ignore_field(field_descriptor: &FieldDescriptor) -> bool {
-        if let Some(options) =
-            field_options.get(&field_descriptor.proto().options)
-        {
-            options.ignore.unwrap_or(false)
-        } else {
-            false
-        }
+        field_options
+            .get(&field_descriptor.proto().options)
+            .and_then(|options| options.ignore)
+            .unwrap_or(false)
     }
 
     /// Given a protobuf type and value returns a [`TypeValue`].

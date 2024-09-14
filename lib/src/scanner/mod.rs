@@ -4,9 +4,9 @@ The scanner takes the rules produces by the compiler and scans data with them.
 */
 
 use std::cell::RefCell;
-use std::collections::hash_map;
+use std::collections::{hash_map, HashMap};
 use std::io::Read;
-use std::ops::{Deref, Range};
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::ptr::{null, NonNull};
@@ -18,29 +18,29 @@ use std::time::Duration;
 use std::{cmp, fs, thread};
 
 use bitvec::prelude::*;
-use bstr::{BStr, ByteSlice};
 use fmmap::{MmapFile, MmapFileExt};
 use indexmap::IndexMap;
 use protobuf::{CodedInputStream, MessageDyn};
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::Serialize;
 use thiserror::Error;
 use wasmtime::{
     AsContext, AsContextMut, Global, GlobalType, MemoryType, Mutability,
     Store, TypedFunc, Val, ValType,
 };
 
-use crate::compiler::{IdentId, PatternId, RuleId, RuleInfo, Rules};
+use crate::compiler::{RuleId, Rules};
+use crate::models::Rule;
 use crate::modules::{Module, BUILTIN_MODULES};
 use crate::scanner::matches::PatternMatches;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::{ENGINE, MATCHING_RULES_BITMAP_BASE};
-use crate::{compiler, modules, wasm, Variable};
+use crate::{modules, wasm, Variable};
 
 pub(crate) use crate::scanner::context::RuntimeObject;
 pub(crate) use crate::scanner::context::RuntimeObjectHandle;
 pub(crate) use crate::scanner::context::ScanContext;
+pub(crate) use crate::scanner::matches::Match;
 
 mod context;
 mod matches;
@@ -107,6 +107,32 @@ impl<'a> AsRef<[u8]> for ScannedData<'a> {
             ScannedData::Vec(v) => v.as_ref(),
             ScannedData::Mmap(m) => m.as_slice(),
         }
+    }
+}
+
+/// Optional information for the scan operation.
+#[derive(Debug, Default)]
+pub struct ScanOptions<'a> {
+    module_metadata: HashMap<&'a str, &'a [u8]>,
+}
+
+impl<'a> ScanOptions<'a> {
+    /// Creates a new instance of `ScanOptions` with no additional information
+    /// for the scan operation.
+    ///
+    /// Use other methods to add additional information.
+    pub fn new() -> Self {
+        Self { module_metadata: Default::default() }
+    }
+
+    /// Adds metadata for a YARA module.
+    pub fn set_module_metadata(
+        mut self,
+        module_name: &'a str,
+        metadata: &'a [u8],
+    ) -> Self {
+        self.module_metadata.insert(module_name, metadata);
+        self
     }
 }
 
@@ -312,49 +338,45 @@ impl<'r> Scanner<'r> {
         self
     }
 
-    /// Scans a file.
-    pub fn scan_file<'a, P>(
-        &'a mut self,
-        path: P,
-    ) -> Result<ScanResults<'a, 'r>, ScanError>
-    where
-        P: AsRef<Path>,
-    {
-        let path = path.as_ref();
-
-        let mut file = fs::File::open(path).map_err(|err| {
-            ScanError::OpenError { path: path.to_path_buf(), source: err }
-        })?;
-
-        let size = file.metadata().map(|m| m.len()).unwrap_or(0);
-
-        let mut buffered_file;
-        let mapped_file;
-
-        // For files smaller than ~500MB reading the whole file is faster than
-        // using a memory-mapped file.
-        let data = if size < 500_000_000 {
-            buffered_file = Vec::with_capacity(size as usize);
-            file.read_to_end(&mut buffered_file).map_err(|err| {
-                ScanError::OpenError { path: path.to_path_buf(), source: err }
-            })?;
-            ScannedData::Vec(buffered_file)
-        } else {
-            mapped_file = MmapFile::open(path).map_err(|err| {
-                ScanError::MapError { path: path.to_path_buf(), source: err }
-            })?;
-            ScannedData::Mmap(mapped_file)
-        };
-
-        self.scan_impl(data)
-    }
-
     /// Scans in-memory data.
     pub fn scan<'a>(
         &'a mut self,
         data: &'a [u8],
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_impl(ScannedData::Slice(data))
+        self.scan_impl(ScannedData::Slice(data), None)
+    }
+
+    /// Scans a file.
+    pub fn scan_file<'a, P>(
+        &'a mut self,
+        target: P,
+    ) -> Result<ScanResults<'a, 'r>, ScanError>
+    where
+        P: AsRef<Path>,
+    {
+        self.scan_impl(Self::load_file(target.as_ref())?, None)
+    }
+
+    /// Like [`Scanner::scan`], but allows to specify additional scan options.
+    pub fn scan_with_options<'a, 'opts>(
+        &'a mut self,
+        data: &'a [u8],
+        options: ScanOptions<'opts>,
+    ) -> Result<ScanResults<'a, 'r>, ScanError> {
+        self.scan_impl(ScannedData::Slice(data), Some(options))
+    }
+
+    /// Like [`Scanner::scan_file`], but allows to specify additional scan
+    /// options.
+    pub fn scan_file_with_options<'a, 'opts, P>(
+        &'a mut self,
+        target: P,
+        options: ScanOptions<'opts>,
+    ) -> Result<ScanResults<'a, 'r>, ScanError>
+    where
+        P: AsRef<Path>,
+    {
+        self.scan_impl(Self::load_file(target.as_ref())?, Some(options))
     }
 
     /// Sets the value of a global variable.
@@ -502,9 +524,38 @@ impl<'r> Scanner<'r> {
 }
 
 impl<'r> Scanner<'r> {
-    fn scan_impl<'a>(
+    fn load_file(path: &Path) -> Result<ScannedData<'static>, ScanError> {
+        let mut file = fs::File::open(path).map_err(|err| {
+            ScanError::OpenError { path: path.to_path_buf(), source: err }
+        })?;
+
+        let size = file.metadata().map(|m| m.len()).unwrap_or(0);
+
+        let mut buffered_file;
+        let mapped_file;
+
+        // For files smaller than ~500MB reading the whole file is faster than
+        // using a memory-mapped file.
+        let data = if size < 500_000_000 {
+            buffered_file = Vec::with_capacity(size as usize);
+            file.read_to_end(&mut buffered_file).map_err(|err| {
+                ScanError::OpenError { path: path.to_path_buf(), source: err }
+            })?;
+            ScannedData::Vec(buffered_file)
+        } else {
+            mapped_file = MmapFile::open(path).map_err(|err| {
+                ScanError::MapError { path: path.to_path_buf(), source: err }
+            })?;
+            ScannedData::Mmap(mapped_file)
+        };
+
+        Ok(data)
+    }
+
+    fn scan_impl<'a, 'opts>(
         &'a mut self,
         data: ScannedData<'a>,
+        options: Option<ScanOptions<'opts>>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
         // Clear information about matches found in a previous scan, if any.
         self.reset();
@@ -589,7 +640,11 @@ impl<'r> Scanner<'r> {
             {
                 Some(output)
             } else {
-                module.main_fn.map(|main_fn| main_fn(data.as_ref()))
+                let meta = options.as_ref().and_then(|options| {
+                    options.module_metadata.get(module_name).copied()
+                });
+
+                module.main_fn.map(|main_fn| main_fn(data.as_ref(), meta))
             };
 
             if let Some(module_output) = &module_output {
@@ -826,7 +881,12 @@ impl<'a, 'r> Iterator for MatchingRules<'a, 'r> {
         let rule_id = *self.iterator.next()?;
         let rules = self.ctx.compiled_rules;
         let rule_info = rules.get(rule_id);
-        Some(Rule { rule_info, rules, ctx: self.ctx, data: self.data })
+        Some(Rule {
+            ctx: Some(self.ctx),
+            data: Some(self.data),
+            rule_info,
+            rules,
+        })
     }
 }
 
@@ -891,10 +951,10 @@ impl<'a, 'r> Iterator for NonMatchingRules<'a, 'r> {
             // keep in the loop and try with the next one.
             if !rule_info.is_private {
                 return Some(Rule {
+                    ctx: Some(self.ctx),
+                    data: Some(self.data),
                     rule_info,
                     rules,
-                    ctx: self.ctx,
-                    data: self.data,
                 });
             }
         }
@@ -946,311 +1006,5 @@ impl<'a, 'r> Iterator for ModuleOutputs<'a, 'r> {
                 return Some((*name, module_output.as_ref()));
             }
         }
-    }
-}
-
-/// A structure that describes a rule.
-pub struct Rule<'a, 'r> {
-    ctx: &'a ScanContext<'r>,
-    data: &'a ScannedData<'a>,
-    pub(crate) rules: &'r Rules,
-    pub(crate) rule_info: &'r RuleInfo,
-}
-
-impl<'a, 'r> Rule<'a, 'r> {
-    /// Returns the rule's name.
-    pub fn identifier(&self) -> &'r str {
-        self.rules.ident_pool().get(self.rule_info.ident_id).unwrap()
-    }
-
-    /// Returns the rule's namespace.
-    pub fn namespace(&self) -> &'r str {
-        self.rules.ident_pool().get(self.rule_info.namespace_ident_id).unwrap()
-    }
-
-    /// Returns the metadata associated to this rule.
-    pub fn metadata(&self) -> Metadata<'a, 'r> {
-        Metadata {
-            ctx: self.ctx,
-            iterator: self.rule_info.metadata.iter(),
-            len: self.rule_info.metadata.len(),
-        }
-    }
-
-    /// Returns the tags associated to this rule.
-    pub fn tags(&self) -> Tags<'a, 'r> {
-        Tags {
-            ctx: self.ctx,
-            iterator: self.rule_info.tags.iter(),
-            len: self.rule_info.tags.len(),
-        }
-    }
-
-    /// Returns the patterns defined by this rule.
-    pub fn patterns(&self) -> Patterns<'a, 'r> {
-        Patterns {
-            ctx: self.ctx,
-            data: self.data,
-            iterator: self.rule_info.patterns.iter(),
-            len: self.rule_info.patterns.len(),
-        }
-    }
-}
-
-/// A metadata value.
-#[derive(Debug, PartialEq, Serialize)]
-#[serde(untagged)]
-pub enum MetaValue<'r> {
-    /// Integer value.
-    Integer(i64),
-    /// Float value.
-    Float(f64),
-    /// Bool value.
-    Bool(bool),
-    /// A valid UTF-8 string.
-    String(&'r str),
-    /// An arbitrary string. Used when the value contains invalid UTF-8
-    /// characters.
-    Bytes(&'r BStr),
-}
-
-/// Iterator that returns the metadata associated to a rule.
-///
-/// The iterator returns (`&str`, [`MetaValue`]) pairs, where the first item
-/// is the identifier, and the second one the metadata value.
-pub struct Metadata<'a, 'r> {
-    ctx: &'a ScanContext<'r>,
-    iterator: Iter<'a, (IdentId, compiler::MetaValue)>,
-    len: usize,
-}
-
-impl<'a, 'r> Metadata<'a, 'r> {
-    /// Returns the metadata as a [`serde_json::Value`].
-    ///
-    /// The returned value is an array of tuples `(ident, value)` with all
-    /// the metadata associated to the rule.
-    ///
-    /// ```rust
-    /// # use yara_x;
-    /// let rules = yara_x::compile(r#"
-    /// rule test {
-    ///   meta:
-    ///     some_int = 1
-    ///     some_bool = true
-    ///     some_str = "foo"
-    ///     some_bytes = "\x01\x02\x03"
-    ///   condition:
-    ///     true
-    /// }
-    /// "#).unwrap();
-    ///
-    /// let mut scanner = yara_x::Scanner::new(&rules);
-    ///
-    /// let scan_results = scanner
-    ///     .scan(&[])
-    ///     .unwrap();
-    ///
-    /// let matching_rule = scan_results
-    ///     .matching_rules()
-    ///     .next()
-    ///     .unwrap();
-    ///
-    /// assert_eq!(
-    ///     matching_rule.metadata().into_json(),
-    ///     serde_json::json!([
-    ///         ("some_int", 1),
-    ///         ("some_bool", true),
-    ///         ("some_str", "foo"),
-    ///         ("some_bytes", [0x01, 0x02, 0x03]),
-    ///     ])
-    /// );
-    /// ```
-    pub fn into_json(self) -> serde_json::Value {
-        let v: Vec<(&'r str, MetaValue<'r>)> = self.collect();
-        serde_json::value::to_value(v).unwrap()
-    }
-
-    /// Returns `true` if the rule doesn't have any metadata.
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.iterator.len() == 0
-    }
-}
-
-impl<'a, 'r> Iterator for Metadata<'a, 'r> {
-    type Item = (&'r str, MetaValue<'r>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let (ident_id, value) = self.iterator.next()?;
-
-        let ident =
-            self.ctx.compiled_rules.ident_pool().get(*ident_id).unwrap();
-
-        let value = match value {
-            compiler::MetaValue::Bool(b) => MetaValue::Bool(*b),
-            compiler::MetaValue::Integer(i) => MetaValue::Integer(*i),
-            compiler::MetaValue::Float(f) => MetaValue::Float(*f),
-            compiler::MetaValue::String(id) => {
-                let s = self.ctx.compiled_rules.lit_pool().get(*id).unwrap();
-                // We can be sure that s is a valid UTF-8 string, because
-                // the type of meta is MetaValue::String.
-                let s = unsafe { s.to_str_unchecked() };
-                MetaValue::String(s)
-            }
-            compiler::MetaValue::Bytes(id) => MetaValue::Bytes(
-                self.ctx.compiled_rules.lit_pool().get(*id).unwrap(),
-            ),
-        };
-
-        Some((ident, value))
-    }
-}
-
-impl<'a, 'r> ExactSizeIterator for Metadata<'a, 'r> {
-    #[inline]
-    fn len(&self) -> usize {
-        self.len
-    }
-}
-
-/// An iterator that returns the tags defined by a rule.
-pub struct Tags<'a, 'r> {
-    ctx: &'a ScanContext<'r>,
-    iterator: Iter<'a, IdentId>,
-    len: usize,
-}
-
-impl<'a, 'r> Tags<'a, 'r> {
-    /// Returns `true` if the rule doesn't have any tags.
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.iterator.len() == 0
-    }
-}
-
-impl<'a, 'r> Iterator for Tags<'a, 'r> {
-    type Item = Tag<'a, 'r>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let ident_id = self.iterator.next()?;
-        Some(Tag { ctx: self.ctx, ident_id: *ident_id })
-    }
-}
-
-impl<'a, 'r> ExactSizeIterator for Tags<'a, 'r> {
-    #[inline]
-    fn len(&self) -> usize {
-        self.len
-    }
-}
-
-/// Represents a tag defined by a rule.
-pub struct Tag<'a, 'r> {
-    ctx: &'a ScanContext<'r>,
-    ident_id: IdentId,
-}
-
-impl<'a, 'r> Tag<'a, 'r> {
-    /// Returns the tag's identifier.
-    pub fn identifier(&self) -> &'r str {
-        self.ctx.compiled_rules.ident_pool().get(self.ident_id).unwrap()
-    }
-}
-
-/// An iterator that returns the patterns defined by a rule.
-pub struct Patterns<'a, 'r> {
-    ctx: &'a ScanContext<'r>,
-    data: &'a ScannedData<'a>,
-    iterator: Iter<'a, (IdentId, PatternId)>,
-    len: usize,
-}
-
-impl<'a, 'r> Iterator for Patterns<'a, 'r> {
-    type Item = Pattern<'a, 'r>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let (ident_id, pattern_id) = self.iterator.next()?;
-        Some(Pattern {
-            ctx: self.ctx,
-            data: self.data,
-            pattern_id: *pattern_id,
-            ident_id: *ident_id,
-        })
-    }
-}
-
-impl<'a, 'r> ExactSizeIterator for Patterns<'a, 'r> {
-    #[inline]
-    fn len(&self) -> usize {
-        self.len
-    }
-}
-
-/// Represents a pattern defined by a rule.
-pub struct Pattern<'a, 'r> {
-    ctx: &'a ScanContext<'r>,
-    data: &'a ScannedData<'a>,
-    pattern_id: PatternId,
-    ident_id: IdentId,
-}
-
-impl<'a, 'r> Pattern<'a, 'r> {
-    /// Returns the pattern's identifier (e.g: $a, $b).
-    pub fn identifier(&self) -> &'r str {
-        self.ctx.compiled_rules.ident_pool().get(self.ident_id).unwrap()
-    }
-
-    /// Returns the matches found for this pattern.
-    pub fn matches(&self) -> Matches<'a> {
-        Matches {
-            data: self.data,
-            iterator: self
-                .ctx
-                .pattern_matches
-                .get(self.pattern_id)
-                .map(|matches| matches.iter()),
-        }
-    }
-}
-
-/// Iterator that returns the matches for a pattern.
-pub struct Matches<'a> {
-    data: &'a ScannedData<'a>,
-    iterator: Option<Iter<'a, matches::Match>>,
-}
-
-impl<'a> Iterator for Matches<'a> {
-    type Item = Match<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let iter = self.iterator.as_mut()?;
-        Some(Match { inner: iter.next()?, data: self.data })
-    }
-}
-
-/// Represents a match.
-pub struct Match<'a> {
-    inner: &'a matches::Match,
-    data: &'a ScannedData<'a>,
-}
-
-impl<'a> Match<'a> {
-    /// Range within the original data where the match occurred.
-    #[inline]
-    pub fn range(&self) -> Range<usize> {
-        self.inner.range.clone()
-    }
-
-    /// Slice containing the data that matched.
-    #[inline]
-    pub fn data(&self) -> &'a [u8] {
-        self.data.as_ref().get(self.inner.range.clone()).unwrap()
-    }
-
-    /// XOR key used for decrypting the data if the pattern had the `xor`
-    /// modifier, or `None` if otherwise.
-    #[inline]
-    pub fn xor_key(&self) -> Option<u8> {
-        self.inner.xor_key
     }
 }

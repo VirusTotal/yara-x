@@ -34,7 +34,7 @@ thread_local! {
 }
 
 #[module_main]
-fn main(_data: &[u8]) -> Magic {
+fn main(_data: &[u8], _meta: Option<&[u8]>) -> Magic {
     // With every scanned file the cache must be cleared.
     TYPE_CACHE.set(None);
     MIME_TYPE_CACHE.set(None);

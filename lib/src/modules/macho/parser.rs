@@ -1953,7 +1953,7 @@ impl From<&MinVersion> for protos::macho::MinVersion {
         let mut result = protos::macho::MinVersion::new();
 
         result.set_device(
-            protobuf::EnumOrUnknown::<protos::macho::DEVICE_TYPE>::from_i32(
+            protobuf::EnumOrUnknown::<protos::macho::DeviceType>::from_i32(
                 mv.device as i32,
             )
             .unwrap(),

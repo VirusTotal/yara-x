@@ -1,9 +1,7 @@
-use anyhow::Context;
-use std::io::Cursor;
-use std::path::PathBuf;
 use std::{fs, str};
 
 use pretty_assertions::assert_eq;
+use rayon::prelude::*;
 use yara_x_parser::Parser;
 
 use crate::tokens::{TokenStream, Tokens};
@@ -40,35 +38,26 @@ fn spacer() {
 }
 
 #[test]
-fn format() -> Result<(), anyhow::Error> {
-    let mut tests_data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    tests_data_dir.push("src/testdata");
+fn format() {
+    let files: Vec<_> = globwalk::glob("src/testdata/*.unformatted")
+        .unwrap()
+        .flatten()
+        .map(|entry| entry.into_path())
+        .collect();
 
-    for entry in fs::read_dir(tests_data_dir).unwrap() {
-        let mut path = entry?.path();
+    files.into_par_iter().for_each(|path| {
+        let mut mint = goldenfile::Mint::new(".");
+        let output_path = path.with_extension("formatted");
 
-        if let Some(extension) = path.extension() {
-            if extension == "unformatted" {
-                let input = fs::read_to_string(&path)
-                    .context(format!("error reading file {:?}", path))?;
+        let input = fs::read_to_string(&path).expect("error reading file");
+        let mut output = mint.new_goldenfile(&output_path).unwrap();
 
-                path.set_extension("formatted");
-                let expected = fs::read_to_string(&path)
-                    .context(format!("error reading file {:?}", path))?;
+        let changed = Formatter::new()
+            .format(input.as_bytes(), &mut output)
+            .expect("format failed");
 
-                let mut output = Cursor::new(Vec::new());
-                Formatter::new().format(input.as_bytes(), &mut output)?;
-
-                let output = String::from_utf8(output.into_inner())?;
-
-                assert_eq!(
-                    expected, output,
-                    "\n\nfile {:?}\n\n{}",
-                    path, input
-                );
-            }
+        if !changed {
+            panic!("{:?} and {:?} are equal", path, output_path)
         }
-    }
-
-    Ok(())
+    });
 }

@@ -1,0 +1,12 @@
+MATCHING RULES
+--------------
+
+checkip
+checkip_get
+checkip_dns
+indy_user_agent
+
+NON-MATCHING RULES
+------------------
+
+checkip_post

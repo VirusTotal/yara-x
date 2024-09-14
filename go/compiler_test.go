@@ -1,6 +1,7 @@
 package yara_x
 
 import (
+	"bytes"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -39,7 +40,6 @@ func TestRelaxedReSyntax(t *testing.T) {
 	assert.Len(t, scanResults.MatchingRules(), 1)
 }
 
-
 func TestErrorOnSlowPattern(t *testing.T) {
 	_, err := Compile(`
 		rule test { strings: $a = /a.*/ condition: $a }`,
@@ -51,12 +51,20 @@ func TestSerialization(t *testing.T) {
 	r, err := Compile("rule test { condition: true }")
 	assert.NoError(t, err)
 
-	b, _ := r.Serialize()
-	r, _ = Deserialize(b)
+	var buf bytes.Buffer
 
+	// Write rules into buffer
+	n, err := r.WriteTo(&buf)
+
+	assert.NoError(t, err)
+	assert.Len(t, buf.Bytes(), int(n))
+
+	// Read rules from buffer
+	r, _ = ReadFrom(&buf)
+
+	// Make sure the rules work properly.
 	s := NewScanner(r)
 	scanResults, _ := s.Scan([]byte{})
-
 	assert.Len(t, scanResults.MatchingRules(), 1)
 }
 
@@ -107,7 +115,7 @@ func TestVariables(t *testing.T) {
 
 func TestError(t *testing.T) {
 	_, err := Compile("rule test { condition: foo }")
-	expected := `error[E009]: unknown identifier `+"`foo`"+`
+	expected := `error[E009]: unknown identifier ` + "`foo`" + `
  --> line:1:24
   |
 1 | rule test { condition: foo }
@@ -115,7 +123,6 @@ func TestError(t *testing.T) {
   |`
 	assert.EqualError(t, err, expected)
 }
-
 
 func TestErrors(t *testing.T) {
 	c, err := NewCompiler()
@@ -127,17 +134,17 @@ func TestErrors(t *testing.T) {
 	c.AddSource("rule test_2 { condition: foo }", WithOrigin("test.yar"))
 	assert.Equal(t, []CompileError{
 		{
-			Code: "E009",
+			Code:  "E009",
 			Title: "unknown identifier `foo`",
 			Labels: []Label{
 				{
-					Level: "error",
-					CodeOrigin: "",
-					Span: Span { Start: 25, End: 28 },
-					Text: "this identifier has not been declared",
+					Level:      "error",
+					CodeOrigin: "test.yar",
+					Span:       Span{Start: 25, End: 28},
+					Text:       "this identifier has not been declared",
 				},
 			},
-			Text: `error[E009]: unknown identifier `+"`foo`"+`
+			Text: `error[E009]: unknown identifier ` + "`foo`" + `
  --> test.yar:1:26
   |
 1 | rule test_2 { condition: foo }
@@ -147,6 +154,61 @@ func TestErrors(t *testing.T) {
 	}, c.Errors())
 }
 
+func TestRulesIter(t *testing.T) {
+	c, err := NewCompiler()
+	assert.NoError(t, err)
+
+	c.AddSource(`rule test_1 {
+			condition:
+				true
+	}`)
+	assert.NoError(t, err)
+
+	c.AddSource(`rule test_2 {
+			meta:
+				foo = "foo"
+	 		condition:
+	 			true
+	}`)
+	assert.NoError(t, err)
+
+	rules := c.Build()
+	assert.Equal(t, 2, rules.Count())
+
+	slice := rules.Slice()
+	assert.Len(t, slice, 2)
+	assert.Equal(t, "test_1", slice[0].Identifier())
+	assert.Equal(t, "test_2", slice[1].Identifier())
+
+	assert.Equal(t, "default", slice[0].Namespace())
+	assert.Equal(t, "default", slice[1].Namespace())
+
+	assert.Len(t, slice[0].Metadata(), 0)
+	assert.Len(t, slice[1].Metadata(), 1)
+
+	assert.Equal(t, "foo", slice[1].Metadata()[0].Identifier())
+}
+
+func TestImportsIter(t *testing.T) {
+	c, err := NewCompiler()
+	assert.NoError(t, err)
+
+	c.AddSource(`
+	import "pe"
+	import "elf"
+	rule test {
+			condition:
+				true
+	}`)
+	assert.NoError(t, err)
+
+	rules := c.Build()
+	imports := rules.Imports()
+
+	assert.Len(t, imports, 2)
+	assert.Equal(t, "pe", imports[0])
+	assert.Equal(t, "elf", imports[1])
+}
 
 func TestWarnings(t *testing.T) {
 	c, err := NewCompiler()
@@ -156,40 +218,40 @@ func TestWarnings(t *testing.T) {
 
 	assert.Equal(t, []Warning{
 		{
-			Code: "consecutive_jumps",
+			Code:  "consecutive_jumps",
 			Title: "consecutive jumps in hex pattern `$a`",
 			Labels: []Label{
 				{
-					Level: "warning",
+					Level:      "warning",
 					CodeOrigin: "",
-					Span: Span { Start: 30, End: 40 },
-					Text: "these consecutive jumps will be treated as [0-2]",
+					Span:       Span{Start: 30, End: 40},
+					Text:       "these consecutive jumps will be treated as [0-2]",
 				},
 			},
-			Text: `warning[consecutive_jumps]: consecutive jumps in hex pattern `+"`$a`"+`
+			Text: `warning[consecutive_jumps]: consecutive jumps in hex pattern ` + "`$a`" + `
  --> line:1:31
   |
 1 | rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }
   |                               ---------- these consecutive jumps will be treated as [0-2]
   |`,
 		},
-			{
-  			Code: "slow_pattern",
-  			Title: "slow pattern",
-  			Labels: []Label{
-  				{
-  					Level: "warning",
-  					CodeOrigin: "",
-  					Span: Span { Start: 21, End: 43 },
-  					Text: "this pattern may slow down the scan",
-  				},
-  			},
-  			Text: `warning[slow_pattern]: slow pattern
+		{
+			Code:  "slow_pattern",
+			Title: "slow pattern",
+			Labels: []Label{
+				{
+					Level:      "warning",
+					CodeOrigin: "",
+					Span:       Span{Start: 21, End: 43},
+					Text:       "this pattern may slow down the scan",
+				},
+			},
+			Text: `warning[slow_pattern]: slow pattern
  --> line:1:22
   |
 1 | rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }
   |                      ---------------------- this pattern may slow down the scan
   |`,
-  		},
+		},
 	}, c.Warnings())
 }

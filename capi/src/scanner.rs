@@ -4,12 +4,14 @@ use std::time::Duration;
 
 use yara_x::errors::ScanError;
 
-use crate::{_yrx_set_last_error, YRX_RESULT, YRX_RULE, YRX_RULES};
+use crate::{
+    _yrx_set_last_error, YRX_RESULT, YRX_RULE, YRX_RULES, YRX_RULE_CALLBACK,
+};
 
 /// A scanner that scans data with a set of compiled YARA rules.
 pub struct YRX_SCANNER<'s> {
     inner: yara_x::Scanner<'s>,
-    on_matching_rule: Option<(YRX_ON_MATCHING_RULE, *mut std::ffi::c_void)>,
+    on_matching_rule: Option<(YRX_RULE_CALLBACK, *mut std::ffi::c_void)>,
 }
 
 /// Creates a [`YRX_SCANNER`] object that can be used for scanning data with
@@ -113,22 +115,6 @@ pub unsafe extern "C" fn yrx_scanner_scan(
     YRX_RESULT::SUCCESS
 }
 
-/// Callback function passed to the scanner via [`yrx_scanner_on_matching_rule`]
-/// which receives notifications about matching rules.
-///
-/// The callback receives a pointer to the matching rule, represented by a
-/// [`YRX_RULE`] structure. This pointer is guaranteed to be valid while the
-/// callback function is being executed, but it may be freed after the callback
-/// function returns, so you cannot use the pointer outside the callback.
-///
-/// It also receives the `user_data` pointer that was passed to the
-/// [`yrx_scanner_on_matching_rule`] function, which can point to arbitrary
-/// data owned by the user.
-pub type YRX_ON_MATCHING_RULE = extern "C" fn(
-    rule: *const YRX_RULE,
-    user_data: *mut std::ffi::c_void,
-) -> ();
-
 /// Sets a callback function that is called by the scanner for each rule that
 /// matched during a scan.
 ///
@@ -136,11 +122,11 @@ pub type YRX_ON_MATCHING_RULE = extern "C" fn(
 /// callback function. If the callback is not set, the scanner doesn't notify
 /// about matching rules.
 ///
-/// See [`YRX_ON_MATCHING_RULE`] for more details.
+/// See [`YRX_RULE_CALLBACK`] for more details.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_scanner_on_matching_rule(
     scanner: *mut YRX_SCANNER,
-    callback: YRX_ON_MATCHING_RULE,
+    callback: YRX_RULE_CALLBACK,
     user_data: *mut std::ffi::c_void,
 ) -> YRX_RESULT {
     if let Some(scanner) = scanner.as_mut() {

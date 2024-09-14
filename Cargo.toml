@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Victor M. Alvarez <vmalvarez@virustotal.com>"]
 edition = "2021"
 homepage = "https://virustotal.github.io/yara-x"
@@ -75,11 +75,11 @@ num-derive = "0.4.2"
 p256 = "0.13.2"
 p384 = "0.13.0"
 pretty_assertions = "1.4.0"
-protobuf = "3.5.0"
-protobuf-codegen = "3.5.0"
-protobuf-json-mapping = "3.5.0"
-protobuf-parse = "3.5.0"
-protobuf-support = "3.5.0"
+protobuf = "3.5.1"
+protobuf-codegen = "3.5.1"
+protobuf-json-mapping = "3.5.1"
+protobuf-parse = "3.5.1"
+protobuf-support = "3.5.1"
 rayon = "1.10.0"
 regex-syntax = "0.8.4"
 regex-automata = "0.4.7"
@@ -97,16 +97,16 @@ thiserror = "1.0.61"
 tlsh-fixed = "0.1.1"
 uuid = "1.4.1"
 walrus = "0.21.1"
-wasmtime = "22.0.0"
+wasmtime = { version = "22.0.0", default-features = false }
 x509-parser = "0.16.0"
 yaml-rust = "0.4.5"
 yansi = "1.0.1"
 yara-x = { path = "lib" }
-yara-x-fmt = { path = "fmt", version = "0.7.0" }
-yara-x-macros = { path = "macros", version = "0.7.0" }
-yara-x-parser = { path = "parser", version = "0.7.0" }
-yara-x-proto = { path = "proto", version = "0.7.0" }
-yara-x-proto-yaml = { path = "proto-yaml", version = "0.7.0" }
+yara-x-fmt = { path = "fmt", version = "0.8.0" }
+yara-x-macros = { path = "macros", version = "0.8.0" }
+yara-x-parser = { path = "parser", version = "0.8.0" }
+yara-x-proto = { path = "proto", version = "0.8.0" }
+yara-x-proto-yaml = { path = "proto-yaml", version = "0.8.0" }
 zip = "2.1.1"
 
 # Special profile that builds a release binary with link-time optimization.

@@ -1,3 +1,4 @@
+use annotate_snippets::renderer::DEFAULT_TERM_WIDTH;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use std::borrow::Cow;
@@ -86,6 +87,7 @@ pub(crate) struct Report {
     code_cache: Arc<CodeCache>,
     default_source_id: SourceId,
     with_colors: bool,
+    max_with: usize,
     level: Level,
     code: &'static str,
     title: String,
@@ -218,6 +220,7 @@ impl Display for Report {
             annotate_snippets::Renderer::plain()
         };
 
+        let renderer = renderer.term_width(self.max_with);
         let text = renderer.render(message);
 
         write!(f, "{}", text)
@@ -243,6 +246,7 @@ pub struct Label<'a> {
 /// [register_source]: ReportBuilder::register_source
 pub struct ReportBuilder {
     with_colors: bool,
+    max_with: usize,
     current_source_id: Cell<Option<SourceId>>,
     next_source_id: Cell<SourceId>,
     code_cache: Arc<CodeCache>,
@@ -288,6 +292,7 @@ impl ReportBuilder {
     pub fn new() -> Self {
         Self {
             with_colors: false,
+            max_with: DEFAULT_TERM_WIDTH,
             current_source_id: Cell::new(None),
             next_source_id: Cell::new(SourceId(0)),
             code_cache: Arc::new(CodeCache::new()),
@@ -298,6 +303,14 @@ impl ReportBuilder {
     /// `false`.
     pub fn with_colors(&mut self, yes: bool) -> &mut Self {
         self.with_colors = yes;
+        self
+    }
+
+    /// Sets the maximum number of columns while rendering error messages.
+    ///
+    /// The default value is 140.
+    pub fn max_with(&mut self, with: usize) -> &mut Self {
+        self.max_with = with;
         self
     }
 
@@ -350,7 +363,7 @@ impl ReportBuilder {
         let cache_entry = code_cache.get(&source_id).unwrap();
         let src = cache_entry.code.as_str();
 
-        src[source_ref.span.range()].to_string()
+        src[source_ref.span().range()].to_string()
     }
 
     /// Creates a new error or warning report.
@@ -368,6 +381,7 @@ impl ReportBuilder {
         Report {
             code_cache: self.code_cache.clone(),
             with_colors: self.with_colors,
+            max_with: self.max_with,
             default_source_id: self.current_source_id().expect(
                 "`create_report` called without registering any source",
             ),

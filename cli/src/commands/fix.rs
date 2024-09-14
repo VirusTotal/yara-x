@@ -29,18 +29,20 @@ pub fn fix_encoding() -> Command {
                 .help("Path to YARA source file or directory")
                 .value_parser(value_parser!(PathBuf)),
         )
+        // Keep options sorted alphabetically by their long name.
+        // For instance, --bar goes before --foo.
         .arg(arg!(-d - -"dry-run").help("Don't modify source files"))
-        .arg(
-            arg!(-d --"max-depth" <MAX_DEPTH>)
-                .help("Walk directories recursively up to a given depth")
-                .long_help(help::DEPTH_LONG_HELP)
-                .value_parser(value_parser!(u16)),
-        )
         .arg(
             arg!(-f --filter <PATTERN>)
                 .help("Check files that match the given pattern only")
                 .long_help(help::FILTER_LONG_HELP)
                 .action(ArgAction::Append),
+        )
+        .arg(
+            arg!(-d --"max-depth" <MAX_DEPTH>)
+                .help("Walk directories recursively up to a given depth")
+                .long_help(help::DEPTH_LONG_HELP)
+                .value_parser(value_parser!(u16)),
         )
         .arg(
             arg!(-p --"threads" <NUM_THREADS>)

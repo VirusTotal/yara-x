@@ -1,11 +1,9 @@
 rule test {
   strings:
-    $hex = {
-      00 01 02      // Lorem ipsum
+    $hex = { 00 01 02      // Lorem ipsum
       03 04 05 06   // dolor sit
       ( 00 01 |     // amet,
-        02 03 )     // consectetur
-    }
+        02 03 )  }
   condition:
     $hex
 }

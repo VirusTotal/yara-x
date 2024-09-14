@@ -1,6 +1,4 @@
-use clap::{
-    arg, value_parser, Arg, ArgAction, ArgMatches, Command, ValueEnum,
-};
+use clap::{arg, value_parser, ArgAction, ArgMatches, Command, ValueEnum};
 
 use colored_json::{ColorMode, ToColoredJson};
 use crossterm::tty::IsTty;
@@ -43,25 +41,22 @@ pub fn dump() -> Command {
         .arg(
             arg!(<FILE>)
                 .help("Path to binary file")
-                .value_parser(value_parser!(PathBuf))
-                .required(false),
+                .value_parser(value_parser!(PathBuf)),
         )
+        // Keep options sorted alphabetically by their long name.
+        // For instance, --bar goes before --foo.
         .arg(
-            arg!(-o --"output-format" <FORMAT>)
-                .help("Desired output format")
-                .value_parser(value_parser!(OutputFormats))
-                .required(false),
-        )
-        .arg(arg!(--"no-colors").help("Turn off colors in YAML output"))
-        .arg(
-            Arg::new("module")
-                .long("module")
-                .short('m')
+            arg!(-m - -"module")
                 .help("Module name")
-                .required(false)
                 .action(ArgAction::Append)
                 .value_delimiter(',')
                 .value_parser(value_parser!(SupportedModules)),
+        )
+        .arg(arg!(--"no-colors").help("Turn off colors in YAML output"))
+        .arg(
+            arg!(-o --"output-format" <FORMAT>)
+                .help("Desired output format")
+                .value_parser(value_parser!(OutputFormats)),
         )
 }
 

@@ -1,0 +1,20 @@
+# Special configuration for linking with musl instead of glibc.
+# See: https://github.com/VirusTotal/yara-x/issues/181
+#
+[target.x86_64-unknown-linux-musl]
+# Relocation model is "pic" by default (i.e: position independent code),
+# Here we force the "static" (i.e: non-relocatable code) model. Without this
+# the produced binaries crash with SIGSEGV as described in:
+# https://github.com/rust-lang/rust/issues/74757
+# https://github.com/rust-lang/rust/issues/81987
+rustflags = ["-C", "relocation-model=static"]
+# This is not necessary when building from a host where gcc already links
+# against musl by default, and it can be commented out (e.g: when building
+# from an Alpine Linux host). But in most cases what we want is cross-compiling
+# from a host with a standard gcc that links against glibc. In such cases we
+# must link using musl-gcc.
+#
+# In Debian/Ubuntu you need to install the musl-tools package in order to
+# build YARA-X with musl. This package contains musl-gcc, which is a gcc
+# wrapper that creates binaries that depends on musl instead of glibc.
+linker = "musl-gcc"

@@ -3,7 +3,7 @@ use crate::modules::protos::time::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[module_main]
-fn main(_data: &[u8]) -> Time {
+fn main(_data: &[u8], _meta: Option<&[u8]>) -> Time {
     // Nothing to do, but we have to return our protobuf
     Time::new()
 }

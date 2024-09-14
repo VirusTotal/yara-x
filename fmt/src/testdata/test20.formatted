@@ -5,14 +5,18 @@ rule test {
 
     // Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris
     // nisi ut aliquip ex ea commodo consequat
-    $hex = {
-    00 01 02        // Lorem ipsum
-    00 01 02 03 04  // Lorem ipsum
-                    // dolot sit amet
-    00 01 02        // Lorem ipsum
-    00 01 02 03     /* Lorem ipsum
-                       dolot sit amet */
-    // Lorem ipsum
+    $hex  = {
+      00 01 02        // Lorem ipsum
+      00 01 02 03 04  // Lorem ipsum
+                      // dolot sit amet
+      00 01 02        // Lorem ipsum
+      00 01 02 03     /* Lorem ipsum
+                         dolot sit amet */
+      // Lorem ipsum
+    }
+    $hex2 = {
+      00 01 02
+      03 04 05
     }
   condition:
     $hex

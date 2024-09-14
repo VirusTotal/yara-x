@@ -1452,9 +1452,13 @@ impl<'a> PE<'a> {
                     if let Ok((_, rsrc_entry)) =
                         Self::parse_rsrc_entry(entry_data)
                     {
-                        if rsrc_entry.size > 0
-                            && rsrc_entry.offset > 0
-                            && (rsrc_entry.size as usize) < self.data.len()
+                        if rsrc_entry.size > 0 && rsrc_entry.offset > 0
+                        // We could use the PE's size as an upper bound for
+                        // the entry size, but there are some truncated files
+                        // where the PE size is lower. Use a reasonably large
+                        // value as the upper bound and avoid some completely
+                        // corrupt entries with random values.
+                        && (rsrc_entry.size as usize) < 0x3FFFFFFF
                         {
                             resources.push(Resource {
                                 type_id: ids.0,
@@ -2213,7 +2217,7 @@ impl From<PE<'_>> for protos::pe::PE {
         result.set_number_of_symbols(pe.pe_hdr.number_of_symbols);
         result.set_size_of_optional_header(pe.pe_hdr.size_of_optional_header.into());
 
-        result.opthdr_magic = Some(EnumOrUnknown::<protos::pe::OptHdrMagic>::from_i32(pe
+        result.opthdr_magic = Some(EnumOrUnknown::<protos::pe::OptionalMagic>::from_i32(pe
             .optional_hdr
             .magic.into()));
 

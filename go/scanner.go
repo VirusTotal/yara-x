@@ -1,6 +1,17 @@
 package yara_x
 
+// #include <yara_x.h>
+//
+// enum YRX_RESULT static inline _yrx_scanner_on_matching_rule(
+//     struct YRX_SCANNER *scanner,
+//     YRX_RULE_CALLBACK callback,
+//     uintptr_t user_data) {
+//   return yrx_scanner_on_matching_rule(scanner, callback, (void*) user_data);
+// }
+//
+// void onMatchingRule(YRX_RULE*, uintptr_t);
 import "C"
+
 import (
 	"errors"
 	"fmt"
@@ -15,10 +26,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// #include <yara_x.h>
-// void onMatchingRule(YRX_RULE*, void*);
-import "C"
-
 // Scanner scans data with a set of compiled YARA rules.
 type Scanner struct {
 	// Pointer to C-side scanner.
@@ -28,11 +35,7 @@ type Scanner struct {
 	// is garbage collected the associated C.YRX_RULES object is destroyed
 	// before the C.YRX_SCANNER object.
 	rules *Rules
-	// Handle to the scanner itself that is passed to C callbacks. Notice that
-	// this is not actually the handle but a pointer to the handle, and the
-	// memory that stores the handle is allocated via C.malloc because the
-	// pointer is passed to C code. We don't want the garbage collector messing
-	// with the memory that holds the handle.
+	// Handle to the scanner itself that is passed to C callbacks.
 	//
 	// Go 1.21 introduces https://pkg.go.dev/runtime#Pinner.Pin, which allows
 	// to pin a Go object in memory, guaranteeing that the garbage collector
@@ -40,20 +43,32 @@ type Scanner struct {
 	// struct and pass a pointer to the scanner to the C code, making this
 	// handle unnecessary. At this time (Feb 2024) Go 1.21 is only 6 months
 	// old, and we want to support older versions.
-	handle *cgo.Handle
+	handle cgo.Handle
+
 	// Rules that matched during the last scan.
 	matchingRules []*Rule
 }
 
-
 // ScanResults contains the results of a call to [Scanner.Scan] or [Rules.Scan].
-type ScanResults struct{
+type ScanResults struct {
 	matchingRules []*Rule
 }
 
 // MatchingRules returns the rules that matched during the scan.
 func (s ScanResults) MatchingRules() []*Rule {
 	return s.matchingRules
+}
+
+// This is the callback function called every time a YARA rule matches.
+//
+//export onMatchingRule
+func onMatchingRule(rule *C.YRX_RULE, handle C.uintptr_t) {
+	h := cgo.Handle(handle)
+	scanner, ok := h.Value().(*Scanner)
+	if !ok {
+		panic("onMatchingRule didn't receive a Scanner")
+	}
+	scanner.matchingRules = append(scanner.matchingRules, newRule(rule))
 }
 
 // NewScanner creates a Scanner that will use the provided YARA rules.
@@ -67,19 +82,12 @@ func NewScanner(r *Rules) *Scanner {
 		panic("yrx_scanner_create failed")
 	}
 
-	// Allocate the memory that will hold the handle. This memory is allocated
-	// using C.malloc because a pointer to it is passed to C code, and we don't
-	// want the garbage collector messing with it.
-	s.handle = (*cgo.Handle)(C.malloc(C.size_t(unsafe.Sizeof(s.handle))))
+	s.handle = cgo.NewHandle(s)
 
-	// Create a new handle that points to the scanner, and store it in the
-	// newly allocated memory.
-	*s.handle = cgo.NewHandle(s)
-
-	C.yrx_scanner_on_matching_rule(
+	C._yrx_scanner_on_matching_rule(
 		s.cScanner,
-		C.YRX_ON_MATCHING_RULE(C.onMatchingRule),
-		unsafe.Pointer(s.handle))
+		C.YRX_RULE_CALLBACK(C.onMatchingRule),
+		C.uintptr_t(s.handle))
 
 	runtime.SetFinalizer(s, (*Scanner).Destroy)
 	return s
@@ -223,7 +231,7 @@ func (s *Scanner) Scan(buf []byte) (*ScanResults, error) {
 		err = errors.New(C.GoString(C.yrx_last_error()))
 	}
 
-	scanResults := &ScanResults{ s.matchingRules }
+	scanResults := &ScanResults{s.matchingRules}
 	s.matchingRules = nil
 
 	return scanResults, err
@@ -237,20 +245,8 @@ func (s *Scanner) Destroy() {
 	if s.cScanner != nil {
 		C.yrx_scanner_destroy(s.cScanner)
 		s.handle.Delete()
-		C.free(unsafe.Pointer(s.handle))
 		s.cScanner = nil
 	}
+	s.rules = nil
 	runtime.SetFinalizer(s, nil)
-}
-
-// This is the callback function called every time a YARA rule matches.
-//
-//export onMatchingRule
-func onMatchingRule(rule *C.YRX_RULE, handlePtr unsafe.Pointer) {
-	handle := *(*cgo.Handle)(handlePtr)
-	scanner, ok := handle.Value().(*Scanner)
-	if !ok {
-		panic("onMatchingRule didn't receive a Scanner")
-	}
-	scanner.matchingRules = append(scanner.matchingRules, newRule(rule))
 }

@@ -48,10 +48,10 @@ cargo cinstall -p yara-x-capi --release
 
 The command above will put the library and header files in the correct path
 in your system (usually `/usr/local/lib` and `/usr/local/include` for Linux
-and MacOS users), and will generate a `.pc` file so that `pkg-config` knows
+and macOS users), and will generate a `.pc` file so that `pkg-config` knows
 about the library.
 
-In Linux and MacOS you can check if everything went fine by compiling a simple
+In Linux and macOS you can check if everything went fine by compiling a simple
 test program, like this:
 
 ```text
@@ -94,7 +94,7 @@ includes:
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 use std::cell::RefCell;
-use std::ffi::{c_char, CStr, CString};
+use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::mem::ManuallyDrop;
 use std::ptr::slice_from_raw_parts_mut;
 use std::slice;
@@ -395,6 +395,91 @@ pub unsafe extern "C" fn yrx_rules_deserialize(
     }
 }
 
+/// Callback function passed to [`yrx_scanner_on_matching_rule`] or
+/// [`yrx_rules_iterate`].
+///
+/// The callback receives a pointer to a rule, represented by a [`YRX_RULE`]
+/// structure. This pointer is guaranteed to be valid while the callback
+/// function is being executed, but it may be freed after the callback function
+/// returns, so you cannot use the pointer outside the callback.
+///
+/// It also receives the `user_data` pointer that can point to arbitrary data
+/// owned by the user.
+pub type YRX_RULE_CALLBACK =
+    extern "C" fn(rule: *const YRX_RULE, user_data: *mut c_void) -> ();
+
+/// Iterates over the compiled rules, calling the callback function for each
+/// rule.
+///
+/// The `user_data` pointer can be used to provide additional context to your
+/// callback function.
+///
+/// See [`YRX_RULE_CALLBACK`] for more details.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_rules_iterate(
+    rules: *mut YRX_RULES,
+    callback: YRX_RULE_CALLBACK,
+    user_data: *mut c_void,
+) -> YRX_RESULT {
+    if let Some(rules) = rules.as_ref() {
+        for r in rules.0.iter() {
+            let rule = YRX_RULE(r);
+            callback(&rule as *const YRX_RULE, user_data);
+        }
+        YRX_RESULT::SUCCESS
+    } else {
+        YRX_RESULT::INVALID_ARGUMENT
+    }
+}
+
+/// Callback function passed to [`yrx_rules_iterate_imports`].
+///
+/// The callback receives a pointer to module name. This pointer is guaranteed
+/// to be valid while the callback function is being executed, but it may be
+/// freed after the callback function returns, so you cannot use the pointer
+/// outside the callback.
+///
+/// It also receives the `user_data` pointer that can point to arbitrary data
+/// owned by the user.
+pub type YRX_IMPORT_CALLBACK =
+    extern "C" fn(module_name: *const c_char, user_data: *mut c_void) -> ();
+
+/// Iterates over the modules imported by the rules, calling the callback with
+/// the name of each imported module.
+///
+/// The `user_data` pointer can be used to provide additional context to your
+/// callback function.
+///
+/// See [`YRX_IMPORT_CALLBACK`] for more details.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_rules_iterate_imports(
+    rules: *mut YRX_RULES,
+    callback: YRX_IMPORT_CALLBACK,
+    user_data: *mut c_void,
+) -> YRX_RESULT {
+    if let Some(rules) = rules.as_ref() {
+        for import in rules.0.imports() {
+            let import = CString::new(import).unwrap();
+            callback(import.as_ptr(), user_data);
+        }
+        YRX_RESULT::SUCCESS
+    } else {
+        YRX_RESULT::INVALID_ARGUMENT
+    }
+}
+
+/// Returns the total number of rules.
+///
+/// Returns -1 in case of error.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_rules_count(rules: *mut YRX_RULES) -> c_int {
+    if let Some(rules) = rules.as_ref() {
+        rules.0.iter().len() as c_int
+    } else {
+        -1
+    }
+}
+
 /// Destroys a [`YRX_RULES`] object.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_rules_destroy(rules: *mut YRX_RULES) {
@@ -544,7 +629,8 @@ pub unsafe extern "C" fn yrx_metadata_destroy(metadata: *mut YRX_METADATA) {
 /// object that must be destroyed with [`yrx_patterns_destroy`] when not needed
 /// anymore.
 ///
-/// This function returns a null pointer when `rule` is null.
+/// This function returns a null pointer when `rule` is null or the rule doesn't
+/// have any patterns.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_rule_patterns(
     rule: *const YRX_RULE,
@@ -554,6 +640,10 @@ pub unsafe extern "C" fn yrx_rule_patterns(
     } else {
         return std::ptr::null_mut();
     };
+
+    if patterns_iter.len() == 0 {
+        return std::ptr::null_mut();
+    }
 
     let mut patterns = Vec::with_capacity(patterns_iter.len());
 

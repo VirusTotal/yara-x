@@ -81,6 +81,12 @@ fn generate_module_files(proto_files: Vec<FileDescriptorProto>) {
 
     write!(add_modules_rs, "{{").unwrap();
 
+    // Sort modules by name, so that they always appear in the same order
+    // no matter the platform. If modules are not sorted, the order will
+    // vary from one platform to the other, in the same way that HashMap
+    // doesn't produce consistent key order.
+    modules.sort();
+
     for m in modules {
         let name = m.0;
         let proto_mod = m.1;
@@ -132,17 +138,20 @@ add_module!(modules, "{name}", {proto_mod}, "{root_message}", {rust_mod_name}, {
 }
 
 fn main() {
-    println!("cargo:rerun-if-changed=src/modules");
     println!("cargo:rerun-if-changed=src/modules/protos");
 
     let mut proto_compiler = Codegen::new();
     let mut proto_parser = Parser::new();
 
-    proto_compiler
-        .pure()
-        .cargo_out_dir("protos")
-        .include("src/modules/protos");
+    if cfg!(feature = "protoc") {
+        proto_compiler.protoc();
+        proto_parser.protoc();
+    } else {
+        proto_compiler.pure();
+        proto_parser.pure();
+    }
 
+    proto_compiler.cargo_out_dir("protos").include("src/modules/protos");
     proto_parser.include("src/modules/protos");
 
     // All `.proto` files in src/modules/protos must be compiled
