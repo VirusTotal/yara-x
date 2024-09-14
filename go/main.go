@@ -206,9 +206,9 @@ func (r *Rules) Count() int {
 // is called.
 //
 //export onImport
-func onImport(module_name *C.char, handle unsafe.Pointer) {
-	h := (cgo.Handle)(handle)
-	imports, ok := h.Value().(*[]string)
+func onImport(module_name *C.char, handlePtr unsafe.Pointer) {
+	handle := *(*cgo.Handle)(handlePtr)
+	imports, ok := handle.Value().(*[]string)
 	if !ok {
 		panic("onImport didn't receive a *[]string")
 	}
@@ -218,8 +218,18 @@ func onImport(module_name *C.char, handle unsafe.Pointer) {
 // Count returns the total number of rules.
 func (r *Rules) Imports() []string {
 	imports := make([]string, 0)
-	handle := cgo.NewHandle(&imports)
-	defer handle.Delete()
+
+	// Allocate the memory that will hold the handle. This memory is allocated
+  // using C.malloc because a pointer to it is passed to C code, and we don't
+  // want the garbage collector messing with it.
+  var handle *cgo.Handle
+  handle = (*cgo.Handle)(C.malloc(C.size_t(unsafe.Sizeof(handle))))
+  defer C.free(unsafe.Pointer(handle))
+
+  // Create a new handle that points to the scanner, and store it in the
+  // newly allocated memory.
+  *handle = cgo.NewHandle(&imports)
+  defer handle.Delete()
 
 	C.yrx_rules_iterate_imports(
 		r.cRules,
