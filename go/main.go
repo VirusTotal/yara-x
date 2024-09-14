@@ -158,9 +158,9 @@ func (r *Rules) Destroy() {
 // called.
 //
 //export onRule
-func onRule(rule *C.YRX_RULE, handle unsafe.Pointer) {
-	h := (cgo.Handle)(handle)
-	rules, ok := h.Value().(*[]*Rule)
+func onRule(rule *C.YRX_RULE, handlePtr unsafe.Pointer) {
+	handle := *(*cgo.Handle)(handlePtr)
+	rules, ok := handle.Value().(*[]*Rule)
 	if !ok {
 		panic("onRule didn't receive a *[]Rule")
 	}
@@ -171,7 +171,17 @@ func onRule(rule *C.YRX_RULE, handle unsafe.Pointer) {
 // set of compiled rules.
 func (r *Rules) Slice() []*Rule {
 	rules := make([]*Rule, 0)
-	handle := cgo.NewHandle(&rules)
+
+	// Allocate the memory that will hold the handle. This memory is allocated
+	// using C.malloc because a pointer to it is passed to C code, and we don't
+	// want the garbage collector messing with it.
+	var handle *cgo.Handle
+	handle = (*cgo.Handle)(C.malloc(C.size_t(unsafe.Sizeof(handle))))
+	defer C.free(unsafe.Pointer(handle))
+
+	// Create a new handle that points to the scanner, and store it in the
+	// newly allocated memory.
+	*handle = cgo.NewHandle(&rules)
 	defer handle.Delete()
 
 	C.yrx_rules_iterate(

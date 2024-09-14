@@ -176,17 +176,17 @@ type Compiler struct {
 	cCompiler          *C.YRX_COMPILER
 	relaxedReSyntax    bool
 	errorOnSlowPattern bool
-	ignoredModules  map[string]bool
-	vars map[string]interface{}
-	features []string
+	ignoredModules     map[string]bool
+	vars               map[string]interface{}
+	features           []string
 }
 
 // NewCompiler creates a new compiler.
 func NewCompiler(opts ...CompileOption) (*Compiler, error) {
 	c := &Compiler{
 		ignoredModules: make(map[string]bool),
-		vars: make(map[string]interface{}),
-		features: make([]string, 0),
+		vars:           make(map[string]interface{}),
+		features:       make([]string, 0),
 	}
 
 	for _, opt := range opts {
