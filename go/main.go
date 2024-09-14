@@ -276,7 +276,9 @@ func newRule(cRule *C.YRX_RULE) *Rule {
 }
 
 func (r *Rule) destroy() {
-	C.yrx_patterns_destroy(r.cPatterns)
+	if r.cPatterns != nil {
+		C.yrx_patterns_destroy(r.cPatterns)
+	}
 	if r.cMetadata != nil {
 		C.yrx_metadata_destroy(r.cMetadata)
 	}
@@ -358,6 +360,13 @@ func (m *Metadata) Value() interface{} {
 func (r *Rule) Patterns() []Pattern {
 	// If this method was called before, return the patterns already cached.
 	if r.patterns != nil {
+		return r.patterns
+	}
+
+	// if cPatterns is nil the rule doesn't have any patterns, return an
+	// empty list.
+	if r.cPatterns == nil {
+		r.patterns = make([]Pattern, 0)
 		return r.patterns
 	}
 

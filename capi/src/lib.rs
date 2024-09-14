@@ -629,7 +629,8 @@ pub unsafe extern "C" fn yrx_metadata_destroy(metadata: *mut YRX_METADATA) {
 /// object that must be destroyed with [`yrx_patterns_destroy`] when not needed
 /// anymore.
 ///
-/// This function returns a null pointer when `rule` is null.
+/// This function returns a null pointer when `rule` is null or the rule doesn't
+/// have any patterns.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_rule_patterns(
     rule: *const YRX_RULE,
@@ -639,6 +640,10 @@ pub unsafe extern "C" fn yrx_rule_patterns(
     } else {
         return std::ptr::null_mut();
     };
+
+    if patterns_iter.len() == 0 {
+        return std::ptr::null_mut();
+    }
 
     let mut patterns = Vec::with_capacity(patterns_iter.len());
 
