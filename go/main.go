@@ -5,27 +5,42 @@ package yara_x
 // #cgo static_link pkg-config: --static yara_x_capi
 // #include <yara_x.h>
 //
-// static uint64_t meta_i64(void* value) {
+// static inline uint64_t meta_i64(void* value) {
 //   return ((YRX_METADATA_VALUE*) value)->i64;
 // }
 //
-// static double meta_f64(void* value) {
+// static inline double meta_f64(void* value) {
 //   return ((YRX_METADATA_VALUE*) value)->f64;
 // }
 //
-// static bool meta_bool(void* value) {
+// static inline bool meta_bool(void* value) {
 //   return ((YRX_METADATA_VALUE*) value)->boolean;
 // }
 //
-// static char* meta_str(void* value) {
+// static inline char* meta_str(void* value) {
 //   return ((YRX_METADATA_VALUE*) value)->string;
 // }
 //
-// static YRX_METADATA_BYTES* meta_bytes(void* value) {
+// static inline YRX_METADATA_BYTES* meta_bytes(void* value) {
 //   return &(((YRX_METADATA_VALUE*) value)->bytes);
 // }
 //
-// void onRule(YRX_RULE*, void*);
+// enum YRX_RESULT static inline _yrx_rules_iterate(
+// 		 struct YRX_RULES *rules,
+//     YRX_RULE_CALLBACK callback,
+//     uintptr_t user_data) {
+//   return yrx_rules_iterate(rules, callback, (void*) user_data);
+// }
+//
+// enum YRX_RESULT static inline _yrx_rules_iterate_imports(
+//   	 struct YRX_RULES *rules,
+//     YRX_IMPORT_CALLBACK callback,
+//     uintptr_t user_data) {
+//   return yrx_rules_iterate_imports(rules, callback, (void*) user_data);
+// }
+//
+//
+// void onRule(YRX_RULE*, uintptr_t);
 // void onImport(char*, void*);
 import "C"
 
@@ -157,8 +172,8 @@ func (r *Rules) Destroy() {
 // This is the callback called by yrx_rules_iterate, when Rules.GetRules is
 // called.
 //export onRule
-func onRule(rule *C.YRX_RULE, handle unsafe.Pointer) {
-	h := (cgo.Handle)(handle)
+func onRule(rule *C.YRX_RULE, handle C.uintptr_t) {
+	h := cgo.Handle(handle)
 	rules, ok := h.Value().(*[]*Rule)
 	if !ok {
 		panic("onRule didn't receive a *[]Rule")
@@ -173,10 +188,10 @@ func (r *Rules) Slice() []*Rule {
 	handle := cgo.NewHandle(&rules)
 	defer handle.Delete()
 
-	C.yrx_rules_iterate(
+	C._yrx_rules_iterate(
 		r.cRules,
 		C.YRX_RULE_CALLBACK(C.onRule),
-		unsafe.Pointer(handle))
+		C.uintptr_t(handle))
 
 	runtime.KeepAlive(r)
 	return rules
@@ -195,7 +210,7 @@ func (r *Rules) Count() int {
 // is called.
 //export onImport
 func onImport(module_name *C.char, handle unsafe.Pointer) {
-	h := (cgo.Handle)(handle)
+	h := cgo.Handle(handle)
 	imports, ok := h.Value().(*[]string)
 	if !ok {
 		panic("onImport didn't receive a *[]string")
@@ -206,13 +221,13 @@ func onImport(module_name *C.char, handle unsafe.Pointer) {
 // Count returns the total number of rules.
 func (r *Rules) Imports() []string {
 	imports := make([]string, 0)
-	handle := cgo.NewHandle(&imports)
-	defer handle.Delete()
+  handle := cgo.NewHandle(&imports)
+  defer handle.Delete()
 
-	C.yrx_rules_iterate_imports(
+	C._yrx_rules_iterate_imports(
 		r.cRules,
 		C.YRX_RULE_CALLBACK(C.onImport),
-		unsafe.Pointer(handle))
+		C.uintptr_t(handle))
 
 	runtime.KeepAlive(r)
 	return imports

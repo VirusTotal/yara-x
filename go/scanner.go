@@ -2,7 +2,14 @@ package yara_x
 
 // #include <yara_x.h>
 //
-// void onMatchingRule(YRX_RULE*, void*);
+// enum YRX_RESULT static inline _yrx_scanner_on_matching_rule(
+//     struct YRX_SCANNER *scanner,
+//     YRX_RULE_CALLBACK callback,
+//     uintptr_t user_data) {
+//   return yrx_scanner_on_matching_rule(scanner, callback, (void*) user_data);
+// }
+//
+// void onMatchingRule(YRX_RULE*, uintptr_t);
 import "C"
 
 import (
@@ -18,8 +25,6 @@ import (
 import (
 	"google.golang.org/protobuf/proto"
 )
-
-
 
 // Scanner scans data with a set of compiled YARA rules.
 type Scanner struct {
@@ -55,9 +60,10 @@ func (s ScanResults) MatchingRules() []*Rule {
 }
 
 // This is the callback function called every time a YARA rule matches.
+//
 //export onMatchingRule
-func onMatchingRule(rule *C.YRX_RULE, handle unsafe.Pointer) {
-	h := (cgo.Handle)(handle)
+func onMatchingRule(rule *C.YRX_RULE, handle C.uintptr_t) {
+	h := cgo.Handle(handle)
 	scanner, ok := h.Value().(*Scanner)
 	if !ok {
 		panic("onMatchingRule didn't receive a Scanner")
@@ -76,13 +82,12 @@ func NewScanner(r *Rules) *Scanner {
 		panic("yrx_scanner_create failed")
 	}
 
-	// Create a new handle that points to the scanner.
 	s.handle = cgo.NewHandle(s)
 
-	C.yrx_scanner_on_matching_rule(
+	C._yrx_scanner_on_matching_rule(
 		s.cScanner,
 		C.YRX_RULE_CALLBACK(C.onMatchingRule),
-		unsafe.Pointer(s.handle))
+		C.uintptr_t(s.handle))
 
 	runtime.SetFinalizer(s, (*Scanner).Destroy)
 	return s
@@ -242,5 +247,6 @@ func (s *Scanner) Destroy() {
 		s.handle.Delete()
 		s.cScanner = nil
 	}
+	s.rules = nil
 	runtime.SetFinalizer(s, nil)
 }
