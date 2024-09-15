@@ -283,8 +283,8 @@ void yrx_metadata_destroy(struct YRX_METADATA *metadata);
 // object that must be destroyed with [`yrx_patterns_destroy`] when not needed
 // anymore.
 //
-// This function returns a null pointer when `rule` is null or when the rule
-// doesn't have any patterns.
+// This function returns a null pointer when `rule` is null or the rule doesn't
+// have any patterns.
 struct YRX_PATTERNS *yrx_rule_patterns(const struct YRX_RULE *rule);
 
 // Destroys a [`YRX_PATTERNS`] object.
