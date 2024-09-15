@@ -177,21 +177,24 @@ func TestErrors(t *testing.T) {
 	}, c.Errors())
 }
 
-func TestRulesIter(t *testing.T) {
+func TestRules(t *testing.T) {
 	c, err := NewCompiler()
 	assert.NoError(t, err)
 
 	c.AddSource(`rule test_1 {
-			condition:
-				true
+      condition:
+        true
 	}`)
 	assert.NoError(t, err)
 
 	c.AddSource(`rule test_2 {
-			meta:
-				foo = "foo"
-	 		condition:
-	 			true
+      meta:
+        foo = "foo"
+        bar = 1
+        baz = "\x00\x01"
+        qux = true
+      condition:
+        true
 	}`)
 	assert.NoError(t, err)
 
@@ -207,9 +210,19 @@ func TestRulesIter(t *testing.T) {
 	assert.Equal(t, "default", slice[1].Namespace())
 
 	assert.Len(t, slice[0].Metadata(), 0)
-	assert.Len(t, slice[1].Metadata(), 1)
+	assert.Len(t, slice[1].Metadata(), 4)
 
 	assert.Equal(t, "foo", slice[1].Metadata()[0].Identifier())
+	assert.Equal(t, "foo", slice[1].Metadata()[0].Value().(string))
+
+	assert.Equal(t, "bar", slice[1].Metadata()[1].Identifier())
+	assert.Equal(t, int64(1), slice[1].Metadata()[1].Value().(int64))
+
+	assert.Equal(t, "baz", slice[1].Metadata()[2].Identifier())
+	assert.Equal(t, []byte{0x00, 0x01}, slice[1].Metadata()[2].Value().([]byte))
+
+	assert.Equal(t, "qux", slice[1].Metadata()[3].Identifier())
+	assert.Equal(t, true, slice[1].Metadata()[3].Value().(bool))
 }
 
 func TestImportsIter(t *testing.T) {
