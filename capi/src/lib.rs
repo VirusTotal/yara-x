@@ -94,16 +94,22 @@ includes:
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 use std::cell::RefCell;
-use std::ffi::{c_char, c_int, c_void, CStr, CString};
-use std::mem::ManuallyDrop;
+use std::ffi::{c_char, CStr, CString};
 use std::ptr::slice_from_raw_parts_mut;
-use std::slice;
 
-use yara_x::errors::{CompileError, SerializationError};
+use yara_x::errors::CompileError;
 
+pub use metadata::*;
+pub use pattern::*;
+pub use rule::*;
+pub use rules::*;
 pub use scanner::*;
 
 mod compiler;
+mod metadata;
+mod pattern;
+mod rule;
+mod rules;
 mod scanner;
 
 #[cfg(test)]
@@ -148,142 +154,22 @@ pub enum YRX_RESULT {
     NO_METADATA,
 }
 
-/// A set of compiled YARA rules.
-pub struct YRX_RULES(yara_x::Rules);
-
-/// A single YARA rule.
-pub struct YRX_RULE<'a, 'r>(yara_x::Rule<'a, 'r>);
-
-/// Represents the metadata associated to a rule.
-#[repr(C)]
-pub struct YRX_METADATA {
-    /// Number of metadata entries.
-    num_entries: usize,
-    /// Pointer to an array of YRX_METADATA_ENTRY structures. The array has
-    /// num_entries items. If num_entries is zero this pointer is invalid
-    /// and should not be de-referenced.
-    entries: *mut YRX_METADATA_ENTRY,
-}
-
-impl Drop for YRX_METADATA {
-    fn drop(&mut self) {
-        unsafe {
-            drop(Box::from_raw(slice_from_raw_parts_mut(
-                self.entries,
-                self.num_entries,
-            )));
+/// Returns the error message for the most recent function in this API
+/// invoked by the current thread.
+///
+/// The returned pointer is only valid until this thread calls some other
+/// function, as it can modify the last error and render the pointer to
+/// a previous error message invalid. Also, the pointer will be null if
+/// the most recent function was successfully.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_last_error() -> *const c_char {
+    LAST_ERROR.with_borrow(|err| {
+        if let Some(err) = err {
+            err.as_ptr()
+        } else {
+            std::ptr::null()
         }
-    }
-}
-
-/// Metadata value types.
-#[repr(C)]
-#[allow(missing_docs)]
-pub enum YRX_METADATA_VALUE_TYPE {
-    I64,
-    F64,
-    BOOLEAN,
-    STRING,
-    BYTES,
-}
-
-/// Represents a metadata value that contains raw bytes.
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct YRX_METADATA_BYTES {
-    /// Number of bytes.
-    length: usize,
-    /// Pointer to the bytes.
-    data: *mut u8,
-}
-
-/// Metadata value.
-#[repr(C)]
-union YRX_METADATA_VALUE {
-    r#i64: i64,
-    r#f64: f64,
-    boolean: bool,
-    string: *mut c_char,
-    bytes: YRX_METADATA_BYTES,
-}
-
-/// A metadata entry.
-#[repr(C)]
-pub struct YRX_METADATA_ENTRY {
-    /// Metadata identifier.
-    identifier: *mut c_char,
-    /// Type of value.
-    value_type: YRX_METADATA_VALUE_TYPE,
-    /// The value itself. This is a union, use the member that matches the
-    /// value type.
-    value: YRX_METADATA_VALUE,
-}
-
-impl Drop for YRX_METADATA_ENTRY {
-    fn drop(&mut self) {
-        unsafe {
-            drop(CString::from_raw(self.identifier));
-            match self.value_type {
-                YRX_METADATA_VALUE_TYPE::STRING => {
-                    drop(CString::from_raw(self.value.string));
-                }
-                YRX_METADATA_VALUE_TYPE::BYTES => {
-                    drop(Box::from_raw(slice_from_raw_parts_mut(
-                        self.value.bytes.data,
-                        self.value.bytes.length,
-                    )));
-                }
-                _ => {}
-            }
-        }
-    }
-}
-
-/// A set of patterns declared in a YARA rule.
-#[repr(C)]
-pub struct YRX_PATTERNS {
-    /// Number of patterns.
-    num_patterns: usize,
-    /// Pointer to an array of YRX_PATTERN structures. The array has
-    /// num_patterns items. If num_patterns is zero this pointer is invalid
-    /// and should not be de-referenced.
-    patterns: *mut YRX_PATTERN,
-}
-
-impl Drop for YRX_PATTERNS {
-    fn drop(&mut self) {
-        unsafe {
-            drop(Box::from_raw(slice_from_raw_parts_mut(
-                self.patterns,
-                self.num_patterns,
-            )));
-        }
-    }
-}
-
-/// A pattern within a rule.
-#[repr(C)]
-pub struct YRX_PATTERN {
-    /// Pattern's identifier (i.e: $a, $foo)
-    identifier: *mut c_char,
-    /// Number of matches found for this pattern.
-    num_matches: usize,
-    /// Pointer to an array of YRX_MATCH structures describing the matches
-    /// for this pattern. The array has num_matches items. If num_matches is
-    /// zero this pointer is invalid and should not be de-referenced.
-    matches: *mut YRX_MATCH,
-}
-
-impl Drop for YRX_PATTERN {
-    fn drop(&mut self) {
-        unsafe {
-            drop(CString::from_raw(self.identifier));
-            drop(Box::from_raw(slice_from_raw_parts_mut(
-                self.matches,
-                self.num_matches,
-            )));
-        }
-    }
+    })
 }
 
 /// Contains information about a pattern match.
@@ -327,7 +213,7 @@ pub unsafe extern "C" fn yrx_compile(
     let c_str = CStr::from_ptr(src);
     match yara_x::compile(c_str.to_bytes()) {
         Ok(r) => {
-            *rules = Box::into_raw(Box::new(YRX_RULES(r)));
+            *rules = Box::into_raw(YRX_RULES::boxed(r));
             _yrx_set_last_error::<CompileError>(None);
             YRX_RESULT::SUCCESS
         }
@@ -336,374 +222,4 @@ pub unsafe extern "C" fn yrx_compile(
             YRX_RESULT::SYNTAX_ERROR
         }
     }
-}
-
-/// Serializes the rules as a sequence of bytes.
-///
-/// In the address indicated by the `buf` pointer, the function will copy a
-/// `YRX_BUFFER*` pointer. The `YRX_BUFFER` structure represents a buffer
-/// that contains the serialized rules. This structure has a pointer to the
-/// data itself, and its length.
-///
-/// The [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
-#[no_mangle]
-pub unsafe extern "C" fn yrx_rules_serialize(
-    rules: *mut YRX_RULES,
-    buf: &mut *mut YRX_BUFFER,
-) -> YRX_RESULT {
-    if let Some(rules) = rules.as_ref() {
-        match rules.0.serialize() {
-            Ok(serialized) => {
-                let serialized = serialized.into_boxed_slice();
-                let mut serialized = ManuallyDrop::new(serialized);
-                *buf = Box::into_raw(Box::new(YRX_BUFFER {
-                    data: serialized.as_mut_ptr(),
-                    length: serialized.len(),
-                }));
-                _yrx_set_last_error::<SerializationError>(None);
-                YRX_RESULT::SUCCESS
-            }
-            Err(err) => {
-                _yrx_set_last_error(Some(err));
-                YRX_RESULT::SERIALIZATION_ERROR
-            }
-        }
-    } else {
-        YRX_RESULT::INVALID_ARGUMENT
-    }
-}
-
-/// Deserializes the rules from a sequence of bytes produced by
-/// [`yrx_rules_serialize`].
-///
-#[no_mangle]
-pub unsafe extern "C" fn yrx_rules_deserialize(
-    data: *const u8,
-    len: usize,
-    rules: &mut *mut YRX_RULES,
-) -> YRX_RESULT {
-    match yara_x::Rules::deserialize(slice::from_raw_parts(data, len)) {
-        Ok(r) => {
-            *rules = Box::into_raw(Box::new(YRX_RULES(r)));
-            _yrx_set_last_error::<SerializationError>(None);
-            YRX_RESULT::SUCCESS
-        }
-        Err(err) => {
-            _yrx_set_last_error(Some(err));
-            YRX_RESULT::SERIALIZATION_ERROR
-        }
-    }
-}
-
-/// Callback function passed to [`yrx_scanner_on_matching_rule`] or
-/// [`yrx_rules_iterate`].
-///
-/// The callback receives a pointer to a rule, represented by a [`YRX_RULE`]
-/// structure. This pointer is guaranteed to be valid while the callback
-/// function is being executed, but it may be freed after the callback function
-/// returns, so you cannot use the pointer outside the callback.
-///
-/// It also receives the `user_data` pointer that can point to arbitrary data
-/// owned by the user.
-pub type YRX_RULE_CALLBACK =
-    extern "C" fn(rule: *const YRX_RULE, user_data: *mut c_void) -> ();
-
-/// Iterates over the compiled rules, calling the callback function for each
-/// rule.
-///
-/// The `user_data` pointer can be used to provide additional context to your
-/// callback function.
-///
-/// See [`YRX_RULE_CALLBACK`] for more details.
-#[no_mangle]
-pub unsafe extern "C" fn yrx_rules_iterate(
-    rules: *mut YRX_RULES,
-    callback: YRX_RULE_CALLBACK,
-    user_data: *mut c_void,
-) -> YRX_RESULT {
-    if let Some(rules) = rules.as_ref() {
-        for r in rules.0.iter() {
-            let rule = YRX_RULE(r);
-            callback(&rule as *const YRX_RULE, user_data);
-        }
-        YRX_RESULT::SUCCESS
-    } else {
-        YRX_RESULT::INVALID_ARGUMENT
-    }
-}
-
-/// Callback function passed to [`yrx_rules_iterate_imports`].
-///
-/// The callback receives a pointer to module name. This pointer is guaranteed
-/// to be valid while the callback function is being executed, but it may be
-/// freed after the callback function returns, so you cannot use the pointer
-/// outside the callback.
-///
-/// It also receives the `user_data` pointer that can point to arbitrary data
-/// owned by the user.
-pub type YRX_IMPORT_CALLBACK =
-    extern "C" fn(module_name: *const c_char, user_data: *mut c_void) -> ();
-
-/// Iterates over the modules imported by the rules, calling the callback with
-/// the name of each imported module.
-///
-/// The `user_data` pointer can be used to provide additional context to your
-/// callback function.
-///
-/// See [`YRX_IMPORT_CALLBACK`] for more details.
-#[no_mangle]
-pub unsafe extern "C" fn yrx_rules_iterate_imports(
-    rules: *mut YRX_RULES,
-    callback: YRX_IMPORT_CALLBACK,
-    user_data: *mut c_void,
-) -> YRX_RESULT {
-    if let Some(rules) = rules.as_ref() {
-        for import in rules.0.imports() {
-            let import = CString::new(import).unwrap();
-            callback(import.as_ptr(), user_data);
-        }
-        YRX_RESULT::SUCCESS
-    } else {
-        YRX_RESULT::INVALID_ARGUMENT
-    }
-}
-
-/// Returns the total number of rules.
-///
-/// Returns -1 in case of error.
-#[no_mangle]
-pub unsafe extern "C" fn yrx_rules_count(rules: *mut YRX_RULES) -> c_int {
-    if let Some(rules) = rules.as_ref() {
-        rules.0.iter().len() as c_int
-    } else {
-        -1
-    }
-}
-
-/// Destroys a [`YRX_RULES`] object.
-#[no_mangle]
-pub unsafe extern "C" fn yrx_rules_destroy(rules: *mut YRX_RULES) {
-    drop(Box::from_raw(rules))
-}
-
-/// Returns the name of the rule represented by [`YRX_RULE`].
-///
-/// Arguments `ident` and `len` are output parameters that receive pointers
-/// to a `const uint8_t*` and `size_t`, where this function will leave a pointer
-/// to the rule's name and its length, respectively. The rule's name is *NOT*
-/// null-terminated, and the pointer will be valid as long as the [`YRX_RULES`]
-/// object that contains the rule is not freed. The name is guaranteed to be a
-/// valid UTF-8 string.
-#[no_mangle]
-pub unsafe extern "C" fn yrx_rule_identifier(
-    rule: *const YRX_RULE,
-    ident: &mut *const u8,
-    len: &mut usize,
-) -> YRX_RESULT {
-    if let Some(rule) = rule.as_ref() {
-        *ident = rule.0.identifier().as_ptr();
-        *len = rule.0.identifier().len();
-        _yrx_set_last_error::<String>(None);
-        YRX_RESULT::SUCCESS
-    } else {
-        YRX_RESULT::INVALID_ARGUMENT
-    }
-}
-
-/// Returns the namespace of the rule represented by [`YRX_RULE`].
-///
-/// Arguments `ns` and `len` are output parameters that receive pointers to a
-/// `const uint8_t*` and `size_t`, where this function will leave a pointer
-/// to the rule's namespace and its length, respectively. The namespace is *NOT*
-/// null-terminated, and the pointer will be valid as long as the [`YRX_RULES`]
-/// object that contains the rule is not freed. The namespace is guaranteed to
-/// be a valid UTF-8 string.
-#[no_mangle]
-pub unsafe extern "C" fn yrx_rule_namespace(
-    rule: *const YRX_RULE,
-    ns: &mut *const u8,
-    len: &mut usize,
-) -> YRX_RESULT {
-    if let Some(rule) = rule.as_ref() {
-        *ns = rule.0.namespace().as_ptr();
-        *len = rule.0.namespace().len();
-        _yrx_set_last_error::<String>(None);
-        YRX_RESULT::SUCCESS
-    } else {
-        YRX_RESULT::INVALID_ARGUMENT
-    }
-}
-
-/// Returns the metadata associated to a rule.
-///
-/// The metadata is represented by a [`YRX_METADATA`] object that must be
-/// destroyed with [`yrx_metadata_destroy`] when not needed anymore.
-///
-/// This function returns a null pointer when `rule` is null or the
-/// rule doesn't have any metadata.
-#[no_mangle]
-pub unsafe extern "C" fn yrx_rule_metadata(
-    rule: *const YRX_RULE,
-) -> *mut YRX_METADATA {
-    let metadata = if let Some(rule) = rule.as_ref() {
-        rule.0.metadata()
-    } else {
-        return std::ptr::null_mut();
-    };
-
-    if metadata.is_empty() {
-        return std::ptr::null_mut();
-    }
-
-    let mut entries = Vec::with_capacity(metadata.len());
-
-    for (identifier, value) in metadata {
-        let identifier = CString::new(identifier).unwrap().into_raw();
-
-        match value {
-            yara_x::MetaValue::Integer(v) => {
-                entries.push(YRX_METADATA_ENTRY {
-                    identifier,
-                    value_type: YRX_METADATA_VALUE_TYPE::I64,
-                    value: YRX_METADATA_VALUE { r#i64: v },
-                });
-            }
-            yara_x::MetaValue::Float(v) => {
-                entries.push(YRX_METADATA_ENTRY {
-                    identifier,
-                    value_type: YRX_METADATA_VALUE_TYPE::F64,
-                    value: YRX_METADATA_VALUE { r#f64: v },
-                });
-            }
-            yara_x::MetaValue::Bool(v) => {
-                entries.push(YRX_METADATA_ENTRY {
-                    identifier,
-                    value_type: YRX_METADATA_VALUE_TYPE::BOOLEAN,
-                    value: YRX_METADATA_VALUE { boolean: v },
-                });
-            }
-            yara_x::MetaValue::String(v) => {
-                entries.push(YRX_METADATA_ENTRY {
-                    identifier,
-                    value_type: YRX_METADATA_VALUE_TYPE::STRING,
-                    value: YRX_METADATA_VALUE {
-                        string: CString::new(v).unwrap().into_raw(),
-                    },
-                });
-            }
-            yara_x::MetaValue::Bytes(v) => {
-                let v = v.to_vec().into_boxed_slice();
-                let mut v = ManuallyDrop::new(v);
-                entries.push(YRX_METADATA_ENTRY {
-                    identifier,
-                    value_type: YRX_METADATA_VALUE_TYPE::BYTES,
-                    value: YRX_METADATA_VALUE {
-                        bytes: YRX_METADATA_BYTES {
-                            data: v.as_mut_ptr(),
-                            length: v.len(),
-                        },
-                    },
-                });
-            }
-        };
-    }
-
-    let mut entries = ManuallyDrop::new(entries);
-
-    Box::into_raw(Box::new(YRX_METADATA {
-        num_entries: entries.len(),
-        entries: entries.as_mut_ptr(),
-    }))
-}
-
-/// Destroys a [`YRX_METADATA`] object.
-#[no_mangle]
-pub unsafe extern "C" fn yrx_metadata_destroy(metadata: *mut YRX_METADATA) {
-    drop(Box::from_raw(metadata));
-}
-
-/// Returns all the patterns defined by a rule.
-///
-/// Each pattern contains information about whether it matched or not, and where
-/// in the data it matched. The patterns are represented by a [`YRX_PATTERNS`]
-/// object that must be destroyed with [`yrx_patterns_destroy`] when not needed
-/// anymore.
-///
-/// This function returns a null pointer when `rule` is null or the rule doesn't
-/// have any patterns.
-#[no_mangle]
-pub unsafe extern "C" fn yrx_rule_patterns(
-    rule: *const YRX_RULE,
-) -> *mut YRX_PATTERNS {
-    let patterns_iter = if let Some(rule) = rule.as_ref() {
-        rule.0.patterns()
-    } else {
-        return std::ptr::null_mut();
-    };
-
-    if patterns_iter.len() == 0 {
-        return std::ptr::null_mut();
-    }
-
-    let mut patterns = Vec::with_capacity(patterns_iter.len());
-
-    for pattern in patterns_iter {
-        let matches = pattern
-            .matches()
-            .map(|m| YRX_MATCH {
-                offset: m.range().start,
-                length: m.range().len(),
-            })
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
-
-        // Prevent `matches` from being dropped at the end of the current
-        // scope. We are taking a pointer to `matches` and storing it in a
-        // YRX_PATTERN structure. The `YRX_PATTERN::drop` method takes care
-        // of dropping the slice of matches.
-        let mut matches = ManuallyDrop::new(matches);
-
-        patterns.push(YRX_PATTERN {
-            identifier: CString::new(pattern.identifier()).unwrap().into_raw(),
-            num_matches: matches.len(),
-            matches: matches.as_mut_ptr(),
-        });
-    }
-
-    let mut patterns = ManuallyDrop::new(patterns);
-
-    Box::into_raw(Box::new(YRX_PATTERNS {
-        num_patterns: patterns.len(),
-        patterns: patterns.as_mut_ptr(),
-    }))
-}
-
-/// Destroys a [`YRX_PATTERNS`] object.
-#[no_mangle]
-pub unsafe extern "C" fn yrx_patterns_destroy(patterns: *mut YRX_PATTERNS) {
-    drop(Box::from_raw(patterns));
-}
-
-/// Destroys a [`YRX_BUFFER`] object.
-#[no_mangle]
-pub unsafe extern "C" fn yrx_buffer_destroy(buf: *mut YRX_BUFFER) {
-    drop(Box::from_raw(buf));
-}
-
-/// Returns the error message for the most recent function in this API
-/// invoked by the current thread.
-///
-/// The returned pointer is only valid until this thread calls some other
-/// function, as it can modify the last error and render the pointer to
-/// a previous error message invalid. Also, the pointer will be null if
-/// the most recent function was successfully.
-#[no_mangle]
-pub unsafe extern "C" fn yrx_last_error() -> *const c_char {
-    LAST_ERROR.with_borrow(|err| {
-        if let Some(err) = err {
-            err.as_ptr()
-        } else {
-            std::ptr::null()
-        }
-    })
 }

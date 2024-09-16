@@ -25,23 +25,43 @@ package yara_x
 //   return &(((YRX_METADATA_VALUE*) value)->bytes);
 // }
 //
-// enum YRX_RESULT static inline _yrx_rules_iterate(
-// 		 struct YRX_RULES *rules,
-//     YRX_RULE_CALLBACK callback,
-//     uintptr_t user_data) {
-//   return yrx_rules_iterate(rules, callback, (void*) user_data);
+// enum YRX_RESULT static inline _yrx_rules_iter(
+//		struct YRX_RULES *rules,
+//		YRX_RULE_CALLBACK callback,
+//		uintptr_t rules_handle)
+// {
+//   return yrx_rules_iter(rules, callback, (void*) rules_handle);
 // }
 //
-// enum YRX_RESULT static inline _yrx_rules_iterate_imports(
-//   	 struct YRX_RULES *rules,
-//     YRX_IMPORT_CALLBACK callback,
-//     uintptr_t user_data) {
-//   return yrx_rules_iterate_imports(rules, callback, (void*) user_data);
+// enum YRX_RESULT static inline _yrx_rules_iter_imports(
+//		struct YRX_RULES *rules,
+//		YRX_IMPORT_CALLBACK callback,
+//		uintptr_t imports_handle)
+// {
+//   return yrx_rules_iter_imports(rules, callback, (void*) imports_handle);
 // }
 //
+// enum YRX_RESULT static inline _yrx_rule_iter_patterns(
+//		struct YRX_RULE *rule,
+//		YRX_PATTERN_CALLBACK callback,
+//		uintptr_t patterns_handle)
+// {
+//   return yrx_rule_iter_patterns(rule, callback, (void*) patterns_handle);
+// }
 //
-// void onRule(YRX_RULE*, uintptr_t);
-// void onImport(char*, void*);
+// enum YRX_RESULT static inline _yrx_pattern_iter_matches(
+//		struct YRX_PATTERN *pattern,
+//		YRX_MATCH_CALLBACK callback,
+//		uintptr_t matches_handle)
+// {
+//   return yrx_pattern_iter_matches(pattern, callback, (void*) matches_handle);
+// }
+//
+// extern void ruleCallback(YRX_RULE*, uintptr_t);
+// extern void importCallback(char*, uintptr_t);
+// extern void patternCallback(YRX_PATTERN*, uintptr_t);
+// extern void matchCallback(YRX_MATCH*, uintptr_t);
+//
 import "C"
 
 import (
@@ -169,19 +189,6 @@ func (r *Rules) Destroy() {
 	runtime.SetFinalizer(r, nil)
 }
 
-// This is the callback called by yrx_rules_iterate, when Rules.GetRules is
-// called.
-//
-//export onRule
-func onRule(rule *C.YRX_RULE, handle C.uintptr_t) {
-	h := cgo.Handle(handle)
-	rules, ok := h.Value().(*[]*Rule)
-	if !ok {
-		panic("onRule didn't receive a *[]Rule")
-	}
-	*rules = append(*rules, newRule(rule))
-}
-
 // Slice returns a slice with all the individual rules contained in this
 // set of compiled rules.
 func (r *Rules) Slice() []*Rule {
@@ -189,9 +196,9 @@ func (r *Rules) Slice() []*Rule {
 	handle := cgo.NewHandle(&rules)
 	defer handle.Delete()
 
-	C._yrx_rules_iterate(
+	C._yrx_rules_iter(
 		r.cRules,
-		C.YRX_RULE_CALLBACK(C.onRule),
+		C.YRX_RULE_CALLBACK(C.ruleCallback),
 		C.uintptr_t(handle))
 
 	runtime.KeepAlive(r)
@@ -207,28 +214,15 @@ func (r *Rules) Count() int {
 	return int(count)
 }
 
-// This is the callback called by yrx_rules_iterate_imports, when Rules.Imports
-// is called.
-//
-//export onImport
-func onImport(module_name *C.char, handle unsafe.Pointer) {
-	h := cgo.Handle(handle)
-	imports, ok := h.Value().(*[]string)
-	if !ok {
-		panic("onImport didn't receive a *[]string")
-	}
-	*imports = append(*imports, C.GoString(module_name))
-}
-
-// Count returns the total number of rules.
+// Imports returns the names of the imported modules.
 func (r *Rules) Imports() []string {
 	imports := make([]string, 0)
-  handle := cgo.NewHandle(&imports)
-  defer handle.Delete()
+	handle := cgo.NewHandle(&imports)
+	defer handle.Delete()
 
-	C._yrx_rules_iterate_imports(
+	C._yrx_rules_iter_imports(
 		r.cRules,
-		C.YRX_RULE_CALLBACK(C.onImport),
+		C.YRX_RULE_CALLBACK(C.importCallback),
 		C.uintptr_t(handle))
 
 	runtime.KeepAlive(r)
@@ -239,7 +233,6 @@ func (r *Rules) Imports() []string {
 type Rule struct {
 	namespace  string
 	identifier string
-	cPatterns  *C.YRX_PATTERNS
 	patterns   []Pattern
 	cMetadata  *C.YRX_METADATA
 	metadata   []Metadata
@@ -262,11 +255,21 @@ func newRule(cRule *C.YRX_RULE) *Rule {
 
 	identifier := C.GoStringN((*C.char)(unsafe.Pointer(str)), C.int(len))
 
+	patterns := make([]Pattern, 0)
+	handle := cgo.NewHandle(&patterns)
+	defer handle.Delete()
+
+	if C._yrx_rule_iter_patterns(
+		cRule,
+		C.YRX_PATTERN_CALLBACK(C.patternCallback),
+		C.uintptr_t(handle)) != C.SUCCESS {
+		panic("yrx_rule_iter_patterns failed")
+	}
+
 	rule := &Rule{
 		namespace,
 		identifier,
-		C.yrx_rule_patterns(cRule),
-		nil,
+		patterns,
 		C.yrx_rule_metadata(cRule),
 		nil,
 	}
@@ -276,9 +279,6 @@ func newRule(cRule *C.YRX_RULE) *Rule {
 }
 
 func (r *Rule) destroy() {
-	if r.cPatterns != nil {
-		C.yrx_patterns_destroy(r.cPatterns)
-	}
 	if r.cMetadata != nil {
 		C.yrx_metadata_destroy(r.cMetadata)
 	}
@@ -363,35 +363,6 @@ func (r *Rule) Patterns() []Pattern {
 		return r.patterns
 	}
 
-	// if cPatterns is nil the rule doesn't have any patterns, return an
-	// empty list.
-	if r.cPatterns == nil {
-		r.patterns = make([]Pattern, 0)
-		return r.patterns
-	}
-
-	numPatterns := int(r.cPatterns.num_patterns)
-	cPatterns := unsafe.Slice(r.cPatterns.patterns, numPatterns)
-	r.patterns = make([]Pattern, numPatterns)
-
-	for i, pattern := range cPatterns {
-		numMatches := int(pattern.num_matches)
-		cMatches := unsafe.Slice(pattern.matches, numMatches)
-		matches := make([]Match, numMatches)
-
-		for j, match := range cMatches {
-			matches[j] = Match{
-				offset: uint(match.offset),
-				length: uint(match.length),
-			}
-		}
-
-		r.patterns[i] = Pattern{
-			identifier: C.GoString(pattern.identifier),
-			matches:    matches,
-		}
-	}
-
 	return r.patterns
 }
 
@@ -414,16 +385,91 @@ func (p *Pattern) Matches() []Match {
 // Match contains information about the offset where a match occurred and
 // the length of the match.
 type Match struct {
-	offset uint
-	length uint
+	offset uint64
+	length uint64
 }
 
 // Offset returns the offset within the scanned data where a match occurred.
-func (m *Match) Offset() uint {
+func (m *Match) Offset() uint64 {
 	return m.offset
 }
 
 // Length returns the length of a match in bytes.
-func (m *Match) Length() uint {
+func (m *Match) Length() uint64 {
 	return m.length
+}
+
+// This is the callback called by yrx_rules_iter, when Rules.GetRules is
+// called.
+//
+//export ruleCallback
+func ruleCallback(rule *C.YRX_RULE, handle C.uintptr_t) {
+	h := cgo.Handle(handle)
+	rules, ok := h.Value().(*[]*Rule)
+	if !ok {
+		panic("ruleCallback didn't receive a *[]Rule")
+	}
+	*rules = append(*rules, newRule(rule))
+}
+
+// This is the callback called by yrx_rules_iter_imports, when Rules.Imports
+// is called.
+//
+//export importCallback
+func importCallback(module_name *C.char, handle C.uintptr_t) {
+	h := cgo.Handle(handle)
+	imports, ok := h.Value().(*[]string)
+	if !ok {
+		panic("importCallback didn't receive a *[]string")
+	}
+	*imports = append(*imports, C.GoString(module_name))
+}
+
+// This is the callback called by yrx_rules_iter_patterns
+//
+//export patternCallback
+func patternCallback(pattern *C.YRX_PATTERN, handle C.uintptr_t) {
+	h := cgo.Handle(handle)
+	patterns, ok := h.Value().(*[]Pattern)
+
+	if !ok {
+		panic("patternCallback didn't receive a *[]Pattern")
+	}
+
+	var str *C.uint8_t
+	var len C.size_t
+
+	if C.yrx_pattern_identifier(pattern, &str, &len) != C.SUCCESS {
+		panic("yrx_pattern_identifier failed")
+	}
+
+	matches := make([]Match, 0)
+	matchesHandle := cgo.NewHandle(&matches)
+	defer matchesHandle.Delete()
+
+	if C._yrx_pattern_iter_matches(pattern,
+		C.YRX_MATCH_CALLBACK(C.matchCallback),
+		C.uintptr_t(matchesHandle)) != C.SUCCESS {
+		panic("yrx_pattern_iter_matches failed")
+	}
+
+	*patterns = append(*patterns, Pattern{
+		identifier: C.GoStringN((*C.char)(unsafe.Pointer(str)), C.int(len)),
+		matches:    matches,
+	})
+}
+
+// This is the callback called by yrx_rules_iter_patterns
+//
+//export matchCallback
+func matchCallback(match *C.YRX_MATCH, handle C.uintptr_t) {
+	h := cgo.Handle(handle)
+	matches, ok := h.Value().(*[]Match)
+	if !ok {
+		panic("matchCallback didn't receive a *[]Match")
+	}
+	*matches = append(*matches, Match{
+		offset: uint64(match.offset),
+		length: uint64(match.length),
+	})
 }

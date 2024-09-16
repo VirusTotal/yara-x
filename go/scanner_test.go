@@ -41,8 +41,8 @@ func TestScanner2(t *testing.T) {
 
 	assert.Len(t, matchingRules[0].Patterns(), 1)
 	assert.Equal(t, "$bar", matchingRules[0].Patterns()[0].Identifier())
-	assert.Equal(t, uint(3), matchingRules[0].Patterns()[0].Matches()[0].Offset())
-	assert.Equal(t, uint(3), matchingRules[0].Patterns()[0].Matches()[0].Length())
+	assert.Equal(t, uint64(3), matchingRules[0].Patterns()[0].Matches()[0].Offset())
+	assert.Equal(t, uint64(3), matchingRules[0].Patterns()[0].Matches()[0].Length())
 
 	s.Destroy()
 	runtime.GC()
@@ -118,4 +118,14 @@ func TestScannerMetadata(t *testing.T) {
 	assert.Equal(t, "hello", matchingRules[0].Metadata()[3].Value())
 	assert.Equal(t, "some_bytes", matchingRules[0].Metadata()[4].Identifier())
 	assert.Equal(t, []byte{0, 1, 2}, matchingRules[0].Metadata()[4].Value())
+}
+
+func BenchmarkScan(b *testing.B) {
+	rules, _ := Compile("rule t { strings: $foo = \"foo\" condition: $foo }")
+	for i := 0; i < b.N; i++ {
+		results, _ := rules.Scan([]byte("foo"))
+		for _, rule := range results.MatchingRules() {
+			_ = rule.Identifier()
+		}
+	}
 }
