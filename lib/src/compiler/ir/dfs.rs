@@ -208,9 +208,17 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
                     }
                     push_quantifier(&for_in.quantifier, &mut self.stack);
                 }
+
                 Expr::Lookup(lookup) => {
                     self.stack.push(Event::Enter(&lookup.index));
                     self.stack.push(Event::Enter(&lookup.primary));
+                }
+
+                Expr::With(with) => {
+                    self.stack.push(Event::Enter(&with.condition));
+                    for expr in with.expressions.iter().rev() {
+                        self.stack.push(Event::Enter(expr))
+                    }
                 }
             }
         }

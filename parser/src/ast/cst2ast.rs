@@ -905,6 +905,7 @@ impl<'src> Builder<'src> {
             }
             Event::Begin(FOR_EXPR) => self.for_expr()?,
             Event::Begin(OF_EXPR) => self.of_expr()?,
+            Event::Begin(WITH_EXPR) => self.with_expr()?,
             Event::Begin(EXPR) => self.pratt_parser(Self::expr, 0)?,
             event => panic!("unexpected {:?}", event),
         };
@@ -1016,6 +1017,44 @@ impl<'src> Builder<'src> {
         }
 
         Ok(Expr::Of(Box::new(Of { span, quantifier, items, anchor })))
+    }
+
+    fn with_expr(&mut self) -> Result<Expr<'src>, Abort> {
+        self.begin(WITH_EXPR)?;
+
+        let mut span = self.expect(WITH_KW)?;
+
+        self.begin(WITH_IDENTIFIERS)?;
+
+        let item = |i: &mut Self| -> Result<WithItems<'src>, Abort> {
+            let identifier = i.identifier()?;
+            let mut span = identifier.span();
+            span = span.combine(&i.expect(EQUAL)?);
+            let expression = i.expr()?;
+            span = span.combine(&expression.span());
+
+            Ok(WithItems { span, identifier, expression })
+        };
+
+        let mut items = vec![item(self)?];
+
+        while let Event::Token { kind: COMMA, .. } = self.peek() {
+            self.expect(COMMA)?;
+            items.push(item(self)?);
+        }
+
+        self.end(WITH_IDENTIFIERS)?;
+
+        self.expect(COLON)?;
+        self.expect(L_PAREN)?;
+
+        let condition = self.boolean_expr()?;
+
+        span = span.combine(&self.expect(R_PAREN)?);
+
+        self.end(WITH_EXPR)?;
+
+        Ok(Expr::With(Box::new(With { span, items, condition })))
     }
 
     fn quantifier(&mut self) -> Result<Quantifier<'src>, Abort> {

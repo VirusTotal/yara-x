@@ -515,6 +515,69 @@ fn for_in() {
 }
 
 #[test]
+fn with() {
+    condition_true!(r#"with foo = 1 + 1 : (foo == 2)"#);
+    condition_false!(r#"with foo = 1 + 1 : (foo == 3)"#);
+    condition_true!(r#"with foo = 1 + 1, bar = 2 + 2 : (foo + bar == 6)"#);
+    condition_false!(r#"with foo = 1 + 1, bar = 2 + 2 : (foo + bar == 7)"#);
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(r#"with foo = test_proto2.array_int64[0]: (foo == 1)"#);
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_false!(
+        r#"with foo = test_proto2.array_int64[test_proto2.int64_zero]: (foo == 10)"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"with foo = test_proto2.map_string_struct["foo"].nested_int64_one: (foo == 1)"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"with 
+            bar = test_proto2.array_string[1],
+            baz = test_proto2.array_string[2] : 
+                (
+                    bar == "bar" and baz == "baz"
+                )
+        "#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"for any i in (0..1): (
+            with foo = test_proto2.array_int64[i]: (foo == 1)
+        )"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"for all i in (0..0): (
+            with 
+                foo = test_proto2.array_int64[i],
+                bar = test_proto2.array_int64[i + 1] : 
+                    (
+                        foo == 1 and bar == 10
+                    )
+        )"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_false!(
+        r#"for all i in (0..2): (
+            with 
+                foo = test_proto2.array_int64[i],
+                bar = test_proto2.array_int64[i + 1] : 
+                    (
+                        foo == 1 and bar == foo * 10
+                    )
+        )"#
+    );
+}
+
+#[test]
 fn text_patterns() {
     pattern_true!(r#""issi""#, b"mississippi");
     pattern_true!(r#""issi" ascii"#, b"mississippi");

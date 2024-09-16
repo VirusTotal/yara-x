@@ -1,0 +1,6 @@
+rule test {
+	condition:
+		with : (
+            true
+        )
+}

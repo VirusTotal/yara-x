@@ -424,7 +424,27 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
 
             Node(node_title, children)
         }
+        Expr::With(w) => Node(
+            "with <identifiers> : ( <boolean expression> )".to_string(),
+            vec![
+                Node(
+                    "<identifiers>".to_string(),
+                    w.items.iter().flat_map(with_items_ascii_tree).collect(),
+                ),
+                Node(
+                    "<boolean expression>".to_string(),
+                    vec![expr_ascii_tree(&w.condition)],
+                ),
+            ],
+        ),
     }
+}
+
+fn with_items_ascii_tree(item: &WithItems) -> Vec<Tree> {
+    vec![
+        Leaf(vec![format!("{}", item.identifier.name)]),
+        expr_ascii_tree(&item.expression),
+    ]
 }
 
 pub(crate) fn quantifier_ascii_tree(quantifier: &Quantifier) -> Tree {

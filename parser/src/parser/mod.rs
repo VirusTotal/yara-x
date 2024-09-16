@@ -1227,20 +1227,7 @@ impl<'src> ParserImpl<'src> {
             .end()
     }
 
-    /// Parses the condition block.
-    ///
-    /// ```text
-    /// CONDITION_BLK := `condition` `:` BOOLEAN_EXPR
-    /// ``
-    fn condition_blk(&mut self) -> &mut Self {
-        self.begin(CONDITION_BLK)
-            .expect(t!(CONDITION_KW))
-            .expect(t!(COLON))
-            .then(|p| p.boolean_expr())
-            .end_with_recovery(t!(R_BRACE))
-    }
-
-    /// Parses the condition block.
+    /// Parses the hex pattern block.
     ///
     /// ```text
     /// HEX_PATTERN := `{` HEX_SUB_PATTERN `}`
@@ -1254,7 +1241,7 @@ impl<'src> ParserImpl<'src> {
             .end()
     }
 
-    /// Parses the condition block.
+    /// Parses the hex sub pattern block.
     ///
     /// ```text
     /// HEX_SUB_PATTERN :=
@@ -1311,6 +1298,19 @@ impl<'src> ParserImpl<'src> {
             .end()
     }
 
+    /// Parses the condition block.
+    ///
+    /// ```text
+    /// CONDITION_BLK := `condition` `:` BOOLEAN_EXPR
+    /// ``
+    fn condition_blk(&mut self) -> &mut Self {
+        self.begin(CONDITION_BLK)
+            .expect(t!(CONDITION_KW))
+            .expect(t!(COLON))
+            .then(|p| p.boolean_expr())
+            .end_with_recovery(t!(R_BRACE))
+    }
+
     /// Parses a boolean expression.
     ///
     /// ```text
@@ -1354,6 +1354,7 @@ impl<'src> ParserImpl<'src> {
             })
             .alt(|p| p.for_expr())
             .alt(|p| p.of_expr())
+            .alt(|p| p.with_expr())
             .alt(|p| {
                 p.expr().zero_or_more(|p| {
                     p.expect_d(
@@ -1579,6 +1580,45 @@ impl<'src> ParserImpl<'src> {
                 p.boolean_expr_tuple().not(|p| p.expect(t!(AT_KW | IN_KW)))
             })
             .end_alt()
+            .end()
+    }
+
+    /// Parses `with` expression.
+    ///
+    /// ```text
+    /// WITH_EXPR :=
+    ///     `with` WITH_IDENTIFIERS `:`
+    ///         `(`
+    ///             BOOLEAN_EXPR
+    ///         `)`
+    /// ```
+    fn with_expr(&mut self) -> &mut Self {
+        self.begin(WITH_EXPR)
+            .expect(t!(WITH_KW))
+            .then(|p| p.with_identifier())
+            .expect(t!(COLON))
+            .expect(t!(L_PAREN))
+            .then(|p| p.boolean_expr())
+            .expect(t!(R_PAREN))
+            .end()
+    }
+
+    /// Parses `with` identifiers.
+    ///
+    /// ```text
+    /// WITH_IDENTIFIERS :=
+    ///     IDENT `=` EXPR (`,` IDENT `=` EXPR)*
+    ///
+    fn with_identifier(&mut self) -> &mut Self {
+        self.begin(WITH_IDENTIFIERS)
+            .expect(t!(IDENT))
+            .expect(t!(EQUAL))
+            .then(|p| p.expr())
+            .zero_or_more(|p| {
+                p.expect(t!(COMMA)).then(|p| {
+                    p.expect(t!(IDENT)).expect(t!(EQUAL)).then(|p| p.expr())
+                })
+            })
             .end()
     }
 

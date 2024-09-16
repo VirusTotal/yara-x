@@ -1,0 +1,6 @@
+rule test {
+	condition:
+		with first = foo.bar[0], last = foo.bar[bar_num_of_sections - 1] : ( 
+            first.name == "foo" and bar.value == 0x200
+        )
+}
