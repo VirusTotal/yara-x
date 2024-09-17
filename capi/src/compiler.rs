@@ -492,5 +492,5 @@ pub unsafe extern "C" fn yrx_compiler_build(
         _yrx_compiler_create(compiler.flags),
     );
 
-    Box::into_raw(Box::new(YRX_RULES(compiler.build())))
+    Box::into_raw(YRX_RULES::boxed(compiler.build()))
 }

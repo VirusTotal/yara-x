@@ -34,7 +34,7 @@ pub unsafe extern "C" fn yrx_scanner_create(
     };
 
     *scanner = Box::into_raw(Box::new(YRX_SCANNER {
-        inner: yara_x::Scanner::new(&rules.0),
+        inner: yara_x::Scanner::new(rules.inner()),
         on_matching_rule: None,
     }));
 
@@ -107,8 +107,7 @@ pub unsafe extern "C" fn yrx_scanner_scan(
 
     if let Some((callback, user_data)) = scanner.on_matching_rule {
         for r in scan_results.matching_rules() {
-            let rule = YRX_RULE(r);
-            callback(&rule as *const YRX_RULE, user_data);
+            callback(&YRX_RULE::new(r), user_data);
         }
     }
 
