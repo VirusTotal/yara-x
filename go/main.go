@@ -17,7 +17,7 @@ package yara_x
 //   return ((YRX_METADATA_VALUE*) value)->boolean;
 // }
 //
-// static inline char* meta_str(void* value) {
+// static inline const char* meta_str(void* value) {
 //   return ((YRX_METADATA_VALUE*) value)->string;
 // }
 //
@@ -26,7 +26,7 @@ package yara_x
 // }
 //
 // enum YRX_RESULT static inline _yrx_rules_iter(
-//		struct YRX_RULES *rules,
+//		const struct YRX_RULES *rules,
 //		YRX_RULE_CALLBACK callback,
 //		uintptr_t rules_handle)
 // {
@@ -34,15 +34,23 @@ package yara_x
 // }
 //
 // enum YRX_RESULT static inline _yrx_rules_iter_imports(
-//		struct YRX_RULES *rules,
+//		const struct YRX_RULES *rules,
 //		YRX_IMPORT_CALLBACK callback,
 //		uintptr_t imports_handle)
 // {
 //   return yrx_rules_iter_imports(rules, callback, (void*) imports_handle);
 // }
 //
+// enum YRX_RESULT static inline _yrx_rule_iter_metadata(
+//		const struct YRX_RULE *rule,
+//		YRX_METADATA_CALLBACK callback,
+//		uintptr_t metadata_handle)
+// {
+//   return yrx_rule_iter_metadata(rule, callback, (void*) metadata_handle);
+// }
+//
 // enum YRX_RESULT static inline _yrx_rule_iter_patterns(
-//		struct YRX_RULE *rule,
+//		const struct YRX_RULE *rule,
 //		YRX_PATTERN_CALLBACK callback,
 //		uintptr_t patterns_handle)
 // {
@@ -50,7 +58,7 @@ package yara_x
 // }
 //
 // enum YRX_RESULT static inline _yrx_pattern_iter_matches(
-//		struct YRX_PATTERN *pattern,
+//		const struct YRX_PATTERN *pattern,
 //		YRX_MATCH_CALLBACK callback,
 //		uintptr_t matches_handle)
 // {
@@ -59,6 +67,7 @@ package yara_x
 //
 // extern void ruleCallback(YRX_RULE*, uintptr_t);
 // extern void importCallback(char*, uintptr_t);
+// extern void metadataCallback(YRX_METADATA*, uintptr_t);
 // extern void patternCallback(YRX_PATTERN*, uintptr_t);
 // extern void matchCallback(YRX_MATCH*, uintptr_t);
 //
@@ -118,6 +127,7 @@ type Rules struct{ cRules *C.YRX_RULES }
 // Scan some data with the compiled rules.
 func (r *Rules) Scan(data []byte) (*ScanResults, error) {
 	scanner := NewScanner(r)
+	defer scanner.Destroy()
 	return scanner.Scan(data)
 }
 
@@ -234,8 +244,26 @@ type Rule struct {
 	namespace  string
 	identifier string
 	patterns   []Pattern
-	cMetadata  *C.YRX_METADATA
 	metadata   []Metadata
+}
+
+// Pattern represents a pattern in a Rule.
+type Pattern struct {
+	identifier string
+	matches    []Match
+}
+
+// Metadata represents a metadata in a Rule.
+type Metadata struct {
+	identifier string
+	value      interface{}
+}
+
+// Match contains information about the offset where a match occurred and
+// the length of the match.
+type Match struct {
+	offset uint64
+	length uint64
 }
 
 // Creates a new Rule from it's C counterpart.
@@ -255,14 +283,25 @@ func newRule(cRule *C.YRX_RULE) *Rule {
 
 	identifier := C.GoStringN((*C.char)(unsafe.Pointer(str)), C.int(len))
 
+	metadata := make([]Metadata, 0)
+	metadataHandle := cgo.NewHandle(&metadata)
+	defer metadataHandle.Delete()
+
+	if C._yrx_rule_iter_metadata(
+		cRule,
+		C.YRX_PATTERN_CALLBACK(C.metadataCallback),
+		C.uintptr_t(metadataHandle)) != C.SUCCESS {
+		panic("yrx_rule_iter_metadata failed")
+	}
+
 	patterns := make([]Pattern, 0)
-	handle := cgo.NewHandle(&patterns)
-	defer handle.Delete()
+	patternsHandle := cgo.NewHandle(&patterns)
+	defer patternsHandle.Delete()
 
 	if C._yrx_rule_iter_patterns(
 		cRule,
 		C.YRX_PATTERN_CALLBACK(C.patternCallback),
-		C.uintptr_t(handle)) != C.SUCCESS {
+		C.uintptr_t(patternsHandle)) != C.SUCCESS {
 		panic("yrx_rule_iter_patterns failed")
 	}
 
@@ -270,19 +309,10 @@ func newRule(cRule *C.YRX_RULE) *Rule {
 		namespace,
 		identifier,
 		patterns,
-		C.yrx_rule_metadata(cRule),
-		nil,
+		metadata,
 	}
 
-	runtime.SetFinalizer(rule, (*Rule).destroy)
 	return rule
-}
-
-func (r *Rule) destroy() {
-	if r.cMetadata != nil {
-		C.yrx_metadata_destroy(r.cMetadata)
-	}
-	runtime.SetFinalizer(r, nil)
 }
 
 // Identifier returns the rule's identifier.
@@ -295,57 +325,6 @@ func (r *Rule) Namespace() string {
 	return r.namespace
 }
 
-// Metadata returns the rule's metadata
-func (r *Rule) Metadata() []Metadata {
-	// if this method was called before, return the metadata already cached.
-	if r.metadata != nil {
-		return r.metadata
-	}
-
-	// if cMetadata is nil the rule doesn't have any metadata, return an
-	// empty list.
-	if r.cMetadata == nil {
-		r.metadata = make([]Metadata, 0)
-		return r.metadata
-	}
-
-	numMetadata := int(r.cMetadata.num_entries)
-	cMetadata := unsafe.Slice(r.cMetadata.entries, numMetadata)
-	r.metadata = make([]Metadata, numMetadata)
-
-	for i, metadata := range cMetadata {
-		r.metadata[i].identifier = C.GoString(metadata.identifier)
-		switch metadata.value_type {
-		case C.I64:
-			r.metadata[i].value = int64(
-				C.meta_i64(unsafe.Pointer(&metadata.value)))
-		case C.F64:
-			r.metadata[i].value = float64(
-				C.meta_f64(unsafe.Pointer(&metadata.value)))
-		case C.BOOLEAN:
-			r.metadata[i].value = bool(
-				C.meta_bool(unsafe.Pointer(&metadata.value)))
-		case C.STRING:
-			r.metadata[i].value = C.GoString(
-				C.meta_str(unsafe.Pointer(&metadata.value)))
-		case C.BYTES:
-			bytes := C.meta_bytes(unsafe.Pointer(&metadata.value))
-			r.metadata[i].value = C.GoBytes(
-				unsafe.Pointer(bytes.data),
-				C.int(bytes.length),
-			)
-		}
-	}
-
-	return r.metadata
-}
-
-// Metadata represents a metadata in a Rule.
-type Metadata struct {
-	identifier string
-	value      interface{}
-}
-
 // Identifier associated to the metadata.
 func (m *Metadata) Identifier() string {
 	return m.identifier
@@ -356,20 +335,14 @@ func (m *Metadata) Value() interface{} {
 	return m.value
 }
 
-// Patterns returns the patterns defined by this rule.
-func (r *Rule) Patterns() []Pattern {
-	// If this method was called before, return the patterns already cached.
-	if r.patterns != nil {
-		return r.patterns
-	}
-
-	return r.patterns
+// Metadata returns the rule's metadata
+func (r *Rule) Metadata() []Metadata {
+	return r.metadata
 }
 
-// Pattern represents a pattern in a Rule.
-type Pattern struct {
-	identifier string
-	matches    []Match
+// Patterns returns the patterns defined by this rule.
+func (r *Rule) Patterns() []Pattern {
+	return r.patterns
 }
 
 // Identifier returns the pattern's identifier (i.e: $a, $foo).
@@ -380,13 +353,6 @@ func (p *Pattern) Identifier() string {
 // Matches returns the matches found for this pattern.
 func (p *Pattern) Matches() []Match {
 	return p.matches
-}
-
-// Match contains information about the offset where a match occurred and
-// the length of the match.
-type Match struct {
-	offset uint64
-	length uint64
 }
 
 // Offset returns the offset within the scanned data where a match occurred.
@@ -416,13 +382,13 @@ func ruleCallback(rule *C.YRX_RULE, handle C.uintptr_t) {
 // is called.
 //
 //export importCallback
-func importCallback(module_name *C.char, handle C.uintptr_t) {
+func importCallback(moduleName *C.char, handle C.uintptr_t) {
 	h := cgo.Handle(handle)
 	imports, ok := h.Value().(*[]string)
 	if !ok {
 		panic("importCallback didn't receive a *[]string")
 	}
-	*imports = append(*imports, C.GoString(module_name))
+	*imports = append(*imports, C.GoString(moduleName))
 }
 
 // This is the callback called by yrx_rules_iter_patterns
@@ -456,6 +422,41 @@ func patternCallback(pattern *C.YRX_PATTERN, handle C.uintptr_t) {
 	*patterns = append(*patterns, Pattern{
 		identifier: C.GoStringN((*C.char)(unsafe.Pointer(str)), C.int(len)),
 		matches:    matches,
+	})
+}
+
+// This is the callback called by yrx_rules_iter_patterns
+//
+//export metadataCallback
+func metadataCallback(metadata *C.YRX_METADATA, handle C.uintptr_t) {
+	h := cgo.Handle(handle)
+	m, ok := h.Value().(*[]Metadata)
+	if !ok {
+		panic("matchCallback didn't receive a *[]Metadata")
+	}
+
+	var value interface{}
+
+	switch metadata.value_type {
+	case C.I64:
+		value = int64(C.meta_i64(unsafe.Pointer(&metadata.value)))
+	case C.F64:
+		value = float64(C.meta_f64(unsafe.Pointer(&metadata.value)))
+	case C.BOOLEAN:
+		value = bool(C.meta_bool(unsafe.Pointer(&metadata.value)))
+	case C.STRING:
+		value = C.GoString(C.meta_str(unsafe.Pointer(&metadata.value)))
+	case C.BYTES:
+		bytes := C.meta_bytes(unsafe.Pointer(&metadata.value))
+		value = C.GoBytes(
+			unsafe.Pointer(bytes.data),
+			C.int(bytes.length),
+		)
+	}
+
+	*m = append(*m, Metadata{
+		identifier: C.GoString(metadata.identifier),
+		value:      value,
 	})
 }
 

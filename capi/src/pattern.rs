@@ -2,7 +2,7 @@ use std::ffi::c_void;
 
 use crate::{_yrx_set_last_error, YRX_MATCH, YRX_RESULT};
 
-/// A pattern within a rule.
+/// A pattern defined in a rule.
 pub struct YRX_PATTERN<'a, 'r>(yara_x::Pattern<'a, 'r>);
 
 impl<'a, 'r> YRX_PATTERN<'a, 'r> {
@@ -22,7 +22,7 @@ impl<'a, 'r> YRX_PATTERN<'a, 'r> {
 /// a valid UTF-8 string.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_pattern_identifier(
-    pattern: *mut YRX_PATTERN,
+    pattern: *const YRX_PATTERN,
     ident: &mut *const u8,
     len: &mut usize,
 ) -> YRX_RESULT {
@@ -38,21 +38,27 @@ pub unsafe extern "C" fn yrx_pattern_identifier(
 
 /// Callback function passed to [`yrx_pattern_iter_matches`].
 ///
-/// The callback receives a pointer to a match. This pointer is guaranteed
-/// to be valid while the callback function is being executed, but it may be
-/// freed after the callback function returns, so you cannot use the pointer
-/// outside the callback.
+/// The callback is called by all matches found for a pattern, and it receives
+/// a pointer to a [`YRX_MATCH`] structure. This pointer is guaranteed to be
+/// valid while the callback function is being executed, but it will be freed
+/// after the callback function returns, so you cannot use the pointer, or any
+/// other pointer contained in the structure, outside the callback.
 ///
-/// It also receives the `user_data` pointer that can point to arbitrary data
-/// owned by the user.
+/// The callback also receives a `user_data` pointer that can point to arbitrary
+/// data owned by the user.
 pub type YRX_MATCH_CALLBACK =
     extern "C" fn(match_: *const YRX_MATCH, user_data: *mut c_void) -> ();
 
 /// Iterates over the matches of a pattern, calling the callback with a pointer
 /// to a [`YRX_MATCH`] structure for each pattern.
+///
+/// The `user_data` pointer can be used to provide additional context to your
+/// callback function.
+///
+/// See [`YRX_MATCH_CALLBACK`] for more details.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_pattern_iter_matches(
-    pattern: *mut YRX_PATTERN,
+    pattern: *const YRX_PATTERN,
     callback: YRX_MATCH_CALLBACK,
     user_data: *mut c_void,
 ) -> YRX_RESULT {

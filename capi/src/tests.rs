@@ -6,14 +6,15 @@ use crate::compiler::{
     yrx_compiler_enable_feature, yrx_compiler_new_namespace,
 };
 use crate::{
-    yrx_buffer_destroy, yrx_last_error, yrx_metadata_destroy,
-    yrx_rule_identifier, yrx_rule_metadata, yrx_rule_namespace,
+    yrx_buffer_destroy, yrx_last_error, yrx_rule_identifier,
+    yrx_rule_iter_metadata, yrx_rule_iter_patterns, yrx_rule_namespace,
     yrx_rules_deserialize, yrx_rules_destroy, yrx_rules_iter,
     yrx_rules_iter_imports, yrx_rules_serialize, yrx_scanner_create,
     yrx_scanner_destroy, yrx_scanner_on_matching_rule, yrx_scanner_scan,
     yrx_scanner_set_global_bool, yrx_scanner_set_global_float,
     yrx_scanner_set_global_int, yrx_scanner_set_global_str,
-    yrx_scanner_set_timeout, YRX_BUFFER, YRX_RESULT, YRX_RULE,
+    yrx_scanner_set_timeout, YRX_BUFFER, YRX_METADATA, YRX_PATTERN,
+    YRX_RESULT, YRX_RULE,
 };
 
 use std::ffi::{c_char, c_void, CStr, CString};
@@ -30,6 +31,24 @@ extern "C" fn on_import_iter(_module: *const c_char, user_data: *mut c_void) {
     *count += 1;
 }
 
+extern "C" fn on_metadata_iter(
+    _metadata: *const YRX_METADATA,
+    user_data: *mut c_void,
+) {
+    let ptr = user_data as *mut i32;
+    let count = unsafe { ptr.as_mut().unwrap() };
+    *count += 1;
+}
+
+extern "C" fn on_pattern_iter(
+    _pattern: *const YRX_PATTERN,
+    user_data: *mut c_void,
+) {
+    let ptr = user_data as *mut i32;
+    let count = unsafe { ptr.as_mut().unwrap() };
+    *count += 1;
+}
+
 extern "C" fn on_rule_match(rule: *const YRX_RULE, user_data: *mut c_void) {
     let mut ptr = std::ptr::null();
     let mut len = 0;
@@ -38,11 +57,23 @@ extern "C" fn on_rule_match(rule: *const YRX_RULE, user_data: *mut c_void) {
         yrx_rule_namespace(rule, &mut ptr, &mut len);
         yrx_rule_identifier(rule, &mut ptr, &mut len);
 
-        let metadata = yrx_rule_metadata(rule);
+        let mut count = 0;
+        yrx_rule_iter_metadata(
+            rule,
+            on_metadata_iter,
+            &mut count as *mut i32 as *mut c_void,
+        );
+        // The rule has three metadata entries.
+        assert_eq!(count, 3);
 
-        assert_eq!((*metadata).num_entries, 3);
-
-        yrx_metadata_destroy(metadata);
+        let mut count = 0;
+        yrx_rule_iter_patterns(
+            rule,
+            on_pattern_iter,
+            &mut count as *mut i32 as *mut c_void,
+        );
+        // The rule has one pattern.
+        assert_eq!(count, 1);
     }
 
     let ptr = user_data as *mut i32;

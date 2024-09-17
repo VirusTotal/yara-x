@@ -37,14 +37,14 @@
 // errors instead of warnings.
 #define YRX_ERROR_ON_SLOW_PATTERN 4
 
-// Metadata value types.
-typedef enum YRX_METADATA_VALUE_TYPE {
+// Types of metadata values.
+typedef enum YRX_METADATA_TYPE {
   I64,
   F64,
   BOOLEAN,
   STRING,
   BYTES,
-} YRX_METADATA_VALUE_TYPE;
+} YRX_METADATA_TYPE;
 
 // Error codes returned by functions in this API.
 typedef enum YRX_RESULT {
@@ -75,7 +75,7 @@ typedef enum YRX_RESULT {
 // A compiler that takes YARA source code and produces compiled rules.
 typedef struct YRX_COMPILER YRX_COMPILER;
 
-// A pattern within a rule.
+// A pattern defined in a rule.
 typedef struct YRX_PATTERN YRX_PATTERN;
 
 // A single YARA rule.
@@ -95,49 +95,6 @@ typedef struct YRX_BUFFER {
   size_t length;
 } YRX_BUFFER;
 
-// Represents a metadata value that contains raw bytes.
-typedef struct YRX_METADATA_BYTES {
-  // Number of bytes.
-  size_t length;
-  // Pointer to the bytes.
-  uint8_t *data;
-} YRX_METADATA_BYTES;
-
-// Metadata value.
-typedef union YRX_METADATA_VALUE {
-  // Value if the metadata is I64.
-  int64_t i64;
-  // Value if the metadata is F64.
-  double f64;
-  // Value if the metadata is BOOLEAN.
-  bool boolean;
-  // Value if the metadata is STRING.
-  char *string;
-  // Value if the metadata is BYTES.
-  struct YRX_METADATA_BYTES bytes;
-} YRX_METADATA_VALUE;
-
-// A metadata entry.
-typedef struct YRX_METADATA_ENTRY {
-  // Metadata identifier.
-  char *identifier;
-  // Type of value.
-  enum YRX_METADATA_VALUE_TYPE value_type;
-  // The value itself. This is a union, use the member that matches the
-  // value type.
-  union YRX_METADATA_VALUE value;
-} YRX_METADATA_ENTRY;
-
-// Represents the metadata associated to a rule.
-typedef struct YRX_METADATA {
-  // Number of metadata entries.
-  size_t num_entries;
-  // Pointer to an array of YRX_METADATA_ENTRY structures. The array has
-  // num_entries items. If num_entries is zero this pointer is invalid
-  // and should not be de-referenced.
-  struct YRX_METADATA_ENTRY *entries;
-} YRX_METADATA;
-
 // Contains information about a pattern match.
 typedef struct YRX_MATCH {
   // Offset within the data where the match occurred.
@@ -148,25 +105,75 @@ typedef struct YRX_MATCH {
 
 // Callback function passed to [`yrx_pattern_iter_matches`].
 //
-// The callback receives a pointer to a match. This pointer is guaranteed
-// to be valid while the callback function is being executed, but it may be
-// freed after the callback function returns, so you cannot use the pointer
-// outside the callback.
+// The callback is called by all matches found for a pattern, and it receives
+// a pointer to a [`YRX_MATCH`] structure. This pointer is guaranteed to be
+// valid while the callback function is being executed, but it will be freed
+// after the callback function returns, so you cannot use the pointer, or any
+// other pointer contained in the structure, outside the callback.
 //
-// It also receives the `user_data` pointer that can point to arbitrary data
-// owned by the user.
+// The callback also receives a `user_data` pointer that can point to arbitrary
+// data owned by the user.
 typedef void (*YRX_MATCH_CALLBACK)(const struct YRX_MATCH *match_,
                                    void *user_data);
 
+// Represents a metadata value that contains raw bytes.
+typedef struct YRX_METADATA_BYTES {
+  // Number of bytes.
+  size_t length;
+  // Pointer to the bytes.
+  const uint8_t *data;
+} YRX_METADATA_BYTES;
+
+// A metadata value.
+typedef union YRX_METADATA_VALUE {
+  // Value if the metadata is I64.
+  int64_t i64;
+  // Value if the metadata is F64.
+  double f64;
+  // Value if the metadata is BOOLEAN.
+  bool boolean;
+  // Value if the metadata is STRING.
+  const char *string;
+  // Value if the metadata is BYTES.
+  struct YRX_METADATA_BYTES bytes;
+} YRX_METADATA_VALUE;
+
+// A metadata entry.
+typedef struct YRX_METADATA {
+  // Metadata identifier.
+  const char *identifier;
+  // Metadata type.
+  enum YRX_METADATA_TYPE value_type;
+  // Metadata value.
+  //
+  // This a union type, the variant that should be used is determined by the
+  // type indicated in `value_type`.
+  union YRX_METADATA_VALUE value;
+} YRX_METADATA;
+
+// Callback function passed to [`yrx_rule_iter_metadata`].
+//
+// The callback is called for each metadata in the rule, and receives a pointer
+// to a [`YRX_METADATA`] structure. This pointer is guaranteed to be valid
+// while the callback function is being executed, but it will be freed after
+// the callback function returns, so you cannot use the pointer, or any other
+// pointer contained in this structure, outside the callback.
+//
+// The callback also receives a `user_data` pointer that can point to arbitrary
+// data owned by the user.
+typedef void (*YRX_METADATA_CALLBACK)(const struct YRX_METADATA *metadata,
+                                      void *user_data);
+
 // Callback function passed to [`yrx_rule_iter_patterns`].
 //
-// The callback receives a pointer to a pattern. This pointer is guaranteed
-// to be valid while the callback function is being executed, but it may be
-// freed after the callback function returns, so you cannot use the pointer
-// outside the callback.
+// The callback is called for each pattern defined in the rule, and it receives
+// a pointer to a [`YRX_PATTERN`] structure. This pointer is guaranteed to be
+// valid while the callback function is being executed, but it will be freed
+// after the callback function returns, so you cannot use this pointer, or
+// any other pointer contained in the structure, outside the callback.
 //
-// It also receives the `user_data` pointer that can point to arbitrary data
-// owned by the user.
+// The callback also receives a `user_data` pointer that can point to arbitrary
+// data owned by the user.
 typedef void (*YRX_PATTERN_CALLBACK)(const struct YRX_PATTERN *pattern,
                                      void *user_data);
 
@@ -185,13 +192,14 @@ typedef void (*YRX_RULE_CALLBACK)(const struct YRX_RULE *rule,
 
 // Callback function passed to [`yrx_rules_iter_imports`].
 //
-// The callback receives a pointer to module name. This pointer is guaranteed
-// to be valid while the callback function is being executed, but it may be
-// freed after the callback function returns, so you cannot use the pointer
-// outside the callback.
+// The callback is called for every module imported by the rules, and it
+// receives a pointer to the module's name. This pointer is guaranteed to be
+// valid while the callback function is being executed, but it will be freed
+// after the callback function returns, so you cannot use the pointer outside
+// the callback.
 //
-// It also receives the `user_data` pointer that can point to arbitrary data
-// owned by the user.
+// The callback also receives a `user_data` pointer that can point to arbitrary
+// data owned by the user.
 typedef void (*YRX_IMPORT_CALLBACK)(const char *module_name,
                                     void *user_data);
 
@@ -203,6 +211,9 @@ typedef void (*YRX_IMPORT_CALLBACK)(const char *module_name,
 // a previous error message invalid. Also, the pointer will be null if
 // the most recent function was successfully.
 const char *yrx_last_error(void);
+
+// Destroys a [`YRX_BUFFER`] object.
+void yrx_buffer_destroy(struct YRX_BUFFER *buf);
 
 // Compiles YARA source code and creates a [`YRX_RULES`] object that contains
 // the compiled rules.
@@ -412,12 +423,6 @@ enum YRX_RESULT yrx_compiler_warnings_json(struct YRX_COMPILER *compiler,
 // keep using it by adding more sources and calling this function again.
 struct YRX_RULES *yrx_compiler_build(struct YRX_COMPILER *compiler);
 
-// Destroys a [`YRX_METADATA`] object.
-void yrx_metadata_destroy(struct YRX_METADATA *metadata);
-
-// Destroys a [`YRX_BUFFER`] object.
-void yrx_buffer_destroy(struct YRX_BUFFER *buf);
-
 // Returns the name of the pattern represented by [`YRX_PATTERN`].
 //
 // Arguments `ident` and `len` are output parameters that receive pointers
@@ -426,13 +431,18 @@ void yrx_buffer_destroy(struct YRX_BUFFER *buf);
 // null-terminated, and the pointer will be valid as long as the [`YRX_RULES`]
 // object that contains the pattern is not freed. The name is guaranteed to be
 // a valid UTF-8 string.
-enum YRX_RESULT yrx_pattern_identifier(struct YRX_PATTERN *pattern,
+enum YRX_RESULT yrx_pattern_identifier(const struct YRX_PATTERN *pattern,
                                        const uint8_t **ident,
                                        size_t *len);
 
 // Iterates over the matches of a pattern, calling the callback with a pointer
 // to a [`YRX_MATCH`] structure for each pattern.
-enum YRX_RESULT yrx_pattern_iter_matches(struct YRX_PATTERN *pattern,
+//
+// The `user_data` pointer can be used to provide additional context to your
+// callback function.
+//
+// See [`YRX_MATCH_CALLBACK`] for more details.
+enum YRX_RESULT yrx_pattern_iter_matches(const struct YRX_PATTERN *pattern,
                                          YRX_MATCH_CALLBACK callback,
                                          void *user_data);
 
@@ -460,18 +470,25 @@ enum YRX_RESULT yrx_rule_namespace(const struct YRX_RULE *rule,
                                    const uint8_t **ns,
                                    size_t *len);
 
-// Returns the metadata associated to a rule.
+// Iterates over the metadata of a rule, calling the callback with a pointer
+// to a [`YRX_METADATA`] structure for each metadata in the rule.
 //
-// The metadata is represented by a [`YRX_METADATA`] object that must be
-// destroyed with [`yrx_metadata_destroy`] when not needed anymore.
+// The `user_data` pointer can be used to provide additional context to your
+// callback function.
 //
-// This function returns a null pointer when `rule` is null or the
-// rule doesn't have any metadata.
-struct YRX_METADATA *yrx_rule_metadata(const struct YRX_RULE *rule);
+// See [`YRX_METADATA_CALLBACK`] for more details.
+enum YRX_RESULT yrx_rule_iter_metadata(const struct YRX_RULE *rule,
+                                       YRX_METADATA_CALLBACK callback,
+                                       void *user_data);
 
 // Iterates over the patterns in a rule, calling the callback with a pointer
 // to a [`YRX_PATTERN`] structure for each pattern.
-enum YRX_RESULT yrx_rule_iter_patterns(struct YRX_RULE *rule,
+//
+// The `user_data` pointer can be used to provide additional context to your
+// callback function.
+//
+// See [`YRX_PATTERN_CALLBACK`] for more details.
+enum YRX_RESULT yrx_rule_iter_patterns(const struct YRX_RULE *rule,
                                        YRX_PATTERN_CALLBACK callback,
                                        void *user_data);
 
@@ -482,7 +499,7 @@ enum YRX_RESULT yrx_rule_iter_patterns(struct YRX_RULE *rule,
 // callback function.
 //
 // See [`YRX_RULE_CALLBACK`] for more details.
-enum YRX_RESULT yrx_rules_iter(struct YRX_RULES *rules,
+enum YRX_RESULT yrx_rules_iter(const struct YRX_RULES *rules,
                                YRX_RULE_CALLBACK callback,
                                void *user_data);
 
@@ -499,7 +516,7 @@ int yrx_rules_count(struct YRX_RULES *rules);
 // data itself, and its length.
 //
 // The [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
-enum YRX_RESULT yrx_rules_serialize(struct YRX_RULES *rules,
+enum YRX_RESULT yrx_rules_serialize(const struct YRX_RULES *rules,
                                     struct YRX_BUFFER **buf);
 
 // Deserializes the rules from a sequence of bytes produced by
@@ -515,7 +532,7 @@ enum YRX_RESULT yrx_rules_deserialize(const uint8_t *data,
 // callback function.
 //
 // See [`YRX_IMPORT_CALLBACK`] for more details.
-enum YRX_RESULT yrx_rules_iter_imports(struct YRX_RULES *rules,
+enum YRX_RESULT yrx_rules_iter_imports(const struct YRX_RULES *rules,
                                        YRX_IMPORT_CALLBACK callback,
                                        void *user_data);
 

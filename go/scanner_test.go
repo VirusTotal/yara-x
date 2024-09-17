@@ -2,11 +2,10 @@ package yara_x
 
 import (
 	"bytes"
+	"github.com/stretchr/testify/assert"
 	"runtime"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestScanner1(t *testing.T) {
@@ -121,9 +120,20 @@ func TestScannerMetadata(t *testing.T) {
 }
 
 func BenchmarkScan(b *testing.B) {
-	rules, _ := Compile("rule t { strings: $foo = \"foo\" condition: $foo }")
+	rules, _ := Compile(`rule t {
+		strings:
+			$foo = "foo"
+			$bar = "bar"
+			$baz = "baz"
+			$a = "a"
+			$b = "b"
+			$c = "c"
+            $d = "d"
+		condition: any of them
+	}`)
+	scanner := NewScanner(rules)
 	for i := 0; i < b.N; i++ {
-		results, _ := rules.Scan([]byte("foo"))
+		results, _ := scanner.Scan([]byte("foo"))
 		for _, rule := range results.MatchingRules() {
 			_ = rule.Identifier()
 		}

@@ -45,7 +45,7 @@ pub type YRX_RULE_CALLBACK =
 /// See [`YRX_RULE_CALLBACK`] for more details.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_rules_iter(
-    rules: *mut YRX_RULES,
+    rules: *const YRX_RULES,
     callback: YRX_RULE_CALLBACK,
     user_data: *mut c_void,
 ) -> YRX_RESULT {
@@ -82,7 +82,7 @@ pub unsafe extern "C" fn yrx_rules_count(rules: *mut YRX_RULES) -> c_int {
 /// The [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
 #[no_mangle]
 pub unsafe extern "C" fn yrx_rules_serialize(
-    rules: *mut YRX_RULES,
+    rules: *const YRX_RULES,
     buf: &mut *mut YRX_BUFFER,
 ) -> YRX_RESULT {
     if let Some(rules) = rules.as_ref() {
@@ -130,13 +130,14 @@ pub unsafe extern "C" fn yrx_rules_deserialize(
 
 /// Callback function passed to [`yrx_rules_iter_imports`].
 ///
-/// The callback receives a pointer to module name. This pointer is guaranteed
-/// to be valid while the callback function is being executed, but it may be
-/// freed after the callback function returns, so you cannot use the pointer
-/// outside the callback.
+/// The callback is called for every module imported by the rules, and it
+/// receives a pointer to the module's name. This pointer is guaranteed to be
+/// valid while the callback function is being executed, but it will be freed
+/// after the callback function returns, so you cannot use the pointer outside
+/// the callback.
 ///
-/// It also receives the `user_data` pointer that can point to arbitrary data
-/// owned by the user.
+/// The callback also receives a `user_data` pointer that can point to arbitrary
+/// data owned by the user.
 pub type YRX_IMPORT_CALLBACK =
     extern "C" fn(module_name: *const c_char, user_data: *mut c_void) -> ();
 
@@ -149,7 +150,7 @@ pub type YRX_IMPORT_CALLBACK =
 /// See [`YRX_IMPORT_CALLBACK`] for more details.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_rules_iter_imports(
-    rules: *mut YRX_RULES,
+    rules: *const YRX_RULES,
     callback: YRX_IMPORT_CALLBACK,
     user_data: *mut c_void,
 ) -> YRX_RESULT {

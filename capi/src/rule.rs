@@ -1,9 +1,9 @@
 use std::ffi::{c_void, CString};
-use std::mem::ManuallyDrop;
+use yara_x::MetaValue;
 
 use crate::{
-    _yrx_set_last_error, YRX_METADATA, YRX_METADATA_BYTES, YRX_METADATA_ENTRY,
-    YRX_METADATA_VALUE, YRX_METADATA_VALUE_TYPE, YRX_PATTERN, YRX_RESULT,
+    _yrx_set_last_error, YRX_METADATA, YRX_METADATA_BYTES, YRX_METADATA_TYPE,
+    YRX_METADATA_VALUE, YRX_PATTERN, YRX_RESULT,
 };
 
 /// A single YARA rule.
@@ -64,105 +64,106 @@ pub unsafe extern "C" fn yrx_rule_namespace(
     }
 }
 
-/// Returns the metadata associated to a rule.
+/// Callback function passed to [`yrx_rule_iter_metadata`].
 ///
-/// The metadata is represented by a [`YRX_METADATA`] object that must be
-/// destroyed with [`yrx_metadata_destroy`] when not needed anymore.
+/// The callback is called for each metadata in the rule, and receives a pointer
+/// to a [`YRX_METADATA`] structure. This pointer is guaranteed to be valid
+/// while the callback function is being executed, but it will be freed after
+/// the callback function returns, so you cannot use the pointer, or any other
+/// pointer contained in this structure, outside the callback.
 ///
-/// This function returns a null pointer when `rule` is null or the
-/// rule doesn't have any metadata.
+/// The callback also receives a `user_data` pointer that can point to arbitrary
+/// data owned by the user.
+pub type YRX_METADATA_CALLBACK =
+    extern "C" fn(metadata: *const YRX_METADATA, user_data: *mut c_void) -> ();
+
+/// Iterates over the metadata of a rule, calling the callback with a pointer
+/// to a [`YRX_METADATA`] structure for each metadata in the rule.
+///
+/// The `user_data` pointer can be used to provide additional context to your
+/// callback function.
+///
+/// See [`YRX_METADATA_CALLBACK`] for more details.
 #[no_mangle]
-pub unsafe extern "C" fn yrx_rule_metadata(
+pub unsafe extern "C" fn yrx_rule_iter_metadata(
     rule: *const YRX_RULE,
-) -> *mut YRX_METADATA {
-    let metadata = if let Some(rule) = rule.as_ref() {
+    callback: YRX_METADATA_CALLBACK,
+    user_data: *mut c_void,
+) -> YRX_RESULT {
+    let metadata_iter = if let Some(rule) = rule.as_ref() {
         rule.0.metadata()
     } else {
-        return std::ptr::null_mut();
+        return YRX_RESULT::INVALID_ARGUMENT;
     };
 
-    if metadata.is_empty() {
-        return std::ptr::null_mut();
-    }
+    for (identifier, value) in metadata_iter {
+        let identifier = CString::new(identifier).unwrap();
+        let string;
 
-    let mut entries = Vec::with_capacity(metadata.len());
-
-    for (identifier, value) in metadata {
-        let identifier = CString::new(identifier).unwrap().into_raw();
-
-        match value {
-            yara_x::MetaValue::Integer(v) => {
-                entries.push(YRX_METADATA_ENTRY {
-                    identifier,
-                    value_type: YRX_METADATA_VALUE_TYPE::I64,
-                    value: YRX_METADATA_VALUE { r#i64: v },
-                });
+        let (ty, val) = match value {
+            MetaValue::Integer(v) => {
+                (YRX_METADATA_TYPE::I64, YRX_METADATA_VALUE { r#i64: v })
             }
-            yara_x::MetaValue::Float(v) => {
-                entries.push(YRX_METADATA_ENTRY {
-                    identifier,
-                    value_type: YRX_METADATA_VALUE_TYPE::F64,
-                    value: YRX_METADATA_VALUE { r#f64: v },
-                });
+            MetaValue::Float(v) => {
+                (YRX_METADATA_TYPE::F64, YRX_METADATA_VALUE { r#f64: v })
             }
-            yara_x::MetaValue::Bool(v) => {
-                entries.push(YRX_METADATA_ENTRY {
-                    identifier,
-                    value_type: YRX_METADATA_VALUE_TYPE::BOOLEAN,
-                    value: YRX_METADATA_VALUE { boolean: v },
-                });
+            MetaValue::Bool(v) => {
+                (YRX_METADATA_TYPE::BOOLEAN, YRX_METADATA_VALUE { boolean: v })
             }
-            yara_x::MetaValue::String(v) => {
-                entries.push(YRX_METADATA_ENTRY {
-                    identifier,
-                    value_type: YRX_METADATA_VALUE_TYPE::STRING,
-                    value: YRX_METADATA_VALUE {
-                        string: CString::new(v).unwrap().into_raw(),
+            MetaValue::String(v) => {
+                string = CString::new(v).unwrap();
+                (
+                    YRX_METADATA_TYPE::STRING,
+                    YRX_METADATA_VALUE { string: string.as_ptr() },
+                )
+            }
+            MetaValue::Bytes(v) => (
+                YRX_METADATA_TYPE::BYTES,
+                YRX_METADATA_VALUE {
+                    bytes: YRX_METADATA_BYTES {
+                        length: v.len(),
+                        data: v.as_ptr(),
                     },
-                });
-            }
-            yara_x::MetaValue::Bytes(v) => {
-                let v = v.to_vec().into_boxed_slice();
-                let mut v = ManuallyDrop::new(v);
-                entries.push(YRX_METADATA_ENTRY {
-                    identifier,
-                    value_type: YRX_METADATA_VALUE_TYPE::BYTES,
-                    value: YRX_METADATA_VALUE {
-                        bytes: YRX_METADATA_BYTES {
-                            data: v.as_mut_ptr(),
-                            length: v.len(),
-                        },
-                    },
-                });
-            }
+                },
+            ),
         };
+
+        callback(
+            &YRX_METADATA {
+                identifier: identifier.as_ptr(),
+                value_type: ty,
+                value: val,
+            },
+            user_data,
+        )
     }
 
-    let mut entries = ManuallyDrop::new(entries);
-
-    Box::into_raw(Box::new(YRX_METADATA {
-        num_entries: entries.len(),
-        entries: entries.as_mut_ptr(),
-    }))
+    YRX_RESULT::SUCCESS
 }
 
 /// Callback function passed to [`yrx_rule_iter_patterns`].
 ///
-/// The callback receives a pointer to a pattern. This pointer is guaranteed
-/// to be valid while the callback function is being executed, but it may be
-/// freed after the callback function returns, so you cannot use the pointer
-/// outside the callback.
+/// The callback is called for each pattern defined in the rule, and it receives
+/// a pointer to a [`YRX_PATTERN`] structure. This pointer is guaranteed to be
+/// valid while the callback function is being executed, but it will be freed
+/// after the callback function returns, so you cannot use this pointer, or
+/// any other pointer contained in the structure, outside the callback.
 ///
-/// It also receives the `user_data` pointer that can point to arbitrary data
-/// owned by the user.
+/// The callback also receives a `user_data` pointer that can point to arbitrary
+/// data owned by the user.
 pub type YRX_PATTERN_CALLBACK =
     extern "C" fn(pattern: *const YRX_PATTERN, user_data: *mut c_void) -> ();
 
 /// Iterates over the patterns in a rule, calling the callback with a pointer
 /// to a [`YRX_PATTERN`] structure for each pattern.
+///
+/// The `user_data` pointer can be used to provide additional context to your
+/// callback function.
+///
+/// See [`YRX_PATTERN_CALLBACK`] for more details.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_rule_iter_patterns(
-    rule: *mut YRX_RULE,
+    rule: *const YRX_RULE,
     callback: YRX_PATTERN_CALLBACK,
     user_data: *mut c_void,
 ) -> YRX_RESULT {

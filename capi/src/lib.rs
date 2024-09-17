@@ -201,6 +201,12 @@ impl Drop for YRX_BUFFER {
     }
 }
 
+/// Destroys a [`YRX_BUFFER`] object.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_buffer_destroy(buf: *mut YRX_BUFFER) {
+    drop(Box::from_raw(buf));
+}
+
 /// Compiles YARA source code and creates a [`YRX_RULES`] object that contains
 /// the compiled rules.
 ///
