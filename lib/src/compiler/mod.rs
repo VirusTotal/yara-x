@@ -730,7 +730,6 @@ impl<'a> Compiler<'a> {
         };
 
         rules.build_ac_automaton();
-
         rules
     }
 

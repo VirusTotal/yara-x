@@ -92,7 +92,7 @@ pub(crate) struct Report {
     code: &'static str,
     title: String,
     labels: Vec<(Level, CodeLoc, String)>,
-    note: Option<String>,
+    footers: Vec<(Level, String)>,
 }
 
 impl Report {
@@ -112,22 +112,21 @@ impl Report {
             let code_origin =
                 code_cache.get(&source_id).unwrap().origin.clone();
 
-            let level = match level {
-                Level::Error => "error",
-                Level::Warning => "warning",
-                Level::Info => "info",
-                Level::Note => "note",
-                Level::Help => "help",
-            };
-
-            Label { level, code_origin, span: code_loc.span.clone(), text }
+            Label {
+                level: level_as_text(*level),
+                code_origin,
+                span: code_loc.span.clone(),
+                text,
+            }
         })
     }
 
-    /// Returns the report's note.
+    /// Returns the report's footers.
     #[inline]
-    pub(crate) fn note(&self) -> Option<&str> {
-        self.note.as_deref()
+    pub(crate) fn footers(&self) -> impl Iterator<Item = Footer> {
+        self.footers
+            .iter()
+            .map(|(level, text)| Footer { level: level_as_text(*level), text })
     }
 }
 
@@ -140,7 +139,7 @@ impl Serialize for Report {
         s.serialize_field("code", &self.code)?;
         s.serialize_field("title", &self.title)?;
         s.serialize_field("labels", &self.labels().collect::<Vec<_>>())?;
-        s.serialize_field("note", &self.note)?;
+        s.serialize_field("footers", &self.footers().collect::<Vec<_>>())?;
         s.serialize_field("text", &self.to_string())?;
         s.end()
     }
@@ -152,7 +151,7 @@ impl PartialEq for Report {
             && self.code.eq(other.code)
             && self.title.eq(&other.title)
             && self.labels.eq(&other.labels)
-            && self.note.eq(&other.note)
+            && self.footers.eq(&other.footers)
     }
 }
 
@@ -210,8 +209,8 @@ impl Display for Report {
 
         message = message.snippet(snippet);
 
-        if let Some(note) = &self.note {
-            message = message.footer(Level::Note.title(note.as_str()));
+        for (level, text) in &self.footers {
+            message = message.footer(level.title(text.as_str()));
         }
 
         let renderer = if self.with_colors {
@@ -233,6 +232,13 @@ pub struct Label<'a> {
     level: &'a str,
     code_origin: Option<String>,
     span: Span,
+    text: &'a str,
+}
+
+/// Represents a footer in an error or warning report.
+#[derive(Serialize)]
+pub struct Footer<'a> {
+    level: &'a str,
     text: &'a str,
 }
 
@@ -373,10 +379,18 @@ impl ReportBuilder {
         code: &'static str,
         title: String,
         labels: Vec<(Level, CodeLoc, String)>,
-        note: Option<String>,
+        footers: Vec<(Level, Option<String>)>,
     ) -> Report {
         // Make sure there's at least one label.
         assert!(!labels.is_empty());
+
+        // Remove footers where text is None.
+        let footers = footers
+            .into_iter()
+            .filter_map(|(level, text)| {
+                text.map(|text| (level, text))
+            })
+            .collect();
 
         Report {
             code_cache: self.code_cache.clone(),
@@ -389,7 +403,17 @@ impl ReportBuilder {
             code,
             title,
             labels,
-            note,
+            footers,
         }
+    }
+}
+
+fn level_as_text(level: Level) -> &'static str {
+    match level {
+        Level::Error => "error",
+        Level::Warning => "warning",
+        Level::Info => "info",
+        Level::Note => "note",
+        Level::Help => "help",
     }
 }
