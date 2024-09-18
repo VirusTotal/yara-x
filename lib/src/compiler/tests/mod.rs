@@ -756,7 +756,7 @@ fn errors_serialization() {
                 "text": "this identifier has not been declared"
             }
         ],
-        "note": null,
+        "footers": [],
         "text": r#"error[E009]: unknown identifier `foo`
  --> test.yar:1:23
   |

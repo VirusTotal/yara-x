@@ -10,7 +10,7 @@ use yara_x_macros::ErrorEnum;
 use yara_x_macros::ErrorStruct;
 use yara_x_parser::ast;
 
-use crate::compiler::report::{Level, Report, ReportBuilder, CodeLoc, Label};
+use crate::compiler::report::{Level, Report, ReportBuilder, CodeLoc, Label, Footer};
 
 /// Error returned while serializing/deserializing compiled rules.
 #[derive(Error, Debug)]
@@ -203,7 +203,7 @@ pub struct MismatchingTypes {
 #[associated_enum(CompileError)]
 #[error(code = "E004", title = "wrong arguments")]
 #[label("wrong arguments in this call", error_loc)]
-#[note(note)]
+#[footer(note)]
 pub struct WrongArguments {
     report: Report,
     error_loc: CodeLoc,
@@ -263,7 +263,7 @@ pub struct UnknownField {
 #[associated_enum(CompileError)]
 #[error(code = "E009", title = "unknown identifier `{identifier}`")]
 #[label("this identifier has not been declared", identifier_loc)]
-#[note(note)]
+#[footer(note)]
 pub struct UnknownIdentifier {
     report: Report,
     identifier: String,
@@ -346,7 +346,7 @@ pub struct ConflictingRuleIdentifier {
 #[associated_enum(CompileError)]
 #[error(code = "E014", title = "invalid regular expression")]
 #[label("{error}", error_loc)]
-#[note(note)]
+#[footer(note)]
 pub struct InvalidRegexp {
     report: Report,
     error: String,
@@ -376,7 +376,7 @@ pub struct MixedGreediness {
 #[associated_enum(CompileError)]
 #[error(code = "E016", title = "no matching patterns")]
 #[label("there's no pattern in this set", error_loc)]
-#[note(note)]
+#[footer(note)]
 pub struct EmptyPatternSet {
     report: Report,
     error_loc: CodeLoc,
@@ -417,7 +417,7 @@ pub struct SlowPattern {
 )]
 #[label("`{modifier1}` modifier used here", modifier1_loc)]
 #[label("`{modifier2}` modifier used here", modifier2_loc)]
-#[note(note)]
+#[footer(note)]
 pub struct InvalidModifierCombination {
     report: Report,
     modifier1: String,
@@ -481,7 +481,7 @@ pub struct DuplicatePattern {
 #[associated_enum(CompileError)]
 #[error(code = "E024", title = "invalid pattern `{pattern_ident}`")]
 #[label("{error}", error_loc)]
-#[note(note)]
+#[footer(note)]
 pub struct InvalidPattern {
     report: Report,
     pattern_ident: String,

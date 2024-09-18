@@ -103,7 +103,7 @@ mod wasm_export;
 ///
 #[proc_macro_derive(
     ErrorStruct,
-    attributes(error, warning, label, note, associated_enum)
+    attributes(error, warning, label, footer, associated_enum)
 )]
 pub fn error_struct_macro_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);

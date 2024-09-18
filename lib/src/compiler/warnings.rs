@@ -8,7 +8,7 @@ use thiserror::Error;
 use yara_x_macros::ErrorEnum;
 use yara_x_macros::ErrorStruct;
 
-use crate::compiler::report::{Level, Report, ReportBuilder, CodeLoc, Label};
+use crate::compiler::report::{Level, Report, ReportBuilder, CodeLoc, Label, Footer};
 
 /// A warning raised while compiling YARA rules.
 #[allow(missing_docs)]
@@ -169,7 +169,7 @@ pub struct PotentiallyUnsatisfiableExpression {
     "this expression is always {expr_value}",
     expr_loc
 )]
-#[note(note)]
+#[footer(note)]
 pub struct InvariantBooleanExpression {
     report: Report,
     expr_value: bool,
@@ -200,7 +200,7 @@ pub struct InvariantBooleanExpression {
     "this expression is `{expr_type}` but is being used as `bool`",
     expr_loc
 )]
-#[note(note)]
+#[footer(note)]
 pub struct NonBooleanAsBoolean {
     report: Report,
     expr_type: String,
@@ -383,7 +383,7 @@ pub struct SlowPattern {
     "module `{module_name}` used here",
     module_name_loc
 )]
-#[note(note)]
+#[footer(note)]
 pub struct IgnoredModule {
     report: Report,
     module_name: String,

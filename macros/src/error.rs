@@ -16,7 +16,7 @@ struct Label {
 }
 
 impl Parse for Label {
-    /// Parses a label with like the one below.
+    /// Parses a label like the one below.
     ///
     /// ```text
     /// #[label("{error_msg}", error_ref, Level::Info)]
@@ -36,6 +36,32 @@ impl Parse for Label {
     }
 }
 
+/// Describes a footer in an error/warning message.
+#[derive(Debug)]
+struct Footer {
+    footer_expr: Expr,
+    level: Option<Expr>,
+}
+
+impl Parse for Footer {
+    /// Parses a footer like the one below.
+    ///
+    /// ```text
+    /// #[footer(text, Level::Info)]
+    /// ```
+    ///
+    /// The last argument is optional, the default value is `Level::Note`.
+    fn parse(input: ParseStream) -> Result<Self> {
+        let footer_expr: Expr = input.parse()?;
+        let mut level = None;
+        if input.peek(Comma) {
+            input.parse::<Comma>()?;
+            level = Some(input.parse::<Expr>()?);
+        }
+        Ok(Footer { footer_expr, level })
+    }
+}
+
 pub(crate) fn impl_error_struct_macro(
     input: DeriveInput,
 ) -> Result<TokenStream> {
@@ -52,9 +78,9 @@ pub(crate) fn impl_error_struct_macro(
     let mut level = None;
     let mut code = None;
     let mut title = None;
-    let mut note = None;
     let mut associated_enum = None;
     let mut labels = Vec::new();
+    let mut footers = Vec::new();
 
     for attr in input.attrs {
         if attr.path().is_ident("doc") {
@@ -65,8 +91,8 @@ pub(crate) fn impl_error_struct_macro(
             associated_enum = Some(attr.parse_args::<Ident>()?);
         } else if attr.path().is_ident("label") {
             labels.push(attr.parse_args::<Label>()?);
-        } else if attr.path().is_ident("note") {
-            note = Some(attr.parse_args::<Ident>()?);
+        } else if attr.path().is_ident("footer") {
+            footers.push(attr.parse_args::<Footer>()?);
         } else {
             if attr.path().is_ident("error") {
                 level = Some(quote!(Level::Error))
@@ -120,8 +146,8 @@ pub(crate) fn impl_error_struct_macro(
         // use the specified level, if not, use Level::Error for #[error(...)]
         // and Level::Warning for #[warning(...)].
         match &label.level {
-            Some(expr) => {
-                quote!((#expr, #label_ref.clone(), format!(#label_fmt)))
+            Some(level_expr) => {
+                quote!((#level_expr, #label_ref.clone(), format!(#label_fmt)))
             }
             None => {
                 quote!((#level, #label_ref.clone(), format!(#label_fmt)))
@@ -129,7 +155,17 @@ pub(crate) fn impl_error_struct_macro(
         }
     });
 
-    let note = note.map(|expr| quote!(#expr)).unwrap_or_else(|| quote!(None));
+    let footers = footers.iter().map(|footer| {
+        let footer_expr = &footer.footer_expr;
+        match &footer.level {
+            Some(level_expr) => {
+                quote!((#level_expr, #footer_expr.clone()))
+            }
+            None => {
+                quote!((Level::Note, #footer_expr.clone()))
+            }
+        }
+    });
 
     // Get all fields in the structure, except the `report` field.
     let fields: Vec<&Field> = fields
@@ -163,7 +199,7 @@ pub(crate) fn impl_error_struct_macro(
                             #code,
                             format!(#title),
                             vec![#( #labels ),*],
-                            #note.clone(),
+                            vec![#( #footers ),*],
                         ),
                         #( #field_names ),*
                     })
@@ -195,10 +231,11 @@ pub(crate) fn impl_error_struct_macro(
                 self.report.labels()
             }
 
-            /// Returns the note associated to this error/warning.
+            /// Returns the footers associated to this error/warning.
             #[inline]
-            pub fn note(&self) -> Option<&str> {
-                self.report.note()
+            #[inline]
+            pub fn footers(&self) -> impl Iterator<Item = Footer> {
+                self.report.footers()
             }
         }
 
@@ -330,13 +367,13 @@ pub(crate) fn impl_error_enum_macro(
                  }
             }
 
-            /// Returns the note associated to this error/warning.
+            /// Returns the footers associated to this error/warning.
             #[inline]
-            pub fn note(&self) -> Option<&str> {
+            pub fn footers(&self) -> impl Iterator<Item = Footer> {
                 match self {
                     #(
                         Self::#variant_idents(v) => {
-                             v.report.note()
+                             v.report.footers()
                         }
                     ),*
                 }

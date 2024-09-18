@@ -121,6 +121,8 @@ type CompileError struct {
 	Title string `json:"title"`
 	// Each of the labels in the error report.
 	Labels []Label `json:"labels"`
+	// Each of the footers in the error report.
+	Footers []Footer `json:"footers"`
 	// The error's full report, as shown by the command-line tool.
 	Text string `json:"text"`
 }
@@ -131,8 +133,10 @@ type Warning struct {
 	Code string `json:"code"`
 	// Error title (e.g: "slow pattern").
 	Title string `json:"title"`
-	// Each of the labels in the error report.
+	// Each of the labels in the warning report.
 	Labels []Label `json:"labels"`
+	// Each of the footers in the warning report.
+	Footers []Footer `json:"footers"`
 	// The error's full report, as shown by the command-line tool.
 	Text string `json:"text"`
 }
@@ -146,6 +150,14 @@ type Label struct {
 	// The code span highlighted by this label.
 	Span Span `json:"span"`
 	// Text associated to the label.
+	Text string `json:"text"`
+}
+
+// Footer represents a footer in a [CompileError].
+type Footer struct {
+	// Footer's level (e.g: "error", "warning", "info", "note", "help").
+	Level string `json:"level"`
+	// Footer's text.
 	Text string `json:"text"`
 }
 

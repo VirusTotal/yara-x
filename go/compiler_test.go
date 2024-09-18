@@ -131,6 +131,33 @@ func TestErrors(t *testing.T) {
 	c.AddSource("rule test_1 { condition: true }")
 	assert.Equal(t, []CompileError{}, c.Errors())
 
+	assert.Equal(t, []Warning{
+		{
+			Code:  "invariant_expr",
+			Title: "invariant boolean expression",
+			Labels: []Label{
+				{
+					Level: "warning",
+					Span:  Span{Start: 25, End: 29},
+					Text:  "this expression is always true",
+				},
+			},
+			Footers: []Footer{
+				{
+					Level: "note",
+					Text:  "rule `test_1` is always `true`",
+				},
+			},
+			Text: `warning[invariant_expr]: invariant boolean expression
+ --> line:1:26
+  |
+1 | rule test_1 { condition: true }
+  |                          ---- this expression is always true
+  |
+  = note: rule ` + "`test_1` is always `true`",
+		},
+	}, c.Warnings())
+
 	c.AddSource("rule test_2 { condition: foo }", WithOrigin("test.yar"))
 	assert.Equal(t, []CompileError{
 		{
@@ -144,6 +171,7 @@ func TestErrors(t *testing.T) {
 					Text:       "this identifier has not been declared",
 				},
 			},
+			Footers: []Footer{},
 			Text: `error[E009]: unknown identifier ` + "`foo`" + `
  --> test.yar:1:26
   |
@@ -241,6 +269,7 @@ func TestWarnings(t *testing.T) {
 					Text:       "these consecutive jumps will be treated as [0-2]",
 				},
 			},
+			Footers: []Footer{},
 			Text: `warning[consecutive_jumps]: consecutive jumps in hex pattern ` + "`$a`" + `
  --> line:1:31
   |
@@ -259,6 +288,7 @@ func TestWarnings(t *testing.T) {
 					Text:       "this pattern may slow down the scan",
 				},
 			},
+			Footers: []Footer{},
 			Text: `warning[slow_pattern]: slow pattern
  --> line:1:22
   |
