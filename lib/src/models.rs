@@ -288,6 +288,12 @@ impl<'a> Iterator for Matches<'a> {
     }
 }
 
+impl<'a> ExactSizeIterator for Matches<'a> {
+    fn len(&self) -> usize {
+        self.iterator.as_ref().map_or(0, |it| it.len())
+    }
+}
+
 /// Represents a match.
 pub struct Match<'a> {
     data: &'a ScannedData<'a>,

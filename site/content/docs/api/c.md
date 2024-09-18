@@ -410,10 +410,10 @@ Returns the identifier of the rule represented by `rule`.
 
 Arguments `ident` and `len` are output parameters that receive pointers to a
 `const uint8_t*` and `size_t`, where this function will leave a pointer
-to the rule's namespace and its length, respectively. The namespace is **NOT**
-null-terminated, you must use the returned `len` as the size of the namespace.
+to the rule's identifier and its length, respectively. The identifier is **NOT**
+null-terminated, you must use the returned `len` as the size of the identifier.
 The `*ident` pointer will be valid as long as the [YRX_RULES](#yrx_rules) object
-that contains the rule is not destroyed. The namespace is guaranteed to be a
+that contains the rule is not destroyed. The identifier is guaranteed to be a
 valid UTF-8 string.
 
 #### yrx_rule_namespace
@@ -435,80 +435,75 @@ The `*ns` pointer will be valid as long as the [YRX_RULES](#yrx_rules) object
 that contains the rule is not destroyed. The namespace is guaranteed to be a
 valid UTF-8 string.
 
-#### yrx_rule_metadata
+#### yrx_rule_iter_metadata
 
 ```c
-struct YRX_METADATA *yrx_rule_metadata(const struct YRX_RULE *rule);
+struct YRX_METADATA *yrx_rule_iter_metadata(
+    const struct YRX_RULE *rule,
+    YRX_METADATA_CALLBACK callback,
+    void *user_data);
 ```
 
-Returns an array with all the metadata values associated to the rule.
+Iterates over the metadata of a rule, calling the callback with a pointer
+to a [YRX_METADATA](#yrx_metadata) structure for each metadata in the rule.
 
-The metadata is represented by a [YRX_METADATA](#yrx_metadata) object that must
-be destroyed with [yrx_metadata_destroy](#yrx_metadata_destroy) when not needed
-anymore.
+The `user_data` pointer can be used to provide additional context to your
+callback function.
 
-#### yrx_rule_patterns
+#### yrx_rule_iter_patterns
 
 ```c
-struct YRX_PATTERNS *yrx_rule_patterns(const struct YRX_RULE *rule);
+struct YRX_PATTERNS *yrx_rule_iter_patterns(
+    const struct YRX_RULE *rule,
+    YRX_PATTERN_CALLBACK callback,
+    void *user_data);
 ```
 
-Returns an array with all the patterns defined by the rule.
+Iterates over the patterns in a rule, calling the callback with a pointer
+to a [YRX_PATTERN](#yrx_pattern) structure for each pattern.
 
-Each pattern contains information about whether it matched or not, and where
-in the data it matched. The patterns are represented by
-a [YRX_PATTERNS](#yrx_patterns) object that must be destroyed
-with [yrx_patterns_destroy](#yrx_patterns_destroy) when not needed anymore.
-
-------
-
-### YRX_PATTERNS
-
-A set of patterns defined by a rule. You will get a pointer to one of these
-structures when calling [yrx_rule_patterns](#yrx_rule_patterns), you are
-responsible for calling [yrx_patterns_destroy](#yrx_patterns_destroy) when not
-using the structure anymore.
-
-```c
-typedef struct YRX_PATTERNS {
-    // Number of patterns.
-    size_t num_patterns;
-    // Pointer to an array of YRX_PATTERN structures. The array has
-    // num_patterns items. If num_patterns is zero this pointer is 
-    // invalid and should not be de-referenced.
-    struct YRX_PATTERN *patterns;
-} YRX_PATTERNS;
-```
-
-------
-
-#### yrx_patterns_destroy
-
-```c
-void yrx_patterns_destroy(struct YRX_PATTERNS *patterns);
-```
-
-Destroys the [YRX_PATTERNS](#yrx_patterns) object.
+The `user_data` pointer can be used to provide additional context to your
+callback function.
 
 ------
 
 ### YRX_PATTERN
 
-An individual pattern defined in a rule. The [YRX_PATTERNS](#yrx_patterns)
-object has a pointer to an array of these structures.
+An individual pattern defined in a rule.
+
+#### yrx_pattern_identifier
 
 ```c
-typedef struct YRX_PATTERN {
-    // Pattern's identifier (i.e: $a, $foo)
-    char *identifier;
-    // Number of matches found for this pattern.
-    size_t num_matches;
-    // Pointer to an array of YRX_MATCH structures describing the matches
-    // for this pattern. The array has num_matches items. If num_matches is
-    // zero this pointer is invalid and should not be de-referenced.
-    struct YRX_MATCH *matches;
-} YRX_PATTERN;
+enum YRX_RESULT yrx_pattern_identifier(
+    const struct YRX_PATTERN *pattern,
+    const uint8_t **ident,
+    size_t *len);
 ```
+
+Returns the identifier of the pattern represented by `pattern`.
+
+Arguments `ident` and `len` are output parameters that receive pointers to a
+`const uint8_t*` and `size_t`, where this function will leave a pointer
+to the patterns's identifier and its length, respectively. The identifier is
+**NOT** null-terminated, you must use the returned `len` as the size of the
+identifier. The `*ident` pointer will be valid as long as
+the [YRX_RULES](#yrx_rules) object that contains the rule defining this pattern
+is not destroyed. The identifier is guaranteed to be a valid UTF-8 string.
+
+#### yrx_pattern_iter_matches
+
+```c
+enum YRX_RESULT yrx_pattern_iter_matches(
+    const struct YRX_PATTERN *pattern,
+    YRX_MATCH_CALLBACK callback,
+    void *user_data);
+```
+
+Iterates over the matches of a pattern, calling the callback with a pointer
+to a [YRX_MATCH](#yrx_match) structure for each pattern.
+
+The `user_data` pointer can be used to provide additional context to your
+callback function.
 
 ------
 
@@ -528,64 +523,33 @@ typedef struct YRX_MATCH {
 
 ### YRX_METADATA
 
-Contains the metadata values associated to a rule. You will get a pointer to
-one of these structures when calling [yrx_rule_metadata](#yrx_rule_metadata),
-you are responsible for calling [yrx_metadata_destroy](#yrx_metadata_destroy)
-when not using the structure anymore.
+Represents a metadata entry in a rule. You will get a pointer to one of these
+structures from the callback passed
+to [yrx_rule_iter_metadata](#yrx_rule_iter_metadata)
 
 ```c
 typedef struct YRX_METADATA {
-    // Number of metadata entries.
-    size_t num_entries;
-    // Pointer to an array of YRX_METADATA_ENTRY structures. The array has
-    // num_entries items. If num_entries is zero this pointer is invalid
-    // and should not be de-referenced.
-    struct YRX_METADATA_ENTRY *entries;
+    // Metadata identifier.
+    const char *identifier;
+    // Metadata type.
+    enum YRX_METADATA_TYPE value_type;
+    // Metadata value.
+    //
+    // This a union type, the variant that should be used is determined by the
+    // type indicated in `value_type`.
+    union YRX_METADATA_VALUE value;
 } YRX_METADATA;
 
 ```
 
 ------
 
-#### yrx_metadata_destroy
-
-```c
-void yrx_metadata_destroy(struct YRX_METADATA *metadata);
-```
-
-Destroys the [YRX_METADATA](#yrx_metadata) object.
-
-------
-
-### YRX_METADATA_ENTRY
-
-An individual metadata entry. The [YRX_METADATA](#yrx_metadata)
-object has a pointer to an array of these structures. The structure
-contains information about the metadata identifier, its type, and
-its value. The `value` field is a union with multiple alternatives,
-you must use the type indicated in the `value_type` for deciding
-which alternative to use while accessing the metadata value.
-
-```c
-typedef struct YRX_METADATA_ENTRY {
-    // Metadata identifier.
-    char *identifier;
-    // Type of value.
-    enum YRX_METADATA_VALUE_TYPE value_type;
-    // The value itself. This is a union, use the member that matches the
-    // value type.
-    union YRX_METADATA_VALUE value;
-}   YRX_METADATA_ENTRY;
-```
-
-### YRX_METADATA_VALUE_TYPE
+### YRX_METADATA_TYPE
 
 Each of the possible types of a metadata entry.
 
-------
-
 ```c
-typedef enum YRX_METADATA_VALUE_TYPE {
+typedef enum YRX_METADATA_TYPE {
     I64,
     F64,
     BOOLEAN,
