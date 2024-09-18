@@ -387,9 +387,7 @@ impl ReportBuilder {
         // Remove footers where text is None.
         let footers = footers
             .into_iter()
-            .filter_map(|(level, text)| {
-                text.map(|text| (level, text))
-            })
+            .filter_map(|(level, text)| text.map(|text| (level, text)))
             .collect();
 
         Report {
