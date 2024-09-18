@@ -364,17 +364,17 @@ pub enum OfItems<'src> {
     BoolExprTuple(Vec<Expr<'src>>),
 }
 
-/// A `with` expression (e.g `with $a : (..)`)
+/// A `with` expression (e.g `with foo = 1 + 1 : (..)`)
 #[derive(Debug)]
 pub struct With<'src> {
     span: Span,
-    pub items: Vec<WithItems<'src>>,
+    pub declarations: Vec<WithDeclaration<'src>>,
     pub condition: Expr<'src>,
 }
 
 /// Items in a `with` expression.
 #[derive(Debug)]
-pub struct WithItems<'src> {
+pub struct WithDeclaration<'src> {
     span: Span,
     pub identifier: Ident<'src>,
     pub expression: Expr<'src>,
@@ -593,7 +593,7 @@ pub enum Expr<'src> {
     /// A `for <quantifier> <vars> in ...` expression. (e.g. `for all i in (1..100) : ( ... )`)
     ForIn(Box<ForIn<'src>>),
 
-    /// A `with` expression (e.g. `with $a : ( ... )`)
+    /// A `with` expression (e.g. `with foo = 1 + 1 : ( ... )`)
     With(Box<With<'src>>),
 }
 
@@ -1072,7 +1072,7 @@ impl WithSpan for With<'_> {
     }
 }
 
-impl WithSpan for WithItems<'_> {
+impl WithSpan for WithDeclaration<'_> {
     fn span(&self) -> Span {
         self.span.clone()
     }

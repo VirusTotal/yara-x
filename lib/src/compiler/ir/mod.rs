@@ -616,8 +616,7 @@ pub(in crate::compiler) struct ForIn {
 /// A `with` expression (e.g `with $a, $b : (..)`)
 #[derive(Debug)]
 pub(in crate::compiler) struct With {
-    pub identifiers: Vec<Var>,
-    pub expressions: Vec<Expr>,
+    pub declarations: Vec<(Var, Expr)>,
     pub condition: Expr,
 }
 

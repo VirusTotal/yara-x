@@ -17,19 +17,20 @@ SOURCE_FILE@0..78
           WITH_EXPR@26..76
             WITH_KW@26..30 "with"
             WHITESPACE@30..31 " "
-            WITH_IDENTIFIERS@31..40
-              IDENT@31..34 "two"
-              WHITESPACE@34..35 " "
-              EQUAL@35..36 "="
-              WHITESPACE@36..37 " "
-              EXPR@37..40
-                TERM@37..38
-                  PRIMARY_EXPR@37..38
-                    INTEGER_LIT@37..38 "1"
-                ADD@38..39 "+"
-                TERM@39..40
-                  PRIMARY_EXPR@39..40
-                    INTEGER_LIT@39..40 "1"
+            WITH_DECLS@31..40
+              WITH_DECL@31..40
+                IDENT@31..34 "two"
+                WHITESPACE@34..35 " "
+                EQUAL@35..36 "="
+                WHITESPACE@36..37 " "
+                EXPR@37..40
+                  TERM@37..38
+                    PRIMARY_EXPR@37..38
+                      INTEGER_LIT@37..38 "1"
+                  ADD@38..39 "+"
+                  TERM@39..40
+                    PRIMARY_EXPR@39..40
+                      INTEGER_LIT@39..40 "1"
             WHITESPACE@40..41 " "
             COLON@41..42 ":"
             WHITESPACE@42..43 " "

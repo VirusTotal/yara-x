@@ -536,9 +536,29 @@ fn with() {
 
     #[cfg(feature = "test_proto2-module")]
     condition_true!(
+        r#"with foo = test_proto2.nested: (foo.nested_int64_one == 1 )"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_false!(
+        r#"with foo = test_proto2.nested: (foo.nested_int64_one == 0 )"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"with foo = test_proto2.uppercase("foo"): (foo == "FOO" )"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_false!(
+        r#"with foo = test_proto2.uppercase("foo"): (foo == "FoO" )"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
         r#"with 
             bar = test_proto2.array_string[1],
-            baz = test_proto2.array_string[2] : 
+            baz = test_proto2.array_string[2]: 
                 (
                     bar == "bar" and baz == "baz"
                 )

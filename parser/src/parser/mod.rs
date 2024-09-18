@@ -1587,7 +1587,7 @@ impl<'src> ParserImpl<'src> {
     ///
     /// ```text
     /// WITH_EXPR :=
-    ///     `with` WITH_IDENTIFIERS `:`
+    ///     `with` WITH_DECLS `:`
     ///         `(`
     ///             BOOLEAN_EXPR
     ///         `)`
@@ -1595,7 +1595,7 @@ impl<'src> ParserImpl<'src> {
     fn with_expr(&mut self) -> &mut Self {
         self.begin(WITH_EXPR)
             .expect(t!(WITH_KW))
-            .then(|p| p.with_identifier())
+            .then(|p| p.with_declarations())
             .expect(t!(COLON))
             .expect(t!(L_PAREN))
             .then(|p| p.boolean_expr())
@@ -1606,19 +1606,29 @@ impl<'src> ParserImpl<'src> {
     /// Parses `with` identifiers.
     ///
     /// ```text
-    /// WITH_IDENTIFIERS :=
-    ///     IDENT `=` EXPR (`,` IDENT `=` EXPR)*
+    /// WITH_DECLS :=
+    ///     WITH_DECL (`,` WITH_DECL)*
     ///
-    fn with_identifier(&mut self) -> &mut Self {
-        self.begin(WITH_IDENTIFIERS)
+    fn with_declarations(&mut self) -> &mut Self {
+        self.begin(WITH_DECLS)
+            .then(|p| p.with_declaration())
+            .zero_or_more(|p| {
+                p.expect(t!(COMMA)).then(|p| p.with_declaration())
+            })
+            .end()
+    }
+
+    /// Parses a `with` declaration.
+    ///
+    /// ```text
+    /// WITH_DECL :=
+    ///     IDENT `=` EXPR
+    /// ```
+    fn with_declaration(&mut self) -> &mut Self {
+        self.begin(WITH_DECL)
             .expect(t!(IDENT))
             .expect(t!(EQUAL))
             .then(|p| p.expr())
-            .zero_or_more(|p| {
-                p.expect(t!(COMMA)).then(|p| {
-                    p.expect(t!(IDENT)).expect(t!(EQUAL)).then(|p| p.expr())
-                })
-            })
             .end()
     }
 

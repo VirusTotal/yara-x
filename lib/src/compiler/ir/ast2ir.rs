@@ -1124,22 +1124,20 @@ fn with_expr_from_ast(
     with: &ast::With,
 ) -> Result<Expr, CompileError> {
     // Create stack frame with capacity for the with statement variables
-    let mut stack_frame = ctx.vars.new_frame(with.items.len() as i32);
+    let mut stack_frame = ctx.vars.new_frame(with.declarations.len() as i32);
     let mut symbols = SymbolTable::new();
-    let mut identifiers = Vec::new();
-    let mut expressions = Vec::new();
+    let mut declarations = Vec::new();
 
     // Iterate over all items in the with statement and create a new variable
     // for each one. Both identifiers and corresponding expressions are stored
     // in separate vectors.
-    for item in with.items.iter() {
+    for item in with.declarations.iter() {
         let type_value = expr_from_ast(ctx, &item.expression)?
             .type_value()
             .clone_without_value();
         let var = stack_frame.new_var(type_value.ty());
 
-        identifiers.push(var);
-        expressions.push(expr_from_ast(ctx, &item.expression)?);
+        declarations.push((var, expr_from_ast(ctx, &item.expression)?));
 
         // Insert the variable into the symbol table.
         symbols.insert(
@@ -1158,7 +1156,7 @@ fn with_expr_from_ast(
 
     ctx.vars.unwind(&stack_frame);
 
-    Ok(Expr::With(Box::new(With { identifiers, expressions, condition })))
+    Ok(Expr::With(Box::new(With { declarations, condition })))
 }
 
 fn iterable_from_ast(

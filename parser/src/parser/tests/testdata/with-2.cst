@@ -17,47 +17,49 @@ SOURCE_FILE@0..162
           WITH_EXPR@26..160
             WITH_KW@26..30 "with"
             WHITESPACE@30..31 " "
-            WITH_IDENTIFIERS@31..90
-              IDENT@31..36 "first"
-              WHITESPACE@36..37 " "
-              EQUAL@37..38 "="
-              WHITESPACE@38..39 " "
-              EXPR@39..49
-                TERM@39..49
-                  PRIMARY_EXPR@39..46
-                    IDENT@39..42 "foo"
-                    DOT@42..43 "."
-                    IDENT@43..46 "bar"
-                  L_BRACKET@46..47 "["
-                  EXPR@47..48
-                    TERM@47..48
-                      PRIMARY_EXPR@47..48
-                        INTEGER_LIT@47..48 "0"
-                  R_BRACKET@48..49 "]"
+            WITH_DECLS@31..90
+              WITH_DECL@31..49
+                IDENT@31..36 "first"
+                WHITESPACE@36..37 " "
+                EQUAL@37..38 "="
+                WHITESPACE@38..39 " "
+                EXPR@39..49
+                  TERM@39..49
+                    PRIMARY_EXPR@39..46
+                      IDENT@39..42 "foo"
+                      DOT@42..43 "."
+                      IDENT@43..46 "bar"
+                    L_BRACKET@46..47 "["
+                    EXPR@47..48
+                      TERM@47..48
+                        PRIMARY_EXPR@47..48
+                          INTEGER_LIT@47..48 "0"
+                    R_BRACKET@48..49 "]"
               COMMA@49..50 ","
               WHITESPACE@50..51 " "
-              IDENT@51..55 "last"
-              WHITESPACE@55..56 " "
-              EQUAL@56..57 "="
-              WHITESPACE@57..58 " "
-              EXPR@58..90
-                TERM@58..90
-                  PRIMARY_EXPR@58..65
-                    IDENT@58..61 "foo"
-                    DOT@61..62 "."
-                    IDENT@62..65 "bar"
-                  L_BRACKET@65..66 "["
-                  EXPR@66..89
-                    TERM@66..85
-                      PRIMARY_EXPR@66..85
-                        IDENT@66..85 "bar_num_of_sections"
-                    WHITESPACE@85..86 " "
-                    SUB@86..87 "-"
-                    WHITESPACE@87..88 " "
-                    TERM@88..89
-                      PRIMARY_EXPR@88..89
-                        INTEGER_LIT@88..89 "1"
-                  R_BRACKET@89..90 "]"
+              WITH_DECL@51..90
+                IDENT@51..55 "last"
+                WHITESPACE@55..56 " "
+                EQUAL@56..57 "="
+                WHITESPACE@57..58 " "
+                EXPR@58..90
+                  TERM@58..90
+                    PRIMARY_EXPR@58..65
+                      IDENT@58..61 "foo"
+                      DOT@61..62 "."
+                      IDENT@62..65 "bar"
+                    L_BRACKET@65..66 "["
+                    EXPR@66..89
+                      TERM@66..85
+                        PRIMARY_EXPR@66..85
+                          IDENT@66..85 "bar_num_of_sections"
+                      WHITESPACE@85..86 " "
+                      SUB@86..87 "-"
+                      WHITESPACE@87..88 " "
+                      TERM@88..89
+                        PRIMARY_EXPR@88..89
+                          INTEGER_LIT@88..89 "1"
+                    R_BRACKET@89..90 "]"
             WHITESPACE@90..91 " "
             COLON@91..92 ":"
             WHITESPACE@92..93 " "

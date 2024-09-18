@@ -429,7 +429,10 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
             vec![
                 Node(
                     "<identifiers>".to_string(),
-                    w.items.iter().flat_map(with_items_ascii_tree).collect(),
+                    w.declarations
+                        .iter()
+                        .flat_map(with_items_ascii_tree)
+                        .collect(),
                 ),
                 Node(
                     "<boolean expression>".to_string(),
@@ -440,10 +443,10 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
     }
 }
 
-fn with_items_ascii_tree(item: &WithItems) -> Vec<Tree> {
+fn with_items_ascii_tree(declaration: &WithDeclaration) -> Vec<Tree> {
     vec![
-        Leaf(vec![format!("{}", item.identifier.name)]),
-        expr_ascii_tree(&item.expression),
+        Leaf(vec![format!("{}", declaration.identifier.name)]),
+        expr_ascii_tree(&declaration.expression),
     ]
 }
 

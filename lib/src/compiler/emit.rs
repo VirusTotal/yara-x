@@ -2152,9 +2152,8 @@ fn emit_with(
     with: &mut With,
 ) {
     // Emit the code that sets the variables in the `with` statement.
-    for (idx, &item) in with.identifiers.iter().enumerate() {
-        let expr = &mut with.expressions[idx];
-        set_var(ctx, instr, item, |ctx, instr| {
+    for (id, expr) in with.declarations.iter_mut() {
+        set_var(ctx, instr, *id, |ctx, instr| {
             emit_expr(ctx, instr, expr);
         });
     }

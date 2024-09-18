@@ -1024,26 +1024,31 @@ impl<'src> Builder<'src> {
 
         let mut span = self.expect(WITH_KW)?;
 
-        self.begin(WITH_IDENTIFIERS)?;
+        self.begin(WITH_DECLS)?;
 
-        let item = |i: &mut Self| -> Result<WithItems<'src>, Abort> {
-            let identifier = i.identifier()?;
-            let mut span = identifier.span();
-            span = span.combine(&i.expect(EQUAL)?);
-            let expression = i.expr()?;
-            span = span.combine(&expression.span());
+        let declaration =
+            |i: &mut Self| -> Result<WithDeclaration<'src>, Abort> {
+                i.begin(WITH_DECL)?;
 
-            Ok(WithItems { span, identifier, expression })
-        };
+                let identifier = i.identifier()?;
+                let mut span = identifier.span();
+                span = span.combine(&i.expect(EQUAL)?);
+                let expression = i.expr()?;
+                span = span.combine(&expression.span());
 
-        let mut items = vec![item(self)?];
+                i.end(WITH_DECL)?;
+
+                Ok(WithDeclaration { span, identifier, expression })
+            };
+
+        let mut declarations = vec![declaration(self)?];
 
         while let Event::Token { kind: COMMA, .. } = self.peek() {
             self.expect(COMMA)?;
-            items.push(item(self)?);
+            declarations.push(declaration(self)?);
         }
 
-        self.end(WITH_IDENTIFIERS)?;
+        self.end(WITH_DECLS)?;
 
         self.expect(COLON)?;
         self.expect(L_PAREN)?;
@@ -1054,7 +1059,7 @@ impl<'src> Builder<'src> {
 
         self.end(WITH_EXPR)?;
 
-        Ok(Expr::With(Box::new(With { span, items, condition })))
+        Ok(Expr::With(Box::new(With { span, declarations, condition })))
     }
 
     fn quantifier(&mut self) -> Result<Quantifier<'src>, Abort> {

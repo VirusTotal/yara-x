@@ -216,7 +216,7 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
 
                 Expr::With(with) => {
                     self.stack.push(Event::Enter(&with.condition));
-                    for expr in with.expressions.iter().rev() {
+                    for (_id, expr) in with.declarations.iter().rev() {
                         self.stack.push(Event::Enter(expr))
                     }
                 }

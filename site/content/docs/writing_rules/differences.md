@@ -197,6 +197,7 @@ But this is not valid...
 ```
 
 ## The "with" statement
+
 YARA-X now supports the `with` statement, which allows you to define identifiers
 that holds the result of a boolean expression. Each identifier is local and is valid
 only within the `with` statement. For example:
