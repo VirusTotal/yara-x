@@ -120,9 +120,9 @@ type CompileError struct {
 	// Error title (e.g: "unknown identifier `foo`").
 	Title string `json:"title"`
 	// Each of the labels in the error report.
-	Labels []Label `json:"labels"`
+	Labels []Label `json:"labels,omitempty"`
 	// Each of the footers in the error report.
-	Footers []Footer `json:"footers"`
+	Footers []Footer `json:"footers,omitempty"`
 	// The error's full report, as shown by the command-line tool.
 	Text string `json:"text"`
 }
@@ -134,9 +134,9 @@ type Warning struct {
 	// Error title (e.g: "slow pattern").
 	Title string `json:"title"`
 	// Each of the labels in the warning report.
-	Labels []Label `json:"labels"`
+	Labels []Label `json:"labels,omitempty"`
 	// Each of the footers in the warning report.
-	Footers []Footer `json:"footers"`
+	Footers []Footer `json:"footers,omitempty"`
 	// The error's full report, as shown by the command-line tool.
 	Text string `json:"text"`
 }
