@@ -151,6 +151,38 @@ rule has_rpath_example {
 }
 ```
 
+### has_import(import)
+
+Returns true if the Mach-O parsed imports contain `import`
+- `import` is case-insensitive.
+
+#### Example
+
+```yara
+import "macho"
+
+rule has_import_example {
+  condition:
+    macho.has_import("_NSEventTrackingRunLoopMode")
+}
+```
+
+### has_export(export)
+
+Returns true if the Mach-O parsed exports contain `export`
+- `export` is case-insensitive.
+
+#### Example
+
+```yara
+import "macho"
+
+rule has_export_example {
+  condition:
+    macho.has_export("_main")
+}
+```
+
 ### dylib_hash()
 
 Returns an MD5 hash of the dylibs designated in the Mach-O binary.
@@ -211,6 +243,27 @@ import "macho"
 rule export_hash_example {
   condition:
     macho.export_hash() == "6bfc6e935c71039e6e6abf097830dceb"
+}
+```
+
+### import_hash()
+
+Returns an MD5 hash of the imports designated in the Mach-O binary.
+
+{{< callout title="Notice">}}
+
+The returned hash string is always in lowercase.
+
+{{< /callout >}}
+
+#### Example
+
+```yara
+import "macho"
+
+rule import_hash_example {
+  condition:
+    macho.import_hash() == "35ea3b116d319851d93e26f7392e876e"
 }
 ```
 

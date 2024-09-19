@@ -381,7 +381,7 @@ fn test_macho_module() {
     import "macho"
     rule macho_test {
         condition:
-        not defined macho.export_hash()
+            not defined macho.export_hash()
     }
     "#,
         &[]
@@ -393,6 +393,83 @@ fn test_macho_module() {
         rule macho_test {
             condition:
                 macho.export_hash() == "6bfc6e935c71039e6e6abf097830dceb"
+        }
+        "#,
+        &tiny_universal_macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.import_hash() == "80524643c68b9cf5658e9c2ccc71bdda"
+        }
+        "#,
+        &tiny_universal_macho_data
+    );
+
+    rule_true!(
+        r#"
+    import "macho"
+    rule macho_test {
+        condition:
+            not defined macho.import_hash()
+    }
+    "#,
+        &[]
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.import_hash() == "35ea3b116d319851d93e26f7392e876e"
+        }
+        "#,
+        &chess_macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.has_import("_NSEventTrackingRunLoopMode")
+        }
+        "#,
+        &chess_macho_data
+    );
+
+    rule_false!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.has_import("_NventTrackingRunLoopMode")
+        }
+        "#,
+        &chess_macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.has_export("_factorial")
+        }
+        "#,
+        &tiny_universal_macho_data
+    );
+
+    rule_false!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.has_export("__notfound_export")
         }
         "#,
         &tiny_universal_macho_data

@@ -153,6 +153,7 @@ message File {
   optional BuildVersion build_version = 24;
   optional MinVersion min_version = 25;
   repeated string exports = 26;
+  repeated string imports = 27;
 }
 
 message Macho {
@@ -183,15 +184,16 @@ message Macho {
   optional BuildVersion build_version = 24;
   optional MinVersion min_version = 25;
   repeated string exports = 26;
+  repeated string imports = 27;
 
 
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 27 [(yaml.field).fmt = "x"];
-  optional uint32 nfat_arch = 28;
-  repeated FatArch fat_arch = 29;
+  optional uint32 fat_magic = 28 [(yaml.field).fmt = "x"];
+  optional uint32 nfat_arch = 29;
+  repeated FatArch fat_arch = 30;
 
   // Nested Mach-O files
-  repeated File file = 30;
+  repeated File file = 31;
 }
 
 enum Header {
