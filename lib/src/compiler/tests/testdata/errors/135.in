@@ -1,5 +1,4 @@
 rule test {
 	condition:
-	   with foo = "foo" : ( foo == "foo" )
-       and foo == "foo"
+	   with foo = "foo" : ( bar )
 }

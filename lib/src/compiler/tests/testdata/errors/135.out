@@ -1,6 +1,6 @@
-error[E009]: unknown identifier `foo`
- --> line:4:12
+error[E009]: unknown identifier `bar`
+ --> line:3:26
   |
-4 |        and foo == "foo"
-  |            ^^^ this identifier has not been declared
+3 |     with foo = "foo" : ( bar )
+  |                          ^^^ this identifier has not been declared
   |

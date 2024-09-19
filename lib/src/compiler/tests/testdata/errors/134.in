@@ -1,4 +1,0 @@
-rule test {
-	condition:
-	   with foo = "foo" : ( bar )
-}
