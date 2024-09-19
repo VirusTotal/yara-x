@@ -364,6 +364,22 @@ pub enum OfItems<'src> {
     BoolExprTuple(Vec<Expr<'src>>),
 }
 
+/// A `with` expression (e.g `with foo = 1 + 1 : (..)`)
+#[derive(Debug)]
+pub struct With<'src> {
+    span: Span,
+    pub declarations: Vec<WithDeclaration<'src>>,
+    pub condition: Expr<'src>,
+}
+
+/// Items in a `with` expression.
+#[derive(Debug)]
+pub struct WithDeclaration<'src> {
+    span: Span,
+    pub identifier: Ident<'src>,
+    pub expression: Expr<'src>,
+}
+
 /// A quantifier used in `for` and `of` expressions.
 #[derive(Debug)]
 pub enum Quantifier<'src> {
@@ -576,6 +592,9 @@ pub enum Expr<'src> {
 
     /// A `for <quantifier> <vars> in ...` expression. (e.g. `for all i in (1..100) : ( ... )`)
     ForIn(Box<ForIn<'src>>),
+
+    /// A `with` expression (e.g. `with foo = 1 + 1 : ( ... )`)
+    With(Box<With<'src>>),
 }
 
 /// A set of modifiers associated to a pattern.
@@ -1047,6 +1066,18 @@ impl WithSpan for OfItems<'_> {
     }
 }
 
+impl WithSpan for With<'_> {
+    fn span(&self) -> Span {
+        self.span.clone()
+    }
+}
+
+impl WithSpan for WithDeclaration<'_> {
+    fn span(&self) -> Span {
+        self.span.clone()
+    }
+}
+
 impl WithSpan for Iterable<'_> {
     fn span(&self) -> Span {
         match self {
@@ -1290,6 +1321,7 @@ impl WithSpan for Expr<'_> {
             Expr::ForOf(f) => f.span(),
             Expr::ForIn(f) => f.span(),
             Expr::Of(o) => o.span(),
+            Expr::With(w) => w.span(),
         }
     }
 }

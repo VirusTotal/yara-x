@@ -1,0 +1,35 @@
+ rule test
+ └─ condition
+    └─ with <identifiers> : ( <boolean expression> )
+       ├─ <identifiers>
+       │  ├─ first
+       │  ├─ <expr>[<index>]
+       │  │  ├─ <expr>
+       │  │  │  └─ field access
+       │  │  │     ├─ foo
+       │  │  │     └─ bar
+       │  │  └─ <index>
+       │  │     └─ 0
+       │  ├─ last
+       │  └─ <expr>[<index>]
+       │     ├─ <expr>
+       │     │  └─ field access
+       │     │     ├─ foo
+       │     │     └─ bar
+       │     └─ <index>
+       │        └─ sub
+       │           ├─ bar_num_of_sections
+       │           └─ 1
+       └─ <boolean expression>
+          └─ and
+             ├─ eq
+             │  ├─ field access
+             │  │  ├─ first
+             │  │  └─ name
+             │  └─ "foo"
+             └─ eq
+                ├─ field access
+                │  ├─ bar
+                │  └─ value
+                └─ 0x200
+

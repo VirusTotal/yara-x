@@ -24,7 +24,7 @@ use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
     Expr, ForIn, ForOf, FuncCall, Iterable, LiteralPattern, Lookup,
     MatchAnchor, Of, OfItems, Pattern, PatternFlagSet, PatternFlags,
-    PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern,
+    PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern, With,
 };
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{warnings, CompileContext, CompileError};
@@ -522,6 +522,7 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::Of(of) => of_expr_from_ast(ctx, of),
         ast::Expr::ForOf(for_of) => for_of_expr_from_ast(ctx, for_of),
         ast::Expr::ForIn(for_in) => for_in_expr_from_ast(ctx, for_in),
+        ast::Expr::With(with) => with_expr_from_ast(ctx, with),
         ast::Expr::FuncCall(fn_call) => func_call_from_ast(ctx, fn_call),
 
         ast::Expr::FieldAccess(expr) => {
@@ -1242,6 +1243,46 @@ fn for_in_expr_from_ast(
         condition,
         stack_frame,
     })))
+}
+
+fn with_expr_from_ast(
+    ctx: &mut CompileContext,
+    with: &ast::With,
+) -> Result<Expr, CompileError> {
+    // Create stack frame with capacity for the with statement variables
+    let mut stack_frame = ctx.vars.new_frame(with.declarations.len() as i32);
+    let mut symbols = SymbolTable::new();
+    let mut declarations = Vec::new();
+
+    // Iterate over all items in the with statement and create a new variable
+    // for each one. Both identifiers and corresponding expressions are stored
+    // in separate vectors.
+    for item in with.declarations.iter() {
+        let type_value = expr_from_ast(ctx, &item.expression)?
+            .type_value()
+            .clone_without_value();
+        let var = stack_frame.new_var(type_value.ty());
+
+        declarations.push((var, expr_from_ast(ctx, &item.expression)?));
+
+        // Insert the variable into the symbol table.
+        symbols.insert(
+            item.identifier.name,
+            Symbol::new(type_value, SymbolKind::Var(var)),
+        );
+    }
+
+    // Put the with variables into scope.
+    ctx.symbol_table.push(Rc::new(symbols));
+
+    let condition = bool_expr_from_ast(ctx, &with.condition)?;
+
+    // Leaving with statement condition's scope. Remove with statement variables.
+    ctx.symbol_table.pop();
+
+    ctx.vars.unwind(&stack_frame);
+
+    Ok(Expr::With(Box::new(With { declarations, condition })))
 }
 
 fn iterable_from_ast(

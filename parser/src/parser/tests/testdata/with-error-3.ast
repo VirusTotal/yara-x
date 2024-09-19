@@ -1,0 +1,2 @@
+ERRORS:
+- SyntaxError { message: "expecting identifier, found `:`", span: Span(31..32) }

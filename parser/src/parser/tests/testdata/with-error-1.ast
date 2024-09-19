@@ -1,0 +1,2 @@
+ERRORS:
+- SyntaxError { message: "expecting operator, `,` or `:`, found `}`", span: Span(91..92) }

@@ -1,0 +1,13 @@
+ rule test
+ └─ condition
+    └─ with <identifiers> : ( <boolean expression> )
+       ├─ <identifiers>
+       │  ├─ two
+       │  └─ add
+       │     ├─ 1
+       │     └─ 1
+       └─ <boolean expression>
+          └─ eq
+             ├─ two
+             └─ 2
+

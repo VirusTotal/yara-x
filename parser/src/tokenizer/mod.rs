@@ -338,6 +338,8 @@ enum NormalToken<'src> {
     Wide,
     #[token("xor")]
     Xor,
+    #[token("with")]
+    With,
 
     // Bitwise
     #[token("<<")]
@@ -695,6 +697,7 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
         NormalToken::True => Token::TRUE_KW(span),
         NormalToken::Wide => Token::WIDE_KW(span),
         NormalToken::Xor => Token::XOR_KW(span),
+        NormalToken::With => Token::WITH_KW(span),
 
         // Bitwise.
         NormalToken::Shl => Token::SHL(span),
