@@ -298,7 +298,7 @@ fn test_acl() {
 
     assert_eq!(
         c.add_source(rules).err().unwrap().to_string(),
-        r#"error[E034]: foo is required
+        r#"error[E035]: foo is required
  --> line:5:29
   |
 5 |                 test_proto2.requires_foo_and_bar == 0
@@ -310,7 +310,7 @@ fn test_acl() {
 
     assert_eq!(
         c.add_source(rules).err().unwrap().to_string(),
-        r#"error[E034]: bar is required
+        r#"error[E035]: bar is required
  --> line:5:29
   |
 5 |                 test_proto2.requires_foo_and_bar == 0
@@ -328,7 +328,7 @@ fn test_acl() {
 
     assert_eq!(
         c.add_source(rules).err().unwrap().to_string(),
-        r#"error[E034]: baz is forbidden
+        r#"error[E035]: baz is forbidden
  --> line:5:29
   |
 5 |                 test_proto2.requires_foo_and_bar == 0

@@ -91,6 +91,15 @@ func ErrorOnSlowPattern(yes bool) CompileOption {
 	}
 }
 
+// ErrorOnSlowLoop is an option for [NewCompiler] and [Compile] that
+// tells the compiler to treat slow loops as errors instead of warnings.
+func ErrorOnSlowLoop(yes bool) CompileOption {
+	return func(c *Compiler) error {
+		c.errorOnSlowLoop = yes
+		return nil
+	}
+}
+
 // A structure that contains the options passed to [Compiler.AddSource].
 type sourceOptions struct {
 	origin string
@@ -188,6 +197,7 @@ type Compiler struct {
 	cCompiler          *C.YRX_COMPILER
 	relaxedReSyntax    bool
 	errorOnSlowPattern bool
+	errorOnSlowLoop    bool
 	ignoredModules     map[string]bool
 	vars               map[string]interface{}
 	features           []string
@@ -214,6 +224,10 @@ func NewCompiler(opts ...CompileOption) (*Compiler, error) {
 
 	if c.errorOnSlowPattern {
 		flags |= C.YRX_ERROR_ON_SLOW_PATTERN
+	}
+
+	if c.errorOnSlowLoop {
+		flags |= C.YRX_ERROR_ON_SLOW_LOOP
 	}
 
 	C.yrx_compiler_create(flags, &c.cCompiler)

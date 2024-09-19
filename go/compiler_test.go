@@ -47,6 +47,13 @@ func TestErrorOnSlowPattern(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestErrorOnSlowLoop(t *testing.T) {
+	_, err := Compile(`
+		rule test { condition: for all x in (0..filesize): (x == 0) }`,
+		ErrorOnSlowLoop(true))
+	assert.Error(t, err)
+}
+
 func TestSerialization(t *testing.T) {
 	r, err := Compile("rule test { condition: true }")
 	assert.NoError(t, err)
@@ -128,7 +135,7 @@ func TestCompilerFeatures(t *testing.T) {
 	rules := `import "test_proto2" rule test { condition: test_proto2.requires_foo_and_bar }`
 
 	_, err := Compile(rules)
-	assert.EqualError(t, err, `error[E034]: foo is required
+	assert.EqualError(t, err, `error[E035]: foo is required
  --> line:1:57
   |
 1 | import "test_proto2" rule test { condition: test_proto2.requires_foo_and_bar }
@@ -136,7 +143,7 @@ func TestCompilerFeatures(t *testing.T) {
   |`)
 
 	_, err = Compile(rules, WithFeature("foo"))
-	assert.EqualError(t, err, `error[E034]: bar is required
+	assert.EqualError(t, err, `error[E035]: bar is required
  --> line:1:57
   |
 1 | import "test_proto2" rule test { condition: test_proto2.requires_foo_and_bar }

@@ -36,6 +36,10 @@ pub const YRX_RELAXED_RE_SYNTAX: u32 = 2;
 /// errors instead of warnings.
 pub const YRX_ERROR_ON_SLOW_PATTERN: u32 = 4;
 
+/// Flag passed to [`yrx_compiler_create`] for treating slow loops as
+/// errors instead of warnings.
+pub const YRX_ERROR_ON_SLOW_LOOP: u32 = 8;
+
 fn _yrx_compiler_create<'a>(flags: u32) -> yara_x::Compiler<'a> {
     let mut compiler = yara_x::Compiler::new();
     if flags & YRX_RELAXED_RE_SYNTAX != 0 {
@@ -46,6 +50,9 @@ fn _yrx_compiler_create<'a>(flags: u32) -> yara_x::Compiler<'a> {
     }
     if flags & YRX_ERROR_ON_SLOW_PATTERN != 0 {
         compiler.error_on_slow_pattern(true);
+    }
+    if flags & YRX_ERROR_ON_SLOW_LOOP != 0 {
+        compiler.error_on_slow_loop(true);
     }
     compiler
 }

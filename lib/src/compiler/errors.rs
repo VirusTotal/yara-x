@@ -65,6 +65,7 @@ pub enum CompileError {
     MismatchingTypes(Box<MismatchingTypes>),
     MixedGreediness(Box<MixedGreediness>),
     NumberOutOfRange(Box<NumberOutOfRange>),
+    PotentiallySlowLoop(Box<PotentiallySlowLoop>),
     SlowPattern(Box<SlowPattern>),
     SyntaxError(Box<SyntaxError>),
     UnexpectedEscapeSequence(Box<UnexpectedEscapeSequence>),
@@ -591,10 +592,39 @@ pub struct InvalidModifier {
     error_loc: CodeLoc,
 }
 
+/// A rule contains a loop that could be very slow.
+///
+/// This error indicates that a rule contains a `for` loop that may be very
+/// slow because it iterates over a range with an upper bound that depends on
+/// `filesize`. For very large files this may mean hundreds of millions of
+/// iterations.
+///
+/// # Example
+///
+/// ```text
+/// error[E034]: potentially slow loop
+///  --> test.yar:1:34
+///   |
+/// 1 | rule t { condition: for any i in (0..filesize-1) : ( int32(i) == 0xcafebabe ) }
+///   |                                  --------------- this range can be very large
+///   |
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E034", title = "potentially slow loop")]
+#[label(
+"this range can be very large",
+    loc
+)]
+pub struct PotentiallySlowLoop {
+    report: Report,
+    loc: CodeLoc,
+}
+
 /// A custom error has occurred.
 #[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
-#[error(code = "E034", title = "{title}")]
+#[error(code = "E035", title = "{title}")]
 #[label("{error}", error_loc)]
 pub struct CustomError {
     report: Report,

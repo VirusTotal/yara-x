@@ -37,6 +37,10 @@
 // errors instead of warnings.
 #define YRX_ERROR_ON_SLOW_PATTERN 4
 
+// Flag passed to [`yrx_compiler_create`] for treating slow loops as
+// errors instead of warnings.
+#define YRX_ERROR_ON_SLOW_LOOP 8
+
 // Types of metadata values.
 typedef enum YRX_METADATA_TYPE {
   I64,
