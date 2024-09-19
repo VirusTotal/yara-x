@@ -47,6 +47,13 @@ func TestErrorOnSlowPattern(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestErrorOnSlowLoop(t *testing.T) {
+	_, err := Compile(`
+		rule test { condition: for all x in (0..filesize): (x == 0) }`,
+		ErrorOnSlowLoop(true))
+	assert.Error(t, err)
+}
+
 func TestSerialization(t *testing.T) {
 	r, err := Compile("rule test { condition: true }")
 	assert.NoError(t, err)

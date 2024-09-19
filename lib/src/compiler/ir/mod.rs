@@ -832,22 +832,26 @@ impl Expr {
     }
 
     /// Finds the first expression in DFS order that matches the given
-    /// predicate.
-    ///
-    /// This function performs a DFS traversal starting at the current
-    /// expression and returns the first expression that matches the
-    /// predicate.
-    pub fn dfs_find<P>(&self, predicate: P) -> Option<&Expr>
+    /// `predicate`, but avoids traversing the descendants of nodes
+    /// matching the condition indicated by `prune_if`.
+    pub fn dfs_find<P, C>(&self, predicate: P, prune_if: C) -> Option<&Expr>
     where
         P: Fn(&Expr) -> bool,
+        C: Fn(&Expr) -> bool,
     {
-        for evt in self.dfs_iter() {
+        let mut dfs = self.dfs_iter();
+
+        while let Some(evt) = dfs.next() {
             if let Event::Enter(expr) = evt {
                 if predicate(expr) {
                     return Some(expr);
                 }
+                if prune_if(expr) {
+                    dfs.prune();
+                }
             }
         }
+
         None
     }
 

@@ -41,6 +41,11 @@ pub(in crate::compiler) struct CompileContext<'a, 'src, 'sym> {
     /// Allow invalid escape sequences in regular expressions.
     pub relaxed_re_syntax: bool,
 
+    /// If true, a slow loop produces an error instead of a warning. A slow
+    /// rule is one where the upper bound of the loop is potentially large.
+    /// Like for example: `for all x in (0..filesize) : (...)`
+    pub error_on_slow_loop: bool,
+
     /// Indicates how deep we are inside `for .. of` statements.
     pub(crate) for_of_depth: usize,
 }

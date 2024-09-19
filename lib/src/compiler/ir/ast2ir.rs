@@ -28,6 +28,7 @@ use crate::compiler::ir::{
 };
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{warnings, CompileContext, CompileError};
+use crate::errors::PotentiallySlowLoop;
 use crate::modules::BUILTIN_MODULES;
 use crate::re;
 use crate::re::parser::Error;
@@ -1063,6 +1064,39 @@ fn for_of_expr_from_ast(
     })))
 }
 
+fn is_potentially_large_range(range: &Range) -> bool {
+    // If the range's lower bound is not constant, we don't consider it a
+    // potentially large range. For instance (filesize-100, filesize) is not
+    // potentially large.
+    if !range.lower_bound.type_value().is_const() {
+        return false;
+    }
+    // If the lower bound is constant, and the upper bound is some expression
+    // that depends on `filesize` or the number of occurrences of some pattern
+    // (i.e: #a), we consider it a potentially large range. The only exception
+    // is when `math.min` is used, like in `(0..math.min(filesize, 1000))`
+    range
+        .upper_bound
+        .dfs_find(
+            // Traverse the upper bound expression looking for the use of filesize
+            // or a pattern count.
+            |node| matches!(node, Expr::Filesize | Expr::PatternCount { .. }),
+            // Don't traverse the arguments of `math.min`.
+            |node| {
+                if let Expr::FuncCall(f) = node {
+                    f.callable.type_value().as_func().signatures().iter().any(
+                        |signature| {
+                            signature.mangled_name.as_str().eq("math.min@ii@i")
+                        },
+                    )
+                } else {
+                    false
+                }
+            },
+        )
+        .is_some()
+}
+
 fn for_in_expr_from_ast(
     ctx: &mut CompileContext,
     for_in: &ast::ForIn,
@@ -1072,21 +1106,22 @@ fn for_in_expr_from_ast(
 
     let expected_vars = match &iterable {
         Iterable::Range(range) => {
-            // Raise warning when the for loop iterates over a range where
-            // the upper bound is based in `filesize`. These loops are
-            // potentially slow.
-            if range.lower_bound.type_value().is_const()
-                && range
-                    .upper_bound
-                    .dfs_find(|node| matches!(node, Expr::Filesize))
-                    .is_some()
-            {
-                ctx.warnings.add(|| {
-                    warnings::PotentiallySlowLoop::build(
+            // Raise warning when the `for` loop iterates over a range that
+            // may be very large.
+            if is_potentially_large_range(range) {
+                if ctx.error_on_slow_loop {
+                    return Err(PotentiallySlowLoop::build(
                         ctx.report_builder,
                         for_in.iterable.span().into(),
-                    )
-                })
+                    ));
+                } else {
+                    ctx.warnings.add(|| {
+                        warnings::PotentiallySlowLoop::build(
+                            ctx.report_builder,
+                            for_in.iterable.span().into(),
+                        )
+                    })
+                }
             }
 
             vec![TypeValue::Integer(Value::Unknown)]

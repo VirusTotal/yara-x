@@ -217,6 +217,7 @@ mod tests {
 
         let mut ctx = CompileContext {
             relaxed_re_syntax: false,
+            error_on_slow_loop: false,
             current_symbol_table: None,
             symbol_table: &mut symbol_table,
             report_builder: &mut report_builder,

@@ -11,28 +11,28 @@ use crate::types::{TypeValue, Value};
 /// about the function's arguments and return types.
 ///
 /// Mangled names have the format `<func name>@<arguments>@<return type>`,
-///  where `<arguments>` is a sequence of characters, one per argument,
-///  that specify the argument's type. Allowed types are:
+/// where `<arguments>` is a sequence of characters, one per argument,
+/// that specify the argument's type. Allowed types are:
 ///
-///  ```text
-///   i: integer
-///   f: float
-///   b: bool
-///   s: string
-///   r: regexp
-///  ```
+/// ```text
+///  i: integer
+///  f: float
+///  b: bool
+///  s: string
+///  r: regexp
+/// ```
 ///
-///  `<return type>` is also a sequence of one or more of the characters
-///  above, specifying the types returned by the function (except `r`,
-///  because functions can't return regular expressions). For example, a
-///  function `add` with two integer arguments that return another integer
-///  would have the mangled name `add@ii@i`. A function `foo` that returns
-///  a tuple of two integers have the mangled name `foo@@ii`.
+/// `<return type>` is also a sequence of one or more of the characters
+/// above, specifying the types returned by the function (except `r`,
+/// because functions can't return regular expressions). For example, a
+/// function `add` with two integer arguments that return another integer
+/// would have the mangled name `add@ii@i`. A function `foo` that returns
+/// a tuple of two integers have the mangled name `foo@@ii`.
 ///
-///  Additionally, the return type may be followed by a `u` character if
-///  the returned value may be undefined. For example, a function `foo` that
-///  receives no argument and returns a string that may be undefined will have
-///  a mangled name: `foo@@su`.
+/// Additionally, the return type may be followed by a `u` character if
+/// the returned value may be undefined. For example, a function `foo` that
+/// receives no argument and returns a string that may be undefined will have
+/// a mangled name: `foo@@su`.
 ///
 /// Both `<arguments>` and `<return type>` can be empty if the function
 /// doesn't receive arguments or doesn't return a value. Let's see some e
