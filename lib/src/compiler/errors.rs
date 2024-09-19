@@ -174,14 +174,16 @@ pub struct SyntaxError {
 #[associated_enum(CompileError)]
 #[error(code = "E002", title = "wrong type")]
 #[label(
-    "expression should be {expected_types}, but is `{actual_type}`",
+    "expression should be {expected_types}, but it is {actual_type}",
     error_loc
 )]
+#[footer(help, Level::Help)]
 pub struct WrongType {
     report: Report,
     expected_types: String,
     actual_type: String,
     error_loc: CodeLoc,
+    help: Option<String>,
 }
 
 /// Operands have mismatching types.

@@ -2,5 +2,5 @@ error[E002]: wrong type
  --> line:4:5
   |
 4 |     test_proto2.int64_zero[0]
-  |     ^^^^^^^^^^^^^^^^^^^^^^ expression should be `array` or `map`, but is `integer`
+  |     ^^^^^^^^^^^^^^^^^^^^^^ expression should be `array` or `map`, but it is `integer`
   |

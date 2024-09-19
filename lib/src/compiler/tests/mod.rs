@@ -615,6 +615,62 @@ fn import_modules() {
         .is_ok());
 }
 
+#[cfg(feature = "pe-module")]
+#[test]
+fn wrong_type() {
+    assert_eq!(
+        Compiler::new()
+            .add_source(
+                r#"
+            import "pe"
+            rule test { condition: pe.is_dll }"#
+            )
+            .expect_err("expected error")
+            .to_string(),
+        "error[E002]: wrong type
+ --> line:3:36
+  |
+3 |             rule test { condition: pe.is_dll }
+  |                                    ^^^^^^^^^ expression should be `bool`, but it is a function
+  |
+  = help: you probably meant pe.is_dll()"
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .add_source(
+                r#"
+            import "pe"
+            rule test { condition: pe.sections }"#
+            )
+            .expect_err("expected error")
+            .to_string(),
+        "error[E002]: wrong type
+ --> line:3:36
+  |
+3 |             rule test { condition: pe.sections }
+  |                                    ^^^^^^^^^^^ expression should be `bool`, but it is an array
+  |"
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .add_source(
+                r#"
+            import "pe"
+            rule test { condition: pe.version_info }"#
+            )
+            .expect_err("expected error")
+            .to_string(),
+        "error[E002]: wrong type
+ --> line:3:36
+  |
+3 |             rule test { condition: pe.version_info }
+  |                                    ^^^^^^^^^^^^^^^ expression should be `bool`, but it is a map
+  |"
+    );
+}
+
 #[test]
 fn continue_after_error() {
     let mut compiler = Compiler::new();

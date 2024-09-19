@@ -2,5 +2,5 @@ error[E002]: wrong type
  --> line:2:14
   |
 2 |   condition: 1 matches /foobar/
-  |              ^ expression should be `string`, but is `integer`
+  |              ^ expression should be `string`, but it is `integer`
   |
