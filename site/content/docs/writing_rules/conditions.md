@@ -472,6 +472,93 @@ The `for..in` operator is similar to `for..of`, but the latter iterates over a
 set of patterns, while the former iterates over ranges, enumerations, arrays
 and dictionaries.
 
+## The "with" statement
+
+YARA-X now supports the `with` statement defined by [RFC](https://github.com/VirusTotal/yara/discussions/1783), which allows you to define identifiers
+that holds the result of a boolean expression. Each identifier is local and is
+valid only within the `with` statement. The syntax is: 
+
+```yara
+with 
+    <identifier> = <expression> [,<identifier> = <expression>]* : 
+    (
+        <boolean expression>
+    )
+```
+
+For example:
+
+```yara
+rule WithExample {
+    condition:
+        with
+            first = foo.bar[0],
+            last = foo.bar[num_of_items - 1] : (
+                first.text == last.text
+            )
+}
+```
+
+Using the `with` identifier outside of a `with` statement is not allowed.
+Something like:
+    
+```yara
+rule WithExample {
+    condition:
+        with
+            first = foo.bar[0],
+            last = foo.bar[num_of_items - 1] : (
+                first.text == last.text
+            )
+        or last.text != first.text
+}    
+```
+
+is syntactically valid but it will raise a compilation error.
+
+Another usage of the `with` statement could be to avoid repeating the same
+expression multiple times in the condition. Something like:
+
+```yara
+pe.sections[0] .name == ".text" and
+pe.sections[0].characteristics == 0xC0000000 and
+pe.sections[0].raw_data_size == 0x2000 and
+pe.sections[0].raw_data_offset == 0x1000 and
+pe.sections[pe.number_of_sections - 1] .name == ".tls" and
+pe.sections[pe.number_of_sections - 1].characteristics == 0xC0000000 and
+pe.sections[pe.number_of_sections - 1].raw_data_size == 0x1000 and
+pe.sections[pe.number_of_sections - 1].raw_data_offset == 0x4000
+```
+
+can be rewritten as:
+
+```yara
+with 
+    fs = pe.sections[0], 
+    ls = pe.sections[pe.number_of_sections - 1] : (
+        fs.name == ".text" and
+        fs.name.characteristics == 0xC0000000 and
+        fs.name.raw_data_size == 0x2000 and
+        fs.name.raw_data_offset == 0x1000 and
+        ls.name == ".tls" and
+        ls.characteristics == 0xC0000000 and
+        ls.raw_data_size == 0x1000 and
+        ls.raw_data_offset == 0x4000
+    )
+```
+
+Another use case is to declare a variable that is used just in "for" loops:
+
+```yara
+for all offset in (10,20,30) : (
+    with val = uint64(offset) | uint64(offset + 4) | uint64(offset + 8) : (
+        val == 0x10000 or 
+        val == 0x20000 or 
+        val == 0x40000
+  )
+)
+```
+
 ## Referencing other rules
 
 When writing the condition for a rule, you can also make reference to a

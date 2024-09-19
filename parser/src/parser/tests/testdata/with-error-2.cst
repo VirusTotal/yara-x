@@ -1,0 +1,40 @@
+SOURCE_FILE@0..65
+  RULE_DECL@0..65
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..13 "\t"
+    ERROR@13..63
+      CONDITION_KW@13..22 "condition"
+      COLON@22..23 ":"
+      NEWLINE@23..24 "\n"
+      WHITESPACE@24..26 "\t\t"
+      ERROR@26..26
+        ERROR@26..26
+      WITH_KW@26..30 "with"
+      WHITESPACE@30..31 " "
+      IDENT@31..36 "first"
+      WHITESPACE@36..37 " "
+      EQUAL@37..38 "="
+      WHITESPACE@38..39 " "
+      IDENT@39..42 "foo"
+      DOT@42..43 "."
+      IDENT@43..46 "bar"
+      L_BRACKET@46..47 "["
+      INTEGER_LIT@47..48 "0"
+      R_BRACKET@48..49 "]"
+      WHITESPACE@49..50 " "
+      COLON@50..51 ":"
+      WHITESPACE@51..52 " "
+      L_PAREN@52..53 "("
+      NEWLINE@53..54 "\n"
+      WHITESPACE@54..62 "        "
+      R_PAREN@62..63 ")"
+    NEWLINE@63..64 "\n"
+    R_BRACE@64..65 "}"
+
+ERRORS:
+- [62..63]: expecting expression, `for`, `all`, `none`, `any` or `with`, found `)`

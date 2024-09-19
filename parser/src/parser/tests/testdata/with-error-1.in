@@ -1,0 +1,6 @@
+rule test {
+	condition:
+		with first = foo.bar[0] ( 
+            first == "test"
+        )
+}

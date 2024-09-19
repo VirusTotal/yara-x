@@ -196,6 +196,38 @@ But this is not valid...
 1 of (some_rule*)
 ```
 
+## The "with" statement
+
+YARA-X now supports the `with` statement, which allows you to define identifiers
+that holds the result of a boolean expression. Each identifier is local and is valid
+only within the `with` statement. For example:
+
+```
+with 
+    a = 1 + 1, 
+    b = 2 : (
+        a == b
+  )
+```
+
+This is also useful to avoid repeating the same expression multiple times in the
+condition. For example:
+
+```
+with
+    a = foo.bar[0],
+    b = foo.bar[1] : (
+        a.name == b.name or
+        a.value == 0x10 or
+        b.value == 0x20 or
+        a.value == b.value
+  )
+```
+
+This is something that was not present in YARA 4.x and you had to repeat the
+expression multiple times.
+
+
 ## Using xor and fullword together
 
 In YARA 4.x the combination `xor` and `fullword` looks for the bytes before

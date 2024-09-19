@@ -1,0 +1,6 @@
+error[E009]: unknown identifier `foo`
+ --> line:4:12
+  |
+4 |        and foo == "foo"
+  |            ^^^ this identifier has not been declared
+  |

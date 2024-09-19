@@ -1,0 +1,58 @@
+SOURCE_FILE@0..78
+  RULE_DECL@0..78
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..13 "\t"
+    CONDITION_BLK@13..76
+      CONDITION_KW@13..22 "condition"
+      COLON@22..23 ":"
+      NEWLINE@23..24 "\n"
+      WHITESPACE@24..26 "\t\t"
+      BOOLEAN_EXPR@26..76
+        BOOLEAN_TERM@26..76
+          WITH_EXPR@26..76
+            WITH_KW@26..30 "with"
+            WHITESPACE@30..31 " "
+            WITH_DECLS@31..40
+              WITH_DECL@31..40
+                IDENT@31..34 "two"
+                WHITESPACE@34..35 " "
+                EQUAL@35..36 "="
+                WHITESPACE@36..37 " "
+                EXPR@37..40
+                  TERM@37..38
+                    PRIMARY_EXPR@37..38
+                      INTEGER_LIT@37..38 "1"
+                  ADD@38..39 "+"
+                  TERM@39..40
+                    PRIMARY_EXPR@39..40
+                      INTEGER_LIT@39..40 "1"
+            WHITESPACE@40..41 " "
+            COLON@41..42 ":"
+            WHITESPACE@42..43 " "
+            L_PAREN@43..44 "("
+            WHITESPACE@44..45 " "
+            NEWLINE@45..46 "\n"
+            WHITESPACE@46..58 "            "
+            BOOLEAN_EXPR@58..66
+              BOOLEAN_TERM@58..66
+                EXPR@58..61
+                  TERM@58..61
+                    PRIMARY_EXPR@58..61
+                      IDENT@58..61 "two"
+                WHITESPACE@61..62 " "
+                EQ@62..64 "=="
+                WHITESPACE@64..65 " "
+                EXPR@65..66
+                  TERM@65..66
+                    PRIMARY_EXPR@65..66
+                      INTEGER_LIT@65..66 "2"
+            NEWLINE@66..67 "\n"
+            WHITESPACE@67..75 "        "
+            R_PAREN@75..76 ")"
+    NEWLINE@76..77 "\n"
+    R_BRACE@77..78 "}"

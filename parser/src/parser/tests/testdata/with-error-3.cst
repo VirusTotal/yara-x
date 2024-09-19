@@ -1,0 +1,32 @@
+SOURCE_FILE@0..63
+  RULE_DECL@0..63
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..13 "\t"
+    ERROR@13..61
+      CONDITION_KW@13..22 "condition"
+      COLON@22..23 ":"
+      NEWLINE@23..24 "\n"
+      WHITESPACE@24..26 "\t\t"
+      ERROR@26..26
+        ERROR@26..26
+      WITH_KW@26..30 "with"
+      WHITESPACE@30..31 " "
+      COLON@31..32 ":"
+      WHITESPACE@32..33 " "
+      L_PAREN@33..34 "("
+      NEWLINE@34..35 "\n"
+      WHITESPACE@35..47 "            "
+      TRUE_KW@47..51 "true"
+      NEWLINE@51..52 "\n"
+      WHITESPACE@52..60 "        "
+      R_PAREN@60..61 ")"
+    NEWLINE@61..62 "\n"
+    R_BRACE@62..63 "}"
+
+ERRORS:
+- [31..32]: expecting identifier, found `:`
