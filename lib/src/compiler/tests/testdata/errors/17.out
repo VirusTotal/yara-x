@@ -2,5 +2,5 @@ error[E002]: wrong type
  --> line:5:8
   |
 5 |     @a["1"] == 0x100
-  |        ^^^ expression should be `integer`, but is `string`
+  |        ^^^ expression should be `integer`, but it is `string`
   |

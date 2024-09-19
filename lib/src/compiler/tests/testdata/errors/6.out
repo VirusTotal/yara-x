@@ -2,5 +2,5 @@ error[E002]: wrong type
  --> line:2:19
   |
 2 |   condition: 1 << 2.0 + 2
-  |                   ^^^^^^^ expression should be `integer`, but is `float`
+  |                   ^^^^^^^ expression should be `integer`, but it is `float`
   |

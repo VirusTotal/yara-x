@@ -1,4 +1,5 @@
-use annotate_snippets::renderer::DEFAULT_TERM_WIDTH;
+use annotate_snippets::renderer;
+use annotate_snippets::renderer::{AnsiColor, Color, DEFAULT_TERM_WIDTH};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use std::borrow::Cow;
@@ -321,8 +322,28 @@ impl ReportBuilder {
     }
 
     /// Returns the [`SourceId`] for the most recently registered source file.
-    pub(crate) fn current_source_id(&self) -> Option<SourceId> {
+    pub fn current_source_id(&self) -> Option<SourceId> {
         self.current_source_id.get()
+    }
+
+    /// Returns the green style used in error/warning reports.
+    ///
+    /// This is an example of how to use it:
+    ///
+    /// ```text
+    /// let style = report_builder.green_style();
+    /// format!("lorem ipsum {style}dolor sit amet{style:#}");
+    /// ```
+    ///
+    /// In the example above "dolor sit amet" will be painted in green, except
+    /// if colors are disabled.
+    pub fn green_style(&self) -> renderer::Style {
+        if self.with_colors {
+            renderer::Style::new()
+                .fg_color(Some(Color::Ansi(AnsiColor::BrightGreen)))
+        } else {
+            renderer::Style::new()
+        }
     }
 
     /// Registers a source code with the report builder.

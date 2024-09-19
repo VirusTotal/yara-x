@@ -1,0 +1,6 @@
+error[E002]: wrong type
+ --> line:3:4
+  |
+3 |    /foo/
+  |    ^^^^^ expression should be `bool`, but it is a regexp
+  |

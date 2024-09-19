@@ -863,8 +863,9 @@ pub(in crate::compiler) fn expr_from_ast(
                         return Err(WrongType::build(
                             ctx.report_builder,
                             format!("`{}`", key_ty),
-                            ty.to_string(),
+                            format!("`{}`", ty),
                             expr.index.span().into(),
+                            None,
                         ));
                     }
 
@@ -877,8 +878,9 @@ pub(in crate::compiler) fn expr_from_ast(
                 type_value => Err(WrongType::build(
                     ctx.report_builder,
                     format!("`{}` or `{}`", Type::Array, Type::Map),
-                    type_value.ty().to_string(),
+                    format!("`{}`", type_value.ty()),
                     expr.primary.span().into(),
+                    None,
                 )),
             }
         }
@@ -889,8 +891,63 @@ pub(in crate::compiler) fn bool_expr_from_ast(
     ctx: &mut CompileContext,
     ast: &ast::Expr,
 ) -> Result<Expr, CompileError> {
+    let code_loc = ast.span().into();
     let expr = expr_from_ast(ctx, ast)?;
-    warn_if_not_bool(ctx, expr.ty(), ast.span());
+
+    match expr.type_value() {
+        TypeValue::Func(func) => {
+            let help = func
+                .signatures()
+                .iter()
+                .find(|f| f.args.is_empty() || f.result.ty() == Type::Bool)
+                .map(|_| {
+                    let style = ctx.report_builder.green_style();
+                    format!(
+                        "you probably meant {style}{}(){style:#}",
+                        ctx.report_builder.get_snippet(&code_loc)
+                    )
+                });
+
+            return Err(WrongType::build(
+                ctx.report_builder,
+                "`bool`".to_string(),
+                "a function".to_string(),
+                code_loc,
+                help,
+            ));
+        }
+        TypeValue::Map(_) => {
+            return Err(WrongType::build(
+                ctx.report_builder,
+                "`bool`".to_string(),
+                "a map".to_string(),
+                code_loc,
+                None,
+            ))
+        }
+        TypeValue::Array(_) => {
+            return Err(WrongType::build(
+                ctx.report_builder,
+                "`bool`".to_string(),
+                "an array".to_string(),
+                code_loc,
+                None,
+            ))
+        }
+        TypeValue::Regexp(_) => {
+            return Err(WrongType::build(
+                ctx.report_builder,
+                "`bool`".to_string(),
+                "a regexp".to_string(),
+                code_loc,
+                None,
+            ))
+        }
+        _ => {
+            warn_if_not_bool(ctx, expr.ty(), ast.span());
+        }
+    }
+
     Ok(expr)
 }
 
@@ -1514,8 +1571,9 @@ fn check_type(
         Err(WrongType::build(
             ctx.report_builder,
             CompileError::join_with_or(accepted_types, true),
-            ty.to_string(),
+            format!("`{}`", ty),
             span.into(),
+            None,
         ))
     }
 }

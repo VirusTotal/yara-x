@@ -2,5 +2,5 @@ error[E002]: wrong type
  --> line:2:29
   |
 2 |   condition: "111" contains 1
-  |                             ^ expression should be `string`, but is `integer`
+  |                             ^ expression should be `string`, but it is `integer`
   |

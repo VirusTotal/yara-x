@@ -2,5 +2,5 @@ error[E002]: wrong type
  --> line:4:5
   |
 4 |     test_proto2(1)
-  |     ^^^^^^^^^^^ expression should be `function`, but is `struct`
+  |     ^^^^^^^^^^^ expression should be `function`, but it is `struct`
   |

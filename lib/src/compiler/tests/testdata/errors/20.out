@@ -2,5 +2,5 @@ error[E002]: wrong type
  --> line:5:15
   |
 5 |     #a in (0.."10")
-  |               ^^^^ expression should be `integer`, but is `string`
+  |               ^^^^ expression should be `integer`, but it is `string`
   |

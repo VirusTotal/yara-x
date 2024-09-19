@@ -2,5 +2,5 @@ error[E002]: wrong type
  --> line:2:14
   |
 2 |   condition: 2.0 % 1 == 1
-  |              ^^^ expression should be `integer`, but is `float`
+  |              ^^^ expression should be `integer`, but it is `float`
   |

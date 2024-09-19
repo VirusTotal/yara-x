@@ -2,5 +2,5 @@ error[E002]: wrong type
  --> line:5:21
   |
 5 |     any of them in (1.0..10)
-  |                     ^^^ expression should be `integer`, but is `float`
+  |                     ^^^ expression should be `integer`, but it is `float`
   |
