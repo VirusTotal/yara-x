@@ -167,10 +167,12 @@ where
         w.filter("**/*.yar");
         w.filter("**/*.yara");
 
-        if let Some(namespace) = namespace {
-            compiler.new_namespace(namespace.as_str());
-        }
-
+        compiler.new_namespace(
+            namespace
+                .as_ref()
+                .map(|namespace| namespace.as_str())
+                .unwrap_or("default"),
+        );
 
         if let Err(err) = w.walk(
             |file_path| {
