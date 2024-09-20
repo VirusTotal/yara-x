@@ -104,18 +104,15 @@ fn meta_file_value_parser(
 /// `[NAMESPACE:]PATH`.
 ///
 /// Returns the namespace and the path. If the namespace is not provided
-/// returns "default".
+/// returns [`None`].
 fn path_with_namespace_parser(
     input: &str,
-) -> Result<(String, PathBuf), anyhow::Error> {
-    let (namespace, path) =
-        if let Some((namespace, path)) = input.split_once(':') {
-            (namespace, path)
-        } else {
-            ("default", input)
-        };
-    let path = PathBuf::from(path);
-    Ok((namespace.to_string(), path))
+) -> Result<(Option<String>, PathBuf), anyhow::Error> {
+    if let Some((namespace, path)) = input.split_once(':') {
+        Ok((Some(namespace.to_string()), PathBuf::from(path)))
+    } else {
+        Ok((None, PathBuf::from(input)))
+    }
 }
 
 pub fn compile_rules<'a, P>(
@@ -124,7 +121,7 @@ pub fn compile_rules<'a, P>(
     args: &ArgMatches,
 ) -> Result<Rules, anyhow::Error>
 where
-    P: Iterator<Item = &'a (String, PathBuf)>,
+    P: Iterator<Item = &'a (Option<String>, PathBuf)>,
 {
     let mut compiler: Compiler<'_> = Compiler::new();
 
@@ -170,7 +167,12 @@ where
         w.filter("**/*.yar");
         w.filter("**/*.yara");
 
-        compiler.new_namespace(namespace.as_str());
+        compiler.new_namespace(
+            namespace
+                .as_ref()
+                .map(|namespace| namespace.as_str())
+                .unwrap_or("default"),
+        );
 
         if let Err(err) = w.walk(
             |file_path| {

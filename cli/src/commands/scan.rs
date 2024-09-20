@@ -171,8 +171,9 @@ pub fn scan() -> Command {
 }
 
 pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
-    let mut rules_path =
-        args.get_many::<(String, PathBuf)>("[NAMESPACE:]RULES_PATH").unwrap();
+    let mut rules_path = args
+        .get_many::<(Option<String>, PathBuf)>("[NAMESPACE:]RULES_PATH")
+        .unwrap();
 
     let target_path = args.get_one::<PathBuf>("TARGET_PATH").unwrap();
     let compiled_rules = args.get_flag("compiled-rules");
@@ -205,7 +206,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
         let (namespace, rules_path) = rules_path.next().unwrap();
 
-        if !namespace.is_empty() {
+        if namespace.is_some() {
             bail!(
                 "can't use namespace with '{}'",
                 Paint::bold("--compiled-rules")
