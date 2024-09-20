@@ -48,12 +48,12 @@ pub struct Rules {
     /// string as `&BStr`.
     pub(in crate::compiler) lit_pool: BStringPool<LiteralId>,
 
+    /// WASM module as in raw form.
+    pub(in crate::compiler) wasm_mod: Vec<u8>,
+
     /// WASM module already compiled into native code for the current platform.
-    #[serde(
-        serialize_with = "serialize_wasm_mod",
-        deserialize_with = "deserialize_wasm_mod"
-    )]
-    pub(in crate::compiler) wasm_mod: wasmtime::Module,
+    #[serde(skip)]
+    pub(in crate::compiler) compiled_wasm_mod: Option<wasmtime::Module>,
 
     /// Vector with the names of all the imported modules. The vector contains
     /// the [`IdentId`] corresponding to the module's identifier.
@@ -162,6 +162,18 @@ impl Rules {
         let mut rules = bincode::DefaultOptions::new()
             .with_varint_encoding()
             .deserialize::<Self>(&bytes[magic.len()..])?;
+
+        // Compile the WASM module for the current platform. This panics
+        // if the WASM code is invalid, which should not happen as the code is
+        // emitted by YARA itself. If this ever happens is probably because
+        // wrong WASM code is being emitted.
+        rules.compiled_wasm_mod = Some(
+            wasmtime::Module::from_binary(
+                &crate::wasm::ENGINE,
+                rules.wasm_mod.as_slice(),
+            )
+            .expect("WASM module is not valid"),
+        );
 
         #[cfg(feature = "logging")]
         info!("Deserialization time: {:?}", Instant::elapsed(&start));
@@ -421,7 +433,7 @@ impl Rules {
 
     #[inline]
     pub(crate) fn wasm_mod(&self) -> &wasmtime::Module {
-        &self.wasm_mod
+        self.compiled_wasm_mod.as_ref().unwrap()
     }
 }
 
