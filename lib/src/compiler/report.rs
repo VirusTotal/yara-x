@@ -83,6 +83,7 @@ impl From<Span> for CodeLoc {
 /// - `title`: The title of the report (e.g., "unexpected negative number").
 /// - `labels`: A collection of labels included in the report. Each label
 ///             contains a level, a span, and associated text.
+/// - `footers`: A collection notes that appear after the end of the report.
 #[derive(Clone)]
 pub(crate) struct Report {
     code_cache: Arc<CodeCache>,
@@ -110,12 +111,24 @@ impl Report {
                 code_loc.source_id.unwrap_or(self.default_source_id);
 
             let code_cache = self.code_cache.read();
-            let code_origin =
-                code_cache.get(&source_id).unwrap().origin.clone();
+            let cache_entry = code_cache.get(&source_id).unwrap();
+            let code_origin = cache_entry.origin.clone();
+
+            // This could be faster if we maintain an ordered vector with the
+            // byte offset where each line begins. By doing a binary search
+            // on that vector, we can locate the line number in O(log(N))
+            // instead of O(N).
+            let (line, column) = byte_offset_to_line_col(
+                &cache_entry.code,
+                code_loc.span.start(),
+            )
+            .unwrap();
 
             Label {
                 level: level_as_text(*level),
                 code_origin,
+                line,
+                column,
                 span: code_loc.span.clone(),
                 text,
             }
@@ -232,6 +245,8 @@ impl Display for Report {
 pub struct Label<'a> {
     level: &'a str,
     code_origin: Option<String>,
+    line: usize,
+    column: usize,
     span: Span,
     text: &'a str,
 }
@@ -434,5 +449,89 @@ fn level_as_text(level: Level) -> &'static str {
         Level::Info => "info",
         Level::Note => "note",
         Level::Help => "help",
+    }
+}
+
+/// Given a text slice and a position indicated as a byte offset, returns
+/// the same position as a (line, column) pair.
+fn byte_offset_to_line_col(
+    text: &str,
+    byte_offset: usize,
+) -> Option<(usize, usize)> {
+    // Check if the byte_offset is valid
+    if byte_offset > text.len() {
+        return None; // Out of bounds
+    }
+
+    let mut line = 1;
+    let mut col = 1;
+
+    // Iterate through the characters (not bytes) in the string
+    for (i, c) in text.char_indices() {
+        if i == byte_offset {
+            return Some((line, col));
+        }
+        if c == '\n' {
+            line += 1;
+            col = 1; // Reset column to 1 after a newline
+        } else {
+            col += 1;
+        }
+    }
+
+    // If the byte_offset points to the last byte of the string, return the final position
+    if byte_offset == text.len() {
+        return Some((line, col));
+    }
+
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::compiler::report::byte_offset_to_line_col;
+
+    #[test]
+    fn byte_offset_to_line_col_single_line() {
+        let text = "Hello, World!";
+        assert_eq!(byte_offset_to_line_col(text, 0), Some((1, 1))); // Start of the string
+        assert_eq!(byte_offset_to_line_col(text, 7), Some((1, 8))); // Byte offset of 'W'
+        assert_eq!(byte_offset_to_line_col(text, 12), Some((1, 13))); // Byte offset of '!'
+    }
+
+    #[test]
+    fn byte_offset_to_line_col_multiline() {
+        let text = "Hello\nRust\nWorld!";
+        assert_eq!(byte_offset_to_line_col(text, 0), Some((1, 1))); // First character
+        assert_eq!(byte_offset_to_line_col(text, 5), Some((1, 6))); // End of first line (newline)
+        assert_eq!(byte_offset_to_line_col(text, 6), Some((2, 1))); // Start of second line ('R')
+        assert_eq!(byte_offset_to_line_col(text, 9), Some((2, 4))); // Byte offset of 't' in "Rust"
+        assert_eq!(byte_offset_to_line_col(text, 11), Some((3, 1))); // Start of third line ('W')
+    }
+
+    #[test]
+    fn byte_offset_to_line_col_empty_string() {
+        let text = "";
+        assert_eq!(byte_offset_to_line_col(text, 0), Some((1, 1)));
+    }
+
+    #[test]
+    fn byte_offset_to_line_col_out_of_bounds() {
+        let text = "Hello, World!";
+        assert_eq!(byte_offset_to_line_col(text, text.len() + 1), None);
+    }
+
+    #[test]
+    fn byte_offset_to_line_col_end_of_string() {
+        let text = "Hello, World!";
+        assert_eq!(byte_offset_to_line_col(text, text.len()), Some((1, 14))); // Last position after '!'
+    }
+
+    #[test]
+    fn byte_offset_to_line_col_multibyte_characters() {
+        let text = "Hello, 你好!";
+        assert_eq!(byte_offset_to_line_col(text, 7), Some((1, 8))); // Position of '你'
+        assert_eq!(byte_offset_to_line_col(text, 10), Some((1, 9))); // Position of '好'
+        assert_eq!(byte_offset_to_line_col(text, 13), Some((1, 10))); // Position of '!'
     }
 }

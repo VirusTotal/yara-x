@@ -156,6 +156,10 @@ type Label struct {
 	Level string `json:"level"`
 	// Origin of the code where the error occurred.
 	CodeOrigin string `json:"code_origin"`
+	// Line number
+	Line int64 `json:"line"`
+	// Column number
+	Column int64 `json:"column"`
 	// The code span highlighted by this label.
 	Span Span `json:"span"`
 	// Text associated to the label.
