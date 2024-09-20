@@ -714,8 +714,9 @@ impl<'a> Compiler<'a> {
 
         let mut rules = Rules {
             serialized_globals,
+            wasm_mod,
+            compiled_wasm_mod: Some(compiled_wasm_mod),
             relaxed_re_syntax: self.relaxed_re_syntax,
-            wasm_mod: compiled_wasm_mod,
             ac: None,
             num_patterns: self.next_pattern_id.0 as usize,
             ident_pool: self.ident_pool,
