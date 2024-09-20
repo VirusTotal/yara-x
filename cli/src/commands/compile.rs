@@ -62,8 +62,9 @@ pub fn compile() -> Command {
 }
 
 pub fn exec_compile(args: &ArgMatches) -> anyhow::Result<()> {
-    let rules_path =
-        args.get_many::<(String, PathBuf)>("[NAMESPACE:]RULES_PATH").unwrap();
+    let rules_path = args
+        .get_many::<(Option<String>, PathBuf)>("[NAMESPACE:]RULES_PATH")
+        .unwrap();
 
     let output_path = args.get_one::<PathBuf>("output").unwrap();
 
