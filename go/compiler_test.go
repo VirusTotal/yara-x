@@ -167,9 +167,11 @@ func TestErrors(t *testing.T) {
 			Title: "invariant boolean expression",
 			Labels: []Label{
 				{
-					Level: "warning",
-					Span:  Span{Start: 25, End: 29},
-					Text:  "this expression is always true",
+					Level:  "warning",
+					Line:   1,
+					Column: 26,
+					Span:   Span{Start: 25, End: 29},
+					Text:   "this expression is always true",
 				},
 			},
 			Footers: []Footer{
@@ -197,6 +199,8 @@ func TestErrors(t *testing.T) {
 				{
 					Level:      "error",
 					CodeOrigin: "test.yar",
+					Line:       1,
+					Column:     26,
 					Span:       Span{Start: 25, End: 28},
 					Text:       "this identifier has not been declared",
 				},
@@ -295,6 +299,8 @@ func TestWarnings(t *testing.T) {
 				{
 					Level:      "warning",
 					CodeOrigin: "",
+					Line:       1,
+					Column:     31,
 					Span:       Span{Start: 30, End: 40},
 					Text:       "these consecutive jumps will be treated as [0-2]",
 				},
@@ -314,6 +320,8 @@ func TestWarnings(t *testing.T) {
 				{
 					Level:      "warning",
 					CodeOrigin: "",
+					Line:       1,
+					Column:     22,
 					Span:       Span{Start: 21, End: 43},
 					Text:       "this pattern may slow down the scan",
 				},

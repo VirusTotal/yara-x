@@ -814,6 +814,8 @@ fn errors_serialization() {
             {
                 "level": "error",
                 "code_origin": "test.yar",
+                "line": 1,
+                "column": 23,
                 "span": { "start": 22, "end": 25 },
                 "text": "this identifier has not been declared"
             }
