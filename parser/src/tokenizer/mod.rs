@@ -513,10 +513,10 @@ enum NormalToken<'src> {
     #[regex(
         r#"(?x)                         # allow comments in the regexp
         /                               # starts with /
-        (\\.|[^*/])                     # followed by escape sequence or anything that
-                                        # is not * or /. This prevents collision with
-                                        # comments.
-        (                               # one or more..
+        (\\.|[^*/\\\n])                 # followed by escape sequence or anything that is
+                                        # not *, /, \, or newline. This prevents collision
+                                        # with comments.
+        (                               # zero or more..
           \\.                           #   escape sequence
           |                             #   or ..
           [^\\/\n]                      #   anything except \, / and newlines
