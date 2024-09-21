@@ -1558,7 +1558,7 @@ impl<'src> ParserImpl<'src> {
     /// Parses `of` expression.
     ///
     /// ```text
-    /// OF := QUANTIFIER (
+    /// OF_EXPR := QUANTIFIER (
     ///     `of` ( `them` | PATTERN_IDENT_TUPLE ) ( `at` EXPR | `in` RANGE )? |
     ///     BOOLEAN_EXPR_TUPLE
     /// )
@@ -1586,11 +1586,7 @@ impl<'src> ParserImpl<'src> {
     /// Parses `with` expression.
     ///
     /// ```text
-    /// WITH_EXPR :=
-    ///     `with` WITH_DECLS `:`
-    ///         `(`
-    ///             BOOLEAN_EXPR
-    ///         `)`
+    /// WITH_EXPR := `with` WITH_DECLS `:` `(` BOOLEAN_EXPR `)`
     /// ```
     fn with_expr(&mut self) -> &mut Self {
         self.begin(WITH_EXPR)
@@ -1606,8 +1602,7 @@ impl<'src> ParserImpl<'src> {
     /// Parses `with` identifiers.
     ///
     /// ```text
-    /// WITH_DECLS :=
-    ///     WITH_DECL (`,` WITH_DECL)*
+    /// WITH_DECLS := WITH_DECL (`,` WITH_DECL)*
     ///
     fn with_declarations(&mut self) -> &mut Self {
         self.begin(WITH_DECLS)
@@ -1621,8 +1616,7 @@ impl<'src> ParserImpl<'src> {
     /// Parses a `with` declaration.
     ///
     /// ```text
-    /// WITH_DECL :=
-    ///     IDENT `=` EXPR
+    /// WITH_DECL := IDENT `=` EXPR
     /// ```
     fn with_declaration(&mut self) -> &mut Self {
         self.begin(WITH_DECL)
