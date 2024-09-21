@@ -44,7 +44,7 @@ const EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION: u64 = 0x00000004;
 const EXPORT_SYMBOL_FLAGS_REEXPORT: u64 = 0x00000008;
 const EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER: u64 = 0x00000010;
 
-/// Mach-O import opcode consants
+/// Mach-O import opcode constants
 const BIND_OPCODE_MASK: u8 = 0xF0;
 const BIND_IMMEDIATE_MASK: u8 = 0x0F;
 const _BIND_OPCODE_DONE: u8 = 0x00;

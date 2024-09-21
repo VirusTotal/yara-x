@@ -109,7 +109,7 @@ YARA in all cases.
 ### Parser re-usability
 
 One of the problems with YARA was its monolithic design. The parser was so
-integrated with the rule compilation logic that it was impossible to re-use
+integrated with the rule compilation logic that it was impossible to reuse
 it for other purposes, like code formatting tools, linters, etc.
 
 Consequently, numerous alternative YARA parsers have emerged over time, such as
@@ -118,7 +118,7 @@ But maintaining those parser in-sync with the official one is hard, and very
 often they lag behind.
 
 YARA-X, in contrast, has a more modular design, where the parser is decoupled
-from the rule compilation logic, allowing the re-use of the parser for other
+from the rule compilation logic, allowing the reuse of the parser for other
 purposes.
 
 ## The bad things

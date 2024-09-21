@@ -515,7 +515,7 @@ enum NormalToken<'src> {
         /                               # starts with /
         (\\.|[^*/])                     # followed by escape sequence or anything that
                                         # is not * or /. This prevents collision with
-                                        # commments.
+                                        # comments.
         (                               # one or more..
           \\.                           #   escape sequence
           |                             #   or ..

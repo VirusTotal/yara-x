@@ -43,7 +43,7 @@ fast-regexp = []
 
 # Whether to use protoc for parsing and compiling .proto files. By default,
 # .proto files are parsed and compiled by the pure-Rust compiler implemented
-# by the `rust-protobuf` crate. With this feature you can change this behavior
+# by the `rust-protobuf` create. With this feature you can change this behavior
 # and use protoc, the official Protocol Buffer compiler. You'll need to have
 # protoc installed in your system, together with the protoc-gen-rust plugin.
 # Follow the instructions in: https://lib.rs/crates/protobuf-codegen3
@@ -83,7 +83,7 @@ console-module = []
 # https://cuckoosandbox.org/
 #
 # The use of this module is currently discouraged. It is here for backward
-# compatiblity with YARA, but it won't be actively mantained or improved as
+# compatibility with YARA, but it won't be actively maintained or improved as
 # the Cuckoo Sandbox seems to be abandoned since 2017.
 cuckoo-module = []
 

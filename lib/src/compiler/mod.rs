@@ -2329,7 +2329,7 @@ bitmask! {
 
 /// A sub-pattern in the compiled rules.
 ///
-/// Each pattern in a rule has one ore more associated sub-patterns. For
+/// Each pattern in a rule has one or more associated sub-patterns. For
 /// example, the pattern `$a = "foo" ascii wide` has a sub-pattern for the
 /// ASCII variant of "foo", and another one for the wide variant.
 ///
