@@ -83,7 +83,7 @@ console-module = []
 # https://cuckoosandbox.org/
 #
 # The use of this module is currently discouraged. It is here for backward
-# compatiblity with YARA, but it won't be actively mantained or improved as
+# compatibility with YARA, but it won't be actively maintained or improved as
 # the Cuckoo Sandbox seems to be abandoned since 2017.
 cuckoo-module = []
 

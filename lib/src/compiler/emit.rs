@@ -2144,7 +2144,7 @@ fn emit_for<I, B, C, A>(
 /// Each pair is stored in the `identifiers` and `expressions` fields of the
 /// `with` statement.
 /// For each pair, the code emitted by this function sets the variable
-/// corresponding to the identifier to the value of the emmited expression.
+/// corresponding to the identifier to the value of the emitted expression.
 /// Those variables are later used in the condition of the `with` statement.
 fn emit_with(
     ctx: &mut EmitContext,

@@ -47,7 +47,7 @@ subdirectories won't be traversed. By default <MAX_DEPTH> is infinite."#;
 pub const DUMP_LONG_HELP: &str = r#"Show the data produced by YARA modules for a file
 
 YARA modules analyze files and extract information from them. This command shows all
-the data produced by one ore more YARA module for the given file. If no module is
+the data produced by one or more YARA module for the given file. If no module is
 explicitly specified with the `--module` option, any module for which YARA produced
 some information will be shown.
 
