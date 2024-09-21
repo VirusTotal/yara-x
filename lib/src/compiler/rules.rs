@@ -9,7 +9,7 @@ use bincode::Options;
 #[cfg(feature = "logging")]
 use log::*;
 use regex_automata::meta::Regex;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 use crate::compiler::atoms::Atom;
 use crate::compiler::errors::SerializationError;
@@ -460,34 +460,6 @@ impl ExactSizeIterator for RulesIter<'_> {
     #[inline]
     fn len(&self) -> usize {
         self.iterator.len()
-    }
-}
-
-fn serialize_wasm_mod<S>(
-    wasm_mod: &wasmtime::Module,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let bytes = wasm_mod
-        .serialize()
-        .map_err(|err| serde::ser::Error::custom(err.to_string()))?;
-
-    serializer.serialize_bytes(bytes.as_slice())
-}
-
-pub fn deserialize_wasm_mod<'de, D>(
-    deserializer: D,
-) -> Result<wasmtime::Module, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let bytes: &[u8] = Deserialize::deserialize(deserializer)?;
-
-    unsafe {
-        wasmtime::Module::deserialize(&crate::wasm::ENGINE, bytes)
-            .map_err(|err| serde::de::Error::custom(err.to_string()))
     }
 }
 
