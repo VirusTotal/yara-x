@@ -556,9 +556,9 @@ fn with() {
 
     #[cfg(feature = "test_proto2-module")]
     condition_true!(
-        r#"with 
+        r#"with
             bar = test_proto2.array_string[1],
-            baz = test_proto2.array_string[2]: 
+            baz = test_proto2.array_string[2]:
                 (
                     bar == "bar" and baz == "baz"
                 )
@@ -575,9 +575,9 @@ fn with() {
     #[cfg(feature = "test_proto2-module")]
     condition_true!(
         r#"for all i in (0..0): (
-            with 
+            with
                 foo = test_proto2.array_int64[i],
-                bar = test_proto2.array_int64[i + 1] : 
+                bar = test_proto2.array_int64[i + 1] :
                     (
                         foo == 1 and bar == 10
                     )
@@ -587,9 +587,9 @@ fn with() {
     #[cfg(feature = "test_proto2-module")]
     condition_false!(
         r#"for all i in (0..2): (
-            with 
+            with
                 foo = test_proto2.array_int64[i],
-                bar = test_proto2.array_int64[i + 1] : 
+                bar = test_proto2.array_int64[i + 1] :
                     (
                         foo == 1 and bar == foo * 10
                     )
@@ -1376,6 +1376,7 @@ fn regexp_patterns_3() {
 
 #[test]
 fn regexp_patterns_4() {
+    pattern_match!(r"/\\/", b"\\", b"\\");
     pattern_match!(r"/\babc/", b"abc", b"abc");
     pattern_match!(r"/abc\b/", b"abc", b"abc");
     pattern_false!(r"/\babc/", b"1abc");

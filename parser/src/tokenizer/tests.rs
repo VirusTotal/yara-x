@@ -205,8 +205,15 @@ fn regexps() {
     assert_eq!(lexer.next_token(), Some(Token::REGEXP(Span(0..3))));
     assert_eq!(lexer.next_token(), None);
 
-    let mut lexer = super::Tokenizer::new(r#"/\\/"#.as_bytes());
+    let mut lexer = super::Tokenizer::new(r#"/\\/ "#.as_bytes());
     assert_eq!(lexer.next_token(), Some(Token::REGEXP(Span(0..4))));
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(4..5))));
+    assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new(b"/\n/");
+    assert_eq!(lexer.next_token(), Some(Token::UNKNOWN(Span(0..1))));
+    assert_eq!(lexer.next_token(), Some(Token::NEWLINE(Span(1..2))));
+    assert_eq!(lexer.next_token(), Some(Token::UNKNOWN(Span(2..3))));
     assert_eq!(lexer.next_token(), None);
 
     let mut lexer = super::Tokenizer::new(r#"/\/foo/"#.as_bytes());
