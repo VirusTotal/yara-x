@@ -172,7 +172,7 @@ pub(crate) struct ParserImpl<'src> {
 
     /// A cache for storing partial parser results. Each item in the set is a
     /// (position, SyntaxKind) tuple, where position is the absolute index
-    /// of a token withing the source code. The presence of a tuple in the
+    /// of a token within the source code. The presence of a tuple in the
     /// cache indicates that the non-terminal indicated by SyntaxKind failed
     /// to match that position. Notice that only parser failures are cached,
     /// but successes are not cached. [packrat][1] parsers usually cache both

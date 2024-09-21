@@ -418,7 +418,7 @@ After creating the files `yara-x/src/modules/protos/text.proto` and
 `yara-x/src/modules/text.rs` we are almost ready for building the module into
 YARA. But there are few more pending steps.
 
-Ths first thing that you must know is that your module is behind a `cargo`
+The first thing that you must know is that your module is behind a `cargo`
 feature
 flag. The module won't be built into YARA unless you tell `cargo` to do so. The
 name of the feature controlling your module is `text-module`, and this feature
@@ -1014,7 +1014,7 @@ You'll notice that each module in `/yara-x/src/modules/` has a `tests/`
 directory with a nested `testdata/` directory. The testing framework is
 expecting a particular format and input structure to use them:
 
-1. File conveted
+1. File converted
    to [Intel Hex](https://developer.arm.com/documentation/ka003292/latest/)
    format format
 2. Intel Hex format output zipped
