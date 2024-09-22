@@ -52,6 +52,18 @@ protoc = []
 # Enables debug logs.
 logging = ["dep:log"]
 
+# When enabled, the serialization of compiled rules include native code for
+# the platform in which the rules where compiled. This reduces the load time,
+# as the native code is already included in the serialized rules and doesn't
+# need to be generated. In the other hand, it increases the size of the
+# serialized rules. If rules that were serialized with native code for one
+# platform are deserialized in a different platform, the native code included
+# in the serialized rules is ignored and generated again for the current
+# platform.
+#
+# This feature is disabled by default.
+native-code-serialization = []
+
 # Enables parallel compilation of WASM code. When compiling large number of
 # rules this noticeable reduces compilation time. However, this creates new
 # threads, which can be problematic in some scenarios. See:

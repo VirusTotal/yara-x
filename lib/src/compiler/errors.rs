@@ -27,6 +27,10 @@ pub enum SerializationError {
     /// I/O error while trying to read or write serialized data.
     #[error(transparent)]
     IoError(#[from] io::Error),
+
+    /// Error occurred while deserializing WASM code.
+    #[error("invalid YARA-X compiled rules file")]
+    InvalidWASM(#[from] anyhow::Error),
 }
 
 /// Error returned by [`crate::Compiler::emit_wasm_file`].
