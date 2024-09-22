@@ -9,7 +9,7 @@ use bincode::Options;
 #[cfg(feature = "logging")]
 use log::*;
 use regex_automata::meta::Regex;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::compiler::atoms::Atom;
 use crate::compiler::errors::SerializationError;
@@ -52,7 +52,12 @@ pub struct Rules {
     pub(in crate::compiler) wasm_mod: Vec<u8>,
 
     /// WASM module already compiled into native code for the current platform.
-    #[serde(skip)]
+    /// When the rules are serialized, the compiled module is included only if
+    /// the `native-code-serialization` is enabled.
+    #[serde(
+        serialize_with = "serialize_wasm_mod",
+        deserialize_with = "deserialize_wasm_mod"
+    )]
     pub(in crate::compiler) compiled_wasm_mod: Option<wasmtime::Module>,
 
     /// Vector with the names of all the imported modules. The vector contains
@@ -163,17 +168,24 @@ impl Rules {
             .with_varint_encoding()
             .deserialize::<Self>(&bytes[magic.len()..])?;
 
-        // Compile the WASM module for the current platform. This panics
-        // if the WASM code is invalid, which should not happen as the code is
-        // emitted by YARA itself. If this ever happens is probably because
-        // wrong WASM code is being emitted.
-        rules.compiled_wasm_mod = Some(
-            wasmtime::Module::from_binary(
+        // `rules.compiled_wasm_mod` can be `None` for two reasons:
+        //
+        //  1- The rules were serialized without compiled rules (i.e: the
+        //     `native-code-serialization` feature was disabled, which is
+        //     the default).
+        //
+        //  2- The rules were serialized with compiled rules, but they were
+        //     compiled for a different platform, and `deserialize_wasm_mod`
+        //     returned `None`.
+        //
+        // In both cases we try to build the module again from the data in
+        // `rules.wasm_mode`.
+        if rules.compiled_wasm_mod.is_none() {
+            rules.compiled_wasm_mod = Some(wasmtime::Module::from_binary(
                 &crate::wasm::ENGINE,
                 rules.wasm_mod.as_slice(),
-            )
-            .expect("WASM module is not valid"),
-        );
+            )?);
+        }
 
         #[cfg(feature = "logging")]
         info!("Deserialization time: {:?}", Instant::elapsed(&start));
@@ -435,6 +447,54 @@ impl Rules {
     pub(crate) fn wasm_mod(&self) -> &wasmtime::Module {
         self.compiled_wasm_mod.as_ref().unwrap()
     }
+}
+
+#[cfg(feature = "native-code-serialization")]
+fn serialize_wasm_mod<S>(
+    wasm_mod: &Option<wasmtime::Module>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    if let Some(wasm_mod) = wasm_mod {
+        let bytes = wasm_mod
+            .serialize()
+            .map_err(|err| serde::ser::Error::custom(err.to_string()))?;
+
+        serializer.serialize_some(bytes.as_slice())
+    } else {
+        serializer.serialize_none()
+    }
+}
+
+#[cfg(not(feature = "native-code-serialization"))]
+fn serialize_wasm_mod<S>(
+    _wasm_mod: &Option<wasmtime::Module>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_none()
+}
+
+pub fn deserialize_wasm_mod<'de, D>(
+    deserializer: D,
+) -> Result<Option<wasmtime::Module>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let bytes: Option<&[u8]> = Deserialize::deserialize(deserializer)?;
+    let module = if let Some(bytes) = bytes {
+        unsafe {
+            wasmtime::Module::deserialize(&crate::wasm::ENGINE, bytes).ok()
+        }
+    } else {
+        None
+    };
+
+    Ok(module)
 }
 
 /// Iterator that yields the of the compiled rules.
