@@ -150,3 +150,10 @@ pub const FMT_CHECK_MODE: &str = r#"Run in 'check' mode
 
 Doesn't modify the files. Exits with 0 if files are formatted correctly. Exits
 with 1 if formatting is required."#;
+
+pub const FMT_CONFIG_FILE: &str = r#"Config file for formatting
+
+Config file which controls the behavior of the formatter. See XXX (FILL IN URL
+ONCE DOCS ARE WRITTEN) for supported options.
+
+If config file is not specified the default formatting options are applied."#;

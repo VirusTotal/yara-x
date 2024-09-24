@@ -1,0 +1,1 @@
+# XXX: Add docs on how config file works.

@@ -1,0 +1,10 @@
+# Config file for "yr fmt" - XXX: Change these values before merging.
+[rule]
+indent_section_headers = false
+indent_section_contents = false
+
+[meta]
+align_values = false
+
+[patterns]
+align_values = false

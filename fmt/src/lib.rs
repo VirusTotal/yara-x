@@ -65,6 +65,8 @@ pub enum Error {
 pub struct Formatter {
     align_metadata: bool,
     align_patterns: bool,
+    indent_section_headers: bool,
+    indent_section_contents: bool,
 }
 
 impl Default for Formatter {
@@ -77,7 +79,12 @@ impl Default for Formatter {
 impl Formatter {
     /// Creates a new formatter.
     pub fn new() -> Self {
-        Formatter { align_metadata: true, align_patterns: true }
+        Formatter {
+            align_metadata: true,
+            align_patterns: true,
+            indent_section_headers: true,
+            indent_section_contents: true,
+        }
     }
 
     /// Specify if the metadata block must be aligned.
@@ -145,6 +152,74 @@ impl Formatter {
     /// The default value is `true`.
     pub fn align_patterns(mut self, yes: bool) -> Self {
         self.align_patterns = yes;
+        self
+    }
+
+    /// Specify if the section definitions must be aligned.
+    ///
+    /// If true, the section headers look like this...
+    ///
+    /// ```text
+    /// rule test {
+    ///   strings:
+    ///     $short = "foo"
+    ///     $very_long = "bar"
+    ///     $even_longer = "baz"
+    ///   condition:
+    ///     ...
+    /// }
+    /// ```
+    ///
+    /// And if false, the section headers look like this...
+    ///
+    /// ```text
+    /// rule test {
+    /// strings:
+    ///   $short       = "foo"
+    ///   $very_long   = "bar"
+    ///   $even_longer = "baz"
+    /// condition:
+    ///   ...
+    /// }
+    /// ```
+    ///
+    /// The default value is `true`.
+    pub fn indent_section_headers(mut self, yes: bool) -> Self {
+        self.indent_section_headers = yes;
+        self
+    }
+
+    /// Specify if the section contents must be aligned.
+    ///
+    /// If true, the section contents look like this...
+    ///
+    /// ```text
+    /// rule test {
+    ///   strings:
+    ///     $short = "foo"
+    ///     $very_long = "bar"
+    ///     $even_longer = "baz"
+    ///   condition:
+    ///     ...
+    /// }
+    /// ```
+    ///
+    /// And if false, the section contents look like this...
+    ///
+    /// ```text
+    /// rule test {
+    ///   strings:
+    ///   $short       = "foo"
+    ///   $very_long   = "bar"
+    ///   $even_longer = "baz"
+    ///   condition:
+    ///   ...
+    /// }
+    /// ```
+    ///
+    /// The default value is `true`.
+    pub fn indent_section_contents(mut self, yes: bool) -> Self {
+        self.indent_section_contents = yes;
         self
     }
 
@@ -480,8 +555,18 @@ impl Formatter {
 
         let tokens = FormatHexPatterns::new(tokens);
 
-        let tokens = Self::indent_body(tokens);
-        let tokens = Self::indent_sections(tokens);
+        let tokens: Box<dyn Iterator<Item = Token<'a>>> =
+            if self.indent_section_headers{
+                Box::new(Self::indent_body(tokens))
+            } else {
+                Box::new(tokens)
+            };
+        let tokens: Box<dyn Iterator<Item = Token<'a>>> =
+            if self.indent_section_contents {
+                Box::new(Self::indent_sections(tokens))
+            } else {
+                Box::new(tokens)
+            };
         let tokens = Self::indent_hex_patterns(tokens);
         let tokens = Self::indent_parenthesized_exprs(tokens);
 
