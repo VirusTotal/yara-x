@@ -1394,26 +1394,28 @@ impl<'src> ParserImpl<'src> {
     /// )
     /// ``
     fn expr(&mut self) -> &mut Self {
-        self.begin(EXPR)
-            .term()
-            .zero_or_more(|p| {
-                p.expect_d(
-                    t!(ADD
-                        | SUB
-                        | MUL
-                        | DIV
-                        | MOD
-                        | SHL
-                        | SHR
-                        | BITWISE_AND
-                        | BITWISE_OR
-                        | BITWISE_XOR
-                        | DOT),
-                    Some("operator"),
-                )
-                .then(|p| p.term())
-            })
-            .end()
+        self.cached(EXPR, |p| {
+            p.begin(EXPR)
+                .term()
+                .zero_or_more(|p| {
+                    p.expect_d(
+                        t!(ADD
+                            | SUB
+                            | MUL
+                            | DIV
+                            | MOD
+                            | SHL
+                            | SHR
+                            | BITWISE_AND
+                            | BITWISE_OR
+                            | BITWISE_XOR
+                            | DOT),
+                        Some("operator"),
+                    )
+                    .then(|p| p.term())
+                })
+                .end()
+        })
     }
 
     /// Parses a term.
