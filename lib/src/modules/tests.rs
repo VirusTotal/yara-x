@@ -79,6 +79,12 @@ pub fn create_binary_from_zipped_ihex<P: AsRef<Path>>(path: P) -> Vec<u8> {
 /// compared with the content of a `*.out` file that is expected to have
 /// the same name as the `*.in.zip` file.
 ///
+/// To pass metadata to the module, also include a file with the same name
+/// as the `.in.zip` file, but with the `.in.metadata.zip` extension. The
+/// format of this file must be the same as the `.in.zip` file, i.e. it must
+/// contain a single `<name>.in` file encoded in the IHEX format.
+/// The content of this file is passed as metadata to the module.
+///
 /// There are many tools for converting binary files to Intel HEX format, one
 /// of such tools is `objcopy` (`llvm-objcopy` on Mac OS X).
 ///
@@ -108,6 +114,14 @@ fn test_modules() {
         // Read the data encoded in the .in.zip file.
         let data = create_binary_from_zipped_ihex(&path);
 
+        // if there is some metadata, it should be in same_name.in.metadata.zip file
+        let metadata_path =
+            path.with_extension("").with_extension("in.metadata.zip");
+
+        let meta = metadata_path
+            .exists()
+            .then(|| create_binary_from_zipped_ihex(&metadata_path));
+
         // Path to the .out file. First remove the .zip extension, then replace
         // the .in extension with .out.
         let out_path = path.with_extension("").with_extension("out");
@@ -130,8 +144,16 @@ fn test_modules() {
         let rules = crate::compile(rule.as_str()).unwrap();
         let mut scanner = crate::scanner::Scanner::new(&rules);
 
+        let options = match meta {
+            Some(ref meta) => crate::scanner::ScanOptions::new()
+                .set_module_metadata(module_name, meta),
+            None => crate::scanner::ScanOptions::new(),
+        };
+
         // Scan the data.
-        let scan_results = scanner.scan(&data).expect("scan should not fail");
+        let scan_results = scanner
+            .scan_with_options(&data, options)
+            .expect("scan should not fail");
 
         // Get the module output.
         let output =
