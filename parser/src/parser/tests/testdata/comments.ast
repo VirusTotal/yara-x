@@ -23,6 +23,23 @@
 
  rule test
  ├─ strings
+ │  └─ $a
+ │     └─ hex
+ │        ├─ 0x01 mask: 0xFF
+ │        ├─ 0x02 mask: 0x0F
+ │        ├─ 0x03 mask: 0xFF
+ │        ├─ 0x00 mask: 0x00
+ │        ├─ 0x05 mask: 0xFF
+ │        └─ 0x06 mask: 0xFF
+ └─ condition
+    └─ <quantifier> of <items>
+       ├─ <quantifier>
+       │  └─ all
+       └─ <items: pattern_set>
+          └─ them
+
+ rule test
+ ├─ strings
  │  ├─ $a = "foo" ascii
  │  └─ $b = "bar" wide
  └─ condition
