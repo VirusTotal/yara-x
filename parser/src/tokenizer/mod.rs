@@ -605,16 +605,19 @@ enum HexPatternToken {
     CRLF,
 
     // Block comment.
-    #[regex(r#"(?x)                    # allow comments in the regexp
+    #[regex(
+        r#"(?x)                        # allow comments in the regexp
         /\*                            # starts with /*
-        (                              # one or more..
-            [^*]                       #   anything except asterisk
-            |                          #   or..
-            \*[^/]                     #   asterisk followed by something that is not /
+        [^*]*                          # zero or more characters except *
+        \*+                            # one or more *
+        (                              # zero or more..
+            [^/*]                      #   anything except / and *
+            [^*]*                      #   zero or more characters except *
+            \*+                        #   one or more *
         )*
-        \*/                            # ends with */
-        "#)
-    ]
+        /                              # ends with /
+        "#
+    )]
     BlockComment,
 
     // Single-line comment

@@ -33,6 +33,16 @@ rule test {
 		$a
 }
 
+rule test {
+  strings:
+    $a = {
+      01 ?2 03 /** Comment **/
+      ?? 05 06
+    }
+	condition:
+  	all of them
+}
+
 
 rule test {
     strings:
