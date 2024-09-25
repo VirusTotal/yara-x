@@ -128,6 +128,10 @@ type CompileError struct {
 	Code string `json:"code"`
 	// Error title (e.g: "unknown identifier `foo`").
 	Title string `json:"title"`
+	// Error line number. This is the line number of the first error label.
+	Line int `json:"line"`
+	// Error column number. This is the column number of the first error label.
+	Column int `json:"column"`
 	// Each of the labels in the error report.
 	Labels []Label `json:"labels,omitempty"`
 	// Each of the footers in the error report.
@@ -138,10 +142,14 @@ type CompileError struct {
 
 // Warning represents each of the warnings returned by [Compiler.Warnings].
 type Warning struct {
-	// Error code (e.g: "slow_pattern").
+	// Warning code (e.g: "slow_pattern").
 	Code string `json:"code"`
-	// Error title (e.g: "slow pattern").
+	// Warning title (e.g: "slow pattern").
 	Title string `json:"title"`
+	// Warning line number. This is the line number of the first warning label.
+	Line int `json:"line"`
+	// Warning column number. This is the column number of the first warning label.
+	Column int `json:"column"`
 	// Each of the labels in the warning report.
 	Labels []Label `json:"labels,omitempty"`
 	// Each of the footers in the warning report.

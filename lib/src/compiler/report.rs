@@ -149,11 +149,27 @@ impl Serialize for Report {
     where
         S: Serializer,
     {
+        let labels = self.labels().collect::<Vec<_>>();
+        let footers = &self.footers().collect::<Vec<_>>();
+
         let mut s = serializer.serialize_struct("report", 4)?;
+
         s.serialize_field("code", &self.code)?;
         s.serialize_field("title", &self.title)?;
-        s.serialize_field("labels", &self.labels().collect::<Vec<_>>())?;
-        s.serialize_field("footers", &self.footers().collect::<Vec<_>>())?;
+
+        // Find the first label with the same level as the report itself.
+        // The report's line and column will be the line and column of
+        // that label.
+        if let Some(label) = labels
+            .iter()
+            .find(|label| label.level == level_as_text(self.level))
+        {
+            s.serialize_field("line", &label.line)?;
+            s.serialize_field("column", &label.column)?;
+        }
+
+        s.serialize_field("labels", &labels)?;
+        s.serialize_field("footers", &footers)?;
         s.serialize_field("text", &self.to_string())?;
         s.end()
     }
