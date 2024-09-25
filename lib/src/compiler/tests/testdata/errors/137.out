@@ -1,0 +1,6 @@
+error[E001]: syntax error
+ --> line:3:13
+  |
+3 |      uint16(,0) == 0
+  |             ^ expecting expression, `for`, `all`, `none`, `any`, `with` or `)`, found `,`
+  |
