@@ -935,8 +935,7 @@ fn of_expr_from_ast(
             let tuple = tuple
                 .iter()
                 .map(|e| {
-                    let expr = expr_from_ast(ctx, e)?;
-                    check_type(ctx, expr.ty(), e.span(), &[Type::Bool])?;
+                    let expr = bool_expr_from_ast(ctx, e)?;
                     Ok(expr)
                 })
                 .collect::<Result<Vec<Expr>, CompileError>>()?;
