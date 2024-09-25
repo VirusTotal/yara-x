@@ -15,13 +15,24 @@ use crate::cst::{CSTStream, Event, SyntaxKind};
 use crate::Span;
 
 #[derive(Debug)]
-struct Abort;
+enum BuilderError {
+    /// This error indicates that some rule could not be converted into its
+    /// AST and the builder aborted the generation of the AST for that rule.
+    /// The builder recovers from this error by continuing with the next rule.
+    Abort,
+    /// This error indicates that the AST builder has reached the maximum
+    /// allowed depth for the AST tree. By controlling the maximum depth for
+    /// AST tree we avoid stack overflows while traversing the AST with
+    /// recursive functions.
+    MaxDepthReached,
+}
 
 /// Creates an Abstract Syntax Tree from a [`Parser`].
 pub(super) struct Builder<'src> {
     source: &'src [u8],
     events: Peekable<CSTStream<'src>>,
     errors: Vec<Error>,
+    depth: usize,
 }
 
 impl<'src> Builder<'src> {
@@ -29,6 +40,7 @@ impl<'src> Builder<'src> {
         Self {
             errors: Vec::new(),
             source: parser.source(),
+            depth: 0,
             events: parser
                 .into_cst_stream()
                 .whitespaces(false)
@@ -52,7 +64,8 @@ impl<'src> Builder<'src> {
                     // but we try to continue at the next rule declaration
                     // or import statement. The `recover` function discards
                     // everything until finding the next rule or import.
-                    Err(Abort) => self.recover(),
+                    Err(BuilderError::Abort) => self.recover(),
+                    Err(BuilderError::MaxDepthReached) => {}
                 },
                 Event::Begin(IMPORT_STMT) => match self.import_stmt() {
                     Ok(import) => imports.push(import),
@@ -60,7 +73,8 @@ impl<'src> Builder<'src> {
                     // but we try to continue at the next rule declaration
                     // or import statement. The `recover` function discards
                     // everything until finding the next rule or import.
-                    Err(Abort) => self.recover(),
+                    Err(BuilderError::Abort) => self.recover(),
+                    Err(BuilderError::MaxDepthReached) => {}
                 },
                 Event::End(SOURCE_FILE) => break,
                 _ => self.recover(),
@@ -120,6 +134,8 @@ macro_rules! new_binary_expr {
 }
 
 impl<'src> Builder<'src> {
+    const MAX_AST_DEPTH: usize = 3000;
+
     /// Consumes all events until finding the start of a rule, an import
     /// statement or the end of the file.
     ///
@@ -169,12 +185,15 @@ impl<'src> Builder<'src> {
     /// Most of the tokens returned by the tokenizer are guaranteed to be valid
     /// UTF-8, but there are some exceptions, like literal strings, comments,
     /// regular expressions, and of course, the `INVALID_UTF8` token.
-    fn get_source_str(&mut self, span: &Span) -> Result<&'src str, Abort> {
+    fn get_source_str(
+        &mut self,
+        span: &Span,
+    ) -> Result<&'src str, BuilderError> {
         from_utf8(self.get_source(span)).map_err(|err| {
             self.errors.push(Error::InvalidUTF8(
                 span.subspan(err.valid_up_to(), err.valid_up_to() + 1),
             ));
-            Abort
+            BuilderError::Abort
         })
     }
 
@@ -201,27 +220,35 @@ impl<'src> Builder<'src> {
     /// and it's not actually part of the syntax tree, while the latter is a
     /// CST node that contains portions of the syntax tree that were not
     /// correctly parsed.
-    fn next(&mut self) -> Result<Event, Abort> {
+    fn next(&mut self) -> Result<Event, BuilderError> {
         if let Event::Begin(ERROR) = self.peek() {
-            return Err(Abort);
+            return Err(BuilderError::Abort);
         }
         Ok(self.events.next().expect("unexpected end of events"))
     }
 
-    fn begin(&mut self, kind: SyntaxKind) -> Result<(), Abort> {
+    fn begin(&mut self, kind: SyntaxKind) -> Result<(), BuilderError> {
         assert_eq!(self.next()?, Event::Begin(kind));
+        if self.depth == Self::MAX_AST_DEPTH {
+            return Err(BuilderError::MaxDepthReached);
+        }
+        self.depth += 1;
         Ok(())
     }
 
-    fn end(&mut self, kind: SyntaxKind) -> Result<(), Abort> {
+    fn end(&mut self, kind: SyntaxKind) -> Result<(), BuilderError> {
         assert_eq!(self.next()?, Event::End(kind));
+        self.depth -= 1;
         Ok(())
     }
 
     /// Makes sure that the next non-error token is of the given kind.
     ///
     /// The token is consumed and the function returns the token's span.
-    fn expect(&mut self, expected_kind: SyntaxKind) -> Result<Span, Abort> {
+    fn expect(
+        &mut self,
+        expected_kind: SyntaxKind,
+    ) -> Result<Span, BuilderError> {
         match self.next()? {
             Event::Token { kind, span } => {
                 if expected_kind != kind {
@@ -262,9 +289,9 @@ impl<'src> Builder<'src> {
     /// [3]: https://abarker.github.io/typped/pratt_parsing_intro.html
     fn pratt_parser(
         &mut self,
-        parse_expr: fn(&mut Self) -> Result<Expr<'src>, Abort>,
+        parse_expr: fn(&mut Self) -> Result<Expr<'src>, BuilderError>,
         min_bp: u8,
-    ) -> Result<Expr<'src>, Abort> {
+    ) -> Result<Expr<'src>, BuilderError> {
         let mut lhs = parse_expr(self)?;
 
         // Operator precedence table. For each operator there's a tuple
@@ -411,7 +438,7 @@ impl<'src> Builder<'src> {
 }
 
 impl<'src> Builder<'src> {
-    fn import_stmt(&mut self) -> Result<Import<'src>, Abort> {
+    fn import_stmt(&mut self) -> Result<Import<'src>, BuilderError> {
         self.begin(IMPORT_STMT)?;
         let span = self.expect(IMPORT_KW)?;
         let (module_name, module_name_span) = self.utf8_string_lit()?;
@@ -419,7 +446,7 @@ impl<'src> Builder<'src> {
         Ok(Import { module_name, span: span.combine(&module_name_span) })
     }
 
-    fn rule_decl(&mut self) -> Result<Rule<'src>, Abort> {
+    fn rule_decl(&mut self) -> Result<Rule<'src>, BuilderError> {
         self.begin(RULE_DECL)?;
 
         let flags = if let Event::Begin(RULE_MODS) = self.peek() {
@@ -465,7 +492,7 @@ impl<'src> Builder<'src> {
         Ok(Rule { flags, identifier, tags, meta, patterns, condition })
     }
 
-    fn rule_mods(&mut self) -> Result<RuleFlags, Abort> {
+    fn rule_mods(&mut self) -> Result<RuleFlags, BuilderError> {
         self.begin(RULE_MODS)?;
 
         let mut flags = RuleFlags::none();
@@ -486,7 +513,7 @@ impl<'src> Builder<'src> {
         Ok(flags)
     }
 
-    fn rule_tags(&mut self) -> Result<Vec<Ident<'src>>, Abort> {
+    fn rule_tags(&mut self) -> Result<Vec<Ident<'src>>, BuilderError> {
         self.begin(RULE_TAGS)?;
         self.expect(COLON)?;
 
@@ -501,7 +528,7 @@ impl<'src> Builder<'src> {
         Ok(tags)
     }
 
-    fn meta_blk(&mut self) -> Result<Vec<Meta<'src>>, Abort> {
+    fn meta_blk(&mut self) -> Result<Vec<Meta<'src>>, BuilderError> {
         self.begin(META_BLK)?;
         self.expect(META_KW)?;
         self.expect(COLON)?;
@@ -517,7 +544,7 @@ impl<'src> Builder<'src> {
         Ok(meta)
     }
 
-    fn patterns_blk(&mut self) -> Result<Vec<Pattern<'src>>, Abort> {
+    fn patterns_blk(&mut self) -> Result<Vec<Pattern<'src>>, BuilderError> {
         self.begin(PATTERNS_BLK)?;
         self.expect(STRINGS_KW)?;
         self.expect(COLON)?;
@@ -533,7 +560,7 @@ impl<'src> Builder<'src> {
         Ok(patterns)
     }
 
-    fn meta_def(&mut self) -> Result<Meta<'src>, Abort> {
+    fn meta_def(&mut self) -> Result<Meta<'src>, BuilderError> {
         self.begin(META_DEF)?;
 
         let identifier = self.identifier()?;
@@ -587,7 +614,7 @@ impl<'src> Builder<'src> {
         Ok(Meta { identifier, value })
     }
 
-    fn pattern_def(&mut self) -> Result<Pattern<'src>, Abort> {
+    fn pattern_def(&mut self) -> Result<Pattern<'src>, BuilderError> {
         self.begin(PATTERN_DEF)?;
         let identifier = self.pattern_ident()?;
         self.expect(EQUAL)?;
@@ -631,7 +658,9 @@ impl<'src> Builder<'src> {
         Ok(pattern)
     }
 
-    fn pattern_mods_opt(&mut self) -> Result<PatternModifiers<'src>, Abort> {
+    fn pattern_mods_opt(
+        &mut self,
+    ) -> Result<PatternModifiers<'src>, BuilderError> {
         if let Event::Begin(PATTERN_MODS) = self.peek() {
             self.pattern_mods()
         } else {
@@ -639,7 +668,9 @@ impl<'src> Builder<'src> {
         }
     }
 
-    fn pattern_mods(&mut self) -> Result<PatternModifiers<'src>, Abort> {
+    fn pattern_mods(
+        &mut self,
+    ) -> Result<PatternModifiers<'src>, BuilderError> {
         self.begin(PATTERN_MODS)?;
 
         let mut modifiers = Vec::new();
@@ -725,7 +756,7 @@ impl<'src> Builder<'src> {
         Ok(PatternModifiers::new(modifiers))
     }
 
-    fn hex_pattern(&mut self) -> Result<HexTokens, Abort> {
+    fn hex_pattern(&mut self) -> Result<HexTokens, BuilderError> {
         self.begin(HEX_PATTERN)?;
         self.expect(L_BRACE)?;
 
@@ -737,7 +768,7 @@ impl<'src> Builder<'src> {
         Ok(sub_pattern)
     }
 
-    fn hex_sub_pattern(&mut self) -> Result<HexTokens, Abort> {
+    fn hex_sub_pattern(&mut self) -> Result<HexTokens, BuilderError> {
         self.begin(HEX_SUB_PATTERN)?;
 
         let mut sub_patterns = Vec::new();
@@ -795,7 +826,7 @@ impl<'src> Builder<'src> {
         Ok(HexTokens { tokens: sub_patterns })
     }
 
-    fn hex_alternative(&mut self) -> Result<HexAlternative, Abort> {
+    fn hex_alternative(&mut self) -> Result<HexAlternative, BuilderError> {
         self.begin(HEX_ALTERNATIVE)?;
         let l_paren_span = self.expect(L_PAREN)?;
 
@@ -815,7 +846,7 @@ impl<'src> Builder<'src> {
         })
     }
 
-    fn hex_jump(&mut self) -> Result<HexJump, Abort> {
+    fn hex_jump(&mut self) -> Result<HexJump, BuilderError> {
         self.begin(HEX_JUMP)?;
         let l_bracket_span = self.expect(L_BRACKET)?;
 
@@ -847,14 +878,14 @@ impl<'src> Builder<'src> {
         })
     }
 
-    fn boolean_expr(&mut self) -> Result<Expr<'src>, Abort> {
+    fn boolean_expr(&mut self) -> Result<Expr<'src>, BuilderError> {
         self.begin(BOOLEAN_EXPR)?;
         let expr = self.pratt_parser(Self::boolean_term, 0)?;
         self.end(BOOLEAN_EXPR)?;
         Ok(expr)
     }
 
-    fn boolean_expr_tuple(&mut self) -> Result<Vec<Expr<'src>>, Abort> {
+    fn boolean_expr_tuple(&mut self) -> Result<Vec<Expr<'src>>, BuilderError> {
         self.begin(BOOLEAN_EXPR_TUPLE)?;
         self.expect(L_PAREN)?;
 
@@ -871,7 +902,7 @@ impl<'src> Builder<'src> {
         Ok(exprs)
     }
 
-    fn boolean_term(&mut self) -> Result<Expr<'src>, Abort> {
+    fn boolean_term(&mut self) -> Result<Expr<'src>, BuilderError> {
         self.begin(BOOLEAN_TERM)?;
 
         let expr = match self.peek() {
@@ -919,7 +950,7 @@ impl<'src> Builder<'src> {
         Ok(expr)
     }
 
-    fn for_expr(&mut self) -> Result<Expr<'src>, Abort> {
+    fn for_expr(&mut self) -> Result<Expr<'src>, BuilderError> {
         self.begin(FOR_EXPR)?;
 
         let for_span = self.expect(FOR_KW)?;
@@ -990,7 +1021,7 @@ impl<'src> Builder<'src> {
         Ok(expr)
     }
 
-    fn of_expr(&mut self) -> Result<Expr<'src>, Abort> {
+    fn of_expr(&mut self) -> Result<Expr<'src>, BuilderError> {
         self.begin(OF_EXPR)?;
         let quantifier = self.quantifier()?;
         self.expect(OF_KW)?;
@@ -1023,7 +1054,7 @@ impl<'src> Builder<'src> {
         Ok(Expr::Of(Box::new(Of { span, quantifier, items, anchor })))
     }
 
-    fn with_expr(&mut self) -> Result<Expr<'src>, Abort> {
+    fn with_expr(&mut self) -> Result<Expr<'src>, BuilderError> {
         self.begin(WITH_EXPR)?;
 
         let mut span = self.expect(WITH_KW)?;
@@ -1031,7 +1062,7 @@ impl<'src> Builder<'src> {
         self.begin(WITH_DECLS)?;
 
         let declaration =
-            |i: &mut Self| -> Result<WithDeclaration<'src>, Abort> {
+            |i: &mut Self| -> Result<WithDeclaration<'src>, BuilderError> {
                 i.begin(WITH_DECL)?;
 
                 let identifier = i.identifier()?;
@@ -1066,7 +1097,7 @@ impl<'src> Builder<'src> {
         Ok(Expr::With(Box::new(With { span, declarations, condition })))
     }
 
-    fn quantifier(&mut self) -> Result<Quantifier<'src>, Abort> {
+    fn quantifier(&mut self) -> Result<Quantifier<'src>, BuilderError> {
         self.begin(QUANTIFIER)?;
 
         let quantifier = match self.peek() {
@@ -1093,7 +1124,7 @@ impl<'src> Builder<'src> {
         Ok(quantifier)
     }
 
-    fn iterable(&mut self) -> Result<Iterable<'src>, Abort> {
+    fn iterable(&mut self) -> Result<Iterable<'src>, BuilderError> {
         self.begin(ITERABLE)?;
 
         let iterable = match self.peek() {
@@ -1110,7 +1141,7 @@ impl<'src> Builder<'src> {
         Ok(iterable)
     }
 
-    fn anchor(&mut self) -> Result<Option<MatchAnchor<'src>>, Abort> {
+    fn anchor(&mut self) -> Result<Option<MatchAnchor<'src>>, BuilderError> {
         match self.peek() {
             Event::Token { kind: AT_KW, .. } => {
                 let at_span = self.expect(AT_KW)?;
@@ -1132,7 +1163,7 @@ impl<'src> Builder<'src> {
         }
     }
 
-    fn range(&mut self) -> Result<Range<'src>, Abort> {
+    fn range(&mut self) -> Result<Range<'src>, BuilderError> {
         self.begin(RANGE)?;
 
         let l_paren_span = self.expect(L_PAREN)?;
@@ -1153,14 +1184,14 @@ impl<'src> Builder<'src> {
         })
     }
 
-    fn expr(&mut self) -> Result<Expr<'src>, Abort> {
+    fn expr(&mut self) -> Result<Expr<'src>, BuilderError> {
         self.begin(EXPR)?;
         let expr = self.pratt_parser(Self::term, 0)?;
         self.end(EXPR)?;
         Ok(expr)
     }
 
-    fn expr_tuple(&mut self) -> Result<Vec<Expr<'src>>, Abort> {
+    fn expr_tuple(&mut self) -> Result<Vec<Expr<'src>>, BuilderError> {
         self.begin(EXPR_TUPLE)?;
         self.expect(L_PAREN)?;
 
@@ -1177,7 +1208,7 @@ impl<'src> Builder<'src> {
         Ok(exprs)
     }
 
-    fn term(&mut self) -> Result<Expr<'src>, Abort> {
+    fn term(&mut self) -> Result<Expr<'src>, BuilderError> {
         self.begin(TERM)?;
 
         let mut expr = self.primary_expr()?;
@@ -1224,7 +1255,7 @@ impl<'src> Builder<'src> {
         Ok(expr)
     }
 
-    fn primary_expr(&mut self) -> Result<Expr<'src>, Abort> {
+    fn primary_expr(&mut self) -> Result<Expr<'src>, BuilderError> {
         self.begin(PRIMARY_EXPR)?;
 
         let expr = match self.peek() {
@@ -1377,34 +1408,36 @@ impl<'src> Builder<'src> {
         Ok(expr)
     }
 
-    fn identifier(&mut self) -> Result<Ident<'src>, Abort> {
+    fn identifier(&mut self) -> Result<Ident<'src>, BuilderError> {
         let span = self.expect(IDENT)?;
         Ok(Ident { name: self.get_source_str(&span)?, span })
     }
 
-    fn pattern_ident(&mut self) -> Result<Ident<'src>, Abort> {
+    fn pattern_ident(&mut self) -> Result<Ident<'src>, BuilderError> {
         let span = self.expect(PATTERN_IDENT)?;
         Ok(Ident { name: self.get_source_str(&span)?, span })
     }
 
     fn pattern_ident_tuple(
         &mut self,
-    ) -> Result<Vec<PatternSetItem<'src>>, Abort> {
+    ) -> Result<Vec<PatternSetItem<'src>>, BuilderError> {
         self.begin(PATTERN_IDENT_TUPLE)?;
         self.expect(L_PAREN)?;
 
-        let item = |s: &mut Self| -> Result<PatternSetItem<'src>, Abort> {
-            let ident = s.pattern_ident()?;
-            let mut span = ident.span();
-            let wildcard =
-                if matches!(s.peek(), Event::Token { kind: ASTERISK, .. }) {
-                    span = span.combine(&s.expect(ASTERISK)?);
-                    true
-                } else {
-                    false
-                };
-            Ok(PatternSetItem { span, identifier: ident.name, wildcard })
-        };
+        let item =
+            |s: &mut Self| -> Result<PatternSetItem<'src>, BuilderError> {
+                let ident = s.pattern_ident()?;
+                let mut span = ident.span();
+                let wildcard =
+                    if matches!(s.peek(), Event::Token { kind: ASTERISK, .. })
+                    {
+                        span = span.combine(&s.expect(ASTERISK)?);
+                        true
+                    } else {
+                        false
+                    };
+                Ok(PatternSetItem { span, identifier: ident.name, wildcard })
+            };
 
         let mut items = vec![item(self)?];
 
@@ -1419,7 +1452,7 @@ impl<'src> Builder<'src> {
         Ok(items)
     }
 
-    fn integer_lit<T>(&mut self) -> Result<(T, &'src str, Span), Abort>
+    fn integer_lit<T>(&mut self) -> Result<(T, &'src str, Span), BuilderError>
     where
         T: Num + Bounded + CheckedMul + FromPrimitive + std::fmt::Display,
     {
@@ -1461,25 +1494,25 @@ impl<'src> Builder<'src> {
         // type T.
         let value = value.map_err(|_| {
             self.errors.push(build_error(&span));
-            Abort
+            BuilderError::Abort
         })?;
 
         // The multiplier may not fit in type T.
         let multiplier = T::from_i32(multiplier).ok_or_else(|| {
             self.errors.push(build_error(&span));
-            Abort
+            BuilderError::Abort
         })?;
 
         // The value after applying the multiplier may not fit in type T.
         let value = value.checked_mul(&multiplier).ok_or_else(|| {
             self.errors.push(build_error(&span));
-            Abort
+            BuilderError::Abort
         })?;
 
         Ok((value, literal, span))
     }
 
-    fn float_lit(&mut self) -> Result<(f64, &'src str, Span), Abort> {
+    fn float_lit(&mut self) -> Result<(f64, &'src str, Span), BuilderError> {
         let span = self.expect(FLOAT_LIT)?;
         let literal = self.get_source_str(&span)?;
         let value = literal.parse::<f64>().map_err(|err| {
@@ -1487,13 +1520,13 @@ impl<'src> Builder<'src> {
                 message: err.to_string(),
                 span: span.clone(),
             });
-            Abort
+            BuilderError::Abort
         })?;
 
         Ok((value, literal, span))
     }
 
-    fn regexp(&mut self) -> Result<Regexp<'src>, Abort> {
+    fn regexp(&mut self) -> Result<Regexp<'src>, BuilderError> {
         let span = self.expect(REGEXP)?;
         let re = self.get_source_str(&span)?;
 
@@ -1523,7 +1556,7 @@ impl<'src> Builder<'src> {
                         span,
                     });
 
-                    return Err(Abort);
+                    return Err(BuilderError::Abort);
                 }
             }
         }
@@ -1539,7 +1572,7 @@ impl<'src> Builder<'src> {
 
     /// This function is similar [`string_lit`] but guarantees that the
     /// string is a valid UTF-8 string.
-    fn utf8_string_lit(&mut self) -> Result<(&'src str, Span), Abort> {
+    fn utf8_string_lit(&mut self) -> Result<(&'src str, Span), BuilderError> {
         // Call `string_lit` with `allow_escape_char` set to false. This
         // guarantees that the returned string is borrowed from the source code
         // and is valid UTF-8, therefore is safe to convert it to &str without
@@ -1574,7 +1607,7 @@ impl<'src> Builder<'src> {
     fn string_lit(
         &mut self,
         allow_escape_char: bool,
-    ) -> Result<(Cow<'src, BStr>, &'src str, Span), Abort> {
+    ) -> Result<(Cow<'src, BStr>, &'src str, Span), BuilderError> {
         let span = self.expect(STRING_LIT)?;
         let literal = self.get_source_str(&span)?;
 
@@ -1600,7 +1633,7 @@ impl<'src> Builder<'src> {
         {
             if !allow_escape_char {
                 self.errors.push(Error::UnexpectedEscapeSequence(span));
-                return Err(Abort);
+                return Err(BuilderError::Abort);
             }
             backslash_pos
         } else {
@@ -1658,7 +1691,7 @@ impl<'src> Builder<'src> {
                                                 .subspan(start, end + 1),
                                         }
                                     );
-                                    return Err(Abort);
+                                    return Err(BuilderError::Abort);
                                 }
                             }
                             _ => {
@@ -1673,7 +1706,7 @@ impl<'src> Builder<'src> {
                                     ),
                                 });
 
-                                return Err(Abort);
+                                return Err(BuilderError::Abort);
                             }
                         },
                         _ => {
@@ -1695,7 +1728,7 @@ impl<'src> Builder<'src> {
                                 ),
                             });
 
-                            return Err(Abort);
+                            return Err(BuilderError::Abort);
                         }
                     }
                 }
