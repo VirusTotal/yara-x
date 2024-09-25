@@ -810,6 +810,8 @@ fn errors_serialization() {
         "type": "UnknownIdentifier",
         "code": "E009",
         "title": "unknown identifier `foo`",
+        "line": 1,
+        "column": 23,
         "labels":[
             {
                 "level": "error",
