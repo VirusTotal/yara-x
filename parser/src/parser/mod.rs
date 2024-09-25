@@ -1432,11 +1432,12 @@ impl<'src> ParserImpl<'src> {
             .then(|p| p.primary_expr())
             .cond(t!(L_BRACKET), |p| p.expr().expect(t!(R_BRACKET)))
             .cond(t!(L_PAREN), |p| {
-                p.opt(|p| p.boolean_expr())
-                    .zero_or_more(|p| {
+                p.opt(|p| {
+                    p.boolean_expr().zero_or_more(|p| {
                         p.expect(t!(COMMA)).then(|p| p.boolean_expr())
                     })
-                    .expect(t!(R_PAREN))
+                })
+                .expect(t!(R_PAREN))
             })
             .end()
     }

@@ -225,6 +225,10 @@ impl<'src> Builder<'src> {
         match self.next()? {
             Event::Token { kind, span } => {
                 if expected_kind != kind {
+                    // If this ever happens is because we are finding an
+                    // unexpected syntax in the CST. Either the source -> CST
+                    // phase is not strict enough, or the CST -> AST phase is
+                    // overly strict.
                     panic!("expected {:?}, got {:?}", expected_kind, kind);
                 }
                 Ok(span)
