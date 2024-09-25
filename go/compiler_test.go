@@ -163,8 +163,10 @@ func TestErrors(t *testing.T) {
 
 	assert.Equal(t, []Warning{
 		{
-			Code:  "invariant_expr",
-			Title: "invariant boolean expression",
+			Code:   "invariant_expr",
+			Title:  "invariant boolean expression",
+			Line:   1,
+			Column: 26,
 			Labels: []Label{
 				{
 					Level:  "warning",
@@ -193,8 +195,10 @@ func TestErrors(t *testing.T) {
 	c.AddSource("rule test_2 { condition: foo }", WithOrigin("test.yar"))
 	assert.Equal(t, []CompileError{
 		{
-			Code:  "E009",
-			Title: "unknown identifier `foo`",
+			Code:   "E009",
+			Title:  "unknown identifier `foo`",
+			Line:   1,
+			Column: 26,
 			Labels: []Label{
 				{
 					Level:      "error",
@@ -293,8 +297,10 @@ func TestWarnings(t *testing.T) {
 
 	assert.Equal(t, []Warning{
 		{
-			Code:  "consecutive_jumps",
-			Title: "consecutive jumps in hex pattern `$a`",
+			Code:   "consecutive_jumps",
+			Title:  "consecutive jumps in hex pattern `$a`",
+			Line:   1,
+			Column: 31,
 			Labels: []Label{
 				{
 					Level:      "warning",
@@ -314,8 +320,10 @@ func TestWarnings(t *testing.T) {
   |`,
 		},
 		{
-			Code:  "slow_pattern",
-			Title: "slow pattern",
+			Code:   "slow_pattern",
+			Title:  "slow pattern",
+			Line:   1,
+			Column: 22,
 			Labels: []Label{
 				{
 					Level:      "warning",
