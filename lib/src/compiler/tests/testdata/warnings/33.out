@@ -1,0 +1,7 @@
+warning[non_bool_expr]: non-boolean expression used as boolean
+ --> line:3:17
+  |
+3 |     1 of (true, 2, false)
+  |                 - this expression is `integer` but is being used as `bool`
+  |
+  = note: non-zero integers are considered `true`, while zero is `false`
