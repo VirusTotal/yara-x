@@ -582,6 +582,34 @@ fn unsupported_modules() {
 
 #[cfg(feature = "test_proto2-module")]
 #[test]
+fn banned_modules() {
+    let mut compiler = Compiler::new();
+
+    assert_eq!(
+        compiler
+            .ban_module(
+                "test_proto2",
+                "module `test_proto2` can't be used",
+                "module `test_proto2` is used here",
+            )
+            .add_source(
+                r#"
+            import "test_proto2"
+            "#,
+            )
+            .expect_err("expected error")
+            .to_string(),
+        r#"error[E100]: module `test_proto2` can't be used
+ --> line:2:13
+  |
+2 |             import "test_proto2"
+  |             ^^^^^^^^^^^^^^^^^^^^ module `test_proto2` is used here
+  |"#
+    );
+}
+
+#[cfg(feature = "test_proto2-module")]
+#[test]
 fn import_modules() {
     let mut compiler = Compiler::new();
     assert!(compiler

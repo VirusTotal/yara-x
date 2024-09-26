@@ -35,8 +35,9 @@ use yara_x_parser::{Parser, Span};
 use crate::compiler::base64::base64_patterns;
 use crate::compiler::emit::{emit_rule_condition, EmitContext};
 use crate::compiler::errors::{
-    CompileError, ConflictingRuleIdentifier, DuplicateRule, DuplicateTag,
-    EmitWasmError, InvalidRegexp, InvalidUTF8, UnknownModule, UnusedPattern,
+    CompileError, ConflictingRuleIdentifier, CustomError, DuplicateRule,
+    DuplicateTag, EmitWasmError, InvalidRegexp, InvalidUTF8, UnknownModule,
+    UnusedPattern,
 };
 use crate::compiler::report::{CodeLoc, ReportBuilder};
 use crate::compiler::{CompileContext, VarStack};
@@ -350,6 +351,11 @@ pub struct Compiler<'a> {
     /// module is ignored.
     ignored_modules: FxHashSet<String>,
 
+    /// Keys in this map are the modules that are banned, and values are a pair
+    /// of strings with the title and message for the error that will be shown
+    /// if the banned module is imported.
+    banned_modules: FxHashMap<String, (String, String)>,
+
     /// Keys in this map are the name of rules that will be ignored because they
     /// depend on unsupported modules, either directly or indirectly. Values are
     /// the names of the unsupported modules they depend on.
@@ -443,6 +449,7 @@ impl<'a> Compiler<'a> {
             re_code: Vec::new(),
             imported_modules: Vec::new(),
             ignored_modules: FxHashSet::default(),
+            banned_modules: FxHashMap::default(),
             ignored_rules: FxHashMap::default(),
             root_struct: Struct::new().make_root(),
             report_builder: ReportBuilder::new(),
@@ -743,6 +750,24 @@ impl<'a> Compiler<'a> {
     /// don't rely on that module will be correctly compiled.
     pub fn ignore_module<M: Into<String>>(&mut self, module: M) -> &mut Self {
         self.ignored_modules.insert(module.into());
+        self
+    }
+
+    /// Tell the compiler that a YARA module can't be used.
+    ///
+    /// Import statements for the banned module will cause an error. The error
+    /// message can be customized by using the given error title and message.
+    ///
+    /// If this function is called multiple times with the same module name,
+    /// the error title and message will be updated.
+    pub fn ban_module<M: Into<String>, T: Into<String>, E: Into<String>>(
+        &mut self,
+        module: M,
+        error_title: T,
+        error_message: E,
+    ) -> &mut Self {
+        self.banned_modules
+            .insert(module.into(), (error_title.into(), error_message.into()));
         self
     }
 
@@ -1406,6 +1431,18 @@ impl<'a> Compiler<'a> {
 
         // Yes, module exists.
         let module = module.unwrap();
+
+        // Is the module banned? If yes, produce an error.
+        if let Some((error_title, error_msg)) =
+            self.banned_modules.get(module_name)
+        {
+            return Err(CustomError::build(
+                &self.report_builder,
+                error_title.clone(),
+                error_msg.clone(),
+                import.span().into(),
+            ));
+        }
 
         // If the module has not been added to `self.root_struct` and
         // `self.imported_modules`, do it.
