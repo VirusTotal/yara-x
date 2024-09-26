@@ -48,6 +48,7 @@ pub struct EmitWasmError(#[from] anyhow::Error);
 pub enum CompileError {
     AssignmentMismatch(Box<AssignmentMismatch>),
     ConflictingRuleIdentifier(Box<ConflictingRuleIdentifier>),
+    CustomError(Box<CustomError>),
     DuplicateModifier(Box<DuplicateModifier>),
     DuplicatePattern(Box<DuplicatePattern>),
     DuplicateRule(Box<DuplicateRule>),
@@ -633,5 +634,17 @@ pub struct PotentiallySlowLoop {
 pub struct TooManyPatterns {
     report: Report,
     max_num_patterns: usize,
+    error_loc: CodeLoc,
+}
+
+/// A custom error has occurred.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E100", title = "{title}")]
+#[label("{error}", error_loc)]
+pub struct CustomError {
+    report: Report,
+    title: String,
+    error: String,
     error_loc: CodeLoc,
 }
