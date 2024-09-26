@@ -1493,8 +1493,7 @@ fn emit_of_expr_tuple(
                 load_var(ctx, instr, i);
                 emit_switch(ctx, next_item.ty.into(), instr, |ctx, instr| {
                     if let Some(expr) = expressions.next() {
-                        assert_eq!(expr.ty(), Type::Bool);
-                        emit_expr(ctx, instr, expr);
+                        emit_bool_expr(ctx, instr, expr);
                         return true;
                     }
                     false
