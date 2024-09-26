@@ -17,8 +17,8 @@ use crate::compiler::errors::{
     EntrypointUnsupported, InvalidBase64Alphabet, InvalidModifier,
     InvalidModifierCombination, InvalidPattern, InvalidRange, InvalidRegexp,
     MismatchingTypes, MixedGreediness, NumberOutOfRange, SyntaxError,
-    UnexpectedNegativeNumber, UnknownField, UnknownIdentifier, WrongArguments,
-    WrongType,
+    TooManyPatterns, UnexpectedNegativeNumber, UnknownField,
+    UnknownIdentifier, WrongArguments, WrongType,
 };
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
@@ -35,13 +35,16 @@ use crate::re::parser::Error;
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
 use crate::types::{Map, Regexp, Type, TypeValue, Value};
 
+/// How many patterns a rule can have. If a rule has more than this number of
+/// patterns the [`TooManyPatterns`] error is returned.
+const MAX_PATTERNS_PER_RULE: usize = 100_000;
+
 pub(in crate::compiler) fn patterns_from_ast<'src>(
     ctx: &mut CompileContext<'_, 'src, '_>,
-    patterns: Option<&Vec<ast::Pattern<'src>>>,
+    rule: &ast::Rule<'src>,
 ) -> Result<(), CompileError> {
-    for pattern_ast in patterns.into_iter().flatten() {
+    for pattern_ast in rule.patterns.as_ref().into_iter().flatten() {
         let pattern = pattern_from_ast(ctx, pattern_ast)?;
-
         if pattern.identifier().name != "$" {
             if let Some(existing) = ctx
                 .current_rule_patterns
@@ -56,7 +59,13 @@ pub(in crate::compiler) fn patterns_from_ast<'src>(
                 ));
             }
         }
-
+        if ctx.current_rule_patterns.len() == MAX_PATTERNS_PER_RULE {
+            return Err(TooManyPatterns::build(
+                ctx.report_builder,
+                MAX_PATTERNS_PER_RULE,
+                rule.identifier.span().into(),
+            ));
+        }
         ctx.current_rule_patterns.push(pattern);
     }
     Ok(())

@@ -1121,7 +1121,7 @@ impl<'a> Compiler<'a> {
 
         // Convert the patterns from AST to IR. This populates the
         // `ctx.current_rule_patterns` vector.
-        if let Err(err) = patterns_from_ast(&mut ctx, rule.patterns.as_ref()) {
+        if let Err(err) = patterns_from_ast(&mut ctx, rule) {
             drop(ctx);
             self.restore_snapshot(snapshot);
             return Err(err);
