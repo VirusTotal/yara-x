@@ -72,6 +72,7 @@ pub enum CompileError {
     PotentiallySlowLoop(Box<PotentiallySlowLoop>),
     SlowPattern(Box<SlowPattern>),
     SyntaxError(Box<SyntaxError>),
+    TooManyPatterns(Box<TooManyPatterns>),
     UnexpectedEscapeSequence(Box<UnexpectedEscapeSequence>),
     UnexpectedNegativeNumber(Box<UnexpectedNegativeNumber>),
     UnknownField(Box<UnknownField>),
@@ -625,10 +626,21 @@ pub struct PotentiallySlowLoop {
     loc: CodeLoc,
 }
 
+/// A rule has too many patterns.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E035", title = "too many patterns in a rule")]
+#[label("this rule has more than {max_num_patterns} patterns", error_loc)]
+pub struct TooManyPatterns {
+    report: Report,
+    max_num_patterns: usize,
+    error_loc: CodeLoc,
+}
+
 /// A custom error has occurred.
 #[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
-#[error(code = "E035", title = "{title}")]
+#[error(code = "E100", title = "{title}")]
 #[label("{error}", error_loc)]
 pub struct CustomError {
     report: Report,
