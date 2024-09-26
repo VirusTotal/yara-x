@@ -25,7 +25,7 @@ jobs:
         include:
         - build: msrv
           os: ubuntu-latest
-          rust: 1.76.0
+          rust: 1.77.0
           args: "--features=magic-module"
           rust_flags: "-Awarnings"
           experimental: false
