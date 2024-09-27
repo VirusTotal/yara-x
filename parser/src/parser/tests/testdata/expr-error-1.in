@@ -12,3 +12,8 @@ rule test_3 {
 	condition:
 		1 + == 3
 }
+
+rule test_4 {
+	condition:
+	  foo["foo"](4)
+}
