@@ -1,4 +1,4 @@
-SOURCE_FILE@0..121
+SOURCE_FILE@0..167
   RULE_DECL@0..38
     RULE_KW@0..4 "rule"
     WHITESPACE@4..5 " "
@@ -89,8 +89,41 @@ SOURCE_FILE@0..121
       INTEGER_LIT@118..119 "3"
     NEWLINE@119..120 "\n"
     R_BRACE@120..121 "}"
+  NEWLINE@121..122 "\n"
+  NEWLINE@122..123 "\n"
+  RULE_DECL@123..167
+    RULE_KW@123..127 "rule"
+    WHITESPACE@127..128 " "
+    IDENT@128..134 "test_4"
+    WHITESPACE@134..135 " "
+    L_BRACE@135..136 "{"
+    NEWLINE@136..137 "\n"
+    WHITESPACE@137..138 "\t"
+    ERROR@138..165
+      CONDITION_KW@138..147 "condition"
+      COLON@147..148 ":"
+      NEWLINE@148..149 "\n"
+      WHITESPACE@149..152 "\t  "
+      BOOLEAN_EXPR@152..162
+        BOOLEAN_TERM@152..162
+          EXPR@152..162
+            TERM@152..162
+              PRIMARY_EXPR@152..155
+                IDENT@152..155 "foo"
+              L_BRACKET@155..156 "["
+              EXPR@156..161
+                TERM@156..161
+                  PRIMARY_EXPR@156..161
+                    STRING_LIT@156..161 "\"foo\""
+              R_BRACKET@161..162 "]"
+      L_PAREN@162..163 "("
+      INTEGER_LIT@163..164 "4"
+      R_PAREN@164..165 ")"
+    NEWLINE@165..166 "\n"
+    R_BRACE@166..167 "}"
 
 ERRORS:
 - [37..38]: expecting expression, found `}`
 - [71..72]: expecting expression, found `+`
 - [115..117]: expecting expression, found `==`
+- [162..163]: expecting operator, `of`, expression or `}`, found `(`
