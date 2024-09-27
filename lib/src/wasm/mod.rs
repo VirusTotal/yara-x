@@ -721,8 +721,6 @@ lazy_static! {
 
         config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
         config.epoch_interruption(true);
-        config.wasm_bulk_memory(false);
-
         config
     };
     pub(crate) static ref ENGINE: Engine = Engine::new(&CONFIG).unwrap();
