@@ -1493,8 +1493,8 @@ impl<'a> Compiler<'a> {
         }
 
         // Is the module banned? If yes, produce an error. Notice however that
-        // this check is done after the module has been added to the symbol 
-        // table because we don't want additional errors due to undefined 
+        // this check is done after the module has been added to the symbol
+        // table because we don't want additional errors due to undefined
         // identifiers when the banned module is used in some rule condition.
         if let Some((error_title, error_msg)) =
             self.banned_modules.get(module_name)
