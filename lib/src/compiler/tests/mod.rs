@@ -595,6 +595,7 @@ fn banned_modules() {
             .add_source(
                 r#"
             import "test_proto2"
+            rule test { condition: test_proto2.int32_zero == 0}
             "#,
             )
             .expect_err("expected error")
@@ -606,6 +607,11 @@ fn banned_modules() {
   |             ^^^^^^^^^^^^^^^^^^^^ module `test_proto2` is used here
   |"#
     );
+
+    // The only error should be the error about the use of a banned module,
+    // the condition `test_proto2.int32_zero == 0` should not produce any
+    // error.
+    assert_eq!(compiler.errors().len(), 1);
 }
 
 #[cfg(feature = "test_proto2-module")]

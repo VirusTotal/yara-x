@@ -1494,18 +1494,6 @@ impl<'a> Compiler<'a> {
         // Yes, module exists.
         let module = module.unwrap();
 
-        // Is the module banned? If yes, produce an error.
-        if let Some((error_title, error_msg)) =
-            self.banned_modules.get(module_name)
-        {
-            return Err(CustomError::build(
-                &self.report_builder,
-                error_title.clone(),
-                error_msg.clone(),
-                import.span().into(),
-            ));
-        }
-
         // If the module has not been added to `self.root_struct` and
         // `self.imported_modules`, do it.
         if !self.root_struct.has_field(module_name) {
@@ -1564,6 +1552,21 @@ impl<'a> Compiler<'a> {
                 module_name,
                 self.root_struct.lookup(module_name).unwrap(),
             );
+        }
+
+        // Is the module banned? If yes, produce an error. Notice however that
+        // this check is done after the module has been added to the symbol 
+        // table because we don't want additional errors due to undefined 
+        // identifiers when the banned module is used in some rule condition.
+        if let Some((error_title, error_msg)) =
+            self.banned_modules.get(module_name)
+        {
+            return Err(CustomError::build(
+                &self.report_builder,
+                error_title.clone(),
+                error_msg.clone(),
+                import.span().into(),
+            ));
         }
 
         Ok(())
