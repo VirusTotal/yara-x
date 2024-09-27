@@ -159,6 +159,50 @@ pub unsafe extern "C" fn yrx_compiler_ignore_module(
     YRX_RESULT::SUCCESS
 }
 
+/// Tell the compiler that a YARA module can't be used.
+///
+/// Import statements for the banned module will cause an error. The error
+/// message can be customized by using the given error title and message.
+///
+/// If this function is called multiple times with the same module name,
+/// the error title and message will be updated.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_compiler_ban_module(
+    compiler: *mut YRX_COMPILER,
+    module: *const c_char,
+    error_title: *const c_char,
+    error_msg: *const c_char,
+) -> YRX_RESULT {
+    let compiler = if let Some(compiler) = compiler.as_mut() {
+        compiler
+    } else {
+        return YRX_RESULT::INVALID_ARGUMENT;
+    };
+
+    let module = if let Ok(module) = CStr::from_ptr(module).to_str() {
+        module
+    } else {
+        return YRX_RESULT::INVALID_ARGUMENT;
+    };
+
+    let err_title = if let Ok(err_title) = CStr::from_ptr(error_title).to_str()
+    {
+        err_title
+    } else {
+        return YRX_RESULT::INVALID_ARGUMENT;
+    };
+
+    let err_msg = if let Ok(err_msg) = CStr::from_ptr(error_msg).to_str() {
+        err_msg
+    } else {
+        return YRX_RESULT::INVALID_ARGUMENT;
+    };
+
+    compiler.inner.ban_module(module, err_title, err_msg);
+
+    YRX_RESULT::SUCCESS
+}
+
 /// Creates a new namespace.
 ///
 /// Further calls to `yrx_compiler_add_source` will put the rules under the

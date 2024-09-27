@@ -51,6 +51,21 @@ func IgnoreModule(module string) CompileOption {
 	}
 }
 
+// BanModule is an option for [NewCompiler] and [Compile] that allows
+// banning the use of a given module.
+//
+// Import statements for the banned module will cause an error. The error
+// message can be customized by using the given error title and message.
+//
+// If this function is called multiple times with the same module name,
+// the error title and message will be updated.
+func BanModule(module string, errTitle string, errMessage string) CompileOption {
+	return func(c *Compiler) error {
+		c.bannedModules[module] = bannedModule{errTitle, errMessage}
+		return nil
+	}
+}
+
 // RelaxedReSyntax is an option for [NewCompiler] and [Compile] that
 // determines whether the compiler should adopt a more relaxed approach
 // while parsing regular expressions.
@@ -104,7 +119,7 @@ type SourceOption func(opt *sourceOptions) error
 // The origin is usually the path of the file containing the source code,
 // but it can be any arbitrary string that conveys information of the
 // source's origin. This origin appears in error reports, for instance, if
-// if origin is "some_file.yar", error reports will look like:
+// origin is "some_file.yar", error reports will look like:
 //
 //	error: syntax error
 //	 --> some_file.yar:4:17
@@ -194,6 +209,11 @@ func (c CompileError) Error() string {
 	return c.Text
 }
 
+type bannedModule struct {
+	errTitle string
+	errMsg   string
+}
+
 // Compiler represent a YARA compiler.
 type Compiler struct {
 	cCompiler          *C.YRX_COMPILER
@@ -201,6 +221,7 @@ type Compiler struct {
 	errorOnSlowPattern bool
 	errorOnSlowLoop    bool
 	ignoredModules     map[string]bool
+	bannedModules      map[string]bannedModule
 	vars               map[string]interface{}
 }
 
@@ -208,6 +229,7 @@ type Compiler struct {
 func NewCompiler(opts ...CompileOption) (*Compiler, error) {
 	c := &Compiler{
 		ignoredModules: make(map[string]bool),
+		bannedModules:  make(map[string]bannedModule),
 		vars:           make(map[string]interface{}),
 	}
 
@@ -243,6 +265,9 @@ func NewCompiler(opts ...CompileOption) (*Compiler, error) {
 func (c *Compiler) initialize() error {
 	for name, _ := range c.ignoredModules {
 		c.ignoreModule(name)
+	}
+	for name, v := range c.bannedModules {
+		c.banModule(name, v.errTitle, v.errMsg)
 	}
 	for ident, value := range c.vars {
 		if err := c.DefineGlobal(ident, value); err != nil {
@@ -319,6 +344,23 @@ func (c *Compiler) ignoreModule(module string) {
 	cModule := C.CString(module)
 	defer C.free(unsafe.Pointer(cModule))
 	result := C.yrx_compiler_ignore_module(c.cCompiler, cModule)
+	if result != C.SUCCESS {
+		panic("yrx_compiler_add_unsupported_module failed")
+	}
+	runtime.KeepAlive(c)
+}
+
+func (c *Compiler) banModule(module, error_title, error_message string) {
+	cModule := C.CString(module)
+	defer C.free(unsafe.Pointer(cModule))
+
+	cErrTitle := C.CString(error_title)
+	defer C.free(unsafe.Pointer(cErrTitle))
+
+	cErrMsg := C.CString(error_message)
+	defer C.free(unsafe.Pointer(cErrMsg))
+
+	result := C.yrx_compiler_ban_module(c.cCompiler, cModule, cErrTitle, cErrMsg)
 	if result != C.SUCCESS {
 		panic("yrx_compiler_add_unsupported_module failed")
 	}
