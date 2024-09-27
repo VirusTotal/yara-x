@@ -88,7 +88,8 @@ enum State {
     /// The parser has failed to parse some portion of the source code. It can
     /// recover from the failure and go back to OK.
     Failure,
-    ///
+    /// The parser is out fuel. See the `fuel` field in [`ParserImpl`] for
+    /// details.
     OutOfFuel,
 }
 
