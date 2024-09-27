@@ -310,6 +310,18 @@ enum YRX_RESULT yrx_compiler_ignore_module(struct YRX_COMPILER *compiler,
 enum YRX_RESULT yrx_compiler_enable_feature(struct YRX_COMPILER *compiler,
                                             const char *feature);
 
+// Tell the compiler that a YARA module can't be used.
+//
+// Import statements for the banned module will cause an error. The error
+// message can be customized by using the given error title and message.
+//
+// If this function is called multiple times with the same module name,
+// the error title and message will be updated.
+enum YRX_RESULT yrx_compiler_ban_module(struct YRX_COMPILER *compiler,
+                                        const char *module,
+                                        const char *error_title,
+                                        const char *error_msg);
+
 // Creates a new namespace.
 //
 // Further calls to `yrx_compiler_add_source` will put the rules under the

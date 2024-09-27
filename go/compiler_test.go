@@ -31,6 +31,20 @@ func TestUnsupportedModules(t *testing.T) {
 	assert.Len(t, scanResults.MatchingRules(), 1)
 }
 
+func TestBannedModules(t *testing.T) {
+	_, err := Compile(
+		`import "pe"`,
+		BanModule("pe", "pe module is banned", "pe module was used here"))
+
+	expected := `error[E100]: pe module is banned
+ --> line:1:1
+  |
+1 | import "pe"
+  | ^^^^^^^^^^^ pe module was used here
+  |`
+	assert.EqualError(t, err, expected)
+}
+
 func TestRelaxedReSyntax(t *testing.T) {
 	r, err := Compile(`
 		rule test { strings: $a = /\Release/ condition: $a }`,
