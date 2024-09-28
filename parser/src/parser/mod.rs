@@ -787,7 +787,7 @@ impl<'src> ParserImpl<'src> {
         for _ in 0..n {
             self.trivia();
             parser(self);
-            if matches!(self.state, State::Failure) {
+            if matches!(self.state, State::Failure | State::OutOfFuel) {
                 return self;
             }
         }
@@ -799,7 +799,7 @@ impl<'src> ParserImpl<'src> {
             self.opt_depth += 1;
             parser(self);
             self.opt_depth -= 1;
-            if matches!(self.state, State::Failure) {
+            if matches!(self.state, State::Failure | State::OutOfFuel) {
                 self.recover();
                 self.restore_bookmark(&bookmark);
                 self.remove_bookmark(bookmark);
@@ -1789,7 +1789,7 @@ impl<'a, 'src> Alt<'a, 'src> {
     where
         F: Fn(&'a mut ParserImpl<'src>) -> &'a mut ParserImpl<'src>,
     {
-        if matches!(self.parser.state, State::Failure) {
+        if matches!(self.parser.state, State::Failure | State::OutOfFuel) {
             return self;
         }
         // Don't try to match the current alternative if the parser a previous
