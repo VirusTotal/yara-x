@@ -1,6 +1,3 @@
-use std::collections::HashSet;
-use std::mem;
-
 use crate::modules::protos;
 use bstr::{BStr, ByteSlice};
 use itertools::Itertools;
@@ -15,6 +12,7 @@ use nom::number::Endianness;
 use nom::sequence::tuple;
 use nom::{Err, IResult, Parser};
 use protobuf::MessageField;
+use std::collections::HashSet;
 
 type Error<'a> = nom::error::Error<&'a [u8]>;
 
@@ -1538,9 +1536,9 @@ fn uint(
 
 /// Parser that reads [ULEB128][1].
 ///
-/// Notice however that this function returns a `u64`, is able to parse
-/// number up to 72057594037927935. When parsing larger number it fails,
-/// even if they are valid ULEB128.
+/// Notice however that this function returns a `u64`, so it's able to parse
+/// numbers up to 2^64-1. When parsing larger numbers it fails, even if they 
+/// are valid ULEB128.
 ///
 /// [1]: https://en.wikipedia.org/wiki/LEB128
 fn uleb128(input: &[u8]) -> IResult<&[u8], u64> {
@@ -1572,10 +1570,16 @@ fn uleb128(input: &[u8]) -> IResult<&[u8], u64> {
     Ok((data, val))
 }
 
-/// Parser that reads SLEB128
+/// Parser that reads [SLEB128][1].
+/// 
+/// Notice however that this function returns an `i64`, so it's able to parse
+/// numbers from -2^63 to 2^63-1. When parsing numbers out of that range it 
+/// fails, even if they are valid ULEB128.
+///
+/// [1]: https://en.wikipedia.org/wiki/LEB128
 fn sleb128(input: &[u8]) -> IResult<&[u8], i64> {
     let mut val: i64 = 0;
-    let mut shift: i64 = 0;
+    let mut shift: u32 = 0;
 
     let mut data = input;
     let mut byte: u8;
@@ -1583,15 +1587,22 @@ fn sleb128(input: &[u8]) -> IResult<&[u8], i64> {
     loop {
         (data, byte) = u8(data)?;
 
-        val |= ((byte & !(1 << 7)) as i64) << shift;
+        // Use all the bits, except the most significant one.
+        let b = (byte & 0x7f) as i64;
+        
+        val |= b
+            .checked_shl(shift)
+            .ok_or(Err::Error(Error::new(input, ErrorKind::TooLarge)))?;
+
         shift += 7;
 
-        if byte & (1 << 7) == 0 {
+        // Break if the most significant bit is zero.
+        if byte & 0x80 == 0 {
             break;
         }
     }
 
-    if shift < 8 * mem::size_of::<i64>() as i64 && (byte & 1 << 6) != 0 {
+    if shift < i64::BITS && (byte & 0x40) != 0 {
         val |= !0 << shift;
     }
 
@@ -2032,4 +2043,9 @@ fn test_sleb_parsing() {
     let sleb_128_in = vec![0b000_0000];
     let (_remainder, result) = sleb128(&sleb_128_in).unwrap();
     assert_eq!(0, result);
+
+    assert!(sleb128(&[
+        0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00,
+    ])
+    .is_err());
 }
