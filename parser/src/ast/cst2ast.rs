@@ -260,10 +260,7 @@ impl<'src> Builder<'src> {
                 }
                 Ok(span)
             }
-            event @ Event::Begin(_) => {
-                panic!("expected {:?}, got {:?}", expected_kind, event);
-            }
-            _ => panic!("unexpected end of events"),
+            event => panic!("unexpected {:?}, got {:?}", expected_kind, event),
         }
     }
 

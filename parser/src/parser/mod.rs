@@ -225,8 +225,7 @@ impl Iterator for ParserImpl<'_> {
                 Some(Event::Begin(SOURCE_FILE))
             }
             State::EndOfInput => None,
-            State::OutOfFuel => None,
-            State::OK | State::Failure => {
+            _ => {
                 // If the output buffer isn't empty, return a buffered event.
                 if let Some(token) = self.output.pop() {
                     return Some(token);
@@ -240,12 +239,14 @@ impl Iterator for ParserImpl<'_> {
                 // code lazily, one top-level item at a time, saving memory by
                 // avoiding tokenizing the entire input at once, or producing all
                 // the events before they are consumed.
-                if self.tokens.has_more() {
+                if !matches!(self.state, State::OutOfFuel)
+                    && self.tokens.has_more()
+                {
                     let _ = self.trivia();
                     let _ = self.top_level_item();
                     self.flush_errors();
                     self.cache.clear();
-                    self.state = State::OK;
+                    self.set_state(State::OK);
                 }
                 // If still there are no more tokens, we have reached the end of
                 // the input.
@@ -369,6 +370,14 @@ impl<'src> ParserImpl<'src> {
         self
     }
 
+    /// Sets the parser state, except if the current state is
+    /// [`State::OutOfFuel`], in that  case the state remains unchanged.
+    fn set_state(&mut self, state: State) {
+        if !matches!(self.state, State::OutOfFuel) {
+            self.state = state;
+        }
+    }
+
     /// Indicates the start of a non-terminal symbol of a given kind.
     ///
     /// Must be followed by a matching [`Parser::end`].
@@ -406,7 +415,7 @@ impl<'src> ParserImpl<'src> {
         {
             self.depth -= 1;
         }
-        if matches!(self.state, State::Failure) {
+        if matches!(self.state, State::Failure | State::OutOfFuel) {
             self.output.end_with_error();
         } else {
             self.output.end();
@@ -432,7 +441,7 @@ impl<'src> ParserImpl<'src> {
 
                 self.trivia();
                 self.bump();
-                self.state = State::Failure;
+                self.set_state(State::Failure);
 
                 // If there were previous errors, flush those errors and
                 // don't produce new ones, but if no previous error exist
@@ -473,10 +482,10 @@ impl<'src> ParserImpl<'src> {
         self
     }
 
-    /// Sets the parser state to [`State::OK`], regardless of the
-    /// previous state.
+    /// Sets the parser state to [`State::OK`] if its previous state was
+    /// [`State::Failure`].
     fn recover(&mut self) -> &mut Self {
-        self.state = State::OK;
+        self.set_state(State::OK);
         self
     }
 
@@ -585,7 +594,7 @@ impl<'src> ParserImpl<'src> {
                 self.flush_errors()
             }
         } else {
-            self.state = State::Failure;
+            self.set_state(State::Failure);
         }
 
         self
@@ -663,6 +672,7 @@ impl<'src> ParserImpl<'src> {
         self.state = match self.state {
             State::OK => State::Failure,
             State::Failure => State::OK,
+            State::OutOfFuel => State::OutOfFuel,
             _ => unreachable!(),
         };
 
@@ -828,10 +838,14 @@ impl<'src> ParserImpl<'src> {
     where
         P: Fn(&mut Self) -> &mut Self,
     {
+        if matches!(self.state, State::OutOfFuel) {
+            return self;
+        }
+
         let start_index = self.tokens.current_token_index();
 
         if self.cache.contains(&(start_index, kind)) {
-            self.state = State::Failure;
+            self.set_state(State::Failure);
             return self;
         }
 
@@ -1013,7 +1027,7 @@ impl<'src> ParserImpl<'src> {
         let token = match self.peek() {
             Some(token) => token,
             None => {
-                self.state = State::Failure;
+                self.set_state(State::Failure);
                 return self;
             }
         };
@@ -1042,7 +1056,7 @@ impl<'src> ParserImpl<'src> {
                     self.bump();
                 }
                 self.output.end();
-                self.state = State::Failure;
+                self.set_state(State::Failure);
                 self
             }
         }
@@ -1821,9 +1835,9 @@ impl<'a, 'src> Alt<'a, 'src> {
         self.parser.remove_bookmark(self.bookmark);
         // If none of the alternatives matched, that's a failure.
         if self.matched {
-            self.parser.state = State::OK;
+            self.parser.set_state(State::OK);
         } else {
-            self.parser.state = State::Failure;
+            self.parser.set_state(State::Failure);
             self.parser.handle_errors();
         };
         self.parser
