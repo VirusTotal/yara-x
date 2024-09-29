@@ -44,10 +44,10 @@ anyhow = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 clap_complete = { workspace = true }
 globwalk = { workspace = true }
+home = { workspace = true }
 itertools = { workspace = true }
 enable-ansi-support = { workspace = true }
 env_logger = { workspace = true, optional = true, features = ["auto-color"] }
-figment = { workspace = true, features = ["toml"] }
 log = { workspace = true, optional = true }
 protobuf = { workspace = true }
 protobuf-json-mapping = { workspace = true }

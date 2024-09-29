@@ -215,6 +215,7 @@ der-parser = { workspace = true, optional = true, features = ["bigint"] }
 digest = { workspace = true, optional = true }
 dsa = { workspace = true, optional = true }
 ecdsa = { workspace = true, optional = true }
+figment = { workspace = true, features = ["toml"] }
 fmmap = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 intaglio = { workspace = true }

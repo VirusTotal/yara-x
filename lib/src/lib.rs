@@ -79,6 +79,9 @@ mod models;
 #[cfg(test)]
 mod tests;
 
+/// Used to parse and handle YARA-X configuration options.
+pub mod config;
+
 pub mod errors {
     //! Errors returned by this crate.
     //!
