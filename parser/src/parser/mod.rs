@@ -745,6 +745,28 @@ impl<'src> ParserImpl<'src> {
         self
     }
 
+    /// If the next non-trivia token matches one of the expected tokens,
+    /// consume all trivia tokens, consume the expected token, and applies
+    /// `parser`.
+    ///
+    /// This is similar to [`ParserImpl::if_next`], the difference between
+    /// both functions reside on how they handle the expected token. `if_next`
+    /// leave the expected token in the stream, to be consumed by `parser`,
+    /// while `cond` consumes the expected token too.
+    fn cond<P>(
+        &mut self,
+        expected_tokens: &'static TokenSet,
+        parser: P,
+    ) -> &mut Self
+    where
+        P: Fn(&mut Self) -> &mut Self,
+    {
+        self.if_next(expected_tokens, |p| {
+            p.expect(expected_tokens).then(|p| parser(p))
+        });
+        self
+    }
+
     /// Applies `parser` zero or more times.
     #[inline]
     fn zero_or_more<P>(&mut self, parser: P) -> &mut Self
@@ -1218,17 +1240,15 @@ impl<'src> ParserImpl<'src> {
                 )
             })
             .alt(|p| {
-                p.expect_d(t!(BASE64_KW | BASE64WIDE_KW), DESC).opt(|p| {
-                    p.expect(t!(L_PAREN))
-                        .expect(t!(STRING_LIT))
-                        .expect(t!(R_PAREN))
-                })
+                p.expect_d(t!(BASE64_KW | BASE64WIDE_KW), DESC)
+                    .cond(t!(L_PAREN), |p| {
+                        p.expect(t!(STRING_LIT)).expect(t!(R_PAREN))
+                    })
             })
             .alt(|p| {
-                p.expect_d(t!(XOR_KW), DESC).opt(|p| {
-                    p.expect(t!(L_PAREN))
-                        .expect(t!(INTEGER_LIT))
-                        .opt(|p| p.expect(t!(HYPHEN)).expect(t!(INTEGER_LIT)))
+                p.expect_d(t!(XOR_KW), DESC).cond(t!(L_PAREN), |p| {
+                    p.expect(t!(INTEGER_LIT))
+                        .cond(t!(HYPHEN), |p| p.expect(t!(INTEGER_LIT)))
                         .expect(t!(R_PAREN))
                 })
             })
@@ -1447,7 +1467,7 @@ impl<'src> ParserImpl<'src> {
     fn term(&mut self) -> &mut Self {
         self.begin(TERM)
             .then(|p| p.primary_expr())
-            .opt(|p| {
+            .if_next(t!(L_BRACKET | L_PAREN), |p| {
                 p.begin_alt()
                     .alt(|p| {
                         p.expect(t!(L_BRACKET)).expr().expect(t!(R_BRACKET))
@@ -1521,16 +1541,13 @@ impl<'src> ParserImpl<'src> {
                 })
                 .alt(|p| {
                     p.expect_d(t!(PATTERN_COUNT), DESC)
-                        .opt(|p| p.expect(t!(IN_KW)).then(|p| p.range()))
+                        .cond(t!(IN_KW), |p| p.range())
                 })
                 .alt(|p| {
-                    p.expect_d(t!(PATTERN_OFFSET | PATTERN_LENGTH), DESC).opt(
-                        |p| {
-                            p.expect(t!(L_BRACKET))
-                                .then(|p| p.expr())
-                                .expect(t!(R_BRACKET))
-                        },
-                    )
+                    p.expect_d(t!(PATTERN_OFFSET | PATTERN_LENGTH), DESC)
+                        .cond(t!(L_BRACKET), |p| {
+                            p.expr().expect(t!(R_BRACKET))
+                        })
                 })
                 .alt(|p| p.expect_d(t!(MINUS), DESC).then(|p| p.term()))
                 .alt(|p| p.expect_d(t!(BITWISE_NOT), DESC).then(|p| p.term()))
