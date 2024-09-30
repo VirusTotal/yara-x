@@ -745,28 +745,6 @@ impl<'src> ParserImpl<'src> {
         self
     }
 
-    /// If the next non-trivia token matches one of the expected tokens,
-    /// consume all trivia tokens, consume the expected token, and applies
-    /// `parser`.
-    ///
-    /// This is similar to [`ParserImpl::if_next`], the difference between
-    /// both functions reside on how they handle the expected token. `if_next`
-    /// leave the expected token in the stream, to be consumed by `parser`,
-    /// while `cond` consumes the expected token too.
-    fn cond<P>(
-        &mut self,
-        expected_tokens: &'static TokenSet,
-        parser: P,
-    ) -> &mut Self
-    where
-        P: Fn(&mut Self) -> &mut Self,
-    {
-        self.if_next(expected_tokens, |p| {
-            p.expect(expected_tokens).then(|p| parser(p))
-        });
-        self
-    }
-
     /// Applies `parser` zero or more times.
     #[inline]
     fn zero_or_more<P>(&mut self, parser: P) -> &mut Self
@@ -1374,9 +1352,15 @@ impl<'src> ParserImpl<'src> {
         self.begin(BOOLEAN_TERM)
             .begin_alt()
             .alt(|p| {
-                p.expect_d(t!(PATTERN_IDENT), DESC)
-                    .cond(t!(AT_KW), |p| p.expr())
-                    .cond(t!(IN_KW), |p| p.range())
+                p.expect_d(t!(PATTERN_IDENT), DESC).if_next(
+                    t!(AT_KW | IN_KW),
+                    |p| {
+                        p.begin_alt()
+                            .alt(|p| p.expect(t!(AT_KW)).expr())
+                            .alt(|p| p.expect(t!(IN_KW)).range())
+                            .end_alt()
+                    },
+                )
             })
             .alt(|p| p.expect_d(t!(TRUE_KW | FALSE_KW), DESC))
             .alt(|p| {
@@ -1617,8 +1601,12 @@ impl<'src> ParserImpl<'src> {
                     .alt(|p| p.expect(t!(THEM_KW)))
                     .alt(|p| p.pattern_ident_tuple())
                     .end_alt()
-                    .cond(t!(AT_KW), |p| p.expr())
-                    .cond(t!(IN_KW), |p| p.range())
+                    .if_next(t!(AT_KW | IN_KW), |p| {
+                        p.begin_alt()
+                            .alt(|p| p.expect(t!(AT_KW)).expr())
+                            .alt(|p| p.expect(t!(IN_KW)).range())
+                            .end_alt()
+                    })
             })
             .alt(|p| {
                 p.boolean_expr_tuple().not(|p| p.expect(t!(AT_KW | IN_KW)))

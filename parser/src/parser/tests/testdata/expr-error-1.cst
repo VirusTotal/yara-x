@@ -1,4 +1,4 @@
-SOURCE_FILE@0..167
+SOURCE_FILE@0..251
   RULE_DECL@0..38
     RULE_KW@0..4 "rule"
     WHITESPACE@4..5 " "
@@ -121,9 +121,60 @@ SOURCE_FILE@0..167
       R_PAREN@164..165 ")"
     NEWLINE@165..166 "\n"
     R_BRACE@166..167 "}"
+  NEWLINE@167..168 "\n"
+  NEWLINE@168..169 "\n"
+  RULE_DECL@169..250
+    RULE_KW@169..173 "rule"
+    WHITESPACE@173..174 " "
+    IDENT@174..180 "test_5"
+    WHITESPACE@180..181 " "
+    L_BRACE@181..182 "{"
+    NEWLINE@182..183 "\n"
+    WHITESPACE@183..186 "   "
+    PATTERNS_BLK@186..210
+      STRINGS_KW@186..193 "strings"
+      COLON@193..194 ":"
+      NEWLINE@194..195 "\n"
+      WHITESPACE@195..200 "     "
+      PATTERN_DEF@200..210
+        PATTERN_IDENT@200..202 "$a"
+        WHITESPACE@202..203 " "
+        EQUAL@203..204 "="
+        WHITESPACE@204..205 " "
+        STRING_LIT@205..210 "\"foo\""
+    NEWLINE@210..211 "\n"
+    WHITESPACE@211..214 "   "
+    ERROR@214..248
+      CONDITION_KW@214..223 "condition"
+      COLON@223..224 ":"
+      NEWLINE@224..225 "\n"
+      WHITESPACE@225..230 "     "
+      BOOLEAN_EXPR@230..237
+        BOOLEAN_TERM@230..237
+          PATTERN_IDENT@230..232 "$a"
+          WHITESPACE@232..233 " "
+          AT_KW@233..235 "at"
+          WHITESPACE@235..236 " "
+          EXPR@236..237
+            TERM@236..237
+              PRIMARY_EXPR@236..237
+                INTEGER_LIT@236..237 "0"
+      WHITESPACE@237..238 " "
+      IN_KW@238..240 "in"
+      WHITESPACE@240..241 " "
+      L_PAREN@241..242 "("
+      INTEGER_LIT@242..243 "0"
+      DOT@243..244 "."
+      DOT@244..245 "."
+      INTEGER_LIT@245..247 "10"
+      R_PAREN@247..248 ")"
+    NEWLINE@248..249 "\n"
+    R_BRACE@249..250 "}"
+  NEWLINE@250..251 "\n"
 
 ERRORS:
 - [37..38]: expecting expression, found `}`
 - [71..72]: expecting expression, found `+`
 - [115..117]: expecting expression, found `==`
 - [162..163]: expecting operator, `of`, expression or `}`, found `(`
+- [238..240]: expecting `[`, `(`, operator or `}`, found `in`
