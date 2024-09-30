@@ -47,16 +47,14 @@ SOURCE_FILE@0..131
       COLON@86..87 ":"
       NEWLINE@87..88 "\n"
       WHITESPACE@88..91 "\t  "
-      PATTERN_DEF@91..106
+      PATTERN_DEF@91..99
         PATTERN_IDENT@91..93 "$a"
         WHITESPACE@93..94 " "
         EQUAL@94..95 "="
         WHITESPACE@95..96 " "
         STRING_LIT@96..99 "\"a\""
-        WHITESPACE@99..100 " "
-        PATTERN_MODS@100..106
-          PATTERN_MOD@100..106
-            BASE64_KW@100..106 "base64"
+      WHITESPACE@99..100 " "
+      BASE64_KW@100..106 "base64"
       L_PAREN@106..107 "("
       R_PAREN@107..108 ")"
     NEWLINE@108..109 "\n"
