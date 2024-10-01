@@ -550,7 +550,7 @@ enum NormalToken<'src> {
 
     // Space, tab, and many other Unicode characters that are considered spaces.
     // https://www.compart.com/en/unicode/bidiclass/WS
-    #[regex("[ \t\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}]+")]
+    #[regex("[ \t\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}]+")]
     Whitespace,
 
     #[token("\n")]
@@ -596,7 +596,7 @@ enum HexPatternToken {
 
     // Space, tab, and many other Unicode characters that are considered spaces.
     // https://www.compart.com/en/unicode/bidiclass/WS
-    #[regex("[ \t\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}]+")]
+    #[regex("[ \t\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}]+")]
     Whitespace,
 
     #[token("\n")]
@@ -652,7 +652,7 @@ enum HexJumpToken<'src> {
 
     // Space, tab, and many other Unicode characters that are considered spaces.
     // https://www.compart.com/en/unicode/bidiclass/WS
-    #[regex("[ \t\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}]+")]
+    #[regex("[ \t\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}]+")]
     Whitespace,
 
     #[token("\n")]
