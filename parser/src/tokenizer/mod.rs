@@ -232,6 +232,7 @@ impl<'src> Tokenizer<'src> {
             }
         };
 
+        // Truncate `unexpected` at the first whitespace if any.
         let unexpected = unexpected.split(char::is_whitespace).next().unwrap();
 
         // If `unexpected` is larger than the current token, bump the lexer to the
@@ -547,8 +548,9 @@ enum NormalToken<'src> {
     #[regex(r#"//[^\n]*"#)]
     Comment,
 
-    //  /\*([^*]|\*[^/])*\*/
-    #[regex("[ \t]+")]
+    // Space, tab, and many other Unicode characters that are considered spaces.
+    // https://www.compart.com/en/unicode/bidiclass/WS
+    #[regex("[ \t\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}]+")]
     Whitespace,
 
     #[token("\n")]
@@ -592,7 +594,9 @@ enum HexPatternToken {
     #[token("]")]
     RBracket,
 
-    #[regex("[ \t]+")]
+    // Space, tab, and many other Unicode characters that are considered spaces.
+    // https://www.compart.com/en/unicode/bidiclass/WS
+    #[regex("[ \t\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}]+")]
     Whitespace,
 
     #[token("\n")]
@@ -646,7 +650,9 @@ enum HexJumpToken<'src> {
     ]
     IntegerLit(&'src [u8]),
 
-    #[regex("[ \t]+")]
+    // Space, tab, and many other Unicode characters that are considered spaces.
+    // https://www.compart.com/en/unicode/bidiclass/WS
+    #[regex("[ \t\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}]+")]
     Whitespace,
 
     #[token("\n")]

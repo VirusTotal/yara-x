@@ -269,6 +269,61 @@ fn whitespaces() {
     let mut lexer = super::Tokenizer::new(" \t".as_bytes());
     assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..2))));
     assert_eq!(lexer.next_token(), None);
+
+    // "En Quad" character (U+2000).
+    let mut lexer = super::Tokenizer::new(b"\xE2\x80\x80");
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..3))));
+    assert_eq!(lexer.next_token(), None);
+
+    // "Em Quad" character (U+2001).
+    let mut lexer = super::Tokenizer::new(b"\xE2\x80\x81");
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..3))));
+    assert_eq!(lexer.next_token(), None);
+
+    // "En Space" character (U+2002).
+    let mut lexer = super::Tokenizer::new(b"\xE2\x80\x82");
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..3))));
+    assert_eq!(lexer.next_token(), None);
+
+    // "Em Space" character (U+2003).
+    let mut lexer = super::Tokenizer::new(b"\xE2\x80\x83");
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..3))));
+    assert_eq!(lexer.next_token(), None);
+
+    // "Three-Per-Em" character (U+2004).
+    let mut lexer = super::Tokenizer::new(b"\xE2\x80\x84");
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..3))));
+    assert_eq!(lexer.next_token(), None);
+
+    // "Four-Per-Em" character (U+2005).
+    let mut lexer = super::Tokenizer::new(b"\xE2\x80\x85");
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..3))));
+    assert_eq!(lexer.next_token(), None);
+
+    // "Six-Per-Em" character (U+2006).
+    let mut lexer = super::Tokenizer::new(b"\xE2\x80\x86");
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..3))));
+    assert_eq!(lexer.next_token(), None);
+
+    // "Figure Space" character (U+2007).
+    let mut lexer = super::Tokenizer::new(b"\xE2\x80\x87");
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..3))));
+    assert_eq!(lexer.next_token(), None);
+
+    // "Punctuation Space" character (U+2008).
+    let mut lexer = super::Tokenizer::new(b"\xE2\x80\x88");
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..3))));
+    assert_eq!(lexer.next_token(), None);
+
+    // "Thin Space" character (U+2009).
+    let mut lexer = super::Tokenizer::new(b"\xE2\x80\x89");
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..3))));
+    assert_eq!(lexer.next_token(), None);
+
+    // "Hair Space" character (U+200A).
+    let mut lexer = super::Tokenizer::new(b"\xE2\x80\x8A");
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..3))));
+    assert_eq!(lexer.next_token(), None);
 }
 
 #[test]
