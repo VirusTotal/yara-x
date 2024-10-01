@@ -324,6 +324,16 @@ fn whitespaces() {
     let mut lexer = super::Tokenizer::new(b"\xE2\x80\x8A");
     assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..3))));
     assert_eq!(lexer.next_token(), None);
+
+    // "Narrow No-Break Space" character (U+202f).
+    let mut lexer = super::Tokenizer::new(b"\xE2\x80\xAF");
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..3))));
+    assert_eq!(lexer.next_token(), None);
+
+    // "Medium Mathematical Space" character (U+205f).
+    let mut lexer = super::Tokenizer::new(b"\xE2\x81\x9F");
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..3))));
+    assert_eq!(lexer.next_token(), None);
 }
 
 #[test]
