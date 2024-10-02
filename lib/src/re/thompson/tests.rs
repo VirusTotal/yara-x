@@ -1341,17 +1341,22 @@ fn re_atoms() {
     });
 
     assert_re_atoms!(
-        r#"(?s)a(b.b|c.c|d.d|e.e|f.f|g.g|h.h|i.i|j.j|k.k|l.l|m.m|n.n|o.o|p.p|q.q|r.r)"#,
-        vec![Atom::inexact(b"a")]
-    );
-
-    assert_re_atoms!(
         r#"(?s)abc.d(((xy|xz)w.)|[a-c])(((xy|xz)w.)|[a-c])"#,
         vec![Atom::inexact(b"abc")]
     );
 
     assert_re_num_atoms!(
+        r#"(?s)a(b.b|c.c|d.d|e.e|f.f|g.g|h.h|i.i|j.j|k.k|l.l|m.m|n.n|o.o|p.p|q.q|r.r)"#,
+        4352
+    );
+
+    assert_re_num_atoms!(
         r#""\([0-9]([(-\\][0-9]){2,}[0-3]?([1-2][0-9]){2,}"#,
-        400
+        530
+    );
+
+    assert_re_num_atoms!(
+        r#"xy[0-9][a-e]{4,}([1-2][0-9]){4,}"#,
+        50
     );
 }
