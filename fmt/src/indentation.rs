@@ -15,6 +15,7 @@ where
 {
     input: T,
     indent_level: i16,
+    num_spaces: u8,
     output_buffer: VecDeque<Token<'a>>,
 }
 
@@ -22,8 +23,13 @@ impl<'a, T> AddIndentationSpaces<'a, T>
 where
     T: TokenStream<'a>,
 {
-    pub fn new(input: T) -> Self {
-        Self { input, indent_level: 0, output_buffer: VecDeque::new() }
+    pub fn new(input: T, num_spaces: u8) -> Self {
+        Self {
+            input,
+            indent_level: 0,
+            num_spaces: num_spaces,
+            output_buffer: VecDeque::new(),
+        }
     }
 }
 
@@ -52,9 +58,14 @@ where
                 Token::Newline => {
                     self.output_buffer.push_back(Token::Newline);
                     for _ in 0..self.indent_level {
-                        // Indent with two spaces per level
-                        self.output_buffer.push_back(Token::Whitespace);
-                        self.output_buffer.push_back(Token::Whitespace);
+                        if self.num_spaces == 0 {
+                            self.output_buffer.push_back(Token::Tab);
+                        } else {
+                            for _ in 0..self.num_spaces {
+                                self.output_buffer
+                                    .push_back(Token::Whitespace);
+                            }
+                        }
                     }
                     return self.output_buffer.pop_front();
                 }

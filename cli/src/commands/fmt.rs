@@ -25,7 +25,10 @@ pub fn fmt() -> Command {
         )
 }
 
-pub fn exec_fmt(args: &ArgMatches, main_config: FormatConfig) -> anyhow::Result<()> {
+pub fn exec_fmt(
+    args: &ArgMatches,
+    main_config: FormatConfig,
+) -> anyhow::Result<()> {
     let files = args.get_many::<PathBuf>("FILE").unwrap();
     let check = args.get_flag("check");
     let config_file = args.get_one::<PathBuf>("config");
@@ -40,7 +43,8 @@ pub fn exec_fmt(args: &ArgMatches, main_config: FormatConfig) -> anyhow::Result<
         .align_metadata(config.meta.align_values)
         .align_patterns(config.patterns.align_values)
         .indent_section_headers(config.rule.indent_section_headers)
-        .indent_section_contents(config.rule.indent_section_contents);
+        .indent_section_contents(config.rule.indent_section_contents)
+        .indent_spaces(config.rule.indent_spaces);
     let mut changed = false;
 
     for file in files {

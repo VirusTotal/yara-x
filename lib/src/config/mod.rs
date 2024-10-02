@@ -30,6 +30,8 @@ pub struct Rule {
     pub indent_section_headers: bool,
     /// Indent section contents one level past section headers.
     pub indent_section_contents: bool,
+    /// Number of spaces for indent. Set to 0 to use tabs.
+    pub indent_spaces: u8,
 }
 
 /// Meta specific formatting information.
@@ -53,6 +55,7 @@ impl Default for Config {
                 rule: Rule {
                     indent_section_headers: true,
                     indent_section_contents: true,
+                    indent_spaces: 2,
                 },
                 meta: Meta { align_values: true },
                 patterns: Patterns { align_values: true },

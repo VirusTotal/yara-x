@@ -212,6 +212,8 @@ pub(crate) enum Token<'a> {
     // Non-control tokens
     //
     Whitespace,
+    #[allow(dead_code)]
+    Tab,
     Comment(&'a [u8]),
 
     BlockComment(Vec<Vec<u8>>),
@@ -251,6 +253,7 @@ impl<'a> Token<'a> {
             }
             Token::Indentation(..) => categories::BaseCategory::Indentation,
             Token::Whitespace => categories::BaseCategory::Whitespace,
+            Token::Tab => categories::BaseCategory::Whitespace,
             Token::Comment(..)
             | Token::BlockComment(..)
             | Token::TailComment(..)
@@ -291,6 +294,7 @@ impl<'a> Token<'a> {
     pub fn as_bytes(&self) -> &'a [u8] {
         match self {
             Token::Whitespace => b" ",
+            Token::Tab => b"\t",
             Token::Newline => b"\n",
             Token::Identifier(s)
             | Token::Keyword(s)
@@ -420,6 +424,7 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
                     col_num = 0;
                 }
                 Token::Whitespace
+                | Token::Tab
                 | Token::Comment(_)
                 | Token::Identifier(_)
                 | Token::Keyword(_)
