@@ -2,8 +2,8 @@ YARA-X Config Guide
 ===================
 
 YARA-X uses a configuration file for controlling the behavior of different
-commands. It currently supports the fmt command, but others will be added in the
-future.
+commands. It currently supports the `fmt` command, but others will be added in
+the future.
 
 The `yr` command looks in `${HOME}/.yara-x.toml` when starting up. If that file
 does not exist the default values are used.
