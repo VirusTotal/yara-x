@@ -85,7 +85,7 @@ can run:
 yr scan --output-format=ndjson -m -g <RULES_FILE> <DIRECTORY> | jq .path
 ```
 
-### Listing rule names
+#### Listing rule names
 
 If you want only the rule names:
 
