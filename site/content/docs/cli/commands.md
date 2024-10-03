@@ -1,6 +1,6 @@
 ---
-title: "Using the CLI"
-description: "How to use YARA-X's command-line interface"
+title: "Commands"
+description: "The commands supported by the YARA-X CLI"
 summary: ""
 date: 2023-09-07T16:04:48+02:00
 lastmod: 2023-09-07T16:04:48+02:00
@@ -8,7 +8,7 @@ draft: false
 menu:
   docs:
     parent: ""
-    identifier: "cli"
+    identifier: "cli-commands"
 weight: 130
 toc: true
 seo:
