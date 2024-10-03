@@ -1,12 +1,13 @@
 mod commands;
+mod config;
 mod help;
 mod walk;
 
+use config::{load_config_from_file, Config};
 use crossterm::tty::IsTty;
 use std::{io, panic, process};
 use yansi::Color::Red;
 use yansi::Paint;
-use yara_x::config::{load_config_from_file, Config};
 
 use crate::commands::cli;
 

@@ -43,6 +43,7 @@ ascii_tree = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 clap_complete = { workspace = true }
+figment = { workspace = true, features = ["toml"] }
 globwalk = { workspace = true }
 home = { workspace = true }
 itertools = { workspace = true }

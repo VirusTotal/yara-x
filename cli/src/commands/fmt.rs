@@ -2,10 +2,11 @@ use std::fs::File;
 use std::path::PathBuf;
 use std::{fs, io, process};
 
-use crate::help::{CONFIG_FILE, FMT_CHECK_MODE};
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
-use yara_x::config::{load_config_from_file, FormatConfig};
 use yara_x_fmt::Formatter;
+
+use crate::config::{load_config_from_file, FormatConfig};
+use crate::help::{CONFIG_FILE, FMT_CHECK_MODE};
 
 pub fn fmt() -> Command {
     super::command("fmt")
