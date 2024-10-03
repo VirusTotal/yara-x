@@ -1,9 +1,10 @@
+use std::path::Path;
+
 use figment::{
     providers::{Format, Serialized, Toml},
     Figment,
 };
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 /// Configuration structure for "yr" commands.
 #[derive(Deserialize, Serialize, Debug)]
@@ -44,7 +45,7 @@ pub struct Meta {
 /// Pattern specific formatting information.
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Patterns {
-    /// Align patterns to longest name.
+    /// Align patterns to the longest name.
     pub align_values: bool,
 }
 
@@ -68,11 +69,11 @@ impl Default for Config {
 /// this function will propagate the error. For structure of the config file
 /// see "YARA-X Config Guide.md".
 pub fn load_config_from_file(
-    config_file: &PathBuf,
+    config_file: &Path,
 ) -> Result<Config, figment::Error> {
     let config: Config =
         Figment::from(Serialized::defaults(Config::default()))
-            .merge(Toml::file_exact(config_file.as_path()))
+            .merge(Toml::file_exact(config_file))
             .extract()?;
     Ok(config)
 }

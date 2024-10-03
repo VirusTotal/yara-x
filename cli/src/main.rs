@@ -3,7 +3,6 @@ mod help;
 mod walk;
 
 use crossterm::tty::IsTty;
-use home;
 use std::{io, panic, process};
 use yansi::Color::Red;
 use yansi::Paint;
@@ -63,13 +62,12 @@ fn main() -> anyhow::Result<()> {
 
     let config: Config = match home::home_dir() {
         Some(home_path) if !home_path.as_os_str().is_empty() => {
-            match load_config_from_file(&home_path.join(CONFIG_FILE)) {
-                Ok(c) => c,
-                Err(e) => {
-                    println!("Error parsing config, using defaults: {}", e);
+            load_config_from_file(&home_path.join(CONFIG_FILE)).unwrap_or_else(
+                |err| {
+                    println!("Error parsing config, using defaults: {}", err);
                     Config::default()
-                }
-            }
+                },
+            )
         }
         _ => {
             println!("Unable to find home directory, using defaults.");

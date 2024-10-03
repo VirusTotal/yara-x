@@ -34,7 +34,7 @@ pub fn exec_fmt(
     let config_file = args.get_one::<PathBuf>("config");
 
     let config: FormatConfig = if config_file.is_some() {
-        load_config_from_file(&config_file.unwrap())?.fmt
+        load_config_from_file(config_file.unwrap())?.fmt
     } else {
         main_config
     };

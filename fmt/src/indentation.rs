@@ -26,8 +26,8 @@ where
     pub fn new(input: T, num_spaces: u8) -> Self {
         Self {
             input,
+            num_spaces,
             indent_level: 0,
-            num_spaces: num_spaces,
             output_buffer: VecDeque::new(),
         }
     }
