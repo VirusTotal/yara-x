@@ -153,8 +153,8 @@ with 1 if formatting is required."#;
 
 pub const CONFIG_FILE: &str = r#"Config file for YARA-X
 
-Config file which controls the behavior of YARA-X. See XXX (FILL IN URL
-ONCE DOCS ARE WRITTEN) for supported options.
+Specifies a config file which controls the behavior of YARA-X. If config file is not
+specified, ${HOME}/.yara-x.toml is used. If it does not exist the default options are
+applied.
 
-If config file is not specified, ${HOME}/.yara-x.toml is used. If that does not
-exist the default options are applied."#;
+See https://virustotal.github.io/yara-x/docs/cli/config-file/ for supported options."#;
