@@ -1,7 +1,9 @@
 mod commands;
+mod config;
 mod help;
 mod walk;
 
+use config::{load_config_from_file, Config};
 use crossterm::tty::IsTty;
 use std::{io, panic, process};
 use yansi::Color::Red;
@@ -19,6 +21,7 @@ const APP_HELP_TEMPLATE: &str = r#"YARA-X {version}, the pattern matching swiss 
 "#;
 
 const EXIT_ERROR: i32 = 1;
+const CONFIG_FILE: &str = ".yara-x.toml";
 
 fn main() -> anyhow::Result<()> {
     // Enable support for ANSI escape codes in Windows. In other platforms
@@ -58,12 +61,27 @@ fn main() -> anyhow::Result<()> {
         process::exit(EXIT_ERROR);
     }));
 
+    let config: Config = match home::home_dir() {
+        Some(home_path) if !home_path.as_os_str().is_empty() => {
+            load_config_from_file(&home_path.join(CONFIG_FILE)).unwrap_or_else(
+                |err| {
+                    println!("Error parsing config, using defaults: {}", err);
+                    Config::default()
+                },
+            )
+        }
+        _ => {
+            println!("Unable to find home directory, using defaults.");
+            Config::default()
+        }
+    };
+
     let result = match args.subcommand() {
         #[cfg(feature = "debug-cmd")]
         Some(("debug", args)) => commands::exec_debug(args),
         Some(("check", args)) => commands::exec_check(args),
         Some(("fix", args)) => commands::exec_fix(args),
-        Some(("fmt", args)) => commands::exec_fmt(args),
+        Some(("fmt", args)) => commands::exec_fmt(args, config.fmt),
         Some(("scan", args)) => commands::exec_scan(args),
         Some(("dump", args)) => commands::exec_dump(args),
         Some(("compile", args)) => commands::exec_compile(args),

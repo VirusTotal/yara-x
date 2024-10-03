@@ -150,3 +150,11 @@ pub const FMT_CHECK_MODE: &str = r#"Run in 'check' mode
 
 Doesn't modify the files. Exits with 0 if files are formatted correctly. Exits
 with 1 if formatting is required."#;
+
+pub const CONFIG_FILE: &str = r#"Config file for YARA-X
+
+Config file which controls the behavior of YARA-X. See XXX (FILL IN URL
+ONCE DOCS ARE WRITTEN) for supported options.
+
+If config file is not specified, ${HOME}/.yara-x.toml is used. If that does not
+exist the default options are applied."#;

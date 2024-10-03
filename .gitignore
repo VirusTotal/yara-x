@@ -4,6 +4,7 @@
 .vscode
 *.profdata
 *.profraw
+*.swp
 target
 macros/target
 site/node_modules
