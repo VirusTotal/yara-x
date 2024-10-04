@@ -130,7 +130,10 @@ pub enum Instr<'a> {
 
     /// Matches a masked byte. The opcode is followed by two `u8` operands:
     /// the byte and the mask.
-    MaskedByte { byte: u8, mask: u8 },
+    MaskedByte {
+        byte: u8,
+        mask: u8,
+    },
 
     /// Matches a byte class. The class is represented by a 256-bits bitmap,
     /// one per byte. If the N-th bit is set, the byte N is part of the class
@@ -167,6 +170,30 @@ pub enum Instr<'a> {
     /// thread continues at the first location, and N-1 newly created threads
     /// continue at the remaining locations.
     SplitN(SplitN<'a>),
+
+    RepeatGreedyStart {
+        offset: Offset,
+        min: u32,
+        max: u32,
+    },
+
+    RepeatGreedyEnd {
+        offset: Offset,
+        min: u32,
+        max: u32,
+    },
+
+    RepeatUngreedyStart {
+        offset: Offset,
+        min: u32,
+        max: u32,
+    },
+
+    RepeatUngreedyEnd {
+        offset: Offset,
+        min: u32,
+        max: u32,
+    },
 
     /// Relative jump. The opcode is followed by an offset, the location
     /// of the target instruction is computed by adding this offset to the
@@ -218,6 +245,10 @@ impl<'a> Instr<'a> {
     pub const WORD_BOUNDARY_NEG: u8 = 0x0D;
     pub const WORD_START: u8 = 0x0E;
     pub const WORD_END: u8 = 0x0F;
+    pub const REPEAT_GREEDY_START: u8 = 0x10;
+    pub const REPEAT_GREEDY_END: u8 = 0x11;
+    pub const REPEAT_UNGREEDY_START: u8 = 0x12;
+    pub const REPEAT_UNGREEDY_END: u8 = 0x13;
 }
 
 /// Parses a slice of bytes that contains Pike VM instructions, returning
@@ -285,6 +316,58 @@ impl<'a> InstrParser<'a> {
                         + size_of::<Offset>() * n as usize,
                 )
             }
+            [OPCODE_PREFIX, Instr::REPEAT_GREEDY_START, ..] => {
+                let offset = Self::decode_offset(&code[2..]);
+                let min = Self::decode_u32(&code[2 + size_of::<Offset>()..]);
+                let max = Self::decode_u32(
+                    &code[2 + size_of::<Offset>() + size_of::<u32>()..],
+                );
+                (
+                    Instr::RepeatGreedyStart { offset, min, max },
+                    2 + size_of::<Offset>()
+                        + size_of::<u32>()
+                        + size_of::<u32>(),
+                )
+            }
+            [OPCODE_PREFIX, Instr::REPEAT_GREEDY_END, ..] => {
+                let offset = Self::decode_offset(&code[2..]);
+                let min = Self::decode_u32(&code[2 + size_of::<Offset>()..]);
+                let max = Self::decode_u32(
+                    &code[2 + size_of::<Offset>() + size_of::<u32>()..],
+                );
+                (
+                    Instr::RepeatGreedyEnd { offset, min, max },
+                    2 + size_of::<Offset>()
+                        + size_of::<u32>()
+                        + size_of::<u32>(),
+                )
+            }
+            [OPCODE_PREFIX, Instr::REPEAT_UNGREEDY_START, ..] => {
+                let offset = Self::decode_offset(&code[2..]);
+                let min = Self::decode_u32(&code[2 + size_of::<Offset>()..]);
+                let max = Self::decode_u32(
+                    &code[2 + size_of::<Offset>() + size_of::<u32>()..],
+                );
+                (
+                    Instr::RepeatUngreedyStart { offset, min, max },
+                    2 + size_of::<Offset>()
+                        + size_of::<u32>()
+                        + size_of::<u32>(),
+                )
+            }
+            [OPCODE_PREFIX, Instr::REPEAT_UNGREEDY_END, ..] => {
+                let offset = Self::decode_offset(&code[2..]);
+                let min = Self::decode_u32(&code[2 + size_of::<Offset>()..]);
+                let max = Self::decode_u32(
+                    &code[2 + size_of::<Offset>() + size_of::<u32>()..],
+                );
+                (
+                    Instr::RepeatUngreedyEnd { offset, min, max },
+                    2 + size_of::<Offset>()
+                        + size_of::<u32>()
+                        + size_of::<u32>(),
+                )
+            }
             [OPCODE_PREFIX, Instr::CLASS_RANGES, ..] => {
                 let n = *unsafe { code.get_unchecked(2) } as usize;
                 let ranges =
@@ -316,6 +399,13 @@ impl<'a> InstrParser<'a> {
             [b, ..] => (Instr::Byte(b), 1),
             _ => unreachable!(),
         }
+    }
+
+    fn decode_u32(slice: &[u8]) -> u32 {
+        let bytes: &[u8; size_of::<u32>()] =
+            unsafe { &*(slice.as_ptr() as *const [u8; size_of::<u32>()]) };
+
+        u32::from_le_bytes(*bytes)
     }
 
     fn decode_offset(slice: &[u8]) -> Offset {
@@ -454,7 +544,7 @@ impl<'a> ClassBitmap<'a> {
 
 /// Returns the length of the code emitted for the given literal.
 ///
-/// Usually the code emitted for a literal has the same length than the literal
+/// Usually the code emitted for a literal has the same length as the literal
 /// itself, because each byte in the literal corresponds to one byte in the
 /// code. However, this is not true if the literal contains one or more bytes
 /// equal to [`OPCODE_PREFIX`]. In such cases the code is longer than the

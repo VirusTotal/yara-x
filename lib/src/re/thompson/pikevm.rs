@@ -357,6 +357,18 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                     }
                 }
             }
+            Instr::RepeatGreedyStart { offset, min, max } => {
+                //todo!()
+            }
+            Instr::RepeatGreedyEnd { offset, min, max } => {
+                //todo!()
+            }
+            Instr::RepeatUngreedyStart { offset, min, max } => {
+                todo!()
+            }
+            Instr::RepeatUngreedyEnd { offset, min, max } => {
+                todo!()
+            }
             Instr::Jump(offset) => {
                 state
                     .threads

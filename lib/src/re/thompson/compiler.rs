@@ -122,7 +122,7 @@ pub(crate) struct Compiler {
     /// that could be zero-length, and the same happens with `b(cd)e`. The
     /// value of  `zero_rep_depth` when visiting `cd` is 2.
     ///
-    /// This used for determining whether to extract atoms from certain nodes
+    /// This is used for determining whether to extract atoms from certain nodes
     /// in the HIR or not. Extracting atoms from a subtree under a zero-length
     /// repetition doesn't make sense, atoms must be extracted from portions of
     /// the pattern that are required to be present in any matching string.
@@ -273,6 +273,32 @@ impl Compiler {
             bck_seq_id: self.backward_code().seq_id(),
             bck: self.backward_code_mut().emit_split_n(n)?,
         })
+    }
+
+    fn emit_repetition_start(
+        &mut self,
+        min: u32,
+        max: u32,
+        greedy: bool,
+    ) -> CodeLoc {
+        CodeLoc {
+            fwd: self.forward_code_mut().emit_repeat_start(min, max, greedy),
+            bck_seq_id: self.backward_code().seq_id(),
+            bck: self.backward_code_mut().emit_repeat_start(min, max, greedy),
+        }
+    }
+
+    fn emit_repetition_end(
+        &mut self,
+        min: u32,
+        max: u32,
+        greedy: bool,
+    ) -> CodeLoc {
+        CodeLoc {
+            fwd: self.forward_code_mut().emit_repeat_end(min, max, greedy),
+            bck_seq_id: self.backward_code().seq_id(),
+            bck: self.backward_code_mut().emit_repeat_end(min, max, greedy),
+        }
     }
 
     fn emit_masked_byte(&mut self, b: HexByte) -> CodeLoc {
@@ -606,27 +632,29 @@ impl Compiler {
             (_, None, _) => {
                 self.bookmarks.push(self.location());
             }
-            // e{min,max}
+            // e{0,max}
             //
-            //     ... code for e ... -+
-            //     ... code for e ...  |  min times
-            //     ... code for e ... -+
-            //     split end          -+
-            //     ... code for e ...  |  max-min times
-            //     split end           |
-            //     ... code for e ... -+
-            // end:
+            // l1:
+            //     repetition_start l2, 0, max
+            //     ... code for e ...
+            //     repetition_end l1, 0, max
+            // l2:
             //
-            (min, Some(_), greedy) => {
-                if min == 0 {
-                    let split = self.emit_instr(if greedy {
-                        Instr::SPLIT_A
-                    } else {
-                        Instr::SPLIT_B
-                    })?;
-                    self.bookmarks.push(split);
-                    self.zero_rep_depth += 1;
-                }
+            (0, Some(max), greedy) => {
+                let l1 = self.emit_repetition_start(0, max, greedy);
+                self.bookmarks.push(l1);
+                self.zero_rep_depth += 1;
+            }
+            // e{min,max}    min > 0
+            //
+            //     ... code for e ...
+            // l1:
+            //     repetition_start l2, min-1, max-1
+            //     ... code for e ...
+            //     repetition_end l1, min-1, max-1
+            // l2:
+            //
+            (_, Some(_), _) => {
                 self.bookmarks.push(self.location());
             }
         }
@@ -641,8 +669,9 @@ impl Compiler {
         match (rep.min, rep.max, rep.greedy) {
             // e* and e*?
             //
-            // l1: split_a l3  ( split_b for the non-greedy e*? )
-            //     ... code for e ...
+            // l1: split_a l3         (split_b for the non-greedy e*?,
+            //                         emitted by visit_pre_repetition)
+            //     ... code for e ... (emitted while visiting child nodes)
             // l2: jump l1
             // l3:
             (0, None, _) => {
@@ -657,8 +686,8 @@ impl Compiler {
             }
             // e+ and e+?
             //
-            // l1: ... code for e ...
-            // l2: split_b l1  ( split_a for the non-greedy e+? )
+            // l1: ... code for e ...  (emitted while visiting child nodes)
+            // l2: split_b l1          (split_a for the non-greedy e+?)
             // l3:
             (1, None, greedy) => {
                 let l1 = self.bookmarks.pop().unwrap();
@@ -736,71 +765,50 @@ impl Compiler {
 
                 Ok(start)
             }
-            // e{min,max}
+            // e{0,max}
             //
-            //     ... code for e ... -+
-            //     ... code for e ...  |  min times
-            //     ... code for e ... -+
-            //     split end          -+
-            //     ... code for e ...  |  max-min times
-            //     split end           |
-            //     ... code for e ... -+
-            // end:
+            // l1: repetition_start l3, 0, max (emitted by visit_pre_repetition)
+            //     ... code for e ...          (emitted while visiting child nodes)
+            // l2: repetition_end l1, 0, max
+            // l3:
+            //
+            (0, Some(max), greedy) => {
+                let l1 = self.bookmarks.pop().unwrap();
+                let l2 = self.emit_repetition_end(0, max, greedy);
+                let l3 = self.location();
+
+                self.patch_instr(&l1, l3.sub(&l1)?);
+                self.patch_instr(&l2, l1.sub(&l2)?);
+                self.zero_rep_depth -= 1;
+
+                Ok(l1)
+            }
+            // e{min,max}    min > 0
+            //
+            //     ... code for e ...          (emitted while visiting child nodes)
+            // l1: repetition_start l3, min-1, max-1
+            //     ... code for e ...
+            // l2: repetition_end l1, min-1, max-1
+            // l3:
             //
             (min, Some(max), greedy) => {
-                debug_assert!(min <= max);
+                debug_assert!(min > 0);
+                debug_assert!(max >= min);
 
                 // `start` and `end` are the locations where the code for `e`
                 // starts and ends.
                 let start = self.bookmarks.pop().unwrap();
                 let end = self.location();
 
-                // The first copy of `e` has already been emitted while
-                // visiting the child nodes. Make min - 1 clones of `e`.
-                for _ in 0..min.saturating_sub(1) {
-                    self.emit_clone(start, end)?;
-                }
+                let l1 = self.emit_repetition_start(min - 1, max - 1, greedy);
 
-                // If min == 0 the first split and `e` are already emitted (the
-                // split was emitted during the call to `visit_post_repetition`
-                // and `e` was emitted while visiting the child node. In such
-                // case the loop goes only to max - 1. If min > 0, we need to
-                // emit max - min splits.
-                for _ in 0..if min == 0 { max - 1 } else { max - min } {
-                    let split = self.emit_instr(if greedy {
-                        Instr::SPLIT_A
-                    } else {
-                        Instr::SPLIT_B
-                    })?;
-                    self.bookmarks.push(split);
-                    self.emit_clone(start, end)?;
-                }
+                self.emit_clone(start, end)?;
 
-                if min > 1 {
-                    let adjustment =
-                        (min - 1) as usize * (end.bck - start.bck);
+                let l2 = self.emit_repetition_end(min - 1, max - 1, greedy);
+                let l3 = self.location();
 
-                    let best_atoms = self.best_atoms_stack.last_mut().unwrap();
-
-                    for atom in best_atoms.iter_mut() {
-                        if atom.code_loc.bck_seq_id == start.bck_seq_id
-                            && atom.code_loc.bck >= start.bck
-                        {
-                            atom.code_loc.bck += adjustment;
-                        }
-                    }
-                }
-
-                let end = self.location();
-
-                for _ in 0..max - min {
-                    let split = self.bookmarks.pop().unwrap();
-                    self.patch_instr(&split, end.sub(&split)?);
-                }
-
-                if min == 0 {
-                    self.zero_rep_depth -= 1;
-                }
+                self.patch_instr(&l1, l3.sub(&l1)?);
+                self.patch_instr(&l2, l1.sub(&l2)?);
 
                 Ok(start)
             }
@@ -1011,7 +1019,7 @@ impl hir::Visitor for Compiler {
                 code_loc.bck_seq_id = self.backward_code().seq_id();
                 code_loc.bck = self.backward_code().location();
 
-                // If the minimum number of repetitions is zero (because this 
+                // If the minimum number of repetitions is zero (because this
                 // repetition can be repeated zero times, or because we are inside
                 // some other repetition that can be repeated zero times) we don't
                 // extract atoms from the repeated expression. It doesn't make sense
@@ -1221,7 +1229,9 @@ impl InstrSeq {
             }
             Instr::JUMP => {
                 // Jump instructions are followed by a 16-bits offset that is
-                // relative to the start of the instruction.
+                // relative to the start of the instruction. This offset is
+                // initially set to 0, but later updated with `patch_instr`,
+                // when the target offset is known.
                 self.seq
                     .write_all(&[0x00; size_of::<instr::Offset>()])
                     .unwrap();
@@ -1253,6 +1263,64 @@ impl InstrSeq {
         }
 
         Ok(location)
+    }
+
+    /// Adds a [`Instr::RepeatGreedyStart`] or [`Instr::RepeatUngreedyStart`]
+    /// instruction at the end of the sequence and returns the location where
+    /// the newly added instruction resides.
+    pub fn emit_repeat_start(
+        &mut self,
+        min: u32,
+        max: u32,
+        greedy: bool,
+    ) -> usize {
+        let location = self.location();
+
+        self.seq
+            .write_all(&[
+                OPCODE_PREFIX,
+                if greedy {
+                    Instr::REPEAT_GREEDY_START
+                } else {
+                    Instr::REPEAT_UNGREEDY_START
+                },
+            ])
+            .unwrap();
+
+        self.seq.write_all(&[0x00; size_of::<instr::Offset>()]).unwrap();
+        self.seq.write_all(min.to_le_bytes().as_slice()).unwrap();
+        self.seq.write_all(max.to_le_bytes().as_slice()).unwrap();
+
+        location
+    }
+
+    /// Adds a [`Instr::RepeatGreedyEnd`] instruction at the end of the
+    /// sequence and returns the location where the newly added instruction
+    /// resides.
+    pub fn emit_repeat_end(
+        &mut self,
+        min: u32,
+        max: u32,
+        greedy: bool,
+    ) -> usize {
+        let location = self.location();
+
+        self.seq
+            .write_all(&[
+                OPCODE_PREFIX,
+                if greedy {
+                    Instr::REPEAT_GREEDY_END
+                } else {
+                    Instr::REPEAT_UNGREEDY_END
+                },
+            ])
+            .unwrap();
+
+        self.seq.write_all(&[0x00; size_of::<instr::Offset>()]).unwrap();
+        self.seq.write_all(min.to_le_bytes().as_slice()).unwrap();
+        self.seq.write_all(max.to_le_bytes().as_slice()).unwrap();
+
+        location
     }
 
     /// Adds a [`Instr::MaskedByte`] instruction at the end of the sequence and
@@ -1287,7 +1355,7 @@ impl InstrSeq {
             }
         } else {
             // Create a bitmap where the N-th bit is set if byte N is part of
-            // any of the ranges in the class.
+            // some of the ranges in the class.
             let mut bitmap: BitArray<_, Lsb0> = BitArray::new([0_u8; 32]);
             for range in c.ranges() {
                 let range = range.start() as usize..=range.end() as usize;
@@ -1384,8 +1452,9 @@ impl InstrSeq {
     ///
     /// # Panics
     ///
-    /// If the instruction at `location` is not one that have an offset as its
-    /// argument, like [`Instr::Jump`], [`Instr::SplitA`] or [`Instr::SplitB`].
+    /// If the instruction at `location` is not one that have an offset among
+    /// its arguments, like [`Instr::Jump`], [`Instr::SplitA`], [`Instr::SplitB`],
+    /// etc.
     pub fn patch_instr(&mut self, location: usize, offset: instr::Offset) {
         // Save the current position for the forward code in order to restore
         // it later.
@@ -1402,10 +1471,14 @@ impl InstrSeq {
         assert_eq!(buf[0], OPCODE_PREFIX);
 
         match buf[1] {
-            Instr::JUMP => {}
+            Instr::JUMP
+            | Instr::REPEAT_GREEDY_START
+            | Instr::REPEAT_UNGREEDY_START
+            | Instr::REPEAT_GREEDY_END
+            | Instr::REPEAT_UNGREEDY_END => {}
             Instr::SPLIT_A | Instr::SPLIT_B => {
-                // Skip the split ID.
                 self.seq
+                    // Skip the split ID.
                     .seek(SeekFrom::Current(size_of::<SplitId>() as i64))
                     .unwrap();
             }
@@ -1502,16 +1575,16 @@ impl Display for InstrSeq {
                     writeln!(f, "{:05x}: CASE_INSENSITIVE {:#04x}", addr, c)?;
                 }
                 Instr::ClassRanges(class) => {
-                    write!(f, "{:05x}: CLASS_RANGES ", addr)?;
+                    write!(f, "{:05x}: CLASS_RANGES", addr)?;
                     for range in class.ranges() {
-                        write!(f, "[{:#04x}-{:#04x}] ", range.0, range.1)?;
+                        write!(f, " [{:#04x}-{:#04x}]", range.0, range.1)?;
                     }
                     writeln!(f)?;
                 }
                 Instr::ClassBitmap(class) => {
-                    write!(f, "{:05x}: CLASS_BITMAP ", addr)?;
+                    write!(f, "{:05x}: CLASS_BITMAP", addr)?;
                     for byte in class.bytes() {
-                        write!(f, "{:#04x} ", byte)?;
+                        write!(f, " {:#04x}", byte)?;
                     }
                     writeln!(f)?;
                 }
@@ -1547,6 +1620,46 @@ impl Display for InstrSeq {
                         write!(f, " {:05x}", addr as isize + offset as isize)?;
                     }
                     writeln!(f)?;
+                }
+                Instr::RepeatGreedyStart { min, max, offset } => {
+                    writeln!(
+                        f,
+                        "{:05x}: REPEAT_GREEDY_START {:05x} {}-{}",
+                        addr,
+                        addr as isize + offset as isize,
+                        min,
+                        max
+                    )?;
+                }
+                Instr::RepeatGreedyEnd { min, max, offset } => {
+                    writeln!(
+                        f,
+                        "{:05x}: REPEAT_GREEDY_END {:05x} {}-{}",
+                        addr,
+                        addr as isize + offset as isize,
+                        min,
+                        max
+                    )?;
+                }
+                Instr::RepeatUngreedyStart { min, max, offset } => {
+                    writeln!(
+                        f,
+                        "{:05x}: REPEAT_UNGREEDY_START {:05x} {}-{} ",
+                        addr,
+                        addr as isize + offset as isize,
+                        min,
+                        max
+                    )?;
+                }
+                Instr::RepeatUngreedyEnd { min, max, offset } => {
+                    writeln!(
+                        f,
+                        "{:05x}: REPEAT_UNGREEDY_END {:05x} {}-{}",
+                        addr,
+                        addr as isize + offset as isize,
+                        min,
+                        max
+                    )?;
                 }
                 Instr::Start => {
                     writeln!(f, "{:05x}: START", addr)?;
