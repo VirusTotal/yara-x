@@ -63,17 +63,10 @@ fn main() -> anyhow::Result<()> {
 
     let config: Config = match home::home_dir() {
         Some(home_path) if !home_path.as_os_str().is_empty() => {
-            load_config_from_file(&home_path.join(CONFIG_FILE)).unwrap_or_else(
-                |err| {
-                    println!("Error parsing config, using defaults: {}", err);
-                    Config::default()
-                },
-            )
+            load_config_from_file(&home_path.join(CONFIG_FILE))
+                .unwrap_or_default()
         }
-        _ => {
-            println!("Unable to find home directory, using defaults.");
-            Config::default()
-        }
+        _ => Config::default(),
     };
 
     let result = match args.subcommand() {
