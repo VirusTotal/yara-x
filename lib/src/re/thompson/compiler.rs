@@ -1410,9 +1410,7 @@ impl InstrSeq {
 
         // Write the given offset after the instruction opcode. This will
         // overwrite any existing offsets, usually initialized with 0.
-        self.seq
-            .write_all(instr::Offset::to_le_bytes(offset).as_slice())
-            .unwrap();
+        self.seq.write_all(offset.to_le_bytes().as_slice()).unwrap();
 
         // Restore to the previous current position.
         self.seq.seek(SeekFrom::Start(saved_loc as u64)).unwrap();
@@ -1461,10 +1459,7 @@ impl InstrSeq {
 
         for _ in 0..n {
             self.seq
-                .write_all(
-                    instr::Offset::to_le_bytes(offsets.next().unwrap())
-                        .as_slice(),
-                )
+                .write_all(offsets.next().unwrap().to_le_bytes().as_slice())
                 .unwrap();
         }
 
@@ -1514,7 +1509,7 @@ impl Display for InstrSeq {
                         f,
                         "{:05x}: JUMP {:05x}",
                         addr,
-                        addr as isize + offset as isize,
+                        (addr as isize).saturating_add(offset.into()),
                     )?;
                 }
                 Instr::SplitA(id, offset) => {
@@ -1523,7 +1518,7 @@ impl Display for InstrSeq {
                         "{:05x}: SPLIT_A({}) {:05x}",
                         addr,
                         id,
-                        addr as isize + offset as isize,
+                        (addr as isize).saturating_add(offset.into()),
                     )?;
                 }
                 Instr::SplitB(id, offset) => {
@@ -1532,13 +1527,17 @@ impl Display for InstrSeq {
                         "{:05x}: SPLIT_B({}) {:05x}",
                         addr,
                         id,
-                        addr as isize + offset as isize,
+                        (addr as isize).saturating_add(offset.into()),
                     )?;
                 }
                 Instr::SplitN(split) => {
                     write!(f, "{:05x}: SPLIT_N({})", addr, split.id())?;
                     for offset in split.offsets() {
-                        write!(f, " {:05x}", addr as isize + offset as isize)?;
+                        write!(
+                            f,
+                            " {:05x}",
+                            (addr as isize).saturating_add(offset.into())
+                        )?;
                     }
                     writeln!(f)?;
                 }

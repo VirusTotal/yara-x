@@ -53,6 +53,7 @@ solely matches the `0xAA` byte.
 
 use std::fmt::{Display, Formatter};
 use std::mem::size_of;
+use std::num::TryFromIntError;
 
 use bitvec::order::Lsb0;
 use bitvec::slice::{BitSlice, IterOnes};
@@ -111,7 +112,49 @@ impl SplitId {
 
 /// Offset for jump and split instructions. The offset is always relative to
 /// the address where the instruction starts.
-pub type Offset = i32;
+pub struct Offset(i32);
+
+impl From<Offset> for i32 {
+    #[inline]
+    fn from(value: Offset) -> Self {
+        value.0
+    }
+}
+
+impl From<Offset> for isize {
+    #[inline]
+    fn from(value: Offset) -> Self {
+        value.0 as isize
+    }
+}
+
+impl From<usize> for Offset {
+    #[inline]
+    fn from(value: usize) -> Self {
+        Self(i32::try_from(value).unwrap())
+    }
+}
+
+impl TryFrom<isize> for Offset {
+    type Error = TryFromIntError;
+
+    #[inline]
+    fn try_from(value: isize) -> Result<Self, Self::Error> {
+        Ok(Self(i32::try_from(value)?))
+    }
+}
+
+impl Offset {
+    #[inline]
+    pub fn from_le_bytes(bytes: [u8; size_of::<Self>()]) -> Offset {
+        Offset(i32::from_le_bytes(bytes))
+    }
+
+    #[inline]
+    pub fn to_le_bytes(&self) -> [u8; size_of::<Self>()] {
+        self.0.to_le_bytes()
+    }
+}
 
 /// Instructions supported by the Pike VM.
 pub enum Instr<'a> {
@@ -454,7 +497,7 @@ impl<'a> ClassBitmap<'a> {
 
 /// Returns the length of the code emitted for the given literal.
 ///
-/// Usually the code emitted for a literal has the same length than the literal
+/// Usually the code emitted for a literal has the same length as the literal
 /// itself, because each byte in the literal corresponds to one byte in the
 /// code. However, this is not true if the literal contains one or more bytes
 /// equal to [`OPCODE_PREFIX`]. In such cases the code is longer than the
