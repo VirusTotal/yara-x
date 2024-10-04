@@ -838,8 +838,8 @@ impl hir::Visitor for Compiler {
                 }
                 self.visit_pre_alternation(alternatives)?;
             }
-            HirKind::Repetition(rep) => {
-                self.visit_pre_repetition(rep)?;
+            HirKind::Repetition(repetition) => {
+                self.visit_pre_repetition(repetition)?;
             }
         }
 
@@ -1005,13 +1005,19 @@ impl hir::Visitor for Compiler {
 
                 (best_atoms, code_loc)
             }
-            HirKind::Repetition(repeated) => {
-                let mut code_loc = self.visit_post_repetition(repeated)?;
+            HirKind::Repetition(repetition) => {
+                let mut code_loc = self.visit_post_repetition(repetition)?;
 
                 code_loc.bck_seq_id = self.backward_code().seq_id();
                 code_loc.bck = self.backward_code().location();
 
-                if self.zero_rep_depth > 0 {
+                // If the minimum number of repetitions is zero (because this 
+                // repetition can be repeated zero times, or because we are inside
+                // some other repetition that can be repeated zero times) we don't
+                // extract atoms from the repeated expression. It doesn't make sense
+                // to extract atoms from a portion of the regexp that may not appear
+                // in the scanned data.
+                if repetition.min == 0 || self.zero_rep_depth > 0 {
                     return Ok(());
                 }
 
