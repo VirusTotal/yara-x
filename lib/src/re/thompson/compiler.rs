@@ -45,6 +45,9 @@ pub(crate) struct CodeLoc {
 
 impl CodeLoc {
     fn sub(&self, rhs: &Self) -> Result<CodeLocOffset, Error> {
+        // Code locations can be subtracted if they belong to the same
+        // instruction sequence.
+        assert_eq!(self.bck_seq_id, rhs.bck_seq_id);
         Ok(CodeLocOffset {
             fwd: (self.fwd as isize - rhs.fwd as isize)
                 .try_into()
@@ -127,6 +130,14 @@ pub(crate) struct Compiler {
     /// repetition doesn't make sense, atoms must be extracted from portions of
     /// the pattern that are required to be present in any matching string.
     zero_rep_depth: u32,
+
+    /// Stack that indicates whether repetitions are represented by a pair of
+    /// [`Instr::RepeatGreedyStart`] and [`Instr::RepeatGreedyEnd`] instructions
+    /// (or their non-greedy versions) or not. While traversing the HIR the depth
+    /// of this stack indicates the number of nested repetitions. A value in the
+    /// stack will be `true` if the corresponding repetition is represented by one
+    /// of these pairs, or `false` if otherwise.
+    reps: Vec<bool>,
 }
 
 impl Compiler {
@@ -162,6 +173,7 @@ impl Compiler {
             best_atoms_stack: vec![RegexpAtoms::empty()],
             depth: 0,
             zero_rep_depth: 0,
+            reps: Vec::new(),
         }
     }
 
@@ -207,6 +219,8 @@ impl Compiler {
 }
 
 impl Compiler {
+    const REPEAT_INSTR_THRESHOLD: u32 = 10;
+
     pub(super) fn compile_internal(
         self,
         hir: &re::hir::Hir,
@@ -251,6 +265,78 @@ impl Compiler {
         self.backward_code_chunks.last_mut().unwrap_or(&mut self.backward_code)
     }
 
+    #[inline]
+    fn start_backward_code_chunk(&mut self) {
+        self.bookmarks.push(self.location());
+        self.backward_code_chunks.push(self.backward_code().next());
+    }
+
+    fn reverse_backward_code_chunks(&mut self, n: usize) -> Vec<CodeLoc> {
+        // Split `backward_code_chunks` in two halves, [0, len-n) and
+        // [len-n, len). The first half stays in `backward_code_chunks` while
+        // the second half is stored in `last_n_chunks`.
+        let last_n_chunks = self
+            .backward_code_chunks
+            .split_off(self.backward_code_chunks.len() - n);
+
+        // Obtain a reference to the backward code chunk that remains at the
+        // top of the `backward_code_chunks` stack after removing n of them.
+        // It would be better to use `self.backward_code_mut()`, but it causes
+        // a mutable borrow on `self`, while this other way borrows
+        // `self.backward_code_chunks` or `self.backward_code` but not `self.
+        let backward_code = self
+            .backward_code_chunks
+            .last_mut()
+            .unwrap_or(&mut self.backward_code);
+
+        // Update the split ID for the backward code chunk at the top of the
+        // stack. If any of the n chunks previously removed contain a split
+        // instruction, and therefore incremented its split_id, this increment
+        // must be reflected in node that remains at the top of the stack, so
+        // that any other node emitted later don't reuse an already existing
+        // split ID.
+        if let Some(last_chunks) = last_n_chunks.last() {
+            backward_code.split_id = last_chunks.split_id;
+        }
+
+        // The top N bookmarks corresponds to the beginning of each chunk.
+        let mut locations = self.bookmarks.split_off(self.bookmarks.len() - n);
+
+        // Both `locations` and `last_n_chunks` have the same length N.
+        debug_assert_eq!(locations.len(), last_n_chunks.len());
+
+        // All chunks in `last_n_chucks` will be appended to the backward code
+        // in reverse order. The offset where each chunk resides in the backward
+        // code is stored in the hash map.
+        let mut chunk_locations = HashMap::new();
+
+        for (location, chunk) in
+            zip(locations.iter_mut(), last_n_chunks.iter()).rev()
+        {
+            chunk_locations.insert(chunk.seq_id(), backward_code.location());
+            backward_code.append(chunk);
+
+            location.bck_seq_id = backward_code.seq_id();
+            location.bck = backward_code.location();
+        }
+
+        // Atoms may be pointing to some code located in one of the chunks that
+        // were written to backward code in a different order, the backward code
+        // location for those atoms needs to be adjusted accordingly.
+        let best_atoms = self.best_atoms_stack.last_mut().unwrap();
+
+        for atom in best_atoms.iter_mut() {
+            if let Some(adjustment) =
+                chunk_locations.get(&atom.code_loc.bck_seq_id)
+            {
+                atom.code_loc.bck_seq_id = backward_code.seq_id();
+                atom.code_loc.bck += adjustment;
+            }
+        }
+
+        locations
+    }
+
     fn location(&self) -> CodeLoc {
         CodeLoc {
             fwd: self.forward_code().location(),
@@ -275,20 +361,15 @@ impl Compiler {
         })
     }
 
-    fn emit_repetition_start(
-        &mut self,
-        min: u32,
-        max: u32,
-        greedy: bool,
-    ) -> CodeLoc {
+    fn emit_repeat_start(&mut self, min: u32, greedy: bool) -> CodeLoc {
         CodeLoc {
-            fwd: self.forward_code_mut().emit_repeat_start(min, max, greedy),
+            fwd: self.forward_code_mut().emit_repeat_start(min, greedy),
             bck_seq_id: self.backward_code().seq_id(),
-            bck: self.backward_code_mut().emit_repeat_start(min, max, greedy),
+            bck: self.backward_code_mut().emit_repeat_start(min, greedy),
         }
     }
 
-    fn emit_repetition_end(
+    fn emit_repeat_end(
         &mut self,
         min: u32,
         max: u32,
@@ -330,10 +411,31 @@ impl Compiler {
         start: CodeLoc,
         end: CodeLoc,
     ) -> Result<CodeLoc, Error> {
+        // Both `start` and `end` must to some location within the same
+        // instruction sequence.
+        assert_eq!(start.bck_seq_id, end.bck_seq_id);
+
+        let bck = if self.backward_code().seq_id() == start.bck_seq_id {
+            self.backward_code_mut().emit_clone(start.bck, end.bck)?
+        } else {
+            let cloned_code = self
+                .backward_code_chunks
+                .iter()
+                .rev()
+                .find(|chunk| chunk.seq_id == start.bck_seq_id)
+                .unwrap_or(&self.backward_code)
+                .as_slice()
+                .get(start.bck..end.bck)
+                .unwrap()
+                .to_vec(); // TODO: avoid copy?
+
+            self.backward_code_mut().emit_bytes(cloned_code.as_slice())?
+        };
+
         Ok(CodeLoc {
             fwd: self.forward_code_mut().emit_clone(start.fwd, end.fwd)?,
             bck_seq_id: self.backward_code().seq_id(),
-            bck: self.backward_code_mut().emit_clone(start.bck, end.bck)?,
+            bck,
         })
     }
 
@@ -426,83 +528,19 @@ impl Compiler {
     }
 
     fn visit_pre_concat(&mut self) {
-        self.bookmarks.push(self.location());
         // A new child of a `Concat` node is about to be processed,
         // create the chunk that will receive the code for this child.
-        self.backward_code_chunks.push(self.backward_code().next());
+        self.start_backward_code_chunk();
     }
 
     fn visit_post_concat(&mut self, expressions: &[Hir]) -> Vec<CodeLoc> {
         // We are here because all the children of a `Concat` node have been
-        // processed. The last N chunks in `backward_code_chunks` contain the
-        // code produced for each of the N children, but the nodes where
-        // processed left-to-right, and we want the chunks right-to-left, so
-        // these last N chunks will be copied into backward code in reverse
+        // processed. The last N chunks in the `backward_code_chunks` stack
+        // contain the code produced for each of the N children, but the nodes
+        // where processed left-to-right, and we want the chunks right-to-left,
+        // so these last N chunks will be copied into backward code in reverse
         // order.
-        let n = expressions.len();
-
-        // Split `backward_code_chunks` in two halves, [0, len-n) and
-        // [len-n, len). The first half stays in `backward_code_chunks` while
-        // the second half is stored in `last_n_chunks`.
-        let last_n_chunks = self
-            .backward_code_chunks
-            .split_off(self.backward_code_chunks.len() - n);
-
-        // Obtain a reference to the backward code corresponding to the `Concat`
-        // node. It would be better to use `self.backward_code_mut()`, but it
-        // causes a mutable borrow on `self`, while the code below borrows
-        // `self.backward_code_chunks` or `self.backward_code` but not `self.
-        let backward_code = self
-            .backward_code_chunks
-            .last_mut()
-            .unwrap_or(&mut self.backward_code);
-
-        // Update the split ID for the `Concat` node. If any of the children
-        // emitted a split instruction, and therefore incremented its split_id,
-        // this increment must be reflected in the parent node (`Concat`), so
-        // that any other node emitted after the parent doesn't reuse an already
-        // existing split ID.
-        if let Some(last_chunks) = last_n_chunks.last() {
-            backward_code.split_id = last_chunks.split_id;
-        }
-
-        // The top N bookmarks corresponds to the beginning of the code for
-        // each expression in the concatenation.
-        let mut locations = self.bookmarks.split_off(self.bookmarks.len() - n);
-
-        // Both `locations` and `last_n_chunks` have the same length N.
-        debug_assert_eq!(locations.len(), last_n_chunks.len());
-
-        // All chunks in `last_n_chucks` will be appended to the backward code
-        // in reverse order. The offset where each chunk resides in the backward
-        // code is stored in the hash map.
-        let mut chunk_locations = HashMap::new();
-
-        for (location, chunk) in
-            zip(locations.iter_mut(), last_n_chunks.iter()).rev()
-        {
-            chunk_locations.insert(chunk.seq_id(), backward_code.location());
-            backward_code.append(chunk);
-
-            location.bck_seq_id = backward_code.seq_id();
-            location.bck = backward_code.location();
-        }
-
-        // Atoms may be pointing to some code located in one of the chunks that
-        // were written to backward code in a different order, the backward code
-        // location for those atoms needs to be adjusted accordingly.
-        let best_atoms = self.best_atoms_stack.last_mut().unwrap();
-
-        for atom in best_atoms.iter_mut() {
-            if let Some(adjustment) =
-                chunk_locations.get(&atom.code_loc.bck_seq_id)
-            {
-                atom.code_loc.bck_seq_id = backward_code.seq_id();
-                atom.code_loc.bck += adjustment;
-            }
-        }
-
-        locations
+        self.reverse_backward_code_chunks(expressions.len())
     }
 
     fn visit_pre_alternation(
@@ -600,52 +638,67 @@ impl Compiler {
     }
 
     fn visit_pre_repetition(&mut self, rep: &Repetition) -> Result<(), Error> {
-        match (rep.min, rep.max, rep.greedy) {
+        // Repetitions are handled in two different ways: using split
+        // instructions, or using a pairs REPEAT_GREEDY_START and
+        // REPEAT_GREEDY_END instructions (or their non-greedy counterparts).
+        //
+        // We are already inside a pair REPEAT_GREEDY_START/REPEAT_GREEDY_END
+        // (or their non-greedy versions) if the top of the stack is true. These
+        // instructions can't be nested.
+        let nested_rep_pairs = self.reps.last().cloned().unwrap_or(false);
+
+        match (rep.min, rep.max, rep.greedy, nested_rep_pairs) {
             // e* and e*?
             //
             // l1: split_a l3  ( split_b for the non-greedy e*? )
             //     ... code for e ...
             // l2: jump l1
             // l3:
-            (0, None, greedy) => {
+            (0, None, greedy, _) => {
                 let l1 = self.emit_instr(if greedy {
                     Instr::SPLIT_A
                 } else {
                     Instr::SPLIT_B
                 })?;
+                self.reps.push(false);
                 self.bookmarks.push(l1);
-                self.zero_rep_depth += 1;
             }
             // e+ and e+?
             //
             // l1: ... code for e ...
             // l2: split_b l1  ( split_a for the non-greedy e+? )
             // l3:
-            (1, None, _) => {
+            (1, None, _, _) => {
                 let l1 = self.location();
+                self.reps.push(false);
                 self.bookmarks.push(l1);
             }
             // e{min,}   min > 1
             //
-            // ... code for e repeated min times
-            //
-            (_, None, _) => {
+            //     ... code for e repeated min - 2 times
+            // l1: ... code for e ...
+            // l2: split_b l1 ( split_a for the non-greedy e{min,}? )
+            //     ... code for e
+            (_, None, _, _) => {
+                self.reps.push(false);
                 self.bookmarks.push(self.location());
             }
-            // e{0,max}
+            // e{0,max} (not inside repetition_start/repetition_end yet)
             //
             // l1:
-            //     repetition_start l2, 0, max
+            //     repetition_start l2, 0
             //     ... code for e ...
             //     repetition_end l1, 0, max
             // l2:
             //
-            (0, Some(max), greedy) => {
-                let l1 = self.emit_repetition_start(0, max, greedy);
+            (0, Some(max), greedy, false)
+                if max > Self::REPEAT_INSTR_THRESHOLD =>
+            {
+                let l1 = self.emit_repeat_start(0, greedy);
+                self.reps.push(true);
                 self.bookmarks.push(l1);
-                self.zero_rep_depth += 1;
             }
-            // e{min,max}    min > 0
+            // e{min,max} min > 0 (not inside repetition_start/repetition_end yet)
             //
             //     ... code for e ...
             // l1:
@@ -654,7 +707,34 @@ impl Compiler {
             //     repetition_end l1, min-1, max-1
             // l2:
             //
-            (_, Some(_), _) => {
+            (min, Some(max), _, false)
+                if min > Self::REPEAT_INSTR_THRESHOLD
+                    || max > Self::REPEAT_INSTR_THRESHOLD =>
+            {
+                self.start_backward_code_chunk();
+                self.reps.push(true);
+                self.bookmarks.push(self.location());
+            }
+            // e{min,max} min > 0
+            //
+            //     ... code for e ... -+
+            //     ... code for e ...  |  min times
+            //     ... code for e ... -+
+            //     split end          -+
+            //     ... code for e ...  |  max-min times
+            //     split end           |
+            //     ... code for e ... -+
+            // end:
+            (min, Some(_), greedy, _) => {
+                if min == 0 {
+                    let split = self.emit_instr(if greedy {
+                        Instr::SPLIT_A
+                    } else {
+                        Instr::SPLIT_B
+                    })?;
+                    self.bookmarks.push(split);
+                }
+                self.reps.push(false);
                 self.bookmarks.push(self.location());
             }
         }
@@ -666,7 +746,7 @@ impl Compiler {
         &mut self,
         rep: &Repetition,
     ) -> Result<CodeLoc, Error> {
-        match (rep.min, rep.max, rep.greedy) {
+        match (rep.min, rep.max, rep.greedy, self.reps.pop().unwrap()) {
             // e* and e*?
             //
             // l1: split_a l3         (split_b for the non-greedy e*?,
@@ -674,14 +754,12 @@ impl Compiler {
             //     ... code for e ... (emitted while visiting child nodes)
             // l2: jump l1
             // l3:
-            (0, None, _) => {
+            (0, None, _, _) => {
                 let l1 = self.bookmarks.pop().unwrap();
                 let l2 = self.emit_instr(Instr::JUMP)?;
                 let l3 = self.location();
                 self.patch_instr(&l1, l3.sub(&l1)?);
                 self.patch_instr(&l2, l1.sub(&l2)?);
-                self.zero_rep_depth -= 1;
-
                 Ok(l1)
             }
             // e+ and e+?
@@ -689,7 +767,7 @@ impl Compiler {
             // l1: ... code for e ...  (emitted while visiting child nodes)
             // l2: split_b l1          (split_a for the non-greedy e+?)
             // l3:
-            (1, None, greedy) => {
+            (1, None, greedy, _) => {
                 let l1 = self.bookmarks.pop().unwrap();
                 let l2 = self.emit_instr(if greedy {
                     Instr::SPLIT_B
@@ -697,16 +775,15 @@ impl Compiler {
                     Instr::SPLIT_A
                 })?;
                 self.patch_instr(&l2, l1.sub(&l2)?);
-
                 Ok(l1)
             }
-            // e{min,}   min > 1
+            // e{min,}  min > 1
             //
             //     ... code for e repeated min - 2 times
             // l1: ... code for e ...
             // l2: split_b l1 ( split_a for the non-greedy e{min,}? )
             //     ... code for e
-            (min, None, greedy) => {
+            (min, None, greedy, _) => {
                 assert!(min >= 2); // min == 0 and min == 1 handled above.
 
                 // `start` and `end` are the locations where the code for `e`
@@ -772,18 +849,21 @@ impl Compiler {
             // l2: repetition_end l1, 0, max
             // l3:
             //
-            (0, Some(max), greedy) => {
+            (0, Some(max), greedy, true)
+                if max > Self::REPEAT_INSTR_THRESHOLD =>
+            {
+                debug_assert!(max > 0);
+
                 let l1 = self.bookmarks.pop().unwrap();
-                let l2 = self.emit_repetition_end(0, max, greedy);
+                let l2 = self.emit_repeat_end(0, max, greedy);
                 let l3 = self.location();
 
                 self.patch_instr(&l1, l3.sub(&l1)?);
                 self.patch_instr(&l2, l1.sub(&l2)?);
-                self.zero_rep_depth -= 1;
 
                 Ok(l1)
             }
-            // e{min,max}    min > 0
+            // e{min,max}  min > 0
             //
             //     ... code for e ...          (emitted while visiting child nodes)
             // l1: repetition_start l3, min-1, max-1
@@ -791,24 +871,99 @@ impl Compiler {
             // l2: repetition_end l1, min-1, max-1
             // l3:
             //
-            (min, Some(max), greedy) => {
+            (min, Some(max), greedy, true)
+                if min > Self::REPEAT_INSTR_THRESHOLD
+                    || max > Self::REPEAT_INSTR_THRESHOLD =>
+            {
                 debug_assert!(min > 0);
                 debug_assert!(max >= min);
+
+                let start = self.bookmarks.pop().unwrap();
+                let end = self.location();
+
+                self.start_backward_code_chunk();
+
+                let l1 = self.emit_repeat_start(min - 1, greedy);
+
+                self.emit_clone(start, end)?;
+
+                let l2 = self.emit_repeat_end(min - 1, max - 1, greedy);
+                let l3 = self.location();
+
+                self.patch_instr(&l1, l3.sub(&l1)?);
+                self.patch_instr(&l2, l1.sub(&l2)?);
+
+                let locations = self.reverse_backward_code_chunks(2);
+
+                Ok(locations[0])
+            }
+            // This is the approach used when the repetition can't be expressed
+            // as a pair REPEAT_GREEDY_START/REPEAT_GREEDY_END (or their
+            // non-greedy version). This happens when we are already inside one
+            // of such pairs (they can't be nested), or when the number of
+            // repetitions is not large enough.
+            //
+            // e{min,max}  min >= 0
+            //
+            //     ... code for e ... -+
+            //     ... code for e ...  |  min times
+            //     ... code for e ... -+
+            //     split end          -+
+            //     ... code for e ...  |  max-min times
+            //     split end           |
+            //     ... code for e ... -+
+            // end:
+            //
+            (min, Some(max), greedy, _) => {
+                debug_assert!(min <= max);
 
                 // `start` and `end` are the locations where the code for `e`
                 // starts and ends.
                 let start = self.bookmarks.pop().unwrap();
                 let end = self.location();
 
-                let l1 = self.emit_repetition_start(min - 1, max - 1, greedy);
+                // The first copy of `e` has already been emitted while
+                // visiting the child nodes. Make min - 1 clones of `e`.
+                for _ in 0..min.saturating_sub(1) {
+                    self.emit_clone(start, end)?;
+                }
 
-                self.emit_clone(start, end)?;
+                // If min == 0 the first split and `e` are already emitted (the
+                // split was emitted during the call to `visit_post_repetition`
+                // and `e` was emitted while visiting the child node. In such
+                // case the loop goes only to max - 1. If min > 0, we need to
+                // emit max - min splits.
+                for _ in 0..if min == 0 { max - 1 } else { max - min } {
+                    let split = self.emit_instr(if greedy {
+                        Instr::SPLIT_A
+                    } else {
+                        Instr::SPLIT_B
+                    })?;
+                    self.bookmarks.push(split);
+                    self.emit_clone(start, end)?;
+                }
 
-                let l2 = self.emit_repetition_end(min - 1, max - 1, greedy);
-                let l3 = self.location();
+                if min > 1 {
+                    let adjustment =
+                        (min - 1) as usize * (end.bck - start.bck);
 
-                self.patch_instr(&l1, l3.sub(&l1)?);
-                self.patch_instr(&l2, l1.sub(&l2)?);
+                    let best_atoms = self.best_atoms_stack.last_mut().unwrap();
+
+                    for atom in best_atoms.iter_mut() {
+                        if atom.code_loc.bck_seq_id == start.bck_seq_id
+                            && atom.code_loc.bck >= start.bck
+                        {
+                            atom.code_loc.bck += adjustment;
+                        }
+                    }
+                }
+
+                let end = self.location();
+
+                for _ in 0..max - min {
+                    let split = self.bookmarks.pop().unwrap();
+                    self.patch_instr(&split, end.sub(&split)?);
+                }
 
                 Ok(start)
             }
@@ -847,6 +1002,9 @@ impl hir::Visitor for Compiler {
                 self.visit_pre_alternation(alternatives)?;
             }
             HirKind::Repetition(repetition) => {
+                if repetition.min == 0 {
+                    self.zero_rep_depth += 1;
+                }
                 self.visit_pre_repetition(repetition)?;
             }
         }
@@ -1019,6 +1177,10 @@ impl hir::Visitor for Compiler {
                 code_loc.bck_seq_id = self.backward_code().seq_id();
                 code_loc.bck = self.backward_code().location();
 
+                if repetition.min == 0 {
+                    self.zero_rep_depth -= 1;
+                }
+
                 // If the minimum number of repetitions is zero (because this
                 // repetition can be repeated zero times, or because we are inside
                 // some other repetition that can be repeated zero times) we don't
@@ -1111,11 +1273,9 @@ impl hir::Visitor for Compiler {
     }
 
     fn visit_concat_in(&mut self) -> Result<(), Self::Err> {
-        self.bookmarks.push(self.location());
         // A new child of a `Concat` node is about to be processed,
         // create the chunk that will receive the code for this child.
-        self.backward_code_chunks.push(self.backward_code().next());
-
+        self.start_backward_code_chunk();
         Ok(())
     }
 }
@@ -1164,6 +1324,11 @@ impl InstrSeq {
             seq: Cursor::new(Vec::new()),
             split_id: self.split_id,
         }
+    }
+
+    /// Returns the code in the [`InstrSeq`] as a slice of raw bytes.
+    pub fn as_slice(&self) -> &[u8] {
+        self.seq.get_ref().as_slice()
     }
 
     /// Consumes the [`InstrSeq`] and returns the inner vector that contains
@@ -1265,15 +1430,10 @@ impl InstrSeq {
         Ok(location)
     }
 
-    /// Adds a [`Instr::RepeatGreedyStart`] or [`Instr::RepeatUngreedyStart`]
+    /// Adds a [`Instr::RepeatGreedyStart`] or [`Instr::RepeatNonGreedyStart`]
     /// instruction at the end of the sequence and returns the location where
     /// the newly added instruction resides.
-    pub fn emit_repeat_start(
-        &mut self,
-        min: u32,
-        max: u32,
-        greedy: bool,
-    ) -> usize {
+    pub fn emit_repeat_start(&mut self, min: u32, greedy: bool) -> usize {
         let location = self.location();
 
         self.seq
@@ -1282,14 +1442,13 @@ impl InstrSeq {
                 if greedy {
                     Instr::REPEAT_GREEDY_START
                 } else {
-                    Instr::REPEAT_UNGREEDY_START
+                    Instr::REPEAT_NON_GREEDY_START
                 },
             ])
             .unwrap();
 
         self.seq.write_all(&[0x00; size_of::<instr::Offset>()]).unwrap();
         self.seq.write_all(min.to_le_bytes().as_slice()).unwrap();
-        self.seq.write_all(max.to_le_bytes().as_slice()).unwrap();
 
         location
     }
@@ -1311,7 +1470,7 @@ impl InstrSeq {
                 if greedy {
                     Instr::REPEAT_GREEDY_END
                 } else {
-                    Instr::REPEAT_UNGREEDY_END
+                    Instr::REPEAT_NON_GREEDY_END
                 },
             ])
             .unwrap();
@@ -1387,6 +1546,13 @@ impl InstrSeq {
         location
     }
 
+    pub fn emit_bytes(&mut self, bytes: &[u8]) -> Result<usize, Error> {
+        let location = self.location();
+        self.seq.write_all(bytes).unwrap();
+        self.update_split_ids(location)?;
+        Ok(location)
+    }
+
     /// Emits a clone of the code that goes from `start` to `end`, both
     /// inclusive.
     ///
@@ -1404,35 +1570,41 @@ impl InstrSeq {
         // Extend the code by cloning the ranges that go from `start` to `end`.
         self.seq.get_mut().extend_from_within(start..end);
 
-        // Create two slices, one that covers all the previously existing code
-        // and another that covers the newly cloned code.
-        let (original_code, cloned_code) =
-            self.seq.get_mut().as_mut_slice().split_at_mut(location);
-
         // Every split instruction has an ID, we don't want the split
-        // instructions in the cloned code to have the same IDs than
-        // in the original code, those IDs need to be updated.
-        for (instr, offset) in InstrParser::new(&original_code[start..end]) {
+        // instructions in the cloned code to have the same IDs as in the
+        // original code, those IDs need to be updated.
+        self.update_split_ids(location)?;
+
+        self.seq.seek(SeekFrom::Current(end as i64 - start as i64)).unwrap();
+
+        Ok(location)
+    }
+
+    /// Update the ID of split instructions after the give location.
+    ///
+    /// The ID of every split instruction that appears after the given location
+    /// is replaced with a new one that has not been used yet. This function
+    /// used after cloning a portion of the code to make sure that the cloned
+    /// code doesn't have split instruction with the same IDs as in the original
+    /// code.
+    fn update_split_ids(&mut self, location: usize) -> Result<(), Error> {
+        let code =
+            self.seq.get_mut().as_mut_slice().get_mut(location..).unwrap();
+
+        let mut offsets = Vec::new();
+
+        // First parse the code and store the offsets of the split IDs that
+        // must be updated.
+        for (instr, offset) in InstrParser::new(code) {
             match instr {
                 Instr::SplitA(_, _)
                 | Instr::SplitB(_, _)
                 | Instr::SplitN(_) => {
-                    debug_assert_eq!(
-                        cloned_code[offset],
-                        original_code[start + offset]
-                    );
-                    debug_assert_eq!(
-                        cloned_code[offset + 1],
-                        original_code[start + offset + 1]
-                    );
-                    // Update the split ID, which is at `offset + 2` because
-                    // `offset` is the offset where the opcode starts, and the
-                    // first two bytes are the prefix and the opcode itself.
-                    cloned_code[offset + 2..offset + 2 + size_of::<SplitId>()]
-                        .copy_from_slice(
-                            self.split_id.to_le_bytes().as_slice(),
-                        );
-
+                    // The offset of the SplitId is offset + 2 because the
+                    // opcode starts with the prefix 0xAA followed by the
+                    // byte that identifies the split instruction, and then
+                    // follows the SplitId.
+                    offsets.push((offset + 2, self.split_id));
                     if let Some(incremented) = self.split_id.add(1) {
                         self.split_id = incremented
                     } else {
@@ -1443,9 +1615,13 @@ impl InstrSeq {
             }
         }
 
-        self.seq.seek(SeekFrom::Current(end as i64 - start as i64)).unwrap();
+        // Update the split IDs
+        for (offset, split_id) in offsets {
+            code[offset..offset + size_of::<SplitId>()]
+                .copy_from_slice(split_id.to_le_bytes().as_slice());
+        }
 
-        Ok(location)
+        Ok(())
     }
 
     /// Patches the offset of the instruction that starts at the given location.
@@ -1473,9 +1649,9 @@ impl InstrSeq {
         match buf[1] {
             Instr::JUMP
             | Instr::REPEAT_GREEDY_START
-            | Instr::REPEAT_UNGREEDY_START
+            | Instr::REPEAT_NON_GREEDY_START
             | Instr::REPEAT_GREEDY_END
-            | Instr::REPEAT_UNGREEDY_END => {}
+            | Instr::REPEAT_NON_GREEDY_END => {}
             Instr::SPLIT_A | Instr::SPLIT_B => {
                 self.seq
                     // Skip the split ID.
@@ -1620,14 +1796,13 @@ impl Display for InstrSeq {
                     }
                     writeln!(f)?;
                 }
-                Instr::RepeatGreedyStart { min, max, offset } => {
+                Instr::RepeatGreedyStart { min, offset } => {
                     writeln!(
                         f,
-                        "{:05x}: REPEAT_GREEDY_START {:05x} {}-{}",
+                        "{:05x}: REPEAT_GREEDY_START {:05x} {}",
                         addr,
-                        addr as isize + offset as isize,
+                        (addr as isize).saturating_add(offset.into()),
                         min,
-                        max
                     )?;
                 }
                 Instr::RepeatGreedyEnd { min, max, offset } => {
@@ -1635,27 +1810,26 @@ impl Display for InstrSeq {
                         f,
                         "{:05x}: REPEAT_GREEDY_END {:05x} {}-{}",
                         addr,
-                        addr as isize + offset as isize,
+                        (addr as isize).saturating_add(offset.into()),
                         min,
                         max
                     )?;
                 }
-                Instr::RepeatUngreedyStart { min, max, offset } => {
+                Instr::RepeatNonGreedyStart { min, offset } => {
                     writeln!(
                         f,
-                        "{:05x}: REPEAT_UNGREEDY_START {:05x} {}-{} ",
+                        "{:05x}: REPEAT_NON_GREEDY_START {:05x} {}",
                         addr,
-                        addr as isize + offset as isize,
+                        (addr as isize).saturating_add(offset.into()),
                         min,
-                        max
                     )?;
                 }
-                Instr::RepeatUngreedyEnd { min, max, offset } => {
+                Instr::RepeatNonGreedyEnd { min, max, offset } => {
                     writeln!(
                         f,
-                        "{:05x}: REPEAT_UNGREEDY_END {:05x} {}-{}",
+                        "{:05x}: REPEAT_NON_GREEDY_END {:05x} {}-{}",
                         addr,
-                        addr as isize + offset as isize,
+                        (addr as isize).saturating_add(offset.into()),
                         min,
                         max
                     )?;

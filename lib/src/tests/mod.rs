@@ -1254,6 +1254,100 @@ fn regexp_patterns_2() {
 }
 
 #[test]
+fn regexp_patterns_2a() {
+    pattern_match!(r#"/.b{15}/"#, b"abbbbbbbbbbbbbbb", b"abbbbbbbbbbbbbbb");
+    pattern_match!(
+        r#"/.b{15,16}/"#,
+        b"abbbbbbbbbbbbbbbb",
+        b"abbbbbbbbbbbbbbbb"
+    );
+    pattern_match!(
+        r#"/.b{15,16}?/"#,
+        b"abbbbbbbbbbbbbbbb",
+        b"abbbbbbbbbbbbbbb"
+    );
+    pattern_match!(
+        r#"/ab{15,16}?c/"#,
+        b"abbbbbbbbbbbbbbbc",
+        b"abbbbbbbbbbbbbbbc"
+    );
+    pattern_match!(
+        r#"/.b{15,16}cccc/"#,
+        b"abbbbbbbbbbbbbbbbcccc",
+        b"abbbbbbbbbbbbbbbbcccc"
+    );
+    pattern_match!(
+        r#"/.b{15,16}?cccc/"#,
+        b"abbbbbbbbbbbbbbbcccc",
+        b"abbbbbbbbbbbbbbbcccc"
+    );
+    pattern_match!(
+        r#"/a.b{15,16}cccc/"#,
+        b"aabbbbbbbbbbbbbbbcccc",
+        b"aabbbbbbbbbbbbbbbcccc"
+    );
+    pattern_match!(r#"/ab{2,15}c/"#, b"abbbc", b"abbbc");
+    pattern_match!(r#"/ab{2,15}?c/"#, b"abbbc", b"abbbc");
+    pattern_match!(r#"/ab{0,15}?c/"#, b"abc", b"abc");
+    pattern_match!(r#"/ab{,15}?c/"#, b"abc", b"abc");
+    pattern_match!(r#"/a{0,15}bc/"#, b"bbc", b"bc");
+    pattern_match!(r#"/a{0,15}?bc/"#, b"abc", b"abc");
+    pattern_match!(r#"/a{0,15}?bc/"#, b"bc", b"bc");
+    pattern_match!(r#"/aa{0,15}?bc/"#, b"abc", b"abc");
+    pattern_match!(r#"/aa{0,15}bc/"#, b"abc", b"abc");
+    pattern_match!(r#"/ab{1}c/"#, b"abc", b"abc");
+    pattern_false!(r#"/ab{1}c/"#, b"abbc");
+    pattern_false!(r#"/ab{1}c/"#, b"ac");
+    pattern_match!(r#"/ab{1,2}c/"#, b"abbc", b"abbc");
+    pattern_false!(r#"/ab{1,2}c/"#, b"abbbc");
+    pattern_match!(r#"/ab{1,}c/"#, b"abbbc", b"abbbc");
+    pattern_match!(r#"/ab{4,}c/"#, b"abbbbc", b"abbbbc");
+    pattern_match!(r#"/ab{4,}?c/"#, b"abbbbc", b"abbbbc");
+    pattern_false!(r#"/ab{1,}b/"#, b"ab");
+    pattern_match!(r#"/ab{1,1}c/"#, b"abc", b"abc");
+    pattern_match!(r#"/ab{0,3}c/"#, b"abbbc", b"abbbc");
+    pattern_match!(r#"/ab{,3}c/"#, b"abbbc", b"abbbc");
+    pattern_false!(r#"/ab{0,2}c/"#, b"abbbc");
+    pattern_false!(r#"/ab{,2}c/"#, b"abbbc");
+    pattern_false!(r#"/ab{4,5}c/"#, b"abbbc");
+    pattern_false!(r#"/ab{3}c/"#, b"abbbbc");
+    pattern_false!(r#"/ab{4}c/"#, b"abbbbbc");
+    pattern_false!(r#"/ab{5}c/"#, b"abbbbbbc");
+    pattern_match!(r#"/ab{0,1}/"#, b"abbbbb", b"ab");
+    pattern_match!(r#"/ab{0,2}/"#, b"abbbbb", b"abb");
+    pattern_match!(r#"/ab{0,3}/"#, b"abbbbb", b"abbb");
+    pattern_match!(r#"/ab{0,4}/"#, b"abbbbb", b"abbbb");
+    pattern_match!(r#"/ab{1,1}/"#, b"abbbbb", b"ab");
+    pattern_match!(r#"/ab{1,2}/"#, b"abbbbb", b"abb");
+    pattern_match!(r#"/ab{1,3}/"#, b"abbbbb", b"abbb");
+    pattern_match!(r#"/ab{2,2}/"#, b"abbbbb", b"abb");
+    pattern_match!(r#"/ab{2,3}/"#, b"abbbbb", b"abbb");
+    pattern_match!(r#"/ab{2,4}/"#, b"abbbbc", b"abbbb");
+    pattern_match!(r#"/ab{3,4}/"#, b"abbb", b"abbb");
+    pattern_match!(r#"/ab{3,5}/"#, b"abbbbb", b"abbbbb");
+    pattern_false!(r#"/ab{3,4}c/"#, b"abbbbbc");
+    pattern_false!(r#"/ab{3,4}c/"#, b"abbc");
+    pattern_false!(r#"/ab{3,5}c/"#, b"abbbbbbc");
+    pattern_match!(r#"/ab{1,3}?/"#, b"abbbbb", b"ab");
+    pattern_match!(r#"/ab{0,1}?/"#, b"abbbbb", b"a");
+    pattern_match!(r#"/ab{0,2}?/"#, b"abbbbb", b"a");
+    pattern_match!(r#"/ab{0,3}?/"#, b"abbbbb", b"a");
+    pattern_match!(r#"/ab{0,4}?/"#, b"abbbbb", b"a");
+    pattern_match!(r#"/ab{1,1}?/"#, b"abbbbb", b"ab");
+    pattern_match!(r#"/ab{1,2}?/"#, b"abbbbb", b"ab");
+    pattern_match!(r#"/ab{1,3}?/"#, b"abbbbb", b"ab");
+    pattern_match!(r#"/ab{2,2}?/"#, b"abbbbb", b"abb");
+    pattern_match!(r#"/ab{2,3}?/"#, b"abbbbb", b"abb");
+    pattern_match!(r#"/(a{2,13}b){2,13}/"#, b"aabaaabaab", b"aabaaabaab");
+    pattern_match!(r#"/(a{2,13}?b){2,13}?/"#, b"aabaaabaab", b"aabaaab");
+    pattern_match!(
+        r#"/(a{4,5}b){4,15}/"#,
+        b"aaaabaaaabaaaaabaaaaab",
+        b"aaaabaaaabaaaaabaaaaab"
+    );
+}
+
+#[test]
 fn regexp_patterns_3() {
     pattern_match!(r#"/a[bx]c/"#, b"abc", b"abc");
     pattern_match!(r#"/a[bx]c/"#, b"axc", b"axc");
@@ -3333,4 +3427,9 @@ fn test_defined_3() {
     condition_false!(r#"test_proto3.bool_undef"#);
     condition_true!(r#"not test_proto3.bool_undef"#);
     condition_true!(r#"test_proto3.string_undef == """#);
+}
+
+#[test]
+fn issue() {
+    pattern_match!(r#"/a.(bc.){2}/"#, b"aabcabca", b"aabcabca");
 }

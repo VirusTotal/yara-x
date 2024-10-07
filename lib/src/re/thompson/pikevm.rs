@@ -1,8 +1,10 @@
 use std::cell::Cell;
+use std::hash::BuildHasherDefault;
 use std::mem;
 
 use bitvec::array::BitArray;
 use indexmap::IndexSet;
+use rustc_hash::FxHasher;
 
 use super::instr::{Instr, InstrParser, Offset};
 use crate::re::thompson::instr::SplitId;
@@ -11,7 +13,7 @@ use crate::re::{Action, CodeLoc, WideIter, DEFAULT_SCAN_LIMIT};
 #[derive(Clone, Eq, Hash, PartialEq, Debug)]
 pub(crate) struct ThreadState {
     pub ip: usize,
-    pub rep_count: usize,
+    pub rep_count: u32,
 }
 
 impl ThreadState {
@@ -20,6 +22,13 @@ impl ThreadState {
         Self { ip: new_ip.try_into().unwrap(), rep_count: self.rep_count }
     }
 }
+
+/// Hash builder that replaces the default hashing algorithm used by
+/// [`IndexSet`] with a faster one [`rustc_hash::FxHasher`].
+///
+/// For more information see:
+/// https://nnethercote.github.io/perf-book/hashing.html
+pub(crate) type HashBuilder = BuildHasherDefault<FxHasher>;
 
 /// Represents a [Pike's VM](https://swtch.com/~rsc/regexp/regexp2.html) that
 /// executes VM code produced by the [compiler][`crate::re::compiler::Compiler`].
@@ -30,10 +39,10 @@ pub(crate) struct PikeVM<'r> {
     /// position within the VM code, pointing to some VM instruction. Each item
     /// in the set is unique, the VM guarantees that there aren't two active
     /// threads at the same VM instruction.
-    threads: IndexSet<ThreadState>,
+    threads: IndexSet<ThreadState, HashBuilder>,
     /// The set of threads that will become the active threads when the next
     /// byte is read from the input.
-    next_threads: IndexSet<ThreadState>,
+    next_threads: IndexSet<ThreadState, HashBuilder>,
     /// Maximum number of bytes to scan. The VM will abort after ingesting
     /// this number of bytes from the input.
     scan_limit: u16,
@@ -46,8 +55,8 @@ impl<'r> PikeVM<'r> {
     pub fn new(code: &'r [u8]) -> Self {
         Self {
             code,
-            threads: IndexSet::new(),
-            next_threads: IndexSet::new(),
+            threads: IndexSet::with_hasher(HashBuilder::default()),
+            next_threads: IndexSet::with_hasher(HashBuilder::default()),
             cache: EpsilonClosureState::new(),
             scan_limit: DEFAULT_SCAN_LIMIT,
         }
@@ -327,14 +336,14 @@ pub(crate) fn epsilon_closure(
     curr_byte: Option<&u8>,
     prev_byte: Option<&u8>,
     state: &mut EpsilonClosureState,
-    closure: &mut IndexSet<ThreadState>,
+    closure: &mut IndexSet<ThreadState, HashBuilder>,
 ) {
     state.threads.push(thread_state);
     state.dirty = true;
 
     let is_word_char = |c: u8| c == b'_' || c.is_ascii_alphanumeric();
 
-    while let Some(ts) = state.threads.pop() {
+    while let Some(mut ts) = state.threads.pop() {
         let (instr, instr_size) =
             InstrParser::decode_instr(unsafe { code.get_unchecked(ts.ip..) });
         match instr {
@@ -366,17 +375,35 @@ pub(crate) fn epsilon_closure(
                     }
                 }
             }
-            Instr::RepeatGreedyStart { offset, min, max } => {
-                //todo!()
+            Instr::RepeatGreedyStart { offset, min } => {
+                if ts.rep_count >= min {
+                    state.threads.push(ts.ip_offset(offset));
+                }
+                state.threads.push(ts.ip_offset(instr_size.into()));
             }
             Instr::RepeatGreedyEnd { offset, min, max } => {
-                //todo!()
+                ts.rep_count += 1;
+                if ts.rep_count >= min {
+                    state.threads.push(ts.ip_offset(instr_size.into()));
+                }
+                if ts.rep_count < max {
+                    state.threads.push(ts.ip_offset(offset));
+                }
             }
-            Instr::RepeatUngreedyStart { offset, min, max } => {
-                todo!()
+            Instr::RepeatNonGreedyStart { offset, min } => {
+                state.threads.push(ts.ip_offset(instr_size.into()));
+                if ts.rep_count >= min {
+                    state.threads.push(ts.ip_offset(offset));
+                }
             }
-            Instr::RepeatUngreedyEnd { offset, min, max } => {
-                todo!()
+            Instr::RepeatNonGreedyEnd { offset, min, max } => {
+                ts.rep_count += 1;
+                if ts.rep_count < max {
+                    state.threads.push(ts.ip_offset(offset));
+                }
+                if ts.rep_count >= min {
+                    state.threads.push(ts.ip_offset(instr_size.into()));
+                }
             }
             Instr::Jump(offset) => {
                 state.threads.push(ts.ip_offset(offset));
