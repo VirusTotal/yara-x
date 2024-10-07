@@ -343,7 +343,7 @@ pub(crate) fn epsilon_closure(
 
     let is_word_char = |c: u8| c == b'_' || c.is_ascii_alphanumeric();
 
-    while let Some(mut ts) = state.threads.pop() {
+    while let Some(ts) = state.threads.pop() {
         let (instr, instr_size) =
             InstrParser::decode_instr(unsafe { code.get_unchecked(ts.ip..) });
         match instr {
@@ -382,12 +382,15 @@ pub(crate) fn epsilon_closure(
                 state.threads.push(ts.ip_offset(instr_size.into()));
             }
             Instr::RepeatGreedyEnd { offset, min, max } => {
-                ts.rep_count += 1;
                 if ts.rep_count >= min {
-                    state.threads.push(ts.ip_offset(instr_size.into()));
+                    let mut ts = ts.ip_offset(instr_size.into());
+                    ts.rep_count = 0;
+                    state.threads.push(ts);
                 }
                 if ts.rep_count < max {
-                    state.threads.push(ts.ip_offset(offset));
+                    let mut ts = ts.ip_offset(offset);
+                    ts.rep_count += 1;
+                    state.threads.push(ts);
                 }
             }
             Instr::RepeatNonGreedyStart { offset, min } => {
@@ -397,12 +400,15 @@ pub(crate) fn epsilon_closure(
                 }
             }
             Instr::RepeatNonGreedyEnd { offset, min, max } => {
-                ts.rep_count += 1;
                 if ts.rep_count < max {
-                    state.threads.push(ts.ip_offset(offset));
+                    let mut ts = ts.ip_offset(offset);
+                    ts.rep_count += 1;
+                    state.threads.push(ts);
                 }
                 if ts.rep_count >= min {
-                    state.threads.push(ts.ip_offset(instr_size.into()));
+                    let mut ts = ts.ip_offset(instr_size.into());
+                    ts.rep_count = 0;
+                    state.threads.push(ts);
                 }
             }
             Instr::Jump(offset) => {

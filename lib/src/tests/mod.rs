@@ -1254,7 +1254,7 @@ fn regexp_patterns_2() {
 }
 
 #[test]
-fn regexp_patterns_2a() {
+fn regexp_patterns_3() {
     pattern_match!(r#"/.b{15}/"#, b"abbbbbbbbbbbbbbb", b"abbbbbbbbbbbbbbb");
     pattern_match!(
         r#"/.b{15,16}/"#,
@@ -1285,6 +1285,16 @@ fn regexp_patterns_2a() {
         r#"/a.b{15,16}cccc/"#,
         b"aabbbbbbbbbbbbbbbcccc",
         b"aabbbbbbbbbbbbbbbcccc"
+    );
+    pattern_match!(
+        r#"/abcd.{0,11}efgh.{0,11}ijk/"#,
+        b"abcd123456789ABefgh123456789ABijk",
+        b"abcd123456789ABefgh123456789ABijk"
+    );
+    pattern_match!(
+        r#"/abcd.{0,11}?efgh.{0,11}?ijk/"#,
+        b"abcd123456789ABefgh123456789ABijk",
+        b"abcd123456789ABefgh123456789ABijk"
     );
     pattern_match!(r#"/ab{2,15}c/"#, b"abbbc", b"abbbc");
     pattern_match!(r#"/ab{2,15}?c/"#, b"abbbc", b"abbbc");
@@ -1348,7 +1358,7 @@ fn regexp_patterns_2a() {
 }
 
 #[test]
-fn regexp_patterns_3() {
+fn regexp_patterns_4() {
     pattern_match!(r#"/a[bx]c/"#, b"abc", b"abc");
     pattern_match!(r#"/a[bx]c/"#, b"axc", b"axc");
     pattern_match!(r#"/a[0-9]*b/"#, b"ab", b"ab");
@@ -1469,7 +1479,7 @@ fn regexp_patterns_3() {
 }
 
 #[test]
-fn regexp_patterns_4() {
+fn regexp_patterns_5() {
     pattern_match!(r"/\\/", b"\\", b"\\");
     pattern_match!(r"/\babc/", b"abc", b"abc");
     pattern_match!(r"/abc\b/", b"abc", b"abc");
@@ -1539,7 +1549,7 @@ fn regexp_patterns_4() {
 }
 
 #[test]
-fn regexp_patterns_5() {
+fn regexp_patterns_6() {
     rule_true!(
         r#"rule test {
             strings:
@@ -3427,9 +3437,4 @@ fn test_defined_3() {
     condition_false!(r#"test_proto3.bool_undef"#);
     condition_true!(r#"not test_proto3.bool_undef"#);
     condition_true!(r#"test_proto3.string_undef == """#);
-}
-
-#[test]
-fn issue() {
-    pattern_match!(r#"/a.(bc.){2}/"#, b"aabcabca", b"aabcabca");
 }
