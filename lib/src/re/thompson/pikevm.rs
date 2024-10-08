@@ -1,12 +1,34 @@
 use std::cell::Cell;
+use std::hash::BuildHasherDefault;
 use std::mem;
 
 use bitvec::array::BitArray;
+use indexmap::IndexSet;
+use rustc_hash::FxHasher;
 
-use super::instr::{Instr, InstrParser};
-use crate::re::bitmapset::BitmapSet;
+use super::instr::{Instr, InstrParser, Offset};
 use crate::re::thompson::instr::SplitId;
 use crate::re::{Action, CodeLoc, WideIter, DEFAULT_SCAN_LIMIT};
+
+#[derive(Clone, Eq, Hash, PartialEq, Debug)]
+pub(crate) struct ThreadState {
+    pub ip: usize,
+    pub rep_count: u32,
+}
+
+impl ThreadState {
+    fn ip_offset(&self, offset: Offset) -> Self {
+        let new_ip = (self.ip as isize).saturating_add(offset.into());
+        Self { ip: new_ip.try_into().unwrap(), rep_count: self.rep_count }
+    }
+}
+
+/// Hash builder that replaces the default hashing algorithm used by
+/// [`IndexSet`] with a faster one [`rustc_hash::FxHasher`].
+///
+/// For more information see:
+/// https://nnethercote.github.io/perf-book/hashing.html
+pub(crate) type HashBuilder = BuildHasherDefault<FxHasher>;
 
 /// Represents a [Pike's VM](https://swtch.com/~rsc/regexp/regexp2.html) that
 /// executes VM code produced by the [compiler][`crate::re::compiler::Compiler`].
@@ -17,10 +39,10 @@ pub(crate) struct PikeVM<'r> {
     /// position within the VM code, pointing to some VM instruction. Each item
     /// in the set is unique, the VM guarantees that there aren't two active
     /// threads at the same VM instruction.
-    threads: BitmapSet,
+    threads: IndexSet<ThreadState, HashBuilder>,
     /// The set of threads that will become the active threads when the next
     /// byte is read from the input.
-    next_threads: BitmapSet,
+    next_threads: IndexSet<ThreadState, HashBuilder>,
     /// Maximum number of bytes to scan. The VM will abort after ingesting
     /// this number of bytes from the input.
     scan_limit: u16,
@@ -33,8 +55,8 @@ impl<'r> PikeVM<'r> {
     pub fn new(code: &'r [u8]) -> Self {
         Self {
             code,
-            threads: BitmapSet::new(),
-            next_threads: BitmapSet::new(),
+            threads: IndexSet::with_hasher(HashBuilder::default()),
+            next_threads: IndexSet::with_hasher(HashBuilder::default()),
             cache: EpsilonClosureState::new(),
             scan_limit: DEFAULT_SCAN_LIMIT,
         }
@@ -164,6 +186,7 @@ impl<'r> PikeVM<'r> {
         B: Iterator<Item = &'a u8>,
     {
         let step = 1;
+        let backwards = start.backwards();
         let mut current_pos = 0;
         let mut curr_byte = fwd_input.next();
 
@@ -173,7 +196,8 @@ impl<'r> PikeVM<'r> {
 
         epsilon_closure(
             self.code,
-            start,
+            ThreadState { ip: start.location(), rep_count: 0 },
+            backwards,
             curr_byte,
             bck_input.next(),
             &mut self.cache,
@@ -183,9 +207,9 @@ impl<'r> PikeVM<'r> {
         while !self.threads.is_empty() {
             let next_byte = fwd_input.next();
 
-            for ip in self.threads.iter() {
-                let (instr, size) = InstrParser::decode_instr(unsafe {
-                    self.code.get_unchecked(*ip..)
+            for ts in self.threads.drain(0..) {
+                let (instr, instr_size) = InstrParser::decode_instr(unsafe {
+                    self.code.get_unchecked(ts.ip..)
                 });
 
                 let is_match = match instr {
@@ -215,7 +239,8 @@ impl<'r> PikeVM<'r> {
                 if is_match {
                     epsilon_closure(
                         self.code,
-                        C::from(*ip + size),
+                        ts.ip_offset(instr_size.into()),
+                        backwards,
                         next_byte,
                         curr_byte,
                         &mut self.cache,
@@ -228,7 +253,6 @@ impl<'r> PikeVM<'r> {
             current_pos += step;
 
             mem::swap(&mut self.threads, &mut self.next_threads);
-            self.next_threads.clear();
 
             if current_pos >= self.scan_limit.into() {
                 self.threads.clear();
@@ -242,7 +266,7 @@ impl<'r> PikeVM<'r> {
 /// its state during the computation of an epsilon closure. See the
 /// documentation of [`epsilon_closure`] for details.
 pub struct EpsilonClosureState {
-    threads: Vec<usize>,
+    threads: Vec<ThreadState>,
     /// This bit array has one bit per possible value of SplitId. If the
     /// split instruction with SplitId = N is executed, the N-th bit in the
     /// array is set to 1.
@@ -305,23 +329,23 @@ impl EpsilonClosureState {
 /// The function guarantees that the state is empty before returning, and
 /// therefore it can be re-used safely.
 #[inline(always)]
-pub(crate) fn epsilon_closure<C: CodeLoc>(
+pub(crate) fn epsilon_closure(
     code: &[u8],
-    start: C,
+    thread_state: ThreadState,
+    backwards: bool,
     curr_byte: Option<&u8>,
     prev_byte: Option<&u8>,
     state: &mut EpsilonClosureState,
-    closure: &mut BitmapSet,
+    closure: &mut IndexSet<ThreadState, HashBuilder>,
 ) {
-    state.threads.push(start.location());
+    state.threads.push(thread_state);
     state.dirty = true;
 
     let is_word_char = |c: u8| c == b'_' || c.is_ascii_alphanumeric();
 
-    while let Some(ip) = state.threads.pop() {
-        let (instr, size) =
-            InstrParser::decode_instr(unsafe { code.get_unchecked(ip..) });
-        let next = ip + size;
+    while let Some(mut ts) = state.threads.pop() {
+        let (instr, instr_size) =
+            InstrParser::decode_instr(unsafe { code.get_unchecked(ts.ip..) });
         match instr {
             Instr::AnyByte
             | Instr::Byte(_)
@@ -330,59 +354,72 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
             | Instr::ClassBitmap(_)
             | Instr::ClassRanges(_)
             | Instr::Match => {
-                closure.insert(ip);
+                closure.insert(ts);
             }
             Instr::SplitA(id, offset) => {
                 if !state.executed(id) {
-                    state
-                        .threads
-                        .push((ip as i64 + offset as i64).try_into().unwrap());
-                    state.threads.push(next);
+                    state.threads.push(ts.ip_offset(offset));
+                    state.threads.push(ts.ip_offset(instr_size.into()));
                 }
             }
             Instr::SplitB(id, offset) => {
                 if !state.executed(id) {
-                    state.threads.push(next);
-                    state
-                        .threads
-                        .push((ip as i64 + offset as i64).try_into().unwrap());
+                    state.threads.push(ts.ip_offset(instr_size.into()));
+                    state.threads.push(ts.ip_offset(offset));
                 }
             }
             Instr::SplitN(split) => {
                 if !state.executed(split.id()) {
                     for offset in split.offsets().rev() {
-                        state.threads.push(
-                            (ip as i64 + offset as i64).try_into().unwrap(),
-                        );
+                        state.threads.push(ts.ip_offset(offset));
                     }
+                }
+            }
+            Instr::RepeatGreedy { offset, min, max } => {
+                ts.rep_count += 1;
+                if ts.rep_count >= min {
+                    let mut ts = ts.ip_offset(instr_size.into());
+                    ts.rep_count = 0;
+                    state.threads.push(ts);
+                }
+                if ts.rep_count < max {
+                    state.threads.push(ts.ip_offset(offset));
+                }
+            }
+            Instr::RepeatNonGreedy { offset, min, max } => {
+                ts.rep_count += 1;
+                if ts.rep_count < max {
+                    state.threads.push(ts.ip_offset(offset));
+                }
+                if ts.rep_count >= min {
+                    let mut ts = ts.ip_offset(instr_size.into());
+                    ts.rep_count = 0;
+                    state.threads.push(ts);
                 }
             }
             Instr::Jump(offset) => {
-                state
-                    .threads
-                    .push((ip as i64 + offset as i64).try_into().unwrap());
+                state.threads.push(ts.ip_offset(offset));
             }
             Instr::Start => {
-                if start.backwards() {
+                if backwards {
                     if curr_byte.is_none() {
-                        state.threads.push(next);
+                        state.threads.push(ts.ip_offset(instr_size.into()));
                     }
                 } else if prev_byte.is_none() {
-                    state.threads.push(next);
+                    state.threads.push(ts.ip_offset(instr_size.into()));
                 }
             }
             Instr::End => {
-                if start.backwards() {
+                if backwards {
                     if prev_byte.is_none() {
-                        state.threads.push(next);
+                        state.threads.push(ts.ip_offset(instr_size.into()));
                     }
                 } else if curr_byte.is_none() {
-                    state.threads.push(next);
+                    state.threads.push(ts.ip_offset(instr_size.into()));
                 }
             }
             Instr::WordStart => {
-                let is_match = match (start.backwards(), prev_byte, curr_byte)
-                {
+                let is_match = match (backwards, prev_byte, curr_byte) {
                     (false, Some(p), Some(c)) | (true, Some(c), Some(p)) => {
                         !is_word_char(*p) && is_word_char(*c)
                     }
@@ -392,12 +429,11 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                     _ => false,
                 };
                 if is_match {
-                    state.threads.push(next)
+                    state.threads.push(ts.ip_offset(instr_size.into()))
                 }
             }
             Instr::WordEnd => {
-                let is_match = match (start.backwards(), prev_byte, curr_byte)
-                {
+                let is_match = match (backwards, prev_byte, curr_byte) {
                     (false, Some(p), Some(c)) | (true, Some(c), Some(p)) => {
                         is_word_char(*p) && !is_word_char(*c)
                     }
@@ -407,7 +443,7 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                     _ => false,
                 };
                 if is_match {
-                    state.threads.push(next)
+                    state.threads.push(ts.ip_offset(instr_size.into()))
                 }
             }
             Instr::WordBoundary | Instr::WordBoundaryNeg => {
@@ -422,7 +458,7 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                 }
 
                 if is_match {
-                    state.threads.push(next)
+                    state.threads.push(ts.ip_offset(instr_size.into()))
                 }
             }
         }

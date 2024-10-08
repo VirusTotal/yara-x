@@ -144,11 +144,6 @@ impl BitmapSet {
     pub fn iter(&self) -> impl Iterator<Item = &usize> {
         self.values.iter()
     }
-
-    #[cfg(test)]
-    pub fn into_vec(self) -> Vec<usize> {
-        self.values
-    }
 }
 
 #[cfg(test)]

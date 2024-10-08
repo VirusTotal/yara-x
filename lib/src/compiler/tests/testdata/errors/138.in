@@ -1,0 +1,6 @@
+rule test {
+	strings:
+		$a = /abcd((efg){0,10000}){0,10000}/
+	condition:
+		$a
+}
