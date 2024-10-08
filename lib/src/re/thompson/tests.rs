@@ -4,6 +4,7 @@ use pretty_assertions::assert_eq;
 use crate::compiler::Atom;
 use crate::re;
 use crate::re::bitmapset::BitmapSet;
+use crate::re::{BckCodeLoc, FwdCodeLoc};
 use crate::types::Regexp;
 
 use super::compiler::{CodeLoc, Compiler, RegexpAtom};
@@ -28,9 +29,8 @@ macro_rules! assert_re_code {
 
         epsilon_closure(
             fwd_code.as_ref(),
+            FwdCodeLoc::try_from(0_usize).unwrap(),
             0,
-            0,
-            false,
             None,
             None,
             &mut cache,
@@ -45,9 +45,8 @@ macro_rules! assert_re_code {
         let mut bck_closure = BitmapSet::<u32>::new();
         epsilon_closure(
             bck_code.as_ref(),
+            BckCodeLoc::try_from(0_usize).unwrap(),
             0,
-            0,
-            true,
             None,
             None,
             &mut cache,

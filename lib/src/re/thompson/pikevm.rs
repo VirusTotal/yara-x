@@ -164,7 +164,6 @@ impl<'r> PikeVM<'r> {
         B: Iterator<Item = &'a u8>,
     {
         let step = 1;
-        let backwards = start.backwards();
         let mut current_pos = 0;
         let mut curr_byte = fwd_input.next();
 
@@ -174,9 +173,8 @@ impl<'r> PikeVM<'r> {
 
         epsilon_closure(
             self.code,
-            start.location(),
+            start,
             0,
-            backwards,
             curr_byte,
             bck_input.next(),
             &mut self.cache,
@@ -218,9 +216,8 @@ impl<'r> PikeVM<'r> {
                 if is_match {
                     epsilon_closure(
                         self.code,
-                        *ip + instr_size,
+                        C::from(*ip + instr_size),
                         *rep_count,
-                        backwards,
                         next_byte,
                         curr_byte,
                         &mut self.cache,
@@ -310,17 +307,16 @@ impl EpsilonClosureState {
 /// The function guarantees that the state is empty before returning, and
 /// therefore it can be re-used safely.
 #[inline(always)]
-pub(crate) fn epsilon_closure(
+pub(crate) fn epsilon_closure<C: CodeLoc>(
     code: &[u8],
-    ip: usize,
+    start: C,
     rep_count: u32,
-    backwards: bool,
     curr_byte: Option<&u8>,
     prev_byte: Option<&u8>,
     state: &mut EpsilonClosureState,
     closure: &mut BitmapSet<u32>,
 ) {
-    state.threads.push((ip, rep_count));
+    state.threads.push((start.location(), rep_count));
     state.dirty = true;
 
     let is_word_char = |c: u8| c == b'_' || c.is_ascii_alphanumeric();
@@ -395,7 +391,7 @@ pub(crate) fn epsilon_closure(
                 state.threads.push((apply_offset(ip, offset), rep_count));
             }
             Instr::Start => {
-                if backwards {
+                if start.backwards() {
                     if curr_byte.is_none() {
                         state.threads.push((
                             apply_offset(ip, instr_size.into()),
@@ -410,7 +406,7 @@ pub(crate) fn epsilon_closure(
                 }
             }
             Instr::End => {
-                if backwards {
+                if start.backwards() {
                     if prev_byte.is_none() {
                         state.threads.push((
                             apply_offset(ip, instr_size.into()),
@@ -425,7 +421,8 @@ pub(crate) fn epsilon_closure(
                 }
             }
             Instr::WordStart => {
-                let is_match = match (backwards, prev_byte, curr_byte) {
+                let is_match = match (start.backwards(), prev_byte, curr_byte)
+                {
                     (false, Some(p), Some(c)) | (true, Some(c), Some(p)) => {
                         !is_word_char(*p) && is_word_char(*c)
                     }
@@ -442,7 +439,8 @@ pub(crate) fn epsilon_closure(
                 }
             }
             Instr::WordEnd => {
-                let is_match = match (backwards, prev_byte, curr_byte) {
+                let is_match = match (start.backwards(), prev_byte, curr_byte)
+                {
                     (false, Some(p), Some(c)) | (true, Some(c), Some(p)) => {
                         is_word_char(*p) && !is_word_char(*c)
                     }
