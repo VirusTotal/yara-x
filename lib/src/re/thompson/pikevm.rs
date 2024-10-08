@@ -1,12 +1,10 @@
 use std::cell::Cell;
-use std::hash::BuildHasherDefault;
 use std::mem;
 
 use bitvec::array::BitArray;
-use indexmap::IndexSet;
-use rustc_hash::FxHasher;
 
 use super::instr::{Instr, InstrParser, Offset};
+use crate::re::bitmapset::BitmapSet;
 use crate::re::thompson::instr::SplitId;
 use crate::re::{Action, CodeLoc, WideIter, DEFAULT_SCAN_LIMIT};
 
@@ -23,13 +21,6 @@ impl ThreadState {
     }
 }
 
-/// Hash builder that replaces the default hashing algorithm used by
-/// [`IndexSet`] with a faster one [`rustc_hash::FxHasher`].
-///
-/// For more information see:
-/// https://nnethercote.github.io/perf-book/hashing.html
-pub(crate) type HashBuilder = BuildHasherDefault<FxHasher>;
-
 /// Represents a [Pike's VM](https://swtch.com/~rsc/regexp/regexp2.html) that
 /// executes VM code produced by the [compiler][`crate::re::compiler::Compiler`].
 pub(crate) struct PikeVM<'r> {
@@ -39,10 +30,10 @@ pub(crate) struct PikeVM<'r> {
     /// position within the VM code, pointing to some VM instruction. Each item
     /// in the set is unique, the VM guarantees that there aren't two active
     /// threads at the same VM instruction.
-    threads: IndexSet<ThreadState, HashBuilder>,
+    threads: BitmapSet<u32>,
     /// The set of threads that will become the active threads when the next
     /// byte is read from the input.
-    next_threads: IndexSet<ThreadState, HashBuilder>,
+    next_threads: BitmapSet<u32>,
     /// Maximum number of bytes to scan. The VM will abort after ingesting
     /// this number of bytes from the input.
     scan_limit: u16,
@@ -55,8 +46,8 @@ impl<'r> PikeVM<'r> {
     pub fn new(code: &'r [u8]) -> Self {
         Self {
             code,
-            threads: IndexSet::with_hasher(HashBuilder::default()),
-            next_threads: IndexSet::with_hasher(HashBuilder::default()),
+            threads: BitmapSet::new(),
+            next_threads: BitmapSet::new(),
             cache: EpsilonClosureState::new(),
             scan_limit: DEFAULT_SCAN_LIMIT,
         }
@@ -196,7 +187,8 @@ impl<'r> PikeVM<'r> {
 
         epsilon_closure(
             self.code,
-            ThreadState { ip: start.location(), rep_count: 0 },
+            start.location(),
+            0,
             backwards,
             curr_byte,
             bck_input.next(),
@@ -207,9 +199,9 @@ impl<'r> PikeVM<'r> {
         while !self.threads.is_empty() {
             let next_byte = fwd_input.next();
 
-            for ts in self.threads.drain(0..) {
+            for (ip, rep_count) in self.threads.iter() {
                 let (instr, instr_size) = InstrParser::decode_instr(unsafe {
-                    self.code.get_unchecked(ts.ip..)
+                    self.code.get_unchecked(*ip..)
                 });
 
                 let is_match = match instr {
@@ -239,7 +231,8 @@ impl<'r> PikeVM<'r> {
                 if is_match {
                     epsilon_closure(
                         self.code,
-                        ts.ip_offset(instr_size.into()),
+                        *ip + instr_size,
+                        *rep_count,
                         backwards,
                         next_byte,
                         curr_byte,
@@ -253,6 +246,7 @@ impl<'r> PikeVM<'r> {
             current_pos += step;
 
             mem::swap(&mut self.threads, &mut self.next_threads);
+            self.next_threads.clear();
 
             if current_pos >= self.scan_limit.into() {
                 self.threads.clear();
@@ -331,14 +325,15 @@ impl EpsilonClosureState {
 #[inline(always)]
 pub(crate) fn epsilon_closure(
     code: &[u8],
-    thread_state: ThreadState,
+    ip: usize,
+    rep_count: u32,
     backwards: bool,
     curr_byte: Option<&u8>,
     prev_byte: Option<&u8>,
     state: &mut EpsilonClosureState,
-    closure: &mut IndexSet<ThreadState, HashBuilder>,
+    closure: &mut BitmapSet<u32>,
 ) {
-    state.threads.push(thread_state);
+    state.threads.push(ThreadState { ip, rep_count });
     state.dirty = true;
 
     let is_word_char = |c: u8| c == b'_' || c.is_ascii_alphanumeric();
@@ -354,7 +349,7 @@ pub(crate) fn epsilon_closure(
             | Instr::ClassBitmap(_)
             | Instr::ClassRanges(_)
             | Instr::Match => {
-                closure.insert(ts);
+                closure.insert(ts.ip, ts.rep_count);
             }
             Instr::SplitA(id, offset) => {
                 if !state.executed(id) {

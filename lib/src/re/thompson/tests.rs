@@ -1,16 +1,13 @@
-use indexmap::IndexSet;
-
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
 
 use crate::compiler::Atom;
 use crate::re;
+use crate::re::bitmapset::BitmapSet;
 use crate::types::Regexp;
 
 use super::compiler::{CodeLoc, Compiler, RegexpAtom};
-use super::pikevm::{
-    epsilon_closure, EpsilonClosureState, HashBuilder, ThreadState,
-};
+use super::pikevm::{epsilon_closure, EpsilonClosureState};
 
 macro_rules! assert_re_code {
     ($re:expr, $fwd:expr, $bck:expr, $atoms:expr, $fwd_closure:expr, $bck_closure:expr) => {{
@@ -26,12 +23,13 @@ macro_rules! assert_re_code {
         assert_eq!($bck, bck_code.to_string());
         assert_eq!($atoms, atoms);
 
-        let mut fwd_closure = IndexSet::with_hasher(HashBuilder::default());
+        let mut fwd_closure = BitmapSet::<u32>::new();
         let mut cache = EpsilonClosureState::new();
 
         epsilon_closure(
             fwd_code.as_ref(),
-            ThreadState { ip: 0, rep_count: 0 },
+            0,
+            0,
             false,
             None,
             None,
@@ -41,16 +39,14 @@ macro_rules! assert_re_code {
 
         assert_eq!(
             $fwd_closure,
-            fwd_closure
-                .iter()
-                .map(|thread_state| thread_state.ip)
-                .collect::<Vec<_>>()
+            fwd_closure.iter().map(|(ip, _)| *ip).collect::<Vec<_>>()
         );
 
-        let mut bck_closure = IndexSet::with_hasher(HashBuilder::default());
+        let mut bck_closure = BitmapSet::<u32>::new();
         epsilon_closure(
             bck_code.as_ref(),
-            ThreadState { ip: 0, rep_count: 0 },
+            0,
+            0,
             true,
             None,
             None,
@@ -60,10 +56,7 @@ macro_rules! assert_re_code {
 
         assert_eq!(
             $bck_closure,
-            bck_closure
-                .iter()
-                .map(|thread_state| thread_state.ip)
-                .collect::<Vec<_>>()
+            bck_closure.iter().map(|(ip, _)| *ip).collect::<Vec<_>>()
         );
     }};
 }
