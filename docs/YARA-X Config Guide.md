@@ -9,6 +9,9 @@ The `yr` command looks in `${HOME}/.yara-x.toml` when starting up. If that file
 does not exist the default values are used.
 
 An example `.yara-x.toml` file is below, with comments that explain each option.
+The values for each option are the default values that are used if omit the
+option.
+
 This is the definitive list of supported configuration options, and will be
 updated as more are added.
 
@@ -59,6 +62,25 @@ rule.indent_section_contents = true
 # character per level of indentation. To disable indentation entirely use
 # rule.indent_section_headers and rule.indent_section_contents
 rule.indent_spaces = 2
+
+# Add a newline before the curly brace that starts the rule body.
+#
+# rule a {
+#   condition:
+#     true
+# }
+#
+# Becomes:
+#
+# rule a
+# {
+#   condition:
+#     true
+# }
+#
+# Note: If you have multiple newlines before the curly brace and this is set to
+# `true` then this will ensure exactly two newlines are left.
+rule.newline_before_curly_brace = true
 
 # Align metadata values so that:
 #

@@ -45,7 +45,8 @@ pub fn exec_fmt(
         .align_patterns(config.patterns.align_values)
         .indent_section_headers(config.rule.indent_section_headers)
         .indent_section_contents(config.rule.indent_section_contents)
-        .indent_spaces(config.rule.indent_spaces);
+        .indent_spaces(config.rule.indent_spaces)
+        .newline_before_curly_brace(config.rule.newline_before_curly_brace);
     let mut changed = false;
 
     for file in files {

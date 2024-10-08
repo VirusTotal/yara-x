@@ -68,6 +68,7 @@ pub struct Formatter {
     indent_section_headers: bool,
     indent_section_contents: bool,
     indent_spaces: u8,
+    newline_before_curly_brace: bool,
 }
 
 impl Default for Formatter {
@@ -86,6 +87,7 @@ impl Formatter {
             indent_section_headers: true,
             indent_section_contents: true,
             indent_spaces: 2,
+            newline_before_curly_brace: false,
         }
     }
 
@@ -230,6 +232,32 @@ impl Formatter {
     /// The default is `2`.
     pub fn indent_spaces(mut self, n: u8) -> Self {
         self.indent_spaces = n;
+        self
+    }
+
+    /// Specify how many newlines should be added before the opening curly brace
+    /// in a rule declaration. If false the rule will look like this:
+    ///
+    /// ```text
+    /// rule test {
+    ///   condition:
+    ///     true
+    /// }
+    /// ```
+    ///
+    /// And if true, the rule will look like this:
+    ///
+    /// ```text
+    /// rule test
+    /// {
+    ///   condition:
+    ///     true
+    /// }
+    /// ```
+    ///
+    /// The default value is `false`.
+    pub fn newline_before_curly_brace(mut self, yes: bool) -> Self {
+        self.newline_before_curly_brace = yes;
         self
     }
 
@@ -395,25 +423,44 @@ impl Formatter {
                         && ctx.token(1).is(*NEWLINE)
                 },
                 processor::actions::drop,
-            )
+            );
+
+        let tokens = if self.newline_before_curly_brace {
+            // Ensure we have a newline before the opening "{}" in a rule
+            // declaration. Be careful to only insert it if one does not already
+            // exist.
+            Box::new(processor::Processor::new(tokens).add_rule(
+                |ctx| {
+                    ctx.in_rule(SyntaxKind::RULE_DECL, false)
+                        && ctx.token(1).eq(&LBRACE)
+                        && ctx.token(-1).is_not(*NEWLINE)
+                },
+                processor::actions::newline,
+            ))
+        } else {
             // Remove newlines before the opening "{" in a rule declaration.
             // It takes into account that we can have one or two newlines
             // before the "{" character. In a previous step we have removed
             // consecutive newlines leaving two at most.
-            .add_rule(
-                |ctx| {
-                    ctx.in_rule(SyntaxKind::RULE_DECL, false)
-                        && ctx.token(1).is(*NEWLINE)
-                        && (
-                            // Newline followed by "{"  or ...
-                            ctx.token(2).eq(&LBRACE) ||
-                            // ... two newlines followed by "{"
-                            ctx.token(2).is(*NEWLINE) && ctx.token(3).eq(&LBRACE)
-                        )
-                },
-                processor::actions::drop,
-            )
-            // Remove newlines after "meta:"
+            Box::new(
+                    processor::Processor::new(tokens)
+                .add_rule(
+                    |ctx| {
+                        ctx.in_rule(SyntaxKind::RULE_DECL, false)
+                            && ctx.token(1).is(*NEWLINE)
+                            && (
+                                // Newline followed by "{"  or ...
+                                ctx.token(2).eq(&LBRACE) ||
+                                // ... two newlines followed by "{"
+                                ctx.token(2).is(*NEWLINE) && ctx.token(3).eq(&LBRACE)
+                            )
+                    },
+                    processor::actions::drop,
+                ))
+        };
+
+        // Remove newlines after "meta:"
+        let tokens = processor::Processor::new(tokens)
             .add_rule(
                 |ctx| {
                     ctx.in_rule(SyntaxKind::META_BLK, false)
