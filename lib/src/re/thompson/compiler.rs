@@ -131,13 +131,13 @@ pub(crate) struct Compiler {
     /// the pattern that are required to be present in any matching string.
     zero_rep_depth: u32,
 
-    /// Stack that indicates whether repetitions are represented by a pair of
-    /// [`Instr::RepeatGreedyStart`] and [`Instr::RepeatGreedyEnd`] instructions
-    /// (or their non-greedy versions) or not. While traversing the HIR the depth
-    /// of this stack indicates the number of nested repetitions. A value in the
-    /// stack will be `true` if the corresponding repetition is represented by one
-    /// of these pairs, or `false` if otherwise.
-    reps: Vec<bool>,
+    /// Stack that indicates whether repetitions are represented by
+    /// [`Instr::RepeatGreedy`] or [`Instr::RepeatNonGreedy`] instructions. While
+    /// traversing the HIR the depth of this stack indicates the number of nested
+    /// repetitions. A value in the stack will be `true` if the corresponding
+    /// repetition is represented using the REPEAT instructions, or `false` if
+    /// otherwise.
+    repeats: Vec<bool>,
 }
 
 impl Compiler {
@@ -173,7 +173,7 @@ impl Compiler {
             best_atoms_stack: vec![RegexpAtoms::empty()],
             depth: 0,
             zero_rep_depth: 0,
-            reps: Vec::new(),
+            repeats: Vec::new(),
         }
     }
 
@@ -361,24 +361,11 @@ impl Compiler {
         })
     }
 
-    fn emit_repeat_start(&mut self, min: u32, greedy: bool) -> CodeLoc {
+    fn emit_repeat(&mut self, min: u32, max: u32, greedy: bool) -> CodeLoc {
         CodeLoc {
-            fwd: self.forward_code_mut().emit_repeat_start(min, greedy),
+            fwd: self.forward_code_mut().emit_repeat(min, max, greedy),
             bck_seq_id: self.backward_code().seq_id(),
-            bck: self.backward_code_mut().emit_repeat_start(min, greedy),
-        }
-    }
-
-    fn emit_repeat_end(
-        &mut self,
-        min: u32,
-        max: u32,
-        greedy: bool,
-    ) -> CodeLoc {
-        CodeLoc {
-            fwd: self.forward_code_mut().emit_repeat_end(min, max, greedy),
-            bck_seq_id: self.backward_code().seq_id(),
-            bck: self.backward_code_mut().emit_repeat_end(min, max, greedy),
+            bck: self.backward_code_mut().emit_repeat(min, max, greedy),
         }
     }
 
@@ -638,16 +625,9 @@ impl Compiler {
     }
 
     fn visit_pre_repetition(&mut self, rep: &Repetition) -> Result<(), Error> {
-        // Repetitions are handled in two different ways: using split
-        // instructions, or using a pairs REPEAT_GREEDY_START and
-        // REPEAT_GREEDY_END instructions (or their non-greedy counterparts).
-        //
-        // We are already inside a pair REPEAT_GREEDY_START/REPEAT_GREEDY_END
-        // (or their non-greedy versions) if the top of the stack is true. These
-        // instructions can't be nested.
-        let nested_rep_pairs = self.reps.last().cloned().unwrap_or(false);
+        let nested_rep = self.repeats.last().cloned().unwrap_or(false);
 
-        match (rep.min, rep.max, rep.greedy, nested_rep_pairs) {
+        match (rep.min, rep.max, rep.greedy, nested_rep) {
             // e* and e*?
             //
             // l1: split_a l3  ( split_b for the non-greedy e*? )
@@ -660,7 +640,7 @@ impl Compiler {
                 } else {
                     Instr::SPLIT_B
                 })?;
-                self.reps.push(false);
+                self.repeats.push(false);
                 self.bookmarks.push(l1);
             }
             // e+ and e+?
@@ -670,7 +650,7 @@ impl Compiler {
             // l3:
             (1, None, _, _) => {
                 let l1 = self.location();
-                self.reps.push(false);
+                self.repeats.push(false);
                 self.bookmarks.push(l1);
             }
             // e{min,}   min > 1
@@ -680,39 +660,42 @@ impl Compiler {
             // l2: split_b l1 ( split_a for the non-greedy e{min,}? )
             //     ... code for e
             (_, None, _, _) => {
-                self.reps.push(false);
+                self.repeats.push(false);
                 self.bookmarks.push(self.location());
             }
             // e{0,max} (not inside repetition_start/repetition_end yet)
             //
-            // l1:
-            //     repetition_start l2, 0
-            //     ... code for e ...
-            //     repetition_end l1, 0, max
-            // l2:
+            // l1: split_a l4 ( split_a for the non-greedy e{0,max}? )
+            // l2  ... code for e ...
+            // l3: repeat l2, 0, max
+            // l4:
             //
             (0, Some(max), greedy, false)
                 if max > Self::REPEAT_INSTR_THRESHOLD =>
             {
-                let l1 = self.emit_repeat_start(0, greedy);
-                self.reps.push(true);
+                let l1 = self.emit_instr(if greedy {
+                    Instr::SPLIT_A
+                } else {
+                    Instr::SPLIT_B
+                })?;
+                let l2 = self.location();
+                self.bookmarks.push(l2);
                 self.bookmarks.push(l1);
+                self.repeats.push(true);
             }
             // e{min,max} min > 0 (not inside repetition_start/repetition_end yet)
             //
             //     ... code for e ...
-            // l1:
-            //     repetition_start l2, min-1, max-1
-            //     ... code for e ...
-            //     repetition_end l1, min-1, max-1
-            // l2:
+            // l1: ... code for e ...
+            // l2: repeat l1, min-1, max-1
+            // l3:
             //
             (min, Some(max), _, false)
                 if min > Self::REPEAT_INSTR_THRESHOLD
                     || max > Self::REPEAT_INSTR_THRESHOLD =>
             {
                 self.start_backward_code_chunk();
-                self.reps.push(true);
+                self.repeats.push(true);
                 self.bookmarks.push(self.location());
             }
             // e{min,max} min > 0
@@ -734,7 +717,7 @@ impl Compiler {
                     })?;
                     self.bookmarks.push(split);
                 }
-                self.reps.push(false);
+                self.repeats.push(false);
                 self.bookmarks.push(self.location());
             }
         }
@@ -746,7 +729,7 @@ impl Compiler {
         &mut self,
         rep: &Repetition,
     ) -> Result<CodeLoc, Error> {
-        match (rep.min, rep.max, rep.greedy, self.reps.pop().unwrap()) {
+        match (rep.min, rep.max, rep.greedy, self.repeats.pop().unwrap()) {
             // e* and e*?
             //
             // l1: split_a l3         (split_b for the non-greedy e*?,
@@ -844,10 +827,10 @@ impl Compiler {
             }
             // e{0,max}
             //
-            // l1: repetition_start l3, 0, max (emitted by visit_pre_repetition)
-            //     ... code for e ...          (emitted while visiting child nodes)
-            // l2: repetition_end l1, 0, max
-            // l3:
+            // l1: split_a l4                  (emitted by visit_pre_repetition)
+            // l2:  ... code for e ...         (emitted while visiting child nodes)
+            // l3: repeat l1, 0, max
+            // l4:
             //
             (0, Some(max), greedy, true)
                 if max > Self::REPEAT_INSTR_THRESHOLD =>
@@ -855,20 +838,30 @@ impl Compiler {
                 debug_assert!(max > 0);
 
                 let l1 = self.bookmarks.pop().unwrap();
-                let l2 = self.emit_repeat_end(0, max, greedy);
-                let l3 = self.location();
+                let l2 = self.bookmarks.pop().unwrap();
+                let l3 = self.emit_repeat(0, max, greedy);
+                let l4 = self.location();
 
-                self.patch_instr(&l1, l3.sub(&l1)?);
-                self.patch_instr(&l2, l1.sub(&l2)?);
+                self.patch_instr(&l1, l4.sub(&l1)?);
+                self.patch_instr(&l3, l2.sub(&l3)?);
 
                 Ok(l1)
             }
-            // e{min,max}  min > 0
+            // e{min,max}
             //
-            //     ... code for e ...          (emitted while visiting child nodes)
-            // l1: repetition_start l3, min-1, max-1
-            //     ... code for e ...
-            // l2: repetition_end l1, min-1, max-1
+            // if min == 1:
+            //
+            //     ... code for e ...  (emitted while visiting child nodes)
+            // split: split_a l3
+            // l1: ... code for e ...
+            // l2: repeat l1, min-1, max-1
+            // l3:
+            //
+            // if min > 1:
+            //
+            //     ... code for e ...  (emitted while visiting child nodes)
+            // l1: ... code for e ...
+            // l2: repeat l1, min-1, max-1
             // l3:
             //
             (min, Some(max), greedy, true)
@@ -883,25 +876,34 @@ impl Compiler {
 
                 self.start_backward_code_chunk();
 
-                let l1 = self.emit_repeat_start(min - 1, greedy);
+                let split = if min == 1 {
+                    Some(self.emit_instr(if greedy {
+                        Instr::SPLIT_A
+                    } else {
+                        Instr::SPLIT_B
+                    })?)
+                } else {
+                    None
+                };
 
-                self.emit_clone(start, end)?;
-
-                let l2 = self.emit_repeat_end(min - 1, max - 1, greedy);
+                let l1 = self.emit_clone(start, end)?;
+                let l2 = self.emit_repeat(min - 1, max - 1, greedy);
                 let l3 = self.location();
 
-                self.patch_instr(&l1, l3.sub(&l1)?);
                 self.patch_instr(&l2, l1.sub(&l2)?);
+
+                if let Some(split) = split {
+                    self.patch_instr(&split, l3.sub(&split)?);
+                }
 
                 let locations = self.reverse_backward_code_chunks(2);
 
                 Ok(locations[0])
             }
             // This is the approach used when the repetition can't be expressed
-            // as a pair REPEAT_GREEDY_START/REPEAT_GREEDY_END (or their
-            // non-greedy version). This happens when we are already inside one
-            // of such pairs (they can't be nested), or when the number of
-            // repetitions is not large enough.
+            // using a REPEAT instruction. This happens when we have nested
+            // repetitions, or when the number of repetitions is not large
+            // enough.
             //
             // e{min,max}  min >= 0
             //
@@ -1430,47 +1432,19 @@ impl InstrSeq {
         Ok(location)
     }
 
-    /// Adds a [`Instr::RepeatGreedyStart`] or [`Instr::RepeatNonGreedyStart`]
-    /// instruction at the end of the sequence and returns the location where
-    /// the newly added instruction resides.
-    pub fn emit_repeat_start(&mut self, min: u32, greedy: bool) -> usize {
-        let location = self.location();
-
-        self.seq
-            .write_all(&[
-                OPCODE_PREFIX,
-                if greedy {
-                    Instr::REPEAT_GREEDY_START
-                } else {
-                    Instr::REPEAT_NON_GREEDY_START
-                },
-            ])
-            .unwrap();
-
-        self.seq.write_all(&[0x00; size_of::<instr::Offset>()]).unwrap();
-        self.seq.write_all(min.to_le_bytes().as_slice()).unwrap();
-
-        location
-    }
-
-    /// Adds a [`Instr::RepeatGreedyEnd`] instruction at the end of the
+    /// Adds a [`Instr::RepeatGreedy`] instruction at the end of the
     /// sequence and returns the location where the newly added instruction
     /// resides.
-    pub fn emit_repeat_end(
-        &mut self,
-        min: u32,
-        max: u32,
-        greedy: bool,
-    ) -> usize {
+    pub fn emit_repeat(&mut self, min: u32, max: u32, greedy: bool) -> usize {
         let location = self.location();
 
         self.seq
             .write_all(&[
                 OPCODE_PREFIX,
                 if greedy {
-                    Instr::REPEAT_GREEDY_END
+                    Instr::REPEAT_GREEDY
                 } else {
-                    Instr::REPEAT_NON_GREEDY_END
+                    Instr::REPEAT_NON_GREEDY
                 },
             ])
             .unwrap();
@@ -1647,11 +1621,7 @@ impl InstrSeq {
         assert_eq!(buf[0], OPCODE_PREFIX);
 
         match buf[1] {
-            Instr::JUMP
-            | Instr::REPEAT_GREEDY_START
-            | Instr::REPEAT_NON_GREEDY_START
-            | Instr::REPEAT_GREEDY_END
-            | Instr::REPEAT_NON_GREEDY_END => {}
+            Instr::JUMP | Instr::REPEAT_GREEDY | Instr::REPEAT_NON_GREEDY => {}
             Instr::SPLIT_A | Instr::SPLIT_B => {
                 self.seq
                     // Skip the split ID.
@@ -1796,38 +1766,20 @@ impl Display for InstrSeq {
                     }
                     writeln!(f)?;
                 }
-                Instr::RepeatGreedyStart { min, offset } => {
+                Instr::RepeatGreedy { min, max, offset } => {
                     writeln!(
                         f,
-                        "{:05x}: REPEAT_GREEDY_START {:05x} {}",
-                        addr,
-                        (addr as isize).saturating_add(offset.into()),
-                        min,
-                    )?;
-                }
-                Instr::RepeatGreedyEnd { min, max, offset } => {
-                    writeln!(
-                        f,
-                        "{:05x}: REPEAT_GREEDY_END {:05x} {}-{}",
+                        "{:05x}: REPEAT_GREEDY {:05x} {}-{}",
                         addr,
                         (addr as isize).saturating_add(offset.into()),
                         min,
                         max
                     )?;
                 }
-                Instr::RepeatNonGreedyStart { min, offset } => {
+                Instr::RepeatNonGreedy { min, max, offset } => {
                     writeln!(
                         f,
-                        "{:05x}: REPEAT_NON_GREEDY_START {:05x} {}",
-                        addr,
-                        (addr as isize).saturating_add(offset.into()),
-                        min,
-                    )?;
-                }
-                Instr::RepeatNonGreedyEnd { min, max, offset } => {
-                    writeln!(
-                        f,
-                        "{:05x}: REPEAT_NON_GREEDY_END {:05x} {}-{}",
+                        "{:05x}: REPEAT_NON_GREEDY {:05x} {}-{}",
                         addr,
                         (addr as isize).saturating_add(offset.into()),
                         min,

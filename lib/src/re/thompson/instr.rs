@@ -211,26 +211,27 @@ pub enum Instr<'a> {
     /// continue at the remaining locations.
     SplitN(SplitN<'a>),
 
-    /// Indicates the start of a greedy repetition, where the minimum number
-    /// of repetitions is `min`. It must be accompanied by a matching
-    /// `RepeatGreedyEnd` indicating the end of the repetition.
-    RepeatGreedyStart { offset: Offset, min: u32 },
+    /// Jumps back to the beginning of some repetition, continues with the
+    /// code that comes after the repetition, or both, depending on the
+    /// repetition count for the current thread and the minimum and maximum
+    /// number of repetitions indicated by `min` and `max`. The logic goes
+    /// as follows:
+    /// - If the repetition count for the current thread (`rep_count`) is
+    ///   less than `min`, only jumps to the beginning of the repetition as
+    ///   the minimum number of repetitions has not been reached yet.
+    /// - If `rep_count` is between `min` and `max`, the current thread jumps
+    ///   to the beginning of the repetition, and a new thread continues
+    ///   executing the code after the repetition.
+    /// - If `rep_count` reached `max`, the current thread continues executing
+    ///   the code after the repetition.
+    RepeatGreedy { offset: Offset, min: u32, max: u32 },
 
-    /// Indicates the start of a greedy repetition, where the minimum number
-    /// of repetitions is `min` and the maximum is `max`. It must be accompanied
-    /// by a matching `RepeatGreedyStart` indicating the start of the repetition.
-    RepeatGreedyEnd { offset: Offset, min: u32, max: u32 },
-
-    /// Indicates the start of a non-greedy repetition, where the minimum number
-    /// of repetitions is `min`. It must be accompanied by a matching
-    /// `RepeatNonGreedyEnd` indicating the end of the repetition.
-    RepeatNonGreedyStart { offset: Offset, min: u32 },
-
-    /// Indicates the start of a non-greedy repetition, where the minimum number
-    /// of repetitions is `min` and the maximum is `max`. It must be accompanied
-    /// by a matching `RepeatNonGreedyStart` indicating the start of the
-    /// repetition.
-    RepeatNonGreedyEnd { offset: Offset, min: u32, max: u32 },
+    /// Similar to [`RepeatGreedy`], the only difference resides on the priority
+    /// of newly created threads vs the existing thread. In the greedy version
+    /// of this instruction going back to the start of the repetition has higher
+    /// priority, while for this instruction continuing with the code after the
+    /// repetition has higher priority.
+    RepeatNonGreedy { offset: Offset, min: u32, max: u32 },
 
     /// Relative jump. The opcode is followed by an offset, the location
     /// of the target instruction is computed by adding this offset to the
@@ -282,10 +283,8 @@ impl<'a> Instr<'a> {
     pub const WORD_BOUNDARY_NEG: u8 = 0x0D;
     pub const WORD_START: u8 = 0x0E;
     pub const WORD_END: u8 = 0x0F;
-    pub const REPEAT_GREEDY_START: u8 = 0x10;
-    pub const REPEAT_GREEDY_END: u8 = 0x11;
-    pub const REPEAT_NON_GREEDY_START: u8 = 0x12;
-    pub const REPEAT_NON_GREEDY_END: u8 = 0x13;
+    pub const REPEAT_GREEDY: u8 = 0x10;
+    pub const REPEAT_NON_GREEDY: u8 = 0x11;
 }
 
 /// Parses a slice of bytes that contains Pike VM instructions, returning
@@ -353,43 +352,27 @@ impl<'a> InstrParser<'a> {
                         + size_of::<Offset>() * n as usize,
                 )
             }
-            [OPCODE_PREFIX, Instr::REPEAT_GREEDY_START, ..] => {
-                let offset = Self::decode_offset(&code[2..]);
-                let min = Self::decode_u32(&code[2 + size_of::<Offset>()..]);
-                (
-                    Instr::RepeatGreedyStart { offset, min },
-                    2 + size_of::<Offset>() + size_of::<u32>(),
-                )
-            }
-            [OPCODE_PREFIX, Instr::REPEAT_GREEDY_END, ..] => {
+            [OPCODE_PREFIX, Instr::REPEAT_GREEDY, ..] => {
                 let offset = Self::decode_offset(&code[2..]);
                 let min = Self::decode_u32(&code[2 + size_of::<Offset>()..]);
                 let max = Self::decode_u32(
                     &code[2 + size_of::<Offset>() + size_of::<u32>()..],
                 );
                 (
-                    Instr::RepeatGreedyEnd { offset, min, max },
+                    Instr::RepeatGreedy { offset, min, max },
                     2 + size_of::<Offset>()
                         + size_of::<u32>()
                         + size_of::<u32>(),
                 )
             }
-            [OPCODE_PREFIX, Instr::REPEAT_NON_GREEDY_START, ..] => {
-                let offset = Self::decode_offset(&code[2..]);
-                let min = Self::decode_u32(&code[2 + size_of::<Offset>()..]);
-                (
-                    Instr::RepeatNonGreedyStart { offset, min },
-                    2 + size_of::<Offset>() + size_of::<u32>(),
-                )
-            }
-            [OPCODE_PREFIX, Instr::REPEAT_NON_GREEDY_END, ..] => {
+            [OPCODE_PREFIX, Instr::REPEAT_NON_GREEDY, ..] => {
                 let offset = Self::decode_offset(&code[2..]);
                 let min = Self::decode_u32(&code[2 + size_of::<Offset>()..]);
                 let max = Self::decode_u32(
                     &code[2 + size_of::<Offset>() + size_of::<u32>()..],
                 );
                 (
-                    Instr::RepeatNonGreedyEnd { offset, min, max },
+                    Instr::RepeatNonGreedy { offset, min, max },
                     2 + size_of::<Offset>()
                         + size_of::<u32>()
                         + size_of::<u32>(),
