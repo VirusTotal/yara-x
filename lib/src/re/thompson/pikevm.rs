@@ -8,19 +8,6 @@ use crate::re::bitmapset::BitmapSet;
 use crate::re::thompson::instr::SplitId;
 use crate::re::{Action, CodeLoc, WideIter, DEFAULT_SCAN_LIMIT};
 
-#[derive(Clone, Eq, Hash, PartialEq, Debug)]
-pub(crate) struct ThreadState {
-    pub ip: usize,
-    pub rep_count: u32,
-}
-
-impl ThreadState {
-    fn ip_offset(&self, offset: Offset) -> Self {
-        let new_ip = (self.ip as isize).saturating_add(offset.into());
-        Self { ip: new_ip.try_into().unwrap(), rep_count: self.rep_count }
-    }
-}
-
 /// Represents a [Pike's VM](https://swtch.com/~rsc/regexp/regexp2.html) that
 /// executes VM code produced by the [compiler][`crate::re::compiler::Compiler`].
 pub(crate) struct PikeVM<'r> {
@@ -260,7 +247,7 @@ impl<'r> PikeVM<'r> {
 /// its state during the computation of an epsilon closure. See the
 /// documentation of [`epsilon_closure`] for details.
 pub struct EpsilonClosureState {
-    threads: Vec<ThreadState>,
+    threads: Vec<(usize, u32)>,
     /// This bit array has one bit per possible value of SplitId. If the
     /// split instruction with SplitId = N is executed, the N-th bit in the
     /// array is set to 1.
@@ -333,14 +320,18 @@ pub(crate) fn epsilon_closure(
     state: &mut EpsilonClosureState,
     closure: &mut BitmapSet<u32>,
 ) {
-    state.threads.push(ThreadState { ip, rep_count });
+    state.threads.push((ip, rep_count));
     state.dirty = true;
 
     let is_word_char = |c: u8| c == b'_' || c.is_ascii_alphanumeric();
 
-    while let Some(mut ts) = state.threads.pop() {
+    let apply_offset = |ip: usize, offset: Offset| -> usize {
+        (ip as isize).saturating_add(offset.into()).try_into().unwrap()
+    };
+
+    while let Some((ip, mut rep_count)) = state.threads.pop() {
         let (instr, instr_size) =
-            InstrParser::decode_instr(unsafe { code.get_unchecked(ts.ip..) });
+            InstrParser::decode_instr(unsafe { code.get_unchecked(ip..) });
         match instr {
             Instr::AnyByte
             | Instr::Byte(_)
@@ -349,68 +340,88 @@ pub(crate) fn epsilon_closure(
             | Instr::ClassBitmap(_)
             | Instr::ClassRanges(_)
             | Instr::Match => {
-                closure.insert(ts.ip, ts.rep_count);
+                closure.insert(ip, rep_count);
             }
             Instr::SplitA(id, offset) => {
                 if !state.executed(id) {
-                    state.threads.push(ts.ip_offset(offset));
-                    state.threads.push(ts.ip_offset(instr_size.into()));
+                    state.threads.push((apply_offset(ip, offset), rep_count));
+                    state.threads.push((
+                        apply_offset(ip, instr_size.into()),
+                        rep_count,
+                    ));
                 }
             }
             Instr::SplitB(id, offset) => {
                 if !state.executed(id) {
-                    state.threads.push(ts.ip_offset(instr_size.into()));
-                    state.threads.push(ts.ip_offset(offset));
+                    state.threads.push((
+                        apply_offset(ip, instr_size.into()),
+                        rep_count,
+                    ));
+                    state.threads.push((apply_offset(ip, offset), rep_count));
                 }
             }
             Instr::SplitN(split) => {
                 if !state.executed(split.id()) {
                     for offset in split.offsets().rev() {
-                        state.threads.push(ts.ip_offset(offset));
+                        state
+                            .threads
+                            .push((apply_offset(ip, offset), rep_count));
                     }
                 }
             }
             Instr::RepeatGreedy { offset, min, max } => {
-                ts.rep_count += 1;
-                if ts.rep_count >= min {
-                    let mut ts = ts.ip_offset(instr_size.into());
-                    ts.rep_count = 0;
-                    state.threads.push(ts);
+                rep_count += 1;
+                if rep_count >= min {
+                    state
+                        .threads
+                        .push((apply_offset(ip, instr_size.into()), 0));
                 }
-                if ts.rep_count < max {
-                    state.threads.push(ts.ip_offset(offset));
+                if rep_count < max {
+                    state.threads.push((apply_offset(ip, offset), rep_count));
                 }
             }
             Instr::RepeatNonGreedy { offset, min, max } => {
-                ts.rep_count += 1;
-                if ts.rep_count < max {
-                    state.threads.push(ts.ip_offset(offset));
+                rep_count += 1;
+                if rep_count < max {
+                    state.threads.push((apply_offset(ip, offset), rep_count));
                 }
-                if ts.rep_count >= min {
-                    let mut ts = ts.ip_offset(instr_size.into());
-                    ts.rep_count = 0;
-                    state.threads.push(ts);
+                if rep_count >= min {
+                    state
+                        .threads
+                        .push((apply_offset(ip, instr_size.into()), 0));
                 }
             }
             Instr::Jump(offset) => {
-                state.threads.push(ts.ip_offset(offset));
+                state.threads.push((apply_offset(ip, offset), rep_count));
             }
             Instr::Start => {
                 if backwards {
                     if curr_byte.is_none() {
-                        state.threads.push(ts.ip_offset(instr_size.into()));
+                        state.threads.push((
+                            apply_offset(ip, instr_size.into()),
+                            rep_count,
+                        ));
                     }
                 } else if prev_byte.is_none() {
-                    state.threads.push(ts.ip_offset(instr_size.into()));
+                    state.threads.push((
+                        apply_offset(ip, instr_size.into()),
+                        rep_count,
+                    ));
                 }
             }
             Instr::End => {
                 if backwards {
                     if prev_byte.is_none() {
-                        state.threads.push(ts.ip_offset(instr_size.into()));
+                        state.threads.push((
+                            apply_offset(ip, instr_size.into()),
+                            rep_count,
+                        ));
                     }
                 } else if curr_byte.is_none() {
-                    state.threads.push(ts.ip_offset(instr_size.into()));
+                    state.threads.push((
+                        apply_offset(ip, instr_size.into()),
+                        rep_count,
+                    ));
                 }
             }
             Instr::WordStart => {
@@ -424,7 +435,10 @@ pub(crate) fn epsilon_closure(
                     _ => false,
                 };
                 if is_match {
-                    state.threads.push(ts.ip_offset(instr_size.into()))
+                    state.threads.push((
+                        apply_offset(ip, instr_size.into()),
+                        rep_count,
+                    ));
                 }
             }
             Instr::WordEnd => {
@@ -438,7 +452,10 @@ pub(crate) fn epsilon_closure(
                     _ => false,
                 };
                 if is_match {
-                    state.threads.push(ts.ip_offset(instr_size.into()))
+                    state.threads.push((
+                        apply_offset(ip, instr_size.into()),
+                        rep_count,
+                    ));
                 }
             }
             Instr::WordBoundary | Instr::WordBoundaryNeg => {
@@ -453,7 +470,10 @@ pub(crate) fn epsilon_closure(
                 }
 
                 if is_match {
-                    state.threads.push(ts.ip_offset(instr_size.into()))
+                    state.threads.push((
+                        apply_offset(ip, instr_size.into()),
+                        rep_count,
+                    ));
                 }
             }
         }

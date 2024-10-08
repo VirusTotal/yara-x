@@ -32,6 +32,8 @@ where
     items: Vec<(usize, T)>,
     // First key inserted in the set.
     initial_key: usize,
+    // First value inserted in the set.
+    initial_value: T,
     // Bitmap for keys that are > initial_key.
     p_bitmap: BitVec<usize>,
     // Bitmap for keys that are < initial_key.
@@ -68,17 +70,22 @@ where
         // Special case when the set is totally empty.
         if self.items.is_empty() {
             self.initial_key = key;
-            self.p_bitmap.resize(1, false);
-            unsafe { self.p_bitmap.set_unchecked(0, true) };
+            self.initial_value = value.clone();
             self.items.push((key, value));
             return true;
+        }
+
+        // Special case when the new (key,value) pair is equal to the first
+        // one added to the set.
+        if self.initial_key == key && self.initial_value == value {
+            return false;
         }
 
         let offset = key as isize - self.initial_key as isize;
 
         match offset {
             offset if offset < 0 => {
-                let offset = -offset as usize;
+                let offset = (-offset as usize) - 1;
                 unsafe {
                     if self.n_bitmap.len() <= offset {
                         assert!(offset < Self::MAX_OFFSET);
@@ -142,7 +149,7 @@ where
             let offset = key as isize - self.initial_key as isize;
             match offset {
                 offset if offset < 0 => {
-                    self.n_bitmap.set((-offset) as usize, false);
+                    self.n_bitmap.set(((-offset) as usize) - 1, false);
                 }
                 offset => {
                     self.p_bitmap.set(offset as usize, false);
@@ -169,27 +176,23 @@ mod tests {
 
         assert!(s.insert(4, 0));
         assert!(s.insert(2, 0));
+        assert!(s.insert(3, 0));
         assert!(s.insert(10, 0));
         assert!(s.insert(0, 0));
         assert!(s.insert(2000, 0));
-
-        assert_eq!(s.p_bitmap.count_ones(), 3);
-        assert_eq!(s.n_bitmap.count_ones(), 2);
-
+        
         assert!(!s.insert(4, 0));
         assert!(!s.insert(2, 0));
+        assert!(!s.insert(3, 0));
         assert!(!s.insert(10, 0));
         assert!(!s.insert(0, 0));
         assert!(!s.insert(2000, 0));
         assert!(s.insert(4, 1));
         assert!(!s.insert(4, 1));
 
-        assert_eq!(s.p_bitmap.count_ones(), 3);
-        assert_eq!(s.n_bitmap.count_ones(), 2);
-
         assert_eq!(
             s.items,
-            vec![(4, 0), (2, 0), (10, 0), (0, 0), (2000, 0), (4, 1)]
+            vec![(4, 0), (2, 0), (3,0), (10, 0), (0, 0), (2000, 0), (4, 1)]
         );
 
         s.clear();
@@ -202,10 +205,7 @@ mod tests {
         assert!(s.insert(10, 0));
         assert!(s.insert(300, 0));
         assert!(s.insert(250, 0));
-
-        assert_eq!(s.p_bitmap.count_ones(), 3);
-        assert_eq!(s.n_bitmap.count_ones(), 2);
-
+        
         assert_eq!(
             s.items,
             vec![(200, 0), (3, 0), (10, 0), (300, 0), (250, 0)]
