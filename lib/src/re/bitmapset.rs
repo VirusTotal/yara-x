@@ -180,7 +180,7 @@ mod tests {
         assert!(s.insert(10, 0));
         assert!(s.insert(0, 0));
         assert!(s.insert(2000, 0));
-        
+
         assert!(!s.insert(4, 0));
         assert!(!s.insert(2, 0));
         assert!(!s.insert(3, 0));
@@ -192,7 +192,7 @@ mod tests {
 
         assert_eq!(
             s.items,
-            vec![(4, 0), (2, 0), (3,0), (10, 0), (0, 0), (2000, 0), (4, 1)]
+            vec![(4, 0), (2, 0), (3, 0), (10, 0), (0, 0), (2000, 0), (4, 1)]
         );
 
         s.clear();
@@ -205,7 +205,7 @@ mod tests {
         assert!(s.insert(10, 0));
         assert!(s.insert(300, 0));
         assert!(s.insert(250, 0));
-        
+
         assert_eq!(
             s.items,
             vec![(200, 0), (3, 0), (10, 0), (300, 0), (250, 0)]
