@@ -244,6 +244,8 @@ impl<'r> PikeVM<'r> {
 /// its state during the computation of an epsilon closure. See the
 /// documentation of [`epsilon_closure`] for details.
 pub struct EpsilonClosureState {
+    /// Pairs (instruction pointer, repetition count) describing the existing
+    /// threads.
     threads: Vec<(usize, u32)>,
     /// This bit array has one bit per possible value of SplitId. If the
     /// split instruction with SplitId = N is executed, the N-th bit in the

@@ -1,4 +1,6 @@
 use bitvec::vec::BitVec;
+use rustc_hash::FxHashSet;
+use std::hash::Hash;
 
 /// A high-performance set of (`usize`, T) pairs.
 ///
@@ -22,18 +24,16 @@ use bitvec::vec::BitVec;
 /// can make the memory required for storing the bitmaps to grow very quickly.
 /// Another property of this type is that values inserted in the set can be
 /// iterated in insertion order.
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, Default)]
 pub(crate) struct BitmapSet<T>
 where
-    T: Default + Clone + PartialEq,
+    T: Default + Copy + PartialEq + Eq + Hash,
 {
-    // Vector that contains the (key,value) pairs in the map, in insertion
+    // Vector that contains the (key,value) pairs in the set, in insertion
     // order.
     items: Vec<(usize, T)>,
-    // First key inserted in the set.
-    initial_key: usize,
-    // First value inserted in the set.
-    initial_value: T,
+    // Set that contains the (key,value) pairs.
+    set: FxHashSet<(usize, T)>,
     // Bitmap for keys that are > initial_key.
     p_bitmap: BitVec<usize>,
     // Bitmap for keys that are < initial_key.
@@ -42,16 +42,16 @@ where
 
 impl<T> BitmapSet<T>
 where
-    T: Default + Clone + PartialEq,
+    T: Default + Copy + PartialEq + Eq + Hash,
 {
     pub const MAX_OFFSET: usize = 524288;
 
     pub fn new() -> Self {
         Self {
             items: Vec::new(),
+            set: FxHashSet::default(),
             p_bitmap: BitVec::repeat(false, 1024),
             n_bitmap: BitVec::repeat(false, 1024),
-            ..Default::default()
         }
     }
 
@@ -67,21 +67,22 @@ where
     ///
     #[inline]
     pub fn insert(&mut self, key: usize, value: T) -> bool {
-        // Special case when the set is totally empty.
-        if self.items.is_empty() {
-            self.initial_key = key;
-            self.initial_value = value.clone();
-            self.items.push((key, value));
-            return true;
-        }
+        let first = match self.items.first() {
+            Some(first) => first,
+            None => {
+                // The set is empty, store the first item and return.
+                self.items.push((key, value));
+                return true;
+            }
+        };
 
-        // Special case when the new (key,value) pair is equal to the first
-        // one added to the set.
-        if self.initial_key == key && self.initial_value == value {
+        // Special case when the new (key,value) pair is equal to the
+        // first one added to the set.
+        if first.0 == key && first.1 == value {
             return false;
         }
-
-        let offset = key as isize - self.initial_key as isize;
+        
+        let offset = key as isize - first.0 as isize;
 
         match offset {
             offset if offset < 0 => {
@@ -92,16 +93,12 @@ where
                         self.n_bitmap.resize(offset + 1, false);
                         self.n_bitmap.set_unchecked(offset, true);
                         self.items.push((key, value));
-                        true
+                        self.set.insert((key, value))
                     } else if !*self.n_bitmap.get_unchecked(offset) {
                         self.n_bitmap.set_unchecked(offset, true);
                         self.items.push((key, value));
-                        true
-                    } else if !self
-                        .items
-                        .iter()
-                        .any(|(k, v)| *k == key && v.eq(&value))
-                    {
+                        self.set.insert((key, value))
+                    } else if self.set.insert((key, value)) {
                         self.items.push((key, value));
                         true
                     } else {
@@ -117,16 +114,12 @@ where
                         self.p_bitmap.resize(offset + 1, false);
                         self.p_bitmap.set_unchecked(offset, true);
                         self.items.push((key, value));
-                        true
+                        self.set.insert((key, value))
                     } else if !*self.p_bitmap.get_unchecked(offset) {
                         self.p_bitmap.set_unchecked(offset, true);
                         self.items.push((key, value));
-                        true
-                    } else if !self
-                        .items
-                        .iter()
-                        .any(|(k, v)| *k == key && v.eq(&value))
-                    {
+                        self.set.insert((key, value))
+                    } else if self.set.insert((key, value)) {
                         self.items.push((key, value));
                         true
                     } else {
@@ -145,8 +138,12 @@ where
     /// Removes all values in the set.
     #[inline]
     pub fn clear(&mut self) {
+        let first_key = match self.items.first() {
+            Some(first) => first.0,
+            None => return,
+        };
         for (key, _) in self.items.drain(0..) {
-            let offset = key as isize - self.initial_key as isize;
+            let offset = key as isize - first_key as isize;
             match offset {
                 offset if offset < 0 => {
                     self.n_bitmap.set(((-offset) as usize) - 1, false);
@@ -156,6 +153,7 @@ where
                 }
             }
         }
+        self.set.clear();
     }
 
     /// Returns an iterator for the items in the set.
