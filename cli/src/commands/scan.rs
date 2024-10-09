@@ -204,6 +204,13 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         // collect to eagerly call the parser on each element
         .collect::<Vec<_>>();
 
+    if recursive.is_some() && target_path.is_file() {
+        bail!(
+            "can't use '{}' when <TARGET_PATH> is a file",
+            Paint::bold("--recursive")
+        );
+    }
+
     let rules = if compiled_rules {
         if rules_path.len() > 1 {
             bail!(
