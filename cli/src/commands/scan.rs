@@ -505,7 +505,7 @@ fn print_rules_as_text(
             return;
         }
 
-        let mut line = if print_namespace {
+        let mut msg = if print_namespace {
             format!(
                 "{}:{}",
                 matching_rule.namespace().paint(Cyan).bold(),
@@ -518,51 +518,49 @@ fn print_rules_as_text(
         let tags = matching_rule.tags();
 
         if print_tags && !tags.is_empty() {
-            line.push_str(" [");
+            msg.push_str(" [");
             for (pos, tag) in tags.with_position() {
-                line.push_str(tag.identifier());
+                msg.push_str(tag.identifier());
                 if !matches!(pos, itertools::Position::Last) {
-                    line.push(',');
+                    msg.push(',');
                 }
             }
-            line.push(']');
+            msg.push(']');
         }
 
         let metadata = matching_rule.metadata();
 
         if print_meta && !metadata.is_empty() {
-            line.push_str(" [");
+            msg.push_str(" [");
             for (pos, (m, v)) in metadata.with_position() {
                 match v {
                     MetaValue::Bool(v) => {
-                        line.push_str(&format!("{}={}", m, v))
+                        msg.push_str(&format!("{}={}", m, v))
                     }
                     MetaValue::Integer(v) => {
-                        line.push_str(&format!("{}={}", m, v))
+                        msg.push_str(&format!("{}={}", m, v))
                     }
                     MetaValue::Float(v) => {
-                        line.push_str(&format!("{}={}", m, v))
+                        msg.push_str(&format!("{}={}", m, v))
                     }
                     MetaValue::String(v) => {
-                        line.push_str(&format!("{}=\"{}\"", m, v))
+                        msg.push_str(&format!("{}=\"{}\"", m, v))
                     }
-                    MetaValue::Bytes(v) => line.push_str(&format!(
+                    MetaValue::Bytes(v) => msg.push_str(&format!(
                         "{}=\"{}\"",
                         m,
                         v.escape_ascii()
                     )),
                 };
                 if !matches!(pos, itertools::Position::Last) {
-                    line.push(',');
+                    msg.push(',');
                 }
             }
-            line.push(']');
+            msg.push(']');
         }
 
-        line.push(' ');
-        line.push_str(&file_path.display().to_string());
-
-        output.send(Message::Info(line)).unwrap();
+        msg.push(' ');
+        msg.push_str(&file_path.display().to_string());
 
         if print_strings || print_strings_limit.is_some() {
             let limit = print_strings_limit.unwrap_or(&STRINGS_LIMIT);
@@ -571,8 +569,8 @@ fn print_rules_as_text(
                     let match_range = m.range();
                     let match_data = m.data();
 
-                    let mut msg = format!(
-                        "{:#x}:{}:{}",
+                    let mut match_str = format!(
+                        "\n{:#x}:{}:{}",
                         match_range.start,
                         match_range.len(),
                         p.identifier(),
@@ -580,31 +578,33 @@ fn print_rules_as_text(
 
                     match m.xor_key() {
                         Some(k) => {
-                            msg.push_str(format!(" xor({:#x},", k).as_str());
+                            match_str
+                                .push_str(format!(" xor({:#x},", k).as_str());
                             for b in
                                 &match_data[..min(match_data.len(), *limit)]
                             {
                                 for c in (b ^ k).escape_ascii() {
-                                    msg.push_str(
+                                    match_str.push_str(
                                         format!("{}", c as char).as_str(),
                                     );
                                 }
                             }
-                            msg.push_str("): ");
+                            match_str.push_str("): ");
                         }
                         _ => {
-                            msg.push_str(": ");
+                            match_str.push_str(": ");
                         }
                     }
 
                     for b in &match_data[..min(match_data.len(), *limit)] {
                         for c in b.escape_ascii() {
-                            msg.push_str(format!("{}", c as char).as_str());
+                            match_str
+                                .push_str(format!("{}", c as char).as_str());
                         }
                     }
 
                     if match_data.len() > *limit {
-                        msg.push_str(
+                        match_str.push_str(
                             format!(
                                 " ... {} more bytes",
                                 match_data.len().saturating_sub(*limit)
@@ -613,10 +613,12 @@ fn print_rules_as_text(
                         );
                     }
 
-                    output.send(Message::Info(msg)).unwrap();
+                    msg.push_str(&match_str)
                 }
             }
         }
+
+        output.send(Message::Info(msg)).unwrap();
     }
 }
 
