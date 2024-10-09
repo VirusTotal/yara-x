@@ -31,10 +31,10 @@ pub(crate) struct FastVM<'r> {
     /// is faster than `HashSet`, at the price of higher memory usage when
     /// the values in the set are not close to each others. However, the
     /// positions stored in this set are relatively close to each other.
-    positions: BitmapSet,
+    positions: BitmapSet<()>,
     /// The set that will replace `positions` in the next iteration of the
     /// VM loop.
-    next_positions: BitmapSet,
+    next_positions: BitmapSet<()>,
 }
 
 impl<'r> FastVM<'r> {
@@ -85,7 +85,7 @@ impl<'r> FastVM<'r> {
 
         let step = if wide { 2 } else { 1 };
 
-        self.positions.insert(0);
+        self.positions.insert(0, ());
 
         let mut flags = JumpFlagSet::none();
 
@@ -102,7 +102,7 @@ impl<'r> FastVM<'r> {
             match instr {
                 Instr::Match => {
                     let mut stop = false;
-                    for position in self.positions.iter() {
+                    for (position, _) in self.positions.iter() {
                         match f(*position) {
                             Action::Stop => {
                                 stop = true;
@@ -117,7 +117,7 @@ impl<'r> FastVM<'r> {
                     }
                 }
                 Instr::Literal(literal) => {
-                    for position in self.positions.iter() {
+                    for (position, _) in self.positions.iter() {
                         if *position >= input.len() {
                             continue;
                         }
@@ -136,12 +136,12 @@ impl<'r> FastVM<'r> {
                         };
                         if is_match {
                             self.next_positions
-                                .insert(position + step * literal.len());
+                                .insert(position + step * literal.len(), ());
                         }
                     }
                 }
                 Instr::MaskedLiteral(literal, mask) => {
-                    for position in self.positions.iter() {
+                    for (position, _) in self.positions.iter() {
                         if *position >= input.len() {
                             continue;
                         }
@@ -162,13 +162,13 @@ impl<'r> FastVM<'r> {
                         };
                         if is_match {
                             self.next_positions
-                                .insert(position + step * literal.len());
+                                .insert(position + step * literal.len(), ());
                         }
                     }
                 }
                 Instr::Alternation(alternatives) => {
                     for alt in alternatives {
-                        for position in self.positions.iter() {
+                        for (position, _) in self.positions.iter() {
                             if *position >= input.len() {
                                 continue;
                             }
@@ -190,6 +190,7 @@ impl<'r> FastVM<'r> {
                                     if is_match {
                                         self.next_positions.insert(
                                             position + step * literal.len(),
+                                            (),
                                         );
                                     }
                                 }
@@ -212,6 +213,7 @@ impl<'r> FastVM<'r> {
                                     if is_match {
                                         self.next_positions.insert(
                                             position + step * literal.len(),
+                                            (),
                                         );
                                     }
                                 }
@@ -225,19 +227,21 @@ impl<'r> FastVM<'r> {
                     }
                 }
                 Instr::JumpExact(jump) => {
-                    for position in self.positions.iter() {
+                    for (position, _) in self.positions.iter() {
                         self.next_positions
-                            .insert(position + step * jump as usize);
+                            .insert(position + step * jump as usize, ());
                     }
                 }
                 Instr::JumpExactNoNewline(jump) => {
-                    for position in self.positions.iter() {
+                    for (position, _) in self.positions.iter() {
                         let jump_range =
                             *position..*position + step * jump as usize;
                         if let Some(jump_range) = input.get(jump_range) {
                             if memchr::memchr(0x0A, jump_range).is_none() {
-                                self.next_positions
-                                    .insert(position + step * jump as usize);
+                                self.next_positions.insert(
+                                    position + step * jump as usize,
+                                    (),
+                                );
                             }
                         }
                     }
@@ -266,7 +270,7 @@ impl<'r> FastVM<'r> {
 
                     match InstrParser::decode_instr(&self.code[ip..]) {
                         (Instr::Literal(literal), _) if backwards => {
-                            for position in self.positions.iter() {
+                            for (position, _) in self.positions.iter() {
                                 if *position >= input.len() {
                                     continue;
                                 }
@@ -281,7 +285,7 @@ impl<'r> FastVM<'r> {
                             }
                         }
                         (Instr::Literal(literal), _) if !backwards => {
-                            for position in self.positions.iter() {
+                            for (position, _) in self.positions.iter() {
                                 if *position >= input.len() {
                                     continue;
                                 }
@@ -298,7 +302,7 @@ impl<'r> FastVM<'r> {
                         (Instr::MaskedLiteral(literal, mask), _)
                             if backwards && mask.last() == Some(&0xff) =>
                         {
-                            for position in self.positions.iter() {
+                            for (position, _) in self.positions.iter() {
                                 if *position >= input.len() {
                                     continue;
                                 }
@@ -315,7 +319,7 @@ impl<'r> FastVM<'r> {
                         (Instr::MaskedLiteral(literal, mask), _)
                             if !backwards && mask.first() == Some(&0xff) =>
                         {
-                            for position in self.positions.iter() {
+                            for (position, _) in self.positions.iter() {
                                 if *position >= input.len() {
                                     continue;
                                 }
@@ -330,7 +334,7 @@ impl<'r> FastVM<'r> {
                             }
                         }
                         _ => {
-                            for position in self.positions.iter() {
+                            for (position, _) in self.positions.iter() {
                                 if *position >= input.len() {
                                     continue;
                                 }
@@ -544,7 +548,7 @@ impl FastVM<'_> {
         flags: JumpFlagSet,
         range: &RangeInclusive<u16>,
         position: usize,
-        next_positions: &mut BitmapSet,
+        next_positions: &mut BitmapSet<()>,
     ) {
         let step = if flags.contains(JumpFlags::Wide) { 2 } else { 1 };
 
@@ -570,7 +574,7 @@ impl FastVM<'_> {
         let jmp_range = &input[range_min..range_max];
 
         let mut on_match_found = |offset| {
-            next_positions.insert(position + range_min + offset);
+            next_positions.insert(position + range_min + offset, ());
         };
 
         let accept_newlines = flags.contains(JumpFlags::AcceptNewlines);
@@ -618,7 +622,7 @@ impl FastVM<'_> {
         flags: JumpFlagSet,
         range: &RangeInclusive<u16>,
         position: usize,
-        next_positions: &mut BitmapSet,
+        next_positions: &mut BitmapSet<()>,
     ) {
         let step = if flags.contains(JumpFlags::Wide) { 2 } else { 1 };
 
@@ -665,7 +669,7 @@ impl FastVM<'_> {
 
         let mut on_match_found = |offset| {
             next_positions
-                .insert(position + n + jmp_range.len() - offset - step);
+                .insert(position + n + jmp_range.len() - offset - step, ());
         };
 
         let accept_newlines = flags.contains(JumpFlags::AcceptNewlines);
