@@ -86,7 +86,7 @@ Prints the number of matching rules per file. Instead of printing the
 names of the rules that matches each file, it prints the number the
 total number of rules matching each file.
 
-### --define, -d <VAR=VALUE>
+### --define <VAR=VALUE>
 
 Defines external variables.
 
@@ -103,7 +103,7 @@ Examples:
 
 Disables the output produced by the [console]({{< ref "console.md" >}}) module.
 
-### --disable-warnings, -w
+### --disable-warnings
 
 Disables all warnings when used alone, or disable specific warnings when
 followed by comma-separated list of warnings identifiers.
@@ -132,7 +132,7 @@ Equivalent to the previous one, but using `--disable-warnings` multiple times:
 --disable-warnings=slow_patterns --disable-warnings=redundant_modifier
 ```
 
-### --ignore-module <MODULE>
+### --ignore-module \<MODULE\>
 
 Rules that use the specified module will be ignored, as well as any rules that
 depends directly or indirectly on such rules. This option can be used more than
@@ -142,7 +142,7 @@ once for ignored different modules.
 
 Prints the rules that doesn't match instead of those that match.
 
-### --output-format, -o <FORMAT>
+### --output-format \<FORMAT\>
 
 Specify the output format. Available options are `text` and `ndjson`. By
 default, the output format is `text`. The `ndjson` format, which stands for
@@ -217,16 +217,24 @@ must be either absolute paths, or relative to the current directory.
 
 Skips files larger than the given size in bytes.
 
-### --tag <TAG>, -t <TAG>
+### --recursive[=<MAX_DEPTH>]
+
+When `<TARGET_PATH>` is a directory, this option enables recursive scanning of
+its contents. An optional `<MAX_DEPTH>` parameter can be specified to limit the
+scan depth. A `MAX_DEPTH=1` value restricts the scan to direct child directories
+of `<TARGET_PATH>`. If this option is not used, only the files within
+`<TARGET_PATH>` will be scanned, excluding its subdirectories.
+
+### --tag \<TAG\>
 
 Print only the matching rules that have the given tag.
 
-### --threads, -p <NUM_THREADS>
+### --threads <NUM_THREADS>
 
 Use the specified number of threads. By default, it uses as many threads as
 CPU cores.
 
-### --timeout, -a <SECONDS>
+### --timeout \<SECONDS\>
 
 Abort scanning after the given number of seconds.
 
@@ -247,7 +255,7 @@ yr compile [OPTIONS] <[NAMESPACE:]RULES_PATH>...
 ```
 
 Each `<RULES_PATH>` is the path of YARA source file or a directory containing
-source files. When`<RULES_PATH>` is a directory YARA-X iterates the directory
+source files. When `<RULES_PATH>` is a directory YARA-X iterates the directory
 recursively looking for any `*.yar` or `*.yara` files.
 
 Each path can be prefixed with a namespace, the namespace and the path are
@@ -263,7 +271,7 @@ See [--disable-warnings](#--disable-warnings) for the scan command.
 
 See [--ignore-module](#--ignore-module-module) for the scan command.
 
-### --output, -o <OUTPUT_PATH>
+### --output <OUTPUT_PATH>
 
 Specify the path for the output binary file containing the compiled rules. By
 default, is `output.yarc`.
@@ -295,7 +303,7 @@ by all these modules will dumped to stdout in YAML format.
 
 If the file is not provided it will be read from stdin.
 
-### --output-format, -o <FORMAT>
+### --output-format \<FORMAT\>
 
 Specify the output format. Possible values are: `json` and `yaml`. The default
 value is `yaml`.

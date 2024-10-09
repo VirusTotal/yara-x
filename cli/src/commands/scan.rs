@@ -137,6 +137,14 @@ pub fn scan() -> Command {
                 .help("Print rule tags")
         )
         .arg(
+            arg!(-r --"recursive" [MAX_DEPTH])
+                .help("Scan directories recursively")
+                .long_help(help::SCAN_RECURSIVE_LONG_HELP)
+                .default_missing_value("100")
+                .require_equals(true)
+                .value_parser(value_parser!(usize))
+        )
+        .arg(
             arg!(--"relaxed-re-syntax")
                 .help("Use a more relaxed syntax check while parsing regular expressions")
                 .conflicts_with("compiled-rules")
@@ -181,6 +189,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let skip_larger = args.get_one::<u64>("skip-larger");
     let disable_console_logs = args.get_flag("disable-console-logs");
     let scan_list = args.get_flag("scan-list");
+    let recursive = args.get_one::<usize>("recursive");
 
     let timeout =
         args.get_one::<u64>("timeout").map(|t| Duration::from_secs(*t));
@@ -253,6 +262,8 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     if let Some(max_file_size) = skip_larger {
         w.metadata_filter(|metadata| metadata.len() <= *max_file_size);
     }
+
+    w.max_depth(*recursive.unwrap_or(&0));
 
     let start_time = Instant::now();
     let state = ScanState::new(start_time);

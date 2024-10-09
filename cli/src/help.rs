@@ -137,6 +137,18 @@ yr scan rules_dir scanned_file
 yr scan namespace:rules_file.yar scanned_file
 yr scan namespace:rules_dir scanned_file"#;
 
+pub const SCAN_RECURSIVE_LONG_HELP: &str = r#"Scan directories recursively
+
+When <TARGET_PATH> is a directory, this option enables recursive scanning of its contents.
+An optional <MAX_DEPTH> parameter can be specified to limit the scan depth. A MAX_DEPTH=1
+value restricts the scan to direct child directories of <TARGET_PATH>. If this option is
+not used, only the files within <TARGET_PATH> will be scanned, excluding its subdirectories.
+
+Examples:
+
+--recursive
+--recursive=3"#;
+
 pub const OUTPUT_FORMAT_LONG_HELP: &str = r#"Output format
 
 The format in which results will be displayed. Any errors or warnings will not
