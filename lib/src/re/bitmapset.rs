@@ -81,7 +81,7 @@ where
         if first.0 == key && first.1 == value {
             return false;
         }
-        
+
         let offset = key as isize - first.0 as isize;
 
         match offset {
