@@ -199,18 +199,11 @@ impl<'a> Walker<'a> {
         F: FnMut(&Path) -> anyhow::Result<()>,
         E: FnMut(anyhow::Error) -> anyhow::Result<()>,
     {
-        let path = match self.path.canonicalize() {
-            Ok(path) => path,
-            Err(err) => {
-                return e(err.into());
-            }
-        };
-
         let mut builder = if self.filters.is_empty() {
-            globwalk::GlobWalkerBuilder::from_patterns(path, &["**"])
+            globwalk::GlobWalkerBuilder::from_patterns(self.path, &["**"])
         } else {
             globwalk::GlobWalkerBuilder::from_patterns(
-                path,
+                self.path,
                 self.filters.iter().as_ref(),
             )
         };
