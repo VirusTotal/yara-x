@@ -34,8 +34,6 @@ enum OutputFormats {
     Ndjson,
 }
 
-const STRINGS_LIMIT: usize = 120;
-
 #[rustfmt::skip]
 pub fn scan() -> Command {
     super::command("scan")
@@ -124,12 +122,11 @@ pub fn scan() -> Command {
                 .help("Print rule namespace")
         )
         .arg(
-            arg!(-s --"print-strings")
-                .help("Print matching patterns, limited to the first 120 bytes")
-        )
-        .arg(
-            arg!(--"print-strings-limit" <N>)
-                .help("Print matching patterns, limited to the first N bytes")
+            arg!(-s --"print-strings" [N])
+                .help("Print matching patterns")
+                .long_help(help::SCAN_PRINT_STRING_LONG_HELP)
+                .default_missing_value("120")
+                .require_equals(true)
                 .value_parser(value_parser!(usize))
         )
         .arg(
@@ -403,8 +400,7 @@ fn print_rules_as_json(
     let only_tag = args.get_one::<String>("tag");
     let print_tags = args.get_flag("print-tags");
     let print_meta = args.get_flag("print-meta");
-    let print_strings = args.get_flag("print-strings");
-    let print_strings_limit = args.get_one::<usize>("print-strings-limit");
+    let print_strings = args.get_one::<usize>("print-strings");
 
     // One JSON object per file, with a "rules" key that contains a list of
     // matched rules.
@@ -445,8 +441,7 @@ fn print_rules_as_json(
             json_rule["tags"] = serde_json::json!(tags);
         }
 
-        if print_strings || print_strings_limit.is_some() {
-            let limit = print_strings_limit.unwrap_or(&STRINGS_LIMIT);
+        if let Some(limit) = print_strings {
             let mut match_vec: Vec<serde_json::Value> = Vec::new();
             for p in matching_rule.patterns() {
                 for m in p.matches() {
@@ -511,8 +506,7 @@ fn print_rules_as_text(
     let only_tag = args.get_one::<String>("tag");
     let print_tags = args.get_flag("print-tags");
     let print_meta = args.get_flag("print-meta");
-    let print_strings = args.get_flag("print-strings");
-    let print_strings_limit = args.get_one::<usize>("print-strings-limit");
+    let print_strings = args.get_one::<usize>("print-strings");
 
     // Clippy insists on replacing the `while let` statement with
     // `for matching_rule in rules.by_ref()`, but that fails with
@@ -584,8 +578,7 @@ fn print_rules_as_text(
         msg.push(' ');
         msg.push_str(&file_path.display().to_string());
 
-        if print_strings || print_strings_limit.is_some() {
-            let limit = print_strings_limit.unwrap_or(&STRINGS_LIMIT);
+        if let Some(limit) = print_strings {
             for p in matching_rule.patterns() {
                 for m in p.matches() {
                     let match_range = m.range();
