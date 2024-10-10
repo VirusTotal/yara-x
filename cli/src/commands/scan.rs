@@ -260,8 +260,6 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         walk::ParWalker::path(target_path)
     };
 
-    let canonical_target_path = target_path.canonicalize()?;
-
     if let Some(num_threads) = num_threads {
         w.num_threads(*num_threads);
     }
@@ -326,20 +324,11 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
             let now = Instant::now();
 
-            // When the target path passed in the command line is an absolute
-            // path, all file paths are printed as absolute paths, if not, they
-            // are printed as paths relative to the target path.
-            let printable_path = if target_path.is_absolute() {
-                file_path.as_path()
-            } else {
-                file_path.strip_prefix(&canonical_target_path)?
-            };
-
             state
                 .files_in_progress
                 .lock()
                 .unwrap()
-                .push((printable_path.to_path_buf(), now));
+                .push((file_path.to_path_buf(), now));
 
             let scan_options = all_metadata.iter().fold(
                 ScanOptions::new(),
@@ -356,12 +345,12 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 .files_in_progress
                 .lock()
                 .unwrap()
-                .retain(|(p, _)| !printable_path.eq(p));
+                .retain(|(p, _)| !file_path.eq(p));
 
             let scan_results = scan_results?;
             let matched_count = process_scan_results(
                 args,
-                printable_path,
+                file_path.as_path(),
                 &scan_results,
                 output,
             );
