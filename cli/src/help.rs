@@ -149,6 +149,16 @@ Examples:
 --recursive
 --recursive=3"#;
 
+pub const SCAN_PRINT_STRING_LONG_HELP: &str = r#"Print matching patterns
+
+The printed patterns can be optionally limited to <N> characters. By default they are limited
+to 120 characters.
+
+Examples:
+
+--print-strings
+--print-strings=50"#;
+
 pub const OUTPUT_FORMAT_LONG_HELP: &str = r#"Output format
 
 The format in which results will be displayed. Any errors or warnings will not

@@ -184,9 +184,17 @@ Prints the metadata associated to matching rules.
 
 Prints the namespace of matching rules.
 
-### --print-strings, -s
+### --print-strings[=\<N\>]
 
-Prints the matching patterns or strings.
+Prints the matching patterns or strings. The printed patterns can be optionally
+limited to N characters. By default, they are limited to 120 characters.
+
+Examples:
+
+```
+--print-strings
+--print-strings=50
+```
 
 ### --print-tags, -g
 
@@ -224,6 +232,13 @@ its contents. An optional `<MAX_DEPTH>` parameter can be specified to limit the
 scan depth. A `MAX_DEPTH=1` value restricts the scan to direct child directories
 of `<TARGET_PATH>`. If this option is not used, only the files within
 `<TARGET_PATH>` will be scanned, excluding its subdirectories.
+
+Examples:
+
+```
+--recursive
+--recursive=3
+```
 
 ### --tag \<TAG\>
 
