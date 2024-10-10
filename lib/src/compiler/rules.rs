@@ -22,6 +22,7 @@ use crate::compiler::{
 use crate::re::{BckCodeLoc, FwdCodeLoc, RegexpAtom};
 use crate::string_pool::{BStringPool, StringPool};
 use crate::{re, types, Rule};
+use crate::models::PatternKind;
 
 /// A set of YARA rules in compiled form.
 ///
@@ -308,7 +309,7 @@ impl Rules {
     ) -> Option<(RuleId, IdentId)> {
         let (target_pattern_id, _) = self.get_sub_pattern(sub_pattern_id);
         for (rule_id, rule) in self.rules.iter().enumerate() {
-            for (ident_id, pattern_id) in &rule.patterns {
+            for (ident_id, _, pattern_id) in &rule.patterns {
                 if pattern_id == target_pattern_id {
                     return Some((rule_id.into(), *ident_id));
                 };
@@ -533,7 +534,7 @@ impl fmt::Debug for Rules {
             writeln!(f, "  namespace: {}", namespace)?;
             writeln!(f, "  name: {}", name)?;
             writeln!(f, "  patterns:")?;
-            for (pattern_ident_id, pattern_id) in &rule.patterns {
+            for (pattern_ident_id, _, pattern_id) in &rule.patterns {
                 let ident = self.ident_pool.get(*pattern_ident_id).unwrap();
                 writeln!(f, "    {:?} {} ", pattern_id, ident)?;
             }
@@ -577,7 +578,7 @@ pub(crate) struct RuleInfo {
     /// Metadata associated to the rule.
     pub(crate) metadata: Vec<(IdentId, MetaValue)>,
     /// Vector with all the patterns defined by this rule.
-    pub(crate) patterns: Vec<(IdentId, PatternId)>,
+    pub(crate) patterns: Vec<(IdentId, PatternKind, PatternId)>,
     /// True if the rule is global.
     pub(crate) is_global: bool,
     /// True if the rule is private.

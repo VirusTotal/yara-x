@@ -180,38 +180,36 @@ impl<'src> PatternInRule<'src> {
 /// additional information about how the pattern is used in a rule.
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub(in crate::compiler) enum Pattern {
-    /// A literal pattern is one that doesn't contain wildcards, alternatives,
-    /// or any kind of variable content. For example, the text pattern `"foo"`,
-    /// the regular expression `/foo/`, and the hex pattern `{01 02 03}` are
-    /// all literal.
-    Literal(LiteralPattern),
-    /// A regexp pattern is one that contains wildcards and/or alternatives,
-    /// like regular expression `/foo.*bar/` and hex pattern `{01 ?? 03}`.
+    Text(LiteralPattern),
     Regexp(RegexpPattern),
+    Hex(RegexpPattern),
 }
 
 impl Pattern {
     #[inline]
     pub fn flags(&self) -> &PatternFlagSet {
         match self {
-            Pattern::Literal(literal) => &literal.flags,
+            Pattern::Text(literal) => &literal.flags,
             Pattern::Regexp(regexp) => &regexp.flags,
+            Pattern::Hex(regexp) => &regexp.flags,
         }
     }
 
     #[inline]
     pub fn flags_mut(&mut self) -> &mut PatternFlagSet {
         match self {
-            Pattern::Literal(literal) => &mut literal.flags,
+            Pattern::Text(literal) => &mut literal.flags,
             Pattern::Regexp(regexp) => &mut regexp.flags,
+            Pattern::Hex(regexp) => &mut regexp.flags,
         }
     }
 
     #[inline]
     pub fn anchored_at(&self) -> Option<usize> {
         match self {
-            Pattern::Literal(literal) => literal.anchored_at,
+            Pattern::Text(literal) => literal.anchored_at,
             Pattern::Regexp(regexp) => regexp.anchored_at,
+            Pattern::Hex(regexp) => regexp.anchored_at,
         }
     }
 
@@ -231,8 +229,9 @@ impl Pattern {
             !self.flags().contains(PatternFlags::NonAnchorable);
 
         let anchored_at = match self {
-            Pattern::Literal(literal) => &mut literal.anchored_at,
+            Pattern::Text(literal) => &mut literal.anchored_at,
             Pattern::Regexp(regexp) => &mut regexp.anchored_at,
+            Pattern::Hex(regexp) => &mut regexp.anchored_at,
         };
 
         match anchored_at {
@@ -260,8 +259,9 @@ impl Pattern {
     /// find all occurrences of `$a`.
     pub fn make_non_anchorable(&mut self) {
         match self {
-            Pattern::Literal(literal) => literal.anchored_at = None,
+            Pattern::Text(literal) => literal.anchored_at = None,
             Pattern::Regexp(regexp) => regexp.anchored_at = None,
+            Pattern::Hex(regexp) => regexp.anchored_at = None,
         };
         self.flags_mut().set(PatternFlags::NonAnchorable);
     }

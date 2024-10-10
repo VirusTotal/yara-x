@@ -53,6 +53,7 @@ pub use models::Matches;
 pub use models::MetaValue;
 pub use models::Metadata;
 pub use models::Pattern;
+pub use models::PatternKind;
 pub use models::Patterns;
 pub use models::Rule;
 pub use modules::mods;

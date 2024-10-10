@@ -17,7 +17,9 @@ use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
 use yara_x::errors::ScanError;
-use yara_x::{MetaValue, Rule, Rules, ScanOptions, ScanResults, Scanner};
+use yara_x::{
+    MetaValue, PatternKind, Rule, Rules, ScanOptions, ScanResults, Scanner,
+};
 
 use crate::commands::{
     compile_rules, external_var_parser, meta_file_value_parser,
@@ -611,10 +613,23 @@ fn print_rules_as_text(
                         }
                     }
 
-                    for b in &match_data[..min(match_data.len(), *limit)] {
-                        for c in b.escape_ascii() {
-                            match_str
-                                .push_str(format!("{}", c as char).as_str());
+                    let data = &match_data[..min(match_data.len(), *limit)];
+
+                    match p.kind() {
+                        PatternKind::Text | PatternKind::Regexp => {
+                            for b in data {
+                                for c in b.escape_ascii() {
+                                    match_str.push_str(
+                                        format!("{}", c as char).as_str(),
+                                    );
+                                }
+                            }
+                        }
+                        PatternKind::Hex => {
+                            for b in data {
+                                match_str
+                                    .push_str(format!("{:02x} ", b).as_str());
+                            }
                         }
                     }
 
