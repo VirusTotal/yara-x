@@ -63,6 +63,7 @@ pub use crate::compiler::rules::*;
 
 #[doc(inline)]
 pub use crate::compiler::warnings::*;
+use crate::models::PatternKind;
 
 mod atoms;
 mod context;
@@ -1249,8 +1250,9 @@ impl<'a> Compiler<'a> {
                 )
             {
                 let literal_bytes = match pat.pattern() {
-                    Pattern::Literal(lit) => Some(lit.text.as_bytes()),
+                    Pattern::Text(lit) => Some(lit.text.as_bytes()),
                     Pattern::Regexp(re) => re.hir.as_literal_bytes(),
+                    Pattern::Hex(re) => re.hir.as_literal_bytes(),
                 };
                 if let Some(literal_bytes) = literal_bytes {
                     if Self::common_byte_repetition(literal_bytes) {
@@ -1398,8 +1400,15 @@ impl<'a> Compiler<'a> {
                     }
                 };
 
+            let pattern_kind = match pattern.pattern() {
+                Pattern::Text(_) => PatternKind::Text,
+                Pattern::Regexp(_) => PatternKind::Regexp,
+                Pattern::Hex(_) => PatternKind::Hex,
+            };
+
             current_rule.patterns.push((
                 self.ident_pool.get_or_intern(pattern.identifier().name),
+                pattern_kind,
                 pattern_id,
             ));
 
@@ -1419,10 +1428,10 @@ impl<'a> Compiler<'a> {
                 self.current_pattern_id = *pattern_id;
                 let anchored_at = pattern.anchored_at();
                 match pattern.into_pattern() {
-                    Pattern::Literal(pattern) => {
+                    Pattern::Text(pattern) => {
                         self.c_literal_pattern(pattern, anchored_at);
                     }
-                    Pattern::Regexp(pattern) => {
+                    Pattern::Regexp(pattern) | Pattern::Hex(pattern) => {
                         if let Err(err) =
                             self.c_regexp_pattern(pattern, anchored_at, span)
                         {
@@ -1997,7 +2006,7 @@ impl<'a> Compiler<'a> {
 
             // The last pattern in the chain has the `LastInChain` flag and
             // the `FullwordRight` if the original pattern was `Fullword`.
-            // Patterns in the middle of the chain won't have neither of these
+            // Patterns in the middle of the chain won't have either of these
             // flags.
             if i == trailing.len() - 1 {
                 flags.set(SubPatternFlags::LastInChain);

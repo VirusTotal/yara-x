@@ -2,9 +2,20 @@ use crate::compiler::{IdentId, PatternId, RuleInfo};
 use crate::scanner::{ScanContext, ScannedData};
 use crate::{compiler, scanner, Rules};
 use bstr::{BStr, ByteSlice};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::ops::Range;
 use std::slice::Iter;
+
+/// Kinds of patterns.
+#[derive(Serialize, Deserialize, Clone, Copy)]
+pub enum PatternKind {
+    /// The pattern is a plain text string.
+    Text,
+    /// The pattern is a hex pattern (e.g: { 01 02 03 })
+    Hex,
+    /// The pattern is a regular expression.
+    Regexp,
+}
 
 /// A structure that describes a rule.
 pub struct Rule<'a, 'r> {
@@ -219,7 +230,7 @@ pub struct Patterns<'a, 'r> {
     ctx: Option<&'a ScanContext<'r>>,
     data: Option<&'a ScannedData<'a>>,
     rules: &'r Rules,
-    iterator: Iter<'a, (IdentId, PatternId)>,
+    iterator: Iter<'a, (IdentId, PatternKind, PatternId)>,
     len: usize,
 }
 
@@ -227,13 +238,14 @@ impl<'a, 'r> Iterator for Patterns<'a, 'r> {
     type Item = Pattern<'a, 'r>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (ident_id, pattern_id) = self.iterator.next()?;
+        let (ident_id, pattern_kind, pattern_id) = self.iterator.next()?;
         Some(Pattern {
             ctx: self.ctx,
             rules: self.rules,
             data: self.data,
-            pattern_id: *pattern_id,
             ident_id: *ident_id,
+            pattern_id: *pattern_id,
+            kind: *pattern_kind,
         })
     }
 }
@@ -250,14 +262,20 @@ pub struct Pattern<'a, 'r> {
     ctx: Option<&'a ScanContext<'r>>,
     data: Option<&'a ScannedData<'a>>,
     rules: &'r Rules,
-    pattern_id: PatternId,
     ident_id: IdentId,
+    pattern_id: PatternId,
+    kind: PatternKind,
 }
 
 impl<'a, 'r> Pattern<'a, 'r> {
     /// Returns the pattern's identifier (e.g: $a, $b).
     pub fn identifier(&self) -> &'r str {
         self.rules.ident_pool().get(self.ident_id).unwrap()
+    }
+
+    /// Returns the kind of this pattern.
+    pub fn kind(&self) -> PatternKind {
+        self.kind
     }
 
     /// Returns the matches found for this pattern.
