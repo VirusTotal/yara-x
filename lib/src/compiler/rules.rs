@@ -19,10 +19,10 @@ use crate::compiler::{
     IdentId, Imports, LiteralId, NamespaceId, PatternId, RegexpId, RuleId,
     SubPattern, SubPatternId,
 };
+use crate::models::PatternKind;
 use crate::re::{BckCodeLoc, FwdCodeLoc, RegexpAtom};
 use crate::string_pool::{BStringPool, StringPool};
 use crate::{re, types, Rule};
-use crate::models::PatternKind;
 
 /// A set of YARA rules in compiled form.
 ///
