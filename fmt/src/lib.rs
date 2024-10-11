@@ -69,6 +69,8 @@ pub struct Formatter {
     indent_section_contents: bool,
     indent_spaces: u8,
     newline_before_curly_brace: bool,
+    empty_line_before_section_header: bool,
+    empty_line_after_section_header: bool,
 }
 
 impl Default for Formatter {
@@ -88,6 +90,8 @@ impl Formatter {
             indent_section_contents: true,
             indent_spaces: 2,
             newline_before_curly_brace: false,
+            empty_line_before_section_header: false,
+            empty_line_after_section_header: false,
         }
     }
 
@@ -235,8 +239,8 @@ impl Formatter {
         self
     }
 
-    /// Specify how many newlines should be added before the opening curly brace
-    /// in a rule declaration. If false the rule will look like this:
+    /// Specify if newline should be added before the opening curly brace in a
+    /// rule declaration. If false the rule will look like this:
     ///
     /// ```text
     /// rule test {
@@ -258,6 +262,63 @@ impl Formatter {
     /// The default value is `false`.
     pub fn newline_before_curly_brace(mut self, yes: bool) -> Self {
         self.newline_before_curly_brace = yes;
+        self
+    }
+
+    /// Specify if an empty line should be added before the section header in a
+    /// rule. If false the rule will look like this:
+    ///
+    /// ```text
+    /// rule test {
+    ///   meta:
+    ///     foo = "bar"
+    ///   condition:
+    ///     true
+    /// }
+    /// ```
+    ///
+    /// And if true, the rule will look like this:
+    ///
+    /// ```text
+    /// rule test {
+    ///
+    ///   meta:
+    ///     foo = "bar"
+    ///
+    ///   condition:
+    ///     true
+    /// }
+    /// ```
+    ///
+    /// The default value is `false`.
+    pub fn empty_line_before_section_header(mut self, yes: bool) -> Self {
+        self.empty_line_before_section_header = yes;
+        self
+    }
+
+    /// Specify if an empty line should be added after the section header in a
+    /// rule. If false the rule will look like this:
+    ///
+    /// ```text
+    /// rule test {
+    ///   condition:
+    ///     true
+    /// }
+    /// ```
+    ///
+    /// And if true, the rule will look like this:
+    ///
+    /// ```text
+    /// rule test {
+    ///   condition:
+    ///
+    ///     true
+    /// }
+    /// ```
+    ///
+    /// The default value is `false`.
+    pub fn empty_line_after_section_header(mut self, yes: bool) -> Self {
+        self.empty_line_after_section_header = yes;
         self
     }
 
@@ -426,7 +487,7 @@ impl Formatter {
             );
 
         let tokens = if self.newline_before_curly_brace {
-            // Ensure we have a newline before the opening "{}" in a rule
+            // Ensure we have a newline before the opening "{" in a rule
             // declaration. Be careful to only insert it if one does not already
             // exist.
             Box::new(processor::Processor::new(tokens).add_rule(
@@ -458,26 +519,6 @@ impl Formatter {
                     processor::actions::drop,
                 ))
         };
-
-        // Remove newlines after "meta:"
-        let tokens = processor::Processor::new(tokens)
-            .add_rule(
-                |ctx| {
-                    ctx.in_rule(SyntaxKind::META_BLK, false)
-                        && ctx.token(-1).eq(&COLON)
-                        && ctx.token(1).is(*NEWLINE)
-                },
-                processor::actions::drop,
-            )
-            // Remove newlines after "strings:"
-            .add_rule(
-                |ctx| {
-                    ctx.in_rule(SyntaxKind::PATTERNS_BLK, false)
-                        && ctx.token(-1).eq(&COLON)
-                        && ctx.token(1).is(*NEWLINE)
-                },
-                processor::actions::drop,
-            );
 
         let tokens = processor::Processor::new(tokens)
             //
@@ -562,34 +603,102 @@ impl Formatter {
                 processor::actions::newline,
             );
 
-        let tokens = processor::Processor::new(tokens)
-            .set_passthrough(*CONTROL)
-            // Add newline in front of "meta", "strings" and "condition"
-            .add_rule(
-                |ctx| {
-                    matches!(
-                        ctx.token(1),
-                        Keyword(b"meta")
-                            | Keyword(b"strings")
-                            | Keyword(b"condition")
-                    ) && ctx.token(-1).is_not(*NEWLINE)
-                },
-                processor::actions::newline,
+        let tokens = if self.empty_line_before_section_header {
+            Box::new(
+                processor::Processor::new(tokens)
+                    .set_passthrough(*CONTROL)
+                    .add_rule(
+                        |ctx| {
+                            matches!(
+                                ctx.token(1),
+                                Keyword(b"meta")
+                                    | Keyword(b"strings")
+                                    | Keyword(b"condition")
+                            ) && ctx.token(-1).is_not(*NEWLINE)
+                                && ctx.token(-2).is_not(*NEWLINE)
+                        },
+                        processor::actions::emptyline,
+                    )
+                    .add_rule(
+                        |ctx| {
+                            matches!(
+                                ctx.token(1),
+                                Keyword(b"meta")
+                                    | Keyword(b"strings")
+                                    | Keyword(b"condition")
+                            ) && ctx.token(-1).is(*NEWLINE)
+                                && ctx.token(-2).is_not(*NEWLINE)
+                        },
+                        processor::actions::newline,
+                    ),
             )
-            // Add newline after "meta:", "strings:" and "condition:".
-            .add_rule(
+        } else {
+            Box::new(
+                processor::Processor::new(tokens)
+                    .set_passthrough(*CONTROL)
+                    .add_rule(
+                        |ctx| {
+                            matches!(
+                                ctx.token(1),
+                                Keyword(b"meta")
+                                    | Keyword(b"strings")
+                                    | Keyword(b"condition")
+                            ) && ctx.token(-1).is_not(*NEWLINE)
+                        },
+                        processor::actions::newline,
+                    ),
+            )
+        };
+
+        let tokens = if self.empty_line_after_section_header {
+            Box::new(
+                processor::Processor::new(tokens)
+                    .add_rule(
+                        |ctx| {
+                            ctx.token(-1).eq(&COLON)
+                                && matches!(
+                                    ctx.token(-2),
+                                    Keyword(b"meta")
+                                        | Keyword(b"strings")
+                                        | Keyword(b"condition")
+                                )
+                                && ctx.token(1).is_not(*NEWLINE)
+                        },
+                        processor::actions::emptyline,
+                    )
+                    .add_rule(
+                        |ctx| {
+                            ctx.token(-1).eq(&COLON)
+                                && matches!(
+                                    ctx.token(-2),
+                                    Keyword(b"meta")
+                                        | Keyword(b"strings")
+                                        | Keyword(b"condition")
+                                )
+                                && ctx.token(1).is(*NEWLINE)
+                                && ctx.token(2).is_not(*NEWLINE)
+                        },
+                        processor::actions::newline,
+                    ),
+            )
+        } else {
+            Box::new(processor::Processor::new(tokens).add_rule(
                 |ctx| {
-                    ctx.token(1).is_not(*NEWLINE)
-                        && ctx.token(-1).eq(&COLON)
+                    ctx.token(-1).eq(&COLON)
                         && matches!(
                             ctx.token(-2),
                             Keyword(b"meta")
                                 | Keyword(b"strings")
                                 | Keyword(b"condition")
                         )
+                        && ctx.token(1).is_not(*NEWLINE)
                 },
                 processor::actions::newline,
-            )
+            ))
+        };
+
+        let tokens = processor::Processor::new(tokens)
+            .set_passthrough(*CONTROL)
             // Add newline in front of pattern identifiers in the "strings"
             // section.
             .add_rule(

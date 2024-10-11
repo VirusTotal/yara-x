@@ -82,6 +82,38 @@ rule.indent_spaces = 2
 # `true` then this will ensure exactly two newlines are left.
 rule.newline_before_curly_brace = true
 
+# Add an empty line before section headers so that:
+#
+# rule a {
+#   strings:
+#     $ = "AXSERS"
+# }
+#
+# Becomes:
+#
+# rule a {
+#
+#   strings:
+#     $ = "AXSERS"
+# }
+rule.empty_line_before_section_header = false
+
+# Add an empty line after section headers so that:
+#
+# rule a {
+#   strings:
+#     $ = "AXSERS"
+# }
+#
+# Becomes:
+#
+# rule a {
+#   strings:
+#
+#     $ = "AXSERS"
+# }
+rule.empty_line_after_section_header = false
+
 # Align metadata values so that:
 #
 # rule a {
