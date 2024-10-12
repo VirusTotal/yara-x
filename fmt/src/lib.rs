@@ -699,6 +699,15 @@ impl Formatter {
 
         let tokens = processor::Processor::new(tokens)
             .set_passthrough(*CONTROL)
+            // Add a newline in front of meta definitions in the "meta" section.
+            .add_rule(
+                |ctx| {
+                    ctx.in_rule(SyntaxKind::META_DEF, false)
+                        && ctx.token(1).is(*IDENTIFIER)
+                        && ctx.token(-1).is_not(*NEWLINE)
+                },
+                processor::actions::newline,
+            )
             // Add newline in front of pattern identifiers in the "strings"
             // section.
             .add_rule(
