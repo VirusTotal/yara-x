@@ -80,7 +80,7 @@ rule.indent_spaces = 2
 #
 # Note: If you have multiple newlines before the curly brace and this is set to
 # `true` then this will ensure exactly two newlines are left.
-rule.newline_before_curly_brace = true
+rule.newline_before_curly_brace = false
 
 # Add an empty line before section headers so that:
 #
