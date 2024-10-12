@@ -1,0 +1,6 @@
+error[E014]: invalid regular expression
+ --> line:3:3
+  |
+3 |   $a = /abcd((efg){0,10000}){0,10000}/
+  |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ regexp is too large
+  |

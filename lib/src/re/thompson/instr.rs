@@ -53,6 +53,7 @@ solely matches the `0xAA` byte.
 
 use std::fmt::{Display, Formatter};
 use std::mem::size_of;
+use std::num::TryFromIntError;
 
 use bitvec::order::Lsb0;
 use bitvec::slice::{BitSlice, IterOnes};
@@ -111,7 +112,49 @@ impl SplitId {
 
 /// Offset for jump and split instructions. The offset is always relative to
 /// the address where the instruction starts.
-pub type Offset = i32;
+pub struct Offset(i32);
+
+impl From<Offset> for i32 {
+    #[inline]
+    fn from(value: Offset) -> Self {
+        value.0
+    }
+}
+
+impl From<Offset> for isize {
+    #[inline]
+    fn from(value: Offset) -> Self {
+        value.0 as isize
+    }
+}
+
+impl From<usize> for Offset {
+    #[inline]
+    fn from(value: usize) -> Self {
+        Self(i32::try_from(value).unwrap())
+    }
+}
+
+impl TryFrom<isize> for Offset {
+    type Error = TryFromIntError;
+
+    #[inline]
+    fn try_from(value: isize) -> Result<Self, Self::Error> {
+        Ok(Self(i32::try_from(value)?))
+    }
+}
+
+impl Offset {
+    #[inline]
+    pub fn from_le_bytes(bytes: [u8; size_of::<Self>()]) -> Offset {
+        Offset(i32::from_le_bytes(bytes))
+    }
+
+    #[inline]
+    pub fn to_le_bytes(&self) -> [u8; size_of::<Self>()] {
+        self.0.to_le_bytes()
+    }
+}
 
 /// Instructions supported by the Pike VM.
 pub enum Instr<'a> {
@@ -168,6 +211,28 @@ pub enum Instr<'a> {
     /// continue at the remaining locations.
     SplitN(SplitN<'a>),
 
+    /// Jumps back to the beginning of some repetition, continues with the
+    /// code that comes after the repetition, or both, depending on the
+    /// repetition count for the current thread and the minimum and maximum
+    /// number of repetitions indicated by `min` and `max`. The logic goes
+    /// as follows:
+    /// - If the repetition count for the current thread (`rep_count`) is
+    ///   less than `min`, only jumps to the beginning of the repetition as
+    ///   the minimum number of repetitions has not been reached yet.
+    /// - If `rep_count` is between `min` and `max`, the current thread jumps
+    ///   to the beginning of the repetition, and a new thread continues
+    ///   executing the code after the repetition.
+    /// - If `rep_count` reached `max`, the current thread continues executing
+    ///   the code after the repetition.
+    RepeatGreedy { offset: Offset, min: u32, max: u32 },
+
+    /// Similar to [`RepeatGreedy`], the only difference resides on the priority
+    /// of newly created threads vs the existing thread. In the greedy version
+    /// of this instruction going back to the start of the repetition has higher
+    /// priority, while for this instruction continuing with the code after the
+    /// repetition has higher priority.
+    RepeatNonGreedy { offset: Offset, min: u32, max: u32 },
+
     /// Relative jump. The opcode is followed by an offset, the location
     /// of the target instruction is computed by adding this offset to the
     /// location of the jump opcode.
@@ -218,6 +283,8 @@ impl<'a> Instr<'a> {
     pub const WORD_BOUNDARY_NEG: u8 = 0x0D;
     pub const WORD_START: u8 = 0x0E;
     pub const WORD_END: u8 = 0x0F;
+    pub const REPEAT_GREEDY: u8 = 0x10;
+    pub const REPEAT_NON_GREEDY: u8 = 0x11;
 }
 
 /// Parses a slice of bytes that contains Pike VM instructions, returning
@@ -285,6 +352,32 @@ impl<'a> InstrParser<'a> {
                         + size_of::<Offset>() * n as usize,
                 )
             }
+            [OPCODE_PREFIX, Instr::REPEAT_GREEDY, ..] => {
+                let offset = Self::decode_offset(&code[2..]);
+                let min = Self::decode_u32(&code[2 + size_of::<Offset>()..]);
+                let max = Self::decode_u32(
+                    &code[2 + size_of::<Offset>() + size_of::<u32>()..],
+                );
+                (
+                    Instr::RepeatGreedy { offset, min, max },
+                    2 + size_of::<Offset>()
+                        + size_of::<u32>()
+                        + size_of::<u32>(),
+                )
+            }
+            [OPCODE_PREFIX, Instr::REPEAT_NON_GREEDY, ..] => {
+                let offset = Self::decode_offset(&code[2..]);
+                let min = Self::decode_u32(&code[2 + size_of::<Offset>()..]);
+                let max = Self::decode_u32(
+                    &code[2 + size_of::<Offset>() + size_of::<u32>()..],
+                );
+                (
+                    Instr::RepeatNonGreedy { offset, min, max },
+                    2 + size_of::<Offset>()
+                        + size_of::<u32>()
+                        + size_of::<u32>(),
+                )
+            }
             [OPCODE_PREFIX, Instr::CLASS_RANGES, ..] => {
                 let n = *unsafe { code.get_unchecked(2) } as usize;
                 let ranges =
@@ -316,6 +409,13 @@ impl<'a> InstrParser<'a> {
             [b, ..] => (Instr::Byte(b), 1),
             _ => unreachable!(),
         }
+    }
+
+    fn decode_u32(slice: &[u8]) -> u32 {
+        let bytes: &[u8; size_of::<u32>()] =
+            unsafe { &*(slice.as_ptr() as *const [u8; size_of::<u32>()]) };
+
+        u32::from_le_bytes(*bytes)
     }
 
     fn decode_offset(slice: &[u8]) -> Offset {
@@ -454,7 +554,7 @@ impl<'a> ClassBitmap<'a> {
 
 /// Returns the length of the code emitted for the given literal.
 ///
-/// Usually the code emitted for a literal has the same length than the literal
+/// Usually the code emitted for a literal has the same length as the literal
 /// itself, because each byte in the literal corresponds to one byte in the
 /// code. However, this is not true if the literal contains one or more bytes
 /// equal to [`OPCODE_PREFIX`]. In such cases the code is longer than the

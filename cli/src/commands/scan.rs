@@ -17,7 +17,9 @@ use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
 use yara_x::errors::ScanError;
-use yara_x::{MetaValue, Rule, Rules, ScanOptions, ScanResults, Scanner};
+use yara_x::{
+    MetaValue, PatternKind, Rule, Rules, ScanOptions, ScanResults, Scanner,
+};
 
 use crate::commands::{
     compile_rules, external_var_parser, meta_file_value_parser,
@@ -33,8 +35,6 @@ enum OutputFormats {
     /// Newline delimited JSON (i.e: one JSON object per line).
     Ndjson,
 }
-
-const STRINGS_LIMIT: usize = 120;
 
 #[rustfmt::skip]
 pub fn scan() -> Command {
@@ -124,17 +124,24 @@ pub fn scan() -> Command {
                 .help("Print rule namespace")
         )
         .arg(
-            arg!(-s --"print-strings")
-                .help("Print matching patterns, limited to the first 120 bytes")
-        )
-        .arg(
-            arg!(--"print-strings-limit" <N>)
-                .help("Print matching patterns, limited to the first N bytes")
+            arg!(-s --"print-strings" [N])
+                .help("Print matching patterns")
+                .long_help(help::SCAN_PRINT_STRING_LONG_HELP)
+                .default_missing_value("120")
+                .require_equals(true)
                 .value_parser(value_parser!(usize))
         )
         .arg(
             arg!(-g --"print-tags")
                 .help("Print rule tags")
+        )
+        .arg(
+            arg!(-r --"recursive" [MAX_DEPTH])
+                .help("Scan directories recursively")
+                .long_help(help::SCAN_RECURSIVE_LONG_HELP)
+                .default_missing_value("100")
+                .require_equals(true)
+                .value_parser(value_parser!(usize))
         )
         .arg(
             arg!(--"relaxed-re-syntax")
@@ -180,6 +187,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let skip_larger = args.get_one::<u64>("skip-larger");
     let disable_console_logs = args.get_flag("disable-console-logs");
     let scan_list = args.get_flag("scan-list");
+    let recursive = args.get_one::<usize>("recursive");
 
     let timeout =
         args.get_one::<u64>("timeout").map(|t| Duration::from_secs(*t));
@@ -194,6 +202,13 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         .flatten()
         // collect to eagerly call the parser on each element
         .collect::<Vec<_>>();
+
+    if recursive.is_some() && target_path.is_file() {
+        bail!(
+            "can't use '{}' when <TARGET_PATH> is a file",
+            Paint::bold("--recursive")
+        );
+    }
 
     let rules = if compiled_rules {
         if rules_path.len() > 1 {
@@ -250,6 +265,8 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     if let Some(max_file_size) = skip_larger {
         w.metadata_filter(|metadata| metadata.len() <= *max_file_size);
     }
+
+    w.max_depth(*recursive.unwrap_or(&0));
 
     let start_time = Instant::now();
     let state = ScanState::new(start_time);
@@ -309,7 +326,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 .files_in_progress
                 .lock()
                 .unwrap()
-                .push((file_path.clone(), now));
+                .push((file_path.to_path_buf(), now));
 
             let scan_options = all_metadata.iter().fold(
                 ScanOptions::new(),
@@ -329,8 +346,12 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 .retain(|(p, _)| !file_path.eq(p));
 
             let scan_results = scan_results?;
-            let matched_count =
-                process_scan_results(args, &file_path, &scan_results, output);
+            let matched_count = process_scan_results(
+                args,
+                file_path.as_path(),
+                &scan_results,
+                output,
+            );
 
             state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
             if matched_count > 0 {
@@ -381,8 +402,7 @@ fn print_rules_as_json(
     let only_tag = args.get_one::<String>("tag");
     let print_tags = args.get_flag("print-tags");
     let print_meta = args.get_flag("print-meta");
-    let print_strings = args.get_flag("print-strings");
-    let print_strings_limit = args.get_one::<usize>("print-strings-limit");
+    let print_strings = args.get_one::<usize>("print-strings");
 
     // One JSON object per file, with a "rules" key that contains a list of
     // matched rules.
@@ -423,8 +443,7 @@ fn print_rules_as_json(
             json_rule["tags"] = serde_json::json!(tags);
         }
 
-        if print_strings || print_strings_limit.is_some() {
-            let limit = print_strings_limit.unwrap_or(&STRINGS_LIMIT);
+        if let Some(limit) = print_strings {
             let mut match_vec: Vec<serde_json::Value> = Vec::new();
             for p in matching_rule.patterns() {
                 for m in p.matches() {
@@ -489,8 +508,7 @@ fn print_rules_as_text(
     let only_tag = args.get_one::<String>("tag");
     let print_tags = args.get_flag("print-tags");
     let print_meta = args.get_flag("print-meta");
-    let print_strings = args.get_flag("print-strings");
-    let print_strings_limit = args.get_one::<usize>("print-strings-limit");
+    let print_strings = args.get_one::<usize>("print-strings");
 
     // Clippy insists on replacing the `while let` statement with
     // `for matching_rule in rules.by_ref()`, but that fails with
@@ -505,7 +523,7 @@ fn print_rules_as_text(
             return;
         }
 
-        let mut line = if print_namespace {
+        let mut msg = if print_namespace {
             format!(
                 "{}:{}",
                 matching_rule.namespace().paint(Cyan).bold(),
@@ -518,61 +536,58 @@ fn print_rules_as_text(
         let tags = matching_rule.tags();
 
         if print_tags && !tags.is_empty() {
-            line.push_str(" [");
+            msg.push_str(" [");
             for (pos, tag) in tags.with_position() {
-                line.push_str(tag.identifier());
+                msg.push_str(tag.identifier());
                 if !matches!(pos, itertools::Position::Last) {
-                    line.push(',');
+                    msg.push(',');
                 }
             }
-            line.push(']');
+            msg.push(']');
         }
 
         let metadata = matching_rule.metadata();
 
         if print_meta && !metadata.is_empty() {
-            line.push_str(" [");
+            msg.push_str(" [");
             for (pos, (m, v)) in metadata.with_position() {
                 match v {
                     MetaValue::Bool(v) => {
-                        line.push_str(&format!("{}={}", m, v))
+                        msg.push_str(&format!("{}={}", m, v))
                     }
                     MetaValue::Integer(v) => {
-                        line.push_str(&format!("{}={}", m, v))
+                        msg.push_str(&format!("{}={}", m, v))
                     }
                     MetaValue::Float(v) => {
-                        line.push_str(&format!("{}={}", m, v))
+                        msg.push_str(&format!("{}={}", m, v))
                     }
                     MetaValue::String(v) => {
-                        line.push_str(&format!("{}=\"{}\"", m, v))
+                        msg.push_str(&format!("{}=\"{}\"", m, v))
                     }
-                    MetaValue::Bytes(v) => line.push_str(&format!(
+                    MetaValue::Bytes(v) => msg.push_str(&format!(
                         "{}=\"{}\"",
                         m,
                         v.escape_ascii()
                     )),
                 };
                 if !matches!(pos, itertools::Position::Last) {
-                    line.push(',');
+                    msg.push(',');
                 }
             }
-            line.push(']');
+            msg.push(']');
         }
 
-        line.push(' ');
-        line.push_str(&file_path.display().to_string());
+        msg.push(' ');
+        msg.push_str(&file_path.display().to_string());
 
-        output.send(Message::Info(line)).unwrap();
-
-        if print_strings || print_strings_limit.is_some() {
-            let limit = print_strings_limit.unwrap_or(&STRINGS_LIMIT);
+        if let Some(limit) = print_strings {
             for p in matching_rule.patterns() {
                 for m in p.matches() {
                     let match_range = m.range();
                     let match_data = m.data();
 
-                    let mut msg = format!(
-                        "{:#x}:{}:{}",
+                    let mut match_str = format!(
+                        "\n{:#x}:{}:{}",
                         match_range.start,
                         match_range.len(),
                         p.identifier(),
@@ -580,31 +595,46 @@ fn print_rules_as_text(
 
                     match m.xor_key() {
                         Some(k) => {
-                            msg.push_str(format!(" xor({:#x},", k).as_str());
+                            match_str
+                                .push_str(format!(" xor({:#x},", k).as_str());
                             for b in
                                 &match_data[..min(match_data.len(), *limit)]
                             {
                                 for c in (b ^ k).escape_ascii() {
-                                    msg.push_str(
+                                    match_str.push_str(
                                         format!("{}", c as char).as_str(),
                                     );
                                 }
                             }
-                            msg.push_str("): ");
+                            match_str.push_str("): ");
                         }
                         _ => {
-                            msg.push_str(": ");
+                            match_str.push_str(": ");
                         }
                     }
 
-                    for b in &match_data[..min(match_data.len(), *limit)] {
-                        for c in b.escape_ascii() {
-                            msg.push_str(format!("{}", c as char).as_str());
+                    let data = &match_data[..min(match_data.len(), *limit)];
+
+                    match p.kind() {
+                        PatternKind::Text | PatternKind::Regexp => {
+                            for b in data {
+                                for c in b.escape_ascii() {
+                                    match_str.push_str(
+                                        format!("{}", c as char).as_str(),
+                                    );
+                                }
+                            }
+                        }
+                        PatternKind::Hex => {
+                            for b in data {
+                                match_str
+                                    .push_str(format!("{:02x} ", b).as_str());
+                            }
                         }
                     }
 
                     if match_data.len() > *limit {
-                        msg.push_str(
+                        match_str.push_str(
                             format!(
                                 " ... {} more bytes",
                                 match_data.len().saturating_sub(*limit)
@@ -613,10 +643,12 @@ fn print_rules_as_text(
                         );
                     }
 
-                    output.send(Message::Info(msg)).unwrap();
+                    msg.push_str(&match_str)
                 }
             }
         }
+
+        output.send(Message::Info(msg)).unwrap();
     }
 }
 

@@ -231,7 +231,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
         identifier: pattern.identifier.clone(),
         in_use: false,
         span: pattern.span(),
-        pattern: Pattern::Literal(LiteralPattern {
+        pattern: Pattern::Text(LiteralPattern {
             flags,
             xor_range,
             base64_alphabet,
@@ -265,7 +265,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
         identifier: pattern.identifier.clone(),
         in_use: false,
         span: pattern.span(),
-        pattern: Pattern::Regexp(RegexpPattern {
+        pattern: Pattern::Hex(RegexpPattern {
             flags: PatternFlagSet::from(PatternFlags::Ascii),
             hir: re::hir::Hir::from(hex_pattern_hir_from_ast(ctx, pattern)?),
             anchored_at: None,
