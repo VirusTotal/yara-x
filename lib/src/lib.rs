@@ -113,7 +113,7 @@ mod utils {
     /// if let pat(inner) = target {
     ///     inner
     /// } else {
-    ///     panic!("mismatch variant when cast to {}", stringify!($pat));     ///
+    ///     panic!("mismatch variant when cast to {}", stringify!($pat));
     /// }
     /// ```
     macro_rules! cast {
