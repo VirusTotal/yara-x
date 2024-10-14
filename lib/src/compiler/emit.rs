@@ -2189,9 +2189,9 @@ fn emit_with(
 ///           ;; Look for the i32 at the top of the stack, and depending on its
 ///           ;; value jumps out of some block...
 ///           br_table
-///                3 (;@2;)   ;; selector == 0 -> jump out of block @2
+///                1 (;@4;)   ;; selector == 0 -> jump out of block @4
 ///                2 (;@3;)   ;; selector == 1 -> jump out of block @3
-///                1 (;@4;)   ;; selector == 2 -> jump out of block @4
+///                4 (;@2;)   ;; selector == 2 -> jump out of block @2
 ///                0 (;@5;)   ;; default       -> jump out of block @5
 ///
 ///         end                         ;; block @5
@@ -2199,7 +2199,7 @@ fn emit_with(
 ///                                     ;; the switch selector is out of range
 ///       end                           ;; block @4
 ///       block (result i64)
-///         ;; < code expr 2 goes here >
+///         ;; < code expr 0 goes here >
 ///       end
 ///       br 2 (;@1;)                   ;; exits block @1
 ///     end                             ;; block @3
@@ -2209,7 +2209,7 @@ fn emit_with(
 ///     br 1 (;@1;)                     ;; exits block @1
 ///   end                               ;; block @2
 ///   block (result i64)
-///     ;; < code expr 0 goes here >
+///     ;; < code expr 2 goes here >
 ///   end
 /// end                                 ;; block @1
 ///                                     ;; at this point the i64 returned by the
@@ -2255,12 +2255,12 @@ fn emit_switch<F>(
 
     block_ids.push(block_id);
 
-    let first_branch = branch_blocks.pop_front().unwrap();
+    let last_branch = branch_blocks.pop_back().unwrap();
 
-    // Iterate over the branches of the switch statement in reverse order,
-    // excluding the first branch. The first branch is handled slightly
-    // differently because its code is put directly in the outermost block.
-    while let Some(expr_block) = branch_blocks.pop_back() {
+    // Iterate over the branches of the switch statement except the last one.
+    // The last branch is handled slightly differently because its code is put
+    // directly in the outermost block.
+    while let Some(expr_block) = branch_blocks.pop_front() {
         let mut branch = instr.dangling_instr_seq(None);
         // This is the block that contains all the previous branches
         branch.instr(walrus::ir::Block { seq: block_id });
@@ -2273,8 +2273,6 @@ fn emit_switch<F>(
         block_ids.push(block_id);
     }
 
-    block_ids.reverse();
-
     instr
         .instr_seq(switch_block_id)
         .block(None, |block| {
@@ -2286,7 +2284,7 @@ fn emit_switch<F>(
     instr
         .instr_seq(outermost_block_id)
         .instr(walrus::ir::Block { seq: block_id })
-        .instr(first_branch);
+        .instr(last_branch);
 
     instr.instr(walrus::ir::Block { seq: outermost_block_id });
 }
