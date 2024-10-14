@@ -90,7 +90,7 @@ impl Formatter {
             indent_section_contents: true,
             indent_spaces: 2,
             newline_before_curly_brace: false,
-            empty_line_before_section_header: false,
+            empty_line_before_section_header: true,
             empty_line_after_section_header: false,
         }
     }
@@ -662,6 +662,24 @@ impl Formatter {
                     ),
             )
         };
+
+        // Always remove empty line before the first section header.
+        let tokens = processor::Processor::new(tokens)
+            .set_passthrough(*CONTROL)
+            .add_rule(
+                |ctx| {
+                    ctx.token(1).is(*NEWLINE)
+                        && matches!(
+                            ctx.token(2),
+                            Keyword(b"meta")
+                                | Keyword(b"strings")
+                                | Keyword(b"condition")
+                        )
+                        && ctx.token(-1).is(*NEWLINE)
+                        && ctx.token(-2).eq(&LBRACE)
+                },
+                processor::actions::drop,
+            );
 
         let tokens = if self.empty_line_after_section_header {
             Box::new(

@@ -85,6 +85,8 @@ rule.newline_before_curly_brace = false
 # Add an empty line before section headers so that:
 #
 # rule a {
+#   meta:
+#     date = "20240705"
 #   strings:
 #     $ = "AXSERS"
 # }
@@ -92,11 +94,16 @@ rule.newline_before_curly_brace = false
 # Becomes:
 #
 # rule a {
+#   meta:
+#     date = "20240705"
 #
 #   strings:
 #     $ = "AXSERS"
 # }
-rule.empty_line_before_section_header = false
+#
+# Note: This does not apply to the first section header defined. All empty lines
+# before the first section header are always removed.
+rule.empty_line_before_section_header = true
 
 # Add an empty line after section headers so that:
 #

@@ -5,6 +5,7 @@ rule test {
 
     $bazbazbaz = "baz"
     $qux       = "qux"
+
   condition:
     all of them
 }

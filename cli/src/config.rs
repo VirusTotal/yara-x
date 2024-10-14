@@ -64,7 +64,7 @@ impl Default for Config {
                     indent_section_contents: true,
                     indent_spaces: 2,
                     newline_before_curly_brace: false,
-                    empty_line_before_section_header: false,
+                    empty_line_before_section_header: true,
                     empty_line_after_section_header: false,
                 },
                 meta: Meta { align_values: true },

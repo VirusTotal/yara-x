@@ -3,6 +3,7 @@ rule test {
     $a = "foo"
     $b = "bar"
     $c = "baz"
+
   condition:
     (
       $a and
