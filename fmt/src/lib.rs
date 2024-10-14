@@ -646,6 +646,19 @@ impl Formatter {
                             ) && ctx.token(-1).is_not(*NEWLINE)
                         },
                         processor::actions::newline,
+                    )
+                    .add_rule(
+                        |ctx| {
+                            ctx.token(1).is(*NEWLINE)
+                                && matches!(
+                                    ctx.token(2),
+                                    Keyword(b"meta")
+                                        | Keyword(b"strings")
+                                        | Keyword(b"condition")
+                                )
+                                && ctx.token(-1).is(*NEWLINE)
+                        },
+                        processor::actions::drop,
                     ),
             )
         };
@@ -682,19 +695,36 @@ impl Formatter {
                     ),
             )
         } else {
-            Box::new(processor::Processor::new(tokens).add_rule(
-                |ctx| {
-                    ctx.token(-1).eq(&COLON)
-                        && matches!(
-                            ctx.token(-2),
-                            Keyword(b"meta")
-                                | Keyword(b"strings")
-                                | Keyword(b"condition")
-                        )
-                        && ctx.token(1).is_not(*NEWLINE)
-                },
-                processor::actions::newline,
-            ))
+            Box::new(
+                processor::Processor::new(tokens)
+                    .add_rule(
+                        |ctx| {
+                            ctx.token(-1).eq(&COLON)
+                                && matches!(
+                                    ctx.token(-2),
+                                    Keyword(b"meta")
+                                        | Keyword(b"strings")
+                                        | Keyword(b"condition")
+                                )
+                                && ctx.token(1).is_not(*NEWLINE)
+                        },
+                        processor::actions::newline,
+                    )
+                    .add_rule(
+                        |ctx| {
+                            ctx.token(-1).eq(&COLON)
+                                && matches!(
+                                    ctx.token(-2),
+                                    Keyword(b"meta")
+                                        | Keyword(b"strings")
+                                        | Keyword(b"condition")
+                                )
+                                && ctx.token(1).is(*NEWLINE)
+                                && ctx.token(2).is(*NEWLINE)
+                        },
+                        processor::actions::drop,
+                    ),
+            )
         };
 
         let tokens = processor::Processor::new(tokens)
