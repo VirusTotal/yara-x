@@ -2,9 +2,12 @@ use crate::compiler::RuleId;
 use crate::wasm;
 use rustc_hash::FxHashMap;
 use std::mem;
-use walrus::ir::{Block, InstrSeqId, UnaryOp};
+use walrus::ir::ExtendedLoad::ZeroExtend;
+use walrus::ir::{BinaryOp, Block, InstrSeqId, LoadKind, MemArg, UnaryOp};
 use walrus::ValType::{F64, I32, I64};
-use walrus::{FunctionBuilder, FunctionId, InstrSeqBuilder};
+use walrus::{
+    FunctionBuilder, FunctionId, GlobalId, InstrSeqBuilder, MemoryId, Module,
+};
 
 use super::WasmSymbols;
 
@@ -167,9 +170,16 @@ impl WasmModuleBuilder {
             None,
         );
 
-        let wasm_symbols = WasmSymbols {
+        // Generate the function that checks if a pattern matched.
+        let check_for_pattern_match = Self::gen_check_for_pattern_match(
+            &mut module,
             main_memory,
             matching_patterns_bitmap_base,
+        );
+
+        let wasm_symbols = WasmSymbols {
+            main_memory,
+            check_for_pattern_match,
             filesize,
             pattern_search_done,
             timeout_occurred,
@@ -419,5 +429,67 @@ impl WasmModuleBuilder {
             // executed.
             namespace_block.br_if(namespace_block_id);
         }
+    }
+
+    fn gen_check_for_pattern_match(
+        module: &mut Module,
+        main_memory: MemoryId,
+        matching_patterns_bitmap_base: GlobalId,
+    ) -> FunctionId {
+        // The function receives an I32 with the pattern ID, and returns an
+        // I32 with values 0 or 1.
+        let mut func = FunctionBuilder::new(&mut module.types, &[I32], &[I32]);
+
+        let pattern_id = module.locals.add(I32);
+        let tmp = module.locals.add(I32);
+
+        let mut instr = func.func_body();
+
+        // Put the pattern ID at the top of the stack.
+        instr.local_get(pattern_id);
+
+        // Divide by pattern ID by 8 for getting the byte offset relative to
+        // the start of the bitmap.
+        instr.i32_const(3);
+        instr.binop(BinaryOp::I32ShrU);
+
+        // Add the base of the bitmap for getting the final memory address.
+        instr.global_get(matching_patterns_bitmap_base);
+        instr.binop(BinaryOp::I32Add);
+
+        // Load the byte that contains the ID-th bit.
+        instr.load(
+            main_memory,
+            LoadKind::I32_8 { kind: ZeroExtend },
+            MemArg { align: size_of::<i8>() as u32, offset: 0 },
+        );
+
+        // At this point the byte is at the top of the stack. The byte will be
+        // the first argument for the I32And instruction below.
+
+        // Put 1 in the stack. This is the first argument to I32Shl.
+        instr.i32_const(1);
+
+        // Compute pattern_id % 8 and store the result back to temp variable,
+        // but leaving a copy in the stack,
+        instr.local_get(pattern_id);
+        instr.i32_const(8);
+        instr.binop(BinaryOp::I32RemU);
+        instr.local_tee(tmp);
+
+        // Compute (1 << (rule_id % 8))
+        instr.binop(BinaryOp::I32Shl);
+
+        // Compute byte & (1 << (rule_id % 8)) which clears all the bits except
+        // the one we are interested in.
+        instr.binop(BinaryOp::I32And);
+
+        // Now shift the byte to the right, leaving the
+        // interesting bit as the LSB. So the result is either
+        // 1 or 0.
+        instr.local_get(tmp);
+        instr.binop(BinaryOp::I32ShrU);
+
+        func.finish(vec![pattern_id], &mut module.funcs)
     }
 }

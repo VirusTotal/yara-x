@@ -679,10 +679,9 @@ pub(crate) struct WasmSymbols {
     /// The WASM module's main memory.
     pub main_memory: walrus::MemoryId,
 
-    /// Global variable that contains the offset within the module's main
-    /// memory where resides the bitmap that indicates if a pattern matches
-    /// or not.
-    pub matching_patterns_bitmap_base: walrus::GlobalId,
+    /// Function that checks if a pattern matched or not. This function
+    /// receives the pattern ID and returns a boolean.
+    pub check_for_pattern_match: walrus::FunctionId,
 
     /// Global variable that contains the value for `filesize`.
     pub filesize: walrus::GlobalId,
