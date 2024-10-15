@@ -1195,7 +1195,7 @@ fn emit_check_for_rule_match(
     instr.binop(BinaryOp::I32ShrU);
 }
 
-/// Emits the code that checks if a pattern (a.k.a string) has matched.
+/// Emits the code that checks if a pattern (a.k.a. string) has matched.
 ///
 /// This function assumes that the PatternId is at the top of the stack as a
 /// I32. The emitted code consumes the PatternId and leaves another I32 with
@@ -1204,51 +1204,7 @@ fn emit_check_for_pattern_match(
     ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
 ) {
-    // Take the pattern ID at the top of the stack and store it in a temp
-    // variable, but leaving a copy in the stack.
-    instr.local_tee(ctx.wasm_symbols.i32_tmp);
-
-    // Divide by pattern ID by 8 for getting the byte offset relative to
-    // the start of the bitmap.
-    instr.i32_const(3);
-    instr.binop(BinaryOp::I32ShrU);
-
-    // Add the base of the bitmap for getting the final memory address.
-    instr.global_get(ctx.wasm_symbols.matching_patterns_bitmap_base);
-    instr.binop(BinaryOp::I32Add);
-
-    // Load the byte that contains the ID-th bit.
-    instr.load(
-        ctx.wasm_symbols.main_memory,
-        LoadKind::I32_8 { kind: ZeroExtend },
-        MemArg { align: size_of::<i8>() as u32, offset: 0 },
-    );
-
-    // At this point the byte is at the top of the stack. The byte will be
-    // the first argument for the I32And instruction below.
-
-    // Put 1 in the stack. This is the first argument to I32Shl.
-    instr.i32_const(1);
-
-    // Compute pattern_id % 8 and store the result back to temp variable,
-    // but leaving a copy in the stack,
-    instr.local_get(ctx.wasm_symbols.i32_tmp);
-    instr.i32_const(8);
-    instr.binop(BinaryOp::I32RemU);
-    instr.local_tee(ctx.wasm_symbols.i32_tmp);
-
-    // Compute (1 << (rule_id % 8))
-    instr.binop(BinaryOp::I32Shl);
-
-    // Compute byte & (1 << (rule_id % 8)) which clears all the bits except
-    // the one we are interested in.
-    instr.binop(BinaryOp::I32And);
-
-    // Now shift the byte to the right, leaving the
-    // interesting bit as the LSB. So the result is either
-    // 1 or 0.
-    instr.local_get(ctx.wasm_symbols.i32_tmp);
-    instr.binop(BinaryOp::I32ShrU);
+    instr.call(ctx.wasm_symbols.check_for_pattern_match);
 }
 
 /// Emits the code that gets an array item by index.
