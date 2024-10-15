@@ -461,7 +461,7 @@ impl WasmModuleBuilder {
         instr.load(
             main_memory,
             LoadKind::I32_8 { kind: ZeroExtend },
-            MemArg { align: size_of::<i8>() as u32, offset: 0 },
+            MemArg { align: mem::size_of::<i8>() as u32, offset: 0 },
         );
 
         // At this point the byte is at the top of the stack. The byte will be
