@@ -54,10 +54,10 @@ jobs:
 
     - run: rustup target add ${{ matrix.target }}
 
-    #- name: Build
-    #  run: cargo build --bin yr --profile release-lto --target ${{ matrix.target }}
-    #  env:
-    #    RUSTFLAGS: "-C target-feature=+crt-static"
+    - name: Build
+      run: cargo build --bin yr --profile release-lto --target ${{ matrix.target }}
+      env:
+        RUSTFLAGS: "-C target-feature=+crt-static"
 
     - name: Build C library
       if: matrix.build == 'windows'
