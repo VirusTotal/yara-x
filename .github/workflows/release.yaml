@@ -43,14 +43,14 @@ jobs:
       with:
         toolchain: stable
 
-    #- name: Check version number
-    #  shell: bash
-    #  run: |
-    #    set -ex
-    #    version=`cargo pkgid --manifest-path lib/Cargo.toml | cut -d "@" -f2`
-    #    if [ "${{ github.ref_name }}" != "v$version" ]; then
-    #      exit 1
-    #    fi
+    - name: Check version number
+      shell: bash
+      run: |
+        set -ex
+        version=`cargo pkgid --manifest-path lib/Cargo.toml | cut -d "@" -f2`
+        if [ "${{ github.ref_name }}" != "v$version" ]; then
+          exit 1
+        fi
 
     - run: rustup target add ${{ matrix.target }}
 
@@ -205,46 +205,46 @@ jobs:
         draft: true
         files: yr-*/yara-x-*
 
-#  publish-crate:
-#    needs: [ publish ]
-#    runs-on: ubuntu-latest
-#    steps:
-#    - name: Checkout sources
-#      uses: actions/checkout@v4
-#
-#    - name: Publish crate
-#      env:
-#        # Don't re-generate the files `modules.rs` and `add_modules.rs`, use
-#        # the ones in the repository. These files can't be regenerated because
-#        # `cargo publish` checks that the repository doesn't change during
-#        # the build. See: https://github.com/rust-lang/cargo/pull/5584
-#        YRX_REGENERATE_MODULES_RS: "no"
-#      run: |
-#        cargo login ${{ secrets.CRATES_IO_API_TOKEN }}
-#        cargo publish -p yara-x-macros
-#        cargo publish -p yara-x-proto
-#        cargo publish -p yara-x-proto-yaml
-#        cargo publish -p yara-x-parser
-#        cargo publish -p yara-x
-#
-#  publish-py:
-#    needs: [ build-py ]
-#    runs-on: ubuntu-latest
-#    environment:
-#      name: pypi
-#      url: https://pypi.org/p/yara-x
-#    permissions:
-#      id-token: write
-#    steps:
-#    - name: Download artifacts
-#      uses: actions/download-artifact@v4
-#      with:
-#        pattern: pypi-*
-#        merge-multiple: true
-#        path: dist
-#
-#    - name: Publish package distributions to PyPI
-#      uses: pypa/gh-action-pypi-publish@release/v1
-#      with:
-#        #repository-url: https://test.pypi.org/legacy/
-#        skip-existing: true
+  publish-crate:
+    needs: [ publish ]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v4
+
+    - name: Publish crate
+      env:
+        # Don't re-generate the files `modules.rs` and `add_modules.rs`, use
+        # the ones in the repository. These files can't be regenerated because
+        # `cargo publish` checks that the repository doesn't change during
+        # the build. See: https://github.com/rust-lang/cargo/pull/5584
+        YRX_REGENERATE_MODULES_RS: "no"
+      run: |
+        cargo login ${{ secrets.CRATES_IO_API_TOKEN }}
+        cargo publish -p yara-x-macros
+        cargo publish -p yara-x-proto
+        cargo publish -p yara-x-proto-yaml
+        cargo publish -p yara-x-parser
+        cargo publish -p yara-x
+
+  publish-py:
+    needs: [ build-py ]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/yara-x
+    permissions:
+      id-token: write
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: pypi-*
+        merge-multiple: true
+        path: dist
+
+    - name: Publish package distributions to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        #repository-url: https://test.pypi.org/legacy/
+        skip-existing: true
