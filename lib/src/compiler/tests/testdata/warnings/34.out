@@ -1,0 +1,14 @@
+warning[text_as_hex]: hex pattern could be written as text literal
+ --> line:3:5
+  |
+3 |     $aaa = { 61 61 61 }
+  |     ----------------- this pattern can be written as a text literal
+  |     ----------------- help: replace with "aaa"
+  |
+warning[text_as_hex]: hex pattern could be written as text literal
+  --> line:10:5
+   |
+10 |     $aaa = { 61 09 62 }
+   |     ----------------- this pattern can be written as a text literal
+   |     ----------------- help: replace with "a\tb"
+   |
