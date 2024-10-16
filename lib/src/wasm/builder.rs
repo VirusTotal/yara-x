@@ -239,7 +239,7 @@ impl WasmModuleBuilder {
         self.wasm_exports.clone()
     }
 
-    /// Configure the number of YARA that namespaces that will be put in each
+    /// Configure the number of YARA namespaces that will be put in each
     /// WASM function.
     pub fn namespaces_per_func(&mut self, n: usize) -> &mut Self {
         self.namespaces_per_func = n;
