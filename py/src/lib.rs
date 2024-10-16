@@ -114,6 +114,7 @@ impl Compiler {
     /// source code. This usually receives the path of the file from where the
     /// code was read, but it can be any arbitrary string that conveys information
     /// about the source code's origin.
+    #[pyo3(signature = (src, origin=None))]
     fn add_source(
         &mut self,
         src: &str,
