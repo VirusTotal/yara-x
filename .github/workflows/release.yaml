@@ -60,7 +60,7 @@ jobs:
         RUSTFLAGS: "-C target-feature=+crt-static"
 
     - name: Build C library
-      if: matric.build == 'windows'
+      if: matrix.build == 'windows'
       run: cargo cbuild --profile release-lto --target ${{ matrix.target }}
       env:
         RUSTFLAGS: "-C target-feature=+crt-static"
