@@ -1,0 +1,13 @@
+rule test_1 {
+  strings:
+    $aaa = { 61 61 61 }
+  condition:
+    $aaa
+}
+
+rule test_2 {
+  strings:
+    $aaa = { 61 09 62 }
+  condition:
+    $aaa
+}

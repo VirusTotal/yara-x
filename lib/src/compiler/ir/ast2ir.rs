@@ -27,7 +27,9 @@ use crate::compiler::ir::{
     PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern, With,
 };
 use crate::compiler::report::ReportBuilder;
-use crate::compiler::{warnings, CompileContext, CompileError};
+use crate::compiler::{
+    warnings, CompileContext, CompileError, TextPatternAsHex,
+};
 use crate::errors::CustomError;
 use crate::errors::PotentiallySlowLoop;
 use crate::modules::BUILTIN_MODULES;
@@ -262,13 +264,33 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
         }
     }
 
+    let hir = re::hir::Hir::from(hex_pattern_hir_from_ast(ctx, pattern)?);
+
+    // Check if the hex pattern can be written as an ASCII string. For instance,
+    // {61 61 61} can be written as "aaa", which is more legible. Notice that
+    // { 00 00 00 } is also a valid ASCII string, so we make sure that the string
+    // doesn't contain zeroes.
+    if let Some(literal) =
+        hir.as_literal_bytes().and_then(|lit| lit.to_str().ok())
+    {
+        if literal.is_ascii() && !literal.contains('\0') {
+            ctx.warnings.add(|| {
+                TextPatternAsHex::build(
+                    ctx.report_builder,
+                    literal.escape_default().to_string(),
+                    pattern.span().into(),
+                )
+            });
+        }
+    }
+
     Ok(PatternInRule {
         identifier: pattern.identifier.clone(),
         in_use: false,
         span: pattern.span(),
         pattern: Pattern::Hex(RegexpPattern {
+            hir,
             flags: PatternFlagSet::from(PatternFlags::Ascii),
-            hir: re::hir::Hir::from(hex_pattern_hir_from_ast(ctx, pattern)?),
             anchored_at: None,
         }),
     })

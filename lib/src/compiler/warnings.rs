@@ -17,17 +17,18 @@ use crate::compiler::report::{Level, Report, ReportBuilder, CodeLoc, Label, Foot
 #[derive(Serialize)]
 #[serde(tag = "type")]
 pub enum Warning {
-    ConsecutiveJumps(Box<ConsecutiveJumps>),
-    PotentiallySlowLoop(Box<PotentiallySlowLoop>),
-    PotentiallyUnsatisfiableExpression(Box<PotentiallyUnsatisfiableExpression>),
-    InvariantBooleanExpression(Box<InvariantBooleanExpression>),
-    NonBooleanAsBoolean(Box<NonBooleanAsBoolean>),
     BooleanIntegerComparison(Box<BooleanIntegerComparison>),
+    ConsecutiveJumps(Box<ConsecutiveJumps>),
     DuplicateImport(Box<DuplicateImport>),
-    RedundantCaseModifier(Box<RedundantCaseModifier>),
-    SlowPattern(Box<SlowPattern>),
     IgnoredModule(Box<IgnoredModule>),
     IgnoredRule(Box<IgnoredRule>),
+    InvariantBooleanExpression(Box<InvariantBooleanExpression>),
+    NonBooleanAsBoolean(Box<NonBooleanAsBoolean>),
+    PotentiallySlowLoop(Box<PotentiallySlowLoop>),
+    PotentiallyUnsatisfiableExpression(Box<PotentiallyUnsatisfiableExpression>),
+    RedundantCaseModifier(Box<RedundantCaseModifier>),
+    SlowPattern(Box<SlowPattern>),
+    TextPatternAsHex(Box<TextPatternAsHex>),
 }
 
 /// A hex pattern contains two or more consecutive jumps.
@@ -424,4 +425,38 @@ pub struct IgnoredRule {
     ignored_rule_loc: CodeLoc,
 }
 
-
+/// Some hex pattern can be written as a text literal.
+///
+/// For instance `{61 62 63}` can be written as "abc". Text literals are
+/// preferred over hex patterns because they are more legible.
+///
+/// ## Example
+///
+/// ```text
+/// warning[text_as_hex]: hex pattern could be written as text literal
+///  --> test.yar:6:4
+///   |
+/// 6 |    $d = { 61 61 61 }
+///   |    --------------- this pattern can be written as a text literal
+///   |    --------------- help: replace with "aaa"
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "text_as_hex",
+    title = "hex pattern could be written as text literal"
+)]
+#[label(
+    "this pattern can be written as a text literal",
+    pattern_loc
+)]
+#[label(
+    "replace with \"{text}\"",
+    pattern_loc,
+    Level::Help
+)]
+pub struct TextPatternAsHex {
+    report: Report,
+    text: String,
+    pattern_loc: CodeLoc,
+}
