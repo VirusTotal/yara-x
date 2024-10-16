@@ -17,28 +17,28 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 0x2102  # EXECUTABLE_IMAGE | MACHINE_32BIT | DLL
 dll_characteristics: 0x0
 timestamp: 1231923061  # 2009-01-14 08:51:01 UTC
-image_base: 268435456
+image_base: 0x10000000
 checksum: 336327
-base_of_code: 4096
-base_of_data: 176128
-entry_point: 114418
-entry_point_raw: 114418
+base_of_code: 0x1000
+base_of_data: 0x2b000
+entry_point: 0x1bef2
+entry_point_raw: 0x1bef2
 dll_name: "Core.DLL"
 export_timestamp: 1231923061  # 2009-01-14 08:51:01 UTC
-section_alignment: 4096
-file_alignment: 4096
-loader_flags: 0
-size_of_optional_header: 224
-size_of_code: 172032
-size_of_initialized_data: 94208
-size_of_uninitialized_data: 0
-size_of_image: 278528
-size_of_headers: 4096
-size_of_stack_reserve: 1048576
-size_of_stack_commit: 4096
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+section_alignment: 0x1000
+file_alignment: 0x1000
+loader_flags: 0x0
+size_of_optional_header: 0xe0
+size_of_code: 0x2a000
+size_of_initialized_data: 0x17000
+size_of_uninitialized_data: 0x0
+size_of_image: 0x44000
+size_of_headers: 0x1000
+size_of_stack_reserve: 0x100000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -78,8 +78,8 @@ version_info_list:
   - key: "ProductVersion"
     value: "1.0.9.0"
 rich_signature:
-    offset: 128
-    length: 96
+    offset: 0x80
+    length: 0x60
     key: 3002618938
     raw_data: "~5\x96\xe1:T\xf8\xb2:T\xf8\xb2:T\xf8\xb2\xf9[\xa5\xb26T\xf8\xb2\x1d\x92\x85\xb2#T\xf8\xb2\xf9[\xa7\xb29T\xf8\xb2\x1d\x92\x83\xb2=T\xf8\xb2:T\xf9\xb2\xdaT\xf8\xb2\x1d\x92\x95\xb2\xb3T\xf8\xb2\x1d\x92\x96\xb2vT\xf8\xb2\x1d\x92\x82\xb2;T\xf8\xb2\x1d\x92\x84\xb2;T\xf8\xb2\x1d\x92\x80\xb2;T\xf8\xb2"
     clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xc3\x0f]\x00\x0c\x00\x00\x00\'\xc6}\x00\x19\x00\x00\x00\xc3\x0f_\x00\x03\x00\x00\x00\'\xc6{\x00\x07\x00\x00\x00\x00\x00\x01\x00\xe0\x00\x00\x00\'\xc6m\x00\x89\x00\x00\x00\'\xc6n\x00L\x00\x00\x00\'\xc6z\x00\x01\x00\x00\x00\'\xc6|\x00\x01\x00\x00\x00\'\xc6x\x00\x01\x00\x00\x00"
@@ -118,118 +118,118 @@ pdb_path: "d:\\Projects\\astroburn\\bin\\Release\\Core.pdb"
 sections:
   - name: ".text"
     full_name: ".text"
-    characteristics: 1610612768
-    raw_data_size: 172032
-    raw_data_offset: 4096
-    virtual_address: 4096
-    virtual_size: 171809
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0x2a000
+    raw_data_offset: 0x1000
+    virtual_address: 0x1000
+    virtual_size: 0x29f21
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rdata"
     full_name: ".rdata"
-    characteristics: 1073741888
-    raw_data_size: 36864
-    raw_data_offset: 176128
-    virtual_address: 176128
-    virtual_size: 33009
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x9000
+    raw_data_offset: 0x2b000
+    virtual_address: 0x2b000
+    virtual_size: 0x80f1
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".data"
     full_name: ".data"
-    characteristics: 3221225536
-    raw_data_size: 12288
-    raw_data_offset: 212992
-    virtual_address: 212992
-    virtual_size: 17508
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0x3000
+    raw_data_offset: 0x34000
+    virtual_address: 0x34000
+    virtual_size: 0x4464
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rsrc"
     full_name: ".rsrc"
-    characteristics: 1073741888
-    raw_data_size: 28672
-    raw_data_offset: 225280
-    virtual_address: 233472
-    virtual_size: 27580
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x7000
+    raw_data_offset: 0x37000
+    virtual_address: 0x39000
+    virtual_size: 0x6bbc
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".reloc"
     full_name: ".reloc"
-    characteristics: 1107296320
-    raw_data_size: 16384
-    raw_data_offset: 253952
-    virtual_address: 262144
-    virtual_size: 14054
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x42000040
+    raw_data_size: 0x4000
+    raw_data_offset: 0x3e000
+    virtual_address: 0x40000
+    virtual_size: 0x36e6
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 208976
-    size: 161
-  - virtual_address: 203892
-    size: 200
-  - virtual_address: 233472
-    size: 27580
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 270336
-    size: 4272
-  - virtual_address: 262144
-    size: 9872
-  - virtual_address: 177008
-    size: 28
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 189480
-    size: 64
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 176128
-    size: 796
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x33050
+    size: 0xa1
+  - virtual_address: 0x31c74
+    size: 0xc8
+  - virtual_address: 0x39000
+    size: 0x6bbc
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x42000
+    size: 0x10b0
+  - virtual_address: 0x40000
+    size: 0x2690
+  - virtual_address: 0x2b370
+    size: 0x1c
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x2e428
+    size: 0x40
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x2b000
+    size: 0x31c
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 4
     minor: 0
 resources:
-  - length: 26340
-    rva: 233792
-    offset: 225600
+  - length: 0x66e4
+    rva: 0x39140
+    offset: 0x37140
     id: 1
     language: 1049
     type_string: "T\x00Y\x00P\x00E\x00L\x00I\x00B\x00"
-  - length: 40
-    rva: 260132
-    offset: 251940
+  - length: 0x28
+    rva: 0x3f824
+    offset: 0x3d824
     type: RESOURCE_TYPE_STRING
     id: 7
     language: 1049
-  - length: 792
-    rva: 260172
-    offset: 251980
+  - length: 0x318
+    rva: 0x3f84c
+    offset: 0x3d84c
     type: RESOURCE_TYPE_VERSION
     id: 1
     language: 1049
-  - length: 86
-    rva: 260964
-    offset: 252772
+  - length: 0x56
+    rva: 0x3fb64
+    offset: 0x3db64
     type: RESOURCE_TYPE_MANIFEST
     id: 2
     language: 1033
@@ -238,448 +238,448 @@ import_details:
     number_of_functions: 44
     functions:
       - name: "StarBurn_SetFastReadTOC"
-        rva: 176668
+        rva: 0x2b21c
       - name: "StarBurn_CdvdBurnerGrabber_GetSpeeds"
-        rva: 176672
+        rva: 0x2b220
       - name: "StarBurn_CdvdBurnerGrabber_SetSpeeds"
-        rva: 176676
+        rva: 0x2b224
       - name: "StarBurn_Destroy"
-        rva: 176680
+        rva: 0x2b228
       - name: "StarBurn_CdvdBurnerGrabber_ProbeSupportedWriteModes"
-        rva: 176684
+        rva: 0x2b22c
       - name: "StarBurn_CdvdBurnerGrabber_GetAdvancedSupportedMediaFormats"
-        rva: 176688
+        rva: 0x2b230
       - name: "StarBurn_CdvdBurnerGrabber_TrackAtOnceFromFile"
-        rva: 176692
+        rva: 0x2b234
       - name: "StarBurn_CdvdBurnerGrabber_GetBUP"
-        rva: 176696
+        rva: 0x2b238
       - name: "StarBurn_CdvdBurnerGrabber_SetBUP"
-        rva: 176700
+        rva: 0x2b23c
       - name: "StarBurn_CdvdBurnerGrabber_SendOPC"
-        rva: 176704
+        rva: 0x2b240
       - name: "StarBurn_GetFastReadTOC"
-        rva: 176708
+        rva: 0x2b244
       - name: "StarBurn_CdvdBurnerGrabber_GetLastTrack"
-        rva: 176712
+        rva: 0x2b248
       - name: "StarBurn_CdvdBurnerGrabber_GrabTrack"
-        rva: 176716
+        rva: 0x2b24c
       - name: "StarBurn_CdvdBurnerGrabber_CreateExEx"
-        rva: 176720
+        rva: 0x2b250
       - name: "StarBurn_UDF2_ImpVolumeCreate"
-        rva: 176724
+        rva: 0x2b254
       - name: "StarBurn_UDF2_ImpVolumeImport"
-        rva: 176728
+        rva: 0x2b258
       - name: "StarBurn_CdvdBurnerGrabber_Lock"
-        rva: 176732
+        rva: 0x2b25c
       - name: "StarBurn_CdvdBurnerGrabber_Blank"
-        rva: 176736
+        rva: 0x2b260
       - name: "StarBurn_CdvdBurnerGrabber_Release"
-        rva: 176740
+        rva: 0x2b264
       - name: "StarBurn_CdvdBurnerGrabber_Eject"
-        rva: 176744
+        rva: 0x2b268
       - name: "StarBurn_UpStartEx"
-        rva: 176748
+        rva: 0x2b26c
       - name: "StarBurn_DownShut"
-        rva: 176752
+        rva: 0x2b270
       - name: "StarBurn_UDF2_DirectoryRootCreate"
-        rva: 176756
+        rva: 0x2b274
       - name: "StarBurn_CdvdBurnerGrabber_GetTOCInformation"
-        rva: 176760
+        rva: 0x2b278
       - name: "StarBurn_CdvdBurnerGrabber_GetDiscFileSystem"
-        rva: 176764
+        rva: 0x2b27c
       - name: "StarBurn_CdvdBurnerGrabber_GetInsertedDiscType"
-        rva: 176768
+        rva: 0x2b280
       - name: "StarBurn_CdvdBurnerGrabber_TestUnitReady"
-        rva: 176772
+        rva: 0x2b284
       - name: "StarBurn_GetDeviceNameByDeviceAddress"
-        rva: 176776
+        rva: 0x2b288
       - name: "StarBurn_CdvdBurnerGrabber_GetDeviceInformation"
-        rva: 176780
+        rva: 0x2b28c
       - name: "StarBurn_CdvdBurnerGrabber_GetTrackInformation"
-        rva: 176784
+        rva: 0x2b290
       - name: "StarBurn_CdvdBurnerGrabber_ExecuteGeneric"
-        rva: 176788
+        rva: 0x2b294
       - name: "StarBurn_CdvdBurnerGrabber_Read10"
-        rva: 176792
+        rva: 0x2b298
       - name: "StarBurn_CdvdBurnerGrabber_Cancel"
-        rva: 176796
+        rva: 0x2b29c
       - name: "StarBurn_CdvdBurnerGrabber_ReadCooked"
-        rva: 176800
+        rva: 0x2b2a0
       - name: "StarBurn_CdvdBurnerGrabber_TrackAtOnceFromPipeEx"
-        rva: 176804
+        rva: 0x2b2a4
       - name: "StarBurn_CdvdBurnerGrabber_CloseSession"
-        rva: 176808
+        rva: 0x2b2a8
       - name: "StarBurn_CdvdBurnerGrabber_DiscBasicInformation_Create"
-        rva: 176812
+        rva: 0x2b2ac
       - name: "StarBurn_CdvdBurnerGrabber_DiscBasicInformation_Destroy"
-        rva: 176816
+        rva: 0x2b2b0
       - name: "StarBurn_CdvdBurnerGrabber_Read"
-        rva: 176820
+        rva: 0x2b2b4
       - name: "StarBurn_GetAudioFileStreamSizeInUCHARs"
-        rva: 176824
+        rva: 0x2b2b8
       - name: "StarBurn_CdvdBurnerGrabber_Create"
-        rva: 176828
+        rva: 0x2b2bc
       - name: "StarBurn_CdvdBurnerGrabber_CreateEx"
-        rva: 176832
+        rva: 0x2b2c0
       - name: "StarBurn_FindDevice"
-        rva: 176836
+        rva: 0x2b2c4
       - name: "StarBurn_IsAudioFileSupported"
-        rva: 176840
+        rva: 0x2b2c8
   - library_name: "imgengine.dll"
     number_of_functions: 7
     functions:
       - name: "ord6"
         ordinal: 6
-        rva: 176868
+        rva: 0x2b2e4
       - name: "ord4"
         ordinal: 4
-        rva: 176872
+        rva: 0x2b2e8
       - name: "ord2"
         ordinal: 2
-        rva: 176876
+        rva: 0x2b2ec
       - name: "ord8"
         ordinal: 8
-        rva: 176880
+        rva: 0x2b2f0
       - name: "ord3"
         ordinal: 3
-        rva: 176884
+        rva: 0x2b2f4
       - name: "ord7"
         ordinal: 7
-        rva: 176888
+        rva: 0x2b2f8
       - name: "ord5"
         ordinal: 5
-        rva: 176892
+        rva: 0x2b2fc
   - library_name: "GrabHlp.dll"
     number_of_functions: 1
     functions:
       - name: "ord1"
         ordinal: 1
-        rva: 176188
+        rva: 0x2b03c
   - library_name: "KERNEL32.dll"
     number_of_functions: 100
     functions:
       - name: "HeapDestroy"
-        rva: 176196
+        rva: 0x2b044
       - name: "HeapCreate"
-        rva: 176200
+        rva: 0x2b048
       - name: "ExitProcess"
-        rva: 176204
+        rva: 0x2b04c
       - name: "GetStdHandle"
-        rva: 176208
+        rva: 0x2b050
       - name: "GetModuleFileNameA"
-        rva: 176212
+        rva: 0x2b054
       - name: "GetCPInfo"
-        rva: 176216
+        rva: 0x2b058
       - name: "GetACP"
-        rva: 176220
+        rva: 0x2b05c
       - name: "GetOEMCP"
-        rva: 176224
+        rva: 0x2b060
       - name: "IsValidCodePage"
-        rva: 176228
+        rva: 0x2b064
       - name: "HeapSize"
-        rva: 176232
+        rva: 0x2b068
       - name: "LCMapStringA"
-        rva: 176236
+        rva: 0x2b06c
       - name: "LCMapStringW"
-        rva: 176240
+        rva: 0x2b070
       - name: "Sleep"
-        rva: 176244
+        rva: 0x2b074
       - name: "SetHandleCount"
-        rva: 176248
+        rva: 0x2b078
       - name: "GetFileType"
-        rva: 176252
+        rva: 0x2b07c
       - name: "GetStartupInfoA"
-        rva: 176256
+        rva: 0x2b080
       - name: "CreateFileA"
-        rva: 176260
+        rva: 0x2b084
       - name: "FlushFileBuffers"
-        rva: 176264
+        rva: 0x2b088
       - name: "WriteConsoleW"
-        rva: 176268
+        rva: 0x2b08c
       - name: "GetConsoleOutputCP"
-        rva: 176272
+        rva: 0x2b090
       - name: "WriteConsoleA"
-        rva: 176276
+        rva: 0x2b094
       - name: "SetStdHandle"
-        rva: 176280
+        rva: 0x2b098
       - name: "GetDriveTypeA"
-        rva: 176284
+        rva: 0x2b09c
       - name: "GetCurrentDirectoryA"
-        rva: 176288
+        rva: 0x2b0a0
       - name: "GetLocaleInfoA"
-        rva: 176292
+        rva: 0x2b0a4
       - name: "GetStringTypeW"
-        rva: 176296
+        rva: 0x2b0a8
       - name: "GetStringTypeA"
-        rva: 176300
+        rva: 0x2b0ac
       - name: "LoadLibraryA"
-        rva: 176304
+        rva: 0x2b0b0
       - name: "InterlockedExchange"
-        rva: 176308
+        rva: 0x2b0b4
       - name: "GetConsoleMode"
-        rva: 176312
+        rva: 0x2b0b8
       - name: "GetConsoleCP"
-        rva: 176316
+        rva: 0x2b0bc
       - name: "SetFilePointer"
-        rva: 176320
+        rva: 0x2b0c0
       - name: "GetCurrentProcessId"
-        rva: 176324
+        rva: 0x2b0c4
       - name: "GetTickCount"
-        rva: 176328
+        rva: 0x2b0c8
       - name: "QueryPerformanceCounter"
-        rva: 176332
+        rva: 0x2b0cc
       - name: "GetEnvironmentStringsW"
-        rva: 176336
+        rva: 0x2b0d0
       - name: "FreeEnvironmentStringsW"
-        rva: 176340
+        rva: 0x2b0d4
       - name: "GetEnvironmentStrings"
-        rva: 176344
+        rva: 0x2b0d8
       - name: "GetCurrentProcess"
-        rva: 176348
+        rva: 0x2b0dc
       - name: "MultiByteToWideChar"
-        rva: 176352
+        rva: 0x2b0e0
       - name: "GetVolumeInformationW"
-        rva: 176356
+        rva: 0x2b0e4
       - name: "lstrlenA"
-        rva: 176360
+        rva: 0x2b0e8
       - name: "QueryDosDeviceA"
-        rva: 176364
+        rva: 0x2b0ec
       - name: "CloseHandle"
-        rva: 176368
+        rva: 0x2b0f0
       - name: "WaitForSingleObject"
-        rva: 176372
+        rva: 0x2b0f4
       - name: "lstrlenW"
-        rva: 176376
+        rva: 0x2b0f8
       - name: "RaiseException"
-        rva: 176380
+        rva: 0x2b0fc
       - name: "InitializeCriticalSection"
-        rva: 176384
+        rva: 0x2b100
       - name: "DeleteCriticalSection"
-        rva: 176388
+        rva: 0x2b104
       - name: "SizeofResource"
-        rva: 176392
+        rva: 0x2b108
       - name: "LockResource"
-        rva: 176396
+        rva: 0x2b10c
       - name: "LoadResource"
-        rva: 176400
+        rva: 0x2b110
       - name: "FindResourceW"
-        rva: 176404
+        rva: 0x2b114
       - name: "FindResourceExW"
-        rva: 176408
+        rva: 0x2b118
       - name: "GetLastError"
-        rva: 176412
+        rva: 0x2b11c
       - name: "LocalFree"
-        rva: 176416
+        rva: 0x2b120
       - name: "LocalAlloc"
-        rva: 176420
+        rva: 0x2b124
       - name: "FreeLibrary"
-        rva: 176424
+        rva: 0x2b128
       - name: "GetProcAddress"
-        rva: 176428
+        rva: 0x2b12c
       - name: "LoadLibraryW"
-        rva: 176432
+        rva: 0x2b130
       - name: "EnterCriticalSection"
-        rva: 176436
+        rva: 0x2b134
       - name: "LeaveCriticalSection"
-        rva: 176440
+        rva: 0x2b138
       - name: "lstrcmpiW"
-        rva: 176444
+        rva: 0x2b13c
       - name: "InterlockedIncrement"
-        rva: 176448
+        rva: 0x2b140
       - name: "InterlockedDecrement"
-        rva: 176452
+        rva: 0x2b144
       - name: "GetModuleFileNameW"
-        rva: 176456
+        rva: 0x2b148
       - name: "LoadLibraryExW"
-        rva: 176460
+        rva: 0x2b14c
       - name: "GetModuleHandleW"
-        rva: 176464
+        rva: 0x2b150
       - name: "WideCharToMultiByte"
-        rva: 176468
+        rva: 0x2b154
       - name: "SetThreadLocale"
-        rva: 176472
+        rva: 0x2b158
       - name: "GetThreadLocale"
-        rva: 176476
+        rva: 0x2b15c
       - name: "VirtualFree"
-        rva: 176480
+        rva: 0x2b160
       - name: "VirtualAlloc"
-        rva: 176484
+        rva: 0x2b164
       - name: "WriteFile"
-        rva: 176488
+        rva: 0x2b168
       - name: "CreateThread"
-        rva: 176492
+        rva: 0x2b16c
       - name: "CreatePipe"
-        rva: 176496
+        rva: 0x2b170
       - name: "DeleteFileW"
-        rva: 176500
+        rva: 0x2b174
       - name: "CreateFileW"
-        rva: 176504
+        rva: 0x2b178
       - name: "HeapAlloc"
-        rva: 176508
+        rva: 0x2b17c
       - name: "GetProcessHeap"
-        rva: 176512
+        rva: 0x2b180
       - name: "SetCurrentDirectoryW"
-        rva: 176516
+        rva: 0x2b184
       - name: "TerminateProcess"
-        rva: 176520
+        rva: 0x2b188
       - name: "UnhandledExceptionFilter"
-        rva: 176524
+        rva: 0x2b18c
       - name: "SetUnhandledExceptionFilter"
-        rva: 176528
+        rva: 0x2b190
       - name: "IsDebuggerPresent"
-        rva: 176532
+        rva: 0x2b194
       - name: "RtlUnwind"
-        rva: 176536
+        rva: 0x2b198
       - name: "HeapFree"
-        rva: 176540
+        rva: 0x2b19c
       - name: "HeapReAlloc"
-        rva: 176544
+        rva: 0x2b1a0
       - name: "GetFullPathNameW"
-        rva: 176548
+        rva: 0x2b1a4
       - name: "GetSystemTimeAsFileTime"
-        rva: 176552
+        rva: 0x2b1a8
       - name: "GetCurrentThreadId"
-        rva: 176556
+        rva: 0x2b1ac
       - name: "GetCommandLineA"
-        rva: 176560
+        rva: 0x2b1b0
       - name: "GetVersionExA"
-        rva: 176564
+        rva: 0x2b1b4
       - name: "GetModuleHandleA"
-        rva: 176568
+        rva: 0x2b1b8
       - name: "TlsGetValue"
-        rva: 176572
+        rva: 0x2b1bc
       - name: "TlsAlloc"
-        rva: 176576
+        rva: 0x2b1c0
       - name: "TlsSetValue"
-        rva: 176580
+        rva: 0x2b1c4
       - name: "TlsFree"
-        rva: 176584
+        rva: 0x2b1c8
       - name: "SetLastError"
-        rva: 176588
+        rva: 0x2b1cc
       - name: "FreeEnvironmentStringsA"
-        rva: 176592
+        rva: 0x2b1d0
   - library_name: "USER32.dll"
     number_of_functions: 4
     functions:
       - name: "CharLowerBuffW"
-        rva: 176848
+        rva: 0x2b2d0
       - name: "MessageBoxW"
-        rva: 176852
+        rva: 0x2b2d4
       - name: "UnregisterClassA"
-        rva: 176856
+        rva: 0x2b2d8
       - name: "CharNextW"
-        rva: 176860
+        rva: 0x2b2dc
   - library_name: "ADVAPI32.dll"
     number_of_functions: 14
     functions:
       - name: "RegSetValueExW"
-        rva: 176128
+        rva: 0x2b000
       - name: "UnregisterTraceGuids"
-        rva: 176132
+        rva: 0x2b004
       - name: "TraceEvent"
-        rva: 176136
+        rva: 0x2b008
       - name: "RegDeleteKeyW"
-        rva: 176140
+        rva: 0x2b00c
       - name: "RegDeleteValueW"
-        rva: 176144
+        rva: 0x2b010
       - name: "RegCloseKey"
-        rva: 176148
+        rva: 0x2b014
       - name: "RegCreateKeyExW"
-        rva: 176152
+        rva: 0x2b018
       - name: "RegOpenKeyExW"
-        rva: 176156
+        rva: 0x2b01c
       - name: "RegQueryInfoKeyW"
-        rva: 176160
+        rva: 0x2b020
       - name: "RegEnumKeyExW"
-        rva: 176164
+        rva: 0x2b024
       - name: "GetTraceEnableFlags"
-        rva: 176168
+        rva: 0x2b028
       - name: "GetTraceEnableLevel"
-        rva: 176172
+        rva: 0x2b02c
       - name: "GetTraceLoggerHandle"
-        rva: 176176
+        rva: 0x2b030
       - name: "RegisterTraceGuidsW"
-        rva: 176180
+        rva: 0x2b034
   - library_name: "ole32.dll"
     number_of_functions: 5
     functions:
       - name: "CoTaskMemRealloc"
-        rva: 176900
+        rva: 0x2b304
       - name: "CoCreateInstance"
-        rva: 176904
+        rva: 0x2b308
       - name: "CoTaskMemFree"
-        rva: 176908
+        rva: 0x2b30c
       - name: "StringFromGUID2"
-        rva: 176912
+        rva: 0x2b310
       - name: "CoTaskMemAlloc"
-        rva: 176916
+        rva: 0x2b314
   - library_name: "SHELL32.dll"
     number_of_functions: 1
     functions:
       - name: "SHGetDiskFreeSpaceExW"
-        rva: 176660
+        rva: 0x2b214
   - library_name: "OLEAUT32.dll"
     number_of_functions: 14
     functions:
       - name: "VarBstrCmp"
         ordinal: 314
-        rva: 176600
+        rva: 0x2b1d8
       - name: "SysFreeString"
         ordinal: 6
-        rva: 176604
+        rva: 0x2b1dc
       - name: "VariantClear"
         ordinal: 9
-        rva: 176608
+        rva: 0x2b1e0
       - name: "SysAllocStringLen"
         ordinal: 4
-        rva: 176612
+        rva: 0x2b1e4
       - name: "SysAllocString"
         ordinal: 2
-        rva: 176616
+        rva: 0x2b1e8
       - name: "SysAllocStringByteLen"
         ordinal: 150
-        rva: 176620
+        rva: 0x2b1ec
       - name: "SysStringByteLen"
         ordinal: 149
-        rva: 176624
+        rva: 0x2b1f0
       - name: "SysStringLen"
         ordinal: 7
-        rva: 176628
+        rva: 0x2b1f4
       - name: "VarUI4FromStr"
         ordinal: 277
-        rva: 176632
+        rva: 0x2b1f8
       - name: "LoadRegTypeLib"
         ordinal: 162
-        rva: 176636
+        rva: 0x2b1fc
       - name: "LoadTypeLib"
         ordinal: 161
-        rva: 176640
+        rva: 0x2b200
       - name: "UnRegisterTypeLib"
         ordinal: 186
-        rva: 176644
+        rva: 0x2b204
       - name: "RegisterTypeLib"
         ordinal: 163
-        rva: 176648
+        rva: 0x2b208
       - name: "VarBstrCat"
         ordinal: 313
-        rva: 176652
+        rva: 0x2b20c
 export_details:
   - name: "DllCanUnloadNow"
     ordinal: 1
-    rva: 53184
-    offset: 53184
+    rva: 0xcfc0
+    offset: 0xcfc0
   - name: "DllGetClassObject"
     ordinal: 2
-    rva: 56096
-    offset: 56096
+    rva: 0xdb20
+    offset: 0xdb20
   - name: "DllRegisterServer"
     ordinal: 3
-    rva: 56416
-    offset: 56416
+    rva: 0xdc60
+    offset: 0xdc60
   - name: "DllUnregisterServer"
     ordinal: 4
-    rva: 56432
-    offset: 56432
+    rva: 0xdc70
+    offset: 0xdc70
 is_signed: true
 signatures:
   - subject: "/C=KN/postalCode=KN/ST=Nevis/L=Charlestown/streetAddress=Main Street,Charlestown/O=Disk Software Ltd/CN=Disk Software Ltd"
@@ -763,5 +763,5 @@ signatures:
             not_before: 1070496000  # 2003-12-04 00:00:00 UTC
             not_after: 1386115199  # 2013-12-03 23:59:59 UTC
 overlay:
-    offset: 270336
-    size: 4272
+    offset: 0x42000
+    size: 0x10b0

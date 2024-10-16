@@ -12,20 +12,20 @@ number_of_constants: 1
 number_of_field_offsets: 0
 streams:
   - name: "#~"
-    offset: 38924
-    size: 23096
+    offset: 0x980c
+    size: 0x5a38
   - name: "#Strings"
-    offset: 62020
-    size: 57788
+    offset: 0xf244
+    size: 0xe1bc
   - name: "#US"
-    offset: 119808
-    size: 8300
+    offset: 0x1d400
+    size: 0x206c
   - name: "#GUID"
-    offset: 128108
-    size: 16
+    offset: 0x1f46c
+    size: 0x10
   - name: "#Blob"
-    offset: 128124
-    size: 7552
+    offset: 0x1f47c
+    size: 0x1d80
 guids:
   - "62c64791-ab4b-42b5-9dd0-8811aa8e6454"
 constants:
@@ -151,11 +151,11 @@ assembly_refs:
         build_number: 0
         revision_number: 0
 resources:
-  - offset: 135680
-    length: 267652
+  - offset: 0x21200
+    length: 0x41584
     name: "TurboPing.g.resources"
-  - offset: 403336
-    length: 180
+  - offset: 0x62788
+    length: 0xb4
     name: "AppGame.Properties.Resources.resources"
 classes:
   - fullname: "Register Plugin MethodInvokableCallback.GetGroup"

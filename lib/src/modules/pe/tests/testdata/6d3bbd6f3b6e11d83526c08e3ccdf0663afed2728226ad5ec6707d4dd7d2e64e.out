@@ -17,25 +17,25 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
 characteristics: 0x22  # EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE
 dll_characteristics: 0x8560  # HIGH_ENTROPY_VA | DYNAMIC_BASE | NX_COMPAT | NO_SEH | TERMINAL_SERVER_AWARE
 timestamp: 1712829193  # 2024-04-11 09:53:13 UTC
-image_base: 5368709120
+image_base: 0x140000000
 checksum: 36819
-base_of_code: 8192
-entry_point: 0
-entry_point_raw: 0
-section_alignment: 8192
-file_alignment: 512
-loader_flags: 0
-size_of_optional_header: 240
-size_of_code: 2560
-size_of_initialized_data: 2048
-size_of_uninitialized_data: 0
-size_of_image: 24576
-size_of_headers: 512
-size_of_stack_reserve: 4194304
-size_of_stack_commit: 16384
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 8192
-pointer_to_symbol_table: 0
+base_of_code: 0x2000
+entry_point: 0x0
+entry_point_raw: 0x0
+section_alignment: 0x2000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xf0
+size_of_code: 0xa00
+size_of_initialized_data: 0x800
+size_of_uninitialized_data: 0x0
+size_of_image: 0x6000
+size_of_headers: 0x200
+size_of_stack_reserve: 0x400000
+size_of_stack_commit: 0x4000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x2000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -87,73 +87,73 @@ pdb_path: "D:\\BuildAgent\\work\\31f27687fbb308be\\nCrunch.TaskRunner\\46.x64\\o
 sections:
   - name: ".text"
     full_name: ".text"
-    characteristics: 1610612768
-    raw_data_size: 2560
-    raw_data_offset: 512
-    virtual_address: 8192
-    virtual_size: 2260
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0xa00
+    raw_data_offset: 0x200
+    virtual_address: 0x2000
+    virtual_size: 0x8d4
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rsrc"
     full_name: ".rsrc"
-    characteristics: 1073741888
-    raw_data_size: 2048
-    raw_data_offset: 3072
-    virtual_address: 16384
-    virtual_size: 1624
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x800
+    raw_data_offset: 0xc00
+    virtual_address: 0x4000
+    virtual_size: 0x658
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 16384
-    size: 1624
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 5120
-    size: 9064
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 10140
-    size: 28
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 8192
-    size: 72
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x4000
+    size: 0x658
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x1400
+    size: 0x2368
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x279c
+    size: 0x1c
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x2000
+    size: 0x48
+  - virtual_address: 0x0
+    size: 0x0
 resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0
 resources:
-  - length: 968
-    rva: 16528
-    offset: 3216
+  - length: 0x3c8
+    rva: 0x4090
+    offset: 0xc90
     type: RESOURCE_TYPE_VERSION
     id: 1
     language: 0
-  - length: 490
-    rva: 17512
-    offset: 4200
+  - length: 0x1ea
+    rva: 0x4468
+    offset: 0x1068
     type: RESOURCE_TYPE_MANIFEST
     id: 1
     language: 0
@@ -295,5 +295,5 @@ signatures:
             not_before: 1659312000  # 2022-08-01 00:00:00 UTC
             not_after: 1952035199  # 2031-11-09 23:59:59 UTC
 overlay:
-    offset: 5120
-    size: 9064
+    offset: 0x1400
+    size: 0x2368

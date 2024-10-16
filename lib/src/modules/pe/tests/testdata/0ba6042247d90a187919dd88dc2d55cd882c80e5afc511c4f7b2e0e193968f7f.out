@@ -17,26 +17,26 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 0x10f  # RELOCS_STRIPPED | EXECUTABLE_IMAGE | LINE_NUMS_STRIPPED | LOCAL_SYMS_STRIPPED | MACHINE_32BIT
 dll_characteristics: 0x8000  # TERMINAL_SERVER_AWARE
 timestamp: 998081829  # 2001-08-17 20:57:09 UTC
-image_base: 16777216
+image_base: 0x1000000
 checksum: 0
-base_of_code: 28672
-base_of_data: 36864
-entry_point: 7552
-entry_point_raw: 35200
-section_alignment: 4096
-file_alignment: 512
-loader_flags: 0
-size_of_optional_header: 224
-size_of_code: 106496
-size_of_initialized_data: 4096
-size_of_uninitialized_data: 24576
-size_of_image: 40960
-size_of_headers: 4096
-size_of_stack_reserve: 262144
-size_of_stack_commit: 4096
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+base_of_code: 0x7000
+base_of_data: 0x9000
+entry_point: 0x1d80
+entry_point_raw: 0x8980
+section_alignment: 0x1000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xe0
+size_of_code: 0x1a000
+size_of_initialized_data: 0x1000
+size_of_uninitialized_data: 0x6000
+size_of_image: 0xa000
+size_of_headers: 0x1000
+size_of_stack_reserve: 0x40000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -76,8 +76,8 @@ version_info_list:
   - key: "ProductVersion"
     value: "5.1.2600.0"
 rich_signature:
-    offset: 128
-    length: 64
+    offset: 0x80
+    length: 0x40
     key: 2970887405
     raw_data: "\xa9Ez\xe2\xed$\x14\xb1\xed$\x14\xb1\xed$\x14\xb1\x17\x07T\xb1\xef$\x14\xb1\xed$\x15\xb1\xa0$\x14\xb1\x17\x07\r\xb1\xe6$\x14\xb1z\x07Q\xb1\xec$\x14\xb17\x07\x08\xb1\xf9$\x14\xb1\x17\x07)\xb1\xec$\x14\xb1"
     clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xfa#@\x00\x02\x00\x00\x00\x00\x00\x01\x00M\x00\x00\x00\xfa#\x19\x00\x0b\x00\x00\x00\x97#E\x00\x01\x00\x00\x00\xda#\x1c\x00\x14\x00\x00\x00\xfa#=\x00\x01\x00\x00\x00"
@@ -103,83 +103,83 @@ rich_signature:
 sections:
   - name: "UPX0"
     full_name: "UPX0"
-    characteristics: 3758096512
-    raw_data_size: 0
-    raw_data_offset: 1024
-    virtual_address: 4096
-    virtual_size: 24576
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xe0000080
+    raw_data_size: 0x0
+    raw_data_offset: 0x400
+    virtual_address: 0x1000
+    virtual_size: 0x6000
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: "UPX1"
     full_name: "UPX1"
-    characteristics: 3758096448
-    raw_data_size: 7168
-    raw_data_offset: 1024
-    virtual_address: 28672
-    virtual_size: 8192
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xe0000040
+    raw_data_size: 0x1c00
+    raw_data_offset: 0x400
+    virtual_address: 0x7000
+    virtual_size: 0x2000
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rsrc"
     full_name: ".rsrc"
-    characteristics: 3221225536
-    raw_data_size: 1536
-    raw_data_offset: 8192
-    virtual_address: 36864
-    virtual_size: 4096
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0x600
+    raw_data_offset: 0x2000
+    virtual_address: 0x9000
+    virtual_size: 0x1000
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 37944
-    size: 356
-  - virtual_address: 36864
-    size: 1080
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x9438
+    size: 0x164
+  - virtual_address: 0x9000
+    size: 0x438
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0
 resources:
-  - length: 4628
-    rva: 21560
+  - length: 0x1214
+    rva: 0x5438
     type: RESOURCE_TYPE_MESSAGETABLE
     id: 1
     language: 1033
-  - length: 916
-    rva: 37028
-    offset: 8356
+  - length: 0x394
+    rva: 0x90a4
+    offset: 0x20a4
     type: RESOURCE_TYPE_VERSION
     id: 1
     language: 1033
@@ -188,39 +188,39 @@ import_details:
     number_of_functions: 6
     functions:
       - name: "LoadLibraryA"
-        rva: 38064
+        rva: 0x94b0
       - name: "GetProcAddress"
-        rva: 38068
+        rva: 0x94b4
       - name: "VirtualProtect"
-        rva: 38072
+        rva: 0x94b8
       - name: "VirtualAlloc"
-        rva: 38076
+        rva: 0x94bc
       - name: "VirtualFree"
-        rva: 38080
+        rva: 0x94c0
       - name: "ExitProcess"
-        rva: 38084
+        rva: 0x94c4
   - library_name: "msvcrt.dll"
     number_of_functions: 1
     functions:
       - name: "putc"
-        rva: 38092
+        rva: 0x94cc
   - library_name: "MSWSOCK.dll"
     number_of_functions: 1
     functions:
       - name: "s_perror"
-        rva: 38100
+        rva: 0x94d4
   - library_name: "USER32.dll"
     number_of_functions: 1
     functions:
       - name: "CharNextExA"
-        rva: 38108
+        rva: 0x94dc
   - library_name: "WS2_32.dll"
     number_of_functions: 1
     functions:
       - name: "sendto"
         ordinal: 20
-        rva: 38116
+        rva: 0x94e4
 is_signed: false
 overlay:
-    offset: 0
-    size: 0
+    offset: 0x0
+    size: 0x0

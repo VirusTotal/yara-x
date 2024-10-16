@@ -17,25 +17,25 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
 characteristics: 0x2f  # RELOCS_STRIPPED | EXECUTABLE_IMAGE | LINE_NUMS_STRIPPED | LOCAL_SYMS_STRIPPED | LARGE_ADDRESS_AWARE
 dll_characteristics: 0x0
 timestamp: 0  # 1970-01-01 00:00:00 UTC
-image_base: 4194304
+image_base: 0x400000
 checksum: 138527
-base_of_code: 4096
-entry_point: 56256
-entry_point_raw: 59328
-section_alignment: 4096
-file_alignment: 512
-loader_flags: 0
-size_of_optional_header: 240
-size_of_code: 63952
-size_of_initialized_data: 4900
-size_of_uninitialized_data: 15744
-size_of_image: 122880
-size_of_headers: 1024
-size_of_stack_reserve: 16777216
-size_of_stack_commit: 4096
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 84480
+base_of_code: 0x1000
+entry_point: 0xdbc0
+entry_point_raw: 0xe7c0
+section_alignment: 0x1000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xf0
+size_of_code: 0xf9d0
+size_of_initialized_data: 0x1324
+size_of_uninitialized_data: 0x3d80
+size_of_image: 0x1e000
+size_of_headers: 0x400
+size_of_stack_reserve: 0x1000000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x14a00
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -51,164 +51,164 @@ number_of_signatures: 2
 sections:
   - name: ".text"
     full_name: ".text"
-    characteristics: 1610612768
-    raw_data_size: 64000
-    raw_data_offset: 1024
-    virtual_address: 4096
-    virtual_size: 63952
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0xfa00
+    raw_data_offset: 0x400
+    virtual_address: 0x1000
+    virtual_size: 0xf9d0
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".data"
     full_name: ".data"
-    characteristics: 3221225536
-    raw_data_size: 5120
-    raw_data_offset: 65024
-    virtual_address: 69632
-    virtual_size: 4900
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0x1400
+    raw_data_offset: 0xfe00
+    virtual_address: 0x11000
+    virtual_size: 0x1324
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".bss"
     full_name: ".bss"
-    characteristics: 3221225600
-    raw_data_size: 0
-    raw_data_offset: 0
-    virtual_address: 77824
-    virtual_size: 15744
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000080
+    raw_data_size: 0x0
+    raw_data_offset: 0x0
+    virtual_address: 0x13000
+    virtual_size: 0x3d80
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".CRT"
     full_name: ".CRT"
-    characteristics: 33554432
-    raw_data_size: 512
-    raw_data_offset: 70144
-    virtual_address: 94208
-    virtual_size: 8
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x2000000
+    raw_data_size: 0x200
+    raw_data_offset: 0x11200
+    virtual_address: 0x17000
+    virtual_size: 0x8
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".idata"
     full_name: ".idata"
-    characteristics: 3221225536
-    raw_data_size: 4608
-    raw_data_offset: 70656
-    virtual_address: 98304
-    virtual_size: 4488
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0x1200
+    raw_data_offset: 0x11400
+    virtual_address: 0x18000
+    virtual_size: 0x1188
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rsrc"
     full_name: ".rsrc"
-    characteristics: 3221225536
-    raw_data_size: 8704
-    raw_data_offset: 75264
-    virtual_address: 106496
-    virtual_size: 8464
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0x2200
+    raw_data_offset: 0x12600
+    virtual_address: 0x1a000
+    virtual_size: 0x2110
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: "/4"
     full_name: ".gnu_debuglink"
-    characteristics: 33554432
-    raw_data_size: 512
-    raw_data_offset: 83968
-    virtual_address: 118784
-    virtual_size: 20
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x2000000
+    raw_data_size: 0x200
+    raw_data_offset: 0x14800
+    virtual_address: 0x1d000
+    virtual_size: 0x14
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 98304
-    size: 160
-  - virtual_address: 106496
-    size: 8464
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 84504
-    size: 13392
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 99472
-    size: 1008
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x18000
+    size: 0xa0
+  - virtual_address: 0x1a000
+    size: 0x2110
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x14a18
+    size: 0x3450
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x18490
+    size: 0x3f0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0
 resources:
-  - length: 296
-    rva: 107056
-    offset: 75824
+  - length: 0x128
+    rva: 0x1a230
+    offset: 0x12830
     type: RESOURCE_TYPE_ICON
     id: 1
     language: 0
-  - length: 1384
-    rva: 107352
-    offset: 76120
+  - length: 0x568
+    rva: 0x1a358
+    offset: 0x12958
     type: RESOURCE_TYPE_ICON
     id: 2
     language: 0
-  - length: 744
-    rva: 108736
-    offset: 77504
+  - length: 0x2e8
+    rva: 0x1a8c0
+    offset: 0x12ec0
     type: RESOURCE_TYPE_ICON
     id: 3
     language: 0
-  - length: 2216
-    rva: 109480
-    offset: 78248
+  - length: 0x8a8
+    rva: 0x1aba8
+    offset: 0x131a8
     type: RESOURCE_TYPE_ICON
     id: 4
     language: 0
-  - length: 998
-    rva: 111696
-    offset: 80464
+  - length: 0x3e6
+    rva: 0x1b450
+    offset: 0x13a50
     type: RESOURCE_TYPE_DIALOG
     language: 2055
     name_string: "U\x00N\x00I\x00N\x00S\x00T\x00D\x00L\x00G\x00"
-  - length: 642
-    rva: 112696
-    offset: 81464
+  - length: 0x282
+    rva: 0x1b838
+    offset: 0x13e38
     type: RESOURCE_TYPE_DIALOG
     language: 2055
     name_string: "U\x00N\x00I\x00N\x00S\x00T\x00R\x00E\x00P\x00A\x00I\x00R\x00"
-  - length: 62
-    rva: 113340
-    offset: 82108
+  - length: 0x3e
+    rva: 0x1babc
+    offset: 0x140bc
     type: RESOURCE_TYPE_GROUP_ICON
     language: 0
     name_string: "M\x00A\x00I\x00N\x00I\x00C\x00O\x00N\x00"
-  - length: 1555
-    rva: 113404
-    offset: 82172
+  - length: 0x613
+    rva: 0x1bafc
+    offset: 0x140fc
     type: RESOURCE_TYPE_MANIFEST
     id: 1
     language: 2055
@@ -217,261 +217,261 @@ import_details:
     number_of_functions: 4
     functions:
       - name: "RegCloseKey"
-        rva: 99472
+        rva: 0x18490
       - name: "RegDeleteKeyA"
-        rva: 99480
+        rva: 0x18498
       - name: "RegOpenKeyExA"
-        rva: 99488
+        rva: 0x184a0
       - name: "RegQueryValueExA"
-        rva: 99496
+        rva: 0x184a8
   - library_name: "comctl32.dll"
     number_of_functions: 1
     functions:
       - name: "InitCommonControls"
-        rva: 99512
+        rva: 0x184b8
   - library_name: "gdi32.dll"
     number_of_functions: 5
     functions:
       - name: "CreateFontA"
-        rva: 99528
+        rva: 0x184c8
       - name: "CreateSolidBrush"
-        rva: 99536
+        rva: 0x184d0
       - name: "DeleteObject"
-        rva: 99544
+        rva: 0x184d8
       - name: "SetBkColor"
-        rva: 99552
+        rva: 0x184e0
       - name: "SetTextColor"
-        rva: 99560
+        rva: 0x184e8
   - library_name: "kernel32.dll"
     number_of_functions: 83
     functions:
       - name: "AddVectoredExceptionHandler"
-        rva: 99576
+        rva: 0x184f8
       - name: "CloseHandle"
-        rva: 99584
+        rva: 0x18500
       - name: "CreateDirectoryA"
-        rva: 99592
+        rva: 0x18508
       - name: "CreateEventA"
-        rva: 99600
+        rva: 0x18510
       - name: "CreateFileA"
-        rva: 99608
+        rva: 0x18518
       - name: "CreateThread"
-        rva: 99616
+        rva: 0x18520
       - name: "DeleteCriticalSection"
-        rva: 99624
+        rva: 0x18528
       - name: "DeleteFileA"
-        rva: 99632
+        rva: 0x18530
       - name: "EnterCriticalSection"
-        rva: 99640
+        rva: 0x18538
       - name: "EnumResourceLanguagesA"
-        rva: 99648
+        rva: 0x18540
       - name: "EnumResourceNamesA"
-        rva: 99656
+        rva: 0x18548
       - name: "EnumResourceTypesA"
-        rva: 99664
+        rva: 0x18550
       - name: "ExitProcess"
-        rva: 99672
+        rva: 0x18558
       - name: "ExitThread"
-        rva: 99680
+        rva: 0x18560
       - name: "FileTimeToDosDateTime"
-        rva: 99688
+        rva: 0x18568
       - name: "FileTimeToLocalFileTime"
-        rva: 99696
+        rva: 0x18570
       - name: "FindClose"
-        rva: 99704
+        rva: 0x18578
       - name: "FindFirstFileA"
-        rva: 99712
+        rva: 0x18580
       - name: "FindNextFileA"
-        rva: 99720
+        rva: 0x18588
       - name: "FindResourceA"
-        rva: 99728
+        rva: 0x18590
       - name: "FindResourceExA"
-        rva: 99736
+        rva: 0x18598
       - name: "FreeLibrary"
-        rva: 99744
+        rva: 0x185a0
       - name: "FreeResource"
-        rva: 99752
+        rva: 0x185a8
       - name: "GetCommandLineA"
-        rva: 99760
+        rva: 0x185b0
       - name: "GetConsoleMode"
-        rva: 99768
+        rva: 0x185b8
       - name: "GetConsoleOutputCP"
-        rva: 99776
+        rva: 0x185c0
       - name: "GetCurrentProcess"
-        rva: 99784
+        rva: 0x185c8
       - name: "GetCurrentProcessId"
-        rva: 99792
+        rva: 0x185d0
       - name: "GetCurrentThreadId"
-        rva: 99800
+        rva: 0x185d8
       - name: "GetEnvironmentVariableA"
-        rva: 99808
+        rva: 0x185e0
       - name: "GetFileAttributesA"
-        rva: 99816
+        rva: 0x185e8
       - name: "GetFileType"
-        rva: 99824
+        rva: 0x185f0
       - name: "GetLastError"
-        rva: 99832
+        rva: 0x185f8
       - name: "GetModuleFileNameA"
-        rva: 99840
+        rva: 0x18600
       - name: "GetModuleHandleA"
-        rva: 99848
+        rva: 0x18608
       - name: "GetPrivateProfileIntA"
-        rva: 99856
+        rva: 0x18610
       - name: "GetPrivateProfileStringA"
-        rva: 99864
+        rva: 0x18618
       - name: "GetProcAddress"
-        rva: 99872
+        rva: 0x18620
       - name: "GetProcessHeap"
-        rva: 99880
+        rva: 0x18628
       - name: "GetStartupInfoA"
-        rva: 99888
+        rva: 0x18630
       - name: "GetStdHandle"
-        rva: 99896
+        rva: 0x18638
       - name: "GetTempFileNameA"
-        rva: 99904
+        rva: 0x18640
       - name: "GetTempPathA"
-        rva: 99912
+        rva: 0x18648
       - name: "GetThreadPriority"
-        rva: 99920
+        rva: 0x18650
       - name: "GetTickCount"
-        rva: 99928
+        rva: 0x18658
       - name: "GetVersionExA"
-        rva: 99936
+        rva: 0x18660
       - name: "GetWindowsDirectoryA"
-        rva: 99944
+        rva: 0x18668
       - name: "HeapAlloc"
-        rva: 99952
+        rva: 0x18670
       - name: "HeapFree"
-        rva: 99960
+        rva: 0x18678
       - name: "InitializeCriticalSection"
-        rva: 99968
+        rva: 0x18680
       - name: "LeaveCriticalSection"
-        rva: 99976
+        rva: 0x18688
       - name: "LoadLibraryA"
-        rva: 99984
+        rva: 0x18690
       - name: "LoadResource"
-        rva: 99992
+        rva: 0x18698
       - name: "LocalAlloc"
-        rva: 100000
+        rva: 0x186a0
       - name: "LocalFree"
-        rva: 100008
+        rva: 0x186a8
       - name: "LockResource"
-        rva: 100016
+        rva: 0x186b0
       - name: "MoveFileA"
-        rva: 100024
+        rva: 0x186b8
       - name: "MultiByteToWideChar"
-        rva: 100032
+        rva: 0x186c0
       - name: "ReadFile"
-        rva: 100040
+        rva: 0x186c8
       - name: "ReadProcessMemory"
-        rva: 100048
+        rva: 0x186d0
       - name: "RemoveDirectoryA"
-        rva: 100056
+        rva: 0x186d8
       - name: "ResetEvent"
-        rva: 100064
+        rva: 0x186e0
       - name: "ResumeThread"
-        rva: 100072
+        rva: 0x186e8
       - name: "SetCurrentDirectoryA"
-        rva: 100080
+        rva: 0x186f0
       - name: "SetEvent"
-        rva: 100088
+        rva: 0x186f8
       - name: "SetFilePointer"
-        rva: 100096
+        rva: 0x18700
       - name: "SetLastError"
-        rva: 100104
+        rva: 0x18708
       - name: "SetThreadPriority"
-        rva: 100112
+        rva: 0x18710
       - name: "SizeofResource"
-        rva: 100120
+        rva: 0x18718
       - name: "Sleep"
-        rva: 100128
+        rva: 0x18720
       - name: "SuspendThread"
-        rva: 100136
+        rva: 0x18728
       - name: "TerminateThread"
-        rva: 100144
+        rva: 0x18730
       - name: "TlsAlloc"
-        rva: 100152
+        rva: 0x18738
       - name: "TlsGetValue"
-        rva: 100160
+        rva: 0x18740
       - name: "TlsSetValue"
-        rva: 100168
+        rva: 0x18748
       - name: "TryEnterCriticalSection"
-        rva: 100176
+        rva: 0x18750
       - name: "VirtualQuery"
-        rva: 100184
+        rva: 0x18758
       - name: "WaitForSingleObject"
-        rva: 100192
+        rva: 0x18760
       - name: "WideCharToMultiByte"
-        rva: 100200
+        rva: 0x18768
       - name: "WinExec"
-        rva: 100208
+        rva: 0x18770
       - name: "WriteFile"
-        rva: 100216
+        rva: 0x18778
       - name: "_lclose"
-        rva: 100224
+        rva: 0x18780
       - name: "_lopen"
-        rva: 100232
+        rva: 0x18788
   - library_name: "ole32.dll"
     number_of_functions: 3
     functions:
       - name: "CoCreateInstance"
-        rva: 100248
+        rva: 0x18798
       - name: "OleInitialize"
-        rva: 100256
+        rva: 0x187a0
       - name: "OleUninitialize"
-        rva: 100264
+        rva: 0x187a8
   - library_name: "oleaut32.dll"
     number_of_functions: 3
     functions:
       - name: "SysAllocStringLen"
-        rva: 100280
+        rva: 0x187b8
       - name: "SysFreeString"
-        rva: 100288
+        rva: 0x187c0
       - name: "SysReAllocStringLen"
-        rva: 100296
+        rva: 0x187c8
   - library_name: "user32.dll"
     number_of_functions: 20
     functions:
       - name: "CharLowerBuffW"
-        rva: 100312
+        rva: 0x187d8
       - name: "CharPrevA"
-        rva: 100320
+        rva: 0x187e0
       - name: "CharUpperA"
-        rva: 100328
+        rva: 0x187e8
       - name: "CharUpperBuffW"
-        rva: 100336
+        rva: 0x187f0
       - name: "DialogBoxParamA"
-        rva: 100344
+        rva: 0x187f8
       - name: "DispatchMessageA"
-        rva: 100352
+        rva: 0x18800
       - name: "EndDialog"
-        rva: 100360
+        rva: 0x18808
       - name: "FindWindowA"
-        rva: 100368
+        rva: 0x18810
       - name: "GetDesktopWindow"
-        rva: 100376
+        rva: 0x18818
       - name: "GetSysColor"
-        rva: 100384
+        rva: 0x18820
       - name: "GetSystemMetrics"
-        rva: 100392
+        rva: 0x18828
       - name: "GetWindowRect"
-        rva: 100400
+        rva: 0x18830
       - name: "MessageBeep"
-        rva: 100408
+        rva: 0x18838
       - name: "MessageBoxA"
-        rva: 100416
+        rva: 0x18840
       - name: "MoveWindow"
-        rva: 100424
+        rva: 0x18848
       - name: "PeekMessageA"
-        rva: 100432
+        rva: 0x18850
       - name: "PostMessageA"
-        rva: 100440
+        rva: 0x18858
       - name: "SendDlgItemMessageA"
-        rva: 100448
+        rva: 0x18860
       - name: "SetDlgItemTextA"
-        rva: 100456
+        rva: 0x18868
       - name: "TranslateMessage"
-        rva: 100464
+        rva: 0x18870
 is_signed: true
 signatures:
   - subject: "/C=CH/ST=Bern/L=Bolligen/O=Ghisler Software GmbH/OU=Development/CN=Ghisler Software GmbH"
@@ -671,5 +671,5 @@ signatures:
             not_before: 1452556800  # 2016-01-12 00:00:00 UTC
             not_after: 1925942399  # 2031-01-11 23:59:59 UTC
 overlay:
-    offset: 84480
-    size: 13416
+    offset: 0x14a00
+    size: 0x3468

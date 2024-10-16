@@ -17,25 +17,25 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
 characteristics: 0x23  # RELOCS_STRIPPED | EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE
 dll_characteristics: 0x8120  # HIGH_ENTROPY_VA | NX_COMPAT | TERMINAL_SERVER_AWARE
 timestamp: 1527751881  # 2018-05-31 07:31:21 UTC
-image_base: 5368709120
+image_base: 0x140000000
 checksum: 121515
-base_of_code: 4096
-entry_point: 2376
-entry_point_raw: 5448
-section_alignment: 4096
-file_alignment: 512
-loader_flags: 0
-size_of_optional_header: 240
-size_of_code: 40960
-size_of_initialized_data: 48640
-size_of_uninitialized_data: 0
-size_of_image: 102400
-size_of_headers: 1024
-size_of_stack_reserve: 1048576
-size_of_stack_commit: 4096
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+base_of_code: 0x1000
+entry_point: 0x948
+entry_point_raw: 0x1548
+section_alignment: 0x1000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xf0
+size_of_code: 0xa000
+size_of_initialized_data: 0xbe00
+size_of_uninitialized_data: 0x0
+size_of_image: 0x19000
+size_of_headers: 0x400
+size_of_stack_reserve: 0x100000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -49,8 +49,8 @@ number_of_delayed_imports: 0
 number_of_exports: 0
 number_of_signatures: 1
 rich_signature:
-    offset: 128
-    length: 112
+    offset: 0x80
+    length: 0x70
     key: 1468968837
     raw_data: "\xc1\xce\xe0\x04\x85\xaf\x8eW\x85\xaf\x8eW\x85\xaf\x8eW13\x7fW\x81\xaf\x8eW13}W\xfd\xaf\x8eW13|W\x88\xaf\x8eW\xbe\xf1\x8dV\x82\xaf\x8eW\xbe\xf1\x8bV\x99\xaf\x8eW\xbe\xf1\x8aV\x97\xaf\x8eW\x8c\xd7\x1dW\x86\xaf\x8eW\x85\xaf\x8fW\xd9\xaf\x8eW\x12\xf1\x8bV\x87\xaf\x8eW\x17\xf1qW\x84\xaf\x8eW\x85\xaf\x19W\x84\xaf\x8eW\x12\xf1\x8cV\x84\xaf\x8eW"
     clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xb4\x9c\xf1\x00\x04\x00\x00\x00\xb4\x9c\xf3\x00x\x00\x00\x00\xb4\x9c\xf2\x00\r\x00\x00\x00;^\x03\x01\x07\x00\x00\x00;^\x05\x01\x1c\x00\x00\x00;^\x04\x01\x12\x00\x00\x00\tx\x93\x00\x03\x00\x00\x00\x00\x00\x01\x00\\\x00\x00\x00\x97^\x05\x01\x02\x00\x00\x00\x92^\xff\x00\x01\x00\x00\x00\x00\x00\x97\x00\x01\x00\x00\x00\x97^\x02\x01\x01\x00\x00\x00"
@@ -95,117 +95,117 @@ pdb_path: "D:\\MyProject\\StreetPlayer\\ExtraProgram\\KillPot\\x64\\Release\\Kil
 sections:
   - name: ".text"
     full_name: ".text"
-    characteristics: 1610612768
-    raw_data_size: 40960
-    raw_data_offset: 1024
-    virtual_address: 4096
-    virtual_size: 40464
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0xa000
+    raw_data_offset: 0x400
+    virtual_address: 0x1000
+    virtual_size: 0x9e10
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rdata"
     full_name: ".rdata"
-    characteristics: 1073741888
-    raw_data_size: 35840
-    raw_data_offset: 41984
-    virtual_address: 45056
-    virtual_size: 35448
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x8c00
+    raw_data_offset: 0xa400
+    virtual_address: 0xb000
+    virtual_size: 0x8a78
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".data"
     full_name: ".data"
-    characteristics: 3221225536
-    raw_data_size: 2560
-    raw_data_offset: 77824
-    virtual_address: 81920
-    virtual_size: 7112
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0xa00
+    raw_data_offset: 0x13000
+    virtual_address: 0x14000
+    virtual_size: 0x1bc8
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".pdata"
     full_name: ".pdata"
-    characteristics: 1073741888
-    raw_data_size: 3072
-    raw_data_offset: 80384
-    virtual_address: 90112
-    virtual_size: 3036
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0xc00
+    raw_data_offset: 0x13a00
+    virtual_address: 0x16000
+    virtual_size: 0xbdc
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".gfids"
     full_name: ".gfids"
-    characteristics: 1073741888
-    raw_data_size: 512
-    raw_data_offset: 83456
-    virtual_address: 94208
-    virtual_size: 160
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x200
+    raw_data_offset: 0x14600
+    virtual_address: 0x17000
+    virtual_size: 0xa0
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rsrc"
     full_name: ".rsrc"
-    characteristics: 1073741888
-    raw_data_size: 2048
-    raw_data_offset: 83968
-    virtual_address: 98304
-    virtual_size: 2008
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x800
+    raw_data_offset: 0x14800
+    virtual_address: 0x18000
+    virtual_size: 0x7d8
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 78516
-    size: 40
-  - virtual_address: 98304
-    size: 2008
-  - virtual_address: 90112
-    size: 3036
-  - virtual_address: 86016
-    size: 6072
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 74880
-    size: 84
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 74976
-    size: 148
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 45056
-    size: 584
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x132b4
+    size: 0x28
+  - virtual_address: 0x18000
+    size: 0x7d8
+  - virtual_address: 0x16000
+    size: 0xbdc
+  - virtual_address: 0x15000
+    size: 0x17b8
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x12480
+    size: 0x54
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x124e0
+    size: 0x94
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0xb000
+    size: 0x248
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0
 resources:
-  - length: 899
-    rva: 99408
-    offset: 85072
+  - length: 0x383
+    rva: 0x18450
+    offset: 0x14c50
     type: RESOURCE_TYPE_MANIFEST
     id: 1
     language: 1033
-  - length: 987
-    rva: 98416
-    offset: 84080
+  - length: 0x3db
+    rva: 0x18070
+    offset: 0x14870
     type: RESOURCE_TYPE_MANIFEST
     id: 1
     language: 1042
@@ -214,149 +214,149 @@ import_details:
     number_of_functions: 72
     functions:
       - name: "OpenProcess"
-        rva: 45056
+        rva: 0xb000
       - name: "TerminateProcess"
-        rva: 45064
+        rva: 0xb008
       - name: "GetExitCodeProcess"
-        rva: 45072
+        rva: 0xb010
       - name: "CloseHandle"
-        rva: 45080
+        rva: 0xb018
       - name: "CreateToolhelp32Snapshot"
-        rva: 45088
+        rva: 0xb020
       - name: "Process32FirstW"
-        rva: 45096
+        rva: 0xb028
       - name: "Process32NextW"
-        rva: 45104
+        rva: 0xb030
       - name: "Module32FirstW"
-        rva: 45112
+        rva: 0xb038
       - name: "Module32NextW"
-        rva: 45120
+        rva: 0xb040
       - name: "RtlCaptureContext"
-        rva: 45128
+        rva: 0xb048
       - name: "RtlLookupFunctionEntry"
-        rva: 45136
+        rva: 0xb050
       - name: "RtlVirtualUnwind"
-        rva: 45144
+        rva: 0xb058
       - name: "UnhandledExceptionFilter"
-        rva: 45152
+        rva: 0xb060
       - name: "SetUnhandledExceptionFilter"
-        rva: 45160
+        rva: 0xb068
       - name: "GetCurrentProcess"
-        rva: 45168
+        rva: 0xb070
       - name: "IsProcessorFeaturePresent"
-        rva: 45176
+        rva: 0xb078
       - name: "QueryPerformanceCounter"
-        rva: 45184
+        rva: 0xb080
       - name: "GetCurrentProcessId"
-        rva: 45192
+        rva: 0xb088
       - name: "GetCurrentThreadId"
-        rva: 45200
+        rva: 0xb090
       - name: "GetSystemTimeAsFileTime"
-        rva: 45208
+        rva: 0xb098
       - name: "InitializeSListHead"
-        rva: 45216
+        rva: 0xb0a0
       - name: "IsDebuggerPresent"
-        rva: 45224
+        rva: 0xb0a8
       - name: "GetStartupInfoW"
-        rva: 45232
+        rva: 0xb0b0
       - name: "GetModuleHandleW"
-        rva: 45240
+        rva: 0xb0b8
       - name: "RtlUnwindEx"
-        rva: 45248
+        rva: 0xb0c0
       - name: "GetLastError"
-        rva: 45256
+        rva: 0xb0c8
       - name: "SetLastError"
-        rva: 45264
+        rva: 0xb0d0
       - name: "EnterCriticalSection"
-        rva: 45272
+        rva: 0xb0d8
       - name: "LeaveCriticalSection"
-        rva: 45280
+        rva: 0xb0e0
       - name: "DeleteCriticalSection"
-        rva: 45288
+        rva: 0xb0e8
       - name: "InitializeCriticalSectionAndSpinCount"
-        rva: 45296
+        rva: 0xb0f0
       - name: "TlsAlloc"
-        rva: 45304
+        rva: 0xb0f8
       - name: "TlsGetValue"
-        rva: 45312
+        rva: 0xb100
       - name: "TlsSetValue"
-        rva: 45320
+        rva: 0xb108
       - name: "TlsFree"
-        rva: 45328
+        rva: 0xb110
       - name: "FreeLibrary"
-        rva: 45336
+        rva: 0xb118
       - name: "GetProcAddress"
-        rva: 45344
+        rva: 0xb120
       - name: "LoadLibraryExW"
-        rva: 45352
+        rva: 0xb128
       - name: "GetStdHandle"
-        rva: 45360
+        rva: 0xb130
       - name: "WriteFile"
-        rva: 45368
+        rva: 0xb138
       - name: "GetModuleFileNameW"
-        rva: 45376
+        rva: 0xb140
       - name: "MultiByteToWideChar"
-        rva: 45384
+        rva: 0xb148
       - name: "WideCharToMultiByte"
-        rva: 45392
+        rva: 0xb150
       - name: "ExitProcess"
-        rva: 45400
+        rva: 0xb158
       - name: "GetModuleHandleExW"
-        rva: 45408
+        rva: 0xb160
       - name: "GetACP"
-        rva: 45416
+        rva: 0xb168
       - name: "HeapFree"
-        rva: 45424
+        rva: 0xb170
       - name: "HeapAlloc"
-        rva: 45432
+        rva: 0xb178
       - name: "FindClose"
-        rva: 45440
+        rva: 0xb180
       - name: "FindFirstFileExW"
-        rva: 45448
+        rva: 0xb188
       - name: "FindNextFileW"
-        rva: 45456
+        rva: 0xb190
       - name: "IsValidCodePage"
-        rva: 45464
+        rva: 0xb198
       - name: "GetOEMCP"
-        rva: 45472
+        rva: 0xb1a0
       - name: "GetCPInfo"
-        rva: 45480
+        rva: 0xb1a8
       - name: "GetCommandLineA"
-        rva: 45488
+        rva: 0xb1b0
       - name: "GetCommandLineW"
-        rva: 45496
+        rva: 0xb1b8
       - name: "GetEnvironmentStringsW"
-        rva: 45504
+        rva: 0xb1c0
       - name: "FreeEnvironmentStringsW"
-        rva: 45512
+        rva: 0xb1c8
       - name: "LCMapStringW"
-        rva: 45520
+        rva: 0xb1d0
       - name: "SetStdHandle"
-        rva: 45528
+        rva: 0xb1d8
       - name: "GetFileType"
-        rva: 45536
+        rva: 0xb1e0
       - name: "GetStringTypeW"
-        rva: 45544
+        rva: 0xb1e8
       - name: "GetProcessHeap"
-        rva: 45552
+        rva: 0xb1f0
       - name: "HeapSize"
-        rva: 45560
+        rva: 0xb1f8
       - name: "HeapReAlloc"
-        rva: 45568
+        rva: 0xb200
       - name: "FlushFileBuffers"
-        rva: 45576
+        rva: 0xb208
       - name: "GetConsoleCP"
-        rva: 45584
+        rva: 0xb210
       - name: "GetConsoleMode"
-        rva: 45592
+        rva: 0xb218
       - name: "SetFilePointerEx"
-        rva: 45600
+        rva: 0xb220
       - name: "WriteConsoleW"
-        rva: 45608
+        rva: 0xb228
       - name: "CreateFileW"
-        rva: 45616
+        rva: 0xb230
       - name: "RaiseException"
-        rva: 45624
+        rva: 0xb238
 is_signed: true
 signatures:
   - subject: "/C=KR/ST=Jeju-do/L=Jeju-si/O=Kakao corp./CN=Kakao corp."
@@ -459,5 +459,5 @@ signatures:
             not_before: 1356048000  # 2012-12-21 00:00:00 UTC
             not_after: 1609372799  # 2020-12-30 23:59:59 UTC
 overlay:
-    offset: 86016
-    size: 6072
+    offset: 0x15000
+    size: 0x17b8

@@ -17,27 +17,27 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
 characteristics: 0x2022  # EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE | DLL
 dll_characteristics: 0x160  # HIGH_ENTROPY_VA | DYNAMIC_BASE | NX_COMPAT
 timestamp: 1709628808  # 2024-03-05 08:53:28 UTC
-image_base: 6442450944
+image_base: 0x180000000
 checksum: 59800
-base_of_code: 4096
-entry_point: 1024
-entry_point_raw: 4096
+base_of_code: 0x1000
+entry_point: 0x400
+entry_point_raw: 0x1000
 dll_name: "vcruntime140_1.dll"
 export_timestamp: 4294967295  # 2106-02-07 06:28:15 UTC
-section_alignment: 4096
-file_alignment: 512
-loader_flags: 0
-size_of_optional_header: 240
-size_of_code: 1024
-size_of_initialized_data: 5632
-size_of_uninitialized_data: 0
-size_of_image: 24576
-size_of_headers: 1024
-size_of_stack_reserve: 1048576
-size_of_stack_commit: 4096
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+section_alignment: 0x1000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xf0
+size_of_code: 0x400
+size_of_initialized_data: 0x1600
+size_of_uninitialized_data: 0x0
+size_of_image: 0x6000
+size_of_headers: 0x400
+size_of_stack_reserve: 0x100000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -77,8 +77,8 @@ version_info_list:
   - key: "ProductVersion"
     value: "1.0.0.1"
 rich_signature:
-    offset: 128
-    length: 72
+    offset: 0x80
+    length: 0x48
     key: 3048884457
     raw_data: "\xad)\xd4\xe6\xe9H\xba\xb5\xe9H\xba\xb5\xe9H\xba\xb5\xa20\xbb\xb4\xecH\xba\xb5\xe9H\xbb\xb5\xe3H\xba\xb5\x84\xc9\xbe\xb4\xe8H\xba\xb5\x84\xc9\xba\xb4\xe8H\xba\xb5\x84\xc9E\xb5\xe8H\xba\xb5\xe9H-\xb5\xe8H\xba\xb5\x84\xc9\xb8\xb4\xe8H\xba\xb5"
     clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00Kx\x01\x01\x05\x00\x00\x00\x00\x00\x01\x00\n\x00\x00\x00m\x81\x04\x01\x01\x00\x00\x00m\x81\x00\x01\x01\x00\x00\x00m\x81\xff\x00\x01\x00\x00\x00\x00\x00\x97\x00\x01\x00\x00\x00m\x81\x02\x01\x01\x00\x00\x00"
@@ -107,106 +107,106 @@ rich_signature:
 sections:
   - name: ".text"
     full_name: ".text"
-    characteristics: 1610612768
-    raw_data_size: 1024
-    raw_data_offset: 1024
-    virtual_address: 4096
-    virtual_size: 602
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0x400
+    raw_data_offset: 0x400
+    virtual_address: 0x1000
+    virtual_size: 0x25a
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rdata"
     full_name: ".rdata"
-    characteristics: 1073741888
-    raw_data_size: 3072
-    raw_data_offset: 2048
-    virtual_address: 8192
-    virtual_size: 2862
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0xc00
+    raw_data_offset: 0x800
+    virtual_address: 0x2000
+    virtual_size: 0xb2e
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".data"
     full_name: ".data"
-    characteristics: 3221225536
-    raw_data_size: 512
-    raw_data_offset: 5120
-    virtual_address: 12288
-    virtual_size: 104
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0x200
+    raw_data_offset: 0x1400
+    virtual_address: 0x3000
+    virtual_size: 0x68
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".pdata"
     full_name: ".pdata"
-    characteristics: 1073741888
-    raw_data_size: 512
-    raw_data_offset: 5632
-    virtual_address: 16384
-    virtual_size: 36
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x200
+    raw_data_offset: 0x1600
+    virtual_address: 0x4000
+    virtual_size: 0x24
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rsrc"
     full_name: ".rsrc"
-    characteristics: 1073741888
-    raw_data_size: 1536
-    raw_data_offset: 6144
-    virtual_address: 20480
-    virtual_size: 1360
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x600
+    raw_data_offset: 0x1800
+    virtual_address: 0x5000
+    virtual_size: 0x550
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 10560
-    size: 140
-  - virtual_address: 10700
-    size: 60
-  - virtual_address: 20480
-    size: 1360
-  - virtual_address: 16384
-    size: 36
-  - virtual_address: 7680
-    size: 1432
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 10144
-    size: 28
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 8192
-    size: 96
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x2940
+    size: 0x8c
+  - virtual_address: 0x29cc
+    size: 0x3c
+  - virtual_address: 0x5000
+    size: 0x550
+  - virtual_address: 0x4000
+    size: 0x24
+  - virtual_address: 0x1e00
+    size: 0x598
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x27a0
+    size: 0x1c
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x2000
+    size: 0x60
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0
 resources:
-  - length: 816
-    rva: 20640
-    offset: 6304
+  - length: 0x330
+    rva: 0x50a0
+    offset: 0x18a0
     type: RESOURCE_TYPE_VERSION
     id: 1
     language: 1033
-  - length: 381
-    rva: 21456
-    offset: 7120
+  - length: 0x17d
+    rva: 0x53d0
+    offset: 0x1bd0
     type: RESOURCE_TYPE_MANIFEST
     id: 2
     language: 1033
@@ -215,41 +215,41 @@ import_details:
     number_of_functions: 1
     functions:
       - name: "PathStripPathW"
-        rva: 8272
+        rva: 0x2050
   - library_name: "KERNEL32.dll"
     number_of_functions: 9
     functions:
       - name: "GetModuleHandleA"
-        rva: 8192
+        rva: 0x2000
       - name: "lstrcatW"
-        rva: 8200
+        rva: 0x2008
       - name: "GetSystemDirectoryW"
-        rva: 8208
+        rva: 0x2010
       - name: "VirtualProtect"
-        rva: 8216
+        rva: 0x2018
       - name: "FreeLibrary"
-        rva: 8224
+        rva: 0x2020
       - name: "GetModuleFileNameW"
-        rva: 8232
+        rva: 0x2028
       - name: "LoadLibraryW"
-        rva: 8240
+        rva: 0x2030
       - name: "GetProcAddress"
-        rva: 8248
+        rva: 0x2038
       - name: "lstrcmpW"
-        rva: 8256
+        rva: 0x2040
 export_details:
   - name: "__CxxFrameHandler4"
     ordinal: 1
-    rva: 4140
-    offset: 1068
+    rva: 0x102c
+    offset: 0x42c
   - name: "__NLG_Dispatch2"
     ordinal: 2
-    rva: 4148
-    offset: 1076
+    rva: 0x1034
+    offset: 0x434
   - name: "__NLG_Return2"
     ordinal: 3
-    rva: 4156
-    offset: 1084
+    rva: 0x103c
+    offset: 0x43c
 is_signed: true
 signatures:
   - subject: "/C=JP/O=R2R/CN=R2R"
@@ -291,5 +291,5 @@ signatures:
         not_before: 1609426800  # 2020-12-31 15:00:00 UTC
         not_after: 4102326000  # 2099-12-30 15:00:00 UTC
 overlay:
-    offset: 7680
-    size: 1432
+    offset: 0x1e00
+    size: 0x598

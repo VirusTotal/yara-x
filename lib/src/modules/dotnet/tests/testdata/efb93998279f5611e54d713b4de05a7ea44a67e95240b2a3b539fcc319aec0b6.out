@@ -13,20 +13,20 @@ number_of_field_offsets: 0
 typelib: "b25af9bc-af68-4ae2-886f-af4da29c02e3"
 streams:
   - name: "#-"
-    offset: 3842720
-    size: 32728
+    offset: 0x3aa2a0
+    size: 0x7fd8
   - name: "#Strings"
-    offset: 3875448
-    size: 55680
+    offset: 0x3b2278
+    size: 0xd980
   - name: "#US"
-    offset: 3931128
-    size: 15584
+    offset: 0x3bfbf8
+    size: 0x3ce0
   - name: "#GUID"
-    offset: 3946712
-    size: 16
+    offset: 0x3c38d8
+    size: 0x10
   - name: "#Blob"
-    offset: 3946728
-    size: 18400
+    offset: 0x3c38e8
+    size: 0x47e0
 guids:
   - "192000d2-c73b-4e8a-9de4-ad8ef81e2428"
 constants:
@@ -138,23 +138,23 @@ resources:
   - name: "costura.system.diagnostics.diagnosticsource.dll.compressed"
   - name: "costura.metadata"
   - name: "VVd53efa6b4e4V78fa63c3f07b92f2ee"
-  - offset: 299660
-    length: 1503760
+  - offset: 0x4928c
+    length: 0x16f210
     name: "a746b0269f55fa8e6bb0277151d5be55.resources"
-  - offset: 1803424
-    length: 1968528
+  - offset: 0x1b84a0
+    length: 0x1e0990
     name: "<s>"
-  - offset: 3771956
-    length: 24119
+  - offset: 0x398e34
+    length: 0x5e37
     name: "ٻ"
-  - offset: 3796080
-    length: 22327
+  - offset: 0x39ec70
+    length: 0x5737
     name: "ٺ"
-  - offset: 3818412
-    length: 24072
+  - offset: 0x3a43ac
+    length: 0x5e08
     name: " "
-  - offset: 3842488
-    length: 123
+  - offset: 0x3aa1b8
+    length: 0x7b
     name: "ٸ"
 classes:
   - fullname: "d670ae11ff92998e7fa0f1f02132419c.Pbc07ea03P9fd5ePe42635dPcf664a20"

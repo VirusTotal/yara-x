@@ -17,26 +17,26 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 0x1ce  # EXECUTABLE_IMAGE | LINE_NUMS_STRIPPED | LOCAL_SYMS_STRIPPED | BYTES_REVERSED_LO | MACHINE_32BIT
 dll_characteristics: 0x0
 timestamp: 1556274489  # 2019-04-26 10:28:09 UTC
-image_base: 4194304
+image_base: 0x400000
 checksum: 235297
-base_of_code: 4096
-base_of_data: 180224
-entry_point: 5040
-entry_point_raw: 5040
-section_alignment: 4096
-file_alignment: 4096
-loader_flags: 0
-size_of_optional_header: 224
-size_of_code: 176128
-size_of_initialized_data: 8192
-size_of_uninitialized_data: 0
-size_of_image: 188416
-size_of_headers: 4096
-size_of_stack_reserve: 1048576
-size_of_stack_commit: 4096
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+base_of_code: 0x1000
+base_of_data: 0x2c000
+entry_point: 0x13b0
+entry_point_raw: 0x13b0
+section_alignment: 0x1000
+file_alignment: 0x1000
+loader_flags: 0x0
+size_of_optional_header: 0xe0
+size_of_code: 0x2b000
+size_of_initialized_data: 0x2000
+size_of_uninitialized_data: 0x0
+size_of_image: 0x2e000
+size_of_headers: 0x1000
+size_of_stack_reserve: 0x100000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -70,8 +70,8 @@ version_info_list:
   - key: "OriginalFilename"
     value: "Kawaii-Unicorn.exe"
 rich_signature:
-    offset: 128
-    length: 40
+    offset: 0x80
+    length: 0x28
     key: 2291662385
     raw_data: "u\x9f\xf9\xdb1\xfe\x97\x881\xfe\x97\x881\xfe\x97\x88\xb2\xe2\x99\x880\xfe\x97\x88~\xdc\x9e\x880\xfe\x97\x88\x07\xd8\x9a\x880\xfe\x97\x88"
     clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x83\x1c\x0e\x00\x01\x00\x00\x00O\"\t\x00\x01\x00\x00\x006&\r\x00\x01\x00\x00\x00"
@@ -88,88 +88,88 @@ rich_signature:
 sections:
   - name: ".text"
     full_name: ".text"
-    characteristics: 1610612949
-    raw_data_size: 176128
-    raw_data_offset: 4096
-    virtual_address: 4096
-    virtual_size: 172840
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x600000d5  # SECTION_NO_PAD | SECTION_CNT_INITIALIZED_DATA | SECTION_CNT_UNINITIALIZED_DATA | SECTION_LNK_OTHER | SECTION_LNK_INFO | SECTION_LNK_REMOVE | SECTION_NO_DEFER_SPEC_EXC | SECTION_ALIGN_1BYTES | SECTION_ALIGN_2BYTES | SECTION_ALIGN_4BYTES | SECTION_ALIGN_8BYTES | SECTION_ALIGN_16BYTES | SECTION_ALIGN_32BYTES | SECTION_ALIGN_64BYTES | SECTION_ALIGN_128BYTES | SECTION_ALIGN_256BYTES | SECTION_ALIGN_512BYTES | SECTION_ALIGN_1024BYTES | SECTION_ALIGN_2048BYTES | SECTION_ALIGN_4096BYTES | SECTION_ALIGN_8192BYTES | SECTION_ALIGN_MASK | SECTION_LNK_NRELOC_OVFL | SECTION_MEM_DISCARDABLE | SECTION_MEM_NOT_CACHED | SECTION_MEM_NOT_PAGED | SECTION_MEM_SHARED | SECTION_MEM_EXECUTE | SECTION_MEM_WRITE
+    raw_data_size: 0x2b000
+    raw_data_offset: 0x1000
+    virtual_address: 0x1000
+    virtual_size: 0x2a328
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".data"
     full_name: ".data"
-    characteristics: 3221225536
-    raw_data_size: 4096
-    raw_data_offset: 192000
-    virtual_address: 180224
-    virtual_size: 2592
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0x1000
+    raw_data_offset: 0x2ee00
+    virtual_address: 0x2c000
+    virtual_size: 0xa20
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rsrc"
     full_name: ".rsrc"
-    characteristics: 1073741888
-    raw_data_size: 4096
-    raw_data_offset: 184320
-    virtual_address: 184320
-    virtual_size: 2292
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x1000
+    raw_data_offset: 0x2d000
+    virtual_address: 0x2d000
+    virtual_size: 0x8f4
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 175700
-    size: 40
-  - virtual_address: 184320
-    size: 2292
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 552
-    size: 32
-  - virtual_address: 4096
-    size: 260
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x2ae54
+    size: 0x28
+  - virtual_address: 0x2d000
+    size: 0x8f4
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x228
+    size: 0x20
+  - virtual_address: 0x1000
+    size: 0x104
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 resource_timestamp: 1547296057  # 2019-01-12 12:27:37 UTC
 resource_version:
     major: 0
     minor: 0
 resources:
-  - length: 48
-    rva: 185220
-    offset: 185220
+  - length: 0x30
+    rva: 0x2d384
+    offset: 0x2d384
     type: RESOURCE_TYPE_GROUP_ICON
     id: 1
     language: 0
-  - length: 564
-    rva: 184656
-    offset: 184656
+  - length: 0x234
+    rva: 0x2d150
+    offset: 0x2d150
     type: RESOURCE_TYPE_VERSION
     id: 1
     language: 2052
 is_signed: false
 overlay:
-    offset: 0
-    size: 0
+    offset: 0x0
+    size: 0x0
