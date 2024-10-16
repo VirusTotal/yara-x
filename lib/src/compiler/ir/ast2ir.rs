@@ -30,7 +30,6 @@ use crate::compiler::report::ReportBuilder;
 use crate::compiler::{
     warnings, CompileContext, CompileError, TextPatternAsHex,
 };
-use crate::errors::CustomError;
 use crate::errors::PotentiallySlowLoop;
 use crate::modules::BUILTIN_MODULES;
 use crate::re;
