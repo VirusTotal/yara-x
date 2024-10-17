@@ -270,6 +270,11 @@ fn whitespaces() {
     assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..2))));
     assert_eq!(lexer.next_token(), None);
 
+    // No-Break Space (NBSP) (U+00A0).
+    let mut lexer = super::Tokenizer::new(b"\xC2\xA0");
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..2))));
+    assert_eq!(lexer.next_token(), None);
+
     // "En Quad" character (U+2000).
     let mut lexer = super::Tokenizer::new(b"\xE2\x80\x80");
     assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..3))));
