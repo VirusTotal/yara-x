@@ -464,6 +464,17 @@ pub(crate) mod actions {
         ctx.push_output_token(Some(Token::Whitespace));
     }
 
+    /// Action that puts two line break tokens into the output without removing
+    /// the next token from the input. This is useful for adding an blank line
+    /// to the output.
+    pub(crate) fn emptyline<'a, I>(ctx: &mut Context<'a, I>)
+    where
+        I: TokenStream<'a>,
+    {
+        ctx.push_output_token(Some(Token::Newline));
+        ctx.push_output_token(Some(Token::Newline));
+    }
+
     /// Action that puts a line break token into the output without
     /// removing the next token from the input.
     pub(crate) fn newline<'a, I>(ctx: &mut Context<'a, I>)

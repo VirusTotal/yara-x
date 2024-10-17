@@ -6,6 +6,5 @@ rule test {
     $a = "foo"
 
   condition:
-
     true
 }

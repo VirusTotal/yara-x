@@ -1,6 +1,7 @@
 rule test {
   strings:
     $a = { 01 02 03 04 }  // foo
+
   condition:
     all of them
 }

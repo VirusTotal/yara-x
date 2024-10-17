@@ -1,6 +1,7 @@
 rule test {
   strings:
     $hex = { 00 [-] 01 [1-] 02 03 [0-1] 04 05 (06 | 07) 08 }
+
   condition:
     $hex
 }

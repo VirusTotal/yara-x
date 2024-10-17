@@ -33,6 +33,12 @@ pub struct Rule {
     pub indent_section_contents: bool,
     /// Number of spaces for indent. Set to 0 to use tabs.
     pub indent_spaces: u8,
+    /// Insert a newline after the rule declaration but before the curly brace.
+    pub newline_before_curly_brace: bool,
+    /// Insert an empty line before section headers.
+    pub empty_line_before_section_header: bool,
+    /// Insert an empty line after section headers.
+    pub empty_line_after_section_header: bool,
 }
 
 /// Meta specific formatting information.
@@ -57,6 +63,9 @@ impl Default for Config {
                     indent_section_headers: true,
                     indent_section_contents: true,
                     indent_spaces: 2,
+                    newline_before_curly_brace: false,
+                    empty_line_before_section_header: true,
+                    empty_line_after_section_header: false,
                 },
                 meta: Meta { align_values: true },
                 patterns: Patterns { align_values: true },
