@@ -766,6 +766,15 @@ impl Formatter {
                 },
                 processor::actions::newline,
             )
+            // Add newline before each identifier in a `with` statement.
+            .add_rule(
+                |ctx| {
+                    ctx.in_rule(SyntaxKind::WITH_DECL, false)
+                        && ctx.token(1).is(*IDENTIFIER)
+                        && ctx.token(-1).is_not(*NEWLINE)
+                },
+                processor::actions::newline,
+            )
             // Add newline before the closing brace at the end of rule.
             .add_rule(
                 |ctx| {
@@ -784,14 +793,17 @@ impl Formatter {
             } else {
                 Box::new(tokens)
             };
+
         let tokens: Box<dyn Iterator<Item = Token<'a>>> =
             if self.indent_section_contents {
                 Box::new(Self::indent_sections(tokens))
             } else {
                 Box::new(tokens)
             };
+
         let tokens = Self::indent_hex_patterns(tokens);
         let tokens = Self::indent_parenthesized_exprs(tokens);
+        let tokens = Self::indent_with_expr(tokens);
 
         // indent_body and indent_sections will insert Indentation tokens, but
         // won't take into account that those tokens must appear before the
@@ -833,14 +845,6 @@ impl Formatter {
             } else {
                 Box::new(tokens)
             };
-
-        /*let tokens = processor::Processor::new(tokens).add_rule(
-            |ctx| {
-                println!("{:?}", ctx.token(1));
-                true
-            },
-            processor::actions::copy,
-        );*/
 
         let tokens = AddIndentationSpaces::new(tokens, self.indent_spaces);
         let tokens = RemoveTrailingSpaces::new(tokens);
@@ -1018,6 +1022,52 @@ impl Formatter {
                 |ctx| {
                     ctx.in_rule(SyntaxKind::BOOLEAN_EXPR, true)
                         && ctx.token(1).eq(&RPAREN)
+                        && ctx.token(-1).neq(&Indentation(-1))
+                },
+                processor::actions::insert(Indentation(-1)),
+            )
+    }
+
+    /// Indent `with` expressions. For this input...
+    ///
+    /// ```text
+    /// rule foo {
+    /// condition:
+    ///   with
+    ///   foo = "foo"
+    ///   bar = "bar": (...)
+    /// }
+    /// ```
+    ///
+    /// ... the result is ...
+    ///
+    /// ```text
+    /// rule foo {
+    /// condition:
+    ///   with
+    ///     foo = "foo"
+    ///     bar = "bar": (...)
+    /// }
+    /// ```
+    fn indent_with_expr<'a, I>(input: I) -> impl TokenStream<'a> + 'a
+    where
+        I: TokenStream<'a> + 'a,
+    {
+        processor::Processor::new(input)
+            // Ignore all comments.
+            .set_passthrough(*COMMENT)
+            // Increase indentation after the `with` keyword.
+            .add_rule(
+                |ctx| {
+                    ctx.in_rule(SyntaxKind::WITH_EXPR, false)
+                        && ctx.token(-1).eq(&Keyword(b"with"))
+                },
+                processor::actions::insert(Indentation(1)),
+            )
+            // Decrease indentation after the `with` expression.
+            .add_rule(
+                |ctx| {
+                    ctx.token(1).eq(&End(SyntaxKind::WITH_EXPR))
                         && ctx.token(-1).neq(&Indentation(-1))
                 },
                 processor::actions::insert(Indentation(-1)),
@@ -1257,6 +1307,7 @@ impl Formatter {
             // - No space after "(" and "["
             // - No space before ")" and "]"
             // - No space before ":"
+            // - No space before ","
             // - No space before or after ".." (e.g: (0..10))
             // - No space before or after "." (e.g: foo.bar)
             // - No space in-between identifiers and "(" or "[" (e.g: array[0],
@@ -1276,6 +1327,7 @@ impl Formatter {
                     let drop_space =
                         // Don't insert space if next token is ":"
                         next_token.eq(&COLON)
+                        || next_token.eq(&COMMA)
                         // Don't insert space after "-"
                         || prev_token.eq(&HYPHEN)
                         // Don't insert spaces around "."

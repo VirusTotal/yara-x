@@ -131,6 +131,7 @@ pub(crate) mod categories {
 lazy_static! {
     pub(crate) static ref ASTERISK: Token<'static> = Token::Punctuation(b"*");
     pub(crate) static ref COLON: Token<'static> = Token::Punctuation(b":");
+    pub(crate) static ref COMMA: Token<'static> = Token::Punctuation(b",");
     pub(crate) static ref DOT: Token<'static> = Token::Punctuation(b".");
     pub(crate) static ref EQUAL: Token<'static> = Token::Punctuation(b"=");
     pub(crate) static ref HYPHEN: Token<'static> = Token::Punctuation(b"-");
@@ -371,6 +372,7 @@ impl<'a> Token<'a> {
             | SyntaxKind::THEM_KW
             | SyntaxKind::TRUE_KW
             | SyntaxKind::WIDE_KW
+            | SyntaxKind::WITH_KW
             | SyntaxKind::XOR_KW => Token::Keyword(src),
             // Punctuation.
             SyntaxKind::ASTERISK
