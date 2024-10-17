@@ -17,25 +17,25 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
 characteristics: 0x22  # EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE
 dll_characteristics: 0x8140  # DYNAMIC_BASE | NX_COMPAT | TERMINAL_SERVER_AWARE
 timestamp: 1642150359  # 2022-01-14 08:52:39 UTC
-image_base: 5368709120
+image_base: 0x140000000
 checksum: 119600
-base_of_code: 4096
-entry_point: 11840
-entry_point_raw: 14912
-section_alignment: 4096
-file_alignment: 512
-loader_flags: 0
-size_of_optional_header: 240
-size_of_code: 63488
-size_of_initialized_data: 28672
-size_of_uninitialized_data: 0
-size_of_image: 114688
-size_of_headers: 1024
-size_of_stack_reserve: 1048576
-size_of_stack_commit: 4096
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+base_of_code: 0x1000
+entry_point: 0x2e40
+entry_point_raw: 0x3a40
+section_alignment: 0x1000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xf0
+size_of_code: 0xf800
+size_of_initialized_data: 0x7000
+size_of_uninitialized_data: 0x0
+size_of_image: 0x1c000
+size_of_headers: 0x400
+size_of_stack_reserve: 0x100000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -86,8 +86,8 @@ version_info_list:
   - key: "ProductVersion"
     value: "7.1.1.0"
 rich_signature:
-    offset: 128
-    length: 72
+    offset: 0x80
+    length: 0x48
     key: 3573433955
     raw_data: "\'\'\x90\x87cF\xfe\xd4cF\xfe\xd4cF\xfe\xd4\xf0\x08f\xd4gF\xfe\xd4x\xdbU\xd4GF\xfe\xd4x\xdb`\xd4iF\xfe\xd4j>m\xd4fF\xfe\xd4cF\xff\xd4\x04F\xfe\xd4x\xdbT\xd4\xefF\xfe\xd4x\xdbc\xd4bF\xfe\xd4"
     clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x93N\x98\x00\x04\x00\x00\x00\x1b\x9d\xab\x00$\x00\x00\x00\x1b\x9d\x9e\x00\n\x00\x00\x00\tx\x93\x00\x05\x00\x00\x00\x00\x00\x01\x00g\x00\x00\x00\x1b\x9d\xaa\x00\x8c\x00\x00\x00\x1b\x9d\x9d\x00\x01\x00\x00\x00"
@@ -116,123 +116,123 @@ rich_signature:
 sections:
   - name: ".text"
     full_name: ".text"
-    characteristics: 1610612768
-    raw_data_size: 63488
-    raw_data_offset: 1024
-    virtual_address: 4096
-    virtual_size: 63294
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0xf800
+    raw_data_offset: 0x400
+    virtual_address: 0x1000
+    virtual_size: 0xf73e
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rdata"
     full_name: ".rdata"
-    characteristics: 1073741888
-    raw_data_size: 15360
-    raw_data_offset: 64512
-    virtual_address: 69632
-    virtual_size: 15080
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x3c00
+    raw_data_offset: 0xfc00
+    virtual_address: 0x11000
+    virtual_size: 0x3ae8
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".data"
     full_name: ".data"
-    characteristics: 3221225536
-    raw_data_size: 6144
-    raw_data_offset: 79872
-    virtual_address: 86016
-    virtual_size: 14788
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0x1800
+    raw_data_offset: 0x13800
+    virtual_address: 0x15000
+    virtual_size: 0x39c4
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".pdata"
     full_name: ".pdata"
-    characteristics: 1073741888
-    raw_data_size: 3584
-    raw_data_offset: 86016
-    virtual_address: 102400
-    virtual_size: 3120
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0xe00
+    raw_data_offset: 0x15000
+    virtual_address: 0x19000
+    virtual_size: 0xc30
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rsrc"
     full_name: ".rsrc"
-    characteristics: 1073741888
-    raw_data_size: 2560
-    raw_data_offset: 89600
-    virtual_address: 106496
-    virtual_size: 2126
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0xa00
+    raw_data_offset: 0x15e00
+    virtual_address: 0x1a000
+    virtual_size: 0x84e
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".reloc"
     full_name: ".reloc"
-    characteristics: 1107296320
-    raw_data_size: 1024
-    raw_data_offset: 92160
-    virtual_address: 110592
-    virtual_size: 860
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x42000040
+    raw_data_size: 0x400
+    raw_data_offset: 0x16800
+    virtual_address: 0x1b000
+    virtual_size: 0x35c
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 82352
-    size: 40
-  - virtual_address: 106496
-    size: 2126
-  - virtual_address: 102400
-    size: 3120
-  - virtual_address: 93184
-    size: 6456
-  - virtual_address: 110592
-    size: 436
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 69632
-    size: 696
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x141b0
+    size: 0x28
+  - virtual_address: 0x1a000
+    size: 0x84e
+  - virtual_address: 0x19000
+    size: 0xc30
+  - virtual_address: 0x16c00
+    size: 0x1938
+  - virtual_address: 0x1b000
+    size: 0x1b4
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x11000
+    size: 0x2b8
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 4
     minor: 0
 resources:
-  - length: 800
-    rva: 106680
-    offset: 89784
+  - length: 0x320
+    rva: 0x1a0b8
+    offset: 0x15eb8
     type: RESOURCE_TYPE_VERSION
     id: 1
     language: 1031
-  - length: 796
-    rva: 107480
-    offset: 90584
+  - length: 0x31c
+    rva: 0x1a3d8
+    offset: 0x161d8
     type: RESOURCE_TYPE_VERSION
     id: 1
     language: 1033
-  - length: 346
-    rva: 108276
-    offset: 91380
+  - length: 0x15a
+    rva: 0x1a6f4
+    offset: 0x164f4
     type: RESOURCE_TYPE_MANIFEST
     id: 1
     language: 1033
@@ -241,177 +241,177 @@ import_details:
     number_of_functions: 86
     functions:
       - name: "FindClose"
-        rva: 69632
+        rva: 0x11000
       - name: "GetModuleFileNameA"
-        rva: 69640
+        rva: 0x11008
       - name: "HeapAlloc"
-        rva: 69648
+        rva: 0x11010
       - name: "GetLastError"
-        rva: 69656
+        rva: 0x11018
       - name: "HeapFree"
-        rva: 69664
+        rva: 0x11020
       - name: "GetFullPathNameA"
-        rva: 69672
+        rva: 0x11028
       - name: "EnterCriticalSection"
-        rva: 69680
+        rva: 0x11030
       - name: "LeaveCriticalSection"
-        rva: 69688
+        rva: 0x11038
       - name: "FileTimeToSystemTime"
-        rva: 69696
+        rva: 0x11040
       - name: "FileTimeToLocalFileTime"
-        rva: 69704
+        rva: 0x11048
       - name: "GetDriveTypeA"
-        rva: 69712
+        rva: 0x11050
       - name: "FindFirstFileExA"
-        rva: 69720
+        rva: 0x11058
       - name: "GetProcAddress"
-        rva: 69728
+        rva: 0x11060
       - name: "GetModuleHandleW"
-        rva: 69736
+        rva: 0x11068
       - name: "ExitProcess"
-        rva: 69744
+        rva: 0x11070
       - name: "DecodePointer"
-        rva: 69752
+        rva: 0x11078
       - name: "GetCommandLineA"
-        rva: 69760
+        rva: 0x11080
       - name: "RtlUnwindEx"
-        rva: 69768
+        rva: 0x11088
       - name: "SetHandleCount"
-        rva: 69776
+        rva: 0x11090
       - name: "GetStdHandle"
-        rva: 69784
+        rva: 0x11098
       - name: "InitializeCriticalSectionAndSpinCount"
-        rva: 69792
+        rva: 0x110a0
       - name: "GetFileType"
-        rva: 69800
+        rva: 0x110a8
       - name: "GetStartupInfoW"
-        rva: 69808
+        rva: 0x110b0
       - name: "DeleteCriticalSection"
-        rva: 69816
+        rva: 0x110b8
       - name: "UnhandledExceptionFilter"
-        rva: 69824
+        rva: 0x110c0
       - name: "SetUnhandledExceptionFilter"
-        rva: 69832
+        rva: 0x110c8
       - name: "IsDebuggerPresent"
-        rva: 69840
+        rva: 0x110d0
       - name: "RtlVirtualUnwind"
-        rva: 69848
+        rva: 0x110d8
       - name: "RtlLookupFunctionEntry"
-        rva: 69856
+        rva: 0x110e0
       - name: "RtlCaptureContext"
-        rva: 69864
+        rva: 0x110e8
       - name: "EncodePointer"
-        rva: 69872
+        rva: 0x110f0
       - name: "TerminateProcess"
-        rva: 69880
+        rva: 0x110f8
       - name: "GetCurrentProcess"
-        rva: 69888
+        rva: 0x11100
       - name: "WriteFile"
-        rva: 69896
+        rva: 0x11108
       - name: "GetModuleFileNameW"
-        rva: 69904
+        rva: 0x11110
       - name: "HeapSetInformation"
-        rva: 69912
+        rva: 0x11118
       - name: "GetVersion"
-        rva: 69920
+        rva: 0x11120
       - name: "HeapCreate"
-        rva: 69928
+        rva: 0x11128
       - name: "GetDriveTypeW"
-        rva: 69936
+        rva: 0x11130
       - name: "WideCharToMultiByte"
-        rva: 69944
+        rva: 0x11138
       - name: "GetConsoleCP"
-        rva: 69952
+        rva: 0x11140
       - name: "GetConsoleMode"
-        rva: 69960
+        rva: 0x11148
       - name: "FlushFileBuffers"
-        rva: 69968
+        rva: 0x11150
       - name: "Sleep"
-        rva: 69976
+        rva: 0x11158
       - name: "CloseHandle"
-        rva: 69984
+        rva: 0x11160
       - name: "GetFileInformationByHandle"
-        rva: 69992
+        rva: 0x11168
       - name: "PeekNamedPipe"
-        rva: 70000
+        rva: 0x11170
       - name: "CreateFileA"
-        rva: 70008
+        rva: 0x11178
       - name: "GetCurrentDirectoryW"
-        rva: 70016
+        rva: 0x11180
       - name: "GetCPInfo"
-        rva: 70024
+        rva: 0x11188
       - name: "GetACP"
-        rva: 70032
+        rva: 0x11190
       - name: "GetOEMCP"
-        rva: 70040
+        rva: 0x11198
       - name: "IsValidCodePage"
-        rva: 70048
+        rva: 0x111a0
       - name: "FlsGetValue"
-        rva: 70056
+        rva: 0x111a8
       - name: "FlsSetValue"
-        rva: 70064
+        rva: 0x111b0
       - name: "FlsFree"
-        rva: 70072
+        rva: 0x111b8
       - name: "SetLastError"
-        rva: 70080
+        rva: 0x111c0
       - name: "GetCurrentThreadId"
-        rva: 70088
+        rva: 0x111c8
       - name: "FlsAlloc"
-        rva: 70096
+        rva: 0x111d0
       - name: "LCMapStringW"
-        rva: 70104
+        rva: 0x111d8
       - name: "MultiByteToWideChar"
-        rva: 70112
+        rva: 0x111e0
       - name: "SetFilePointer"
-        rva: 70120
+        rva: 0x111e8
       - name: "LoadLibraryW"
-        rva: 70128
+        rva: 0x111f0
       - name: "FreeEnvironmentStringsW"
-        rva: 70136
+        rva: 0x111f8
       - name: "GetEnvironmentStringsW"
-        rva: 70144
+        rva: 0x11200
       - name: "QueryPerformanceCounter"
-        rva: 70152
+        rva: 0x11208
       - name: "GetTickCount"
-        rva: 70160
+        rva: 0x11210
       - name: "GetCurrentProcessId"
-        rva: 70168
+        rva: 0x11218
       - name: "GetSystemTimeAsFileTime"
-        rva: 70176
+        rva: 0x11220
       - name: "CompareStringW"
-        rva: 70184
+        rva: 0x11228
       - name: "SetEnvironmentVariableA"
-        rva: 70192
+        rva: 0x11230
       - name: "WriteConsoleW"
-        rva: 70200
+        rva: 0x11238
       - name: "SetStdHandle"
-        rva: 70208
+        rva: 0x11240
       - name: "HeapReAlloc"
-        rva: 70216
+        rva: 0x11248
       - name: "SetEndOfFile"
-        rva: 70224
+        rva: 0x11250
       - name: "GetProcessHeap"
-        rva: 70232
+        rva: 0x11258
       - name: "ReadFile"
-        rva: 70240
+        rva: 0x11260
       - name: "GetTimeZoneInformation"
-        rva: 70248
+        rva: 0x11268
       - name: "GetStringTypeW"
-        rva: 70256
+        rva: 0x11270
       - name: "HeapSize"
-        rva: 70264
+        rva: 0x11278
       - name: "CreateFileW"
-        rva: 70272
+        rva: 0x11280
       - name: "SetEnvironmentVariableW"
-        rva: 70280
+        rva: 0x11288
       - name: "GetExitCodeProcess"
-        rva: 70288
+        rva: 0x11290
       - name: "WaitForSingleObject"
-        rva: 70296
+        rva: 0x11298
       - name: "CreateProcessA"
-        rva: 70304
+        rva: 0x112a0
       - name: "GetFileAttributesA"
-        rva: 70312
+        rva: 0x112a8
 is_signed: true
 signatures:
   - subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/serialNumber=HRB 140833/CN=Quality First Software GmbH/businessCategory=Private Organization/jurisdictionL=München/jurisdictionST=Bayern/jurisdictionC=DE"
@@ -513,5 +513,5 @@ signatures:
             not_before: 1573671005  # 2019-11-13 18:50:05 UTC
             not_after: 2046970205  # 2034-11-12 18:50:05 UTC
 overlay:
-    offset: 93184
-    size: 6456
+    offset: 0x16c00
+    size: 0x1938

@@ -17,27 +17,27 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
 characteristics: 0x2022  # EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE | DLL
 dll_characteristics: 0x0
 timestamp: 1348452037  # 2012-09-24 02:00:37 UTC
-image_base: 268435456
+image_base: 0x10000000
 checksum: 150385
-base_of_code: 4096
-entry_point: 27616
-entry_point_raw: 30688
+base_of_code: 0x1000
+entry_point: 0x6be0
+entry_point_raw: 0x77e0
 dll_name: "Rockey4ND.dll"
 export_timestamp: 1348452037  # 2012-09-24 02:00:37 UTC
-section_alignment: 4096
-file_alignment: 512
-loader_flags: 0
-size_of_optional_header: 240
-size_of_code: 66560
-size_of_initialized_data: 48640
-size_of_uninitialized_data: 0
-size_of_image: 131072
-size_of_headers: 1024
-size_of_stack_reserve: 1048576
-size_of_stack_commit: 4096
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+section_alignment: 0x1000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xf0
+size_of_code: 0x10400
+size_of_initialized_data: 0xbe00
+size_of_uninitialized_data: 0x0
+size_of_image: 0x20000
+size_of_headers: 0x400
+size_of_stack_reserve: 0x100000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -74,8 +74,8 @@ version_info_list:
   - key: "ProductVersion"
     value: "1, 4, 12, 813"
 rich_signature:
-    offset: 128
-    length: 96
+    offset: 0x80
+    length: 0x60
     key: 1121423077
     raw_data: "\xa1\xef\xb9\x11\xe5\x8e\xd7B\xe5\x8e\xd7B\xe5\x8e\xd7B\xc2H\xaaB\xe2\x8e\xd7B\xc2H\xb9B\xc4\x8e\xd7B\xc2H\xbaB\xbc\x8e\xd7Bz\x86\xacB\xe1\x8e\xd7B\x93\x13\xacB\xe6\x8e\xd7B\xe5\x8e\xd6B\x89\x8e\xd7B\xc2H\xa5B\xe0\x8e\xd7B\xc2H\xadB\xe4\x8e\xd7B\xc2H\xabB\xe4\x8e\xd7B\xc2H\xafB\xe4\x8e\xd7B"
     clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\'\xc6}\x00\x07\x00\x00\x00\'\xc6n\x00!\x00\x00\x00\'\xc6m\x00Y\x00\x00\x00\x9f\x08{\x00\x04\x00\x00\x00v\x9d{\x00\x03\x00\x00\x00\x00\x00\x01\x00l\x00\x00\x00\'\xc6r\x00\x05\x00\x00\x00\'\xc6z\x00\x01\x00\x00\x00\'\xc6|\x00\x01\x00\x00\x00\'\xc6x\x00\x01\x00\x00\x00"
@@ -114,111 +114,111 @@ pdb_path: "h:\\r4\\bin\\x64\\Rockey4ND_X64.pdb"
 sections:
   - name: ".text"
     full_name: ".text"
-    characteristics: 1610612768
-    raw_data_size: 66560
-    raw_data_offset: 1024
-    virtual_address: 4096
-    virtual_size: 66190
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0x10400
+    raw_data_offset: 0x400
+    virtual_address: 0x1000
+    virtual_size: 0x1028e
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rdata"
     full_name: ".rdata"
-    characteristics: 1073741888
-    raw_data_size: 14848
-    raw_data_offset: 67584
-    virtual_address: 73728
-    virtual_size: 14695
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x3a00
+    raw_data_offset: 0x10800
+    virtual_address: 0x12000
+    virtual_size: 0x3967
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".data"
     full_name: ".data"
-    characteristics: 3221225536
-    raw_data_size: 5632
-    raw_data_offset: 82432
-    virtual_address: 90112
-    virtual_size: 27392
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0x1600
+    raw_data_offset: 0x14200
+    virtual_address: 0x16000
+    virtual_size: 0x6b00
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".pdata"
     full_name: ".pdata"
-    characteristics: 1073741888
-    raw_data_size: 4096
-    raw_data_offset: 88064
-    virtual_address: 118784
-    virtual_size: 4080
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x1000
+    raw_data_offset: 0x15800
+    virtual_address: 0x1d000
+    virtual_size: 0xff0
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rsrc"
     full_name: ".rsrc"
-    characteristics: 1073741888
-    raw_data_size: 1024
-    raw_data_offset: 92160
-    virtual_address: 122880
-    virtual_size: 888
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x400
+    raw_data_offset: 0x16800
+    virtual_address: 0x1e000
+    virtual_size: 0x378
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".reloc"
     full_name: ".reloc"
-    characteristics: 1107296320
-    raw_data_size: 1024
-    raw_data_offset: 93184
-    virtual_address: 126976
-    virtual_size: 752
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x42000040
+    raw_data_size: 0x400
+    raw_data_offset: 0x16c00
+    virtual_address: 0x1f000
+    virtual_size: 0x2f0
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 88352
-    size: 71
-  - virtual_address: 85768
-    size: 80
-  - virtual_address: 122880
-    size: 888
-  - virtual_address: 118784
-    size: 4080
-  - virtual_address: 94208
-    size: 6096
-  - virtual_address: 126976
-    size: 272
-  - virtual_address: 74608
-    size: 28
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 73728
-    size: 752
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x15920
+    size: 0x47
+  - virtual_address: 0x14f08
+    size: 0x50
+  - virtual_address: 0x1e000
+    size: 0x378
+  - virtual_address: 0x1d000
+    size: 0xff0
+  - virtual_address: 0x17000
+    size: 0x17d0
+  - virtual_address: 0x1f000
+    size: 0x110
+  - virtual_address: 0x12370
+    size: 0x1c
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x12000
+    size: 0x2f0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0
 resources:
-  - length: 788
-    rva: 122976
-    offset: 92256
+  - length: 0x314
+    rva: 0x1e060
+    offset: 0x16860
     type: RESOURCE_TYPE_VERSION
     id: 1
     language: 2052
@@ -227,198 +227,198 @@ import_details:
     number_of_functions: 78
     functions:
       - name: "CloseHandle"
-        rva: 73808
+        rva: 0x12050
       - name: "OpenFileMappingA"
-        rva: 73816
+        rva: 0x12058
       - name: "InitializeCriticalSection"
-        rva: 73824
+        rva: 0x12060
       - name: "GetCurrentThreadId"
-        rva: 73832
+        rva: 0x12068
       - name: "GetVersionExA"
-        rva: 73840
+        rva: 0x12070
       - name: "CreateMutexA"
-        rva: 73848
+        rva: 0x12078
       - name: "ReleaseMutex"
-        rva: 73856
+        rva: 0x12080
       - name: "CreateFileMappingA"
-        rva: 73864
+        rva: 0x12088
       - name: "EnterCriticalSection"
-        rva: 73872
+        rva: 0x12090
       - name: "GetLastError"
-        rva: 73880
+        rva: 0x12098
       - name: "LeaveCriticalSection"
-        rva: 73888
+        rva: 0x120a0
       - name: "Sleep"
-        rva: 73896
+        rva: 0x120a8
       - name: "GetTickCount"
-        rva: 73904
+        rva: 0x120b0
       - name: "UnmapViewOfFile"
-        rva: 73912
+        rva: 0x120b8
       - name: "MapViewOfFile"
-        rva: 73920
+        rva: 0x120c0
       - name: "WaitForSingleObject"
-        rva: 73928
+        rva: 0x120c8
       - name: "CreateFileA"
-        rva: 73936
+        rva: 0x120d0
       - name: "FlushFileBuffers"
-        rva: 73944
+        rva: 0x120d8
       - name: "FlsSetValue"
-        rva: 73952
+        rva: 0x120e0
       - name: "GetCommandLineA"
-        rva: 73960
+        rva: 0x120e8
       - name: "HeapFree"
-        rva: 73968
+        rva: 0x120f0
       - name: "HeapAlloc"
-        rva: 73976
+        rva: 0x120f8
       - name: "GetProcessHeap"
-        rva: 73984
+        rva: 0x12100
       - name: "TerminateProcess"
-        rva: 73992
+        rva: 0x12108
       - name: "GetCurrentProcess"
-        rva: 74000
+        rva: 0x12110
       - name: "UnhandledExceptionFilter"
-        rva: 74008
+        rva: 0x12118
       - name: "SetUnhandledExceptionFilter"
-        rva: 74016
+        rva: 0x12120
       - name: "IsDebuggerPresent"
-        rva: 74024
+        rva: 0x12128
       - name: "RtlVirtualUnwind"
-        rva: 74032
+        rva: 0x12130
       - name: "RtlLookupFunctionEntry"
-        rva: 74040
+        rva: 0x12138
       - name: "RtlCaptureContext"
-        rva: 74048
+        rva: 0x12140
       - name: "RtlUnwindEx"
-        rva: 74056
+        rva: 0x12148
       - name: "GetProcAddress"
-        rva: 74064
+        rva: 0x12150
       - name: "GetModuleHandleA"
-        rva: 74072
+        rva: 0x12158
       - name: "FlsGetValue"
-        rva: 74080
+        rva: 0x12160
       - name: "TlsFree"
-        rva: 74088
+        rva: 0x12168
       - name: "FlsFree"
-        rva: 74096
+        rva: 0x12170
       - name: "SetLastError"
-        rva: 74104
+        rva: 0x12178
       - name: "TlsSetValue"
-        rva: 74112
+        rva: 0x12180
       - name: "FlsAlloc"
-        rva: 74120
+        rva: 0x12188
       - name: "HeapSize"
-        rva: 74128
+        rva: 0x12190
       - name: "ExitProcess"
-        rva: 74136
+        rva: 0x12198
       - name: "HeapSetInformation"
-        rva: 74144
+        rva: 0x121a0
       - name: "HeapCreate"
-        rva: 74152
+        rva: 0x121a8
       - name: "HeapDestroy"
-        rva: 74160
+        rva: 0x121b0
       - name: "SetHandleCount"
-        rva: 74168
+        rva: 0x121b8
       - name: "GetStdHandle"
-        rva: 74176
+        rva: 0x121c0
       - name: "GetFileType"
-        rva: 74184
+        rva: 0x121c8
       - name: "GetStartupInfoA"
-        rva: 74192
+        rva: 0x121d0
       - name: "DeleteCriticalSection"
-        rva: 74200
+        rva: 0x121d8
       - name: "GetModuleFileNameA"
-        rva: 74208
+        rva: 0x121e0
       - name: "FreeEnvironmentStringsA"
-        rva: 74216
+        rva: 0x121e8
       - name: "GetEnvironmentStrings"
-        rva: 74224
+        rva: 0x121f0
       - name: "FreeEnvironmentStringsW"
-        rva: 74232
+        rva: 0x121f8
       - name: "WideCharToMultiByte"
-        rva: 74240
+        rva: 0x12200
       - name: "GetEnvironmentStringsW"
-        rva: 74248
+        rva: 0x12208
       - name: "QueryPerformanceCounter"
-        rva: 74256
+        rva: 0x12210
       - name: "GetCurrentProcessId"
-        rva: 74264
+        rva: 0x12218
       - name: "GetSystemTimeAsFileTime"
-        rva: 74272
+        rva: 0x12220
       - name: "SetFilePointer"
-        rva: 74280
+        rva: 0x12228
       - name: "WriteFile"
-        rva: 74288
+        rva: 0x12230
       - name: "GetConsoleCP"
-        rva: 74296
+        rva: 0x12238
       - name: "GetConsoleMode"
-        rva: 74304
+        rva: 0x12240
       - name: "GetCPInfo"
-        rva: 74312
+        rva: 0x12248
       - name: "GetACP"
-        rva: 74320
+        rva: 0x12250
       - name: "GetOEMCP"
-        rva: 74328
+        rva: 0x12258
       - name: "HeapReAlloc"
-        rva: 74336
+        rva: 0x12260
       - name: "LoadLibraryA"
-        rva: 74344
+        rva: 0x12268
       - name: "SetStdHandle"
-        rva: 74352
+        rva: 0x12270
       - name: "WriteConsoleA"
-        rva: 74360
+        rva: 0x12278
       - name: "GetConsoleOutputCP"
-        rva: 74368
+        rva: 0x12280
       - name: "WriteConsoleW"
-        rva: 74376
+        rva: 0x12288
       - name: "MultiByteToWideChar"
-        rva: 74384
+        rva: 0x12290
       - name: "LCMapStringA"
-        rva: 74392
+        rva: 0x12298
       - name: "LCMapStringW"
-        rva: 74400
+        rva: 0x122a0
       - name: "GetStringTypeA"
-        rva: 74408
+        rva: 0x122a8
       - name: "GetStringTypeW"
-        rva: 74416
+        rva: 0x122b0
       - name: "GetLocaleInfoA"
-        rva: 74424
+        rva: 0x122b8
   - library_name: "HID.DLL"
     number_of_functions: 9
     functions:
       - name: "HidD_GetHidGuid"
-        rva: 73728
+        rva: 0x12000
       - name: "HidD_GetAttributes"
-        rva: 73736
+        rva: 0x12008
       - name: "HidD_SetFeature"
-        rva: 73744
+        rva: 0x12010
       - name: "HidD_FreePreparsedData"
-        rva: 73752
+        rva: 0x12018
       - name: "HidD_GetFeature"
-        rva: 73760
+        rva: 0x12020
       - name: "HidP_GetCaps"
-        rva: 73768
+        rva: 0x12028
       - name: "HidD_GetProductString"
-        rva: 73776
+        rva: 0x12030
       - name: "HidD_FlushQueue"
-        rva: 73784
+        rva: 0x12038
       - name: "HidD_GetPreparsedData"
-        rva: 73792
+        rva: 0x12040
   - library_name: "SETUPAPI.dll"
     number_of_functions: 4
     functions:
       - name: "SetupDiGetDeviceInterfaceDetailA"
-        rva: 74440
+        rva: 0x122c8
       - name: "SetupDiDestroyDeviceInfoList"
-        rva: 74448
+        rva: 0x122d0
       - name: "SetupDiGetClassDevsA"
-        rva: 74456
+        rva: 0x122d8
       - name: "SetupDiEnumDeviceInterfaces"
-        rva: 74464
+        rva: 0x122e0
 export_details:
   - name: "Rockey"
     ordinal: 1
-    rva: 24368
-    offset: 21296
+    rva: 0x5f30
+    offset: 0x5330
 is_signed: true
 signatures:
   - subject: "/C=CN/ST=Beijing,China/L=Beijing,China/O=Feitian Technologies Co., Ltd./OU=Digital ID Class 3 - Microsoft Software Validation v2/CN=Feitian Technologies Co., Ltd."
@@ -538,5 +538,5 @@ signatures:
             not_before: 1070496000  # 2003-12-04 00:00:00 UTC
             not_after: 1386115199  # 2013-12-03 23:59:59 UTC
 overlay:
-    offset: 94208
-    size: 6096
+    offset: 0x17000
+    size: 0x17d0

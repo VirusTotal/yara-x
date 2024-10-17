@@ -13,20 +13,20 @@ number_of_field_offsets: 0
 typelib: "286e82a5-8e28-4288-b175-0099b68f4880"
 streams:
   - name: "#-"
-    offset: 2840
-    size: 1917
+    offset: 0xb18
+    size: 0x77d
   - name: "#Strings"
-    offset: 4757
-    size: 2012
+    offset: 0x1295
+    size: 0x7dc
   - name: "#US"
-    offset: 6769
-    size: 669
+    offset: 0x1a71
+    size: 0x29d
   - name: "#GUID"
-    offset: 7438
-    size: 21
+    offset: 0x1d0e
+    size: 0x15
   - name: "#Blob"
-    offset: 7459
-    size: 984
+    offset: 0x1d23
+    size: 0x3d8
 guids:
   - "d56eef0e-b964-4c2b-8e58-30441730866d"
 constants:

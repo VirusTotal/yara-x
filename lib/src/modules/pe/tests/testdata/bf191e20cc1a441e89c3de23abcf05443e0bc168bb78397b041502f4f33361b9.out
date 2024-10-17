@@ -17,25 +17,25 @@ opthdr_magic: 31619
 characteristics: 0xc43  # RELOCS_STRIPPED | EXECUTABLE_IMAGE | REMOVABLE_RUN_FROM_SWAP | NET_RUN_FROM_SWAP
 dll_characteristics: 0x8bcf  # DYNAMIC_BASE | FORCE_INTEGRITY | NX_COMPAT | NO_ISOLATION | NO_BIND | TERMINAL_SERVER_AWARE
 timestamp: 440487448  # 1983-12-17 05:37:28 UTC
-image_base: 1401996123
+image_base: 0x5390c35b
 checksum: 1943944191
-base_of_code: 3296923785
-base_of_data: 1583308052
-entry_point_raw: 3526566916
-section_alignment: 3296941910
-file_alignment: 2314832876
-loader_flags: 16115896
-size_of_optional_header: 10500
-size_of_code: 3280670837
-size_of_initialized_data: 4294613736
-size_of_uninitialized_data: 2332552191
-size_of_image: 2179990308
-size_of_headers: 4290773222
-size_of_stack_reserve: 2345872342
-size_of_stack_commit: 4254722243
-size_of_heap_reserve: 1284374527
-size_of_heap_commit: 3616212004
-pointer_to_symbol_table: 2332557312
+base_of_code: 0xc4831089
+base_of_data: 0x5e5f5d14
+entry_point_raw: 0xd2332404
+section_alignment: 0xc4835756
+file_alignment: 0x89f98bec
+loader_flags: 0xf5e8b8
+size_of_optional_header: 0x2904
+size_of_code: 0xc38b1075
+size_of_initialized_data: 0xfffa9ae8
+size_of_uninitialized_data: 0x8b07ebff
+size_of_image: 0x81f00324
+size_of_headers: 0xffc000e6
+size_of_stack_reserve: 0x8bd32bd6
+size_of_stack_commit: 0xfd99e8c3
+size_of_heap_reserve: 0x4c8dffff
+size_of_heap_commit: 0xd78b0424
+pointer_to_symbol_table: 0x8b080000
 win32_version_value: 881590271
 number_of_symbols: 1082860548
 number_of_rva_and_sizes: 4200458256
@@ -49,39 +49,39 @@ number_of_delayed_imports: 0
 number_of_exports: 0
 number_of_signatures: 0
 data_directories:
-  - virtual_address: 1552678911
-    size: 3682927652
-  - virtual_address: 1284317044
-    size: 1418398756
-  - virtual_address: 3280668708
-    size: 4294715112
-  - virtual_address: 608472063
-    size: 608471308
-  - virtual_address: 608471812
-    size: 608471312
-  - virtual_address: 612139784
-    size: 343146500
-  - virtual_address: 69489805
-    size: 16115896
-  - virtual_address: 4203866128
-    size: 82575359
-  - virtual_address: 126468147
-    size: 1595196547
-  - virtual_address: 1438866270
-    size: 3526618251
-  - virtual_address: 418801749
-    size: 4284747776
-  - virtual_address: 579429426
-    size: 16103528
-  - virtual_address: 4181321744
-    size: 1031864319
-  - virtual_address: 268496953
-    size: 1745515520
-  - virtual_address: 268498360
-    size: 4294520552
-  - virtual_address: 4124621055
-    size: 2364018688
+  - virtual_address: 0x5c8bffff
+    size: 0xdb850424
+  - virtual_address: 0x4c8d1f74
+    size: 0x548b0c24
+  - virtual_address: 0xc38b0824
+    size: 0xfffc26e8
+  - virtual_address: 0x24448bff
+    size: 0x2444890c
+  - virtual_address: 0x24448b04
+    size: 0x24448910
+  - virtual_address: 0x247c8308
+    size: 0x14740004
+  - virtual_address: 0x424548d
+    size: 0xf5e8b8
+  - virtual_address: 0xfa91e810
+    size: 0x4ebffff
+  - virtual_address: 0x789c033
+    size: 0x5f14c483
+  - virtual_address: 0x55c35b5e
+    size: 0xd233ec8b
+  - virtual_address: 0x18f66855
+    size: 0xff641000
+  - virtual_address: 0x22896432
+    size: 0xf5b868
+  - virtual_address: 0xf939e810
+    size: 0x3d80ffff
+  - virtual_address: 0x1000f039
+    size: 0x680a7400
+  - virtual_address: 0x1000f5b8
+    size: 0xfff92ee8
+  - virtual_address: 0xf5d8b8ff
+    size: 0x8ce81000
 is_signed: false
 overlay:
-    offset: 0
-    size: 0
+    offset: 0x0
+    size: 0x0

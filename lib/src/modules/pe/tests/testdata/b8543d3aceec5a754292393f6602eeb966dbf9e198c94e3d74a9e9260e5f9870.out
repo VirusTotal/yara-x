@@ -17,25 +17,25 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
 characteristics: 0x22  # EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE
 dll_characteristics: 0xc160  # HIGH_ENTROPY_VA | DYNAMIC_BASE | NX_COMPAT | GUARD_CF | TERMINAL_SERVER_AWARE
 timestamp: 1776026023  # 2026-04-12 20:33:43 UTC
-image_base: 5368709120
+image_base: 0x140000000
 checksum: 58189
-base_of_code: 4096
-entry_point: 2272
-entry_point_raw: 5344
-section_alignment: 4096
-file_alignment: 512
-loader_flags: 0
-size_of_optional_header: 240
-size_of_code: 3072
-size_of_initialized_data: 9216
-size_of_uninitialized_data: 0
-size_of_image: 28672
-size_of_headers: 1024
-size_of_stack_reserve: 524288
-size_of_stack_commit: 8192
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+base_of_code: 0x1000
+entry_point: 0x8e0
+entry_point_raw: 0x14e0
+section_alignment: 0x1000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xf0
+size_of_code: 0xc00
+size_of_initialized_data: 0x2400
+size_of_uninitialized_data: 0x0
+size_of_image: 0x7000
+size_of_headers: 0x400
+size_of_stack_reserve: 0x80000
+size_of_stack_commit: 0x2000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -75,8 +75,8 @@ version_info_list:
   - key: "ProductVersion"
     value: "10.0.19041.1202"
 rich_signature:
-    offset: 128
-    length: 88
+    offset: 0x80
+    length: 0x58
     key: 3921423185
     raw_data: "\x15J\xd2\xbaQ+\xbc\xe9Q+\xbc\xe9Q+\xbc\xe9XS/\xe9E+\xbc\xe9E@\xb9\xe8P+\xbc\xe9E@\xbf\xe8S+\xbc\xe9E@\xb8\xe8C+\xbc\xe9Q+\xbd\xe9x+\xbc\xe9E@\xbd\xe8T+\xbc\xe9E@\xb4\xe8R+\xbc\xe9E@C\xe9P+\xbc\xe9E@\xbe\xe8P+\xbc\xe9"
     clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\tx\x93\x00\x14\x00\x00\x00\x14k\x05\x01\x01\x00\x00\x00\x14k\x03\x01\x02\x00\x00\x00\x14k\x04\x01\x12\x00\x00\x00\x00\x00\x01\x00)\x00\x00\x00\x14k\x01\x01\x05\x00\x00\x00\x14k\x08\x01\x03\x00\x00\x00\x14k\xff\x00\x01\x00\x00\x00\x14k\x02\x01\x01\x00\x00\x00"
@@ -112,117 +112,117 @@ pdb_path: "launchtm.pdb"
 sections:
   - name: ".text"
     full_name: ".text"
-    characteristics: 1610612768
-    raw_data_size: 3072
-    raw_data_offset: 1024
-    virtual_address: 4096
-    virtual_size: 2864
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0xc00
+    raw_data_offset: 0x400
+    virtual_address: 0x1000
+    virtual_size: 0xb30
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rdata"
     full_name: ".rdata"
-    characteristics: 1073741888
-    raw_data_size: 3584
-    raw_data_offset: 4096
-    virtual_address: 8192
-    virtual_size: 3522
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0xe00
+    raw_data_offset: 0x1000
+    virtual_address: 0x2000
+    virtual_size: 0xdc2
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".data"
     full_name: ".data"
-    characteristics: 3221225536
-    raw_data_size: 512
-    raw_data_offset: 7680
-    virtual_address: 12288
-    virtual_size: 1664
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0x200
+    raw_data_offset: 0x1e00
+    virtual_address: 0x3000
+    virtual_size: 0x680
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".pdata"
     full_name: ".pdata"
-    characteristics: 1073741888
-    raw_data_size: 512
-    raw_data_offset: 8192
-    virtual_address: 16384
-    virtual_size: 228
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x200
+    raw_data_offset: 0x2000
+    virtual_address: 0x4000
+    virtual_size: 0xe4
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rsrc"
     full_name: ".rsrc"
-    characteristics: 1073741888
-    raw_data_size: 2560
-    raw_data_offset: 8704
-    virtual_address: 20480
-    virtual_size: 2312
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0xa00
+    raw_data_offset: 0x2200
+    virtual_address: 0x5000
+    virtual_size: 0x908
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".reloc"
     full_name: ".reloc"
-    characteristics: 1107296320
-    raw_data_size: 512
-    raw_data_offset: 11264
-    virtual_address: 24576
-    virtual_size: 32
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x42000040
+    raw_data_size: 0x200
+    raw_data_offset: 0x2c00
+    virtual_address: 0x6000
+    virtual_size: 0x20
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 9988
-    size: 260
-  - virtual_address: 20480
-    size: 2312
-  - virtual_address: 16384
-    size: 228
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 24576
-    size: 32
-  - virtual_address: 9088
-    size: 84
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 8208
-    size: 280
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 8488
-    size: 392
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x2704
+    size: 0x104
+  - virtual_address: 0x5000
+    size: 0x908
+  - virtual_address: 0x4000
+    size: 0xe4
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x6000
+    size: 0x20
+  - virtual_address: 0x2380
+    size: 0x54
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x2010
+    size: 0x118
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x2128
+    size: 0x188
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0
 resources:
-  - length: 928
-    rva: 21864
-    offset: 10088
+  - length: 0x3a0
+    rva: 0x5568
+    offset: 0x2768
     type: RESOURCE_TYPE_VERSION
     id: 1
     language: 1033
-  - length: 1219
-    rva: 20640
-    offset: 8864
+  - length: 0x4c3
+    rva: 0x50a0
+    offset: 0x22a0
     type: RESOURCE_TYPE_MANIFEST
     id: 1
     language: 1033
@@ -231,113 +231,113 @@ import_details:
     number_of_functions: 15
     functions:
       - name: "__set_app_type"
-        rva: 8752
+        rva: 0x2230
       - name: "__wgetmainargs"
-        rva: 8760
+        rva: 0x2238
       - name: "_amsg_exit"
-        rva: 8768
+        rva: 0x2240
       - name: "?terminate@@YAXXZ"
-        rva: 8776
+        rva: 0x2248
       - name: "_commode"
-        rva: 8784
+        rva: 0x2250
       - name: "_fmode"
-        rva: 8792
+        rva: 0x2258
       - name: "_wcmdln"
-        rva: 8800
+        rva: 0x2260
       - name: "__C_specific_handler"
-        rva: 8808
+        rva: 0x2268
       - name: "_initterm"
-        rva: 8816
+        rva: 0x2270
       - name: "__setusermatherr"
-        rva: 8824
+        rva: 0x2278
       - name: "_cexit"
-        rva: 8832
+        rva: 0x2280
       - name: "_XcptFilter"
-        rva: 8840
+        rva: 0x2288
       - name: "_exit"
-        rva: 8848
+        rva: 0x2290
       - name: "exit"
-        rva: 8856
+        rva: 0x2298
       - name: "memset"
-        rva: 8864
+        rva: 0x22a0
   - library_name: "api-ms-win-core-heap-l1-1-0.dll"
     number_of_functions: 1
     functions:
       - name: "HeapSetInformation"
-        rva: 8560
+        rva: 0x2170
   - library_name: "api-ms-win-core-processthreads-l1-1-0.dll"
     number_of_functions: 6
     functions:
       - name: "GetStartupInfoW"
-        rva: 8608
+        rva: 0x21a0
       - name: "GetCurrentProcess"
-        rva: 8616
+        rva: 0x21a8
       - name: "GetCurrentThreadId"
-        rva: 8624
+        rva: 0x21b0
       - name: "GetCurrentProcessId"
-        rva: 8632
+        rva: 0x21b8
       - name: "TerminateProcess"
-        rva: 8640
+        rva: 0x21c0
       - name: "SetPriorityClass"
-        rva: 8648
+        rva: 0x21c8
   - library_name: "api-ms-win-core-com-l1-1-0.dll"
     number_of_functions: 2
     functions:
       - name: "CoInitializeEx"
-        rva: 8504
+        rva: 0x2138
       - name: "CoUninitialize"
-        rva: 8512
+        rva: 0x2140
   - library_name: "api-ms-win-core-processenvironment-l1-1-0.dll"
     number_of_functions: 1
     functions:
       - name: "ExpandEnvironmentStringsW"
-        rva: 8592
+        rva: 0x2190
   - library_name: "api-ms-win-core-errorhandling-l1-1-0.dll"
     number_of_functions: 3
     functions:
       - name: "GetLastError"
-        rva: 8528
+        rva: 0x2150
       - name: "UnhandledExceptionFilter"
-        rva: 8536
+        rva: 0x2158
       - name: "SetUnhandledExceptionFilter"
-        rva: 8544
+        rva: 0x2160
   - library_name: "api-ms-win-core-synch-l1-2-0.dll"
     number_of_functions: 1
     functions:
       - name: "Sleep"
-        rva: 8712
+        rva: 0x2208
   - library_name: "api-ms-win-core-libraryloader-l1-2-0.dll"
     number_of_functions: 1
     functions:
       - name: "GetModuleHandleW"
-        rva: 8576
+        rva: 0x2180
   - library_name: "api-ms-win-core-profile-l1-1-0.dll"
     number_of_functions: 1
     functions:
       - name: "QueryPerformanceCounter"
-        rva: 8664
+        rva: 0x21d8
   - library_name: "api-ms-win-core-sysinfo-l1-1-0.dll"
     number_of_functions: 2
     functions:
       - name: "GetTickCount"
-        rva: 8728
+        rva: 0x2218
       - name: "GetSystemTimeAsFileTime"
-        rva: 8736
+        rva: 0x2220
   - library_name: "api-ms-win-core-rtlsupport-l1-1-0.dll"
     number_of_functions: 3
     functions:
       - name: "RtlVirtualUnwind"
-        rva: 8680
+        rva: 0x21e8
       - name: "RtlLookupFunctionEntry"
-        rva: 8688
+        rva: 0x21f0
       - name: "RtlCaptureContext"
-        rva: 8696
+        rva: 0x21f8
   - library_name: "SHELL32.dll"
     number_of_functions: 1
     functions:
       - name: "ShellExecuteExW"
-        rva: 8488
+        rva: 0x2128
 is_signed: false
 overlay:
-    offset: 0
-    size: 0
+    offset: 0x0
+    size: 0x0

@@ -17,27 +17,27 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
 characteristics: 0x2022  # EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE | DLL
 dll_characteristics: 0x4160  # HIGH_ENTROPY_VA | DYNAMIC_BASE | NX_COMPAT | GUARD_CF
 timestamp: 1827812126  # 2027-12-03 05:35:26 UTC
-image_base: 6442450944
+image_base: 0x180000000
 checksum: 57102
-base_of_code: 4096
-entry_point: 1920
-entry_point_raw: 4992
+base_of_code: 0x1000
+entry_point: 0x780
+entry_point_raw: 0x1380
 dll_name: "mtxex.dll"
 export_timestamp: 1827812126  # 2027-12-03 05:35:26 UTC
-section_alignment: 4096
-file_alignment: 512
-loader_flags: 0
-size_of_optional_header: 240
-size_of_code: 3584
-size_of_initialized_data: 6144
-size_of_uninitialized_data: 0
-size_of_image: 28672
-size_of_headers: 1024
-size_of_stack_reserve: 262144
-size_of_stack_commit: 4096
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+section_alignment: 0x1000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xf0
+size_of_code: 0xe00
+size_of_initialized_data: 0x1800
+size_of_uninitialized_data: 0x0
+size_of_image: 0x7000
+size_of_headers: 0x400
+size_of_stack_reserve: 0x40000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -77,8 +77,8 @@ version_info_list:
   - key: "ProductVersion"
     value: "10.0.17763.1"
 rich_signature:
-    offset: 128
-    length: 80
+    offset: 0x80
+    length: 0x50
     key: 3360243275
     raw_data: "\x0f_\'\x9bK>I\xc8K>I\xc8K>I\xc8.XJ\xc9I>I\xc8.XM\xc9A>I\xc8K>H\xc8W>I\xc8.XH\xc9N>I\xc8.XI\xc9J>I\xc8.XA\xc9I>I\xc8.X\xb6\xc8J>I\xc8.XK\xc9J>I\xc8"
     clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00ef\x03\x01\x02\x00\x00\x00ef\x04\x01\n\x00\x00\x00\x00\x00\x01\x00\x1c\x00\x00\x00ef\x01\x01\x05\x00\x00\x00ef\x00\x01\x01\x00\x00\x00ef\x08\x01\x02\x00\x00\x00ef\xff\x00\x01\x00\x00\x00ef\x02\x01\x01\x00\x00\x00"
@@ -111,111 +111,111 @@ pdb_path: "mtxex.pdb"
 sections:
   - name: ".text"
     full_name: ".text"
-    characteristics: 1610612768
-    raw_data_size: 3584
-    raw_data_offset: 1024
-    virtual_address: 4096
-    virtual_size: 3408
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0xe00
+    raw_data_offset: 0x400
+    virtual_address: 0x1000
+    virtual_size: 0xd50
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rdata"
     full_name: ".rdata"
-    characteristics: 1073741888
-    raw_data_size: 2560
-    raw_data_offset: 4608
-    virtual_address: 8192
-    virtual_size: 2510
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0xa00
+    raw_data_offset: 0x1200
+    virtual_address: 0x2000
+    virtual_size: 0x9ce
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".data"
     full_name: ".data"
-    characteristics: 3221225536
-    raw_data_size: 512
-    raw_data_offset: 7168
-    virtual_address: 12288
-    virtual_size: 1504
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0x200
+    raw_data_offset: 0x1c00
+    virtual_address: 0x3000
+    virtual_size: 0x5e0
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".pdata"
     full_name: ".pdata"
-    characteristics: 1073741888
-    raw_data_size: 512
-    raw_data_offset: 7680
-    virtual_address: 16384
-    virtual_size: 264
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x200
+    raw_data_offset: 0x1e00
+    virtual_address: 0x4000
+    virtual_size: 0x108
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rsrc"
     full_name: ".rsrc"
-    characteristics: 1073741888
-    raw_data_size: 1024
-    raw_data_offset: 8192
-    virtual_address: 20480
-    virtual_size: 984
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x400
+    raw_data_offset: 0x2000
+    virtual_address: 0x5000
+    virtual_size: 0x3d8
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".reloc"
     full_name: ".reloc"
-    characteristics: 1107296320
-    raw_data_size: 512
-    raw_data_offset: 9216
-    virtual_address: 24576
-    virtual_size: 28
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x42000040
+    raw_data_size: 0x200
+    raw_data_offset: 0x2400
+    virtual_address: 0x6000
+    virtual_size: 0x1c
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 9728
-    size: 220
-  - virtual_address: 9948
-    size: 60
-  - virtual_address: 20480
-    size: 984
-  - virtual_address: 16384
-    size: 264
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 24576
-    size: 28
-  - virtual_address: 8816
-    size: 84
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 8208
-    size: 264
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 8472
-    size: 208
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x2600
+    size: 0xdc
+  - virtual_address: 0x26dc
+    size: 0x3c
+  - virtual_address: 0x5000
+    size: 0x3d8
+  - virtual_address: 0x4000
+    size: 0x108
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x6000
+    size: 0x1c
+  - virtual_address: 0x2270
+    size: 0x54
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x2010
+    size: 0x108
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x2118
+    size: 0xd0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0
 resources:
-  - length: 888
-    rva: 20576
-    offset: 8288
+  - length: 0x378
+    rva: 0x5060
+    offset: 0x2060
     type: RESOURCE_TYPE_VERSION
     id: 1
     language: 1033
@@ -224,74 +224,74 @@ import_details:
     number_of_functions: 6
     functions:
       - name: "__C_specific_handler"
-        rva: 8624
+        rva: 0x21b0
       - name: "_XcptFilter"
-        rva: 8632
+        rva: 0x21b8
       - name: "_initterm"
-        rva: 8640
+        rva: 0x21c0
       - name: "malloc"
-        rva: 8648
+        rva: 0x21c8
       - name: "free"
-        rva: 8656
+        rva: 0x21d0
       - name: "_amsg_exit"
-        rva: 8664
+        rva: 0x21d8
   - library_name: "KERNEL32.dll"
     number_of_functions: 18
     functions:
       - name: "LoadLibraryExW"
-        rva: 8472
+        rva: 0x2118
       - name: "TerminateProcess"
-        rva: 8480
+        rva: 0x2120
       - name: "GetCurrentProcess"
-        rva: 8488
+        rva: 0x2128
       - name: "SetUnhandledExceptionFilter"
-        rva: 8496
+        rva: 0x2130
       - name: "UnhandledExceptionFilter"
-        rva: 8504
+        rva: 0x2138
       - name: "RtlVirtualUnwind"
-        rva: 8512
+        rva: 0x2140
       - name: "RtlLookupFunctionEntry"
-        rva: 8520
+        rva: 0x2148
       - name: "RtlCaptureContext"
-        rva: 8528
+        rva: 0x2150
       - name: "GetTickCount"
-        rva: 8536
+        rva: 0x2158
       - name: "GetSystemTimeAsFileTime"
-        rva: 8544
+        rva: 0x2160
       - name: "GetCurrentThreadId"
-        rva: 8552
+        rva: 0x2168
       - name: "GetLastError"
-        rva: 8560
+        rva: 0x2170
       - name: "DisableThreadLibraryCalls"
-        rva: 8568
+        rva: 0x2178
       - name: "GetProcAddress"
-        rva: 8576
+        rva: 0x2180
       - name: "FreeLibrary"
-        rva: 8584
+        rva: 0x2188
       - name: "QueryPerformanceCounter"
-        rva: 8592
+        rva: 0x2190
       - name: "Sleep"
-        rva: 8600
+        rva: 0x2198
       - name: "GetCurrentProcessId"
-        rva: 8608
+        rva: 0x21a0
 export_details:
   - name: "DllGetClassObject"
     ordinal: 1
-    rva: 4144
-    offset: 1072
+    rva: 0x1030
+    offset: 0x430
   - name: "GetObjectContext"
     ordinal: 2
-    rva: 9853
+    rva: 0x267d
     forward_name: "COMSVCS.GetObjectContext"
   - name: "MTSCreateActivity"
     ordinal: 3
-    rva: 9896
+    rva: 0x26a8
     forward_name: "COMSVCS.MTSCreateActivity"
   - name: "SafeRef"
     ordinal: 4
-    rva: 9930
+    rva: 0x26ca
     forward_name: "COMSVCS.SafeRef"
 is_signed: false
 overlay:
-    offset: 0
-    size: 0
+    offset: 0x0
+    size: 0x0

@@ -17,26 +17,26 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 0x10f  # RELOCS_STRIPPED | EXECUTABLE_IMAGE | LINE_NUMS_STRIPPED | LOCAL_SYMS_STRIPPED | MACHINE_32BIT
 dll_characteristics: 0x8000  # TERMINAL_SERVER_AWARE
 timestamp: 998098977  # 2001-08-18 01:42:57 UTC
-image_base: 16777216
+image_base: 0x1000000
 checksum: 330575
-base_of_code: 4096
-base_of_data: 40960
-entry_point: 20062
-entry_point_raw: 23134
-section_alignment: 4096
-file_alignment: 512
-loader_flags: 0
-size_of_optional_header: 224
-size_of_code: 34816
-size_of_initialized_data: 246272
-size_of_uninitialized_data: 0
-size_of_image: 294912
-size_of_headers: 1024
-size_of_stack_reserve: 262144
-size_of_stack_commit: 4096
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+base_of_code: 0x1000
+base_of_data: 0xa000
+entry_point: 0x4e5e
+entry_point_raw: 0x5a5e
+section_alignment: 0x1000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xe0
+size_of_code: 0x8800
+size_of_initialized_data: 0x3c200
+size_of_uninitialized_data: 0x0
+size_of_image: 0x48000
+size_of_headers: 0x400
+size_of_stack_reserve: 0x40000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -76,8 +76,8 @@ version_info_list:
   - key: "ProductVersion"
     value: "9.29.1962.0"
 rich_signature:
-    offset: 128
-    length: 56
+    offset: 0x80
+    length: 0x38
     key: 2278776681
     raw_data: "->\xbd\xd4i_\xd3\x87i_\xd3\x87i_\xd3\x87\x93|\xca\x87d_\xd3\x87i_\xd2\x87\x17_\xd3\x87\xfe|\x96\x87h_\xd3\x87\xb3|\xcf\x87q_\xd3\x87\x93|\xee\x87h_\xd3\x87"
     clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xfa#\x19\x00\r\x00\x00\x00\x00\x00\x01\x00~\x00\x00\x00\x97#E\x00\x01\x00\x00\x00\xda#\x1c\x00\x18\x00\x00\x00\xfa#=\x00\x01\x00\x00\x00"
@@ -101,258 +101,258 @@ pdb_path: "wextract.pdb"
 sections:
   - name: ".text"
     full_name: ".text"
-    characteristics: 1610612768
-    raw_data_size: 34816
-    raw_data_offset: 1024
-    virtual_address: 4096
-    virtual_size: 34330
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0x8800
+    raw_data_offset: 0x400
+    virtual_address: 0x1000
+    virtual_size: 0x861a
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".data"
     full_name: ".data"
-    characteristics: 3221225536
-    raw_data_size: 1024
-    raw_data_offset: 35840
-    virtual_address: 40960
-    virtual_size: 7140
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0x400
+    raw_data_offset: 0x8c00
+    virtual_address: 0xa000
+    virtual_size: 0x1be4
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rsrc"
     full_name: ".rsrc"
-    characteristics: 1073741888
-    raw_data_size: 245248
-    raw_data_offset: 36864
-    virtual_address: 49152
-    virtual_size: 245760
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x3be00
+    raw_data_offset: 0x9000
+    virtual_address: 0xc000
+    virtual_size: 0x3c000
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 35504
-    size: 140
-  - virtual_address: 49152
-    size: 245128
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 282112
-    size: 5976
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 4624
-    size: 28
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 4096
-    size: 528
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x8ab0
+    size: 0x8c
+  - virtual_address: 0xc000
+    size: 0x3bd88
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x44e00
+    size: 0x1758
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x1210
+    size: 0x1c
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x1000
+    size: 0x210
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 resource_timestamp: 1773781709  # 2026-03-17 21:08:29 UTC
 resource_version:
     major: 4
     minor: 0
 resources:
-  - length: 11802
-    rva: 51104
-    offset: 38816
+  - length: 0x2e1a
+    rva: 0xc7a0
+    offset: 0x97a0
     id: 3001
     language: 1033
     type_string: "A\x00V\x00I\x00"
-  - length: 744
-    rva: 62908
-    offset: 50620
+  - length: 0x2e8
+    rva: 0xf5bc
+    offset: 0xc5bc
     type: RESOURCE_TYPE_ICON
     id: 1
     language: 1033
-  - length: 296
-    rva: 63652
-    offset: 51364
+  - length: 0x128
+    rva: 0xf8a4
+    offset: 0xc8a4
     type: RESOURCE_TYPE_ICON
     id: 2
     language: 1033
-  - length: 716
-    rva: 63948
-    offset: 51660
+  - length: 0x2cc
+    rva: 0xf9cc
+    offset: 0xc9cc
     type: RESOURCE_TYPE_DIALOG
     id: 2001
     language: 1033
-  - length: 394
-    rva: 64664
-    offset: 52376
+  - length: 0x18a
+    rva: 0xfc98
+    offset: 0xcc98
     type: RESOURCE_TYPE_DIALOG
     id: 2002
     language: 1033
-  - length: 320
-    rva: 65060
-    offset: 52772
+  - length: 0x140
+    rva: 0xfe24
+    offset: 0xce24
     type: RESOURCE_TYPE_DIALOG
     id: 2003
     language: 1033
-  - length: 406
-    rva: 65380
-    offset: 53092
+  - length: 0x196
+    rva: 0xff64
+    offset: 0xcf64
     type: RESOURCE_TYPE_DIALOG
     id: 2004
     language: 1033
-  - length: 270
-    rva: 65788
-    offset: 53500
+  - length: 0x10e
+    rva: 0x100fc
+    offset: 0xd0fc
     type: RESOURCE_TYPE_DIALOG
     id: 2005
     language: 1033
-  - length: 250
-    rva: 66060
-    offset: 53772
+  - length: 0xfa
+    rva: 0x1020c
+    offset: 0xd20c
     type: RESOURCE_TYPE_DIALOG
     id: 2006
     language: 1033
-  - length: 140
-    rva: 66312
-    offset: 54024
+  - length: 0x8c
+    rva: 0x10308
+    offset: 0xd308
     type: RESOURCE_TYPE_STRING
     id: 63
     language: 1033
-  - length: 1312
-    rva: 66452
-    offset: 54164
+  - length: 0x520
+    rva: 0x10394
+    offset: 0xd394
     type: RESOURCE_TYPE_STRING
     id: 76
     language: 1033
-  - length: 1484
-    rva: 67764
-    offset: 55476
+  - length: 0x5cc
+    rva: 0x108b4
+    offset: 0xd8b4
     type: RESOURCE_TYPE_STRING
     id: 77
     language: 1033
-  - length: 1200
-    rva: 69248
-    offset: 56960
+  - length: 0x4b0
+    rva: 0x10e80
+    offset: 0xde80
     type: RESOURCE_TYPE_STRING
     id: 80
     language: 1033
-  - length: 1098
-    rva: 70448
-    offset: 58160
+  - length: 0x44a
+    rva: 0x11330
+    offset: 0xe330
     type: RESOURCE_TYPE_STRING
     id: 83
     language: 1033
-  - length: 974
-    rva: 71548
-    offset: 59260
+  - length: 0x3ce
+    rva: 0x1177c
+    offset: 0xe77c
     type: RESOURCE_TYPE_STRING
     id: 85
     language: 1033
-  - length: 30
-    rva: 72524
-    offset: 60236
+  - length: 0x1e
+    rva: 0x11b4c
+    offset: 0xeb4c
     type: RESOURCE_TYPE_RCDATA
     language: 1033
     name_string: "A\x00D\x00M\x00Q\x00C\x00M\x00D\x00"
-  - length: 220645
-    rva: 72556
-    offset: 60268
+  - length: 0x35de5
+    rva: 0x11b6c
+    offset: 0xeb6c
     type: RESOURCE_TYPE_RCDATA
     language: 1033
     name_string: "C\x00A\x00B\x00I\x00N\x00E\x00T\x00"
-  - length: 4
-    rva: 293204
-    offset: 280916
+  - length: 0x4
+    rva: 0x47954
+    offset: 0x44954
     type: RESOURCE_TYPE_RCDATA
     language: 1033
     name_string: "E\x00X\x00T\x00R\x00A\x00C\x00T\x00O\x00P\x00T\x00"
-  - length: 36
-    rva: 293208
-    offset: 280920
+  - length: 0x24
+    rva: 0x47958
+    offset: 0x44958
     type: RESOURCE_TYPE_RCDATA
     language: 1033
     name_string: "F\x00I\x00L\x00E\x00S\x00I\x00Z\x00E\x00S\x00"
-  - length: 7
-    rva: 293244
-    offset: 280956
+  - length: 0x7
+    rva: 0x4797c
+    offset: 0x4497c
     type: RESOURCE_TYPE_RCDATA
     language: 1033
     name_string: "F\x00I\x00N\x00I\x00S\x00H\x00M\x00S\x00G\x00"
-  - length: 7
-    rva: 293252
-    offset: 280964
+  - length: 0x7
+    rva: 0x47984
+    offset: 0x44984
     type: RESOURCE_TYPE_RCDATA
     language: 1033
     name_string: "L\x00I\x00C\x00E\x00N\x00S\x00E\x00"
-  - length: 4
-    rva: 293260
-    offset: 280972
+  - length: 0x4
+    rva: 0x4798c
+    offset: 0x4498c
     type: RESOURCE_TYPE_RCDATA
     language: 1033
     name_string: "P\x00A\x00C\x00K\x00I\x00N\x00S\x00T\x00S\x00P\x00A\x00C\x00E\x00"
-  - length: 7
-    rva: 293264
-    offset: 280976
+  - length: 0x7
+    rva: 0x47990
+    offset: 0x44990
     type: RESOURCE_TYPE_RCDATA
     language: 1033
     name_string: "P\x00O\x00S\x00T\x00R\x00U\x00N\x00P\x00R\x00O\x00G\x00R\x00A\x00M\x00"
-  - length: 4
-    rva: 293272
-    offset: 280984
+  - length: 0x4
+    rva: 0x47998
+    offset: 0x44998
     type: RESOURCE_TYPE_RCDATA
     language: 1033
     name_string: "R\x00E\x00B\x00O\x00O\x00T\x00"
-  - length: 15
-    rva: 293276
-    offset: 280988
+  - length: 0xf
+    rva: 0x4799c
+    offset: 0x4499c
     type: RESOURCE_TYPE_RCDATA
     language: 1033
     name_string: "R\x00U\x00N\x00P\x00R\x00O\x00G\x00R\x00A\x00M\x00"
-  - length: 4
-    rva: 293292
-    offset: 281004
+  - length: 0x4
+    rva: 0x479ac
+    offset: 0x449ac
     type: RESOURCE_TYPE_RCDATA
     language: 1033
     name_string: "S\x00H\x00O\x00W\x00W\x00I\x00N\x00D\x00O\x00W\x00"
-  - length: 22
-    rva: 293296
-    offset: 281008
+  - length: 0x16
+    rva: 0x479b0
+    offset: 0x449b0
     type: RESOURCE_TYPE_RCDATA
     language: 1033
     name_string: "T\x00I\x00T\x00L\x00E\x00"
-  - length: 7
-    rva: 293320
-    offset: 281032
+  - length: 0x7
+    rva: 0x479c8
+    offset: 0x449c8
     type: RESOURCE_TYPE_RCDATA
     language: 1033
     name_string: "U\x00P\x00R\x00O\x00M\x00P\x00T\x00"
-  - length: 30
-    rva: 293328
-    offset: 281040
+  - length: 0x1e
+    rva: 0x479d0
+    offset: 0x449d0
     type: RESOURCE_TYPE_RCDATA
     language: 1033
     name_string: "U\x00S\x00R\x00Q\x00C\x00M\x00D\x00"
-  - length: 34
-    rva: 293360
-    offset: 281072
+  - length: 0x22
+    rva: 0x479f0
+    offset: 0x449f0
     type: RESOURCE_TYPE_GROUP_ICON
     id: 3000
     language: 1033
-  - length: 884
-    rva: 293396
-    offset: 281108
+  - length: 0x374
+    rva: 0x47a14
+    offset: 0x44a14
     type: RESOURCE_TYPE_VERSION
     id: 1
     language: 1033
@@ -361,273 +361,273 @@ import_details:
     number_of_functions: 14
     functions:
       - name: "FreeSid"
-        rva: 4096
+        rva: 0x1000
       - name: "AllocateAndInitializeSid"
-        rva: 4100
+        rva: 0x1004
       - name: "EqualSid"
-        rva: 4104
+        rva: 0x1008
       - name: "GetTokenInformation"
-        rva: 4108
+        rva: 0x100c
       - name: "OpenProcessToken"
-        rva: 4112
+        rva: 0x1010
       - name: "AdjustTokenPrivileges"
-        rva: 4116
+        rva: 0x1014
       - name: "LookupPrivilegeValueA"
-        rva: 4120
+        rva: 0x1018
       - name: "RegCloseKey"
-        rva: 4124
+        rva: 0x101c
       - name: "RegDeleteValueA"
-        rva: 4128
+        rva: 0x1020
       - name: "RegOpenKeyExA"
-        rva: 4132
+        rva: 0x1024
       - name: "RegSetValueExA"
-        rva: 4136
+        rva: 0x1028
       - name: "RegQueryValueExA"
-        rva: 4140
+        rva: 0x102c
       - name: "RegCreateKeyExA"
-        rva: 4144
+        rva: 0x1030
       - name: "RegQueryInfoKeyA"
-        rva: 4148
+        rva: 0x1034
   - library_name: "KERNEL32.dll"
     number_of_functions: 76
     functions:
       - name: "LocalFree"
-        rva: 4172
+        rva: 0x104c
       - name: "LocalAlloc"
-        rva: 4176
+        rva: 0x1050
       - name: "GetLastError"
-        rva: 4180
+        rva: 0x1054
       - name: "GetCurrentProcess"
-        rva: 4184
+        rva: 0x1058
       - name: "GetModuleFileNameA"
-        rva: 4188
+        rva: 0x105c
       - name: "lstrlenA"
-        rva: 4192
+        rva: 0x1060
       - name: "GetSystemDirectoryA"
-        rva: 4196
+        rva: 0x1064
       - name: "RemoveDirectoryA"
-        rva: 4200
+        rva: 0x1068
       - name: "FindClose"
-        rva: 4204
+        rva: 0x106c
       - name: "FindNextFileA"
-        rva: 4208
+        rva: 0x1070
       - name: "DeleteFileA"
-        rva: 4212
+        rva: 0x1074
       - name: "SetFileAttributesA"
-        rva: 4216
+        rva: 0x1078
       - name: "lstrcmpA"
-        rva: 4220
+        rva: 0x107c
       - name: "FindFirstFileA"
-        rva: 4224
+        rva: 0x1080
       - name: "lstrcatA"
-        rva: 4228
+        rva: 0x1084
       - name: "lstrcpyA"
-        rva: 4232
+        rva: 0x1088
       - name: "_lclose"
-        rva: 4236
+        rva: 0x108c
       - name: "_llseek"
-        rva: 4240
+        rva: 0x1090
       - name: "_lopen"
-        rva: 4244
+        rva: 0x1094
       - name: "WritePrivateProfileStringA"
-        rva: 4248
+        rva: 0x1098
       - name: "GetWindowsDirectoryA"
-        rva: 4252
+        rva: 0x109c
       - name: "CreateDirectoryA"
-        rva: 4256
+        rva: 0x10a0
       - name: "GetFileAttributesA"
-        rva: 4260
+        rva: 0x10a4
       - name: "ExpandEnvironmentStringsA"
-        rva: 4264
+        rva: 0x10a8
       - name: "IsDBCSLeadByte"
-        rva: 4268
+        rva: 0x10ac
       - name: "GetShortPathNameA"
-        rva: 4272
+        rva: 0x10b0
       - name: "GetPrivateProfileStringA"
-        rva: 4276
+        rva: 0x10b4
       - name: "GetPrivateProfileIntA"
-        rva: 4280
+        rva: 0x10b8
       - name: "lstrcmpiA"
-        rva: 4284
+        rva: 0x10bc
       - name: "GetProcAddress"
-        rva: 4288
+        rva: 0x10c0
       - name: "GlobalUnlock"
-        rva: 4292
+        rva: 0x10c4
       - name: "GlobalLock"
-        rva: 4296
+        rva: 0x10c8
       - name: "GlobalAlloc"
-        rva: 4300
+        rva: 0x10cc
       - name: "FreeResource"
-        rva: 4304
+        rva: 0x10d0
       - name: "CloseHandle"
-        rva: 4308
+        rva: 0x10d4
       - name: "LoadResource"
-        rva: 4312
+        rva: 0x10d8
       - name: "SizeofResource"
-        rva: 4316
+        rva: 0x10dc
       - name: "FindResourceA"
-        rva: 4320
+        rva: 0x10e0
       - name: "ReadFile"
-        rva: 4324
+        rva: 0x10e4
       - name: "WriteFile"
-        rva: 4328
+        rva: 0x10e8
       - name: "SetFilePointer"
-        rva: 4332
+        rva: 0x10ec
       - name: "SetFileTime"
-        rva: 4336
+        rva: 0x10f0
       - name: "LocalFileTimeToFileTime"
-        rva: 4340
+        rva: 0x10f4
       - name: "DosDateTimeToFileTime"
-        rva: 4344
+        rva: 0x10f8
       - name: "SetCurrentDirectoryA"
-        rva: 4348
+        rva: 0x10fc
       - name: "GetTempFileNameA"
-        rva: 4352
+        rva: 0x1100
       - name: "ExitProcess"
-        rva: 4356
+        rva: 0x1104
       - name: "CreateFileA"
-        rva: 4360
+        rva: 0x1108
       - name: "LoadLibraryExA"
-        rva: 4364
+        rva: 0x110c
       - name: "lstrcpynA"
-        rva: 4368
+        rva: 0x1110
       - name: "GetVolumeInformationA"
-        rva: 4372
+        rva: 0x1114
       - name: "FormatMessageA"
-        rva: 4376
+        rva: 0x1118
       - name: "GetCurrentDirectoryA"
-        rva: 4380
+        rva: 0x111c
       - name: "GetVersionExA"
-        rva: 4384
+        rva: 0x1120
       - name: "GetExitCodeProcess"
-        rva: 4388
+        rva: 0x1124
       - name: "WaitForSingleObject"
-        rva: 4392
+        rva: 0x1128
       - name: "CreateProcessA"
-        rva: 4396
+        rva: 0x112c
       - name: "GetTempPathA"
-        rva: 4400
+        rva: 0x1130
       - name: "GetSystemInfo"
-        rva: 4404
+        rva: 0x1134
       - name: "CreateMutexA"
-        rva: 4408
+        rva: 0x1138
       - name: "SetEvent"
-        rva: 4412
+        rva: 0x113c
       - name: "CreateEventA"
-        rva: 4416
+        rva: 0x1140
       - name: "CreateThread"
-        rva: 4420
+        rva: 0x1144
       - name: "ResetEvent"
-        rva: 4424
+        rva: 0x1148
       - name: "TerminateThread"
-        rva: 4428
+        rva: 0x114c
       - name: "GetDriveTypeA"
-        rva: 4432
+        rva: 0x1150
       - name: "GetModuleHandleA"
-        rva: 4436
+        rva: 0x1154
       - name: "GetStartupInfoA"
-        rva: 4440
+        rva: 0x1158
       - name: "GetCommandLineA"
-        rva: 4444
+        rva: 0x115c
       - name: "LockResource"
-        rva: 4448
+        rva: 0x1160
       - name: "LoadLibraryA"
-        rva: 4452
+        rva: 0x1164
       - name: "GetDiskFreeSpaceA"
-        rva: 4456
+        rva: 0x1168
       - name: "MulDiv"
-        rva: 4460
+        rva: 0x116c
       - name: "EnumResourceLanguagesA"
-        rva: 4464
+        rva: 0x1170
       - name: "FreeLibrary"
-        rva: 4468
+        rva: 0x1174
       - name: "GlobalFree"
-        rva: 4472
+        rva: 0x1178
   - library_name: "GDI32.dll"
     number_of_functions: 1
     functions:
       - name: "GetDeviceCaps"
-        rva: 4164
+        rva: 0x1044
   - library_name: "USER32.dll"
     number_of_functions: 31
     functions:
       - name: "ExitWindowsEx"
-        rva: 4480
+        rva: 0x1180
       - name: "wsprintfA"
-        rva: 4484
+        rva: 0x1184
       - name: "CharNextA"
-        rva: 4488
+        rva: 0x1188
       - name: "CharUpperA"
-        rva: 4492
+        rva: 0x118c
       - name: "CharPrevA"
-        rva: 4496
+        rva: 0x1190
       - name: "SetWindowLongA"
-        rva: 4500
+        rva: 0x1194
       - name: "GetWindowLongA"
-        rva: 4504
+        rva: 0x1198
       - name: "CallWindowProcA"
-        rva: 4508
+        rva: 0x119c
       - name: "DispatchMessageA"
-        rva: 4512
+        rva: 0x11a0
       - name: "MsgWaitForMultipleObjects"
-        rva: 4516
+        rva: 0x11a4
       - name: "PeekMessageA"
-        rva: 4520
+        rva: 0x11a8
       - name: "SendMessageA"
-        rva: 4524
+        rva: 0x11ac
       - name: "SetWindowPos"
-        rva: 4528
+        rva: 0x11b0
       - name: "ReleaseDC"
-        rva: 4532
+        rva: 0x11b4
       - name: "GetDC"
-        rva: 4536
+        rva: 0x11b8
       - name: "GetWindowRect"
-        rva: 4540
+        rva: 0x11bc
       - name: "SendDlgItemMessageA"
-        rva: 4544
+        rva: 0x11c0
       - name: "GetDlgItem"
-        rva: 4548
+        rva: 0x11c4
       - name: "SetForegroundWindow"
-        rva: 4552
+        rva: 0x11c8
       - name: "SetWindowTextA"
-        rva: 4556
+        rva: 0x11cc
       - name: "MessageBoxA"
-        rva: 4560
+        rva: 0x11d0
       - name: "DialogBoxIndirectParamA"
-        rva: 4564
+        rva: 0x11d4
       - name: "ShowWindow"
-        rva: 4568
+        rva: 0x11d8
       - name: "EnableWindow"
-        rva: 4572
+        rva: 0x11dc
       - name: "GetDlgItemTextA"
-        rva: 4576
+        rva: 0x11e0
       - name: "EndDialog"
-        rva: 4580
+        rva: 0x11e4
       - name: "GetDesktopWindow"
-        rva: 4584
+        rva: 0x11e8
       - name: "MessageBeep"
-        rva: 4588
+        rva: 0x11ec
       - name: "SetDlgItemTextA"
-        rva: 4592
+        rva: 0x11f0
       - name: "LoadStringA"
-        rva: 4596
+        rva: 0x11f4
       - name: "GetSystemMetrics"
-        rva: 4600
+        rva: 0x11f8
   - library_name: "COMCTL32.dll"
     number_of_functions: 1
     functions:
       - name: "ord17"
         ordinal: 17
-        rva: 4156
+        rva: 0x103c
   - library_name: "VERSION.dll"
     number_of_functions: 3
     functions:
       - name: "GetFileVersionInfoA"
-        rva: 4608
+        rva: 0x1200
       - name: "VerQueryValueA"
-        rva: 4612
+        rva: 0x1204
       - name: "GetFileVersionInfoSizeA"
-        rva: 4616
+        rva: 0x1208
 is_signed: true
 signatures:
   - subject: "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/OU=MOPR/CN=Microsoft Corporation"
@@ -730,5 +730,5 @@ signatures:
             not_before: 1158368687  # 2006-09-16 01:04:47 UTC
             not_after: 1568530800  # 2019-09-15 07:00:00 UTC
 overlay:
-    offset: 282112
-    size: 5976
+    offset: 0x44e00
+    size: 0x1758

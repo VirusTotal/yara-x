@@ -17,26 +17,26 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 0x182  # EXECUTABLE_IMAGE | BYTES_REVERSED_LO | MACHINE_32BIT
 dll_characteristics: 0x0
 timestamp: 1616191348  # 2021-03-19 22:02:28 UTC
-image_base: 4194304
+image_base: 0x400000
 checksum: 0
-base_of_code: 4096
-base_of_data: 20480
-entry_point: 1360
-entry_point_raw: 4432
-section_alignment: 4096
-file_alignment: 512
-loader_flags: 0
-size_of_optional_header: 224
-size_of_code: 16384
-size_of_initialized_data: 4608
-size_of_uninitialized_data: 4096
-size_of_image: 233472
-size_of_headers: 1024
-size_of_stack_reserve: 1048576
-size_of_stack_commit: 51200
-size_of_heap_reserve: 8192
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+base_of_code: 0x1000
+base_of_data: 0x5000
+entry_point: 0x550
+entry_point_raw: 0x1150
+section_alignment: 0x1000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xe0
+size_of_code: 0x4000
+size_of_initialized_data: 0x1200
+size_of_uninitialized_data: 0x1000
+size_of_image: 0x39000
+size_of_headers: 0x400
+size_of_stack_reserve: 0x100000
+size_of_stack_commit: 0xc800
+size_of_heap_reserve: 0x2000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -75,195 +75,195 @@ version_info_list:
 sections:
   - name: "AUTO"
     full_name: "AUTO"
-    characteristics: 1610612768
-    raw_data_size: 16384
-    raw_data_offset: 1024
-    virtual_address: 4096
-    virtual_size: 0
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0x4000
+    raw_data_offset: 0x400
+    virtual_address: 0x1000
+    virtual_size: 0x0
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".idata"
     full_name: ".idata"
-    characteristics: 3221225536
-    raw_data_size: 1536
-    raw_data_offset: 17408
-    virtual_address: 20480
-    virtual_size: 0
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0x600
+    raw_data_offset: 0x4400
+    virtual_address: 0x5000
+    virtual_size: 0x0
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: "DGROUP"
     full_name: "DGROUP"
-    characteristics: 3221225536
-    raw_data_size: 3072
-    raw_data_offset: 18944
-    virtual_address: 24576
-    virtual_size: 0
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0xc00
+    raw_data_offset: 0x4a00
+    virtual_address: 0x6000
+    virtual_size: 0x0
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".bss"
     full_name: ".bss"
-    characteristics: 3221225600
-    raw_data_size: 4096
-    raw_data_offset: 0
-    virtual_address: 28672
-    virtual_size: 0
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000080
+    raw_data_size: 0x1000
+    raw_data_offset: 0x0
+    virtual_address: 0x7000
+    virtual_size: 0x0
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".reloc"
     full_name: ".reloc"
-    characteristics: 1107296320
-    raw_data_size: 1536
-    raw_data_offset: 22016
-    virtual_address: 32768
-    virtual_size: 0
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x42000040
+    raw_data_size: 0x600
+    raw_data_offset: 0x5600
+    virtual_address: 0x8000
+    virtual_size: 0x0
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rsrc"
     full_name: ".rsrc"
-    characteristics: 1073741888
-    raw_data_size: 194048
-    raw_data_offset: 23552
-    virtual_address: 36864
-    virtual_size: 0
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x2f600
+    raw_data_offset: 0x5c00
+    virtual_address: 0x9000
+    virtual_size: 0x0
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 20480
-    size: 1410
-  - virtual_address: 36864
-    size: 194048
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 32768
-    size: 1440
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x5000
+    size: 0x582
+  - virtual_address: 0x9000
+    size: 0x2f600
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x8000
+    size: 0x5a0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 resource_timestamp: 1616191348  # 2021-03-19 22:02:28 UTC
 resource_version:
     major: 0
     minor: 0
 resources:
-  - length: 24329
-    rva: 37696
-    offset: 24384
+  - length: 0x5f09
+    rva: 0x9340
+    offset: 0x5f40
     type: RESOURCE_TYPE_ICON
     id: 1
     language: 0
-  - length: 1640
-    rva: 62028
-    offset: 48716
+  - length: 0x668
+    rva: 0xf24c
+    offset: 0xbe4c
     type: RESOURCE_TYPE_ICON
     id: 2
     language: 0
-  - length: 744
-    rva: 63668
-    offset: 50356
+  - length: 0x2e8
+    rva: 0xf8b4
+    offset: 0xc4b4
     type: RESOURCE_TYPE_ICON
     id: 3
     language: 0
-  - length: 296
-    rva: 64412
-    offset: 51100
+  - length: 0x128
+    rva: 0xfb9c
+    offset: 0xc79c
     type: RESOURCE_TYPE_ICON
     id: 4
     language: 0
-  - length: 35889
-    rva: 64708
-    offset: 51396
+  - length: 0x8c31
+    rva: 0xfcc4
+    offset: 0xc8c4
     type: RESOURCE_TYPE_ICON
     id: 5
     language: 0
-  - length: 3752
-    rva: 100600
-    offset: 87288
+  - length: 0xea8
+    rva: 0x188f8
+    offset: 0x154f8
     type: RESOURCE_TYPE_ICON
     id: 6
     language: 0
-  - length: 2216
-    rva: 104352
-    offset: 91040
+  - length: 0x8a8
+    rva: 0x197a0
+    offset: 0x163a0
     type: RESOURCE_TYPE_ICON
     id: 7
     language: 0
-  - length: 1384
-    rva: 106568
-    offset: 93256
+  - length: 0x568
+    rva: 0x1a048
+    offset: 0x16c48
     type: RESOURCE_TYPE_ICON
     id: 8
     language: 0
-  - length: 105783
-    rva: 107952
-    offset: 94640
+  - length: 0x19d37
+    rva: 0x1a5b0
+    offset: 0x171b0
     type: RESOURCE_TYPE_ICON
     id: 9
     language: 0
-  - length: 9640
-    rva: 213736
-    offset: 200424
+  - length: 0x25a8
+    rva: 0x342e8
+    offset: 0x30ee8
     type: RESOURCE_TYPE_ICON
     id: 10
     language: 0
-  - length: 4264
-    rva: 223376
-    offset: 210064
+  - length: 0x10a8
+    rva: 0x36890
+    offset: 0x33490
     type: RESOURCE_TYPE_ICON
     id: 11
     language: 0
-  - length: 1128
-    rva: 227640
-    offset: 214328
+  - length: 0x468
+    rva: 0x37938
+    offset: 0x34538
     type: RESOURCE_TYPE_ICON
     id: 12
     language: 0
-  - length: 174
-    rva: 228768
-    offset: 215456
+  - length: 0xae
+    rva: 0x37da0
+    offset: 0x349a0
     type: RESOURCE_TYPE_GROUP_ICON
     id: 1000
     language: 0
-  - length: 1024
-    rva: 228944
-    offset: 215632
+  - length: 0x400
+    rva: 0x37e50
+    offset: 0x34a50
     type: RESOURCE_TYPE_VERSION
     id: 1
     language: 0
-  - length: 647
-    rva: 229968
-    offset: 216656
+  - length: 0x287
+    rva: 0x38250
+    offset: 0x34e50
     type: RESOURCE_TYPE_MANIFEST
     id: 1
     language: 0
@@ -272,111 +272,111 @@ import_details:
     number_of_functions: 1
     functions:
       - name: "CharUpperBuffA"
-        rva: 20768
+        rva: 0x5120
   - library_name: "KERNEL32.dll"
     number_of_functions: 47
     functions:
       - name: "CloseHandle"
-        rva: 20776
+        rva: 0x5128
       - name: "CreateEventA"
-        rva: 20780
+        rva: 0x512c
       - name: "CreateFileA"
-        rva: 20784
+        rva: 0x5130
       - name: "CreateThread"
-        rva: 20788
+        rva: 0x5134
       - name: "DeleteCriticalSection"
-        rva: 20792
+        rva: 0x5138
       - name: "EnterCriticalSection"
-        rva: 20796
+        rva: 0x513c
       - name: "ExitProcess"
-        rva: 20800
+        rva: 0x5140
       - name: "ExitThread"
-        rva: 20804
+        rva: 0x5144
       - name: "FreeEnvironmentStringsA"
-        rva: 20808
+        rva: 0x5148
       - name: "GetACP"
-        rva: 20812
+        rva: 0x514c
       - name: "GetCPInfo"
-        rva: 20816
+        rva: 0x5150
       - name: "GetCommandLineA"
-        rva: 20820
+        rva: 0x5154
       - name: "GetCommandLineW"
-        rva: 20824
+        rva: 0x5158
       - name: "GetCurrentThreadId"
-        rva: 20828
+        rva: 0x515c
       - name: "GetCurrentThread"
-        rva: 20832
+        rva: 0x5160
       - name: "GetEnvironmentStrings"
-        rva: 20836
+        rva: 0x5164
       - name: "GetFileType"
-        rva: 20840
+        rva: 0x5168
       - name: "GetLastError"
-        rva: 20844
+        rva: 0x516c
       - name: "GetModuleFileNameA"
-        rva: 20848
+        rva: 0x5170
       - name: "GetModuleFileNameW"
-        rva: 20852
+        rva: 0x5174
       - name: "GetModuleHandleA"
-        rva: 20856
+        rva: 0x5178
       - name: "GetOEMCP"
-        rva: 20860
+        rva: 0x517c
       - name: "GetProcAddress"
-        rva: 20864
+        rva: 0x5180
       - name: "GetStdHandle"
-        rva: 20868
+        rva: 0x5184
       - name: "GetVersion"
-        rva: 20872
+        rva: 0x5188
       - name: "InitializeCriticalSection"
-        rva: 20876
+        rva: 0x518c
       - name: "LeaveCriticalSection"
-        rva: 20880
+        rva: 0x5190
       - name: "LoadLibraryA"
-        rva: 20884
+        rva: 0x5194
       - name: "MultiByteToWideChar"
-        rva: 20888
+        rva: 0x5198
       - name: "SetConsoleCtrlHandler"
-        rva: 20892
+        rva: 0x519c
       - name: "SetEnvironmentVariableA"
-        rva: 20896
+        rva: 0x51a0
       - name: "SetEnvironmentVariableW"
-        rva: 20900
+        rva: 0x51a4
       - name: "SetEvent"
-        rva: 20904
+        rva: 0x51a8
       - name: "SetLastError"
-        rva: 20908
+        rva: 0x51ac
       - name: "SetStdHandle"
-        rva: 20912
+        rva: 0x51b0
       - name: "SetUnhandledExceptionFilter"
-        rva: 20916
+        rva: 0x51b4
       - name: "TlsAlloc"
-        rva: 20920
+        rva: 0x51b8
       - name: "TlsFree"
-        rva: 20924
+        rva: 0x51bc
       - name: "TlsGetValue"
-        rva: 20928
+        rva: 0x51c0
       - name: "TlsSetValue"
-        rva: 20932
+        rva: 0x51c4
       - name: "UnhandledExceptionFilter"
-        rva: 20936
+        rva: 0x51c8
       - name: "VirtualAlloc"
-        rva: 20940
+        rva: 0x51cc
       - name: "VirtualFree"
-        rva: 20944
+        rva: 0x51d0
       - name: "VirtualQuery"
-        rva: 20948
+        rva: 0x51d4
       - name: "WaitForSingleObject"
-        rva: 20952
+        rva: 0x51d8
       - name: "WideCharToMultiByte"
-        rva: 20956
+        rva: 0x51dc
       - name: "WriteFile"
-        rva: 20960
+        rva: 0x51e0
   - library_name: "PBVM115.DLL"
     number_of_functions: 1
     functions:
       - name: "ord67"
         ordinal: 67
-        rva: 20968
+        rva: 0x51e8
 is_signed: false
 overlay:
-    offset: 217600
-    size: 17408
+    offset: 0x35200
+    size: 0x4400

@@ -17,25 +17,25 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
 characteristics: 0x22  # EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE
 dll_characteristics: 0x1e0  # HIGH_ENTROPY_VA | DYNAMIC_BASE | FORCE_INTEGRITY | NX_COMPAT
 timestamp: 1556010297  # 2019-04-23 09:04:57 UTC
-image_base: 5368709120
+image_base: 0x140000000
 checksum: 250178
-base_of_code: 4096
-entry_point: 199792
-entry_point_raw: 524400
-section_alignment: 4096
-file_alignment: 512
-loader_flags: 0
-size_of_optional_header: 240
-size_of_code: 154112
-size_of_initialized_data: 368640
-size_of_uninitialized_data: 0
-size_of_image: 540672
-size_of_headers: 1024
-size_of_stack_reserve: 1048576
-size_of_stack_commit: 4096
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+base_of_code: 0x1000
+entry_point: 0x30c70
+entry_point_raw: 0x80070
+section_alignment: 0x1000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xf0
+size_of_code: 0x25a00
+size_of_initialized_data: 0x5a000
+size_of_uninitialized_data: 0x0
+size_of_image: 0x84000
+size_of_headers: 0x400
+size_of_stack_reserve: 0x100000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -72,8 +72,8 @@ version_info_list:
   - key: "OriginalFilename"
     value: "ZAM.exe"
 rich_signature:
-    offset: 128
-    length: 112
+    offset: 0x80
+    length: 0x70
     key: 3033202844
     raw_data: "\xd8a\xa5\xe7\x9c\x00\xcb\xb4\x9c\x00\xcb\xb4\x9c\x00\xcb\xb4\x95xL\xb4\x9b\x00\xcb\xb4\x95x^\xb4\x9f\x00\xcb\xb4`wp\xb4\x9d\x00\xcb\xb4`ww\xb4\x9f\x00\xcb\xb4\x9c\x00\xca\xb4\x02\x00\xcb\xb4\x95xX\xb4\x99\x00\xcb\xb4\x95xH\xb4\x9f\x00\xcb\xb4\xbb\xc6\x04\xb4\x9d\x00\xcb\xb4\xbb\xc6\x05\xb4\x82\x00\xcb\xb4\xbb\xc6\x02\xb4\x9d\x00\xcb\xb4\x9c\x00\\\xb4\x9d\x00\xcb\xb4\xbb\xc6\x07\xb4\x9d\x00\xcb\xb4"
     clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\tx\x87\x00\x07\x00\x00\x00\tx\x95\x00\x03\x00\x00\x00\xfcw\xbb\x00\x01\x00\x00\x00\xfcw\xbc\x00\x03\x00\x00\x00\x00\x00\x01\x00\x9e\x00\x00\x00\tx\x93\x00\x05\x00\x00\x00\tx\x83\x00\x03\x00\x00\x00\'\xc6\xcf\x00\x01\x00\x00\x00\'\xc6\xce\x00\x1e\x00\x00\x00\'\xc6\xc9\x00\x01\x00\x00\x00\x00\x00\x97\x00\x01\x00\x00\x00\'\xc6\xcc\x00\x01\x00\x00\x00"
@@ -118,144 +118,144 @@ pdb_path: "Z:\\Zemana\\Projects\\AMSDKCore\\Driver\\zam64.pdb"
 sections:
   - name: ".text"
     full_name: ".text"
-    characteristics: 1744830496
-    raw_data_size: 139264
-    raw_data_offset: 1024
-    virtual_address: 4096
-    virtual_size: 138837
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x68000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0x22000
+    raw_data_offset: 0x400
+    virtual_address: 0x1000
+    virtual_size: 0x21e55
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".hook"
     full_name: ".hook"
-    characteristics: 3892314144
-    raw_data_size: 2560
-    raw_data_offset: 140288
-    virtual_address: 143360
-    virtual_size: 2495
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xe8000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0xa00
+    raw_data_offset: 0x22400
+    virtual_address: 0x23000
+    virtual_size: 0x9bf
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rdata"
     full_name: ".rdata"
-    characteristics: 1207959616
-    raw_data_size: 19456
-    raw_data_offset: 142848
-    virtual_address: 147456
-    virtual_size: 19272
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x48000040
+    raw_data_size: 0x4c00
+    raw_data_offset: 0x22e00
+    virtual_address: 0x24000
+    virtual_size: 0x4b48
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".data"
     full_name: ".data"
-    characteristics: 3355443264
-    raw_data_size: 27136
-    raw_data_offset: 162304
-    virtual_address: 167936
-    virtual_size: 343944
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc8000040
+    raw_data_size: 0x6a00
+    raw_data_offset: 0x27a00
+    virtual_address: 0x29000
+    virtual_size: 0x53f88
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".pdata"
     full_name: ".pdata"
-    characteristics: 1207959616
-    raw_data_size: 3072
-    raw_data_offset: 189440
-    virtual_address: 512000
-    virtual_size: 2640
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x48000040
+    raw_data_size: 0xc00
+    raw_data_offset: 0x2e400
+    virtual_address: 0x7d000
+    virtual_size: 0xa50
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: "PAGE"
     full_name: "PAGE"
-    characteristics: 1610612768
-    raw_data_size: 7168
-    raw_data_offset: 192512
-    virtual_address: 516096
-    virtual_size: 6727
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0x1c00
+    raw_data_offset: 0x2f000
+    virtual_address: 0x7e000
+    virtual_size: 0x1a47
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: "INIT"
     full_name: "INIT"
-    characteristics: 3791650848
-    raw_data_size: 5120
-    raw_data_offset: 199680
-    virtual_address: 524288
-    virtual_size: 4996
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xe2000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0x1400
+    raw_data_offset: 0x30c00
+    virtual_address: 0x80000
+    virtual_size: 0x1384
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rsrc"
     full_name: ".rsrc"
-    characteristics: 1107296320
-    raw_data_size: 1024
-    raw_data_offset: 204800
-    virtual_address: 532480
-    virtual_size: 840
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x42000040
+    raw_data_size: 0x400
+    raw_data_offset: 0x32000
+    virtual_address: 0x82000
+    virtual_size: 0x348
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".reloc"
     full_name: ".reloc"
-    characteristics: 1107296320
-    raw_data_size: 1024
-    raw_data_offset: 205824
-    virtual_address: 536576
-    virtual_size: 564
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x42000040
+    raw_data_size: 0x400
+    raw_data_offset: 0x32400
+    virtual_address: 0x83000
+    virtual_size: 0x234
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 524444
-    size: 60
-  - virtual_address: 532480
-    size: 840
-  - virtual_address: 512000
-    size: 2640
-  - virtual_address: 206848
-    size: 19616
-  - virtual_address: 536576
-    size: 112
-  - virtual_address: 148720
-    size: 56
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 162976
-    size: 112
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 147456
-    size: 1256
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x8009c
+    size: 0x3c
+  - virtual_address: 0x82000
+    size: 0x348
+  - virtual_address: 0x7d000
+    size: 0xa50
+  - virtual_address: 0x32800
+    size: 0x4ca0
+  - virtual_address: 0x83000
+    size: 0x70
+  - virtual_address: 0x244f0
+    size: 0x38
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x27ca0
+    size: 0x70
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x24000
+    size: 0x4e8
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0
 resources:
-  - length: 744
-    rva: 532576
-    offset: 204896
+  - length: 0x2e8
+    rva: 0x82060
+    offset: 0x32060
     type: RESOURCE_TYPE_VERSION
     id: 1
     language: 1033
@@ -264,318 +264,318 @@ import_details:
     number_of_functions: 19
     functions:
       - name: "FltRegisterFilter"
-        rva: 147456
+        rva: 0x24000
       - name: "FltUnregisterFilter"
-        rva: 147464
+        rva: 0x24008
       - name: "FltStartFiltering"
-        rva: 147472
+        rva: 0x24010
       - name: "FltAllocatePoolAlignedWithTag"
-        rva: 147480
+        rva: 0x24018
       - name: "FltFreePoolAlignedWithTag"
-        rva: 147488
+        rva: 0x24020
       - name: "FltGetFileNameInformation"
-        rva: 147496
+        rva: 0x24028
       - name: "FltReleaseFileNameInformation"
-        rva: 147504
+        rva: 0x24030
       - name: "FltParseFileNameInformation"
-        rva: 147512
+        rva: 0x24038
       - name: "FltReadFile"
-        rva: 147520
+        rva: 0x24040
       - name: "FltQueryInformationFile"
-        rva: 147528
+        rva: 0x24048
       - name: "FltCancelFileOpen"
-        rva: 147536
+        rva: 0x24050
       - name: "FltAllocateContext"
-        rva: 147544
+        rva: 0x24058
       - name: "FltSetStreamHandleContext"
-        rva: 147552
+        rva: 0x24060
       - name: "FltGetStreamHandleContext"
-        rva: 147560
+        rva: 0x24068
       - name: "FltReleaseContext"
-        rva: 147568
+        rva: 0x24070
       - name: "FltCreateCommunicationPort"
-        rva: 147576
+        rva: 0x24078
       - name: "FltCloseCommunicationPort"
-        rva: 147584
+        rva: 0x24080
       - name: "FltSendMessage"
-        rva: 147592
+        rva: 0x24088
       - name: "FltBuildDefaultSecurityDescriptor"
-        rva: 147600
+        rva: 0x24090
   - library_name: "ntoskrnl.exe"
     number_of_functions: 136
     functions:
       - name: "strstr"
-        rva: 147616
+        rva: 0x240a0
       - name: "wcsstr"
-        rva: 147624
+        rva: 0x240a8
       - name: "RtlInitUnicodeString"
-        rva: 147632
+        rva: 0x240b0
       - name: "RtlCopyUnicodeString"
-        rva: 147640
+        rva: 0x240b8
       - name: "DbgPrint"
-        rva: 147648
+        rva: 0x240c0
       - name: "RtlGetVersion"
-        rva: 147656
+        rva: 0x240c8
       - name: "KeDelayExecutionThread"
-        rva: 147664
+        rva: 0x240d0
       - name: "ExAllocatePoolWithTag"
-        rva: 147672
+        rva: 0x240d8
       - name: "ExFreePoolWithTag"
-        rva: 147680
+        rva: 0x240e0
       - name: "ProbeForRead"
-        rva: 147688
+        rva: 0x240e8
       - name: "ObReferenceObjectByHandle"
-        rva: 147696
+        rva: 0x240f0
       - name: "ObfDereferenceObject"
-        rva: 147704
+        rva: 0x240f8
       - name: "ZwCreateFile"
-        rva: 147712
+        rva: 0x24100
       - name: "ZwClose"
-        rva: 147720
+        rva: 0x24108
       - name: "RtlUpperString"
-        rva: 147728
+        rva: 0x24110
       - name: "RtlUpcaseUnicodeString"
-        rva: 147736
+        rva: 0x24118
       - name: "PsGetCurrentProcessId"
-        rva: 147744
+        rva: 0x24120
       - name: "ZwOpenProcess"
-        rva: 147752
+        rva: 0x24128
       - name: "PsLookupProcessByProcessId"
-        rva: 147760
+        rva: 0x24130
       - name: "ObQueryNameString"
-        rva: 147768
+        rva: 0x24138
       - name: "FsRtlIsNameInExpression"
-        rva: 147776
+        rva: 0x24140
       - name: "PsGetProcessImageFileName"
-        rva: 147784
+        rva: 0x24148
       - name: "ZwQueryInformationProcess"
-        rva: 147792
+        rva: 0x24150
       - name: "__C_specific_handler"
-        rva: 147800
+        rva: 0x24158
       - name: "strchr"
-        rva: 147808
+        rva: 0x24160
       - name: "RtlAppendUnicodeToString"
-        rva: 147816
+        rva: 0x24168
       - name: "KeInitializeSemaphore"
-        rva: 147824
+        rva: 0x24170
       - name: "KeReleaseSemaphore"
-        rva: 147832
+        rva: 0x24178
       - name: "KeWaitForSingleObject"
-        rva: 147840
+        rva: 0x24180
       - name: "KeAcquireSpinLockRaiseToDpc"
-        rva: 147848
+        rva: 0x24188
       - name: "KeReleaseSpinLock"
-        rva: 147856
+        rva: 0x24190
       - name: "PsCreateSystemThread"
-        rva: 147864
+        rva: 0x24198
       - name: "PsTerminateSystemThread"
-        rva: 147872
+        rva: 0x241a0
       - name: "ZwQueryInformationFile"
-        rva: 147880
+        rva: 0x241a8
       - name: "ZwWriteFile"
-        rva: 147888
+        rva: 0x241b0
       - name: "PsGetCurrentThreadId"
-        rva: 147896
+        rva: 0x241b8
       - name: "ZwDeleteFile"
-        rva: 147904
+        rva: 0x241c0
       - name: "_vsnprintf"
-        rva: 147912
+        rva: 0x241c8
       - name: "PsThreadType"
-        rva: 147920
+        rva: 0x241d0
       - name: "PsSetCreateProcessNotifyRoutine"
-        rva: 147928
+        rva: 0x241d8
       - name: "PsGetProcessSessionId"
-        rva: 147936
+        rva: 0x241e0
       - name: "RtlAppendUnicodeStringToString"
-        rva: 147944
+        rva: 0x241e8
       - name: "ZwDeleteValueKey"
-        rva: 147952
+        rva: 0x241f0
       - name: "ZwSetValueKey"
-        rva: 147960
+        rva: 0x241f8
       - name: "towupper"
-        rva: 147968
+        rva: 0x24200
       - name: "RtlIntegerToUnicodeString"
-        rva: 147976
+        rva: 0x24208
       - name: "KeInitializeEvent"
-        rva: 147984
+        rva: 0x24210
       - name: "KeSetEvent"
-        rva: 147992
+        rva: 0x24218
       - name: "KeAcquireSpinLockAtDpcLevel"
-        rva: 148000
+        rva: 0x24220
       - name: "KeReleaseSpinLockFromDpcLevel"
-        rva: 148008
+        rva: 0x24228
       - name: "MmProbeAndLockPages"
-        rva: 148016
+        rva: 0x24230
       - name: "IoAllocateIrp"
-        rva: 148024
+        rva: 0x24238
       - name: "IoAllocateMdl"
-        rva: 148032
+        rva: 0x24240
       - name: "IofCallDriver"
-        rva: 148040
+        rva: 0x24248
       - name: "IoFreeIrp"
-        rva: 148048
+        rva: 0x24250
       - name: "IoFreeMdl"
-        rva: 148056
+        rva: 0x24258
       - name: "IoGetDeviceObjectPointer"
-        rva: 148064
+        rva: 0x24260
       - name: "IoGetRelatedDeviceObject"
-        rva: 148072
+        rva: 0x24268
       - name: "ObCloseHandle"
-        rva: 148080
+        rva: 0x24270
       - name: "ObfReferenceObject"
-        rva: 148088
+        rva: 0x24278
       - name: "ZwSetInformationFile"
-        rva: 148096
+        rva: 0x24280
       - name: "ZwReadFile"
-        rva: 148104
+        rva: 0x24288
       - name: "ZwOpenSymbolicLinkObject"
-        rva: 148112
+        rva: 0x24290
       - name: "ZwQuerySymbolicLinkObject"
-        rva: 148120
+        rva: 0x24298
       - name: "IoCreateFileSpecifyDeviceObjectHint"
-        rva: 148128
+        rva: 0x242a0
       - name: "IoGetDeviceAttachmentBaseRef"
-        rva: 148136
+        rva: 0x242a8
       - name: "FsRtlGetFileSize"
-        rva: 148144
+        rva: 0x242b0
       - name: "ZwQuerySystemInformation"
-        rva: 148152
+        rva: 0x242b8
       - name: "IoFileObjectType"
-        rva: 148160
+        rva: 0x242c0
       - name: "KeReadStateEvent"
-        rva: 148168
+        rva: 0x242c8
       - name: "ExQueueWorkItem"
-        rva: 148176
+        rva: 0x242d0
       - name: "ExGetPreviousMode"
-        rva: 148184
+        rva: 0x242d8
       - name: "MmGetSystemRoutineAddress"
-        rva: 148192
+        rva: 0x242e0
       - name: "NtOpenProcess"
-        rva: 148200
+        rva: 0x242e8
       - name: "ZwCreateEvent"
-        rva: 148208
+        rva: 0x242f0
       - name: "ZwWaitForSingleObject"
-        rva: 148216
+        rva: 0x242f8
       - name: "ZwSetEvent"
-        rva: 148224
+        rva: 0x24300
       - name: "NtQuerySystemInformation"
-        rva: 148232
+        rva: 0x24308
       - name: "ExEventObjectType"
-        rva: 148240
+        rva: 0x24310
       - name: "NtBuildNumber"
-        rva: 148248
+        rva: 0x24318
       - name: "ZwDeleteKey"
-        rva: 148256
+        rva: 0x24320
       - name: "ObReferenceObjectByName"
-        rva: 148264
+        rva: 0x24328
       - name: "IoDriverObjectType"
-        rva: 148272
+        rva: 0x24330
       - name: "MmIsDriverVerifying"
-        rva: 148280
+        rva: 0x24338
       - name: "IofCompleteRequest"
-        rva: 148288
+        rva: 0x24340
       - name: "IoCreateSymbolicLink"
-        rva: 148296
+        rva: 0x24348
       - name: "IoDeleteDevice"
-        rva: 148304
+        rva: 0x24350
       - name: "IoDeleteSymbolicLink"
-        rva: 148312
+        rva: 0x24358
       - name: "RtlSetDaclSecurityDescriptor"
-        rva: 148320
+        rva: 0x24360
       - name: "MmMapLockedPagesSpecifyCache"
-        rva: 148328
+        rva: 0x24368
       - name: "PsGetProcessId"
-        rva: 148336
+        rva: 0x24370
       - name: "IoThreadToProcess"
-        rva: 148344
+        rva: 0x24378
       - name: "PsGetCurrentProcessSessionId"
-        rva: 148352
+        rva: 0x24380
       - name: "ZwTerminateProcess"
-        rva: 148360
+        rva: 0x24388
       - name: "KeStackAttachProcess"
-        rva: 148368
+        rva: 0x24390
       - name: "KeUnstackDetachProcess"
-        rva: 148376
+        rva: 0x24398
       - name: "ZwOpenThread"
-        rva: 148384
+        rva: 0x243a0
       - name: "PsProcessType"
-        rva: 148392
+        rva: 0x243a8
       - name: "ExInterlockedInsertHeadList"
-        rva: 148400
+        rva: 0x243b0
       - name: "ExInterlockedRemoveHeadList"
-        rva: 148408
+        rva: 0x243b8
       - name: "CmRegisterCallback"
-        rva: 148416
+        rva: 0x243c0
       - name: "CmUnRegisterCallback"
-        rva: 148424
+        rva: 0x243c8
       - name: "RtlCreateRegistryKey"
-        rva: 148432
+        rva: 0x243d0
       - name: "ZwOpenKey"
-        rva: 148440
+        rva: 0x243d8
       - name: "ZwEnumerateKey"
-        rva: 148448
+        rva: 0x243e0
       - name: "ZwQueryKey"
-        rva: 148456
+        rva: 0x243e8
       - name: "ZwQueryValueKey"
-        rva: 148464
+        rva: 0x243f0
       - name: "RtlUnicodeStringToAnsiString"
-        rva: 148472
+        rva: 0x243f8
       - name: "RtlFreeAnsiString"
-        rva: 148480
+        rva: 0x24400
       - name: "ProbeForWrite"
-        rva: 148488
+        rva: 0x24408
       - name: "PsSetLoadImageNotifyRoutine"
-        rva: 148496
+        rva: 0x24410
       - name: "PsRemoveLoadImageNotifyRoutine"
-        rva: 148504
+        rva: 0x24418
       - name: "PsGetProcessSectionBaseAddress"
-        rva: 148512
+        rva: 0x24420
       - name: "MmSystemRangeStart"
-        rva: 148520
+        rva: 0x24428
       - name: "KeBugCheckEx"
-        rva: 148528
+        rva: 0x24430
       - name: "IoCreateDevice"
-        rva: 148536
+        rva: 0x24438
       - name: "ObOpenObjectByPointer"
-        rva: 148544
+        rva: 0x24440
       - name: "ZwSetSecurityObject"
-        rva: 148552
+        rva: 0x24448
       - name: "IoDeviceObjectType"
-        rva: 148560
+        rva: 0x24450
       - name: "_snwprintf"
-        rva: 148568
+        rva: 0x24458
       - name: "RtlLengthSecurityDescriptor"
-        rva: 148576
+        rva: 0x24460
       - name: "SeCaptureSecurityDescriptor"
-        rva: 148584
+        rva: 0x24468
       - name: "RtlCreateSecurityDescriptor"
-        rva: 148592
+        rva: 0x24470
       - name: "RtlAbsoluteToSelfRelativeSD"
-        rva: 148600
+        rva: 0x24478
       - name: "IoIsWdmVersionAvailable"
-        rva: 148608
+        rva: 0x24480
       - name: "SeExports"
-        rva: 148616
+        rva: 0x24488
       - name: "wcschr"
-        rva: 148624
+        rva: 0x24490
       - name: "_wcsnicmp"
-        rva: 148632
+        rva: 0x24498
       - name: "RtlLengthSid"
-        rva: 148640
+        rva: 0x244a0
       - name: "RtlAddAccessAllowedAce"
-        rva: 148648
+        rva: 0x244a8
       - name: "RtlGetSaclSecurityDescriptor"
-        rva: 148656
+        rva: 0x244b0
       - name: "RtlGetDaclSecurityDescriptor"
-        rva: 148664
+        rva: 0x244b8
       - name: "RtlGetGroupSecurityDescriptor"
-        rva: 148672
+        rva: 0x244c0
       - name: "RtlGetOwnerSecurityDescriptor"
-        rva: 148680
+        rva: 0x244c8
       - name: "ZwCreateKey"
-        rva: 148688
+        rva: 0x244d0
       - name: "RtlFreeUnicodeString"
-        rva: 148696
+        rva: 0x244d8
 is_signed: true
 signatures:
   - subject: "/businessCategory=Private Organization/serialNumber=460726/jurisdictionC=US/jurisdictionST=Idaho/C=US/ST=Idaho/L=Boise/streetAddress=702 W Idaho Street Suite 1100/O=WATCHDOGDEVELOPMENT.COM, LLC/CN=WATCHDOGDEVELOPMENT.COM, LLC"
@@ -811,5 +811,5 @@ signatures:
             not_before: 1278020215  # 2010-07-01 21:36:55 UTC
             not_after: 1751406415  # 2025-07-01 21:46:55 UTC
 overlay:
-    offset: 206848
-    size: 19616
+    offset: 0x32800
+    size: 0x4ca0

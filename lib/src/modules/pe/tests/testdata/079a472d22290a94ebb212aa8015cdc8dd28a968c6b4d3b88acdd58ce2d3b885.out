@@ -17,28 +17,28 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 0x2102  # EXECUTABLE_IMAGE | MACHINE_32BIT | DLL
 dll_characteristics: 0x140  # DYNAMIC_BASE | NX_COMPAT
 timestamp: 1528213185  # 2018-06-05 15:39:45 UTC
-image_base: 268435456
+image_base: 0x10000000
 checksum: 82308
-base_of_code: 4096
-base_of_data: 12288
-entry_point: 2605
-entry_point_raw: 5677
+base_of_code: 0x1000
+base_of_data: 0x3000
+entry_point: 0xa2d
+entry_point_raw: 0x162d
 dll_name: "CUSTPROF.dll"
 export_timestamp: 1528213185  # 2018-06-05 15:39:45 UTC
-section_alignment: 4096
-file_alignment: 512
-loader_flags: 0
-size_of_optional_header: 224
-size_of_code: 4608
-size_of_initialized_data: 5120
-size_of_uninitialized_data: 0
-size_of_image: 28672
-size_of_headers: 1024
-size_of_stack_reserve: 1048576
-size_of_stack_commit: 4096
-size_of_heap_reserve: 4096
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+section_alignment: 0x1000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xe0
+size_of_code: 0x1200
+size_of_initialized_data: 0x1400
+size_of_uninitialized_data: 0x0
+size_of_image: 0x7000
+size_of_headers: 0x400
+size_of_stack_reserve: 0x100000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x1000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -87,8 +87,8 @@ version_info_list:
   - key: "OriginalFilename"
     value: "CUSTPROF.DLL"
 rich_signature:
-    offset: 128
-    length: 96
+    offset: 0x80
+    length: 0x60
     key: 157631266
     raw_data: "f\"\x0bZ\"Ce\t\"Ce\t\"Ce\t9\xde\xf9\t!Ce\t9\xde\xfb\t#Ce\t9\xde\xcf\t)Ce\tM5\xce\t!Ce\t+;\xf6\t Ce\t\"Cd\t\x0eCe\t9\xde\xce\t&Ce\t9\xde\xfe\t#Ce\t9\xde\xff\t#Ce\t9\xde\xf8\t#Ce\t"
     clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x1b\x9d\x9c\x00\x03\x00\x00\x00\x1b\x9d\x9e\x00\x01\x00\x00\x00\x1b\x9d\xaa\x00\x0b\x00\x00\x00ov\xab\x00\x03\x00\x00\x00\tx\x93\x00\x02\x00\x00\x00\x00\x00\x01\x00,\x00\x00\x00\x1b\x9d\xab\x00\x04\x00\x00\x00\x1b\x9d\x9b\x00\x01\x00\x00\x00\x1b\x9d\x9a\x00\x01\x00\x00\x00\x1b\x9d\x9d\x00\x01\x00\x00\x00"
@@ -127,106 +127,106 @@ pdb_path: "D:\\workspace\\2018_R9_RelBld\\target\\checkout\\custprof\\Release\\c
 sections:
   - name: ".text"
     full_name: ".text"
-    characteristics: 1610612768
-    raw_data_size: 4608
-    raw_data_offset: 1024
-    virtual_address: 4096
-    virtual_size: 4524
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0x1200
+    raw_data_offset: 0x400
+    virtual_address: 0x1000
+    virtual_size: 0x11ac
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rdata"
     full_name: ".rdata"
-    characteristics: 1073741888
-    raw_data_size: 2048
-    raw_data_offset: 5632
-    virtual_address: 12288
-    virtual_size: 1777
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x800
+    raw_data_offset: 0x1600
+    virtual_address: 0x3000
+    virtual_size: 0x6f1
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".data"
     full_name: ".data"
-    characteristics: 3221225536
-    raw_data_size: 512
-    raw_data_offset: 7680
-    virtual_address: 16384
-    virtual_size: 916
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0x200
+    raw_data_offset: 0x1e00
+    virtual_address: 0x4000
+    virtual_size: 0x394
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rsrc"
     full_name: ".rsrc"
-    characteristics: 1073741888
-    raw_data_size: 1536
-    raw_data_offset: 8192
-    virtual_address: 20480
-    virtual_size: 1468
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x600
+    raw_data_offset: 0x2000
+    virtual_address: 0x5000
+    virtual_size: 0x5bc
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".reloc"
     full_name: ".reloc"
-    characteristics: 1107296320
-    raw_data_size: 1024
-    raw_data_offset: 9728
-    virtual_address: 24576
-    virtual_size: 524
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x42000040
+    raw_data_size: 0x400
+    raw_data_offset: 0x2600
+    virtual_address: 0x6000
+    virtual_size: 0x20c
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 13904
-    size: 161
-  - virtual_address: 12980
-    size: 60
-  - virtual_address: 20480
-    size: 1468
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 10752
-    size: 6048
-  - virtual_address: 24576
-    size: 508
-  - virtual_address: 12480
-    size: 28
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 12552
-    size: 64
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 12288
-    size: 160
-  - virtual_address: 12860
-    size: 64
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x3650
+    size: 0xa1
+  - virtual_address: 0x32b4
+    size: 0x3c
+  - virtual_address: 0x5000
+    size: 0x5bc
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x2a00
+    size: 0x17a0
+  - virtual_address: 0x6000
+    size: 0x1fc
+  - virtual_address: 0x30c0
+    size: 0x1c
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x3108
+    size: 0x40
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x3000
+    size: 0xa0
+  - virtual_address: 0x323c
+    size: 0x40
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 4
     minor: 0
 resources:
-  - length: 958
-    rva: 20640
-    offset: 8352
+  - length: 0x3be
+    rva: 0x50a0
+    offset: 0x20a0
     type: RESOURCE_TYPE_VERSION
     id: 1
     language: 1033
-  - length: 346
-    rva: 21600
-    offset: 9312
+  - length: 0x15a
+    rva: 0x5460
+    offset: 0x2460
     type: RESOURCE_TYPE_MANIFEST
     id: 2
     language: 1033
@@ -235,127 +235,127 @@ import_details:
     number_of_functions: 16
     functions:
       - name: "_crt_debugger_hook"
-        rva: 12380
+        rva: 0x305c
       - name: "_except_handler4_common"
-        rva: 12384
+        rva: 0x3060
       - name: "_onexit"
-        rva: 12388
+        rva: 0x3064
       - name: "_lock"
-        rva: 12392
+        rva: 0x3068
       - name: "__dllonexit"
-        rva: 12396
+        rva: 0x306c
       - name: "_unlock"
-        rva: 12400
+        rva: 0x3070
       - name: "__clean_type_info_names_internal"
-        rva: 12404
+        rva: 0x3074
       - name: "__CppXcptFilter"
-        rva: 12408
+        rva: 0x3078
       - name: "_amsg_exit"
-        rva: 12412
+        rva: 0x307c
       - name: "_initterm_e"
-        rva: 12416
+        rva: 0x3080
       - name: "_initterm"
-        rva: 12420
+        rva: 0x3084
       - name: "_encoded_null"
-        rva: 12424
+        rva: 0x3088
       - name: "_malloc_crt"
-        rva: 12428
+        rva: 0x308c
       - name: "malloc"
-        rva: 12432
+        rva: 0x3090
       - name: "memcpy"
-        rva: 12436
+        rva: 0x3094
       - name: "free"
-        rva: 12440
+        rva: 0x3098
   - library_name: "KERNEL32.dll"
     number_of_functions: 22
     functions:
       - name: "Sleep"
-        rva: 12288
+        rva: 0x3000
       - name: "LoadLibraryA"
-        rva: 12292
+        rva: 0x3004
       - name: "GetLastError"
-        rva: 12296
+        rva: 0x3008
       - name: "FreeLibrary"
-        rva: 12300
+        rva: 0x300c
       - name: "GetProcAddress"
-        rva: 12304
+        rva: 0x3010
       - name: "LocalFree"
-        rva: 12308
+        rva: 0x3014
       - name: "LocalAlloc"
-        rva: 12312
+        rva: 0x3018
       - name: "IsDebuggerPresent"
-        rva: 12316
+        rva: 0x301c
       - name: "SetUnhandledExceptionFilter"
-        rva: 12320
+        rva: 0x3020
       - name: "UnhandledExceptionFilter"
-        rva: 12324
+        rva: 0x3024
       - name: "GetCurrentProcess"
-        rva: 12328
+        rva: 0x3028
       - name: "TerminateProcess"
-        rva: 12332
+        rva: 0x302c
       - name: "GetSystemTimeAsFileTime"
-        rva: 12336
+        rva: 0x3030
       - name: "GetCurrentProcessId"
-        rva: 12340
+        rva: 0x3034
       - name: "GetCurrentThreadId"
-        rva: 12344
+        rva: 0x3038
       - name: "GetTickCount"
-        rva: 12348
+        rva: 0x303c
       - name: "EncodePointer"
-        rva: 12352
+        rva: 0x3040
       - name: "DecodePointer"
-        rva: 12356
+        rva: 0x3044
       - name: "InterlockedExchange"
-        rva: 12360
+        rva: 0x3048
       - name: "RaiseException"
-        rva: 12364
+        rva: 0x304c
       - name: "InterlockedCompareExchange"
-        rva: 12368
+        rva: 0x3050
       - name: "QueryPerformanceCounter"
-        rva: 12372
+        rva: 0x3054
 delayed_import_details:
   - library_name: "QDB.dll"
     number_of_functions: 6
     functions:
       - name: "ord116"
         ordinal: 116
-        rva: 16408
+        rva: 0x4018
       - name: "ord102"
         ordinal: 102
-        rva: 16412
+        rva: 0x401c
       - name: "ord95"
         ordinal: 95
-        rva: 16416
+        rva: 0x4020
       - name: "ord105"
         ordinal: 105
-        rva: 16420
+        rva: 0x4024
       - name: "ord103"
         ordinal: 103
-        rva: 16424
+        rva: 0x4028
       - name: "ord34"
         ordinal: 34
-        rva: 16428
+        rva: 0x402c
 export_details:
   - name: "CP_PutItem"
     ordinal: 200
-    rva: 4204
-    offset: 1132
+    rva: 0x106c
+    offset: 0x46c
   - name: "CP_GetItem"
     ordinal: 201
-    rva: 4414
-    offset: 1342
+    rva: 0x113e
+    offset: 0x53e
   - name: "CP_DelItem"
     ordinal: 202
-    rva: 4096
-    offset: 1024
+    rva: 0x1000
+    offset: 0x400
   - name: "CP_GetTaxMap"
     ordinal: 203
-    rva: 4186
-    offset: 1114
+    rva: 0x105a
+    offset: 0x45a
   - name: "_DllMain@12"
     ordinal: 204
-    rva: 4624
-    offset: 1552
+    rva: 0x1210
+    offset: 0x610
 is_signed: true
 signatures:
   - subject: "/C=US/ST=California/L=Menlo Park/O=Quicken, Inc./OU=Operations/CN=Quicken, Inc."
@@ -457,5 +457,5 @@ signatures:
             not_before: 1356048000  # 2012-12-21 00:00:00 UTC
             not_after: 1609372799  # 2020-12-30 23:59:59 UTC
 overlay:
-    offset: 10752
-    size: 6048
+    offset: 0x2a00
+    size: 0x17a0

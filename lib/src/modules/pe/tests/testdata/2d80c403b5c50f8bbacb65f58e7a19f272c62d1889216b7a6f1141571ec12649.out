@@ -17,28 +17,28 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 0x230e  # EXECUTABLE_IMAGE | LINE_NUMS_STRIPPED | LOCAL_SYMS_STRIPPED | MACHINE_32BIT | DEBUG_STRIPPED | DLL
 dll_characteristics: 0x0
 timestamp: 1274346651  # 2010-05-20 09:10:51 UTC
-image_base: 268435456
+image_base: 0x10000000
 checksum: 0
-base_of_code: 40960
-base_of_data: 49152
-entry_point: 6256
-entry_point_raw: 46704
+base_of_code: 0xa000
+base_of_data: 0xc000
+entry_point: 0x1870
+entry_point_raw: 0xb670
 dll_name: "socks55.dll"
 export_timestamp: 1274346651  # 2010-05-20 09:10:51 UTC
-section_alignment: 4096
-file_alignment: 512
-loader_flags: 0
-size_of_optional_header: 224
-size_of_code: 8192
-size_of_initialized_data: 4096
-size_of_uninitialized_data: 36864
-size_of_image: 53248
-size_of_headers: 4096
-size_of_stack_reserve: 2097152
-size_of_stack_commit: 4096
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+section_alignment: 0x1000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xe0
+size_of_code: 0x2000
+size_of_initialized_data: 0x1000
+size_of_uninitialized_data: 0x9000
+size_of_image: 0xd000
+size_of_headers: 0x1000
+size_of_stack_reserve: 0x200000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -54,217 +54,217 @@ number_of_signatures: 0
 sections:
   - name: "3j70umia"
     full_name: "3j70umia"
-    characteristics: 3758096512
-    raw_data_size: 0
-    raw_data_offset: 512
-    virtual_address: 4096
-    virtual_size: 36864
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xe0000080
+    raw_data_size: 0x0
+    raw_data_offset: 0x200
+    virtual_address: 0x1000
+    virtual_size: 0x9000
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: "3752hxsy"
     full_name: "3752hxsy"
-    characteristics: 3758096448
-    raw_data_size: 6656
-    raw_data_offset: 512
-    virtual_address: 40960
-    virtual_size: 8192
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xe0000040
+    raw_data_size: 0x1a00
+    raw_data_offset: 0x200
+    virtual_address: 0xa000
+    virtual_size: 0x2000
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: "3806yjxd"
     full_name: "3806yjxd"
-    characteristics: 3221225536
-    raw_data_size: 1536
-    raw_data_offset: 7168
-    virtual_address: 49152
-    virtual_size: 4096
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0x600
+    raw_data_offset: 0x1c00
+    virtual_address: 0xc000
+    virtual_size: 0x1000
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 49504
-    size: 864
-  - virtual_address: 49152
-    size: 352
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 50368
-    size: 12
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0xc160
+    size: 0x360
+  - virtual_address: 0xc000
+    size: 0x160
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0xc4c0
+    size: 0xc
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 import_details:
   - library_name: "KERNEL32.DLL"
     number_of_functions: 5
     functions:
       - name: "LoadLibraryA"
-        rva: 49272
+        rva: 0xc078
       - name: "GetProcAddress"
-        rva: 49276
+        rva: 0xc07c
       - name: "VirtualProtect"
-        rva: 49280
+        rva: 0xc080
       - name: "VirtualAlloc"
-        rva: 49284
+        rva: 0xc084
       - name: "VirtualFree"
-        rva: 49288
+        rva: 0xc088
   - library_name: "ADVAPI32.DLL"
     number_of_functions: 1
     functions:
       - name: "RegCloseKey"
-        rva: 49296
+        rva: 0xc090
   - library_name: "msvcrt.dll"
     number_of_functions: 1
     functions:
       - name: "_iob"
-        rva: 49304
+        rva: 0xc098
   - library_name: "USER32.dll"
     number_of_functions: 1
     functions:
       - name: "wsprintfA"
-        rva: 49312
+        rva: 0xc0a0
   - library_name: "WSOCK32.DLL"
     number_of_functions: 1
     functions:
       - name: "bind"
-        rva: 49320
+        rva: 0xc0a8
 export_details:
   - name: "AcceptThread@4"
     ordinal: 1
-    rva: 7308
+    rva: 0x1c8c
   - name: "AuthLogin"
     ordinal: 2
-    rva: 24660
+    rva: 0x6054
   - name: "AuthPass"
     ordinal: 3
-    rva: 24772
+    rva: 0x60c4
   - name: "CreateConnectStruct"
     ordinal: 4
-    rva: 4571
+    rva: 0x11db
   - name: "Get_Reg_SZ"
     ordinal: 5
-    rva: 8023
+    rva: 0x1f57
   - name: "Socks5Accept"
     ordinal: 6
-    rva: 7102
+    rva: 0x1bbe
   - name: "Socks5Auth"
     ordinal: 7
-    rva: 6747
+    rva: 0x1a5b
   - name: "Socks5CmdIsSupported"
     ordinal: 8
-    rva: 5438
+    rva: 0x153e
   - name: "Socks5GetCmd"
     ordinal: 9
-    rva: 6111
+    rva: 0x17df
   - name: "Socks5SendCode"
     ordinal: 10
-    rva: 5135
+    rva: 0x140f
   - name: "Socks5ServConnect"
     ordinal: 11
-    rva: 5201
+    rva: 0x1451
   - name: "SocksPipe@4"
     ordinal: 12
-    rva: 4836
+    rva: 0x12e4
   - name: "Write_REG_SZ"
     ordinal: 13
-    rva: 10062
+    rva: 0x274e
   - name: "_malloc"
     ordinal: 14
-    rva: 4541
+    rva: 0x11bd
   - name: "add_system_direcroty"
     ordinal: 15
-    rva: 8713
+    rva: 0x2209
   - name: "autostart_bot"
     ordinal: 16
-    rva: 9087
+    rva: 0x237f
   - name: "copy_autoinf"
     ordinal: 17
-    rva: 10246
+    rva: 0x2806
   - name: "copy_filez"
     ordinal: 18
-    rva: 11372
+    rva: 0x2c6c
   - name: "create_thread"
     ordinal: 19
-    rva: 4480
+    rva: 0x1180
   - name: "filetyt"
     ordinal: 20
-    rva: 10011
+    rva: 0x271b
   - name: "get_dword"
     ordinal: 21
-    rva: 11164
+    rva: 0x2b9c
   - name: "hDllInstance"
     ordinal: 22
-    rva: 24724
+    rva: 0x6094
   - name: "mutex_check"
     ordinal: 23
-    rva: 10774
+    rva: 0x2a16
   - name: "name_exe"
     ordinal: 24
-    rva: 24740
+    rva: 0x60a4
   - name: "rot13"
     ordinal: 25
-    rva: 7974
+    rva: 0x1f26
   - name: "rot13c"
     ordinal: 26
-    rva: 7684
+    rva: 0x1e04
   - name: "run_another@4"
     ordinal: 27
-    rva: 11944
+    rva: 0x2ea8
   - name: "run_flash@4"
     ordinal: 28
-    rva: 11503
+    rva: 0x2cef
   - name: "run_process@4"
     ordinal: 29
-    rva: 10848
+    rva: 0x2a60
   - name: "run_reestr@4"
     ordinal: 30
-    rva: 10680
+    rva: 0x29b8
   - name: "socks5_exec"
     ordinal: 31
-    rva: 5502
+    rva: 0x157e
   - name: "sread"
     ordinal: 32
-    rva: 4749
+    rva: 0x128d
   - name: "sss_rans"
     ordinal: 33
-    rva: 9378
+    rva: 0x24a2
   - name: "swrite"
     ordinal: 34
-    rva: 4662
+    rva: 0x1236
   - name: "xproxy_th@4"
     ordinal: 35
-    rva: 8224
+    rva: 0x2020
   - name: "xsocks5"
     ordinal: 36
-    rva: 8824
+    rva: 0x2278
   - name: "xstrchr"
     ordinal: 37
-    rva: 7640
+    rva: 0x1dd8
 is_signed: false
 overlay:
-    offset: 0
-    size: 0
+    offset: 0x0
+    size: 0x0

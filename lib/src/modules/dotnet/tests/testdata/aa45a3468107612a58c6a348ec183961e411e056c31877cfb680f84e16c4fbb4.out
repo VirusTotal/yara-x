@@ -12,20 +12,20 @@ number_of_constants: 0
 number_of_field_offsets: 1
 streams:
   - name: "#~"
-    offset: 1256
-    size: 792
+    offset: 0x4e8
+    size: 0x318
   - name: "#Strings"
-    offset: 2048
-    size: 1176
+    offset: 0x800
+    size: 0x498
   - name: "#US"
-    offset: 3224
-    size: 664
+    offset: 0xc98
+    size: 0x298
   - name: "#GUID"
-    offset: 3888
-    size: 16
+    offset: 0xf30
+    size: 0x10
   - name: "#Blob"
-    offset: 3904
-    size: 532
+    offset: 0xf40
+    size: 0x214
 guids:
   - "2ae3fb54-b89f-4b7e-96f8-72495b36c61a"
 assembly:

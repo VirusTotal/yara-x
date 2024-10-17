@@ -17,26 +17,26 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 0xa18e  # EXECUTABLE_IMAGE | LINE_NUMS_STRIPPED | LOCAL_SYMS_STRIPPED | BYTES_REVERSED_LO | MACHINE_32BIT | DLL | BYTES_REVERSED_HI
 dll_characteristics: 0x1
 timestamp: 708992537  # 1992-06-19 22:22:17 UTC
-image_base: 4194304
+image_base: 0x400000
 checksum: 1738518
-base_of_code: 4096
-base_of_data: 12288
-entry_point: 4980
-entry_point_raw: 8052
-section_alignment: 4096
-file_alignment: 512
-loader_flags: 0
-size_of_optional_header: 224
-size_of_code: 4096
-size_of_initialized_data: 1688576
-size_of_uninitialized_data: 0
-size_of_image: 1712128
-size_of_headers: 1024
-size_of_stack_reserve: 0
-size_of_stack_commit: 0
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+base_of_code: 0x1000
+base_of_data: 0x3000
+entry_point: 0x1374
+entry_point_raw: 0x1f74
+section_alignment: 0x1000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xe0
+size_of_code: 0x1000
+size_of_initialized_data: 0x19c400
+size_of_uninitialized_data: 0x0
+size_of_image: 0x1a2000
+size_of_headers: 0x400
+size_of_stack_reserve: 0x0
+size_of_stack_commit: 0x0
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -75,2631 +75,2631 @@ version_info_list:
 sections:
   - name: "CODE"
     full_name: "CODE"
-    characteristics: 1610612768
-    raw_data_size: 4096
-    raw_data_offset: 1024
-    virtual_address: 4096
-    virtual_size: 3980
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0x1000
+    raw_data_offset: 0x400
+    virtual_address: 0x1000
+    virtual_size: 0xf8c
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: "DATA"
     full_name: "DATA"
-    characteristics: 3221225536
-    raw_data_size: 512
-    raw_data_offset: 5120
-    virtual_address: 8192
-    virtual_size: 160
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0x200
+    raw_data_offset: 0x1400
+    virtual_address: 0x2000
+    virtual_size: 0xa0
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: "BSS"
     full_name: "BSS"
-    characteristics: 3221225472
-    raw_data_size: 0
-    raw_data_offset: 5632
-    virtual_address: 12288
-    virtual_size: 1769
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000000
+    raw_data_size: 0x0
+    raw_data_offset: 0x1600
+    virtual_address: 0x3000
+    virtual_size: 0x6e9
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".idata"
     full_name: ".idata"
-    characteristics: 3221225536
-    raw_data_size: 1024
-    raw_data_offset: 5632
-    virtual_address: 16384
-    virtual_size: 702
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0x400
+    raw_data_offset: 0x1600
+    virtual_address: 0x4000
+    virtual_size: 0x2be
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".reloc"
     full_name: ".reloc"
-    characteristics: 1342177344
-    raw_data_size: 512
-    raw_data_offset: 6656
-    virtual_address: 20480
-    virtual_size: 424
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x50000040
+    raw_data_size: 0x200
+    raw_data_offset: 0x1a00
+    virtual_address: 0x5000
+    virtual_size: 0x1a8
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rsrc"
     full_name: ".rsrc"
-    characteristics: 1342177344
-    raw_data_size: 1686528
-    raw_data_offset: 7168
-    virtual_address: 24576
-    virtual_size: 1686228
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x50000040
+    raw_data_size: 0x19bc00
+    raw_data_offset: 0x1c00
+    virtual_address: 0x6000
+    virtual_size: 0x19bad4
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 16384
-    size: 702
-  - virtual_address: 24576
-    size: 512
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 20480
-    size: 424
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x4000
+    size: 0x2be
+  - virtual_address: 0x6000
+    size: 0x200
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x5000
+    size: 0x1a8
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 resource_timestamp: 884693288  # 1998-01-13 12:08:08 UTC
 resource_version:
     major: 0
     minor: 0
 resources:
-  - length: 11264
-    rva: 49888
-    offset: 32480
+  - length: 0x2c00
+    rva: 0xc2e0
+    offset: 0x7ee0
     language: 19
     type_string: "A\x00V\x00I\x00"
     name_string: "A\x00N\x00I\x00M\x00A\x00T\x00I\x00O\x00N\x00_\x00B\x00U\x00S\x00Y\x00_\x00S\x00M\x00A\x00L\x00L\x00"
-  - length: 7168
-    rva: 61152
-    offset: 43744
+  - length: 0x1c00
+    rva: 0xeee0
+    offset: 0xaae0
     language: 19
     type_string: "A\x00V\x00I\x00"
     name_string: "F\x00I\x00R\x00E\x00"
-  - length: 10240
-    rva: 68320
-    offset: 50912
+  - length: 0x2800
+    rva: 0x10ae0
+    offset: 0xc6e0
     language: 19
     type_string: "A\x00V\x00I\x00"
     name_string: "G\x00E\x00A\x00R\x00S\x00"
-  - length: 13824
-    rva: 78560
-    offset: 61152
+  - length: 0x3600
+    rva: 0x132e0
+    offset: 0xeee0
     language: 19
     type_string: "A\x00V\x00I\x00"
     name_string: "R\x00E\x00C\x00O\x00V\x00E\x00R\x00"
-  - length: 20992
-    rva: 92384
-    offset: 74976
+  - length: 0x5200
+    rva: 0x168e0
+    offset: 0x124e0
     language: 19
     type_string: "A\x00V\x00I\x00"
     name_string: "S\x00C\x00H\x00E\x00D\x00P\x00R\x00O\x00G\x00R\x00E\x00S\x00S\x00"
-  - length: 20992
-    rva: 113376
-    offset: 95968
+  - length: 0x5200
+    rva: 0x1bae0
+    offset: 0x176e0
     language: 19
     type_string: "A\x00V\x00I\x00"
     name_string: "S\x00E\x00A\x00R\x00C\x00H\x00"
-  - length: 29184
-    rva: 134368
-    offset: 116960
+  - length: 0x7200
+    rva: 0x20ce0
+    offset: 0x1c8e0
     language: 19
     type_string: "A\x00V\x00I\x00"
     name_string: "S\x00E\x00A\x00R\x00C\x00H\x00C\x00L\x00B\x00T\x00N\x00F\x00A\x00C\x00E\x00"
-  - length: 12800
-    rva: 163552
-    offset: 146144
+  - length: 0x3200
+    rva: 0x27ee0
+    offset: 0x23ae0
     language: 19
     type_string: "A\x00V\x00I\x00"
     name_string: "S\x00W\x00I\x00R\x00L\x00"
-  - length: 20
-    rva: 176352
-    offset: 158944
+  - length: 0x14
+    rva: 0x2b0e0
+    offset: 0x26ce0
     language: 19
     type_string: "M\x00A\x00D\x00"
     name_string: "C\x00A\x00L\x00I\x00B\x00R\x00A\x00T\x00E\x00"
-  - length: 451084
-    rva: 176372
-    offset: 158964
+  - length: 0x6e20c
+    rva: 0x2b0f4
+    offset: 0x26cf4
     language: 19
     type_string: "M\x00A\x00D\x00"
     name_string: "E\x00X\x00C\x00E\x00P\x00T\x00"
-  - length: 308
-    rva: 627456
-    offset: 610048
+  - length: 0x134
+    rva: 0x99300
+    offset: 0x94f00
     type: RESOURCE_TYPE_CURSOR
     id: 1
     language: 19
-  - length: 308
-    rva: 627764
-    offset: 610356
+  - length: 0x134
+    rva: 0x99434
+    offset: 0x95034
     type: RESOURCE_TYPE_CURSOR
     id: 2
     language: 19
-  - length: 308
-    rva: 628072
-    offset: 610664
+  - length: 0x134
+    rva: 0x99568
+    offset: 0x95168
     type: RESOURCE_TYPE_CURSOR
     id: 3
     language: 19
-  - length: 308
-    rva: 628380
-    offset: 610972
+  - length: 0x134
+    rva: 0x9969c
+    offset: 0x9529c
     type: RESOURCE_TYPE_CURSOR
     id: 4
     language: 19
-  - length: 308
-    rva: 628688
-    offset: 611280
+  - length: 0x134
+    rva: 0x997d0
+    offset: 0x953d0
     type: RESOURCE_TYPE_CURSOR
     id: 5
     language: 19
-  - length: 308
-    rva: 628996
-    offset: 611588
+  - length: 0x134
+    rva: 0x99904
+    offset: 0x95504
     type: RESOURCE_TYPE_CURSOR
     id: 6
     language: 19
-  - length: 308
-    rva: 629304
-    offset: 611896
+  - length: 0x134
+    rva: 0x99a38
+    offset: 0x95638
     type: RESOURCE_TYPE_CURSOR
     id: 7
     language: 19
-  - length: 748
-    rva: 629612
-    offset: 612204
+  - length: 0x2ec
+    rva: 0x99b6c
+    offset: 0x9576c
     type: RESOURCE_TYPE_CURSOR
     id: 8
     language: 19
-  - length: 748
-    rva: 630360
-    offset: 612952
+  - length: 0x2ec
+    rva: 0x99e58
+    offset: 0x95a58
     type: RESOURCE_TYPE_CURSOR
     id: 9
     language: 19
-  - length: 748
-    rva: 631108
-    offset: 613700
+  - length: 0x2ec
+    rva: 0x9a144
+    offset: 0x95d44
     type: RESOURCE_TYPE_CURSOR
     id: 10
     language: 19
-  - length: 748
-    rva: 631856
-    offset: 614448
+  - length: 0x2ec
+    rva: 0x9a430
+    offset: 0x96030
     type: RESOURCE_TYPE_CURSOR
     id: 11
     language: 19
-  - length: 308
-    rva: 632604
-    offset: 615196
+  - length: 0x134
+    rva: 0x9a71c
+    offset: 0x9631c
     type: RESOURCE_TYPE_CURSOR
     id: 12
     language: 19
-  - length: 308
-    rva: 632912
-    offset: 615504
+  - length: 0x134
+    rva: 0x9a850
+    offset: 0x96450
     type: RESOURCE_TYPE_CURSOR
     id: 13
     language: 19
-  - length: 308
-    rva: 633220
-    offset: 615812
+  - length: 0x134
+    rva: 0x9a984
+    offset: 0x96584
     type: RESOURCE_TYPE_CURSOR
     id: 14
     language: 19
-  - length: 748
-    rva: 633528
-    offset: 616120
+  - length: 0x2ec
+    rva: 0x9aab8
+    offset: 0x966b8
     type: RESOURCE_TYPE_CURSOR
     id: 15
     language: 19
-  - length: 748
-    rva: 634276
-    offset: 616868
+  - length: 0x2ec
+    rva: 0x9ada4
+    offset: 0x969a4
     type: RESOURCE_TYPE_CURSOR
     id: 16
     language: 19
-  - length: 748
-    rva: 635024
-    offset: 617616
+  - length: 0x2ec
+    rva: 0x9b090
+    offset: 0x96c90
     type: RESOURCE_TYPE_CURSOR
     id: 17
     language: 19
-  - length: 748
-    rva: 635772
-    offset: 618364
+  - length: 0x2ec
+    rva: 0x9b37c
+    offset: 0x96f7c
     type: RESOURCE_TYPE_CURSOR
     id: 18
     language: 19
-  - length: 748
-    rva: 636520
-    offset: 619112
+  - length: 0x2ec
+    rva: 0x9b668
+    offset: 0x97268
     type: RESOURCE_TYPE_CURSOR
     id: 19
     language: 19
-  - length: 748
-    rva: 637268
-    offset: 619860
+  - length: 0x2ec
+    rva: 0x9b954
+    offset: 0x97554
     type: RESOURCE_TYPE_CURSOR
     id: 20
     language: 19
-  - length: 308
-    rva: 638016
-    offset: 620608
+  - length: 0x134
+    rva: 0x9bc40
+    offset: 0x97840
     type: RESOURCE_TYPE_CURSOR
     id: 21
     language: 19
-  - length: 464
-    rva: 638324
-    offset: 620916
+  - length: 0x1d0
+    rva: 0x9bd74
+    offset: 0x97974
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "B\x00B\x00A\x00B\x00O\x00R\x00T\x00"
-  - length: 484
-    rva: 638788
-    offset: 621380
+  - length: 0x1e4
+    rva: 0x9bf44
+    offset: 0x97b44
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "B\x00B\x00A\x00L\x00L\x00"
-  - length: 464
-    rva: 639272
-    offset: 621864
+  - length: 0x1d0
+    rva: 0x9c128
+    offset: 0x97d28
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "B\x00B\x00C\x00A\x00N\x00C\x00E\x00L\x00"
-  - length: 464
-    rva: 639736
-    offset: 622328
+  - length: 0x1d0
+    rva: 0x9c2f8
+    offset: 0x97ef8
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "B\x00B\x00C\x00L\x00O\x00S\x00E\x00"
-  - length: 464
-    rva: 640200
-    offset: 622792
+  - length: 0x1d0
+    rva: 0x9c4c8
+    offset: 0x980c8
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "B\x00B\x00H\x00E\x00L\x00P\x00"
-  - length: 464
-    rva: 640664
-    offset: 623256
+  - length: 0x1d0
+    rva: 0x9c698
+    offset: 0x98298
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "B\x00B\x00I\x00G\x00N\x00O\x00R\x00E\x00"
-  - length: 464
-    rva: 641128
-    offset: 623720
+  - length: 0x1d0
+    rva: 0x9c868
+    offset: 0x98468
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "B\x00B\x00N\x00O\x00"
-  - length: 464
-    rva: 641592
-    offset: 624184
+  - length: 0x1d0
+    rva: 0x9ca38
+    offset: 0x98638
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "B\x00B\x00O\x00K\x00"
-  - length: 464
-    rva: 642056
-    offset: 624648
+  - length: 0x1d0
+    rva: 0x9cc08
+    offset: 0x98808
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "B\x00B\x00R\x00E\x00T\x00R\x00Y\x00"
-  - length: 464
-    rva: 642520
-    offset: 625112
+  - length: 0x1d0
+    rva: 0x9cdd8
+    offset: 0x989d8
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "B\x00B\x00Y\x00E\x00S\x00"
-  - length: 232
-    rva: 642984
-    offset: 625576
+  - length: 0xe8
+    rva: 0x9cfa8
+    offset: 0x98ba8
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "B\x00L\x00A\x00N\x00K\x00_\x001\x006\x00X\x001\x006\x00"
-  - length: 192
-    rva: 643216
-    offset: 625808
+  - length: 0xc0
+    rva: 0x9d090
+    offset: 0x98c90
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "C\x00D\x00R\x00O\x00M\x00"
-  - length: 224
-    rva: 643408
-    offset: 626000
+  - length: 0xe0
+    rva: 0x9d150
+    offset: 0x98d50
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "C\x00L\x00O\x00S\x00E\x00D\x00F\x00O\x00L\x00D\x00E\x00R\x00"
-  - length: 224
-    rva: 643632
-    offset: 626224
+  - length: 0xe0
+    rva: 0x9d230
+    offset: 0x98e30
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "C\x00U\x00R\x00R\x00E\x00N\x00T\x00F\x00O\x00L\x00D\x00E\x00R\x00"
-  - length: 224
-    rva: 643856
-    offset: 626448
+  - length: 0xe0
+    rva: 0x9d310
+    offset: 0x98f10
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "E\x00X\x00E\x00C\x00U\x00T\x00A\x00B\x00L\x00E\x00"
-  - length: 192
-    rva: 644080
-    offset: 626672
+  - length: 0xc0
+    rva: 0x9d3f0
+    offset: 0x98ff0
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "F\x00L\x00O\x00P\x00P\x00Y\x00"
-  - length: 192
-    rva: 644272
-    offset: 626864
+  - length: 0xc0
+    rva: 0x9d4b0
+    offset: 0x990b0
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "H\x00A\x00R\x00D\x00"
-  - length: 3112
-    rva: 644464
-    offset: 627056
+  - length: 0xc28
+    rva: 0x9d570
+    offset: 0x99170
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "I\x00C\x00O\x00N\x00C\x00R\x00I\x00T\x00I\x00C\x00A\x00L\x003\x002\x00X\x003\x002\x00"
-  - length: 3112
-    rva: 647576
-    offset: 630168
+  - length: 0xc28
+    rva: 0x9e198
+    offset: 0x99d98
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "I\x00C\x00O\x00N\x00F\x00A\x00I\x00R\x003\x002\x00X\x003\x002\x00"
-  - length: 3112
-    rva: 650688
-    offset: 633280
+  - length: 0xc28
+    rva: 0x9edc0
+    offset: 0x9a9c0
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "I\x00C\x00O\x00N\x00G\x00O\x00O\x00D\x003\x002\x00X\x003\x002\x00"
-  - length: 3114
-    rva: 653800
-    offset: 636392
+  - length: 0xc2a
+    rva: 0x9f9e8
+    offset: 0x9b5e8
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "I\x00C\x00O\x00N\x00I\x00N\x00F\x00O\x00R\x00M\x00A\x00T\x00I\x00O\x00N\x003\x002\x00X\x003\x002\x00"
-  - length: 2826
-    rva: 656916
-    offset: 639508
+  - length: 0xb0a
+    rva: 0xa0614
+    offset: 0x9c214
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "I\x00C\x00O\x00N\x00W\x00A\x00R\x00N\x00I\x00N\x00G\x003\x001\x00X\x002\x009\x00"
-  - length: 808
-    rva: 659744
-    offset: 642336
+  - length: 0x328
+    rva: 0xa1120
+    offset: 0x9cd20
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "I\x00M\x00G\x00_\x00C\x00H\x00E\x00C\x00K\x00B\x00O\x00X\x00_\x001\x006\x00X\x001\x006\x00"
-  - length: 808
-    rva: 660552
-    offset: 643144
+  - length: 0x328
+    rva: 0xa1448
+    offset: 0x9d048
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "I\x00M\x00G\x00_\x00C\x00H\x00E\x00C\x00K\x00E\x00D\x00B\x00O\x00X\x00_\x001\x006\x00X\x001\x006\x00"
-  - length: 808
-    rva: 661360
-    offset: 643952
+  - length: 0x328
+    rva: 0xa1770
+    offset: 0x9d370
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "I\x00M\x00G\x00_\x00M\x00I\x00N\x00U\x00S\x00_\x001\x006\x00X\x001\x006\x00"
-  - length: 808
-    rva: 662168
-    offset: 644760
+  - length: 0x328
+    rva: 0xa1a98
+    offset: 0x9d698
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "I\x00M\x00G\x00_\x00P\x00L\x00U\x00S\x00_\x001\x006\x00X\x001\x006\x00"
-  - length: 4600
-    rva: 662976
-    offset: 645568
+  - length: 0x11f8
+    rva: 0xa1dc0
+    offset: 0x9d9c0
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "I\x00N\x00C\x00I\x00N\x00I\x00M\x00A\x00G\x00E\x00"
-  - length: 224
-    rva: 667576
-    offset: 650168
+  - length: 0xe0
+    rva: 0xa2fb8
+    offset: 0x9ebb8
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "K\x00N\x00O\x00W\x00N\x00F\x00I\x00L\x00E\x00"
-  - length: 4136
-    rva: 667800
-    offset: 650392
+  - length: 0x1028
+    rva: 0xa3098
+    offset: 0x9ec98
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "M\x00E\x00I\x00B\x00I\x00G\x00"
-  - length: 1064
-    rva: 671936
-    offset: 654528
+  - length: 0x428
+    rva: 0xa40c0
+    offset: 0x9fcc0
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "M\x00E\x00I\x00C\x00A\x00N\x00T\x00C\x00O\x00N\x00T\x00I\x00N\x00U\x00E\x00"
-  - length: 1064
-    rva: 673000
-    offset: 655592
+  - length: 0x428
+    rva: 0xa44e8
+    offset: 0xa00e8
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "M\x00E\x00I\x00C\x00L\x00O\x00S\x00E\x00"
-  - length: 1064
-    rva: 674064
-    offset: 656656
+  - length: 0x428
+    rva: 0xa4910
+    offset: 0xa0510
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "M\x00E\x00I\x00C\x00O\x00N\x00T\x00I\x00N\x00U\x00E\x00"
-  - length: 4136
-    rva: 675128
-    offset: 657720
+  - length: 0x1028
+    rva: 0xa4d38
+    offset: 0xa0938
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "M\x00E\x00I\x00P\x00L\x00W\x00A\x00I\x00T\x00"
-  - length: 1064
-    rva: 679264
-    offset: 661856
+  - length: 0x428
+    rva: 0xa5d60
+    offset: 0xa1960
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "M\x00E\x00I\x00P\x00R\x00I\x00N\x00T\x00"
-  - length: 1064
-    rva: 680328
-    offset: 662920
+  - length: 0x428
+    rva: 0xa6188
+    offset: 0xa1d88
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "M\x00E\x00I\x00R\x00E\x00S\x00T\x00A\x00R\x00T\x00"
-  - length: 1064
-    rva: 681392
-    offset: 663984
+  - length: 0x428
+    rva: 0xa65b0
+    offset: 0xa21b0
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "M\x00E\x00I\x00S\x00A\x00V\x00E\x00"
-  - length: 1064
-    rva: 682456
-    offset: 665048
+  - length: 0x428
+    rva: 0xa69d8
+    offset: 0xa25d8
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "M\x00E\x00I\x00S\x00E\x00N\x00D\x00"
-  - length: 4136
-    rva: 683520
-    offset: 666112
+  - length: 0x1028
+    rva: 0xa6e00
+    offset: 0xa2a00
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "M\x00E\x00I\x00S\x00E\x00N\x00D\x003\x002\x00"
-  - length: 1064
-    rva: 687656
-    offset: 670248
+  - length: 0x428
+    rva: 0xa7e28
+    offset: 0xa3a28
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "M\x00E\x00I\x00S\x00H\x00O\x00W\x00"
-  - length: 3112
-    rva: 688720
-    offset: 671312
+  - length: 0xc28
+    rva: 0xa8250
+    offset: 0xa3e50
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "M\x00O\x00D\x00E\x00I\x00M\x00A\x00G\x00E\x00"
-  - length: 192
-    rva: 691832
-    offset: 674424
+  - length: 0xc0
+    rva: 0xa8e78
+    offset: 0xa4a78
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "N\x00E\x00T\x00W\x00O\x00R\x00K\x00"
-  - length: 3112
-    rva: 692024
-    offset: 674616
+  - length: 0xc28
+    rva: 0xa8f38
+    offset: 0xa4b38
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "N\x00E\x00W\x00F\x00I\x00L\x00E\x00P\x00A\x00T\x00T\x00E\x00R\x00N\x00I\x00M\x00A\x00G\x00E\x00"
-  - length: 3112
-    rva: 695136
-    offset: 677728
+  - length: 0xc28
+    rva: 0xa9b60
+    offset: 0xa5760
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "N\x00E\x00W\x00I\x00N\x00C\x00E\x00X\x00C\x00F\x00O\x00L\x00D\x00E\x00R\x00I\x00M\x00A\x00G\x00E\x00"
-  - length: 224
-    rva: 698248
-    offset: 680840
+  - length: 0xe0
+    rva: 0xaa788
+    offset: 0xa6388
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "O\x00P\x00E\x00N\x00F\x00O\x00L\x00D\x00E\x00R\x00"
-  - length: 3112
-    rva: 698472
-    offset: 681064
+  - length: 0xc28
+    rva: 0xaa868
+    offset: 0xa6468
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "O\x00P\x00T\x00I\x00O\x00N\x00S\x00I\x00M\x00A\x00G\x00E\x00"
-  - length: 80
-    rva: 701584
-    offset: 684176
+  - length: 0x50
+    rva: 0xab490
+    offset: 0xa7090
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "P\x00B\x00_\x00D\x00I\x00S\x00A\x00B\x00L\x00E\x00D\x00_\x00E\x00M\x00P\x00T\x00Y\x00"
-  - length: 80
-    rva: 701664
-    offset: 684256
+  - length: 0x50
+    rva: 0xab4e0
+    offset: 0xa70e0
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "P\x00B\x00_\x00D\x00I\x00S\x00A\x00B\x00L\x00E\x00D\x00_\x00E\x00M\x00P\x00T\x00Y\x00_\x00E\x00D\x00G\x00E\x00"
-  - length: 80
-    rva: 701744
-    offset: 684336
+  - length: 0x50
+    rva: 0xab530
+    offset: 0xa7130
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "P\x00B\x00_\x00D\x00I\x00S\x00A\x00B\x00L\x00E\x00D\x00_\x00F\x00I\x00L\x00L\x00E\x00D\x00"
-  - length: 80
-    rva: 701824
-    offset: 684416
+  - length: 0x50
+    rva: 0xab580
+    offset: 0xa7180
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "P\x00B\x00_\x00D\x00I\x00S\x00A\x00B\x00L\x00E\x00D\x00_\x00F\x00I\x00L\x00L\x00E\x00D\x00_\x00E\x00D\x00G\x00E\x00"
-  - length: 120
-    rva: 701904
-    offset: 684496
+  - length: 0x78
+    rva: 0xab5d0
+    offset: 0xa71d0
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "P\x00G\x00B\x00R\x00_\x00B\x00A\x00R\x00R\x00I\x00G\x00H\x00T\x00E\x00D\x00G\x00E\x002\x000\x00"
-  - length: 122
-    rva: 702024
-    offset: 684616
+  - length: 0x7a
+    rva: 0xab648
+    offset: 0xa7248
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "P\x00G\x00B\x00R\x00_\x00C\x00O\x00N\x00T\x00A\x00I\x00N\x00E\x00R\x00E\x00M\x00P\x00T\x00Y\x002\x000\x00"
-  - length: 122
-    rva: 702148
-    offset: 684740
+  - length: 0x7a
+    rva: 0xab6c4
+    offset: 0xa72c4
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "P\x00G\x00B\x00R\x00_\x00C\x00O\x00N\x00T\x00A\x00I\x00N\x00E\x00R\x00F\x00I\x00L\x00L\x00E\x00D\x002\x000\x00"
-  - length: 122
-    rva: 702272
-    offset: 684864
+  - length: 0x7a
+    rva: 0xab740
+    offset: 0xa7340
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "P\x00G\x00B\x00R\x00_\x00C\x00O\x00N\x00T\x00A\x00I\x00N\x00E\x00R\x00L\x00E\x00F\x00T\x00E\x00D\x00G\x00E\x00E\x00M\x00P\x00T\x00Y\x002\x000\x00"
-  - length: 122
-    rva: 702396
-    offset: 684988
+  - length: 0x7a
+    rva: 0xab7bc
+    offset: 0xa73bc
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "P\x00G\x00B\x00R\x00_\x00C\x00O\x00N\x00T\x00A\x00I\x00N\x00E\x00R\x00L\x00E\x00F\x00T\x00E\x00D\x00G\x00E\x00F\x00I\x00L\x00L\x00E\x00D\x002\x000\x00"
-  - length: 122
-    rva: 702520
-    offset: 685112
+  - length: 0x7a
+    rva: 0xab838
+    offset: 0xa7438
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "P\x00G\x00B\x00R\x00_\x00C\x00O\x00N\x00T\x00A\x00I\x00N\x00E\x00R\x00R\x00I\x00G\x00H\x00T\x00E\x00D\x00G\x00E\x00E\x00M\x00P\x00T\x00Y\x002\x000\x00"
-  - length: 120
-    rva: 702644
-    offset: 685236
+  - length: 0x78
+    rva: 0xab8b4
+    offset: 0xa74b4
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "P\x00G\x00B\x00R\x00_\x00C\x00O\x00N\x00T\x00A\x00I\x00N\x00E\x00R\x00R\x00I\x00G\x00H\x00T\x00E\x00D\x00G\x00E\x00F\x00I\x00L\x00L\x00E\x00D\x002\x000\x00"
-  - length: 808
-    rva: 702764
-    offset: 685356
+  - length: 0x328
+    rva: 0xab92c
+    offset: 0xa752c
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "P\x00M\x00_\x00I\x00M\x00G\x00_\x00A\x00R\x00R\x00O\x00W\x00_\x001\x006\x00X\x001\x006\x00"
-  - length: 808
-    rva: 703572
-    offset: 686164
+  - length: 0x328
+    rva: 0xabc54
+    offset: 0xa7854
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "P\x00M\x00_\x00I\x00M\x00G\x00_\x00B\x00U\x00L\x00L\x00E\x00T\x00_\x001\x006\x00X\x001\x006\x00"
-  - length: 3112
-    rva: 704380
-    offset: 686972
+  - length: 0xc28
+    rva: 0xabf7c
+    offset: 0xa7b7c
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "P\x00M\x00_\x00I\x00M\x00G\x00_\x00D\x00E\x00P\x00E\x00N\x00D\x00S\x00_\x003\x002\x00X\x003\x002\x00"
-  - length: 808
-    rva: 707492
-    offset: 690084
+  - length: 0x328
+    rva: 0xacba4
+    offset: 0xa87a4
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "P\x00M\x00_\x00I\x00M\x00G\x00_\x00I\x00N\x00F\x00O\x00_\x001\x006\x00X\x001\x006\x00"
-  - length: 808
-    rva: 708300
-    offset: 690892
+  - length: 0x328
+    rva: 0xacecc
+    offset: 0xa8acc
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "P\x00M\x00_\x00I\x00M\x00G\x00_\x00P\x00R\x00I\x00H\x00E\x00L\x00P\x00_\x001\x006\x00X\x001\x006\x00"
-  - length: 808
-    rva: 709108
-    offset: 691700
+  - length: 0x328
+    rva: 0xad1f4
+    offset: 0xa8df4
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "P\x00M\x00_\x00I\x00M\x00G\x00_\x00U\x00N\x00K\x00N\x00O\x00W\x00N\x00_\x001\x006\x00X\x001\x006\x00"
-  - length: 232
-    rva: 709916
-    offset: 692508
+  - length: 0xe8
+    rva: 0xad51c
+    offset: 0xa911c
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "P\x00R\x00E\x00V\x00I\x00E\x00W\x00G\x00L\x00Y\x00P\x00H\x00"
-  - length: 192
-    rva: 710148
-    offset: 692740
+  - length: 0xc0
+    rva: 0xad604
+    offset: 0xa9204
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "R\x00A\x00M\x00"
-  - length: 3112
-    rva: 710340
-    offset: 692932
+  - length: 0xc28
+    rva: 0xad6c4
+    offset: 0xa92c4
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "R\x00E\x00G\x00C\x00L\x00E\x00A\x00N\x00E\x00X\x00C\x00L\x00U\x00D\x00E\x00I\x00M\x00A\x00G\x00E\x00"
-  - length: 3112
-    rva: 713452
-    offset: 696044
+  - length: 0xc28
+    rva: 0xae2ec
+    offset: 0xa9eec
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00C\x00H\x00E\x00D\x00U\x00L\x00E\x00_\x00I\x00M\x00A\x00G\x00E\x00"
-  - length: 3112
-    rva: 716564
-    offset: 699156
+  - length: 0xc28
+    rva: 0xaef14
+    offset: 0xaab14
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00E\x00A\x00R\x00C\x00H\x00C\x00A\x00N\x00C\x00E\x00L\x00L\x00E\x00D\x00I\x00M\x00A\x00G\x00E\x00"
-  - length: 3112
-    rva: 719676
-    offset: 702268
+  - length: 0xc28
+    rva: 0xafb3c
+    offset: 0xab73c
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00E\x00A\x00R\x00C\x00H\x00C\x00O\x00M\x00P\x00L\x00E\x00T\x00E\x00I\x00M\x00A\x00G\x00E\x00"
-  - length: 23056
-    rva: 722788
-    offset: 705380
+  - length: 0x5a10
+    rva: 0xb0764
+    offset: 0xac364
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00M\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00B\x00U\x00T\x00T\x00O\x00N\x00"
-  - length: 27442
-    rva: 745844
-    offset: 728436
+  - length: 0x6b32
+    rva: 0xb6174
+    offset: 0xb1d74
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00M\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00B\x00U\x00T\x00T\x00O\x00N\x00_\x002\x005\x00"
-  - length: 29020
-    rva: 773288
-    offset: 755880
+  - length: 0x715c
+    rva: 0xbcca8
+    offset: 0xb88a8
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00M\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00B\x00U\x00T\x00T\x00O\x00N\x00_\x00D\x00E\x00F\x00A\x00U\x00L\x00T\x00"
-  - length: 34542
-    rva: 802308
-    offset: 784900
+  - length: 0x86ee
+    rva: 0xc3e04
+    offset: 0xbfa04
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00M\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00B\x00U\x00T\x00T\x00O\x00N\x00_\x00D\x00E\x00F\x00A\x00U\x00L\x00T\x00_\x002\x005\x00"
-  - length: 32212
-    rva: 836852
-    offset: 819444
+  - length: 0x7dd4
+    rva: 0xcc4f4
+    offset: 0xc80f4
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00M\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00B\x00U\x00T\x00T\x00O\x00N\x00_\x00L\x00O\x00N\x00G\x00"
-  - length: 38342
-    rva: 869064
-    offset: 851656
+  - length: 0x95c6
+    rva: 0xd42c8
+    offset: 0xcfec8
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00M\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00B\x00U\x00T\x00T\x00O\x00N\x00_\x00L\x00O\x00N\x00G\x00_\x002\x005\x00"
-  - length: 9762
-    rva: 907408
-    offset: 890000
+  - length: 0x2622
+    rva: 0xdd890
+    offset: 0xd9490
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00M\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00C\x00L\x00O\x00S\x00E\x00"
-  - length: 9762
-    rva: 917172
-    offset: 899764
+  - length: 0x2622
+    rva: 0xdfeb4
+    offset: 0xdbab4
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00M\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00C\x00L\x00O\x00S\x00E\x00_\x00C\x00O\x00M\x00B\x00O\x00"
-  - length: 184
-    rva: 926936
-    offset: 909528
+  - length: 0xb8
+    rva: 0xe24d8
+    offset: 0xde0d8
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00M\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00F\x00O\x00O\x00T\x00E\x00R\x00"
-  - length: 29272
-    rva: 927120
-    offset: 909712
+  - length: 0x7258
+    rva: 0xe2590
+    offset: 0xde190
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00M\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00F\x00O\x00O\x00T\x00E\x00R\x00_\x00L\x00E\x00F\x00T\x00"
-  - length: 242
-    rva: 956392
-    offset: 938984
+  - length: 0xf2
+    rva: 0xe97e8
+    offset: 0xe53e8
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00M\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00H\x00E\x00A\x00D\x00E\x00R\x00"
-  - length: 3114
-    rva: 956636
-    offset: 939228
+  - length: 0xc2a
+    rva: 0xe98dc
+    offset: 0xe54dc
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00M\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00L\x00O\x00G\x00O\x00_\x00A\x00N\x00A\x00L\x00Y\x00S\x00I\x00S\x00"
-  - length: 3114
-    rva: 959752
-    offset: 942344
+  - length: 0xc2a
+    rva: 0xea508
+    offset: 0xe6108
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00M\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00L\x00O\x00G\x00O\x00_\x00E\x00X\x00C\x00L\x00A\x00M\x00A\x00T\x00I\x00O\x00N\x00"
-  - length: 3114
-    rva: 962868
-    offset: 945460
+  - length: 0xc2a
+    rva: 0xeb134
+    offset: 0xe6d34
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00M\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00L\x00O\x00G\x00O\x00_\x00Q\x00U\x00E\x00S\x00T\x00I\x00O\x00N\x00"
-  - length: 3114
-    rva: 965984
-    offset: 948576
+  - length: 0xc2a
+    rva: 0xebd60
+    offset: 0xe7960
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00M\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00L\x00O\x00G\x00O\x00_\x00R\x00E\x00S\x00T\x00A\x00R\x00T\x00"
-  - length: 3114
-    rva: 969100
-    offset: 951692
+  - length: 0xc2a
+    rva: 0xec98c
+    offset: 0xe858c
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00M\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00L\x00O\x00G\x00O\x00_\x00W\x00R\x00E\x00N\x00C\x00H\x00"
-  - length: 6306
-    rva: 972216
-    offset: 954808
+  - length: 0x18a2
+    rva: 0xed5b8
+    offset: 0xe91b8
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00M\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00M\x00I\x00N\x00I\x00M\x00I\x00Z\x00E\x00"
-  - length: 808
-    rva: 978524
-    offset: 961116
+  - length: 0x328
+    rva: 0xeee5c
+    offset: 0xeaa5c
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00T\x00A\x00T\x00U\x00S\x00_\x00C\x00A\x00N\x00C\x00E\x00L\x00E\x00D\x00"
-  - length: 808
-    rva: 979332
-    offset: 961924
+  - length: 0x328
+    rva: 0xef184
+    offset: 0xead84
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00T\x00A\x00T\x00U\x00S\x00_\x00C\x00O\x00M\x00P\x00L\x00E\x00T\x00E\x00"
-  - length: 808
-    rva: 980140
-    offset: 962732
+  - length: 0x328
+    rva: 0xef4ac
+    offset: 0xeb0ac
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00T\x00A\x00T\x00U\x00S\x00_\x00P\x00E\x00N\x00D\x00I\x00N\x00G\x00"
-  - length: 808
-    rva: 980948
-    offset: 963540
+  - length: 0x328
+    rva: 0xef7d4
+    offset: 0xeb3d4
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00T\x00A\x00T\x00U\x00S\x00_\x00S\x00K\x00I\x00P\x00P\x00E\x00D\x00"
-  - length: 808
-    rva: 981756
-    offset: 964348
+  - length: 0x328
+    rva: 0xefafc
+    offset: 0xeb6fc
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00T\x00A\x00T\x00U\x00S\x00_\x00T\x00E\x00S\x00T\x00I\x00N\x00G\x00"
-  - length: 808
-    rva: 982564
-    offset: 965156
+  - length: 0x328
+    rva: 0xefe24
+    offset: 0xeba24
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00T\x00A\x00T\x00U\x00S\x00_\x00W\x00A\x00R\x00N\x00I\x00N\x00G\x00"
-  - length: 808
-    rva: 983372
-    offset: 965964
+  - length: 0x328
+    rva: 0xf014c
+    offset: 0xebd4c
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00T\x00A\x00T\x00U\x00S\x00_\x00W\x00O\x00R\x00K\x00D\x00O\x00N\x00E\x00"
-  - length: 1050
-    rva: 984180
-    offset: 966772
+  - length: 0x41a
+    rva: 0xf0474
+    offset: 0xec074
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00T\x00R\x00O\x00K\x00E\x00G\x00R\x00E\x00E\x00N\x00C\x00H\x00E\x00C\x00K\x00"
-  - length: 1050
-    rva: 985232
-    offset: 967824
+  - length: 0x41a
+    rva: 0xf0890
+    offset: 0xec490
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "S\x00T\x00R\x00O\x00K\x00E\x00R\x00E\x00D\x00X\x00"
-  - length: 224
-    rva: 986284
-    offset: 968876
+  - length: 0xe0
+    rva: 0xf0cac
+    offset: 0xec8ac
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "U\x00N\x00K\x00N\x00O\x00W\x00N\x00F\x00I\x00L\x00E\x00"
-  - length: 3304
-    rva: 986508
-    offset: 969100
+  - length: 0xce8
+    rva: 0xf0d8c
+    offset: 0xec98c
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "V\x00T\x00_\x00C\x00H\x00E\x00C\x00K\x00_\x00D\x00A\x00R\x00K\x00"
-  - length: 3304
-    rva: 989812
-    offset: 972404
+  - length: 0xce8
+    rva: 0xf1a74
+    offset: 0xed674
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "V\x00T\x00_\x00C\x00H\x00E\x00C\x00K\x00_\x00L\x00I\x00G\x00H\x00T\x00"
-  - length: 3304
-    rva: 993116
-    offset: 975708
+  - length: 0xce8
+    rva: 0xf275c
+    offset: 0xee35c
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "V\x00T\x00_\x00F\x00L\x00A\x00T\x00"
-  - length: 616
-    rva: 996420
-    offset: 979012
+  - length: 0x268
+    rva: 0xf3444
+    offset: 0xef044
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "V\x00T\x00_\x00M\x00O\x00V\x00E\x00A\x00L\x00L\x00"
-  - length: 616
-    rva: 997036
-    offset: 979628
+  - length: 0x268
+    rva: 0xf36ac
+    offset: 0xef2ac
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "V\x00T\x00_\x00M\x00O\x00V\x00E\x00E\x00W\x00"
-  - length: 616
-    rva: 997652
-    offset: 980244
+  - length: 0x268
+    rva: 0xf3914
+    offset: 0xef514
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "V\x00T\x00_\x00M\x00O\x00V\x00E\x00N\x00S\x00"
-  - length: 3304
-    rva: 998268
-    offset: 980860
+  - length: 0xce8
+    rva: 0xf3b7c
+    offset: 0xef77c
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "V\x00T\x00_\x00T\x00I\x00C\x00K\x00_\x00D\x00A\x00R\x00K\x00"
-  - length: 3304
-    rva: 1001572
-    offset: 984164
+  - length: 0xce8
+    rva: 0xf4864
+    offset: 0xf0464
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "V\x00T\x00_\x00T\x00I\x00C\x00K\x00_\x00L\x00I\x00G\x00H\x00T\x00"
-  - length: 3368
-    rva: 1004876
-    offset: 987468
+  - length: 0xd28
+    rva: 0xf554c
+    offset: 0xf114c
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "V\x00T\x00_\x00U\x00T\x00I\x00L\x00I\x00T\x00I\x00E\x00S\x00"
-  - length: 19242
-    rva: 1008244
-    offset: 990836
+  - length: 0x4b2a
+    rva: 0xf6274
+    offset: 0xf1e74
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "V\x00T\x00_\x00X\x00P\x00"
-  - length: 294
-    rva: 1027488
-    offset: 1010080
+  - length: 0x126
+    rva: 0xfada0
+    offset: 0xf69a0
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "V\x00T\x00_\x00X\x00P\x00B\x00U\x00T\x00T\x00O\x00N\x00M\x00I\x00N\x00U\x00S\x00"
-  - length: 294
-    rva: 1027784
-    offset: 1010376
+  - length: 0x126
+    rva: 0xfaec8
+    offset: 0xf6ac8
     type: RESOURCE_TYPE_BITMAP
     language: 19
     name_string: "V\x00T\x00_\x00X\x00P\x00B\x00U\x00T\x00T\x00O\x00N\x00P\x00L\x00U\x00S\x00"
-  - length: 872
-    rva: 1028080
-    offset: 1010672
+  - length: 0x368
+    rva: 0xfaff0
+    offset: 0xf6bf0
     type: RESOURCE_TYPE_ICON
     id: 1
     language: 19
-  - length: 82
-    rva: 1028952
-    offset: 1011544
+  - length: 0x52
+    rva: 0xfb358
+    offset: 0xf6f58
     type: RESOURCE_TYPE_DIALOG
     language: 19
     name_string: "D\x00L\x00G\x00T\x00E\x00M\x00P\x00L\x00A\x00T\x00E\x00"
-  - length: 82
-    rva: 1029036
-    offset: 1011628
+  - length: 0x52
+    rva: 0xfb3ac
+    offset: 0xf6fac
     type: RESOURCE_TYPE_DIALOG
     language: 19
     name_string: "T\x00E\x00X\x00T\x00F\x00I\x00L\x00E\x00D\x00L\x00G\x00"
-  - length: 640
-    rva: 1029120
-    offset: 1011712
+  - length: 0x280
+    rva: 0xfb400
+    offset: 0xf7000
     type: RESOURCE_TYPE_STRING
     id: 3867
     language: 19
-  - length: 340
-    rva: 1029760
-    offset: 1012352
+  - length: 0x154
+    rva: 0xfb680
+    offset: 0xf7280
     type: RESOURCE_TYPE_STRING
     id: 3868
     language: 19
-  - length: 728
-    rva: 1030100
-    offset: 1012692
+  - length: 0x2d8
+    rva: 0xfb7d4
+    offset: 0xf73d4
     type: RESOURCE_TYPE_STRING
     id: 3869
     language: 19
-  - length: 588
-    rva: 1030828
-    offset: 1013420
+  - length: 0x24c
+    rva: 0xfbaac
+    offset: 0xf76ac
     type: RESOURCE_TYPE_STRING
     id: 3870
     language: 19
-  - length: 712
-    rva: 1031416
-    offset: 1014008
+  - length: 0x2c8
+    rva: 0xfbcf8
+    offset: 0xf78f8
     type: RESOURCE_TYPE_STRING
     id: 3871
     language: 19
-  - length: 590
-    rva: 1032128
-    offset: 1014720
+  - length: 0x24e
+    rva: 0xfbfc0
+    offset: 0xf7bc0
     type: RESOURCE_TYPE_STRING
     id: 3872
     language: 19
-  - length: 378
-    rva: 1032720
-    offset: 1015312
+  - length: 0x17a
+    rva: 0xfc210
+    offset: 0xf7e10
     type: RESOURCE_TYPE_STRING
     id: 3873
     language: 19
-  - length: 1174
-    rva: 1033100
-    offset: 1015692
+  - length: 0x496
+    rva: 0xfc38c
+    offset: 0xf7f8c
     type: RESOURCE_TYPE_STRING
     id: 3874
     language: 19
-  - length: 1730
-    rva: 1034276
-    offset: 1016868
+  - length: 0x6c2
+    rva: 0xfc824
+    offset: 0xf8424
     type: RESOURCE_TYPE_STRING
     id: 3875
     language: 19
-  - length: 2902
-    rva: 1036008
-    offset: 1018600
+  - length: 0xb56
+    rva: 0xfcee8
+    offset: 0xf8ae8
     type: RESOURCE_TYPE_STRING
     id: 3876
     language: 19
-  - length: 1722
-    rva: 1038912
-    offset: 1021504
+  - length: 0x6ba
+    rva: 0xfda40
+    offset: 0xf9640
     type: RESOURCE_TYPE_STRING
     id: 3877
     language: 19
-  - length: 1266
-    rva: 1040636
-    offset: 1023228
+  - length: 0x4f2
+    rva: 0xfe0fc
+    offset: 0xf9cfc
     type: RESOURCE_TYPE_STRING
     id: 3878
     language: 19
-  - length: 916
-    rva: 1041904
-    offset: 1024496
+  - length: 0x394
+    rva: 0xfe5f0
+    offset: 0xfa1f0
     type: RESOURCE_TYPE_STRING
     id: 3879
     language: 19
-  - length: 1816
-    rva: 1042820
-    offset: 1025412
+  - length: 0x718
+    rva: 0xfe984
+    offset: 0xfa584
     type: RESOURCE_TYPE_STRING
     id: 3880
     language: 19
-  - length: 2238
-    rva: 1044636
-    offset: 1027228
+  - length: 0x8be
+    rva: 0xff09c
+    offset: 0xfac9c
     type: RESOURCE_TYPE_STRING
     id: 3881
     language: 19
-  - length: 2496
-    rva: 1046876
-    offset: 1029468
+  - length: 0x9c0
+    rva: 0xff95c
+    offset: 0xfb55c
     type: RESOURCE_TYPE_STRING
     id: 3882
     language: 19
-  - length: 1884
-    rva: 1049372
-    offset: 1031964
+  - length: 0x75c
+    rva: 0x10031c
+    offset: 0xfbf1c
     type: RESOURCE_TYPE_STRING
     id: 3883
     language: 19
-  - length: 1746
-    rva: 1051256
-    offset: 1033848
+  - length: 0x6d2
+    rva: 0x100a78
+    offset: 0xfc678
     type: RESOURCE_TYPE_STRING
     id: 3884
     language: 19
-  - length: 1154
-    rva: 1053004
-    offset: 1035596
+  - length: 0x482
+    rva: 0x10114c
+    offset: 0xfcd4c
     type: RESOURCE_TYPE_STRING
     id: 3885
     language: 19
-  - length: 802
-    rva: 1054160
-    offset: 1036752
+  - length: 0x322
+    rva: 0x1015d0
+    offset: 0xfd1d0
     type: RESOURCE_TYPE_STRING
     id: 3886
     language: 19
-  - length: 722
-    rva: 1054964
-    offset: 1037556
+  - length: 0x2d2
+    rva: 0x1018f4
+    offset: 0xfd4f4
     type: RESOURCE_TYPE_STRING
     id: 3887
     language: 19
-  - length: 2782
-    rva: 1055688
-    offset: 1038280
+  - length: 0xade
+    rva: 0x101bc8
+    offset: 0xfd7c8
     type: RESOURCE_TYPE_STRING
     id: 3888
     language: 19
-  - length: 4110
-    rva: 1058472
-    offset: 1041064
+  - length: 0x100e
+    rva: 0x1026a8
+    offset: 0xfe2a8
     type: RESOURCE_TYPE_STRING
     id: 3889
     language: 19
-  - length: 3864
-    rva: 1062584
-    offset: 1045176
+  - length: 0xf18
+    rva: 0x1036b8
+    offset: 0xff2b8
     type: RESOURCE_TYPE_STRING
     id: 3890
     language: 19
-  - length: 598
-    rva: 1066448
-    offset: 1049040
+  - length: 0x256
+    rva: 0x1045d0
+    offset: 0x1001d0
     type: RESOURCE_TYPE_STRING
     id: 3891
     language: 19
-  - length: 1074
-    rva: 1067048
-    offset: 1049640
+  - length: 0x432
+    rva: 0x104828
+    offset: 0x100428
     type: RESOURCE_TYPE_STRING
     id: 3892
     language: 19
-  - length: 918
-    rva: 1068124
-    offset: 1050716
+  - length: 0x396
+    rva: 0x104c5c
+    offset: 0x10085c
     type: RESOURCE_TYPE_STRING
     id: 3893
     language: 19
-  - length: 1268
-    rva: 1069044
-    offset: 1051636
+  - length: 0x4f4
+    rva: 0x104ff4
+    offset: 0x100bf4
     type: RESOURCE_TYPE_STRING
     id: 3894
     language: 19
-  - length: 1796
-    rva: 1070312
-    offset: 1052904
+  - length: 0x704
+    rva: 0x1054e8
+    offset: 0x1010e8
     type: RESOURCE_TYPE_STRING
     id: 3895
     language: 19
-  - length: 1640
-    rva: 1072108
-    offset: 1054700
+  - length: 0x668
+    rva: 0x105bec
+    offset: 0x1017ec
     type: RESOURCE_TYPE_STRING
     id: 3896
     language: 19
-  - length: 1370
-    rva: 1073748
-    offset: 1056340
+  - length: 0x55a
+    rva: 0x106254
+    offset: 0x101e54
     type: RESOURCE_TYPE_STRING
     id: 3897
     language: 19
-  - length: 1156
-    rva: 1075120
-    offset: 1057712
+  - length: 0x484
+    rva: 0x1067b0
+    offset: 0x1023b0
     type: RESOURCE_TYPE_STRING
     id: 3898
     language: 19
-  - length: 1158
-    rva: 1076276
-    offset: 1058868
+  - length: 0x486
+    rva: 0x106c34
+    offset: 0x102834
     type: RESOURCE_TYPE_STRING
     id: 3899
     language: 19
-  - length: 1040
-    rva: 1077436
-    offset: 1060028
+  - length: 0x410
+    rva: 0x1070bc
+    offset: 0x102cbc
     type: RESOURCE_TYPE_STRING
     id: 3900
     language: 19
-  - length: 1302
-    rva: 1078476
-    offset: 1061068
+  - length: 0x516
+    rva: 0x1074cc
+    offset: 0x1030cc
     type: RESOURCE_TYPE_STRING
     id: 3901
     language: 19
-  - length: 1204
-    rva: 1079780
-    offset: 1062372
+  - length: 0x4b4
+    rva: 0x1079e4
+    offset: 0x1035e4
     type: RESOURCE_TYPE_STRING
     id: 3902
     language: 19
-  - length: 1004
-    rva: 1080984
-    offset: 1063576
+  - length: 0x3ec
+    rva: 0x107e98
+    offset: 0x103a98
     type: RESOURCE_TYPE_STRING
     id: 3903
     language: 19
-  - length: 818
-    rva: 1081988
-    offset: 1064580
+  - length: 0x332
+    rva: 0x108284
+    offset: 0x103e84
     type: RESOURCE_TYPE_STRING
     id: 3904
     language: 19
-  - length: 2018
-    rva: 1082808
-    offset: 1065400
+  - length: 0x7e2
+    rva: 0x1085b8
+    offset: 0x1041b8
     type: RESOURCE_TYPE_STRING
     id: 3905
     language: 19
-  - length: 964
-    rva: 1084828
-    offset: 1067420
+  - length: 0x3c4
+    rva: 0x108d9c
+    offset: 0x10499c
     type: RESOURCE_TYPE_STRING
     id: 3906
     language: 19
-  - length: 970
-    rva: 1085792
-    offset: 1068384
+  - length: 0x3ca
+    rva: 0x109160
+    offset: 0x104d60
     type: RESOURCE_TYPE_STRING
     id: 3907
     language: 19
-  - length: 1516
-    rva: 1086764
-    offset: 1069356
+  - length: 0x5ec
+    rva: 0x10952c
+    offset: 0x10512c
     type: RESOURCE_TYPE_STRING
     id: 3908
     language: 19
-  - length: 1664
-    rva: 1088280
-    offset: 1070872
+  - length: 0x680
+    rva: 0x109b18
+    offset: 0x105718
     type: RESOURCE_TYPE_STRING
     id: 3909
     language: 19
-  - length: 1744
-    rva: 1089944
-    offset: 1072536
+  - length: 0x6d0
+    rva: 0x10a198
+    offset: 0x105d98
     type: RESOURCE_TYPE_STRING
     id: 3910
     language: 19
-  - length: 1992
-    rva: 1091688
-    offset: 1074280
+  - length: 0x7c8
+    rva: 0x10a868
+    offset: 0x106468
     type: RESOURCE_TYPE_STRING
     id: 3911
     language: 19
-  - length: 1800
-    rva: 1093680
-    offset: 1076272
+  - length: 0x708
+    rva: 0x10b030
+    offset: 0x106c30
     type: RESOURCE_TYPE_STRING
     id: 3912
     language: 19
-  - length: 1234
-    rva: 1095480
-    offset: 1078072
+  - length: 0x4d2
+    rva: 0x10b738
+    offset: 0x107338
     type: RESOURCE_TYPE_STRING
     id: 3913
     language: 19
-  - length: 1306
-    rva: 1096716
-    offset: 1079308
+  - length: 0x51a
+    rva: 0x10bc0c
+    offset: 0x10780c
     type: RESOURCE_TYPE_STRING
     id: 3914
     language: 19
-  - length: 6382
-    rva: 1098024
-    offset: 1080616
+  - length: 0x18ee
+    rva: 0x10c128
+    offset: 0x107d28
     type: RESOURCE_TYPE_STRING
     id: 3915
     language: 19
-  - length: 990
-    rva: 1104408
-    offset: 1087000
+  - length: 0x3de
+    rva: 0x10da18
+    offset: 0x109618
     type: RESOURCE_TYPE_STRING
     id: 3916
     language: 19
-  - length: 3390
-    rva: 1105400
-    offset: 1087992
+  - length: 0xd3e
+    rva: 0x10ddf8
+    offset: 0x1099f8
     type: RESOURCE_TYPE_STRING
     id: 3917
     language: 19
-  - length: 1194
-    rva: 1108792
-    offset: 1091384
+  - length: 0x4aa
+    rva: 0x10eb38
+    offset: 0x10a738
     type: RESOURCE_TYPE_STRING
     id: 3918
     language: 19
-  - length: 796
-    rva: 1109988
-    offset: 1092580
+  - length: 0x31c
+    rva: 0x10efe4
+    offset: 0x10abe4
     type: RESOURCE_TYPE_STRING
     id: 3919
     language: 19
-  - length: 816
-    rva: 1110784
-    offset: 1093376
+  - length: 0x330
+    rva: 0x10f300
+    offset: 0x10af00
     type: RESOURCE_TYPE_STRING
     id: 3920
     language: 19
-  - length: 1038
-    rva: 1111600
-    offset: 1094192
+  - length: 0x40e
+    rva: 0x10f630
+    offset: 0x10b230
     type: RESOURCE_TYPE_STRING
     id: 3921
     language: 19
-  - length: 786
-    rva: 1112640
-    offset: 1095232
+  - length: 0x312
+    rva: 0x10fa40
+    offset: 0x10b640
     type: RESOURCE_TYPE_STRING
     id: 3922
     language: 19
-  - length: 1026
-    rva: 1113428
-    offset: 1096020
+  - length: 0x402
+    rva: 0x10fd54
+    offset: 0x10b954
     type: RESOURCE_TYPE_STRING
     id: 3923
     language: 19
-  - length: 1150
-    rva: 1114456
-    offset: 1097048
+  - length: 0x47e
+    rva: 0x110158
+    offset: 0x10bd58
     type: RESOURCE_TYPE_STRING
     id: 3924
     language: 19
-  - length: 594
-    rva: 1115608
-    offset: 1098200
+  - length: 0x252
+    rva: 0x1105d8
+    offset: 0x10c1d8
     type: RESOURCE_TYPE_STRING
     id: 3925
     language: 19
-  - length: 1144
-    rva: 1116204
-    offset: 1098796
+  - length: 0x478
+    rva: 0x11082c
+    offset: 0x10c42c
     type: RESOURCE_TYPE_STRING
     id: 3926
     language: 19
-  - length: 1016
-    rva: 1117348
-    offset: 1099940
+  - length: 0x3f8
+    rva: 0x110ca4
+    offset: 0x10c8a4
     type: RESOURCE_TYPE_STRING
     id: 3927
     language: 19
-  - length: 1142
-    rva: 1118364
-    offset: 1100956
+  - length: 0x476
+    rva: 0x11109c
+    offset: 0x10cc9c
     type: RESOURCE_TYPE_STRING
     id: 3928
     language: 19
-  - length: 730
-    rva: 1119508
-    offset: 1102100
+  - length: 0x2da
+    rva: 0x111514
+    offset: 0x10d114
     type: RESOURCE_TYPE_STRING
     id: 3929
     language: 19
-  - length: 940
-    rva: 1120240
-    offset: 1102832
+  - length: 0x3ac
+    rva: 0x1117f0
+    offset: 0x10d3f0
     type: RESOURCE_TYPE_STRING
     id: 3930
     language: 19
-  - length: 970
-    rva: 1121180
-    offset: 1103772
+  - length: 0x3ca
+    rva: 0x111b9c
+    offset: 0x10d79c
     type: RESOURCE_TYPE_STRING
     id: 3931
     language: 19
-  - length: 1956
-    rva: 1122152
-    offset: 1104744
+  - length: 0x7a4
+    rva: 0x111f68
+    offset: 0x10db68
     type: RESOURCE_TYPE_STRING
     id: 3932
     language: 19
-  - length: 1492
-    rva: 1124108
-    offset: 1106700
+  - length: 0x5d4
+    rva: 0x11270c
+    offset: 0x10e30c
     type: RESOURCE_TYPE_STRING
     id: 3933
     language: 19
-  - length: 1214
-    rva: 1125600
-    offset: 1108192
+  - length: 0x4be
+    rva: 0x112ce0
+    offset: 0x10e8e0
     type: RESOURCE_TYPE_STRING
     id: 3934
     language: 19
-  - length: 1900
-    rva: 1126816
-    offset: 1109408
+  - length: 0x76c
+    rva: 0x1131a0
+    offset: 0x10eda0
     type: RESOURCE_TYPE_STRING
     id: 3935
     language: 19
-  - length: 1674
-    rva: 1128716
-    offset: 1111308
+  - length: 0x68a
+    rva: 0x11390c
+    offset: 0x10f50c
     type: RESOURCE_TYPE_STRING
     id: 3936
     language: 19
-  - length: 1486
-    rva: 1130392
-    offset: 1112984
+  - length: 0x5ce
+    rva: 0x113f98
+    offset: 0x10fb98
     type: RESOURCE_TYPE_STRING
     id: 3937
     language: 19
-  - length: 1668
-    rva: 1131880
-    offset: 1114472
+  - length: 0x684
+    rva: 0x114568
+    offset: 0x110168
     type: RESOURCE_TYPE_STRING
     id: 3938
     language: 19
-  - length: 1072
-    rva: 1133548
-    offset: 1116140
+  - length: 0x430
+    rva: 0x114bec
+    offset: 0x1107ec
     type: RESOURCE_TYPE_STRING
     id: 3939
     language: 19
-  - length: 1440
-    rva: 1134620
-    offset: 1117212
+  - length: 0x5a0
+    rva: 0x11501c
+    offset: 0x110c1c
     type: RESOURCE_TYPE_STRING
     id: 3940
     language: 19
-  - length: 1950
-    rva: 1136060
-    offset: 1118652
+  - length: 0x79e
+    rva: 0x1155bc
+    offset: 0x1111bc
     type: RESOURCE_TYPE_STRING
     id: 3941
     language: 19
-  - length: 1802
-    rva: 1138012
-    offset: 1120604
+  - length: 0x70a
+    rva: 0x115d5c
+    offset: 0x11195c
     type: RESOURCE_TYPE_STRING
     id: 3942
     language: 19
-  - length: 1952
-    rva: 1139816
-    offset: 1122408
+  - length: 0x7a0
+    rva: 0x116468
+    offset: 0x112068
     type: RESOURCE_TYPE_STRING
     id: 3943
     language: 19
-  - length: 2334
-    rva: 1141768
-    offset: 1124360
+  - length: 0x91e
+    rva: 0x116c08
+    offset: 0x112808
     type: RESOURCE_TYPE_STRING
     id: 3944
     language: 19
-  - length: 2180
-    rva: 1144104
-    offset: 1126696
+  - length: 0x884
+    rva: 0x117528
+    offset: 0x113128
     type: RESOURCE_TYPE_STRING
     id: 3945
     language: 19
-  - length: 1232
-    rva: 1146284
-    offset: 1128876
+  - length: 0x4d0
+    rva: 0x117dac
+    offset: 0x1139ac
     type: RESOURCE_TYPE_STRING
     id: 3946
     language: 19
-  - length: 1602
-    rva: 1147516
-    offset: 1130108
+  - length: 0x642
+    rva: 0x11827c
+    offset: 0x113e7c
     type: RESOURCE_TYPE_STRING
     id: 3947
     language: 19
-  - length: 740
-    rva: 1149120
-    offset: 1131712
+  - length: 0x2e4
+    rva: 0x1188c0
+    offset: 0x1144c0
     type: RESOURCE_TYPE_STRING
     id: 3948
     language: 19
-  - length: 470
-    rva: 1149860
-    offset: 1132452
+  - length: 0x1d6
+    rva: 0x118ba4
+    offset: 0x1147a4
     type: RESOURCE_TYPE_STRING
     id: 3949
     language: 19
-  - length: 1012
-    rva: 1150332
-    offset: 1132924
+  - length: 0x3f4
+    rva: 0x118d7c
+    offset: 0x11497c
     type: RESOURCE_TYPE_STRING
     id: 3950
     language: 19
-  - length: 1140
-    rva: 1151344
-    offset: 1133936
+  - length: 0x474
+    rva: 0x119170
+    offset: 0x114d70
     type: RESOURCE_TYPE_STRING
     id: 3951
     language: 19
-  - length: 714
-    rva: 1152484
-    offset: 1135076
+  - length: 0x2ca
+    rva: 0x1195e4
+    offset: 0x1151e4
     type: RESOURCE_TYPE_STRING
     id: 3952
     language: 19
-  - length: 972
-    rva: 1153200
-    offset: 1135792
+  - length: 0x3cc
+    rva: 0x1198b0
+    offset: 0x1154b0
     type: RESOURCE_TYPE_STRING
     id: 3953
     language: 19
-  - length: 1124
-    rva: 1154172
-    offset: 1136764
+  - length: 0x464
+    rva: 0x119c7c
+    offset: 0x11587c
     type: RESOURCE_TYPE_STRING
     id: 3954
     language: 19
-  - length: 842
-    rva: 1155296
-    offset: 1137888
+  - length: 0x34a
+    rva: 0x11a0e0
+    offset: 0x115ce0
     type: RESOURCE_TYPE_STRING
     id: 3955
     language: 19
-  - length: 686
-    rva: 1156140
-    offset: 1138732
+  - length: 0x2ae
+    rva: 0x11a42c
+    offset: 0x11602c
     type: RESOURCE_TYPE_STRING
     id: 3956
     language: 19
-  - length: 774
-    rva: 1156828
-    offset: 1139420
+  - length: 0x306
+    rva: 0x11a6dc
+    offset: 0x1162dc
     type: RESOURCE_TYPE_STRING
     id: 3957
     language: 19
-  - length: 854
-    rva: 1157604
-    offset: 1140196
+  - length: 0x356
+    rva: 0x11a9e4
+    offset: 0x1165e4
     type: RESOURCE_TYPE_STRING
     id: 3958
     language: 19
-  - length: 784
-    rva: 1158460
-    offset: 1141052
+  - length: 0x310
+    rva: 0x11ad3c
+    offset: 0x11693c
     type: RESOURCE_TYPE_STRING
     id: 3959
     language: 19
-  - length: 478
-    rva: 1159244
-    offset: 1141836
+  - length: 0x1de
+    rva: 0x11b04c
+    offset: 0x116c4c
     type: RESOURCE_TYPE_STRING
     id: 3960
     language: 19
-  - length: 1140
-    rva: 1159724
-    offset: 1142316
+  - length: 0x474
+    rva: 0x11b22c
+    offset: 0x116e2c
     type: RESOURCE_TYPE_STRING
     id: 3961
     language: 19
-  - length: 2522
-    rva: 1160864
-    offset: 1143456
+  - length: 0x9da
+    rva: 0x11b6a0
+    offset: 0x1172a0
     type: RESOURCE_TYPE_STRING
     id: 3962
     language: 19
-  - length: 420
-    rva: 1163388
-    offset: 1145980
+  - length: 0x1a4
+    rva: 0x11c07c
+    offset: 0x117c7c
     type: RESOURCE_TYPE_STRING
     id: 3963
     language: 19
-  - length: 198
-    rva: 1163808
-    offset: 1146400
+  - length: 0xc6
+    rva: 0x11c220
+    offset: 0x117e20
     type: RESOURCE_TYPE_STRING
     id: 3964
     language: 19
-  - length: 32
-    rva: 1164008
-    offset: 1146600
+  - length: 0x20
+    rva: 0x11c2e8
+    offset: 0x117ee8
     type: RESOURCE_TYPE_STRING
     id: 3965
     language: 19
-  - length: 394
-    rva: 1164040
-    offset: 1146632
+  - length: 0x18a
+    rva: 0x11c308
+    offset: 0x117f08
     type: RESOURCE_TYPE_STRING
     id: 3966
     language: 19
-  - length: 436
-    rva: 1164436
-    offset: 1147028
+  - length: 0x1b4
+    rva: 0x11c494
+    offset: 0x118094
     type: RESOURCE_TYPE_STRING
     id: 3967
     language: 19
-  - length: 644
-    rva: 1164872
-    offset: 1147464
+  - length: 0x284
+    rva: 0x11c648
+    offset: 0x118248
     type: RESOURCE_TYPE_STRING
     id: 3968
     language: 19
-  - length: 782
-    rva: 1165516
-    offset: 1148108
+  - length: 0x30e
+    rva: 0x11c8cc
+    offset: 0x1184cc
     type: RESOURCE_TYPE_STRING
     id: 3969
     language: 19
-  - length: 1940
-    rva: 1166300
-    offset: 1148892
+  - length: 0x794
+    rva: 0x11cbdc
+    offset: 0x1187dc
     type: RESOURCE_TYPE_STRING
     id: 3970
     language: 19
-  - length: 956
-    rva: 1168240
-    offset: 1150832
+  - length: 0x3bc
+    rva: 0x11d370
+    offset: 0x118f70
     type: RESOURCE_TYPE_STRING
     id: 3971
     language: 19
-  - length: 1234
-    rva: 1169196
-    offset: 1151788
+  - length: 0x4d2
+    rva: 0x11d72c
+    offset: 0x11932c
     type: RESOURCE_TYPE_STRING
     id: 3972
     language: 19
-  - length: 734
-    rva: 1170432
-    offset: 1153024
+  - length: 0x2de
+    rva: 0x11dc00
+    offset: 0x119800
     type: RESOURCE_TYPE_STRING
     id: 3973
     language: 19
-  - length: 1130
-    rva: 1171168
-    offset: 1153760
+  - length: 0x46a
+    rva: 0x11dee0
+    offset: 0x119ae0
     type: RESOURCE_TYPE_STRING
     id: 3974
     language: 19
-  - length: 794
-    rva: 1172300
-    offset: 1154892
+  - length: 0x31a
+    rva: 0x11e34c
+    offset: 0x119f4c
     type: RESOURCE_TYPE_STRING
     id: 3975
     language: 19
-  - length: 2638
-    rva: 1173096
-    offset: 1155688
+  - length: 0xa4e
+    rva: 0x11e668
+    offset: 0x11a268
     type: RESOURCE_TYPE_STRING
     id: 3976
     language: 19
-  - length: 4896
-    rva: 1175736
-    offset: 1158328
+  - length: 0x1320
+    rva: 0x11f0b8
+    offset: 0x11acb8
     type: RESOURCE_TYPE_STRING
     id: 3977
     language: 19
-  - length: 5062
-    rva: 1180632
-    offset: 1163224
+  - length: 0x13c6
+    rva: 0x1203d8
+    offset: 0x11bfd8
     type: RESOURCE_TYPE_STRING
     id: 3978
     language: 19
-  - length: 5682
-    rva: 1185696
-    offset: 1168288
+  - length: 0x1632
+    rva: 0x1217a0
+    offset: 0x11d3a0
     type: RESOURCE_TYPE_STRING
     id: 3979
     language: 19
-  - length: 3650
-    rva: 1191380
-    offset: 1173972
+  - length: 0xe42
+    rva: 0x122dd4
+    offset: 0x11e9d4
     type: RESOURCE_TYPE_STRING
     id: 3980
     language: 19
-  - length: 4336
-    rva: 1195032
-    offset: 1177624
+  - length: 0x10f0
+    rva: 0x123c18
+    offset: 0x11f818
     type: RESOURCE_TYPE_STRING
     id: 3981
     language: 19
-  - length: 3702
-    rva: 1199368
-    offset: 1181960
+  - length: 0xe76
+    rva: 0x124d08
+    offset: 0x120908
     type: RESOURCE_TYPE_STRING
     id: 3982
     language: 19
-  - length: 1030
-    rva: 1203072
-    offset: 1185664
+  - length: 0x406
+    rva: 0x125b80
+    offset: 0x121780
     type: RESOURCE_TYPE_STRING
     id: 3983
     language: 19
-  - length: 618
-    rva: 1204104
-    offset: 1186696
+  - length: 0x26a
+    rva: 0x125f88
+    offset: 0x121b88
     type: RESOURCE_TYPE_STRING
     id: 3984
     language: 19
-  - length: 1040
-    rva: 1204724
-    offset: 1187316
+  - length: 0x410
+    rva: 0x1261f4
+    offset: 0x121df4
     type: RESOURCE_TYPE_STRING
     id: 3985
     language: 19
-  - length: 982
-    rva: 1205764
-    offset: 1188356
+  - length: 0x3d6
+    rva: 0x126604
+    offset: 0x122204
     type: RESOURCE_TYPE_STRING
     id: 3986
     language: 19
-  - length: 938
-    rva: 1206748
-    offset: 1189340
+  - length: 0x3aa
+    rva: 0x1269dc
+    offset: 0x1225dc
     type: RESOURCE_TYPE_STRING
     id: 3987
     language: 19
-  - length: 650
-    rva: 1207688
-    offset: 1190280
+  - length: 0x28a
+    rva: 0x126d88
+    offset: 0x122988
     type: RESOURCE_TYPE_STRING
     id: 3988
     language: 19
-  - length: 768
-    rva: 1208340
-    offset: 1190932
+  - length: 0x300
+    rva: 0x127014
+    offset: 0x122c14
     type: RESOURCE_TYPE_STRING
     id: 3989
     language: 19
-  - length: 2068
-    rva: 1209108
-    offset: 1191700
+  - length: 0x814
+    rva: 0x127314
+    offset: 0x122f14
     type: RESOURCE_TYPE_STRING
     id: 3990
     language: 19
-  - length: 1394
-    rva: 1211176
-    offset: 1193768
+  - length: 0x572
+    rva: 0x127b28
+    offset: 0x123728
     type: RESOURCE_TYPE_STRING
     id: 3991
     language: 19
-  - length: 540
-    rva: 1212572
-    offset: 1195164
+  - length: 0x21c
+    rva: 0x12809c
+    offset: 0x123c9c
     type: RESOURCE_TYPE_STRING
     id: 3992
     language: 19
-  - length: 652
-    rva: 1213112
-    offset: 1195704
+  - length: 0x28c
+    rva: 0x1282b8
+    offset: 0x123eb8
     type: RESOURCE_TYPE_STRING
     id: 3993
     language: 19
-  - length: 1224
-    rva: 1213764
-    offset: 1196356
+  - length: 0x4c8
+    rva: 0x128544
+    offset: 0x124144
     type: RESOURCE_TYPE_STRING
     id: 3994
     language: 19
-  - length: 1196
-    rva: 1214988
-    offset: 1197580
+  - length: 0x4ac
+    rva: 0x128a0c
+    offset: 0x12460c
     type: RESOURCE_TYPE_STRING
     id: 3995
     language: 19
-  - length: 1874
-    rva: 1216184
-    offset: 1198776
+  - length: 0x752
+    rva: 0x128eb8
+    offset: 0x124ab8
     type: RESOURCE_TYPE_STRING
     id: 3996
     language: 19
-  - length: 762
-    rva: 1218060
-    offset: 1200652
+  - length: 0x2fa
+    rva: 0x12960c
+    offset: 0x12520c
     type: RESOURCE_TYPE_STRING
     id: 3997
     language: 19
-  - length: 720
-    rva: 1218824
-    offset: 1201416
+  - length: 0x2d0
+    rva: 0x129908
+    offset: 0x125508
     type: RESOURCE_TYPE_STRING
     id: 3998
     language: 19
-  - length: 984
-    rva: 1219544
-    offset: 1202136
+  - length: 0x3d8
+    rva: 0x129bd8
+    offset: 0x1257d8
     type: RESOURCE_TYPE_STRING
     id: 3999
     language: 19
-  - length: 1084
-    rva: 1220528
-    offset: 1203120
+  - length: 0x43c
+    rva: 0x129fb0
+    offset: 0x125bb0
     type: RESOURCE_TYPE_STRING
     id: 4000
     language: 19
-  - length: 498
-    rva: 1221612
-    offset: 1204204
+  - length: 0x1f2
+    rva: 0x12a3ec
+    offset: 0x125fec
     type: RESOURCE_TYPE_STRING
     id: 4001
     language: 19
-  - length: 768
-    rva: 1222112
-    offset: 1204704
+  - length: 0x300
+    rva: 0x12a5e0
+    offset: 0x1261e0
     type: RESOURCE_TYPE_STRING
     id: 4002
     language: 19
-  - length: 658
-    rva: 1222880
-    offset: 1205472
+  - length: 0x292
+    rva: 0x12a8e0
+    offset: 0x1264e0
     type: RESOURCE_TYPE_STRING
     id: 4003
     language: 19
-  - length: 976
-    rva: 1223540
-    offset: 1206132
+  - length: 0x3d0
+    rva: 0x12ab74
+    offset: 0x126774
     type: RESOURCE_TYPE_STRING
     id: 4004
     language: 19
-  - length: 934
-    rva: 1224516
-    offset: 1207108
+  - length: 0x3a6
+    rva: 0x12af44
+    offset: 0x126b44
     type: RESOURCE_TYPE_STRING
     id: 4005
     language: 19
-  - length: 1106
-    rva: 1225452
-    offset: 1208044
+  - length: 0x452
+    rva: 0x12b2ec
+    offset: 0x126eec
     type: RESOURCE_TYPE_STRING
     id: 4006
     language: 19
-  - length: 1332
-    rva: 1226560
-    offset: 1209152
+  - length: 0x534
+    rva: 0x12b740
+    offset: 0x127340
     type: RESOURCE_TYPE_STRING
     id: 4007
     language: 19
-  - length: 1546
-    rva: 1227892
-    offset: 1210484
+  - length: 0x60a
+    rva: 0x12bc74
+    offset: 0x127874
     type: RESOURCE_TYPE_STRING
     id: 4008
     language: 19
-  - length: 656
-    rva: 1229440
-    offset: 1212032
+  - length: 0x290
+    rva: 0x12c280
+    offset: 0x127e80
     type: RESOURCE_TYPE_STRING
     id: 4009
     language: 19
-  - length: 3026
-    rva: 1230096
-    offset: 1212688
+  - length: 0xbd2
+    rva: 0x12c510
+    offset: 0x128110
     type: RESOURCE_TYPE_STRING
     id: 4010
     language: 19
-  - length: 1332
-    rva: 1233124
-    offset: 1215716
+  - length: 0x534
+    rva: 0x12d0e4
+    offset: 0x128ce4
     type: RESOURCE_TYPE_STRING
     id: 4011
     language: 19
-  - length: 952
-    rva: 1234456
-    offset: 1217048
+  - length: 0x3b8
+    rva: 0x12d618
+    offset: 0x129218
     type: RESOURCE_TYPE_STRING
     id: 4012
     language: 19
-  - length: 992
-    rva: 1235408
-    offset: 1218000
+  - length: 0x3e0
+    rva: 0x12d9d0
+    offset: 0x1295d0
     type: RESOURCE_TYPE_STRING
     id: 4013
     language: 19
-  - length: 614
-    rva: 1236400
-    offset: 1218992
+  - length: 0x266
+    rva: 0x12ddb0
+    offset: 0x1299b0
     type: RESOURCE_TYPE_STRING
     id: 4014
     language: 19
-  - length: 346
-    rva: 1237016
-    offset: 1219608
+  - length: 0x15a
+    rva: 0x12e018
+    offset: 0x129c18
     type: RESOURCE_TYPE_STRING
     id: 4015
     language: 19
-  - length: 580
-    rva: 1237364
-    offset: 1219956
+  - length: 0x244
+    rva: 0x12e174
+    offset: 0x129d74
     type: RESOURCE_TYPE_STRING
     id: 4016
     language: 19
-  - length: 900
-    rva: 1237944
-    offset: 1220536
+  - length: 0x384
+    rva: 0x12e3b8
+    offset: 0x129fb8
     type: RESOURCE_TYPE_STRING
     id: 4017
     language: 19
-  - length: 1076
-    rva: 1238844
-    offset: 1221436
+  - length: 0x434
+    rva: 0x12e73c
+    offset: 0x12a33c
     type: RESOURCE_TYPE_STRING
     id: 4018
     language: 19
-  - length: 1040
-    rva: 1239920
-    offset: 1222512
+  - length: 0x410
+    rva: 0x12eb70
+    offset: 0x12a770
     type: RESOURCE_TYPE_STRING
     id: 4019
     language: 19
-  - length: 850
-    rva: 1240960
-    offset: 1223552
+  - length: 0x352
+    rva: 0x12ef80
+    offset: 0x12ab80
     type: RESOURCE_TYPE_STRING
     id: 4020
     language: 19
-  - length: 776
-    rva: 1241812
-    offset: 1224404
+  - length: 0x308
+    rva: 0x12f2d4
+    offset: 0x12aed4
     type: RESOURCE_TYPE_STRING
     id: 4021
     language: 19
-  - length: 940
-    rva: 1242588
-    offset: 1225180
+  - length: 0x3ac
+    rva: 0x12f5dc
+    offset: 0x12b1dc
     type: RESOURCE_TYPE_STRING
     id: 4022
     language: 19
-  - length: 1336
-    rva: 1243528
-    offset: 1226120
+  - length: 0x538
+    rva: 0x12f988
+    offset: 0x12b588
     type: RESOURCE_TYPE_STRING
     id: 4023
     language: 19
-  - length: 1658
-    rva: 1244864
-    offset: 1227456
+  - length: 0x67a
+    rva: 0x12fec0
+    offset: 0x12bac0
     type: RESOURCE_TYPE_STRING
     id: 4024
     language: 19
-  - length: 1064
-    rva: 1246524
-    offset: 1229116
+  - length: 0x428
+    rva: 0x13053c
+    offset: 0x12c13c
     type: RESOURCE_TYPE_STRING
     id: 4025
     language: 19
-  - length: 678
-    rva: 1247588
-    offset: 1230180
+  - length: 0x2a6
+    rva: 0x130964
+    offset: 0x12c564
     type: RESOURCE_TYPE_STRING
     id: 4026
     language: 19
-  - length: 692
-    rva: 1248268
-    offset: 1230860
+  - length: 0x2b4
+    rva: 0x130c0c
+    offset: 0x12c80c
     type: RESOURCE_TYPE_STRING
     id: 4027
     language: 19
-  - length: 510
-    rva: 1248960
-    offset: 1231552
+  - length: 0x1fe
+    rva: 0x130ec0
+    offset: 0x12cac0
     type: RESOURCE_TYPE_STRING
     id: 4028
     language: 19
-  - length: 678
-    rva: 1249472
-    offset: 1232064
+  - length: 0x2a6
+    rva: 0x1310c0
+    offset: 0x12ccc0
     type: RESOURCE_TYPE_STRING
     id: 4029
     language: 19
-  - length: 1686
-    rva: 1250152
-    offset: 1232744
+  - length: 0x696
+    rva: 0x131368
+    offset: 0x12cf68
     type: RESOURCE_TYPE_STRING
     id: 4030
     language: 19
-  - length: 728
-    rva: 1251840
-    offset: 1234432
+  - length: 0x2d8
+    rva: 0x131a00
+    offset: 0x12d600
     type: RESOURCE_TYPE_STRING
     id: 4031
     language: 19
-  - length: 978
-    rva: 1252568
-    offset: 1235160
+  - length: 0x3d2
+    rva: 0x131cd8
+    offset: 0x12d8d8
     type: RESOURCE_TYPE_STRING
     id: 4032
     language: 19
-  - length: 1104
-    rva: 1253548
-    offset: 1236140
+  - length: 0x450
+    rva: 0x1320ac
+    offset: 0x12dcac
     type: RESOURCE_TYPE_STRING
     id: 4033
     language: 19
-  - length: 3726
-    rva: 1254652
-    offset: 1237244
+  - length: 0xe8e
+    rva: 0x1324fc
+    offset: 0x12e0fc
     type: RESOURCE_TYPE_STRING
     id: 4034
     language: 19
-  - length: 2760
-    rva: 1258380
-    offset: 1240972
+  - length: 0xac8
+    rva: 0x13338c
+    offset: 0x12ef8c
     type: RESOURCE_TYPE_STRING
     id: 4035
     language: 19
-  - length: 2770
-    rva: 1261140
-    offset: 1243732
+  - length: 0xad2
+    rva: 0x133e54
+    offset: 0x12fa54
     type: RESOURCE_TYPE_STRING
     id: 4036
     language: 19
-  - length: 2282
-    rva: 1263912
-    offset: 1246504
+  - length: 0x8ea
+    rva: 0x134928
+    offset: 0x130528
     type: RESOURCE_TYPE_STRING
     id: 4037
     language: 19
-  - length: 1898
-    rva: 1266196
-    offset: 1248788
+  - length: 0x76a
+    rva: 0x135214
+    offset: 0x130e14
     type: RESOURCE_TYPE_STRING
     id: 4038
     language: 19
-  - length: 974
-    rva: 1268096
-    offset: 1250688
+  - length: 0x3ce
+    rva: 0x135980
+    offset: 0x131580
     type: RESOURCE_TYPE_STRING
     id: 4039
     language: 19
-  - length: 730
-    rva: 1269072
-    offset: 1251664
+  - length: 0x2da
+    rva: 0x135d50
+    offset: 0x131950
     type: RESOURCE_TYPE_STRING
     id: 4040
     language: 19
-  - length: 1138
-    rva: 1269804
-    offset: 1252396
+  - length: 0x472
+    rva: 0x13602c
+    offset: 0x131c2c
     type: RESOURCE_TYPE_STRING
     id: 4041
     language: 19
-  - length: 1208
-    rva: 1270944
-    offset: 1253536
+  - length: 0x4b8
+    rva: 0x1364a0
+    offset: 0x1320a0
     type: RESOURCE_TYPE_STRING
     id: 4042
     language: 19
-  - length: 948
-    rva: 1272152
-    offset: 1254744
+  - length: 0x3b4
+    rva: 0x136958
+    offset: 0x132558
     type: RESOURCE_TYPE_STRING
     id: 4043
     language: 19
-  - length: 910
-    rva: 1273100
-    offset: 1255692
+  - length: 0x38e
+    rva: 0x136d0c
+    offset: 0x13290c
     type: RESOURCE_TYPE_STRING
     id: 4044
     language: 19
-  - length: 1026
-    rva: 1274012
-    offset: 1256604
+  - length: 0x402
+    rva: 0x13709c
+    offset: 0x132c9c
     type: RESOURCE_TYPE_STRING
     id: 4045
     language: 19
-  - length: 1070
-    rva: 1275040
-    offset: 1257632
+  - length: 0x42e
+    rva: 0x1374a0
+    offset: 0x1330a0
     type: RESOURCE_TYPE_STRING
     id: 4046
     language: 19
-  - length: 830
-    rva: 1276112
-    offset: 1258704
+  - length: 0x33e
+    rva: 0x1378d0
+    offset: 0x1334d0
     type: RESOURCE_TYPE_STRING
     id: 4047
     language: 19
-  - length: 922
-    rva: 1276944
-    offset: 1259536
+  - length: 0x39a
+    rva: 0x137c10
+    offset: 0x133810
     type: RESOURCE_TYPE_STRING
     id: 4048
     language: 19
-  - length: 610
-    rva: 1277868
-    offset: 1260460
+  - length: 0x262
+    rva: 0x137fac
+    offset: 0x133bac
     type: RESOURCE_TYPE_STRING
     id: 4049
     language: 19
-  - length: 1420
-    rva: 1278480
-    offset: 1261072
+  - length: 0x58c
+    rva: 0x138210
+    offset: 0x133e10
     type: RESOURCE_TYPE_STRING
     id: 4050
     language: 19
-  - length: 3210
-    rva: 1279900
-    offset: 1262492
+  - length: 0xc8a
+    rva: 0x13879c
+    offset: 0x13439c
     type: RESOURCE_TYPE_STRING
     id: 4051
     language: 19
-  - length: 1284
-    rva: 1283112
-    offset: 1265704
+  - length: 0x504
+    rva: 0x139428
+    offset: 0x135028
     type: RESOURCE_TYPE_STRING
     id: 4052
     language: 19
-  - length: 920
-    rva: 1284396
-    offset: 1266988
+  - length: 0x398
+    rva: 0x13992c
+    offset: 0x13552c
     type: RESOURCE_TYPE_STRING
     id: 4053
     language: 19
-  - length: 1188
-    rva: 1285316
-    offset: 1267908
+  - length: 0x4a4
+    rva: 0x139cc4
+    offset: 0x1358c4
     type: RESOURCE_TYPE_STRING
     id: 4054
     language: 19
-  - length: 570
-    rva: 1286504
-    offset: 1269096
+  - length: 0x23a
+    rva: 0x13a168
+    offset: 0x135d68
     type: RESOURCE_TYPE_STRING
     id: 4055
     language: 19
-  - length: 576
-    rva: 1287076
-    offset: 1269668
+  - length: 0x240
+    rva: 0x13a3a4
+    offset: 0x135fa4
     type: RESOURCE_TYPE_STRING
     id: 4056
     language: 19
-  - length: 288
-    rva: 1287652
-    offset: 1270244
+  - length: 0x120
+    rva: 0x13a5e4
+    offset: 0x1361e4
     type: RESOURCE_TYPE_STRING
     id: 4057
     language: 19
-  - length: 304
-    rva: 1287940
-    offset: 1270532
+  - length: 0x130
+    rva: 0x13a704
+    offset: 0x136304
     type: RESOURCE_TYPE_STRING
     id: 4058
     language: 19
-  - length: 222
-    rva: 1288244
-    offset: 1270836
+  - length: 0xde
+    rva: 0x13a834
+    offset: 0x136434
     type: RESOURCE_TYPE_STRING
     id: 4059
     language: 19
-  - length: 870
-    rva: 1288468
-    offset: 1271060
+  - length: 0x366
+    rva: 0x13a914
+    offset: 0x136514
     type: RESOURCE_TYPE_STRING
     id: 4060
     language: 19
-  - length: 1148
-    rva: 1289340
-    offset: 1271932
+  - length: 0x47c
+    rva: 0x13ac7c
+    offset: 0x13687c
     type: RESOURCE_TYPE_STRING
     id: 4061
     language: 19
-  - length: 1258
-    rva: 1290488
-    offset: 1273080
+  - length: 0x4ea
+    rva: 0x13b0f8
+    offset: 0x136cf8
     type: RESOURCE_TYPE_STRING
     id: 4062
     language: 19
-  - length: 1060
-    rva: 1291748
-    offset: 1274340
+  - length: 0x424
+    rva: 0x13b5e4
+    offset: 0x1371e4
     type: RESOURCE_TYPE_STRING
     id: 4063
     language: 19
-  - length: 1296
-    rva: 1292808
-    offset: 1275400
+  - length: 0x510
+    rva: 0x13ba08
+    offset: 0x137608
     type: RESOURCE_TYPE_STRING
     id: 4064
     language: 19
-  - length: 1076
-    rva: 1294104
-    offset: 1276696
+  - length: 0x434
+    rva: 0x13bf18
+    offset: 0x137b18
     type: RESOURCE_TYPE_STRING
     id: 4065
     language: 19
-  - length: 290
-    rva: 1295180
-    offset: 1277772
+  - length: 0x122
+    rva: 0x13c34c
+    offset: 0x137f4c
     type: RESOURCE_TYPE_STRING
     id: 4066
     language: 19
-  - length: 256
-    rva: 1295472
-    offset: 1278064
+  - length: 0x100
+    rva: 0x13c470
+    offset: 0x138070
     type: RESOURCE_TYPE_STRING
     id: 4067
     language: 19
-  - length: 412
-    rva: 1295728
-    offset: 1278320
+  - length: 0x19c
+    rva: 0x13c570
+    offset: 0x138170
     type: RESOURCE_TYPE_STRING
     id: 4068
     language: 19
-  - length: 1022
-    rva: 1296140
-    offset: 1278732
+  - length: 0x3fe
+    rva: 0x13c70c
+    offset: 0x13830c
     type: RESOURCE_TYPE_STRING
     id: 4069
     language: 19
-  - length: 1206
-    rva: 1297164
-    offset: 1279756
+  - length: 0x4b6
+    rva: 0x13cb0c
+    offset: 0x13870c
     type: RESOURCE_TYPE_STRING
     id: 4070
     language: 19
-  - length: 1458
-    rva: 1298372
-    offset: 1280964
+  - length: 0x5b2
+    rva: 0x13cfc4
+    offset: 0x138bc4
     type: RESOURCE_TYPE_STRING
     id: 4071
     language: 19
-  - length: 1362
-    rva: 1299832
-    offset: 1282424
+  - length: 0x552
+    rva: 0x13d578
+    offset: 0x139178
     type: RESOURCE_TYPE_STRING
     id: 4072
     language: 19
-  - length: 2130
-    rva: 1301196
-    offset: 1283788
+  - length: 0x852
+    rva: 0x13dacc
+    offset: 0x1396cc
     type: RESOURCE_TYPE_STRING
     id: 4073
     language: 19
-  - length: 2366
-    rva: 1303328
-    offset: 1285920
+  - length: 0x93e
+    rva: 0x13e320
+    offset: 0x139f20
     type: RESOURCE_TYPE_STRING
     id: 4074
     language: 19
-  - length: 1862
-    rva: 1305696
-    offset: 1288288
+  - length: 0x746
+    rva: 0x13ec60
+    offset: 0x13a860
     type: RESOURCE_TYPE_STRING
     id: 4075
     language: 19
-  - length: 2104
-    rva: 1307560
-    offset: 1290152
+  - length: 0x838
+    rva: 0x13f3a8
+    offset: 0x13afa8
     type: RESOURCE_TYPE_STRING
     id: 4076
     language: 19
-  - length: 2604
-    rva: 1309664
-    offset: 1292256
+  - length: 0xa2c
+    rva: 0x13fbe0
+    offset: 0x13b7e0
     type: RESOURCE_TYPE_STRING
     id: 4077
     language: 19
-  - length: 2172
-    rva: 1312268
-    offset: 1294860
+  - length: 0x87c
+    rva: 0x14060c
+    offset: 0x13c20c
     type: RESOURCE_TYPE_STRING
     id: 4078
     language: 19
-  - length: 684
-    rva: 1314440
-    offset: 1297032
+  - length: 0x2ac
+    rva: 0x140e88
+    offset: 0x13ca88
     type: RESOURCE_TYPE_STRING
     id: 4079
     language: 19
-  - length: 328
-    rva: 1315124
-    offset: 1297716
+  - length: 0x148
+    rva: 0x141134
+    offset: 0x13cd34
     type: RESOURCE_TYPE_STRING
     id: 4080
     language: 19
-  - length: 330
-    rva: 1315452
-    offset: 1298044
+  - length: 0x14a
+    rva: 0x14127c
+    offset: 0x13ce7c
     type: RESOURCE_TYPE_STRING
     id: 4081
     language: 19
-  - length: 1242
-    rva: 1315784
-    offset: 1298376
+  - length: 0x4da
+    rva: 0x1413c8
+    offset: 0x13cfc8
     type: RESOURCE_TYPE_STRING
     id: 4082
     language: 19
-  - length: 716
-    rva: 1317028
-    offset: 1299620
+  - length: 0x2cc
+    rva: 0x1418a4
+    offset: 0x13d4a4
     type: RESOURCE_TYPE_STRING
     id: 4083
     language: 19
-  - length: 1102
-    rva: 1317744
-    offset: 1300336
+  - length: 0x44e
+    rva: 0x141b70
+    offset: 0x13d770
     type: RESOURCE_TYPE_STRING
     id: 4084
     language: 19
-  - length: 1580
-    rva: 1318848
-    offset: 1301440
+  - length: 0x62c
+    rva: 0x141fc0
+    offset: 0x13dbc0
     type: RESOURCE_TYPE_STRING
     id: 4085
     language: 19
-  - length: 1054
-    rva: 1320428
-    offset: 1303020
+  - length: 0x41e
+    rva: 0x1425ec
+    offset: 0x13e1ec
     type: RESOURCE_TYPE_STRING
     id: 4086
     language: 19
-  - length: 806
-    rva: 1321484
-    offset: 1304076
+  - length: 0x326
+    rva: 0x142a0c
+    offset: 0x13e60c
     type: RESOURCE_TYPE_STRING
     id: 4087
     language: 19
-  - length: 832
-    rva: 1322292
-    offset: 1304884
+  - length: 0x340
+    rva: 0x142d34
+    offset: 0x13e934
     type: RESOURCE_TYPE_STRING
     id: 4088
     language: 19
-  - length: 970
-    rva: 1323124
-    offset: 1305716
+  - length: 0x3ca
+    rva: 0x143074
+    offset: 0x13ec74
     type: RESOURCE_TYPE_STRING
     id: 4089
     language: 19
-  - length: 510
-    rva: 1324096
-    offset: 1306688
+  - length: 0x1fe
+    rva: 0x143440
+    offset: 0x13f040
     type: RESOURCE_TYPE_STRING
     id: 4090
     language: 19
-  - length: 196
-    rva: 1324608
-    offset: 1307200
+  - length: 0xc4
+    rva: 0x143640
+    offset: 0x13f240
     type: RESOURCE_TYPE_STRING
     id: 4091
     language: 19
-  - length: 366
-    rva: 1324804
-    offset: 1307396
+  - length: 0x16e
+    rva: 0x143704
+    offset: 0x13f304
     type: RESOURCE_TYPE_STRING
     id: 4092
     language: 19
-  - length: 862
-    rva: 1325172
-    offset: 1307764
+  - length: 0x35e
+    rva: 0x143874
+    offset: 0x13f474
     type: RESOURCE_TYPE_STRING
     id: 4093
     language: 19
-  - length: 1082
-    rva: 1326036
-    offset: 1308628
+  - length: 0x43a
+    rva: 0x143bd4
+    offset: 0x13f7d4
     type: RESOURCE_TYPE_STRING
     id: 4094
     language: 19
-  - length: 872
-    rva: 1327120
-    offset: 1309712
+  - length: 0x368
+    rva: 0x144010
+    offset: 0x13fc10
     type: RESOURCE_TYPE_STRING
     id: 4095
     language: 19
-  - length: 758
-    rva: 1327992
-    offset: 1310584
+  - length: 0x2f6
+    rva: 0x144378
+    offset: 0x13ff78
     type: RESOURCE_TYPE_STRING
     id: 4096
     language: 19
-  - length: 3634
-    rva: 1328752
-    offset: 1311344
+  - length: 0xe32
+    rva: 0x144670
+    offset: 0x140270
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "A\x00C\x00R\x00_\x00T\x00O\x00K\x00E\x00N\x00_\x00M\x00A\x00P\x00P\x00I\x00N\x00G\x00"
-  - length: 16
-    rva: 1332388
-    offset: 1314980
+  - length: 0x10
+    rva: 0x1454a4
+    offset: 0x1410a4
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "D\x00V\x00C\x00L\x00A\x00L\x00"
-  - length: 17960
-    rva: 1332404
-    offset: 1314996
+  - length: 0x4628
+    rva: 0x1454b4
+    offset: 0x1410b4
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "P\x00A\x00C\x00K\x00A\x00G\x00E\x00I\x00N\x00F\x00O\x00"
-  - length: 24464
-    rva: 1350364
-    offset: 1332956
+  - length: 0x5f90
+    rva: 0x149adc
+    offset: 0x1456dc
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00F\x00R\x00M\x00C\x00O\x00O\x00K\x00I\x00E\x00M\x00G\x00R\x00"
-  - length: 17627
-    rva: 1374828
-    offset: 1357420
+  - length: 0x44db
+    rva: 0x14fa6c
+    offset: 0x14b66c
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00F\x00R\x00M\x00D\x00E\x00F\x00R\x00A\x00G\x00A\x00N\x00A\x00L\x00Y\x00S\x00I\x00S\x00R\x00E\x00P\x00O\x00R\x00T\x00"
-  - length: 1310
-    rva: 1392456
-    offset: 1375048
+  - length: 0x51e
+    rva: 0x153f48
+    offset: 0x14fb48
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00F\x00R\x00M\x00D\x00E\x00F\x00R\x00A\x00G\x00A\x00N\x00A\x00L\x00Y\x00Z\x00E\x00P\x00R\x00O\x00G\x00R\x00E\x00S\x00S\x00"
-  - length: 52684
-    rva: 1393768
-    offset: 1376360
+  - length: 0xcdcc
+    rva: 0x154468
+    offset: 0x150068
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00F\x00R\x00M\x00D\x00E\x00F\x00R\x00A\x00G\x00R\x00E\x00P\x00O\x00R\x00T\x00"
-  - length: 12841
-    rva: 1446452
-    offset: 1429044
+  - length: 0x3229
+    rva: 0x161234
+    offset: 0x15ce34
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00F\x00R\x00M\x00H\x00P\x00A\x00N\x00A\x00L\x00Y\x00S\x00I\x00S\x00P\x00R\x00O\x00G\x00R\x00E\x00S\x00S\x00"
-  - length: 3238
-    rva: 1459296
-    offset: 1441888
+  - length: 0xca6
+    rva: 0x164460
+    offset: 0x160060
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00F\x00R\x00M\x00O\x00P\x00T\x00I\x00M\x00I\x00Z\x00A\x00T\x00I\x00O\x00N\x00D\x00E\x00T\x00A\x00I\x00L\x00S\x00"
-  - length: 4448
-    rva: 1462536
-    offset: 1445128
+  - length: 0x1160
+    rva: 0x165108
+    offset: 0x160d08
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00F\x00R\x00M\x00R\x00B\x00T\x00O\x00I\x00N\x00C\x00I\x00N\x00"
-  - length: 5950
-    rva: 1466984
-    offset: 1449576
+  - length: 0x173e
+    rva: 0x166268
+    offset: 0x161e68
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00F\x00R\x00M\x00R\x00E\x00P\x00A\x00I\x00R\x00C\x00O\x00N\x00F\x00I\x00R\x00M\x00"
-  - length: 2633
-    rva: 1472936
-    offset: 1455528
+  - length: 0xa49
+    rva: 0x1679a8
+    offset: 0x1635a8
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00F\x00R\x00M\x00R\x00E\x00P\x00A\x00I\x00R\x00P\x00R\x00O\x00G\x00R\x00E\x00S\x00S\x00"
-  - length: 38533
-    rva: 1475572
-    offset: 1458164
+  - length: 0x9685
+    rva: 0x1683f4
+    offset: 0x163ff4
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00F\x00R\x00M\x00R\x00E\x00P\x00A\x00I\x00R\x00P\x00R\x00O\x00G\x00R\x00E\x00S\x00S\x00M\x00U\x00L\x00T\x00I\x00"
-  - length: 171028
-    rva: 1514108
-    offset: 1496700
+  - length: 0x29c14
+    rva: 0x171a7c
+    offset: 0x16d67c
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00F\x00R\x00M\x00S\x00C\x00H\x00E\x00D\x00U\x00L\x00E\x00D\x00M\x00A\x00I\x00N\x00T\x00E\x00N\x00A\x00N\x00C\x00E\x00P\x00R\x00O\x00G\x00R\x00E\x00S\x00S\x00"
-  - length: 2340
-    rva: 1685136
-    offset: 1667728
+  - length: 0x924
+    rva: 0x19b690
+    offset: 0x197290
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00F\x00R\x00M\x00S\x00E\x00C\x00O\x00P\x00T\x00E\x00X\x00E\x00F\x00T\x00Y\x00P\x00E\x00C\x00O\x00N\x00F\x00I\x00G\x00"
-  - length: 1138
-    rva: 1687476
-    offset: 1670068
+  - length: 0x472
+    rva: 0x19bfb4
+    offset: 0x197bb4
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00F\x00R\x00M\x00S\x00E\x00C\x00O\x00P\x00T\x00R\x00E\x00P\x00A\x00I\x00R\x00"
-  - length: 3618
-    rva: 1688616
-    offset: 1671208
+  - length: 0xe22
+    rva: 0x19c428
+    offset: 0x198028
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00F\x00R\x00M\x00S\x00E\x00C\x00O\x00P\x00T\x00S\x00Y\x00N\x00A\x00T\x00T\x00A\x00C\x00K\x00C\x00O\x00N\x00F\x00I\x00G\x00"
-  - length: 1249
-    rva: 1692236
-    offset: 1674828
+  - length: 0x4e1
+    rva: 0x19d24c
+    offset: 0x198e4c
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00F\x00R\x00M\x00U\x00N\x00D\x00O\x00A\x00R\x00C\x00H\x00P\x00R\x00O\x00G\x00R\x00E\x00S\x00S\x00"
-  - length: 5489
-    rva: 1693488
-    offset: 1676080
+  - length: 0x1571
+    rva: 0x19d730
+    offset: 0x199330
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00F\x00R\x00M\x00U\x00P\x00D\x00A\x00T\x00E\x00C\x00H\x00E\x00C\x00K\x00"
-  - length: 891
-    rva: 1698980
-    offset: 1681572
+  - length: 0x37b
+    rva: 0x19eca4
+    offset: 0x19a8a4
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00F\x00R\x00M\x00U\x00P\x00D\x00A\x00T\x00E\x00F\x00A\x00I\x00L\x00E\x00D\x00"
-  - length: 2727
-    rva: 1699872
-    offset: 1682464
+  - length: 0xaa7
+    rva: 0x19f020
+    offset: 0x19ac20
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00M\x00A\x00D\x00E\x00X\x00C\x00E\x00P\x00T\x00"
-  - length: 307
-    rva: 1702600
-    offset: 1685192
+  - length: 0x133
+    rva: 0x19fac8
+    offset: 0x19b6c8
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00M\x00A\x00I\x00N\x00F\x00O\x00R\x00M\x00"
-  - length: 780
-    rva: 1702908
-    offset: 1685500
+  - length: 0x30c
+    rva: 0x19fbfc
+    offset: 0x19b7fc
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00M\x00E\x00C\x00O\x00N\x00T\x00A\x00C\x00T\x00F\x00O\x00R\x00M\x00"
-  - length: 513
-    rva: 1703688
-    offset: 1686280
+  - length: 0x201
+    rva: 0x19ff08
+    offset: 0x19bb08
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00M\x00E\x00D\x00E\x00T\x00A\x00I\x00L\x00S\x00F\x00O\x00R\x00M\x00"
-  - length: 628
-    rva: 1704204
-    offset: 1686796
+  - length: 0x274
+    rva: 0x1a010c
+    offset: 0x19bd0c
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "T\x00M\x00E\x00S\x00C\x00R\x00S\x00H\x00O\x00T\x00F\x00O\x00R\x00M\x00"
-  - length: 3007
-    rva: 1704832
-    offset: 1687424
+  - length: 0xbbf
+    rva: 0x1a0380
+    offset: 0x19bf80
     type: RESOURCE_TYPE_RCDATA
     language: 19
     name_string: "X\x00S\x00L\x00"
-  - length: 20
-    rva: 1707840
-    offset: 1690432
+  - length: 0x14
+    rva: 0x1a0f40
+    offset: 0x19cb40
     type: RESOURCE_TYPE_GROUP_CURSOR
     language: 19
     name_string: "J\x00V\x00D\x00R\x00A\x00G\x00C\x00U\x00R\x00S\x00O\x00R\x00"
-  - length: 20
-    rva: 1707860
-    offset: 1690452
+  - length: 0x14
+    rva: 0x1a0f54
+    offset: 0x19cb54
     type: RESOURCE_TYPE_GROUP_CURSOR
     language: 19
     name_string: "J\x00V\x00H\x00A\x00N\x00D\x00C\x00U\x00R\x00S\x00O\x00R\x00"
-  - length: 20
-    rva: 1707880
-    offset: 1690472
+  - length: 0x14
+    rva: 0x1a0f68
+    offset: 0x19cb68
     type: RESOURCE_TYPE_GROUP_CURSOR
     language: 19
     name_string: "V\x00T\x00_\x00H\x00E\x00A\x00D\x00E\x00R\x00S\x00P\x00L\x00I\x00T\x00"
-  - length: 20
-    rva: 1707900
-    offset: 1690492
+  - length: 0x14
+    rva: 0x1a0f7c
+    offset: 0x19cb7c
     type: RESOURCE_TYPE_GROUP_CURSOR
     language: 19
     name_string: "V\x00T\x00_\x00M\x00O\x00V\x00E\x00A\x00L\x00L\x00"
-  - length: 20
-    rva: 1707920
-    offset: 1690512
+  - length: 0x14
+    rva: 0x1a0f90
+    offset: 0x19cb90
     type: RESOURCE_TYPE_GROUP_CURSOR
     language: 19
     name_string: "V\x00T\x00_\x00M\x00O\x00V\x00E\x00E\x00"
-  - length: 20
-    rva: 1707940
-    offset: 1690532
+  - length: 0x14
+    rva: 0x1a0fa4
+    offset: 0x19cba4
     type: RESOURCE_TYPE_GROUP_CURSOR
     language: 19
     name_string: "V\x00T\x00_\x00M\x00O\x00V\x00E\x00E\x00W\x00"
-  - length: 20
-    rva: 1707960
-    offset: 1690552
+  - length: 0x14
+    rva: 0x1a0fb8
+    offset: 0x19cbb8
     type: RESOURCE_TYPE_GROUP_CURSOR
     language: 19
     name_string: "V\x00T\x00_\x00M\x00O\x00V\x00E\x00N\x00"
-  - length: 20
-    rva: 1707980
-    offset: 1690572
+  - length: 0x14
+    rva: 0x1a0fcc
+    offset: 0x19cbcc
     type: RESOURCE_TYPE_GROUP_CURSOR
     language: 19
     name_string: "V\x00T\x00_\x00M\x00O\x00V\x00E\x00N\x00E\x00"
-  - length: 20
-    rva: 1708000
-    offset: 1690592
+  - length: 0x14
+    rva: 0x1a0fe0
+    offset: 0x19cbe0
     type: RESOURCE_TYPE_GROUP_CURSOR
     language: 19
     name_string: "V\x00T\x00_\x00M\x00O\x00V\x00E\x00N\x00S\x00"
-  - length: 20
-    rva: 1708020
-    offset: 1690612
+  - length: 0x14
+    rva: 0x1a0ff4
+    offset: 0x19cbf4
     type: RESOURCE_TYPE_GROUP_CURSOR
     language: 19
     name_string: "V\x00T\x00_\x00M\x00O\x00V\x00E\x00N\x00W\x00"
-  - length: 20
-    rva: 1708040
-    offset: 1690632
+  - length: 0x14
+    rva: 0x1a1008
+    offset: 0x19cc08
     type: RESOURCE_TYPE_GROUP_CURSOR
     language: 19
     name_string: "V\x00T\x00_\x00M\x00O\x00V\x00E\x00S\x00"
-  - length: 20
-    rva: 1708060
-    offset: 1690652
+  - length: 0x14
+    rva: 0x1a101c
+    offset: 0x19cc1c
     type: RESOURCE_TYPE_GROUP_CURSOR
     language: 19
     name_string: "V\x00T\x00_\x00M\x00O\x00V\x00E\x00S\x00E\x00"
-  - length: 20
-    rva: 1708080
-    offset: 1690672
+  - length: 0x14
+    rva: 0x1a1030
+    offset: 0x19cc30
     type: RESOURCE_TYPE_GROUP_CURSOR
     language: 19
     name_string: "V\x00T\x00_\x00M\x00O\x00V\x00E\x00S\x00W\x00"
-  - length: 20
-    rva: 1708100
-    offset: 1690692
+  - length: 0x14
+    rva: 0x1a1044
+    offset: 0x19cc44
     type: RESOURCE_TYPE_GROUP_CURSOR
     language: 19
     name_string: "V\x00T\x00_\x00M\x00O\x00V\x00E\x00W\x00"
-  - length: 20
-    rva: 1708120
-    offset: 1690712
+  - length: 0x14
+    rva: 0x1a1058
+    offset: 0x19cc58
     type: RESOURCE_TYPE_GROUP_CURSOR
     id: 32761
     language: 19
-  - length: 20
-    rva: 1708140
-    offset: 1690732
+  - length: 0x14
+    rva: 0x1a106c
+    offset: 0x19cc6c
     type: RESOURCE_TYPE_GROUP_CURSOR
     id: 32762
     language: 19
-  - length: 20
-    rva: 1708160
-    offset: 1690752
+  - length: 0x14
+    rva: 0x1a1080
+    offset: 0x19cc80
     type: RESOURCE_TYPE_GROUP_CURSOR
     id: 32763
     language: 19
-  - length: 20
-    rva: 1708180
-    offset: 1690772
+  - length: 0x14
+    rva: 0x1a1094
+    offset: 0x19cc94
     type: RESOURCE_TYPE_GROUP_CURSOR
     id: 32764
     language: 19
-  - length: 20
-    rva: 1708200
-    offset: 1690792
+  - length: 0x14
+    rva: 0x1a10a8
+    offset: 0x19cca8
     type: RESOURCE_TYPE_GROUP_CURSOR
     id: 32765
     language: 19
-  - length: 20
-    rva: 1708220
-    offset: 1690812
+  - length: 0x14
+    rva: 0x1a10bc
+    offset: 0x19ccbc
     type: RESOURCE_TYPE_GROUP_CURSOR
     id: 32766
     language: 19
-  - length: 20
-    rva: 1708240
-    offset: 1690832
+  - length: 0x14
+    rva: 0x1a10d0
+    offset: 0x19ccd0
     type: RESOURCE_TYPE_GROUP_CURSOR
     id: 32767
     language: 19
-  - length: 20
-    rva: 1708260
-    offset: 1690852
+  - length: 0x14
+    rva: 0x1a10e4
+    offset: 0x19cce4
     type: RESOURCE_TYPE_GROUP_ICON
     language: 19
     name_string: "M\x00A\x00I\x00N\x00I\x00C\x00O\x00N\x00"
-  - length: 800
-    rva: 1708280
-    offset: 1690872
+  - length: 0x320
+    rva: 0x1a10f8
+    offset: 0x19ccf8
     type: RESOURCE_TYPE_VERSION
     id: 1
     language: 19
-  - length: 1721
-    rva: 1709080
-    offset: 1691672
+  - length: 0x6b9
+    rva: 0x1a1418
+    offset: 0x19d018
     type: RESOURCE_TYPE_MANIFEST
     id: 1
     language: 19
@@ -2708,67 +2708,67 @@ import_details:
     number_of_functions: 15
     functions:
       - name: "DeleteCriticalSection"
-        rva: 16484
+        rva: 0x4064
       - name: "LeaveCriticalSection"
-        rva: 16488
+        rva: 0x4068
       - name: "EnterCriticalSection"
-        rva: 16492
+        rva: 0x406c
       - name: "VirtualFree"
-        rva: 16496
+        rva: 0x4070
       - name: "LocalFree"
-        rva: 16500
+        rva: 0x4074
       - name: "GetCurrentThreadId"
-        rva: 16504
+        rva: 0x4078
       - name: "GetStartupInfoA"
-        rva: 16508
+        rva: 0x407c
       - name: "GetCommandLineA"
-        rva: 16512
+        rva: 0x4080
       - name: "FreeLibrary"
-        rva: 16516
+        rva: 0x4084
       - name: "ExitProcess"
-        rva: 16520
+        rva: 0x4088
       - name: "WriteFile"
-        rva: 16524
+        rva: 0x408c
       - name: "UnhandledExceptionFilter"
-        rva: 16528
+        rva: 0x4090
       - name: "RtlUnwind"
-        rva: 16532
+        rva: 0x4094
       - name: "RaiseException"
-        rva: 16536
+        rva: 0x4098
       - name: "GetStdHandle"
-        rva: 16540
+        rva: 0x409c
   - library_name: "user32.dll"
     number_of_functions: 2
     functions:
       - name: "GetKeyboardType"
-        rva: 16548
+        rva: 0x40a4
       - name: "MessageBoxA"
-        rva: 16552
+        rva: 0x40a8
   - library_name: "advapi32.dll"
     number_of_functions: 3
     functions:
       - name: "RegQueryValueExA"
-        rva: 16560
+        rva: 0x40b0
       - name: "RegOpenKeyExA"
-        rva: 16564
+        rva: 0x40b4
       - name: "RegCloseKey"
-        rva: 16568
+        rva: 0x40b8
   - library_name: "kernel32.dll"
     number_of_functions: 6
     functions:
       - name: "TlsSetValue"
-        rva: 16576
+        rva: 0x40c0
       - name: "TlsGetValue"
-        rva: 16580
+        rva: 0x40c4
       - name: "TlsFree"
-        rva: 16584
+        rva: 0x40c8
       - name: "TlsAlloc"
-        rva: 16588
+        rva: 0x40cc
       - name: "LocalFree"
-        rva: 16592
+        rva: 0x40d0
       - name: "LocalAlloc"
-        rva: 16596
+        rva: 0x40d4
 is_signed: false
 overlay:
-    offset: 0
-    size: 0
+    offset: 0x0
+    size: 0x0

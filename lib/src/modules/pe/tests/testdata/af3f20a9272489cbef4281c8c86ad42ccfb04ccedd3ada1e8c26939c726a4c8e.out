@@ -17,25 +17,25 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
 characteristics: 0x206  # EXECUTABLE_IMAGE | LINE_NUMS_STRIPPED | DEBUG_STRIPPED
 dll_characteristics: 0x0
 timestamp: 0  # 1970-01-01 00:00:00 UTC
-image_base: 16777216
+image_base: 0x1000000
 checksum: 3991994
-base_of_code: 512
-entry_point: 3937578
-entry_point_raw: 3937578
-section_alignment: 32
-file_alignment: 32
-loader_flags: 0
-size_of_optional_header: 160
-size_of_code: 40582656
-size_of_initialized_data: 0
-size_of_uninitialized_data: 0
-size_of_image: 40583168
-size_of_headers: 512
-size_of_stack_reserve: 0
-size_of_stack_commit: 0
-size_of_heap_reserve: 0
-size_of_heap_commit: 0
-pointer_to_symbol_table: 0
+base_of_code: 0x200
+entry_point: 0x3c152a
+entry_point_raw: 0x3c152a
+section_alignment: 0x20
+file_alignment: 0x20
+loader_flags: 0x0
+size_of_optional_header: 0xa0
+size_of_code: 0x26b3e00
+size_of_initialized_data: 0x0
+size_of_uninitialized_data: 0x0
+size_of_image: 0x26b4000
+size_of_headers: 0x200
+size_of_stack_reserve: 0x0
+size_of_stack_commit: 0x0
+size_of_heap_reserve: 0x0
+size_of_heap_commit: 0x0
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 1
 number_of_rva_and_sizes: 6
@@ -51,61 +51,61 @@ number_of_signatures: 1
 sections:
   - name: ".setup"
     full_name: ".setup"
-    characteristics: 1615855648
-    raw_data_size: 14272
-    raw_data_offset: 512
-    virtual_address: 512
-    virtual_size: 14272
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60500020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0x37c0
+    raw_data_offset: 0x200
+    virtual_address: 0x200
+    virtual_size: 0x37c0
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".reloc"
     full_name: ".reloc"
-    characteristics: 1108344896
-    raw_data_size: 32
-    raw_data_offset: 14784
-    virtual_address: 14784
-    virtual_size: 32
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x42100040
+    raw_data_size: 0x20
+    raw_data_offset: 0x39c0
+    virtual_address: 0x39c0
+    virtual_size: 0x20
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".compat"
     full_name: ".compat"
-    characteristics: 1108344896
-    raw_data_size: 32
-    raw_data_offset: 14816
-    virtual_address: 14816
-    virtual_size: 32
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x42100040
+    raw_data_size: 0x20
+    raw_data_offset: 0x39e0
+    virtual_address: 0x39e0
+    virtual_size: 0x20
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".text"
     full_name: ".text"
-    characteristics: 1615855648
-    raw_data_size: 3949344
-    raw_data_offset: 14848
-    virtual_address: 14848
-    virtual_size: 40568320
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60500020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0x3c4320
+    raw_data_offset: 0x3a00
+    virtual_address: 0x3a00
+    virtual_size: 0x26b0600
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 3964192
-    size: 2832
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x3c7d20
+    size: 0xb10
+  - virtual_address: 0x0
+    size: 0x0
 is_signed: true
 signatures:
   - subject: "/C=AT/O=Security Coding Factory GmbH/OU=Security Coding Factory Certificate Authority/CN=Security Coding Factory Software CA"
@@ -147,5 +147,5 @@ signatures:
         not_before: 1615365865  # 2021-03-10 08:44:25 UTC
         not_after: 2246431465  # 2041-03-09 08:44:25 UTC
 overlay:
-    offset: 3964192
-    size: 2832
+    offset: 0x3c7d20
+    size: 0xb10
