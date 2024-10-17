@@ -6,6 +6,7 @@ rule test {
       (00 01 |     // amet,
       02 03)
     }
+
   condition:
     $hex
 }
