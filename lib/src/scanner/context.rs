@@ -1,16 +1,15 @@
 use std::cell::RefCell;
 use std::collections::VecDeque;
+#[cfg(feature = "rules-profiling")]
+use std::iter;
+#[cfg(feature = "rules-profiling")]
+use std::ops::AddAssign;
 use std::ops::{Range, RangeInclusive};
 use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
-
-#[cfg(feature = "logging")]
-use log::*;
 #[cfg(feature = "rules-profiling")]
 use std::time::Duration;
-#[cfg(any(feature = "logging", feature = "rules-profiling"))]
-use std::time::Instant;
 
 use base64::Engine;
 use bitvec::order::Lsb0;
@@ -113,21 +112,50 @@ pub(crate) struct ScanContext<'r> {
     /// PatternIds and values are the cumulative time spent on verifying each
     /// pattern.
     #[cfg(feature = "rules-profiling")]
-    pub time_spent_in_pattern: FxHashMap<PatternId, Duration>,
+    pub time_spent_in_pattern: FxHashMap<PatternId, u64>,
+    /// Time spent evaluating each rule. This vector has one entry per rule,
+    /// which is the number of nanoseconds spent evaluating the rule.
+    #[cfg(feature = "rules-profiling")]
+    pub time_spent_in_rule: Vec<u64>,
+    /// The time at which the evaluation of the current rule started.
+    #[cfg(feature = "rules-profiling")]
+    pub rule_evaluation_start_time: u64,
+    /// Clock used for measuring the time spend on each pattern.
+    #[cfg(any(feature = "rules-profiling", feature = "logging"))]
+    pub clock: quanta::Clock,
 }
 
 #[cfg(feature = "rules-profiling")]
 impl<'r> ScanContext<'r> {
-    pub fn most_expensive_rules(&self) -> Vec<(&'r str, &'r str, Duration)> {
+    /// Returns the top N most expensive rules.
+    pub fn most_expensive_rules(
+        &self,
+        n: usize,
+    ) -> Vec<(&'r str, &'r str, Duration)> {
+        debug_assert_eq!(
+            self.compiled_rules.num_rules(),
+            self.time_spent_in_rule.len()
+        );
+
         let mut result = Vec::with_capacity(self.compiled_rules.num_rules());
 
-        for r in self.compiled_rules.rules() {
-            let mut rule_time = Duration::default();
-            for (_, pattern_id) in r.patterns.iter() {
+        for (r, t) in iter::zip(
+            self.compiled_rules.rules().iter(),
+            self.time_spent_in_rule.iter(),
+        ) {
+            // `rule_time`` is initialized with the time spent in evaluating
+            // the rule's condition. This number is incremented by the amount
+            // spent in each pattern declared by the rule.
+            let mut rule_time = *t;
+
+            for (_, _, pattern_id) in r.patterns.iter() {
                 if let Some(d) = self.time_spent_in_pattern.get(pattern_id) {
                     rule_time += *d;
                 }
             }
+
+            // Don't track rules that took less 100ms.
+            //if rule_time > 100_000_000 {
             let rule_name =
                 self.compiled_rules.ident_pool().get(r.ident_id).unwrap();
 
@@ -137,12 +165,18 @@ impl<'r> ScanContext<'r> {
                 .get(r.namespace_ident_id)
                 .unwrap();
 
-            result.push((namespace_name, rule_name, rule_time));
+            result.push((
+                namespace_name,
+                rule_name,
+                Duration::from_nanos(rule_time),
+            ));
+            //}
         }
 
         // Sort the results by the time spent on each rule, in descending
         // order.
         result.sort_by(|a, b| b.2.cmp(&a.2));
+        result.truncate(n);
         result
     }
 }
@@ -208,7 +242,11 @@ impl ScanContext<'_> {
             .get(rule.namespace_ident_id)
             .unwrap();
 
-        info!("Started rule evaluation: {}:{}", rule_namespace, rule_name);
+        log::info!(
+            "Started rule evaluation: {}:{}",
+            rule_namespace,
+            rule_name
+        );
     }
 
     pub(crate) fn console_log(&mut self, message: String) {
@@ -247,44 +285,74 @@ impl ScanContext<'_> {
         obj_ref
     }
 
-    /// Called during the scan process when a global rule didn't match.
-    ///
-    /// When this happens any other rule in the same namespace that matched
-    /// previously is reset to a non-matching state.
-    pub(crate) fn track_global_rule_no_match(&mut self, rule_id: RuleId) {
+    /// Called during the scan process when a rule didn't match.
+    pub(crate) fn track_rule_no_match(&mut self, rule_id: RuleId) {
+        // The time spent evaluating the rule that didn't match is the
+        // difference between the current time and the time stored in
+        // `self.rule_evaluation_start_time`.
+        #[cfg(feature = "rules-profiling")]
+        unsafe {
+            self.time_spent_in_rule
+                .get_unchecked_mut::<usize>(rule_id.into())
+                .add_assign(self.clock.delta_as_nanos(
+                    self.rule_evaluation_start_time,
+                    self.clock.raw(),
+                ));
+        }
+
         let rule = self.compiled_rules.get(rule_id);
 
-        // This function must be called only for global rules.
-        debug_assert!(rule.is_global);
+        // If the rule is global, all the rules in the same namespace that
+        // matched previously must be removed from the `matching_rules` map.
+        // Also, their corresponding bits in the matching rules bitmap must
+        // be cleared.
+        if rule.is_global {
+            if let Some(rules) =
+                self.matching_rules.get_mut(&rule.namespace_id)
+            {
+                let wasm_store = unsafe { self.wasm_store.as_mut() };
+                let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
 
-        // All the rules that matched previously, and are in the same
-        // namespace as the non-matching rule, must be removed from the
-        // `matching_rules` map. Also, their corresponding bits in
-        // the matching rules bitmap must be cleared.
-        if let Some(rules) = self.matching_rules.get_mut(&rule.namespace_id) {
-            let wasm_store = unsafe { self.wasm_store.as_mut() };
-            let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
+                let base = MATCHING_RULES_BITMAP_BASE as usize;
+                let num_rules = self.compiled_rules.num_rules();
 
-            let base = MATCHING_RULES_BITMAP_BASE as usize;
-            let num_rules = self.compiled_rules.num_rules();
+                let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
+                    &mut main_mem[base..base + num_rules.div_ceil(8)],
+                );
 
-            let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
-                &mut main_mem[base..base + num_rules.div_ceil(8)],
-            );
-
-            for rule_id in rules.drain(0..) {
-                bits.set(rule_id.into(), false);
+                for rule_id in rules.drain(0..) {
+                    bits.set(rule_id.into(), false);
+                }
             }
+        }
+
+        // Save the time in which the evaluation of the next rule started.
+        #[cfg(feature = "rules-profiling")]
+        {
+            self.rule_evaluation_start_time = self.clock.raw();
         }
     }
 
     /// Called during the scan process when a rule has matched for tracking
     /// the matching rules.
     pub(crate) fn track_rule_match(&mut self, rule_id: RuleId) {
+        // The time spent evaluating the rule that matched is the
+        // difference between the current time and the time stored in
+        // `self.rule_evaluation_start_time`.
+        #[cfg(feature = "rules-profiling")]
+        unsafe {
+            self.time_spent_in_rule
+                .get_unchecked_mut::<usize>(rule_id.into())
+                .add_assign(self.clock.delta_as_nanos(
+                    self.rule_evaluation_start_time,
+                    self.clock.raw(),
+                ));
+        }
+
         let rule = self.compiled_rules.get(rule_id);
 
         #[cfg(feature = "logging")]
-        info!(
+        log::info!(
             "Rule match: {}:{}  {:?}",
             self.compiled_rules
                 .ident_pool()
@@ -310,6 +378,12 @@ impl ScanContext<'_> {
 
         // The RuleId-th bit in the `rule_matches` bit vector is set to 1.
         bits.set(rule_id.into(), true);
+
+        // Save the time in which the evaluation of the next rule started.
+        #[cfg(feature = "rules-profiling")]
+        {
+            self.rule_evaluation_start_time = self.clock.raw();
+        }
     }
 
     /// Called during the scan process when a pattern match has been found.
@@ -354,7 +428,8 @@ impl ScanContext<'_> {
     /// without looking for any of the patterns. If it must be called, it will be
     /// called only once.
     pub(crate) fn search_for_patterns(&mut self) -> Result<(), ScanError> {
-        let scanned_data = self.scanned_data();
+        #[cfg(any(feature = "rules-profiling", feature = "logging"))]
+        let scan_start = self.clock.raw();
 
         // Verify the anchored pattern first. These are patterns that can match
         // at a single known offset within the data.
@@ -368,9 +443,7 @@ impl ScanContext<'_> {
         };
 
         let atoms = self.compiled_rules.atoms();
-
-        #[cfg(feature = "logging")]
-        let scan_start = Instant::now();
+        let scanned_data = self.scanned_data();
 
         #[cfg(feature = "logging")]
         let mut atom_matches = 0_usize;
@@ -383,9 +456,9 @@ impl ScanContext<'_> {
 
             if HEARTBEAT_COUNTER.load(Ordering::Relaxed) >= self.deadline {
                 #[cfg(feature = "logging")]
-                info!(
+                log::info!(
                     "Scan timeout after: {:?}",
-                    Instant::elapsed(&scan_start)
+                    self.clock.delta(scan_start, self.clock.raw())
                 );
                 return Err(ScanError::Timeout);
             }
@@ -421,7 +494,7 @@ impl ScanContext<'_> {
             }
 
             #[cfg(feature = "rules-profiling")]
-            let verification_start = Instant::now();
+            let verification_start = self.clock.raw();
 
             // If the atom is exact no further verification is needed, except
             // for making sure that the fullword requirements are met. An exact
@@ -582,30 +655,43 @@ impl ScanContext<'_> {
 
             #[cfg(feature = "rules-profiling")]
             {
-                let time_spent = Instant::elapsed(&verification_start);
+                let time_spent = self
+                    .clock
+                    .delta_as_nanos(verification_start, self.clock.raw());
+
                 self.time_spent_in_pattern
                     .entry(*pattern_id)
                     .and_modify(|t| {
-                        *t += time_spent;
+                        t.add_assign(time_spent);
                     })
                     .or_insert(time_spent);
             }
         }
 
+        #[cfg(any(feature = "rules-profiling", feature = "logging"))]
+        let scan_end = self.clock.raw();
+
         #[cfg(feature = "logging")]
         {
-            info!("Scan time: {:?}", Instant::elapsed(&scan_start));
-            info!("Atom matches: {}", atom_matches);
-            #[cfg(feature = "rules-profiling")]
-            {
-                info!("Most expensive rules:");
-                for r in self.most_expensive_rules().iter().take(10) {
-                    info!("+ namespace: {}", r.0);
-                    info!("  rule: {}", r.1);
-                    info!("  time: {:?}", r.2);
-                }
-            }
+            log::info!(
+                "Scan time: {:?}",
+                self.clock.delta(scan_start, scan_end)
+            );
+            log::info!("Atom matches: {}", atom_matches);
         }
+
+        // Adjust the rule evaluation start time to exclude the time spent
+        // searching for patterns. Since the `search_for_pattern` function
+        // is invoked lazily during the evaluation of some rule, the overall
+        // evaluation time for that rule may appear longer. To ensure that
+        // search time is not attributed to the rule, we need to adjust
+        // `rule_evaluation_start_time` accordingly.
+        #[cfg(feature = "rules-profiling")]
+        {
+            self.rule_evaluation_start_time +=
+                scan_end.saturating_sub(scan_start);
+        }
+
         Ok(())
     }
 

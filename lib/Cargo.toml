@@ -235,6 +235,7 @@ num-traits = { workspace = true }
 p384 = { workspace = true, optional = true, features = ["ecdsa"] }
 p256 = { workspace = true, optional = true, features = ["ecdsa"] }
 protobuf = { workspace = true }
+quanta = { workspace = true }
 rustc-hash = { workspace = true }
 regex-syntax = { workspace = true }
 regex-automata = { workspace = true }

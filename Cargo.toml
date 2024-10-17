@@ -87,6 +87,7 @@ protobuf-codegen = { git = "https://github.com/plusvic/rust-protobuf", rev = "53
 protobuf-json-mapping = { git = "https://github.com/plusvic/rust-protobuf", rev = "53091cb35870e8fea17971326b7d1f84e2d832a2" }
 protobuf-parse = { git = "https://github.com/plusvic/rust-protobuf", rev = "53091cb35870e8fea17971326b7d1f84e2d832a2" }
 protobuf-support = { git = "https://github.com/plusvic/rust-protobuf", rev = "53091cb35870e8fea17971326b7d1f84e2d832a2" }
+quanta = "0.12.3"
 rayon = "1.10.0"
 regex-syntax = "0.8.4"
 regex-automata = "0.4.7"

@@ -190,6 +190,12 @@ impl<'r> Scanner<'r> {
                 regexp_cache: RefCell::new(FxHashMap::default()),
                 #[cfg(feature = "rules-profiling")]
                 time_spent_in_pattern: FxHashMap::default(),
+                #[cfg(feature = "rules-profiling")]
+                time_spent_in_rule: vec![0; num_rules as usize],
+                #[cfg(feature = "rules-profiling")]
+                rule_evaluation_start_time: 0,
+                #[cfg(any(feature = "rules-profiling", feature = "logging"))]
+                clock: quanta::Clock::new(),
             },
         ));
 
@@ -521,6 +527,15 @@ impl<'r> Scanner<'r> {
             })?,
         )
     }
+
+    /// Returns the top N most expensive rules.
+    #[cfg(feature = "rules-profiling")]
+    pub fn most_expensive_rules(
+        &self,
+        n: usize,
+    ) -> Vec<(&'r str, &'r str, Duration)> {
+        self.wasm_store.data().most_expensive_rules(n)
+    }
 }
 
 impl<'r> Scanner<'r> {
@@ -705,6 +720,12 @@ impl<'r> Scanner<'r> {
             );
         }
 
+        // Save the time in which the evaluation of rules started.
+        #[cfg(feature = "rules-profiling")]
+        {
+            ctx.rule_evaluation_start_time = ctx.clock.raw();
+        }
+
         // Invoke the main function, which evaluates the rules' conditions. It
         // calls ScanContext::search_for_patterns (which does the Aho-Corasick
         // scanning) only if necessary.
@@ -716,6 +737,19 @@ impl<'r> Scanner<'r> {
         // Ok(0).`
         let func_result =
             self.wasm_main_func.call(self.wasm_store.as_context_mut(), ());
+
+        #[cfg(all(feature = "rules-profiling", feature = "logging"))]
+        {
+            let most_expensive_rules = self.most_expensive_rules(10);
+            if !most_expensive_rules.is_empty() {
+                log::info!("Most expensive rules:");
+                for r in most_expensive_rules {
+                    log::info!("+ namespace: {}", r.0);
+                    log::info!("  rule: {}", r.1);
+                    log::info!("  time: {:?}", r.2);
+                }
+            }
+        }
 
         let ctx = self.wasm_store.data_mut();
 
