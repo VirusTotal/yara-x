@@ -1,0 +1,6 @@
+import "math"
+
+rule test {
+	condition:
+	math.min( 0 , 1) == 0
+}

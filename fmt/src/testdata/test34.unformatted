@@ -1,0 +1,13 @@
+rule test_1 {
+  condition:
+    with foo = "foo", bar = "baz": (true)
+}
+
+rule test_2 {
+  condition:
+    with
+    // This is a comment
+    foo = "foo", bar = "baz": (
+    true
+    )
+}
