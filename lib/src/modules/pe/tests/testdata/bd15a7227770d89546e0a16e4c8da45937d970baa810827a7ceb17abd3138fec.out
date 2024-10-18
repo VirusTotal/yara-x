@@ -17,25 +17,25 @@ opthdr_magic: 36
 characteristics: 0x2e4e  # EXECUTABLE_IMAGE | LINE_NUMS_STRIPPED | LOCAL_SYMS_STRIPPED | DEBUG_STRIPPED | REMOVABLE_RUN_FROM_SWAP | NET_RUN_FROM_SWAP | DLL
 dll_characteristics: 0x0
 timestamp: 0  # 1970-01-01 00:00:00 UTC
-image_base: 0
+image_base: 0x0
 checksum: 0
-base_of_code: 3950706940
-base_of_data: 16765563
-entry_point_raw: 28684
-section_alignment: 1634548736
-file_alignment: 6515047
-loader_flags: 2071690107
-size_of_optional_header: 3257
-size_of_code: 176688205
-size_of_initialized_data: 65725
-size_of_uninitialized_data: 4286186044
-size_of_image: 2071690107
-size_of_headers: 16776990
-size_of_stack_reserve: 252
-size_of_stack_commit: 70
-size_of_heap_reserve: 89
-size_of_heap_commit: 2071658748
-pointer_to_symbol_table: 3019898880
+base_of_code: 0xeb7b00fc
+base_of_data: 0xffd27b
+entry_point_raw: 0x700c
+section_alignment: 0x616d3c00
+file_alignment: 0x636967
+loader_flags: 0x7b7b7b7b
+size_of_optional_header: 0xcb9
+size_of_code: 0xa880c4d
+size_of_initialized_data: 0x100bd
+size_of_uninitialized_data: 0xff7a023c
+size_of_image: 0x7b7b7b7b
+size_of_headers: 0xffff1e
+size_of_stack_reserve: 0xfc
+size_of_stack_commit: 0x46
+size_of_heap_reserve: 0x59
+size_of_heap_commit: 0x7b7b00fc
+pointer_to_symbol_table: 0xb4000000
 win32_version_value: 2071658748
 number_of_symbols: 3040305
 number_of_rva_and_sizes: 16776990
@@ -49,39 +49,39 @@ number_of_delayed_imports: 0
 number_of_exports: 0
 number_of_signatures: 0
 data_directories:
-  - virtual_address: 0
-    size: 89
-  - virtual_address: 252
-    size: 70
-  - virtual_address: 89
-    size: 2071658748
-  - virtual_address: 2071690107
-    size: 16776990
-  - virtual_address: 0
-    size: 89
-  - virtual_address: 252
-    size: 70
-  - virtual_address: 89
-    size: 2071658748
-  - virtual_address: 2071690107
-    size: 16776990
-  - virtual_address: 1970143232
-    size: 1919246957
-  - virtual_address: 1600548703
-    size: 1869833586
-  - virtual_address: 29301
-    size: 89
-  - virtual_address: 252
-    size: 70
-  - virtual_address: 89
-    size: 2071658748
-  - virtual_address: 2071690107
-    size: 16776990
-  - virtual_address: 0
-    size: 89
-  - virtual_address: 252
-    size: 70
+  - virtual_address: 0x0
+    size: 0x59
+  - virtual_address: 0xfc
+    size: 0x46
+  - virtual_address: 0x59
+    size: 0x7b7b00fc
+  - virtual_address: 0x7b7b7b7b
+    size: 0xffff1e
+  - virtual_address: 0x0
+    size: 0x59
+  - virtual_address: 0xfc
+    size: 0x46
+  - virtual_address: 0x59
+    size: 0x7b7b00fc
+  - virtual_address: 0x7b7b7b7b
+    size: 0xffff1e
+  - virtual_address: 0x756e0000
+    size: 0x7265626d
+  - virtual_address: 0x5f666f5f
+    size: 0x6f736572
+  - virtual_address: 0x7275
+    size: 0x59
+  - virtual_address: 0xfc
+    size: 0x46
+  - virtual_address: 0x59
+    size: 0x7b7b00fc
+  - virtual_address: 0x7b7b7b7b
+    size: 0xffff1e
+  - virtual_address: 0x0
+    size: 0x59
+  - virtual_address: 0xfc
+    size: 0x46
 is_signed: false
 overlay:
-    offset: 0
-    size: 0
+    offset: 0x0
+    size: 0x0

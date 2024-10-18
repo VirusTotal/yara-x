@@ -17,26 +17,26 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 0x2022  # EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE | DLL
 dll_characteristics: 0x8540  # DYNAMIC_BASE | NX_COMPAT | NO_SEH | TERMINAL_SERVER_AWARE
 timestamp: 3665045795  # 2086-02-20 12:16:35 UTC
-image_base: 268435456
+image_base: 0x10000000
 checksum: 0
-base_of_code: 8192
-base_of_data: 16384
-entry_point: 2726
-entry_point_raw: 10406
-section_alignment: 8192
-file_alignment: 512
-loader_flags: 0
-size_of_optional_header: 224
-size_of_code: 2560
-size_of_initialized_data: 2048
-size_of_uninitialized_data: 0
-size_of_image: 32768
-size_of_headers: 512
-size_of_stack_reserve: 1048576
-size_of_stack_commit: 4096
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+base_of_code: 0x2000
+base_of_data: 0x4000
+entry_point: 0xaa6
+entry_point_raw: 0x28a6
+section_alignment: 0x2000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xe0
+size_of_code: 0xa00
+size_of_initialized_data: 0x800
+size_of_uninitialized_data: 0x0
+size_of_image: 0x8000
+size_of_headers: 0x200
+size_of_stack_reserve: 0x100000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -84,78 +84,78 @@ version_info_list:
 sections:
   - name: ".text"
     full_name: ".text"
-    characteristics: 1610612768
-    raw_data_size: 2560
-    raw_data_offset: 512
-    virtual_address: 8192
-    virtual_size: 2220
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0xa00
+    raw_data_offset: 0x200
+    virtual_address: 0x2000
+    virtual_size: 0x8ac
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rsrc"
     full_name: ".rsrc"
-    characteristics: 1073741888
-    raw_data_size: 1536
-    raw_data_offset: 3072
-    virtual_address: 16384
-    virtual_size: 1128
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x600
+    raw_data_offset: 0xc00
+    virtual_address: 0x4000
+    virtual_size: 0x468
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".reloc"
     full_name: ".reloc"
-    characteristics: 1107296320
-    raw_data_size: 512
-    raw_data_offset: 4608
-    virtual_address: 24576
-    virtual_size: 12
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x42000040
+    raw_data_size: 0x200
+    raw_data_offset: 0x1200
+    virtual_address: 0x6000
+    virtual_size: 0xc
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 10324
-    size: 79
-  - virtual_address: 16384
-    size: 1128
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 24576
-    size: 12
-  - virtual_address: 10296
-    size: 28
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 8192
-    size: 8
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 8200
-    size: 72
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x2854
+    size: 0x4f
+  - virtual_address: 0x4000
+    size: 0x468
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x6000
+    size: 0xc
+  - virtual_address: 0x2838
+    size: 0x1c
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x2000
+    size: 0x8
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x2008
+    size: 0x48
+  - virtual_address: 0x0
+    size: 0x0
 resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0
 resources:
-  - length: 1036
-    rva: 16472
-    offset: 3160
+  - length: 0x40c
+    rva: 0x4058
+    offset: 0xc58
     type: RESOURCE_TYPE_VERSION
     id: 1
     language: 0
@@ -164,8 +164,8 @@ import_details:
     number_of_functions: 1
     functions:
       - name: "_CorDllMain"
-        rva: 8192
+        rva: 0x2000
 is_signed: false
 overlay:
-    offset: 0
-    size: 0
+    offset: 0x0
+    size: 0x0

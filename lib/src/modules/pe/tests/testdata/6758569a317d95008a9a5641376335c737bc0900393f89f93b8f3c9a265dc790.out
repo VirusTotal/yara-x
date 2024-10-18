@@ -17,26 +17,26 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 0x30f  # RELOCS_STRIPPED | EXECUTABLE_IMAGE | LINE_NUMS_STRIPPED | LOCAL_SYMS_STRIPPED | MACHINE_32BIT | DEBUG_STRIPPED
 dll_characteristics: 0x540  # DYNAMIC_BASE | NX_COMPAT | NO_SEH
 timestamp: 1655157631  # 2022-06-13 22:00:31 UTC
-image_base: 4194304
+image_base: 0x400000
 checksum: 340992
-base_of_code: 4096
-base_of_data: 24576
-entry_point: 1648
-entry_point_raw: 4720
-section_alignment: 4096
-file_alignment: 512
-loader_flags: 0
-size_of_optional_header: 224
-size_of_code: 17920
-size_of_initialized_data: 271872
-size_of_uninitialized_data: 36352
-size_of_image: 344064
-size_of_headers: 1024
-size_of_stack_reserve: 2097152
-size_of_stack_commit: 4096
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+base_of_code: 0x1000
+base_of_data: 0x6000
+entry_point: 0x670
+entry_point_raw: 0x1270
+section_alignment: 0x1000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xe0
+size_of_code: 0x4600
+size_of_initialized_data: 0x42600
+size_of_uninitialized_data: 0x8e00
+size_of_image: 0x54000
+size_of_headers: 0x400
+size_of_stack_reserve: 0x200000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -52,261 +52,261 @@ number_of_signatures: 1
 sections:
   - name: ".text"
     full_name: ".text"
-    characteristics: 1613758496
-    raw_data_size: 17920
-    raw_data_offset: 1024
-    virtual_address: 4096
-    virtual_size: 17512
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60300020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0x4600
+    raw_data_offset: 0x400
+    virtual_address: 0x1000
+    virtual_size: 0x4468
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".data"
     full_name: ".data"
-    characteristics: 3224371264
-    raw_data_size: 512
-    raw_data_offset: 18944
-    virtual_address: 24576
-    virtual_size: 48
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0300040
+    raw_data_size: 0x200
+    raw_data_offset: 0x4a00
+    virtual_address: 0x6000
+    virtual_size: 0x30
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rdata"
     full_name: ".rdata"
-    characteristics: 1076887616
-    raw_data_size: 2048
-    raw_data_offset: 19456
-    virtual_address: 28672
-    virtual_size: 1584
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40300040
+    raw_data_size: 0x800
+    raw_data_offset: 0x4c00
+    virtual_address: 0x7000
+    virtual_size: 0x630
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".bss"
     full_name: ".bss"
-    characteristics: 3224371328
-    raw_data_size: 0
-    raw_data_offset: 0
-    virtual_address: 32768
-    virtual_size: 36352
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0300080
+    raw_data_size: 0x0
+    raw_data_offset: 0x0
+    virtual_address: 0x8000
+    virtual_size: 0x8e00
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".idata"
     full_name: ".idata"
-    characteristics: 3224371264
-    raw_data_size: 2560
-    raw_data_offset: 21504
-    virtual_address: 69632
-    virtual_size: 2096
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0300040
+    raw_data_size: 0xa00
+    raw_data_offset: 0x5400
+    virtual_address: 0x11000
+    virtual_size: 0x830
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rsrc"
     full_name: ".rsrc"
-    characteristics: 3224371264
-    raw_data_size: 266752
-    raw_data_offset: 24064
-    virtual_address: 73728
-    virtual_size: 266504
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0300040
+    raw_data_size: 0x41200
+    raw_data_offset: 0x5e00
+    virtual_address: 0x12000
+    virtual_size: 0x41108
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 69632
-    size: 2096
-  - virtual_address: 73728
-    size: 266504
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 290816
-    size: 1760
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 70060
-    size: 308
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x11000
+    size: 0x830
+  - virtual_address: 0x12000
+    size: 0x41108
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x47000
+    size: 0x6e0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x111ac
+    size: 0x134
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0
 resources:
-  - length: 1128
-    rva: 75064
-    offset: 25400
+  - length: 0x468
+    rva: 0x12538
+    offset: 0x6338
     type: RESOURCE_TYPE_ICON
     id: 1
     language: 1024
-  - length: 2440
-    rva: 76192
-    offset: 26528
+  - length: 0x988
+    rva: 0x129a0
+    offset: 0x67a0
     type: RESOURCE_TYPE_ICON
     id: 2
     language: 1024
-  - length: 4264
-    rva: 78632
-    offset: 28968
+  - length: 0x10a8
+    rva: 0x13328
+    offset: 0x7128
     type: RESOURCE_TYPE_ICON
     id: 3
     language: 1024
-  - length: 9640
-    rva: 82896
-    offset: 33232
+  - length: 0x25a8
+    rva: 0x143d0
+    offset: 0x81d0
     type: RESOURCE_TYPE_ICON
     id: 4
     language: 1024
-  - length: 16936
-    rva: 92536
-    offset: 42872
+  - length: 0x4228
+    rva: 0x16978
+    offset: 0xa778
     type: RESOURCE_TYPE_ICON
     id: 5
     language: 1024
-  - length: 26600
-    rva: 109472
-    offset: 59808
+  - length: 0x67e8
+    rva: 0x1aba0
+    offset: 0xe9a0
     type: RESOURCE_TYPE_ICON
     id: 6
     language: 1024
-  - length: 38056
-    rva: 136072
-    offset: 86408
+  - length: 0x94a8
+    rva: 0x21388
+    offset: 0x15188
     type: RESOURCE_TYPE_ICON
     id: 7
     language: 1024
-  - length: 52008
-    rva: 174128
-    offset: 124464
+  - length: 0xcb28
+    rva: 0x2a830
+    offset: 0x1e630
     type: RESOURCE_TYPE_ICON
     id: 8
     language: 1024
-  - length: 67624
-    rva: 226136
-    offset: 176472
+  - length: 0x10828
+    rva: 0x37358
+    offset: 0x2b158
     type: RESOURCE_TYPE_ICON
     id: 9
     language: 1024
-  - length: 43190
-    rva: 293760
-    offset: 244096
+  - length: 0xa8b6
+    rva: 0x47b80
+    offset: 0x3b980
     type: RESOURCE_TYPE_ICON
     id: 10
     language: 1024
-  - length: 6
-    rva: 336952
-    offset: 287288
+  - length: 0x6
+    rva: 0x52438
+    offset: 0x46238
     type: RESOURCE_TYPE_RCDATA
     id: 2
     language: 1024
-  - length: 2
-    rva: 336960
-    offset: 287296
+  - length: 0x2
+    rva: 0x52440
+    offset: 0x46240
     type: RESOURCE_TYPE_RCDATA
     id: 8
     language: 1024
-  - length: 10
-    rva: 336968
-    offset: 287304
+  - length: 0xa
+    rva: 0x52448
+    offset: 0x46248
     type: RESOURCE_TYPE_RCDATA
     id: 10
     language: 1024
-  - length: 18
-    rva: 336984
-    offset: 287320
+  - length: 0x12
+    rva: 0x52458
+    offset: 0x46258
     type: RESOURCE_TYPE_RCDATA
     id: 14
     language: 1024
-  - length: 24
-    rva: 337008
-    offset: 287344
+  - length: 0x18
+    rva: 0x52470
+    offset: 0x46270
     type: RESOURCE_TYPE_RCDATA
     id: 15
     language: 1024
-  - length: 2601
-    rva: 337032
-    offset: 287368
+  - length: 0xa29
+    rva: 0x52488
+    offset: 0x46288
     type: RESOURCE_TYPE_RCDATA
     id: 16
     language: 1024
-  - length: 2
-    rva: 339640
-    offset: 289976
+  - length: 0x2
+    rva: 0x52eb8
+    offset: 0x46cb8
     type: RESOURCE_TYPE_RCDATA
     id: 18
     language: 1024
-  - length: 4
-    rva: 339648
-    offset: 289984
+  - length: 0x4
+    rva: 0x52ec0
+    offset: 0x46cc0
     type: RESOURCE_TYPE_RCDATA
     id: 20
     language: 1024
-  - length: 26
-    rva: 339656
-    offset: 289992
+  - length: 0x1a
+    rva: 0x52ec8
+    offset: 0x46cc8
     type: RESOURCE_TYPE_RCDATA
     id: 21
     language: 1024
-  - length: 44
-    rva: 339688
-    offset: 290024
+  - length: 0x2c
+    rva: 0x52ee8
+    offset: 0x46ce8
     type: RESOURCE_TYPE_RCDATA
     id: 22
     language: 1024
-  - length: 2
-    rva: 339736
-    offset: 290072
+  - length: 0x2
+    rva: 0x52f18
+    offset: 0x46d18
     type: RESOURCE_TYPE_RCDATA
     id: 30
     language: 1024
-  - length: 50
-    rva: 339744
-    offset: 290080
+  - length: 0x32
+    rva: 0x52f20
+    offset: 0x46d20
     type: RESOURCE_TYPE_RCDATA
     id: 101
     language: 1024
-  - length: 115
-    rva: 339800
-    offset: 290136
+  - length: 0x73
+    rva: 0x52f58
+    offset: 0x46d58
     type: RESOURCE_TYPE_RCDATA
     id: 102
     language: 1024
-  - length: 53
-    rva: 339920
-    offset: 290256
+  - length: 0x35
+    rva: 0x52fd0
+    offset: 0x46dd0
     type: RESOURCE_TYPE_RCDATA
     id: 103
     language: 1024
-  - length: 104
-    rva: 339976
-    offset: 290312
+  - length: 0x68
+    rva: 0x53008
+    offset: 0x46e08
     type: RESOURCE_TYPE_RCDATA
     id: 104
     language: 1024
-  - length: 146
-    rva: 340080
-    offset: 290416
+  - length: 0x92
+    rva: 0x53070
+    offset: 0x46e70
     type: RESOURCE_TYPE_GROUP_ICON
     id: 1
     language: 1024
@@ -315,151 +315,151 @@ import_details:
     number_of_functions: 4
     functions:
       - name: "RegCloseKey"
-        rva: 70064
+        rva: 0x111b0
       - name: "RegEnumKeyExA"
-        rva: 70068
+        rva: 0x111b4
       - name: "RegOpenKeyExA"
-        rva: 70072
+        rva: 0x111b8
       - name: "RegQueryValueExA"
-        rva: 70076
+        rva: 0x111bc
   - library_name: "KERNEL32.dll"
     number_of_functions: 23
     functions:
       - name: "CloseHandle"
-        rva: 70088
+        rva: 0x111c8
       - name: "CreateMutexA"
-        rva: 70092
+        rva: 0x111cc
       - name: "CreateProcessA"
-        rva: 70096
+        rva: 0x111d0
       - name: "ExitProcess"
-        rva: 70100
+        rva: 0x111d4
       - name: "FindResourceExA"
-        rva: 70104
+        rva: 0x111d8
       - name: "FormatMessageA"
-        rva: 70108
+        rva: 0x111dc
       - name: "GetCommandLineA"
-        rva: 70112
+        rva: 0x111e0
       - name: "GetCurrentDirectoryA"
-        rva: 70116
+        rva: 0x111e4
       - name: "GetCurrentProcess"
-        rva: 70120
+        rva: 0x111e8
       - name: "GetEnvironmentVariableA"
-        rva: 70124
+        rva: 0x111ec
       - name: "GetExitCodeProcess"
-        rva: 70128
+        rva: 0x111f0
       - name: "GetLastError"
-        rva: 70132
+        rva: 0x111f4
       - name: "GetModuleFileNameA"
-        rva: 70136
+        rva: 0x111f8
       - name: "GetModuleHandleA"
-        rva: 70140
+        rva: 0x111fc
       - name: "GetProcAddress"
-        rva: 70144
+        rva: 0x11200
       - name: "GlobalMemoryStatusEx"
-        rva: 70148
+        rva: 0x11204
       - name: "LoadResource"
-        rva: 70152
+        rva: 0x11208
       - name: "LocalFree"
-        rva: 70156
+        rva: 0x1120c
       - name: "LockResource"
-        rva: 70160
+        rva: 0x11210
       - name: "SetEnvironmentVariableA"
-        rva: 70164
+        rva: 0x11214
       - name: "SetLastError"
-        rva: 70168
+        rva: 0x11218
       - name: "SetUnhandledExceptionFilter"
-        rva: 70172
+        rva: 0x1121c
       - name: "WaitForSingleObject"
-        rva: 70176
+        rva: 0x11220
   - library_name: "msvcrt.dll"
     number_of_functions: 38
     functions:
       - name: "__getmainargs"
-        rva: 70188
+        rva: 0x1122c
       - name: "__p__environ"
-        rva: 70192
+        rva: 0x11230
       - name: "__p__fmode"
-        rva: 70196
+        rva: 0x11234
       - name: "__set_app_type"
-        rva: 70200
+        rva: 0x11238
       - name: "_cexit"
-        rva: 70204
+        rva: 0x1123c
       - name: "_chdir"
-        rva: 70208
+        rva: 0x11240
       - name: "_close"
-        rva: 70212
+        rva: 0x11244
       - name: "_findclose"
-        rva: 70216
+        rva: 0x11248
       - name: "_findfirst"
-        rva: 70220
+        rva: 0x1124c
       - name: "_findnext"
-        rva: 70224
+        rva: 0x11250
       - name: "_iob"
-        rva: 70228
+        rva: 0x11254
       - name: "_itoa"
-        rva: 70232
+        rva: 0x11258
       - name: "_onexit"
-        rva: 70236
+        rva: 0x1125c
       - name: "_open"
-        rva: 70240
+        rva: 0x11260
       - name: "_read"
-        rva: 70244
+        rva: 0x11264
       - name: "_setmode"
-        rva: 70248
+        rva: 0x11268
       - name: "_stat"
-        rva: 70252
+        rva: 0x1126c
       - name: "atexit"
-        rva: 70256
+        rva: 0x11270
       - name: "atoi"
-        rva: 70260
+        rva: 0x11274
       - name: "fclose"
-        rva: 70264
+        rva: 0x11278
       - name: "fopen"
-        rva: 70268
+        rva: 0x1127c
       - name: "fprintf"
-        rva: 70272
+        rva: 0x11280
       - name: "fwrite"
-        rva: 70276
+        rva: 0x11284
       - name: "memset"
-        rva: 70280
+        rva: 0x11288
       - name: "printf"
-        rva: 70284
+        rva: 0x1128c
       - name: "puts"
-        rva: 70288
+        rva: 0x11290
       - name: "signal"
-        rva: 70292
+        rva: 0x11294
       - name: "strcat"
-        rva: 70296
+        rva: 0x11298
       - name: "strchr"
-        rva: 70300
+        rva: 0x1129c
       - name: "strcmp"
-        rva: 70304
+        rva: 0x112a0
       - name: "strcpy"
-        rva: 70308
+        rva: 0x112a4
       - name: "strlen"
-        rva: 70312
+        rva: 0x112a8
       - name: "strncat"
-        rva: 70316
+        rva: 0x112ac
       - name: "strncpy"
-        rva: 70320
+        rva: 0x112b0
       - name: "strpbrk"
-        rva: 70324
+        rva: 0x112b4
       - name: "strrchr"
-        rva: 70328
+        rva: 0x112b8
       - name: "strstr"
-        rva: 70332
+        rva: 0x112bc
       - name: "strtok"
-        rva: 70336
+        rva: 0x112c0
   - library_name: "SHELL32.DLL"
     number_of_functions: 1
     functions:
       - name: "ShellExecuteA"
-        rva: 70348
+        rva: 0x112cc
   - library_name: "USER32.dll"
     number_of_functions: 1
     functions:
       - name: "MessageBoxA"
-        rva: 70360
+        rva: 0x112d8
 is_signed: true
 signatures:
   - subject: "/C=DE/L=Berlin/O=Open Source/OU=JSIDPlay2/CN=JSIDPlay2"
@@ -502,5 +502,5 @@ signatures:
         not_before: 1655157631  # 2022-06-13 22:00:31 UTC
         not_after: 1686693631  # 2023-06-13 22:00:31 UTC
 overlay:
-    offset: 290816
-    size: 1760
+    offset: 0x47000
+    size: 0x6e0

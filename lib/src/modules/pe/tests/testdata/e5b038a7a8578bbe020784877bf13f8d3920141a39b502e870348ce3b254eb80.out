@@ -17,26 +17,26 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 0x2102  # EXECUTABLE_IMAGE | MACHINE_32BIT | DLL
 dll_characteristics: 0x540  # DYNAMIC_BASE | NX_COMPAT | NO_SEH
 timestamp: 1314765018  # 2011-08-31 04:30:18 UTC
-image_base: 268435456
+image_base: 0x10000000
 checksum: 0
-base_of_code: 4096
-base_of_data: 4096
-entry_point: 0
-entry_point_raw: 0
-section_alignment: 4096
-file_alignment: 512
-loader_flags: 0
-size_of_optional_header: 224
-size_of_code: 0
-size_of_initialized_data: 3072
-size_of_uninitialized_data: 0
-size_of_image: 12288
-size_of_headers: 512
-size_of_stack_reserve: 1048576
-size_of_stack_commit: 4096
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+base_of_code: 0x1000
+base_of_data: 0x1000
+entry_point: 0x0
+entry_point_raw: 0x0
+section_alignment: 0x1000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xe0
+size_of_code: 0x0
+size_of_initialized_data: 0xc00
+size_of_uninitialized_data: 0x0
+size_of_image: 0x3000
+size_of_headers: 0x200
+size_of_stack_reserve: 0x100000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -50,8 +50,8 @@ number_of_delayed_imports: 0
 number_of_exports: 0
 number_of_signatures: 0
 rich_signature:
-    offset: 128
-    length: 32
+    offset: 0x80
+    length: 0x20
     key: 2327776733
     raw_data: "\x99l\xd1\xd9\xdd\r\xbf\x8a\xdd\r\xbf\x8a\xdd\r\xbf\x8a\xb2{%\x8a\xdc\r\xbf\x8a\xb2{\"\x8a\xdc\r\xbf\x8a"
     clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00ov\x9a\x00\x01\x00\x00\x00ov\x9d\x00\x01\x00\x00\x00"
@@ -66,95 +66,95 @@ pdb_path: "C:\\SL\\Bin\\ResourceDll\\Cpp\\Release\\Win32\\ResourceDLL.pdb"
 sections:
   - name: ".rdata"
     full_name: ".rdata"
-    characteristics: 1073741888
-    raw_data_size: 512
-    raw_data_offset: 512
-    virtual_address: 4096
-    virtual_size: 108
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0x200
+    raw_data_offset: 0x200
+    virtual_address: 0x1000
+    virtual_size: 0x6c
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".rsrc"
     full_name: ".rsrc"
-    characteristics: 1073741888
-    raw_data_size: 2560
-    raw_data_offset: 1024
-    virtual_address: 8192
-    virtual_size: 2100
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x40000040
+    raw_data_size: 0xa00
+    raw_data_offset: 0x400
+    virtual_address: 0x2000
+    virtual_size: 0x834
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 8192
-    size: 2100
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 4096
-    size: 28
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x2000
+    size: 0x834
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x1000
+    size: 0x1c
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 resource_timestamp: 0  # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
     minor: 0
 resources:
-  - length: 64
-    rva: 8604
-    offset: 1436
+  - length: 0x40
+    rva: 0x219c
+    offset: 0x59c
     type: RESOURCE_TYPE_RCDATA
     language: 0
     name_string: "D\x00E\x00S\x00C\x00R\x00I\x00P\x00T\x00I\x00O\x00N\x00"
-  - length: 200
-    rva: 8668
-    offset: 1500
+  - length: 0xc8
+    rva: 0x21dc
+    offset: 0x5dc
     type: RESOURCE_TYPE_RCDATA
     language: 0
     name_string: "P\x00A\x00C\x00K\x00A\x00G\x00E\x00I\x00N\x00F\x00O\x00"
-  - length: 256
-    rva: 8868
-    offset: 1700
+  - length: 0x100
+    rva: 0x22a4
+    offset: 0x6a4
     type: RESOURCE_TYPE_RCDATA
     language: 0
     name_string: "P\x00A\x00C\x00K\x00A\x00G\x00E\x00O\x00P\x00T\x00I\x00O\x00N\x00S\x00"
-  - length: 2
-    rva: 9124
-    offset: 1956
+  - length: 0x2
+    rva: 0x23a4
+    offset: 0x7a4
     type: RESOURCE_TYPE_RCDATA
     language: 0
     name_string: "P\x00L\x00A\x00T\x00F\x00O\x00R\x00M\x00T\x00A\x00R\x00G\x00E\x00T\x00S\x00"
-  - length: 1163
-    rva: 9128
-    offset: 1960
+  - length: 0x48b
+    rva: 0x23a8
+    offset: 0x7a8
     type: RESOURCE_TYPE_RCDATA
     language: 0
     name_string: "T\x00L\x00F\x00_\x00P\x00D\x00_\x00J\x00O\x00"
 is_signed: false
 overlay:
-    offset: 0
-    size: 0
+    offset: 0x0
+    size: 0x0

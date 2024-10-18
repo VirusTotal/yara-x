@@ -12,20 +12,20 @@ number_of_constants: 0
 number_of_field_offsets: 0
 streams:
   - name: "#~"
-    offset: 190176
-    size: 86528
+    offset: 0x2e6e0
+    size: 0x15200
   - name: "#Strings"
-    offset: 276704
-    size: 64692
+    offset: 0x438e0
+    size: 0xfcb4
   - name: "#US"
-    offset: 341396
-    size: 4
+    offset: 0x53594
+    size: 0x4
   - name: "#GUID"
-    offset: 341400
-    size: 288
+    offset: 0x53598
+    size: 0x120
   - name: "#Blob"
-    offset: 341688
-    size: 33952
+    offset: 0x536b8
+    size: 0x84a0
 guids:
   - "e28280e2-8480-80e2-88e2-8083e28088e2"
   - "80e28780-e288-8a80-e280-85e28087e280"
