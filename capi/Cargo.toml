@@ -27,6 +27,12 @@ capi = []
 # This feature is disabled by default.
 native-code-serialization = ["yara-x/native-code-serialization"]
 
+# Enables rules profiling.
+#
+# This feature is diabled by default.
+rules-profiling = ["yara-x/rules-profiling"]
+
+
 magic-module = ["yara-x/magic-module"]
 
 
