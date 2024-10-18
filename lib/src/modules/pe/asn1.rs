@@ -122,7 +122,7 @@ pub struct ContentInfo<'a> {
 }
 
 impl<'a> ContentInfo<'a> {
-    pub fn parse(data: &'a [u8]) -> BerResult<Self> {
+    pub fn parse(data: &'a [u8]) -> BerResult<'a, Self> {
         parse_ber_sequence_defined_g(|i, _| Self::parse_inner(i))(data)
     }
 
@@ -132,7 +132,7 @@ impl<'a> ContentInfo<'a> {
         Self::parse(data).map(|(_, content_info)| content_info)
     }
 
-    fn parse_inner(data: &'a [u8]) -> BerResult<Self> {
+    fn parse_inner(data: &'a [u8]) -> BerResult<'a, Self> {
         let (remainder, content_type) = parse_ber_oid(data)?;
         let (remainder, content) =
             parse_ber_tagged_explicit_g(0, |content, _| {
@@ -194,7 +194,7 @@ pub struct SignedData<'a> {
 }
 
 impl<'a> SignedData<'a> {
-    fn parse_inner(input: &'a [u8]) -> BerResult<Self> {
+    fn parse_inner(input: &'a [u8]) -> BerResult<'a, Self> {
         let (remainder, version) = parse_ber_integer(input)?;
 
         let (remainder, digest_algorithms) =
@@ -438,7 +438,7 @@ pub struct Attribute<'a> {
 }
 
 impl<'a> Attribute<'a> {
-    pub fn parse(input: &'a [u8]) -> BerResult<Self> {
+    pub fn parse(input: &'a [u8]) -> BerResult<'a, Self> {
         parse_ber_sequence_defined_g(|data: &[u8], _| {
             let (remainder, attr_type) = parse_ber_oid(data)?;
             let (remainder, attr_values) =
@@ -471,7 +471,7 @@ pub struct SpcIndirectDataContent<'a> {
 }
 
 impl<'a> SpcIndirectDataContent<'a> {
-    pub fn parse_inner(input: &'a [u8]) -> BerResult<Self> {
+    pub fn parse_inner(input: &'a [u8]) -> BerResult<'a, Self> {
         let (remainder, _data) = parse_ber(input)?;
         let (remainder, message_digest) = DigestInfo::parse(remainder)?;
 
@@ -504,7 +504,7 @@ pub struct DigestInfo<'a> {
 }
 
 impl<'a> DigestInfo<'a> {
-    pub fn parse(input: &'a [u8]) -> BerResult<Self> {
+    pub fn parse(input: &'a [u8]) -> BerResult<'a, Self> {
         parse_ber_sequence_defined_g(|input: &[u8], _| {
             let (remainder, algorithm) = AlgorithmIdentifier::from_ber(input)
                 .map_err(|_| BerValueError)?;
@@ -610,7 +610,7 @@ impl<'a> TstInfo<'a> {
         Self::parse(data).map(|(_, tst_info)| tst_info)
     }
 
-    pub fn parse(input: &'a [u8]) -> BerResult<Self> {
+    pub fn parse(input: &'a [u8]) -> BerResult<'a, Self> {
         parse_ber_sequence_defined_g(|input: &[u8], _| {
             let (remainder, _version) = parse_ber_integer(input)?;
             let (remainder, _policy) = parse_ber(remainder)?;
@@ -626,7 +626,7 @@ impl<'a> TstInfo<'a> {
 
     fn parse_message_imprint(
         input: &'a [u8],
-    ) -> BerResult<(AlgorithmIdentifier, &'a [u8])> {
+    ) -> BerResult<'a, (AlgorithmIdentifier<'a>, &'a [u8])> {
         parse_ber_sequence_defined_g(|input: &[u8], _| {
             let (remainder, hash_algorithm) =
                 AlgorithmIdentifier::from_ber(input)

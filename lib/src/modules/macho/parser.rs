@@ -222,7 +222,9 @@ impl<'a> MachO<'a> {
     }
 
     /// Parses a single-architecture Mach-O file.
-    fn parse_macho_file(data: &'a [u8]) -> Result<MachOFile, Err<Error<'a>>> {
+    fn parse_macho_file(
+        data: &'a [u8],
+    ) -> Result<MachOFile<'a>, Err<Error<'a>>> {
         let (remainder, magic) = verify(be_u32, |magic| {
             matches!(*magic, MH_MAGIC | MH_CIGAM | MH_MAGIC_64 | MH_CIGAM_64)
         })
@@ -441,7 +443,7 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses a Mach-O section.
     fn section(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Section> + '_ {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Section<'a>> + '_ {
         map(
             tuple((
                 // sectname
@@ -631,7 +633,7 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses a LC_SEGMENT or LC_SEGMENT_64 command.
     fn segment_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Segment> + '_ {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Segment<'a>> + '_ {
         move |input: &'a [u8]| {
             let (
                 remainder,
@@ -686,7 +688,7 @@ impl<'a> MachOFile<'a> {
     /// or LC_REEXPORT_DYLIB command.
     fn dylib_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Dylib> + '_ {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Dylib<'a>> + '_ {
         move |input: &'a [u8]| {
             let (
                 remainder,
@@ -713,7 +715,7 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses a LC_DYSYMTAB command.
     fn symtab_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Symtab> + '_ {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Symtab<'a>> + '_ {
         map(
             tuple((
                 u32(self.endianness), //  symoff
@@ -1537,7 +1539,7 @@ fn uint(
 /// Parser that reads [ULEB128][1].
 ///
 /// Notice however that this function returns a `u64`, so it's able to parse
-/// numbers up to 2^64-1. When parsing larger numbers it fails, even if they 
+/// numbers up to 2^64-1. When parsing larger numbers it fails, even if they
 /// are valid ULEB128.
 ///
 /// [1]: https://en.wikipedia.org/wiki/LEB128
@@ -1571,9 +1573,9 @@ fn uleb128(input: &[u8]) -> IResult<&[u8], u64> {
 }
 
 /// Parser that reads [SLEB128][1].
-/// 
+///
 /// Notice however that this function returns an `i64`, so it's able to parse
-/// numbers from -2^63 to 2^63-1. When parsing numbers out of that range it 
+/// numbers from -2^63 to 2^63-1. When parsing numbers out of that range it
 /// fails, even if they are valid ULEB128.
 ///
 /// [1]: https://en.wikipedia.org/wiki/LEB128
@@ -1589,7 +1591,7 @@ fn sleb128(input: &[u8]) -> IResult<&[u8], i64> {
 
         // Use all the bits, except the most significant one.
         let b = (byte & 0x7f) as i64;
-        
+
         val |= b
             .checked_shl(shift)
             .ok_or(Err::Error(Error::new(input, ErrorKind::TooLarge)))?;
