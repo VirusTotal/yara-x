@@ -384,7 +384,10 @@ impl ScanResults {
 
     #[getter]
     /// Rules that matched during the scan.
-    fn module_outputs<'py>(&'py self, py: Python<'py>) -> &Bound<'py, PyDict> {
+    fn module_outputs<'py>(
+        &'py self,
+        py: Python<'py>,
+    ) -> &'py Bound<'py, PyDict> {
         self.module_outputs.bind(py)
     }
 }

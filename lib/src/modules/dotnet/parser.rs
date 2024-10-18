@@ -1481,7 +1481,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.38
     fn parse_type_ref_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], TypeRef> + '_ {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], TypeRef<'a>> + '_ {
         map(
             tuple((
                 // resolution scope
@@ -1508,7 +1508,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.37.
     fn parse_type_def_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], TypeDef> + '_ {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], TypeDef<'a>> + '_ {
         map(
             tuple((
                 // flags
@@ -1660,7 +1660,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.9.
     fn parse_constant_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Constant> + '_ {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Constant<'a>> + '_ {
         map(
             tuple((
                 map_opt(u8, num_traits::FromPrimitive::from_u8), // type
@@ -1681,7 +1681,8 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.10.
     fn parse_custom_attribute_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], CustomAttribute> + '_ {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], CustomAttribute<'a>> + '_
+    {
         map(
             tuple((
                 // parent
@@ -1897,7 +1898,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.2.
     fn parse_assembly_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Assembly> + '_ {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Assembly<'a>> + '_ {
         map(
             tuple((
                 le_u32,                                                   // hash_alg
@@ -1950,7 +1951,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.5.
     fn parse_assembly_ref_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], AssemblyRef> + '_ {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], AssemblyRef<'a>> + '_ {
         map(
             tuple((
                 le_u16, // major_version
@@ -2146,7 +2147,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.20.
     fn parse_generic_param_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], GenericParam> + '_ {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], GenericParam<'a>> + '_ {
         map(
             tuple((
                 le_u16, // number

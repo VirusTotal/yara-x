@@ -829,7 +829,7 @@ impl<'a> PE<'a> {
 
     fn parse_section(
         string_table: Option<&'a [u8]>,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Section> {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Section<'a>> {
         move |input: &'a [u8]| {
             let mut section = Section::default();
             let remainder;
@@ -948,7 +948,7 @@ impl<'a> PE<'a> {
 
     fn parse_rsrc_dir_entry(
         resource_section: &'a [u8],
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ResourceDirEntry> {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ResourceDirEntry<'a>> {
         move |input: &'a [u8]| {
             let (remainder, (name_or_id, mut offset)) = tuple((
                 le_u32, // name_or_id
@@ -1511,8 +1511,8 @@ impl<'a> PE<'a> {
     /// Returns a parser that parses a WIN_CERTIFICATE structure.
     fn win_cert_parser(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<AuthenticodeSignature>> + '_
-    {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<AuthenticodeSignature<'a>>>
+           + '_ {
         move |input: &'a [u8]| {
             // Parse the WIN_CERTIFICATE structure.
             let (remainder, (length, _revision, _cert_type)) =
@@ -1542,8 +1542,8 @@ impl<'a> PE<'a> {
     /// Authenticode signature.
     fn signature_parser(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<AuthenticodeSignature>> + '_
-    {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<AuthenticodeSignature<'a>>>
+           + '_ {
         move |input: &'a [u8]| {
             let signatures = AuthenticodeParser::parse(input, self)
                 .map_err(|_| Err::Error(Error::new(input, ErrorKind::Fail)))?;
