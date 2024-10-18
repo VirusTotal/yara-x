@@ -50,7 +50,7 @@ fast-regexp = []
 protoc = []
 
 # Enables debug logs.
-logging = ["dep:log"]
+logging = ["dep:log", "dep:quanta"]
 
 # When enabled, the serialization of compiled rules include native code for
 # the platform in which the rules where compiled. This reduces the load time,
@@ -75,7 +75,7 @@ parallel-compilation = ["wasmtime/parallel-compilation"]
 # Enables rules profiling. When this is enabled together with `logging` the
 # logs will contain information about the most expensive rules after each
 # scan. Notice that profiling itself has a noticeable impact on performance.
-rules-profiling = ["logging"]
+rules-profiling = ["logging", "dep:quanta"]
 
 # When enabled use the logic included in the `x509-parser` crate for verifying
 # certificates. If not enabled we use our ouwn logic. This is disabled by
@@ -235,6 +235,7 @@ num-traits = { workspace = true }
 p384 = { workspace = true, optional = true, features = ["ecdsa"] }
 p256 = { workspace = true, optional = true, features = ["ecdsa"] }
 protobuf = { workspace = true }
+quanta = { workspace = true, optional = true }
 rustc-hash = { workspace = true }
 regex-syntax = { workspace = true }
 regex-automata = { workspace = true }

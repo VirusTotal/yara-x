@@ -60,6 +60,8 @@ pub use modules::mods;
 pub use scanner::MatchingRules;
 pub use scanner::ModuleOutputs;
 pub use scanner::NonMatchingRules;
+#[cfg(feature = "rules-profiling")]
+pub use scanner::ProfilingData;
 pub use scanner::ScanError;
 pub use scanner::ScanOptions;
 pub use scanner::ScanResults;

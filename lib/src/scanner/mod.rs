@@ -110,6 +110,19 @@ impl<'a> AsRef<[u8]> for ScannedData<'a> {
     }
 }
 
+/// Contains information about the time spent on a rule.
+#[cfg(feature = "rules-profiling")]
+pub struct ProfilingData<'r> {
+    /// Rule namespace.
+    pub namespace: &'r str,
+    /// Rule name.
+    pub rule: &'r str,
+    /// Time spent executing the rule's condition.
+    pub condition_exec_time: Duration,
+    /// Time spent matching the rule's patterns.
+    pub pattern_matching_time: Duration,
+}
+
 /// Optional information for the scan operation.
 #[derive(Debug, Default)]
 pub struct ScanOptions<'a> {
@@ -190,6 +203,12 @@ impl<'r> Scanner<'r> {
                 regexp_cache: RefCell::new(FxHashMap::default()),
                 #[cfg(feature = "rules-profiling")]
                 time_spent_in_pattern: FxHashMap::default(),
+                #[cfg(feature = "rules-profiling")]
+                time_spent_in_rule: vec![0; num_rules as usize],
+                #[cfg(feature = "rules-profiling")]
+                rule_evaluation_start_time: 0,
+                #[cfg(any(feature = "rules-profiling", feature = "logging"))]
+                clock: quanta::Clock::new(),
             },
         ));
 
@@ -521,6 +540,12 @@ impl<'r> Scanner<'r> {
             })?,
         )
     }
+
+    /// Returns the top N most expensive rules.
+    #[cfg(feature = "rules-profiling")]
+    pub fn most_expensive_rules(&self, n: usize) -> Vec<ProfilingData> {
+        self.wasm_store.data().most_expensive_rules(n)
+    }
 }
 
 impl<'r> Scanner<'r> {
@@ -705,6 +730,12 @@ impl<'r> Scanner<'r> {
             );
         }
 
+        // Save the time in which the evaluation of rules started.
+        #[cfg(feature = "rules-profiling")]
+        {
+            ctx.rule_evaluation_start_time = ctx.clock.raw();
+        }
+
         // Invoke the main function, which evaluates the rules' conditions. It
         // calls ScanContext::search_for_patterns (which does the Aho-Corasick
         // scanning) only if necessary.
@@ -716,6 +747,26 @@ impl<'r> Scanner<'r> {
         // Ok(0).`
         let func_result =
             self.wasm_main_func.call(self.wasm_store.as_context_mut(), ());
+
+        #[cfg(all(feature = "rules-profiling", feature = "logging"))]
+        {
+            let most_expensive_rules = self.most_expensive_rules(10);
+            if !most_expensive_rules.is_empty() {
+                log::info!("Most expensive rules:");
+                for profiling_data in most_expensive_rules {
+                    log::info!("+ namespace: {}", profiling_data.namespace);
+                    log::info!("  rule: {}", profiling_data.rule);
+                    log::info!(
+                        "  pattern matching time: {:?}",
+                        profiling_data.pattern_matching_time
+                    );
+                    log::info!(
+                        "  condition execution time: {:?}",
+                        profiling_data.condition_exec_time
+                    );
+                }
+            }
+        }
 
         let ctx = self.wasm_store.data_mut();
 
