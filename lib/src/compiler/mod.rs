@@ -2206,6 +2206,7 @@ impl RuleId {
     /// Returns the [`RuleId`] that comes after this one.
     ///
     /// This simply adds 1 to the ID.
+    #[allow(dead_code)]
     pub(crate) fn next(&self) -> Self {
         RuleId(self.0 + 1)
     }
