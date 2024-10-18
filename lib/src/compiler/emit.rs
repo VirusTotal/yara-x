@@ -938,28 +938,18 @@ fn emit_lazy_pattern_search(
             // do here.
         },
         |_else| {
-            // Call `search_for_patterns`.
-            _else.call(
-                ctx.function_id(
+            _else
+                // Call `search_for_patterns`.
+                .call(ctx.function_id(
                     wasm::export__search_for_patterns.mangled_name,
-                ),
-            );
-            // `search_for_patterns` returns `true` when everything went ok, and
-            // `false` when a timeout occurs.
-            _else.if_else(
-                None,
-                |_then| {
-                    // Everything ok, set pattern_search_done to true.
-                    _then.i32_const(1);
-                    _then.global_set(ctx.wasm_symbols.pattern_search_done);
-                },
-                |_else| {
-                    // A timeout occurred, set the global variable
-                    // `timeout_occurred` to true.
-                    _else.i32_const(1);
-                    _else.global_set(ctx.wasm_symbols.timeout_occurred);
-                },
-            );
+                ))
+                // Remove the result of `search_for_patterns` from the stack.
+                // The result is `true` if everything went fine and `false`
+                // in case of timeout, but we don't use this result.
+                .drop()
+                // Set `pattern_search_done` to true.
+                .i32_const(1)
+                .global_set(ctx.wasm_symbols.pattern_search_done);
         },
     );
 }

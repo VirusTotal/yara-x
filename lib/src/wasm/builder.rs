@@ -158,7 +158,6 @@ impl WasmModuleBuilder {
         global_const!(module, matching_patterns_bitmap_base, I32);
         global_var!(module, filesize, I64);
         global_var!(module, pattern_search_done, I32);
-        global_var!(module, timeout_occurred, I32);
 
         let (main_memory, _) = module.add_import_memory(
             "yara_x",
@@ -182,7 +181,6 @@ impl WasmModuleBuilder {
             check_for_pattern_match,
             filesize,
             pattern_search_done,
-            timeout_occurred,
             i64_tmp_a: module.locals.add(I64),
             i64_tmp_b: module.locals.add(I64),
             i32_tmp: module.locals.add(I32),
@@ -203,11 +201,9 @@ impl WasmModuleBuilder {
             FunctionBuilder::new(&mut module.types, &[], &[I32]);
 
         // The first instructions in the main function initialize the global
-        // variables `pattern_search_done` and `timeout_occurred` to 0 (false).
+        // variables `pattern_search_done`.
         main_func.func_body().i32_const(0);
         main_func.func_body().global_set(pattern_search_done);
-        main_func.func_body().i32_const(0);
-        main_func.func_body().global_set(timeout_occurred);
 
         let namespace_block = namespace_func.dangling_instr_seq(None).id();
 
@@ -346,12 +342,10 @@ impl WasmModuleBuilder {
         self.finish_namespace_block();
         self.finish_namespace_func();
 
-        // Emit the last few instructions for the main function, which consist
-        // in putting the return value in the stack. The return value is 0 if
-        // everything went ok and 1 if a timeout occurred.
-        self.main_func
-            .func_body()
-            .global_get(self.wasm_symbols.timeout_occurred);
+        // Emit the last instruction for the main function, which consist
+        // in putting the return value in the stack. The return value is
+        // always 0.
+        self.main_func.func_body().i32_const(0);
 
         let main_func =
             self.main_func.finish(Vec::new(), &mut self.module.funcs);

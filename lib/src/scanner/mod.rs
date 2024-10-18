@@ -236,15 +236,6 @@ impl<'r> Scanner<'r> {
         )
         .unwrap();
 
-        // Global variable that is set to `true` when a timeout occurs during
-        // the scanning phase.
-        let timeout_occurred = Global::new(
-            wasm_store.as_context_mut(),
-            GlobalType::new(ValType::I32, Mutability::Var),
-            Val::I32(0),
-        )
-        .unwrap();
-
         // Compute the base offset for the bitmap that contains matching
         // information for patterns. This bitmap has 1 bit per pattern, the
         // N-th bit is set if pattern with PatternId = N matched. The bitmap
@@ -284,13 +275,6 @@ impl<'r> Scanner<'r> {
                 "yara_x",
                 "pattern_search_done",
                 pattern_search_done,
-            )
-            .unwrap()
-            .define(
-                wasm_store.as_context(),
-                "yara_x",
-                "timeout_occurred",
-                timeout_occurred,
             )
             .unwrap()
             .define(
@@ -741,10 +725,7 @@ impl<'r> Scanner<'r> {
         // scanning) only if necessary.
         //
         // This will return Err(ScanError::Timeout), when the scan timeout is
-        // reached while WASM code is being executed. If the timeout occurs
-        // while ScanContext::search_for_patterns is being executed, the result
-        // will be Ok(1). If the scan completes successfully the result is
-        // Ok(0).`
+        // reached while WASM code is being executed.
         let func_result =
             self.wasm_main_func.call(self.wasm_store.as_context_mut(), ());
 
@@ -800,8 +781,7 @@ impl<'r> Scanner<'r> {
 
         match func_result {
             Ok(0) => Ok(ScanResults::new(self.wasm_store.data(), data)),
-            Ok(1) => Err(ScanError::Timeout),
-            Ok(_) => unreachable!(),
+            Ok(v) => panic!("WASM main returned: {}", v),
             Err(err) if err.is::<ScanError>() => {
                 Err(err.downcast::<ScanError>().unwrap())
             }
