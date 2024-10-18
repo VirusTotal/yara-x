@@ -29,6 +29,8 @@ use crate::re::fast::FastVM;
 use crate::re::thompson::PikeVM;
 use crate::re::Action;
 use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
+#[cfg(feature = "rules-profiling")]
+use crate::scanner::ProfilingData;
 use crate::scanner::ScanError;
 use crate::scanner::HEARTBEAT_COUNTER;
 use crate::types::{Array, Map, Struct};
@@ -128,10 +130,7 @@ pub(crate) struct ScanContext<'r> {
 #[cfg(feature = "rules-profiling")]
 impl<'r> ScanContext<'r> {
     /// Returns the top N most expensive rules.
-    pub fn most_expensive_rules(
-        &self,
-        n: usize,
-    ) -> Vec<(&'r str, &'r str, Duration)> {
+    pub fn most_expensive_rules(&self, n: usize) -> Vec<ProfilingData> {
         debug_assert_eq!(
             self.compiled_rules.num_rules(),
             self.time_spent_in_rule.len()
@@ -139,43 +138,52 @@ impl<'r> ScanContext<'r> {
 
         let mut result = Vec::with_capacity(self.compiled_rules.num_rules());
 
-        for (r, t) in iter::zip(
+        for (rule, condition_exec_time) in iter::zip(
             self.compiled_rules.rules().iter(),
             self.time_spent_in_rule.iter(),
         ) {
-            // `rule_time`` is initialized with the time spent in evaluating
-            // the rule's condition. This number is incremented by the amount
-            // spent in each pattern declared by the rule.
-            let mut rule_time = *t;
-
-            for (_, _, pattern_id) in r.patterns.iter() {
+            let mut pattern_matching_time = 0;
+            for (_, _, pattern_id) in rule.patterns.iter() {
                 if let Some(d) = self.time_spent_in_pattern.get(pattern_id) {
-                    rule_time += *d;
+                    pattern_matching_time += *d;
                 }
             }
 
             // Don't track rules that took less 100ms.
-            //if rule_time > 100_000_000 {
-            let rule_name =
-                self.compiled_rules.ident_pool().get(r.ident_id).unwrap();
+            if condition_exec_time + pattern_matching_time > 100_000_000 {
+                let namespace = self
+                    .compiled_rules
+                    .ident_pool()
+                    .get(rule.namespace_ident_id)
+                    .unwrap();
 
-            let namespace_name = self
-                .compiled_rules
-                .ident_pool()
-                .get(r.namespace_ident_id)
-                .unwrap();
+                let rule = self
+                    .compiled_rules
+                    .ident_pool()
+                    .get(rule.ident_id)
+                    .unwrap();
 
-            result.push((
-                namespace_name,
-                rule_name,
-                Duration::from_nanos(rule_time),
-            ));
-            //}
+                result.push(ProfilingData {
+                    namespace,
+                    rule,
+                    condition_exec_time: Duration::from_nanos(
+                        *condition_exec_time,
+                    ),
+                    pattern_matching_time: Duration::from_nanos(
+                        pattern_matching_time,
+                    ),
+                });
+            }
         }
 
         // Sort the results by the time spent on each rule, in descending
         // order.
-        result.sort_by(|a, b| b.2.cmp(&a.2));
+        result.sort_by(|a, b| {
+            let a_time = a.pattern_matching_time + a.condition_exec_time;
+            let b_time = b.pattern_matching_time + b.condition_exec_time;
+
+            b_time.cmp(&a_time)
+        });
         result.truncate(n);
         result
     }

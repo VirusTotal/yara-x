@@ -110,6 +110,19 @@ impl<'a> AsRef<[u8]> for ScannedData<'a> {
     }
 }
 
+/// Contains information about the time spent on a rule.
+#[cfg(feature = "rules-profiling")]
+pub struct ProfilingData<'r> {
+    /// Rule namespace.
+    pub namespace: &'r str,
+    /// Rule name.
+    pub rule: &'r str,
+    /// Time spent executing the rule's condition.
+    pub condition_exec_time: Duration,
+    /// Time spent matching the rule's patterns.
+    pub pattern_matching_time: Duration,
+}
+
 /// Optional information for the scan operation.
 #[derive(Debug, Default)]
 pub struct ScanOptions<'a> {
@@ -530,10 +543,7 @@ impl<'r> Scanner<'r> {
 
     /// Returns the top N most expensive rules.
     #[cfg(feature = "rules-profiling")]
-    pub fn most_expensive_rules(
-        &self,
-        n: usize,
-    ) -> Vec<(&'r str, &'r str, Duration)> {
+    pub fn most_expensive_rules(&self, n: usize) -> Vec<ProfilingData> {
         self.wasm_store.data().most_expensive_rules(n)
     }
 }
@@ -743,10 +753,17 @@ impl<'r> Scanner<'r> {
             let most_expensive_rules = self.most_expensive_rules(10);
             if !most_expensive_rules.is_empty() {
                 log::info!("Most expensive rules:");
-                for r in most_expensive_rules {
-                    log::info!("+ namespace: {}", r.0);
-                    log::info!("  rule: {}", r.1);
-                    log::info!("  time: {:?}", r.2);
+                for profiling_data in most_expensive_rules {
+                    log::info!("+ namespace: {}", profiling_data.namespace);
+                    log::info!("  rule: {}", profiling_data.rule);
+                    log::info!(
+                        "  pattern matching time: {:?}",
+                        profiling_data.pattern_matching_time
+                    );
+                    log::info!(
+                        "  condition execution time: {:?}",
+                        profiling_data.condition_exec_time
+                    );
                 }
             }
         }
