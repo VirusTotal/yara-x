@@ -252,17 +252,6 @@ pub(super) fn emit_rule_condition(
 ) {
     let mut instr = builder.start_rule(rule_id, ctx.current_rule.is_global);
 
-    // When the "logging" feature is enabled, print a log before the starting
-    // evaluating the rule's condition. In case of error during the evaluation
-    // this helps in determining the rule causing the issue.
-    #[cfg(feature = "logging")]
-    {
-        instr.i32_const(rule_id.0);
-        instr.call(
-            ctx.function_id(wasm::export__log_rule_eval_start.mangled_name),
-        );
-    }
-
     // Emit WASM code for the rule's condition.
     catch_undef(
         ctx,

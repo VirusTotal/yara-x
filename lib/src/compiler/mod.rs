@@ -1143,7 +1143,7 @@ impl<'a> Compiler<'a> {
 
         // The RuleId for the new rule is current length of `self.rules`. The
         // first rule has RuleId = 0.
-        let rule_id = RuleId(self.rules.len() as i32);
+        let rule_id = RuleId::from(self.rules.len());
 
         // Build a vector of pairs (IdentId, MetaValue) for every meta defined
         // in the rule.
@@ -2263,6 +2263,15 @@ pub(crate) struct NamespaceId(i32);
 /// ID associated to each rule.
 #[derive(Copy, Clone, Debug, Default)]
 pub(crate) struct RuleId(i32);
+
+impl RuleId {
+    /// Returns the [`RuleId`] that comes after this one.
+    ///
+    /// This simply adds 1 to the ID.
+    pub(crate) fn next(&self) -> Self {
+        RuleId(self.0 + 1)
+    }
+}
 
 impl From<i32> for RuleId {
     #[inline]
