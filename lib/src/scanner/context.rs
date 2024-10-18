@@ -276,6 +276,7 @@ impl ScanContext<'_> {
 
     /// Update the time spent in the rule with the given ID, the time is
     /// increased by the time elapsed since `rule_execution_start_time`.
+    #[cfg(feature = "rules-profiling")]
     pub(crate) fn update_time_spent_in_rule(&mut self, rule_id: RuleId) {
         // SAFETY: it's safe to call `get_unchecked_mut`, the size of the
         // `time_spent_in_rule` vector is guaranteed to be the number of
