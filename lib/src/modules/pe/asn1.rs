@@ -308,13 +308,13 @@ pub struct SignerInfo<'a> {
 }
 
 impl<'a> SignerInfo<'a> {
-    pub fn parse(input: &'a [u8]) -> BerResult<Self> {
+    pub fn parse(input: &'a [u8]) -> BerResult<'a, Self> {
         parse_ber_sequence_defined_g(|input: &[u8], _| {
             Self::parse_inner(input)
         })(input)
     }
 
-    pub fn parse_inner(input: &'a [u8]) -> BerResult<Self> {
+    pub fn parse_inner(input: &'a [u8]) -> BerResult<'a, Self> {
         let (remainder, version) = parse_ber_integer(input)?;
 
         let (remainder, (issuer, serial_number)) =
