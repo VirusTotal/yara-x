@@ -12,20 +12,20 @@ number_of_constants: 0
 number_of_field_offsets: 0
 streams:
   - name: "#~"
-    offset: 9608
-    size: 6780
+    offset: 0x2588
+    size: 0x1a7c
   - name: "#Strings"
-    offset: 16388
-    size: 6952
+    offset: 0x4004
+    size: 0x1b28
   - name: "#US"
-    offset: 23340
-    size: 1608
+    offset: 0x5b2c
+    size: 0x648
   - name: "#GUID"
-    offset: 24948
-    size: 16
+    offset: 0x6174
+    size: 0x10
   - name: "#Blob"
-    offset: 24964
-    size: 4904
+    offset: 0x6184
+    size: 0x1328
 guids:
   - "eb073d6d-392a-46fb-a695-d2b5b539fcfc"
 assembly:
@@ -51,8 +51,8 @@ assembly_refs:
         build_number: 0
         revision_number: 0
 resources:
-  - offset: 8348
-    length: 1022
+  - offset: 0x209c
+    length: 0x3fe
     name: "FxResources.System.Net.NameResolution.SR.resources"
 classes:
   - fullname: "Microsoft.CodeAnalysis.EmbeddedAttribute"

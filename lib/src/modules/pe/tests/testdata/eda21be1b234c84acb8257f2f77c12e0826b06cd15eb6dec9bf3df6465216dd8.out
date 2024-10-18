@@ -17,26 +17,26 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 0x10e  # EXECUTABLE_IMAGE | LINE_NUMS_STRIPPED | LOCAL_SYMS_STRIPPED | MACHINE_32BIT
 dll_characteristics: 0x0
 timestamp: 0  # 1970-01-01 00:00:00 UTC
-image_base: 4294754452
+image_base: 0xfffcc094
 checksum: 0
-base_of_code: 576
-base_of_data: 10624
-entry_point: 10144
-entry_point_raw: 10144
-section_alignment: 64
-file_alignment: 64
-loader_flags: 0
-size_of_optional_header: 224
-size_of_code: 10048
-size_of_initialized_data: 192
-size_of_uninitialized_data: 0
-size_of_image: 10944
-size_of_headers: 576
-size_of_stack_reserve: 0
-size_of_stack_commit: 0
-size_of_heap_reserve: 0
-size_of_heap_commit: 0
-pointer_to_symbol_table: 0
+base_of_code: 0x240
+base_of_data: 0x2980
+entry_point: 0x27a0
+entry_point_raw: 0x27a0
+section_alignment: 0x40
+file_alignment: 0x40
+loader_flags: 0x0
+size_of_optional_header: 0xe0
+size_of_code: 0x2740
+size_of_initialized_data: 0xc0
+size_of_uninitialized_data: 0x0
+size_of_image: 0x2ac0
+size_of_headers: 0x240
+size_of_stack_reserve: 0x0
+size_of_stack_commit: 0x0
+size_of_heap_reserve: 0x0
+size_of_heap_commit: 0x0
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -53,71 +53,71 @@ pdb_path: "/home/ubuntu/edk2/Build/OvmfIa32/RELEASE_GCC5/IA32/OvmfPkg/Sec/SecMai
 sections:
   - name: ".text"
     full_name: ".text"
-    characteristics: 1610612768
-    raw_data_size: 10048
-    raw_data_offset: 576
-    virtual_address: 576
-    virtual_size: 10048
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0x2740
+    raw_data_offset: 0x240
+    virtual_address: 0x240
+    virtual_size: 0x2740
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".data"
     full_name: ".data"
-    characteristics: 3221225536
-    raw_data_size: 192
-    raw_data_offset: 10624
-    virtual_address: 10624
-    virtual_size: 192
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0xc0
+    raw_data_offset: 0x2980
+    virtual_address: 0x2980
+    virtual_size: 0xc0
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: ".reloc"
     full_name: ".reloc"
-    characteristics: 1107296320
-    raw_data_size: 128
-    raw_data_offset: 10816
-    virtual_address: 10816
-    virtual_size: 128
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x42000040
+    raw_data_size: 0x80
+    raw_data_offset: 0x2a40
+    virtual_address: 0x2a40
+    virtual_size: 0x80
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 10816
-    size: 128
-  - virtual_address: 10680
-    size: 28
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x2a40
+    size: 0x80
+  - virtual_address: 0x29b8
+    size: 0x1c
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 is_signed: false
 overlay:
-    offset: 0
-    size: 0
+    offset: 0x0
+    size: 0x0

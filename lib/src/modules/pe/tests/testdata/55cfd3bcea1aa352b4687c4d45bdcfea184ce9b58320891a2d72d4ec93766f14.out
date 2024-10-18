@@ -17,26 +17,26 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 0x103  # RELOCS_STRIPPED | EXECUTABLE_IMAGE | MACHINE_32BIT
 dll_characteristics: 0x400  # NO_SEH
 timestamp: 1162198621  # 2006-10-30 08:57:01 UTC
-image_base: 4194304
+image_base: 0x400000
 checksum: 0
-base_of_code: 292
-base_of_data: 296
-entry_point: 292
-entry_point_raw: 292
-section_alignment: 4
-file_alignment: 4
-loader_flags: 0
-size_of_optional_header: 224
-size_of_code: 4
-size_of_initialized_data: 0
-size_of_uninitialized_data: 0
-size_of_image: 296
-size_of_headers: 292
-size_of_stack_reserve: 1048576
-size_of_stack_commit: 4096
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+base_of_code: 0x124
+base_of_data: 0x128
+entry_point: 0x124
+entry_point_raw: 0x124
+section_alignment: 0x4
+file_alignment: 0x4
+loader_flags: 0x0
+size_of_optional_header: 0xe0
+size_of_code: 0x4
+size_of_initialized_data: 0x0
+size_of_uninitialized_data: 0x0
+size_of_image: 0x128
+size_of_headers: 0x124
+size_of_stack_reserve: 0x100000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -52,49 +52,49 @@ number_of_signatures: 0
 sections:
   - name: ".text"
     full_name: ".text"
-    characteristics: 1610612768
-    raw_data_size: 4
-    raw_data_offset: 292
-    virtual_address: 292
-    virtual_size: 4
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0x60000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0x4
+    raw_data_offset: 0x124
+    virtual_address: 0x124
+    virtual_size: 0x4
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 is_signed: false
 overlay:
-    offset: 0
-    size: 0
+    offset: 0x0
+    size: 0x0

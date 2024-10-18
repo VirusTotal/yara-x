@@ -17,28 +17,28 @@ opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 0x2102  # EXECUTABLE_IMAGE | MACHINE_32BIT | DLL
 dll_characteristics: 0x0
 timestamp: 1299001425  # 2011-03-01 17:43:45 UTC
-image_base: 268435456
+image_base: 0x10000000
 checksum: 0
-base_of_code: 28672
-base_of_data: 36864
-entry_point: 5520
-entry_point_raw: 33168
+base_of_code: 0x7000
+base_of_data: 0x9000
+entry_point: 0x1590
+entry_point_raw: 0x8190
 dll_name: "cosnaming.dll"
 export_timestamp: 1299001425  # 2011-03-01 17:43:45 UTC
-section_alignment: 4096
-file_alignment: 512
-loader_flags: 0
-size_of_optional_header: 224
-size_of_code: 8192
-size_of_initialized_data: 4096
-size_of_uninitialized_data: 24576
-size_of_image: 40960
-size_of_headers: 4096
-size_of_stack_reserve: 1048576
-size_of_stack_commit: 4096
-size_of_heap_reserve: 1048576
-size_of_heap_commit: 4096
-pointer_to_symbol_table: 0
+section_alignment: 0x1000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xe0
+size_of_code: 0x2000
+size_of_initialized_data: 0x1000
+size_of_uninitialized_data: 0x6000
+size_of_image: 0xa000
+size_of_headers: 0x1000
+size_of_stack_reserve: 0x100000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
@@ -52,8 +52,8 @@ number_of_delayed_imports: 0
 number_of_exports: 3
 number_of_signatures: 0
 rich_signature:
-    offset: 128
-    length: 88
+    offset: 0x80
+    length: 0x58
     key: 1992542663
     raw_data: "\x83\xa8\xad%\xc7\xc9\xc3v\xc7\xc9\xc3v\xc7\xc9\xc3v\xe0\x0f\xb8v\xc5\xc9\xc3v\xd9\x9bVv\xc6\xc9\xc3v\xd9\x9bGv\xc5\xc9\xc3v8\xe9\xc7v\xc5\xc9\xc3v\xd9\x9bPv\xc2\xc9\xc3v\xc7\xc9\xc2v\xf6\xc9\xc3v\xd9\x9b@v\xc9\xc9\xc3v\xd9\x9bQv\xc6\xc9\xc3v\xd9\x9bRv\xc6\xc9\xc3v"
     clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\'\xc6{\x00\x02\x00\x00\x00\x1eR\x95\x00\x01\x00\x00\x00\x1eR\x84\x00\x02\x00\x00\x00\xff \x04\x00\x02\x00\x00\x00\x1eR\x93\x00\x05\x00\x00\x00\x00\x00\x01\x001\x00\x00\x00\x1eR\x83\x00\x0e\x00\x00\x00\x1eR\x92\x00\x01\x00\x00\x00\x1eR\x91\x00\x01\x00\x00\x00"
@@ -88,110 +88,110 @@ rich_signature:
 sections:
   - name: "UPX0"
     full_name: "UPX0"
-    characteristics: 3758096512
-    raw_data_size: 0
-    raw_data_offset: 1024
-    virtual_address: 4096
-    virtual_size: 24576
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xe0000080
+    raw_data_size: 0x0
+    raw_data_offset: 0x400
+    virtual_address: 0x1000
+    virtual_size: 0x6000
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: "UPX1"
     full_name: "UPX1"
-    characteristics: 3758096448
-    raw_data_size: 5120
-    raw_data_offset: 1024
-    virtual_address: 28672
-    virtual_size: 8192
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xe0000040
+    raw_data_size: 0x1400
+    raw_data_offset: 0x400
+    virtual_address: 0x7000
+    virtual_size: 0x2000
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
   - name: "UPX2"
     full_name: "UPX2"
-    characteristics: 3221225536
-    raw_data_size: 512
-    raw_data_offset: 6144
-    virtual_address: 36864
-    virtual_size: 4096
-    pointer_to_relocations: 0
-    pointer_to_line_numbers: 0
+    characteristics: 0xc0000040
+    raw_data_size: 0x200
+    raw_data_offset: 0x1800
+    virtual_address: 0x9000
+    virtual_size: 0x1000
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
     number_of_relocations: 0
     number_of_line_numbers: 0
 data_directories:
-  - virtual_address: 37176
-    size: 128
-  - virtual_address: 36864
-    size: 312
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 37304
-    size: 16
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 33628
-    size: 72
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 0
+  - virtual_address: 0x9138
+    size: 0x80
+  - virtual_address: 0x9000
+    size: 0x138
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x91b8
+    size: 0x10
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x835c
+    size: 0x48
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
 import_details:
   - library_name: "KERNEL32.DLL"
     number_of_functions: 5
     functions:
       - name: "LoadLibraryA"
-        rva: 36964
+        rva: 0x9064
       - name: "GetProcAddress"
-        rva: 36968
+        rva: 0x9068
       - name: "VirtualProtect"
-        rva: 36972
+        rva: 0x906c
       - name: "VirtualAlloc"
-        rva: 36976
+        rva: 0x9070
       - name: "VirtualFree"
-        rva: 36980
+        rva: 0x9074
   - library_name: "libglib-2.0-0.dll"
     number_of_functions: 1
     functions:
       - name: "g_log"
-        rva: 36988
+        rva: 0x907c
   - library_name: "libwireshark.dll"
     number_of_functions: 1
     functions:
       - name: "val_to_str"
-        rva: 36996
+        rva: 0x9084
   - library_name: "MSVCR90.dll"
     number_of_functions: 1
     functions:
       - name: "free"
-        rva: 37004
+        rva: 0x908c
 export_details:
   - name: "plugin_reg_handoff"
     ordinal: 1
-    rva: 10656
+    rva: 0x29a0
   - name: "plugin_register"
     ordinal: 2
-    rva: 10624
+    rva: 0x2980
   - name: "version"
     ordinal: 3
-    rva: 16652
+    rva: 0x410c
 is_signed: false
 overlay:
-    offset: 0
-    size: 0
+    offset: 0x0
+    size: 0x0
