@@ -1573,7 +1573,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.26.
     fn parse_method_def_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], MethodDef> + '_ {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], MethodDef<'a>> + '_ {
         map(
             tuple((
                 // rva
