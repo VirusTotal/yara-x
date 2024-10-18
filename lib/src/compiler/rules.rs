@@ -169,6 +169,9 @@ impl Rules {
             .with_varint_encoding()
             .deserialize::<Self>(&bytes[magic.len()..])?;
 
+        #[cfg(feature = "logging")]
+        info!("Deserialization time: {:?}", Instant::elapsed(&start));
+
         // `rules.compiled_wasm_mod` can be `None` for two reasons:
         //
         //  1- The rules were serialized without compiled rules (i.e: the
@@ -182,14 +185,17 @@ impl Rules {
         // In both cases we try to build the module again from the data in
         // `rules.wasm_mode`.
         if rules.compiled_wasm_mod.is_none() {
+            #[cfg(feature = "logging")]
+            let start = Instant::now();
+
             rules.compiled_wasm_mod = Some(wasmtime::Module::from_binary(
                 &crate::wasm::ENGINE,
                 rules.wasm_mod.as_slice(),
             )?);
-        }
 
-        #[cfg(feature = "logging")]
-        info!("Deserialization time: {:?}", Instant::elapsed(&start));
+            #[cfg(feature = "logging")]
+            info!("WASM build time: {:?}", Instant::elapsed(&start));
+        }
 
         rules.build_ac_automaton();
 

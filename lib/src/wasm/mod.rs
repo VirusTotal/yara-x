@@ -747,18 +747,6 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     linker
 }
 
-/// Invoked from WASM before starting the evaluation of the rule identified
-/// by the given [`RuleId`]. This only happens when the "logging" feature is
-/// enabled.
-#[wasm_export]
-#[cfg(feature = "logging")]
-pub(crate) fn log_rule_eval_start(
-    caller: &mut Caller<'_, ScanContext>,
-    rule_id: RuleId,
-) {
-    caller.data_mut().log_rule_eval_start(rule_id);
-}
-
 /// Invoked from WASM for triggering the pattern search phase.
 ///
 /// Returns `true` on success and `false` when a timeout occurs.

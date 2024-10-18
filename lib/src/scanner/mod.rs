@@ -206,7 +206,9 @@ impl<'r> Scanner<'r> {
                 #[cfg(feature = "rules-profiling")]
                 time_spent_in_rule: vec![0; num_rules as usize],
                 #[cfg(feature = "rules-profiling")]
-                rule_evaluation_start_time: 0,
+                rule_execution_start_time: 0,
+                #[cfg(feature = "rules-profiling")]
+                last_executed_rule: None,
                 #[cfg(any(feature = "rules-profiling", feature = "logging"))]
                 clock: quanta::Clock::new(),
             },
@@ -717,7 +719,7 @@ impl<'r> Scanner<'r> {
         // Save the time in which the evaluation of rules started.
         #[cfg(feature = "rules-profiling")]
         {
-            ctx.rule_evaluation_start_time = ctx.clock.raw();
+            ctx.rule_execution_start_time = ctx.clock.raw();
         }
 
         // Invoke the main function, which evaluates the rules' conditions. It
@@ -728,6 +730,22 @@ impl<'r> Scanner<'r> {
         // reached while WASM code is being executed.
         let func_result =
             self.wasm_main_func.call(self.wasm_store.as_context_mut(), ());
+
+        #[cfg(feature = "rules-profiling")]
+        if func_result.is_err() {
+            let ctx = self.wasm_store.data_mut();
+            // When a timeout occurs, neither `ctx.track_rule_no_match` nor
+            // `ctx.track_rule_match` are invoked for the rule that was being
+            // executed at that moment. This implies that the time spent in
+            // that rule has not being updated yet, and we must do it here.
+            // The ID of the rule that was being executed is the one that
+            // comes after the last executed one. This assumes that rules are
+            // executed in strict ID increasing order.
+            ctx.update_time_spent_in_rule(
+                ctx.last_executed_rule
+                    .map_or(RuleId::from(0), |rule_id| rule_id.next()),
+            );
+        }
 
         #[cfg(all(feature = "rules-profiling", feature = "logging"))]
         {

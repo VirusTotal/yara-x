@@ -121,7 +121,10 @@ pub(crate) struct ScanContext<'r> {
     pub time_spent_in_rule: Vec<u64>,
     /// The time at which the evaluation of the current rule started.
     #[cfg(feature = "rules-profiling")]
-    pub rule_evaluation_start_time: u64,
+    pub rule_execution_start_time: u64,
+    /// The ID of the last rule whose condition was executed.
+    #[cfg(feature = "rules-profiling")]
+    pub last_executed_rule: Option<RuleId>,
     /// Clock used for measuring the time spend on each pattern.
     #[cfg(any(feature = "rules-profiling", feature = "logging"))]
     pub clock: quanta::Clock,
@@ -235,28 +238,6 @@ impl ScanContext<'_> {
         <dyn MessageDyn>::downcast_ref(m)
     }
 
-    /// Writes a log before starting evaluating the condition for the rule
-    /// identified by `rule_id`.
-    #[cfg(feature = "logging")]
-    pub(crate) fn log_rule_eval_start(&mut self, rule_id: RuleId) {
-        let rule = self.compiled_rules.get(rule_id);
-
-        let rule_name =
-            self.compiled_rules.ident_pool().get(rule.ident_id).unwrap();
-
-        let rule_namespace = self
-            .compiled_rules
-            .ident_pool()
-            .get(rule.namespace_ident_id)
-            .unwrap();
-
-        log::info!(
-            "Started rule evaluation: {}:{}",
-            rule_namespace,
-            rule_name
-        );
-    }
-
     pub(crate) fn console_log(&mut self, message: String) {
         if let Some(console_log) = &mut self.console_log {
             console_log(message)
@@ -293,19 +274,29 @@ impl ScanContext<'_> {
         obj_ref
     }
 
-    /// Called during the scan process when a rule didn't match.
-    pub(crate) fn track_rule_no_match(&mut self, rule_id: RuleId) {
-        // The time spent evaluating the rule that didn't match is the
-        // difference between the current time and the time stored in
-        // `self.rule_evaluation_start_time`.
-        #[cfg(feature = "rules-profiling")]
+    /// Update the time spent in the rule with the given ID, the time is
+    /// increased by the time elapsed since `rule_execution_start_time`.
+    pub(crate) fn update_time_spent_in_rule(&mut self, rule_id: RuleId) {
+        // SAFETY: it's safe to call `get_unchecked_mut`, the size of the
+        // `time_spent_in_rule` vector is guaranteed to be the number of
+        // existing rules. Therefore, the rule ID can be used as an index
+        // in this vector.
         unsafe {
             self.time_spent_in_rule
                 .get_unchecked_mut::<usize>(rule_id.into())
                 .add_assign(self.clock.delta_as_nanos(
-                    self.rule_evaluation_start_time,
+                    self.rule_execution_start_time,
                     self.clock.raw(),
                 ));
+        }
+    }
+
+    /// Called during the scan process when a rule didn't match.
+    pub(crate) fn track_rule_no_match(&mut self, rule_id: RuleId) {
+        #[cfg(feature = "rules-profiling")]
+        {
+            self.last_executed_rule = Some(rule_id);
+            self.update_time_spent_in_rule(rule_id);
         }
 
         let rule = self.compiled_rules.get(rule_id);
@@ -337,24 +328,17 @@ impl ScanContext<'_> {
         // Save the time in which the evaluation of the next rule started.
         #[cfg(feature = "rules-profiling")]
         {
-            self.rule_evaluation_start_time = self.clock.raw();
+            self.rule_execution_start_time = self.clock.raw();
         }
     }
 
     /// Called during the scan process when a rule has matched for tracking
     /// the matching rules.
     pub(crate) fn track_rule_match(&mut self, rule_id: RuleId) {
-        // The time spent evaluating the rule that matched is the
-        // difference between the current time and the time stored in
-        // `self.rule_evaluation_start_time`.
         #[cfg(feature = "rules-profiling")]
-        unsafe {
-            self.time_spent_in_rule
-                .get_unchecked_mut::<usize>(rule_id.into())
-                .add_assign(self.clock.delta_as_nanos(
-                    self.rule_evaluation_start_time,
-                    self.clock.raw(),
-                ));
+        {
+            self.last_executed_rule = Some(rule_id);
+            self.update_time_spent_in_rule(rule_id);
         }
 
         let rule = self.compiled_rules.get(rule_id);
@@ -390,7 +374,7 @@ impl ScanContext<'_> {
         // Save the time in which the evaluation of the next rule started.
         #[cfg(feature = "rules-profiling")]
         {
-            self.rule_evaluation_start_time = self.clock.raw();
+            self.rule_execution_start_time = self.clock.raw();
         }
     }
 
@@ -696,7 +680,7 @@ impl ScanContext<'_> {
         // `rule_evaluation_start_time` accordingly.
         #[cfg(feature = "rules-profiling")]
         {
-            self.rule_evaluation_start_time +=
+            self.rule_execution_start_time +=
                 scan_end.saturating_sub(scan_start);
         }
 
