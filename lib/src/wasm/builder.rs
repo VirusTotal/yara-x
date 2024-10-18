@@ -279,10 +279,10 @@ impl WasmModuleBuilder {
     /// Each call to [`WasmModuleBuilder::start_rule`] must be followed by a
     /// call to this function once the code for rule has been emitted.
     pub fn finish_rule(&mut self) {
-        let global_rule_no_match =
-            self.function_id(wasm::export__global_rule_no_match.mangled_name);
+        let rule_no_match =
+            self.function_id(wasm::export__rule_no_match.mangled_name);
 
-        let export_rule =
+        let rule_match =
             self.function_id(wasm::export__rule_match.mangled_name);
 
         let mut instr = self.rules_func.func_body();
@@ -291,31 +291,39 @@ impl WasmModuleBuilder {
         instr.unop(UnaryOp::I32Eqz).if_else(
             None,
             |then_| {
-                // The condition is false. For normal rules we don't do anything,
-                // but for global rules we must call `global_rule_no_match`, and
-                // return 1.
-                //
-                // By returning 1 the function that contains the logic for this
-                // rule exits immediately, preventing that any other rule in the
-                // same namespace is executed.
-                //
-                // This guarantees that any global rule that returns false, forces
-                // any other rule in the same namespace to be false. The purpose of
-                // calling  `global_rule_no_match` is reverting any previous matches
-                // that occurred in the same namespace.
+                // The condition is false. Call `rule_no_match` if the rule is
+                // a global one, or if `rules-profiling` is enabled. The purpose
+                // of calling `rule_no_match` for global rules is reverting any
+                // previous matches that occurred in the same namespace. For
+                // non-global rules calling `rule_no_match` is not necessary,
+                // unless `rules-profiling` is enabled, in that case the purpose
+                // is tracking the time spent evaluating the rule.
                 if self.global_rule {
                     then_
-                        // Call `global_rule_no_match`.
+                        // Call `rule_no_match`.
                         .i32_const(self.rule_id.into())
-                        .call(global_rule_no_match)
+                        .call(rule_no_match)
                         // Return 1.
+                        //
+                        // By returning 1 the function that contains the logic for this
+                        // rule exits immediately, preventing that any other rule in the
+                        // same namespace is executed.
+                        //
+                        // This guarantees that any global rule that returns false, forces
+                        // any other rule in the same namespace to be false.
                         .i32_const(1)
                         .return_();
+                } else {
+                    #[cfg(feature = "rules-profiling")]
+                    then_
+                        // Call `rule_no_match`.
+                        .i32_const(self.rule_id.into())
+                        .call(rule_no_match);
                 }
             },
             |else_| {
                 // The condition is true, call `rule_match`.
-                else_.i32_const(self.rule_id.into()).call(export_rule);
+                else_.i32_const(self.rule_id.into()).call(rule_match);
             },
         );
     }

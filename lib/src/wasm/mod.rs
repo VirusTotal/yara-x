@@ -786,13 +786,13 @@ pub(crate) fn rule_match(
     caller.data_mut().track_rule_match(rule_id);
 }
 
-/// Invoked from WASM to notify when a global rule doesn't match.
+/// Invoked from WASM to notify when a rule doesn't match.
 #[wasm_export]
-pub(crate) fn global_rule_no_match(
+pub(crate) fn rule_no_match(
     caller: &mut Caller<'_, ScanContext>,
     rule_id: RuleId,
 ) {
-    caller.data_mut().track_global_rule_no_match(rule_id);
+    caller.data_mut().track_rule_no_match(rule_id);
 }
 
 /// Invoked from WASM to ask whether a pattern matches at a given file
