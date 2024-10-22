@@ -116,6 +116,10 @@ pub fn scan() -> Command {
                 .help("Use file path as rule namespace")
         )
         .arg(
+            arg!(--"profiling")
+                .help("Show profiling information")
+        )
+        .arg(
             arg!(-m --"print-meta")
                 .help("Print rule metadata")
         )
@@ -176,6 +180,29 @@ pub fn scan() -> Command {
         )
 }
 
+#[cfg(feature = "rules-profiling")]
+struct ProfilingData {
+    pub namespace: String,
+    pub rule: String,
+    pub condition_exec_time: Duration,
+    pub pattern_matching_time: Duration,
+    pub total_time: Duration,
+}
+
+#[cfg(feature = "rules-profiling")]
+impl From<yara_x::ProfilingData<'_>> for ProfilingData {
+    fn from(value: yara_x::ProfilingData) -> Self {
+        Self {
+            namespace: value.namespace.to_string(),
+            rule: value.rule.to_string(),
+            condition_exec_time: value.condition_exec_time,
+            pattern_matching_time: value.pattern_matching_time,
+            total_time: value.condition_exec_time
+                + value.pattern_matching_time,
+        }
+    }
+}
+
 pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let mut rules_path = args
         .get_many::<(Option<String>, PathBuf)>("[NAMESPACE:]RULES_PATH")
@@ -183,6 +210,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
     let target_path = args.get_one::<PathBuf>("TARGET_PATH").unwrap();
     let compiled_rules = args.get_flag("compiled-rules");
+    let profiling = args.get_flag("profiling");
     let num_threads = args.get_one::<u8>("threads");
     let skip_larger = args.get_one::<u64>("skip-larger");
     let disable_console_logs = args.get_flag("disable-console-logs");
@@ -202,6 +230,13 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         .flatten()
         // collect to eagerly call the parser on each element
         .collect::<Vec<_>>();
+
+    if profiling && !cfg!(feature = "rules-profiling") {
+        bail!(
+            "{} requires that YARA-X is built with profiling support. Use `cargo build --features=rules-profiling`.",
+            Paint::bold("--profiling")
+        );
+    }
 
     if recursive.is_some() && target_path.is_file() {
         bail!(
@@ -280,6 +315,10 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         }
         all_metadata
     };
+
+    #[cfg(feature = "rules-profiling")]
+    let most_expensive_rules: Mutex<Vec<ProfilingData>> =
+        Mutex::new(Vec::new());
 
     w.walk(
         state,
@@ -360,6 +399,27 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
             Ok(())
         },
+        // Finalization
+        #[cfg(feature = "rules-profiling")]
+        |scanner, _output| {
+            if profiling {
+                let mut mer = most_expensive_rules.lock().unwrap();
+                for er in scanner.most_expensive_rules(1000) {
+                    if let Some(r) = mer.iter_mut().find(|r| {
+                        r.rule == er.rule && r.namespace == er.namespace
+                    }) {
+                        r.condition_exec_time += er.condition_exec_time;
+                        r.pattern_matching_time += er.pattern_matching_time;
+                        r.total_time +=
+                            er.condition_exec_time + er.pattern_matching_time;
+                    } else {
+                        mer.push(er.into());
+                    }
+                }
+            }
+        },
+        #[cfg(not(feature = "rules-profiling"))]
+        |_, _| {},
         // Error handler
         |err, output| {
             let error = err.to_string();
@@ -388,6 +448,29 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         },
     )
     .unwrap();
+
+    #[cfg(feature = "rules-profiling")]
+    if profiling {
+        let mut mer = most_expensive_rules.lock().unwrap();
+        // Sort by total time in descending order.
+        mer.sort_by(|a, b| b.total_time.cmp(&a.total_time));
+        println!("\nMost expensive rules:");
+        for r in mer.iter().take(10) {
+            println!(
+                r#"
++ rule name:            {}
+  namespace:            {}
+  pattern matching:     {:?}
+  condition evaluation: {:?}
+  total:                {:?}"#,
+                r.rule,
+                r.namespace,
+                r.pattern_matching_time,
+                r.condition_exec_time,
+                r.total_time
+            );
+        }
+    }
 
     Ok(())
 }

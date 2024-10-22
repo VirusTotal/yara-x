@@ -88,7 +88,9 @@ pub fn exec_fix_encoding(args: &ArgMatches) -> anyhow::Result<()> {
 
     w.walk(
         FixEncodingState::new(),
+        // Initialization
         |_, _| {},
+        // Action
         |state, output, file_path, _| {
             let src = fs::read(&file_path).with_context(|| {
                 format!("can not read `{}`", file_path.display())
@@ -122,6 +124,9 @@ pub fn exec_fix_encoding(args: &ArgMatches) -> anyhow::Result<()> {
 
             Ok(())
         },
+        // Finalization
+        |_, _| {},
+        // Error handling
         |err, output| {
             let _ = output.send(Message::Error(format!(
                 "{} {}",

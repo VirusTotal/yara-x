@@ -37,6 +37,10 @@ debug-cmd = []
 # Example: RUST_LOG=info ./yr scan some_rule.yar some_file
 logging = ["dep:log", "dep:env_logger"]
 
+# Enables rules profiling. Notice that profiling has an impact on scan
+# performance.
+rules-profiling = ["yara-x/rules-profiling"]
+
 
 [dependencies]
 ascii_tree = { workspace = true }
