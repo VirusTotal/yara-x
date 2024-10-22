@@ -66,5 +66,5 @@ of this command looks like:
 ![screenshot.png](screenshot.png)
 
 If you want to learn more about the `dump` command, see its [documentation]({{<
-ref "cli.md" >}}#dump)
+ref "commands.md" >}}#dump)
 
