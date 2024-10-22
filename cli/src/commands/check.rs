@@ -74,7 +74,9 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
 
     w.walk(
         CheckState::new(),
+        // Initialization
         |_, _| {},
+        // Action
         |state, output, file_path, _| {
             let src = fs::read(file_path.clone())
                 .with_context(|| {
@@ -129,6 +131,9 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
 
             Ok(())
         },
+        // Finalization
+        |_, _| {},
+        // Error handling
         |err, output| {
             let _ = output.send(Message::Error(format!(
                 "{} {}",

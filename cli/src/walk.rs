@@ -305,6 +305,11 @@ impl<'a> Walker<'a> {
 ///     |state, output, file_path, scanner| {
 ///         scanner.scan_file(file_path);
 ///     }
+///     /// This function is called by each thread after every file is
+///     /// scanned.
+///     |scanner| {
+///         // Do some final action with the scanner before it is released.
+///     }
 ///     // This function is called with every error that occurs during the
 ///     // walk.
 ///     |err, output| {
@@ -369,23 +374,25 @@ impl<'a> ParWalker<'a> {
         self
     }
 
-    /// Runs `func` on every file.
+    /// Runs `action` on every file.
     ///
     /// See [`ParWalker`] for details.
-    pub fn walk<S, T, I, F, E>(
+    pub fn walk<S, T, I, A, F, E>(
         self,
         state: S,
         init: I,
-        func: F,
-        e: E,
+        action: A,
+        finalize: F,
+        error: E,
     ) -> thread::Result<()>
     where
         S: Component + Send + Sync,
         I: Fn(&S, &Sender<Message>) -> T + Send + Copy + Sync,
-        F: Fn(&S, &Sender<Message>, PathBuf, &mut T) -> anyhow::Result<()>
+        A: Fn(&S, &Sender<Message>, PathBuf, &mut T) -> anyhow::Result<()>
             + Send
             + Sync
             + Copy,
+        F: Fn(&T, &Sender<Message>) + Send + Copy + Sync,
         E: Fn(anyhow::Error, &Sender<Message>) -> anyhow::Result<()>
             + Send
             + Copy,
@@ -422,19 +429,20 @@ impl<'a> ParWalker<'a> {
                 threads.push(s.spawn(move |_| {
                     let mut per_thread_obj = init(&state, &msg_send);
                     for path in paths_recv {
-                        let res = func(
+                        let res = action(
                             &state,
                             &msg_send,
                             path.to_path_buf(),
                             &mut per_thread_obj,
                         );
                         if let Err(err) = res {
-                            if e(err, &msg_send).is_err() {
+                            if error(err, &msg_send).is_err() {
                                 let _ = msg_send.send(Message::Abort);
                                 break;
                             }
                         }
                     }
+                    finalize(&per_thread_obj, &msg_send);
                 }));
             }
 
@@ -452,7 +460,7 @@ impl<'a> ParWalker<'a> {
 
                         // Invoke the error callback and abort the walk if the
                         // callback returns error.
-                        if let Err(err) = e(err, &msg_send) {
+                        if let Err(err) = error(err, &msg_send) {
                             let _ = msg_send.send(Message::Abort);
                             return Err(err);
                         }
@@ -463,7 +471,7 @@ impl<'a> ParWalker<'a> {
                 );
 
                 if let Err(err) = res {
-                    if e(err, &msg_send).is_err() {
+                    if error(err, &msg_send).is_err() {
                         let _ = msg_send.send(Message::Abort);
                     }
                 }
