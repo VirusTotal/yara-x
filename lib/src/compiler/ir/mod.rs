@@ -38,18 +38,17 @@ use bitmask::bitmask;
 use bstr::BString;
 use serde::{Deserialize, Serialize};
 
-use crate::compiler::context::{Var, VarStackFrame};
-use crate::symbols::Symbol;
-use crate::types::{Type, TypeValue, Value};
-
-pub use ast2ir::patterns_from_ast;
-pub use ast2ir::rule_condition_from_ast;
-
 use yara_x_parser::ast::Ident;
 use yara_x_parser::Span;
 
+use crate::compiler::context::{Var, VarStackFrame};
 use crate::compiler::ir::dfs::{DepthFirstSearch, Event};
 use crate::re;
+use crate::symbols::Symbol;
+use crate::types::{Type, TypeValue, Value};
+
+pub(in crate::compiler) use ast2ir::patterns_from_ast;
+pub(in crate::compiler) use ast2ir::rule_condition_from_ast;
 
 mod ast2ir;
 mod dfs;
@@ -93,7 +92,7 @@ bitmask! {
 /// within the confines of a specific rule. If two distinct rules declare
 /// precisely the same pattern, including any modifiers, they will reference
 /// the same [`Pattern`] instance.
-pub struct PatternInRule<'src> {
+pub(crate) struct PatternInRule<'src> {
     identifier: Ident<'src>,
     pattern: Pattern,
     span: Span,
@@ -179,7 +178,7 @@ impl<'src> PatternInRule<'src> {
 /// a specific rule we have [`PatternInRule`], which contains a [`Pattern`] and
 /// additional information about how the pattern is used in a rule.
 #[derive(Clone, Eq, Hash, PartialEq)]
-pub enum Pattern {
+pub(crate) enum Pattern {
     Text(LiteralPattern),
     Regexp(RegexpPattern),
     Hex(RegexpPattern),
@@ -268,7 +267,7 @@ impl Pattern {
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
-pub struct LiteralPattern {
+pub(crate) struct LiteralPattern {
     pub flags: PatternFlagSet,
     pub text: BString,
     pub anchored_at: Option<usize>,
@@ -278,7 +277,7 @@ pub struct LiteralPattern {
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
-pub struct RegexpPattern {
+pub(crate) struct RegexpPattern {
     pub flags: PatternFlagSet,
     pub hir: re::hir::Hir,
     pub anchored_at: Option<usize>,
@@ -289,7 +288,7 @@ pub struct RegexpPattern {
 /// The first pattern in the rule has index 0, the second has index 1, and
 /// so on.
 #[derive(Debug, Clone, Copy)]
-pub struct PatternIdx(usize);
+pub(crate) struct PatternIdx(usize);
 
 impl PatternIdx {
     #[inline]
@@ -308,7 +307,7 @@ impl From<usize> for PatternIdx {
 // TODO: change to u16?
 // It makes sense if Expr gets smaller.
 #[derive(Debug, Clone, Copy)]
-pub struct NodeIdx(u32);
+pub(crate) struct NodeIdx(u32);
 
 impl From<usize> for NodeIdx {
     #[inline]
@@ -317,7 +316,7 @@ impl From<usize> for NodeIdx {
     }
 }
 
-pub struct IR {
+pub(crate) struct IR {
     root: Option<NodeIdx>,
     nodes: Vec<Expr>,
 }
@@ -544,7 +543,7 @@ impl IR {
 
         let result = operands
             .iter()
-            .map(|operand| match nodes[operand.0 as usize].type_value() {
+            .map(|operand| match nodes[*operand].type_value() {
                 TypeValue::Integer(Value::Const(v)) => v as f64,
                 TypeValue::Float(Value::Const(v)) => {
                     is_float = true;
@@ -1092,7 +1091,7 @@ impl Debug for IR {
 }
 
 /// Intermediate representation (IR) for an expression.
-pub enum Expr {
+pub(crate) enum Expr {
     /// Constant value (i.e: the value is known at compile time).
     /// The value in `TypeValue` is not `None`.
     Const(TypeValue),
@@ -1352,14 +1351,14 @@ pub enum Expr {
 }
 
 /// A lookup operation in an array or dictionary.
-pub struct Lookup {
+pub(crate) struct Lookup {
     pub type_value: TypeValue,
     pub primary: NodeIdx,
     pub index: NodeIdx,
 }
 
 /// An expression representing a function call.
-pub struct FuncCall {
+pub(crate) struct FuncCall {
     /// The callable expression, which must resolve in some function identifier.
     pub callable: NodeIdx,
     /// The arguments passed to the function in this call.
@@ -1374,7 +1373,7 @@ pub struct FuncCall {
 
 /// An `of` expression (e.g. `1 of ($a, $b)`, `all of them`,
 /// `any of (true, false)`)
-pub struct Of {
+pub(crate) struct Of {
     pub quantifier: Quantifier,
     pub items: OfItems,
     pub anchor: MatchAnchor,
@@ -1383,7 +1382,7 @@ pub struct Of {
 
 /// A `for .. of` expression (e.g `for all of them : (..)`,
 /// `for 1 of ($a,$b) : (..)`)
-pub struct ForOf {
+pub(crate) struct ForOf {
     pub quantifier: Quantifier,
     pub variable: Var,
     pub pattern_set: Vec<PatternIdx>,
@@ -1392,7 +1391,7 @@ pub struct ForOf {
 }
 
 /// A `for .. in` expression (e.g `for all x in iterator : (..)`)
-pub struct ForIn {
+pub(crate) struct ForIn {
     pub quantifier: Quantifier,
     pub variables: Vec<Var>,
     pub iterable: Iterable,
@@ -1401,13 +1400,13 @@ pub struct ForIn {
 }
 
 /// A `with` expression (e.g `with $a, $b : (..)`)
-pub struct With {
+pub(crate) struct With {
     pub declarations: Vec<(Var, NodeIdx)>,
     pub condition: NodeIdx,
 }
 
 /// A quantifier used in `for` and `of` expressions.
-pub enum Quantifier {
+pub(crate) enum Quantifier {
     None,
     All,
     Any,
@@ -1421,38 +1420,37 @@ pub enum Quantifier {
 /// The anchor is the part of the expression that restricts the offset range
 /// where the match can occur.
 /// (e.g. `at <expr>`, `in <range>`).
-pub enum MatchAnchor {
+pub(crate) enum MatchAnchor {
     None,
     At(NodeIdx),
     In(Range),
 }
 
 /// Items in a `of` expression.
-pub enum OfItems {
+pub(crate) enum OfItems {
     PatternSet(Vec<PatternIdx>),
     BoolExprTuple(Vec<NodeIdx>),
 }
 
 /// A pair of values conforming a range (e.g. `(0..10)`).
-pub struct Range {
+pub(crate) struct Range {
     pub lower_bound: NodeIdx,
     pub upper_bound: NodeIdx,
 }
 
 /// Possible iterable expressions that can use in a [`ForIn`].
-pub enum Iterable {
+pub(crate) enum Iterable {
     Range(Range),
     ExprTuple(Vec<NodeIdx>),
     Expr(NodeIdx),
 }
 
-/*
-impl<'a> Index<NodeIdx> for &'a [Expr] {
+impl Index<NodeIdx> for [Expr] {
     type Output = Expr;
-    fn index(&self, index: NodeIdx) -> &'a Self::Output {
+    fn index(&self, index: NodeIdx) -> &Self::Output {
         self.get(index.0 as usize).unwrap()
     }
-}*/
+}
 
 impl Expr {
     /// Returns the type of this expression.

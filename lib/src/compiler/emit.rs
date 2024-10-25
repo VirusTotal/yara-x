@@ -177,7 +177,7 @@ type ExceptionHandler = Box<dyn Fn(&mut EmitContext, &mut InstrSeqBuilder)>;
 
 /// Structure that contains information used while emitting the code that
 /// corresponds to the condition of a YARA rule.
-pub struct EmitContext<'a> {
+pub(crate) struct EmitContext<'a> {
     /// Signature index associated the function call being emitted. This
     /// is an index in the array returned by `func.signatures()`, where
     /// `func` is an instance of [`Type::Func`] that represents the
@@ -243,7 +243,7 @@ impl<'a> EmitContext<'a> {
 }
 
 /// Emits WASM code of a rule.
-pub fn emit_rule_condition(
+pub(crate) fn emit_rule_condition(
     ctx: &mut EmitContext,
     ir: &IR,
     rule_id: RuleId,

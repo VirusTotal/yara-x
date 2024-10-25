@@ -41,7 +41,7 @@ use crate::types::{Map, Regexp, Type, TypeValue, Value};
 /// patterns the [`TooManyPatterns`] error is returned.
 const MAX_PATTERNS_PER_RULE: usize = 100_000;
 
-pub fn patterns_from_ast<'src>(
+pub(in crate::compiler) fn patterns_from_ast<'src>(
     ctx: &mut CompileContext<'_, 'src, '_>,
     rule: &ast::Rule<'src>,
 ) -> Result<(), CompileError> {
@@ -875,7 +875,7 @@ fn expr_from_ast(
     }
 }
 
-pub fn rule_condition_from_ast(
+pub(in crate::compiler) fn rule_condition_from_ast(
     ctx: &mut CompileContext,
     rule: &ast::Rule,
 ) -> Result<NodeIdx, CompileError> {

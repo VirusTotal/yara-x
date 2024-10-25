@@ -58,7 +58,7 @@ use bstr::{BString, ByteVec};
 /// characters long and can't have repeated characters.
 ///
 /// Also panics if the length of s is 1 or less.
-pub fn base64_patterns(
+pub(crate) fn base64_patterns(
     s: &[u8],
     alphabet: Option<&str>,
 ) -> Vec<(u8, BString)> {

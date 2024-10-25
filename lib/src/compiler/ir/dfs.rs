@@ -1,6 +1,6 @@
 use crate::compiler::ir::{Expr, Iterable, MatchAnchor, NodeIdx, Quantifier};
 
-pub enum Event<T> {
+pub(crate) enum Event<T> {
     Enter(T),
     Leave(T),
 }
@@ -35,7 +35,7 @@ pub enum Event<T> {
 /// Leave(a)
 /// ```
 ///
-pub struct DepthFirstSearch<'a> {
+pub(crate) struct DepthFirstSearch<'a> {
     nodes: &'a [Expr],
     stack: Vec<Event<NodeIdx>>,
 }
@@ -102,7 +102,7 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
 
         if let Event::Enter(expr) = next {
             self.stack.push(Event::Leave(expr));
-            match &self.nodes[expr.0 as usize] {
+            match &self.nodes[expr] {
                 Expr::Const(_) => {}
                 Expr::Filesize => {}
                 Expr::Ident { .. } => {}
@@ -223,12 +223,8 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
         }
 
         let next = match next {
-            Event::Enter(expr) => {
-                Event::Enter((expr, &self.nodes[expr.0 as usize]))
-            }
-            Event::Leave(expr) => {
-                Event::Leave((expr, &self.nodes[expr.0 as usize]))
-            }
+            Event::Enter(expr) => Event::Enter((expr, &self.nodes[expr])),
+            Event::Leave(expr) => Event::Leave((expr, &self.nodes[expr])),
         };
 
         Some(next)

@@ -15,7 +15,7 @@ use crate::wasm;
 
 /// Structure that contains information and data structures required during the
 /// compilation of a rule.
-pub struct CompileContext<'a, 'src, 'sym> {
+pub(crate) struct CompileContext<'a, 'src, 'sym> {
     /// Builder for creating error and warning reports.
     pub report_builder: &'a ReportBuilder,
 
@@ -51,7 +51,7 @@ pub struct CompileContext<'a, 'src, 'sym> {
     pub error_on_slow_loop: bool,
 
     /// Indicates how deep we are inside `for .. of` statements.
-    pub(crate) for_of_depth: usize,
+    pub for_of_depth: usize,
 }
 
 impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
@@ -96,7 +96,7 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
 ///
 /// This stack is stored in WASM main memory, in a memory region that goes
 /// from [`wasm::VARS_STACK_START`] to [`wasm::VARS_STACK_END`].
-pub struct VarStack {
+pub(crate) struct VarStack {
     pub used: i32,
 }
 
@@ -140,7 +140,7 @@ impl VarStack {
 /// Frames are stacked one in top of another, individual variables are
 /// allocated within a frame.
 #[derive(Clone, Debug)]
-pub struct VarStackFrame {
+pub(crate) struct VarStackFrame {
     start: i32,
     capacity: i32,
     used: Cell<i32>,
@@ -164,7 +164,7 @@ impl VarStackFrame {
 
 /// Represents a variable in the stack.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Var {
+pub(crate) struct Var {
     /// The type of the variable
     pub ty: Type,
     /// The index corresponding to this variable. This index is used for
