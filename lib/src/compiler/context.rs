@@ -15,7 +15,7 @@ use crate::wasm;
 
 /// Structure that contains information and data structures required during the
 /// compilation of a rule.
-pub(in crate::compiler) struct CompileContext<'a, 'src, 'sym> {
+pub struct CompileContext<'a, 'src, 'sym> {
     /// Builder for creating error and warning reports.
     pub report_builder: &'a ReportBuilder,
 
@@ -96,7 +96,7 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
 ///
 /// This stack is stored in WASM main memory, in a memory region that goes
 /// from [`wasm::VARS_STACK_START`] to [`wasm::VARS_STACK_END`].
-pub(crate) struct VarStack {
+pub struct VarStack {
     pub used: i32,
 }
 
@@ -140,7 +140,7 @@ impl VarStack {
 /// Frames are stacked one in top of another, individual variables are
 /// allocated within a frame.
 #[derive(Clone, Debug)]
-pub(crate) struct VarStackFrame {
+pub struct VarStackFrame {
     start: i32,
     capacity: i32,
     used: Cell<i32>,
@@ -164,7 +164,7 @@ impl VarStackFrame {
 
 /// Represents a variable in the stack.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct Var {
+pub struct Var {
     /// The type of the variable
     pub ty: Type,
     /// The index corresponding to this variable. This index is used for
@@ -175,7 +175,7 @@ pub(crate) struct Var {
 
 impl Var {
     /// Returns the number of bytes that the variable occupies in memory.
-    pub(crate) const fn mem_size() -> i32 {
+    pub const fn mem_size() -> i32 {
         size_of::<i64>() as i32
     }
 }

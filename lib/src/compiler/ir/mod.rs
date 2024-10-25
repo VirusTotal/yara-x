@@ -31,6 +31,7 @@ allows using the same regex engine for matching both types of patterns.
 
 use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
+use std::ops::Index;
 use std::ops::RangeInclusive;
 
 use bitmask::bitmask;
@@ -41,8 +42,8 @@ use crate::compiler::context::{Var, VarStackFrame};
 use crate::symbols::Symbol;
 use crate::types::{Type, TypeValue, Value};
 
-pub(in crate::compiler) use ast2ir::rule_condition_from_ast;
-pub(in crate::compiler) use ast2ir::patterns_from_ast;
+pub use ast2ir::patterns_from_ast;
+pub use ast2ir::rule_condition_from_ast;
 
 use yara_x_parser::ast::Ident;
 use yara_x_parser::Span;
@@ -92,7 +93,7 @@ bitmask! {
 /// within the confines of a specific rule. If two distinct rules declare
 /// precisely the same pattern, including any modifiers, they will reference
 /// the same [`Pattern`] instance.
-pub(in crate::compiler) struct PatternInRule<'src> {
+pub struct PatternInRule<'src> {
     identifier: Ident<'src>,
     pattern: Pattern,
     span: Span,
@@ -178,7 +179,7 @@ impl<'src> PatternInRule<'src> {
 /// a specific rule we have [`PatternInRule`], which contains a [`Pattern`] and
 /// additional information about how the pattern is used in a rule.
 #[derive(Clone, Eq, Hash, PartialEq)]
-pub(in crate::compiler) enum Pattern {
+pub enum Pattern {
     Text(LiteralPattern),
     Regexp(RegexpPattern),
     Hex(RegexpPattern),
@@ -267,7 +268,7 @@ impl Pattern {
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
-pub(in crate::compiler) struct LiteralPattern {
+pub struct LiteralPattern {
     pub flags: PatternFlagSet,
     pub text: BString,
     pub anchored_at: Option<usize>,
@@ -277,7 +278,7 @@ pub(in crate::compiler) struct LiteralPattern {
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
-pub(in crate::compiler) struct RegexpPattern {
+pub struct RegexpPattern {
     pub flags: PatternFlagSet,
     pub hir: re::hir::Hir,
     pub anchored_at: Option<usize>,
@@ -288,7 +289,7 @@ pub(in crate::compiler) struct RegexpPattern {
 /// The first pattern in the rule has index 0, the second has index 1, and
 /// so on.
 #[derive(Debug, Clone, Copy)]
-pub(in crate::compiler) struct PatternIdx(usize);
+pub struct PatternIdx(usize);
 
 impl PatternIdx {
     #[inline]
@@ -307,7 +308,7 @@ impl From<usize> for PatternIdx {
 // TODO: change to u16?
 // It makes sense if Expr gets smaller.
 #[derive(Debug, Clone, Copy)]
-pub(in crate::compiler) struct NodeIdx(u32);
+pub struct NodeIdx(u32);
 
 impl From<usize> for NodeIdx {
     #[inline]
@@ -316,7 +317,7 @@ impl From<usize> for NodeIdx {
     }
 }
 
-pub(in crate::compiler) struct IR {
+pub struct IR {
     root: Option<NodeIdx>,
     nodes: Vec<Expr>,
 }
@@ -347,7 +348,7 @@ impl IR {
     /// Returns an iterator that performs a depth first search starting at
     /// the given node.
     pub fn dfs_iter(&self, start: NodeIdx) -> DepthFirstSearch {
-        DepthFirstSearch::new(&self, start)
+        DepthFirstSearch::new(start, self.nodes.as_slice())
     }
 
     /// Finds the first expression in DFS order starting at the `start` node
@@ -366,7 +367,7 @@ impl IR {
         let mut dfs = self.dfs_iter(start);
 
         while let Some(evt) = dfs.next() {
-            if let Event::Enter(expr) = evt {
+            if let Event::Enter((_, expr)) = evt {
                 if predicate(expr) {
                     return Some(expr);
                 }
@@ -379,12 +380,34 @@ impl IR {
         None
     }
 
+    /// Checks if the given expression can be computed at compile time, and in
+    /// that case returns a new a constant with the resulting value. For
+    /// instance, the expression `true and false` will be folded into the `false`.
+    ///
+    /// If the expression can't be folded, returns the same [`NodeIdx`] that
+    /// it received.
+    ///
+    /// Returns [`None`] if an integer overflow occurs while trying to fold
+    /// integer expressions.
     pub fn fold(&mut self, expr: NodeIdx) -> Option<NodeIdx> {
-        let (nodes, x) = self.nodes.split_at_mut(expr.0 as usize);
+        // We need a mutable reference to the expression itself, as well as
+        // mutable references to its operands. However, Rust's borrow checker
+        // does not allow mutable references to multiple items in a slice
+        // without a workaround. To achieve this, we use `split_at_mut`, which
+        // let us divide the slice into two mutable sub-slices.
+        //
+        // Luckily, the intermediate representation (IR) tree guarantees that
+        // all descendants of a node appear before the node itself in the slice.
+        // This means we can split the slice at the node corresponding to `expr`,
+        // ensuring that the left sub-slice contains all its operands. The first
+        // item in the right sub-slice will be the `expr` node itself.
+        let (descedants, ascendants) =
+            self.nodes.split_at_mut(expr.0 as usize);
 
-        match &mut x[0] {
+        // `ascendants[0]` is the expression being folded.
+        match &mut ascendants[0] {
             Expr::Minus { operand, .. } => {
-                match nodes[operand.0 as usize].type_value() {
+                match descedants[operand.0 as usize].type_value() {
                     TypeValue::Integer(Value::Const(v)) => {
                         Some(self.constant(TypeValue::const_integer_from(-v)))
                     }
@@ -401,7 +424,7 @@ impl IR {
                 // the result of the AND operation.
                 operands.retain(|op| {
                     let type_value =
-                        nodes[op.0 as usize].type_value().cast_to_bool();
+                        descedants[op.0 as usize].type_value().cast_to_bool();
                     !type_value.is_const() || !type_value.as_bool()
                 });
 
@@ -416,10 +439,9 @@ impl IR {
                 // If any of the remaining operands is constant it has to be
                 // false because true values were removed, the result is false
                 // regardless of the operands with unknown values.
-                if operands
-                    .iter()
-                    .any(|op| nodes[op.0 as usize].type_value().is_const())
-                {
+                if operands.iter().any(|op| {
+                    descedants[op.0 as usize].type_value().is_const()
+                }) {
                     return Some(
                         self.constant(TypeValue::const_bool_from(false)),
                     );
@@ -434,7 +456,7 @@ impl IR {
                 // of the OR operation.
                 operands.retain(|op| {
                     let type_value =
-                        nodes[op.0 as usize].type_value().cast_to_bool();
+                        descedants[op.0 as usize].type_value().cast_to_bool();
                     !type_value.is_const() || type_value.as_bool()
                 });
 
@@ -449,10 +471,9 @@ impl IR {
                 // If any of the remaining operands is constant it has to be
                 // true because false values were removed, the result is true
                 // regardless of the operands with unknown values.
-                if operands
-                    .iter()
-                    .any(|op| nodes[op.0 as usize].type_value().is_const())
-                {
+                if operands.iter().any(|op| {
+                    descedants[op.0 as usize].type_value().is_const()
+                }) {
                     return Some(
                         self.constant(TypeValue::const_bool_from(true)),
                     );
@@ -462,44 +483,47 @@ impl IR {
             }
             Expr::Add { ref mut operands, .. } => {
                 // If not all operands are constant, there's nothing to fold.
-                if !operands
-                    .iter()
-                    .all(|op| nodes[op.0 as usize].type_value().is_const())
-                {
+                if !operands.iter().all(|op| {
+                    descedants[op.0 as usize].type_value().is_const()
+                }) {
                     return Some(expr);
                 }
 
-                Self::fold_arithmetic(nodes, operands.as_slice(), |acc, x| {
-                    acc + x
-                })
+                Self::fold_arithmetic(
+                    descedants,
+                    operands.as_slice(),
+                    |acc, x| acc + x,
+                )
                 .map(|type_value| self.constant(type_value))
             }
             Expr::Sub { ref mut operands, .. } => {
                 // If not all operands are constant, there's nothing to fold.
-                if !operands
-                    .iter()
-                    .all(|op| nodes[op.0 as usize].type_value().is_const())
-                {
+                if !operands.iter().all(|op| {
+                    descedants[op.0 as usize].type_value().is_const()
+                }) {
                     return Some(expr);
                 }
 
-                Self::fold_arithmetic(nodes, operands.as_slice(), |acc, x| {
-                    acc - x
-                })
+                Self::fold_arithmetic(
+                    descedants,
+                    operands.as_slice(),
+                    |acc, x| acc - x,
+                )
                 .map(|type_value| self.constant(type_value))
             }
             Expr::Mul { ref mut operands, .. } => {
                 // If not all operands are constant, there's nothing to fold.
-                if !operands
-                    .iter()
-                    .all(|op| nodes[op.0 as usize].type_value().is_const())
-                {
+                if !operands.iter().all(|op| {
+                    descedants[op.0 as usize].type_value().is_const()
+                }) {
                     return Some(expr);
                 }
 
-                Self::fold_arithmetic(nodes, operands.as_slice(), |acc, x| {
-                    acc * x
-                })
+                Self::fold_arithmetic(
+                    descedants,
+                    operands.as_slice(),
+                    |acc, x| acc * x,
+                )
                 .map(|type_value| self.constant(type_value))
             }
             _ => Some(expr),
@@ -964,7 +988,7 @@ impl Debug for IR {
         for event in self.dfs_iter(self.root.unwrap()) {
             match event {
                 Event::Leave(_) => level -= 1,
-                Event::Enter(expr) => {
+                Event::Enter((_, expr)) => {
                     for _ in 0..level {
                         write!(f, "  ")?;
                     }
@@ -1068,7 +1092,7 @@ impl Debug for IR {
 }
 
 /// Intermediate representation (IR) for an expression.
-pub(in crate::compiler) enum Expr {
+pub enum Expr {
     /// Constant value (i.e: the value is known at compile time).
     /// The value in `TypeValue` is not `None`.
     Const(TypeValue),
@@ -1328,16 +1352,14 @@ pub(in crate::compiler) enum Expr {
 }
 
 /// A lookup operation in an array or dictionary.
-#[derive(Debug)]
-pub(in crate::compiler) struct Lookup {
+pub struct Lookup {
     pub type_value: TypeValue,
     pub primary: NodeIdx,
     pub index: NodeIdx,
 }
 
 /// An expression representing a function call.
-#[derive(Debug)]
-pub(in crate::compiler) struct FuncCall {
+pub struct FuncCall {
     /// The callable expression, which must resolve in some function identifier.
     pub callable: NodeIdx,
     /// The arguments passed to the function in this call.
@@ -1352,8 +1374,7 @@ pub(in crate::compiler) struct FuncCall {
 
 /// An `of` expression (e.g. `1 of ($a, $b)`, `all of them`,
 /// `any of (true, false)`)
-#[derive(Debug)]
-pub(in crate::compiler) struct Of {
+pub struct Of {
     pub quantifier: Quantifier,
     pub items: OfItems,
     pub anchor: MatchAnchor,
@@ -1362,8 +1383,7 @@ pub(in crate::compiler) struct Of {
 
 /// A `for .. of` expression (e.g `for all of them : (..)`,
 /// `for 1 of ($a,$b) : (..)`)
-#[derive(Debug)]
-pub(in crate::compiler) struct ForOf {
+pub struct ForOf {
     pub quantifier: Quantifier,
     pub variable: Var,
     pub pattern_set: Vec<PatternIdx>,
@@ -1372,8 +1392,7 @@ pub(in crate::compiler) struct ForOf {
 }
 
 /// A `for .. in` expression (e.g `for all x in iterator : (..)`)
-#[derive(Debug)]
-pub(in crate::compiler) struct ForIn {
+pub struct ForIn {
     pub quantifier: Quantifier,
     pub variables: Vec<Var>,
     pub iterable: Iterable,
@@ -1382,15 +1401,13 @@ pub(in crate::compiler) struct ForIn {
 }
 
 /// A `with` expression (e.g `with $a, $b : (..)`)
-#[derive(Debug)]
-pub(in crate::compiler) struct With {
+pub struct With {
     pub declarations: Vec<(Var, NodeIdx)>,
     pub condition: NodeIdx,
 }
 
 /// A quantifier used in `for` and `of` expressions.
-#[derive(Debug, Clone)]
-pub(in crate::compiler) enum Quantifier {
+pub enum Quantifier {
     None,
     All,
     Any,
@@ -1404,34 +1421,38 @@ pub(in crate::compiler) enum Quantifier {
 /// The anchor is the part of the expression that restricts the offset range
 /// where the match can occur.
 /// (e.g. `at <expr>`, `in <range>`).
-#[derive(Debug, Clone)]
-pub(in crate::compiler) enum MatchAnchor {
+pub enum MatchAnchor {
     None,
     At(NodeIdx),
     In(Range),
 }
 
 /// Items in a `of` expression.
-#[derive(Debug)]
-pub(in crate::compiler) enum OfItems {
+pub enum OfItems {
     PatternSet(Vec<PatternIdx>),
     BoolExprTuple(Vec<NodeIdx>),
 }
 
 /// A pair of values conforming a range (e.g. `(0..10)`).
-#[derive(Debug, Clone)]
-pub(in crate::compiler) struct Range {
+pub struct Range {
     pub lower_bound: NodeIdx,
     pub upper_bound: NodeIdx,
 }
 
 /// Possible iterable expressions that can use in a [`ForIn`].
-#[derive(Debug)]
-pub(in crate::compiler) enum Iterable {
+pub enum Iterable {
     Range(Range),
     ExprTuple(Vec<NodeIdx>),
     Expr(NodeIdx),
 }
+
+/*
+impl<'a> Index<NodeIdx> for &'a [Expr] {
+    type Output = Expr;
+    fn index(&self, index: NodeIdx) -> &'a Self::Output {
+        self.get(index.0 as usize).unwrap()
+    }
+}*/
 
 impl Expr {
     /// Returns the type of this expression.

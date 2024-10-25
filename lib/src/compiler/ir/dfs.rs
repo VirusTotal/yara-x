@@ -1,15 +1,8 @@
-use crate::compiler::ir::{
-    Expr, Iterable, MatchAnchor, NodeIdx, Quantifier, IR,
-};
+use crate::compiler::ir::{Expr, Iterable, MatchAnchor, NodeIdx, Quantifier};
 
-enum StackEvent {
-    Enter(NodeIdx),
-    Leave(NodeIdx),
-}
-
-pub enum Event<'a> {
-    Enter(&'a Expr),
-    Leave(&'a Expr),
+pub enum Event<T> {
+    Enter(T),
+    Leave(T),
 }
 
 /// An iterator that conducts a Depth First Search (DFS) traversal of the IR
@@ -43,15 +36,15 @@ pub enum Event<'a> {
 /// ```
 ///
 pub struct DepthFirstSearch<'a> {
-    ir: &'a IR,
-    stack: Vec<StackEvent>,
+    nodes: &'a [Expr],
+    stack: Vec<Event<NodeIdx>>,
 }
 
 impl<'a> DepthFirstSearch<'a> {
     /// Creates a new [`DepthFirstSearch`] that traverses the tree starting
     /// at the given node.
-    pub fn new(ir: &'a IR, start: NodeIdx) -> Self {
-        Self { ir, stack: vec![StackEvent::Enter(start)] }
+    pub fn new(start: NodeIdx, nodes: &'a [Expr]) -> Self {
+        Self { nodes, stack: vec![Event::Enter(start)] }
     }
 
     /// Prunes the search tree, preventing the traversal from visiting the
@@ -74,47 +67,42 @@ impl<'a> DepthFirstSearch<'a> {
     pub fn prune(&mut self) {
         // Remove all StackEvent::Enter from the stack until finding a
         // StackEvent::Leave.
-        while let Some(StackEvent::Enter(_)) = self.stack.last() {
+        while let Some(Event::Enter(_)) = self.stack.last() {
             self.stack.pop();
         }
     }
 }
 
 impl<'a> Iterator for DepthFirstSearch<'a> {
-    type Item = Event<'a>;
+    type Item = Event<(NodeIdx, &'a Expr)>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.stack.pop()?;
 
         let push_quantifier =
-            |quantifier: &'a Quantifier, stack: &mut Vec<StackEvent>| {
-                match quantifier {
-                    Quantifier::None => {}
-                    Quantifier::All => {}
-                    Quantifier::Any => {}
-                    Quantifier::Percentage(_) => {}
-                    Quantifier::Expr(expr) => {
-                        stack.push(StackEvent::Enter(*expr))
-                    }
-                }
+            |quantifier: &Quantifier, stack: &mut Vec<_>| match quantifier {
+                Quantifier::None => {}
+                Quantifier::All => {}
+                Quantifier::Any => {}
+                Quantifier::Percentage(_) => {}
+                Quantifier::Expr(expr) => stack.push(Event::Enter(*expr)),
             };
 
         let push_anchor =
-            |anchor: &'a MatchAnchor, stack: &mut Vec<StackEvent>| match anchor
-            {
+            |anchor: &MatchAnchor, stack: &mut Vec<_>| match anchor {
                 MatchAnchor::None => {}
                 MatchAnchor::At(expr) => {
-                    stack.push(StackEvent::Enter(*expr));
+                    stack.push(Event::Enter(*expr));
                 }
                 MatchAnchor::In(range) => {
-                    stack.push(StackEvent::Enter(range.upper_bound));
-                    stack.push(StackEvent::Enter(range.lower_bound));
+                    stack.push(Event::Enter(range.upper_bound));
+                    stack.push(Event::Enter(range.lower_bound));
                 }
             };
 
-        if let StackEvent::Enter(expr) = next {
-            self.stack.push(StackEvent::Leave(expr));
-            match self.ir.get(expr) {
+        if let Event::Enter(expr) = next {
+            self.stack.push(Event::Leave(expr));
+            match &self.nodes[expr.0 as usize] {
                 Expr::Const(_) => {}
                 Expr::Filesize => {}
                 Expr::Ident { .. } => {}
@@ -123,7 +111,7 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
                 | Expr::Defined { operand }
                 | Expr::Minus { operand, .. }
                 | Expr::BitwiseNot { operand } => {
-                    self.stack.push(StackEvent::Enter(*operand));
+                    self.stack.push(Event::Enter(*operand));
                 }
 
                 Expr::And { operands }
@@ -135,7 +123,7 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
                 | Expr::Mod { operands, .. }
                 | Expr::FieldAccess { operands, .. } => {
                     for operand in operands.iter().rev() {
-                        self.stack.push(StackEvent::Enter(*operand))
+                        self.stack.push(Event::Enter(*operand))
                     }
                 }
 
@@ -158,8 +146,8 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
                 | Expr::IEndsWith { lhs, rhs }
                 | Expr::IEquals { lhs, rhs }
                 | Expr::Matches { lhs, rhs } => {
-                    self.stack.push(StackEvent::Enter(*rhs));
-                    self.stack.push(StackEvent::Enter(*lhs));
+                    self.stack.push(Event::Enter(*rhs));
+                    self.stack.push(Event::Enter(*lhs));
                 }
 
                 Expr::PatternMatch { anchor, .. }
@@ -170,8 +158,8 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
                 Expr::PatternCount { range, .. }
                 | Expr::PatternCountVar { range, .. } => {
                     if let Some(range) = range {
-                        self.stack.push(StackEvent::Enter(range.upper_bound));
-                        self.stack.push(StackEvent::Enter(range.lower_bound));
+                        self.stack.push(Event::Enter(range.upper_bound));
+                        self.stack.push(Event::Enter(range.lower_bound));
                     }
                 }
 
@@ -180,15 +168,15 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
                 | Expr::PatternLength { index, .. }
                 | Expr::PatternLengthVar { index, .. } => {
                     if let Some(index) = index {
-                        self.stack.push(StackEvent::Enter(*index));
+                        self.stack.push(Event::Enter(*index));
                     }
                 }
 
                 Expr::FuncCall(fn_call) => {
                     for arg in fn_call.args.iter().rev() {
-                        self.stack.push(StackEvent::Enter(*arg))
+                        self.stack.push(Event::Enter(*arg))
                     }
-                    self.stack.push(StackEvent::Enter(fn_call.callable));
+                    self.stack.push(Event::Enter(fn_call.callable));
                 }
 
                 Expr::Of(of) => {
@@ -197,58 +185,60 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
                 }
 
                 Expr::ForOf(for_of) => {
-                    self.stack.push(StackEvent::Enter(for_of.condition));
+                    self.stack.push(Event::Enter(for_of.condition));
                     push_quantifier(&for_of.quantifier, &mut self.stack);
                 }
 
                 Expr::ForIn(for_in) => {
-                    self.stack.push(StackEvent::Enter(for_in.condition));
+                    self.stack.push(Event::Enter(for_in.condition));
                     match &for_in.iterable {
                         Iterable::Range(range) => {
-                            self.stack
-                                .push(StackEvent::Enter(range.upper_bound));
-                            self.stack
-                                .push(StackEvent::Enter(range.lower_bound));
+                            self.stack.push(Event::Enter(range.upper_bound));
+                            self.stack.push(Event::Enter(range.lower_bound));
                         }
                         Iterable::ExprTuple(expr_tuple) => {
                             for expr in expr_tuple.iter().rev() {
-                                self.stack.push(StackEvent::Enter(*expr))
+                                self.stack.push(Event::Enter(*expr))
                             }
                         }
                         Iterable::Expr(expr) => {
-                            self.stack.push(StackEvent::Enter(*expr))
+                            self.stack.push(Event::Enter(*expr))
                         }
                     }
                     push_quantifier(&for_in.quantifier, &mut self.stack);
                 }
 
                 Expr::Lookup(lookup) => {
-                    self.stack.push(StackEvent::Enter(lookup.index));
-                    self.stack.push(StackEvent::Enter(lookup.primary));
+                    self.stack.push(Event::Enter(lookup.index));
+                    self.stack.push(Event::Enter(lookup.primary));
                 }
 
                 Expr::With(with) => {
-                    self.stack.push(StackEvent::Enter(with.condition));
+                    self.stack.push(Event::Enter(with.condition));
                     for (_id, expr) in with.declarations.iter().rev() {
-                        self.stack.push(StackEvent::Enter(*expr))
+                        self.stack.push(Event::Enter(*expr))
                     }
                 }
             }
         }
 
-        let event = match next {
-            StackEvent::Enter(expr) => Event::Enter(self.ir.get(expr)),
-            StackEvent::Leave(expr) => Event::Leave(self.ir.get(expr)),
+        let next = match next {
+            Event::Enter(expr) => {
+                Event::Enter((expr, &self.nodes[expr.0 as usize]))
+            }
+            Event::Leave(expr) => {
+                Event::Leave((expr, &self.nodes[expr.0 as usize]))
+            }
         };
 
-        Some(event)
+        Some(next)
     }
 }
 
 #[cfg(test)]
 mod test {
     use crate::compiler::ir::dfs::Event;
-    use crate::compiler::ir::{Expr, IR};
+    use crate::compiler::ir::{Expr, NodeIdx, IR};
     use crate::types::TypeValue;
 
     #[test]
@@ -263,43 +253,109 @@ mod test {
 
         let mut dfs = ir.dfs_iter(root);
 
-        assert!(matches!(dfs.next(), Some(Event::Enter(&Expr::Add { .. }))));
-        assert!(matches!(dfs.next(), Some(Event::Enter(&Expr::Const(_)))));
-        assert!(matches!(dfs.next(), Some(Event::Leave(&Expr::Const(_)))));
-        assert!(matches!(dfs.next(), Some(Event::Enter(&Expr::Add { .. }))));
-        assert!(matches!(dfs.next(), Some(Event::Enter(&Expr::Const(_)))));
-        assert!(matches!(dfs.next(), Some(Event::Leave(&Expr::Const(_)))));
-        assert!(matches!(dfs.next(), Some(Event::Enter(&Expr::Const(_)))));
-        assert!(matches!(dfs.next(), Some(Event::Leave(&Expr::Const(_)))));
-        assert!(matches!(dfs.next(), Some(Event::Leave(&Expr::Add { .. }))));
-        assert!(matches!(dfs.next(), Some(Event::Leave(&Expr::Add { .. }))));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Enter((NodeIdx(4), &Expr::Add { .. })))
+        ));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Enter((NodeIdx(0), &Expr::Const(_))))
+        ));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Leave((NodeIdx(0), &Expr::Const(_))))
+        ));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Enter((NodeIdx(3), &Expr::Add { .. })))
+        ));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Enter((NodeIdx(1), &Expr::Const(_))))
+        ));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Leave((NodeIdx(1), &Expr::Const(_))))
+        ));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Enter((NodeIdx(2), &Expr::Const(_))))
+        ));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Leave((NodeIdx(2), &Expr::Const(_))))
+        ));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Leave((NodeIdx(3), &Expr::Add { .. })))
+        ));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Leave((NodeIdx(4), &Expr::Add { .. })))
+        ));
         assert!(dfs.next().is_none());
 
         let mut dfs = ir.dfs_iter(root);
 
-        assert!(matches!(dfs.next(), Some(Event::Enter(&Expr::Add { .. }))));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Enter((NodeIdx(4), &Expr::Add { .. })))
+        ));
         dfs.prune();
-        assert!(matches!(dfs.next(), Some(Event::Leave(&Expr::Add { .. }))));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Leave((NodeIdx(4), &Expr::Add { .. })))
+        ));
         assert!(dfs.next().is_none());
 
         let mut dfs = ir.dfs_iter(root);
 
-        assert!(matches!(dfs.next(), Some(Event::Enter(&Expr::Add { .. }))));
-        assert!(matches!(dfs.next(), Some(Event::Enter(&Expr::Const(_)))));
-        assert!(matches!(dfs.next(), Some(Event::Leave(&Expr::Const(_)))));
-        assert!(matches!(dfs.next(), Some(Event::Enter(&Expr::Add { .. }))));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Enter((_, &Expr::Add { .. })))
+        ));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Enter((_, &Expr::Const(_))))
+        ));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Leave((_, &Expr::Const(_))))
+        ));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Enter((_, &Expr::Add { .. })))
+        ));
         dfs.prune();
-        assert!(matches!(dfs.next(), Some(Event::Leave(&Expr::Add { .. }))));
-        assert!(matches!(dfs.next(), Some(Event::Leave(&Expr::Add { .. }))));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Leave((_, &Expr::Add { .. })))
+        ));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Leave((_, &Expr::Add { .. })))
+        ));
         assert!(dfs.next().is_none());
 
         let mut dfs = ir.dfs_iter(root);
 
-        assert!(matches!(dfs.next(), Some(Event::Enter(&Expr::Add { .. }))));
-        assert!(matches!(dfs.next(), Some(Event::Enter(&Expr::Const(_)))));
-        assert!(matches!(dfs.next(), Some(Event::Leave(&Expr::Const(_)))));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Enter((_, &Expr::Add { .. })))
+        ));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Enter((_, &Expr::Const(_))))
+        ));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Leave((_, &Expr::Const(_))))
+        ));
         dfs.prune();
-        assert!(matches!(dfs.next(), Some(Event::Leave(&Expr::Add { .. }))));
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Leave((_, &Expr::Add { .. })))
+        ));
         assert!(dfs.next().is_none());
     }
 }
