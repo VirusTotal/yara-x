@@ -1,11 +1,12 @@
 use itertools::Itertools;
+use std::cell::Cell;
 use std::mem::size_of;
 use std::rc::Rc;
 
 use yara_x_parser::ast::{Ident, WithSpan};
 
 use crate::compiler::errors::{CompileError, UnknownPattern};
-use crate::compiler::ir::PatternIdx;
+use crate::compiler::ir::{PatternIdx, IR};
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{ir, Warnings};
 use crate::symbols::{StackedSymbolTable, SymbolLookup};
@@ -13,10 +14,13 @@ use crate::types::Type;
 use crate::wasm;
 
 /// Structure that contains information and data structures required during the
-/// current compilation process.
+/// compilation of a rule.
 pub(in crate::compiler) struct CompileContext<'a, 'src, 'sym> {
     /// Builder for creating error and warning reports.
     pub report_builder: &'a ReportBuilder,
+
+    /// IR tree for the rule's condition.
+    pub ir: &'a mut IR,
 
     /// Symbol table that contains the currently defined identifiers, modules,
     /// functions, etc.
@@ -118,7 +122,7 @@ impl VarStack {
             panic!("variables stack overflow");
         }
 
-        VarStackFrame { start, capacity, used: 0 }
+        VarStackFrame { start, capacity, used: Cell::new(0) }
     }
 
     /// Unwinds the stack freeing all frames that were allocated after the
@@ -137,9 +141,9 @@ impl VarStack {
 /// allocated within a frame.
 #[derive(Clone, Debug)]
 pub(crate) struct VarStackFrame {
-    pub start: i32,
-    pub used: i32,
-    pub capacity: i32,
+    start: i32,
+    capacity: i32,
+    used: Cell<i32>,
 }
 
 impl VarStackFrame {
@@ -148,10 +152,10 @@ impl VarStackFrame {
     /// # Panics
     ///
     /// Panics if trying to allocate more variables than the frame capacity.
-    pub fn new_var(&mut self, ty: Type) -> Var {
-        let index = self.used + self.start;
-        self.used += 1;
-        if self.used > self.capacity {
+    pub fn new_var(&self, ty: Type) -> Var {
+        let index = self.used.get() + self.start;
+        self.used.replace(self.used.get() + 1);
+        if self.used.get() > self.capacity {
             panic!("VarStack exceeding its capacity: {}", self.capacity);
         }
         Var { ty, index }
