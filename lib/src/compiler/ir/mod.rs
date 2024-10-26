@@ -712,7 +712,10 @@ impl IR {
     /// Creates a new [`Expr::FieldAccess`].
     pub fn field_access(&mut self, operands: Vec<NodeIdx>) -> NodeIdx {
         let type_value = self.get(*operands.last().unwrap()).type_value();
-        self.nodes.push(Expr::FieldAccess { operands, type_value });
+        self.nodes.push(Expr::FieldAccess(Box::new(FieldAccess {
+            operands,
+            type_value,
+        })));
         NodeIdx::from(self.nodes.len() - 1)
     }
 

@@ -1,6 +1,17 @@
-use crate::Compiler;
 use std::fs;
 use std::io::BufWriter;
+
+use crate::compiler::{Expr, MatchAnchor, NodeIdx, Range};
+use crate::symbols::Symbol;
+use crate::types::TypeValue;
+use crate::Compiler;
+
+#[test]
+fn expr_size() {
+    // Sentinel test for making sure tha Expr doesn't grow in future
+    // changes.
+    assert_eq!(size_of::<Expr>(), 32);
+}
 
 #[test]
 fn ir() {

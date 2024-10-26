@@ -119,8 +119,7 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
                 | Expr::Sub { operands, .. }
                 | Expr::Mul { operands, .. }
                 | Expr::Div { operands, .. }
-                | Expr::Mod { operands, .. }
-                | Expr::FieldAccess { operands, .. } => {
+                | Expr::Mod { operands, .. } => {
                     for operand in operands.iter().rev() {
                         self.stack.push(Event::Enter(*operand))
                     }
