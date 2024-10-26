@@ -65,8 +65,7 @@ impl<'a> DepthFirstSearch<'a> {
     /// node that was exited.
     #[allow(dead_code)] // TODO: remove when this is used.
     pub fn prune(&mut self) {
-        // Remove all StackEvent::Enter from the stack until finding a
-        // StackEvent::Leave.
+        // Remove all Event::Enter from the stack until finding an Event::Leave.
         while let Some(Event::Enter(_)) = self.stack.last() {
             self.stack.pop();
         }
@@ -172,6 +171,12 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
                     }
                 }
 
+                Expr::FieldAccess(field_access) => {
+                    for operand in field_access.operands.iter().rev() {
+                        self.stack.push(Event::Enter(*operand))
+                    }
+                }
+
                 Expr::FuncCall(fn_call) => {
                     for arg in fn_call.args.iter().rev() {
                         self.stack.push(Event::Enter(*arg))
@@ -232,7 +237,7 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::compiler::ir::dfs::Event;
     use crate::compiler::ir::{Expr, NodeIdx, IR};
     use crate::types::TypeValue;

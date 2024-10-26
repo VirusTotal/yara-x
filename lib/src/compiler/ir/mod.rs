@@ -581,7 +581,7 @@ impl IR {
 
     /// Creates a new [`Expr::Ident`].
     pub fn ident(&mut self, symbol: Symbol) -> NodeIdx {
-        self.nodes.push(Expr::Ident { symbol });
+        self.nodes.push(Expr::Ident { symbol: Box::new(symbol) });
         NodeIdx::from(self.nodes.len() - 1)
     }
 
@@ -816,7 +816,8 @@ impl IR {
         symbol: Symbol,
         anchor: MatchAnchor,
     ) -> NodeIdx {
-        self.nodes.push(Expr::PatternMatchVar { symbol, anchor });
+        self.nodes
+            .push(Expr::PatternMatchVar { symbol: Box::new(symbol), anchor });
         NodeIdx::from(self.nodes.len() - 1)
     }
 
@@ -836,7 +837,8 @@ impl IR {
         symbol: Symbol,
         index: Option<NodeIdx>,
     ) -> NodeIdx {
-        self.nodes.push(Expr::PatternLengthVar { symbol, index });
+        self.nodes
+            .push(Expr::PatternLengthVar { symbol: Box::new(symbol), index });
         NodeIdx::from(self.nodes.len() - 1)
     }
 
@@ -856,7 +858,8 @@ impl IR {
         symbol: Symbol,
         index: Option<NodeIdx>,
     ) -> NodeIdx {
-        self.nodes.push(Expr::PatternOffsetVar { symbol, index });
+        self.nodes
+            .push(Expr::PatternOffsetVar { symbol: Box::new(symbol), index });
         NodeIdx::from(self.nodes.len() - 1)
     }
 
@@ -876,7 +879,8 @@ impl IR {
         symbol: Symbol,
         range: Option<Range>,
     ) -> NodeIdx {
-        self.nodes.push(Expr::PatternCountVar { symbol, range });
+        self.nodes
+            .push(Expr::PatternCountVar { symbol: Box::new(symbol), range });
         NodeIdx::from(self.nodes.len() - 1)
     }
 
@@ -1268,19 +1272,13 @@ pub(crate) enum Expr {
         lhs: NodeIdx,
     },
 
-    /// Field access expression (e.g. `foo.bar.baz`)
-    FieldAccess {
-        type_value: TypeValue,
-        operands: Vec<NodeIdx>,
-    },
-
     /// A `defined` expression (e.g. `defined foo`)
     Defined {
         operand: NodeIdx,
     },
 
     Ident {
-        symbol: Symbol,
+        symbol: Box<Symbol>,
     },
 
     /// Pattern match expression (e.g. `$a`)
@@ -1291,7 +1289,7 @@ pub(crate) enum Expr {
 
     /// Pattern match expression where the pattern is variable (e.g: `$`).
     PatternMatchVar {
-        symbol: Symbol,
+        symbol: Box<Symbol>,
         anchor: MatchAnchor,
     },
 
@@ -1303,7 +1301,7 @@ pub(crate) enum Expr {
 
     /// Pattern count expression where the pattern is variable (e.g. `#`, `# in (0..10)`)
     PatternCountVar {
-        symbol: Symbol,
+        symbol: Box<Symbol>,
         range: Option<Range>,
     },
 
@@ -1315,7 +1313,7 @@ pub(crate) enum Expr {
 
     /// Pattern count expression where the pattern is variable (e.g. `@`, `@[1]`)
     PatternOffsetVar {
-        symbol: Symbol,
+        symbol: Box<Symbol>,
         index: Option<NodeIdx>,
     },
 
@@ -1327,9 +1325,12 @@ pub(crate) enum Expr {
 
     /// Pattern count expression where the pattern is variable (e.g. `!`, `![1]`)
     PatternLengthVar {
-        symbol: Symbol,
+        symbol: Box<Symbol>,
         index: Option<NodeIdx>,
     },
+
+    /// Field access expression (e.g. `foo.bar.baz`)
+    FieldAccess(Box<FieldAccess>),
 
     /// Function call.
     FuncCall(Box<FuncCall>),
@@ -1355,6 +1356,12 @@ pub(crate) struct Lookup {
     pub type_value: TypeValue,
     pub primary: NodeIdx,
     pub index: NodeIdx,
+}
+
+/// A field access expression.
+pub(crate) struct FieldAccess {
+    pub type_value: TypeValue,
+    pub operands: Vec<NodeIdx>,
 }
 
 /// An expression representing a function call.
@@ -1517,8 +1524,8 @@ impl Expr {
             | Expr::Shl { .. }
             | Expr::Shr { .. } => Type::Integer,
 
-            Expr::FieldAccess { type_value, .. } => type_value.ty(),
             Expr::Ident { symbol, .. } => symbol.type_value().ty(),
+            Expr::FieldAccess(field_access) => field_access.type_value.ty(),
             Expr::FuncCall(fn_call) => fn_call.type_value.ty(),
             Expr::Lookup(lookup) => lookup.type_value.ty(),
         }
@@ -1587,8 +1594,8 @@ impl Expr {
             | Expr::Shl { .. }
             | Expr::Shr { .. } => TypeValue::Integer(Value::Unknown),
 
-            Expr::FieldAccess { type_value, .. } => type_value.clone(),
             Expr::Ident { symbol, .. } => symbol.type_value().clone(),
+            Expr::FieldAccess(field_access) => field_access.type_value.clone(),
             Expr::FuncCall(fn_call) => fn_call.type_value.clone(),
             Expr::Lookup(lookup) => lookup.type_value.clone(),
         }

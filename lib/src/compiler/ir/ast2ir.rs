@@ -854,12 +854,7 @@ fn expr_from_ast(
 
                     // The type of the key/index expression should correspond
                     // with the type of the map's keys.
-                    check_type(
-                        ctx,
-                        index,
-                        expr.index.span().into(),
-                        &[key_ty],
-                    )?;
+                    check_type(ctx, index, expr.index.span(), &[key_ty])?;
 
                     Ok(ctx.ir.lookup(deputy_value.clone(), primary, index))
                 }

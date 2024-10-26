@@ -25,7 +25,8 @@ use crate::compiler::ir::{
     PatternIdx, Quantifier, With, IR,
 };
 use crate::compiler::{
-    LiteralId, PatternId, RegexpId, RuleId, RuleInfo, Var, VarStackFrame,
+    FieldAccess, LiteralId, PatternId, RegexpId, RuleId, RuleInfo, Var,
+    VarStackFrame,
 };
 use crate::scanner::RuntimeObjectHandle;
 use crate::string_pool::{BStringPool, StringPool};
@@ -407,8 +408,8 @@ fn emit_expr(
             emit_pattern_length(ctx, ir, expr, instr);
         }
 
-        Expr::FieldAccess { operands, .. } => {
-            emit_field_access(ctx, ir, operands.as_slice(), instr);
+        Expr::FieldAccess(field_access) => {
+            emit_field_access(ctx, ir, field_access, instr);
         }
 
         Expr::Defined { operand } => emit_defined(ctx, ir, *operand, instr),
@@ -919,7 +920,7 @@ fn emit_mod(
 fn emit_field_access(
     ctx: &mut EmitContext,
     ir: &IR,
-    operands: &[NodeIdx],
+    field_access: &FieldAccess,
     instr: &mut InstrSeqBuilder,
 ) {
     // Iterate over the operands, excluding the last one. While the operands
@@ -927,7 +928,7 @@ fn emit_field_access(
     // during the last call to `emit_expr` a single field lookup operation
     // will be emitted, encompassing all the lookups in a single call to
     // Rust code.
-    for operand in operands.iter().dropping_back(1) {
+    for operand in field_access.operands.iter().dropping_back(1) {
         if let Expr::Ident { symbol } = ir.get(*operand) {
             if let SymbolKind::Field(index, root) = symbol.kind() {
                 ctx.lookup_list.push((*index as i32, *root));
@@ -937,7 +938,7 @@ fn emit_field_access(
         emit_expr(ctx, ir, *operand, instr);
     }
 
-    emit_expr(ctx, ir, *operands.last().unwrap(), instr);
+    emit_expr(ctx, ir, *field_access.operands.last().unwrap(), instr);
 }
 
 /// Emits code that checks if the pattern search phase has not been executed
