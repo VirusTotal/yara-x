@@ -1,9 +1,8 @@
 use std::fs;
 use std::io::BufWriter;
+use std::mem::size_of;
 
-use crate::compiler::{Expr, MatchAnchor, NodeIdx, Range};
-use crate::symbols::Symbol;
-use crate::types::TypeValue;
+use crate::compiler::Expr;
 use crate::Compiler;
 
 #[test]
