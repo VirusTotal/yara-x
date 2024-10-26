@@ -37,8 +37,8 @@ where
         for next in self.input.by_ref() {
             match next {
                 // Keep pushing tokens into the buffer while they are
-                // whitespaces
-                Token::Whitespace => {
+                // whitespaces or tabs
+                Token::Whitespace | Token::Tab => {
                     self.output_buffer.push_back(next);
                 }
                 // If we find a newline, discard all whitespaces previously
