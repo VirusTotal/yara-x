@@ -1,0 +1,8 @@
+rule test {
+  meta:
+    a = "b"
+  strings:
+    $a = "b"
+  condition:
+    $a
+}

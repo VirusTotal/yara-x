@@ -1,0 +1,1 @@
+rule test{meta:a="b"long="foo"strings:$a="b"$axs={0611}condition:$a}

@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::{fs, str};
 
 use pretty_assertions::assert_eq;
@@ -39,11 +40,12 @@ fn spacer() {
 
 #[test]
 fn format() {
-    let files: Vec<_> = globwalk::glob("src/testdata/*.unformatted")
-        .unwrap()
-        .flatten()
-        .map(|entry| entry.into_path())
-        .collect();
+    let files: Vec<_> =
+        globwalk::glob("src/testdata/default_tests/*.unformatted")
+            .unwrap()
+            .flatten()
+            .map(|entry| entry.into_path())
+            .collect();
 
     files.into_par_iter().for_each(|path| {
         let mut mint = goldenfile::Mint::new(".");
@@ -60,4 +62,76 @@ fn format() {
             panic!("{:?} and {:?} are equal", path, output_path)
         }
     });
+}
+
+#[test]
+fn format_config_options() {
+    // Tuples for tests. First item is the formatter config to use. Second item
+    // is the unformatted test file. Third item is expected formatted file.
+    let tests = vec![
+        (
+            Formatter::new().indent_section_headers(false),
+            "generic_rule.unformatted",
+            "indent_section_headers_false.formatted",
+        ),
+        (
+            Formatter::new().indent_section_contents(false),
+            "generic_rule.unformatted",
+            "indent_section_contents_false.formatted",
+        ),
+        (
+            Formatter::new().indent_spaces(0),
+            "generic_rule.unformatted",
+            "indent_spaces_zero.formatted",
+        ),
+        (
+            Formatter::new().indent_spaces(1),
+            "generic_rule.unformatted",
+            "indent_spaces_one.formatted",
+        ),
+        (
+            Formatter::new().newline_before_curly_brace(true),
+            "generic_rule.unformatted",
+            "newline_before_curly_brace_true.formatted",
+        ),
+        (
+            Formatter::new().empty_line_before_section_header(false),
+            "generic_rule.unformatted",
+            "empty_line_before_section_header_false.formatted",
+        ),
+        (
+            Formatter::new().empty_line_after_section_header(true),
+            "generic_rule.unformatted",
+            "empty_line_after_section_header_true.formatted",
+        ),
+        (
+            Formatter::new().align_metadata(false),
+            "align_rule.unformatted",
+            "align_metadata_false.formatted",
+        ),
+        (
+            Formatter::new().align_patterns(false),
+            "align_rule.unformatted",
+            "align_patterns_false.formatted",
+        ),
+    ];
+
+    let base = PathBuf::from("src/testdata/config_tests/");
+    for (formatter, unformatted, formatted) in tests {
+        let input = fs::read_to_string(base.join(unformatted))
+            .expect("error reading unformatted file");
+        let expected = fs::read_to_string(base.join(formatted))
+            .expect("error reading formatted file");
+        let mut output = Vec::new();
+
+        formatter
+            .format(input.as_bytes(), &mut output)
+            .expect("format failed");
+        assert_eq!(
+            str::from_utf8(&output).unwrap(),
+            expected,
+            "Formatted file: {}",
+            formatted
+        );
+    }
 }
