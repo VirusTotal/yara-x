@@ -1,4 +1,4 @@
-use crate::compiler::ir::{Expr, Iterable, MatchAnchor, NodeIdx, Quantifier};
+use crate::compiler::ir::{Expr, ExprId, Iterable, MatchAnchor, Quantifier};
 
 pub(crate) enum Event<T> {
     Enter(T),
@@ -37,13 +37,13 @@ pub(crate) enum Event<T> {
 ///
 pub(crate) struct DepthFirstSearch<'a> {
     nodes: &'a [Expr],
-    stack: Vec<Event<NodeIdx>>,
+    stack: Vec<Event<ExprId>>,
 }
 
 impl<'a> DepthFirstSearch<'a> {
     /// Creates a new [`DepthFirstSearch`] that traverses the tree starting
     /// at the given node.
-    pub fn new(start: NodeIdx, nodes: &'a [Expr]) -> Self {
+    pub fn new(start: ExprId, nodes: &'a [Expr]) -> Self {
         Self { nodes, stack: vec![Event::Enter(start)] }
     }
 
@@ -73,7 +73,7 @@ impl<'a> DepthFirstSearch<'a> {
 }
 
 impl<'a> Iterator for DepthFirstSearch<'a> {
-    type Item = Event<(NodeIdx, &'a Expr)>;
+    type Item = Event<(ExprId, &'a Expr)>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.stack.pop()?;
@@ -238,7 +238,7 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
 #[cfg(test)]
 mod tests {
     use crate::compiler::ir::dfs::Event;
-    use crate::compiler::ir::{Expr, NodeIdx, IR};
+    use crate::compiler::ir::{Expr, ExprId, IR};
     use crate::types::TypeValue;
 
     #[test]
@@ -255,43 +255,43 @@ mod tests {
 
         assert!(matches!(
             dfs.next(),
-            Some(Event::Enter((NodeIdx(4), &Expr::Add { .. })))
+            Some(Event::Enter((ExprId(4), &Expr::Add { .. })))
         ));
         assert!(matches!(
             dfs.next(),
-            Some(Event::Enter((NodeIdx(0), &Expr::Const(_))))
+            Some(Event::Enter((ExprId(0), &Expr::Const(_))))
         ));
         assert!(matches!(
             dfs.next(),
-            Some(Event::Leave((NodeIdx(0), &Expr::Const(_))))
+            Some(Event::Leave((ExprId(0), &Expr::Const(_))))
         ));
         assert!(matches!(
             dfs.next(),
-            Some(Event::Enter((NodeIdx(3), &Expr::Add { .. })))
+            Some(Event::Enter((ExprId(3), &Expr::Add { .. })))
         ));
         assert!(matches!(
             dfs.next(),
-            Some(Event::Enter((NodeIdx(1), &Expr::Const(_))))
+            Some(Event::Enter((ExprId(1), &Expr::Const(_))))
         ));
         assert!(matches!(
             dfs.next(),
-            Some(Event::Leave((NodeIdx(1), &Expr::Const(_))))
+            Some(Event::Leave((ExprId(1), &Expr::Const(_))))
         ));
         assert!(matches!(
             dfs.next(),
-            Some(Event::Enter((NodeIdx(2), &Expr::Const(_))))
+            Some(Event::Enter((ExprId(2), &Expr::Const(_))))
         ));
         assert!(matches!(
             dfs.next(),
-            Some(Event::Leave((NodeIdx(2), &Expr::Const(_))))
+            Some(Event::Leave((ExprId(2), &Expr::Const(_))))
         ));
         assert!(matches!(
             dfs.next(),
-            Some(Event::Leave((NodeIdx(3), &Expr::Add { .. })))
+            Some(Event::Leave((ExprId(3), &Expr::Add { .. })))
         ));
         assert!(matches!(
             dfs.next(),
-            Some(Event::Leave((NodeIdx(4), &Expr::Add { .. })))
+            Some(Event::Leave((ExprId(4), &Expr::Add { .. })))
         ));
         assert!(dfs.next().is_none());
 
@@ -299,12 +299,12 @@ mod tests {
 
         assert!(matches!(
             dfs.next(),
-            Some(Event::Enter((NodeIdx(4), &Expr::Add { .. })))
+            Some(Event::Enter((ExprId(4), &Expr::Add { .. })))
         ));
         dfs.prune();
         assert!(matches!(
             dfs.next(),
-            Some(Event::Leave((NodeIdx(4), &Expr::Add { .. })))
+            Some(Event::Leave((ExprId(4), &Expr::Add { .. })))
         ));
         assert!(dfs.next().is_none());
 

@@ -21,7 +21,7 @@ use walrus::ValType::{I32, I64};
 use walrus::{FunctionId, InstrSeqBuilder, ValType};
 
 use crate::compiler::ir::{
-    Expr, ForIn, ForOf, Iterable, MatchAnchor, NodeIdx, Of, OfItems,
+    Expr, ExprId, ForIn, ForOf, Iterable, MatchAnchor, Of, OfItems,
     PatternIdx, Quantifier, With, IR,
 };
 use crate::compiler::{
@@ -248,7 +248,7 @@ pub(crate) fn emit_rule_condition(
     ctx: &mut EmitContext,
     ir: &IR,
     rule_id: RuleId,
-    condition: NodeIdx,
+    condition: ExprId,
     builder: &mut WasmModuleBuilder,
 ) {
     let mut instr = builder.start_rule(rule_id, ctx.current_rule.is_global);
@@ -273,7 +273,7 @@ pub(crate) fn emit_rule_condition(
 fn emit_expr(
     ctx: &mut EmitContext,
     ir: &IR,
-    expr: NodeIdx,
+    expr: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
     match ir.get(expr) {
@@ -668,7 +668,7 @@ fn emit_expr(
 fn emit_defined(
     ctx: &mut EmitContext,
     ir: &IR,
-    operand: NodeIdx,
+    operand: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
     // The `defined` expression is emitted as:
@@ -705,7 +705,7 @@ fn emit_defined(
 fn emit_not(
     ctx: &mut EmitContext,
     ir: &IR,
-    operand: NodeIdx,
+    operand: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
     // The `not` expression is emitted as:
@@ -732,7 +732,7 @@ fn emit_not(
 fn emit_and(
     ctx: &mut EmitContext,
     ir: &IR,
-    operands: &[NodeIdx],
+    operands: &[ExprId],
     instr: &mut InstrSeqBuilder,
 ) {
     // The `or` expression is emitted as:
@@ -797,7 +797,7 @@ fn emit_and(
 fn emit_or(
     ctx: &mut EmitContext,
     ir: &IR,
-    operands: &[NodeIdx],
+    operands: &[ExprId],
     instr: &mut InstrSeqBuilder,
 ) {
     // The `or` expression is emitted as:
@@ -862,7 +862,7 @@ fn emit_or(
 fn emit_div(
     ctx: &mut EmitContext,
     ir: &IR,
-    operands: &[NodeIdx],
+    operands: &[ExprId],
     instr: &mut InstrSeqBuilder,
 ) {
     let mut operands = operands.iter();
@@ -902,7 +902,7 @@ fn emit_div(
 fn emit_mod(
     ctx: &mut EmitContext,
     ir: &IR,
-    operands: &[NodeIdx],
+    operands: &[ExprId],
     instr: &mut InstrSeqBuilder,
 ) {
     let mut operands = operands.iter();
@@ -974,7 +974,7 @@ fn emit_lazy_pattern_search(
 fn emit_pattern_match(
     ctx: &mut EmitContext,
     ir: &IR,
-    expr: NodeIdx,
+    expr: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
     emit_lazy_pattern_search(ctx, instr);
@@ -1026,7 +1026,7 @@ fn emit_pattern_match(
 fn emit_pattern_count(
     ctx: &mut EmitContext,
     ir: &IR,
-    expr: NodeIdx,
+    expr: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
     emit_lazy_pattern_search(ctx, instr);
@@ -1071,7 +1071,7 @@ fn emit_pattern_count(
 fn emit_pattern_offset(
     ctx: &mut EmitContext,
     ir: &IR,
-    expr: NodeIdx,
+    expr: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
     emit_lazy_pattern_search(ctx, instr);
@@ -1120,7 +1120,7 @@ fn emit_pattern_offset(
 fn emit_pattern_length(
     ctx: &mut EmitContext,
     ir: &IR,
-    expr: NodeIdx,
+    expr: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
     emit_lazy_pattern_search(ctx, instr);
@@ -2486,7 +2486,7 @@ fn incr_var(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
 fn emit_bool_expr(
     ctx: &mut EmitContext,
     ir: &IR,
-    expr: NodeIdx,
+    expr: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
     emit_expr(ctx, ir, expr, instr);

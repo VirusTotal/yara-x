@@ -22,7 +22,7 @@ use crate::compiler::errors::{
 };
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
-    Expr, Iterable, LiteralPattern, MatchAnchor, NodeIdx, OfItems, Pattern,
+    Expr, ExprId, Iterable, LiteralPattern, MatchAnchor, OfItems, Pattern,
     PatternFlagSet, PatternFlags, PatternIdx, PatternInRule, Quantifier,
     Range, RegexpPattern,
 };
@@ -408,7 +408,7 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
 fn expr_from_ast(
     ctx: &mut CompileContext,
     expr: &ast::Expr,
-) -> Result<NodeIdx, CompileError> {
+) -> Result<ExprId, CompileError> {
     match expr {
         ast::Expr::Entrypoint { span } => {
             Err(EntrypointUnsupported::build(ctx.report_builder, span.into()))
@@ -873,7 +873,7 @@ fn expr_from_ast(
 pub(in crate::compiler) fn rule_condition_from_ast(
     ctx: &mut CompileContext,
     rule: &ast::Rule,
-) -> Result<NodeIdx, CompileError> {
+) -> Result<ExprId, CompileError> {
     // Start with clean IR tree.
     ctx.ir.clear();
 
@@ -906,7 +906,7 @@ pub(in crate::compiler) fn rule_condition_from_ast(
 fn bool_expr_from_ast(
     ctx: &mut CompileContext,
     ast: &ast::Expr,
-) -> Result<NodeIdx, CompileError> {
+) -> Result<ExprId, CompileError> {
     let code_loc = ast.span().into();
     let expr = expr_from_ast(ctx, ast)?;
 
@@ -970,7 +970,7 @@ fn bool_expr_from_ast(
 fn of_expr_from_ast(
     ctx: &mut CompileContext,
     of: &ast::Of,
-) -> Result<NodeIdx, CompileError> {
+) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &of.quantifier)?;
     // Create new stack frame with 5 slots:
     //   1 slot for the loop variable, a bool in this case.
@@ -986,7 +986,7 @@ fn of_expr_from_ast(
                     let expr = bool_expr_from_ast(ctx, e)?;
                     Ok(expr)
                 })
-                .collect::<Result<Vec<NodeIdx>, CompileError>>()?;
+                .collect::<Result<Vec<ExprId>, CompileError>>()?;
 
             let num_items = tuple.len();
             (OfItems::BoolExprTuple(tuple), num_items)
@@ -1081,7 +1081,7 @@ fn of_expr_from_ast(
 fn for_of_expr_from_ast(
     ctx: &mut CompileContext,
     for_of: &ast::ForOf,
-) -> Result<NodeIdx, CompileError> {
+) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &for_of.quantifier)?;
     let pattern_set = pattern_set_from_ast(ctx, &for_of.pattern_set)?;
     // Create new stack frame with 5 slots:
@@ -1158,7 +1158,7 @@ fn is_potentially_large_range(ctx: &CompileContext, range: &Range) -> bool {
 fn for_in_expr_from_ast(
     ctx: &mut CompileContext,
     for_in: &ast::ForIn,
-) -> Result<NodeIdx, CompileError> {
+) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &for_in.quantifier)?;
     let iterable = iterable_from_ast(ctx, &for_in.iterable)?;
 
@@ -1265,7 +1265,7 @@ fn for_in_expr_from_ast(
 fn with_expr_from_ast(
     ctx: &mut CompileContext,
     with: &ast::With,
-) -> Result<NodeIdx, CompileError> {
+) -> Result<ExprId, CompileError> {
     // Create stack frame with capacity for the with statement variables
     let stack_frame = ctx.vars.new_frame(with.declarations.len() as i32);
     let mut symbols = SymbolTable::new();
@@ -1405,7 +1405,7 @@ fn range_from_ast(
 fn non_negative_integer_from_ast(
     ctx: &mut CompileContext,
     expr: &ast::Expr,
-) -> Result<NodeIdx, CompileError> {
+) -> Result<ExprId, CompileError> {
     let span = expr.span();
     let expr = expr_from_ast(ctx, expr)?;
 
@@ -1428,7 +1428,7 @@ fn integer_in_range_from_ast(
     ctx: &mut CompileContext,
     expr: &ast::Expr,
     range: RangeInclusive<i64>,
-) -> Result<NodeIdx, CompileError> {
+) -> Result<ExprId, CompileError> {
     let span = expr.span();
     let expr = expr_from_ast(ctx, expr)?;
 
@@ -1550,7 +1550,7 @@ fn pattern_set_from_ast(
 fn func_call_from_ast(
     ctx: &mut CompileContext,
     func_call: &ast::FuncCall,
-) -> Result<NodeIdx, CompileError> {
+) -> Result<ExprId, CompileError> {
     let callable = expr_from_ast(ctx, &func_call.callable)?;
 
     check_type(ctx, callable, func_call.callable.span(), &[Type::Func])?;
@@ -1559,7 +1559,7 @@ fn func_call_from_ast(
         .args
         .iter()
         .map(|arg| expr_from_ast(ctx, arg))
-        .collect::<Result<Vec<NodeIdx>, CompileError>>()?;
+        .collect::<Result<Vec<ExprId>, CompileError>>()?;
 
     let arg_types: Vec<Type> =
         args.iter().map(|arg| ctx.ir.get(*arg).ty()).collect();
@@ -1623,7 +1623,7 @@ fn func_call_from_ast(
 fn matches_expr_from_ast(
     ctx: &mut CompileContext,
     expr: &ast::BinaryExpr,
-) -> Result<NodeIdx, CompileError> {
+) -> Result<ExprId, CompileError> {
     let span = expr.span();
     let lhs_span = expr.lhs.span();
     let rhs_span = expr.rhs.span();
@@ -1652,7 +1652,7 @@ fn matches_expr_from_ast(
 
 fn check_type(
     ctx: &CompileContext,
-    expr: NodeIdx,
+    expr: ExprId,
     span: Span,
     accepted_types: &[Type],
 ) -> Result<(), CompileError> {
@@ -1672,8 +1672,8 @@ fn check_type(
 
 fn check_operands(
     ctx: &CompileContext,
-    lhs: NodeIdx,
-    rhs: NodeIdx,
+    lhs: ExprId,
+    rhs: ExprId,
     lhs_span: Span,
     rhs_span: Span,
     accepted_types: &[Type],
@@ -1801,7 +1801,7 @@ macro_rules! gen_unary_op {
         fn $name(
             ctx: &mut CompileContext,
             expr: &ast::UnaryExpr,
-        ) -> Result<NodeIdx, CompileError> {
+        ) -> Result<ExprId, CompileError> {
             let span = expr.span();
             let operand = expr_from_ast(ctx, &expr.operand)?;
 
@@ -1813,7 +1813,7 @@ macro_rules! gen_unary_op {
             )?;
 
             let check_fn:
-                Option<fn(&mut CompileContext, NodeIdx, Span) -> Result<(), CompileError>>
+                Option<fn(&mut CompileContext, ExprId, Span) -> Result<(), CompileError>>
                 = $check_fn;
 
             if let Some(check_fn) = check_fn {
@@ -1841,7 +1841,7 @@ macro_rules! gen_binary_op {
         fn $name(
             ctx: &mut CompileContext,
             expr: &ast::BinaryExpr,
-        ) -> Result<NodeIdx, CompileError> {
+        ) -> Result<ExprId, CompileError> {
             let span = expr.span();
             let lhs_span = expr.lhs.span();
             let rhs_span = expr.rhs.span();
@@ -1860,7 +1860,7 @@ macro_rules! gen_binary_op {
             )?;
 
             let check_fn:
-                Option<fn(&mut CompileContext, NodeIdx, NodeIdx, Span, Span) -> Result<(), CompileError>>
+                Option<fn(&mut CompileContext, ExprId, ExprId, Span, Span) -> Result<(), CompileError>>
                 = $check_fn;
 
             if let Some(check_fn) = check_fn {
@@ -1888,7 +1888,7 @@ macro_rules! gen_string_op {
         fn $name(
             ctx: &mut CompileContext,
             expr: &ast::BinaryExpr,
-        ) -> Result<NodeIdx, CompileError> {
+        ) -> Result<ExprId, CompileError> {
             let span = expr.span();
             let lhs_span = expr.lhs.span();
             let rhs_span = expr.rhs.span();
@@ -1929,18 +1929,18 @@ macro_rules! gen_n_ary_operation {
         fn $name(
             ctx: &mut CompileContext,
             expr: &ast::NAryExpr,
-        ) -> Result<NodeIdx, CompileError> {
+        ) -> Result<ExprId, CompileError> {
             let span = expr.span();
             let accepted_types = &[$( $accepted_types ),+];
             let compatible_types = &[$( $compatible_types ),+];
 
-            let operands_hir: Vec<NodeIdx> = expr
+            let operands_hir: Vec<ExprId> = expr
                 .operands()
                 .map(|expr| expr_from_ast(ctx, expr))
-                .collect::<Result<Vec<NodeIdx>, CompileError>>()?;
+                .collect::<Result<Vec<ExprId>, CompileError>>()?;
 
             let check_fn:
-                Option<fn(&mut CompileContext, NodeIdx, Span) -> Result<(), CompileError>>
+                Option<fn(&mut CompileContext, ExprId, Span) -> Result<(), CompileError>>
                 = $check_fn;
 
             // Make sure that all operands have one of the accepted types.

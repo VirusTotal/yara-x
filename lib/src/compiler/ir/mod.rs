@@ -304,24 +304,33 @@ impl From<usize> for PatternIdx {
     }
 }
 
-// TODO: change to u16?
-// It makes sense if Expr gets smaller.
+/// Identifies an expression in the IR tree.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct NodeIdx(u32);
+pub(crate) struct ExprId(u32);
 
-impl From<usize> for NodeIdx {
+impl From<usize> for ExprId {
     #[inline]
     fn from(value: usize) -> Self {
         Self(value as u32)
     }
 }
 
+/// Intermediate representation (IR) of a rule condition.
+///
+/// The IR is a tree representing a rule condition. It is generated from the
+/// Abstract Syntax Tree (AST), and then transformed when optimizations are
+/// applied. Finally, the IR is used as input by the code emitter.
+///
+/// The tree is represented using a vector of [`Expr`], each expression can
+/// reference other expressions (like it its operands) using an [`ExprId`],
+/// which is an index in the vector.
 pub(crate) struct IR {
-    root: Option<NodeIdx>,
+    root: Option<ExprId>,
     nodes: Vec<Expr>,
 }
 
 impl IR {
+    /// Creates a new [`IR`].
     pub fn new() -> Self {
         Self { nodes: Vec::new(), root: None }
     }
@@ -333,20 +342,20 @@ impl IR {
 
     /// Returns a reference to the [`Expr`] at the given index in the tree.
     #[inline]
-    pub fn get(&self, idx: NodeIdx) -> &Expr {
+    pub fn get(&self, idx: ExprId) -> &Expr {
         self.nodes.get(idx.0 as usize).unwrap()
     }
 
     /// Returns a mutable reference to the [`Expr`] at the given index in the
     /// tree.
     #[inline]
-    pub fn get_mut(&mut self, idx: NodeIdx) -> &mut Expr {
+    pub fn get_mut(&mut self, idx: ExprId) -> &mut Expr {
         self.nodes.get_mut(idx.0 as usize).unwrap()
     }
 
     /// Returns an iterator that performs a depth first search starting at
     /// the given node.
-    pub fn dfs_iter(&self, start: NodeIdx) -> DepthFirstSearch {
+    pub fn dfs_iter(&self, start: ExprId) -> DepthFirstSearch {
         DepthFirstSearch::new(start, self.nodes.as_slice())
     }
 
@@ -355,7 +364,7 @@ impl IR {
     /// descendants of nodes matching the condition indicated by `prune_if`.
     pub fn dfs_find<P, C>(
         &self,
-        start: NodeIdx,
+        start: ExprId,
         predicate: P,
         prune_if: C,
     ) -> Option<&Expr>
@@ -383,12 +392,12 @@ impl IR {
     /// that case returns a new a constant with the resulting value. For
     /// instance, the expression `true and false` will be folded into the `false`.
     ///
-    /// If the expression can't be folded, returns the same [`NodeIdx`] that
+    /// If the expression can't be folded, returns the same [`ExprId`] that
     /// it received.
     ///
     /// Returns [`None`] if an integer overflow occurs while trying to fold
     /// integer expressions.
-    pub fn fold(&mut self, expr: NodeIdx) -> Option<NodeIdx> {
+    pub fn fold(&mut self, expr: ExprId) -> Option<ExprId> {
         // We need a mutable reference to the expression itself, as well as
         // mutable references to its operands. However, Rust's borrow checker
         // does not allow mutable references to multiple items in a slice
@@ -531,7 +540,7 @@ impl IR {
 
     pub fn fold_arithmetic<F>(
         nodes: &[Expr],
-        operands: &[NodeIdx],
+        operands: &[ExprId],
         f: F,
     ) -> Option<TypeValue>
     where
@@ -568,239 +577,239 @@ impl IR {
 
 impl IR {
     /// Creates a new [`Expr::FileSize`].
-    pub fn filesize(&mut self) -> NodeIdx {
+    pub fn filesize(&mut self) -> ExprId {
         self.nodes.push(Expr::Filesize);
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Const`].
-    pub fn constant(&mut self, type_value: TypeValue) -> NodeIdx {
+    pub fn constant(&mut self, type_value: TypeValue) -> ExprId {
         self.nodes.push(Expr::Const(type_value));
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Ident`].
-    pub fn ident(&mut self, symbol: Symbol) -> NodeIdx {
+    pub fn ident(&mut self, symbol: Symbol) -> ExprId {
         self.nodes.push(Expr::Ident { symbol: Box::new(symbol) });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Lookup`].
     pub fn lookup(
         &mut self,
         type_value: TypeValue,
-        primary: NodeIdx,
-        index: NodeIdx,
-    ) -> NodeIdx {
+        primary: ExprId,
+        index: ExprId,
+    ) -> ExprId {
         self.nodes.push(Expr::Lookup(Box::new(Lookup {
             type_value,
             primary,
             index,
         })));
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Not`].
-    pub fn not(&mut self, operand: NodeIdx) -> NodeIdx {
+    pub fn not(&mut self, operand: ExprId) -> ExprId {
         self.nodes.push(Expr::Not { operand });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::And`].
-    pub fn and(&mut self, operands: Vec<NodeIdx>) -> NodeIdx {
+    pub fn and(&mut self, operands: Vec<ExprId>) -> ExprId {
         self.nodes.push(Expr::And { operands });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Or`].
-    pub fn or(&mut self, operands: Vec<NodeIdx>) -> NodeIdx {
+    pub fn or(&mut self, operands: Vec<ExprId>) -> ExprId {
         self.nodes.push(Expr::Or { operands });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Minus`].
-    pub fn minus(&mut self, operand: NodeIdx) -> NodeIdx {
+    pub fn minus(&mut self, operand: ExprId) -> ExprId {
         let is_float = matches!(self.get(operand).ty(), Type::Float);
         self.nodes.push(Expr::Minus { operand, is_float });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Defined`].
-    pub fn defined(&mut self, operand: NodeIdx) -> NodeIdx {
+    pub fn defined(&mut self, operand: ExprId) -> ExprId {
         self.nodes.push(Expr::Defined { operand });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::BitwiseNot`].
-    pub fn bitwise_not(&mut self, operand: NodeIdx) -> NodeIdx {
+    pub fn bitwise_not(&mut self, operand: ExprId) -> ExprId {
         self.nodes.push(Expr::BitwiseNot { operand });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::BitwiseAnd`].
-    pub fn bitwise_and(&mut self, lhs: NodeIdx, rhs: NodeIdx) -> NodeIdx {
+    pub fn bitwise_and(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
         self.nodes.push(Expr::BitwiseAnd { lhs, rhs });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::BitwiseOr`].
-    pub fn bitwise_or(&mut self, lhs: NodeIdx, rhs: NodeIdx) -> NodeIdx {
+    pub fn bitwise_or(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
         self.nodes.push(Expr::BitwiseOr { lhs, rhs });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::BitwiseXor`].
-    pub fn bitwise_xor(&mut self, lhs: NodeIdx, rhs: NodeIdx) -> NodeIdx {
+    pub fn bitwise_xor(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
         self.nodes.push(Expr::BitwiseXor { lhs, rhs });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Shl`].
-    pub fn shl(&mut self, lhs: NodeIdx, rhs: NodeIdx) -> NodeIdx {
+    pub fn shl(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
         self.nodes.push(Expr::Shl { lhs, rhs });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Shr`].
-    pub fn shr(&mut self, lhs: NodeIdx, rhs: NodeIdx) -> NodeIdx {
+    pub fn shr(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
         self.nodes.push(Expr::Shr { lhs, rhs });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Add`].
-    pub fn add(&mut self, operands: Vec<NodeIdx>) -> NodeIdx {
+    pub fn add(&mut self, operands: Vec<ExprId>) -> ExprId {
         let is_float = operands
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
         self.nodes.push(Expr::Add { operands, is_float });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Sub`].
-    pub fn sub(&mut self, operands: Vec<NodeIdx>) -> NodeIdx {
+    pub fn sub(&mut self, operands: Vec<ExprId>) -> ExprId {
         let is_float = operands
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
         self.nodes.push(Expr::Sub { operands, is_float });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Mul`].
-    pub fn mul(&mut self, operands: Vec<NodeIdx>) -> NodeIdx {
+    pub fn mul(&mut self, operands: Vec<ExprId>) -> ExprId {
         let is_float = operands
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
         self.nodes.push(Expr::Mul { operands, is_float });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Div`].
-    pub fn div(&mut self, operands: Vec<NodeIdx>) -> NodeIdx {
+    pub fn div(&mut self, operands: Vec<ExprId>) -> ExprId {
         let is_float = operands
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
         self.nodes.push(Expr::Div { operands, is_float });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Mod`].
-    pub fn modulus(&mut self, operands: Vec<NodeIdx>) -> NodeIdx {
+    pub fn modulus(&mut self, operands: Vec<ExprId>) -> ExprId {
         self.nodes.push(Expr::Mod { operands });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::FieldAccess`].
-    pub fn field_access(&mut self, operands: Vec<NodeIdx>) -> NodeIdx {
+    pub fn field_access(&mut self, operands: Vec<ExprId>) -> ExprId {
         let type_value = self.get(*operands.last().unwrap()).type_value();
         self.nodes.push(Expr::FieldAccess(Box::new(FieldAccess {
             operands,
             type_value,
         })));
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Eq`].
-    pub fn eq(&mut self, lhs: NodeIdx, rhs: NodeIdx) -> NodeIdx {
+    pub fn eq(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
         self.nodes.push(Expr::Eq { lhs, rhs });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Ne`].
-    pub fn ne(&mut self, lhs: NodeIdx, rhs: NodeIdx) -> NodeIdx {
+    pub fn ne(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
         self.nodes.push(Expr::Ne { lhs, rhs });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Ge`].
-    pub fn ge(&mut self, lhs: NodeIdx, rhs: NodeIdx) -> NodeIdx {
+    pub fn ge(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
         self.nodes.push(Expr::Ge { lhs, rhs });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Gt`].
-    pub fn gt(&mut self, lhs: NodeIdx, rhs: NodeIdx) -> NodeIdx {
+    pub fn gt(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
         self.nodes.push(Expr::Gt { lhs, rhs });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Le`].
-    pub fn le(&mut self, lhs: NodeIdx, rhs: NodeIdx) -> NodeIdx {
+    pub fn le(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
         self.nodes.push(Expr::Le { lhs, rhs });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Lt`].
-    pub fn lt(&mut self, lhs: NodeIdx, rhs: NodeIdx) -> NodeIdx {
+    pub fn lt(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
         self.nodes.push(Expr::Lt { lhs, rhs });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Contains`].
-    pub fn contains(&mut self, lhs: NodeIdx, rhs: NodeIdx) -> NodeIdx {
+    pub fn contains(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
         self.nodes.push(Expr::Contains { lhs, rhs });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::IContains`].
-    pub fn icontains(&mut self, lhs: NodeIdx, rhs: NodeIdx) -> NodeIdx {
+    pub fn icontains(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
         self.nodes.push(Expr::IContains { lhs, rhs });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::StartsWith`].
-    pub fn starts_with(&mut self, lhs: NodeIdx, rhs: NodeIdx) -> NodeIdx {
+    pub fn starts_with(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
         self.nodes.push(Expr::StartsWith { lhs, rhs });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::IStartsWith`].
-    pub fn istarts_with(&mut self, lhs: NodeIdx, rhs: NodeIdx) -> NodeIdx {
+    pub fn istarts_with(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
         self.nodes.push(Expr::IStartsWith { lhs, rhs });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::EndsWith`].
-    pub fn ends_with(&mut self, lhs: NodeIdx, rhs: NodeIdx) -> NodeIdx {
+    pub fn ends_with(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
         self.nodes.push(Expr::EndsWith { lhs, rhs });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::IEndsWith`].
-    pub fn iends_with(&mut self, lhs: NodeIdx, rhs: NodeIdx) -> NodeIdx {
+    pub fn iends_with(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
         self.nodes.push(Expr::IEndsWith { lhs, rhs });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::IEquals`].
-    pub fn iequals(&mut self, lhs: NodeIdx, rhs: NodeIdx) -> NodeIdx {
+    pub fn iequals(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
         self.nodes.push(Expr::IEquals { lhs, rhs });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Matches`].
-    pub fn matches(&mut self, lhs: NodeIdx, rhs: NodeIdx) -> NodeIdx {
+    pub fn matches(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
         self.nodes.push(Expr::Matches { lhs, rhs });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::PatternMatch`]
@@ -808,9 +817,9 @@ impl IR {
         &mut self,
         pattern: PatternIdx,
         anchor: MatchAnchor,
-    ) -> NodeIdx {
+    ) -> ExprId {
         self.nodes.push(Expr::PatternMatch { pattern, anchor });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::PatternMatchVar`]
@@ -818,52 +827,52 @@ impl IR {
         &mut self,
         symbol: Symbol,
         anchor: MatchAnchor,
-    ) -> NodeIdx {
+    ) -> ExprId {
         self.nodes
             .push(Expr::PatternMatchVar { symbol: Box::new(symbol), anchor });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::PatternLength`]
     pub fn pattern_length(
         &mut self,
         pattern: PatternIdx,
-        index: Option<NodeIdx>,
-    ) -> NodeIdx {
+        index: Option<ExprId>,
+    ) -> ExprId {
         self.nodes.push(Expr::PatternLength { pattern, index });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::PatternLengthVar`]
     pub fn pattern_length_var(
         &mut self,
         symbol: Symbol,
-        index: Option<NodeIdx>,
-    ) -> NodeIdx {
+        index: Option<ExprId>,
+    ) -> ExprId {
         self.nodes
             .push(Expr::PatternLengthVar { symbol: Box::new(symbol), index });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::PatternOffset`]
     pub fn pattern_offset(
         &mut self,
         pattern: PatternIdx,
-        index: Option<NodeIdx>,
-    ) -> NodeIdx {
+        index: Option<ExprId>,
+    ) -> ExprId {
         self.nodes.push(Expr::PatternOffset { pattern, index });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::PatternOffsetVar`]
     pub fn pattern_offset_var(
         &mut self,
         symbol: Symbol,
-        index: Option<NodeIdx>,
-    ) -> NodeIdx {
+        index: Option<ExprId>,
+    ) -> ExprId {
         self.nodes
             .push(Expr::PatternOffsetVar { symbol: Box::new(symbol), index });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::PatternCount`]
@@ -871,9 +880,9 @@ impl IR {
         &mut self,
         pattern: PatternIdx,
         range: Option<Range>,
-    ) -> NodeIdx {
+    ) -> ExprId {
         self.nodes.push(Expr::PatternCount { pattern, range });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::PatternCountVar`]
@@ -881,27 +890,27 @@ impl IR {
         &mut self,
         symbol: Symbol,
         range: Option<Range>,
-    ) -> NodeIdx {
+    ) -> ExprId {
         self.nodes
             .push(Expr::PatternCountVar { symbol: Box::new(symbol), range });
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::FuncCall`]
     pub fn func_call(
         &mut self,
-        callable: NodeIdx,
-        args: Vec<NodeIdx>,
+        callable: ExprId,
+        args: Vec<ExprId>,
         type_value: TypeValue,
         signature_index: usize,
-    ) -> NodeIdx {
+    ) -> ExprId {
         self.nodes.push(Expr::FuncCall(Box::new(FuncCall {
             callable,
             args,
             type_value,
             signature_index,
         })));
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::Of`]
@@ -911,14 +920,14 @@ impl IR {
         items: OfItems,
         anchor: MatchAnchor,
         stack_frame: VarStackFrame,
-    ) -> NodeIdx {
+    ) -> ExprId {
         self.nodes.push(Expr::Of(Box::new(Of {
             quantifier,
             items,
             anchor,
             stack_frame,
         })));
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::ForOf`]
@@ -927,9 +936,9 @@ impl IR {
         quantifier: Quantifier,
         variable: Var,
         pattern_set: Vec<PatternIdx>,
-        condition: NodeIdx,
+        condition: ExprId,
         stack_frame: VarStackFrame,
-    ) -> NodeIdx {
+    ) -> ExprId {
         self.nodes.push(Expr::ForOf(Box::new(ForOf {
             quantifier,
             variable,
@@ -937,7 +946,7 @@ impl IR {
             condition,
             stack_frame,
         })));
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::ForIn`]
@@ -946,9 +955,9 @@ impl IR {
         quantifier: Quantifier,
         variables: Vec<Var>,
         iterable: Iterable,
-        condition: NodeIdx,
+        condition: ExprId,
         stack_frame: VarStackFrame,
-    ) -> NodeIdx {
+    ) -> ExprId {
         self.nodes.push(Expr::ForIn(Box::new(ForIn {
             quantifier,
             variables,
@@ -956,19 +965,19 @@ impl IR {
             condition,
             stack_frame,
         })));
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::With`]
     pub fn with(
         &mut self,
-        declarations: Vec<(Var, NodeIdx)>,
-        condition: NodeIdx,
-    ) -> NodeIdx {
+        declarations: Vec<(Var, ExprId)>,
+        condition: ExprId,
+    ) -> ExprId {
         self.nodes
             .push(Expr::With(Box::new(With { declarations, condition })));
 
-        NodeIdx::from(self.nodes.len() - 1)
+        ExprId::from(self.nodes.len() - 1)
     }
 }
 
@@ -1108,176 +1117,176 @@ pub(crate) enum Expr {
 
     /// Boolean `not` expression.
     Not {
-        operand: NodeIdx,
+        operand: ExprId,
     },
 
     /// Boolean `and` expression.
     And {
-        operands: Vec<NodeIdx>,
+        operands: Vec<ExprId>,
     },
 
     /// Boolean `or` expression.
     Or {
-        operands: Vec<NodeIdx>,
+        operands: Vec<ExprId>,
     },
 
     /// Arithmetic minus.
     Minus {
         is_float: bool,
-        operand: NodeIdx,
+        operand: ExprId,
     },
 
     /// Arithmetic addition (`+`) expression.
     Add {
         is_float: bool,
-        operands: Vec<NodeIdx>,
+        operands: Vec<ExprId>,
     },
 
     /// Arithmetic subtraction (`-`) expression.
     Sub {
         is_float: bool,
-        operands: Vec<NodeIdx>,
+        operands: Vec<ExprId>,
     },
 
     /// Arithmetic multiplication (`*`) expression.
     Mul {
         is_float: bool,
-        operands: Vec<NodeIdx>,
+        operands: Vec<ExprId>,
     },
 
     /// Arithmetic division (`\`) expression.
     Div {
         is_float: bool,
-        operands: Vec<NodeIdx>,
+        operands: Vec<ExprId>,
     },
 
     /// Arithmetic modulus (`%`) expression.
     Mod {
-        operands: Vec<NodeIdx>,
+        operands: Vec<ExprId>,
     },
 
     /// Bitwise not (`~`) expression.
     BitwiseNot {
-        operand: NodeIdx,
+        operand: ExprId,
     },
 
     /// Bitwise and (`&`) expression.
     BitwiseAnd {
-        rhs: NodeIdx,
-        lhs: NodeIdx,
+        rhs: ExprId,
+        lhs: ExprId,
     },
 
     /// Bitwise shift left (`<<`) expression.
     Shl {
-        rhs: NodeIdx,
-        lhs: NodeIdx,
+        rhs: ExprId,
+        lhs: ExprId,
     },
 
     /// Bitwise shift right (`>>`) expression.
     Shr {
-        rhs: NodeIdx,
-        lhs: NodeIdx,
+        rhs: ExprId,
+        lhs: ExprId,
     },
 
     /// Bitwise or (`|`) expression.
     BitwiseOr {
-        rhs: NodeIdx,
-        lhs: NodeIdx,
+        rhs: ExprId,
+        lhs: ExprId,
     },
 
     /// Bitwise xor (`^`) expression.
     BitwiseXor {
-        rhs: NodeIdx,
-        lhs: NodeIdx,
+        rhs: ExprId,
+        lhs: ExprId,
     },
 
     /// Equal (`==`) expression.
     Eq {
-        rhs: NodeIdx,
-        lhs: NodeIdx,
+        rhs: ExprId,
+        lhs: ExprId,
     },
 
     /// Not equal (`!=`) expression.
     Ne {
-        rhs: NodeIdx,
-        lhs: NodeIdx,
+        rhs: ExprId,
+        lhs: ExprId,
     },
 
     /// Less than (`<`) expression.
     Lt {
-        rhs: NodeIdx,
-        lhs: NodeIdx,
+        rhs: ExprId,
+        lhs: ExprId,
     },
 
     /// Greater than (`>`) expression.
     Gt {
-        rhs: NodeIdx,
-        lhs: NodeIdx,
+        rhs: ExprId,
+        lhs: ExprId,
     },
 
     /// Less or equal (`<=`) expression.
     Le {
-        rhs: NodeIdx,
-        lhs: NodeIdx,
+        rhs: ExprId,
+        lhs: ExprId,
     },
 
     /// Greater or equal (`>=`) expression.
     Ge {
-        rhs: NodeIdx,
-        lhs: NodeIdx,
+        rhs: ExprId,
+        lhs: ExprId,
     },
 
     /// `contains` expression.
     Contains {
-        rhs: NodeIdx,
-        lhs: NodeIdx,
+        rhs: ExprId,
+        lhs: ExprId,
     },
 
     /// `icontains` expression
     IContains {
-        rhs: NodeIdx,
-        lhs: NodeIdx,
+        rhs: ExprId,
+        lhs: ExprId,
     },
 
     /// `startswith` expression.
     StartsWith {
-        rhs: NodeIdx,
-        lhs: NodeIdx,
+        rhs: ExprId,
+        lhs: ExprId,
     },
 
     /// `istartswith` expression
     IStartsWith {
-        rhs: NodeIdx,
-        lhs: NodeIdx,
+        rhs: ExprId,
+        lhs: ExprId,
     },
 
     /// `endswith` expression.
     EndsWith {
-        rhs: NodeIdx,
-        lhs: NodeIdx,
+        rhs: ExprId,
+        lhs: ExprId,
     },
 
     /// `iendswith` expression
     IEndsWith {
-        rhs: NodeIdx,
-        lhs: NodeIdx,
+        rhs: ExprId,
+        lhs: ExprId,
     },
 
     /// `iequals` expression.
     IEquals {
-        rhs: NodeIdx,
-        lhs: NodeIdx,
+        rhs: ExprId,
+        lhs: ExprId,
     },
 
     /// `matches` expression.
     Matches {
-        rhs: NodeIdx,
-        lhs: NodeIdx,
+        rhs: ExprId,
+        lhs: ExprId,
     },
 
     /// A `defined` expression (e.g. `defined foo`)
     Defined {
-        operand: NodeIdx,
+        operand: ExprId,
     },
 
     Ident {
@@ -1311,25 +1320,25 @@ pub(crate) enum Expr {
     /// Pattern offset expression (e.g. `@a`, `@a[1]`)
     PatternOffset {
         pattern: PatternIdx,
-        index: Option<NodeIdx>,
+        index: Option<ExprId>,
     },
 
     /// Pattern count expression where the pattern is variable (e.g. `@`, `@[1]`)
     PatternOffsetVar {
         symbol: Box<Symbol>,
-        index: Option<NodeIdx>,
+        index: Option<ExprId>,
     },
 
     /// Pattern length expression (e.g. `!a`, `!a[1]`)
     PatternLength {
         pattern: PatternIdx,
-        index: Option<NodeIdx>,
+        index: Option<ExprId>,
     },
 
     /// Pattern count expression where the pattern is variable (e.g. `!`, `![1]`)
     PatternLengthVar {
         symbol: Box<Symbol>,
-        index: Option<NodeIdx>,
+        index: Option<ExprId>,
     },
 
     /// Field access expression (e.g. `foo.bar.baz`)
@@ -1357,22 +1366,22 @@ pub(crate) enum Expr {
 /// A lookup operation in an array or dictionary.
 pub(crate) struct Lookup {
     pub type_value: TypeValue,
-    pub primary: NodeIdx,
-    pub index: NodeIdx,
+    pub primary: ExprId,
+    pub index: ExprId,
 }
 
 /// A field access expression.
 pub(crate) struct FieldAccess {
     pub type_value: TypeValue,
-    pub operands: Vec<NodeIdx>,
+    pub operands: Vec<ExprId>,
 }
 
 /// An expression representing a function call.
 pub(crate) struct FuncCall {
     /// The callable expression, which must resolve in some function identifier.
-    pub callable: NodeIdx,
+    pub callable: ExprId,
     /// The arguments passed to the function in this call.
-    pub args: Vec<NodeIdx>,
+    pub args: Vec<ExprId>,
     /// Type and value for the function's result.
     pub type_value: TypeValue,
     /// Due to function overloading, the same function may have multiple
@@ -1396,7 +1405,7 @@ pub(crate) struct ForOf {
     pub quantifier: Quantifier,
     pub variable: Var,
     pub pattern_set: Vec<PatternIdx>,
-    pub condition: NodeIdx,
+    pub condition: ExprId,
     pub stack_frame: VarStackFrame,
 }
 
@@ -1405,14 +1414,14 @@ pub(crate) struct ForIn {
     pub quantifier: Quantifier,
     pub variables: Vec<Var>,
     pub iterable: Iterable,
-    pub condition: NodeIdx,
+    pub condition: ExprId,
     pub stack_frame: VarStackFrame,
 }
 
 /// A `with` expression (e.g `with $a, $b : (..)`)
 pub(crate) struct With {
-    pub declarations: Vec<(Var, NodeIdx)>,
-    pub condition: NodeIdx,
+    pub declarations: Vec<(Var, ExprId)>,
+    pub condition: ExprId,
 }
 
 /// A quantifier used in `for` and `of` expressions.
@@ -1420,8 +1429,8 @@ pub(crate) enum Quantifier {
     None,
     All,
     Any,
-    Percentage(NodeIdx),
-    Expr(NodeIdx),
+    Percentage(ExprId),
+    Expr(ExprId),
 }
 
 /// In expressions like `$a at 0` and `$b in (0..10)`, this type represents the
@@ -1432,32 +1441,32 @@ pub(crate) enum Quantifier {
 /// (e.g. `at <expr>`, `in <range>`).
 pub(crate) enum MatchAnchor {
     None,
-    At(NodeIdx),
+    At(ExprId),
     In(Range),
 }
 
 /// Items in a `of` expression.
 pub(crate) enum OfItems {
     PatternSet(Vec<PatternIdx>),
-    BoolExprTuple(Vec<NodeIdx>),
+    BoolExprTuple(Vec<ExprId>),
 }
 
 /// A pair of values conforming a range (e.g. `(0..10)`).
 pub(crate) struct Range {
-    pub lower_bound: NodeIdx,
-    pub upper_bound: NodeIdx,
+    pub lower_bound: ExprId,
+    pub upper_bound: ExprId,
 }
 
 /// Possible iterable expressions that can use in a [`ForIn`].
 pub(crate) enum Iterable {
     Range(Range),
-    ExprTuple(Vec<NodeIdx>),
-    Expr(NodeIdx),
+    ExprTuple(Vec<ExprId>),
+    Expr(ExprId),
 }
 
-impl Index<NodeIdx> for [Expr] {
+impl Index<ExprId> for [Expr] {
     type Output = Expr;
-    fn index(&self, index: NodeIdx) -> &Self::Output {
+    fn index(&self, index: ExprId) -> &Self::Output {
         self.get(index.0 as usize).unwrap()
     }
 }
