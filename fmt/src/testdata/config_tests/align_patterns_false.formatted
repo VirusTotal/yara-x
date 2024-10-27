@@ -1,0 +1,12 @@
+rule test {
+  meta:
+    a    = "b"
+    long = "foo"
+
+  strings:
+    $a = "b"
+    $axs = { 06 11 }
+
+  condition:
+    $a
+}

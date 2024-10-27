@@ -9,8 +9,8 @@ The `yr` command looks in `${HOME}/.yara-x.toml` when starting up. If that file
 does not exist the default values are used.
 
 An example `.yara-x.toml` file is below, with comments that explain each option.
-The values for each option are the default values that are used if omit the
-option.
+The values for each option are the default values that are used if the option
+is omitted.
 
 This is the definitive list of supported configuration options, and will be
 updated as more are added.
@@ -139,8 +139,8 @@ rule.empty_line_after_section_header = false
 #
 # Note that alignment is done with spaces, regardless of rule.indent_spaces
 # setting.
-meta.align_values = false
+meta.align_values = true
 
 # Same as meta.align_values but applies to patterns.
-patterns.align_values = false
+patterns.align_values = true
 ```

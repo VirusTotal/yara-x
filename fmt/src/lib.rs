@@ -615,7 +615,6 @@ impl Formatter {
                                     | Keyword(b"strings")
                                     | Keyword(b"condition")
                             ) && ctx.token(-1).is_not(*NEWLINE)
-                                && ctx.token(-2).is_not(*NEWLINE)
                         },
                         processor::actions::emptyline,
                     )
