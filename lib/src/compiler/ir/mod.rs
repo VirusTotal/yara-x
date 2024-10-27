@@ -974,9 +974,7 @@ impl IR {
         declarations: Vec<(Var, ExprId)>,
         condition: ExprId,
     ) -> ExprId {
-        self.nodes
-            .push(Expr::With(Box::new(With { declarations, condition })));
-
+        self.nodes.push(Expr::With { declarations, condition });
         ExprId::from(self.nodes.len() - 1)
     }
 }
@@ -1042,12 +1040,12 @@ impl Debug for IR {
                         Expr::Matches { .. } => writeln!(f, "MATCHES")?,
                         Expr::Defined { .. } => writeln!(f, "DEFINED")?,
                         Expr::FieldAccess { .. } => writeln!(f, "FIELD_ACCESS")?,
+                        Expr::With { .. } => writeln!(f, "WITH")?,
                         Expr::Ident { symbol } => writeln!(f, "IDENT {:?}", symbol)?,
                         Expr::FuncCall(_) => writeln!(f, "FN_CALL")?,
                         Expr::Of(_) => writeln!(f, "OF")?,
                         Expr::ForOf(_) => writeln!(f, "FOR_OF")?,
                         Expr::ForIn(_) => writeln!(f, "FOR_IN")?,
-                        Expr::With(_) => writeln!(f, "WITH")?,
                         Expr::Lookup(_) => writeln!(f, "LOOKUP")?,
                         Expr::PatternMatch { pattern, anchor } => writeln!(
                             f,
@@ -1341,6 +1339,12 @@ pub(crate) enum Expr {
         index: Option<ExprId>,
     },
 
+    /// A `with <identifiers> : ...` expression. (e.g. `with $a, $b : ( ... )`)
+    With {
+        declarations: Vec<(Var, ExprId)>,
+        condition: ExprId,
+    },
+
     /// Field access expression (e.g. `foo.bar.baz`)
     FieldAccess(Box<FieldAccess>),
 
@@ -1355,9 +1359,6 @@ pub(crate) enum Expr {
 
     /// A `for <quantifier> <vars> in ...` expression. (e.g. `for all i in (1..100) : ( ... )`)
     ForIn(Box<ForIn>),
-
-    /// A `with <identifiers> : ...` expression. (e.g. `with $a, $b : ( ... )`)
-    With(Box<With>),
 
     /// Array or dictionary lookup expression (e.g. `array[1]`, `dict["key"]`)
     Lookup(Box<Lookup>),
@@ -1416,12 +1417,6 @@ pub(crate) struct ForIn {
     pub iterable: Iterable,
     pub condition: ExprId,
     pub stack_frame: VarStackFrame,
-}
-
-/// A `with` expression (e.g `with $a, $b : (..)`)
-pub(crate) struct With {
-    pub declarations: Vec<(Var, ExprId)>,
-    pub condition: ExprId,
 }
 
 /// A quantifier used in `for` and `of` expressions.
@@ -1497,10 +1492,10 @@ impl Expr {
             | Expr::Matches { .. }
             | Expr::PatternMatch { .. }
             | Expr::PatternMatchVar { .. }
+            | Expr::With { .. }
             | Expr::Of(_)
             | Expr::ForOf(_)
-            | Expr::ForIn(_)
-            | Expr::With(_) => Type::Bool,
+            | Expr::ForIn(_) => Type::Bool,
 
             Expr::Minus { is_float, .. } => {
                 if *is_float {
@@ -1567,10 +1562,10 @@ impl Expr {
             | Expr::Matches { .. }
             | Expr::PatternMatch { .. }
             | Expr::PatternMatchVar { .. }
+            | Expr::With { .. }
             | Expr::Of(_)
             | Expr::ForOf(_)
-            | Expr::ForIn(_)
-            | Expr::With(_) => TypeValue::Bool(Value::Unknown),
+            | Expr::ForIn(_) => TypeValue::Bool(Value::Unknown),
 
             Expr::Minus { is_float, .. } => {
                 if *is_float {

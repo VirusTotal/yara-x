@@ -22,7 +22,7 @@ use walrus::{FunctionId, InstrSeqBuilder, ValType};
 
 use crate::compiler::ir::{
     Expr, ExprId, ForIn, ForOf, Iterable, MatchAnchor, Of, OfItems,
-    PatternIdx, Quantifier, With, IR,
+    PatternIdx, Quantifier, IR,
 };
 use crate::compiler::{
     FieldAccess, LiteralId, PatternId, RegexpId, RuleId, RuleInfo, Var,
@@ -643,8 +643,8 @@ fn emit_expr(
             }
         },
 
-        Expr::With(with) => {
-            emit_with(ctx, ir, with, instr);
+        Expr::With { declarations, condition } => {
+            emit_with(ctx, ir, declarations.as_slice(), *condition, instr);
         }
 
         Expr::FuncCall(fn_call) => {
@@ -2130,11 +2130,12 @@ fn emit_for<I, B, C, A>(
 fn emit_with(
     ctx: &mut EmitContext,
     ir: &IR,
-    with: &With,
+    declarations: &[(Var, ExprId)],
+    condition: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
     // Emit the code that sets the variables in the `with` statement.
-    for (id, expr) in with.declarations.iter() {
+    for (id, expr) in declarations.iter() {
         set_var(ctx, instr, *id, |ctx, instr| {
             emit_expr(ctx, ir, *expr, instr);
         });
@@ -2142,7 +2143,7 @@ fn emit_with(
 
     // Emit the code that evaluates the condition of the `with` statement.
     // This condition is a boolean expression that uses the variables set
-    emit_bool_expr(ctx, ir, with.condition, instr)
+    emit_bool_expr(ctx, ir, condition, instr)
 }
 
 /// Produces a switch statement by calling a `branch_generator` function
