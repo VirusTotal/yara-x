@@ -1177,14 +1177,15 @@ impl<'a> Compiler<'a> {
         // following cases:
         //
         // 1) When the pattern is anchored, because anchored pattern can appear
-        //    only at a fixed pattern and are not searched by Aho-Corasick.
+        //    only at a fixed offset and are not searched by Aho-Corasick.
+        //
         // 2) When the pattern has attributes: xor, fullword, base64 or
         //    base64wide, because in those cases the real pattern is not that
         //    common.
         //
-        // Note: this can't be done before calling `bool_expr_from_ast`, because
-        // we don't know which patterns are anchored until the condition is
-        // processed.
+        // Note: this can't be done before calling `rule_condition_from_ast`,
+        // because we don't know which patterns are anchored until the condition
+        // is processed.
         for pat in rule_patterns.iter() {
             if pat.anchored_at().is_none()
                 && !pat.pattern().flags().intersects(
