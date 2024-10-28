@@ -52,16 +52,16 @@ impl<'a> DepthFirstSearch<'a> {
     ///
     /// The effect of this function depends on the current position in the
     /// tree. For example, if `prune` is called immediately after an
-    /// [`StackEvent::Enter`], the current node is the one that was just entered.
+    /// [`Event::Enter`], the current node is the one that was just entered.
     /// In this scenario, pruning ensures that none of this node's children
     /// are visited, and the next event will be the corresponding
-    /// [`StackEvent::Leave`] for the node that was entered.
+    /// [`Event::Leave`] for the node that was entered.
     ///
-    /// Conversely, if `prune` is called right after an [`StackEvent::Leave`], the
-    /// current node is the parent of the node that was just exited. In this
+    /// Conversely, if `prune` is called right after an [`Event::Leave`], the
+    /// current node is the parent of the node that was just left. In this
     /// case, pruning prevents any remaining children of the current node
     /// (i.e., the siblings of the node that was just left) from being visited.
-    /// The next event will then be the [`StackEvent::Leave`] for the parent of the
+    /// The next event will then be the [`Event::Leave`] for the parent of the
     /// node that was exited.
     #[allow(dead_code)] // TODO: remove when this is used.
     pub fn prune(&mut self) {
