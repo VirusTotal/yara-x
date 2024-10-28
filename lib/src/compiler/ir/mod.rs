@@ -1583,4 +1583,14 @@ impl Expr {
             None
         }
     }
+
+    /// If the expression is a constant integer, returns its value, if not
+    /// returns [`None`]
+    pub fn try_as_const_integer(&self) -> Option<i64> {
+        if let TypeValue::Integer(Value::Const(v)) = self.type_value() {
+            Some(v)
+        } else {
+            None
+        }
+    }
 }

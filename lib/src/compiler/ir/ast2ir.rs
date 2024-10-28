@@ -1001,9 +1001,7 @@ fn of_expr_from_ast(
     // If the quantifier expression is greater than the number of items,
     // the `of` expression is always false.
     if let Quantifier::Expr(expr) = &quantifier {
-        if let TypeValue::Integer(Value::Const(value)) =
-            ctx.ir.get(*expr).type_value()
-        {
+        if let Some(value) = ctx.ir.get(*expr).try_as_const_integer() {
             if value > num_items.try_into().unwrap() {
                 ctx.warnings.add(|| warnings::InvariantBooleanExpression::build(
                     ctx.report_builder,
