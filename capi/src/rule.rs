@@ -1,4 +1,4 @@
-use std::ffi::{c_void, CString};
+use std::ffi::{c_char, c_void, CString};
 use yara_x::MetaValue;
 
 use crate::{
@@ -175,6 +175,46 @@ pub unsafe extern "C" fn yrx_rule_iter_patterns(
 
     for pattern in patterns_iter {
         callback(&YRX_PATTERN::new(pattern), user_data)
+    }
+
+    YRX_RESULT::SUCCESS
+}
+
+/// Callback function passed to [`yrx_rule_iter_tags`].
+///
+/// The callback is called for each tag defined in the rule, and it receives
+/// a pointer to a string with the tag name. This pointer is guaranteed to be
+/// valid while the callback function is being executed, but it will be freed
+/// after the callback function returns, so you cannot use this pointer, or
+/// any other pointer contained in the structure, outside the callback.
+///
+/// The callback also receives a `user_data` pointer that can point to arbitrary
+/// data owned by the user.
+pub type YRX_TAG_CALLBACK =
+    extern "C" fn(tag: *const c_char, user_data: *mut c_void) -> ();
+
+/// Iterates over the tags in a rule, calling the callback with a pointer
+/// to each tag.
+///
+/// The `user_data` pointer can be used to provide additional context to your
+/// callback function.
+///
+/// See [`YRX_TAG_CALLBACK`] for more details.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_rule_iter_tags(
+    rule: *const YRX_RULE,
+    callback: YRX_TAG_CALLBACK,
+    user_data: *mut c_void,
+) -> YRX_RESULT {
+    let tags_iter = if let Some(rule) = rule.as_ref() {
+        rule.0.tags()
+    } else {
+        return YRX_RESULT::INVALID_ARGUMENT;
+    };
+
+    for tag in tags_iter {
+        let tag_name = CString::new(tag.identifier()).unwrap();
+        callback(tag_name.as_ptr(), user_data)
     }
 
     YRX_RESULT::SUCCESS

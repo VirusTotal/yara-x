@@ -1,176 +1,188 @@
 import typing
 
+
 class Compiler:
+  r"""
+  Compiles YARA source code producing a set of compiled [`Rules`].
+  """
+
+  def __new__(cls, *, relaxed_re_syntax=..., error_on_slow_pattern=...): ...
+
+  def add_source(self, src: str, origin: typing.Optional[str]) -> None:
     r"""
-    Compiles YARA source code producing a set of compiled [`Rules`].
+    Adds a YARA source code to be compiled.
+
+    This function may be invoked multiple times to add several sets of YARA
+    rules before calling [`Compiler::build`]. If the rules provided in
+    `src` contain errors that prevent compilation, the function will raise
+    an exception with the first error encountered. Additionally, the
+    compiler will store this error, along with any others discovered during
+    compilation, which can be accessed using [`Compiler::errors`].
+
+    Even if a previous invocation resulted in a compilation error, you can
+    continue calling this function. In such cases, any rules that failed to
+    compile will not be included in the final compiled set.
+
+    The optional parameter `origin` allows to specify the origin of the
+    source code. This usually receives the path of the file from where the
+    code was read, but it can be any arbitrary string that conveys information
+    about the source code's origin.
     """
-    def __new__(cls, *, relaxed_re_syntax=..., error_on_slow_pattern=...): ...
-    def add_source(self, src: str, origin: typing.Optional[str]) -> None:
-        r"""
-        Adds a YARA source code to be compiled.
+    ...
 
-        This function may be invoked multiple times to add several sets of YARA
-        rules before calling [`Compiler::build`]. If the rules provided in
-        `src` contain errors that prevent compilation, the function will raise
-        an exception with the first error encountered. Additionally, the
-        compiler will store this error, along with any others discovered during
-        compilation, which can be accessed using [`Compiler::errors`].
+  def define_global(self, ident: str, value: typing.Any) -> None:
+    r"""
+    Defines a global variable and sets its initial value.
 
-        Even if a previous invocation resulted in a compilation error, you can
-        continue calling this function. In such cases, any rules that failed to
-        compile will not be included in the final compiled set.
+    Global variables must be defined before calling [`Compiler::add_source`]
+    with some YARA rule that uses the variable. The variable will retain its
+    initial value when the [`Rules`] are used for scanning data, however
+    each scanner can change the variable's value by calling
+    [`crate::Scanner::set_global`].
 
-        The optional parameter `origin` allows to specify the origin of the
-        source code. This usually receives the path of the file from where the
-        code was read, but it can be any arbitrary string that conveys information
-        about the source code's origin.
-        """
-        ...
+    The type of `value` must be: bool, str, bytes, int or float.
 
-    def define_global(self, ident: str, value: typing.Any) -> None:
-        r"""
-        Defines a global variable and sets its initial value.
+    # Raises
 
-        Global variables must be defined before calling [`Compiler::add_source`]
-        with some YARA rule that uses the variable. The variable will retain its
-        initial value when the [`Rules`] are used for scanning data, however
-        each scanner can change the variable's value by calling
-        [`crate::Scanner::set_global`].
+    [TypeError](https://docs.python.org/3/library/exceptions.html#TypeError)
+    if the type of `value` is not one of the supported ones.
+    """
+    ...
 
-        The type of `value` must be: bool, str, bytes, int or float.
+  def new_namespace(self, namespace: str) -> None:
+    r"""
+    Creates a new namespace.
 
-        # Raises
+    Further calls to [`Compiler::add_source`] will put the rules under the
+    newly created namespace.
+    """
+    ...
 
-        [TypeError](https://docs.python.org/3/library/exceptions.html#TypeError)
-        if the type of `value` is not one of the supported ones.
-        """
-        ...
+  def ignore_module(self, module: str) -> None:
+    r"""
+    Tell the compiler that a YARA module is not supported.
 
-    def new_namespace(self, namespace: str) -> None:
-        r"""
-        Creates a new namespace.
+    Import statements for unsupported modules will be ignored without
+    errors, but a warning will be issued. Any rule that make use of an
+    ignored module will be ignored, while the rest of rules that
+    don't rely on that module will be correctly compiled.
+    """
+    ...
 
-        Further calls to [`Compiler::add_source`] will put the rules under the
-        newly created namespace.
-        """
-        ...
+  def build(self) -> Rules:
+    r"""
+    Builds the source code previously added to the compiler.
 
-    def ignore_module(self, module: str) -> None:
-        r"""
-        Tell the compiler that a YARA module is not supported.
+    This function returns an instance of [`Rules`] containing all the rules
+    previously added with [`Compiler::add_source`] and sets the compiler
+    to its initial empty state.
+    """
+    ...
 
-        Import statements for unsupported modules will be ignored without
-        errors, but a warning will be issued. Any rule that make use of an
-        ignored module will be ignored, while the rest of rules that
-        don't rely on that module will be correctly compiled.
-        """
-        ...
+  def errors(self) -> typing.Any:
+    r"""
+    Retrieves all errors generated by the compiler.
 
-    def build(self) -> Rules:
-        r"""
-        Builds the source code previously added to the compiler.
+    This method returns every error encountered during the compilation,
+    across all invocations of [`Compiler::add_source`].
+    """
+    ...
 
-        This function returns an instance of [`Rules`] containing all the rules
-        previously added with [`Compiler::add_source`] and sets the compiler
-        to its initial empty state.
-        """
-        ...
+  def warnings(self) -> typing.Any:
+    r"""
+    Retrieves all warnings generated by the compiler.
 
-    def errors(self) -> typing.Any:
-        r"""
-        Retrieves all errors generated by the compiler.
+    This method returns every warning encountered during the compilation,
+    across all invocations of [`Compiler::add_source`].
+    """
+    ...
 
-        This method returns every error encountered during the compilation,
-        across all invocations of [`Compiler::add_source`].
-        """
-        ...
-
-    def warnings(self) -> typing.Any:
-        r"""
-        Retrieves all warnings generated by the compiler.
-
-        This method returns every warning encountered during the compilation,
-        across all invocations of [`Compiler::add_source`].
-        """
-        ...
 
 class Match:
-    r"""
-    Represents a match found for a pattern.
-    """
+  r"""
+  Represents a match found for a pattern.
+  """
 
-    offset: int
-    length: int
-    xor_key: typing.Optional[int]
+  offset: int
+  length: int
+  xor_key: typing.Optional[int]
+
 
 class Pattern:
-    r"""
-    Represents a pattern in a YARA rule.
-    """
+  r"""
+  Represents a pattern in a YARA rule.
+  """
 
-    identifier: str
-    matches: tuple
+  identifier: str
+  matches: tuple
+
 
 class Rule:
-    r"""
-    Represents a rule that matched while scanning some data.
-    """
+  r"""
+  Represents a rule that matched while scanning some data.
+  """
 
-    identifier: str
-    namespace: str
-    metadata: tuple
-    patterns: tuple
+  identifier: str
+  namespace: str
+  tags: tuple
+  metadata: tuple
+  patterns: tuple
+
 
 class Rules:
+  r"""
+  A set of YARA rules in compiled form.
+
+  This is the result of [`Compiler::build`].
+  """
+
+  def scan(self, data: bytes) -> ScanResults:
     r"""
-    A set of YARA rules in compiled form.
-
-    This is the result of [`Compiler::build`].
+    Scans in-memory data with these rules.
     """
-    def scan(self, data: bytes) -> ScanResults:
-        r"""
-        Scans in-memory data with these rules.
-        """
-        ...
+    ...
 
-    def serialize_into(self, file: typing.Any) -> None:
-        r"""
-        Serializes the rules into a file-like object.
-        """
-        ...
+  def serialize_into(self, file: typing.Any) -> None:
+    r"""
+    Serializes the rules into a file-like object.
+    """
+    ...
 
-    @staticmethod
-    def deserialize_from(file: typing.Any) -> Rules:
-        r"""
-        Deserializes rules from a file-like object.
-        """
-        ...
+  @staticmethod
+  def deserialize_from(file: typing.Any) -> Rules:
+    r"""
+    Deserializes rules from a file-like object.
+    """
+    ...
+
 
 class ScanResults:
-    r"""
-    Results produced by a scan operation.
-    """
+  r"""
+  Results produced by a scan operation.
+  """
 
-    matching_rules: tuple
-    module_outputs: dict
+  matching_rules: tuple
+  module_outputs: dict
+
 
 class Scanner:
-    r"""
-    Scans data with already compiled YARA rules.
+  r"""
+  Scans data with already compiled YARA rules.
 
-    The scanner receives a set of compiled Rules and scans data with those
-    rules. The same scanner can be used for scanning multiple files or
-    in-memory data sequentially, but you need multiple scanners for scanning
-    in parallel.
-    """
+  The scanner receives a set of compiled Rules and scans data with those
+  rules. The same scanner can be used for scanning multiple files or
+  in-memory data sequentially, but you need multiple scanners for scanning
+  in parallel.
+  """
 
-    ...
+  ...
+
 
 def compile(src: str) -> Rules:
-    r"""
-    Compiles a YARA source code producing a set of compiled [`Rules`].
+  r"""
+  Compiles a YARA source code producing a set of compiled [`Rules`].
 
-    This function allows compiling simple rules that don't depend on external
-    variables. For more complex use cases you will need to use a [`Compiler`].
-    """
-    ...
+  This function allows compiling simple rules that don't depend on external
+  variables. For more complex use cases you will need to use a [`Compiler`].
+  """
+  ...
