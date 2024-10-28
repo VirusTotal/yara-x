@@ -278,13 +278,17 @@ impl ScanContext<'_> {
     /// increased by the time elapsed since `rule_execution_start_time`.
     #[cfg(feature = "rules-profiling")]
     pub(crate) fn update_time_spent_in_rule(&mut self, rule_id: RuleId) {
-        self.time_spent_in_rule
-            .get_mut::<usize>(rule_id.into())
-            .unwrap()
-            .add_assign(self.clock.delta_as_nanos(
+        // The RuleId is not guaranteed to be a valid one. It may be larger
+        // than the last RuleId, so we can't assume that the `get_mut` will
+        // be successful.
+        if let Some(time_spend_in_rule) =
+            self.time_spent_in_rule.get_mut::<usize>(rule_id.into())
+        {
+            time_spend_in_rule.add_assign(self.clock.delta_as_nanos(
                 self.rule_execution_start_time,
                 self.clock.raw(),
             ));
+        }
     }
 
     /// Called during the scan process when a rule didn't match.

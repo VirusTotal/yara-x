@@ -734,13 +734,21 @@ impl<'r> Scanner<'r> {
         #[cfg(feature = "rules-profiling")]
         if func_result.is_err() {
             let ctx = self.wasm_store.data_mut();
-            // When a timeout occurs, neither `ctx.track_rule_no_match` nor
-            // `ctx.track_rule_match` are invoked for the rule that was being
-            // executed at that moment. This implies that the time spent in
-            // that rule has not being updated yet, and we must do it here.
-            // The ID of the rule that was being executed is the one that
-            // comes after the last executed one. This assumes that rules are
-            // executed in strict ID increasing order.
+            // If a timeout occurs, the methods `ctx.track_rule_no_match` or
+            // `ctx.track_rule_match` may not be invoked for the currently
+            // executing rule. This means that the time spent within that rule
+            // has not been recorded yet, so we need to update it here.
+            //
+            // The ID of the rule that was running during the timeout can be
+            // determined as the one immediately following the last executed
+            // rule, based on the assumption that rules are processed in a
+            // strictly ascending ID order.
+            //
+            // Additionally, if the timeout happens after `ctx.last_executed_rule`
+            // has been updated with the last rule ID, we might end up calling
+            // `update_time_spent_in_rule` with an ID that is off by one.
+            // However, this function is designed to handle such cases
+            // gracefully.
             ctx.update_time_spent_in_rule(
                 ctx.last_executed_rule
                     .map_or(RuleId::from(0), |rule_id| rule_id.next()),
