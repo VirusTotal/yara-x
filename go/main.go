@@ -41,6 +41,14 @@ package yara_x
 //   return yrx_rules_iter_imports(rules, callback, (void*) imports_handle);
 // }
 //
+// enum YRX_RESULT static inline _yrx_rule_iter_tags(
+//		const struct YRX_RULE *rule,
+//		YRX_TAG_CALLBACK callback,
+//		uintptr_t tags_handle)
+// {
+//   return yrx_rule_iter_tags(rule, callback, (void*) tags_handle);
+// }
+//
 // enum YRX_RESULT static inline _yrx_rule_iter_metadata(
 //		const struct YRX_RULE *rule,
 //		YRX_METADATA_CALLBACK callback,
@@ -70,6 +78,7 @@ package yara_x
 // extern void metadataCallback(YRX_METADATA*, uintptr_t);
 // extern void patternCallback(YRX_PATTERN*, uintptr_t);
 // extern void matchCallback(YRX_MATCH*, uintptr_t);
+// extern void tagCallback(char*, uintptr_t);
 //
 import "C"
 
@@ -243,6 +252,7 @@ func (r *Rules) Imports() []string {
 type Rule struct {
 	namespace  string
 	identifier string
+	tags       []string
 	patterns   []Pattern
 	metadata   []Metadata
 }
@@ -283,6 +293,17 @@ func newRule(cRule *C.YRX_RULE) *Rule {
 
 	identifier := C.GoStringN((*C.char)(unsafe.Pointer(str)), C.int(len))
 
+	tags := make([]string, 0)
+	tagsHandle := cgo.NewHandle(&tags)
+	defer tagsHandle.Delete()
+
+	if C._yrx_rule_iter_tags(
+		cRule,
+		C.YRX_TAG_CALLBACK(C.tagCallback),
+		C.uintptr_t(tagsHandle)) != C.SUCCESS {
+		panic("yrx_rule_iter_tags failed")
+	}
+
 	metadata := make([]Metadata, 0)
 	metadataHandle := cgo.NewHandle(&metadata)
 	defer metadataHandle.Delete()
@@ -308,6 +329,7 @@ func newRule(cRule *C.YRX_RULE) *Rule {
 	rule := &Rule{
 		namespace,
 		identifier,
+		tags,
 		patterns,
 		metadata,
 	}
@@ -323,6 +345,11 @@ func (r *Rule) Identifier() string {
 // Namespace returns the rule's namespace.
 func (r *Rule) Namespace() string {
 	return r.namespace
+}
+
+// Tags returns the rule's tags.
+func (r *Rule) Tags() []string {
+	return r.tags
 }
 
 // Identifier associated to the metadata.
@@ -391,7 +418,19 @@ func importCallback(moduleName *C.char, handle C.uintptr_t) {
 	*imports = append(*imports, C.GoString(moduleName))
 }
 
-// This is the callback called by yrx_rules_iter_patterns
+// This is the callback called by yrx_rule_iter_tags
+//
+//export tagCallback
+func tagCallback(tag *C.char, handle C.uintptr_t) {
+	h := cgo.Handle(handle)
+	tags, ok := h.Value().(*[]string)
+	if !ok {
+		panic("tagsCallback didn't receive a *[]string")
+	}
+	*tags = append(*tags, C.GoString(tag))
+}
+
+// This is the callback called by yrx_rule_iter_patterns
 //
 //export patternCallback
 func patternCallback(pattern *C.YRX_PATTERN, handle C.uintptr_t) {
@@ -425,7 +464,7 @@ func patternCallback(pattern *C.YRX_PATTERN, handle C.uintptr_t) {
 	})
 }
 
-// This is the callback called by yrx_rules_iter_patterns
+// This is the callback called by yrx_rule_iter_metadata
 //
 //export metadataCallback
 func metadataCallback(metadata *C.YRX_METADATA, handle C.uintptr_t) {
@@ -460,7 +499,7 @@ func metadataCallback(metadata *C.YRX_METADATA, handle C.uintptr_t) {
 	})
 }
 
-// This is the callback called by yrx_rules_iter_patterns
+// This is the callback called by yrx_pattern_iter_matches
 //
 //export matchCallback
 func matchCallback(match *C.YRX_MATCH, handle C.uintptr_t) {

@@ -397,6 +397,7 @@ impl ScanResults {
 struct Rule {
     identifier: String,
     namespace: String,
+    tags: Py<PyTuple>,
     metadata: Py<PyTuple>,
     patterns: Py<PyTuple>,
 }
@@ -413,6 +414,12 @@ impl Rule {
     #[getter]
     fn namespace(&self) -> &str {
         self.namespace.as_str()
+    }
+
+    /// Returns the rule's tags.
+    #[getter]
+    fn tags(&self) -> Py<PyTuple> {
+        Python::with_gil(|py| self.tags.clone_ref(py))
     }
 
     /// A tuple of pairs `(identifier, value)` with the metadata associated to
@@ -585,6 +592,11 @@ fn rule_to_py(py: Python, rule: yrx::Rule) -> PyResult<Py<Rule>> {
         Rule {
             identifier: rule.identifier().to_string(),
             namespace: rule.namespace().to_string(),
+            tags: PyTuple::new_bound(
+                py,
+                rule.tags().map(|tag| tag.identifier()),
+            )
+            .unbind(),
             metadata: PyTuple::new_bound(
                 py,
                 rule.metadata()

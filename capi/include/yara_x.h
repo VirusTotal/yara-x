@@ -181,6 +181,19 @@ typedef void (*YRX_METADATA_CALLBACK)(const struct YRX_METADATA *metadata,
 typedef void (*YRX_PATTERN_CALLBACK)(const struct YRX_PATTERN *pattern,
                                      void *user_data);
 
+// Callback function passed to [`yrx_rule_iter_tags`].
+//
+// The callback is called for each tag defined in the rule, and it receives
+// a pointer to a string with the tag name. This pointer is guaranteed to be
+// valid while the callback function is being executed, but it will be freed
+// after the callback function returns, so you cannot use this pointer, or
+// any other pointer contained in the structure, outside the callback.
+//
+// The callback also receives a `user_data` pointer that can point to arbitrary
+// data owned by the user.
+typedef void (*YRX_TAG_CALLBACK)(const char *tag,
+                                 void *user_data);
+
 // Callback function passed to [`yrx_scanner_on_matching_rule`] or
 // [`yrx_rules_iter`].
 //
@@ -507,6 +520,17 @@ enum YRX_RESULT yrx_rule_iter_metadata(const struct YRX_RULE *rule,
 enum YRX_RESULT yrx_rule_iter_patterns(const struct YRX_RULE *rule,
                                        YRX_PATTERN_CALLBACK callback,
                                        void *user_data);
+
+// Iterates over the tags in a rule, calling the callback with a pointer
+// to each tag.
+//
+// The `user_data` pointer can be used to provide additional context to your
+// callback function.
+//
+// See [`YRX_TAG_CALLBACK`] for more details.
+enum YRX_RESULT yrx_rule_iter_tags(const struct YRX_RULE *rule,
+                                   YRX_TAG_CALLBACK callback,
+                                   void *user_data);
 
 // Iterates over the compiled rules, calling the callback function for each
 // rule.

@@ -238,7 +238,7 @@ func TestRules(t *testing.T) {
 	c, err := NewCompiler()
 	assert.NoError(t, err)
 
-	c.AddSource(`rule test_1 {
+	c.AddSource(`rule test_1 : tag1 tag2 {
       condition:
         true
 	}`)
@@ -265,6 +265,9 @@ func TestRules(t *testing.T) {
 
 	assert.Equal(t, "default", slice[0].Namespace())
 	assert.Equal(t, "default", slice[1].Namespace())
+
+	assert.Equal(t, []string{"tag1", "tag2"}, slice[0].Tags())
+	assert.Equal(t, []string{}, slice[1].Tags())
 
 	assert.Len(t, slice[0].Metadata(), 0)
 	assert.Len(t, slice[1].Metadata(), 4)

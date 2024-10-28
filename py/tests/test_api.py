@@ -141,6 +141,19 @@ def test_metadata():
   )
 
 
+def test_tags():
+  rules = yara_x.compile('''
+	rule test : tag1 tag2 {
+		condition:
+		  true	
+	}
+	''')
+
+  matching_rules = rules.scan(b'').matching_rules
+
+  assert matching_rules[0].tags == ("tag1", "tag2")
+
+
 def test_compile_and_scan():
   rules = yara_x.compile('rule foo {strings: $a = "foo" condition: $a}')
   matching_rules = rules.scan(b'foobar').matching_rules
