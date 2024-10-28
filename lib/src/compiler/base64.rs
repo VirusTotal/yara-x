@@ -190,7 +190,7 @@ mod test {
             base64_patterns(b"foobar", Some("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")),
             vec![
                 (2, BString::from("mb29iYX")),
-                (1, BString::from("Zvb2Jhc")),                      
+                (1, BString::from("Zvb2Jhc")),
                 (0, BString::from("Zm9vYmFy"))
             ]
         );

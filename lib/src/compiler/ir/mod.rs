@@ -31,25 +31,24 @@ allows using the same regex engine for matching both types of patterns.
 
 use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
+use std::ops::Index;
 use std::ops::RangeInclusive;
 
 use bitmask::bitmask;
 use bstr::BString;
 use serde::{Deserialize, Serialize};
 
-use crate::compiler::context::{CompileContext, Var, VarStackFrame};
-use crate::symbols::Symbol;
-use crate::types::{Type, TypeValue, Value};
-
-pub(in crate::compiler) use ast2ir::bool_expr_from_ast;
-pub(in crate::compiler) use ast2ir::patterns_from_ast;
-
 use yara_x_parser::ast::Ident;
 use yara_x_parser::Span;
 
-use crate::compiler::errors::{CompileError, NumberOutOfRange};
+use crate::compiler::context::{Var, VarStackFrame};
 use crate::compiler::ir::dfs::{DepthFirstSearch, Event};
 use crate::re;
+use crate::symbols::Symbol;
+use crate::types::{Type, TypeValue, Value};
+
+pub(in crate::compiler) use ast2ir::patterns_from_ast;
+pub(in crate::compiler) use ast2ir::rule_condition_from_ast;
 
 mod ast2ir;
 mod dfs;
@@ -93,7 +92,7 @@ bitmask! {
 /// within the confines of a specific rule. If two distinct rules declare
 /// precisely the same pattern, including any modifiers, they will reference
 /// the same [`Pattern`] instance.
-pub(in crate::compiler) struct PatternInRule<'src> {
+pub(crate) struct PatternInRule<'src> {
     identifier: Ident<'src>,
     pattern: Pattern,
     span: Span,
@@ -179,7 +178,7 @@ impl<'src> PatternInRule<'src> {
 /// a specific rule we have [`PatternInRule`], which contains a [`Pattern`] and
 /// additional information about how the pattern is used in a rule.
 #[derive(Clone, Eq, Hash, PartialEq)]
-pub(in crate::compiler) enum Pattern {
+pub(crate) enum Pattern {
     Text(LiteralPattern),
     Regexp(RegexpPattern),
     Hex(RegexpPattern),
@@ -268,7 +267,7 @@ impl Pattern {
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
-pub(in crate::compiler) struct LiteralPattern {
+pub(crate) struct LiteralPattern {
     pub flags: PatternFlagSet,
     pub text: BString,
     pub anchored_at: Option<usize>,
@@ -278,7 +277,7 @@ pub(in crate::compiler) struct LiteralPattern {
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
-pub(in crate::compiler) struct RegexpPattern {
+pub(crate) struct RegexpPattern {
     pub flags: PatternFlagSet,
     pub hir: re::hir::Hir,
     pub anchored_at: Option<usize>,
@@ -289,7 +288,7 @@ pub(in crate::compiler) struct RegexpPattern {
 /// The first pattern in the rule has index 0, the second has index 1, and
 /// so on.
 #[derive(Debug, Clone, Copy)]
-pub(in crate::compiler) struct PatternIdx(usize);
+pub(crate) struct PatternIdx(usize);
 
 impl PatternIdx {
     #[inline]
@@ -305,554 +304,90 @@ impl From<usize> for PatternIdx {
     }
 }
 
-/// Intermediate representation (IR) for an expression.
-pub(in crate::compiler) enum Expr {
-    /// Constant value (i.e: the value is known at compile time).
-    /// The value in `TypeValue` is not `None`.
-    Const(TypeValue),
+/// Identifies an expression in the IR tree.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ExprId(u32);
 
-    /// `filesize` expression.
-    Filesize,
-
-    /// Boolean `not` expression.
-    Not {
-        operand: Box<Expr>,
-    },
-
-    /// Boolean `and` expression.
-    And {
-        operands: Vec<Expr>,
-    },
-
-    /// Boolean `or` expression.
-    Or {
-        operands: Vec<Expr>,
-    },
-
-    /// Arithmetic minus.
-    Minus {
-        operand: Box<Expr>,
-    },
-
-    /// Arithmetic addition (`+`) expression.
-    Add {
-        operands: Vec<Expr>,
-    },
-
-    /// Arithmetic subtraction (`-`) expression.
-    Sub {
-        operands: Vec<Expr>,
-    },
-
-    /// Arithmetic multiplication (`*`) expression.
-    Mul {
-        operands: Vec<Expr>,
-    },
-
-    /// Arithmetic division (`\`) expression.
-    Div {
-        operands: Vec<Expr>,
-    },
-
-    /// Arithmetic modulus (`%`) expression.
-    Mod {
-        operands: Vec<Expr>,
-    },
-
-    /// Bitwise not (`~`) expression.
-    BitwiseNot {
-        operand: Box<Expr>,
-    },
-
-    /// Bitwise and (`&`) expression.
-    BitwiseAnd {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
-    },
-
-    /// Bitwise shift left (`<<`) expression.
-    Shl {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
-    },
-
-    /// Bitwise shift right (`>>`) expression.
-    Shr {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
-    },
-
-    /// Bitwise or (`|`) expression.
-    BitwiseOr {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
-    },
-
-    /// Bitwise xor (`^`) expression.
-    BitwiseXor {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
-    },
-
-    /// Equal (`==`) expression.
-    Eq {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
-    },
-
-    /// Not equal (`!=`) expression.
-    Ne {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
-    },
-
-    /// Less than (`<`) expression.
-    Lt {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
-    },
-
-    /// Greater than (`>`) expression.
-    Gt {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
-    },
-
-    /// Less or equal (`<=`) expression.
-    Le {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
-    },
-
-    /// Greater or equal (`>=`) expression.
-    Ge {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
-    },
-
-    /// `contains` expression.
-    Contains {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
-    },
-
-    /// `icontains` expression
-    IContains {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
-    },
-
-    /// `startswith` expression.
-    StartsWith {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
-    },
-
-    /// `istartswith` expression
-    IStartsWith {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
-    },
-
-    /// `endswith` expression.
-    EndsWith {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
-    },
-
-    /// `iendswith` expression
-    IEndsWith {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
-    },
-
-    /// `iequals` expression.
-    IEquals {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
-    },
-
-    /// `matches` expression.
-    Matches {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
-    },
-
-    /// Field access expression (e.g. `foo.bar.baz`)
-    FieldAccess {
-        operands: Vec<Expr>,
-    },
-
-    /// A `defined` expression (e.g. `defined foo`)
-    Defined {
-        operand: Box<Expr>,
-    },
-
-    Ident {
-        symbol: Symbol,
-    },
-
-    /// Pattern match expression (e.g. `$a`)
-    PatternMatch {
-        pattern: PatternIdx,
-        anchor: MatchAnchor,
-    },
-
-    /// Pattern match expression where the pattern is variable (e.g: `$`).
-    PatternMatchVar {
-        symbol: Symbol,
-        anchor: MatchAnchor,
-    },
-
-    /// Pattern count expression (e.g. `#a`, `#a in (0..10)`)
-    PatternCount {
-        pattern: PatternIdx,
-        range: Option<Range>,
-    },
-
-    /// Pattern count expression where the pattern is variable (e.g. `#`, `# in (0..10)`)
-    PatternCountVar {
-        symbol: Symbol,
-        range: Option<Range>,
-    },
-
-    /// Pattern offset expression (e.g. `@a`, `@a[1]`)
-    PatternOffset {
-        pattern: PatternIdx,
-        index: Option<Box<Expr>>,
-    },
-
-    /// Pattern count expression where the pattern is variable (e.g. `@`, `@[1]`)
-    PatternOffsetVar {
-        symbol: Symbol,
-        index: Option<Box<Expr>>,
-    },
-
-    /// Pattern length expression (e.g. `!a`, `!a[1]`)
-    PatternLength {
-        pattern: PatternIdx,
-        index: Option<Box<Expr>>,
-    },
-
-    /// Pattern count expression where the pattern is variable (e.g. `!`, `![1]`)
-    PatternLengthVar {
-        symbol: Symbol,
-        index: Option<Box<Expr>>,
-    },
-
-    /// Function call.
-    FuncCall(Box<FuncCall>),
-
-    /// An `of` expression (e.g. `1 of ($a, $b)`, `all of them`)
-    Of(Box<Of>),
-
-    /// A `for <quantifier> of ...` expression. (e.g. `for any of ($a, $b) : ( ... )`)
-    ForOf(Box<ForOf>),
-
-    /// A `for <quantifier> <vars> in ...` expression. (e.g. `for all i in (1..100) : ( ... )`)
-    ForIn(Box<ForIn>),
-
-    /// A `with <identifiers> : ...` expression. (e.g. `with $a, $b : ( ... )`)
-    With(Box<With>),
-
-    /// Array or dictionary lookup expression (e.g. `array[1]`, `dict["key"]`)
-    Lookup(Box<Lookup>),
+impl From<usize> for ExprId {
+    #[inline]
+    fn from(value: usize) -> Self {
+        Self(value as u32)
+    }
 }
 
-/// A lookup operation in an array or dictionary.
 #[derive(Debug)]
-pub(in crate::compiler) struct Lookup {
-    pub type_value: TypeValue,
-    pub primary: Box<Expr>,
-    pub index: Box<Expr>,
+pub(crate) enum Error {
+    NumberOutOfRange,
 }
 
-/// An expression representing a function call.
-#[derive(Debug)]
-pub(in crate::compiler) struct FuncCall {
-    /// The callable expression, which must resolve in some function identifier.
-    pub callable: Expr,
-    /// The arguments passed to the function in this call.
-    pub args: Vec<Expr>,
-    /// Type and value for the function's result.
-    pub type_value: TypeValue,
-    /// Due to function overloading, the same function may have multiple
-    /// signatures. This field indicates the index of the signature that
-    /// matched the provided arguments.
-    pub signature_index: usize,
-}
-
-/// An `of` expression (e.g. `1 of ($a, $b)`, `all of them`,
-/// `any of (true, false)`)
-#[derive(Debug)]
-pub(in crate::compiler) struct Of {
-    pub quantifier: Quantifier,
-    pub items: OfItems,
-    pub anchor: MatchAnchor,
-    pub stack_frame: VarStackFrame,
-}
-
-/// A `for .. of` expression (e.g `for all of them : (..)`,
-/// `for 1 of ($a,$b) : (..)`)
-#[derive(Debug)]
-pub(in crate::compiler) struct ForOf {
-    pub quantifier: Quantifier,
-    pub variable: Var,
-    pub pattern_set: Vec<PatternIdx>,
-    pub condition: Expr,
-    pub stack_frame: VarStackFrame,
-}
-
-/// A `for .. in` expression (e.g `for all x in iterator : (..)`)
-#[derive(Debug)]
-pub(in crate::compiler) struct ForIn {
-    pub quantifier: Quantifier,
-    pub variables: Vec<Var>,
-    pub iterable: Iterable,
-    pub condition: Expr,
-    pub stack_frame: VarStackFrame,
-}
-
-/// A `with` expression (e.g `with $a, $b : (..)`)
-#[derive(Debug)]
-pub(in crate::compiler) struct With {
-    pub declarations: Vec<(Var, Expr)>,
-    pub condition: Expr,
-}
-
-/// A quantifier used in `for` and `of` expressions.
-#[derive(Debug)]
-pub(in crate::compiler) enum Quantifier {
-    None,
-    All,
-    Any,
-    Percentage(Expr),
-    Expr(Expr),
-}
-
-/// In expressions like `$a at 0` and `$b in (0..10)`, this type represents the
-/// anchor (e.g. `at <expr>`, `in <range>`).
+/// Intermediate representation (IR) of a rule condition.
 ///
-/// The anchor is the part of the expression that restricts the offset range
-/// where the match can occur.
-/// (e.g. `at <expr>`, `in <range>`).
-#[derive(Debug)]
-pub(in crate::compiler) enum MatchAnchor {
-    None,
-    At(Box<Expr>),
-    In(Range),
+/// The IR is a tree representing a rule condition. It is generated from the
+/// Abstract Syntax Tree (AST), and then transformed when optimizations are
+/// applied. Finally, the IR is used as input by the code emitter.
+///
+/// The tree is represented using a vector of [`Expr`], each expression can
+/// reference other expressions (like it its operands) using an [`ExprId`],
+/// which is an index in the vector.
+pub(crate) struct IR {
+    constant_folding: bool,
+    root: Option<ExprId>,
+    nodes: Vec<Expr>,
 }
 
-impl MatchAnchor {
-    /// If this anchor is `at <expr>`, and `<expr>` is a constant value,
-    /// return this value. Otherwise, returns `None`.
-    pub fn at(&self) -> Option<i64> {
-        match self {
-            Self::At(expr) => {
-                let value = expr.type_value();
-                if value.is_const() {
-                    value.try_as_integer()
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        }
-    }
-}
-
-/// Items in a `of` expression.
-#[derive(Debug)]
-pub(in crate::compiler) enum OfItems {
-    PatternSet(Vec<PatternIdx>),
-    BoolExprTuple(Vec<Expr>),
-}
-
-/// A pair of values conforming a range (e.g. `(0..10)`).
-#[derive(Debug)]
-pub(in crate::compiler) struct Range {
-    pub lower_bound: Box<Expr>,
-    pub upper_bound: Box<Expr>,
-}
-
-/// Possible iterable expressions that can use in a [`ForIn`].
-#[derive(Debug)]
-pub(in crate::compiler) enum Iterable {
-    Range(Range),
-    ExprTuple(Vec<Expr>),
-    Expr(Expr),
-}
-
-impl Expr {
-    /// Creates a new [`Expr::Not`].
-    pub fn not(operand: Expr) -> Self {
-        Self::Not { operand: Box::new(operand) }
+impl IR {
+    /// Creates a new [`IR`].
+    pub fn new() -> Self {
+        Self { nodes: Vec::new(), root: None, constant_folding: false }
     }
 
-    /// Creates a new [`Expr::And`].
-    pub fn and(operands: Vec<Expr>) -> Self {
-        Self::And { operands }
+    /// Enable constant folding.
+    pub fn constant_folding(&mut self, yes: bool) -> &mut Self {
+        self.constant_folding = yes;
+        self
     }
 
-    /// Creates a new [`Expr::Or`].
-    pub fn or(operands: Vec<Expr>) -> Self {
-        Self::Or { operands }
+    /// Clears the tree, removing all nodes.
+    pub fn clear(&mut self) {
+        self.nodes.clear()
     }
 
-    /// Creates a new [`Expr::Minus`].
-    pub fn minus(operand: Expr) -> Self {
-        Self::Minus { operand: Box::new(operand) }
+    /// Returns a reference to the [`Expr`] at the given index in the tree.
+    #[inline]
+    pub fn get(&self, idx: ExprId) -> &Expr {
+        self.nodes.get(idx.0 as usize).unwrap()
     }
 
-    /// Creates a new [`Expr::Defined`].
-    pub fn defined(operand: Expr) -> Self {
-        Self::Defined { operand: Box::new(operand) }
+    /// Returns a mutable reference to the [`Expr`] at the given index in the
+    /// tree.
+    #[inline]
+    pub fn get_mut(&mut self, idx: ExprId) -> &mut Expr {
+        self.nodes.get_mut(idx.0 as usize).unwrap()
     }
 
-    /// Creates a new [`Expr::BitwiseNot`].
-    pub fn bitwise_not(operand: Expr) -> Self {
-        Self::BitwiseNot { operand: Box::new(operand) }
+    /// Returns an iterator that performs a depth first search starting at
+    /// the given node.
+    pub fn dfs_iter(&self, start: ExprId) -> DepthFirstSearch {
+        DepthFirstSearch::new(start, self.nodes.as_slice())
     }
 
-    /// Creates a new [`Expr::BitwiseAnd`].
-    pub fn bitwise_and(lhs: Expr, rhs: Expr) -> Self {
-        Self::BitwiseAnd { lhs: Box::new(lhs), rhs: Box::new(rhs) }
-    }
-
-    /// Creates a new [`Expr::BitwiseOr`].
-    pub fn bitwise_or(lhs: Expr, rhs: Expr) -> Self {
-        Self::BitwiseOr { lhs: Box::new(lhs), rhs: Box::new(rhs) }
-    }
-
-    /// Creates a new [`Expr::BitwiseXor`].
-    pub fn bitwise_xor(lhs: Expr, rhs: Expr) -> Self {
-        Self::BitwiseXor { lhs: Box::new(lhs), rhs: Box::new(rhs) }
-    }
-
-    /// Creates a new [`Expr::Shl`].
-    pub fn shl(lhs: Expr, rhs: Expr) -> Self {
-        Self::Shl { lhs: Box::new(lhs), rhs: Box::new(rhs) }
-    }
-
-    /// Creates a new [`Expr::Shr`].
-    pub fn shr(lhs: Expr, rhs: Expr) -> Self {
-        Self::Shr { lhs: Box::new(lhs), rhs: Box::new(rhs) }
-    }
-
-    /// Creates a new [`Expr::Add`].
-    pub fn add(operands: Vec<Expr>) -> Self {
-        Self::Add { operands }
-    }
-
-    /// Creates a new [`Expr::Sub`].
-    pub fn sub(operands: Vec<Expr>) -> Self {
-        Self::Sub { operands }
-    }
-
-    /// Creates a new [`Expr::Mul`].
-    pub fn mul(operands: Vec<Expr>) -> Self {
-        Self::Mul { operands }
-    }
-
-    /// Creates a new [`Expr::Div`].
-    pub fn div(operands: Vec<Expr>) -> Self {
-        Self::Div { operands }
-    }
-
-    /// Creates a new [`Expr::Mod`].
-    pub fn modulus(operands: Vec<Expr>) -> Self {
-        Self::Mod { operands }
-    }
-
-    /// Creates a new [`Expr::FieldAccess`].
-    pub fn field_access(operands: Vec<Expr>) -> Self {
-        Self::FieldAccess { operands }
-    }
-
-    /// Creates a new [`Expr::Eq`].
-    pub fn eq(lhs: Expr, rhs: Expr) -> Self {
-        Self::Eq { lhs: Box::new(lhs), rhs: Box::new(rhs) }
-    }
-
-    /// Creates a new [`Expr::Ne`].
-    pub fn ne(lhs: Expr, rhs: Expr) -> Self {
-        Self::Ne { lhs: Box::new(lhs), rhs: Box::new(rhs) }
-    }
-
-    /// Creates a new [`Expr::Ge`].
-    pub fn ge(lhs: Expr, rhs: Expr) -> Self {
-        Self::Ge { lhs: Box::new(lhs), rhs: Box::new(rhs) }
-    }
-
-    /// Creates a new [`Expr::Gt`].
-    pub fn gt(lhs: Expr, rhs: Expr) -> Self {
-        Self::Gt { lhs: Box::new(lhs), rhs: Box::new(rhs) }
-    }
-
-    /// Creates a new [`Expr::Le`].
-    pub fn le(lhs: Expr, rhs: Expr) -> Self {
-        Self::Le { lhs: Box::new(lhs), rhs: Box::new(rhs) }
-    }
-
-    /// Creates a new [`Expr::Lt`].
-    pub fn lt(lhs: Expr, rhs: Expr) -> Self {
-        Self::Lt { lhs: Box::new(lhs), rhs: Box::new(rhs) }
-    }
-
-    /// Creates a new [`Expr::Contains`].
-    pub fn contains(lhs: Expr, rhs: Expr) -> Self {
-        Self::Contains { lhs: Box::new(lhs), rhs: Box::new(rhs) }
-    }
-
-    /// Creates a new [`Expr::IContains`].
-    pub fn icontains(lhs: Expr, rhs: Expr) -> Self {
-        Self::IContains { lhs: Box::new(lhs), rhs: Box::new(rhs) }
-    }
-
-    /// Creates a new [`Expr::StartsWith`].
-    pub fn starts_with(lhs: Expr, rhs: Expr) -> Self {
-        Self::StartsWith { lhs: Box::new(lhs), rhs: Box::new(rhs) }
-    }
-
-    /// Creates a new [`Expr::IStartsWith`].
-    pub fn istarts_with(lhs: Expr, rhs: Expr) -> Self {
-        Self::IStartsWith { lhs: Box::new(lhs), rhs: Box::new(rhs) }
-    }
-
-    /// Creates a new [`Expr::EndsWith`].
-    pub fn ends_with(lhs: Expr, rhs: Expr) -> Self {
-        Self::EndsWith { lhs: Box::new(lhs), rhs: Box::new(rhs) }
-    }
-
-    /// Creates a new [`Expr::IEndsWith`].
-    pub fn iends_with(lhs: Expr, rhs: Expr) -> Self {
-        Self::IEndsWith { lhs: Box::new(lhs), rhs: Box::new(rhs) }
-    }
-
-    /// Creates a new [`Expr::IEquals`].
-    pub fn iequals(lhs: Expr, rhs: Expr) -> Self {
-        Self::IEquals { lhs: Box::new(lhs), rhs: Box::new(rhs) }
-    }
-
-    /// Returns an iterator that does a DFS traversal of the IR tree.
-    ///
-    /// See [`DepthFirstSearch`] for details.
-    pub fn dfs_iter(&self) -> DepthFirstSearch {
-        DepthFirstSearch::new(self)
-    }
-
-    /// Finds the first expression in DFS order that matches the given
-    /// `predicate`, but avoids traversing the descendants of nodes
-    /// matching the condition indicated by `prune_if`.
-    pub fn dfs_find<P, C>(&self, predicate: P, prune_if: C) -> Option<&Expr>
+    /// Finds the first expression in DFS order starting at the `start` node
+    /// that matches the given `predicate`, but avoids traversing the
+    /// descendants of nodes matching the condition indicated by `prune_if`.
+    pub fn dfs_find<P, C>(
+        &self,
+        start: ExprId,
+        predicate: P,
+        prune_if: C,
+    ) -> Option<&Expr>
     where
         P: Fn(&Expr) -> bool,
         C: Fn(&Expr) -> bool,
     {
-        let mut dfs = self.dfs_iter();
+        let mut dfs = self.dfs_iter(start);
 
         while let Some(evt) = dfs.next() {
-            if let Event::Enter(expr) = evt {
+            if let Event::Enter((_, expr)) = evt {
                 if predicate(expr) {
                     return Some(expr);
                 }
@@ -864,286 +399,553 @@ impl Expr {
 
         None
     }
+}
 
-    /// Returns the type of this expression.
-    pub fn ty(&self) -> Type {
-        match self {
-            Expr::Const(type_value) => type_value.ty(),
-
-            Expr::Defined { .. }
-            | Expr::Not { .. }
-            | Expr::And { .. }
-            | Expr::Or { .. }
-            | Expr::Eq { .. }
-            | Expr::Ne { .. }
-            | Expr::Ge { .. }
-            | Expr::Gt { .. }
-            | Expr::Le { .. }
-            | Expr::Lt { .. }
-            | Expr::Contains { .. }
-            | Expr::IContains { .. }
-            | Expr::StartsWith { .. }
-            | Expr::IStartsWith { .. }
-            | Expr::EndsWith { .. }
-            | Expr::IEndsWith { .. }
-            | Expr::IEquals { .. }
-            | Expr::Matches { .. }
-            | Expr::PatternMatch { .. }
-            | Expr::PatternMatchVar { .. }
-            | Expr::Of(_)
-            | Expr::ForOf(_)
-            | Expr::ForIn(_)
-            | Expr::With(_) => Type::Bool,
-
-            Expr::Minus { operand, .. } => match operand.ty() {
-                Type::Integer => Type::Integer,
-                _ => Type::Float,
-            },
-
-            Expr::Add { operands }
-            | Expr::Sub { operands }
-            | Expr::Mul { operands }
-            | Expr::Div { operands } => {
-                // If any of the operands is float, the result is also float.
-                if operands.iter().any(|op| matches!(op.ty(), Type::Float)) {
-                    Type::Float
-                } else {
-                    Type::Integer
-                }
-            }
-
-            Expr::Filesize
-            | Expr::PatternCount { .. }
-            | Expr::PatternCountVar { .. }
-            | Expr::PatternOffset { .. }
-            | Expr::PatternOffsetVar { .. }
-            | Expr::PatternLength { .. }
-            | Expr::PatternLengthVar { .. }
-            | Expr::Mod { .. }
-            | Expr::BitwiseNot { .. }
-            | Expr::BitwiseAnd { .. }
-            | Expr::BitwiseOr { .. }
-            | Expr::BitwiseXor { .. }
-            | Expr::Shl { .. }
-            | Expr::Shr { .. } => Type::Integer,
-
-            Expr::FieldAccess { operands, .. } => {
-                operands.last().unwrap().ty()
-            }
-            Expr::Ident { symbol, .. } => symbol.type_value().ty(),
-            Expr::FuncCall(fn_call) => fn_call.type_value.ty(),
-            Expr::Lookup(lookup) => lookup.type_value.ty(),
-        }
+impl IR {
+    /// Creates a new [`Expr::FileSize`].
+    pub fn filesize(&mut self) -> ExprId {
+        self.nodes.push(Expr::Filesize);
+        ExprId::from(self.nodes.len() - 1)
     }
 
-    pub fn type_value(&self) -> TypeValue {
-        match self {
-            Expr::Const(type_value) => type_value.clone(),
-
-            Expr::Defined { .. }
-            | Expr::Not { .. }
-            | Expr::And { .. }
-            | Expr::Or { .. }
-            | Expr::Eq { .. }
-            | Expr::Ne { .. }
-            | Expr::Ge { .. }
-            | Expr::Gt { .. }
-            | Expr::Le { .. }
-            | Expr::Lt { .. }
-            | Expr::Contains { .. }
-            | Expr::IContains { .. }
-            | Expr::StartsWith { .. }
-            | Expr::IStartsWith { .. }
-            | Expr::EndsWith { .. }
-            | Expr::IEndsWith { .. }
-            | Expr::IEquals { .. }
-            | Expr::Matches { .. }
-            | Expr::PatternMatch { .. }
-            | Expr::PatternMatchVar { .. }
-            | Expr::Of(_)
-            | Expr::ForOf(_)
-            | Expr::ForIn(_)
-            | Expr::With(_) => TypeValue::Bool(Value::Unknown),
-
-            Expr::Minus { operand, .. } => match operand.ty() {
-                Type::Integer => TypeValue::Integer(Value::Unknown),
-                _ => TypeValue::Float(Value::Unknown),
-            },
-
-            Expr::Add { operands }
-            | Expr::Sub { operands }
-            | Expr::Mul { operands }
-            | Expr::Div { operands } => {
-                // If any of the operands is float, the expression's type is
-                // float.
-                if operands.iter().any(|op| matches!(op.ty(), Type::Float)) {
-                    TypeValue::Float(Value::Unknown)
-                } else {
-                    TypeValue::Integer(Value::Unknown)
-                }
-            }
-
-            Expr::Filesize
-            | Expr::PatternCount { .. }
-            | Expr::PatternCountVar { .. }
-            | Expr::PatternOffset { .. }
-            | Expr::PatternOffsetVar { .. }
-            | Expr::PatternLength { .. }
-            | Expr::PatternLengthVar { .. }
-            | Expr::Mod { .. }
-            | Expr::BitwiseNot { .. }
-            | Expr::BitwiseAnd { .. }
-            | Expr::BitwiseOr { .. }
-            | Expr::BitwiseXor { .. }
-            | Expr::Shl { .. }
-            | Expr::Shr { .. } => TypeValue::Integer(Value::Unknown),
-
-            Expr::FieldAccess { operands, .. } => {
-                operands.last().unwrap().type_value()
-            }
-            Expr::Ident { symbol, .. } => symbol.type_value().clone(),
-            Expr::FuncCall(fn_call) => fn_call.type_value.clone(),
-            Expr::Lookup(lookup) => lookup.type_value.clone(),
-        }
+    /// Creates a new [`Expr::Const`].
+    pub fn constant(&mut self, type_value: TypeValue) -> ExprId {
+        self.nodes.push(Expr::Const(type_value));
+        ExprId::from(self.nodes.len() - 1)
     }
 
-    pub fn fold(
-        self,
-        ctx: &mut CompileContext,
-        span: Span,
-    ) -> Result<Self, CompileError> {
-        match self {
-            Expr::Minus { ref operand } => match operand.type_value() {
+    /// Creates a new [`Expr::Ident`].
+    pub fn ident(&mut self, symbol: Symbol) -> ExprId {
+        self.nodes.push(Expr::Ident { symbol: Box::new(symbol) });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::Lookup`].
+    pub fn lookup(
+        &mut self,
+        type_value: TypeValue,
+        primary: ExprId,
+        index: ExprId,
+    ) -> ExprId {
+        self.nodes.push(Expr::Lookup(Box::new(Lookup {
+            type_value,
+            primary,
+            index,
+        })));
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::Not`].
+    pub fn not(&mut self, operand: ExprId) -> ExprId {
+        if self.constant_folding {
+            if let Some(v) = self.get(operand).try_as_const_bool() {
+                return self.constant(TypeValue::const_bool_from(!v));
+            }
+        }
+        self.nodes.push(Expr::Not { operand });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::And`].
+    pub fn and(&mut self, mut operands: Vec<ExprId>) -> Result<ExprId, Error> {
+        if self.constant_folding {
+            // Retain the operands whose value is not constant, or is
+            // constant but false, remove those that are known to be
+            // true. True values in the list of operands don't alter
+            // the result of the AND operation.
+            operands.retain(|op| {
+                let type_value = self.get(*op).type_value().cast_to_bool();
+                !type_value.is_const() || !type_value.as_bool()
+            });
+
+            // No operands left, all were true and therefore the AND is
+            // also true.
+            if operands.is_empty() {
+                return Ok(self.constant(TypeValue::const_bool_from(true)));
+            }
+
+            // If any of the remaining operands is constant it has to be
+            // false because true values were removed, the result is false
+            // regardless of the operands with unknown values.
+            if operands.iter().any(|op| self.get(*op).type_value().is_const())
+            {
+                return Ok(self.constant(TypeValue::const_bool_from(false)));
+            }
+        }
+
+        self.nodes.push(Expr::And { operands });
+        Ok(ExprId::from(self.nodes.len() - 1))
+    }
+
+    /// Creates a new [`Expr::Or`].
+    pub fn or(&mut self, mut operands: Vec<ExprId>) -> Result<ExprId, Error> {
+        if self.constant_folding {
+            // Retain the operands whose value is not constant, or is
+            // constant but true, remove those that are known to be
+            // false. False values in the list of operands don't alter
+            // the result of the OR operation.
+            operands.retain(|op| {
+                let type_value = self.get(*op).type_value().cast_to_bool();
+                !type_value.is_const() || type_value.as_bool()
+            });
+
+            // No operands left, all were false and therefore the OR is
+            // also false.
+            if operands.is_empty() {
+                return Ok(self.constant(TypeValue::const_bool_from(false)));
+            }
+
+            // If any of the remaining operands is constant it has to be
+            // true because false values were removed, the result is true
+            // regardless of the operands with unknown values.
+            if operands.iter().any(|op| self.get(*op).type_value().is_const())
+            {
+                return Ok(self.constant(TypeValue::const_bool_from(true)));
+            }
+        }
+
+        self.nodes.push(Expr::Or { operands });
+        Ok(ExprId::from(self.nodes.len() - 1))
+    }
+
+    /// Creates a new [`Expr::Minus`].
+    pub fn minus(&mut self, operand: ExprId) -> ExprId {
+        if self.constant_folding {
+            match self.get(operand).type_value() {
                 TypeValue::Integer(Value::Const(v)) => {
-                    Ok(Expr::Const(TypeValue::const_integer_from(-v)))
+                    return self.constant(TypeValue::const_integer_from(-v));
                 }
                 TypeValue::Float(Value::Const(v)) => {
-                    Ok(Expr::Const(TypeValue::const_float_from(-v)))
+                    return self.constant(TypeValue::const_float_from(-v));
                 }
-                _ => Ok(self),
-            },
-            Expr::And { mut operands } => {
-                // Retain the operands whose value is not constant, or is
-                // constant but false, remove those that are known to be
-                // true. True values in the list of operands don't alter
-                // the result of the AND operation.
-                operands.retain(|op| {
-                    let type_value = op.type_value().cast_to_bool();
-                    !type_value.is_const() || !type_value.as_bool()
-                });
-
-                // No operands left, all were true and therefore the AND is
-                // also true.
-                if operands.is_empty() {
-                    return Ok(Expr::Const(TypeValue::const_bool_from(true)));
-                }
-
-                // If any of the remaining operands is constant it has to be
-                // false because true values were removed, the result is false
-                // regardless of the operands with unknown values.
-                if operands.iter().any(|op| op.type_value().is_const()) {
-                    return Ok(Expr::Const(TypeValue::const_bool_from(false)));
-                }
-
-                Ok(Expr::And { operands })
+                _ => {}
             }
-            Expr::Or { mut operands } => {
-                // Retain the operands whose value is not constant, or is
-                // constant but true, remove those that are known to be false.
-                // False values in the list of operands don't alter the result
-                // of the OR operation.
-                operands.retain(|op| {
-                    let type_value = op.type_value().cast_to_bool();
-                    !type_value.is_const() || type_value.as_bool()
-                });
-
-                // No operands left, all were false and therefore the OR is
-                // also false.
-                if operands.is_empty() {
-                    return Ok(Expr::Const(TypeValue::const_bool_from(false)));
-                }
-
-                // If any of the remaining operands is constant it has to be
-                // true because false values were removed, the result is true
-                // regardless of the operands with unknown values.
-                if operands.iter().any(|op| op.type_value().is_const()) {
-                    return Ok(Expr::Const(TypeValue::const_bool_from(true)));
-                }
-
-                Ok(Expr::Or { operands })
-            }
-            Expr::Add { operands } => {
-                // If not all operands are constant, there's nothing to fold.
-                if !operands.iter().all(|op| op.type_value().is_const()) {
-                    return Ok(Expr::Add { operands });
-                }
-
-                Self::fold_arithmetic(ctx, span, operands, |acc, x| acc + x)
-            }
-            Expr::Sub { operands } => {
-                // If not all operands are constant, there's nothing to fold.
-                if !operands.iter().all(|op| op.type_value().is_const()) {
-                    return Ok(Expr::Sub { operands });
-                }
-
-                Self::fold_arithmetic(ctx, span, operands, |acc, x| acc - x)
-            }
-            Expr::Mul { operands } => {
-                // If not all operands are constant, there's nothing to fold.
-                if !operands.iter().all(|op| op.type_value().is_const()) {
-                    return Ok(Expr::Mul { operands });
-                }
-
-                Self::fold_arithmetic(ctx, span, operands, |acc, x| acc * x)
-            }
-            _ => Ok(self),
         }
+        self.nodes.push(Expr::Minus {
+            operand,
+            is_float: matches!(self.get(operand).ty(), Type::Float),
+        });
+        ExprId::from(self.nodes.len() - 1)
     }
 
-    pub fn fold_arithmetic<F>(
-        ctx: &mut CompileContext,
-        span: Span,
-        operands: Vec<Expr>,
+    /// Creates a new [`Expr::Defined`].
+    pub fn defined(&mut self, operand: ExprId) -> ExprId {
+        self.nodes.push(Expr::Defined { operand });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::BitwiseNot`].
+    pub fn bitwise_not(&mut self, operand: ExprId) -> ExprId {
+        self.nodes.push(Expr::BitwiseNot { operand });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::BitwiseAnd`].
+    pub fn bitwise_and(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        self.nodes.push(Expr::BitwiseAnd { lhs, rhs });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::BitwiseOr`].
+    pub fn bitwise_or(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        self.nodes.push(Expr::BitwiseOr { lhs, rhs });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::BitwiseXor`].
+    pub fn bitwise_xor(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        self.nodes.push(Expr::BitwiseXor { lhs, rhs });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::Shl`].
+    pub fn shl(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        self.nodes.push(Expr::Shl { lhs, rhs });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::Shr`].
+    pub fn shr(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        self.nodes.push(Expr::Shr { lhs, rhs });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::Add`].
+    pub fn add(&mut self, operands: Vec<ExprId>) -> Result<ExprId, Error> {
+        let is_float = operands
+            .iter()
+            .any(|op| matches!(self.get(*op).ty(), Type::Float));
+
+        if self.constant_folding {
+            if let Some(value) = self.fold_arithmetic(
+                operands.as_slice(),
+                is_float,
+                |acc, x| acc + x,
+            )? {
+                return Ok(self.constant(value));
+            }
+        }
+
+        self.nodes.push(Expr::Add { operands, is_float });
+        Ok(ExprId::from(self.nodes.len() - 1))
+    }
+
+    /// Creates a new [`Expr::Sub`].
+    pub fn sub(&mut self, operands: Vec<ExprId>) -> Result<ExprId, Error> {
+        let is_float = operands
+            .iter()
+            .any(|op| matches!(self.get(*op).ty(), Type::Float));
+
+        if self.constant_folding {
+            if let Some(value) = self.fold_arithmetic(
+                operands.as_slice(),
+                is_float,
+                |acc, x| acc - x,
+            )? {
+                return Ok(self.constant(value));
+            }
+        }
+
+        self.nodes.push(Expr::Sub { operands, is_float });
+        Ok(ExprId::from(self.nodes.len() - 1))
+    }
+
+    /// Creates a new [`Expr::Mul`].
+    pub fn mul(&mut self, operands: Vec<ExprId>) -> Result<ExprId, Error> {
+        let is_float = operands
+            .iter()
+            .any(|op| matches!(self.get(*op).ty(), Type::Float));
+
+        if self.constant_folding {
+            if let Some(value) = self.fold_arithmetic(
+                operands.as_slice(),
+                is_float,
+                |acc, x| acc * x,
+            )? {
+                return Ok(self.constant(value));
+            }
+        }
+
+        self.nodes.push(Expr::Mul { operands, is_float });
+        Ok(ExprId::from(self.nodes.len() - 1))
+    }
+
+    /// Creates a new [`Expr::Div`].
+    pub fn div(&mut self, operands: Vec<ExprId>) -> Result<ExprId, Error> {
+        let is_float = operands
+            .iter()
+            .any(|op| matches!(self.get(*op).ty(), Type::Float));
+        self.nodes.push(Expr::Div { operands, is_float });
+        Ok(ExprId::from(self.nodes.len() - 1))
+    }
+
+    /// Creates a new [`Expr::Mod`].
+    pub fn modulus(&mut self, operands: Vec<ExprId>) -> Result<ExprId, Error> {
+        self.nodes.push(Expr::Mod { operands });
+        Ok(ExprId::from(self.nodes.len() - 1))
+    }
+
+    /// Creates a new [`Expr::FieldAccess`].
+    pub fn field_access(&mut self, operands: Vec<ExprId>) -> ExprId {
+        let type_value = self.get(*operands.last().unwrap()).type_value();
+        self.nodes.push(Expr::FieldAccess(Box::new(FieldAccess {
+            operands,
+            type_value,
+        })));
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::Eq`].
+    pub fn eq(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        self.nodes.push(Expr::Eq { lhs, rhs });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::Ne`].
+    pub fn ne(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        self.nodes.push(Expr::Ne { lhs, rhs });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::Ge`].
+    pub fn ge(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        self.nodes.push(Expr::Ge { lhs, rhs });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::Gt`].
+    pub fn gt(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        self.nodes.push(Expr::Gt { lhs, rhs });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::Le`].
+    pub fn le(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        self.nodes.push(Expr::Le { lhs, rhs });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::Lt`].
+    pub fn lt(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        self.nodes.push(Expr::Lt { lhs, rhs });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::Contains`].
+    pub fn contains(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        self.nodes.push(Expr::Contains { lhs, rhs });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::IContains`].
+    pub fn icontains(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        self.nodes.push(Expr::IContains { lhs, rhs });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::StartsWith`].
+    pub fn starts_with(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        self.nodes.push(Expr::StartsWith { lhs, rhs });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::IStartsWith`].
+    pub fn istarts_with(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        self.nodes.push(Expr::IStartsWith { lhs, rhs });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::EndsWith`].
+    pub fn ends_with(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        self.nodes.push(Expr::EndsWith { lhs, rhs });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::IEndsWith`].
+    pub fn iends_with(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        self.nodes.push(Expr::IEndsWith { lhs, rhs });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::IEquals`].
+    pub fn iequals(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        self.nodes.push(Expr::IEquals { lhs, rhs });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::Matches`].
+    pub fn matches(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        self.nodes.push(Expr::Matches { lhs, rhs });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::PatternMatch`]
+    pub fn pattern_match(
+        &mut self,
+        pattern: PatternIdx,
+        anchor: MatchAnchor,
+    ) -> ExprId {
+        self.nodes.push(Expr::PatternMatch { pattern, anchor });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::PatternMatchVar`]
+    pub fn pattern_match_var(
+        &mut self,
+        symbol: Symbol,
+        anchor: MatchAnchor,
+    ) -> ExprId {
+        self.nodes
+            .push(Expr::PatternMatchVar { symbol: Box::new(symbol), anchor });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::PatternLength`]
+    pub fn pattern_length(
+        &mut self,
+        pattern: PatternIdx,
+        index: Option<ExprId>,
+    ) -> ExprId {
+        self.nodes.push(Expr::PatternLength { pattern, index });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::PatternLengthVar`]
+    pub fn pattern_length_var(
+        &mut self,
+        symbol: Symbol,
+        index: Option<ExprId>,
+    ) -> ExprId {
+        self.nodes
+            .push(Expr::PatternLengthVar { symbol: Box::new(symbol), index });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::PatternOffset`]
+    pub fn pattern_offset(
+        &mut self,
+        pattern: PatternIdx,
+        index: Option<ExprId>,
+    ) -> ExprId {
+        self.nodes.push(Expr::PatternOffset { pattern, index });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::PatternOffsetVar`]
+    pub fn pattern_offset_var(
+        &mut self,
+        symbol: Symbol,
+        index: Option<ExprId>,
+    ) -> ExprId {
+        self.nodes
+            .push(Expr::PatternOffsetVar { symbol: Box::new(symbol), index });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::PatternCount`]
+    pub fn pattern_count(
+        &mut self,
+        pattern: PatternIdx,
+        range: Option<Range>,
+    ) -> ExprId {
+        self.nodes.push(Expr::PatternCount { pattern, range });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::PatternCountVar`]
+    pub fn pattern_count_var(
+        &mut self,
+        symbol: Symbol,
+        range: Option<Range>,
+    ) -> ExprId {
+        self.nodes
+            .push(Expr::PatternCountVar { symbol: Box::new(symbol), range });
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::FuncCall`]
+    pub fn func_call(
+        &mut self,
+        callable: ExprId,
+        args: Vec<ExprId>,
+        type_value: TypeValue,
+        signature_index: usize,
+    ) -> ExprId {
+        self.nodes.push(Expr::FuncCall(Box::new(FuncCall {
+            callable,
+            args,
+            type_value,
+            signature_index,
+        })));
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::Of`]
+    pub fn of(
+        &mut self,
+        quantifier: Quantifier,
+        items: OfItems,
+        anchor: MatchAnchor,
+        stack_frame: VarStackFrame,
+    ) -> ExprId {
+        self.nodes.push(Expr::Of(Box::new(Of {
+            quantifier,
+            items,
+            anchor,
+            stack_frame,
+        })));
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::ForOf`]
+    pub fn for_of(
+        &mut self,
+        quantifier: Quantifier,
+        variable: Var,
+        pattern_set: Vec<PatternIdx>,
+        condition: ExprId,
+        stack_frame: VarStackFrame,
+    ) -> ExprId {
+        self.nodes.push(Expr::ForOf(Box::new(ForOf {
+            quantifier,
+            variable,
+            pattern_set,
+            condition,
+            stack_frame,
+        })));
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::ForIn`]
+    pub fn for_in(
+        &mut self,
+        quantifier: Quantifier,
+        variables: Vec<Var>,
+        iterable: Iterable,
+        condition: ExprId,
+        stack_frame: VarStackFrame,
+    ) -> ExprId {
+        self.nodes.push(Expr::ForIn(Box::new(ForIn {
+            quantifier,
+            variables,
+            iterable,
+            condition,
+            stack_frame,
+        })));
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::With`]
+    pub fn with(
+        &mut self,
+        declarations: Vec<(Var, ExprId)>,
+        condition: ExprId,
+    ) -> ExprId {
+        self.nodes.push(Expr::With { declarations, condition });
+        ExprId::from(self.nodes.len() - 1)
+    }
+}
+
+impl IR {
+    fn fold_arithmetic<F>(
+        &mut self,
+        operands: &[ExprId],
+        is_float: bool,
         f: F,
-    ) -> Result<Self, CompileError>
+    ) -> Result<Option<TypeValue>, Error>
     where
         F: FnMut(f64, f64) -> f64,
     {
         debug_assert!(!operands.is_empty());
 
-        let mut is_float = false;
+        // Some operands are not constant, there's nothing to fold.
+        if !operands.iter().all(|op| self.get(*op).type_value().is_const()) {
+            return Ok(None);
+        }
 
-        let result = operands
+        // Fold all operands into a single value.
+        let folded = operands
             .iter()
-            .map(|operand| match operand.type_value() {
+            .map(|op| match self.get(*op).type_value() {
                 TypeValue::Integer(Value::Const(v)) => v as f64,
-                TypeValue::Float(Value::Const(v)) => {
-                    is_float = true;
-                    v
-                }
+                TypeValue::Float(Value::Const(v)) => v,
                 _ => unreachable!(),
             })
-            .reduce(f)
-            // It's safe to call unwrap because there must be at least
-            // one iterator.
+            .reduce(f) // It's safe to call unwrap because there must be at least
+            // one operand.
             .unwrap();
 
         if is_float {
-            Ok(Expr::Const(TypeValue::const_float_from(result)))
-        } else if result >= i64::MIN as f64 && result <= i64::MAX as f64 {
-            Ok(Expr::Const(TypeValue::const_integer_from(result as i64)))
+            Ok(Some(TypeValue::const_float_from(folded)))
+        } else if folded >= i64::MIN as f64 && folded <= i64::MAX as f64 {
+            Ok(Some(TypeValue::const_integer_from(folded as i64)))
         } else {
-            Err(NumberOutOfRange::build(
-                ctx.report_builder,
-                i64::MIN,
-                i64::MAX,
-                span.into(),
-            ))
+            Err(Error::NumberOutOfRange)
         }
     }
 }
 
-impl Debug for Expr {
+impl Debug for IR {
     #[rustfmt::skip]
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut level = 1;
@@ -1162,10 +964,10 @@ impl Debug for Expr {
             if index.is_some() { " INDEX" } else { "" }
         };
 
-        for event in self.dfs_iter() {
+        for event in self.dfs_iter(self.root.unwrap()) {
             match event {
                 Event::Leave(_) => level -= 1,
-                Event::Enter(expr) => {
+                Event::Enter((_, expr)) => {
                     for _ in 0..level {
                         write!(f, "  ")?;
                     }
@@ -1204,12 +1006,12 @@ impl Debug for Expr {
                         Expr::Matches { .. } => writeln!(f, "MATCHES")?,
                         Expr::Defined { .. } => writeln!(f, "DEFINED")?,
                         Expr::FieldAccess { .. } => writeln!(f, "FIELD_ACCESS")?,
+                        Expr::With { .. } => writeln!(f, "WITH")?,
                         Expr::Ident { symbol } => writeln!(f, "IDENT {:?}", symbol)?,
                         Expr::FuncCall(_) => writeln!(f, "FN_CALL")?,
                         Expr::Of(_) => writeln!(f, "OF")?,
                         Expr::ForOf(_) => writeln!(f, "FOR_OF")?,
                         Expr::ForIn(_) => writeln!(f, "FOR_IN")?,
-                        Expr::With(_) => writeln!(f, "WITH")?,
                         Expr::Lookup(_) => writeln!(f, "LOOKUP")?,
                         Expr::PatternMatch { pattern, anchor } => writeln!(
                             f,
@@ -1265,5 +1067,530 @@ impl Debug for Expr {
         }
 
         Ok(())
+    }
+}
+
+/// Intermediate representation (IR) for an expression.
+pub(crate) enum Expr {
+    /// Constant value (i.e: the value is known at compile time).
+    /// The value in `TypeValue` is not `None`.
+    Const(TypeValue),
+
+    /// `filesize` expression.
+    Filesize,
+
+    /// Boolean `not` expression.
+    Not {
+        operand: ExprId,
+    },
+
+    /// Boolean `and` expression.
+    And {
+        operands: Vec<ExprId>,
+    },
+
+    /// Boolean `or` expression.
+    Or {
+        operands: Vec<ExprId>,
+    },
+
+    /// Arithmetic minus.
+    Minus {
+        is_float: bool,
+        operand: ExprId,
+    },
+
+    /// Arithmetic addition (`+`) expression.
+    Add {
+        is_float: bool,
+        operands: Vec<ExprId>,
+    },
+
+    /// Arithmetic subtraction (`-`) expression.
+    Sub {
+        is_float: bool,
+        operands: Vec<ExprId>,
+    },
+
+    /// Arithmetic multiplication (`*`) expression.
+    Mul {
+        is_float: bool,
+        operands: Vec<ExprId>,
+    },
+
+    /// Arithmetic division (`\`) expression.
+    Div {
+        is_float: bool,
+        operands: Vec<ExprId>,
+    },
+
+    /// Arithmetic modulus (`%`) expression.
+    Mod {
+        operands: Vec<ExprId>,
+    },
+
+    /// Bitwise not (`~`) expression.
+    BitwiseNot {
+        operand: ExprId,
+    },
+
+    /// Bitwise and (`&`) expression.
+    BitwiseAnd {
+        rhs: ExprId,
+        lhs: ExprId,
+    },
+
+    /// Bitwise shift left (`<<`) expression.
+    Shl {
+        rhs: ExprId,
+        lhs: ExprId,
+    },
+
+    /// Bitwise shift right (`>>`) expression.
+    Shr {
+        rhs: ExprId,
+        lhs: ExprId,
+    },
+
+    /// Bitwise or (`|`) expression.
+    BitwiseOr {
+        rhs: ExprId,
+        lhs: ExprId,
+    },
+
+    /// Bitwise xor (`^`) expression.
+    BitwiseXor {
+        rhs: ExprId,
+        lhs: ExprId,
+    },
+
+    /// Equal (`==`) expression.
+    Eq {
+        rhs: ExprId,
+        lhs: ExprId,
+    },
+
+    /// Not equal (`!=`) expression.
+    Ne {
+        rhs: ExprId,
+        lhs: ExprId,
+    },
+
+    /// Less than (`<`) expression.
+    Lt {
+        rhs: ExprId,
+        lhs: ExprId,
+    },
+
+    /// Greater than (`>`) expression.
+    Gt {
+        rhs: ExprId,
+        lhs: ExprId,
+    },
+
+    /// Less or equal (`<=`) expression.
+    Le {
+        rhs: ExprId,
+        lhs: ExprId,
+    },
+
+    /// Greater or equal (`>=`) expression.
+    Ge {
+        rhs: ExprId,
+        lhs: ExprId,
+    },
+
+    /// `contains` expression.
+    Contains {
+        rhs: ExprId,
+        lhs: ExprId,
+    },
+
+    /// `icontains` expression
+    IContains {
+        rhs: ExprId,
+        lhs: ExprId,
+    },
+
+    /// `startswith` expression.
+    StartsWith {
+        rhs: ExprId,
+        lhs: ExprId,
+    },
+
+    /// `istartswith` expression
+    IStartsWith {
+        rhs: ExprId,
+        lhs: ExprId,
+    },
+
+    /// `endswith` expression.
+    EndsWith {
+        rhs: ExprId,
+        lhs: ExprId,
+    },
+
+    /// `iendswith` expression
+    IEndsWith {
+        rhs: ExprId,
+        lhs: ExprId,
+    },
+
+    /// `iequals` expression.
+    IEquals {
+        rhs: ExprId,
+        lhs: ExprId,
+    },
+
+    /// `matches` expression.
+    Matches {
+        rhs: ExprId,
+        lhs: ExprId,
+    },
+
+    /// A `defined` expression (e.g. `defined foo`)
+    Defined {
+        operand: ExprId,
+    },
+
+    Ident {
+        symbol: Box<Symbol>,
+    },
+
+    /// Pattern match expression (e.g. `$a`)
+    PatternMatch {
+        pattern: PatternIdx,
+        anchor: MatchAnchor,
+    },
+
+    /// Pattern match expression where the pattern is variable (e.g: `$`).
+    PatternMatchVar {
+        symbol: Box<Symbol>,
+        anchor: MatchAnchor,
+    },
+
+    /// Pattern count expression (e.g. `#a`, `#a in (0..10)`)
+    PatternCount {
+        pattern: PatternIdx,
+        range: Option<Range>,
+    },
+
+    /// Pattern count expression where the pattern is variable (e.g. `#`, `# in (0..10)`)
+    PatternCountVar {
+        symbol: Box<Symbol>,
+        range: Option<Range>,
+    },
+
+    /// Pattern offset expression (e.g. `@a`, `@a[1]`)
+    PatternOffset {
+        pattern: PatternIdx,
+        index: Option<ExprId>,
+    },
+
+    /// Pattern count expression where the pattern is variable (e.g. `@`, `@[1]`)
+    PatternOffsetVar {
+        symbol: Box<Symbol>,
+        index: Option<ExprId>,
+    },
+
+    /// Pattern length expression (e.g. `!a`, `!a[1]`)
+    PatternLength {
+        pattern: PatternIdx,
+        index: Option<ExprId>,
+    },
+
+    /// Pattern count expression where the pattern is variable (e.g. `!`, `![1]`)
+    PatternLengthVar {
+        symbol: Box<Symbol>,
+        index: Option<ExprId>,
+    },
+
+    /// A `with <identifiers> : ...` expression. (e.g. `with $a, $b : ( ... )`)
+    With {
+        declarations: Vec<(Var, ExprId)>,
+        condition: ExprId,
+    },
+
+    /// Field access expression (e.g. `foo.bar.baz`)
+    FieldAccess(Box<FieldAccess>),
+
+    /// Function call.
+    FuncCall(Box<FuncCall>),
+
+    /// An `of` expression (e.g. `1 of ($a, $b)`, `all of them`)
+    Of(Box<Of>),
+
+    /// A `for <quantifier> of ...` expression. (e.g. `for any of ($a, $b) : ( ... )`)
+    ForOf(Box<ForOf>),
+
+    /// A `for <quantifier> <vars> in ...` expression. (e.g. `for all i in (1..100) : ( ... )`)
+    ForIn(Box<ForIn>),
+
+    /// Array or dictionary lookup expression (e.g. `array[1]`, `dict["key"]`)
+    Lookup(Box<Lookup>),
+}
+
+/// A lookup operation in an array or dictionary.
+pub(crate) struct Lookup {
+    pub type_value: TypeValue,
+    pub primary: ExprId,
+    pub index: ExprId,
+}
+
+/// A field access expression.
+pub(crate) struct FieldAccess {
+    pub type_value: TypeValue,
+    pub operands: Vec<ExprId>,
+}
+
+/// An expression representing a function call.
+pub(crate) struct FuncCall {
+    /// The callable expression, which must resolve in some function identifier.
+    pub callable: ExprId,
+    /// The arguments passed to the function in this call.
+    pub args: Vec<ExprId>,
+    /// Type and value for the function's result.
+    pub type_value: TypeValue,
+    /// Due to function overloading, the same function may have multiple
+    /// signatures. This field indicates the index of the signature that
+    /// matched the provided arguments.
+    pub signature_index: usize,
+}
+
+/// An `of` expression (e.g. `1 of ($a, $b)`, `all of them`,
+/// `any of (true, false)`)
+pub(crate) struct Of {
+    pub quantifier: Quantifier,
+    pub items: OfItems,
+    pub anchor: MatchAnchor,
+    pub stack_frame: VarStackFrame,
+}
+
+/// A `for .. of` expression (e.g `for all of them : (..)`,
+/// `for 1 of ($a,$b) : (..)`)
+pub(crate) struct ForOf {
+    pub quantifier: Quantifier,
+    pub variable: Var,
+    pub pattern_set: Vec<PatternIdx>,
+    pub condition: ExprId,
+    pub stack_frame: VarStackFrame,
+}
+
+/// A `for .. in` expression (e.g `for all x in iterator : (..)`)
+pub(crate) struct ForIn {
+    pub quantifier: Quantifier,
+    pub variables: Vec<Var>,
+    pub iterable: Iterable,
+    pub condition: ExprId,
+    pub stack_frame: VarStackFrame,
+}
+
+/// A quantifier used in `for` and `of` expressions.
+pub(crate) enum Quantifier {
+    None,
+    All,
+    Any,
+    Percentage(ExprId),
+    Expr(ExprId),
+}
+
+/// In expressions like `$a at 0` and `$b in (0..10)`, this type represents the
+/// anchor (e.g. `at <expr>`, `in <range>`).
+///
+/// The anchor is the part of the expression that restricts the offset range
+/// where the match can occur.
+/// (e.g. `at <expr>`, `in <range>`).
+pub(crate) enum MatchAnchor {
+    None,
+    At(ExprId),
+    In(Range),
+}
+
+/// Items in a `of` expression.
+pub(crate) enum OfItems {
+    PatternSet(Vec<PatternIdx>),
+    BoolExprTuple(Vec<ExprId>),
+}
+
+/// A pair of values conforming a range (e.g. `(0..10)`).
+pub(crate) struct Range {
+    pub lower_bound: ExprId,
+    pub upper_bound: ExprId,
+}
+
+/// Possible iterable expressions that can use in a [`ForIn`].
+pub(crate) enum Iterable {
+    Range(Range),
+    ExprTuple(Vec<ExprId>),
+    Expr(ExprId),
+}
+
+impl Index<ExprId> for [Expr] {
+    type Output = Expr;
+    fn index(&self, index: ExprId) -> &Self::Output {
+        self.get(index.0 as usize).unwrap()
+    }
+}
+
+impl Expr {
+    /// Returns the type of this expression.
+    pub fn ty(&self) -> Type {
+        match self {
+            Expr::Const(type_value) => type_value.ty(),
+
+            Expr::Defined { .. }
+            | Expr::Not { .. }
+            | Expr::And { .. }
+            | Expr::Or { .. }
+            | Expr::Eq { .. }
+            | Expr::Ne { .. }
+            | Expr::Ge { .. }
+            | Expr::Gt { .. }
+            | Expr::Le { .. }
+            | Expr::Lt { .. }
+            | Expr::Contains { .. }
+            | Expr::IContains { .. }
+            | Expr::StartsWith { .. }
+            | Expr::IStartsWith { .. }
+            | Expr::EndsWith { .. }
+            | Expr::IEndsWith { .. }
+            | Expr::IEquals { .. }
+            | Expr::Matches { .. }
+            | Expr::PatternMatch { .. }
+            | Expr::PatternMatchVar { .. }
+            | Expr::With { .. }
+            | Expr::Of(_)
+            | Expr::ForOf(_)
+            | Expr::ForIn(_) => Type::Bool,
+
+            Expr::Minus { is_float, .. } => {
+                if *is_float {
+                    Type::Float
+                } else {
+                    Type::Integer
+                }
+            }
+
+            Expr::Add { is_float, .. }
+            | Expr::Sub { is_float, .. }
+            | Expr::Mul { is_float, .. }
+            | Expr::Div { is_float, .. } => {
+                if *is_float {
+                    Type::Float
+                } else {
+                    Type::Integer
+                }
+            }
+
+            Expr::Filesize
+            | Expr::PatternCount { .. }
+            | Expr::PatternCountVar { .. }
+            | Expr::PatternOffset { .. }
+            | Expr::PatternOffsetVar { .. }
+            | Expr::PatternLength { .. }
+            | Expr::PatternLengthVar { .. }
+            | Expr::Mod { .. }
+            | Expr::BitwiseNot { .. }
+            | Expr::BitwiseAnd { .. }
+            | Expr::BitwiseOr { .. }
+            | Expr::BitwiseXor { .. }
+            | Expr::Shl { .. }
+            | Expr::Shr { .. } => Type::Integer,
+
+            Expr::Ident { symbol, .. } => symbol.type_value().ty(),
+            Expr::FieldAccess(field_access) => field_access.type_value.ty(),
+            Expr::FuncCall(fn_call) => fn_call.type_value.ty(),
+            Expr::Lookup(lookup) => lookup.type_value.ty(),
+        }
+    }
+
+    pub fn type_value(&self) -> TypeValue {
+        match self {
+            Expr::Const(type_value) => type_value.clone(),
+
+            Expr::Defined { .. }
+            | Expr::Not { .. }
+            | Expr::And { .. }
+            | Expr::Or { .. }
+            | Expr::Eq { .. }
+            | Expr::Ne { .. }
+            | Expr::Ge { .. }
+            | Expr::Gt { .. }
+            | Expr::Le { .. }
+            | Expr::Lt { .. }
+            | Expr::Contains { .. }
+            | Expr::IContains { .. }
+            | Expr::StartsWith { .. }
+            | Expr::IStartsWith { .. }
+            | Expr::EndsWith { .. }
+            | Expr::IEndsWith { .. }
+            | Expr::IEquals { .. }
+            | Expr::Matches { .. }
+            | Expr::PatternMatch { .. }
+            | Expr::PatternMatchVar { .. }
+            | Expr::With { .. }
+            | Expr::Of(_)
+            | Expr::ForOf(_)
+            | Expr::ForIn(_) => TypeValue::Bool(Value::Unknown),
+
+            Expr::Minus { is_float, .. } => {
+                if *is_float {
+                    TypeValue::Float(Value::Unknown)
+                } else {
+                    TypeValue::Integer(Value::Unknown)
+                }
+            }
+
+            Expr::Add { is_float, .. }
+            | Expr::Sub { is_float, .. }
+            | Expr::Mul { is_float, .. }
+            | Expr::Div { is_float, .. } => {
+                if *is_float {
+                    TypeValue::Float(Value::Unknown)
+                } else {
+                    TypeValue::Integer(Value::Unknown)
+                }
+            }
+
+            Expr::Filesize
+            | Expr::PatternCount { .. }
+            | Expr::PatternCountVar { .. }
+            | Expr::PatternOffset { .. }
+            | Expr::PatternOffsetVar { .. }
+            | Expr::PatternLength { .. }
+            | Expr::PatternLengthVar { .. }
+            | Expr::Mod { .. }
+            | Expr::BitwiseNot { .. }
+            | Expr::BitwiseAnd { .. }
+            | Expr::BitwiseOr { .. }
+            | Expr::BitwiseXor { .. }
+            | Expr::Shl { .. }
+            | Expr::Shr { .. } => TypeValue::Integer(Value::Unknown),
+
+            Expr::Ident { symbol, .. } => symbol.type_value().clone(),
+            Expr::FieldAccess(field_access) => field_access.type_value.clone(),
+            Expr::FuncCall(fn_call) => fn_call.type_value.clone(),
+            Expr::Lookup(lookup) => lookup.type_value.clone(),
+        }
+    }
+
+    /// If the expression is a constant boolean, returns its value, if not
+    /// returns [`None`]
+    pub fn try_as_const_bool(&self) -> Option<bool> {
+        if let TypeValue::Bool(Value::Const(v)) = self.type_value() {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    /// If the expression is a constant integer, returns its value, if not
+    /// returns [`None`]
+    pub fn try_as_const_integer(&self) -> Option<i64> {
+        if let TypeValue::Integer(Value::Const(v)) = self.type_value() {
+            Some(v)
+        } else {
+            None
+        }
     }
 }

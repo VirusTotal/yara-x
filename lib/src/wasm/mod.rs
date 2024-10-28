@@ -34,9 +34,9 @@ The memory of these WASM modules is organized as follows.
   │ Variable #n              │
   : ...                      :
   │                          │
-  ├──────────────────────────┤ 1032
+  ├──────────────────────────┤ 1040
   │ Field lookup indexes     │
-  ├──────────────────────────┤ 2056
+  ├──────────────────────────┤ 2064
   │ Matching rules bitmap    │
   │                          │
   :                          :

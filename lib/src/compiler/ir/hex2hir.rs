@@ -187,6 +187,7 @@ mod tests {
 
     use super::hex_byte_to_class;
     use crate::compiler::context::{CompileContext, VarStack};
+    use crate::compiler::ir::IR;
     use crate::compiler::report::ReportBuilder;
     use crate::compiler::Warnings;
     use crate::re::hir;
@@ -210,12 +211,14 @@ mod tests {
 
     #[test]
     fn hex_tokens_to_hir() {
+        let mut ir = IR::new();
         let mut report_builder = ReportBuilder::default();
         let mut symbol_table = StackedSymbolTable::new();
         let mut warnings = Warnings::default();
         let mut rule_patterns = vec![];
 
         let mut ctx = CompileContext {
+            ir: &mut ir,
             relaxed_re_syntax: false,
             error_on_slow_loop: false,
             current_symbol_table: None,

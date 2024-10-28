@@ -1,6 +1,16 @@
-use crate::Compiler;
 use std::fs;
 use std::io::BufWriter;
+use std::mem::size_of;
+
+use crate::compiler::Expr;
+use crate::Compiler;
+
+#[test]
+fn expr_size() {
+    // Sentinel test for making sure tha Expr doesn't grow in future
+    // changes.
+    assert_eq!(size_of::<Expr>(), 32);
+}
 
 #[test]
 fn ir() {

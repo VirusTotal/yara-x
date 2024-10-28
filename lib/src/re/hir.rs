@@ -355,7 +355,7 @@ impl<'a, H: Hasher> regex_syntax::hir::Visitor for HirHasher<'a, H> {
 ///
 /// For example `??` in an hex pattern, or `.` in a regexp that uses the `/s`
 /// modifier (i.e: `dot_matches_new_line` is true).
-pub fn any_byte(hir_kind: &HirKind) -> bool {
+pub(crate) fn any_byte(hir_kind: &HirKind) -> bool {
     match hir_kind {
         HirKind::Class(Class::Bytes(class)) => {
             if let Some(range) = class.ranges().first() {
@@ -380,7 +380,7 @@ pub fn any_byte(hir_kind: &HirKind) -> bool {
 ///
 /// For example `.` in a regexp that doesn't use the `/s` modifier
 /// (i.e: `dot_matches_new_line` is false).
-pub fn any_byte_except_newline(hir_kind: &HirKind) -> bool {
+pub(crate) fn any_byte_except_newline(hir_kind: &HirKind) -> bool {
     match hir_kind {
         HirKind::Class(Class::Bytes(class)) => {
             // The class must contain two ranges, one that contains all bytes
@@ -410,7 +410,7 @@ pub fn any_byte_except_newline(hir_kind: &HirKind) -> bool {
 /// This function basically does the opposite than [`hex_byte_to_class`].
 /// However, not all the classes represent a masked byte, in such cases
 /// this function returns [`None`].
-pub fn class_to_masked_byte(c: &ClassBytes) -> Option<HexByte> {
+pub(crate) fn class_to_masked_byte(c: &ClassBytes) -> Option<HexByte> {
     if c.ranges().is_empty() {
         return None;
     }
@@ -457,7 +457,7 @@ pub fn class_to_masked_byte(c: &ClassBytes) -> Option<HexByte> {
     Some(HexByte { value: smallest_byte, mask: !neg_mask })
 }
 
-pub fn class_to_masked_bytes_alternation(
+pub(crate) fn class_to_masked_bytes_alternation(
     c: &ClassBytes,
 ) -> Option<Vec<HexByte>> {
     if c.ranges().is_empty() {

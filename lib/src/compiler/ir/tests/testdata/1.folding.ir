@@ -20,16 +20,27 @@ RULE test_3
     CONST integer(2)
 
 RULE test_4
+  EQ
+    CONST integer(8)
+    CONST integer(8)
+
+RULE test_5
   AND
     EQ
       FIELD_ACCESS
         IDENT Symbol { type_value: struct, kind: Field { index: 0, is_root: true, acl: None } }
         IDENT Symbol { type_value: integer(unknown), kind: Field { index: 1, is_root: false, acl: None } }
       CONST integer(0)
-    NOT
-      CONST boolean(false)
 
-RULE test_5
+RULE test_6
+  ADD
+    FIELD_ACCESS
+      IDENT Symbol { type_value: struct, kind: Field { index: 0, is_root: true, acl: None } }
+      IDENT Symbol { type_value: integer(unknown), kind: Field { index: 1, is_root: false, acl: None } }
+    CONST integer(1)
+    CONST integer(2)
+
+RULE test_7
   AND
     CONTAINS
       CONST string("foobar")

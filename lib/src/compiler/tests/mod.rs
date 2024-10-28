@@ -81,8 +81,8 @@ fn namespaces() {
 fn var_stack() {
     let mut stack = VarStack::new();
 
-    let mut frame1 = stack.new_frame(4);
-    let mut frame2 = stack.new_frame(4);
+    let frame1 = stack.new_frame(4);
+    let frame2 = stack.new_frame(4);
 
     assert_eq!(
         frame1.new_var(Type::Integer),
