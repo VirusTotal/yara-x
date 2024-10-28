@@ -315,6 +315,11 @@ impl From<usize> for ExprId {
     }
 }
 
+#[derive(Debug)]
+pub(crate) enum Error {
+    NumberOutOfRange,
+}
+
 /// Intermediate representation (IR) of a rule condition.
 ///
 /// The IR is a tree representing a rule condition. It is generated from the
@@ -325,6 +330,7 @@ impl From<usize> for ExprId {
 /// reference other expressions (like it its operands) using an [`ExprId`],
 /// which is an index in the vector.
 pub(crate) struct IR {
+    constant_folding: bool,
     root: Option<ExprId>,
     nodes: Vec<Expr>,
 }
@@ -332,7 +338,13 @@ pub(crate) struct IR {
 impl IR {
     /// Creates a new [`IR`].
     pub fn new() -> Self {
-        Self { nodes: Vec::new(), root: None }
+        Self { nodes: Vec::new(), root: None, constant_folding: false }
+    }
+
+    /// Enable constant folding.
+    pub fn constant_folding(&mut self, yes: bool) -> &mut Self {
+        self.constant_folding = yes;
+        self
     }
 
     /// Clears the tree, removing all nodes.
@@ -387,192 +399,6 @@ impl IR {
 
         None
     }
-
-    /// Checks if the given expression can be computed at compile time, and in
-    /// that case returns a new a constant with the resulting value. For
-    /// instance, the expression `true and false` will be folded into the `false`.
-    ///
-    /// If the expression can't be folded, returns the same [`ExprId`] that
-    /// it received.
-    ///
-    /// Returns [`None`] if an integer overflow occurs while trying to fold
-    /// integer expressions.
-    pub fn fold(&mut self, expr: ExprId) -> Option<ExprId> {
-        // We need a mutable reference to the expression itself, as well as
-        // mutable references to its operands. However, Rust's borrow checker
-        // does not allow mutable references to multiple items in a slice
-        // without a workaround. To achieve this, we use `split_at_mut`, which
-        // let us divide the slice into two mutable sub-slices.
-        //
-        // Luckily, the intermediate representation (IR) tree guarantees that
-        // all descendants of a node appear before the node itself in the slice.
-        // This means we can split the slice at the node corresponding to `expr`,
-        // ensuring that the left sub-slice contains all its operands. The first
-        // item in the right sub-slice will be the `expr` node itself.
-        let (descedants, ascendants) =
-            self.nodes.split_at_mut(expr.0 as usize);
-
-        // `ascendants[0]` is the expression being folded.
-        match &mut ascendants[0] {
-            Expr::Minus { operand, .. } => {
-                match descedants[operand.0 as usize].type_value() {
-                    TypeValue::Integer(Value::Const(v)) => {
-                        Some(self.constant(TypeValue::const_integer_from(-v)))
-                    }
-                    TypeValue::Float(Value::Const(v)) => {
-                        Some(self.constant(TypeValue::const_float_from(-v)))
-                    }
-                    _ => Some(expr),
-                }
-            }
-            Expr::And { ref mut operands } => {
-                // Retain the operands whose value is not constant, or is
-                // constant but false, remove those that are known to be
-                // true. True values in the list of operands don't alter
-                // the result of the AND operation.
-                operands.retain(|op| {
-                    let type_value =
-                        descedants[op.0 as usize].type_value().cast_to_bool();
-                    !type_value.is_const() || !type_value.as_bool()
-                });
-
-                // No operands left, all were true and therefore the AND is
-                // also true.
-                if operands.is_empty() {
-                    return Some(
-                        self.constant(TypeValue::const_bool_from(true)),
-                    );
-                }
-
-                // If any of the remaining operands is constant it has to be
-                // false because true values were removed, the result is false
-                // regardless of the operands with unknown values.
-                if operands.iter().any(|op| {
-                    descedants[op.0 as usize].type_value().is_const()
-                }) {
-                    return Some(
-                        self.constant(TypeValue::const_bool_from(false)),
-                    );
-                }
-
-                Some(expr)
-            }
-            Expr::Or { ref mut operands } => {
-                // Retain the operands whose value is not constant, or is
-                // constant but true, remove those that are known to be false.
-                // False values in the list of operands don't alter the result
-                // of the OR operation.
-                operands.retain(|op| {
-                    let type_value =
-                        descedants[op.0 as usize].type_value().cast_to_bool();
-                    !type_value.is_const() || type_value.as_bool()
-                });
-
-                // No operands left, all were false and therefore the OR is
-                // also false.
-                if operands.is_empty() {
-                    return Some(
-                        self.constant(TypeValue::const_bool_from(false)),
-                    );
-                }
-
-                // If any of the remaining operands is constant it has to be
-                // true because false values were removed, the result is true
-                // regardless of the operands with unknown values.
-                if operands.iter().any(|op| {
-                    descedants[op.0 as usize].type_value().is_const()
-                }) {
-                    return Some(
-                        self.constant(TypeValue::const_bool_from(true)),
-                    );
-                }
-
-                Some(expr)
-            }
-            Expr::Add { ref mut operands, .. } => {
-                // If not all operands are constant, there's nothing to fold.
-                if !operands.iter().all(|op| {
-                    descedants[op.0 as usize].type_value().is_const()
-                }) {
-                    return Some(expr);
-                }
-
-                Self::fold_arithmetic(
-                    descedants,
-                    operands.as_slice(),
-                    |acc, x| acc + x,
-                )
-                .map(|type_value| self.constant(type_value))
-            }
-            Expr::Sub { ref mut operands, .. } => {
-                // If not all operands are constant, there's nothing to fold.
-                if !operands.iter().all(|op| {
-                    descedants[op.0 as usize].type_value().is_const()
-                }) {
-                    return Some(expr);
-                }
-
-                Self::fold_arithmetic(
-                    descedants,
-                    operands.as_slice(),
-                    |acc, x| acc - x,
-                )
-                .map(|type_value| self.constant(type_value))
-            }
-            Expr::Mul { ref mut operands, .. } => {
-                // If not all operands are constant, there's nothing to fold.
-                if !operands.iter().all(|op| {
-                    descedants[op.0 as usize].type_value().is_const()
-                }) {
-                    return Some(expr);
-                }
-
-                Self::fold_arithmetic(
-                    descedants,
-                    operands.as_slice(),
-                    |acc, x| acc * x,
-                )
-                .map(|type_value| self.constant(type_value))
-            }
-            _ => Some(expr),
-        }
-    }
-
-    pub fn fold_arithmetic<F>(
-        nodes: &[Expr],
-        operands: &[ExprId],
-        f: F,
-    ) -> Option<TypeValue>
-    where
-        F: FnMut(f64, f64) -> f64,
-    {
-        debug_assert!(!operands.is_empty());
-
-        let mut is_float = false;
-
-        let result = operands
-            .iter()
-            .map(|operand| match nodes[*operand].type_value() {
-                TypeValue::Integer(Value::Const(v)) => v as f64,
-                TypeValue::Float(Value::Const(v)) => {
-                    is_float = true;
-                    v
-                }
-                _ => unreachable!(),
-            })
-            .reduce(f)
-            // It's safe to call unwrap because there must be at least
-            // one operand.
-            .unwrap();
-
-        if is_float {
-            Some(TypeValue::const_float_from(result))
-        } else if result >= i64::MIN as f64 && result <= i64::MAX as f64 {
-            Some(TypeValue::const_integer_from(result as i64))
-        } else {
-            None
-        }
-    }
 }
 
 impl IR {
@@ -611,26 +437,94 @@ impl IR {
 
     /// Creates a new [`Expr::Not`].
     pub fn not(&mut self, operand: ExprId) -> ExprId {
+        if self.constant_folding {
+            if let Some(v) = self.get(operand).try_as_const_bool() {
+                return self.constant(TypeValue::const_bool_from(!v));
+            }
+        }
         self.nodes.push(Expr::Not { operand });
         ExprId::from(self.nodes.len() - 1)
     }
 
     /// Creates a new [`Expr::And`].
-    pub fn and(&mut self, operands: Vec<ExprId>) -> ExprId {
+    pub fn and(&mut self, mut operands: Vec<ExprId>) -> Result<ExprId, Error> {
+        if self.constant_folding {
+            // Retain the operands whose value is not constant, or is
+            // constant but false, remove those that are known to be
+            // true. True values in the list of operands don't alter
+            // the result of the AND operation.
+            operands.retain(|op| {
+                let type_value = self.get(*op).type_value().cast_to_bool();
+                !type_value.is_const() || !type_value.as_bool()
+            });
+
+            // No operands left, all were true and therefore the AND is
+            // also true.
+            if operands.is_empty() {
+                return Ok(self.constant(TypeValue::const_bool_from(true)));
+            }
+
+            // If any of the remaining operands is constant it has to be
+            // false because true values were removed, the result is false
+            // regardless of the operands with unknown values.
+            if operands.iter().any(|op| self.get(*op).type_value().is_const())
+            {
+                return Ok(self.constant(TypeValue::const_bool_from(false)));
+            }
+        }
+
         self.nodes.push(Expr::And { operands });
-        ExprId::from(self.nodes.len() - 1)
+        Ok(ExprId::from(self.nodes.len() - 1))
     }
 
     /// Creates a new [`Expr::Or`].
-    pub fn or(&mut self, operands: Vec<ExprId>) -> ExprId {
+    pub fn or(&mut self, mut operands: Vec<ExprId>) -> Result<ExprId, Error> {
+        if self.constant_folding {
+            // Retain the operands whose value is not constant, or is
+            // constant but true, remove those that are known to be
+            // false. False values in the list of operands don't alter
+            // the result of the OR operation.
+            operands.retain(|op| {
+                let type_value = self.get(*op).type_value().cast_to_bool();
+                !type_value.is_const() || type_value.as_bool()
+            });
+
+            // No operands left, all were false and therefore the OR is
+            // also false.
+            if operands.is_empty() {
+                return Ok(self.constant(TypeValue::const_bool_from(false)));
+            }
+
+            // If any of the remaining operands is constant it has to be
+            // true because false values were removed, the result is true
+            // regardless of the operands with unknown values.
+            if operands.iter().any(|op| self.get(*op).type_value().is_const())
+            {
+                return Ok(self.constant(TypeValue::const_bool_from(true)));
+            }
+        }
+
         self.nodes.push(Expr::Or { operands });
-        ExprId::from(self.nodes.len() - 1)
+        Ok(ExprId::from(self.nodes.len() - 1))
     }
 
     /// Creates a new [`Expr::Minus`].
     pub fn minus(&mut self, operand: ExprId) -> ExprId {
-        let is_float = matches!(self.get(operand).ty(), Type::Float);
-        self.nodes.push(Expr::Minus { operand, is_float });
+        if self.constant_folding {
+            match self.get(operand).type_value() {
+                TypeValue::Integer(Value::Const(v)) => {
+                    return self.constant(TypeValue::const_integer_from(-v));
+                }
+                TypeValue::Float(Value::Const(v)) => {
+                    return self.constant(TypeValue::const_float_from(-v));
+                }
+                _ => {}
+            }
+        }
+        self.nodes.push(Expr::Minus {
+            operand,
+            is_float: matches!(self.get(operand).ty(), Type::Float),
+        });
         ExprId::from(self.nodes.len() - 1)
     }
 
@@ -677,45 +571,78 @@ impl IR {
     }
 
     /// Creates a new [`Expr::Add`].
-    pub fn add(&mut self, operands: Vec<ExprId>) -> ExprId {
+    pub fn add(&mut self, operands: Vec<ExprId>) -> Result<ExprId, Error> {
         let is_float = operands
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
+
+        if self.constant_folding {
+            if let Some(value) = self.fold_arithmetic(
+                operands.as_slice(),
+                is_float,
+                |acc, x| acc + x,
+            )? {
+                return Ok(self.constant(value));
+            }
+        }
+
         self.nodes.push(Expr::Add { operands, is_float });
-        ExprId::from(self.nodes.len() - 1)
+        Ok(ExprId::from(self.nodes.len() - 1))
     }
 
     /// Creates a new [`Expr::Sub`].
-    pub fn sub(&mut self, operands: Vec<ExprId>) -> ExprId {
+    pub fn sub(&mut self, operands: Vec<ExprId>) -> Result<ExprId, Error> {
         let is_float = operands
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
+
+        if self.constant_folding {
+            if let Some(value) = self.fold_arithmetic(
+                operands.as_slice(),
+                is_float,
+                |acc, x| acc - x,
+            )? {
+                return Ok(self.constant(value));
+            }
+        }
+
         self.nodes.push(Expr::Sub { operands, is_float });
-        ExprId::from(self.nodes.len() - 1)
+        Ok(ExprId::from(self.nodes.len() - 1))
     }
 
     /// Creates a new [`Expr::Mul`].
-    pub fn mul(&mut self, operands: Vec<ExprId>) -> ExprId {
+    pub fn mul(&mut self, operands: Vec<ExprId>) -> Result<ExprId, Error> {
         let is_float = operands
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
+
+        if self.constant_folding {
+            if let Some(value) = self.fold_arithmetic(
+                operands.as_slice(),
+                is_float,
+                |acc, x| acc * x,
+            )? {
+                return Ok(self.constant(value));
+            }
+        }
+
         self.nodes.push(Expr::Mul { operands, is_float });
-        ExprId::from(self.nodes.len() - 1)
+        Ok(ExprId::from(self.nodes.len() - 1))
     }
 
     /// Creates a new [`Expr::Div`].
-    pub fn div(&mut self, operands: Vec<ExprId>) -> ExprId {
+    pub fn div(&mut self, operands: Vec<ExprId>) -> Result<ExprId, Error> {
         let is_float = operands
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
         self.nodes.push(Expr::Div { operands, is_float });
-        ExprId::from(self.nodes.len() - 1)
+        Ok(ExprId::from(self.nodes.len() - 1))
     }
 
     /// Creates a new [`Expr::Mod`].
-    pub fn modulus(&mut self, operands: Vec<ExprId>) -> ExprId {
+    pub fn modulus(&mut self, operands: Vec<ExprId>) -> Result<ExprId, Error> {
         self.nodes.push(Expr::Mod { operands });
-        ExprId::from(self.nodes.len() - 1)
+        Ok(ExprId::from(self.nodes.len() - 1))
     }
 
     /// Creates a new [`Expr::FieldAccess`].
@@ -976,6 +903,45 @@ impl IR {
     ) -> ExprId {
         self.nodes.push(Expr::With { declarations, condition });
         ExprId::from(self.nodes.len() - 1)
+    }
+}
+
+impl IR {
+    fn fold_arithmetic<F>(
+        &mut self,
+        operands: &[ExprId],
+        is_float: bool,
+        f: F,
+    ) -> Result<Option<TypeValue>, Error>
+    where
+        F: FnMut(f64, f64) -> f64,
+    {
+        debug_assert!(!operands.is_empty());
+
+        // Some operands are not constant, there's nothing to fold.
+        if !operands.iter().all(|op| self.get(*op).type_value().is_const()) {
+            return Ok(None);
+        }
+
+        // Fold all operands into a single value.
+        let folded = operands
+            .iter()
+            .map(|op| match self.get(*op).type_value() {
+                TypeValue::Integer(Value::Const(v)) => v as f64,
+                TypeValue::Float(Value::Const(v)) => v,
+                _ => unreachable!(),
+            })
+            .reduce(f) // It's safe to call unwrap because there must be at least
+            // one operand.
+            .unwrap();
+
+        if is_float {
+            Ok(Some(TypeValue::const_float_from(folded)))
+        } else if folded >= i64::MIN as f64 && folded <= i64::MAX as f64 {
+            Ok(Some(TypeValue::const_integer_from(folded as i64)))
+        } else {
+            Err(Error::NumberOutOfRange)
+        }
     }
 }
 
@@ -1605,6 +1571,16 @@ impl Expr {
             Expr::FieldAccess(field_access) => field_access.type_value.clone(),
             Expr::FuncCall(fn_call) => fn_call.type_value.clone(),
             Expr::Lookup(lookup) => lookup.type_value.clone(),
+        }
+    }
+
+    /// If the expression is a constant boolean, returns its value, if not
+    /// returns [`None`]
+    pub fn try_as_const_bool(&self) -> Option<bool> {
+        if let TypeValue::Bool(Value::Const(v)) = self.type_value() {
+            Some(v)
+        } else {
+            None
         }
     }
 }

@@ -433,7 +433,14 @@ impl<'a> Compiler<'a> {
         let wasm_symbols = wasm_mod.wasm_symbols();
         let wasm_exports = wasm_mod.wasm_exports();
 
+        let mut ir = IR::new();
+
+        if cfg!(feature = "constant-folding") {
+            ir.constant_folding(true);
+        }
+
         Self {
+            ir,
             ident_pool,
             global_symbols,
             symbol_table,
@@ -462,7 +469,6 @@ impl<'a> Compiler<'a> {
             lit_pool: BStringPool::new(),
             regexp_pool: StringPool::new(),
             patterns: FxHashMap::default(),
-            ir: IR::new(),
             #[cfg(test)]
             ir_writer: None,
         }

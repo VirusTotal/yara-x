@@ -22,9 +22,9 @@ use crate::compiler::errors::{
 };
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
-    Expr, ExprId, Iterable, LiteralPattern, MatchAnchor, OfItems, Pattern,
-    PatternFlagSet, PatternFlags, PatternIdx, PatternInRule, Quantifier,
-    Range, RegexpPattern,
+    Error, Expr, ExprId, Iterable, LiteralPattern, MatchAnchor, OfItems,
+    Pattern, PatternFlagSet, PatternFlags, PatternIdx, PatternInRule,
+    Quantifier, Range, RegexpPattern,
 };
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{
@@ -33,7 +33,6 @@ use crate::compiler::{
 use crate::errors::PotentiallySlowLoop;
 use crate::modules::BUILTIN_MODULES;
 use crate::re;
-use crate::re::parser::Error;
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
 use crate::types::{Map, Regexp, Type, TypeValue, Value};
 
@@ -1624,7 +1623,6 @@ fn matches_expr_from_ast(
     ctx: &mut CompileContext,
     expr: &ast::BinaryExpr,
 ) -> Result<ExprId, CompileError> {
-    let span = expr.span();
     let lhs_span = expr.lhs.span();
     let rhs_span = expr.rhs.span();
 
@@ -1634,20 +1632,7 @@ fn matches_expr_from_ast(
     check_type(ctx, lhs, lhs_span, &[Type::String])?;
     check_type(ctx, rhs, rhs_span, &[Type::Regexp])?;
 
-    let expr = ctx.ir.matches(lhs, rhs);
-
-    if cfg!(feature = "constant-folding") {
-        ctx.ir.fold(expr).ok_or_else(|| {
-            NumberOutOfRange::build(
-                ctx.report_builder,
-                i64::MIN,
-                i64::MAX,
-                span.into(),
-            )
-        })
-    } else {
-        Ok(expr)
-    }
+    Ok(ctx.ir.matches(lhs, rhs))
 }
 
 fn check_type(
@@ -1719,7 +1704,7 @@ fn re_error_to_compile_error(
     err: re::parser::Error,
 ) -> CompileError {
     match err {
-        Error::SyntaxError { msg, span, note } => {
+        re::parser::Error::SyntaxError { msg, span, note } => {
             InvalidRegexp::build(
                 report_builder,
                 msg,
@@ -1740,7 +1725,7 @@ fn re_error_to_compile_error(
                 note,
             )
         }
-        Error::MixedGreediness {
+        re::parser::Error::MixedGreediness {
             is_greedy_1,
             is_greedy_2,
             span_1,
@@ -1802,7 +1787,6 @@ macro_rules! gen_unary_op {
             ctx: &mut CompileContext,
             expr: &ast::UnaryExpr,
         ) -> Result<ExprId, CompileError> {
-            let span = expr.span();
             let operand = expr_from_ast(ctx, &expr.operand)?;
 
             check_type(
@@ -1820,18 +1804,7 @@ macro_rules! gen_unary_op {
                 check_fn(ctx, operand, expr.operand.span())?;
             }
 
-            let expr = ctx.ir.$variant(operand);
-
-            if cfg!(feature = "constant-folding") {
-                ctx.ir.fold(expr).ok_or_else(
-                    || NumberOutOfRange::build(
-                        ctx.report_builder,
-                        i64::MIN,
-                        i64::MAX,
-                        span.into()))
-            } else {
-                Ok(expr)
-            }
+            Ok(ctx.ir.$variant(operand))
         }
     };
 }
@@ -1842,7 +1815,6 @@ macro_rules! gen_binary_op {
             ctx: &mut CompileContext,
             expr: &ast::BinaryExpr,
         ) -> Result<ExprId, CompileError> {
-            let span = expr.span();
             let lhs_span = expr.lhs.span();
             let rhs_span = expr.rhs.span();
 
@@ -1867,18 +1839,7 @@ macro_rules! gen_binary_op {
                 check_fn(ctx, lhs, rhs, lhs_span, rhs_span)?;
             }
 
-            let expr = ctx.ir.$variant(lhs, rhs);
-
-            if cfg!(feature = "constant-folding") {
-                ctx.ir.fold(expr).ok_or_else(
-                    || NumberOutOfRange::build(
-                        ctx.report_builder,
-                        i64::MIN,
-                        i64::MAX,
-                        span.into()))
-            } else {
-                Ok(expr)
-            }
+            Ok(ctx.ir.$variant(lhs, rhs))
         }
     };
 }
@@ -1889,7 +1850,6 @@ macro_rules! gen_string_op {
             ctx: &mut CompileContext,
             expr: &ast::BinaryExpr,
         ) -> Result<ExprId, CompileError> {
-            let span = expr.span();
             let lhs_span = expr.lhs.span();
             let rhs_span = expr.rhs.span();
 
@@ -1906,20 +1866,7 @@ macro_rules! gen_string_op {
                 &[Type::String],
             )?;
 
-            let expr = ctx.ir.$variant(lhs, rhs);
-
-            if cfg!(feature = "constant-folding") {
-                ctx.ir.fold(expr).ok_or_else(|| {
-                    NumberOutOfRange::build(
-                        ctx.report_builder,
-                        i64::MIN,
-                        i64::MAX,
-                        span.into(),
-                    )
-                })
-            } else {
-                Ok(expr)
-            }
+            Ok(ctx.ir.$variant(lhs, rhs))
         }
     };
 }
@@ -1981,18 +1928,18 @@ macro_rules! gen_n_ary_operation {
                 }
             }
 
-            let expr = ctx.ir.$variant(operands_hir);
-
-            if cfg!(feature = "constant-folding") {
-                ctx.ir.fold(expr).ok_or_else(
-                    || NumberOutOfRange::build(
-                        ctx.report_builder,
-                        i64::MIN,
-                        i64::MAX,
-                        span.into()))
-            } else {
-                Ok(expr)
-            }
+            ctx.ir.$variant(operands_hir).map_err(|err| {
+                match err {
+                    Error::NumberOutOfRange => {
+                        NumberOutOfRange::build(
+                            ctx.report_builder,
+                            i64::MIN,
+                            i64::MAX,
+                            span.into(),
+                        )
+                    }
+                }
+            })
         }
     };
 }

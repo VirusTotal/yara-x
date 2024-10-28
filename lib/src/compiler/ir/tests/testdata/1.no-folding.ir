@@ -26,6 +26,16 @@ RULE test_3
     CONST integer(2)
 
 RULE test_4
+  EQ
+    SUB
+      CONST integer(4)
+      MUL
+        MINUS
+          CONST integer(2)
+        CONST integer(2)
+    CONST integer(8)
+
+RULE test_5
   AND
     EQ
       FIELD_ACCESS
@@ -36,7 +46,15 @@ RULE test_4
     NOT
       CONST boolean(false)
 
-RULE test_5
+RULE test_6
+  ADD
+    FIELD_ACCESS
+      IDENT Symbol { type_value: struct, kind: Field(0, true) }
+      IDENT Symbol { type_value: integer(unknown), kind: Field(1, false) }
+    CONST integer(1)
+    CONST integer(2)
+
+RULE test_7
   AND
     CONTAINS
       CONST string("foobar")

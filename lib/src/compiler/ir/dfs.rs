@@ -248,8 +248,8 @@ mod tests {
         let const_1 = ir.constant(TypeValue::const_integer_from(1));
         let const_2 = ir.constant(TypeValue::const_integer_from(2));
         let const_3 = ir.constant(TypeValue::const_integer_from(2));
-        let add = ir.add(vec![const_2, const_3]);
-        let root = ir.add(vec![const_1, add]);
+        let add = ir.add(vec![const_2, const_3]).unwrap();
+        let root = ir.add(vec![const_1, add]).unwrap();
 
         let mut dfs = ir.dfs_iter(root);
 

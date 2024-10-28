@@ -17,10 +17,20 @@ rule test_3 {
 
 rule test_4 {
 	condition:
-		test_proto2.int64_zero == 0 and true and not false
+		4 --2 * 2 == 8
 }
 
 rule test_5 {
+	condition:
+		test_proto2.int64_zero == 0 and true and not false
+}
+
+rule test_6 {
+	condition:
+		test_proto2.int64_zero + 1 + 2
+}
+
+rule test_7 {
   condition:
      "foobar" contains "bar" and
      "foobar" icontains "BAR" and
