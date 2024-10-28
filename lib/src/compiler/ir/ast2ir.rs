@@ -22,9 +22,9 @@ use crate::compiler::errors::{
 };
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
-    Expr, ForIn, ForOf, FuncCall, Iterable, LiteralPattern, Lookup,
-    MatchAnchor, Of, OfItems, Pattern, PatternFlagSet, PatternFlags,
-    PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern, With,
+    Error, Expr, ExprId, Iterable, LiteralPattern, MatchAnchor, OfItems,
+    Pattern, PatternFlagSet, PatternFlags, PatternIdx, PatternInRule,
+    Quantifier, Range, RegexpPattern,
 };
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{
@@ -33,7 +33,6 @@ use crate::compiler::{
 use crate::errors::PotentiallySlowLoop;
 use crate::modules::BUILTIN_MODULES;
 use crate::re;
-use crate::re::parser::Error;
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
 use crate::types::{Map, Regexp, Type, TypeValue, Value};
 
@@ -405,35 +404,35 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
 }
 
 /// Given the AST for some expression, creates its IR.
-pub(in crate::compiler) fn expr_from_ast(
+fn expr_from_ast(
     ctx: &mut CompileContext,
     expr: &ast::Expr,
-) -> Result<Expr, CompileError> {
+) -> Result<ExprId, CompileError> {
     match expr {
         ast::Expr::Entrypoint { span } => {
             Err(EntrypointUnsupported::build(ctx.report_builder, span.into()))
         }
-        ast::Expr::Filesize { .. } => Ok(Expr::Filesize),
+        ast::Expr::Filesize { .. } => Ok(ctx.ir.filesize()),
 
         ast::Expr::True { .. } => {
-            Ok(Expr::Const(TypeValue::const_bool_from(true)))
+            Ok(ctx.ir.constant(TypeValue::const_bool_from(true)))
         }
 
         ast::Expr::False { .. } => {
-            Ok(Expr::Const(TypeValue::const_bool_from(false)))
+            Ok(ctx.ir.constant(TypeValue::const_bool_from(false)))
         }
 
         ast::Expr::LiteralInteger(literal) => {
-            Ok(Expr::Const(TypeValue::const_integer_from(literal.value)))
+            Ok(ctx.ir.constant(TypeValue::const_integer_from(literal.value)))
         }
 
         ast::Expr::LiteralFloat(literal) => {
-            Ok(Expr::Const(TypeValue::const_float_from(literal.value)))
+            Ok(ctx.ir.constant(TypeValue::const_float_from(literal.value)))
         }
 
-        ast::Expr::LiteralString(literal) => Ok(Expr::Const(
-            TypeValue::const_string_from(literal.value.as_bytes()),
-        )),
+        ast::Expr::LiteralString(literal) => Ok(ctx
+            .ir
+            .constant(TypeValue::const_string_from(literal.value.as_bytes()))),
 
         ast::Expr::Regexp(regexp) => {
             re::parser::Parser::new()
@@ -443,7 +442,7 @@ pub(in crate::compiler) fn expr_from_ast(
                     re_error_to_compile_error(ctx.report_builder, regexp, err)
                 })?;
 
-            Ok(Expr::Const(TypeValue::Regexp(Some(Regexp::new(
+            Ok(ctx.ir.constant(TypeValue::Regexp(Some(Regexp::new(
                 regexp.literal,
             )))))
         }
@@ -483,43 +482,51 @@ pub(in crate::compiler) fn expr_from_ast(
             let lhs = expr_from_ast(ctx, &expr.lhs)?;
             let rhs = expr_from_ast(ctx, &expr.rhs)?;
 
+            let lhs_expr = ctx.ir.get(lhs);
+            let rhs_expr = ctx.ir.get(rhs);
+
             // Detect cases in which the equal operator is comparing a boolean
             // expression with an integer constant (e.g: `pe.is_signed == 0`).
             // This is quite common in YARA rules, it is accepted without
             // errors, but a warning is raised.
-            let replacement = match (lhs.type_value(), rhs.type_value()) {
-                (TypeValue::Bool(_), TypeValue::Integer(Value::Const(0))) => {
-                    Some((
-                        Expr::not(lhs),
+            let replacement =
+                match (lhs_expr.type_value(), rhs_expr.type_value()) {
+                    (
+                        TypeValue::Bool(_),
+                        TypeValue::Integer(Value::Const(0)),
+                    ) => Some((
+                        ctx.ir.not(lhs),
                         format!(
                             "not {}",
                             ctx.report_builder.get_snippet(&lhs_span.into())
                         ),
-                    ))
-                }
-                (TypeValue::Integer(Value::Const(0)), TypeValue::Bool(_)) => {
-                    Some((
-                        Expr::not(rhs),
+                    )),
+                    (
+                        TypeValue::Integer(Value::Const(0)),
+                        TypeValue::Bool(_),
+                    ) => Some((
+                        ctx.ir.not(rhs),
                         format!(
                             "not {}",
                             ctx.report_builder.get_snippet(&rhs_span.into())
                         ),
-                    ))
-                }
-                (TypeValue::Bool(_), TypeValue::Integer(Value::Const(1))) => {
-                    Some((
+                    )),
+                    (
+                        TypeValue::Bool(_),
+                        TypeValue::Integer(Value::Const(1)),
+                    ) => Some((
                         lhs,
                         ctx.report_builder.get_snippet(&lhs_span.into()),
-                    ))
-                }
-                (TypeValue::Integer(Value::Const(1)), TypeValue::Bool(_)) => {
-                    Some((
+                    )),
+                    (
+                        TypeValue::Integer(Value::Const(1)),
+                        TypeValue::Bool(_),
+                    ) => Some((
                         rhs,
                         ctx.report_builder.get_snippet(&rhs_span.into()),
-                    ))
-                }
-                _ => None,
-            };
+                    )),
+                    _ => None,
+                };
 
             if let Some((expr, msg)) = replacement {
                 ctx.warnings.add(|| {
@@ -563,14 +570,14 @@ pub(in crate::compiler) fn expr_from_ast(
             // will change in the future when other types can have methods.
             for operand in expr.operands.iter().dropping_back(1) {
                 let expr = expr_from_ast(ctx, operand)?;
-                check_type(ctx, expr.ty(), operand.span(), &[Type::Struct])?;
+                check_type(ctx, expr, operand.span(), &[Type::Struct])?;
                 // Set `current_symbol_table` to the symbol table for the type
                 // of the expression at the left the field access operator (.).
                 // In the expression `foo.bar`, the `current_symbol_table` is
                 // set to the symbol table for foo's type, which should have
                 // a field or method named `bar`.
                 ctx.current_symbol_table =
-                    Some(expr.type_value().symbol_table());
+                    Some(ctx.ir.get(expr).type_value().symbol_table());
 
                 operands.push(expr);
             }
@@ -582,15 +589,16 @@ pub(in crate::compiler) fn expr_from_ast(
             // If the last operand is constant, the whole expression is
             // constant.
             #[cfg(feature = "constant-folding")]
-            if let Expr::Const(type_value) = last_operand {
-                // A constant always have a defined value.
-                assert!(type_value.is_const());
-                return Ok(Expr::Const(type_value));
+            {
+                let type_value = ctx.ir.get(last_operand).type_value();
+                if type_value.is_const() {
+                    return Ok(ctx.ir.constant(type_value.clone()));
+                }
             }
 
             operands.push(last_operand);
 
-            Ok(Expr::field_access(operands))
+            Ok(ctx.ir.field_access(operands))
         }
 
         ast::Expr::Ident(ident) => {
@@ -632,15 +640,16 @@ pub(in crate::compiler) fn expr_from_ast(
             }
 
             let symbol = symbol.unwrap();
+
             #[cfg(feature = "constant-folding")]
             {
                 let type_value = symbol.type_value();
                 if type_value.is_const() {
-                    return Ok(Expr::Const(type_value.clone()));
+                    return Ok(ctx.ir.constant(type_value.clone()));
                 }
             }
 
-            Ok(Expr::Ident { symbol })
+            Ok(ctx.ir.ident(symbol))
         }
 
         ast::Expr::PatternMatch(p) => {
@@ -662,24 +671,36 @@ pub(in crate::compiler) fn expr_from_ast(
                     // each iteration. In those cases the symbol table must
                     // contain an entry for `$`, corresponding to the variable
                     // that holds the current PatternId for the loop.
-                    Ok(Expr::PatternMatchVar {
-                        symbol: ctx.symbol_table.lookup("$").unwrap(),
+                    Ok(ctx.ir.pattern_match_var(
+                        ctx.symbol_table.lookup("$").unwrap(),
                         anchor,
-                    })
+                    ))
                 }
                 _ => {
+                    let at = match anchor {
+                        MatchAnchor::At(expr) => {
+                            let value = ctx.ir.get(expr).type_value();
+                            if value.is_const() {
+                                value.try_as_integer()
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    };
+
                     let (pattern_idx, pattern) =
                         ctx.get_pattern_mut(&p.identifier)?;
 
                     pattern.mark_as_used();
 
-                    if let Some(offset) = anchor.at() {
+                    if let Some(offset) = at {
                         pattern.anchor_at(offset as usize);
                     } else {
                         pattern.make_non_anchorable();
                     }
 
-                    Ok(Expr::PatternMatch { pattern: pattern_idx, anchor })
+                    Ok(ctx.ir.pattern_match(pattern_idx, anchor))
                 }
             }
         }
@@ -696,32 +717,30 @@ pub(in crate::compiler) fn expr_from_ast(
             }
             match (p.ident.name, &p.range) {
                 // Cases where the identifier is `#`.
-                ("#", Some(range)) => Ok(Expr::PatternCountVar {
-                    symbol: ctx.symbol_table.lookup("$").unwrap(),
-                    range: Some(range_from_ast(ctx, range)?),
-                }),
-                ("#", None) => Ok(Expr::PatternCountVar {
-                    symbol: ctx.symbol_table.lookup("$").unwrap(),
-                    range: None,
-                }),
+                ("#", Some(range)) => {
+                    let range = range_from_ast(ctx, range)?;
+                    Ok(ctx.ir.pattern_count_var(
+                        ctx.symbol_table.lookup("$").unwrap(),
+                        Some(range),
+                    ))
+                }
+                ("#", None) => Ok(ctx.ir.pattern_count_var(
+                    ctx.symbol_table.lookup("$").unwrap(),
+                    None,
+                )),
                 // Cases where the identifier is not `#`.
                 (_, Some(range)) => {
+                    let range = range_from_ast(ctx, range)?;
                     let (pattern_idx, pattern) =
                         ctx.get_pattern_mut(&p.ident)?;
                     pattern.make_non_anchorable().mark_as_used();
-                    Ok(Expr::PatternCount {
-                        pattern: pattern_idx,
-                        range: Some(range_from_ast(ctx, range)?),
-                    })
+                    Ok(ctx.ir.pattern_count(pattern_idx, Some(range)))
                 }
                 (_, None) => {
                     let (pattern_idx, pattern) =
                         ctx.get_pattern_mut(&p.ident)?;
                     pattern.make_non_anchorable().mark_as_used();
-                    Ok(Expr::PatternCount {
-                        pattern: pattern_idx,
-                        range: None,
-                    })
+                    Ok(ctx.ir.pattern_count(pattern_idx, None))
                 }
             }
         }
@@ -738,40 +757,32 @@ pub(in crate::compiler) fn expr_from_ast(
             }
             match (p.ident.name, &p.index) {
                 // Cases where the identifier is `@`.
-                ("@", Some(index)) => Ok(Expr::PatternOffsetVar {
-                    symbol: ctx.symbol_table.lookup("$").unwrap(),
-                    index: Some(Box::new(integer_in_range_from_ast(
-                        ctx,
-                        index,
-                        1..=i64::MAX,
-                    )?)),
-                }),
-                ("@", None) => Ok(Expr::PatternOffsetVar {
-                    symbol: ctx.symbol_table.lookup("$").unwrap(),
-                    index: None,
-                }),
+                ("@", Some(index)) => {
+                    let range =
+                        integer_in_range_from_ast(ctx, index, 1..=i64::MAX)?;
+                    Ok(ctx.ir.pattern_offset_var(
+                        ctx.symbol_table.lookup("$").unwrap(),
+                        Some(range),
+                    ))
+                }
+                ("@", None) => Ok(ctx.ir.pattern_offset_var(
+                    ctx.symbol_table.lookup("$").unwrap(),
+                    None,
+                )),
                 // Cases where the identifier is not `@`.
                 (_, Some(index)) => {
+                    let range =
+                        integer_in_range_from_ast(ctx, index, 1..=i64::MAX)?;
                     let (pattern_idx, pattern) =
                         ctx.get_pattern_mut(&p.ident)?;
                     pattern.make_non_anchorable().mark_as_used();
-                    Ok(Expr::PatternOffset {
-                        pattern: pattern_idx,
-                        index: Some(Box::new(integer_in_range_from_ast(
-                            ctx,
-                            index,
-                            1..=i64::MAX,
-                        )?)),
-                    })
+                    Ok(ctx.ir.pattern_offset(pattern_idx, Some(range)))
                 }
                 (_, None) => {
                     let (pattern_idx, pattern) =
                         ctx.get_pattern_mut(&p.ident)?;
                     pattern.make_non_anchorable().mark_as_used();
-                    Ok(Expr::PatternOffset {
-                        pattern: pattern_idx,
-                        index: None,
-                    })
+                    Ok(ctx.ir.pattern_offset(pattern_idx, None))
                 }
             }
         }
@@ -788,59 +799,44 @@ pub(in crate::compiler) fn expr_from_ast(
             }
             match (p.ident.name, &p.index) {
                 // Cases where the identifier is `!`.
-                ("!", Some(index)) => Ok(Expr::PatternLengthVar {
-                    symbol: ctx.symbol_table.lookup("$").unwrap(),
-                    index: Some(Box::new(integer_in_range_from_ast(
-                        ctx,
-                        index,
-                        1..=i64::MAX,
-                    )?)),
-                }),
-                ("!", None) => Ok(Expr::PatternLengthVar {
-                    symbol: ctx.symbol_table.lookup("$").unwrap(),
-                    index: None,
-                }),
+                ("!", Some(index)) => {
+                    let index =
+                        integer_in_range_from_ast(ctx, index, 1..=i64::MAX)?;
+                    Ok(ctx.ir.pattern_length_var(
+                        ctx.symbol_table.lookup("$").unwrap(),
+                        Some(index),
+                    ))
+                }
+                ("!", None) => Ok(ctx.ir.pattern_length_var(
+                    ctx.symbol_table.lookup("$").unwrap(),
+                    None,
+                )),
                 // Cases where the identifier is not `!`.
                 (_, Some(index)) => {
+                    let index =
+                        integer_in_range_from_ast(ctx, index, 1..=i64::MAX)?;
                     let (pattern_idx, pattern) =
                         ctx.get_pattern_mut(&p.ident)?;
                     pattern.make_non_anchorable().mark_as_used();
-                    Ok(Expr::PatternLength {
-                        pattern: pattern_idx,
-                        index: Some(Box::new(integer_in_range_from_ast(
-                            ctx,
-                            index,
-                            1..=i64::MAX,
-                        )?)),
-                    })
+                    Ok(ctx.ir.pattern_length(pattern_idx, Some(index)))
                 }
                 (_, None) => {
                     let (pattern_idx, pattern) =
                         ctx.get_pattern_mut(&p.ident)?;
                     pattern.make_non_anchorable().mark_as_used();
-                    Ok(Expr::PatternLength {
-                        pattern: pattern_idx,
-                        index: None,
-                    })
+                    Ok(ctx.ir.pattern_length(pattern_idx, None))
                 }
             }
         }
 
         ast::Expr::Lookup(expr) => {
-            let primary = Box::new(expr_from_ast(ctx, &expr.primary)?);
+            let primary = expr_from_ast(ctx, &expr.primary)?;
 
-            match primary.type_value() {
+            match ctx.ir.get(primary).type_value() {
                 TypeValue::Array(array) => {
-                    let index = Box::new(non_negative_integer_from_ast(
-                        ctx,
-                        &expr.index,
-                    )?);
-
-                    Ok(Expr::Lookup(Box::new(Lookup {
-                        type_value: array.deputy(),
-                        primary,
-                        index,
-                    })))
+                    let index =
+                        non_negative_integer_from_ast(ctx, &expr.index)?;
+                    Ok(ctx.ir.lookup(array.deputy(), primary, index))
                 }
                 TypeValue::Map(map) => {
                     let (key_ty, deputy_value) = match map.borrow() {
@@ -853,26 +849,13 @@ pub(in crate::compiler) fn expr_from_ast(
                         _ => unreachable!(),
                     };
 
-                    let index = Box::new(expr_from_ast(ctx, &expr.index)?);
-                    let ty = index.ty();
+                    let index = expr_from_ast(ctx, &expr.index)?;
 
                     // The type of the key/index expression should correspond
                     // with the type of the map's keys.
-                    if key_ty != ty {
-                        return Err(WrongType::build(
-                            ctx.report_builder,
-                            format!("`{}`", key_ty),
-                            format!("`{}`", ty),
-                            expr.index.span().into(),
-                            None,
-                        ));
-                    }
+                    check_type(ctx, index, expr.index.span(), &[key_ty])?;
 
-                    Ok(Expr::Lookup(Box::new(Lookup {
-                        type_value: deputy_value.clone(),
-                        primary,
-                        index,
-                    })))
+                    Ok(ctx.ir.lookup(deputy_value.clone(), primary, index))
                 }
                 type_value => Err(WrongType::build(
                     ctx.report_builder,
@@ -886,14 +869,47 @@ pub(in crate::compiler) fn expr_from_ast(
     }
 }
 
-pub(in crate::compiler) fn bool_expr_from_ast(
+pub(in crate::compiler) fn rule_condition_from_ast(
+    ctx: &mut CompileContext,
+    rule: &ast::Rule,
+) -> Result<ExprId, CompileError> {
+    // Start with clean IR tree.
+    ctx.ir.clear();
+
+    let condition = bool_expr_from_ast(ctx, &rule.condition)?;
+
+    // Check if the value of the condition is known at compile time and
+    // raise a warning if that's the case. Rules with constant conditions
+    // are not very useful in real life, except for testing.
+    if let Some(value) =
+        ctx.ir.get(condition).type_value().cast_to_bool().try_as_bool()
+    {
+        ctx.warnings.add(|| {
+            warnings::InvariantBooleanExpression::build(
+                ctx.report_builder,
+                value,
+                rule.condition.span().into(),
+                Some(format!(
+                    "rule `{}` is always `{}`",
+                    rule.identifier.name, value
+                )),
+            )
+        });
+    }
+
+    ctx.ir.root = Some(condition);
+
+    Ok(condition)
+}
+
+fn bool_expr_from_ast(
     ctx: &mut CompileContext,
     ast: &ast::Expr,
-) -> Result<Expr, CompileError> {
+) -> Result<ExprId, CompileError> {
     let code_loc = ast.span().into();
     let expr = expr_from_ast(ctx, ast)?;
 
-    match expr.type_value() {
+    match ctx.ir.get(expr).type_value() {
         TypeValue::Func(func) => {
             let help = func
                 .signatures()
@@ -942,8 +958,8 @@ pub(in crate::compiler) fn bool_expr_from_ast(
                 None,
             ))
         }
-        _ => {
-            warn_if_not_bool(ctx, expr.ty(), ast.span());
+        type_value => {
+            warn_if_not_bool(ctx, type_value.ty(), ast.span());
         }
     }
 
@@ -953,7 +969,7 @@ pub(in crate::compiler) fn bool_expr_from_ast(
 fn of_expr_from_ast(
     ctx: &mut CompileContext,
     of: &ast::Of,
-) -> Result<Expr, CompileError> {
+) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &of.quantifier)?;
     // Create new stack frame with 5 slots:
     //   1 slot for the loop variable, a bool in this case.
@@ -969,7 +985,7 @@ fn of_expr_from_ast(
                     let expr = bool_expr_from_ast(ctx, e)?;
                     Ok(expr)
                 })
-                .collect::<Result<Vec<Expr>, CompileError>>()?;
+                .collect::<Result<Vec<ExprId>, CompileError>>()?;
 
             let num_items = tuple.len();
             (OfItems::BoolExprTuple(tuple), num_items)
@@ -985,7 +1001,7 @@ fn of_expr_from_ast(
     // If the quantifier expression is greater than the number of items,
     // the `of` expression is always false.
     if let Quantifier::Expr(expr) = &quantifier {
-        if let TypeValue::Integer(Value::Const(value)) = expr.type_value() {
+        if let Some(value) = ctx.ir.get(*expr).try_as_const_integer() {
             if value > num_items.try_into().unwrap() {
                 ctx.warnings.add(|| warnings::InvariantBooleanExpression::build(
                     ctx.report_builder,
@@ -1023,18 +1039,20 @@ fn of_expr_from_ast(
             Quantifier::All { .. } => num_items > 1,
             // `<expr> of <items> at <expr>: the warning is raised if <expr> is
             // 2 or more.
-            Quantifier::Expr(expr) => match expr.type_value() {
+            Quantifier::Expr(expr) => match ctx.ir.get(*expr).type_value() {
                 TypeValue::Integer(Value::Const(value)) => value >= 2,
                 _ => false,
             },
             // `<expr>% of <items> at <expr>: the warning is raised if the
             // <expr> percent of the items is 2 or more.
-            Quantifier::Percentage(expr) => match expr.type_value() {
-                TypeValue::Integer(Value::Const(percentage)) => {
-                    num_items as f64 * percentage as f64 / 100.0 >= 2.0
+            Quantifier::Percentage(expr) => {
+                match ctx.ir.get(*expr).type_value() {
+                    TypeValue::Integer(Value::Const(percentage)) => {
+                        num_items as f64 * percentage as f64 / 100.0 >= 2.0
+                    }
+                    _ => false,
                 }
-                _ => false,
-            },
+            }
             Quantifier::None { .. } | Quantifier::Any { .. } => false,
         };
 
@@ -1053,19 +1071,19 @@ fn of_expr_from_ast(
 
     ctx.vars.unwind(&stack_frame);
 
-    Ok(Expr::Of(Box::new(Of { quantifier, items, anchor, stack_frame })))
+    Ok(ctx.ir.of(quantifier, items, anchor, stack_frame))
 }
 
 fn for_of_expr_from_ast(
     ctx: &mut CompileContext,
     for_of: &ast::ForOf,
-) -> Result<Expr, CompileError> {
+) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &for_of.quantifier)?;
     let pattern_set = pattern_set_from_ast(ctx, &for_of.pattern_set)?;
     // Create new stack frame with 5 slots:
     //   1 slot for the loop variable, a pattern ID in this case
     //   4 up to slots used for loop control variables (see: emit::emit_for)
-    let mut stack_frame = ctx.vars.new_frame(5);
+    let stack_frame = ctx.vars.new_frame(5);
     let next_pattern_id = stack_frame.new_var(Type::Integer);
     let mut loop_vars = SymbolTable::new();
 
@@ -1086,40 +1104,45 @@ fn for_of_expr_from_ast(
     ctx.symbol_table.pop();
     ctx.vars.unwind(&stack_frame);
 
-    Ok(Expr::ForOf(Box::new(ForOf {
+    Ok(ctx.ir.for_of(
         quantifier,
+        next_pattern_id,
         pattern_set,
         condition,
         stack_frame,
-        variable: next_pattern_id,
-    })))
+    ))
 }
 
-fn is_potentially_large_range(range: &Range) -> bool {
+fn is_potentially_large_range(ctx: &CompileContext, range: &Range) -> bool {
     // If the range's lower bound is not constant, we don't consider it a
     // potentially large range. For instance (filesize-100, filesize) is not
     // potentially large.
-    if !range.lower_bound.type_value().is_const() {
+    if !ctx.ir.get(range.lower_bound).type_value().is_const() {
         return false;
     }
+
     // If the lower bound is constant, and the upper bound is some expression
     // that depends on `filesize` or the number of occurrences of some pattern
     // (i.e: #a), we consider it a potentially large range. The only exception
     // is when `math.min` is used, like in `(0..math.min(filesize, 1000))`
-    range
-        .upper_bound
+    ctx.ir
         .dfs_find(
+            range.upper_bound,
             // Traverse the upper bound expression looking for the use of filesize
             // or a pattern count.
             |node| matches!(node, Expr::Filesize | Expr::PatternCount { .. }),
             // Don't traverse the arguments of `math.min`.
             |node| {
                 if let Expr::FuncCall(f) = node {
-                    f.callable.type_value().as_func().signatures().iter().any(
-                        |signature| {
+                    ctx.ir
+                        .get(f.callable)
+                        .type_value()
+                        .as_func()
+                        .signatures()
+                        .iter()
+                        .any(|signature| {
                             signature.mangled_name.as_str().eq("math.min@ii@i")
-                        },
-                    )
+                        })
                 } else {
                     false
                 }
@@ -1131,7 +1154,7 @@ fn is_potentially_large_range(range: &Range) -> bool {
 fn for_in_expr_from_ast(
     ctx: &mut CompileContext,
     for_in: &ast::ForIn,
-) -> Result<Expr, CompileError> {
+) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &for_in.quantifier)?;
     let iterable = iterable_from_ast(ctx, &for_in.iterable)?;
 
@@ -1139,7 +1162,7 @@ fn for_in_expr_from_ast(
         Iterable::Range(range) => {
             // Raise warning when the `for` loop iterates over a range that
             // may be very large.
-            if is_potentially_large_range(range) {
+            if is_potentially_large_range(ctx, range) {
                 if ctx.error_on_slow_loop {
                     return Err(PotentiallySlowLoop::build(
                         ctx.report_builder,
@@ -1167,11 +1190,11 @@ fn for_in_expr_from_ast(
             // loop variable is not known until the loop is executed.
             vec![expressions
                 .first()
+                .map(|node_idx| ctx.ir.get(*node_idx).type_value())
                 .unwrap()
-                .type_value()
                 .clone_without_value()]
         }
-        Iterable::Expr(expr) => match expr.type_value() {
+        Iterable::Expr(expr) => match ctx.ir.get(*expr).type_value() {
             TypeValue::Array(array) => vec![array.deputy()],
             TypeValue::Map(map) => match map.as_ref() {
                 Map::IntegerKeys { .. } => {
@@ -1207,7 +1230,7 @@ fn for_in_expr_from_ast(
     // temporary variables used for controlling the loop (see emit_for),
     // plus one additional variable used in loops over arrays and maps
     // (see emit_for_in_array and emit_for_in_map).
-    let mut stack_frame = ctx.vars.new_frame(loop_vars.len() as i32 + 5);
+    let stack_frame = ctx.vars.new_frame(loop_vars.len() as i32 + 5);
     let mut symbols = SymbolTable::new();
     let mut variables = Vec::new();
 
@@ -1232,21 +1255,15 @@ fn for_in_expr_from_ast(
 
     ctx.vars.unwind(&stack_frame);
 
-    Ok(Expr::ForIn(Box::new(ForIn {
-        quantifier,
-        variables,
-        iterable,
-        condition,
-        stack_frame,
-    })))
+    Ok(ctx.ir.for_in(quantifier, variables, iterable, condition, stack_frame))
 }
 
 fn with_expr_from_ast(
     ctx: &mut CompileContext,
     with: &ast::With,
-) -> Result<Expr, CompileError> {
+) -> Result<ExprId, CompileError> {
     // Create stack frame with capacity for the with statement variables
-    let mut stack_frame = ctx.vars.new_frame(with.declarations.len() as i32);
+    let stack_frame = ctx.vars.new_frame(with.declarations.len() as i32);
     let mut symbols = SymbolTable::new();
     let mut declarations = Vec::new();
 
@@ -1254,12 +1271,11 @@ fn with_expr_from_ast(
     // for each one. Both identifiers and corresponding expressions are stored
     // in separate vectors.
     for item in with.declarations.iter() {
-        let type_value = expr_from_ast(ctx, &item.expression)?
-            .type_value()
-            .clone_without_value();
+        let expr = expr_from_ast(ctx, &item.expression)?;
+        let type_value = ctx.ir.get(expr).type_value();
         let var = stack_frame.new_var(type_value.ty());
 
-        declarations.push((var, expr_from_ast(ctx, &item.expression)?));
+        declarations.push((var, expr));
 
         // Insert the variable into the symbol table.
         symbols.insert(
@@ -1278,7 +1294,7 @@ fn with_expr_from_ast(
 
     ctx.vars.unwind(&stack_frame);
 
-    Ok(Expr::With(Box::new(With { declarations, condition })))
+    Ok(ctx.ir.with(declarations, condition))
 }
 
 fn iterable_from_ast(
@@ -1293,7 +1309,7 @@ fn iterable_from_ast(
             let span = expr.span();
             let expr = expr_from_ast(ctx, expr)?;
             // Make sure that the expression has a type that is iterable.
-            check_type(ctx, expr.ty(), span, &[Type::Array, Type::Map])?;
+            check_type(ctx, expr, span, &[Type::Array, Type::Map])?;
             Ok(Iterable::Expr(expr))
         }
         ast::Iterable::ExprTuple(expr_tuple) => {
@@ -1302,18 +1318,19 @@ fn iterable_from_ast(
             for expr in expr_tuple {
                 let span = expr.span();
                 let expr = expr_from_ast(ctx, expr)?;
-                let ty = expr.ty();
                 // Items in the tuple must be either integer, float, string
                 // or bool.
                 check_type(
                     ctx,
-                    ty,
+                    expr,
                     span.clone(),
                     &[Type::Integer, Type::Float, Type::String, Type::Bool],
                 )?;
+
                 // All items in the item must have the same type. Compare
                 // with the previous item and return as soon as we find a
                 // type mismatch.
+                let ty = ctx.ir.get(expr).ty();
                 if let Some((prev_ty, prev_span)) = prev {
                     if prev_ty != ty {
                         return Err(MismatchingTypes::build(
@@ -1338,9 +1355,9 @@ fn anchor_from_ast(
     anchor: &Option<ast::MatchAnchor>,
 ) -> Result<MatchAnchor, CompileError> {
     match anchor {
-        Some(ast::MatchAnchor::At(at_)) => Ok(MatchAnchor::At(Box::new(
-            non_negative_integer_from_ast(ctx, &at_.expr)?,
-        ))),
+        Some(ast::MatchAnchor::At(at_)) => {
+            Ok(MatchAnchor::At(non_negative_integer_from_ast(ctx, &at_.expr)?))
+        }
         Some(ast::MatchAnchor::In(in_)) => {
             Ok(MatchAnchor::In(range_from_ast(ctx, &in_.range)?))
         }
@@ -1352,11 +1369,8 @@ fn range_from_ast(
     ctx: &mut CompileContext,
     range: &ast::Range,
 ) -> Result<Range, CompileError> {
-    let lower_bound =
-        Box::new(non_negative_integer_from_ast(ctx, &range.lower_bound)?);
-
-    let upper_bound =
-        Box::new(non_negative_integer_from_ast(ctx, &range.upper_bound)?);
+    let lower_bound = non_negative_integer_from_ast(ctx, &range.lower_bound)?;
+    let upper_bound = non_negative_integer_from_ast(ctx, &range.upper_bound)?;
 
     // If both the lower and upper bounds are known at compile time, make sure
     // that lower_bound <= upper_bound. If they are not know (because they are
@@ -1365,8 +1379,10 @@ fn range_from_ast(
     if let (
         TypeValue::Integer(Value::Const(lower_bound)),
         TypeValue::Integer(Value::Const(upper_bound)),
-    ) = (lower_bound.type_value(), upper_bound.type_value())
-    {
+    ) = (
+        ctx.ir.get(lower_bound).type_value(),
+        ctx.ir.get(upper_bound).type_value(),
+    ) {
         if lower_bound > upper_bound {
             return Err(InvalidRange::build(
                 ctx.report_builder,
@@ -1385,13 +1401,13 @@ fn range_from_ast(
 fn non_negative_integer_from_ast(
     ctx: &mut CompileContext,
     expr: &ast::Expr,
-) -> Result<Expr, CompileError> {
+) -> Result<ExprId, CompileError> {
     let span = expr.span();
     let expr = expr_from_ast(ctx, expr)?;
-    let type_value = expr.type_value();
 
-    check_type(ctx, type_value.ty(), span.clone(), &[Type::Integer])?;
+    check_type(ctx, expr, span.clone(), &[Type::Integer])?;
 
+    let type_value = ctx.ir.get(expr).type_value();
     if let TypeValue::Integer(Value::Const(value)) = type_value {
         if value < 0 {
             return Err(UnexpectedNegativeNumber::build(
@@ -1408,15 +1424,16 @@ fn integer_in_range_from_ast(
     ctx: &mut CompileContext,
     expr: &ast::Expr,
     range: RangeInclusive<i64>,
-) -> Result<Expr, CompileError> {
+) -> Result<ExprId, CompileError> {
     let span = expr.span();
     let expr = expr_from_ast(ctx, expr)?;
-    let type_value = expr.type_value();
 
-    check_type(ctx, type_value.ty(), span.clone(), &[Type::Integer])?;
+    check_type(ctx, expr, span.clone(), &[Type::Integer])?;
 
     // If the value is known at compile time make sure that it is within
     // the given range.
+    let type_value = ctx.ir.get(expr).type_value();
+
     if let TypeValue::Integer(Value::Const(value)) = type_value {
         if !range.contains(&value) {
             return Err(NumberOutOfRange::build(
@@ -1529,28 +1546,24 @@ fn pattern_set_from_ast(
 fn func_call_from_ast(
     ctx: &mut CompileContext,
     func_call: &ast::FuncCall,
-) -> Result<Expr, CompileError> {
+) -> Result<ExprId, CompileError> {
     let callable = expr_from_ast(ctx, &func_call.callable)?;
-    let type_value = callable.type_value();
 
-    check_type(
-        ctx,
-        type_value.ty(),
-        func_call.callable.span(),
-        &[Type::Func],
-    )?;
+    check_type(ctx, callable, func_call.callable.span(), &[Type::Func])?;
 
     let args = func_call
         .args
         .iter()
         .map(|arg| expr_from_ast(ctx, arg))
-        .collect::<Result<Vec<Expr>, CompileError>>()?;
+        .collect::<Result<Vec<ExprId>, CompileError>>()?;
 
-    let arg_types: Vec<Type> = args.iter().map(|arg| arg.ty()).collect();
+    let arg_types: Vec<Type> =
+        args.iter().map(|arg| ctx.ir.get(*arg).ty()).collect();
 
     let mut expected_args = Vec::new();
     let mut matching_signature = None;
-    let func = type_value.as_func();
+
+    let func = ctx.ir.get(callable).type_value().as_func();
 
     // Determine if any of the signatures for the called function matches
     // the provided arguments.
@@ -1600,43 +1613,32 @@ fn func_call_from_ast(
 
     let (signature_index, type_value) = matching_signature.unwrap();
 
-    Ok(Expr::FuncCall(Box::new(FuncCall {
-        callable,
-        type_value,
-        signature_index,
-        args,
-    })))
+    Ok(ctx.ir.func_call(callable, args, type_value, signature_index))
 }
 
 fn matches_expr_from_ast(
     ctx: &mut CompileContext,
     expr: &ast::BinaryExpr,
-) -> Result<Expr, CompileError> {
-    let span = expr.span();
+) -> Result<ExprId, CompileError> {
     let lhs_span = expr.lhs.span();
     let rhs_span = expr.rhs.span();
 
-    let lhs = Box::new(expr_from_ast(ctx, &expr.lhs)?);
-    let rhs = Box::new(expr_from_ast(ctx, &expr.rhs)?);
+    let lhs = expr_from_ast(ctx, &expr.lhs)?;
+    let rhs = expr_from_ast(ctx, &expr.rhs)?;
 
-    check_type(ctx, lhs.ty(), lhs_span, &[Type::String])?;
-    check_type(ctx, rhs.ty(), rhs_span, &[Type::Regexp])?;
+    check_type(ctx, lhs, lhs_span, &[Type::String])?;
+    check_type(ctx, rhs, rhs_span, &[Type::Regexp])?;
 
-    let expr = Expr::Matches { lhs, rhs };
-
-    if cfg!(feature = "constant-folding") {
-        expr.fold(ctx, span)
-    } else {
-        Ok(expr)
-    }
+    Ok(ctx.ir.matches(lhs, rhs))
 }
 
 fn check_type(
     ctx: &CompileContext,
-    ty: Type,
+    expr: ExprId,
     span: Span,
     accepted_types: &[Type],
 ) -> Result<(), CompileError> {
+    let ty = ctx.ir.get(expr).ty();
     if accepted_types.contains(&ty) {
         Ok(())
     } else {
@@ -1652,19 +1654,22 @@ fn check_type(
 
 fn check_operands(
     ctx: &CompileContext,
-    lhs_ty: Type,
-    rhs_ty: Type,
+    lhs: ExprId,
+    rhs: ExprId,
     lhs_span: Span,
     rhs_span: Span,
     accepted_types: &[Type],
     compatible_types: &[Type],
 ) -> Result<(), CompileError> {
+    let lhs_ty = ctx.ir.get(lhs).ty();
+    let rhs_ty = ctx.ir.get(rhs).ty();
+
     // Both types must be known.
     assert!(!matches!(lhs_ty, Type::Unknown));
     assert!(!matches!(rhs_ty, Type::Unknown));
 
-    check_type(ctx, lhs_ty, lhs_span.clone(), accepted_types)?;
-    check_type(ctx, rhs_ty, rhs_span.clone(), accepted_types)?;
+    check_type(ctx, lhs, lhs_span.clone(), accepted_types)?;
+    check_type(ctx, rhs, rhs_span.clone(), accepted_types)?;
 
     let types_are_compatible = {
         // If the types are the same, they are compatible.
@@ -1696,7 +1701,7 @@ fn re_error_to_compile_error(
     err: re::parser::Error,
 ) -> CompileError {
     match err {
-        Error::SyntaxError { msg, span, note } => {
+        re::parser::Error::SyntaxError { msg, span, note } => {
             InvalidRegexp::build(
                 report_builder,
                 msg,
@@ -1717,7 +1722,7 @@ fn re_error_to_compile_error(
                 note,
             )
         }
-        Error::MixedGreediness {
+        re::parser::Error::MixedGreediness {
             is_greedy_1,
             is_greedy_2,
             span_1,
@@ -1778,32 +1783,25 @@ macro_rules! gen_unary_op {
         fn $name(
             ctx: &mut CompileContext,
             expr: &ast::UnaryExpr,
-        ) -> Result<Expr, CompileError> {
-            let span = expr.span();
+        ) -> Result<ExprId, CompileError> {
             let operand = expr_from_ast(ctx, &expr.operand)?;
 
             check_type(
                 ctx,
-                operand.ty(),
+                operand,
                 expr.operand.span(),
                 &[$( $accepted_types ),+],
             )?;
 
             let check_fn:
-                Option<fn(&mut CompileContext, &Expr, Span) -> Result<(), CompileError>>
+                Option<fn(&mut CompileContext, ExprId, Span) -> Result<(), CompileError>>
                 = $check_fn;
 
             if let Some(check_fn) = check_fn {
-                check_fn(ctx, &operand, expr.operand.span())?;
+                check_fn(ctx, operand, expr.operand.span())?;
             }
 
-            let expr = Expr::$variant(operand);
-
-            if cfg!(feature = "constant-folding") {
-                expr.fold(ctx, span)
-            } else {
-                Ok(expr)
-            }
+            Ok(ctx.ir.$variant(operand))
         }
     };
 }
@@ -1813,8 +1811,7 @@ macro_rules! gen_binary_op {
         fn $name(
             ctx: &mut CompileContext,
             expr: &ast::BinaryExpr,
-        ) -> Result<Expr, CompileError> {
-            let span = expr.span();
+        ) -> Result<ExprId, CompileError> {
             let lhs_span = expr.lhs.span();
             let rhs_span = expr.rhs.span();
 
@@ -1823,8 +1820,8 @@ macro_rules! gen_binary_op {
 
             check_operands(
                 ctx,
-                lhs.ty(),
-                rhs.ty(),
+                lhs,
+                rhs,
                 lhs_span.clone(),
                 rhs_span.clone(),
                 &[$( $accepted_types ),+],
@@ -1832,20 +1829,14 @@ macro_rules! gen_binary_op {
             )?;
 
             let check_fn:
-                Option<fn(&mut CompileContext, &Expr, &Expr, Span, Span) -> Result<(), CompileError>>
+                Option<fn(&mut CompileContext, ExprId, ExprId, Span, Span) -> Result<(), CompileError>>
                 = $check_fn;
 
             if let Some(check_fn) = check_fn {
-                check_fn(ctx, &lhs, &rhs, lhs_span, rhs_span)?;
+                check_fn(ctx, lhs, rhs, lhs_span, rhs_span)?;
             }
 
-            let expr = Expr::$variant(lhs, rhs);
-
-            if cfg!(feature = "constant-folding") {
-                expr.fold(ctx, span)
-            } else {
-                Ok(expr)
-            }
+            Ok(ctx.ir.$variant(lhs, rhs))
         }
     };
 }
@@ -1855,8 +1846,7 @@ macro_rules! gen_string_op {
         fn $name(
             ctx: &mut CompileContext,
             expr: &ast::BinaryExpr,
-        ) -> Result<Expr, CompileError> {
-            let span = expr.span();
+        ) -> Result<ExprId, CompileError> {
             let lhs_span = expr.lhs.span();
             let rhs_span = expr.rhs.span();
 
@@ -1865,21 +1855,15 @@ macro_rules! gen_string_op {
 
             check_operands(
                 ctx,
-                lhs.ty(),
-                rhs.ty(),
+                lhs,
+                rhs,
                 lhs_span.clone(),
                 rhs_span.clone(),
                 &[Type::String],
                 &[Type::String],
             )?;
 
-            let expr = Expr::$variant(lhs, rhs);
-
-            if cfg!(feature = "constant-folding") {
-                expr.fold(ctx, span)
-            } else {
-                Ok(expr)
-            }
+            Ok(ctx.ir.$variant(lhs, rhs))
         }
     };
 }
@@ -1889,25 +1873,25 @@ macro_rules! gen_n_ary_operation {
         fn $name(
             ctx: &mut CompileContext,
             expr: &ast::NAryExpr,
-        ) -> Result<Expr, CompileError> {
+        ) -> Result<ExprId, CompileError> {
             let span = expr.span();
             let accepted_types = &[$( $accepted_types ),+];
             let compatible_types = &[$( $compatible_types ),+];
 
-            let operands_hir: Vec<Expr> = expr
+            let operands_hir: Vec<ExprId> = expr
                 .operands()
                 .map(|expr| expr_from_ast(ctx, expr))
-                .collect::<Result<Vec<Expr>, CompileError>>()?;
+                .collect::<Result<Vec<ExprId>, CompileError>>()?;
 
             let check_fn:
-                Option<fn(&mut CompileContext, &Expr, Span) -> Result<(), CompileError>>
+                Option<fn(&mut CompileContext, ExprId, Span) -> Result<(), CompileError>>
                 = $check_fn;
 
             // Make sure that all operands have one of the accepted types.
             for (hir, ast) in iter::zip(operands_hir.iter(), expr.operands()) {
-                check_type(ctx, hir.ty(), ast.span(), accepted_types)?;
+                check_type(ctx, *hir, ast.span(), accepted_types)?;
                 if let Some(check_fn) = check_fn {
-                    check_fn(ctx, hir, ast.span())?;
+                    check_fn(ctx, *hir, ast.span())?;
                 }
             }
 
@@ -1916,8 +1900,8 @@ macro_rules! gen_n_ary_operation {
             for ((lhs_hir, rhs_ast), (rhs_hir, lhs_ast)) in
                 iter::zip(operands_hir.iter(), expr.operands()).tuple_windows()
             {
-                let lhs_ty = lhs_hir.ty();
-                let rhs_ty = rhs_hir.ty();
+                let lhs_ty = ctx.ir.get(*lhs_hir).ty();
+                let rhs_ty = ctx.ir.get(*rhs_hir).ty();
 
                 let types_are_compatible = {
                     // If the types are the same, they are compatible.
@@ -1941,13 +1925,18 @@ macro_rules! gen_n_ary_operation {
                 }
             }
 
-            let expr = Expr::$variant(operands_hir);
-
-            if cfg!(feature = "constant-folding") {
-                expr.fold(ctx, span)
-            } else {
-                Ok(expr)
-            }
+            ctx.ir.$variant(operands_hir).map_err(|err| {
+                match err {
+                    Error::NumberOutOfRange => {
+                        NumberOutOfRange::build(
+                            ctx.report_builder,
+                            i64::MIN,
+                            i64::MAX,
+                            span.into(),
+                        )
+                    }
+                }
+            })
         }
     };
 }
@@ -1967,7 +1956,8 @@ gen_unary_op!(
     Type::Bool | Type::Integer | Type::Float | Type::String,
     // Raise warning if the operand is not bool.
     Some(|ctx, operand, span| {
-        warn_if_not_bool(ctx, operand.ty(), span);
+        let ty = ctx.ir.get(operand).ty();
+        warn_if_not_bool(ctx, ty, span);
         Ok(())
     })
 );
@@ -1982,7 +1972,8 @@ gen_n_ary_operation!(
     // are casted to boolean anyways.
     Type::Bool | Type::Integer | Type::Float | Type::String,
     Some(|ctx, operand, span| {
-        warn_if_not_bool(ctx, operand.ty(), span);
+        let ty = ctx.ir.get(operand).ty();
+        warn_if_not_bool(ctx, ty, span);
         Ok(())
     })
 );
@@ -1997,7 +1988,8 @@ gen_n_ary_operation!(
     // are casted to boolean anyways.
     Type::Bool | Type::Integer | Type::Float | Type::String,
     Some(|ctx, operand, span| {
-        warn_if_not_bool(ctx, operand.ty(), span);
+        let ty = ctx.ir.get(operand).ty();
+        warn_if_not_bool(ctx, ty, span);
         Ok(())
     })
 );
@@ -2050,7 +2042,9 @@ gen_binary_op!(
     Type::Integer,
     Type::Integer,
     Some(|ctx, _lhs, rhs, _lhs_span, rhs_span| {
-        if let TypeValue::Integer(Value::Const(value)) = rhs.type_value() {
+        if let TypeValue::Integer(Value::Const(value)) =
+            ctx.ir.get(rhs).type_value()
+        {
             if value < 0 {
                 return Err(UnexpectedNegativeNumber::build(
                     ctx.report_builder,
@@ -2068,7 +2062,9 @@ gen_binary_op!(
     Type::Integer,
     Type::Integer,
     Some(|ctx, _lhs, rhs, _lhs_span, rhs_span| {
-        if let TypeValue::Integer(Value::Const(value)) = rhs.type_value() {
+        if let TypeValue::Integer(Value::Const(value)) =
+            ctx.ir.get(rhs).type_value()
+        {
             if value < 0 {
                 return Err(UnexpectedNegativeNumber::build(
                     ctx.report_builder,

@@ -1377,7 +1377,7 @@ impl RuntimeObject {
 /// A runtime object handle is an opaque integer value that identifies a
 /// runtime object.
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Default)]
-pub struct RuntimeObjectHandle(i64);
+pub(crate) struct RuntimeObjectHandle(i64);
 
 impl RuntimeObjectHandle {
     pub(crate) const NULL: Self = RuntimeObjectHandle(-1);

@@ -289,6 +289,11 @@ pub struct Compiler<'a> {
     /// from patterns.
     lit_pool: BStringPool<LiteralId>,
 
+    /// Intermediate representation (IR) tree for condition of the rule that
+    /// is currently being compiled. After compiling each rule the tree is
+    /// cleared, but it will be reused for the next rule.
+    ir: IR,
+
     /// Builder for creating the WebAssembly module that contains the code
     /// for all rule conditions.
     wasm_mod: WasmModuleBuilder,
@@ -428,7 +433,14 @@ impl<'a> Compiler<'a> {
         let wasm_symbols = wasm_mod.wasm_symbols();
         let wasm_exports = wasm_mod.wasm_exports();
 
+        let mut ir = IR::new();
+
+        if cfg!(feature = "constant-folding") {
+            ir.constant_folding(true);
+        }
+
         Self {
+            ir,
             ident_pool,
             global_symbols,
             symbol_table,
@@ -1134,6 +1146,7 @@ impl<'a> Compiler<'a> {
         let mut rule_patterns = Vec::new();
 
         let mut ctx = CompileContext {
+            ir: &mut self.ir,
             relaxed_re_syntax: self.relaxed_re_syntax,
             error_on_slow_loop: self.error_on_slow_loop,
             current_symbol_table: None,
@@ -1156,7 +1169,7 @@ impl<'a> Compiler<'a> {
         // Convert the rule condition's AST to the intermediate representation
         // (IR). Also updates the patterns with information about whether they
         // are used in the condition and if they are anchored or not.
-        let condition = bool_expr_from_ast(&mut ctx, &rule.condition);
+        let condition = rule_condition_from_ast(&mut ctx, rule);
 
         drop(ctx);
 
@@ -1170,14 +1183,15 @@ impl<'a> Compiler<'a> {
         // following cases:
         //
         // 1) When the pattern is anchored, because anchored pattern can appear
-        //    only at a fixed pattern and are not searched by Aho-Corasick.
+        //    only at a fixed offset and are not searched by Aho-Corasick.
+        //
         // 2) When the pattern has attributes: xor, fullword, base64 or
         //    base64wide, because in those cases the real pattern is not that
         //    common.
         //
-        // Note: this can't be done before calling `bool_expr_from_ast`, because
-        // we don't know which patterns are anchored until the condition is
-        // processed.
+        // Note: this can't be done before calling `rule_condition_from_ast`,
+        // because we don't know which patterns are anchored until the condition
+        // is processed.
         for pat in rule_patterns.iter() {
             if pat.anchored_at().is_none()
                 && !pat.pattern().flags().intersects(
@@ -1209,7 +1223,7 @@ impl<'a> Compiler<'a> {
         // entering this function. Also, if the error is due to an unknown
         // identifier, but the identifier is one of the unsupported modules,
         // the error is tolerated and a warning is issued instead.
-        let mut condition = match condition {
+        let condition = match condition {
             Ok(condition) => condition,
             Err(CompileError::UnknownIdentifier(unknown))
                 if self.ignored_rules.contains_key(unknown.identifier())
@@ -1261,26 +1275,7 @@ impl<'a> Compiler<'a> {
         #[cfg(test)]
         if let Some(w) = &mut self.ir_writer {
             writeln!(w, "RULE {}", rule.identifier.name).unwrap();
-            writeln!(w, "{:?}", condition).unwrap();
-        }
-
-        // Check if the value of the condition is known at compile time and
-        // raise a warning if that's the case. Rules with constant conditions
-        // are not very useful in real life, except for testing.
-        if let Some(value) =
-            condition.type_value().cast_to_bool().try_as_bool()
-        {
-            self.warnings.add(|| {
-                warnings::InvariantBooleanExpression::build(
-                    &self.report_builder,
-                    value,
-                    rule.condition.span().into(),
-                    Some(format!(
-                        "rule `{}` is always `{}`",
-                        rule.identifier.name, value
-                    )),
-                )
-            });
+            writeln!(w, "{:?}", self.ir).unwrap();
         }
 
         // Create a new symbol of bool type for the rule.
@@ -1400,9 +1395,10 @@ impl<'a> Compiler<'a> {
 
         emit_rule_condition(
             &mut ctx,
-            &mut self.wasm_mod,
+            &self.ir,
             rule_id,
-            &mut condition,
+            condition,
+            &mut self.wasm_mod,
         );
 
         Ok(())
