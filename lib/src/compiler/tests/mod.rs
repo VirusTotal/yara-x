@@ -81,8 +81,8 @@ fn namespaces() {
 fn var_stack() {
     let mut stack = VarStack::new();
 
-    let frame1 = stack.new_frame(4);
-    let frame2 = stack.new_frame(4);
+    let mut frame1 = stack.new_frame(4);
+    let mut frame2 = stack.new_frame(4);
 
     assert_eq!(
         frame1.new_var(Type::Integer),
@@ -919,6 +919,8 @@ fn test_warnings() {
     {
         // Path to the .in file.
         let in_path = entry.into_path();
+
+        println!("{:?}", in_path);
 
         // Path to the .out file.
         let out_path = in_path.with_extension("out");

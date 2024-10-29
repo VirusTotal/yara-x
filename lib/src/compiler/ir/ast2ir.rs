@@ -22,13 +22,13 @@ use crate::compiler::errors::{
 };
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
-    Error, Expr, ExprId, Iterable, LiteralPattern, MatchAnchor, OfItems,
-    Pattern, PatternFlagSet, PatternFlags, PatternIdx, PatternInRule,
-    Quantifier, Range, RegexpPattern,
+    Error, Expr, ExprId, Iterable, LiteralPattern, MatchAnchor, Pattern,
+    PatternFlagSet, PatternFlags, PatternIdx, PatternInRule, Quantifier,
+    Range, RegexpPattern,
 };
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{
-    warnings, CompileContext, CompileError, TextPatternAsHex,
+    warnings, CompileContext, CompileError, ForVars, TextPatternAsHex,
 };
 use crate::errors::CustomError;
 use crate::errors::PotentiallySlowLoop;
@@ -999,35 +999,58 @@ fn bool_expr_from_ast(
     Ok(expr)
 }
 
+enum OfItems {
+    BoolExprTuple(Vec<ExprId>),
+    PatternSet(Vec<PatternIdx>),
+}
+
+impl OfItems {
+    fn len(&self) -> usize {
+        match self {
+            OfItems::BoolExprTuple(tuple) => tuple.len(),
+            OfItems::PatternSet(pattern_set) => pattern_set.len(),
+        }
+    }
+}
+
 fn of_expr_from_ast(
     ctx: &mut CompileContext,
     of: &ast::Of,
 ) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &of.quantifier)?;
-    // Create new stack frame with 5 slots:
-    //   1 slot for the loop variable, a bool in this case.
-    //   4 up to slots used for loop control variables (see: emit::emit_for)
-    let stack_frame = ctx.vars.new_frame(5);
+    let mut stack_frame = ctx.vars.new_frame(5);
 
-    let (items, num_items) = match &of.items {
+    let for_vars = ForVars {
+        n: stack_frame.new_var(Type::Integer),
+        i: stack_frame.new_var(Type::Integer),
+        max_count: stack_frame.new_var(Type::Integer),
+        count: stack_frame.new_var(Type::Integer),
+    };
+
+    let (items, next_item_var) = match &of.items {
         // `x of (<boolean expr>, <boolean expr>, ...)`
         ast::OfItems::BoolExprTuple(tuple) => {
-            let tuple = tuple
-                .iter()
-                .map(|e| {
-                    let expr = bool_expr_from_ast(ctx, e)?;
-                    Ok(expr)
-                })
-                .collect::<Result<Vec<ExprId>, CompileError>>()?;
-
-            let num_items = tuple.len();
-            (OfItems::BoolExprTuple(tuple), num_items)
+            let next_item_var = stack_frame.new_var(Type::Bool);
+            (
+                OfItems::BoolExprTuple(
+                    tuple
+                        .iter()
+                        .map(|e| {
+                            let expr = bool_expr_from_ast(ctx, e)?;
+                            Ok(expr)
+                        })
+                        .collect::<Result<Vec<ExprId>, CompileError>>()?,
+                ),
+                next_item_var,
+            )
         }
         // `x of them`, `x of ($a*, $b)`
-        ast::OfItems::PatternSet(pattern_set) => {
-            let pattern_indexes = pattern_set_from_ast(ctx, pattern_set)?;
-            let num_patterns = pattern_indexes.len();
-            (OfItems::PatternSet(pattern_indexes), num_patterns)
+        ast::OfItems::PatternSet(patterns) => {
+            let next_item_var = stack_frame.new_var(Type::Integer);
+            (
+                OfItems::PatternSet(pattern_set_from_ast(ctx, patterns)?),
+                next_item_var,
+            )
         }
     };
 
@@ -1035,14 +1058,14 @@ fn of_expr_from_ast(
     // the `of` expression is always false.
     if let Quantifier::Expr(expr) = &quantifier {
         if let Some(value) = ctx.ir.get(*expr).try_as_const_integer() {
-            if value > num_items.try_into().unwrap() {
+            if value > items.len().try_into().unwrap() {
                 ctx.warnings.add(|| warnings::InvariantBooleanExpression::build(
                     ctx.report_builder,
                     false,
                     of.span().into(),
                     Some(format!(
                         "the expression requires {} matching patterns out of {}",
-                        value, num_items
+                        value, items.len()
                     )),
                 ));
             }
@@ -1069,7 +1092,7 @@ fn of_expr_from_ast(
             // `all of <items> at <expr>`: the warning is raised only if there
             // are more than one item. `all of ($a) at 0` doesn't raise a
             // warning.
-            Quantifier::All { .. } => num_items > 1,
+            Quantifier::All { .. } => items.len() > 1,
             // `<expr> of <items> at <expr>: the warning is raised if <expr> is
             // 2 or more.
             Quantifier::Expr(expr) => match ctx.ir.get(*expr).type_value() {
@@ -1081,7 +1104,7 @@ fn of_expr_from_ast(
             Quantifier::Percentage(expr) => {
                 match ctx.ir.get(*expr).type_value() {
                     TypeValue::Integer(Value::Const(percentage)) => {
-                        num_items as f64 * percentage as f64 / 100.0 >= 2.0
+                        items.len() as f64 * percentage as f64 / 100.0 >= 2.0
                     }
                     _ => false,
                 }
@@ -1104,7 +1127,26 @@ fn of_expr_from_ast(
 
     ctx.vars.unwind(&stack_frame);
 
-    Ok(ctx.ir.of(quantifier, items, anchor, stack_frame))
+    let expr = match items {
+        // `x of (<boolean expr>, <boolean expr>, ...)`
+        OfItems::BoolExprTuple(exprs) => ctx.ir.of_expr_tuple(
+            quantifier,
+            for_vars,
+            next_item_var,
+            exprs,
+            anchor,
+        ),
+        // `x of them`, `x of ($a*, $b)`
+        OfItems::PatternSet(pattern_set) => ctx.ir.of_pattern_set(
+            quantifier,
+            for_vars,
+            next_item_var,
+            pattern_set,
+            anchor,
+        ),
+    };
+
+    Ok(expr)
 }
 
 fn for_of_expr_from_ast(
@@ -1113,10 +1155,19 @@ fn for_of_expr_from_ast(
 ) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &for_of.quantifier)?;
     let pattern_set = pattern_set_from_ast(ctx, &for_of.pattern_set)?;
+
     // Create new stack frame with 5 slots:
     //   1 slot for the loop variable, a pattern ID in this case
     //   4 up to slots used for loop control variables (see: emit::emit_for)
-    let stack_frame = ctx.vars.new_frame(5);
+    let mut stack_frame = ctx.vars.new_frame(5);
+
+    let for_vars = ForVars {
+        n: stack_frame.new_var(Type::Integer),
+        i: stack_frame.new_var(Type::Integer),
+        max_count: stack_frame.new_var(Type::Integer),
+        count: stack_frame.new_var(Type::Integer),
+    };
+
     let next_pattern_id = stack_frame.new_var(Type::Integer);
     let mut loop_vars = SymbolTable::new();
 
@@ -1140,9 +1191,9 @@ fn for_of_expr_from_ast(
     Ok(ctx.ir.for_of(
         quantifier,
         next_pattern_id,
+        for_vars,
         pattern_set,
         condition,
-        stack_frame,
     ))
 }
 
@@ -1191,7 +1242,7 @@ fn for_in_expr_from_ast(
     let quantifier = quantifier_from_ast(ctx, &for_in.quantifier)?;
     let iterable = iterable_from_ast(ctx, &for_in.iterable)?;
 
-    let expected_vars = match &iterable {
+    let (expected_vars, iterable_ty) = match &iterable {
         Iterable::Range(range) => {
             // Raise warning when the `for` loop iterates over a range that
             // may be very large.
@@ -1211,7 +1262,7 @@ fn for_in_expr_from_ast(
                 }
             }
 
-            vec![TypeValue::Integer(Value::Unknown)]
+            (vec![TypeValue::Integer(Value::Unknown)], Type::Unknown)
         }
         Iterable::ExprTuple(expressions) => {
             // All expressions in the tuple have the same type, we can use
@@ -1221,21 +1272,26 @@ fn for_in_expr_from_ast(
             // type as the first item in the tuple, but we don't want to
             // clone its actual value if known. The actual value for the
             // loop variable is not known until the loop is executed.
-            vec![expressions
-                .first()
-                .map(|node_idx| ctx.ir.get(*node_idx).type_value())
-                .unwrap()
-                .clone_without_value()]
+            (
+                vec![expressions
+                    .first()
+                    .map(|node_idx| ctx.ir.get(*node_idx).type_value())
+                    .unwrap()
+                    .clone_without_value()],
+                Type::Unknown,
+            )
         }
         Iterable::Expr(expr) => match ctx.ir.get(*expr).type_value() {
-            TypeValue::Array(array) => vec![array.deputy()],
+            TypeValue::Array(array) => (vec![array.deputy()], Type::Array),
             TypeValue::Map(map) => match map.as_ref() {
-                Map::IntegerKeys { .. } => {
-                    vec![TypeValue::Integer(Value::Unknown), map.deputy()]
-                }
-                Map::StringKeys { .. } => {
-                    vec![TypeValue::String(Value::Unknown), map.deputy()]
-                }
+                Map::IntegerKeys { .. } => (
+                    vec![TypeValue::Integer(Value::Unknown), map.deputy()],
+                    Type::Map,
+                ),
+                Map::StringKeys { .. } => (
+                    vec![TypeValue::String(Value::Unknown), map.deputy()],
+                    Type::Map,
+                ),
             },
             _ => unreachable!(),
         },
@@ -1259,11 +1315,17 @@ fn for_in_expr_from_ast(
         ));
     }
 
-    // Create stack frame with capacity for the loop variables, plus 4
-    // temporary variables used for controlling the loop (see emit_for),
-    // plus one additional variable used in loops over arrays and maps
-    // (see emit_for_in_array and emit_for_in_map).
-    let stack_frame = ctx.vars.new_frame(loop_vars.len() as i32 + 5);
+    let mut stack_frame = ctx.vars.new_frame(loop_vars.len() as i32 + 5);
+
+    let iterable_var = stack_frame.new_var(iterable_ty);
+
+    let for_vars = ForVars {
+        n: stack_frame.new_var(Type::Integer),
+        i: stack_frame.new_var(Type::Integer),
+        max_count: stack_frame.new_var(Type::Integer),
+        count: stack_frame.new_var(Type::Integer),
+    };
+
     let mut symbols = SymbolTable::new();
     let mut variables = Vec::new();
 
@@ -1288,7 +1350,14 @@ fn for_in_expr_from_ast(
 
     ctx.vars.unwind(&stack_frame);
 
-    Ok(ctx.ir.for_in(quantifier, variables, iterable, condition, stack_frame))
+    Ok(ctx.ir.for_in(
+        quantifier,
+        variables,
+        for_vars,
+        iterable_var,
+        iterable,
+        condition,
+    ))
 }
 
 fn with_expr_from_ast(
@@ -1296,7 +1365,7 @@ fn with_expr_from_ast(
     with: &ast::With,
 ) -> Result<ExprId, CompileError> {
     // Create stack frame with capacity for the with statement variables
-    let stack_frame = ctx.vars.new_frame(with.declarations.len() as i32);
+    let mut stack_frame = ctx.vars.new_frame(with.declarations.len() as i32);
     let mut symbols = SymbolTable::new();
     let mut declarations = Vec::new();
 
