@@ -21,12 +21,12 @@ use walrus::ValType::{I32, I64};
 use walrus::{FunctionId, InstrSeqBuilder, ValType};
 
 use crate::compiler::ir::{
-    Expr, ExprId, ForIn, ForOf, Iterable, MatchAnchor, Of, OfItems,
-    PatternIdx, Quantifier, IR,
+    Expr, ExprId, ForIn, ForOf, Iterable, MatchAnchor, PatternIdx, Quantifier,
+    IR,
 };
 use crate::compiler::{
-    FieldAccess, LiteralId, PatternId, RegexpId, RuleId, RuleInfo, Var,
-    VarStackFrame,
+    FieldAccess, ForVars, LiteralId, OfExprTuple, OfPatternSet, PatternId,
+    RegexpId, RuleId, RuleInfo, Var,
 };
 use crate::scanner::RuntimeObjectHandle;
 use crate::string_pool::{BStringPool, StringPool};
@@ -618,14 +618,13 @@ fn emit_expr(
             };
         }
 
-        Expr::Of(of) => match &of.items {
-            OfItems::PatternSet(_) => {
-                emit_of_pattern_set(ctx, ir, of, instr);
-            }
-            OfItems::BoolExprTuple(_) => {
-                emit_of_expr_tuple(ctx, ir, of, instr);
-            }
-        },
+        Expr::OfPatternSet(of_pattern_set) => {
+            emit_of_pattern_set(ctx, ir, of_pattern_set, instr);
+        }
+
+        Expr::OfExprTuple(of_expr_tuple) => {
+            emit_of_expr_tuple(ctx, ir, of_expr_tuple, instr)
+        }
 
         Expr::ForOf(for_of) => {
             emit_for_of_pattern_set(ctx, ir, for_of, instr);
@@ -1361,16 +1360,14 @@ fn emit_map_string_key_lookup(
 fn emit_of_pattern_set(
     ctx: &mut EmitContext,
     ir: &IR,
-    of: &Of,
+    of: &OfPatternSet,
     instr: &mut InstrSeqBuilder,
 ) {
-    let patterns = cast!(&of.items, OfItems::PatternSet);
+    debug_assert!(!of.items.is_empty());
 
-    debug_assert!(!patterns.is_empty());
-
-    let num_patterns = patterns.len();
-    let mut patterns = patterns.iter().cloned();
-    let next_pattern_id = of.stack_frame.new_var(Type::Integer);
+    let num_patterns = of.items.len();
+    let mut patterns = of.items.iter();
+    let next_pattern_id = of.next_pattern_var;
 
     // Make sure the pattern search phase is executed, as the `of` statement
     // depends on patterns.
@@ -1379,7 +1376,7 @@ fn emit_of_pattern_set(
     emit_for(
         ctx,
         ir,
-        &of.stack_frame,
+        &of.for_vars,
         &of.quantifier,
         |ctx, instr, n, _| {
             // Set n = number of patterns.
@@ -1394,7 +1391,7 @@ fn emit_of_pattern_set(
                 load_var(ctx, instr, i);
                 emit_switch(ctx, I64, instr, |ctx, instr| {
                     if let Some(pattern) = patterns.next() {
-                        instr.i64_const(ctx.pattern_id(pattern).into());
+                        instr.i64_const(ctx.pattern_id(*pattern).into());
                         return true;
                     }
                     false
@@ -1436,18 +1433,17 @@ fn emit_of_pattern_set(
 fn emit_of_expr_tuple(
     ctx: &mut EmitContext,
     ir: &IR,
-    of: &Of,
+    of: &OfExprTuple,
     instr: &mut InstrSeqBuilder,
 ) {
-    let expressions = cast!(&of.items, OfItems::BoolExprTuple);
-    let next_item = of.stack_frame.new_var(Type::Bool);
-    let num_expressions = expressions.len();
-    let mut expressions = expressions.iter();
+    let num_expressions = of.items.len();
+    let mut expressions = of.items.iter();
+    let next_item = of.next_expr_var;
 
     emit_for(
         ctx,
         ir,
-        &of.stack_frame,
+        &of.for_vars,
         &of.quantifier,
         |ctx, instr, n, _| {
             // Initialize `n` to number of expressions.
@@ -1492,7 +1488,7 @@ fn emit_for_of_pattern_set(
     emit_for(
         ctx,
         ir,
-        &for_of.stack_frame,
+        &for_of.for_vars,
         &for_of.quantifier,
         |ctx, instr, n, _| {
             // Set n = number of patterns.
@@ -1541,7 +1537,7 @@ fn emit_for_in_range(
     emit_for(
         ctx,
         ir,
-        &for_in.stack_frame,
+        &for_in.for_vars,
         &for_in.quantifier,
         // Loop initialization
         |ctx, instr, n, loop_end| {
@@ -1638,9 +1634,9 @@ fn emit_for_in_array(
     // The only variable contains the loop's next item.
     let next_item = for_in.variables[0];
 
-    // Create a variable `array_var`that will hold a reference to the array
-    // being iterated.
-    let array_var = for_in.stack_frame.new_var(Type::Array);
+    // The variable `array_var` will hold a reference to the array being
+    // iterated.
+    let array_var = for_in.iterable_var;
 
     // Emit the expression that returns the array and stores a reference to
     // it in `array_var`.
@@ -1651,7 +1647,7 @@ fn emit_for_in_array(
     emit_for(
         ctx,
         ir,
-        &for_in.stack_frame,
+        &for_in.for_vars,
         &for_in.quantifier,
         |ctx, instr, n, loop_end| {
             // Initialize `n` to the array's length.
@@ -1710,7 +1706,9 @@ fn emit_for_in_map(
     let next_key = for_in.variables[0];
     let next_val = for_in.variables[1];
 
-    let map_var = for_in.stack_frame.new_var(Type::Map);
+    // The variable `map_var` will hold a reference to the array being
+    // iterated.
+    let map_var = for_in.iterable_var;
 
     // Emit the expression that returns the map and stores a reference to
     // it in `map_var`.
@@ -1721,7 +1719,7 @@ fn emit_for_in_map(
     emit_for(
         ctx,
         ir,
-        &for_in.stack_frame,
+        &for_in.for_vars,
         &for_in.quantifier,
         |ctx, instr, n, loop_end| {
             // Initialize `n` to the map's length.
@@ -1782,7 +1780,7 @@ fn emit_for_in_expr_tuple(
     emit_for(
         ctx,
         ir,
-        &for_in.stack_frame,
+        &for_in.for_vars,
         &for_in.quantifier,
         |ctx, instr, n, _| {
             // Initialize `n` to number of expressions.
@@ -1856,7 +1854,7 @@ fn emit_for_in_expr_tuple(
 fn emit_for<I, B, C, A>(
     ctx: &mut EmitContext,
     ir: &IR,
-    stack_frame: &VarStackFrame,
+    for_vars: &ForVars,
     quantifier: &Quantifier,
     loop_init: I,
     before_cond: B,
@@ -1869,12 +1867,12 @@ fn emit_for<I, B, C, A>(
     C: FnOnce(&mut EmitContext, &mut InstrSeqBuilder),
     A: FnOnce(&mut EmitContext, &mut InstrSeqBuilder, Var),
 {
-    // Create variable `n`, which will contain the maximum number of iterations.
-    let n = stack_frame.new_var(Type::Integer);
+    // Variable `n` contains the maximum number of iterations.
+    let n = for_vars.n;
 
-    // Create variable `i`, which will contain the current iteration number.
+    // Variable `i` contains the current iteration number.
     // The value of `i` is in the range 0..n-1.
-    let i = stack_frame.new_var(Type::Integer);
+    let i = for_vars.i;
 
     // Function that increments `i` and checks if `i` < `n` after each
     // iteration, repeating the loop while the condition is true.
@@ -1919,10 +1917,10 @@ fn emit_for<I, B, C, A>(
             Some((quantifier, is_percentage)) => {
                 // `max_count` is the number of loop conditions that must return
                 // `true` for the loop to be `true`.
-                let max_count = stack_frame.new_var(Type::Integer);
+                let max_count = for_vars.max_count;
                 // `count` is the number of loop conditions that actually
                 // returned `true`. This is initially zero.
-                let count = stack_frame.new_var(Type::Integer);
+                let count = for_vars.count;
 
                 set_var(ctx, instr, max_count, |ctx, instr| {
                     if is_percentage {

@@ -41,7 +41,7 @@ use serde::{Deserialize, Serialize};
 use yara_x_parser::ast::Ident;
 use yara_x_parser::Span;
 
-use crate::compiler::context::{Var, VarStackFrame};
+use crate::compiler::context::Var;
 use crate::compiler::ir::dfs::{DepthFirstSearch, Event};
 use crate::re;
 use crate::symbols::Symbol;
@@ -840,19 +840,40 @@ impl IR {
         ExprId::from(self.nodes.len() - 1)
     }
 
-    /// Creates a new [`Expr::Of`]
-    pub fn of(
+    /// Creates a new [`Expr::OfExprTuple`]
+    pub fn of_expr_tuple(
         &mut self,
         quantifier: Quantifier,
-        items: OfItems,
+        for_vars: ForVars,
+        next_expr_var: Var,
+        items: Vec<ExprId>,
         anchor: MatchAnchor,
-        stack_frame: VarStackFrame,
     ) -> ExprId {
-        self.nodes.push(Expr::Of(Box::new(Of {
+        self.nodes.push(Expr::OfExprTuple(Box::new(OfExprTuple {
             quantifier,
             items,
             anchor,
-            stack_frame,
+            for_vars,
+            next_expr_var,
+        })));
+        ExprId::from(self.nodes.len() - 1)
+    }
+
+    /// Creates a new [`Expr::OfPatternSet`]
+    pub fn of_pattern_set(
+        &mut self,
+        quantifier: Quantifier,
+        for_vars: ForVars,
+        next_pattern_var: Var,
+        items: Vec<PatternIdx>,
+        anchor: MatchAnchor,
+    ) -> ExprId {
+        self.nodes.push(Expr::OfPatternSet(Box::new(OfPatternSet {
+            quantifier,
+            items,
+            anchor,
+            for_vars,
+            next_pattern_var,
         })));
         ExprId::from(self.nodes.len() - 1)
     }
@@ -862,16 +883,16 @@ impl IR {
         &mut self,
         quantifier: Quantifier,
         variable: Var,
+        for_vars: ForVars,
         pattern_set: Vec<PatternIdx>,
         condition: ExprId,
-        stack_frame: VarStackFrame,
     ) -> ExprId {
         self.nodes.push(Expr::ForOf(Box::new(ForOf {
             quantifier,
             variable,
             pattern_set,
             condition,
-            stack_frame,
+            for_vars,
         })));
         ExprId::from(self.nodes.len() - 1)
     }
@@ -881,16 +902,18 @@ impl IR {
         &mut self,
         quantifier: Quantifier,
         variables: Vec<Var>,
+        for_vars: ForVars,
+        iterable_var: Var,
         iterable: Iterable,
         condition: ExprId,
-        stack_frame: VarStackFrame,
     ) -> ExprId {
         self.nodes.push(Expr::ForIn(Box::new(ForIn {
             quantifier,
             variables,
+            for_vars,
+            iterable_var,
             iterable,
             condition,
-            stack_frame,
         })));
         ExprId::from(self.nodes.len() - 1)
     }
@@ -1009,7 +1032,8 @@ impl Debug for IR {
                         Expr::With { .. } => writeln!(f, "WITH")?,
                         Expr::Ident { symbol } => writeln!(f, "IDENT {:?}", symbol)?,
                         Expr::FuncCall(_) => writeln!(f, "FN_CALL")?,
-                        Expr::Of(_) => writeln!(f, "OF")?,
+                        Expr::OfExprTuple(_) => writeln!(f, "OF")?,
+                        Expr::OfPatternSet(_) => writeln!(f, "OF")?,
                         Expr::ForOf(_) => writeln!(f, "FOR_OF")?,
                         Expr::ForIn(_) => writeln!(f, "FOR_IN")?,
                         Expr::Lookup(_) => writeln!(f, "LOOKUP")?,
@@ -1317,8 +1341,11 @@ pub(crate) enum Expr {
     /// Function call.
     FuncCall(Box<FuncCall>),
 
-    /// An `of` expression (e.g. `1 of ($a, $b)`, `all of them`)
-    Of(Box<Of>),
+    /// An `of` expression with a tuple of expressions (e.g. `1 of (true, false)`).
+    OfExprTuple(Box<OfExprTuple>),
+
+    /// An `of` expression with at pattern set (e.g. `1 of ($a, $b)`, `all of them`).
+    OfPatternSet(Box<OfPatternSet>),
 
     /// A `for <quantifier> of ...` expression. (e.g. `for any of ($a, $b) : ( ... )`)
     ForOf(Box<ForOf>),
@@ -1357,13 +1384,22 @@ pub(crate) struct FuncCall {
     pub signature_index: usize,
 }
 
-/// An `of` expression (e.g. `1 of ($a, $b)`, `all of them`,
-/// `any of (true, false)`)
-pub(crate) struct Of {
+/// An `of` expression with a tuple of expressions (e.g. `1 of (true, false)`).
+pub(crate) struct OfExprTuple {
     pub quantifier: Quantifier,
-    pub items: OfItems,
+    pub items: Vec<ExprId>,
+    pub for_vars: ForVars,
+    pub next_expr_var: Var,
     pub anchor: MatchAnchor,
-    pub stack_frame: VarStackFrame,
+}
+
+/// An `of` expression with at pattern set (e.g. `1 of ($a, $b)`, `all of them`).
+pub(crate) struct OfPatternSet {
+    pub quantifier: Quantifier,
+    pub items: Vec<PatternIdx>,
+    pub for_vars: ForVars,
+    pub next_pattern_var: Var,
+    pub anchor: MatchAnchor,
 }
 
 /// A `for .. of` expression (e.g `for all of them : (..)`,
@@ -1371,18 +1407,19 @@ pub(crate) struct Of {
 pub(crate) struct ForOf {
     pub quantifier: Quantifier,
     pub variable: Var,
+    pub for_vars: ForVars,
     pub pattern_set: Vec<PatternIdx>,
     pub condition: ExprId,
-    pub stack_frame: VarStackFrame,
 }
 
 /// A `for .. in` expression (e.g `for all x in iterator : (..)`)
 pub(crate) struct ForIn {
     pub quantifier: Quantifier,
     pub variables: Vec<Var>,
+    pub for_vars: ForVars,
+    pub iterable_var: Var,
     pub iterable: Iterable,
     pub condition: ExprId,
-    pub stack_frame: VarStackFrame,
 }
 
 /// A quantifier used in `for` and `of` expressions.
@@ -1392,6 +1429,17 @@ pub(crate) enum Quantifier {
     Any,
     Percentage(ExprId),
     Expr(ExprId),
+}
+
+pub(crate) struct ForVars {
+    /// Maximum number of iterations.
+    pub n: Var,
+    /// Current iteration number.
+    pub i: Var,
+    /// Number of loop conditions that must return true.
+    pub max_count: Var,
+    /// Number of loop conditions that actually returned true.
+    pub count: Var,
 }
 
 /// In expressions like `$a at 0` and `$b in (0..10)`, this type represents the
@@ -1404,12 +1452,6 @@ pub(crate) enum MatchAnchor {
     None,
     At(ExprId),
     In(Range),
-}
-
-/// Items in a `of` expression.
-pub(crate) enum OfItems {
-    PatternSet(Vec<PatternIdx>),
-    BoolExprTuple(Vec<ExprId>),
 }
 
 /// A pair of values conforming a range (e.g. `(0..10)`).
@@ -1459,7 +1501,8 @@ impl Expr {
             | Expr::PatternMatch { .. }
             | Expr::PatternMatchVar { .. }
             | Expr::With { .. }
-            | Expr::Of(_)
+            | Expr::OfExprTuple(_)
+            | Expr::OfPatternSet(_)
             | Expr::ForOf(_)
             | Expr::ForIn(_) => Type::Bool,
 
@@ -1529,7 +1572,8 @@ impl Expr {
             | Expr::PatternMatch { .. }
             | Expr::PatternMatchVar { .. }
             | Expr::With { .. }
-            | Expr::Of(_)
+            | Expr::OfExprTuple(_)
+            | Expr::OfPatternSet(_)
             | Expr::ForOf(_)
             | Expr::ForIn(_) => TypeValue::Bool(Value::Unknown),
 

@@ -183,9 +183,23 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
                     self.stack.push(Event::Enter(fn_call.callable));
                 }
 
-                Expr::Of(of) => {
-                    push_anchor(&of.anchor, &mut self.stack);
-                    push_quantifier(&of.quantifier, &mut self.stack);
+                Expr::OfExprTuple(of_expr_tuple) => {
+                    push_anchor(&of_expr_tuple.anchor, &mut self.stack);
+                    for expr in of_expr_tuple.items.iter() {
+                        self.stack.push(Event::Enter(*expr));
+                    }
+                    push_quantifier(
+                        &of_expr_tuple.quantifier,
+                        &mut self.stack,
+                    );
+                }
+
+                Expr::OfPatternSet(of_pattern_set) => {
+                    push_anchor(&of_pattern_set.anchor, &mut self.stack);
+                    push_quantifier(
+                        &of_pattern_set.quantifier,
+                        &mut self.stack,
+                    );
                 }
 
                 Expr::ForOf(for_of) => {

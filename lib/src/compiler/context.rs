@@ -1,5 +1,4 @@
 use itertools::Itertools;
-use std::cell::Cell;
 use std::mem::size_of;
 use std::rc::Rc;
 
@@ -122,7 +121,7 @@ impl VarStack {
             panic!("variables stack overflow");
         }
 
-        VarStackFrame { start, capacity, used: Cell::new(0) }
+        VarStackFrame { start, capacity, used: 0 }
     }
 
     /// Unwinds the stack freeing all frames that were allocated after the
@@ -143,7 +142,7 @@ impl VarStack {
 pub(crate) struct VarStackFrame {
     start: i32,
     capacity: i32,
-    used: Cell<i32>,
+    used: i32,
 }
 
 impl VarStackFrame {
@@ -152,12 +151,12 @@ impl VarStackFrame {
     /// # Panics
     ///
     /// Panics if trying to allocate more variables than the frame capacity.
-    pub fn new_var(&self, ty: Type) -> Var {
-        let index = self.used.get() + self.start;
-        self.used.replace(self.used.get() + 1);
-        if self.used.get() > self.capacity {
+    pub fn new_var(&mut self, ty: Type) -> Var {
+        if self.used == self.capacity {
             panic!("VarStack exceeding its capacity: {}", self.capacity);
         }
+        let index = self.used + self.start;
+        self.used += 1;
         Var { ty, index }
     }
 }
