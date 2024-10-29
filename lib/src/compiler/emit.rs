@@ -373,7 +373,7 @@ fn emit_expr(
                                     emit_lookup_object(ctx, instr);
                                 }
                             }
-                            emit_func_call(ctx, &func, instr);
+                            emit_func_call(ctx, func, instr);
                             ctx.lookup_list.clear();
                         }
                         TypeValue::Regexp(_) => {
