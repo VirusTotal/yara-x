@@ -45,10 +45,8 @@ use crate::modules::BUILTIN_MODULES;
 use crate::re;
 use crate::re::hir::ChainedPattern;
 use crate::string_pool::{BStringPool, StringPool};
-use crate::symbols::{
-    StackedSymbolTable, Symbol, SymbolKind, SymbolLookup, SymbolTable,
-};
-use crate::types::{Func, Struct, TypeValue, Value};
+use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup, SymbolTable};
+use crate::types::{Func, Struct, TypeValue};
 use crate::utils::cast;
 use crate::variables::{is_valid_identifier, Variable, VariableError};
 use crate::wasm::builder::WasmModuleBuilder;
@@ -403,11 +401,7 @@ impl<'a> Compiler<'a> {
             .filter(|e| e.public && e.builtin())
         {
             let func = Rc::new(Func::from_mangled_name(export.mangled_name));
-
-            let symbol = Symbol::new(
-                TypeValue::Func(func.clone()),
-                SymbolKind::Func(func),
-            );
+            let symbol = Symbol::Func(func);
 
             global_symbols.borrow_mut().insert(export.name, symbol);
         }
@@ -995,9 +989,9 @@ impl<'a> Compiler<'a> {
         ident: &Ident,
     ) -> Result<(), CompileError> {
         if let Some(symbol) = self.symbol_table.lookup(ident.name) {
-            return match symbol.kind() {
+            return match symbol {
                 // Found another rule with the same name.
-                SymbolKind::Rule(rule_id) => Err(DuplicateRule::build(
+                Symbol::Rule(rule_id) => Err(DuplicateRule::build(
                     &self.report_builder,
                     ident.name.to_string(),
                     ident.span().into(),
@@ -1341,10 +1335,7 @@ impl<'a> Compiler<'a> {
         }
 
         // Create a new symbol of bool type for the rule.
-        let new_symbol = Symbol::new(
-            TypeValue::Bool(Value::Unknown),
-            SymbolKind::Rule(rule_id),
-        );
+        let new_symbol = Symbol::Rule(rule_id);
 
         // Insert the symbol in the symbol table corresponding to the
         // current namespace.

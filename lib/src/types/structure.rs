@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use crate::modules::protos::yara::exts::{
     enum_options, enum_value, field_options, message_options, module_options,
 };
-use crate::symbols::{Symbol, SymbolKind, SymbolLookup};
+use crate::symbols::{Symbol, SymbolLookup};
 use crate::types::{Array, Map, TypeValue, Value};
 use crate::wasm::WasmExport;
 
@@ -116,14 +116,12 @@ pub(crate) struct Struct {
 impl SymbolLookup for Struct {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         let (field, index) = self.field_and_index_by_name(ident)?;
-        Some(Symbol::new(
-            field.type_value.clone(),
-            SymbolKind::Field {
-                index,
-                is_root: self.is_root,
-                acl: field.acl.clone(),
-            },
-        ))
+        Some(Symbol::Field {
+            index,
+            is_root: self.is_root,
+            type_value: field.type_value.clone(),
+            acl: field.acl.clone(),
+        })
     }
 }
 

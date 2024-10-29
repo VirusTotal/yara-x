@@ -7,39 +7,39 @@ RULE test
       PATTERN_COUNT PatternIdx(1)
       FOR_IN
         FIELD_ACCESS
-          IDENT Symbol { type_value: struct, kind: Field { index: 0, is_root: true, acl: None } }
-          IDENT Symbol { type_value: array, kind: Field { index: 19, is_root: false, acl: None } }
+          IDENT Field { index: 0, is_root: true, type_value: struct, acl: None }
+          IDENT Field { index: 19, is_root: false, type_value: array, acl: None }
         AND
           LE
             FIELD_ACCESS
-              IDENT Symbol { type_value: struct, kind: Var(Var { ty: struct, index: 17 }) }
-              IDENT Symbol { type_value: integer(unknown), kind: Field { index: 0, is_root: false, acl: None } }
+              IDENT Var { var: Var { ty: struct, index: 17 }, type_value: struct }
+              IDENT Field { index: 0, is_root: false, type_value: integer(unknown), acl: None }
             PATTERN_OFFSET PatternIdx(0) INDEX
-              IDENT Symbol { type_value: integer(unknown), kind: Var(Var { ty: integer, index: 5 }) }
+              IDENT Var { var: Var { ty: integer, index: 5 }, type_value: integer(unknown) }
           LE
             PATTERN_OFFSET PatternIdx(0) INDEX
-              IDENT Symbol { type_value: integer(unknown), kind: Var(Var { ty: integer, index: 5 }) }
+              IDENT Var { var: Var { ty: integer, index: 5 }, type_value: integer(unknown) }
             ADD
               FIELD_ACCESS
-                IDENT Symbol { type_value: struct, kind: Var(Var { ty: struct, index: 17 }) }
-                IDENT Symbol { type_value: integer(unknown), kind: Field { index: 0, is_root: false, acl: None } }
+                IDENT Var { var: Var { ty: struct, index: 17 }, type_value: struct }
+                IDENT Field { index: 0, is_root: false, type_value: integer(unknown), acl: None }
               FIELD_ACCESS
-                IDENT Symbol { type_value: struct, kind: Var(Var { ty: struct, index: 17 }) }
-                IDENT Symbol { type_value: integer(unknown), kind: Field { index: 1, is_root: false, acl: None } }
+                IDENT Var { var: Var { ty: struct, index: 17 }, type_value: struct }
+                IDENT Field { index: 1, is_root: false, type_value: integer(unknown), acl: None }
           LE
             FIELD_ACCESS
-              IDENT Symbol { type_value: struct, kind: Var(Var { ty: struct, index: 17 }) }
-              IDENT Symbol { type_value: integer(unknown), kind: Field { index: 0, is_root: false, acl: None } }
+              IDENT Var { var: Var { ty: struct, index: 17 }, type_value: struct }
+              IDENT Field { index: 0, is_root: false, type_value: integer(unknown), acl: None }
             PATTERN_OFFSET PatternIdx(1) INDEX
-              IDENT Symbol { type_value: integer(unknown), kind: Var(Var { ty: integer, index: 11 }) }
+              IDENT Var { var: Var { ty: integer, index: 11 }, type_value: integer(unknown) }
           LE
             PATTERN_OFFSET PatternIdx(1) INDEX
-              IDENT Symbol { type_value: integer(unknown), kind: Var(Var { ty: integer, index: 11 }) }
+              IDENT Var { var: Var { ty: integer, index: 11 }, type_value: integer(unknown) }
             ADD
               FIELD_ACCESS
-                IDENT Symbol { type_value: struct, kind: Var(Var { ty: struct, index: 17 }) }
-                IDENT Symbol { type_value: integer(unknown), kind: Field { index: 0, is_root: false, acl: None } }
+                IDENT Var { var: Var { ty: struct, index: 17 }, type_value: struct }
+                IDENT Field { index: 0, is_root: false, type_value: integer(unknown), acl: None }
               FIELD_ACCESS
-                IDENT Symbol { type_value: struct, kind: Var(Var { ty: struct, index: 17 }) }
-                IDENT Symbol { type_value: integer(unknown), kind: Field { index: 1, is_root: false, acl: None } }
+                IDENT Var { var: Var { ty: struct, index: 17 }, type_value: struct }
+                IDENT Field { index: 1, is_root: false, type_value: integer(unknown), acl: None }
 

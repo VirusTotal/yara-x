@@ -3,20 +3,14 @@ use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 
 #[cfg(test)]
-use bstr::{BStr, ByteSlice};
+use bstr::BString;
 
 use crate::compiler::{RuleId, Var};
-use crate::types::{AclEntry, Func, TypeValue};
+use crate::types::{AclEntry, Func, Type, TypeValue, Value};
 
 /// Trait implemented by types that allow looking up for a symbol.
 pub(crate) trait SymbolLookup {
     fn lookup(&self, ident: &str) -> Option<Symbol>;
-}
-
-#[derive(Clone, Debug)]
-pub(crate) struct Symbol {
-    type_value: TypeValue,
-    kind: SymbolKind,
 }
 
 /// Kinds of symbol.
@@ -24,9 +18,9 @@ pub(crate) struct Symbol {
 /// Used by the compiler to determine how to generate code that
 /// accesses the symbol.
 #[derive(Clone, Debug)]
-pub(crate) enum SymbolKind {
+pub(crate) enum Symbol {
     /// The symbol refers to a WASM-side variable.
-    Var(Var),
+    Var { var: Var, type_value: TypeValue },
     /// The symbol refers to a field in a structure.
     Field {
         /// Index the field occupies in its parent structure.
@@ -35,6 +29,8 @@ pub(crate) enum SymbolKind {
         /// is `false` it refers to the structure whose reference is at the top
         /// of the WASM stack.
         is_root: bool,
+        /// Type and value for this field.
+        type_value: TypeValue,
         /// Access control list (ACL) for accessing this field.
         acl: Option<Vec<AclEntry>>,
     },
@@ -45,23 +41,27 @@ pub(crate) enum SymbolKind {
 }
 
 impl Symbol {
-    pub fn new(type_value: TypeValue, kind: SymbolKind) -> Self {
-        Self { type_value, kind }
+    pub fn ty(&self) -> Type {
+        match &self {
+            Symbol::Var { var, .. } => var.ty,
+            Symbol::Field { type_value, .. } => type_value.ty(),
+            Symbol::Rule(_) => Type::Bool,
+            Symbol::Func(_) => Type::Func,
+        }
     }
 
-    #[inline(always)]
-    pub fn type_value(&self) -> &TypeValue {
-        &self.type_value
-    }
-
-    #[inline(always)]
-    pub fn kind(&self) -> &SymbolKind {
-        &self.kind
+    pub fn type_value(&self) -> TypeValue {
+        match &self {
+            Symbol::Var { type_value, .. } => type_value.clone(),
+            Symbol::Field { type_value, .. } => type_value.clone(),
+            Symbol::Rule(_) => TypeValue::Bool(Value::Unknown),
+            Symbol::Func(func) => TypeValue::Func(func.clone()),
+        }
     }
 
     #[cfg(test)]
     fn as_integer(&self) -> Option<i64> {
-        if let TypeValue::Integer(value) = &self.type_value {
+        if let TypeValue::Integer(value) = self.type_value() {
             value.extract().cloned()
         } else {
             None
@@ -69,13 +69,9 @@ impl Symbol {
     }
 
     #[cfg(test)]
-    fn as_bstr(&self) -> Option<&BStr> {
-        if let TypeValue::String(value) = &self.type_value {
-            if let Some(s) = value.extract() {
-                Some(s.as_bstr())
-            } else {
-                None
-            }
+    fn as_string(&self) -> Option<BString> {
+        if let TypeValue::String(value) = self.type_value() {
+            value.extract().map(|s| BString::from(s.as_slice()))
         } else {
             None
         }
@@ -256,7 +252,7 @@ impl<'a> SymbolLookup for StackedSymbolTable<'a> {
 #[cfg(test)]
 #[cfg(feature = "test_proto2-module")]
 mod tests {
-    use bstr::BStr;
+    use bstr::BString;
 
     use crate::symbols::SymbolLookup;
     use crate::types::{Struct, Type};
@@ -275,22 +271,12 @@ mod tests {
             true,
         );
 
-        assert_eq!(
-            test.lookup("int32_zero").unwrap().type_value.ty(),
-            Type::Integer
-        );
+        assert_eq!(test.lookup("int32_zero").unwrap().ty(), Type::Integer);
+
+        assert_eq!(test.lookup("string_foo").unwrap().ty(), Type::String);
 
         assert_eq!(
-            test.lookup("string_foo").unwrap().type_value.ty(),
-            Type::String
-        );
-
-        assert_eq!(
-            test.lookup("nested")
-                .lookup("nested_int32_zero")
-                .unwrap()
-                .type_value
-                .ty(),
+            test.lookup("nested").lookup("nested_int32_zero").unwrap().ty(),
             Type::Integer
         );
 
@@ -374,8 +360,8 @@ mod tests {
         );
 
         assert_eq!(
-            structure.lookup("string_foo").unwrap().as_bstr(),
-            Some(BStr::new(b"foo"))
+            structure.lookup("string_foo").unwrap().as_string(),
+            Some(BString::from(b"foo"))
         );
 
         assert_eq!(
