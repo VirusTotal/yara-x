@@ -39,8 +39,8 @@ RULE test_5
   AND
     EQ
       FIELD_ACCESS
-        IDENT Symbol { type_value: struct, kind: Field(0, true) }
-        IDENT Symbol { type_value: integer(unknown), kind: Field(1, false) }
+        IDENT Field { index: 0, is_root: true, type_value: struct }
+        IDENT Field { index: 1, is_root: false, type_value: integer(unknown) }
       CONST integer(0)
     CONST boolean(true)
     NOT
@@ -49,8 +49,8 @@ RULE test_5
 RULE test_6
   ADD
     FIELD_ACCESS
-      IDENT Symbol { type_value: struct, kind: Field(0, true) }
-      IDENT Symbol { type_value: integer(unknown), kind: Field(1, false) }
+      IDENT Field { index: 0, is_root: true, type_value: struct }
+      IDENT Field { index: 1, is_root: false, type_value: integer(unknown) }
     CONST integer(1)
     CONST integer(2)
 

@@ -30,7 +30,7 @@ use crate::compiler::{
 };
 use crate::scanner::RuntimeObjectHandle;
 use crate::string_pool::{BStringPool, StringPool};
-use crate::symbols::SymbolKind;
+use crate::symbols::Symbol;
 use crate::types::{Array, Func, Map, Type, TypeValue, Value};
 use crate::utils::cast;
 use crate::wasm;
@@ -308,50 +308,51 @@ fn emit_expr(
         }
 
         Expr::Ident { symbol } => {
-            match symbol.kind() {
-                SymbolKind::Rule(rule_id) => {
+            match symbol.as_ref() {
+                Symbol::Rule(rule_id) => {
                     // Emit code that checks if a rule has matched, leaving
                     // zero or one at the top of the stack.
                     emit_check_for_rule_match(ctx, *rule_id, instr);
                 }
-                SymbolKind::Var(var) => {
+                Symbol::Func(func) => {
+                    emit_func_call(ctx, func, instr);
+                }
+                Symbol::Var { var, .. } => {
                     // The symbol represents a variable in WASM memory,
                     // emit code for loading its value into the stack.
                     load_var(ctx, instr, *var);
                 }
-                SymbolKind::Func(func) => {
-                    emit_func_call(ctx, func, instr);
-                }
-                SymbolKind::Field(index, root) => {
+                Symbol::Field { index, is_root, type_value, .. } => {
                     let index: i32 = (*index).try_into().unwrap();
-                    match symbol.type_value() {
+
+                    match type_value {
                         TypeValue::Integer(_) => {
-                            ctx.lookup_list.push((index, *root));
+                            ctx.lookup_list.push((index, *is_root));
                             emit_lookup_integer(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
                         TypeValue::Float(_) => {
-                            ctx.lookup_list.push((index, *root));
+                            ctx.lookup_list.push((index, *is_root));
                             emit_lookup_float(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
                         TypeValue::Bool(_) => {
-                            ctx.lookup_list.push((index, *root));
+                            ctx.lookup_list.push((index, *is_root));
                             emit_lookup_bool(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
                         TypeValue::String(_) => {
-                            ctx.lookup_list.push((index, *root));
+                            ctx.lookup_list.push((index, *is_root));
                             emit_lookup_string(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
                         TypeValue::Struct(_) => {
-                            ctx.lookup_list.push((index, *root));
+                            ctx.lookup_list.push((index, *is_root));
                             emit_lookup_object(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
                         TypeValue::Array(_) | TypeValue::Map(_) => {
-                            ctx.lookup_list.push((index, *root));
+                            ctx.lookup_list.push((index, *is_root));
                             emit_lookup_object(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
@@ -372,7 +373,7 @@ fn emit_expr(
                                     emit_lookup_object(ctx, instr);
                                 }
                             }
-                            emit_func_call(ctx, func, instr);
+                            emit_func_call(ctx, &func, instr);
                             ctx.lookup_list.clear();
                         }
                         TypeValue::Regexp(_) => {
@@ -929,8 +930,8 @@ fn emit_field_access(
     // Rust code.
     for operand in field_access.operands.iter().dropping_back(1) {
         if let Expr::Ident { symbol } = ir.get(*operand) {
-            if let SymbolKind::Field(index, root) = symbol.kind() {
-                ctx.lookup_list.push((*index as i32, *root));
+            if let Symbol::Field { index, is_root, .. } = symbol.as_ref() {
+                ctx.lookup_list.push((*index as i32, *is_root));
                 continue;
             }
         }
@@ -986,7 +987,7 @@ fn emit_pattern_match(
         }
         // When the pattern ID is not known, the ID is taken from a variable.
         Expr::PatternMatchVar { symbol, anchor } => {
-            if let SymbolKind::Var(var) = symbol.kind() {
+            if let Symbol::Var { var, .. } = symbol.as_ref() {
                 load_var(ctx, instr, *var);
                 // load_var returns an I64, convert it to I32 because
                 // PatternId is an I32.
@@ -1038,8 +1039,8 @@ fn emit_pattern_count(
             range
         }
         Expr::PatternCountVar { symbol, range } => {
-            match symbol.kind() {
-                SymbolKind::Var(var) => {
+            match symbol.as_ref() {
+                Symbol::Var { var, .. } => {
                     load_var(ctx, instr, *var);
                     // load_var returns an I64, convert it to I32.
                     instr.unop(UnaryOp::I32WrapI64);
@@ -1083,8 +1084,8 @@ fn emit_pattern_offset(
             index
         }
         Expr::PatternOffsetVar { symbol, index } => {
-            match symbol.kind() {
-                SymbolKind::Var(var) => {
+            match symbol.as_ref() {
+                Symbol::Var { var, .. } => {
                     load_var(ctx, instr, *var);
                     // load_var returns an I64, convert it to I32.
                     instr.unop(UnaryOp::I32WrapI64);
@@ -1132,8 +1133,8 @@ fn emit_pattern_length(
             index
         }
         Expr::PatternLengthVar { symbol, index } => {
-            match symbol.kind() {
-                SymbolKind::Var(var) => {
+            match symbol.as_ref() {
+                Symbol::Var { var, .. } => {
                     load_var(ctx, instr, *var);
                     // load_var returns an I64, convert it to I32.
                     instr.unop(UnaryOp::I32WrapI64);

@@ -33,7 +33,7 @@ use crate::compiler::{
 use crate::errors::PotentiallySlowLoop;
 use crate::modules::BUILTIN_MODULES;
 use crate::re;
-use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
+use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
 use crate::types::{Map, Regexp, Type, TypeValue, Value};
 
 /// How many patterns a rule can have. If a rule has more than this number of
@@ -1140,10 +1140,10 @@ fn for_of_expr_from_ast(
 
     loop_vars.insert(
         "$",
-        Symbol::new(
-            TypeValue::Integer(Value::Unknown),
-            SymbolKind::Var(next_pattern_id),
-        ),
+        Symbol::Var {
+            var: next_pattern_id,
+            type_value: TypeValue::Integer(Value::Unknown),
+        },
     );
 
     ctx.symbol_table.push(Rc::new(loop_vars));
@@ -1301,10 +1301,7 @@ fn for_in_expr_from_ast(
     for (loop_var, type_value) in iter::zip(loop_vars, expected_vars) {
         let var = stack_frame.new_var(type_value.ty());
         variables.push(var);
-        symbols.insert(
-            loop_var.name,
-            Symbol::new(type_value, SymbolKind::Var(var)),
-        );
+        symbols.insert(loop_var.name, Symbol::Var { var, type_value });
     }
 
     // Put the loop variables into scope.
@@ -1347,10 +1344,7 @@ fn with_expr_from_ast(
         declarations.push((var, expr));
 
         // Insert the variable into the symbol table.
-        symbols.insert(
-            item.identifier.name,
-            Symbol::new(type_value, SymbolKind::Var(var)),
-        );
+        symbols.insert(item.identifier.name, Symbol::Var { var, type_value });
     }
 
     // Put the with variables into scope.

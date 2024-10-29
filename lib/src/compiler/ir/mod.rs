@@ -1540,7 +1540,7 @@ impl Expr {
             | Expr::Shl { .. }
             | Expr::Shr { .. } => Type::Integer,
 
-            Expr::Ident { symbol, .. } => symbol.type_value().ty(),
+            Expr::Ident { symbol, .. } => symbol.ty(),
             Expr::FieldAccess(field_access) => field_access.type_value.ty(),
             Expr::FuncCall(fn_call) => fn_call.type_value.ty(),
             Expr::Lookup(lookup) => lookup.type_value.ty(),
