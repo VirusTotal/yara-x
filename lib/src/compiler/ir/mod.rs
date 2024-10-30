@@ -324,12 +324,6 @@ pub(crate) enum Error {
 
 pub(crate) struct ExprHashes(Vec<u64>);
 
-impl ExprHashes {
-    pub fn new(hashes: Vec<u64>) -> Self {
-        Self(hashes)
-    }
-}
-
 impl Index<ExprId> for ExprHashes {
     type Output = u64;
 
