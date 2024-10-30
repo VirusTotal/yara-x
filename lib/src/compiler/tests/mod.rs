@@ -86,29 +86,29 @@ fn var_stack() {
 
     assert_eq!(
         frame1.new_var(Type::Integer),
-        Var { ty: Type::Integer, index: 0 }
+        Var { frame_id: 1, ty: Type::Integer, index: 0 }
     );
 
     assert_eq!(
         frame1.new_var(Type::String),
-        Var { ty: Type::String, index: 1 }
+        Var { frame_id: 1, ty: Type::String, index: 1 }
     );
 
     // The first variable in the frame goes after the first two variables
     // already allocated in the stack.
     assert_eq!(
         frame2.new_var(Type::Integer),
-        Var { ty: Type::Integer, index: 4 }
+        Var { frame_id: 2, ty: Type::Integer, index: 4 }
     );
 
     assert_eq!(
         frame2.new_var(Type::Integer),
-        Var { ty: Type::Integer, index: 5 }
+        Var { frame_id: 2, ty: Type::Integer, index: 5 }
     );
 
     stack.unwind(&frame1);
 
-    assert_eq!(stack.used, 0);
+    assert_eq!(stack.used(), 0);
 }
 
 #[test]

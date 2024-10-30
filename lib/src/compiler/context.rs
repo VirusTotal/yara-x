@@ -96,13 +96,20 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
 /// This stack is stored in WASM main memory, in a memory region that goes
 /// from [`wasm::VARS_STACK_START`] to [`wasm::VARS_STACK_END`].
 pub(crate) struct VarStack {
-    pub used: i32,
+    frame_id: usize,
+    used: i32,
 }
 
 impl VarStack {
     /// Creates a stack of variables.
     pub fn new() -> Self {
-        Self { used: 0 }
+        Self { used: 0, frame_id: 0 }
+    }
+
+    /// Returns the number of variables that are actually used.
+    #[cfg(test)]
+    pub fn used(&self) -> i32 {
+        self.used
     }
 
     /// Creates a new stack frame with the given capacity on top of the
@@ -111,9 +118,14 @@ impl VarStack {
     ///
     /// Use [`VarStackFrame::new_var`] of allocating individual variables
     /// within a frame.
+    ///
+    /// Each stack frame has its own frame ID, which its unique among all
+    /// the frames returned by this function.
     pub fn new_frame(&mut self, capacity: i32) -> VarStackFrame {
         let start = self.used;
+
         self.used += capacity;
+        self.frame_id += 1;
 
         if self.used * Var::mem_size()
             > wasm::VARS_STACK_END - wasm::VARS_STACK_START
@@ -121,7 +133,7 @@ impl VarStack {
             panic!("variables stack overflow");
         }
 
-        VarStackFrame { start, capacity, used: 0 }
+        VarStackFrame { frame_id: self.frame_id, start, capacity, used: 0 }
     }
 
     /// Unwinds the stack freeing all frames that were allocated after the
@@ -140,8 +152,14 @@ impl VarStack {
 /// allocated within a frame.
 #[derive(Clone, Debug)]
 pub(crate) struct VarStackFrame {
+    /// Frame ID. This is unique among all past, present, and future
+    /// stack frames.
+    frame_id: usize,
+    /// Offset where the frame starts.
     start: i32,
+    /// Maximum number of variables that this frame can hold.
     capacity: i32,
+    /// Current number of variables in the frame.
     used: i32,
 }
 
@@ -157,13 +175,18 @@ impl VarStackFrame {
         }
         let index = self.used + self.start;
         self.used += 1;
-        Var { ty, index }
+        Var { frame_id: self.frame_id, ty, index }
     }
 }
 
 /// Represents a variable in the stack.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Hash)]
 pub(crate) struct Var {
+    /// The frame ID is simply a value that uniquely identify the stack
+    /// frame in which this variable resides. The frame ID allows distinguishing
+    /// two variables in the IR that have the same type and index, but that
+    /// are not actually the same variable.
+    pub frame_id: usize,
     /// The type of the variable
     pub ty: Type,
     /// The index corresponding to this variable. This index is used for

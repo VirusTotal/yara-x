@@ -1,63 +1,63 @@
 RULE test_1
-  EQ
+  EQ [0x1e87f9ecd59c9f97]
     CONST integer(1)
     CONST integer(1)
 
 RULE test_2
-  GT
-    DIV
+  GT [0x936af95517c74992]
+    DIV [0x75c0510b526a94ab]
       CONST integer(2)
       CONST integer(1)
     CONST integer(1)
 
 RULE test_3
-  LE
-    SHR
-      SHL
+  LE [0x63b2e857a1254c2b]
+    SHR [0x8dd6307742aa2311]
+      SHL [0x48eeb57428a0dbf0]
         CONST integer(1)
         CONST integer(2)
       CONST integer(1)
     CONST integer(2)
 
 RULE test_4
-  EQ
+  EQ [0x82d0fbda86ff9c76]
     CONST integer(8)
     CONST integer(8)
 
 RULE test_5
-  AND
-    EQ
-      FIELD_ACCESS
+  AND [0xf8ebdbba687cc112]
+    EQ [0x78262602520cebf1]
+      FIELD_ACCESS [0x6d93cf8c80a38e93]
         IDENT Field { index: 0, is_root: true, type_value: struct }
         IDENT Field { index: 1, is_root: false, type_value: integer(unknown) }
       CONST integer(0)
 
 RULE test_6
-  ADD
-    FIELD_ACCESS
+  ADD [0xeb09fb0c289a1e4a]
+    FIELD_ACCESS [0x6d93cf8c80a38e93]
       IDENT Field { index: 0, is_root: true, type_value: struct }
       IDENT Field { index: 1, is_root: false, type_value: integer(unknown) }
     CONST integer(1)
     CONST integer(2)
 
 RULE test_7
-  AND
-    CONTAINS
+  AND [0xb21fa80def581aea]
+    CONTAINS [0x702eaf70b18909ff]
       CONST string("foobar")
       CONST string("bar")
-    ICONTAINS
+    ICONTAINS [0xe30a191883a20729]
       CONST string("foobar")
       CONST string("BAR")
-    STARTS_WITH
+    STARTS_WITH [0xc963b1bf1e8d9506]
       CONST string("foobar")
       CONST string("foo")
-    ISTARTS_WITH
+    ISTARTS_WITH [0x1ce5974aa4aaacaa]
       CONST string("foobar")
       CONST string("FOO")
-    ENDS_WITH
+    ENDS_WITH [0x4394dbecb8c89956]
       CONST string("foobar")
       CONST string("bar")
-    IENDS_WITH
+    IENDS_WITH [0xb67045948ae19680]
       CONST string("foobar")
       CONST string("BAR")
 

@@ -1,45 +1,45 @@
 RULE test
-  FOR_IN
+  FOR_IN [0x99a2a38042db5122]
     CONST integer(0)
-    PATTERN_COUNT PatternIdx(0)
-    FOR_IN
+    PATTERN_COUNT PatternIdx(0) [0xa0a54267ad7f087f]
+    FOR_IN [0x72faaec8968d2cad]
       CONST integer(0)
-      PATTERN_COUNT PatternIdx(1)
-      FOR_IN
-        FIELD_ACCESS
+      PATTERN_COUNT PatternIdx(1) [0x5378b902c7004afb]
+      FOR_IN [0xca11ac274b61c7b1]
+        FIELD_ACCESS [0x7226744cca3b46]
           IDENT Field { index: 0, is_root: true, type_value: struct }
           IDENT Field { index: 19, is_root: false, type_value: array }
-        AND
-          LE
-            FIELD_ACCESS
-              IDENT Var { var: Var { ty: struct, index: 17 }, type_value: struct }
+        AND [0xb7cf927507bf6496]
+          LE [0x33cdc6e2f17a3eac]
+            FIELD_ACCESS [0xa441e24a6191870f]
+              IDENT Var { var: Var { frame_id: 3, ty: struct, index: 17 }, type_value: struct }
               IDENT Field { index: 0, is_root: false, type_value: integer(unknown) }
-            PATTERN_OFFSET PatternIdx(0) INDEX
-              IDENT Var { var: Var { ty: integer, index: 5 }, type_value: integer(unknown) }
-          LE
-            PATTERN_OFFSET PatternIdx(0) INDEX
-              IDENT Var { var: Var { ty: integer, index: 5 }, type_value: integer(unknown) }
-            ADD
-              FIELD_ACCESS
-                IDENT Var { var: Var { ty: struct, index: 17 }, type_value: struct }
+            PATTERN_OFFSET PatternIdx(0) INDEX [0xc12206c6ddd8d9c9]
+              IDENT Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+          LE [0xfceeb4c35fe4948]
+            PATTERN_OFFSET PatternIdx(0) INDEX [0xc12206c6ddd8d9c9]
+              IDENT Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            ADD [0x10e80dd91c17496c]
+              FIELD_ACCESS [0xa441e24a6191870f]
+                IDENT Var { var: Var { frame_id: 3, ty: struct, index: 17 }, type_value: struct }
                 IDENT Field { index: 0, is_root: false, type_value: integer(unknown) }
-              FIELD_ACCESS
-                IDENT Var { var: Var { ty: struct, index: 17 }, type_value: struct }
+              FIELD_ACCESS [0x571558e57b22c98b]
+                IDENT Var { var: Var { frame_id: 3, ty: struct, index: 17 }, type_value: struct }
                 IDENT Field { index: 1, is_root: false, type_value: integer(unknown) }
-          LE
-            FIELD_ACCESS
-              IDENT Var { var: Var { ty: struct, index: 17 }, type_value: struct }
+          LE [0xa9d3de09cdf88a2e]
+            FIELD_ACCESS [0xa441e24a6191870f]
+              IDENT Var { var: Var { frame_id: 3, ty: struct, index: 17 }, type_value: struct }
               IDENT Field { index: 0, is_root: false, type_value: integer(unknown) }
-            PATTERN_OFFSET PatternIdx(1) INDEX
-              IDENT Var { var: Var { ty: integer, index: 11 }, type_value: integer(unknown) }
-          LE
-            PATTERN_OFFSET PatternIdx(1) INDEX
-              IDENT Var { var: Var { ty: integer, index: 11 }, type_value: integer(unknown) }
-            ADD
-              FIELD_ACCESS
-                IDENT Var { var: Var { ty: struct, index: 17 }, type_value: struct }
+            PATTERN_OFFSET PatternIdx(1) INDEX [0x37281dedba57254c]
+              IDENT Var { var: Var { frame_id: 2, ty: integer, index: 11 }, type_value: integer(unknown) }
+          LE [0xd470a5399c77b4a4]
+            PATTERN_OFFSET PatternIdx(1) INDEX [0x37281dedba57254c]
+              IDENT Var { var: Var { frame_id: 2, ty: integer, index: 11 }, type_value: integer(unknown) }
+            ADD [0x10e80dd91c17496c]
+              FIELD_ACCESS [0xa441e24a6191870f]
+                IDENT Var { var: Var { frame_id: 3, ty: struct, index: 17 }, type_value: struct }
                 IDENT Field { index: 0, is_root: false, type_value: integer(unknown) }
-              FIELD_ACCESS
-                IDENT Var { var: Var { ty: struct, index: 17 }, type_value: struct }
+              FIELD_ACCESS [0x571558e57b22c98b]
+                IDENT Var { var: Var { frame_id: 3, ty: struct, index: 17 }, type_value: struct }
                 IDENT Field { index: 1, is_root: false, type_value: integer(unknown) }
 

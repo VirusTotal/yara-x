@@ -1954,8 +1954,9 @@ fn emit_for<I, B, C, A>(
                 (max_count, count)
             }
             _ => (
-                Var { ty: Type::Integer, index: 0 },
-                Var { ty: Type::Integer, index: 0 },
+                // Not really used, but we must return something.
+                Var::default(),
+                Var::default(),
             ),
         };
 

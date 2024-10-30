@@ -1,5 +1,6 @@
 #![cfg(feature = "debug-cmd")]
 use std::fs;
+use std::io::stdout;
 use std::path::PathBuf;
 
 use anyhow::Context;
@@ -21,6 +22,16 @@ pub fn ast() -> Command {
 pub fn cst() -> Command {
     super::command("cst")
         .about("Print Concrete Syntax Tree (CST) for a YARA source file")
+        .arg(
+            arg!(<RULES_PATH>)
+                .help("Path to YARA source file")
+                .value_parser(value_parser!(PathBuf)),
+        )
+}
+
+pub fn ir() -> Command {
+    super::command("ir")
+        .about("Print Intermediate Representation (IR) for a YARA source file")
         .arg(
             arg!(<RULES_PATH>)
                 .help("Path to YARA source file")
@@ -50,6 +61,7 @@ pub fn debug() -> Command {
         .arg_required_else_help(true)
         .subcommand(ast())
         .subcommand(cst())
+        .subcommand(ir())
         .subcommand(wasm())
         .subcommand(modules())
 }
@@ -58,6 +70,7 @@ pub fn exec_debug(args: &ArgMatches) -> anyhow::Result<()> {
     match args.subcommand() {
         Some(("ast", args)) => exec_ast(args),
         Some(("cst", args)) => exec_cst(args),
+        Some(("ir", args)) => exec_ir(args),
         Some(("wasm", args)) => exec_wasm(args),
         Some(("modules", args)) => exec_modules(args),
         _ => unreachable!(),
@@ -87,6 +100,20 @@ pub fn exec_cst(args: &ArgMatches) -> anyhow::Result<()> {
     let cst = parser.into_cst();
 
     println!("{cst:?}");
+    Ok(())
+}
+
+pub fn exec_ir(args: &ArgMatches) -> anyhow::Result<()> {
+    let rules_path = args.get_one::<PathBuf>("RULES_PATH").unwrap();
+
+    let src = fs::read(rules_path)
+        .with_context(|| format!("can not read `{}`", rules_path.display()))?;
+
+    let mut compiler = Compiler::new();
+
+    compiler.set_ir_writer(stdout());
+    compiler.add_source(src.as_slice())?;
+
     Ok(())
 }
 

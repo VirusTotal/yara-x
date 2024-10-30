@@ -1,5 +1,7 @@
 use std::fmt::{Debug, Display, Formatter};
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use std::{mem, ptr};
 
 use bstr::BString;
 use serde::{Deserialize, Serialize};
@@ -19,8 +21,9 @@ mod map;
 mod structure;
 
 /// The type of YARA expression or identifier.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Default, PartialEq, Hash)]
 pub(crate) enum Type {
+    #[default]
     Unknown,
     Integer,
     Float,
@@ -118,7 +121,7 @@ impl<T> Value<T> {
 /// /foobar/s
 /// /foobar/is
 /// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
 pub struct Regexp(String);
 
 impl Regexp {
@@ -175,6 +178,52 @@ pub(crate) enum TypeValue {
     Array(Rc<Array>),
     Map(Rc<Map>),
     Func(Rc<Func>),
+}
+
+impl Hash for TypeValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        mem::discriminant(self).hash(state);
+        match self {
+            TypeValue::Unknown => {}
+            TypeValue::Integer(v) => {
+                mem::discriminant(v).hash(state);
+                if let Value::Const(c) = v {
+                    c.hash(state);
+                }
+            }
+            TypeValue::Float(v) => {
+                mem::discriminant(v).hash(state);
+                if let Value::Const(c) = v {
+                    // f64 doesn't implement the Hash trait. We hash the binary
+                    // representation of the f64.
+                    f64::to_bits(*c).hash(state);
+                }
+            }
+            TypeValue::Bool(v) => {
+                mem::discriminant(v).hash(state);
+                if let Value::Const(c) = v {
+                    c.hash(state);
+                }
+            }
+            TypeValue::String(v) => {
+                mem::discriminant(v).hash(state);
+                if let Value::Const(c) = v {
+                    c.hash(state);
+                }
+            }
+            TypeValue::Regexp(v) => {
+                v.hash(state);
+            }
+            // In these cases we compute the hash of the reference itself,
+            // not the hash of the referenced objects. This speeds-up the
+            // hash computation because we don't need to traverse the
+            // objects.
+            TypeValue::Struct(v) => ptr::hash(&**v, state),
+            TypeValue::Array(v) => ptr::hash(&**v, state),
+            TypeValue::Map(v) => ptr::hash(&**v, state),
+            TypeValue::Func(v) => ptr::hash(&**v, state),
+        }
+    }
 }
 
 impl TypeValue {

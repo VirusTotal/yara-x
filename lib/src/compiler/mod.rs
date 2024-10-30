@@ -7,7 +7,6 @@ module implements the YARA compiler.
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
 use std::collections::HashSet;
-#[cfg(test)]
 use std::io::Write;
 use std::ops::RangeInclusive;
 use std::path::Path;
@@ -378,7 +377,6 @@ pub struct Compiler<'a> {
 
     /// Optional writer where the compiler writes the IR produced by each rule.
     /// This is used for test cases and debugging.
-    #[cfg(test)]
     ir_writer: Option<Box<dyn Write>>,
 }
 
@@ -463,7 +461,6 @@ impl<'a> Compiler<'a> {
             lit_pool: BStringPool::new(),
             regexp_pool: StringPool::new(),
             patterns: FxHashMap::default(),
-            #[cfg(test)]
             ir_writer: None,
         }
     }
@@ -1022,8 +1019,8 @@ impl<'a> Compiler<'a> {
     /// Representation (IR) of compiled conditions.
     ///
     /// This is used for testing and debugging purposes.
-    #[cfg(test)]
-    fn set_ir_writer<W: Write + 'static>(&mut self, w: W) -> &mut Self {
+    #[doc(hidden)]
+    pub fn set_ir_writer<W: Write + 'static>(&mut self, w: W) -> &mut Self {
         self.ir_writer = Some(Box::new(w));
         self
     }
@@ -1266,7 +1263,6 @@ impl<'a> Compiler<'a> {
             }
         };
 
-        #[cfg(test)]
         if let Some(w) = &mut self.ir_writer {
             writeln!(w, "RULE {}", rule.identifier.name).unwrap();
             writeln!(w, "{:?}", self.ir).unwrap();
@@ -2186,7 +2182,7 @@ impl From<LiteralId> for u64 {
 pub(crate) struct NamespaceId(i32);
 
 /// ID associated to each rule.
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Hash)]
 pub(crate) struct RuleId(i32);
 
 impl RuleId {

@@ -1,6 +1,8 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use std::{mem, ptr};
 
 #[cfg(test)]
 use bstr::BString;
@@ -36,6 +38,25 @@ pub(crate) enum Symbol {
     Rule(RuleId),
     /// The symbol refers to a function.
     Func(Rc<Func>),
+}
+
+impl Hash for Symbol {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        mem::discriminant(self).hash(state);
+        match self {
+            Symbol::Var { var, .. } => {
+                var.hash(state);
+            }
+            Symbol::Field { index, is_root, .. } => {
+                index.hash(state);
+                is_root.hash(state);
+            }
+            Symbol::Rule(rule_id) => {
+                rule_id.hash(state);
+            }
+            Symbol::Func(func) => ptr::hash(&**func, state),
+        }
+    }
 }
 
 impl Symbol {
