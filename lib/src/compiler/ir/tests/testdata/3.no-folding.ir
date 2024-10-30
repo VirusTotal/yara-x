@@ -1,16 +1,16 @@
 RULE test
-  OR
-    EQ
-      FN_CALL
-        FIELD_ACCESS
+  OR [0x99788476ae53b807]
+    EQ [0x6994bc80c1a4dce0]
+      FN_CALL [0x168a4f6687a1363c]
+        FIELD_ACCESS [0x860e335dcd575606]
           IDENT Field { index: 0, is_root: true, type_value: struct }
           IDENT Field { index: 4, is_root: false, type_value: function }
         CONST integer(0)
         FILESIZE
       CONST string("feba6c919e3797e7778e8f2e85fa033d")
-    EQ
-      FN_CALL
-        FIELD_ACCESS
+    EQ [0x1acc396ba27115f6]
+      FN_CALL [0x168a4f6687a1363c]
+        FIELD_ACCESS [0x860e335dcd575606]
           IDENT Field { index: 0, is_root: true, type_value: struct }
           IDENT Field { index: 4, is_root: false, type_value: function }
         CONST integer(0)

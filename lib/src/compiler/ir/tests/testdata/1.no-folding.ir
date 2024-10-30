@@ -1,77 +1,77 @@
 RULE test_1
-  EQ
-    SUB
-      ADD
+  EQ [0x65918958e229b41b]
+    SUB [0xbb5b2d3c003a978d]
+      ADD [0x32e284abcc26d05b]
         CONST integer(1)
         CONST integer(1)
       CONST integer(1)
     CONST integer(1)
 
 RULE test_2
-  GT
-    DIV
-      MUL
+  GT [0x931bcdb2c7afb608]
+    DIV [0xf2b3602767487d08]
+      MUL [0x23a380280d1b4f32]
         CONST integer(1)
         CONST integer(2)
       CONST integer(1)
     CONST integer(1)
 
 RULE test_3
-  LE
-    SHR
-      SHL
+  LE [0x63b2e857a1254c2b]
+    SHR [0x8dd6307742aa2311]
+      SHL [0x48eeb57428a0dbf0]
         CONST integer(1)
         CONST integer(2)
       CONST integer(1)
     CONST integer(2)
 
 RULE test_4
-  EQ
-    SUB
+  EQ [0x2240111cff945ff5]
+    SUB [0xa076dada583953db]
       CONST integer(4)
-      MUL
-        MINUS
+      MUL [0xd1635797e1f50589]
+        MINUS [0xb5577ca94105cb4b]
           CONST integer(2)
         CONST integer(2)
     CONST integer(8)
 
 RULE test_5
-  AND
-    EQ
-      FIELD_ACCESS
+  AND [0x1e7c6065ed040c49]
+    EQ [0x78262602520cebf1]
+      FIELD_ACCESS [0x6d93cf8c80a38e93]
         IDENT Field { index: 0, is_root: true, type_value: struct }
         IDENT Field { index: 1, is_root: false, type_value: integer(unknown) }
       CONST integer(0)
     CONST boolean(true)
-    NOT
+    NOT [0x2c3c4fda5217a5f3]
       CONST boolean(false)
 
 RULE test_6
-  ADD
-    FIELD_ACCESS
+  ADD [0xeb09fb0c289a1e4a]
+    FIELD_ACCESS [0x6d93cf8c80a38e93]
       IDENT Field { index: 0, is_root: true, type_value: struct }
       IDENT Field { index: 1, is_root: false, type_value: integer(unknown) }
     CONST integer(1)
     CONST integer(2)
 
 RULE test_7
-  AND
-    CONTAINS
+  AND [0xb21fa80def581aea]
+    CONTAINS [0x702eaf70b18909ff]
       CONST string("foobar")
       CONST string("bar")
-    ICONTAINS
+    ICONTAINS [0xe30a191883a20729]
       CONST string("foobar")
       CONST string("BAR")
-    STARTS_WITH
+    STARTS_WITH [0xc963b1bf1e8d9506]
       CONST string("foobar")
       CONST string("foo")
-    ISTARTS_WITH
+    ISTARTS_WITH [0x1ce5974aa4aaacaa]
       CONST string("foobar")
       CONST string("FOO")
-    ENDS_WITH
+    ENDS_WITH [0x4394dbecb8c89956]
       CONST string("foobar")
       CONST string("bar")
-    IENDS_WITH
+    IENDS_WITH [0xb67045948ae19680]
       CONST string("foobar")
       CONST string("BAR")
 
