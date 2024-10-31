@@ -1,63 +1,63 @@
 RULE test_1
-  EQ [0x1e87f9ecd59c9f97]
-    CONST integer(1)
-    CONST integer(1)
+  id:12 parent:None:  EQ [0x1e87f9ecd59c9f97]
+    id:10 parent:12:  CONST integer(1)
+    id:11 parent:12:  CONST integer(1)
 
 RULE test_2
-  GT [0x936af95517c74992]
-    DIV [0x75c0510b526a94ab]
-      CONST integer(2)
-      CONST integer(1)
-    CONST integer(1)
+  id:6 parent:None:  GT [0x936af95517c74992]
+    id:4 parent:6:  DIV [0x75c0510b526a94ab]
+      id:2 parent:4:  CONST integer(2)
+      id:3 parent:4:  CONST integer(1)
+    id:5 parent:6:  CONST integer(1)
 
 RULE test_3
-  LE [0x63b2e857a1254c2b]
-    SHR [0x8dd6307742aa2311]
-      SHL [0x48eeb57428a0dbf0]
-        CONST integer(1)
-        CONST integer(2)
-      CONST integer(1)
-    CONST integer(2)
+  id:6 parent:None:  LE [0x63b2e857a1254c2b]
+    id:4 parent:6:  SHR [0x8dd6307742aa2311]
+      id:2 parent:4:  SHL [0x48eeb57428a0dbf0]
+        id:0 parent:2:  CONST integer(1)
+        id:1 parent:2:  CONST integer(2)
+      id:3 parent:4:  CONST integer(1)
+    id:5 parent:6:  CONST integer(2)
 
 RULE test_4
-  EQ [0x82d0fbda86ff9c76]
-    CONST integer(8)
-    CONST integer(8)
+  id:14 parent:None:  EQ [0x82d0fbda86ff9c76]
+    id:12 parent:14:  CONST integer(8)
+    id:13 parent:14:  CONST integer(8)
 
 RULE test_5
-  AND [0xf8ebdbba687cc112]
-    EQ [0x78262602520cebf1]
-      FIELD_ACCESS [0x6d93cf8c80a38e93]
-        IDENT Field { index: 0, is_root: true, type_value: struct }
-        IDENT Field { index: 1, is_root: false, type_value: integer(unknown) }
-      CONST integer(0)
+  id:12 parent:None:  AND [0xf8ebdbba687cc112]
+    id:8 parent:12:  EQ [0x78262602520cebf1]
+      id:6 parent:8:  FIELD_ACCESS [0x6d93cf8c80a38e93]
+        id:4 parent:6:  IDENT Field { index: 0, is_root: true, type_value: struct }
+        id:5 parent:6:  IDENT Field { index: 1, is_root: false, type_value: integer(unknown) }
+      id:7 parent:8:  CONST integer(0)
 
 RULE test_6
-  ADD [0xeb09fb0c289a1e4a]
-    FIELD_ACCESS [0x6d93cf8c80a38e93]
-      IDENT Field { index: 0, is_root: true, type_value: struct }
-      IDENT Field { index: 1, is_root: false, type_value: integer(unknown) }
-    CONST integer(1)
-    CONST integer(2)
+  id:5 parent:None:  ADD [0xeb09fb0c289a1e4a]
+    id:2 parent:5:  FIELD_ACCESS [0x6d93cf8c80a38e93]
+      id:0 parent:2:  IDENT Field { index: 0, is_root: true, type_value: struct }
+      id:1 parent:2:  IDENT Field { index: 1, is_root: false, type_value: integer(unknown) }
+    id:3 parent:5:  CONST integer(1)
+    id:4 parent:5:  CONST integer(2)
 
 RULE test_7
-  AND [0xb21fa80def581aea]
-    CONTAINS [0x702eaf70b18909ff]
-      CONST string("foobar")
-      CONST string("bar")
-    ICONTAINS [0xe30a191883a20729]
-      CONST string("foobar")
-      CONST string("BAR")
-    STARTS_WITH [0xc963b1bf1e8d9506]
-      CONST string("foobar")
-      CONST string("foo")
-    ISTARTS_WITH [0x1ce5974aa4aaacaa]
-      CONST string("foobar")
-      CONST string("FOO")
-    ENDS_WITH [0x4394dbecb8c89956]
-      CONST string("foobar")
-      CONST string("bar")
-    IENDS_WITH [0xb67045948ae19680]
-      CONST string("foobar")
-      CONST string("BAR")
+  id:18 parent:None:  AND [0xb21fa80def581aea]
+    id:2 parent:18:  CONTAINS [0x702eaf70b18909ff]
+      id:0 parent:2:  CONST string("foobar")
+      id:1 parent:2:  CONST string("bar")
+    id:5 parent:18:  ICONTAINS [0xe30a191883a20729]
+      id:3 parent:5:  CONST string("foobar")
+      id:4 parent:5:  CONST string("BAR")
+    id:8 parent:18:  STARTS_WITH [0xc963b1bf1e8d9506]
+      id:6 parent:8:  CONST string("foobar")
+      id:7 parent:8:  CONST string("foo")
+    id:11 parent:18:  ISTARTS_WITH [0x1ce5974aa4aaacaa]
+      id:9 parent:11:  CONST string("foobar")
+      id:10 parent:11:  CONST string("FOO")
+    id:14 parent:18:  ENDS_WITH [0x4394dbecb8c89956]
+      id:12 parent:14:  CONST string("foobar")
+      id:13 parent:14:  CONST string("bar")
+    id:17 parent:18:  IENDS_WITH [0xb67045948ae19680]
+      id:15 parent:17:  CONST string("foobar")
+      id:16 parent:17:  CONST string("BAR")
 

@@ -2,7 +2,8 @@ use std::fs;
 use std::io::BufWriter;
 use std::mem::size_of;
 
-use crate::compiler::Expr;
+use crate::compiler::{Expr, IR};
+use crate::types::TypeValue;
 use crate::Compiler;
 
 #[test]
@@ -10,6 +11,45 @@ fn expr_size() {
     // Sentinel test for making sure tha Expr doesn't grow in future
     // changes.
     assert_eq!(size_of::<Expr>(), 32);
+}
+
+#[test]
+fn ancestors() {
+    let mut ir = IR::new();
+
+    let const_1 = ir.constant(TypeValue::const_integer_from(1));
+    let const_2 = ir.constant(TypeValue::const_integer_from(2));
+    let const_3 = ir.constant(TypeValue::const_integer_from(2));
+    let add = ir.add(vec![const_2, const_3]).unwrap();
+    let root = ir.add(vec![const_1, add]).unwrap();
+
+    let mut ancestors = ir.ancestors(const_3);
+    assert_eq!(ancestors.next(), Some(add));
+    assert_eq!(ancestors.next(), Some(root));
+    assert_eq!(ancestors.next(), None);
+
+    let mut ancestors = ir.ancestors(const_1);
+    assert_eq!(ancestors.next(), Some(root));
+    assert_eq!(ancestors.next(), None);
+
+    let mut ancestors = ir.ancestors(root);
+    assert_eq!(ancestors.next(), None);
+}
+
+#[test]
+fn common_ancestor() {
+    let mut ir = IR::new();
+
+    let const_1 = ir.constant(TypeValue::const_integer_from(1));
+    let const_2 = ir.constant(TypeValue::const_integer_from(2));
+    let const_3 = ir.constant(TypeValue::const_integer_from(2));
+    let add = ir.add(vec![const_2, const_3]).unwrap();
+    let root = ir.add(vec![const_1, add]).unwrap();
+
+    assert_eq!(ir.common_ancestor(&[const_1, const_3]), root);
+    assert_eq!(ir.common_ancestor(&[const_2, const_3]), add);
+    assert_eq!(ir.common_ancestor(&[const_1, const_1]), const_1);
+    assert_eq!(ir.common_ancestor(&[const_1, add, const_2]), root);
 }
 
 #[test]

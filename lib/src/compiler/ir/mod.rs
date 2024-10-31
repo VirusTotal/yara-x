@@ -37,7 +37,8 @@ use std::ops::RangeInclusive;
 
 use bitmask::bitmask;
 use bstr::BString;
-use rustc_hash::FxHasher;
+use itertools::Itertools;
+use rustc_hash::{FxHashMap, FxHasher};
 use serde::{Deserialize, Serialize};
 
 use yara_x_parser::ast::Ident;
@@ -307,8 +308,24 @@ impl From<usize> for PatternIdx {
 }
 
 /// Identifies an expression in the IR tree.
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) struct ExprId(u32);
+
+impl ExprId {
+    pub const fn none() -> Self {
+        ExprId(u32::MAX)
+    }
+}
+
+impl Debug for ExprId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.0 == u32::MAX {
+            write!(f, "None")
+        } else {
+            write!(f, "{}", self.0)
+        }
+    }
+}
 
 impl From<usize> for ExprId {
     #[inline]
@@ -344,14 +361,26 @@ impl Index<ExprId> for ExprHashes {
 /// which is an index in the vector.
 pub(crate) struct IR {
     constant_folding: bool,
+    /// The [`ExprId`] corresponding to the root node.
     root: Option<ExprId>,
+    /// Vector that contains all the nodes in the IR. An [`ExprId`] is an index
+    /// within this vector.
     nodes: Vec<Expr>,
+    /// Vector that indicates the parent of a node. An [`ExprId`] is an index
+    /// within this vector. `parents[expr_id]` returns the node of the expression
+    /// identified by `expr_id`.
+    parents: Vec<ExprId>,
 }
 
 impl IR {
     /// Creates a new [`IR`].
     pub fn new() -> Self {
-        Self { nodes: Vec::new(), root: None, constant_folding: false }
+        Self {
+            nodes: Vec::new(),
+            parents: Vec::new(),
+            root: None,
+            constant_folding: false,
+        }
     }
 
     /// Enable constant folding.
@@ -362,7 +391,8 @@ impl IR {
 
     /// Clears the tree, removing all nodes.
     pub fn clear(&mut self) {
-        self.nodes.clear()
+        self.nodes.clear();
+        self.parents.clear();
     }
 
     /// Returns a reference to the [`Expr`] at the given index in the tree.
@@ -413,13 +443,68 @@ impl IR {
         None
     }
 
+    /// Returns an iterator that yields the ancestors of the given expression.
+    ///
+    /// The first item yielded by the iterator is the [`ExprId`] corresponding
+    /// to the parent of `expr`, and then keeps going up the ancestors chain
+    /// until it reaches the root expression.
+    pub fn ancestors(&self, expr: ExprId) -> Ancestors<'_> {
+        Ancestors { ir: self, current: expr }
+    }
+
+    /// Finds the common ancestor of a given set of expressions in the IR tree.
+    ///
+    /// This function traverses the ancestor chain of each expression to identify
+    /// where they converge. In the worst-case scenario, the common ancestor will
+    /// be the root expression.
+    pub fn common_ancestor(&self, exprs: &[ExprId]) -> ExprId {
+        if exprs.is_empty() {
+            return ExprId::none();
+        }
+
+        // Vector where each item is an ancestors iterator for one of the
+        // expressions passed to this function.
+        let mut ancestor_iterators: Vec<Ancestors> =
+            exprs.iter().map(|expr| self.ancestors(*expr)).collect();
+
+        let mut exprs = exprs.to_vec();
+
+        // In each iteration of this loop, we move one step up the ancestor
+        // chain for each expression, except for the expression with the highest
+        // ExprId. This process continues until all ancestor chains converge at
+        // the same ExprId.
+        //
+        // This algorithm leverages the property that each node in the IR tree
+        // has a higher ExprId than any of its descendants. This means that if
+        // node A has a lower ExprId than node B, B cannot be a descendant of
+        // A. We can therefore traverse up A’s ancestor chain until finding B
+        // or some other node with an ExprId higher than B's.
+        while !exprs.iter().all_equal() {
+            let max = exprs.iter().cloned().max().unwrap();
+            let expr_with_ancestors =
+                exprs.iter_mut().zip(&mut ancestor_iterators);
+            // Advance the ancestor iterators by one, except the iterator
+            // corresponding to the expression with the highest ExprId.
+            for (expr, ancestors) in expr_with_ancestors {
+                if *expr != max {
+                    *expr = ancestors.next().unwrap();
+                }
+            }
+        }
+
+        // At this point all expressions have converged to the same ExprId, we
+        // can return any of them.
+        exprs[0]
+    }
+
     /// Computes the hash corresponding to each expression in the IR.
     ///
-    /// Returns a [`ExprHashes`] type containing the hashes. This object
-    /// can be indexed by a [`ExprId`] for obtaining the hash corresponding
-    /// to a given expression.
-    pub fn compute_expr_hashes(&self, start: ExprId) -> ExprHashes {
-        let mut hashes = vec![0; self.nodes.len()];
+    /// For each expression in the IR the `f` is invoked with the [`ExprId`]
+    /// and the hash corresponding to the expression.
+    pub fn compute_expr_hashes<F>(&self, start: ExprId, mut f: F)
+    where
+        F: FnMut(ExprId, u64),
+    {
         let mut hashers = Vec::new();
 
         // Function that decides which expressions should be ignored. Some
@@ -446,33 +531,87 @@ impl IR {
                 Event::Leave((expr_id, expr)) => {
                     if !ignore(expr) {
                         let hasher = hashers.pop().unwrap();
-                        hashes[expr_id.0 as usize] = hasher.finish();
+                        f(expr_id, hasher.finish());
                     }
                 }
             }
         }
+    }
 
-        ExprHashes(hashes)
+    pub fn find_duplicates(&self) {
+        // Vector with expression hashes. `hashes[ExprId]` is the hash for
+        // the expression identified by `ExprId`.
+        let mut hashes = vec![0; self.nodes.len()];
+
+        // A map where keys are expression hashes and values vectors with
+        // the ExprId of every expression with the hash indicated in the
+        // key.
+        let mut map: FxHashMap<u64, Vec<ExprId>> = FxHashMap::default();
+
+        self.compute_expr_hashes(self.root.unwrap(), |expr_id, hash| {
+            hashes[expr_id.0 as usize] = hash;
+            map.entry(hash).or_default().push(expr_id);
+        });
+
+        let mut dfs = self.dfs_iter(self.root.unwrap());
+
+        while let Some(evt) = dfs.next() {
+            match evt {
+                Event::Enter((expr_id, expr)) => {
+                    // Get hash for the current expression.
+                    let hash = hashes[expr_id.0 as usize];
+                    // Get vector with all the expressions that have the same
+                    // hash as the current expression, including the current
+                    // expression itself.
+                    let exprs = map.get(&hash).unwrap();
+                    // `exprs` can not be empty, as it must have at least the
+                    // current expression.
+                    let first = exprs.first().unwrap();
+
+                    // When the current expression is equal to some other
+                    // expression, we don't want to traverse its children, as
+                    // the children are going to be equal to the other
+                    // expression's children.
+                    if exprs.len() > 1 {
+                        dfs.prune();
+                    }
+
+                    if exprs.len() > 1 && *first == expr_id {
+                        todo!()
+                    }
+                }
+                Event::Leave(_) => {}
+            }
+        }
     }
 }
 
 impl IR {
     /// Creates a new [`Expr::FileSize`].
     pub fn filesize(&mut self) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Filesize);
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::Const`].
     pub fn constant(&mut self, type_value: TypeValue) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Const(type_value));
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::Ident`].
     pub fn ident(&mut self, symbol: Symbol) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Ident { symbol: Box::new(symbol) });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::Lookup`].
@@ -482,12 +621,17 @@ impl IR {
         primary: ExprId,
         index: ExprId,
     ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[primary.0 as usize] = expr_id;
+        self.parents[index.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Lookup(Box::new(Lookup {
             type_value,
             primary,
             index,
         })));
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::Not`].
@@ -497,8 +641,12 @@ impl IR {
                 return self.constant(TypeValue::const_bool_from(!v));
             }
         }
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[operand.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Not { operand });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::And`].
@@ -528,8 +676,14 @@ impl IR {
             }
         }
 
+        let expr_id = ExprId::from(self.nodes.len());
+        for operand in operands.iter() {
+            self.parents[operand.0 as usize] = expr_id;
+        }
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::And { operands });
-        Ok(ExprId::from(self.nodes.len() - 1))
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        Ok(expr_id)
     }
 
     /// Creates a new [`Expr::Or`].
@@ -559,8 +713,14 @@ impl IR {
             }
         }
 
+        let expr_id = ExprId::from(self.nodes.len());
+        for operand in operands.iter() {
+            self.parents[operand.0 as usize] = expr_id;
+        }
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Or { operands });
-        Ok(ExprId::from(self.nodes.len() - 1))
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        Ok(expr_id)
     }
 
     /// Creates a new [`Expr::Minus`].
@@ -576,53 +736,91 @@ impl IR {
                 _ => {}
             }
         }
+
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[operand.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Minus {
             operand,
             is_float: matches!(self.get(operand).ty(), Type::Float),
         });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::Defined`].
     pub fn defined(&mut self, operand: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[operand.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Defined { operand });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::BitwiseNot`].
     pub fn bitwise_not(&mut self, operand: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[operand.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::BitwiseNot { operand });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::BitwiseAnd`].
     pub fn bitwise_and(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents[rhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::BitwiseAnd { lhs, rhs });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::BitwiseOr`].
     pub fn bitwise_or(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents[rhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::BitwiseOr { lhs, rhs });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::BitwiseXor`].
     pub fn bitwise_xor(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents[rhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::BitwiseXor { lhs, rhs });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::Shl`].
     pub fn shl(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents[rhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Shl { lhs, rhs });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::Shr`].
     pub fn shr(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents[rhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Shr { lhs, rhs });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::Add`].
@@ -641,8 +839,14 @@ impl IR {
             }
         }
 
+        let expr_id = ExprId::from(self.nodes.len());
+        for operand in operands.iter() {
+            self.parents[operand.0 as usize] = expr_id;
+        }
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Add { operands, is_float });
-        Ok(ExprId::from(self.nodes.len() - 1))
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        Ok(expr_id)
     }
 
     /// Creates a new [`Expr::Sub`].
@@ -661,8 +865,14 @@ impl IR {
             }
         }
 
+        let expr_id = ExprId::from(self.nodes.len());
+        for operand in operands.iter() {
+            self.parents[operand.0 as usize] = expr_id;
+        }
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Sub { operands, is_float });
-        Ok(ExprId::from(self.nodes.len() - 1))
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        Ok(expr_id)
     }
 
     /// Creates a new [`Expr::Mul`].
@@ -681,8 +891,14 @@ impl IR {
             }
         }
 
+        let expr_id = ExprId::from(self.nodes.len());
+        for operand in operands.iter() {
+            self.parents[operand.0 as usize] = expr_id;
+        }
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Mul { operands, is_float });
-        Ok(ExprId::from(self.nodes.len() - 1))
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        Ok(expr_id)
     }
 
     /// Creates a new [`Expr::Div`].
@@ -690,108 +906,195 @@ impl IR {
         let is_float = operands
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
+        let expr_id = ExprId::from(self.nodes.len());
+        for operand in operands.iter() {
+            self.parents[operand.0 as usize] = expr_id;
+        }
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Div { operands, is_float });
-        Ok(ExprId::from(self.nodes.len() - 1))
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        Ok(expr_id)
     }
 
     /// Creates a new [`Expr::Mod`].
     pub fn modulus(&mut self, operands: Vec<ExprId>) -> Result<ExprId, Error> {
+        let expr_id = ExprId::from(self.nodes.len());
+        for operand in operands.iter() {
+            self.parents[operand.0 as usize] = expr_id;
+        }
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Mod { operands });
-        Ok(ExprId::from(self.nodes.len() - 1))
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        Ok(expr_id)
     }
 
     /// Creates a new [`Expr::FieldAccess`].
     pub fn field_access(&mut self, operands: Vec<ExprId>) -> ExprId {
         let type_value = self.get(*operands.last().unwrap()).type_value();
+        let expr_id = ExprId::from(self.nodes.len());
+        for operand in operands.iter() {
+            self.parents[operand.0 as usize] = expr_id;
+        }
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::FieldAccess(Box::new(FieldAccess {
             operands,
             type_value,
         })));
-        ExprId::from(self.nodes.len() - 1)
+        expr_id
     }
 
     /// Creates a new [`Expr::Eq`].
     pub fn eq(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents[rhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Eq { lhs, rhs });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::Ne`].
     pub fn ne(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents[rhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Ne { lhs, rhs });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::Ge`].
     pub fn ge(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents[rhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Ge { lhs, rhs });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::Gt`].
     pub fn gt(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents[rhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Gt { lhs, rhs });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::Le`].
     pub fn le(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents[rhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Le { lhs, rhs });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::Lt`].
     pub fn lt(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents[rhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Lt { lhs, rhs });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::Contains`].
     pub fn contains(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents[rhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Contains { lhs, rhs });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::IContains`].
     pub fn icontains(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents[rhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::IContains { lhs, rhs });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::StartsWith`].
     pub fn starts_with(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents[rhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::StartsWith { lhs, rhs });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::IStartsWith`].
     pub fn istarts_with(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents[rhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::IStartsWith { lhs, rhs });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::EndsWith`].
     pub fn ends_with(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents[rhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::EndsWith { lhs, rhs });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::IEndsWith`].
     pub fn iends_with(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents[rhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::IEndsWith { lhs, rhs });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::IEquals`].
     pub fn iequals(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents[rhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::IEquals { lhs, rhs });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::Matches`].
     pub fn matches(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents[rhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::Matches { lhs, rhs });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::PatternMatch`]
@@ -800,8 +1103,21 @@ impl IR {
         pattern: PatternIdx,
         anchor: MatchAnchor,
     ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        match &anchor {
+            MatchAnchor::None => {}
+            MatchAnchor::At(expr) => {
+                self.parents[expr.0 as usize] = expr_id;
+            }
+            MatchAnchor::In(range) => {
+                self.parents[range.lower_bound.0 as usize] = expr_id;
+                self.parents[range.upper_bound.0 as usize] = expr_id;
+            }
+        }
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::PatternMatch { pattern, anchor });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::PatternMatchVar`]
@@ -810,9 +1126,22 @@ impl IR {
         symbol: Symbol,
         anchor: MatchAnchor,
     ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        match &anchor {
+            MatchAnchor::None => {}
+            MatchAnchor::At(expr) => {
+                self.parents[expr.0 as usize] = expr_id;
+            }
+            MatchAnchor::In(range) => {
+                self.parents[range.lower_bound.0 as usize] = expr_id;
+                self.parents[range.upper_bound.0 as usize] = expr_id;
+            }
+        }
+        self.parents.push(ExprId::none());
         self.nodes
             .push(Expr::PatternMatchVar { symbol: Box::new(symbol), anchor });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::PatternLength`]
@@ -821,8 +1150,14 @@ impl IR {
         pattern: PatternIdx,
         index: Option<ExprId>,
     ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        if let Some(index) = &index {
+            self.parents[index.0 as usize] = expr_id;
+        }
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::PatternLength { pattern, index });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::PatternLengthVar`]
@@ -831,9 +1166,15 @@ impl IR {
         symbol: Symbol,
         index: Option<ExprId>,
     ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        if let Some(index) = &index {
+            self.parents[index.0 as usize] = expr_id;
+        }
+        self.parents.push(ExprId::none());
         self.nodes
             .push(Expr::PatternLengthVar { symbol: Box::new(symbol), index });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::PatternOffset`]
@@ -842,8 +1183,14 @@ impl IR {
         pattern: PatternIdx,
         index: Option<ExprId>,
     ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        if let Some(index) = &index {
+            self.parents[index.0 as usize] = expr_id;
+        }
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::PatternOffset { pattern, index });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::PatternOffsetVar`]
@@ -852,9 +1199,15 @@ impl IR {
         symbol: Symbol,
         index: Option<ExprId>,
     ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        if let Some(index) = &index {
+            self.parents[index.0 as usize] = expr_id;
+        }
+        self.parents.push(ExprId::none());
         self.nodes
             .push(Expr::PatternOffsetVar { symbol: Box::new(symbol), index });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::PatternCount`]
@@ -863,8 +1216,15 @@ impl IR {
         pattern: PatternIdx,
         range: Option<Range>,
     ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        if let Some(range) = &range {
+            self.parents[range.lower_bound.0 as usize] = expr_id;
+            self.parents[range.upper_bound.0 as usize] = expr_id;
+        }
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::PatternCount { pattern, range });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::PatternCountVar`]
@@ -873,9 +1233,16 @@ impl IR {
         symbol: Symbol,
         range: Option<Range>,
     ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        if let Some(range) = &range {
+            self.parents[range.lower_bound.0 as usize] = expr_id;
+            self.parents[range.upper_bound.0 as usize] = expr_id;
+        }
+        self.parents.push(ExprId::none());
         self.nodes
             .push(Expr::PatternCountVar { symbol: Box::new(symbol), range });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::FuncCall`]
@@ -886,13 +1253,20 @@ impl IR {
         type_value: TypeValue,
         signature_index: usize,
     ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        for arg in args.iter() {
+            self.parents[arg.0 as usize] = expr_id
+        }
+        self.parents[callable.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::FuncCall(Box::new(FuncCall {
             callable,
             args,
             type_value,
             signature_index,
         })));
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::OfExprTuple`]
@@ -904,6 +1278,27 @@ impl IR {
         items: Vec<ExprId>,
         anchor: MatchAnchor,
     ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        match quantifier {
+            Quantifier::Percentage(expr) | Quantifier::Expr(expr) => {
+                self.parents[expr.0 as usize] = expr_id
+            }
+            _ => {}
+        }
+        for item in items.iter() {
+            self.parents[item.0 as usize] = expr_id;
+        }
+        match &anchor {
+            MatchAnchor::None => {}
+            MatchAnchor::At(expr) => {
+                self.parents[expr.0 as usize] = expr_id;
+            }
+            MatchAnchor::In(range) => {
+                self.parents[range.lower_bound.0 as usize] = expr_id;
+                self.parents[range.upper_bound.0 as usize] = expr_id;
+            }
+        }
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::OfExprTuple(Box::new(OfExprTuple {
             quantifier,
             items,
@@ -911,7 +1306,8 @@ impl IR {
             for_vars,
             next_expr_var,
         })));
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::OfPatternSet`]
@@ -923,6 +1319,24 @@ impl IR {
         items: Vec<PatternIdx>,
         anchor: MatchAnchor,
     ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        match quantifier {
+            Quantifier::Percentage(expr) | Quantifier::Expr(expr) => {
+                self.parents[expr.0 as usize] = expr_id
+            }
+            _ => {}
+        }
+        match &anchor {
+            MatchAnchor::None => {}
+            MatchAnchor::At(expr) => {
+                self.parents[expr.0 as usize] = expr_id;
+            }
+            MatchAnchor::In(range) => {
+                self.parents[range.lower_bound.0 as usize] = expr_id;
+                self.parents[range.upper_bound.0 as usize] = expr_id;
+            }
+        }
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::OfPatternSet(Box::new(OfPatternSet {
             quantifier,
             items,
@@ -930,7 +1344,8 @@ impl IR {
             for_vars,
             next_pattern_var,
         })));
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::ForOf`]
@@ -942,6 +1357,15 @@ impl IR {
         pattern_set: Vec<PatternIdx>,
         condition: ExprId,
     ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        match quantifier {
+            Quantifier::Percentage(expr) | Quantifier::Expr(expr) => {
+                self.parents[expr.0 as usize] = expr_id
+            }
+            _ => {}
+        }
+        self.parents[condition.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::ForOf(Box::new(ForOf {
             quantifier,
             variable,
@@ -949,7 +1373,8 @@ impl IR {
             condition,
             for_vars,
         })));
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::ForIn`]
@@ -962,6 +1387,29 @@ impl IR {
         iterable: Iterable,
         condition: ExprId,
     ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        match quantifier {
+            Quantifier::Percentage(expr) | Quantifier::Expr(expr) => {
+                self.parents[expr.0 as usize] = expr_id
+            }
+            _ => {}
+        }
+        match &iterable {
+            Iterable::Range(range) => {
+                self.parents[range.lower_bound.0 as usize] = expr_id;
+                self.parents[range.upper_bound.0 as usize] = expr_id;
+            }
+            Iterable::ExprTuple(exprs) => {
+                for expr in exprs.iter() {
+                    self.parents[expr.0 as usize] = expr_id;
+                }
+            }
+            Iterable::Expr(expr) => {
+                self.parents[expr.0 as usize] = expr_id;
+            }
+        }
+        self.parents[condition.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::ForIn(Box::new(ForIn {
             quantifier,
             variables,
@@ -970,7 +1418,8 @@ impl IR {
             iterable,
             condition,
         })));
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 
     /// Creates a new [`Expr::With`]
@@ -979,8 +1428,15 @@ impl IR {
         declarations: Vec<(Var, ExprId)>,
         condition: ExprId,
     ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        for (_, expr) in declarations.iter() {
+            self.parents[expr.0 as usize] = expr_id;
+        }
+        self.parents[condition.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
         self.nodes.push(Expr::With { declarations, condition });
-        ExprId::from(self.nodes.len() - 1)
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
     }
 }
 
@@ -1042,7 +1498,11 @@ impl Debug for IR {
             if index.is_some() { " INDEX" } else { "" }
         };
 
-        let expr_hashes = self.compute_expr_hashes(self.root.unwrap());
+        let mut expr_hashes = vec![0; self.nodes.len()];
+
+        self.compute_expr_hashes(self.root.unwrap(), |expr_id, hash| {
+            expr_hashes[expr_id.0 as usize] = hash;
+        });
 
         for event in self.dfs_iter(self.root.unwrap()) {
             match event {
@@ -1051,8 +1511,9 @@ impl Debug for IR {
                     for _ in 0..level {
                         write!(f, "  ")?;
                     }
+                    write!(f, "id:{:?} parent:{:?}:  ", expr_id, self.parents[expr_id.0 as usize])?;
                     level += 1;
-                    let expr_hash = expr_hashes[expr_id];
+                    let expr_hash = expr_hashes[expr_id.0 as usize];
                     match expr {
                         Expr::Const(c) => writeln!(f, "CONST {}", c)?,
                         Expr::Filesize => writeln!(f, "FILESIZE")?,
@@ -1157,6 +1618,32 @@ impl Debug for IR {
         }
 
         Ok(())
+    }
+}
+
+/// Iterator that returns the ancestors for a given expression in the
+/// IR tree.
+///
+/// The first item returned by the iterator is the parent of the original
+/// expression, then the parent's parent, and so on until reaching the
+/// root node.
+pub(crate) struct Ancestors<'a> {
+    ir: &'a IR,
+    current: ExprId,
+}
+
+impl<'a> Iterator for Ancestors<'a> {
+    type Item = ExprId;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current == ExprId::none() {
+            return None;
+        }
+        self.current = self.ir.parents[self.current.0 as usize];
+        if self.current == ExprId::none() {
+            return None;
+        }
+        Some(self.current)
     }
 }
 
