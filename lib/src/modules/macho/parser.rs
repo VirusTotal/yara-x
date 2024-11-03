@@ -922,34 +922,39 @@ impl<'a> MachOFile<'a> {
                         }
                     }
                     CS_MAGIC_BLOBWRAPPER => {
-                        if let Ok(signage) = SignedData::parse_ber(
-                            &super_data
-                                [offset + size_of_blob..offset + length],
+                        if let Some(ber_blob) = super_data.get(
+                            offset + size_of_blob
+                                ..offset.saturating_add(length),
                         ) {
-                            let signers = signage.signers();
-                            let certs = signage.certificates();
-                            let mut cert_info = Certificates {
-                                common_names: Vec::new(),
-                                signer_names: Vec::new(),
-                            };
+                            if let Ok(signage) =
+                                SignedData::parse_ber(ber_blob)
+                            {
+                                let signers = signage.signers();
+                                let certs = signage.certificates();
+                                let mut cert_info = Certificates {
+                                    common_names: Vec::new(),
+                                    signer_names: Vec::new(),
+                                };
 
-                            certs.for_each(|cert| {
-                                let name = cert.subject_common_name().unwrap();
-                                cert_info.common_names.push(name);
-                            });
+                                certs.for_each(|cert| {
+                                    let name =
+                                        cert.subject_common_name().unwrap();
+                                    cert_info.common_names.push(name);
+                                });
 
-                            signers.for_each(|signer| {
-                                let (name, _) = signer
-                                    .certificate_issuer_and_serial()
-                                    .unwrap();
-                                cert_info.signer_names.push(
-                                    name.user_friendly_str()
-                                        .unwrap()
-                                        .to_string(),
-                                );
-                            });
+                                signers.for_each(|signer| {
+                                    let (name, _) = signer
+                                        .certificate_issuer_and_serial()
+                                        .unwrap();
+                                    cert_info.signer_names.push(
+                                        name.user_friendly_str()
+                                            .unwrap()
+                                            .to_string(),
+                                    );
+                                });
 
-                            self.certificates = Some(cert_info);
+                                self.certificates = Some(cert_info);
+                            }
                         }
                     }
                     _ => {}
