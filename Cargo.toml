@@ -46,6 +46,7 @@ clap = "4.5.11"
 clap_complete = "4.5.11"
 const-oid = "0.9.6"
 crc32fast = "1.4.2"
+cryptographic-message-syntax = { version = "0.27.0", default-features = false }
 der-parser = "9.0.0"
 digest = "0.10.7"
 dsa = "0.6.3"
