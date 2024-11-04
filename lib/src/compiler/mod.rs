@@ -2182,7 +2182,7 @@ impl From<LiteralId> for u64 {
 pub(crate) struct NamespaceId(i32);
 
 /// ID associated to each rule.
-#[derive(Copy, Clone, Debug, Default, Hash)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash)]
 pub(crate) struct RuleId(i32);
 
 impl RuleId {

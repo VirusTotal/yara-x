@@ -180,7 +180,7 @@ impl VarStackFrame {
 }
 
 /// Represents a variable in the stack.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq)]
 pub(crate) struct Var {
     /// The frame ID is simply a value that uniquely identify the stack
     /// frame in which this variable resides. The frame ID allows distinguishing

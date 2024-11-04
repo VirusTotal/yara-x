@@ -32,6 +32,7 @@ allows using the same regex engine for matching both types of patterns.
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::mem;
+use std::mem::discriminant;
 use std::ops::Index;
 use std::ops::RangeInclusive;
 
@@ -290,7 +291,7 @@ pub(crate) struct RegexpPattern {
 ///
 /// The first pattern in the rule has index 0, the second has index 1, and
 /// so on.
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub(crate) struct PatternIdx(usize);
 
 impl PatternIdx {
@@ -308,7 +309,7 @@ impl From<usize> for PatternIdx {
 }
 
 /// Identifies an expression in the IR tree.
-#[derive(Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(Clone, Copy, PartialEq, Eq, Ord, Hash, PartialOrd)]
 pub(crate) struct ExprId(u32);
 
 impl ExprId {
@@ -482,7 +483,7 @@ impl IR {
         while !exprs.iter().all_equal() {
             let max = exprs.iter().cloned().max().unwrap();
             let expr_with_ancestors =
-                exprs.iter_mut().zip(&mut ancestor_iterators);
+                exprs.iter_mut().zip_eq(&mut ancestor_iterators);
             // Advance the ancestor iterators by one, except the iterator
             // corresponding to the expression with the highest ExprId.
             for (expr, ancestors) in expr_with_ancestors {
@@ -499,8 +500,9 @@ impl IR {
 
     /// Computes the hash corresponding to each expression in the IR.
     ///
-    /// For each expression in the IR the `f` is invoked with the [`ExprId`]
-    /// and the hash corresponding to the expression.
+    /// For each expression in the IR, except constants, identifiers and
+    /// `filesize`, the `f` is invoked with the [`ExprId`] and the hash
+    /// corresponding to that expression.
     pub fn compute_expr_hashes<F>(&self, start: ExprId, mut f: F)
     where
         F: FnMut(ExprId, u64),
@@ -538,46 +540,237 @@ impl IR {
         }
     }
 
-    pub fn find_duplicates(&self) {
-        // Vector with expression hashes. `hashes[ExprId]` is the hash for
-        // the expression identified by `ExprId`.
-        let mut hashes = vec![0; self.nodes.len()];
+    /// Returns true if expressions `a` and `b` are equal.
+    pub fn equal(&self, a: ExprId, b: ExprId) -> bool {
+        // Traverse the IR of both expressions in DFS order.
+        let mut dfs_a = self.dfs_iter(a);
+        let mut dfs_b = self.dfs_iter(b);
 
-        // A map where keys are expression hashes and values vectors with
-        // the ExprId of every expression with the hash indicated in the
-        // key.
+        // If both expressions are equal their IR trees will be equal,
+        // and we should be able to iterate both them in lockstep.
+        for (a, b) in dfs_a.by_ref().zip(dfs_b.by_ref()) {
+            match (a, b) {
+                (Event::Leave((_, _)), Event::Leave((_, _))) => {}
+                (Event::Enter((_, a)), Event::Enter((_, b))) => {
+                    if discriminant(a) != discriminant(b) {
+                        return false;
+                    }
+                    let eq = match (a, b) {
+                        (Expr::Const(a), Expr::Const(b)) => a == b,
+                        (
+                            Expr::PatternMatch {
+                                pattern: pattern_a,
+                                anchor: anchor_a,
+                            },
+                            Expr::PatternMatch {
+                                pattern: pattern_b,
+                                anchor: anchor_b,
+                            },
+                        ) => {
+                            discriminant(anchor_a) == discriminant(anchor_b)
+                                && pattern_a == pattern_b
+                        }
+                        (
+                            Expr::PatternMatchVar {
+                                symbol: symbol_a,
+                                anchor: anchor_a,
+                            },
+                            Expr::PatternMatchVar {
+                                symbol: symbol_b,
+                                anchor: anchor_b,
+                            },
+                        ) => {
+                            discriminant(anchor_a) == discriminant(anchor_b)
+                                && symbol_a == symbol_b
+                        }
+                        (
+                            Expr::PatternCount {
+                                pattern: pattern_a,
+                                range: range_a,
+                            },
+                            Expr::PatternCount {
+                                pattern: pattern_b,
+                                range: range_b,
+                            },
+                        ) => {
+                            discriminant(range_a) == discriminant(range_b)
+                                && pattern_a == pattern_b
+                        }
+                        (
+                            Expr::PatternCountVar {
+                                symbol: symbol_a,
+                                range: range_a,
+                            },
+                            Expr::PatternCountVar {
+                                symbol: symbol_b,
+                                range: range_b,
+                            },
+                        ) => {
+                            discriminant(range_a) == discriminant(range_b)
+                                && symbol_a == symbol_b
+                        }
+                        (
+                            Expr::PatternOffset {
+                                pattern: pattern_a,
+                                index: index_a,
+                            },
+                            Expr::PatternOffset {
+                                pattern: pattern_b,
+                                index: index_b,
+                            },
+                        ) => {
+                            discriminant(index_a) == discriminant(index_b)
+                                && pattern_a == pattern_b
+                        }
+                        (
+                            Expr::PatternOffsetVar {
+                                symbol: symbol_a,
+                                index: index_a,
+                            },
+                            Expr::PatternOffsetVar {
+                                symbol: symbol_b,
+                                index: index_b,
+                            },
+                        ) => {
+                            discriminant(index_a) == discriminant(index_b)
+                                && symbol_a == symbol_b
+                        }
+                        (
+                            Expr::PatternLength {
+                                pattern: pattern_a,
+                                index: index_a,
+                            },
+                            Expr::PatternLength {
+                                pattern: pattern_b,
+                                index: index_b,
+                            },
+                        ) => {
+                            discriminant(index_a) == discriminant(index_b)
+                                && pattern_a == pattern_b
+                        }
+                        (
+                            Expr::PatternLengthVar {
+                                symbol: symbol_a,
+                                index: index_a,
+                            },
+                            Expr::PatternLengthVar {
+                                symbol: symbol_b,
+                                index: index_b,
+                            },
+                        ) => {
+                            discriminant(index_a) == discriminant(index_b)
+                                && symbol_a == symbol_b
+                        }
+                        (Expr::OfExprTuple(a), Expr::OfExprTuple(b)) => {
+                            discriminant(&a.quantifier)
+                                == discriminant(&b.quantifier)
+                                && discriminant(&a.anchor)
+                                    == discriminant(&b.anchor)
+                        }
+                        (Expr::OfPatternSet(a), Expr::OfPatternSet(b)) => {
+                            discriminant(&a.quantifier)
+                                == discriminant(&b.quantifier)
+                                && discriminant(&a.anchor)
+                                    == discriminant(&b.anchor)
+                        }
+                        (Expr::ForOf(a), Expr::ForOf(b)) => {
+                            discriminant(&a.quantifier)
+                                == discriminant(&b.quantifier)
+                                && a.pattern_set == b.pattern_set
+                        }
+                        (Expr::ForIn(a), Expr::ForIn(b)) => {
+                            discriminant(&a.quantifier)
+                                == discriminant(&b.quantifier)
+                                && discriminant(&a.iterable)
+                                    == discriminant(&b.iterable)
+                        }
+                        (Expr::FuncCall(a), Expr::FuncCall(b)) => {
+                            a.signature_index == b.signature_index
+                                && a.type_value == b.type_value
+                        }
+                        _ => true,
+                    };
+                    if !eq {
+                        return false;
+                    }
+                }
+                _ => return false,
+            }
+        }
+
+        let a_has_more = dfs_a.next().is_some();
+        let b_has_more = dfs_b.next().is_some();
+
+        !a_has_more && !b_has_more
+    }
+
+    /// Traverse the IR tree looking for sub-expressions that are identical.
+    ///
+    /// For each set of identical expressions found, the function `f` is called.
+    /// The first argument passed to `f` represents the deepest common ancestor
+    /// of all matching expressions, while the second argument is a vector
+    /// containing these identical expressions.
+    pub fn find_common_subexpressions<F>(&self, mut f: F)
+    where
+        F: FnMut(ExprId, Vec<ExprId>),
+    {
+        // Map where keys are ExprId and values are the hash associated
+        // to the expression identified by that ExprId.
+        let mut hashes: FxHashMap<ExprId, u64> = FxHashMap::default();
+
+        // Map where keys are expression hashes and values are vectors
+        // with the ExprId of every expression with that hash.
         let mut map: FxHashMap<u64, Vec<ExprId>> = FxHashMap::default();
 
         self.compute_expr_hashes(self.root.unwrap(), |expr_id, hash| {
-            hashes[expr_id.0 as usize] = hash;
+            hashes.insert(expr_id, hash);
             map.entry(hash).or_default().push(expr_id);
         });
 
         let mut dfs = self.dfs_iter(self.root.unwrap());
 
-        while let Some(evt) = dfs.next() {
+        'dfs: while let Some(evt) = dfs.next() {
             match evt {
-                Event::Enter((expr_id, expr)) => {
-                    // Get hash for the current expression.
-                    let hash = hashes[expr_id.0 as usize];
+                Event::Enter((expr_id, _)) => {
+                    // Get hash for the current expression. This can return
+                    // `None` because the hash is not computed for all
+                    // expressions.
+                    let hash = match hashes.get(&expr_id) {
+                        Some(hash) => hash,
+                        None => continue 'dfs,
+                    };
                     // Get vector with all the expressions that have the same
                     // hash as the current expression, including the current
-                    // expression itself.
-                    let exprs = map.get(&hash).unwrap();
-                    // `exprs` can not be empty, as it must have at least the
-                    // current expression.
-                    let first = exprs.first().unwrap();
-
-                    // When the current expression is equal to some other
-                    // expression, we don't want to traverse its children, as
-                    // the children are going to be equal to the other
-                    // expression's children.
-                    if exprs.len() > 1 {
-                        dfs.prune();
+                    // expression itself. The entry is removed from the map,
+                    // which guarantees that each set of equal expressions are
+                    // processed only once.
+                    let exprs = match map.remove(hash) {
+                        Some(exprs) => exprs,
+                        None => {
+                            // When the entry was not found is because it was
+                            // previously deleted while processing another
+                            // expression that was equal to the current one.
+                            // In such cases we don't need to traverse the
+                            // current expression.
+                            dfs.prune();
+                            continue 'dfs;
+                        }
+                    };
+                    // Make sure that all the expressions are actually equal.
+                    // All the expressions have the same hash, but that's not
+                    // a guarantee of equality due to hash collisions.
+                    for (a, b) in exprs.iter().tuple_windows() {
+                        if !self.equal(*a, *b) {
+                            continue 'dfs;
+                        }
                     }
-
-                    if exprs.len() > 1 && *first == expr_id {
-                        todo!()
+                    if exprs.len() > 1 {
+                        f(self.common_ancestor(exprs.as_slice()), exprs);
+                        // When the current expression is equal to some other
+                        // expression, we don't want to traverse its children, as
+                        // the children are going to be equal to the other
+                        // expression's children.
+                        dfs.prune();
                     }
                 }
                 Event::Leave(_) => {}
@@ -1617,6 +1810,11 @@ impl Debug for IR {
             }
         }
 
+        self.find_common_subexpressions(|common_ancestor, exprs| {
+            println!("equal expressions: {:?}", exprs);
+            println!("common ancestor: {:?}", common_ancestor);
+        });
+
         Ok(())
     }
 }
@@ -1984,6 +2182,8 @@ pub(crate) enum Quantifier {
     Expr(ExprId),
 }
 
+/// Variables used in `for` loop.
+#[derive(PartialEq, Eq)]
 pub(crate) struct ForVars {
     /// Maximum number of iterations.
     pub n: Var,

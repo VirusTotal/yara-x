@@ -21,7 +21,7 @@ mod map;
 mod structure;
 
 /// The type of YARA expression or identifier.
-#[derive(Clone, Copy, Default, PartialEq, Hash)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub(crate) enum Type {
     #[default]
     Unknown,
@@ -121,7 +121,7 @@ impl<T> Value<T> {
 /// /foobar/s
 /// /foobar/is
 /// ```
-#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct Regexp(String);
 
 impl Regexp {
@@ -564,7 +564,6 @@ impl Debug for TypeValue {
     }
 }
 
-#[cfg(test)]
 impl PartialEq for TypeValue {
     fn eq(&self, rhs: &Self) -> bool {
         match (self, rhs) {
@@ -573,7 +572,14 @@ impl PartialEq for TypeValue {
             (Self::Bool(lhs), Self::Bool(rhs)) => lhs == rhs,
             (Self::Integer(lhs), Self::Integer(rhs)) => lhs == rhs,
             (Self::Float(lhs), Self::Float(rhs)) => lhs == rhs,
+            (Self::Regexp(lhs), Self::Regexp(rhs)) => lhs == rhs,
+            (Self::Struct(lhs), Self::Struct(rhs)) => ptr::eq(&**lhs, &**rhs),
+            (Self::Array(lhs), Self::Array(rhs)) => ptr::eq(&**lhs, &**rhs),
+            (Self::Map(lhs), Self::Map(rhs)) => ptr::eq(&**lhs, &**rhs),
+            (Self::Func(lhs), Self::Func(rhs)) => ptr::eq(&**lhs, &**rhs),
             _ => false,
         }
     }
 }
+
+impl Eq for TypeValue {}
