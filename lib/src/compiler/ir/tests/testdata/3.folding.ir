@@ -1,19 +1,16 @@
 RULE test
-  id:30 parent:None:  OR [0x99788476ae53b807]
-    id:14 parent:30:  EQ [0x6994bc80c1a4dce0]
-      id:12 parent:14:  FN_CALL [0x168a4f6687a1363c]
-        id:9 parent:12:  FIELD_ACCESS [0x860e335dcd575606]
-          id:7 parent:9:  IDENT Field { index: 0, is_root: true, type_value: struct }
-          id:8 parent:9:  IDENT Field { index: 4, is_root: false, type_value: function }
-        id:10 parent:12:  CONST integer(0)
-        id:11 parent:12:  FILESIZE
-      id:13 parent:14:  CONST string("feba6c919e3797e7778e8f2e85fa033d")
-    id:29 parent:30:  EQ [0x1acc396ba27115f6]
-      id:27 parent:29:  FN_CALL [0x168a4f6687a1363c]
-        id:24 parent:27:  FIELD_ACCESS [0x860e335dcd575606]
-          id:22 parent:24:  IDENT Field { index: 0, is_root: true, type_value: struct }
-          id:23 parent:24:  IDENT Field { index: 4, is_root: false, type_value: function }
-        id:25 parent:27:  CONST integer(0)
-        id:26 parent:27:  FILESIZE
-      id:28 parent:29:  CONST string("275876e34cf609db118f3d84b799a790")
+  30: WITH -- hash: 0xcba3b001d72e9763 -- parent: None 
+    31: FN_CALL -- hash: 0x3f276aae8a4b7e31 -- parent: 30 
+      9: FIELD_ACCESS -- hash: 0x271d3e069fa20bc6 -- parent: 31 
+        7: IDENT Field { index: 0, is_root: true, type_value: struct } -- parent: 9 
+        8: IDENT Field { index: 4, is_root: false, type_value: function } -- parent: 9 
+      10: CONST integer(0) -- parent: 31 
+      11: FILESIZE -- parent: 31 
+    32: OR -- hash: 0xe55955a6a753fcc7 -- parent: 30 
+      14: EQ -- hash: 0x5d22dd82636b121b -- parent: 32 
+        12: VAR Var { frame_id: 0, ty: string, index: 0 } -- hash: 0xa6b9c2fda5292c62 -- parent: 14 
+        13: CONST string("feba6c919e3797e7778e8f2e85fa033d") -- parent: 14 
+      29: EQ -- hash: 0xe5a5a6d44374b31 -- parent: 32 
+        27: VAR Var { frame_id: 0, ty: string, index: 0 } -- hash: 0xa6b9c2fda5292c62 -- parent: 29 
+        28: CONST string("275876e34cf609db118f3d84b799a790") -- parent: 29 
 

@@ -1263,6 +1263,62 @@ impl<'a> Compiler<'a> {
             }
         };
 
+        // TODO
+
+        for (common_ancestor, subexpressions) in
+            self.ir.find_common_subexprs(condition)
+        {
+            // This is the index of the new variable.
+            let var_index = self
+                .ir
+                .ancestors(common_ancestor)
+                .map(|expr_id| self.ir.get(expr_id).stack_frame_size())
+                .sum::<i32>();
+
+            self.ir.displace_vars(common_ancestor, var_index, 1);
+
+            let mut subexpressions = subexpressions.into_iter();
+            let first = subexpressions.next().unwrap();
+            let var = Var::new(0, self.ir.get(first).ty(), var_index);
+
+            // Replace the first of the subexpressions with a variable. The
+            // replaced subexpression will be added as a declaration to the
+            // `with` statement.
+            let replaced = self.ir.replace(first, Expr::Var(var));
+            let with_declaration = self.ir.push(replaced);
+
+            // The common ancestor is replaced by the `with` statement. The
+            // condition for this `with` statement will be the ancestor itself.
+            let replaced = self.ir.replace(
+                common_ancestor,
+                Expr::With {
+                    declarations: vec![(var, with_declaration)],
+                    condition: ExprId::none(),
+                },
+            );
+
+            // Add the common ancestor to the IR tree again. The common
+            // ancestor now becomes the condition of the `with` statement.
+            let with_condition = self.ir.push(replaced);
+
+            // After the ancestor is replaced by a `with` statement, the ID
+            // this statement is the ID of the ancestor. `with` is simply an
+            // alias for `common_ancestor`, but it adds clarity.
+            let with = common_ancestor;
+
+            match self.ir.get_mut(with) {
+                Expr::With { condition, .. } => *condition = with_condition,
+                _ => unreachable!(),
+            }
+
+            self.ir.set_parent(with_condition, with);
+            self.ir.set_parent(with_declaration, with);
+
+            for s in subexpressions {
+                self.ir.replace(s, Expr::Var(var));
+            }
+        }
+
         if let Some(w) = &mut self.ir_writer {
             writeln!(w, "RULE {}", rule.identifier.name).unwrap();
             writeln!(w, "{:?}", self.ir).unwrap();

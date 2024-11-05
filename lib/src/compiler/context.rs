@@ -101,6 +101,10 @@ pub(crate) struct VarStack {
 }
 
 impl VarStack {
+    pub const OF_FRAME_SIZE: i32 = 5;
+    pub const FOR_OF_FRAME_SIZE: i32 = 5;
+    pub const FOR_IN_FRAME_SIZE: i32 = 7;
+
     /// Creates a stack of variables.
     pub fn new() -> Self {
         Self { used: 0, frame_id: 0 }
@@ -186,18 +190,43 @@ pub(crate) struct Var {
     /// frame in which this variable resides. The frame ID allows distinguishing
     /// two variables in the IR that have the same type and index, but that
     /// are not actually the same variable.
-    pub frame_id: usize,
-    /// The type of the variable
-    pub ty: Type,
+    frame_id: usize,
+    /// The type of the variable.
+    ty: Type,
     /// The index corresponding to this variable. This index is used for
     /// locating the variable's value in WASM memory. The variable resides at
     /// [`wasm::VARS_STACK_START`] + index * sizeof(i64).
-    pub index: i32,
+    index: i32,
 }
 
 impl Var {
+    pub fn new(frame_id: usize, ty: Type, index: i32) -> Self {
+        Self { frame_id, ty, index }
+    }
+
     /// Returns the number of bytes that the variable occupies in memory.
     pub const fn mem_size() -> i32 {
         size_of::<i64>() as i32
+    }
+
+    pub fn displace(&mut self, after: i32, amount: i32) {
+        if self.index >= after {
+            self.index += amount;
+        }
+    }
+
+    #[inline]
+    pub fn ty(&self) -> Type {
+        self.ty
+    }
+
+    #[inline]
+    pub fn frame_id(&self) -> usize {
+        self.frame_id
+    }
+
+    #[inline]
+    pub fn index(&self) -> i32 {
+        self.index
     }
 }

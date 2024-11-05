@@ -346,12 +346,9 @@ fn emit_expr(
                             emit_lookup_string(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
-                        TypeValue::Struct(_) => {
-                            ctx.lookup_list.push((index, *is_root));
-                            emit_lookup_object(ctx, instr);
-                            assert!(ctx.lookup_list.is_empty());
-                        }
-                        TypeValue::Array(_) | TypeValue::Map(_) => {
+                        TypeValue::Struct(_)
+                        | TypeValue::Array(_)
+                        | TypeValue::Map(_) => {
                             ctx.lookup_list.push((index, *is_root));
                             emit_lookup_object(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
@@ -643,10 +640,6 @@ fn emit_expr(
             }
         },
 
-        Expr::With { declarations, condition } => {
-            emit_with(ctx, ir, declarations.as_slice(), *condition, instr);
-        }
-
         Expr::FuncCall(fn_call) => {
             // Emit the arguments first.
             for expr in fn_call.args.iter() {
@@ -660,6 +653,14 @@ fn emit_expr(
             emit_expr(ctx, ir, fn_call.callable, instr);
 
             ctx.current_signature = previous;
+        }
+
+        Expr::Var(var) => {
+            load_var(ctx, instr, *var);
+        }
+
+        Expr::With { declarations, condition } => {
+            emit_with(ctx, ir, declarations.as_slice(), *condition, instr);
         }
     }
 }
@@ -1457,13 +1458,18 @@ fn emit_of_expr_tuple(
             // Execute the i-th expression and save its result in `next_item`.
             set_var(ctx, instr, next_item, |ctx, instr| {
                 load_var(ctx, instr, i);
-                emit_switch(ctx, next_item.ty.into(), instr, |ctx, instr| {
-                    if let Some(expr) = expressions.next() {
-                        emit_bool_expr(ctx, ir, *expr, instr);
-                        return true;
-                    }
-                    false
-                });
+                emit_switch(
+                    ctx,
+                    next_item.ty().into(),
+                    instr,
+                    |ctx, instr| {
+                        if let Some(expr) = expressions.next() {
+                            emit_bool_expr(ctx, ir, *expr, instr);
+                            return true;
+                        }
+                        false
+                    },
+                );
             });
         },
         // Condition.
@@ -1803,7 +1809,7 @@ fn emit_for_in_expr_tuple(
                         load_var(ctx, instr, i);
                         emit_switch(
                             ctx,
-                            next_item.ty.into(),
+                            next_item.ty().into(),
                             instr,
                             |ctx, instr| match expressions.next() {
                                 Some(expr) => {
@@ -2284,7 +2290,7 @@ fn set_var<B>(
 ) where
     B: FnOnce(&mut EmitContext, &mut InstrSeqBuilder),
 {
-    let (store_kind, alignment) = match var.ty {
+    let (store_kind, alignment) = match var.ty() {
         Type::Bool => (StoreKind::I32 { atomic: false }, size_of::<i32>()),
         Type::Float => (StoreKind::F64, size_of::<f64>()),
         Type::Integer
@@ -2297,7 +2303,7 @@ fn set_var<B>(
 
     // First push the offset where the variable resides in memory. This will
     // be used by the `store` instruction.
-    instr.i32_const(var.index * Var::mem_size());
+    instr.i32_const(var.index() * Var::mem_size());
 
     // Block that produces the value that will be stored in the variable.
     block(ctx, instr);
@@ -2335,7 +2341,7 @@ fn set_vars<B>(
     // Iterate variables in reverse order as the last variable is the one
     // at the top of the stack.
     for var in vars.iter().rev() {
-        match var.ty {
+        match var.ty() {
             Type::Bool => {
                 // Pop the value and store it into temp variable.
                 instr.local_set(ctx.wasm_symbols.i32_tmp);
@@ -2343,7 +2349,7 @@ fn set_vars<B>(
                 // The offset is always multiple of 64-bits, as each variable
                 // occupies a 64-bits slot. This is true even for bool values
                 // that are represented as a 32-bits integer.
-                instr.i32_const(var.index * Var::mem_size());
+                instr.i32_const(var.index() * Var::mem_size());
                 // Push the value.
                 instr.local_get(ctx.wasm_symbols.i32_tmp);
                 // Store the value in memory.
@@ -2362,7 +2368,7 @@ fn set_vars<B>(
             | Type::Array
             | Type::Map => {
                 instr.local_set(ctx.wasm_symbols.i64_tmp_a);
-                instr.i32_const(var.index * Var::mem_size());
+                instr.i32_const(var.index() * Var::mem_size());
                 instr.local_get(ctx.wasm_symbols.i64_tmp_a);
                 instr.store(
                     ctx.wasm_symbols.main_memory,
@@ -2375,7 +2381,7 @@ fn set_vars<B>(
             }
             Type::Float => {
                 instr.local_set(ctx.wasm_symbols.f64_tmp);
-                instr.i32_const(var.index * Var::mem_size());
+                instr.i32_const(var.index() * Var::mem_size());
                 instr.local_get(ctx.wasm_symbols.f64_tmp);
                 instr.store(
                     ctx.wasm_symbols.main_memory,
@@ -2396,13 +2402,13 @@ fn set_vars<B>(
 fn load_var(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
     // First check if the undefined flag is set for the requested variable
     // and throw the undefined exception in that case.
-    instr.i32_const(var.index.saturating_div(64));
+    instr.i32_const(var.index().saturating_div(64));
     instr.load(
         ctx.wasm_symbols.main_memory,
         LoadKind::I64 { atomic: false },
         MemArg { align: 8, offset: 0 },
     );
-    instr.i64_const(1 << var.index.wrapping_rem(64));
+    instr.i64_const(1 << var.index().wrapping_rem(64));
     instr.binop(BinaryOp::I64And);
     instr.unop(UnaryOp::I64Eqz);
     instr.if_else(None, |_then| {}, |_else| throw_undef(ctx, _else));
@@ -2410,16 +2416,17 @@ fn load_var(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
     // The slots where variables are stored start at offset VARS_STACK_START
     // within main memory, and are 64-bits long. Let's compute the variable's
     // offset with respect to VARS_STACK_START.
-    instr.i32_const(var.index * Var::mem_size());
+    instr.i32_const(var.index() * Var::mem_size());
 
-    let (load_kind, alignment) = match var.ty {
+    let (load_kind, alignment) = match var.ty() {
         Type::Bool => (LoadKind::I32 { atomic: false }, size_of::<i32>()),
         Type::Float => (LoadKind::F64, size_of::<i64>()),
         Type::Integer
         | Type::String
         | Type::Struct
         | Type::Array
-        | Type::Map => (LoadKind::I64 { atomic: false }, size_of::<i64>()),
+        | Type::Map
+        | Type::Func => (LoadKind::I64 { atomic: false }, size_of::<i64>()),
         _ => unreachable!(),
     };
 
@@ -2439,15 +2446,15 @@ fn set_var_undef(
     // Push the address of the i64 where the flag is located. Push it
     // twice, one is for the load instruction and the other one is for
     // the store instruction.
-    instr.i32_const(var.index.saturating_div(64));
-    instr.i32_const(var.index.saturating_div(64));
+    instr.i32_const(var.index().saturating_div(64));
+    instr.i32_const(var.index().saturating_div(64));
     instr.load(
         ctx.wasm_symbols.main_memory,
         LoadKind::I64 { atomic: false },
         MemArg { align: 8, offset: 0 },
     );
 
-    let bit = (1 << var.index.wrapping_rem(64)) as i64;
+    let bit = (1 << var.index().wrapping_rem(64)) as i64;
 
     if is_undef {
         instr.i64_const(bit);
@@ -2467,7 +2474,7 @@ fn set_var_undef(
 /// Increments a variable.
 fn incr_var(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
     // incr_var only works with integer variables.
-    assert_eq!(var.ty, Type::Integer);
+    assert_eq!(var.ty(), Type::Integer);
     set_var(ctx, instr, var, |ctx, instr| {
         load_var(ctx, instr, var);
         instr.i64_const(1);

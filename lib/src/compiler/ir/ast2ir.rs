@@ -30,6 +30,7 @@ use crate::compiler::report::ReportBuilder;
 use crate::compiler::{
     warnings, CompileContext, CompileError, ForVars, TextPatternAsHex,
 };
+use crate::compiler::context::VarStack;
 use crate::errors::PotentiallySlowLoop;
 use crate::modules::BUILTIN_MODULES;
 use crate::re;
@@ -985,7 +986,7 @@ fn of_expr_from_ast(
     of: &ast::Of,
 ) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &of.quantifier)?;
-    let mut stack_frame = ctx.vars.new_frame(5);
+    let mut stack_frame = ctx.vars.new_frame(VarStack::OF_FRAME_SIZE);
 
     let for_vars = ForVars {
         n: stack_frame.new_var(Type::Integer),
@@ -1122,11 +1123,8 @@ fn for_of_expr_from_ast(
 ) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &for_of.quantifier)?;
     let pattern_set = pattern_set_from_ast(ctx, &for_of.pattern_set)?;
-
-    // Create new stack frame with 5 slots:
-    //   1 slot for the loop variable, a pattern ID in this case
-    //   4 up to slots used for loop control variables (see: emit::emit_for)
-    let mut stack_frame = ctx.vars.new_frame(5);
+    
+    let mut stack_frame = ctx.vars.new_frame(VarStack::FOR_OF_FRAME_SIZE);
 
     let for_vars = ForVars {
         n: stack_frame.new_var(Type::Integer),
@@ -1282,7 +1280,7 @@ fn for_in_expr_from_ast(
         ));
     }
 
-    let mut stack_frame = ctx.vars.new_frame(loop_vars.len() as i32 + 5);
+    let mut stack_frame = ctx.vars.new_frame(VarStack::FOR_IN_FRAME_SIZE);
 
     let iterable_var = stack_frame.new_var(iterable_ty);
 

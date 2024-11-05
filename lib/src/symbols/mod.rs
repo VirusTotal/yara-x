@@ -106,7 +106,7 @@ impl Eq for Symbol {}
 impl Symbol {
     pub fn ty(&self) -> Type {
         match &self {
-            Symbol::Var { var, .. } => var.ty,
+            Symbol::Var { var, .. } => var.ty(),
             Symbol::Field { type_value, .. } => type_value.ty(),
             Symbol::Rule(_) => Type::Bool,
             Symbol::Func(_) => Type::Func,
