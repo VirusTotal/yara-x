@@ -1,6 +1,6 @@
 RULE test_1
-  12: EQ -- hash: 0xdde952b6f433e5b9 -- parent: None 
-    10: CONST integer(3) -- parent: 12 
+  12: EQ -- hash: 0x1e87f9ecd59c9f97 -- parent: None 
+    10: CONST integer(1) -- parent: 12 
     11: CONST integer(1) -- parent: 12 
 
 RULE test_2
@@ -20,8 +20,8 @@ RULE test_3
     5: CONST integer(2) -- parent: 6 
 
 RULE test_4
-  14: EQ -- hash: 0x854b98b20c7283eb -- parent: None 
-    12: CONST integer(0) -- parent: 14 
+  14: EQ -- hash: 0x82d0fbda86ff9c76 -- parent: None 
+    12: CONST integer(8) -- parent: 14 
     13: CONST integer(8) -- parent: 14 
 
 RULE test_5

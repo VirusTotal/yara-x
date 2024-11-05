@@ -584,20 +584,7 @@ fn expr_from_ast(
             }
 
             // Now process the last operand.
-            let last_operand =
-                expr_from_ast(ctx, expr.operands.last().unwrap())?;
-
-            // If the last operand is constant, the whole expression is
-            // constant.
-            #[cfg(feature = "constant-folding")]
-            {
-                let type_value = ctx.ir.get(last_operand).type_value();
-                if type_value.is_const() {
-                    return Ok(ctx.ir.constant(type_value.clone()));
-                }
-            }
-
-            operands.push(last_operand);
+            operands.push(expr_from_ast(ctx, expr.operands.last().unwrap())?);
 
             Ok(ctx.ir.field_access(operands))
         }
@@ -641,14 +628,6 @@ fn expr_from_ast(
             }
 
             let symbol = symbol.unwrap();
-
-            #[cfg(feature = "constant-folding")]
-            {
-                let type_value = symbol.type_value();
-                if type_value.is_const() {
-                    return Ok(ctx.ir.constant(type_value.clone()));
-                }
-            }
 
             Ok(ctx.ir.ident(symbol))
         }

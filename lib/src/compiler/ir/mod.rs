@@ -35,6 +35,7 @@ use std::mem;
 use std::mem::discriminant;
 use std::ops::Index;
 use std::ops::RangeInclusive;
+use std::rc::Rc;
 
 use bitmask::bitmask;
 use bstr::BString;
@@ -49,7 +50,7 @@ use crate::compiler::ir::dfs::{dfs_common, DFSIter, Event};
 
 use crate::re;
 use crate::symbols::Symbol;
-use crate::types::{Type, TypeValue, Value};
+use crate::types::{Func, Type, TypeValue, Value};
 
 pub(in crate::compiler) use ast2ir::patterns_from_ast;
 pub(in crate::compiler) use ast2ir::rule_condition_from_ast;
@@ -870,6 +871,13 @@ impl IR {
 
     /// Creates a new [`Expr::Ident`].
     pub fn ident(&mut self, symbol: Symbol) -> ExprId {
+        if self.constant_folding {
+            let type_value = symbol.type_value();
+            if type_value.is_const() {
+                return self.constant(type_value.clone());
+            }
+        }
+
         let expr_id = ExprId::from(self.nodes.len());
         self.parents.push(ExprId::none());
         self.nodes.push(Expr::Ident { symbol: Box::new(symbol) });
@@ -1122,7 +1130,7 @@ impl IR {
             if let Some(value) = self.fold_arithmetic(
                 operands.as_slice(),
                 is_float,
-                |acc, x| acc - -x,
+                |acc, x| acc - x,
             )? {
                 return Ok(self.constant(value));
             }
@@ -1194,6 +1202,12 @@ impl IR {
     /// Creates a new [`Expr::FieldAccess`].
     pub fn field_access(&mut self, operands: Vec<ExprId>) -> ExprId {
         let type_value = self.get(*operands.last().unwrap()).type_value();
+
+        // If the last operand is constant, the whole expression is constant.
+        if self.constant_folding && type_value.is_const() {
+            return self.constant(type_value.clone());
+        }
+
         let expr_id = ExprId::from(self.nodes.len());
         for operand in operands.iter() {
             self.parents[operand.0 as usize] = expr_id;
@@ -1513,6 +1527,7 @@ impl IR {
         &mut self,
         callable: ExprId,
         args: Vec<ExprId>,
+        func: Rc<Func>,
         type_value: TypeValue,
         signature_index: usize,
     ) -> ExprId {
@@ -1525,6 +1540,7 @@ impl IR {
         self.nodes.push(Expr::FuncCall(Box::new(FuncCall {
             callable,
             args,
+            func,
             type_value,
             signature_index,
         })));
@@ -2218,6 +2234,8 @@ pub(crate) struct FuncCall {
     pub callable: ExprId,
     /// The arguments passed to the function in this call.
     pub args: Vec<ExprId>,
+    /// A reference to the function being called.
+    pub func: Rc<Func>,
     /// Type and value for the function's result.
     pub type_value: TypeValue,
     /// Due to function overloading, the same function may have multiple
