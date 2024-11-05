@@ -46,7 +46,7 @@ use yara_x_parser::ast::Ident;
 use yara_x_parser::Span;
 
 use crate::compiler::context::Var;
-use crate::compiler::ir::dfs::{DepthFirstSearch, Event};
+use crate::compiler::ir::dfs::{dfs_common, DFSIter, Event};
 use crate::re;
 use crate::symbols::Symbol;
 use crate::types::{Type, TypeValue, Value};
@@ -340,17 +340,6 @@ pub(crate) enum Error {
     NumberOutOfRange,
 }
 
-pub(crate) struct ExprHashes(Vec<u64>);
-
-impl Index<ExprId> for ExprHashes {
-    type Output = u64;
-
-    #[inline]
-    fn index(&self, index: ExprId) -> &Self::Output {
-        self.0.index(index.0 as usize)
-    }
-}
-
 /// Intermediate representation (IR) of a rule condition.
 ///
 /// The IR is a tree representing a rule condition. It is generated from the
@@ -411,8 +400,30 @@ impl IR {
 
     /// Returns an iterator that performs a depth first search starting at
     /// the given node.
-    pub fn dfs_iter(&self, start: ExprId) -> DepthFirstSearch {
-        DepthFirstSearch::new(start, self.nodes.as_slice())
+    pub fn dfs_iter(&self, start: ExprId) -> DFSIter {
+        DFSIter::new(start, self.nodes.as_slice())
+    }
+
+    /// Performs a depth-first traversal of the IR tree, calling the `f`
+    /// function both upon entering and leaving each node.
+    pub fn dfs_mut<F>(&mut self, start: ExprId, mut f: F)
+    where
+        F: FnMut(Event<(ExprId, &mut Expr)>),
+    {
+        let mut stack = vec![Event::Enter(start)];
+
+        while let Some(evt) = stack.pop() {
+            if let Event::Enter(expr) = evt {
+                stack.push(Event::Leave(expr));
+            }
+            f(match &evt {
+                Event::Enter(e) => Event::Enter((*e, self.get_mut(*e))),
+                Event::Leave(e) => Event::Leave((*e, self.get_mut(*e))),
+            });
+            if let Event::Enter(expr) = evt {
+                dfs_common(&self.nodes[expr.0 as usize], &mut stack);
+            }
+        }
     }
 
     /// Finds the first expression in DFS order starting at the `start` node
