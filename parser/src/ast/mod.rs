@@ -174,7 +174,7 @@ impl<'src> Ident<'src> {
 #[derive(Debug)]
 pub struct IdentWithRange<'src> {
     span: Span,
-    pub ident: Ident<'src>,
+    pub identifier: Ident<'src>,
     pub range: Option<Range<'src>>,
 }
 
@@ -186,7 +186,7 @@ pub struct IdentWithRange<'src> {
 #[derive(Debug)]
 pub struct IdentWithIndex<'src> {
     span: Span,
-    pub ident: Ident<'src>,
+    pub identifier: Ident<'src>,
     pub index: Option<Expr<'src>>,
 }
 
@@ -421,7 +421,6 @@ pub enum PatternSet<'src> {
 #[derive(Debug)]
 pub struct PatternSetItem<'src> {
     span: Span,
-    // TODO: homogenize, in some places we use `ident` and in some other `identifier`.
     pub identifier: &'src str,
     pub wildcard: bool,
 }
@@ -431,11 +430,11 @@ impl PatternSetItem<'_> {
     ///
     /// For example, identifiers `$a` and `$abc` both match the
     /// [`PatternSetItem`] for `$a*`.
-    pub fn matches(&self, ident: &Ident) -> bool {
+    pub fn matches(&self, identifier: &Ident) -> bool {
         if self.wildcard {
-            ident.name.starts_with(self.identifier)
+            identifier.name.starts_with(self.identifier)
         } else {
-            ident.name == self.identifier
+            identifier.name == self.identifier
         }
     }
 }
@@ -808,7 +807,7 @@ pub struct FuncCall<'src> {
     span: Span,
     args_span: Span,
     pub object: Option<Expr<'src>>,
-    pub ident: Ident<'src>,
+    pub identifier: Ident<'src>,
     pub args: Vec<Expr<'src>>,
 }
 

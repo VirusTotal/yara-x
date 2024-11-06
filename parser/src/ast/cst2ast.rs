@@ -1249,7 +1249,7 @@ impl<'src> Builder<'src> {
     ) -> Result<Expr<'src>, BuilderError> {
         self.begin(FUNC_CALL)?;
 
-        let ident = self.identifier()?;
+        let identifier = self.identifier()?;
         let l_paren_span = self.expect(L_PAREN)?;
         let mut args = Vec::new();
 
@@ -1263,10 +1263,10 @@ impl<'src> Builder<'src> {
         let r_paren_span = self.expect(R_PAREN)?;
 
         let expr = Expr::FuncCall(Box::new(FuncCall {
-            span: ident.span(),
+            span: identifier.span(),
             args_span: l_paren_span.combine(&r_paren_span),
             object,
-            ident,
+            identifier,
             args,
         }));
 
@@ -1325,11 +1325,9 @@ impl<'src> Builder<'src> {
                         (span.clone(), None)
                     };
 
-                let ident = Ident { span, name };
-
                 Expr::PatternCount(Box::new(IdentWithRange {
                     span: span_with_range,
-                    ident,
+                    identifier: Ident { span, name },
                     range,
                 }))
             }
@@ -1350,11 +1348,9 @@ impl<'src> Builder<'src> {
                     (span.clone(), None)
                 };
 
-                let ident = Ident { span, name };
-
                 Expr::PatternOffset(Box::new(IdentWithIndex {
                     span: span_with_index,
-                    ident,
+                    identifier: Ident { span, name },
                     index,
                 }))
             }
@@ -1375,11 +1371,9 @@ impl<'src> Builder<'src> {
                     (span.clone(), None)
                 };
 
-                let ident = Ident { span, name };
-
                 Expr::PatternLength(Box::new(IdentWithIndex {
                     span: span_with_index,
-                    ident,
+                    identifier: Ident { span, name },
                     index,
                 }))
             }

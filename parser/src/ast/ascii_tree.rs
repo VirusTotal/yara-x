@@ -225,7 +225,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
         Expr::PatternCount(s) => {
             if let Some(range) = &s.range {
                 Node(
-                    format!("{} in <range>", s.ident.name),
+                    format!("{} in <range>", s.identifier.name),
                     vec![Node(
                         "<range>".to_string(),
                         vec![
@@ -235,20 +235,20 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
                     )],
                 )
             } else {
-                Leaf(vec![s.ident.name.to_string()])
+                Leaf(vec![s.identifier.name.to_string()])
             }
         }
         Expr::PatternOffset(s) | Expr::PatternLength(s) => {
             if let Some(index) = &s.index {
                 Node(
-                    format!("{}[<index>]", s.ident.name),
+                    format!("{}[<index>]", s.identifier.name),
                     vec![Node(
                         "<index>".to_string(),
                         vec![expr_ascii_tree(index)],
                     )],
                 )
             } else {
-                Leaf(vec![s.ident.name.to_string()])
+                Leaf(vec![s.identifier.name.to_string()])
             }
         }
         Expr::Lookup(l) => Node(
@@ -290,7 +290,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
             }
 
             Node(
-                format!("{}({})", expr.ident.name, comma_sep_labels),
+                format!("{}({})", expr.identifier.name, comma_sep_labels),
                 children,
             )
         }

@@ -642,14 +642,14 @@ fn expr_from_ast(
         ast::Expr::PatternCount(p) => {
             // If the identifier is just `#`, and we are not inside a loop,
             // that's an error.
-            if p.ident.name == "#" && ctx.for_of_depth == 0 {
+            if p.identifier.name == "#" && ctx.for_of_depth == 0 {
                 return Err(SyntaxError::build(
                     ctx.report_builder,
                     "this `#` is outside of the condition of a `for .. of` statement".to_string(),
-                    p.ident.span().into(),
+                    p.identifier.span().into(),
                 ));
             }
-            match (p.ident.name, &p.range) {
+            match (p.identifier.name, &p.range) {
                 // Cases where the identifier is `#`.
                 ("#", Some(range)) => {
                     let range = range_from_ast(ctx, range)?;
@@ -666,13 +666,13 @@ fn expr_from_ast(
                 (_, Some(range)) => {
                     let range = range_from_ast(ctx, range)?;
                     let (pattern_idx, pattern) =
-                        ctx.get_pattern_mut(&p.ident)?;
+                        ctx.get_pattern_mut(&p.identifier)?;
                     pattern.make_non_anchorable().mark_as_used();
                     ctx.ir.pattern_count(pattern_idx, Some(range))
                 }
                 (_, None) => {
                     let (pattern_idx, pattern) =
-                        ctx.get_pattern_mut(&p.ident)?;
+                        ctx.get_pattern_mut(&p.identifier)?;
                     pattern.make_non_anchorable().mark_as_used();
                     ctx.ir.pattern_count(pattern_idx, None)
                 }
@@ -682,14 +682,14 @@ fn expr_from_ast(
         ast::Expr::PatternOffset(p) => {
             // If the identifier is just `@`, and we are not inside a loop,
             // that's an error.
-            if p.ident.name == "@" && ctx.for_of_depth == 0 {
+            if p.identifier.name == "@" && ctx.for_of_depth == 0 {
                 return Err(SyntaxError::build(
                     ctx.report_builder,
                     "this `@` is outside of the condition of a `for .. of` statement".to_string(),
-                    p.ident.span().into(),
+                    p.identifier.span().into(),
                 ));
             }
-            match (p.ident.name, &p.index) {
+            match (p.identifier.name, &p.index) {
                 // Cases where the identifier is `@`.
                 ("@", Some(index)) => {
                     let range =
@@ -708,13 +708,13 @@ fn expr_from_ast(
                     let range =
                         integer_in_range_from_ast(ctx, index, 1..=i64::MAX)?;
                     let (pattern_idx, pattern) =
-                        ctx.get_pattern_mut(&p.ident)?;
+                        ctx.get_pattern_mut(&p.identifier)?;
                     pattern.make_non_anchorable().mark_as_used();
                     ctx.ir.pattern_offset(pattern_idx, Some(range))
                 }
                 (_, None) => {
                     let (pattern_idx, pattern) =
-                        ctx.get_pattern_mut(&p.ident)?;
+                        ctx.get_pattern_mut(&p.identifier)?;
                     pattern.make_non_anchorable().mark_as_used();
                     ctx.ir.pattern_offset(pattern_idx, None)
                 }
@@ -724,14 +724,14 @@ fn expr_from_ast(
         ast::Expr::PatternLength(p) => {
             // If the identifier is just `!`, and we are not inside a loop,
             // that's an error.
-            if p.ident.name == "!" && ctx.for_of_depth == 0 {
+            if p.identifier.name == "!" && ctx.for_of_depth == 0 {
                 return Err(SyntaxError::build(
                     ctx.report_builder,
                     "this `!` is outside of the condition of a `for .. of` statement".to_string(),
-                    p.ident.span().into(),
+                    p.identifier.span().into(),
                 ));
             }
-            match (p.ident.name, &p.index) {
+            match (p.identifier.name, &p.index) {
                 // Cases where the identifier is `!`.
                 ("!", Some(index)) => {
                     let index =
@@ -750,13 +750,13 @@ fn expr_from_ast(
                     let index =
                         integer_in_range_from_ast(ctx, index, 1..=i64::MAX)?;
                     let (pattern_idx, pattern) =
-                        ctx.get_pattern_mut(&p.ident)?;
+                        ctx.get_pattern_mut(&p.identifier)?;
                     pattern.make_non_anchorable().mark_as_used();
                     ctx.ir.pattern_length(pattern_idx, Some(index))
                 }
                 (_, None) => {
                     let (pattern_idx, pattern) =
-                        ctx.get_pattern_mut(&p.ident)?;
+                        ctx.get_pattern_mut(&p.identifier)?;
                     pattern.make_non_anchorable().mark_as_used();
                     ctx.ir.pattern_length(pattern_idx, None)
                 }
@@ -1557,7 +1557,7 @@ fn func_call_from_ast(
         None
     };
 
-    let symbol = ctx.lookup(&func_call.ident)?;
+    let symbol = ctx.lookup(&func_call.identifier)?;
 
     let func = match symbol {
         Symbol::Func(func) => func,
