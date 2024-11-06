@@ -8,7 +8,9 @@ use crate::compiler::errors::{CompileError, UnknownPattern};
 use crate::compiler::ir::{PatternIdx, IR};
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{ir, Warnings};
-use crate::symbols::{StackedSymbolTable, SymbolLookup};
+use crate::errors::{UnknownField, UnknownIdentifier};
+use crate::modules::BUILTIN_MODULES;
+use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup};
 use crate::types::Type;
 use crate::wasm;
 
@@ -85,6 +87,47 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
                     ident.span().into(),
                 )
             })
+    }
+
+    pub fn lookup(&mut self, ident: &Ident) -> Result<Symbol, CompileError> {
+        let symbol_table = self.current_symbol_table.take();
+
+        let symbol = if let Some(symbol_table) = &symbol_table {
+            symbol_table.lookup(ident.name)
+        } else {
+            self.symbol_table.lookup(ident.name)
+        };
+
+        if symbol.is_none() {
+            // If the current symbol table is `None` it means that the
+            // identifier is not a field or method of some structure.
+            return if symbol_table.is_none() {
+                Err(UnknownIdentifier::build(
+                    self.report_builder,
+                    ident.name.to_string(),
+                    ident.span().into(),
+                    // Add a note about the missing import statement if
+                    // the unknown identifier is a module name.
+                    if BUILTIN_MODULES.contains_key(ident.name) {
+                        Some(format!(
+                            "there is a module named `{}`, but the `import \"{}\"` statement is missing",
+                            ident.name,
+                            ident.name
+                        ))
+                    } else {
+                        None
+                    },
+                ))
+            } else {
+                Err(UnknownField::build(
+                    self.report_builder,
+                    ident.name.to_string(),
+                    ident.span().into(),
+                ))
+            };
+        }
+
+        Ok(symbol.unwrap())
     }
 }
 

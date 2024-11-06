@@ -189,11 +189,13 @@ pub(super) fn dfs_common(expr: &Expr, stack: &mut Vec<Event<ExprId>>) {
             }
         }
 
-        Expr::FuncCall(fn_call) => {
-            for arg in fn_call.args.iter().rev() {
+        Expr::FuncCall(func_call) => {
+            for arg in func_call.args.iter().rev() {
                 stack.push(Event::Enter(*arg))
             }
-            stack.push(Event::Enter(fn_call.callable));
+            if let Some(obj) = func_call.object {
+                stack.push(Event::Enter(obj));
+            }
         }
 
         Expr::OfExprTuple(of_expr_tuple) => {

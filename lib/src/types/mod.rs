@@ -278,11 +278,12 @@ impl TypeValue {
     /// Returns the symbol table associated to this [`TypeValue`].
     ///
     /// The symbol table contains the methods and/or fields associated to the
-    /// type.
-    pub fn symbol_table(&self) -> Rc<dyn SymbolLookup> {
+    /// type. This only returns some value for [`TypeValue::Struct`] for any
+    /// other type it returns [`None`].
+    pub fn symbol_table(&self) -> Option<Rc<dyn SymbolLookup>> {
         match self {
-            Self::Struct(s) => s.clone(),
-            _ => unreachable!(),
+            Self::Struct(s) => Some(s.clone()),
+            _ => None,
         }
     }
 
@@ -379,17 +380,6 @@ impl TypeValue {
         } else {
             panic!(
                 "called `as_map` on a TypeValue that is not TypeValue::Map, it is: {:?}",
-                self
-            )
-        }
-    }
-
-    pub fn as_func(&self) -> Rc<Func> {
-        if let TypeValue::Func(func) = self {
-            func.clone()
-        } else {
-            panic!(
-                "called `as_func` on a TypeValue that is not TypeValue::Func, it is: {:?}",
                 self
             )
         }

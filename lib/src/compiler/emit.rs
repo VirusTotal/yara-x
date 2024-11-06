@@ -31,7 +31,7 @@ use crate::compiler::{
 use crate::scanner::RuntimeObjectHandle;
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::Symbol;
-use crate::types::{Array, Func, Map, Type, TypeValue, Value};
+use crate::types::{Array, Map, Type, TypeValue, Value};
 use crate::utils::cast;
 use crate::wasm;
 use crate::wasm::builder::WasmModuleBuilder;
@@ -179,13 +179,6 @@ type ExceptionHandler = Box<dyn Fn(&mut EmitContext, &mut InstrSeqBuilder)>;
 /// Structure that contains information used while emitting the code that
 /// corresponds to the condition of a YARA rule.
 pub(crate) struct EmitContext<'a> {
-    /// Signature index associated the function call being emitted. This
-    /// is an index in the array returned by `func.signatures()`, where
-    /// `func` is an instance of [`Type::Func`] that represents the
-    /// function being called. As each function may have multiple signatures
-    /// this tells which specific signature must be used.
-    pub current_signature: Option<usize>,
-
     /// Information about the rule whose condition is being emitted.
     pub current_rule: &'a RuleInfo,
 
@@ -314,13 +307,12 @@ fn emit_expr(
                     // zero or one at the top of the stack.
                     emit_check_for_rule_match(ctx, *rule_id, instr);
                 }
-                Symbol::Func(func) => {
-                    emit_func_call(ctx, func, instr);
-                }
                 Symbol::Var { var, .. } => {
                     // The symbol represents a variable in WASM memory,
                     // emit code for loading its value into the stack.
-                    load_var(ctx, instr, *var);
+                    if !matches!(var.ty(), Type::Func) {
+                        load_var(ctx, instr, *var);
+                    }
                 }
                 Symbol::Field { index, is_root, type_value, .. } => {
                     let index: i32 = (*index).try_into().unwrap();
@@ -370,7 +362,6 @@ fn emit_expr(
                                     emit_lookup_object(ctx, instr);
                                 }
                             }
-                            emit_func_call(ctx, func, instr);
                             ctx.lookup_list.clear();
                         }
                         TypeValue::Regexp(_) => {
@@ -386,6 +377,9 @@ fn emit_expr(
                             unreachable!();
                         }
                     }
+                }
+                Symbol::Func(_) => {
+                    unreachable!()
                 }
             }
         }
@@ -646,17 +640,25 @@ fn emit_expr(
                 emit_expr(ctx, ir, *expr, instr);
             }
 
-            let previous =
-                ctx.current_signature.replace(fn_call.signature_index);
+            if let Some(obj) = fn_call.object {
+                emit_expr(ctx, ir, obj, instr);
+            }
 
-            // Emit the expression that resolves into a function identifier.
-            emit_expr(ctx, ir, fn_call.callable, instr);
-
-            ctx.current_signature = previous;
+            if fn_call.signature().result_may_be_undef {
+                emit_call_and_handle_undef(
+                    ctx,
+                    instr,
+                    ctx.function_id(fn_call.mangled_name()),
+                );
+            } else {
+                instr.call(ctx.function_id(fn_call.mangled_name()));
+            }
         }
 
         Expr::Var(var) => {
-            load_var(ctx, instr, *var);
+            if !matches!(var.ty(), Type::Func) {
+                load_var(ctx, instr, *var);
+            }
         }
 
         Expr::With { declarations, condition } => {
@@ -2297,7 +2299,8 @@ fn set_var<B>(
         | Type::String
         | Type::Struct
         | Type::Array
-        | Type::Map => (StoreKind::I64 { atomic: false }, size_of::<i64>()),
+        | Type::Map
+        | Type::Func => (StoreKind::I64 { atomic: false }, size_of::<i64>()),
         _ => unreachable!(),
     };
 
@@ -2366,7 +2369,8 @@ fn set_vars<B>(
             | Type::String
             | Type::Struct
             | Type::Array
-            | Type::Map => {
+            | Type::Map
+            | Type::Func => {
                 instr.local_set(ctx.wasm_symbols.i64_tmp_a);
                 instr.i32_const(var.index() * Var::mem_size());
                 instr.local_get(ctx.wasm_symbols.i64_tmp_a);
@@ -2520,24 +2524,6 @@ fn emit_bool_expr(
             instr.binop(BinaryOp::I64Ne);
         }
         ty => unreachable!("type `{:?}` can't be casted to boolean", ty),
-    }
-}
-
-/// Emit function call.
-fn emit_func_call(
-    ctx: &mut EmitContext,
-    func: &Rc<Func>,
-    instr: &mut InstrSeqBuilder,
-) {
-    let signature = &func.signatures()[ctx.current_signature.unwrap()];
-    if signature.result_may_be_undef {
-        emit_call_and_handle_undef(
-            ctx,
-            instr,
-            ctx.function_id(signature.mangled_name.as_str()),
-        );
-    } else {
-        instr.call(ctx.function_id(signature.mangled_name.as_str()));
     }
 }
 

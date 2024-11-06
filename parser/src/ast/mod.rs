@@ -421,6 +421,7 @@ pub enum PatternSet<'src> {
 #[derive(Debug)]
 pub struct PatternSetItem<'src> {
     span: Span,
+    // TODO: homogenize, in some places we use `ident` and in some other `identifier`.
     pub identifier: &'src str,
     pub wildcard: bool,
 }
@@ -806,7 +807,8 @@ pub struct In<'src> {
 pub struct FuncCall<'src> {
     span: Span,
     args_span: Span,
-    pub callable: Expr<'src>,
+    pub object: Option<Expr<'src>>,
+    pub ident: Ident<'src>,
     pub args: Vec<Expr<'src>>,
 }
 

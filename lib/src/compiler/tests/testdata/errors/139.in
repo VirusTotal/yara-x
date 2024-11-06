@@ -1,0 +1,8 @@
+// test_proto2-module required
+
+import "test_proto2"
+
+rule test {
+   condition:
+      with foo = test_proto2.nested.nested_method : ( not foo() )
+}

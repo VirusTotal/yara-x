@@ -1208,46 +1208,69 @@ impl<'src> Builder<'src> {
     fn term(&mut self) -> Result<Expr<'src>, BuilderError> {
         self.begin(TERM)?;
 
-        let mut expr = self.primary_expr()?;
+        let expr = match self.peek() {
+            Event::Begin(FUNC_CALL) => self.func_call(None)?,
+            Event::Begin(PRIMARY_EXPR) => {
+                let mut expr = self.primary_expr()?;
 
-        match self.peek() {
-            // Array or dictionary lookup.
-            Event::Token { kind: L_BRACKET, .. } => {
-                self.expect(L_BRACKET)?;
-                let index = self.expr()?;
-                let span = expr.span();
-                let span = span.combine(&self.expect(R_BRACKET)?);
-                expr = Expr::Lookup(Box::new(Lookup {
-                    primary: expr,
-                    index,
-                    span,
-                }));
-            }
-            // Function call
-            Event::Token { kind: L_PAREN, .. } => {
-                let l_paren_span = self.expect(L_PAREN)?;
-                let mut args = Vec::new();
-
-                while let Event::Begin(BOOLEAN_EXPR) = self.peek() {
-                    args.push(self.boolean_expr()?);
-                    if let Event::Token { kind: COMMA, .. } = self.peek() {
-                        self.expect(COMMA)?;
+                match self.peek() {
+                    // Array or dictionary lookup.
+                    Event::Token { kind: L_BRACKET, .. } => {
+                        self.expect(L_BRACKET)?;
+                        let index = self.expr()?;
+                        let span = expr.span();
+                        let span = span.combine(&self.expect(R_BRACKET)?);
+                        expr = Expr::Lookup(Box::new(Lookup {
+                            primary: expr,
+                            index,
+                            span,
+                        }))
                     }
+                    Event::Token { kind: DOT, .. } => {
+                        self.expect(DOT)?;
+                        expr = self.func_call(Some(expr))?;
+                    }
+                    _ => {}
                 }
 
-                let r_paren_span = self.expect(R_PAREN)?;
-
-                expr = Expr::FuncCall(Box::new(FuncCall {
-                    span: expr.span().combine(&r_paren_span),
-                    args_span: l_paren_span.combine(&r_paren_span),
-                    callable: expr,
-                    args,
-                }));
+                expr
             }
-            _ => {}
-        }
+            _ => unreachable!(),
+        };
 
         self.end(TERM)?;
+
+        Ok(expr)
+    }
+
+    fn func_call(
+        &mut self,
+        object: Option<Expr<'src>>,
+    ) -> Result<Expr<'src>, BuilderError> {
+        self.begin(FUNC_CALL)?;
+
+        let ident = self.identifier()?;
+        let l_paren_span = self.expect(L_PAREN)?;
+        let mut args = Vec::new();
+
+        while let Event::Begin(BOOLEAN_EXPR) = self.peek() {
+            args.push(self.boolean_expr()?);
+            if let Event::Token { kind: COMMA, .. } = self.peek() {
+                self.expect(COMMA)?;
+            }
+        }
+
+        let r_paren_span = self.expect(R_PAREN)?;
+
+        let expr = Expr::FuncCall(Box::new(FuncCall {
+            span: ident.span(),
+            args_span: l_paren_span.combine(&r_paren_span),
+            object,
+            ident,
+            args,
+        }));
+
+        self.end(FUNC_CALL)?;
 
         Ok(expr)
     }

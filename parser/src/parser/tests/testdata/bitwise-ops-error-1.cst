@@ -26,4 +26,4 @@ SOURCE_FILE@0..35
     R_BRACE@34..35 "}"
 
 ERRORS:
-- [30..31]: expecting `.`, `%`, `[`, `(`, operator, `of`, expression or `}`, found `~`
+- [30..31]: expecting `.`, `%`, `(`, `[`, operator, `of`, expression or `}`, found `~`

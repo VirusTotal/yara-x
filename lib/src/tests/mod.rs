@@ -557,11 +557,11 @@ fn with() {
     #[cfg(feature = "test_proto2-module")]
     condition_true!(
         r#"with
-            bar = test_proto2.array_string[1],
-            baz = test_proto2.array_string[2]:
-                (
-                    bar == "bar" and baz == "baz"
-                )
+             bar = test_proto2.array_string[1],
+             baz = test_proto2.array_string[2]:
+           (
+              bar == "bar" and baz == "baz"
+           )
         "#
     );
 
@@ -578,9 +578,9 @@ fn with() {
             with
                 foo = test_proto2.array_int64[i],
                 bar = test_proto2.array_int64[i + 1] :
-                    (
-                        foo == 1 and bar == 10
-                    )
+            (
+                foo == 1 and bar == 10
+            )
         )"#
     );
 
@@ -590,10 +590,19 @@ fn with() {
             with
                 foo = test_proto2.array_int64[i],
                 bar = test_proto2.array_int64[i + 1] :
-                    (
-                        foo == 1 and bar == foo * 10
-                    )
+            (
+               foo == 1 and bar == foo * 10
+            )
         )"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"with foo = test_proto2.add :
+           (
+              foo(1,2) == 3
+           )
+        "#
     );
 }
 

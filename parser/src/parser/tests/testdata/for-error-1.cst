@@ -58,4 +58,4 @@ SOURCE_FILE@0..94
     R_BRACE@93..94 "}"
 
 ERRORS:
-- [77..79]: expecting expression, found `of`
+- [77..79]: expecting identifier or expression, found `of`

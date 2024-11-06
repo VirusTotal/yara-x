@@ -893,6 +893,13 @@ fn test_errors() {
             continue;
         }
 
+        // If the `test_proto2-module` feature is not enabled ignore files
+        // starting with "// test_proto2-module required".
+        #[cfg(not(feature = "test_proto2-module"))]
+        if rules.starts_with("// test_proto2-module required") {
+            continue;
+        }
+
         src.push_str(rules.as_str());
 
         let err = compile(src.as_str()).expect_err(
@@ -930,6 +937,13 @@ fn test_warnings() {
         // starting with "// constant-folding required".
         #[cfg(not(feature = "constant-folding"))]
         if rules.starts_with("// constant-folding required") {
+            continue;
+        }
+
+        // If the `test_proto2-module` feature is not enabled ignore files
+        // starting with "// test_proto2-module required".
+        #[cfg(not(feature = "test_proto2-module"))]
+        if rules.starts_with("// test_proto2-module required") {
             continue;
         }
 

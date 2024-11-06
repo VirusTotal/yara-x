@@ -50,7 +50,7 @@ use crate::compiler::ir::dfs::{dfs_common, DFSIter, Event};
 
 use crate::re;
 use crate::symbols::Symbol;
-use crate::types::{Func, Type, TypeValue, Value};
+use crate::types::{Func, FuncSignature, Type, TypeValue, Value};
 
 pub(in crate::compiler) use ast2ir::patterns_from_ast;
 pub(in crate::compiler) use ast2ir::rule_condition_from_ast;
@@ -1525,7 +1525,7 @@ impl IR {
     /// Creates a new [`Expr::FuncCall`]
     pub fn func_call(
         &mut self,
-        callable: ExprId,
+        object: Option<ExprId>,
         args: Vec<ExprId>,
         func: Rc<Func>,
         type_value: TypeValue,
@@ -1535,10 +1535,12 @@ impl IR {
         for arg in args.iter() {
             self.parents[arg.0 as usize] = expr_id
         }
-        self.parents[callable.0 as usize] = expr_id;
+        if let Some(obj) = &object {
+            self.parents[obj.0 as usize] = expr_id;
+        }
         self.parents.push(ExprId::none());
         self.nodes.push(Expr::FuncCall(Box::new(FuncCall {
-            callable,
+            object,
             args,
             func,
             type_value,
@@ -1829,13 +1831,18 @@ impl Debug for IR {
                         Expr::FieldAccess { .. } => write!(f, "FIELD_ACCESS -- hash: {:#08x}", expr_hash)?,
                         Expr::With { .. } => write!(f, "WITH -- hash: {:#08x}", expr_hash)?,
                         Expr::Ident { symbol } => write!(f, "IDENT {:?}", symbol)?,
-                        Expr::FuncCall(_) => write!(f, "FN_CALL -- hash: {:#08x}", expr_hash)?,
                         Expr::OfExprTuple(_) => write!(f, "OF -- hash: {:#08x}", expr_hash)?,
                         Expr::OfPatternSet(_) => write!(f, "OF -- hash: {:#08x}", expr_hash)?,
                         Expr::ForOf(_) => write!(f, "FOR_OF -- hash: {:#08x}", expr_hash)?,
                         Expr::ForIn(_) => write!(f, "FOR_IN -- hash: {:#08x}", expr_hash)?,
                         Expr::Lookup(_) => write!(f, "LOOKUP -- hash: {:#08x}", expr_hash)?,
                         Expr::Var(var) => write!(f, "VAR {:?} -- hash: {:#08x}", var, expr_hash)?,
+                        Expr::FuncCall(fn_call) => write!(
+                            f,
+                            "FN_CALL {} -- hash: {:#08x}",
+                            fn_call.mangled_name(),
+                            expr_hash
+                        )?,
                         Expr::PatternMatch { pattern, anchor } => write!(
                             f,
                             "PATTERN_MATCH {:?}{} -- hash: {:#08x}",
@@ -2228,20 +2235,31 @@ pub(crate) struct FieldAccess {
     pub operands: Vec<ExprId>,
 }
 
-/// An expression representing a function call.
+/// An expression representing a function or method call.
 pub(crate) struct FuncCall {
-    /// The callable expression, which must resolve in some function identifier.
-    pub callable: ExprId,
-    /// The arguments passed to the function in this call.
-    pub args: Vec<ExprId>,
-    /// A reference to the function being called.
+    pub object: Option<ExprId>,
+    /// The function or method being called.
     pub func: Rc<Func>,
-    /// Type and value for the function's result.
+    /// The arguments passed to the function or method in this call.
+    pub args: Vec<ExprId>,
+    /// Type and value for the result.
     pub type_value: TypeValue,
     /// Due to function overloading, the same function may have multiple
     /// signatures. This field indicates the index of the signature that
     /// matched the provided arguments.
     pub signature_index: usize,
+}
+
+impl FuncCall {
+    /// Returns the mangled function name for this function call.
+    pub fn signature(&self) -> &FuncSignature {
+        &self.func.signatures()[self.signature_index]
+    }
+
+    /// Returns the mangled function name for this function call.
+    pub fn mangled_name(&self) -> &str {
+        self.signature().mangled_name.as_str()
+    }
 }
 
 /// An `of` expression with a tuple of expressions (e.g. `1 of (true, false)`).

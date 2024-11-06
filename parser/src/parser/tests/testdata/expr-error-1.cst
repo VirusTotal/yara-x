@@ -173,8 +173,8 @@ SOURCE_FILE@0..251
   NEWLINE@250..251 "\n"
 
 ERRORS:
-- [37..38]: expecting expression, found `}`
-- [71..72]: expecting expression, found `+`
-- [115..117]: expecting expression, found `==`
+- [37..38]: expecting identifier or expression, found `}`
+- [71..72]: expecting identifier or expression, found `+`
+- [115..117]: expecting identifier or expression, found `==`
 - [162..163]: expecting operator, `of`, expression or `}`, found `(`
-- [238..240]: expecting `[`, `(`, operator or `}`, found `in`
+- [238..240]: expecting `[`, `.`, operator or `}`, found `in`

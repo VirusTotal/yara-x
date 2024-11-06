@@ -279,16 +279,20 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
                 .collect::<Vec<&str>>()
                 .join(", ");
 
-            let mut children = vec![Node(
-                "<callable>".to_string(),
-                vec![expr_ascii_tree(&expr.callable)],
-            )];
+            let mut children = if let Some(o) = &expr.object {
+                vec![Node("<object>".to_string(), vec![expr_ascii_tree(o)])]
+            } else {
+                Vec::new()
+            };
 
             for (label, arg) in labelled_args.into_iter() {
                 children.push(Node(label, vec![expr_ascii_tree(arg)]))
             }
 
-            Node(format!("<callable>({})", comma_sep_labels), children)
+            Node(
+                format!("{}({})", expr.ident.name, comma_sep_labels),
+                children,
+            )
         }
         Expr::Of(of) => {
             let set_ascii_tree = match &of.items {
