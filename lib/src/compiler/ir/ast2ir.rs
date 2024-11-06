@@ -424,17 +424,17 @@ fn expr_from_ast(
             ctx.ir.constant(TypeValue::const_bool_from(false))
         }
 
-        ast::Expr::LiteralInteger(literal) => {
-            ctx.ir.constant(TypeValue::const_integer_from(literal.value))
+        ast::Expr::LiteralInteger(lit) => {
+            ctx.ir.constant(TypeValue::const_integer_from(lit.value))
         }
 
-        ast::Expr::LiteralFloat(literal) => {
-            ctx.ir.constant(TypeValue::const_float_from(literal.value))
+        ast::Expr::LiteralFloat(lit) => {
+            ctx.ir.constant(TypeValue::const_float_from(lit.value))
         }
 
-        ast::Expr::LiteralString(literal) => ctx
-            .ir
-            .constant(TypeValue::const_string_from(literal.value.as_bytes())),
+        ast::Expr::LiteralString(lit) => {
+            ctx.ir.constant(TypeValue::const_string_from(lit.value.as_bytes()))
+        }
 
         ast::Expr::Regexp(regexp) => {
             re::parser::Parser::new()
