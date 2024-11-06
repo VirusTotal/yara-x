@@ -1,6 +1,6 @@
 ERRORS:
-- SyntaxError { message: "expecting identifier or expression, found `}`", span: Span(37..38) }
-- SyntaxError { message: "expecting identifier or expression, found `+`", span: Span(71..72) }
-- SyntaxError { message: "expecting identifier or expression, found `==`", span: Span(115..117) }
+- SyntaxError { message: "expecting expression, found `}`", span: Span(37..38) }
+- SyntaxError { message: "expecting expression, found `+`", span: Span(71..72) }
+- SyntaxError { message: "expecting expression, found `==`", span: Span(115..117) }
 - SyntaxError { message: "expecting operator, `of`, expression or `}`, found `(`", span: Span(162..163) }
 - SyntaxError { message: "expecting `[`, `.`, operator or `}`, found `in`", span: Span(238..240) }

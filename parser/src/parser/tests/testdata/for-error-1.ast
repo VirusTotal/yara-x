@@ -1,2 +1,2 @@
 ERRORS:
-- SyntaxError { message: "expecting identifier or expression, found `of`", span: Span(77..79) }
+- SyntaxError { message: "expecting expression, found `of`", span: Span(77..79) }
