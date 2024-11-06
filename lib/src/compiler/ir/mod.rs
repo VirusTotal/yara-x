@@ -1837,10 +1837,10 @@ impl Debug for IR {
                         Expr::ForIn(_) => write!(f, "FOR_IN -- hash: {:#08x}", expr_hash)?,
                         Expr::Lookup(_) => write!(f, "LOOKUP -- hash: {:#08x}", expr_hash)?,
                         Expr::Var(var) => write!(f, "VAR {:?} -- hash: {:#08x}", var, expr_hash)?,
-                        Expr::FuncCall(fn_call) => write!(
+                        Expr::FuncCall(func_call) => write!(
                             f,
                             "FN_CALL {} -- hash: {:#08x}",
-                            fn_call.mangled_name(),
+                            func_call.mangled_name(),
                             expr_hash
                         )?,
                         Expr::PatternMatch { pattern, anchor } => write!(
@@ -2594,7 +2594,7 @@ impl Expr {
 
             Expr::Ident { symbol, .. } => symbol.ty(),
             Expr::FieldAccess(field_access) => field_access.type_value.ty(),
-            Expr::FuncCall(fn_call) => fn_call.type_value.ty(),
+            Expr::FuncCall(func_call) => func_call.type_value.ty(),
             Expr::Lookup(lookup) => lookup.type_value.ty(),
             Expr::Var(var) => var.ty(),
         }
@@ -2666,7 +2666,7 @@ impl Expr {
 
             Expr::Ident { symbol, .. } => symbol.type_value().clone(),
             Expr::FieldAccess(field_access) => field_access.type_value.clone(),
-            Expr::FuncCall(fn_call) => fn_call.type_value.clone(),
+            Expr::FuncCall(func_call) => func_call.type_value.clone(),
             Expr::Lookup(lookup) => lookup.type_value.clone(),
 
             Expr::Var(var) => match var.ty() {

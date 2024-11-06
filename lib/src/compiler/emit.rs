@@ -634,24 +634,24 @@ fn emit_expr(
             }
         },
 
-        Expr::FuncCall(fn_call) => {
+        Expr::FuncCall(func_call) => {
             // Emit the arguments first.
-            for expr in fn_call.args.iter() {
+            for expr in func_call.args.iter() {
                 emit_expr(ctx, ir, *expr, instr);
             }
 
-            if let Some(obj) = fn_call.object {
+            if let Some(obj) = func_call.object {
                 emit_expr(ctx, ir, obj, instr);
             }
 
-            if fn_call.signature().result_may_be_undef {
+            if func_call.signature().result_may_be_undef {
                 emit_call_and_handle_undef(
                     ctx,
                     instr,
-                    ctx.function_id(fn_call.mangled_name()),
+                    ctx.function_id(func_call.mangled_name()),
                 );
             } else {
-                instr.call(ctx.function_id(fn_call.mangled_name()));
+                instr.call(ctx.function_id(func_call.mangled_name()));
             }
         }
 
