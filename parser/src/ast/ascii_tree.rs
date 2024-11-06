@@ -485,7 +485,7 @@ pub(crate) fn pattern_ascii_tree(pattern: &Pattern) -> Tree {
         )]),
         Pattern::Hex(h) => Node(
             h.identifier.name.to_string(),
-            vec![hex_tokens_ascii_tree(&h.tokens)],
+            vec![hex_tokens_ascii_tree(&h.sub_patterns)],
         ),
         Pattern::Regexp(r) => Leaf(vec![format!(
             "{} = /{}/{}{} {}",
@@ -498,9 +498,8 @@ pub(crate) fn pattern_ascii_tree(pattern: &Pattern) -> Tree {
     }
 }
 
-pub(crate) fn hex_tokens_ascii_tree(tokens: &HexTokens) -> Tree {
+pub(crate) fn hex_tokens_ascii_tree(tokens: &HexSubPattern) -> Tree {
     let nodes = tokens
-        .tokens
         .iter()
         .map(|t| match t {
             HexToken::Byte(b) => {

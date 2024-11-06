@@ -643,7 +643,7 @@ impl<'src> Builder<'src> {
 
                 Pattern::Hex(Box::new(HexPattern {
                     identifier,
-                    tokens,
+                    sub_patterns: tokens,
                     modifiers,
                 }))
             }
@@ -753,7 +753,7 @@ impl<'src> Builder<'src> {
         Ok(PatternModifiers::new(modifiers))
     }
 
-    fn hex_pattern(&mut self) -> Result<HexTokens, BuilderError> {
+    fn hex_pattern(&mut self) -> Result<HexSubPattern, BuilderError> {
         self.begin(HEX_PATTERN)?;
         self.expect(L_BRACE)?;
 
@@ -765,7 +765,7 @@ impl<'src> Builder<'src> {
         Ok(sub_pattern)
     }
 
-    fn hex_sub_pattern(&mut self) -> Result<HexTokens, BuilderError> {
+    fn hex_sub_pattern(&mut self) -> Result<HexSubPattern, BuilderError> {
         self.begin(HEX_SUB_PATTERN)?;
 
         let mut sub_patterns = Vec::new();
@@ -820,7 +820,7 @@ impl<'src> Builder<'src> {
 
         self.end(HEX_SUB_PATTERN)?;
 
-        Ok(HexTokens { tokens: sub_patterns })
+        Ok(HexSubPattern(sub_patterns))
     }
 
     fn hex_alternative(&mut self) -> Result<HexAlternative, BuilderError> {

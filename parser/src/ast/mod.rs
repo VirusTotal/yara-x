@@ -238,15 +238,29 @@ pub struct RegexpPattern<'src> {
 #[derive(Debug, Default)]
 pub struct HexPattern<'src> {
     pub identifier: Ident<'src>,
-    pub tokens: HexTokens,
+    pub sub_patterns: HexSubPattern,
     pub modifiers: PatternModifiers<'src>,
 }
 
 /// A sequence of tokens that conform a hex pattern (a.k.a. hex string).
 #[derive(Debug, Default)]
-pub struct HexTokens {
-    // TODO: rename to HexSubPattern
-    pub tokens: Vec<HexToken>,
+pub struct HexSubPattern(pub Vec<HexToken>);
+
+impl HexSubPattern {
+    #[inline]
+    pub fn iter(&self) -> impl Iterator<Item = &HexToken> {
+        self.0.iter()
+    }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 /// Each of the types of tokens in a hex pattern (a.k.a. hex string).
@@ -287,16 +301,16 @@ impl HexByte {
 
 /// An alternative in a hex pattern (a.k.a. hex string).
 ///
-/// Alternatives are sequences of hex tokens separated by `|`.
+/// Alternatives are sequences of hex sub-patterns separated by `|`.
 #[derive(Debug, Default)]
 pub struct HexAlternative {
     span: Span,
-    pub alternatives: Vec<HexTokens>,
+    pub alternatives: Vec<HexSubPattern>,
 }
 
 impl HexAlternative {
     #[doc(hidden)]
-    pub fn new(alternatives: Vec<HexTokens>) -> Self {
+    pub fn new(alternatives: Vec<HexSubPattern>) -> Self {
         Self { alternatives, span: Span::default() }
     }
 }
@@ -1012,13 +1026,13 @@ impl WithSpan for HexToken {
     }
 }
 
-impl WithSpan for HexTokens {
+impl WithSpan for HexSubPattern {
     fn span(&self) -> Span {
-        let span = self.tokens.first().map(|t| t.span()).unwrap_or_default();
-        if self.tokens.len() == 1 {
+        let span = self.0.first().map(|t| t.span()).unwrap_or_default();
+        if self.0.len() == 1 {
             return span;
         }
-        span.combine(&self.tokens.last().map(|t| t.span()).unwrap_or_default())
+        span.combine(&self.0.last().map(|t| t.span()).unwrap_or_default())
     }
 }
 
@@ -1124,7 +1138,7 @@ impl WithSpan for TextPattern<'_> {
 impl WithSpan for HexPattern<'_> {
     fn span(&self) -> Span {
         if self.modifiers.is_empty() {
-            self.identifier.span().combine(&self.tokens.span())
+            self.identifier.span().combine(&self.sub_patterns.span())
         } else {
             self.identifier.span().combine(&self.modifiers.span())
         }
