@@ -252,20 +252,22 @@ impl Var {
         size_of::<i64>() as i32
     }
 
-    pub fn displace(&mut self, after: i32, amount: i32) {
-        if self.index >= after {
-            self.index += amount;
+    /// Increase the index of this variable by `shift_amount` if the variable
+    /// index is equal or larger than `from_index`.
+    pub fn shift(&mut self, from_index: i32, shift_amount: i32) {
+        if self.index >= from_index {
+            self.index += shift_amount;
         }
+    }
+
+    #[cfg(test)]
+    pub fn frame_id(&self) -> usize {
+        self.frame_id
     }
 
     #[inline]
     pub fn ty(&self) -> Type {
         self.ty
-    }
-
-    #[inline]
-    pub fn frame_id(&self) -> usize {
-        self.frame_id
     }
 
     #[inline]

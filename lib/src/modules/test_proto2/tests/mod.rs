@@ -154,39 +154,39 @@ fn test_proto2_module() {
 
     condition_true!(
         r#"for all s in test_proto2.array_string : (
-            s == "foo" or s == "bar" or s == "baz"
-        )"#
+                    s == "foo" or s == "bar" or s == "baz"
+                )"#
     );
 
     condition_true!(
         r#"for any s in test_proto2.array_struct : (
-            s.nested_int32_zero == 0 and s.nested_int32_one == 1
-          )"#
+                    s.nested_int32_zero == 0 and s.nested_int32_one == 1
+                  )"#
     );
 
     condition_true!(
         r#"for 1 s in test_proto2.array_struct : (
-            s.nested_int32_zero == 0
-          )"#
+                    s.nested_int32_zero == 0
+                  )"#
     );
 
     condition_false!(
         r#"for 3 s in test_proto2.array_struct : (
-            s.nested_int32_zero == 0
-          )"#
+                    s.nested_int32_zero == 0
+                  )"#
     );
 
     condition_true!(
         r#"for any s in test_proto2.array_struct : (
-            s.nested_int32_zero == 0 and
-            s.nested_int32_one == 1 and
+                s.nested_int32_zero == 0 and
+                s.nested_int32_one == 1 and
 
-            for any s in test_proto2.array_struct : (
-                s.nested_int32_zero == 0
-            )
+                for any s in test_proto2.array_struct : (
+                    s.nested_int32_zero == 0
+                )
 
-            and for any s in test_proto2.array_string : (s == "foo")
-          )"#
+                and for any s in test_proto2.array_string : (s == "foo")
+              )"#
     );
 
     condition_true!(

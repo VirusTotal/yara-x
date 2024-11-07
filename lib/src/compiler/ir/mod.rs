@@ -429,10 +429,26 @@ impl IR {
         expr_id
     }
 
-    /// TODO
-    pub fn displace_vars(&mut self, start: ExprId, after: i32, amount: i32) {
-        self.dfs_mut(start, |evt| match evt {
-            Event::Enter((_, expr)) => expr.displace_vars(after, amount),
+    /// Increase the index of variables used by an expression (including
+    /// its subexpressions) by a certain amount.
+    ///
+    /// The index of variables used by the expression identified by `expr_id`
+    /// will be increased by `shift_amount` if the variable has an index that
+    /// is larger or equal to `from_index`.
+    ///
+    /// The purpose of this function is displacing every variable that resides
+    /// at some index and above to a higher index, creating a "hole" that can
+    /// be occupied by other variables.
+    pub fn shift_vars(
+        &mut self,
+        expr_id: ExprId,
+        from_index: i32,
+        shift_amount: i32,
+    ) {
+        self.dfs_mut(expr_id, |evt| match evt {
+            Event::Enter((_, expr)) => {
+                expr.shift_vars(from_index, shift_amount)
+            }
             Event::Leave((_, _)) => {}
         });
     }
@@ -2323,11 +2339,11 @@ pub(crate) struct ForVars {
 }
 
 impl ForVars {
-    pub fn displace(&mut self, after: i32, amount: i32) {
-        self.n.displace(after, amount);
-        self.i.displace(after, amount);
-        self.max_count.displace(after, amount);
-        self.count.displace(after, amount);
+    pub fn shift(&mut self, after: i32, amount: i32) {
+        self.n.shift(after, amount);
+        self.i.shift(after, amount);
+        self.max_count.shift(after, amount);
+        self.count.shift(after, amount);
     }
 }
 
@@ -2443,7 +2459,17 @@ impl Expr {
         }
     }
 
-    pub fn displace_vars(&mut self, after: i32, amount: i32) {
+    /// Increase the index of variables used by this expression (including
+    /// its subexpressions) by a certain amount.
+    ///
+    /// The index of variables used by the expression identified by `expr_id`
+    /// will be increased by `shift_amount` if the variable has an index that
+    /// is larger or equal to `from_index`.
+    ///
+    /// The purpose of this function is displacing every variable that resides
+    /// at some index and above to a higher index, creating a "hole" that can
+    /// be occupied by other variables.
+    pub fn shift_vars(&mut self, from_index: i32, shift_amount: i32) {
         match self {
             Expr::Ident { symbol, .. }
             | Expr::PatternMatchVar { symbol, .. }
@@ -2451,38 +2477,38 @@ impl Expr {
             | Expr::PatternOffsetVar { symbol, .. }
             | Expr::PatternLengthVar { symbol, .. } => {
                 if let Symbol::Var { var, .. } = symbol.as_mut() {
-                    var.displace(after, amount)
+                    var.shift(from_index, shift_amount)
                 }
             }
 
             Expr::With { declarations, .. } => {
                 for (v, _) in declarations.iter_mut() {
-                    v.displace(after, amount)
+                    v.shift(from_index, shift_amount)
                 }
             }
 
-            Expr::Var(var) => var.displace(after, amount),
+            Expr::Var(var) => var.shift(from_index, shift_amount),
 
             Expr::OfExprTuple(of) => {
-                of.next_expr_var.displace(after, amount);
-                of.for_vars.displace(after, amount);
+                of.next_expr_var.shift(from_index, shift_amount);
+                of.for_vars.shift(from_index, shift_amount);
             }
 
             Expr::OfPatternSet(of) => {
-                of.next_pattern_var.displace(after, amount);
-                of.for_vars.displace(after, amount);
+                of.next_pattern_var.shift(from_index, shift_amount);
+                of.for_vars.shift(from_index, shift_amount);
             }
 
             Expr::ForOf(for_of) => {
-                for_of.for_vars.displace(after, amount);
+                for_of.for_vars.shift(from_index, shift_amount);
             }
 
             Expr::ForIn(for_in) => {
-                for_in.iterable_var.displace(after, amount);
+                for_in.iterable_var.shift(from_index, shift_amount);
                 for v in for_in.variables.iter_mut() {
-                    v.displace(after, amount)
+                    v.shift(from_index, shift_amount)
                 }
-                for_in.for_vars.displace(after, amount);
+                for_in.for_vars.shift(from_index, shift_amount);
             }
 
             Expr::FieldAccess(_) => {}

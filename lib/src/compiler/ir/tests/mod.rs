@@ -87,23 +87,36 @@ fn ir() {
         .collect();
 
     files.into_iter().for_each(|path| {
+        println!("file: {:?}", path);
+
         let mut mint = goldenfile::Mint::new(".");
 
         let output_path = if cfg!(feature = "constant-folding") {
-            path.with_extension("folding.ir")
+            path.with_extension("ir")
         } else {
             path.with_extension("no-folding.ir")
         };
 
-        let output_file = mint.new_goldenfile(output_path).unwrap();
-
-        println!("file: {:?}", path);
         let source = fs::read_to_string(path).unwrap();
 
+        let output_file = mint.new_goldenfile(&output_path).unwrap();
         let mut compiler = Compiler::new();
-
         let w = BufWriter::new(output_file);
 
         compiler.set_ir_writer(w).add_source(source.as_str()).unwrap();
+
+        #[cfg(feature = "constant-folding")]
+        {
+            let output_path = output_path.with_extension("cse.ir");
+            let output_file = mint.new_goldenfile(&output_path).unwrap();
+            let mut compiler = Compiler::new();
+            let w = BufWriter::new(output_file);
+
+            compiler
+                .common_subexpression_elimination(true)
+                .set_ir_writer(w)
+                .add_source(source.as_str())
+                .unwrap();
+        }
     });
 }
