@@ -767,7 +767,6 @@ impl IR {
                             a.signature_index == b.signature_index
                                 && a.type_value == b.type_value
                         }
-                        (Expr::Var(a), Expr::Var(b)) => a == b,
                         _ => true,
                     };
                     if !eq {
@@ -1645,7 +1644,7 @@ impl IR {
         expr_id
     }
 
-    /// Creates a new [`Expr::ForOf`]
+    /// Creates a new [`Expr::ForOf`].
     pub fn for_of(
         &mut self,
         quantifier: Quantifier,
@@ -1674,7 +1673,7 @@ impl IR {
         expr_id
     }
 
-    /// Creates a new [`Expr::ForIn`]
+    /// Creates a new [`Expr::ForIn`].
     pub fn for_in(
         &mut self,
         quantifier: Quantifier,
@@ -1719,19 +1718,24 @@ impl IR {
         expr_id
     }
 
-    /// Creates a new [`Expr::With`]
+    /// Creates a new [`Expr::With`].
     pub fn with(
         &mut self,
         declarations: Vec<(Var, ExprId)>,
         condition: ExprId,
     ) -> ExprId {
+        let type_value = self.get(condition).type_value();
         let expr_id = ExprId::from(self.nodes.len());
         for (_, expr) in declarations.iter() {
             self.parents[expr.0 as usize] = expr_id;
         }
         self.parents[condition.0 as usize] = expr_id;
         self.parents.push(ExprId::none());
-        self.nodes.push(Expr::With { declarations, condition });
+        self.nodes.push(Expr::With(Box::new(With {
+            type_value,
+            declarations,
+            condition,
+        })));
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         expr_id
     }
@@ -1852,9 +1856,7 @@ impl Debug for IR {
                         Expr::ForOf(_) => write!(f, "FOR_OF -- hash: {:#08x}", expr_hash)?,
                         Expr::ForIn(_) => write!(f, "FOR_IN -- hash: {:#08x}", expr_hash)?,
                         Expr::Lookup(_) => write!(f, "LOOKUP -- hash: {:#08x}", expr_hash)?,
-                        Expr::Var(var) => write!(f, "VAR {:?} -- hash: {:#08x}", var, expr_hash)?,
-                        Expr::FuncCall(func_call) => write!(
-                            f,
+                        Expr::FuncCall(func_call) => write!(f,
                             "FN_CALL {} -- hash: {:#08x}",
                             func_call.mangled_name(),
                             expr_hash
@@ -2209,12 +2211,7 @@ pub(crate) enum Expr {
     },
 
     /// A `with <identifiers> : ...` expression. (e.g. `with $a, $b : ( ... )`)
-    With {
-        declarations: Vec<(Var, ExprId)>,
-        condition: ExprId,
-    },
-
-    Var(Var),
+    With(Box<With>),
 
     /// Field access expression (e.g. `foo.bar.baz`)
     FieldAccess(Box<FieldAccess>),
@@ -2347,6 +2344,13 @@ impl ForVars {
     }
 }
 
+/// A `with <identifiers> : ...` expression. (e.g. `with $a, $b : ( ... )`)
+pub(crate) struct With {
+    pub type_value: TypeValue,
+    pub declarations: Vec<(Var, ExprId)>,
+    pub condition: ExprId,
+}
+
 /// In expressions like `$a at 0` and `$b in (0..10)`, this type represents the
 /// anchor (e.g. `at <expr>`, `in <range>`).
 ///
@@ -2450,7 +2454,7 @@ impl Expr {
     /// Returns the size of the stack frame for this expression.
     pub fn stack_frame_size(&self) -> i32 {
         match self {
-            Expr::With { declarations, .. } => declarations.len() as i32,
+            Expr::With(with) => with.declarations.len() as i32,
             Expr::ForOf(_) => VarStack::FOR_OF_FRAME_SIZE,
             Expr::ForIn(_) => VarStack::FOR_IN_FRAME_SIZE,
             Expr::OfExprTuple(_) => VarStack::OF_FRAME_SIZE,
@@ -2481,13 +2485,11 @@ impl Expr {
                 }
             }
 
-            Expr::With { declarations, .. } => {
-                for (v, _) in declarations.iter_mut() {
+            Expr::With(with) => {
+                for (v, _) in with.declarations.iter_mut() {
                     v.shift(from_index, shift_amount)
                 }
             }
-
-            Expr::Var(var) => var.shift(from_index, shift_amount),
 
             Expr::OfExprTuple(of) => {
                 of.next_expr_var.shift(from_index, shift_amount);
@@ -2578,7 +2580,6 @@ impl Expr {
             | Expr::Matches { .. }
             | Expr::PatternMatch { .. }
             | Expr::PatternMatchVar { .. }
-            | Expr::With { .. }
             | Expr::OfExprTuple(_)
             | Expr::OfPatternSet(_)
             | Expr::ForOf(_)
@@ -2622,7 +2623,7 @@ impl Expr {
             Expr::FieldAccess(field_access) => field_access.type_value.ty(),
             Expr::FuncCall(func_call) => func_call.type_value.ty(),
             Expr::Lookup(lookup) => lookup.type_value.ty(),
-            Expr::Var(var) => var.ty(),
+            Expr::With(with) => with.type_value.ty(),
         }
     }
 
@@ -2650,7 +2651,6 @@ impl Expr {
             | Expr::Matches { .. }
             | Expr::PatternMatch { .. }
             | Expr::PatternMatchVar { .. }
-            | Expr::With { .. }
             | Expr::OfExprTuple(_)
             | Expr::OfPatternSet(_)
             | Expr::ForOf(_)
@@ -2694,15 +2694,7 @@ impl Expr {
             Expr::FieldAccess(field_access) => field_access.type_value.clone(),
             Expr::FuncCall(func_call) => func_call.type_value.clone(),
             Expr::Lookup(lookup) => lookup.type_value.clone(),
-
-            Expr::Var(var) => match var.ty() {
-                Type::Unknown => TypeValue::Unknown,
-                Type::Integer => TypeValue::Integer(Value::Unknown),
-                Type::Float => TypeValue::Float(Value::Unknown),
-                Type::Bool => TypeValue::Bool(Value::Unknown),
-                Type::String => TypeValue::String(Value::Unknown),
-                _ => unreachable!(),
-            },
+            Expr::With(with) => with.type_value.clone(),
         }
     }
 

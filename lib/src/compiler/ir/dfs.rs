@@ -117,7 +117,6 @@ pub(super) fn dfs_common(expr: &Expr, stack: &mut Vec<Event<ExprId>>) {
         Expr::Const(_) => {}
         Expr::Filesize => {}
         Expr::Ident { .. } => {}
-        Expr::Var(_) => {}
 
         Expr::Not { operand }
         | Expr::Defined { operand }
@@ -238,9 +237,9 @@ pub(super) fn dfs_common(expr: &Expr, stack: &mut Vec<Event<ExprId>>) {
             stack.push(Event::Enter(lookup.primary));
         }
 
-        Expr::With { declarations, condition } => {
-            stack.push(Event::Enter(*condition));
-            for (_id, expr) in declarations.iter().rev() {
+        Expr::With(with) => {
+            stack.push(Event::Enter(with.condition));
+            for (_id, expr) in with.declarations.iter().rev() {
                 stack.push(Event::Enter(*expr))
             }
         }

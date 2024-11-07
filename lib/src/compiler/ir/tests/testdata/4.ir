@@ -1,38 +1,42 @@
 RULE test
-  60: WITH -- hash: 0x90f4f4e757307407 -- parent: None 
-    2: FIELD_ACCESS -- hash: 0xbdb8f2df6c2c1fa3 -- parent: 60 
+  60: WITH -- hash: 0xe683279f6a9d9ab8 -- parent: None 
+    2: FIELD_ACCESS -- hash: 0x1ca9e83699d169e4 -- parent: 60 
       0: IDENT Field { index: 0, is_root: true, type_value: struct } -- parent: 2 
       1: IDENT Field { index: 12, is_root: false, type_value: integer(unknown) } -- parent: 2 
-    59: WITH -- hash: 0x8d0cfe72244b954f -- parent: 60 
-      63: EQ -- hash: 0xc3d3e2aadcffe5ec -- parent: 59 
-        31: ADD -- hash: 0xa12062fa288d3793 -- parent: 63 
-          29: FIELD_ACCESS -- hash: 0x581205a939099aac -- parent: 31 
-            27: IDENT Field { index: 0, is_root: true, type_value: struct } -- parent: 29 
-            28: IDENT Field { index: 10, is_root: false, type_value: float(unknown) } -- parent: 29 
-          30: CONST integer(1) -- parent: 31 
-        32: CONST float(1.0) -- parent: 63 
-      64: WITH -- hash: 0x75e033dbe7cddcde -- parent: 59 
-        61: FN_CALL test_proto2.add@ii@i -- hash: 0x4b05d22719aa77d1 -- parent: 64 
-          16: CONST integer(1) -- parent: 61 
-          17: CONST integer(2) -- parent: 61 
-        62: AND -- hash: 0xb9d1979b5154a58b -- parent: 64 
-          35: FOR_IN -- hash: 0x49e9fb4613bebfec -- parent: 62 
-            3: CONST integer(0) -- parent: 35 
-            4: CONST integer(1) -- parent: 35 
-            34: AND -- hash: 0xe10fbf0b6ae82370 -- parent: 35 
-              9: EQ -- hash: 0xca87275a87a9cb26 -- parent: 34 
-                7: IDENT Var { var: Var { frame_id: 2, ty: integer, index: 8 }, type_value: integer(unknown) } -- parent: 9 
-                8: IDENT Var { var: Var { frame_id: 1, ty: integer, index: 0 }, type_value: integer(unknown) } -- parent: 9 
-              20: EQ -- hash: 0x7910c2f9357be4b1 -- parent: 34 
-                18: VAR Var { frame_id: 0, ty: integer, index: 2 } -- hash: 0xa6b9c2fda5292c62 -- parent: 20 
-                19: CONST integer(3) -- parent: 20 
-              33: VAR Var { frame_id: 0, ty: boolean, index: 1 } -- hash: 0xa6b9c2fda5292c62 -- parent: 34 
-          58: FOR_IN -- hash: 0x7520d351abb067e8 -- parent: 62 
-            36: CONST integer(0) -- parent: 58 
-            37: CONST integer(1) -- parent: 58 
-            57: AND -- hash: 0x42f08d1a18a0208b -- parent: 58 
-              43: NE -- hash: 0xf87badf9f916390c -- parent: 57 
-                41: VAR Var { frame_id: 0, ty: integer, index: 2 } -- hash: 0xa6b9c2fda5292c62 -- parent: 43 
-                42: CONST integer(0) -- parent: 43 
-              56: VAR Var { frame_id: 0, ty: boolean, index: 1 } -- hash: 0xa6b9c2fda5292c62 -- parent: 57 
+    59: AND -- hash: 0x20df17fa46bafc4a -- parent: 60 
+      35: FOR_IN -- hash: 0xb629f7dccd338e62 -- parent: 59 
+        3: CONST integer(0) -- parent: 35 
+        4: CONST integer(1) -- parent: 35 
+        34: AND -- hash: 0x929e79bd27f8b3ee -- parent: 35 
+          9: EQ -- hash: 0xb3dfec59568aae61 -- parent: 34 
+            7: IDENT Var { var: Var { frame_id: 2, ty: integer, index: 6 }, type_value: integer(unknown) } -- parent: 9 
+            8: IDENT Var { var: Var { frame_id: 1, ty: integer, index: 0 }, type_value: integer(unknown) } -- parent: 9 
+          20: EQ -- hash: 0xa198ce7ee3ac2925 -- parent: 34 
+            18: FN_CALL test_proto2.add@ii@i -- hash: 0xa4de48c6721fb140 -- parent: 20 
+              16: CONST integer(1) -- parent: 18 
+              17: CONST integer(2) -- parent: 18 
+            19: CONST integer(3) -- parent: 20 
+          33: EQ -- hash: 0x43e3808294ae1797 -- parent: 34 
+            31: ADD -- hash: 0x27405ee14332bf3c -- parent: 33 
+              29: FIELD_ACCESS -- hash: 0xb702fb0066bee4ec -- parent: 31 
+                27: IDENT Field { index: 0, is_root: true, type_value: struct } -- parent: 29 
+                28: IDENT Field { index: 10, is_root: false, type_value: float(unknown) } -- parent: 29 
+              30: CONST integer(1) -- parent: 31 
+            32: CONST float(1.0) -- parent: 33 
+      58: FOR_IN -- hash: 0xb9fc24a0c3d70a99 -- parent: 59 
+        36: CONST integer(0) -- parent: 58 
+        37: CONST integer(1) -- parent: 58 
+        57: AND -- hash: 0xb81655250d93ca61 -- parent: 58 
+          43: NE -- hash: 0x15f2033c6b898b7f -- parent: 57 
+            41: FN_CALL test_proto2.add@ii@i -- hash: 0xa4de48c6721fb140 -- parent: 43 
+              39: CONST integer(1) -- parent: 41 
+              40: CONST integer(2) -- parent: 41 
+            42: CONST integer(0) -- parent: 43 
+          56: EQ -- hash: 0x43e3808294ae1797 -- parent: 57 
+            54: ADD -- hash: 0x27405ee14332bf3c -- parent: 56 
+              52: FIELD_ACCESS -- hash: 0xb702fb0066bee4ec -- parent: 54 
+                50: IDENT Field { index: 0, is_root: true, type_value: struct } -- parent: 52 
+                51: IDENT Field { index: 10, is_root: false, type_value: float(unknown) } -- parent: 52 
+              53: CONST integer(1) -- parent: 54 
+            55: CONST float(1.0) -- parent: 56 
 

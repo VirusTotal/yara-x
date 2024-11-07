@@ -655,14 +655,14 @@ fn emit_expr(
             }
         }
 
-        Expr::Var(var) => {
-            if !matches!(var.ty(), Type::Func) {
-                load_var(ctx, instr, *var);
-            }
-        }
-
-        Expr::With { declarations, condition } => {
-            emit_with(ctx, ir, declarations.as_slice(), *condition, instr);
+        Expr::With(with) => {
+            emit_with(
+                ctx,
+                ir,
+                with.declarations.as_slice(),
+                with.condition,
+                instr,
+            );
         }
     }
 }
@@ -2150,8 +2150,7 @@ fn emit_with(
     }
 
     // Emit the code that evaluates the condition of the `with` statement.
-    // This condition is a boolean expression that uses the variables set
-    emit_bool_expr(ctx, ir, condition, instr)
+    emit_expr(ctx, ir, condition, instr)
 }
 
 /// Produces a switch statement by calling a `branch_generator` function

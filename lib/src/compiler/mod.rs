@@ -1019,7 +1019,10 @@ impl<'a> Compiler<'a> {
             let replaced = self.ir.replace(
                 first,
                 Expr::Ident {
-                    symbol: Box::new(Symbol::Var { var, type_value }),
+                    symbol: Box::new(Symbol::Var {
+                        var,
+                        type_value: type_value.clone(),
+                    }),
                 },
             );
 
@@ -1029,15 +1032,17 @@ impl<'a> Compiler<'a> {
             // condition for this `with` statement will be the ancestor itself.
             let replaced = self.ir.replace(
                 common_ancestor,
-                Expr::With {
+                Expr::With(Box::new(With {
+                    type_value: TypeValue::Unknown,
                     declarations: vec![(var, with_declaration)],
                     condition: ExprId::none(),
-                },
+                })),
             );
 
             // Add the common ancestor to the IR tree again. The common
             // ancestor now becomes the condition of the `with` statement.
             let with_condition = self.ir.push(replaced);
+            let with_type_value = self.ir.get(with_condition).type_value();
 
             // After the ancestor is replaced by a `with` statement, the ID
             // this statement is the ID of the ancestor. `with` is simply an
@@ -1045,7 +1050,10 @@ impl<'a> Compiler<'a> {
             let with = common_ancestor;
 
             match self.ir.get_mut(with) {
-                Expr::With { condition, .. } => *condition = with_condition,
+                Expr::With(with) => {
+                    with.type_value = with_type_value;
+                    with.condition = with_condition;
+                }
                 _ => unreachable!(),
             }
 
@@ -1053,7 +1061,15 @@ impl<'a> Compiler<'a> {
             self.ir.set_parent(with_declaration, with);
 
             for s in subexpressions {
-                self.ir.replace(s, Expr::Var(var));
+                self.ir.replace(
+                    s,
+                    Expr::Ident {
+                        symbol: Box::new(Symbol::Var {
+                            var,
+                            type_value: type_value.clone(),
+                        }),
+                    },
+                );
             }
         }
     }
