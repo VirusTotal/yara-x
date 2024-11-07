@@ -27,10 +27,12 @@ pub(crate) struct CompileContext<'a, 'src, 'sym> {
     /// functions, etc.
     pub symbol_table: &'a mut StackedSymbolTable<'sym>,
 
-    /// Symbol table for the currently active type. When this contains some
-    /// value, symbols are looked up in this table, and the main symbol table
-    /// (i.e: `symbol_table`) is ignored.
-    pub current_symbol_table: Option<Rc<dyn SymbolLookup + 'a>>,
+    /// Symbol table for the currently active type.
+    ///
+    /// When this contains some value, symbols are looked up in this table, and
+    /// the main symbol table (i.e: `symbol_table`) is ignored. However, once
+    /// the lookup operation is done, this symbol table set back to `None`.
+    pub one_shot_symbol_table: Option<Rc<dyn SymbolLookup + 'a>>,
 
     /// Reference to a vector that contains the IR for the patterns declared
     /// in the current rule.
@@ -89,8 +91,13 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
             })
     }
 
+    /// Search for an identifier in the symbol table.
+    ///
+    /// It first looks into the one-shot symbol table if possible, and then
+    /// into the default symbol table. When this function returns the one-shot
+    /// symbol table is `None`.
     pub fn lookup(&mut self, ident: &Ident) -> Result<Symbol, CompileError> {
-        let symbol_table = self.current_symbol_table.take();
+        let symbol_table = self.one_shot_symbol_table.take();
 
         let symbol = if let Some(symbol_table) = &symbol_table {
             symbol_table.lookup(ident.name)
@@ -144,8 +151,11 @@ pub(crate) struct VarStack {
 }
 
 impl VarStack {
+    /// Stack frame size for `of` statements.
     pub const OF_FRAME_SIZE: i32 = 5;
+    /// Stack frame size for `for .. of` statements.
     pub const FOR_OF_FRAME_SIZE: i32 = 5;
+    /// Stack frame size for `for .. in` statements.
     pub const FOR_IN_FRAME_SIZE: i32 = 7;
 
     /// Creates a stack of variables.

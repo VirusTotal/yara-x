@@ -225,7 +225,7 @@ mod tests {
             ir: &mut ir,
             relaxed_re_syntax: false,
             error_on_slow_loop: false,
-            current_symbol_table: None,
+            one_shot_symbol_table: None,
             symbol_table: &mut symbol_table,
             report_builder: &mut report_builder,
             current_rule_patterns: &mut rule_patterns,

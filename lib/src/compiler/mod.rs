@@ -1243,7 +1243,7 @@ impl<'a> Compiler<'a> {
             ir: &mut self.ir,
             relaxed_re_syntax: self.relaxed_re_syntax,
             error_on_slow_loop: self.error_on_slow_loop,
-            current_symbol_table: None,
+            one_shot_symbol_table: None,
             symbol_table: &mut self.symbol_table,
             report_builder: &self.report_builder,
             current_rule_patterns: &mut rule_patterns,

@@ -803,7 +803,7 @@ fn expr_from_ast(
         }
     };
 
-    ctx.current_symbol_table = ctx.ir.get(expr).type_value().symbol_table();
+    ctx.one_shot_symbol_table = ctx.ir.get(expr).type_value().symbol_table();
 
     Ok(expr)
 }
@@ -845,7 +845,7 @@ fn bool_expr_from_ast(
     ctx: &mut CompileContext,
     ast: &ast::Expr,
 ) -> Result<ExprId, CompileError> {
-    ctx.current_symbol_table = None;
+    ctx.one_shot_symbol_table = None;
 
     let code_loc = ast.span().into();
     let expr = expr_from_ast(ctx, ast)?;
