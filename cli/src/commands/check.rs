@@ -133,6 +133,8 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
         },
         // Finalization
         |_, _| {},
+        // Walk done
+        |_| {},
         // Error handling
         |err, output| {
             let _ = output.send(Message::Error(format!(
