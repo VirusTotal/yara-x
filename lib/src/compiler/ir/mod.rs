@@ -593,10 +593,7 @@ impl IR {
         // sense. For instance, constants are not de-duplicated because they
         // are cheap to evaluate, and the same happens with `filesize`.
         let ignore = |expr: &Expr| {
-            matches!(
-                expr,
-                Expr::Const(_) | Expr::Filesize | Expr::Ident { .. }
-            )
+            matches!(expr, Expr::Const(_) | Expr::Filesize | Expr::Symbol(_))
         };
 
         for evt in self.dfs_iter(start) {
@@ -884,7 +881,7 @@ impl IR {
         expr_id
     }
 
-    /// Creates a new [`Expr::Ident`].
+    /// Creates a new [`Expr::Symbol`].
     pub fn ident(&mut self, symbol: Symbol) -> ExprId {
         if self.constant_folding {
             let type_value = symbol.type_value();
@@ -895,7 +892,7 @@ impl IR {
 
         let expr_id = ExprId::from(self.nodes.len());
         self.parents.push(ExprId::none());
-        self.nodes.push(Expr::Ident { symbol: Box::new(symbol) });
+        self.nodes.push(Expr::Symbol(Box::new(symbol)));
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         expr_id
     }
@@ -1850,7 +1847,7 @@ impl Debug for IR {
                         Expr::Defined { .. } => write!(f, "DEFINED -- hash: {:#08x}", expr_hash)?,
                         Expr::FieldAccess { .. } => write!(f, "FIELD_ACCESS -- hash: {:#08x}", expr_hash)?,
                         Expr::With { .. } => write!(f, "WITH -- hash: {:#08x}", expr_hash)?,
-                        Expr::Ident { symbol } => write!(f, "IDENT {:?}", symbol)?,
+                        Expr::Symbol(symbol) => write!(f, "SYMBOL {:?}", symbol)?,
                         Expr::OfExprTuple(_) => write!(f, "OF -- hash: {:#08x}", expr_hash)?,
                         Expr::OfPatternSet(_) => write!(f, "OF -- hash: {:#08x}", expr_hash)?,
                         Expr::ForOf(_) => write!(f, "FOR_OF -- hash: {:#08x}", expr_hash)?,
@@ -1985,230 +1982,121 @@ pub(crate) enum Expr {
     Filesize,
 
     /// Boolean `not` expression.
-    Not {
-        operand: ExprId,
-    },
+    Not { operand: ExprId },
 
     /// Boolean `and` expression.
-    And {
-        operands: Vec<ExprId>,
-    },
+    And { operands: Vec<ExprId> },
 
     /// Boolean `or` expression.
-    Or {
-        operands: Vec<ExprId>,
-    },
+    Or { operands: Vec<ExprId> },
 
     /// Arithmetic minus.
-    Minus {
-        is_float: bool,
-        operand: ExprId,
-    },
+    Minus { is_float: bool, operand: ExprId },
 
     /// Arithmetic addition (`+`) expression.
-    Add {
-        is_float: bool,
-        operands: Vec<ExprId>,
-    },
+    Add { is_float: bool, operands: Vec<ExprId> },
 
     /// Arithmetic subtraction (`-`) expression.
-    Sub {
-        is_float: bool,
-        operands: Vec<ExprId>,
-    },
+    Sub { is_float: bool, operands: Vec<ExprId> },
 
     /// Arithmetic multiplication (`*`) expression.
-    Mul {
-        is_float: bool,
-        operands: Vec<ExprId>,
-    },
+    Mul { is_float: bool, operands: Vec<ExprId> },
 
     /// Arithmetic division (`\`) expression.
-    Div {
-        is_float: bool,
-        operands: Vec<ExprId>,
-    },
+    Div { is_float: bool, operands: Vec<ExprId> },
 
     /// Arithmetic modulus (`%`) expression.
-    Mod {
-        operands: Vec<ExprId>,
-    },
+    Mod { operands: Vec<ExprId> },
 
     /// Bitwise not (`~`) expression.
-    BitwiseNot {
-        operand: ExprId,
-    },
+    BitwiseNot { operand: ExprId },
 
     /// Bitwise and (`&`) expression.
-    BitwiseAnd {
-        rhs: ExprId,
-        lhs: ExprId,
-    },
+    BitwiseAnd { rhs: ExprId, lhs: ExprId },
 
     /// Bitwise shift left (`<<`) expression.
-    Shl {
-        rhs: ExprId,
-        lhs: ExprId,
-    },
+    Shl { rhs: ExprId, lhs: ExprId },
 
     /// Bitwise shift right (`>>`) expression.
-    Shr {
-        rhs: ExprId,
-        lhs: ExprId,
-    },
+    Shr { rhs: ExprId, lhs: ExprId },
 
     /// Bitwise or (`|`) expression.
-    BitwiseOr {
-        rhs: ExprId,
-        lhs: ExprId,
-    },
+    BitwiseOr { rhs: ExprId, lhs: ExprId },
 
     /// Bitwise xor (`^`) expression.
-    BitwiseXor {
-        rhs: ExprId,
-        lhs: ExprId,
-    },
+    BitwiseXor { rhs: ExprId, lhs: ExprId },
 
     /// Equal (`==`) expression.
-    Eq {
-        rhs: ExprId,
-        lhs: ExprId,
-    },
+    Eq { rhs: ExprId, lhs: ExprId },
 
     /// Not equal (`!=`) expression.
-    Ne {
-        rhs: ExprId,
-        lhs: ExprId,
-    },
+    Ne { rhs: ExprId, lhs: ExprId },
 
     /// Less than (`<`) expression.
-    Lt {
-        rhs: ExprId,
-        lhs: ExprId,
-    },
+    Lt { rhs: ExprId, lhs: ExprId },
 
     /// Greater than (`>`) expression.
-    Gt {
-        rhs: ExprId,
-        lhs: ExprId,
-    },
+    Gt { rhs: ExprId, lhs: ExprId },
 
     /// Less or equal (`<=`) expression.
-    Le {
-        rhs: ExprId,
-        lhs: ExprId,
-    },
+    Le { rhs: ExprId, lhs: ExprId },
 
     /// Greater or equal (`>=`) expression.
-    Ge {
-        rhs: ExprId,
-        lhs: ExprId,
-    },
+    Ge { rhs: ExprId, lhs: ExprId },
 
     /// `contains` expression.
-    Contains {
-        rhs: ExprId,
-        lhs: ExprId,
-    },
+    Contains { rhs: ExprId, lhs: ExprId },
 
     /// `icontains` expression
-    IContains {
-        rhs: ExprId,
-        lhs: ExprId,
-    },
+    IContains { rhs: ExprId, lhs: ExprId },
 
     /// `startswith` expression.
-    StartsWith {
-        rhs: ExprId,
-        lhs: ExprId,
-    },
+    StartsWith { rhs: ExprId, lhs: ExprId },
 
     /// `istartswith` expression
-    IStartsWith {
-        rhs: ExprId,
-        lhs: ExprId,
-    },
+    IStartsWith { rhs: ExprId, lhs: ExprId },
 
     /// `endswith` expression.
-    EndsWith {
-        rhs: ExprId,
-        lhs: ExprId,
-    },
+    EndsWith { rhs: ExprId, lhs: ExprId },
 
     /// `iendswith` expression
-    IEndsWith {
-        rhs: ExprId,
-        lhs: ExprId,
-    },
+    IEndsWith { rhs: ExprId, lhs: ExprId },
 
     /// `iequals` expression.
-    IEquals {
-        rhs: ExprId,
-        lhs: ExprId,
-    },
+    IEquals { rhs: ExprId, lhs: ExprId },
 
     /// `matches` expression.
-    Matches {
-        rhs: ExprId,
-        lhs: ExprId,
-    },
+    Matches { rhs: ExprId, lhs: ExprId },
 
     /// A `defined` expression (e.g. `defined foo`)
-    Defined {
-        operand: ExprId,
-    },
-
-    Ident {
-        symbol: Box<Symbol>,
-    },
+    Defined { operand: ExprId },
 
     /// Pattern match expression (e.g. `$a`)
-    PatternMatch {
-        pattern: PatternIdx,
-        anchor: MatchAnchor,
-    },
+    PatternMatch { pattern: PatternIdx, anchor: MatchAnchor },
 
     /// Pattern match expression where the pattern is variable (e.g: `$`).
-    PatternMatchVar {
-        symbol: Box<Symbol>,
-        anchor: MatchAnchor,
-    },
+    PatternMatchVar { symbol: Box<Symbol>, anchor: MatchAnchor },
 
     /// Pattern count expression (e.g. `#a`, `#a in (0..10)`)
-    PatternCount {
-        pattern: PatternIdx,
-        range: Option<Range>,
-    },
+    PatternCount { pattern: PatternIdx, range: Option<Range> },
 
     /// Pattern count expression where the pattern is variable (e.g. `#`, `# in (0..10)`)
-    PatternCountVar {
-        symbol: Box<Symbol>,
-        range: Option<Range>,
-    },
+    PatternCountVar { symbol: Box<Symbol>, range: Option<Range> },
 
     /// Pattern offset expression (e.g. `@a`, `@a[1]`)
-    PatternOffset {
-        pattern: PatternIdx,
-        index: Option<ExprId>,
-    },
+    PatternOffset { pattern: PatternIdx, index: Option<ExprId> },
 
     /// Pattern count expression where the pattern is variable (e.g. `@`, `@[1]`)
-    PatternOffsetVar {
-        symbol: Box<Symbol>,
-        index: Option<ExprId>,
-    },
+    PatternOffsetVar { symbol: Box<Symbol>, index: Option<ExprId> },
 
     /// Pattern length expression (e.g. `!a`, `!a[1]`)
-    PatternLength {
-        pattern: PatternIdx,
-        index: Option<ExprId>,
-    },
+    PatternLength { pattern: PatternIdx, index: Option<ExprId> },
 
     /// Pattern count expression where the pattern is variable (e.g. `!`, `![1]`)
-    PatternLengthVar {
-        symbol: Box<Symbol>,
-        index: Option<ExprId>,
-    },
+    PatternLengthVar { symbol: Box<Symbol>, index: Option<ExprId> },
+
+    /// A symbol can be a variable, rule, field or function.
+    Symbol(Box<Symbol>),
 
     /// A `with <identifiers> : ...` expression. (e.g. `with $a, $b : ( ... )`)
     With(Box<With>),
@@ -2388,7 +2276,7 @@ impl Hash for Expr {
         discriminant(self).hash(state);
         match self {
             Expr::Const(type_value) => type_value.hash(state),
-            Expr::Ident { symbol } => symbol.hash(state),
+            Expr::Symbol(symbol) => symbol.hash(state),
             Expr::PatternMatch { pattern, anchor } => {
                 pattern.hash(state);
                 discriminant(anchor).hash(state);
@@ -2475,7 +2363,7 @@ impl Expr {
     /// be occupied by other variables.
     pub fn shift_vars(&mut self, from_index: i32, shift_amount: i32) {
         match self {
-            Expr::Ident { symbol, .. }
+            Expr::Symbol(symbol)
             | Expr::PatternMatchVar { symbol, .. }
             | Expr::PatternCountVar { symbol, .. }
             | Expr::PatternOffsetVar { symbol, .. }
@@ -2619,7 +2507,7 @@ impl Expr {
             | Expr::Shl { .. }
             | Expr::Shr { .. } => Type::Integer,
 
-            Expr::Ident { symbol, .. } => symbol.ty(),
+            Expr::Symbol(symbol) => symbol.ty(),
             Expr::FieldAccess(field_access) => field_access.type_value.ty(),
             Expr::FuncCall(func_call) => func_call.type_value.ty(),
             Expr::Lookup(lookup) => lookup.type_value.ty(),
@@ -2690,7 +2578,7 @@ impl Expr {
             | Expr::Shl { .. }
             | Expr::Shr { .. } => TypeValue::Integer(Value::Unknown),
 
-            Expr::Ident { symbol, .. } => symbol.type_value().clone(),
+            Expr::Symbol(symbol) => symbol.type_value().clone(),
             Expr::FieldAccess(field_access) => field_access.type_value.clone(),
             Expr::FuncCall(func_call) => func_call.type_value.clone(),
             Expr::Lookup(lookup) => lookup.type_value.clone(),

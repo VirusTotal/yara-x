@@ -300,7 +300,7 @@ fn emit_expr(
             instr.global_get(ctx.wasm_symbols.filesize);
         }
 
-        Expr::Ident { symbol } => {
+        Expr::Symbol(symbol) => {
             match symbol.as_ref() {
                 Symbol::Rule(rule_id) => {
                     // Emit code that checks if a rule has matched, leaving
@@ -932,7 +932,7 @@ fn emit_field_access(
     // will be emitted, encompassing all the lookups in a single call to
     // Rust code.
     for operand in field_access.operands.iter().dropping_back(1) {
-        if let Expr::Ident { symbol } = ir.get(*operand) {
+        if let Expr::Symbol(symbol) = ir.get(*operand) {
             if let Symbol::Field { index, is_root, .. } = symbol.as_ref() {
                 ctx.lookup_list.push((*index as i32, *is_root));
                 continue;

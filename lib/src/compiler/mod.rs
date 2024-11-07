@@ -1018,12 +1018,10 @@ impl<'a> Compiler<'a> {
             // `with` statement.
             let replaced = self.ir.replace(
                 first,
-                Expr::Ident {
-                    symbol: Box::new(Symbol::Var {
-                        var,
-                        type_value: type_value.clone(),
-                    }),
-                },
+                Expr::Symbol(Box::new(Symbol::Var {
+                    var,
+                    type_value: type_value.clone(),
+                })),
             );
 
             let with_declaration = self.ir.push(replaced);
@@ -1063,12 +1061,10 @@ impl<'a> Compiler<'a> {
             for s in subexpressions {
                 self.ir.replace(
                     s,
-                    Expr::Ident {
-                        symbol: Box::new(Symbol::Var {
-                            var,
-                            type_value: type_value.clone(),
-                        }),
-                    },
+                    Expr::Symbol(Box::new(Symbol::Var {
+                        var,
+                        type_value: type_value.clone(),
+                    })),
                 );
             }
         }

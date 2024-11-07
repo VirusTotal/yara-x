@@ -116,7 +116,7 @@ pub(super) fn dfs_common(expr: &Expr, stack: &mut Vec<Event<ExprId>>) {
     match expr {
         Expr::Const(_) => {}
         Expr::Filesize => {}
-        Expr::Ident { .. } => {}
+        Expr::Symbol(_) => {}
 
         Expr::Not { operand }
         | Expr::Defined { operand }
