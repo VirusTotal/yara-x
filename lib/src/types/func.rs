@@ -155,7 +155,7 @@ impl<T: Into<String>> From<T> for FuncSignature {
 /// Represents both functions and methods. As in any programming language
 /// methods are functions associated to a type that receive an instance
 /// of that type as their first argument.
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub(crate) struct Func {
     /// The list of signatures for this function. Functions can be overloaded,
     /// so they may more than one signature.

@@ -1,10 +1,10 @@
 RULE test
-  60: WITH -- hash: 0xad0cc1afe695cf5f -- parent: None 
+  60: WITH -- hash: 0x52a11af66318eab0 -- parent: None 
     2: FIELD_ACCESS -- hash: 0x80c2b6e342dfa9ec -- parent: 60 
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct } -- parent: 2 
       1: SYMBOL Field { index: 12, is_root: false, type_value: integer(unknown) } -- parent: 2 
-    62: WITH -- hash: 0xcfcf368ff43a9e91 -- parent: 60 
-      61: FN_CALL test_proto2.add@ii@i -- hash: 0xa4de48c6721fb140 -- parent: 62 
+    62: WITH -- hash: 0x25e4eb9f7f3cc213 -- parent: 60 
+      61: FN_CALL test_proto2.add@ii@i -- hash: 0x45c17e67ffdc90b3 -- parent: 62 
         16: CONST integer(1) -- parent: 61 
         17: CONST integer(2) -- parent: 61 
       64: WITH -- hash: 0xc90ab1bb0ed9a5b5 -- parent: 62 
