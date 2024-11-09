@@ -283,4 +283,12 @@ fn test_proto2_module() {
         test_proto2.NestedProto2.NestedEnumeration.ITEM_1 == 1
         "#
     );
+
+    condition_true!(
+        r#"
+        test_proto2.array_struct[0].nested_int32_zero == 0 and
+        test_proto2.array_struct[1].nested_int32_one == 1 and
+        test_proto2.array_struct[1].nested_int32_zero + test_proto2.array_struct[1].nested_int64_one == 1
+        "#
+    )
 }

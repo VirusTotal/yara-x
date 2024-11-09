@@ -988,88 +988,6 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-    /// Optimizes the expression identified by `expr_id` by eliminating
-    /// common subexpressions.
-    ///
-    /// This function searches for instances of identical subexpressions
-    /// and replace them with a single variable holding the computed value.
-    ///
-    /// https://en.wikipedia.org/wiki/Common_subexpression_elimination
-    fn eliminate_common_subexpressions(&mut self, expr_id: ExprId) {
-        for (common_ancestor, subexpressions) in
-            self.ir.find_common_subexprs(expr_id)
-        {
-            // This is the index of the new variable.
-            let var_index = self
-                .ir
-                .ancestors(common_ancestor)
-                .map(|expr_id| self.ir.get(expr_id).stack_frame_size())
-                .sum::<i32>();
-
-            self.ir.shift_vars(common_ancestor, var_index, 1);
-
-            let mut subexpressions = subexpressions.into_iter();
-            let first = subexpressions.next().unwrap();
-            let type_value = self.ir.get(first).type_value();
-            let var = Var::new(0, type_value.ty(), var_index);
-
-            // Replace the first of the subexpressions with a variable. The
-            // replaced subexpression will be added as a declaration to the
-            // `with` statement.
-            let replaced = self.ir.replace(
-                first,
-                Expr::Symbol(Box::new(Symbol::Var {
-                    var,
-                    type_value: type_value.clone(),
-                })),
-            );
-
-            let with_declaration = self.ir.push(replaced);
-
-            // The common ancestor is replaced by the `with` statement. The
-            // condition for this `with` statement will be the ancestor itself.
-            let replaced = self.ir.replace(
-                common_ancestor,
-                Expr::With(Box::new(With {
-                    type_value: TypeValue::Unknown,
-                    declarations: vec![(var, with_declaration)],
-                    condition: ExprId::none(),
-                })),
-            );
-
-            // Add the common ancestor to the IR tree again. The common
-            // ancestor now becomes the condition of the `with` statement.
-            let with_condition = self.ir.push(replaced);
-            let with_type_value = self.ir.get(with_condition).type_value();
-
-            // After the ancestor is replaced by a `with` statement, the ID
-            // this statement is the ID of the ancestor. `with` is simply an
-            // alias for `common_ancestor`, but it adds clarity.
-            let with = common_ancestor;
-
-            match self.ir.get_mut(with) {
-                Expr::With(with) => {
-                    with.type_value = with_type_value;
-                    with.condition = with_condition;
-                }
-                _ => unreachable!(),
-            }
-
-            self.ir.set_parent(with_condition, with);
-            self.ir.set_parent(with_declaration, with);
-
-            for s in subexpressions {
-                self.ir.replace(
-                    s,
-                    Expr::Symbol(Box::new(Symbol::Var {
-                        var,
-                        type_value: type_value.clone(),
-                    })),
-                );
-            }
-        }
-    }
-
     /// Interns a literal in the literals pool.
     ///
     /// If `wide` is true the literal gets zeroes interleaved between each byte
@@ -1317,7 +1235,7 @@ impl<'a> Compiler<'a> {
         // entering this function. Also, if the error is due to an unknown
         // identifier, but the identifier is one of the unsupported modules,
         // the error is tolerated and a warning is issued instead.
-        let condition = match condition {
+        let mut condition = match condition {
             Ok(condition) => condition,
             Err(CompileError::UnknownIdentifier(unknown))
                 if self.ignored_rules.contains_key(unknown.identifier())
@@ -1367,7 +1285,7 @@ impl<'a> Compiler<'a> {
         };
 
         if self.cse {
-            self.eliminate_common_subexpressions(condition);
+            condition = self.ir.eliminate_common_subexpressions();
         }
 
         if let Some(w) = &mut self.ir_writer {

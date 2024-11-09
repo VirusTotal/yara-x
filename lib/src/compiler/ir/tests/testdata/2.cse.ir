@@ -1,41 +1,43 @@
 RULE test
-  42: FOR_IN -- hash: 0x7b1bbc314f6718c8 -- parent: None 
+  42: FOR_IN -- hash: 0xdbbbb5f449c8f6f8 -- parent: None 
     0: CONST integer(0) -- parent: 42 
     1: PATTERN_COUNT PatternIdx(0) -- hash: 0x2706f00cf1a9933a -- parent: 42 
-    41: FOR_IN -- hash: 0x5ef7507454228219 -- parent: 42 
+    41: FOR_IN -- hash: 0x3d7ab813d5801e10 -- parent: 42 
       2: CONST integer(0) -- parent: 41 
       3: PATTERN_COUNT PatternIdx(1) -- hash: 0xd9da66a80b3ad5b5 -- parent: 41 
-      40: FOR_IN -- hash: 0x9218b279749fd624 -- parent: 41 
+      40: FOR_IN -- hash: 0x9c1a97bee0b80288 -- parent: 41 
         6: FIELD_ACCESS -- hash: 0x648af520f5c87b4e -- parent: 40 
           4: SYMBOL Field { index: 0, is_root: true, type_value: struct } -- parent: 6 
           5: SYMBOL Field { index: 19, is_root: false, type_value: array } -- parent: 6 
-        39: WITH -- hash: 0x94d013a955e49046 -- parent: 40 
-          49: PATTERN_OFFSET PatternIdx(1) INDEX -- hash: 0x929bd8da1310dcd6 -- parent: 39 
-            26: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 12 }, type_value: integer(unknown) } -- parent: 49 
-          50: WITH -- hash: 0xc9f0b1b6af0984c1 -- parent: 39 
-            47: ADD -- hash: 0xa89e504cae3cbbff -- parent: 50 
-              17: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 24 }, type_value: integer(unknown) } -- parent: 47 
-              20: FIELD_ACCESS -- hash: 0xfd63626ce4ca5af0 -- parent: 47 
-                18: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 19 }, type_value: struct } -- parent: 20 
-                19: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown) } -- parent: 20 
-            48: WITH -- hash: 0xb62fd0e720076b6e -- parent: 50 
-              45: PATTERN_OFFSET PatternIdx(0) INDEX -- hash: 0x6df2db889a437dfc -- parent: 48 
-                10: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 45 
-              46: WITH -- hash: 0xaeae980044f4c2d4 -- parent: 48 
-                43: FIELD_ACCESS -- hash: 0x4a8febd1cb391875 -- parent: 46 
-                  7: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 19 }, type_value: struct } -- parent: 43 
-                  8: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown) } -- parent: 43 
-                44: AND -- hash: 0xaa43a24e1749faf -- parent: 46 
-                  12: LE -- hash: 0x178418b9a225eca1 -- parent: 44 
-                    9: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 24 }, type_value: integer(unknown) } -- parent: 12 
-                    11: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 23 }, type_value: integer(unknown) } -- parent: 12 
-                  22: LE -- hash: 0xdd8d950e6d4f4ae6 -- parent: 44 
-                    14: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 23 }, type_value: integer(unknown) } -- parent: 22 
-                    21: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 22 }, type_value: integer(unknown) } -- parent: 22 
-                  28: LE -- hash: 0xba3e4c646987c5f1 -- parent: 44 
-                    25: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 24 }, type_value: integer(unknown) } -- parent: 28 
-                    27: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 21 }, type_value: integer(unknown) } -- parent: 28 
-                  38: LE -- hash: 0xc6e65a0d3c202e21 -- parent: 44 
-                    30: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 21 }, type_value: integer(unknown) } -- parent: 38 
-                    37: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 22 }, type_value: integer(unknown) } -- parent: 38 
+        44: WITH -- hash: 0x73ef4da824d814d -- parent: 40 
+          43: FIELD_ACCESS -- hash: 0x4a8febd1cb391875 -- parent: 44 
+            7: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 19 }, type_value: struct } -- parent: 43 
+            8: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown) } -- parent: 43 
+          46: WITH -- hash: 0x1b0fa42f4ec8bcc6 -- parent: 44 
+            45: PATTERN_OFFSET PatternIdx(0) INDEX -- hash: 0x6df2db889a437dfc -- parent: 46 
+              10: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 45 
+            48: WITH -- hash: 0x7f6b976590bee284 -- parent: 46 
+              47: PATTERN_OFFSET PatternIdx(1) INDEX -- hash: 0x929bd8da1310dcd6 -- parent: 48 
+                26: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 12 }, type_value: integer(unknown) } -- parent: 47 
+              39: AND -- hash: 0x4e58e8132e55fe98 -- parent: 48 
+                12: LE -- hash: 0xc6e65a0d3c202e21 -- parent: 39 
+                  9: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 21 }, type_value: integer(unknown) } -- parent: 12 
+                  11: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 22 }, type_value: integer(unknown) } -- parent: 12 
+                22: LE -- hash: 0x7226b753e987bd3f -- parent: 39 
+                  14: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 22 }, type_value: integer(unknown) } -- parent: 22 
+                  21: ADD -- hash: 0x8a11aeefa8c5107e -- parent: 22 
+                    17: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 21 }, type_value: integer(unknown) } -- parent: 21 
+                    20: FIELD_ACCESS -- hash: 0xfd63626ce4ca5af0 -- parent: 21 
+                      18: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 19 }, type_value: struct } -- parent: 20 
+                      19: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown) } -- parent: 20 
+                28: LE -- hash: 0x75894037d87f4179 -- parent: 39 
+                  25: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 21 }, type_value: integer(unknown) } -- parent: 28 
+                  27: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 23 }, type_value: integer(unknown) } -- parent: 28 
+                38: LE -- hash: 0xf217197c31d98b94 -- parent: 39 
+                  30: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 23 }, type_value: integer(unknown) } -- parent: 38 
+                  37: ADD -- hash: 0x8a11aeefa8c5107e -- parent: 38 
+                    33: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 21 }, type_value: integer(unknown) } -- parent: 37 
+                    36: FIELD_ACCESS -- hash: 0xfd63626ce4ca5af0 -- parent: 37 
+                      34: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 19 }, type_value: struct } -- parent: 36 
+                      35: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown) } -- parent: 36 
 

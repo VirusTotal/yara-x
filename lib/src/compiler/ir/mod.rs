@@ -404,6 +404,16 @@ impl IR {
         mem::replace(&mut self.nodes[expr_id.0 as usize], expr)
     }
 
+    #[inline]
+    pub fn get_parent(&self, expr_id: ExprId) -> Option<ExprId> {
+        let parent = self.parents[expr_id.0 as usize];
+        if parent == ExprId::none() {
+            return None;
+        }
+        Some(parent)
+    }
+
+    #[inline]
     pub fn set_parent(&mut self, expr_id: ExprId, parent_id: ExprId) {
         self.parents[expr_id.0 as usize] = parent_id;
     }
@@ -817,6 +827,19 @@ impl IR {
                         Some(hash) => hash,
                         None => continue 'dfs,
                     };
+                    // When the entry was not found is because it was
+                    // previously deleted while processing another expression
+                    // that was equal to the current one. In such cases we
+                    // won't need to traverse the current expression.
+                    if !map.contains_key(hash) {
+                        dfs.prune();
+                    }
+                }
+                Event::Leave((expr_id, _)) => {
+                    let hash = match hashes.get(&expr_id) {
+                        Some(hash) => hash,
+                        None => continue 'dfs,
+                    };
                     // Get vector with all the expressions that have the same
                     // hash as the current expression, including the current
                     // expression itself. The entry is removed from the map,
@@ -854,11 +877,83 @@ impl IR {
                         dfs.prune();
                     }
                 }
-                Event::Leave(_) => {}
             }
         }
 
         result
+    }
+
+    /// Optimizes the IR by eliminating common subexpressions.
+    ///
+    /// This function searches for instances of identical subexpressions
+    /// and replace them with a single variable holding the computed value.
+    ///
+    /// https://en.wikipedia.org/wiki/Common_subexpression_elimination
+    pub fn eliminate_common_subexpressions(&mut self) -> ExprId {
+        for (common_ancestor, subexpressions) in
+            self.find_common_subexprs(self.root.unwrap())
+        {
+            // This is the index of the new variable.
+            let var_index = self
+                .ancestors(common_ancestor)
+                .map(|expr_id| self.get(expr_id).stack_frame_size())
+                .sum::<i32>();
+
+            // Shift all variables with an index greater or equal than
+            // var_index one position to the left in order to make room for
+            // the new variable used by the `with` statement that will be
+            // inserted.
+            self.shift_vars(common_ancestor, var_index, 1);
+
+            let mut subexpressions = subexpressions.into_iter();
+            let first = subexpressions.next().unwrap();
+            let type_value = self.get(first).type_value();
+            let var = Var::new(0, type_value.ty(), var_index);
+
+            // Replace the first of the subexpressions with a variable. The
+            // replaced subexpression will be added as a declaration to the
+            // `with` statement.
+            let replaced = self.replace(
+                first,
+                Expr::Symbol(Box::new(Symbol::Var {
+                    var,
+                    type_value: type_value.clone(),
+                })),
+            );
+
+            // The expression that initializes the variable is the one that is
+            // being replaced with the variable.
+            let var_init_stmt = self.push(replaced);
+
+            // Get the current parent of the common ancestor. This must be done
+            // before creating the `with` statement because the common ancestor's
+            // parent will become the `with` statement.
+            let parent = self.get_parent(common_ancestor);
+
+            // Create the `with` statement where the body is the common ancestor
+            // of all the identical subexpressions.
+            let with_stmt =
+                self.with(vec![(var, var_init_stmt)], common_ancestor);
+
+            if let Some(parent) = parent {
+                self.set_parent(with_stmt, parent);
+                self.get_mut(parent).replace_child(common_ancestor, with_stmt);
+            } else {
+                self.root = Some(with_stmt);
+            }
+
+            for s in subexpressions {
+                self.replace(
+                    s,
+                    Expr::Symbol(Box::new(Symbol::Var {
+                        var,
+                        type_value: type_value.clone(),
+                    })),
+                );
+            }
+        }
+
+        self.root.unwrap()
     }
 }
 
@@ -2440,6 +2535,175 @@ impl Expr {
             Expr::PatternCount { .. } => {}
             Expr::PatternOffset { .. } => {}
             Expr::PatternLength { .. } => {}
+        }
+    }
+
+    pub fn replace_child(&mut self, child: ExprId, replacement: ExprId) {
+        let replace_in_slice = |exprs: &mut [ExprId]| {
+            for expr in exprs {
+                if *expr == child {
+                    *expr = replacement;
+                }
+            }
+        };
+
+        let replace_in_quantifier =
+            |quantifier: &mut Quantifier| match quantifier {
+                Quantifier::None | Quantifier::All | Quantifier::Any => {}
+                Quantifier::Percentage(expr) | Quantifier::Expr(expr) => {
+                    if *expr == child {
+                        *expr = replacement;
+                    }
+                }
+            };
+
+        let replace_in_range = |range: &mut Range| {
+            if range.lower_bound == child {
+                range.lower_bound = replacement;
+            }
+            if range.upper_bound == child {
+                range.upper_bound = replacement;
+            }
+        };
+
+        let replace_in_anchor = |anchor: &mut MatchAnchor| match anchor {
+            MatchAnchor::None => {}
+            MatchAnchor::At(expr) => {
+                if *expr == child {
+                    *expr = replacement;
+                }
+            }
+            MatchAnchor::In(range) => replace_in_range(range),
+        };
+
+        match self {
+            Expr::Const(_) => {}
+            Expr::Filesize => {}
+            Expr::Symbol(_) => {}
+
+            Expr::Not { operand }
+            | Expr::Minus { operand, .. }
+            | Expr::Defined { operand }
+            | Expr::BitwiseNot { operand } => {
+                if *operand == child {
+                    *operand = replacement;
+                }
+            }
+
+            Expr::And { operands }
+            | Expr::Or { operands }
+            | Expr::Add { operands, .. }
+            | Expr::Sub { operands, .. }
+            | Expr::Mul { operands, .. }
+            | Expr::Div { operands, .. }
+            | Expr::Mod { operands, .. } => {
+                replace_in_slice(operands.as_mut_slice());
+            }
+
+            Expr::BitwiseAnd { lhs, rhs }
+            | Expr::Shl { lhs, rhs }
+            | Expr::Shr { lhs, rhs }
+            | Expr::BitwiseOr { lhs, rhs }
+            | Expr::BitwiseXor { lhs, rhs }
+            | Expr::Eq { lhs, rhs }
+            | Expr::Ne { lhs, rhs }
+            | Expr::Lt { lhs, rhs }
+            | Expr::Gt { lhs, rhs }
+            | Expr::Le { lhs, rhs }
+            | Expr::Ge { lhs, rhs }
+            | Expr::Contains { lhs, rhs }
+            | Expr::IContains { lhs, rhs }
+            | Expr::StartsWith { lhs, rhs }
+            | Expr::IStartsWith { lhs, rhs }
+            | Expr::EndsWith { lhs, rhs }
+            | Expr::IEndsWith { lhs, rhs }
+            | Expr::IEquals { lhs, rhs }
+            | Expr::Matches { lhs, rhs } => {
+                if *lhs == child {
+                    *lhs = replacement;
+                }
+                if *rhs == child {
+                    *rhs = replacement;
+                }
+            }
+            Expr::PatternMatch { anchor, .. }
+            | Expr::PatternMatchVar { anchor, .. } => {
+                replace_in_anchor(anchor)
+            }
+
+            Expr::PatternCount { range, .. }
+            | Expr::PatternCountVar { range, .. } => {
+                if let Some(range) = range {
+                    replace_in_range(range)
+                }
+            }
+
+            Expr::PatternOffset { index, .. }
+            | Expr::PatternOffsetVar { index, .. }
+            | Expr::PatternLength { index, .. }
+            | Expr::PatternLengthVar { index, .. } => {
+                if let Some(index) = index {
+                    if *index == child {
+                        *index = replacement
+                    }
+                }
+            }
+
+            Expr::With(with) => {
+                for (_, expr) in with.declarations.iter_mut() {
+                    if *expr == child {
+                        *expr = replacement
+                    }
+                }
+                if with.condition == child {
+                    with.condition = replacement
+                }
+            }
+
+            Expr::FieldAccess(field_access) => {
+                replace_in_slice(field_access.operands.as_mut_slice());
+            }
+
+            Expr::FuncCall(func_call) => {
+                if let Some(expr) = &mut func_call.object {
+                    if *expr == child {
+                        *expr = replacement
+                    }
+                }
+                replace_in_slice(func_call.args.as_mut_slice());
+            }
+
+            Expr::OfExprTuple(of) => {
+                replace_in_slice(of.items.as_mut_slice());
+                replace_in_anchor(&mut of.anchor);
+            }
+
+            Expr::OfPatternSet(of) => {
+                replace_in_anchor(&mut of.anchor);
+            }
+
+            Expr::ForOf(for_of) => {
+                replace_in_quantifier(&mut for_of.quantifier);
+                if for_of.condition == child {
+                    for_of.condition = replacement
+                }
+            }
+
+            Expr::ForIn(for_in) => {
+                replace_in_quantifier(&mut for_in.quantifier);
+                if for_in.condition == child {
+                    for_in.condition = replacement
+                }
+            }
+
+            Expr::Lookup(lookup) => {
+                if lookup.primary == child {
+                    lookup.primary = replacement;
+                }
+                if lookup.index == child {
+                    lookup.index = replacement;
+                }
+            }
         }
     }
 
