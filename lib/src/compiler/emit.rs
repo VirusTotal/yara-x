@@ -2457,7 +2457,7 @@ fn set_var_undef(
         MemArg { align: 8, offset: 0 },
     );
 
-    let bit = (1 << var.index().wrapping_rem(64)) as i64;
+    let bit = 1i64 << var.index().wrapping_rem(64);
 
     if is_undef {
         instr.i64_const(bit);
