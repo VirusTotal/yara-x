@@ -1,18 +1,12 @@
 RULE test_1
-  12: EQ -- hash: 0x65918958e229b41b -- parent: None 
-    10: SUB -- hash: 0xbb5b2d3c003a978d -- parent: 12 
-      8: ADD -- hash: 0x32e284abcc26d05b -- parent: 10 
-        6: CONST integer(1) -- parent: 8 
-        7: CONST integer(1) -- parent: 8 
-      9: CONST integer(1) -- parent: 10 
+  12: EQ -- hash: 0x1e87f9ecd59c9f97 -- parent: None 
+    10: CONST integer(1) -- parent: 12 
     11: CONST integer(1) -- parent: 12 
 
 RULE test_2
-  6: GT -- hash: 0x931bcdb2c7afb608 -- parent: None 
-    4: DIV -- hash: 0xf2b3602767487d08 -- parent: 6 
-      2: MUL -- hash: 0x23a380280d1b4f32 -- parent: 4 
-        0: CONST integer(1) -- parent: 2 
-        1: CONST integer(2) -- parent: 2 
+  6: GT -- hash: 0x936af95517c74992 -- parent: None 
+    4: DIV -- hash: 0x75c0510b526a94ab -- parent: 6 
+      2: CONST integer(2) -- parent: 4 
       3: CONST integer(1) -- parent: 4 
     5: CONST integer(1) -- parent: 6 
 
@@ -26,25 +20,17 @@ RULE test_3
     5: CONST integer(2) -- parent: 6 
 
 RULE test_4
-  14: EQ -- hash: 0x2240111cff945ff5 -- parent: None 
-    12: SUB -- hash: 0xa076dada583953db -- parent: 14 
-      7: CONST integer(4) -- parent: 12 
-      11: MUL -- hash: 0xd1635797e1f50589 -- parent: 12 
-        9: MINUS -- hash: 0xb5577ca94105cb4b -- parent: 11 
-          8: CONST integer(2) -- parent: 9 
-        10: CONST integer(2) -- parent: 11 
+  14: EQ -- hash: 0x82d0fbda86ff9c76 -- parent: None 
+    12: CONST integer(8) -- parent: 14 
     13: CONST integer(8) -- parent: 14 
 
 RULE test_5
-  12: AND -- hash: 0xe533ae780a09ff03 -- parent: None 
+  12: AND -- hash: 0xa31d146601773ef0 -- parent: None 
     8: EQ -- hash: 0x22575eadeb0769cf -- parent: 12 
       6: FIELD_ACCESS -- hash: 0xd1ac9e3929a1ce9b -- parent: 8 
         4: SYMBOL Field { index: 0, is_root: true, type_value: struct } -- parent: 6 
         5: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown) } -- parent: 6 
       7: CONST integer(0) -- parent: 8 
-    9: CONST boolean(true) -- parent: 12 
-    11: NOT -- hash: 0x2c3c4fda5217a5f3 -- parent: 12 
-      10: CONST boolean(false) -- parent: 11 
 
 RULE test_6
   5: ADD -- hash: 0xc4e1a16fb19df223 -- parent: None 

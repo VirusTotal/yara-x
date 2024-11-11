@@ -1457,33 +1457,48 @@ impl<'src> ParserImpl<'src> {
     ///
     /// ```text
     /// TERM := (
+    ///     FUNC_CALL |
     ///     PRIMARY_EXPR
     ///     (
-    ///        `[` EXPR `]` |
-    ///        `(` BOOLEAN_EXPR (`,` BOOLEAN_EXPR )* `)`
+    ///        `[` EXPR `]` | `.` FUNC_CALL
     ///     )?
     /// )
     /// ``
     fn term(&mut self) -> &mut Self {
         self.begin(TERM)
-            .then(|p| p.primary_expr())
-            .if_next(t!(L_BRACKET | L_PAREN), |p| {
-                p.begin_alt()
-                    .alt(|p| {
-                        p.expect(t!(L_BRACKET)).expr().expect(t!(R_BRACKET))
-                    })
-                    .alt(|p| {
-                        p.expect(t!(L_PAREN))
-                            .opt(|p| {
-                                p.boolean_expr().zero_or_more(|p| {
-                                    p.expect(t!(COMMA))
-                                        .then(|p| p.boolean_expr())
-                                })
-                            })
-                            .expect(t!(R_PAREN))
-                    })
-                    .end_alt()
+            .begin_alt()
+            .alt(|p| p.func_call())
+            .alt(|p| {
+                p.primary_expr().opt(|p| {
+                    p.begin_alt()
+                        .alt(|p| {
+                            p.expect(t!(L_BRACKET))
+                                .expr()
+                                .expect(t!(R_BRACKET))
+                        })
+                        .alt(|p| p.expect(t!(DOT)).then(|p| p.func_call()))
+                        .end_alt()
+                })
             })
+            .end_alt()
+            .end()
+    }
+
+    /// Parses a function call.
+    ///
+    /// ```text
+    /// FUNC_CALL := IDENT `(` ( BOOLEAN_EXPR (`,` BOOLEAN_EXPR )* )? `)`
+    /// ``
+    fn func_call(&mut self) -> &mut Self {
+        self.begin(FUNC_CALL)
+            .expect_d(t!(IDENT), Some("expression"))
+            .expect(t!(L_PAREN))
+            .opt(|p| {
+                p.boolean_expr().zero_or_more(|p| {
+                    p.expect(t!(COMMA)).then(|p| p.boolean_expr())
+                })
+            })
+            .expect(t!(R_PAREN))
             .end()
     }
 
@@ -1519,7 +1534,7 @@ impl<'src> ParserImpl<'src> {
     ///     `-` TERM                           |
     ///     `~` TERM                           |
     ///     `(` EXPR `)`                       |
-    ///     IDENT (`.` IDENT)*
+    ///     IDENT (`.` IDENT !`(` )*
     /// )
     /// ``
     fn primary_expr(&mut self) -> &mut Self {
@@ -1557,8 +1572,11 @@ impl<'src> ParserImpl<'src> {
                         .expect(t!(R_PAREN))
                 })
                 .alt(|p| {
-                    p.expect_d(t!(IDENT), DESC)
-                        .zero_or_more(|p| p.expect(t!(DOT)).expect(t!(IDENT)))
+                    p.expect_d(t!(IDENT), DESC).zero_or_more(|p| {
+                        p.expect(t!(DOT))
+                            .expect(t!(IDENT))
+                            .not(|p| p.expect(t!(L_PAREN)))
+                    })
                 })
                 .end_alt()
                 .end()

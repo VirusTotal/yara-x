@@ -12,13 +12,13 @@ use yara_x_parser::ast;
 use yara_x_parser::ast::WithSpan;
 use yara_x_parser::Span;
 
+use crate::compiler::context::VarStack;
 use crate::compiler::errors::{
     AssignmentMismatch, DuplicateModifier, DuplicatePattern, EmptyPatternSet,
     EntrypointUnsupported, InvalidBase64Alphabet, InvalidModifier,
     InvalidModifierCombination, InvalidPattern, InvalidRange, InvalidRegexp,
     MismatchingTypes, MixedGreediness, NumberOutOfRange, SyntaxError,
-    TooManyPatterns, UnexpectedNegativeNumber, UnknownField,
-    UnknownIdentifier, WrongArguments, WrongType,
+    TooManyPatterns, UnexpectedNegativeNumber, WrongArguments, WrongType,
 };
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
@@ -30,8 +30,7 @@ use crate::compiler::report::ReportBuilder;
 use crate::compiler::{
     warnings, CompileContext, CompileError, ForVars, TextPatternAsHex,
 };
-use crate::errors::PotentiallySlowLoop;
-use crate::modules::BUILTIN_MODULES;
+use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
 use crate::re;
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
 use crate::types::{Map, Regexp, Type, TypeValue, Value};
@@ -408,31 +407,34 @@ fn expr_from_ast(
     ctx: &mut CompileContext,
     expr: &ast::Expr,
 ) -> Result<ExprId, CompileError> {
-    match expr {
+    let expr = match expr {
         ast::Expr::Entrypoint { span } => {
-            Err(EntrypointUnsupported::build(ctx.report_builder, span.into()))
+            return Err(EntrypointUnsupported::build(
+                ctx.report_builder,
+                span.into(),
+            ));
         }
-        ast::Expr::Filesize { .. } => Ok(ctx.ir.filesize()),
+        ast::Expr::Filesize { .. } => ctx.ir.filesize(),
 
         ast::Expr::True { .. } => {
-            Ok(ctx.ir.constant(TypeValue::const_bool_from(true)))
+            ctx.ir.constant(TypeValue::const_bool_from(true))
         }
 
         ast::Expr::False { .. } => {
-            Ok(ctx.ir.constant(TypeValue::const_bool_from(false)))
+            ctx.ir.constant(TypeValue::const_bool_from(false))
         }
 
-        ast::Expr::LiteralInteger(literal) => {
-            Ok(ctx.ir.constant(TypeValue::const_integer_from(literal.value)))
+        ast::Expr::LiteralInteger(lit) => {
+            ctx.ir.constant(TypeValue::const_integer_from(lit.value))
         }
 
-        ast::Expr::LiteralFloat(literal) => {
-            Ok(ctx.ir.constant(TypeValue::const_float_from(literal.value)))
+        ast::Expr::LiteralFloat(lit) => {
+            ctx.ir.constant(TypeValue::const_float_from(lit.value))
         }
 
-        ast::Expr::LiteralString(literal) => Ok(ctx
-            .ir
-            .constant(TypeValue::const_string_from(literal.value.as_bytes()))),
+        ast::Expr::LiteralString(lit) => {
+            ctx.ir.constant(TypeValue::const_string_from(lit.value.as_bytes()))
+        }
 
         ast::Expr::Regexp(regexp) => {
             re::parser::Parser::new()
@@ -442,35 +444,34 @@ fn expr_from_ast(
                     re_error_to_compile_error(ctx.report_builder, regexp, err)
                 })?;
 
-            Ok(ctx.ir.constant(TypeValue::Regexp(Some(Regexp::new(
-                regexp.literal,
-            )))))
+            ctx.ir
+                .constant(TypeValue::Regexp(Some(Regexp::new(regexp.literal))))
         }
 
-        ast::Expr::Defined(expr) => defined_expr_from_ast(ctx, expr),
+        ast::Expr::Defined(expr) => defined_expr_from_ast(ctx, expr)?,
 
         // Boolean operations
-        ast::Expr::Not(expr) => not_expr_from_ast(ctx, expr),
-        ast::Expr::And(operands) => and_expr_from_ast(ctx, operands),
-        ast::Expr::Or(operands) => or_expr_from_ast(ctx, operands),
+        ast::Expr::Not(expr) => not_expr_from_ast(ctx, expr)?,
+        ast::Expr::And(operands) => and_expr_from_ast(ctx, operands)?,
+        ast::Expr::Or(operands) => or_expr_from_ast(ctx, operands)?,
 
         // Arithmetic operations
-        ast::Expr::Minus(expr) => minus_expr_from_ast(ctx, expr),
-        ast::Expr::Add(expr) => add_expr_from_ast(ctx, expr),
-        ast::Expr::Sub(expr) => sub_expr_from_ast(ctx, expr),
-        ast::Expr::Mul(expr) => mul_expr_from_ast(ctx, expr),
-        ast::Expr::Div(expr) => div_expr_from_ast(ctx, expr),
-        ast::Expr::Mod(expr) => mod_expr_from_ast(ctx, expr),
+        ast::Expr::Minus(expr) => minus_expr_from_ast(ctx, expr)?,
+        ast::Expr::Add(expr) => add_expr_from_ast(ctx, expr)?,
+        ast::Expr::Sub(expr) => sub_expr_from_ast(ctx, expr)?,
+        ast::Expr::Mul(expr) => mul_expr_from_ast(ctx, expr)?,
+        ast::Expr::Div(expr) => div_expr_from_ast(ctx, expr)?,
+        ast::Expr::Mod(expr) => mod_expr_from_ast(ctx, expr)?,
 
         // Shift operations
-        ast::Expr::Shl(expr) => shl_expr_from_ast(ctx, expr),
-        ast::Expr::Shr(expr) => shr_expr_from_ast(ctx, expr),
+        ast::Expr::Shl(expr) => shl_expr_from_ast(ctx, expr)?,
+        ast::Expr::Shr(expr) => shr_expr_from_ast(ctx, expr)?,
 
         // Bitwise operations
-        ast::Expr::BitwiseNot(expr) => bitwise_not_expr_from_ast(ctx, expr),
-        ast::Expr::BitwiseAnd(expr) => bitwise_and_expr_from_ast(ctx, expr),
-        ast::Expr::BitwiseOr(expr) => bitwise_or_expr_from_ast(ctx, expr),
-        ast::Expr::BitwiseXor(expr) => bitwise_xor_expr_from_ast(ctx, expr),
+        ast::Expr::BitwiseNot(expr) => bitwise_not_expr_from_ast(ctx, expr)?,
+        ast::Expr::BitwiseAnd(expr) => bitwise_and_expr_from_ast(ctx, expr)?,
+        ast::Expr::BitwiseOr(expr) => bitwise_or_expr_from_ast(ctx, expr)?,
+        ast::Expr::BitwiseXor(expr) => bitwise_xor_expr_from_ast(ctx, expr)?,
 
         // Comparison operations
         ast::Expr::Eq(expr) => {
@@ -536,31 +537,31 @@ fn expr_from_ast(
                         span.into(),
                     )
                 });
-                Ok(expr)
+                expr
             } else {
-                eq_expr_from_ast(ctx, expr)
+                eq_expr_from_ast(ctx, expr)?
             }
         }
-        ast::Expr::Ne(expr) => ne_expr_from_ast(ctx, expr),
-        ast::Expr::Gt(expr) => gt_expr_from_ast(ctx, expr),
-        ast::Expr::Ge(expr) => ge_expr_from_ast(ctx, expr),
-        ast::Expr::Lt(expr) => lt_expr_from_ast(ctx, expr),
-        ast::Expr::Le(expr) => le_expr_from_ast(ctx, expr),
+        ast::Expr::Ne(expr) => ne_expr_from_ast(ctx, expr)?,
+        ast::Expr::Gt(expr) => gt_expr_from_ast(ctx, expr)?,
+        ast::Expr::Ge(expr) => ge_expr_from_ast(ctx, expr)?,
+        ast::Expr::Lt(expr) => lt_expr_from_ast(ctx, expr)?,
+        ast::Expr::Le(expr) => le_expr_from_ast(ctx, expr)?,
 
         // String operations
-        ast::Expr::Contains(expr) => contains_expr_from_ast(ctx, expr),
-        ast::Expr::IContains(expr) => icontains_expr_from_ast(ctx, expr),
-        ast::Expr::StartsWith(expr) => startswith_expr_from_ast(ctx, expr),
-        ast::Expr::IStartsWith(expr) => istartswith_expr_from_ast(ctx, expr),
-        ast::Expr::EndsWith(expr) => endswith_expr_from_ast(ctx, expr),
-        ast::Expr::IEndsWith(expr) => iendswith_expr_from_ast(ctx, expr),
-        ast::Expr::IEquals(expr) => iequals_expr_from_ast(ctx, expr),
-        ast::Expr::Matches(expr) => matches_expr_from_ast(ctx, expr),
-        ast::Expr::Of(of) => of_expr_from_ast(ctx, of),
-        ast::Expr::ForOf(for_of) => for_of_expr_from_ast(ctx, for_of),
-        ast::Expr::ForIn(for_in) => for_in_expr_from_ast(ctx, for_in),
-        ast::Expr::With(with) => with_expr_from_ast(ctx, with),
-        ast::Expr::FuncCall(fn_call) => func_call_from_ast(ctx, fn_call),
+        ast::Expr::Contains(expr) => contains_expr_from_ast(ctx, expr)?,
+        ast::Expr::IContains(expr) => icontains_expr_from_ast(ctx, expr)?,
+        ast::Expr::StartsWith(expr) => startswith_expr_from_ast(ctx, expr)?,
+        ast::Expr::IStartsWith(expr) => istartswith_expr_from_ast(ctx, expr)?,
+        ast::Expr::EndsWith(expr) => endswith_expr_from_ast(ctx, expr)?,
+        ast::Expr::IEndsWith(expr) => iendswith_expr_from_ast(ctx, expr)?,
+        ast::Expr::IEquals(expr) => iequals_expr_from_ast(ctx, expr)?,
+        ast::Expr::Matches(expr) => matches_expr_from_ast(ctx, expr)?,
+        ast::Expr::Of(of) => of_expr_from_ast(ctx, of)?,
+        ast::Expr::ForOf(for_of) => for_of_expr_from_ast(ctx, for_of)?,
+        ast::Expr::ForIn(for_in) => for_in_expr_from_ast(ctx, for_in)?,
+        ast::Expr::With(with) => with_expr_from_ast(ctx, with)?,
+        ast::Expr::FuncCall(func_call) => func_call_from_ast(ctx, func_call)?,
 
         ast::Expr::FieldAccess(expr) => {
             let mut operands = Vec::with_capacity(expr.operands.len());
@@ -571,85 +572,18 @@ fn expr_from_ast(
             for operand in expr.operands.iter().dropping_back(1) {
                 let expr = expr_from_ast(ctx, operand)?;
                 check_type(ctx, expr, operand.span(), &[Type::Struct])?;
-                // Set `current_symbol_table` to the symbol table for the type
-                // of the expression at the left the field access operator (.).
-                // In the expression `foo.bar`, the `current_symbol_table` is
-                // set to the symbol table for foo's type, which should have
-                // a field or method named `bar`.
-                ctx.current_symbol_table =
-                    Some(ctx.ir.get(expr).type_value().symbol_table());
-
                 operands.push(expr);
             }
 
             // Now process the last operand.
-            let last_operand =
-                expr_from_ast(ctx, expr.operands.last().unwrap())?;
+            operands.push(expr_from_ast(ctx, expr.operands.last().unwrap())?);
 
-            // If the last operand is constant, the whole expression is
-            // constant.
-            #[cfg(feature = "constant-folding")]
-            {
-                let type_value = ctx.ir.get(last_operand).type_value();
-                if type_value.is_const() {
-                    return Ok(ctx.ir.constant(type_value.clone()));
-                }
-            }
-
-            operands.push(last_operand);
-
-            Ok(ctx.ir.field_access(operands))
+            ctx.ir.field_access(operands)
         }
 
         ast::Expr::Ident(ident) => {
-            let current_symbol_table = ctx.current_symbol_table.take();
-
-            let symbol = if let Some(symbol_table) = &current_symbol_table {
-                symbol_table.lookup(ident.name)
-            } else {
-                ctx.symbol_table.lookup(ident.name)
-            };
-
-            if symbol.is_none() {
-                // If the current symbol table is `None` it means that the
-                // identifier is not a field or method of some structure.
-                return if current_symbol_table.is_none() {
-                    Err(UnknownIdentifier::build(
-                        ctx.report_builder,
-                        ident.name.to_string(),
-                        ident.span().into(),
-                        // Add a note about the missing import statement if
-                        // the unknown identifier is a module name.
-                        if BUILTIN_MODULES.contains_key(ident.name) {
-                            Some(format!(
-                                "there is a module named `{}`, but the `import \"{}\"` statement is missing",
-                                ident.name,
-                                ident.name
-                            ))
-                        } else {
-                            None
-                        },
-                    ))
-                } else {
-                    Err(UnknownField::build(
-                        ctx.report_builder,
-                        ident.name.to_string(),
-                        ident.span().into(),
-                    ))
-                };
-            }
-
-            let symbol = symbol.unwrap();
-
-            #[cfg(feature = "constant-folding")]
-            {
-                let type_value = symbol.type_value();
-                if type_value.is_const() {
-                    return Ok(ctx.ir.constant(type_value.clone()));
-                }
-            }
-
-            Ok(ctx.ir.ident(symbol))
+            let symbol = ctx.lookup(ident)?;
+            ctx.ir.ident(symbol)
         }
 
         ast::Expr::PatternMatch(p) => {
@@ -671,10 +605,10 @@ fn expr_from_ast(
                     // each iteration. In those cases the symbol table must
                     // contain an entry for `$`, corresponding to the variable
                     // that holds the current PatternId for the loop.
-                    Ok(ctx.ir.pattern_match_var(
+                    ctx.ir.pattern_match_var(
                         ctx.symbol_table.lookup("$").unwrap(),
                         anchor,
-                    ))
+                    )
                 }
                 _ => {
                     let at = match anchor {
@@ -700,7 +634,7 @@ fn expr_from_ast(
                         pattern.make_non_anchorable();
                     }
 
-                    Ok(ctx.ir.pattern_match(pattern_idx, anchor))
+                    ctx.ir.pattern_match(pattern_idx, anchor)
                 }
             }
         }
@@ -708,39 +642,39 @@ fn expr_from_ast(
         ast::Expr::PatternCount(p) => {
             // If the identifier is just `#`, and we are not inside a loop,
             // that's an error.
-            if p.ident.name == "#" && ctx.for_of_depth == 0 {
+            if p.identifier.name == "#" && ctx.for_of_depth == 0 {
                 return Err(SyntaxError::build(
                     ctx.report_builder,
                     "this `#` is outside of the condition of a `for .. of` statement".to_string(),
-                    p.ident.span().into(),
+                    p.identifier.span().into(),
                 ));
             }
-            match (p.ident.name, &p.range) {
+            match (p.identifier.name, &p.range) {
                 // Cases where the identifier is `#`.
                 ("#", Some(range)) => {
                     let range = range_from_ast(ctx, range)?;
-                    Ok(ctx.ir.pattern_count_var(
+                    ctx.ir.pattern_count_var(
                         ctx.symbol_table.lookup("$").unwrap(),
                         Some(range),
-                    ))
+                    )
                 }
-                ("#", None) => Ok(ctx.ir.pattern_count_var(
+                ("#", None) => ctx.ir.pattern_count_var(
                     ctx.symbol_table.lookup("$").unwrap(),
                     None,
-                )),
+                ),
                 // Cases where the identifier is not `#`.
                 (_, Some(range)) => {
                     let range = range_from_ast(ctx, range)?;
                     let (pattern_idx, pattern) =
-                        ctx.get_pattern_mut(&p.ident)?;
+                        ctx.get_pattern_mut(&p.identifier)?;
                     pattern.make_non_anchorable().mark_as_used();
-                    Ok(ctx.ir.pattern_count(pattern_idx, Some(range)))
+                    ctx.ir.pattern_count(pattern_idx, Some(range))
                 }
                 (_, None) => {
                     let (pattern_idx, pattern) =
-                        ctx.get_pattern_mut(&p.ident)?;
+                        ctx.get_pattern_mut(&p.identifier)?;
                     pattern.make_non_anchorable().mark_as_used();
-                    Ok(ctx.ir.pattern_count(pattern_idx, None))
+                    ctx.ir.pattern_count(pattern_idx, None)
                 }
             }
         }
@@ -748,41 +682,41 @@ fn expr_from_ast(
         ast::Expr::PatternOffset(p) => {
             // If the identifier is just `@`, and we are not inside a loop,
             // that's an error.
-            if p.ident.name == "@" && ctx.for_of_depth == 0 {
+            if p.identifier.name == "@" && ctx.for_of_depth == 0 {
                 return Err(SyntaxError::build(
                     ctx.report_builder,
                     "this `@` is outside of the condition of a `for .. of` statement".to_string(),
-                    p.ident.span().into(),
+                    p.identifier.span().into(),
                 ));
             }
-            match (p.ident.name, &p.index) {
+            match (p.identifier.name, &p.index) {
                 // Cases where the identifier is `@`.
                 ("@", Some(index)) => {
                     let range =
                         integer_in_range_from_ast(ctx, index, 1..=i64::MAX)?;
-                    Ok(ctx.ir.pattern_offset_var(
+                    ctx.ir.pattern_offset_var(
                         ctx.symbol_table.lookup("$").unwrap(),
                         Some(range),
-                    ))
+                    )
                 }
-                ("@", None) => Ok(ctx.ir.pattern_offset_var(
+                ("@", None) => ctx.ir.pattern_offset_var(
                     ctx.symbol_table.lookup("$").unwrap(),
                     None,
-                )),
+                ),
                 // Cases where the identifier is not `@`.
                 (_, Some(index)) => {
                     let range =
                         integer_in_range_from_ast(ctx, index, 1..=i64::MAX)?;
                     let (pattern_idx, pattern) =
-                        ctx.get_pattern_mut(&p.ident)?;
+                        ctx.get_pattern_mut(&p.identifier)?;
                     pattern.make_non_anchorable().mark_as_used();
-                    Ok(ctx.ir.pattern_offset(pattern_idx, Some(range)))
+                    ctx.ir.pattern_offset(pattern_idx, Some(range))
                 }
                 (_, None) => {
                     let (pattern_idx, pattern) =
-                        ctx.get_pattern_mut(&p.ident)?;
+                        ctx.get_pattern_mut(&p.identifier)?;
                     pattern.make_non_anchorable().mark_as_used();
-                    Ok(ctx.ir.pattern_offset(pattern_idx, None))
+                    ctx.ir.pattern_offset(pattern_idx, None)
                 }
             }
         }
@@ -790,41 +724,41 @@ fn expr_from_ast(
         ast::Expr::PatternLength(p) => {
             // If the identifier is just `!`, and we are not inside a loop,
             // that's an error.
-            if p.ident.name == "!" && ctx.for_of_depth == 0 {
+            if p.identifier.name == "!" && ctx.for_of_depth == 0 {
                 return Err(SyntaxError::build(
                     ctx.report_builder,
                     "this `!` is outside of the condition of a `for .. of` statement".to_string(),
-                    p.ident.span().into(),
+                    p.identifier.span().into(),
                 ));
             }
-            match (p.ident.name, &p.index) {
+            match (p.identifier.name, &p.index) {
                 // Cases where the identifier is `!`.
                 ("!", Some(index)) => {
                     let index =
                         integer_in_range_from_ast(ctx, index, 1..=i64::MAX)?;
-                    Ok(ctx.ir.pattern_length_var(
+                    ctx.ir.pattern_length_var(
                         ctx.symbol_table.lookup("$").unwrap(),
                         Some(index),
-                    ))
+                    )
                 }
-                ("!", None) => Ok(ctx.ir.pattern_length_var(
+                ("!", None) => ctx.ir.pattern_length_var(
                     ctx.symbol_table.lookup("$").unwrap(),
                     None,
-                )),
+                ),
                 // Cases where the identifier is not `!`.
                 (_, Some(index)) => {
                     let index =
                         integer_in_range_from_ast(ctx, index, 1..=i64::MAX)?;
                     let (pattern_idx, pattern) =
-                        ctx.get_pattern_mut(&p.ident)?;
+                        ctx.get_pattern_mut(&p.identifier)?;
                     pattern.make_non_anchorable().mark_as_used();
-                    Ok(ctx.ir.pattern_length(pattern_idx, Some(index)))
+                    ctx.ir.pattern_length(pattern_idx, Some(index))
                 }
                 (_, None) => {
                     let (pattern_idx, pattern) =
-                        ctx.get_pattern_mut(&p.ident)?;
+                        ctx.get_pattern_mut(&p.identifier)?;
                     pattern.make_non_anchorable().mark_as_used();
-                    Ok(ctx.ir.pattern_length(pattern_idx, None))
+                    ctx.ir.pattern_length(pattern_idx, None)
                 }
             }
         }
@@ -836,7 +770,7 @@ fn expr_from_ast(
                 TypeValue::Array(array) => {
                     let index =
                         non_negative_integer_from_ast(ctx, &expr.index)?;
-                    Ok(ctx.ir.lookup(array.deputy(), primary, index))
+                    ctx.ir.lookup(array.deputy(), primary, index)
                 }
                 TypeValue::Map(map) => {
                     let (key_ty, deputy_value) = match map.borrow() {
@@ -854,19 +788,24 @@ fn expr_from_ast(
                     // The type of the key/index expression should correspond
                     // with the type of the map's keys.
                     check_type(ctx, index, expr.index.span(), &[key_ty])?;
-
-                    Ok(ctx.ir.lookup(deputy_value.clone(), primary, index))
+                    ctx.ir.lookup(deputy_value.clone(), primary, index)
                 }
-                type_value => Err(WrongType::build(
-                    ctx.report_builder,
-                    format!("`{}` or `{}`", Type::Array, Type::Map),
-                    format!("`{}`", type_value.ty()),
-                    expr.primary.span().into(),
-                    None,
-                )),
+                type_value => {
+                    return Err(WrongType::build(
+                        ctx.report_builder,
+                        format!("`{}` or `{}`", Type::Array, Type::Map),
+                        format!("`{}`", type_value.ty()),
+                        expr.primary.span().into(),
+                        None,
+                    ))
+                }
             }
         }
-    }
+    };
+
+    ctx.one_shot_symbol_table = ctx.ir.get(expr).type_value().symbol_table();
+
+    Ok(expr)
 }
 
 pub(in crate::compiler) fn rule_condition_from_ast(
@@ -906,6 +845,8 @@ fn bool_expr_from_ast(
     ctx: &mut CompileContext,
     ast: &ast::Expr,
 ) -> Result<ExprId, CompileError> {
+    ctx.one_shot_symbol_table = None;
+
     let code_loc = ast.span().into();
     let expr = expr_from_ast(ctx, ast)?;
 
@@ -985,7 +926,7 @@ fn of_expr_from_ast(
     of: &ast::Of,
 ) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &of.quantifier)?;
-    let mut stack_frame = ctx.vars.new_frame(5);
+    let mut stack_frame = ctx.vars.new_frame(VarStack::OF_FRAME_SIZE);
 
     let for_vars = ForVars {
         n: stack_frame.new_var(Type::Integer),
@@ -1123,10 +1064,7 @@ fn for_of_expr_from_ast(
     let quantifier = quantifier_from_ast(ctx, &for_of.quantifier)?;
     let pattern_set = pattern_set_from_ast(ctx, &for_of.pattern_set)?;
 
-    // Create new stack frame with 5 slots:
-    //   1 slot for the loop variable, a pattern ID in this case
-    //   4 up to slots used for loop control variables (see: emit::emit_for)
-    let mut stack_frame = ctx.vars.new_frame(5);
+    let mut stack_frame = ctx.vars.new_frame(VarStack::FOR_OF_FRAME_SIZE);
 
     let for_vars = ForVars {
         n: stack_frame.new_var(Type::Integer),
@@ -1185,15 +1123,9 @@ fn is_potentially_large_range(ctx: &CompileContext, range: &Range) -> bool {
             // Don't traverse the arguments of `math.min`.
             |node| {
                 if let Expr::FuncCall(f) = node {
-                    ctx.ir
-                        .get(f.callable)
-                        .type_value()
-                        .as_func()
-                        .signatures()
-                        .iter()
-                        .any(|signature| {
-                            signature.mangled_name.as_str().eq("math.min@ii@i")
-                        })
+                    f.func.signatures().iter().any(|signature| {
+                        signature.mangled_name.as_str().eq("math.min@ii@i")
+                    })
                 } else {
                     false
                 }
@@ -1282,7 +1214,7 @@ fn for_in_expr_from_ast(
         ));
     }
 
-    let mut stack_frame = ctx.vars.new_frame(loop_vars.len() as i32 + 5);
+    let mut stack_frame = ctx.vars.new_frame(VarStack::FOR_IN_FRAME_SIZE);
 
     let iterable_var = stack_frame.new_var(iterable_ty);
 
@@ -1333,18 +1265,27 @@ fn with_expr_from_ast(
     let mut symbols = SymbolTable::new();
     let mut declarations = Vec::new();
 
-    // Iterate over all items in the with statement and create a new variable
-    // for each one. Both identifiers and corresponding expressions are stored
-    // in separate vectors.
     for item in with.declarations.iter() {
+        let name = item.identifier.name;
         let expr = expr_from_ast(ctx, &item.expression)?;
         let type_value = ctx.ir.get(expr).type_value();
-        let var = stack_frame.new_var(type_value.ty());
 
-        declarations.push((var, expr));
-
-        // Insert the variable into the symbol table.
-        symbols.insert(item.identifier.name, Symbol::Var { var, type_value });
+        // If some item in the `with` statement is a function, don't create
+        // a variable for it, but add it to the symbol table. Methods are not
+        // allowed though.
+        if let TypeValue::Func(func) = &type_value {
+            if func.method_of().is_some() {
+                return Err(MethodNotAllowedInWith::build(
+                    ctx.report_builder,
+                    item.expression.span().into(),
+                ));
+            }
+            symbols.insert(name, Symbol::Func(func.clone()));
+        } else {
+            let var = stack_frame.new_var(type_value.ty());
+            declarations.push((var, expr));
+            symbols.insert(name, Symbol::Var { var, type_value });
+        }
     }
 
     // Put the with variables into scope.
@@ -1610,9 +1551,34 @@ fn func_call_from_ast(
     ctx: &mut CompileContext,
     func_call: &ast::FuncCall,
 ) -> Result<ExprId, CompileError> {
-    let callable = expr_from_ast(ctx, &func_call.callable)?;
+    let mut object = if let Some(obj) = &func_call.object {
+        Some(expr_from_ast(ctx, obj)?)
+    } else {
+        None
+    };
 
-    check_type(ctx, callable, func_call.callable.span(), &[Type::Func])?;
+    let symbol = ctx.lookup(&func_call.identifier)?;
+
+    let func = match symbol {
+        Symbol::Func(func) => func,
+        Symbol::Field { type_value: TypeValue::Func(func), .. } => func,
+        Symbol::Var { type_value: TypeValue::Func(func), .. } => func,
+        _ => {
+            return Err(WrongType::build(
+                ctx.report_builder,
+                "`function`".to_string(),
+                format!("`{}`", symbol.ty()),
+                func_call.span().into(),
+                None,
+            ))
+        }
+    };
+
+    // The object is necessary only when this is a method call, if this
+    // is a function call no object is required.
+    if func.method_of().is_none() {
+        object = None
+    }
 
     let args = func_call
         .args
@@ -1625,8 +1591,6 @@ fn func_call_from_ast(
 
     let mut expected_args = Vec::new();
     let mut matching_signature = None;
-
-    let func = ctx.ir.get(callable).type_value().as_func();
 
     // Determine if any of the signatures for the called function matches
     // the provided arguments.
@@ -1676,7 +1640,7 @@ fn func_call_from_ast(
 
     let (signature_index, type_value) = matching_signature.unwrap();
 
-    Ok(ctx.ir.func_call(callable, args, type_value, signature_index))
+    Ok(ctx.ir.func_call(object, args, func, type_value, signature_index))
 }
 
 fn matches_expr_from_ast(

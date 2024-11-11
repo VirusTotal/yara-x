@@ -1,0 +1,23 @@
+RULE test
+  31: WITH -- hash: 0x1c2dc7c9f16d1965 -- parent: None 
+    30: FN_CALL uint16@i@iu -- hash: 0xda0e21252116eba3 -- parent: 31 
+      3: CONST integer(0) -- parent: 30 
+    29: OR -- hash: 0x9d7d7df7af863221 -- parent: 31 
+      16: AND -- hash: 0x979031848f402d74 -- parent: 29 
+        6: EQ -- hash: 0x3d5ef6c75863df9 -- parent: 16 
+          4: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 0 }, type_value: integer(unknown) } -- parent: 6 
+          5: CONST integer(23117) -- parent: 6 
+        15: EQ -- hash: 0x65a614459391c0a7 -- parent: 16 
+          13: FN_CALL uint32@i@iu -- hash: 0x34c0621a2d7bd78a -- parent: 15 
+            12: FN_CALL uint32@i@iu -- hash: 0xf847af9eff49a4aa -- parent: 13 
+              11: CONST integer(60) -- parent: 12 
+          14: CONST integer(17744) -- parent: 15 
+      28: AND -- hash: 0xc003c67e33078e52 -- parent: 29 
+        23: EQ -- hash: 0x316a67c055d910c5 -- parent: 28 
+          21: FN_CALL uint32@i@iu -- hash: 0xa19bda25c811c1e -- parent: 23 
+            20: CONST integer(0) -- parent: 21 
+          22: CONST integer(1179403647) -- parent: 23 
+        27: NE -- hash: 0xde134307f90b5fc4 -- parent: 28 
+          25: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 0 }, type_value: integer(unknown) } -- parent: 27 
+          26: CONST integer(0) -- parent: 27 
+

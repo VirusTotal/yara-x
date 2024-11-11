@@ -1,0 +1,24 @@
+import "test_proto2"
+
+rule test_1 {
+  condition:
+    test_proto2.array_struct[0].nested_int32_zero == 0 and
+    test_proto2.array_struct[1].nested_int32_one == 1 and
+    test_proto2.array_struct[1].nested_int32_zero + test_proto2.array_struct[1].nested_int64_one == 1
+}
+
+rule test_2 {
+  condition:
+    test_proto2.array_struct[1].nested_int32_zero + test_proto2.array_struct[1].nested_int64_one == 1 and
+    test_proto2.array_struct[0].nested_int32_zero == 0 and
+    test_proto2.array_struct[1].nested_int32_one == 1
+}
+
+rule test_3 {
+  condition:
+    with a = test_proto2.array_struct : (
+    	a[1].nested_int32_zero + a[1].nested_int64_one == 1 and
+    	a[0].nested_int32_zero == 0 and
+    	a[1].nested_int32_one == 1
+    )
+}

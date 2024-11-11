@@ -31,7 +31,7 @@ use crate::compiler::{
 use crate::scanner::RuntimeObjectHandle;
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::Symbol;
-use crate::types::{Array, Func, Map, Type, TypeValue, Value};
+use crate::types::{Array, Map, Type, TypeValue, Value};
 use crate::utils::cast;
 use crate::wasm;
 use crate::wasm::builder::WasmModuleBuilder;
@@ -179,13 +179,6 @@ type ExceptionHandler = Box<dyn Fn(&mut EmitContext, &mut InstrSeqBuilder)>;
 /// Structure that contains information used while emitting the code that
 /// corresponds to the condition of a YARA rule.
 pub(crate) struct EmitContext<'a> {
-    /// Signature index associated the function call being emitted. This
-    /// is an index in the array returned by `func.signatures()`, where
-    /// `func` is an instance of [`Type::Func`] that represents the
-    /// function being called. As each function may have multiple signatures
-    /// this tells which specific signature must be used.
-    pub current_signature: Option<usize>,
-
     /// Information about the rule whose condition is being emitted.
     pub current_rule: &'a RuleInfo,
 
@@ -307,20 +300,19 @@ fn emit_expr(
             instr.global_get(ctx.wasm_symbols.filesize);
         }
 
-        Expr::Ident { symbol } => {
+        Expr::Symbol(symbol) => {
             match symbol.as_ref() {
                 Symbol::Rule(rule_id) => {
                     // Emit code that checks if a rule has matched, leaving
                     // zero or one at the top of the stack.
                     emit_check_for_rule_match(ctx, *rule_id, instr);
                 }
-                Symbol::Func(func) => {
-                    emit_func_call(ctx, func, instr);
-                }
                 Symbol::Var { var, .. } => {
                     // The symbol represents a variable in WASM memory,
                     // emit code for loading its value into the stack.
-                    load_var(ctx, instr, *var);
+                    if !matches!(var.ty(), Type::Func) {
+                        load_var(ctx, instr, *var);
+                    }
                 }
                 Symbol::Field { index, is_root, type_value, .. } => {
                     let index: i32 = (*index).try_into().unwrap();
@@ -346,12 +338,9 @@ fn emit_expr(
                             emit_lookup_string(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
-                        TypeValue::Struct(_) => {
-                            ctx.lookup_list.push((index, *is_root));
-                            emit_lookup_object(ctx, instr);
-                            assert!(ctx.lookup_list.is_empty());
-                        }
-                        TypeValue::Array(_) | TypeValue::Map(_) => {
+                        TypeValue::Struct(_)
+                        | TypeValue::Array(_)
+                        | TypeValue::Map(_) => {
                             ctx.lookup_list.push((index, *is_root));
                             emit_lookup_object(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
@@ -373,7 +362,6 @@ fn emit_expr(
                                     emit_lookup_object(ctx, instr);
                                 }
                             }
-                            emit_func_call(ctx, func, instr);
                             ctx.lookup_list.clear();
                         }
                         TypeValue::Regexp(_) => {
@@ -389,6 +377,9 @@ fn emit_expr(
                             unreachable!();
                         }
                     }
+                }
+                Symbol::Func(_) => {
+                    unreachable!()
                 }
             }
         }
@@ -643,23 +634,35 @@ fn emit_expr(
             }
         },
 
-        Expr::With { declarations, condition } => {
-            emit_with(ctx, ir, declarations.as_slice(), *condition, instr);
-        }
-
-        Expr::FuncCall(fn_call) => {
+        Expr::FuncCall(func_call) => {
             // Emit the arguments first.
-            for expr in fn_call.args.iter() {
+            for expr in func_call.args.iter() {
                 emit_expr(ctx, ir, *expr, instr);
             }
 
-            let previous =
-                ctx.current_signature.replace(fn_call.signature_index);
+            if let Some(obj) = func_call.object {
+                emit_expr(ctx, ir, obj, instr);
+            }
 
-            // Emit the expression that resolves into a function identifier.
-            emit_expr(ctx, ir, fn_call.callable, instr);
+            if func_call.signature().result_may_be_undef {
+                emit_call_and_handle_undef(
+                    ctx,
+                    instr,
+                    ctx.function_id(func_call.mangled_name()),
+                );
+            } else {
+                instr.call(ctx.function_id(func_call.mangled_name()));
+            }
+        }
 
-            ctx.current_signature = previous;
+        Expr::With(with) => {
+            emit_with(
+                ctx,
+                ir,
+                with.declarations.as_slice(),
+                with.condition,
+                instr,
+            );
         }
     }
 }
@@ -929,7 +932,7 @@ fn emit_field_access(
     // will be emitted, encompassing all the lookups in a single call to
     // Rust code.
     for operand in field_access.operands.iter().dropping_back(1) {
-        if let Expr::Ident { symbol } = ir.get(*operand) {
+        if let Expr::Symbol(symbol) = ir.get(*operand) {
             if let Symbol::Field { index, is_root, .. } = symbol.as_ref() {
                 ctx.lookup_list.push((*index as i32, *is_root));
                 continue;
@@ -1457,13 +1460,18 @@ fn emit_of_expr_tuple(
             // Execute the i-th expression and save its result in `next_item`.
             set_var(ctx, instr, next_item, |ctx, instr| {
                 load_var(ctx, instr, i);
-                emit_switch(ctx, next_item.ty.into(), instr, |ctx, instr| {
-                    if let Some(expr) = expressions.next() {
-                        emit_bool_expr(ctx, ir, *expr, instr);
-                        return true;
-                    }
-                    false
-                });
+                emit_switch(
+                    ctx,
+                    next_item.ty().into(),
+                    instr,
+                    |ctx, instr| {
+                        if let Some(expr) = expressions.next() {
+                            emit_bool_expr(ctx, ir, *expr, instr);
+                            return true;
+                        }
+                        false
+                    },
+                );
             });
         },
         // Condition.
@@ -1803,7 +1811,7 @@ fn emit_for_in_expr_tuple(
                         load_var(ctx, instr, i);
                         emit_switch(
                             ctx,
-                            next_item.ty.into(),
+                            next_item.ty().into(),
                             instr,
                             |ctx, instr| match expressions.next() {
                                 Some(expr) => {
@@ -1954,8 +1962,9 @@ fn emit_for<I, B, C, A>(
                 (max_count, count)
             }
             _ => (
-                Var { ty: Type::Integer, index: 0 },
-                Var { ty: Type::Integer, index: 0 },
+                // Not really used, but we must return something.
+                Var::default(),
+                Var::default(),
             ),
         };
 
@@ -2141,8 +2150,7 @@ fn emit_with(
     }
 
     // Emit the code that evaluates the condition of the `with` statement.
-    // This condition is a boolean expression that uses the variables set
-    emit_bool_expr(ctx, ir, condition, instr)
+    emit_expr(ctx, ir, condition, instr)
 }
 
 /// Produces a switch statement by calling a `branch_generator` function
@@ -2283,20 +2291,21 @@ fn set_var<B>(
 ) where
     B: FnOnce(&mut EmitContext, &mut InstrSeqBuilder),
 {
-    let (store_kind, alignment) = match var.ty {
+    let (store_kind, alignment) = match var.ty() {
         Type::Bool => (StoreKind::I32 { atomic: false }, size_of::<i32>()),
         Type::Float => (StoreKind::F64, size_of::<f64>()),
         Type::Integer
         | Type::String
         | Type::Struct
         | Type::Array
-        | Type::Map => (StoreKind::I64 { atomic: false }, size_of::<i64>()),
+        | Type::Map
+        | Type::Func => (StoreKind::I64 { atomic: false }, size_of::<i64>()),
         _ => unreachable!(),
     };
 
     // First push the offset where the variable resides in memory. This will
     // be used by the `store` instruction.
-    instr.i32_const(var.index * Var::mem_size());
+    instr.i32_const(var.index() * Var::mem_size());
 
     // Block that produces the value that will be stored in the variable.
     block(ctx, instr);
@@ -2334,7 +2343,7 @@ fn set_vars<B>(
     // Iterate variables in reverse order as the last variable is the one
     // at the top of the stack.
     for var in vars.iter().rev() {
-        match var.ty {
+        match var.ty() {
             Type::Bool => {
                 // Pop the value and store it into temp variable.
                 instr.local_set(ctx.wasm_symbols.i32_tmp);
@@ -2342,7 +2351,7 @@ fn set_vars<B>(
                 // The offset is always multiple of 64-bits, as each variable
                 // occupies a 64-bits slot. This is true even for bool values
                 // that are represented as a 32-bits integer.
-                instr.i32_const(var.index * Var::mem_size());
+                instr.i32_const(var.index() * Var::mem_size());
                 // Push the value.
                 instr.local_get(ctx.wasm_symbols.i32_tmp);
                 // Store the value in memory.
@@ -2359,9 +2368,10 @@ fn set_vars<B>(
             | Type::String
             | Type::Struct
             | Type::Array
-            | Type::Map => {
+            | Type::Map
+            | Type::Func => {
                 instr.local_set(ctx.wasm_symbols.i64_tmp_a);
-                instr.i32_const(var.index * Var::mem_size());
+                instr.i32_const(var.index() * Var::mem_size());
                 instr.local_get(ctx.wasm_symbols.i64_tmp_a);
                 instr.store(
                     ctx.wasm_symbols.main_memory,
@@ -2374,7 +2384,7 @@ fn set_vars<B>(
             }
             Type::Float => {
                 instr.local_set(ctx.wasm_symbols.f64_tmp);
-                instr.i32_const(var.index * Var::mem_size());
+                instr.i32_const(var.index() * Var::mem_size());
                 instr.local_get(ctx.wasm_symbols.f64_tmp);
                 instr.store(
                     ctx.wasm_symbols.main_memory,
@@ -2395,13 +2405,13 @@ fn set_vars<B>(
 fn load_var(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
     // First check if the undefined flag is set for the requested variable
     // and throw the undefined exception in that case.
-    instr.i32_const(var.index.saturating_div(64));
+    instr.i32_const(var.index().saturating_div(64));
     instr.load(
         ctx.wasm_symbols.main_memory,
         LoadKind::I64 { atomic: false },
         MemArg { align: 8, offset: 0 },
     );
-    instr.i64_const(1 << var.index.wrapping_rem(64));
+    instr.i64_const(1 << var.index().wrapping_rem(64));
     instr.binop(BinaryOp::I64And);
     instr.unop(UnaryOp::I64Eqz);
     instr.if_else(None, |_then| {}, |_else| throw_undef(ctx, _else));
@@ -2409,16 +2419,17 @@ fn load_var(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
     // The slots where variables are stored start at offset VARS_STACK_START
     // within main memory, and are 64-bits long. Let's compute the variable's
     // offset with respect to VARS_STACK_START.
-    instr.i32_const(var.index * Var::mem_size());
+    instr.i32_const(var.index() * Var::mem_size());
 
-    let (load_kind, alignment) = match var.ty {
+    let (load_kind, alignment) = match var.ty() {
         Type::Bool => (LoadKind::I32 { atomic: false }, size_of::<i32>()),
         Type::Float => (LoadKind::F64, size_of::<i64>()),
         Type::Integer
         | Type::String
         | Type::Struct
         | Type::Array
-        | Type::Map => (LoadKind::I64 { atomic: false }, size_of::<i64>()),
+        | Type::Map
+        | Type::Func => (LoadKind::I64 { atomic: false }, size_of::<i64>()),
         _ => unreachable!(),
     };
 
@@ -2438,15 +2449,15 @@ fn set_var_undef(
     // Push the address of the i64 where the flag is located. Push it
     // twice, one is for the load instruction and the other one is for
     // the store instruction.
-    instr.i32_const(var.index.saturating_div(64));
-    instr.i32_const(var.index.saturating_div(64));
+    instr.i32_const(var.index().saturating_div(64));
+    instr.i32_const(var.index().saturating_div(64));
     instr.load(
         ctx.wasm_symbols.main_memory,
         LoadKind::I64 { atomic: false },
         MemArg { align: 8, offset: 0 },
     );
 
-    let bit = (1 << var.index.wrapping_rem(64)) as i64;
+    let bit = 1i64 << var.index().wrapping_rem(64);
 
     if is_undef {
         instr.i64_const(bit);
@@ -2466,7 +2477,7 @@ fn set_var_undef(
 /// Increments a variable.
 fn incr_var(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
     // incr_var only works with integer variables.
-    assert_eq!(var.ty, Type::Integer);
+    assert_eq!(var.ty(), Type::Integer);
     set_var(ctx, instr, var, |ctx, instr| {
         load_var(ctx, instr, var);
         instr.i64_const(1);
@@ -2512,24 +2523,6 @@ fn emit_bool_expr(
             instr.binop(BinaryOp::I64Ne);
         }
         ty => unreachable!("type `{:?}` can't be casted to boolean", ty),
-    }
-}
-
-/// Emit function call.
-fn emit_func_call(
-    ctx: &mut EmitContext,
-    func: &Rc<Func>,
-    instr: &mut InstrSeqBuilder,
-) {
-    let signature = &func.signatures()[ctx.current_signature.unwrap()];
-    if signature.result_may_be_undef {
-        emit_call_and_handle_undef(
-            ctx,
-            instr,
-            ctx.function_id(signature.mangled_name.as_str()),
-        );
-    } else {
-        instr.call(ctx.function_id(signature.mangled_name.as_str()));
     }
 }
 

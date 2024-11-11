@@ -1,5 +1,7 @@
 use std::fmt::{Debug, Display, Formatter};
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use std::{mem, ptr};
 
 use bstr::BString;
 use serde::{Deserialize, Serialize};
@@ -19,8 +21,9 @@ mod map;
 mod structure;
 
 /// The type of YARA expression or identifier.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub(crate) enum Type {
+    #[default]
     Unknown,
     Integer,
     Float,
@@ -118,7 +121,7 @@ impl<T> Value<T> {
 /// /foobar/s
 /// /foobar/is
 /// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct Regexp(String);
 
 impl Regexp {
@@ -177,6 +180,52 @@ pub(crate) enum TypeValue {
     Func(Rc<Func>),
 }
 
+impl Hash for TypeValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        mem::discriminant(self).hash(state);
+        match self {
+            TypeValue::Unknown => {}
+            TypeValue::Integer(v) => {
+                mem::discriminant(v).hash(state);
+                if let Value::Const(c) = v {
+                    c.hash(state);
+                }
+            }
+            TypeValue::Float(v) => {
+                mem::discriminant(v).hash(state);
+                if let Value::Const(c) = v {
+                    // f64 doesn't implement the Hash trait. We hash the binary
+                    // representation of the f64.
+                    f64::to_bits(*c).hash(state);
+                }
+            }
+            TypeValue::Bool(v) => {
+                mem::discriminant(v).hash(state);
+                if let Value::Const(c) = v {
+                    c.hash(state);
+                }
+            }
+            TypeValue::String(v) => {
+                mem::discriminant(v).hash(state);
+                if let Value::Const(c) = v {
+                    c.hash(state);
+                }
+            }
+            TypeValue::Regexp(v) => {
+                v.hash(state);
+            }
+            // In these cases we compute the hash of the reference itself,
+            // not the hash of the referenced objects. This speeds-up the
+            // hash computation because we don't need to traverse the
+            // objects.
+            TypeValue::Struct(v) => ptr::hash(&**v, state),
+            TypeValue::Array(v) => ptr::hash(&**v, state),
+            TypeValue::Map(v) => ptr::hash(&**v, state),
+            TypeValue::Func(v) => ptr::hash(&**v, state),
+        }
+    }
+}
+
 impl TypeValue {
     /// Returns true if the [`TypeValue`] is a constant value.
     ///
@@ -229,11 +278,12 @@ impl TypeValue {
     /// Returns the symbol table associated to this [`TypeValue`].
     ///
     /// The symbol table contains the methods and/or fields associated to the
-    /// type.
-    pub fn symbol_table(&self) -> Rc<dyn SymbolLookup> {
+    /// type. This only returns some value for [`TypeValue::Struct`] for any
+    /// other type it returns [`None`].
+    pub fn symbol_table(&self) -> Option<Rc<dyn SymbolLookup>> {
         match self {
-            Self::Struct(s) => s.clone(),
-            _ => unreachable!(),
+            Self::Struct(s) => Some(s.clone()),
+            _ => None,
         }
     }
 
@@ -330,17 +380,6 @@ impl TypeValue {
         } else {
             panic!(
                 "called `as_map` on a TypeValue that is not TypeValue::Map, it is: {:?}",
-                self
-            )
-        }
-    }
-
-    pub fn as_func(&self) -> Rc<Func> {
-        if let TypeValue::Func(func) = self {
-            func.clone()
-        } else {
-            panic!(
-                "called `as_func` on a TypeValue that is not TypeValue::Func, it is: {:?}",
                 self
             )
         }
@@ -515,7 +554,6 @@ impl Debug for TypeValue {
     }
 }
 
-#[cfg(test)]
 impl PartialEq for TypeValue {
     fn eq(&self, rhs: &Self) -> bool {
         match (self, rhs) {
@@ -524,7 +562,14 @@ impl PartialEq for TypeValue {
             (Self::Bool(lhs), Self::Bool(rhs)) => lhs == rhs,
             (Self::Integer(lhs), Self::Integer(rhs)) => lhs == rhs,
             (Self::Float(lhs), Self::Float(rhs)) => lhs == rhs,
+            (Self::Regexp(lhs), Self::Regexp(rhs)) => lhs == rhs,
+            (Self::Struct(lhs), Self::Struct(rhs)) => ptr::eq(&**lhs, &**rhs),
+            (Self::Array(lhs), Self::Array(rhs)) => ptr::eq(&**lhs, &**rhs),
+            (Self::Map(lhs), Self::Map(rhs)) => ptr::eq(&**lhs, &**rhs),
+            (Self::Func(lhs), Self::Func(rhs)) => ptr::eq(&**lhs, &**rhs),
             _ => false,
         }
     }
 }
+
+impl Eq for TypeValue {}
