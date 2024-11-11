@@ -1,6 +1,7 @@
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+use std::hash::{Hash, Hasher};
 
 use crate::types::{TypeValue, Value};
 
@@ -113,12 +114,18 @@ where
 ///
 /// YARA modules allow function overloading, therefore functions can have the
 /// same name but different arguments.
-#[derive(Clone, Serialize, Deserialize, Hash, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub(crate) struct FuncSignature {
     pub mangled_name: MangledFnName,
     pub args: Vec<TypeValue>,
     pub result: TypeValue,
     pub result_may_be_undef: bool,
+}
+
+impl Hash for FuncSignature {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.mangled_name.hash(state);
+    }
 }
 
 impl Ord for FuncSignature {
