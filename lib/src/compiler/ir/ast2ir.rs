@@ -30,6 +30,7 @@ use crate::compiler::report::ReportBuilder;
 use crate::compiler::{
     warnings, CompileContext, CompileError, ForVars, TextPatternAsHex,
 };
+use crate::errors::CustomError;
 use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
 use crate::re;
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
@@ -583,6 +584,39 @@ fn expr_from_ast(
 
         ast::Expr::Ident(ident) => {
             let symbol = ctx.lookup(ident)?;
+
+            // If the symbol is a structure field, and it has an ACL, check if
+            // the conditions imposed in the ACL are met. If the conditions are
+            // not met an error is raised.
+            if let Symbol::Field { acl: Some(ref acl), .. } = symbol {
+                for entry in acl {
+                    // True if any of the features in the `accept_if` list is
+                    // present in the compiler. If the list is empty it's also
+                    // accepted.
+                    let accepted = entry.accept_if.is_empty()
+                        || entry
+                            .accept_if
+                            .iter()
+                            .any(|accepted| ctx.features.contains(accepted));
+
+                    // True if any of the features in the `reject_if` list is
+                    // present in the compiler.
+                    let rejected = entry
+                        .reject_if
+                        .iter()
+                        .any(|rejected| ctx.features.contains(rejected));
+
+                    if !accepted || rejected {
+                        return Err(CustomError::build(
+                            ctx.report_builder,
+                            entry.error_title.clone(),
+                            entry.error_label.clone(),
+                            ident.span().into(),
+                        ));
+                    }
+                }
+            }
+
             ctx.ir.ident(symbol)
         }
 

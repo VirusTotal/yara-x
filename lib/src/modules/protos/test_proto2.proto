@@ -186,6 +186,30 @@ message TestProto2 {
   }
 
   optional uint64 file_size = 400;
+
+  /// This field is accessible only if the features "foo" (or "FOO") and "bar"
+  // are enabled while compiling the YARA rules.
+  optional uint64 requires_foo_and_bar = 500 [
+    (yara.field_options) = {
+      acl: [
+        {
+          accept_if: ["foo", "FOO"],
+          error_title: "foo is required",
+          error_label: "this field was used without foo"
+        },
+        {
+          accept_if: "bar",
+          error_title: "bar is required",
+          error_label: "this field was used without bar"
+        },
+        {
+          reject_if: "baz",
+          error_title: "baz is forbidden",
+          error_label: "this field was used with baz"
+        }
+      ]
+    }
+  ];
 }
 
 enum TopLevelEnumeration {

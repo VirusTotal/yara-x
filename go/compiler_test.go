@@ -145,6 +145,29 @@ func TestError(t *testing.T) {
 	assert.EqualError(t, err, expected)
 }
 
+func TestCompilerFeatures(t *testing.T) {
+	rules := `import "test_proto2" rule test { condition: test_proto2.requires_foo_and_bar }`
+
+	_, err := Compile(rules)
+	assert.EqualError(t, err, `error[E100]: foo is required
+ --> line:1:57
+  |
+1 | import "test_proto2" rule test { condition: test_proto2.requires_foo_and_bar }
+  |                                                         ^^^^^^^^^^^^^^^^^^^^ this field was used without foo
+  |`)
+
+	_, err = Compile(rules, WithFeature("foo"))
+	assert.EqualError(t, err, `error[E100]: bar is required
+ --> line:1:57
+  |
+1 | import "test_proto2" rule test { condition: test_proto2.requires_foo_and_bar }
+  |                                                         ^^^^^^^^^^^^^^^^^^^^ this field was used without bar
+  |`)
+
+	_, err = Compile(rules, WithFeature("foo"), WithFeature("bar"))
+	assert.NoError(t, err)
+}
+
 func TestErrors(t *testing.T) {
 	c, err := NewCompiler()
 	assert.NoError(t, err)

@@ -7,12 +7,12 @@ RULE test
       3: PATTERN_COUNT PatternIdx(1) -- hash: 0xd9da66a80b3ad5b5 -- parent: 41 
       40: FOR_IN -- hash: 0x9c1a97bee0b80288 -- parent: 41 
         6: FIELD_ACCESS -- hash: 0x648af520f5c87b4e -- parent: 40 
-          4: SYMBOL Field { index: 0, is_root: true, type_value: struct } -- parent: 6 
-          5: SYMBOL Field { index: 19, is_root: false, type_value: array } -- parent: 6 
+          4: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 6 
+          5: SYMBOL Field { index: 19, is_root: false, type_value: array, acl: None } -- parent: 6 
         44: WITH -- hash: 0x73ef4da824d814d -- parent: 40 
           43: FIELD_ACCESS -- hash: 0x4a8febd1cb391875 -- parent: 44 
             7: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 19 }, type_value: struct } -- parent: 43 
-            8: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown) } -- parent: 43 
+            8: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None } -- parent: 43 
           46: WITH -- hash: 0x1b0fa42f4ec8bcc6 -- parent: 44 
             45: PATTERN_OFFSET PatternIdx(0) INDEX -- hash: 0x6df2db889a437dfc -- parent: 46 
               10: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 45 
@@ -29,7 +29,7 @@ RULE test
                     17: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 21 }, type_value: integer(unknown) } -- parent: 21 
                     20: FIELD_ACCESS -- hash: 0xfd63626ce4ca5af0 -- parent: 21 
                       18: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 19 }, type_value: struct } -- parent: 20 
-                      19: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown) } -- parent: 20 
+                      19: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None } -- parent: 20 
                 28: LE -- hash: 0x75894037d87f4179 -- parent: 39 
                   25: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 21 }, type_value: integer(unknown) } -- parent: 28 
                   27: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 23 }, type_value: integer(unknown) } -- parent: 28 
@@ -39,5 +39,5 @@ RULE test
                     33: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 21 }, type_value: integer(unknown) } -- parent: 37 
                     36: FIELD_ACCESS -- hash: 0xfd63626ce4ca5af0 -- parent: 37 
                       34: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 19 }, type_value: struct } -- parent: 36 
-                      35: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown) } -- parent: 36 
+                      35: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None } -- parent: 36 
 

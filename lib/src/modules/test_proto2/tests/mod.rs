@@ -292,3 +292,55 @@ fn test_proto2_module() {
         "#
     )
 }
+
+#[test]
+fn test_acl() {
+    let rules = r#"
+        import "test_proto2"
+        rule test {
+            condition:
+                test_proto2.requires_foo_and_bar == 0
+        }"#;
+
+    let mut c = crate::Compiler::new();
+
+    assert_eq!(
+        c.add_source(rules).err().unwrap().to_string(),
+        r#"error[E100]: foo is required
+ --> line:5:29
+  |
+5 |                 test_proto2.requires_foo_and_bar == 0
+  |                             ^^^^^^^^^^^^^^^^^^^^ this field was used without foo
+  |"#
+    );
+
+    c.enable_feature("foo");
+
+    assert_eq!(
+        c.add_source(rules).err().unwrap().to_string(),
+        r#"error[E100]: bar is required
+ --> line:5:29
+  |
+5 |                 test_proto2.requires_foo_and_bar == 0
+  |                             ^^^^^^^^^^^^^^^^^^^^ this field was used without bar
+  |"#
+    );
+
+    c.enable_feature("bar");
+
+    assert!(c.add_source(rules).is_ok());
+
+    let mut c = crate::Compiler::new();
+
+    c.enable_feature("foo").enable_feature("bar").enable_feature("baz");
+
+    assert_eq!(
+        c.add_source(rules).err().unwrap().to_string(),
+        r#"error[E100]: baz is forbidden
+ --> line:5:29
+  |
+5 |                 test_proto2.requires_foo_and_bar == 0
+  |                             ^^^^^^^^^^^^^^^^^^^^ this field was used with baz
+  |"#
+    );
+}

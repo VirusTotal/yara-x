@@ -8,7 +8,7 @@ use std::{mem, ptr};
 use bstr::BString;
 
 use crate::compiler::{RuleId, Var};
-use crate::types::{Func, Type, TypeValue, Value};
+use crate::types::{AclEntry, Func, Type, TypeValue, Value};
 
 /// Trait implemented by types that allow looking up for a symbol.
 pub(crate) trait SymbolLookup {
@@ -33,6 +33,8 @@ pub(crate) enum Symbol {
         is_root: bool,
         /// Type and value for this field.
         type_value: TypeValue,
+        /// Access control list (ACL) for accessing this field.
+        acl: Option<Vec<AclEntry>>,
     },
     /// The symbol refers to a rule.
     Rule(RuleId),
