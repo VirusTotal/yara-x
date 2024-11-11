@@ -1,12 +1,12 @@
 RULE test
-  22: OR -- hash: 0xfaadfef402368838 -- parent: None 
-    10: EQ -- hash: 0x7f02e520f7dbad49 -- parent: 22 
-      8: FN_CALL hash.md5@ii@su -- hash: 0x878eabc1d15a980 -- parent: 10 
+  22: OR -- hash: 0x4c596d28da35867b -- parent: None 
+    10: EQ -- hash: 0xd76a85f33d9424b -- parent: 22 
+      8: FN_CALL hash.md5@ii@su -- hash: 0x47e0b9abe91780cc -- parent: 10 
         6: CONST integer(0) -- parent: 8 
         7: FILESIZE -- parent: 8 
       9: CONST string("feba6c919e3797e7778e8f2e85fa033d") -- parent: 10 
-    21: EQ -- hash: 0x303a620bd8a7e65f -- parent: 22 
-      19: FN_CALL hash.md5@ii@su -- hash: 0x878eabc1d15a980 -- parent: 21 
+    21: EQ -- hash: 0xbeae254a14a57b60 -- parent: 22 
+      19: FN_CALL hash.md5@ii@su -- hash: 0x47e0b9abe91780cc -- parent: 21 
         17: CONST integer(0) -- parent: 19 
         18: FILESIZE -- parent: 19 
       20: CONST string("275876e34cf609db118f3d84b799a790") -- parent: 21 

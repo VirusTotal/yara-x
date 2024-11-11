@@ -1,6 +1,6 @@
 RULE test
-  24: WITH -- hash: 0x66bdfb40e9739f41 -- parent: None 
-    23: FN_CALL hash.md5@ii@su -- hash: 0x6f30e09bd5144d41 -- parent: 24 
+  24: WITH -- hash: 0xf70eea270570cc32 -- parent: None 
+    23: FN_CALL hash.md5@ii@su -- hash: 0x35ee01efe114f9da -- parent: 24 
       6: CONST integer(0) -- parent: 23 
       7: FILESIZE -- parent: 23 
     22: OR -- hash: 0xc270dfbbb1ca0cb -- parent: 24 
