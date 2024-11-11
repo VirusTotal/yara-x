@@ -46,7 +46,7 @@ use crate::types::{TypeValue, Value};
 /// foo() -> Option<f32>           ->  foo@@fu
 /// foo() -> Option<(f64,f64)>     ->  foo@@ffu
 /// ```
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Hash)]
 pub(crate) struct MangledFnName(String);
 
 impl MangledFnName {
@@ -113,7 +113,7 @@ where
 ///
 /// YARA modules allow function overloading, therefore functions can have the
 /// same name but different arguments.
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Hash, Debug)]
 pub(crate) struct FuncSignature {
     pub mangled_name: MangledFnName,
     pub args: Vec<TypeValue>,
@@ -155,7 +155,7 @@ impl<T: Into<String>> From<T> for FuncSignature {
 /// Represents both functions and methods. As in any programming language
 /// methods are functions associated to a type that receive an instance
 /// of that type as their first argument.
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, Debug, Hash, PartialEq, Eq)]
 pub(crate) struct Func {
     /// The list of signatures for this function. Functions can be overloaded,
     /// so they may more than one signature.

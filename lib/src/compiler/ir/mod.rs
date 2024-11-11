@@ -31,11 +31,11 @@ allows using the same regex engine for matching both types of patterns.
 
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
+use std::mem;
 use std::mem::discriminant;
 use std::ops::Index;
 use std::ops::RangeInclusive;
 use std::rc::Rc;
-use std::{mem, ptr};
 
 use bitmask::bitmask;
 use bstr::BString;
@@ -2406,7 +2406,7 @@ impl Hash for Expr {
                 discriminant(index).hash(state);
             }
             Expr::FuncCall(func_call) => {
-                ptr::hash(&*func_call.func, state);
+                func_call.func.hash(state);
                 func_call.signature_index.hash(state);
             }
             Expr::OfExprTuple(of_expr_tuple) => {

@@ -54,7 +54,7 @@ impl Hash for Symbol {
             Symbol::Rule(rule_id) => {
                 rule_id.hash(state);
             }
-            Symbol::Func(func) => ptr::hash(&**func, state),
+            Symbol::Func(func) => func.hash(state),
         }
     }
 }
