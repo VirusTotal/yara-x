@@ -1,0 +1,22 @@
+RULE test
+  29: OR -- hash: 0xe099ff00fb680388 -- parent: None 
+    16: AND -- hash: 0x8f32f97e1d74bce6 -- parent: 29 
+      6: EQ -- hash: 0x65c5f87efb7e1ec -- parent: 16 
+        4: FN_CALL uint16@i@iu -- hash: 0x7dd32224c5c31528 -- parent: 6 
+          3: CONST integer(0) -- parent: 4 
+        5: CONST integer(23117) -- parent: 6 
+      15: EQ -- hash: 0xb87ee242a57f530 -- parent: 16 
+        13: FN_CALL uint32@i@iu -- hash: 0x42a5a5537eb5e297 -- parent: 15 
+          12: FN_CALL uint32@i@iu -- hash: 0x15cfd46db082cefb -- parent: 13 
+            11: CONST integer(60) -- parent: 12 
+        14: CONST integer(17744) -- parent: 15 
+    28: AND -- hash: 0x84ea1dc563fd3f47 -- parent: 29 
+      23: EQ -- hash: 0xd474cd1baf5f2357 -- parent: 28 
+        21: FN_CALL uint32@i@iu -- hash: 0x27a1e2710dca466e -- parent: 23 
+          20: CONST integer(0) -- parent: 21 
+        22: CONST integer(1179403647) -- parent: 23 
+      27: NE -- hash: 0x9f03c27180b1188a -- parent: 28 
+        25: FN_CALL uint16@i@iu -- hash: 0x7dd32224c5c31528 -- parent: 27 
+          24: CONST integer(0) -- parent: 25 
+        26: CONST integer(0) -- parent: 27 
+
