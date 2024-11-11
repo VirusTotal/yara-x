@@ -94,13 +94,13 @@ serde_json = "1.0.132"
 sha1 = "0.10.6"
 sha2 = "0.10.8"
 smallvec = "1.13.2"
-thiserror = "1.0.61"
+thiserror = "2.0.3"
 # Using tlsh-fixed instead of tlsh because tlsh-fixed includes a fix for this
 # issue: https://github.com/1crcbl/tlsh-rs/issues/2.
 tlsh-fixed = "0.1.1"
 uuid = "1.4.1"
 walrus = "0.22.0"
-wasmtime = { version = "25.0.3", default-features = false }
+wasmtime = { version = "26.0.1", default-features = false }
 x509-parser = "0.16.0"
 yaml-rust = "0.4.5"
 yansi = "1.0.1"
