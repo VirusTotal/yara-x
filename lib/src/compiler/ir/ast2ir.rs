@@ -31,9 +31,7 @@ use crate::compiler::{
     warnings, CompileContext, CompileError, ForVars, TextPatternAsHex,
 };
 use crate::errors::CustomError;
-use crate::errors::{
-    MethodNotAllowedInWith, PotentiallySlowLoop,
-};
+use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
 use crate::re;
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
 use crate::types::{Map, Regexp, Type, TypeValue, Value};
