@@ -319,13 +319,13 @@ impl HexAlternative {
 #[derive(Debug, Clone, Default)]
 pub struct HexJump {
     span: Span,
-    pub start: Option<u16>,
-    pub end: Option<u16>,
+    pub start: Option<u32>,
+    pub end: Option<u32>,
 }
 
 impl HexJump {
     #[doc(hidden)]
-    pub fn new(start: Option<u16>, end: Option<u16>) -> Self {
+    pub fn new(start: Option<u32>, end: Option<u32>) -> Self {
         Self { start, end, span: Span::default() }
     }
 }

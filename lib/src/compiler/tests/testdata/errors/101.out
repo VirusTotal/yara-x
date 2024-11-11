@@ -1,6 +1,6 @@
 error[E027]: invalid integer
  --> line:3:18
   |
-3 |     $a = { 11 [0-65536] 22 }
-  |                  ^^^^^ this number is out of the valid range: [0, 65535]
+3 |     $a = { 11 [0-4294967296] 22 }
+  |                  ^^^^^^^^^^ this number is out of the valid range: [0, 4294967295]
   |

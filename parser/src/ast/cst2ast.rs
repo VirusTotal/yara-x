@@ -851,14 +851,14 @@ impl<'src> Builder<'src> {
         let mut end = None;
 
         if let Event::Token { kind: INTEGER_LIT, .. } = self.peek() {
-            let (value, _lit, _span) = self.integer_lit::<u16>()?;
+            let (value, _lit, _span) = self.integer_lit::<u32>()?;
             start = Some(value);
         };
 
         if let Event::Token { kind: HYPHEN, .. } = self.peek() {
             self.expect(HYPHEN)?;
             if let Event::Token { kind: INTEGER_LIT, .. } = self.peek() {
-                let (value, _lit, _span) = self.integer_lit::<u16>()?;
+                let (value, _lit, _span) = self.integer_lit::<u32>()?;
                 end = Some(value);
             };
         } else {

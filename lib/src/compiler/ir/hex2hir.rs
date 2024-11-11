@@ -143,8 +143,8 @@ fn hex_sub_pattern_hir_from_ast(
                 }
 
                 hir_tokens.push(hir::Hir::repetition(hir::Repetition {
-                    min: jump.start.map(|start| start as u32).unwrap_or(0),
-                    max: jump.end.map(|end| end as u32),
+                    min: jump.start.unwrap_or(0),
+                    max: jump.end,
                     greedy: false,
                     sub: Box::new(hir::Hir::dot(hir::Dot::AnyByte)),
                 }))
