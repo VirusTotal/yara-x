@@ -39,8 +39,13 @@ RULE test_5
   12: AND -- hash: 0xe533ae780a09ff03 -- parent: None 
     8: EQ -- hash: 0x22575eadeb0769cf -- parent: 12 
       6: FIELD_ACCESS -- hash: 0xd1ac9e3929a1ce9b -- parent: 8 
+<<<<<<< HEAD
         4: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 6 
         5: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None } -- parent: 6 
+=======
+        4: SYMBOL Field { index: 0, is_root: true, type_value: struct } -- parent: 6 
+        5: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown) } -- parent: 6 
+>>>>>>> main
       7: CONST integer(0) -- parent: 8 
     9: CONST boolean(true) -- parent: 12 
     11: NOT -- hash: 0x2c3c4fda5217a5f3 -- parent: 12 
@@ -49,8 +54,13 @@ RULE test_5
 RULE test_6
   5: ADD -- hash: 0xc4e1a16fb19df223 -- parent: None 
     2: FIELD_ACCESS -- hash: 0xd1ac9e3929a1ce9b -- parent: 5 
+<<<<<<< HEAD
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 2 
       1: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None } -- parent: 2 
+=======
+      0: SYMBOL Field { index: 0, is_root: true, type_value: struct } -- parent: 2 
+      1: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown) } -- parent: 2 
+>>>>>>> main
     3: CONST integer(1) -- parent: 5 
     4: CONST integer(2) -- parent: 5 
 
