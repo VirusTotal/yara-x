@@ -42,14 +42,6 @@ fn main() -> anyhow::Result<()> {
 
     let args = cli().get_matches_from(wild::args());
 
-    #[cfg(feature = "profiling")]
-    let guard = pprof::ProfilerGuardBuilder::default()
-        .frequency(1000)
-        // Block these libs as advised in `pprof` documentation. Without this
-        // it causes a deadlock in Linux.
-        .blocklist(&["libc", "libgcc", "pthread", "vdso"])
-        .build()?;
-
     // Set our custom panic hook that kills the process when some panic
     // occurs in a thread. By default, when a thread panics the main thread
     // and all other threads keep running. We don't want that, we want the
@@ -80,13 +72,6 @@ fn main() -> anyhow::Result<()> {
         Some(("compile", args)) => commands::exec_compile(args),
         Some(("completion", args)) => commands::exec_completion(args),
         _ => unreachable!(),
-    };
-
-    #[cfg(feature = "profiling")]
-    if let Ok(report) = guard.report().build() {
-        let file = std::fs::File::create("flamegraph.svg")?;
-        report.flamegraph(file)?;
-        println!("profiling information written to flamegraph.svg");
     };
 
     if let Err(err) = result {
