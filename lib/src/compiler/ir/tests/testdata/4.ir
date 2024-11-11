@@ -1,0 +1,42 @@
+RULE test
+  60: WITH -- hash: 0x8b7ce5c8ded3fe86 -- parent: None 
+    2: FIELD_ACCESS -- hash: 0x80c2b6e342dfa9ec -- parent: 60 
+      0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 2 
+      1: SYMBOL Field { index: 12, is_root: false, type_value: integer(unknown), acl: None } -- parent: 2 
+    59: AND -- hash: 0x95b05d460bfc4f3a -- parent: 60 
+      35: FOR_IN -- hash: 0x45a291bc2adba8eb -- parent: 59 
+        3: CONST integer(0) -- parent: 35 
+        4: CONST integer(1) -- parent: 35 
+        34: AND -- hash: 0xbce47fd7b9d090b -- parent: 35 
+          9: EQ -- hash: 0xe2a19a870d8dfb71 -- parent: 34 
+            7: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 6 }, type_value: integer(unknown) } -- parent: 9 
+            8: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 0 }, type_value: integer(unknown) } -- parent: 9 
+          20: EQ -- hash: 0x48b293a840425fdc -- parent: 34 
+            18: FN_CALL test_proto2.add@ii@i -- hash: 0xf798bcca1a3f3e3a -- parent: 20 
+              16: CONST integer(1) -- parent: 18 
+              17: CONST integer(2) -- parent: 18 
+            19: CONST integer(3) -- parent: 20 
+          33: EQ -- hash: 0x1dbb26e61da1eb70 -- parent: 34 
+            31: ADD -- hash: 0xd171978cdc3d3d19 -- parent: 33 
+              29: FIELD_ACCESS -- hash: 0x1b1bc9ad0fbd24f5 -- parent: 31 
+                27: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 29 
+                28: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None } -- parent: 29 
+              30: CONST integer(1) -- parent: 31 
+            32: CONST float(1.0) -- parent: 33 
+      58: FOR_IN -- hash: 0xbb24539280f64817 -- parent: 59 
+        36: CONST integer(0) -- parent: 58 
+        37: CONST integer(1) -- parent: 58 
+        57: AND -- hash: 0x2ba6eaf5b8be6882 -- parent: 58 
+          43: NE -- hash: 0x15b068c266aa15d7 -- parent: 57 
+            41: FN_CALL test_proto2.add@ii@i -- hash: 0xf798bcca1a3f3e3a -- parent: 43 
+              39: CONST integer(1) -- parent: 41 
+              40: CONST integer(2) -- parent: 41 
+            42: CONST integer(0) -- parent: 43 
+          56: EQ -- hash: 0x1dbb26e61da1eb70 -- parent: 57 
+            54: ADD -- hash: 0xd171978cdc3d3d19 -- parent: 56 
+              52: FIELD_ACCESS -- hash: 0x1b1bc9ad0fbd24f5 -- parent: 54 
+                50: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 52 
+                51: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None } -- parent: 52 
+              53: CONST integer(1) -- parent: 54 
+            55: CONST float(1.0) -- parent: 56 
+

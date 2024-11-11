@@ -1364,6 +1364,7 @@ impl RuntimeObject {
             )
         }
     }
+
     pub fn as_map(&self) -> Rc<Map> {
         if let Self::Map(m) = self {
             m.clone()

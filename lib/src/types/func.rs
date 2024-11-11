@@ -1,6 +1,7 @@
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+use std::hash::{Hash, Hasher};
 
 use crate::types::{TypeValue, Value};
 
@@ -46,7 +47,7 @@ use crate::types::{TypeValue, Value};
 /// foo() -> Option<f32>           ->  foo@@fu
 /// foo() -> Option<(f64,f64)>     ->  foo@@ffu
 /// ```
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Hash)]
 pub(crate) struct MangledFnName(String);
 
 impl MangledFnName {
@@ -121,6 +122,12 @@ pub(crate) struct FuncSignature {
     pub result_may_be_undef: bool,
 }
 
+impl Hash for FuncSignature {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.mangled_name.hash(state);
+    }
+}
+
 impl Ord for FuncSignature {
     fn cmp(&self, other: &Self) -> Ordering {
         self.mangled_name.as_str().cmp(other.mangled_name.as_str())
@@ -155,7 +162,7 @@ impl<T: Into<String>> From<T> for FuncSignature {
 /// Represents both functions and methods. As in any programming language
 /// methods are functions associated to a type that receive an instance
 /// of that type as their first argument.
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, Hash, PartialEq, Eq)]
 pub(crate) struct Func {
     /// The list of signatures for this function. Functions can be overloaded,
     /// so they may more than one signature.

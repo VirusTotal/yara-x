@@ -27,10 +27,10 @@ SOURCE_FILE@0..197
           WHITESPACE@43..44 " "
           EXPR@44..49
             TERM@44..49
-              PRIMARY_EXPR@44..47
+              FUNC_CALL@44..49
                 IDENT@44..47 "foo"
-              L_PAREN@47..48 "("
-              R_PAREN@48..49 ")"
+                L_PAREN@47..48 "("
+                R_PAREN@48..49 ")"
     NEWLINE@49..50 "\n"
     R_BRACE@50..51 "}"
   NEWLINE@51..52 "\n"
@@ -52,41 +52,42 @@ SOURCE_FILE@0..197
         BOOLEAN_TERM@82..133
           EXPR@82..115
             TERM@82..115
-              PRIMARY_EXPR@82..93
+              PRIMARY_EXPR@82..89
                 IDENT@82..85 "foo"
                 DOT@85..86 "."
                 IDENT@86..89 "bar"
-                DOT@89..90 "."
+              DOT@89..90 "."
+              FUNC_CALL@90..115
                 IDENT@90..93 "baz"
-              L_PAREN@93..94 "("
-              BOOLEAN_EXPR@94..99
-                BOOLEAN_TERM@94..99
-                  EXPR@94..99
-                    TERM@94..99
-                      PRIMARY_EXPR@94..99
-                        STRING_LIT@94..99 "\"foo\""
-              COMMA@99..100 ","
-              WHITESPACE@100..101 " "
-              BOOLEAN_EXPR@101..102
-                BOOLEAN_TERM@101..102
-                  EXPR@101..102
-                    TERM@101..102
-                      PRIMARY_EXPR@101..102
-                        INTEGER_LIT@101..102 "1"
-              COMMA@102..103 ","
-              WHITESPACE@103..104 " "
-              BOOLEAN_EXPR@104..108
-                BOOLEAN_TERM@104..108
-                  EXPR@104..108
-                    TERM@104..108
-                      PRIMARY_EXPR@104..108
-                        FLOAT_LIT@104..108 "3.14"
-              COMMA@108..109 ","
-              WHITESPACE@109..110 " "
-              BOOLEAN_EXPR@110..114
-                BOOLEAN_TERM@110..114
-                  TRUE_KW@110..114 "true"
-              R_PAREN@114..115 ")"
+                L_PAREN@93..94 "("
+                BOOLEAN_EXPR@94..99
+                  BOOLEAN_TERM@94..99
+                    EXPR@94..99
+                      TERM@94..99
+                        PRIMARY_EXPR@94..99
+                          STRING_LIT@94..99 "\"foo\""
+                COMMA@99..100 ","
+                WHITESPACE@100..101 " "
+                BOOLEAN_EXPR@101..102
+                  BOOLEAN_TERM@101..102
+                    EXPR@101..102
+                      TERM@101..102
+                        PRIMARY_EXPR@101..102
+                          INTEGER_LIT@101..102 "1"
+                COMMA@102..103 ","
+                WHITESPACE@103..104 " "
+                BOOLEAN_EXPR@104..108
+                  BOOLEAN_TERM@104..108
+                    EXPR@104..108
+                      TERM@104..108
+                        PRIMARY_EXPR@104..108
+                          FLOAT_LIT@104..108 "3.14"
+                COMMA@108..109 ","
+                WHITESPACE@109..110 " "
+                BOOLEAN_EXPR@110..114
+                  BOOLEAN_TERM@110..114
+                    TRUE_KW@110..114 "true"
+                R_PAREN@114..115 ")"
           WHITESPACE@115..116 " "
           EQ@116..118 "=="
           WHITESPACE@118..119 " "

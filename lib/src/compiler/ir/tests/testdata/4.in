@@ -1,0 +1,13 @@
+import "test_proto2"
+
+rule test {
+  condition:
+    with one = test_proto2.int32_one : (
+      for any i in (0..1) : (
+        i == one and test_proto2.add(1,2) == 3 and test_proto2.float_zero + 1 == 1.0
+      )
+      and for any j in (0..1) : (
+        test_proto2.add(1,2) != 0 and test_proto2.float_zero + 1 == 1.0
+      )
+   )
+}

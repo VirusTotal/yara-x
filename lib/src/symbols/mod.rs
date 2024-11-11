@@ -1,6 +1,8 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use std::{mem, ptr};
 
 #[cfg(test)]
 use bstr::BString;
@@ -40,10 +42,73 @@ pub(crate) enum Symbol {
     Func(Rc<Func>),
 }
 
+impl Hash for Symbol {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        mem::discriminant(self).hash(state);
+        match self {
+            Symbol::Var { var, .. } => {
+                var.hash(state);
+            }
+            Symbol::Field { index, is_root, .. } => {
+                index.hash(state);
+                is_root.hash(state);
+            }
+            Symbol::Rule(rule_id) => {
+                rule_id.hash(state);
+            }
+            Symbol::Func(func) => func.hash(state),
+        }
+    }
+}
+
+impl PartialEq for Symbol {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            Symbol::Var { var: this_var, .. } => {
+                if let Symbol::Var { var: other_var, .. } = other {
+                    this_var == other_var
+                } else {
+                    false
+                }
+            }
+            Symbol::Field {
+                index: this_index, is_root: this_is_root, ..
+            } => {
+                if let Symbol::Field {
+                    index: other_index,
+                    is_root: other_is_root,
+                    ..
+                } = other
+                {
+                    this_index == other_index && this_is_root == other_is_root
+                } else {
+                    false
+                }
+            }
+            Symbol::Rule(this) => {
+                if let Symbol::Rule(other) = other {
+                    this == other
+                } else {
+                    false
+                }
+            }
+            Symbol::Func(this) => {
+                if let Symbol::Func(other) = other {
+                    ptr::eq(&**this, &**other)
+                } else {
+                    false
+                }
+            }
+        }
+    }
+}
+
+impl Eq for Symbol {}
+
 impl Symbol {
     pub fn ty(&self) -> Type {
         match &self {
-            Symbol::Var { var, .. } => var.ty,
+            Symbol::Var { var, .. } => var.ty(),
             Symbol::Field { type_value, .. } => type_value.ty(),
             Symbol::Rule(_) => Type::Bool,
             Symbol::Func(_) => Type::Func,

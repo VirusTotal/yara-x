@@ -154,39 +154,39 @@ fn test_proto2_module() {
 
     condition_true!(
         r#"for all s in test_proto2.array_string : (
-            s == "foo" or s == "bar" or s == "baz"
-        )"#
+                    s == "foo" or s == "bar" or s == "baz"
+                )"#
     );
 
     condition_true!(
         r#"for any s in test_proto2.array_struct : (
-            s.nested_int32_zero == 0 and s.nested_int32_one == 1
-          )"#
+                    s.nested_int32_zero == 0 and s.nested_int32_one == 1
+                  )"#
     );
 
     condition_true!(
         r#"for 1 s in test_proto2.array_struct : (
-            s.nested_int32_zero == 0
-          )"#
+                    s.nested_int32_zero == 0
+                  )"#
     );
 
     condition_false!(
         r#"for 3 s in test_proto2.array_struct : (
-            s.nested_int32_zero == 0
-          )"#
+                    s.nested_int32_zero == 0
+                  )"#
     );
 
     condition_true!(
         r#"for any s in test_proto2.array_struct : (
-            s.nested_int32_zero == 0 and
-            s.nested_int32_one == 1 and
+                s.nested_int32_zero == 0 and
+                s.nested_int32_one == 1 and
 
-            for any s in test_proto2.array_struct : (
-                s.nested_int32_zero == 0
-            )
+                for any s in test_proto2.array_struct : (
+                    s.nested_int32_zero == 0
+                )
 
-            and for any s in test_proto2.array_string : (s == "foo")
-          )"#
+                and for any s in test_proto2.array_string : (s == "foo")
+              )"#
     );
 
     condition_true!(
@@ -283,6 +283,14 @@ fn test_proto2_module() {
         test_proto2.NestedProto2.NestedEnumeration.ITEM_1 == 1
         "#
     );
+
+    condition_true!(
+        r#"
+        test_proto2.array_struct[0].nested_int32_zero == 0 and
+        test_proto2.array_struct[1].nested_int32_one == 1 and
+        test_proto2.array_struct[1].nested_int32_zero + test_proto2.array_struct[1].nested_int64_one == 1
+        "#
+    )
 }
 
 #[test]

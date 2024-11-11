@@ -120,7 +120,7 @@ pub enum SyntaxKind {
     EXPR,
     INDEXING_EXPR,
     PRIMARY_EXPR,
-    FUNC_CALL_EXPR,
+    FUNC_CALL,
     META_DEF,
     META_BLK,
     SOURCE_FILE,

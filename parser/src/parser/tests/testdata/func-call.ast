@@ -10,21 +10,18 @@
        │  │  └─ <index>
        │  │     └─ 0
        │  └─ baz
-       └─ <callable>()
-          └─ <callable>
+       └─ baz()
+          └─ <object>
              └─ field access
                 ├─ foo
-                ├─ bar
-                └─ baz
+                └─ bar
 
  rule test_2
  └─ condition
     └─ field access
-       ├─ <callable>(<arg0>, <arg1>)
-       │  ├─ <callable>
-       │  │  └─ field access
-       │  │     ├─ foo
-       │  │     └─ bar
+       ├─ bar(<arg0>, <arg1>)
+       │  ├─ <object>
+       │  │  └─ foo
        │  ├─ <arg0>
        │  │  └─ 1
        │  └─ <arg1>
@@ -33,9 +30,7 @@
 
  rule test_3
  └─ condition
-    └─ <callable>(<arg0>, <arg1>, <arg2>, <arg3>)
-       ├─ <callable>
-       │  └─ foo
+    └─ foo(<arg0>, <arg1>, <arg2>, <arg3>)
        ├─ <arg0>
        │  └─ "a"
        ├─ <arg1>
