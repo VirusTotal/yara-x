@@ -77,16 +77,11 @@ num-derive = "0.4.2"
 p256 = "0.13.2"
 p384 = "0.13.0"
 pretty_assertions = "1.4.0"
-# protobuf = "3.5.0"
-# protobuf-codegen = "3.5.0"
-# protobuf-json-mapping = "3.5.0"
-# protobuf-parse = "3.5.0"
-# protobuf-support = "3.5.0"
-protobuf = { git = "https://github.com/plusvic/rust-protobuf", rev = "53091cb35870e8fea17971326b7d1f84e2d832a2" }
-protobuf-codegen = { git = "https://github.com/plusvic/rust-protobuf", rev = "53091cb35870e8fea17971326b7d1f84e2d832a2" }
-protobuf-json-mapping = { git = "https://github.com/plusvic/rust-protobuf", rev = "53091cb35870e8fea17971326b7d1f84e2d832a2" }
-protobuf-parse = { git = "https://github.com/plusvic/rust-protobuf", rev = "53091cb35870e8fea17971326b7d1f84e2d832a2" }
-protobuf-support = { git = "https://github.com/plusvic/rust-protobuf", rev = "53091cb35870e8fea17971326b7d1f84e2d832a2" }
+protobuf = "3.7.1"
+protobuf-codegen = "3.7.1"
+protobuf-json-mapping = "3.7.1"
+protobuf-parse = "3.7.1"
+protobuf-support = "3.7.1"
 quanta = "0.12.3"
 rayon = "1.10.0"
 regex-syntax = "0.8.4"
