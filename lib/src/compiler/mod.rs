@@ -868,10 +868,12 @@ impl<'a> Compiler<'a> {
     /// replacing common subexpressions with variables that hold the computed
     /// value.
     ///
-    /// Common subexpression elimination reduces condition evaluation times,
+    /// Common subexpression elimination may reduce condition evaluation times,
     /// specially in complex rules that contain loops, but it can break
     /// short-circuit evaluation rules because some subexpressions are not
     /// executed in the order they appear in the source code.
+    ///
+    /// This is a very experimental feature.
     #[doc(hidden)]
     pub fn common_subexpression_elimination(
         &mut self,
