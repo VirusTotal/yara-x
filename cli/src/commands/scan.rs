@@ -17,9 +17,7 @@ use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
 use yara_x::errors::ScanError;
-use yara_x::{
-    MetaValue, PatternKind, Rule, Rules, ScanOptions, ScanResults, Scanner,
-};
+use yara_x::{MetaValue, Patterns, Rule, Rules, ScanOptions, Scanner};
 
 use crate::commands::{
     compile_rules, external_var_parser, meta_file_value_parser,
@@ -34,6 +32,8 @@ enum OutputFormats {
     Text,
     /// Newline delimited JSON (i.e: one JSON object per line).
     Ndjson,
+    /// JSON output (i.e: one JSON object for all results - only printed out at the end).
+    Json,
 }
 
 #[rustfmt::skip]
@@ -307,14 +307,24 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let start_time = Instant::now();
     let state = ScanState::new(start_time);
 
-    let all_metadata = {
-        let mut all_metadata = Vec::new();
-        for (module_full_name, metadata_path) in metadata {
-            let meta = std::fs::read(Path::new(metadata_path))?;
+    let all_metadata = metadata
+        .into_iter()
+        .map(|(mdoule_full_name, metadata_path)| {
+            std::fs::read(Path::new(metadata_path))
+                .map(|meta| (mdoule_full_name.to_string(), meta))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
 
-            all_metadata.push((module_full_name.to_string(), meta));
+    let output_handler = match args.get_one::<OutputFormats>("output-format") {
+        Some(OutputFormats::Json) => {
+            Box::new(JsonOutputHandler::new(args)) as Box<dyn OutputHandler>
         }
-        all_metadata
+        Some(OutputFormats::Ndjson) => {
+            Box::new(NdJsonOutputHandler::new(args))
+        }
+        None | Some(OutputFormats::Text) => {
+            Box::new(TextOutputHandler::new(args))
+        }
     };
 
     #[cfg(feature = "rules-profiling")]
@@ -386,10 +396,16 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 .retain(|(p, _)| !file_path.eq(p));
 
             let scan_results = scan_results?;
-            let matched_count = process_scan_results(
-                args,
-                file_path.as_path(),
-                &scan_results,
+            let mut wanted_rules = match args.get_flag("negate") {
+                true => Box::new(scan_results.non_matching_rules())
+                    as Box<dyn ExactSizeIterator<Item = Rule>>,
+                false => Box::new(scan_results.matching_rules()),
+            };
+
+            let matched_count = wanted_rules.len();
+            output_handler.on_file_scanned(
+                &file_path,
+                &mut wanted_rules,
                 output,
             );
 
@@ -402,7 +418,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         },
         // Finalization
         #[cfg(feature = "rules-profiling")]
-        |scanner, _output| {
+        |scanner, _| {
             if profiling {
                 let mut mer = most_expensive_rules.lock().unwrap();
                 for er in scanner.most_expensive_rules(1000) {
@@ -421,6 +437,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         },
         #[cfg(not(feature = "rules-profiling"))]
         |_, _| {},
+        |output| output_handler.on_done(output),
         // Error handler
         |err, output| {
             let error = err.to_string();
@@ -476,282 +493,6 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn print_rules_as_json(
-    args: &ArgMatches,
-    file_path: &Path,
-    rules: &mut dyn Iterator<Item = Rule>,
-    output: &Sender<Message>,
-) {
-    let print_namespace = args.get_flag("print-namespace");
-    let only_tag = args.get_one::<String>("tag");
-    let print_tags = args.get_flag("print-tags");
-    let print_meta = args.get_flag("print-meta");
-    let print_strings = args.get_one::<usize>("print-strings");
-
-    // One JSON object per file, with a "rules" key that contains a list of
-    // matched rules.
-    let mut json = serde_json::json!({"path": file_path.to_str().unwrap()});
-    let mut json_rules: Vec<serde_json::Value> = Vec::new();
-
-    // Clippy insists on replacing the `while let` statement with
-    // `for matching_rule in rules.by_ref()`, but that fails with
-    // `the `by_ref` method cannot be invoked on a trait object`
-    #[allow(clippy::while_let_on_iterator)]
-    while let Some(matching_rule) = rules.next() {
-        if only_tag.is_some()
-            && !matching_rule
-                .tags()
-                .any(|t| t.identifier() == only_tag.unwrap())
-        {
-            return;
-        }
-
-        let mut json_rule = if print_namespace {
-            serde_json::json!({
-                "namespace": matching_rule.namespace(),
-                "identifier": matching_rule.identifier()
-            })
-        } else {
-            serde_json::json!({
-                "identifier": matching_rule.identifier()
-            })
-        };
-
-        if print_meta {
-            json_rule["meta"] = matching_rule.metadata().into_json();
-        }
-
-        if print_tags {
-            let tags: Vec<&str> =
-                matching_rule.tags().map(|t| t.identifier()).collect();
-            json_rule["tags"] = serde_json::json!(tags);
-        }
-
-        if let Some(limit) = print_strings {
-            let mut match_vec: Vec<serde_json::Value> = Vec::new();
-            for p in matching_rule.patterns() {
-                for m in p.matches() {
-                    let match_range = m.range();
-                    let match_data = m.data();
-
-                    let mut s = String::new();
-
-                    for b in &match_data[..min(match_data.len(), *limit)] {
-                        for c in b.escape_ascii() {
-                            s.push_str(format!("{}", c as char).as_str());
-                        }
-                    }
-
-                    if match_data.len() > *limit {
-                        s.push_str(
-                            format!(
-                                " ... {} more bytes",
-                                match_data.len().saturating_sub(*limit)
-                            )
-                            .as_str(),
-                        );
-                    }
-
-                    let mut match_json = serde_json::json!({
-                        "identifier": p.identifier(),
-                        "start": match_range.start,
-                        "length": match_range.len(),
-                        "data": s.as_str()
-                    });
-
-                    if let Some(k) = m.xor_key() {
-                        let mut p = String::with_capacity(s.len());
-                        for b in &match_data[..min(match_data.len(), *limit)] {
-                            for c in (b ^ k).escape_ascii() {
-                                p.push_str(format!("{}", c as char).as_str());
-                            }
-                        }
-                        match_json["xor_key"] = serde_json::json!(k);
-                        match_json["plaintext"] = serde_json::json!(p);
-                    }
-                    match_vec.push(match_json);
-                }
-                json_rule["strings"] = serde_json::json!(match_vec);
-            }
-        }
-        json_rules.push(json_rule);
-    }
-
-    json["rules"] = serde_json::json!(json_rules);
-
-    output.send(Message::Info(format!("{}", json))).unwrap();
-}
-
-fn print_rules_as_text(
-    args: &ArgMatches,
-    file_path: &Path,
-    rules: &mut dyn Iterator<Item = Rule>,
-    output: &Sender<Message>,
-) {
-    let print_namespace = args.get_flag("print-namespace");
-    let only_tag = args.get_one::<String>("tag");
-    let print_tags = args.get_flag("print-tags");
-    let print_meta = args.get_flag("print-meta");
-    let print_strings = args.get_one::<usize>("print-strings");
-
-    // Clippy insists on replacing the `while let` statement with
-    // `for matching_rule in rules.by_ref()`, but that fails with
-    // `the `by_ref` method cannot be invoked on a trait object`
-    #[allow(clippy::while_let_on_iterator)]
-    while let Some(matching_rule) = rules.next() {
-        if only_tag.is_some()
-            && !matching_rule
-                .tags()
-                .any(|t| t.identifier() == only_tag.unwrap())
-        {
-            return;
-        }
-
-        let mut msg = if print_namespace {
-            format!(
-                "{}:{}",
-                matching_rule.namespace().paint(Cyan).bold(),
-                matching_rule.identifier().paint(Cyan).bold()
-            )
-        } else {
-            format!("{}", matching_rule.identifier().paint(Cyan).bold())
-        };
-
-        let tags = matching_rule.tags();
-
-        if print_tags && !tags.is_empty() {
-            msg.push_str(" [");
-            for (pos, tag) in tags.with_position() {
-                msg.push_str(tag.identifier());
-                if !matches!(pos, itertools::Position::Last) {
-                    msg.push(',');
-                }
-            }
-            msg.push(']');
-        }
-
-        let metadata = matching_rule.metadata();
-
-        if print_meta && !metadata.is_empty() {
-            msg.push_str(" [");
-            for (pos, (m, v)) in metadata.with_position() {
-                match v {
-                    MetaValue::Bool(v) => {
-                        msg.push_str(&format!("{}={}", m, v))
-                    }
-                    MetaValue::Integer(v) => {
-                        msg.push_str(&format!("{}={}", m, v))
-                    }
-                    MetaValue::Float(v) => {
-                        msg.push_str(&format!("{}={}", m, v))
-                    }
-                    MetaValue::String(v) => {
-                        msg.push_str(&format!("{}=\"{}\"", m, v))
-                    }
-                    MetaValue::Bytes(v) => msg.push_str(&format!(
-                        "{}=\"{}\"",
-                        m,
-                        v.escape_ascii()
-                    )),
-                };
-                if !matches!(pos, itertools::Position::Last) {
-                    msg.push(',');
-                }
-            }
-            msg.push(']');
-        }
-
-        msg.push(' ');
-        msg.push_str(&file_path.display().to_string());
-
-        if let Some(limit) = print_strings {
-            for p in matching_rule.patterns() {
-                for m in p.matches() {
-                    let match_range = m.range();
-                    let match_data = m.data();
-
-                    let mut match_str = format!(
-                        "\n{:#x}:{}:{}",
-                        match_range.start,
-                        match_range.len(),
-                        p.identifier(),
-                    );
-
-                    match m.xor_key() {
-                        Some(k) => {
-                            match_str
-                                .push_str(format!(" xor({:#x},", k).as_str());
-                            for b in
-                                &match_data[..min(match_data.len(), *limit)]
-                            {
-                                for c in (b ^ k).escape_ascii() {
-                                    match_str.push_str(
-                                        format!("{}", c as char).as_str(),
-                                    );
-                                }
-                            }
-                            match_str.push_str("): ");
-                        }
-                        _ => {
-                            match_str.push_str(": ");
-                        }
-                    }
-
-                    let data = &match_data[..min(match_data.len(), *limit)];
-
-                    match p.kind() {
-                        PatternKind::Text | PatternKind::Regexp => {
-                            for b in data {
-                                for c in b.escape_ascii() {
-                                    match_str.push_str(
-                                        format!("{}", c as char).as_str(),
-                                    );
-                                }
-                            }
-                        }
-                        PatternKind::Hex => {
-                            for b in data {
-                                match_str
-                                    .push_str(format!("{:02x} ", b).as_str());
-                            }
-                        }
-                    }
-
-                    if match_data.len() > *limit {
-                        match_str.push_str(
-                            format!(
-                                " ... {} more bytes",
-                                match_data.len().saturating_sub(*limit)
-                            )
-                            .as_str(),
-                        );
-                    }
-
-                    msg.push_str(&match_str)
-                }
-            }
-        }
-
-        output.send(Message::Info(msg)).unwrap();
-    }
-}
-
-fn print_matching_rules(
-    args: &ArgMatches,
-    file_path: &Path,
-    rules: &mut dyn Iterator<Item = Rule>,
-    output: &Sender<Message>,
-) {
-    match args.get_one::<OutputFormats>("output-format") {
-        Some(OutputFormats::Ndjson) => {
-            print_rules_as_json(args, file_path, rules, output);
-        }
-        Some(OutputFormats::Text) | None => {
-            print_rules_as_text(args, file_path, rules, output);
-        }
-    };
-}
-
 struct ScanState {
     start_time: Instant,
     num_scanned_files: AtomicUsize,
@@ -768,59 +509,6 @@ impl ScanState {
             files_in_progress: Mutex::new(Vec::new()),
         }
     }
-}
-
-// Process scan results and output matches, non-matches, or count of matches
-// based upon command line arguments. Return the number of "matched" files so
-// the state can be updated.
-fn process_scan_results(
-    args: &ArgMatches,
-    file_path: &Path,
-    scan_results: &ScanResults,
-    output: &Sender<Message>,
-) -> usize {
-    let negate = args.get_flag("negate");
-    let count = args.get_flag("count");
-
-    if negate {
-        let mut rules = scan_results.non_matching_rules();
-        let match_count = rules.len();
-        if count {
-            print_match_count(args, file_path, &match_count, output);
-        } else {
-            print_matching_rules(args, file_path, &mut rules, output);
-        }
-        match_count
-    } else {
-        let mut rules = scan_results.matching_rules();
-        let match_count = rules.len();
-        if count {
-            print_match_count(args, file_path, &match_count, output);
-        } else {
-            print_matching_rules(args, file_path, &mut rules, output);
-        }
-        match_count
-    }
-}
-
-fn print_match_count(
-    args: &ArgMatches,
-    file_path: &Path,
-    count: &usize,
-    output: &Sender<Message>,
-) {
-    let line = match args.get_one::<OutputFormats>("output-format") {
-        Some(OutputFormats::Ndjson) => {
-            format!(
-                "{}",
-                serde_json::json!({"path": file_path.to_str().unwrap(), "count": count})
-            )
-        }
-        Some(OutputFormats::Text) | None => {
-            format!("{}: {}", &file_path.display().to_string(), count)
-        }
-    };
-    output.send(Message::Info(line)).unwrap();
 }
 
 // superconsole will not print any string that contains Unicode characters that
@@ -897,5 +585,561 @@ impl Component for ScanState {
         }
 
         Ok(lines)
+    }
+}
+
+use output_handler::*;
+mod output_handler {
+    use super::*;
+    use std::collections::HashMap;
+
+    pub(super) trait OutputHandler: Sync {
+        fn on_file_scanned(
+            &self,
+            file_path: &Path,
+            scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
+            output: &Sender<Message>,
+        );
+        fn on_done(&self, output: &Sender<Message>);
+    }
+
+    #[derive(serde::Serialize, PartialEq, Eq, PartialOrd, Ord)]
+    struct RulesetJson {
+        file: String,
+        timestamp: u64, // unix timestamp
+    }
+
+    #[derive(serde::Serialize)]
+    struct StringJson {
+        identifier: String,
+        offset: usize,
+        r#match: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        xor_key: Option<u8>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        plaintext: Option<String>,
+    }
+
+    fn patterns_to_string_jsons(
+        patterns: Patterns<'_, '_>,
+        string_limit: usize,
+    ) -> Vec<StringJson> {
+        patterns
+            .flat_map(|pattern| {
+                let identifier = pattern.identifier();
+
+                pattern.matches().map(|pattern_match| {
+                    let match_range = pattern_match.range();
+                    let match_data = pattern_match.data();
+
+                    let more_bytes_message =
+                        match match_data.len().saturating_sub(string_limit) {
+                            0 => None,
+                            n => Some(format!(" ... {} more bytes", n)),
+                        };
+
+                    let string = match_data
+                        .iter()
+                        .take(string_limit)
+                        .flat_map(|char| char.escape_ascii())
+                        .map(|c| c as char)
+                        .chain(
+                            more_bytes_message
+                                .iter()
+                                .flat_map(|msg| msg.chars()),
+                        )
+                        .collect::<String>();
+
+                    StringJson {
+                        identifier: identifier.to_owned(),
+                        offset: match_range.start,
+                        r#match: string.clone(),
+                        xor_key: pattern_match.xor_key(),
+                        plaintext: pattern_match.xor_key().map(|xor_key| {
+                            match_data
+                                .iter()
+                                .take(string_limit)
+                                .map(|char| char ^ xor_key)
+                                .flat_map(|char| char.escape_ascii())
+                                .map(|char| char as char)
+                                .collect()
+                        }),
+                    }
+                })
+            })
+            .collect()
+    }
+
+    #[derive(serde::Serialize)]
+    struct HitJson {
+        rule: String,
+        file: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        meta: Option<HashMap<String, serde_json::Value>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        tags: Option<Vec<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        strings: Option<Vec<StringJson>>,
+    }
+
+    #[derive(serde::Serialize)]
+    struct JsonOutput {
+        version: String,
+        rulesets: std::collections::BTreeSet<RulesetJson>,
+        hits: Vec<HitJson>,
+    }
+
+    struct JsonOutputWrapper {
+        count: usize,
+        json: JsonOutput,
+    }
+
+    pub(super) struct JsonOutputHandler {
+        output_buffer: std::sync::Arc<std::sync::Mutex<JsonOutputWrapper>>,
+        should_include_meta: bool,
+        should_include_tags: bool,
+        should_include_strings: Option<usize>,
+        should_count: bool,
+        only_tag: Option<String>,
+    }
+
+    impl JsonOutputHandler {
+        pub(super) fn new(args: &ArgMatches) -> Self {
+            let should_include_meta = args.get_flag("print-meta");
+            let should_include_tags = args.get_flag("print-tags");
+            let should_include_strings =
+                args.get_one::<usize>("print-strings").cloned();
+            let should_count = args.get_flag("count");
+            let only_tag = args.get_one::<String>("tag").cloned();
+
+            let output_buffer = std::sync::Arc::new(std::sync::Mutex::new(
+                JsonOutputWrapper {
+                    count: 0,
+                    json: JsonOutput {
+                        hits: Vec::new(),
+                        rulesets: std::collections::BTreeSet::new(),
+                        version: std::env!("CARGO_PKG_VERSION").to_string(),
+                    },
+                },
+            ));
+
+            Self {
+                output_buffer,
+                should_include_meta,
+                should_include_tags,
+                should_include_strings,
+                should_count,
+                only_tag,
+            }
+        }
+    }
+
+    impl OutputHandler for JsonOutputHandler {
+        fn on_file_scanned(
+            &self,
+            file_path: &Path,
+            scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
+            _useless_output: &Sender<Message>,
+        ) {
+            let path = file_path
+                .canonicalize()
+                .ok()
+                .as_ref()
+                .and_then(|absolute| absolute.to_str())
+                .map(|s| s.to_string())
+                .unwrap_or_default();
+
+            // prepare the increment *outside* the critical section
+            let hits = scan_results
+                .filter(|rule| {
+                    self.only_tag.as_ref().map_or(true, |only_tag| {
+                        rule.tags().any(|tag| tag.identifier() == only_tag)
+                    })
+                })
+                .map(|rule| {
+                    let meta = self.should_include_meta.then(|| {
+                        rule.metadata()
+                            .map(|(meta_key, meta_val)| {
+                                let meta_key = meta_key.to_owned();
+                                let meta_val = serde_json::to_value(meta_val)
+                                    .expect("should be able to serialize");
+
+                                (meta_key, meta_val)
+                            })
+                            .collect::<HashMap<_, _>>()
+                    });
+
+                    let file = path.clone();
+
+                    let tags = self.should_include_tags.then(|| {
+                        rule.tags()
+                            .map(|t| t.identifier().to_string())
+                            .collect::<Vec<_>>()
+                    });
+
+                    let strings =
+                        self.should_include_strings.map(|strings_limit| {
+                            patterns_to_string_jsons(
+                                rule.patterns(),
+                                strings_limit,
+                            )
+                        });
+
+                    HitJson {
+                        rule: rule.identifier().to_string(),
+                        meta,
+                        file,
+                        tags,
+                        strings,
+                    }
+                })
+                // collect to evaluate eagerly
+                .collect::<Vec<_>>();
+
+            let ruleset_hits_count = hits.len();
+            let ruleset = RulesetJson {
+                file: path,
+                timestamp: std::fs::metadata(file_path)
+                    .ok()
+                    .and_then(|meta| meta.modified().ok())
+                    .and_then(|time| {
+                        time.duration_since(std::time::UNIX_EPOCH).ok()
+                    })
+                    .map(|duration| duration.as_secs())
+                    .unwrap_or_default(),
+            };
+
+            {
+                let mut lock = self.output_buffer.lock().unwrap();
+
+                lock.json.rulesets.insert(ruleset);
+                lock.json.hits.extend(hits);
+
+                lock.count += ruleset_hits_count;
+            }
+        }
+
+        fn on_done(&self, output: &Sender<Message>) {
+            let count;
+            let json;
+            {
+                let lock = self.output_buffer.lock().unwrap();
+
+                count = lock.count;
+                json = serde_json::to_string(&lock.json).unwrap_or_default();
+            }
+
+            if self.should_count {
+                output.send(Message::Info(count.to_string())).unwrap();
+            }
+
+            output.send(Message::Info(json)).unwrap();
+        }
+    }
+
+    pub(super) struct TextOutputHandler {
+        should_include_meta: bool,
+        should_include_tags: bool,
+        should_include_strings: Option<usize>,
+        should_count: bool,
+        only_tag: Option<String>,
+        print_namespace: bool,
+    }
+
+    impl TextOutputHandler {
+        pub(super) fn new(args: &ArgMatches) -> Self {
+            let should_include_meta = args.get_flag("print-meta");
+            let should_include_tags = args.get_flag("print-tags");
+            let should_include_strings =
+                args.get_one::<usize>("print-strings").cloned();
+            let should_count = args.get_flag("count");
+            let only_tag = args.get_one::<String>("tag").cloned();
+            let print_namespace = args.get_flag("print-namespace");
+
+            Self {
+                should_include_meta,
+                should_include_tags,
+                should_include_strings,
+                should_count,
+                only_tag,
+                print_namespace,
+            }
+        }
+    }
+
+    impl OutputHandler for TextOutputHandler {
+        fn on_file_scanned(
+            &self,
+            file_path: &Path,
+            scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
+            output: &Sender<Message>,
+        ) {
+            if self.should_count {
+                let count = scan_results.len();
+
+                let line =
+                    format!("{}: {}", &file_path.display().to_string(), count);
+
+                output.send(Message::Info(line)).unwrap();
+                return;
+            }
+
+            for matching_rule in scan_results {
+                if let Some(ref only_tag) = self.only_tag {
+                    if !matching_rule
+                        .tags()
+                        .any(|tag| tag.identifier() == only_tag)
+                    {
+                        continue;
+                    }
+                }
+
+                let mut line = if self.print_namespace {
+                    format!(
+                        "{}:{}",
+                        matching_rule.namespace().paint(Cyan).bold(),
+                        matching_rule.identifier().paint(Cyan).bold()
+                    )
+                } else {
+                    format!(
+                        "{}",
+                        matching_rule.identifier().paint(Cyan).bold()
+                    )
+                };
+
+                let tags = matching_rule.tags();
+
+                if self.should_include_tags && !tags.is_empty() {
+                    line.push_str(" [");
+                    for (pos, tag) in tags.with_position() {
+                        line.push_str(tag.identifier());
+                        if !matches!(pos, itertools::Position::Last) {
+                            line.push(',');
+                        }
+                    }
+                    line.push(']');
+                }
+
+                let metadata = matching_rule.metadata();
+
+                if self.should_include_meta && !metadata.is_empty() {
+                    line.push_str(" [");
+                    for (pos, (m, v)) in metadata.with_position() {
+                        match v {
+                            MetaValue::Bool(v) => {
+                                line.push_str(&format!("{}={}", m, v))
+                            }
+                            MetaValue::Integer(v) => {
+                                line.push_str(&format!("{}={}", m, v))
+                            }
+                            MetaValue::Float(v) => {
+                                line.push_str(&format!("{}={}", m, v))
+                            }
+                            MetaValue::String(v) => {
+                                line.push_str(&format!("{}=\"{}\"", m, v))
+                            }
+                            MetaValue::Bytes(v) => line.push_str(&format!(
+                                "{}=\"{}\"",
+                                m,
+                                v.escape_ascii()
+                            )),
+                        };
+                        if !matches!(pos, itertools::Position::Last) {
+                            line.push(',');
+                        }
+                    }
+                    line.push(']');
+                }
+
+                line.push(' ');
+                line.push_str(&file_path.display().to_string());
+
+                output.send(Message::Info(line)).unwrap();
+
+                if let Some(limit) = self.should_include_strings {
+                    for p in matching_rule.patterns() {
+                        for m in p.matches() {
+                            let match_range = m.range();
+                            let match_data = m.data();
+
+                            let mut msg = format!(
+                                "{:#x}:{}:{}",
+                                match_range.start,
+                                match_range.len(),
+                                p.identifier(),
+                            );
+
+                            match m.xor_key() {
+                                Some(k) => {
+                                    msg.push_str(
+                                        format!(" xor({:#x},", k).as_str(),
+                                    );
+                                    for b in &match_data
+                                        [..min(match_data.len(), limit)]
+                                    {
+                                        for c in (b ^ k).escape_ascii() {
+                                            msg.push_str(
+                                                format!("{}", c as char)
+                                                    .as_str(),
+                                            );
+                                        }
+                                    }
+                                    msg.push_str("): ");
+                                }
+                                _ => {
+                                    msg.push_str(": ");
+                                }
+                            }
+
+                            for b in
+                                &match_data[..min(match_data.len(), limit)]
+                            {
+                                for c in b.escape_ascii() {
+                                    msg.push_str(
+                                        format!("{}", c as char).as_str(),
+                                    );
+                                }
+                            }
+
+                            if match_data.len() > limit {
+                                msg.push_str(
+                                    format!(
+                                        " ... {} more bytes",
+                                        match_data.len().saturating_sub(limit)
+                                    )
+                                    .as_str(),
+                                );
+                            }
+
+                            output.send(Message::Info(msg)).unwrap();
+                        }
+                    }
+                }
+            }
+        }
+
+        fn on_done(&self, _useless_output: &Sender<Message>) {
+            // do nothing; stuff was printed periodically
+        }
+    }
+
+    pub(super) struct NdJsonOutputHandler {
+        should_include_meta: bool,
+        should_include_tags: bool,
+        should_include_strings: Option<usize>,
+        should_count: bool,
+        only_tag: Option<String>,
+        print_namespace: bool,
+    }
+
+    impl NdJsonOutputHandler {
+        pub(super) fn new(args: &ArgMatches) -> Self {
+            let should_include_meta = args.get_flag("print-meta");
+            let should_include_tags = args.get_flag("print-tags");
+            let should_include_strings =
+                args.get_one::<usize>("print-strings").cloned();
+            let should_count = args.get_flag("count");
+            let only_tag = args.get_one::<String>("tag").cloned();
+            let print_namespace = args.get_flag("print-namespace");
+
+            Self {
+                should_include_meta,
+                should_include_tags,
+                should_include_strings,
+                should_count,
+                only_tag,
+                print_namespace,
+            }
+        }
+    }
+
+    #[derive(serde::Serialize)]
+    struct CountNdJsonOutput<'a> {
+        path: &'a str,
+        count: usize,
+    }
+
+    #[derive(serde::Serialize)]
+    struct NdJsonRule<'a> {
+        identifier: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        namespace: Option<&'a str>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        meta: Option<serde_json::Value>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        tags: Option<Vec<&'a str>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        strings: Option<Vec<StringJson>>,
+    }
+
+    #[derive(serde::Serialize)]
+    struct NdJsonOutput<'a> {
+        path: &'a str,
+        rules: Vec<NdJsonRule<'a>>,
+    }
+
+    impl OutputHandler for NdJsonOutputHandler {
+        fn on_file_scanned(
+            &self,
+            file_path: &Path,
+            scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
+            output: &Sender<Message>,
+        ) {
+            let path = file_path.to_str().unwrap();
+
+            if self.should_count {
+                let count = scan_results.len();
+
+                let json =
+                    serde_json::to_string(&CountNdJsonOutput { count, path })
+                        .unwrap();
+
+                output.send(Message::Info(json)).unwrap();
+                return;
+            }
+
+            let rules = scan_results
+                .filter(|rule| {
+                    self.only_tag.as_ref().map_or(true, |only_tag| {
+                        rule.tags().any(|tag| tag.identifier() == only_tag)
+                    })
+                })
+                .map(|rule| {
+                    let json_namespace =
+                        self.print_namespace.then(|| rule.namespace());
+
+                    let json_identifier = rule.identifier();
+
+                    let json_meta = self
+                        .should_include_meta
+                        .then(|| rule.metadata().into_json());
+
+                    let json_tags = self.should_include_tags.then(|| {
+                        rule.tags().map(|t| t.identifier()).collect::<Vec<_>>()
+                    });
+
+                    let json_patterns =
+                        self.should_include_strings.map(|limit| {
+                            patterns_to_string_jsons(rule.patterns(), limit)
+                        });
+
+                    NdJsonRule {
+                        identifier: json_identifier,
+                        namespace: json_namespace,
+                        meta: json_meta,
+                        tags: json_tags,
+                        strings: json_patterns,
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            let out = NdJsonOutput { path, rules };
+            let line = serde_json::to_string(&out).unwrap();
+            output.send(Message::Info(line)).unwrap();
+        }
+
+        fn on_done(&self, _useless_output: &Sender<Message>) {
+            // do nothing; stuff was printed periodically
+        }
     }
 }
