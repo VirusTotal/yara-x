@@ -4383,7 +4383,7 @@ dependencies = [
  "ring",
  "signature",
  "spki",
- "thiserror",
+ "thiserror 1.0.69",
  "zeroize",
 ]
 
