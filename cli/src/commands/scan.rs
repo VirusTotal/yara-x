@@ -32,7 +32,7 @@ enum OutputFormats {
     Text,
     /// Newline delimited JSON (i.e: one JSON object per line).
     Ndjson,
-    /// JSON output (i.e: one JSON object for all results - only printed out at the end).
+    /// JSON output (i.e: one JSON object for all results, only printed out at the end).
     Json,
 }
 
@@ -204,6 +204,28 @@ impl From<yara_x::ProfilingData<'_>> for ProfilingData {
     }
 }
 
+struct OutputOptions {
+    count_only: bool,
+    include_namespace: bool,
+    include_meta: bool,
+    include_tags: bool,
+    include_strings: Option<usize>,
+    only_tag: Option<String>,
+}
+
+impl From<&ArgMatches> for OutputOptions {
+    fn from(args: &ArgMatches) -> Self {
+        Self {
+            count_only: args.get_flag("count"),
+            include_namespace: args.get_flag("print-namespace"),
+            include_meta: args.get_flag("print-meta"),
+            include_tags: args.get_flag("print-tags"),
+            include_strings: args.get_one::<usize>("print-strings").cloned(),
+            only_tag: args.get_one::<String>("tag").cloned(),
+        }
+    }
+}
+
 pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let mut rules_path = args
         .get_many::<(Option<String>, PathBuf)>("[NAMESPACE:]RULES_PATH")
@@ -309,21 +331,22 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
     let all_metadata = metadata
         .into_iter()
-        .map(|(mdoule_full_name, metadata_path)| {
+        .map(|(module_full_name, metadata_path)| {
             std::fs::read(Path::new(metadata_path))
-                .map(|meta| (mdoule_full_name.to_string(), meta))
+                .map(|meta| (module_full_name.to_string(), meta))
         })
         .collect::<Result<Vec<_>, _>>()?;
 
     let output_handler = match args.get_one::<OutputFormats>("output-format") {
         Some(OutputFormats::Json) => {
-            Box::new(JsonOutputHandler::new(args)) as Box<dyn OutputHandler>
+            Box::new(JsonOutputHandler::new(args.into()))
+                as Box<dyn OutputHandler>
         }
         Some(OutputFormats::Ndjson) => {
-            Box::new(NdJsonOutputHandler::new(args))
+            Box::new(NdJsonOutputHandler::new(args.into()))
         }
         None | Some(OutputFormats::Text) => {
-            Box::new(TextOutputHandler::new(args))
+            Box::new(TextOutputHandler::new(args.into()))
         }
     };
 
@@ -417,8 +440,9 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
             Ok(())
         },
         // Finalization
-        #[cfg(feature = "rules-profiling")]
+        #[allow(unused_variables)]
         |scanner, _| {
+            #[cfg(feature = "rules-profiling")]
             if profiling {
                 let mut mer = most_expensive_rules.lock().unwrap();
                 for er in scanner.most_expensive_rules(1000) {
@@ -435,8 +459,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 }
             }
         },
-        #[cfg(not(feature = "rules-profiling"))]
-        |_, _| {},
+        // Walk done.
         |output| output_handler.on_done(output),
         // Error handler
         |err, output| {
@@ -593,24 +616,8 @@ mod output_handler {
     use super::*;
     use std::collections::HashMap;
 
-    pub(super) trait OutputHandler: Sync {
-        fn on_file_scanned(
-            &self,
-            file_path: &Path,
-            scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
-            output: &Sender<Message>,
-        );
-        fn on_done(&self, output: &Sender<Message>);
-    }
-
-    #[derive(serde::Serialize, PartialEq, Eq, PartialOrd, Ord)]
-    struct RulesetJson {
-        file: String,
-        timestamp: u64, // unix timestamp
-    }
-
     #[derive(serde::Serialize)]
-    struct StringJson {
+    struct JsonPattern {
         identifier: String,
         offset: usize,
         r#match: String,
@@ -620,10 +627,65 @@ mod output_handler {
         plaintext: Option<String>,
     }
 
-    fn patterns_to_string_jsons(
+    #[derive(serde::Serialize)]
+    struct JsonRule {
+        identifier: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        namespace: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        meta: Option<serde_json::Value>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        tags: Option<Vec<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        strings: Option<Vec<JsonPattern>>,
+    }
+
+    #[derive(serde::Serialize)]
+    struct JsonOutput<'a> {
+        path: &'a str,
+        rules: &'a [JsonRule],
+    }
+
+    #[derive(serde::Serialize)]
+    struct JsonCountOutput<'a> {
+        path: &'a str,
+        count: usize,
+    }
+
+    fn rules_to_json(
+        output_options: &OutputOptions,
+        scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
+    ) -> Vec<JsonRule> {
+        scan_results
+            .filter(move |rule| {
+                output_options.only_tag.as_ref().map_or(true, |only_tag| {
+                    rule.tags().any(|tag| tag.identifier() == only_tag)
+                })
+            })
+            .map(move |rule| JsonRule {
+                identifier: rule.identifier().to_string(),
+                namespace: output_options
+                    .include_namespace
+                    .then(|| rule.namespace().to_string()),
+                meta: output_options
+                    .include_meta
+                    .then(|| rule.metadata().into_json()),
+                tags: output_options.include_tags.then(|| {
+                    rule.tags()
+                        .map(|t| t.identifier().to_string())
+                        .collect::<Vec<_>>()
+                }),
+                strings: output_options
+                    .include_strings
+                    .map(|limit| patterns_to_json(rule.patterns(), limit)),
+            })
+            .collect()
+    }
+
+    fn patterns_to_json(
         patterns: Patterns<'_, '_>,
         string_limit: usize,
-    ) -> Vec<StringJson> {
+    ) -> Vec<JsonPattern> {
         patterns
             .flat_map(|pattern| {
                 let identifier = pattern.identifier();
@@ -650,10 +712,10 @@ mod output_handler {
                         )
                         .collect::<String>();
 
-                    StringJson {
+                    JsonPattern {
                         identifier: identifier.to_owned(),
                         offset: match_range.start,
-                        r#match: string.clone(),
+                        r#match: string,
                         xor_key: pattern_match.xor_key(),
                         plaintext: pattern_match.xor_key().map(|xor_key| {
                             match_data
@@ -670,200 +732,27 @@ mod output_handler {
             .collect()
     }
 
-    #[derive(serde::Serialize)]
-    struct HitJson {
-        rule: String,
-        file: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        meta: Option<HashMap<String, serde_json::Value>>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        tags: Option<Vec<String>>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        strings: Option<Vec<StringJson>>,
-    }
-
-    #[derive(serde::Serialize)]
-    struct JsonOutput {
-        version: String,
-        rulesets: std::collections::BTreeSet<RulesetJson>,
-        hits: Vec<HitJson>,
-    }
-
-    struct JsonOutputWrapper {
-        count: usize,
-        json: JsonOutput,
-    }
-
-    pub(super) struct JsonOutputHandler {
-        output_buffer: std::sync::Arc<std::sync::Mutex<JsonOutputWrapper>>,
-        should_include_meta: bool,
-        should_include_tags: bool,
-        should_include_strings: Option<usize>,
-        should_count: bool,
-        only_tag: Option<String>,
-    }
-
-    impl JsonOutputHandler {
-        pub(super) fn new(args: &ArgMatches) -> Self {
-            let should_include_meta = args.get_flag("print-meta");
-            let should_include_tags = args.get_flag("print-tags");
-            let should_include_strings =
-                args.get_one::<usize>("print-strings").cloned();
-            let should_count = args.get_flag("count");
-            let only_tag = args.get_one::<String>("tag").cloned();
-
-            let output_buffer = std::sync::Arc::new(std::sync::Mutex::new(
-                JsonOutputWrapper {
-                    count: 0,
-                    json: JsonOutput {
-                        hits: Vec::new(),
-                        rulesets: std::collections::BTreeSet::new(),
-                        version: std::env!("CARGO_PKG_VERSION").to_string(),
-                    },
-                },
-            ));
-
-            Self {
-                output_buffer,
-                should_include_meta,
-                should_include_tags,
-                should_include_strings,
-                should_count,
-                only_tag,
-            }
-        }
-    }
-
-    impl OutputHandler for JsonOutputHandler {
+    /// Trait implemented by all output handlers like [`TextOutputHandler`],
+    /// [`NdjsonOutputHandler`] and [`JsonOutputHandler`].
+    pub(super) trait OutputHandler: Sync {
+        /// Called for each scanned file.
         fn on_file_scanned(
             &self,
             file_path: &Path,
             scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
-            _useless_output: &Sender<Message>,
-        ) {
-            let path = file_path
-                .canonicalize()
-                .ok()
-                .as_ref()
-                .and_then(|absolute| absolute.to_str())
-                .map(|s| s.to_string())
-                .unwrap_or_default();
-
-            // prepare the increment *outside* the critical section
-            let hits = scan_results
-                .filter(|rule| {
-                    self.only_tag.as_ref().map_or(true, |only_tag| {
-                        rule.tags().any(|tag| tag.identifier() == only_tag)
-                    })
-                })
-                .map(|rule| {
-                    let meta = self.should_include_meta.then(|| {
-                        rule.metadata()
-                            .map(|(meta_key, meta_val)| {
-                                let meta_key = meta_key.to_owned();
-                                let meta_val = serde_json::to_value(meta_val)
-                                    .expect("should be able to serialize");
-
-                                (meta_key, meta_val)
-                            })
-                            .collect::<HashMap<_, _>>()
-                    });
-
-                    let file = path.clone();
-
-                    let tags = self.should_include_tags.then(|| {
-                        rule.tags()
-                            .map(|t| t.identifier().to_string())
-                            .collect::<Vec<_>>()
-                    });
-
-                    let strings =
-                        self.should_include_strings.map(|strings_limit| {
-                            patterns_to_string_jsons(
-                                rule.patterns(),
-                                strings_limit,
-                            )
-                        });
-
-                    HitJson {
-                        rule: rule.identifier().to_string(),
-                        meta,
-                        file,
-                        tags,
-                        strings,
-                    }
-                })
-                // collect to evaluate eagerly
-                .collect::<Vec<_>>();
-
-            let ruleset_hits_count = hits.len();
-            let ruleset = RulesetJson {
-                file: path,
-                timestamp: std::fs::metadata(file_path)
-                    .ok()
-                    .and_then(|meta| meta.modified().ok())
-                    .and_then(|time| {
-                        time.duration_since(std::time::UNIX_EPOCH).ok()
-                    })
-                    .map(|duration| duration.as_secs())
-                    .unwrap_or_default(),
-            };
-
-            {
-                let mut lock = self.output_buffer.lock().unwrap();
-
-                lock.json.rulesets.insert(ruleset);
-                lock.json.hits.extend(hits);
-
-                lock.count += ruleset_hits_count;
-            }
-        }
-
-        fn on_done(&self, output: &Sender<Message>) {
-            let count;
-            let json;
-            {
-                let lock = self.output_buffer.lock().unwrap();
-
-                count = lock.count;
-                json = serde_json::to_string(&lock.json).unwrap_or_default();
-            }
-
-            if self.should_count {
-                output.send(Message::Info(count.to_string())).unwrap();
-            }
-
-            output.send(Message::Info(json)).unwrap();
-        }
+            output: &Sender<Message>,
+        );
+        /// Called when the last file has been scanned.
+        fn on_done(&self, _output: &Sender<Message>) {}
     }
 
     pub(super) struct TextOutputHandler {
-        should_include_meta: bool,
-        should_include_tags: bool,
-        should_include_strings: Option<usize>,
-        should_count: bool,
-        only_tag: Option<String>,
-        print_namespace: bool,
+        output_options: OutputOptions,
     }
 
     impl TextOutputHandler {
-        pub(super) fn new(args: &ArgMatches) -> Self {
-            let should_include_meta = args.get_flag("print-meta");
-            let should_include_tags = args.get_flag("print-tags");
-            let should_include_strings =
-                args.get_one::<usize>("print-strings").cloned();
-            let should_count = args.get_flag("count");
-            let only_tag = args.get_one::<String>("tag").cloned();
-            let print_namespace = args.get_flag("print-namespace");
-
-            Self {
-                should_include_meta,
-                should_include_tags,
-                should_include_strings,
-                should_count,
-                only_tag,
-                print_namespace,
-            }
+        pub(super) fn new(output_options: OutputOptions) -> Self {
+            Self { output_options }
         }
     }
 
@@ -874,9 +763,8 @@ mod output_handler {
             scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
             output: &Sender<Message>,
         ) {
-            if self.should_count {
+            if self.output_options.count_only {
                 let count = scan_results.len();
-
                 let line =
                     format!("{}: {}", &file_path.display().to_string(), count);
 
@@ -885,7 +773,7 @@ mod output_handler {
             }
 
             for matching_rule in scan_results {
-                if let Some(ref only_tag) = self.only_tag {
+                if let Some(ref only_tag) = self.output_options.only_tag {
                     if !matching_rule
                         .tags()
                         .any(|tag| tag.identifier() == only_tag)
@@ -894,7 +782,7 @@ mod output_handler {
                     }
                 }
 
-                let mut line = if self.print_namespace {
+                let mut line = if self.output_options.include_namespace {
                     format!(
                         "{}:{}",
                         matching_rule.namespace().paint(Cyan).bold(),
@@ -909,7 +797,7 @@ mod output_handler {
 
                 let tags = matching_rule.tags();
 
-                if self.should_include_tags && !tags.is_empty() {
+                if self.output_options.include_tags && !tags.is_empty() {
                     line.push_str(" [");
                     for (pos, tag) in tags.with_position() {
                         line.push_str(tag.identifier());
@@ -922,7 +810,7 @@ mod output_handler {
 
                 let metadata = matching_rule.metadata();
 
-                if self.should_include_meta && !metadata.is_empty() {
+                if self.output_options.include_meta && !metadata.is_empty() {
                     line.push_str(" [");
                     for (pos, (m, v)) in metadata.with_position() {
                         match v {
@@ -956,7 +844,7 @@ mod output_handler {
 
                 output.send(Message::Info(line)).unwrap();
 
-                if let Some(limit) = self.should_include_strings {
+                if let Some(limit) = self.output_options.include_strings {
                     for p in matching_rule.patterns() {
                         for m in p.matches() {
                             let match_range = m.range();
@@ -1017,65 +905,16 @@ mod output_handler {
                 }
             }
         }
-
-        fn on_done(&self, _useless_output: &Sender<Message>) {
-            // do nothing; stuff was printed periodically
-        }
     }
 
     pub(super) struct NdJsonOutputHandler {
-        should_include_meta: bool,
-        should_include_tags: bool,
-        should_include_strings: Option<usize>,
-        should_count: bool,
-        only_tag: Option<String>,
-        print_namespace: bool,
+        output_options: OutputOptions,
     }
 
     impl NdJsonOutputHandler {
-        pub(super) fn new(args: &ArgMatches) -> Self {
-            let should_include_meta = args.get_flag("print-meta");
-            let should_include_tags = args.get_flag("print-tags");
-            let should_include_strings =
-                args.get_one::<usize>("print-strings").cloned();
-            let should_count = args.get_flag("count");
-            let only_tag = args.get_one::<String>("tag").cloned();
-            let print_namespace = args.get_flag("print-namespace");
-
-            Self {
-                should_include_meta,
-                should_include_tags,
-                should_include_strings,
-                should_count,
-                only_tag,
-                print_namespace,
-            }
+        pub(super) fn new(output_options: OutputOptions) -> Self {
+            Self { output_options }
         }
-    }
-
-    #[derive(serde::Serialize)]
-    struct CountNdJsonOutput<'a> {
-        path: &'a str,
-        count: usize,
-    }
-
-    #[derive(serde::Serialize)]
-    struct NdJsonRule<'a> {
-        identifier: &'a str,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        namespace: Option<&'a str>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        meta: Option<serde_json::Value>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        tags: Option<Vec<&'a str>>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        strings: Option<Vec<StringJson>>,
-    }
-
-    #[derive(serde::Serialize)]
-    struct NdJsonOutput<'a> {
-        path: &'a str,
-        rules: Vec<NdJsonRule<'a>>,
     }
 
     impl OutputHandler for NdJsonOutputHandler {
@@ -1087,59 +926,86 @@ mod output_handler {
         ) {
             let path = file_path.to_str().unwrap();
 
-            if self.should_count {
-                let count = scan_results.len();
-
-                let json =
-                    serde_json::to_string(&CountNdJsonOutput { count, path })
-                        .unwrap();
+            if self.output_options.count_only {
+                let json = serde_json::to_string(&JsonCountOutput {
+                    count: scan_results.len(),
+                    path,
+                })
+                .unwrap();
 
                 output.send(Message::Info(json)).unwrap();
                 return;
             }
 
-            let rules = scan_results
-                .filter(|rule| {
-                    self.only_tag.as_ref().map_or(true, |only_tag| {
-                        rule.tags().any(|tag| tag.identifier() == only_tag)
-                    })
-                })
-                .map(|rule| {
-                    let json_namespace =
-                        self.print_namespace.then(|| rule.namespace());
+            let rules = rules_to_json(&self.output_options, scan_results);
+            let line = serde_json::to_string(&JsonOutput {
+                path,
+                rules: rules.as_slice(),
+            })
+            .unwrap();
 
-                    let json_identifier = rule.identifier();
-
-                    let json_meta = self
-                        .should_include_meta
-                        .then(|| rule.metadata().into_json());
-
-                    let json_tags = self.should_include_tags.then(|| {
-                        rule.tags().map(|t| t.identifier()).collect::<Vec<_>>()
-                    });
-
-                    let json_patterns =
-                        self.should_include_strings.map(|limit| {
-                            patterns_to_string_jsons(rule.patterns(), limit)
-                        });
-
-                    NdJsonRule {
-                        identifier: json_identifier,
-                        namespace: json_namespace,
-                        meta: json_meta,
-                        tags: json_tags,
-                        strings: json_patterns,
-                    }
-                })
-                .collect::<Vec<_>>();
-
-            let out = NdJsonOutput { path, rules };
-            let line = serde_json::to_string(&out).unwrap();
             output.send(Message::Info(line)).unwrap();
         }
+    }
 
-        fn on_done(&self, _useless_output: &Sender<Message>) {
-            // do nothing; stuff was printed periodically
+    pub(super) struct JsonOutputHandler {
+        output_options: OutputOptions,
+        matches: std::sync::Arc<Mutex<HashMap<String, Vec<JsonRule>>>>,
+    }
+
+    impl JsonOutputHandler {
+        pub(super) fn new(output_options: OutputOptions) -> Self {
+            let matches = std::sync::Arc::new(Mutex::new(HashMap::new()));
+            Self { output_options, matches }
+        }
+    }
+
+    impl OutputHandler for JsonOutputHandler {
+        fn on_file_scanned(
+            &self,
+            file_path: &Path,
+            scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
+            _output: &Sender<Message>,
+        ) {
+            let path = file_path
+                .canonicalize()
+                .ok()
+                .as_ref()
+                .and_then(|absolute| absolute.to_str())
+                .map(|s| s.to_string())
+                .unwrap_or_default();
+
+            let mut matches = self.matches.lock().unwrap();
+
+            matches
+                .entry(path)
+                .or_default()
+                .extend(rules_to_json(&self.output_options, scan_results));
+        }
+
+        fn on_done(&self, output: &Sender<Message>) {
+            let matches = self.matches.lock().unwrap();
+
+            let json = if self.output_options.count_only {
+                let json_output = matches
+                    .iter()
+                    .map(|(path, rules)| JsonCountOutput {
+                        path,
+                        count: rules.len(),
+                    })
+                    .collect::<Vec<_>>();
+
+                serde_json::to_string_pretty(&json_output).unwrap_or_default()
+            } else {
+                let json_output = matches
+                    .iter()
+                    .map(|(path, rules)| JsonOutput { path, rules })
+                    .collect::<Vec<_>>();
+
+                serde_json::to_string_pretty(&json_output).unwrap_or_default()
+            };
+
+            output.send(Message::Info(json)).unwrap();
         }
     }
 }
