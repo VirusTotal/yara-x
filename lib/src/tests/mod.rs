@@ -525,6 +525,9 @@ fn with() {
     condition_true!(r#"with foo = test_proto2.array_int64[0]: (foo == 1)"#);
 
     #[cfg(feature = "test_proto2-module")]
+    condition_true!(r#"with foo = test_proto2.array_int64: (foo[0] == 1)"#);
+
+    #[cfg(feature = "test_proto2-module")]
     condition_false!(
         r#"with foo = test_proto2.array_int64[test_proto2.int64_zero]: (foo == 10)"#
     );
@@ -532,6 +535,11 @@ fn with() {
     #[cfg(feature = "test_proto2-module")]
     condition_true!(
         r#"with foo = test_proto2.map_string_struct["foo"].nested_int64_one: (foo == 1)"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"with foo = test_proto2.map_string_struct: (foo["foo"].nested_int64_one== 1)"#
     );
 
     #[cfg(feature = "test_proto2-module")]
@@ -557,31 +565,31 @@ fn with() {
     #[cfg(feature = "test_proto2-module")]
     condition_true!(
         r#"with
-            bar = test_proto2.array_string[1],
-            baz = test_proto2.array_string[2]:
-                (
-                    bar == "bar" and baz == "baz"
-                )
-        "#
+                     bar = test_proto2.array_string[1],
+                     baz = test_proto2.array_string[2]:
+                   (
+                      bar == "bar" and baz == "baz"
+                   )
+                "#
     );
 
     #[cfg(feature = "test_proto2-module")]
     condition_true!(
         r#"for any i in (0..1): (
-            with foo = test_proto2.array_int64[i]: (foo == 1)
-        )"#
+                    with foo = test_proto2.array_int64[i]: (foo == 1)
+                )"#
     );
 
     #[cfg(feature = "test_proto2-module")]
     condition_true!(
         r#"for all i in (0..0): (
-            with
-                foo = test_proto2.array_int64[i],
-                bar = test_proto2.array_int64[i + 1] :
-                    (
-                        foo == 1 and bar == 10
-                    )
-        )"#
+                with
+                    foo = test_proto2.array_int64[i],
+                    bar = test_proto2.array_int64[i + 1] :
+                (
+                    foo == 1 and bar == 10
+                )
+            )"#
     );
 
     #[cfg(feature = "test_proto2-module")]
@@ -590,10 +598,53 @@ fn with() {
             with
                 foo = test_proto2.array_int64[i],
                 bar = test_proto2.array_int64[i + 1] :
-                    (
-                        foo == 1 and bar == foo * 10
-                    )
+            (
+               foo == 1 and bar == foo * 10
+            )
         )"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"with foo = test_proto2.add :
+           (
+              foo(1,2) == 3
+           )
+        "#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"with one = test_proto2.int32_one :
+           (
+             for any i in (0..1) : (
+               i == one and test_proto2.add(1,2) == 3 and test_proto2.float_zero + 1 == 1.0
+             )
+             and for any j in (0..1) : (
+               test_proto2.add(1,2) != 0 and test_proto2.float_zero + 1 == 1.0
+             )
+          )
+        "#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"with one = test_proto2.int32_one : (
+             with nested = one : (
+                nested == 1
+             )
+           )
+        "#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"with t = test_proto2 : (
+             with nested = t : (
+                nested.int32_one == 1
+             )
+           )
+        "#
     );
 }
 

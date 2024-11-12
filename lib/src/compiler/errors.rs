@@ -66,6 +66,7 @@ pub enum CompileError {
     InvalidRegexp(Box<InvalidRegexp>),
     InvalidRegexpModifier(Box<InvalidRegexpModifier>),
     InvalidUTF8(Box<InvalidUTF8>),
+    MethodNotAllowedInWith(Box<MethodNotAllowedInWith>),
     MismatchingTypes(Box<MismatchingTypes>),
     MixedGreediness(Box<MixedGreediness>),
     NumberOutOfRange(Box<NumberOutOfRange>),
@@ -634,6 +635,16 @@ pub struct PotentiallySlowLoop {
 pub struct TooManyPatterns {
     report: Report,
     max_num_patterns: usize,
+    error_loc: CodeLoc,
+}
+
+/// A rule has too many patterns.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E036", title = "method not allowed in `with` statement")]
+#[label("this method is not allowed here", error_loc)]
+pub struct MethodNotAllowedInWith {
+    report: Report,
     error_loc: CodeLoc,
 }
 

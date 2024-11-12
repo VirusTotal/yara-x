@@ -4,7 +4,7 @@ use std::fs;
 use std::io::Write;
 use std::mem::size_of;
 
-use crate::compiler::{SubPattern, Var, VarStack};
+use crate::compiler::{SubPattern, VarStack};
 use crate::errors::{SerializationError, VariableError};
 use crate::types::Type;
 use crate::{compile, Compiler, Rules, Scanner, SourceCode};
@@ -84,31 +84,35 @@ fn var_stack() {
     let mut frame1 = stack.new_frame(4);
     let mut frame2 = stack.new_frame(4);
 
-    assert_eq!(
-        frame1.new_var(Type::Integer),
-        Var { ty: Type::Integer, index: 0 }
-    );
+    let var = frame1.new_var(Type::Integer);
 
-    assert_eq!(
-        frame1.new_var(Type::String),
-        Var { ty: Type::String, index: 1 }
-    );
+    assert_eq!(var.ty(), Type::Integer);
+    assert_eq!(var.frame_id(), 1);
+    assert_eq!(var.index(), 0);
 
-    // The first variable in the frame goes after the first two variables
-    // already allocated in the stack.
-    assert_eq!(
-        frame2.new_var(Type::Integer),
-        Var { ty: Type::Integer, index: 4 }
-    );
+    let var = frame1.new_var(Type::String);
 
-    assert_eq!(
-        frame2.new_var(Type::Integer),
-        Var { ty: Type::Integer, index: 5 }
-    );
+    assert_eq!(var.ty(), Type::String);
+    assert_eq!(var.frame_id(), 1);
+    assert_eq!(var.index(), 1);
+
+    // The first variable in the second frame goes after the first two
+    // variables already allocated in the stack.
+    let var = frame2.new_var(Type::Integer);
+
+    assert_eq!(var.ty(), Type::Integer);
+    assert_eq!(var.frame_id(), 2);
+    assert_eq!(var.index(), 4);
+
+    let var = frame2.new_var(Type::Bool);
+
+    assert_eq!(var.ty(), Type::Bool);
+    assert_eq!(var.frame_id(), 2);
+    assert_eq!(var.index(), 5);
 
     stack.unwind(&frame1);
 
-    assert_eq!(stack.used, 0);
+    assert_eq!(stack.used(), 0);
 }
 
 #[test]
@@ -744,7 +748,7 @@ fn continue_after_error() {
 }
 
 #[test]
-fn errors_2() {
+fn conflicting_identifiers_error() {
     assert_eq!(
         Compiler::new()
             .define_global("foo", 1)
@@ -759,7 +763,10 @@ fn errors_2() {
   |      ^^^ identifier already in use by a module or global variable
   |"
     );
+}
 
+#[test]
+fn duplicate_rule_error() {
     assert_eq!(
         Compiler::new()
             .add_source("rule foo : first {condition: true}")
@@ -779,8 +786,11 @@ fn errors_2() {
   |      --- note: `foo` declared here for the first time
   |"
     );
+}
 
-    #[cfg(feature = "constant-folding")]
+#[cfg(feature = "constant-folding")]
+#[test]
+fn number_out_of_range_error() {
     assert_eq!(
         Compiler::new()
             .add_source(
@@ -889,6 +899,13 @@ fn test_errors() {
             continue;
         }
 
+        // If the `test_proto2-module` feature is not enabled ignore files
+        // starting with "// test_proto2-module required".
+        #[cfg(not(feature = "test_proto2-module"))]
+        if rules.starts_with("// test_proto2-module required") {
+            continue;
+        }
+
         src.push_str(rules.as_str());
 
         let err = compile(src.as_str()).expect_err(
@@ -926,6 +943,13 @@ fn test_warnings() {
         // starting with "// constant-folding required".
         #[cfg(not(feature = "constant-folding"))]
         if rules.starts_with("// constant-folding required") {
+            continue;
+        }
+
+        // If the `test_proto2-module` feature is not enabled ignore files
+        // starting with "// test_proto2-module required".
+        #[cfg(not(feature = "test_proto2-module"))]
+        if rules.starts_with("// test_proto2-module required") {
             continue;
         }
 

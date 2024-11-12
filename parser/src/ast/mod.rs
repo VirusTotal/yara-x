@@ -174,7 +174,7 @@ impl<'src> Ident<'src> {
 #[derive(Debug)]
 pub struct IdentWithRange<'src> {
     span: Span,
-    pub ident: Ident<'src>,
+    pub identifier: Ident<'src>,
     pub range: Option<Range<'src>>,
 }
 
@@ -186,7 +186,7 @@ pub struct IdentWithRange<'src> {
 #[derive(Debug)]
 pub struct IdentWithIndex<'src> {
     span: Span,
-    pub ident: Ident<'src>,
+    pub identifier: Ident<'src>,
     pub index: Option<Expr<'src>>,
 }
 
@@ -238,15 +238,29 @@ pub struct RegexpPattern<'src> {
 #[derive(Debug, Default)]
 pub struct HexPattern<'src> {
     pub identifier: Ident<'src>,
-    pub tokens: HexTokens,
+    pub sub_patterns: HexSubPattern,
     pub modifiers: PatternModifiers<'src>,
 }
 
 /// A sequence of tokens that conform a hex pattern (a.k.a. hex string).
 #[derive(Debug, Default)]
-pub struct HexTokens {
-    // TODO: rename to HexSubPattern
-    pub tokens: Vec<HexToken>,
+pub struct HexSubPattern(pub Vec<HexToken>);
+
+impl HexSubPattern {
+    #[inline]
+    pub fn iter(&self) -> impl Iterator<Item = &HexToken> {
+        self.0.iter()
+    }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 /// Each of the types of tokens in a hex pattern (a.k.a. hex string).
@@ -287,16 +301,16 @@ impl HexByte {
 
 /// An alternative in a hex pattern (a.k.a. hex string).
 ///
-/// Alternatives are sequences of hex tokens separated by `|`.
+/// Alternatives are sequences of hex sub-patterns separated by `|`.
 #[derive(Debug, Default)]
 pub struct HexAlternative {
     span: Span,
-    pub alternatives: Vec<HexTokens>,
+    pub alternatives: Vec<HexSubPattern>,
 }
 
 impl HexAlternative {
     #[doc(hidden)]
-    pub fn new(alternatives: Vec<HexTokens>) -> Self {
+    pub fn new(alternatives: Vec<HexSubPattern>) -> Self {
         Self { alternatives, span: Span::default() }
     }
 }
@@ -305,13 +319,13 @@ impl HexAlternative {
 #[derive(Debug, Clone, Default)]
 pub struct HexJump {
     span: Span,
-    pub start: Option<u16>,
-    pub end: Option<u16>,
+    pub start: Option<u32>,
+    pub end: Option<u32>,
 }
 
 impl HexJump {
     #[doc(hidden)]
-    pub fn new(start: Option<u16>, end: Option<u16>) -> Self {
+    pub fn new(start: Option<u32>, end: Option<u32>) -> Self {
         Self { start, end, span: Span::default() }
     }
 }
@@ -430,11 +444,11 @@ impl PatternSetItem<'_> {
     ///
     /// For example, identifiers `$a` and `$abc` both match the
     /// [`PatternSetItem`] for `$a*`.
-    pub fn matches(&self, ident: &Ident) -> bool {
+    pub fn matches(&self, identifier: &Ident) -> bool {
         if self.wildcard {
-            ident.name.starts_with(self.identifier)
+            identifier.name.starts_with(self.identifier)
         } else {
-            ident.name == self.identifier
+            identifier.name == self.identifier
         }
     }
 }
@@ -806,7 +820,8 @@ pub struct In<'src> {
 pub struct FuncCall<'src> {
     span: Span,
     args_span: Span,
-    pub callable: Expr<'src>,
+    pub object: Option<Expr<'src>>,
+    pub identifier: Ident<'src>,
     pub args: Vec<Expr<'src>>,
 }
 
@@ -1011,13 +1026,13 @@ impl WithSpan for HexToken {
     }
 }
 
-impl WithSpan for HexTokens {
+impl WithSpan for HexSubPattern {
     fn span(&self) -> Span {
-        let span = self.tokens.first().map(|t| t.span()).unwrap_or_default();
-        if self.tokens.len() == 1 {
+        let span = self.0.first().map(|t| t.span()).unwrap_or_default();
+        if self.0.len() == 1 {
             return span;
         }
-        span.combine(&self.tokens.last().map(|t| t.span()).unwrap_or_default())
+        span.combine(&self.0.last().map(|t| t.span()).unwrap_or_default())
     }
 }
 
@@ -1123,7 +1138,7 @@ impl WithSpan for TextPattern<'_> {
 impl WithSpan for HexPattern<'_> {
     fn span(&self) -> Span {
         if self.modifiers.is_empty() {
-            self.identifier.span().combine(&self.tokens.span())
+            self.identifier.span().combine(&self.sub_patterns.span())
         } else {
             self.identifier.span().combine(&self.modifiers.span())
         }

@@ -1,0 +1,6 @@
+error[E036]: method not allowed in `with` statement
+ --> line:7:18
+  |
+7 |       with foo = test_proto2.nested.nested_method : ( not foo() )
+  |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this method is not allowed here
+  |

@@ -20,6 +20,57 @@ use crate::symbols::{Symbol, SymbolLookup};
 use crate::types::{Array, Map, TypeValue, Value};
 use crate::wasm::WasmExport;
 
+/// Each of the entries in an Access Control List (ACL)
+///
+/// When defining the structure of a module in a `.proto` file, you can specify
+/// that certain fields are accessible only when one or more features are
+/// enabled in the compiler with using [`crate::Compiler::enable_feature`]. For
+/// example, the field ``requires_foo_and_bar` in the snippet below has an ACL
+/// indicating that the field can be accessed only if features "foo" and "bar"
+/// are enabled in the compiler.
+///
+/// ```protobuf
+/// optional uint64 requires_foo_and_bar = 500 [
+///   (yara.field_options) = {
+///     acl: [
+///       {
+///         accept_if: "foo",
+///         error_title: "foo is required",
+///         error_label: "this field was used without foo"
+///       },
+///       {
+///         accept_if: "bar",
+///         error_title: "bar is required",
+///         error_label: "this field was used without bar"
+///       }
+///     ]
+///   }
+/// ];
+/// ```
+///
+/// If some of the required features are not enabled, using this field in
+/// a YARA rule will cause an error while compiling the rules. The error
+/// looks like:
+///
+/// ```text
+/// error[E034]: foo is required
+///  --> line:5:29
+///   |
+/// 5 |  test_proto2.requires_foo_and_bar == 0
+///   |              ^^^^^^^^^^^^^^^^^^^^ this field was used without foo
+///   |
+/// ```
+///
+/// Notice that both the title and label in the error message are defined
+/// in the .proto file.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct AclEntry {
+    pub error_title: String,
+    pub error_label: String,
+    pub accept_if: Vec<String>,
+    pub reject_if: Vec<String>,
+}
+
 /// A field in a [`Struct`].
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct StructField {
@@ -28,6 +79,8 @@ pub(crate) struct StructField {
     pub number: u64,
     /// Field type and value.
     pub type_value: TypeValue,
+    /// Access control list (ACL) for accessing this struct field.
+    pub acl: Option<Vec<AclEntry>>,
 }
 
 /// A dynamic structure with one or more fields.
@@ -67,6 +120,7 @@ impl SymbolLookup for Struct {
             index,
             is_root: self.is_root,
             type_value: field.type_value.clone(),
+            acl: field.acl.clone(),
         })
     }
 }
@@ -118,6 +172,7 @@ impl Struct {
                 .or_insert_with(|| StructField {
                     type_value: TypeValue::Struct(Rc::new(Struct::new())),
                     number: 0,
+                    acl: None,
                 });
 
             if let TypeValue::Struct(ref mut s) = field.type_value {
@@ -133,8 +188,10 @@ impl Struct {
                 panic!("field `{}` is not a struct", &name[0..dot])
             }
         } else {
-            self.fields
-                .insert(name, StructField { type_value: value, number: 0 })
+            self.fields.insert(
+                name,
+                StructField { type_value: value, number: 0, acl: None },
+            )
         }
     }
 
@@ -334,6 +391,7 @@ impl Struct {
                 StructField {
                     // Index is initially zero, will be adjusted later.
                     type_value: value,
+                    acl: Self::acl(&fd),
                     number,
                 },
             ));
@@ -605,6 +663,31 @@ impl Struct {
             .get(&field_descriptor.proto().options)
             .and_then(|options| options.ignore)
             .unwrap_or(false)
+    }
+
+    /// Given a [`FieldDescriptor`] returns the Access Control List (ACL)
+    /// associated to that field.
+    ///
+    /// See [`AclEntry`] for details.
+    fn acl(field_descriptor: &FieldDescriptor) -> Option<Vec<AclEntry>> {
+        field_options
+            .get(&field_descriptor.proto().options)
+            .map(|options| options.acl)
+            .filter(|acl| !acl.is_empty())
+            .map(|acl| {
+                acl.into_iter()
+                    .map(|entry| AclEntry {
+                        accept_if: entry.accept_if,
+                        reject_if: entry.reject_if,
+                        error_title: entry
+                            .error_title
+                            .expect("the `error_title` field is required"),
+                        error_label: entry
+                            .error_label
+                            .expect("the `error_label` field is required"),
+                    })
+                    .collect()
+            })
     }
 
     /// Given a protobuf type and value returns a [`TypeValue`].

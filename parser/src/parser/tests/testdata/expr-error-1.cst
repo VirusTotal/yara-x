@@ -177,4 +177,4 @@ ERRORS:
 - [71..72]: expecting expression, found `+`
 - [115..117]: expecting expression, found `==`
 - [162..163]: expecting operator, `of`, expression or `}`, found `(`
-- [238..240]: expecting `[`, `(`, operator or `}`, found `in`
+- [238..240]: expecting `[`, `.`, operator or `}`, found `in`

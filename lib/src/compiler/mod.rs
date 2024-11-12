@@ -7,7 +7,6 @@ module implements the YARA compiler.
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
 use std::collections::HashSet;
-#[cfg(test)]
 use std::io::Write;
 use std::ops::RangeInclusive;
 use std::path::Path;
@@ -240,6 +239,10 @@ pub struct Compiler<'a> {
     /// escape sequences.
     relaxed_re_syntax: bool,
 
+    /// If true, the compiler applies common subexpression elimination to
+    /// rule conditions.
+    cse: bool,
+
     /// If true, slow patterns produce an error instead of a warning. A slow
     /// pattern is one with atoms shorter than 2 bytes.
     error_on_slow_pattern: bool,
@@ -376,9 +379,12 @@ pub struct Compiler<'a> {
     /// Errors generated while compiling the rules.
     errors: Vec<CompileError>,
 
+    /// Features enabled for this compiler. See [`Compiler::enable_feature`]
+    /// for details.
+    features: FxHashSet<String>,
+
     /// Optional writer where the compiler writes the IR produced by each rule.
     /// This is used for test cases and debugging.
-    #[cfg(test)]
     ir_writer: Option<Box<dyn Write>>,
 }
 
@@ -442,11 +448,13 @@ impl<'a> Compiler<'a> {
             wasm_symbols,
             wasm_exports,
             relaxed_re_syntax: false,
+            cse: false,
             error_on_slow_pattern: false,
             error_on_slow_loop: false,
             next_pattern_id: PatternId(0),
             current_pattern_id: PatternId(0),
             current_namespace: default_namespace,
+            features: FxHashSet::default(),
             warnings: Warnings::default(),
             errors: Vec::new(),
             rules: Vec::new(),
@@ -463,7 +471,6 @@ impl<'a> Compiler<'a> {
             lit_pool: BStringPool::new(),
             regexp_pool: StringPool::new(),
             patterns: FxHashMap::default(),
-            #[cfg(test)]
             ir_writer: None,
         }
     }
@@ -749,6 +756,62 @@ impl<'a> Compiler<'a> {
         rules
     }
 
+    /// Enables a feature on this compiler.
+    ///
+    /// When defining the structure of a module in a `.proto` file, you can
+    /// specify that certain fields are accessible only when one or more
+    /// features are enabled. For example, the snippet below shows the
+    /// definition of a field named `requires_foo_and_bar`, which can be
+    /// accessed only when both features "foo" and "bar" are enabled.
+    ///
+    /// ```protobuf
+    /// optional uint64 requires_foo_and_bar = 500 [
+    ///   (yara.field_options) = {
+    ///     acl: [
+    ///       {
+    ///         allow_if: "foo",
+    ///         error_title: "foo is required",
+    ///         error_label: "this field was used without foo"
+    ///       },
+    ///       {
+    ///         allow_if: "bar",
+    ///         error_title: "bar is required",
+    ///         error_label: "this field was used without bar"
+    ///       }
+    ///     ]
+    ///   }
+    /// ];
+    /// ```
+    ///
+    /// If some of the required features are not enabled, using this field in
+    /// a YARA rule will cause an error while compiling the rules. The error
+    /// looks like:
+    ///
+    /// ```text
+    /// error[E034]: foo is required
+    ///  --> line:5:29
+    ///   |
+    /// 5 |  test_proto2.requires_foo_and_bar == 0
+    ///   |              ^^^^^^^^^^^^^^^^^^^^ this field was used without foo
+    ///   |
+    /// ```
+    ///
+    /// Notice that both the title and label in the error message are defined
+    /// in the .proto file.
+    ///
+    /// # Important
+    ///
+    /// This API is hidden from the public documentation because it is unstable
+    /// and subject to change.
+    #[doc(hidden)]
+    pub fn enable_feature<F: Into<String>>(
+        &mut self,
+        feature: F,
+    ) -> &mut Self {
+        self.features.insert(feature.into());
+        self
+    }
+
     /// Tell the compiler that a YARA module is not supported.
     ///
     /// Import statements for ignored modules will be ignored without
@@ -859,6 +922,25 @@ impl<'a> Compiler<'a> {
     /// This is disabled by default.
     pub fn error_on_slow_loop(&mut self, yes: bool) -> &mut Self {
         self.error_on_slow_loop = yes;
+        self
+    }
+
+    /// When enabled, the compiler tries to optimize rule conditions by
+    /// replacing common subexpressions with variables that hold the computed
+    /// value.
+    ///
+    /// Common subexpression elimination may reduce condition evaluation times,
+    /// specially in complex rules that contain loops, but it can break
+    /// short-circuit evaluation rules because some subexpressions are not
+    /// executed in the order they appear in the source code.
+    ///
+    /// This is a very experimental feature.
+    #[doc(hidden)]
+    pub fn common_subexpression_elimination(
+        &mut self,
+        yes: bool,
+    ) -> &mut Self {
+        self.cse = yes;
         self
     }
 
@@ -1022,8 +1104,8 @@ impl<'a> Compiler<'a> {
     /// Representation (IR) of compiled conditions.
     ///
     /// This is used for testing and debugging purposes.
-    #[cfg(test)]
-    fn set_ir_writer<W: Write + 'static>(&mut self, w: W) -> &mut Self {
+    #[doc(hidden)]
+    pub fn set_ir_writer<W: Write + 'static>(&mut self, w: W) -> &mut Self {
         self.ir_writer = Some(Box::new(w));
         self
     }
@@ -1143,13 +1225,14 @@ impl<'a> Compiler<'a> {
             ir: &mut self.ir,
             relaxed_re_syntax: self.relaxed_re_syntax,
             error_on_slow_loop: self.error_on_slow_loop,
-            current_symbol_table: None,
+            one_shot_symbol_table: None,
             symbol_table: &mut self.symbol_table,
             report_builder: &self.report_builder,
             current_rule_patterns: &mut rule_patterns,
             warnings: &mut self.warnings,
             vars: VarStack::new(),
             for_of_depth: 0,
+            features: &self.features,
         };
 
         // Convert the patterns from AST to IR. This populates the
@@ -1217,7 +1300,7 @@ impl<'a> Compiler<'a> {
         // entering this function. Also, if the error is due to an unknown
         // identifier, but the identifier is one of the unsupported modules,
         // the error is tolerated and a warning is issued instead.
-        let condition = match condition {
+        let mut condition = match condition {
             Ok(condition) => condition,
             Err(CompileError::UnknownIdentifier(unknown))
                 if self.ignored_rules.contains_key(unknown.identifier())
@@ -1266,7 +1349,10 @@ impl<'a> Compiler<'a> {
             }
         };
 
-        #[cfg(test)]
+        if self.cse {
+            condition = self.ir.eliminate_common_subexpressions();
+        }
+
         if let Some(w) = &mut self.ir_writer {
             writeln!(w, "RULE {}", rule.identifier.name).unwrap();
             writeln!(w, "{:?}", self.ir).unwrap();
@@ -1375,7 +1461,6 @@ impl<'a> Compiler<'a> {
         // will remain in the WASM module.
         let mut ctx = EmitContext {
             current_rule: self.rules.last_mut().unwrap(),
-            current_signature: None,
             lit_pool: &mut self.lit_pool,
             regexp_pool: &mut self.regexp_pool,
             wasm_symbols: &self.wasm_symbols,
@@ -2186,7 +2271,7 @@ impl From<LiteralId> for u64 {
 pub(crate) struct NamespaceId(i32);
 
 /// ID associated to each rule.
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash)]
 pub(crate) struct RuleId(i32);
 
 impl RuleId {

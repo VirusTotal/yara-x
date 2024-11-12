@@ -16,12 +16,6 @@ name = "yr"
 path = "src/main.rs"
 
 [features]
-# When this feature is enabled the CLI program saves CPU profiling
-# information into a flamegraph.svg file when run. For unknown reasons
-# the `pprof` crate often causes segfaults in Mac OS X, but it seems
-# to work fine in Linux.
-profiling = ["pprof"]
-
 # Enable the "debug" command for developers.
 debug-cmd = []
 
@@ -66,10 +60,9 @@ yara-x-fmt = { workspace = true }
 
 chardetng = "0.1.17"
 colored_json = "5.0.0"
-crossbeam = "0.8.2"
+crossbeam = "0.8.4"
 crossterm = "0.28.1"
-encoding_rs = "0.8.33"
-pprof = { version = "0.13.0", features = ["flamegraph"], optional = true }
+encoding_rs = "0.8.35"
 strum_macros = "0.26.4"
 superconsole = "0.2.0"
-wild = "2.1.0"
+wild = "2.2.1"

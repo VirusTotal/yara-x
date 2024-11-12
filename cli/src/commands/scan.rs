@@ -178,6 +178,7 @@ pub fn scan() -> Command {
                 .help("Abort scanning after the given number of seconds")
                 .value_parser(value_parser!(u64).range(1..))
         )
+
 }
 
 #[cfg(feature = "rules-profiling")]

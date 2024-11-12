@@ -154,39 +154,39 @@ fn test_proto2_module() {
 
     condition_true!(
         r#"for all s in test_proto2.array_string : (
-            s == "foo" or s == "bar" or s == "baz"
-        )"#
+                    s == "foo" or s == "bar" or s == "baz"
+                )"#
     );
 
     condition_true!(
         r#"for any s in test_proto2.array_struct : (
-            s.nested_int32_zero == 0 and s.nested_int32_one == 1
-          )"#
+                    s.nested_int32_zero == 0 and s.nested_int32_one == 1
+                  )"#
     );
 
     condition_true!(
         r#"for 1 s in test_proto2.array_struct : (
-            s.nested_int32_zero == 0
-          )"#
+                    s.nested_int32_zero == 0
+                  )"#
     );
 
     condition_false!(
         r#"for 3 s in test_proto2.array_struct : (
-            s.nested_int32_zero == 0
-          )"#
+                    s.nested_int32_zero == 0
+                  )"#
     );
 
     condition_true!(
         r#"for any s in test_proto2.array_struct : (
-            s.nested_int32_zero == 0 and
-            s.nested_int32_one == 1 and
+                s.nested_int32_zero == 0 and
+                s.nested_int32_one == 1 and
 
-            for any s in test_proto2.array_struct : (
-                s.nested_int32_zero == 0
-            )
+                for any s in test_proto2.array_struct : (
+                    s.nested_int32_zero == 0
+                )
 
-            and for any s in test_proto2.array_string : (s == "foo")
-          )"#
+                and for any s in test_proto2.array_string : (s == "foo")
+              )"#
     );
 
     condition_true!(
@@ -282,5 +282,65 @@ fn test_proto2_module() {
         r#"
         test_proto2.NestedProto2.NestedEnumeration.ITEM_1 == 1
         "#
+    );
+
+    condition_true!(
+        r#"
+        test_proto2.array_struct[0].nested_int32_zero == 0 and
+        test_proto2.array_struct[1].nested_int32_one == 1 and
+        test_proto2.array_struct[1].nested_int32_zero + test_proto2.array_struct[1].nested_int64_one == 1
+        "#
+    )
+}
+
+#[test]
+fn test_acl() {
+    let rules = r#"
+        import "test_proto2"
+        rule test {
+            condition:
+                test_proto2.requires_foo_and_bar == 0
+        }"#;
+
+    let mut c = crate::Compiler::new();
+
+    assert_eq!(
+        c.add_source(rules).err().unwrap().to_string(),
+        r#"error[E100]: foo is required
+ --> line:5:29
+  |
+5 |                 test_proto2.requires_foo_and_bar == 0
+  |                             ^^^^^^^^^^^^^^^^^^^^ this field was used without foo
+  |"#
+    );
+
+    c.enable_feature("foo");
+
+    assert_eq!(
+        c.add_source(rules).err().unwrap().to_string(),
+        r#"error[E100]: bar is required
+ --> line:5:29
+  |
+5 |                 test_proto2.requires_foo_and_bar == 0
+  |                             ^^^^^^^^^^^^^^^^^^^^ this field was used without bar
+  |"#
+    );
+
+    c.enable_feature("bar");
+
+    assert!(c.add_source(rules).is_ok());
+
+    let mut c = crate::Compiler::new();
+
+    c.enable_feature("foo").enable_feature("bar").enable_feature("baz");
+
+    assert_eq!(
+        c.add_source(rules).err().unwrap().to_string(),
+        r#"error[E100]: baz is forbidden
+ --> line:5:29
+  |
+5 |                 test_proto2.requires_foo_and_bar == 0
+  |                             ^^^^^^^^^^^^^^^^^^^^ this field was used with baz
+  |"#
     );
 }

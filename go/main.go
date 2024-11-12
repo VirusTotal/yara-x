@@ -208,19 +208,6 @@ func (r *Rules) Destroy() {
 	runtime.SetFinalizer(r, nil)
 }
 
-// This is the callback called by yrx_rules_iterate, when Rules.GetRules is
-// called.
-//
-//export onRule
-func onRule(rule *C.YRX_RULE, handle C.uintptr_t) {
-	h := cgo.Handle(handle)
-	rules, ok := h.Value().(*[]*Rule)
-	if !ok {
-		panic("onRule didn't receive a *[]Rule")
-	}
-	*rules = append(*rules, newRule(rule))
-}
-
 // Slice returns a slice with all the individual rules contained in this
 // set of compiled rules.
 func (r *Rules) Slice() []*Rule {
