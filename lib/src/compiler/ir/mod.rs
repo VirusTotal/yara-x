@@ -357,6 +357,73 @@ impl DeclaringExpr {
     }
 }
 
+/// A stack of currently declared variables.
+///
+/// Each item in the stack contains the [`ExprId`] of the expression
+/// (either a `for` or `with` statement) that declared the variable
+/// and the variable's index.
+#[derive(Default)]
+struct DeclaredVariables(Vec<(DeclaringExpr, i32)>);
+
+impl DeclaredVariables {
+    pub fn push_for_var(&mut self, expr_id: ExprId, var_index: i32) {
+        self.0.push((DeclaringExpr::For(expr_id), var_index))
+    }
+
+    pub fn push_with_var(&mut self, expr_id: ExprId, var_index: i32) {
+        self.0.push((DeclaringExpr::With(expr_id), var_index))
+    }
+
+    pub fn pop_for_var(&mut self) {
+        let (decl, _) = self.0.pop().unwrap();
+        debug_assert!(matches!(decl, DeclaringExpr::For(_)));
+    }
+
+    pub fn pop_with_var(&mut self) {
+        let (decl, _) = self.0.pop().unwrap();
+        debug_assert!(matches!(decl, DeclaringExpr::With(_)));
+    }
+
+    /// Find a variable by its index.
+    pub fn find(&self, var_index: i32) -> Option<&DeclaringExpr> {
+        self.0.iter().find(|(_, v)| *v == var_index).map(|(stmt, _)| stmt)
+    }
+
+    /// Returns the [`ExprId`] corresponding to the current outermost loop.
+    pub fn outermost_loop(&self) -> Option<ExprId> {
+        // Iterate the variables stack starting from the bottom, where the
+        // outermost expressions are.
+        self.0
+            .iter()
+            .find(|(decl, _)| matches!(decl, DeclaringExpr::For(_)))
+            .map(|(decl, _)| decl.expr_id())
+    }
+
+    /// Returns the [`ExprId`] corresponding to loop that is directly inside
+    /// the one indicated by `loop_expr`.
+    pub fn loop_inside(&self, loop_expr: ExprId) -> Option<ExprId> {
+        let mut loop_exprs = self
+            .0
+            .iter()
+            .filter_map(|(decl, _)| {
+                if let DeclaringExpr::For(expr_id) = decl {
+                    Some(*expr_id)
+                } else {
+                    None
+                }
+            })
+            .unique();
+
+        while let Some(e) = loop_exprs.next() {
+            if e == loop_expr {
+                return loop_exprs.next();
+            }
+        }
+
+        None
+    }
+}
+
 /// Intermediate representation (IR) of a rule condition.
 ///
 /// The IR is a tree representing a rule condition. It is generated from the
@@ -976,6 +1043,17 @@ impl IR {
         self.root.unwrap()
     }
 
+    /// Traverses the IR (Intermediate Representation) tree to identify
+    /// loop-invariant expressions that can be safely moved outside the loop
+    /// they are nested in.
+    ///
+    /// This function returns a vector of pairs `(ExprId, ExprId)`, where the
+    /// first element represents the ID of an expression that can be moved out
+    /// of a loop, and the second represents the ID of the loop from which it
+    /// can be moved. The loop ID always corresponds to the outermost loop in
+    /// which the expression is invariant.
+    ///
+    /// See: [`IR::hoisting`]
     pub fn find_hoisting_candidates(&self) -> Vec<(ExprId, ExprId)> {
         // This vector contains one entry per node in the IR tree. Each entry
         // at `depends_on[expr_id]` provides information about the variable on
@@ -995,7 +1073,7 @@ impl IR {
         // Each entry contains a pair (DeclaringExpr, i32), where the first
         // item identifies the expression that declared the variable and the
         // second one is the variable's index.
-        let mut variables = Vec::new();
+        let mut variables = DeclaredVariables::default();
 
         // The result is a vector of tuples (ExprId, ExprId), where the first
         // item is the expression that must be moved out of a loop, and the
@@ -1017,18 +1095,12 @@ impl IR {
                     match self.get(parent) {
                         Expr::ForIn(for_in) => {
                             for var in for_in.variables.iter() {
-                                variables.push((
-                                    DeclaringExpr::For(parent),
-                                    var.index(),
-                                ));
+                                variables.push_for_var(parent, var.index());
                             }
                         }
                         Expr::With(with) => {
                             for (var, _) in with.declarations.iter() {
-                                variables.push((
-                                    DeclaringExpr::With(parent),
-                                    var.index(),
-                                ));
+                                variables.push_with_var(parent, var.index());
                             }
                         }
                         _ => {}
@@ -1041,30 +1113,13 @@ impl IR {
                         let parent = self.get_parent(expr_id).unwrap();
                         match self.get(parent) {
                             Expr::ForIn(for_in) => {
-                                for var in for_in.variables.iter().rev() {
-                                    let (decl, index) =
-                                        variables.pop().unwrap();
-
-                                    debug_assert!(matches!(
-                                        decl,
-                                        DeclaringExpr::For(_)
-                                    ));
-
-                                    debug_assert_eq!(index, var.index());
+                                for _ in for_in.variables.iter().rev() {
+                                    variables.pop_for_var();
                                 }
                             }
                             Expr::With(with) => {
-                                for (var, _) in with.declarations.iter().rev()
-                                {
-                                    let (decl, index) =
-                                        variables.pop().unwrap();
-
-                                    debug_assert!(matches!(
-                                        decl,
-                                        DeclaringExpr::With(_)
-                                    ));
-
-                                    debug_assert_eq!(index, var.index());
+                                for _ in with.declarations.iter().rev() {
+                                    variables.pop_with_var();
                                 }
                             }
                             _ => {}
@@ -1082,15 +1137,11 @@ impl IR {
                             };
                             // ... try to find the statement that declared the
                             // variable.
-                            let stmt_declaring_var = match variables
-                                .iter()
-                                .find(|(_, v)| *v == var)
-                                .map(|(stmt, _)| stmt)
+                            let stmt_declaring_var = match variables.find(var)
                             {
                                 Some(stmt) => stmt,
                                 None => continue,
                             };
-
                             // Iterate the ancestors of the current statement
                             // up to the statement that declared the variable,
                             // and mark them as dependent on that variable.
@@ -1125,17 +1176,13 @@ impl IR {
                         // the result of `foo[i]`, which does.
                         _ if !matches!(ctx, EventContext::FieldAccess) => {
                             match depends_on[expr_id.0 as usize] {
-                                // The expression doesn't depend on any loop
-                                // variable, move it out of the outermost loop,
-                                // if any.
+                                // The expression doesn't depend on any variable,
+                                // move it out of the outermost statement, if any.
                                 None => {
-                                    if let Some((stmt_declaring_var, _)) =
-                                        variables.first()
+                                    if let Some(loop_expr) =
+                                        variables.outermost_loop()
                                     {
-                                        result.push((
-                                            expr_id,
-                                            stmt_declaring_var.expr_id(),
-                                        ));
+                                        result.push((expr_id, loop_expr));
                                     }
                                 }
                                 // The expression depends on some loop variable,
@@ -1146,24 +1193,10 @@ impl IR {
                                     // identified by `loop_expr`. Which happens to
                                     // be the loop that appears right after the last
                                     // occurrence of `loop_expr` in the `loops`.
-                                    if let Some((
-                                        DeclaringExpr::For(loop_expr),
-                                        _,
-                                    )) = variables
-                                        .iter()
-                                        .enumerate()
-                                        .rev()
-                                        .find(|(_, (decl, _))| {
-                                            matches!(
-                                                decl,
-                                                DeclaringExpr::For(expr_id)
-                                                if *expr_id == loop_expr)
-                                        })
-                                        .and_then(|(i, _)| {
-                                            variables.get(i + 1)
-                                        })
+                                    if let Some(loop_expr) =
+                                        variables.loop_inside(loop_expr)
                                     {
-                                        result.push((expr_id, *loop_expr));
+                                        result.push((expr_id, loop_expr));
                                     }
                                 }
                                 // The expression depends on some other variable that
@@ -1182,6 +1215,28 @@ impl IR {
         result
     }
 
+    /// Optimizes the IR (Intermediate Representation) by moving loop-invariant
+    /// expressions outside the loop they are nested in.
+    ///
+    /// Loop hoisting optimizes performance by relocating expressions whose
+    /// values remain constant across all iterations of the loop, thus reducing
+    /// redundant calculations.
+    ///
+    /// For example:
+    ///
+    /// ```text
+    /// for any i in (0..100) : (
+    ///   for any j in (0..100) : (
+    ///     a[j] == b[i] || func(1,2)
+    ///   )
+    /// )
+    /// ```
+    ///
+    /// In this example, `a[j]` cannot be hoisted out of any loop, as it depends
+    /// on `j`, which changes with each iteration of the inner loop. Conversely,
+    /// `b[i]` can be hoisted out of the inner loop since it remains unchanged
+    /// with respect to `j`, and `func(1,2)` can be hoisted out of both loops,
+    /// as it is independent of both `i` and `j`.
     pub fn hoisting(&mut self) -> ExprId {
         for (expr_id, loop_expr_id) in self.find_hoisting_candidates() {
             let loop_parent = self.get_parent(loop_expr_id);
