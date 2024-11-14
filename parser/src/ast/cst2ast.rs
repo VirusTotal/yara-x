@@ -1001,7 +1001,7 @@ impl<'src> Builder<'src> {
                 span,
                 quantifier,
                 pattern_set,
-                condition,
+                body: condition,
             }))
         } else if let Some(iterable) = iterable {
             Expr::ForIn(Box::new(ForIn {
@@ -1009,7 +1009,7 @@ impl<'src> Builder<'src> {
                 quantifier,
                 variables,
                 iterable,
-                condition,
+                body: condition,
             }))
         } else {
             unreachable!()
@@ -1091,7 +1091,7 @@ impl<'src> Builder<'src> {
 
         self.end(WITH_EXPR)?;
 
-        Ok(Expr::With(Box::new(With { span, declarations, condition })))
+        Ok(Expr::With(Box::new(With { span, declarations, body: condition })))
     }
 
     fn quantifier(&mut self) -> Result<Quantifier<'src>, BuilderError> {

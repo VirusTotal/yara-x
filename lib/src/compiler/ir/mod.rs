@@ -46,7 +46,7 @@ use serde::{Deserialize, Serialize};
 use yara_x_parser::Span;
 
 use crate::compiler::context::{Var, VarStack};
-use crate::compiler::ir::dfs::{dfs_common, DFSIter, Event};
+use crate::compiler::ir::dfs::{dfs_common, DFSIter, Event, EventContext};
 
 use crate::re;
 use crate::symbols::Symbol;
@@ -168,8 +168,8 @@ impl<'src> PatternInRule<'src> {
 
     /// Marks the pattern as used.
     ///
-    /// When a pattern is used in the condition this function is called to
-    /// indicate that the pattern is in use.
+    /// When a pattern is used in the rule's condition this function is called
+    /// to indicate that the pattern is in use.
     pub fn mark_as_used(&mut self) -> &mut Self {
         self.in_use = true;
         self
@@ -456,10 +456,10 @@ impl IR {
         shift_amount: i32,
     ) {
         self.dfs_mut(expr_id, |evt| match evt {
-            Event::Enter((_, expr)) => {
+            Event::Enter((_, expr, _)) => {
                 expr.shift_vars(from_index, shift_amount)
             }
-            Event::Leave((_, _)) => {}
+            Event::Leave(_) => {}
         });
     }
 
@@ -473,19 +473,23 @@ impl IR {
     /// function both upon entering and leaving each node.
     pub fn dfs_mut<F>(&mut self, start: ExprId, mut f: F)
     where
-        F: FnMut(Event<(ExprId, &mut Expr)>),
+        F: FnMut(Event<(ExprId, &mut Expr, EventContext)>),
     {
-        let mut stack = vec![Event::Enter(start)];
+        let mut stack = vec![Event::Enter((start, EventContext::None))];
 
         while let Some(evt) = stack.pop() {
             if let Event::Enter(expr) = evt {
                 stack.push(Event::Leave(expr));
             }
             f(match &evt {
-                Event::Enter(e) => Event::Enter((*e, self.get_mut(*e))),
-                Event::Leave(e) => Event::Leave((*e, self.get_mut(*e))),
+                Event::Enter((expr_id, ctx)) => {
+                    Event::Enter((*expr_id, self.get_mut(*expr_id), *ctx))
+                }
+                Event::Leave((expr_id, ctx)) => {
+                    Event::Leave((*expr_id, self.get_mut(*expr_id), *ctx))
+                }
             });
-            if let Event::Enter(expr) = evt {
+            if let Event::Enter((expr, _)) = evt {
                 dfs_common(&self.nodes[expr.0 as usize], &mut stack);
             }
         }
@@ -507,7 +511,7 @@ impl IR {
         let mut dfs = self.dfs_iter(start);
 
         while let Some(evt) = dfs.next() {
-            if let Event::Enter((_, expr)) = evt {
+            if let Event::Enter((_, expr, _)) = evt {
                 if predicate(expr) {
                     return Some(expr);
                 }
@@ -608,7 +612,7 @@ impl IR {
 
         for evt in self.dfs_iter(start) {
             match evt {
-                Event::Enter((_, expr)) => {
+                Event::Enter((_, expr, _)) => {
                     if !ignore(expr) {
                         hashers.push(FxHasher::default());
                     }
@@ -616,7 +620,7 @@ impl IR {
                         expr.hash(h);
                     }
                 }
-                Event::Leave((expr_id, expr)) => {
+                Event::Leave((expr_id, expr, _)) => {
                     if !ignore(expr) {
                         let hasher = hashers.pop().unwrap();
                         f(expr_id, hasher.finish());
@@ -636,8 +640,8 @@ impl IR {
         // and we should be able to iterate both them in lockstep.
         for (a, b) in dfs_a.by_ref().zip(dfs_b.by_ref()) {
             match (a, b) {
-                (Event::Leave((_, _)), Event::Leave((_, _))) => {}
-                (Event::Enter((_, a)), Event::Enter((_, b))) => {
+                (Event::Leave((_, _, _)), Event::Leave((_, _, _))) => {}
+                (Event::Enter((_, a, _)), Event::Enter((_, b, _))) => {
                     if discriminant(a) != discriminant(b) {
                         return false;
                     }
@@ -820,7 +824,7 @@ impl IR {
 
         'dfs: while let Some(evt) = dfs.next() {
             match evt {
-                Event::Enter((expr_id, _)) => {
+                Event::Enter((expr_id, _, _)) => {
                     // Get hash for the current expression. This can return
                     // `None` because the hash is not computed for all
                     // expressions.
@@ -836,7 +840,7 @@ impl IR {
                         dfs.prune();
                     }
                 }
-                Event::Leave((expr_id, _)) => {
+                Event::Leave((expr_id, _, _)) => {
                     let hash = match hashes.get(&expr_id) {
                         Some(hash) => hash,
                         None => continue 'dfs,
@@ -951,6 +955,199 @@ impl IR {
                         type_value: type_value.clone(),
                     })),
                 );
+            }
+        }
+
+        self.root.unwrap()
+    }
+
+    pub fn compute_loop_dependencies(&self) -> Vec<(ExprId, ExprId)> {
+        // This vector contains one entry per node in the IR tree. Each entry
+        // at `depends_on[expr_id]` provides information about the loop variable
+        // on which the expression identified by `expr_id` depends.
+        // - If `depends_on[expr_id]` is `None`, the expression does not depend
+        //   on any loop variable.
+        // - If `depends_on[expr_id]` is `Some((loop_expr_id, v))`, then `v` is
+        //   the index of the loop variable the expression depends on. If the
+        //   expression depends on multiple loop variables, `v` will contain the
+        //   index of the outermost variable, (i.e., the variable corresponding
+        //   to the outermost loop). `loop_expr_id` identifies the loop
+        //   expression that defined the variable `v`.
+        let mut depends_on = vec![None; self.nodes.len()];
+
+        // This is a stack that contains one more entry for each `for`
+        // statement we are currently traversing. Each entry contains a pair
+        // (ExprId, i32), where the ExprId identifies the `for` statement
+        // that declared the variable, and the i32 is the variable's index.
+        let mut loops = Vec::new();
+
+        // The result is a vector of tuples (ExprId, ExprId), where the first
+        // item is the expression that must be moved out of a loop, and the
+        // second one is the loop from where the expression must be moved out.
+        // This implies that the first expression is a sub-expression of the
+        // second one.
+        let mut result = Vec::new();
+
+        for event in self.dfs_iter(self.root.unwrap()) {
+            match event {
+                Event::Enter((expr_id, _, ctx)) => {
+                    // If entering the body of a `for` loop...
+                    if matches!(ctx, EventContext::Body) {
+                        // ... get the loop expression, which is the parent of
+                        // the current expression.
+                        let loop_expr_id = self.get_parent(expr_id).unwrap();
+                        // Push the loop variables in the `loops` stack.
+                        match self.get(loop_expr_id) {
+                            Expr::ForIn(for_in) => {
+                                for var in for_in.variables.iter() {
+                                    loops.push((loop_expr_id, var.index()));
+                                }
+                            }
+                            _ => unreachable!(),
+                        }
+                    }
+                }
+                Event::Leave((expr_id, expr, ctx)) => {
+                    // If leaving the body of a `for` loop...
+                    if matches!(ctx, EventContext::Body) {
+                        // ... get the loop expression, which is the parent of
+                        // the current expression.
+                        let loop_expr_id = self.get_parent(expr_id).unwrap();
+                        // Remove the loop variables from the stack.
+                        match self.get(loop_expr_id) {
+                            Expr::ForIn(for_in) => {
+                                for var in for_in.variables.iter().rev() {
+                                    let (loop_id, index) =
+                                        loops.pop().unwrap();
+                                    debug_assert_eq!(index, var.index());
+                                    debug_assert_eq!(loop_id, loop_expr_id);
+                                }
+                            }
+                            _ => unreachable!(),
+                        }
+                    }
+                    match expr {
+                        // If the expression is a variable...
+                        Expr::Symbol(symbol) => {
+                            let var = match symbol.as_ref() {
+                                Symbol::Var { var, .. } => var.index(),
+                                _ => continue,
+                            };
+                            // ... try to find the loop that declared the
+                            // variable.
+                            let loop_declaring_var =
+                                loops.iter().find(|(_, v)| *v == var).cloned();
+                            // If the variable was declared by a loop, mark all
+                            // the ancestors of the current expression up to
+                            // the loop as dependent on that variable.
+                            if let Some((loop_expr, var)) = loop_declaring_var
+                            {
+                                for ancestor in self.ancestors(expr_id) {
+                                    if ancestor == loop_expr {
+                                        break;
+                                    }
+                                    match &mut depends_on[ancestor.0 as usize]
+                                    {
+                                        // If already depends on a loop that is
+                                        // inside `loop_expr` we don't need to
+                                        // update the dependency.
+                                        Some((_, v)) if *v >= var => {}
+                                        entry => {
+                                            *entry = Some((loop_expr, var))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // Constants and `filesize` are fast and don't need to
+                        // be moved out of loops.
+                        Expr::Const(_) => {}
+                        Expr::Filesize => {}
+                        // All other expressions are moved out of as many loops
+                        // as possible.
+                        _ => match depends_on[expr_id.0 as usize] {
+                            // The expression doesn't depend on any loop variable,
+                            // move it out of the outermost loop, if any.
+                            None => {
+                                if let Some((loop_expr, _)) = loops.first() {
+                                    result.push((expr_id, *loop_expr));
+                                }
+                            }
+                            // The expression depends on some loop variable,
+                            // it can be moved out of any loop that is inside
+                            // the one that declared the loop variable.
+                            Some((loop_expr, _)) => {
+                                // Find any loop that is directly inside the one
+                                // identified by `loop_expr`. Which happens to be
+                                // the loop that appears right after the last
+                                // occurrence of `loop_expr` in the `loops`.
+                                if let Some((loop_expr, _)) = loops
+                                    .iter()
+                                    .enumerate()
+                                    .rev()
+                                    .find(|(_, (expr_id, _))| {
+                                        *expr_id == loop_expr
+                                    })
+                                    .and_then(|(i, _)| loops.get(i + 1))
+                                {
+                                    result.push((expr_id, *loop_expr));
+                                }
+                            }
+                        },
+                    }
+                }
+            }
+        }
+
+        result
+    }
+
+    pub fn move_out_of_loops(&mut self) -> ExprId {
+        for (expr_id, loop_expr_id) in self.compute_loop_dependencies() {
+            let loop_parent = self.get_parent(loop_expr_id);
+
+            let var_index = self
+                .ancestors(loop_expr_id)
+                .map(|expr_id| self.get(expr_id).stack_frame_size())
+                .sum::<i32>();
+
+            // Shift all variables with an index greater or equal than
+            // var_index one position to the left in order to make room for
+            // the new variable used by the `with` statement that will be
+            // inserted.
+            self.shift_vars(loop_expr_id, var_index, 1);
+
+            let type_value = self.get(expr_id).type_value();
+            let var = Var::new(0, type_value.ty(), var_index);
+
+            // Replace the moved expression with variable. The moved expression
+            // will be added as a declaration to the `with` statement.
+            let replaced = self.replace(
+                expr_id,
+                Expr::Symbol(Box::new(Symbol::Var {
+                    var,
+                    type_value: type_value.clone(),
+                })),
+            );
+
+            // The expression that initializes the variable is the one that is
+            // being replaced with the variable.
+            let var_init_stmt = self.push(replaced);
+
+            // The body of the `with` statement is the loop. From now on
+            // the loop's parent is the `with` statement.
+            let with_stmt =
+                self.with(vec![(var, var_init_stmt)], loop_expr_id);
+
+            // The previous parent of the `with` statement becomes the parent
+            // of the `with` statement, if not, the `with` statement is the new
+            // root.
+            if let Some(loop_parent) = loop_parent {
+                self.set_parent(with_stmt, loop_parent);
+                self.get_mut(loop_parent)
+                    .replace_child(loop_expr_id, with_stmt);
+            } else {
+                self.root = Some(with_stmt);
             }
         }
 
@@ -1744,7 +1941,7 @@ impl IR {
         variable: Var,
         for_vars: ForVars,
         pattern_set: Vec<PatternIdx>,
-        condition: ExprId,
+        body: ExprId,
     ) -> ExprId {
         let expr_id = ExprId::from(self.nodes.len());
         match quantifier {
@@ -1753,13 +1950,13 @@ impl IR {
             }
             _ => {}
         }
-        self.parents[condition.0 as usize] = expr_id;
+        self.parents[body.0 as usize] = expr_id;
         self.parents.push(ExprId::none());
         self.nodes.push(Expr::ForOf(Box::new(ForOf {
             quantifier,
             variable,
             pattern_set,
-            condition,
+            body,
             for_vars,
         })));
         debug_assert_eq!(self.parents.len(), self.nodes.len());
@@ -1774,7 +1971,7 @@ impl IR {
         for_vars: ForVars,
         iterable_var: Var,
         iterable: Iterable,
-        condition: ExprId,
+        body: ExprId,
     ) -> ExprId {
         let expr_id = ExprId::from(self.nodes.len());
         match quantifier {
@@ -1797,7 +1994,7 @@ impl IR {
                 self.parents[expr.0 as usize] = expr_id;
             }
         }
-        self.parents[condition.0 as usize] = expr_id;
+        self.parents[body.0 as usize] = expr_id;
         self.parents.push(ExprId::none());
         self.nodes.push(Expr::ForIn(Box::new(ForIn {
             quantifier,
@@ -1805,7 +2002,7 @@ impl IR {
             for_vars,
             iterable_var,
             iterable,
-            condition,
+            body,
         })));
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         expr_id
@@ -1815,19 +2012,19 @@ impl IR {
     pub fn with(
         &mut self,
         declarations: Vec<(Var, ExprId)>,
-        condition: ExprId,
+        body: ExprId,
     ) -> ExprId {
-        let type_value = self.get(condition).type_value();
+        let type_value = self.get(body).type_value();
         let expr_id = ExprId::from(self.nodes.len());
         for (_, expr) in declarations.iter() {
             self.parents[expr.0 as usize] = expr_id;
         }
-        self.parents[condition.0 as usize] = expr_id;
+        self.parents[body.0 as usize] = expr_id;
         self.parents.push(ExprId::none());
         self.nodes.push(Expr::With(Box::new(With {
             type_value,
             declarations,
-            condition,
+            body,
         })));
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         expr_id
@@ -1901,7 +2098,7 @@ impl Debug for IR {
         for event in self.dfs_iter(self.root.unwrap()) {
             match event {
                 Event::Leave(_) => level -= 1,
-                Event::Enter((expr_id, expr)) => {
+                Event::Enter((expr_id, expr,_)) => {
                     for _ in 0..level {
                         write!(f, "  ")?;
                     }
@@ -2058,7 +2255,7 @@ impl<'a> Iterator for Children<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match self.dfs.next()? {
-                Event::Enter((expr_id, _)) => {
+                Event::Enter((expr_id, _, _)) => {
                     self.dfs.prune();
                     return Some(expr_id);
                 }
@@ -2284,7 +2481,7 @@ pub(crate) struct ForOf {
     pub variable: Var,
     pub for_vars: ForVars,
     pub pattern_set: Vec<PatternIdx>,
-    pub condition: ExprId,
+    pub body: ExprId,
 }
 
 /// A `for .. in` expression (e.g `for all x in iterator : (..)`)
@@ -2294,7 +2491,7 @@ pub(crate) struct ForIn {
     pub for_vars: ForVars,
     pub iterable_var: Var,
     pub iterable: Iterable,
-    pub condition: ExprId,
+    pub body: ExprId,
 }
 
 /// A quantifier used in `for` and `of` expressions.
@@ -2313,9 +2510,9 @@ pub(crate) struct ForVars {
     pub n: Var,
     /// Current iteration number.
     pub i: Var,
-    /// Number of loop conditions that must return true.
+    /// Number of loop iterations that must return true.
     pub max_count: Var,
-    /// Number of loop conditions that actually returned true.
+    /// Number of loop iterations that actually returned true.
     pub count: Var,
 }
 
@@ -2332,7 +2529,7 @@ impl ForVars {
 pub(crate) struct With {
     pub type_value: TypeValue,
     pub declarations: Vec<(Var, ExprId)>,
-    pub condition: ExprId,
+    pub body: ExprId,
 }
 
 /// In expressions like `$a at 0` and `$b in (0..10)`, this type represents the
@@ -2657,8 +2854,8 @@ impl Expr {
                         *expr = replacement
                     }
                 }
-                if with.condition == child {
-                    with.condition = replacement
+                if with.body == child {
+                    with.body = replacement
                 }
             }
 
@@ -2686,15 +2883,15 @@ impl Expr {
 
             Expr::ForOf(for_of) => {
                 replace_in_quantifier(&mut for_of.quantifier);
-                if for_of.condition == child {
-                    for_of.condition = replacement
+                if for_of.body == child {
+                    for_of.body = replacement
                 }
             }
 
             Expr::ForIn(for_in) => {
                 replace_in_quantifier(&mut for_in.quantifier);
-                if for_in.condition == child {
-                    for_in.condition = replacement
+                if for_in.body == child {
+                    for_in.body = replacement
                 }
             }
 

@@ -630,7 +630,7 @@ fn expr_from_ast(
                     if ctx.for_of_depth == 0 {
                         return Err(SyntaxError::build(
                             ctx.report_builder,
-                            "this `$` is outside of the condition of a `for .. of` statement".to_string(),
+                            "this `$` is outside of the body of a `for .. of` statement".to_string(),
                             p.identifier.span().into(),
                         ));
                     }
@@ -679,7 +679,7 @@ fn expr_from_ast(
             if p.identifier.name == "#" && ctx.for_of_depth == 0 {
                 return Err(SyntaxError::build(
                     ctx.report_builder,
-                    "this `#` is outside of the condition of a `for .. of` statement".to_string(),
+                    "this `#` is outside of the body of a `for .. of` statement".to_string(),
                     p.identifier.span().into(),
                 ));
             }
@@ -719,7 +719,7 @@ fn expr_from_ast(
             if p.identifier.name == "@" && ctx.for_of_depth == 0 {
                 return Err(SyntaxError::build(
                     ctx.report_builder,
-                    "this `@` is outside of the condition of a `for .. of` statement".to_string(),
+                    "this `@` is outside of the body of a `for .. of` statement".to_string(),
                     p.identifier.span().into(),
                 ));
             }
@@ -761,7 +761,7 @@ fn expr_from_ast(
             if p.identifier.name == "!" && ctx.for_of_depth == 0 {
                 return Err(SyntaxError::build(
                     ctx.report_builder,
-                    "this `!` is outside of the condition of a `for .. of` statement".to_string(),
+                    "this `!` is outside of the body of a `for .. of` statement".to_string(),
                     p.identifier.span().into(),
                 ));
             }
@@ -1121,19 +1121,13 @@ fn for_of_expr_from_ast(
     ctx.symbol_table.push(Rc::new(loop_vars));
     ctx.for_of_depth += 1;
 
-    let condition = bool_expr_from_ast(ctx, &for_of.condition)?;
+    let body = bool_expr_from_ast(ctx, &for_of.body)?;
 
     ctx.for_of_depth -= 1;
     ctx.symbol_table.pop();
     ctx.vars.unwind(&stack_frame);
 
-    Ok(ctx.ir.for_of(
-        quantifier,
-        next_pattern_id,
-        for_vars,
-        pattern_set,
-        condition,
-    ))
+    Ok(ctx.ir.for_of(quantifier, next_pattern_id, for_vars, pattern_set, body))
 }
 
 fn is_potentially_large_range(ctx: &CompileContext, range: &Range) -> bool {
@@ -1273,9 +1267,9 @@ fn for_in_expr_from_ast(
     // Put the loop variables into scope.
     ctx.symbol_table.push(Rc::new(symbols));
 
-    let condition = bool_expr_from_ast(ctx, &for_in.condition)?;
+    let body = bool_expr_from_ast(ctx, &for_in.body)?;
 
-    // Leaving the condition's scope. Remove loop variables.
+    // Leaving the body's scope. Remove loop variables.
     ctx.symbol_table.pop();
 
     ctx.vars.unwind(&stack_frame);
@@ -1286,7 +1280,7 @@ fn for_in_expr_from_ast(
         for_vars,
         iterable_var,
         iterable,
-        condition,
+        body,
     ))
 }
 
@@ -1325,14 +1319,14 @@ fn with_expr_from_ast(
     // Put the with variables into scope.
     ctx.symbol_table.push(Rc::new(symbols));
 
-    let condition = bool_expr_from_ast(ctx, &with.condition)?;
+    let body = bool_expr_from_ast(ctx, &with.body)?;
 
-    // Leaving with statement condition's scope. Remove with statement variables.
+    // Leaving with statement body's scope. Remove with statement variables.
     ctx.symbol_table.pop();
 
     ctx.vars.unwind(&stack_frame);
 
-    Ok(ctx.ir.with(declarations, condition))
+    Ok(ctx.ir.with(declarations, body))
 }
 
 fn iterable_from_ast(
