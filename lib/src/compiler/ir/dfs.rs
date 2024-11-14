@@ -17,9 +17,10 @@ pub(crate) enum Event<T> {
 pub(crate) enum EventContext {
     /// No context provided.
     None,
-    /// In statements that have a body, the current expression corresponds to
-    /// that body.
+    /// The current expression is the body of its parent expression.
     Body,
+    /// The current expression is a children of a field access expression.
+    FieldAccess,
 }
 
 /// An iterator that conducts a Depth First Search (DFS) traversal of the IR
@@ -215,7 +216,8 @@ pub(super) fn dfs_common(
 
         Expr::FieldAccess(field_access) => {
             for operand in field_access.operands.iter().rev() {
-                stack.push(Event::Enter((*operand, EventContext::None)));
+                stack
+                    .push(Event::Enter((*operand, EventContext::FieldAccess)));
             }
         }
 

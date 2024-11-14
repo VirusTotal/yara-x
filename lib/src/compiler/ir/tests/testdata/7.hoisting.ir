@@ -1,0 +1,18 @@
+RULE test
+  25: WITH -- hash: 0x651cc002ce0ddd15 -- parent: None 
+    24: FIELD_ACCESS -- hash: 0xa67f64b2db1d0351 -- parent: 25 
+      12: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 24 
+      13: SYMBOL Field { index: 48, is_root: false, type_value: array, acl: None } -- parent: 24 
+    23: FOR_IN -- hash: 0x63c1927b1a6029e9 -- parent: 25 
+      0: CONST integer(0) -- parent: 23 
+      1: CONST integer(1) -- parent: 23 
+      22: EQ -- hash: 0x3da513eb712a0976 -- parent: 23 
+        20: FIELD_ACCESS -- hash: 0xa20a348c24cb8af2 -- parent: 22 
+          16: LOOKUP -- hash: 0x56f24941a8f1147a -- parent: 20 
+            14: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 0 }, type_value: array } -- parent: 16 
+            15: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 6 }, type_value: integer(unknown) } -- parent: 16 
+          19: LOOKUP -- hash: 0xe5df055f4efde11b -- parent: 20 
+            17: SYMBOL Field { index: 5, is_root: false, type_value: array, acl: None } -- parent: 19 
+            18: CONST integer(0) -- parent: 19 
+        21: CONST integer(0) -- parent: 22 
+

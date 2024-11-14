@@ -976,24 +976,25 @@ impl IR {
         self.root.unwrap()
     }
 
-    pub fn compute_loop_dependencies(&self) -> Vec<(ExprId, ExprId)> {
+    pub fn find_hoisting_candidates(&self) -> Vec<(ExprId, ExprId)> {
         // This vector contains one entry per node in the IR tree. Each entry
-        // at `depends_on[expr_id]` provides information about the loop variable
-        // on which the expression identified by `expr_id` depends.
+        // at `depends_on[expr_id]` provides information about the variable on
+        // which the expression identified by `expr_id` depends.
         // - If `depends_on[expr_id]` is `None`, the expression does not depend
-        //   on any loop variable.
-        // - If `depends_on[expr_id]` is `Some((loop_expr_id, v))`, then `v` is
-        //   the index of the loop variable the expression depends on. If the
-        //   expression depends on multiple loop variables, `v` will contain the
-        //   index of the outermost variable, (i.e., the variable corresponding
-        //   to the outermost loop). `loop_expr_id` identifies the loop
-        //   expression that defined the variable `v`.
+        //   on any variable.
+        // - If `depends_on[expr_id]` is `Some((e, v))`, then `v` is the index
+        //   of the variable the expression depends on. If the expression depends
+        //   on multiple loop variables, `v` will contain the index of the
+        //   outermost variable, (i.e., the variable corresponding to the
+        //   outermost loop or with statement). `e` is a `DeclaringExpr` that
+        //   contains the ExprId that identifies the expression that declared
+        //   the variable and whether it is a `for` or `with` statement.
         let mut depends_on = vec![None; self.nodes.len()];
 
-        // This is a stack that contains one more entry for each `for`
-        // statement we are currently traversing. Each entry contains a pair
-        // (ExprId, i32), where the ExprId identifies the `for` statement
-        // that declared the variable, and the i32 is the variable's index.
+        // This is a stack that contains one entry per each declared variable.
+        // Each entry contains a pair (DeclaringExpr, i32), where the first
+        // item identifies the expression that declared the variable and the
+        // second one is the variable's index.
         let mut variables = Vec::new();
 
         // The result is a vector of tuples (ExprId, ExprId), where the first
@@ -1072,8 +1073,7 @@ impl IR {
                     match expr {
                         // Constants and `filesize` are fast and don't need to
                         // be moved out of loops.
-                        Expr::Const(_) => {}
-                        Expr::Filesize => {}
+                        Expr::Const(_) | Expr::Filesize => {}
                         // If the expression is a variable...
                         Expr::Symbol(symbol) => {
                             let var = match symbol.as_ref() {
@@ -1115,50 +1115,65 @@ impl IR {
                                 }
                             }
                         }
-                        // All other expressions are moved out of as many loops
-                        // as possible.
-                        _ => match depends_on[expr_id.0 as usize] {
-                            // The expression doesn't depend on any loop variable,
-                            // move it out of the outermost loop, if any.
-                            None => {
-                                if let Some((stmt_declaring_var, _)) =
-                                    variables.first()
-                                {
-                                    result.push((
-                                        expr_id,
-                                        stmt_declaring_var.expr_id(),
-                                    ));
+                        // All other expressions could be moved out of loops,
+                        // except those that are operands of a field access.
+                        // That's because the operands of a field access can
+                        // depend on the results produced by their siblings.
+                        // For instance, in `foo[i].bar[0]` `bar[0]` depends
+                        // on the result produced by `foo[i]`, `bar[0]`
+                        // doesn't depend on `i` itself, but it depends on
+                        // the result of `foo[i]`, which does.
+                        _ if !matches!(ctx, EventContext::FieldAccess) => {
+                            match depends_on[expr_id.0 as usize] {
+                                // The expression doesn't depend on any loop
+                                // variable, move it out of the outermost loop,
+                                // if any.
+                                None => {
+                                    if let Some((stmt_declaring_var, _)) =
+                                        variables.first()
+                                    {
+                                        result.push((
+                                            expr_id,
+                                            stmt_declaring_var.expr_id(),
+                                        ));
+                                    }
                                 }
-                            }
-                            // The expression depends on some loop variable,
-                            // it can be moved out of any loop that is inside
-                            // the one that declared the loop variable.
-                            Some((DeclaringExpr::For(loop_expr), _)) => {
-                                // Find any loop that is directly inside the one
-                                // identified by `loop_expr`. Which happens to be
-                                // the loop that appears right after the last
-                                // occurrence of `loop_expr` in the `loops`.
-                                if let Some((
-                                    DeclaringExpr::For(loop_expr),
-                                    _,
-                                )) = variables
-                                    .iter()
-                                    .enumerate()
-                                    .rev()
-                                    .find(|(_, (decl, _))| {
-                                        matches!(decl, DeclaringExpr::For(expr_id) if *expr_id == loop_expr)
-                                    })
-                                    .and_then(|(i, _)| variables.get(i + 1))
-                                {
-                                    result.push((expr_id, *loop_expr));
+                                // The expression depends on some loop variable,
+                                // it can be moved out of any loop that is inside
+                                // the one that declared the loop variable.
+                                Some((DeclaringExpr::For(loop_expr), _)) => {
+                                    // Find any loop that is directly inside the one
+                                    // identified by `loop_expr`. Which happens to
+                                    // be the loop that appears right after the last
+                                    // occurrence of `loop_expr` in the `loops`.
+                                    if let Some((
+                                        DeclaringExpr::For(loop_expr),
+                                        _,
+                                    )) = variables
+                                        .iter()
+                                        .enumerate()
+                                        .rev()
+                                        .find(|(_, (decl, _))| {
+                                            matches!(
+                                                decl,
+                                                DeclaringExpr::For(expr_id)
+                                                if *expr_id == loop_expr)
+                                        })
+                                        .and_then(|(i, _)| {
+                                            variables.get(i + 1)
+                                        })
+                                    {
+                                        result.push((expr_id, *loop_expr));
+                                    }
                                 }
+                                // The expression depends on some other variable that
+                                // was not defined by a `for` loop (for instance, a
+                                // `with` statement). In such cases we don't move the
+                                // expression.
+                                Some(_) => {}
                             }
-                            // The expression depends on some other variable that
-                            // was not defined by a `for` loop (for instance, a
-                            // `with` statement). In such cases we don't move the
-                            // expression.
-                            Some(_) => {}
-                        },
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -1168,7 +1183,7 @@ impl IR {
     }
 
     pub fn hoisting(&mut self) -> ExprId {
-        for (expr_id, loop_expr_id) in self.compute_loop_dependencies() {
+        for (expr_id, loop_expr_id) in self.find_hoisting_candidates() {
             let loop_parent = self.get_parent(loop_expr_id);
 
             let var_index = self
