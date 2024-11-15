@@ -46,7 +46,9 @@ use serde::{Deserialize, Serialize};
 use yara_x_parser::Span;
 
 use crate::compiler::context::{Var, VarStack};
-use crate::compiler::ir::dfs::{dfs_common, DFSIter, Event, EventContext};
+use crate::compiler::ir::dfs::{
+    dfs_common, DFSIter, DFSWithScopeIter, Event, EventContext,
+};
 
 use crate::re;
 use crate::symbols::Symbol;
@@ -342,88 +344,6 @@ pub(crate) enum Error {
     NumberOutOfRange,
 }
 
-#[derive(Clone)]
-enum DeclaringExpr {
-    For(ExprId),
-    With(ExprId),
-}
-
-impl DeclaringExpr {
-    pub fn expr_id(&self) -> ExprId {
-        match self {
-            DeclaringExpr::For(expr_id) => *expr_id,
-            DeclaringExpr::With(expr_id) => *expr_id,
-        }
-    }
-}
-
-/// A stack of currently declared variables.
-///
-/// Each item in the stack contains the [`ExprId`] of the expression
-/// (either a `for` or `with` statement) that declared the variable
-/// and the variable's index.
-#[derive(Default)]
-struct DeclaredVariables(Vec<(DeclaringExpr, i32)>);
-
-impl DeclaredVariables {
-    pub fn push_for_var(&mut self, expr_id: ExprId, var_index: i32) {
-        self.0.push((DeclaringExpr::For(expr_id), var_index))
-    }
-
-    pub fn push_with_var(&mut self, expr_id: ExprId, var_index: i32) {
-        self.0.push((DeclaringExpr::With(expr_id), var_index))
-    }
-
-    pub fn pop_for_var(&mut self) {
-        let (decl, _) = self.0.pop().unwrap();
-        debug_assert!(matches!(decl, DeclaringExpr::For(_)));
-    }
-
-    pub fn pop_with_var(&mut self) {
-        let (decl, _) = self.0.pop().unwrap();
-        debug_assert!(matches!(decl, DeclaringExpr::With(_)));
-    }
-
-    /// Find a variable by its index.
-    pub fn find(&self, var_index: i32) -> Option<&DeclaringExpr> {
-        self.0.iter().find(|(_, v)| *v == var_index).map(|(stmt, _)| stmt)
-    }
-
-    /// Returns the [`ExprId`] corresponding to the current outermost loop.
-    pub fn outermost_loop(&self) -> Option<ExprId> {
-        // Iterate the variables stack starting from the bottom, where the
-        // outermost expressions are.
-        self.0
-            .iter()
-            .find(|(decl, _)| matches!(decl, DeclaringExpr::For(_)))
-            .map(|(decl, _)| decl.expr_id())
-    }
-
-    /// Returns the [`ExprId`] corresponding to loop that is directly inside
-    /// the one indicated by `loop_expr`.
-    pub fn loop_inside(&self, loop_expr: ExprId) -> Option<ExprId> {
-        let mut loop_exprs = self
-            .0
-            .iter()
-            .filter_map(|(decl, _)| {
-                if let DeclaringExpr::For(expr_id) = decl {
-                    Some(*expr_id)
-                } else {
-                    None
-                }
-            })
-            .unique();
-
-        while let Some(e) = loop_exprs.next() {
-            if e == loop_expr {
-                return loop_exprs.next();
-            }
-        }
-
-        None
-    }
-}
-
 /// Intermediate representation (IR) of a rule condition.
 ///
 /// The IR is a tree representing a rule condition. It is generated from the
@@ -548,7 +468,11 @@ impl IR {
     /// Returns an iterator that performs a depth first search starting at
     /// the given node.
     pub fn dfs_iter(&self, start: ExprId) -> DFSIter {
-        DFSIter::new(start, self.nodes.as_slice())
+        DFSIter::new(start, self)
+    }
+
+    pub fn dfs_with_scope(&self, start: ExprId) -> DFSWithScopeIter {
+        DFSWithScopeIter::new(start, self)
     }
 
     /// Performs a depth-first traversal of the IR tree, calling the `f`
@@ -1058,22 +982,18 @@ impl IR {
         // This vector contains one entry per node in the IR tree. Each entry
         // at `depends_on[expr_id]` provides information about the variable on
         // which the expression identified by `expr_id` depends.
+        //
         // - If `depends_on[expr_id]` is `None`, the expression does not depend
         //   on any variable.
-        // - If `depends_on[expr_id]` is `Some((e, v))`, then `v` is the index
-        //   of the variable the expression depends on. If the expression depends
-        //   on multiple loop variables, `v` will contain the index of the
-        //   outermost variable, (i.e., the variable corresponding to the
-        //   outermost loop or with statement). `e` is a `DeclaringExpr` that
-        //   contains the ExprId that identifies the expression that declared
-        //   the variable and whether it is a `for` or `with` statement.
+        //
+        // - If `depends_on[expr_id]` is `Some((e, v))`, then `e` is the ExprId
+        //   that identifies the expression that declared the variable, and `v`
+        //   is the index of the variable on which `expr_id` depends on. If the
+        //   expression depends on multiple variables, `depends_on[expr_id]`
+        //   will refer to the outermost variable (i.e., the variable that
+        //   corresponds to the outermost loop or with statement).
+        //
         let mut depends_on = vec![None; self.nodes.len()];
-
-        // This is a stack that contains one entry per each declared variable.
-        // Each entry contains a pair (DeclaringExpr, i32), where the first
-        // item identifies the expression that declared the variable and the
-        // second one is the variable's index.
-        let mut variables = DeclaredVariables::default();
 
         // The result is a vector of tuples (ExprId, ExprId), where the first
         // item is the expression that must be moved out of a loop, and the
@@ -1082,133 +1002,121 @@ impl IR {
         // second one.
         let mut result = Vec::new();
 
-        for event in self.dfs_iter(self.root.unwrap()) {
-            match event {
-                Event::Enter((expr_id, _, ctx)) => {
-                    // We are only interested in the body of statements that
-                    // have a body and declare variables, like `for` loops
-                    // and `with` statements.
-                    if !matches!(ctx, EventContext::Body) {
-                        continue;
+        let mut dfs = self.dfs_with_scope(self.root.unwrap());
+
+        while let Some(event) = dfs.next() {
+            let current_expr_id = match event {
+                Event::Enter(_) => continue,
+                Event::Leave((expr_id, _)) => expr_id,
+            };
+
+            let symbol = match self.get(current_expr_id) {
+                Expr::Symbol(symbol) => symbol,
+                _ => continue,
+            };
+
+            let var = match symbol.as_ref() {
+                Symbol::Var { var, .. } => var.index(),
+                _ => continue,
+            };
+
+            // Try to find the statement that declared the variable.
+            let stmt_declaring_var =
+                match dfs.scopes().find(|expr_id| match self.get(*expr_id) {
+                    Expr::With(with) => {
+                        with.declarations.iter().any(|(v, _)| v.index() == var)
                     }
-                    let parent = self.get_parent(expr_id).unwrap();
-                    match self.get(parent) {
-                        Expr::ForIn(for_in) => {
-                            for var in for_in.variables.iter() {
-                                variables.push_for_var(parent, var.index());
-                            }
-                        }
-                        Expr::With(with) => {
-                            for (var, _) in with.declarations.iter() {
-                                variables.push_with_var(parent, var.index());
-                            }
-                        }
+                    Expr::ForIn(for_in) => {
+                        for_in.variables.iter().any(|v| v.index() == var)
+                    }
+                    _ => false,
+                }) {
+                    Some(stmt) => stmt,
+                    None => continue,
+                };
+
+            // Iterate the ancestors of the current statement up to the
+            // statement that declared the variable (not included), and mark
+            // them as dependent on that variable.
+            for ancestor in self
+                .ancestors(current_expr_id)
+                .take_while(|ancestor| ancestor.ne(&stmt_declaring_var))
+            {
+                match &mut depends_on[ancestor.0 as usize] {
+                    // If already depends on some variable that was defined by
+                    // an inner expression, the existing dependency prevails.
+                    // We rely on the fact that variables defined by an inner
+                    // expression has a higher index.
+                    Some((_, v)) if *v >= var => {}
+                    // In all other cases, save the statement that declared the
+                    // variable (either a `with` or a `for` statement), the
+                    // loop that is immediately inside that statement, and the
+                    // variable itself.
+                    entry => *entry = Some((stmt_declaring_var, var)),
+                }
+            }
+        }
+
+        let mut dfs = self.dfs_with_scope(self.root.unwrap());
+
+        while let Some(event) = dfs.next() {
+            let (current_expr_id, ctx) = match event {
+                Event::Enter(_) => continue,
+                Event::Leave((expr_id, ctx)) => (expr_id, ctx),
+            };
+
+            match self.get(current_expr_id) {
+                // Constants and `filesize` are fast and don't need to be moved
+                // out of loops.
+                Expr::Const(_) | Expr::Filesize | Expr::Symbol(_) => {}
+                // All other expressions could be moved out of loops, except
+                // those that are operands of a field access. That's because
+                // the operands of a field access can depend on the results
+                // produced by their siblings. For instance, in `foo[i].bar[0]`
+                // `bar[0]` depends on the result produced by `foo[i]`,
+                // `bar[0]` doesn't depend on `i` itself, but it depends on the
+                // result of `foo[i]`, which does.
+                _ if !matches!(ctx, EventContext::FieldAccess) => {
+                    let current_depends_on =
+                        depends_on[current_expr_id.0 as usize];
+
+                    let parent_depends_on = self
+                        .get_parent(current_expr_id)
+                        .and_then(|e| depends_on[e.0 as usize]);
+
+                    match (current_depends_on, parent_depends_on) {
+                        (Some((c, _)), Some((p, _))) if c == p => continue,
                         _ => {}
                     }
-                }
-                Event::Leave((expr_id, expr, ctx)) => {
-                    if matches!(ctx, EventContext::Body) {
-                        // If leaving the body of some statement that declares
-                        // variables, remove the variables from the stack.
-                        let parent = self.get_parent(expr_id).unwrap();
-                        match self.get(parent) {
-                            Expr::ForIn(for_in) => {
-                                for _ in for_in.variables.iter().rev() {
-                                    variables.pop_for_var();
-                                }
+
+                    match current_depends_on {
+                        // The expression doesn't depend on any variable, move
+                        // it out of the outermost loop, if any.
+                        None => {
+                            if let Some(outermost) = dfs.for_stmts().next() {
+                                result.push((current_expr_id, outermost));
                             }
-                            Expr::With(with) => {
-                                for _ in with.declarations.iter().rev() {
-                                    variables.pop_with_var();
-                                }
-                            }
-                            _ => {}
                         }
-                    }
-                    match expr {
-                        // Constants and `filesize` are fast and don't need to
-                        // be moved out of loops.
-                        Expr::Const(_) | Expr::Filesize => {}
-                        // If the expression is a variable...
-                        Expr::Symbol(symbol) => {
-                            let var = match symbol.as_ref() {
-                                Symbol::Var { var, .. } => var.index(),
-                                _ => continue,
-                            };
-                            // ... try to find the statement that declared the
-                            // variable.
-                            let stmt_declaring_var = match variables.find(var)
-                            {
-                                Some(stmt) => stmt,
-                                None => continue,
-                            };
-                            // Iterate the ancestors of the current statement
-                            // up to the statement that declared the variable,
-                            // and mark them as dependent on that variable.
-                            let stmt_id = stmt_declaring_var.expr_id();
-                            for ancestor in self
-                                .ancestors(expr_id)
-                                .take_while(|ancestor| ancestor.ne(&stmt_id))
-                            {
-                                match &mut depends_on[ancestor.0 as usize] {
-                                    // If already depends on some variable that
-                                    // that was defined by an inner expression,
-                                    // the existing dependency prevails. We rely
-                                    // on the fact that variables defined by an
-                                    // inner expression has a higher index.
-                                    Some((_, v)) if *v >= var => {}
-                                    entry => {
-                                        *entry = Some((
-                                            stmt_declaring_var.clone(),
-                                            var,
-                                        ))
+                        // The expression depends on some variable that was
+                        // defined by `defining_expr`.
+                        Some((defining_expr, _)) => {
+                            if let Expr::ForIn(_) = self.get(defining_expr) {
+                                let mut scopes = dfs.for_stmts();
+                                // Find the loop that defined the variable...
+                                for expr_id in scopes.by_ref() {
+                                    if expr_id == defining_expr {
+                                        break;
                                     }
+                                }
+                                //
+                                if let Some(inner_loop) = scopes.next() {
+                                    result.push((current_expr_id, inner_loop));
                                 }
                             }
                         }
-                        // All other expressions could be moved out of loops,
-                        // except those that are operands of a field access.
-                        // That's because the operands of a field access can
-                        // depend on the results produced by their siblings.
-                        // For instance, in `foo[i].bar[0]` `bar[0]` depends
-                        // on the result produced by `foo[i]`, `bar[0]`
-                        // doesn't depend on `i` itself, but it depends on
-                        // the result of `foo[i]`, which does.
-                        _ if !matches!(ctx, EventContext::FieldAccess) => {
-                            match depends_on[expr_id.0 as usize] {
-                                // The expression doesn't depend on any variable,
-                                // move it out of the outermost statement, if any.
-                                None => {
-                                    if let Some(loop_expr) =
-                                        variables.outermost_loop()
-                                    {
-                                        result.push((expr_id, loop_expr));
-                                    }
-                                }
-                                // The expression depends on some loop variable,
-                                // it can be moved out of any loop that is inside
-                                // the one that declared the loop variable.
-                                Some((DeclaringExpr::For(loop_expr), _)) => {
-                                    // Find any loop that is directly inside the one
-                                    // identified by `loop_expr`. Which happens to
-                                    // be the loop that appears right after the last
-                                    // occurrence of `loop_expr` in the `loops`.
-                                    if let Some(loop_expr) =
-                                        variables.loop_inside(loop_expr)
-                                    {
-                                        result.push((expr_id, loop_expr));
-                                    }
-                                }
-                                // The expression depends on some other variable that
-                                // was not defined by a `for` loop (for instance, a
-                                // `with` statement). In such cases we don't move the
-                                // expression.
-                                Some(_) => {}
-                            }
-                        }
-                        _ => {}
                     }
                 }
+                _ => {}
             }
         }
 

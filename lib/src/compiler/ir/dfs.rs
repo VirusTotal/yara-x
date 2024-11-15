@@ -1,4 +1,5 @@
 use crate::compiler::ir::{Expr, ExprId, Iterable, MatchAnchor, Quantifier};
+use crate::compiler::IR;
 
 /// Events yielded by [`DFSIter`].
 pub(crate) enum Event<T> {
@@ -54,15 +55,15 @@ pub(crate) enum EventContext {
 /// ```
 ///
 pub(crate) struct DFSIter<'a> {
-    nodes: &'a [Expr],
+    ir: &'a IR,
     stack: Vec<Event<(ExprId, EventContext)>>,
 }
 
 impl<'a> DFSIter<'a> {
     /// Creates a new [`DFSIter`] that traverses the tree starting at a given
     /// node.
-    pub fn new(start: ExprId, nodes: &'a [Expr]) -> Self {
-        Self { nodes, stack: vec![Event::Enter((start, EventContext::None))] }
+    pub fn new(start: ExprId, ir: &'a IR) -> Self {
+        Self { ir, stack: vec![Event::Enter((start, EventContext::None))] }
     }
 
     /// Prunes the search tree, preventing the traversal from visiting the
@@ -97,18 +98,80 @@ impl<'a> Iterator for DFSIter<'a> {
 
         if let Event::Enter((expr, ctx)) = next {
             self.stack.push(Event::Leave((expr, ctx)));
-            dfs_common(&self.nodes[expr], &mut self.stack);
+            dfs_common(self.ir.get(expr), &mut self.stack);
         }
 
         let next = match next {
             Event::Enter((expr, ctx)) => {
-                Event::Enter((expr, &self.nodes[expr], ctx))
+                Event::Enter((expr, self.ir.get(expr), ctx))
             }
             Event::Leave((expr, ctx)) => {
-                Event::Leave((expr, &self.nodes[expr], ctx))
+                Event::Leave((expr, self.ir.get(expr), ctx))
             }
         };
 
+        Some(next)
+    }
+}
+
+pub(crate) struct DFSWithScopeIter<'a> {
+    ir: &'a IR,
+    dfs: DFSIter<'a>,
+    scopes: Vec<ExprId>,
+    pending_pop: bool,
+}
+
+impl<'a> DFSWithScopeIter<'a> {
+    pub fn new(start: ExprId, ir: &'a IR) -> Self {
+        DFSWithScopeIter {
+            ir,
+            dfs: ir.dfs_iter(start),
+            scopes: Vec::new(),
+            pending_pop: false,
+        }
+    }
+
+    pub fn scopes(&self) -> impl DoubleEndedIterator<Item = ExprId> + '_ {
+        self.scopes.iter().cloned()
+    }
+
+    pub fn for_stmts(&self) -> impl Iterator<Item = ExprId> + '_ {
+        self.scopes.iter().filter_map(|expr_id| match self.ir.get(*expr_id) {
+            Expr::ForIn(_) => Some(*expr_id),
+            _ => None,
+        })
+    }
+}
+
+impl<'a> Iterator for DFSWithScopeIter<'a> {
+    type Item = Event<(ExprId, EventContext)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pending_pop {
+            self.scopes.pop();
+            self.pending_pop = false;
+        }
+        let next = match self.dfs.next()? {
+            Event::Enter((expr_id, _, ctx)) => {
+                if matches!(ctx, EventContext::Body) {
+                    // If the current expression is the body of some other
+                    // expression, the current expression must have a parent.
+                    self.scopes.push(self.ir.get_parent(expr_id).unwrap());
+                }
+                Event::Enter((expr_id, ctx))
+            }
+            Event::Leave((expr_id, _, ctx)) => {
+                if matches!(ctx, EventContext::Body) {
+                    // Don't remove the scope at top of the stack right away.
+                    // If the user calls `scopes()` while processing the Leave
+                    // event, we want the current context to be there. We just
+                    // signal that the top of the stack must be popped the next
+                    // time.
+                    self.pending_pop = true;
+                }
+                Event::Leave((expr_id, ctx))
+            }
+        };
         Some(next)
     }
 }
@@ -289,9 +352,10 @@ pub(super) fn dfs_common(
 
 #[cfg(test)]
 mod tests {
+    use crate::compiler::context::VarStack;
     use crate::compiler::ir::dfs::{Event, EventContext};
     use crate::compiler::ir::{Expr, ExprId, IR};
-    use crate::types::TypeValue;
+    use crate::types::{Type, TypeValue};
 
     #[test]
     fn dfs() {
@@ -481,5 +545,63 @@ mod tests {
         });
 
         assert!(matches!(ir.get(add), Expr::Add { is_float: true, .. }));
+    }
+
+    #[test]
+    fn dfs_with_scope() {
+        let mut ir = IR::new();
+
+        let mut var_stack = VarStack::new();
+        let mut var_frame = var_stack.new_frame(1);
+
+        let const_1 = ir.constant(TypeValue::const_integer_from(2));
+        let with_body = ir.constant(TypeValue::const_bool_from(true));
+
+        let with = ir.with(
+            vec![(var_frame.new_var(Type::Integer), const_1)],
+            with_body,
+        );
+
+        let mut dfs = ir.dfs_with_scope(with);
+
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Enter((expr_id, EventContext::None))) if expr_id == with
+        ));
+
+        assert_eq!(dfs.scopes().collect::<Vec<_>>(), vec![]);
+
+        assert!(matches!(
+            dfs.next(),
+             Some(Event::Enter((expr_id, EventContext::None))) if expr_id == const_1
+        ));
+
+        assert_eq!(dfs.scopes().collect::<Vec<_>>(), vec![]);
+
+        assert!(matches!(
+            dfs.next(),
+             Some(Event::Leave((expr_id, EventContext::None))) if expr_id == const_1
+        ));
+
+        assert_eq!(dfs.scopes().collect::<Vec<_>>(), vec![]);
+
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Enter((expr_id, EventContext::Body))) if expr_id == with_body
+        ));
+
+        assert_eq!(dfs.scopes().collect::<Vec<_>>(), vec![with]);
+
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Leave((expr_id, EventContext::Body))) if expr_id == with_body
+        ));
+
+        assert_eq!(dfs.scopes().collect::<Vec<_>>(), vec![with]);
+
+        assert!(matches!(
+            dfs.next(),
+            Some(Event::Leave((expr_id, EventContext::None))) if expr_id == with
+        ));
     }
 }
