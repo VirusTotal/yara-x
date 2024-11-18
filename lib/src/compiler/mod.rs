@@ -454,7 +454,7 @@ impl<'a> Compiler<'a> {
             wasm_exports,
             relaxed_re_syntax: false,
             cse: false,
-            hoisting: true,
+            hoisting: false,
             error_on_slow_pattern: false,
             error_on_slow_loop: false,
             next_pattern_id: PatternId(0),
