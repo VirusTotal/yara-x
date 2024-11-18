@@ -1178,20 +1178,6 @@ impl IR {
         for (expr_id, loop_expr_id) in self.find_hoisting_candidates() {
             let loop_parent = self.get_parent(loop_expr_id);
 
-            // Special case in which the expression being extracted from the
-            // loop is the loop's body. In that case the loop can be completely
-            // removed.
-            if self.get_parent(expr_id) == Some(loop_expr_id) {
-                if let Some(loop_parent) = loop_parent {
-                    self.set_parent(expr_id, loop_parent);
-                    self.get_mut(loop_parent)
-                        .replace_child(loop_expr_id, expr_id);
-                } else {
-                    self.root = Some(expr_id);
-                }
-                return self.root.unwrap();
-            }
-
             let var_index = self
                 .ancestors(loop_expr_id)
                 .map(|expr_id| self.get(expr_id).stack_frame_size())
