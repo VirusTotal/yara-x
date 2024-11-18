@@ -103,7 +103,12 @@ fn ir() {
         let mut compiler = Compiler::new();
         let w = BufWriter::new(output_file);
 
-        compiler.set_ir_writer(w).add_source(source.as_str()).unwrap();
+        compiler
+            .common_subexpression_elimination(false)
+            .hoisting(false)
+            .set_ir_writer(w)
+            .add_source(source.as_str())
+            .unwrap();
 
         #[cfg(feature = "constant-folding")]
         {
@@ -114,6 +119,7 @@ fn ir() {
 
             compiler
                 .common_subexpression_elimination(true)
+                .hoisting(false)
                 .set_ir_writer(w)
                 .add_source(source.as_str())
                 .unwrap();
@@ -124,6 +130,7 @@ fn ir() {
             let w = BufWriter::new(output_file);
 
             compiler
+                .common_subexpression_elimination(false)
                 .hoisting(true)
                 .set_ir_writer(w)
                 .add_source(source.as_str())
