@@ -563,6 +563,24 @@ fn with() {
     );
 
     #[cfg(feature = "test_proto2-module")]
+    condition_false!(r#"with foo = test_proto2.undef_i64(): (foo == 1)"#);
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"not defined with foo = test_proto2.undef_i64(): (foo == 1)"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"with 
+              foo = test_proto2.undef_i64(), 
+              bar = 1 : 
+           (
+              not defined foo and bar == 1
+           )"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
     condition_true!(
         r#"with
               bar = test_proto2.array_string[1],

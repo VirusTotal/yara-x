@@ -2133,10 +2133,20 @@ fn emit_with(
     instr: &mut InstrSeqBuilder,
 ) {
     // Emit the code that sets the variables in the `with` statement.
-    for (id, expr) in declarations.iter() {
-        set_var(ctx, instr, *id, |ctx, instr| {
-            emit_expr(ctx, ir, *expr, instr);
-        });
+    for (id, expr) in declarations.iter().cloned() {
+        catch_undef(
+            ctx,
+            None,
+            instr,
+            |ctx, instr| {
+                set_var(ctx, instr, id, |ctx, instr| {
+                    emit_expr(ctx, ir, expr, instr);
+                });
+            },
+            move |ctx, instr| {
+                set_var_undef(ctx, instr, id, true);
+            },
+        );
     }
 
     // Emit the code that evaluates the body of the `with` statement.
