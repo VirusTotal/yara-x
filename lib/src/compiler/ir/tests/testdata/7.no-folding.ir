@@ -1,4 +1,4 @@
-RULE test
+RULE test_1
   23: FOR_IN -- hash: 0xa2c91e5c3f78a7de -- parent: None 
     0: CONST integer(0) -- parent: 23 
     1: CONST integer(1) -- parent: 23 
@@ -13,4 +13,13 @@ RULE test
           17: SYMBOL Field { index: 5, is_root: false, type_value: array, acl: None } -- parent: 19 
           18: CONST integer(0) -- parent: 19 
       21: CONST integer(0) -- parent: 22 
+
+RULE test_2
+  10: DEFINED -- hash: 0xa9c934d5341dd128 -- parent: None 
+    9: FOR_IN -- hash: 0x47af473e5ce6edf4 -- parent: 10 
+      0: CONST integer(0) -- parent: 9 
+      1: CONST integer(10) -- parent: 9 
+      8: EQ -- hash: 0xc505f68cf1115633 -- parent: 9 
+        6: FN_CALL test_proto2.undef_i64@@iu -- hash: 0x683a6ff805737265 -- parent: 8 
+        7: CONST integer(0) -- parent: 8 
 
