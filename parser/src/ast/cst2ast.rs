@@ -989,7 +989,7 @@ impl<'src> Builder<'src> {
         self.expect(COLON)?;
         self.expect(L_PAREN)?;
 
-        let condition = self.boolean_expr()?;
+        let body = self.boolean_expr()?;
 
         // The span goes form the `for` keyword to the closing parenthesis.
         let span = for_span.combine(&self.expect(R_PAREN)?);
@@ -1001,7 +1001,7 @@ impl<'src> Builder<'src> {
                 span,
                 quantifier,
                 pattern_set,
-                body: condition,
+                body,
             }))
         } else if let Some(iterable) = iterable {
             Expr::ForIn(Box::new(ForIn {
@@ -1009,7 +1009,7 @@ impl<'src> Builder<'src> {
                 quantifier,
                 variables,
                 iterable,
-                body: condition,
+                body,
             }))
         } else {
             unreachable!()
@@ -1085,13 +1085,13 @@ impl<'src> Builder<'src> {
         self.expect(COLON)?;
         self.expect(L_PAREN)?;
 
-        let condition = self.boolean_expr()?;
+        let body = self.boolean_expr()?;
 
         span = span.combine(&self.expect(R_PAREN)?);
 
         self.end(WITH_EXPR)?;
 
-        Ok(Expr::With(Box::new(With { span, declarations, body: condition })))
+        Ok(Expr::With(Box::new(With { span, declarations, body })))
     }
 
     fn quantifier(&mut self) -> Result<Quantifier<'src>, BuilderError> {
