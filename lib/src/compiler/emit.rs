@@ -656,13 +656,7 @@ fn emit_expr(
         }
 
         Expr::With(with) => {
-            emit_with(
-                ctx,
-                ir,
-                with.declarations.as_slice(),
-                with.condition,
-                instr,
-            );
+            emit_with(ctx, ir, with.declarations.as_slice(), with.body, instr);
         }
     }
 }
@@ -1402,7 +1396,7 @@ fn emit_of_pattern_set(
                 });
             });
         },
-        // Condition
+        // Body
         |ctx, instr| {
             // Push the pattern ID into the stack.
             load_var(ctx, instr, next_pattern_id);
@@ -1474,7 +1468,7 @@ fn emit_of_expr_tuple(
                 );
             });
         },
-        // Condition.
+        // Body.
         |ctx, instr| {
             load_var(ctx, instr, next_item);
         },
@@ -1519,9 +1513,9 @@ fn emit_for_of_pattern_set(
                 });
             });
         },
-        // Condition
+        // Body.
         |ctx, instr| {
-            emit_bool_expr(ctx, ir, for_of.condition, instr);
+            emit_bool_expr(ctx, ir, for_of.body, instr);
         },
         // After each iteration.
         |_, _, _| {},
@@ -1597,9 +1591,9 @@ fn emit_for_in_range(
         },
         // Before each iteration.
         |_, _, _| {},
-        // Condition.
+        // Body.
         |ctx, instr| {
-            emit_bool_expr(ctx, ir, for_in.condition, instr);
+            emit_bool_expr(ctx, ir, for_in.body, instr);
         },
         // After each iteration.
         |ctx, instr, _| {
@@ -1691,7 +1685,7 @@ fn emit_for_in_array(
             });
         },
         |ctx, instr| {
-            emit_bool_expr(ctx, ir, for_in.condition, instr);
+            emit_bool_expr(ctx, ir, for_in.body, instr);
         },
         // After each iteration.
         |_, _, _| {},
@@ -1759,9 +1753,9 @@ fn emit_for_in_map(
                 emit_map_lookup_by_index(ctx, instr, &map);
             });
         },
-        // Condition.
+        // Body.
         |ctx, instr| {
-            emit_bool_expr(ctx, ir, for_in.condition, instr);
+            emit_bool_expr(ctx, ir, for_in.body, instr);
         },
         // After each iteration.
         |_, _, _| {},
@@ -1828,9 +1822,9 @@ fn emit_for_in_expr_tuple(
                 },
             );
         },
-        // Condition.
+        // Body.
         |ctx, instr| {
-            emit_bool_expr(ctx, ir, for_in.condition, instr);
+            emit_bool_expr(ctx, ir, for_in.body, instr);
         },
         // After each iteration.
         |_, _, _| {},
@@ -1842,7 +1836,7 @@ fn emit_for_in_expr_tuple(
 ///
 /// This function allows creating different types of `for` loops by receiving
 /// other functions that emit the loop initialization code, the code that gets
-/// executed just before and after each iteration, and the for condition.
+/// executed just before and after each iteration, and the `for` body.
 ///
 /// `loop_init` is the function that emits the initialization code, which is
 /// executed only once, before the loop itself. This code should initialize
@@ -1850,15 +1844,15 @@ fn emit_for_in_expr_tuple(
 /// being iterated. This code should not leave anything on the stack.
 ///
 /// `before_cond` emits the code that gets executed on every iteration just
-/// before the loop's condition. The code produced by `before_cond` must set
-/// the loop variable(s) used by the condition to the value(s) corresponding
-/// to the current iteration. This code should not leave anything on the stack.
+/// before the loop's body. The code produced by `before_cond` must set the
+/// loop variable(s) used by the body to the value(s) corresponding to the
+/// current iteration. This code should not leave anything on the stack.
 ///
-/// `cond` emits the loop's condition, it should leave an I32 on the stack with
+/// `body` emits the loop's body, it should leave an I32 on the stack with
 /// value 0 or 1.
 ///
 /// `after_cond` emits the code that gets executed on every iteration after
-/// the loop's condition. This code should not leave anything on the stack.
+/// the loop's body. This code should not leave anything on the stack.
 #[allow(clippy::too_many_arguments)]
 fn emit_for<I, B, C, A>(
     ctx: &mut EmitContext,
@@ -1867,7 +1861,7 @@ fn emit_for<I, B, C, A>(
     quantifier: &Quantifier,
     loop_init: I,
     before_cond: B,
-    condition: C,
+    body: C,
     after_cond: A,
     instr: &mut InstrSeqBuilder,
 ) where
@@ -1884,7 +1878,7 @@ fn emit_for<I, B, C, A>(
     let i = for_vars.i;
 
     // Function that increments `i` and checks if `i` < `n` after each
-    // iteration, repeating the loop while the condition is true.
+    // iteration, repeating the loop while the body returns true.
     let incr_i_and_repeat =
         |ctx: &mut EmitContext,
          instr: &mut InstrSeqBuilder,
@@ -1924,10 +1918,10 @@ fn emit_for<I, B, C, A>(
 
         let (max_count, count) = match p {
             Some((quantifier, is_percentage)) => {
-                // `max_count` is the number of loop conditions that must return
+                // `max_count` is the number of loop iterations that must return
                 // `true` for the loop to be `true`.
                 let max_count = for_vars.max_count;
-                // `count` is the number of loop conditions that actually
+                // `count` is the number of loop iterations that actually
                 // returned `true`. This is initially zero.
                 let count = for_vars.count;
 
@@ -1974,16 +1968,16 @@ fn emit_for<I, B, C, A>(
             // Emit code that advances to next item.
             before_cond(ctx, block, i);
 
-            // Emit code for the loop's condition. Use `catch_undef` for
-            // capturing any undefined exception produced by the condition
-            // because we don't want to abort the loop in such cases. When the
-            // condition is undefined it's handled as a false.
+            // Emit code for the loop's body. Use `catch_undef` for
+            // capturing any undefined exception produced by the body because
+            // we don't want to abort the loop in such cases. When the body's
+            // result is undefined it's handled as a false.
             catch_undef(
                 ctx,
                 I32,
                 block,
                 |ctx, block| {
-                    condition(ctx, block);
+                    body(ctx, block);
                 },
                 |_, instr| {
                     instr.i32_const(0);
@@ -1991,25 +1985,23 @@ fn emit_for<I, B, C, A>(
             );
 
             // At the top of the stack we have the i32 with the result from
-            // the loop condition. Decide what to do depending on the
-            // quantifier.
+            // the loop body. Decide what to do depending on the quantifier.
             match quantifier {
                 Quantifier::None { .. } => {
                     block.if_else(
                         I32,
                         |then_| {
-                            // If the condition returned true, break the loop with
+                            // If the body returned true, break the loop with
                             // result false.
                             then_.i32_const(0);
                             then_.br(loop_end);
                         },
                         |else_| {
                             incr_i_and_repeat(ctx, else_, n, i, loop_start);
-
                             // If this point is reached is because all the
-                            // range was iterated without the condition
-                            // returning true, this means that the whole "for"
-                            // statement is true.
+                            // range was iterated without the body returning
+                            // true, this means that the whole "for" statement
+                            // is true.
                             else_.i32_const(1);
                             else_.br(loop_end);
                         },
@@ -2020,17 +2012,16 @@ fn emit_for<I, B, C, A>(
                         I32,
                         |then_| {
                             incr_i_and_repeat(ctx, then_, n, i, loop_start);
-
                             // If this point is reached is because all the
-                            // range was iterated without the condition
-                            // returning false, this means that the whole "for"
+                            // range was iterated without the body returning
+                            // false, this means that the whole "for"
                             // statement is true.
                             then_.i32_const(1);
                             then_.br(loop_end);
                         },
                         |else_| {
-                            // If the condition returned false, break the loop with
-                            // result false.
+                            // If the body returned false, break the loop
+                            // with result false.
                             else_.i32_const(0);
                             else_.br(loop_end);
                         },
@@ -2040,17 +2031,16 @@ fn emit_for<I, B, C, A>(
                     block.if_else(
                         I32,
                         |then_| {
-                            // If the condition returned true, break the loop with
+                            // If the body returned true, break the loop with
                             // result true.
                             then_.i32_const(1);
                             then_.br(loop_end);
                         },
                         |else_| {
                             incr_i_and_repeat(ctx, else_, n, i, loop_start);
-
                             // If this point is reached is because all the
-                            // range was iterated without the condition
-                            // returning true, this means that the whole "for"
+                            // range was iterated without the body returning
+                            // true, this means that the whole "for"
                             // statement is false.
                             else_.i32_const(0);
                             else_.br(loop_end);
@@ -2061,7 +2051,7 @@ fn emit_for<I, B, C, A>(
                     block.if_else(
                         None,
                         |then_| {
-                            // The condition was true, increment count.
+                            // The body was true, increment count.
                             incr_var(ctx, then_, count);
 
                             // Is counter >= quantifier?.
@@ -2134,12 +2124,12 @@ fn emit_for<I, B, C, A>(
 /// `with` statement.
 /// For each pair, the code emitted by this function sets the variable
 /// corresponding to the identifier to the value of the emitted expression.
-/// Those variables are later used in the condition of the `with` statement.
+/// Those variables are later used in the body of the `with` statement.
 fn emit_with(
     ctx: &mut EmitContext,
     ir: &IR,
     declarations: &[(Var, ExprId)],
-    condition: ExprId,
+    body: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
     // Emit the code that sets the variables in the `with` statement.
@@ -2149,8 +2139,8 @@ fn emit_with(
         });
     }
 
-    // Emit the code that evaluates the condition of the `with` statement.
-    emit_expr(ctx, ir, condition, instr)
+    // Emit the code that evaluates the body of the `with` statement.
+    emit_expr(ctx, ir, body, instr)
 }
 
 /// Produces a switch statement by calling a `branch_generator` function

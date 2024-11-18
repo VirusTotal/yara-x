@@ -1,0 +1,8 @@
+import "test_proto2"
+
+rule test {
+  condition:
+    for any i in (0..1) : (
+      test_proto2.array_struct[i].nested_array_int64[0] == 0
+    )
+}
