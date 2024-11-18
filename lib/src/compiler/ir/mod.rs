@@ -967,17 +967,41 @@ impl IR {
         self.root.unwrap()
     }
 
-    /// Traverses the IR (Intermediate Representation) tree to identify
-    /// loop-invariant expressions that can be safely moved outside the loop
-    /// they are nested in.
+    /// Traverses the IR tree identifying loop-invariant expressions that can
+    /// be safely moved outside the loop they are nested in.
     ///
     /// This function returns a vector of pairs `(ExprId, ExprId)`, where the
     /// first element represents the ID of an expression that can be moved out
     /// of a loop, and the second represents the ID of the loop from which it
-    /// can be moved. The loop ID always corresponds to the outermost loop in
-    /// which the expression is invariant.
+    /// can be moved. This always corresponds to the outermost loop in which
+    /// the expression remains invariant. See: [`IR::hoisting`].
     ///
-    /// See: [`IR::hoisting`]
+    /// # Algorithm Overview
+    ///
+    /// ## Step 1: Dependency Analysis
+    ///
+    /// - Traverse the IR tree in **Depth-First Search (DFS)** order to compute
+    ///   variable dependencies for each expression.
+    /// - When a node uses a variable, mark all its ancestors (up to the root)
+    ///   as dependent on that variable, unless the node is already marked
+    ///   dependent on a variable declared in a statement lower in the tree
+    ///   (closer to the leaves).
+    /// - This results in a dependency vector where each element corresponds to
+    ///   an IR node, specifying the variable(s) upon which the corresponding
+    ///   expression depends.
+    ///
+    /// ## Step 2: Hoisting candidates identification
+    ///
+    /// - Traverse the IR tree again in **DFS** order, processing nodes during
+    ///   the "leave" event (when recursion unwinds). This ensures that nodes
+    ///   closer to the leaves are visited first.
+    /// - Add a node to the result vector only if its parent does not depend on
+    ///   the same variable. This avoids hoisting sub-expressions that are part
+    ///   of a larger expression also eligible to be hoisted from the same loop.
+    ///
+    /// The final result is a list of loop-invariant expressions and the loops
+    /// they can be hoisted from, ensuring optimal code motion without redundant
+    /// or unnecessary hoisting.
     pub fn find_hoisting_candidates(&self) -> Vec<(ExprId, ExprId)> {
         // This vector contains one entry per node in the IR tree. Each entry
         // at `depends_on[expr_id]` provides information about the variable on
@@ -1006,8 +1030,8 @@ impl IR {
 
         while let Some(event) = dfs.next() {
             let current_expr_id = match event {
-                Event::Enter(_) => continue,
-                Event::Leave((expr_id, _)) => expr_id,
+                Event::Enter((expr_id, _)) => expr_id,
+                Event::Leave(_) => continue,
             };
 
             let symbol = match self.get(current_expr_id) {
@@ -1100,18 +1124,23 @@ impl IR {
                         // The expression depends on some variable that was
                         // defined by `defining_expr`.
                         Some((defining_expr, _)) => {
-                            if let Expr::ForIn(_) = self.get(defining_expr) {
-                                let mut scopes = dfs.for_stmts();
-                                // Find the loop that defined the variable...
-                                for expr_id in scopes.by_ref() {
-                                    if expr_id == defining_expr {
-                                        break;
-                                    }
+                            // If the expression defining the variable is not a
+                            // loop, there's nothing else to do.
+                            match self.get(defining_expr) {
+                                Expr::ForIn(_) => {}
+                                _ => continue,
+                            }
+                            let mut scopes = dfs.for_stmts();
+                            // Find the loop that defined the variable...
+                            for expr_id in scopes.by_ref() {
+                                if expr_id == defining_expr {
+                                    break;
                                 }
-                                //
-                                if let Some(inner_loop) = scopes.next() {
-                                    result.push((current_expr_id, inner_loop));
-                                }
+                            }
+                            // .. and take the loop that inside directly inside
+                            // the one that defined the variable
+                            if let Some(inner_loop) = scopes.next() {
+                                result.push((current_expr_id, inner_loop));
                             }
                         }
                     }
@@ -1148,6 +1177,20 @@ impl IR {
     pub fn hoisting(&mut self) -> ExprId {
         for (expr_id, loop_expr_id) in self.find_hoisting_candidates() {
             let loop_parent = self.get_parent(loop_expr_id);
+
+            // Special case in which the expression being extracted from the
+            // loop is the loop's body. In that case the loop can be completely
+            // removed.
+            if self.get_parent(expr_id) == Some(loop_expr_id) {
+                if let Some(loop_parent) = loop_parent {
+                    self.set_parent(expr_id, loop_parent);
+                    self.get_mut(loop_parent)
+                        .replace_child(loop_expr_id, expr_id);
+                } else {
+                    self.root = Some(expr_id);
+                }
+                return self.root.unwrap();
+            }
 
             let var_index = self
                 .ancestors(loop_expr_id)
@@ -2780,6 +2823,8 @@ impl Expr {
         }
     }
 
+    /// Search for a specific child of the current expression and replace it
+    /// with `replacement`.
     pub fn replace_child(&mut self, child: ExprId, replacement: ExprId) {
         let replace_in_slice = |exprs: &mut [ExprId]| {
             for expr in exprs {
