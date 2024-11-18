@@ -3427,7 +3427,7 @@ fn test_defined_1() {
     condition_true!(r#"defined (true and false)"#);
     condition_false!(r#"defined true and false"#);
 }
-/* TODO
+
 #[test]
 #[cfg(feature = "test_proto2-module")]
 fn test_defined_2() {
@@ -3436,7 +3436,7 @@ fn test_defined_2() {
     condition_true!(
         r#"defined (for any x in (0..10) : (test_proto2.undef_i64() == 0))"#
     );
-}*/
+}
 
 #[test]
 #[cfg(feature = "test_proto3-module")]
