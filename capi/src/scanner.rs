@@ -1,4 +1,6 @@
-use std::ffi::{c_char, CStr};
+#[cfg(feature = "rules-profiling")]
+use std::ffi::CString;
+use std::ffi::{c_char, c_void, CStr};
 use std::slice;
 use std::time::Duration;
 
@@ -301,4 +303,59 @@ unsafe fn slice_from_ptr_and_len<'a>(
         slice::from_raw_parts(data, len)
     };
     Some(data)
+}
+
+/// Callback function passed to [`yrx_scanner_iter_most_expensive_rules`].
+///
+/// The callback function receives pointers to the namespace and rule name,
+/// and two float numbers with the time spent by the rule matching patterns
+/// and executing its condition. The pointers are valid as long as the callback
+/// function is being executed, but will be freed after the callback returns.
+///
+/// The callback also receives a `user_data` pointer that can point to arbitrary
+/// data owned by the user.
+///
+/// Requires the `rules-profiling` feature.
+pub type YRX_MOST_EXPENSIVE_RULES_CALLBACK = extern "C" fn(
+    namespace: *const c_char,
+    rule: *const c_char,
+    pattern_matching_time: f64,
+    condition_exec_time: f64,
+    user_data: *mut c_void,
+) -> ();
+
+/// Iterates over the top N most expensive rules, calling the callback for
+/// each rule.
+///
+/// Requires the `rules-profiling` feature.
+///
+/// See [`YRX_MOST_EXPENSIVE_RULES_CALLBACK`] for more details.
+#[cfg(feature = "rules-profiling")]
+#[no_mangle]
+pub unsafe extern "C" fn yrx_scanner_iter_most_expensive_rules(
+    scanner: *mut YRX_SCANNER,
+    n: usize,
+    callback: YRX_MOST_EXPENSIVE_RULES_CALLBACK,
+    user_data: *mut c_void,
+) -> YRX_RESULT {
+    if scanner.is_null() {
+        return YRX_RESULT::INVALID_ARGUMENT;
+    }
+
+    let scanner = scanner.as_ref().unwrap();
+
+    for profiling_info in scanner.inner.most_expensive_rules(n) {
+        let namespace = CString::new(profiling_info.namespace).unwrap();
+        let rule = CString::new(profiling_info.rule).unwrap();
+
+        callback(
+            namespace.as_ptr(),
+            rule.as_ptr(),
+            profiling_info.pattern_matching_time.as_secs_f64(),
+            profiling_info.condition_exec_time.as_secs_f64(),
+            user_data,
+        );
+    }
+
+    YRX_RESULT::SUCCESS
 }
