@@ -446,6 +446,39 @@ fn import_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     Some(RuntimeString::new(digest))
 }
 
+/// Returns an md5 hash of the symbol table in the mach-o binary
+#[module_export]
+fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
+    let macho = ctx.module_output::<Macho>()?;
+    let mut md5_hash = Md5::new();
+    let mut symtab_to_hash = &macho.symtab.entries;
+
+    // if there is not a symbtol table in the main Macho, the symbol table of the
+    // nested file should be hashed
+    if symtab_to_hash.is_empty() && !macho.file.is_empty() {
+        symtab_to_hash = &macho.file[0].symtab.entries;
+    }
+
+    // we need to check again as the nested symbol table could be empty too
+    if symtab_to_hash.is_empty() {
+        return None;
+    }
+
+    let symtab_hash_str: String = symtab_to_hash
+        .iter()
+        .filter_map(|e| {
+            Some(String::from_utf8(e.to_vec()).unwrap().trim().to_lowercase())
+        })
+        .unique()
+        .sorted()
+        .join(",");
+
+    md5_hash.update(symtab_hash_str.as_bytes());
+
+    let digest = format!("{:x}", md5_hash.finalize());
+    Some(RuntimeString::new(digest))
+}
+
 #[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> Macho {
     match parser::MachO::parse(data) {
