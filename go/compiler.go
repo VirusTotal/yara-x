@@ -102,10 +102,10 @@ func RelaxedReSyntax(yes bool) CompileOption {
 // improving performance during the evaluation of rule conditions that
 // contains loops.
 func Hoisting(yes bool) CompileOption {
-  return func(c *Compiler) error {
-    c.hoisting = yes
-    return nil
-  }
+	return func(c *Compiler) error {
+		c.hoisting = yes
+		return nil
+	}
 }
 
 // ErrorOnSlowPattern is an option for [NewCompiler] and [Compile] that
@@ -268,9 +268,9 @@ func NewCompiler(opts ...CompileOption) (*Compiler, error) {
 		flags |= C.YRX_RELAXED_RE_SYNTAX
 	}
 
-  if c.hoisting {
-    flags |= C.YRX_ENABLE_HOISTING
-  }
+	if c.hoisting {
+		flags |= C.YRX_ENABLE_HOISTING
+	}
 
 	if c.errorOnSlowPattern {
 		flags |= C.YRX_ERROR_ON_SLOW_PATTERN
