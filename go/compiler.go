@@ -97,6 +97,17 @@ func RelaxedReSyntax(yes bool) CompileOption {
 	}
 }
 
+// Hoisting is an option for [NewCompiler] and [Compile] that enables a
+// compiler optimization that moves invariant expressions out of loops,
+// improving performance during the evaluation of rule conditions that
+// contains loops.
+func Hoisting(yes bool) CompileOption {
+  return func(c *Compiler) error {
+    c.hoisting = yes
+    return nil
+  }
+}
+
 // ErrorOnSlowPattern is an option for [NewCompiler] and [Compile] that
 // tells the compiler to treat slow patterns as errors instead of warnings.
 func ErrorOnSlowPattern(yes bool) CompileOption {
@@ -228,6 +239,7 @@ type bannedModule struct {
 type Compiler struct {
 	cCompiler          *C.YRX_COMPILER
 	relaxedReSyntax    bool
+	hoisting           bool
 	errorOnSlowPattern bool
 	errorOnSlowLoop    bool
 	ignoredModules     map[string]bool
@@ -255,6 +267,10 @@ func NewCompiler(opts ...CompileOption) (*Compiler, error) {
 	if c.relaxedReSyntax {
 		flags |= C.YRX_RELAXED_RE_SYNTAX
 	}
+
+  if c.hoisting {
+    flags |= C.YRX_ENABLE_HOISTING
+  }
 
 	if c.errorOnSlowPattern {
 		flags |= C.YRX_ERROR_ON_SLOW_PATTERN
