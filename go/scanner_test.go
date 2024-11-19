@@ -97,10 +97,10 @@ func TestScannerMostExpensiveRules(t *testing.T) {
 	_, err := s.Scan(bytes.Repeat([]byte("a"), 5000))
 	assert.NoError(t, err)
 	profilingInfo := s.MostExpensiveRules(1)
-	assert.Equal(t, "t", profilingInfo[0].rule)
-	assert.Equal(t, "default", profilingInfo[0].namespace)
-	assert.Greater(t, profilingInfo[0].patternMatchingTime, float64(0))
-	assert.Greater(t, profilingInfo[0].conditionExecTime, float64(0))
+	assert.Equal(t, "t", profilingInfo[0].Rule)
+	assert.Equal(t, "default", profilingInfo[0].Namespace)
+	assert.Greater(t, profilingInfo[0].PatternMatchingTime, float64(0))
+	assert.Greater(t, profilingInfo[0].ConditionExecTime, float64(0))
 }
 
 func TestScannerMetadata(t *testing.T) {

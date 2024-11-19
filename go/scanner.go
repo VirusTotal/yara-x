@@ -248,10 +248,10 @@ func (s *Scanner) Scan(buf []byte) (*ScanResults, error) {
 }
 
 type ProfilingInfo struct {
-	namespace           string
-	rule                string
-	patternMatchingTime float64
-	conditionExecTime   float64
+	Namespace           string
+	Rule                string
+	PatternMatchingTime float64
+	ConditionExecTime   float64
 }
 
 // This is the callback called by yrx_rule_iter_patterns.
@@ -269,10 +269,10 @@ func mostExpensiveRulesCallback(
 		panic("mostExpensiveRulesCallback didn't receive a *[]ProfilingInfo")
 	}
 	*profilingInfo = append(*profilingInfo, ProfilingInfo{
-		namespace:           C.GoString(namespace),
-		rule:                C.GoString(rule),
-		patternMatchingTime: float64(patternMatchingTime),
-		conditionExecTime:   float64(condExecTime),
+		Namespace:           C.GoString(namespace),
+		Rule:                C.GoString(rule),
+		PatternMatchingTime: float64(patternMatchingTime),
+		ConditionExecTime:   float64(condExecTime),
 	})
 }
 
