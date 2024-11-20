@@ -838,11 +838,19 @@ impl IR {
                         Some(hash) => hash,
                         None => continue 'dfs,
                     };
-                    // When the entry was not found is because it was
-                    // previously deleted while processing another expression
-                    // that was equal to the current one. In such cases we
-                    // won't need to traverse the current expression.
-                    if !map.contains_key(hash) {
+                    if let Some(exprs) = map.get(hash) {
+                        // When the current expression is equal to some other
+                        // expression, we don't want to traverse its children, as
+                        // the children are going to be equal to the other
+                        // expression's children.
+                        if exprs.len() > 1 {
+                            dfs.prune();
+                        }
+                    } else {
+                        // When the entry was not found is because it was
+                        // previously deleted while processing another expression
+                        // that was equal to the current one. In such cases we
+                        // won't need to traverse the current expression.
                         dfs.prune();
                     }
                 }
@@ -858,15 +866,7 @@ impl IR {
                     // processed only once.
                     let exprs = match map.remove(hash) {
                         Some(exprs) => exprs,
-                        None => {
-                            // When the entry was not found is because it was
-                            // previously deleted while processing another
-                            // expression that was equal to the current one.
-                            // In such cases we don't need to traverse the
-                            // current expression.
-                            dfs.prune();
-                            continue 'dfs;
-                        }
+                        None => continue 'dfs,
                     };
                     // Make sure that all the expressions are actually equal.
                     // All the expressions have the same hash, but that's not
@@ -881,11 +881,6 @@ impl IR {
                             self.common_ancestor(exprs.as_slice()),
                             exprs,
                         ));
-                        // When the current expression is equal to some other
-                        // expression, we don't want to traverse its children, as
-                        // the children are going to be equal to the other
-                        // expression's children.
-                        dfs.prune();
                     }
                 }
             }

@@ -31,34 +31,34 @@ RULE test_1
           65: CONST integer(1) -- parent: 66 
 
 RULE test_2
-  69: WITH -- hash: 0xcce1f277c1378633 -- parent: None 
-    68: FIELD_ACCESS -- hash: 0xa67f64b2db1d0351 -- parent: 69 
-      16: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 68 
-      17: SYMBOL Field { index: 48, is_root: false, type_value: array, acl: None } -- parent: 68 
-    71: WITH -- hash: 0x1f446e96279cfebe -- parent: 69 
-      70: LOOKUP -- hash: 0x494df389cb9b0e5f -- parent: 71 
-        18: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 0 }, type_value: array } -- parent: 70 
-        19: CONST integer(1) -- parent: 70 
-      67: AND -- hash: 0x7fd50c4fd6bd25cd -- parent: 71 
-        32: EQ -- hash: 0xb1263eb1bd8669da -- parent: 67 
-          30: ADD -- hash: 0x95970c2e0dd6d28c -- parent: 32 
-            22: FIELD_ACCESS -- hash: 0xe260ad51532c7aaf -- parent: 30 
-              20: SYMBOL Var { var: Var { frame_id: 0, ty: struct, index: 1 }, type_value: struct } -- parent: 22 
+  69: WITH -- hash: 0x18225570b92137bc -- parent: None 
+    68: LOOKUP -- hash: 0xa8fe9feedaeeb170 -- parent: 69 
+      18: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 1 }, type_value: array } -- parent: 68 
+      19: CONST integer(1) -- parent: 68 
+    71: WITH -- hash: 0xaf645e5729fe1a3d -- parent: 69 
+      70: FIELD_ACCESS -- hash: 0xa67f64b2db1d0351 -- parent: 71 
+        16: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 70 
+        17: SYMBOL Field { index: 48, is_root: false, type_value: array, acl: None } -- parent: 70 
+      67: AND -- hash: 0x8cc1c56d1bd6745a -- parent: 71 
+        32: EQ -- hash: 0x556fd726636234c6 -- parent: 67 
+          30: ADD -- hash: 0xb5a4788ba1b8931a -- parent: 32 
+            22: FIELD_ACCESS -- hash: 0x82b000ec43d8d79e -- parent: 30 
+              20: SYMBOL Var { var: Var { frame_id: 0, ty: struct, index: 0 }, type_value: struct } -- parent: 22 
               21: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None } -- parent: 22 
-            29: FIELD_ACCESS -- hash: 0xfadb11229fd04222 -- parent: 30 
-              27: SYMBOL Var { var: Var { frame_id: 0, ty: struct, index: 1 }, type_value: struct } -- parent: 29 
+            29: FIELD_ACCESS -- hash: 0x9b2a64bd908c9f11 -- parent: 30 
+              27: SYMBOL Var { var: Var { frame_id: 0, ty: struct, index: 0 }, type_value: struct } -- parent: 29 
               28: SYMBOL Field { index: 3, is_root: false, type_value: integer(unknown), acl: None } -- parent: 29 
           31: CONST integer(1) -- parent: 32 
-        49: EQ -- hash: 0x256dc98f789f4952 -- parent: 67 
-          47: FIELD_ACCESS -- hash: 0xb513a8ffabb476cb -- parent: 49 
-            45: LOOKUP -- hash: 0x9aab0d5f2f4bfb07 -- parent: 47 
-              43: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 0 }, type_value: array } -- parent: 45 
+        49: EQ -- hash: 0x9f4dcda85de9c1a9 -- parent: 67 
+          47: FIELD_ACCESS -- hash: 0x5622b3a87e0f2c8b -- parent: 49 
+            45: LOOKUP -- hash: 0xfa5bb9c43e9f9e18 -- parent: 47 
+              43: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 1 }, type_value: array } -- parent: 45 
               44: CONST integer(0) -- parent: 45 
             46: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None } -- parent: 47 
           48: CONST integer(0) -- parent: 49 
-        66: EQ -- hash: 0x870fb234043676e9 -- parent: 67 
-          64: FIELD_ACCESS -- hash: 0x48079a87864effa7 -- parent: 66 
-            62: SYMBOL Var { var: Var { frame_id: 0, ty: struct, index: 1 }, type_value: struct } -- parent: 64 
+        66: EQ -- hash: 0xe600a78b31ebc129 -- parent: 67 
+          64: FIELD_ACCESS -- hash: 0xe856ee2276fb5c95 -- parent: 66 
+            62: SYMBOL Var { var: Var { frame_id: 0, ty: struct, index: 0 }, type_value: struct } -- parent: 64 
             63: SYMBOL Field { index: 2, is_root: false, type_value: integer(unknown), acl: None } -- parent: 64 
           65: CONST integer(1) -- parent: 66 
 
