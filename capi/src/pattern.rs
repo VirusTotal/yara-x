@@ -70,7 +70,12 @@ pub unsafe extern "C" fn yrx_pattern_iter_matches(
 
     for m in matches_iter {
         callback(
-            &YRX_MATCH { offset: m.range().start, length: m.range().len() },
+            &YRX_MATCH {
+                data: m.data().as_ptr(),
+                data_len: m.data().len(),
+                length: m.range().len(),
+                offset: m.range().start,
+            },
             user_data,
         )
     }

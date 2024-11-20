@@ -272,8 +272,10 @@ type Metadata struct {
 // Match contains information about the offset where a match occurred and
 // the length of the match.
 type Match struct {
-	offset uint64
-	length uint64
+	data     []byte
+	data_len uintptr
+	length   uint64
+	offset   uint64
 }
 
 // Creates a new Rule from it's C counterpart.
@@ -380,6 +382,11 @@ func (p *Pattern) Identifier() string {
 // Matches returns the matches found for this pattern.
 func (p *Pattern) Matches() []Match {
 	return p.matches
+}
+
+// Data returns the match data (i.e., strings).
+func (m *Match) Data() []byte {
+	return m.data
 }
 
 // Offset returns the offset within the scanned data where a match occurred.
@@ -509,7 +516,8 @@ func matchCallback(match *C.YRX_MATCH, handle C.uintptr_t) {
 		panic("matchCallback didn't receive a *[]Match")
 	}
 	*matches = append(*matches, Match{
-		offset: uint64(match.offset),
+		data:   C.GoBytes(unsafe.Pointer(match.data), C.int(match.data_len)),
 		length: uint64(match.length),
+		offset: uint64(match.offset),
 	})
 }

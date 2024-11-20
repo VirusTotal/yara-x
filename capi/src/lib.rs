@@ -175,6 +175,10 @@ pub unsafe extern "C" fn yrx_last_error() -> *const c_char {
 /// Contains information about a pattern match.
 #[repr(C)]
 pub struct YRX_MATCH {
+    /// Slice of the data of the match.
+    pub data: *const u8,
+    /// Length of the data slice.
+    pub data_len: usize,
     /// Offset within the data where the match occurred.
     pub offset: usize,
     /// Length of the match.

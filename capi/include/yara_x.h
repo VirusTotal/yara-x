@@ -107,6 +107,10 @@ typedef struct YRX_BUFFER {
 
 // Contains information about a pattern match.
 typedef struct YRX_MATCH {
+  // Slice of the data of the match.
+  const uint8_t *data;
+  // Length of the data slice.
+  size_t data_len;
   // Offset within the data where the match occurred.
   size_t offset;
   // Length of the match.
