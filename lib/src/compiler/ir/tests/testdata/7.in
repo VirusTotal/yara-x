@@ -11,3 +11,11 @@ rule test_2 {
   condition:
     defined (for any x in (0..10) : (test_proto2.undef_i64() == 0))
 }
+
+rule test_3 {
+   condition:
+     test_proto2.nested.nested_string contains "foo" or
+     // Intentionally duplicated.
+     test_proto2.nested.nested_string contains "foo" or
+     test_proto2.nested.nested_string contains "bar"
+}

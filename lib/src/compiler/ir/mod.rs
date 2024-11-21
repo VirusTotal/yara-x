@@ -838,15 +838,7 @@ impl IR {
                         Some(hash) => hash,
                         None => continue 'dfs,
                     };
-                    if let Some(exprs) = map.get(hash) {
-                        // When the current expression is equal to some other
-                        // expression, we don't want to traverse its children, as
-                        // the children are going to be equal to the other
-                        // expression's children.
-                        if exprs.len() > 1 {
-                            dfs.prune();
-                        }
-                    } else {
+                    if !map.contains_key(hash) {
                         // When the entry was not found is because it was
                         // previously deleted while processing another expression
                         // that was equal to the current one. In such cases we
@@ -854,7 +846,17 @@ impl IR {
                         dfs.prune();
                     }
                 }
-                Event::Leave((expr_id, _, _)) => {
+                Event::Leave((expr_id, _, ctx)) => {
+                    // All other expressions could be moved around, except those
+                    // that are operands of a field access. That's because the
+                    // operands of a field access can depend on the results
+                    // produced by their siblings. For instance, in `foo[i].bar[0]`
+                    // `bar[0]` depends on the result produced by `foo[i]`,
+                    // `bar[0]` doesn't depend on `i` itself, but it depends on
+                    // the result of `foo[i]`, which does.
+                    if matches!(ctx, EventContext::FieldAccess) {
+                        continue 'dfs;
+                    }
                     let hash = match hashes.get(&expr_id) {
                         Some(hash) => hash,
                         None => continue 'dfs,

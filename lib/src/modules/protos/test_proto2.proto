@@ -229,7 +229,8 @@ message NestedProto2 {
   optional int32              nested_int32_one = 3;
   optional int64              nested_int64_one = 4;
   optional bool               nested_bool = 5;
-  repeated int64              nested_array_int64 = 6;
+  optional string             nested_string = 6;
+  repeated int64              nested_array_int64 = 7;
 
   enum NestedEnumeration {
     ITEM_0 = 0;
