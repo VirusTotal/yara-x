@@ -467,18 +467,12 @@ fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 
     let symtab_hash_entries = symtab_to_hash
         .iter()
-        .map(|e| e.trim().to_lowercase())
+        .map(|e| e.trim().to_lowercase().as_bstr().to_owned())
         .unique()
-        .sorted();
+        .sorted()
+        .join(",");
 
-    let mut first_iter = true;
-    symtab_hash_entries.for_each(|entry| {
-        if !first_iter {
-            md5_hash.update(",".as_bytes());
-        }
-        md5_hash.update(entry);
-        first_iter = false;
-    });
+    md5_hash.update(symtab_hash_entries);
 
     let digest = format!("{:x}", md5_hash.finalize());
     Some(RuntimeString::new(digest))
