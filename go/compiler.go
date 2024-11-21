@@ -97,13 +97,13 @@ func RelaxedReSyntax(yes bool) CompileOption {
 	}
 }
 
-// Hoisting is an option for [NewCompiler] and [Compile] that enables a
-// compiler optimization that moves invariant expressions out of loops,
-// improving performance during the evaluation of rule conditions that
-// contains loops.
-func Hoisting(yes bool) CompileOption {
+// ConditionOptimization is an option for [NewCompiler] and [Compile] that
+// enables the optimization of rule conditions. When this is true the compiler
+// applies techniques like common subexpression elimination (CSE) and
+// loop-invariant code motion (LICM).
+func ConditionOptimization(yes bool) CompileOption {
 	return func(c *Compiler) error {
-		c.hoisting = yes
+		c.conditionOptimization = yes
 		return nil
 	}
 }
@@ -237,15 +237,15 @@ type bannedModule struct {
 
 // Compiler represent a YARA compiler.
 type Compiler struct {
-	cCompiler          *C.YRX_COMPILER
-	relaxedReSyntax    bool
-	hoisting           bool
-	errorOnSlowPattern bool
-	errorOnSlowLoop    bool
-	ignoredModules     map[string]bool
-	bannedModules      map[string]bannedModule
-	vars               map[string]interface{}
-	features           []string
+	cCompiler             *C.YRX_COMPILER
+	relaxedReSyntax       bool
+	conditionOptimization bool
+	errorOnSlowPattern    bool
+	errorOnSlowLoop       bool
+	ignoredModules        map[string]bool
+	bannedModules         map[string]bannedModule
+	vars                  map[string]interface{}
+	features              []string
 }
 
 // NewCompiler creates a new compiler.
@@ -268,8 +268,8 @@ func NewCompiler(opts ...CompileOption) (*Compiler, error) {
 		flags |= C.YRX_RELAXED_RE_SYNTAX
 	}
 
-	if c.hoisting {
-		flags |= C.YRX_ENABLE_HOISTING
+	if c.conditionOptimization {
+		flags |= C.YRX_ENABLE_CONDITION_OPTIMIZATION
 	}
 
 	if c.errorOnSlowPattern {

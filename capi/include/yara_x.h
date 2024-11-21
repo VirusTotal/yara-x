@@ -41,11 +41,11 @@
 // errors instead of warnings.
 #define YRX_ERROR_ON_SLOW_LOOP 8
 
-// Flag passed to [`yrx_compiler_create`] for enabling hoisting. This
-// is a compiler optimization that moves invariant expressions out of
-// loops, improving performance during the evaluation of rule conditions
-// that contains loops.
-#define YRX_ENABLE_HOISTING 16
+// Flag passed to [`yrx_compiler_create`] for enabling optimizations.
+// With this flag the compiler tries to optimize rule conditions by applying
+// techniques like common subexpression elimination (CSE) and loop-invariant
+// code motion (LICM).
+#define YRX_ENABLE_CONDITION_OPTIMIZATION 16
 
 // Types of metadata values.
 typedef enum YRX_METADATA_TYPE {

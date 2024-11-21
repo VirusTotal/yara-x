@@ -54,10 +54,10 @@ func TestRelaxedReSyntax(t *testing.T) {
 	assert.Len(t, scanResults.MatchingRules(), 1)
 }
 
-func TestHoisting(t *testing.T) {
+func TestConditionOptimization(t *testing.T) {
 	_, err := Compile(`
 		rule test { condition: true }`,
-		Hoisting(true))
+		ConditionOptimization(true))
 	assert.NoError(t, err)
 }
 

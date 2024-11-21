@@ -40,19 +40,20 @@ pub const YRX_ERROR_ON_SLOW_PATTERN: u32 = 4;
 /// errors instead of warnings.
 pub const YRX_ERROR_ON_SLOW_LOOP: u32 = 8;
 
-/// Flag passed to [`yrx_compiler_create`] for enabling hoisting. This
-/// is a compiler optimization that moves invariant expressions out of
-/// loops, improving performance during the evaluation of rule conditions
-/// that contains loops.
-pub const YRX_ENABLE_HOISTING: u32 = 16;
+/// Flag passed to [`yrx_compiler_create`] for enabling optimizations.
+/// With this flag the compiler tries to optimize rule conditions by applying
+/// techniques like common subexpression elimination (CSE) and loop-invariant
+/// code motion (LICM).
+pub const YRX_ENABLE_CONDITION_OPTIMIZATION: u32 = 16;
 
 fn _yrx_compiler_create<'a>(flags: u32) -> yara_x::Compiler<'a> {
     let mut compiler = yara_x::Compiler::new();
     if flags & YRX_RELAXED_RE_SYNTAX != 0 {
         compiler.relaxed_re_syntax(true);
     }
-    if flags & YRX_ENABLE_HOISTING != 0 {
+    if flags & YRX_ENABLE_CONDITION_OPTIMIZATION != 0 {
         compiler.hoisting(true);
+        compiler.common_subexpression_elimination(true);
     }
     if flags & YRX_COLORIZE_ERRORS != 0 {
         compiler.colorize_errors(true);
