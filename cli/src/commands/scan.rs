@@ -14,7 +14,7 @@ use crossbeam::channel::Sender;
 use itertools::Itertools;
 use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
-use yansi::Color::{Cyan, Red, Yellow};
+use yansi::Color::{Cyan, Green, Red, Yellow};
 use yansi::Paint;
 use yara_x::errors::ScanError;
 use yara_x::{MetaValue, Patterns, Rule, Rules, ScanOptions, Scanner};
@@ -493,23 +493,35 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     #[cfg(feature = "rules-profiling")]
     if profiling {
         let mut mer = most_expensive_rules.lock().unwrap();
-        // Sort by total time in descending order.
-        mer.sort_by(|a, b| b.total_time.cmp(&a.total_time));
-        println!("\nMost expensive rules:");
-        for r in mer.iter().take(10) {
+
+        println!("\n«««««««««««« PROFILING INFORMATION »»»»»»»»»»»»");
+
+        if mer.is_empty() {
             println!(
-                r#"
-+ rule name:            {}
-  namespace:            {}
-  pattern matching:     {:?}
-  condition evaluation: {:?}
-  total:                {:?}"#,
-                r.rule,
-                r.namespace,
-                r.pattern_matching_time,
-                r.condition_exec_time,
-                r.total_time
+                "\n{}",
+                "No profiling information gathered, all rules were very fast."
+                    .paint(Green)
+                    .bold()
             );
+        } else {
+            // Sort by total time in descending order.
+            mer.sort_by(|a, b| b.total_time.cmp(&a.total_time));
+            println!("\n{}", "Slowest rules:".paint(Red).bold());
+            for r in mer.iter().take(10) {
+                println!(
+                    r#"
+* rule                 : {}
+  namespace            : {}
+  pattern matching     : {:?}
+  condition evaluation : {:?}
+  TOTAL                : {:?}"#,
+                    r.rule,
+                    r.namespace,
+                    r.pattern_matching_time,
+                    r.condition_exec_time,
+                    r.total_time
+                );
+            }
         }
     }
 
