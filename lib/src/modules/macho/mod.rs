@@ -7,6 +7,7 @@
 
 use crate::modules::prelude::*;
 use crate::modules::protos::macho::*;
+use bstr::BString;
 use itertools::Itertools;
 use md5::{Digest, Md5};
 
@@ -467,7 +468,7 @@ fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 
     let symtab_hash_entries = symtab_to_hash
         .iter()
-        .map(|e| e.trim().to_lowercase().as_bstr().to_owned())
+        .map(|e| BString::new(e.trim().to_lowercase()))
         .unique()
         .sorted()
         .join(",");
