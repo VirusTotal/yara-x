@@ -321,7 +321,6 @@ fn has_export(ctx: &ScanContext, export: RuntimeString) -> Option<bool> {
 #[module_export]
 fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let macho = ctx.module_output::<Macho>()?;
-    let mut md5_hash = Md5::new();
     let mut dylibs_to_hash = &macho.dylibs;
 
     // if there are not any dylibs in the main Macho, the dylibs of the nested
@@ -334,6 +333,8 @@ fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     if dylibs_to_hash.is_empty() {
         return None;
     }
+
+    let mut md5_hash = Md5::new();
 
     let dylibs_to_hash: String = dylibs_to_hash
         .iter()
@@ -359,7 +360,6 @@ fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 #[module_export]
 fn entitlement_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let macho = ctx.module_output::<Macho>()?;
-    let mut md5_hash = Md5::new();
     let mut entitlements_to_hash = &macho.entitlements;
 
     // if there are not any entitlements in the main Macho, the entitlements of the
@@ -372,6 +372,8 @@ fn entitlement_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     if entitlements_to_hash.is_empty() {
         return None;
     }
+
+    let mut md5_hash = Md5::new();
 
     let entitlements_str: String = entitlements_to_hash
         .iter()
@@ -390,7 +392,6 @@ fn entitlement_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 #[module_export]
 fn export_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let macho = ctx.module_output::<Macho>()?;
-    let mut md5_hash = Md5::new();
     let mut exports_to_hash = &macho.exports;
 
     // if there are not any exports in the main Macho, the exports of the
@@ -403,6 +404,8 @@ fn export_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     if exports_to_hash.is_empty() {
         return None;
     }
+
+    let mut md5_hash = Md5::new();
 
     let exports_str: String = exports_to_hash
         .iter()
@@ -421,7 +424,6 @@ fn export_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 #[module_export]
 fn import_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let macho = ctx.module_output::<Macho>()?;
-    let mut md5_hash = Md5::new();
     let mut imports_to_hash = &macho.imports;
 
     // if there are not any imports in the main Macho, the imports of the
@@ -434,6 +436,8 @@ fn import_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     if imports_to_hash.is_empty() {
         return None;
     }
+
+    let mut md5_hash = Md5::new();
 
     let imports_str: String = imports_to_hash
         .iter()
