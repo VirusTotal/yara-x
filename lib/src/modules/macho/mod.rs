@@ -472,13 +472,13 @@ fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         .sorted();
 
     let mut first_iter = true;
-    for entry in symtab_hash_entries {
+    symtab_hash_entries.for_each(|entry| {
         if !first_iter {
             md5_hash.update(",".as_bytes());
         }
         md5_hash.update(entry);
         first_iter = false;
-    }
+    });
 
     let digest = format!("{:x}", md5_hash.finalize());
     Some(RuntimeString::new(digest))
