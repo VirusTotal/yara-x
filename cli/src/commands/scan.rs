@@ -14,7 +14,9 @@ use crossbeam::channel::Sender;
 use itertools::Itertools;
 use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
-use yansi::Color::{Cyan, Green, Red, Yellow};
+#[cfg(feature = "rules-profiling")]
+use yansi::Color::Green;
+use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
 use yara_x::errors::ScanError;
 use yara_x::{MetaValue, Patterns, Rule, Rules, ScanOptions, Scanner};
