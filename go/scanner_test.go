@@ -99,8 +99,8 @@ func TestScannerMostExpensiveRules(t *testing.T) {
 	profilingInfo := s.MostExpensiveRules(1)
 	assert.Equal(t, "t", profilingInfo[0].Rule)
 	assert.Equal(t, "default", profilingInfo[0].Namespace)
-	assert.Greater(t, profilingInfo[0].PatternMatchingTime, float64(0))
-	assert.Greater(t, profilingInfo[0].ConditionExecTime, float64(0))
+	assert.Greater(t, profilingInfo[0].PatternMatchingTime, time.Duration(0))
+	assert.Greater(t, profilingInfo[0].ConditionExecTime, time.Duration(0))
 }
 
 func TestScannerMetadata(t *testing.T) {
