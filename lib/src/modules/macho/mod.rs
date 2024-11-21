@@ -450,7 +450,6 @@ fn import_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 #[module_export]
 fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let macho = ctx.module_output::<Macho>()?;
-    let mut md5_hash = Md5::new();
     let mut symtab_to_hash = &macho.symtab.entries;
 
     // if there is not a symbtol table in the main Macho, the symbol table of the
@@ -464,16 +463,22 @@ fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         return None;
     }
 
-    let symtab_hash_str: String = symtab_to_hash
-        .iter()
-        .filter_map(|e| {
-            Some(String::from_utf8(e.to_vec()).unwrap().trim().to_lowercase())
-        })
-        .unique()
-        .sorted()
-        .join(",");
+    let mut md5_hash: digest::core_api::CoreWrapper<md5::Md5Core> = Md5::new();
 
-    md5_hash.update(symtab_hash_str.as_bytes());
+    let symtab_hash_entries = symtab_to_hash
+        .iter()
+        .map(|e| e.trim().to_lowercase())
+        .unique()
+        .sorted();
+
+    let mut first_iter = true;
+    for entry in symtab_hash_entries {
+        if !first_iter {
+            md5_hash.update(",".as_bytes());
+        }
+        md5_hash.update(entry);
+        first_iter = false;
+    }
 
     let digest = format!("{:x}", md5_hash.finalize());
     Some(RuntimeString::new(digest))
