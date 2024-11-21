@@ -1,0 +1,25 @@
+RULE test_1
+  23: FOR_IN -- hash: 0xa2c91e5c3f78a7de -- parent: None 
+    0: CONST integer(0) -- parent: 23 
+    1: CONST integer(1) -- parent: 23 
+    22: EQ -- hash: 0x3885edc24a3744e8 -- parent: 23 
+      20: FIELD_ACCESS -- hash: 0x6bc1761607df07e1 -- parent: 22 
+        16: LOOKUP -- hash: 0xb48de51754ce4c4e -- parent: 20 
+          14: FIELD_ACCESS -- hash: 0xa67f64b2db1d0351 -- parent: 16 
+            12: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 14 
+            13: SYMBOL Field { index: 48, is_root: false, type_value: array, acl: None } -- parent: 14 
+          15: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 16 
+        19: LOOKUP -- hash: 0xe5df055f4efde11b -- parent: 20 
+          17: SYMBOL Field { index: 5, is_root: false, type_value: array, acl: None } -- parent: 19 
+          18: CONST integer(0) -- parent: 19 
+      21: CONST integer(0) -- parent: 22 
+
+RULE test_2
+  10: DEFINED -- hash: 0xa9c934d5341dd128 -- parent: None 
+    9: FOR_IN -- hash: 0x47af473e5ce6edf4 -- parent: 10 
+      0: CONST integer(0) -- parent: 9 
+      1: CONST integer(10) -- parent: 9 
+      8: EQ -- hash: 0xc505f68cf1115633 -- parent: 9 
+        6: FN_CALL test_proto2.undef_i64@@iu -- hash: 0x683a6ff805737265 -- parent: 8 
+        7: CONST integer(0) -- parent: 8 
+

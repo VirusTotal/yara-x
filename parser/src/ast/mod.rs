@@ -358,7 +358,7 @@ pub struct ForOf<'src> {
     span: Span,
     pub quantifier: Quantifier<'src>,
     pub pattern_set: PatternSet<'src>,
-    pub condition: Expr<'src>,
+    pub body: Expr<'src>,
 }
 
 /// A `for .. in` expression (e.g `for all x in iterator : (..)`)
@@ -368,7 +368,7 @@ pub struct ForIn<'src> {
     pub quantifier: Quantifier<'src>,
     pub variables: Vec<Ident<'src>>,
     pub iterable: Iterable<'src>,
-    pub condition: Expr<'src>,
+    pub body: Expr<'src>,
 }
 
 /// Items in a `of` expression.
@@ -383,7 +383,7 @@ pub enum OfItems<'src> {
 pub struct With<'src> {
     span: Span,
     pub declarations: Vec<WithDeclaration<'src>>,
-    pub condition: Expr<'src>,
+    pub body: Expr<'src>,
 }
 
 /// Items in a `with` expression.

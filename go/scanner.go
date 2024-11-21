@@ -9,7 +9,17 @@ package yara_x
 //   return yrx_scanner_on_matching_rule(scanner, callback, (void*) user_data);
 // }
 //
-// void onMatchingRule(YRX_RULE*, uintptr_t);
+//  enum YRX_RESULT static inline _yrx_scanner_iter_most_expensive_rules(
+//      struct YRX_SCANNER *scanner,
+//      size_t n,
+// 		YRX_MOST_EXPENSIVE_RULES_CALLBACK callback,
+// 		uintptr_t most_expensive_rules_handle)
+// {
+//   return yrx_scanner_iter_most_expensive_rules(scanner, n, callback, (void*) most_expensive_rules_handle);
+// }
+//
+// extern void onMatchingRule(YRX_RULE*, uintptr_t);
+// extern void mostExpensiveRulesCallback(char*, char*, double, double, uintptr_t);
 import "C"
 
 import (
@@ -235,6 +245,51 @@ func (s *Scanner) Scan(buf []byte) (*ScanResults, error) {
 	s.matchingRules = nil
 
 	return scanResults, err
+}
+
+type ProfilingInfo struct {
+	Namespace           string
+	Rule                string
+	PatternMatchingTime float64
+	ConditionExecTime   float64
+}
+
+// This is the callback called by yrx_rule_iter_patterns.
+//
+//export mostExpensiveRulesCallback
+func mostExpensiveRulesCallback(
+	namespace *C.char,
+	rule *C.char,
+	patternMatchingTime C.double,
+	condExecTime C.double,
+	handle C.uintptr_t) {
+	h := cgo.Handle(handle)
+	profilingInfo, ok := h.Value().(*[]ProfilingInfo)
+	if !ok {
+		panic("mostExpensiveRulesCallback didn't receive a *[]ProfilingInfo")
+	}
+	*profilingInfo = append(*profilingInfo, ProfilingInfo{
+		Namespace:           C.GoString(namespace),
+		Rule:                C.GoString(rule),
+		PatternMatchingTime: float64(patternMatchingTime),
+		ConditionExecTime:   float64(condExecTime),
+	})
+}
+
+func (s *Scanner) MostExpensiveRules(n int) []ProfilingInfo {
+	profilingInfo := make([]ProfilingInfo, 0)
+	mostExpensiveRules := cgo.NewHandle(&profilingInfo)
+	defer mostExpensiveRules.Delete()
+
+	if C._yrx_scanner_iter_most_expensive_rules(
+		s.cScanner,
+		C.size_t(n),
+		C.YRX_MOST_EXPENSIVE_RULES_CALLBACK(C.mostExpensiveRulesCallback),
+		C.uintptr_t(mostExpensiveRules)) != C.SUCCESS {
+		panic("yrx_scanner_iter_most_expensive_rules failed")
+	}
+
+	return profilingInfo
 }
 
 // Destroy destroys the scanner.

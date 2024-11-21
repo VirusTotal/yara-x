@@ -154,93 +154,93 @@ fn test_proto2_module() {
 
     condition_true!(
         r#"for all s in test_proto2.array_string : (
-                    s == "foo" or s == "bar" or s == "baz"
-                )"#
+             s == "foo" or s == "bar" or s == "baz"
+           )"#
     );
 
     condition_true!(
         r#"for any s in test_proto2.array_struct : (
-                    s.nested_int32_zero == 0 and s.nested_int32_one == 1
-                  )"#
+             s.nested_int32_zero == 0 and s.nested_int32_one == 1
+           )"#
     );
 
     condition_true!(
         r#"for 1 s in test_proto2.array_struct : (
-                    s.nested_int32_zero == 0
-                  )"#
+             s.nested_int32_zero == 0
+           )"#
     );
 
     condition_false!(
         r#"for 3 s in test_proto2.array_struct : (
-                    s.nested_int32_zero == 0
-                  )"#
+             s.nested_int32_zero == 0
+           )"#
     );
 
     condition_true!(
         r#"for any s in test_proto2.array_struct : (
-                s.nested_int32_zero == 0 and
-                s.nested_int32_one == 1 and
+             s.nested_int32_zero == 0 and
+             s.nested_int32_one == 1 and
 
-                for any s in test_proto2.array_struct : (
-                    s.nested_int32_zero == 0
-                )
+             for any s in test_proto2.array_struct : (
+               s.nested_int32_zero == 0
+             )
 
-                and for any s in test_proto2.array_string : (s == "foo")
-              )"#
+             and for any s in test_proto2.array_string : (s == "foo")
+           )"#
     );
 
     condition_true!(
         r#"for any key, value in test_proto2.map_int64_int64 : (
-                key == 100 and value == 1000
-          )"#
+             key == 100 and value == 1000
+           )"#
     );
 
     condition_true!(
         r#"for 1 key, value in test_proto2.map_int64_int64 : (
-                key == 100 and value == 1000
-          )"#
+             key == 100 and value == 1000
+           )"#
     );
 
     condition_true!(
         r#"for any key, value in test_proto2.map_int64_string : (
-                key == 100 and value == "one thousand"
-          )"#
+             key == 100 and value == "one thousand"
+           )"#
     );
 
     condition_true!(
         r#"for any key, value in test_proto2.map_int64_bool : (
-                key == 100 and value
-          )"#
+             key == 100 and value
+           )"#
     );
 
     condition_true!(
         r#"for any key, value in test_proto2.map_int64_struct : (
-                key == 100 and value.nested_int64_one == 1
+             key == 100 and value.nested_int64_one == 1
           )"#
     );
 
     condition_true!(
         r#"for any key, value in test_proto2.map_string_int64 : (
-                key == "one" and value == 1
-          )"#
+             key == "one" and value == 1
+           )"#
     );
 
     condition_true!(
         r#"for any key, value in test_proto2.map_string_bool : (
-                key == "foo" and value
-          )"#
+             key == "foo" and value
+           )"#
     );
 
     condition_true!(
         r#"for any key, value in test_proto2.map_string_string : (
-                key == "foo" and value == "FOO"
-          )"#
+             key == "foo" and value == "FOO"
+           )"#
     );
 
     condition_true!(
         r#"for any key, value in test_proto2.map_string_struct : (
-                key == "foo" and value.nested_int64_one == 1
-          )"#
+             key == "foo" and value.nested_int64_one == 1
+           )"#
     );
 
     condition_true!(r#"test_proto2.get_foo() == "foo""#);

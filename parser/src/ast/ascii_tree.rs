@@ -359,7 +359,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
                 ),
                 Node(
                     "<condition>".to_string(),
-                    vec![expr_ascii_tree(&for_of.condition)],
+                    vec![expr_ascii_tree(&for_of.body)],
                 ),
             ],
         ),
@@ -423,7 +423,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
 
             children.push(Node(
                 "<condition>".to_string(),
-                vec![expr_ascii_tree(&f.condition)],
+                vec![expr_ascii_tree(&f.body)],
             ));
 
             Node(node_title, children)
@@ -440,7 +440,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
                 ),
                 Node(
                     "<boolean expression>".to_string(),
-                    vec![expr_ascii_tree(&w.condition)],
+                    vec![expr_ascii_tree(&w.body)],
                 ),
             ],
         ),
