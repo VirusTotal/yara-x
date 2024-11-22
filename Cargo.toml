@@ -99,7 +99,7 @@ thiserror = "2.0.3"
 # issue: https://github.com/1crcbl/tlsh-rs/issues/2.
 tlsh-fixed = "0.1.1"
 uuid = "1.4.1"
-walrus = "0.22.0"
+walrus = "0.23.0"
 wasmtime = { version = "26.0.1", default-features = false }
 x509-parser = "0.16.0"
 yaml-rust = "0.4.5"
