@@ -258,8 +258,9 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
     if profiling && !cfg!(feature = "rules-profiling") {
         bail!(
-            "{} requires that YARA-X is built with profiling support. Use `cargo build --features=rules-profiling`.",
-            Paint::bold("--profiling")
+            "{} requires that YARA-X is built with profiling support.\n\nUse {}.",
+            Paint::bold("--profiling"),
+            Paint::cyan("`cargo build --release --features=rules-profiling`")
         );
     }
 

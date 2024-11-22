@@ -179,6 +179,51 @@ same namespace, YARA is going to complain about the duplicated rule identifiers.
 However, if every file is put under its own namespace the rule names won't
 collide.
 
+### --profiling
+
+Enables the collection of performance metrics during a scan, identifying the
+slowest rules. This option is particularly useful for diagnosing performance
+bottlenecks and optimizing your rules.
+
+To use this option, YARA-X must be built with the `rules-profiling` feature
+enabled. Build it as follows:
+
+```
+cargo build --release --features=rules-profiling
+```
+
+When enabled, the profiling information is presented in a detailed report
+format. For example:
+
+```
+«««««««««««« PROFILING INFORMATION »»»»»»»»»»»»
+
+Slowest rules:
+
+* rule                 : my_slow_rule
+  namespace            : default
+  pattern matching     : 21.433µs
+  condition evaluation : 2.429054588s
+  TOTAL                : 2.429076021s
+```
+
+The profiling report separates pattern matching time and condition evaluation
+time:
+
+* Pattern matching time: Indicates the time spent on scanning the input data
+  for specific patterns defined in your rule.
+
+* Condition evaluation time: Indicates the time taken to evaluate the rule’s
+  condition logic.
+
+This separation helps pinpoint whether the performance issue arises from:
+
+* Pattern inefficiency: Rules with patterns that are very short or inefficient,
+  causing slow scans.
+
+* Complex conditions: Rules with overly complex conditions, such as loops with
+  many iterations.
+
 ### --print-meta, -m
 
 Prints the metadata associated to matching rules.
