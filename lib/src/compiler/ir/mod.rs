@@ -1117,7 +1117,7 @@ impl IR {
                         // The expression doesn't depend on any variable, move
                         // it out of the outermost loop, if any.
                         None => {
-                            if let Some(outermost) = dfs.for_stmts().next() {
+                            if let Some(outermost) = dfs.for_scopes().next() {
                                 result.push((current_expr_id, outermost));
                             }
                         }
@@ -1130,7 +1130,7 @@ impl IR {
                                 Expr::ForIn(_) => {}
                                 _ => continue,
                             }
-                            let mut scopes = dfs.for_stmts();
+                            let mut scopes = dfs.for_scopes();
                             // Find the loop that defined the variable...
                             for expr_id in scopes.by_ref() {
                                 if expr_id == defining_expr {

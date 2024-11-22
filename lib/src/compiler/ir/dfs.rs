@@ -114,6 +114,20 @@ impl<'a> Iterator for DFSIter<'a> {
     }
 }
 
+/// In addition to the functionality offered by [`DFSIter`], this type has a
+/// [scopes][1] method that allows you to iterate over the scopes the current
+/// node belongs to.
+///
+/// With scope, we mean the context in which a variable is accessible or
+/// valid. In YARA there are only two types of expressions that create new
+/// scopes: `for` loops and `with` statements. Both of these statements can
+/// declare new variables that are accessible only within their bodies.
+///
+/// When traversing the IR tree, it's often necessary to determine the currently
+/// valid contexts for a given expression. For example, for understanding which
+/// variables are accessible at a specific point in the code.
+///
+/// [1]: DFSWithScopeIter::scopes
 pub(crate) struct DFSWithScopeIter<'a> {
     ir: &'a IR,
     dfs: DFSIter<'a>,
@@ -131,11 +145,36 @@ impl<'a> DFSWithScopeIter<'a> {
         }
     }
 
+    /// Returns an iterator that yields the [`ExprId`] associated to the
+    /// expressions that created the scopes that are valid in the current
+    /// position within the IR tree.
+    ///
+    /// For instance, if we are currently at some expression that is inside
+    /// the body of a `for` loop, this iterator will yield the [`ExprId`]
+    /// corresponding to the `for` statement.
+    ///
+    /// Let's see a more complex example, consider the following YARA
+    /// expression, where we are positioned at `<inner expr>`:
+    ///
+    /// ```text
+    /// with a = <expr> : (
+    ///    for any i in (0..10) : (
+    ///         <inner expr>
+    ///    )
+    /// )
+    /// ```
+    ///
+    /// This iterator will return the [`ExprId`] corresponding to the `with`
+    /// statement first and then the [`ExprId`] corresponding to the `for`
+    /// statement. The iterator processes the scopes starting from the outermost
+    /// scope and progresses inward.
     pub fn scopes(&self) -> impl DoubleEndedIterator<Item = ExprId> + '_ {
         self.scopes.iter().cloned()
     }
 
-    pub fn for_stmts(&self) -> impl Iterator<Item = ExprId> + '_ {
+    /// Similar to [`DFSWithScopeIter::scopes`], but only returns the `for`
+    /// statements, ignoring the `with` statements.
+    pub fn for_scopes(&self) -> impl Iterator<Item = ExprId> + '_ {
         self.scopes.iter().filter_map(|expr_id| match self.ir.get(*expr_id) {
             Expr::ForIn(_) => Some(*expr_id),
             _ => None,
