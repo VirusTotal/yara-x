@@ -27,16 +27,16 @@ The memory of these WASM modules is organized as follows.
 ```text
   ┌──────────────────────────┐ 0
   │ Variable undefined flags │
-  ├──────────────────────────┤ 16
-  │ Variable #0              │ 24
-  │ Variable #1              │ 32
+  ├──────────────────────────┤ VARS_STACK_START
+  │ Variable #0              │
+  │ Variable #1              │
   : ...                      :
   │ Variable #n              │
   : ...                      :
   │                          │
-  ├──────────────────────────┤ 1040
+  ├──────────────────────────┤ LOOKUP_INDEXES_START
   │ Field lookup indexes     │
-  ├──────────────────────────┤ 2064
+  ├──────────────────────────┤ MATCHING_RULES_BITMAP_BASE
   │ Matching rules bitmap    │
   │                          │
   :                          :
