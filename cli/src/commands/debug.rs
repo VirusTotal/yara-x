@@ -4,10 +4,15 @@ use std::io::stdout;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use clap::{arg, value_parser, ArgMatches, Command};
+use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 
-use yara_x::{Compiler, SourceCode};
+use yara_x::SourceCode;
 use yara_x_parser::Parser;
+
+use crate::commands::{
+    create_compiler, external_var_parser, get_external_vars,
+};
+use crate::help;
 
 pub fn ast() -> Command {
     super::command("ast")
@@ -37,6 +42,14 @@ pub fn ir() -> Command {
                 .help("Path to YARA source file")
                 .value_parser(value_parser!(PathBuf)),
         )
+        .arg(
+            arg!(-d - -"define")
+                .help("Define external variable")
+                .long_help(help::DEFINE_LONG_HELP)
+                .value_name("VAR=VALUE")
+                .value_parser(external_var_parser)
+                .action(ArgAction::Append),
+        )
 }
 
 pub fn wasm() -> Command {
@@ -48,6 +61,14 @@ pub fn wasm() -> Command {
             arg!(<RULES_PATH>)
                 .help("Path to YARA source file")
                 .value_parser(value_parser!(PathBuf)),
+        )
+        .arg(
+            arg!(-d - -"define")
+                .help("Define external variable")
+                .long_help(help::DEFINE_LONG_HELP)
+                .value_name("VAR=VALUE")
+                .value_parser(external_var_parser)
+                .action(ArgAction::Append),
         )
 }
 
@@ -109,7 +130,8 @@ pub fn exec_ir(args: &ArgMatches) -> anyhow::Result<()> {
     let src = fs::read(rules_path)
         .with_context(|| format!("can not read `{}`", rules_path.display()))?;
 
-    let mut compiler = Compiler::new();
+    let external_vars = get_external_vars(args);
+    let mut compiler = create_compiler(external_vars, args)?;
 
     compiler.set_ir_writer(stdout());
     compiler.add_source(src.as_slice())?;
@@ -129,9 +151,9 @@ fn exec_wasm(args: &ArgMatches) -> anyhow::Result<()> {
 
     rules_path.set_extension("wasm");
 
-    let mut compiler = Compiler::new();
+    let external_vars = get_external_vars(args);
+    let mut compiler = create_compiler(external_vars, args)?;
 
-    compiler.colorize_errors(true);
     compiler.add_source(src)?;
     compiler.emit_wasm_file(rules_path.as_path())?;
 

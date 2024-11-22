@@ -63,6 +63,15 @@ pub fn cli() -> Command {
         ])
 }
 
+/// Get the external variables defined in the command-line arguments via the
+/// `--define` option.
+fn get_external_vars(
+    args: &ArgMatches,
+) -> Option<Vec<(String, serde_json::Value)>> {
+    args.get_many::<(String, serde_json::Value)>("define")
+        .map(|var| var.cloned().collect())
+}
+
 /// Parses the arguments to the `--define` option, which have the form
 /// `VAR=VALUE`.
 ///
@@ -115,18 +124,18 @@ fn path_with_namespace_parser(
     }
 }
 
-pub fn compile_rules<'a, P>(
-    paths: P,
+pub fn create_compiler(
     external_vars: Option<Vec<(String, serde_json::Value)>>,
     args: &ArgMatches,
-) -> Result<Rules, anyhow::Error>
-where
-    P: Iterator<Item = &'a (Option<String>, PathBuf)>,
-{
+) -> Result<Compiler, anyhow::Error> {
     let mut compiler: Compiler<'_> = Compiler::new();
 
     compiler
-        .relaxed_re_syntax(args.get_flag("relaxed-re-syntax"))
+        .relaxed_re_syntax(
+            args.get_one::<bool>("relaxed-re-syntax")
+                .cloned()
+                .unwrap_or_default(),
+        )
         .colorize_errors(stdout().is_tty());
 
     for m in args.get_many::<String>("ignore-module").into_iter().flatten() {
@@ -155,6 +164,19 @@ where
             compiler.define_global(ident.as_str(), value)?;
         }
     }
+
+    Ok(compiler)
+}
+
+pub fn compile_rules<'a, P>(
+    paths: P,
+    external_vars: Option<Vec<(String, serde_json::Value)>>,
+    args: &ArgMatches,
+) -> Result<Rules, anyhow::Error>
+where
+    P: Iterator<Item = &'a (Option<String>, PathBuf)>,
+{
+    let mut compiler = create_compiler(external_vars, args)?;
 
     let mut console =
         if stdout().is_tty() { SuperConsole::new() } else { None };
@@ -207,14 +229,14 @@ where
             Err,
         ) {
             if let Some(console) = console {
-                console.finalize(&state).unwrap();
+                console.finalize(&state)?;
             }
             return Err(err);
         }
     }
 
     if let Some(console) = console {
-        console.finalize(&state).unwrap();
+        console.finalize(&state)?;
     }
 
     for error in compiler.errors() {

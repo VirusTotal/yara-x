@@ -21,10 +21,7 @@ use yansi::Paint;
 use yara_x::errors::ScanError;
 use yara_x::{MetaValue, Patterns, Rule, Rules, ScanOptions, Scanner};
 
-use crate::commands::{
-    compile_rules, external_var_parser, meta_file_value_parser,
-    path_with_namespace_parser, truncate_with_ellipsis,
-};
+use crate::commands::{compile_rules, external_var_parser, get_external_vars, meta_file_value_parser, path_with_namespace_parser, truncate_with_ellipsis};
 use crate::walk::Message;
 use crate::{help, walk};
 
@@ -245,9 +242,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let timeout =
         args.get_one::<u64>("timeout").map(|t| Duration::from_secs(*t));
 
-    let mut external_vars: Option<Vec<(String, serde_json::Value)>> = args
-        .get_many::<(String, serde_json::Value)>("define")
-        .map(|var| var.cloned().collect());
+    let mut external_vars = get_external_vars(args);
 
     let metadata = args
         .get_many::<(String, PathBuf)>("module-data")
