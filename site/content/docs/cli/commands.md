@@ -144,10 +144,13 @@ Prints the rules that doesn't match instead of those that match.
 
 ### --output-format \<FORMAT\>
 
-Specify the output format. Available options are `text` and `ndjson`. By
-default, the output format is `text`. The `ndjson` format, which stands for
-newline-delimited JSON, presents the results as one JSON object per line. Each
-JSON object details the matches for a single file. Here is an example output:
+Specify the output format. Available options are `text`, `ndjson` and `json`.
+By default, the output format is `text`. The `ndjson` format, which stands for
+newline-delimited JSON, presents the results as one JSON object per line, while
+the `json` format outputs a single JSON object the end of the scan.
+
+This is an example of the output produced by the `ndjson` format, where each
+JSON object details the matches for a single file:
 
 ```text
 {"path": "onefile.exe","rules": [{"identifier": "some_rule"}]}
