@@ -267,6 +267,27 @@ rule import_hash_example {
 }
 ```
 
+### sym_hash()
+
+Returns an MD5 hash of the symbol table entries designated in the Mach-O binary.
+
+{{< callout title="Notice">}}
+
+The returned hash string is always in lowercase.
+
+{{< /callout >}}
+
+#### Example
+
+```yara
+import "macho"
+
+rule sym_hash_example {
+  condition:
+    macho.sym_hash() == "a9ccc7c7b8bd33a99dc7ede4e8d771b4"
+}
+```
+
 ------
 
 ### Module structure
