@@ -52,8 +52,7 @@ fn _yrx_compiler_create<'a>(flags: u32) -> yara_x::Compiler<'a> {
         compiler.relaxed_re_syntax(true);
     }
     if flags & YRX_ENABLE_CONDITION_OPTIMIZATION != 0 {
-        compiler.hoisting(true);
-        compiler.common_subexpression_elimination(true);
+        compiler.condition_optimization(true);
     }
     if flags & YRX_COLORIZE_ERRORS != 0 {
         compiler.colorize_errors(true);

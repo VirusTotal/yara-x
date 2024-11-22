@@ -104,7 +104,7 @@ fn ir() {
         let w = BufWriter::new(output_file);
 
         compiler
-            .common_subexpression_elimination(false)
+            .cse(false)
             .hoisting(false)
             .set_ir_writer(w)
             .add_source(source.as_str())
@@ -118,7 +118,7 @@ fn ir() {
             let w = BufWriter::new(output_file);
 
             compiler
-                .common_subexpression_elimination(true)
+                .cse(true)
                 .hoisting(false)
                 .set_ir_writer(w)
                 .add_source(source.as_str())
@@ -130,7 +130,7 @@ fn ir() {
             let w = BufWriter::new(output_file);
 
             compiler
-                .common_subexpression_elimination(false)
+                .cse(false)
                 .hoisting(true)
                 .set_ir_writer(w)
                 .add_source(source.as_str())

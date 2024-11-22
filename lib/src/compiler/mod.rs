@@ -931,34 +931,26 @@ impl<'a> Compiler<'a> {
         self
     }
 
-    /// When enabled, the compiler tries to optimize rule conditions by
-    /// replacing common subexpressions with variables that hold the computed
-    /// value.
+    /// When enabled, the compiler tries to optimize rule conditions.
     ///
-    /// Common subexpression elimination may reduce condition evaluation times,
-    /// specially in complex rules that contain loops, but it can break
-    /// short-circuit evaluation rules because some subexpressions are not
-    /// executed in the order they appear in the source code.
+    /// The optimizations usually reduce condition evaluation times, specially
+    /// in complex rules that contain loops, but it can break short-circuit
+    /// evaluation rules because some subexpressions are not executed in the
+    /// order they appear in the source code.
     ///
     /// This is a very experimental feature.
     #[doc(hidden)]
-    pub fn common_subexpression_elimination(
-        &mut self,
-        yes: bool,
-    ) -> &mut Self {
+    pub fn condition_optimization(&mut self, yes: bool) -> &mut Self {
+        // CSE is explicitly disabled for now.
+        self.cse(false).hoisting(yes)
+    }
+
+    pub(crate) fn cse(&mut self, yes: bool) -> &mut Self {
         self.cse = yes;
         self
     }
 
-    /// When enabled, the compiler moves loop-invariant expressions (i.e: those
-    /// that don't vary on each iteration of the loop) outside the loop.
-    ///
-    /// This reduces condition evaluation times for rules that contain complex
-    /// loops.
-    ///
-    /// This is a very experimental feature.
-    #[doc(hidden)]
-    pub fn hoisting(&mut self, yes: bool) -> &mut Self {
+    pub(crate) fn hoisting(&mut self, yes: bool) -> &mut Self {
         self.hoisting = yes;
         self
     }
