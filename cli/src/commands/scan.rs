@@ -18,10 +18,15 @@ use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::Green;
 use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
+
 use yara_x::errors::ScanError;
 use yara_x::{MetaValue, Patterns, Rule, Rules, ScanOptions, Scanner};
 
-use crate::commands::{compile_rules, external_var_parser, get_external_vars, meta_file_value_parser, path_with_namespace_parser, truncate_with_ellipsis};
+use crate::commands::{
+    compile_rules, external_var_parser, get_external_vars,
+    meta_file_value_parser, path_with_namespace_parser,
+    truncate_with_ellipsis,
+};
 use crate::walk::Message;
 use crate::{help, walk};
 
