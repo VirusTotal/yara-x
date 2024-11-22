@@ -471,6 +471,10 @@ impl IR {
         DFSIter::new(start, self)
     }
 
+    /// Similar to [`IR::dfs_iter`] but returns an iterator that also can offer
+    /// information about the current scopes.
+    ///
+    /// See [`DFSWithScopeIter`] for details.
     pub fn dfs_with_scope(&self, start: ExprId) -> DFSWithScopeIter {
         DFSWithScopeIter::new(start, self)
     }
