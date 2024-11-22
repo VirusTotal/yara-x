@@ -273,6 +273,11 @@ impl Var {
         if self.index >= from_index {
             self.index += shift_amount;
         }
+        if self.index * Var::mem_size()
+            >= wasm::VARS_STACK_END - wasm::VARS_STACK_START
+        {
+            panic!("variables stack overflow during shift");
+        }
     }
 
     #[cfg(test)]
