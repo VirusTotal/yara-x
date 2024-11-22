@@ -995,6 +995,9 @@ impl IR {
     /// - Add a node to the result vector only if its parent does not depend on
     ///   the same variable. This avoids hoisting sub-expressions that are part
     ///   of a larger expression also eligible to be hoisted from the same loop.
+    /// - The number of candidates is limited to 100. Too many candidates produce
+    ///   very deep IR trees with many nested `with` statement, which often
+    ///   results in code that is slower than the original one.
     ///
     /// The final result is a list of loop-invariant expressions and the loops
     /// they can be hoisted from, ensuring optimal code motion without redundant
@@ -1138,6 +1141,11 @@ impl IR {
                             // the one that defined the variable
                             if let Some(inner_loop) = scopes.next() {
                                 result.push((current_expr_id, inner_loop));
+                            }
+                            // Limit the number of candidates to a reasonable
+                            // number.
+                            if result.len() > 100 {
+                                return result;
                             }
                         }
                     }
