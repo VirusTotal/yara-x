@@ -1,5 +1,6 @@
 use std::fmt;
 
+use serde::de::Error;
 use serde::{de::Visitor, Deserialize, Deserializer};
 
 #[derive(serde::Deserialize, Debug)]
@@ -74,9 +75,11 @@ impl<'de> Deserialize<'de> for NetworkJson {
             where
                 A: serde::de::MapAccess<'de>,
             {
-                // must not parse `old_domains` before the whole map is searched
-                // if there is a `domains` field, then the value for the key `old_domains` should be ignored
-                // - specifically, it is okay if the `old_domains` does not have the expected structure if `domains` is present
+                // Must not parse `old_domains` before the whole map is
+                // searched if there is a `domains` field, then the value for
+                // the key `old_domains` should be ignored - specifically, it
+                // is okay if the `old_domains` does not have the expected
+                // structure if `domains` is present.
                 let mut old_domains = None::<serde_json::Value>;
                 let mut domains = None::<serde_json::Value>;
 
@@ -96,51 +99,30 @@ impl<'de> Deserialize<'de> for NetworkJson {
                             if domains.is_some() {
                                 continue; // prefer "domains" over "dns"
                             }
-
                             old_domains = Some(val);
                         }
                         "http" => {
                             http = Some(
-                                match serde::Deserialize::deserialize(val) {
-                                    Ok(v) => v,
-                                    Err(e) => {
-                                        return Err(serde::de::Error::custom(
-                                            e,
-                                        ));
-                                    }
-                                },
+                                Deserialize::deserialize(val)
+                                    .map_err(Error::custom)?,
                             );
                         }
                         "tcp" => {
-                            tcp = Some(match serde::Deserialize::deserialize(
-                                val,
-                            ) {
-                                Ok(v) => v,
-                                Err(e) => {
-                                    return Err(serde::de::Error::custom(e));
-                                }
-                            });
+                            tcp = Some(
+                                Deserialize::deserialize(val)
+                                    .map_err(Error::custom)?,
+                            );
                         }
                         "udp" => {
-                            udp = Some(match serde::Deserialize::deserialize(
-                                val,
-                            ) {
-                                Ok(v) => v,
-                                Err(e) => {
-                                    return Err(serde::de::Error::custom(e));
-                                }
-                            });
+                            udp = Some(
+                                Deserialize::deserialize(val)
+                                    .map_err(Error::custom)?,
+                            );
                         }
                         "hosts" => {
                             hosts = Some(
-                                match serde::Deserialize::deserialize(val) {
-                                    Ok(v) => v,
-                                    Err(e) => {
-                                        return Err(serde::de::Error::custom(
-                                            e,
-                                        ));
-                                    }
-                                },
+                                Deserialize::deserialize(val)
+                                    .map_err(Error::custom)?,
                             );
                         }
                         _ => {}
@@ -155,25 +137,13 @@ impl<'de> Deserialize<'de> for NetworkJson {
                 let domains: Option<Vec<DomainJson>> =
                     match (domains, old_domains) {
                         (Some(domains), _) => {
-                            match serde::Deserialize::deserialize(domains) {
-                                Ok(v) => Some(v),
-                                Err(e) => {
-                                    return Err(serde::de::Error::custom(e));
-                                }
-                            }
+                            Deserialize::deserialize(domains)
+                                .map_err(Error::custom)?
                         }
                         (None, Some(old_domains)) => {
                             let old_domains: Vec<OldDomainJson> =
-                                match serde::Deserialize::deserialize(
-                                    old_domains,
-                                ) {
-                                    Ok(v) => v,
-                                    Err(e) => {
-                                        return Err(serde::de::Error::custom(
-                                            e,
-                                        ));
-                                    }
-                                };
+                                Deserialize::deserialize(old_domains)
+                                    .map_err(Error::custom)?;
 
                             Some(
                                 old_domains
