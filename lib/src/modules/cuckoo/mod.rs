@@ -16,7 +16,7 @@ thread_local! {
 }
 
 #[module_main]
-fn main(_data: &[u8], meta: Option<&[u8]>) -> Cuckoo {
+fn main(_data: &[u8], meta: Option<&[u8]>, _dump: bool) -> Cuckoo {
     if let Some(meta) = meta {
         match serde_json::from_slice::<Value>(meta) {
             Ok(Value::Object(json)) => CUCKOO_REPORT.set(Some(json)),

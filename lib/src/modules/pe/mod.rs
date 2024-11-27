@@ -29,13 +29,21 @@ pub mod parser;
 mod rva2off;
 
 #[module_main]
-fn main(data: &[u8], _meta: Option<&[u8]>) -> PE {
+fn main(data: &[u8], _meta: Option<&[u8]>, dump: bool) -> PE {
     match parser::PE::parse(data) {
-        Ok(pe) => pe.into(),
+        Ok(pe) => {
+            let mut result = pe.into();
+            if dump {
+                if let Some(digest) = imphash_impl(&result) {
+                    result.set_imphash_digest(digest);
+                };
+            }
+            result
+        },
         Err(_) => {
-            let mut pe = PE::new();
-            pe.is_pe = Some(false);
-            pe
+            let mut result = PE::new();
+            result.is_pe = Some(false);
+            result
         }
     }
 }
@@ -209,7 +217,13 @@ fn section_index_offset(ctx: &ScanContext, offset: i64) -> Option<i64> {
 #[module_export]
 fn imphash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let pe = ctx.module_output::<PE>()?;
+    match imphash_impl(pe) {
+        Some(digest) => Some(RuntimeString::new(digest)),
+        None => None,
+    }
+}
 
+fn imphash_impl(pe: &PE) -> Option<String> {
     if !pe.is_pe() {
         return None;
     }
@@ -239,8 +253,7 @@ fn imphash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         }
     }
 
-    let digest = format!("{:x}", md5_hash.finalize());
-    Some(RuntimeString::new(digest))
+    Some(format!("{:x}", md5_hash.finalize()))
 }
 
 #[module_export(name = "rich_signature.toolid")]

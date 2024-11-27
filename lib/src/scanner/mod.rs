@@ -655,7 +655,9 @@ impl<'r> Scanner<'r> {
                     options.module_metadata.get(module_name).copied()
                 });
 
-                module.main_fn.map(|main_fn| main_fn(data.as_ref(), meta))
+                module
+                    .main_fn
+                    .map(|main_fn| main_fn(data.as_ref(), meta, false))
             };
 
             if let Some(module_output) = &module_output {

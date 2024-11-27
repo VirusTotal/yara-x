@@ -24,7 +24,7 @@ pub(crate) mod prelude {
 include!("modules.rs");
 
 /// Type of module's main function.
-type MainFn = fn(&[u8], Option<&[u8]>) -> Box<dyn MessageDyn>;
+type MainFn = fn(&[u8], Option<&[u8]>, bool) -> Box<dyn MessageDyn>;
 
 /// Describes a YARA module.
 pub(crate) struct Module {
@@ -216,12 +216,23 @@ pub mod mods {
         Some(<dyn protobuf::MessageDyn>::downcast_box(module_output).unwrap())
     }
 
+    /// Invoke a YARA module with arbitrary data in "dump" mode. When in "dump"
+    /// mode modules can call functions that they normally would not call during
+    /// parsing (eg: pe.imphash()) due to those functions normally only being
+    /// called by conditions.
+    pub fn invoke_dump<T: protobuf::MessageFull>(
+        data: &[u8],
+    ) -> Option<Box<T>> {
+        let module_output = invoke_dyn_dump::<T>(data)?;
+        Some(<dyn protobuf::MessageDyn>::downcast_box(module_output).unwrap())
+    }
+
     /// Like [`invoke`], but allows passing metadata to the module.
     pub fn invoke_with_meta<T: protobuf::MessageFull>(
         data: &[u8],
         meta: Option<&[u8]>,
     ) -> Option<Box<T>> {
-        let module_output = invoke_with_meta_dyn::<T>(data, meta)?;
+        let module_output = invoke_with_meta_dyn::<T>(data, meta, false)?;
         Some(<dyn protobuf::MessageDyn>::downcast_box(module_output).unwrap())
     }
 
@@ -233,13 +244,26 @@ pub mod mods {
     pub fn invoke_dyn<T: protobuf::MessageFull>(
         data: &[u8],
     ) -> Option<Box<dyn protobuf::MessageDyn>> {
-        invoke_with_meta_dyn::<T>(data, None)
+        invoke_with_meta_dyn::<T>(data, None, false)
     }
+
+    /// Invoke a YARA module in dump mode with arbitrary data, but returns a
+    /// dynamic structure.
+    ///
+    /// This function is similar to [`invoke`] but its result is a dynamic-
+    /// dispatch version of the structure returned by the YARA module.
+    pub fn invoke_dyn_dump<T: protobuf::MessageFull>(
+        data: &[u8],
+    ) -> Option<Box<dyn protobuf::MessageDyn>> {
+        invoke_with_meta_dyn::<T>(data, None, true)
+    }
+
 
     /// Like [`invoke_dyn`], but allows passing metadata to the module.
     pub fn invoke_with_meta_dyn<T: protobuf::MessageFull>(
         data: &[u8],
         meta: Option<&[u8]>,
+        dump: bool,
     ) -> Option<Box<dyn protobuf::MessageDyn>> {
         let descriptor = T::descriptor();
         let proto_name = descriptor.full_name();
@@ -248,7 +272,7 @@ pub mod mods {
                 module.root_struct_descriptor.full_name() == proto_name
             })?;
 
-        Some(module.main_fn?(data, meta))
+        Some(module.main_fn?(data, meta, dump))
     }
 
     /// Invoke all YARA modules and return the data produced by them.
@@ -268,6 +292,21 @@ pub mod mods {
         info.dotnet = protobuf::MessageField(invoke::<Dotnet>(data));
         info.macho = protobuf::MessageField(invoke::<Macho>(data));
         info.lnk = protobuf::MessageField(invoke::<Lnk>(data));
+        info
+    }
+
+    /// Invoke all YARA modules and return the data produced by them.
+    ///
+    /// This is similar to ['invoke_all`] but modules will be run in "dump" mode
+    /// so they can return results of functions that would not be called in
+    /// normal parsing mode.
+    pub fn invoke_all_dump(data: &[u8]) -> Box<Modules> {
+        let mut info = Box::new(Modules::new());
+        info.pe = protobuf::MessageField(invoke_dump::<PE>(data));
+        info.elf = protobuf::MessageField(invoke_dump::<ELF>(data));
+        info.dotnet = protobuf::MessageField(invoke_dump::<Dotnet>(data));
+        info.macho = protobuf::MessageField(invoke_dump::<Macho>(data));
+        info.lnk = protobuf::MessageField(invoke_dump::<Lnk>(data));
         info
     }
 

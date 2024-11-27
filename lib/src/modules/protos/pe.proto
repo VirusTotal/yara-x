@@ -86,6 +86,7 @@ message PE {
   repeated Signature signatures = 59;
 
   optional Overlay overlay = 60;
+  optional string imphash_digest = 61; // "dump" mode only.
 }
 
 message Version {
