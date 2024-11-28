@@ -1752,9 +1752,9 @@ impl<'a> PE<'a> {
     /// arrays equivalent to the INT and IAT.
     ///
     /// Another differences between ordinal and delayed imports is that in
-    /// in delayed imports the INT and IAT can contain virtual addresses
-    /// instead of relative virtual address (RVAs). Whether they contain one
-    /// or the other depends on a bit in the `attributes` field in the
+    /// delayed imports the INT and IAT can contain virtual addresses instead
+    /// of relative virtual address (RVAs). Whether they contain one or the
+    /// other depends on a bit in the `attributes` field in the
     /// IMAGE_DELAYLOAD_DESCRIPTOR structure.
     fn parse_import_impl<P>(
         &self,
@@ -1788,6 +1788,8 @@ impl<'a> PE<'a> {
                         || d.import_name_table != 0)
             }),
         );
+
+        let mut num_imported_funcs = 0;
 
         for mut descriptor in import_descriptors.take(Self::MAX_PE_IMPORTS) {
             // If the values in the descriptor are virtual addresses, convert
@@ -1900,10 +1902,11 @@ impl<'a> PE<'a> {
             }
 
             if !funcs.is_empty() {
+                num_imported_funcs += funcs.len();
                 imported_funcs.push((dll_name, funcs));
             }
 
-            if imported_funcs.len() >= Self::MAX_PE_IMPORTS {
+            if num_imported_funcs >= Self::MAX_PE_IMPORTS {
                 break;
             }
         }
