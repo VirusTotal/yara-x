@@ -34,10 +34,12 @@ fn main(_data: &[u8], meta: Option<&[u8]>) -> Cuckoo {
         Ok(parsed) => {
             set_local(parsed);
         }
+        #[cfg(feature = "logging")]
         Err(e) => {
-            #[cfg(feature = "logging")]
             error!("can't parse cuckoo report: {}", e);
         }
+        #[cfg(not(feature = "logging"))]
+        Err(_) => {}
     };
 
     Cuckoo::new()
