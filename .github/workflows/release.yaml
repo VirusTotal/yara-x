@@ -99,7 +99,9 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-        - cp310
+        - cp39
+        - pp38
+        - pp39
         - pp310
         build:
         - linux
