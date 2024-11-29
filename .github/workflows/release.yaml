@@ -100,7 +100,6 @@ jobs:
       matrix:
         python-version:
         - cp39
-        - pp38
         - pp39
         - pp310
         build:
@@ -140,7 +139,7 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: '3.12'
 
     - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
       if: matrix.build == 'macos'
