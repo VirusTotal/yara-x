@@ -151,7 +151,7 @@ jobs:
     - name: Build sdist
       if: matrix.build == 'linux' && matrix.python-version == 'cp39'
       run: |
-        pip install maturin==1.7.1
+        pip install maturin==1.7.6
         maturin sdist --manifest-path py/Cargo.toml -o wheelhouse
 
     - name: Build ${{ matrix.platform || matrix.os }} binaries
