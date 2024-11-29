@@ -61,11 +61,11 @@ pub unsafe extern "C" fn yrx_scanner_set_timeout(
     scanner: *mut YRX_SCANNER,
     timeout: u64,
 ) -> YRX_RESULT {
-    if scanner.is_null() {
-        return YRX_RESULT::INVALID_ARGUMENT;
-    }
+    let scanner = match scanner.as_mut() {
+        Some(s) => s,
+        None => return YRX_RESULT::INVALID_ARGUMENT,
+    };
 
-    let scanner = scanner.as_mut().unwrap();
     scanner.inner.set_timeout(Duration::from_secs(timeout));
 
     YRX_RESULT::SUCCESS
@@ -84,16 +84,16 @@ pub unsafe extern "C" fn yrx_scanner_scan(
 ) -> YRX_RESULT {
     _yrx_set_last_error::<ScanError>(None);
 
-    if scanner.is_null() {
-        return YRX_RESULT::INVALID_ARGUMENT;
-    }
+    let scanner = match scanner.as_mut() {
+        Some(s) => s,
+        None => return YRX_RESULT::INVALID_ARGUMENT,
+    };
 
     let data = match slice_from_ptr_and_len(data, len) {
         Some(data) => data,
         None => return YRX_RESULT::INVALID_ARGUMENT,
     };
 
-    let scanner = scanner.as_mut().unwrap();
     let scan_results = scanner.inner.scan(data);
 
     if let Err(err) = scan_results {
@@ -178,9 +178,10 @@ pub unsafe extern "C" fn yrx_scanner_set_module_output(
     data: *const u8,
     len: usize,
 ) -> YRX_RESULT {
-    if scanner.is_null() {
-        return YRX_RESULT::INVALID_ARGUMENT;
-    }
+    let scanner = match scanner.as_mut() {
+        Some(s) => s,
+        None => return YRX_RESULT::INVALID_ARGUMENT,
+    };
 
     let module_name = match CStr::from_ptr(name).to_str() {
         Ok(name) => name,
@@ -194,8 +195,6 @@ pub unsafe extern "C" fn yrx_scanner_set_module_output(
         Some(data) => data,
         None => return YRX_RESULT::INVALID_ARGUMENT,
     };
-
-    let scanner = scanner.as_mut().unwrap();
 
     match scanner.inner.set_module_output_raw(module_name, data) {
         Ok(_) => {
@@ -216,9 +215,10 @@ unsafe extern "C" fn yrx_scanner_set_global<
     ident: *const c_char,
     value: T,
 ) -> YRX_RESULT {
-    if scanner.is_null() {
-        return YRX_RESULT::INVALID_ARGUMENT;
-    }
+    let scanner = match scanner.as_mut() {
+        Some(s) => s,
+        None => return YRX_RESULT::INVALID_ARGUMENT,
+    };
 
     let ident = match CStr::from_ptr(ident).to_str() {
         Ok(ident) => ident,
@@ -227,8 +227,6 @@ unsafe extern "C" fn yrx_scanner_set_global<
             return YRX_RESULT::INVALID_UTF8;
         }
     };
-
-    let scanner = scanner.as_mut().unwrap();
 
     match scanner.inner.set_global(ident, value) {
         Ok(_) => {
@@ -327,35 +325,40 @@ pub type YRX_MOST_EXPENSIVE_RULES_CALLBACK = extern "C" fn(
 /// Iterates over the top N most expensive rules, calling the callback for
 /// each rule.
 ///
-/// Requires the `rules-profiling` feature.
+/// Requires the `rules-profiling` feature, otherwise the
 ///
 /// See [`YRX_MOST_EXPENSIVE_RULES_CALLBACK`] for more details.
-#[cfg(feature = "rules-profiling")]
 #[no_mangle]
+#[allow(unused_variables)]
 pub unsafe extern "C" fn yrx_scanner_iter_most_expensive_rules(
     scanner: *mut YRX_SCANNER,
     n: usize,
     callback: YRX_MOST_EXPENSIVE_RULES_CALLBACK,
     user_data: *mut c_void,
 ) -> YRX_RESULT {
-    if scanner.is_null() {
-        return YRX_RESULT::INVALID_ARGUMENT;
+    #[cfg(not(feature = "rules-profiling"))]
+    return YRX_RESULT::NOT_SUPPORTED;
+
+    #[cfg(feature = "rules-profiling")]
+    {
+        let scanner = match scanner.as_ref() {
+            Some(s) => s,
+            None => return YRX_RESULT::INVALID_ARGUMENT,
+        };
+
+        for profiling_info in scanner.inner.most_expensive_rules(n) {
+            let namespace = CString::new(profiling_info.namespace).unwrap();
+            let rule = CString::new(profiling_info.rule).unwrap();
+
+            callback(
+                namespace.as_ptr(),
+                rule.as_ptr(),
+                profiling_info.pattern_matching_time.as_secs_f64(),
+                profiling_info.condition_exec_time.as_secs_f64(),
+                user_data,
+            );
+        }
+
+        YRX_RESULT::SUCCESS
     }
-
-    let scanner = scanner.as_ref().unwrap();
-
-    for profiling_info in scanner.inner.most_expensive_rules(n) {
-        let namespace = CString::new(profiling_info.namespace).unwrap();
-        let rule = CString::new(profiling_info.rule).unwrap();
-
-        callback(
-            namespace.as_ptr(),
-            rule.as_ptr(),
-            profiling_info.pattern_matching_time.as_secs_f64(),
-            profiling_info.condition_exec_time.as_secs_f64(),
-            user_data,
-        );
-    }
-
-    YRX_RESULT::SUCCESS
 }
