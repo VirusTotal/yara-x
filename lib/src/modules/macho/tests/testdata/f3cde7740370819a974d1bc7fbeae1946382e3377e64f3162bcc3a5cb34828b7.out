@@ -1,0 +1,273 @@
+magic: 0xcffaedfe
+cputype: 0x100000c
+cpusubtype: 0x0
+filetype: 1
+ncmds: 34
+sizeofcmds: 2088
+flags: 0x2000
+reserved: 0
+number_of_segments: 1
+symtab:
+    symoff: 2800
+    nsyms: 54
+    stroff: 3664
+    strsize: 1536
+    entries:
+      - "__swift_FORCE_LOAD_$_swiftIOKit_$_test"
+      - "__swift_FORCE_LOAD_$_swift_Builtin_float_$_test"
+      - "__swift_FORCE_LOAD_$_swift_errno_$_test"
+      - "__swift_FORCE_LOAD_$_swift_stdio_$_test"
+      - "__swift_FORCE_LOAD_$_swiftFoundation_$_test"
+      - "__swift_FORCE_LOAD_$_swiftCoreFoundation_$_test"
+      - "__swift_FORCE_LOAD_$_swiftDarwin_$_test"
+      - "__swift_FORCE_LOAD_$_swift_signal_$_test"
+      - "__swift_FORCE_LOAD_$_swift_math_$_test"
+      - "__swift_FORCE_LOAD_$_swiftDispatch_$_test"
+      - "__swift_FORCE_LOAD_$_swift_time_$_test"
+      - "__swift_FORCE_LOAD_$_swiftsys_time_$_test"
+      - "__swift_FORCE_LOAD_$_swiftunistd_$_test"
+      - "__swift_FORCE_LOAD_$_swiftObjectiveC_$_test"
+      - "__swift_FORCE_LOAD_$_swiftXPC_$_test"
+      - "l_entry_point"
+      - "__swift_FORCE_LOAD_$_swiftIOKit"
+      - "__swift_FORCE_LOAD_$_swift_Builtin_float"
+      - "_$s4test4str2So8NSStringCvp"
+      - "__swift_FORCE_LOAD_$_swift_errno"
+      - "__swift_FORCE_LOAD_$_swift_stdio"
+      - "__swift_FORCE_LOAD_$_swiftFoundation"
+      - "__swift_FORCE_LOAD_$_swiftCoreFoundation"
+      - "___swift_reflection_version"
+      - "__swift_FORCE_LOAD_$_swiftDarwin"
+      - "_main"
+      - "__swift_FORCE_LOAD_$_swift_signal"
+      - "__swift_FORCE_LOAD_$_swift_math"
+      - "l_llvm.swift_module_hash"
+      - "__swift_FORCE_LOAD_$_swiftDispatch"
+      - "_OBJC_CLASS_$_NSString"
+      - "l_OBJC_CLASS_REF_$_NSString"
+      - "_objc_opt_self"
+      - "__swift_FORCE_LOAD_$_swift_time"
+      - "__swift_FORCE_LOAD_$_swiftsys_time"
+      - "__swift_FORCE_LOAD_$_swiftunistd"
+      - "l_.str.12.hello, world"
+      - "_swift_getObjCClassMetadata"
+      - "_$sSo8NSStringCMa"
+      - "_$sSo8NSStringCML"
+      - "_$sSo8NSStringC10FoundationE13stringLiteralABs12StaticStringV_tcfC"
+      - "__swift_FORCE_LOAD_$_swiftObjectiveC"
+      - "__swift_FORCE_LOAD_$_swiftXPC"
+      - "ltmp9"
+      - "ltmp8"
+      - "ltmp7"
+      - "ltmp6"
+      - "ltmp5"
+      - "ltmp4"
+      - "ltmp3"
+      - "ltmp2"
+      - "ltmp1"
+      - "ltmp0"
+      - "ltmp10"
+dysymtab:
+    ilocalsym: 0
+    nlocalsym: 15
+    iextdefsym: 15
+    nextdefsym: 20
+    tocoff: 35
+    ntoc: 19
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 0
+    nextrel: 0
+    locreloff: 0
+    nlocrel: 0
+segments:
+  - segname: ""
+    vmaddr: 0x0
+    vmsize: 0x1a8
+    fileoff: 2120
+    filesize: 416
+    maxprot: 0x7
+    initprot: 0x7
+    nsects: 11
+    flags: 0x0
+    sections:
+      - segname: "__TEXT"
+        sectname: "__text"
+        addr: 0x0
+        size: 0xbc
+        offset: 2120
+        align: 2
+        reloff: 2536
+        nreloc: 14
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__common"
+        addr: 0x1a0
+        size: 0x8
+        offset: 0
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x1
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__cstring"
+        addr: 0xbc
+        size: 0xd
+        offset: 2308
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__data"
+        addr: 0xd0
+        size: 0x8
+        offset: 2328
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_classrefs"
+        addr: 0xd8
+        size: 0x8
+        offset: 2336
+        align: 3
+        reloff: 2648
+        nreloc: 1
+        flags: 0x10000000
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__swift5_entry"
+        addr: 0xe0
+        size: 0x8
+        offset: 2344
+        align: 2
+        reloff: 2656
+        nreloc: 2
+        flags: 0x10000000
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__const"
+        addr: 0xe8
+        size: 0x78
+        offset: 2352
+        align: 3
+        reloff: 2672
+        nreloc: 15
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__const"
+        addr: 0x160
+        size: 0x2
+        offset: 2472
+        align: 1
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__LLVM"
+        sectname: "__swift_modhash"
+        addr: 0x162
+        size: 0x10
+        offset: 2474
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_imageinfo"
+        addr: 0x172
+        size: 0x8
+        offset: 2490
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x10000000
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__LD"
+        sectname: "__compact_unwind"
+        addr: 0x180
+        size: 0x20
+        offset: 2504
+        align: 3
+        reloff: 2792
+        nreloc: 1
+        flags: 0x2000000
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+build_version:
+    platform: 1
+    minos: "15.0.0"
+    sdk: "15.1.0"
+    ntools: 0
+linker_options:
+  - "-lswiftFoundation"
+  - "-framework"
+  - "Foundation"
+  - "-lswiftCore"
+  - "-lswift_errno"
+  - "-lswiftsys_time"
+  - "-lswift_signal"
+  - "-lswift_stdio"
+  - "-lswift_time"
+  - "-lswiftunistd"
+  - "-lswift_math"
+  - "-lswift_Builtin_float"
+  - "-lswift_StringProcessing"
+  - "-lswift_Concurrency"
+  - "-lswiftSystem"
+  - "-lswiftDarwin"
+  - "-lswiftObservation"
+  - "-lswiftObjectiveC"
+  - "-lswiftCoreFoundation"
+  - "-framework"
+  - "CoreFoundation"
+  - "-lswiftDispatch"
+  - "-framework"
+  - "Combine"
+  - "-framework"
+  - "CoreServices"
+  - "-framework"
+  - "Security"
+  - "-lswiftXPC"
+  - "-framework"
+  - "CFNetwork"
+  - "-framework"
+  - "DiskArbitration"
+  - "-lswiftIOKit"
+  - "-framework"
+  - "IOKit"
+  - "-lswiftSwiftOnoneSupport"
+  - "-lobjc"
