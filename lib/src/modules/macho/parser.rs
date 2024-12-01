@@ -1136,8 +1136,7 @@ impl<'a> MachOFile<'a> {
         }
     }
 
-    /// Parser that parses a LC_ID_DYLINKER, LC_LOAD_DYLINKER or
-    /// LC_DYLD_ENVIRONMENT  command.
+    /// Parser that parses a LC_LINKER_OPTION command.
     fn linker_options_command(
         &self,
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<&'a [u8]>> + '_ {
