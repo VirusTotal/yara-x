@@ -84,6 +84,7 @@ const LC_VERSION_MIN_IPHONEOS: u32 = 0x00000025;
 const LC_DYLD_ENVIRONMENT: u32 = 0x00000027;
 const LC_MAIN: u32 = 0x28 | LC_REQ_DYLD;
 const LC_SOURCE_VERSION: u32 = 0x0000002a;
+const LC_LINKER_OPTION: u32 = 0x0000002d;
 const LC_VERSION_MIN_TVOS: u32 = 0x0000002f;
 const LC_VERSION_MIN_WATCHOS: u32 = 0x00000030;
 const LC_BUILD_VERSION: u32 = 0x00000032;
@@ -284,6 +285,7 @@ impl<'a> MachO<'a> {
             symtab: None,
             dysymtab: None,
             dynamic_linker: None,
+            linker_options: Vec::new(),
             dyld_info: None,
             source_version: None,
             entry_point_offset: None,
@@ -413,6 +415,7 @@ pub struct MachOFile<'a> {
     dysymtab: Option<Dysymtab>,
     dyld_info: Option<DyldInfo>,
     dynamic_linker: Option<&'a [u8]>,
+    linker_options: Vec<&'a [u8]>,
     source_version: Option<String>,
     rpaths: Vec<&'a [u8]>,
     uuid: Option<&'a [u8]>,
@@ -517,7 +520,6 @@ impl<'a> MachOFile<'a> {
                 // minus 8.
                 command_size.saturating_sub(8),
             )(remainder)?;
-
             // Parse the command's data. Parsers for individual commands must
             // consume all `command_data`.
             match command {
@@ -587,6 +589,11 @@ impl<'a> MachOFile<'a> {
                         self.min_version_command()(command_data)?;
                     mv.device = command;
                     self.min_version = Some(mv);
+                }
+                LC_LINKER_OPTION => {
+                    let (_, linker_options) =
+                        self.linker_options_command()(command_data)?;
+                    self.linker_options.extend(linker_options);
                 }
                 _ => {}
             }
@@ -1126,6 +1133,27 @@ impl<'a> MachOFile<'a> {
             let (remainder, _offset) = u32(self.endianness)(input)?;
 
             Ok((&[], BStr::new(remainder).trim_end_with(|c| c == '\0')))
+        }
+    }
+
+    /// Parser that parses a LC_ID_DYLINKER, LC_LOAD_DYLINKER or
+    /// LC_DYLD_ENVIRONMENT  command.
+    fn linker_options_command(
+        &self,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<&'a [u8]>> + '_ {
+        move |input: &'a [u8]| {
+            let mut linker_options = Vec::new();
+            let (mut remainder, count) = u32(self.endianness)(input)?;
+            let mut option: &[u8];
+            for _ in 0..count {
+                (remainder, option) = map(
+                    tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
+                    |(s, _)| s,
+                )(remainder)?;
+
+                linker_options.push(option);
+            }
+            Ok((&[], linker_options))
         }
     }
 
@@ -1718,6 +1746,10 @@ impl From<MachO<'_>> for protos::macho::Macho {
 
             result
                 .set_number_of_segments(m.segments.len().try_into().unwrap());
+
+            result
+                .linker_options
+                .extend(m.linker_options.iter().map(|lo| lo.to_vec()));
         } else {
             result.fat_magic = macho.fat_magic;
             result.set_nfat_arch(macho.archs.len().try_into().unwrap());
@@ -1796,6 +1828,10 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         result.entitlements.extend(macho.entitlements.clone());
         result.exports.extend(macho.exports.clone());
         result.imports.extend(macho.imports.clone());
+
+        result
+            .linker_options
+            .extend(macho.linker_options.iter().map(|lo| lo.to_vec()));
 
         result
             .set_number_of_segments(result.segments.len().try_into().unwrap());
