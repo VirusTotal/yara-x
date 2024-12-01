@@ -1,11 +1,11 @@
 [build-system]
-requires = ["maturin>=1.0,<2.0"]
+requires = ["maturin==1.7.4"]
 build-backend = "maturin"
 
 [project]
 name = "yara-x"
 description = "Python bindings for YARA-X"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 readme = "README.md"
 keywords = ["pattern-matching", "cybersecurity", "forensics", "malware", "yara"]
 classifiers = [

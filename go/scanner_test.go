@@ -91,18 +91,6 @@ func TestScannerTimeout(t *testing.T) {
 	assert.ErrorIs(t, err, ErrTimeout)
 }
 
-func TestScannerMostExpensiveRules(t *testing.T) {
-	r, _ := Compile("rule t { strings: $a = /a(.*)*a/ condition: $a }")
-	s := NewScanner(r)
-	_, err := s.Scan(bytes.Repeat([]byte("a"), 5000))
-	assert.NoError(t, err)
-	profilingInfo := s.MostExpensiveRules(1)
-	assert.Equal(t, "t", profilingInfo[0].Rule)
-	assert.Equal(t, "default", profilingInfo[0].Namespace)
-	assert.Greater(t, profilingInfo[0].PatternMatchingTime, time.Duration(0))
-	assert.Greater(t, profilingInfo[0].ConditionExecTime, time.Duration(0))
-}
-
 func TestScannerMetadata(t *testing.T) {
 	r, _ := Compile(`rule t {
 			meta:

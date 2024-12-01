@@ -80,6 +80,9 @@ typedef enum YRX_RESULT {
   SERIALIZATION_ERROR,
   // An error returned when a rule doesn't have any metadata.
   NO_METADATA,
+  // An error returned in cases where some API is not supported because the
+  // library was not built with the required features.
+  NOT_SUPPORTED,
 } YRX_RESULT;
 
 // A compiler that takes YARA source code and produces compiled rules.
@@ -708,7 +711,7 @@ enum YRX_RESULT yrx_scanner_set_global_float(struct YRX_SCANNER *scanner,
 // Iterates over the top N most expensive rules, calling the callback for
 // each rule.
 //
-// Requires the `rules-profiling` feature.
+// Requires the `rules-profiling` feature, otherwise the
 //
 // See [`YRX_MOST_EXPENSIVE_RULES_CALLBACK`] for more details.
 enum YRX_RESULT yrx_scanner_iter_most_expensive_rules(struct YRX_SCANNER *scanner,

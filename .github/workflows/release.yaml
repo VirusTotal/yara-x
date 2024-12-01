@@ -3,6 +3,8 @@ on:
   create:
     tags:
     - 'v*'
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
 jobs:
   build:
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
@@ -98,7 +100,6 @@ jobs:
       matrix:
         python-version:
         - cp39
-        - pp38
         - pp39
         - pp310
         build:
@@ -138,7 +139,7 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.9'
+        python-version: '3.12'
 
     - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
       if: matrix.build == 'macos'
@@ -149,12 +150,13 @@ jobs:
     - name: Build sdist
       if: matrix.build == 'linux' && matrix.python-version == 'cp39'
       run: |
-        pip install maturin==1.7.1
+        pip install maturin==1.7.4
         maturin sdist --manifest-path py/Cargo.toml -o wheelhouse
 
     - name: Build ${{ matrix.platform || matrix.os }} binaries
       run: cibuildwheel --output-dir wheelhouse py
       env:
+        CIBW_ENABLE: 'pypy'
         CIBW_BUILD: '${{ matrix.python-version }}-*'
         # wasmtime doesn't support i686
         CIBW_SKIP: '*_i686 *-musllinux* *-win32'
@@ -172,6 +174,8 @@ jobs:
         CIBW_TEST_COMMAND: 'pytest {project}/py'
         CIBW_TEST_SKIP: '*-macosx_arm64 *-macosx_universal2:arm64'
         CIBW_BUILD_VERBOSITY: 1
+
+        MACOSX_DEPLOYMENT_TARGET: '10.12'
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -244,7 +248,7 @@ jobs:
         path: dist
 
     - name: Publish package distributions to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
+      uses: pypa/gh-action-pypi-publish@release/v1.12
       with:
         #repository-url: https://test.pypi.org/legacy/
         skip-existing: true

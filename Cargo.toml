@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.10.0"
+version = "0.11.1"
 authors = ["Victor M. Alvarez <vmalvarez@virustotal.com>"]
 edition = "2021"
 homepage = "https://virustotal.github.io/yara-x"
@@ -89,8 +89,8 @@ regex-automata = "0.4.7"
 roxmltree = "0.20.0"
 rsa = "0.9.6"
 rustc-hash = "2.0.0"
-serde = "=1.0.210"
-serde_json = "1.0.132"
+serde = "1.0.215"
+serde_json = "1.0.133"
 sha1 = "0.10.6"
 sha2 = "0.10.8"
 smallvec = "1.13.2"
@@ -105,11 +105,11 @@ x509-parser = "0.16.0"
 yaml-rust = "0.4.5"
 yansi = "1.0.1"
 yara-x = { path = "lib" }
-yara-x-fmt = { path = "fmt", version = "0.10.0" }
-yara-x-macros = { path = "macros", version = "0.10.0" }
-yara-x-parser = { path = "parser", version = "0.10.0" }
-yara-x-proto = { path = "proto", version = "0.10.0" }
-yara-x-proto-yaml = { path = "proto-yaml", version = "0.10.0" }
+yara-x-fmt = { path = "fmt", version = "0.11.1" }
+yara-x-macros = { path = "macros", version = "0.11.1" }
+yara-x-parser = { path = "parser", version = "0.11.1" }
+yara-x-proto = { path = "proto", version = "0.11.1" }
+yara-x-proto-yaml = { path = "proto-yaml", version = "0.11.1" }
 zip = "2.1.1"
 
 # Special profile that builds a release binary with link-time optimization.

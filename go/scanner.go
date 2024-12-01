@@ -247,6 +247,13 @@ func (s *Scanner) Scan(buf []byte) (*ScanResults, error) {
 	return scanResults, err
 }
 
+// ProfilingInfo contains profiling information about a YARA rule.
+//
+// For each rule it contains: the rule's namespace, the rule's name,
+// the time spent in matching patterns declared by the rule, and the time
+// spent evaluating the rule's condition.
+//
+// See [Scanner.MostExpensiveRules].
 type ProfilingInfo struct {
 	Namespace           string
 	Rule                string
@@ -276,16 +283,28 @@ func mostExpensiveRulesCallback(
 	})
 }
 
+// MostExpensiveRules returns information about the slowest rules and how much
+// time they spent matching patterns and executing their conditions.
+//
+// In order to use this function the YARA-X C library must be built with
+// support for rules profiling, which is done by enabling the `rules-profiling`
+// feature. Otherwise, calling this function will cause a panic.
 func (s *Scanner) MostExpensiveRules(n int) []ProfilingInfo {
 	profilingInfo := make([]ProfilingInfo, 0)
 	mostExpensiveRules := cgo.NewHandle(&profilingInfo)
 	defer mostExpensiveRules.Delete()
 
-	if C._yrx_scanner_iter_most_expensive_rules(
+	result := C._yrx_scanner_iter_most_expensive_rules(
 		s.cScanner,
 		C.size_t(n),
 		C.YRX_MOST_EXPENSIVE_RULES_CALLBACK(C.mostExpensiveRulesCallback),
-		C.uintptr_t(mostExpensiveRules)) != C.SUCCESS {
+		C.uintptr_t(mostExpensiveRules))
+
+	if result == C.NOT_SUPPORTED {
+		panic("MostExpensiveRules requires that the YARA-X C library is built with the `rules-profiling` feature")
+	}
+
+	if result != C.SUCCESS {
 		panic("yrx_scanner_iter_most_expensive_rules failed")
 	}
 

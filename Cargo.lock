@@ -2981,9 +2981,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.210"
+version = "1.0.215"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8e3592472072e6e22e0a54d5904d9febf8508f65fb8552499a1abc7d1078c3a"
+checksum = "6513c1ad0b11a9376da888e3e0baa0077f1aed55c17f50e7b2397136129fb88f"
 dependencies = [
  "serde_derive",
 ]
@@ -3001,9 +3001,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.210"
+version = "1.0.215"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "243902eda00fad750862fc144cea25caca5e20d615af0a81bee94ca738f1df1f"
+checksum = "ad1e866f866923f252f05c889987993144fb74e722403468a4ebd70c3cd756c0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4358,7 +4358,7 @@ checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
 
 [[package]]
 name = "yara-x"
-version = "0.10.0"
+version = "0.11.1"
 dependencies = [
  "aho-corasick",
  "annotate-snippets",
@@ -4429,7 +4429,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-capi"
-version = "0.10.0"
+version = "0.11.1"
 dependencies = [
  "cbindgen",
  "serde_json",
@@ -4438,7 +4438,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-cli"
-version = "0.10.0"
+version = "0.11.1"
 dependencies = [
  "anyhow",
  "ascii_tree",
@@ -4472,7 +4472,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-fmt"
-version = "0.10.0"
+version = "0.11.1"
 dependencies = [
  "bitmask",
  "bstr",
@@ -4487,7 +4487,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-macros"
-version = "0.10.0"
+version = "0.11.1"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -4497,7 +4497,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-parser"
-version = "0.10.0"
+version = "0.11.1"
 dependencies = [
  "anyhow",
  "ascii_tree",
@@ -4521,7 +4521,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-proto"
-version = "0.10.0"
+version = "0.11.1"
 dependencies = [
  "protobuf",
  "protobuf-codegen",
@@ -4530,7 +4530,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-proto-yaml"
-version = "0.10.0"
+version = "0.11.1"
 dependencies = [
  "chrono",
  "globwalk",
@@ -4545,7 +4545,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-py"
-version = "0.10.0"
+version = "0.11.1"
 dependencies = [
  "protobuf-json-mapping",
  "pyo3",

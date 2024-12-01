@@ -22,7 +22,7 @@ Python is a popular language among YARA users. They use Python for all
 kinds of automation tasks, and the YARA-X ecosystem wouldn't be complete
 without the possibility of using it from Python programs.
 
-YARA-X offers support for Python 3.8 or later, in Linux, MacOS and Windows.
+YARA-X offers support for Python 3.9 or later, in Linux, MacOS and Windows.
 
 ## Installation
 
