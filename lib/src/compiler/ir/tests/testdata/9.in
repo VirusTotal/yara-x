@@ -1,0 +1,23 @@
+rule test_1 {
+  strings:
+    $a = "foo"
+  condition:
+    $a and #a == 1 and @a == 0
+}
+
+rule test_2 {
+  strings:
+    $a = "foo"
+  condition:
+    $a at 0
+}
+
+rule test_3 {
+  strings:
+    $a = "foo"
+    $b = "bar"
+  condition:
+    for all of ($a, $b) : (
+      $ at 0 or # > 0
+    )
+}

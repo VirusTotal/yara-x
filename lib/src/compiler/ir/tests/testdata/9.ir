@@ -1,0 +1,23 @@
+RULE test_1
+  11: AND -- hash: 0xc2a770f728278b62 -- parent: None 
+    0: PATTERN_MATCH PatternIdx(0) -- hash: 0x33ca4b577a0ea8af -- parent: 11 
+    5: EQ -- hash: 0xe037667fbed74cb4 -- parent: 11 
+      3: PATTERN_COUNT PatternIdx(0) -- hash: 0x2706f00cf1a9933a -- parent: 5 
+      4: CONST integer(1) -- parent: 5 
+    10: EQ -- hash: 0xfac13fee1024fdba -- parent: 11 
+      8: PATTERN_OFFSET PatternIdx(0) -- hash: 0x1a4394c269447dc5 -- parent: 10 
+      9: CONST integer(0) -- parent: 10 
+
+RULE test_2
+  1: PATTERN_MATCH PatternIdx(0) AT -- hash: 0x6c1af84ea5255e33 -- parent: None 
+    0: CONST integer(0) -- parent: 1 
+
+RULE test_3
+  6: FOR_OF -- hash: 0x6757d113ddb8b088 -- parent: None 
+    5: OR -- hash: 0xcc445c4db8b32aa4 -- parent: 6 
+      1: PATTERN_MATCH Var { var: Var { frame_id: 1, ty: integer, index: 4 }, type_value: integer(unknown) } AT -- hash: 0xa701186afbdbc10d -- parent: 5 
+        0: CONST integer(0) -- parent: 1 
+      4: GT -- hash: 0xb49e5d335feb77cf -- parent: 5 
+        2: PATTERN_COUNT Var { var: Var { frame_id: 1, ty: integer, index: 4 }, type_value: integer(unknown) } -- hash: 0xd2940cad4d24a56 -- parent: 4 
+        3: CONST integer(0) -- parent: 4 
+
