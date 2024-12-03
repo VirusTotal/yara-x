@@ -2776,45 +2776,7 @@ impl Expr {
                 for_in.for_vars.shift(from_index, shift_amount);
             }
 
-            Expr::FieldAccess(_) => {}
-            Expr::FuncCall(_) => {}
-            Expr::Lookup(_) => {}
-            Expr::Const(_) => {}
-            Expr::Filesize => {}
-            Expr::Not { .. } => {}
-            Expr::And { .. } => {}
-            Expr::Or { .. } => {}
-            Expr::Minus { .. } => {}
-            Expr::Add { .. } => {}
-            Expr::Sub { .. } => {}
-            Expr::Mul { .. } => {}
-            Expr::Div { .. } => {}
-            Expr::Mod { .. } => {}
-            Expr::BitwiseNot { .. } => {}
-            Expr::BitwiseAnd { .. } => {}
-            Expr::Shl { .. } => {}
-            Expr::Shr { .. } => {}
-            Expr::BitwiseOr { .. } => {}
-            Expr::BitwiseXor { .. } => {}
-            Expr::Eq { .. } => {}
-            Expr::Ne { .. } => {}
-            Expr::Lt { .. } => {}
-            Expr::Gt { .. } => {}
-            Expr::Le { .. } => {}
-            Expr::Ge { .. } => {}
-            Expr::Contains { .. } => {}
-            Expr::IContains { .. } => {}
-            Expr::StartsWith { .. } => {}
-            Expr::IStartsWith { .. } => {}
-            Expr::EndsWith { .. } => {}
-            Expr::IEndsWith { .. } => {}
-            Expr::IEquals { .. } => {}
-            Expr::Matches { .. } => {}
-            Expr::Defined { .. } => {}
-            Expr::PatternMatch { .. } => {}
-            Expr::PatternCount { .. } => {}
-            Expr::PatternOffset { .. } => {}
-            Expr::PatternLength { .. } => {}
+            _ => {}
         }
     }
 
