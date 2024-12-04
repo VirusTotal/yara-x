@@ -317,7 +317,7 @@ fn has_export(ctx: &ScanContext, export: RuntimeString) -> Option<bool> {
     Some(false)
 }
 
-/// Returns an md5 hash of the dylibs designated in the mach-o binary
+/// Returns a md5 hash of the dylibs designated in the mach-o binary
 #[module_export]
 fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let macho = ctx.module_output::<Macho>()?;
@@ -336,19 +336,17 @@ fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 
     let mut md5_hash = Md5::new();
 
-    let dylibs_to_hash = bstr::join(
-        b",",
-        dylibs_to_hash
-            .iter()
-            .filter_map(|dylib| {
-                dylib
-                    .name
-                    .as_ref()
-                    .map(|name| name.trim().to_ascii_lowercase())
-            })
-            .unique()
-            .sorted(),
-    );
+    let dylibs_to_hash = dylibs_to_hash
+        .iter()
+        .filter_map(|dylib| {
+            dylib
+                .name
+                .as_ref()
+                .map(|name| BString::new(name.trim().to_ascii_lowercase()))
+        })
+        .unique()
+        .sorted()
+        .join(",");
 
     md5_hash.update(dylibs_to_hash.as_bytes());
 
@@ -356,7 +354,7 @@ fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     Some(RuntimeString::new(digest))
 }
 
-/// Returns an md5 hash of the entitlements designated in the mach-o binary
+/// Returns a md5 hash of the entitlements designated in the mach-o binary
 #[module_export]
 fn entitlement_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let macho = ctx.module_output::<Macho>()?;
@@ -388,7 +386,7 @@ fn entitlement_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     Some(RuntimeString::new(digest))
 }
 
-/// Returns an md5 hash of the export symbols in the mach-o binary
+/// Returns a md5 hash of the export symbols in the mach-o binary
 #[module_export]
 fn export_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let macho = ctx.module_output::<Macho>()?;
@@ -420,7 +418,7 @@ fn export_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     Some(RuntimeString::new(digest))
 }
 
-/// Returns an md5 hash of the imported symbols in the mach-o binary
+/// Returns a md5 hash of the imported symbols in the mach-o binary
 #[module_export]
 fn import_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let macho = ctx.module_output::<Macho>()?;
@@ -445,6 +443,7 @@ fn import_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         .unique()
         .sorted()
         .join(",");
+
     md5_hash.update(imports_str.as_bytes());
 
     let digest = format!("{:x}", md5_hash.finalize());
