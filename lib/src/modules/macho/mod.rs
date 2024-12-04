@@ -450,7 +450,7 @@ fn import_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     Some(RuntimeString::new(digest))
 }
 
-/// Returns an md5 hash of the symbol table in the mach-o binary
+/// Returns a md5 hash of the symbol table in the mach-o binary
 #[module_export]
 fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let macho = ctx.module_output::<Macho>()?;
