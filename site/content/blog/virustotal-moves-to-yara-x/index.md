@@ -43,10 +43,13 @@ Retrohunt:
   have [been used by threat actors](https://intezer.com/blog/malware-analysis/how-threat-actors-abuse-lnk-files/)
   in numerous campaings.
 
-These additions, which were contributions from our community (thanks to
-[Jacob Latonis](https://github.com/latonis) and
-[chudicek](https://github.com/chudicek)) provide malware researchers with
-powerful new tools.
+These additions, which were contributions from our community, provide malware
+researchers with powerful new tools. Thanks
+to [Tomáš Ďuriš](https://github.com/TommYDeeee)
+and [Jacob Latonis](https://github.com/latonis) for their work on the `macho`
+module, and
+[BitsOfBinary](https://github.com/BitsOfBinary]) for the original implementation
+of the `lnk` module in YARA)
 
 Learn more about them in [macho documentation](/docs/modules/macho) and
 [lnk documentation](/docs/modules/lnk).
