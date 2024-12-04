@@ -51,8 +51,8 @@ module, and
 [BitsOfBinary](https://github.com/BitsOfBinary]) for the original implementation
 of the `lnk` module in YARA)
 
-Learn more about them in [macho documentation](/docs/modules/macho) and
-[lnk documentation](/docs/modules/lnk).
+Learn more about them in [macho documentation]({{< ref "macho.md" >}}) and
+[lnk documentation]({{< ref "lnk.md" >}}).
 
 #### More rules accepted
 
