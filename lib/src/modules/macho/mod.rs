@@ -342,7 +342,7 @@ fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
             dylib
                 .name
                 .as_ref()
-                .map(|name| BString::new(name.trim().to_ascii_lowercase()))
+                .map(|name| BString::new(name.trim().to_lowercase()))
         })
         .unique()
         .sorted()
