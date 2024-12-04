@@ -336,19 +336,19 @@ fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 
     let mut md5_hash = Md5::new();
 
-    let dylibs_to_hash: String = dylibs_to_hash
-        .iter()
-        .filter_map(|d| {
-            Some(
-                String::from_utf8(d.name.clone()?)
-                    .unwrap()
-                    .trim()
-                    .to_lowercase(),
-            )
-        })
-        .unique()
-        .sorted()
-        .join(",");
+    let dylibs_to_hash = bstr::join(
+        b",",
+        dylibs_to_hash
+            .iter()
+            .filter_map(|dylib| {
+                dylib
+                    .name
+                    .as_ref()
+                    .map(|name| name.trim().to_ascii_lowercase())
+            })
+            .unique()
+            .sorted(),
+    );
 
     md5_hash.update(dylibs_to_hash.as_bytes());
 
