@@ -14,10 +14,7 @@ rust-version.workspace = true
 
 # Exclude test files from the package published to crates.io, as there's a
 # limit of 10MB for the total package size.
-exclude = [
-    "src/modules/**/*.zip",
-    "src/modules/**/*.out"
-]
+exclude = ["src/modules/**/*.zip", "src/modules/**/*.out"]
 
 [features]
 # Enables constant folding. When constant folding is enabled, expressions
@@ -100,44 +97,24 @@ console-module = []
 cuckoo-module = []
 
 # The `dotnet` module parses .NET files.
-dotnet-module = [
-    "pe-module",
-    "dep:nom",
-]
+dotnet-module = ["pe-module", "dep:nom"]
 
 # The `elf` module parses ELF files.
-elf-module = [
-    "dep:tlsh-fixed",
-    "dep:nom",
-    "dep:md-5",
-]
+elf-module = ["dep:tlsh-fixed", "dep:nom", "dep:md-5"]
 
 # The `hash` module provides functions for computing md5, sha1, sha-256,
 # crc32 and checksum.
-hash-module = [
-    "dep:md-5",
-    "dep:sha1",
-    "dep:sha2",
-    "dep:crc32fast",
-]
+hash-module = ["dep:md-5", "dep:sha1", "dep:sha2", "dep:crc32fast"]
 
 # The `lnk` module parses LNK files.
-lnk-module = [
-    "dep:uuid",
-    "dep:nom",
-]
+lnk-module = ["dep:uuid", "dep:nom"]
 
 # The `macho` module parses Mach-O files.
-macho-module = [
-    "dep:nom",
-    "dep:roxmltree",
-]
+macho-module = ["dep:nom", "dep:roxmltree", "dep:cryptographic-message-syntax"]
 
 # The `magic` allows recognizing file types based on the output of the
 # Unix `file` command. This feature is disabled by default.
-magic-module = [
-    "dep:magic"
-]
+magic-module = ["dep:magic"]
 
 # The `math` module.
 math-module = []
@@ -157,7 +134,7 @@ pe-module = [
     "dep:p384",
     "dep:sha1",
     "dep:sha2",
-    "dep:x509-parser"
+    "dep:x509-parser",
 ]
 
 # The `string` modules offer some functions for parsing strings as integers,
@@ -170,9 +147,7 @@ test_proto3-module = []
 
 # The `text` module is an example module described in the Module's Developer
 # Guide. Not very useful in real life.
-text-module = [
-    "dep:lingua"
-]
+text-module = ["dep:lingua"]
 
 # The `time` module allows you to retrieve epoch in seconds that can be used in
 # conditions of a rule to check against other epoch time.
@@ -257,7 +232,13 @@ yansi = { workspace = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true, features = ["serde"] }
 
-lingua = { version = "1.6.2", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
+lingua = { version = "1.6.2", optional = true, default-features = false, features = [
+    "english",
+    "german",
+    "french",
+    "spanish",
+] }
+cryptographic-message-syntax = { workspace = true, optional = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
