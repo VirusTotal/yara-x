@@ -526,6 +526,7 @@ impl<'a> DigestInfo<'a> {
 /// [1]: https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-oshared/91755632-4b0d-44ca-89a9-9699afbbd268
 pub struct SpcSpOpusInfo {
     pub program_name: Option<String>,
+    pub more_info: Option<String>,
 }
 
 impl SpcSpOpusInfo {
@@ -533,24 +534,28 @@ impl SpcSpOpusInfo {
         let (remainder, program_name) = OptTaggedParser::from(0)
             .parse_ber(input, |_, content| Self::parse_spc_string(content))?;
 
-        let (remainder, _more_info) =
-            OptTaggedParser::from(1).parse_ber(remainder, |_, content| {
-                let (rem, value) = parse_ber(content)?;
-                Ok((rem, value))
-            })?;
+        let (remainder, more_info) = OptTaggedParser::from(1)
+            .parse_ber(remainder, |_, content| Self::parse_spc_link(content))
+            .unwrap_or_default();
 
-        Ok((remainder, Self { program_name }))
+        Ok((remainder, Self { program_name, more_info }))
     }
 
+    /// SpcString ::= CHOICE {
+    ///     unicode           [0] IMPLICIT BMPSTRING
+    ///     ascii             [1] IMPLICIT IA5STRING
+    /// }
     fn parse_spc_string(input: &[u8]) -> BerResult<String> {
         alt((
-            map_res(
-                parse_ber_tagged_implicit(
-                    0,
-                    parse_ber_content(Tag::BmpString),
-                ),
-                |s| string_from_utf16be(s.as_slice()?).ok_or(BerValueError),
-            ),
+            // The most straightforward way for parsing a BmpString would be:
+            //
+            // parse_ber_tagged_implicit(0, parse_ber_content(Tag::BmpString))
+            //
+            // But we can't because of this bug:
+            // https://github.com/rusticata/der-parser/issues/76
+            parse_ber_tagged_implicit_g(0, |input, _header, _size| {
+                Ok((&[], string_from_utf16be(input).ok_or(BerValueError)?))
+            }),
             map_res(
                 parse_ber_tagged_implicit(
                     1,
@@ -559,6 +564,23 @@ impl SpcSpOpusInfo {
                 |s| Ok::<String, BerError>(String::from(s.as_str()?)),
             ),
         ))(input)
+    }
+
+    /// SpcLink ::= CHOICE {
+    ///     url                [0] IMPLICIT IA5STRING,
+    ///     moniker            [1] IMPLICIT SpcSerializedObject,
+    ///     file               [2] EXPLICIT SpcString
+    /// }
+    fn parse_spc_link(input: &[u8]) -> BerResult<String> {
+        // The SpcLink, when used in the SpcSpOpusInfo structure, only contains
+        // URLs (the first choice), we don't bother to implement parsing for the
+        // other two choices. SpcLink is also used inside SpcPeImageData, and in
+        // those cases the other two choices can be used, but we are not parsing
+        // the SpcPeImageData structure.
+        map_res(
+            parse_ber_tagged_implicit(0, parse_ber_content(Tag::Ia5String)),
+            |s| Ok::<String, BerError>(String::from(s.as_str()?)),
+        )(input)
     }
 }
 

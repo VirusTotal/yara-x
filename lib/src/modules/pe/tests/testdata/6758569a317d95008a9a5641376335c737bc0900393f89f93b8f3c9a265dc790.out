@@ -479,6 +479,7 @@ signatures:
     number_of_countersignatures: 0
     signer_info:
         program_name: "JSIDPlay2"
+        more_info: "https://sourceforge.net/projects/jsidplay2/"
         digest: "01a9b8d4bb48229806d6425d6a1aed0dbdd55f8aaaa6c92c2a450902187abc34"
         digest_alg: "sha256"
         chain:

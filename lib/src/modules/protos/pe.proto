@@ -159,9 +159,10 @@ message Signature {
 
 message SignerInfo {
   optional string program_name = 1;
-  optional string digest = 2;
-  optional string digest_alg = 3;
-  repeated Certificate chain = 4;
+  optional string more_info = 2;
+  optional string digest = 3;
+  optional string digest_alg = 4;
+  repeated Certificate chain = 5;
 }
 
 message Certificate {

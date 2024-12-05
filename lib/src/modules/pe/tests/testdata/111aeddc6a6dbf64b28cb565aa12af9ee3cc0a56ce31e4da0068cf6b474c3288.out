@@ -647,6 +647,7 @@ signatures:
     number_of_countersignatures: 1
     signer_info:
         program_name: "DirectX SDK"
+        more_info: "http://www.microsoft.com/DirectX"
         digest: "44238f27912fcf43d31b231b3615db4f4cd51eb6"
         digest_alg: "sha1"
         chain:

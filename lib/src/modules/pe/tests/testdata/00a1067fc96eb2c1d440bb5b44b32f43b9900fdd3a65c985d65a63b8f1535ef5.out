@@ -376,6 +376,7 @@ signatures:
     number_of_countersignatures: 1
     signer_info:
         program_name: "PotPlayer"
+        more_info: "http://potplayer.daum.net "
         digest: "d4d1962645fb5a5beb8d20c3d50105a8"
         digest_alg: "md5"
         chain:

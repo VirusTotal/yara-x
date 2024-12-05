@@ -309,9 +309,17 @@ impl AuthenticodeParser {
 
         let mut signatures = Vec::with_capacity(nested_signatures.len() + 1);
 
+        let (program_name, more_info) = match opus_info {
+            Some(SpcSpOpusInfo { program_name, more_info }) => {
+                (program_name, more_info)
+            }
+            None => (None, None),
+        };
+
         signatures.push(AuthenticodeSignature {
             computed_authenticode_hash,
-            program_name: opus_info.and_then(|oi| oi.program_name),
+            program_name,
+            more_info,
             authenticode_digest,
             signer_info,
             signer_info_digest,
@@ -463,6 +471,7 @@ pub struct AuthenticodeSignature<'a> {
     certificates: Vec<Certificate<'a>>,
     countersignatures: Vec<AuthenticodeCountersign<'a>>,
     program_name: Option<String>,
+    more_info: Option<String>,
     computed_authenticode_hash: Vec<u8>,
     verified: bool,
 }
@@ -590,6 +599,10 @@ impl From<&AuthenticodeSignature<'_>> for protos::pe::Signature {
 
         if let Some(program_name) = &value.program_name {
             signer_info.set_program_name(program_name.clone())
+        }
+
+        if let Some(more_info) = &value.more_info {
+            signer_info.set_more_info(more_info.clone())
         }
 
         signer_info

@@ -729,6 +729,7 @@ signatures:
     number_of_countersignatures: 1
     signer_info:
         program_name: "Watchdog Development"
+        more_info: "https://www.microsoft.com/en-us/windows "
         digest: "9036096da2275ebc39de2da2a4f394f7667853da0f2734815f4be939e21f83e8"
         digest_alg: "sha256"
         chain:
