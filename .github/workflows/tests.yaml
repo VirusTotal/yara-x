@@ -26,21 +26,21 @@ jobs:
         - build: msrv
           os: ubuntu-latest
           rust: 1.78.0
-          args: "--features=magic-module"
+          args: "--features=magic-module,rules-profiling"
           rust_flags: "-Awarnings"
           experimental: false
 
         - build: stable
           os: ubuntu-latest
           rust: stable
-          args: "--features=magic-module"
+          args: "--features=magic-module,rules-profiling"
           rust_flags: "-Awarnings"
           experimental: false
 
         - build: nightly
           os: ubuntu-latest
           rust: nightly
-          args: "--features=magic-module"
+          args: "--features=magic-module,rules-profiling"
           # Link is currently failing with rust-lld (rust-lang/rust#124129)
           # Disable rust-lld with -Zlinker-features=-lld
           # See: https://github.com/dtolnay/linkme/commit/d13709bfd2c1278b4c8b6c846e2017b623923c0c
@@ -50,14 +50,14 @@ jobs:
         - build: macos
           os: macos-latest
           rust: stable
-          args: ""
+          args: "--features=rules-profiling"
           rust_flags: "-Awarnings"
           experimental: false
 
         - build: win-msvc
           os: windows-latest
           rust: stable
-          args: ""
+          args: "--features=rules-profiling"
           rust_flags: "-Awarnings"
           experimental: false
 

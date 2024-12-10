@@ -303,7 +303,7 @@ unsafe fn slice_from_ptr_and_len<'a>(
     Some(data)
 }
 
-/// Callback function passed to [`yrx_scanner_iter_most_expensive_rules`].
+/// Callback function passed to [`yrx_scanner_iter_slowest_rules`].
 ///
 /// The callback function receives pointers to the namespace and rule name,
 /// and two float numbers with the time spent by the rule matching patterns
@@ -314,7 +314,7 @@ unsafe fn slice_from_ptr_and_len<'a>(
 /// data owned by the user.
 ///
 /// Requires the `rules-profiling` feature.
-pub type YRX_MOST_EXPENSIVE_RULES_CALLBACK = extern "C" fn(
+pub type YRX_SLOWEST_RULES_CALLBACK = extern "C" fn(
     namespace: *const c_char,
     rule: *const c_char,
     pattern_matching_time: f64,
@@ -322,18 +322,18 @@ pub type YRX_MOST_EXPENSIVE_RULES_CALLBACK = extern "C" fn(
     user_data: *mut c_void,
 ) -> ();
 
-/// Iterates over the top N most expensive rules, calling the callback for
-/// each rule.
+/// Iterates over the slowest N rules, calling the callback for each rule.
 ///
-/// Requires the `rules-profiling` feature, otherwise the
+/// Requires the `rules-profiling` feature, otherwise returns
+/// [`YRX_RESULT::NOT_SUPPORTED`]
 ///
-/// See [`YRX_MOST_EXPENSIVE_RULES_CALLBACK`] for more details.
+/// See [`YRX_SLOWEST_RULES_CALLBACK`] for more details.
 #[no_mangle]
 #[allow(unused_variables)]
-pub unsafe extern "C" fn yrx_scanner_iter_most_expensive_rules(
+pub unsafe extern "C" fn yrx_scanner_iter_slowest_rules(
     scanner: *mut YRX_SCANNER,
     n: usize,
-    callback: YRX_MOST_EXPENSIVE_RULES_CALLBACK,
+    callback: YRX_SLOWEST_RULES_CALLBACK,
     user_data: *mut c_void,
 ) -> YRX_RESULT {
     #[cfg(not(feature = "rules-profiling"))]
@@ -346,7 +346,7 @@ pub unsafe extern "C" fn yrx_scanner_iter_most_expensive_rules(
             None => return YRX_RESULT::INVALID_ARGUMENT,
         };
 
-        for profiling_info in scanner.inner.most_expensive_rules(n) {
+        for profiling_info in scanner.inner.slowest_rules(n) {
             let namespace = CString::new(profiling_info.namespace).unwrap();
             let rule = CString::new(profiling_info.rule).unwrap();
 

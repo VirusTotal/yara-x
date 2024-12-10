@@ -527,10 +527,25 @@ impl<'r> Scanner<'r> {
         )
     }
 
-    /// Returns the top N most expensive rules.
+    /// Returns profiling data for the slowest N rules.
+    ///
+    /// The profiling data reflects the cumulative execution time of each rule
+    /// across all scanned files. This information is useful for identifying
+    /// performance bottlenecks. To reset the profiling data and start fresh
+    /// for subsequent scans, use [`Scanner::clear_profiling_data`].
     #[cfg(feature = "rules-profiling")]
-    pub fn most_expensive_rules(&self, n: usize) -> Vec<ProfilingData> {
-        self.wasm_store.data().most_expensive_rules(n)
+    pub fn slowest_rules(&self, n: usize) -> Vec<ProfilingData> {
+        self.wasm_store.data().slowest_rules(n)
+    }
+
+    /// Clears all accumulated profiling data.
+    ///
+    /// This method resets the profiling data collected during rule execution
+    /// across scanned files. Use this to start a new profiling session, ensuring
+    /// the results reflect only the data gathered after this method is called.
+    #[cfg(feature = "rules-profiling")]
+    pub fn clear_profiling_data(&mut self) {
+        self.wasm_store.data_mut().clear_profiling_data()
     }
 }
 
@@ -757,7 +772,7 @@ impl<'r> Scanner<'r> {
 
         #[cfg(all(feature = "rules-profiling", feature = "logging"))]
         {
-            let most_expensive_rules = self.most_expensive_rules(10);
+            let most_expensive_rules = self.slowest_rules(10);
             if !most_expensive_rules.is_empty() {
                 log::info!("Most expensive rules:");
                 for profiling_data in most_expensive_rules {

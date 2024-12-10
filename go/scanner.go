@@ -9,17 +9,17 @@ package yara_x
 //   return yrx_scanner_on_matching_rule(scanner, callback, (void*) user_data);
 // }
 //
-//  enum YRX_RESULT static inline _yrx_scanner_iter_most_expensive_rules(
+//  enum YRX_RESULT static inline _yrx_scanner_iter_slowest_rules(
 //      struct YRX_SCANNER *scanner,
 //      size_t n,
-// 		YRX_MOST_EXPENSIVE_RULES_CALLBACK callback,
-// 		uintptr_t most_expensive_rules_handle)
+// 		YRX_SLOWEST_RULES_CALLBACK callback,
+// 		uintptr_t slowest_rules_handle)
 // {
-//   return yrx_scanner_iter_most_expensive_rules(scanner, n, callback, (void*) most_expensive_rules_handle);
+//   return yrx_scanner_iter_slowest_rules(scanner, n, callback, (void*) slowest_rules_handle);
 // }
 //
 // extern void onMatchingRule(YRX_RULE*, uintptr_t);
-// extern void mostExpensiveRulesCallback(char*, char*, double, double, uintptr_t);
+// extern void slowestRulesCallback(char*, char*, double, double, uintptr_t);
 import "C"
 
 import (
@@ -261,10 +261,10 @@ type ProfilingInfo struct {
 	ConditionExecTime   time.Duration
 }
 
-// This is the callback called by yrx_rule_iter_patterns.
+// This is the callback called by yrx_scanner_iter_slowest_rules.
 //
-//export mostExpensiveRulesCallback
-func mostExpensiveRulesCallback(
+//export slowestRulesCallback
+func slowestRulesCallback(
 	namespace *C.char,
 	rule *C.char,
 	patternMatchingTime C.double,
@@ -283,29 +283,29 @@ func mostExpensiveRulesCallback(
 	})
 }
 
-// MostExpensiveRules returns information about the slowest rules and how much
+// SlowestRules returns information about the slowest rules and how much
 // time they spent matching patterns and executing their conditions.
 //
 // In order to use this function the YARA-X C library must be built with
 // support for rules profiling, which is done by enabling the `rules-profiling`
 // feature. Otherwise, calling this function will cause a panic.
-func (s *Scanner) MostExpensiveRules(n int) []ProfilingInfo {
+func (s *Scanner) SlowestRules(n int) []ProfilingInfo {
 	profilingInfo := make([]ProfilingInfo, 0)
-	mostExpensiveRules := cgo.NewHandle(&profilingInfo)
-	defer mostExpensiveRules.Delete()
+	slowestRules := cgo.NewHandle(&profilingInfo)
+	defer slowestRules.Delete()
 
-	result := C._yrx_scanner_iter_most_expensive_rules(
+	result := C._yrx_scanner_iter_slowest_rules(
 		s.cScanner,
 		C.size_t(n),
-		C.YRX_MOST_EXPENSIVE_RULES_CALLBACK(C.mostExpensiveRulesCallback),
-		C.uintptr_t(mostExpensiveRules))
+		C.YRX_SLOWEST_RULES_CALLBACK(C.slowestRulesCallback),
+		C.uintptr_t(slowestRules))
 
 	if result == C.NOT_SUPPORTED {
-		panic("MostExpensiveRules requires that the YARA-X C library is built with the `rules-profiling` feature")
+		panic("SlowestRules requires that the YARA-X C library is built with the `rules-profiling` feature")
 	}
 
 	if result != C.SUCCESS {
-		panic("yrx_scanner_iter_most_expensive_rules failed")
+		panic("yrx_scanner_slowest_rules failed")
 	}
 
 	return profilingInfo

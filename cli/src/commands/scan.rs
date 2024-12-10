@@ -354,8 +354,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     };
 
     #[cfg(feature = "rules-profiling")]
-    let most_expensive_rules: Mutex<Vec<ProfilingData>> =
-        Mutex::new(Vec::new());
+    let slowest_rules: Mutex<Vec<ProfilingData>> = Mutex::new(Vec::new());
 
     w.walk(
         state,
@@ -447,17 +446,20 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         |scanner, _| {
             #[cfg(feature = "rules-profiling")]
             if profiling {
-                let mut mer = most_expensive_rules.lock().unwrap();
-                for er in scanner.most_expensive_rules(1000) {
+                let mut mer = slowest_rules.lock().unwrap();
+                for profiling_data in scanner.slowest_rules(1000) {
                     if let Some(r) = mer.iter_mut().find(|r| {
-                        r.rule == er.rule && r.namespace == er.namespace
+                        r.rule == profiling_data.rule
+                            && r.namespace == profiling_data.namespace
                     }) {
-                        r.condition_exec_time += er.condition_exec_time;
-                        r.pattern_matching_time += er.pattern_matching_time;
-                        r.total_time +=
-                            er.condition_exec_time + er.pattern_matching_time;
+                        r.condition_exec_time +=
+                            profiling_data.condition_exec_time;
+                        r.pattern_matching_time +=
+                            profiling_data.pattern_matching_time;
+                        r.total_time += profiling_data.condition_exec_time
+                            + profiling_data.pattern_matching_time;
                     } else {
-                        mer.push(er.into());
+                        mer.push(profiling_data.into());
                     }
                 }
             }
@@ -495,7 +497,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
     #[cfg(feature = "rules-profiling")]
     if profiling {
-        let mut mer = most_expensive_rules.lock().unwrap();
+        let mut mer = slowest_rules.lock().unwrap();
 
         println!("\n«««««««««««« PROFILING INFORMATION »»»»»»»»»»»»");
 

@@ -229,7 +229,7 @@ typedef void (*YRX_RULE_CALLBACK)(const struct YRX_RULE *rule,
 typedef void (*YRX_IMPORT_CALLBACK)(const char *module_name,
                                     void *user_data);
 
-// Callback function passed to [`yrx_scanner_iter_most_expensive_rules`].
+// Callback function passed to [`yrx_scanner_iter_slowest_rules`].
 //
 // The callback function receives pointers to the namespace and rule name,
 // and two float numbers with the time spent by the rule matching patterns
@@ -240,11 +240,11 @@ typedef void (*YRX_IMPORT_CALLBACK)(const char *module_name,
 // data owned by the user.
 //
 // Requires the `rules-profiling` feature.
-typedef void (*YRX_MOST_EXPENSIVE_RULES_CALLBACK)(const char *namespace,
-                                                  const char *rule,
-                                                  double pattern_matching_time,
-                                                  double condition_exec_time,
-                                                  void *user_data);
+typedef void (*YRX_SLOWEST_RULES_CALLBACK)(const char *namespace,
+                                           const char *rule,
+                                           double pattern_matching_time,
+                                           double condition_exec_time,
+                                           void *user_data);
 
 // Returns the error message for the most recent function in this API
 // invoked by the current thread.
@@ -708,15 +708,15 @@ enum YRX_RESULT yrx_scanner_set_global_float(struct YRX_SCANNER *scanner,
                                              const char *ident,
                                              double value);
 
-// Iterates over the top N most expensive rules, calling the callback for
-// each rule.
+// Iterates over the slowest N rules, calling the callback for each rule.
 //
-// Requires the `rules-profiling` feature, otherwise the
+// Requires the `rules-profiling` feature, otherwise returns
+// [`YRX_RESULT::NOT_SUPPORTED`]
 //
-// See [`YRX_MOST_EXPENSIVE_RULES_CALLBACK`] for more details.
-enum YRX_RESULT yrx_scanner_iter_most_expensive_rules(struct YRX_SCANNER *scanner,
-                                                      size_t n,
-                                                      YRX_MOST_EXPENSIVE_RULES_CALLBACK callback,
-                                                      void *user_data);
+// See [`YRX_SLOWEST_RULES_CALLBACK`] for more details.
+enum YRX_RESULT yrx_scanner_iter_slowest_rules(struct YRX_SCANNER *scanner,
+                                               size_t n,
+                                               YRX_SLOWEST_RULES_CALLBACK callback,
+                                               void *user_data);
 
 #endif  /* YARA_X */
