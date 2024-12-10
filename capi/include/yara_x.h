@@ -711,12 +711,23 @@ enum YRX_RESULT yrx_scanner_set_global_float(struct YRX_SCANNER *scanner,
 // Iterates over the slowest N rules, calling the callback for each rule.
 //
 // Requires the `rules-profiling` feature, otherwise returns
-// [`YRX_RESULT::NOT_SUPPORTED`]
+// [`YRX_RESULT::NOT_SUPPORTED`].
 //
 // See [`YRX_SLOWEST_RULES_CALLBACK`] for more details.
 enum YRX_RESULT yrx_scanner_iter_slowest_rules(struct YRX_SCANNER *scanner,
                                                size_t n,
                                                YRX_SLOWEST_RULES_CALLBACK callback,
                                                void *user_data);
+
+// Clears all accumulated profiling data.
+//
+// This resets the profiling data collected during rule execution across
+// scanned files. Use this to start a new profiling session, ensuring the
+// results reflect only the data gathered after this method is called.
+//
+// Requires the `rules-profiling` feature, otherwise returns
+// [`YRX_RESULT::NOT_SUPPORTED`].
+//
+enum YRX_RESULT yrx_scanner_clear_profiling_data(struct YRX_SCANNER *scanner);
 
 #endif  /* YARA_X */

@@ -286,9 +286,9 @@ func slowestRulesCallback(
 // SlowestRules returns information about the slowest rules and how much
 // time they spent matching patterns and executing their conditions.
 //
-// In order to use this function the YARA-X C library must be built with
-// support for rules profiling, which is done by enabling the `rules-profiling`
-// feature. Otherwise, calling this function will cause a panic.
+// In order to use this function, the YARA-X C library must be built with
+// support for rules profiling by enabling the `rules-profiling` feature.
+// Otherwise, calling this function will cause a panic.
 func (s *Scanner) SlowestRules(n int) []ProfilingInfo {
 	profilingInfo := make([]ProfilingInfo, 0)
 	slowestRules := cgo.NewHandle(&profilingInfo)
@@ -309,6 +309,19 @@ func (s *Scanner) SlowestRules(n int) []ProfilingInfo {
 	}
 
 	return profilingInfo
+}
+
+/// ClearProfilingData resets the profiling data collected during rule execution
+/// across scanned files. Use it to start a new profiling session, ensuring the
+/// results reflect only the data gathered after this method is called.
+//
+// In order to use this function, the YARA-X C library must be built with
+// support for rules profiling by enabling the `rules-profiling` feature.
+// Otherwise, calling this function will cause a panic.
+func (s *Scanner) ClearProfilingData() {
+  if C.yrx_scanner_clear_profiling_data(s.cScanner) == C.NOT_SUPPORTED {
+     panic("ClearProfilingData requires that the YARA-X C library is built with the `rules-profiling` feature")
+  }
 }
 
 // Destroy destroys the scanner.

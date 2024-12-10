@@ -325,7 +325,7 @@ pub type YRX_SLOWEST_RULES_CALLBACK = extern "C" fn(
 /// Iterates over the slowest N rules, calling the callback for each rule.
 ///
 /// Requires the `rules-profiling` feature, otherwise returns
-/// [`YRX_RESULT::NOT_SUPPORTED`]
+/// [`YRX_RESULT::NOT_SUPPORTED`].
 ///
 /// See [`YRX_SLOWEST_RULES_CALLBACK`] for more details.
 #[no_mangle]
@@ -358,6 +358,34 @@ pub unsafe extern "C" fn yrx_scanner_iter_slowest_rules(
                 user_data,
             );
         }
+
+        YRX_RESULT::SUCCESS
+    }
+}
+
+/// Clears all accumulated profiling data.
+///
+/// This resets the profiling data collected during rule execution across
+/// scanned files. Use this to start a new profiling session, ensuring the
+/// results reflect only the data gathered after this method is called.
+///
+/// Requires the `rules-profiling` feature, otherwise returns
+/// [`YRX_RESULT::NOT_SUPPORTED`].
+///
+#[no_mangle]
+#[allow(unused_variables)]
+pub unsafe extern "C" fn yrx_scanner_clear_profiling_data(
+    scanner: *mut YRX_SCANNER,
+) -> YRX_RESULT {
+    #[cfg(not(feature = "rules-profiling"))]
+    return YRX_RESULT::NOT_SUPPORTED;
+
+    #[cfg(feature = "rules-profiling")]
+    {
+        match scanner.as_mut() {
+            Some(s) => s.inner.clear_profiling_data(),
+            None => return YRX_RESULT::INVALID_ARGUMENT,
+        };
 
         YRX_RESULT::SUCCESS
     }
