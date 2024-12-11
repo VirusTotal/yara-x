@@ -13,3 +13,8 @@ option (yara.module_options) = {
 message Math {
   // This module contains only exported functions, and doesn't return any data
 }
+
+enum Consts {
+  option (yara.enum_options).inline = true;
+  MEAN_BYTES = 0 [(yara.enum_value).f64 = 127.5];
+}

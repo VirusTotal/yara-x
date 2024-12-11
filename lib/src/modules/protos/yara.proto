@@ -127,7 +127,10 @@ message EnumOptions {
 }
 
 message EnumValueOptions {
-  optional int64 i64 = 1;
+  oneof value {
+    int64 i64 = 1;
+    double f64 = 2;
+  }
 }
 
 extend google.protobuf.FileOptions {

@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use walrus::ir::InstrSeqType;
 use walrus::ValType;
 
+use crate::modules::protos::yara::enum_value_options::Value as EnumValue;
 use crate::symbols::SymbolLookup;
 
 pub(crate) use array::*;
@@ -550,6 +551,15 @@ impl Debug for TypeValue {
             Self::Struct(_) => write!(f, "struct"),
             Self::Array(_) => write!(f, "array"),
             Self::Func(_) => write!(f, "function"),
+        }
+    }
+}
+
+impl From<EnumValue> for TypeValue {
+    fn from(value: EnumValue) -> Self {
+        match value {
+            EnumValue::I64(v) => Self::Integer(Value::Const(v)),
+            EnumValue::F64(v) => Self::Float(Value::Const(v)),
         }
     }
 }
