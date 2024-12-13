@@ -1,0 +1,6 @@
+warning[slow_pattern]: slow pattern
+ --> line:3:5
+  |
+3 |     $a = /[A-Za-z]{2,}/
+  |     ------------------- this pattern may slow down the scan
+  |

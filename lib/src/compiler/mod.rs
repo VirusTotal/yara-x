@@ -18,7 +18,7 @@ use std::{fmt, iter};
 use bincode::Options;
 use bitmask::bitmask;
 use bstr::{BStr, ByteSlice};
-use itertools::izip;
+use itertools::{izip, Itertools, MinMaxResult};
 #[cfg(feature = "logging")]
 use log::*;
 use regex_syntax::hir;
@@ -2124,7 +2124,7 @@ impl<'a> Compiler<'a> {
             false,
         );
 
-        let mut atoms = result.map_err(|err| match err {
+        let re_atoms = result.map_err(|err| match err {
             re::Error::TooLarge => InvalidRegexp::build(
                 &self.report_builder,
                 "regexp is too large".to_string(),
@@ -2143,13 +2143,24 @@ impl<'a> Compiler<'a> {
             ));
         }
 
-        let mut slow_pattern = false;
-
-        for atom in atoms.iter_mut() {
-            if atom.atom.len() < 2 {
-                slow_pattern = true;
-            }
-        }
+        let slow_pattern =
+            match re_atoms.iter().map(|re_atom| re_atom.atom.len()).minmax() {
+                // No atoms, slow pattern.
+                MinMaxResult::NoElements => true,
+                // Only one atom shorter than 2 bytes, slow pattern.
+                MinMaxResult::OneElement(len) if len < 2 => true,
+                // More than one atom, but all shorter than 2 bytes.
+                MinMaxResult::MinMax(_, max) if max < 2 => true,
+                // More than 2700 atoms, all with exactly 2 bytes.
+                // Why 2700?. The larger the number of atoms the higher the
+                // odds of finding one of them in the data, which slows down
+                // the scan. The regex [A-Za-z]{N,} (with N>=2) produces
+                // (26+26)^2 = 2704 atoms. So, 2700 is large enough, but
+                // produces a warning with the aforementioned regex.
+                MinMaxResult::MinMax(2, 2) if re_atoms.len() > 2700 => true,
+                // In all other cases the pattern is not slow.
+                _ => false,
+            };
 
         if slow_pattern {
             if self.error_on_slow_pattern {
@@ -2167,7 +2178,7 @@ impl<'a> Compiler<'a> {
             }
         }
 
-        Ok((atoms, is_fast_regexp))
+        Ok((re_atoms, is_fast_regexp))
     }
 
     fn c_literal_chain_head(
