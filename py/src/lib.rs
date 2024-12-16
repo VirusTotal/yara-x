@@ -23,12 +23,12 @@ use std::pin::Pin;
 use std::time::Duration;
 
 use protobuf_json_mapping::print_to_string as proto_to_json;
-use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyIOError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{
     PyBool, PyBytes, PyDict, PyFloat, PyInt, PyString, PyTuple,
 };
+use pyo3::{create_exception, IntoPyObjectExt};
 use pyo3_file::PyFileLikeObject;
 
 use ::yara_x as yrx;
@@ -209,7 +209,7 @@ impl Compiler {
     /// This method returns every error encountered during the compilation,
     /// across all invocations of [`Compiler::add_source`].
     fn errors<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        let json = PyModule::import_bound(py, "json")?;
+        let json = PyModule::import(py, "json")?;
         let json_loads = json.getattr("loads")?;
         let errors_json = serde_json::to_string_pretty(&self.inner.errors());
         let errors_json = errors_json
@@ -225,7 +225,7 @@ impl Compiler {
         &'py self,
         py: Python<'py>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let json = PyModule::import_bound(py, "json")?;
+        let json = PyModule::import(py, "json")?;
         let json_loads = json.getattr("loads")?;
         let warnings_json =
             serde_json::to_string_pretty(&self.inner.warnings());
@@ -557,13 +557,13 @@ fn scan_results_to_py(
         .map(|rule| rule_to_py(py, rule))
         .collect::<PyResult<Vec<_>>>()?;
 
-    let module_outputs = PyDict::new_bound(py);
+    let module_outputs = PyDict::new(py);
     let outputs = scan_results.module_outputs();
 
     // For better performance we only load the "json" module if there's
     // some module output.
     if outputs.len() > 0 {
-        let json = PyModule::import_bound(py, "json")?;
+        let json = PyModule::import(py, "json")?;
         let json_loads = json.getattr("loads")?;
         for (module, output) in outputs {
             let module_output_json = proto_to_json(output).unwrap();
@@ -576,7 +576,7 @@ fn scan_results_to_py(
     Py::new(
         py,
         ScanResults {
-            matching_rules: PyTuple::new_bound(py, matching_rules).unbind(),
+            matching_rules: PyTuple::new(py, matching_rules)?.unbind(),
             module_outputs: module_outputs.into(),
         },
     )
@@ -588,23 +588,20 @@ fn rule_to_py(py: Python, rule: yrx::Rule) -> PyResult<Py<Rule>> {
         Rule {
             identifier: rule.identifier().to_string(),
             namespace: rule.namespace().to_string(),
-            tags: PyTuple::new_bound(
-                py,
-                rule.tags().map(|tag| tag.identifier()),
-            )
-            .unbind(),
-            metadata: PyTuple::new_bound(
+            tags: PyTuple::new(py, rule.tags().map(|tag| tag.identifier()))?
+                .unbind(),
+            metadata: PyTuple::new(
                 py,
                 rule.metadata()
                     .map(|(ident, value)| metadata_to_py(py, ident, value)),
-            )
+            )?
             .unbind(),
-            patterns: PyTuple::new_bound(
+            patterns: PyTuple::new(
                 py,
                 rule.patterns()
                     .map(|pattern| pattern_to_py(py, pattern))
                     .collect::<Result<Vec<_>, _>>()?,
-            )
+            )?
             .unbind(),
         },
     )
@@ -616,14 +613,15 @@ fn metadata_to_py(
     metadata: yrx::MetaValue,
 ) -> Py<PyTuple> {
     let value = match metadata {
-        yrx::MetaValue::Integer(v) => v.to_object(py),
-        yrx::MetaValue::Float(v) => v.to_object(py),
-        yrx::MetaValue::Bool(v) => v.to_object(py),
-        yrx::MetaValue::String(v) => v.to_object(py),
-        yrx::MetaValue::Bytes(v) => v.to_object(py),
-    };
+        yrx::MetaValue::Integer(v) => v.into_py_any(py),
+        yrx::MetaValue::Float(v) => v.into_py_any(py),
+        yrx::MetaValue::Bool(v) => v.into_py_any(py),
+        yrx::MetaValue::String(v) => v.into_py_any(py),
+        yrx::MetaValue::Bytes(v) => v.into_py_any(py),
+    }
+    .unwrap();
 
-    PyTuple::new_bound(py, [ident.to_object(py), value]).unbind()
+    PyTuple::new(py, [ident.into_py_any(py).unwrap(), value]).unwrap().unbind()
 }
 
 fn pattern_to_py(py: Python, pattern: yrx::Pattern) -> PyResult<Py<Pattern>> {
@@ -631,13 +629,13 @@ fn pattern_to_py(py: Python, pattern: yrx::Pattern) -> PyResult<Py<Pattern>> {
         py,
         Pattern {
             identifier: pattern.identifier().to_string(),
-            matches: PyTuple::new_bound(
+            matches: PyTuple::new(
                 py,
                 pattern
                     .matches()
                     .map(|match_| match_to_py(py, match_))
                     .collect::<Result<Vec<_>, _>>()?,
-            )
+            )?
             .unbind(),
         },
     )
@@ -692,9 +690,9 @@ fn map_scan_err(err: yrx::errors::ScanError) -> PyErr {
 /// ```
 #[pymodule]
 fn yara_x(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add("CompileError", m.py().get_type_bound::<CompileError>())?;
-    m.add("TimeoutError", m.py().get_type_bound::<TimeoutError>())?;
-    m.add("ScanError", m.py().get_type_bound::<ScanError>())?;
+    m.add("CompileError", m.py().get_type::<CompileError>())?;
+    m.add("TimeoutError", m.py().get_type::<TimeoutError>())?;
+    m.add("ScanError", m.py().get_type::<ScanError>())?;
     m.add_function(wrap_pyfunction!(compile, m)?)?;
     m.add_class::<Rules>()?;
     m.add_class::<Scanner>()?;
