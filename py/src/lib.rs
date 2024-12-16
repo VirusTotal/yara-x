@@ -59,12 +59,8 @@ impl Compiler {
         error_on_slow_pattern: bool,
     ) -> yrx::Compiler<'static> {
         let mut compiler = yrx::Compiler::new();
-        if relaxed_re_syntax {
-            compiler.relaxed_re_syntax(true);
-        }
-        if error_on_slow_pattern {
-            compiler.error_on_slow_pattern(true);
-        }
+        compiler.relaxed_re_syntax(relaxed_re_syntax);
+        compiler.error_on_slow_pattern(error_on_slow_pattern);
         compiler
     }
 }

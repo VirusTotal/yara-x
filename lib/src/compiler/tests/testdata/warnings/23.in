@@ -1,6 +1,13 @@
-rule test {
+rule test_1 {
   strings:
     $a = {00 [1-10] 01}
-  condition: 
+  condition:
     $a
+}
+
+rule test_2 {
+	strings:
+	  $a = /a.*/
+	condition:
+	  $a
 }
