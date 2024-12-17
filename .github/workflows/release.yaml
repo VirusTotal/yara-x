@@ -83,7 +83,7 @@ jobs:
                ./target/${{ matrix.target }}/release-lto/yara_x_capi.dll.lib \
                ./target/${{ matrix.target }}/release-lto/yara_x_capi.dll
         else
-            tar czf $pkgname.gzip -C target/${{ matrix.target }}/release-lto yr      
+            tar czf $pkgname.gz -C target/${{ matrix.target }}/release-lto yr      
         fi
 
     - name: Upload artifacts
