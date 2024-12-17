@@ -16,13 +16,19 @@ jobs:
       matrix:
         build:
         - linux
+        - linux-arm
         - macos-arm
         - macos-intel
         - windows
+        - windows-arm
         include:
         - build: linux
           os: ubuntu-latest
           target: x86_64-unknown-linux-gnu
+
+        - build: linux-arm
+          os: ubuntu-latest
+          target: aarch64-unknown-linux-gnu
 
         - build: macos-intel
           os: macos-latest
@@ -35,6 +41,10 @@ jobs:
         - build: windows
           os: windows-latest
           target: x86_64-pc-windows-msvc
+
+        - build: windows-arm
+          os: windows-latest
+          target: aarch64-pc-windows-msvc
 
     steps:
     - name: Checkout sources
@@ -62,7 +72,7 @@ jobs:
         RUSTFLAGS: "-C target-feature=+crt-static"
 
     - name: Build C library
-      if: matrix.build == 'windows'
+      if: contains(matrix.build, 'windows')
       run: |
         cargo install cargo-c
         cargo cbuild --profile release-lto --target ${{ matrix.target }}
@@ -74,7 +84,7 @@ jobs:
       run: |
         set -ex
         pkgname=yara-x-${{ github.ref_name }}-${{ matrix.target }}
-        if [ "${{ matrix.build }}" = "windows" ]; then
+        if [ "${{ matrix.build }}" = "windows" || "${{ matrix.build }}" == "windows-arm" ]; then
             7z a $pkgname.zip ./target/${{ matrix.target }}/release-lto/yr.exe
             7z a yara-x-capi-${{ github.ref_name }}-${{ matrix.target }}.zip \
                ./target/${{ matrix.target }}/release-lto/yara_x.h \
