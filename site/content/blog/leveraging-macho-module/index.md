@@ -122,8 +122,9 @@ import "macho"
 
 rule rpath_iter {
   condition:
-    for any rpath in rpaths:
+    for any rpath in rpaths: (
         rpath contains "lib/swift/macosx"
+    )
 }
 ```
 
@@ -146,7 +147,7 @@ To iterate through the dylibs loaded in the Mach-O binary, one can iterate throu
 ```yara
 import "macho"
 
-rule libsystem_use {
+rule library_dylib_location {
     condition:
         for any d in macho.dylibs: (
             d.name contains "/Library/"
