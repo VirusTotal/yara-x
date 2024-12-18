@@ -1,6 +1,6 @@
 ---
 title: "Leveraging the Mach-O module in YARA-X"
-description: ""
+description: "YARA-X now features a macho module for parsing and extracting information from Mach-O binaries which aids in writing rules and detections."
 summary: ""
 date: 2024-12-18T00:00:00+01:00
 lastmod: 2024-12-18T00:00:00+01:00
