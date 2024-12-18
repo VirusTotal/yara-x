@@ -122,7 +122,7 @@ import "macho"
 
 rule rpath_iter {
   condition:
-    for any rpath in rpaths: (
+    for any rpath in macho.rpaths: (
         rpath contains "lib/swift/macosx"
     )
 }
