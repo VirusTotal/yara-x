@@ -23,7 +23,7 @@ Detecting things in Mach-O binaries used to be quite an effort in the original Y
 
 With the advent of YARA-X, the new and improved Mach-O module can be leveraged in various ways. This blog post will detail particular use-cases and show examples for those and more.
 
-If you're interested in seeing a more in-depth look at some of the features mentioned below, you can find a talk, given by [Jacob Latonis](https://x.com/jacoblatonis) and [Greg Lesnewich](https://x.com/greglesnewich) which breaks down the motivations behind the Mach-O module in YARA-X and features examples of how it can be utilized, [here](https://youtu.be/Nm0zLW8RhXM?t=6470).
+If you're interested in seeing a more in-depth look at some of the features mentioned below, you can find a talk, given by [Jacob Latonis](https://x.com/jacoblatonis) and [Greg Lesnewich](https://x.com/greglesnewich) which breaks down the motivations behind the Mach-O module in YARA-X and features examples of how it can be utilized, [here](https://www.youtube.com/watch?v=kXrGvOfasps).
 
 # Usage
 
