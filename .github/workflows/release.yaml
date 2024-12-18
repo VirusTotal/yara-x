@@ -119,6 +119,7 @@ jobs:
         include:
         - build: linux
           os: ubuntu-latest
+          arch: 'aarch64 x86_64'
 
         - build: macos
           os: macos-latest
@@ -126,7 +127,7 @@ jobs:
 
         - build: windows
           os: windows-latest
-          arch: 'x86 AMD64'
+          arch: 'x86 AMD64 ARM64'
 
     steps:
     - name: Checkout sources
