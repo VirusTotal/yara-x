@@ -1,5 +1,5 @@
 ---
-title: "Leveraging the Mach-O module in YARA-X"
+title: "Using the Mach-O module in YARA-X"
 description: "YARA-X now features a macho module for parsing and extracting information from Mach-O binaries which aids in writing rules and detections."
 summary: ""
 date: 2024-12-18T00:00:00+01:00
@@ -19,33 +19,48 @@ seo:
 ---
 
 # Introduction
-Detecting things in Mach-O binaries used to be quite an effort in the original YARA; it would involve magic byte validation, guessing offsests, counting occurrences, and a whole lot more. 
 
-With the advent of YARA-X, the new and improved Mach-O module can be leveraged in various ways. This blog post will detail particular use-cases and show examples for those and more.
+Detecting things in Mach-O binaries used to be quite an effort in the original
+YARA; it would involve magic byte validation, guessing offsets, counting
+occurrences, and a lot more.
 
-If you're interested in seeing a more in-depth look at some of the features mentioned below, you can find a talk, given by [Jacob Latonis](https://x.com/jacoblatonis) and [Greg Lesnewich](https://x.com/greglesnewich) which breaks down the motivations behind the Mach-O module in YARA-X and features examples of how it can be utilized, [here](https://www.youtube.com/watch?v=kXrGvOfasps).
+With the advent of YARA-X, the new and improved Mach-O module can be leveraged
+in various ways. This blog post will detail particular use-cases and show
+examples for those and more.
+
+If you're interested in seeing a more in-depth look at some of the features
+mentioned below, you can watch the talk linked below, given
+by [Greg Lesnewich](https://x.com/greglesnewich)
+and [myself](https://x.com/jacoblatonis), which breaks down the motivations
+behind the Mach-O module in YARA-X and features examples of how it can be
+utilized. If you prefer a written summary, keep reading.
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/kXrGvOfasps?si=KthasiHd8lsDm8Cp" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 # Usage
 
 ## Importing the `macho` module
-To begin using the `macho` module inside of a YARA rule, add the following at the top of your rule like so:
+
+To begin using the `macho` module inside a YARA rule, add the following at the
+top of your rule like so:
 
 ```
 import "macho"
-
-rule example {
-    condition:
-        true
-}
 ```
 
 ## Myriad structures inside a Mach-O binary
-A Mach-O binary can feature a lot of different information and structures. To see all of what YARA-X and the `macho` module can potentially parse, you can see everything documented in the [`macho` documentation](https://virustotal.github.io/yara-x/docs/modules/macho/) for YARA-X.
+
+A Mach-O binary can feature a lot of different information and structures. To
+see all of what YARA-X and the `macho` module can potentially parse, you can
+see everything documented in the `macho` [documentation]({{< ref "macho.md" >}})
+for YARA-X.
 
 This section will cover commonly used structures for detections in YARA rules.
 
 ### Symbol Table
-If you want to detect around something in the symbol table, we can leverage the `macho.symtab` structure, where each string is located in `entries`.
+
+If you want to detect around something in the symbol table, we can leverage
+the `macho.symtab` structure, where each string is located in `entries`.
 
 ```yara
 import "macho"
@@ -59,9 +74,11 @@ rule swift_bin {
 ```
 
 ### Imports
+
 The `macho` module has multiple ways to explore imports in a Mach-O binary.
 
-To iterate over the imports defined via load commands in the Mach-O binary, one can use the array of imports located at `macho.imports`:
+To iterate over the imports defined via load commands in the Mach-O binary, one
+can use the array of imports located at `macho.imports`:
 
 ```yara
 import "macho"
@@ -86,9 +103,12 @@ rule macho_imports {
 ```
 
 ### Exports
-Exported symbols from the Mach-O binary are parsed in YARA-X and can be used queried against and enumerated.
 
-To iterate over the exports found in a Mach-O binary, the `macho` module contains the list of exports as a string found at `macho.exports`.
+Exported symbols from the Mach-O binary are parsed in YARA-X and can be used
+queried against and enumerated.
+
+To iterate over the exports found in a Mach-O binary, the `macho` module
+contains the list of exports as a string found at `macho.exports`.
 
 ```yara
 import "macho"
@@ -101,7 +121,8 @@ rule macho_exports {
 }
 ```
 
-To check if a Mach-O binary contains a specific export, one can leverage the `has_export()` function like so:
+To check if a Mach-O binary contains a specific export, one can leverage the
+`has_export()` function like so:
 
 ```yara
 import "macho"
@@ -113,9 +134,13 @@ rule macho_exports_query {
 ```
 
 ### Remote Paths
-Remote paths are used to tell the Mach-O binary where it can search for the libraries it depends on. These load commands are parsed via YARA-X and can be leveraged in YARA rules.
 
-To iterate through the rpahs used in load commands in the Mach-O binary, one can leverage the `rpaths` array from the `macho` module:
+Remote paths are used to tell the Mach-O binary where it can search for the
+libraries it depends on. These load commands are parsed via YARA-X and can be
+leveraged in YARA rules.
+
+To iterate through the `rpaths` used in load commands in the Mach-O binary, one
+can leverage the `rpaths` array from the `macho` module:
 
 ```yara
 import "macho"
@@ -128,7 +153,8 @@ rule rpath_iter {
 }
 ```
 
-To detect if a specific `rpath` is present in the load commands, one can use the `has_rpath()` function:
+To detect if a specific `rpath` is present in the load commands, one can use
+the `has_rpath()` function:
 
 ```yara
 import "macho"
@@ -140,9 +166,10 @@ rule rpath_query {
 ```
 
 ### Dylibs
-Dylibs are shared libraries leveraged by the Mach-O binary.
 
-To iterate through the dylibs loaded in the Mach-O binary, one can iterate through the dylib structures parsed by YARA-X:
+Dylibs are shared libraries leveraged by the Mach-O binary. To iterate through
+the dylibs loaded in the Mach-O binary, one can iterate through the dylib
+structures parsed by YARA-X:
 
 ```yara
 import "macho"
@@ -155,7 +182,8 @@ rule library_dylib_location {
 }
 ```
 
-To detect if a certain dylib is loaded via a load command in the binary, the `has_dylib()` function is available for use.
+To detect if a certain dylib is loaded via a load command in the binary, the
+`has_dylib()` function is available for use.
 
 ```yara
 import "macho"
@@ -167,7 +195,11 @@ rule libsystem_use {
 ```
 
 ### Entitlements
-Mach-O binaries can feature entitlements, which are XML properties for requesting certain permissions from the user/device that it is being executed on. These are parsed out into strings which are able to be queried via the `macho` module.
+
+Mach-O binaries can feature entitlements, which are XML properties for
+requesting
+certain permissions from the user/device that it is being executed on. These are
+parsed out into strings which are able to be queried via the `macho` module.
 
 These entitlements can be leveraged in multiple ways.
 
@@ -184,7 +216,8 @@ rule entitlements_example {
 }
 ```
 
-To detect a specific entitlement, one can also use the `has_entitlement()` function.
+To detect a specific entitlement, one can also use the `has_entitlement()`
+function.
 
 ```yara
 import "macho"
@@ -197,9 +230,13 @@ rule entitlements_example {
 
 ## Binary Similarity
 
-If you wish to detect if a Mach-O binary is using a certain set of dylibs, imports, exports, entitlements, or more, you can leverage the respective `_hash()` function for each structure.
+If you wish to detect if a Mach-O binary is using a certain set of dylibs,
+imports, exports, entitlements, or more, you can leverage the respective
+`_hash()` function for each structure.
 
-The hash algorithm is an MD5 hash of the deduplicated, sorted, and lowercased entries joined via a comma (`md5("dylib_1,dylib_2,dylib_n")`) found in the binary for each category.
+The hash algorithm is an MD5 hash of the deduplicated, sorted, and lowercased
+entries joined via a comma (`md5("dylib_1,dylib_2,dylib_n")`) found in the
+binary for each category.
 
 ### Dylib Hashing
 
@@ -246,4 +283,8 @@ rule entitlement_hash_example {
 ```
 
 # Conclusion
-There are many features and structures parsed with the `macho` module in YARA-X, and only a subset of them were covered in this blog post. To fully explore what is possible with the `macho` module, please consult the [`macho module documentation`](https://virustotal.github.io/yara-x/docs/modules/macho/).
+
+There are many features and structures parsed with the `macho` module in YARA-X,
+and only a subset of them were covered in this blog post. To fully explore what
+is possible with the `macho` module, please consult the [documentation]({{<
+ref "macho.md" >}}).
