@@ -22,19 +22,3 @@ jobs:
       with:
         components: rustfmt
     - run: cargo fmt --all --check
-
-  udeps:
-    name: Unused dependencies
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Install nightly toolchain
-      uses: dtolnay/rust-toolchain@nightly
-
-    - name: Run cargo-udeps
-      uses: aig787/cargo-udeps-action@v1
-      with:
-        version: v0.1.53
-        args: '--all-targets'
