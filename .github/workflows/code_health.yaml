@@ -30,16 +30,11 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libssl-dev
-
     - name: Install nightly toolchain
       uses: dtolnay/rust-toolchain@nightly
 
     - name: Run cargo-udeps
       uses: aig787/cargo-udeps-action@v1
       with:
-        version: v0.1.45
+        version: v0.1.53
         args: '--all-targets'
