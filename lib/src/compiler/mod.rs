@@ -2149,8 +2149,8 @@ impl<'a> Compiler<'a> {
                 MinMaxResult::NoElements => true,
                 // Only one atom shorter than 2 bytes, slow pattern.
                 MinMaxResult::OneElement(len) if len < 2 => true,
-                // More than one atom, but all shorter than 2 bytes.
-                MinMaxResult::MinMax(_, max) if max < 2 => true,
+                // More than one atom, at least one is shorter than 2 bytes.
+                MinMaxResult::MinMax(min, _) if min < 2 => true,
                 // More than 2700 atoms, all with exactly 2 bytes.
                 // Why 2700?. The larger the number of atoms the higher the
                 // odds of finding one of them in the data, which slows down

@@ -320,6 +320,8 @@ rule sym_hash_example {
 | build_version       | [BuildVersion](#buildversion) |
 | min_version         | [MinVersion](#minversion)     |
 | exports             | string array                  |
+| imports             | string array                  |
+| linker_options      | string array                  |
 | fat_magic           | integer                       |
 | nfat_arch           | integer                       |
 | fat_arch            | [FatArch](#fatarch) array     |
@@ -438,6 +440,9 @@ rule sym_hash_example {
 | uuid                | string                        |
 | build_version       | [BuildVersion](#buildversion) |
 | min_version         | [MinVersion](#minversion)     |
+| exports             | string array                  |
+| imports             | string array                  |
+| linker_options      | string array                  |
 
 ### LinkedItData
 

@@ -1,13 +1,13 @@
 # Hugo
 title = "YARA-X"
-description = "Congrats on setting up a new Doks project!"
+description = "The YARA-X official website"
 images = ["cover.png"]
 
 # mainSections
 mainSections = ["docs"]
 
 [social]
-twitter = "getdoks"
+twitter = "virustotal"
 
 # Doks (@hyas/doks-core)
 [doks]
@@ -104,7 +104,7 @@ highlightBroken = false # true or false (default)
 [hyas_images]
 [hyas_images.defaults]
 decoding = "async" # sync, async, or auto (default)
-fetchpriority = "auto" # high, low, or auto (default) 
+fetchpriority = "auto" # high, low, or auto (default)
 loading = "lazy" # eager or lazy (default)
 widths = [480, 576, 768, 1025, 1200, 1440] # [640, 768, 1024, 1366, 1600, 1920] for example
 sizes = "auto" # 100vw (default), 75vw, or auto for example
