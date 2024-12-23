@@ -41,6 +41,12 @@
 // errors instead of warnings.
 #define YRX_ERROR_ON_SLOW_LOOP 8
 
+// Flag passed to [`yrx_compiler_create`] for enabling optimizations.
+// With this flag the compiler tries to optimize rule conditions by applying
+// techniques like common subexpression elimination (CSE) and loop-invariant
+// code motion (LICM).
+#define YRX_ENABLE_CONDITION_OPTIMIZATION 16
+
 // Types of metadata values.
 typedef enum YRX_METADATA_TYPE {
   I64,
@@ -74,6 +80,9 @@ typedef enum YRX_RESULT {
   SERIALIZATION_ERROR,
   // An error returned when a rule doesn't have any metadata.
   NO_METADATA,
+  // An error returned in cases where some API is not supported because the
+  // library was not built with the required features.
+  NOT_SUPPORTED,
 } YRX_RESULT;
 
 // A compiler that takes YARA source code and produces compiled rules.
@@ -219,6 +228,23 @@ typedef void (*YRX_RULE_CALLBACK)(const struct YRX_RULE *rule,
 // data owned by the user.
 typedef void (*YRX_IMPORT_CALLBACK)(const char *module_name,
                                     void *user_data);
+
+// Callback function passed to [`yrx_scanner_iter_slowest_rules`].
+//
+// The callback function receives pointers to the namespace and rule name,
+// and two float numbers with the time spent by the rule matching patterns
+// and executing its condition. The pointers are valid as long as the callback
+// function is being executed, but will be freed after the callback returns.
+//
+// The callback also receives a `user_data` pointer that can point to arbitrary
+// data owned by the user.
+//
+// Requires the `rules-profiling` feature.
+typedef void (*YRX_SLOWEST_RULES_CALLBACK)(const char *namespace,
+                                           const char *rule,
+                                           double pattern_matching_time,
+                                           double condition_exec_time,
+                                           void *user_data);
 
 // Returns the error message for the most recent function in this API
 // invoked by the current thread.
@@ -681,5 +707,27 @@ enum YRX_RESULT yrx_scanner_set_global_int(struct YRX_SCANNER *scanner,
 enum YRX_RESULT yrx_scanner_set_global_float(struct YRX_SCANNER *scanner,
                                              const char *ident,
                                              double value);
+
+// Iterates over the slowest N rules, calling the callback for each rule.
+//
+// Requires the `rules-profiling` feature, otherwise returns
+// [`YRX_RESULT::NOT_SUPPORTED`].
+//
+// See [`YRX_SLOWEST_RULES_CALLBACK`] for more details.
+enum YRX_RESULT yrx_scanner_iter_slowest_rules(struct YRX_SCANNER *scanner,
+                                               size_t n,
+                                               YRX_SLOWEST_RULES_CALLBACK callback,
+                                               void *user_data);
+
+// Clears all accumulated profiling data.
+//
+// This resets the profiling data collected during rule execution across
+// scanned files. Use this to start a new profiling session, ensuring the
+// results reflect only the data gathered after this method is called.
+//
+// Requires the `rules-profiling` feature, otherwise returns
+// [`YRX_RESULT::NOT_SUPPORTED`].
+//
+enum YRX_RESULT yrx_scanner_clear_profiling_data(struct YRX_SCANNER *scanner);
 
 #endif  /* YARA_X */

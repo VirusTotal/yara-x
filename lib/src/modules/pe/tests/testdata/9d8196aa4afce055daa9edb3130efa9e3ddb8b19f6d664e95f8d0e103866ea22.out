@@ -18119,6 +18119,7 @@ signatures:
     number_of_countersignatures: 1
     signer_info:
         program_name: "Advanced Micro Devices, Inc."
+        more_info: "https://www.microsoft.com/en-us/windows "
         digest: "e26ef3d142bb9053aa7027e34e4de07735a7655a46894f445d4a4dbc6fee40f7"
         digest_alg: "sha256"
         chain:
@@ -18217,6 +18218,7 @@ signatures:
     number_of_countersignatures: 1
     signer_info:
         program_name: "Advanced Micro Devices, Inc."
+        more_info: "https://www.microsoft.com/en-us/windows "
         digest: "e26ef3d142bb9053aa7027e34e4de07735a7655a46894f445d4a4dbc6fee40f7"
         digest_alg: "sha256"
         chain:

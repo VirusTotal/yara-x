@@ -18,7 +18,7 @@ use std::{fmt, iter};
 use bincode::Options;
 use bitmask::bitmask;
 use bstr::{BStr, ByteSlice};
-use itertools::izip;
+use itertools::{izip, Itertools, MinMaxResult};
 #[cfg(feature = "logging")]
 use log::*;
 use regex_syntax::hir;
@@ -243,6 +243,11 @@ pub struct Compiler<'a> {
     /// rule conditions.
     cse: bool,
 
+    /// If true, the compiler hoists loop-invariant expressions (i.e: those
+    /// that don't vary on each iteration of the loop), moving them outside
+    /// the loop.
+    hoisting: bool,
+
     /// If true, slow patterns produce an error instead of a warning. A slow
     /// pattern is one with atoms shorter than 2 bytes.
     error_on_slow_pattern: bool,
@@ -449,6 +454,7 @@ impl<'a> Compiler<'a> {
             wasm_exports,
             relaxed_re_syntax: false,
             cse: false,
+            hoisting: false,
             error_on_slow_pattern: false,
             error_on_slow_loop: false,
             next_pattern_id: PatternId(0),
@@ -925,22 +931,27 @@ impl<'a> Compiler<'a> {
         self
     }
 
-    /// When enabled, the compiler tries to optimize rule conditions by
-    /// replacing common subexpressions with variables that hold the computed
-    /// value.
+    /// When enabled, the compiler tries to optimize rule conditions.
     ///
-    /// Common subexpression elimination may reduce condition evaluation times,
-    /// specially in complex rules that contain loops, but it can break
-    /// short-circuit evaluation rules because some subexpressions are not
-    /// executed in the order they appear in the source code.
+    /// The optimizations usually reduce condition evaluation times, specially
+    /// in complex rules that contain loops, but it can break short-circuit
+    /// evaluation rules because some subexpressions are not executed in the
+    /// order they appear in the source code.
     ///
     /// This is a very experimental feature.
     #[doc(hidden)]
-    pub fn common_subexpression_elimination(
-        &mut self,
-        yes: bool,
-    ) -> &mut Self {
+    pub fn condition_optimization(&mut self, yes: bool) -> &mut Self {
+        // CSE is explicitly disabled for now.
+        self.cse(false).hoisting(yes)
+    }
+
+    pub(crate) fn cse(&mut self, yes: bool) -> &mut Self {
         self.cse = yes;
+        self
+    }
+
+    pub(crate) fn hoisting(&mut self, yes: bool) -> &mut Self {
+        self.hoisting = yes;
         self
     }
 
@@ -1350,7 +1361,11 @@ impl<'a> Compiler<'a> {
         };
 
         if self.cse {
-            condition = self.ir.eliminate_common_subexpressions();
+            condition = self.ir.cse();
+        }
+
+        if self.hoisting {
+            condition = self.ir.hoisting();
         }
 
         if let Some(w) = &mut self.ir_writer {
@@ -2109,7 +2124,7 @@ impl<'a> Compiler<'a> {
             false,
         );
 
-        let mut atoms = result.map_err(|err| match err {
+        let re_atoms = result.map_err(|err| match err {
             re::Error::TooLarge => InvalidRegexp::build(
                 &self.report_builder,
                 "regexp is too large".to_string(),
@@ -2128,13 +2143,24 @@ impl<'a> Compiler<'a> {
             ));
         }
 
-        let mut slow_pattern = false;
-
-        for atom in atoms.iter_mut() {
-            if atom.atom.len() < 2 {
-                slow_pattern = true;
-            }
-        }
+        let slow_pattern =
+            match re_atoms.iter().map(|re_atom| re_atom.atom.len()).minmax() {
+                // No atoms, slow pattern.
+                MinMaxResult::NoElements => true,
+                // Only one atom shorter than 2 bytes, slow pattern.
+                MinMaxResult::OneElement(len) if len < 2 => true,
+                // More than one atom, at least one is shorter than 2 bytes.
+                MinMaxResult::MinMax(min, _) if min < 2 => true,
+                // More than 2700 atoms, all with exactly 2 bytes.
+                // Why 2700?. The larger the number of atoms the higher the
+                // odds of finding one of them in the data, which slows down
+                // the scan. The regex [A-Za-z]{N,} (with N>=2) produces
+                // (26+26)^2 = 2704 atoms. So, 2700 is large enough, but
+                // produces a warning with the aforementioned regex.
+                MinMaxResult::MinMax(2, 2) if re_atoms.len() > 2700 => true,
+                // In all other cases the pattern is not slow.
+                _ => false,
+            };
 
         if slow_pattern {
             if self.error_on_slow_pattern {
@@ -2152,7 +2178,7 @@ impl<'a> Compiler<'a> {
             }
         }
 
-        Ok((atoms, is_fast_regexp))
+        Ok((re_atoms, is_fast_regexp))
     }
 
     fn c_literal_chain_head(

@@ -16,6 +16,10 @@ rust-version.workspace = true
 # limit of 10MB for the total package size.
 exclude = ["src/modules/**/*.zip", "src/modules/**/*.out"]
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [features]
 # Enables constant folding. When constant folding is enabled, expressions
 # like `2+2+2` and `true or false`, whose value can be determined at compile

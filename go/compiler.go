@@ -97,6 +97,17 @@ func RelaxedReSyntax(yes bool) CompileOption {
 	}
 }
 
+// ConditionOptimization is an option for [NewCompiler] and [Compile] that
+// enables the optimization of rule conditions. When this is true the compiler
+// applies techniques like common subexpression elimination (CSE) and
+// loop-invariant code motion (LICM).
+func ConditionOptimization(yes bool) CompileOption {
+	return func(c *Compiler) error {
+		c.conditionOptimization = yes
+		return nil
+	}
+}
+
 // ErrorOnSlowPattern is an option for [NewCompiler] and [Compile] that
 // tells the compiler to treat slow patterns as errors instead of warnings.
 func ErrorOnSlowPattern(yes bool) CompileOption {
@@ -226,14 +237,15 @@ type bannedModule struct {
 
 // Compiler represent a YARA compiler.
 type Compiler struct {
-	cCompiler          *C.YRX_COMPILER
-	relaxedReSyntax    bool
-	errorOnSlowPattern bool
-	errorOnSlowLoop    bool
-	ignoredModules     map[string]bool
-	bannedModules      map[string]bannedModule
-	vars               map[string]interface{}
-	features           []string
+	cCompiler             *C.YRX_COMPILER
+	relaxedReSyntax       bool
+	conditionOptimization bool
+	errorOnSlowPattern    bool
+	errorOnSlowLoop       bool
+	ignoredModules        map[string]bool
+	bannedModules         map[string]bannedModule
+	vars                  map[string]interface{}
+	features              []string
 }
 
 // NewCompiler creates a new compiler.
@@ -254,6 +266,10 @@ func NewCompiler(opts ...CompileOption) (*Compiler, error) {
 	flags := C.uint32_t(0)
 	if c.relaxedReSyntax {
 		flags |= C.YRX_RELAXED_RE_SYNTAX
+	}
+
+	if c.conditionOptimization {
+		flags |= C.YRX_ENABLE_CONDITION_OPTIMIZATION
 	}
 
 	if c.errorOnSlowPattern {

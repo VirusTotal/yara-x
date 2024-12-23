@@ -46,7 +46,9 @@ use serde::{Deserialize, Serialize};
 use yara_x_parser::Span;
 
 use crate::compiler::context::{Var, VarStack};
-use crate::compiler::ir::dfs::{dfs_common, DFSIter, Event};
+use crate::compiler::ir::dfs::{
+    dfs_common, DFSIter, DFSWithScopeIter, Event, EventContext,
+};
 
 use crate::re;
 use crate::symbols::Symbol;
@@ -168,8 +170,8 @@ impl<'src> PatternInRule<'src> {
 
     /// Marks the pattern as used.
     ///
-    /// When a pattern is used in the condition this function is called to
-    /// indicate that the pattern is in use.
+    /// When a pattern is used in the rule's condition this function is called
+    /// to indicate that the pattern is in use.
     pub fn mark_as_used(&mut self) -> &mut Self {
         self.in_use = true;
         self
@@ -456,36 +458,48 @@ impl IR {
         shift_amount: i32,
     ) {
         self.dfs_mut(expr_id, |evt| match evt {
-            Event::Enter((_, expr)) => {
+            Event::Enter((_, expr, _)) => {
                 expr.shift_vars(from_index, shift_amount)
             }
-            Event::Leave((_, _)) => {}
+            Event::Leave(_) => {}
         });
     }
 
     /// Returns an iterator that performs a depth first search starting at
     /// the given node.
     pub fn dfs_iter(&self, start: ExprId) -> DFSIter {
-        DFSIter::new(start, self.nodes.as_slice())
+        DFSIter::new(start, self)
+    }
+
+    /// Similar to [`IR::dfs_iter`] but returns an iterator that also can offer
+    /// information about the current scopes.
+    ///
+    /// See [`DFSWithScopeIter`] for details.
+    pub fn dfs_with_scope(&self, start: ExprId) -> DFSWithScopeIter {
+        DFSWithScopeIter::new(start, self)
     }
 
     /// Performs a depth-first traversal of the IR tree, calling the `f`
     /// function both upon entering and leaving each node.
     pub fn dfs_mut<F>(&mut self, start: ExprId, mut f: F)
     where
-        F: FnMut(Event<(ExprId, &mut Expr)>),
+        F: FnMut(Event<(ExprId, &mut Expr, EventContext)>),
     {
-        let mut stack = vec![Event::Enter(start)];
+        let mut stack = vec![Event::Enter((start, EventContext::None))];
 
         while let Some(evt) = stack.pop() {
             if let Event::Enter(expr) = evt {
                 stack.push(Event::Leave(expr));
             }
             f(match &evt {
-                Event::Enter(e) => Event::Enter((*e, self.get_mut(*e))),
-                Event::Leave(e) => Event::Leave((*e, self.get_mut(*e))),
+                Event::Enter((expr_id, ctx)) => {
+                    Event::Enter((*expr_id, self.get_mut(*expr_id), *ctx))
+                }
+                Event::Leave((expr_id, ctx)) => {
+                    Event::Leave((*expr_id, self.get_mut(*expr_id), *ctx))
+                }
             });
-            if let Event::Enter(expr) = evt {
+            if let Event::Enter((expr, _)) = evt {
                 dfs_common(&self.nodes[expr.0 as usize], &mut stack);
             }
         }
@@ -507,7 +521,7 @@ impl IR {
         let mut dfs = self.dfs_iter(start);
 
         while let Some(evt) = dfs.next() {
-            if let Event::Enter((_, expr)) = evt {
+            if let Event::Enter((_, expr, _)) = evt {
                 if predicate(expr) {
                     return Some(expr);
                 }
@@ -608,7 +622,7 @@ impl IR {
 
         for evt in self.dfs_iter(start) {
             match evt {
-                Event::Enter((_, expr)) => {
+                Event::Enter((_, expr, _)) => {
                     if !ignore(expr) {
                         hashers.push(FxHasher::default());
                     }
@@ -616,7 +630,7 @@ impl IR {
                         expr.hash(h);
                     }
                 }
-                Event::Leave((expr_id, expr)) => {
+                Event::Leave((expr_id, expr, _)) => {
                     if !ignore(expr) {
                         let hasher = hashers.pop().unwrap();
                         f(expr_id, hasher.finish());
@@ -636,8 +650,8 @@ impl IR {
         // and we should be able to iterate both them in lockstep.
         for (a, b) in dfs_a.by_ref().zip(dfs_b.by_ref()) {
             match (a, b) {
-                (Event::Leave((_, _)), Event::Leave((_, _))) => {}
-                (Event::Enter((_, a)), Event::Enter((_, b))) => {
+                (Event::Leave((_, _, _)), Event::Leave((_, _, _))) => {}
+                (Event::Enter((_, a, _)), Event::Enter((_, b, _))) => {
                     if discriminant(a) != discriminant(b) {
                         return false;
                     }
@@ -820,7 +834,7 @@ impl IR {
 
         'dfs: while let Some(evt) = dfs.next() {
             match evt {
-                Event::Enter((expr_id, _)) => {
+                Event::Enter((expr_id, _, _)) => {
                     // Get hash for the current expression. This can return
                     // `None` because the hash is not computed for all
                     // expressions.
@@ -828,15 +842,25 @@ impl IR {
                         Some(hash) => hash,
                         None => continue 'dfs,
                     };
-                    // When the entry was not found is because it was
-                    // previously deleted while processing another expression
-                    // that was equal to the current one. In such cases we
-                    // won't need to traverse the current expression.
                     if !map.contains_key(hash) {
+                        // When the entry was not found is because it was
+                        // previously deleted while processing another expression
+                        // that was equal to the current one. In such cases we
+                        // won't need to traverse the current expression.
                         dfs.prune();
                     }
                 }
-                Event::Leave((expr_id, _)) => {
+                Event::Leave((expr_id, _, ctx)) => {
+                    // All other expressions could be moved around, except those
+                    // that are operands of a field access. That's because the
+                    // operands of a field access can depend on the results
+                    // produced by their siblings. For instance, in `foo[i].bar[0]`
+                    // `bar[0]` depends on the result produced by `foo[i]`,
+                    // `bar[0]` doesn't depend on `i` itself, but it depends on
+                    // the result of `foo[i]`, which does.
+                    if matches!(ctx, EventContext::FieldAccess) {
+                        continue 'dfs;
+                    }
                     let hash = match hashes.get(&expr_id) {
                         Some(hash) => hash,
                         None => continue 'dfs,
@@ -848,15 +872,7 @@ impl IR {
                     // processed only once.
                     let exprs = match map.remove(hash) {
                         Some(exprs) => exprs,
-                        None => {
-                            // When the entry was not found is because it was
-                            // previously deleted while processing another
-                            // expression that was equal to the current one.
-                            // In such cases we don't need to traverse the
-                            // current expression.
-                            dfs.prune();
-                            continue 'dfs;
-                        }
+                        None => continue 'dfs,
                     };
                     // Make sure that all the expressions are actually equal.
                     // All the expressions have the same hash, but that's not
@@ -871,11 +887,6 @@ impl IR {
                             self.common_ancestor(exprs.as_slice()),
                             exprs,
                         ));
-                        // When the current expression is equal to some other
-                        // expression, we don't want to traverse its children, as
-                        // the children are going to be equal to the other
-                        // expression's children.
-                        dfs.prune();
                     }
                 }
             }
@@ -890,7 +901,7 @@ impl IR {
     /// and replace them with a single variable holding the computed value.
     ///
     /// https://en.wikipedia.org/wiki/Common_subexpression_elimination
-    pub fn eliminate_common_subexpressions(&mut self) -> ExprId {
+    pub fn cse(&mut self) -> ExprId {
         for (common_ancestor, subexpressions) in
             self.find_common_subexprs(self.root.unwrap())
         {
@@ -951,6 +962,273 @@ impl IR {
                         type_value: type_value.clone(),
                     })),
                 );
+            }
+        }
+
+        self.root.unwrap()
+    }
+
+    /// Traverses the IR tree identifying loop-invariant expressions that can
+    /// be safely moved outside the loop they are nested in.
+    ///
+    /// This function returns a vector of pairs `(ExprId, ExprId)`, where the
+    /// first element represents the ID of an expression that can be moved out
+    /// of a loop, and the second represents the ID of the loop from which it
+    /// can be moved. This always corresponds to the outermost loop in which
+    /// the expression remains invariant. See: [`IR::hoisting`].
+    ///
+    /// # Algorithm Overview
+    ///
+    /// ## Step 1: Dependency Analysis
+    ///
+    /// - Traverse the IR tree in **Depth-First Search (DFS)** order to compute
+    ///   variable dependencies for each expression.
+    /// - When a node uses a variable, mark all its ancestors (up to the root)
+    ///   as dependent on that variable, unless the node is already marked
+    ///   dependent on a variable declared in a statement lower in the tree
+    ///   (closer to the leaves).
+    /// - This results in a dependency vector where each element corresponds to
+    ///   an IR node, specifying the variable(s) upon which the corresponding
+    ///   expression depends.
+    ///
+    /// ## Step 2: Hoisting candidates identification
+    ///
+    /// - Traverse the IR tree again in **DFS** order, processing nodes during
+    ///   the "leave" event (when recursion unwinds). This ensures that nodes
+    ///   closer to the leaves are visited first.
+    /// - Add a node to the result vector only if its parent does not depend on
+    ///   the same variable. This avoids hoisting sub-expressions that are part
+    ///   of a larger expression also eligible to be hoisted from the same loop.
+    /// - The number of candidates is limited to 100. Too many candidates produce
+    ///   very deep IR trees with many nested `with` statement, which often
+    ///   results in code that is slower than the original one.
+    ///
+    /// The final result is a list of loop-invariant expressions and the loops
+    /// they can be hoisted from, ensuring optimal code motion without redundant
+    /// or unnecessary hoisting.
+    pub fn find_hoisting_candidates(&self) -> Vec<(ExprId, ExprId)> {
+        // This vector contains one entry per node in the IR tree. Each entry
+        // at `depends_on[expr_id]` provides information about the variable on
+        // which the expression identified by `expr_id` depends.
+        //
+        // - If `depends_on[expr_id]` is `None`, the expression does not depend
+        //   on any variable.
+        //
+        // - If `depends_on[expr_id]` is `Some((e, v))`, then `e` is the ExprId
+        //   that identifies the expression that declared the variable, and `v`
+        //   is the index of the variable on which `expr_id` depends on. If the
+        //   expression depends on multiple variables, `depends_on[expr_id]`
+        //   will refer to the outermost variable (i.e., the variable that
+        //   corresponds to the outermost loop or with statement).
+        //
+        let mut depends_on = vec![None; self.nodes.len()];
+
+        // The result is a vector of tuples (ExprId, ExprId), where the first
+        // item is the expression that must be moved out of a loop, and the
+        // second one is the loop from where the expression must be moved out.
+        // This implies that the first expression is a sub-expression of the
+        // second one.
+        let mut result = Vec::new();
+
+        let mut dfs = self.dfs_with_scope(self.root.unwrap());
+
+        while let Some(event) = dfs.next() {
+            let current_expr_id = match event {
+                Event::Enter((expr_id, _)) => expr_id,
+                Event::Leave(_) => continue,
+            };
+
+            let symbol = match self.get(current_expr_id) {
+                Expr::Symbol(symbol) => symbol,
+                _ => continue,
+            };
+
+            let var = match symbol.as_ref() {
+                Symbol::Var { var, .. } => var.index(),
+                _ => continue,
+            };
+
+            // Try to find the statement that declared the variable.
+            let stmt_declaring_var =
+                match dfs.scopes().find(|expr_id| match self.get(*expr_id) {
+                    Expr::With(with) => {
+                        with.declarations.iter().any(|(v, _)| v.index() == var)
+                    }
+                    Expr::ForIn(for_in) => {
+                        for_in.variables.iter().any(|v| v.index() == var)
+                    }
+                    _ => false,
+                }) {
+                    Some(stmt) => stmt,
+                    None => continue,
+                };
+
+            // Iterate the ancestors of the current statement up to the
+            // statement that declared the variable (not included), and mark
+            // them as dependent on that variable.
+            for ancestor in self
+                .ancestors(current_expr_id)
+                .take_while(|ancestor| ancestor.ne(&stmt_declaring_var))
+            {
+                match &mut depends_on[ancestor.0 as usize] {
+                    // If already depends on some variable that was defined by
+                    // an inner expression, the existing dependency prevails.
+                    // We rely on the fact that variables defined by an inner
+                    // expression has a higher index.
+                    Some((_, v)) if *v >= var => {}
+                    // In all other cases, save the statement that declared the
+                    // variable (either a `with` or a `for` statement), the
+                    // loop that is immediately inside that statement, and the
+                    // variable itself.
+                    entry => *entry = Some((stmt_declaring_var, var)),
+                }
+            }
+        }
+
+        let mut dfs = self.dfs_with_scope(self.root.unwrap());
+
+        while let Some(event) = dfs.next() {
+            let (current_expr_id, ctx) = match event {
+                Event::Enter(_) => continue,
+                Event::Leave((expr_id, ctx)) => (expr_id, ctx),
+            };
+
+            match self.get(current_expr_id) {
+                // Constants and `filesize` are fast and don't need to be moved
+                // out of loops.
+                Expr::Const(_) | Expr::Filesize | Expr::Symbol(_) => {}
+                // All other expressions could be moved out of loops, except
+                // those that are operands of a field access. That's because
+                // the operands of a field access can depend on the results
+                // produced by their siblings. For instance, in `foo[i].bar[0]`
+                // `bar[0]` depends on the result produced by `foo[i]`,
+                // `bar[0]` doesn't depend on `i` itself, but it depends on the
+                // result of `foo[i]`, which does.
+                _ if !matches!(ctx, EventContext::FieldAccess) => {
+                    let current_depends_on =
+                        depends_on[current_expr_id.0 as usize];
+
+                    let parent_depends_on = self
+                        .get_parent(current_expr_id)
+                        .and_then(|e| depends_on[e.0 as usize]);
+
+                    match (current_depends_on, parent_depends_on) {
+                        (Some((c, _)), Some((p, _))) if c == p => continue,
+                        _ => {}
+                    }
+
+                    match current_depends_on {
+                        // The expression doesn't depend on any variable, move
+                        // it out of the outermost loop, if any.
+                        None => {
+                            if let Some(outermost) = dfs.for_scopes().next() {
+                                result.push((current_expr_id, outermost));
+                            }
+                        }
+                        // The expression depends on some variable that was
+                        // defined by `defining_expr`.
+                        Some((defining_expr, _)) => {
+                            // If the expression defining the variable is not a
+                            // loop, there's nothing else to do.
+                            match self.get(defining_expr) {
+                                Expr::ForIn(_) => {}
+                                _ => continue,
+                            }
+                            let mut scopes = dfs.for_scopes();
+                            // Find the loop that defined the variable...
+                            for expr_id in scopes.by_ref() {
+                                if expr_id == defining_expr {
+                                    break;
+                                }
+                            }
+                            // .. and take the loop that inside directly inside
+                            // the one that defined the variable
+                            if let Some(inner_loop) = scopes.next() {
+                                result.push((current_expr_id, inner_loop));
+                            }
+                            // Limit the number of candidates to a reasonable
+                            // number.
+                            if result.len() > 100 {
+                                return result;
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        result
+    }
+
+    /// Optimizes the IR (Intermediate Representation) by moving loop-invariant
+    /// expressions outside the loop they are nested in.
+    ///
+    /// Loop hoisting optimizes performance by relocating expressions whose
+    /// values remain constant across all iterations of the loop, thus reducing
+    /// redundant calculations.
+    ///
+    /// For example:
+    ///
+    /// ```text
+    /// for any i in (0..100) : (
+    ///   for any j in (0..100) : (
+    ///     a[j] == b[i] || func(1,2)
+    ///   )
+    /// )
+    /// ```
+    ///
+    /// In this example, `a[j]` cannot be hoisted out of any loop, as it depends
+    /// on `j`, which changes with each iteration of the inner loop. Conversely,
+    /// `b[i]` can be hoisted out of the inner loop since it remains unchanged
+    /// with respect to `j`, and `func(1,2)` can be hoisted out of both loops,
+    /// as it is independent of both `i` and `j`.
+    pub fn hoisting(&mut self) -> ExprId {
+        for (expr_id, loop_expr_id) in self.find_hoisting_candidates() {
+            let loop_parent = self.get_parent(loop_expr_id);
+
+            let var_index = self
+                .ancestors(loop_expr_id)
+                .map(|expr_id| self.get(expr_id).stack_frame_size())
+                .sum::<i32>();
+
+            // Shift all variables with an index greater or equal than
+            // var_index one position to the left in order to make room for
+            // the new variable used by the `with` statement that will be
+            // inserted.
+            self.shift_vars(loop_expr_id, var_index, 1);
+
+            let type_value = self.get(expr_id).type_value();
+            let var = Var::new(0, type_value.ty(), var_index);
+
+            // Replace the moved expression with variable. The moved expression
+            // will be added as a declaration to the `with` statement.
+            let replaced = self.replace(
+                expr_id,
+                Expr::Symbol(Box::new(Symbol::Var {
+                    var,
+                    type_value: type_value.clone(),
+                })),
+            );
+
+            // The expression that initializes the variable is the one that is
+            // being replaced with the variable.
+            let var_init_stmt = self.push(replaced);
+
+            // The body of the `with` statement is the loop. From now on
+            // the loop's parent is the `with` statement.
+            let with_stmt =
+                self.with(vec![(var, var_init_stmt)], loop_expr_id);
+
+            // The previous parent of the `with` statement becomes the parent
+            // of the `with` statement, if not, the `with` statement is the new
+            // root.
+            if let Some(loop_parent) = loop_parent {
+                self.set_parent(with_stmt, loop_parent);
+                self.get_mut(loop_parent)
+                    .replace_child(loop_expr_id, with_stmt);
+            } else {
+                self.root = Some(with_stmt);
             }
         }
 
@@ -1744,7 +2022,7 @@ impl IR {
         variable: Var,
         for_vars: ForVars,
         pattern_set: Vec<PatternIdx>,
-        condition: ExprId,
+        body: ExprId,
     ) -> ExprId {
         let expr_id = ExprId::from(self.nodes.len());
         match quantifier {
@@ -1753,13 +2031,13 @@ impl IR {
             }
             _ => {}
         }
-        self.parents[condition.0 as usize] = expr_id;
+        self.parents[body.0 as usize] = expr_id;
         self.parents.push(ExprId::none());
         self.nodes.push(Expr::ForOf(Box::new(ForOf {
             quantifier,
             variable,
             pattern_set,
-            condition,
+            body,
             for_vars,
         })));
         debug_assert_eq!(self.parents.len(), self.nodes.len());
@@ -1774,7 +2052,7 @@ impl IR {
         for_vars: ForVars,
         iterable_var: Var,
         iterable: Iterable,
-        condition: ExprId,
+        body: ExprId,
     ) -> ExprId {
         let expr_id = ExprId::from(self.nodes.len());
         match quantifier {
@@ -1797,7 +2075,7 @@ impl IR {
                 self.parents[expr.0 as usize] = expr_id;
             }
         }
-        self.parents[condition.0 as usize] = expr_id;
+        self.parents[body.0 as usize] = expr_id;
         self.parents.push(ExprId::none());
         self.nodes.push(Expr::ForIn(Box::new(ForIn {
             quantifier,
@@ -1805,7 +2083,7 @@ impl IR {
             for_vars,
             iterable_var,
             iterable,
-            condition,
+            body,
         })));
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         expr_id
@@ -1815,19 +2093,19 @@ impl IR {
     pub fn with(
         &mut self,
         declarations: Vec<(Var, ExprId)>,
-        condition: ExprId,
+        body: ExprId,
     ) -> ExprId {
-        let type_value = self.get(condition).type_value();
+        let type_value = self.get(body).type_value();
         let expr_id = ExprId::from(self.nodes.len());
         for (_, expr) in declarations.iter() {
             self.parents[expr.0 as usize] = expr_id;
         }
-        self.parents[condition.0 as usize] = expr_id;
+        self.parents[body.0 as usize] = expr_id;
         self.parents.push(ExprId::none());
         self.nodes.push(Expr::With(Box::new(With {
             type_value,
             declarations,
-            condition,
+            body,
         })));
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         expr_id
@@ -1901,7 +2179,7 @@ impl Debug for IR {
         for event in self.dfs_iter(self.root.unwrap()) {
             match event {
                 Event::Leave(_) => level -= 1,
-                Event::Enter((expr_id, expr)) => {
+                Event::Enter((expr_id, expr,_)) => {
                     for _ in 0..level {
                         write!(f, "  ")?;
                     }
@@ -2058,7 +2336,7 @@ impl<'a> Iterator for Children<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match self.dfs.next()? {
-                Event::Enter((expr_id, _)) => {
+                Event::Enter((expr_id, _, _)) => {
                     self.dfs.prune();
                     return Some(expr_id);
                 }
@@ -2284,7 +2562,7 @@ pub(crate) struct ForOf {
     pub variable: Var,
     pub for_vars: ForVars,
     pub pattern_set: Vec<PatternIdx>,
-    pub condition: ExprId,
+    pub body: ExprId,
 }
 
 /// A `for .. in` expression (e.g `for all x in iterator : (..)`)
@@ -2294,7 +2572,7 @@ pub(crate) struct ForIn {
     pub for_vars: ForVars,
     pub iterable_var: Var,
     pub iterable: Iterable,
-    pub condition: ExprId,
+    pub body: ExprId,
 }
 
 /// A quantifier used in `for` and `of` expressions.
@@ -2313,9 +2591,9 @@ pub(crate) struct ForVars {
     pub n: Var,
     /// Current iteration number.
     pub i: Var,
-    /// Number of loop conditions that must return true.
+    /// Number of loop iterations that must return true.
     pub max_count: Var,
-    /// Number of loop conditions that actually returned true.
+    /// Number of loop iterations that actually returned true.
     pub count: Var,
 }
 
@@ -2332,7 +2610,7 @@ impl ForVars {
 pub(crate) struct With {
     pub type_value: TypeValue,
     pub declarations: Vec<(Var, ExprId)>,
-    pub condition: ExprId,
+    pub body: ExprId,
 }
 
 /// In expressions like `$a at 0` and `$b in (0..10)`, this type represents the
@@ -2498,48 +2776,12 @@ impl Expr {
                 for_in.for_vars.shift(from_index, shift_amount);
             }
 
-            Expr::FieldAccess(_) => {}
-            Expr::FuncCall(_) => {}
-            Expr::Lookup(_) => {}
-            Expr::Const(_) => {}
-            Expr::Filesize => {}
-            Expr::Not { .. } => {}
-            Expr::And { .. } => {}
-            Expr::Or { .. } => {}
-            Expr::Minus { .. } => {}
-            Expr::Add { .. } => {}
-            Expr::Sub { .. } => {}
-            Expr::Mul { .. } => {}
-            Expr::Div { .. } => {}
-            Expr::Mod { .. } => {}
-            Expr::BitwiseNot { .. } => {}
-            Expr::BitwiseAnd { .. } => {}
-            Expr::Shl { .. } => {}
-            Expr::Shr { .. } => {}
-            Expr::BitwiseOr { .. } => {}
-            Expr::BitwiseXor { .. } => {}
-            Expr::Eq { .. } => {}
-            Expr::Ne { .. } => {}
-            Expr::Lt { .. } => {}
-            Expr::Gt { .. } => {}
-            Expr::Le { .. } => {}
-            Expr::Ge { .. } => {}
-            Expr::Contains { .. } => {}
-            Expr::IContains { .. } => {}
-            Expr::StartsWith { .. } => {}
-            Expr::IStartsWith { .. } => {}
-            Expr::EndsWith { .. } => {}
-            Expr::IEndsWith { .. } => {}
-            Expr::IEquals { .. } => {}
-            Expr::Matches { .. } => {}
-            Expr::Defined { .. } => {}
-            Expr::PatternMatch { .. } => {}
-            Expr::PatternCount { .. } => {}
-            Expr::PatternOffset { .. } => {}
-            Expr::PatternLength { .. } => {}
+            _ => {}
         }
     }
 
+    /// Search for a specific child of the current expression and replace it
+    /// with `replacement`.
     pub fn replace_child(&mut self, child: ExprId, replacement: ExprId) {
         let replace_in_slice = |exprs: &mut [ExprId]| {
             for expr in exprs {
@@ -2657,8 +2899,8 @@ impl Expr {
                         *expr = replacement
                     }
                 }
-                if with.condition == child {
-                    with.condition = replacement
+                if with.body == child {
+                    with.body = replacement
                 }
             }
 
@@ -2686,15 +2928,15 @@ impl Expr {
 
             Expr::ForOf(for_of) => {
                 replace_in_quantifier(&mut for_of.quantifier);
-                if for_of.condition == child {
-                    for_of.condition = replacement
+                if for_of.body == child {
+                    for_of.body = replacement
                 }
             }
 
             Expr::ForIn(for_in) => {
                 replace_in_quantifier(&mut for_in.quantifier);
-                if for_in.condition == child {
-                    for_in.condition = replacement
+                if for_in.body == child {
+                    for_in.body = replacement
                 }
             }
 

@@ -1,0 +1,6 @@
+rule test{
+  strings:
+    $a = /[A-Za-z]{2,}/
+  condition:
+    $a
+}

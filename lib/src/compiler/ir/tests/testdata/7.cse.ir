@@ -1,0 +1,42 @@
+RULE test_1
+  23: FOR_IN -- hash: 0x48f0a7bce7036e6f -- parent: None 
+    0: CONST integer(0) -- parent: 23 
+    1: CONST integer(1) -- parent: 23 
+    22: EQ -- hash: 0xdead7722f1c20b78 -- parent: 23 
+      20: FIELD_ACCESS -- hash: 0xf7151396a0669643 -- parent: 22 
+        16: LOOKUP -- hash: 0xb48de51754ce4c4e -- parent: 20 
+          14: FIELD_ACCESS -- hash: 0xa67f64b2db1d0351 -- parent: 16 
+            12: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 14 
+            13: SYMBOL Field { index: 48, is_root: false, type_value: array, acl: None } -- parent: 14 
+          15: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 16 
+        19: LOOKUP -- hash: 0x7132a2dfe7856f7e -- parent: 20 
+          17: SYMBOL Field { index: 6, is_root: false, type_value: array, acl: None } -- parent: 19 
+          18: CONST integer(0) -- parent: 19 
+      21: CONST integer(0) -- parent: 22 
+
+RULE test_2
+  10: DEFINED -- hash: 0xa9c934d5341dd128 -- parent: None 
+    9: FOR_IN -- hash: 0x47af473e5ce6edf4 -- parent: 10 
+      0: CONST integer(0) -- parent: 9 
+      1: CONST integer(10) -- parent: 9 
+      8: EQ -- hash: 0xc505f68cf1115633 -- parent: 9 
+        6: FN_CALL test_proto2.undef_i64@@iu -- hash: 0x683a6ff805737265 -- parent: 8 
+        7: CONST integer(0) -- parent: 8 
+
+RULE test_3
+  20: WITH -- hash: 0x316c3230beeddd8 -- parent: None 
+    19: FIELD_ACCESS -- hash: 0x43469e515d62ee0d -- parent: 20 
+      0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 19 
+      1: SYMBOL Field { index: 43, is_root: false, type_value: struct, acl: None } -- parent: 19 
+      2: SYMBOL Field { index: 5, is_root: false, type_value: string(unknown), acl: None } -- parent: 19 
+    22: WITH -- hash: 0x223324aab6fa61e6 -- parent: 20 
+      21: CONTAINS -- hash: 0x9ad97bd14a82bbde -- parent: 22 
+        3: SYMBOL Var { var: Var { frame_id: 0, ty: string, index: 0 }, type_value: string(unknown) } -- parent: 21 
+        4: CONST string("foo") -- parent: 21 
+      18: OR -- hash: 0x7820dc568695abd -- parent: 22 
+        5: SYMBOL Var { var: Var { frame_id: 0, ty: boolean, index: 1 }, type_value: boolean(unknown) } -- parent: 18 
+        11: SYMBOL Var { var: Var { frame_id: 0, ty: boolean, index: 1 }, type_value: boolean(unknown) } -- parent: 18 
+        17: CONTAINS -- hash: 0xab578fc0e12df882 -- parent: 18 
+          15: SYMBOL Var { var: Var { frame_id: 0, ty: string, index: 0 }, type_value: string(unknown) } -- parent: 17 
+          16: CONST string("bar") -- parent: 17 
+

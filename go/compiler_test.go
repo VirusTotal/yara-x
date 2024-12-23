@@ -54,6 +54,13 @@ func TestRelaxedReSyntax(t *testing.T) {
 	assert.Len(t, scanResults.MatchingRules(), 1)
 }
 
+func TestConditionOptimization(t *testing.T) {
+	_, err := Compile(`
+		rule test { condition: true }`,
+		ConditionOptimization(true))
+	assert.NoError(t, err)
+}
+
 func TestErrorOnSlowPattern(t *testing.T) {
 	_, err := Compile(`
 		rule test { strings: $a = /a.*/ condition: $a }`,

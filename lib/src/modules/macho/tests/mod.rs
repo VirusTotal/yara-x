@@ -17,6 +17,12 @@ fn test_macho_module() {
         "src/modules/macho/tests/testdata/chess.in.zip",
     );
 
+    let symbolt_table_test_data = create_binary_from_zipped_ihex(
+        "src/modules/macho/tests/testdata/8962a76d0aeaee3326cf840de11543c8beebeb768e712bd3b754b5cd3e151356.in.zip",
+    );
+
+    let linker_options_data = create_binary_from_zipped_ihex("src/modules/macho/tests/testdata/f3cde7740370819a974d1bc7fbeae1946382e3377e64f3162bcc3a5cb34828b7.in.zip");
+
     rule_true!(
         r#"
         import "macho"
@@ -473,5 +479,73 @@ fn test_macho_module() {
         }
         "#,
         &tiny_universal_macho_data
+    );
+
+    rule_true!(
+        r#"
+    import "macho"
+    rule macho_test {
+        condition:
+            not defined macho.sym_hash()
+    }
+    "#,
+        &[]
+    );
+
+    rule_true!(
+        r#"
+    import "macho"
+    rule macho_test {
+        condition:
+            macho.sym_hash() == "fea44765d5601027002d40c278d119aa"
+    }
+    "#,
+        &symbolt_table_test_data
+    );
+
+    rule_false!(
+        r#"
+    import "macho"
+    rule macho_test {
+        condition:
+            macho.sym_hash() == "786daad487993f71b1ba40d0f43a9e0f"
+    }
+    "#,
+        &symbolt_table_test_data
+    );
+
+    rule_true!(
+        r#"
+    import "macho"
+    rule macho_test {
+        condition:
+            macho.sym_hash() == "a9ccc7c7b8bd33a99dc7ede4e8d771b4"
+    }
+    "#,
+        &tiny_universal_macho_data
+    );
+
+    rule_true!(
+        r#"
+    import "macho"
+    rule macho_test {
+        condition:
+            for any obj in macho.linker_options:
+                (obj == "-lswiftCoreFoundation")
+    }
+    "#,
+        &linker_options_data
+    );
+
+    rule_false!(
+        r#"
+    import "macho"
+    rule macho_test {
+        condition:
+            for any obj in macho.linker_options:
+                (obj == "-lswiftNotExist")
+    }
+    "#,
+        &linker_options_data
     );
 }

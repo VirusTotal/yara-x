@@ -377,22 +377,24 @@ impl<'a> ParWalker<'a> {
     /// Runs `action` on every file.
     ///
     /// See [`ParWalker`] for details.
-    pub fn walk<S, T, I, A, F, E>(
+    pub fn walk<S, T, I, A, F, D, E>(
         self,
         state: S,
         init: I,
         action: A,
         finalize: F,
+        on_walk_done: D,
         error: E,
     ) -> thread::Result<()>
     where
-        S: Component + Send + Sync,
+        S: Component + Send + Sync + 'static,
         I: Fn(&S, &Sender<Message>) -> T + Send + Copy + Sync,
         A: Fn(&S, &Sender<Message>, PathBuf, &mut T) -> anyhow::Result<()>
             + Send
             + Sync
             + Copy,
         F: Fn(&T, &Sender<Message>) + Send + Copy + Sync,
+        D: Fn(&Sender<Message>),
         E: Fn(anyhow::Error, &Sender<Message>) -> anyhow::Result<()>
             + Send
             + Copy,
@@ -491,53 +493,94 @@ impl<'a> ParWalker<'a> {
 
             // The console is rendered once every `render_period`.
             let render_period = Duration::from_secs_f64(0.150);
-            let mut last_render = Instant::now();
 
-            loop {
-                match msg_recv.recv_timeout(render_period) {
-                    Ok(Message::Info(s)) => {
-                        if let Some(console) = console.as_mut() {
-                            console.emit(
-                                Lines::from_colored_multiline_string(
-                                    s.as_str(),
-                                ),
-                            );
-                        } else {
-                            println!("{}", s)
-                        }
-                    }
-                    Ok(Message::Error(s)) => {
-                        if let Some(console) = console.as_mut() {
-                            console.emit(
-                                Lines::from_colored_multiline_string(
-                                    s.as_str(),
-                                ),
-                            );
-                        } else {
-                            eprintln!("{}", s)
-                        }
-                    }
-                    Ok(Message::Abort) => {
-                        break;
-                    }
-                    Err(RecvTimeoutError::Disconnected) => {
-                        break;
-                    }
-                    Err(RecvTimeoutError::Timeout) => {}
+            output_messages(
+                render_period,
+                Instant::now(),
+                msg_recv,
+                console.as_mut(),
+                state.clone(),
+            );
+
+            threads.into_iter().for_each(|thread| thread.join().unwrap());
+
+            let (msg_send, msg_recv) =
+                crossbeam::channel::bounded::<Message>(32);
+
+            let handle = thread::spawn(move || {
+                output_messages(
+                    render_period,
+                    Instant::now(),
+                    msg_recv,
+                    console.as_mut(),
+                    state.clone(),
+                );
+
+                if let Some(console) = console {
+                    console.finalize(state.as_ref()).unwrap();
                 }
+            });
 
-                if let Some(console) = console.as_mut() {
-                    if Instant::elapsed(&last_render) > render_period {
-                        console.render(state.as_ref()).unwrap();
-                        last_render = Instant::now();
-                    }
-                }
-            }
+            // let `on_walk_done` send messages to the console
+            on_walk_done(&msg_send);
 
-            if let Some(console) = console {
-                console.finalize(state.as_ref()).unwrap();
-            }
+            // close the channel *before* joining the thread (`handle.join()`)
+            // this sends a signal through the channel to the listening threads to disconnect
+            // otherwise, trying to `handle.join()` will cause a deadlock
+            std::mem::drop(msg_send);
+
+            handle.join().unwrap();
         })
+    }
+}
+
+fn output_messages<S>(
+    render_period: Duration,
+    last_render: Instant,
+    msg_recv: crossbeam::channel::Receiver<Message>,
+    console: Option<&mut SuperConsole>,
+    state: Arc<S>,
+) where
+    S: Component,
+{
+    let mut console = console;
+    let mut last_render = last_render;
+
+    loop {
+        match msg_recv.recv_timeout(render_period) {
+            Ok(Message::Info(s)) => {
+                if let Some(console) = console.as_mut() {
+                    console.emit(Lines::from_colored_multiline_string(
+                        s.as_str(),
+                    ));
+                } else {
+                    println!("{}", s)
+                }
+            }
+            Ok(Message::Error(s)) => {
+                if let Some(console) = console.as_mut() {
+                    console.emit(Lines::from_colored_multiline_string(
+                        s.as_str(),
+                    ));
+                } else {
+                    eprintln!("{}", s)
+                }
+            }
+            Ok(Message::Abort) => {
+                break;
+            }
+            Err(RecvTimeoutError::Disconnected) => {
+                break;
+            }
+            Err(RecvTimeoutError::Timeout) => {}
+        }
+
+        if let Some(console) = console.as_mut() {
+            if Instant::elapsed(&last_render) > render_period {
+                console.render(state.as_ref()).unwrap();
+                last_render = Instant::now();
+            }
+        }
     }
 }
 

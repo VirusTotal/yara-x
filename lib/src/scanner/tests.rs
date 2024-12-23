@@ -3,10 +3,13 @@ use protobuf::MessageDyn;
 use protobuf::{Message, MessageFull};
 use serde_json::json;
 
+#[cfg(feature = "rules-profiling")]
+use std::time::Duration;
+
 use crate::models::MetaValue;
-use crate::mods;
 use crate::variables::VariableError;
 use crate::Scanner;
+use crate::{mods, ScanOptions};
 
 #[test]
 fn iterators() {
@@ -648,4 +651,64 @@ fn namespaces() {
     assert_eq!(matching_rules[0].namespace(), "foo");
     assert_eq!(matching_rules[1].identifier(), "bar");
     assert_eq!(matching_rules[1].namespace(), "bar");
+}
+
+#[test]
+fn scan_file() {
+    let rules = crate::compile(
+        r#"
+    rule slow {
+      strings:
+        $a = "aaaa"
+      condition: 
+        $a
+    }
+    "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    let scan_results =
+        scanner.scan_file("src/tests/testdata/jumps.bin").unwrap();
+
+    assert_eq!(scan_results.matching_rules().len(), 1);
+
+    let scan_results = scanner
+        .scan_file_with_options(
+            "src/tests/testdata/jumps.bin",
+            ScanOptions::default(),
+        )
+        .unwrap();
+
+    assert_eq!(scan_results.matching_rules().len(), 1)
+}
+
+#[cfg(feature = "rules-profiling")]
+#[test]
+fn rules_profiling() {
+    let rules = crate::compile(
+        r#"
+    rule slow {
+      condition: 
+        for any i in (0..1000000) : (
+           uint8(i) == 0xCC
+        )
+    }
+    "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+
+    scanner.scan(b"foobar").unwrap();
+
+    let slowest_rules = scanner.slowest_rules(10);
+
+    assert_eq!(slowest_rules.len(), 1);
+    assert!(slowest_rules[0].condition_exec_time.gt(&Duration::from_secs(0)));
+
+    scanner.clear_profiling_data();
+
+    let slowest_rules = scanner.slowest_rules(10);
+    assert_eq!(slowest_rules.len(), 0);
 }

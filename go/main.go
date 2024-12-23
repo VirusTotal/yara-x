@@ -226,7 +226,7 @@ func (r *Rules) Slice() []*Rule {
 
 // Count returns the total number of rules.
 //
-// This is more a more efficient alternative to len(rules.Slice()).
+// This is a more efficient alternative to len(rules.Slice()).
 func (r *Rules) Count() int {
 	count := C.yrx_rules_count(r.cRules)
 	runtime.KeepAlive(r)

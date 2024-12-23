@@ -132,8 +132,11 @@ pub(crate) struct ScanContext<'r> {
 
 #[cfg(feature = "rules-profiling")]
 impl<'r> ScanContext<'r> {
-    /// Returns the top N most expensive rules.
-    pub fn most_expensive_rules(&self, n: usize) -> Vec<ProfilingData> {
+    /// Returns the slowest N rules.
+    ///
+    /// Profiling has an accumulative effect. When the scanner is used for
+    /// scanning multiple files the times add up.
+    pub fn slowest_rules(&self, n: usize) -> Vec<ProfilingData> {
         debug_assert_eq!(
             self.compiled_rules.num_rules(),
             self.time_spent_in_rule.len()
@@ -189,6 +192,12 @@ impl<'r> ScanContext<'r> {
         });
         result.truncate(n);
         result
+    }
+
+    /// Clears profiling information.
+    pub fn clear_profiling_data(&mut self) {
+        self.time_spent_in_rule.fill(0);
+        self.time_spent_in_pattern.clear();
     }
 }
 

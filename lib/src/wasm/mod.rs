@@ -27,16 +27,16 @@ The memory of these WASM modules is organized as follows.
 ```text
   ┌──────────────────────────┐ 0
   │ Variable undefined flags │
-  ├──────────────────────────┤ 16
-  │ Variable #0              │ 24
-  │ Variable #1              │ 32
+  ├──────────────────────────┤ VARS_STACK_START
+  │ Variable #0              │
+  │ Variable #1              │
   : ...                      :
   │ Variable #n              │
   : ...                      :
   │                          │
-  ├──────────────────────────┤ 1040
+  ├──────────────────────────┤ LOOKUP_INDEXES_START
   │ Field lookup indexes     │
-  ├──────────────────────────┤ 2064
+  ├──────────────────────────┤ MATCHING_RULES_BITMAP_BASE
   │ Matching rules bitmap    │
   │                          │
   :                          :
@@ -103,10 +103,15 @@ use crate::wasm::string::RuntimeString;
 pub(crate) mod builder;
 pub(crate) mod string;
 
-/// Offset in module's main memory where the space for loop variables start.
-pub(crate) const VARS_STACK_START: i32 = 16;
-/// Offset in module's main memory where the space for loop variables end.
-pub(crate) const VARS_STACK_END: i32 = VARS_STACK_START + 1024;
+/// Maximum number of variables.
+pub(crate) const MAX_VARS: i32 = 2048;
+/// Offset in module's main memory where the space for variables start.
+/// The space that goes from 0 to VARS_STACK_START is dedicated to the flags
+/// that indicate whether a variable is undefined. That's why this space
+/// is MAX_VARS / 8 bytes, we only need a bit per variable.
+pub(crate) const VARS_STACK_START: i32 = MAX_VARS / 8;
+/// Offset in module's main memory where the space for variables end.
+pub(crate) const VARS_STACK_END: i32 = VARS_STACK_START + MAX_VARS * 8;
 
 /// Offset in module's main memory where the space for lookup indexes start.
 pub(crate) const LOOKUP_INDEXES_START: i32 = VARS_STACK_END;

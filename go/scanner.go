@@ -9,7 +9,17 @@ package yara_x
 //   return yrx_scanner_on_matching_rule(scanner, callback, (void*) user_data);
 // }
 //
-// void onMatchingRule(YRX_RULE*, uintptr_t);
+//  enum YRX_RESULT static inline _yrx_scanner_iter_slowest_rules(
+//      struct YRX_SCANNER *scanner,
+//      size_t n,
+// 		YRX_SLOWEST_RULES_CALLBACK callback,
+// 		uintptr_t slowest_rules_handle)
+// {
+//   return yrx_scanner_iter_slowest_rules(scanner, n, callback, (void*) slowest_rules_handle);
+// }
+//
+// extern void onMatchingRule(YRX_RULE*, uintptr_t);
+// extern void slowestRulesCallback(char*, char*, double, double, uintptr_t);
 import "C"
 
 import (
@@ -235,6 +245,83 @@ func (s *Scanner) Scan(buf []byte) (*ScanResults, error) {
 	s.matchingRules = nil
 
 	return scanResults, err
+}
+
+// ProfilingInfo contains profiling information about a YARA rule.
+//
+// For each rule it contains: the rule's namespace, the rule's name,
+// the time spent in matching patterns declared by the rule, and the time
+// spent evaluating the rule's condition.
+//
+// See [Scanner.MostExpensiveRules].
+type ProfilingInfo struct {
+	Namespace           string
+	Rule                string
+	PatternMatchingTime time.Duration
+	ConditionExecTime   time.Duration
+}
+
+// This is the callback called by yrx_scanner_iter_slowest_rules.
+//
+//export slowestRulesCallback
+func slowestRulesCallback(
+	namespace *C.char,
+	rule *C.char,
+	patternMatchingTime C.double,
+	conditionExecTime C.double,
+	handle C.uintptr_t) {
+	h := cgo.Handle(handle)
+	profilingInfo, ok := h.Value().(*[]ProfilingInfo)
+	if !ok {
+		panic("mostExpensiveRulesCallback didn't receive a *[]ProfilingInfo")
+	}
+	*profilingInfo = append(*profilingInfo, ProfilingInfo{
+		Namespace:           C.GoString(namespace),
+		Rule:                C.GoString(rule),
+		PatternMatchingTime: time.Duration(float64(patternMatchingTime) * float64(time.Second)),
+		ConditionExecTime:   time.Duration(float64(conditionExecTime) * float64(time.Second)),
+	})
+}
+
+// SlowestRules returns information about the slowest rules and how much
+// time they spent matching patterns and executing their conditions.
+//
+// In order to use this function, the YARA-X C library must be built with
+// support for rules profiling by enabling the `rules-profiling` feature.
+// Otherwise, calling this function will cause a panic.
+func (s *Scanner) SlowestRules(n int) []ProfilingInfo {
+	profilingInfo := make([]ProfilingInfo, 0)
+	slowestRules := cgo.NewHandle(&profilingInfo)
+	defer slowestRules.Delete()
+
+	result := C._yrx_scanner_iter_slowest_rules(
+		s.cScanner,
+		C.size_t(n),
+		C.YRX_SLOWEST_RULES_CALLBACK(C.slowestRulesCallback),
+		C.uintptr_t(slowestRules))
+
+	if result == C.NOT_SUPPORTED {
+		panic("SlowestRules requires that the YARA-X C library is built with the `rules-profiling` feature")
+	}
+
+	if result != C.SUCCESS {
+		panic("yrx_scanner_slowest_rules failed")
+	}
+
+	return profilingInfo
+}
+
+/// ClearProfilingData resets the profiling data collected during rule execution
+/// across scanned files. Use it to start a new profiling session, ensuring the
+/// results reflect only the data gathered after this method is called.
+//
+// In order to use this function, the YARA-X C library must be built with
+// support for rules profiling by enabling the `rules-profiling` feature.
+// Otherwise, calling this function will cause a panic.
+func (s *Scanner) ClearProfilingData() {
+  if C.yrx_scanner_clear_profiling_data(s.cScanner) == C.NOT_SUPPORTED {
+     panic("ClearProfilingData requires that the YARA-X C library is built with the `rules-profiling` feature")
+  }
 }
 
 // Destroy destroys the scanner.

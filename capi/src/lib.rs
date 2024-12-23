@@ -152,6 +152,9 @@ pub enum YRX_RESULT {
     SERIALIZATION_ERROR,
     /// An error returned when a rule doesn't have any metadata.
     NO_METADATA,
+    /// An error returned in cases where some API is not supported because the
+    /// library was not built with the required features.
+    NOT_SUPPORTED,
 }
 
 /// Returns the error message for the most recent function in this API

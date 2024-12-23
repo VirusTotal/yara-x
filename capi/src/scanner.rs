@@ -1,4 +1,6 @@
-use std::ffi::{c_char, CStr};
+#[cfg(feature = "rules-profiling")]
+use std::ffi::CString;
+use std::ffi::{c_char, c_void, CStr};
 use std::slice;
 use std::time::Duration;
 
@@ -59,11 +61,11 @@ pub unsafe extern "C" fn yrx_scanner_set_timeout(
     scanner: *mut YRX_SCANNER,
     timeout: u64,
 ) -> YRX_RESULT {
-    if scanner.is_null() {
-        return YRX_RESULT::INVALID_ARGUMENT;
-    }
+    let scanner = match scanner.as_mut() {
+        Some(s) => s,
+        None => return YRX_RESULT::INVALID_ARGUMENT,
+    };
 
-    let scanner = scanner.as_mut().unwrap();
     scanner.inner.set_timeout(Duration::from_secs(timeout));
 
     YRX_RESULT::SUCCESS
@@ -82,16 +84,16 @@ pub unsafe extern "C" fn yrx_scanner_scan(
 ) -> YRX_RESULT {
     _yrx_set_last_error::<ScanError>(None);
 
-    if scanner.is_null() {
-        return YRX_RESULT::INVALID_ARGUMENT;
-    }
+    let scanner = match scanner.as_mut() {
+        Some(s) => s,
+        None => return YRX_RESULT::INVALID_ARGUMENT,
+    };
 
     let data = match slice_from_ptr_and_len(data, len) {
         Some(data) => data,
         None => return YRX_RESULT::INVALID_ARGUMENT,
     };
 
-    let scanner = scanner.as_mut().unwrap();
     let scan_results = scanner.inner.scan(data);
 
     if let Err(err) = scan_results {
@@ -176,9 +178,10 @@ pub unsafe extern "C" fn yrx_scanner_set_module_output(
     data: *const u8,
     len: usize,
 ) -> YRX_RESULT {
-    if scanner.is_null() {
-        return YRX_RESULT::INVALID_ARGUMENT;
-    }
+    let scanner = match scanner.as_mut() {
+        Some(s) => s,
+        None => return YRX_RESULT::INVALID_ARGUMENT,
+    };
 
     let module_name = match CStr::from_ptr(name).to_str() {
         Ok(name) => name,
@@ -192,8 +195,6 @@ pub unsafe extern "C" fn yrx_scanner_set_module_output(
         Some(data) => data,
         None => return YRX_RESULT::INVALID_ARGUMENT,
     };
-
-    let scanner = scanner.as_mut().unwrap();
 
     match scanner.inner.set_module_output_raw(module_name, data) {
         Ok(_) => {
@@ -214,9 +215,10 @@ unsafe extern "C" fn yrx_scanner_set_global<
     ident: *const c_char,
     value: T,
 ) -> YRX_RESULT {
-    if scanner.is_null() {
-        return YRX_RESULT::INVALID_ARGUMENT;
-    }
+    let scanner = match scanner.as_mut() {
+        Some(s) => s,
+        None => return YRX_RESULT::INVALID_ARGUMENT,
+    };
 
     let ident = match CStr::from_ptr(ident).to_str() {
         Ok(ident) => ident,
@@ -225,8 +227,6 @@ unsafe extern "C" fn yrx_scanner_set_global<
             return YRX_RESULT::INVALID_UTF8;
         }
     };
-
-    let scanner = scanner.as_mut().unwrap();
 
     match scanner.inner.set_global(ident, value) {
         Ok(_) => {
@@ -301,4 +301,92 @@ unsafe fn slice_from_ptr_and_len<'a>(
         slice::from_raw_parts(data, len)
     };
     Some(data)
+}
+
+/// Callback function passed to [`yrx_scanner_iter_slowest_rules`].
+///
+/// The callback function receives pointers to the namespace and rule name,
+/// and two float numbers with the time spent by the rule matching patterns
+/// and executing its condition. The pointers are valid as long as the callback
+/// function is being executed, but will be freed after the callback returns.
+///
+/// The callback also receives a `user_data` pointer that can point to arbitrary
+/// data owned by the user.
+///
+/// Requires the `rules-profiling` feature.
+pub type YRX_SLOWEST_RULES_CALLBACK = extern "C" fn(
+    namespace: *const c_char,
+    rule: *const c_char,
+    pattern_matching_time: f64,
+    condition_exec_time: f64,
+    user_data: *mut c_void,
+) -> ();
+
+/// Iterates over the slowest N rules, calling the callback for each rule.
+///
+/// Requires the `rules-profiling` feature, otherwise returns
+/// [`YRX_RESULT::NOT_SUPPORTED`].
+///
+/// See [`YRX_SLOWEST_RULES_CALLBACK`] for more details.
+#[no_mangle]
+#[allow(unused_variables)]
+pub unsafe extern "C" fn yrx_scanner_iter_slowest_rules(
+    scanner: *mut YRX_SCANNER,
+    n: usize,
+    callback: YRX_SLOWEST_RULES_CALLBACK,
+    user_data: *mut c_void,
+) -> YRX_RESULT {
+    #[cfg(not(feature = "rules-profiling"))]
+    return YRX_RESULT::NOT_SUPPORTED;
+
+    #[cfg(feature = "rules-profiling")]
+    {
+        let scanner = match scanner.as_ref() {
+            Some(s) => s,
+            None => return YRX_RESULT::INVALID_ARGUMENT,
+        };
+
+        for profiling_info in scanner.inner.slowest_rules(n) {
+            let namespace = CString::new(profiling_info.namespace).unwrap();
+            let rule = CString::new(profiling_info.rule).unwrap();
+
+            callback(
+                namespace.as_ptr(),
+                rule.as_ptr(),
+                profiling_info.pattern_matching_time.as_secs_f64(),
+                profiling_info.condition_exec_time.as_secs_f64(),
+                user_data,
+            );
+        }
+
+        YRX_RESULT::SUCCESS
+    }
+}
+
+/// Clears all accumulated profiling data.
+///
+/// This resets the profiling data collected during rule execution across
+/// scanned files. Use this to start a new profiling session, ensuring the
+/// results reflect only the data gathered after this method is called.
+///
+/// Requires the `rules-profiling` feature, otherwise returns
+/// [`YRX_RESULT::NOT_SUPPORTED`].
+///
+#[no_mangle]
+#[allow(unused_variables)]
+pub unsafe extern "C" fn yrx_scanner_clear_profiling_data(
+    scanner: *mut YRX_SCANNER,
+) -> YRX_RESULT {
+    #[cfg(not(feature = "rules-profiling"))]
+    return YRX_RESULT::NOT_SUPPORTED;
+
+    #[cfg(feature = "rules-profiling")]
+    {
+        match scanner.as_mut() {
+            Some(s) => s.inner.clear_profiling_data(),
+            None => return YRX_RESULT::INVALID_ARGUMENT,
+        };
+
+        YRX_RESULT::SUCCESS
+    }
 }

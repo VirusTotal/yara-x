@@ -1,0 +1,19 @@
+import "test_proto2"
+
+rule test_1 {
+  condition:
+    for any i in (0..1) : (
+      for any j in (0..1) : (
+         (i + i) * 2 == j
+      )
+    )
+}
+
+rule test_2 {
+  condition:
+    for any i in (0..1) : (
+      for any j in (0..1) : (
+         i + i == 0
+      )
+    )
+}

@@ -1,96 +1,102 @@
 RULE test_1
-  69: WITH -- hash: 0xc4ed111cbb3a62b7 -- parent: None 
+  69: WITH -- hash: 0xcfe49578803d1831 -- parent: None 
     68: FIELD_ACCESS -- hash: 0xa67f64b2db1d0351 -- parent: 69 
       8: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 68 
       9: SYMBOL Field { index: 48, is_root: false, type_value: array, acl: None } -- parent: 68 
-    71: WITH -- hash: 0x174f8d3b219fdb42 -- parent: 69 
-      70: LOOKUP -- hash: 0x494df389cb9b0e5f -- parent: 71 
-        27: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 0 }, type_value: array } -- parent: 70 
-        28: CONST integer(1) -- parent: 70 
-      67: AND -- hash: 0x77e02af4d0b00251 -- parent: 71 
-        16: EQ -- hash: 0x256dc98f789f4952 -- parent: 67 
-          14: FIELD_ACCESS -- hash: 0xb513a8ffabb476cb -- parent: 16 
-            12: LOOKUP -- hash: 0x9aab0d5f2f4bfb07 -- parent: 14 
-              10: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 0 }, type_value: array } -- parent: 12 
-              11: CONST integer(0) -- parent: 12 
-            13: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None } -- parent: 14 
-          15: CONST integer(0) -- parent: 16 
-        33: EQ -- hash: 0x870fb234043676e9 -- parent: 67 
-          31: FIELD_ACCESS -- hash: 0x48079a87864effa7 -- parent: 33 
-            29: SYMBOL Var { var: Var { frame_id: 0, ty: struct, index: 1 }, type_value: struct } -- parent: 31 
-            30: SYMBOL Field { index: 2, is_root: false, type_value: integer(unknown), acl: None } -- parent: 31 
-          32: CONST integer(1) -- parent: 33 
-        66: EQ -- hash: 0xb1263eb1bd8669da -- parent: 67 
-          64: ADD -- hash: 0x95970c2e0dd6d28c -- parent: 66 
-            56: FIELD_ACCESS -- hash: 0xe260ad51532c7aaf -- parent: 64 
-              54: SYMBOL Var { var: Var { frame_id: 0, ty: struct, index: 1 }, type_value: struct } -- parent: 56 
-              55: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None } -- parent: 56 
-            63: FIELD_ACCESS -- hash: 0xfadb11229fd04222 -- parent: 64 
-              61: SYMBOL Var { var: Var { frame_id: 0, ty: struct, index: 1 }, type_value: struct } -- parent: 63 
-              62: SYMBOL Field { index: 3, is_root: false, type_value: integer(unknown), acl: None } -- parent: 63 
-          65: CONST integer(1) -- parent: 66 
+    67: AND -- hash: 0x73294bea9093e7ae -- parent: 69 
+      16: EQ -- hash: 0x256dc98f789f4952 -- parent: 67 
+        14: FIELD_ACCESS -- hash: 0xb513a8ffabb476cb -- parent: 16 
+          12: LOOKUP -- hash: 0x9aab0d5f2f4bfb07 -- parent: 14 
+            10: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 0 }, type_value: array } -- parent: 12 
+            11: CONST integer(0) -- parent: 12 
+          13: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None } -- parent: 14 
+        15: CONST integer(0) -- parent: 16 
+      33: EQ -- hash: 0x8bc6f56418582f2e -- parent: 67 
+        31: FIELD_ACCESS -- hash: 0x7a6b429aee2a9ed4 -- parent: 33 
+          29: LOOKUP -- hash: 0x494df389cb9b0e5f -- parent: 31 
+            27: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 0 }, type_value: array } -- parent: 29 
+            28: CONST integer(1) -- parent: 29 
+          30: SYMBOL Field { index: 2, is_root: false, type_value: integer(unknown), acl: None } -- parent: 31 
+        32: CONST integer(1) -- parent: 33 
+      66: EQ -- hash: 0x756c0a84b2c517e7 -- parent: 67 
+        64: ADD -- hash: 0x2d23164c3b9f7c9d -- parent: 66 
+          56: FIELD_ACCESS -- hash: 0x14c45564bb0819dd -- parent: 64 
+            54: LOOKUP -- hash: 0x494df389cb9b0e5f -- parent: 56 
+              52: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 0 }, type_value: array } -- parent: 54 
+              53: CONST integer(1) -- parent: 54 
+            55: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None } -- parent: 56 
+          63: FIELD_ACCESS -- hash: 0x2d3eb93607bbe150 -- parent: 64 
+            61: LOOKUP -- hash: 0x494df389cb9b0e5f -- parent: 63 
+              59: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 0 }, type_value: array } -- parent: 61 
+              60: CONST integer(1) -- parent: 61 
+            62: SYMBOL Field { index: 3, is_root: false, type_value: integer(unknown), acl: None } -- parent: 63 
+        65: CONST integer(1) -- parent: 66 
 
 RULE test_2
-  69: WITH -- hash: 0xcce1f277c1378633 -- parent: None 
+  69: WITH -- hash: 0xa669831f2631995c -- parent: None 
     68: FIELD_ACCESS -- hash: 0xa67f64b2db1d0351 -- parent: 69 
       16: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 68 
       17: SYMBOL Field { index: 48, is_root: false, type_value: array, acl: None } -- parent: 68 
-    71: WITH -- hash: 0x1f446e96279cfebe -- parent: 69 
-      70: LOOKUP -- hash: 0x494df389cb9b0e5f -- parent: 71 
-        18: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 0 }, type_value: array } -- parent: 70 
-        19: CONST integer(1) -- parent: 70 
-      67: AND -- hash: 0x7fd50c4fd6bd25cd -- parent: 71 
-        32: EQ -- hash: 0xb1263eb1bd8669da -- parent: 67 
-          30: ADD -- hash: 0x95970c2e0dd6d28c -- parent: 32 
-            22: FIELD_ACCESS -- hash: 0xe260ad51532c7aaf -- parent: 30 
-              20: SYMBOL Var { var: Var { frame_id: 0, ty: struct, index: 1 }, type_value: struct } -- parent: 22 
-              21: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None } -- parent: 22 
-            29: FIELD_ACCESS -- hash: 0xfadb11229fd04222 -- parent: 30 
-              27: SYMBOL Var { var: Var { frame_id: 0, ty: struct, index: 1 }, type_value: struct } -- parent: 29 
-              28: SYMBOL Field { index: 3, is_root: false, type_value: integer(unknown), acl: None } -- parent: 29 
-          31: CONST integer(1) -- parent: 32 
-        49: EQ -- hash: 0x256dc98f789f4952 -- parent: 67 
-          47: FIELD_ACCESS -- hash: 0xb513a8ffabb476cb -- parent: 49 
-            45: LOOKUP -- hash: 0x9aab0d5f2f4bfb07 -- parent: 47 
-              43: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 0 }, type_value: array } -- parent: 45 
-              44: CONST integer(0) -- parent: 45 
-            46: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None } -- parent: 47 
-          48: CONST integer(0) -- parent: 49 
-        66: EQ -- hash: 0x870fb234043676e9 -- parent: 67 
-          64: FIELD_ACCESS -- hash: 0x48079a87864effa7 -- parent: 66 
-            62: SYMBOL Var { var: Var { frame_id: 0, ty: struct, index: 1 }, type_value: struct } -- parent: 64 
-            63: SYMBOL Field { index: 2, is_root: false, type_value: integer(unknown), acl: None } -- parent: 64 
-          65: CONST integer(1) -- parent: 66 
+    67: AND -- hash: 0x49ae3991369868d9 -- parent: 69 
+      32: EQ -- hash: 0x756c0a84b2c517e7 -- parent: 67 
+        30: ADD -- hash: 0x2d23164c3b9f7c9d -- parent: 32 
+          22: FIELD_ACCESS -- hash: 0x14c45564bb0819dd -- parent: 30 
+            20: LOOKUP -- hash: 0x494df389cb9b0e5f -- parent: 22 
+              18: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 0 }, type_value: array } -- parent: 20 
+              19: CONST integer(1) -- parent: 20 
+            21: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None } -- parent: 22 
+          29: FIELD_ACCESS -- hash: 0x2d3eb93607bbe150 -- parent: 30 
+            27: LOOKUP -- hash: 0x494df389cb9b0e5f -- parent: 29 
+              25: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 0 }, type_value: array } -- parent: 27 
+              26: CONST integer(1) -- parent: 27 
+            28: SYMBOL Field { index: 3, is_root: false, type_value: integer(unknown), acl: None } -- parent: 29 
+        31: CONST integer(1) -- parent: 32 
+      49: EQ -- hash: 0x256dc98f789f4952 -- parent: 67 
+        47: FIELD_ACCESS -- hash: 0xb513a8ffabb476cb -- parent: 49 
+          45: LOOKUP -- hash: 0x9aab0d5f2f4bfb07 -- parent: 47 
+            43: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 0 }, type_value: array } -- parent: 45 
+            44: CONST integer(0) -- parent: 45 
+          46: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None } -- parent: 47 
+        48: CONST integer(0) -- parent: 49 
+      66: EQ -- hash: 0x8bc6f56418582f2e -- parent: 67 
+        64: FIELD_ACCESS -- hash: 0x7a6b429aee2a9ed4 -- parent: 66 
+          62: LOOKUP -- hash: 0x494df389cb9b0e5f -- parent: 64 
+            60: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 0 }, type_value: array } -- parent: 62 
+            61: CONST integer(1) -- parent: 62 
+          63: SYMBOL Field { index: 2, is_root: false, type_value: integer(unknown), acl: None } -- parent: 64 
+        65: CONST integer(1) -- parent: 66 
 
 RULE test_3
-  55: WITH -- hash: 0xb360dbfae3174d36 -- parent: None 
+  55: WITH -- hash: 0xeaaab4cb7a34960b -- parent: None 
     2: FIELD_ACCESS -- hash: 0xa67f64b2db1d0351 -- parent: 55 
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 2 
       1: SYMBOL Field { index: 48, is_root: false, type_value: array, acl: None } -- parent: 2 
-    57: WITH -- hash: 0x5c35819497cc5c1 -- parent: 55 
-      56: LOOKUP -- hash: 0x2de453564269708e -- parent: 57 
-        15: SYMBOL Var { var: Var { frame_id: 1, ty: array, index: 0 }, type_value: array } -- parent: 56 
-        16: CONST integer(1) -- parent: 56 
-      54: AND -- hash: 0xeb2581c3946a13b -- parent: 57 
-        27: EQ -- hash: 0xb1263eb1bd8669da -- parent: 54 
-          25: ADD -- hash: 0x95970c2e0dd6d28c -- parent: 27 
-            19: FIELD_ACCESS -- hash: 0xe260ad51532c7aaf -- parent: 25 
-              17: SYMBOL Var { var: Var { frame_id: 0, ty: struct, index: 1 }, type_value: struct } -- parent: 19 
-              18: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None } -- parent: 19 
-            24: FIELD_ACCESS -- hash: 0xfadb11229fd04222 -- parent: 25 
-              22: SYMBOL Var { var: Var { frame_id: 0, ty: struct, index: 1 }, type_value: struct } -- parent: 24 
-              23: SYMBOL Field { index: 3, is_root: false, type_value: integer(unknown), acl: None } -- parent: 24 
-          26: CONST integer(1) -- parent: 27 
-        40: EQ -- hash: 0xa5afb0ccd569e5b2 -- parent: 54 
-          38: FIELD_ACCESS -- hash: 0x69ed341ead8c5aa1 -- parent: 40 
-            36: LOOKUP -- hash: 0x7f416d2ba61a5d36 -- parent: 38 
-              34: SYMBOL Var { var: Var { frame_id: 1, ty: array, index: 0 }, type_value: array } -- parent: 36 
-              35: CONST integer(0) -- parent: 36 
-            37: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None } -- parent: 38 
-          39: CONST integer(0) -- parent: 40 
-        53: EQ -- hash: 0x870fb234043676e9 -- parent: 54 
-          51: FIELD_ACCESS -- hash: 0x48079a87864effa7 -- parent: 53 
-            49: SYMBOL Var { var: Var { frame_id: 0, ty: struct, index: 1 }, type_value: struct } -- parent: 51 
-            50: SYMBOL Field { index: 2, is_root: false, type_value: integer(unknown), acl: None } -- parent: 51 
-          52: CONST integer(1) -- parent: 53 
+    54: AND -- hash: 0x8def6b3d8a9b6588 -- parent: 55 
+      27: EQ -- hash: 0x848b3d8e72292fb5 -- parent: 54 
+        25: ADD -- hash: 0x5d560631c0f8397f -- parent: 27 
+          19: FIELD_ACCESS -- hash: 0xc99de083bcdffdb2 -- parent: 25 
+            17: LOOKUP -- hash: 0x2de453564269708e -- parent: 19 
+              15: SYMBOL Var { var: Var { frame_id: 1, ty: array, index: 0 }, type_value: array } -- parent: 17 
+              16: CONST integer(1) -- parent: 17 
+            18: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None } -- parent: 19 
+          24: FIELD_ACCESS -- hash: 0xe21844550983c525 -- parent: 25 
+            22: LOOKUP -- hash: 0x2de453564269708e -- parent: 24 
+              20: SYMBOL Var { var: Var { frame_id: 1, ty: array, index: 0 }, type_value: array } -- parent: 22 
+              21: CONST integer(1) -- parent: 22 
+            23: SYMBOL Field { index: 3, is_root: false, type_value: integer(unknown), acl: None } -- parent: 24 
+        26: CONST integer(1) -- parent: 27 
+      40: EQ -- hash: 0xa5afb0ccd569e5b2 -- parent: 54 
+        38: FIELD_ACCESS -- hash: 0x69ed341ead8c5aa1 -- parent: 40 
+          36: LOOKUP -- hash: 0x7f416d2ba61a5d36 -- parent: 38 
+            34: SYMBOL Var { var: Var { frame_id: 1, ty: array, index: 0 }, type_value: array } -- parent: 36 
+            35: CONST integer(0) -- parent: 36 
+          37: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None } -- parent: 38 
+        39: CONST integer(0) -- parent: 40 
+      53: EQ -- hash: 0xc08dca17522cb8f -- parent: 54 
+        51: FIELD_ACCESS -- hash: 0x2f44cdb9eff282aa -- parent: 53 
+          49: LOOKUP -- hash: 0x2de453564269708e -- parent: 51 
+            47: SYMBOL Var { var: Var { frame_id: 1, ty: array, index: 0 }, type_value: array } -- parent: 49 
+            48: CONST integer(1) -- parent: 49 
+          50: SYMBOL Field { index: 2, is_root: false, type_value: integer(unknown), acl: None } -- parent: 51 
+        52: CONST integer(1) -- parent: 53 
 

@@ -103,17 +103,35 @@ fn ir() {
         let mut compiler = Compiler::new();
         let w = BufWriter::new(output_file);
 
-        compiler.set_ir_writer(w).add_source(source.as_str()).unwrap();
+        compiler
+            .cse(false)
+            .hoisting(false)
+            .set_ir_writer(w)
+            .add_source(source.as_str())
+            .unwrap();
 
         #[cfg(feature = "constant-folding")]
         {
-            let output_path = output_path.with_extension("cse.ir");
-            let output_file = mint.new_goldenfile(&output_path).unwrap();
+            let cse_output = output_path.with_extension("cse.ir");
+            let output_file = mint.new_goldenfile(&cse_output).unwrap();
             let mut compiler = Compiler::new();
             let w = BufWriter::new(output_file);
 
             compiler
-                .common_subexpression_elimination(true)
+                .cse(true)
+                .hoisting(false)
+                .set_ir_writer(w)
+                .add_source(source.as_str())
+                .unwrap();
+
+            let hoisting_output = output_path.with_extension("hoisting.ir");
+            let output_file = mint.new_goldenfile(&hoisting_output).unwrap();
+            let mut compiler = Compiler::new();
+            let w = BufWriter::new(output_file);
+
+            compiler
+                .cse(false)
+                .hoisting(true)
                 .set_ir_writer(w)
                 .add_source(source.as_str())
                 .unwrap();

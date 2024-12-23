@@ -6,7 +6,7 @@
 ![GitHub Repo stars](https://img.shields.io/github/stars/VirusTotal/yara-x)
 
 The official Python library for [YARA-X](https://virustotal.github.io/yara-x).
-Supports Python 3.8+ in Linux, MacOS and Windows.
+Supports Python 3.9+ in Linux, MacOS and Windows.
 
 ```python
 import yara_x

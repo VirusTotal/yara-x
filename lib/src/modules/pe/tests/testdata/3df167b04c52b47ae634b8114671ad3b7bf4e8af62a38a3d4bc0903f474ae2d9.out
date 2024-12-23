@@ -1006,6 +1006,8 @@ signatures:
     number_of_certificates: 4
     number_of_countersignatures: 1
     signer_info:
+        program_name: "360安全中心"
+        more_info: "http://www.360.cn "
         digest: "909a40b6ee5af908c0663412696473bdce46738f"
         digest_alg: "sha1"
         chain:
@@ -1104,6 +1106,8 @@ signatures:
     number_of_certificates: 4
     number_of_countersignatures: 1
     signer_info:
+        program_name: "360安全中心"
+        more_info: "http://www.360.cn "
         digest: "a8fba4b57dca9d46d4a45fe7d1cbd9395ec1e92d88348944ff634ef1b43773b2"
         digest_alg: "sha256"
         chain:

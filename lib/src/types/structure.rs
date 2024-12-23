@@ -13,6 +13,7 @@ use protobuf::reflect::{EnumValueDescriptor, Syntax};
 use protobuf::MessageDyn;
 use serde::{Deserialize, Serialize};
 
+use crate::modules::protos::yara::enum_value_options::Value as EnumValue;
 use crate::modules::protos::yara::exts::{
     enum_options, enum_value, field_options, message_options, module_options,
 };
@@ -220,10 +221,7 @@ impl Struct {
             } else {
                 format!("{}.{}", path, item.name())
             };
-            self.add_field(
-                field_name,
-                TypeValue::const_integer_from(Self::enum_value(&item)),
-            );
+            self.add_field(field_name, Self::enum_value(&item).into());
         }
     }
 
@@ -619,14 +617,24 @@ impl Struct {
     /// not determined by the field number, but by the `(yara.enum_value).i64`
     /// option.
     ///
+    /// By using `(yara.enum_value).f64` you can specify a float value. For
+    /// instance:
+    ///
+    /// enum Constants {
+    ///   PI = 0  [(yara.enum_value).f64 = 3.141592];
+    ///   TAU = 1  [(yara.enum_value).i64 = 6.283186];
+    /// }
+    ///
     /// What this function returns is the value associated to an enum item,
     /// returning the value set via the `(yara.enum_value).i64` option, if any,
     /// or the tag number.
-    fn enum_value(enum_value_descriptor: &EnumValueDescriptor) -> i64 {
+    fn enum_value(enum_value_descriptor: &EnumValueDescriptor) -> EnumValue {
         enum_value
             .get(&enum_value_descriptor.proto().options)
-            .and_then(|options| options.i64)
-            .unwrap_or_else(|| enum_value_descriptor.value() as i64)
+            .and_then(|options| options.value)
+            .unwrap_or_else(|| {
+                EnumValue::I64(enum_value_descriptor.value() as i64)
+            })
     }
 
     /// Given a [`FieldDescriptor`] returns the name that this field will

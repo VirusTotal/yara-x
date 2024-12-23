@@ -1,0 +1,46 @@
+RULE test_1
+  23: FOR_IN -- hash: 0x48f0a7bce7036e6f -- parent: None 
+    0: CONST integer(0) -- parent: 23 
+    1: CONST integer(1) -- parent: 23 
+    22: EQ -- hash: 0xdead7722f1c20b78 -- parent: 23 
+      20: FIELD_ACCESS -- hash: 0xf7151396a0669643 -- parent: 22 
+        16: LOOKUP -- hash: 0xb48de51754ce4c4e -- parent: 20 
+          14: FIELD_ACCESS -- hash: 0xa67f64b2db1d0351 -- parent: 16 
+            12: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 14 
+            13: SYMBOL Field { index: 48, is_root: false, type_value: array, acl: None } -- parent: 14 
+          15: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 16 
+        19: LOOKUP -- hash: 0x7132a2dfe7856f7e -- parent: 20 
+          17: SYMBOL Field { index: 6, is_root: false, type_value: array, acl: None } -- parent: 19 
+          18: CONST integer(0) -- parent: 19 
+      21: CONST integer(0) -- parent: 22 
+
+RULE test_2
+  10: DEFINED -- hash: 0xa9c934d5341dd128 -- parent: None 
+    9: FOR_IN -- hash: 0x47af473e5ce6edf4 -- parent: 10 
+      0: CONST integer(0) -- parent: 9 
+      1: CONST integer(10) -- parent: 9 
+      8: EQ -- hash: 0xc505f68cf1115633 -- parent: 9 
+        6: FN_CALL test_proto2.undef_i64@@iu -- hash: 0x683a6ff805737265 -- parent: 8 
+        7: CONST integer(0) -- parent: 8 
+
+RULE test_3
+  18: OR -- hash: 0xb64103a70a4b7c7b -- parent: None 
+    5: CONTAINS -- hash: 0x19934762a7a86d47 -- parent: 18 
+      3: FIELD_ACCESS -- hash: 0x43469e515d62ee0d -- parent: 5 
+        0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 3 
+        1: SYMBOL Field { index: 43, is_root: false, type_value: struct, acl: None } -- parent: 3 
+        2: SYMBOL Field { index: 5, is_root: false, type_value: string(unknown), acl: None } -- parent: 3 
+      4: CONST string("foo") -- parent: 5 
+    11: CONTAINS -- hash: 0x19934762a7a86d47 -- parent: 18 
+      9: FIELD_ACCESS -- hash: 0x43469e515d62ee0d -- parent: 11 
+        6: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 9 
+        7: SYMBOL Field { index: 43, is_root: false, type_value: struct, acl: None } -- parent: 9 
+        8: SYMBOL Field { index: 5, is_root: false, type_value: string(unknown), acl: None } -- parent: 9 
+      10: CONST string("foo") -- parent: 11 
+    17: CONTAINS -- hash: 0x2a115b523e43a9eb -- parent: 18 
+      15: FIELD_ACCESS -- hash: 0x43469e515d62ee0d -- parent: 17 
+        12: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 15 
+        13: SYMBOL Field { index: 43, is_root: false, type_value: struct, acl: None } -- parent: 15 
+        14: SYMBOL Field { index: 5, is_root: false, type_value: string(unknown), acl: None } -- parent: 15 
+      16: CONST string("bar") -- parent: 17 
+

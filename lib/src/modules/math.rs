@@ -531,6 +531,16 @@ mod tests {
             }"#,
             b"ABABABAB"
         );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.deviation(0, 4, math.MEAN_BYTES) == math.MEAN_BYTES
+            }"#,
+            &[0x00, 0xFF, 0x00, 0xFF]
+        );
     }
 
     #[test]

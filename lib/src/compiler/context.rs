@@ -189,9 +189,7 @@ impl VarStack {
         self.used += capacity;
         self.frame_id += 1;
 
-        if self.used * Var::mem_size()
-            > wasm::VARS_STACK_END - wasm::VARS_STACK_START
-        {
+        if self.used > wasm::MAX_VARS {
             panic!("variables stack overflow");
         }
 
@@ -272,6 +270,9 @@ impl Var {
     pub fn shift(&mut self, from_index: i32, shift_amount: i32) {
         if self.index >= from_index {
             self.index += shift_amount;
+        }
+        if self.index >= wasm::MAX_VARS {
+            panic!("variables stack overflow during shift");
         }
     }
 

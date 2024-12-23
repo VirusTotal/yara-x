@@ -29,7 +29,7 @@ native-code-serialization = ["yara-x/native-code-serialization"]
 
 # Enables rules profiling.
 #
-# This feature is diabled by default.
+# This feature is disabled by default.
 rules-profiling = ["yara-x/rules-profiling"]
 
 

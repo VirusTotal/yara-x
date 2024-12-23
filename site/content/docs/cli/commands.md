@@ -144,10 +144,13 @@ Prints the rules that doesn't match instead of those that match.
 
 ### --output-format \<FORMAT\>
 
-Specify the output format. Available options are `text` and `ndjson`. By
-default, the output format is `text`. The `ndjson` format, which stands for
-newline-delimited JSON, presents the results as one JSON object per line. Each
-JSON object details the matches for a single file. Here is an example output:
+Specify the output format. Available options are `text`, `ndjson` and `json`.
+By default, the output format is `text`. The `ndjson` format, which stands for
+newline-delimited JSON, presents the results as one JSON object per line, while
+the `json` format outputs a single JSON object the end of the scan.
+
+This is an example of the output produced by the `ndjson` format, where each
+JSON object details the matches for a single file:
 
 ```text
 {"path": "onefile.exe","rules": [{"identifier": "some_rule"}]}
@@ -175,6 +178,51 @@ rules with the same names. If you put the rules from all the files under the
 same namespace, YARA is going to complain about the duplicated rule identifiers.
 However, if every file is put under its own namespace the rule names won't
 collide.
+
+### --profiling
+
+Enables the collection of performance metrics during a scan, identifying the
+slowest rules. This option is particularly useful for diagnosing performance
+bottlenecks and optimizing your rules.
+
+To use this option, YARA-X must be built with the `rules-profiling` feature
+enabled. Build it as follows:
+
+```
+cargo build --release --features=rules-profiling
+```
+
+When enabled, the profiling information is presented in a detailed report
+format. For example:
+
+```
+«««««««««««« PROFILING INFORMATION »»»»»»»»»»»»
+
+Slowest rules:
+
+* rule                 : my_slow_rule
+  namespace            : default
+  pattern matching     : 21.433µs
+  condition evaluation : 2.429054588s
+  TOTAL                : 2.429076021s
+```
+
+The profiling report separates pattern matching time and condition evaluation
+time:
+
+* Pattern matching time: Indicates the time spent on scanning the input data
+  for specific patterns defined in your rule.
+
+* Condition evaluation time: Indicates the time taken to evaluate the rule’s
+  condition logic.
+
+This separation helps pinpoint whether the performance issue arises from:
+
+* Pattern inefficiency: Rules with patterns that are very short or inefficient,
+  causing slow scans.
+
+* Complex conditions: Rules with overly complex conditions, such as loops with
+  many iterations.
 
 ### --print-meta, -m
 

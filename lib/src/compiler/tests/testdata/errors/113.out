@@ -2,7 +2,8 @@ error[E019]: invalid modifier combination: `xor` `nocase`
  --> line:3:16
   |
 3 |     $a = "foo" xor nocase
-  |                ^^^ `xor` modifier used here
-  |                    ^^^^^^ `nocase` modifier used here
+  |                ^^^ ^^^^^^ `nocase` modifier used here
+  |                |
+  |                `xor` modifier used here
   |
   = note: these two modifiers can't be used together

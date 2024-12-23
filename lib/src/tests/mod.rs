@@ -563,41 +563,58 @@ fn with() {
     );
 
     #[cfg(feature = "test_proto2-module")]
+    condition_false!(r#"with foo = test_proto2.undef_i64(): (foo == 1)"#);
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"not defined with foo = test_proto2.undef_i64(): (foo == 1)"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"with 
+              foo = test_proto2.undef_i64(), 
+              bar = 1 : 
+           (
+              not defined foo and bar == 1
+           )"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
     condition_true!(
         r#"with
-                     bar = test_proto2.array_string[1],
-                     baz = test_proto2.array_string[2]:
-                   (
-                      bar == "bar" and baz == "baz"
-                   )
-                "#
+              bar = test_proto2.array_string[1],
+              baz = test_proto2.array_string[2]:
+           (
+              bar == "bar" and baz == "baz"
+           )"#
     );
 
     #[cfg(feature = "test_proto2-module")]
     condition_true!(
         r#"for any i in (0..1): (
-                    with foo = test_proto2.array_int64[i]: (foo == 1)
-                )"#
+             with foo = test_proto2.array_int64[i]: (foo == 1)
+           )"#
     );
 
     #[cfg(feature = "test_proto2-module")]
     condition_true!(
         r#"for all i in (0..0): (
-                with
-                    foo = test_proto2.array_int64[i],
-                    bar = test_proto2.array_int64[i + 1] :
-                (
-                    foo == 1 and bar == 10
-                )
-            )"#
+             with
+                foo = test_proto2.array_int64[i],
+                bar = test_proto2.array_int64[i + 1] :
+             (
+                foo == 1 and bar == 10
+             )
+           )"#
     );
 
     #[cfg(feature = "test_proto2-module")]
     condition_false!(
         r#"for all i in (0..2): (
             with
-                foo = test_proto2.array_int64[i],
-                bar = test_proto2.array_int64[i + 1] :
+               foo = test_proto2.array_int64[i],
+               bar = test_proto2.array_int64[i + 1] :
             (
                foo == 1 and bar == foo * 10
             )
@@ -606,7 +623,7 @@ fn with() {
 
     #[cfg(feature = "test_proto2-module")]
     condition_true!(
-        r#"with foo = test_proto2.add :
+        r#"with foo = test_proto2.add:
            (
               foo(1,2) == 3
            )
@@ -615,7 +632,7 @@ fn with() {
 
     #[cfg(feature = "test_proto2-module")]
     condition_true!(
-        r#"with one = test_proto2.int32_one :
+        r#"with one = test_proto2.int32_one:
            (
              for any i in (0..1) : (
                i == one and test_proto2.add(1,2) == 3 and test_proto2.float_zero + 1 == 1.0

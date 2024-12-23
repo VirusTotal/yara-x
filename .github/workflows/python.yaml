@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.8", "3.9", "3.10", "3.11", "3.12" ]
+        python-version: [ "3.9", "3.10", "3.11", "3.12" ]
         os: [ ubuntu-latest, macos-latest, windows-latest ]
     runs-on: ${{ matrix.os }}
     steps:
@@ -30,7 +30,7 @@ jobs:
         pip install virtualenv
         virtualenv venv; venv\Scripts\activate.ps1
         pwd
-        python -m pip install --upgrade pip maturin
+        python -m pip install --upgrade pip maturin>=1.7.8
         python -m pip install pytest
         maturin develop --manifest-path py/Cargo.toml
         pytest py
@@ -41,7 +41,7 @@ jobs:
       run: |
         pip install virtualenv
         virtualenv venv; source venv/bin/activate
-        python -m pip install --upgrade pip maturin
+        python -m pip install --upgrade pip maturin>=1.7.8
         python -m pip install pytest
         maturin develop --manifest-path py/Cargo.toml
         pytest py
