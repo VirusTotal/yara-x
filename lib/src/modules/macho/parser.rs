@@ -1,5 +1,13 @@
+use crate::modules::pe::asn1::SignedData;
 use crate::modules::protos;
 use bstr::{BStr, ByteSlice};
+use der_parser::asn1_rs::{FromBer, OptTaggedParser, ParseResult};
+use der_parser::ber::{
+    parse_ber_integer, parse_ber_oid, parse_ber_sequence,
+    parse_ber_sequence_defined_g, parse_ber_set_of_v,
+    parse_ber_tagged_explicit_g, BerObject,
+};
+use der_parser::error::Error::BerValueError;
 use itertools::Itertools;
 #[cfg(feature = "logging")]
 use log::error;
@@ -13,6 +21,7 @@ use nom::sequence::tuple;
 use nom::{Err, IResult, Parser};
 use protobuf::MessageField;
 use std::collections::HashSet;
+use x509_parser::x509::AlgorithmIdentifier;
 
 type Error<'a> = nom::error::Error<&'a [u8]>;
 
@@ -34,7 +43,7 @@ const _CS_MAGIC_REQUIREMENTS: u32 = 0xfade0c01;
 const _CS_MAGIC_CODEDIRECTORY: u32 = 0xfade0c02;
 const _CS_MAGIC_EMBEDDED_SIGNATURE: u32 = 0xfade0cc0;
 const _CS_MAGIC_DETACHED_SIGNATURE: u32 = 0xfade0cc1;
-const _CS_MAGIC_BLOBWRAPPER: u32 = 0xfade0b01;
+const CS_MAGIC_BLOBWRAPPER: u32 = 0xfade0b01;
 const CS_MAGIC_EMBEDDED_ENTITLEMENTS: u32 = 0xfade7171;
 
 /// Mach-O export flag constants
@@ -882,48 +891,129 @@ impl<'a> MachOFile<'a> {
             for (offset, blob) in blobs {
                 let length = blob.length as usize;
                 let size_of_blob = std::mem::size_of::<CSBlob>();
-                if blob.magic == CS_MAGIC_EMBEDDED_ENTITLEMENTS {
-                    let xml_data = match super_data
-                        .get(offset + size_of_blob..offset + length)
-                    {
-                        Some(data) => data,
-                        None => continue,
-                    };
+                match blob.magic {
+                    CS_MAGIC_EMBEDDED_ENTITLEMENTS => {
+                        let xml_data = match super_data
+                            .get(offset + size_of_blob..offset + length)
+                        {
+                            Some(data) => data,
+                            None => continue,
+                        };
 
-                    let xml_string =
-                        std::str::from_utf8(xml_data).unwrap_or_default();
+                        let xml_string =
+                            std::str::from_utf8(xml_data).unwrap_or_default();
 
-                    let opt = roxmltree::ParsingOptions {
-                        allow_dtd: true,
-                        ..roxmltree::ParsingOptions::default()
-                    };
+                        let opt = roxmltree::ParsingOptions {
+                            allow_dtd: true,
+                            ..roxmltree::ParsingOptions::default()
+                        };
 
-                    if let Ok(parsed_xml) =
-                        roxmltree::Document::parse_with_options(
-                            xml_string, opt,
-                        )
-                    {
-                        for node in parsed_xml.descendants().filter(|n| {
-                            n.has_tag_name("key") || n.has_tag_name("array")
-                        }) {
-                            if let Some(entitlement) = node.text() {
-                                if node.has_tag_name("array") {
-                                    node.descendants()
-                                        .filter_map(|n| n.text())
-                                        .filter(|t| !t.trim().is_empty())
-                                        .unique()
-                                        .map(|t| t.to_string())
-                                        .for_each(|array_entitlement| {
-                                            self.entitlements
-                                                .push(array_entitlement)
-                                        });
-                                } else {
-                                    self.entitlements
-                                        .push(entitlement.to_string());
+                        if let Ok(parsed_xml) =
+                            roxmltree::Document::parse_with_options(
+                                xml_string, opt,
+                            )
+                        {
+                            for node in parsed_xml.descendants().filter(|n| {
+                                n.has_tag_name("key")
+                                    || n.has_tag_name("array")
+                            }) {
+                                if let Some(entitlement) = node.text() {
+                                    if node.has_tag_name("array") {
+                                        node.descendants()
+                                            .filter_map(|n| n.text())
+                                            .filter(|t| !t.trim().is_empty())
+                                            .unique()
+                                            .map(|t| t.to_string())
+                                            .for_each(|array_entitlement| {
+                                                self.entitlements
+                                                    .push(array_entitlement)
+                                            });
+                                    } else {
+                                        self.entitlements
+                                            .push(entitlement.to_string());
+                                    }
                                 }
                             }
                         }
                     }
+                    CS_MAGIC_BLOBWRAPPER => {
+                        if let Some(ber_blob) = super_data.get(
+                            offset + size_of_blob
+                                ..offset.saturating_add(length),
+                        ) {
+                            let a = parse_ber_sequence_defined_g(
+                                |ber_blob: &[u8], _| {
+                                    let (remainder, _content_type) =
+                                        parse_ber_oid(ber_blob)?;
+
+                                    let (remainder, content) =
+                                        parse_ber_tagged_explicit_g(
+                                            0,
+                                            |content, _| {
+                                                parse_ber_sequence_defined_g(
+                                                    |content: &[u8], _| {
+                                                        // parse cms_version
+                                                        let (
+                                                            remainder,
+                                                            cms_verison,
+                                                        ) = parse_ber_integer(
+                                                            content,
+                                                        )?;
+
+                                                        // parse digest algo
+                                                        let (remainder, digest_algorithms) = parse_digest_algorithms(remainder)?;
+
+                                                        // parse content info
+                                                        let (remainder, content_info) =
+                                                            parse_content_info(
+                                                                remainder,
+                                                            )?;
+
+                                                        let (remainder, certificates) = OptTaggedParser::from(0)
+                                                        .parse_ber(remainder, |_, raw_certs| -> ParseResult<'_, Vec<_>> {
+                                                            Ok(SignedData::parse_certificates(raw_certs))
+                                                        })
+                                                        .map_err(|_| BerValueError)?;
+                                                        let mut certs_v =
+                                                            Vec::new();
+                                                        if let Some(certs) =
+                                                            certificates
+                                                        {
+                                                            for c in certs {
+                                                                let x5 =
+                                                                    c.x509;
+                                                                for cn in x5.issuer.iter_common_name() {
+                                                                if let Ok(s) = cn.as_str() {
+                                                                  certs_v.push(s.to_string());
+                                                               }
+                                                            }
+                                                            }
+                                                        }
+                                                        Ok((
+                                                            remainder, certs_v,
+                                                        ))
+                                                    },
+                                                )(
+                                                    content
+                                                )
+                                            },
+                                        )(
+                                            remainder
+                                        )?;
+                                    Ok((remainder, content))
+                                },
+                            )(ber_blob);
+
+                            if let Ok(a) = a {
+                                let certs =
+                                    self.certificates.get_or_insert_default();
+                                a.1.iter().for_each(|c| {
+                                    certs.common_names.insert(c.to_string());
+                                });
+                            }
+                        }
+                    }
+                    _ => {}
                 }
             }
 
@@ -1401,6 +1491,23 @@ impl<'a> MachOFile<'a> {
     }
 }
 
+fn parse_digest_algorithms(
+    remainder: &[u8],
+) -> Result<(&[u8], Vec<AlgorithmIdentifier<'_>>), Err<der_parser::error::Error>>
+{
+    let (remainder, digest_algorithms) =
+        parse_ber_set_of_v(AlgorithmIdentifier::from_ber)(remainder)
+            .map_err(|_| BerValueError)?;
+    Ok((remainder, digest_algorithms))
+}
+
+fn parse_content_info(
+    remainder: &[u8],
+) -> Result<(&[u8], BerObject<'_>), Err<der_parser::error::Error>> {
+    let (remainder, _content) = parse_ber_sequence(remainder)?;
+    Ok((remainder, _content))
+}
+
 struct FatArch {
     cputype: u32,
     cpusubtype: u32,
@@ -1456,9 +1563,10 @@ struct Dylib<'a> {
     compatibility_version: u32,
 }
 
+#[derive(Default)]
 struct Certificates {
-    common_names: Vec<String>,
-    signer_names: Vec<String>,
+    common_names: HashSet<String>,
+    signer_names: HashSet<String>,
 }
 
 struct CSBlob {
@@ -1700,10 +1808,6 @@ impl From<MachO<'_>> for protos::macho::Macho {
                     MessageField::some(cs_data.into());
             }
 
-            if let Some(cert_data) = &m.certificates {
-                result.certificates = MessageField::some(cert_data.into());
-            }
-
             if let Some(dyld_info) = &m.dyld_info {
                 result.dyld_info = MessageField::some(dyld_info.into());
             };
@@ -1742,6 +1846,14 @@ impl From<MachO<'_>> for protos::macho::Macho {
             result.entitlements.extend(m.entitlements.clone());
             result.exports.extend(m.exports.clone());
             result.imports.extend(m.imports.clone());
+
+            if let Some(cert) = &m.certificates {
+                result
+                    .certificates
+                    .mut_or_insert_default()
+                    .common_names
+                    .extend(cert.common_names.clone());
+            }
 
             result
                 .set_number_of_segments(m.segments.len().try_into().unwrap());
@@ -1787,10 +1899,6 @@ impl From<&MachOFile<'_>> for protos::macho::File {
             result.code_signature_data = MessageField::some(cs_data.into());
         }
 
-        if let Some(cert_data) = &macho.certificates {
-            result.certificates = MessageField::some(cert_data.into());
-        }
-
         if let Some(dyld_info) = &macho.dyld_info {
             result.dyld_info = MessageField::some(dyld_info.into());
         };
@@ -1827,6 +1935,14 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         result.entitlements.extend(macho.entitlements.clone());
         result.exports.extend(macho.exports.clone());
         result.imports.extend(macho.imports.clone());
+
+        if let Some(cert) = &macho.certificates {
+            result
+                .certificates
+                .mut_or_insert_default()
+                .common_names
+                .extend(cert.common_names.clone());
+        }
 
         result
             .linker_options

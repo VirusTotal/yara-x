@@ -227,7 +227,7 @@ impl<'a> SignedData<'a> {
         ))
     }
 
-    fn parse_certificates(input: &[u8]) -> (&[u8], Vec<Certificate>) {
+    pub fn parse_certificates(input: &[u8]) -> (&[u8], Vec<Certificate>) {
         let mut remainder = input;
         let mut certificates = Vec::new();
 
