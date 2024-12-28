@@ -451,9 +451,13 @@ dyld_info:
     export_off: 31816
     export_size: 2448
 certificates:
-    common_names:
+    issuers:
       - "Developer ID Certification Authority"
       - "Apple Root CA"
+    subjects:
+      - "Apple Root CA"
+      - "Developer ID Certification Authority"
+      - "Developer ID Application: EFI Inc (82PCFB3NFC)"
 uuid: "B23FC3D5-BDF8-3056-930A-C93E0F547B78"
 min_version:
     device: MACOSX

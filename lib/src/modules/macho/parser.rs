@@ -946,7 +946,7 @@ impl<'a> MachOFile<'a> {
                                     let (remainder, _content_type) =
                                         parse_ber_oid(ber_blob)?;
 
-                                    let (remainder, content) =
+                                    let (remainder, (subjects, issuers)) =
                                         parse_ber_tagged_explicit_g(
                                             0,
                                             |content, _| {
@@ -955,16 +955,16 @@ impl<'a> MachOFile<'a> {
                                                         // parse cms_version
                                                         let (
                                                             remainder,
-                                                            cms_verison,
+                                                            _cms_verison,
                                                         ) = parse_ber_integer(
                                                             content,
                                                         )?;
 
                                                         // parse digest algo
-                                                        let (remainder, digest_algorithms) = parse_digest_algorithms(remainder)?;
+                                                        let (remainder, _digest_algorithms) = parse_digest_algorithms(remainder)?;
 
                                                         // parse content info
-                                                        let (remainder, content_info) =
+                                                        let (remainder, _content_info) =
                                                             parse_content_info(
                                                                 remainder,
                                                             )?;
@@ -974,23 +974,39 @@ impl<'a> MachOFile<'a> {
                                                             Ok(SignedData::parse_certificates(raw_certs))
                                                         })
                                                         .map_err(|_| BerValueError)?;
-                                                        let mut certs_v =
+
+                                                        let mut signers =
                                                             Vec::new();
+
+                                                        let mut subjects =
+                                                            Vec::new();
+
                                                         if let Some(certs) =
                                                             certificates
                                                         {
                                                             for c in certs {
                                                                 let x5 =
                                                                     c.x509;
+
+                                                                for cn in x5.subject.iter_common_name() {
+                                                                    if let Ok(s) = cn.as_str() {
+                                                                        subjects.push(s.to_string());
+                                                                    }
+                                                                }
+
                                                                 for cn in x5.issuer.iter_common_name() {
                                                                 if let Ok(s) = cn.as_str() {
-                                                                  certs_v.push(s.to_string());
+                                                                  signers.push(s.to_string());
                                                                }
                                                             }
                                                             }
                                                         }
                                                         Ok((
-                                                            remainder, certs_v,
+                                                            remainder,
+                                                            (
+                                                                subjects,
+                                                                signers,
+                                                            ),
                                                         ))
                                                     },
                                                 )(
@@ -1000,15 +1016,20 @@ impl<'a> MachOFile<'a> {
                                         )(
                                             remainder
                                         )?;
-                                    Ok((remainder, content))
+                                    Ok((remainder, (subjects, issuers)))
                                 },
                             )(ber_blob);
 
-                            if let Ok(a) = a {
+                            if let Ok((_remainder, (subjects, issuers))) = a {
                                 let certs =
                                     self.certificates.get_or_insert_default();
-                                a.1.iter().for_each(|c| {
-                                    certs.common_names.insert(c.to_string());
+
+                                issuers.iter().for_each(|c| {
+                                    certs.issuers.insert(c.to_string());
+                                });
+
+                                subjects.iter().for_each(|c| {
+                                    certs.subjects.insert(c.to_string());
                                 });
                             }
                         }
@@ -1565,8 +1586,8 @@ struct Dylib<'a> {
 
 #[derive(Default)]
 struct Certificates {
-    common_names: HashSet<String>,
-    signer_names: HashSet<String>,
+    issuers: HashSet<String>,
+    subjects: HashSet<String>,
 }
 
 struct CSBlob {
@@ -1851,8 +1872,14 @@ impl From<MachO<'_>> for protos::macho::Macho {
                 result
                     .certificates
                     .mut_or_insert_default()
-                    .common_names
-                    .extend(cert.common_names.clone());
+                    .issuers
+                    .extend(cert.issuers.clone());
+
+                result
+                    .certificates
+                    .mut_or_insert_default()
+                    .subjects
+                    .extend(cert.subjects.clone());
             }
 
             result
@@ -1940,8 +1967,14 @@ impl From<&MachOFile<'_>> for protos::macho::File {
             result
                 .certificates
                 .mut_or_insert_default()
-                .common_names
-                .extend(cert.common_names.clone());
+                .issuers
+                .extend(cert.issuers.clone());
+
+            result
+                .certificates
+                .mut_or_insert_default()
+                .subjects
+                .extend(cert.subjects.clone());
         }
 
         result
@@ -2068,8 +2101,8 @@ impl From<&LinkedItData> for protos::macho::LinkedItData {
 impl From<&Certificates> for protos::macho::Certificates {
     fn from(cert: &Certificates) -> Self {
         let mut result = protos::macho::Certificates::new();
-        result.common_names.extend(cert.common_names.clone());
-        result.signer_names.extend(cert.signer_names.clone());
+        result.issuers.extend(cert.issuers.clone());
+        result.subjects.extend(cert.subjects.clone());
         result
     }
 }

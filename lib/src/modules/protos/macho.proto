@@ -36,8 +36,8 @@ message LinkedItData {
 }
 
 message Certificates {
-  repeated string common_names = 1;
-  repeated string signer_names = 2;
+  repeated string issuers = 1;
+  repeated string subjects = 2;
 }
 
 message Dylib {
