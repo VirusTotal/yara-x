@@ -302,7 +302,7 @@ impl<'a> MachO<'a> {
             stack_size: None,
             code_signature_data: None,
             entitlements: Vec::new(),
-            certificates: None,
+            certificates: Vec::new(),
             uuid: None,
             build_version: None,
             min_version: None,
@@ -430,7 +430,7 @@ pub struct MachOFile<'a> {
     uuid: Option<&'a [u8]>,
     code_signature_data: Option<LinkedItData>,
     entitlements: Vec<String>,
-    certificates: Option<Certificates>,
+    certificates: Vec<Certificate>,
     build_version: Option<BuildVersionCommand>,
     min_version: Option<MinVersion>,
     exports: Vec<String>,
@@ -946,7 +946,7 @@ impl<'a> MachOFile<'a> {
                                     let (remainder, _content_type) =
                                         parse_ber_oid(ber_blob)?;
 
-                                    let (remainder, (subjects, issuers)) =
+                                    let (remainder, certs) =
                                         parse_ber_tagged_explicit_g(
                                             0,
                                             |content, _| {
@@ -975,39 +975,24 @@ impl<'a> MachOFile<'a> {
                                                         })
                                                         .map_err(|_| BerValueError)?;
 
-                                                        let mut signers =
+                                                        let mut certs =
                                                             Vec::new();
 
-                                                        let mut subjects =
-                                                            Vec::new();
-
-                                                        if let Some(certs) =
-                                                            certificates
+                                                        if let Some(
+                                                            certificates,
+                                                        ) = certificates
                                                         {
-                                                            for c in certs {
+                                                            for c in
+                                                                certificates
+                                                            {
                                                                 let x5 =
                                                                     c.x509;
 
-                                                                for cn in x5.subject.iter_common_name() {
-                                                                    if let Ok(s) = cn.as_str() {
-                                                                        subjects.push(s.to_string());
-                                                                    }
-                                                                }
-
-                                                                for cn in x5.issuer.iter_common_name() {
-                                                                if let Ok(s) = cn.as_str() {
-                                                                  signers.push(s.to_string());
-                                                               }
-                                                            }
+                                                                certs.push(Certificate {issuer: x5.issuer.to_string(), subject: x5.subject.to_string(), is_self_signed: x5.issuer
+                                                                    == x5.subject});
                                                             }
                                                         }
-                                                        Ok((
-                                                            remainder,
-                                                            (
-                                                                subjects,
-                                                                signers,
-                                                            ),
-                                                        ))
+                                                        Ok((remainder, certs))
                                                     },
                                                 )(
                                                     content
@@ -1016,21 +1001,12 @@ impl<'a> MachOFile<'a> {
                                         )(
                                             remainder
                                         )?;
-                                    Ok((remainder, (subjects, issuers)))
+                                    Ok((remainder, certs))
                                 },
                             )(ber_blob);
 
-                            if let Ok((_remainder, (subjects, issuers))) = a {
-                                let certs =
-                                    self.certificates.get_or_insert_default();
-
-                                issuers.iter().for_each(|c| {
-                                    certs.issuers.insert(c.to_string());
-                                });
-
-                                subjects.iter().for_each(|c| {
-                                    certs.subjects.insert(c.to_string());
-                                });
+                            if let Ok((_remainder, certs)) = a {
+                                self.certificates.extend(certs);
                             }
                         }
                     }
@@ -1585,9 +1561,10 @@ struct Dylib<'a> {
 }
 
 #[derive(Default)]
-struct Certificates {
-    issuers: HashSet<String>,
-    subjects: HashSet<String>,
+struct Certificate {
+    issuer: String,
+    subject: String,
+    is_self_notarized: bool,
 }
 
 struct CSBlob {
@@ -1867,20 +1844,9 @@ impl From<MachO<'_>> for protos::macho::Macho {
             result.entitlements.extend(m.entitlements.clone());
             result.exports.extend(m.exports.clone());
             result.imports.extend(m.imports.clone());
-
-            if let Some(cert) = &m.certificates {
-                result
-                    .certificates
-                    .mut_or_insert_default()
-                    .issuers
-                    .extend(cert.issuers.clone());
-
-                result
-                    .certificates
-                    .mut_or_insert_default()
-                    .subjects
-                    .extend(cert.subjects.clone());
-            }
+            result
+                .certificates
+                .extend(m.certificates.iter().map(|cert| cert.into()));
 
             result
                 .set_number_of_segments(m.segments.len().try_into().unwrap());
@@ -1962,20 +1928,9 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         result.entitlements.extend(macho.entitlements.clone());
         result.exports.extend(macho.exports.clone());
         result.imports.extend(macho.imports.clone());
-
-        if let Some(cert) = &macho.certificates {
-            result
-                .certificates
-                .mut_or_insert_default()
-                .issuers
-                .extend(cert.issuers.clone());
-
-            result
-                .certificates
-                .mut_or_insert_default()
-                .subjects
-                .extend(cert.subjects.clone());
-        }
+        result
+            .certificates
+            .extend(macho.certificates.iter().map(|cert| cert.into()));
 
         result
             .linker_options
@@ -2098,11 +2053,12 @@ impl From<&LinkedItData> for protos::macho::LinkedItData {
     }
 }
 
-impl From<&Certificates> for protos::macho::Certificates {
-    fn from(cert: &Certificates) -> Self {
-        let mut result = protos::macho::Certificates::new();
-        result.issuers.extend(cert.issuers.clone());
-        result.subjects.extend(cert.subjects.clone());
+impl From<&Certificate> for protos::macho::Certificate {
+    fn from(cert: &Certificate) -> Self {
+        let mut result = protos::macho::Certificate::new();
+        result.set_issuer(cert.issuer.clone());
+        result.set_subject(cert.subject.clone());
+        result.set_is_self_signed(cert.is_self_signed);
         result
     }
 }

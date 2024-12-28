@@ -35,9 +35,10 @@ message LinkedItData {
   optional uint32 datasize = 2;
 }
 
-message Certificates {
-  repeated string issuers = 1;
-  repeated string subjects = 2;
+message Certificate {
+  required string issuer = 1;
+  required string subject = 2;
+  required bool is_self_signed = 3;
 }
 
 message Dylib {
@@ -148,7 +149,7 @@ message File {
   optional Dysymtab dysymtab = 19;
   optional DyldInfo dyld_info = 20;
   optional LinkedItData code_signature_data = 21;
-  optional Certificates certificates = 22;
+  repeated Certificate certificates = 22;
   optional string uuid = 23;
   optional BuildVersion build_version = 24;
   optional MinVersion min_version = 25;
@@ -180,7 +181,7 @@ message Macho {
   optional DyldInfo dyld_info = 19;
   repeated bytes rpaths = 20;
   repeated string entitlements = 21;
-  optional Certificates certificates = 22;
+  repeated Certificate certificates = 22;
   optional string uuid = 23;
   optional BuildVersion build_version = 24;
   optional MinVersion min_version = 25;
