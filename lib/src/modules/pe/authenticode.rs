@@ -25,7 +25,7 @@ use x509_parser::x509::{AlgorithmIdentifier, SubjectPublicKeyInfo, X509Name};
 #[cfg(feature = "logging")]
 use log::error;
 
-use crate::modules::pe::asn1::{
+use crate::modules::utils::asn1::{
     oid, oid_to_object_identifier, oid_to_str, Attribute, Certificate,
     ContentInfo, DigestInfo, SignedData, SignerInfo, SpcIndirectDataContent,
     SpcSpOpusInfo, TstInfo,
