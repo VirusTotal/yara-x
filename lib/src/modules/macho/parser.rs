@@ -941,71 +941,9 @@ impl<'a> MachOFile<'a> {
                             offset + size_of_blob
                                 ..offset.saturating_add(length),
                         ) {
-                            let a = parse_ber_sequence_defined_g(
-                                |ber_blob: &[u8], _| {
-                                    let (remainder, _content_type) =
-                                        parse_ber_oid(ber_blob)?;
-
-                                    let (remainder, certs) =
-                                        parse_ber_tagged_explicit_g(
-                                            0,
-                                            |content, _| {
-                                                parse_ber_sequence_defined_g(
-                                                    |content: &[u8], _| {
-                                                        // parse cms_version
-                                                        let (
-                                                            remainder,
-                                                            _cms_verison,
-                                                        ) = parse_ber_integer(
-                                                            content,
-                                                        )?;
-
-                                                        // parse digest algo
-                                                        let (remainder, _digest_algorithms) = parse_digest_algorithms(remainder)?;
-
-                                                        // parse content info
-                                                        let (remainder, _content_info) =
-                                                            parse_content_info(
-                                                                remainder,
-                                                            )?;
-
-                                                        let (remainder, certificates) = OptTaggedParser::from(0)
-                                                        .parse_ber(remainder, |_, raw_certs| -> ParseResult<'_, Vec<_>> {
-                                                            Ok(SignedData::parse_certificates(raw_certs))
-                                                        })
-                                                        .map_err(|_| BerValueError)?;
-
-                                                        let mut certs =
-                                                            Vec::new();
-
-                                                        if let Some(
-                                                            certificates,
-                                                        ) = certificates
-                                                        {
-                                                            for c in
-                                                                certificates
-                                                            {
-                                                                let x5 =
-                                                                    c.x509;
-
-                                                                certs.push(Certificate {issuer: x5.issuer.to_string(), subject: x5.subject.to_string(), is_self_signed: x5.issuer
-                                                                    == x5.subject});
-                                                            }
-                                                        }
-                                                        Ok((remainder, certs))
-                                                    },
-                                                )(
-                                                    content
-                                                )
-                                            },
-                                        )(
-                                            remainder
-                                        )?;
-                                    Ok((remainder, certs))
-                                },
-                            )(ber_blob);
-
-                            if let Ok((_remainder, certs)) = a {
+                            if let Ok((_remainder, certs)) =
+                                parse_certificates(ber_blob)
+                            {
                                 self.certificates.extend(certs);
                             }
                         }
@@ -1488,6 +1426,57 @@ impl<'a> MachOFile<'a> {
     }
 }
 
+fn parse_certificates(
+    ber_blob: &[u8],
+) -> Result<(&[u8], Vec<Certificate>), Err<der_parser::error::Error>> {
+    let a = parse_ber_sequence_defined_g(|ber_blob: &[u8], _| {
+        let (remainder, _content_type) = parse_ber_oid(ber_blob)?;
+
+        let (remainder, certs) =
+            parse_ber_tagged_explicit_g(0, |content, _| {
+                parse_ber_sequence_defined_g(|content: &[u8], _| {
+                    // parse cms_version
+                    let (remainder, _cms_verison) =
+                        parse_ber_integer(content)?;
+
+                    // parse digest algo
+                    let (remainder, _digest_algorithms) =
+                        parse_digest_algorithms(remainder)?;
+
+                    // parse content info
+                    let (remainder, _content_info) =
+                        parse_content_info(remainder)?;
+
+                    let (remainder, certificates) = OptTaggedParser::from(0)
+                        .parse_ber(
+                            remainder,
+                            |_, raw_certs| -> ParseResult<'_, Vec<_>> {
+                                Ok(SignedData::parse_certificates(raw_certs))
+                            },
+                        )
+                        .map_err(|_| BerValueError)?;
+
+                    let mut certs = Vec::new();
+
+                    if let Some(certificates) = certificates {
+                        for c in certificates {
+                            let x5 = c.x509;
+
+                            certs.push(Certificate {
+                                issuer: x5.issuer.to_string(),
+                                subject: x5.subject.to_string(),
+                                is_self_signed: x5.issuer == x5.subject,
+                            });
+                        }
+                    }
+                    Ok((remainder, certs))
+                })(content)
+            })(remainder)?;
+        Ok((remainder, certs))
+    })(ber_blob);
+    a
+}
+
 fn parse_digest_algorithms(
     remainder: &[u8],
 ) -> Result<(&[u8], Vec<AlgorithmIdentifier<'_>>), Err<der_parser::error::Error>>
@@ -1564,7 +1553,7 @@ struct Dylib<'a> {
 struct Certificate {
     issuer: String,
     subject: String,
-    is_self_notarized: bool,
+    is_self_signed: bool,
 }
 
 struct CSBlob {
