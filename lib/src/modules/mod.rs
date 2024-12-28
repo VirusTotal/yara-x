@@ -278,3 +278,5 @@ pub mod mods {
         super::BUILTIN_MODULES.keys().copied()
     }
 }
+
+pub(crate) mod utils;
