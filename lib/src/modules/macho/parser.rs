@@ -1,4 +1,4 @@
-use crate::modules::pe::asn1::SignedData;
+use crate::modules::utils::asn1::SignedData;
 use crate::modules::protos;
 use bstr::{BStr, ByteSlice};
 use der_parser::asn1_rs::{FromBer, OptTaggedParser, ParseResult};
