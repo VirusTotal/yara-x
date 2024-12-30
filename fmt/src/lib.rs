@@ -63,14 +63,14 @@ pub enum Error {
 
 /// Formats YARA source code automatically.
 pub struct Formatter {
-    align_metadata: bool,
-    align_patterns: bool,
-    indent_section_headers: bool,
-    indent_section_contents: bool,
-    indent_spaces: u8,
-    newline_before_curly_brace: bool,
-    empty_line_before_section_header: bool,
-    empty_line_after_section_header: bool,
+    pub align_metadata: bool,
+    pub align_patterns: bool,
+    pub indent_section_headers: bool,
+    pub indent_section_contents: bool,
+    pub indent_spaces: u8,
+    pub newline_before_curly_brace: bool,
+    pub empty_line_before_section_header: bool,
+    pub empty_line_after_section_header: bool,
 }
 
 impl Default for Formatter {

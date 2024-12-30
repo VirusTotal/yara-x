@@ -268,3 +268,9 @@ def test_console_log():
   scanner.console_log(callback)
   scanner.scan(b'')
   assert ok
+
+def test_format():
+    expected_output = "rule test {\n  condition:\n    true\n}\n"
+    fmt = yara_x.Formatter()
+    result = fmt.format("rule test {condition: true}")
+    assert result == expected_output
