@@ -270,7 +270,11 @@ def test_console_log():
   assert ok
 
 def test_format():
+    import io
     expected_output = "rule test {\n  condition:\n    true\n}\n"
+    inp = io.StringIO("rule test {condition: true}")
+    output = io.StringIO()
     fmt = yara_x.Formatter()
-    result = fmt.format("rule test {condition: true}")
+    fmt.format(inp, output)
+    result = output.getvalue()
     assert result == expected_output

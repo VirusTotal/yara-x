@@ -88,18 +88,20 @@ impl Formatter {
     }
 
     /// Format a YARA rule
-    fn format(&self, src: &str) -> PyResult<String> {
-        let mut buf = Vec::new();
+    fn format(&self, input: PyObject, output: PyObject) -> PyResult<()> {
+        let in_buf = PyFileLikeObject::with_requirements(
+            input, true, false, false, false,
+        )?;
+
+        let mut out_buf = PyFileLikeObject::with_requirements(
+            output, false, true, false, false,
+        )?;
 
         self.inner
-            .format(src.as_bytes(), &mut buf)
+            .format(in_buf, &mut out_buf)
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
-        let output = String::from_utf8(buf)
-            .map_err(|err| PyValueError::new_err(err.to_string()))?
-            .to_string();
-
-        Ok(output)
+        Ok(())
     }
 }
 

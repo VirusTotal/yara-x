@@ -143,7 +143,7 @@ class Formatter:
         """
         ...
 
-    def format(self, src: str) -> str:
+    def format(self, input: typing.Any, output: typing.Any) -> str:
         r"""
         Format a YARA rule
         """
