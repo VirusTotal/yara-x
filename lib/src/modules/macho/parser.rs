@@ -1696,7 +1696,7 @@ fn convert_to_source_version_string(decimal_number: u64) -> String {
 fn parse_certificates(
     ber_blob: &[u8],
 ) -> Result<(&[u8], Vec<Certificate>), Err<der_parser::error::Error>> {
-    let a = parse_ber_sequence_defined_g(|ber_blob: &[u8], _| {
+    parse_ber_sequence_defined_g(|ber_blob: &[u8], _| {
         let (remainder, _content_type) = parse_ber_oid(ber_blob)?;
 
         let (remainder, certs) =
@@ -1723,22 +1723,20 @@ fn parse_certificates(
                     let mut certs = Vec::new();
 
                     if let Some(certificates) = certificates {
-                        for c in certificates {
-                            let x5 = c.x509;
-
+                        certificates.iter().for_each(|c| {
                             certs.push(Certificate {
-                                issuer: x5.issuer.to_string(),
-                                subject: x5.subject.to_string(),
-                                is_self_signed: x5.issuer == x5.subject,
+                                issuer: c.x509.issuer.to_string(),
+                                subject: c.x509.subject.to_string(),
+                                is_self_signed: c.x509.issuer
+                                    == c.x509.subject,
                             });
-                        }
+                        });
                     }
                     Ok((remainder, certs))
                 })(content)
             })(remainder)?;
         Ok((remainder, certs))
-    })(ber_blob);
-    a
+    })(ber_blob)
 }
 
 /// Parses a BER-encoded sequence of AlgorithmIdentifiers.
