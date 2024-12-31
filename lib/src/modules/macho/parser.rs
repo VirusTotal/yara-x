@@ -1,5 +1,5 @@
-use crate::modules::utils::asn1::SignedData;
 use crate::modules::protos;
+use crate::modules::utils::asn1::SignedData;
 use bstr::{BStr, ByteSlice};
 use der_parser::asn1_rs::{FromBer, OptTaggedParser, ParseResult};
 use der_parser::ber::{
@@ -1426,74 +1426,6 @@ impl<'a> MachOFile<'a> {
     }
 }
 
-fn parse_certificates(
-    ber_blob: &[u8],
-) -> Result<(&[u8], Vec<Certificate>), Err<der_parser::error::Error>> {
-    let a = parse_ber_sequence_defined_g(|ber_blob: &[u8], _| {
-        let (remainder, _content_type) = parse_ber_oid(ber_blob)?;
-
-        let (remainder, certs) =
-            parse_ber_tagged_explicit_g(0, |content, _| {
-                parse_ber_sequence_defined_g(|content: &[u8], _| {
-                    // parse cms_version
-                    let (remainder, _cms_verison) =
-                        parse_ber_integer(content)?;
-
-                    // parse digest algo
-                    let (remainder, _digest_algorithms) =
-                        parse_digest_algorithms(remainder)?;
-
-                    // parse content info
-                    let (remainder, _content_info) =
-                        parse_content_info(remainder)?;
-
-                    let (remainder, certificates) = OptTaggedParser::from(0)
-                        .parse_ber(
-                            remainder,
-                            |_, raw_certs| -> ParseResult<'_, Vec<_>> {
-                                Ok(SignedData::parse_certificates(raw_certs))
-                            },
-                        )
-                        .map_err(|_| BerValueError)?;
-
-                    let mut certs = Vec::new();
-
-                    if let Some(certificates) = certificates {
-                        for c in certificates {
-                            let x5 = c.x509;
-
-                            certs.push(Certificate {
-                                issuer: x5.issuer.to_string(),
-                                subject: x5.subject.to_string(),
-                                is_self_signed: x5.issuer == x5.subject,
-                            });
-                        }
-                    }
-                    Ok((remainder, certs))
-                })(content)
-            })(remainder)?;
-        Ok((remainder, certs))
-    })(ber_blob);
-    a
-}
-
-fn parse_digest_algorithms(
-    remainder: &[u8],
-) -> Result<(&[u8], Vec<AlgorithmIdentifier<'_>>), Err<der_parser::error::Error>>
-{
-    let (remainder, digest_algorithms) =
-        parse_ber_set_of_v(AlgorithmIdentifier::from_ber)(remainder)
-            .map_err(|_| BerValueError)?;
-    Ok((remainder, digest_algorithms))
-}
-
-fn parse_content_info(
-    remainder: &[u8],
-) -> Result<(&[u8], BerObject<'_>), Err<der_parser::error::Error>> {
-    let (remainder, _content) = parse_ber_sequence(remainder)?;
-    Ok((remainder, _content))
-}
-
 struct FatArch {
     cputype: u32,
     cpusubtype: u32,
@@ -1758,6 +1690,74 @@ fn convert_to_source_version_string(decimal_number: u64) -> String {
     let d = (decimal_number >> 10) & mask;
     let e = decimal_number & mask;
     format!("{}.{}.{}.{}.{}", a, b, c, d, e)
+}
+
+/// Parses CMS certificates from a BER-encoded blob that are embedded in the Mach-O binary.
+fn parse_certificates(
+    ber_blob: &[u8],
+) -> Result<(&[u8], Vec<Certificate>), Err<der_parser::error::Error>> {
+    let a = parse_ber_sequence_defined_g(|ber_blob: &[u8], _| {
+        let (remainder, _content_type) = parse_ber_oid(ber_blob)?;
+
+        let (remainder, certs) =
+            parse_ber_tagged_explicit_g(0, |content, _| {
+                parse_ber_sequence_defined_g(|content: &[u8], _| {
+                    let (remainder, _cms_verison) =
+                        parse_ber_integer(content)?;
+
+                    let (remainder, _digest_algorithms) =
+                        parse_digest_algorithms(remainder)?;
+
+                    let (remainder, _content_info) =
+                        parse_content_info(remainder)?;
+
+                    let (remainder, certificates) = OptTaggedParser::from(0)
+                        .parse_ber(
+                            remainder,
+                            |_, raw_certs| -> ParseResult<'_, Vec<_>> {
+                                Ok(SignedData::parse_certificates(raw_certs))
+                            },
+                        )
+                        .map_err(|_| BerValueError)?;
+
+                    let mut certs = Vec::new();
+
+                    if let Some(certificates) = certificates {
+                        for c in certificates {
+                            let x5 = c.x509;
+
+                            certs.push(Certificate {
+                                issuer: x5.issuer.to_string(),
+                                subject: x5.subject.to_string(),
+                                is_self_signed: x5.issuer == x5.subject,
+                            });
+                        }
+                    }
+                    Ok((remainder, certs))
+                })(content)
+            })(remainder)?;
+        Ok((remainder, certs))
+    })(ber_blob);
+    a
+}
+
+/// Parses a BER-encoded sequence of AlgorithmIdentifiers.
+fn parse_digest_algorithms(
+    remainder: &[u8],
+) -> Result<(&[u8], Vec<AlgorithmIdentifier<'_>>), Err<der_parser::error::Error>>
+{
+    let (remainder, digest_algorithms) =
+        parse_ber_set_of_v(AlgorithmIdentifier::from_ber)(remainder)
+            .map_err(|_| BerValueError)?;
+    Ok((remainder, digest_algorithms))
+}
+
+/// Parses a BER-encoded sequence of ContentInfo objects.
+fn parse_content_info(
+    remainder: &[u8],
+) -> Result<(&[u8], BerObject<'_>), Err<der_parser::error::Error>> {
+    let (remainder, _content) = parse_ber_sequence(remainder)?;
+    Ok((remainder, _content))
 }
 
 impl From<MachO<'_>> for protos::macho::Macho {
