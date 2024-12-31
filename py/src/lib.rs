@@ -74,16 +74,19 @@ impl Formatter {
         empty_line_after_section_header: bool,
     ) -> Self {
         Self {
-            inner: yara_x_fmt::Formatter {
-                align_metadata,
-                align_patterns,
-                indent_section_headers,
-                indent_section_contents,
-                indent_spaces,
-                newline_before_curly_brace,
-                empty_line_before_section_header,
-                empty_line_after_section_header,
-            },
+            inner: yara_x_fmt::Formatter::new()
+                .align_metadata(align_metadata)
+                .align_patterns(align_patterns)
+                .indent_section_headers(indent_section_headers)
+                .indent_section_contents(indent_section_contents)
+                .indent_spaces(indent_spaces)
+                .newline_before_curly_brace(newline_before_curly_brace)
+                .empty_line_before_section_header(
+                    empty_line_before_section_header,
+                )
+                .empty_line_after_section_header(
+                    empty_line_after_section_header,
+                ),
         }
     }
 
