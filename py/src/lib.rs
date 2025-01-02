@@ -33,6 +33,81 @@ use pyo3_file::PyFileLikeObject;
 
 use ::yara_x as yrx;
 
+/// Formats YARA rules.
+#[pyclass(unsendable)]
+struct Formatter {
+    inner: yara_x_fmt::Formatter,
+}
+
+#[pymethods]
+impl Formatter {
+    /// Creates a new [`Formatter`].
+    ///
+    /// `align_metadata` allows for aligning the equals signs in metadata definitions.
+    /// `align_patterns` allows for aligning the equals signs in pattern definitions.
+    /// `indent_section_headers` allows for indenting section headers.
+    /// `indent_section_contents` allows for indenting section contents.
+    /// `indent_spaces` is the number of spaces to use for indentation.
+    /// `newline_before_curly_brace` controls whether a newline is inserted before a curly brace.
+    /// `empty_line_before_section_header` controls whether an empty line is inserted before a section header.
+    /// `empty_line_after_section_header` controls whether an empty line is inserted after a section header.
+    #[new]
+    #[pyo3(signature = (
+        align_metadata = true,
+        align_patterns = true,
+        indent_section_headers = true,
+        indent_section_contents = true,
+        indent_spaces = 2,
+        newline_before_curly_brace = false,
+        empty_line_before_section_header = true,
+        empty_line_after_section_header = false
+    ))]
+    #[allow(clippy::too_many_arguments)]
+    fn new(
+        align_metadata: bool,
+        align_patterns: bool,
+        indent_section_headers: bool,
+        indent_section_contents: bool,
+        indent_spaces: u8,
+        newline_before_curly_brace: bool,
+        empty_line_before_section_header: bool,
+        empty_line_after_section_header: bool,
+    ) -> Self {
+        Self {
+            inner: yara_x_fmt::Formatter::new()
+                .align_metadata(align_metadata)
+                .align_patterns(align_patterns)
+                .indent_section_headers(indent_section_headers)
+                .indent_section_contents(indent_section_contents)
+                .indent_spaces(indent_spaces)
+                .newline_before_curly_brace(newline_before_curly_brace)
+                .empty_line_before_section_header(
+                    empty_line_before_section_header,
+                )
+                .empty_line_after_section_header(
+                    empty_line_after_section_header,
+                ),
+        }
+    }
+
+    /// Format a YARA rule
+    fn format(&self, input: PyObject, output: PyObject) -> PyResult<()> {
+        let in_buf = PyFileLikeObject::with_requirements(
+            input, true, false, false, false,
+        )?;
+
+        let mut out_buf = PyFileLikeObject::with_requirements(
+            output, false, true, false, false,
+        )?;
+
+        self.inner
+            .format(in_buf, &mut out_buf)
+            .map_err(|err| PyValueError::new_err(err.to_string()))?;
+
+        Ok(())
+    }
+}
+
 /// Compiles a YARA source code producing a set of compiled [`Rules`].
 ///
 /// This function allows compiling simple rules that don't depend on external
@@ -700,5 +775,6 @@ fn yara_x(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Rule>()?;
     m.add_class::<Pattern>()?;
     m.add_class::<Match>()?;
+    m.add_class::<Formatter>()?;
     Ok(())
 }
