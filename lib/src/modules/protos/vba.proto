@@ -1,0 +1,37 @@
+syntax = "proto2";
+import "yara.proto";
+
+package vba;
+
+option (yara.module_options) = {
+  name: "vba"
+  root_message: "vba.Vba"
+  rust_module: "vba"
+  cargo_feature: "vba-module"
+};
+
+message Vba {
+  // True if VBA macros are present
+  optional bool has_macros = 1;
+  
+  // Names of VBA macro modules found
+  repeated string module_names = 2;
+  
+  // Type of each module (standard, class, form)
+  repeated string module_types = 3;
+  
+  // The actual VBA code for each module
+  repeated string module_code = 4;
+  
+  // Project metadata
+  message ProjectInfo {
+    optional string name = 1;
+    optional string version = 2;
+    repeated string references = 3;
+    
+    // Additional metadata
+    optional int32 module_count = 4;
+    optional bool is_compressed = 5;
+  }
+  optional ProjectInfo project_info = 5;
+}
