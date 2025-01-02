@@ -1,4 +1,13 @@
 use std::collections::HashMap;
+use nom::{
+    bytes::complete::take,
+    combinator::verify,
+    error::{Error as NomError, ErrorKind},
+    multi::count,
+    number::complete::{le_u16, le_u32},
+    sequence::tuple,
+    IResult,
+};
 
 const OLECF_SIGNATURE: &[u8] = &[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
 const SECTOR_SHIFT: u16 = 9;
@@ -48,183 +57,102 @@ impl<'a> OLECFParser<'a> {
             mini_stream_size: 0,
         };
 
-        parser.parse_header()?;
-        parser.parse_directory()?;
-
-        if parser.mini_stream_size > 0 && parser.mini_stream_start >= MAX_REGULAR_SECTOR {
-            return Err("Invalid mini stream start sector");
+        match parser.parse(data) {
+            Ok((_rest, ())) => Ok(parser),
+            Err(_) => Err("Failed to parse OLECF data"),
         }
-
-        Ok(parser)
     }
 
-    fn read_u16(data: &[u8], offset: usize) -> Result<u16, &'static str> {
-        if offset + 2 > data.len() {
-            return Err("Buffer too small for u16");
-        }
-        Ok(u16::from_le_bytes([data[offset], data[offset + 1]]))
+    fn parse(&mut self, input: &'a [u8]) -> IResult<&'a [u8], ()> {
+        // (A) Check the 8-byte OLECF signature.
+        let (input, _) = verify(take(8_usize), |sig: &[u8]| sig == OLECF_SIGNATURE)(input)?;
+
+        // (B) Parse the rest of the header fields.
+        let (input, ()) = self.parse_header(input)?;
+
+        // (C) Parse the directory chain.
+        let (input, ()) = self.parse_directory(input)?;
+
+        Ok((input, ()))
     }
 
-    fn read_u32(data: &[u8], offset: usize) -> Result<u32, &'static str> {
-        if offset + 4 > data.len() {
-            return Err("Buffer too small for u32");
-        }
-        Ok(u32::from_le_bytes([
-            data[offset],
-            data[offset + 1],
-            data[offset + 2],
-            data[offset + 3],
-        ]))
-    }
 
-    pub fn is_valid_header(&self) -> bool {
-        self.data.len() >= OLECF_SIGNATURE.len() && &self.data[..OLECF_SIGNATURE.len()] == OLECF_SIGNATURE
-    }
-
-    fn parse_header(&mut self) -> Result<(), &'static str> {
-        if !self.is_valid_header() {
-            return Err("Invalid OLECF signature");
-        }
-
-        let byte_order = Self::read_u16(self.data, 28)?;
+    fn parse_header(&mut self, input: &'a [u8]) -> IResult<&'a [u8], ()> {        
+        let (mut input, (
+            _skip_20,
+            byte_order,
+            _skip_14,
+            num_fat_sectors,
+            first_dir_sector,
+            _skip_8,
+            first_mini_fat,
+            mini_fat_count,
+            _first_difat_sector,
+            _difat_count,
+        )) = tuple((
+            take(20usize),  // skip 20 bytes
+            le_u16,         // parse byte_order
+            take(14usize),  // skip 14 bytes
+            le_u32,         // parse num_fat_sectors
+            le_u32,         // parse first_dir_sector
+            take(8usize),   // skip 8 bytes
+            le_u32,         // parse first_mini_fat
+            le_u32,         // parse mini_fat_count
+            le_u32,         // parse _first_difat_sector
+            le_u32,         // parse _difat_count
+        ))(input)?;
+    
+        // (A) Verify `byte_order == 0xFFFE`.
         if byte_order != 0xFFFE {
-            return Err("Invalid byte order mark");
+            return Err(nom::Err::Error(NomError::new(input, ErrorKind::Verify)));
         }
-
-        let num_fat_sectors = Self::read_u32(self.data, 44)?;
-        let first_dir_sector = Self::read_u32(self.data, 48)?;
-        let first_mini_fat = Self::read_u32(self.data, 60)?;
-        let mini_fat_count = Self::read_u32(self.data, 64)?;
-        let first_difat_sector = Self::read_u32(self.data, 68)?;
-        let difat_count = Self::read_u32(self.data, 72)?;
-
-        // DIFAT entries in header
-        let mut difat_entries = Vec::new();
-        let mut offset = 76;
-        for _ in 0..109 {
-            if offset + 4 > self.data.len() {
-                break;
-            }
-            let sector = Self::read_u32(self.data, offset)?;
-            if sector < MAX_REGULAR_SECTOR {
-                difat_entries.push(sector);
-            }
-            offset += 4;
+    
+        // (B) Parse up to 109 DIFAT entries from `input`
+        //     109 is the max allowed number of DIFAT entries in the header.
+        let rest = input;
+        if rest.len() < 109 * 4 {
+            let possible = rest.len() / 4;
+            let (rest2, entries) = count(le_u32, possible)(rest)?;
+            let mut filtered = entries
+                .into_iter()
+                .filter(|&x| x < MAX_REGULAR_SECTOR)
+                .collect::<Vec<_>>();
+            self.fat_sectors.append(&mut filtered);
+            input = rest2;
+        } else {
+            let (rest2, entries) = count(le_u32, 109)(rest)?;
+            let mut filtered = entries
+                .into_iter()
+                .filter(|&x| x < MAX_REGULAR_SECTOR)
+                .collect::<Vec<_>>();
+            self.fat_sectors.append(&mut filtered);
+            input = rest2;
         }
-
-        // Follow DIFAT chain
-        let mut current_difat = first_difat_sector;
-        for _ in 0..difat_count {
-            if current_difat >= MAX_REGULAR_SECTOR {
-                break;
-            }
-            let difat_data = self.read_sector(current_difat)?;
-            let entries_per_difat = (self.sector_size / 4) - 1;
-            for i in 0..entries_per_difat {
-                let s = Self::read_u32(difat_data, i * 4)?;
-                if s < MAX_REGULAR_SECTOR {
-                    difat_entries.push(s);
-                }
-            }
-            current_difat = Self::read_u32(difat_data, self.sector_size - 4)?;
-        }
-
-        if difat_entries.is_empty() && num_fat_sectors > 0 {
-            return Err("No FAT sectors found despite nonzero FAT count");
-        }
-        self.fat_sectors = difat_entries;
-
-        // Directory chain
+    
+        // (C) Directory chain
         if first_dir_sector < MAX_REGULAR_SECTOR {
             self.directory_sectors = self.follow_chain(first_dir_sector);
         } else {
-            return Err("No valid directory start sector");
+            return Err(nom::Err::Error(NomError::new(input, ErrorKind::Verify)));
         }
-
-        // MiniFAT chain
+    
+        // (D) MiniFAT chain
         if mini_fat_count > 0 && first_mini_fat < MAX_REGULAR_SECTOR {
             self.mini_fat_sectors = self.follow_chain(first_mini_fat);
         }
-
-        Ok(())
-    }
-
-    fn sector_to_offset(&self, sector: u32) -> usize {
-        512 + (sector as usize * self.sector_size)
-    }
-
-    fn read_sector(&self, sector: u32) -> Result<&[u8], &'static str> {
-        let offset = self.sector_to_offset(sector);
-        if offset + self.sector_size > self.data.len() {
-            return Err("Sector read out of bounds");
+    
+        // (E) If no FAT sectors but num_fat_sectors != 0 => error
+        if self.fat_sectors.is_empty() && num_fat_sectors > 0 {
+            return Err(nom::Err::Error(NomError::new(input, ErrorKind::Verify)));
         }
-        Ok(&self.data[offset..offset + self.sector_size])
+    
+        Ok((input, ()))
     }
+    
 
-    fn get_fat_entry(&self, sector: u32) -> Result<u32, &'static str> {
-        let entry_index = sector as usize;
-        let entries_per_sector = self.sector_size / 4;
-        let fat_sector_index = entry_index / entries_per_sector;
-        if fat_sector_index >= self.fat_sectors.len() {
-            return Err("FAT entry sector index out of range");
-        }
-        let fat_sector = self.fat_sectors[fat_sector_index];
-        let fat = self.read_sector(fat_sector)?;
-        let fat_entry_offset = (entry_index % entries_per_sector) * 4;
-        Self::read_u32(fat, fat_entry_offset)
-    }
-
-    fn follow_chain(&self, start_sector: u32) -> Vec<u32> {
-        let mut chain = Vec::new();
-        if start_sector >= MAX_REGULAR_SECTOR {
-            return chain;
-        }
-
-        let mut current = start_sector;
-        while current < MAX_REGULAR_SECTOR {
-            chain.push(current);
-            let next = match self.get_fat_entry(current) {
-                Ok(n) => n,
-                Err(_) => break,
-            };
-            if next >= MAX_REGULAR_SECTOR || next == FREESECT || next == ENDOFCHAIN {
-                break;
-            }
-            current = next;
-        }
-        chain
-    }
-
-    fn read_directory_entry(&self, offset: usize) -> Result<DirectoryEntry, &'static str> {
-        if offset + 128 > self.data.len() {
-            return Err("Incomplete directory entry");
-        }
-
-        let name_len = Self::read_u16(self.data, offset + 64)? as usize;
-        if name_len < 2 || name_len > 64 {
-            return Err("Invalid name length");
-        }
-
-        let name_bytes = &self.data[offset..offset + name_len];
-        let filtered: Vec<u8> = name_bytes.iter().copied().filter(|&b| b != 0).collect();
-        let name = String::from_utf8_lossy(&filtered).to_string();
-
-        let stream_type = self.data[offset + 66];
-        let start_sector = Self::read_u32(self.data, offset + 116)?;   // start sector
-        let size_32 = Self::read_u32(self.data, offset + 120)?;        // size is 4 bytes, read as u32
-        let size = size_32 as u64;
-
-        Ok(DirectoryEntry {
-            name,
-            size,
-            start_sector,
-            stream_type,
-        })
-    }
-
-    fn parse_directory(&mut self) -> Result<(), &'static str> {
+    fn parse_directory(&mut self, _input: &'a [u8]) -> IResult<&'a [u8], ()> {
         if self.directory_sectors.is_empty() {
-            return Err("No directory sectors found");
+            return Err(nom::Err::Error(NomError::new(_input, ErrorKind::Verify)));
         }
 
         for &sector in &self.directory_sectors {
@@ -254,7 +182,12 @@ impl<'a> OLECFParser<'a> {
             }
         }
 
-        Ok(())
+        Ok((_input, ()))
+    }
+
+    pub fn is_valid_header(&self) -> bool {
+        self.data.len() >= OLECF_SIGNATURE.len()
+            && &self.data[..OLECF_SIGNATURE.len()] == OLECF_SIGNATURE
     }
 
     pub fn get_stream_names(&self) -> Result<Vec<String>, &'static str> {
@@ -269,7 +202,8 @@ impl<'a> OLECFParser<'a> {
     }
 
     pub fn get_stream_data(&self, stream_name: &str) -> Result<Vec<u8>, &'static str> {
-        let entry = self.dir_entries.get(stream_name)
+        let entry = self.dir_entries
+            .get(stream_name)
             .ok_or("Stream not found")?;
 
         if entry.size < 4096 && entry.stream_type != ROOT_STORAGE_TYPE {
@@ -277,6 +211,80 @@ impl<'a> OLECFParser<'a> {
         } else {
             self.get_regular_stream_data(entry.start_sector, entry.size)
         }
+    }
+
+    fn sector_to_offset(&self, sector: u32) -> usize {
+        // The first sector begins at offset 512
+        512 + (sector as usize * self.sector_size)
+    }
+
+    fn read_sector(&self, sector: u32) -> Result<&[u8], &'static str> {
+        let offset = self.sector_to_offset(sector);
+        if offset + self.sector_size > self.data.len() {
+            return Err("Sector read out of bounds");
+        }
+        Ok(&self.data[offset..offset + self.sector_size])
+    }
+
+    fn get_fat_entry(&self, sector: u32) -> Result<u32, &'static str> {
+        let entry_index = sector as usize;
+        let entries_per_sector = self.sector_size / 4;
+        let fat_sector_index = entry_index / entries_per_sector;
+        if fat_sector_index >= self.fat_sectors.len() {
+            return Err("FAT entry sector index out of range");
+        }
+        let fat_sector = self.fat_sectors[fat_sector_index];
+        let fat = self.read_sector(fat_sector)?;
+        let fat_entry_offset = (entry_index % entries_per_sector) * 4;
+        parse_u32_at(fat, fat_entry_offset)
+    }
+
+    fn follow_chain(&self, start_sector: u32) -> Vec<u32> {
+        let mut chain = Vec::new();
+        if start_sector >= MAX_REGULAR_SECTOR {
+            return chain;
+        }
+
+        let mut current = start_sector;
+        while current < MAX_REGULAR_SECTOR {
+            chain.push(current);
+            let next = match self.get_fat_entry(current) {
+                Ok(n) => n,
+                Err(_) => break,
+            };
+            if next >= MAX_REGULAR_SECTOR || next == FREESECT || next == ENDOFCHAIN {
+                break;
+            }
+            current = next;
+        }
+        chain
+    }
+
+    fn read_directory_entry(&self, offset: usize) -> Result<DirectoryEntry, &'static str> {
+        if offset + 128 > self.data.len() {
+            return Err("Incomplete directory entry");
+        }
+
+        let name_len = parse_u16_at(self.data, offset + 64)? as usize;
+        if name_len < 2 || name_len > 64 {
+            return Err("Invalid name length");
+        }
+
+        let name_bytes = &self.data[offset..offset + name_len];
+        let filtered: Vec<u8> = name_bytes.iter().copied().filter(|&b| b != 0).collect();
+        let name = String::from_utf8_lossy(&filtered).to_string();
+
+        let stream_type = self.data[offset + 66];
+        let start_sector = parse_u32_at(self.data, offset + 116)?;
+        let size_32 = parse_u32_at(self.data, offset + 120)?;
+        let size = size_32 as u64;
+
+        Ok(DirectoryEntry {
+            name,
+            size,
+            start_sector,
+            stream_type,
+        })
     }
 
     fn get_regular_stream_data(&self, start_sector: u32, size: u64) -> Result<Vec<u8>, &'static str> {
@@ -308,7 +316,6 @@ impl<'a> OLECFParser<'a> {
     }
 
     fn get_root_mini_stream_data(&self) -> Result<Vec<u8>, &'static str> {
-        // The mini stream is stored as a regular FAT-based stream
         self.get_regular_stream_data(self.mini_stream_start, self.mini_stream_size)
     }
 
@@ -326,7 +333,7 @@ impl<'a> OLECFParser<'a> {
         let sector = self.mini_fat_sectors[fat_sector_index];
         let fat = self.read_sector(sector)?;
         let offset = (entry_index % entries_per_sector) * 4;
-        Self::read_u32(fat, offset)
+        parse_u32_at(fat, offset)
     }
 
     fn get_mini_stream_data(&self, start_mini_sector: u32, size: u64) -> Result<Vec<u8>, &'static str> {
@@ -367,5 +374,27 @@ impl<'a> OLECFParser<'a> {
         }
 
         Ok(data)
+    }
+}
+
+fn parse_u16_at(data: &[u8], offset: usize) -> Result<u16, &'static str> {
+    if offset + 2 > data.len() {
+        return Err("Buffer too small for u16");
+    }
+    let slice = &data[offset..offset + 2];
+    match le_u16::<&[u8], NomError<&[u8]>>(slice) {
+        Ok((_, val)) => Ok(val),
+        Err(_) => Err("Failed to parse u16"),
+    }
+}
+
+fn parse_u32_at(data: &[u8], offset: usize) -> Result<u32, &'static str> {
+    if offset + 4 > data.len() {
+        return Err("Buffer too small for u32");
+    }
+    let slice = &data[offset..offset + 4];
+    match le_u32::<&[u8], NomError<&[u8]>>(slice) {
+        Ok((_, val)) => Ok(val),
+        Err(_) => Err("Failed to parse u32"),
     }
 }

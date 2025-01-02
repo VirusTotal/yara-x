@@ -1,4 +1,7 @@
 use std::collections::HashMap;
+use nom::{
+    number::complete::{le_u16, le_u32},
+};
 
 pub enum ModuleType {
     Standard,
@@ -47,19 +50,19 @@ impl VbaProject {
         let mut current = 1; // Skip signature byte
     
         while current < compressed.len() {
-            // Ensure we have enough bytes for the chunk header
+            // We need 2 bytes for the chunk header
             if current + 2 > compressed.len() {
                 return Err("Incomplete chunk header");
             }
     
-            // Read chunk header
-            let chunk_header = u16::from_le_bytes([compressed[current], compressed[current + 1]]);
+            let chunk_header = u16::from_le_bytes(
+                compressed[current..current+2].try_into().map_err(|_| "Failed to parse chunk header")?
+            );
             let chunk_size = (chunk_header & 0x0FFF) as usize + 3;
             let chunk_is_compressed = (chunk_header & 0x8000) != 0;
             
             current += 2;
     
-            // Validate chunk size
             if chunk_is_compressed && chunk_size > 4095 {
                 return Err("CompressedChunkSize > 4095 but CompressedChunkFlag == 1");
             }
@@ -81,28 +84,26 @@ impl VbaProject {
             let decompressed_chunk_start = decompressed.len();
     
             while current < chunk_end {
-                // Read flag byte
                 let flag_byte = compressed[current];
                 current += 1;
     
-                // Process each bit in the flag byte
                 for bit_index in 0..8 {
                     if current >= chunk_end {
                         break;
                     }
     
                     if (flag_byte & (1 << bit_index)) == 0 {
-                        // Literal token
                         decompressed.push(compressed[current]);
                         current += 1;
                     } else {
-                        // Copy token
                         if current + 2 > compressed.len() {
                             return Err("Incomplete copy token");
                         }
     
-                        let copy_token = u16::from_le_bytes([compressed[current], compressed[current + 1]]);
-                        let (length_mask, offset_mask, bit_count, _) = 
+                        let copy_token = u16::from_le_bytes(
+                            compressed[current..current+2].try_into().map_err(|_| "Failed to parse copy token")?
+                        );
+                        let (length_mask, offset_mask, bit_count, _) =
                             Self::copytoken_help(decompressed.len() - decompressed_chunk_start);
     
                         let length = (copy_token & length_mask) + 3;
@@ -132,279 +133,328 @@ impl VbaProject {
         Ok(decompressed)
     }
 
-    
+    fn parse_u16(input: &[u8]) -> Result<(&[u8], u16), &'static str> {
+        le_u16::<&[u8], nom::error::Error<&[u8]>>(input)
+            .map_err(|_nom_err| "Failed to parse u16")
+    }
+
+    fn parse_u32(input: &[u8]) -> Result<(&[u8], u32), &'static str> {
+        le_u32::<&[u8], nom::error::Error<&[u8]>>(input)
+            .map_err(|_nom_err| "Failed to parse u32")
+    }
+
+    fn parse_bytes<'a>(input: &'a [u8], len: usize) -> Result<(&'a [u8], &'a [u8]), &'static str> {
+        if input.len() < len {
+            Err("Not enough bytes to parse the requested slice")
+        } else {
+            Ok((&input[len..], &input[..len]))
+        }
+    }
+
     pub fn parse(compressed_dir_stream: &[u8], module_streams: HashMap<String, Vec<u8>>) -> Result<Self, &'static str> {
         let dir_stream = Self::decompress_stream(compressed_dir_stream)?;
 
-        let mut pos = 0;
-        let mut modules = HashMap::new();
-        let mut references = Vec::new();
-        let project_name;
-        let version_major;
-        let version_minor;
+        // Our 'input' will move forward as we parse
+        let mut _input = &dir_stream[..];
 
-        // Parse PROJECTSYSKIND Record
-        let syskind_id = read_u16(&dir_stream, &mut pos)?;
+        // -- PROJECTSYSKIND Record
+        let (rest, syskind_id) = Self::parse_u16(_input)?;  _input = rest;
         if syskind_id != 0x0001 {
             return Err("Invalid SYSKIND_ID");
         }
-        let syskind_size = read_u32(&dir_stream, &mut pos)?;
+        let (rest, syskind_size) = Self::parse_u32(_input)?; _input = rest;
         if syskind_size != 0x0004 {
             return Err("Invalid SYSKIND_SIZE");
         }
-        let _syskind = read_u32(&dir_stream, &mut pos)?;
+        let (rest, _syskind) = Self::parse_u32(_input)?; _input = rest;
 
-        // Parse PROJECTLCID Record
-        let lcid_id = read_u16(&dir_stream, &mut pos)?;
+        // -- PROJECTLCID Record
+        let (rest, lcid_id) = Self::parse_u16(_input)?; _input = rest;
         if lcid_id != 0x0002 {
             return Err("Invalid LCID_ID");
         }
-        let lcid_size = read_u32(&dir_stream, &mut pos)?;
+        let (rest, lcid_size) = Self::parse_u32(_input)?; _input = rest;
         if lcid_size != 0x0004 {
             return Err("Invalid LCID_SIZE");
         }
-        let lcid = read_u32(&dir_stream, &mut pos)?;
+        let (rest, lcid) = Self::parse_u32(_input)?; _input = rest;
         if lcid != 0x409 {
             return Err("Invalid LCID");
         }
 
-        // Parse PROJECTLCIDINVOKE Record
-        let lcid_invoke_id = read_u16(&dir_stream, &mut pos)?;
+        // -- PROJECTLCIDINVOKE Record
+        let (rest, lcid_invoke_id) = Self::parse_u16(_input)?; _input = rest;
         if lcid_invoke_id != 0x0014 {
             return Err("Invalid LCIDINVOKE_ID");
         }
-        let lcid_invoke_size = read_u32(&dir_stream, &mut pos)?;
+        let (rest, lcid_invoke_size) = Self::parse_u32(_input)?; _input = rest;
         if lcid_invoke_size != 0x0004 {
             return Err("Invalid LCIDINVOKE_SIZE");
         }
-        let lcid_invoke = read_u32(&dir_stream, &mut pos)?;
+        let (rest, lcid_invoke) = Self::parse_u32(_input)?; _input = rest;
         if lcid_invoke != 0x409 {
             return Err("Invalid LCIDINVOKE");
         }
 
-        // Parse PROJECTCODEPAGE Record
-        let codepage_id = read_u16(&dir_stream, &mut pos)?;
+        // -- PROJECTCODEPAGE Record
+        let (rest, codepage_id) = Self::parse_u16(_input)?; _input = rest;
         if codepage_id != 0x0003 {
             return Err("Invalid CODEPAGE_ID");
         }
-        let codepage_size = read_u32(&dir_stream, &mut pos)?;
+        let (rest, codepage_size) = Self::parse_u32(_input)?; _input = rest;
         if codepage_size != 0x0002 {
             return Err("Invalid CODEPAGE_SIZE");
         }
-        let _codepage = read_u16(&dir_stream, &mut pos)?;
+        let (rest, _codepage) = Self::parse_u16(_input)?; _input = rest;
 
-        // Parse PROJECTNAME Record
-        let name_id = read_u16(&dir_stream, &mut pos)?;
+        // -- PROJECTNAME Record
+        let (rest, name_id) = Self::parse_u16(_input)?; _input = rest;
         if name_id != 0x0004 {
             return Err("Invalid NAME_ID");
         }
-        let name_size = read_u32(&dir_stream, &mut pos)? as usize;
+        let (rest, name_size) = Self::parse_u32(_input)?; _input = rest;
+        let name_size = name_size as usize;
         if name_size < 1 || name_size > 128 {
             return Err("Project name not in valid range");
         }
-        let name_bytes = read_bytes(&dir_stream, &mut pos, name_size)?;
-        project_name = String::from_utf8_lossy(&name_bytes).to_string();
+        let (rest, name_bytes) = Self::parse_bytes(rest, name_size)?; 
+        let project_name = String::from_utf8_lossy(name_bytes).to_string();
+        _input = rest;
 
-        // Parse PROJECTDOCSTRING Record
-        let doc_id = read_u16(&dir_stream, &mut pos)?;
+        // -- PROJECTDOCSTRING Record
+        let (rest, doc_id) = Self::parse_u16(_input)?; _input = rest;
         if doc_id != 0x0005 {
             return Err("Invalid DOCSTRING_ID");
         }
-        let doc_size = read_u32(&dir_stream, &mut pos)? as usize;
-        let _doc_string = read_bytes(&dir_stream, &mut pos, doc_size)?;
-        let doc_reserved = read_u16(&dir_stream, &mut pos)?;
+        let (rest, doc_size) = Self::parse_u32(_input)?; _input = rest;
+        let doc_size = doc_size as usize;
+        let (rest, _doc_string) = Self::parse_bytes(rest, doc_size)?; 
+        _input = rest;
+        let (rest, doc_reserved) = Self::parse_u16(_input)?; _input = rest;
         if doc_reserved != 0x0040 {
             return Err("Invalid DOCSTRING_Reserved");
         }
-        let doc_unicode_size = read_u32(&dir_stream, &mut pos)? as usize;
+        let (rest, doc_unicode_size) = Self::parse_u32(_input)?; _input = rest;
+        let doc_unicode_size = doc_unicode_size as usize;
         if doc_unicode_size % 2 != 0 {
             return Err("DOCSTRING_Unicode size not even");
         }
-        let _doc_unicode = read_bytes(&dir_stream, &mut pos, doc_unicode_size)?;
+        let (rest, _doc_unicode) = Self::parse_bytes(rest, doc_unicode_size)?;
+        _input = rest;
 
-        // Parse PROJECTHELPFILEPATH Record
-        let helpfile_id = read_u16(&dir_stream, &mut pos)?;
+        // -- PROJECTHELPFILEPATH Record
+        let (rest, helpfile_id) = Self::parse_u16(_input)?; _input = rest;
         if helpfile_id != 0x0006 {
             return Err("Invalid HELPFILEPATH_ID");
         }
-        let helpfile_size1 = read_u32(&dir_stream, &mut pos)? as usize;
+        let (rest, helpfile_size1) = Self::parse_u32(_input)?; _input = rest;
+        let helpfile_size1 = helpfile_size1 as usize;
         if helpfile_size1 > 260 {
             return Err("Help file path 1 too long");
         }
-        let helpfile1 = read_bytes(&dir_stream, &mut pos, helpfile_size1)?;
-        let helpfile_reserved = read_u16(&dir_stream, &mut pos)?;
+        let (rest, helpfile1) = Self::parse_bytes(rest, helpfile_size1)?; 
+        _input = rest;
+        let (rest, helpfile_reserved) = Self::parse_u16(_input)?; _input = rest;
         if helpfile_reserved != 0x003D {
             return Err("Invalid HELPFILEPATH_Reserved");
         }
-        let helpfile_size2 = read_u32(&dir_stream, &mut pos)? as usize;
+        let (rest, helpfile_size2) = Self::parse_u32(_input)?; _input = rest;
+        let helpfile_size2 = helpfile_size2 as usize;
         if helpfile_size2 != helpfile_size1 {
             return Err("Help file sizes don't match");
         }
-        let helpfile2 = read_bytes(&dir_stream, &mut pos, helpfile_size2)?;
+        let (rest, helpfile2) = Self::parse_bytes(rest, helpfile_size2)?; 
+        _input = rest;
         if helpfile1 != helpfile2 {
             return Err("Help files don't match");
         }
 
-        // Parse PROJECTHELPCONTEXT Record
-        let helpcontext_id = read_u16(&dir_stream, &mut pos)?;
+        // -- PROJECTHELPCONTEXT Record
+        let (rest, helpcontext_id) = Self::parse_u16(_input)?; _input = rest;
         if helpcontext_id != 0x0007 {
             return Err("Invalid HELPCONTEXT_ID");
         }
-        let helpcontext_size = read_u32(&dir_stream, &mut pos)?;
+        let (rest, helpcontext_size) = Self::parse_u32(_input)?; _input = rest;
         if helpcontext_size != 0x0004 {
             return Err("Invalid HELPCONTEXT_SIZE");
         }
-        let _helpcontext = read_u32(&dir_stream, &mut pos)?;
+        let (rest, _helpcontext) = Self::parse_u32(_input)?; _input = rest;
 
-        // Parse PROJECTLIBFLAGS Record
-        let libflags_id = read_u16(&dir_stream, &mut pos)?;
+        // -- PROJECTLIBFLAGS Record
+        let (rest, libflags_id) = Self::parse_u16(_input)?; _input = rest;
         if libflags_id != 0x0008 {
             return Err("Invalid LIBFLAGS_ID");
         }
-        let libflags_size = read_u32(&dir_stream, &mut pos)?;
+        let (rest, libflags_size) = Self::parse_u32(_input)?; _input = rest;
         if libflags_size != 0x0004 {
             return Err("Invalid LIBFLAGS_SIZE");
         }
-        let libflags = read_u32(&dir_stream, &mut pos)?;
+        let (rest, libflags) = Self::parse_u32(_input)?; _input = rest;
         if libflags != 0x0000 {
             return Err("Invalid LIBFLAGS");
         }
 
-        // Parse PROJECTVERSION Record
-        let version_id = read_u16(&dir_stream, &mut pos)?;
+        // -- PROJECTVERSION Record
+        let (rest, version_id) = Self::parse_u16(_input)?; _input = rest;
         if version_id != 0x0009 {
             return Err("Invalid VERSION_ID");
         }
-        let version_reserved = read_u32(&dir_stream, &mut pos)?;
+        let (rest, version_reserved) = Self::parse_u32(_input)?; _input = rest;
         if version_reserved != 0x0004 {
             return Err("Invalid VERSION_Reserved");
         }
-        version_major = read_u32(&dir_stream, &mut pos)?;
-        version_minor = read_u16(&dir_stream, &mut pos)?;
+        let (rest, version_major) = Self::parse_u32(_input)?; _input = rest;
+        let (rest, version_minor) = Self::parse_u16(_input)?; _input = rest;
 
-        // Parse PROJECTCONSTANTS Record
-        let constants_id = read_u16(&dir_stream, &mut pos)?;
+        // -- PROJECTCONSTANTS Record
+        let (rest, constants_id) = Self::parse_u16(_input)?; _input = rest;
         if constants_id != 0x000C {
             return Err("Invalid CONSTANTS_ID");
         }
-        let constants_size = read_u32(&dir_stream, &mut pos)? as usize;
+        let (rest, constants_size) = Self::parse_u32(_input)?; _input = rest;
+        let constants_size = constants_size as usize;
         if constants_size > 1015 {
             return Err("Constants size too large");
         }
-        let _constants = read_bytes(&dir_stream, &mut pos, constants_size)?;
-        let constants_reserved = read_u16(&dir_stream, &mut pos)?;
+        let (rest, _constants) = Self::parse_bytes(rest, constants_size)?; 
+        _input = rest;
+        let (rest, constants_reserved) = Self::parse_u16(_input)?; _input = rest;
         if constants_reserved != 0x003C {
             return Err("Invalid CONSTANTS_Reserved");
         }
-        let constants_unicode_size = read_u32(&dir_stream, &mut pos)? as usize;
+        let (rest, constants_unicode_size) = Self::parse_u32(_input)?; _input = rest;
+        let constants_unicode_size = constants_unicode_size as usize;
         if constants_unicode_size % 2 != 0 {
             return Err("Constants unicode size not even");
         }
-        let _constants_unicode = read_bytes(&dir_stream, &mut pos, constants_unicode_size)?;
+        let (rest, _constants_unicode) = Self::parse_bytes(rest, constants_unicode_size)?;
+        _input = rest;
 
-        // Parse References
+        // -- Parse references until we hit PROJECTMODULES_Id = 0x000F
+        let mut references = Vec::new();
         let mut last_check;
         loop {
-            let check = read_u16(&dir_stream, &mut pos)?;
-            last_check = check;  // Save the check value
+            let (rest2, check) = match Self::parse_u16(_input) {
+                Ok(x) => x,
+                Err(_) => return Err("Could not parse reference type (u16)"),
+            };
+            _input = rest2;
+            last_check = check;
+
             if check == 0x000F {
+                // That means we reached PROJECTMODULES_Id
                 break;
             }
 
             match check {
                 0x0016 => {
-                    // REFERENCENAME
-                    let name_size = read_u32(&dir_stream, &mut pos)? as usize;
-                    let name_bytes = read_bytes(&dir_stream, &mut pos, name_size)?;
-                    let name = String::from_utf8_lossy(&name_bytes).to_string();
+                    // REFERENCE Name
+                    let (rest2, name_size) = Self::parse_u32(_input)?; _input = rest2;
+                    let (rest2, name_bytes) = Self::parse_bytes(_input, name_size as usize)?; 
+                    _input = rest2;
+                    let name = String::from_utf8_lossy(name_bytes).to_string();
                     references.push(name);
 
-                    let reserved = read_u16(&dir_stream, &mut pos)?;
+                    let (rest2, reserved) = Self::parse_u16(_input)?; _input = rest2;
                     if reserved != 0x003E {
                         return Err("Invalid REFERENCE_Reserved");
                     }
-                    let unicode_size = read_u32(&dir_stream, &mut pos)? as usize;
-                    let _name_unicode = read_bytes(&dir_stream, &mut pos, unicode_size)?;
+                    let (rest2, unicode_size) = Self::parse_u32(_input)?; _input = rest2;
+                    let (rest2, _name_unicode) = Self::parse_bytes(_input, unicode_size as usize)?;
+                    _input = rest2;
                 },
                 0x0033 => {
                     // REFERENCEORIGINAL
-                    let _size = read_u32(&dir_stream, &mut pos)? as usize;
-                    let _libid = read_bytes(&dir_stream, &mut pos, _size)?;
+                    let (rest2, size) = Self::parse_u32(_input)?; _input = rest2;
+                    let (rest2, _libid) = Self::parse_bytes(_input, size as usize)?;
+                    _input = rest2;
                 },
                 0x002F => {
                     // REFERENCECONTROL
-                    let size_twiddled = read_u32(&dir_stream, &mut pos)? as usize;
-                    let _twiddled = read_bytes(&dir_stream, &mut pos, size_twiddled)?;
+                    let (rest2, size_twiddled) = Self::parse_u32(_input)?; _input = rest2;
+                    let (rest2, _twiddled) = Self::parse_bytes(_input, size_twiddled as usize)?;
+                    _input = rest2;
                     
-                    let reserved1 = read_u32(&dir_stream, &mut pos)?;
+                    let (rest2, reserved1) = Self::parse_u32(_input)?; _input = rest2;
                     if reserved1 != 0x0000 {
                         return Err("Invalid REFERENCECONTROL_Reserved1");
                     }
-                    
-                    let reserved2 = read_u16(&dir_stream, &mut pos)?;
+                    let (rest2, reserved2) = Self::parse_u16(_input)?; _input = rest2;
                     if reserved2 != 0x0000 {
                         return Err("Invalid REFERENCECONTROL_Reserved2");
                     }
 
-                    // Check for optional name record
-                    let check2 = read_u16(&dir_stream, &mut pos)?;
-                    if check2 == 0x0016 {
-                        let name_size = read_u32(&dir_stream, &mut pos)? as usize;
-                        let _name = read_bytes(&dir_stream, &mut pos, name_size)?;
+                    // Possibly an optional name record
+                    let (maybe_rest, maybe_check2) = match Self::parse_u16(_input) {
+                        Ok(x) => x,
+                        Err(_) => return Err("Failed to read optional name or reserved3"),
+                    };
+                    
+                    if maybe_check2 == 0x0016 {
+                        // This means we have a name record
+                        _input = maybe_rest;
+                        let (rest2, name_size) = Self::parse_u32(_input)?; _input = rest2;
+                        let (rest2, _name) = Self::parse_bytes(_input, name_size as usize)?; 
+                        _input = rest2;
                         
-                        let reserved = read_u16(&dir_stream, &mut pos)?;
+                        let (rest2, reserved) = Self::parse_u16(_input)?; _input = rest2;
                         if reserved != 0x003E {
                             return Err("Invalid REFERENCECONTROL_NameRecord_Reserved");
                         }
-                        
-                        let unicode_size = read_u32(&dir_stream, &mut pos)? as usize;
-                        let _name_unicode = read_bytes(&dir_stream, &mut pos, unicode_size)?;
-                    }
+                        let (rest2, unicode_size) = Self::parse_u32(_input)?; _input = rest2;
+                        let (rest2, _name_unicode) = Self::parse_bytes(_input, unicode_size as usize)?;
+                        _input = rest2;
 
-                    let reserved3 = if check2 == 0x0016 {
-                        read_u16(&dir_stream, &mut pos)?
+                        // Next we parse the next 0x0030
+                        let (rest2, reserved3) = Self::parse_u16(_input)?; _input = rest2;
+                        if reserved3 != 0x0030 {
+                            return Err("Invalid REFERENCECONTROL_Reserved3");
+                        }
                     } else {
-                        check2
-                    };
-                    if reserved3 != 0x0030 {
-                        return Err("Invalid REFERENCECONTROL_Reserved3");
+                        // No name record, so maybe_check2 is actually reserved3
+                        _input = maybe_rest;
+                        if maybe_check2 != 0x0030 {
+                            return Err("Invalid REFERENCECONTROL_Reserved3");
+                        }
                     }
 
-                    let _size_extended = read_u32(&dir_stream, &mut pos)?;
-                    let size_libid = read_u32(&dir_stream, &mut pos)? as usize;
-                    let _libid = read_bytes(&dir_stream, &mut pos, size_libid)?;
-                    let _reserved4 = read_u32(&dir_stream, &mut pos)?;
-                    let _reserved5 = read_u16(&dir_stream, &mut pos)?;
-                    let _original_typelib = read_bytes(&dir_stream, &mut pos, 16)?;
-                    let _cookie = read_u32(&dir_stream, &mut pos)?;
+                    let (rest2, size_extended) = Self::parse_u32(_input)?; _input = rest2;
+                    let (rest2, size_libid) = Self::parse_u32(_input)?; _input = rest2;
+                    let (rest2, _libid) = Self::parse_bytes(_input, size_libid as usize)?;
+                    _input = rest2;
+                    let (rest2, _reserved4) = Self::parse_u32(_input)?; _input = rest2;
+                    let (rest2, _reserved5) = Self::parse_u16(_input)?; _input = rest2;
+                    let (rest2, _original_typelib) = Self::parse_bytes(_input, 16)?;
+                    _input = rest2;
+                    let (rest2, _cookie) = Self::parse_u32(_input)?; _input = rest2;
+                    let _ = size_extended; // just to avoid unused var warnings
                 },
                 0x000D => {
                     // REFERENCEREGISTERED
-                    let _size = read_u32(&dir_stream, &mut pos)?;
-                    
-                    let libid_size = read_u32(&dir_stream, &mut pos)? as usize;
-                    let _libid = read_bytes(&dir_stream, &mut pos, libid_size)?;                    
-                    let reserved1 = read_u32(&dir_stream, &mut pos)?;
+                    let (rest2, _size) = Self::parse_u32(_input)?; _input = rest2;
+                    let (rest2, libid_size) = Self::parse_u32(_input)?; _input = rest2;
+                    let (rest2, _libid) = Self::parse_bytes(_input, libid_size as usize)?;
+                    _input = rest2;
+                    let (rest2, reserved1) = Self::parse_u32(_input)?; _input = rest2;
                     if reserved1 != 0x0000 {
                         return Err("Invalid REFERENCEREGISTERED_Reserved1");
                     }
-                    
-                    let reserved2 = read_u16(&dir_stream, &mut pos)?;
+                    let (rest2, reserved2) = Self::parse_u16(_input)?; _input = rest2;
                     if reserved2 != 0x0000 {
                         return Err("Invalid REFERENCEREGISTERED_Reserved2");
                     }
                 },
                 0x000E => {
                     // REFERENCEPROJECT
-                    let _size = read_u32(&dir_stream, &mut pos)?;                    
-                    let libid_abs_size = read_u32(&dir_stream, &mut pos)? as usize;
-                    let _libid_abs = read_bytes(&dir_stream, &mut pos, libid_abs_size)?;
-                    
-                    let libid_rel_size = read_u32(&dir_stream, &mut pos)? as usize;
-                    let _libid_rel = read_bytes(&dir_stream, &mut pos, libid_rel_size)?;
-                    
-                    let _major = read_u32(&dir_stream, &mut pos)?;
-                    let _minor = read_u16(&dir_stream, &mut pos)?;
+                    let (rest2, _size) = Self::parse_u32(_input)?; _input = rest2;
+                    let (rest2, libid_abs_size) = Self::parse_u32(_input)?; _input = rest2;
+                    let (rest2, _libid_abs) = Self::parse_bytes(_input, libid_abs_size as usize)?;
+                    _input = rest2;
+                    let (rest2, libid_rel_size) = Self::parse_u32(_input)?; _input = rest2;
+                    let (rest2, _libid_rel) = Self::parse_bytes(_input, libid_rel_size as usize)?;
+                    _input = rest2;
+                    let (rest2, _major) = Self::parse_u32(_input)?; _input = rest2;
+                    let (rest2, _minor) = Self::parse_u16(_input)?; _input = rest2;
                 },
                 _ => return Err("Invalid reference type"),
             }
@@ -414,151 +464,188 @@ impl VbaProject {
             return Err("Invalid PROJECTMODULES_Id");
         }
         
-        let modules_size = read_u32(&dir_stream, &mut pos)?;
+        let (rest, modules_size) = Self::parse_u32(_input)?; _input = rest;
         if modules_size != 0x0002 {
             return Err("Invalid PROJECTMODULES_Size");
         }
         
-        let modules_count = read_u16(&dir_stream, &mut pos)?;
+        let (rest, modules_count) = Self::parse_u16(_input)?; _input = rest;
 
-        let cookie_id = read_u16(&dir_stream, &mut pos)?;
+        let (rest, cookie_id) = Self::parse_u16(_input)?; _input = rest;
         if cookie_id != 0x0013 {
             return Err("Invalid ProjectCookie_Id");
         }
         
-        let cookie_size = read_u32(&dir_stream, &mut pos)?;
+        let (rest, cookie_size) = Self::parse_u32(_input)?; _input = rest;
         if cookie_size != 0x0002 {
             return Err("Invalid ProjectCookie_Size");
         }
         
-        let _cookie = read_u16(&dir_stream, &mut pos)?;
+        let (rest, _cookie) = Self::parse_u16(_input)?; 
+        _input = rest;
 
-        // Parse each module
+        // -- Parse each module
+        let mut modules = HashMap::new();
         for _ in 0..modules_count {
-            // Parse MODULENAME record
-            let module_id = read_u16(&dir_stream, &mut pos)?;
+            // MODULENAME record
+            let (rest2, module_id) = Self::parse_u16(_input)?; 
+            _input = rest2;
             if module_id != 0x0019 {
                 return Err("Invalid MODULENAME_Id");
             }
             
-            let module_name_size = read_u32(&dir_stream, &mut pos)? as usize;
-            let name_bytes = read_bytes(&dir_stream, &mut pos, module_name_size)?;
-            let module_name = String::from_utf8_lossy(&name_bytes).to_string();
+            let (rest2, module_name_size) = Self::parse_u32(_input)?; 
+            _input = rest2;
+            let (rest2, name_bytes) = Self::parse_bytes(_input, module_name_size as usize)?; 
+            _input = rest2;
+            let module_name = String::from_utf8_lossy(name_bytes).to_string();
 
             let mut module_type = ModuleType::Unknown;
             let mut stream_name = String::new();
             let mut module_offset = 0u32;
 
-            // Parse optional sections
+            // Read all sections until we get the terminator 0x002B
             loop {
-                let section_id = read_u16(&dir_stream, &mut pos)?;
+                let (rest2, section_id) = match Self::parse_u16(_input) {
+                    Ok(x) => x,
+                    Err(_) => return Err("Failed to parse module section ID"),
+                };
+                _input = rest2;
+
                 match section_id {
                     0x0047 => {
                         // MODULENAMEUNICODE
-                        let unicode_size = read_u32(&dir_stream, &mut pos)? as usize;
-                        let _unicode_name = read_bytes(&dir_stream, &mut pos, unicode_size)?;
+                        let (rest3, unicode_size) = Self::parse_u32(_input)?; 
+                        _input = rest3;
+                        let (rest3, _unicode_name) = Self::parse_bytes(_input, unicode_size as usize)?;
+                        _input = rest3;
                     },
                     0x001A => {
                         // MODULESTREAMNAME
-                        let stream_size = read_u32(&dir_stream, &mut pos)? as usize;
-                        let stream_bytes = read_bytes(&dir_stream, &mut pos, stream_size)?;
-                        stream_name = String::from_utf8_lossy(&stream_bytes).to_string();
+                        let (rest3, stream_size) = Self::parse_u32(_input)?; 
+                        _input = rest3;
+                        let (rest3, stream_bytes) = Self::parse_bytes(_input, stream_size as usize)?;
+                        _input = rest3;
+                        stream_name = String::from_utf8_lossy(stream_bytes).to_string();
                         
-                        let reserved = read_u16(&dir_stream, &mut pos)?;
+                        let (rest3, reserved) = Self::parse_u16(_input)?; 
+                        _input = rest3;
                         if reserved != 0x0032 {
                             return Err("Invalid STREAMNAME_Reserved");
                         }
                         
-                        let unicode_size = read_u32(&dir_stream, &mut pos)? as usize;
-                        let _unicode_name = read_bytes(&dir_stream, &mut pos, unicode_size)?;
+                        let (rest3, unicode_size) = Self::parse_u32(_input)?; 
+                        _input = rest3;
+                        let (rest3, _unicode_name) = Self::parse_bytes(_input, unicode_size as usize)?;
+                        _input = rest3;
                     },
                     0x001C => {
                         // MODULEDOCSTRING
-                        let doc_size = read_u32(&dir_stream, &mut pos)? as usize;
-                        let _doc_string = read_bytes(&dir_stream, &mut pos, doc_size)?;
+                        let (rest3, doc_size) = Self::parse_u32(_input)?; 
+                        _input = rest3;
+                        let (rest3, _doc_string) = Self::parse_bytes(_input, doc_size as usize)?;
+                        _input = rest3;
                         
-                        let reserved = read_u16(&dir_stream, &mut pos)?;
+                        let (rest3, reserved) = Self::parse_u16(_input)?; 
+                        _input = rest3;
                         if reserved != 0x0048 {
                             return Err("Invalid DOCSTRING_Reserved");
                         }
                         
-                        let unicode_size = read_u32(&dir_stream, &mut pos)? as usize;
-                        let _unicode_doc = read_bytes(&dir_stream, &mut pos, unicode_size)?;
+                        let (rest3, unicode_size) = Self::parse_u32(_input)?; 
+                        _input = rest3;
+                        let (rest3, _unicode_doc) = Self::parse_bytes(_input, unicode_size as usize)?;
+                        _input = rest3;
                     },
                     0x0031 => {
                         // MODULEOFFSET
-                        let offset_size = read_u32(&dir_stream, &mut pos)?;
+                        let (rest3, offset_size) = Self::parse_u32(_input)?; 
+                        _input = rest3;
                         if offset_size != 0x0004 {
                             return Err("Invalid OFFSET_Size");
                         }
-                        module_offset = read_u32(&dir_stream, &mut pos)?;
+                        let (rest3, offset) = Self::parse_u32(_input)?; 
+                        module_offset = offset;
+                        _input = rest3;
                     },
                     0x001E => {
                         // MODULEHELPCONTEXT
-                        let help_size = read_u32(&dir_stream, &mut pos)?;
+                        let (rest3, help_size) = Self::parse_u32(_input)?; 
+                        _input = rest3;
                         if help_size != 0x0004 {
                             return Err("Invalid HELPCONTEXT_Size");
                         }
-                        let _help_context = read_u32(&dir_stream, &mut pos)?;
+                        let (rest3, _help_context) = Self::parse_u32(_input)?; 
+                        _input = rest3;
                     },
                     0x002C => {
                         // MODULECOOKIE
-                        let cookie_size = read_u32(&dir_stream, &mut pos)?;
+                        let (rest3, cookie_size) = Self::parse_u32(_input)?; 
+                        _input = rest3;
                         if cookie_size != 0x0002 {
                             return Err("Invalid COOKIE_Size");
                         }
-                        let _cookie = read_u16(&dir_stream, &mut pos)?;
+                        let (rest3, _cookie) = Self::parse_u16(_input)?; 
+                        _input = rest3;
                     },
                     0x0021 => {
+                        // Module is Standard
                         module_type = ModuleType::Standard;
-                        let _reserved = read_u32(&dir_stream, &mut pos)?;
+                        let (rest3, _reserved) = Self::parse_u32(_input)?; 
+                        _input = rest3;
                     },
                     0x0022 => {
+                        // Module is Class
                         module_type = ModuleType::Class;
-                        let _reserved = read_u32(&dir_stream, &mut pos)?;
+                        let (rest3, _reserved) = Self::parse_u32(_input)?; 
+                        _input = rest3;
                     },
                     0x0025 => {
                         // MODULEREADONLY
-                        let reserved = read_u32(&dir_stream, &mut pos)?;
+                        let (rest3, reserved) = Self::parse_u32(_input)?; 
+                        _input = rest3;
                         if reserved != 0x0000 {
                             return Err("Invalid READONLY_Reserved");
                         }
                     },
                     0x0028 => {
                         // MODULEPRIVATE
-                        let reserved = read_u32(&dir_stream, &mut pos)?;
+                        let (rest3, reserved) = Self::parse_u32(_input)?; 
+                        _input = rest3;
                         if reserved != 0x0000 {
                             return Err("Invalid PRIVATE_Reserved");
                         }
                     },
                     0x002B => {
                         // TERMINATOR
-                        let reserved = read_u32(&dir_stream, &mut pos)?;
+                        let (rest3, reserved) = Self::parse_u32(_input)?; 
                         if reserved != 0x0000 {
                             return Err("Invalid MODULE_Reserved");
                         }
+                        _input = rest3;
                         break;
                     },
                     _ => return Err("Invalid module section ID"),
                 }
             }
 
-            // Get module code
+            // Retrieve module code
             if let Some(module_data) = module_streams.get(&stream_name) {
-                let code_data = if module_offset as usize >= module_data.len() {
+                if module_offset as usize >= module_data.len() {
                     return Err("Invalid module offset");
-                } else {
-                    &module_data[module_offset as usize..]
-                };
-
+                }
+                let code_data = &module_data[module_offset as usize..];
                 if !code_data.is_empty() {
                     let decompressed = Self::decompress_stream(code_data)?;
                     let code = String::from_utf8_lossy(&decompressed).to_string();
-                    modules.insert(module_name.clone(), VbaModule {
-                        name: module_name,
-                        code,
-                        module_type,
-                    });
+                    modules.insert(
+                        module_name.clone(), 
+                        VbaModule {
+                            name: module_name,
+                            code,
+                            module_type,
+                        }
+                    );
                 }
             }
         }
@@ -572,31 +659,4 @@ impl VbaProject {
             },
         })
     }
-}
-
-fn read_u16(data: &[u8], pos: &mut usize) -> Result<u16, &'static str> {
-    if *pos + 2 > data.len() {
-        return Err("Not enough bytes to read u16");
-    }
-    let value = u16::from_le_bytes([data[*pos], data[*pos + 1]]);
-    *pos += 2;
-    Ok(value)
-}
-
-fn read_u32(data: &[u8], pos: &mut usize) -> Result<u32, &'static str> {
-    if *pos + 4 > data.len() {
-        return Err("Not enough bytes to read u32");
-    }
-    let value = u32::from_le_bytes([data[*pos], data[*pos + 1], data[*pos + 2], data[*pos + 3]]);
-    *pos += 4;
-    Ok(value)
-}
-
-fn read_bytes(data: &[u8], pos: &mut usize, len: usize) -> Result<Vec<u8>, &'static str> {
-    if *pos + len > data.len() {
-        return Err("Not enough bytes to read");
-    }
-    let bytes = data[*pos..*pos + len].to_vec();
-    *pos += len;
-    Ok(bytes)
 }

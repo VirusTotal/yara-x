@@ -1,4 +1,8 @@
-/*! YARA module that extracts VBA (Visual Basic for Applications) macros from Office documents. */
+/*! YARA module that extracts VBA (Visual Basic for Applications) macros from Office documents. 
+
+Read more about the VBA file format specification here:
+ https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/575462ba-bf67-4190-9fac-c275523c75fc
+*/
 
 use crate::modules::prelude::*;
 use crate::modules::protos::vba::*;
@@ -13,15 +17,13 @@ mod parser;
 use parser::{VbaProject, ModuleType};
 
 #[derive(Debug)]
-struct VbaExtractor {
-    data: Vec<u8>,
-}
+struct VbaExtractor<'a> {
+    data: &'a [u8],
+ }
 
-impl VbaExtractor {
-    fn new(data: &[u8]) -> Self {
-        Self {
-            data: data.to_vec(),
-        }
+impl<'a> VbaExtractor<'a> {
+    fn new(data: &'a [u8]) -> Self {
+        Self { data }
     }
 
     fn is_zip(&self) -> bool {
@@ -193,7 +195,7 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Vba {
                     ModuleType::Class => "Class".to_string(),
                     ModuleType::Unknown => "Unknown".to_string(),
                 });
-                vba.module_code.push(module.code.clone());
+                vba.module_codes.push(module.code.clone());
             }
         },
         Err(_) => {
