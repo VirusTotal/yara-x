@@ -5,6 +5,7 @@ build-backend = "maturin"
 [project]
 name = "yara-x"
 description = "Python bindings for YARA-X"
+dynamic = ["version"]
 requires-python = ">=3.9"
 readme = "README.md"
 keywords = ["pattern-matching", "cybersecurity", "forensics", "malware", "yara"]
