@@ -999,8 +999,6 @@ mod output_handler {
     #[derive(serde::Serialize)]
     struct OutputJson {
         version: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        count: Option<usize>,
         hits: Vec<HitJson>,
     }
 
@@ -1144,7 +1142,6 @@ mod output_handler {
                 std::mem::take(&mut *lock)
             };
             let version = env!("CARGO_PKG_VERSION").to_string();
-            let count = self.output_options.count_only.then_some(hits.len());
 
             let rendered_json = match self.output_options.count_only {
                 true => {
@@ -1161,7 +1158,7 @@ mod output_handler {
                     serde_json::to_string_pretty(&json_output)
                 }
                 false => {
-                    let output_json = OutputJson { hits, version, count };
+                    let output_json = OutputJson { hits, version };
 
                     serde_json::to_string_pretty(&output_json)
                 }
