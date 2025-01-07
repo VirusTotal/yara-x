@@ -1,4 +1,7 @@
 use std::path::Path;
+use std::collections::BTreeMap;
+
+use yara_x::config::MetaValueType;
 
 use figment::{
     providers::{Format, Serialized, Toml},
@@ -11,6 +14,9 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     /// Format specific configuration information.
     pub fmt: FormatConfig,
+
+    /// Check specific configuration information.
+    pub check: CheckConfig,
 }
 
 /// Format specific configuration information.
@@ -22,6 +28,15 @@ pub struct FormatConfig {
     pub meta: Meta,
     /// Pattern specific formatting information.
     pub patterns: Patterns,
+}
+
+/// Format specific configuration information.
+#[derive(Deserialize, Serialize, Debug)]
+pub struct CheckConfig {
+    /// Meta specific formatting information.
+    // Note: Using a BTreeMap here because we want a consistent ordering when
+    // we iterate over it, so that warnings always appear in the same order.
+    pub metadata: BTreeMap<String, MetaValueType>,
 }
 
 /// Rule specific formatting information.
@@ -69,6 +84,9 @@ impl Default for Config {
                 },
                 meta: Meta { align_values: true },
                 patterns: Patterns { align_values: true },
+            },
+            check: CheckConfig {
+                metadata: BTreeMap::default(),
             },
         }
     }

@@ -99,6 +99,51 @@ pub mod warnings {
     pub use crate::compiler::warnings::*;
 }
 
+/// Shared config types utilized by the compiler and CLI
+pub mod config {
+    use serde::Deserialize;
+    use serde::Serialize;
+    use strum_macros::Display;
+
+    /// Types allowed in the check.metadata table of the config file. Used to
+    /// require specific metadata identifiers have specific types by "yr check".
+    #[derive(Display, Deserialize, Serialize, Debug, Clone)]
+    pub enum MetaValueType {
+        /// Represents a String type
+        #[serde(rename = "string")]
+        #[strum(to_string = "string")]
+        String,
+        /// Represents an Integer type
+        #[serde(rename = "int")]
+        #[strum(to_string = "int")]
+        Integer,
+        /// Represents a Float type
+        #[serde(rename = "float")]
+        #[strum(to_string = "float")]
+        Float,
+        /// Represents a Boolean type
+        #[serde(rename = "bool")]
+        #[strum(to_string = "bool")]
+        Bool,
+        /// Represents a SHA256 (string) type
+        #[serde(rename = "sha256")]
+        #[strum(to_string = "sha256 (string)")]
+        SHA256,
+        /// Represents a SHA1 (string) type
+        #[serde(rename = "sha1")]
+        #[strum(to_string = "sha1 (string)")]
+        SHA1,
+        /// Represents a MD5 (string) type
+        #[serde(rename = "md5")]
+        #[strum(to_string = "md5 (string)")]
+        MD5,
+        /// Represents a generic hash (string) type. Can be MD5/SHA1/SHA256
+        #[serde(rename = "hash")]
+        #[strum(to_string = "hash (string)")]
+        HASH,
+    }
+}
+
 mod utils {
     /// Tries to match `target` as the enum variant `pat`. Returns the
     /// inner value contained in the variant, or panics if `target` does

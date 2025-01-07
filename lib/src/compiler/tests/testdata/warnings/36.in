@@ -1,0 +1,18 @@
+// required metadata
+rule test {
+    meta:
+      some_string = 1234
+      some_int = "abc"
+      some_float = 1
+      some_bool = 1.0
+      some_md5 = "4945681964beab33488f12b54780cb7X"
+      some_sha1 = "79092f73d240a47dbf927dad8525e18d7a4ef0dX"
+      some_sha256 = "692b4f72f7415e5ef4dccd906fa2b2ac9b14fbf1817b5707fef765e0ad98deaX"
+      some_hash = "4945681964beab33488f12b54780cb7X"
+      some_hash = "79092f73d240a47dbf927dad8525e18d7a4ef0dX"
+      some_hash = "692b4f72f7415e5ef4dccd906fa2b2ac9b14fbf1817b5707fef765e0ad98deaX"
+    strings:
+      $a = "AXSERS"
+    condition:
+      $a
+}

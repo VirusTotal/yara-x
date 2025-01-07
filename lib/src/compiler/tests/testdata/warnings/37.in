@@ -1,0 +1,7 @@
+// required metadata
+rule test {
+    strings:
+      $a = "AXSERS"
+    condition:
+      $a
+}

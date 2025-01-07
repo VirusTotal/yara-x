@@ -2,8 +2,8 @@ YARA-X Config Guide
 ===================
 
 YARA-X uses a configuration file for controlling the behavior of different
-commands. It currently supports the `fmt` command, but others will be added in
-the future.
+commands. It currently supports the `fmt` and `check` commands. More may be
+added in the future.
 
 The `yr` command looks in `${HOME}/.yara-x.toml` when starting up. If that file
 does not exist the default values are used.
@@ -143,4 +143,39 @@ meta.align_values = true
 
 # Same as meta.align_values but applies to patterns.
 patterns.align_values = true
+
+# The "check" section controls the behavior of the "check" command, which is
+# used to enforce standards on various aspects of the rule like metadata and
+# rule name.
+[check]
+# Table (dictionary) of required metadata identifiers and their corresponding
+# types.
+#
+# The key is the identifier and the value is the required type for that
+# identifier. Supported types are "string", "int", "float", "bool", "md5",
+# "sha1", "sha256", or "hash".
+#
+# To require that there be an "author" metadata field and the value must be a
+# string, and that there needs to be a date field and the value must be an
+# integer use this:
+#
+# meta = { author = "string", date = "int" }
+#
+# The "md5", "sha1" and "sha256" types are convenience types that check for a
+# string that is the correct length and only contains valid hexadecimal digits.
+#
+# The "hash" type is another convenience type that checks for any of the valid
+# hashes mentioned above. It is meant to be more flexible than requiring a
+# specific hash type in every rule.
+#
+# For example, to require that every rule have a metadata field named "sample"
+# and that the type of that field be an md5, sha1 or sha256 string use this:
+#
+# metadata = { "sample" = "hash" }
+#
+# NOTE: Inline tables must be expressed as a single line and no trailing comma
+# is allowed.
+#
+# The default value is an empty table.
+metadata = {}
 ```

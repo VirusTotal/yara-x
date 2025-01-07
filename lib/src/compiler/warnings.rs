@@ -29,6 +29,8 @@ pub enum Warning {
     RedundantCaseModifier(Box<RedundantCaseModifier>),
     SlowPattern(Box<SlowPattern>),
     TextPatternAsHex(Box<TextPatternAsHex>),
+    IncorrectMetadataType(Box<IncorrectMetadataType>),
+    MissingMetadata(Box<MissingMetadata>),
 }
 
 /// A hex pattern contains two or more consecutive jumps.
@@ -459,4 +461,63 @@ pub struct TextPatternAsHex {
     report: Report,
     text: String,
     pattern_loc: CodeLoc,
+}
+
+/// Metadata with an incorrect type. This is only used if the compiler is
+/// configured to check for required metadata (see: [`crate::Compiler::required_metadata`]).
+///
+/// ## Example
+///
+/// ```text
+/// warning[incorrect_metadata_type]: incorrect metadata type
+/// --> rules/test2.yara:4:5
+///   |
+/// 4 |     author = 1234
+///   |     ------ expected type string here
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "incorrect_metadata_type",
+    title = "incorrect metadata type"
+)]
+#[label(
+    "expected type {expected} here",
+    type_loc
+)]
+pub struct IncorrectMetadataType {
+    report: Report,
+    type_loc: CodeLoc,
+    expected: String,
+}
+
+/// Missing metadata. This is only used if the compiler is configured to check
+/// for required metadata (see: [`crate::Compiler::required_metadata`]).
+///
+/// ## Example
+///
+/// ```text
+/// warning[missing_metadata]: missing metadata
+///  --> rules/test2.yara:12:6
+///    |
+/// 12 | rule pants {
+///    |      ----- required metadata "date" (int) not found
+///    |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "missing_metadata",
+    title = "missing metadata"
+)]
+#[label(
+    "required metadata \"{name}\" ({expected_type}) not found",
+   rule_loc
+)]
+pub struct MissingMetadata {
+    report: Report,
+    rule_loc: CodeLoc,
+    name: String,
+    expected_type: String,
 }

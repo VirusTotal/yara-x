@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{fs, io};
 
+use crate::config::{load_config_from_file, CheckConfig};
 use anyhow::Context;
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 use crossterm::tty::IsTty;
@@ -45,13 +46,22 @@ pub fn check() -> Command {
                 .required(false)
                 .value_parser(value_parser!(u8).range(1..)),
         )
+        .arg(
+            arg!(-C --config <CONFIG_FILE> "Config file")
+                .value_parser(value_parser!(PathBuf))
+                .long_help(help::CONFIG_FILE),
+        )
 }
 
-pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
+pub fn exec_check(
+    args: &ArgMatches,
+    main_config: CheckConfig,
+) -> anyhow::Result<()> {
     let rules_path = args.get_one::<PathBuf>("RULES_PATH").unwrap();
     let max_depth = args.get_one::<u16>("max-depth");
     let filters = args.get_many::<String>("filter");
     let num_threads = args.get_one::<u8>("threads");
+    let config_file = args.get_one::<PathBuf>("config");
 
     let mut w = walk::ParWalker::path(rules_path);
 
@@ -72,6 +82,12 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
         w.filter("**/*.yar").filter("**/*.yara");
     }
 
+    let config: CheckConfig = if config_file.is_some() {
+        load_config_from_file(config_file.unwrap())?.check
+    } else {
+        main_config
+    };
+
     w.walk(
         CheckState::new(),
         // Initialization
@@ -88,7 +104,12 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
                 .with_origin(file_path.as_os_str().to_str().unwrap());
 
             let mut lines = Vec::new();
-            let mut compiler = yara_x::Compiler::new();
+            let mut compiler = if config.metadata.is_empty() {
+                yara_x::Compiler::new()
+            } else {
+                yara_x::Compiler::new()
+                    .required_metadata(config.metadata.clone())
+            };
 
             compiler.colorize_errors(io::stdout().is_tty());
 

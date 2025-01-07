@@ -1,10 +1,12 @@
 use pretty_assertions::assert_eq;
 use serde_json::json;
+use std::collections::BTreeMap;
 use std::fs;
 use std::io::Write;
 use std::mem::size_of;
 
 use crate::compiler::{SubPattern, VarStack};
+use crate::config::MetaValueType;
 use crate::errors::{SerializationError, VariableError};
 use crate::types::Type;
 use crate::{compile, Compiler, Rules, Scanner, SourceCode};
@@ -953,9 +955,24 @@ fn test_warnings() {
             continue;
         }
 
-        src.push_str(rules.as_str());
+        let mut compiler = if rules.starts_with("// required metadata") {
+            // If it starts with "// required_metadata" set the compiler to require
+            // specific metadata to enduce warnings.
+            Compiler::new().required_metadata(BTreeMap::from([
+                ("some_string".to_string(), MetaValueType::String),
+                ("some_int".to_string(), MetaValueType::Integer),
+                ("some_float".to_string(), MetaValueType::Float),
+                ("some_bool".to_string(), MetaValueType::Bool),
+                ("some_md5".to_string(), MetaValueType::MD5),
+                ("some_sha1".to_string(), MetaValueType::SHA1),
+                ("some_sha256".to_string(), MetaValueType::SHA256),
+                ("some_hash".to_string(), MetaValueType::HASH),
+            ]))
+        } else {
+            Compiler::new()
+        };
 
-        let mut compiler = Compiler::new();
+        src.push_str(rules.as_str());
 
         compiler.ignore_module("unsupported_module");
         compiler.add_source(src.as_str()).unwrap();
