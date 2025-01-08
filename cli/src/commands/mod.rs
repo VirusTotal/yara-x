@@ -23,13 +23,13 @@ use std::io::stdout;
 use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Context};
-use clap::{command, crate_authors, ArgMatches, Command};
+use clap::{arg, command, crate_authors, value_parser, ArgMatches, Command};
 use crossterm::tty::IsTty;
 use superconsole::{Component, Line, Lines, Span, SuperConsole};
 use yansi::Color::Green;
 use yansi::Paint;
 
-use crate::{commands, APP_HELP_TEMPLATE};
+use crate::{commands, help, APP_HELP_TEMPLATE};
 use yara_x::{Compiler, Rules, SourceCode};
 
 use crate::walk::Walker;
@@ -49,6 +49,11 @@ pub fn cli() -> Command {
     command!()
         .author(crate_authors!("\n")) // requires `cargo` feature
         .arg_required_else_help(true)
+        .arg(
+            arg!(-C --config <CONFIG_FILE> "Config file")
+                .value_parser(value_parser!(PathBuf))
+                .long_help(help::CONFIG_FILE),
+        )
         .help_template(APP_HELP_TEMPLATE)
         .subcommands(vec![
             commands::scan(),

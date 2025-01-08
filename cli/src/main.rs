@@ -3,8 +3,9 @@ mod config;
 mod help;
 mod walk;
 
-use config::{load_config_from_file, Config};
+use crate::config::{load_config_from_file, Config};
 use crossterm::tty::IsTty;
+use std::path::PathBuf;
 use std::{io, panic, process};
 use yansi::Color::Red;
 use yansi::Paint;
@@ -40,8 +41,6 @@ fn main() -> anyhow::Result<()> {
         yansi::disable();
     }
 
-    let args = cli().get_matches_from(wild::args());
-
     // Set our custom panic hook that kills the process when some panic
     // occurs in a thread. By default, when a thread panics the main thread
     // and all other threads keep running. We don't want that, we want the
@@ -53,12 +52,18 @@ fn main() -> anyhow::Result<()> {
         process::exit(EXIT_ERROR);
     }));
 
-    let config: Config = match home::home_dir() {
-        Some(home_path) if !home_path.as_os_str().is_empty() => {
-            load_config_from_file(&home_path.join(CONFIG_FILE))
-                .unwrap_or_default()
+    let args = cli().get_matches_from(wild::args());
+    let config_file = args.get_one::<PathBuf>("config");
+
+    let config: Config = if config_file.is_some() {
+        load_config_from_file(config_file.unwrap())?
+    } else {
+        match home::home_dir() {
+            Some(home_path) if !home_path.as_os_str().is_empty() => {
+                load_config_from_file(&home_path.join(crate::CONFIG_FILE))?
+            }
+            _ => Config::default(),
         }
-        _ => Config::default(),
     };
 
     let result = match args.subcommand() {
