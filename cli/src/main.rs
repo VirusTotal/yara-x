@@ -3,10 +3,10 @@ mod config;
 mod help;
 mod walk;
 
-use crate::config::{load_config_from_file, Config};
+use crate::config::{load_config_from_str, Config};
 use crossterm::tty::IsTty;
 use std::path::PathBuf;
-use std::{io, panic, process};
+use std::{fs, io, panic, process};
 use yansi::Color::Red;
 use yansi::Paint;
 
@@ -56,13 +56,41 @@ fn main() -> anyhow::Result<()> {
     let config_file = args.get_one::<PathBuf>("config");
 
     let config: Config = if config_file.is_some() {
-        load_config_from_file(config_file.unwrap())?
+        let config_path = config_file.unwrap();
+        let config_contents = fs::read_to_string(config_path)?;
+        load_config_from_str(config_contents.as_str()).map_err(|e| {
+            figment::Error::from(format!(
+                "Unable to parse {}: {}",
+                config_path.to_string_lossy(),
+                e.to_string(),
+            ))
+        })?
     } else {
         match home::home_dir() {
             Some(home_path) if !home_path.as_os_str().is_empty() => {
-                load_config_from_file(&home_path.join(crate::CONFIG_FILE))?
+                let config_path = home_path.join(crate::CONFIG_FILE);
+                let config_contents = match fs::read_to_string(&config_path) {
+                    // If the default file doesn't exist, just use an empty
+                    // string.
+                    Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                        "".to_string()
+                    }
+                    r => r?,
+                };
+                load_config_from_str(config_contents.as_str()).map_err(
+                    |e| {
+                        figment::Error::from(format!(
+                            "Unable to parse {}: {}",
+                            config_path.to_string_lossy(),
+                            e.to_string(),
+                        ))
+                    },
+                )?
             }
-            _ => Config::default(),
+            _ => {
+                println!("could not find home directory");
+                Config::default()
+            }
         }
     };
 
