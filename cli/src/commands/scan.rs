@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::cmp::min;
-use std::fs::File;
+use std::fs::{canonicalize, File};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
@@ -313,10 +313,25 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
     let rules_ref = &rules;
 
+    // Canonicalize the path to deal with a bug in globwalk.
+    //
+    // https://github.com/VirusTotal/yara-x/issues/280
+    // https://github.com/Gilnaa/globwalk/issues/28
+    //
+    // Note that if the path can not be canonicalized it is because it doesn't
+    // exist, and we are resorting to using the non-canonicalized path, which in
+    // this case is fine because we will get an error before globwalk crashes.
+    // We intentionally do not error out here because we want the nice error
+    // reporting provided later.
+    let canonicalized_path = match canonicalize(target_path) {
+        Ok(p) => p,
+        _ => target_path.to_owned(),
+    };
+
     let mut w = if scan_list {
-        walk::ParWalker::file_list(target_path)
+        walk::ParWalker::file_list(&canonicalized_path)
     } else {
-        walk::ParWalker::path(target_path)
+        walk::ParWalker::path(&canonicalized_path)
     };
 
     if let Some(num_threads) = num_threads {
