@@ -955,10 +955,11 @@ fn test_warnings() {
             continue;
         }
 
-        let mut compiler = if rules.starts_with("// required metadata") {
+        let mut compiler = Compiler::new();
+        if rules.starts_with("// required metadata") {
             // If it starts with "// required_metadata" set the compiler to require
             // specific metadata to enduce warnings.
-            Compiler::new().required_metadata(BTreeMap::from([
+            compiler.required_metadata(BTreeMap::from([
                 ("some_string".to_string(), MetaValueType::String),
                 ("some_int".to_string(), MetaValueType::Integer),
                 ("some_float".to_string(), MetaValueType::Float),
@@ -967,10 +968,12 @@ fn test_warnings() {
                 ("some_sha1".to_string(), MetaValueType::SHA1),
                 ("some_sha256".to_string(), MetaValueType::SHA256),
                 ("some_hash".to_string(), MetaValueType::HASH),
-            ]))
-        } else {
-            Compiler::new()
-        };
+            ]));
+        }
+
+        if rules.starts_with("// rule name regex") {
+            compiler.rule_name_regexp("^AXSERS$");
+        }
 
         src.push_str(rules.as_str());
 

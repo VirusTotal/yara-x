@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::fs;
 use std::path::Path;
 
 use yara_x::config::MetaValueType;
@@ -38,6 +37,9 @@ pub struct CheckConfig {
     // Note: Using a BTreeMap here because we want a consistent ordering when
     // we iterate over it, so that warnings always appear in the same order.
     pub metadata: BTreeMap<String, MetaValueType>,
+
+    /// Regexp used to validate the rule name.
+    pub rule_name_regexp: Option<String>,
 }
 
 /// Rule specific formatting information.
@@ -88,6 +90,7 @@ impl Default for Config {
             },
             check: CheckConfig {
                 metadata: BTreeMap::default(),
+                rule_name_regexp: None,
             },
         }
     }
@@ -99,15 +102,9 @@ impl Default for Config {
 pub fn load_config_from_file(
     config_file: &Path,
 ) -> Result<Config, figment::Error> {
-    let config_contents = fs::read_to_string(config_file).map_err(|e| {
-        figment::Error::from(format!(
-            "Unable to read config file: {}",
-            e.to_string()
-        ))
-    })?;
     let config: Config =
         Figment::from(Serialized::defaults(Config::default()))
-            .merge(Toml::string(config_contents.as_str()))
+            .merge(Toml::file_exact(config_file))
             .extract()?;
     Ok(config)
 }

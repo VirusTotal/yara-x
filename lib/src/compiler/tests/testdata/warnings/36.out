@@ -1,58 +1,58 @@
-warning[incorrect_metadata_type]: incorrect metadata type
+warning[incorrect_metadata_type]: metadata has incorrect type
  --> line:7:7
   |
 7 |       some_bool = 1.0
   |       --------- expected type bool here
   |
-warning[incorrect_metadata_type]: incorrect metadata type
+warning[incorrect_metadata_type]: metadata has incorrect type
  --> line:6:7
   |
 6 |       some_float = 1
   |       ---------- expected type float here
   |
-warning[incorrect_metadata_type]: incorrect metadata type
+warning[incorrect_metadata_type]: metadata has incorrect type
   --> line:11:7
    |
 11 |       some_hash = "4945681964beab33488f12b54780cb7X"
    |       --------- expected type hash (string) here
    |
-warning[incorrect_metadata_type]: incorrect metadata type
+warning[incorrect_metadata_type]: metadata has incorrect type
   --> line:12:7
    |
 12 |       some_hash = "79092f73d240a47dbf927dad8525e18d7a4ef0dX"
    |       --------- expected type hash (string) here
    |
-warning[incorrect_metadata_type]: incorrect metadata type
+warning[incorrect_metadata_type]: metadata has incorrect type
   --> line:13:7
    |
 13 |       some_hash = "692b4f72f7415e5ef4dccd906fa2b2ac9b14fbf1817b5707fef765e0ad98deaX"
    |       --------- expected type hash (string) here
    |
-warning[incorrect_metadata_type]: incorrect metadata type
+warning[incorrect_metadata_type]: metadata has incorrect type
  --> line:5:7
   |
 5 |       some_int = "abc"
   |       -------- expected type int here
   |
-warning[incorrect_metadata_type]: incorrect metadata type
+warning[incorrect_metadata_type]: metadata has incorrect type
  --> line:8:7
   |
 8 |       some_md5 = "4945681964beab33488f12b54780cb7X"
   |       -------- expected type md5 (string) here
   |
-warning[incorrect_metadata_type]: incorrect metadata type
+warning[incorrect_metadata_type]: metadata has incorrect type
  --> line:9:7
   |
 9 |       some_sha1 = "79092f73d240a47dbf927dad8525e18d7a4ef0dX"
   |       --------- expected type sha1 (string) here
   |
-warning[incorrect_metadata_type]: incorrect metadata type
+warning[incorrect_metadata_type]: metadata has incorrect type
   --> line:10:7
    |
 10 |       some_sha256 = "692b4f72f7415e5ef4dccd906fa2b2ac9b14fbf1817b5707fef765e0ad98deaX"
    |       ----------- expected type sha256 (string) here
    |
-warning[incorrect_metadata_type]: incorrect metadata type
+warning[incorrect_metadata_type]: metadata has incorrect type
  --> line:4:7
   |
 4 |       some_string = 1234

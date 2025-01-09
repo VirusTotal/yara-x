@@ -241,6 +241,8 @@ p256 = { workspace = true, optional = true, features = ["ecdsa"] }
 protobuf = { workspace = true }
 quanta = { workspace = true, optional = true }
 rustc-hash = { workspace = true }
+# For linting purposes only!
+regex = { version = "1.11.1" }
 regex-syntax = { workspace = true }
 regex-automata = { workspace = true }
 roxmltree = { workspace = true, optional = true }

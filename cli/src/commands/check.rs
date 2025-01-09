@@ -92,12 +92,16 @@ pub fn exec_check(
                 .with_origin(file_path.as_os_str().to_str().unwrap());
 
             let mut lines = Vec::new();
-            let mut compiler = if config.metadata.is_empty() {
-                yara_x::Compiler::new()
-            } else {
-                yara_x::Compiler::new()
-                    .required_metadata(config.metadata.clone())
-            };
+            let mut compiler = yara_x::Compiler::new();
+            if !config.metadata.is_empty() {
+                compiler.required_metadata(config.metadata.clone());
+            }
+
+            if config.rule_name_regexp.is_some() {
+                compiler.rule_name_regexp(
+                    config.rule_name_regexp.clone().unwrap().as_str(),
+                );
+            }
 
             compiler.colorize_errors(io::stdout().is_tty());
 

@@ -1,0 +1,7 @@
+// rule name regex
+rule test {
+    strings:
+      $a = "AXSERS"
+    condition:
+      $a
+}

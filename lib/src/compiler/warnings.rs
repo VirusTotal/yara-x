@@ -31,6 +31,7 @@ pub enum Warning {
     TextPatternAsHex(Box<TextPatternAsHex>),
     IncorrectMetadataType(Box<IncorrectMetadataType>),
     MissingMetadata(Box<MissingMetadata>),
+    InvalidRuleName(Box<InvalidRuleName>),
 }
 
 /// A hex pattern contains two or more consecutive jumps.
@@ -480,7 +481,7 @@ pub struct TextPatternAsHex {
 #[associated_enum(Warning)]
 #[warning(
     code = "incorrect_metadata_type",
-    title = "incorrect metadata type"
+    title = "metadata has incorrect type"
 )]
 #[label(
     "expected type {expected} here",
@@ -509,7 +510,7 @@ pub struct IncorrectMetadataType {
 #[associated_enum(Warning)]
 #[warning(
     code = "missing_metadata",
-    title = "missing metadata"
+    title = "required metadata missing"
 )]
 #[label(
     "required metadata \"{name}\" ({expected_type}) not found",
@@ -520,4 +521,32 @@ pub struct MissingMetadata {
     rule_loc: CodeLoc,
     name: String,
     expected_type: String,
+}
+
+/// Rule name does not match regex. This is only used if the compiler is
+/// configured to check for it (see: [`crate::Compiler::rule_name_regexp`]).
+///
+/// ## Example
+///
+/// ```text
+/// warning[invalid_rule_name]: rule name does not meet requirements
+///  --> rules/test2.yara:13:6
+///    |
+/// 13 | rule pants {
+///    |      ----- name does not meet requirements
+///    |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "invalid_rule_name",
+    title = "rule name does not meet requirements"
+)]
+#[label(
+    "name does not meet requirements",
+   rule_loc
+)]
+pub struct InvalidRuleName {
+    report: Report,
+    rule_loc: CodeLoc,
 }

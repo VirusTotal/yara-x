@@ -4488,6 +4488,7 @@ dependencies = [
  "protobuf-parse",
  "quanta",
  "rayon",
+ "regex",
  "regex-automata",
  "regex-syntax 0.8.5",
  "roxmltree",

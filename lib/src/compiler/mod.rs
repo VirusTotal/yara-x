@@ -22,6 +22,7 @@ use itertools::{izip, Itertools, MinMaxResult};
 #[cfg(feature = "logging")]
 use log::*;
 use nom::AsChar;
+use regex::Regex;
 use regex_syntax::hir;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -396,6 +397,9 @@ pub struct Compiler<'a> {
 
     /// Required metadata and the corresponding type.
     required_metadata: BTreeMap<String, MetaValueType>,
+
+    /// Regexp used to validate names of rules.
+    rule_name_regexp: Option<Regex>,
 }
 
 impl<'a> Compiler<'a> {
@@ -484,16 +488,32 @@ impl<'a> Compiler<'a> {
             patterns: FxHashMap::default(),
             ir_writer: None,
             required_metadata: BTreeMap::new(),
+            rule_name_regexp: None,
         }
     }
 
     /// Required metadata and the corresponding type. Failure to meet these
-    /// requirements are compiler errors.
+    /// requirements are compiler warnings.
     pub fn required_metadata(
-        mut self,
+        &mut self,
         metadata: BTreeMap<String, MetaValueType>,
-    ) -> Self {
+    ) -> &mut Self {
         self.required_metadata = metadata;
+        self
+    }
+
+    /// Regexp used to validate the rule name.
+    pub fn rule_name_regexp(&mut self, regexp_string: &str) -> &mut Self {
+        // The documentation says the default is an empty string, which is not
+        // true (but it is easier for users to understand). The actual default
+        // is None. Because users might stick an empty string in there if they
+        // don't want to use this feature (instead of just removing it from the
+        // config file), check for the empty string here.
+        if !regexp_string.is_empty() {
+            let re = Regex::new(regexp_string)
+                .expect("Unable to parse rule name regular expression");
+            self.rule_name_regexp = Some(re);
+        }
         self
     }
 
@@ -1369,6 +1389,22 @@ impl<'a> Compiler<'a> {
 
         if !self.required_metadata.is_empty() {
             self.check_required_metadata(rule);
+        }
+
+        if self.rule_name_regexp.is_some() {
+            if !self
+                .rule_name_regexp
+                .as_ref()
+                .unwrap()
+                .is_match(rule.identifier.name)
+            {
+                self.warnings.add(|| {
+                    warnings::InvalidRuleName::build(
+                        &self.report_builder,
+                        rule.identifier.span().into(),
+                    )
+                });
+            }
         }
 
         let tags: Vec<IdentId> = rule

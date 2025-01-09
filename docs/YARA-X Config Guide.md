@@ -18,6 +18,8 @@ updated as more are added.
 ```toml
 # Config file for YARA-X.
 
+# Any options that are omitted from your config file will use the default value.
+
 # Any options that are not valid are ignored. However, valid keys with an
 # invalid type will cause a parsing error. For example, if you set
 # rule.indent_spaces to false, it will result in a parsing error.
@@ -171,11 +173,20 @@ patterns.align_values = true
 # For example, to require that every rule have a metadata field named "sample"
 # and that the type of that field be an md5, sha1 or sha256 string use this:
 #
-# metadata = { "sample" = "hash" }
+# metadata = { sample = "hash" }
 #
 # NOTE: Inline tables must be expressed as a single line and no trailing comma
 # is allowed.
 #
 # The default value is an empty table.
 metadata = {}
+
+# A regular expression which must match rule names. For example, if you require
+# that every rule start with a "category" description followed by an underscore
+# you could use something like this:
+#
+# rule_name_regexp = "^(APT|CRIME)_"
+#
+# The default is no regular expression.
+rule_name_regexp = ""
 ```
