@@ -161,7 +161,7 @@ patterns.align_values = true
 # string, and that there needs to be a date field and the value must be an
 # integer use this:
 #
-# meta = { author = "string", date = "int" }
+# metadata = { author = "string", date = "int" }
 #
 # The "md5", "sha1" and "sha256" types are convenience types that check for a
 # string that is the correct length and only contains valid hexadecimal digits.
