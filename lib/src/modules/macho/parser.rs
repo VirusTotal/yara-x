@@ -1692,50 +1692,46 @@ fn convert_to_source_version_string(decimal_number: u64) -> String {
     format!("{}.{}.{}.{}.{}", a, b, c, d, e)
 }
 
-/// Parses CMS certificates from a BER-encoded blob that are embedded in the Mach-O binary.
+/// Parses CMS certificates from a BER-encoded blob that are embedded in the
+/// Mach-O binary.
 fn parse_certificates(
     ber_blob: &[u8],
 ) -> Result<(&[u8], Vec<Certificate>), Err<der_parser::error::Error>> {
     parse_ber_sequence_defined_g(|ber_blob: &[u8], _| {
         let (remainder, _content_type) = parse_ber_oid(ber_blob)?;
 
-        let (remainder, certs) =
-            parse_ber_tagged_explicit_g(0, |content, _| {
-                parse_ber_sequence_defined_g(|content: &[u8], _| {
-                    let (remainder, _cms_verison) =
-                        parse_ber_integer(content)?;
+        parse_ber_tagged_explicit_g(0, |content, _| {
+            parse_ber_sequence_defined_g(|content: &[u8], _| {
+                let (remainder, _cms_version) = parse_ber_integer(content)?;
 
-                    let (remainder, _digest_algorithms) =
-                        parse_digest_algorithms(remainder)?;
+                let (remainder, _digest_algorithms) =
+                    parse_digest_algorithms(remainder)?;
 
-                    let (remainder, _content_info) =
-                        parse_content_info(remainder)?;
+                let (remainder, _content_info) =
+                    parse_content_info(remainder)?;
 
-                    let (remainder, certificates) = OptTaggedParser::from(0)
-                        .parse_ber(
-                            remainder,
-                            |_, raw_certs| -> ParseResult<'_, Vec<_>> {
-                                Ok(SignedData::parse_certificates(raw_certs))
-                            },
-                        )
-                        .map_err(|_| BerValueError)?;
+                let (remainder, certificates) = OptTaggedParser::from(0)
+                    .parse_ber(
+                        remainder,
+                        |_, raw_certs| -> ParseResult<'_, Vec<_>> {
+                            Ok(SignedData::parse_certificates(raw_certs))
+                        },
+                    )
+                    .map_err(|_| BerValueError)?;
 
-                    let mut certs = Vec::new();
+                let certs: Vec<Certificate> = certificates
+                    .iter()
+                    .flatten()
+                    .map(|c| Certificate {
+                        issuer: c.x509.issuer.to_string(),
+                        subject: c.x509.subject.to_string(),
+                        is_self_signed: c.x509.issuer == c.x509.subject,
+                    })
+                    .collect();
 
-                    if let Some(certificates) = certificates {
-                        certificates.iter().for_each(|c| {
-                            certs.push(Certificate {
-                                issuer: c.x509.issuer.to_string(),
-                                subject: c.x509.subject.to_string(),
-                                is_self_signed: c.x509.issuer
-                                    == c.x509.subject,
-                            });
-                        });
-                    }
-                    Ok((remainder, certs))
-                })(content)
-            })(remainder)?;
-        Ok((remainder, certs))
+                Ok((remainder, certs))
+            })(content)
+        })(remainder)
     })(ber_blob)
 }
 
