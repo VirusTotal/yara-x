@@ -1719,7 +1719,7 @@ fn parse_certificates(
                     )
                     .map_err(|_| BerValueError)?;
 
-                let certs: Vec<Certificate> = certificates
+                let certificates: Vec<Certificate> = certificates
                     .iter()
                     .flatten()
                     .map(|c| Certificate {
@@ -1729,7 +1729,7 @@ fn parse_certificates(
                     })
                     .collect();
 
-                Ok((remainder, certs))
+                Ok((remainder, certificates))
             })(content)
         })(remainder)
     })(ber_blob)
