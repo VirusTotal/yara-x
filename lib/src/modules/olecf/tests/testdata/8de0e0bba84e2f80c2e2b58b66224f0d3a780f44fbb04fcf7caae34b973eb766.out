@@ -1,0 +1,16 @@
+olecf:
+    is_olecf: true
+    stream_names:
+      - "CompObj"
+      - "1Table"
+      - "SummaryInformation"
+      - "Root Entry"
+      - "WordDocument"
+      - "DocumentSummaryInformation"
+    stream_sizes:
+      - 114
+      - 7273
+      - 4096
+      - 128
+      - 4096
+      - 4096
