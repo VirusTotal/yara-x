@@ -247,14 +247,24 @@ impl<'a> OLECFParser<'a> {
 
         let mut current = start_sector;
         while current < MAX_REGULAR_SECTOR {
+            // Prevent cycles by keeping track of visited sectors
+            if chain.contains(&current) {
+                // We've seen this sector before - it's a cycle
+                break;
+            }
+            
             chain.push(current);
+            
             let next = match self.get_fat_entry(current) {
                 Ok(n) => n,
                 Err(_) => break,
             };
+            
+            // Check validity of next sector
             if next >= MAX_REGULAR_SECTOR || next == FREESECT || next == ENDOFCHAIN {
                 break;
             }
+            
             current = next;
         }
         chain
