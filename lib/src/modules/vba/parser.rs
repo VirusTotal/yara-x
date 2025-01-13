@@ -109,8 +109,7 @@ impl VbaProject {
                         let length = (copy_token & length_mask) + 3;
                         let temp1 = copy_token & offset_mask;
                         let temp2 = 16 - bit_count;
-                        let offset = u16::try_from((temp1 >> temp2) + 1)
-                            .map_err(|_| "Offset calculation overflow")?;
+                        let offset = (temp1 >> temp2) + 1;
     
                         if offset as usize > decompressed.len() {
                             return Err("Invalid copy token offset");
@@ -143,7 +142,7 @@ impl VbaProject {
             .map_err(|_nom_err| "Failed to parse u32")
     }
 
-    fn parse_bytes<'a>(input: &'a [u8], len: usize) -> Result<(&'a [u8], &'a [u8]), &'static str> {
+    fn parse_bytes(input: &[u8], len: usize) -> Result<(&[u8], &[u8]), &'static str> {
         if input.len() < len {
             Err("Not enough bytes to parse the requested slice")
         } else {
@@ -214,7 +213,7 @@ impl VbaProject {
         }
         let (rest, name_size) = Self::parse_u32(_input)?; _input = rest;
         let name_size = name_size as usize;
-        if name_size < 1 || name_size > 128 {
+        if !(1..=128).contains(&name_size) {
             return Err("Project name not in valid range");
         }
         let (rest, name_bytes) = Self::parse_bytes(rest, name_size)?; 

@@ -25,21 +25,18 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Olecf {
             olecf.is_olecf = Some(is_valid);
             
             // Get stream names and sizes
-            match parser.get_stream_names() {
-                Ok(names) => {                    
-                    // Get sizes for each stream
-                    olecf.stream_sizes = names.iter()
-                        .filter_map(|name| {
-                            parser.get_stream_size(name)
-                                .ok()
-                                .map(|size| size as i64)
-                        })
-                        .collect();
-                        
-                    // Assign names last after we're done using them
-                    olecf.stream_names = names;
-                },
-                Err(_) => (),
+            if let Ok(names) = parser.get_stream_names() {                    
+                // Get sizes for each stream
+                olecf.stream_sizes = names.iter()
+                    .filter_map(|name| {
+                        parser.get_stream_size(name)
+                            .ok()
+                            .map(|size| size as i64)
+                    })
+                    .collect();
+                    
+                // Assign names last after we're done using them
+                olecf.stream_names = names;
             }
             
             olecf

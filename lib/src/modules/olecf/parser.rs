@@ -163,20 +163,17 @@ impl<'a> OLECFParser<'a> {
                 if abs_offset + DIRECTORY_ENTRY_SIZE as usize > self.data.len() {
                     break;
                 }
-                match self.read_directory_entry(abs_offset) {
-                    Ok(entry) => {
-                        if entry.stream_type == ROOT_STORAGE_TYPE {
-                            self.mini_stream_start = entry.start_sector;
-                            self.mini_stream_size = entry.size;
-                        }
-                        if entry.stream_type == STORAGE_TYPE
-                            || entry.stream_type == STREAM_TYPE
-                            || entry.stream_type == ROOT_STORAGE_TYPE
-                        {
-                            self.dir_entries.insert(entry.name.clone(), entry);
-                        }
+                if let Ok(entry) = self.read_directory_entry(abs_offset) {
+                    if entry.stream_type == ROOT_STORAGE_TYPE {
+                        self.mini_stream_start = entry.start_sector;
+                        self.mini_stream_size = entry.size;
                     }
-                    Err(_) => {}
+                    if entry.stream_type == STORAGE_TYPE
+                        || entry.stream_type == STREAM_TYPE
+                        || entry.stream_type == ROOT_STORAGE_TYPE
+                    {
+                        self.dir_entries.insert(entry.name.clone(), entry);
+                    }
                 }
                 entry_offset += DIRECTORY_ENTRY_SIZE as usize;
             }
@@ -276,7 +273,7 @@ impl<'a> OLECFParser<'a> {
         }
 
         let name_len = parse_u16_at(self.data, offset + 64)? as usize;
-        if name_len < 2 || name_len > 64 {
+        if !(2..=64).contains(&name_len) {
             return Err("Invalid name length");
         }
 

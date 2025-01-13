@@ -48,6 +48,12 @@ test = false
 doc = false
 
 [[bin]]
+name = "vba_parser"
+path = "fuzz_targets/vba_parser.rs"
+test = false
+doc = false
+
+[[bin]]
 name = "rule_compiler"
 path = "fuzz_targets/rule_compiler.rs"
 test = false
