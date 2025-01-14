@@ -23,6 +23,7 @@ use itertools::{izip, Itertools, MinMaxResult};
 use log::*;
 use nom::AsChar;
 use regex::Regex;
+use regex::Error as RegexError;
 use regex_syntax::hir;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -503,18 +504,20 @@ impl<'a> Compiler<'a> {
     }
 
     /// Regexp used to validate the rule name.
-    pub fn rule_name_regexp(&mut self, regexp_string: &str) -> &mut Self {
+    pub fn rule_name_regexp(
+        &mut self,
+        regexp_string: &str,
+    ) -> Result<&mut Self, RegexError> {
         // The documentation says the default is an empty string, which is not
         // true (but it is easier for users to understand). The actual default
         // is None. Because users might stick an empty string in there if they
         // don't want to use this feature (instead of just removing it from the
         // config file), check for the empty string here.
         if !regexp_string.is_empty() {
-            let re = Regex::new(regexp_string)
-                .expect("Unable to parse rule name regular expression");
+            let re = Regex::new(regexp_string)?;
             self.rule_name_regexp = Some(re);
         }
-        self
+        Ok(self)
     }
 
     /// Adds some YARA source code to be compiled.

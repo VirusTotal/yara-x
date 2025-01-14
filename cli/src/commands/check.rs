@@ -100,7 +100,7 @@ pub fn exec_check(
             if config.rule_name_regexp.is_some() {
                 compiler.rule_name_regexp(
                     config.rule_name_regexp.clone().unwrap().as_str(),
-                );
+                )?;
             }
 
             compiler.colorize_errors(io::stdout().is_tty());

@@ -15,11 +15,13 @@ matches = rules.scan(b'some dummy data')
 
 #![deny(missing_docs)]
 
+use std::collections::BTreeMap;
 use std::marker::PhantomPinned;
 use std::mem;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::pin::Pin;
+use std::str::FromStr;
 use std::time::Duration;
 
 use protobuf_json_mapping::print_to_string as proto_to_json;
@@ -91,6 +93,54 @@ impl Compiler {
             relaxed_re_syntax,
             error_on_slow_pattern,
         }
+    }
+
+    /// Specify required metadata during compilation. Any rule which does not
+    /// meet the required specifications will result in a warning.
+    ///
+    /// The metadata argument must be a dictionary where the keys are the
+    /// required metadata identifiers and the value is a string which is the
+    /// required type for the metadata value.
+    ///
+    /// See the ["check" section](https://virustotal.github.io/yara-x/docs/cli/config-file/)
+    /// of the config file guide for acceptable value types. Any invalid types
+    /// will result in a ValueError being raised.
+    #[pyo3(signature = (metadata))]
+    fn required_metadata(
+        &mut self,
+        metadata: BTreeMap<String, String>,
+    ) -> PyResult<()> {
+        let mut converted_metadata: BTreeMap<
+            String,
+            yrx::config::MetaValueType,
+        > = BTreeMap::new();
+        for (k, v) in metadata.iter() {
+            converted_metadata.insert(
+                k.to_string(),
+                yrx::config::MetaValueType::from_str(v).map_err(|err| {
+                    PyValueError::new_err(format!(
+                        "Incorrect value \"{}\": {}",
+                        v,
+                        err.to_string()
+                    ))
+                })?,
+            );
+        }
+        self.inner.required_metadata(converted_metadata);
+        Ok(())
+    }
+
+    /// Specify a regular expression that the compiler will enforce upon each
+    /// rule name. Any rule which has a name which does not match this regex
+    /// will return an InvalidRuleName warning.
+    ///
+    /// If the regexp does not compile a ValueError is returned.
+    #[pyo3(signature = (regexp_str))]
+    fn rule_name_regexp(&mut self, regexp_str: &str) -> PyResult<()> {
+        self.inner
+            .rule_name_regexp(regexp_str)
+            .map_err(|err| PyValueError::new_err(err.to_string()))?;
+        Ok(())
     }
 
     /// Adds a YARA source code to be compiled.

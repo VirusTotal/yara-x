@@ -923,6 +923,12 @@ fn test_errors() {
 }
 
 #[test]
+fn test_invalid_rule_name_regex() {
+    // Make sure invalid regex result in Err.
+    assert!(Compiler::new().rule_name_regexp("(AXS|ERS").is_err());
+}
+
+#[test]
 fn test_warnings() {
     let mut mint = goldenfile::Mint::new(".");
 
@@ -972,7 +978,7 @@ fn test_warnings() {
         }
 
         if rules.starts_with("// rule name regex") {
-            compiler.rule_name_regexp("^AXSERS$");
+            compiler.rule_name_regexp("^AXSERS$").unwrap();
         }
 
         src.push_str(rules.as_str());
