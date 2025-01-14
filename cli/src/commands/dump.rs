@@ -21,7 +21,7 @@ enum SupportedModules {
     Pe,
     Dotnet,
     Olecf,
-    Vba
+    Vba,
 }
 
 #[derive(Debug, Clone, ValueEnum)]

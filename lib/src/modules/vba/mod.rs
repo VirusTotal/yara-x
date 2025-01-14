@@ -27,8 +27,7 @@ impl<'a> VbaExtractor<'a> {
     }
 
     fn is_zip(&self) -> bool {
-        let result = self.data.starts_with(&[0x50, 0x4B, 0x03, 0x04]);
-        result
+        self.data.starts_with(&[0x50, 0x4B, 0x03, 0x04])
     }
 
     fn read_stream(&self, ole_parser: &crate::modules::olecf::parser::OLECFParser, name: &str) -> Result<Vec<u8>, &'static str> {
@@ -45,7 +44,7 @@ impl<'a> VbaExtractor<'a> {
     }
 
     fn extract_from_ole(&self) -> Result<VbaProject, &'static str> {
-        let ole_parser = crate::modules::olecf::parser::OLECFParser::new(&self.data)?;
+        let ole_parser = crate::modules::olecf::parser::OLECFParser::new(self.data)?;
         let stream_names = ole_parser.get_stream_names()?;
     
         let mut vba_dir = None;
@@ -54,11 +53,8 @@ impl<'a> VbaExtractor<'a> {
     
         // First process the dir stream
         if let Some(dir_name) = stream_names.iter().find(|n| n.to_lowercase().trim() == "dir") {
-            match self.read_stream(&ole_parser, dir_name) {
-                Ok(data) => {
-                    vba_dir = Some(data);
-                },
-                Err(_) => (),
+            if let Ok(data) = self.read_stream(&ole_parser, dir_name) {
+                vba_dir = Some(data);
             }
         }
     
@@ -125,13 +121,10 @@ impl<'a> VbaExtractor<'a> {
                         let _stream_size = ole_parser.get_stream_size(stream_name)?;
 
                         if stream_name.starts_with("dir") {
-                            match self.read_stream(&ole_parser, stream_name) {
-                                Ok(data) => {
-                                    if !data.is_empty() {
-                                        vba_dir = Some(data);
-                                    }
-                                },
-                                Err(_) => (),
+                            if let Ok(data) = self.read_stream(&ole_parser, stream_name) {
+                                if !data.is_empty() {
+                                    vba_dir = Some(data);
+                                }
                             }
                         }
                     }
@@ -178,7 +171,7 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Vba {
             let mut project_info = ProjectInfo::new();
             project_info.name = Some(project.info.name.clone());
             project_info.version = Some(project.info.version.clone());
-            project_info.references = project.info.references.clone();
+            project_info.references.clone_from(&project.info.references);
             
             // Add metadata
             let module_count = project.modules.len() as i32;
