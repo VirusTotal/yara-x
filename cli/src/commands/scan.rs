@@ -985,7 +985,7 @@ mod output_handler {
     }
 
     #[derive(serde::Serialize, Clone)]
-    struct HitJson {
+    struct MatchJson {
         rule: String,
         file: String,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -999,12 +999,12 @@ mod output_handler {
     #[derive(serde::Serialize)]
     struct OutputJson {
         version: String,
-        hits: Vec<HitJson>,
+        matches: Vec<MatchJson>,
     }
 
     pub(super) struct JsonOutputHandler {
         output_options: OutputOptions,
-        output_buffer: std::sync::Arc<std::sync::Mutex<Vec<HitJson>>>,
+        output_buffer: std::sync::Arc<std::sync::Mutex<Vec<MatchJson>>>,
     }
 
     impl JsonOutputHandler {
@@ -1080,7 +1080,7 @@ mod output_handler {
                 .unwrap_or_default();
 
             // prepare the increment *outside* the critical section
-            let hits = scan_results
+            let matches = scan_results
                 .filter(|rule| {
                     self.output_options.only_tag.as_ref().map_or(
                         true,
@@ -1121,7 +1121,7 @@ mod output_handler {
                         },
                     );
 
-                    HitJson {
+                    MatchJson {
                         rule: rule.identifier().to_string(),
                         meta,
                         file,
@@ -1132,12 +1132,12 @@ mod output_handler {
 
             {
                 let mut lock = self.output_buffer.lock().unwrap();
-                lock.extend(hits);
+                lock.extend(matches);
             }
         }
 
         fn on_done(&self, output: &Sender<Message>) {
-            let hits = {
+            let matches = {
                 let mut lock = self.output_buffer.lock().unwrap();
                 std::mem::take(&mut *lock)
             };
@@ -1145,7 +1145,7 @@ mod output_handler {
 
             let rendered_json = match self.output_options.count_only {
                 true => {
-                    let json_output = hits
+                    let json_output = matches
                         .iter()
                         .fold(HashMap::new(), |mut acc, it| {
                             *acc.entry(&it.file).or_insert(0) += 1;
@@ -1158,7 +1158,7 @@ mod output_handler {
                     serde_json::to_string_pretty(&json_output)
                 }
                 false => {
-                    let output_json = OutputJson { hits, version };
+                    let output_json = OutputJson { matches, version };
 
                     serde_json::to_string_pretty(&output_json)
                 }
