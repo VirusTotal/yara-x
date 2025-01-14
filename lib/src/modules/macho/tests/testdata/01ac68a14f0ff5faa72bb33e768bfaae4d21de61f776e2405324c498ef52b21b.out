@@ -450,6 +450,16 @@ dyld_info:
     lazy_bind_size: 2464
     export_off: 31816
     export_size: 2448
+certificates:
+  - issuer: "C=US, O=Apple Inc., OU=Apple Certification Authority, CN=Apple Root CA"
+    subject: "CN=Developer ID Certification Authority, OU=Apple Certification Authority, O=Apple Inc., C=US"
+    is_self_signed: false
+  - issuer: "C=US, O=Apple Inc., OU=Apple Certification Authority, CN=Apple Root CA"
+    subject: "C=US, O=Apple Inc., OU=Apple Certification Authority, CN=Apple Root CA"
+    is_self_signed: true
+  - issuer: "CN=Developer ID Certification Authority, OU=Apple Certification Authority, O=Apple Inc., C=US"
+    subject: "uid=82PCFB3NFC, CN=Developer ID Application: EFI Inc (82PCFB3NFC), OU=82PCFB3NFC, O=EFI Inc, C=US"
+    is_self_signed: false
 uuid: "B23FC3D5-BDF8-3056-930A-C93E0F547B78"
 min_version:
     device: MACOSX

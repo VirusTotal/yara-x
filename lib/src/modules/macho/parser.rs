@@ -1,5 +1,13 @@
 use crate::modules::protos;
+use crate::modules::utils::asn1::SignedData;
 use bstr::{BStr, ByteSlice};
+use der_parser::asn1_rs::{FromBer, OptTaggedParser, ParseResult};
+use der_parser::ber::{
+    parse_ber_integer, parse_ber_oid, parse_ber_sequence,
+    parse_ber_sequence_defined_g, parse_ber_set_of_v,
+    parse_ber_tagged_explicit_g, BerObject,
+};
+use der_parser::error::Error::BerValueError;
 use itertools::Itertools;
 #[cfg(feature = "logging")]
 use log::error;
@@ -13,6 +21,7 @@ use nom::sequence::tuple;
 use nom::{Err, IResult, Parser};
 use protobuf::MessageField;
 use std::collections::HashSet;
+use x509_parser::x509::AlgorithmIdentifier;
 
 type Error<'a> = nom::error::Error<&'a [u8]>;
 
@@ -34,7 +43,7 @@ const _CS_MAGIC_REQUIREMENTS: u32 = 0xfade0c01;
 const _CS_MAGIC_CODEDIRECTORY: u32 = 0xfade0c02;
 const _CS_MAGIC_EMBEDDED_SIGNATURE: u32 = 0xfade0cc0;
 const _CS_MAGIC_DETACHED_SIGNATURE: u32 = 0xfade0cc1;
-const _CS_MAGIC_BLOBWRAPPER: u32 = 0xfade0b01;
+const CS_MAGIC_BLOBWRAPPER: u32 = 0xfade0b01;
 const CS_MAGIC_EMBEDDED_ENTITLEMENTS: u32 = 0xfade7171;
 
 /// Mach-O export flag constants
@@ -293,7 +302,7 @@ impl<'a> MachO<'a> {
             stack_size: None,
             code_signature_data: None,
             entitlements: Vec::new(),
-            certificates: None,
+            certificates: Vec::new(),
             uuid: None,
             build_version: None,
             min_version: None,
@@ -421,7 +430,7 @@ pub struct MachOFile<'a> {
     uuid: Option<&'a [u8]>,
     code_signature_data: Option<LinkedItData>,
     entitlements: Vec<String>,
-    certificates: Option<Certificates>,
+    certificates: Vec<Certificate>,
     build_version: Option<BuildVersionCommand>,
     min_version: Option<MinVersion>,
     exports: Vec<String>,
@@ -882,48 +891,64 @@ impl<'a> MachOFile<'a> {
             for (offset, blob) in blobs {
                 let length = blob.length as usize;
                 let size_of_blob = std::mem::size_of::<CSBlob>();
-                if blob.magic == CS_MAGIC_EMBEDDED_ENTITLEMENTS {
-                    let xml_data = match super_data
-                        .get(offset + size_of_blob..offset + length)
-                    {
-                        Some(data) => data,
-                        None => continue,
-                    };
+                match blob.magic {
+                    CS_MAGIC_EMBEDDED_ENTITLEMENTS => {
+                        let xml_data = match super_data
+                            .get(offset + size_of_blob..offset + length)
+                        {
+                            Some(data) => data,
+                            None => continue,
+                        };
 
-                    let xml_string =
-                        std::str::from_utf8(xml_data).unwrap_or_default();
+                        let xml_string =
+                            std::str::from_utf8(xml_data).unwrap_or_default();
 
-                    let opt = roxmltree::ParsingOptions {
-                        allow_dtd: true,
-                        ..roxmltree::ParsingOptions::default()
-                    };
+                        let opt = roxmltree::ParsingOptions {
+                            allow_dtd: true,
+                            ..roxmltree::ParsingOptions::default()
+                        };
 
-                    if let Ok(parsed_xml) =
-                        roxmltree::Document::parse_with_options(
-                            xml_string, opt,
-                        )
-                    {
-                        for node in parsed_xml.descendants().filter(|n| {
-                            n.has_tag_name("key") || n.has_tag_name("array")
-                        }) {
-                            if let Some(entitlement) = node.text() {
-                                if node.has_tag_name("array") {
-                                    node.descendants()
-                                        .filter_map(|n| n.text())
-                                        .filter(|t| !t.trim().is_empty())
-                                        .unique()
-                                        .map(|t| t.to_string())
-                                        .for_each(|array_entitlement| {
-                                            self.entitlements
-                                                .push(array_entitlement)
-                                        });
-                                } else {
-                                    self.entitlements
-                                        .push(entitlement.to_string());
+                        if let Ok(parsed_xml) =
+                            roxmltree::Document::parse_with_options(
+                                xml_string, opt,
+                            )
+                        {
+                            for node in parsed_xml.descendants().filter(|n| {
+                                n.has_tag_name("key")
+                                    || n.has_tag_name("array")
+                            }) {
+                                if let Some(entitlement) = node.text() {
+                                    if node.has_tag_name("array") {
+                                        node.descendants()
+                                            .filter_map(|n| n.text())
+                                            .filter(|t| !t.trim().is_empty())
+                                            .unique()
+                                            .map(|t| t.to_string())
+                                            .for_each(|array_entitlement| {
+                                                self.entitlements
+                                                    .push(array_entitlement)
+                                            });
+                                    } else {
+                                        self.entitlements
+                                            .push(entitlement.to_string());
+                                    }
                                 }
                             }
                         }
                     }
+                    CS_MAGIC_BLOBWRAPPER => {
+                        if let Some(ber_blob) = super_data.get(
+                            offset + size_of_blob
+                                ..offset.saturating_add(length),
+                        ) {
+                            if let Ok((_remainder, certs)) =
+                                parse_certificates(ber_blob)
+                            {
+                                self.certificates.extend(certs);
+                            }
+                        }
+                    }
+                    _ => {}
                 }
             }
 
@@ -1456,9 +1481,11 @@ struct Dylib<'a> {
     compatibility_version: u32,
 }
 
-struct Certificates {
-    common_names: Vec<String>,
-    signer_names: Vec<String>,
+#[derive(Default)]
+struct Certificate {
+    issuer: String,
+    subject: String,
+    is_self_signed: bool,
 }
 
 struct CSBlob {
@@ -1665,6 +1692,68 @@ fn convert_to_source_version_string(decimal_number: u64) -> String {
     format!("{}.{}.{}.{}.{}", a, b, c, d, e)
 }
 
+/// Parses CMS certificates from a BER-encoded blob that are embedded in the
+/// Mach-O binary.
+fn parse_certificates(
+    ber_blob: &[u8],
+) -> Result<(&[u8], Vec<Certificate>), Err<der_parser::error::Error>> {
+    parse_ber_sequence_defined_g(|ber_blob: &[u8], _| {
+        let (remainder, _content_type) = parse_ber_oid(ber_blob)?;
+
+        parse_ber_tagged_explicit_g(0, |content, _| {
+            parse_ber_sequence_defined_g(|content: &[u8], _| {
+                let (remainder, _cms_version) = parse_ber_integer(content)?;
+
+                let (remainder, _digest_algorithms) =
+                    parse_digest_algorithms(remainder)?;
+
+                let (remainder, _content_info) =
+                    parse_content_info(remainder)?;
+
+                let (remainder, certificates) = OptTaggedParser::from(0)
+                    .parse_ber(
+                        remainder,
+                        |_, raw_certs| -> ParseResult<'_, Vec<_>> {
+                            Ok(SignedData::parse_certificates(raw_certs))
+                        },
+                    )
+                    .map_err(|_| BerValueError)?;
+
+                let certificates: Vec<Certificate> = certificates
+                    .iter()
+                    .flatten()
+                    .map(|c| Certificate {
+                        issuer: c.x509.issuer.to_string(),
+                        subject: c.x509.subject.to_string(),
+                        is_self_signed: c.x509.issuer == c.x509.subject,
+                    })
+                    .collect();
+
+                Ok((remainder, certificates))
+            })(content)
+        })(remainder)
+    })(ber_blob)
+}
+
+/// Parses a BER-encoded sequence of AlgorithmIdentifiers.
+fn parse_digest_algorithms(
+    remainder: &[u8],
+) -> Result<(&[u8], Vec<AlgorithmIdentifier<'_>>), Err<der_parser::error::Error>>
+{
+    let (remainder, digest_algorithms) =
+        parse_ber_set_of_v(AlgorithmIdentifier::from_ber)(remainder)
+            .map_err(|_| BerValueError)?;
+    Ok((remainder, digest_algorithms))
+}
+
+/// Parses a BER-encoded sequence of ContentInfo objects.
+fn parse_content_info(
+    remainder: &[u8],
+) -> Result<(&[u8], BerObject<'_>), Err<der_parser::error::Error>> {
+    let (remainder, _content) = parse_ber_sequence(remainder)?;
+    Ok((remainder, _content))
+}
+
 impl From<MachO<'_>> for protos::macho::Macho {
     fn from(macho: MachO<'_>) -> Self {
         let mut result = protos::macho::Macho::new();
@@ -1698,10 +1787,6 @@ impl From<MachO<'_>> for protos::macho::Macho {
             if let Some(cs_data) = &m.code_signature_data {
                 result.code_signature_data =
                     MessageField::some(cs_data.into());
-            }
-
-            if let Some(cert_data) = &m.certificates {
-                result.certificates = MessageField::some(cert_data.into());
             }
 
             if let Some(dyld_info) = &m.dyld_info {
@@ -1742,6 +1827,9 @@ impl From<MachO<'_>> for protos::macho::Macho {
             result.entitlements.extend(m.entitlements.clone());
             result.exports.extend(m.exports.clone());
             result.imports.extend(m.imports.clone());
+            result
+                .certificates
+                .extend(m.certificates.iter().map(|cert| cert.into()));
 
             result
                 .set_number_of_segments(m.segments.len().try_into().unwrap());
@@ -1787,10 +1875,6 @@ impl From<&MachOFile<'_>> for protos::macho::File {
             result.code_signature_data = MessageField::some(cs_data.into());
         }
 
-        if let Some(cert_data) = &macho.certificates {
-            result.certificates = MessageField::some(cert_data.into());
-        }
-
         if let Some(dyld_info) = &macho.dyld_info {
             result.dyld_info = MessageField::some(dyld_info.into());
         };
@@ -1827,6 +1911,9 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         result.entitlements.extend(macho.entitlements.clone());
         result.exports.extend(macho.exports.clone());
         result.imports.extend(macho.imports.clone());
+        result
+            .certificates
+            .extend(macho.certificates.iter().map(|cert| cert.into()));
 
         result
             .linker_options
@@ -1949,11 +2036,12 @@ impl From<&LinkedItData> for protos::macho::LinkedItData {
     }
 }
 
-impl From<&Certificates> for protos::macho::Certificates {
-    fn from(cert: &Certificates) -> Self {
-        let mut result = protos::macho::Certificates::new();
-        result.common_names.extend(cert.common_names.clone());
-        result.signer_names.extend(cert.signer_names.clone());
+impl From<&Certificate> for protos::macho::Certificate {
+    fn from(cert: &Certificate) -> Self {
+        let mut result = protos::macho::Certificate::new();
+        result.set_issuer(cert.issuer.clone());
+        result.set_subject(cert.subject.clone());
+        result.set_is_self_signed(cert.is_self_signed);
         result
     }
 }
