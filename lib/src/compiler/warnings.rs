@@ -1,4 +1,5 @@
 #![cfg_attr(any(), rustfmt::skip)]
+#![allow(clippy::duplicated_attributes)]
 
 use std::fmt::{Debug, Display, Formatter};
 use serde::Serialize;
