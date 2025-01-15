@@ -51,80 +51,77 @@ pub(crate) mod categories {
     lazy_static! {
         // These are the base categories (i.e: those that don't contain another category)
         pub static ref NONE: Category =
-            Category::from(Category::None);
-
-        pub static ref BEGIN: Category =
-            Category::from(Category::Begin);
+            Category::None;
 
         pub static ref END: Category =
-            Category::from(Category::End);
+            Category::End;
 
         pub static ref BLOCK_BEGIN: Category =
-            Category::from(Category::BlockBegin);
+            Category::BlockBegin;
 
         pub static ref BLOCK_END: Category =
-            Category::from(Category::BlockEnd);
+            Category::BlockEnd;
 
         pub static ref ALIGNMENT_BLOCK_BEGIN: Category =
-            Category::from(Category::AlignmentBlockBegin);
+            Category::AlignmentBlockBegin;
 
         pub static ref ALIGNMENT_BLOCK_END: Category =
-            Category::from(Category::AlignmentBlockBegin);
+            Category::AlignmentBlockBegin;
 
         pub static ref ALIGNMENT_MARKER: Category =
-            Category::from(Category::AlignmentMarker);
+            Category::AlignmentMarker;
 
         pub static ref INDENTATION: Category =
-            Category::from(Category::Indentation);
+            Category::Indentation;
 
         pub static ref WHITESPACE: Category =
-            Category::from(Category::Whitespace);
+            Category::Whitespace;
 
         pub static ref COMMENT: Category =
-            Category::from(Category::Comment);
+            Category::Comment;
 
         pub static ref NEWLINE: Category =
-            Category::from(Category::Newline);
+            Category::Newline;
 
         pub static ref KEYWORD: Category =
-            Category::from(Category::Keyword);
+            Category::Keyword;
 
         pub static ref PUNCTUATION: Category =
-            Category::from(Category::Punctuation);
+            Category::Punctuation;
 
         pub static ref IDENTIFIER: Category =
-            Category::from(Category::Identifier);
+            Category::Identifier;
 
         pub static ref LITERAL: Category =
-            Category::from(Category::Literal);
+            Category::Literal;
 
         pub static ref LGROUPING: Category =
-            Category::from(Category::LGrouping);
+            Category::LGrouping;
 
         pub static ref RGROUPING: Category =
-            Category::from(Category::RGrouping);
+            Category::RGrouping;
 
         // These are super-categories that are composed of other categories.
         pub static ref CONTROL: Category =
-            *BEGIN |
-            *END |
-            *INDENTATION |
-            *BLOCK_BEGIN |
-            *BLOCK_END |
-            *ALIGNMENT_BLOCK_BEGIN |
-            *ALIGNMENT_BLOCK_END;
+            Category::Begin |
+            Category::End |
+            Category::Indentation |
+            Category::BlockBegin |
+            Category::BlockEnd |
+            Category::AlignmentBlockBegin |
+            Category::AlignmentBlockEnd;
 
         pub static ref SPACING: Category =
-            *WHITESPACE |
-            *NEWLINE;
+            Category::Whitespace |
+            Category::Newline;
 
         pub static ref TEXT: Category =
-            *KEYWORD |
-            *PUNCTUATION |
-            *LGROUPING |
-            *RGROUPING |
-            *IDENTIFIER |
-            *LITERAL;
+            Category::Keyword |
+            Category::Punctuation |
+            Category::LGrouping |
+            Category::RGrouping |
+            Category::Identifier |
+            Category::Literal;
     }
 }
 
