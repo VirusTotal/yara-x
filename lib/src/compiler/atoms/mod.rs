@@ -72,7 +72,7 @@ pub(crate) use crate::compiler::atoms::quality::best_range_in_bytes;
 pub(crate) use crate::compiler::atoms::quality::best_range_in_masked_bytes;
 pub(crate) use crate::compiler::atoms::quality::AtomsQuality;
 
-use crate::compiler::{SubPatternFlagSet, SubPatternFlags};
+use crate::compiler::SubPatternFlags;
 
 /// The number of bytes that every atom *should* have. Some atoms may be
 /// shorter than DESIRED_ATOM_SIZE when it's impossible to extract a longer,
@@ -288,7 +288,7 @@ impl Atom {
 /// case combinations for that atom if the `Nocase` flag is set.
 pub(crate) fn extract_atoms(
     literal_bytes: &[u8],
-    flags: SubPatternFlagSet,
+    flags: SubPatternFlags,
 ) -> Box<dyn Iterator<Item = Atom>> {
     let mut best_atom = best_atom_in_bytes(literal_bytes);
 
@@ -329,7 +329,7 @@ pub(super) fn make_wide(s: &[u8]) -> Vec<u8> {
 }
 
 /// Iterator that returns all the atoms resulting from masking an atom with
-/// with a mask.
+/// a mask.
 pub(crate) struct MaskCombinations {
     cartesian_product: MultiProduct<ByteMaskCombinator>,
     backtrack: u16,

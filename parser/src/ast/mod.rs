@@ -11,7 +11,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::slice::Iter;
 
 use ::ascii_tree::write_tree;
-use bitmask::bitmask;
+use bitflags::bitflags;
 use bstr::{BStr, BString, ByteSlice, Utf8Error};
 
 use crate::ast::cst2ast::Builder;
@@ -107,14 +107,12 @@ pub struct Rule<'src> {
     pub condition: Expr<'src>,
 }
 
-bitmask! {
+bitflags! {
     /// A set of flags associated to a YARA rule.
     #[derive(Debug)]
-    pub mask RuleFlags: u8 where
-    /// Each of the flags that a YARA rule can have.
-    flags RuleFlag {
-        Private = 0x01,
-        Global = 0x02,
+    pub struct RuleFlags: u8 {
+        const Private = 0x01;
+        const Global = 0x02;
     }
 }
 

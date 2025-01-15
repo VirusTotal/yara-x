@@ -37,7 +37,7 @@ use std::ops::Index;
 use std::ops::RangeInclusive;
 use std::rc::Rc;
 
-use bitmask::bitmask;
+use bitflags::bitflags;
 use bstr::BString;
 use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHasher};
@@ -65,7 +65,7 @@ mod hex2hir;
 #[cfg(test)]
 mod tests;
 
-bitmask! {
+bitflags! {
     /// Flags associated to rule patterns.
     ///
     /// Each of these flags correspond to one of the allowed YARA pattern
@@ -77,17 +77,17 @@ bitmask! {
     /// when neither `ascii` nor `wide` modifiers are used.
     ///
     /// In resume either the `Ascii` or the `Wide` flags (or both) will be set.
-    #[derive(Debug, Hash, Serialize, Deserialize)]
-    pub mask PatternFlagSet: u16 where flags PatternFlags  {
-        Ascii                = 0x0001,
-        Wide                 = 0x0002,
-        Nocase               = 0x0004,
-        Base64               = 0x0008,
-        Base64Wide           = 0x0010,
-        Xor                  = 0x0020,
-        Fullword             = 0x0040,
-        Private              = 0x0080,
-        NonAnchorable        = 0x0100,
+    #[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize, PartialEq, Eq)]
+    pub struct PatternFlags: u16 {
+        const Ascii                = 0x0001;
+        const Wide                 = 0x0002;
+        const Nocase               = 0x0004;
+        const Base64               = 0x0008;
+        const Base64Wide           = 0x0010;
+        const Xor                  = 0x0020;
+        const Fullword             = 0x0040;
+        const Private              = 0x0080;
+        const NonAnchorable        = 0x0100;
     }
 }
 
@@ -194,7 +194,7 @@ pub(crate) enum Pattern {
 
 impl Pattern {
     #[inline]
-    pub fn flags(&self) -> &PatternFlagSet {
+    pub fn flags(&self) -> &PatternFlags {
         match self {
             Pattern::Text(literal) => &literal.flags,
             Pattern::Regexp(regexp) => &regexp.flags,
@@ -203,7 +203,7 @@ impl Pattern {
     }
 
     #[inline]
-    pub fn flags_mut(&mut self) -> &mut PatternFlagSet {
+    pub fn flags_mut(&mut self) -> &mut PatternFlags {
         match self {
             Pattern::Text(literal) => &mut literal.flags,
             Pattern::Regexp(regexp) => &mut regexp.flags,
@@ -244,7 +244,7 @@ impl Pattern {
         match anchored_at {
             Some(o) if *o != offset => {
                 *anchored_at = None;
-                self.flags_mut().set(PatternFlags::NonAnchorable);
+                self.flags_mut().insert(PatternFlags::NonAnchorable);
             }
             None => {
                 if is_anchorable {
@@ -270,13 +270,13 @@ impl Pattern {
             Pattern::Regexp(regexp) => regexp.anchored_at = None,
             Pattern::Hex(regexp) => regexp.anchored_at = None,
         };
-        self.flags_mut().set(PatternFlags::NonAnchorable);
+        self.flags_mut().insert(PatternFlags::NonAnchorable);
     }
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub(crate) struct LiteralPattern {
-    pub flags: PatternFlagSet,
+    pub flags: PatternFlags,
     pub text: BString,
     pub anchored_at: Option<usize>,
     pub xor_range: Option<RangeInclusive<u8>>,
@@ -286,7 +286,7 @@ pub(crate) struct LiteralPattern {
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub(crate) struct RegexpPattern {
-    pub flags: PatternFlagSet,
+    pub flags: PatternFlags,
     pub hir: re::hir::Hir,
     pub anchored_at: Option<usize>,
 }
