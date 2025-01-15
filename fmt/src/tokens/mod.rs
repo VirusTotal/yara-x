@@ -520,7 +520,7 @@ impl<'src> Iterator for Tokens<'src> {
                         for _ in s.chars() {
                             self.buffer.push_back(Token::Whitespace);
                         }
-                        Some(self.buffer.pop_front().unwrap())
+                        self.buffer.pop_front()
                     } else {
                         Some(Token::new(kind, token_bytes))
                     };
