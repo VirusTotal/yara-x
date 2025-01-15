@@ -2310,7 +2310,7 @@ pub(crate) struct Ancestors<'a> {
     current: ExprId,
 }
 
-impl<'a> Iterator for Ancestors<'a> {
+impl Iterator for Ancestors<'_> {
     type Item = ExprId;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -2330,7 +2330,7 @@ pub(crate) struct Children<'a> {
     dfs: DFSIter<'a>,
 }
 
-impl<'a> Iterator for Children<'a> {
+impl Iterator for Children<'_> {
     type Item = ExprId;
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -127,7 +127,7 @@ impl<'src> From<Parser<'src>> for CSTStream<'src> {
     }
 }
 
-impl<'src> Iterator for CSTStream<'src> {
+impl Iterator for CSTStream<'_> {
     type Item = Event;
 
     /// Returns the next event in the stream.

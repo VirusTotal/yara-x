@@ -100,7 +100,7 @@ pub enum ScannedData<'a> {
     Mmap(MmapFile),
 }
 
-impl<'a> AsRef<[u8]> for ScannedData<'a> {
+impl AsRef<[u8]> for ScannedData<'_> {
     fn as_ref(&self) -> &[u8] {
         match self {
             ScannedData::Slice(s) => s,
@@ -962,7 +962,7 @@ impl<'a, 'r> Iterator for MatchingRules<'a, 'r> {
     }
 }
 
-impl<'a, 'r> ExactSizeIterator for MatchingRules<'a, 'r> {
+impl ExactSizeIterator for MatchingRules<'_, '_> {
     #[inline]
     fn len(&self) -> usize {
         self.iterator.len()
@@ -1033,7 +1033,7 @@ impl<'a, 'r> Iterator for NonMatchingRules<'a, 'r> {
     }
 }
 
-impl<'a, 'r> ExactSizeIterator for NonMatchingRules<'a, 'r> {
+impl ExactSizeIterator for NonMatchingRules<'_, '_> {
     #[inline]
     fn len(&self) -> usize {
         self.len
@@ -1057,14 +1057,14 @@ impl<'a, 'r> ModuleOutputs<'a, 'r> {
     }
 }
 
-impl<'a, 'r> ExactSizeIterator for ModuleOutputs<'a, 'r> {
+impl ExactSizeIterator for ModuleOutputs<'_, '_> {
     #[inline]
     fn len(&self) -> usize {
         self.len
     }
 }
 
-impl<'a, 'r> Iterator for ModuleOutputs<'a, 'r> {
+impl<'a> Iterator for ModuleOutputs<'a, '_> {
     type Item = (&'a str, &'a dyn MessageDyn);
 
     fn next(&mut self) -> Option<Self::Item> {

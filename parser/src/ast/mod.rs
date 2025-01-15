@@ -135,7 +135,7 @@ pub enum MetaValue<'src> {
     Bytes(BString),
 }
 
-impl<'src> Display for MetaValue<'src> {
+impl Display for MetaValue<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Bool(v) => write!(f, "{}", v),

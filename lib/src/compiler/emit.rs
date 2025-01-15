@@ -215,7 +215,7 @@ pub(crate) struct EmitContext<'a> {
     pub(crate) lookup_list: Vec<(i32, bool)>,
 }
 
-impl<'a> EmitContext<'a> {
+impl EmitContext<'_> {
     /// Given a function mangled name returns its id.
     ///
     /// # Panics

@@ -393,7 +393,7 @@ pub struct Compiler<'a> {
     ir_writer: Option<Box<dyn Write>>,
 }
 
-impl<'a> Compiler<'a> {
+impl Compiler<'_> {
     /// Creates a new YARA compiler.
     pub fn new() -> Self {
         let mut ident_pool = StringPool::new();
@@ -987,7 +987,7 @@ impl<'a> Compiler<'a> {
     }
 }
 
-impl<'a> Compiler<'a> {
+impl Compiler<'_> {
     fn add_sub_pattern<I, F, A>(
         &mut self,
         sub_pattern: SubPattern,
@@ -1152,7 +1152,7 @@ impl<'a> Compiler<'a> {
     }
 }
 
-impl<'a> Compiler<'a> {
+impl Compiler<'_> {
     fn c_rule(&mut self, rule: &ast::Rule) -> Result<(), CompileError> {
         // Check if another rule, module or variable has the same identifier
         // and return an error in that case.

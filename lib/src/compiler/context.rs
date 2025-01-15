@@ -62,7 +62,7 @@ pub(crate) struct CompileContext<'a, 'src, 'sym> {
     pub for_of_depth: usize,
 }
 
-impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
+impl<'src> CompileContext<'_, 'src, '_> {
     /// Given a pattern identifier (e.g. `$a`, `#a`, `@a`) search for it in
     /// the current rule and return a tuple containing the [`PatternIdx`]
     /// associated to the pattern and a mutable reference the

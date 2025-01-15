@@ -194,7 +194,7 @@ impl<'src> Tokenizer<'src> {
     }
 }
 
-impl<'src> Tokenizer<'src> {
+impl Tokenizer<'_> {
     fn unexpected_token(&mut self) -> Token {
         let lexer = match &mut self.mode {
             Mode::Normal(lexer) => lexer,
@@ -761,48 +761,34 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
             Token::NEWLINE(span)
         }
 
-        NormalToken::Ident(ident) => {
-            return match from_utf8(ident) {
-                Ok(_) => Token::IDENT(span),
-                Err(_) => unreachable!(),
-            }
-        }
-        NormalToken::PatternIdent(ident) => {
-            return match from_utf8(ident) {
-                Ok(_) => Token::PATTERN_IDENT(span),
-                Err(_) => unreachable!(),
-            }
-        }
-        NormalToken::PatternCount(ident) => {
-            return match from_utf8(ident) {
-                Ok(_) => Token::PATTERN_COUNT(span),
-                Err(_) => unreachable!(),
-            }
-        }
-        NormalToken::PatternOffset(ident) => {
-            return match from_utf8(ident) {
-                Ok(_) => Token::PATTERN_OFFSET(span),
-                Err(_) => unreachable!(),
-            }
-        }
-        NormalToken::PatternLength(ident) => {
-            return match from_utf8(ident) {
-                Ok(_) => Token::PATTERN_LENGTH(span),
-                Err(_) => unreachable!(),
-            }
-        }
-        NormalToken::FloatLit(lit) => {
-            return match from_utf8(lit) {
-                Ok(_) => Token::FLOAT_LIT(span),
-                Err(_) => unreachable!(),
-            }
-        }
-        NormalToken::IntegerLit(lit) => {
-            return match from_utf8(lit) {
-                Ok(_) => Token::INTEGER_LIT(span),
-                Err(_) => unreachable!(),
-            }
-        }
+        NormalToken::Ident(ident) => match from_utf8(ident) {
+            Ok(_) => Token::IDENT(span),
+            Err(_) => unreachable!(),
+        },
+        NormalToken::PatternIdent(ident) => match from_utf8(ident) {
+            Ok(_) => Token::PATTERN_IDENT(span),
+            Err(_) => unreachable!(),
+        },
+        NormalToken::PatternCount(ident) => match from_utf8(ident) {
+            Ok(_) => Token::PATTERN_COUNT(span),
+            Err(_) => unreachable!(),
+        },
+        NormalToken::PatternOffset(ident) => match from_utf8(ident) {
+            Ok(_) => Token::PATTERN_OFFSET(span),
+            Err(_) => unreachable!(),
+        },
+        NormalToken::PatternLength(ident) => match from_utf8(ident) {
+            Ok(_) => Token::PATTERN_LENGTH(span),
+            Err(_) => unreachable!(),
+        },
+        NormalToken::FloatLit(lit) => match from_utf8(lit) {
+            Ok(_) => Token::FLOAT_LIT(span),
+            Err(_) => unreachable!(),
+        },
+        NormalToken::IntegerLit(lit) => match from_utf8(lit) {
+            Ok(_) => Token::INTEGER_LIT(span),
+            Err(_) => unreachable!(),
+        },
     }
 }
 
@@ -831,11 +817,9 @@ fn convert_hex_jump_token(token: HexJumpToken, span: Span) -> Token {
         HexJumpToken::LF | HexJumpToken::CR | HexJumpToken::CRLF => {
             Token::NEWLINE(span)
         }
-        HexJumpToken::IntegerLit(lit) => {
-            return match from_utf8(lit) {
-                Ok(_) => Token::INTEGER_LIT(span),
-                Err(_) => unreachable!(),
-            }
-        }
+        HexJumpToken::IntegerLit(lit) => match from_utf8(lit) {
+            Ok(_) => Token::INTEGER_LIT(span),
+            Err(_) => unreachable!(),
+        },
     }
 }

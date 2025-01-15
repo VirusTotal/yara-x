@@ -298,7 +298,7 @@ impl<'a> StackedSymbolTable<'a> {
     }
 }
 
-impl<'a> SymbolLookup for StackedSymbolTable<'a> {
+impl SymbolLookup for StackedSymbolTable<'_> {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         // Look for the identifier starting at the top of the stack, and
         // going down the stack until it's found or the bottom of the

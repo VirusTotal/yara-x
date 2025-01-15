@@ -46,7 +46,7 @@ pub(crate) enum Instr<'a> {
     JumpNoNewlineUnbounded(RangeFrom<u16>),
 }
 
-impl<'a> Instr<'a> {
+impl Instr<'_> {
     pub const MATCH: u8 = 0x00;
     pub const LITERAL: u8 = 0x01;
     pub const MASKED_LITERAL: u8 = 0x02;

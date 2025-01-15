@@ -93,7 +93,7 @@ pub struct Metadata<'a, 'r> {
     len: usize,
 }
 
-impl<'a, 'r> Metadata<'a, 'r> {
+impl<'r> Metadata<'_, 'r> {
     /// Returns the metadata as a [`serde_json::Value`].
     ///
     /// The returned value is an array of tuples `(ident, value)` with all
@@ -146,7 +146,7 @@ impl<'a, 'r> Metadata<'a, 'r> {
     }
 }
 
-impl<'a, 'r> Iterator for Metadata<'a, 'r> {
+impl<'r> Iterator for Metadata<'_, 'r> {
     type Item = (&'r str, MetaValue<'r>);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -174,7 +174,7 @@ impl<'a, 'r> Iterator for Metadata<'a, 'r> {
     }
 }
 
-impl<'a, 'r> ExactSizeIterator for Metadata<'a, 'r> {
+impl ExactSizeIterator for Metadata<'_, '_> {
     #[inline]
     fn len(&self) -> usize {
         self.len
@@ -188,7 +188,7 @@ pub struct Tags<'a, 'r> {
     len: usize,
 }
 
-impl<'a, 'r> Tags<'a, 'r> {
+impl Tags<'_, '_> {
     /// Returns `true` if the rule doesn't have any tags.
     #[inline]
     pub fn is_empty(&self) -> bool {
@@ -196,7 +196,7 @@ impl<'a, 'r> Tags<'a, 'r> {
     }
 }
 
-impl<'a, 'r> Iterator for Tags<'a, 'r> {
+impl<'r> Iterator for Tags<'_, 'r> {
     type Item = Tag<'r>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -205,7 +205,7 @@ impl<'a, 'r> Iterator for Tags<'a, 'r> {
     }
 }
 
-impl<'a, 'r> ExactSizeIterator for Tags<'a, 'r> {
+impl ExactSizeIterator for Tags<'_, '_> {
     #[inline]
     fn len(&self) -> usize {
         self.len
@@ -250,7 +250,7 @@ impl<'a, 'r> Iterator for Patterns<'a, 'r> {
     }
 }
 
-impl<'a, 'r> ExactSizeIterator for Patterns<'a, 'r> {
+impl ExactSizeIterator for Patterns<'_, '_> {
     #[inline]
     fn len(&self) -> usize {
         self.len
@@ -306,7 +306,7 @@ impl<'a> Iterator for Matches<'a> {
     }
 }
 
-impl<'a> ExactSizeIterator for Matches<'a> {
+impl ExactSizeIterator for Matches<'_> {
     fn len(&self) -> usize {
         self.iterator.as_ref().map_or(0, |it| it.len())
     }

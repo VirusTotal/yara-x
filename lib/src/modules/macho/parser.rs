@@ -437,7 +437,7 @@ pub struct MachOFile<'a> {
     imports: Vec<String>,
 }
 
-impl<'a> MachOFile<'a> {
+impl MachOFile<'_> {
     /// Converts a relative virtual address (RVA) to file object.
     pub fn rva_to_offset(&self, rva: u64) -> Option<u64> {
         for segment in &self.segments {

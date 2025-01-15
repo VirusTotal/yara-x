@@ -182,7 +182,7 @@ impl<'a> DFSWithScopeIter<'a> {
     }
 }
 
-impl<'a> Iterator for DFSWithScopeIter<'a> {
+impl Iterator for DFSWithScopeIter<'_> {
     type Item = Event<(ExprId, EventContext)>;
 
     fn next(&mut self) -> Option<Self::Item> {
