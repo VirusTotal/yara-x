@@ -1,0 +1,7 @@
+warning[invariant_expr]: invariant boolean expression
+ --> src/tests/rules/always_true.yar:1:31
+  |
+1 | rule always_true { condition: true }
+  |                               ---- this expression is always true
+  |
+  = note: rule `always_true` is always `true`

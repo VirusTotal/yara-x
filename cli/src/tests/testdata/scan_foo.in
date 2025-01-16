@@ -1,0 +1,1 @@
+scan -s src/tests/rules/foo.yar src/tests/rules/foo.yar

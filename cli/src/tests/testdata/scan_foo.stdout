@@ -1,0 +1,9 @@
+foo src/tests/rules/foo.yar
+0x5:3:$foo: foo
+0x1b:3:$foo: foo
+0x22:3:$foo: foo
+0x2c:3:$foo: foo
+0x5:3:$foo_hex: 66 6f 6f 
+0x1b:3:$foo_hex: 66 6f 6f 
+0x22:3:$foo_hex: 66 6f 6f 
+0x2c:3:$foo_hex: 66 6f 6f 
