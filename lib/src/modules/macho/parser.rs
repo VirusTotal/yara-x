@@ -894,7 +894,7 @@ impl<'a> MachOFile<'a> {
                 match blob.magic {
                     CS_MAGIC_EMBEDDED_ENTITLEMENTS => {
                         let xml_data = match super_data
-                            .get(offset + size_of_blob..offset + length)
+                            .get(offset.saturating_add(size_of_blob) .. offset.saturating_add(length))
                         {
                             Some(data) => data,
                             None => continue,
@@ -938,7 +938,7 @@ impl<'a> MachOFile<'a> {
                     }
                     CS_MAGIC_BLOBWRAPPER => {
                         if let Some(ber_blob) = super_data.get(
-                            offset + size_of_blob
+                            offset.saturating_add(size_of_blob)
                                 ..offset.saturating_add(length),
                         ) {
                             if let Ok((_remainder, certs)) =
