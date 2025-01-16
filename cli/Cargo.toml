@@ -75,5 +75,4 @@ wild = "2.2.1"
 
 [dev-dependencies]
 assert_cmd = "2.0.16"
-globwalk = { workspace = true }
-goldenfile = { workspace = true }
+predicates = { workspace = true }

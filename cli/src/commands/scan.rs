@@ -912,10 +912,17 @@ mod output_handler {
                                     }
                                 }
                                 PatternKind::Hex => {
-                                    for b in data {
+                                    for (pos, b) in data.iter().with_position()
+                                    {
                                         match_str.push_str(
-                                            format!("{:02x} ", b).as_str(),
+                                            format!("{:02x}", b).as_str(),
                                         );
+                                        if !matches!(
+                                            pos,
+                                            itertools::Position::Last
+                                        ) {
+                                            match_str.push(' ');
+                                        }
                                     }
                                 }
                             }
