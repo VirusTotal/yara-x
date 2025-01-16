@@ -138,3 +138,22 @@ fn ir() {
         }
     });
 }
+
+#[test]
+fn with_statement_variable_usage() {
+    let source = r#"
+    rule test {
+        condition:
+            with
+                call = @code[0],
+                rtn_ptr = call + !code[0] + 4:
+            (
+                rtn_ptr == 0
+            )
+    }
+    "#;
+
+    let mut compiler = Compiler::new();
+    let result = compiler.add_source(source);
+    assert!(result.is_ok());
+}

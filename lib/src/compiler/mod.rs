@@ -1244,6 +1244,7 @@ impl Compiler<'_> {
             vars: VarStack::new(),
             for_of_depth: 0,
             features: &self.features,
+            with_vars: FxHashMap::default(),
         };
 
         // Convert the patterns from AST to IR. This populates the

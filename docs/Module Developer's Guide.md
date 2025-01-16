@@ -1110,3 +1110,65 @@ assuming you can run Python.
 ```bash
 hex2bin.py <sha256_hash>.in <sha256_hash>
 ```
+
+## Using `with` Statements
+
+The `with` statement in YARA allows you to define variables that can be used within the scope of the statement. This can be useful for simplifying complex expressions and improving the readability of your rules.
+
+### Basic Usage
+
+Here's a basic example of how to use the `with` statement:
+
+```yara
+rule example {
+    condition:
+        with
+            a = 1 + 1,
+            b = a + 2:
+        (
+            b == 4
+        )
+}
+```
+
+In this example, the variable `a` is defined as `1 + 1`, and the variable `b` is defined as `a + 2`. The condition checks if `b` is equal to `4`.
+
+### Nested `with` Statements
+
+You can also nest `with` statements if needed:
+
+```yara
+rule example {
+    condition:
+        with
+            a = 1 + 1:
+        (
+            with
+                b = a + 2:
+            (
+                b == 4
+            )
+        )
+}
+```
+
+### Using Variables in Other Declarations
+
+With the updated functionality, you can now use variables defined in a `with` statement in other variable declarations within the same `with` statement:
+
+```yara
+rule example {
+    condition:
+        with
+            a = 1 + 1,
+            b = a + 2,
+            c = b + 3:
+        (
+            c == 7
+        )
+}
+```
+
+In this example, the variable `a` is defined as `1 + 1`, the variable `b` is defined as `a + 2`, and the variable `c` is defined as `b + 3`. The condition checks if `c` is equal to `7`.
+
+This new functionality allows for more concise and readable rules by reducing the need for nested `with` statements.
