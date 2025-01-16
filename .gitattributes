@@ -8,4 +8,5 @@
 *.unformatted text eol=lf
 *.stdout text eol=lf
 *.stderr text eol=lf
+*.yar text eol=lf
 
