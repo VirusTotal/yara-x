@@ -114,7 +114,12 @@ jobs:
       with:
         toolchain: ${{ matrix.rust }}
 
-    - name: Run cargo test
+    - name: Build
+      run: cargo build --all-targets ${{ matrix.args }}
+      env:
+        RUSTFLAGS: ${{ matrix.rust_flags }}
+
+    - name: Run tests
       run: cargo test --all-targets ${{ matrix.args }}
       env:
         RUSTFLAGS: ${{ matrix.rust_flags }}

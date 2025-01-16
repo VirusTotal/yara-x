@@ -3,6 +3,9 @@ mod config;
 mod help;
 mod walk;
 
+#[cfg(test)]
+mod tests;
+
 use config::{load_config_from_file, Config};
 use crossterm::tty::IsTty;
 use std::{io, panic, process};
