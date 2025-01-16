@@ -632,6 +632,7 @@ use output_handler::*;
 mod output_handler {
     use super::*;
     use std::collections::HashMap;
+    use yara_x::PatternKind;
 
     #[derive(serde::Serialize)]
     struct PatternJson {
@@ -896,13 +897,26 @@ mod output_handler {
                                 }
                             }
 
-                            for b in
-                                &match_data[..min(match_data.len(), limit)]
-                            {
-                                for c in b.escape_ascii() {
-                                    msg.push_str(
-                                        format!("{}", c as char).as_str(),
-                                    );
+                            let data =
+                                &match_data[..min(match_data.len(), limit)];
+
+                            match p.kind() {
+                                PatternKind::Text | PatternKind::Regexp => {
+                                    for b in data {
+                                        for c in b.escape_ascii() {
+                                            msg.push_str(
+                                                format!("{}", c as char)
+                                                    .as_str(),
+                                            );
+                                        }
+                                    }
+                                }
+                                PatternKind::Hex => {
+                                    for b in data {
+                                        msg.push_str(
+                                            format!("{:02x} ", b).as_str(),
+                                        );
+                                    }
                                 }
                             }
 
