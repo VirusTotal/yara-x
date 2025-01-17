@@ -720,6 +720,7 @@ lazy_static! {
         config.native_unwind_info(false);
 
         config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
+        config.memory_reservation(0x80000000); // 2GB
         config.epoch_interruption(true);
         config
     };
