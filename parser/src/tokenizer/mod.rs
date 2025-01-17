@@ -5,7 +5,6 @@ YARA source code and produces a sequence of tokens that is later processed by
 the parser. Each token is represented by a variant of the [`Token`] type.
 */
 
-use std::str;
 use std::str::from_utf8;
 
 use logos::Logos;
@@ -204,33 +203,22 @@ impl Tokenizer<'_> {
         let start = lexer.span().start;
         let end = lexer.source().len();
         let unexpected = lexer.source().get(start..end).unwrap();
-        // Make sure that `unexpected` contains a valid UTF-8 string, or take the
-        // first few bytes that are valid and ignore the rest.
-        // TODO: This could be implemented more efficiently using Utf8Chunks, but
-        // it was introduced in Rust 1.79. With Utf8Chunks we can iterate over the
-        // byte slice until finding an invalid UTF-8 character or a whitespace,
-        // whatever comes first. We don't need to use `str::from_utf8`, which
-        // validates the whole string until the end.
-        // https://doc.rust-lang.org/std/str/struct.Utf8Chunks.html
-        let unexpected = match from_utf8(unexpected) {
-            Ok(unexpected) => unexpected,
-            Err(err) => {
-                if err.valid_up_to() == 0 {
-                    return Token::INVALID_UTF8(
-                        Span(start as u32..(start + 1) as u32)
-                            .offset(self.lexer_starting_pos),
-                    );
-                } else {
-                    // unexpected[0..err.valid_up_to()] is guaranteed to be valid
-                    // UTF-8.
-                    unsafe {
-                        str::from_utf8_unchecked(
-                            &unexpected[0..err.valid_up_to()],
-                        )
-                    }
-                }
-            }
-        };
+
+        // Make sure that `unexpected` contains a valid UTF-8 string, or take
+        // the first few bytes that are valid and ignore the rest. It's safe to
+        // call .unwrap() because there must be at least one UTF-8 chunk, either
+        // valid or invalid.
+        let chunk = unexpected.utf8_chunks().next().unwrap();
+
+        if chunk.valid().is_empty() {
+            return Token::INVALID_UTF8(
+                Span(start as u32..(start + 1) as u32)
+                    .offset(self.lexer_starting_pos),
+            );
+        }
+
+        // `unexpected` is the valid UTF-8 prefix.
+        let unexpected = chunk.valid();
 
         // Truncate `unexpected` at the first whitespace if any.
         let unexpected = unexpected.split(char::is_whitespace).next().unwrap();
