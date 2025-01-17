@@ -721,6 +721,8 @@ lazy_static! {
 
         config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
         config.memory_reservation(0x80000000); // 2GB
+        config.guard_before_linear_memory(false);
+        config.memory_may_move(false);
         config.epoch_interruption(true);
         config
     };
