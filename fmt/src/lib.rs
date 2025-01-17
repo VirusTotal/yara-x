@@ -23,7 +23,7 @@ use thiserror::Error;
 use tokens::Token::*;
 use tokens::TokenStream;
 use yara_x_parser::cst::SyntaxKind;
-use yara_x_parser::Parser;
+use yara_x_parser::{Parser, Span};
 
 use crate::align::Align;
 use crate::format_hex_patterns::FormatHexPatterns;
@@ -55,10 +55,10 @@ pub enum Error {
     /// Error while writing to output.
     #[error("Write error")]
     WriteError(io::Error),
-    // TODO
-    // Error while parsing the input.
-    //#[error("Parse error")]
-    //ParseError(#[from] yara_x_parser::Error),
+
+    /// Error while parsing the input.
+    #[error("Parse error")]
+    ParseError { message: String, span: Span },
 }
 
 /// Formats YARA source code automatically.

@@ -11,11 +11,13 @@ that the CST does not account for operator associativity or precedence rules.
 Expressions are represented in the CST exactly as they appear in the source
 code, without any grouping based on operator precedence.
  */
-use rowan::{GreenNodeBuilder, GreenToken, SyntaxNode};
+
 use std::fmt::{Debug, Display, Formatter};
 use std::iter;
 use std::marker::PhantomData;
-use std::str::from_utf8;
+use std::str::{from_utf8, Utf8Error};
+
+use rowan::{GreenNodeBuilder, GreenToken, SyntaxNode};
 
 use crate::cst::SyntaxKind::{COMMENT, NEWLINE, WHITESPACE};
 use crate::{Parser, Span};
@@ -209,9 +211,11 @@ impl CST {
     }
 }
 
-impl From<Parser<'_>> for CST {
+impl TryFrom<Parser<'_>> for CST {
+    type Error = Utf8Error;
+
     /// Crates a [`CST`] from the given parser.
-    fn from(parser: Parser) -> Self {
+    fn try_from(parser: Parser) -> Result<Self, Utf8Error> {
         let source = parser.source();
         let mut builder = GreenNodeBuilder::new();
         let mut prev_token_span: Option<Span> = None;
@@ -236,10 +240,8 @@ impl From<Parser<'_>> for CST {
                     // The span must within the source code, this unwrap
                     // can't fail.
                     let token = source.get(span.range()).unwrap();
-                    // Tokens are always valid UTF-8, this unwrap can't
-                    // fail.
-                    // TODO: use from_utf8_unchecked?
-                    let token = from_utf8(token).unwrap();
+                    let token = from_utf8(token)?;
+
                     builder.token(kind.into(), token);
                     prev_token_span = Some(span);
                 }
@@ -247,7 +249,10 @@ impl From<Parser<'_>> for CST {
             }
         }
 
-        Self { tree: rowan::SyntaxNode::new_root(builder.finish()), errors }
+        Ok(Self {
+            tree: rowan::SyntaxNode::new_root(builder.finish()),
+            errors,
+        })
     }
 }
 

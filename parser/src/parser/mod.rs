@@ -16,11 +16,10 @@ error nodes is valid YARA code.
  */
 
 use indexmap::IndexSet;
-use rustc_hash::{FxHashMap, FxHashSet};
-use std::str::from_utf8;
-
 #[cfg(feature = "logging")]
 use log::*;
+use rustc_hash::{FxHashMap, FxHashSet};
+use std::str::{from_utf8, Utf8Error};
 
 use crate::ast::AST;
 use crate::cst::syntax_stream::SyntaxStream;
@@ -65,8 +64,8 @@ impl<'src> Parser<'src> {
     /// third-party code.
     #[inline]
     #[doc(hidden)]
-    pub fn into_cst(self) -> CST {
-        CST::from(self)
+    pub fn try_into_cst(self) -> Result<CST, Utf8Error> {
+        CST::try_from(self)
     }
 
     /// Consumes the parser and returns a Concrete Syntax Tree (CST) as
