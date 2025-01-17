@@ -274,3 +274,14 @@ fn cli_scan_compiled_rules() {
         .code(1)
         .stderr("error: can\'t use namespace with \'--compiled-rules\'\n");
 }
+
+#[test]
+fn cli_issue_280() {
+    Command::cargo_bin("yr")
+        .unwrap()
+        .arg("scan")
+        .arg("src/tests/testdata/foo.yar")
+        .arg("./src/tests/testdata/")
+        .assert()
+        .success();
+}
