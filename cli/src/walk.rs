@@ -225,7 +225,7 @@ impl<'a> Walker<'a> {
             builder = builder.max_depth(max_depth + 1);
         }
 
-        for entry in builder.build().unwrap() {
+        for entry in builder.build()? {
             let entry = match entry {
                 Ok(e) => e,
                 Err(err) => {
