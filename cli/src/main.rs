@@ -6,7 +6,7 @@ mod walk;
 #[cfg(test)]
 mod tests;
 
-use config::{load_config_from_file, Config};
+use crate::config::{load_config_from_str, Config};
 use crossterm::tty::IsTty;
 use std::path::PathBuf;
 use std::{fs, io, panic, process};
