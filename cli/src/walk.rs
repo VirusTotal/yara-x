@@ -199,21 +199,19 @@ impl<'a> Walker<'a> {
         F: FnMut(&Path) -> anyhow::Result<()>,
         E: FnMut(anyhow::Error) -> anyhow::Result<()>,
     {
-        // Strip the ./ prefix (.\ in Windows), if present. This is a
-        // workaround for a bug in globwalk that causes a panic.
+        // Strip the ./ prefix (.\ in Windows), if present. Except for ".",
+        // "./" and ".\". This is a workaround for a bug in globwalk that
+        // causes a panic.
         // https://github.com/VirusTotal/yara-x/issues/280
         // https://github.com/Gilnaa/globwalk/issues/28
-        //
-        // Only perform the strip if the path is not exactly "." - this allows
-        // users to run "yr scan rules.yara ." to scan all the files in the
-        // current directory.
-        let path = if self.path.as_os_str().ne(".") {
-            #[cfg(not(target_os = "windows"))]
-            let path = self.path.strip_prefix("./").unwrap_or(self.path);
-
-            #[cfg(target_os = "windows")]
-            let path = self.path.strip_prefix(r#".\"#).unwrap_or(self.path);
-            path
+        let path = if self.path.as_os_str().len() > 2 {
+            self.path
+                .strip_prefix(if cfg!(target_os = "windows") {
+                    r#".\"#
+                } else {
+                    "./"
+                })
+                .unwrap_or(self.path)
         } else {
             self.path
         };
