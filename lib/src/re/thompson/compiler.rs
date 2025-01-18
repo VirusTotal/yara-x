@@ -1838,10 +1838,7 @@ impl Display for InstrSeq {
 /// * when the first sequence in the slice has 256 single byte literals.
 ///
 fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
-    let first_seq = match seqs.first() {
-        Some(seq) => seq,
-        None => return None,
-    };
+    let first_seq = seqs.first()?;
 
     match first_seq.len() {
         // Return None if the first sequence contains 256 possible literals

@@ -23,8 +23,7 @@ use crate::compiler::errors::{
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
     Error, Expr, ExprId, Iterable, LiteralPattern, MatchAnchor, Pattern,
-    PatternFlagSet, PatternFlags, PatternIdx, PatternInRule, Quantifier,
-    Range, RegexpPattern,
+    PatternFlags, PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern,
 };
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{
@@ -128,22 +127,22 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
         };
     }
 
-    let mut flags = PatternFlagSet::none();
+    let mut flags = PatternFlags::empty();
 
     if ascii.is_some() || wide.is_none() {
-        flags.set(PatternFlags::Ascii);
+        flags.insert(PatternFlags::Ascii);
     }
 
     if wide.is_some() {
-        flags.set(PatternFlags::Wide);
+        flags.insert(PatternFlags::Wide);
     }
 
     if nocase.is_some() {
-        flags.set(PatternFlags::Nocase);
+        flags.insert(PatternFlags::Nocase);
     }
 
     if fullword.is_some() {
-        flags.set(PatternFlags::Fullword);
+        flags.insert(PatternFlags::Fullword);
     }
 
     let xor_range = match xor {
@@ -158,7 +157,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
                     modifier.span().into(),
                 ));
             }
-            flags.set(PatternFlags::Xor);
+            flags.insert(PatternFlags::Xor);
             Some(*start..=*end)
         }
         _ => None,
@@ -182,7 +181,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
 
     let base64_alphabet = match base64 {
         Some(ast::PatternModifier::Base64 { alphabet, .. }) => {
-            flags.set(PatternFlags::Base64);
+            flags.insert(PatternFlags::Base64);
             validate_alphabet(alphabet)?
         }
         _ => None,
@@ -190,7 +189,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
 
     let base64wide_alphabet = match base64wide {
         Some(ast::PatternModifier::Base64Wide { alphabet, .. }) => {
-            flags.set(PatternFlags::Base64Wide);
+            flags.insert(PatternFlags::Base64Wide);
             validate_alphabet(alphabet)?
         }
         _ => None,
@@ -288,7 +287,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
         span: pattern.span(),
         pattern: Pattern::Hex(RegexpPattern {
             hir,
-            flags: PatternFlagSet::from(PatternFlags::Ascii),
+            flags: PatternFlags::Ascii,
             anchored_at: None,
         }),
     })
@@ -315,27 +314,27 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
         }
     }
 
-    let mut flags = PatternFlagSet::none();
+    let mut flags = PatternFlags::empty();
 
     if pattern.modifiers.ascii().is_some()
         || pattern.modifiers.wide().is_none()
     {
-        flags.set(PatternFlags::Ascii);
+        flags |= PatternFlags::Ascii;
     }
 
     if pattern.modifiers.wide().is_some() {
-        flags.set(PatternFlags::Wide);
+        flags |= PatternFlags::Wide;
     }
 
     if pattern.modifiers.fullword().is_some() {
-        flags.set(PatternFlags::Fullword);
+        flags |= PatternFlags::Fullword;
     }
 
     // A regexp pattern can use either the `nocase` modifier or the `/i`
     // modifier (e.g: /foobar/i). In both cases it means the same thing.
     if pattern.modifiers.nocase().is_some() || pattern.regexp.case_insensitive
     {
-        flags.set(PatternFlags::Nocase);
+        flags |= PatternFlags::Nocase;
     }
 
     // When both the `nocase` modifier and the `/i` modifier are used together,
@@ -1290,8 +1289,11 @@ fn with_expr_from_ast(
 ) -> Result<ExprId, CompileError> {
     // Create stack frame with capacity for the with statement variables
     let mut stack_frame = ctx.vars.new_frame(with.declarations.len() as i32);
-    let mut symbols = SymbolTable::new();
     let mut declarations = Vec::new();
+
+    // Create a new symbol table that will hold the variables declared by the
+    // `with` statement.
+    let symbols = ctx.symbol_table.push_new();
 
     for item in with.declarations.iter() {
         let name = item.identifier.name;
@@ -1308,16 +1310,13 @@ fn with_expr_from_ast(
                     item.expression.span().into(),
                 ));
             }
-            symbols.insert(name, Symbol::Func(func.clone()));
+            symbols.borrow_mut().insert(name, Symbol::Func(func.clone()));
         } else {
             let var = stack_frame.new_var(type_value.ty());
             declarations.push((var, expr));
-            symbols.insert(name, Symbol::Var { var, type_value });
+            symbols.borrow_mut().insert(name, Symbol::Var { var, type_value });
         }
     }
-
-    // Put the with variables into scope.
-    ctx.symbol_table.push(Rc::new(symbols));
 
     let body = bool_expr_from_ast(ctx, &with.body)?;
 

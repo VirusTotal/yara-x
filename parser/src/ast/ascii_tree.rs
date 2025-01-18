@@ -35,11 +35,11 @@ pub(crate) fn rule_ascii_tree(rule: &Rule) -> Tree {
 
     let mut modifiers = Vec::new();
 
-    if rule.flags.contains(RuleFlag::Private) {
+    if rule.flags.contains(RuleFlags::Private) {
         modifiers.push("private");
     }
 
-    if rule.flags.contains(RuleFlag::Global) {
+    if rule.flags.contains(RuleFlags::Global) {
         modifiers.push("global");
     }
 

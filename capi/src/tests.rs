@@ -236,15 +236,12 @@ fn capi_errors() {
 
         assert_eq!(
             CStr::from_ptr(yrx_last_error()),
-            CStr::from_bytes_with_nul(
-                b"error[E009]: unknown identifier `foo`
+            c"error[E009]: unknown identifier `foo`
  --> test.yar:1:24
   |
 1 | rule test { condition: foo }
   |                        ^^^ this identifier has not been declared
-  |\0"
-            )
-            .unwrap()
+  |"
         );
 
         yrx_compiler_destroy(compiler);

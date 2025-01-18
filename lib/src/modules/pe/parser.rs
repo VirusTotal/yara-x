@@ -1253,6 +1253,7 @@ impl<'a> PE<'a> {
     /// value parser is optional, if not provided, the value will be handled
     /// as a zero-length value regardless of what the `value_len` field
     /// says.
+    #[allow(clippy::type_complexity)]
     fn parse_info<'b, F, G, V, C>(
         mut value_parser: Option<F>,
         mut children_parser: G,

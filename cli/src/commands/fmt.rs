@@ -41,6 +41,7 @@ pub fn exec_fmt(
         .empty_line_after_section_header(
             config.rule.empty_line_after_section_header,
         );
+
     let mut changed = false;
 
     for file in files {

@@ -266,7 +266,7 @@ pub enum Instr<'a> {
     WordEnd,
 }
 
-impl<'a> Instr<'a> {
+impl Instr<'_> {
     pub const MATCH: u8 = 0x00;
     pub const SPLIT_A: u8 = 0x01;
     pub const SPLIT_B: u8 = 0x02;
@@ -471,7 +471,7 @@ impl<'a> SplitN<'a> {
 
 pub struct SplitOffsets<'a>(&'a [u8]);
 
-impl<'a> Iterator for SplitOffsets<'a> {
+impl Iterator for SplitOffsets<'_> {
     type Item = Offset;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -486,7 +486,7 @@ impl<'a> Iterator for SplitOffsets<'a> {
     }
 }
 
-impl<'a> DoubleEndedIterator for SplitOffsets<'a> {
+impl DoubleEndedIterator for SplitOffsets<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         let len = self.0.len();
         if len < size_of::<Offset>() {
@@ -521,7 +521,7 @@ impl<'a> ClassRanges<'a> {
 
 pub struct Ranges<'a>(&'a [u8]);
 
-impl<'a> Iterator for Ranges<'a> {
+impl Iterator for Ranges<'_> {
     type Item = (u8, u8);
 
     fn next(&mut self) -> Option<Self::Item> {

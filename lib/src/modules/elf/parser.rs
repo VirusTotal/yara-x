@@ -543,10 +543,7 @@ impl ElfParser {
         // 71adb87ee8ee76f32f54c70584ef14f67a4bc6f55df3f847c344726405927a1e
         // have an invalid size in `Shdr` even though they have a perfectly
         // valid string table.
-        let str_table = match elf.get(str_table?.offset as usize..elf.len()) {
-            Some(data) => data,
-            None => return None,
-        };
+        let str_table = elf.get(str_table?.offset as usize..elf.len())?;
         // Take `str_idx` bytes from `section` and from the remaining bytes
         // read the string until the null terminator is found.
         let (_, (_, str_bytes)) =

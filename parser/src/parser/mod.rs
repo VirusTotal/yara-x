@@ -16,11 +16,10 @@ error nodes is valid YARA code.
  */
 
 use indexmap::IndexSet;
-use rustc_hash::{FxHashMap, FxHashSet};
-use std::str::from_utf8;
-
 #[cfg(feature = "logging")]
 use log::*;
+use rustc_hash::{FxHashMap, FxHashSet};
+use std::str::{from_utf8, Utf8Error};
 
 use crate::ast::AST;
 use crate::cst::syntax_stream::SyntaxStream;
@@ -65,8 +64,8 @@ impl<'src> Parser<'src> {
     /// third-party code.
     #[inline]
     #[doc(hidden)]
-    pub fn into_cst(self) -> CST {
-        CST::from(self)
+    pub fn try_into_cst(self) -> Result<CST, Utf8Error> {
+        CST::try_from(self)
     }
 
     /// Consumes the parser and returns a Concrete Syntax Tree (CST) as
@@ -318,9 +317,8 @@ impl<'src> ParserImpl<'src> {
     /// Returns `None` if there are no more tokens.
     fn bump(&mut self) -> Option<Token> {
         let token = self.tokens.next_token();
-        match &token {
-            Some(token) => self.output.push_token(token.into(), token.span()),
-            None => {}
+        if let Some(token) = &token {
+            self.output.push_token(token.into(), token.span())
         }
         token
     }
@@ -1015,7 +1013,7 @@ macro_rules! t {
 /// Thus, a rule like `( a | a B )` is problematic because `a B` won't ever
 /// match. If `a B` matches, then `a` also matches, but `a` has a higher
 /// priority and prevents `a B` from matching.
-impl<'src> ParserImpl<'src> {
+impl ParserImpl<'_> {
     /// Parses a top-level item in YARA source file.
     ///
     /// A top-level item is either an import statement or a rule declaration.

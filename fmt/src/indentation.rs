@@ -8,7 +8,6 @@ use std::collections::VecDeque;
 /// level. These tokens are removed from the output, and the appropriate
 /// number of spaces is inserted after each newline for indenting the code
 /// to its corresponding level.
-
 pub(crate) struct AddIndentationSpaces<'a, T>
 where
     T: TokenStream<'a>,

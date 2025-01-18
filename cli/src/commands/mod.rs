@@ -144,6 +144,7 @@ pub fn create_compiler(
         .colorize_errors(stdout().is_tty());
 
     for m in args.get_many::<String>("ignore-module").into_iter().flatten() {
+        println!("ignore {}", m);
         compiler.ignore_module(m);
     }
 

@@ -632,6 +632,7 @@ use output_handler::*;
 mod output_handler {
     use super::*;
     use std::collections::HashMap;
+    use yara_x::PatternKind;
 
     #[derive(serde::Serialize)]
     struct PatternJson {
@@ -781,11 +782,13 @@ mod output_handler {
             output: &Sender<Message>,
         ) {
             if self.output_options.count_only {
-                let count = scan_results.len();
-                let line =
-                    format!("{}: {}", &file_path.display().to_string(), count);
-
-                output.send(Message::Info(line)).unwrap();
+                output
+                    .send(Message::Info(format!(
+                        "{}: {}",
+                        &file_path.display().to_string(),
+                        scan_results.len()
+                    )))
+                    .unwrap();
                 return;
             }
 
@@ -799,7 +802,7 @@ mod output_handler {
                     }
                 }
 
-                let mut line = if self.output_options.include_namespace {
+                let mut msg = if self.output_options.include_namespace {
                     format!(
                         "{}:{}",
                         matching_rule.namespace().paint(Cyan).bold(),
@@ -815,51 +818,49 @@ mod output_handler {
                 let tags = matching_rule.tags();
 
                 if self.output_options.include_tags && !tags.is_empty() {
-                    line.push_str(" [");
+                    msg.push_str(" [");
                     for (pos, tag) in tags.with_position() {
-                        line.push_str(tag.identifier());
+                        msg.push_str(tag.identifier());
                         if !matches!(pos, itertools::Position::Last) {
-                            line.push(',');
+                            msg.push(',');
                         }
                     }
-                    line.push(']');
+                    msg.push(']');
                 }
 
                 let metadata = matching_rule.metadata();
 
                 if self.output_options.include_meta && !metadata.is_empty() {
-                    line.push_str(" [");
+                    msg.push_str(" [");
                     for (pos, (m, v)) in metadata.with_position() {
                         match v {
                             MetaValue::Bool(v) => {
-                                line.push_str(&format!("{}={}", m, v))
+                                msg.push_str(&format!("{}={}", m, v))
                             }
                             MetaValue::Integer(v) => {
-                                line.push_str(&format!("{}={}", m, v))
+                                msg.push_str(&format!("{}={}", m, v))
                             }
                             MetaValue::Float(v) => {
-                                line.push_str(&format!("{}={}", m, v))
+                                msg.push_str(&format!("{}={}", m, v))
                             }
                             MetaValue::String(v) => {
-                                line.push_str(&format!("{}=\"{}\"", m, v))
+                                msg.push_str(&format!("{}=\"{}\"", m, v))
                             }
-                            MetaValue::Bytes(v) => line.push_str(&format!(
+                            MetaValue::Bytes(v) => msg.push_str(&format!(
                                 "{}=\"{}\"",
                                 m,
                                 v.escape_ascii()
                             )),
                         };
                         if !matches!(pos, itertools::Position::Last) {
-                            line.push(',');
+                            msg.push(',');
                         }
                     }
-                    line.push(']');
+                    msg.push(']');
                 }
 
-                line.push(' ');
-                line.push_str(&file_path.display().to_string());
-
-                output.send(Message::Info(line)).unwrap();
+                msg.push(' ');
+                msg.push_str(&file_path.display().to_string());
 
                 if let Some(limit) = self.output_options.include_strings {
                     for p in matching_rule.patterns() {
@@ -867,8 +868,8 @@ mod output_handler {
                             let match_range = m.range();
                             let match_data = m.data();
 
-                            let mut msg = format!(
-                                "{:#x}:{}:{}",
+                            let mut match_str = format!(
+                                "\n{:#x}:{}:{}",
                                 match_range.start,
                                 match_range.len(),
                                 p.identifier(),
@@ -876,38 +877,58 @@ mod output_handler {
 
                             match m.xor_key() {
                                 Some(k) => {
-                                    msg.push_str(
+                                    match_str.push_str(
                                         format!(" xor({:#x},", k).as_str(),
                                     );
                                     for b in &match_data
                                         [..min(match_data.len(), limit)]
                                     {
                                         for c in (b ^ k).escape_ascii() {
-                                            msg.push_str(
+                                            match_str.push_str(
                                                 format!("{}", c as char)
                                                     .as_str(),
                                             );
                                         }
                                     }
-                                    msg.push_str("): ");
+                                    match_str.push_str("): ");
                                 }
                                 _ => {
-                                    msg.push_str(": ");
+                                    match_str.push_str(": ");
                                 }
                             }
 
-                            for b in
-                                &match_data[..min(match_data.len(), limit)]
-                            {
-                                for c in b.escape_ascii() {
-                                    msg.push_str(
-                                        format!("{}", c as char).as_str(),
-                                    );
+                            let data =
+                                &match_data[..min(match_data.len(), limit)];
+
+                            match p.kind() {
+                                PatternKind::Text | PatternKind::Regexp => {
+                                    for b in data {
+                                        for c in b.escape_ascii() {
+                                            match_str.push_str(
+                                                format!("{}", c as char)
+                                                    .as_str(),
+                                            );
+                                        }
+                                    }
+                                }
+                                PatternKind::Hex => {
+                                    for (pos, b) in data.iter().with_position()
+                                    {
+                                        match_str.push_str(
+                                            format!("{:02x}", b).as_str(),
+                                        );
+                                        if !matches!(
+                                            pos,
+                                            itertools::Position::Last
+                                        ) {
+                                            match_str.push(' ');
+                                        }
+                                    }
                                 }
                             }
 
                             if match_data.len() > limit {
-                                msg.push_str(
+                                match_str.push_str(
                                     format!(
                                         " ... {} more bytes",
                                         match_data.len().saturating_sub(limit)
@@ -916,10 +937,12 @@ mod output_handler {
                                 );
                             }
 
-                            output.send(Message::Info(msg)).unwrap();
+                            msg.push_str(&match_str)
                         }
                     }
                 }
+
+                output.send(Message::Info(msg)).unwrap();
             }
         }
 

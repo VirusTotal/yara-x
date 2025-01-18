@@ -14,6 +14,12 @@ rust-version.workspace = true
 [[bin]]
 name = "yr"
 path = "src/main.rs"
+# Don't run the CLI tests by default when `cargo test` is executed. The
+# CLI tests require the `target/debug/yr` binary do exists before the
+# tests are executed. The CLI tests can be run with:
+# cargo build
+# cargo test -p yara-x-cli --bin yr
+test = false
 
 [features]
 # Enable the "debug" command for developers.
@@ -66,3 +72,7 @@ crossterm = "0.28.1"
 encoding_rs = "0.8.35"
 superconsole = "0.2.0"
 wild = "2.2.1"
+
+[dev-dependencies]
+assert_cmd = "2.0.16"
+predicates = { workspace = true }

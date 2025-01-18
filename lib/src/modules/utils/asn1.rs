@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use array_bytes::bytes2hex;
+use array_bytes::Hexify;
 use const_oid::db::{rfc4519, rfc5912};
 use const_oid::ObjectIdentifier;
 
@@ -241,7 +241,7 @@ impl<'a> SignedData<'a> {
                 Ok((remainder, (cert_bytes, cert))) => {
                     certificates.push(Certificate {
                         x509: cert,
-                        thumbprint: bytes2hex("", Sha1::digest(cert_bytes)),
+                        thumbprint: Sha1::digest(cert_bytes).hexify(),
                     });
                     remainder
                 }

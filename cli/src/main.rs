@@ -3,7 +3,10 @@ mod config;
 mod help;
 mod walk;
 
-use crate::config::{load_config_from_str, Config};
+#[cfg(test)]
+mod tests;
+
+use config::{load_config_from_file, Config};
 use crossterm::tty::IsTty;
 use std::path::PathBuf;
 use std::{fs, io, panic, process};

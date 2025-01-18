@@ -16,7 +16,7 @@ use std::time::Instant;
 use std::{fmt, iter};
 
 use bincode::Options;
-use bitmask::bitmask;
+use bitflags::bitflags;
 use bstr::{BStr, ByteSlice};
 use itertools::{izip, Itertools, MinMaxResult};
 #[cfg(feature = "logging")]
@@ -31,7 +31,7 @@ use thiserror::Error;
 use walrus::FunctionId;
 
 use yara_x_parser::ast;
-use yara_x_parser::ast::{Ident, Import, RuleFlag, WithSpan};
+use yara_x_parser::ast::{Ident, Import, RuleFlags, WithSpan};
 use yara_x_parser::{Parser, Span};
 
 use crate::compiler::base64::base64_patterns;
@@ -403,7 +403,7 @@ pub struct Compiler<'a> {
     rule_name_regexp: Option<Regex>,
 }
 
-impl<'a> Compiler<'a> {
+impl Compiler<'_> {
     /// Creates a new YARA compiler.
     pub fn new() -> Self {
         let mut ident_pool = StringPool::new();
@@ -1026,7 +1026,7 @@ impl<'a> Compiler<'a> {
     }
 }
 
-impl<'a> Compiler<'a> {
+impl Compiler<'_> {
     fn add_sub_pattern<I, F, A>(
         &mut self,
         sub_pattern: SubPattern,
@@ -1379,7 +1379,7 @@ impl<'a> Compiler<'a> {
     }
 }
 
-impl<'a> Compiler<'a> {
+impl Compiler<'_> {
     fn c_rule(&mut self, rule: &ast::Rule) -> Result<(), CompileError> {
         // Check if another rule, module or variable has the same identifier
         // and return an error in that case.
@@ -1472,8 +1472,8 @@ impl<'a> Compiler<'a> {
             ),
             tags,
             patterns: vec![],
-            is_global: rule.flags.contains(RuleFlag::Global),
-            is_private: rule.flags.contains(RuleFlag::Private),
+            is_global: rule.flags.contains(RuleFlags::Global),
+            is_private: rule.flags.contains(RuleFlags::Private),
             metadata: meta,
         });
 
@@ -1859,11 +1859,11 @@ impl<'a> Compiler<'a> {
         anchored_at: Option<usize>,
     ) {
         let full_word = pattern.flags.contains(PatternFlags::Fullword);
-        let mut flags = SubPatternFlagSet::none();
+        let mut flags = SubPatternFlags::empty();
 
         if full_word {
-            flags.set(SubPatternFlags::FullwordLeft);
-            flags.set(SubPatternFlags::FullwordRight);
+            flags.insert(SubPatternFlags::FullwordLeft);
+            flags.insert(SubPatternFlags::FullwordRight);
         }
 
         // Depending on the combination of `ascii` and `wide` modifiers, the
@@ -2066,25 +2066,25 @@ impl<'a> Compiler<'a> {
         // If this point is reached, this is a pattern that can't be split into
         // multiple chained patterns, and is neither a literal or alternation
         // of literals. Most patterns fall in this category.
-        let mut flags = SubPatternFlagSet::none();
+        let mut flags = SubPatternFlags::empty();
 
         if pattern.flags.contains(PatternFlags::Nocase) {
-            flags.set(SubPatternFlags::Nocase);
+            flags.insert(SubPatternFlags::Nocase);
         }
 
         if pattern.flags.contains(PatternFlags::Fullword) {
-            flags.set(SubPatternFlags::FullwordLeft);
-            flags.set(SubPatternFlags::FullwordRight);
+            flags.insert(SubPatternFlags::FullwordLeft);
+            flags.insert(SubPatternFlags::FullwordRight);
         }
 
         if matches!(head.is_greedy(), Some(true)) {
-            flags.set(SubPatternFlags::GreedyRegexp);
+            flags.insert(SubPatternFlags::GreedyRegexp);
         }
 
         let (atoms, is_fast_regexp) = self.c_regexp(&head, span)?;
 
         if is_fast_regexp {
-            flags.set(SubPatternFlags::FastRegexp);
+            flags.insert(SubPatternFlags::FastRegexp);
         }
 
         if pattern.flags.contains(PatternFlags::Wide) {
@@ -2110,22 +2110,22 @@ impl<'a> Compiler<'a> {
         &mut self,
         hir: re::hir::Hir,
         anchored_at: Option<usize>,
-        flags: PatternFlagSet,
+        flags: PatternFlags,
     ) -> Result<(), CompileError> {
         let ascii = flags.contains(PatternFlags::Ascii);
         let wide = flags.contains(PatternFlags::Wide);
         let case_insensitive = flags.contains(PatternFlags::Nocase);
         let full_word = flags.contains(PatternFlags::Fullword);
 
-        let mut flags = SubPatternFlagSet::none();
+        let mut flags = SubPatternFlags::empty();
 
         if case_insensitive {
-            flags.set(SubPatternFlags::Nocase);
+            flags.insert(SubPatternFlags::Nocase);
         }
 
         if full_word {
-            flags.set(SubPatternFlags::FullwordLeft);
-            flags.set(SubPatternFlags::FullwordRight);
+            flags.insert(SubPatternFlags::FullwordLeft);
+            flags.insert(SubPatternFlags::FullwordRight);
         }
 
         let mut process_literal = |literal: &hir::Literal, wide: bool| {
@@ -2201,7 +2201,7 @@ impl<'a> Compiler<'a> {
         &mut self,
         leading: &re::hir::Hir,
         trailing: &[ChainedPattern],
-        flags: PatternFlagSet,
+        flags: PatternFlags,
         span: Span,
     ) -> Result<(), CompileError> {
         let ascii = flags.contains(PatternFlags::Ascii);
@@ -2209,14 +2209,14 @@ impl<'a> Compiler<'a> {
         let case_insensitive = flags.contains(PatternFlags::Nocase);
         let full_word = flags.contains(PatternFlags::Fullword);
 
-        let mut common_flags = SubPatternFlagSet::none();
+        let mut common_flags = SubPatternFlags::empty();
 
         if case_insensitive {
-            common_flags.set(SubPatternFlags::Nocase);
+            common_flags.insert(SubPatternFlags::Nocase);
         }
 
         if matches!(leading.is_greedy(), Some(true)) {
-            common_flags.set(SubPatternFlags::GreedyRegexp);
+            common_flags.insert(SubPatternFlags::GreedyRegexp);
         }
 
         let mut prev_sub_pattern_ascii = SubPatternId(0);
@@ -2226,7 +2226,7 @@ impl<'a> Compiler<'a> {
             let mut flags = common_flags;
 
             if full_word {
-                flags.set(SubPatternFlags::FullwordLeft);
+                flags.insert(SubPatternFlags::FullwordLeft);
             }
 
             if ascii {
@@ -2247,11 +2247,11 @@ impl<'a> Compiler<'a> {
                 self.c_regexp(leading, span.clone())?;
 
             if is_fast_regexp {
-                flags.set(SubPatternFlags::FastRegexp);
+                flags.insert(SubPatternFlags::FastRegexp);
             }
 
             if full_word {
-                flags.set(SubPatternFlags::FullwordLeft);
+                flags.insert(SubPatternFlags::FullwordLeft);
             }
 
             if wide {
@@ -2281,9 +2281,9 @@ impl<'a> Compiler<'a> {
             // Patterns in the middle of the chain won't have either of these
             // flags.
             if i == trailing.len() - 1 {
-                flags.set(SubPatternFlags::LastInChain);
+                flags.insert(SubPatternFlags::LastInChain);
                 if full_word {
-                    flags.set(SubPatternFlags::FullwordRight);
+                    flags.insert(SubPatternFlags::FullwordRight);
                 }
             }
 
@@ -2306,14 +2306,14 @@ impl<'a> Compiler<'a> {
                 }
             } else {
                 if matches!(p.hir.is_greedy(), Some(true)) {
-                    flags.set(SubPatternFlags::GreedyRegexp);
+                    flags.insert(SubPatternFlags::GreedyRegexp);
                 }
 
                 let (atoms, is_fast_regexp) =
                     self.c_regexp(&p.hir, span.clone())?;
 
                 if is_fast_regexp {
-                    flags.set(SubPatternFlags::FastRegexp);
+                    flags.insert(SubPatternFlags::FastRegexp);
                 }
 
                 if wide {
@@ -2431,7 +2431,7 @@ impl<'a> Compiler<'a> {
     fn c_literal_chain_head(
         &mut self,
         literal: &hir::Literal,
-        flags: SubPatternFlagSet,
+        flags: SubPatternFlags,
     ) -> SubPatternId {
         let pattern_lit_id = self.intern_literal(
             literal.0.as_bytes(),
@@ -2452,7 +2452,7 @@ impl<'a> Compiler<'a> {
         literal: &hir::Literal,
         chained_to: SubPatternId,
         gap: RangeInclusive<u32>,
-        flags: SubPatternFlagSet,
+        flags: SubPatternFlags,
     ) -> SubPatternId {
         let pattern_lit_id = self.intern_literal(
             literal.0.as_bytes(),
@@ -2710,24 +2710,24 @@ impl<'a> Iterator for Imports<'a> {
     }
 }
 
-bitmask! {
+bitflags! {
     /// Flags associated to some kinds of [`SubPattern`].
-    #[derive(Debug, Serialize, Deserialize)]
-    pub mask SubPatternFlagSet: u8 where flags SubPatternFlags  {
-        Wide                 = 0x01,
-        Nocase               = 0x02,
+    #[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize, PartialEq, Eq)]
+    pub struct SubPatternFlags: u16  {
+        const Wide                 = 0x01;
+        const Nocase               = 0x02;
         // Indicates that the pattern is the last one in chain. Applies only
         // to chained sub-patterns.
-        LastInChain          = 0x04,
-        FullwordLeft         = 0x08,
-        FullwordRight        = 0x10,
+        const LastInChain          = 0x04;
+        const FullwordLeft         = 0x08;
+        const FullwordRight        = 0x10;
         // Indicates that the pattern is a greedy regexp. Apply only to regexp
         // sub-patterns, or to any sub-pattern is part of chain that corresponds
         // to a greedy regexp.
-        GreedyRegexp         = 0x20,
+        const GreedyRegexp         = 0x20;
         // Indicates that the pattern is a fast regexp. A fast regexp is one
         // that can be matched by the FastVM.
-        FastRegexp           = 0x40,
+        const FastRegexp           = 0x40;
     }
 }
 
@@ -2745,38 +2745,38 @@ pub(crate) enum SubPattern {
     Literal {
         pattern: LiteralId,
         anchored_at: Option<usize>,
-        flags: SubPatternFlagSet,
+        flags: SubPatternFlags,
     },
 
     LiteralChainHead {
         pattern: LiteralId,
-        flags: SubPatternFlagSet,
+        flags: SubPatternFlags,
     },
 
     LiteralChainTail {
         pattern: LiteralId,
         chained_to: SubPatternId,
         gap: RangeInclusive<u32>,
-        flags: SubPatternFlagSet,
+        flags: SubPatternFlags,
     },
 
     Regexp {
-        flags: SubPatternFlagSet,
+        flags: SubPatternFlags,
     },
 
     RegexpChainHead {
-        flags: SubPatternFlagSet,
+        flags: SubPatternFlags,
     },
 
     RegexpChainTail {
         chained_to: SubPatternId,
         gap: RangeInclusive<u32>,
-        flags: SubPatternFlagSet,
+        flags: SubPatternFlags,
     },
 
     Xor {
         pattern: LiteralId,
-        flags: SubPatternFlagSet,
+        flags: SubPatternFlags,
     },
 
     Base64 {
