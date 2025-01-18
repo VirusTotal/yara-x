@@ -720,7 +720,7 @@ lazy_static! {
         config.native_unwind_info(false);
 
         config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
-        config.memory_reservation(0x10000000); // 256MB
+        config.memory_reservation(0x1000000); // 16MB
         config.memory_reservation_for_growth(0);
         config.guard_before_linear_memory(false);
         config.memory_may_move(false);
