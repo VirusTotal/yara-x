@@ -203,12 +203,20 @@ impl<'a> Walker<'a> {
         // workaround for a bug in globwalk that causes a panic.
         // https://github.com/VirusTotal/yara-x/issues/280
         // https://github.com/Gilnaa/globwalk/issues/28
+        //
+        // Only perform the strip if the path is not exactly "." - this allows
+        // users to run "yr scan rules.yara ." to scan all the files in the
+        // current directory.
+        let path = if self.path.as_os_str().ne(".") {
+            #[cfg(not(target_os = "windows"))]
+            let path = self.path.strip_prefix("./").unwrap_or(self.path);
 
-        #[cfg(not(target_os = "windows"))]
-        let path = self.path.strip_prefix("./").unwrap_or(self.path);
-
-        #[cfg(target_os = "windows")]
-        let path = self.path.strip_prefix(r#".\"#).unwrap_or(self.path);
+            #[cfg(target_os = "windows")]
+            let path = self.path.strip_prefix(r#".\"#).unwrap_or(self.path);
+            path
+        } else {
+            self.path
+        };
 
         let mut builder = if self.filters.is_empty() {
             globwalk::GlobWalkerBuilder::from_patterns(path, &["**"])
