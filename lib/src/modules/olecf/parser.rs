@@ -65,51 +65,54 @@ impl<'a> OLECFParser<'a> {
     }
 
     fn parse(&mut self, input: &'a [u8]) -> IResult<&'a [u8], ()> {
-        // (A) Check the 8-byte OLECF signature.
-        let (input, _) = verify(take(8_usize), |sig: &[u8]| sig == OLECF_SIGNATURE)(input)?;
-
-        // (B) Parse the rest of the header fields.
         let (input, ()) = self.parse_header(input)?;
-
-        // (C) Parse the directory chain.
-        let (input, ()) = self.parse_directory(input)?;
-
-        Ok((input, ()))
+        self.parse_directory(input)
     }
 
-
+    /// Parses the Compound File Header.
+    ///
+    /// [MS-CFB] Section 2.2
     fn parse_header(&mut self, input: &'a [u8]) -> IResult<&'a [u8], ()> {
-        let (mut input, (
-            _skip_20,
-            byte_order,
-            _skip_14,
-            num_fat_sectors,
-            first_dir_sector,
-            _skip_8,
-            first_mini_fat,
-            mini_fat_count,
-            _first_difat_sector,
-            _difat_count,
-        )) = tuple((
-            take(20usize),  // skip 20 bytes
-            le_u16,         // parse byte_order
-            take(14usize),  // skip 14 bytes
-            le_u32,         // parse num_fat_sectors
-            le_u32,         // parse first_dir_sector
-            take(8usize),   // skip 8 bytes
-            le_u32,         // parse first_mini_fat
-            le_u32,         // parse mini_fat_count
-            le_u32,         // parse _first_difat_sector
-            le_u32,         // parse _difat_count
+        let (
+            mut input,
+            (
+                _signature,
+                _clsid,
+                _minor_version,
+                _major_version,
+                _byte_order,
+                _sector_shift,
+                _mini_sector_shift,
+                _reserved,
+                _num_dir_sectors,
+                num_fat_sectors,
+                first_dir_sector,
+                _transaction_sig_num,
+                _mini_stream_cutoff_size,
+                first_mini_fat,
+                mini_fat_count,
+                _first_difat_sector,
+                _difat_count,
+            ),
+        ) = tuple((
+            verify(take(8_usize), |sig: &[u8]| sig == OLECF_SIGNATURE),
+            take(16usize), // CLSID,
+            le_u16,        // minor_version
+            le_u16,        // major_version
+            verify(le_u16, |byte_order| *byte_order == 0xFFFE),
+            le_u16,       // sector_shift
+            le_u16,       // mini_sector_shift
+            take(6usize), // reserved
+            le_u32,       // num_dir_sectors
+            le_u32,       // num_fat_sectors
+            le_u32,       // first_dir_sector
+            le_u32,       // transaction_sig_num
+            le_u32,       // mini_stream_cutoff_size
+            le_u32,       // first_mini_fat
+            le_u32,       // mini_fat_count
+            le_u32,       // _first_difat_sector
+            le_u32,       // _difat_count
         ))(input)?;
-
-        // (A) Verify `byte_order == 0xFFFE`.
-        if byte_order != 0xFFFE {
-            return Err(nom::Err::Error(NomError::new(
-                input,
-                ErrorKind::Verify,
-            )));
-        }
 
         // (B) Parse up to 109 DIFAT entries from `input`
         //     109 is the max allowed number of DIFAT entries in the header.
