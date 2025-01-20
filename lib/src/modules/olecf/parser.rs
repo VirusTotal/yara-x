@@ -77,7 +77,7 @@ impl<'a> OLECFParser<'a> {
     }
 
 
-    fn parse_header(&mut self, input: &'a [u8]) -> IResult<&'a [u8], ()> {        
+    fn parse_header(&mut self, input: &'a [u8]) -> IResult<&'a [u8], ()> {
         let (mut input, (
             _skip_20,
             byte_order,
@@ -101,12 +101,12 @@ impl<'a> OLECFParser<'a> {
             le_u32,         // parse _first_difat_sector
             le_u32,         // parse _difat_count
         ))(input)?;
-    
+
         // (A) Verify `byte_order == 0xFFFE`.
         if byte_order != 0xFFFE {
             return Err(nom::Err::Error(NomError::new(input, ErrorKind::Verify)));
         }
-    
+
         // (B) Parse up to 109 DIFAT entries from `input`
         //     109 is the max allowed number of DIFAT entries in the header.
         let rest = input;
@@ -128,27 +128,27 @@ impl<'a> OLECFParser<'a> {
             self.fat_sectors.append(&mut filtered);
             input = rest2;
         }
-    
+
         // (C) Directory chain
         if first_dir_sector < MAX_REGULAR_SECTOR {
             self.directory_sectors = self.follow_chain(first_dir_sector);
         } else {
             return Err(nom::Err::Error(NomError::new(input, ErrorKind::Verify)));
         }
-    
+
         // (D) MiniFAT chain
         if mini_fat_count > 0 && first_mini_fat < MAX_REGULAR_SECTOR {
             self.mini_fat_sectors = self.follow_chain(first_mini_fat);
         }
-    
+
         // (E) If no FAT sectors but num_fat_sectors != 0 => error
         if self.fat_sectors.is_empty() && num_fat_sectors > 0 {
             return Err(nom::Err::Error(NomError::new(input, ErrorKind::Verify)));
         }
-    
+
         Ok((input, ()))
     }
-    
+
 
     fn parse_directory(&mut self, _input: &'a [u8]) -> IResult<&'a [u8], ()> {
         if self.directory_sectors.is_empty() {
@@ -249,19 +249,19 @@ impl<'a> OLECFParser<'a> {
                 // We've seen this sector before - it's a cycle
                 break;
             }
-            
+
             chain.push(current);
-            
+
             let next = match self.get_fat_entry(current) {
                 Ok(n) => n,
                 Err(_) => break,
             };
-            
+
             // Check validity of next sector
             if next >= MAX_REGULAR_SECTOR || next == FREESECT || next == ENDOFCHAIN {
                 break;
             }
-            
+
             current = next;
         }
         chain
