@@ -426,7 +426,8 @@ impl<M> Token<M> {
     /// # use yara_x_parser::cst::SyntaxKind;
     /// # use yara_x_parser::Parser;
     /// let mut token = Parser::new(b"rule test {condition:true}")
-    ///     .into_cst()
+    ///     .try_into_cst()
+    ///     .unwrap()
     ///     .root()
     ///     .last_token()
     ///     .unwrap();
@@ -465,7 +466,8 @@ impl<M> Token<M> {
     /// # use yara_x_parser::cst::SyntaxKind;
     /// # use yara_x_parser::Parser;
     /// let mut token = Parser::new(b"rule test {condition:true}")
-    ///     .into_cst()
+    ///     .try_into_cst()
+    ///     .unwrap()
     ///     .root()
     ///     .first_token()
     ///     .unwrap();
@@ -756,7 +758,8 @@ impl<M> Node<M> {
     /// rule test_1 {condition:true}
     /// rule test_2 {condition:true}
     /// ")
-    ///     .into_cst()
+    ///     .try_into_cst()
+    ///     .unwrap()
     ///     .root()
     ///     .first_child()
     ///     .unwrap();
@@ -800,7 +803,8 @@ impl<M> Node<M> {
     /// rule test_1 {condition:true}
     /// rule test_2 {condition:true}
     /// ")
-    ///     .into_cst()
+    ///     .try_into_cst()
+    ///     .unwrap()
     ///     .root()
     ///     .first_child()
     ///     .unwrap();
