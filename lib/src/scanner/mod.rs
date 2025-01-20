@@ -262,7 +262,7 @@ impl<'r> Scanner<'r> {
         // Create module's main memory.
         let main_memory = wasmtime::Memory::new(
             wasm_store.as_context_mut(),
-            MemoryType::new(mem_size, None),
+            MemoryType::new(mem_size, Some(mem_size)),
         )
         .unwrap();
 
