@@ -71,7 +71,6 @@ impl<'a> VbaExtractor<'a> {
                     if let Ok(data) = self.read_stream(&ole_parser, name) {
                         if !data.is_empty() {
                             modules.insert(name.clone(), data);
-                            println!("Added module: {}", name);
                         }
                     }
                 } else if lowercase_name.contains("project") && !lowercase_name.contains("_vba_project") {
