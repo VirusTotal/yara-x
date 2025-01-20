@@ -22,109 +22,106 @@ mod tests;
 /// bits set to one, corresponding to the base categories contained in the
 /// super-category.
 pub(crate) mod categories {
-    use bitmask::bitmask;
+    use bitflags::bitflags;
     use lazy_static::lazy_static;
 
-    bitmask! {
-        #[derive(Debug)]
-        pub mask Category: u32 where flags BaseCategory  {
-            None                = 0b00000000000000000000000000000001,
-            Begin               = 0b00000000000000000000000000000010,
-            End                 = 0b00000000000000000000000000000100,
-            BlockBegin          = 0b00000000000000000000000000001000,
-            BlockEnd            = 0b00000000000000000000000000010000,
-            AlignmentBlockBegin = 0b00000000000000000000000000100000,
-            AlignmentBlockEnd   = 0b00000000000000000000000001000000,
-            AlignmentMarker     = 0b00000000000000000000000010000000,
-            Indentation         = 0b00000000000000000000000100000000,
-            Whitespace          = 0b00000000000000000000001000000000,
-            Comment             = 0b00000000000000000000010000000000,
-            Newline             = 0b00000000000000000000100000000000,
-            Punctuation         = 0b00000000000000000001000000000000,
-            Identifier          = 0b00000000000000000010000000000000,
-            Keyword             = 0b00000000000000000100000000000000,
-            Literal             = 0b00000000000000001000000000000000,
-            LGrouping           = 0b00000000000000010000000000000000,
-            RGrouping           = 0b00000000000000100000000000000000,
+    bitflags! {
+        #[derive(Debug, Clone, Copy)]
+        pub struct Category: u32 {
+            const None                = 0b00000000000000000000000000000001;
+            const Begin               = 0b00000000000000000000000000000010;
+            const End                 = 0b00000000000000000000000000000100;
+            const BlockBegin          = 0b00000000000000000000000000001000;
+            const BlockEnd            = 0b00000000000000000000000000010000;
+            const AlignmentBlockBegin = 0b00000000000000000000000000100000;
+            const AlignmentBlockEnd   = 0b00000000000000000000000001000000;
+            const AlignmentMarker     = 0b00000000000000000000000010000000;
+            const Indentation         = 0b00000000000000000000000100000000;
+            const Whitespace          = 0b00000000000000000000001000000000;
+            const Comment             = 0b00000000000000000000010000000000;
+            const Newline             = 0b00000000000000000000100000000000;
+            const Punctuation         = 0b00000000000000000001000000000000;
+            const Identifier          = 0b00000000000000000010000000000000;
+            const Keyword             = 0b00000000000000000100000000000000;
+            const Literal             = 0b00000000000000001000000000000000;
+            const LGrouping           = 0b00000000000000010000000000000000;
+            const RGrouping           = 0b00000000000000100000000000000000;
         }
     }
     lazy_static! {
         // These are the base categories (i.e: those that don't contain another category)
         pub static ref NONE: Category =
-            Category::from(BaseCategory::None);
-
-        pub static ref BEGIN: Category =
-            Category::from(BaseCategory::Begin);
+            Category::None;
 
         pub static ref END: Category =
-            Category::from(BaseCategory::End);
+            Category::End;
 
         pub static ref BLOCK_BEGIN: Category =
-            Category::from(BaseCategory::BlockBegin);
+            Category::BlockBegin;
 
         pub static ref BLOCK_END: Category =
-            Category::from(BaseCategory::BlockEnd);
+            Category::BlockEnd;
 
         pub static ref ALIGNMENT_BLOCK_BEGIN: Category =
-            Category::from(BaseCategory::AlignmentBlockBegin);
+            Category::AlignmentBlockBegin;
 
         pub static ref ALIGNMENT_BLOCK_END: Category =
-            Category::from(BaseCategory::AlignmentBlockBegin);
+            Category::AlignmentBlockBegin;
 
         pub static ref ALIGNMENT_MARKER: Category =
-            Category::from(BaseCategory::AlignmentMarker);
+            Category::AlignmentMarker;
 
         pub static ref INDENTATION: Category =
-            Category::from(BaseCategory::Indentation);
+            Category::Indentation;
 
         pub static ref WHITESPACE: Category =
-            Category::from(BaseCategory::Whitespace);
+            Category::Whitespace;
 
         pub static ref COMMENT: Category =
-            Category::from(BaseCategory::Comment);
+            Category::Comment;
 
         pub static ref NEWLINE: Category =
-            Category::from(BaseCategory::Newline);
+            Category::Newline;
 
         pub static ref KEYWORD: Category =
-            Category::from(BaseCategory::Keyword);
+            Category::Keyword;
 
         pub static ref PUNCTUATION: Category =
-            Category::from(BaseCategory::Punctuation);
+            Category::Punctuation;
 
         pub static ref IDENTIFIER: Category =
-            Category::from(BaseCategory::Identifier);
+            Category::Identifier;
 
         pub static ref LITERAL: Category =
-            Category::from(BaseCategory::Literal);
+            Category::Literal;
 
         pub static ref LGROUPING: Category =
-            Category::from(BaseCategory::LGrouping);
+            Category::LGrouping;
 
         pub static ref RGROUPING: Category =
-            Category::from(BaseCategory::RGrouping);
+            Category::RGrouping;
 
         // These are super-categories that are composed of other categories.
         pub static ref CONTROL: Category =
-            *BEGIN |
-            *END |
-            *INDENTATION |
-            *BLOCK_BEGIN |
-            *BLOCK_END |
-            *ALIGNMENT_BLOCK_BEGIN |
-            *ALIGNMENT_BLOCK_END;
+            Category::Begin |
+            Category::End |
+            Category::Indentation |
+            Category::BlockBegin |
+            Category::BlockEnd |
+            Category::AlignmentBlockBegin |
+            Category::AlignmentBlockEnd;
 
         pub static ref SPACING: Category =
-            *WHITESPACE |
-            *NEWLINE;
+            Category::Whitespace |
+            Category::Newline;
 
         pub static ref TEXT: Category =
-            *KEYWORD |
-            *PUNCTUATION |
-            *LGROUPING |
-            *RGROUPING |
-            *IDENTIFIER |
-            *LITERAL;
+            Category::Keyword |
+            Category::Punctuation |
+            Category::LGrouping |
+            Category::RGrouping |
+            Category::Identifier |
+            Category::Literal;
     }
 }
 
@@ -236,37 +233,35 @@ pub(crate) enum Token<'a> {
 
 impl<'a> Token<'a> {
     /// Returns the category the token belongs to.
-    pub fn category(&'a self) -> categories::BaseCategory {
+    pub fn category(&'a self) -> categories::Category {
         match self {
-            Token::None => categories::BaseCategory::None,
-            Token::Begin(..) => categories::BaseCategory::Begin,
-            Token::End(..) => categories::BaseCategory::End,
-            Token::BlockBegin => categories::BaseCategory::BlockBegin,
-            Token::BlockEnd => categories::BaseCategory::BlockEnd,
+            Token::None => categories::Category::None,
+            Token::Begin(..) => categories::Category::Begin,
+            Token::End(..) => categories::Category::End,
+            Token::BlockBegin => categories::Category::BlockBegin,
+            Token::BlockEnd => categories::Category::BlockEnd,
             Token::AlignmentBlockBegin => {
-                categories::BaseCategory::AlignmentBlockBegin
+                categories::Category::AlignmentBlockBegin
             }
             Token::AlignmentBlockEnd => {
-                categories::BaseCategory::AlignmentBlockEnd
+                categories::Category::AlignmentBlockEnd
             }
-            Token::AlignmentMarker => {
-                categories::BaseCategory::AlignmentMarker
-            }
-            Token::Indentation(..) => categories::BaseCategory::Indentation,
-            Token::Whitespace => categories::BaseCategory::Whitespace,
-            Token::Tab => categories::BaseCategory::Whitespace,
+            Token::AlignmentMarker => categories::Category::AlignmentMarker,
+            Token::Indentation(..) => categories::Category::Indentation,
+            Token::Whitespace => categories::Category::Whitespace,
+            Token::Tab => categories::Category::Whitespace,
             Token::Comment(..)
             | Token::BlockComment(..)
             | Token::TailComment(..)
             | Token::HeadComment(..)
-            | Token::InlineComment(..) => categories::BaseCategory::Comment,
-            Token::Newline => categories::BaseCategory::Newline,
-            Token::Identifier(..) => categories::BaseCategory::Identifier,
-            Token::Keyword(..) => categories::BaseCategory::Keyword,
-            Token::LGrouping(..) => categories::BaseCategory::LGrouping,
-            Token::RGrouping(..) => categories::BaseCategory::RGrouping,
-            Token::Punctuation(..) => categories::BaseCategory::Punctuation,
-            Token::Literal(..) => categories::BaseCategory::Literal,
+            | Token::InlineComment(..) => categories::Category::Comment,
+            Token::Newline => categories::Category::Newline,
+            Token::Identifier(..) => categories::Category::Identifier,
+            Token::Keyword(..) => categories::Category::Keyword,
+            Token::LGrouping(..) => categories::Category::LGrouping,
+            Token::RGrouping(..) => categories::Category::RGrouping,
+            Token::Punctuation(..) => categories::Category::Punctuation,
+            Token::Literal(..) => categories::Category::Literal,
         }
     }
 
@@ -486,8 +481,8 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
 // implements the TokenStream trait.
 impl<'a, T> TokenStream<'a> for T where T: Iterator<Item = Token<'a>> {}
 
-/// An iterator that takes a parse tree generated by the parser and produces a
-/// sequence of tokens.
+/// An iterator that takes a [`CSTStream`] generated by the parser and produces
+/// a sequence of tokens.
 pub(crate) struct Tokens<'src> {
     events: CSTStream<'src>,
     buffer: VecDeque<Token<'src>>,
@@ -525,7 +520,7 @@ impl<'src> Iterator for Tokens<'src> {
                         for _ in s.chars() {
                             self.buffer.push_back(Token::Whitespace);
                         }
-                        Some(self.buffer.pop_front().unwrap())
+                        self.buffer.pop_front()
                     } else {
                         Some(Token::new(kind, token_bytes))
                     };

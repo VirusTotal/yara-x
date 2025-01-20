@@ -632,9 +632,10 @@ use output_handler::*;
 mod output_handler {
     use super::*;
     use std::collections::HashMap;
+    use yara_x::PatternKind;
 
     #[derive(serde::Serialize)]
-    struct JsonPattern {
+    struct PatternJson {
         identifier: String,
         offset: usize,
         r#match: String,
@@ -645,7 +646,7 @@ mod output_handler {
     }
 
     #[derive(serde::Serialize)]
-    struct JsonRule {
+    struct RuleJson {
         identifier: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         namespace: Option<String>,
@@ -654,13 +655,13 @@ mod output_handler {
         #[serde(skip_serializing_if = "Option::is_none")]
         tags: Option<Vec<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        strings: Option<Vec<JsonPattern>>,
+        strings: Option<Vec<PatternJson>>,
     }
 
     #[derive(serde::Serialize)]
     struct JsonOutput<'a> {
         path: &'a str,
-        rules: &'a [JsonRule],
+        rules: &'a [RuleJson],
     }
 
     #[derive(serde::Serialize)]
@@ -672,14 +673,14 @@ mod output_handler {
     fn rules_to_json(
         output_options: &OutputOptions,
         scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
-    ) -> Vec<JsonRule> {
+    ) -> Vec<RuleJson> {
         scan_results
             .filter(move |rule| {
                 output_options.only_tag.as_ref().map_or(true, |only_tag| {
                     rule.tags().any(|tag| tag.identifier() == only_tag)
                 })
             })
-            .map(move |rule| JsonRule {
+            .map(move |rule| RuleJson {
                 identifier: rule.identifier().to_string(),
                 namespace: output_options
                     .include_namespace
@@ -702,7 +703,7 @@ mod output_handler {
     fn patterns_to_json(
         patterns: Patterns<'_, '_>,
         string_limit: usize,
-    ) -> Vec<JsonPattern> {
+    ) -> Vec<PatternJson> {
         patterns
             .flat_map(|pattern| {
                 let identifier = pattern.identifier();
@@ -729,7 +730,7 @@ mod output_handler {
                         )
                         .collect::<String>();
 
-                    JsonPattern {
+                    PatternJson {
                         identifier: identifier.to_owned(),
                         offset: match_range.start,
                         r#match: string,
@@ -760,7 +761,7 @@ mod output_handler {
             output: &Sender<Message>,
         );
         /// Called when the last file has been scanned.
-        fn on_done(&self, _output: &Sender<Message>) {}
+        fn on_done(&self, _output: &Sender<Message>);
     }
 
     pub(super) struct TextOutputHandler {
@@ -781,11 +782,13 @@ mod output_handler {
             output: &Sender<Message>,
         ) {
             if self.output_options.count_only {
-                let count = scan_results.len();
-                let line =
-                    format!("{}: {}", &file_path.display().to_string(), count);
-
-                output.send(Message::Info(line)).unwrap();
+                output
+                    .send(Message::Info(format!(
+                        "{}: {}",
+                        &file_path.display().to_string(),
+                        scan_results.len()
+                    )))
+                    .unwrap();
                 return;
             }
 
@@ -799,7 +802,7 @@ mod output_handler {
                     }
                 }
 
-                let mut line = if self.output_options.include_namespace {
+                let mut msg = if self.output_options.include_namespace {
                     format!(
                         "{}:{}",
                         matching_rule.namespace().paint(Cyan).bold(),
@@ -815,51 +818,49 @@ mod output_handler {
                 let tags = matching_rule.tags();
 
                 if self.output_options.include_tags && !tags.is_empty() {
-                    line.push_str(" [");
+                    msg.push_str(" [");
                     for (pos, tag) in tags.with_position() {
-                        line.push_str(tag.identifier());
+                        msg.push_str(tag.identifier());
                         if !matches!(pos, itertools::Position::Last) {
-                            line.push(',');
+                            msg.push(',');
                         }
                     }
-                    line.push(']');
+                    msg.push(']');
                 }
 
                 let metadata = matching_rule.metadata();
 
                 if self.output_options.include_meta && !metadata.is_empty() {
-                    line.push_str(" [");
+                    msg.push_str(" [");
                     for (pos, (m, v)) in metadata.with_position() {
                         match v {
                             MetaValue::Bool(v) => {
-                                line.push_str(&format!("{}={}", m, v))
+                                msg.push_str(&format!("{}={}", m, v))
                             }
                             MetaValue::Integer(v) => {
-                                line.push_str(&format!("{}={}", m, v))
+                                msg.push_str(&format!("{}={}", m, v))
                             }
                             MetaValue::Float(v) => {
-                                line.push_str(&format!("{}={}", m, v))
+                                msg.push_str(&format!("{}={}", m, v))
                             }
                             MetaValue::String(v) => {
-                                line.push_str(&format!("{}=\"{}\"", m, v))
+                                msg.push_str(&format!("{}=\"{}\"", m, v))
                             }
-                            MetaValue::Bytes(v) => line.push_str(&format!(
+                            MetaValue::Bytes(v) => msg.push_str(&format!(
                                 "{}=\"{}\"",
                                 m,
                                 v.escape_ascii()
                             )),
                         };
                         if !matches!(pos, itertools::Position::Last) {
-                            line.push(',');
+                            msg.push(',');
                         }
                     }
-                    line.push(']');
+                    msg.push(']');
                 }
 
-                line.push(' ');
-                line.push_str(&file_path.display().to_string());
-
-                output.send(Message::Info(line)).unwrap();
+                msg.push(' ');
+                msg.push_str(&file_path.display().to_string());
 
                 if let Some(limit) = self.output_options.include_strings {
                     for p in matching_rule.patterns() {
@@ -867,8 +868,8 @@ mod output_handler {
                             let match_range = m.range();
                             let match_data = m.data();
 
-                            let mut msg = format!(
-                                "{:#x}:{}:{}",
+                            let mut match_str = format!(
+                                "\n{:#x}:{}:{}",
                                 match_range.start,
                                 match_range.len(),
                                 p.identifier(),
@@ -876,38 +877,58 @@ mod output_handler {
 
                             match m.xor_key() {
                                 Some(k) => {
-                                    msg.push_str(
+                                    match_str.push_str(
                                         format!(" xor({:#x},", k).as_str(),
                                     );
                                     for b in &match_data
                                         [..min(match_data.len(), limit)]
                                     {
                                         for c in (b ^ k).escape_ascii() {
-                                            msg.push_str(
+                                            match_str.push_str(
                                                 format!("{}", c as char)
                                                     .as_str(),
                                             );
                                         }
                                     }
-                                    msg.push_str("): ");
+                                    match_str.push_str("): ");
                                 }
                                 _ => {
-                                    msg.push_str(": ");
+                                    match_str.push_str(": ");
                                 }
                             }
 
-                            for b in
-                                &match_data[..min(match_data.len(), limit)]
-                            {
-                                for c in b.escape_ascii() {
-                                    msg.push_str(
-                                        format!("{}", c as char).as_str(),
-                                    );
+                            let data =
+                                &match_data[..min(match_data.len(), limit)];
+
+                            match p.kind() {
+                                PatternKind::Text | PatternKind::Regexp => {
+                                    for b in data {
+                                        for c in b.escape_ascii() {
+                                            match_str.push_str(
+                                                format!("{}", c as char)
+                                                    .as_str(),
+                                            );
+                                        }
+                                    }
+                                }
+                                PatternKind::Hex => {
+                                    for (pos, b) in data.iter().with_position()
+                                    {
+                                        match_str.push_str(
+                                            format!("{:02x}", b).as_str(),
+                                        );
+                                        if !matches!(
+                                            pos,
+                                            itertools::Position::Last
+                                        ) {
+                                            match_str.push(' ');
+                                        }
+                                    }
                                 }
                             }
 
                             if match_data.len() > limit {
-                                msg.push_str(
+                                match_str.push_str(
                                     format!(
                                         " ... {} more bytes",
                                         match_data.len().saturating_sub(limit)
@@ -916,11 +937,17 @@ mod output_handler {
                                 );
                             }
 
-                            output.send(Message::Info(msg)).unwrap();
+                            msg.push_str(&match_str)
                         }
                     }
                 }
+
+                output.send(Message::Info(msg)).unwrap();
             }
+        }
+
+        fn on_done(&self, _output: &Sender<Message>) {
+            // Nothing to do here.
         }
     }
 
@@ -963,18 +990,101 @@ mod output_handler {
 
             output.send(Message::Info(line)).unwrap();
         }
+
+        fn on_done(&self, _output: &Sender<Message>) {
+            // Nothing to do here.
+        }
+    }
+
+    #[derive(serde::Serialize, Clone)]
+    struct StringJson {
+        identifier: String,
+        offset: usize,
+        r#match: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        xor_key: Option<u8>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        plaintext: Option<String>,
+    }
+
+    #[derive(serde::Serialize, Clone)]
+    struct MatchJson {
+        rule: String,
+        file: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        meta: Option<HashMap<String, serde_json::Value>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        tags: Option<Vec<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        strings: Option<Vec<StringJson>>,
+    }
+
+    #[derive(serde::Serialize)]
+    struct OutputJson {
+        version: String,
+        matches: Vec<MatchJson>,
     }
 
     pub(super) struct JsonOutputHandler {
         output_options: OutputOptions,
-        matches: std::sync::Arc<Mutex<HashMap<String, Vec<JsonRule>>>>,
+        output_buffer: std::sync::Arc<std::sync::Mutex<Vec<MatchJson>>>,
     }
 
     impl JsonOutputHandler {
         pub(super) fn new(output_options: OutputOptions) -> Self {
-            let matches = std::sync::Arc::new(Mutex::new(HashMap::new()));
-            Self { output_options, matches }
+            let output_buffer = Default::default();
+            Self { output_options, output_buffer }
         }
+    }
+
+    fn patterns_to_string_jsons(
+        patterns: Patterns<'_, '_>,
+        string_limit: usize,
+    ) -> Vec<StringJson> {
+        patterns
+            .flat_map(|pattern| {
+                let identifier = pattern.identifier();
+
+                pattern.matches().map(|pattern_match| {
+                    let match_range = pattern_match.range();
+                    let match_data = pattern_match.data();
+
+                    let more_bytes_message =
+                        match match_data.len().saturating_sub(string_limit) {
+                            0 => None,
+                            n => Some(format!(" ... {} more bytes", n)),
+                        };
+
+                    let string = match_data
+                        .iter()
+                        .take(string_limit)
+                        .flat_map(|char| char.escape_ascii())
+                        .map(|c| c as char)
+                        .chain(
+                            more_bytes_message
+                                .iter()
+                                .flat_map(|msg| msg.chars()),
+                        )
+                        .collect::<String>();
+
+                    StringJson {
+                        identifier: identifier.to_owned(),
+                        offset: match_range.start,
+                        r#match: string.clone(),
+                        xor_key: pattern_match.xor_key(),
+                        plaintext: pattern_match.xor_key().map(|xor_key| {
+                            match_data
+                                .iter()
+                                .take(string_limit)
+                                .map(|char| char ^ xor_key)
+                                .flat_map(|char| char.escape_ascii())
+                                .map(|char| char as char)
+                                .collect()
+                        }),
+                    }
+                })
+            })
+            .collect()
     }
 
     impl OutputHandler for JsonOutputHandler {
@@ -992,37 +1102,93 @@ mod output_handler {
                 .map(|s| s.to_string())
                 .unwrap_or_default();
 
-            let mut matches = self.matches.lock().unwrap();
+            // prepare the increment *outside* the critical section
+            let matches = scan_results
+                .filter(|rule| {
+                    self.output_options.only_tag.as_ref().map_or(
+                        true,
+                        |only_tag| {
+                            rule.tags().any(|tag| tag.identifier() == only_tag)
+                        },
+                    )
+                })
+                .map(|rule| {
+                    let meta = self.output_options.include_meta.then(|| {
+                        rule.metadata()
+                            .map(|(meta_key, meta_val)| {
+                                let meta_key = meta_key.to_owned();
+                                let meta_val = serde_json::to_value(meta_val)
+                                    .expect(
+                                    "Derived Serialize impl should never fail",
+                                );
 
-            matches
-                .entry(path)
-                .or_default()
-                .extend(rules_to_json(&self.output_options, scan_results));
+                                (meta_key, meta_val)
+                            })
+                            .collect::<HashMap<_, _>>()
+                    });
+
+                    let file = path.clone();
+
+                    let tags = self.output_options.include_tags.then(|| {
+                        rule.tags()
+                            .map(|t| t.identifier().to_string())
+                            .collect::<Vec<_>>()
+                    });
+
+                    let strings = self.output_options.include_strings.map(
+                        |strings_limit| {
+                            patterns_to_string_jsons(
+                                rule.patterns(),
+                                strings_limit,
+                            )
+                        },
+                    );
+
+                    MatchJson {
+                        rule: rule.identifier().to_string(),
+                        meta,
+                        file,
+                        tags,
+                        strings,
+                    }
+                });
+
+            {
+                let mut lock = self.output_buffer.lock().unwrap();
+                lock.extend(matches);
+            }
         }
 
         fn on_done(&self, output: &Sender<Message>) {
-            let matches = self.matches.lock().unwrap();
-
-            let json = if self.output_options.count_only {
-                let json_output = matches
-                    .iter()
-                    .map(|(path, rules)| JsonCountOutput {
-                        path,
-                        count: rules.len(),
-                    })
-                    .collect::<Vec<_>>();
-
-                serde_json::to_string_pretty(&json_output).unwrap_or_default()
-            } else {
-                let json_output = matches
-                    .iter()
-                    .map(|(path, rules)| JsonOutput { path, rules })
-                    .collect::<Vec<_>>();
-
-                serde_json::to_string_pretty(&json_output).unwrap_or_default()
+            let matches = {
+                let mut lock = self.output_buffer.lock().unwrap();
+                std::mem::take(&mut *lock)
             };
+            let version = env!("CARGO_PKG_VERSION").to_string();
 
-            output.send(Message::Info(json)).unwrap();
+            let rendered_json = match self.output_options.count_only {
+                true => {
+                    let json_output = matches
+                        .iter()
+                        .fold(HashMap::new(), |mut acc, it| {
+                            *acc.entry(&it.file).or_insert(0) += 1;
+                            acc
+                        })
+                        .into_iter()
+                        .map(|(path, count)| JsonCountOutput { path, count })
+                        .collect::<Vec<_>>();
+
+                    serde_json::to_string_pretty(&json_output)
+                }
+                false => {
+                    let output_json = OutputJson { matches, version };
+
+                    serde_json::to_string_pretty(&output_json)
+                }
+            }
+            .expect("Derived Serialize impl should never fail");
+
+            output.send(Message::Info(rendered_json)).unwrap();
         }
     }
 }

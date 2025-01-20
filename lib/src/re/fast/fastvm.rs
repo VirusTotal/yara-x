@@ -1,10 +1,9 @@
+use bitflags::bitflags;
+use itertools::izip;
+use memx::memeq;
 use std::cell::Cell;
 use std::ops::RangeInclusive;
 use std::{cmp, mem};
-
-use bitmask::bitmask;
-use itertools::izip;
-use memx::memeq;
 
 use crate::re::bitmapset::BitmapSet;
 use crate::re::fast::instr::{Instr, InstrParser};
@@ -87,10 +86,10 @@ impl<'r> FastVM<'r> {
 
         self.positions.insert(0, ());
 
-        let mut flags = JumpFlagSet::none();
+        let mut flags = JumpFlags::empty();
 
         if wide {
-            flags.set(JumpFlags::Wide);
+            flags.insert(JumpFlags::Wide);
         }
 
         while !self.positions.is_empty() {
@@ -254,12 +253,12 @@ impl<'r> FastVM<'r> {
 
                     let range = match instr {
                         Instr::Jump(range) => {
-                            flags.set(JumpFlags::AcceptNewlines);
+                            flags.insert(JumpFlags::AcceptNewlines);
                             range
                         }
                         Instr::JumpNoNewline(range) => range,
                         Instr::JumpUnbounded(range) => {
-                            flags.set(JumpFlags::AcceptNewlines);
+                            flags.insert(JumpFlags::AcceptNewlines);
                             range.start..=self.scan_limit
                         }
                         Instr::JumpNoNewlineUnbounded(range) => {
@@ -545,7 +544,7 @@ impl FastVM<'_> {
     fn jump_fwd(
         input: &[u8],
         byte_after_jmp: Option<u8>,
-        flags: JumpFlagSet,
+        flags: JumpFlags,
         range: &RangeInclusive<u16>,
         position: usize,
         next_positions: &mut BitmapSet<()>,
@@ -619,7 +618,7 @@ impl FastVM<'_> {
     fn jump_bck(
         input: &[u8],
         expected_after_jump: Option<u8>,
-        flags: JumpFlagSet,
+        flags: JumpFlags,
         range: &RangeInclusive<u16>,
         position: usize,
         next_positions: &mut BitmapSet<()>,
@@ -711,9 +710,10 @@ impl FastVM<'_> {
     }
 }
 
-bitmask! {
-    pub mask JumpFlagSet: u8 where flags JumpFlags  {
-        AcceptNewlines = 0x01,
-        Wide           = 0x02,
+bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    struct JumpFlags: u8  {
+        const AcceptNewlines = 0x01;
+        const Wide           = 0x02;
     }
 }

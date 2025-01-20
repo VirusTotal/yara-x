@@ -165,7 +165,7 @@ impl<'src> TokenStream<'src> {
     }
 }
 
-impl<'src> TokenStream<'src> {
+impl TokenStream<'_> {
     /// Fetch tokens from the underlying tokenizer until reaching the given
     /// absolute position.
     fn fetch_tokens(&mut self, abs_pos: usize) {

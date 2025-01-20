@@ -24,7 +24,7 @@ fn cst() {
         let output_file = mint.new_goldenfile(output_path).unwrap();
 
         let source = fs::read_to_string(path).unwrap();
-        let cst = CST::from(Parser::new(source.as_bytes()));
+        let cst = CST::try_from(Parser::new(source.as_bytes())).unwrap();
         let mut w = BufWriter::new(output_file);
         write!(&mut w, "{:?}", cst).unwrap();
     });

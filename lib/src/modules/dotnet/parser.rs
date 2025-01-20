@@ -33,7 +33,7 @@ pub enum Error<'a> {
     OutputWrite(std::fmt::Error),
 }
 
-impl<'a> From<std::fmt::Error> for Error<'a> {
+impl From<std::fmt::Error> for Error<'_> {
     fn from(value: std::fmt::Error) -> Self {
         Self::OutputWrite(value)
     }

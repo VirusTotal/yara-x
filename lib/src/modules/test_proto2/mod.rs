@@ -55,8 +55,8 @@ fn head(ctx: &mut ScanContext, n: i64) -> Option<RuntimeString> {
 #[module_export]
 fn get_foo(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let proto = ctx.module_output::<TestProto2>()?;
-    let foo = proto.string_foo.as_ref().cloned()?;
-    Some(RuntimeString::new(foo))
+    let string_foo = proto.string_foo.as_ref().cloned()?;
+    Some(RuntimeString::new(string_foo))
 }
 
 #[module_export]

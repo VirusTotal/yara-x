@@ -23,7 +23,7 @@ use wasmtime::Store;
 
 use crate::compiler::{
     NamespaceId, PatternId, RegexpId, RuleId, Rules, SubPattern,
-    SubPatternAtom, SubPatternFlagSet, SubPatternFlags, SubPatternId,
+    SubPatternAtom, SubPatternFlags, SubPatternId,
 };
 use crate::re::fast::FastVM;
 use crate::re::thompson::PikeVM;
@@ -954,7 +954,7 @@ fn verify_literal_match(
     pattern: &[u8],
     scanned_data: &[u8],
     atom_pos: usize,
-    flags: SubPatternFlagSet,
+    flags: SubPatternFlags,
 ) -> Option<Match> {
     // Offset where the match should end (exclusive).
     let match_end = atom_pos + pattern.len();
@@ -998,7 +998,7 @@ fn verify_literal_match(
 fn verify_full_word(
     scanned_data: &[u8],
     match_range: &Range<usize>,
-    flags: SubPatternFlagSet,
+    flags: SubPatternFlags,
     xor_key: Option<u8>,
 ) -> bool {
     let xor_key = xor_key.unwrap_or(0);
@@ -1050,7 +1050,7 @@ fn verify_regexp_match(
     scanned_data: &[u8],
     atom_pos: usize,
     atom: &SubPatternAtom,
-    flags: SubPatternFlagSet,
+    flags: SubPatternFlags,
     mut f: impl FnMut(Match),
 ) {
     let mut fwd_match_len = None;
@@ -1144,7 +1144,7 @@ fn verify_xor_match(
     scanned_data: &[u8],
     atom_pos: usize,
     atom: &SubPatternAtom,
-    flags: SubPatternFlagSet,
+    flags: SubPatternFlags,
 ) -> Option<Match> {
     // Offset where the match should end (exclusive).
     let match_end = atom_pos + pattern.len();

@@ -449,7 +449,7 @@ impl<'src> Builder<'src> {
         let flags = if let Event::Begin(RULE_MODS) = self.peek() {
             self.rule_mods()?
         } else {
-            RuleFlags::none()
+            RuleFlags::empty()
         };
 
         self.expect(RULE_KW)?;
@@ -492,15 +492,15 @@ impl<'src> Builder<'src> {
     fn rule_mods(&mut self) -> Result<RuleFlags, BuilderError> {
         self.begin(RULE_MODS)?;
 
-        let mut flags = RuleFlags::none();
+        let mut flags = RuleFlags::empty();
 
         loop {
             match self.next()? {
                 Event::Token { kind: GLOBAL_KW, .. } => {
-                    flags.set(RuleFlag::Global)
+                    flags.insert(RuleFlags::Global)
                 }
                 Event::Token { kind: PRIVATE_KW, .. } => {
-                    flags.set(RuleFlag::Private)
+                    flags.insert(RuleFlags::Private)
                 }
                 Event::End(RULE_MODS) => break,
                 event => panic!("unexpected {:?}", event),

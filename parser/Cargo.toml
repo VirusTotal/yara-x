@@ -28,7 +28,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 ascii_tree = { workspace = true }
-bitmask = { workspace = true }
+bitflags = { workspace = true }
 bstr = { workspace = true }
 indexmap = { workspace = true }
 itertools = { workspace = true }

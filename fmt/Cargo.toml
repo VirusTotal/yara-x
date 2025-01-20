@@ -12,7 +12,7 @@ homepage.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-bitmask = { workspace = true }
+bitflags = { workspace = true }
 bstr = { workspace = true }
 lazy_static = { workspace = true }
 thiserror = { workspace = true }

@@ -301,7 +301,7 @@ struct HirHasher<'a, H: Hasher> {
     state: &'a mut H,
 }
 
-impl<'a, H: Hasher> regex_syntax::hir::Visitor for HirHasher<'a, H> {
+impl<H: Hasher> regex_syntax::hir::Visitor for HirHasher<'_, H> {
     type Output = ();
     type Err = ();
 

@@ -663,6 +663,18 @@ fn with() {
            )
         "#
     );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"with one = test_proto2.int32_one,
+                two = test_proto2.add(one, 1),
+                three = two + 1: (
+             one == 1 and 
+             two == 2 and 
+             three == 3
+           )
+        "#
+    );
 }
 
 #[test]

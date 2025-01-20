@@ -118,7 +118,7 @@ pub fn exec_cst(args: &ArgMatches) -> anyhow::Result<()> {
         .with_context(|| format!("can not read `{}`", rules_path.display()))?;
 
     let parser = Parser::new(src.as_slice());
-    let cst = parser.into_cst();
+    let cst = parser.try_into_cst()?;
 
     println!("{cst:?}");
     Ok(())

@@ -3,7 +3,8 @@ use crate::{Parser, Span};
 
 #[test]
 fn cst_1() {
-    let cst = Parser::new(b"rule test { condition: true }").into_cst();
+    let cst =
+        Parser::new(b"rule test { condition: true }").try_into_cst().unwrap();
 
     let source_file = cst.root();
 
@@ -79,7 +80,8 @@ fn cst_1() {
 
 #[test]
 fn cst_2() {
-    let cst = Parser::new(b"rule test { condition: true }").into_cst();
+    let cst =
+        Parser::new(b"rule test { condition: true }").try_into_cst().unwrap();
 
     let mut c = cst.root().first_child().unwrap().children_with_tokens();
 
@@ -119,7 +121,8 @@ fn cst_2() {
 
 #[test]
 fn cst_3() {
-    let cst = Parser::new(b"rule test { condition: true }").into_cst();
+    let cst =
+        Parser::new(b"rule test { condition: true }").try_into_cst().unwrap();
 
     let condition_blk =
         cst.root().first_child().unwrap().first_child().unwrap();
@@ -159,7 +162,8 @@ fn cst_3() {
 
 #[test]
 fn cst_4() {
-    let cst = Parser::new(b"rule test { condition: true }").into_cst();
+    let cst =
+        Parser::new(b"rule test { condition: true }").try_into_cst().unwrap();
     let source_file = cst.root().into_mut();
 
     // Detach the first token, which is the `rule` keyword.

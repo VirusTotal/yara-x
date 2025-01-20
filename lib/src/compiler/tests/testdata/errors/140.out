@@ -1,0 +1,6 @@
+error[E009]: unknown identifier `baz`
+ --> line:4:16
+  |
+4 |          bar = baz : ( foo == bar )
+  |                ^^^ this identifier has not been declared
+  |
