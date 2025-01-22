@@ -1,8 +1,9 @@
+use std::rc::Rc;
+
 use crate::modules::prelude::*;
 use crate::modules::protos::test_proto2::NestedProto2;
 use crate::modules::protos::test_proto2::TestProto2;
 use crate::types::Struct;
-use std::rc::Rc;
 
 #[cfg(test)]
 mod tests;
@@ -39,6 +40,25 @@ pub(crate) fn nested_method(
     structure: Rc<Struct>,
 ) -> bool {
     structure.field_by_name("nested_bool").unwrap().type_value.as_bool()
+}
+
+#[module_export(
+    name = "nested_method_with_arg",
+    method_of = "test_proto2.NestedProto2"
+)]
+pub(crate) fn nested_method_with_arg(
+    ctx: &mut ScanContext,
+    structure: Rc<Struct>,
+    arg: RuntimeString,
+) -> bool {
+    let arg = arg.as_bstr(ctx);
+    let field = structure
+        .field_by_name("nested_string")
+        .unwrap()
+        .type_value
+        .as_string();
+
+    arg.eq(field.as_bstr())
 }
 
 #[module_export]
@@ -126,6 +146,7 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> TestProto2 {
     nested.set_nested_int32_one(1);
     nested.set_nested_int64_one(1);
     nested.set_nested_bool(false);
+    nested.set_nested_string("foo".to_string());
 
     nested.nested_array_int64.push(1);
     nested.nested_array_int64.push(10);
