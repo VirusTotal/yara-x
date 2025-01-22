@@ -136,7 +136,7 @@ pub(crate) struct WasmExport {
     pub name: &'static str,
     /// Function's mangled name. The mangled name contains information about
     /// the function's arguments and return type. For additional details see
-    /// [`yara_x_parser::types::MangledFnName`].
+    /// [`crate::types::MangledFnName`].
     pub mangled_name: &'static str,
     /// True if the function is visible from YARA rules. Functions exported by
     /// modules, as well as built-in functions like uint8, uint16, etc, are
