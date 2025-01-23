@@ -284,4 +284,32 @@ fn cli_issue_280() {
         .arg("./src/tests/testdata/")
         .assert()
         .success();
+
+    // Handle special case of just . for path argument.
+    Command::cargo_bin("yr")
+        .unwrap()
+        .arg("scan")
+        .arg("src/tests/testdata/foo.yar")
+        .arg(".")
+        .assert()
+        .success();
+
+    // Handle special case of just ./ for path argument.
+    Command::cargo_bin("yr")
+        .unwrap()
+        .arg("scan")
+        .arg("src/tests/testdata/foo.yar")
+        .arg("./")
+        .assert()
+        .success();
+
+    // Handle special case of just .\ for path argument.
+    #[cfg(target_os = "windows")]
+    Command::cargo_bin("yr")
+        .unwrap()
+        .arg("scan")
+        .arg("src/tests/testdata/foo.yar")
+        .arg(r#".\"#)
+        .assert()
+        .success();
 }

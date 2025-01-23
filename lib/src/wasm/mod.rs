@@ -136,7 +136,7 @@ pub(crate) struct WasmExport {
     pub name: &'static str,
     /// Function's mangled name. The mangled name contains information about
     /// the function's arguments and return type. For additional details see
-    /// [`yara_x_parser::types::MangledFnName`].
+    /// [`crate::types::MangledFnName`].
     pub mangled_name: &'static str,
     /// True if the function is visible from YARA rules. Functions exported by
     /// modules, as well as built-in functions like uint8, uint16, etc, are
@@ -721,6 +721,28 @@ lazy_static! {
 
         config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
         config.epoch_interruption(true);
+
+        // 16MB should be enough for each WASM module. Each module needs a
+        // fixed amount of memory that is only a few KB long, plus a variable
+        // amount that depends on the number of rules and patterns (1 bit per
+        // rule and 1 bit per pattern). With 16MB there's enough space for
+        // millions of rules and patterns. By default, this is 4GB in 64-bits
+        // systems, which causes a reservation of 4GB of virtual address space
+        // (not physical RAM) per module (and therefore per Scanner). In some
+        // scenarios where virtual address space is limited (i.e: Docker
+        // instances) this is problematic. See:
+        // https://github.com/VirusTotal/yara-x/issues/292
+        config.memory_reservation(0x1000000);
+
+        // WASM memory won't grow, there's no need to allocate space for
+        // future grow.
+        config.memory_reservation_for_growth(0);
+
+        // As the memory can't grow, it won't move. By explicitly indicating
+        // this, modules can be compiled with static knowledge the base pointer
+        // of linear memory never changes to enable optimizations.
+        config.memory_may_move(false);
+
         config
     };
     pub(crate) static ref ENGINE: Engine = Engine::new(&CONFIG).unwrap();

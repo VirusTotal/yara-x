@@ -635,13 +635,14 @@ fn emit_expr(
         },
 
         Expr::FuncCall(func_call) => {
-            // Emit the arguments first.
-            for expr in func_call.args.iter() {
-                emit_expr(ctx, ir, *expr, instr);
-            }
-
+            // If this is method call, the target object (self or this in some
+            // programming languages) is the first argument.
             if let Some(obj) = func_call.object {
                 emit_expr(ctx, ir, obj, instr);
+            }
+
+            for expr in func_call.args.iter() {
+                emit_expr(ctx, ir, *expr, instr);
             }
 
             if func_call.signature().result_may_be_undef {

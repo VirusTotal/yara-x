@@ -262,7 +262,7 @@ impl<'r> Scanner<'r> {
         // Create module's main memory.
         let main_memory = wasmtime::Memory::new(
             wasm_store.as_context_mut(),
-            MemoryType::new(mem_size, None),
+            MemoryType::new(mem_size, Some(mem_size)),
         )
         .unwrap();
 
@@ -461,7 +461,7 @@ impl<'r> Scanner<'r> {
     pub fn set_module_output(
         &mut self,
         data: Box<dyn MessageDyn>,
-    ) -> Result<(), ScanError> {
+    ) -> Result<&mut Self, ScanError> {
         let descriptor = data.descriptor_dyn();
         let full_name = descriptor.full_name();
 
@@ -481,7 +481,7 @@ impl<'r> Scanner<'r> {
             .user_provided_module_outputs
             .insert(full_name.to_string(), data);
 
-        Ok(())
+        Ok(self)
     }
 
     /// Similar to [`Scanner::set_module_output`], but receives a module name
@@ -494,7 +494,7 @@ impl<'r> Scanner<'r> {
         &mut self,
         name: &str,
         data: &[u8],
-    ) -> Result<(), ScanError> {
+    ) -> Result<&mut Self, ScanError> {
         // Try to find the module by name first, if not found, then try
         // to find a module where the fully-qualified name for its protobuf
         // message matches the `name` arguments.
