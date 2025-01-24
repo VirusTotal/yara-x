@@ -132,19 +132,25 @@ pub fn create_compiler(
 
     compiler
         .relaxed_re_syntax(
-            args.get_one::<bool>("relaxed-re-syntax")
+            args.try_get_one::<bool>("relaxed-re-syntax")
+                .unwrap_or_default()
                 .cloned()
                 .unwrap_or_default(),
         )
         .colorize_errors(stdout().is_tty());
 
-    for m in args.get_many::<String>("ignore-module").into_iter().flatten() {
-        println!("ignore {}", m);
+    for m in args
+        .try_get_many::<String>("ignore-module")
+        .unwrap_or_default()
+        .into_iter()
+        .flatten()
+    {
         compiler.ignore_module(m);
     }
 
     let disabled_warnings: Vec<_> = args
-        .get_many::<String>("disable-warnings")
+        .try_get_many::<String>("disable-warnings")
+        .unwrap_or_default()
         .into_iter()
         .flatten()
         .collect();
