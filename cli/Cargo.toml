@@ -75,4 +75,5 @@ wild = "2.2.1"
 
 [dev-dependencies]
 assert_cmd = "2.0.16"
+assert_fs = "1.1.2"
 predicates = { workspace = true }

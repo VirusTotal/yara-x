@@ -225,6 +225,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "assert_fs"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7efdb1fdb47602827a342857666feb372712cbc64b414172bd6b167a02927674"
+dependencies = [
+ "anstyle",
+ "doc-comment",
+ "globwalk",
+ "predicates",
+ "predicates-core",
+ "predicates-tree",
+ "tempfile",
+]
+
+[[package]]
 name = "atomic"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4666,6 +4681,7 @@ dependencies = [
  "anyhow",
  "ascii_tree",
  "assert_cmd",
+ "assert_fs",
  "chardetng",
  "clap",
  "clap_complete",
