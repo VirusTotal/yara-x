@@ -21,7 +21,7 @@ fn token_generation() {
         .whitespaces(false)
         .newlines(false);
 
-    let tokens: Vec<Token> = Tokens::new(events).collect();
+    let tokens: Vec<Token> = Tokens::new(rule.as_bytes(), events).collect();
 
     assert_eq!(
         tokens,
@@ -112,7 +112,7 @@ fn whitespaces() {
     }"#;
 
     let events = Parser::new(rule.as_bytes()).into_cst_stream();
-    let tokens: Vec<Token> = Tokens::new(events).collect();
+    let tokens: Vec<Token> = Tokens::new(rule.as_bytes(), events).collect();
 
     assert_eq!(
         tokens,

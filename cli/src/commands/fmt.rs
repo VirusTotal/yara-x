@@ -1,4 +1,5 @@
 use std::fs::File;
+use std::io::{Cursor, Seek, SeekFrom};
 use std::path::PathBuf;
 use std::{fs, io, process};
 
@@ -54,19 +55,26 @@ pub fn exec_fmt(
             config.rule.empty_line_after_section_header,
         );
 
-    let mut changed = false;
+    let mut modified = false;
 
     for file in files {
         let input = fs::read(file.as_path())?;
-        changed = if check {
+        modified = if check {
             formatter.format(input.as_slice(), io::sink())?
         } else {
-            let output_file = File::create(file.as_path())?;
-            formatter.format(input.as_slice(), output_file)?
-        } || changed;
+            let mut formatted = Cursor::new(Vec::with_capacity(input.len()));
+            if formatter.format(input.as_slice(), &mut formatted)? {
+                formatted.seek(SeekFrom::Start(0))?;
+                let mut output_file = File::create(file.as_path())?;
+                io::copy(&mut formatted, &mut output_file)?;
+                true
+            } else {
+                false
+            }
+        } || modified;
     }
 
-    if changed {
+    if modified {
         process::exit(1)
     }
 
