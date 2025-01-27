@@ -114,14 +114,14 @@ fn meta_file_value_parser(
 ///
 /// Returns the namespace and the path. If the namespace is not provided
 /// returns [`None`].
-/// 
+///
 /// In Windows, namespaces with a single character are not allowed as they can
 /// be confused with a drive letter.
 fn path_with_namespace_parser(
     input: &str,
 ) -> Result<(Option<String>, PathBuf), anyhow::Error> {
     if let Some((namespace, path)) = input.split_once(':') {
-        // In Windows a namespace with a single letter could actually be a 
+        // In Windows a namespace with a single letter could actually be a
         // drive letter.
         #[cfg(target_os = "windows")]
         if namespace.len() == 1 {
