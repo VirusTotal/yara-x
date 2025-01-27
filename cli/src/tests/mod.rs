@@ -1,4 +1,6 @@
 use assert_cmd::Command;
+use assert_fs::prelude::*;
+use assert_fs::TempDir;
 use predicates::prelude::*;
 
 #[test]
@@ -273,6 +275,29 @@ fn cli_scan_compiled_rules() {
         .failure()
         .code(1)
         .stderr("error: can\'t use namespace with \'--compiled-rules\'\n");
+
+    let temp_dir = TempDir::new().unwrap();
+    let input_file = temp_dir.child("rule.yar");
+
+    input_file.write_str("rule test { condition: true }").unwrap();
+
+    Command::cargo_bin("yr")
+        .unwrap()
+        .arg("compile")
+        .arg("-o")
+        .arg(input_file.with_extension("yarc"))
+        .arg(input_file.path())
+        .assert()
+        .success();
+
+    Command::cargo_bin("yr")
+        .unwrap()
+        .arg("scan")
+        .arg("--compiled-rules")
+        .arg(input_file.with_extension("yarc"))
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success();
 }
 
 #[test]
@@ -312,4 +337,87 @@ fn cli_issue_280() {
         .arg(r#".\"#)
         .assert()
         .success();
+}
+
+#[test]
+fn cli_fmt() {
+    let temp_dir = TempDir::new().unwrap();
+    let input_file = temp_dir.child("rule.yar");
+
+    input_file.write_str("rule test { condition: true }").unwrap();
+
+    Command::cargo_bin("yr")
+        .unwrap()
+        .arg("fmt")
+        .arg(input_file.path())
+        .assert()
+        .code(1); // Exit code 1 indicates that the file was modified.
+
+    Command::cargo_bin("yr")
+        .unwrap()
+        .arg("fmt")
+        .arg(input_file.path())
+        .assert()
+        .code(0); // Second time that we format the same file, no expected changes.
+}
+
+#[test]
+fn cli_fmt_utf8_error() {
+    let temp_dir = TempDir::new().unwrap();
+    let input_file = temp_dir.child("rule.yar");
+
+    input_file.write_binary(&[0xff, 0xff]).unwrap();
+
+    Command::cargo_bin("yr")
+        .unwrap()
+        .arg("fmt")
+        .arg(input_file.path())
+        .assert()
+        .stderr("error: invalid UTF-8 at [0..1]\n")
+        .code(1);
+}
+
+#[cfg(feature = "debug-cmd")]
+#[test]
+fn cli_debug_ast() {
+    Command::cargo_bin("yr")
+        .unwrap()
+        .arg("debug")
+        .arg("ast")
+        .arg("src/tests/testdata/foo.yar")
+        .assert()
+        .success();
+}
+
+#[cfg(feature = "debug-cmd")]
+#[test]
+fn cli_debug_cst() {
+    Command::cargo_bin("yr")
+        .unwrap()
+        .arg("debug")
+        .arg("cst")
+        .arg("src/tests/testdata/foo.yar")
+        .assert()
+        .success();
+}
+
+#[cfg(feature = "debug-cmd")]
+#[test]
+fn cli_debug_wasm() {
+    let temp_dir = TempDir::new().unwrap();
+    let input_file = temp_dir.child("rule.yar");
+
+    input_file.write_str("rule test { condition: true }").unwrap();
+
+    Command::cargo_bin("yr")
+        .unwrap()
+        .arg("debug")
+        .arg("wasm")
+        .arg(input_file.path())
+        .assert()
+        .success();
+
+    if !input_file.with_extension("wasm").exists() {
+        panic!("`yr debug wasm` didn't create .wasm file")
+    }
 }

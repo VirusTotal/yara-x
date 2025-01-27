@@ -119,10 +119,19 @@ fn meta_file_value_parser(
 ///
 /// Returns the namespace and the path. If the namespace is not provided
 /// returns [`None`].
+///
+/// In Windows, namespaces with a single character are not allowed as they can
+/// be confused with a drive letter.
 fn path_with_namespace_parser(
     input: &str,
 ) -> Result<(Option<String>, PathBuf), anyhow::Error> {
     if let Some((namespace, path)) = input.split_once(':') {
+        // In Windows a namespace with a single letter could actually be a
+        // drive letter.
+        #[cfg(target_os = "windows")]
+        if namespace.len() == 1 {
+            return Ok((None, PathBuf::from(input)));
+        }
         Ok((Some(namespace.to_string()), PathBuf::from(path)))
     } else {
         Ok((None, PathBuf::from(input)))
@@ -137,19 +146,25 @@ pub fn create_compiler(
 
     compiler
         .relaxed_re_syntax(
-            args.get_one::<bool>("relaxed-re-syntax")
+            args.try_get_one::<bool>("relaxed-re-syntax")
+                .unwrap_or_default()
                 .cloned()
                 .unwrap_or_default(),
         )
         .colorize_errors(stdout().is_tty());
 
-    for m in args.get_many::<String>("ignore-module").into_iter().flatten() {
-        println!("ignore {}", m);
+    for m in args
+        .try_get_many::<String>("ignore-module")
+        .unwrap_or_default()
+        .into_iter()
+        .flatten()
+    {
         compiler.ignore_module(m);
     }
 
     let disabled_warnings: Vec<_> = args
-        .get_many::<String>("disable-warnings")
+        .try_get_many::<String>("disable-warnings")
+        .unwrap_or_default()
         .into_iter()
         .flatten()
         .collect();
