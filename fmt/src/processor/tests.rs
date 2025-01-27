@@ -10,7 +10,7 @@ use crate::tokens::{categories, Token};
 fn tokenize(source: &str) -> Vec<Token> {
     let events =
         Parser::new(source.as_bytes()).into_cst_stream().whitespaces(false);
-    
+
     tokens::Tokens::new(source.as_bytes(), events).collect()
 }
 
