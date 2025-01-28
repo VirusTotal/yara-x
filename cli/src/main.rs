@@ -65,8 +65,6 @@ fn main() -> anyhow::Result<()> {
                 .map(|dir| dir.join(CONFIG_FILE))
         });
 
-    println!("config: {:?}", config_file);
-
     let config: Config = if let Some(config_file) = config_file {
         load_config_from_file(&config_file).map_err(|err| {
             figment::Error::from(format!(
