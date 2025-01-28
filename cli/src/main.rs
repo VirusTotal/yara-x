@@ -58,23 +58,24 @@ fn main() -> anyhow::Result<()> {
 
     let args = cli().get_matches_from(wild::args());
 
-    let config_file =
-        args.get_one::<PathBuf>("config").cloned().or_else(|| {
+    // The config file is either the one specified by `--config` or
+    // `$HOME/.yara-x.toml`. If the file does not exist, or $HOME is
+    // empty, `config_file` will be `None`.
+    let config_file = args
+        .get_one::<PathBuf>("config")
+        .cloned()
+        .or_else(|| {
             home_dir()
                 .filter(|dir| !dir.as_os_str().is_empty())
                 .map(|dir| dir.join(CONFIG_FILE))
-        });
+        })
+        .filter(|file| file.exists());
 
     let config = config_file
         .map(|config_file| match load_config_from_file(&config_file) {
             Ok(config) => config,
             Err(err) => {
-                eprintln!(
-                    "{} unable to parse {}: {}",
-                    "error:".paint(Red).bold(),
-                    config_file.display(),
-                    err
-                );
+                eprintln!("{} {}", "error:".paint(Red).bold(), err);
                 process::exit(EXIT_ERROR);
             }
         })

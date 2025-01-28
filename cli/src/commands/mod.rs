@@ -23,7 +23,7 @@ use std::io::stdout;
 use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Context};
-use clap::{arg, command, crate_authors, value_parser, ArgMatches, Command};
+use clap::{arg, command, crate_authors, ArgMatches, Command};
 use crossterm::tty::IsTty;
 use superconsole::{Component, Line, Lines, Span, SuperConsole};
 use yansi::Color::Green;
@@ -51,7 +51,7 @@ pub fn cli() -> Command {
         .arg_required_else_help(true)
         .arg(
             arg!(-C --config <CONFIG_FILE> "Config file")
-                .value_parser(value_parser!(PathBuf))
+                .value_parser(existing_path_parser)
                 .long_help(help::CONFIG_FILE),
         )
         .help_template(APP_HELP_TEMPLATE)
@@ -135,6 +135,16 @@ fn path_with_namespace_parser(
         Ok((Some(namespace.to_string()), PathBuf::from(path)))
     } else {
         Ok((None, PathBuf::from(input)))
+    }
+}
+
+/// Parses a path and makes sure that it exists.
+fn existing_path_parser(input: &str) -> Result<PathBuf, anyhow::Error> {
+    let path = PathBuf::from(input);
+    if path.try_exists()? {
+        Ok(path)
+    } else {
+        Err(anyhow!("file not found"))
     }
 }
 
