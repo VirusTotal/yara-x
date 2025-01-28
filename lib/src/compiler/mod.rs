@@ -1395,7 +1395,7 @@ impl Compiler<'_> {
         }
 
         if let Some(rule_name_regexp) = self.rule_name_regexp.as_ref() {
-            if rule_name_regexp.is_match(rule.identifier.name) {
+            if !rule_name_regexp.is_match(rule.identifier.name) {
                 self.warnings.add(|| {
                     warnings::InvalidRuleName::build(
                         &self.report_builder,
