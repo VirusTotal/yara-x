@@ -58,10 +58,14 @@ fn main() -> anyhow::Result<()> {
 
     let args = cli().get_matches_from(wild::args());
 
-    let config_file = args
-        .get_one::<PathBuf>("config")
-        .cloned()
-        .or_else(|| home_dir().map(|home_dir| home_dir.join(CONFIG_FILE)));
+    let config_file =
+        args.get_one::<PathBuf>("config").cloned().or_else(|| {
+            home_dir()
+                .filter(|dir| !dir.as_os_str().is_empty())
+                .map(|dir| dir.join(CONFIG_FILE))
+        });
+
+    println!("config: {:?}", config_file);
 
     let config: Config = if let Some(config_file) = config_file {
         load_config_from_file(&config_file).map_err(|err| {
