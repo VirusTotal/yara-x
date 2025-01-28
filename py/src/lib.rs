@@ -195,8 +195,7 @@ impl Compiler {
                 yrx::config::MetaValueType::from_str(v).map_err(|err| {
                     PyValueError::new_err(format!(
                         "Incorrect value \"{}\": {}",
-                        v,
-                        err.to_string()
+                        v, err
                     ))
                 })?,
             );

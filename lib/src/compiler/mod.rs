@@ -22,8 +22,8 @@ use itertools::{izip, Itertools, MinMaxResult};
 #[cfg(feature = "logging")]
 use log::*;
 use nom::AsChar;
-use regex::Regex;
 use regex::Error as RegexError;
+use regex::Regex;
 use regex_syntax::hir;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -1394,13 +1394,8 @@ impl Compiler<'_> {
             self.check_required_metadata(rule);
         }
 
-        if self.rule_name_regexp.is_some() {
-            if !self
-                .rule_name_regexp
-                .as_ref()
-                .unwrap()
-                .is_match(rule.identifier.name)
-            {
+        if let Some(rule_name_regexp) = self.rule_name_regexp.as_ref() {
+            if rule_name_regexp.is_match(rule.identifier.name) {
                 self.warnings.add(|| {
                     warnings::InvalidRuleName::build(
                         &self.report_builder,
