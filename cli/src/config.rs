@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-
+use std::path::Path;
 use yara_x::config::MetaValueType;
 
 use figment::{
@@ -95,15 +95,15 @@ impl Default for Config {
     }
 }
 
-/// Load config file from a string which must contain a valid TOML file or this
-/// function will propagate the error. For structure of the config file
+/// Load config file from a given path. Path must contain a valid TOML file or
+/// this function will propagate the error. For structure of the config file
 /// see "YARA-X Config Guide.md".
-pub fn load_config_from_str(
-    config_contents: &str,
+pub fn load_config_from_file(
+    config_file: &Path,
 ) -> Result<Config, figment::Error> {
     let config: Config =
         Figment::from(Serialized::defaults(Config::default()))
-            .merge(Toml::string(config_contents))
+            .merge(Toml::file_exact(config_file))
             .extract()?;
     Ok(config)
 }

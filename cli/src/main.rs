@@ -6,14 +6,15 @@ mod walk;
 #[cfg(test)]
 mod tests;
 
-use crate::config::{load_config_from_str, Config};
 use crossterm::tty::IsTty;
+use home::home_dir;
 use std::path::PathBuf;
-use std::{fs, io, panic, process};
+use std::{io, panic, process};
 use yansi::Color::Red;
 use yansi::Paint;
 
 use crate::commands::cli;
+use crate::config::{load_config_from_file, Config};
 
 const APP_HELP_TEMPLATE: &str = r#"YARA-X {version}, the pattern matching swiss army knife.
 
@@ -56,45 +57,22 @@ fn main() -> anyhow::Result<()> {
     }));
 
     let args = cli().get_matches_from(wild::args());
-    let config_file = args.get_one::<PathBuf>("config");
 
-    let config: Config = if config_file.is_some() {
-        let config_path = config_file.unwrap();
-        let config_contents = fs::read_to_string(config_path)?;
-        load_config_from_str(config_contents.as_str()).map_err(|e| {
+    let config_file = args
+        .get_one::<PathBuf>("config")
+        .cloned()
+        .or_else(|| home_dir().map(|home_dir| home_dir.join(CONFIG_FILE)));
+
+    let config: Config = if let Some(config_file) = config_file {
+        load_config_from_file(&config_file).map_err(|err| {
             figment::Error::from(format!(
-                "Unable to parse {}: {}",
-                config_path.to_string_lossy(),
-                e.to_string(),
+                "unable to parse {}: {}",
+                config_file.display(),
+                err,
             ))
         })?
     } else {
-        match home::home_dir() {
-            Some(home_path) if !home_path.as_os_str().is_empty() => {
-                let config_path = home_path.join(crate::CONFIG_FILE);
-                let config_contents = match fs::read_to_string(&config_path) {
-                    // If the default file doesn't exist, just use an empty
-                    // string.
-                    Err(e) if e.kind() == io::ErrorKind::NotFound => {
-                        "".to_string()
-                    }
-                    r => r?,
-                };
-                load_config_from_str(config_contents.as_str()).map_err(
-                    |e| {
-                        figment::Error::from(format!(
-                            "Unable to parse {}: {}",
-                            config_path.to_string_lossy(),
-                            e.to_string(),
-                        ))
-                    },
-                )?
-            }
-            _ => {
-                println!("could not find home directory");
-                Config::default()
-            }
-        }
+        Config::default()
     };
 
     let result = match args.subcommand() {
