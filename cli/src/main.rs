@@ -14,7 +14,7 @@ use yansi::Color::Red;
 use yansi::Paint;
 
 use crate::commands::cli;
-use crate::config::{load_config_from_file, Config};
+use crate::config::load_config_from_file;
 
 const APP_HELP_TEMPLATE: &str = r#"YARA-X {version}, the pattern matching swiss army knife.
 
@@ -65,17 +65,20 @@ fn main() -> anyhow::Result<()> {
                 .map(|dir| dir.join(CONFIG_FILE))
         });
 
-    let config: Config = if let Some(config_file) = config_file {
-        load_config_from_file(&config_file).map_err(|err| {
-            figment::Error::from(format!(
-                "unable to parse {}: {}",
-                config_file.display(),
-                err,
-            ))
-        })?
-    } else {
-        Config::default()
-    };
+    let config = config_file
+        .map(|config_file| match load_config_from_file(&config_file) {
+            Ok(config) => config,
+            Err(err) => {
+                eprintln!(
+                    "{} unable to parse {}: {}",
+                    "error:".paint(Red).bold(),
+                    config_file.display(),
+                    err
+                );
+                process::exit(EXIT_ERROR);
+            }
+        })
+        .unwrap_or_default();
 
     let result = match args.subcommand() {
         #[cfg(feature = "debug-cmd")]
