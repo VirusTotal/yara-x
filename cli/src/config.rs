@@ -1,12 +1,13 @@
 use std::collections::BTreeMap;
 use std::path::Path;
-use yara_x::config::MetaValueType;
 
 use figment::{
     providers::{Format, Serialized, Toml},
     Figment,
 };
+
 use serde::{Deserialize, Serialize};
+use strum_macros::{Display, EnumString};
 
 /// Configuration structure for "yr" commands.
 #[derive(Deserialize, Serialize, Debug)]
@@ -27,6 +28,44 @@ pub struct FormatConfig {
     pub meta: MetaFormatConfig,
     /// Pattern specific formatting information.
     pub patterns: PatternsFormatConfig,
+}
+
+/// Types allowed in the check.metadata table of the config file. Used to
+/// require specific metadata identifiers have specific types by "yr check".
+#[derive(Display, Deserialize, Serialize, Debug, Clone, EnumString)]
+pub enum MetaValueType {
+    /// Represents a String type
+    #[serde(rename = "string")]
+    #[strum(serialize = "string")]
+    String,
+    /// Represents an Integer type
+    #[serde(rename = "int")]
+    #[strum(serialize = "int")]
+    Integer,
+    /// Represents a Float type
+    #[serde(rename = "float")]
+    #[strum(serialize = "float")]
+    Float,
+    /// Represents a Boolean type
+    #[serde(rename = "bool")]
+    #[strum(serialize = "bool")]
+    Bool,
+    /// Represents a SHA256 (string) type
+    #[serde(rename = "sha256")]
+    #[strum(serialize = "sha256", to_string = "sha256 (string)")]
+    SHA256,
+    /// Represents a SHA1 (string) type
+    #[serde(rename = "sha1")]
+    #[strum(serialize = "sha1", to_string = "sha1 (string)")]
+    SHA1,
+    /// Represents a MD5 (string) type
+    #[serde(rename = "md5")]
+    #[strum(serialize = "md5", to_string = "md5 (string)")]
+    MD5,
+    /// Represents a generic hash (string) type. Can be MD5/SHA1/SHA256
+    #[serde(rename = "hash")]
+    #[strum(serialize = "hash", to_string = "hash (string)")]
+    HASH,
 }
 
 /// Format specific configuration information.

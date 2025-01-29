@@ -9,7 +9,7 @@ use crossterm::tty::IsTty;
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Green, Red, Yellow};
 use yansi::Paint;
-use yara_x::SourceCode;
+use yara_x::{linters, SourceCode};
 
 use crate::walk::Message;
 use crate::{help, walk};
@@ -93,14 +93,9 @@ pub fn exec_check(
 
             let mut lines = Vec::new();
             let mut compiler = yara_x::Compiler::new();
-            if !config.metadata.is_empty() {
-                compiler.required_metadata(config.metadata.clone());
-            }
 
-            if config.rule_name_regexp.is_some() {
-                compiler.rule_name_regexp(
-                    config.rule_name_regexp.clone().unwrap().as_str(),
-                )?;
+            if let Some(re) = &config.rule_name_regexp {
+                compiler.add_linter(linters::RuleNameMatches::new(re)?);
             }
 
             compiler.colorize_errors(io::stdout().is_tty());

@@ -1,6 +1,0 @@
-warning[invalid_rule_name]: rule name does not meet requirements
- --> line:2:6
-  |
-2 | rule test {
-  |      ---- name does not meet requirements
-  |

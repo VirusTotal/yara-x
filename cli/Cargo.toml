@@ -58,6 +58,7 @@ protobuf = { workspace = true }
 protobuf-json-mapping = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
+strum = { workspace = true }
 strum_macros = { workspace = true }
 yansi = { workspace = true }
 yara-x = { workspace = true, features = ["parallel-compilation"] }

@@ -6,7 +6,7 @@ module implements the YARA compiler.
 
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 use std::io::Write;
 use std::ops::RangeInclusive;
 use std::path::Path;
@@ -21,9 +21,6 @@ use bstr::{BStr, ByteSlice};
 use itertools::{izip, Itertools, MinMaxResult};
 #[cfg(feature = "logging")]
 use log::*;
-use nom::AsChar;
-use regex::Error as RegexError;
-use regex::Regex;
 use regex_syntax::hir;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -43,7 +40,6 @@ use crate::compiler::errors::{
 };
 use crate::compiler::report::{CodeLoc, ReportBuilder};
 use crate::compiler::{CompileContext, VarStack};
-use crate::config::MetaValueType;
 use crate::modules::BUILTIN_MODULES;
 use crate::re;
 use crate::re::hir::ChainedPattern;
@@ -58,7 +54,6 @@ use crate::wasm::{WasmExport, WasmSymbols, WASM_EXPORTS};
 pub(crate) use crate::compiler::atoms::*;
 pub(crate) use crate::compiler::context::*;
 pub(crate) use crate::compiler::ir::*;
-
 #[doc(inline)]
 pub use crate::compiler::rules::*;
 
@@ -78,6 +73,7 @@ mod tests;
 
 pub mod base64;
 pub mod errors;
+pub mod linters;
 pub mod warnings;
 
 /// A structure that describes some YARA source code.
@@ -396,14 +392,12 @@ pub struct Compiler<'a> {
     /// This is used for test cases and debugging.
     ir_writer: Option<Box<dyn Write>>,
 
-    /// Required metadata and the corresponding type.
-    required_metadata: BTreeMap<String, MetaValueType>,
-
-    /// Regexp used to validate names of rules.
-    rule_name_regexp: Option<Regex>,
+    /// Linters applied to each rule during compilation. The linters are added
+    /// to the compiler using [`Compiler::add_linter`]:
+    linters: Vec<Box<dyn linters::Linter + 'a>>,
 }
 
-impl Compiler<'_> {
+impl<'a> Compiler<'a> {
     /// Creates a new YARA compiler.
     pub fn new() -> Self {
         let mut ident_pool = StringPool::new();
@@ -488,36 +482,8 @@ impl Compiler<'_> {
             regexp_pool: StringPool::new(),
             patterns: FxHashMap::default(),
             ir_writer: None,
-            required_metadata: BTreeMap::new(),
-            rule_name_regexp: None,
+            linters: Vec::new(),
         }
-    }
-
-    /// Required metadata and the corresponding type. Failure to meet these
-    /// requirements are compiler warnings.
-    pub fn required_metadata(
-        &mut self,
-        metadata: BTreeMap<String, MetaValueType>,
-    ) -> &mut Self {
-        self.required_metadata = metadata;
-        self
-    }
-
-    /// Regexp used to validate the rule name.
-    pub fn rule_name_regexp(
-        &mut self,
-        regexp_string: &str,
-    ) -> Result<&mut Self, RegexError> {
-        // The documentation says the default is an empty string, which is not
-        // true (but it is easier for users to understand). The actual default
-        // is None. Because users might stick an empty string in there if they
-        // don't want to use this feature (instead of just removing it from the
-        // config file), check for the empty string here.
-        if !regexp_string.is_empty() {
-            let re = Regex::new(regexp_string)?;
-            self.rule_name_regexp = Some(re);
-        }
-        Ok(self)
     }
 
     /// Adds some YARA source code to be compiled.
@@ -799,6 +765,19 @@ impl Compiler<'_> {
 
         rules.build_ac_automaton();
         rules
+    }
+
+    /// Add a linter to the compiler.
+    ///
+    /// Linters perform additional checks to the rules, producing warnings
+    /// when the rule doesn't comply the linter's requirements. See [`crate::linters`]
+    /// for a list of available linters.
+    pub fn add_linter<L: linters::Linter + 'a>(
+        &mut self,
+        linter: L,
+    ) -> &mut Self {
+        self.linters.push(Box::new(linter));
+        self
     }
 
     /// Enables a feature on this compiler.
@@ -1084,194 +1063,6 @@ impl Compiler<'_> {
         Ok(())
     }
 
-    /// Checks that metadata requirements are met.
-    fn check_required_metadata(&mut self, rule: &ast::Rule) {
-        // If the rule has no metadata we need an empty vector to iterate
-        // over still.
-        let empty = Vec::new();
-        let rule_metas = rule.meta.as_ref().unwrap_or(&empty);
-
-        // Check that each required identifier and required type are in the
-        // rule metadata. If the idenitifier doesn't exist or the type
-        // doesn't match record a warning. Rule metadata can have duplicate
-        // idenitifers so we have to check every metadata in the vector, and
-        // can not break out at the first matching one.
-        for (required_identifier, required_type) in
-            self.required_metadata.iter()
-        {
-            let mut found = false;
-            for meta in rule_metas.iter() {
-                if required_identifier == meta.identifier.name {
-                    found = true;
-                    match required_type {
-                        MetaValueType::String => match meta.value {
-                            ast::MetaValue::String(_)
-                            | ast::MetaValue::Bytes(_) => {}
-                            _ => {
-                                self.warnings.add(|| {
-                                    warnings::IncorrectMetadataType::build(
-                                        &self.report_builder,
-                                        meta.identifier.span().into(),
-                                        required_type.to_string(),
-                                    )
-                                });
-                            }
-                        },
-                        MetaValueType::Integer => match meta.value {
-                            ast::MetaValue::Integer(_) => {}
-                            _ => {
-                                self.warnings.add(|| {
-                                    warnings::IncorrectMetadataType::build(
-                                        &self.report_builder,
-                                        meta.identifier.span().into(),
-                                        required_type.to_string(),
-                                    )
-                                });
-                            }
-                        },
-                        MetaValueType::Float => match meta.value {
-                            ast::MetaValue::Float(_) => {}
-                            _ => {
-                                self.warnings.add(|| {
-                                    warnings::IncorrectMetadataType::build(
-                                        &self.report_builder,
-                                        meta.identifier.span().into(),
-                                        required_type.to_string(),
-                                    )
-                                });
-                            }
-                        },
-                        MetaValueType::Bool => match meta.value {
-                            ast::MetaValue::Bool(_) => {}
-                            _ => {
-                                self.warnings.add(|| {
-                                    warnings::IncorrectMetadataType::build(
-                                        &self.report_builder,
-                                        meta.identifier.span().into(),
-                                        required_type.to_string(),
-                                    )
-                                });
-                            }
-                        },
-                        // Could use a regexp for these "hash" types, but I'm
-                        // not sure it will be faster and the API to use the
-                        // implementation(s) provided by YARA-X is confusing, so
-                        // do it manually for now.
-                        MetaValueType::SHA256 => match meta.value {
-                            ast::MetaValue::String(s) => {
-                                if s.len() != 64
-                                    || s.chars().any(|c| !c.is_hex_digit())
-                                {
-                                    self.warnings.add(|| {
-                                        warnings::IncorrectMetadataType::build(
-                                            &self.report_builder,
-                                            meta.identifier.span().into(),
-                                            required_type.to_string(),
-                                        )
-                                    });
-                                }
-                            }
-                            _ => {
-                                self.warnings.add(|| {
-                                    warnings::IncorrectMetadataType::build(
-                                        &self.report_builder,
-                                        meta.identifier.span().into(),
-                                        required_type.to_string(),
-                                    )
-                                });
-                            }
-                        },
-                        MetaValueType::SHA1 => match meta.value {
-                            ast::MetaValue::String(s) => {
-                                if s.len() != 40
-                                    || s.chars().any(|c| !c.is_hex_digit())
-                                {
-                                    self.warnings.add(|| {
-                                        warnings::IncorrectMetadataType::build(
-                                            &self.report_builder,
-                                            meta.identifier.span().into(),
-                                            required_type.to_string(),
-                                        )
-                                    });
-                                }
-                            }
-                            _ => {
-                                self.warnings.add(|| {
-                                    warnings::IncorrectMetadataType::build(
-                                        &self.report_builder,
-                                        meta.identifier.span().into(),
-                                        required_type.to_string(),
-                                    )
-                                });
-                            }
-                        },
-                        MetaValueType::MD5 => match meta.value {
-                            ast::MetaValue::String(s) => {
-                                if s.len() != 32
-                                    || s.chars().any(|c| !c.is_hex_digit())
-                                {
-                                    self.warnings.add(|| {
-                                        warnings::IncorrectMetadataType::build(
-                                            &self.report_builder,
-                                            meta.identifier.span().into(),
-                                            required_type.to_string(),
-                                        )
-                                    });
-                                }
-                            }
-                            _ => {
-                                self.warnings.add(|| {
-                                    warnings::IncorrectMetadataType::build(
-                                        &self.report_builder,
-                                        meta.identifier.span().into(),
-                                        required_type.to_string(),
-                                    )
-                                });
-                            }
-                        },
-                        MetaValueType::HASH => match meta.value {
-                            ast::MetaValue::String(s) => {
-                                if !((s.len() == 32
-                                    || s.len() == 40
-                                    || s.len() == 64)
-                                    && s.chars().all(|c| c.is_hex_digit()))
-                                {
-                                    self.warnings.add(|| {
-                                        warnings::IncorrectMetadataType::build(
-                                            &self.report_builder,
-                                            meta.identifier.span().into(),
-                                            required_type.to_string(),
-                                        )
-                                    });
-                                }
-                            }
-                            _ => {
-                                self.warnings.add(|| {
-                                    warnings::IncorrectMetadataType::build(
-                                        &self.report_builder,
-                                        meta.identifier.span().into(),
-                                        required_type.to_string(),
-                                    )
-                                });
-                            }
-                        },
-                    }
-                }
-            }
-
-            if !found {
-                self.warnings.add(|| {
-                    warnings::MissingMetadata::build(
-                        &self.report_builder,
-                        rule.identifier.span().into(),
-                        required_identifier.to_string(),
-                        required_type.to_string(),
-                    )
-                });
-            }
-        }
-    }
-
     /// Checks that tags are not duplicate.
     fn check_for_duplicate_tags(
         &self,
@@ -1390,18 +1181,10 @@ impl Compiler<'_> {
             self.check_for_duplicate_tags(tags.as_slice())?;
         }
 
-        if !self.required_metadata.is_empty() {
-            self.check_required_metadata(rule);
-        }
-
-        if let Some(rule_name_regexp) = self.rule_name_regexp.as_ref() {
-            if !rule_name_regexp.is_match(rule.identifier.name) {
-                self.warnings.add(|| {
-                    warnings::InvalidRuleName::build(
-                        &self.report_builder,
-                        rule.identifier.span().into(),
-                    )
-                });
+        // Check the rule with all the linters.
+        for linter in self.linters.iter() {
+            if let Some(warning) = linter.check(&self.report_builder, rule) {
+                self.warnings.add(|| warning);
             }
         }
 

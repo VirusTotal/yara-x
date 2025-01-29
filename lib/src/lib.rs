@@ -43,6 +43,7 @@ assert_eq!(results.matching_rules().len(), 1);
 
 #![deny(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
+extern crate core;
 
 pub use compiler::compile;
 pub use compiler::Compiler;
@@ -83,6 +84,14 @@ mod models;
 #[cfg(test)]
 mod tests;
 
+pub mod linters {
+    //! Linters that can be added to the compiler for performing additional checks.
+    //!
+    //! This module contains the linters that can be passed to [`crate::Compiler::add_linter`]
+    //! for performing additional checks to the YARA rules being compiled.
+    pub use crate::compiler::linters::*;
+}
+
 pub mod errors {
     //! Errors returned by this crate.
     //!
@@ -97,51 +106,6 @@ pub mod errors {
 pub mod warnings {
     //! Warnings returned while compiling rules.
     pub use crate::compiler::warnings::*;
-}
-
-/// Shared config types utilized by the compiler and CLI
-pub mod config {
-    use serde::Deserialize;
-    use serde::Serialize;
-    use strum_macros::{Display, EnumString};
-
-    /// Types allowed in the check.metadata table of the config file. Used to
-    /// require specific metadata identifiers have specific types by "yr check".
-    #[derive(Display, Deserialize, Serialize, Debug, Clone, EnumString)]
-    pub enum MetaValueType {
-        /// Represents a String type
-        #[serde(rename = "string")]
-        #[strum(serialize = "string")]
-        String,
-        /// Represents an Integer type
-        #[serde(rename = "int")]
-        #[strum(serialize = "int")]
-        Integer,
-        /// Represents a Float type
-        #[serde(rename = "float")]
-        #[strum(serialize = "float")]
-        Float,
-        /// Represents a Boolean type
-        #[serde(rename = "bool")]
-        #[strum(serialize = "bool")]
-        Bool,
-        /// Represents a SHA256 (string) type
-        #[serde(rename = "sha256")]
-        #[strum(serialize = "sha256", to_string = "sha256 (string)")]
-        SHA256,
-        /// Represents a SHA1 (string) type
-        #[serde(rename = "sha1")]
-        #[strum(serialize = "sha1", to_string = "sha1 (string)")]
-        SHA1,
-        /// Represents a MD5 (string) type
-        #[serde(rename = "md5")]
-        #[strum(serialize = "md5", to_string = "md5 (string)")]
-        MD5,
-        /// Represents a generic hash (string) type. Can be MD5/SHA1/SHA256
-        #[serde(rename = "hash")]
-        #[strum(serialize = "hash", to_string = "hash (string)")]
-        HASH,
-    }
 }
 
 mod utils {

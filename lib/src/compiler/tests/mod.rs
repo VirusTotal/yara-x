@@ -1,12 +1,12 @@
-use pretty_assertions::assert_eq;
-use serde_json::json;
-use std::collections::BTreeMap;
 use std::fs;
 use std::io::Write;
 use std::mem::size_of;
 
+use pretty_assertions::assert_eq;
+use serde_json::json;
+
+use crate::compiler::linters::RuleNameMatches;
 use crate::compiler::{SubPattern, VarStack};
-use crate::config::MetaValueType;
 use crate::errors::{SerializationError, VariableError};
 use crate::types::Type;
 use crate::{compile, Compiler, Rules, Scanner, SourceCode};
@@ -620,6 +620,42 @@ fn banned_modules() {
     assert_eq!(compiler.errors().len(), 1);
 }
 
+#[test]
+fn linter_rule_name() {
+    let mut compiler = Compiler::new();
+
+    assert!(compiler
+        .add_linter(RuleNameMatches::new("r_.+").unwrap())
+        .add_source(r#"rule r_foo { strings: $foo = "foo" condition: $foo }"#)
+        .unwrap()
+        .add_source(r#"rule r_bar { strings: $bar = "bar" condition: $bar }"#)
+        .unwrap()
+        .warnings()
+        .is_empty());
+
+    assert_eq!(
+        compiler
+            .add_source(
+                r#"rule foo { strings: $foo = "foo" condition: $foo }"#
+            )
+            .unwrap()
+            .warnings()
+            .iter()
+            .map(|w| w.to_string())
+            .collect::<Vec<_>>(),
+        &[
+            r#"warning[invalid_rule_name]: rule name does not match regex `r_.+`
+ --> line:1:6
+  |
+1 | rule foo { strings: $foo = "foo" condition: $foo }
+  |      --- this rule name does not match regex `r_.+`
+  |"#
+        ]
+    );
+
+    assert!(RuleNameMatches::new("(AXS|ERS").is_err());
+}
+
 #[cfg(feature = "test_proto2-module")]
 #[test]
 fn import_modules() {
@@ -923,12 +959,6 @@ fn test_errors() {
 }
 
 #[test]
-fn test_invalid_rule_name_regex() {
-    // Make sure invalid regex result in Err.
-    assert!(Compiler::new().rule_name_regexp("(AXS|ERS").is_err());
-}
-
-#[test]
 fn test_warnings() {
     let mut mint = goldenfile::Mint::new(".");
 
@@ -962,24 +992,6 @@ fn test_warnings() {
         }
 
         let mut compiler = Compiler::new();
-        if rules.starts_with("// required metadata") {
-            // If it starts with "// required_metadata" set the compiler to require
-            // specific metadata to enduce warnings.
-            compiler.required_metadata(BTreeMap::from([
-                ("some_string".to_string(), MetaValueType::String),
-                ("some_int".to_string(), MetaValueType::Integer),
-                ("some_float".to_string(), MetaValueType::Float),
-                ("some_bool".to_string(), MetaValueType::Bool),
-                ("some_md5".to_string(), MetaValueType::MD5),
-                ("some_sha1".to_string(), MetaValueType::SHA1),
-                ("some_sha256".to_string(), MetaValueType::SHA256),
-                ("some_hash".to_string(), MetaValueType::HASH),
-            ]));
-        }
-
-        if rules.starts_with("// rule name regex") {
-            compiler.rule_name_regexp("^AXSERS$").unwrap();
-        }
 
         src.push_str(rules.as_str());
 

@@ -472,7 +472,7 @@ pub struct TextPatternAsHex {
 ///
 /// ```text
 /// warning[incorrect_metadata_type]: incorrect metadata type
-/// --> rules/test2.yara:4:5
+/// --> test.yar:4:5
 ///   |
 /// 4 |     author = 1234
 ///   |     ------ expected type string here
@@ -495,59 +495,61 @@ pub struct IncorrectMetadataType {
 }
 
 /// Missing metadata. This is only used if the compiler is configured to check
-/// for required metadata (see: [`crate::Compiler::required_metadata`]).
+/// for required metadata (see:  [`crate::linters::RequiredMetadata`]).
 ///
 /// ## Example
 ///
 /// ```text
-/// warning[missing_metadata]: missing metadata
-///  --> rules/test2.yara:12:6
+/// warning[required_metadata]: required metadata is missing
+///  --> test.yar:12:6
 ///    |
 /// 12 | rule pants {
-///    |      ----- required metadata "date" (int) not found
+///    |      ----- required metadata "date" not found
 ///    |
 /// ```
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(Warning)]
 #[warning(
-    code = "missing_metadata",
-    title = "required metadata missing"
+    code = "required_metadata",
+    title = "required metadata is missing"
 )]
 #[label(
-    "required metadata \"{name}\" ({expected_type}) not found",
-   rule_loc
+    "required metadata `{name}` not found",
+    rule_loc
 )]
+#[footer(note)]
 pub struct MissingMetadata {
     report: Report,
     rule_loc: CodeLoc,
     name: String,
-    expected_type: String,
+    note: Option<String>,
 }
 
 /// Rule name does not match regex. This is only used if the compiler is
-/// configured to check for it (see: [`crate::Compiler::rule_name_regexp`]).
+/// configured to check for it (see: [`crate::linters::RuleNameMatches`]).
 ///
 /// ## Example
 ///
 /// ```text
-/// warning[invalid_rule_name]: rule name does not meet requirements
-///  --> rules/test2.yara:13:6
+/// warning[invalid_rule_name]: rule name does not match regex `APT_.*`
+///  --> test.yar:13:6
 ///    |
 /// 13 | rule pants {
-///    |      ----- name does not meet requirements
+///    |      ----- this rule name does not match regex `APT_.*`
 ///    |
 /// ```
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(Warning)]
 #[warning(
     code = "invalid_rule_name",
-    title = "rule name does not meet requirements"
+    title = "rule name does not match regex `{regex}`"
 )]
 #[label(
-    "name does not meet requirements",
-   rule_loc
+    "this rule name does not match regex `{regex}`",
+    rule_loc
 )]
 pub struct InvalidRuleName {
     report: Report,
     rule_loc: CodeLoc,
+    regex: String,
 }
