@@ -8,6 +8,7 @@ use serde_json::json;
 use crate::compiler::linters::RuleNameMatches;
 use crate::compiler::{SubPattern, VarStack};
 use crate::errors::{SerializationError, VariableError};
+use crate::linters::RequiredMetadata;
 use crate::types::Type;
 use crate::{compile, Compiler, Rules, Scanner, SourceCode};
 
@@ -654,6 +655,36 @@ fn linter_rule_name() {
     );
 
     assert!(RuleNameMatches::new("(AXS|ERS").is_err());
+}
+
+#[test]
+fn linter_required_metadata() {
+    let mut compiler = Compiler::new();
+
+    assert!(compiler
+        .add_linter(RequiredMetadata::new("author"))
+        .add_source(r#"rule r_foo { meta: author = "foo" strings: $foo = "foo" condition: $foo }"#)
+        .unwrap()
+        .warnings()
+        .is_empty());
+
+    assert_eq!(
+        compiler
+            .add_source(
+                r#"rule foo { strings: $foo = "foo" condition: $foo }"#
+            )
+            .unwrap()
+            .warnings()
+            .iter()
+            .map(|w| w.to_string())
+            .collect::<Vec<_>>(),
+        &[r#"warning[required_metadata]: required metadata is missing
+ --> line:1:6
+  |
+1 | rule foo { strings: $foo = "foo" condition: $foo }
+  |      --- required metadata `author` not found
+  |"#]
+    );
 }
 
 #[cfg(feature = "test_proto2-module")]

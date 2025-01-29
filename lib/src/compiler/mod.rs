@@ -767,11 +767,11 @@ impl<'a> Compiler<'a> {
         rules
     }
 
-    /// Add a linter to the compiler.
+    /// Adds a linter to the compiler.
     ///
-    /// Linters perform additional checks to the rules, producing warnings
-    /// when the rule doesn't comply the linter's requirements. See [`crate::linters`]
-    /// for a list of available linters.
+    /// Linters perform additional checks to each YARA rule, generating 
+    /// warnings when a rule does not meet the linter's requirements. See
+    /// [`crate::linters`] for a list of available linters.
     pub fn add_linter<L: linters::Linter + 'a>(
         &mut self,
         linter: L,
