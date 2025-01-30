@@ -150,7 +150,18 @@ patterns.align_values = true
 # used to enforce standards on various aspects of the rule like metadata and
 # rule name.
 [check]
-# Table (dictionary) of required metadata identifiers and their requirements.
+# A regular expression which must match rule names. For example, if you require
+# that every rule start with a "category" description followed by an underscore
+# you could use something like this:
+#
+# rule_name_regexp = "^(APT|CRIME)_"
+#
+# The default is no regular expression.
+rule_name_regexp = ""
+
+[check.metadata]
+# Each entry in this section is a table (dictionary) of metadata identifiers and
+# their requirements.
 #
 # The key is the identifier and the value is a table that describes the
 # requirements for that identifier - what type it must have and if it is
@@ -160,14 +171,11 @@ patterns.align_values = true
 # "sha1", "sha256", or "hash".
 #
 # To require that there be an "author" metadata field and the value must be a
-# string use this:
+# string, and that the "date" metadata field must be an integer if it exists,
+# but is not required to exist use these lines:
 #
-# metadata = { author = { type = "string", required = true } }
-#
-# To specify that the "date" metadata field be an integer if it exists, but it
-# isn't required to exist, use this:
-#
-# metadata = { date = { type = "integer" } }
+# author = { type = "string", required = true }
+# date = { type = "integer" }
 #
 # The default for "required" is false.
 #
@@ -181,20 +189,8 @@ patterns.align_values = true
 # For example, to require that every rule have a metadata field named "sample"
 # and that the type of that field be an md5, sha1 or sha256 string use this:
 #
-# metadata = { sample = { type = "hash", required = true } }
+# sample = { type = "hash", required = true }
 #
 # NOTE: Inline tables must be expressed as a single line and no trailing comma
 # is allowed.
-#
-# The default value is an empty table.
-metadata = {}
-
-# A regular expression which must match rule names. For example, if you require
-# that every rule start with a "category" description followed by an underscore
-# you could use something like this:
-#
-# rule_name_regexp = "^(APT|CRIME)_"
-#
-# The default is no regular expression.
-rule_name_regexp = ""
 ```
