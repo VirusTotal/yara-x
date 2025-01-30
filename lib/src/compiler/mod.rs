@@ -54,7 +54,6 @@ use crate::wasm::{WasmExport, WasmSymbols, WASM_EXPORTS};
 pub(crate) use crate::compiler::atoms::*;
 pub(crate) use crate::compiler::context::*;
 pub(crate) use crate::compiler::ir::*;
-
 #[doc(inline)]
 pub use crate::compiler::rules::*;
 
@@ -74,6 +73,7 @@ mod tests;
 
 pub mod base64;
 pub mod errors;
+pub mod linters;
 pub mod warnings;
 
 /// A structure that describes some YARA source code.
@@ -391,9 +391,13 @@ pub struct Compiler<'a> {
     /// Optional writer where the compiler writes the IR produced by each rule.
     /// This is used for test cases and debugging.
     ir_writer: Option<Box<dyn Write>>,
+
+    /// Linters applied to each rule during compilation. The linters are added
+    /// to the compiler using [`Compiler::add_linter`]:
+    linters: Vec<Box<dyn linters::Linter + 'a>>,
 }
 
-impl Compiler<'_> {
+impl<'a> Compiler<'a> {
     /// Creates a new YARA compiler.
     pub fn new() -> Self {
         let mut ident_pool = StringPool::new();
@@ -478,6 +482,7 @@ impl Compiler<'_> {
             regexp_pool: StringPool::new(),
             patterns: FxHashMap::default(),
             ir_writer: None,
+            linters: Vec::new(),
         }
     }
 
@@ -760,6 +765,19 @@ impl Compiler<'_> {
 
         rules.build_ac_automaton();
         rules
+    }
+
+    /// Adds a linter to the compiler.
+    ///
+    /// Linters perform additional checks to each YARA rule, generating
+    /// warnings when a rule does not meet the linter's requirements. See
+    /// [`crate::linters`] for a list of available linters.
+    pub fn add_linter<L: linters::Linter + 'a>(
+        &mut self,
+        linter: L,
+    ) -> &mut Self {
+        self.linters.push(Box::new(linter));
+        self
     }
 
     /// Enables a feature on this compiler.
@@ -1161,6 +1179,13 @@ impl Compiler<'_> {
         // Check that rule tags, if any, doesn't contain duplicates.
         if let Some(tags) = &rule.tags {
             self.check_for_duplicate_tags(tags.as_slice())?;
+        }
+
+        // Check the rule with all the linters.
+        for linter in self.linters.iter() {
+            if let Some(warning) = linter.check(&self.report_builder, rule) {
+                self.warnings.add(|| warning);
+            }
         }
 
         let tags: Vec<IdentId> = rule

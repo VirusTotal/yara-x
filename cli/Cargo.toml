@@ -58,6 +58,8 @@ protobuf = { workspace = true }
 protobuf-json-mapping = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
+strum = { workspace = true }
+strum_macros = { workspace = true }
 yansi = { workspace = true }
 yara-x = { workspace = true, features = ["parallel-compilation"] }
 yara-x-parser = { workspace = true }
@@ -69,7 +71,6 @@ colored_json = "5.0.0"
 crossbeam = "0.8.4"
 crossterm = "0.28.1"
 encoding_rs = "0.8.35"
-strum_macros = "0.26.4"
 superconsole = "0.2.0"
 wild = "2.2.1"
 

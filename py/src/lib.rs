@@ -168,6 +168,19 @@ impl Compiler {
         }
     }
 
+    /// Specify a regular expression that the compiler will enforce upon each
+    /// rule name. Any rule which has a name which does not match this regex
+    /// will return an InvalidRuleName warning.
+    ///
+    /// If the regexp does not compile a ValueError is returned.
+    #[pyo3(signature = (regexp_str))]
+    fn rule_name_regexp(&mut self, regexp_str: &str) -> PyResult<()> {
+        let linter = yrx::linters::rule_name(regexp_str)
+            .map_err(|err| PyValueError::new_err(err.to_string()))?;
+        self.inner.add_linter(linter);
+        Ok(())
+    }
+
     /// Adds a YARA source code to be compiled.
     ///
     /// This function may be invoked multiple times to add several sets of YARA

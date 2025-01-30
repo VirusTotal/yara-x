@@ -30,6 +30,9 @@ pub enum Warning {
     RedundantCaseModifier(Box<RedundantCaseModifier>),
     SlowPattern(Box<SlowPattern>),
     TextPatternAsHex(Box<TextPatternAsHex>),
+    InvalidMetadata(Box<InvalidMetadata>),
+    MissingMetadata(Box<MissingMetadata>),
+    InvalidRuleName(Box<InvalidRuleName>),
 }
 
 /// A hex pattern contains two or more consecutive jumps.
@@ -460,4 +463,94 @@ pub struct TextPatternAsHex {
     report: Report,
     text: String,
     pattern_loc: CodeLoc,
+}
+
+/// Some metadata entry is invalid. This is only used if the compiler is
+/// configured to check for valid metadata (see: [`crate::linters::Metadata`]).
+///
+/// ## Example
+///
+/// ```text
+/// warning[invalid_metadata]: metadata `author` is not valid
+/// --> test.yar:4:5
+///   |
+/// 4 |     author = 1234
+///   |     ------ metadata value must be a string
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "invalid_metadata",
+    title = "metadata `{name}` is not valid"
+)]
+#[label(
+    "{label}",
+    label_loc
+)]
+pub struct InvalidMetadata {
+    report: Report,
+    name: String,
+    label_loc: CodeLoc,
+    label: String,
+}
+
+/// Missing metadata. This is only used if the compiler is configured to check
+/// for required metadata (see:  [`crate::linters::Metadata`]).
+///
+/// ## Example
+///
+/// ```text
+/// warning[missing_metadata]: required metadata is missing
+///  --> test.yar:12:6
+///    |
+/// 12 | rule pants {
+///    |      ----- required metadata "date" not found
+///    |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "missing_metadata",
+    title = "required metadata is missing"
+)]
+#[label(
+    "required metadata `{name}` not found",
+    rule_loc
+)]
+#[footer(note)]
+pub struct MissingMetadata {
+    report: Report,
+    rule_loc: CodeLoc,
+    name: String,
+    note: Option<String>,
+}
+
+/// Rule name does not match regex. This is only used if the compiler is
+/// configured to check for it (see: [`crate::linters::RuleName`]).
+///
+/// ## Example
+///
+/// ```text
+/// warning[invalid_rule_name]: rule name does not match regex `APT_.*`
+///  --> test.yar:13:6
+///    |
+/// 13 | rule pants {
+///    |      ----- this rule name does not match regex `APT_.*`
+///    |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "invalid_rule_name",
+    title = "rule name does not match regex `{regex}`"
+)]
+#[label(
+    "this rule name does not match regex `{regex}`",
+    rule_loc
+)]
+pub struct InvalidRuleName {
+    report: Report,
+    rule_loc: CodeLoc,
+    regex: String,
 }

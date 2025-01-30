@@ -241,6 +241,8 @@ p256 = { workspace = true, optional = true, features = ["ecdsa"] }
 protobuf = { workspace = true }
 quanta = { workspace = true, optional = true }
 rustc-hash = { workspace = true }
+# For linting purposes only!
+regex = { version = "1.11.1" }
 regex-syntax = { workspace = true }
 regex-automata = { workspace = true }
 roxmltree = { workspace = true, optional = true }
@@ -248,6 +250,7 @@ rsa = { workspace = true, optional = true }
 smallvec = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
+strum_macros = { workspace = true }
 thiserror = { workspace = true }
 tlsh-fixed = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true, features = ["v4"] }

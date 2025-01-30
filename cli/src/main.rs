@@ -6,13 +6,15 @@ mod walk;
 #[cfg(test)]
 mod tests;
 
-use config::{load_config_from_file, Config};
 use crossterm::tty::IsTty;
+use home::home_dir;
+use std::path::PathBuf;
 use std::{io, panic, process};
 use yansi::Color::Red;
 use yansi::Paint;
 
 use crate::commands::cli;
+use crate::config::load_config_from_file;
 
 const APP_HELP_TEMPLATE: &str = r#"YARA-X {version}, the pattern matching swiss army knife.
 
@@ -43,8 +45,6 @@ fn main() -> anyhow::Result<()> {
         yansi::disable();
     }
 
-    let args = cli().get_matches_from(wild::args());
-
     // Set our custom panic hook that kills the process when some panic
     // occurs in a thread. By default, when a thread panics the main thread
     // and all other threads keep running. We don't want that, we want the
@@ -56,18 +56,35 @@ fn main() -> anyhow::Result<()> {
         process::exit(EXIT_ERROR);
     }));
 
-    let config: Config = match home::home_dir() {
-        Some(home_path) if !home_path.as_os_str().is_empty() => {
-            load_config_from_file(&home_path.join(CONFIG_FILE))
-                .unwrap_or_default()
-        }
-        _ => Config::default(),
-    };
+    let args = cli().get_matches_from(wild::args());
+
+    // The config file is either the one specified by `--config` or
+    // `$HOME/.yara-x.toml`. If the file does not exist, or $HOME is
+    // empty, `config_file` will be `None`.
+    let config_file = args
+        .get_one::<PathBuf>("config")
+        .cloned()
+        .or_else(|| {
+            home_dir()
+                .filter(|dir| !dir.as_os_str().is_empty())
+                .map(|dir| dir.join(CONFIG_FILE))
+        })
+        .filter(|file| file.exists());
+
+    let config = config_file
+        .map(|config_file| match load_config_from_file(&config_file) {
+            Ok(config) => config,
+            Err(err) => {
+                eprintln!("{} {}", "error:".paint(Red).bold(), err);
+                process::exit(EXIT_ERROR);
+            }
+        })
+        .unwrap_or_default();
 
     let result = match args.subcommand() {
         #[cfg(feature = "debug-cmd")]
         Some(("debug", args)) => commands::exec_debug(args),
-        Some(("check", args)) => commands::exec_check(args),
+        Some(("check", args)) => commands::exec_check(args, config.check),
         Some(("fix", args)) => commands::exec_fix(args),
         Some(("fmt", args)) => commands::exec_fmt(args, config.fmt),
         Some(("scan", args)) => commands::exec_scan(args),

@@ -1,10 +1,11 @@
-use pretty_assertions::assert_eq;
-use serde_json::json;
 use std::fs;
 use std::io::Write;
 use std::mem::size_of;
 
-use crate::compiler::{SubPattern, VarStack};
+use pretty_assertions::assert_eq;
+use serde_json::json;
+
+use crate::compiler::{linters, SubPattern, VarStack};
 use crate::errors::{SerializationError, VariableError};
 use crate::types::Type;
 use crate::{compile, Compiler, Rules, Scanner, SourceCode};
@@ -618,6 +619,72 @@ fn banned_modules() {
     assert_eq!(compiler.errors().len(), 1);
 }
 
+#[test]
+fn linter_rule_name() {
+    let mut compiler = Compiler::new();
+
+    assert!(compiler
+        .add_linter(linters::rule_name("r_.+").unwrap())
+        .add_source(r#"rule r_foo { strings: $foo = "foo" condition: $foo }"#)
+        .unwrap()
+        .add_source(r#"rule r_bar { strings: $bar = "bar" condition: $bar }"#)
+        .unwrap()
+        .warnings()
+        .is_empty());
+
+    assert_eq!(
+        compiler
+            .add_source(
+                r#"rule foo { strings: $foo = "foo" condition: $foo }"#
+            )
+            .unwrap()
+            .warnings()
+            .iter()
+            .map(|w| w.to_string())
+            .collect::<Vec<_>>(),
+        &[
+            r#"warning[invalid_rule_name]: rule name does not match regex `r_.+`
+ --> line:1:6
+  |
+1 | rule foo { strings: $foo = "foo" condition: $foo }
+  |      --- this rule name does not match regex `r_.+`
+  |"#
+        ]
+    );
+
+    assert!(linters::rule_name("(AXS|ERS").is_err());
+}
+
+#[test]
+fn linter_required_metadata() {
+    let mut compiler = Compiler::new();
+
+    assert!(compiler
+        .add_linter(linters::metadata("author").required(true))
+        .add_source(r#"rule r_foo { meta: author = "foo" strings: $foo = "foo" condition: $foo }"#)
+        .unwrap()
+        .warnings()
+        .is_empty());
+
+    assert_eq!(
+        compiler
+            .add_source(
+                r#"rule foo { strings: $foo = "foo" condition: $foo }"#
+            )
+            .unwrap()
+            .warnings()
+            .iter()
+            .map(|w| w.to_string())
+            .collect::<Vec<_>>(),
+        &[r#"warning[missing_metadata]: required metadata is missing
+ --> line:1:6
+  |
+1 | rule foo { strings: $foo = "foo" condition: $foo }
+  |      --- required metadata `author` not found
+  |"#]
+    );
+}
+
 #[cfg(feature = "test_proto2-module")]
 #[test]
 fn import_modules() {
@@ -953,9 +1020,9 @@ fn test_warnings() {
             continue;
         }
 
-        src.push_str(rules.as_str());
-
         let mut compiler = Compiler::new();
+
+        src.push_str(rules.as_str());
 
         compiler.ignore_module("unsupported_module");
         compiler.add_source(src.as_str()).unwrap();
