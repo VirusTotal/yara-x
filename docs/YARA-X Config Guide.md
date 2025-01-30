@@ -150,18 +150,26 @@ patterns.align_values = true
 # used to enforce standards on various aspects of the rule like metadata and
 # rule name.
 [check]
-# Table (dictionary) of required metadata identifiers and their corresponding
-# types.
+# Table (dictionary) of required metadata identifiers and their requirements.
 #
-# The key is the identifier and the value is the required type for that
-# identifier. Supported types are "string", "int", "float", "bool", "md5",
+# The key is the identifier and the value is a table that describes the
+# requirements for that identifier - what type it must have and if it is
+# required or not.
+#
+# Supported types are "string", "integer", "float", "bool", "md5",
 # "sha1", "sha256", or "hash".
 #
 # To require that there be an "author" metadata field and the value must be a
-# string, and that there needs to be a date field and the value must be an
-# integer use this:
+# string use this:
 #
-# metadata = { author = "string", date = "int" }
+# metadata = { author = { type = "string", required = true } }
+#
+# To specify that the "date" metadata field be an integer if it exists, but it
+# isn't required to exist, use this:
+#
+# metadata = { date = { type = "integer" } }
+#
+# The default for "required" is false.
 #
 # The "md5", "sha1" and "sha256" types are convenience types that check for a
 # string that is the correct length and only contains valid hexadecimal digits.
@@ -173,7 +181,7 @@ patterns.align_values = true
 # For example, to require that every rule have a metadata field named "sample"
 # and that the type of that field be an md5, sha1 or sha256 string use this:
 #
-# metadata = { sample = "hash" }
+# metadata = { sample = { type = "hash", required = true } }
 #
 # NOTE: Inline tables must be expressed as a single line and no trailing comma
 # is allowed.
