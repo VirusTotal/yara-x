@@ -5,10 +5,8 @@ use std::mem::size_of;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
-use crate::compiler::linters::RuleNameMatches;
-use crate::compiler::{SubPattern, VarStack};
+use crate::compiler::{linters, SubPattern, VarStack};
 use crate::errors::{SerializationError, VariableError};
-use crate::linters::RequiredMetadata;
 use crate::types::Type;
 use crate::{compile, Compiler, Rules, Scanner, SourceCode};
 
@@ -626,7 +624,7 @@ fn linter_rule_name() {
     let mut compiler = Compiler::new();
 
     assert!(compiler
-        .add_linter(RuleNameMatches::new("r_.+").unwrap())
+        .add_linter(linters::rule_name("r_.+").unwrap())
         .add_source(r#"rule r_foo { strings: $foo = "foo" condition: $foo }"#)
         .unwrap()
         .add_source(r#"rule r_bar { strings: $bar = "bar" condition: $bar }"#)
@@ -654,7 +652,7 @@ fn linter_rule_name() {
         ]
     );
 
-    assert!(RuleNameMatches::new("(AXS|ERS").is_err());
+    assert!(linters::rule_name("(AXS|ERS").is_err());
 }
 
 #[test]
@@ -662,7 +660,7 @@ fn linter_required_metadata() {
     let mut compiler = Compiler::new();
 
     assert!(compiler
-        .add_linter(RequiredMetadata::new("author"))
+        .add_linter(linters::metadata("author").required(true))
         .add_source(r#"rule r_foo { meta: author = "foo" strings: $foo = "foo" condition: $foo }"#)
         .unwrap()
         .warnings()
@@ -678,7 +676,7 @@ fn linter_required_metadata() {
             .iter()
             .map(|w| w.to_string())
             .collect::<Vec<_>>(),
-        &[r#"warning[required_metadata]: required metadata is missing
+        &[r#"warning[missing_metadata]: required metadata is missing
  --> line:1:6
   |
 1 | rule foo { strings: $foo = "foo" condition: $foo }

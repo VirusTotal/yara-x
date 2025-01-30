@@ -30,7 +30,7 @@ pub enum Warning {
     RedundantCaseModifier(Box<RedundantCaseModifier>),
     SlowPattern(Box<SlowPattern>),
     TextPatternAsHex(Box<TextPatternAsHex>),
-    IncorrectMetadataType(Box<IncorrectMetadataType>),
+    InvalidMetadata(Box<InvalidMetadata>),
     MissingMetadata(Box<MissingMetadata>),
     InvalidRuleName(Box<InvalidRuleName>),
 }
@@ -465,42 +465,43 @@ pub struct TextPatternAsHex {
     pattern_loc: CodeLoc,
 }
 
-/// Metadata with an incorrect type. This is only used if the compiler is
-/// configured to check for required metadata (see: [`crate::Compiler::required_metadata`]).
+/// Some metadata entry is invalid. This is only used if the compiler is
+/// configured to check for valid metadata (see: [`crate::linters::Metadata`]).
 ///
 /// ## Example
 ///
 /// ```text
-/// warning[incorrect_metadata_type]: incorrect metadata type
+/// warning[invalid_metadata]: metadata `author` is not valid
 /// --> test.yar:4:5
 ///   |
 /// 4 |     author = 1234
-///   |     ------ expected type string here
+///   |     ------ metadata value must be a string
 ///   |
 /// ```
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(Warning)]
 #[warning(
-    code = "incorrect_metadata_type",
-    title = "metadata has incorrect type"
+    code = "invalid_metadata",
+    title = "metadata `{name}` is not valid"
 )]
 #[label(
-    "expected type {expected} here",
-    type_loc
+    "{label}",
+    label_loc
 )]
-pub struct IncorrectMetadataType {
+pub struct InvalidMetadata {
     report: Report,
-    type_loc: CodeLoc,
-    expected: String,
+    name: String,
+    label_loc: CodeLoc,
+    label: String,
 }
 
 /// Missing metadata. This is only used if the compiler is configured to check
-/// for required metadata (see:  [`crate::linters::RequiredMetadata`]).
+/// for required metadata (see:  [`crate::linters::Metadata`]).
 ///
 /// ## Example
 ///
 /// ```text
-/// warning[required_metadata]: required metadata is missing
+/// warning[missing_metadata]: required metadata is missing
 ///  --> test.yar:12:6
 ///    |
 /// 12 | rule pants {
@@ -510,7 +511,7 @@ pub struct IncorrectMetadataType {
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(Warning)]
 #[warning(
-    code = "required_metadata",
+    code = "missing_metadata",
     title = "required metadata is missing"
 )]
 #[label(
@@ -526,7 +527,7 @@ pub struct MissingMetadata {
 }
 
 /// Rule name does not match regex. This is only used if the compiler is
-/// configured to check for it (see: [`crate::linters::RuleNameMatches`]).
+/// configured to check for it (see: [`crate::linters::RuleName`]).
 ///
 /// ## Example
 ///

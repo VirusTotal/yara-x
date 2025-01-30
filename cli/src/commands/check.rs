@@ -2,7 +2,9 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{fs, io};
 
-use crate::config::CheckConfig;
+use crate::config::{CheckConfig, MetaValueType};
+use crate::walk::Message;
+use crate::{help, walk};
 use anyhow::Context;
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 use crossterm::tty::IsTty;
@@ -10,9 +12,7 @@ use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Green, Red, Yellow};
 use yansi::Paint;
 use yara_x::{linters, SourceCode};
-
-use crate::walk::Message;
-use crate::{help, walk};
+use yara_x_parser::ast::MetaValue;
 
 pub fn check() -> Command {
     super::command("check")
@@ -46,6 +46,18 @@ pub fn check() -> Command {
                 .required(false)
                 .value_parser(value_parser!(u8).range(1..)),
         )
+}
+
+fn is_sha256(s: &str) -> bool {
+    s.len() == 64 && s.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+fn is_sha1(s: &str) -> bool {
+    s.len() == 40 && s.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+fn is_md5(s: &str) -> bool {
+    s.len() == 32 && s.chars().all(|c| c.is_ascii_hexdigit())
 }
 
 pub fn exec_check(
@@ -94,8 +106,72 @@ pub fn exec_check(
             let mut lines = Vec::new();
             let mut compiler = yara_x::Compiler::new();
 
+            for (identifier, config) in config.metadata.iter() {
+                let mut linter =
+                    linters::metadata(identifier).required(config.required);
+
+                match config.ty {
+                    MetaValueType::String => {
+                        linter = linter.validator(
+                            |meta| {
+                                matches!(
+                                    meta.value,
+                                    MetaValue::String(_) | MetaValue::Bytes(_)
+                                )
+                            },
+                            "metadata value must be a string",
+                        );
+                    }
+                    MetaValueType::Integer => {
+                        linter = linter.validator(
+                            |meta| matches!(meta.value, MetaValue::Integer(_)),
+                            "metadata value must be a string",
+                        );
+                    }
+                    MetaValueType::Float => {
+                        linter = linter.validator(
+                            |meta| matches!(meta.value, MetaValue::Float(_)),
+                            "metadata value must be a float",
+                        );
+                    }
+                    MetaValueType::Bool => {
+                        linter = linter.validator(
+                            |meta| matches!(meta.value, MetaValue::Bool(_)),
+                            "metadata value must be a bool",
+                        );
+                    }
+                    MetaValueType::Sha256 => {
+                        linter = linter.validator(
+                            |meta| matches!(meta.value, MetaValue::String(s) if is_sha256(s)),
+                            "metadata value must be a SHA-256",
+                        );
+                    }
+                    MetaValueType::Sha1 => {
+                        linter = linter.validator(
+                            |meta| matches!(meta.value, MetaValue::String(s) if is_sha1(s)),
+                            "metadata value must be a SHA-1",
+                        );
+                    }
+                    MetaValueType::MD5 => {
+                        linter = linter.validator(
+                            |meta| matches!(meta.value, MetaValue::String(s) if is_md5(s)),
+                            "metadata value must be a MD5",
+                        );
+                    }
+                    MetaValueType::Hash => {
+                        linter = linter.validator(
+                            |meta| matches!(meta.value, MetaValue::String(s)
+                                if is_md5(s) || is_sha1(s) || is_sha256(s)),
+                            "metadata value must be a MD5, SHA-1 or SHA-256",
+                        );
+                    }
+                }
+
+                compiler.add_linter(linter);
+            }
+
             if let Some(re) = &config.rule_name_regexp {
-                compiler.add_linter(linters::RuleNameMatches::new(re)?);
+                compiler.add_linter(linters::rule_name(re)?);
             }
 
             compiler.colorize_errors(io::stdout().is_tty());
@@ -119,8 +195,8 @@ pub fn exec_check(
                             "WARN".paint(Yellow).bold(),
                             file_path.display()
                         ));
-                        for warning in compiler.warnings().iter() {
-                            lines.push(warning.to_string());
+                        for warning in compiler.warnings() {
+                            eprintln!("{}", warning);
                         }
                     }
                 }

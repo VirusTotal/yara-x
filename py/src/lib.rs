@@ -175,7 +175,7 @@ impl Compiler {
     /// If the regexp does not compile a ValueError is returned.
     #[pyo3(signature = (regexp_str))]
     fn rule_name_regexp(&mut self, regexp_str: &str) -> PyResult<()> {
-        let linter = yrx::linters::RuleNameMatches::new(regexp_str)
+        let linter = yrx::linters::rule_name(regexp_str)
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
         self.inner.add_linter(linter);
         Ok(())

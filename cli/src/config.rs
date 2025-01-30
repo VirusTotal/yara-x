@@ -5,7 +5,6 @@ use figment::{
     providers::{Format, Serialized, Toml},
     Figment,
 };
-
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
@@ -39,8 +38,8 @@ pub enum MetaValueType {
     #[strum(serialize = "string")]
     String,
     /// Represents an Integer type
-    #[serde(rename = "int")]
-    #[strum(serialize = "int")]
+    #[serde(rename = "integer")]
+    #[strum(serialize = "integer")]
     Integer,
     /// Represents a Float type
     #[serde(rename = "float")]
@@ -52,20 +51,20 @@ pub enum MetaValueType {
     Bool,
     /// Represents a SHA256 (string) type
     #[serde(rename = "sha256")]
-    #[strum(serialize = "sha256", to_string = "sha256 (string)")]
-    SHA256,
+    #[strum(serialize = "sha256")]
+    Sha256,
     /// Represents a SHA1 (string) type
     #[serde(rename = "sha1")]
-    #[strum(serialize = "sha1", to_string = "sha1 (string)")]
-    SHA1,
+    #[strum(serialize = "sha1")]
+    Sha1,
     /// Represents a MD5 (string) type
     #[serde(rename = "md5")]
-    #[strum(serialize = "md5", to_string = "md5 (string)")]
+    #[strum(serialize = "md5")]
     MD5,
     /// Represents a generic hash (string) type. Can be MD5/SHA1/SHA256
     #[serde(rename = "hash")]
-    #[strum(serialize = "hash", to_string = "hash (string)")]
-    HASH,
+    #[strum(serialize = "hash")]
+    Hash,
 }
 
 /// Format specific configuration information.
@@ -74,10 +73,18 @@ pub struct CheckConfig {
     /// Meta specific formatting information.
     // Note: Using a BTreeMap here because we want a consistent ordering when
     // we iterate over it, so that warnings always appear in the same order.
-    pub metadata: BTreeMap<String, MetaValueType>,
+    pub metadata: BTreeMap<String, MetadataConfig>,
 
     /// Regexp used to validate the rule name.
     pub rule_name_regexp: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct MetadataConfig {
+    #[serde(rename = "type")]
+    pub ty: MetaValueType,
+    #[serde(default)]
+    pub required: bool,
 }
 
 /// Rule specific formatting information.
