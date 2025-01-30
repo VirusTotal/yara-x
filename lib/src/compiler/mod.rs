@@ -769,7 +769,7 @@ impl<'a> Compiler<'a> {
 
     /// Adds a linter to the compiler.
     ///
-    /// Linters perform additional checks to each YARA rule, generating 
+    /// Linters perform additional checks to each YARA rule, generating
     /// warnings when a rule does not meet the linter's requirements. See
     /// [`crate::linters`] for a list of available linters.
     pub fn add_linter<L: linters::Linter + 'a>(
