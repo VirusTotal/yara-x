@@ -138,7 +138,7 @@ impl<'a> Metadata<'a> {
     /// Sets a predicate that determines whether the metadata is valid or not.
     ///
     /// The predicate must return `true` if the metadata is considered valid.
-    /// If it returns `false`, the metadata is deemed invalid and a warning 
+    /// If it returns `false`, the metadata is deemed invalid and a warning
     /// will be raised with the specified message.
     ///
     /// ```
