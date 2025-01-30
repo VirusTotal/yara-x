@@ -19,7 +19,7 @@ impl<T: LinterInternal> Linter for T {}
 
 /// This is the actual trait implemented by all linters. [`Linter`] is a
 /// supertrait of [`LinterInternal`], while the former is visible to the public
-/// API, the latter is for internal use. This prevents users of this create
+/// API, the latter is for internal use. This prevents users of this crate
 /// from implementing their own linters and keep the signature of the trait
 /// private. This is because [`ReportBuilder`] is an internal type that we
 /// don't want to expose publicly, and because users can't define their own
