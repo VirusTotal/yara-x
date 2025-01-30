@@ -55,6 +55,7 @@ pub fn cli() -> Command {
                 .long_help(help::CONFIG_FILE),
         )
         .help_template(APP_HELP_TEMPLATE)
+        .subcommand_required(true)
         .subcommands(vec![
             commands::scan(),
             commands::compile(),
