@@ -20,11 +20,6 @@ updated as more are added.
 
 # Any options that are omitted from your config file will use the default value.
 
-# Any options that are not valid are ignored. However, valid keys with an
-# invalid type will cause a parsing error. For example, if you set
-# rule.indent_spaces to false, it will result in a parsing error.
-pants = false # Invalid keys are ignored.
-
 # The configuration of the "fmt" subcommand can be controlled by options in the
 # "fmt" section. Each line is a key-value pair where the key uses a dot notation
 # to deliniate different options. The "rule" namespace are for options that
