@@ -621,9 +621,7 @@ fn banned_modules() {
 
 #[test]
 fn linter_rule_name() {
-    let mut compiler = Compiler::new();
-
-    assert!(compiler
+    assert!(Compiler::new()
         .add_linter(linters::rule_name("r_.+").unwrap())
         .add_source(r#"rule r_foo { strings: $foo = "foo" condition: $foo }"#)
         .unwrap()
@@ -633,7 +631,8 @@ fn linter_rule_name() {
         .is_empty());
 
     assert_eq!(
-        compiler
+        Compiler::new()
+            .add_linter(linters::rule_name("r_.+").unwrap())
             .add_source(
                 r#"rule foo { strings: $foo = "foo" condition: $foo }"#
             )
@@ -652,14 +651,26 @@ fn linter_rule_name() {
         ]
     );
 
+    assert_eq!(
+        Compiler::new()
+            .add_linter(linters::rule_name("r_.+").unwrap().error(true))
+            .add_source(r#"rule foo { condition: true }"#)
+            .expect_err("expected error")
+            .to_string(),
+        "error[E038]: rule name does not match regex `r_.+`
+ --> line:1:6
+  |
+1 | rule foo { condition: true }
+  |      ^^^ this rule name does not match regex `r_.+`
+  |"
+    );
+
     assert!(linters::rule_name("(AXS|ERS").is_err());
 }
 
 #[test]
 fn linter_required_metadata() {
-    let mut compiler = Compiler::new();
-
-    assert!(compiler
+    assert!(Compiler::new()
         .add_linter(linters::metadata("author").required(true))
         .add_source(r#"rule r_foo { meta: author = "foo" strings: $foo = "foo" condition: $foo }"#)
         .unwrap()
@@ -667,7 +678,8 @@ fn linter_required_metadata() {
         .is_empty());
 
     assert_eq!(
-        compiler
+        Compiler::new()
+            .add_linter(linters::metadata("author").required(true))
             .add_source(
                 r#"rule foo { strings: $foo = "foo" condition: $foo }"#
             )
@@ -682,6 +694,20 @@ fn linter_required_metadata() {
 1 | rule foo { strings: $foo = "foo" condition: $foo }
   |      --- required metadata `author` not found
   |"#]
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .add_linter(linters::metadata("author").required(true).error(true))
+            .add_source(r#"rule foo { condition: true }"#)
+            .expect_err("expected error")
+            .to_string(),
+        "error[E038]: required metadata is missing
+ --> line:1:6
+  |
+1 | rule foo { condition: true }
+  |      ^^^ required metadata `author` not found
+  |"
     );
 }
 

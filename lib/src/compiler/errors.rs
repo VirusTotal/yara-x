@@ -60,15 +60,18 @@ pub enum CompileError {
     InvalidEscapeSequence(Box<InvalidEscapeSequence>),
     InvalidFloat(Box<InvalidFloat>),
     InvalidInteger(Box<InvalidInteger>),
+    InvalidMetadata(Box<InvalidMetadata>),
     InvalidModifier(Box<InvalidModifier>),
     InvalidModifierCombination(Box<InvalidModifierCombination>),
     InvalidPattern(Box<InvalidPattern>),
     InvalidRange(Box<InvalidRange>),
     InvalidRegexp(Box<InvalidRegexp>),
     InvalidRegexpModifier(Box<InvalidRegexpModifier>),
+    InvalidRuleName(Box<InvalidRuleName>),
     InvalidUTF8(Box<InvalidUTF8>),
     MethodNotAllowedInWith(Box<MethodNotAllowedInWith>),
     MismatchingTypes(Box<MismatchingTypes>),
+    MissingMetadata(Box<MissingMetadata>),
     MixedGreediness(Box<MixedGreediness>),
     NumberOutOfRange(Box<NumberOutOfRange>),
     PotentiallySlowLoop(Box<PotentiallySlowLoop>),
@@ -647,6 +650,93 @@ pub struct TooManyPatterns {
 pub struct MethodNotAllowedInWith {
     report: Report,
     error_loc: CodeLoc,
+}
+
+/// Some metadata entry is invalid. This is only used if the compiler is
+/// configured to check for valid metadata (see: [`crate::linters::Metadata`]).
+///
+/// ## Example
+///
+/// ```text
+/// error[E037]: metadata `author` is not valid
+/// --> test.yar:4:5
+///   |
+/// 4 |     author = 1234
+///   |              ---- `author` must be a string
+///   |
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E037", title = "metadata `{name}` is not valid")]
+#[label(
+    "{label}",
+    label_loc
+)]
+pub struct InvalidMetadata {
+    report: Report,
+    name: String,
+    label_loc: CodeLoc,
+    label: String,
+}
+
+/// Missing metadata. This is only used if the compiler is configured to check
+/// for required metadata (see:  [`crate::linters::Metadata`]).
+///
+/// ## Example
+///
+/// ```text
+/// warning[missing_metadata]: required metadata is missing
+///  --> test.yar:12:6
+///    |
+/// 12 | rule pants {
+///    |      ----- required metadata "date" not found
+///    |
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(
+    code = "E038",
+    title = "required metadata is missing"
+)]
+#[label(
+    "required metadata `{name}` not found",
+    rule_loc
+)]
+#[footer(note)]
+pub struct MissingMetadata {
+    report: Report,
+    rule_loc: CodeLoc,
+    name: String,
+    note: Option<String>,
+}
+
+/// Rule name does not match regex. This is only used if the compiler is
+/// configured to check for it (see: [`crate::linters::RuleName`]).
+///
+/// ## Example
+///
+/// ```text
+/// warning[invalid_rule_name]: rule name does not match regex `APT_.*`
+///  --> test.yar:13:6
+///    |
+/// 13 | rule pants {
+///    |      ----- this rule name does not match regex `APT_.*`
+///    |
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(
+    code = "E038",
+    title = "rule name does not match regex `{regex}`"
+)]
+#[label(
+    "this rule name does not match regex `{regex}`",
+    rule_loc
+)]
+pub struct InvalidRuleName {
+    report: Report,
+    rule_loc: CodeLoc,
+    regex: String,
 }
 
 /// A custom error has occurred.

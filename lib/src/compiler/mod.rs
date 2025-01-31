@@ -59,6 +59,7 @@ pub use crate::compiler::rules::*;
 
 #[doc(inline)]
 pub use crate::compiler::warnings::*;
+use crate::linters::LinterResult;
 use crate::models::PatternKind;
 
 mod atoms;
@@ -1183,8 +1184,12 @@ impl Compiler<'_> {
 
         // Check the rule with all the linters.
         for linter in self.linters.iter() {
-            if let Some(warning) = linter.check(&self.report_builder, rule) {
-                self.warnings.add(|| warning);
+            match linter.check(&self.report_builder, rule) {
+                LinterResult::Ok => {}
+                LinterResult::Warn(warning) => {
+                    self.warnings.add(|| warning);
+                }
+                LinterResult::Err(err) => return Err(err),
             }
         }
 

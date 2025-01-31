@@ -70,16 +70,27 @@ pub enum MetaValueType {
 }
 
 /// Format specific configuration information.
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct CheckConfig {
     /// Meta specific formatting information.
     // Note: Using a BTreeMap here because we want a consistent ordering when
     // we iterate over it, so that warnings always appear in the same order.
     pub metadata: BTreeMap<String, MetadataConfig>,
+    /// Rule name formatting information.
+    pub rule_name: RuleNameConfig,
+}
 
+/// Format specific configuration information.
+#[derive(Deserialize, Serialize, Debug, Default)]
+#[serde(deny_unknown_fields)]
+pub struct RuleNameConfig {
     /// Regexp used to validate the rule name.
-    pub rule_name_regexp: Option<String>,
+    pub regexp: Option<String>,
+    /// If `true`, an incorrect rule anme will raise an error instead of a
+    /// warning.
+    #[serde(default)]
+    pub error: bool,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -87,8 +98,13 @@ pub struct CheckConfig {
 pub struct MetadataConfig {
     #[serde(rename = "type")]
     pub ty: MetaValueType,
+    /// Specifies whether the metadata is required or optional.
     #[serde(default)]
     pub required: bool,
+    /// If `true`, an incorrect metadata will raise an error instead of a
+    /// warning.
+    #[serde(default)]
+    pub error: bool,
 }
 
 /// Rule specific formatting information.
@@ -140,10 +156,7 @@ impl Default for Config {
                 meta: MetaFormatConfig { align_values: true },
                 patterns: PatternsFormatConfig { align_values: true },
             },
-            check: CheckConfig {
-                metadata: BTreeMap::default(),
-                rule_name_regexp: None,
-            },
+            check: CheckConfig::default(),
         }
     }
 }

@@ -475,7 +475,7 @@ pub struct TextPatternAsHex {
 /// --> test.yar:4:5
 ///   |
 /// 4 |     author = 1234
-///   |     ------ metadata value must be a string
+///   |              ---- `author` must be a string
 ///   |
 /// ```
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]

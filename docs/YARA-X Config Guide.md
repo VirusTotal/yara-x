@@ -149,33 +149,39 @@ patterns.align_values = true
 # The "check" section controls the behavior of the "check" command, which is
 # used to enforce standards on various aspects of the rule like metadata and
 # rule name.
-[check]
+#
+[check.rule_name]
 # A regular expression which must match rule names. For example, if you require
 # that every rule start with a "category" description followed by an underscore
 # you could use something like this:
 #
-# rule_name_regexp = "^(APT|CRIME)_"
-#
-# The default is no regular expression.
-rule_name_regexp = ""
+# regexp = "^(APT|CRIME)_"
+regexp = ""
+
+# Bad rule names only raise a warning by default, set this to true to raise 
+# an error instead of a warning.
+error = false
 
 [check.metadata]
 # Each entry in this section is a table (dictionary) of metadata identifiers and
 # their requirements.
 #
 # The key is the identifier and the value is a table that describes the
-# requirements for that identifier - what type it must have and if it is
-# required or not.
+# requirements for that identifier - what type it must have, if it is
+# required or not, and whether the violation of the requirements should be
+# consired an error or only a warning.
 #
 # Supported types are "string", "integer", "float", "bool", "md5",
 # "sha1", "sha256", or "hash".
 #
-# To require that there be an "author" metadata field and the value must be a
-# string, and that the "date" metadata field must be an integer if it exists,
-# but is not required to exist use these lines:
+# To require that there must be a "file" metadata field that contains a hash,
+# an "author" field of type string, and an optional "date" field of type integer,
+# use these lines:
 #
+# file = { type = "hash", required = true, error = true }
 # author = { type = "string", required = true }
 # date = { type = "integer" }
+
 #
 # The default for "required" is false.
 #

@@ -4,8 +4,9 @@ use yara_x_parser::ast;
 use yara_x_parser::ast::{Meta, WithSpan};
 
 use crate::compiler::report::ReportBuilder;
-use crate::compiler::warnings;
 use crate::compiler::Warning;
+use crate::compiler::{errors, warnings};
+use crate::errors::CompileError;
 
 /// Trait implemented by all linters.
 ///
@@ -29,7 +30,14 @@ pub(crate) trait LinterInternal {
         &self,
         report_builder: &ReportBuilder,
         rule: &ast::Rule,
-    ) -> Option<Warning>;
+    ) -> LinterResult;
+}
+
+/// Represents the result of a linter.
+pub(crate) enum LinterResult {
+    Ok,
+    Warn(Warning),
+    Err(CompileError),
 }
 
 /// A linter that ensures that rule names match a given regular expression.
@@ -56,6 +64,7 @@ pub(crate) trait LinterInternal {
 /// ```
 pub struct RuleName {
     regex: String,
+    error: bool,
     compiled_regex: Regex,
 }
 
@@ -63,7 +72,17 @@ impl RuleName {
     fn new<R: Into<String>>(regex: R) -> Result<Self, regex::Error> {
         let regex = regex.into();
         let compiled_regex = Regex::new(regex.as_str())?;
-        Ok(Self { regex, compiled_regex })
+        Ok(Self { regex, compiled_regex, error: false })
+    }
+
+    /// Specifies whether the linter should produce an error instead of a warning.
+    ///
+    /// By default, the linter raises warnings about rule names that don't match
+    /// the regular expression. This setting allows turning such warnings into
+    /// errors.
+    pub fn error(mut self, yes: bool) -> Self {
+        self.error = yes;
+        self
     }
 }
 
@@ -72,15 +91,23 @@ impl LinterInternal for RuleName {
         &self,
         report_builder: &ReportBuilder,
         rule: &ast::Rule,
-    ) -> Option<Warning> {
+    ) -> LinterResult {
         if !self.compiled_regex.is_match(rule.identifier.name) {
-            Some(warnings::InvalidRuleName::build(
-                report_builder,
-                rule.identifier.span().into(),
-                self.regex.clone(),
-            ))
+            if self.error {
+                LinterResult::Err(errors::InvalidRuleName::build(
+                    report_builder,
+                    rule.identifier.span().into(),
+                    self.regex.clone(),
+                ))
+            } else {
+                LinterResult::Warn(warnings::InvalidRuleName::build(
+                    report_builder,
+                    rule.identifier.span().into(),
+                    self.regex.clone(),
+                ))
+            }
         } else {
-            None
+            LinterResult::Ok
         }
     }
 }
@@ -114,6 +141,7 @@ pub struct Metadata<'a> {
     identifier: String,
     predicate: Option<Box<Predicate<'a>>>,
     required: bool,
+    error: bool,
     message: Option<String>,
     note: Option<String>,
 }
@@ -124,6 +152,7 @@ impl<'a> Metadata<'a> {
             identifier: identifier.into(),
             predicate: None,
             required: false,
+            error: false,
             message: None,
             note: None,
         }
@@ -132,6 +161,16 @@ impl<'a> Metadata<'a> {
     /// Specifies whether the metadata is required in all rules.
     pub fn required(mut self, yes: bool) -> Self {
         self.required = yes;
+        self
+    }
+
+    /// Specifies whether the linter should produce an error instead of a warning.
+    ///
+    /// By default, the linter raises warnings about required metadata that is
+    /// missing, or metadata that doesn't pass the validation. This setting allows
+    /// turning such warnings into errors.
+    pub fn error(mut self, yes: bool) -> Self {
+        self.error = yes;
         self
     }
 
@@ -192,20 +231,33 @@ impl LinterInternal for Metadata<'_> {
         &self,
         report_builder: &ReportBuilder,
         rule: &ast::Rule,
-    ) -> Option<Warning> {
+    ) -> LinterResult {
         let mut found = false;
         for meta in rule.meta.iter().flatten() {
             if meta.identifier.name == self.identifier.as_str() {
                 if let Some(predicate) = &self.predicate {
                     if !predicate(meta) {
-                        return Some(warnings::InvalidMetadata::build(
-                            report_builder,
-                            meta.identifier.name.to_string(),
-                            meta.value.span().into(),
-                            self.message
-                                .clone()
-                                .unwrap_or("invalid metadata".to_string()),
-                        ));
+                        return if self.error {
+                            LinterResult::Err(errors::InvalidMetadata::build(
+                                report_builder,
+                                meta.identifier.name.to_string(),
+                                meta.value.span().into(),
+                                self.message
+                                    .clone()
+                                    .unwrap_or("invalid metadata".to_string()),
+                            ))
+                        } else {
+                            LinterResult::Warn(
+                                warnings::InvalidMetadata::build(
+                                    report_builder,
+                                    meta.identifier.name.to_string(),
+                                    meta.value.span().into(),
+                                    self.message.clone().unwrap_or(
+                                        "invalid metadata".to_string(),
+                                    ),
+                                ),
+                            )
+                        };
                     }
                 }
                 found = true;
@@ -213,15 +265,24 @@ impl LinterInternal for Metadata<'_> {
         }
 
         if self.required && !found {
-            return Some(warnings::MissingMetadata::build(
-                report_builder,
-                rule.identifier.span().into(),
-                self.identifier.clone(),
-                self.note.clone(),
-            ));
+            return if self.error {
+                LinterResult::Err(errors::MissingMetadata::build(
+                    report_builder,
+                    rule.identifier.span().into(),
+                    self.identifier.clone(),
+                    self.note.clone(),
+                ))
+            } else {
+                LinterResult::Warn(warnings::MissingMetadata::build(
+                    report_builder,
+                    rule.identifier.span().into(),
+                    self.identifier.clone(),
+                    self.note.clone(),
+                ))
+            };
         }
 
-        None
+        LinterResult::Ok
     }
 }
 

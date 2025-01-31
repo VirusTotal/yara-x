@@ -109,7 +109,9 @@ pub fn exec_check(
 
             for (identifier, config) in config.metadata.iter() {
                 let mut linter =
-                    linters::metadata(identifier).required(config.required);
+                    linters::metadata(identifier)
+                        .required(config.required)
+                        .error(config.error);
 
                 match config.ty {
                     MetaValueType::String => {
@@ -171,8 +173,13 @@ pub fn exec_check(
                 compiler.add_linter(linter);
             }
 
-            if let Some(re) = &config.rule_name_regexp {
-                compiler.add_linter(linters::rule_name(re)?);
+            if let Some(re) = config
+                .rule_name
+                .regexp
+                .as_ref()
+                .filter(|re| !re.is_empty()) {
+                compiler.add_linter(
+                    linters::rule_name(re)?.error(config.rule_name.error));
             }
 
             compiler.colorize_errors(io::stdout().is_tty());
