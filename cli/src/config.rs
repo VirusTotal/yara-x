@@ -10,16 +10,17 @@ use strum_macros::{Display, EnumString};
 
 /// Configuration structure for "yr" commands.
 #[derive(Deserialize, Serialize, Debug)]
+#[serde(deny_unknown_fields)]
 pub struct Config {
     /// Format specific configuration information.
     pub fmt: FormatConfig,
-
     /// Check specific configuration information.
     pub check: CheckConfig,
 }
 
 /// Format specific configuration information.
 #[derive(Deserialize, Serialize, Debug)]
+#[serde(deny_unknown_fields)]
 pub struct FormatConfig {
     /// Rule specific formatting information.
     pub rule: RuleFormatConfig,
@@ -32,6 +33,7 @@ pub struct FormatConfig {
 /// Types allowed in the check.metadata table of the config file. Used to
 /// require specific metadata identifiers have specific types by "yr check".
 #[derive(Display, Deserialize, Serialize, Debug, Clone, EnumString)]
+#[serde(deny_unknown_fields)]
 pub enum MetaValueType {
     /// Represents a String type
     #[serde(rename = "string")]
@@ -69,6 +71,7 @@ pub enum MetaValueType {
 
 /// Format specific configuration information.
 #[derive(Deserialize, Serialize, Debug)]
+#[serde(deny_unknown_fields)]
 pub struct CheckConfig {
     /// Meta specific formatting information.
     // Note: Using a BTreeMap here because we want a consistent ordering when
@@ -80,6 +83,7 @@ pub struct CheckConfig {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+#[serde(deny_unknown_fields)]
 pub struct MetadataConfig {
     #[serde(rename = "type")]
     pub ty: MetaValueType,
@@ -89,6 +93,7 @@ pub struct MetadataConfig {
 
 /// Rule specific formatting information.
 #[derive(Deserialize, Serialize, Debug)]
+#[serde(deny_unknown_fields)]
 pub struct RuleFormatConfig {
     /// Indent section headers (meta, strings, condition).
     pub indent_section_headers: bool,
@@ -106,6 +111,7 @@ pub struct RuleFormatConfig {
 
 /// Meta specific formatting information.
 #[derive(Deserialize, Serialize, Debug)]
+#[serde(deny_unknown_fields)]
 pub struct MetaFormatConfig {
     /// Align values to longest key.
     pub align_values: bool,
@@ -113,6 +119,7 @@ pub struct MetaFormatConfig {
 
 /// Pattern specific formatting information.
 #[derive(Deserialize, Serialize, Debug)]
+#[serde(deny_unknown_fields)]
 pub struct PatternsFormatConfig {
     /// Align patterns to the longest name.
     pub align_values: bool,

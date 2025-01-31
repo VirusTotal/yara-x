@@ -449,6 +449,35 @@ warning[text_as_hex]: hex pattern could be written as text literal
 }
 
 #[test]
+fn cli_check_config_error() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_file = temp_dir.child("config.toml");
+
+    config_file
+        .write_str(
+            r#"
+    [check.foo]
+    author = { type = "string"  }
+    "#,
+        )
+        .unwrap();
+
+    Command::cargo_bin("yr")
+        .unwrap()
+        .arg("--config")
+        .arg(config_file.path())
+        .arg("check")
+        .arg("src/tests/testdata/foo.yar")
+        .assert()
+        .failure()
+        .stderr(
+            predicate::str::contains(
+                r#"error: unknown field: found `foo`, expected ``metadata` or `rule_name_regexp`` for key "default.check.foo""#,
+            )
+        );
+}
+
+#[test]
 fn cli_fmt() {
     let temp_dir = TempDir::new().unwrap();
     let input_file = temp_dir.child("rule.yar");
