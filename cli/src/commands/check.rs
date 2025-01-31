@@ -125,7 +125,7 @@ pub fn exec_check(
                     MetaValueType::Integer => {
                         linter = linter.validator(
                             |meta| matches!(meta.value, MetaValue::Integer(_)),
-                            "metadata value must be a string",
+                            "metadata value must be an integer",
                         );
                     }
                     MetaValueType::Float => {
