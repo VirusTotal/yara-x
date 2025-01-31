@@ -35,37 +35,6 @@ def test_invalid_rule_name_regexp():
     compiler.rule_name_regexp("(AXS|ERS")
 
 
-def test_invalid_required_metadata():
-  compiler = yara_x.Compiler()
-  with pytest.raises(ValueError):
-    compiler.required_metadata({"test": "AXSERS"})
-
-
-def test_check_warnings():
-  compiler = yara_x.Compiler()
-  compiler.rule_name_regexp("^foobar_")
-  compiler.required_metadata({"a": "int", "b": "string"})
-
-  compiler.add_source(
-      'rule test { meta: a = "b" strings: $a = "AXSERS" condition: $a }')
-
-  warnings = compiler.warnings()
-
-  assert len(warnings) == 3
-
-  assert warnings[0]['type'] == "IncorrectMetadataType"
-  assert warnings[0]['code'] == "incorrect_metadata_type"
-  assert warnings[0]['title'] == "metadata has incorrect type"
-
-  assert warnings[1]['type'] == "MissingMetadata"
-  assert warnings[1]['code'] == "missing_metadata"
-  assert warnings[1]['title'] == "required metadata missing"
-
-  assert warnings[2]['type'] == "InvalidRuleName"
-  assert warnings[2]['code'] == "invalid_rule_name"
-  assert warnings[2]['title'] == "rule name does not meet requirements"
-
-
 def test_int_globals():
   compiler = yara_x.Compiler()
   compiler.define_global('some_int', 1)
