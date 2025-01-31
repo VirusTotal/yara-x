@@ -126,21 +126,21 @@ pub struct Meta<'src> {
 /// Each of the possible values that can have a metadata entry.
 #[derive(Debug)]
 pub enum MetaValue<'src> {
-    Bool(bool),
-    Integer(i64),
-    Float(f64),
-    String(&'src str),
-    Bytes(BString),
+    Bool((bool, Span)),
+    Integer((i64, Span)),
+    Float((f64, Span)),
+    String((&'src str, Span)),
+    Bytes((BString, Span)),
 }
 
 impl Display for MetaValue<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Bool(v) => write!(f, "{}", v),
-            Self::Integer(v) => write!(f, "{}", v),
-            Self::Float(v) => write!(f, "{:.1}", v),
-            Self::String(v) => write!(f, "\"{}\"", v),
-            Self::Bytes(v) => write!(f, "\"{}\"", v),
+            Self::Bool((v, _)) => write!(f, "{}", v),
+            Self::Integer((v, _)) => write!(f, "{}", v),
+            Self::Float((v, _)) => write!(f, "{:.1}", v),
+            Self::String((v, _)) => write!(f, "\"{}\"", v),
+            Self::Bytes((v, _)) => write!(f, "\"{}\"", v),
         }
     }
 }
@@ -825,6 +825,9 @@ pub struct FuncCall<'src> {
 
 impl FuncCall<'_> {
     /// Span covered by the function's arguments in the source code.
+    ///
+    /// [`FuncCall::span`] covers the whole function call, including the
+    /// function identifier, while this covers only the arguments.
     pub fn args_span(&self) -> Span {
         self.args_span.clone()
     }
@@ -1049,6 +1052,18 @@ impl WithSpan for IdentWithIndex<'_> {
 impl WithSpan for IdentWithRange<'_> {
     fn span(&self) -> Span {
         self.span.clone()
+    }
+}
+
+impl WithSpan for MetaValue<'_> {
+    fn span(&self) -> Span {
+        match self {
+            MetaValue::Bool((_, span))
+            | MetaValue::Integer((_, span))
+            | MetaValue::Float((_, span))
+            | MetaValue::String((_, span))
+            | MetaValue::Bytes((_, span)) => span.clone(),
+        }
     }
 }
 

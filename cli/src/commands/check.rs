@@ -2,9 +2,6 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{fs, io};
 
-use crate::config::{CheckConfig, MetaValueType};
-use crate::walk::Message;
-use crate::{help, walk};
 use anyhow::Context;
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 use crossterm::tty::IsTty;
@@ -13,6 +10,10 @@ use yansi::Color::{Green, Red, Yellow};
 use yansi::Paint;
 use yara_x::{linters, SourceCode};
 use yara_x_parser::ast::MetaValue;
+
+use crate::config::{CheckConfig, MetaValueType};
+use crate::walk::Message;
+use crate::{help, walk};
 
 pub fn check() -> Command {
     super::command("check")
@@ -119,50 +120,50 @@ pub fn exec_check(
                                     MetaValue::String(_) | MetaValue::Bytes(_)
                                 )
                             },
-                            "metadata value must be a string",
+                            format!("`{identifier}` must be a string"),
                         );
                     }
                     MetaValueType::Integer => {
                         linter = linter.validator(
                             |meta| matches!(meta.value, MetaValue::Integer(_)),
-                            "metadata value must be an integer",
+                            format!("`{identifier}` must be an integer"),
                         );
                     }
                     MetaValueType::Float => {
                         linter = linter.validator(
                             |meta| matches!(meta.value, MetaValue::Float(_)),
-                            "metadata value must be a float",
+                            format!("`{identifier}` must be a float"),
                         );
                     }
                     MetaValueType::Bool => {
                         linter = linter.validator(
                             |meta| matches!(meta.value, MetaValue::Bool(_)),
-                            "metadata value must be a bool",
+                            format!("`{identifier}` must be a bool"),
                         );
                     }
                     MetaValueType::Sha256 => {
                         linter = linter.validator(
-                            |meta| matches!(meta.value, MetaValue::String(s) if is_sha256(s)),
-                            "metadata value must be a SHA-256",
+                            |meta| matches!(meta.value, MetaValue::String((s,_)) if is_sha256(s)),
+                            format!("`{identifier}` must be a SHA-256"),
                         );
                     }
                     MetaValueType::Sha1 => {
                         linter = linter.validator(
-                            |meta| matches!(meta.value, MetaValue::String(s) if is_sha1(s)),
-                            "metadata value must be a SHA-1",
+                            |meta| matches!(meta.value, MetaValue::String((s,_)) if is_sha1(s)),
+                            format!("`{identifier}` must be a SHA-1"),
                         );
                     }
                     MetaValueType::MD5 => {
                         linter = linter.validator(
-                            |meta| matches!(meta.value, MetaValue::String(s) if is_md5(s)),
-                            "metadata value must be a MD5",
+                            |meta| matches!(meta.value, MetaValue::String((s,_)) if is_md5(s)),
+                            format!("`{identifier}` must be a MD5"),
                         );
                     }
                     MetaValueType::Hash => {
                         linter = linter.validator(
-                            |meta| matches!(meta.value, MetaValue::String(s)
+                            |meta| matches!(meta.value, MetaValue::String((s,_))
                                 if is_md5(s) || is_sha1(s) || is_sha256(s)),
-                            "metadata value must be a MD5, SHA-1 or SHA-256",
+                            format!("`{identifier}` must be a MD5, SHA-1 or SHA-256"),
                         );
                     }
                 }

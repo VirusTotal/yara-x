@@ -574,34 +574,33 @@ impl<'src> Builder<'src> {
 
         let value = match self.peek() {
             Event::Token { kind: INTEGER_LIT, .. } => {
-                let (value, _, _) = self.integer_lit::<i64>()?;
-                MetaValue::Integer(multiplier * value)
+                let (value, _, span) = self.integer_lit::<i64>()?;
+                MetaValue::Integer((multiplier * value, span))
             }
             Event::Token { kind: FLOAT_LIT, .. } => {
-                let (value, _, _) = self.float_lit()?;
-                MetaValue::Float(multiplier as f64 * value)
+                let (value, _, span) = self.float_lit()?;
+                MetaValue::Float((multiplier as f64 * value, span))
             }
             Event::Token { kind: STRING_LIT, .. } => {
                 match self.string_lit(true)? {
                     // If the result is a string borrowed directly from the
                     // source code, we can be sure that it's a valid UTF-8
                     // string.
-                    (Cow::Borrowed(s), _lit, _span) => {
-                        MetaValue::String(unsafe { s.to_str_unchecked() })
-                    }
+                    (Cow::Borrowed(s), _lit, span) => MetaValue::String((
+                        unsafe { s.to_str_unchecked() },
+                        span,
+                    )),
                     // If the result is an owned string is because it contains
                     // some escaped character, this string is not guaranteed
                     // to be a valid UTF-8 string.
-                    (Cow::Owned(s), _lit, _span) => MetaValue::Bytes(s),
+                    (Cow::Owned(s), _lit, span) => MetaValue::Bytes((s, span)),
                 }
             }
             Event::Token { kind: TRUE_KW, .. } => {
-                self.expect(TRUE_KW)?;
-                MetaValue::Bool(true)
+                MetaValue::Bool((true, self.expect(TRUE_KW)?))
             }
             Event::Token { kind: FALSE_KW, .. } => {
-                self.expect(FALSE_KW)?;
-                MetaValue::Bool(false)
+                MetaValue::Bool((false, self.expect(FALSE_KW)?))
             }
             event => panic!("unexpected {:?}", event),
         };

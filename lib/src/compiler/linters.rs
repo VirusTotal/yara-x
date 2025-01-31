@@ -173,7 +173,7 @@ impl<'a> Metadata<'a> {
     ///  --> line:3:12
     ///   |
     /// 3 |            author = false
-    ///   |            ------ author must be a string
+    ///   |                     ----- author must be a string
     ///   |"#);
     /// ```
     pub fn validator<P, M>(mut self, predicate: P, message: M) -> Self
@@ -201,7 +201,7 @@ impl LinterInternal for Metadata<'_> {
                         return Some(warnings::InvalidMetadata::build(
                             report_builder,
                             meta.identifier.name.to_string(),
-                            meta.identifier.span().into(),
+                            meta.value.span().into(),
                             self.message
                                 .clone()
                                 .unwrap_or("invalid metadata".to_string()),

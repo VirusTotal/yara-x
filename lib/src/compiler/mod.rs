@@ -1208,6 +1208,20 @@ impl Compiler<'_> {
         // first rule has RuleId = 0.
         let rule_id = RuleId::from(self.rules.len());
 
+        // Helper function that converts from `ast::MetaValue` to
+        // `compiler::rules::MetaValue`.
+        let mut convert_meta_value = |value: &ast::MetaValue| match value {
+            ast::MetaValue::Integer((i, _)) => MetaValue::Integer(*i),
+            ast::MetaValue::Float((f, _)) => MetaValue::Float(*f),
+            ast::MetaValue::Bool((b, _)) => MetaValue::Bool(*b),
+            ast::MetaValue::String((s, _)) => {
+                MetaValue::String(self.lit_pool.get_or_intern(s))
+            }
+            ast::MetaValue::Bytes((s, _)) => {
+                MetaValue::Bytes(self.lit_pool.get_or_intern(s))
+            }
+        };
+
         // Build a vector of pairs (IdentId, MetaValue) for every meta defined
         // in the rule.
         let meta = rule
@@ -1217,17 +1231,7 @@ impl Compiler<'_> {
             .map(|m| {
                 (
                     self.ident_pool.get_or_intern(m.identifier.name),
-                    match &m.value {
-                        ast::MetaValue::Integer(i) => MetaValue::Integer(*i),
-                        ast::MetaValue::Float(f) => MetaValue::Float(*f),
-                        ast::MetaValue::Bool(b) => MetaValue::Bool(*b),
-                        ast::MetaValue::String(s) => {
-                            MetaValue::String(self.lit_pool.get_or_intern(s))
-                        }
-                        ast::MetaValue::Bytes(s) => {
-                            MetaValue::Bytes(self.lit_pool.get_or_intern(s))
-                        }
-                    },
+                    convert_meta_value(&m.value),
                 )
             })
             .collect();
