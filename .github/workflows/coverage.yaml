@@ -26,6 +26,11 @@ jobs:
       with:
         toolchain: stable
 
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libmagic-dev
+
     - name: Install cargo-llvm-cov
       uses: taiki-e/install-action@cargo-llvm-cov
 
