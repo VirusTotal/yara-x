@@ -66,6 +66,12 @@ jobs:
 
     - run: rustup target add ${{ matrix.target }}
 
+    # Cross-compiling for ARM requires installing GCC for aarch64.
+    - if: matrix.build == 'linux-arm'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu
+
     - name: Build
       run: cargo build --bin yr --profile release-lto --target ${{ matrix.target }}
       env:
