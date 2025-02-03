@@ -127,4 +127,4 @@ jobs:
     - name: Run doc tests
       run: cargo test --doc
       env:
-        RUSTFLAGS: ${{ matrix.rust_flags }}
+        RUSTDOCFLAGS: ${{ matrix.rust_flags }}
