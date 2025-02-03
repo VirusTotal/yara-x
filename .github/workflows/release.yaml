@@ -19,7 +19,6 @@ jobs:
         - macos-arm
         - macos-intel
         - windows
-        - windows-arm
         include:
         - build: linux
           os: ubuntu-latest
@@ -36,10 +35,6 @@ jobs:
         - build: windows
           os: windows-latest
           target: x86_64-pc-windows-msvc
-
-        - build: windows-arm
-          os: windows-latest
-          target: aarch64-pc-windows-msvc
 
     steps:
     - name: Checkout sources
@@ -122,7 +117,7 @@ jobs:
 
         - build: windows
           os: windows-latest
-          arch: 'x86 AMD64 ARM64'
+          arch: 'x86 AMD64'
 
     steps:
     - name: Checkout sources
@@ -149,9 +144,6 @@ jobs:
 
     - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
       if: matrix.build == 'macos'
-
-    - run: rustup target add aarch64-pc-windows-msvc
-      if: matrix.build == 'windows'
 
     - name: Install Python dependencies
       run: pip install -U setuptools wheel twine cibuildwheel platformdirs
