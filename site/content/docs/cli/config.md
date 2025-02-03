@@ -18,99 +18,263 @@ seo:
   noindex: false # false (default) or true
 ---
 
-YARA-X uses a configuration file to control the behavior of its various
-commands. Currently, it supports settings for the `fmt` command, but additional
-command options will be introduced in future updates.
+YARA-X uses a configuration file for controlling the behavior of different
+commands. The file is written in [TOML](https://toml.io/) format, and it
+currently
+supports the `fmt` and `check` commands. More may be added in the future.
 
-By default, YARA-X looks for the configuration file at `${HOME}/.yara-x.toml`
-when it starts. If the file is not present, default settings are used instead.
+The `yr` command looks in `${HOME}/.yara-x.toml` when starting up. If that file
+does not exist the default values are used.
 
-An example `.yara-x.toml` file is shown below, with comments that explain each
-option.
+This is the definitive list of supported configuration options, invalid keys
+or incorrect types will result in a parsing error while loading the
+configuration
+file.
+
+## The [fmt] section
+
+The `[fmt]` section controls the behavior of the `fmt` command, which formats
+YARA-X rules for readability and consistency.
 
 ```toml
-# Config file for YARA-X.
-#
-# The `[fmt]` section controls the behavior of the "fmt" command, which is 
-# responsible for formatting YARA rules. Settings are defined as key-value 
-# pairs, using dot notation to specify different aspects of formatting.
-# 
-# The available namespaces are:
-# - `rule`: Options that apply to formatting the overall rule structure.
-# - `meta`: Options specific to the "meta" section of a rule.
-# - `patterns`: Options specific to formatting the "patterns" section of a rule.
-
 [fmt]
-
-# Indent section headers. When enabled, section headers (like "condition:") will
-# be indented to improve readability.
-# 
-# == Example ==
-# 
-# Before:
-# rule a {
-# condition:
-# true
-# }
-#
-# After:
-# rule a {
-#   condition:
-#   true
-# }
 rule.indent_section_headers = true
+rule.indent_section_contents = true
+rule.indent_spaces = 2
+rule.newline_before_curly_brace = false
+rule.empty_line_before_section_header = true
+rule.empty_line_after_section_header = false
+meta.align_values = true
+patterns.align_values = true
+```
 
-# Indent the contents within each section. This controls whether the content 
-# under each section header (e.g., "condition:") is indented.
-# 
-# == Example == 
-#
-# Before:
-# rule a {
-# condition:
-# true
-# }
-#
-# After:
-# rule a {
-#   condition:
-#     true
-# }
+These options control the formatting of rules:
+
+- `rule.indent_spaces`: Sets the number of spaces per indentation level. Set
+  to `0` to use tab characters.
+
+
+- `rule.indent_section_headers`: Indents section headers within a rule body.
+
+  ```
+  // rule.indent_section_headers = false
+  rule a {
+  condition:
+  true
+  }
+  ```
+
+  ```
+  // rule.indent_section_headers = true (default)
+  rule a {
+    condition:
+    true
+  }
+  ```
+
+- `rule.indent_section_contents`: Indents the content within each section.
+
+  ```
+  // rule.indent_section_contents = false
+  rule a {
+    condition:
+    true
+  }
+  ```
+
+  ```
+  // rule.indent_section_contents = true (default)
+  rule a { 
+    condition:
+      true
+  }
+
+- `rule.newline_before_curly_brace`: Ensures a newline appears before the
+  opening `{` of the rule body when set to `true`.
+
+  ```
+  // rule.newline_before_curly_brace = false (default)
+  rule a {
+    condition:
+    true
+  }
+  ```
+
+  ```
+  // rule.newline_before_curly_brace = true
+  rule a 
+  {
+    condition:
+      true
+  }  
+  ```
+
+- `rule.empty_line_before_section_header`: Adds an empty line before each
+  section header, except the first one.
+
+  ```
+  // rule.empty_line_before_section_header = false (default)
+  rule a {
+    meta:
+      date = "20240705"
+    strings:
+      $ = "AXSERS"
+  }
+  ```
+
+  ```
+  // rule.empty_line_before_section_header = true
+  rule a {
+    meta:
+      date = "20240705"
+  
+    strings:
+      $ = "AXSERS"
+  }
+  ```
+
+- `rule.empty_line_after_section_header`: Adds an empty line after each section
+  header.
+
+  ```
+  // rule.empty_line_after_section_header = false (default)
+  rule a {
+    strings:
+      $ = "AXSERS"
+  }
+  ```
+
+  ```
+  // rule.empty_line_after_section_header = true
+  rule a {
+    strings:
+  
+      $ = "AXSERS"
+  }
+  ```
+
+- `meta.align_values`: Aligns metadata values for better readability.
+
+   ```
+   // meta.align_values = false (default)
+   rule a {
+     meta:
+       key = "a"
+       long_key = "b"
+   }         
+   ```
+
+   ```
+   // meta.align_values = true
+   rule a {
+     meta:
+       key      = "a"
+       long_key = "b"
+   }   
+   ```
+
+- `patterns.align_values`: Aligns pattern values in a similar manner.
+
+   ```
+   // patterns.align_values = false (default)
+   rule a {
+     strings:
+       $s = "a"
+       $long = "b"
+   }         
+   ```
+
+   ```
+   // patterns.align_values = true
+   rule a {
+     strings:
+       $s    = "a"
+       $long = "b"
+   }   
+   ```
+
+---
+
+## The [check] section
+
+The `[check]` section controls the behavior of the `check` command, which
+enforces standards on rule naming and metadata fields.
+
+### Rule name validation (`check.rule_name`)
+
+```toml
+[check.rule_name]
+regexp = "^(APT|CRIME)_"
+error = false
+```
+
+These options define constraints for rule names:
+
+- `regexp`: Specifies a regular expression pattern that rule names must match.
+- `error`: Determines whether a rule name violation is treated as an
+  error (`true`) or just a warning (`false`).
+
+### Metadata validation (`check.metadata`)
+
+Each entry in `check.metadata` is a table specifying the requirements for a
+metadata field.
+
+```toml
+[check.metadata]
+author = { type = "string", required = true }
+date = { type = "integer" }
+file = { type = "hash", required = true, error = true }
+```
+
+{{< callout title="Warning">}}
+
+Inline tables must be expressed as a single line and no trailing comma is
+allowed.
+
+{{< /callout >}}
+
+- The `author` field must be a string and is required.
+- The `date` field must be an integer but is optional.
+- The `file` field must contain a valid hash (`md5`, `sha1`, or `sha256`)
+  and is required. If the field is not present or has the wrong type it will
+  cause
+  an error instead of a warning.
+
+Supported metadata types are `"string"`, `"integer"`, `"float"`, `"bool"`,
+`"md5"`, `"sha1"`, `"sha256"`, or `"hash"`. The `"md5"`, `"sha1"` and `"sha256"`
+types are convenience types that check for a string that is the correct length
+and only contains valid hexadecimal digits.
+
+The `"hash"` type is another convenience type that checks for any of the valid
+hashes mentioned above. It is meant to be more flexible than requiring a
+specific hash type in every rule.
+
+The default values for `required` and `error` are both `false`. This means that
+metadata fields are optional by default, and if they don't comply with the
+requirements established in the configuration file YARA-X will raise a warning.
+By setting `error` to `true` these warnings are turned into errors.
+
+## Example file
+
+```toml
+[fmt]
+rule.indent_spaces = 2
+rule.indent_section_headers = true
 rule.indent_section_contents = true
 
-# Number of spaces used for indentation.
-# - Set to a positive integer to indicate the number of spaces per indentation 
-#   level.
-# - If set to `0`, tabs will be used instead of spaces.
-# - To completely disable indentation, set both `rule.indent_section_headers` 
-#   and `rule.indent_section_contents` to `false`.
-rule.indent_spaces = 2
+rule.newline_before_curly_brace = false
+rule.empty_line_before_section_header = true
+rule.empty_line_after_section_header = false
 
-# Align metadata key-value pairs. This controls whether metadata values in the 
-# "meta" section should be aligned for readability. When enabled, the key-value 
-# pairs in metadata will be visually aligned to make them easier to compare.
-# 
-# == Example ==
-#
-# Before:
-# rule a {
-#   meta:
-#     key = "a"
-#     long_key = "b"
-# }
-#
-# After (with alignment enabled):
-# rule a {
-#   meta:
-#     key      = "a"
-#     long_key = "b"
-# }
-#
-# Note: Alignment is performed using spaces, regardless of the `rule.indent_spaces`
-# setting.
-meta.align_values = false
+meta.align_values = true
+patterns.align_values = true
 
-# Align pattern key-value pairs. Similar to `meta.align_values`, but applies to 
-# the "patterns" section.
-patterns.align_values = false
+[check.rule_name]
+regexp = "^(APT|CRIME)_"
+error = false
+
+[check.metadata]
+file = { type = "hash", required = true, error = true }
+author = { type = "string", required = true }
+date = { type = "integer" }
 ```
