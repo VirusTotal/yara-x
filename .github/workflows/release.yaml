@@ -154,6 +154,14 @@ jobs:
         pip install maturin==1.7.4
         maturin sdist --manifest-path py/Cargo.toml -o wheelhouse
 
+    # QEMU is required when building for aarch64.
+    # https://cibuildwheel.pypa.io/en/stable/faq/#emulation
+    - name: Set up QEMU
+      if: matrix.build == 'linux'
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: all
+
     - name: Build ${{ matrix.platform || matrix.os }} binaries
       run: cibuildwheel --output-dir wheelhouse py
       env:
