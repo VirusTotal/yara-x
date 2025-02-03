@@ -74,7 +74,7 @@ jobs:
       run: |
         set -ex
         pkgname=yara-x-${{ github.ref_name }}-${{ matrix.target }}
-        if [ "${{ matrix.build }}" = "windows" || "${{ matrix.build }}" == "windows-arm" ]; then
+        if [ "${{ matrix.build }}" = "windows" ]; then
             7z a $pkgname.zip ./target/${{ matrix.target }}/release-lto/yr.exe
             7z a yara-x-capi-${{ github.ref_name }}-${{ matrix.target }}.zip \
                ./target/${{ matrix.target }}/release-lto/yara_x.h \
