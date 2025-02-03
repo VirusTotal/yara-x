@@ -209,7 +209,7 @@ impl<'a> Metadata<'a> {
     /// assert_eq!(
     ///     warnings[0].to_string(),
     ///     r#"warning[invalid_metadata]: metadata `author` is not valid
-    ///  --> line:3:12
+    ///  --> line:3:21
     ///   |
     /// 3 |            author = false
     ///   |                     ----- author must be a string
