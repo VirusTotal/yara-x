@@ -123,3 +123,8 @@ jobs:
       run: cargo test --all-targets ${{ matrix.args }}
       env:
         RUSTFLAGS: ${{ matrix.rust_flags }}
+
+    - name: Run doc tests
+      run: cargo test --doc
+      env:
+        RUSTFLAGS: ${{ matrix.rust_flags }}
