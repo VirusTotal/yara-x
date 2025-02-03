@@ -49,11 +49,11 @@ mod tests;
 #[allow(clippy::large_enum_variant)]
 pub enum Error {
     /// Error while reading from input.
-    #[error("read error")]
+    #[error("read error: {0}")]
     ReadError(io::Error),
 
     /// Error while writing to output.
-    #[error("write error")]
+    #[error("write error: {0}")]
     WriteError(io::Error),
 
     /// The input file contained invalid UTF-8.
@@ -339,7 +339,7 @@ impl Formatter {
         W: io::Write,
     {
         let mut invalid_utf8 = Option::None;
-        let mut in_buf = Vec::new();
+        let mut in_buf = Vec::with_capacity(256);
 
         input.read_to_end(&mut in_buf).map_err(Error::ReadError)?;
 
