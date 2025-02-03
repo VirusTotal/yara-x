@@ -16,7 +16,6 @@ jobs:
       matrix:
         build:
         - linux
-        - linux-arm
         - macos-arm
         - macos-intel
         - windows
