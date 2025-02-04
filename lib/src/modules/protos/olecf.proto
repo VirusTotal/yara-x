@@ -11,12 +11,13 @@ option (yara.module_options) = {
 };
 
 message Olecf {
-  // Check if file is an OLE CF file
+  // True if file is an OLE CF file.
   required bool is_olecf = 1;
+  // Streams contained in the OLE CF file.
+  repeated Stream streams = 2;
+}
 
-  // Get array of stream names
-  repeated string stream_names = 2;
-
-  // Get size of a specific stream by name
-  repeated int64 stream_sizes = 3;
+message Stream {
+  required string name = 1;
+  required uint64 size = 2;
 }

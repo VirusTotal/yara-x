@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use nom::multi::fold_many_m_n;
 use nom::{
     bytes::complete::take,
@@ -7,7 +9,6 @@ use nom::{
     sequence::tuple,
     IResult,
 };
-use std::collections::HashMap;
 
 const OLECF_SIGNATURE: &[u8] =
     &[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
@@ -36,11 +37,11 @@ pub struct OLECFParser<'a> {
     mini_stream_size: u64,
 }
 
-struct DirectoryEntry {
-    name: String,
-    size: u64,
-    start_sector: u32,
-    stream_type: u8,
+pub struct DirectoryEntry {
+    pub name: String,
+    pub size: u64,
+    pub start_sector: u32,
+    pub stream_type: u8,
 }
 
 impl<'a> OLECFParser<'a> {
@@ -211,6 +212,12 @@ impl<'a> OLECFParser<'a> {
             .get(stream_name)
             .map(|e| e.size)
             .ok_or("Stream not found")
+    }
+
+    pub fn get_streams(
+        &self,
+    ) -> impl Iterator<Item = (&str, &DirectoryEntry)> {
+        self.dir_entries.iter().map(|(name, entry)| (name.as_str(), entry))
     }
 
     pub fn get_stream_data(

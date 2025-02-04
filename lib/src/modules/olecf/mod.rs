@@ -11,41 +11,30 @@ https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-cfb/53989ce4-7b
 
 use crate::modules::prelude::*;
 use crate::modules::protos::olecf::*;
+
 pub mod parser;
 
 #[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> Olecf {
+    let mut olecf = Olecf::new();
+
     match parser::OLECFParser::new(data) {
         Ok(parser) => {
-            let mut olecf = Olecf::new();
-
-            // Check and set is_olecf
-            let is_valid = parser.is_valid_header();
-            olecf.is_olecf = Some(is_valid);
-
-            // Get stream names and sizes
-            if let Ok(names) = parser.get_stream_names() {
-                // Get sizes for each stream
-                olecf.stream_sizes = names
-                    .iter()
-                    .filter_map(|name| {
-                        parser
-                            .get_stream_size(name)
-                            .ok()
-                            .map(|size| size as i64)
-                    })
-                    .collect();
-
-                // Assign names last after we're done using them
-                olecf.stream_names = names;
-            }
-
-            olecf
+            olecf.set_is_olecf(parser.is_valid_header());
+            olecf.streams = parser
+                .get_streams()
+                .map(|(name, entry)| {
+                    let mut s = Stream::new();
+                    s.set_name(name.to_string());
+                    s.set_size(entry.size);
+                    s
+                })
+                .collect();
         }
         Err(_) => {
-            let mut olecf = Olecf::new();
-            olecf.is_olecf = Some(false);
-            olecf
+            olecf.set_is_olecf(false);
         }
     }
+
+    olecf
 }
