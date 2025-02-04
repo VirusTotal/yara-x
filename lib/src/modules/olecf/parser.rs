@@ -1,8 +1,8 @@
+use nom::multi::fold_many_m_n;
 use nom::{
     bytes::complete::take,
     combinator::verify,
     error::{Error as NomError, ErrorKind},
-    multi::count,
     number::complete::{le_u16, le_u32},
     sequence::tuple,
     IResult,
@@ -74,7 +74,7 @@ impl<'a> OLECFParser<'a> {
     /// [MS-CFB] Section 2.2
     fn parse_header(&mut self, input: &'a [u8]) -> IResult<&'a [u8], ()> {
         let (
-            mut input,
+            input,
             (
                 _signature,
                 _clsid,
@@ -114,27 +114,19 @@ impl<'a> OLECFParser<'a> {
             le_u32,       // _difat_count
         ))(input)?;
 
-        // (B) Parse up to 109 DIFAT entries from `input`
-        //     109 is the max allowed number of DIFAT entries in the header.
-        let rest = input;
-        if rest.len() < 109 * 4 {
-            let possible = rest.len() / 4;
-            let (rest2, entries) = count(le_u32, possible)(rest)?;
-            let mut filtered = entries
-                .into_iter()
-                .filter(|&x| x < MAX_REGULAR_SECTOR)
-                .collect::<Vec<_>>();
-            self.fat_sectors.append(&mut filtered);
-            input = rest2;
-        } else {
-            let (rest2, entries) = count(le_u32, 109)(rest)?;
-            let mut filtered = entries
-                .into_iter()
-                .filter(|&x| x < MAX_REGULAR_SECTOR)
-                .collect::<Vec<_>>();
-            self.fat_sectors.append(&mut filtered);
-            input = rest2;
-        }
+        // Parse the first 109 DIFAT entries, which are contained in the
+        // header sector.
+        let (input, _) = fold_many_m_n(
+            0,
+            109,
+            le_u32,
+            || {},
+            |_, sector| {
+                if sector < MAX_REGULAR_SECTOR {
+                    self.fat_sectors.push(sector);
+                }
+            },
+        )(input)?;
 
         // (C) Directory chain
         if first_dir_sector < MAX_REGULAR_SECTOR {
