@@ -22,7 +22,6 @@ const ROOT_STORAGE_TYPE: u8 = 5;
 
 // Special sectors
 const ENDOFCHAIN: u32 = 0xFFFFFFFE;
-const FREESECT: u32 = 0xFFFFFFFF;
 const MAX_REGULAR_SECTOR: u32 = 0xFFFFFFFA;
 
 pub struct OLECFParser<'a> {
@@ -256,12 +255,14 @@ impl<'a> OLECFParser<'a> {
 
     fn follow_chain(&self, start_sector: u32) -> Vec<u32> {
         let mut chain = Vec::new();
-        if start_sector >= MAX_REGULAR_SECTOR {
-            return chain;
-        }
-
         let mut current = start_sector;
-        while current < MAX_REGULAR_SECTOR {
+
+        loop {
+            // Ensure that the current sector is a valid one.
+            if current > MAX_REGULAR_SECTOR {
+                break;
+            }
+
             // Prevent cycles by keeping track of visited sectors
             if chain.contains(&current) {
                 // We've seen this sector before - it's a cycle
@@ -270,21 +271,14 @@ impl<'a> OLECFParser<'a> {
 
             chain.push(current);
 
-            let next = match self.get_fat_entry(current) {
-                Ok(n) => n,
+            // Now current is the next entry in the chain.
+            current = match self.get_fat_entry(current) {
                 Err(_) => break,
+                Ok(n) if n == ENDOFCHAIN => break,
+                Ok(n) => n,
             };
-
-            // Check validity of next sector
-            if next >= MAX_REGULAR_SECTOR
-                || next == FREESECT
-                || next == ENDOFCHAIN
-            {
-                break;
-            }
-
-            current = next;
         }
+
         chain
     }
 
