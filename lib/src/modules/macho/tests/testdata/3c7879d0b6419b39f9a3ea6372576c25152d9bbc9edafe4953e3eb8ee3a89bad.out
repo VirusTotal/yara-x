@@ -1,0 +1,922 @@
+magic: 0xcffaedfe
+cputype: 0x100000c
+cpusubtype: 0x0
+filetype: 6
+ncmds: 32
+sizeofcmds: 4288
+flags: 0x110085
+reserved: 0
+number_of_segments: 4
+source_version: "0.0.0.0.0"
+symtab:
+    symoff: 175760
+    nsyms: 370
+    stroff: 183216
+    strsize: 9424
+    entries:
+      - "_MsoABTerm"
+      - "_MsoCContact"
+      - "_MsoCContactCategory"
+      - "_MsoCContactList"
+      - "_MsoCapabilitiesContactList"
+      - "_MsoContactCategoryCopy"
+      - "_MsoContactCategoryCopyFromID"
+      - "_MsoContactCategoryCopyID"
+      - "_MsoContactCategoryNameCopy"
+      - "_MsoContactCopy"
+      - "_MsoContactCopyCategoryList"
+      - "_MsoContactCopyContact"
+      - "_MsoContactCopyFromID"
+      - "_MsoContactCopyID"
+      - "_MsoContactFieldValueCopy"
+      - "_MsoContactFieldValueDataCopy"
+      - "_MsoContactFieldValueInt"
+      - "_MsoContactListCopy"
+      - "_MsoContactListCopyContactList"
+      - "_MsoContactListCopyID"
+      - "_MsoContactListCreateAddressBookAll"
+      - "_MsoContactListCreateAddressBookMac"
+      - "_MsoContactListCreateAddressBookOPF"
+      - "_MsoEmailAddressCopyContactList"
+      - "_MsoFCloseAddressBook"
+      - "_MsoLaunchAddressBook"
+      - "_MsoLaunchAddressBookEmail"
+      - "_MsoMeContactCopy"
+      - "_MsoNameCopyContactList"
+      - "_MsoReleaseAddressBookResources"
+      - "_MsoReleaseContact"
+      - "_MsoReleaseContactCategory"
+      - "_MsoReleaseContactList"
+      - "_MsoSearchContactList"
+      - "_MsoSmtpAddressCopyContactList"
+      - "_MsoUniqueIDCopyContactList"
+      - "_OBJC_CLASS_$_MsoABMsoPeoplePickerSource"
+      - "_OBJC_METACLASS_$_MsoABMsoPeoplePickerSource"
+      - "_ABCopyArrayOfAllGroups"
+      - "_ABCopyArrayOfAllPeople"
+      - "_ABCopyRecordForUniqueId"
+      - "_ABCreateFormattedAddressFromDictionary"
+      - "_ABGetMe"
+      - "_ABGetSharedAddressBook"
+      - "_ABGroupCopyArrayOfAllMembers"
+      - "_ABGroupCopyArrayOfAllSubgroups"
+      - "_ABMultiValueCopyLabelAtIndex"
+      - "_ABMultiValueCopyPrimaryIdentifier"
+      - "_ABMultiValueCopyValueAtIndex"
+      - "_ABMultiValueCount"
+      - "_ABMultiValueIndexForIdentifier"
+      - "_ABRecordCopyValue"
+      - "_CFArrayAppendValue"
+      - "_CFArrayCreate"
+      - "_CFArrayCreateMutable"
+      - "_CFArrayGetCount"
+      - "_CFArrayGetValueAtIndex"
+      - "_CFBundleCopyLocalizedString"
+      - "_CFDataGetMutableBytePtr"
+      - "_CFDateFormatterCreate"
+      - "_CFDateFormatterCreateStringWithDate"
+      - "_CFDateGetTypeID"
+      - "_CFDictionaryGetTypeID"
+      - "_CFDictionaryGetValue"
+      - "_CFGetTypeID"
+      - "_CFLocaleCopyCurrent"
+      - "_CFNumberCreate"
+      - "_CFNumberGetTypeID"
+      - "_CFNumberGetValue"
+      - "_CFRelease"
+      - "_CFRetain"
+      - "_CFStringAppend"
+      - "_CFStringCompare"
+      - "_CFStringCreateMutable"
+      - "_CFStringCreateMutableCopy"
+      - "_CFStringCreateWithCharacters"
+      - "_CFStringCreateWithFormatAndArguments"
+      - "_CFStringFindAndReplace"
+      - "_CFStringGetLength"
+      - "_CFStringGetTypeID"
+      - "_CUISetAccessibilityIdentifier"
+      - "_MbuGetBundleWithNameOrIdentifier"
+      - "_MerpCxaThrowIntercept"
+      - "_NSApp"
+      - "_NSContentArrayBinding"
+      - "_NSEnabledBinding"
+      - "_NSHiddenBinding"
+      - "_NSNegateBooleanTransformerName"
+      - "_NSPredicateBinding"
+      - "_NSPredicateFormatBindingOption"
+      - "_NSValueBinding"
+      - "_NSValueTransformerNameBindingOption"
+      - "_NSWindowWillCloseNotification"
+      - "_OBJC_CLASS_$_ABAddressBook"
+      - "_OBJC_CLASS_$_MsoPeoplePickerContact"
+      - "_OBJC_CLASS_$_NSArray"
+      - "_OBJC_CLASS_$_NSAutoreleasePool"
+      - "_OBJC_CLASS_$_NSBezierPath"
+      - "_OBJC_CLASS_$_NSBundle"
+      - "_OBJC_CLASS_$_NSButton"
+      - "_OBJC_CLASS_$_NSColor"
+      - "_OBJC_CLASS_$_NSDictionary"
+      - "_OBJC_CLASS_$_NSGraphicsContext"
+      - "_OBJC_CLASS_$_NSImage"
+      - "_OBJC_CLASS_$_NSKeyedUnarchiver"
+      - "_OBJC_CLASS_$_NSMenuItem"
+      - "_OBJC_CLASS_$_NSMutableArray"
+      - "_OBJC_CLASS_$_NSMutableSet"
+      - "_OBJC_CLASS_$_NSMutableString"
+      - "_OBJC_CLASS_$_NSNotificationCenter"
+      - "_OBJC_CLASS_$_NSNumber"
+      - "_OBJC_CLASS_$_NSNumberFormatter"
+      - "_OBJC_CLASS_$_NSObject"
+      - "_OBJC_CLASS_$_NSPredicate"
+      - "_OBJC_CLASS_$_NSSearchField"
+      - "_OBJC_CLASS_$_NSShadow"
+      - "_OBJC_CLASS_$_NSSortDescriptor"
+      - "_OBJC_CLASS_$_NSString"
+      - "_OBJC_CLASS_$_NSTableView"
+      - "_OBJC_CLASS_$_NSTextField"
+      - "_OBJC_CLASS_$_NSTextFieldCell"
+      - "_OBJC_CLASS_$_NSThread"
+      - "_OBJC_CLASS_$_NSUserDefaults"
+      - "_OBJC_CLASS_$_NSValueTransformer"
+      - "_OBJC_CLASS_$_NSView"
+      - "_OBJC_CLASS_$_NSViewController"
+      - "_OBJC_CLASS_$_NSWindowController"
+      - "_OBJC_EHTYPE_id"
+      - "_OBJC_METACLASS_$_NSButton"
+      - "_OBJC_METACLASS_$_NSObject"
+      - "_OBJC_METACLASS_$_NSSearchField"
+      - "_OBJC_METACLASS_$_NSTableView"
+      - "_OBJC_METACLASS_$_NSTextField"
+      - "_OBJC_METACLASS_$_NSTextFieldCell"
+      - "_OBJC_METACLASS_$_NSValueTransformer"
+      - "_OBJC_METACLASS_$_NSView"
+      - "_OBJC_METACLASS_$_NSViewController"
+      - "_OBJC_METACLASS_$_NSWindowController"
+      - "_OPFAddressFormatGetField"
+      - "_OPFAddressFormatGetNumberOfColumns"
+      - "_OPFAddressFormatGetNumberOfRows"
+      - "_OPFAddressFormatGetSeparator"
+      - "_OPFCategoryCopyName"
+      - "_OPFCategoryCopyRecordUID"
+      - "_OPFCategoryGetTypeID"
+      - "_OPFContactCopyAssistantPhone"
+      - "_OPFContactCopyAstrologySign"
+      - "_OPFContactCopyBloodType"
+      - "_OPFContactCopyBusinessAddressFormat"
+      - "_OPFContactCopyBusinessCity"
+      - "_OPFContactCopyBusinessCompany"
+      - "_OPFContactCopyBusinessCountry"
+      - "_OPFContactCopyBusinessDepartment"
+      - "_OPFContactCopyBusinessFax"
+      - "_OPFContactCopyBusinessPhone"
+      - "_OPFContactCopyBusinessState"
+      - "_OPFContactCopyBusinessStreetAddress"
+      - "_OPFContactCopyBusinessTitle"
+      - "_OPFContactCopyBusinessWebPage"
+      - "_OPFContactCopyBusinessZip"
+      - "_OPFContactCopyCategoryList"
+      - "_OPFContactCopyCellPhone"
+      - "_OPFContactCopyContactImage"
+      - "_OPFContactCopyCustom1Data"
+      - "_OPFContactCopyCustom2Data"
+      - "_OPFContactCopyCustom3Data"
+      - "_OPFContactCopyCustom4Data"
+      - "_OPFContactCopyCustom5Data"
+      - "_OPFContactCopyCustom6Data"
+      - "_OPFContactCopyCustom7Data"
+      - "_OPFContactCopyCustom8Data"
+      - "_OPFContactCopyCustomPhone1"
+      - "_OPFContactCopyCustomPhone2"
+      - "_OPFContactCopyCustomPhone3"
+      - "_OPFContactCopyCustomPhone4"
+      - "_OPFContactCopyDefaultEmailAddress"
+      - "_OPFContactCopyDisplayName"
+      - "_OPFContactCopyEmailAddressList"
+      - "_OPFContactCopyFirstName"
+      - "_OPFContactCopyFuriganaCompanyName"
+      - "_OPFContactCopyFuriganaFirstName"
+      - "_OPFContactCopyFuriganaLastName"
+      - "_OPFContactCopyFuriganaSpousesName"
+      - "_OPFContactCopyHomeAddressFormat"
+      - "_OPFContactCopyHomeCity"
+      - "_OPFContactCopyHomeCountry"
+      - "_OPFContactCopyHomeFax"
+      - "_OPFContactCopyHomePhone"
+      - "_OPFContactCopyHomePhone2"
+      - "_OPFContactCopyHomeState"
+      - "_OPFContactCopyHomeStreetAddress"
+      - "_OPFContactCopyHomeWebPage"
+      - "_OPFContactCopyHomeZip"
+      - "_OPFContactCopyInterests"
+      - "_OPFContactCopyLastName"
+      - "_OPFContactCopyMainPhone"
+      - "_OPFContactCopyMiddleName"
+      - "_OPFContactCopyNameSuffix"
+      - "_OPFContactCopyNickName"
+      - "_OPFContactCopyNotes"
+      - "_OPFContactCopyPager"
+      - "_OPFContactCopyRecordUID"
+      - "_OPFContactCopySpousesName"
+      - "_OPFContactCopyTitle"
+      - "_OPFContactEmailAddressCopyAddress"
+      - "_OPFContactEmailAddressGetAddressType"
+      - "_OPFContactEmailAddressGetTypeID"
+      - "_OPFContactGetHomeIsDefaultAddress"
+      - "_OPFContactGetIsJapaneseContact"
+      - "_OPFContactGetTypeID"
+      - "_OPFContextCreate"
+      - "_OPFDataSourceSpecGetMainDataSourceSpec"
+      - "_OPFDataStoreCreateWithSpec"
+      - "_OPFDataStoreDisableClientCache"
+      - "_OPFDataStoreFindAll"
+      - "_OPFDataStoreFindAllMatches"
+      - "_OPFEntourageCopyMeContactRecordUID"
+      - "_OPFEqual"
+      - "_OPFExchangeAccountCopyEmailAccountRecordUID"
+      - "_OPFExchangeAccountCopyEmailAddress"
+      - "_OPFExchangeAccountCopyExchangePrimarySmtpAddress"
+      - "_OPFExchangeAccountCopyName"
+      - "_OPFExchangeAccountCopyOABDataSourceSpec"
+      - "_OPFExchangeAccountGetTypeID"
+      - "_OPFFilterCriteriaAddClause"
+      - "_OPFFilterCriteriaAddClauseWithOPFType"
+      - "_OPFFilterCriteriaCreate"
+      - "_OPFFolderCopyName"
+      - "_OPFFolderGetTypeID"
+      - "_OPFGetTypeID"
+      - "_OPFIdentityLaunchDefault"
+      - "_OPFInit"
+      - "_OPFInitialized"
+      - "_OPFRecordUIDCopyRecord"
+      - "_OPFRecordUIDCreateExternalRepresentation"
+      - "_OPFRecordUIDCreateWithExternalRepresentation"
+      - "_OPFRelease"
+      - "_OPFRetain"
+      - "_OPFSearchCriteriaAddClause"
+      - "_OPFSearchCriteriaAddClauseWithOPFType"
+      - "_OPFSearchCriteriaCreate"
+      - "_OPFSelectionCopyRecordByIndex"
+      - "_OPFSelectionGetRecordCount"
+      - "_OPFTerm"
+      - "__Block_object_assign"
+      - "__Block_object_dispose"
+      - "__MsoSendStructuredTraceTagv"
+      - "__NSConcreteGlobalBlock"
+      - "__NSConcreteStackBlock"
+      - "__Unwind_Resume"
+      - "__ZN3Mso7Logging14MsoShouldTraceEjNS0_8CategoryENS0_8SeverityENS0_14DataCategoriesE"
+      - "__ZN3Mso7Logging25MsoSendStructuredTraceTagEjNS0_8CategoryENS0_8SeverityENS0_14DataCategoriesEPKwRKNS0_16IStructuredTraceE"
+      - "__ZNKSt9exception4whatEv"
+      - "__ZNSt11logic_errorC2EPKc"
+      - "__ZNSt12length_errorD1Ev"
+      - "__ZNSt20bad_array_new_lengthC1Ev"
+      - "__ZNSt20bad_array_new_lengthD1Ev"
+      - "__ZNSt3__119__shared_weak_count14__release_weakEv"
+      - "__ZNSt3__119__shared_weak_countD2Ev"
+      - "__ZNSt3__15mutex4lockEv"
+      - "__ZNSt3__15mutex6unlockEv"
+      - "__ZNSt3__15mutexD1Ev"
+      - "__ZNSt9exceptionD2Ev"
+      - "__ZSt9terminatev"
+      - "__ZTINSt3__119__shared_weak_countE"
+      - "__ZTISt12length_error"
+      - "__ZTISt20bad_array_new_length"
+      - "__ZTISt9exception"
+      - "__ZTVN10__cxxabiv117__class_type_infoE"
+      - "__ZTVN10__cxxabiv119__pointer_type_infoE"
+      - "__ZTVN10__cxxabiv120__function_type_infoE"
+      - "__ZTVN10__cxxabiv120__si_class_type_infoE"
+      - "__ZTVN10__cxxabiv121__vmi_class_type_infoE"
+      - "__ZTVSt12length_error"
+      - "__ZdlPv"
+      - "__Znwm"
+      - "___CFConstantStringClassReference"
+      - "___cxa_allocate_exception"
+      - "___cxa_atexit"
+      - "___cxa_begin_catch"
+      - "___cxa_end_catch"
+      - "___cxa_free_exception"
+      - "___cxa_pure_virtual"
+      - "___gxx_personality_v0"
+      - "___objc_personality_v0"
+      - "___stack_chk_fail"
+      - "___stack_chk_guard"
+      - "__objc_empty_cache"
+      - "_backtrace"
+      - "_gettimeofday"
+      - "_kABAddressCityKey"
+      - "_kABAddressCountryKey"
+      - "_kABAddressHomeLabel"
+      - "_kABAddressProperty"
+      - "_kABAddressStateKey"
+      - "_kABAddressStreetKey"
+      - "_kABAddressWorkLabel"
+      - "_kABAddressZIPKey"
+      - "_kABAnniversaryLabel"
+      - "_kABBirthdayProperty"
+      - "_kABEmailHomeLabel"
+      - "_kABEmailProperty"
+      - "_kABEmailWorkLabel"
+      - "_kABFirstNameProperty"
+      - "_kABGroupNameProperty"
+      - "_kABHomePageLabel"
+      - "_kABJobTitleProperty"
+      - "_kABLastNameProperty"
+      - "_kABMaidenNameProperty"
+      - "_kABMiddleNameProperty"
+      - "_kABNicknameProperty"
+      - "_kABNoteProperty"
+      - "_kABOrganizationProperty"
+      - "_kABOtherDatesProperty"
+      - "_kABPersonFlags"
+      - "_kABPhoneHomeFAXLabel"
+      - "_kABPhoneHomeLabel"
+      - "_kABPhoneMainLabel"
+      - "_kABPhoneMobileLabel"
+      - "_kABPhonePagerLabel"
+      - "_kABPhoneProperty"
+      - "_kABPhoneWorkFAXLabel"
+      - "_kABPhoneWorkLabel"
+      - "_kABRelatedNamesProperty"
+      - "_kABSpouseLabel"
+      - "_kABSuffixProperty"
+      - "_kABTitleProperty"
+      - "_kABUIDProperty"
+      - "_kABURLsProperty"
+      - "_kCFAllocatorDefault"
+      - "_kCFTypeArrayCallBacks"
+      - "_kContactEmailAddressHome"
+      - "_kContactEmailAddressWork"
+      - "_kOPFBeginsWithSearch"
+      - "_kOPFCategoryTableID"
+      - "_kOPFContactImageSourceAny"
+      - "_kOPFContactLDAPANR"
+      - "_kOPFContactRecordFolderID"
+      - "_kOPFContactTableID"
+      - "_kOPFEqualsSearch"
+      - "_kOPFExchangeAccountTableID"
+      - "_kOPFFolderAccountUID"
+      - "_kOPFFolderClass"
+      - "_kOPFFolderTableID"
+      - "_kOPFFolderType"
+      - "_kOPFFolderTypeLocal"
+      - "_mbu_dispatch_sync_main"
+      - "_objc_alloc"
+      - "_objc_alloc_init"
+      - "_objc_autorelease"
+      - "_objc_autoreleasePoolPop"
+      - "_objc_autoreleasePoolPush"
+      - "_objc_begin_catch"
+      - "_objc_end_catch"
+      - "_objc_enumerationMutation"
+      - "_objc_exception_rethrow"
+      - "_objc_getProperty"
+      - "_objc_msgSend"
+      - "_objc_msgSendSuper2"
+      - "_objc_opt_class"
+      - "_objc_opt_isKindOfClass"
+      - "_objc_opt_respondsToSelector"
+      - "_objc_release"
+      - "_objc_retain"
+      - "_objc_setProperty_atomic"
+      - "_objc_sync_enter"
+      - "_objc_sync_exit"
+      - "_objc_terminate"
+      - "_strcmp"
+      - "radr://5614542"
+dysymtab:
+    ilocalsym: 0
+    nlocalsym: 1
+    iextdefsym: 1
+    nextdefsym: 38
+    tocoff: 39
+    ntoc: 331
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 181680
+    nextrel: 384
+    locreloff: 0
+    nlocrel: 0
+code_signature_data:
+    dataoff: 192640
+    datasize: 36384
+segments:
+  - segname: "__TEXT"
+    vmaddr: 0x0
+    vmsize: 0x20000
+    fileoff: 0
+    filesize: 131072
+    maxprot: 0x5
+    initprot: 0x5
+    nsects: 14
+    flags: 0x0
+    sections:
+      - segname: "__TEXT"
+        sectname: "__text"
+        addr: 0x1bfc
+        size: 0x12c8c
+        offset: 7164
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__stubs"
+        addr: 0x14888
+        size: 0x798
+        offset: 84104
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000408
+        reserved1: 0
+        reserved2: 12
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__objc_stubs"
+        addr: 0x15020
+        size: 0x1a60
+        offset: 86048
+        align: 5
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__init_offsets"
+        addr: 0x16a80
+        size: 0xf4
+        offset: 92800
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x16
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__objc_methlist"
+        addr: 0x16b78
+        size: 0x864
+        offset: 93048
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__gcc_except_tab"
+        addr: 0x173dc
+        size: 0x1308
+        offset: 95196
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__const"
+        addr: 0x186e8
+        size: 0x45ee
+        offset: 100072
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__cstring"
+        addr: 0x1ccd6
+        size: 0x39f
+        offset: 117974
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__ustring"
+        addr: 0x1d076
+        size: 0x110
+        offset: 118902
+        align: 1
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__objc_methname"
+        addr: 0x1d186
+        size: 0x171e
+        offset: 119174
+        align: 1
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__objc_classname"
+        addr: 0x1e8a4
+        size: 0x14a
+        offset: 125092
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__objc_methtype"
+        addr: 0x1e9ee
+        size: 0x3ff
+        offset: 125422
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__unwind_info"
+        addr: 0x1edf0
+        size: 0x11bc
+        offset: 126448
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__eh_frame"
+        addr: 0x1ffb0
+        size: 0x38
+        offset: 130992
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+  - segname: "__DATA_CONST"
+    vmaddr: 0x20000
+    vmsize: 0x4000
+    fileoff: 131072
+    filesize: 16384
+    maxprot: 0x3
+    initprot: 0x3
+    nsects: 7
+    flags: 0x10
+    sections:
+      - segname: "__DATA_CONST"
+        sectname: "__got"
+        addr: 0x20000
+        size: 0x6f0
+        offset: 131072
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x6
+        reserved1: 162
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__const"
+        addr: 0x206f0
+        size: 0x27a8
+        offset: 132848
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__cfstring"
+        addr: 0x22e98
+        size: 0x6e0
+        offset: 143000
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__objc_classlist"
+        addr: 0x23578
+        size: 0x68
+        offset: 144760
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x10000000
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__objc_catlist"
+        addr: 0x235e0
+        size: 0x8
+        offset: 144864
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x10000000
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__objc_protolist"
+        addr: 0x235e8
+        size: 0x18
+        offset: 144872
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__objc_imageinfo"
+        addr: 0x23600
+        size: 0x8
+        offset: 144896
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+  - segname: "__DATA"
+    vmaddr: 0x24000
+    vmsize: 0x4000
+    fileoff: 147456
+    filesize: 16384
+    maxprot: 0x3
+    initprot: 0x3
+    nsects: 9
+    flags: 0x0
+    sections:
+      - segname: "__DATA"
+        sectname: "__objc_const"
+        addr: 0x24000
+        size: 0x1260
+        offset: 147456
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_selrefs"
+        addr: 0x25260
+        size: 0x7b8
+        offset: 152160
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x10000005
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_classrefs"
+        addr: 0x25a18
+        size: 0xf0
+        offset: 154136
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x10000000
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_superrefs"
+        addr: 0x25b08
+        size: 0x58
+        offset: 154376
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x10000000
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_ivar"
+        addr: 0x25b60
+        size: 0x84
+        offset: 154464
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_data"
+        addr: 0x25be8
+        size: 0x410
+        offset: 154600
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__data"
+        addr: 0x25ff8
+        size: 0x528
+        offset: 155640
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__bss"
+        addr: 0x26520
+        size: 0x8
+        offset: 0
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x1
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__common"
+        addr: 0x26528
+        size: 0x1
+        offset: 0
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x1
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+  - segname: "__LINKEDIT"
+    vmaddr: 0x28000
+    vmsize: 0x10000
+    fileoff: 163840
+    filesize: 65184
+    maxprot: 0x1
+    initprot: 0x1
+    nsects: 0
+    flags: 0x0
+dylibs:
+  - name: "@rpath/OfficeAddressBook.framework/Versions/A/OfficeAddressBook"
+    timestamp: 1  # 1970-01-01 00:00:01 UTC
+    compatibility_version: "0.0.0"
+    current_version: "0.0.0"
+  - name: "@rpath/CocoaUI.framework/Versions/A/CocoaUI"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "0.0.0"
+    current_version: "0.0.0"
+  - name: "@rpath/mbuinstrument.framework/Versions/A/mbuinstrument"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "0.0.0"
+    current_version: "0.0.0"
+  - name: "@rpath/mbukernel.framework/Versions/A/mbukernel"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "0.0.0"
+    current_version: "0.0.0"
+  - name: "@rpath/merp.framework/Versions/A/merp"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "0.0.0"
+    current_version: "0.0.0"
+  - name: "@rpath/mso20.framework/Versions/A/mso20"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "0.0.0"
+    current_version: "0.0.0"
+  - name: "@rpath/mso99.framework/Versions/A/mso99"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "0.0.0"
+    current_version: "0.0.0"
+  - name: "@rpath/OPF.framework/Versions/A/OPF"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "0.0.0"
+    current_version: "0.0.0"
+  - name: "/System/Library/Frameworks/AddressBook.framework/Versions/A/AddressBook"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "2571.2.0"
+  - name: "/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "24.0.0"
+  - name: "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "150.0.0"
+    current_version: "2420.0.0"
+  - name: "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "300.0.0"
+    current_version: "2420.0.0"
+  - name: "/usr/lib/libobjc.A.dylib"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "228.0.0"
+  - name: "/usr/lib/libc++.1.dylib"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1700.255.0"
+  - name: "/usr/lib/libSystem.B.dylib"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1345.100.2"
+  - name: "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "45.0.0"
+    current_version: "2487.50.124"
+  - name: "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "64.0.0"
+    current_version: "1774.4.3"
+rpaths:
+  - "@loader_path/../../.."
+certificates:
+  - issuer: "C=US, O=Apple Inc., OU=Apple Certification Authority, CN=Apple Root CA"
+    subject: "CN=Developer ID Certification Authority, OU=Apple Certification Authority, O=Apple Inc., C=US"
+    is_self_signed: false
+  - issuer: "C=US, O=Apple Inc., OU=Apple Certification Authority, CN=Apple Root CA"
+    subject: "C=US, O=Apple Inc., OU=Apple Certification Authority, CN=Apple Root CA"
+    is_self_signed: true
+  - issuer: "CN=Developer ID Certification Authority, OU=Apple Certification Authority, O=Apple Inc., C=US"
+    subject: "uid=UBF8T346G9, CN=Developer ID Application: Microsoft Corporation (UBF8T346G9), OU=UBF8T346G9, O=Microsoft Corporation, C=US"
+    is_self_signed: false
+uuid: "0B695441-F248-3F04-9AE7-C04C4CDFA50B"
+build_version:
+    platform: 1
+    minos: "12.0.0"
+    sdk: "14.4.0"
+    ntools: 1
+    tools:
+      - tool: 3
+        version: "951.9"
+exports:
+  - "_OBJC_METACLASS_$_MsoABMsoPeoplePickerSource"
+  - "_OBJC_CLASS_$_MsoABMsoPeoplePickerSource"
+  - "_MsoUniqueIDCopyContactList"
+  - "_MsoSmtpAddressCopyContactList"
+  - "_MsoSearchContactList"
+  - "_MsoReleaseContact"
+  - "_MsoReleaseAddressBookResources"
+  - "_MsoNameCopyContactList"
+  - "_MsoMeContactCopy"
+  - "_MsoLaunchAddressBook"
+  - "_MsoFCloseAddressBook"
+  - "_MsoEmailAddressCopyContactList"
+  - "_MsoContactListCreateAddressBookOPF"
+  - "_MsoContactListCreateAddressBookMac"
+  - "_MsoContactListCreateAddressBookAll"
+  - "_MsoContactListCopy"
+  - "_MsoContactFieldValueInt"
+  - "_MsoContactFieldValueDataCopy"
+  - "_MsoContactFieldValueCopy"
+  - "_MsoContactCopy"
+  - "_MsoContactCategoryNameCopy"
+  - "_MsoContactCategoryCopy"
+  - "_MsoCapabilitiesContactList"
+  - "_MsoCContact"
+  - "_MsoABTerm"
