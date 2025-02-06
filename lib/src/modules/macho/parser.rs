@@ -97,6 +97,8 @@ const LC_LINKER_OPTION: u32 = 0x0000002d;
 const LC_VERSION_MIN_TVOS: u32 = 0x0000002f;
 const LC_VERSION_MIN_WATCHOS: u32 = 0x00000030;
 const LC_BUILD_VERSION: u32 = 0x00000032;
+const LC_DYLD_EXPORTS_TRIE: u32 = 0x00000033 | LC_REQ_DYLD;
+const _LC_DYLD_CHAINED_FIXUPS: u32 = 0x00000034 | LC_REQ_DYLD;
 
 /// Mach-O CPU types
 const CPU_TYPE_MC680X0: u32 = 0x00000006;
@@ -296,6 +298,7 @@ impl<'a> MachO<'a> {
             dynamic_linker: None,
             linker_options: Vec::new(),
             dyld_info: None,
+            dyld_export_trie: None,
             source_version: None,
             entry_point_offset: None,
             entry_point_rva: None,
@@ -369,9 +372,19 @@ impl<'a> MachO<'a> {
             }
         }
 
-        if let Some(ref dyld_info) = macho.dyld_info {
-            let offset = dyld_info.export_off as usize;
-            let size = dyld_info.export_size as usize;
+        for (offset, size) in [
+            macho
+                .dyld_export_trie
+                .as_ref()
+                .map(|t| (t.data_off as usize, t.data_size as usize)),
+            macho
+                .dyld_info
+                .as_ref()
+                .map(|i| (i.export_off as usize, i.export_size as usize)),
+        ]
+        .into_iter()
+        .flatten()
+        {
             if let Some(export_data) =
                 data.get(offset..offset.saturating_add(size))
             {
@@ -423,6 +436,7 @@ pub struct MachOFile<'a> {
     symtab: Option<Symtab<'a>>,
     dysymtab: Option<Dysymtab>,
     dyld_info: Option<DyldInfo>,
+    dyld_export_trie: Option<DyldExportTrie>,
     dynamic_linker: Option<&'a [u8]>,
     linker_options: Vec<&'a [u8]>,
     source_version: Option<String>,
@@ -576,6 +590,14 @@ impl<'a> MachOFile<'a> {
                 LC_CODE_SIGNATURE => {
                     let (_, lid) = self.linkeditdata_command()(command_data)?;
                     self.code_signature_data = Some(lid);
+                }
+                LC_DYLD_EXPORTS_TRIE => {
+                    let (_, exports_data) =
+                        self.linkeditdata_command()(command_data)?;
+                    self.dyld_export_trie = Some(DyldExportTrie {
+                        data_off: exports_data.dataoff,
+                        data_size: exports_data.datasize,
+                    });
                 }
                 LC_DYLD_INFO | LC_DYLD_INFO_ONLY => {
                     let (_, dyld_info) =
@@ -893,9 +915,10 @@ impl<'a> MachOFile<'a> {
                 let size_of_blob = std::mem::size_of::<CSBlob>();
                 match blob.magic {
                     CS_MAGIC_EMBEDDED_ENTITLEMENTS => {
-                        let xml_data = match super_data
-                            .get(offset.saturating_add(size_of_blob) .. offset.saturating_add(length))
-                        {
+                        let xml_data = match super_data.get(
+                            offset.saturating_add(size_of_blob)
+                                ..offset.saturating_add(length),
+                        ) {
                             Some(data) => data,
                             None => continue,
                         };
@@ -1090,7 +1113,7 @@ impl<'a> MachOFile<'a> {
     }
 
     /// Parser that parses the exports at the offsets defined within
-    /// LC_DYLD_INFO and LC_DYLD_INFO_ONLY.
+    /// LC_DYLD_INFO, LC_DYLD_INFO_ONLY, and LC_DYLD_EXPORTS_TRIE.
     fn exports(
         &mut self,
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<String>> + '_ {
@@ -1549,6 +1572,11 @@ struct DyldInfo {
     lazy_bind_size: u32,
     export_off: u32,
     export_size: u32,
+}
+
+struct DyldExportTrie {
+    data_off: u32,
+    data_size: u32,
 }
 
 struct BuildVersionCommand {

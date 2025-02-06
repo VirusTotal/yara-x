@@ -393,3 +393,5 @@ file:
         tools:
           - tool: 3
             version: "760.0"
+    exports:
+      - "__mh_execute_header"
