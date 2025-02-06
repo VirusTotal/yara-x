@@ -372,25 +372,19 @@ impl<'a> MachO<'a> {
             }
         }
 
-        if let Some(ref dyld_export_trie) = macho.dyld_export_trie {
-            let offset = dyld_export_trie.data_off as usize;
-            let size = dyld_export_trie.data_size as usize;
-            if let Some(export_data) =
-                data.get(offset..offset.saturating_add(size))
-            {
-                if let Err(_err) = macho.exports()(export_data) {
-                    #[cfg(feature = "logging")]
-                    error!("Error parsing Mach-O file: {:?}", _err);
-                    // fail silently if it fails, data was not formatted
-                    // correctly but parsing should still proceed for
-                    // everything else
-                };
-            }
-        }
-
-        if let Some(ref dyld_info) = macho.dyld_info {
-            let offset = dyld_info.export_off as usize;
-            let size = dyld_info.export_size as usize;
+        for (offset, size) in [
+            macho
+                .dyld_export_trie
+                .as_ref()
+                .map(|t| (t.data_off as usize, t.data_size as usize)),
+            macho
+                .dyld_info
+                .as_ref()
+                .map(|i| (i.export_off as usize, i.export_size as usize)),
+        ]
+        .into_iter()
+        .flatten()
+        {
             if let Some(export_data) =
                 data.get(offset..offset.saturating_add(size))
             {
