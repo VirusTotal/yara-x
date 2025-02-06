@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::cell::OnceCell;
+use std::cmp::min;
 use std::ffi::CStr;
 use std::fmt::{Display, Formatter, Write};
 use std::str::from_utf8;
@@ -257,7 +258,7 @@ impl<'a> Dotnet<'a> {
 
 impl<'a> Dotnet<'a> {
     const MAX_PARAMS: u32 = 1000;
-    const MAX_ROWS_PER_TABLE: u32 = 15000;
+    const MAX_ROWS_PER_TABLE: usize = 15000;
     const MAX_ARRAY_DIMENSION: u32 = 50;
     const MAX_RECURSION: usize = 16;
 
@@ -448,15 +449,9 @@ impl<'a> Dotnet<'a> {
         let num_tables = u64::count_ones(valid);
 
         // Then follows an array of `num_tables` items with the number of rows
-        // per each table that is present. Limit the number of rows per table
-        // to a reasonable number of MAX_ROWS_PER_TABLE.
+        // per each table that is present.
         let (mut remainder, num_rows_per_present_table) = count(
-            map(
-                verify(le_u32, |num_rows| {
-                    *num_rows <= Self::MAX_ROWS_PER_TABLE
-                }),
-                |v| v as usize,
-            ),
+            map(le_u32, |v| v as usize),
             num_tables as usize,
         )(remainder)?;
 
@@ -471,7 +466,13 @@ impl<'a> Dotnet<'a> {
 
         for i in 0..64 {
             if valid & (1 << i) != 0 {
-                self.num_rows.push(num_rows_per_present_table.next().unwrap());
+                // Limit the number of rows per table to a reasonable number
+                // of MAX_ROWS_PER_TABLE.
+                let num_rows = min(
+                    num_rows_per_present_table.next().unwrap(),
+                    Self::MAX_ROWS_PER_TABLE,
+                );
+                self.num_rows.push(num_rows);
             } else {
                 self.num_rows.push(0)
             }
