@@ -68,6 +68,7 @@ pub enum CompileError {
     InvalidRegexp(Box<InvalidRegexp>),
     InvalidRegexpModifier(Box<InvalidRegexpModifier>),
     InvalidRuleName(Box<InvalidRuleName>),
+    InvalidTag(Box<InvalidTag>),
     InvalidUTF8(Box<InvalidUTF8>),
     MethodNotAllowedInWith(Box<MethodNotAllowedInWith>),
     MismatchingTypes(Box<MismatchingTypes>),
@@ -84,6 +85,7 @@ pub enum CompileError {
     UnknownIdentifier(Box<UnknownIdentifier>),
     UnknownModule(Box<UnknownModule>),
     UnknownPattern(Box<UnknownPattern>),
+    UnknownTag(Box<UnknownTag>),
     UnusedPattern(Box<UnusedPattern>),
     WrongArguments(Box<WrongArguments>),
     WrongType(Box<WrongType>),
@@ -685,7 +687,7 @@ pub struct InvalidMetadata {
 /// ## Example
 ///
 /// ```text
-/// warning[missing_metadata]: required metadata is missing
+/// error[E038]: required metadata is missing
 ///  --> test.yar:12:6
 ///    |
 /// 12 | rule pants {
@@ -716,7 +718,7 @@ pub struct MissingMetadata {
 /// ## Example
 ///
 /// ```text
-/// warning[invalid_rule_name]: rule name does not match regex `APT_.*`
+/// error[E039]: rule name does not match regex `APT_.*`
 ///  --> test.yar:13:6
 ///    |
 /// 13 | rule pants {
@@ -726,7 +728,7 @@ pub struct MissingMetadata {
 #[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(
-    code = "E038",
+    code = "E039",
     title = "rule name does not match regex `{regex}`"
 )]
 #[label(
@@ -736,6 +738,68 @@ pub struct MissingMetadata {
 pub struct InvalidRuleName {
     report: Report,
     rule_loc: CodeLoc,
+    regex: String,
+}
+
+/// Unknown tag. This is only used if the compiler is configured to check
+/// for required tags (see:  [`crate::linters::Tags`]).
+///
+/// ## Example
+///
+/// ```text
+/// error[E040]: Tag not in allowed list
+///  --> rules/test.yara:1:10
+///   |
+/// 1 | rule a : foo {
+///   |          ^^^ tag `foo` not in allowed list
+///   |
+///   = note: Allowed tags: test, bar
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(
+    code = "E040",
+    title = "Tag not in allowed list"
+)]
+#[label(
+    "tag `{name}` not in allowed list",
+    tag_loc
+)]
+#[footer(note)]
+pub struct UnknownTag {
+    report: Report,
+    tag_loc: CodeLoc,
+    name: String,
+    note: Option<String>,
+}
+
+/// Tag does not match regex. This is only used if the compiler is configured to
+/// check for it (see: [`crate::linters::Tags`]).
+///
+/// ## Example
+///
+/// ```text
+/// error[E041]: Tag does not match regex `bar`
+///  --> rules/test.yara:1:10
+///   |
+/// 1 | rule a : foo {
+///   |          ^^^ tag `foo` does not match regex `bar`
+///   |
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(
+    code = "E041",
+    title = "Tag does not match regex `{regex}`"
+)]
+#[label(
+    "tag `{name}` does not match regex `{regex}`",
+    tag_loc
+)]
+pub struct InvalidTag {
+    report: Report,
+    tag_loc: CodeLoc,
+    name: String,
     regex: String,
 }
 

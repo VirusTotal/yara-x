@@ -254,6 +254,29 @@ metadata fields are optional by default, and if they don't comply with the
 requirements established in the configuration file YARA-X will raise a warning.
 By setting `error` to `true` these warnings are turned into errors.
 
+### Tag validation (`check.tags`)
+
+```toml
+[check.tags]
+allow_list = ["APT", "CRIME"]
+regexp = "^(APT|CRIME)_"
+error = false
+```
+
+These options define constraints for rule tags:
+
+- `allowed`: Specifies a list of allowed tags.
+- `regexp`: Specifies a regular expression pattern that rule tags must match.
+- `error`: Determines whether a tag violation is treated as an error (`true`) or
+  just a warning (`false`).
+
+If both `allowed` and `regexp` are specified the check command will use the
+`allowed` option as it is more explicit.
+
+The default value for `error` is `false`. This means that if tags do not comply
+with the requirements established in the configuration file YARA-X will raise a
+warning. By setting `error` to `true` these warnings are turned into errors.
+
 ## Example file
 
 ```toml
@@ -277,4 +300,8 @@ error = false
 file = { type = "hash", required = true, error = true }
 author = { type = "string", required = true }
 date = { type = "integer" }
+
+[check.tags]
+allow_list = ["APT", "CRIME"]
+error = true
 ```

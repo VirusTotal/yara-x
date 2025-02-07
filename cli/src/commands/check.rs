@@ -182,18 +182,36 @@ pub fn exec_check(
                     linters::rule_name(re)?.error(config.rule_name.error));
             }
 
+            // Prefer allowed list over the regex, as it is more explicit.
+            if !config.tags.allowed.is_empty() {
+                compiler.add_linter(
+                    linters::Tags::from_list(config.tags.allowed.clone())
+                    .error(config.tags.error));
+            } else if let Some(re) = config
+                .tags
+                .regexp
+                .as_ref()
+                .filter(|re| !re.is_empty()) {
+                compiler.add_linter(
+                    linters::Tags::from_regex(re)?.error(config.tags.error)
+                );
+            }
+
             compiler.colorize_errors(io::stdout().is_tty());
 
             match compiler.add_source(src) {
                 Ok(compiler) => {
-                    if compiler.warnings().is_empty() {
+                    if compiler.warnings().is_empty() &&
+                        compiler.linter_errors().is_empty() {
                         state.files_passed.fetch_add(1, Ordering::Relaxed);
                         lines.push(format!(
                             "[ {} ] {}",
                             "PASS".paint(Green).bold(),
                             file_path.display()
                         ));
-                    } else {
+                    }
+
+                    if !compiler.warnings().is_empty() {
                         state.warnings.fetch_add(
                             compiler.warnings().len(),
                             Ordering::Relaxed,
@@ -205,6 +223,21 @@ pub fn exec_check(
                         ));
                         for warning in compiler.warnings() {
                             eprintln!("{}", warning);
+                        }
+                    }
+
+                    if !compiler.linter_errors().is_empty() {
+                        state.errors.fetch_add(
+                            compiler.linter_errors().len(),
+                            Ordering::Relaxed,
+                        );
+                        lines.push(format!(
+                            "[ {} ] {}",
+                            "ERROR".paint(Red).bold(),
+                            file_path.display()
+                        ));
+                        for err in compiler.linter_errors() {
+                            eprintln!("{}", err);
                         }
                     }
                 }

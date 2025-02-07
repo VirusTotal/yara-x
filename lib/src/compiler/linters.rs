@@ -30,12 +30,11 @@ pub(crate) trait LinterInternal {
         &self,
         report_builder: &ReportBuilder,
         rule: &ast::Rule,
-    ) -> LinterResult;
+    ) -> Option<Vec<LinterResult>>;
 }
 
 /// Represents the result of a linter.
 pub(crate) enum LinterResult {
-    Ok,
     Warn(Warning),
     Err(CompileError),
 }
@@ -91,28 +90,173 @@ impl LinterInternal for RuleName {
         &self,
         report_builder: &ReportBuilder,
         rule: &ast::Rule,
-    ) -> LinterResult {
+    ) -> Option<Vec<LinterResult>> {
         if !self.compiled_regex.is_match(rule.identifier.name) {
             if self.error {
-                LinterResult::Err(errors::InvalidRuleName::build(
+                Some(vec![LinterResult::Err(errors::InvalidRuleName::build(
                     report_builder,
                     rule.identifier.span().into(),
                     self.regex.clone(),
-                ))
+                ))])
             } else {
-                LinterResult::Warn(warnings::InvalidRuleName::build(
-                    report_builder,
-                    rule.identifier.span().into(),
-                    self.regex.clone(),
-                ))
+                Some(vec![LinterResult::Warn(
+                    warnings::InvalidRuleName::build(
+                        report_builder,
+                        rule.identifier.span().into(),
+                        self.regex.clone(),
+                    ),
+                )])
             }
         } else {
-            LinterResult::Ok
+            None
         }
     }
 }
 
 type Predicate<'a> = dyn Fn(&Meta) -> bool + 'a;
+
+/// A linter that ensures tags meet specified requirements in either an allowed
+/// list of tags or in a regex.
+///
+/// ```
+/// # use yara_x::Compiler;
+/// use yara_x::linters;
+/// let mut compiler = Compiler::new();
+/// let warnings = compiler
+///     .add_linter(linters::Tags::from_list(vec!["foo", "bar"]))
+///     // This produces a warning because the rule tags are not from the
+///     // allowed list
+///     .add_source(r#"rule foo : test { strings: $foo = "foo" condition: $foo }"#)
+///     .unwrap()
+///     .warnings();
+///
+/// assert_eq!(
+///     warnings[0].to_string(),
+///     r#"warning[unknown_tag]: Tag not in allowed list
+///  --> line:1:12
+///   |
+/// 1 | rule foo : test {
+///   |            ---- Tag `test` not in allowed list
+///   |
+///   = note: Allowed tags: foo, bar"#);
+pub struct Tags {
+    allow_list: Vec<String>,
+    regex: String,
+    compiled_regex: Option<Regex>,
+    error: bool,
+}
+
+impl Tags {
+    /// A list of strings that tags for each rule must match one of.
+    pub fn from_list(list: Vec<String>) -> Self {
+        Self {
+            allow_list: list,
+            regex: "".to_owned(),
+            compiled_regex: None,
+            error: false,
+        }
+    }
+
+    /// Regular expression that tags for each rule must match.
+    pub fn from_regex<R: Into<String>>(
+        regex: R,
+    ) -> Result<Self, regex::Error> {
+        let regex = regex.into();
+        let compiled_regex = Some(Regex::new(regex.as_str())?);
+        let tags = Self {
+            allow_list: Vec::new(),
+            regex,
+            compiled_regex,
+            error: false,
+        };
+        Ok(tags)
+    }
+
+    /// Specifies whether the linter should produce an error instead of a
+    /// warning.
+    ///
+    /// By default, the linter raises warnings about rule names that don't match
+    /// the regular expression. This setting allows turning such warnings into
+    /// errors.
+    pub fn error(mut self, yes: bool) -> Self {
+        self.error = yes;
+        self
+    }
+}
+
+impl LinterInternal for Tags {
+    fn check(
+        &self,
+        report_builder: &ReportBuilder,
+        rule: &ast::Rule,
+    ) -> Option<Vec<LinterResult>> {
+        if rule.tags.is_none() {
+            return None;
+        }
+
+        let mut results: Vec<LinterResult> = Vec::new();
+        let tags = rule.tags.as_ref().unwrap();
+        if !self.allow_list.is_empty() {
+            for tag in tags.iter() {
+                if !self.allow_list.contains(&tag.name.to_string()) {
+                    if self.error {
+                        results.push(LinterResult::Err(
+                            errors::UnknownTag::build(
+                                report_builder,
+                                tag.span().into(),
+                                tag.name.to_string(),
+                                Some(format!(
+                                    "Allowed tags: {}",
+                                    self.allow_list.join(", ")
+                                )),
+                            ),
+                        ));
+                    } else {
+                        results.push(LinterResult::Warn(
+                            warnings::UnknownTag::build(
+                                report_builder,
+                                tag.span().into(),
+                                tag.name.to_string(),
+                                Some(format!(
+                                    "Allowed tags: {}",
+                                    self.allow_list.join(", ")
+                                )),
+                            ),
+                        ));
+                    }
+                }
+            }
+        } else {
+            let compiled_regex = self.compiled_regex.as_ref().unwrap();
+
+            for tag in tags.iter() {
+                if !compiled_regex.is_match(tag.name) {
+                    if self.error {
+                        results.push(LinterResult::Err(
+                            errors::InvalidTag::build(
+                                report_builder,
+                                tag.span().into(),
+                                tag.name.to_string(),
+                                self.regex.clone(),
+                            ),
+                        ));
+                    } else {
+                        results.push(LinterResult::Warn(
+                            warnings::InvalidTag::build(
+                                report_builder,
+                                tag.span().into(),
+                                tag.name.to_string(),
+                                self.regex.clone(),
+                            ),
+                        ));
+                    }
+                }
+            }
+        }
+
+        return if results.is_empty() { None } else { Some(results) };
+    }
+}
 
 /// A linter that validates metadata entries.
 ///
@@ -231,23 +375,25 @@ impl LinterInternal for Metadata<'_> {
         &self,
         report_builder: &ReportBuilder,
         rule: &ast::Rule,
-    ) -> LinterResult {
+    ) -> Option<Vec<LinterResult>> {
         let mut found = false;
         for meta in rule.meta.iter().flatten() {
             if meta.identifier.name == self.identifier.as_str() {
                 if let Some(predicate) = &self.predicate {
                     if !predicate(meta) {
                         return if self.error {
-                            LinterResult::Err(errors::InvalidMetadata::build(
-                                report_builder,
-                                meta.identifier.name.to_string(),
-                                meta.value.span().into(),
-                                self.message
-                                    .clone()
-                                    .unwrap_or("invalid metadata".to_string()),
-                            ))
+                            Some(vec![LinterResult::Err(
+                                errors::InvalidMetadata::build(
+                                    report_builder,
+                                    meta.identifier.name.to_string(),
+                                    meta.value.span().into(),
+                                    self.message.clone().unwrap_or(
+                                        "invalid metadata".to_string(),
+                                    ),
+                                ),
+                            )])
                         } else {
-                            LinterResult::Warn(
+                            Some(vec![LinterResult::Warn(
                                 warnings::InvalidMetadata::build(
                                     report_builder,
                                     meta.identifier.name.to_string(),
@@ -256,7 +402,7 @@ impl LinterInternal for Metadata<'_> {
                                         "invalid metadata".to_string(),
                                     ),
                                 ),
-                            )
+                            )])
                         };
                     }
                 }
@@ -266,23 +412,25 @@ impl LinterInternal for Metadata<'_> {
 
         if self.required && !found {
             return if self.error {
-                LinterResult::Err(errors::MissingMetadata::build(
+                Some(vec![LinterResult::Err(errors::MissingMetadata::build(
                     report_builder,
                     rule.identifier.span().into(),
                     self.identifier.clone(),
                     self.note.clone(),
-                ))
+                ))])
             } else {
-                LinterResult::Warn(warnings::MissingMetadata::build(
-                    report_builder,
-                    rule.identifier.span().into(),
-                    self.identifier.clone(),
-                    self.note.clone(),
-                ))
+                Some(vec![LinterResult::Warn(
+                    warnings::MissingMetadata::build(
+                        report_builder,
+                        rule.identifier.span().into(),
+                        self.identifier.clone(),
+                        self.note.clone(),
+                    ),
+                )])
             };
         }
 
-        LinterResult::Ok
+        None
     }
 }
 

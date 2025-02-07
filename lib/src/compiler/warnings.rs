@@ -33,6 +33,8 @@ pub enum Warning {
     InvalidMetadata(Box<InvalidMetadata>),
     MissingMetadata(Box<MissingMetadata>),
     InvalidRuleName(Box<InvalidRuleName>),
+    InvalidTag(Box<InvalidTag>),
+    UnknownTag(Box<UnknownTag>),
 }
 
 /// A hex pattern contains two or more consecutive jumps.
@@ -552,5 +554,67 @@ pub struct MissingMetadata {
 pub struct InvalidRuleName {
     report: Report,
     rule_loc: CodeLoc,
+    regex: String,
+}
+
+/// Unknown tag. This is only used if the compiler is configured to check
+/// for required tags (see:  [`crate::linters::Tags`]).
+///
+/// ## Example
+///
+/// ```text
+/// warning[unknown_tag]: Tag not in allowed list
+///  --> rules/test.yara:1:10
+///   |
+/// 1 | rule a : foo {
+///   |          --- Tag `foo` not in allowed list
+///   |
+///   = note: Allowed tags: test, bar
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "unknown_tag",
+    title = "Tag not in allowed list"
+)]
+#[label(
+    "Tag `{name}` not in allowed list",
+    tag_loc
+)]
+#[footer(note)]
+pub struct UnknownTag {
+    report: Report,
+    tag_loc: CodeLoc,
+    name: String,
+    note: Option<String>,
+}
+
+/// Tag does not match regex. This is only used if the compiler is configured to
+/// check for it (see: [`crate::linters::Tags`]).
+///
+/// ## Example
+///
+/// ```text
+/// warning[invalid_tag]: Tag `foo` does not match regex `bar`
+///  --> rules/test.yara:1:10
+///   |
+/// 1 | rule a : foo {
+///   |          --- tag `foo` does not match regex `bar`
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "invalid_tag",
+    title = "Tag `{name}` does not match regex `{regex}`"
+)]
+#[label(
+    "tag `{name}` does not match regex `{regex}`",
+    tag_loc
+)]
+pub struct InvalidTag {
+    report: Report,
+    tag_loc: CodeLoc,
+    name: String,
     regex: String,
 }
