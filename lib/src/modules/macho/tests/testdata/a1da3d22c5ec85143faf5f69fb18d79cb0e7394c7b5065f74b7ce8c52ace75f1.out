@@ -395,3 +395,6 @@ file:
             version: "760.0"
     exports:
       - "__mh_execute_header"
+    imports:
+      - "_CallComponentDispatch"
+      - "_OpenDefaultComponent"

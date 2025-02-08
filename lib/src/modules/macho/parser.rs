@@ -98,7 +98,7 @@ const LC_VERSION_MIN_TVOS: u32 = 0x0000002f;
 const LC_VERSION_MIN_WATCHOS: u32 = 0x00000030;
 const LC_BUILD_VERSION: u32 = 0x00000032;
 const LC_DYLD_EXPORTS_TRIE: u32 = 0x00000033 | LC_REQ_DYLD;
-const _LC_DYLD_CHAINED_FIXUPS: u32 = 0x00000034 | LC_REQ_DYLD;
+const LC_DYLD_CHAINED_FIXUPS: u32 = 0x00000034 | LC_REQ_DYLD;
 
 /// Mach-O CPU types
 const CPU_TYPE_MC680X0: u32 = 0x00000006;
@@ -299,6 +299,7 @@ impl<'a> MachO<'a> {
             linker_options: Vec::new(),
             dyld_info: None,
             dyld_export_trie: None,
+            dyld_chain_fixups: None,
             source_version: None,
             entry_point_offset: None,
             entry_point_rva: None,
@@ -398,25 +399,45 @@ impl<'a> MachO<'a> {
             }
         }
 
-        if let Some(ref dyld_info) = macho.dyld_info {
-            for (offset, size) in [
-                (dyld_info.bind_off, dyld_info.bind_size),
-                (dyld_info.lazy_bind_off, dyld_info.lazy_bind_size),
-                (dyld_info.weak_bind_off, dyld_info.weak_bind_size),
-            ] {
-                let offset = offset as usize;
-                let size = size as usize;
-                if let Some(import_data) =
-                    data.get(offset..offset.saturating_add(size))
-                {
-                    if let Err(_err) = macho.imports()(import_data) {
-                        #[cfg(feature = "logging")]
-                        error!("Error parsing Mach-O file: {:?}", _err);
-                        // fail silently if it fails, data was not formatted
-                        // correctly but parsing should still proceed for
-                        // everything else
-                    };
-                }
+        for (offset, size) in macho
+            .dyld_info
+            .as_ref()
+            .map(|i| {
+                [
+                    (i.bind_off as usize, i.bind_size as usize),
+                    (i.lazy_bind_off as usize, i.lazy_bind_size as usize),
+                    (i.weak_bind_off as usize, i.weak_bind_size as usize),
+                ]
+            })
+            .into_iter()
+            .flatten()
+        {
+            if let Some(import_data) =
+                data.get(offset..offset.saturating_add(size))
+            {
+                if let Err(_err) = macho.imports()(import_data) {
+                    #[cfg(feature = "logging")]
+                    error!("Error parsing Mach-O file: {:?}", _err);
+                    // fail silently if it fails, data was not formatted
+                    // correctly but parsing should still proceed for
+                    // everything else
+                };
+            }
+        }
+
+        if let Some(ref chained_fixups) = macho.dyld_chain_fixups {
+            let offset = chained_fixups.data_off as usize;
+            let size = chained_fixups.data_size as usize;
+            if let Some(fixup_data) =
+                data.get(offset..offset.saturating_add(size))
+            {
+                if let Err(_err) = macho.chained_fixups()(fixup_data) {
+                    #[cfg(feature = "logging")]
+                    error!("Error parsing Mach-O file: {:?}", _err);
+                    // fail silently if it fails, data was not formatted
+                    // correctly but parsing should still proceed for
+                    // everything else
+                };
             }
         }
 
@@ -437,6 +458,7 @@ pub struct MachOFile<'a> {
     dysymtab: Option<Dysymtab>,
     dyld_info: Option<DyldInfo>,
     dyld_export_trie: Option<DyldExportTrie>,
+    dyld_chain_fixups: Option<DyldChainFixups>,
     dynamic_linker: Option<&'a [u8]>,
     linker_options: Vec<&'a [u8]>,
     source_version: Option<String>,
@@ -597,6 +619,14 @@ impl<'a> MachOFile<'a> {
                     self.dyld_export_trie = Some(DyldExportTrie {
                         data_off: exports_data.dataoff,
                         data_size: exports_data.datasize,
+                    });
+                }
+                LC_DYLD_CHAINED_FIXUPS => {
+                    let (_, imports_data) =
+                        self.linkeditdata_command()(command_data)?;
+                    self.dyld_chain_fixups = Some(DyldChainFixups {
+                        data_off: imports_data.dataoff,
+                        data_size: imports_data.datasize,
                     });
                 }
                 LC_DYLD_INFO | LC_DYLD_INFO_ONLY => {
@@ -1172,6 +1202,86 @@ impl<'a> MachOFile<'a> {
         }
     }
 
+    /// Parser that parses the header for the chained fixups designated by LC_DYLD_CHAINED_FIXUPS.
+    fn chained_fixup_header(
+        &self,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ChainedFixupsHeader> + '_
+    {
+        map(
+            tuple((
+                u32(self.endianness), //  fixups_version
+                u32(self.endianness), //  starts_offset
+                u32(self.endianness), //  imports_offset
+                u32(self.endianness), //  symbols_offset
+                u32(self.endianness), //  imports_count
+                u32(self.endianness), //  imports_format
+                u32(self.endianness), //  symbols_format
+            )),
+            |(
+                fixups_version,
+                starts_offset,
+                imports_offset,
+                symbols_offset,
+                imports_count,
+                imports_format,
+                symbols_format,
+            )| {
+                ChainedFixupsHeader {
+                    _fixups_version: fixups_version,
+                    _starts_offset: starts_offset,
+                    imports_offset,
+                    symbols_offset,
+                    imports_count,
+                    _imports_format: imports_format,
+                    _symbols_format: symbols_format,
+                }
+            },
+        )
+    }
+
+    /// Parser that parses the chained fixup imports designated by LC_DYLD_CHAINED_FIXUPS.
+    fn chained_fixups(
+        &mut self,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u8> + '_ {
+        move |data: &'a [u8]| {
+            let (_, header) = self.chained_fixup_header()(data)?;
+
+            if let Some(import_data) =
+                data.get(header.imports_offset as usize..)
+            {
+                let mut remainder = import_data;
+                let mut chained_import_value: u32;
+
+                for _ in 0..header.imports_count {
+                    (remainder, chained_import_value) =
+                        u32(self.endianness)(remainder)?;
+
+                    let _lib_ordinal = chained_import_value & 0xff;
+                    let _import_kind = (chained_import_value >> 8) & 0x1;
+                    let name_offset = chained_import_value >> 9;
+
+                    if let Some(name_buffer) = data.get(
+                        header.symbols_offset.saturating_add(name_offset)
+                            as usize..,
+                    ) {
+                        let (_remainder, import_str) = map(
+                            tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
+                            |(s, _)| s,
+                        )(
+                            name_buffer
+                        )?;
+
+                        if let Ok(import) = import_str.to_str() {
+                            self.imports.push(import.to_string());
+                        }
+                    }
+                }
+            }
+
+            Ok((&[], 0))
+        }
+    }
+
     /// Parser that parses a LC_ID_DYLINKER, LC_LOAD_DYLINKER or
     /// LC_DYLD_ENVIRONMENT  command.
     fn dylinker_command(
@@ -1577,6 +1687,21 @@ struct DyldInfo {
 struct DyldExportTrie {
     data_off: u32,
     data_size: u32,
+}
+
+struct DyldChainFixups {
+    data_off: u32,
+    data_size: u32,
+}
+
+struct ChainedFixupsHeader {
+    _fixups_version: u32,
+    _starts_offset: u32,
+    imports_offset: u32,
+    symbols_offset: u32,
+    imports_count: u32,
+    _imports_format: u32,
+    _symbols_format: u32,
 }
 
 struct BuildVersionCommand {
