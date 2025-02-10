@@ -18,12 +18,9 @@ pub mod parser;
 
 #[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> Lnk {
-    match parser::LnkParser::new().parse(data) {
-        Ok(lnk) => lnk,
-        Err(_) => {
-            let mut lnk = Lnk::new();
-            lnk.is_lnk = Some(false);
-            lnk
-        }
-    }
+    parser::LnkParser::new().parse(data).unwrap_or_else(|_| {
+        let mut lnk = Lnk::new();
+        lnk.is_lnk = Some(false);
+        lnk
+    })
 }

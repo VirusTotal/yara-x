@@ -20,10 +20,7 @@ mod tests;
 
 #[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> ELF {
-    match parser::ElfParser::new().parse(data) {
-        Ok(elf) => elf,
-        Err(_) => ELF::new(),
-    }
+    parser::ElfParser::new().parse(data).unwrap_or_else(|_| ELF::new())
 }
 
 #[module_export]
