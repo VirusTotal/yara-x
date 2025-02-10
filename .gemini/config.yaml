@@ -1,0 +1,3 @@
+code_review:
+  disable: true
+  comment_severity_threshold: HIGH
