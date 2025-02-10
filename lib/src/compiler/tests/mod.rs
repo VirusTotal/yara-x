@@ -622,7 +622,7 @@ fn banned_modules() {
 #[test]
 fn linter_tag_list() {
     assert!(Compiler::new()
-        .add_linter(linters::Tags::from_list(vec![
+        .add_linter(linters::tags_allowed(vec![
             "foo".to_string(),
             "bar".to_string()
         ]))
@@ -636,7 +636,7 @@ fn linter_tag_list() {
     // This linter should return multiple warnings.
     assert_eq!(
         Compiler::new()
-            .add_linter(linters::Tags::from_list(vec![
+            .add_linter(linters::tags_allowed(vec![
                 "foo".to_string(),
                 "bar".to_string(),
             ]))
@@ -668,7 +668,7 @@ fn linter_tag_list() {
     // Only the first error should be reported.
     assert_eq!(
         Compiler::new()
-            .add_linter(linters::Tags::from_list(vec![
+            .add_linter(linters::tags_allowed(vec![
                 "foo".to_string(),
                 "bar".to_string(),
             ]).error(true))
@@ -689,7 +689,7 @@ fn linter_tag_list() {
 #[test]
 fn linter_tags_regexp() {
     assert!(Compiler::new()
-        .add_linter(linters::Tags::from_regex("^(foo|bar)").unwrap())
+        .add_linter(linters::tag_regex("^(foo|bar)").unwrap())
         .add_source(
             r#"rule test : foo1 bar2 { strings: $foo = "foo" condition: $foo }"#
         )
@@ -699,7 +699,7 @@ fn linter_tags_regexp() {
 
     assert_eq!(
         Compiler::new()
-            .add_linter(linters::Tags::from_regex("^(foo|bar)").unwrap())
+            .add_linter(linters::tag_regex("^(foo|bar)").unwrap())
             .add_source(
                 r#"rule test : baz blah { strings: $foo = "foo" condition: $foo }"#
             )
@@ -724,7 +724,7 @@ fn linter_tags_regexp() {
 
     assert_eq!(
         Compiler::new()
-            .add_linter(linters::Tags::from_regex("^(foo|bar)").unwrap().error(true))
+            .add_linter(linters::tag_regex("^(foo|bar)").unwrap().error(true))
             .add_source(
                 r#"rule test : baz blah { strings: $foo = "foo" condition: $foo }"#
             )
@@ -737,7 +737,7 @@ fn linter_tags_regexp() {
   |             ^^^ tag `baz` does not match regex `^(foo|bar)`
   |"#);
 
-    assert!(linters::Tags::from_regex("(AXS|ERS").is_err());
+    assert!(linters::tag_regex("(AXS|ERS").is_err());
 }
 
 #[test]

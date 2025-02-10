@@ -185,7 +185,7 @@ pub fn exec_check(
             // Prefer allowed list over the regex, as it is more explicit.
             if !config.tags.allowed.is_empty() {
                 compiler.add_linter(
-                    linters::Tags::from_list(config.tags.allowed.clone())
+                    linters::tags_allowed(config.tags.allowed.clone())
                     .error(config.tags.error));
             } else if let Some(re) = config
                 .tags
@@ -193,7 +193,7 @@ pub fn exec_check(
                 .as_ref()
                 .filter(|re| !re.is_empty()) {
                 compiler.add_linter(
-                    linters::Tags::from_regex(re)?.error(config.tags.error)
+                    linters::tag_regex(re)?.error(config.tags.error)
                 );
             }
 

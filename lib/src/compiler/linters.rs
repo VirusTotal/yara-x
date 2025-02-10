@@ -123,7 +123,7 @@ type Predicate<'a> = dyn Fn(&Meta) -> bool + 'a;
 /// use yara_x::linters;
 /// let mut compiler = Compiler::new();
 /// let warnings = compiler
-///     .add_linter(linters::Tags::from_list(vec!["foo".to_string(), "bar".to_string()]))
+///     .add_linter(linters::tags_allowed(vec!["foo".to_string(), "bar".to_string()]))
 ///     // This produces a warning because the rule tags are not from the
 ///     // allowed list
 ///     .add_source(r#"rule foo : test { strings: $foo = "foo" condition: $foo }"#)
@@ -148,7 +148,7 @@ pub struct Tags {
 
 impl Tags {
     /// A list of strings that tags for each rule must match one of.
-    pub fn from_list(list: Vec<String>) -> Self {
+    pub(crate) fn from_list(list: Vec<String>) -> Self {
         Self {
             allow_list: list,
             regex: "".to_owned(),
@@ -158,7 +158,7 @@ impl Tags {
     }
 
     /// Regular expression that tags for each rule must match.
-    pub fn from_regex<R: Into<String>>(
+    pub(crate) fn from_regex<R: Into<String>>(
         regex: R,
     ) -> Result<Self, regex::Error> {
         let regex = regex.into();
@@ -424,6 +424,17 @@ impl LinterInternal for Metadata<'_> {
 
         LinterResult::Ok
     }
+}
+
+/// Creates a tag linter from a list of allowed tags.
+pub fn tags_allowed(list: Vec<String>) -> Tags {
+    Tags::from_list(list)
+}
+
+/// Creates a tag linter that makes sure that each tag matches the given regular
+/// expression.
+pub fn tag_regex<R: Into<String>>(regex: R) -> Result<Tags, Error> {
+    Tags::from_regex(regex)
 }
 
 /// Creates a linter that validates metadata entries.
