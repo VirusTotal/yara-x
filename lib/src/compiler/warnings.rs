@@ -578,7 +578,7 @@ pub struct InvalidRuleName {
     title = "Tag not in allowed list"
 )]
 #[label(
-    "Tag `{name}` not in allowed list",
+    "tag `{name}` not in allowed list",
     tag_loc
 )]
 #[footer(note)]

@@ -136,7 +136,7 @@ type Predicate<'a> = dyn Fn(&Meta) -> bool + 'a;
 ///  --> line:1:12
 ///   |
 /// 1 | rule foo : test { strings: $foo = "foo" condition: $foo }
-///   |            ---- Tag `test` not in allowed list
+///   |            ---- tag `test` not in allowed list
 ///   |
 ///   = note: Allowed tags: foo, bar"#);
 pub struct Tags {
