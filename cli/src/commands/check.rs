@@ -201,17 +201,14 @@ pub fn exec_check(
 
             match compiler.add_source(src) {
                 Ok(compiler) => {
-                    if compiler.warnings().is_empty() &&
-                        compiler.linter_errors().is_empty() {
+                    if compiler.warnings().is_empty() {
                         state.files_passed.fetch_add(1, Ordering::Relaxed);
                         lines.push(format!(
                             "[ {} ] {}",
                             "PASS".paint(Green).bold(),
                             file_path.display()
                         ));
-                    }
-
-                    if !compiler.warnings().is_empty() {
+                    } else {
                         state.warnings.fetch_add(
                             compiler.warnings().len(),
                             Ordering::Relaxed,
@@ -223,21 +220,6 @@ pub fn exec_check(
                         ));
                         for warning in compiler.warnings() {
                             eprintln!("{}", warning);
-                        }
-                    }
-
-                    if !compiler.linter_errors().is_empty() {
-                        state.errors.fetch_add(
-                            compiler.linter_errors().len(),
-                            Ordering::Relaxed,
-                        );
-                        lines.push(format!(
-                            "[ {} ] {}",
-                            "ERROR".paint(Red).bold(),
-                            file_path.display()
-                        ));
-                        for err in compiler.linter_errors() {
-                            eprintln!("{}", err);
                         }
                     }
                 }

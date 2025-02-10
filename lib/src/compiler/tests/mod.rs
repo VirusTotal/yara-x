@@ -655,17 +655,14 @@ fn linter_rule_name() {
         Compiler::new()
             .add_linter(linters::rule_name("r_.+").unwrap().error(true))
             .add_source(r#"rule foo { condition: true }"#)
-            .unwrap()
-            .linter_errors()
-            .iter()
-            .map(|w| w.to_string())
-            .collect::<Vec<_>>(),
-        &[r#"error[E039]: rule name does not match regex `r_.+`
+            .expect_err("expected error")
+            .to_string(),
+        "error[E039]: rule name does not match regex `r_.+`
  --> line:1:6
   |
 1 | rule foo { condition: true }
   |      ^^^ this rule name does not match regex `r_.+`
-  |"#]
+  |"
     );
 
     assert!(linters::rule_name("(AXS|ERS").is_err());
@@ -703,17 +700,14 @@ fn linter_required_metadata() {
         Compiler::new()
             .add_linter(linters::metadata("author").required(true).error(true))
             .add_source(r#"rule foo { condition: true }"#)
-            .unwrap()
-            .linter_errors()
-            .iter()
-            .map(|w| w.to_string())
-            .collect::<Vec<_>>(),
-        &[r#"error[E038]: required metadata is missing
+            .expect_err("expected error")
+            .to_string(),
+        "error[E038]: required metadata is missing
  --> line:1:6
   |
 1 | rule foo { condition: true }
   |      ^^^ required metadata `author` not found
-  |"#]
+  |"
     );
 }
 
