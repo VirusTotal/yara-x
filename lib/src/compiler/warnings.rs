@@ -563,11 +563,11 @@ pub struct InvalidRuleName {
 /// ## Example
 ///
 /// ```text
-/// warning[unknown_tag]: Tag not in allowed list
+/// warning[unknown_tag]: tag not in allowed list
 ///  --> rules/test.yara:1:10
 ///   |
 /// 1 | rule a : foo {
-///   |          --- Tag `foo` not in allowed list
+///   |          --- tag `foo` not in allowed list
 ///   |
 ///   = note: Allowed tags: test, bar
 /// ```
@@ -575,7 +575,7 @@ pub struct InvalidRuleName {
 #[associated_enum(Warning)]
 #[warning(
     code = "unknown_tag",
-    title = "Tag not in allowed list"
+    title = "tag not in allowed list"
 )]
 #[label(
     "tag `{name}` not in allowed list",
@@ -595,7 +595,7 @@ pub struct UnknownTag {
 /// ## Example
 ///
 /// ```text
-/// warning[invalid_tag]: Tag `foo` does not match regex `bar`
+/// warning[invalid_tag]: tag `foo` does not match regex `bar`
 ///  --> rules/test.yara:1:10
 ///   |
 /// 1 | rule a : foo {
@@ -606,7 +606,7 @@ pub struct UnknownTag {
 #[associated_enum(Warning)]
 #[warning(
     code = "invalid_tag",
-    title = "Tag `{name}` does not match regex `{regex}`"
+    title = "tag `{name}` does not match regex `{regex}`"
 )]
 #[label(
     "tag `{name}` does not match regex `{regex}`",

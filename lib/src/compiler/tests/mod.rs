@@ -648,20 +648,20 @@ fn linter_tag_list() {
             .iter()
             .map(|w| w.to_string())
             .collect::<Vec<_>>(),
-        &[r#"warning[unknown_tag]: Tag not in allowed list
+        &[r#"warning[unknown_tag]: tag not in allowed list
  --> line:1:13
   |
 1 | rule test : axs ers { strings: $foo = "foo" condition: $foo }
   |             --- tag `axs` not in allowed list
   |
-  = note: Allowed tags: foo, bar"#,
-             r#"warning[unknown_tag]: Tag not in allowed list
+  = note: allowed tags: foo, bar"#,
+             r#"warning[unknown_tag]: tag not in allowed list
  --> line:1:17
   |
 1 | rule test : axs ers { strings: $foo = "foo" condition: $foo }
   |                 --- tag `ers` not in allowed list
   |
-  = note: Allowed tags: foo, bar"#,
+  = note: allowed tags: foo, bar"#,
         ]
     );
 
@@ -677,13 +677,13 @@ fn linter_tag_list() {
             )
             .expect_err("expected error")
             .to_string(),
-        r#"error[E040]: Tag not in allowed list
+        r#"error[E040]: tag not in allowed list
  --> line:1:13
   |
 1 | rule test : axs ers { strings: $foo = "foo" condition: $foo }
   |             ^^^ tag `axs` not in allowed list
   |
-  = note: Allowed tags: foo, bar"#);
+  = note: allowed tags: foo, bar"#);
 }
 
 #[test]
@@ -708,13 +708,13 @@ fn linter_tags_regexp() {
             .iter()
             .map(|w| w.to_string())
             .collect::<Vec<_>>(),
-        &[r#"warning[invalid_tag]: Tag `baz` does not match regex `^(foo|bar)`
+        &[r#"warning[invalid_tag]: tag `baz` does not match regex `^(foo|bar)`
  --> line:1:13
   |
 1 | rule test : baz blah { strings: $foo = "foo" condition: $foo }
   |             --- tag `baz` does not match regex `^(foo|bar)`
   |"#,
-       r#"warning[invalid_tag]: Tag `blah` does not match regex `^(foo|bar)`
+       r#"warning[invalid_tag]: tag `blah` does not match regex `^(foo|bar)`
  --> line:1:17
   |
 1 | rule test : baz blah { strings: $foo = "foo" condition: $foo }
@@ -730,7 +730,7 @@ fn linter_tags_regexp() {
             )
             .expect_err("expected error")
             .to_string(),
-        r#"error[E041]: Tag does not match regex `^(foo|bar)`
+        r#"error[E041]: tag does not match regex `^(foo|bar)`
  --> line:1:13
   |
 1 | rule test : baz blah { strings: $foo = "foo" condition: $foo }

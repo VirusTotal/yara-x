@@ -132,16 +132,16 @@ type Predicate<'a> = dyn Fn(&Meta) -> bool + 'a;
 ///
 /// assert_eq!(
 ///     warnings[0].to_string(),
-///     r#"warning[unknown_tag]: Tag not in allowed list
+///     r#"warning[unknown_tag]: tag not in allowed list
 ///  --> line:1:12
 ///   |
 /// 1 | rule foo : test { strings: $foo = "foo" condition: $foo }
 ///   |            ---- tag `test` not in allowed list
 ///   |
-///   = note: Allowed tags: foo, bar"#);
+///   = note: allowed tags: foo, bar"#);
 pub struct Tags {
     allow_list: Vec<String>,
-    regex: String,
+    regex: Option<String>,
     compiled_regex: Option<Regex>,
     error: bool,
 }
@@ -151,7 +151,7 @@ impl Tags {
     pub(crate) fn from_list(list: Vec<String>) -> Self {
         Self {
             allow_list: list,
-            regex: "".to_owned(),
+            regex: None,
             compiled_regex: None,
             error: false,
         }
@@ -165,7 +165,7 @@ impl Tags {
         let compiled_regex = Some(Regex::new(regex.as_str())?);
         let tags = Self {
             allow_list: Vec::new(),
-            regex,
+            regex: Some(regex),
             compiled_regex,
             error: false,
         };
@@ -175,8 +175,8 @@ impl Tags {
     /// Specifies whether the linter should produce an error instead of a
     /// warning.
     ///
-    /// By default, the linter raises warnings about rule names that don't match
-    /// the regular expression. This setting allows turning such warnings into
+    /// By default, the linter raises warnings about tags that don't match the
+    /// regular expression. This setting allows turning such warnings into
     /// errors.
     pub fn error(mut self, yes: bool) -> Self {
         self.error = yes;
@@ -205,7 +205,7 @@ impl LinterInternal for Tags {
                             tag.span().into(),
                             tag.name.to_string(),
                             Some(format!(
-                                "Allowed tags: {}",
+                                "allowed tags: {}",
                                 self.allow_list.join(", ")
                             )),
                         ));
@@ -215,7 +215,7 @@ impl LinterInternal for Tags {
                             tag.span().into(),
                             tag.name.to_string(),
                             Some(format!(
-                                "Allowed tags: {}",
+                                "allowed tags: {}",
                                 self.allow_list.join(", ")
                             )),
                         ));
@@ -232,14 +232,14 @@ impl LinterInternal for Tags {
                             report_builder,
                             tag.span().into(),
                             tag.name.to_string(),
-                            self.regex.clone(),
+                            self.regex.as_ref().unwrap().clone(),
                         ));
                     } else {
                         results.push(warnings::InvalidTag::build(
                             report_builder,
                             tag.span().into(),
                             tag.name.to_string(),
-                            self.regex.clone(),
+                            self.regex.as_ref().unwrap().clone(),
                         ));
                     }
                 }
@@ -249,8 +249,8 @@ impl LinterInternal for Tags {
         return if results.is_empty() {
             LinterResult::Ok
         } else {
-            return LinterResult::Warns(results);
-        };
+            LinterResult::Warns(results)
+        }
     }
 }
 
