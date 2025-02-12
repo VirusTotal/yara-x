@@ -1189,6 +1189,11 @@ impl Compiler<'_> {
                 LinterResult::Warn(warning) => {
                     self.warnings.add(|| warning);
                 }
+                LinterResult::Warns(warnings) => {
+                    for warning in warnings {
+                        self.warnings.add(|| warning);
+                    }
+                }
                 LinterResult::Err(err) => return Err(err),
             }
         }

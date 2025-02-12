@@ -69,30 +69,47 @@ pub enum MetaValueType {
     Hash,
 }
 
-/// Format specific configuration information.
+/// Linter specific configuration information.
 #[derive(Deserialize, Serialize, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct CheckConfig {
-    /// Meta specific formatting information.
+    /// Meta specific linting information.
     // Note: Using a BTreeMap here because we want a consistent ordering when
     // we iterate over it, so that warnings always appear in the same order.
     pub metadata: BTreeMap<String, MetadataConfig>,
-    /// Rule name formatting information.
+    /// Rule name linting information.
     pub rule_name: RuleNameConfig,
+    /// Tag linting information.
+    pub tags: TagConfig,
 }
 
-/// Format specific configuration information.
+/// Allowed tag names in the linter.
 #[derive(Deserialize, Serialize, Debug, Default)]
 #[serde(deny_unknown_fields)]
-pub struct RuleNameConfig {
-    /// Regexp used to validate the rule name.
+pub struct TagConfig {
+    /// List of allowed tags.
+    pub allowed: Vec<String>,
+    /// Regexp that must match all tags.
     pub regexp: Option<String>,
-    /// If `true`, an incorrect rule anme will raise an error instead of a
+    /// If `true`, an incorrect tag name will raise an error instead of a
     /// warning.
     #[serde(default)]
     pub error: bool,
 }
 
+/// Rule name linter specific configuration information.
+#[derive(Deserialize, Serialize, Debug, Default)]
+#[serde(deny_unknown_fields)]
+pub struct RuleNameConfig {
+    /// Regexp used to validate the rule name.
+    pub regexp: Option<String>,
+    /// If `true`, an incorrect rule name will raise an error instead of a
+    /// warning.
+    #[serde(default)]
+    pub error: bool,
+}
+
+///  Metadata linter specific configuration information.
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct MetadataConfig {
