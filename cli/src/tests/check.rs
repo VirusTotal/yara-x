@@ -153,7 +153,7 @@ fn check_rule_name_error() {
         .success()
         .stdout(
             r#"[ FAIL ] src/tests/testdata/foo.yar
-error[E038]: rule name does not match regex `APT_.+`
+error[E039]: rule name does not match regex `APT_.+`
  --> src/tests/testdata/foo.yar:1:6
   |
 1 | rule foo : bar baz {
