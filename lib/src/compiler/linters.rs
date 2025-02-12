@@ -246,7 +246,7 @@ impl LinterInternal for Tags {
             }
         }
 
-        return if results.is_empty() {
+        if results.is_empty() {
             LinterResult::Ok
         } else {
             LinterResult::Warns(results)
