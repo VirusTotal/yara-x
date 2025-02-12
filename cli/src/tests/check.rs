@@ -187,7 +187,7 @@ fn config_error() {
         .failure()
         .stderr(
             predicate::str::contains(
-                r#"error: unknown field: found `foo`, expected ``metadata` or `rule_name`` for key "default.check.foo""#,
+                r#"error: unknown field: found `foo`, expected `one of `metadata`, `rule_name`, `tags`` for key "default.check.foo""#,
             )
         );
 }
