@@ -1,13 +1,13 @@
 RULE test_1
-  23: FOR_IN -- hash: 0x48f0a7bce7036e6f -- parent: None 
+  23: FOR_IN -- hash: 0xef4c0b57ba1aaa76 -- parent: None 
     0: CONST integer(0) -- parent: 23 
     1: CONST integer(1) -- parent: 23 
-    22: EQ -- hash: 0xdead7722f1c20b78 -- parent: 23 
-      20: FIELD_ACCESS -- hash: 0xf7151396a0669643 -- parent: 22 
-        16: LOOKUP -- hash: 0xb48de51754ce4c4e -- parent: 20 
-          14: FIELD_ACCESS -- hash: 0xa67f64b2db1d0351 -- parent: 16 
+    22: EQ -- hash: 0x8508dabdc4d94780 -- parent: 23 
+      20: FIELD_ACCESS -- hash: 0xadbe6fb45c7e355b -- parent: 22 
+        16: LOOKUP -- hash: 0x992444e3cb9cae7d -- parent: 20 
+          14: FIELD_ACCESS -- hash: 0x5952db4df4ae45cd -- parent: 16 
             12: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 14 
-            13: SYMBOL Field { index: 48, is_root: false, type_value: array, acl: None } -- parent: 14 
+            13: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None } -- parent: 14 
           15: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 16 
         19: LOOKUP -- hash: 0x7132a2dfe7856f7e -- parent: 20 
           17: SYMBOL Field { index: 6, is_root: false, type_value: array, acl: None } -- parent: 19 
@@ -24,10 +24,10 @@ RULE test_2
         7: CONST integer(0) -- parent: 8 
 
 RULE test_3
-  20: WITH -- hash: 0x316c3230beeddd8 -- parent: None 
-    19: FIELD_ACCESS -- hash: 0x43469e515d62ee0d -- parent: 20 
+  20: WITH -- hash: 0xc1bad2f741f01a8e -- parent: None 
+    19: FIELD_ACCESS -- hash: 0xce9a3bd1f5fa7c6f -- parent: 20 
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 19 
-      1: SYMBOL Field { index: 43, is_root: false, type_value: struct, acl: None } -- parent: 19 
+      1: SYMBOL Field { index: 44, is_root: false, type_value: struct, acl: None } -- parent: 19 
       2: SYMBOL Field { index: 5, is_root: false, type_value: string(unknown), acl: None } -- parent: 19 
     22: WITH -- hash: 0x223324aab6fa61e6 -- parent: 20 
       21: CONTAINS -- hash: 0x9ad97bd14a82bbde -- parent: 22 

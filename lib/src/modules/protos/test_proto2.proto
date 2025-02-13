@@ -142,7 +142,8 @@ message TestProto2 {
 
   required bytes              bytes_foo = 64;
   required bytes              bytes_bar = 65;
-  optional bytes              bytes_undef = 66;
+  required bytes              bytes_raw = 66;
+  optional bytes              bytes_undef = 67;
 
   enum Enumeration {
     ITEM_0 = 0;

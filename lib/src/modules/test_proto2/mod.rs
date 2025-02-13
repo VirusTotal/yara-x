@@ -115,11 +115,14 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> TestProto2 {
     test.set_float_one(1.0);
     test.set_double_one(1.0);
 
-    test.set_string_foo("foo".to_string());
-    test.set_string_bar("bar".to_string());
+    test.set_string_foo("foo".into());
+    test.set_string_bar("bar".into());
 
-    test.set_bytes_foo("foo".as_bytes().to_vec());
-    test.set_bytes_bar("bar".as_bytes().to_vec());
+    test.set_bytes_foo("foo".into());
+    test.set_bytes_bar("bar".into());
+    test.set_bytes_raw(
+        b"\xfc\x48\x83\xe4\xf0\xeb\x33\x5d\x8b\x45\x00\x48".into(),
+    );
 
     test.set_bool_proto(true);
     test.set_file_size(data.len() as u64);
@@ -135,9 +138,9 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> TestProto2 {
     test.array_bool.push(false);
     test.array_bool.push(true);
 
-    test.array_string.push("foo".to_string());
-    test.array_string.push("bar".to_string());
-    test.array_string.push("baz".to_string());
+    test.array_string.push("foo".into());
+    test.array_string.push("bar".into());
+    test.array_string.push("baz".into());
 
     let mut nested = NestedProto2::new();
 
@@ -146,7 +149,7 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> TestProto2 {
     nested.set_nested_int32_one(1);
     nested.set_nested_int64_one(1);
     nested.set_nested_bool(false);
-    nested.set_nested_string("foo".to_string());
+    nested.set_nested_string("foo".into());
 
     nested.nested_array_int64.push(1);
     nested.nested_array_int64.push(10);
@@ -154,16 +157,16 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> TestProto2 {
 
     test.nested = Some(nested.clone()).into();
 
-    test.map_string_struct.insert("foo".to_string(), nested.clone());
-    test.map_string_int64.insert("one".to_string(), 1);
-    test.map_string_float.insert("one".to_string(), 1.0);
-    test.map_string_string.insert("foo".to_string(), "FOO".to_string());
-    test.map_string_bool.insert("foo".to_string(), true);
+    test.map_string_struct.insert("foo".into(), nested.clone());
+    test.map_string_int64.insert("one".into(), 1);
+    test.map_string_float.insert("one".into(), 1.0);
+    test.map_string_string.insert("foo".into(), "FOO".into());
+    test.map_string_bool.insert("foo".into(), true);
 
     test.map_int64_struct.insert(100, nested.clone());
     test.map_int64_int64.insert(100, 1000);
     test.map_int64_float.insert(100, 1000.0);
-    test.map_int64_string.insert(100, "one thousand".to_string());
+    test.map_int64_string.insert(100, "one thousand".into());
     test.map_int64_bool.insert(100, true);
 
     test.array_struct.push(nested.clone());

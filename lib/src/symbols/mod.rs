@@ -393,11 +393,12 @@ mod tests {
         test.set_float_one(1.0);
         test.set_double_one(1.0);
 
-        test.set_string_foo("foo".to_string());
-        test.set_string_bar("bar".to_string());
+        test.set_string_foo("foo".into());
+        test.set_string_bar("bar".into());
 
-        test.set_bytes_foo("foo".as_bytes().to_vec());
-        test.set_bytes_bar("bar".as_bytes().to_vec());
+        test.set_bytes_foo("foo".into());
+        test.set_bytes_bar("bar".into());
+        test.set_bytes_raw(b"\x00\x02".into());
 
         nested.set_nested_int32_zero(0);
 

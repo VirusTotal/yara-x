@@ -64,6 +64,14 @@ fn test_proto2_module() {
     condition_true!(r#"test_proto2.string_bar istartswith "BAR""#);
     condition_true!(r#"test_proto2.string_bar iequals "BAR""#);
 
+    condition_true!(r#"test_proto2.bytes_foo == test_proto2.string_foo"#);
+
+    condition_true!(
+        r#"test_proto2.bytes_raw == "\xfc\x48\x83\xe4\xf0\xeb\x33\x5d\x8b\x45\x00\x48""#
+    );
+
+    condition_true!(r#"test_proto2.bytes_raw contains "\x33\x5d\x8b\x45""#);
+
     condition_true!(r#"test_proto2.array_int64[0] == 1"#);
     condition_true!(r#"test_proto2.array_int64[1] == 10"#);
     condition_true!(r#"test_proto2.array_int64[2] == 100"#);

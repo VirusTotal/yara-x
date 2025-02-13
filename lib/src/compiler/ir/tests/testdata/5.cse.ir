@@ -1,8 +1,8 @@
 RULE test_1
-  69: WITH -- hash: 0xcfe49578803d1831 -- parent: None 
-    68: FIELD_ACCESS -- hash: 0xa67f64b2db1d0351 -- parent: 69 
+  69: WITH -- hash: 0xfad2dd320d057d12 -- parent: None 
+    68: FIELD_ACCESS -- hash: 0x5952db4df4ae45cd -- parent: 69 
       8: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 68 
-      9: SYMBOL Field { index: 48, is_root: false, type_value: array, acl: None } -- parent: 68 
+      9: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None } -- parent: 68 
     67: AND -- hash: 0x73294bea9093e7ae -- parent: 69 
       16: EQ -- hash: 0x256dc98f789f4952 -- parent: 67 
         14: FIELD_ACCESS -- hash: 0xb513a8ffabb476cb -- parent: 16 
@@ -33,10 +33,10 @@ RULE test_1
         65: CONST integer(1) -- parent: 66 
 
 RULE test_2
-  69: WITH -- hash: 0xa669831f2631995c -- parent: None 
-    68: FIELD_ACCESS -- hash: 0xa67f64b2db1d0351 -- parent: 69 
+  69: WITH -- hash: 0xd157cad8b309fe3d -- parent: None 
+    68: FIELD_ACCESS -- hash: 0x5952db4df4ae45cd -- parent: 69 
       16: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 68 
-      17: SYMBOL Field { index: 48, is_root: false, type_value: array, acl: None } -- parent: 68 
+      17: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None } -- parent: 68 
     67: AND -- hash: 0x49ae3991369868d9 -- parent: 69 
       32: EQ -- hash: 0x756c0a84b2c517e7 -- parent: 67 
         30: ADD -- hash: 0x2d23164c3b9f7c9d -- parent: 32 
@@ -67,10 +67,10 @@ RULE test_2
         65: CONST integer(1) -- parent: 66 
 
 RULE test_3
-  55: WITH -- hash: 0xeaaab4cb7a34960b -- parent: None 
-    2: FIELD_ACCESS -- hash: 0xa67f64b2db1d0351 -- parent: 55 
+  55: WITH -- hash: 0x1598fc85070cfaed -- parent: None 
+    2: FIELD_ACCESS -- hash: 0x5952db4df4ae45cd -- parent: 55 
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 2 
-      1: SYMBOL Field { index: 48, is_root: false, type_value: array, acl: None } -- parent: 2 
+      1: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None } -- parent: 2 
     54: AND -- hash: 0x8def6b3d8a9b6588 -- parent: 55 
       27: EQ -- hash: 0x848b3d8e72292fb5 -- parent: 54 
         25: ADD -- hash: 0x5d560631c0f8397f -- parent: 27 
