@@ -244,20 +244,23 @@ where
                     .with_origin(file_path.as_os_str().to_str().unwrap());
 
                 if args.get_flag("path-as-namespace") {
-                    compiler
-                        .new_namespace(file_path.to_string_lossy().as_ref());
+                    compiler.new_namespace(file_path.to_string_lossy().as_ref());
                 }
 
-                let _ = compiler.add_source(src);
+                // Capture compilation errors to avoid affecting the entire process
+                match compiler.add_source(src) {
+                    Ok(_) => {
+                        state.num_compiled_files =
+                            state.num_compiled_files.saturating_add(1);
+                    }
+                    Err(err) => {
+                        eprintln!("Failed to compile `{}`: {}", file_path.display(), err);
+                    }
+                }
 
                 state.file_in_progress = None;
-
-                state.num_compiled_files =
-                    state.num_compiled_files.saturating_add(1);
-
                 Ok(())
             },
-            // Any error occurred during walk is aborts the walk.
             Err,
         ) {
             if let Some(console) = console {
@@ -271,21 +274,18 @@ where
         console.finalize(&state)?;
     }
 
-    for error in compiler.errors() {
-        eprintln!("{}", error);
-    }
-
     for warning in compiler.warnings() {
         eprintln!("{}", warning);
     }
 
-    if !compiler.errors().is_empty() {
-        bail!("{} errors found", compiler.errors().len());
-    }
-
     let rules = compiler.build();
 
+    if state.num_compiled_files == 0 {
+        bail!("No valid YARA rules compiled.");
+    }
+
     Ok(rules)
+
 }
 
 struct CompileState {
