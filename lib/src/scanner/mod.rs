@@ -18,8 +18,8 @@ use std::time::Duration;
 use std::{cmp, fs, thread};
 
 use bitvec::prelude::*;
-use fmmap::{MmapFile, MmapFileExt};
 use indexmap::IndexMap;
+use memmap2::{Mmap, MmapOptions};
 use protobuf::{CodedInputStream, MessageDyn};
 use rustc_hash::{FxHashMap, FxHashSet};
 use thiserror::Error;
@@ -68,7 +68,7 @@ pub enum ScanError {
         /// Path of the file being scanned.
         path: PathBuf,
         /// Error that occurred.
-        source: fmmap::error::Error,
+        source: std::io::Error,
     },
     /// Could not deserialize the protobuf message for some YARA module.
     #[error("can not deserialize protobuf message for YARA module `{module}`: {err}")]
@@ -97,7 +97,7 @@ static INIT_HEARTBEAT: Once = Once::new();
 pub enum ScannedData<'a> {
     Slice(&'a [u8]),
     Vec(Vec<u8>),
-    Mmap(MmapFile),
+    Mmap(Mmap),
 }
 
 impl AsRef<[u8]> for ScannedData<'_> {
@@ -105,7 +105,7 @@ impl AsRef<[u8]> for ScannedData<'_> {
         match self {
             ScannedData::Slice(s) => s,
             ScannedData::Vec(v) => v.as_ref(),
-            ScannedData::Mmap(m) => m.as_slice(),
+            ScannedData::Mmap(m) => m.as_ref(),
         }
     }
 }
@@ -569,9 +569,14 @@ impl<'r> Scanner<'r> {
             })?;
             ScannedData::Vec(buffered_file)
         } else {
-            mapped_file = MmapFile::open(path).map_err(|err| {
-                ScanError::MapError { path: path.to_path_buf(), source: err }
-            })?;
+            mapped_file = unsafe {
+                MmapOptions::new().map(&file).map_err(|err| {
+                    ScanError::MapError {
+                        path: path.to_path_buf(),
+                        source: err,
+                    }
+                })
+            }?;
             ScannedData::Mmap(mapped_file)
         };
 
