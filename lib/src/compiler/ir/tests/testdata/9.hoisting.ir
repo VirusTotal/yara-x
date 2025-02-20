@@ -1,23 +1,23 @@
 RULE test_1
-  11: AND -- hash: 0xc2a770f728278b62 -- parent: None 
-    0: PATTERN_MATCH PatternIdx(0) -- hash: 0x33ca4b577a0ea8af -- parent: 11 
-    5: EQ -- hash: 0xe037667fbed74cb4 -- parent: 11 
-      3: PATTERN_COUNT PatternIdx(0) -- hash: 0x2706f00cf1a9933a -- parent: 5 
+  11: AND -- hash: 0xa9dc3dca09e2d8b0 -- parent: None 
+    0: PATTERN_MATCH PatternIdx(0) -- hash: 0xf292d5de83aa2bcc -- parent: 11 
+    5: EQ -- hash: 0xdd99fefb5d32d38 -- parent: 11 
+      3: PATTERN_COUNT PatternIdx(0) -- hash: 0xc1bc033c6a64ce89 -- parent: 5 
       4: CONST integer(1) -- parent: 5 
-    10: EQ -- hash: 0xfac13fee1024fdba -- parent: 11 
-      8: PATTERN_OFFSET PatternIdx(0) -- hash: 0x1a4394c269447dc5 -- parent: 10 
+    10: EQ -- hash: 0xb04ffb84093f6ebe -- parent: 11 
+      8: PATTERN_OFFSET PatternIdx(0) -- hash: 0x90e5309a511f7146 -- parent: 10 
       9: CONST integer(0) -- parent: 10 
 
 RULE test_2
-  1: PATTERN_MATCH PatternIdx(0) AT -- hash: 0x6c1af84ea5255e33 -- parent: None 
+  1: PATTERN_MATCH PatternIdx(0) AT -- hash: 0x6be13a949578cdb -- parent: None 
     0: CONST integer(0) -- parent: 1 
 
 RULE test_3
-  6: FOR_OF -- hash: 0x6757d113ddb8b088 -- parent: None 
-    5: OR -- hash: 0xcc445c4db8b32aa4 -- parent: 6 
-      1: PATTERN_MATCH Var { var: Var { frame_id: 1, ty: integer, index: 4 }, type_value: integer(unknown) } AT -- hash: 0xa701186afbdbc10d -- parent: 5 
+  6: FOR_OF -- hash: 0xd5f444f76e2c2219 -- parent: None 
+    5: OR -- hash: 0x1117136e2ccaa933 -- parent: 6 
+      1: PATTERN_MATCH Var { var: Var { frame_id: 1, ty: integer, index: 4 }, type_value: integer(unknown) } AT -- hash: 0xc0461abef6f04369 -- parent: 5 
         0: CONST integer(0) -- parent: 1 
-      4: GT -- hash: 0xb49e5d335feb77cf -- parent: 5 
-        2: PATTERN_COUNT Var { var: Var { frame_id: 1, ty: integer, index: 4 }, type_value: integer(unknown) } -- hash: 0xd2940cad4d24a56 -- parent: 4 
+      4: GT -- hash: 0x27974cd7faddf3ed -- parent: 5 
+        2: PATTERN_COUNT Var { var: Var { frame_id: 1, ty: integer, index: 4 }, type_value: integer(unknown) } -- hash: 0x4a5032b534929583 -- parent: 4 
         3: CONST integer(0) -- parent: 4 
 

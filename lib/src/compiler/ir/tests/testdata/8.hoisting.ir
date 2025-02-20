@@ -1,29 +1,29 @@
 RULE test_1
-  18: FOR_IN -- hash: 0x25212bbf4a953317 -- parent: None 
+  18: FOR_IN -- hash: 0x484aefd2a54cc5c9 -- parent: None 
     0: CONST integer(0) -- parent: 18 
     1: CONST integer(1) -- parent: 18 
-    20: WITH -- hash: 0x577d7cea98594de4 -- parent: 18 
-      19: MUL -- hash: 0x2cb822013d7bc775 -- parent: 20 
-        12: ADD -- hash: 0xaa6ef31fb0888f3e -- parent: 19 
+    20: WITH -- hash: 0xdf5f3aa616537915 -- parent: 18 
+      19: MUL -- hash: 0x2e08804f5ef1dd4b -- parent: 20 
+        12: ADD -- hash: 0x9bbcc7ec2223cfaa -- parent: 19 
           10: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 12 
           11: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 12 
         13: CONST integer(2) -- parent: 19 
-      17: FOR_IN -- hash: 0x1dfb104be419f31f -- parent: 20 
+      17: FOR_IN -- hash: 0x7ec412f9067cc7c7 -- parent: 20 
         2: CONST integer(0) -- parent: 17 
         3: CONST integer(1) -- parent: 17 
-        16: EQ -- hash: 0x24701dbed5da11dd -- parent: 17 
+        16: EQ -- hash: 0x1c076fb576847749 -- parent: 17 
           14: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 7 }, type_value: integer(unknown) } -- parent: 16 
           15: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 13 }, type_value: integer(unknown) } -- parent: 16 
 
 RULE test_2
-  14: FOR_IN -- hash: 0x68f6d372c2eb9908 -- parent: None 
+  14: FOR_IN -- hash: 0x3db4dcb0bae6421a -- parent: None 
     0: CONST integer(0) -- parent: 14 
     1: CONST integer(1) -- parent: 14 
-    13: FOR_IN -- hash: 0xcd944daa44ab7663 -- parent: 14 
+    13: FOR_IN -- hash: 0x65136a912add98f3 -- parent: 14 
       2: CONST integer(0) -- parent: 13 
       3: CONST integer(1) -- parent: 13 
-      12: EQ -- hash: 0x3b6692b7a162389b -- parent: 13 
-        10: ADD -- hash: 0xaa6ef31fb0888f3e -- parent: 12 
+      12: EQ -- hash: 0xd9a4ade8588e26ce -- parent: 13 
+        10: ADD -- hash: 0x9bbcc7ec2223cfaa -- parent: 12 
           8: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 10 
           9: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 10 
         11: CONST integer(0) -- parent: 12 
