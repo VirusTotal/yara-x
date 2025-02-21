@@ -20,7 +20,7 @@ where
     best_quality: i32,
     best_range: Option<Range<usize>>,
     queue: VecDeque<(usize, u8, u8, i32)>,
-    bytes_present: BitArray<[u64; 4]>,
+    bytes_present: BitArray<[usize; 256 / usize::BITS as usize]>,
     byte_mask_iter: I,
 }
 
@@ -483,7 +483,7 @@ mod test {
             [0x01, 0x02, 0x03, 0x04].iter(),
             [0xff, 0xff, 0x00, 0xff].iter(),
         );
-        
+
         assert!(q_00000001 > q_00000000);
         assert!(q_00000001 > q_000001);
         assert!(q_000001 > q_0001);

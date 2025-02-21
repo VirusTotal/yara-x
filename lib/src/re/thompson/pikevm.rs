@@ -250,7 +250,8 @@ pub struct EpsilonClosureState {
     /// This bit array has one bit per possible value of SplitId. If the
     /// split instruction with SplitId = N is executed, the N-th bit in the
     /// array is set to 1.
-    executed_splits: BitArray<[u64; (1 << SplitId::BITS) / 64]>,
+    executed_splits:
+        BitArray<[usize; SplitId::MAX.div_ceil(usize::BITS as usize)]>,
     /// Indicates whether the `executed_splits` bit array needs to be
     /// cleared during the next call to [`EpsilonClosureState::executed`].
     dirty: bool,

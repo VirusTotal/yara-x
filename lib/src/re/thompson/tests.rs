@@ -4,6 +4,7 @@ use pretty_assertions::assert_eq;
 use crate::compiler::Atom;
 use crate::re;
 use crate::re::bitmapset::BitmapSet;
+use crate::re::thompson::instr::SplitId;
 use crate::re::{BckCodeLoc, FwdCodeLoc};
 use crate::types::Regexp;
 
@@ -1454,4 +1455,14 @@ fn re_atoms() {
         r#"xy[0-9][a-e]{4,}([1-2][0-9]){4,}"#,
         50
     );
+}
+
+#[test]
+fn split_id() {
+    assert_eq!(SplitId::BITS, 13);
+    assert_eq!(SplitId::MAX, 8191);
+    assert!(SplitId::default()
+        .add(SplitId::MAX as u16)
+        .and_then(|id| id.add(1))
+        .is_none())
 }

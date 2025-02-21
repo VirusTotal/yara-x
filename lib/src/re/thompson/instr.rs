@@ -85,7 +85,11 @@ impl Display for SplitId {
 }
 
 impl SplitId {
+    /// Number of bits in an SplitId.
     pub const BITS: usize = 13;
+
+    /// Maximum SplitId.
+    pub const MAX: usize = (1 << SplitId::BITS) - 1;
 
     #[inline]
     pub fn to_le_bytes(self) -> [u8; size_of::<Self>()] {
@@ -103,7 +107,7 @@ impl SplitId {
     #[inline]
     pub fn add(self, amount: u16) -> Option<Self> {
         let sum = self.0.checked_add(amount)?;
-        if sum >= 1 << Self::BITS {
+        if sum as usize > Self::MAX {
             return None;
         }
         Some(Self(sum))
