@@ -22,7 +22,7 @@ jobs:
         # - win-gnu
         - no-default-features
         - protoc
-        - linux-32
+        - 32bits
         include:
         - build: msrv
           os: ubuntu-latest
