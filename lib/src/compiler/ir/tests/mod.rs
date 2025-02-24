@@ -79,7 +79,6 @@ fn children() {
     assert_eq!(children.next(), None);
 }
 
-
 // This test is run only in 64-bits systems because the IR tree shows the hash
 // of each node, which will be either 32 or 64 bits long, depending on the
 // system.
