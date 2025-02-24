@@ -1,0 +1,5 @@
+edition = "2023";
+
+package googlex_security_vt_imported_proto_yara-x;
+
+option java_multiple_files = true;
