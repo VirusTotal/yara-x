@@ -22,67 +22,75 @@ jobs:
         # - win-gnu
         - no-default-features
         - protoc
+        - linux-32
         include:
         - build: msrv
           os: ubuntu-latest
           rust: 1.81.0
+          target: x86_64-unknown-linux-gnu
           args: "--features=magic-module,rules-profiling"
           rust_flags: "-Awarnings"
-          experimental: false
 
         - build: stable
           os: ubuntu-latest
           rust: stable
+          target: x86_64-unknown-linux-gnu
           args: "--features=magic-module,rules-profiling"
           rust_flags: "-Awarnings"
-          experimental: false
 
         - build: nightly
           os: ubuntu-latest
           rust: nightly
+          target: x86_64-unknown-linux-gnu
           args: "--features=magic-module,rules-profiling"
           # Link is currently failing with rust-lld (rust-lang/rust#124129)
           # Disable rust-lld with -Zlinker-features=-lld
           # See: https://github.com/dtolnay/linkme/commit/d13709bfd2c1278b4c8b6c846e2017b623923c0c
           rust_flags: "-Awarnings -Zlinker-features=-lld"
-          experimental: true
 
         - build: macos
           os: macos-latest
           rust: stable
+          target: aarch64-apple-darwin
           args: "--features=rules-profiling"
           rust_flags: "-Awarnings"
-          experimental: false
 
         - build: win-msvc
           os: windows-latest
           rust: stable
+          target: x86_64-win7-windows-msvc
           args: "--features=rules-profiling"
           rust_flags: "-Awarnings"
-          experimental: false
 
         # Tests for the `stable-x86_64-pc-windows-gnu` toolchain disabled
         # due to https://github.com/VirusTotal/yara-x/issues/29
         #
         # - build: win-gnu
         #   os: windows-latest
+        #   target: x86_64-win7-windows-gnu
         #   rust: stable-x86_64-gnu
         #   args: ""
-        #   experimental: false
 
         - build: no-default-features
           os: ubuntu-latest
           rust: stable
+          target: x86_64-unknown-linux-gnu
           args: "--package yara-x --no-default-features --features=test_proto2-module,test_proto3-module,string-module,time-module,hash-module,macho-module,magic-module,math-module,lnk-module,elf-module,pe-module,dotnet-module,console-module"
           rust_flags: "-Awarnings"
-          experimental: false
 
         - build: protoc
           os: ubuntu-latest
           rust: stable
+          target: x86_64-unknown-linux-gnu
           args: "--package yara-x --features=protoc,magic-module"
           rust_flags: "-Awarnings"
-          experimental: false
+
+        - build: 32bits
+          os: ubuntu-latest
+          rust: stable
+          target: i686-unknown-linux-gnu
+          args: ""
+          rust_flags: "-Awarnings"
 
     steps:
     - name: Checkout sources
@@ -101,7 +109,7 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y libmagic-dev
+        sudo apt-get install -y libmagic-dev gcc-multilib
 
     - name: Install protoc
       if: matrix.build == 'protoc'
@@ -113,6 +121,7 @@ jobs:
       uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ matrix.rust }}
+        target: ${{ matrix.target }}
 
     - name: Build
       run: cargo build --all-targets ${{ matrix.args }}
