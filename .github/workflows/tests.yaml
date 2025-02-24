@@ -62,7 +62,7 @@ jobs:
         - build: win-msvc
           os: windows-latest
           rust: stable
-          target: x86_64-win7-windows-msvc
+          target: x86_64-pc-windows-msvc
           args: "--features=rules-profiling"
           rust_flags: "-Awarnings"
           experimental: false
@@ -72,7 +72,7 @@ jobs:
         #
         # - build: win-gnu
         #   os: windows-latest
-        #   target: x86_64-win7-windows-gnu
+        #   target: x86_64-pc-windows-gnu
         #   rust: stable-x86_64-gnu
         #   args: ""
 
