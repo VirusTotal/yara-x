@@ -4,7 +4,7 @@ use std::collections::VecDeque;
 use std::iter;
 #[cfg(feature = "rules-profiling")]
 use std::ops::AddAssign;
-use std::ops::{Range, RangeInclusive};
+use std::ops::Range;
 use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
@@ -26,6 +26,7 @@ use crate::compiler::{
     SubPatternAtom, SubPatternFlags, SubPatternId,
 };
 use crate::re::fast::FastVM;
+use crate::re::hir::ChainedPatternGap;
 use crate::re::thompson::PikeVM;
 use crate::re::Action;
 use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
@@ -810,20 +811,29 @@ impl ScanContext<'_> {
         &mut self,
         chained_to: SubPatternId,
         match_start: usize,
-        gap: &RangeInclusive<u32>,
+        gap: &ChainedPatternGap,
     ) -> bool {
         if let Some(unconfirmed_matches) =
             self.unconfirmed_matches.get_mut(&chained_to)
         {
-            let min_gap = *gap.start() as usize;
-            let max_gap = *gap.end() as usize;
-
             for m in unconfirmed_matches {
-                let valid_range =
-                    m.range.end + min_gap..=m.range.end + max_gap;
-                if valid_range.contains(&match_start) {
-                    return true;
-                }
+                match gap {
+                    ChainedPatternGap::Bounded(gap) => {
+                        let min_gap = *gap.start() as usize;
+                        let max_gap = *gap.end() as usize;
+                        if (m.range.end + min_gap..=m.range.end + max_gap)
+                            .contains(&match_start)
+                        {
+                            return true;
+                        }
+                    }
+                    ChainedPatternGap::Unbounded(gap) => {
+                        let min_gap = gap.start as usize;
+                        if (m.range.start + min_gap..).contains(&match_start) {
+                            return true;
+                        }
+                    }
+                };
             }
         }
 
@@ -905,23 +915,29 @@ impl ScanContext<'_> {
                     if let Some(unconfirmed_matches) =
                         self.unconfirmed_matches.get_mut(chained_to)
                     {
-                        let min_gap = *gap.start() as usize;
-                        let max_gap = *gap.end() as usize;
-
                         // Check whether the current match is at a correct
                         // distance from each of the unconfirmed matches.
                         for m in unconfirmed_matches {
-                            let valid_range =
-                                m.range.end + min_gap..=m.range.end + max_gap;
-
+                            let in_range = match gap {
+                                ChainedPatternGap::Bounded(gap) => {
+                                    let min_gap = *gap.start() as usize;
+                                    let max_gap = *gap.end() as usize;
+                                    (m.range.end + min_gap
+                                        ..=m.range.end + max_gap)
+                                        .contains(&match_range.start)
+                                }
+                                ChainedPatternGap::Unbounded(gap) => {
+                                    let min_gap = gap.start as usize;
+                                    (m.range.end + min_gap..)
+                                        .contains(&match_range.start)
+                                }
+                            };
                             // Besides checking that the unconfirmed match lays
                             // at a correct distance from the current match, we
                             // also check that the chain length associated to
                             // the unconfirmed match doesn't exceed the current
                             // chain length.
-                            if valid_range.contains(&match_range.start)
-                                && m.chain_length <= chain_length
-                            {
+                            if in_range && m.chain_length <= chain_length {
                                 m.chain_length = chain_length + 1;
                                 queue.push_back((
                                     *chained_to,

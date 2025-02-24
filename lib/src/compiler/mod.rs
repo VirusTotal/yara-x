@@ -8,7 +8,6 @@ use std::cell::RefCell;
 use std::collections::hash_map::Entry;
 use std::collections::HashSet;
 use std::io::Write;
-use std::ops::RangeInclusive;
 use std::path::Path;
 use std::rc::Rc;
 #[cfg(feature = "logging")]
@@ -42,7 +41,7 @@ use crate::compiler::report::{CodeLoc, ReportBuilder};
 use crate::compiler::{CompileContext, VarStack};
 use crate::modules::BUILTIN_MODULES;
 use crate::re;
-use crate::re::hir::ChainedPattern;
+use crate::re::hir::{ChainedPattern, ChainedPatternGap};
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup, SymbolTable};
 use crate::types::{Func, Struct, TypeValue};
@@ -2243,7 +2242,7 @@ impl Compiler<'_> {
         &mut self,
         literal: &hir::Literal,
         chained_to: SubPatternId,
-        gap: RangeInclusive<u32>,
+        gap: ChainedPatternGap,
         flags: SubPatternFlags,
     ) -> SubPatternId {
         let pattern_lit_id = self.intern_literal(
@@ -2548,7 +2547,7 @@ pub(crate) enum SubPattern {
     LiteralChainTail {
         pattern: LiteralId,
         chained_to: SubPatternId,
-        gap: RangeInclusive<u32>,
+        gap: ChainedPatternGap,
         flags: SubPatternFlags,
     },
 
@@ -2562,7 +2561,7 @@ pub(crate) enum SubPattern {
 
     RegexpChainTail {
         chained_to: SubPatternId,
-        gap: RangeInclusive<u32>,
+        gap: ChainedPatternGap,
         flags: SubPatternFlags,
     },
 

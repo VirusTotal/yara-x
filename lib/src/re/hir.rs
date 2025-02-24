@@ -1,7 +1,7 @@
 use bstr::ByteSlice;
 use std::hash::{Hash, Hasher};
 use std::mem;
-use std::ops::RangeInclusive;
+use std::ops::{RangeFrom, RangeInclusive};
 
 use regex_syntax::hir::Class;
 use regex_syntax::hir::ClassBytes;
@@ -11,7 +11,7 @@ use regex_syntax::hir::ClassUnicodeRange;
 use regex_syntax::hir::Dot;
 use regex_syntax::hir::HirKind;
 use regex_syntax::hir::Repetition;
-
+use serde::{Deserialize, Serialize};
 use yara_x_parser::ast;
 
 use crate::utils::cast;
@@ -28,9 +28,20 @@ impl From<ast::HexByte> for HexByte {
     }
 }
 
+/// Represents the gap between two chained patterns.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub(crate) enum ChainedPatternGap {
+    Bounded(RangeInclusive<u32>),
+    Unbounded(RangeFrom<u32>),
+}
+
+/// A patterns that is chained to another one.
 #[derive(Debug, PartialEq)]
 pub(crate) struct ChainedPattern {
-    pub gap: RangeInclusive<u32>,
+    /// Distance or gap between this pattern and the other one that this
+    /// is chained to.
+    pub gap: ChainedPatternGap,
+    /// HIR tree representing the pattern.
     pub hir: Hir,
 }
 
@@ -144,7 +155,11 @@ impl Hir {
                         >= Self::MIN_PATTERN_LENGTH_IN_CHAIN
                     {
                         chain.push(ChainedPattern {
-                            gap: gap_min..=gap_max.unwrap_or(u32::MAX),
+                            gap: if let Some(gap_max) = gap_max {
+                                ChainedPatternGap::Bounded(gap_min..=gap_max)
+                            } else {
+                                ChainedPatternGap::Unbounded(gap_min..)
+                            },
                             hir,
                         });
                         gap_min = rep.min;
@@ -173,7 +188,11 @@ impl Hir {
                 >= Self::MIN_PATTERN_LENGTH_IN_CHAIN
         {
             chain.push(ChainedPattern {
-                gap: gap_min..=gap_max.unwrap_or(u32::MAX),
+                gap: if let Some(gap_max) = gap_max {
+                    ChainedPatternGap::Bounded(gap_min..=gap_max)
+                } else {
+                    ChainedPatternGap::Unbounded(gap_min..)
+                },
                 hir,
             });
         } else {
@@ -482,7 +501,7 @@ pub(crate) fn class_to_masked_bytes_alternation(
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use super::Hir;
+    use super::{ChainedPatternGap, Hir};
     use crate::re::hir::ChainedPattern;
 
     #[test]
@@ -557,7 +576,7 @@ mod tests {
             (
                 Hir::literal([0x01, 0x02, 0x03]),
                 vec![ChainedPattern {
-                    gap: 0..=u32::MAX,
+                    gap: ChainedPatternGap::Unbounded(0..),
                     hir: Hir::concat(vec![
                         Hir::literal([0x05]),
                         Hir::any_byte_repetition(
@@ -604,7 +623,7 @@ mod tests {
             (
                 Hir::literal([0x01, 0x02, 0x03]),
                 vec![ChainedPattern {
-                    gap: 0..=u32::MAX,
+                    gap: ChainedPatternGap::Unbounded(0..),
                     hir: Hir::literal([0x04, 0x05])
                 },]
             )

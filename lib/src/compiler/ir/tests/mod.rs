@@ -10,6 +10,10 @@ use crate::Compiler;
 fn expr_size() {
     // Sentinel test for making sure tha Expr doesn't grow in future
     // changes.
+    #[cfg(target_pointer_width = "32")]
+    assert_eq!(size_of::<Expr>(), 20);
+
+    #[cfg(target_pointer_width = "64")]
     assert_eq!(size_of::<Expr>(), 32);
 }
 
