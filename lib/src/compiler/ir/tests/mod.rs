@@ -1,10 +1,7 @@
-use std::fs;
-use std::io::BufWriter;
 use std::mem::size_of;
 
 use crate::compiler::{Expr, IR};
 use crate::types::TypeValue;
-use crate::Compiler;
 
 #[test]
 fn expr_size() {
@@ -82,8 +79,17 @@ fn children() {
     assert_eq!(children.next(), None);
 }
 
+// This test is run only in 64-bits systems because the IR tree shows the hash
+// of each node, which will be either 32 or 64 bits long, depending on the
+// system.
+#[cfg(target_pointer_width = "64")]
 #[test]
 fn ir() {
+    use std::fs;
+    use std::io::BufWriter;
+
+    use crate::Compiler;
+
     let files: Vec<_> = globwalk::glob("src/compiler/ir/tests/testdata/*.in")
         .unwrap()
         .flatten()

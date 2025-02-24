@@ -12,7 +12,7 @@ keywords = ["pattern-matching", "cybersecurity", "forensics", "malware", "yara"]
 #   .github/workflows/tests.yaml
 #   .github/workflows/code_health.yaml
 #
-rust-version = "1.81.0"
+rust-version = "1.82.0"
 
 [workspace]
 members = [
@@ -104,7 +104,7 @@ thiserror = "2.0.3"
 tlsh-fixed = "0.1.1"
 uuid = "1.13.2"
 walrus = "0.23.3"
-wasmtime = { version = "29.0.1", default-features = false }
+wasmtime = { version = "30.0.0", default-features = false }
 x509-parser = "0.17.0"
 yaml-rust = "0.4.5"
 yansi = "1.0.1"
