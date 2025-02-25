@@ -251,13 +251,15 @@ pub enum Instr<'a> {
     /// Matches the start of the scanned data or the start of a line (^ in
     /// multi-line mode). Specifically, this matches at the start of the
     /// data, or at the position immediately before a \n character, a \r
-    /// character or a \r\n sequence.
+    /// character, or sequences \r\n and \n\r. It won't match in the middle
+    /// of \r\n or \n\r.
     LineStart,
 
     /// Matches the end of the scanned data or the end of a line ($ in
     /// multi-line mode). Specifically, this matches at the end of the
     /// data, or at the position immediately after a \n character, a \r
-    /// character or a \r\n sequence.
+    /// character, or sequences \r\n and \n\r. It won't match in the middle
+    /// of \r\n or \n\r.
     LineEnd,
 
     /// Matches a word boundary (i.e: characters that are not part of the
