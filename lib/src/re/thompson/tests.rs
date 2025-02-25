@@ -1217,6 +1217,90 @@ fn re_code_24() {
     );
 }
 
+#[test]
+fn re_code_25() {
+    assert_re_code!(
+        r#"^abc\bxyz$"#,
+        // Forward code
+        r#"
+00000: START
+00002: LIT 0x61
+00003: LIT 0x62
+00004: LIT 0x63
+00005: WORD_BOUNDARY
+00007: LIT 0x78
+00008: LIT 0x79
+00009: LIT 0x7a
+0000a: END
+0000c: MATCH
+"#,
+        // Backward code
+        r#"
+00000: END
+00002: LIT 0x7a
+00003: LIT 0x79
+00004: LIT 0x78
+00005: WORD_BOUNDARY
+00007: LIT 0x63
+00008: LIT 0x62
+00009: LIT 0x61
+0000a: START
+0000c: MATCH
+"#,
+        // Atoms
+        vec![RegexpAtom {
+            atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x78]),
+            code_loc: CodeLoc { fwd: 0x00, bck_seq_id: 0, bck: 0x0c }
+        },],
+        // Epsilon closure starting at forward code 0.
+        vec![0x02],
+        // Epsilon closure starting at backward code 0.
+        vec![0x02]
+    );
+}
+
+#[test]
+fn re_code_26() {
+    assert_re_code!(
+        r#"(?m)^abc\Bxyz$"#,
+        // Forward code
+        r#"
+00000: LINE_START
+00002: LIT 0x61
+00003: LIT 0x62
+00004: LIT 0x63
+00005: WORD_BOUNDARY_NEG
+00007: LIT 0x78
+00008: LIT 0x79
+00009: LIT 0x7a
+0000a: LINE_END
+0000c: MATCH
+"#,
+        // Backward code
+        r#"
+00000: LINE_END
+00002: LIT 0x7a
+00003: LIT 0x79
+00004: LIT 0x78
+00005: WORD_BOUNDARY_NEG
+00007: LIT 0x63
+00008: LIT 0x62
+00009: LIT 0x61
+0000a: LINE_START
+0000c: MATCH
+"#,
+        // Atoms
+        vec![RegexpAtom {
+            atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x78]),
+            code_loc: CodeLoc { fwd: 0x00, bck_seq_id: 0, bck: 0x0c }
+        },],
+        // Epsilon closure starting at forward code 0.
+        vec![0x02],
+        // Epsilon closure starting at backward code 0.
+        vec![0x02]
+    );
+}
+
 #[rustfmt::skip]
 #[test]
 fn re_atoms() {

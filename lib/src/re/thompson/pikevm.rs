@@ -394,14 +394,17 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                 state.threads.push((apply_offset(ip, offset), rep_count));
             }
             Instr::Start => {
-                if start.backwards() {
-                    if curr_byte.is_none() {
-                        state.threads.push((
-                            apply_offset(ip, instr_size.into()),
-                            rep_count,
-                        ));
-                    }
-                } else if prev_byte.is_none() {
+                let is_match = match (start.backwards(), prev_byte, curr_byte)
+                {
+                    // Going forward, no previous byte, we are at the start of
+                    // the input, this is a match.
+                    (false, None, _) => true,
+                    // Going backward, no current byte, we are at the start
+                    // of the input, this is a match.
+                    (true, _, None) => true,
+                    _ => false,
+                };
+                if is_match {
                     state.threads.push((
                         apply_offset(ip, instr_size.into()),
                         rep_count,
@@ -409,14 +412,111 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                 }
             }
             Instr::End => {
-                if start.backwards() {
-                    if prev_byte.is_none() {
-                        state.threads.push((
-                            apply_offset(ip, instr_size.into()),
-                            rep_count,
-                        ));
+                let is_match = match (start.backwards(), prev_byte, curr_byte)
+                {
+                    // Going forward, no current byte, we are at the end of the
+                    // data, this is a match.
+                    (false, _, None) => true,
+                    // Going backward, no previous byte, we are at the end of
+                    // the data, this is a match.
+                    (true, None, _) => true,
+                    _ => false,
+                };
+                if is_match {
+                    state.threads.push((
+                        apply_offset(ip, instr_size.into()),
+                        rep_count,
+                    ));
+                }
+            }
+            Instr::LineStart => {
+                let is_match = match (start.backwards(), prev_byte, curr_byte)
+                {
+                    // Going forward, no previous byte, we are at the start of
+                    // the input, this is a match.
+                    (false, None, _) => true,
+                    // Going forward, no current byte, previous byte was \n,
+                    // this is a match.
+                    (false, Some(b'\n'), None) => true,
+                    // Going forward, no current byte, previous byte was \r,
+                    // this is a match.
+                    (false, Some(b'\r'), None) => true,
+                    // Going forward, previous byte was \n, this is match if
+                    // current byte is not \r.
+                    (false, Some(b'\n'), Some(curr_byte)) => {
+                        *curr_byte != b'\r'
                     }
-                } else if curr_byte.is_none() {
+                    // Going forward, previous byte was \r, this is match if
+                    // current byte is not \n.
+                    (false, Some(b'\r'), Some(curr_byte)) => {
+                        *curr_byte != b'\n'
+                    }
+                    // Going backward, no current byte, we are at the start
+                    // of the input, this is a match.
+                    (true, _, None) => true,
+                    // Going backward, no previous byte and current byte is \n,
+                    // this is a match.
+                    (true, None, Some(b'\n')) => true,
+                    // Going backward, no previous byte and current byte is \r,
+                    // this is a match.
+                    (true, None, Some(b'\r')) => true,
+                    // Going backward, current byte is \n, this is a match if
+                    // previous byte was not \r.
+                    (true, Some(prev_byte), Some(b'\n')) => {
+                        *prev_byte != b'\r'
+                    }
+                    // Going backward, current byte is \r, this is a match if
+                    // previous byte was not \n.
+                    (true, Some(prev_byte), Some(b'\r')) => {
+                        *prev_byte != b'\n'
+                    }
+                    _ => false,
+                };
+                if is_match {
+                    state.threads.push((
+                        apply_offset(ip, instr_size.into()),
+                        rep_count,
+                    ));
+                }
+            }
+            Instr::LineEnd => {
+                let is_match = match (start.backwards(), prev_byte, curr_byte)
+                {
+                    // Going forward, no current byte, we are at the end of the
+                    // data, this is a match.
+                    (false, _, None) => true,
+                    // Going forward, no previous byte and current byte is \n,
+                    // this is a match.
+                    (false, None, Some(b'\n')) => true,
+                    // Going forward, no previous byte and current byte is \t,
+                    // this is a match.
+                    (false, None, Some(b'\t')) => true,
+                    // Going forward, current byte is \n, this is a match if
+                    // the previous byte is not \r.
+                    (false, Some(prev_byte), Some(b'\n')) => {
+                        *prev_byte != b'\r'
+                    }
+                    // Going forward, current byte is \r, this is a match if
+                    // the previous byte is not \n.
+                    (false, Some(prev_byte), Some(b'\r')) => {
+                        *prev_byte != b'\n'
+                    }
+                    // Going backward, no previous byte, we are at the end of
+                    // the data, this is a match.
+                    (true, None, _) => true,
+                    // Going backward, previous byte is \n, this is a match if
+                    // the current byte is not \r.
+                    (true, Some(b'\n'), Some(curr_byte)) => {
+                        *curr_byte != b'\r'
+                    }
+                    // Going backward, previous byte is \r, this is a match if
+                    // the current byte is not \n.
+                    (true, Some(b'\r'), Some(curr_byte)) => {
+                        *curr_byte != b'\n'
+                    }
+                    _ => false,
+                };
+                if is_match {
                     state.threads.push((
                         apply_offset(ip, instr_size.into()),
                         rep_count,

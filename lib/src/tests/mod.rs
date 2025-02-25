@@ -281,10 +281,26 @@ fn string_operations() {
     condition_true!(r#""foo" matches /foo/"#);
     condition_true!(r#""foo" matches /FOO/i"#);
     condition_false!(r#""foo" matches /bar/"#);
+
+    condition_true!(r#""xxfooxx" matches /foo/"#);
+    condition_false!(r#""xxfooxx" matches /^foo/"#);
+    condition_false!(r#""xxfooxx" matches /\Afoo/i"#);
+    condition_false!(r#""xxfooxx" matches /foo$/"#);
+
     condition_true!(r#""xxFoOxx" matches /fOo/i"#);
     condition_false!(r#""xxFoOxx" matches /^fOo/i"#);
+    condition_false!(r#""xxFoOxx" matches /\AfOo/i"#);
     condition_false!(r#""xxFoOxx" matches /fOo$/i"#);
+
     condition_true!(r#""foobar" matches /^foo/"#);
+    condition_false!(r#""bar\nfoo" matches /^foo/"#);
+    condition_false!(r#""bar\nfoo" matches /\Afoo/"#);
+
+    // (?m) enables the multi-line mode, in that mode ^ matches the start of
+    // a line, but \A matches the start of the haystack only.
+    condition_true!(r#""bar\nfoo" matches /(?m)^foo/"#);
+    condition_false!(r#""bar\nfoo" matches /(?m)\Afoo/"#);
+
     condition_true!(r#""foobar" matches /bar$/"#);
     condition_true!(r#""foobar" matches /^foobar$/"#);
     condition_true!(r#""foo\nbar" matches /foo.*bar/s"#);
@@ -572,9 +588,9 @@ fn with() {
 
     #[cfg(feature = "test_proto2-module")]
     condition_true!(
-        r#"with 
-              foo = test_proto2.undef_i64(), 
-              bar = 1 : 
+        r#"with
+              foo = test_proto2.undef_i64(),
+              bar = 1 :
            (
               not defined foo and bar == 1
            )"#
@@ -669,8 +685,8 @@ fn with() {
         r#"with one = test_proto2.int32_one,
                 two = test_proto2.add(one, 1),
                 three = two + 1: (
-             one == 1 and 
-             two == 2 and 
+             one == 1 and
+             two == 2 and
              three == 3
            )
         "#
@@ -1500,6 +1516,34 @@ fn regexp_patterns_4() {
     pattern_match!(r#"/whatever|   x.   x/"#, b"   xy   x", b"   xy   x");
     pattern_match!(r#"/^abc/"#, b"abc", b"abc");
     pattern_match!(r#"/^abc/"#, b"abcd", b"abc");
+    pattern_false!(r#"/^abc/"#, b"xyz\nabc");
+    pattern_false!(r#"/^abc/"#, b"xyz\rabc");
+    pattern_false!(r#"/^abc/"#, b"xyz\r\nabc");
+    pattern_false!(r#"/^abc/"#, b"xyz\n\rabc");
+    pattern_false!(r#"/abc$/"#, b"abc\nxyz");
+    pattern_false!(r#"/abc$/"#, b"abc\rxyz");
+
+    pattern_match!(r#"/(?m)^abc/"#, b"xyz\nabc", b"abc");
+    pattern_match!(r#"/(?m)^abc/"#, b"xyz\rabc", b"abc");
+    pattern_match!(r#"/(?m)^abc/"#, b"xyz\n\rabc", b"abc");
+    pattern_match!(r#"/(?m)^abc/"#, b"xyz\r\nabc", b"abc");
+    pattern_match!(r#"/(?m)^\nabc/"#, b"xyz\n\nabc", b"\nabc");
+
+    pattern_false!(r#"/(?m)abcd^xyz/"#, b"abcdxyz");
+    pattern_match!(r#"/(?ms)abcd.^xyz/"#, b"abcd\nxyz", b"abcd\nxyz");
+
+    pattern_match!(r#"/(?m)abc$/"#, b"abc\nxyz", b"abc");
+    pattern_match!(r#"/(?m)abc$/"#, b"abc\rxyz", b"abc");
+    pattern_match!(r#"/(?m)abc$/"#, b"abc\n\rxyz", b"abc");
+    pattern_match!(r#"/(?m)abc$/"#, b"abc\r\nxyz", b"abc");
+    pattern_match!(r#"/(?m)abc\n$/"#, b"abc\n\nxyz", b"abc\n");
+
+    pattern_false!(r#"/(?m)xyz$abcd/"#, b"xyzabcd");
+    pattern_match!(r#"/(?ms)xyz$.abcd/"#, b"xyz\nabcd", b"xyz\nabcd");
+
+    pattern_match!(r#"/\Aabc/"#, b"abcd", b"abc");
+    pattern_match!(r#"/bcd\z/"#, b"abcd", b"bcd");
+    pattern_false!(r#"/^def/"#, b"abcdef");
     pattern_false!(r#"/abc^/"#, b"abc");
     pattern_false!(r#"/ab^c/"#, b"abc");
     pattern_false!(r#"/a^bcdef/"#, b"abcdef");
@@ -1811,6 +1855,7 @@ fn regexp_wide() {
     pattern_true!(r"/foobar\B/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x\x00");
     pattern_true!(r"/foobar\b/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x");
     pattern_false!(r"/foobar\B/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x");
+    pattern_true!(r"/foobar$/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00");
     pattern_true!(r"/foobar$/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x");
 }
 
@@ -2667,7 +2712,8 @@ fn fullword() {
     pattern_true!(r#"/miss|ippi/ fullword"#, b"miss issippi");
     pattern_true!(r#"/miss|ippi/ fullword"#, b"mississ ippi");
 
-    pattern_true!("/^mississippi/ fullword", b"mississippi\tmississippi");
+    pattern_true!("/^mississippi/ fullword", b"mississippi\tfoo");
+    pattern_true!("/mississippi$/ fullword", b"foo\tmississippi");
 
     pattern_true!(
         r#""mississippi" wide fullword"#,

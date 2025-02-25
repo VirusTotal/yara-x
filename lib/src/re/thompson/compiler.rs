@@ -504,6 +504,10 @@ impl Compiler {
         Ok(match look {
             Look::Start => self.emit_instr(Instr::START)?,
             Look::End => self.emit_instr(Instr::END)?,
+            Look::StartLF | Look::StartCRLF => {
+                self.emit_instr(Instr::LINE_START)?
+            }
+            Look::EndLF | Look::EndCRLF => self.emit_instr(Instr::LINE_END)?,
             Look::WordAscii => self.emit_instr(Instr::WORD_BOUNDARY)?,
             Look::WordAsciiNegate => {
                 self.emit_instr(Instr::WORD_BOUNDARY_NEG)?
@@ -1791,6 +1795,12 @@ impl Display for InstrSeq {
                 }
                 Instr::End => {
                     writeln!(f, "{:05x}: END", addr)?;
+                }
+                Instr::LineStart => {
+                    writeln!(f, "{:05x}: LINE_START", addr)?;
+                }
+                Instr::LineEnd => {
+                    writeln!(f, "{:05x}: LINE_END", addr)?;
                 }
                 Instr::WordBoundary => {
                     writeln!(f, "{:05x}: WORD_BOUNDARY", addr)?;
