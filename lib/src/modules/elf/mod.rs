@@ -4,6 +4,8 @@ This allows creating YARA rules based on ELF metadata, including segments
 and sections information, exported symbols, target platform, etc.
  */
 
+use std::cell::RefCell;
+
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use md5::{Digest, Md5};
@@ -18,13 +20,34 @@ pub mod parser;
 #[cfg(test)]
 mod tests;
 
+thread_local!(
+    static MEMOIZED_IMPORT_MD5: RefCell<Option<String>> =
+        RefCell::new(None);
+    static MEMOIZED_TLSH: RefCell<Option<String>> =
+        RefCell::new(None);
+);
+
 #[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> ELF {
+    MEMOIZED_IMPORT_MD5.with(|cache| *cache.borrow_mut() = None);
+    MEMOIZED_TLSH.with(|cache| *cache.borrow_mut() = None);
     parser::ElfParser::new().parse(data).unwrap_or_else(|_| ELF::new())
 }
 
 #[module_export]
 fn import_md5(ctx: &mut ScanContext) -> Option<RuntimeString> {
+    let cached = MEMOIZED_IMPORT_MD5.with(|cache| -> Option<RuntimeString> {
+        Some(RuntimeString::from_slice(
+            ctx,
+            cache.borrow().as_deref()?.as_bytes(),
+        ))
+    });
+
+    if cached.is_some() {
+        return cached;
+    }
+
+
     let elf = ctx.module_output::<ELF>()?;
 
     let symbols = if elf.dynsym.is_empty() {
@@ -47,6 +70,9 @@ fn import_md5(ctx: &mut ScanContext) -> Option<RuntimeString> {
     hasher.update(comma_separated_names.as_bytes());
 
     let digest = format!("{:x}", hasher.finalize());
+    MEMOIZED_IMPORT_MD5.with(|cache| {
+        *cache.borrow_mut() = Some(digest.clone());
+    });
 
     Some(RuntimeString::new(digest))
 }
@@ -78,6 +104,19 @@ lazy_static! {
 /// [1]: https://github.com/trendmicro/telfhash
 #[module_export]
 fn telfhash(ctx: &mut ScanContext) -> Option<RuntimeString> {
+    let cached = MEMOIZED_TLSH.with(|cache| -> Option<RuntimeString> {
+        Some(RuntimeString::from_slice(
+            ctx,
+            cache.borrow().as_deref()?.as_bytes(),
+        ))
+    });
+
+    if cached.is_some() {
+        return cached;
+    }
+
+
+
     let elf = ctx.module_output::<ELF>()?;
 
     // Prefer dynsym over symbtab.
@@ -127,7 +166,10 @@ fn telfhash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 
     builder.update(comma_separated_names.as_bytes());
 
-    let tlsh = builder.build().ok()?;
+    let digest = builder.build().ok()?.hash();
+    MEMOIZED_IMPORT_MD5.with(|cache| {
+        *cache.borrow_mut() = Some(digest.clone());
+    });
 
-    Some(RuntimeString::new(tlsh.hash()))
+    Some(RuntimeString::new(digest))
 }
