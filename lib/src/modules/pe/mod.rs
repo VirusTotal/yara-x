@@ -4,9 +4,9 @@ This allows creating YARA rules based on PE metadata, including sections,
 imports and exports, resources, etc.
  */
 
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::slice::Iter;
-use std::cell::RefCell;
 
 use bstr::BStr;
 use digest::Digest;
@@ -29,16 +29,17 @@ pub mod parser;
 mod rva2off;
 
 thread_local!(
-    static MEMOIZED_IMPHASH: RefCell<Option<String>> =
-        RefCell::new(None);
-    static MEMOIZED_CHECKSUM: RefCell<Option<i64>> =
-        RefCell::new(None);
+    static IMPHASH_CACHE: RefCell<Option<String>> =
+        const { RefCell::new(None) };
+
+    static CHECKSUM_CACHE: RefCell<Option<i64>> = const { RefCell::new(None) };
 );
 
 #[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> PE {
-    MEMOIZED_IMPHASH.with(|cache| *cache.borrow_mut() = None);
-    MEMOIZED_CHECKSUM.with(|cache| *cache.borrow_mut() = None);
+    IMPHASH_CACHE.with(|cache| *cache.borrow_mut() = None);
+    CHECKSUM_CACHE.with(|cache| *cache.borrow_mut() = None);
+
     match parser::PE::parse(data) {
         Ok(pe) => pe.into(),
         Err(_) => {
@@ -122,14 +123,12 @@ fn calculate_checksum(ctx: &mut ScanContext) -> Option<i64> {
     // in the header is not aligned to a 4-bytes boundary. Such files are not
     // very common, but they do exist. Example:
     // af3f20a9272489cbef4281c8c86ad42ccfb04ccedd3ada1e8c26939c726a4c8e
-    let cached: Option<i64> = MEMOIZED_CHECKSUM.with(|cache| -> Option<i64> {
-        *cache.borrow()
-    });
+    let cached: Option<i64> =
+        CHECKSUM_CACHE.with(|cache| -> Option<i64> { *cache.borrow() });
 
     if cached.is_some() {
         return cached;
     }
-
 
     let pe = ctx.module_output::<PE>()?;
     let data = ctx.scanned_data();
@@ -175,7 +174,8 @@ fn calculate_checksum(ctx: &mut ScanContext) -> Option<i64> {
     sum += sum >> 16;
     sum &= 0xffff;
     sum += data.len() as u32;
-    MEMOIZED_CHECKSUM.with(|cache| {
+
+    CHECKSUM_CACHE.with(|cache| {
         *cache.borrow_mut() = Some(sum.into());
     });
 
@@ -229,17 +229,16 @@ fn section_index_offset(ctx: &ScanContext, offset: i64) -> Option<i64> {
 /// The resulting hash string is consistently in lowercase.
 #[module_export]
 fn imphash(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    let cached = MEMOIZED_IMPHASH.with(|cache| -> Option<RuntimeString> {
-        Some(RuntimeString::from_slice(
-            ctx,
-            cache.borrow().as_deref()?.as_bytes(),
-        ))
+    let cached = IMPHASH_CACHE.with(|cache| -> Option<RuntimeString> {
+        cache
+            .borrow()
+            .as_deref()
+            .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
     });
 
     if cached.is_some() {
         return cached;
     }
-
 
     let pe = ctx.module_output::<PE>()?;
 
@@ -273,7 +272,8 @@ fn imphash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     }
 
     let digest = format!("{:x}", md5_hash.finalize());
-    MEMOIZED_IMPHASH.with(|cache| {
+
+    IMPHASH_CACHE.with(|cache| {
         *cache.borrow_mut() = Some(digest.clone());
     });
 

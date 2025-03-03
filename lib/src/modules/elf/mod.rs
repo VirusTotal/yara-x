@@ -21,32 +21,30 @@ pub mod parser;
 mod tests;
 
 thread_local!(
-    static MEMOIZED_IMPORT_MD5: RefCell<Option<String>> =
-        RefCell::new(None);
-    static MEMOIZED_TLSH: RefCell<Option<String>> =
-        RefCell::new(None);
+    static IMPORT_MD5_CACHE: RefCell<Option<String>> =
+        const { RefCell::new(None) };
+    static TLSH_CACHE: RefCell<Option<String>> = const { RefCell::new(None) };
 );
 
 #[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> ELF {
-    MEMOIZED_IMPORT_MD5.with(|cache| *cache.borrow_mut() = None);
-    MEMOIZED_TLSH.with(|cache| *cache.borrow_mut() = None);
+    IMPORT_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
+    TLSH_CACHE.with(|cache| *cache.borrow_mut() = None);
     parser::ElfParser::new().parse(data).unwrap_or_else(|_| ELF::new())
 }
 
 #[module_export]
 fn import_md5(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    let cached = MEMOIZED_IMPORT_MD5.with(|cache| -> Option<RuntimeString> {
-        Some(RuntimeString::from_slice(
-            ctx,
-            cache.borrow().as_deref()?.as_bytes(),
-        ))
+    let cached = IMPORT_MD5_CACHE.with(|cache| -> Option<RuntimeString> {
+        cache
+            .borrow()
+            .as_deref()
+            .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
     });
 
     if cached.is_some() {
         return cached;
     }
-
 
     let elf = ctx.module_output::<ELF>()?;
 
@@ -70,7 +68,8 @@ fn import_md5(ctx: &mut ScanContext) -> Option<RuntimeString> {
     hasher.update(comma_separated_names.as_bytes());
 
     let digest = format!("{:x}", hasher.finalize());
-    MEMOIZED_IMPORT_MD5.with(|cache| {
+
+    IMPORT_MD5_CACHE.with(|cache| {
         *cache.borrow_mut() = Some(digest.clone());
     });
 
@@ -104,18 +103,16 @@ lazy_static! {
 /// [1]: https://github.com/trendmicro/telfhash
 #[module_export]
 fn telfhash(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    let cached = MEMOIZED_TLSH.with(|cache| -> Option<RuntimeString> {
-        Some(RuntimeString::from_slice(
-            ctx,
-            cache.borrow().as_deref()?.as_bytes(),
-        ))
+    let cached = TLSH_CACHE.with(|cache| -> Option<RuntimeString> {
+        cache
+            .borrow()
+            .as_deref()
+            .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
     });
 
     if cached.is_some() {
         return cached;
     }
-
-
 
     let elf = ctx.module_output::<ELF>()?;
 
@@ -167,7 +164,8 @@ fn telfhash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     builder.update(comma_separated_names.as_bytes());
 
     let digest = builder.build().ok()?.hash();
-    MEMOIZED_IMPORT_MD5.with(|cache| {
+
+    IMPORT_MD5_CACHE.with(|cache| {
         *cache.borrow_mut() = Some(digest.clone());
     });
 
