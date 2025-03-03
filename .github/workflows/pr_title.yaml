@@ -13,6 +13,6 @@ jobs:
     permissions:
       statuses: write
     steps:
-    - uses: aslafy-z/conventional-pr-title-action@v3
+    - uses: aslafy-z/conventional-pr-title-action@a0b851005a0f82ac983a56ead5a8111c0d8e044a  # v3.2.0
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
