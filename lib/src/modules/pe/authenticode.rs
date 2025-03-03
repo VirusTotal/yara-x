@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::HashSet;
 use std::fmt::Write;
 
 use array_bytes::Hexify;
@@ -928,7 +929,23 @@ fn verify_signer_info(si: &SignerInfo, certs: &[Certificate<'_>]) -> bool {
 /// contained in the PE file.
 struct CertificateChain<'a, 'b> {
     certs: &'b [Certificate<'a>],
+    /// Holds the next certificate that will be returned while iterating the
+    /// certificate chain.
     next: Option<&'b Certificate<'a>>,
+    /// Contains the certificates that have been returned while iterating the
+    /// certificate chain. This prevents infinite loops while iterating chains
+    /// that contains loops.
+    ///
+    /// Loops in the certificate chain are not common, but they are possible,
+    /// file 147f2a24913f67e66c0fe70e6804efdd1a804e17ab66e8abc5a2e1f64a708a80
+    /// contains a certificate with subject "AddTrust External CA Root" and
+    /// issuer "UTN - DATACorp SGC", but there's a certificate with subject
+    /// "UTN - DATACorp SGC" and issuer "AddTrust External CA Root". Curiously
+    /// enough, these same entities are mentioned in multiple bug reports:
+    ///
+    /// https://redmine.lighttpd.net/issues/2562
+    /// https://dev.gnupg.org/T2972
+    seen: HashSet<&'a [u8]>,
 }
 
 impl<'a, 'b> CertificateChain<'a, 'b> {
@@ -943,7 +960,7 @@ impl<'a, 'b> CertificateChain<'a, 'b> {
         P: Fn(&X509Certificate<'_>) -> bool,
     {
         let next = certs.iter().find(|cert| predicate(&cert.x509));
-        Self { certs, next }
+        Self { certs, next, seen: HashSet::new() }
     }
 
     /// Returns `true` if the certificate chain is valid.
@@ -1009,17 +1026,27 @@ impl<'a, 'b> Iterator for CertificateChain<'a, 'b> {
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.next;
         if let Some(next) = self.next {
-            // When the certificate is self-signed issuer == subject, in that
+            // If issuer == subject, the certificate is self-signed. In that
             // case we can't keep going up the chain.
             if next.x509.tbs_certificate.subject
                 == next.x509.tbs_certificate.issuer
             {
                 self.next = None
             } else {
-                self.next = self.certs.iter().find(|c| {
-                    c.x509.tbs_certificate.subject
-                        == next.x509.tbs_certificate.issuer
-                });
+                self.next = self
+                    .certs
+                    .iter()
+                    // The next certificate must be the issuer of the current one...
+                    .find(|c| {
+                        c.x509.tbs_certificate.subject
+                            == next.x509.tbs_certificate.issuer
+                    })
+                    // ... except if the issuer was already returned by the iterator,
+                    // which indicates that the certificate chain contains a loop.
+                    .filter(|c| {
+                        self.seen
+                            .insert(c.x509.tbs_certificate.subject.as_raw())
+                    });
             }
         }
         next
