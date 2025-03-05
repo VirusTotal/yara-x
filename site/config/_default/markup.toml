@@ -3,6 +3,8 @@ defaultMarkdownHandler = "goldmark"
 [goldmark]
   [goldmark.extensions]
     linkify = false
+    [goldmark.extensions.typographer]
+      enDash = '--'
   [goldmark.parser]
     autoHeadingID = true
     autoHeadingIDType = "github"
