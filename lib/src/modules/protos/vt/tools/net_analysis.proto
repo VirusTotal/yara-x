@@ -1,0 +1,51 @@
+// THIS FILE IS GENERATED AUTOMATICALLY. DO NOT EDIT.
+// LINT: LEGACY_NAMES
+
+syntax = "proto3";
+
+package vt.tools.net_analysis;
+
+enum AlertSeverity {
+  unset = 0;
+  high = 1;
+  medium = 2;
+  low = 3;
+  info = 4;
+}
+
+enum TransportLayerProtocol {
+  UNKNOWN = 0;
+  ICMP = 1;
+  IGMP = 2;
+  TCP = 6;
+  UDP = 17;
+  ESP = 50;
+  AH = 51;
+  L2TP = 115;
+  SCTP = 132;
+}
+
+message CrowdSourcedIdsResults {
+  string rule_msg = 1;
+  string rule_category = 2;
+  string rule_id = 3;
+  AlertSeverity alert_severity = 4;
+  string rule_source = 5;
+  CrowdSourcedIdsAlertContext alert_context = 6;
+  string rule_url = 7;
+  repeated string rule_references = 8;
+  repeated string tags = 9;
+  string rule_raw = 10;
+}
+
+message CrowdSourcedIdsAlertContext {
+  TransportLayerProtocol protocol = 1;
+  string src_ip = 2;
+  uint32 src_port = 3;
+  string dest_ip = 4;
+  uint32 dest_port = 5;
+  string hostname = 6;
+  string url = 7;
+  repeated string ja3 = 8;
+  repeated string ja3s = 9;
+}
