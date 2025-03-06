@@ -1,0 +1,32 @@
+// THIS FILE IS GENERATED AUTOMATICALLY. DO NOT EDIT.
+// LINT: LEGACY_NAMES
+
+syntax = "proto3";
+
+package vt.gti_score;
+
+import "yara.proto";
+
+enum Verdict {
+  option (yara.enum_options) = {
+    name: "GtiVerdict"
+  };
+
+  VERDICT_UNKNOWN = 0;
+  VERDICT_BENIGN = 4;
+  VERDICT_UNDETECTED = 8;
+  VERDICT_SUSPICIOUS = 12;
+  VERDICT_MALICIOUS = 16;
+}
+
+enum Severity {
+  option (yara.enum_options) = {
+    name: "GtiSeverity"
+  };
+
+  SEVERITY_UNKNOWN = 0;
+  SEVERITY_NONE = 4;
+  SEVERITY_LOW = 8;
+  SEVERITY_MEDIUM = 12;
+  SEVERITY_HIGH = 16;
+}
