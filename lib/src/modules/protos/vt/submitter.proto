@@ -1,0 +1,13 @@
+// THIS FILE IS GENERATED AUTOMATICALLY. DO NOT EDIT.
+// LINT: LEGACY_NAMES
+
+syntax = "proto3";
+
+package vt.submitter;
+
+import "yara.proto";
+
+message Submitter {
+  string city = 6;
+  string country = 8;
+}
