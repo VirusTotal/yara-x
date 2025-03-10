@@ -5,11 +5,12 @@ use nom::bytes::complete::{take, take_while};
 use nom::combinator::{cond, map_res, verify};
 use nom::multi::{fold_many0, length_value, many_till};
 use nom::number::complete::{le_u128, le_u16, le_u32, le_u64};
-use nom::sequence::tuple;
-use nom::{Err, ToUsize};
-use nom::{IResult, InputTake, Needed, Parser};
+use nom::{Err, Input, ToUsize};
+use nom::{IResult, Needed, Parser};
 use protobuf::EnumOrUnknown;
 use uuid::Uuid;
+
+type NomError<'a> = nom::error::Error<&'a [u8]>;
 
 use crate::modules::protos::lnk::{DriveType, Lnk, ShowCommand, TrackerData};
 
@@ -58,7 +59,7 @@ impl LnkParser {
                 _, // reserved
                 _, // reserved
             ),
-        ) = tuple((
+        ) = (
             // The first 4 bytes is the size of the header, which should be
             // 0x4c.
             verify(le_u32, |&header_size| header_size == 0x4c),
@@ -79,8 +80,8 @@ impl LnkParser {
             le_u16, // reserved
             le_u32, // reserved
             le_u32, // reserved
-        ))
-        .parse(input)?;
+        )
+            .parse(input)?;
 
         self.result.is_lnk = Some(true);
         self.result.file_attributes = Some(file_attributes);
@@ -102,13 +103,15 @@ impl LnkParser {
         (input, _) = cond(
             link_flags & Self::HAS_LINK_TARGET_ID_LIST != 0,
             self.parse_link_target_id_list(),
-        )(input)?;
+        )
+        .parse(input)?;
 
         // Parse the link info (LINKINFO), if present.
         (input, _) = cond(
             link_flags & Self::HAS_LINK_INFO != 0,
             self.parse_link_info(),
-        )(input)?;
+        )
+        .parse(input)?;
 
         // Parse the string data (STRING_DATA).
         //
@@ -117,27 +120,32 @@ impl LnkParser {
         (input, self.result.name) = cond(
             link_flags & Self::HAS_NAME != 0,
             Self::parse_string_data(unicode),
-        )(input)?;
+        )
+        .parse(input)?;
 
         (input, self.result.relative_path) = cond(
             link_flags & Self::HAS_RELATIVE_PATH != 0,
             Self::parse_string_data(unicode),
-        )(input)?;
+        )
+        .parse(input)?;
 
         (input, self.result.working_dir) = cond(
             link_flags & Self::HAS_WORKING_DIR != 0,
             Self::parse_string_data(unicode),
-        )(input)?;
+        )
+        .parse(input)?;
 
         (input, self.result.cmd_line_args) = cond(
             link_flags & Self::HAS_ARGUMENTS != 0,
             Self::parse_string_data(unicode),
-        )(input)?;
+        )
+        .parse(input)?;
 
         (input, self.result.icon_location) = cond(
             link_flags & Self::HAS_ICON_LOCATION != 0,
             Self::parse_string_data(unicode),
-        )(input)?;
+        )
+        .parse(input)?;
 
         // Parse the extra data.
         //
@@ -146,7 +154,8 @@ impl LnkParser {
             self.parse_extra_data_block(),
             // The terminal block has size < 4.
             verify(le_u32, |block_size| *block_size < 4),
-        )(input)?;
+        )
+        .parse(input)?;
 
         // Any remaining data is outside the specification and its considered
         // an overlay. The field `overlay_offset` is initialized only if there
@@ -186,7 +195,8 @@ impl LnkParser {
                     // An item ID with size 0 is the terminal one.
                     verify(le_u16, |size| *size == 0),
                 ),
-            )(input)?;
+            )
+            .parse(input)?;
 
             Ok((remainder, ()))
         }
@@ -198,7 +208,7 @@ impl LnkParser {
         move |input: &[u8]| {
             // Each item ID starts with a 2-bytes length that includes
             // the length itself its data.
-            let (remainder, _data) = Self::length_data(le_u16)(input)?;
+            let (remainder, _data) = Self::length_data(le_u16).parse(input)?;
             // TODO(vmalvarez): Implement the parsing of link targets if
             // there's enough demand for it.
             // A possible reference implementation is:
@@ -222,7 +232,7 @@ impl LnkParser {
                     _common_network_relative_link_offset,
                     common_path_suffix_offset,
                 ),
-            ) = tuple((
+            ) = (
                 le_u32, // link_info_size
                 le_u32, // link_info_header_size
                 le_u32, // link_info_flags,
@@ -230,8 +240,8 @@ impl LnkParser {
                 le_u32, // local_base_path_offset
                 le_u32, // common_network_relative_link_offset
                 le_u32, // common_path_suffix_offset
-            ))
-            .parse(input)?;
+            )
+                .parse(input)?;
 
             let (
                 _,
@@ -239,11 +249,11 @@ impl LnkParser {
                     local_base_path_offset_unicode,
                     common_path_suffix_offset_unicode,
                 ),
-            ) = tuple((
+            ) = (
                 cond(header_size >= 0x24, le_u32),
                 cond(header_size >= 0x24, le_u32),
-            ))
-            .parse(optional_fields)?;
+            )
+                .parse(optional_fields)?;
 
             let (remainder, link_info) = take(size)(input)?;
 
@@ -315,12 +325,13 @@ impl LnkParser {
                     drive_serial_number,
                     mut volume_label_offset,
                 ),
-            ) = tuple((
+            ) = (
                 le_u32, // volume_id_size
                 le_u32, // drive_type
                 le_u32, // drive_serial_number
                 le_u32, // volume_label_offset
-            ))(input)?;
+            )
+                .parse(input)?;
 
             self.result.drive_type = drive_type
                 .try_into()
@@ -367,7 +378,7 @@ impl LnkParser {
         &mut self,
     ) -> impl FnMut(&[u8]) -> IResult<&[u8], ()> + '_ {
         move |input: &[u8]| {
-            let (remainder, block) = Self::length_data(le_u32)(input)?;
+            let (remainder, block) = Self::length_data(le_u32).parse(input)?;
             // The first 4 bytes in each block indicates its type.
             if let Ok((block_data, 0xA0000003)) =
                 le_u32::<&[u8], nom::error::Error<&[u8]>>(block)
@@ -393,7 +404,7 @@ impl LnkParser {
                     droid_birth_volume_id,
                     droid_birth_file_id,
                 ),
-            ) = tuple((
+            ) = (
                 le_u32, // length
                 le_u32, // version
                 // machine_id
@@ -406,7 +417,8 @@ impl LnkParser {
                 map_res(take(16_u8), Uuid::from_slice_le),
                 // droid_birth_file_id
                 map_res(take(16_u8), Uuid::from_slice_le),
-            ))(input)?;
+            )
+                .parse(input)?;
 
             let mut tracker_data = TrackerData::new();
 
@@ -480,7 +492,8 @@ impl LnkParser {
                     String::from_utf16_lossy(s.as_slice()),
                 )
             },
-        )(input)
+        )
+        .parse(input)
     }
 
     /// Gets a number from the parser `f` and returns a subslice of the input
@@ -491,12 +504,12 @@ impl LnkParser {
     /// size field itself. This function is useful for reading such blocks.
     fn length_data<'a, N, F>(
         mut f: F,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], &'a [u8]>
+    ) -> impl Parser<&'a [u8], Output = &'a [u8], Error = NomError<'a>> + 'a
     where
         N: ToUsize,
-        F: Parser<&'a [u8], N, nom::error::Error<&'a [u8]>>,
+        F: Parser<&'a [u8], Output = N, Error = NomError<'a>> + 'a,
     {
-        move |input: &[u8]| {
+        move |input: &'a [u8]| {
             let input_length = input.len();
             let (data, size) = f.parse(input)?;
             // size_len is the length in bytes of the size field, usually

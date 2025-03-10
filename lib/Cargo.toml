@@ -133,8 +133,12 @@ lnk-module = [
 
 # The `macho` module parses Mach-O files.
 macho-module = [
+    "dep:const-oid",
+    "dep:der-parser",
+    "dep:digest",
     "dep:nom",
     "dep:roxmltree",
+    "dep:x509-parser",
 ]
 
 # The `magic` allows recognizing file types based on the output of the

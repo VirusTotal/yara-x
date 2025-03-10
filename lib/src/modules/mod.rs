@@ -279,4 +279,5 @@ pub mod mods {
     }
 }
 
+#[cfg(any(feature = "pe-module", feature = "macho-module"))]
 pub(crate) mod utils;
