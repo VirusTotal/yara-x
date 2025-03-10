@@ -1,0 +1,117 @@
+// THIS FILE IS GENERATED AUTOMATICALLY. DO NOT EDIT.
+// LINT: LEGACY_NAMES
+
+syntax = "proto3";
+
+package vt.titan;
+
+import "analysis.proto";
+import "filetypes.proto";
+import "hunting_gti_score.proto";
+import "sandbox.proto";
+import "submitter.proto";
+import "vtnet.proto";
+import "yara.proto";
+
+option (yara.module_options) = {
+  name: "vt"
+  root_message: "vt.titan.LiveHuntData"
+  rust_module: "vt"
+};
+
+message LiveHuntData {
+  FileMetadata meta = 1 [(yara.field_options) = {
+    name: "metadata"
+    acl: [ {
+      error_title: "vt.metadata is supported only in rulesets matching against files"
+      error_label: "this field is supported for files only"
+      accept_if: [ "file" ]
+    } ]
+  }];
+  vt.fileanalysis.BehaviourSummary behaviour = 2 [(yara.field_options) = {
+    acl: [ {
+      error_title: "vt.behaviour is supported only in rulesets matching against files"
+      error_label: "this field is supported for files only"
+      accept_if: [ "file" ]
+    } ]
+  }];
+  vt.net.EnrichedNetloc net = 3 [(yara.field_options) = {
+    acl: [ {
+      error_title: "vt.net is not supported in rulesets matching against files"
+      error_label: "this field is not supported for files, consider using `vt.metadata.itw`"
+      accept_if: [ "url", "domain", "ip_address" ]
+    } ]
+  }];
+}
+
+message MainIcon {
+  string dhash = 1;
+  string raw_md5 = 2;
+}
+
+message GoReSym {
+  message BuildInfo {
+    string path = 1;
+    map<string, string> dependencies = 2;
+    map<string, string> settings = 3;
+  }
+
+  message Summary {
+    int64 num_user_functions = 1;
+    int64 num_std_functions = 2;
+    int64 num_interfaces = 3;
+    int64 num_types = 4;
+    int64 num_dependencies = 5;
+  }
+
+  string version = 1;
+  string arch = 2;
+  string os = 3;
+  string build_id = 4;
+  vt.titan.GoReSym.BuildInfo build_info = 5;
+  vt.titan.GoReSym.Summary summary = 6;
+}
+
+message FileMetadata {
+  string sha256 = 1;
+  string sha1 = 2;
+  string md5 = 3;
+  string ssdeep = 4;
+  string imphash = 5;
+  string vhash = 6;
+  string telfhash = 27;
+  string file_name = 7;
+  vt.fileanalysis.FileType file_type = 8;
+  int64 file_size = 9;
+  int32 times_submitted = 10;
+  bool new_file = 11;
+  repeated string tags = 12;
+  map<string, string> signatures = 13;
+  vt.submitter.Submitter submitter = 15 [(yara.field_options) = {
+    acl: [ {
+      error_title: "vt.metadata.submitter is not supported in Retrohunt"
+      error_label: "this field is not supported in Retrohunt"
+      reject_if: [ "retrohunt" ]
+    } ]
+  }];
+  bool subfile = 16;
+  int32 unique_sources = 17;
+  vt.analysis.AnalysisStats analysis_stats = 18;
+  string magic = 19;
+  repeated string file_type_tags = 20;
+  int64 first_submission_date = 22;
+  map<string, string> exiftool = 25;
+  MainIcon main_icon = 26;
+  GoReSym goresym = 28;
+  repeated string malware_families = 30;
+  string tlsh = 31;
+  vt.net.EnrichedNetloc itw = 32;
+  vt.hunting_gti_score.HuntingGtiScore gti_assessment = 36
+      [(yara.field_options) = {
+        acl: [ {
+          error_title: "unknown field or method `gti_assessment`"
+          error_label: "this field or method doesn't exist"
+          accept_if: [ "gti", "staff" ]
+        } ]
+      }];
+}
