@@ -22,16 +22,14 @@ use uuid::Uuid;
 use crate::modules::pe::parser::{DirEntry, PE};
 use crate::modules::protos;
 
-type NomError2<'a> = nom::error::Error<&'a [u8]>;
-
-type NomError<'a> = nom::Err<nom::error::Error<&'a [u8]>>;
+type NomError<'a> = nom::error::Error<&'a [u8]>;
 
 pub enum Error<'a> {
     InvalidDotNet,
     InvalidCodedIndex,
     InvalidType,
     RecursionLimit,
-    Parse(NomError<'a>),
+    Parse(nom::Err<NomError<'a>>),
     OutputWrite(std::fmt::Error),
 }
 
@@ -41,8 +39,8 @@ impl From<std::fmt::Error> for Error<'_> {
     }
 }
 
-impl<'a> From<NomError<'a>> for Error<'a> {
-    fn from(value: NomError<'a>) -> Self {
+impl<'a> From<nom::Err<NomError<'a>>> for Error<'a> {
+    fn from(value: nom::Err<nom::error::Error<&'a [u8]>>) -> Self {
         Self::Parse(value)
     }
 }
@@ -1363,7 +1361,7 @@ impl<'a> Dotnet<'a> {
     #[inline]
     fn string_index(
         &self,
-    ) -> impl Parser<&'a [u8], Output = StringIndex, Error = NomError2<'a>>
+    ) -> impl Parser<&'a [u8], Output = StringIndex, Error = NomError<'a>>
     {
         map(self.index(self.string_index_size), StringIndex)
     }
@@ -1372,7 +1370,7 @@ impl<'a> Dotnet<'a> {
     #[inline]
     fn guid_index(
         &self,
-    ) -> impl Parser<&'a [u8], Output = GuidIndex, Error = NomError2<'a>> {
+    ) -> impl Parser<&'a [u8], Output = GuidIndex, Error = NomError<'a>> {
         map(self.index(self.guid_index_size), GuidIndex)
     }
 
@@ -1380,7 +1378,7 @@ impl<'a> Dotnet<'a> {
     #[inline]
     fn blob_index(
         &self,
-    ) -> impl Parser<&'a [u8], Output = BlobIndex, Error = NomError2<'a>> {
+    ) -> impl Parser<&'a [u8], Output = BlobIndex, Error = NomError<'a>> {
         map(self.index(self.blob_index_size), BlobIndex)
     }
 
@@ -1389,8 +1387,7 @@ impl<'a> Dotnet<'a> {
     fn table_index(
         &self,
         table: Table,
-    ) -> impl Parser<&'a [u8], Output = usize, Error = NomError2<'a>> + '_
-    {
+    ) -> impl Parser<&'a [u8], Output = usize, Error = NomError<'a>> + '_ {
         move |input: &'a [u8]| {
             let (remainder, index) =
                 self.index(if self.num_rows[table as usize] > 65535 {
@@ -1430,7 +1427,7 @@ impl<'a> Dotnet<'a> {
     fn coded_index<'s>(
         &'s self,
         tables: &'s [Table],
-    ) -> impl Parser<&'a [u8], Output = CodedIndex, Error = NomError2<'a>> + 's
+    ) -> impl Parser<&'a [u8], Output = CodedIndex, Error = NomError<'a>> + 's
     {
         let num_rows_per_table = tables.iter().map(|table| {
             self.num_rows.get(*table as usize).cloned().unwrap_or_default()
@@ -1475,7 +1472,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.30
     fn parse_module_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = Option<&'a str>, Error = NomError2<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = Option<&'a str>, Error = NomError<'a>> + '_
     {
         map(
             (
@@ -1499,7 +1496,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.38
     fn parse_type_ref_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = TypeRef<'a>, Error = NomError2<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = TypeRef<'a>, Error = NomError<'a>> + '_
     {
         map(
             (
@@ -1527,7 +1524,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.37.
     fn parse_type_def_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = TypeDef<'a>, Error = NomError2<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = TypeDef<'a>, Error = NomError<'a>> + '_
     {
         map(
             (
@@ -1574,7 +1571,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.15.
     fn parse_field_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         map(
             (
                 // flags
@@ -1593,7 +1590,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.26.
     fn parse_method_def_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = MethodDef<'a>, Error = NomError2<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = MethodDef<'a>, Error = NomError<'a>> + '_
     {
         map(
             (
@@ -1624,7 +1621,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.33.
     fn parse_param_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = Param<'a>, Error = NomError2<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = Param<'a>, Error = NomError<'a>> + '_
     {
         map(
             (
@@ -1642,7 +1639,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.23.
     fn parse_interface_impl_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = InterfaceImpl, Error = NomError2<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = InterfaceImpl, Error = NomError<'a>> + '_
     {
         map(
             (
@@ -1658,7 +1655,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.25.
     fn parse_member_ref_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = MemberRef, Error = NomError2<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = MemberRef, Error = NomError<'a>> + '_
     {
         map(
             (
@@ -1684,7 +1681,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.9.
     fn parse_constant_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = Constant<'a>, Error = NomError2<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = Constant<'a>, Error = NomError<'a>> + '_
     {
         map(
             (
@@ -1706,11 +1703,8 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.10.
     fn parse_custom_attribute_row(
         &self,
-    ) -> impl Parser<
-        &'a [u8],
-        Output = CustomAttribute<'a>,
-        Error = NomError2<'a>,
-    > + '_ {
+    ) -> impl Parser<&'a [u8], Output = CustomAttribute<'a>, Error = NomError<'a>>
+           + '_ {
         map(
             (
                 // parent
@@ -1729,7 +1723,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.17.
     fn parse_field_marshal_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         map(
             (
                 // parent
@@ -1746,7 +1740,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.11.
     fn parse_decl_security_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         map(
             (
                 // action
@@ -1769,7 +1763,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.8.
     fn parse_class_layout_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         map(
             (
                 le_u16,                           // packing size
@@ -1785,7 +1779,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.16.
     fn parse_field_layout_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         map(
             (
                 le_u32,                         // offset
@@ -1800,7 +1794,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.12.
     fn parse_event_map_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         map(
             (
                 self.table_index(Table::TypeDef), // parent
@@ -1815,7 +1809,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.13.
     fn parse_event_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         map(
             (
                 le_u16,
@@ -1831,7 +1825,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.35.
     fn parse_property_map_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         map(
             (
                 self.table_index(Table::TypeDef),  // parent
@@ -1846,7 +1840,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.34.
     fn parse_property_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         map(
             (
                 le_u16,              // flags
@@ -1862,7 +1856,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.28.
     fn parse_method_semantics_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         map(
             (
                 le_u16, // semantics
@@ -1878,7 +1872,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.27.
     fn parse_method_impl_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         map(
             (
                 self.table_index(Table::TypeDef),
@@ -1894,7 +1888,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.22.
     fn parse_impl_map_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         map(
             (
                 le_u16, // mapping flags
@@ -1911,7 +1905,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.18.
     fn parse_field_rva_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = u32, Error = NomError2<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u32, Error = NomError<'a>> + '_ {
         map(
             (
                 le_u32, // mapping flags
@@ -1926,7 +1920,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.2.
     fn parse_assembly_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = Assembly<'a>, Error = NomError2<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = Assembly<'a>, Error = NomError<'a>> + '_
     {
         map(
             (
@@ -1980,7 +1974,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.5.
     fn parse_assembly_ref_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = AssemblyRef<'a>, Error = NomError2<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = AssemblyRef<'a>, Error = NomError<'a>> + '_
     {
         map(
             (
@@ -2033,7 +2027,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.7.
     fn parse_assembly_ref_processor_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         map((le_u32, self.table_index(Table::AssemblyRef)), |_| ())
     }
 
@@ -2042,7 +2036,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.6.
     fn parse_assembly_ref_os_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         map(
             (
                 le_u32, // os_platform_id
@@ -2059,7 +2053,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.19.
     fn parse_file_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         map(
             (
                 le_u32,              // flags
@@ -2075,7 +2069,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.14.
     fn parse_exported_type_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         map(
             (
                 le_u32,              // flags
@@ -2097,7 +2091,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.24.
     fn parse_manifest_resource_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = Resource<'a>, Error = NomError2<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = Resource<'a>, Error = NomError<'a>> + '_
     {
         map(
             (
@@ -2160,7 +2154,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.32.
     fn parse_nested_class_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = NestedClass, Error = NomError2<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = NestedClass, Error = NomError<'a>> + '_
     {
         map(
             (
@@ -2179,7 +2173,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.20.
     fn parse_generic_param_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = GenericParam<'a>, Error = NomError2<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = GenericParam<'a>, Error = NomError<'a>> + '_
     {
         map(
             (
@@ -2199,7 +2193,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.29.
     fn parse_method_spec_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         map(
             (
                 self.coded_index(Table::METHOD_DEF_OR_REF), // method
@@ -2214,7 +2208,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.21.
     fn parse_generic_param_constraint_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         map(
             (
                 self.table_index(Table::GenericParam),

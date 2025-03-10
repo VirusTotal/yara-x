@@ -1,5 +1,5 @@
-use crate::modules::protos;
-use crate::modules::utils::asn1::SignedData;
+use std::collections::HashSet;
+
 use bstr::{BStr, ByteSlice};
 use der_parser::asn1_rs::{FromBer, OptTaggedParser, ParseResult};
 use der_parser::ber::{
@@ -20,10 +20,12 @@ use nom::number::complete::{be_u32, le_u32, u16, u32, u64, u8};
 use nom::number::Endianness;
 use nom::{Err, IResult, Parser};
 use protobuf::MessageField;
-use std::collections::HashSet;
 use x509_parser::x509::AlgorithmIdentifier;
 
-type Error<'a> = nom::error::Error<&'a [u8]>;
+use crate::modules::protos;
+use crate::modules::utils::asn1::SignedData;
+
+type NomError<'a> = nom::error::Error<&'a [u8]>;
 
 /// Mach-O magic constants
 const MH_MAGIC: u32 = 0xfeedface;
@@ -132,7 +134,7 @@ pub struct MachO<'a> {
 impl<'a> MachO<'a> {
     /// Given the content of Macho-O file, parses it and returns a [`MachO`]
     /// object representing the file.
-    pub fn parse(data: &'a [u8]) -> Result<Self, Err<Error<'a>>> {
+    pub fn parse(data: &'a [u8]) -> Result<Self, Err<NomError<'a>>> {
         let (_, magic) = le_u32(data)?;
 
         if matches!(magic, FAT_MAGIC | FAT_CIGAM | FAT_MAGIC_64 | FAT_CIGAM_64)
@@ -150,7 +152,9 @@ impl<'a> MachO<'a> {
 
 impl<'a> MachO<'a> {
     /// Parses a FAT Mach-O file.
-    fn parse_fat_macho_file(data: &'a [u8]) -> Result<Self, Err<Error<'a>>> {
+    fn parse_fat_macho_file(
+        data: &'a [u8],
+    ) -> Result<Self, Err<NomError<'a>>> {
         // Parse the magic number and make sure it's valid for a FAT
         // Mach-O file.
         let (remainder, magic) = verify(be_u32, |magic| {
@@ -237,7 +241,7 @@ impl<'a> MachO<'a> {
     /// Parses a single-architecture Mach-O file.
     fn parse_macho_file(
         data: &'a [u8],
-    ) -> Result<MachOFile<'a>, Err<Error<'a>>> {
+    ) -> Result<MachOFile<'a>, Err<NomError<'a>>> {
         let (remainder, magic) = verify(be_u32, |magic| {
             matches!(*magic, MH_MAGIC | MH_CIGAM | MH_MAGIC_64 | MH_CIGAM_64)
         })
@@ -391,7 +395,7 @@ impl<'a> MachO<'a> {
             if let Some(export_data) =
                 data.get(offset..offset.saturating_add(size))
             {
-                if let Err(_err) = macho.exports()(export_data) {
+                if let Err(_err) = macho.exports().parse(export_data) {
                     #[cfg(feature = "logging")]
                     error!("Error parsing Mach-O file: {:?}", _err);
                     // fail silently if it fails, data was not formatted
@@ -417,7 +421,7 @@ impl<'a> MachO<'a> {
             if let Some(import_data) =
                 data.get(offset..offset.saturating_add(size))
             {
-                if let Err(_err) = macho.imports()(import_data) {
+                if let Err(_err) = macho.imports().parse(import_data) {
                     #[cfg(feature = "logging")]
                     error!("Error parsing Mach-O file: {:?}", _err);
                     // fail silently if it fails, data was not formatted
@@ -493,7 +497,7 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses a Mach-O section.
     fn section(
         &self,
-    ) -> impl Parser<&'a [u8], Output = Section<'a>, Error = Error<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = Section<'a>, Error = NomError<'a>> + '_
     {
         map(
             (
@@ -551,7 +555,7 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses a Mach-O command.
     fn command(
         &mut self,
-    ) -> impl Parser<&'a [u8], Output = (), Error = Error<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         move |input: &'a [u8]| {
             // The first two u32 in the command are the value that indicates
             // the command type, and the size of the command's data.
@@ -595,7 +599,8 @@ impl<'a> MachOFile<'a> {
                 }
                 LC_LOAD_DYLIB | LC_ID_DYLIB | LC_LOAD_WEAK_DYLIB
                 | LC_REEXPORT_DYLIB => {
-                    let (_, dylib) = self.dylib_command()(command_data)?;
+                    let (_, dylib) =
+                        self.dylib_command().parse(command_data)?;
                     self.dylibs.push(dylib);
                 }
                 LC_SOURCE_VERSION => {
@@ -605,7 +610,8 @@ impl<'a> MachOFile<'a> {
                         Some(convert_to_source_version_string(ver));
                 }
                 LC_ID_DYLINKER | LC_LOAD_DYLINKER | LC_DYLD_ENVIRONMENT => {
-                    let (_, dylinker) = self.dylinker_command()(command_data)?;
+                    let (_, dylinker) =
+                        self.dylinker_command().parse(command_data)?;
                     self.dynamic_linker = Some(dylinker);
                 }
                 LC_SYMTAB => {
@@ -664,7 +670,7 @@ impl<'a> MachOFile<'a> {
                 }
                 LC_LINKER_OPTION => {
                     let (_, linker_options) =
-                        self.linker_options_command()(command_data)?;
+                        self.linker_options_command().parse(command_data)?;
                     self.linker_options.extend(linker_options);
                 }
                 _ => {}
@@ -677,7 +683,7 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses a LC_MAIN command.
     fn main_command(
         &mut self,
-    ) -> impl Parser<&'a [u8], Output = (u64, u64), Error = Error<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = (u64, u64), Error = NomError<'a>> + '_
     {
         (
             u64(self.endianness), // entryoff,
@@ -688,7 +694,7 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses a LC_UNIXTHREAD command.
     fn thread_command(
         &self,
-    ) -> impl Parser<&'a [u8], Output = u64, Error = Error<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         move |input: &'a [u8]| {
             let (remainder, (_flavor, _count)) = (
                 u32(self.endianness), // flavor
@@ -716,7 +722,7 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses a LC_SEGMENT or LC_SEGMENT_64 command.
     fn segment_command(
         &self,
-    ) -> impl Parser<&'a [u8], Output = Segment<'a>, Error = Error<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = Segment<'a>, Error = NomError<'a>> + '_
     {
         move |input: &'a [u8]| {
             let (
@@ -773,35 +779,37 @@ impl<'a> MachOFile<'a> {
     /// or LC_REEXPORT_DYLIB command.
     fn dylib_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Dylib<'a>> + '_ {
-        move |input: &'a [u8]| {
-            let (
-                remainder,
-                (_offset, timestamp, current_version, compatibility_version),
-            ) = (
-                u32(self.endianness), // offset,
-                u32(self.endianness), // timestamp,
-                u32(self.endianness), // current_version,
-                u32(self.endianness), // compatibility_version,
-            )
-                .parse(input)?;
-
-            Ok((
-                &[],
+    ) -> impl Parser<&'a [u8], Output = Dylib<'a>, Error = NomError<'a>> + '_
+    {
+        map(
+            (
+                u32(self.endianness),        // offset,
+                u32(self.endianness),        // timestamp,
+                u32(self.endianness),        // current_version,
+                u32(self.endianness),        // compatibility_version,
+                take_till(|b| b == b'\x00'), // name
+            ),
+            |(
+                _offset,
+                timestamp,
+                current_version,
+                compatibility_version,
+                name,
+            )| {
                 Dylib {
-                    name: BStr::new(remainder).trim_end_with(|c| c == '\0'),
+                    name: BStr::new(name),
                     timestamp,
                     current_version,
                     compatibility_version,
-                },
-            ))
-        }
+                }
+            },
+        )
     }
 
     /// Parser that parses a LC_DYSYMTAB command.
     fn symtab_command(
         &self,
-    ) -> impl Parser<&'a [u8], Output = Symtab<'a>, Error = Error<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = Symtab<'a>, Error = NomError<'a>> + '_
     {
         map(
             (
@@ -823,7 +831,8 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses a LC_DYSYMTAB command.
     fn dysymtab_command(
         &self,
-    ) -> impl Parser<&'a [u8], Output = Dysymtab, Error = Error<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = Dysymtab, Error = NomError<'a>> + '_
+    {
         map(
             (
                 u32(self.endianness), //  ilocalsym
@@ -886,7 +895,7 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses a LC_CODESIGNATURE command
     fn linkeditdata_command(
         &self,
-    ) -> impl Parser<&'a [u8], Output = LinkedItData, Error = Error<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = LinkedItData, Error = NomError<'a>> + '_
     {
         map(
             (
@@ -899,7 +908,8 @@ impl<'a> MachOFile<'a> {
 
     fn cs_blob(
         &self,
-    ) -> impl Parser<&'a [u8], Output = CSBlob, Error = Error<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = CSBlob, Error = NomError<'a>> + '_
+    {
         map(
             (
                 u32(Endianness::Big), // magic
@@ -911,7 +921,7 @@ impl<'a> MachOFile<'a> {
 
     fn cs_index(
         &self,
-    ) -> impl Parser<&'a [u8], Output = CSBlobIndex, Error = Error<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = CSBlobIndex, Error = NomError<'a>> + '_
     {
         map(
             (
@@ -1035,7 +1045,8 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses LC_DYLD_INFO_ONLY and LC_DYLD_INFO commands
     fn dyld_info_command(
         &self,
-    ) -> impl Parser<&'a [u8], Output = DyldInfo, Error = Error<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = DyldInfo, Error = NomError<'a>> + '_
+    {
         map(
             (
                 u32(self.endianness), //  rebase_off
@@ -1165,11 +1176,11 @@ impl<'a> MachOFile<'a> {
     /// LC_DYLD_INFO, LC_DYLD_INFO_ONLY, and LC_DYLD_EXPORTS_TRIE.
     fn exports(
         &mut self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<String>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = Vec<String>, Error = NomError<'a>> + '_
+    {
         move |data: &'a [u8]| {
             let exports = Vec::<String>::new();
             let (remainder, _) = self.parse_export_node()(data, 0)?;
-
             Ok((remainder, exports))
         }
     }
@@ -1177,7 +1188,7 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses the imports at the offsets defined within LC_DYLD_INFO and LC_DYLD_INFO_ONLY
     fn imports(
         &mut self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u8> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u8, Error = NomError<'a>> + '_ {
         move |data: &'a [u8]| {
             let mut remainder: &[u8] = data;
             let mut entry: u8;
@@ -1223,8 +1234,8 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses the header for the chained fixups designated by LC_DYLD_CHAINED_FIXUPS.
     fn chained_fixup_header(
         &self,
-    ) -> impl Parser<&'a [u8], Output = ChainedFixupsHeader, Error = Error<'a>> + '_
-    {
+    ) -> impl Parser<&'a [u8], Output = ChainedFixupsHeader, Error = NomError<'a>>
+           + '_ {
         map(
             (
                 u32(self.endianness), //  fixups_version
@@ -1303,53 +1314,48 @@ impl<'a> MachOFile<'a> {
     /// LC_DYLD_ENVIRONMENT  command.
     fn dylinker_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], &'a [u8]> + '_ {
-        move |input: &'a [u8]| {
-            let (remainder, _offset) = u32(self.endianness)(input)?;
-
-            Ok((&[], BStr::new(remainder).trim_end_with(|c| c == '\0')))
-        }
+    ) -> impl Parser<&'a [u8], Output = &'a [u8], Error = NomError<'a>> + '_
+    {
+        map(
+            (
+                u32(self.endianness),        // offset,
+                take_till(|b| b == b'\x00'), // command
+            ),
+            |(_offset, command)| command,
+        )
     }
 
     /// Parser that parses a LC_LINKER_OPTION command.
     fn linker_options_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<&'a [u8]>> + '_ {
-        move |input: &'a [u8]| {
-            let mut linker_options = Vec::new();
-            let (mut remainder, count) = u32(self.endianness)(input)?;
-            let mut option: &[u8];
-            for _ in 0..count {
-                (remainder, option) = map(
-                    (take_till(|b| b == b'\x00'), tag("\x00")),
-                    |(s, _)| s,
-                )
-                .parse(remainder)?;
-
-                linker_options.push(option);
-            }
-            Ok((&[], linker_options))
-        }
+    ) -> impl Parser<&'a [u8], Output = Vec<&'a [u8]>, Error = NomError<'a>> + '_
+    {
+        length_count(
+            u32(self.endianness), // count
+            map((take_till(|b| b == b'\x00'), tag("\x00")), |(s, _)| s),
+        )
     }
 
     /// Parser that parses a LC_UUID command.
     fn uuid_command(
         &self,
-    ) -> impl Parser<&'a [u8], Output = &'a [u8], Error = Error<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = &'a [u8], Error = NomError<'a>> + '_
+    {
         map(take(16usize), |uuid| BStr::new(uuid).trim_end_with(|c| c == '\0'))
     }
 
     /// Parser that parses a LC_SOURCE_VERSION command.
     fn source_version_command(
         &self,
-    ) -> impl Parser<&'a [u8], Output = u64, Error = Error<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         u64(self.endianness)
     }
 
     /// Parser that parses a LC_RPATH command.
     fn rpath_command(
         &self,
-    ) -> impl Parser<&'a [u8], Output = &'a [u8], Error = Error<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = &'a [u8], Error = NomError<'a>> + '_
+    {
         map(
             (
                 u32(self.endianness),
@@ -1362,8 +1368,8 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses a LC_BUILD_VERSION command.
     fn build_version_command(
         &self,
-    ) -> impl Parser<&'a [u8], Output = BuildVersionCommand, Error = Error<'a>> + '_
-    {
+    ) -> impl Parser<&'a [u8], Output = BuildVersionCommand, Error = NomError<'a>>
+           + '_ {
         map(
             (
                 u32(self.endianness), // platform,
@@ -1391,7 +1397,7 @@ impl<'a> MachOFile<'a> {
 
     fn min_version_command(
         &self,
-    ) -> impl Parser<&'a [u8], Output = MinVersion, Error = Error<'a>> + '_
+    ) -> impl Parser<&'a [u8], Output = MinVersion, Error = NomError<'a>> + '_
     {
         map(
             (
@@ -1404,7 +1410,7 @@ impl<'a> MachOFile<'a> {
 
     fn x86_thread_state(
         &self,
-    ) -> impl Parser<&'a [u8], Output = u64, Error = Error<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         map(
             (
                 u32(self.endianness), // eax
@@ -1430,7 +1436,7 @@ impl<'a> MachOFile<'a> {
 
     fn x86_64_thread_state(
         &self,
-    ) -> impl Parser<&'a [u8], Output = u64, Error = Error<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         map(
             (
                 u64(self.endianness), // rax
@@ -1461,7 +1467,7 @@ impl<'a> MachOFile<'a> {
 
     fn arm_thread_state(
         &self,
-    ) -> impl Parser<&'a [u8], Output = u64, Error = Error<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         map(
             (
                 count(u32(self.endianness), 13), // r
@@ -1476,7 +1482,7 @@ impl<'a> MachOFile<'a> {
 
     fn arm64_thread_state(
         &self,
-    ) -> impl Parser<&'a [u8], Output = u64, Error = Error<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         map(
             (
                 count(u64(self.endianness), 29), // r
@@ -1492,7 +1498,7 @@ impl<'a> MachOFile<'a> {
 
     fn ppc_thread_state(
         &self,
-    ) -> impl Parser<&'a [u8], Output = u64, Error = Error<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         map(
             (
                 uint(self.endianness, true),            // srr0
@@ -1511,7 +1517,7 @@ impl<'a> MachOFile<'a> {
 
     fn ppc64_thread_state(
         &self,
-    ) -> impl Parser<&'a [u8], Output = u64, Error = Error<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         map(
             (
                 uint(self.endianness, false),            // srr0
@@ -1529,7 +1535,7 @@ impl<'a> MachOFile<'a> {
 
     fn sparc_thread_state(
         &self,
-    ) -> impl Parser<&'a [u8], Output = u64, Error = Error<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         map(
             (
                 u32(self.endianness),           // psr
@@ -1545,7 +1551,7 @@ impl<'a> MachOFile<'a> {
 
     fn m68k_thread_state(
         &self,
-    ) -> impl Parser<&'a [u8], Output = u64, Error = Error<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         map(
             (
                 count(u32(self.endianness), 8), // dreg
@@ -1560,7 +1566,7 @@ impl<'a> MachOFile<'a> {
 
     fn m88k_thread_state(
         &self,
-    ) -> impl Parser<&'a [u8], Output = u64, Error = Error<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         map(
             (
                 count(u32(self.endianness), 31), // r
@@ -1779,7 +1785,7 @@ fn uleb128(input: &[u8]) -> IResult<&[u8], u64> {
 
         val |= b
             .checked_shl(shift)
-            .ok_or(Err::Error(Error::new(input, ErrorKind::TooLarge)))?;
+            .ok_or(Err::Error(NomError::new(input, ErrorKind::TooLarge)))?;
 
         // Break if the most significant bit is zero.
         if byte & 0x80 == 0 {
@@ -1814,7 +1820,7 @@ fn sleb128(input: &[u8]) -> IResult<&[u8], i64> {
 
         val |= b
             .checked_shl(shift)
-            .ok_or(Err::Error(Error::new(input, ErrorKind::TooLarge)))?;
+            .ok_or(Err::Error(NomError::new(input, ErrorKind::TooLarge)))?;
 
         shift += 7;
 
