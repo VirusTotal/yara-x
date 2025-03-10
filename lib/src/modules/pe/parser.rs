@@ -13,13 +13,14 @@ use itertools::Itertools;
 use memchr::memmem;
 use nom::branch::{alt, permutation};
 use nom::bytes::complete::{take, take_till};
-use nom::combinator::{cond, consumed, iterator, map, opt, success, verify};
+use nom::combinator::{
+    cond, consumed, iterator, map, opt, success, verify, Success,
+};
 use nom::error::ErrorKind;
 use nom::multi::{
     count, fold_many0, fold_many1, length_data, many0, many1, many_m_n,
 };
 use nom::number::complete::{le_u16, le_u32, le_u64, u8};
-use nom::sequence::tuple;
 use nom::{Err, IResult, Parser, ToUsize};
 use protobuf::{EnumOrUnknown, MessageField};
 
@@ -239,7 +240,8 @@ impl<'a> PE<'a> {
                 // The section parser needs the string table for resolving
                 // some section names.
                 Self::parse_section(string_table),
-            )(section_table)
+            )
+            .parse(section_table)
             .map(|(_, sections)| sections)
             .ok()
         } else {
@@ -540,7 +542,7 @@ impl<'a> PE<'a> {
 
     fn parse_dos_header(input: &[u8]) -> IResult<&[u8], DOSHeader> {
         map(
-            tuple((
+            (
                 // Magic must be 'MZ'
                 verify(le_u16, |magic| *magic == 0x5A4D),
                 le_u16,            // e_cblp
@@ -561,7 +563,7 @@ impl<'a> PE<'a> {
                 le_u16,            // e_oeminfo
                 count(le_u16, 10), // e_res2
                 le_u32,            // e_lfanew
-            )),
+            ),
             |(
                 e_magic,    // DOS magic.
                 e_cblp,     // Bytes on last page of file
@@ -601,12 +603,13 @@ impl<'a> PE<'a> {
                 e_oeminfo,
                 e_lfanew,
             },
-        )(input)
+        )
+        .parse(input)
     }
 
     fn parse_pe_header(input: &[u8]) -> IResult<&[u8], PEHeader> {
         map(
-            tuple((
+            (
                 // Magic must be 'PE\0\0'
                 verify(le_u32, |magic| *magic == 0x00004550),
                 le_u16, // machine
@@ -616,7 +619,7 @@ impl<'a> PE<'a> {
                 le_u32, // number_of_symbols
                 le_u16, // size_of_optional_header
                 le_u16, // characteristics
-            )),
+            ),
             |(
                 _, // magic
                 machine,
@@ -635,7 +638,8 @@ impl<'a> PE<'a> {
                 size_of_optional_header,
                 characteristics,
             },
-        )(input)
+        )
+        .parse(input)
     }
 
     fn parse_opt_header() -> impl FnMut(&[u8]) -> IResult<&[u8], OptionalHeader>
@@ -659,7 +663,7 @@ impl<'a> PE<'a> {
                     opt_hdr.entry_point,
                     opt_hdr.base_of_code,
                 ),
-            ) = tuple((
+            ) = (
                 le_u16, // magic
                 u8,     // major_linker_ver
                 u8,     // minor_linker_ver
@@ -668,7 +672,8 @@ impl<'a> PE<'a> {
                 le_u32, // size_of_uninitialized_data
                 le_u32, // entry_point
                 le_u32, // base_of_code
-            ))(input)?;
+            )
+                .parse(input)?;
 
             // opt_hdr.magic should be either IMAGE_NT_OPTIONAL_HDR32_MAGIC
             // or IMAGE_NT_OPTIONAL_HDR64_MAGIC, but when the file is corrupt
@@ -685,7 +690,7 @@ impl<'a> PE<'a> {
                     image_base32, // only in 32-bits PE
                     image_base64, // only in 64-bits PE
                 ),
-            ) = tuple((
+            ) = (
                 cond(
                     opt_hdr.magic != Self::IMAGE_NT_OPTIONAL_HDR64_MAGIC,
                     le_u32,
@@ -698,7 +703,8 @@ impl<'a> PE<'a> {
                     opt_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR64_MAGIC,
                     le_u64,
                 ),
-            ))(remainder)?;
+            )
+                .parse(remainder)?;
 
             opt_hdr.base_of_data = base_of_data;
             opt_hdr.image_base = image_base32
@@ -730,7 +736,7 @@ impl<'a> PE<'a> {
                     opt_hdr.loader_flags,
                     opt_hdr.number_of_rva_and_sizes,
                 ),
-            ) = tuple((
+            ) = (
                 le_u32, // section_alignment
                 le_u32, // file_alignment
                 le_u16, // major_os_version
@@ -751,7 +757,8 @@ impl<'a> PE<'a> {
                 uint(opt_hdr.magic != Self::IMAGE_NT_OPTIONAL_HDR64_MAGIC),
                 le_u32, // loader_flags
                 le_u32, // number_of_rva_and_sizes
-            ))(remainder)?;
+            )
+                .parse(remainder)?;
 
             Ok((remainder, opt_hdr))
         }
@@ -807,12 +814,12 @@ impl<'a> PE<'a> {
             // I'm not making any assumptions about the values in the padding
             // bytes. The rich is header is considered valid no matter what
             // those 12 bytes contain.
-            let (_, (_dans, _padding, tools)) =
-                tuple((
-                    le_u32::<&[u8], Error>,
-                    take(12_usize),
-                    many0(tuple((le_u16, le_u16, le_u32))),
-                ))(clear_data.as_slice())
+            let (_, (_dans, _padding, tools)) = (
+                le_u32::<&[u8], Error>,
+                take(12_usize),
+                many0((le_u16, le_u16, le_u32)),
+            )
+                .parse(clear_data.as_slice())
                 .unwrap_or_default();
 
             let rich_header = RichHeader {
@@ -848,7 +855,7 @@ impl<'a> PE<'a> {
                     section.number_of_line_numbers,
                     section.characteristics,
                 ),
-            ) = tuple((
+            ) = (
                 map(take(8_usize), |name| {
                     // The PE specification states that:
                     //
@@ -875,7 +882,8 @@ impl<'a> PE<'a> {
                 le_u16, // number_of_relocations
                 le_u16, // number_of_line_numbers
                 le_u32, // characteristics
-            ))(input)?;
+            )
+                .parse(input)?;
 
             // Certain PE files produced by GNU compilers may contain section
             // name following the pattern of "/d+" (for example: "/4", "/10",
@@ -911,14 +919,13 @@ impl<'a> PE<'a> {
     }
 
     pub fn parse_dir_entry(input: &[u8]) -> IResult<&[u8], DirEntry> {
-        map(tuple((le_u32, le_u32)), |(addr, size)| DirEntry { addr, size })(
-            input,
-        )
+        map((le_u32, le_u32), |(addr, size)| DirEntry { addr, size })
+            .parse(input)
     }
 
     fn parse_rsrc_dir(input: &[u8]) -> IResult<&[u8], ResourceDir> {
         map(
-            tuple((
+            (
                 // characteristics must be 0
                 verify(le_u32, |characteristics| *characteristics == 0),
                 le_u32,                          // timestamp
@@ -926,7 +933,7 @@ impl<'a> PE<'a> {
                 le_u16,                          // minor_version
                 verify(le_u16, |n| *n <= 32768), // number_of_named_entries
                 verify(le_u16, |n| *n <= 32768), // number_of_id_entries
-            )),
+            ),
             |(
                 _characteristics,
                 timestamp,
@@ -943,17 +950,19 @@ impl<'a> PE<'a> {
                         + number_of_named_entries as usize,
                 }
             },
-        )(input)
+        )
+        .parse(input)
     }
 
     fn parse_rsrc_dir_entry(
         resource_section: &'a [u8],
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ResourceDirEntry<'a>> {
         move |input: &'a [u8]| {
-            let (remainder, (name_or_id, mut offset)) = tuple((
+            let (remainder, (name_or_id, mut offset)) = (
                 le_u32, // name_or_id
                 le_u32, // offset
-            ))(input)?;
+            )
+                .parse(input)?;
 
             // If the high bit of `name_or_id` is set, then the remaining bits
             // are the offset within the resource section where the resource
@@ -970,7 +979,8 @@ impl<'a> PE<'a> {
                             verify(le_u16::<&[u8], Error>, |len| *len < 1000),
                             // length from characters to bytes.
                             |len| len.saturating_mul(2),
-                        ))(string)
+                        ))
+                        .parse(string)
                         .map(|(_, s)| s)
                         .ok()
                     })
@@ -999,17 +1009,18 @@ impl<'a> PE<'a> {
 
     fn parse_rsrc_entry(input: &[u8]) -> IResult<&[u8], ResourceEntry> {
         map(
-            tuple((
+            (
                 le_u32, // offset
                 le_u32, // size
                 le_u32, // code_page
                 le_u32, // reserved
-            )),
+            ),
             |(offset, size, _code_page, _reserved)| ResourceEntry {
                 offset,
                 size,
             },
-        )(input)
+        )
+        .parse(input)
     }
 
     /// Parses VERSIONINFO structures stored in resources.
@@ -1081,7 +1092,7 @@ impl<'a> PE<'a> {
                 let version_info = Self::parse_info_with_key(
                     "VS_VERSION_INFO",
                     version_info_raw,
-                    Some(tuple((
+                    Some((
                         le_u32, // signature
                         le_u32, // struct_version
                         le_u32, // file_version_high
@@ -1095,7 +1106,7 @@ impl<'a> PE<'a> {
                         le_u32, // DWORD dwFileSubtype;
                         le_u32, // DWORD dwFileDateMS;
                         le_u32, // DWORD dwFileDateLS;
-                    ))),
+                    )),
                     // Possible children are StringFileInfo and VarFileInfo
                     // structures. Both are optional, and they can appear in any
                     // order. Usually StringFileInfo appears first, but
@@ -1131,7 +1142,7 @@ impl<'a> PE<'a> {
                     "StringFileInfo",
                     input,
                     // StringFileInfo doesn't have any value.
-                    None::<Box<dyn Parser<&[u8], (), Error>>>,
+                    None::<Success<(), nom::error::Error<&[u8]>>>,
                     // The children are one or more StringTable structures.
                     fold_many1(
                         Self::parse_file_version_string_table,
@@ -1144,7 +1155,8 @@ impl<'a> PE<'a> {
                 )
             },
             |(_, _, strings)| strings,
-        )(input)
+        )
+        .parse(input)
     }
 
     /// https://learn.microsoft.com/en-us/windows/win32/menurc/varfileinfo
@@ -1155,14 +1167,15 @@ impl<'a> PE<'a> {
                     "VarFileInfo",
                     input,
                     // VarFileInfo doesn't have any value.
-                    None::<Box<dyn Parser<&[u8], (), Error>>>,
+                    None::<Success<(), nom::error::Error<&[u8]>>>,
                     // We are not really interested in parsing the children of
                     // VarFileInfo, just ignore them and succeed.
                     success(()),
                 )
             },
             |(_, _, strings)| strings,
-        )(input)
+        )
+        .parse(input)
     }
 
     /// https://learn.microsoft.com/en-us/windows/win32/menurc/stringtable
@@ -1172,12 +1185,13 @@ impl<'a> PE<'a> {
         map(
             Self::parse_info(
                 // StringTable doesn't have any value.
-                None::<Box<dyn Parser<&[u8], (), Error>>>,
+                None::<Success<(), nom::error::Error<&[u8]>>>,
                 // The children are one or more String structures.
                 many1(Self::parse_file_version_string),
             ),
             |(_, _, strings)| strings,
-        )(input)
+        )
+        .parse(input)
     }
 
     /// Parser that returns a string within the file version information
@@ -1202,7 +1216,8 @@ impl<'a> PE<'a> {
                 success(()),
             ),
             |(key, value, _)| (key, value.unwrap_or_default()),
-        )(input)
+        )
+        .parse(input)
     }
 
     /// Like [`PE::parse_info`], but checks that the structure's key matches
@@ -1214,13 +1229,14 @@ impl<'a> PE<'a> {
         children_parser: G,
     ) -> IResult<&'b [u8], (String, Option<V>, C)>
     where
-        F: Parser<&'b [u8], V, Error<'b>>,
-        G: Parser<&'b [u8], C, Error<'b>>,
+        F: Parser<&'b [u8], Output = V, Error = Error<'b>>,
+        G: Parser<&'b [u8], Output = C, Error = Error<'b>>,
     {
         verify(
             Self::parse_info(value_parser, children_parser),
             |(key, _, _)| key == expected_key,
-        )(input)
+        )
+        .parse(input)
     }
 
     /// Generic parser that parses one of the nodes that conform the
@@ -1259,8 +1275,8 @@ impl<'a> PE<'a> {
         mut children_parser: G,
     ) -> impl FnMut(&'b [u8]) -> IResult<&'b [u8], (String, Option<V>, C)>
     where
-        F: Parser<&'b [u8], V, Error<'b>>,
-        G: Parser<&'b [u8], C, Error<'b>>,
+        F: Parser<&'b [u8], Output = V, Error = Error<'b>>,
+        G: Parser<&'b [u8], Output = C, Error = Error<'b>>,
     {
         move |input: &'b [u8]| {
             // Read the structure's length and round it up to a 32-bits
@@ -1272,13 +1288,13 @@ impl<'a> PE<'a> {
             let (remainder, structure) = take(length)(input)?;
 
             // Parse the structure's first fields.
-            let (_, (consumed, (_, value_len, _type, key))) =
-                consumed(tuple((
-                    le_u16,            // length
-                    le_u16,            // value_length
-                    le_u16,            // type
-                    utf16_le_string(), // key
-                )))(structure)?;
+            let (_, (consumed, (_, value_len, _type, key))) = consumed((
+                le_u16,            // length
+                le_u16,            // value_length
+                le_u16,            // type
+                utf16_le_string(), // key
+            ))
+            .parse(structure)?;
 
             // The structure may contain padding bytes after the key for
             // aligning the rest of the structure to a 32-bits boundary.
@@ -1399,7 +1415,7 @@ impl<'a> PE<'a> {
 
             // Parse a series of IMAGE_RESOURCE_DIRECTORY_ENTRY that come
             // right after the IMAGE_RESOURCE_DIRECTORY.
-            let mut dir_entries = iterator(
+            let dir_entries = iterator(
                 raw_entries,
                 Self::parse_rsrc_dir_entry(rsrc_section),
             );
@@ -1502,7 +1518,8 @@ impl<'a> PE<'a> {
                 acc.extend(signatures);
                 acc
             },
-        )(cert_table)
+        )
+        .parse(cert_table)
         .map(|(_, cert)| cert)
         .ok()?;
 
@@ -1516,12 +1533,12 @@ impl<'a> PE<'a> {
            + '_ {
         move |input: &'a [u8]| {
             // Parse the WIN_CERTIFICATE structure.
-            let (remainder, (length, _revision, _cert_type)) =
-                tuple((
-                    le_u32::<&[u8], Error>, // length
-                    le_u16, // revision, should be WIN_CERT_REVISION_1_0 (0x0100)
-                    le_u16, // certificate type
-                ))(input)?;
+            let (remainder, (length, _revision, _cert_type)) = (
+                le_u32::<&[u8], Error>, // length
+                le_u16, // revision, should be WIN_CERT_REVISION_1_0 (0x0100)
+                le_u16, // certificate type
+            )
+                .parse(input)?;
 
             // The length includes the header, compute the length of the signature.
             let signature_length: u32 =
@@ -1560,7 +1577,8 @@ impl<'a> PE<'a> {
         );
 
         // Parse the data directory.
-        count(Self::parse_dir_entry, num_dir_entries)(self.directory)
+        count(Self::parse_dir_entry, num_dir_entries)
+            .parse(self.directory)
             .map(|(_, entries)| entries)
             .ok()
     }
@@ -1570,7 +1588,8 @@ impl<'a> PE<'a> {
         let (_, _, dbg_section) =
             self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_DEBUG, true)?;
 
-        let entries = many0(Self::parse_dbg_dir_entry)(dbg_section)
+        let entries = many0(Self::parse_dbg_dir_entry)
+            .parse(dbg_section)
             .map(|(_, entries)| entries)
             .ok()?;
 
@@ -1618,13 +1637,13 @@ impl<'a> PE<'a> {
                 //   DWORD      age;
                 //   BYTE[..]   pdb_path;
                 //
-                tuple((
+                (
                     verify(le_u32::<&[u8], Error>, |signature| {
                         *signature == 0x53445352 // "RSDS"
                     }),
                     take(20_usize), // skip guid and age
                     take_till(|c| c == 0),
-                )),
+                ),
                 // "NB10" means that the debug information is stored in a
                 // PDB 2.0 file. The structure is:
                 //
@@ -1634,26 +1653,27 @@ impl<'a> PE<'a> {
                 //   DWORD      age;
                 //   BYTE[..]   pdb_path;
                 //
-                tuple((
+                (
                     verify(le_u32::<&[u8], Error>, |signature| {
                         *signature == 0x3031424e // "NB10"
                     }),
                     take(12_usize), // skip offset, timestamp, and age
                     take_till(|c| c == 0),
-                )),
+                ),
                 //
                 //   DWORD      signature;
                 //   BYTE[16]   guid;
                 //   BYTE[..]   pdb_path;
                 //
-                tuple((
+                (
                     verify(le_u32::<&[u8], Error>, |signature| {
                         *signature == 0x434f544d // "MTOC"
                     }),
                     take(16_usize), // skip guid
                     take_till(|c| c == 0),
-                )),
-            ))(cv_info)
+                ),
+            ))
+            .parse(cv_info)
             {
                 Ok((_, (_signature, _padding, pdb_path))) => {
                     return Some(pdb_path)
@@ -1669,7 +1689,7 @@ impl<'a> PE<'a> {
     /// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-image_debug_directory
     fn parse_dbg_dir_entry(input: &[u8]) -> IResult<&[u8], DbgDirEntry> {
         map(
-            tuple((
+            (
                 le_u32, // characteristics
                 le_u32, // timestamp
                 le_u16, // major_version
@@ -1678,7 +1698,7 @@ impl<'a> PE<'a> {
                 le_u32, // raw_data_size
                 le_u32, // virtual_address
                 le_u32, // raw_data_offset
-            )),
+            ),
             |(
                 characteristics,
                 timestamp,
@@ -1700,7 +1720,8 @@ impl<'a> PE<'a> {
                     raw_data_offset,
                 }
             },
-        )(input)
+        )
+        .parse(input)
     }
 
     /// Parses PE imports.
@@ -1781,7 +1802,7 @@ impl<'a> PE<'a> {
         // Parse import descriptors until finding one that is empty (filled
         // with null values), which indicates the end of the directory table;
         // or until `MAX_PE_IMPORTS` is reached.
-        let mut import_descriptors = iterator(
+        let import_descriptors = iterator(
             input,
             verify(descriptor_parser, |d| {
                 d.name != 0
@@ -1840,7 +1861,7 @@ impl<'a> PE<'a> {
             // Parse the thunks, which are an array of 64-bits or 32-bits
             // values, depending on whether this is 64-bits PE file. The
             // array is terminated by a null thunk.
-            let mut thunks = iterator(
+            let thunks = iterator(
                 thunks,
                 verify(uint(is_32_bits), |thunk| *thunk != 0),
             );
@@ -1919,13 +1940,13 @@ impl<'a> PE<'a> {
         input: &[u8],
     ) -> IResult<&[u8], ImportDescriptor> {
         map(
-            tuple((
+            (
                 le_u32, // original_first_thunk
                 le_u32, // timestamp
                 le_u32, // forwarder_chain
                 le_u32, // name
                 le_u32, // first_thunk
-            )),
+            ),
             |(original_first_thunk, _, _, name, first_thunk)| {
                 ImportDescriptor {
                     va_values: false,
@@ -1934,14 +1955,15 @@ impl<'a> PE<'a> {
                     import_address_table: first_thunk,
                 }
             },
-        )(input)
+        )
+        .parse(input)
     }
 
     fn parse_delay_load_descriptor(
         input: &[u8],
     ) -> IResult<&[u8], ImportDescriptor> {
         map(
-            tuple((
+            (
                 le_u32, // attributes
                 le_u32, // name
                 le_u32, // module_handle
@@ -1950,7 +1972,7 @@ impl<'a> PE<'a> {
                 le_u32, // bound_import_addr_table_rva
                 le_u32, // unload_information_table_rva
                 le_u32, // timestamp
-            )),
+            ),
             |(
                 attributes,
                 name,
@@ -1988,19 +2010,21 @@ impl<'a> PE<'a> {
                     import_address_table,
                 }
             },
-        )(input)
+        )
+        .parse(input)
     }
 
     fn parse_import_by_name(input: &[u8]) -> IResult<&[u8], &[u8]> {
         map(
-            tuple((
+            (
                 le_u16, // hint
                 verify(take_till(|c: u8| c == 0_u8), |name: &[u8]| {
                     !name.is_empty()
                 }), // name
-            )),
+            ),
             |(_, name)| name,
-        )(input)
+        )
+        .parse(input)
     }
 
     fn parse_exports(&self) -> Option<ExportInfo<'a>> {
@@ -2061,7 +2085,7 @@ impl<'a> PE<'a> {
         // If the RVA from the address_of_functions is within the export
         // directory it is a forwarder RVA and points to a NULL terminated
         // ASCII string.
-        let mut func_rvas = iterator(
+        let func_rvas = iterator(
             self.data_at_rva(exports.address_of_functions).unwrap_or_default(),
             le_u32::<&[u8], Error>,
         );
@@ -2127,7 +2151,7 @@ impl<'a> PE<'a> {
         input: &[u8],
     ) -> IResult<&[u8], ExportsDirEntry> {
         map(
-            tuple((
+            (
                 le_u32, // characteristics
                 le_u32, // timestamp
                 le_u16, // major_version
@@ -2139,7 +2163,7 @@ impl<'a> PE<'a> {
                 le_u32, // address_of_functions
                 le_u32, // address_of_names
                 le_u32, // address_of_name_ordinals
-            )),
+            ),
             |(
                 characteristics,
                 timestamp,
@@ -2167,15 +2191,16 @@ impl<'a> PE<'a> {
                     address_of_name_ordinals,
                 }
             },
-        )(input)
+        )
+        .parse(input)
     }
 
     fn parse_at_rva<T, P>(&self, rva: u32, mut parser: P) -> Option<T>
     where
-        P: FnMut(&'a [u8]) -> IResult<&'a [u8], T>,
+        P: Parser<&'a [u8], Output = T, Error = nom::error::Error<&'a [u8]>>,
     {
         let data = self.data_at_rva(rva)?;
-        parser(data).map(|(_, result)| result).ok()
+        parser.parse(data).map(|(_, result)| result).ok()
     }
 
     fn str_at_rva(&self, rva: u32) -> Option<&'a str> {
@@ -2767,7 +2792,7 @@ fn utf16_le_string() -> impl FnMut(&[u8]) -> IResult<&[u8], String> {
         // Read UTF-16 chars until a null terminator is found, or the end
         // of the input is reached.
         let (mut remainder, string) =
-            many0(verify(le_u16, |c| *c != 0_u16))(input)?;
+            many0(verify(le_u16, |c| *c != 0_u16)).parse(input)?;
 
         // Consume the null-terminator, if any.
         if !remainder.is_empty() {

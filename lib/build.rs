@@ -139,6 +139,8 @@ add_module!(modules, "{name}", {proto_mod}, "{root_message}", {rust_mod_name}, {
 
 fn main() {
     println!("cargo:rerun-if-changed=src/modules/protos");
+    println!("cargo:rerun-if-changed=src/modules/add_modules.rs");
+    println!("cargo:rerun-if-changed=src/modules/modules.rs");
 
     let mut proto_compiler = Codegen::new();
     let mut proto_parser = Parser::new();

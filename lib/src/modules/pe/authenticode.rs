@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use std::fmt::Write;
 
 use array_bytes::Hexify;
+use bstr::ByteSlice;
 use const_oid::db::{rfc5911, rfc5912, rfc6268};
 use const_oid::{AssociatedOid, ObjectIdentifier};
 use der_parser::asn1_rs::{Set, Tag, ToDer, UtcTime};
@@ -12,7 +13,6 @@ use ecdsa::signature::hazmat::PrehashVerifier;
 use itertools::Itertools;
 use md2::Md2;
 use md5::Md5;
-use nom::AsBytes;
 use protobuf::MessageField;
 use rsa::traits::SignatureScheme;
 use rsa::Pkcs1v15Sign;
@@ -1070,13 +1070,10 @@ enum PublicKeyError {
     Pkcs8(#[from] rsa::pkcs8::spki::Error),
 
     #[error("DER parsing error")]
-    Der(#[from] der_parser::error::Error),
+    Der(#[from] der_parser::error::BerError),
 
     #[error("ECDSA error")]
     Ecdsa(#[from] ecdsa::Error),
-
-    #[error("DER parsing error")]
-    Nom(#[from] nom::Err<der_parser::error::Error>),
 
     #[error("Missing algorithm parameters")]
     MissingAlgorithmParameters,
@@ -1114,10 +1111,18 @@ impl TryFrom<&SubjectPublicKeyInfo<'_>> for PublicKey {
                 let key_bytes = spki.subject_public_key.as_ref();
 
                 use der_parser::ber::parse_ber_integer;
-                let (_, y) = parse_ber_integer(key_bytes)?;
-                let (rem, p) = parse_ber_integer(parameters.data)?;
-                let (rem, q) = parse_ber_integer(rem)?;
-                let (_, g) = parse_ber_integer(rem)?;
+
+                let (_, y) = parse_ber_integer(key_bytes)
+                    .map_err(|err| PublicKeyError::Der(err.into()))?;
+
+                let (rem, p) = parse_ber_integer(parameters.data)
+                    .map_err(|err| PublicKeyError::Der(err.into()))?;
+
+                let (rem, q) = parse_ber_integer(rem)
+                    .map_err(|err| PublicKeyError::Der(err.into()))?;
+
+                let (_, g) = parse_ber_integer(rem)
+                    .map_err(|err| PublicKeyError::Der(err.into()))?;
 
                 let p = dsa::BigUint::from_bytes_be(p.content.as_slice()?);
                 let q = dsa::BigUint::from_bytes_be(q.content.as_slice()?);

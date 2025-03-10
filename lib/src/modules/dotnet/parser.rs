@@ -13,7 +13,6 @@ use nom::bytes::complete::{take, take_till};
 use nom::combinator::{cond, map, map_opt, map_parser, map_res, verify};
 use nom::multi::{count, length_count, length_data, many0, many_m_n};
 use nom::number::complete::{le_u16, le_u32, le_u64, u8};
-use nom::sequence::tuple;
 use nom::{bits, IResult, Parser};
 use num_derive::FromPrimitive;
 use num_traits;
@@ -22,6 +21,8 @@ use uuid::Uuid;
 
 use crate::modules::pe::parser::{DirEntry, PE};
 use crate::modules::protos;
+
+type NomError2<'a> = nom::error::Error<&'a [u8]>;
 
 type NomError<'a> = nom::Err<nom::error::Error<&'a [u8]>>;
 
@@ -320,7 +321,7 @@ impl<'a> Dotnet<'a> {
 impl<'a> Dotnet<'a> {
     fn parse_cli_header(input: &[u8]) -> IResult<&[u8], CLIHeader> {
         map(
-            tuple((
+            (
                 // CLI header is always 72 bytes long.
                 verify(le_u32, |size| *size == 72), // size
                 le_u16,                             // major_runtime_version
@@ -330,7 +331,7 @@ impl<'a> Dotnet<'a> {
                 le_u32,                             // entry_point_token
                 PE::parse_dir_entry,                // resources,
                 PE::parse_dir_entry,                // strong_name_signature
-            )),
+            ),
             |(
                 _,
                 _major_runtime_version,
@@ -341,7 +342,8 @@ impl<'a> Dotnet<'a> {
                 resources,
                 _strong_name_signature,
             )| { CLIHeader { metadata, resources } },
-        )(input)
+        )
+        .parse(input)
     }
 
     /// Parses metadata root.
@@ -349,7 +351,7 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.24.2.1.
     fn parse_metadata_root(input: &[u8]) -> IResult<&[u8], CLIMetadata> {
         map(
-            tuple((
+            (
                 verify(le_u32, |magic| *magic == 0x424A5342), // magic == 0x424A5342
                 le_u16,                                       // major_version
                 le_u16,                                       // minor_version
@@ -372,7 +374,7 @@ impl<'a> Dotnet<'a> {
                     verify(le_u16, |n| *n <= 256),
                     Self::parse_stream_header,
                 ),
-            )),
+            ),
             |(
                 _magic,
                 _major_version,
@@ -382,16 +384,18 @@ impl<'a> Dotnet<'a> {
                 _flags,
                 stream_headers,
             )| { CLIMetadata { stream_headers, version } },
-        )(input)
+        )
+        .parse(input)
     }
 
     /// Parses a stream header.
     fn parse_stream_header(input: &[u8]) -> IResult<&[u8], StreamHeader> {
-        let (remaining, (offset, size, name)) = tuple((
+        let (remaining, (offset, size, name)) = (
             le_u32,                // offset
             le_u32,                // size
             take_till(|c| c == 0), // name, null-terminated ASCII string
-        ))(input)?;
+        )
+            .parse(input)?;
 
         // The name is padded with zeroes up to the next 4 bytes boundary,
         // lets consume the padding, which includes the null-terminator.
@@ -433,16 +437,16 @@ impl<'a> Dotnet<'a> {
         input: &'a [u8],
     ) -> IResult<&'a [u8], ()> {
         // The `#~` starts with a header that is followed by the tables.
-        let (remainder, (_, _, _, heap_sizes, _, valid, _sorted)) =
-            tuple((
-                le_u32, // reserved, always 0
-                u8,     // major_version, shall be 2
-                u8,     // minor_version; shall be 0
-                u8,     // heap_sizes
-                u8,     // reserved, always 1
-                le_u64, // valid
-                le_u64, // sorted
-            ))(input)?;
+        let (remainder, (_, _, _, heap_sizes, _, valid, _sorted)) = (
+            le_u32, // reserved, always 0
+            u8,     // major_version, shall be 2
+            u8,     // minor_version; shall be 0
+            u8,     // heap_sizes
+            u8,     // reserved, always 1
+            le_u64, // valid
+            le_u64, // sorted
+        )
+            .parse(input)?;
 
         // The number of tables is the number of bits set to 1 in the `valid`
         // field.
@@ -450,10 +454,9 @@ impl<'a> Dotnet<'a> {
 
         // Then follows an array of `num_tables` items with the number of rows
         // per each table that is present.
-        let (mut remainder, num_rows_per_present_table) = count(
-            map(le_u32, |v| v as usize),
-            num_tables as usize,
-        )(remainder)?;
+        let (mut remainder, num_rows_per_present_table) =
+            count(map(le_u32, |v| v as usize), num_tables as usize)
+                .parse(remainder)?;
 
         let mut num_rows_per_present_table =
             num_rows_per_present_table.into_iter();
@@ -492,226 +495,235 @@ impl<'a> Dotnet<'a> {
         // have a variable length, and we can't skip them without some amount
         // of parsing.
 
-        (remainder, self.modules) = count(
-            self.parse_module_row(),
-            self.num_rows(Table::Module),
-        )(remainder)?;
+        (remainder, self.modules) =
+            count(self.parse_module_row(), self.num_rows(Table::Module))
+                .parse(remainder)?;
 
-        (remainder, self.type_refs) = count(
-            self.parse_type_ref_row(),
-            self.num_rows(Table::TypeRef),
-        )(remainder)?;
+        (remainder, self.type_refs) =
+            count(self.parse_type_ref_row(), self.num_rows(Table::TypeRef))
+                .parse(remainder)?;
 
-        (remainder, self.type_defs) = count(
-            self.parse_type_def_row(),
-            self.num_rows(Table::TypeDef),
-        )(remainder)?;
+        (remainder, self.type_defs) =
+            count(self.parse_type_def_row(), self.num_rows(Table::TypeDef))
+                .parse(remainder)?;
 
         (remainder, _) = count(
             self.table_index(Table::Field),
             self.num_rows(Table::FieldPtr),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
-        (remainder, _) = count(
-            self.parse_field_row(),
-            self.num_rows(Table::Field),
-        )(remainder)?;
+        (remainder, _) =
+            count(self.parse_field_row(), self.num_rows(Table::Field))
+                .parse(remainder)?;
 
         (remainder, _) = count(
             self.table_index(Table::MethodDef),
             self.num_rows(Table::MethodDefPtr),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         (remainder, self.method_defs) = count(
             self.parse_method_def_row(),
             self.num_rows(Table::MethodDef),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         (remainder, _) = count(
             self.table_index(Table::Param),
             self.num_rows(Table::ParamPtr),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
-        (remainder, self.params) = count(
-            self.parse_param_row(),
-            self.num_rows(Table::Param),
-        )(remainder)?;
+        (remainder, self.params) =
+            count(self.parse_param_row(), self.num_rows(Table::Param))
+                .parse(remainder)?;
 
         (remainder, self.interface_impls) = count(
             self.parse_interface_impl_row(),
             self.num_rows(Table::InterfaceImpl),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         (remainder, self.member_refs) = count(
             self.parse_member_ref_row(),
             self.num_rows(Table::MemberRef),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
-        (remainder, self.constants) = count(
-            self.parse_constant_row(),
-            self.num_rows(Table::Constant),
-        )(remainder)?;
+        (remainder, self.constants) =
+            count(self.parse_constant_row(), self.num_rows(Table::Constant))
+                .parse(remainder)?;
 
         (remainder, self.custom_attributes) = count(
             self.parse_custom_attribute_row(),
             self.num_rows(Table::CustomAttribute),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         (remainder, _) = count(
             self.parse_field_marshal_row(),
             self.num_rows(Table::FieldMarshal),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         (remainder, _) = count(
             self.parse_decl_security_row(),
             self.num_rows(Table::DeclSecurity),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         (remainder, _) = count(
             self.parse_class_layout_row(),
             self.num_rows(Table::ClassLayout),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         (remainder, _) = count(
             self.parse_field_layout_row(),
             self.num_rows(Table::FieldLayout),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
-        (remainder, _) = count(
-            self.blob_index(),
-            self.num_rows(Table::StandaloneSig),
-        )(remainder)?;
+        (remainder, _) =
+            count(self.blob_index(), self.num_rows(Table::StandaloneSig))
+                .parse(remainder)?;
 
-        (remainder, _) = count(
-            self.parse_event_map_row(),
-            self.num_rows(Table::EventMap),
-        )(remainder)?;
+        (remainder, _) =
+            count(self.parse_event_map_row(), self.num_rows(Table::EventMap))
+                .parse(remainder)?;
 
         (remainder, _) = count(
             self.table_index(Table::Event),
             self.num_rows(Table::EventPtr),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
-        (remainder, _) = count(
-            self.parse_event_row(),
-            self.num_rows(Table::Event),
-        )(remainder)?;
+        (remainder, _) =
+            count(self.parse_event_row(), self.num_rows(Table::Event))
+                .parse(remainder)?;
 
         (remainder, _) = count(
             self.parse_property_map_row(),
             self.num_rows(Table::PropertyMap),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         (remainder, _) = count(
             self.table_index(Table::Property),
             self.num_rows(Table::PropertyPtr),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
-        (remainder, _) = count(
-            self.parse_property_row(),
-            self.num_rows(Table::Property),
-        )(remainder)?;
+        (remainder, _) =
+            count(self.parse_property_row(), self.num_rows(Table::Property))
+                .parse(remainder)?;
 
         (remainder, _) = count(
             self.parse_method_semantics_row(),
             self.num_rows(Table::MethodSemantics),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         (remainder, _) = count(
             self.parse_method_impl_row(),
             self.num_rows(Table::MethodImpl),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         (remainder, self.module_refs) = count(
             map(self.string_index(), |index| self.get_string(index)),
             self.num_rows(Table::ModuleRef),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
-        (remainder, self.type_specs) = count(
-            self.blob_index(),
-            self.num_rows(Table::TypeSpec),
-        )(remainder)?;
-
-        (remainder, _) = count(
-            self.parse_impl_map_row(),
-            self.num_rows(Table::ImplMap),
-        )(remainder)?;
-
-        (remainder, self.field_rvas) = count(
-            self.parse_field_rva_row(),
-            self.num_rows(Table::FieldRva),
-        )(remainder)?;
+        (remainder, self.type_specs) =
+            count(self.blob_index(), self.num_rows(Table::TypeSpec))
+                .parse(remainder)?;
 
         (remainder, _) =
-            count(take(8_usize), self.num_rows(Table::EncLog))(remainder)?;
+            count(self.parse_impl_map_row(), self.num_rows(Table::ImplMap))
+                .parse(remainder)?;
+
+        (remainder, self.field_rvas) =
+            count(self.parse_field_rva_row(), self.num_rows(Table::FieldRva))
+                .parse(remainder)?;
+
+        (remainder, _) = count(take(8_usize), self.num_rows(Table::EncLog))
+            .parse(remainder)?;
+
+        (remainder, _) = count(take(4_usize), self.num_rows(Table::EncMap))
+            .parse(remainder)?;
+
+        (remainder, self.assemblies) =
+            count(self.parse_assembly_row(), self.num_rows(Table::Assembly))
+                .parse(remainder)?;
 
         (remainder, _) =
-            count(take(4_usize), self.num_rows(Table::EncMap))(remainder)?;
+            count(take(4_usize), self.num_rows(Table::AssemblyProcessor))
+                .parse(remainder)?;
 
-        (remainder, self.assemblies) = count(
-            self.parse_assembly_row(),
-            self.num_rows(Table::Assembly),
-        )(remainder)?;
-
-        (remainder, _) = count(
-            take(4_usize),
-            self.num_rows(Table::AssemblyProcessor),
-        )(remainder)?;
-
-        (remainder, _) = count(
-            take(12_usize),
-            self.num_rows(Table::AssemblyOs),
-        )(remainder)?;
+        (remainder, _) =
+            count(take(12_usize), self.num_rows(Table::AssemblyOs))
+                .parse(remainder)?;
 
         (remainder, self.assembly_refs) = count(
             self.parse_assembly_ref_row(),
             self.num_rows(Table::AssemblyRef),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         (remainder, _) = count(
             self.parse_assembly_ref_processor_row(),
             self.num_rows(Table::AssemblyRefProcessor),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         (remainder, _) = count(
             self.parse_assembly_ref_os_row(),
             self.num_rows(Table::AssemblyRefOs),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
-        (remainder, _) = count(
-            self.parse_file_row(),
-            self.num_rows(Table::File),
-        )(remainder)?;
+        (remainder, _) =
+            count(self.parse_file_row(), self.num_rows(Table::File))
+                .parse(remainder)?;
 
         (remainder, _) = count(
             self.parse_exported_type_row(),
             self.num_rows(Table::ExportedType),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         (remainder, self.resources) = count(
             self.parse_manifest_resource_row(),
             self.num_rows(Table::ManifestResource),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         (remainder, self.nested_classes) = count(
             self.parse_nested_class_row(),
             self.num_rows(Table::NestedClass),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         (remainder, self.generic_params) = count(
             self.parse_generic_param_row(),
             self.num_rows(Table::GenericParam),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         (remainder, _) = count(
             self.parse_method_spec_row(),
             self.num_rows(Table::MethodSpec),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         (remainder, _) = count(
             self.parse_generic_param_constraint_row(),
             self.num_rows(Table::GenericParamConstraint),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         Ok((remainder, ()))
     }
@@ -724,7 +736,8 @@ impl<'a> Dotnet<'a> {
         {
             // The `#US` stream is composed of a series of varints followed by
             // the number of bytes indicated by the varint.
-            many0(length_data(var_uint))(us_stream)
+            many0(length_data(var_uint))
+                .parse(us_stream)
                 .map(|(_, strings)| strings)
                 .ok()
         } else {
@@ -771,11 +784,12 @@ impl<'a> Dotnet<'a> {
         guid_attribute
             .and_then(|guid_attribute| guid_attribute.value)
             .and_then(|value_blob| {
-                let (_, (_prolog, name)) = tuple((
+                let (_, (_prolog, name)) = (
                     le_u16::<&[u8], nom::error::Error<&'a [u8]>>, // prolog
                     map_res(length_data(u8), from_utf8), // string size followed by string
-                ))(value_blob)
-                .ok()?;
+                )
+                    .parse(value_blob)
+                    .ok()?;
                 Some(name)
             })
     }
@@ -889,14 +903,14 @@ impl<'a> Dotnet<'a> {
             u8::<&[u8], nom::error::Error<&'a [u8]>>(method_def.signature?)
                 .ok()?;
 
-        let (remainder, (_generic_param_count, param_count)) =
-            tuple((
-                // Generic param count, present only if
-                // SIG_FLAG_GENERIC flag is set.
-                cond(flags & 0x10 != 0, var_uint),
-                // Regular param count.
-                var_uint,
-            ))(remainder)
+        let (remainder, (_generic_param_count, param_count)) = (
+            // Generic param count, present only if
+            // SIG_FLAG_GENERIC flag is set.
+            cond(flags & 0x10 != 0, var_uint),
+            // Regular param count.
+            var_uint,
+        )
+            .parse(remainder)
             .ok()?;
 
         let generic_method_params: Vec<_> = self
@@ -1093,7 +1107,7 @@ impl<'a> Dotnet<'a> {
         }
 
         let (mut remainder, type_) =
-            map_opt(u8, num_traits::FromPrimitive::from_u8)(input)?;
+            map_opt(u8, num_traits::FromPrimitive::from_u8).parse(input)?;
 
         *depth += 1;
 
@@ -1142,7 +1156,8 @@ impl<'a> Dotnet<'a> {
 
                 (remainder, coded_index) = map_res(var_uint, |v| {
                     CodedIndex::from_u32(Table::TYPE_DEF_OR_REF, v)
-                })(remainder)?;
+                })
+                .parse(remainder)?;
 
                 write!(
                     output,
@@ -1186,7 +1201,7 @@ impl<'a> Dotnet<'a> {
                     generic_method_params,
                 )?;
 
-                (remainder, (dimensions, sizes, lower_bounds)) = tuple((
+                (remainder, (dimensions, sizes, lower_bounds)) = (
                     // dimensions, limited to a sane limit of
                     // MAX_ARRAY_DIMENSION as a protection against corrupted
                     // files.
@@ -1207,9 +1222,8 @@ impl<'a> Dotnet<'a> {
                         verify(var_uint, |n| *n <= Self::MAX_ARRAY_DIMENSION),
                         var_sint,
                     ),
-                ))(
-                    remainder
-                )?;
+                )
+                    .parse(remainder)?;
 
                 write!(output, "[")?;
                 for i in 0..dimensions {
@@ -1262,9 +1276,8 @@ impl<'a> Dotnet<'a> {
                 )?;
 
                 (remainder, count) =
-                    verify(var_uint, |count| *count < Self::MAX_PARAMS)(
-                        remainder,
-                    )?;
+                    verify(var_uint, |count| *count < Self::MAX_PARAMS)
+                        .parse(remainder)?;
 
                 write!(output, "<")?;
                 for i in 1..=count {
@@ -1286,10 +1299,9 @@ impl<'a> Dotnet<'a> {
 
                 // Skip flags and read param count. Param count is limited
                 // to MAX_PARAMS.
-                (remainder, (_, count)) = tuple((
-                    u8,
-                    verify(var_uint, |count| *count < Self::MAX_PARAMS),
-                ))(remainder)?;
+                (remainder, (_, count)) =
+                    (u8, verify(var_uint, |count| *count < Self::MAX_PARAMS))
+                        .parse(remainder)?;
 
                 write!(output, "FnPtr<")?;
                 remainder = self.parse_type_spec(
@@ -1351,7 +1363,8 @@ impl<'a> Dotnet<'a> {
     #[inline]
     fn string_index(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], StringIndex> {
+    ) -> impl Parser<&'a [u8], Output = StringIndex, Error = NomError2<'a>>
+    {
         map(self.index(self.string_index_size), StringIndex)
     }
 
@@ -1359,7 +1372,7 @@ impl<'a> Dotnet<'a> {
     #[inline]
     fn guid_index(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], GuidIndex> {
+    ) -> impl Parser<&'a [u8], Output = GuidIndex, Error = NomError2<'a>> {
         map(self.index(self.guid_index_size), GuidIndex)
     }
 
@@ -1367,7 +1380,7 @@ impl<'a> Dotnet<'a> {
     #[inline]
     fn blob_index(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], BlobIndex> {
+    ) -> impl Parser<&'a [u8], Output = BlobIndex, Error = NomError2<'a>> {
         map(self.index(self.blob_index_size), BlobIndex)
     }
 
@@ -1376,7 +1389,8 @@ impl<'a> Dotnet<'a> {
     fn table_index(
         &self,
         table: Table,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], usize> + '_ {
+    ) -> impl Parser<&'a [u8], Output = usize, Error = NomError2<'a>> + '_
+    {
         move |input: &'a [u8]| {
             let (remainder, index) =
                 self.index(if self.num_rows[table as usize] > 65535 {
@@ -1409,14 +1423,15 @@ impl<'a> Dotnet<'a> {
     ///
     /// Also, the overall size of a coded index can be 16 or 32 bits, depending
     /// on the sizes of the tables it refers to. The maximum index number that
-    /// can fit in a 16 bits coded index is `2^(16 - tag_size)` (remember, some
+    /// can fit in an 16 bits coded index is `2^(16 - tag_size)` (remember, some
     /// bits are used for encoding the table), so if the largest table has less
-    /// than `2^(16 - tag_size)` elements, the coded index is 16 bits. Otherwise
+    /// than `2^(16 - tag_size)` elements, the coded index is 16 bits. Otherwise,
     /// it will be 32 bits long.
     fn coded_index<'s>(
         &'s self,
         tables: &'s [Table],
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], CodedIndex> + 's {
+    ) -> impl Parser<&'a [u8], Output = CodedIndex, Error = NomError2<'a>> + 's
+    {
         let num_rows_per_table = tables.iter().map(|table| {
             self.num_rows.get(*table as usize).cloned().unwrap_or_default()
         });
@@ -1450,7 +1465,8 @@ impl<'a> Dotnet<'a> {
         move |input: &'a [u8]| {
             map_res(self.index(index_size), |v| {
                 CodedIndex::from_u32(tables, v)
-            })(input)
+            })
+            .parse(input)
         }
     }
 
@@ -1459,9 +1475,10 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.30
     fn parse_module_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Option<&'a str>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = Option<&'a str>, Error = NomError2<'a>> + '_
+    {
         map(
-            tuple((
+            (
                 // generation (reserved, shall be zero).
                 le_u16,
                 // name (index into the `#String` heap)
@@ -1472,7 +1489,7 @@ impl<'a> Dotnet<'a> {
                 self.guid_index(),
                 // enc_base_id (index into the `#GUID` heap)
                 self.guid_index(),
-            )),
+            ),
             |(_, name, _, _, _)| name,
         )
     }
@@ -1482,9 +1499,10 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.38
     fn parse_type_ref_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], TypeRef<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = TypeRef<'a>, Error = NomError2<'a>> + '_
+    {
         map(
-            tuple((
+            (
                 // resolution scope
                 self.coded_index(&[
                     Table::Module,
@@ -1496,7 +1514,7 @@ impl<'a> Dotnet<'a> {
                 map(self.string_index(), |index| self.get_string(index)),
                 // type namespace
                 map(self.string_index(), |index| self.get_string(index)),
-            )),
+            ),
             |(_resolution_scope, type_name, type_namespace)| TypeRef {
                 name: type_name,
                 namespace: type_namespace,
@@ -1509,9 +1527,10 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.37.
     fn parse_type_def_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], TypeDef<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = TypeDef<'a>, Error = NomError2<'a>> + '_
+    {
         map(
-            tuple((
+            (
                 // flags
                 le_u32,
                 // type name (index into the `#String` heap)
@@ -1524,7 +1543,7 @@ impl<'a> Dotnet<'a> {
                 self.table_index(Table::Field),
                 // method list
                 self.table_index(Table::MethodDef),
-            )),
+            ),
             |(flags, name, namespace, extends, _field_list, method_list)| {
                 TypeDef {
                     flags,
@@ -1555,16 +1574,16 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.15.
     fn parse_field_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
         map(
-            tuple((
+            (
                 // flags
                 le_u16,
                 // name (index into the `#String` heap)
                 self.string_index(),
                 // signature (index into the `#Blob` heap)
                 self.blob_index(),
-            )),
+            ),
             |_| (),
         )
     }
@@ -1574,9 +1593,10 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.26.
     fn parse_method_def_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], MethodDef<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = MethodDef<'a>, Error = NomError2<'a>> + '_
+    {
         map(
-            tuple((
+            (
                 // rva
                 le_u32,
                 // impl_flags
@@ -1589,7 +1609,7 @@ impl<'a> Dotnet<'a> {
                 map(self.blob_index(), |index| self.get_blob(index)),
                 // param_list (index into the param table)
                 self.table_index(Table::Param),
-            )),
+            ),
             |(_, _, flags, name, signature, param_list)| MethodDef {
                 flags,
                 name,
@@ -1604,14 +1624,15 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.33.
     fn parse_param_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Param<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = Param<'a>, Error = NomError2<'a>> + '_
+    {
         map(
-            tuple((
+            (
                 le_u16, // flags
                 le_u16, // sequence
                 // name
                 map(self.string_index(), |index| self.get_string(index)),
-            )),
+            ),
             |(_flags, _sequence, name)| Param { name },
         )
     }
@@ -1621,12 +1642,13 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.23.
     fn parse_interface_impl_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], InterfaceImpl> + '_ {
+    ) -> impl Parser<&'a [u8], Output = InterfaceImpl, Error = NomError2<'a>> + '_
+    {
         map(
-            tuple((
+            (
                 self.table_index(Table::TypeDef), // class
                 self.coded_index(Table::TYPE_DEF_OR_REF), // interface
-            )),
+            ),
             |(class, interface)| InterfaceImpl { class, interface },
         )
     }
@@ -1636,9 +1658,10 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.25.
     fn parse_member_ref_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], MemberRef> + '_ {
+    ) -> impl Parser<&'a [u8], Output = MemberRef, Error = NomError2<'a>> + '_
+    {
         map(
-            tuple((
+            (
                 // class
                 self.coded_index(&[
                     Table::TypeDef,
@@ -1651,7 +1674,7 @@ impl<'a> Dotnet<'a> {
                 self.string_index(),
                 // signature
                 self.blob_index(),
-            )),
+            ),
             |(class, _name, _signature)| MemberRef { class },
         )
     }
@@ -1661,9 +1684,10 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.9.
     fn parse_constant_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Constant<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = Constant<'a>, Error = NomError2<'a>> + '_
+    {
         map(
-            tuple((
+            (
                 map_opt(u8, num_traits::FromPrimitive::from_u8), // type
                 u8,                                              // padding
                 self.coded_index(&[
@@ -1672,7 +1696,7 @@ impl<'a> Dotnet<'a> {
                     Table::Property,
                 ]),
                 map(self.blob_index(), |index| self.get_blob(index)), // value
-            )),
+            ),
             |(type_, _, _, value)| Constant { type_, value },
         )
     }
@@ -1682,17 +1706,20 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.10.
     fn parse_custom_attribute_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], CustomAttribute<'a>> + '_
-    {
+    ) -> impl Parser<
+        &'a [u8],
+        Output = CustomAttribute<'a>,
+        Error = NomError2<'a>,
+    > + '_ {
         map(
-            tuple((
+            (
                 // parent
                 self.coded_index(Table::HAS_CUSTOM_ATTRIBUTE),
                 // type
                 self.coded_index(Table::CUSTOM_ATTRIBUTE_TYPE),
                 // value
                 map(self.blob_index(), |index| self.get_blob(index)),
-            )),
+            ),
             |(parent, type_, value)| CustomAttribute { parent, type_, value },
         )
     }
@@ -1702,14 +1729,14 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.17.
     fn parse_field_marshal_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
         map(
-            tuple((
+            (
                 // parent
                 self.coded_index(&[Table::Field, Table::Param]),
                 // native type (index into blob heap)
                 self.blob_index(),
-            )),
+            ),
             |_| (),
         )
     }
@@ -1719,9 +1746,9 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.11.
     fn parse_decl_security_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
         map(
-            tuple((
+            (
                 // action
                 le_u16,
                 // parent
@@ -1732,7 +1759,7 @@ impl<'a> Dotnet<'a> {
                 ]),
                 // permission set (index into blob heap)
                 self.blob_index(),
-            )),
+            ),
             |_| (),
         )
     }
@@ -1742,13 +1769,13 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.8.
     fn parse_class_layout_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
         map(
-            tuple((
+            (
                 le_u16,                           // packing size
                 le_u32,                           // class size
                 self.table_index(Table::TypeDef), // parent (index into typedef table)
-            )),
+            ),
             |_| (),
         )
     }
@@ -1758,12 +1785,12 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.16.
     fn parse_field_layout_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
         map(
-            tuple((
+            (
                 le_u32,                         // offset
                 self.table_index(Table::Field), // field (index into field table)
-            )),
+            ),
             |_| (),
         )
     }
@@ -1773,12 +1800,12 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.12.
     fn parse_event_map_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
         map(
-            tuple((
+            (
                 self.table_index(Table::TypeDef), // parent
                 self.table_index(Table::Event),   // event list
-            )),
+            ),
             |_| (),
         )
     }
@@ -1788,13 +1815,13 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.13.
     fn parse_event_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
         map(
-            tuple((
+            (
                 le_u16,
                 self.string_index(),
                 self.coded_index(Table::TYPE_DEF_OR_REF),
-            )),
+            ),
             |_| (),
         )
     }
@@ -1804,12 +1831,12 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.35.
     fn parse_property_map_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
         map(
-            tuple((
+            (
                 self.table_index(Table::TypeDef),  // parent
                 self.table_index(Table::Property), // event list
-            )),
+            ),
             |_| (),
         )
     }
@@ -1819,13 +1846,13 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.34.
     fn parse_property_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
         map(
-            tuple((
+            (
                 le_u16,              // flags
                 self.string_index(), // name
                 self.blob_index(),   // type
-            )),
+            ),
             |_| (),
         )
     }
@@ -1835,13 +1862,13 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.28.
     fn parse_method_semantics_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
         map(
-            tuple((
+            (
                 le_u16, // semantics
                 self.table_index(Table::MethodDef),
                 self.coded_index(&[Table::Event, Table::Property]),
-            )),
+            ),
             |_| (),
         )
     }
@@ -1851,13 +1878,13 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.27.
     fn parse_method_impl_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
         map(
-            tuple((
+            (
                 self.table_index(Table::TypeDef),
                 self.coded_index(Table::METHOD_DEF_OR_REF),
                 self.coded_index(Table::METHOD_DEF_OR_REF),
-            )),
+            ),
             |_| (),
         )
     }
@@ -1867,14 +1894,14 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.22.
     fn parse_impl_map_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
         map(
-            tuple((
+            (
                 le_u16, // mapping flags
                 self.coded_index(&[Table::Field, Table::MethodDef]),
                 self.string_index(),
                 self.table_index(Table::ModuleRef),
-            )),
+            ),
             |_| (),
         )
     }
@@ -1884,12 +1911,12 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.18.
     fn parse_field_rva_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u32> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u32, Error = NomError2<'a>> + '_ {
         map(
-            tuple((
+            (
                 le_u32, // mapping flags
                 self.table_index(Table::Field),
-            )),
+            ),
             |(rva, _)| rva,
         )
     }
@@ -1899,9 +1926,10 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.2.
     fn parse_assembly_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Assembly<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = Assembly<'a>, Error = NomError2<'a>> + '_
+    {
         map(
-            tuple((
+            (
                 le_u32,                                                   // hash_alg
                 le_u16,            // major_version
                 le_u16,            // minor_version
@@ -1911,7 +1939,7 @@ impl<'a> Dotnet<'a> {
                 self.blob_index(), // public_key_or_token
                 map(self.string_index(), |index| self.get_string(index)), // name
                 map(self.string_index(), |index| self.get_string(index)), // culture
-            )),
+            ),
             |(
                 _hash_alg,
                 major_version,
@@ -1952,9 +1980,10 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.5.
     fn parse_assembly_ref_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], AssemblyRef<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = AssemblyRef<'a>, Error = NomError2<'a>> + '_
+    {
         map(
-            tuple((
+            (
                 le_u16, // major_version
                 le_u16, // minor_version
                 le_u16, // build_number
@@ -1967,7 +1996,7 @@ impl<'a> Dotnet<'a> {
                 // culture
                 map(self.string_index(), |index| self.get_string(index)),
                 self.blob_index(), // hash_value
-            )),
+            ),
             |(
                 major_version,
                 minor_version,
@@ -2004,8 +2033,8 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.7.
     fn parse_assembly_ref_processor_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
-        map(tuple((le_u32, self.table_index(Table::AssemblyRef))), |_| ())
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
+        map((le_u32, self.table_index(Table::AssemblyRef)), |_| ())
     }
 
     /// Parse AssemblyRefOs row.
@@ -2013,14 +2042,14 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.6.
     fn parse_assembly_ref_os_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
         map(
-            tuple((
+            (
                 le_u32, // os_platform_id
                 le_u32, // os_major_version
                 le_u32, // os_minor_version
                 self.table_index(Table::AssemblyRef),
-            )),
+            ),
             |_| (),
         )
     }
@@ -2030,13 +2059,13 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.19.
     fn parse_file_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
         map(
-            tuple((
+            (
                 le_u32,              // flags
                 self.string_index(), // name
                 self.blob_index(),   // hash_value
-            )),
+            ),
             |_| (),
         )
     }
@@ -2046,9 +2075,9 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.14.
     fn parse_exported_type_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
         map(
-            tuple((
+            (
                 le_u32,              // flags
                 le_u32,              // type_def_if
                 self.string_index(), // type_name
@@ -2058,7 +2087,7 @@ impl<'a> Dotnet<'a> {
                     Table::AssemblyRef,
                     Table::ExportedType,
                 ]),
-            )),
+            ),
             |_| (),
         )
     }
@@ -2068,9 +2097,10 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.24.
     fn parse_manifest_resource_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Resource<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = Resource<'a>, Error = NomError2<'a>> + '_
+    {
         map(
-            tuple((
+            (
                 le_u32,                                                   // offset
                 le_u32, // flags
                 map(self.string_index(), |index| self.get_string(index)), // name
@@ -2079,7 +2109,7 @@ impl<'a> Dotnet<'a> {
                     Table::AssemblyRef,
                     Table::Null,
                 ]),
-            )),
+            ),
             |(offset, _, name, implementation)| {
                 // data and offset is only set if the resources are located
                 // in this file.
@@ -2130,12 +2160,13 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.32.
     fn parse_nested_class_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], NestedClass> + '_ {
+    ) -> impl Parser<&'a [u8], Output = NestedClass, Error = NomError2<'a>> + '_
+    {
         map(
-            tuple((
+            (
                 self.table_index(Table::TypeDef), // nested_class
                 self.table_index(Table::TypeDef), // enclosing_class
-            )),
+            ),
             |(nested_class, enclosing_class)| NestedClass {
                 nested_class,
                 enclosing_class,
@@ -2148,16 +2179,17 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.20.
     fn parse_generic_param_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], GenericParam<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = GenericParam<'a>, Error = NomError2<'a>> + '_
+    {
         map(
-            tuple((
+            (
                 le_u16, // number
                 le_u16, // flags
                 // owner
                 self.coded_index(Table::TYPE_OR_METHOD_DEF),
                 // name
                 map(self.string_index(), |index| self.get_string(index)),
-            )),
+            ),
             |(_number, _flags, owner, name)| GenericParam { owner, name },
         )
     }
@@ -2167,12 +2199,12 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.29.
     fn parse_method_spec_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
         map(
-            tuple((
+            (
                 self.coded_index(Table::METHOD_DEF_OR_REF), // method
                 self.blob_index(),                          // instantiation
-            )),
+            ),
             |_| (),
         )
     }
@@ -2182,12 +2214,12 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.21.
     fn parse_generic_param_constraint_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError2<'a>> + '_ {
         map(
-            tuple((
+            (
                 self.table_index(Table::GenericParam),
                 self.coded_index(Table::TYPE_DEF_OR_REF),
-            )),
+            ),
             |_| (),
         )
     }
