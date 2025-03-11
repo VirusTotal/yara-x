@@ -226,6 +226,7 @@ ecdsa = { workspace = true, optional = true }
 memmap2 = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 intaglio = { workspace = true }
+ipnet = { workspace = true }
 itertools = { workspace = true }
 lazy_static = { workspace = true }
 linkme = { workspace = true }

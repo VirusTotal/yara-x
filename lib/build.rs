@@ -25,14 +25,18 @@ fn generate_module_files(proto_files: Vec<FileDescriptorProto>) {
         if let Some(module_options) =
             yara_module_options.get(&proto_file.options)
         {
+            let proto_path = PathBuf::from(proto_file.name.unwrap());
+            let proto_name = proto_path
+                .with_extension("")
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string();
+
             modules.push((
                 module_options.name.unwrap(),
-                proto_file
-                    .name
-                    .unwrap()
-                    .strip_suffix(".proto")
-                    .unwrap()
-                    .to_string(),
+                proto_name,
                 module_options.rust_module,
                 module_options.cargo_feature,
                 module_options.root_message.unwrap(),
@@ -153,17 +157,20 @@ fn main() {
         proto_parser.pure();
     }
 
-    proto_compiler.cargo_out_dir("protos").include("src/modules/protos");
-    proto_parser.include("src/modules/protos");
+    proto_compiler.cargo_out_dir("protos").include("./src/modules/protos");
+    proto_parser.include("./src/modules/protos");
 
     // All `.proto` files in src/modules/protos must be compiled
-    for entry in fs::read_dir("src/modules/protos").unwrap() {
-        let entry = entry.unwrap();
+    for entry in globwalk::glob("src/modules/protos/**").unwrap().flatten() {
         let path = entry.path();
+        if entry.metadata().unwrap().is_dir() {
+            proto_compiler.include(path);
+            proto_parser.include(path);
+        }
         if let Some(extension) = path.extension() {
             if extension == "proto" {
-                proto_compiler.input(&path);
-                proto_parser.input(&path);
+                proto_compiler.input(path);
+                proto_parser.input(path);
             }
         }
     }
