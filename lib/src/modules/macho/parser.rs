@@ -369,7 +369,7 @@ impl<'a> MachO<'a> {
             if let Some(super_data) =
                 data.get(offset..offset.saturating_add(size))
             {
-                if let Err(_err) = macho.cs_superblob()(super_data) {
+                if let Err(_err) = macho.cs_superblob().parse(super_data) {
                     #[cfg(feature = "logging")]
                     error!("Error parsing Mach-O file: {:?}", _err);
                     // fail silently if it fails, data was not formatted
@@ -395,7 +395,7 @@ impl<'a> MachO<'a> {
             if let Some(export_data) =
                 data.get(offset..offset.saturating_add(size))
             {
-                if let Err(_err) = macho.exports().parse(export_data) {
+                if let Err(_err) = macho.parse_exports(export_data) {
                     #[cfg(feature = "logging")]
                     error!("Error parsing Mach-O file: {:?}", _err);
                     // fail silently if it fails, data was not formatted
@@ -421,7 +421,7 @@ impl<'a> MachO<'a> {
             if let Some(import_data) =
                 data.get(offset..offset.saturating_add(size))
             {
-                if let Err(_err) = macho.imports().parse(import_data) {
+                if let Err(_err) = macho.parse_imports(import_data) {
                     #[cfg(feature = "logging")]
                     error!("Error parsing Mach-O file: {:?}", _err);
                     // fail silently if it fails, data was not formatted
@@ -437,7 +437,7 @@ impl<'a> MachO<'a> {
             if let Some(fixup_data) =
                 data.get(offset..offset.saturating_add(size))
             {
-                if let Err(_err) = macho.chained_fixups()(fixup_data) {
+                if let Err(_err) = macho.parse_chained_fixups(fixup_data) {
                     #[cfg(feature = "logging")]
                     error!("Error parsing Mach-O file: {:?}", _err);
                     // fail silently if it fails, data was not formatted
@@ -938,7 +938,8 @@ impl<'a> MachOFile<'a> {
 
     fn cs_superblob(
         &mut self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], CSSuperBlob> + '_ {
+    ) -> impl Parser<&'a [u8], Output = CSSuperBlob, Error = NomError<'a>> + '_
+    {
         move |input: &'a [u8]| {
             let (mut remainder, (_magic, _length, count)) = (
                 u32(Endianness::Big), // magic
@@ -1038,7 +1039,7 @@ impl<'a> MachOFile<'a> {
                 }
             }
 
-            Ok((&[], super_blob))
+            Ok((remainder, super_blob))
         }
     }
 
@@ -1088,147 +1089,127 @@ impl<'a> MachOFile<'a> {
         )
     }
 
-    fn parse_export_node(
-        &mut self,
-    ) -> impl FnMut(&'a [u8], usize) -> IResult<&'a [u8], usize> + '_ {
-        move |data: &'a [u8], offset: usize| {
-            let mut stack = Vec::<ExportNode>::new();
-            let mut visited = HashSet::<usize>::new();
-
-            stack.push(ExportNode { offset, prefix: "".to_string() });
-
-            while !stack.is_empty() && !data.is_empty() && offset < data.len()
-            {
-                let export_node = stack.pop().unwrap();
-
-                // If node was already visited, continue without processing it.
-                if !visited.insert(export_node.offset) {
-                    continue;
-                }
-
-                let node_data = match data.get(export_node.offset..) {
-                    Some(data) => data,
-                    None => continue,
-                };
-
-                let (mut remaining_data, length) = uleb128(node_data)?;
-
-                if length != 0 {
-                    let (remainder, flags) = uleb128(remaining_data)?;
-                    match flags {
-                        EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER => {
-                            let (remainder, (_stub_offset, _resolver_offset)) =
-                                (uleb128, uleb128).parse(remainder)?;
-                            remaining_data = remainder;
-                        }
-                        EXPORT_SYMBOL_FLAGS_REEXPORT => {
-                            let (remainder, _ordinal) = uleb128(remainder)?;
-                            let (remainder, _label) = map(
-                                (take_till(|b| b == b'\x00'), tag("\x00")),
-                                |(s, _)| s,
-                            )
-                            .parse(remainder)?;
-
-                            remaining_data = remainder;
-                        }
-                        EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION => {
-                            let (remainder, _offset) = uleb128(remainder)?;
-                            remaining_data = remainder;
-                        }
-                        _ => {}
-                    }
-                }
-
-                let (mut edge_remainder, edges) = u8(remaining_data)?;
-
-                for _ in 0..edges {
-                    let (remainder, edge_label) = map(
-                        (take_till(|b| b == b'\x00'), tag("\x00")),
-                        |(s, _)| BStr::new(s),
-                    )
-                    .parse(edge_remainder)?;
-
-                    let (remainder, edge_offset) = uleb128(remainder)?;
-
-                    if let Ok(edge_label_str) = edge_label.to_str() {
-                        stack.push(ExportNode {
-                            offset: edge_offset as usize,
-                            prefix: format!(
-                                "{}{}",
-                                export_node.prefix, edge_label_str
-                            ),
-                        });
-                    }
-
-                    edge_remainder = remainder;
-                }
-
-                if length != 0 {
-                    self.exports.push(export_node.prefix)
-                }
-            }
-
-            Ok((data, 0))
-        }
-    }
-
     /// Parser that parses the exports at the offsets defined within
     /// LC_DYLD_INFO, LC_DYLD_INFO_ONLY, and LC_DYLD_EXPORTS_TRIE.
-    fn exports(
-        &mut self,
-    ) -> impl Parser<&'a [u8], Output = Vec<String>, Error = NomError<'a>> + '_
-    {
-        move |data: &'a [u8]| {
-            let exports = Vec::<String>::new();
-            let (remainder, _) = self.parse_export_node()(data, 0)?;
-            Ok((remainder, exports))
-        }
-    }
+    fn parse_exports(&mut self, data: &'a [u8]) -> IResult<&'a [u8], ()> {
+        let mut stack = Vec::<ExportNode>::new();
+        let mut visited = HashSet::<usize>::new();
 
-    /// Parser that parses the imports at the offsets defined within LC_DYLD_INFO and LC_DYLD_INFO_ONLY
-    fn imports(
-        &mut self,
-    ) -> impl Parser<&'a [u8], Output = u8, Error = NomError<'a>> + '_ {
-        move |data: &'a [u8]| {
-            let mut remainder: &[u8] = data;
-            let mut entry: u8;
+        stack.push(ExportNode { offset: 0, prefix: "".to_string() });
 
-            while !remainder.is_empty() {
-                (remainder, entry) = u8(remainder)?;
-                let opcode = entry & BIND_OPCODE_MASK;
-                let _immediate = entry & BIND_IMMEDIATE_MASK;
-                match opcode {
-                    BIND_OPCODE_SET_DYLIB_ORDINAL_ULEB
-                    | BIND_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB
-                    | BIND_OPCODE_ADD_ADDR_ULEB
-                    | BIND_OPCODE_DO_BIND_ADD_ADDR_ULEB => {
-                        (remainder, _) = uleb128(remainder)?;
-                    }
-                    BIND_OPCODE_DO_BIND_ULEB_TIMES_SKIPPING_ULEB => {
-                        (remainder, _) = uleb128(remainder)?;
-                        (remainder, _) = uleb128(remainder)?;
-                    }
-                    BIND_OPCODE_SET_ADDEND_SLEB => {
-                        (remainder, _) = sleb128(remainder)?;
-                    }
+        while !stack.is_empty() && !data.is_empty() {
+            let export_node = stack.pop().unwrap();
 
-                    BIND_OPCODE_SET_SYMBOL_TRAILING_FLAGS_IMM => {
-                        let (import_remainder, strr) = map(
+            // If node was already visited, continue without processing it.
+            if !visited.insert(export_node.offset) {
+                continue;
+            }
+
+            let node_data = match data.get(export_node.offset..) {
+                Some(data) => data,
+                None => continue,
+            };
+
+            let (mut remaining_data, length) = uleb128(node_data)?;
+
+            if length != 0 {
+                let (remainder, flags) = uleb128(remaining_data)?;
+                match flags {
+                    EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER => {
+                        let (remainder, (_stub_offset, _resolver_offset)) =
+                            (uleb128, uleb128).parse(remainder)?;
+                        remaining_data = remainder;
+                    }
+                    EXPORT_SYMBOL_FLAGS_REEXPORT => {
+                        let (remainder, _ordinal) = uleb128(remainder)?;
+                        let (remainder, _label) = map(
                             (take_till(|b| b == b'\x00'), tag("\x00")),
-                            |(s, _)| BStr::new(s),
+                            |(s, _)| s,
                         )
                         .parse(remainder)?;
-                        remainder = import_remainder;
-                        if let Ok(import) = strr.to_str() {
-                            self.imports.push(import.to_string());
-                        }
+
+                        remaining_data = remainder;
+                    }
+                    EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION => {
+                        let (remainder, _offset) = uleb128(remainder)?;
+                        remaining_data = remainder;
                     }
                     _ => {}
                 }
             }
 
-            Ok((remainder, 0))
+            let (mut edge_remainder, edges) = u8(remaining_data)?;
+
+            for _ in 0..edges {
+                let (remainder, edge_label) = map(
+                    (take_till(|b| b == b'\x00'), tag("\x00")),
+                    |(s, _)| BStr::new(s),
+                )
+                .parse(edge_remainder)?;
+
+                let (remainder, edge_offset) = uleb128(remainder)?;
+
+                if let Ok(edge_label_str) = edge_label.to_str() {
+                    stack.push(ExportNode {
+                        offset: edge_offset as usize,
+                        prefix: format!(
+                            "{}{}",
+                            export_node.prefix, edge_label_str
+                        ),
+                    });
+                }
+
+                edge_remainder = remainder;
+            }
+
+            if length != 0 {
+                self.exports.push(export_node.prefix)
+            }
         }
+
+        Ok((&[], ()))
+    }
+
+    /// Parser that parses the imports at the offsets defined within LC_DYLD_INFO and LC_DYLD_INFO_ONLY
+    fn parse_imports(&mut self, data: &'a [u8]) -> IResult<&'a [u8], ()> {
+        let mut remainder: &[u8] = data;
+        let mut entry: u8;
+
+        while !remainder.is_empty() {
+            (remainder, entry) = u8(remainder)?;
+            let opcode = entry & BIND_OPCODE_MASK;
+            let _immediate = entry & BIND_IMMEDIATE_MASK;
+            match opcode {
+                BIND_OPCODE_SET_DYLIB_ORDINAL_ULEB
+                | BIND_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB
+                | BIND_OPCODE_ADD_ADDR_ULEB
+                | BIND_OPCODE_DO_BIND_ADD_ADDR_ULEB => {
+                    (remainder, _) = uleb128(remainder)?;
+                }
+                BIND_OPCODE_DO_BIND_ULEB_TIMES_SKIPPING_ULEB => {
+                    (remainder, _) = uleb128(remainder)?;
+                    (remainder, _) = uleb128(remainder)?;
+                }
+                BIND_OPCODE_SET_ADDEND_SLEB => {
+                    (remainder, _) = sleb128(remainder)?;
+                }
+
+                BIND_OPCODE_SET_SYMBOL_TRAILING_FLAGS_IMM => {
+                    let (import_remainder, strr) = map(
+                        (take_till(|b| b == b'\x00'), tag("\x00")),
+                        |(s, _)| BStr::new(s),
+                    )
+                    .parse(remainder)?;
+                    remainder = import_remainder;
+                    if let Ok(import) = strr.to_str() {
+                        self.imports.push(import.to_string());
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        Ok((remainder, ()))
     }
 
     /// Parser that parses the header for the chained fixups designated by LC_DYLD_CHAINED_FIXUPS.
@@ -1269,45 +1250,42 @@ impl<'a> MachOFile<'a> {
     }
 
     /// Parser that parses the chained fixup imports designated by LC_DYLD_CHAINED_FIXUPS.
-    fn chained_fixups(
+    fn parse_chained_fixups(
         &mut self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u8> + '_ {
-        move |data: &'a [u8]| {
-            let (_, header) = self.chained_fixup_header().parse(data)?;
+        data: &'a [u8],
+    ) -> IResult<&'a [u8], ()> {
+        let (_, header) = self.chained_fixup_header().parse(data)?;
 
-            if let Some(import_data) =
-                data.get(header.imports_offset as usize..)
-            {
-                let mut remainder = import_data;
-                let mut chained_import_value: u32;
+        if let Some(import_data) = data.get(header.imports_offset as usize..) {
+            let mut remainder = import_data;
+            let mut chained_import_value: u32;
 
-                for _ in 0..header.imports_count {
-                    (remainder, chained_import_value) =
-                        u32(self.endianness)(remainder)?;
+            for _ in 0..header.imports_count {
+                (remainder, chained_import_value) =
+                    u32(self.endianness)(remainder)?;
 
-                    let _lib_ordinal = chained_import_value & 0xff;
-                    let _import_kind = (chained_import_value >> 8) & 0x1;
-                    let name_offset = chained_import_value >> 9;
+                let _lib_ordinal = chained_import_value & 0xff;
+                let _import_kind = (chained_import_value >> 8) & 0x1;
+                let name_offset = chained_import_value >> 9;
 
-                    if let Some(name_buffer) = data.get(
-                        header.symbols_offset.saturating_add(name_offset)
-                            as usize..,
-                    ) {
-                        let (_remainder, import_str) = map(
-                            (take_till(|b| b == b'\x00'), tag("\x00")),
-                            |(s, _)| s,
-                        )
-                        .parse(name_buffer)?;
+                if let Some(name_buffer) = data.get(
+                    header.symbols_offset.saturating_add(name_offset)
+                        as usize..,
+                ) {
+                    let (_remainder, import_str) = map(
+                        (take_till(|b| b == b'\x00'), tag("\x00")),
+                        |(s, _)| s,
+                    )
+                    .parse(name_buffer)?;
 
-                        if let Ok(import) = import_str.to_str() {
-                            self.imports.push(import.to_string());
-                        }
+                    if let Ok(import) = import_str.to_str() {
+                        self.imports.push(import.to_string());
                     }
                 }
             }
-
-            Ok((&[], 0))
         }
+
+        Ok((&[], ()))
     }
 
     /// Parser that parses a LC_ID_DYLINKER, LC_LOAD_DYLINKER or
