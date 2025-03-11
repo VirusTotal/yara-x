@@ -17,6 +17,8 @@ mod macho;
 mod magic;
 #[cfg(feature = "math-module")]
 mod math;
+#[cfg(feature = "olecf-module")]
+mod olecf;
 #[cfg(feature = "pe-module")]
 mod pe;
 #[cfg(feature = "string-module")]
@@ -29,3 +31,5 @@ mod test_proto3;
 mod text;
 #[cfg(feature = "time-module")]
 mod time;
+#[cfg(feature = "vba-module")]
+mod vba;

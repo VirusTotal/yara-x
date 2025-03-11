@@ -174,6 +174,24 @@ pub mod mods {
     /// Data structure returned by the `macho` module.
     pub use super::protos::macho::Macho;
 
+    /// Data structures defined by the `olecf` module.
+    ///
+    /// The main structure produced by the module is [`olecf:Olecf`]. The rest
+    /// of them are used by one or more fields in the main structure.
+    ///
+    pub use super::protos::olecf;
+    /// Data structure returned by the `olecf` module.
+    pub use super::protos::olecf::Olecf;
+
+    /// Data structures defined by the `vba` module.
+    ///
+    /// The main structure produced by the module is [`vba::Vba`]. The rest
+    /// of them are used by one or more fields in the main structure.
+    ///
+    pub use super::protos::vba;
+    /// Data structure returned by the `macho` module.
+    pub use super::protos::vba::Vba;
+
     /// Data structures defined by the `pe` module.
     ///
     /// The main structure produced by the module is [`pe::PE`]. The rest
@@ -268,6 +286,8 @@ pub mod mods {
         info.dotnet = protobuf::MessageField(invoke::<Dotnet>(data));
         info.macho = protobuf::MessageField(invoke::<Macho>(data));
         info.lnk = protobuf::MessageField(invoke::<Lnk>(data));
+        info.olecf = protobuf::MessageField(invoke::<Olecf>(data));
+        info.vba = protobuf::MessageField(invoke::<Vba>(data));
         info
     }
 
