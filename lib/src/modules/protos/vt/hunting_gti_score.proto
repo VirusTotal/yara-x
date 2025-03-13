@@ -5,7 +5,7 @@ syntax = "proto3";
 
 package vt.hunting_gti_score;
 
-import "gti_score.proto";
+import "vt/gti_score.proto";
 
 message HuntingGtiVerdict {
   vt.gti_score.Verdict value = 1;

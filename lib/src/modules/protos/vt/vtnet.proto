@@ -5,11 +5,11 @@ syntax = "proto3";
 
 package vt.net;
 
-import "analysis.proto";
-import "filetypes.proto";
-import "hunting_gti_score.proto";
-import "sandbox.proto";
-import "submitter.proto";
+import "vt/analysis.proto";
+import "vt/filetypes.proto";
+import "vt/hunting_gti_score.proto";
+import "vt/sandbox.proto";
+import "vt/submitter.proto";
 import "yara.proto";
 
 message Subject {
