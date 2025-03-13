@@ -5,12 +5,12 @@ syntax = "proto3";
 
 package vt.titan;
 
-import "analysis.proto";
-import "filetypes.proto";
-import "hunting_gti_score.proto";
-import "sandbox.proto";
-import "submitter.proto";
-import "vtnet.proto";
+import "vt/analysis.proto";
+import "vt/filetypes.proto";
+import "vt/hunting_gti_score.proto";
+import "vt/sandbox.proto";
+import "vt/submitter.proto";
+import "vt/vtnet.proto";
 import "yara.proto";
 
 option (yara.module_options) = {

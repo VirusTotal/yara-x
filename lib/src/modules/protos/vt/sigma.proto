@@ -5,7 +5,7 @@ syntax = "proto3";
 
 package vt.sigma;
 
-import "filetypes.proto";
+import "vt/filetypes.proto";
 
 message SigmaMatch {
   repeated SigmaMatchContext match_context = 1;

@@ -5,9 +5,9 @@ syntax = "proto3";
 
 package vt.fileanalysis;
 
-import "filetypes.proto";
-import "sigma.proto";
-import "tools/net_analysis.proto";
+import "vt/filetypes.proto";
+import "vt/sigma.proto";
+import "vt/tools/net_analysis.proto";
 import "yara.proto";
 
 enum BehaviourTag {
