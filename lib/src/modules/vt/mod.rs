@@ -8,6 +8,7 @@ use std::net::IpAddr;
 use std::rc::Rc;
 
 use ipnet::IpNet;
+use twistrs::permutate::Domain;
 
 use crate::modules::prelude::*;
 use crate::modules::protos::titan::*;
@@ -38,6 +39,38 @@ fn in_range(
     };
 
     cidr.contains(&ip)
+}
+
+#[module_export(method_of = "vt.net.EnrichedDomain")]
+fn permutation_of(
+    ctx: &mut ScanContext,
+    domain: Rc<Struct>,
+    s: RuntimeString,
+) -> bool {
+    let domain = domain.field_by_name("raw").unwrap().type_value.as_string();
+
+    let s = match s.to_str(ctx).ok().and_then(|s| Domain::new(s).ok()) {
+        Some(s) => s,
+        None => return false,
+    };
+
+    // The domain is not a permutation of itself.
+    if s.fqdn.as_bytes() == domain.as_bytes() {
+        return false;
+    }
+
+    let permutations = match s.all() {
+        Ok(permutations) => permutations,
+        Err(_) => return false,
+    };
+
+    for permutation in permutations {
+        if permutation.domain.fqdn.as_bytes() == domain.as_bytes() {
+            return true;
+        }
+    }
+
+    false
 }
 
 #[cfg(test)]
@@ -134,6 +167,51 @@ mod tests {
                and vt.net.ip.in_range("2001:db8::1/32")
                and not vt.net.ip.in_range("2001:db8::1/34")
                and vt.metadata.itw.ip.in_range("2001:db8::1/64")
+           }"#;
+
+        let mut compiler = Compiler::new();
+
+        compiler
+            .enable_feature("ip_address")
+            .enable_feature("file")
+            .add_source(rule)
+            .unwrap();
+
+        let rules = compiler.build();
+
+        assert_eq!(
+            Scanner::new(&rules)
+                .set_module_output(vt_meta)
+                .unwrap()
+                .scan(b"")
+                .unwrap()
+                .matching_rules()
+                .len(),
+            1
+        );
+    }
+
+    #[test]
+    fn permutation_of() {
+        let vt_meta = Box::new(
+            parse_from_str::<LiveHuntData>(
+                r#"
+                net {
+                    domain {
+                        raw: "www.virus-total.com"
+                    }
+                }"#,
+            )
+            .unwrap(),
+        );
+
+        let rule = r#"
+           import "vt"
+           rule test {
+             condition:
+               vt.net.domain.permutation_of("www.virustotal.com")
+               and not vt.net.domain.permutation_of("www.virus-total.com")
+               and not vt.net.domain.permutation_of("www.google.com")
            }"#;
 
         let mut compiler = Compiler::new();
