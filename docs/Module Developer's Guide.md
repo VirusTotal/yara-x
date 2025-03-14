@@ -51,7 +51,7 @@ getting used to its syntax. You don't need to become an expert in protobufs for
 being able to define a YARA module, but some familiarity will certainly help.
 
 Let's start defining the structure for our `text` module. For that, you must
-create a `text.proto` file and put it into the `yara-x/src/modules/protos`
+create a `text.proto` file and put it into the `lib/src/modules/protos`
 directory. As a starting point we can use the following file:
 
 ```protobuf
@@ -129,7 +129,7 @@ option (yara.module_options) = {
 The snippet above is also required for every `.proto` file that describes a
 YARA module. This is what tells that this file is not an ordinary `.proto`
 file, but one describing a module. In fact, you can put any `.proto` file in the
-`yara-x/src/modules/protos` directory, and that doesn't mean that each of those
+`lib/src/modules/protos` directory, and that doesn't mean that each of those
 files is describing a YARA module. Only files containing a `yara.module_options`
 section will define a module.
 
@@ -299,14 +299,14 @@ means that our Rust module must be named `text`.
 
 There are two options for creating our `text` module:
 
-* Creating a `text.rs` file in `yara-x/src/modules`.
-* Creating a directory `yara-x/src/modules/text` containing a`mod.rs` file.
+* Creating a `text.rs` file in `lib/src/modules`.
+* Creating a directory `lib/src/modules/text` containing a`mod.rs` file.
 
 For simple modules that can be contained in a single `.rs` file the first
 approach is enough. For more complex modules with multiple source files the
 second approach is the recommended one.
 
-So, let's create our `yara-x/src/modules/text.rs` file:
+So, let's create our `lib/src/modules/text.rs` file:
 
 ```rust
 use crate::modules::prelude::*;
@@ -414,24 +414,25 @@ it!
 
 ## Building your module
 
-After creating the files `yara-x/src/modules/protos/text.proto` and
-`yara-x/src/modules/text.rs` we are almost ready for building the module into
+After creating the files `lib/src/modules/protos/text.proto` and
+`lib/src/modules/text.rs` we are almost ready for building the module into
 YARA. But there are few more pending steps.
 
 The first thing that you must know is that your module is behind a `cargo`
 feature
 flag. The module won't be built into YARA unless you tell `cargo` to do so. The
 name of the feature controlling your module is `text-module`, and this feature
-must be added to the `[features]` section in the `yara-x/Cargo.toml` file.
+must be added to the `[features]` section in the `lib/Cargo.toml` file (not
+the top-level `Cargo.toml`, but the one in the `lib` directory)
 
 ```toml
 [features]
-text-module = []  # Add this line to yara-x/Cargo.toml
+text-module = []  # Add this line to lib/Cargo.toml
 ```
 
 Additionally, if you want your module to be included by default in YARA, add
 the feature name to the `default` list in the `[features]` section of
-`yara-x/Cargo.toml`:
+`lib/Cargo.toml`:
 
 ```toml
 [features]
@@ -469,7 +470,7 @@ also allow to expose functions that can be called from YARA rules. Suppose that
 you want to add a function to the `text` module that returns the N-th line in
 the file.
 
-Let's add a function called `get_line` to the `yara-x/src/modules/text.rs`
+Let's add a function called `get_line` to the `lib/src/modules/text.rs`
 file. This function receives the line number and returns a string with the
 corresponding line. Let's take a look at the implementation:
 
@@ -751,7 +752,7 @@ which the text is written. For that, we are going to rely on the existing crate
 [lingua](https://docs.rs/lingua/1.4.0/lingua/).
 
 The first step is adding the `lingua` to the `[dependencies]` section in
-`yara-x/Cargo.toml`, as any other dependency for the project. For example:
+`lib/Cargo.toml`, as any other dependency for the project. For example:
 
 ```toml
 [dependencies]
@@ -1010,7 +1011,7 @@ With the enums above you can refer to `macho.CPU_TYPE_X86` and instead of
 
 ## Tests
 
-You'll notice that each module in `/yara-x/src/modules/` has a `tests/`
+You'll notice that each module in `/lib/src/modules/` has a `tests/`
 directory with a nested `testdata/` directory. The testing framework is
 expecting a particular format and input structure to use them:
 
@@ -1066,7 +1067,7 @@ move it to the appropriate test directory. An example of that is below:
 
 ```bash
 zip <sha256_hash>.in.zip <sha256_hash>.in
-mv <sha256_hash>.in.zip <location_of_yara-x>/yara-x/src/modules/<module>/tests/testdata/
+mv <sha256_hash>.in.zip <location_of_yara-x>/lib/src/modules/<module>/tests/testdata/
 ```
 
 ### Converting the Files back to Original Format
