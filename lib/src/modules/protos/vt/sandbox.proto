@@ -218,6 +218,10 @@ message KeyValue {
 }
 
 message HttpConversation {
+  option (yara.message_options) = {
+    name: "Http"
+  };
+
   enum RequestMethod {
     option (yara.enum_options) = {
       name: "Method"
@@ -254,6 +258,10 @@ message DnsLookup {
 }
 
 message IpTraffic {
+  option (yara.message_options) = {
+    name: "Net"
+  };
+
   enum TransportLayerProtocol {
     option (yara.enum_options) = {
       name: "Protocol"

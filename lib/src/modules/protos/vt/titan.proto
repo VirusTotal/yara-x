@@ -17,6 +17,7 @@ option (yara.module_options) = {
   name: "vt"
   root_message: "vt.titan.LiveHuntData"
   rust_module: "vt"
+  cargo_feature: "vt-module"
 };
 
 message LiveHuntData {
