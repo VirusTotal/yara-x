@@ -172,6 +172,7 @@ enum FileType {
   ISOIMAGE = 800;
   SQUASHFS = 801;
   VHD = 802;
+  VHDX = 803;
   APPLE = 1000;
   MACINTOSH = 1001;
   APPLESINGLE = 1002;
