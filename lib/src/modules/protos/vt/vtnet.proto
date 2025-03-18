@@ -93,6 +93,10 @@ message PopularityRank {
 }
 
 message EnrichedURL {
+  option (yara.message_options) = {
+    name: "URL"
+  };
+
   int64 port = 3;
   repeated Tracker trackers = 4;
   map<string, string> response_headers = 5;
@@ -130,6 +134,10 @@ message EnrichedURL {
 }
 
 message EnrichedIP {
+  option (yara.message_options) = {
+    name: "IP"
+  };
+
   map<string, string> whois = 3;
   string whois_raw = 22;
   SSLCertificate https_certificate = 4;
@@ -170,6 +178,20 @@ message EnrichedIP {
 }
 
 message EnrichedDomain {
+  option (yara.message_options) = {
+    name: "Domain"
+  };
+
+  enum Permutation {
+    ALL = 0 [(yara.enum_value) = { i64: 65535 }];
+    TYPO = 1 [(yara.enum_value) = { i64: 1 }];
+    HOMOGLYPH = 2 [(yara.enum_value) = { i64: 2 }];
+    HYPHENATION = 3 [(yara.enum_value) = { i64: 4 }];
+    SUBDOMAIN = 4 [(yara.enum_value) = { i64: 8 }];
+    TLD = 5 [(yara.enum_value) = { i64: 16 }];
+    BITSQUATTING = 6 [(yara.enum_value) = { i64: 32 }];
+  }
+
   string raw = 18;
   string root = 27;
   map<string, string> whois = 3;
