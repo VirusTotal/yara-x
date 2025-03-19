@@ -5,14 +5,42 @@ about files, URLs, IP addresses and domains scanned in VirusTotal.
 */
 
 use std::net::IpAddr;
+use std::ops::BitAnd;
 use std::rc::Rc;
+use std::sync::LazyLock;
 
 use ipnet::IpNet;
+use protobuf::EnumFull;
 use twistrs::permutate::Domain;
 
 use crate::modules::prelude::*;
 use crate::modules::protos::titan::*;
+use crate::modules::protos::vtnet::enriched_domain::Permutation;
 use crate::types::Struct;
+
+static BITSQUATTING: LazyLock<i64> = LazyLock::new(|| {
+    Struct::enum_value_i64(&Permutation::BITSQUATTING.descriptor()).unwrap()
+});
+
+static TYPO: LazyLock<i64> = LazyLock::new(|| {
+    Struct::enum_value_i64(&Permutation::TYPO.descriptor()).unwrap()
+});
+
+static HYPHENATION: LazyLock<i64> = LazyLock::new(|| {
+    Struct::enum_value_i64(&Permutation::HYPHENATION.descriptor()).unwrap()
+});
+
+static HOMOGLYPH: LazyLock<i64> = LazyLock::new(|| {
+    Struct::enum_value_i64(&Permutation::HOMOGLYPH.descriptor()).unwrap()
+});
+
+static SUBDOMAIN: LazyLock<i64> = LazyLock::new(|| {
+    Struct::enum_value_i64(&Permutation::SUBDOMAIN.descriptor()).unwrap()
+});
+
+static TLD: LazyLock<i64> = LazyLock::new(|| {
+    Struct::enum_value_i64(&Permutation::TLD.descriptor()).unwrap()
+});
 
 #[module_main]
 fn main(_data: &[u8], _meta: Option<&[u8]>) -> LiveHuntData {
@@ -41,11 +69,21 @@ fn in_range(
     cidr.contains(&ip)
 }
 
-#[module_export(method_of = "vt.net.EnrichedDomain")]
-fn permutation_of(
+#[module_export(name = "permutation_of", method_of = "vt.net.EnrichedDomain")]
+fn all_permutations(
     ctx: &mut ScanContext,
     domain: Rc<Struct>,
     s: RuntimeString,
+) -> bool {
+    permutations(ctx, domain, s, 0xffffff)
+}
+
+#[module_export(name = "permutation_of", method_of = "vt.net.EnrichedDomain")]
+fn permutations(
+    ctx: &mut ScanContext,
+    domain: Rc<Struct>,
+    s: RuntimeString,
+    permutation_kinds: i64,
 ) -> bool {
     let domain = domain.field_by_name("raw").unwrap().type_value.as_string();
 
@@ -59,14 +97,60 @@ fn permutation_of(
         return false;
     }
 
-    let permutations = match s.all() {
-        Ok(permutations) => permutations,
-        Err(_) => return false,
-    };
+    if TYPO.bitand(&permutation_kinds) != 0 {
+        for permutation in s
+            .addition()
+            .chain(s.insertion())
+            .chain(s.omission())
+            .chain(s.repetition())
+            .chain(s.replacement())
+            .chain(s.vowel_swap())
+        {
+            if permutation.domain.fqdn.as_bytes() == domain.as_bytes() {
+                return true;
+            }
+        }
+    }
 
-    for permutation in permutations {
-        if permutation.domain.fqdn.as_bytes() == domain.as_bytes() {
-            return true;
+    if HOMOGLYPH.bitand(&permutation_kinds) != 0 {
+        if let Ok(permutations) = s.homoglyph() {
+            for permutation in permutations {
+                if permutation.domain.fqdn.as_bytes() == domain.as_bytes() {
+                    return true;
+                }
+            }
+        }
+    }
+
+    if HYPHENATION.bitand(&permutation_kinds) != 0 {
+        for permutation in s.hyphentation() {
+            if permutation.domain.fqdn.as_bytes() == domain.as_bytes() {
+                return true;
+            }
+        }
+    }
+
+    if SUBDOMAIN.bitand(&permutation_kinds) != 0 {
+        for permutation in s.subdomain() {
+            if permutation.domain.fqdn.as_bytes() == domain.as_bytes() {
+                return true;
+            }
+        }
+    }
+
+    if TLD.bitand(&permutation_kinds) != 0 {
+        for permutation in s.tld() {
+            if permutation.domain.fqdn.as_bytes() == domain.as_bytes() {
+                return true;
+            }
+        }
+    }
+
+    if BITSQUATTING.bitand(&permutation_kinds) != 0 {
+        for permutation in s.bitsquatting() {
+            if permutation.domain.fqdn.as_bytes() == domain.as_bytes() {
+                return true;
+            }
         }
     }
 
@@ -192,7 +276,7 @@ mod tests {
     }
 
     #[test]
-    fn permutation_of() {
+    fn permutation_hyphenation() {
         let vt_meta = Box::new(
             parse_from_str::<LiveHuntData>(
                 r#"
@@ -210,7 +294,216 @@ mod tests {
            rule test {
              condition:
                vt.net.domain.permutation_of("www.virustotal.com")
+               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.ALL)
+               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HYPHENATION)
+               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.TYPO)
+               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HOMOGLYPH)
+               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.SUBDOMAIN)
+               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.TLD)
                and not vt.net.domain.permutation_of("www.virus-total.com")
+               and not vt.net.domain.permutation_of("www.google.com")
+           }"#;
+
+        let mut compiler = Compiler::new();
+
+        compiler
+            .enable_feature("ip_address")
+            .enable_feature("file")
+            .add_source(rule)
+            .unwrap();
+
+        let rules = compiler.build();
+
+        assert_eq!(
+            Scanner::new(&rules)
+                .set_module_output(vt_meta)
+                .unwrap()
+                .scan(b"")
+                .unwrap()
+                .matching_rules()
+                .len(),
+            1
+        );
+    }
+
+    #[test]
+    fn permutation_homoglyph() {
+        let vt_meta = Box::new(
+            parse_from_str::<LiveHuntData>(
+                r#"
+                net {
+                    domain {
+                        raw: "www.vırustotal.com"
+                    }
+                }"#,
+            )
+            .unwrap(),
+        );
+
+        let rule = r#"
+           import "vt"
+           rule test {
+             condition:
+               vt.net.domain.permutation_of("www.virustotal.com")
+               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.ALL)
+               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HOMOGLYPH)
+               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.TYPO)
+               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HYPHENATION)
+               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.SUBDOMAIN)
+               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.TLD)
+               and not vt.net.domain.permutation_of("www.vırustotal.com")
+               and not vt.net.domain.permutation_of("www.google.com")
+           }"#;
+
+        let mut compiler = Compiler::new();
+
+        compiler
+            .enable_feature("ip_address")
+            .enable_feature("file")
+            .add_source(rule)
+            .unwrap();
+
+        let rules = compiler.build();
+
+        assert_eq!(
+            Scanner::new(&rules)
+                .set_module_output(vt_meta)
+                .unwrap()
+                .scan(b"")
+                .unwrap()
+                .matching_rules()
+                .len(),
+            1
+        );
+    }
+
+    #[test]
+    fn permutation_tld() {
+        let vt_meta = Box::new(
+            parse_from_str::<LiveHuntData>(
+                r#"
+                net {
+                    domain {
+                        raw: "www.virustotal.com.es"
+                    }
+                }"#,
+            )
+            .unwrap(),
+        );
+
+        let rule = r#"
+           import "vt"
+           rule test {
+             condition:
+               vt.net.domain.permutation_of("www.virustotal.com")
+               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.ALL)
+               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.TLD)
+               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.TYPO)
+               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HYPHENATION)
+               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HOMOGLYPH)
+               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.SUBDOMAIN)
+               and not vt.net.domain.permutation_of("www.virustotal.com.es")
+               and not vt.net.domain.permutation_of("www.google.com")
+           }"#;
+
+        let mut compiler = Compiler::new();
+
+        compiler
+            .enable_feature("ip_address")
+            .enable_feature("file")
+            .add_source(rule)
+            .unwrap();
+
+        let rules = compiler.build();
+
+        assert_eq!(
+            Scanner::new(&rules)
+                .set_module_output(vt_meta)
+                .unwrap()
+                .scan(b"")
+                .unwrap()
+                .matching_rules()
+                .len(),
+            1
+        );
+    }
+
+    #[test]
+    fn permutation_typo() {
+        let vt_meta = Box::new(
+            parse_from_str::<LiveHuntData>(
+                r#"
+                net {
+                    domain {
+                        raw: "www.viirustotal.com"
+                    }
+                }"#,
+            )
+            .unwrap(),
+        );
+
+        let rule = r#"
+           import "vt"
+           rule test {
+             condition:
+               vt.net.domain.permutation_of("www.virustotal.com")
+               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.ALL)
+               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.TYPO)
+               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HYPHENATION)
+               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HOMOGLYPH)
+               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.SUBDOMAIN)
+               and not vt.net.domain.permutation_of("www.viirustotal.com")
+               // and not vt.net.domain.permutation_of("www.vırustotal.com")
+               and not vt.net.domain.permutation_of("www.google.com")
+           }"#;
+
+        let mut compiler = Compiler::new();
+
+        compiler
+            .enable_feature("ip_address")
+            .enable_feature("file")
+            .add_source(rule)
+            .unwrap();
+
+        let rules = compiler.build();
+
+        assert_eq!(
+            Scanner::new(&rules)
+                .set_module_output(vt_meta)
+                .unwrap()
+                .scan(b"")
+                .unwrap()
+                .matching_rules()
+                .len(),
+            1
+        );
+    }
+
+    #[test]
+    fn permutation_subdomain() {
+        let vt_meta = Box::new(
+            parse_from_str::<LiveHuntData>(
+                r#"
+                net {
+                    domain {
+                        raw: "www.virustotal.c.om"
+                    }
+                }"#,
+            )
+            .unwrap(),
+        );
+
+        let rule = r#"
+           import "vt"
+           rule test {
+             condition:
+               vt.net.domain.permutation_of("www.virustotal.com")
+               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.ALL)
+               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.SUBDOMAIN)
+               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HYPHENATION)
+               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HOMOGLYPH)
+               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.TYPO)
+               and not vt.net.domain.permutation_of("www.vir.ustotal.com")
                and not vt.net.domain.permutation_of("www.google.com")
            }"#;
 

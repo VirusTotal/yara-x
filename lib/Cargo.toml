@@ -186,6 +186,13 @@ text-module = [
 # conditions of a rule to check against other epoch time.
 time-module = []
 
+# The `vt` module is a VirusTotal-specific module that provides access to
+# the metadata that VirusTotal has about the scanned file.
+vt-module = [
+    "dep:ipnet",
+    "dep:twistrs"
+]
+
 # Features that are enabled by default.
 default = [
     "constant-folding",
@@ -204,6 +211,7 @@ default = [
     "lnk-module",
     "test_proto2-module",
     "test_proto3-module",
+    "vt-module"
 ]
 
 [dependencies]
@@ -226,7 +234,7 @@ ecdsa = { workspace = true, optional = true }
 memmap2 = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 intaglio = { workspace = true }
-ipnet = { workspace = true }
+ipnet = { workspace = true, optional = true }
 itertools = { workspace = true }
 lazy_static = { workspace = true }
 linkme = { workspace = true }
@@ -255,7 +263,7 @@ smallvec = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
 strum_macros = { workspace = true }
-twistrs = { workspace = true }
+twistrs = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tlsh-fixed = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true, features = ["v4"] }
