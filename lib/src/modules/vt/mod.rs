@@ -453,7 +453,6 @@ mod tests {
                and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HOMOGLYPH)
                and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.SUBDOMAIN)
                and not vt.net.domain.permutation_of("www.viirustotal.com")
-               // and not vt.net.domain.permutation_of("www.vırustotal.com")
                and not vt.net.domain.permutation_of("www.google.com")
            }"#;
 
