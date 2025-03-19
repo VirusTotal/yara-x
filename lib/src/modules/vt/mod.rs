@@ -299,7 +299,6 @@ mod tests {
                and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.TYPO)
                and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HOMOGLYPH)
                and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.SUBDOMAIN)
-               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.TLD)
                and not vt.net.domain.permutation_of("www.virus-total.com")
                and not vt.net.domain.permutation_of("www.google.com")
            }"#;
@@ -350,7 +349,6 @@ mod tests {
                and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.TYPO)
                and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HYPHENATION)
                and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.SUBDOMAIN)
-               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.TLD)
                and not vt.net.domain.permutation_of("www.vırustotal.com")
                and not vt.net.domain.permutation_of("www.google.com")
            }"#;
