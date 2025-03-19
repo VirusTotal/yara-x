@@ -73,49 +73,61 @@ fn in_range(
 fn all_permutations(
     ctx: &mut ScanContext,
     domain: Rc<Struct>,
-    s: RuntimeString,
+    target: RuntimeString,
 ) -> bool {
-    permutations(ctx, domain, s, 0xffffff)
+    permutations(ctx, domain, target, 0xffffff)
 }
 
 #[module_export(name = "permutation_of", method_of = "vt.net.EnrichedDomain")]
 fn permutations(
     ctx: &mut ScanContext,
     domain: Rc<Struct>,
-    s: RuntimeString,
+    target: RuntimeString,
     permutation_kinds: i64,
 ) -> bool {
-    let domain = domain.field_by_name("raw").unwrap().type_value.as_string();
-
-    let s = match s.to_str(ctx).ok().and_then(|s| Domain::new(s).ok()) {
-        Some(s) => s,
+    let domain = match domain
+        .field_by_name("raw")
+        .unwrap()
+        .type_value
+        .as_string()
+        .to_str()
+        .ok()
+        .and_then(|d| Domain::new(d).ok())
+    {
+        Some(d) => d,
         None => return false,
     };
 
+    let target =
+        match target.to_str(ctx).ok().and_then(|t| Domain::new(t).ok()) {
+            Some(s) => s,
+            None => return false,
+        };
+
     // The domain is not a permutation of itself.
-    if s.fqdn.as_bytes() == domain.as_bytes() {
+    if domain == target {
         return false;
     }
 
     if TYPO.bitand(&permutation_kinds) != 0 {
-        for permutation in s
+        for permutation in target
             .addition()
-            .chain(s.insertion())
-            .chain(s.omission())
-            .chain(s.repetition())
-            .chain(s.replacement())
-            .chain(s.vowel_swap())
+            .chain(target.insertion())
+            .chain(target.omission())
+            .chain(target.repetition())
+            .chain(target.replacement())
+            .chain(target.vowel_swap())
         {
-            if permutation.domain.fqdn.as_bytes() == domain.as_bytes() {
+            if permutation.domain == domain {
                 return true;
             }
         }
     }
 
     if HOMOGLYPH.bitand(&permutation_kinds) != 0 {
-        if let Ok(permutations) = s.homoglyph() {
+        if let Ok(permutations) = target.homoglyph() {
             for permutation in permutations {
-                if permutation.domain.fqdn.as_bytes() == domain.as_bytes() {
+                if permutation.domain == domain {
                     return true;
                 }
             }
@@ -123,32 +135,32 @@ fn permutations(
     }
 
     if HYPHENATION.bitand(&permutation_kinds) != 0 {
-        for permutation in s.hyphentation() {
-            if permutation.domain.fqdn.as_bytes() == domain.as_bytes() {
+        for permutation in target.hyphentation() {
+            if permutation.domain == domain {
                 return true;
             }
         }
     }
 
     if SUBDOMAIN.bitand(&permutation_kinds) != 0 {
-        for permutation in s.subdomain() {
-            if permutation.domain.fqdn.as_bytes() == domain.as_bytes() {
+        for permutation in target.subdomain() {
+            if permutation.domain == domain {
                 return true;
             }
         }
     }
 
     if TLD.bitand(&permutation_kinds) != 0 {
-        for permutation in s.tld() {
-            if permutation.domain.fqdn.as_bytes() == domain.as_bytes() {
+        for permutation in target.tld() {
+            if permutation.domain.domain == domain.domain {
                 return true;
             }
         }
     }
 
     if BITSQUATTING.bitand(&permutation_kinds) != 0 {
-        for permutation in s.bitsquatting() {
-            if permutation.domain.fqdn.as_bytes() == domain.as_bytes() {
+        for permutation in target.bitsquatting() {
+            if permutation.domain == domain {
                 return true;
             }
         }
@@ -384,7 +396,7 @@ mod tests {
                 r#"
                 net {
                     domain {
-                        raw: "www.virustotal.com.es"
+                        raw: "www.virustotal.es"
                     }
                 }"#,
             )
