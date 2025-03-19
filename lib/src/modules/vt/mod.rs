@@ -38,10 +38,6 @@ static SUBDOMAIN: LazyLock<i64> = LazyLock::new(|| {
     Struct::enum_value_i64(&Permutation::SUBDOMAIN.descriptor()).unwrap()
 });
 
-static TLD: LazyLock<i64> = LazyLock::new(|| {
-    Struct::enum_value_i64(&Permutation::TLD.descriptor()).unwrap()
-});
-
 #[module_main]
 fn main(_data: &[u8], _meta: Option<&[u8]>) -> LiveHuntData {
     LiveHuntData::new()
@@ -145,14 +141,6 @@ fn permutations(
     if SUBDOMAIN.bitand(&permutation_kinds) != 0 {
         for permutation in target.subdomain() {
             if permutation.domain == domain {
-                return true;
-            }
-        }
-    }
-
-    if TLD.bitand(&permutation_kinds) != 0 {
-        for permutation in target.tld() {
-            if permutation.domain.domain == domain.domain {
                 return true;
             }
         }
