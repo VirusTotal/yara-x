@@ -486,7 +486,7 @@ mod tests {
                 r#"
                 net {
                     domain {
-                        raw: "www.virustotal.c.om"
+                        raw: "www.vir.ustotal.com"
                     }
                 }"#,
             )
