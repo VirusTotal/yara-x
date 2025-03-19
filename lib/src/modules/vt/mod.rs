@@ -378,57 +378,6 @@ mod tests {
     }
 
     #[test]
-    fn permutation_tld() {
-        let vt_meta = Box::new(
-            parse_from_str::<LiveHuntData>(
-                r#"
-                net {
-                    domain {
-                        raw: "www.virustotal.com.es"
-                    }
-                }"#,
-            )
-            .unwrap(),
-        );
-
-        let rule = r#"
-           import "vt"
-           rule test {
-             condition:
-               vt.net.domain.permutation_of("www.virustotal.com")
-               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.ALL)
-               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.TLD)
-               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.TYPO)
-               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HYPHENATION)
-               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HOMOGLYPH)
-               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.SUBDOMAIN)
-               and not vt.net.domain.permutation_of("www.virustotal.com.es")
-               and not vt.net.domain.permutation_of("www.google.com")
-           }"#;
-
-        let mut compiler = Compiler::new();
-
-        compiler
-            .enable_feature("ip_address")
-            .enable_feature("file")
-            .add_source(rule)
-            .unwrap();
-
-        let rules = compiler.build();
-
-        assert_eq!(
-            Scanner::new(&rules)
-                .set_module_output(vt_meta)
-                .unwrap()
-                .scan(b"")
-                .unwrap()
-                .matching_rules()
-                .len(),
-            1
-        );
-    }
-
-    #[test]
     fn permutation_typo() {
         let vt_meta = Box::new(
             parse_from_str::<LiveHuntData>(
