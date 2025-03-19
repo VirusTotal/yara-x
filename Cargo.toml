@@ -103,6 +103,7 @@ thiserror = "2.0.12"
 # Using tlsh-fixed instead of tlsh because tlsh-fixed includes a fix for this
 # issue: https://github.com/1crcbl/tlsh-rs/issues/2.
 tlsh-fixed = "0.1.1"
+twistrs = "0.7.1"
 uuid = "1.15.1"
 walrus = "0.23.3"
 wasmtime = { version = "30.0.0", default-features = false }

@@ -628,13 +628,26 @@ impl Struct {
     /// What this function returns is the value associated to an enum item,
     /// returning the value set via the `(yara.enum_value).i64` option, if any,
     /// or the tag number.
-    fn enum_value(enum_value_descriptor: &EnumValueDescriptor) -> EnumValue {
+    pub(crate) fn enum_value(
+        enum_value_descriptor: &EnumValueDescriptor,
+    ) -> EnumValue {
         enum_value
             .get(&enum_value_descriptor.proto().options)
             .and_then(|options| options.value)
             .unwrap_or_else(|| {
                 EnumValue::I64(enum_value_descriptor.value() as i64)
             })
+    }
+
+    /// Similar to [`Struct::enum_value`], but returns the enum value as an `i64`
+    /// or `None` if it isn't an `i64`.
+    pub(crate) fn enum_value_i64(
+        enum_value_descriptor: &EnumValueDescriptor,
+    ) -> Option<i64> {
+        match Self::enum_value(enum_value_descriptor) {
+            EnumValue::I64(i) => Some(i),
+            EnumValue::F64(_) => None,
+        }
     }
 
     /// Given a [`FieldDescriptor`] returns the name that this field will
