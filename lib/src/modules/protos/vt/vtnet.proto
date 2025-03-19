@@ -183,13 +183,12 @@ message EnrichedDomain {
   };
 
   enum Permutation {
-    ALL = 0 [(yara.enum_value) = { i64: 65535 }];
+    ALL = 0 [(yara.enum_value) = { i64: 31 }];
     TYPO = 1 [(yara.enum_value) = { i64: 1 }];
     HOMOGLYPH = 2 [(yara.enum_value) = { i64: 2 }];
     HYPHENATION = 3 [(yara.enum_value) = { i64: 4 }];
     SUBDOMAIN = 4 [(yara.enum_value) = { i64: 8 }];
-    TLD = 5 [(yara.enum_value) = { i64: 16 }];
-    BITSQUATTING = 6 [(yara.enum_value) = { i64: 32 }];
+    BITSQUATTING = 5 [(yara.enum_value) = { i64: 16 }];
   }
 
   string raw = 18;
