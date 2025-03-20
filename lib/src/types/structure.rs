@@ -641,6 +641,7 @@ impl Struct {
 
     /// Similar to [`Struct::enum_value`], but returns the enum value as an `i64`
     /// or `None` if it isn't an `i64`.
+    #[cfg(feature = "vt-module-domain-permutations")]
     pub(crate) fn enum_value_i64(
         enum_value_descriptor: &EnumValueDescriptor,
     ) -> Option<i64> {

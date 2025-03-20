@@ -5,35 +5,45 @@ about files, URLs, IP addresses and domains scanned in VirusTotal.
 */
 
 use std::net::IpAddr;
+#[cfg(feature = "vt-module-domain-permutations")]
 use std::ops::BitAnd;
 use std::rc::Rc;
+#[cfg(feature = "vt-module-domain-permutations")]
 use std::sync::LazyLock;
 
 use ipnet::IpNet;
+#[cfg(feature = "vt-module-domain-permutations")]
 use protobuf::EnumFull;
+#[cfg(feature = "vt-module-domain-permutations")]
 use twistrs::permutate::Domain;
 
 use crate::modules::prelude::*;
 use crate::modules::protos::titan::*;
+#[cfg(feature = "vt-module-domain-permutations")]
 use crate::modules::protos::vtnet::enriched_domain::Permutation;
 use crate::types::Struct;
 
+#[cfg(feature = "vt-module-domain-permutations")]
 static BITSQUATTING: LazyLock<i64> = LazyLock::new(|| {
     Struct::enum_value_i64(&Permutation::BITSQUATTING.descriptor()).unwrap()
 });
 
+#[cfg(feature = "vt-module-domain-permutations")]
 static TYPO: LazyLock<i64> = LazyLock::new(|| {
     Struct::enum_value_i64(&Permutation::TYPO.descriptor()).unwrap()
 });
 
+#[cfg(feature = "vt-module-domain-permutations")]
 static HYPHENATION: LazyLock<i64> = LazyLock::new(|| {
     Struct::enum_value_i64(&Permutation::HYPHENATION.descriptor()).unwrap()
 });
 
+#[cfg(feature = "vt-module-domain-permutations")]
 static HOMOGLYPH: LazyLock<i64> = LazyLock::new(|| {
     Struct::enum_value_i64(&Permutation::HOMOGLYPH.descriptor()).unwrap()
 });
 
+#[cfg(feature = "vt-module-domain-permutations")]
 static SUBDOMAIN: LazyLock<i64> = LazyLock::new(|| {
     Struct::enum_value_i64(&Permutation::SUBDOMAIN.descriptor()).unwrap()
 });
@@ -65,6 +75,7 @@ fn in_range(
     cidr.contains(&ip)
 }
 
+#[cfg(feature = "vt-module-domain-permutations")]
 #[module_export(name = "permutation_of", method_of = "vt.net.EnrichedDomain")]
 fn all_permutations(
     ctx: &mut ScanContext,
@@ -74,6 +85,7 @@ fn all_permutations(
     permutations(ctx, domain, target, 0xffffff)
 }
 
+#[cfg(feature = "vt-module-domain-permutations")]
 #[module_export(name = "permutation_of", method_of = "vt.net.EnrichedDomain")]
 fn permutations(
     ctx: &mut ScanContext,
@@ -275,6 +287,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "vt-module-domain-permutations")]
     #[test]
     fn permutation_constants() {
         let rule = r#"
@@ -282,7 +295,7 @@ mod tests {
            rule test {
              condition:
                vt.Domain.Permutation.ALL == vt.Domain.Permutation.TYPO
-                | vt.Domain.Permutation.HYPHENATION 
+                | vt.Domain.Permutation.HYPHENATION
                 | vt.Domain.Permutation.HOMOGLYPH
                 | vt.Domain.Permutation.SUBDOMAIN
                 | vt.Domain.Permutation.BITSQUATTING
@@ -304,6 +317,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "vt-module-domain-permutations")]
     #[test]
     fn permutation_hyphenation() {
         let vt_meta = Box::new(
@@ -354,6 +368,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "vt-module-domain-permutations")]
     #[test]
     fn permutation_homoglyph() {
         let vt_meta = Box::new(
@@ -404,6 +419,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "vt-module-domain-permutations")]
     #[test]
     fn permutation_typo() {
         let vt_meta = Box::new(
@@ -454,6 +470,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "vt-module-domain-permutations")]
     #[test]
     fn permutation_subdomain() {
         let vt_meta = Box::new(

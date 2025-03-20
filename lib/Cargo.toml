@@ -193,6 +193,8 @@ vt-module = [
     "dep:twistrs"
 ]
 
+vt-module-domain-permutations = []
+
 # Features that are enabled by default.
 default = [
     "constant-folding",
