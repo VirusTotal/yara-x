@@ -276,6 +276,35 @@ mod tests {
     }
 
     #[test]
+    fn permutation_constants() {
+        let rule = r#"
+           import "vt"
+           rule test {
+             condition:
+               vt.Domain.Permutation.ALL == vt.Domain.Permutation.TYPO
+                | vt.Domain.Permutation.HYPHENATION 
+                | vt.Domain.Permutation.HOMOGLYPH
+                | vt.Domain.Permutation.SUBDOMAIN
+                | vt.Domain.Permutation.BITSQUATTING
+           }"#;
+
+        let mut compiler = Compiler::new();
+
+        compiler
+            .enable_feature("ip_address")
+            .enable_feature("file")
+            .add_source(rule)
+            .unwrap();
+
+        let rules = compiler.build();
+
+        assert_eq!(
+            Scanner::new(&rules).scan(b"").unwrap().matching_rules().len(),
+            1
+        );
+    }
+
+    #[test]
     fn permutation_hyphenation() {
         let vt_meta = Box::new(
             parse_from_str::<LiveHuntData>(
