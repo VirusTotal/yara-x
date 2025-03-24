@@ -240,7 +240,7 @@ typedef void (*YRX_IMPORT_CALLBACK)(const char *module_name,
 // data owned by the user.
 //
 // Requires the `rules-profiling` feature.
-typedef void (*YRX_SLOWEST_RULES_CALLBACK)(const char *namespace,
+typedef void (*YRX_SLOWEST_RULES_CALLBACK)(const char *namespace_,
                                            const char *rule,
                                            double pattern_matching_time,
                                            double condition_exec_time,

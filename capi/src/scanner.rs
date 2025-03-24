@@ -315,7 +315,7 @@ unsafe fn slice_from_ptr_and_len<'a>(
 ///
 /// Requires the `rules-profiling` feature.
 pub type YRX_SLOWEST_RULES_CALLBACK = extern "C" fn(
-    namespace: *const c_char,
+    namespace_: *const c_char,
     rule: *const c_char,
     pattern_matching_time: f64,
     condition_exec_time: f64,
