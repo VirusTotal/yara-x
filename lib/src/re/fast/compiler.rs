@@ -434,7 +434,7 @@ impl Visitor for PatternSplitter {
                 if self.in_repetition || self.in_alternation {
                     return Err(Error::FastIncompatible);
                 }
-                if alternatives.len() > MAX_ALTERNATIVES.into() {
+                if alternatives.len() > MAX_ALTERNATIVES {
                     return Err(Error::TooManyAlternatives);
                 }
                 if let Some(pattern) = self.finish_literal() {
@@ -550,7 +550,7 @@ impl InstrSeq {
         &mut self,
         alternatives: &Vec<Pattern>,
     ) -> Result<(), Error> {
-        debug_assert!(alternatives.len() <= MAX_ALTERNATIVES.into());
+        debug_assert!(alternatives.len() <= MAX_ALTERNATIVES);
         // Write the opcode. The opcode will be followed by an u16 with the
         // size of all the alternatives. The code for the alternatives comes
         // after the size.

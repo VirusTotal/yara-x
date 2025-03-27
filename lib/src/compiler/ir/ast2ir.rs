@@ -999,7 +999,7 @@ fn of_expr_from_ast(
     // the `of` expression is always false.
     if let Quantifier::Expr(expr) = &quantifier {
         if let Some(value) = ctx.ir.get(*expr).try_as_const_integer() {
-            if value > items.len().try_into().unwrap() {
+            if value > items.len() as i64 {
                 ctx.warnings.add(|| warnings::InvariantBooleanExpression::build(
                     ctx.report_builder,
                     false,

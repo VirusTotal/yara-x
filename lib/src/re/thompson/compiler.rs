@@ -1002,7 +1002,7 @@ impl hir::Visitor for Compiler {
                 self.visit_pre_concat();
             }
             HirKind::Alternation(alternatives) => {
-                if alternatives.len() > MAX_ALTERNATIVES.into() {
+                if alternatives.len() > MAX_ALTERNATIVES {
                     return Err(Error::TooManyAlternatives);
                 }
                 self.visit_pre_alternation(alternatives)?;

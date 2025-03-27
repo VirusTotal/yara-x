@@ -51,7 +51,7 @@ pub(crate) const DEFAULT_SCAN_LIMIT: u16 = 4096;
 
 /// Maximum number of alternatives in a regexp alternation
 /// (e.g: `(foo|bar|baz..)`)
-pub(crate) const MAX_ALTERNATIVES: u8 = 255;
+pub(crate) const MAX_ALTERNATIVES: usize = 255;
 
 #[derive(Error, Debug)]
 pub(crate) enum Error {

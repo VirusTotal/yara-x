@@ -232,7 +232,7 @@ impl<'r> PikeVM<'r> {
             mem::swap(&mut self.threads, &mut self.next_threads);
             self.next_threads.clear();
 
-            if current_pos >= self.scan_limit.into() {
+            if current_pos >= self.scan_limit as usize {
                 self.threads.clear();
                 break;
             }
