@@ -1,4 +1,7 @@
 name: Release
+permissions:
+  # Allow this action to create releases.
+  contents: write
 on:
   create:
     tags:
