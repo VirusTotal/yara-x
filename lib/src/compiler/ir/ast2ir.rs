@@ -914,6 +914,15 @@ fn bool_expr_from_ast(
                 None,
             ))
         }
+        TypeValue::Struct(_) => {
+            return Err(WrongType::build(
+                ctx.report_builder,
+                "`bool`".to_string(),
+                "a struct".to_string(),
+                code_loc,
+                None,
+            ))
+        }
         TypeValue::Array(_) => {
             return Err(WrongType::build(
                 ctx.report_builder,

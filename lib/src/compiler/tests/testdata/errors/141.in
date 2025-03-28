@@ -1,0 +1,10 @@
+import "test_proto2"
+rule test_1 {
+  condition:
+    test_proto2.nested
+}
+
+rule test_2 {
+  condition:
+    test_proto2.nested and test_proto2.nested
+}
