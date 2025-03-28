@@ -41,7 +41,7 @@ Retrohunt:
   in [Windows Link Files (LNK)](https://forensics.wiki/lnk/),
   which
   have [been used by threat actors](https://intezer.com/blog/malware-analysis/how-threat-actors-abuse-lnk-files/)
-  in numerous campaings.
+  in numerous campaigns.
 
 These additions, which were contributions from our community, provide malware
 researchers with powerful new tools. Thanks
