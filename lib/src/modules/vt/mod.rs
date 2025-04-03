@@ -4,6 +4,9 @@ This a VirusTotal-specific module that provides additional context and metadata
 about files, URLs, IP addresses and domains scanned in VirusTotal.
 */
 
+#[cfg(feature = "vt-module-domain-permutations")]
+mod homoglyphs;
+
 use std::net::IpAddr;
 #[cfg(feature = "vt-module-domain-permutations")]
 use std::ops::BitAnd;
@@ -21,6 +24,8 @@ use crate::modules::prelude::*;
 use crate::modules::protos::titan::*;
 #[cfg(feature = "vt-module-domain-permutations")]
 use crate::modules::protos::vtnet::enriched_domain::Permutation;
+#[cfg(feature = "vt-module-domain-permutations")]
+use crate::modules::vt::homoglyphs::is_homoglyph;
 use crate::types::Struct;
 
 #[cfg(feature = "vt-module-domain-permutations")]
@@ -132,14 +137,10 @@ fn permutations(
         }
     }
 
-    if HOMOGLYPH.bitand(&permutation_kinds) != 0 {
-        if let Ok(permutations) = target.homoglyph() {
-            for permutation in permutations {
-                if permutation.domain == domain {
-                    return true;
-                }
-            }
-        }
+    if HOMOGLYPH.bitand(&permutation_kinds) != 0
+        && is_homoglyph(domain.domain.as_str(), target.domain.as_str())
+    {
+        return true;
     }
 
     if HYPHENATION.bitand(&permutation_kinds) != 0 {
