@@ -110,7 +110,7 @@ wasmtime = { version = "30.0.0", default-features = false }
 x509-parser = "0.17.0"
 yaml-rust = "0.4.5"
 yansi = "1.0.1"
-yara-x = { path = "lib" }
+yara-x = { path = "lib", version = "0.14.0" }
 yara-x-fmt = { path = "fmt", version = "0.14.0" }
 yara-x-macros = { path = "macros", version = "0.14.0" }
 yara-x-parser = { path = "parser", version = "0.14.0" }
