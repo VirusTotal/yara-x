@@ -102,7 +102,7 @@ impl ConsecutiveJumps {
     title = "potentially slow loop",
 )]
 #[label(
-"this range can be very large",
+    "this range can be very large",
     loc
 )]
 pub struct PotentiallySlowLoop {
