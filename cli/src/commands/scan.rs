@@ -676,7 +676,7 @@ mod output_handler {
     ) -> Vec<RuleJson> {
         scan_results
             .filter(move |rule| {
-                output_options.only_tag.as_ref().map_or(true, |only_tag| {
+                output_options.only_tag.as_ref().is_none_or(|only_tag| {
                     rule.tags().any(|tag| tag.identifier() == only_tag)
                 })
             })
@@ -1105,8 +1105,7 @@ mod output_handler {
             // prepare the increment *outside* the critical section
             let matches = scan_results
                 .filter(|rule| {
-                    self.output_options.only_tag.as_ref().map_or(
-                        true,
+                    self.output_options.only_tag.as_ref().is_none_or(
                         |only_tag| {
                             rule.tags().any(|tag| tag.identifier() == only_tag)
                         },
