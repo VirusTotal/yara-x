@@ -106,7 +106,7 @@ tlsh-fixed = "0.1.1"
 twistrs = "0.7.1"
 uuid = "1.16.0"
 walrus = "0.23.3"
-wasmtime = { version = "30.0.2", default-features = false }
+wasmtime = { version = "32.0.0", default-features = false }
 x509-parser = "0.17.0"
 yaml-rust = "0.4.5"
 yansi = "1.0.1"
