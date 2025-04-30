@@ -142,7 +142,7 @@ impl RuntimeString {
             Self::Literal(id) => i64::from(id) << 2,
             Self::Rc(s) => {
                 let handle: i64 = ctx.store_string(s).into();
-                handle << 2 | 1
+                (handle << 2) | 1
             }
             Self::ScannedDataSlice { offset, length } => {
                 if length >= u16::MAX as usize {
@@ -151,7 +151,7 @@ impl RuntimeString {
                         u16::MAX
                     )
                 }
-                (offset as i64) << 18 | (length as i64) << 2 | 2
+                ((offset as i64) << 18) | ((length as i64) << 2) | 2
             }
         }
     }

@@ -797,7 +797,7 @@ impl<'a> Dotnet<'a> {
         for (idx, type_def) in self.type_defs.iter().enumerate() {
             // Skip type definitions with invalid (empty) names, and the
             // "<Module>" pseudo-class.
-            if !type_def.name.is_some_and(|name| name != "<Module>") {
+            if type_def.name.is_none_or(|name| name == "<Module>") {
                 continue;
             }
 
