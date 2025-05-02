@@ -264,13 +264,15 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
     let hir = re::hir::Hir::from(hex_pattern_hir_from_ast(ctx, pattern)?);
 
     // Check if the hex pattern can be written as an ASCII string. For instance,
-    // {61 61 61} can be written as "aaa", which is more legible. Notice that
-    // { 00 00 00 } is also a valid ASCII string, so we make sure that the string
-    // doesn't contain zeroes.
+    // {61 61 61} can be written as "aaa", which is more legible. The string
+    // must contain only printable ASCII characters, tabs, newlines or line
+    // breaks.
     if let Some(literal) =
         hir.as_literal_bytes().and_then(|lit| lit.to_str().ok())
     {
-        if literal.is_ascii() && !literal.contains('\0') {
+        if literal.chars().all(|c| {
+            c.is_ascii() && (c >= ' ' || c == '\t' || c == '\n' || c == '\r')
+        }) {
             ctx.warnings.add(|| {
                 TextPatternAsHex::build(
                     ctx.report_builder,

@@ -50,3 +50,10 @@ rule test_7 {
   condition:
     $a
 }
+
+rule test_8 {
+  strings:
+    $a = { 50 4B 03 04 }
+  condition:
+    $a
+}
