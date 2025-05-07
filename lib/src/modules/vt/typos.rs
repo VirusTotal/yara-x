@@ -187,7 +187,7 @@ pub fn swap(a: &str, b: &str) -> bool {
                 prev_a = None;
                 prev_b = None;
             }
-            (_, _, None, None) => return swaps == 1,
+            (pa, pb, None, None) => return swaps == 1 && pa == pb,
             _ => return false,
         }
     }
@@ -384,5 +384,6 @@ mod tests {
         assert!(!swap("abc", "ba"));
         assert!(!swap("abcd", "badc"));
         assert!(swap("abcd", "bacd"));
+        assert!(!swap("ing", "nih"));
     }
 }
