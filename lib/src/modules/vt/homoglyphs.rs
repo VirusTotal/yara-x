@@ -1,24 +1,30 @@
 /// Returns true if `a` and `b` are homoglyphs.
 ///
-/// Two strings are homoglyphs if each character in `a` is visually similar, or
-/// equal to the corresponding character in `b`. This implies that both strings
-/// must have the same number of characters.
+/// Two strings are homoglyphs if `a` and `b` are equal, except for one or more
+/// characters in `b` that are similarly looking to the corresponding character
+/// in `a`.
 ///
-/// Also, this relationship is reflexive, if `a` is homoglyph of `b`, `b` is
-/// homoglyph of `a`.
+/// This relationship is symmetrical (if `a` is homoglyph of `b`, `b` is 
+/// homoglyph of `a`), but not reflexive (a string is never a homoglyph of
+/// itself).
 pub fn is_homoglyph(a: &str, b: &str) -> bool {
     let mut a_chars = a.chars();
     let mut b_chars = b.chars();
+    let mut homoglyph = false;
 
     loop {
         match (a_chars.next(), b_chars.next()) {
-            (Some(a), Some(b)) => {
+            (Some(a), Some(b)) if a == b => {}
+            (Some(a), Some(b)) if a != b => {
                 if !is_homoglyph_char(a, b) && !is_homoglyph_char(b, a) {
                     return false;
                 }
+                homoglyph = true;
             }
-            // The end of both strings has been reached. They are homoglyphs.
-            (None, None) => return true,
+            // The end of both strings has been reached. They are homoglyphs
+            // if some character in `b` was a homoglyph of the corresponding
+            // character in `a`.
+            (None, None) => return homoglyph,
             // Strings have different lengths, they are not homoglyphs.
             _ => return false,
         }
@@ -27,16 +33,11 @@ pub fn is_homoglyph(a: &str, b: &str) -> bool {
 
 /// Returns true if `b` is a homoglyph of `a`.
 ///
-/// This means that `b` will be visually similar or equal to `a`. Notice
-/// this function is not reflexive, if `b` is homoglyph of `a` it doesn't
+/// This means that `b` will be visually similar `a`, but not equal. Notice
+/// this function is not symmetrical, if `b` is homoglyph of `a` it doesn't
 /// mean that `a` is homoglyph of `b`.
 #[rustfmt::skip]
 fn is_homoglyph_char(a: char, b: char) -> bool {
-    // A character is always a homoglyph of itself.
-    if a == b {
-        return true;
-    }
-
     match a {
         'a' => matches!(b, 'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' | 'ɑ' | 'ạ' | 'ǎ' | 'ă' | 'ȧ' | 'ą'),
         'b' => matches!(b, 'd' | 'ʙ' | 'ɓ' | 'ḃ' | 'ḅ' | 'ḇ' | 'ƅ'),
@@ -102,7 +103,6 @@ mod tests {
 
     #[test]
     fn homoglyphs() {
-        assert!(is_homoglyph("foo", "foo"));
         assert!(is_homoglyph("ba", "ƅɑ"));
         assert!(is_homoglyph("ƅɑ", "ba"));
         assert!(is_homoglyph("hello", "hȩłłő"));
@@ -112,7 +112,8 @@ mod tests {
         assert!(!is_homoglyph("apple", "appl3")); // '3' is not a homoglyph for 'e'
         assert!(!is_homoglyph("hello", "h3llo")); // '3' is not a homoglyph for 'e'
         assert!(!is_homoglyph("rust", "rusty")); // Different lengths
-        assert!(is_homoglyph("", "")); // Empty strings should be considered equal
+        assert!(!is_homoglyph("", "")); // Empty strings should be considered equal
+        assert!(!is_homoglyph("foo", "foo"));
         assert!(!is_homoglyph("a", "b"));
     }
 }

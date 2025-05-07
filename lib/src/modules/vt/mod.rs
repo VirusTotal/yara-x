@@ -182,10 +182,10 @@ fn parse_domain(domain: &BStr) -> Option<DomainParts> {
 
     let prefix = domain.get(..domain_len - suffix_plus_dot)?.to_str().ok()?;
 
-    let mut split = prefix.rsplit('.');
-
-    let mut domain = split.next();
-    let mut subdomain = split.next();
+    let (mut subdomain, mut domain) = match prefix.rsplit_once('.') {
+        Some((subdomain, domain)) => (Some(subdomain), Some(domain)),
+        None => (None, Some(prefix)),
+    };
 
     // The psl::suffix function can incorrectly parse domains like
     // "www.gov.uk", returning "www" as the domain and "gov.uk" as the public
@@ -375,7 +375,7 @@ mod tests {
         );
     }
 
-    macro_rules! squatting_test {
+    macro_rules! squatting {
         ($legit_domain:literal, $scanned_domain:literal) => {{
             let vt_meta = Box::new(
                 parse_from_str::<LiveHuntData>(
@@ -408,16 +408,16 @@ mod tests {
 
             let rules = compiler.build();
 
-            assert_eq!(
-                Scanner::new(&rules)
-                    .set_module_output(vt_meta)
-                    .unwrap()
-                    .scan(b"")
-                    .unwrap()
-                    .matching_rules()
-                    .len(),
-                1
-            );
+            let result = Scanner::new(&rules)
+                .set_module_output(vt_meta)
+                .unwrap()
+                .scan(b"")
+                .unwrap()
+                .matching_rules()
+                .len()
+                == 1;
+
+            result
         }};
     }
 
@@ -454,31 +454,44 @@ mod tests {
                 tld: "gov.uk"
             })
         );
+
+        assert_eq!(
+            parse_domain(BStr::new("www.ncbi.nlm.nih.gov")),
+            Some(DomainParts {
+                subdomain: Some("www.ncbi.nlm"),
+                domain: Some("nih"),
+                tld: "gov"
+            })
+        );
     }
 
     #[test]
     fn test_squatting() {
         // the 'b' was omitted.
-        squatting_test!("bankofamerica.com", "ankofamerica.com");
+        assert!(squatting!("bankofamerica.com", "ankofamerica.com"));
         // the `o` was omitted.
-        squatting_test!("bankofamerica.com", "bankfamerica.com");
+        assert!(squatting!("bankofamerica.com", "bankfamerica.com"));
         // the `k` is repeated.
-        squatting_test!("bankofamerica.com", "bankkofamerica.com");
+        assert!(squatting!("bankofamerica.com", "bankkofamerica.com"));
         // the `l` was inserted.
-        squatting_test!("bankofamerica.com", "banklofamerica.com");
+        assert!(squatting!("bankofamerica.com", "banklofamerica.com"));
         // 'q' is close to 'a' in the keyboard.
-        squatting_test!("bankofamerica.com", "bqnkofamerica.com");
+        assert!(squatting!("bankofamerica.com", "bqnkofamerica.com"));
         // 'ɑ' is a homoglyph of 'a'
-        squatting_test!("bankofamerica.com", "bɑnkofamerica.com");
+        assert!(squatting!("bankofamerica.com", "bɑnkofamerica.com"));
         // transposition of "a" and "b".
-        squatting_test!("bankofamerica.com", "abnkofamerica.com");
+        assert!(squatting!("bankofamerica.com", "abnkofamerica.com"));
         // insertion of hyphens.
-        squatting_test!("bankofamerica.com", "bank-of-america.com");
+        assert!(squatting!("bankofamerica.com", "bank-of-america.com"));
         // the `e` was replaced with `d`, which is close in the keyboard.
-        squatting_test!("bankofamerica.com", "bankofamdrica.com");
+        assert!(squatting!("bankofamerica.com", "bankofamdrica.com"));
         // the vowel `a` was replaced with `e`.
-        squatting_test!("bankofamerica.com", "bonkofamerica.com");
+        assert!(squatting!("bankofamerica.com", "bonkofamerica.com"));
         // bitsquatting, the `k` and the `c` differ in one bit.
-        squatting_test!("bankofamerica.com", "bancofamerica.com");
+        assert!(squatting!("bankofamerica.com", "bancofamerica.com"));
+
+        // test some negative cases
+        assert!(!squatting!("www.google.com", "notifications.google.com"));
+        assert!(!squatting!("www.ing.com", "www.ncbi.nlm.nih.gov"));
     }
 }
