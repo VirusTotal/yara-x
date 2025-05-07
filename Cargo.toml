@@ -84,6 +84,7 @@ protobuf-codegen = "3.7.2"
 protobuf-json-mapping = "3.7.2"
 protobuf-parse = "3.7.2"
 protobuf-support = "3.7.2"
+psl = "2.1.105"
 quanta = "0.12.5"
 rayon = "1.10.0"
 regex = "1.11.1"
@@ -103,7 +104,6 @@ thiserror = "2.0.12"
 # Using tlsh-fixed instead of tlsh because tlsh-fixed includes a fix for this
 # issue: https://github.com/1crcbl/tlsh-rs/issues/2.
 tlsh-fixed = "0.1.1"
-twistrs = "0.7.1"
 uuid = "1.16.0"
 walrus = "0.23.3"
 wasmtime = { version = "32.0.0", default-features = false }

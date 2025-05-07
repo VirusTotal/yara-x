@@ -4,51 +4,47 @@ This a VirusTotal-specific module that provides additional context and metadata
 about files, URLs, IP addresses and domains scanned in VirusTotal.
 */
 
-#[cfg(feature = "vt-module-domain-permutations")]
+mod bitsquatting;
 mod homoglyphs;
+mod hyphenation;
+mod typos;
 
 use std::net::IpAddr;
-#[cfg(feature = "vt-module-domain-permutations")]
 use std::ops::BitAnd;
 use std::rc::Rc;
-#[cfg(feature = "vt-module-domain-permutations")]
 use std::sync::LazyLock;
 
+use bstr::BStr;
 use ipnet::IpNet;
-#[cfg(feature = "vt-module-domain-permutations")]
 use protobuf::EnumFull;
-#[cfg(feature = "vt-module-domain-permutations")]
-use twistrs::permutate::Domain;
 
 use crate::modules::prelude::*;
 use crate::modules::protos::titan::*;
-#[cfg(feature = "vt-module-domain-permutations")]
 use crate::modules::protos::vtnet::enriched_domain::Permutation;
-#[cfg(feature = "vt-module-domain-permutations")]
+use crate::modules::vt::bitsquatting::bitsquatting;
 use crate::modules::vt::homoglyphs::is_homoglyph;
+use crate::modules::vt::hyphenation::hyphenation;
+use crate::modules::vt::typos::{
+    doubling, insertion, omission, replacement, swap, vowel_swap,
+};
 use crate::types::Struct;
 
-#[cfg(feature = "vt-module-domain-permutations")]
 static BITSQUATTING: LazyLock<i64> = LazyLock::new(|| {
     Struct::enum_value_i64(&Permutation::BITSQUATTING.descriptor()).unwrap()
 });
 
-#[cfg(feature = "vt-module-domain-permutations")]
 static TYPO: LazyLock<i64> = LazyLock::new(|| {
     Struct::enum_value_i64(&Permutation::TYPO.descriptor()).unwrap()
 });
 
-#[cfg(feature = "vt-module-domain-permutations")]
 static HYPHENATION: LazyLock<i64> = LazyLock::new(|| {
     Struct::enum_value_i64(&Permutation::HYPHENATION.descriptor()).unwrap()
 });
 
-#[cfg(feature = "vt-module-domain-permutations")]
 static HOMOGLYPH: LazyLock<i64> = LazyLock::new(|| {
     Struct::enum_value_i64(&Permutation::HOMOGLYPH.descriptor()).unwrap()
 });
 
-#[cfg(feature = "vt-module-domain-permutations")]
 static SUBDOMAIN: LazyLock<i64> = LazyLock::new(|| {
     Struct::enum_value_i64(&Permutation::SUBDOMAIN.descriptor()).unwrap()
 });
@@ -80,100 +76,162 @@ fn in_range(
     cidr.contains(&ip)
 }
 
-#[cfg(feature = "vt-module-domain-permutations")]
 #[module_export(name = "permutation_of", method_of = "vt.net.EnrichedDomain")]
 fn all_permutations(
     ctx: &mut ScanContext,
     domain: Rc<Struct>,
     target: RuntimeString,
 ) -> bool {
-    permutations(ctx, domain, target, 0xffffff)
+    // TODO: Enable the bit for subdomains when implemented. Replace 0x17 with
+    // 0x1F.
+    permutations(ctx, domain, target, 0x17)
 }
 
-#[cfg(feature = "vt-module-domain-permutations")]
 #[module_export(name = "permutation_of", method_of = "vt.net.EnrichedDomain")]
 fn permutations(
     ctx: &mut ScanContext,
-    domain: Rc<Struct>,
-    target: RuntimeString,
+    scanned_domain: Rc<Struct>,
+    legitimate_domain: RuntimeString,
     permutation_kinds: i64,
 ) -> bool {
-    let domain = match domain
-        .field_by_name("raw")
-        .unwrap()
-        .type_value
-        .as_string()
-        .to_str()
-        .ok()
-        .and_then(|d| Domain::new(d).ok())
-    {
+    let scanned_domain =
+        scanned_domain.field_by_name("raw").unwrap().type_value.as_string();
+
+    let scanned_domain = match parse_domain(scanned_domain.as_bstr()) {
         Some(d) => d,
         None => return false,
     };
 
-    let target =
-        match target.to_str(ctx).ok().and_then(|t| Domain::new(t).ok()) {
-            Some(s) => s,
-            None => return false,
-        };
+    let legit_domain = match parse_domain(legitimate_domain.as_bstr(ctx)) {
+        Some(s) => s,
+        None => return false,
+    };
 
     // The domain is not a permutation of itself.
-    if domain == target {
+    if scanned_domain == legit_domain {
         return false;
     }
 
-    if TYPO.bitand(&permutation_kinds) != 0 {
-        for permutation in target
-            .addition()
-            .chain(target.insertion())
-            .chain(target.omission())
-            .chain(target.repetition())
-            .chain(target.replacement())
-            .chain(target.vowel_swap())
-        {
-            if permutation.domain == domain {
-                return true;
-            }
-        }
-    }
+    let scanned_domain = match scanned_domain.domain {
+        Some(d) => d,
+        None => return false,
+    };
 
-    if HOMOGLYPH.bitand(&permutation_kinds) != 0
-        && is_homoglyph(domain.domain.as_str(), target.domain.as_str())
+    let legit_domain = match legit_domain.domain {
+        Some(d) => d,
+        None => return false,
+    };
+
+    if TYPO.bitand(&permutation_kinds) != 0
+        && (insertion(legit_domain, scanned_domain)
+            || omission(legit_domain, scanned_domain)
+            || replacement(legit_domain, scanned_domain)
+            || doubling(legit_domain, scanned_domain)
+            || swap(legit_domain, scanned_domain)
+            || vowel_swap(legit_domain, scanned_domain))
     {
         return true;
     }
 
-    if HYPHENATION.bitand(&permutation_kinds) != 0 {
-        for permutation in target.hyphentation() {
-            if permutation.domain == domain {
-                return true;
-            }
-        }
+    if HOMOGLYPH.bitand(&permutation_kinds) != 0
+        && is_homoglyph(legit_domain, scanned_domain)
+    {
+        return true;
+    }
+
+    if BITSQUATTING.bitand(&permutation_kinds) != 0
+        && bitsquatting(legit_domain, scanned_domain)
+    {
+        return true;
     }
 
     if SUBDOMAIN.bitand(&permutation_kinds) != 0 {
-        for permutation in target.subdomain() {
-            if permutation.domain == domain {
-                return true;
-            }
-        }
+        // TODO
     }
 
-    if BITSQUATTING.bitand(&permutation_kinds) != 0 {
-        for permutation in target.bitsquatting() {
-            if permutation.domain == domain {
-                return true;
-            }
-        }
+    if HYPHENATION.bitand(&permutation_kinds) != 0
+        && hyphenation(legit_domain, scanned_domain)
+    {
+        return true;
     }
 
     false
 }
 
+/// Parses a domain name and returns its parts. For instance,
+/// for `www.virustotal.com` it returns:
+///
+/// ```text
+/// DomainParts {
+///   subdomain: Some("www"),
+///   domain: "virustotal",
+///   tld: "com",
+/// }
+/// ```
+///
+/// Returns `None` if the argument is not a valid domain name.
+fn parse_domain(domain: &BStr) -> Option<DomainParts> {
+    let domain_len = domain.len();
+    let suffix_len = psl::suffix(domain)?.as_bytes().len();
+    let tld = domain[domain_len - suffix_len..].to_str().ok()?;
+    let suffix_plus_dot = suffix_len + 1;
+
+    if domain_len <= suffix_plus_dot {
+        return Some(DomainParts { subdomain: None, domain: None, tld });
+    }
+
+    let prefix = domain.get(..domain_len - suffix_plus_dot)?.to_str().ok()?;
+
+    let mut split = prefix.rsplit('.');
+
+    let mut domain = split.next();
+    let mut subdomain = split.next();
+
+    // The psl::suffix function can incorrectly parse domains like
+    // "www.gov.uk", returning "www" as the domain and "gov.uk" as the public
+    // suffix. This happens because both "gov.uk" and "uk" are valid public
+    // suffixes, leading to ambiguity:
+    //
+    // Possible interpretations:
+    // - "www.gov.uk": subdomain="www", domain="gov", suffix="uk" (correct)
+    // - "www.gov.uk": subdomain="", domain="www", suffix="gov.uk" (incorrect)
+    //
+    // However, for "www.tfl.gov.uk":
+    // - subdomain="www.tfl", domain="gov", suffix="uk" (incorrect)
+    // - subdomain="www", domain="tfl", suffix="gov.uk" (correct)
+    //
+    // This workaround checks for common subdomains (e.g., "www") and correctly
+    // assigns the domain and subdomain fields to handle these cases.
+    if matches!(
+        domain,
+        Some("www")
+            | Some("ftp")
+            | Some("m")
+            | Some("mail")
+            | Some("webmail")
+            | Some("ns1")
+            | Some("ns2")
+    ) {
+        subdomain = domain;
+        domain = None;
+    }
+
+    Some(DomainParts { subdomain, domain, tld })
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct DomainParts<'a> {
+    pub subdomain: Option<&'a str>,
+    pub domain: Option<&'a str>,
+    pub tld: &'a str,
+}
+
 #[cfg(test)]
 mod tests {
     use crate::modules::protos::titan::LiveHuntData;
+    use crate::modules::vt::{parse_domain, DomainParts};
     use crate::{Compiler, Scanner};
+    use bstr::BStr;
     use protobuf::text_format::parse_from_str;
 
     #[test]
@@ -288,7 +346,6 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "vt-module-domain-permutations")]
     #[test]
     fn permutation_constants() {
         let rule = r#"
@@ -318,207 +375,110 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "vt-module-domain-permutations")]
-    #[test]
-    fn permutation_hyphenation() {
-        let vt_meta = Box::new(
-            parse_from_str::<LiveHuntData>(
+    macro_rules! squatting_test {
+        ($legit_domain:literal, $scanned_domain:literal) => {{
+            let vt_meta = Box::new(
+                parse_from_str::<LiveHuntData>(
+                    format!(
+                        "net {{ domain {{ raw: \"{}\" }} }}",
+                        $scanned_domain
+                    )
+                    .as_str(),
+                )
+                .unwrap(),
+            );
+
+            let rule = format!(
                 r#"
-                net {
-                    domain {
-                        raw: "www.virus-total.com"
-                    }
-                }"#,
-            )
-            .unwrap(),
+           import "vt"
+           rule test {{
+             condition:
+               vt.net.domain.permutation_of("{}")
+           }}"#,
+                $legit_domain
+            );
+
+            let mut compiler = Compiler::new();
+
+            compiler
+                .enable_feature("ip_address")
+                .enable_feature("file")
+                .add_source(rule.as_str())
+                .unwrap();
+
+            let rules = compiler.build();
+
+            assert_eq!(
+                Scanner::new(&rules)
+                    .set_module_output(vt_meta)
+                    .unwrap()
+                    .scan(b"")
+                    .unwrap()
+                    .matching_rules()
+                    .len(),
+                1
+            );
+        }};
+    }
+
+    #[test]
+    fn test_parse_domain() {
+        assert_eq!(
+            parse_domain(BStr::new("www.google.com")),
+            Some(DomainParts {
+                subdomain: Some("www"),
+                domain: Some("google"),
+                tld: "com"
+            })
         );
 
-        let rule = r#"
-           import "vt"
-           rule test {
-             condition:
-               vt.net.domain.permutation_of("www.virustotal.com")
-               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.ALL)
-               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HYPHENATION)
-               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.TYPO)
-               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HOMOGLYPH)
-               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.SUBDOMAIN)
-               and not vt.net.domain.permutation_of("www.virus-total.com")
-               and not vt.net.domain.permutation_of("www.google.com")
-           }"#;
-
-        let mut compiler = Compiler::new();
-
-        compiler
-            .enable_feature("ip_address")
-            .enable_feature("file")
-            .add_source(rule)
-            .unwrap();
-
-        let rules = compiler.build();
+        assert_eq!(
+            parse_domain(BStr::new("gov.uk")),
+            Some(DomainParts { subdomain: None, domain: None, tld: "gov.uk" })
+        );
 
         assert_eq!(
-            Scanner::new(&rules)
-                .set_module_output(vt_meta)
-                .unwrap()
-                .scan(b"")
-                .unwrap()
-                .matching_rules()
-                .len(),
-            1
+            parse_domain(BStr::new("www.gov.uk")),
+            Some(DomainParts {
+                subdomain: Some("www"),
+                domain: None,
+                tld: "gov.uk"
+            })
+        );
+
+        assert_eq!(
+            parse_domain(BStr::new("ftp.gov.uk")),
+            Some(DomainParts {
+                subdomain: Some("ftp"),
+                domain: None,
+                tld: "gov.uk"
+            })
         );
     }
 
-    #[cfg(feature = "vt-module-domain-permutations")]
     #[test]
-    fn permutation_homoglyph() {
-        let vt_meta = Box::new(
-            parse_from_str::<LiveHuntData>(
-                r#"
-                net {
-                    domain {
-                        raw: "www.vırustotal.com"
-                    }
-                }"#,
-            )
-            .unwrap(),
-        );
-
-        let rule = r#"
-           import "vt"
-           rule test {
-             condition:
-               vt.net.domain.permutation_of("www.virustotal.com")
-               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.ALL)
-               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HOMOGLYPH)
-               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.TYPO)
-               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HYPHENATION)
-               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.SUBDOMAIN)
-               and not vt.net.domain.permutation_of("www.vırustotal.com")
-               and not vt.net.domain.permutation_of("www.google.com")
-           }"#;
-
-        let mut compiler = Compiler::new();
-
-        compiler
-            .enable_feature("ip_address")
-            .enable_feature("file")
-            .add_source(rule)
-            .unwrap();
-
-        let rules = compiler.build();
-
-        assert_eq!(
-            Scanner::new(&rules)
-                .set_module_output(vt_meta)
-                .unwrap()
-                .scan(b"")
-                .unwrap()
-                .matching_rules()
-                .len(),
-            1
-        );
-    }
-
-    #[cfg(feature = "vt-module-domain-permutations")]
-    #[test]
-    fn permutation_typo() {
-        let vt_meta = Box::new(
-            parse_from_str::<LiveHuntData>(
-                r#"
-                net {
-                    domain {
-                        raw: "www.viirustotal.com"
-                    }
-                }"#,
-            )
-            .unwrap(),
-        );
-
-        let rule = r#"
-           import "vt"
-           rule test {
-             condition:
-               vt.net.domain.permutation_of("www.virustotal.com")
-               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.ALL)
-               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.TYPO)
-               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HYPHENATION)
-               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HOMOGLYPH)
-               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.SUBDOMAIN)
-               and not vt.net.domain.permutation_of("www.viirustotal.com")
-               and not vt.net.domain.permutation_of("www.google.com")
-           }"#;
-
-        let mut compiler = Compiler::new();
-
-        compiler
-            .enable_feature("ip_address")
-            .enable_feature("file")
-            .add_source(rule)
-            .unwrap();
-
-        let rules = compiler.build();
-
-        assert_eq!(
-            Scanner::new(&rules)
-                .set_module_output(vt_meta)
-                .unwrap()
-                .scan(b"")
-                .unwrap()
-                .matching_rules()
-                .len(),
-            1
-        );
-    }
-
-    #[cfg(feature = "vt-module-domain-permutations")]
-    #[test]
-    fn permutation_subdomain() {
-        let vt_meta = Box::new(
-            parse_from_str::<LiveHuntData>(
-                r#"
-                net {
-                    domain {
-                        raw: "www.vir.ustotal.com"
-                    }
-                }"#,
-            )
-            .unwrap(),
-        );
-
-        let rule = r#"
-           import "vt"
-           rule test {
-             condition:
-               vt.net.domain.permutation_of("www.virustotal.com")
-               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.ALL)
-               and vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.SUBDOMAIN)
-               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HYPHENATION)
-               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.HOMOGLYPH)
-               and not vt.net.domain.permutation_of("www.virustotal.com", vt.Domain.Permutation.TYPO)
-               and not vt.net.domain.permutation_of("www.vir.ustotal.com")
-               and not vt.net.domain.permutation_of("www.google.com")
-           }"#;
-
-        let mut compiler = Compiler::new();
-
-        compiler
-            .enable_feature("ip_address")
-            .enable_feature("file")
-            .add_source(rule)
-            .unwrap();
-
-        let rules = compiler.build();
-
-        assert_eq!(
-            Scanner::new(&rules)
-                .set_module_output(vt_meta)
-                .unwrap()
-                .scan(b"")
-                .unwrap()
-                .matching_rules()
-                .len(),
-            1
-        );
+    fn test_squatting() {
+        // the 'b' was omitted.
+        squatting_test!("bankofamerica.com", "ankofamerica.com");
+        // the `o` was omitted.
+        squatting_test!("bankofamerica.com", "bankfamerica.com");
+        // the `k` is repeated.
+        squatting_test!("bankofamerica.com", "bankkofamerica.com");
+        // the `l` was inserted.
+        squatting_test!("bankofamerica.com", "banklofamerica.com");
+        // 'q' is close to 'a' in the keyboard.
+        squatting_test!("bankofamerica.com", "bqnkofamerica.com");
+        // 'ɑ' is a homoglyph of 'a'
+        squatting_test!("bankofamerica.com", "bɑnkofamerica.com");
+        // transposition of "a" and "b".
+        squatting_test!("bankofamerica.com", "abnkofamerica.com");
+        // insertion of hyphens.
+        squatting_test!("bankofamerica.com", "bank-of-america.com");
+        // the `e` was replaced with `d`, which is close in the keyboard.
+        squatting_test!("bankofamerica.com", "bankofamdrica.com");
+        // the vowel `a` was replaced with `e`.
+        squatting_test!("bankofamerica.com", "bonkofamerica.com");
+        // bitsquatting, the `k` and the `c` differ in one bit.
+        squatting_test!("bankofamerica.com", "bancofamerica.com");
     }
 }
