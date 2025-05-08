@@ -112,6 +112,11 @@ fn permutations(
         return false;
     }
 
+    // Both domains must have the same TLD.
+    if scanned_domain.tld != legit_domain.tld {
+        return false;
+    }
+
     let scanned_domain = match scanned_domain.domain {
         Some(d) => d,
         None => return false,
@@ -493,5 +498,6 @@ mod tests {
         // test some negative cases
         assert!(!squatting!("www.google.com", "notifications.google.com"));
         assert!(!squatting!("www.ing.com", "www.ncbi.nlm.nih.gov"));
+        assert!(!squatting!("www.google.com", "www.goggle.es"));
     }
 }
