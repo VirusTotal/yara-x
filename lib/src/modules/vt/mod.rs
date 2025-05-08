@@ -499,5 +499,6 @@ mod tests {
         assert!(!squatting!("www.google.com", "notifications.google.com"));
         assert!(!squatting!("www.ing.com", "www.ncbi.nlm.nih.gov"));
         assert!(!squatting!("www.google.com", "www.goggle.es"));
+        assert!(!squatting!("www.google.com", "www.goore.com"));
     }
 }

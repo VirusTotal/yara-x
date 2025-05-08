@@ -55,8 +55,8 @@ pub fn omission(a: &str, b: &str) -> bool {
         match (next_a, next_b) {
             (Some(next_a), Some(next_b)) => {
                 if next_a != next_b {
-                    a_chars.next();
-                    return a_chars.eq(b_chars);
+                    return a_chars.next() == Some(next_b)
+                        && a_chars.eq(b_chars);
                 }
             }
             (Some(_), None) => return a_chars.next().is_none(),
@@ -327,6 +327,7 @@ mod tests {
         assert!(omission("abc", "ac"));
         assert!(omission("abc", "ab"));
         assert!(!omission("abc", "abc"));
+        assert!(!omission("abcfe", "abde"));
     }
 
     #[test]
