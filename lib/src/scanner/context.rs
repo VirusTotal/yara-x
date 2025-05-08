@@ -624,7 +624,7 @@ impl ScanContext<'_> {
                             // `Alphabet::new` validates the string again. This
                             // is not really necessary as we already know that
                             // the string represents a valid alphabet, it would
-                            // be better if could use the private function
+                            // be better if we could use the private function
                             // `Alphabet::from_str_unchecked`
                             base64::alphabet::Alphabet::new(alphabet).unwrap()
                         });
@@ -1214,7 +1214,7 @@ fn verify_base64_match(
     // The pattern is passed to this function in its original form, before
     // being encoded as base64. Compute the size of the pattern once it is
     // encoded as base64.
-    let len = base64::encoded_len(pattern.len(), false).unwrap();
+    let len = base64::encoded_len(pattern.len(), false)?;
 
     // A portion of the pattern in base64 form was found at `atom_pos`,
     // but decoding the base64 string starting at that offset is not ok
@@ -1331,20 +1331,13 @@ fn verify_base64_match(
         base64_engine.decode(s)
     };
 
-    if let Ok(decoded) = decoded {
-        // If the decoding was successful, ignore the padding and compare
-        // to the pattern.
-        let decoded = &decoded[padding..];
-        if decoded.len() >= pattern.len()
-            && pattern.eq(&decoded[0..pattern.len()])
-        {
-            Some(Match {
-                range: atom_pos..atom_pos + match_len,
-                xor_key: None,
-            })
-        } else {
-            None
-        }
+    // If the decoding was successful, ignore the padding and compare to the
+    // expected pattern.
+    let decoded_pattern =
+        decoded.as_ref().ok()?.get(padding..padding + pattern.len())?;
+
+    if pattern.eq(decoded_pattern) {
+        Some(Match { range: atom_pos..atom_pos + match_len, xor_key: None })
     } else {
         None
     }
