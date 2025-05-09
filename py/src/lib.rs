@@ -20,9 +20,12 @@ use std::mem;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::pin::Pin;
+use std::str::FromStr;
 use std::time::Duration;
 
-use protobuf_json_mapping::print_to_string as proto_to_json;
+use protobuf_json_mapping::{
+    print_to_string_with_options as proto_to_json, PrintOptions,
+};
 use pyo3::exceptions::{PyException, PyIOError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{
@@ -32,6 +35,7 @@ use pyo3::{create_exception, IntoPyObjectExt};
 use pyo3_file::PyFileLikeObject;
 
 use ::yara_x as yrx;
+use ::yara_x::mods::*;
 
 /// Formats YARA rules.
 #[pyclass(unsendable)]
@@ -105,6 +109,66 @@ impl Formatter {
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
         Ok(())
+    }
+}
+
+#[pyclass]
+struct Module {
+    _module: SupportedDumpModules,
+}
+
+#[pymethods]
+impl Module {
+    /// Creates a new [`Module`].
+    ///
+    /// Type type of module must be one of [`crate::mods::SupportedDumpModules`]
+    #[new]
+    fn new(name: &str) -> PyResult<Self> {
+        Ok(Self {
+            _module: SupportedDumpModules::from_str(name).map_err(|_| {
+                PyValueError::new_err(format!(
+                    "{} not a supported module",
+                    name
+                ))
+            })?,
+        })
+    }
+
+    /// Invoke the module with provided data.
+    #[pyo3(name = "invoke")]
+    fn invoke_module<'py>(
+        &'py self,
+        py: Python<'py>,
+        data: &[u8],
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let print_options =
+            PrintOptions { proto_field_name: true, ..Default::default() };
+        let module_json = match self._module {
+            SupportedDumpModules::Macho => proto_to_json(
+                invoke::<Macho>(&data).unwrap().as_ref(),
+                &print_options,
+            ),
+            SupportedDumpModules::Lnk => proto_to_json(
+                invoke::<Lnk>(&data).unwrap().as_ref(),
+                &print_options,
+            ),
+            SupportedDumpModules::Elf => proto_to_json(
+                invoke::<ELF>(&data).unwrap().as_ref(),
+                &print_options,
+            ),
+            SupportedDumpModules::Pe => proto_to_json(
+                invoke::<PE>(&data).unwrap().as_ref(),
+                &print_options,
+            ),
+            SupportedDumpModules::Dotnet => proto_to_json(
+                invoke::<Dotnet>(&data).unwrap().as_ref(),
+                &print_options,
+            ),
+        }
+        .map_err(|err| PyValueError::new_err(err.to_string()))?;
+        let json = PyModule::import(py, "json")?;
+        let json_loads = json.getattr("loads")?;
+        json_loads.call((module_json,), None)
     }
 }
 
@@ -467,7 +531,7 @@ impl ScanResults {
     }
 
     #[getter]
-    /// Rules that matched during the scan.
+    /// Module output from the scan.
     fn module_outputs<'py>(
         &'py self,
         py: Python<'py>,
@@ -654,7 +718,11 @@ fn scan_results_to_py(
         let json = PyModule::import(py, "json")?;
         let json_loads = json.getattr("loads")?;
         for (module, output) in outputs {
-            let module_output_json = proto_to_json(output).unwrap();
+            let module_output_json = proto_to_json(
+                output,
+                &PrintOptions { proto_field_name: true, ..Default::default() },
+            )
+            .unwrap();
             let module_output =
                 json_loads.call((module_output_json,), None)?;
             module_outputs.set_item(module, module_output)?;
@@ -789,5 +857,6 @@ fn yara_x(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Pattern>()?;
     m.add_class::<Match>()?;
     m.add_class::<Formatter>()?;
+    m.add_class::<Module>()?;
     Ok(())
 }

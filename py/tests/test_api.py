@@ -294,3 +294,14 @@ def test_format():
   fmt.format(inp, output)
   result = output.getvalue()
   assert result == expected_output
+
+
+def test_module():
+  with pytest.raises(ValueError):
+    yara_x.Module('AXS')
+
+  # We aren't interested in testing the actual parsing functionality of the
+  # module as that is covered in module tests. Instead we just want to make sure
+  # we get a dict object back, and we can do that by passing non-PE data.
+  result = yara_x.Module('PE').invoke(b'ERS')
+  assert isinstance(result, dict)
