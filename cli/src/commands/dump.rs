@@ -3,24 +3,14 @@ use clap::{arg, value_parser, ArgAction, ArgMatches, Command, ValueEnum};
 use colored_json::{ColorMode, ToColoredJson};
 use crossterm::tty::IsTty;
 use protobuf::MessageField;
-use protobuf_json_mapping::print_to_string;
+use protobuf_json_mapping::{print_to_string_with_options, PrintOptions};
 use std::fs::File;
 use std::io::{stdin, stdout, Read};
 use std::path::PathBuf;
-use strum_macros::Display;
 
 use crate::help;
 use yara_x::mods::*;
 use yara_x_proto_yaml::Serializer;
-
-#[derive(Debug, Clone, ValueEnum, Display, PartialEq)]
-enum SupportedModules {
-    Lnk,
-    Macho,
-    Elf,
-    Pe,
-    Dotnet,
-}
 
 #[derive(Debug, Clone, ValueEnum)]
 enum OutputFormats {
@@ -50,7 +40,7 @@ pub fn dump() -> Command {
                 .help("Module name")
                 .action(ArgAction::Append)
                 .value_delimiter(',')
-                .value_parser(value_parser!(SupportedModules)),
+                .value_parser(value_parser!(SupportedDumpModules)),
         )
         .arg(arg!(--"no-colors").help("Turn off colors in YAML output"))
         .arg(
@@ -75,7 +65,7 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
 
     let file = args.get_one::<PathBuf>("FILE");
     let output_format = args.get_one::<OutputFormats>("output-format");
-    let requested_modules = args.get_many::<SupportedModules>("module");
+    let requested_modules = args.get_many::<SupportedDumpModules>("module");
     let no_colors = args.get_flag("no-colors");
 
     // By default, use colors if output is stdout. When output is a standard
@@ -96,19 +86,19 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         // those that weren't explicitly asked for.
         let requested_modules: Vec<_> = modules.collect();
 
-        if !requested_modules.contains(&&SupportedModules::Dotnet) {
+        if !requested_modules.contains(&&SupportedDumpModules::Dotnet) {
             module_output.dotnet = MessageField::none()
         }
-        if !requested_modules.contains(&&SupportedModules::Elf) {
+        if !requested_modules.contains(&&SupportedDumpModules::Elf) {
             module_output.elf = MessageField::none()
         }
-        if !requested_modules.contains(&&SupportedModules::Lnk) {
+        if !requested_modules.contains(&&SupportedDumpModules::Lnk) {
             module_output.lnk = MessageField::none()
         }
-        if !requested_modules.contains(&&SupportedModules::Macho) {
+        if !requested_modules.contains(&&SupportedDumpModules::Macho) {
             module_output.macho = MessageField::none()
         }
-        if !requested_modules.contains(&&SupportedModules::Pe) {
+        if !requested_modules.contains(&&SupportedDumpModules::Pe) {
             module_output.pe = MessageField::none()
         }
     } else {
@@ -138,8 +128,14 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
             let mode = if use_color { ColorMode::On } else { ColorMode::Off };
             println!(
                 "{}",
-                print_to_string(module_output.as_ref())?
-                    .to_colored_json(mode)?
+                print_to_string_with_options(
+                    module_output.as_ref(),
+                    &PrintOptions {
+                        proto_field_name: true,
+                        ..Default::default()
+                    }
+                )?
+                .to_colored_json(mode)?
             );
         }
         Some(OutputFormats::Yaml) | None => {

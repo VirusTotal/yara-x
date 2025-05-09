@@ -136,7 +136,25 @@ pub mod mods {
     # use yara_x;
     let pe_info = yara_x::mods::invoke::<yara_x::mods::PE>(&[]);
     ```
-     */
+    */
+
+    use clap::ValueEnum;
+    use strum_macros::{Display, EnumString};
+    #[derive(Debug, Clone, ValueEnum, Display, EnumString, PartialEq)]
+    #[strum(ascii_case_insensitive)]
+    /// Modules supported by the "dump" command and language bindings.
+    pub enum SupportedDumpModules {
+        /// LNK module for parsing lnk files.
+        Lnk,
+        /// Macho module for parsing macho files.
+        Macho,
+        /// Elf module for parsing elf files.
+        Elf,
+        /// PE module for parsing pe files.
+        Pe,
+        /// Dotnet module for parsing dotnet files.
+        Dotnet,
+    }
 
     /// Data structures defined by the `dotnet` module.
     ///

@@ -286,7 +286,7 @@ class ScanResults:
 
     def module_outputs(self) -> dict:
         r"""
-        Rules that matched during the scan.
+        Module output from the scan.
         """
         ...
 
@@ -298,3 +298,12 @@ def compile(src: str) -> Rules:
     variables. For more complex use cases you will need to use a [`Compiler`].
     """
     ...
+
+class Module:
+    r"""A YARA-X module."""
+    def new(self, name: str) -> Module:
+        ...
+
+    def invoke(data: str) -> dict:
+        r"""Parse the data and collect module metadata."""
+        ...

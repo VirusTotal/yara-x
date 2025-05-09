@@ -4660,6 +4660,7 @@ dependencies = [
  "bitflags 2.9.0",
  "bitvec",
  "bstr",
+ "clap",
  "const-oid",
  "crc32fast",
  "der-parser",
@@ -4706,6 +4707,7 @@ dependencies = [
  "sha1",
  "sha2 0.10.8",
  "smallvec",
+ "strum",
  "strum_macros",
  "thiserror 2.0.12",
  "tlsh-fixed",
@@ -4845,6 +4847,7 @@ dependencies = [
 name = "yara-x-py"
 version = "0.14.0"
 dependencies = [
+ "protobuf",
  "protobuf-json-mapping",
  "pyo3",
  "pyo3-build-config",
