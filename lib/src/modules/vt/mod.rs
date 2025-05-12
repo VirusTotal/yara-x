@@ -6,7 +6,7 @@ about files, URLs, IP addresses and domains scanned in VirusTotal.
 
 mod bitsquatting;
 mod homoglyphs;
-mod hyphenation;
+mod interleaved;
 mod typos;
 
 use std::net::IpAddr;
@@ -23,7 +23,7 @@ use crate::modules::protos::titan::*;
 use crate::modules::protos::vtnet::enriched_domain::Permutation;
 use crate::modules::vt::bitsquatting::bitsquatting;
 use crate::modules::vt::homoglyphs::is_homoglyph;
-use crate::modules::vt::hyphenation::hyphenation;
+use crate::modules::vt::interleaved::interleaved;
 use crate::modules::vt::typos::{
     doubling, insertion, omission, replacement, swap, vowel_swap,
 };
@@ -82,9 +82,7 @@ fn all_permutations(
     domain: Rc<Struct>,
     target: RuntimeString,
 ) -> bool {
-    // TODO: Enable the bit for subdomains when implemented. Replace 0x17 with
-    // 0x1F.
-    permutations(ctx, domain, target, 0x17)
+    permutations(ctx, domain, target, 0x1F)
 }
 
 #[module_export(name = "permutation_of", method_of = "vt.net.EnrichedDomain")]
@@ -117,11 +115,13 @@ fn permutations(
         return false;
     }
 
+    let scanned_prefix = scanned_domain.prefix;
     let scanned_domain = match scanned_domain.domain {
         Some(d) => d,
         None => return false,
     };
 
+    let legit_prefix = legit_domain.prefix;
     let legit_domain = match legit_domain.domain {
         Some(d) => d,
         None => return false,
@@ -151,11 +151,18 @@ fn permutations(
     }
 
     if SUBDOMAIN.bitand(&permutation_kinds) != 0 {
-        // TODO
+        match (legit_prefix, scanned_prefix) {
+            (Some(legit), Some(scanned)) => {
+                if interleaved(legit, scanned, '.') {
+                    return true;
+                }
+            }
+            _ => {}
+        }
     }
 
     if HYPHENATION.bitand(&permutation_kinds) != 0
-        && hyphenation(legit_domain, scanned_domain)
+        && interleaved(legit_domain, scanned_domain, '-')
     {
         return true;
     }
@@ -168,8 +175,9 @@ fn permutations(
 ///
 /// ```text
 /// DomainParts {
+///   prefix: Some("www.virustotal"),
 ///   subdomain: Some("www"),
-///   domain: "virustotal",
+///   domain: Some("virustotal"),
 ///   tld: "com",
 /// }
 /// ```
@@ -182,7 +190,12 @@ fn parse_domain(domain: &BStr) -> Option<DomainParts> {
     let suffix_plus_dot = suffix_len + 1;
 
     if domain_len <= suffix_plus_dot {
-        return Some(DomainParts { subdomain: None, domain: None, tld });
+        return Some(DomainParts {
+            prefix: None,
+            subdomain: None,
+            domain: None,
+            tld,
+        });
     }
 
     let prefix = domain.get(..domain_len - suffix_plus_dot)?.to_str().ok()?;
@@ -221,11 +234,12 @@ fn parse_domain(domain: &BStr) -> Option<DomainParts> {
         domain = None;
     }
 
-    Some(DomainParts { subdomain, domain, tld })
+    Some(DomainParts { prefix: Some(prefix), subdomain, domain, tld })
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct DomainParts<'a> {
+    pub prefix: Option<&'a str>,
     pub subdomain: Option<&'a str>,
     pub domain: Option<&'a str>,
     pub tld: &'a str,
@@ -431,6 +445,7 @@ mod tests {
         assert_eq!(
             parse_domain(BStr::new("www.google.com")),
             Some(DomainParts {
+                prefix: Some("www.google"),
                 subdomain: Some("www"),
                 domain: Some("google"),
                 tld: "com"
@@ -439,12 +454,18 @@ mod tests {
 
         assert_eq!(
             parse_domain(BStr::new("gov.uk")),
-            Some(DomainParts { subdomain: None, domain: None, tld: "gov.uk" })
+            Some(DomainParts {
+                prefix: None,
+                subdomain: None,
+                domain: None,
+                tld: "gov.uk"
+            })
         );
 
         assert_eq!(
             parse_domain(BStr::new("www.gov.uk")),
             Some(DomainParts {
+                prefix: Some("www"),
                 subdomain: Some("www"),
                 domain: None,
                 tld: "gov.uk"
@@ -454,6 +475,7 @@ mod tests {
         assert_eq!(
             parse_domain(BStr::new("ftp.gov.uk")),
             Some(DomainParts {
+                prefix: Some("ftp"),
                 subdomain: Some("ftp"),
                 domain: None,
                 tld: "gov.uk"
@@ -463,6 +485,7 @@ mod tests {
         assert_eq!(
             parse_domain(BStr::new("www.ncbi.nlm.nih.gov")),
             Some(DomainParts {
+                prefix: Some("www.ncbi.nlm.nih"),
                 subdomain: Some("www.ncbi.nlm"),
                 domain: Some("nih"),
                 tld: "gov"
@@ -494,6 +517,9 @@ mod tests {
         assert!(squatting!("bankofamerica.com", "bonkofamerica.com"));
         // bitsquatting, the `k` and the `c` differ in one bit.
         assert!(squatting!("bankofamerica.com", "bancofamerica.com"));
+        // subdomain
+        assert!(squatting!("bankofamerica.com", "bankof.america.com"));
+        assert!(squatting!("bankofamerica.com", "bank.of.america.com"));
 
         // test some negative cases
         assert!(!squatting!("www.google.com", "notifications.google.com"));
