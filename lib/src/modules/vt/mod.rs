@@ -151,13 +151,10 @@ fn permutations(
     }
 
     if SUBDOMAIN.bitand(&permutation_kinds) != 0 {
-        match (legit_prefix, scanned_prefix) {
-            (Some(legit), Some(scanned)) => {
-                if interleaved(legit, scanned, '.') {
-                    return true;
-                }
+        if let (Some(legit), Some(scanned)) = (legit_prefix, scanned_prefix) {
+            if interleaved(legit, scanned, '.') {
+                return true;
             }
-            _ => {}
         }
     }
 
