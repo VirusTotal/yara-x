@@ -225,7 +225,6 @@ bincode = { workspace = true }
 bitflags = { workspace = true, features = ["serde"] }
 bitvec = { workspace = true }
 bstr = { workspace = true, features = ["serde"] }
-clap = { workspace = true, features = ["cargo", "derive"] }
 const-oid = { workspace = true, optional = true, features = ["db"] }
 crc32fast = { workspace = true, optional = true }
 der-parser = { workspace = true, optional = true, features = ["bigint"] }
@@ -264,7 +263,6 @@ rsa = { workspace = true, optional = true }
 smallvec = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
-strum = { workspace = true }
 strum_macros = { workspace = true }
 thiserror = { workspace = true }
 tlsh-fixed = { workspace = true, optional = true }

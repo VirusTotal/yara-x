@@ -7,10 +7,21 @@ use protobuf_json_mapping::{print_to_string_with_options, PrintOptions};
 use std::fs::File;
 use std::io::{stdin, stdout, Read};
 use std::path::PathBuf;
+use strum_macros::Display;
 
 use crate::help;
 use yara_x::mods::*;
 use yara_x_proto_yaml::Serializer;
+
+
+#[derive(Debug, Clone, ValueEnum, Display, PartialEq)]
+enum SupportedModules {
+    Lnk,
+    Macho,
+    Elf,
+    Pe,
+    Dotnet,
+}
 
 #[derive(Debug, Clone, ValueEnum)]
 enum OutputFormats {
@@ -40,7 +51,7 @@ pub fn dump() -> Command {
                 .help("Module name")
                 .action(ArgAction::Append)
                 .value_delimiter(',')
-                .value_parser(value_parser!(SupportedDumpModules)),
+                .value_parser(value_parser!(SupportedModules)),
         )
         .arg(arg!(--"no-colors").help("Turn off colors in YAML output"))
         .arg(
@@ -65,7 +76,7 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
 
     let file = args.get_one::<PathBuf>("FILE");
     let output_format = args.get_one::<OutputFormats>("output-format");
-    let requested_modules = args.get_many::<SupportedDumpModules>("module");
+    let requested_modules = args.get_many::<SupportedModules>("module");
     let no_colors = args.get_flag("no-colors");
 
     // By default, use colors if output is stdout. When output is a standard
@@ -86,19 +97,19 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         // those that weren't explicitly asked for.
         let requested_modules: Vec<_> = modules.collect();
 
-        if !requested_modules.contains(&&SupportedDumpModules::Dotnet) {
+        if !requested_modules.contains(&&SupportedModules::Dotnet) {
             module_output.dotnet = MessageField::none()
         }
-        if !requested_modules.contains(&&SupportedDumpModules::Elf) {
+        if !requested_modules.contains(&&SupportedModules::Elf) {
             module_output.elf = MessageField::none()
         }
-        if !requested_modules.contains(&&SupportedDumpModules::Lnk) {
+        if !requested_modules.contains(&&SupportedModules::Lnk) {
             module_output.lnk = MessageField::none()
         }
-        if !requested_modules.contains(&&SupportedDumpModules::Macho) {
+        if !requested_modules.contains(&&SupportedModules::Macho) {
             module_output.macho = MessageField::none()
         }
-        if !requested_modules.contains(&&SupportedDumpModules::Pe) {
+        if !requested_modules.contains(&&SupportedModules::Pe) {
             module_output.pe = MessageField::none()
         }
     } else {

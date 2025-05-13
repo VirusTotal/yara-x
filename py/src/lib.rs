@@ -22,6 +22,7 @@ use std::path::PathBuf;
 use std::pin::Pin;
 use std::str::FromStr;
 use std::time::Duration;
+use strum_macros::{Display, EnumString};
 
 use protobuf_json_mapping::{
     print_to_string_with_options as proto_to_json, PrintOptions,
@@ -36,6 +37,16 @@ use pyo3_file::PyFileLikeObject;
 
 use ::yara_x as yrx;
 use ::yara_x::mods::*;
+
+#[derive(Debug, Clone, Display, EnumString, PartialEq)]
+#[strum(ascii_case_insensitive)]
+enum SupportedModules {
+    Lnk,
+    Macho,
+    Elf,
+    Pe,
+    Dotnet,
+}
 
 /// Formats YARA rules.
 #[pyclass(unsendable)]
@@ -114,18 +125,18 @@ impl Formatter {
 
 #[pyclass]
 struct Module {
-    _module: SupportedDumpModules,
+    _module: SupportedModules,
 }
 
 #[pymethods]
 impl Module {
     /// Creates a new [`Module`].
     ///
-    /// Type type of module must be one of [`crate::mods::SupportedDumpModules`]
+    /// Type type of module must be one of [`SupportedModules`]
     #[new]
     fn new(name: &str) -> PyResult<Self> {
         Ok(Self {
-            _module: SupportedDumpModules::from_str(name).map_err(|_| {
+            _module: SupportedModules::from_str(name).map_err(|_| {
                 PyValueError::new_err(format!(
                     "{} not a supported module",
                     name
@@ -144,23 +155,23 @@ impl Module {
         let print_options =
             PrintOptions { proto_field_name: true, ..Default::default() };
         let module_json = match self._module {
-            SupportedDumpModules::Macho => proto_to_json(
+            SupportedModules::Macho => proto_to_json(
                 invoke::<Macho>(&data).unwrap().as_ref(),
                 &print_options,
             ),
-            SupportedDumpModules::Lnk => proto_to_json(
+            SupportedModules::Lnk => proto_to_json(
                 invoke::<Lnk>(&data).unwrap().as_ref(),
                 &print_options,
             ),
-            SupportedDumpModules::Elf => proto_to_json(
+            SupportedModules::Elf => proto_to_json(
                 invoke::<ELF>(&data).unwrap().as_ref(),
                 &print_options,
             ),
-            SupportedDumpModules::Pe => proto_to_json(
+            SupportedModules::Pe => proto_to_json(
                 invoke::<PE>(&data).unwrap().as_ref(),
                 &print_options,
             ),
-            SupportedDumpModules::Dotnet => proto_to_json(
+            SupportedModules::Dotnet => proto_to_json(
                 invoke::<Dotnet>(&data).unwrap().as_ref(),
                 &print_options,
             ),
