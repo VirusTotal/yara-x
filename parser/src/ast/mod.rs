@@ -29,12 +29,17 @@ pub use errors::Error;
 
 /// Abstract Syntax Tree (AST) for YARA rules.
 pub struct AST<'src> {
-    /// The list of imports.
-    pub imports: Vec<Import<'src>>,
-    /// The list of rules in the AST.
-    rules: Vec<Rule<'src>>,
+    /// The list of items in the AST (imports, includes, and rules).
+    pub items: Vec<Item<'src>>,
     /// Errors that occurred while parsing the rules.
     errors: Vec<Error>,
+}
+
+/// Top level items in the AST.
+pub enum Item<'src> {
+    Import(Import<'src>),
+    Include(Include<'src>),
+    Rule(Rule<'src>),
 }
 
 impl<'src> From<Parser<'src>> for AST<'src> {
@@ -46,15 +51,25 @@ impl<'src> From<Parser<'src>> for AST<'src> {
 
 impl<'src> AST<'src> {
     /// Returns the import statements in the AST.
-    #[inline]
-    pub fn imports(&self) -> &[Import<'src>] {
-        self.imports.as_slice()
+    pub fn imports(&self) -> impl Iterator<Item = &Import<'src>> {
+        self.items.iter().filter_map(|item| {
+            if let Item::Import(import) = item {
+                Some(import)
+            } else {
+                None
+            }
+        })
     }
 
     /// Returns the rules in the AST.
-    #[inline]
-    pub fn rules(&self) -> &[Rule<'src>] {
-        self.rules.as_slice()
+    pub fn rules(&self) -> impl Iterator<Item = &Rule<'src>> {
+        self.items.iter().filter_map(|item| {
+            if let Item::Rule(rule) = item {
+                Some(rule)
+            } else {
+                None
+            }
+        })
     }
 
     /// Returns the errors found while parsing the source code.
@@ -73,7 +88,7 @@ impl<'src> AST<'src> {
 
 impl Debug for AST<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        for rule in &self.rules {
+        for rule in self.rules() {
             write_tree(f, &ascii_tree::rule_ascii_tree(rule))?;
             writeln!(f)?;
         }
@@ -94,6 +109,13 @@ impl Debug for AST<'_> {
 pub struct Import<'src> {
     span: Span,
     pub module_name: &'src str,
+}
+
+/// An include statement.
+#[derive(Debug)]
+pub struct Include<'src> {
+    span: Span,
+    pub file_name: &'src str,
 }
 
 /// A YARA rule.

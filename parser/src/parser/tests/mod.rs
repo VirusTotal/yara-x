@@ -70,7 +70,7 @@ rule test_2 { condition: true }";
     );
 
     // The second rule is correctly parsed because it doesn't have any errors.
-    assert_eq!(ast.rules().len(), 1);
+    assert_eq!(ast.rules().count(), 1);
 }
 
 #[test]
@@ -85,7 +85,7 @@ rule test_2 { condition: true }";
     assert_eq!(&ast.errors()[0], &Error::InvalidUTF8(Span(27..28)));
 
     // The second rule is correctly parsed because it doesn't have any errors.
-    assert_eq!(ast.rules().len(), 1);
+    assert_eq!(ast.rules().count(), 1);
 }
 
 #[test]
@@ -96,7 +96,7 @@ fn utf8_error_3() {
 rule test_1 { condition: true }";
 
     let ast = AST::from(Parser::new(rules));
-    assert_eq!(ast.rules().len(), 1);
+    assert_eq!(ast.rules().count(), 1);
 }
 
 #[test]
@@ -109,5 +109,5 @@ rule test_2 { condition: true }";
     let ast = AST::from(Parser::new(rules));
 
     assert_eq!(&ast.errors()[0], &Error::InvalidUTF8(Span(33..34)));
-    assert_eq!(ast.rules().len(), 1);
+    assert_eq!(ast.rules().count(), 1);
 }

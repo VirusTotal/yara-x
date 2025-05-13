@@ -556,7 +556,7 @@ impl<'a> Compiler<'a> {
         // actually exist, and raise warnings in case of duplicated
         // imports within the same source file. For each module add a
         // symbol to the current namespace.
-        for import in &ast.imports {
+        for import in ast.imports() {
             if let Some(span) =
                 already_imported.insert(&import.module_name, import.span())
             {

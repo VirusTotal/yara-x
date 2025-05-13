@@ -51,28 +51,32 @@ impl<'src> Builder<'src> {
     }
 
     pub fn build_ast(mut self) -> AST<'src> {
-        let mut imports: Vec<Import> = Vec::new();
-        let mut rules: Vec<Rule> = Vec::new();
+        let mut items: Vec<Item> = Vec::new();
 
         self.begin(SOURCE_FILE).unwrap();
 
         loop {
             match self.peek() {
                 Event::Begin(RULE_DECL) => match self.rule_decl() {
-                    Ok(rule) => rules.push(rule),
+                    Ok(rule) => items.push(Item::Rule(rule)),
                     // If `rule_decl` returns an error the rule is ignored,
-                    // but we try to continue at the next rule declaration
-                    // or import statement. The `recover` function discards
-                    // everything until finding the next rule or import.
+                    // but we try to continue at the next rule declaration,
+                    // import statement, or include statement. The `recover` function discards
+                    // everything until finding the next valid item.
                     Err(BuilderError::Abort) => self.recover(),
                     Err(BuilderError::MaxDepthReached) => {}
                 },
                 Event::Begin(IMPORT_STMT) => match self.import_stmt() {
-                    Ok(import) => imports.push(import),
+                    Ok(import) => items.push(Item::Import(import)),
                     // If `import_stmt` returns an error the import is ignored,
-                    // but we try to continue at the next rule declaration
-                    // or import statement. The `recover` function discards
-                    // everything until finding the next rule or import.
+                    // but we try to continue at the next valid item.
+                    Err(BuilderError::Abort) => self.recover(),
+                    Err(BuilderError::MaxDepthReached) => {}
+                },
+                Event::Begin(INCLUDE_STMT) => match self.include_stmt() {
+                    Ok(include) => items.push(Item::Include(include)),
+                    // If `include_stmt` returns an error the include is ignored,
+                    // but we try to continue at the next valid item.
                     Err(BuilderError::Abort) => self.recover(),
                     Err(BuilderError::MaxDepthReached) => {}
                 },
@@ -83,7 +87,7 @@ impl<'src> Builder<'src> {
 
         self.end(SOURCE_FILE).unwrap();
 
-        AST { imports, rules, errors: self.errors }
+        AST { items, errors: self.errors }
     }
 }
 
@@ -137,13 +141,15 @@ impl<'src> Builder<'src> {
     const MAX_AST_DEPTH: usize = 3000;
 
     /// Consumes all events until finding the start of a rule, an import
-    /// statement or the end of the file.
+    /// statement, an include statement, or the end of the file.
     ///
     /// Any [`Event::Error`] found is added to `self.errors`.
     fn recover(&mut self) {
         loop {
             match self.peek() {
-                Event::Begin(RULE_DECL) | Event::Begin(IMPORT_STMT) => break,
+                Event::Begin(RULE_DECL)
+                | Event::Begin(IMPORT_STMT)
+                | Event::Begin(INCLUDE_STMT) => break,
                 Event::End(SOURCE_FILE) => break,
                 _ => {
                     let _ = self.events.next();
@@ -435,6 +441,14 @@ impl<'src> Builder<'src> {
 }
 
 impl<'src> Builder<'src> {
+    fn include_stmt(&mut self) -> Result<Include<'src>, BuilderError> {
+        self.begin(INCLUDE_STMT)?;
+        let span = self.expect(INCLUDE_KW)?;
+        let (file_name, file_name_span) = self.utf8_string_lit()?;
+        self.end(INCLUDE_STMT)?;
+        Ok(Include { file_name, span: span.combine(&file_name_span) })
+    }
+
     fn import_stmt(&mut self) -> Result<Import<'src>, BuilderError> {
         self.begin(IMPORT_STMT)?;
         let span = self.expect(IMPORT_KW)?;
