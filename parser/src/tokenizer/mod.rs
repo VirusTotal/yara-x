@@ -295,6 +295,8 @@ enum NormalToken<'src> {
     Import,
     #[token("in")]
     In,
+    #[token("include")]
+    Include,
     #[token("istartswith")]
     IStarsWith,
     #[token("matches")]
@@ -681,6 +683,7 @@ fn convert_normal_token(token: NormalToken, span: Span) -> Token {
         NormalToken::IEquals => Token::IEQUALS_KW(span),
         NormalToken::Import => Token::IMPORT_KW(span),
         NormalToken::In => Token::IN_KW(span),
+        NormalToken::Include => Token::INCLUDE_KW(span),
         NormalToken::IStarsWith => Token::ISTARTSWITH_KW(span),
         NormalToken::Matches => Token::MATCHES_KW(span),
         NormalToken::Meta => Token::META_KW(span),

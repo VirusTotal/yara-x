@@ -1,12 +1,5 @@
-import "test1"
-import "test2"
-
-rule test1 {
+rule test3 {
   condition:
     true
 }
-
-rule test2 {
-  condition:
-    true
-}
+include "test3"

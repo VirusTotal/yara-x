@@ -352,6 +352,7 @@ impl<'a> Token<'a> {
             | SyntaxKind::IEQUALS_KW
             | SyntaxKind::IMPORT_KW
             | SyntaxKind::IN_KW
+            | SyntaxKind::INCLUDE_KW
             | SyntaxKind::ISTARTSWITH_KW
             | SyntaxKind::MATCHES_KW
             | SyntaxKind::META_KW

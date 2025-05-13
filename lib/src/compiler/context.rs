@@ -33,7 +33,7 @@ pub(crate) struct CompileContext<'a, 'src, 'sym> {
     ///
     /// When this contains some value, symbols are looked up in this table, and
     /// the main symbol table (i.e: `symbol_table`) is ignored. However, once
-    /// the lookup operation is done, this symbol table set back to `None`.
+    /// the lookup operation is done, this symbol table is set back to `None`.
     pub one_shot_symbol_table: Option<Rc<dyn SymbolLookup + 'a>>,
 
     /// Reference to a vector that contains the IR for the patterns declared

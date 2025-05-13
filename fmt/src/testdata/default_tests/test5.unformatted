@@ -1,1 +1,1 @@
-import "test1" import "test2" rule test1 {condition:true} rule test2 {condition:true}
+import "test1" import "test2" include "test3" rule test1 {condition:true} rule test2 {condition:true}

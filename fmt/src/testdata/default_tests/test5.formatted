@@ -1,5 +1,6 @@
 import "test1"
 import "test2"
+include "test3"
 
 rule test1 {
   condition:
