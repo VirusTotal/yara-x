@@ -146,8 +146,7 @@ impl Module {
     }
 
     /// Invoke the module with provided data.
-    #[pyo3(name = "invoke")]
-    fn invoke_module<'py>(
+    fn invoke<'py>(
         &'py self,
         py: Python<'py>,
         data: &[u8],
