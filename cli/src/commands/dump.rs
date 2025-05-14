@@ -13,7 +13,6 @@ use crate::help;
 use yara_x::mods::*;
 use yara_x_proto_yaml::Serializer;
 
-
 #[derive(Debug, Clone, ValueEnum, Display, PartialEq)]
 enum SupportedModules {
     Lnk,

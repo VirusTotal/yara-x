@@ -156,23 +156,23 @@ impl Module {
             PrintOptions { proto_field_name: true, ..Default::default() };
         let module_json = match self._module {
             SupportedModules::Macho => proto_to_json(
-                invoke::<Macho>(&data).unwrap().as_ref(),
+                invoke::<Macho>(data).unwrap().as_ref(),
                 &print_options,
             ),
             SupportedModules::Lnk => proto_to_json(
-                invoke::<Lnk>(&data).unwrap().as_ref(),
+                invoke::<Lnk>(data).unwrap().as_ref(),
                 &print_options,
             ),
             SupportedModules::Elf => proto_to_json(
-                invoke::<ELF>(&data).unwrap().as_ref(),
+                invoke::<ELF>(data).unwrap().as_ref(),
                 &print_options,
             ),
             SupportedModules::Pe => proto_to_json(
-                invoke::<PE>(&data).unwrap().as_ref(),
+                invoke::<PE>(data).unwrap().as_ref(),
                 &print_options,
             ),
             SupportedModules::Dotnet => proto_to_json(
-                invoke::<Dotnet>(&data).unwrap().as_ref(),
+                invoke::<Dotnet>(data).unwrap().as_ref(),
                 &print_options,
             ),
         }
