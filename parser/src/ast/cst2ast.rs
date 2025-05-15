@@ -83,6 +83,8 @@ impl<'src> Builder<'src> {
 
         self.end(SOURCE_FILE).unwrap();
 
+        assert_eq!(self.depth, 0);
+
         AST { imports, rules, errors: self.errors }
     }
 }
@@ -150,6 +152,7 @@ impl<'src> Builder<'src> {
                 }
             }
         }
+        self.depth = 0;
     }
 
     /// Consumes events of type [`Event::Error`] until finding one that
@@ -238,7 +241,7 @@ impl<'src> Builder<'src> {
 
     fn end(&mut self, kind: SyntaxKind) -> Result<(), BuilderError> {
         assert_eq!(self.next()?, Event::End(kind));
-        self.depth -= 1;
+        self.depth = self.depth.saturating_sub(1);
         Ok(())
     }
 
@@ -495,18 +498,23 @@ impl<'src> Builder<'src> {
         let mut flags = RuleFlags::empty();
 
         loop {
-            match self.next()? {
+            match self.peek() {
                 Event::Token { kind: GLOBAL_KW, .. } => {
+                    self.next()?;
                     flags.insert(RuleFlags::Global)
                 }
                 Event::Token { kind: PRIVATE_KW, .. } => {
+                    self.next()?;
                     flags.insert(RuleFlags::Private)
                 }
-                Event::End(RULE_MODS) => break,
+                Event::End(RULE_MODS) => {
+                    break;
+                }
                 event => panic!("unexpected {:?}", event),
             }
         }
 
+        self.end(RULE_MODS)?;
         Ok(flags)
     }
 
