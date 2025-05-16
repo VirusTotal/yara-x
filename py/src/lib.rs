@@ -161,7 +161,11 @@ impl Compiler {
     /// patterns as errors, instead of warnings.
     #[new]
     #[pyo3(signature = (*, relaxed_re_syntax=false, error_on_slow_pattern=false, includes_enabled=true))]
-    fn new(relaxed_re_syntax: bool, error_on_slow_pattern: bool, includes_enabled: bool) -> Self {
+    fn new(
+        relaxed_re_syntax: bool,
+        error_on_slow_pattern: bool,
+        includes_enabled: bool,
+    ) -> Self {
         let mut compiler = Self {
             inner: Self::new_inner(relaxed_re_syntax, error_on_slow_pattern),
             relaxed_re_syntax,
@@ -279,11 +283,11 @@ impl Compiler {
     fn ignore_module(&mut self, module: &str) {
         self.inner.ignore_module(module);
     }
-    
+
     /// Enables or disables the inclusion of files with the `include` directive.
     ///
     /// When includes are disabled, any `include` directive encountered in the
-    /// source code will be treated as an error. By default includes are enabled.
+    /// source code will be treated as an error. By default, includes are enabled.
     ///
     /// # Example
     ///
