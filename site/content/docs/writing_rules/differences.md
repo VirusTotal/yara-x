@@ -9,7 +9,7 @@ menu:
   docs:
     parent: ""
     identifier: "differences"
-weight: 290
+weight: 300
 toc: true
 seo:
   title: "" # custom title (optional)
@@ -199,7 +199,8 @@ But this is not valid...
 ## The "with" statement
 
 YARA-X now supports the `with` statement, which allows you to define identifiers
-that holds the result of a boolean expression. Each identifier is local and is valid
+that holds the result of a boolean expression. Each identifier is local and is
+valid
 only within the `with` statement. For example:
 
 ```
@@ -226,7 +227,6 @@ with
 
 This is something that was not present in YARA 4.x and you had to repeat the
 expression multiple times.
-
 
 ## Using xor and fullword together
 
