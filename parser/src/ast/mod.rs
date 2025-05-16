@@ -50,6 +50,14 @@ impl<'src> From<Parser<'src>> for AST<'src> {
 }
 
 impl<'src> AST<'src> {
+    /// Returns the top level items in the AST.
+    ///
+    /// A top level item can be an import, include, or rule.
+    #[inline]
+    pub fn items(&self) -> impl Iterator<Item = &Item<'src>> {
+        self.items.iter()
+    }
+
     /// Returns the import statements in the AST.
     pub fn imports(&self) -> impl Iterator<Item = &Import<'src>> {
         self.items.iter().filter_map(|item| {
@@ -1139,6 +1147,12 @@ impl WithSpan for Iterable<'_> {
 }
 
 impl WithSpan for Import<'_> {
+    fn span(&self) -> Span {
+        self.span.clone()
+    }
+}
+
+impl WithSpan for Include<'_> {
     fn span(&self) -> Span {
         self.span.clone()
     }

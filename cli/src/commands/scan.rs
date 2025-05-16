@@ -97,6 +97,13 @@ pub fn scan() -> Command {
                 .action(ArgAction::Append)
         )
         .arg(
+            arg!(-I --"include-dir" <PATH>)
+                .help("Directory in which to search for included files")
+                .long_help(help::INCLUDE_DIR_LONG_HELP)
+                .value_parser(value_parser!(PathBuf))
+                .action(ArgAction::Append)
+        )
+        .arg(
             arg!(-x --"module-data")
                 .help("Pass FILE's content as extra data to MODULE")
                 .long_help(help::MODULE_DATA_LONG_HELP)

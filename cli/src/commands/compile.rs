@@ -40,9 +40,16 @@ pub fn compile() -> Command {
                 .action(ArgAction::Append)
         )
         .arg(
-            arg!(--"ignore-module" <MODULE>)
+            arg!(-I --"ignore-module" <MODULE>)
                 .help("Ignore rules that use the specified module")
                 .long_help(help::IGNORE_MODULE_LONG_HELP)
+                .action(ArgAction::Append)
+        )
+        .arg(
+            arg!(--"include-dir" <PATH>)
+                .help("Directory in which to search for included files")
+                .long_help(help::INCLUDE_DIR_LONG_HELP)
+                .value_parser(value_parser!(PathBuf))
                 .action(ArgAction::Append)
         )
         .arg(

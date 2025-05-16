@@ -1087,6 +1087,22 @@ fn errors_serialization() {
 }
 
 #[test]
+fn test_includes() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        // this directory contains the included.yar file
+        .add_include_dir("src/compiler/tests/testdata/includes")
+        .add_source(r#"include "included_ok.yar""#)
+        .unwrap();
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+
+    assert_eq!(scanner.scan(b"").unwrap().matching_rules().len(), 1);
+}
+
+#[test]
 fn test_errors() {
     let mut mint = goldenfile::Mint::new(".");
 

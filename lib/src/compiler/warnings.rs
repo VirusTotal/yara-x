@@ -569,7 +569,7 @@ pub struct InvalidRuleName {
 /// 1 | rule a : foo {
 ///   |          --- tag `foo` not in allowed list
 ///   |
-///   = note: Allowed tags: test, bar
+///   = note: allowed tags: test, bar
 /// ```
 #[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
 #[associated_enum(Warning)]

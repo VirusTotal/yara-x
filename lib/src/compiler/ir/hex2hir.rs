@@ -39,7 +39,7 @@ fn hex_sub_pattern_hir_from_ast(
                         ctx.report_builder,
                         pattern_ident.name.to_string(),
                         "negation of `??` is not allowed".to_string(),
-                        token.span().into(),
+                        ctx.report_builder.span_to_code_loc(token.span()),
                         None,
                     ));
                 }
@@ -109,7 +109,7 @@ fn hex_sub_pattern_hir_from_ast(
                             ctx.report_builder,
                             pattern_ident.name.to_string(),
                             format!("{jump}"),
-                            (&span).into(),
+                            ctx.report_builder.span_to_code_loc(span.clone()),
                         )
                     });
                 }
@@ -121,7 +121,7 @@ fn hex_sub_pattern_hir_from_ast(
                             pattern_ident.name.to_string(),
                             "zero-length jumps are useless, remove it"
                                 .to_string(),
-                            span.into(),
+                            ctx.report_builder.span_to_code_loc(span),
                             None,
                         ));
                     }
@@ -131,7 +131,7 @@ fn hex_sub_pattern_hir_from_ast(
                             pattern_ident.name.to_string(),
                             format!(
                                 "lower bound ({start}) is greater than upper bound ({end})"),
-                            span.into(),
+                            ctx.report_builder.span_to_code_loc(span),
                             if coalesced {
                                 Some("consecutive jumps were coalesced into a single one".to_string())
                             } else {

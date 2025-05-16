@@ -102,6 +102,11 @@ they are not.
 If <RULES_PATH> is a directory, all files with extensions `.yar` and `.yara` will
 be converted. This behavior can be changed by using the `--filter` option."#;
 
+pub const INCLUDE_DIR_LONG_HELP: &str = r#"Directory in which to search for included files
+
+If not given, the current working directory is used. May be specified multiple times;
+directories will be searched in order."#;
+
 pub const IGNORE_MODULE_LONG_HELP: &str = r#"Ignore rules that use the specified module
 
 Rules that use the specified module will be ignored, as well as any rules that

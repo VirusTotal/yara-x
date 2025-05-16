@@ -1,0 +1,6 @@
+include "unknown"
+
+rule test {
+  condition:
+    false
+}

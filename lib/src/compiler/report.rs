@@ -45,20 +45,6 @@ impl CodeLoc {
     }
 }
 
-impl From<&Span> for CodeLoc {
-    /// Creates a [`CodeLoc`] from a reference to a [`Span`].
-    fn from(span: &Span) -> Self {
-        Self { source_id: None, span: span.clone() }
-    }
-}
-
-impl From<Span> for CodeLoc {
-    /// Creates a [`CodeLoc`] from a [`Span`].
-    fn from(span: Span) -> Self {
-        Self { source_id: None, span }
-    }
-}
-
 /// Represents an error or warning report.
 ///
 /// This structure represents the message displayed to the user when an error
@@ -87,7 +73,6 @@ impl From<Span> for CodeLoc {
 #[derive(Clone)]
 pub(crate) struct Report {
     code_cache: Arc<CodeCache>,
-    default_source_id: SourceId,
     with_colors: bool,
     max_with: usize,
     level: Level,
@@ -108,7 +93,7 @@ impl Report {
     pub(crate) fn labels(&self) -> impl Iterator<Item = Label> {
         self.labels.iter().map(|(level, code_loc, text)| {
             let source_id =
-                code_loc.source_id.unwrap_or(self.default_source_id);
+                code_loc.source_id.expect("CodeLoc without source ID");
 
             let code_cache = self.code_cache.read();
             let cache_entry = code_cache.get(&source_id).unwrap();
@@ -198,11 +183,8 @@ impl Display for Report {
         // Use the SourceId indicated by the first label, or the one
         // corresponding to the current source file (i.e: the most
         // recently registered).
-        let source_id = self
-            .labels
-            .first()
-            .and_then(|label| label.1.source_id)
-            .unwrap_or(self.default_source_id);
+        let source_id =
+            self.labels.first().and_then(|label| label.1.source_id).unwrap();
 
         let code_cache = self.code_cache.read();
         let mut cache_entry = code_cache.get(&source_id).unwrap();
@@ -214,8 +196,7 @@ impl Display for Report {
             .fold(true);
 
         for (level, label_ref, label) in &self.labels {
-            let label_source_id =
-                label_ref.source_id.unwrap_or(self.default_source_id);
+            let label_source_id = label_ref.source_id.unwrap();
 
             // If the current label doesn't belong to the same source file
             // finish the current snippet, add it to the error message and
@@ -352,9 +333,25 @@ impl ReportBuilder {
         self
     }
 
-    /// Returns the [`SourceId`] for the most recently registered source file.
-    pub fn current_source_id(&self) -> Option<SourceId> {
+    /// Returns the current [`SourceId`].
+    ///
+    /// This is the [`SourceId`] for the most recently registered source code,
+    /// or the most recent call to [`ReportBuilder::set_current_source_id`].
+    pub fn get_current_source_id(&self) -> Option<SourceId> {
         self.current_source_id.get()
+    }
+
+    /// Sets the current [`SourceId`] to the given one.
+    pub fn set_current_source_id(&mut self, source_id: SourceId) {
+        self.current_source_id.set(Some(source_id));
+    }
+
+    /// Converts a span to a [`CodeLoc`] using the current source ID.
+    ///
+    /// This is a convenience method that creates a [`CodeLoc`] with the current
+    /// source ID and the provided span.
+    pub fn span_to_code_loc(&self, span: Span) -> CodeLoc {
+        CodeLoc::new(self.get_current_source_id(), span)
     }
 
     /// Returns the green style used in error/warning reports.
@@ -381,13 +378,15 @@ impl ReportBuilder {
     ///
     /// Before calling [`ReportBuilder::create_report`] for creating error
     /// reports, the source code containing the error must be registered
-    /// using this function. If it was already registered this is a no-op.
+    /// using this function.
     ///
     /// This function allows code that is not valid UTF-8, in such cases it
     /// replaces the invalid characters with the UTF-8 replacement character.
-    pub fn register_source(&self, src: &SourceCode) -> &Self {
+    ///
+    /// The function returns a [`SourceID`] that identifies the registered
+    /// source code. The current source ID is also set to this ID.
+    pub fn register_source(&self, src: &SourceCode) -> SourceId {
         let source_id = self.next_source_id.get();
-
         self.next_source_id.set(SourceId(source_id.0 + 1));
         self.current_source_id.set(Some(source_id));
 
@@ -407,21 +406,17 @@ impl ReportBuilder {
             }
         });
 
-        self
+        source_id
     }
 
-    /// Returns the fragment of source code indicated by `source_ref`.
-    pub fn get_snippet(&self, source_ref: &CodeLoc) -> String {
-        let source_id = source_ref
-            .source_id
-            .or_else(|| self.current_source_id())
-            .expect("create_report without registering any source code");
-
+    /// Returns the fragment of source code indicated by `code_loc`.
+    pub fn get_snippet(&self, code_loc: &CodeLoc) -> String {
+        let source_id = code_loc.source_id.expect("CodeLoc without source ID");
         let code_cache = self.code_cache.read();
         let cache_entry = code_cache.get(&source_id).unwrap();
         let src = cache_entry.code.as_str();
 
-        src[source_ref.span().range()].to_string()
+        src[code_loc.span().range()].to_string()
     }
 
     /// Creates a new error or warning report.
@@ -446,9 +441,6 @@ impl ReportBuilder {
             code_cache: self.code_cache.clone(),
             with_colors: self.with_colors,
             max_with: self.max_with,
-            default_source_id: self.current_source_id().expect(
-                "`create_report` called without registering any source",
-            ),
             level,
             code,
             title,

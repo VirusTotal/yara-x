@@ -91,7 +91,7 @@ impl<'src> CompileContext<'_, 'src, '_> {
                 UnknownPattern::build(
                     self.report_builder,
                     ident.name.to_string(),
-                    ident.span().into(),
+                    self.report_builder.span_to_code_loc(ident.span()),
                 )
             })
     }
@@ -117,7 +117,7 @@ impl<'src> CompileContext<'_, 'src, '_> {
                 Err(UnknownIdentifier::build(
                     self.report_builder,
                     ident.name.to_string(),
-                    ident.span().into(),
+                    self.report_builder.span_to_code_loc(ident.span()),
                     // Add a note about the missing import statement if
                     // the unknown identifier is a module name.
                     if BUILTIN_MODULES.contains_key(ident.name) {
@@ -134,7 +134,7 @@ impl<'src> CompileContext<'_, 'src, '_> {
                 Err(UnknownField::build(
                     self.report_builder,
                     ident.name.to_string(),
-                    ident.span().into(),
+                    self.report_builder.span_to_code_loc(ident.span()),
                 ))
             };
         }
