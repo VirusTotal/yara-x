@@ -57,6 +57,7 @@ pub enum CompileError {
     EmptyPatternSet(Box<EmptyPatternSet>),
     EntrypointUnsupported(Box<EntrypointUnsupported>),
     IncludeError(Box<IncludeError>),
+    IncludeNotAllowed(Box<IncludeNotAllowed>),
     IncludeNotFound(Box<IncludeNotFound>),
     InvalidBase64Alphabet(Box<InvalidBase64Alphabet>),
     InvalidEscapeSequence(Box<InvalidEscapeSequence>),
@@ -858,6 +859,33 @@ pub struct IncludeError {
 pub struct IncludeNotFound {
     report: Report,
     file_path: String,
+    include_loc: CodeLoc,
+}
+
+/// An include statement was used, but includes are disabled
+///
+/// # Example
+///
+/// ```
+/// error[E044]: include statements not allowed
+///  --> line:1:1
+///
+/// 1 | include "some_file"
+///   | ^^^^^^^^^^^^^^^^^^^ includes are disabled for this compilation
+///   |
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(
+    code = "E044",
+    title = "include statements not allowed"
+)]
+#[label(
+    "includes are disabled for this compilation",
+    include_loc
+)]
+pub struct IncludeNotAllowed {
+    report: Report,
     include_loc: CodeLoc,
 }
 

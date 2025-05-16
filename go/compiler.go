@@ -126,6 +126,20 @@ func ErrorOnSlowLoop(yes bool) CompileOption {
 	}
 }
 
+// EnableIncludes allows the compiler to process include directives in YARA
+// rules. When this option is set to false, any include directive found in
+// the source code will be treated as an error. By default, includes are enabled.
+//
+// Example:
+//
+//	compiler, _ := yara_x.NewCompiler(yara_x.EnableIncludes(false))
+func EnableIncludes(yes bool) CompileOption {
+	return func(c *Compiler) error {
+		c.includesEnabled = yes
+		return nil
+	}
+}
+
 // A structure that contains the options passed to [Compiler.AddSource].
 type sourceOptions struct {
 	origin string
@@ -242,6 +256,7 @@ type Compiler struct {
 	conditionOptimization bool
 	errorOnSlowPattern    bool
 	errorOnSlowLoop       bool
+	includesEnabled       bool
 	ignoredModules        map[string]bool
 	bannedModules         map[string]bannedModule
 	vars                  map[string]interface{}
@@ -251,10 +266,11 @@ type Compiler struct {
 // NewCompiler creates a new compiler.
 func NewCompiler(opts ...CompileOption) (*Compiler, error) {
 	c := &Compiler{
-		ignoredModules: make(map[string]bool),
-		bannedModules:  make(map[string]bannedModule),
-		vars:           make(map[string]interface{}),
-		features:       make([]string, 0),
+		includesEnabled: true,
+		ignoredModules:  make(map[string]bool),
+		bannedModules:   make(map[string]bannedModule),
+		vars:            make(map[string]interface{}),
+		features:        make([]string, 0),
 	}
 
 	for _, opt := range opts {
@@ -278,6 +294,10 @@ func NewCompiler(opts ...CompileOption) (*Compiler, error) {
 
 	if c.errorOnSlowLoop {
 		flags |= C.YRX_ERROR_ON_SLOW_LOOP
+	}
+
+	if !c.includesEnabled {
+		flags |= C.YRX_DISABLE_INCLUDES
 	}
 
 	C.yrx_compiler_create(flags, &c.cCompiler)
@@ -308,7 +328,7 @@ func (c *Compiler) initialize() error {
 	return nil
 }
 
-// AddSource adds some YARA source code to be compiled.
+// AddSource adds YARA source code to be compiled.
 //
 // This method may be invoked multiple times to add several sets of
 // YARA rules. If the rules provided in src contain errors that prevent

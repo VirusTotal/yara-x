@@ -2,8 +2,9 @@ package yara_x
 
 import (
 	"bytes"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNamespaces(t *testing.T) {
@@ -41,6 +42,19 @@ func TestBannedModules(t *testing.T) {
   |
 1 | import "pe"
   | ^^^^^^^^^^^ pe module was used here
+  |`
+	assert.EqualError(t, err, expected)
+}
+
+func TestDisabledIncludes(t *testing.T) {
+	_, err := Compile(
+		`include "foo.yar"`, EnableIncludes(false))
+
+	expected := `error[E044]: include statements not allowed
+ --> line:1:1
+  |
+1 | include "foo.yar"
+  | ^^^^^^^^^^^^^^^^^ includes are disabled for this compilation
   |`
 	assert.EqualError(t, err, expected)
 }

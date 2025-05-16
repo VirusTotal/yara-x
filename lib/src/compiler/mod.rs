@@ -58,7 +58,7 @@ pub use crate::compiler::rules::*;
 
 #[doc(inline)]
 pub use crate::compiler::warnings::*;
-use crate::errors::{IncludeError, IncludeNotFound};
+use crate::errors::{IncludeError, IncludeNotAllowed, IncludeNotFound};
 use crate::linters::LinterResult;
 use crate::models::PatternKind;
 
@@ -261,6 +261,10 @@ pub struct Compiler<'a> {
     /// rule is one where the upper bound of the loop is potentially large.
     /// Like for example: `for all x in (0..filesize) : (...)`
     error_on_slow_loop: bool,
+
+    /// If true, include statements are allowed. If false, include statements
+    /// will produce a compile error.
+    includes_enabled: bool,
 
     /// Used for generating error and warning reports.
     report_builder: ReportBuilder,
@@ -517,6 +521,7 @@ impl<'a> Compiler<'a> {
             ir_writer: None,
             linters: Vec::new(),
             include_dirs: None,
+            includes_enabled: true,
         }
     }
 
@@ -953,6 +958,25 @@ impl<'a> Compiler<'a> {
         self
     }
 
+    /// Controls whether `include` statements are allowed.
+    ///
+    /// By default, the compiler allows the use of `include` statements, which
+    /// include the content of other files. When includes are disabled, any
+    /// attempt to use an `include` statement will result in a compile error.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use yara_x_parser::Grammar;
+    /// # use yara_x::Compiler;
+    /// let mut compiler = Compiler::new();
+    /// compiler.enable_includes(false);  // Disable includes
+    /// ```
+    pub fn enable_includes(&mut self, yes: bool) -> &mut Self {
+        self.includes_enabled = yes;
+        self
+    }
+
     /// When enabled, the compiler tries to optimize rule conditions.
     ///
     /// The optimizations usually reduce condition evaluation times, specially
@@ -1238,6 +1262,16 @@ impl Compiler<'_> {
                     }
                 }
                 ast::Item::Include(include) => {
+                    // Return an error if includes are disabled
+                    if !self.includes_enabled {
+                        self.errors.push(IncludeNotAllowed::build(
+                            &self.report_builder,
+                            self.report_builder
+                                .span_to_code_loc(include.span()),
+                        ));
+                        continue;
+                    }
+
                     let included = match self.read_included_file(include) {
                         Ok(included) => included,
                         Err(err) => {

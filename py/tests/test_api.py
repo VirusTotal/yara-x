@@ -132,7 +132,7 @@ def test_metadata():
 			qux = "qux"
 			quux = "qu\x00x"
 		condition:
-		  true	
+		  true
 	}
 	''')
 
@@ -151,7 +151,7 @@ def test_tags():
   rules = yara_x.compile('''
 	rule test : tag1 tag2 {
 		condition:
-		  true	
+		  true
 	}
 	''')
 
@@ -294,3 +294,11 @@ def test_format():
   fmt.format(inp, output)
   result = output.getvalue()
   assert result == expected_output
+
+
+def test_compiler_disables_includes():
+    compiler = yara_x.Compiler()
+    compiler.enable_includes(False)
+
+    with pytest.raises(yara_x.CompileError, match="include directive is disabled"):
+        compiler.add_source(f'include "foo.yar"\\nrule main {{ condition: true }}')

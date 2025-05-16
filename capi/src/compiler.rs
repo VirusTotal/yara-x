@@ -46,6 +46,11 @@ pub const YRX_ERROR_ON_SLOW_LOOP: u32 = 8;
 /// code motion (LICM).
 pub const YRX_ENABLE_CONDITION_OPTIMIZATION: u32 = 16;
 
+/// Flag passed to [`yrx_compiler_create`] for disabling `include` statements.
+/// With this flag, the compiler produces an error when `include` statements are
+/// encountered.
+pub const YRX_DISABLE_INCLUDES: u32 = 32;
+
 fn _yrx_compiler_create<'a>(flags: u32) -> yara_x::Compiler<'a> {
     let mut compiler = yara_x::Compiler::new();
     if flags & YRX_RELAXED_RE_SYNTAX != 0 {
@@ -62,6 +67,9 @@ fn _yrx_compiler_create<'a>(flags: u32) -> yara_x::Compiler<'a> {
     }
     if flags & YRX_ERROR_ON_SLOW_LOOP != 0 {
         compiler.error_on_slow_loop(true);
+    }
+    if flags & YRX_DISABLE_INCLUDES != 0 {
+        compiler.enable_includes(false);
     }
     compiler
 }
