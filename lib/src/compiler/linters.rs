@@ -381,7 +381,8 @@ impl LinterInternal for Metadata<'_> {
                             LinterResult::Err(errors::InvalidMetadata::build(
                                 report_builder,
                                 meta.identifier.name.to_string(),
-                                report_builder.span_to_code_loc(meta.value.span()),
+                                report_builder
+                                    .span_to_code_loc(meta.value.span()),
                                 self.message
                                     .clone()
                                     .unwrap_or("invalid metadata".to_string()),
@@ -391,7 +392,8 @@ impl LinterInternal for Metadata<'_> {
                                 warnings::InvalidMetadata::build(
                                     report_builder,
                                     meta.identifier.name.to_string(),
-                                    report_builder.span_to_code_loc(meta.value.span()),
+                                    report_builder
+                                        .span_to_code_loc(meta.value.span()),
                                     self.message.clone().unwrap_or(
                                         "invalid metadata".to_string(),
                                     ),
