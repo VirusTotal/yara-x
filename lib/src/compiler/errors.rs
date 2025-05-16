@@ -866,7 +866,7 @@ pub struct IncludeNotFound {
 ///
 /// # Example
 ///
-/// ```
+/// ```text
 /// error[E044]: include statements not allowed
 ///  --> line:1:1
 ///

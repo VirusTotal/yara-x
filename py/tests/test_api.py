@@ -297,8 +297,9 @@ def test_format():
 
 
 def test_compiler_disables_includes():
-    compiler = yara_x.Compiler()
-    compiler.enable_includes(False)
+  compiler = yara_x.Compiler()
+  compiler.enable_includes(False)
 
-    with pytest.raises(yara_x.CompileError, match="include directive is disabled"):
-        compiler.add_source(f'include "foo.yar"\\nrule main {{ condition: true }}')
+  with pytest.raises(yara_x.CompileError,
+                     match="include statements not allowed"):
+    compiler.add_source(f'include "foo.yar"\\nrule main {{ condition: true }}')
