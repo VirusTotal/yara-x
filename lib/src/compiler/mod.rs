@@ -971,7 +971,6 @@ impl<'a> Compiler<'a> {
     /// # Example
     ///
     /// ```
-    /// # use yara_x_parser::Grammar;
     /// # use yara_x::Compiler;
     /// let mut compiler = Compiler::new();
     /// compiler.enable_includes(false);  // Disable includes
