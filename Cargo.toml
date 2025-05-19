@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.14.0"
+version = "0.15.0"
 authors = ["Victor M. Alvarez <vmalvarez@virustotal.com>"]
 edition = "2021"
 homepage = "https://virustotal.github.io/yara-x"
@@ -107,12 +107,12 @@ walrus = "0.23.3"
 wasmtime = { version = "32.0.0", default-features = false }
 x509-parser = "0.17.0"
 yansi = "1.0.1"
-yara-x = { path = "lib", version = "0.14.0" }
-yara-x-fmt = { path = "fmt", version = "0.14.0" }
-yara-x-macros = { path = "macros", version = "0.14.0" }
-yara-x-parser = { path = "parser", version = "0.14.0" }
-yara-x-proto = { path = "proto", version = "0.14.0" }
-yara-x-proto-yaml = { path = "proto-yaml", version = "0.14.0" }
+yara-x = { path = "lib", version = "0.15.0" }
+yara-x-fmt = { path = "fmt", version = "0.15.0" }
+yara-x-macros = { path = "macros", version = "0.15.0" }
+yara-x-parser = { path = "parser", version = "0.15.0" }
+yara-x-proto = { path = "proto", version = "0.15.0" }
+yara-x-proto-yaml = { path = "proto-yaml", version = "0.15.0" }
 zip = "3.0.0"
 
 # Special profile that builds a release binary with link-time optimization.
