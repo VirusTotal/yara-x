@@ -113,7 +113,7 @@ yara-x-macros = { path = "macros", version = "0.14.0" }
 yara-x-parser = { path = "parser", version = "0.14.0" }
 yara-x-proto = { path = "proto", version = "0.14.0" }
 yara-x-proto-yaml = { path = "proto-yaml", version = "0.14.0" }
-zip = "2.4.2"
+zip = "3.0.0"
 
 # Special profile that builds a release binary with link-time optimization.
 # Compiling with this profile takes a while, but the resulting binary is
