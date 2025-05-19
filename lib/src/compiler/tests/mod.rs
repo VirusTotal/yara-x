@@ -1087,6 +1087,44 @@ fn errors_serialization() {
 }
 
 #[test]
+fn test_includes() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        // this directory contains the included.yar file
+        .add_include_dir("src/compiler/tests/testdata/includes")
+        .add_source(r#"include "included_ok.yar""#)
+        .unwrap();
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+
+    assert_eq!(scanner.scan(b"").unwrap().matching_rules().len(), 1);
+}
+
+#[test]
+fn test_disable_includes() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        .enable_includes(false)
+        .add_include_dir("src/compiler/tests/testdata/includes");
+
+    assert_eq!(
+        compiler
+            .add_source(r#"include "included_ok.yar""#)
+            .unwrap_err()
+            .to_string(),
+        r#"error[E044]: include statements not allowed
+ --> line:1:1
+  |
+1 | include "included_ok.yar"
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^ includes are disabled for this compilation
+  |"#
+    );
+}
+
+#[test]
 fn test_errors() {
     let mut mint = goldenfile::Mint::new(".");
 

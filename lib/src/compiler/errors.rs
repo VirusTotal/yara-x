@@ -56,6 +56,9 @@ pub enum CompileError {
     DuplicateTag(Box<DuplicateTag>),
     EmptyPatternSet(Box<EmptyPatternSet>),
     EntrypointUnsupported(Box<EntrypointUnsupported>),
+    IncludeError(Box<IncludeError>),
+    IncludeNotAllowed(Box<IncludeNotAllowed>),
+    IncludeNotFound(Box<IncludeNotFound>),
     InvalidBase64Alphabet(Box<InvalidBase64Alphabet>),
     InvalidEscapeSequence(Box<InvalidEscapeSequence>),
     InvalidFloat(Box<InvalidFloat>),
@@ -98,33 +101,33 @@ impl CompileError {
     ) -> Self {
         match err {
             ast::Error::SyntaxError { message, span } => {
-                SyntaxError::build(report_builder, message, span.into())
+                SyntaxError::build(report_builder, message, report_builder.span_to_code_loc(span))
             }
             ast::Error::InvalidInteger { message, span } => {
-                InvalidInteger::build(report_builder, message, span.into())
+                InvalidInteger::build(report_builder, message, report_builder.span_to_code_loc(span))
             }
             ast::Error::InvalidFloat { message, span } => {
-                InvalidFloat::build(report_builder, message, span.into())
+                InvalidFloat::build(report_builder, message, report_builder.span_to_code_loc(span))
             }
             ast::Error::InvalidRegexpModifier { message, span } => {
                 InvalidRegexpModifier::build(
                     report_builder,
                     message,
-                    span.into(),
+                    report_builder.span_to_code_loc(span),
                 )
             }
             ast::Error::InvalidEscapeSequence { message, span } => {
                 InvalidEscapeSequence::build(
                     report_builder,
                     message,
-                    span.into(),
+                    report_builder.span_to_code_loc(span),
                 )
             }
             ast::Error::UnexpectedEscapeSequence(span) => {
-                UnexpectedEscapeSequence::build(report_builder, span.into())
+                UnexpectedEscapeSequence::build(report_builder, report_builder.span_to_code_loc(span))
             }
             ast::Error::InvalidUTF8(span) => {
-                InvalidUTF8::build(report_builder, span.into())
+                InvalidUTF8::build(report_builder, report_builder.span_to_code_loc(span))
             }
         }
     }
@@ -801,6 +804,89 @@ pub struct InvalidTag {
     tag_loc: CodeLoc,
     name: String,
     regex: String,
+}
+
+/// An error occurred while including a file.
+///
+/// ## Example
+///
+/// ```text
+/// error[E042]: error including file
+///  --> line:1:1
+///   |
+/// 1 | include "unknown"
+///   | ^^^^^^^^^^^^^^^^^ failed with error: Permission denied (os error 13)
+///   |
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(
+    code = "E042",
+    title = "error including file"
+)]
+#[label(
+    "failed with error: {error}",
+    include_loc
+)]
+pub struct IncludeError {
+    report: Report,
+    include_loc: CodeLoc,
+    error: String,
+}
+
+/// An included file was not found.
+///
+/// ## Example
+///
+/// ```text
+/// error[E042]: include file not found
+///  --> line:1:1
+///   |
+/// 1 | include "unknown"
+///   | ^^^^^^^^^^^^^^^^^ `unknown` not found in any of the include directories
+///   |
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(
+    code = "E043",
+    title = "include file not found"
+)]
+#[label(
+    "`{file_path}` not found in any of the include directories",
+    include_loc
+)]
+pub struct IncludeNotFound {
+    report: Report,
+    file_path: String,
+    include_loc: CodeLoc,
+}
+
+/// An include statement was used, but includes are disabled
+///
+/// # Example
+///
+/// ```text
+/// error[E044]: include statements not allowed
+///  --> line:1:1
+///
+/// 1 | include "some_file"
+///   | ^^^^^^^^^^^^^^^^^^^ includes are disabled for this compilation
+///   |
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(
+    code = "E044",
+    title = "include statements not allowed"
+)]
+#[label(
+    "includes are disabled for this compilation",
+    include_loc
+)]
+pub struct IncludeNotAllowed {
+    report: Report,
+    include_loc: CodeLoc,
 }
 
 /// A custom error has occurred.

@@ -1,4 +1,2 @@
-import "test1"
-import "test2"
-rule test1 {condition:true}
-rule test2 {condition:true}
+rule test3 {condition:true}
+include "test3"

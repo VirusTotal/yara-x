@@ -1019,7 +1019,7 @@ impl ParserImpl<'_> {
     /// A top-level item is either an import statement or a rule declaration.
     ///
     /// ```text
-    /// TOP_LEVEL_ITEM ::= ( IMPORT_STMT | RULE_DECL )
+    /// TOP_LEVEL_ITEM ::= ( IMPORT_STMT | INCLUDE_STMT | RULE_DECL )
     /// ```
     fn top_level_item(&mut self) -> &mut Self {
         let token = match self.peek() {
@@ -1031,6 +1031,7 @@ impl ParserImpl<'_> {
         };
         match token {
             Token::IMPORT_KW(_) => self.import_stmt(),
+            Token::INCLUDE_KW(_) => self.include_stmt(),
             Token::GLOBAL_KW(_) | Token::PRIVATE_KW(_) | Token::RULE_KW(_) => {
                 self.rule_decl()
             }
@@ -1072,6 +1073,18 @@ impl ParserImpl<'_> {
             .end()
     }
 
+    /// Parses an include statement.
+    ///
+    /// ```text
+    /// INCLUDE_STMT ::= `include` STRING_LIT
+    /// ```
+    fn include_stmt(&mut self) -> &mut Self {
+        self.begin(INCLUDE_STMT)
+            .expect(t!(INCLUDE_KW))
+            .expect(t!(STRING_LIT))
+            .end()
+    }
+
     /// Parses a rule declaration.
     ///
     /// ```text
@@ -1095,7 +1108,8 @@ impl ParserImpl<'_> {
             .end_with_recovery(t!(GLOBAL_KW
                 | PRIVATE_KW
                 | RULE_KW
-                | IMPORT_KW))
+                | IMPORT_KW
+                | INCLUDE_KW))
     }
 
     /// Parses rule modifiers.

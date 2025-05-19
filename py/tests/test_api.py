@@ -132,7 +132,7 @@ def test_metadata():
 			qux = "qux"
 			quux = "qu\x00x"
 		condition:
-		  true	
+		  true
 	}
 	''')
 
@@ -151,7 +151,7 @@ def test_tags():
   rules = yara_x.compile('''
 	rule test : tag1 tag2 {
 		condition:
-		  true	
+		  true
 	}
 	''')
 
@@ -305,3 +305,12 @@ def test_module():
   # we get a dict object back, and we can do that by passing non-PE data.
   result = yara_x.Module('PE').invoke(b'ERS')
   assert isinstance(result, dict)
+
+
+def test_compiler_disables_includes():
+  compiler = yara_x.Compiler()
+  compiler.enable_includes(False)
+
+  with pytest.raises(yara_x.CompileError,
+                     match="include statements not allowed"):
+    compiler.add_source(f'include "foo.yar"\\nrule main {{ condition: true }}')

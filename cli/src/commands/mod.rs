@@ -164,13 +164,22 @@ pub fn create_compiler(
         )
         .colorize_errors(stdout().is_tty());
 
-    for m in args
+    for module in args
         .try_get_many::<String>("ignore-module")
         .unwrap_or_default()
         .into_iter()
         .flatten()
     {
-        compiler.ignore_module(m);
+        compiler.ignore_module(module);
+    }
+
+    for dir in args
+        .try_get_many::<PathBuf>("include-dir")
+        .unwrap_or_default()
+        .into_iter()
+        .flatten()
+    {
+        compiler.add_include_dir(dir);
     }
 
     let disabled_warnings: Vec<_> = args

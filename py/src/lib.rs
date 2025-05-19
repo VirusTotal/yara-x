@@ -200,6 +200,7 @@ struct Compiler {
     inner: yrx::Compiler<'static>,
     relaxed_re_syntax: bool,
     error_on_slow_pattern: bool,
+    includes_enabled: bool,
 }
 
 impl Compiler {
@@ -233,13 +234,20 @@ impl Compiler {
     /// The `error_on_slow_pattern` argument tells the compiler to treat slow
     /// patterns as errors, instead of warnings.
     #[new]
-    #[pyo3(signature = (*, relaxed_re_syntax=false, error_on_slow_pattern=false))]
-    fn new(relaxed_re_syntax: bool, error_on_slow_pattern: bool) -> Self {
-        Self {
+    #[pyo3(signature = (*, relaxed_re_syntax=false, error_on_slow_pattern=false, includes_enabled=true))]
+    fn new(
+        relaxed_re_syntax: bool,
+        error_on_slow_pattern: bool,
+        includes_enabled: bool,
+    ) -> Self {
+        let mut compiler = Self {
             inner: Self::new_inner(relaxed_re_syntax, error_on_slow_pattern),
             relaxed_re_syntax,
             error_on_slow_pattern,
-        }
+            includes_enabled,
+        };
+        compiler.inner.enable_includes(includes_enabled);
+        compiler
     }
 
     /// Specify a regular expression that the compiler will enforce upon each
@@ -348,6 +356,24 @@ impl Compiler {
     /// don't rely on that module will be correctly compiled.
     fn ignore_module(&mut self, module: &str) {
         self.inner.ignore_module(module);
+    }
+
+    /// Enables or disables the inclusion of files with the `include` directive.
+    ///
+    /// When includes are disabled, any `include` directive encountered in the
+    /// source code will be treated as an error. By default, includes are enabled.
+    ///
+    /// # Example
+    ///
+    /// ```python
+    /// import yara_x
+    ///
+    /// compiler = yara_x.Compiler()
+    /// compiler.enable_includes(False)  # Disable includes
+    /// ```
+    fn enable_includes(&mut self, yes: bool) {
+        self.includes_enabled = yes;
+        self.inner.enable_includes(yes);
     }
 
     /// Builds the source code previously added to the compiler.

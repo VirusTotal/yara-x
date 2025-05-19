@@ -1,0 +1,29 @@
+SOURCE_FILE@0..58
+  IMPORT_STMT@0..12
+    IMPORT_KW@0..6 "import"
+    WHITESPACE@6..7 " "
+    STRING_LIT@7..12 "\"foo\""
+  NEWLINE@12..13 "\n"
+  NEWLINE@13..14 "\n"
+  RULE_DECL@14..44
+    RULE_KW@14..18 "rule"
+    WHITESPACE@18..19 " "
+    IDENT@19..23 "test"
+    WHITESPACE@23..24 " "
+    L_BRACE@24..25 "{"
+    WHITESPACE@25..26 " "
+    CONDITION_BLK@26..42
+      CONDITION_KW@26..35 "condition"
+      COLON@35..36 ":"
+      WHITESPACE@36..37 " "
+      BOOLEAN_EXPR@37..42
+        BOOLEAN_TERM@37..42
+          FALSE_KW@37..42 "false"
+    WHITESPACE@42..43 " "
+    R_BRACE@43..44 "}"
+  NEWLINE@44..45 "\n"
+  NEWLINE@45..46 "\n"
+  IMPORT_STMT@46..58
+    IMPORT_KW@46..52 "import"
+    WHITESPACE@52..53 " "
+    STRING_LIT@53..58 "\"bar\""

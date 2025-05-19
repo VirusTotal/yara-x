@@ -1,0 +1,6 @@
+include "src/compiler/tests/testdata/includes/included_error.yar"
+
+rule test {
+  condition:
+    false
+}

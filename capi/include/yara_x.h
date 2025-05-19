@@ -47,6 +47,11 @@
 // code motion (LICM).
 #define YRX_ENABLE_CONDITION_OPTIMIZATION 16
 
+// Flag passed to [`yrx_compiler_create`] for disabling `include` statements.
+// With this flag, the compiler produces an error when `include` statements are
+// encountered.
+#define YRX_DISABLE_INCLUDES 32
+
 // Types of metadata values.
 typedef enum YRX_METADATA_TYPE {
   I64,

@@ -54,8 +54,10 @@ pub(in crate::compiler) fn patterns_from_ast<'src>(
                 return Err(DuplicatePattern::build(
                     ctx.report_builder,
                     pattern.identifier().name.to_string(),
-                    pattern.identifier().span().into(),
-                    existing.identifier.span().into(),
+                    ctx.report_builder
+                        .span_to_code_loc(pattern.identifier().span()),
+                    ctx.report_builder
+                        .span_to_code_loc(existing.identifier.span()),
                 ));
             }
         }
@@ -63,7 +65,7 @@ pub(in crate::compiler) fn patterns_from_ast<'src>(
             return Err(TooManyPatterns::build(
                 ctx.report_builder,
                 MAX_PATTERNS_PER_RULE,
-                rule.identifier.span().into(),
+                ctx.report_builder.span_to_code_loc(rule.identifier.span()),
             ));
         }
         ctx.current_rule_patterns.push(pattern);
@@ -81,7 +83,7 @@ fn pattern_from_ast<'src>(
         if !modifiers.insert(modifier.as_text()) {
             return Err(DuplicateModifier::build(
                 ctx.report_builder,
-                modifier.span().into(),
+                ctx.report_builder.span_to_code_loc(modifier.span()),
             ));
         }
     }
@@ -120,8 +122,8 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
                 ctx.report_builder,
                 name1.to_string(),
                 name2.to_string(),
-                modifier1.span().into(),
-                modifier2.span().into(),
+                ctx.report_builder.span_to_code_loc(modifier1.span()),
+                ctx.report_builder.span_to_code_loc(modifier2.span()),
                 Some("these two modifiers can't be used together".to_string()),
             ));
         };
@@ -154,7 +156,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
                         "lower bound ({}) is greater than upper bound ({})",
                         start, end
                     ),
-                    modifier.span().into(),
+                    ctx.report_builder.span_to_code_loc(modifier.span()),
                 ));
             }
             flags.insert(PatternFlags::Xor);
@@ -174,7 +176,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
             Err(err) => Err(InvalidBase64Alphabet::build(
                 ctx.report_builder,
                 err.to_string().to_lowercase(),
-                alphabet.span().into(),
+                ctx.report_builder.span_to_code_loc(alphabet.span()),
             )),
         }
     };
@@ -222,7 +224,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
             ctx.report_builder,
             pattern.identifier.name.to_string(),
             "this pattern is too short".to_string(),
-            pattern.text.span().into(),
+            ctx.report_builder.span_to_code_loc(pattern.text.span()),
             note,
         ));
     }
@@ -255,7 +257,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
                     ctx.report_builder,
                     "this modifier can't be applied to a hex pattern"
                         .to_string(),
-                    modifier.span().into(),
+                    ctx.report_builder.span_to_code_loc(modifier.span()),
                 ));
             }
         }
@@ -277,7 +279,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
                 TextPatternAsHex::build(
                     ctx.report_builder,
                     literal.escape_default().to_string(),
-                    pattern.span().into(),
+                    ctx.report_builder.span_to_code_loc(pattern.span()),
                 )
             });
         }
@@ -309,7 +311,7 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
                 return Err(InvalidModifier::build(
                     ctx.report_builder,
                     "this modifier can't be applied to a regexp".to_string(),
-                    modifier.span().into(),
+                    ctx.report_builder.span_to_code_loc(modifier.span()),
                 ));
             }
             _ => {}
@@ -348,8 +350,12 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
         ctx.warnings.add(|| {
             warnings::RedundantCaseModifier::build(
                 ctx.report_builder,
-                pattern.modifiers.nocase().unwrap().span().into(),
-                pattern.regexp.span().subspan(i_pos, i_pos + 1).into(),
+                ctx.report_builder.span_to_code_loc(
+                    pattern.modifiers.nocase().unwrap().span(),
+                ),
+                ctx.report_builder.span_to_code_loc(
+                    pattern.regexp.span().subspan(i_pos, i_pos + 1),
+                ),
             )
         });
     }
@@ -413,7 +419,7 @@ fn expr_from_ast(
         ast::Expr::Entrypoint { span } => {
             return Err(EntrypointUnsupported::build(
                 ctx.report_builder,
-                span.into(),
+                ctx.report_builder.span_to_code_loc(span.clone()),
             ));
         }
         ast::Expr::Filesize { .. } => ctx.ir.filesize(),
@@ -501,7 +507,9 @@ fn expr_from_ast(
                         ctx.ir.not(lhs),
                         format!(
                             "not {}",
-                            ctx.report_builder.get_snippet(&lhs_span.into())
+                            ctx.report_builder.get_snippet(
+                                &ctx.report_builder.span_to_code_loc(lhs_span)
+                            )
                         ),
                     )),
                     (
@@ -511,7 +519,9 @@ fn expr_from_ast(
                         ctx.ir.not(rhs),
                         format!(
                             "not {}",
-                            ctx.report_builder.get_snippet(&rhs_span.into())
+                            ctx.report_builder.get_snippet(
+                                &ctx.report_builder.span_to_code_loc(rhs_span)
+                            )
                         ),
                     )),
                     (
@@ -519,14 +529,18 @@ fn expr_from_ast(
                         TypeValue::Integer(Value::Const(1)),
                     ) => Some((
                         lhs,
-                        ctx.report_builder.get_snippet(&lhs_span.into()),
+                        ctx.report_builder.get_snippet(
+                            &ctx.report_builder.span_to_code_loc(lhs_span),
+                        ),
                     )),
                     (
                         TypeValue::Integer(Value::Const(1)),
                         TypeValue::Bool(_),
                     ) => Some((
                         rhs,
-                        ctx.report_builder.get_snippet(&rhs_span.into()),
+                        ctx.report_builder.get_snippet(
+                            &ctx.report_builder.span_to_code_loc(rhs_span),
+                        ),
                     )),
                     _ => None,
                 };
@@ -536,7 +550,7 @@ fn expr_from_ast(
                     warnings::BooleanIntegerComparison::build(
                         ctx.report_builder,
                         msg,
-                        span.into(),
+                        ctx.report_builder.span_to_code_loc(span),
                     )
                 });
                 expr
@@ -612,7 +626,7 @@ fn expr_from_ast(
                             ctx.report_builder,
                             entry.error_title.clone(),
                             entry.error_label.clone(),
-                            ident.span().into(),
+                            ctx.report_builder.span_to_code_loc(ident.span()),
                         ));
                     }
                 }
@@ -632,7 +646,7 @@ fn expr_from_ast(
                         return Err(SyntaxError::build(
                             ctx.report_builder,
                             "this `$` is outside of the body of a `for .. of` statement".to_string(),
-                            p.identifier.span().into(),
+                            ctx.report_builder.span_to_code_loc(p.identifier.span()),
                         ));
                     }
                     // If we are inside a loop, we don't know which is the
@@ -681,7 +695,7 @@ fn expr_from_ast(
                 return Err(SyntaxError::build(
                     ctx.report_builder,
                     "this `#` is outside of the body of a `for .. of` statement".to_string(),
-                    p.identifier.span().into(),
+                    ctx.report_builder.span_to_code_loc(p.identifier.span()),
                 ));
             }
             match (p.identifier.name, &p.range) {
@@ -721,7 +735,7 @@ fn expr_from_ast(
                 return Err(SyntaxError::build(
                     ctx.report_builder,
                     "this `@` is outside of the body of a `for .. of` statement".to_string(),
-                    p.identifier.span().into(),
+                    ctx.report_builder.span_to_code_loc(p.identifier.span()),
                 ));
             }
             match (p.identifier.name, &p.index) {
@@ -763,7 +777,7 @@ fn expr_from_ast(
                 return Err(SyntaxError::build(
                     ctx.report_builder,
                     "this `!` is outside of the body of a `for .. of` statement".to_string(),
-                    p.identifier.span().into(),
+                    ctx.report_builder.span_to_code_loc(p.identifier.span()),
                 ));
             }
             match (p.identifier.name, &p.index) {
@@ -830,7 +844,8 @@ fn expr_from_ast(
                         ctx.report_builder,
                         format!("`{}` or `{}`", Type::Array, Type::Map),
                         format!("`{}`", type_value.ty()),
-                        expr.primary.span().into(),
+                        ctx.report_builder
+                            .span_to_code_loc(expr.primary.span()),
                         None,
                     ))
                 }
@@ -862,7 +877,7 @@ pub(in crate::compiler) fn rule_condition_from_ast(
             warnings::InvariantBooleanExpression::build(
                 ctx.report_builder,
                 value,
-                rule.condition.span().into(),
+                ctx.report_builder.span_to_code_loc(rule.condition.span()),
                 Some(format!(
                     "rule `{}` is always `{}`",
                     rule.identifier.name, value
@@ -882,7 +897,7 @@ fn bool_expr_from_ast(
 ) -> Result<ExprId, CompileError> {
     ctx.one_shot_symbol_table = None;
 
-    let code_loc = ast.span().into();
+    let code_loc = ctx.report_builder.span_to_code_loc(ast.span());
     let expr = expr_from_ast(ctx, ast)?;
 
     match ctx.ir.get(expr).type_value() {
@@ -1014,7 +1029,7 @@ fn of_expr_from_ast(
                 ctx.warnings.add(|| warnings::InvariantBooleanExpression::build(
                     ctx.report_builder,
                     false,
-                    of.span().into(),
+                    ctx.report_builder.span_to_code_loc(of.span()),
                     Some(format!(
                         "the expression requires {} matching patterns out of {}",
                         value, items.len()
@@ -1068,8 +1083,9 @@ fn of_expr_from_ast(
             ctx.warnings.add(|| {
                 warnings::PotentiallyUnsatisfiableExpression::build(
                     ctx.report_builder,
-                    of.quantifier.span().into(),
-                    of.anchor.as_ref().unwrap().span().into(),
+                    ctx.report_builder.span_to_code_loc(of.quantifier.span()),
+                    ctx.report_builder
+                        .span_to_code_loc(of.anchor.as_ref().unwrap().span()),
                 )
             });
         }
@@ -1187,13 +1203,15 @@ fn for_in_expr_from_ast(
                 if ctx.error_on_slow_loop {
                     return Err(PotentiallySlowLoop::build(
                         ctx.report_builder,
-                        for_in.iterable.span().into(),
+                        ctx.report_builder
+                            .span_to_code_loc(for_in.iterable.span()),
                     ));
                 } else {
                     ctx.warnings.add(|| {
                         warnings::PotentiallySlowLoop::build(
                             ctx.report_builder,
-                            for_in.iterable.span().into(),
+                            ctx.report_builder
+                                .span_to_code_loc(for_in.iterable.span()),
                         )
                     })
                 }
@@ -1247,8 +1265,8 @@ fn for_in_expr_from_ast(
             ctx.report_builder,
             loop_vars.len() as u8,
             expected_vars.len() as u8,
-            for_in.iterable.span().into(),
-            span.into(),
+            ctx.report_builder.span_to_code_loc(for_in.iterable.span()),
+            ctx.report_builder.span_to_code_loc(span),
         ));
     }
 
@@ -1318,7 +1336,8 @@ fn with_expr_from_ast(
             if func.method_of().is_some() {
                 return Err(MethodNotAllowedInWith::build(
                     ctx.report_builder,
-                    item.expression.span().into(),
+                    ctx.report_builder
+                        .span_to_code_loc(item.expression.span()),
                 ));
             }
             symbols.borrow_mut().insert(name, Symbol::Func(func.clone()));
@@ -1379,8 +1398,8 @@ fn iterable_from_ast(
                             ctx.report_builder,
                             prev_ty.to_string(),
                             ty.to_string(),
-                            prev_span.into(),
-                            span.into(),
+                            ctx.report_builder.span_to_code_loc(prev_span),
+                            ctx.report_builder.span_to_code_loc(span),
                         ));
                     }
                 }
@@ -1432,7 +1451,7 @@ fn range_from_ast(
                     "lower bound ({}) is greater than upper bound ({})",
                     lower_bound, upper_bound
                 ),
-                range.span().into(),
+                ctx.report_builder.span_to_code_loc(range.span()),
             ));
         }
     }
@@ -1454,7 +1473,7 @@ fn non_negative_integer_from_ast(
         if value < 0 {
             return Err(UnexpectedNegativeNumber::build(
                 ctx.report_builder,
-                span.into(),
+                ctx.report_builder.span_to_code_loc(span),
             ));
         }
     }
@@ -1482,7 +1501,7 @@ fn integer_in_range_from_ast(
                 ctx.report_builder,
                 *range.start(),
                 *range.end(),
-                span.into(),
+                ctx.report_builder.span_to_code_loc(span),
             ));
         }
     }
@@ -1527,7 +1546,7 @@ fn pattern_set_from_ast(
             if pattern_indexes.is_empty() {
                 return Err(EmptyPatternSet::build(
                     ctx.report_builder,
-                    span.into(),
+                    ctx.report_builder.span_to_code_loc(span.clone()),
                     Some("this rule doesn't define any patterns".to_string()),
                 ));
             }
@@ -1550,7 +1569,7 @@ fn pattern_set_from_ast(
                 {
                     return Err(EmptyPatternSet::build(
                         ctx.report_builder,
-                        item.span().into(),
+                        ctx.report_builder.span_to_code_loc(item.span()),
                         Some(if item.wildcard {
                             format!(
                                 "`{}*` doesn't match any pattern identifier",
@@ -1606,7 +1625,7 @@ fn func_call_from_ast(
                 ctx.report_builder,
                 "`function`".to_string(),
                 format!("`{}`", symbol.ty()),
-                func_call.span().into(),
+                ctx.report_builder.span_to_code_loc(func_call.span()),
                 None,
             ))
         }
@@ -1656,7 +1675,7 @@ fn func_call_from_ast(
     if matching_signature.is_none() {
         return Err(WrongArguments::build(
             ctx.report_builder,
-            func_call.args_span().into(),
+            ctx.report_builder.span_to_code_loc(func_call.args_span()),
             Some(format!(
                 "accepted argument combinations:\n\n{}",
                 expected_args
@@ -1711,7 +1730,7 @@ fn check_type(
             ctx.report_builder,
             CompileError::join_with_or(accepted_types, true),
             format!("`{}`", ty),
-            span.into(),
+            ctx.report_builder.span_to_code_loc(span),
             None,
         ))
     }
@@ -1752,8 +1771,8 @@ fn check_operands(
             ctx.report_builder,
             lhs_ty.to_string(),
             rhs_ty.to_string(),
-            lhs_span.into(),
-            rhs_span.into(),
+            ctx.report_builder.span_to_code_loc(lhs_span),
+            ctx.report_builder.span_to_code_loc(rhs_span),
         ));
     }
 
@@ -1779,11 +1798,12 @@ fn re_error_to_compile_error(
                 // /someregexp/
                 //  ^ this is position 0 for error spans
                 // ^ this is where the regexp starts according to the regexp span
-                regexp
-                    .span()
-                    .subspan(span.start.offset, span.end.offset)
-                    .offset(1)
-                    .into(),
+                report_builder.span_to_code_loc(
+                    regexp
+                        .span()
+                        .subspan(span.start.offset, span.end.offset)
+                        .offset(1),
+                ),
                 note,
             )
         }
@@ -1796,16 +1816,18 @@ fn re_error_to_compile_error(
             report_builder,
             if is_greedy_1 { "greedy" } else { "non-greedy" }.to_string(),
             if is_greedy_2 { "greedy" } else { "non-greedy" }.to_string(),
-            regexp
-                .span()
-                .subspan(span_1.start.offset, span_1.end.offset)
-                .offset(1)
-                .into(),
-            regexp
-                .span()
-                .subspan(span_2.start.offset, span_2.end.offset)
-                .offset(1)
-                .into(),
+            report_builder.span_to_code_loc(
+                regexp
+                    .span()
+                    .subspan(span_1.start.offset, span_1.end.offset)
+                    .offset(1),
+            ),
+            report_builder.span_to_code_loc(
+                regexp
+                    .span()
+                    .subspan(span_2.start.offset, span_2.end.offset)
+                    .offset(1),
+            ),
         ),
     }
 }
@@ -1836,7 +1858,7 @@ pub(in crate::compiler) fn warn_if_not_bool(
             warnings::NonBooleanAsBoolean::build(
                 ctx.report_builder,
                 ty.to_string(),
-                span.into(),
+                ctx.report_builder.span_to_code_loc(span),
                 note,
             )
         });
@@ -1984,8 +2006,8 @@ macro_rules! gen_n_ary_operation {
                             ctx.report_builder,
                             lhs_ty.to_string(),
                             rhs_ty.to_string(),
-                            expr.first().span().combine(&lhs_ast.span()).into(),
-                            rhs_ast.span().into(),
+                            ctx.report_builder.span_to_code_loc(expr.first().span().combine(&lhs_ast.span())),
+                            ctx.report_builder.span_to_code_loc(rhs_ast.span()),
                     ));
                 }
             }
@@ -1997,7 +2019,7 @@ macro_rules! gen_n_ary_operation {
                             ctx.report_builder,
                             i64::MIN,
                             i64::MAX,
-                            span.into(),
+                            ctx.report_builder.span_to_code_loc(span),
                         )
                     }
                 }
@@ -2113,7 +2135,7 @@ gen_binary_op!(
             if value < 0 {
                 return Err(UnexpectedNegativeNumber::build(
                     ctx.report_builder,
-                    rhs_span.into(),
+                    ctx.report_builder.span_to_code_loc(rhs_span),
                 ));
             }
         }
@@ -2133,7 +2155,7 @@ gen_binary_op!(
             if value < 0 {
                 return Err(UnexpectedNegativeNumber::build(
                     ctx.report_builder,
-                    rhs_span.into(),
+                    ctx.report_builder.span_to_code_loc(rhs_span),
                 ));
             }
         }

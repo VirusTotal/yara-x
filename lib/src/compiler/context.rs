@@ -33,7 +33,7 @@ pub(crate) struct CompileContext<'a, 'src, 'sym> {
     ///
     /// When this contains some value, symbols are looked up in this table, and
     /// the main symbol table (i.e: `symbol_table`) is ignored. However, once
-    /// the lookup operation is done, this symbol table set back to `None`.
+    /// the lookup operation is done, this symbol table is set back to `None`.
     pub one_shot_symbol_table: Option<Rc<dyn SymbolLookup + 'a>>,
 
     /// Reference to a vector that contains the IR for the patterns declared
@@ -91,7 +91,7 @@ impl<'src> CompileContext<'_, 'src, '_> {
                 UnknownPattern::build(
                     self.report_builder,
                     ident.name.to_string(),
-                    ident.span().into(),
+                    self.report_builder.span_to_code_loc(ident.span()),
                 )
             })
     }
@@ -117,7 +117,7 @@ impl<'src> CompileContext<'_, 'src, '_> {
                 Err(UnknownIdentifier::build(
                     self.report_builder,
                     ident.name.to_string(),
-                    ident.span().into(),
+                    self.report_builder.span_to_code_loc(ident.span()),
                     // Add a note about the missing import statement if
                     // the unknown identifier is a module name.
                     if BUILTIN_MODULES.contains_key(ident.name) {
@@ -134,7 +134,7 @@ impl<'src> CompileContext<'_, 'src, '_> {
                 Err(UnknownField::build(
                     self.report_builder,
                     ident.name.to_string(),
-                    ident.span().into(),
+                    self.report_builder.span_to_code_loc(ident.span()),
                 ))
             };
         }

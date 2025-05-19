@@ -132,6 +132,14 @@ Equivalent to the previous one, but using `--disable-warnings` multiple times:
 --disable-warnings=slow_patterns --disable-warnings=redundant_modifier
 ```
 
+### --include-dir \<PATH\>, -I \<PATH\>
+
+Directory in which to search for included files
+
+If not given, the current working directory is used. May be specified multiple
+times;
+directories will be searched in order.
+
 ### --ignore-module \<MODULE\>
 
 Rules that use the specified module will be ignored, as well as any rules that
@@ -329,6 +337,10 @@ rules in other namespaces.
 ### --disable-warnings
 
 See [--disable-warnings](#--disable-warnings) for the scan command.
+
+### --include-dir <PATH>, -I <PATH>
+
+See [--include-dir](#--include-dir-path--i-path) for the scan command.
 
 ### --ignore-module <MODULE>
 

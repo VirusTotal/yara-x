@@ -533,8 +533,8 @@ impl Formatter {
 
         let tokens = processor::Processor::new(tokens)
             //
-            // Insert newline in front of import statements, making sure that
-            // each import starts at a new line. The newline is not inserted if
+            // Insert newline in front of import and include statements, making
+            // sure that they start at a new line. The newline is not inserted if
             // the statement is at the start of the file.
             //
             // Example:
@@ -548,8 +548,11 @@ impl Formatter {
                     let next_token = ctx.token(1);
                     let prev_token = ctx.token(-1);
 
-                    next_token.eq(&Begin(SyntaxKind::IMPORT_STMT))
-                        && prev_token.neq(&Begin(SyntaxKind::SOURCE_FILE))
+                    matches!(
+                        next_token,
+                        Begin(SyntaxKind::IMPORT_STMT)
+                            | Begin(SyntaxKind::INCLUDE_STMT)
+                    ) && prev_token.neq(&Begin(SyntaxKind::SOURCE_FILE))
                         && prev_token.is_not(*NEWLINE)
                 },
                 processor::actions::newline,
