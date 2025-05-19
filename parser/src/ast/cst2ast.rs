@@ -89,7 +89,7 @@ impl<'src> Builder<'src> {
 
         assert_eq!(self.depth, 0);
 
-        AST { imports, rules, errors: self.errors }
+        AST { items, errors: self.errors }
     }
 }
 
