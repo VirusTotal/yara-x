@@ -232,8 +232,8 @@ jobs:
         cargo publish -p yara-x-proto-yaml
         cargo publish -p yara-x-parser
         cargo publish -p yara-x-fmt
-        cargo publish -p yara-x-cli
         cargo publish -p yara-x
+        cargo publish -p yara-x-cli
 
   publish-py:
     needs: [ build-py ]
