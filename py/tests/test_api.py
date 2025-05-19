@@ -205,7 +205,7 @@ def test_scanner_timeout():
 def test_module_outputs():
   rules = yara_x.compile('import "test_proto2" rule foo {condition: false}')
   module_outputs = rules.scan(b'').module_outputs
-  assert module_outputs['test_proto2']['int32One'] == 1
+  assert module_outputs['test_proto2']['int32_one'] == 1
 
 
 def test_ignored_modules():
@@ -294,6 +294,17 @@ def test_format():
   fmt.format(inp, output)
   result = output.getvalue()
   assert result == expected_output
+
+
+def test_module():
+  with pytest.raises(ValueError):
+    yara_x.Module('AXS')
+
+  # We aren't interested in testing the actual parsing functionality of the
+  # module as that is covered in module tests. Instead we just want to make sure
+  # we get a dict object back, and we can do that by passing non-PE data.
+  result = yara_x.Module('PE').invoke(b'ERS')
+  assert isinstance(result, dict)
 
 
 def test_compiler_disables_includes():

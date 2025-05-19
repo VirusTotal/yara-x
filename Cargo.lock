@@ -4845,11 +4845,14 @@ dependencies = [
 name = "yara-x-py"
 version = "0.14.0"
 dependencies = [
+ "protobuf",
  "protobuf-json-mapping",
  "pyo3",
  "pyo3-build-config",
  "pyo3-file",
  "serde_json",
+ "strum",
+ "strum_macros",
  "yara-x",
  "yara-x-fmt",
 ]

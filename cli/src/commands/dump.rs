@@ -3,7 +3,7 @@ use clap::{arg, value_parser, ArgAction, ArgMatches, Command, ValueEnum};
 use colored_json::{ColorMode, ToColoredJson};
 use crossterm::tty::IsTty;
 use protobuf::MessageField;
-use protobuf_json_mapping::print_to_string;
+use protobuf_json_mapping::{print_to_string_with_options, PrintOptions};
 use std::fs::File;
 use std::io::{stdin, stdout, Read};
 use std::path::PathBuf;
@@ -138,8 +138,14 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
             let mode = if use_color { ColorMode::On } else { ColorMode::Off };
             println!(
                 "{}",
-                print_to_string(module_output.as_ref())?
-                    .to_colored_json(mode)?
+                print_to_string_with_options(
+                    module_output.as_ref(),
+                    &PrintOptions {
+                        proto_field_name: true,
+                        ..Default::default()
+                    }
+                )?
+                .to_colored_json(mode)?
             );
         }
         Some(OutputFormats::Yaml) | None => {

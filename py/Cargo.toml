@@ -23,7 +23,9 @@ pyo3 = { version = "0.24.1", features = [
 ] }
 pyo3-file = "0.12.0"
 serde_json = { workspace = true }
-
+strum = { workspace = true }
+strum_macros = { workspace = true }
+protobuf = { workspace = true }
 protobuf-json-mapping = { workspace = true }
 yara-x = { workspace = true, features = ["parallel-compilation"] }
 yara-x-fmt = { workspace = true }

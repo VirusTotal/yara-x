@@ -136,7 +136,7 @@ pub mod mods {
     # use yara_x;
     let pe_info = yara_x::mods::invoke::<yara_x::mods::PE>(&[]);
     ```
-     */
+    */
 
     /// Data structures defined by the `dotnet` module.
     ///
