@@ -407,14 +407,18 @@ pub struct Compiler<'a> {
 }
 
 impl<'a> Compiler<'a> {
-    /// Adds a directory to the list of directories where the compiler should look for included files.
+    /// Adds a directory to the list of directories where the compiler should
+    /// look for included files.
     ///
-    /// When an `include` statement is found, the compiler looks for
-    /// the included file in the directories added with this function, in the
-    /// order they were added.
+    /// When an `include` statement is found, the compiler looks for the included
+    /// file in the directories added with this function, in the order they were
+    /// added.
     ///
-    /// If this function is not called, the compiler will only look for included files
-    /// in the current directory.
+    /// If this function is not called, the compiler will only look for included
+    /// files in the current directory.
+    ///
+    /// Use [Compiler::enable_includes] for controlling whether include statements
+    /// are allowed or not.
     ///
     /// # Example
     ///
