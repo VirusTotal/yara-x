@@ -1,0 +1,95 @@
+// Should trigger a warning: single loop, 2,000,000 iterations
+rule single_loop_too_many_iterations {
+  condition:
+    for any i in (1..2000001) : ( true )
+}
+
+// Should trigger a warning: nested loop, 1500 * 1500 = 2,250,000 iterations
+rule nested_loop_too_many_iterations {
+  condition:
+    for any i in (1..1501) : (
+      for any j in (1..1501) : ( true )
+    )
+}
+
+// Should NOT trigger a warning: single loop, 1,000,000 iterations (at the limit)
+rule single_loop_at_limit {
+  condition:
+    for any i in (1..1000001) : ( true )
+}
+
+// Should NOT trigger a warning: nested loop, 1000 * 1000 = 1,000,000 iterations (at the limit)
+rule nested_loop_at_limit {
+  condition:
+    for any i in (1..1001) : (
+      for any j in (1..1001) : ( true )
+    )
+}
+
+// Should NOT trigger a warning: single loop, well within limits
+rule single_loop_within_limits {
+  condition:
+    for any i in (1..101) : ( true )
+}
+
+// Example of nested loops where an inner loop is large and an outer loop iterates a few times
+rule nested_loop_inner_large {
+  condition:
+    for any i in (1..3) : ( // Outer loop iterates 2 times
+      for any j in (1..1000001) : ( // Inner loop iterates 1,000,000 times
+        true // Total iterations = 2 * 1,000,000 = 2,000,000. Should trigger.
+      )
+    )
+}
+
+// Example of nested loops where an outer loop is large and an inner loop iterates a few times
+rule nested_loop_outer_large {
+  condition:
+    for any i in (1..1000001) : ( // Outer loop iterates 1,000,000 times
+      for any j in (1..3) : ( // Inner loop iterates 2 times
+        true // Total iterations = 1,000,000 * 2 = 2,000,000. Should trigger.
+      )
+    )
+}
+
+// Test with a more complex condition inside the loop
+rule complex_condition_inside_loop_too_many_iterations {
+  condition:
+    for any i in (1..2000001) : (
+      (1 + 1 == 2) and (true or false)
+    )
+}
+
+// Test with ORed loops, only one of which is too large
+rule or_loops_one_too_large {
+  condition:
+    (for any i in (1..101) : (true)) or
+    (for any i in (1..2000001) : (true)) // This one should trigger
+}
+
+// Test with ANDed loops, one of which is too large
+rule and_loops_one_too_large {
+  condition:
+    (for any i in (1..2000001) : (true)) and // This one should trigger
+    (for any i in (1..101) : (true))
+}
+
+// Test with nested loops where the warning should be on an inner loop due to multiplier
+rule nested_loops_warning_on_inner {
+  condition:
+    for any i in (1..101) : ( // 100 iterations
+      for any j in (1..101) : ( // 100 * 100 = 10,000 iterations
+        for any k in (1..101) : ( // 100 * 100 * 100 = 1,000,000 iterations (at limit for this sub-loop on its own)
+          for any l in (1..3) : ( // 1,000,000 * 2 = 2,000,000 iterations. Should trigger here.
+            true
+          )
+        )
+      )
+    )
+}
+
+// Test for ExprList with a small number of items, should not warn.
+rule expr_list_small_ok {
+    condition:
+        for any s in ("a", "b", "c", "d", "e", "f", "g", "h", "i", "j") : ( s == "a" )
+}

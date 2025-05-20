@@ -523,7 +523,7 @@ impl<'a> Compiler<'a> {
             regexp_pool: StringPool::new(),
             patterns: FxHashMap::default(),
             ir_writer: None,
-            linters: Vec::new(),
+            linters: Vec::new(), // Removed loop_iterations linter
             include_dirs: None,
             includes_enabled: true,
         }
@@ -1422,6 +1422,7 @@ impl Compiler<'_> {
             vars: VarStack::new(),
             for_of_depth: 0,
             features: &self.features,
+            current_loop_iteration_multiplier: 1,
         };
 
         // Convert the patterns from AST to IR. This populates the

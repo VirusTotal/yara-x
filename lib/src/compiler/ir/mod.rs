@@ -2638,6 +2638,43 @@ pub(crate) enum Iterable {
     Expr(ExprId),
 }
 
+impl Iterable {
+    pub(crate) fn num_iterations(&self, ir: &IR) -> Option<u64> {
+        match self {
+            Iterable::Range(range) => {
+                let lower_bound_expr = ir.get(range.lower_bound);
+                let upper_bound_expr = ir.get(range.upper_bound);
+
+                if let (Some(lower_val), Some(upper_val)) = (
+                    lower_bound_expr.try_as_const_integer(),
+                    upper_bound_expr.try_as_const_integer(),
+                ) {
+                    if upper_val > lower_val {
+                        // Assuming range (A..B) means B is exclusive.
+                        // So, number of items is B - A.
+                        // Example: (1..3) means items 1, 2. Iterations = 3 - 1 = 2.
+                        Some((upper_val - lower_val) as u64)
+                    } else {
+                        // If upper_val <= lower_val, the range is empty or invalid.
+                        Some(0)
+                    }
+                } else {
+                    // One or both bounds are not constant integers.
+                    None
+                }
+            }
+            Iterable::ExprTuple(exprs) => {
+                Some(exprs.len() as u64)
+            }
+            Iterable::Expr(_expr_id) => {
+                // Cannot determine size of a generic expression/identifier at this stage easily.
+                // This could be an array or map identifier.
+                None
+            }
+        }
+    }
+}
+
 impl Index<ExprId> for [Expr] {
     type Output = Expr;
     fn index(&self, index: ExprId) -> &Self::Output {

@@ -1,11 +1,11 @@
 use regex::{Error, Regex};
 
-use yara_x_parser::ast;
-use yara_x_parser::ast::{Meta, WithSpan};
+use yara_x_parser::ast::{self, Meta, WithSpan}; // Updated import
 
 use crate::compiler::report::ReportBuilder;
-use crate::compiler::Warning;
-use crate::compiler::{errors, warnings};
+use crate::compiler::{warnings, Warning};      // Added import (Warning is used by LinterResult and check_expr)
+// Removed duplicate: use crate::compiler::Warning;
+use crate::compiler::{errors /* removed redundant warnings import here if present */};
 use crate::errors::CompileError;
 
 /// Trait implemented by all linters.
@@ -428,6 +428,8 @@ impl LinterInternal for Metadata<'_> {
     }
 }
 
+// LoopIterationLinter and its constructor function have been removed.
+
 /// Creates a tag linter from a list of allowed tags.
 pub fn tags_allowed(list: Vec<String>) -> Tags {
     Tags::from_list(list)
@@ -453,3 +455,4 @@ pub fn metadata<'a, I: Into<String>>(identifier: I) -> Metadata<'a> {
 pub fn rule_name<R: Into<String>>(regex: R) -> Result<RuleName, Error> {
     RuleName::new(regex)
 }
+
