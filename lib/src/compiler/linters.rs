@@ -3,8 +3,8 @@ use regex::{Error, Regex};
 use yara_x_parser::ast::{self, Meta, WithSpan};
 
 use crate::compiler::report::ReportBuilder;
-use crate::compiler::{warnings, Warning};
-use crate::compiler::errors;
+use crate::compiler::{warnings, errors};
+use crate::compiler::Warning;
 use crate::errors::CompileError;
 
 /// Trait implemented by all linters.
@@ -426,8 +426,6 @@ impl LinterInternal for Metadata<'_> {
         LinterResult::Ok
     }
 }
-
-// LoopIterationLinter and its constructor function have been removed.
 
 /// Creates a tag linter from a list of allowed tags.
 pub fn tags_allowed(list: Vec<String>) -> Tags {

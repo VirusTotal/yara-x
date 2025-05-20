@@ -523,7 +523,7 @@ impl<'a> Compiler<'a> {
             regexp_pool: StringPool::new(),
             patterns: FxHashMap::default(),
             ir_writer: None,
-            linters: Vec::new(), // Removed loop_iterations linter
+            linters: Vec::new(),
             include_dirs: None,
             includes_enabled: true,
         }
