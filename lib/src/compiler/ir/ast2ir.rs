@@ -1217,8 +1217,9 @@ fn for_in_expr_from_ast(
 
     let (expected_vars, iterable_ty) = match &iterable {
         Iterable::Range(range) => {
-            // The PotentiallySlowLoop warning for ranges based on filesize is still relevant
-            // as it's a different condition (dynamic upper bound) than purely excessive static iterations.
+            // Raise warning when the `for` loop iterates over a range that
+            // may be very large, because it depends on the file size or the
+            // number of occurrences of some pattern (i.e: #a).
             if is_potentially_large_range(ctx, range) {
                 if ctx.error_on_slow_loop {
                     return Err(PotentiallySlowLoop::build(

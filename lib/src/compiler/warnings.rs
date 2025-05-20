@@ -568,7 +568,7 @@ pub struct InvalidRuleName {
 /// # Example
 ///
 /// ```text
-/// warning[loop_too_many_iterations]: loop has too many iterations
+/// warning[too_many_iterations]: loop has too many iterations
 ///  --> test.yar:1:20
 ///   |
 /// 1 | rule t { condition: for any i in (0..1000) : ( for any j in (0..1000) : ( true ) ) }
@@ -592,7 +592,7 @@ pub struct TooManyIterations {
 }
 
 /// Unknown tag. This is only used if the compiler is configured to check
-/// for required tags (see:  [`crate::linters::Tags`]).
+/// for required tags (see: [`crate::linters::Tags`]).
 ///
 /// ## Example
 ///
