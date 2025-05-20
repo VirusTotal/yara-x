@@ -1,7 +1,7 @@
 use protobuf::reflect::MessageDescriptor;
 use protobuf::MessageDyn;
-use std::sync::LazyLock;
 use rustc_hash::FxHashMap;
+use std::sync::LazyLock;
 
 pub mod protos {
     include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
@@ -97,24 +97,25 @@ macro_rules! add_module {
 /// `rust_module` is the name of the Rust module where functions exported
 /// by the YARA module are defined. This field is optional, if not provided
 /// the module is considered a data-only module.
-pub(crate) static BUILTIN_MODULES: LazyLock<FxHashMap<&'static str, Module>> = LazyLock::new(|| {
-    let mut modules = FxHashMap::default();
-    // The `add_modules.rs` file is automatically generated at compile time
-    // by `build.rs`. This is an example of how `add_modules.rs` looks like:
-    //
-    // {
-    //  #[cfg(feature = "pe_module")]
-    //  add_module!(modules, "pe", pe, Some(pe::main as MainFn));
-    //
-    //  #[cfg(feature = "elf_module")]
-    //  add_module!(modules, "elf", elf, Some(elf::main as MainFn));
-    // }
-    //
-    // `add_modules.rs` will contain an `add_module!` statement for each
-    // protobuf in `src/modules/protos` defining a YARA module.
-    include!("add_modules.rs");
-    modules
-});
+pub(crate) static BUILTIN_MODULES: LazyLock<FxHashMap<&'static str, Module>> =
+    LazyLock::new(|| {
+        let mut modules = FxHashMap::default();
+        // The `add_modules.rs` file is automatically generated at compile time
+        // by `build.rs`. This is an example of how `add_modules.rs` looks like:
+        //
+        // {
+        //  #[cfg(feature = "pe_module")]
+        //  add_module!(modules, "pe", pe, Some(pe::main as MainFn));
+        //
+        //  #[cfg(feature = "elf_module")]
+        //  add_module!(modules, "elf", elf, Some(elf::main as MainFn));
+        // }
+        //
+        // `add_modules.rs` will contain an `add_module!` statement for each
+        // protobuf in `src/modules/protos` defining a YARA module.
+        include!("add_modules.rs");
+        modules
+    });
 
 pub mod mods {
     /*! Utility functions and structures for invoking YARA modules directly.
