@@ -3,8 +3,8 @@ use regex::{Error, Regex};
 use yara_x_parser::ast::{self, Meta, WithSpan};
 
 use crate::compiler::report::ReportBuilder;
-use crate::compiler::{warnings, errors};
 use crate::compiler::Warning;
+use crate::compiler::{errors, warnings};
 use crate::errors::CompileError;
 
 /// Trait implemented by all linters.
@@ -452,4 +452,3 @@ pub fn metadata<'a, I: Into<String>>(identifier: I) -> Metadata<'a> {
 pub fn rule_name<R: Into<String>>(regex: R) -> Result<RuleName, Error> {
     RuleName::new(regex)
 }
-
