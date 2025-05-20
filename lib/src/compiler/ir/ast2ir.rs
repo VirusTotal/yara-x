@@ -1195,7 +1195,6 @@ fn for_in_expr_from_ast(
     for_in: &ast::ForIn,
 ) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &for_in.quantifier)?;
-    let iterable_ast_span = for_in.iterable.span(); // Save span for potential warning
     let iterable = iterable_from_ast(ctx, &for_in.iterable)?;
 
     let parent_multiplier = ctx.loop_iteration_multiplier;
@@ -1224,14 +1223,15 @@ fn for_in_expr_from_ast(
                 if ctx.error_on_slow_loop {
                     return Err(PotentiallySlowLoop::build(
                         ctx.report_builder,
-                        ctx.report_builder.span_to_code_loc(iterable_ast_span),
+                        ctx.report_builder
+                            .span_to_code_loc(for_in.iterable.span()),
                     ));
                 } else {
                     ctx.warnings.add(|| {
                         warnings::PotentiallySlowLoop::build(
                             ctx.report_builder,
                             ctx.report_builder
-                                .span_to_code_loc(iterable_ast_span),
+                                .span_to_code_loc(for_in.iterable.span()),
                         )
                     })
                 }
