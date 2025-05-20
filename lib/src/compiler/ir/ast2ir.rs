@@ -33,7 +33,6 @@ use crate::errors::CustomError;
 use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
 use crate::re;
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
-use crate::compiler::warnings; // Added for LoopWithTooManyIterations
 use crate::types::{Map, Regexp, Type, TypeValue, Value};
 
 /// How many patterns a rule can have. If a rule has more than this number of
@@ -41,7 +40,7 @@ use crate::types::{Map, Regexp, Type, TypeValue, Value};
 const MAX_PATTERNS_PER_RULE: usize = 100_000;
 
 /// Maximum number of iterations a loop can have before triggering a warning.
-const MAX_LOOP_ITERATIONS: u64 = 1_000_000;
+const MAX_LOOP_ITERATIONS: i64 = 1_000_000;
 
 pub(in crate::compiler) fn patterns_from_ast<'src>(
     ctx: &mut CompileContext<'_, 'src, '_>,
@@ -1127,29 +1126,6 @@ fn for_of_expr_from_ast(
 ) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &for_of.quantifier)?;
     let pattern_set = pattern_set_from_ast(ctx, &for_of.pattern_set)?;
-
-    let parent_multiplier = ctx.current_loop_iteration_multiplier;
-    let mut new_multiplier_for_body = parent_multiplier;
-
-    let loop_iterations = pattern_set.len() as u64;
-
-    if loop_iterations > 0 {
-        let combined_iterations = parent_multiplier.saturating_mul(loop_iterations);
-        if combined_iterations > MAX_LOOP_ITERATIONS {
-            ctx.warnings.add(|| {
-                warnings::LoopWithTooManyIterations::build(
-                    ctx.report_builder,
-                    ctx.report_builder.span_to_code_loc(for_of.span()),
-                    combined_iterations,
-                )
-            });
-        }
-        new_multiplier_for_body = combined_iterations;
-    }
-    // If loop_iterations is 0, new_multiplier_for_body remains parent_multiplier.
-    
-    ctx.current_loop_iteration_multiplier = new_multiplier_for_body;
-
     let mut stack_frame = ctx.vars.new_frame(VarStack::FOR_OF_FRAME_SIZE);
 
     let for_vars = ForVars {
@@ -1178,9 +1154,6 @@ fn for_of_expr_from_ast(
     ctx.for_of_depth -= 1;
     ctx.symbol_table.pop();
     ctx.vars.unwind(&stack_frame);
-
-    // Restore the parent multiplier after the loop body has been processed.
-    ctx.current_loop_iteration_multiplier = parent_multiplier;
 
     Ok(ctx.ir.for_of(quantifier, next_pattern_id, for_vars, pattern_set, body))
 }
@@ -1225,30 +1198,22 @@ fn for_in_expr_from_ast(
     let iterable_ast_span = for_in.iterable.span(); // Save span for potential warning
     let iterable = iterable_from_ast(ctx, &for_in.iterable)?;
 
-    let parent_multiplier = ctx.current_loop_iteration_multiplier;
-    let mut new_multiplier_for_body = parent_multiplier;
+    let parent_multiplier = ctx.loop_iteration_multiplier;
 
-    let maybe_loop_iterations = iterable.num_iterations(&ctx.ir);
-
-    if let Some(loop_iterations) = maybe_loop_iterations {
-        if loop_iterations > 0 {
-            let combined_iterations = parent_multiplier.saturating_mul(loop_iterations);
-            if combined_iterations > MAX_LOOP_ITERATIONS {
-                ctx.warnings.add(|| {
-                    warnings::LoopWithTooManyIterations::build(
-                        ctx.report_builder,
-                        ctx.report_builder.span_to_code_loc(for_in.span()),
-                        combined_iterations,
-                    )
-                });
-            }
-            new_multiplier_for_body = combined_iterations;
+    if let Some(loop_iterations) = iterable.num_iterations(&ctx.ir) {
+        let combined_iterations =
+            parent_multiplier.saturating_mul(loop_iterations);
+        if combined_iterations > MAX_LOOP_ITERATIONS {
+            ctx.warnings.add(|| {
+                warnings::TooManyIterations::build(
+                    ctx.report_builder,
+                    combined_iterations,
+                    ctx.report_builder.span_to_code_loc(for_in.span()),
+                )
+            });
         }
-        // If loop_iterations is 0, new_multiplier_for_body remains parent_multiplier.
+        ctx.loop_iteration_multiplier = combined_iterations;
     }
-    // If maybe_loop_iterations is None, new_multiplier_for_body remains parent_multiplier.
-    
-    ctx.current_loop_iteration_multiplier = new_multiplier_for_body;
 
     let (expected_vars, iterable_ty) = match &iterable {
         Iterable::Range(range) => {
@@ -1258,8 +1223,7 @@ fn for_in_expr_from_ast(
                 if ctx.error_on_slow_loop {
                     return Err(PotentiallySlowLoop::build(
                         ctx.report_builder,
-                        ctx.report_builder
-                            .span_to_code_loc(iterable_ast_span),
+                        ctx.report_builder.span_to_code_loc(iterable_ast_span),
                     ));
                 } else {
                     ctx.warnings.add(|| {
@@ -1357,7 +1321,7 @@ fn for_in_expr_from_ast(
     ctx.vars.unwind(&stack_frame);
 
     // Restore the parent multiplier after the loop body has been processed.
-    ctx.current_loop_iteration_multiplier = parent_multiplier;
+    ctx.loop_iteration_multiplier = parent_multiplier;
 
     Ok(ctx.ir.for_in(
         quantifier,

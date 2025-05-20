@@ -23,18 +23,18 @@ pub enum Warning {
     DuplicateImport(Box<DuplicateImport>),
     IgnoredModule(Box<IgnoredModule>),
     IgnoredRule(Box<IgnoredRule>),
+    InvalidMetadata(Box<InvalidMetadata>),
+    InvalidRuleName(Box<InvalidRuleName>),
+    InvalidTag(Box<InvalidTag>),
     InvariantBooleanExpression(Box<InvariantBooleanExpression>),
-    LoopWithTooManyIterations(Box<LoopWithTooManyIterations>),
+    MissingMetadata(Box<MissingMetadata>),
     NonBooleanAsBoolean(Box<NonBooleanAsBoolean>),
     PotentiallySlowLoop(Box<PotentiallySlowLoop>),
     PotentiallyUnsatisfiableExpression(Box<PotentiallyUnsatisfiableExpression>),
     RedundantCaseModifier(Box<RedundantCaseModifier>),
     SlowPattern(Box<SlowPattern>),
     TextPatternAsHex(Box<TextPatternAsHex>),
-    InvalidMetadata(Box<InvalidMetadata>),
-    MissingMetadata(Box<MissingMetadata>),
-    InvalidRuleName(Box<InvalidRuleName>),
-    InvalidTag(Box<InvalidTag>),
+    TooManyIterations(Box<TooManyIterations>),
     UnknownTag(Box<UnknownTag>),
 }
 
@@ -578,16 +578,16 @@ pub struct InvalidRuleName {
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(Warning)]
 #[warning(
-    code = "loop_too_many_iterations",
+    code = "too_many_iterations",
     title = "loop has too many iterations",
 )]
 #[label(
     "this loop iterates {iterations} times, which may be slow",
     loc
 )]
-pub struct LoopWithTooManyIterations {
+pub struct TooManyIterations {
     report: Report,
-    iterations: u64,
+    iterations: i64,
     loc: CodeLoc,
 }
 

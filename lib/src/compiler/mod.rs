@@ -1422,7 +1422,7 @@ impl Compiler<'_> {
             vars: VarStack::new(),
             for_of_depth: 0,
             features: &self.features,
-            current_loop_iteration_multiplier: 1,
+            loop_iteration_multiplier: 1,
         };
 
         // Convert the patterns from AST to IR. This populates the

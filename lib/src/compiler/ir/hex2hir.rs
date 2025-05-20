@@ -233,6 +233,7 @@ mod tests {
             warnings: &mut warnings,
             vars: VarStack::new(),
             for_of_depth: 0,
+            loop_iteration_multiplier: 1,
         };
 
         let mut pattern = HexPattern {

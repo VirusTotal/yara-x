@@ -63,7 +63,7 @@ pub(crate) struct CompileContext<'a, 'src, 'sym> {
 
     /// Tracks the product of iteration counts of nested loops.
     /// Used to detect loops that may iterate an excessive number of times.
-    pub current_loop_iteration_multiplier: u64,
+    pub loop_iteration_multiplier: i64,
 }
 
 impl<'src> CompileContext<'_, 'src, '_> {
