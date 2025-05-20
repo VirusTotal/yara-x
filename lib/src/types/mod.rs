@@ -340,7 +340,9 @@ impl TypeValue {
             }
 
             Self::String(Value::Unknown) => Self::Bool(Value::Unknown),
-            Self::String(Value::Var(s)) => Self::Bool(Value::Var(!s.is_empty())),
+            Self::String(Value::Var(s)) => {
+                Self::Bool(Value::Var(!s.is_empty()))
+            }
             Self::String(Value::Const(s)) => {
                 Self::Bool(Value::Const(!s.is_empty()))
             }
