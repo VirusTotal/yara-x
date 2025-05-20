@@ -1,7 +1,7 @@
-use lazy_static::lazy_static;
 use protobuf::reflect::MessageDescriptor;
 use protobuf::MessageDyn;
 use rustc_hash::FxHashMap;
+use std::sync::LazyLock;
 
 pub mod protos {
     include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
@@ -74,31 +74,31 @@ macro_rules! add_module {
     }};
 }
 
-lazy_static! {
-    /// `BUILTIN_MODULES` is a static, global map where keys are module names
-    /// and values are [`Module`] structures that describe a YARA module.
-    ///
-    /// This table is populated with the modules defined by a `.proto` file in
-    /// `src/modules/protos`. Each `.proto` file that contains a statement like
-    /// the following one defines a YARA module:
-    ///
-    /// ```protobuf
-    /// option (yara.module_options) = {
-    ///   name : "foo"
-    ///   root_message: "Foo"
-    ///   rust_module: "foo"
-    /// };
-    /// ```
-    ///
-    /// The `name` field is the module's name (i.e: the name used in `import`
-    /// statements), which is also the key in `BUILTIN_MODULES`. `root_message`
-    /// is the name of the message that describes the module's structure. This
-    /// is required because a `.proto` file can define more than one message.
-    ///
-    /// `rust_module` is the name of the Rust module where functions exported
-    /// by the YARA module are defined. This field is optional, if not provided
-    /// the module is considered a data-only module.
-    pub(crate) static ref BUILTIN_MODULES: FxHashMap<&'static str, Module> = {
+/// `BUILTIN_MODULES` is a static, global map where keys are module names
+/// and values are [`Module`] structures that describe a YARA module.
+///
+/// This table is populated with the modules defined by a `.proto` file in
+/// `src/modules/protos`. Each `.proto` file that contains a statement like
+/// the following one defines a YARA module:
+///
+/// ```protobuf
+/// option (yara.module_options) = {
+///   name : "foo"
+///   root_message: "Foo"
+///   rust_module: "foo"
+/// };
+/// ```
+///
+/// The `name` field is the module's name (i.e: the name used in `import`
+/// statements), which is also the key in `BUILTIN_MODULES`. `root_message`
+/// is the name of the message that describes the module's structure. This
+/// is required because a `.proto` file can define more than one message.
+///
+/// `rust_module` is the name of the Rust module where functions exported
+/// by the YARA module are defined. This field is optional, if not provided
+/// the module is considered a data-only module.
+pub(crate) static BUILTIN_MODULES: LazyLock<FxHashMap<&'static str, Module>> =
+    LazyLock::new(|| {
         let mut modules = FxHashMap::default();
         // The `add_modules.rs` file is automatically generated at compile time
         // by `build.rs`. This is an example of how `add_modules.rs` looks like:
@@ -115,8 +115,7 @@ lazy_static! {
         // protobuf in `src/modules/protos` defining a YARA module.
         include!("add_modules.rs");
         modules
-    };
-}
+    });
 
 pub mod mods {
     /*! Utility functions and structures for invoking YARA modules directly.
