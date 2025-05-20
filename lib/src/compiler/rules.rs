@@ -189,7 +189,7 @@ impl Rules {
             let start = Instant::now();
 
             rules.compiled_wasm_mod = Some(wasmtime::Module::from_binary(
-                &*crate::wasm::ENGINE,
+                &crate::wasm::ENGINE,
                 rules.wasm_mod.as_slice(),
             )?);
 
@@ -495,7 +495,7 @@ where
     let bytes: Option<&[u8]> = Deserialize::deserialize(deserializer)?;
     let module = if let Some(bytes) = bytes {
         unsafe {
-            wasmtime::Module::deserialize(&*crate::wasm::ENGINE, bytes).ok()
+            wasmtime::Module::deserialize(&crate::wasm::ENGINE, bytes).ok()
         }
     } else {
         None

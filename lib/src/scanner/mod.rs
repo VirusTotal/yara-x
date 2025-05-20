@@ -34,7 +34,7 @@ use crate::modules::{Module, BUILTIN_MODULES};
 use crate::scanner::matches::PatternMatches;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
-use crate::wasm::{ENGINE, MATCHING_RULES_BITMAP_BASE};
+use crate::wasm::{MATCHING_RULES_BITMAP_BASE};
 use crate::{modules, wasm, Variable};
 
 pub(crate) use crate::scanner::context::RuntimeObject;

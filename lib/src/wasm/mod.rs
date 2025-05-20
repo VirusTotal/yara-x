@@ -80,7 +80,7 @@ See the [`lookup_field`] function.
 use std::any::{type_name, TypeId};
 use std::mem;
 use std::rc::Rc;
-use std::sync::Lazy;
+use std::sync::LazyLock;
 
 use bstr::{BString, ByteSlice};
 use linkme::distributed_slice;
@@ -705,7 +705,7 @@ pub(crate) struct WasmSymbols {
     pub f64_tmp: walrus::LocalId,
 }
 
-pub(crate) static CONFIG: Lazy<Config> = Lazy::new(|| {
+pub(crate) static CONFIG: LazyLock<Config> = LazyLock::new(|| {
     let mut config = Config::default();
     // Wasmtime produces a nasty warning when linked against musl. The
     // warning can be fixed by disabling native unwind information.
@@ -745,16 +745,15 @@ pub(crate) static CONFIG: Lazy<Config> = Lazy::new(|| {
     config
 });
 
-pub(crate) static ENGINE: Lazy<Engine> = Lazy::new(|| Engine::new(&*CONFIG).unwrap());
+pub(crate) static ENGINE: LazyLock<Engine> =
+    LazyLock::new(|| Engine::new(&CONFIG).unwrap());
 
-pub(crate) static LINKER: Lazy<Linker<ScanContext<'static>>> = Lazy::new(|| new_linker());
 
 pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
-    let mut linker = Linker::<ScanContext<'r>>::new(&*ENGINE);
+    let mut linker = Linker::<ScanContext<'r>>::new(&ENGINE);
     for export in WASM_EXPORTS {
         let func_type = FuncType::new(
-            &*ENGINE,
-            &*ENGINE,
+            &ENGINE,
             export.func.wasmtime_args(),
             export.func.wasmtime_results(),
         );

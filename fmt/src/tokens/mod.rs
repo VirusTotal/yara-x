@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::str::from_utf8_unchecked;
-use std::sync::Lazy;
+use std::sync::LazyLock;
 
 use yara_x_parser::cst::{Event, SyntaxKind};
 
@@ -23,7 +23,7 @@ mod tests;
 /// super-category.
 pub(crate) mod categories {
     use bitflags::bitflags;
-    use std::sync::Lazy;
+    use std::sync::LazyLock;
 
     bitflags! {
         #[derive(Debug, Clone, Copy)]
@@ -50,27 +50,42 @@ pub(crate) mod categories {
     }
 
     // These are the base categories (i.e: those that don't contain another category)
-    pub static NONE: Lazy<Category> = Lazy::new(|| Category::None);
-    pub static BEGIN: Lazy<Category> = Lazy::new(|| Category::Begin);
-    pub static END: Lazy<Category> = Lazy::new(|| Category::End);
-    pub static BLOCK_BEGIN: Lazy<Category> = Lazy::new(|| Category::BlockBegin);
-    pub static BLOCK_END: Lazy<Category> = Lazy::new(|| Category::BlockEnd);
-    pub static ALIGNMENT_BLOCK_BEGIN: Lazy<Category> = Lazy::new(|| Category::AlignmentBlockBegin);
-    pub static ALIGNMENT_BLOCK_END: Lazy<Category> = Lazy::new(|| Category::AlignmentBlockEnd);
-    pub static ALIGNMENT_MARKER: Lazy<Category> = Lazy::new(|| Category::AlignmentMarker);
-    pub static INDENTATION: Lazy<Category> = Lazy::new(|| Category::Indentation);
-    pub static WHITESPACE: Lazy<Category> = Lazy::new(|| Category::Whitespace);
-    pub static COMMENT: Lazy<Category> = Lazy::new(|| Category::Comment);
-    pub static NEWLINE: Lazy<Category> = Lazy::new(|| Category::Newline);
-    pub static KEYWORD: Lazy<Category> = Lazy::new(|| Category::Keyword);
-    pub static PUNCTUATION: Lazy<Category> = Lazy::new(|| Category::Punctuation);
-    pub static IDENTIFIER: Lazy<Category> = Lazy::new(|| Category::Identifier);
-    pub static LITERAL: Lazy<Category> = Lazy::new(|| Category::Literal);
-    pub static LGROUPING: Lazy<Category> = Lazy::new(|| Category::LGrouping);
-    pub static RGROUPING: Lazy<Category> = Lazy::new(|| Category::RGrouping);
+    pub static NONE: LazyLock<Category> = LazyLock::new(|| Category::None);
+    pub static BEGIN: LazyLock<Category> = LazyLock::new(|| Category::Begin);
+    pub static END: LazyLock<Category> = LazyLock::new(|| Category::End);
+    pub static BLOCK_BEGIN: LazyLock<Category> =
+        LazyLock::new(|| Category::BlockBegin);
+    pub static BLOCK_END: LazyLock<Category> =
+        LazyLock::new(|| Category::BlockEnd);
+    pub static ALIGNMENT_BLOCK_BEGIN: LazyLock<Category> =
+        LazyLock::new(|| Category::AlignmentBlockBegin);
+    pub static ALIGNMENT_BLOCK_END: LazyLock<Category> =
+        LazyLock::new(|| Category::AlignmentBlockEnd);
+    pub static ALIGNMENT_MARKER: LazyLock<Category> =
+        LazyLock::new(|| Category::AlignmentMarker);
+    pub static INDENTATION: LazyLock<Category> =
+        LazyLock::new(|| Category::Indentation);
+    pub static WHITESPACE: LazyLock<Category> =
+        LazyLock::new(|| Category::Whitespace);
+    pub static COMMENT: LazyLock<Category> =
+        LazyLock::new(|| Category::Comment);
+    pub static NEWLINE: LazyLock<Category> =
+        LazyLock::new(|| Category::Newline);
+    pub static KEYWORD: LazyLock<Category> =
+        LazyLock::new(|| Category::Keyword);
+    pub static PUNCTUATION: LazyLock<Category> =
+        LazyLock::new(|| Category::Punctuation);
+    pub static IDENTIFIER: LazyLock<Category> =
+        LazyLock::new(|| Category::Identifier);
+    pub static LITERAL: LazyLock<Category> =
+        LazyLock::new(|| Category::Literal);
+    pub static LGROUPING: LazyLock<Category> =
+        LazyLock::new(|| Category::LGrouping);
+    pub static RGROUPING: LazyLock<Category> =
+        LazyLock::new(|| Category::RGrouping);
 
     // These are super-categories that are composed of other categories.
-    pub static CONTROL: Lazy<Category> = Lazy::new(|| {
+    pub static CONTROL: LazyLock<Category> = LazyLock::new(|| {
         *BEGIN
             | *END
             | *INDENTATION
@@ -80,9 +95,7 @@ pub(crate) mod categories {
             | *ALIGNMENT_BLOCK_END
     });
 
-    pub static SPACING: Lazy<Category> = Lazy::new(|| *WHITESPACE | *NEWLINE);
-
-    pub static TEXT: Lazy<Category> = Lazy::new(|| {
+    pub static TEXT: LazyLock<Category> = LazyLock::new(|| {
         *KEYWORD
             | *PUNCTUATION
             | *LGROUPING
@@ -92,18 +105,26 @@ pub(crate) mod categories {
     });
 }
 
-pub(crate) static ASTERISK: Lazy<Token<'static>> = Lazy::new(|| Token::Punctuation(b"*"));
-pub(crate) static COLON: Lazy<Token<'static>> = Lazy::new(|| Token::Punctuation(b":"));
-pub(crate) static COMMA: Lazy<Token<'static>> = Lazy::new(|| Token::Punctuation(b","));
-pub(crate) static DOT: Lazy<Token<'static>> = Lazy::new(|| Token::Punctuation(b"."));
-pub(crate) static EQUAL: Lazy<Token<'static>> = Lazy::new(|| Token::Punctuation(b"="));
-pub(crate) static HYPHEN: Lazy<Token<'static>> = Lazy::new(|| Token::Punctuation(b"-"));
-pub(crate) static LBRACE: Lazy<Token<'static>> = Lazy::new(|| Token::Punctuation(b"{"));
-pub(crate) static RBRACE: Lazy<Token<'static>> = Lazy::new(|| Token::Punctuation(b"}"));
-pub(crate) static LBRACKET: Lazy<Token<'static>> = Lazy::new(|| Token::LGrouping(b"["));
-pub(crate) static RBRACKET: Lazy<Token<'static>> = Lazy::new(|| Token::RGrouping(b"]"));
-pub(crate) static LPAREN: Lazy<Token<'static>> = Lazy::new(|| Token::LGrouping(b"("));
-pub(crate) static RPAREN: Lazy<Token<'static>> = Lazy::new(|| Token::RGrouping(b")"));
+pub(crate) static ASTERISK: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::Punctuation(b"*"));
+pub(crate) static COLON: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::Punctuation(b":"));
+pub(crate) static COMMA: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::Punctuation(b","));
+pub(crate) static DOT: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::Punctuation(b"."));
+pub(crate) static EQUAL: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::Punctuation(b"="));
+pub(crate) static HYPHEN: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::Punctuation(b"-"));
+pub(crate) static LBRACE: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::Punctuation(b"{"));
+pub(crate) static RBRACE: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::Punctuation(b"}"));
+pub(crate) static LPAREN: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::LGrouping(b"("));
+pub(crate) static RPAREN: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::RGrouping(b")"));
 
 /// Type that represents the tokens used by the formatter.
 ///

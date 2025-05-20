@@ -5,7 +5,7 @@ and sections information, exported symbols, target platform, etc.
  */
 
 use std::cell::RefCell;
-use std::sync::Lazy;
+use std::sync::LazyLock;
 
 use itertools::Itertools;
 use md5::{Digest, Md5};
@@ -79,7 +79,7 @@ fn import_md5(ctx: &mut ScanContext) -> Option<RuntimeString> {
 /// Function names excluded while computing the telfhash. These exclusions
 /// are based on the original implementation:
 /// https://github.com/trendmicro/telfhash/blob/master/telfhash/telfhash.py
-pub(crate) static TELFHASH_EXCLUSIONS: Lazy<FxHashSet<&'static str>> = Lazy::new(|| {
+pub(crate) static TELFHASH_EXCLUSIONS: LazyLock<FxHashSet<&'static str>> = LazyLock::new(|| {
     let mut exclusions = FxHashSet::default();
     exclusions.insert("__libc_start_main");
     exclusions.insert("main");
