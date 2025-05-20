@@ -39,6 +39,9 @@ use crate::types::{Map, Regexp, Type, TypeValue, Value};
 /// patterns the [`TooManyPatterns`] error is returned.
 const MAX_PATTERNS_PER_RULE: usize = 100_000;
 
+/// Maximum number of iterations a loop can have before triggering a warning.
+const MAX_LOOP_ITERATIONS: i64 = 1_000_000;
+
 pub(in crate::compiler) fn patterns_from_ast<'src>(
     ctx: &mut CompileContext<'_, 'src, '_>,
     rule: &ast::Rule<'src>,
@@ -1123,7 +1126,6 @@ fn for_of_expr_from_ast(
 ) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &for_of.quantifier)?;
     let pattern_set = pattern_set_from_ast(ctx, &for_of.pattern_set)?;
-
     let mut stack_frame = ctx.vars.new_frame(VarStack::FOR_OF_FRAME_SIZE);
 
     let for_vars = ForVars {
@@ -1195,10 +1197,28 @@ fn for_in_expr_from_ast(
     let quantifier = quantifier_from_ast(ctx, &for_in.quantifier)?;
     let iterable = iterable_from_ast(ctx, &for_in.iterable)?;
 
+    let parent_multiplier = ctx.loop_iteration_multiplier;
+
+    if let Some(loop_iterations) = iterable.num_iterations(ctx.ir) {
+        let combined_iterations =
+            parent_multiplier.saturating_mul(loop_iterations);
+        if combined_iterations > MAX_LOOP_ITERATIONS {
+            ctx.warnings.add(|| {
+                warnings::TooManyIterations::build(
+                    ctx.report_builder,
+                    combined_iterations,
+                    ctx.report_builder.span_to_code_loc(for_in.span()),
+                )
+            });
+        }
+        ctx.loop_iteration_multiplier = combined_iterations;
+    }
+
     let (expected_vars, iterable_ty) = match &iterable {
         Iterable::Range(range) => {
             // Raise warning when the `for` loop iterates over a range that
-            // may be very large.
+            // may be very large, because it depends on the file size or the
+            // number of occurrences of some pattern (i.e: #a).
             if is_potentially_large_range(ctx, range) {
                 if ctx.error_on_slow_loop {
                     return Err(PotentiallySlowLoop::build(
@@ -1216,7 +1236,6 @@ fn for_in_expr_from_ast(
                     })
                 }
             }
-
             (vec![TypeValue::Integer(Value::Unknown)], Type::Unknown)
         }
         Iterable::ExprTuple(expressions) => {
@@ -1301,6 +1320,9 @@ fn for_in_expr_from_ast(
     ctx.symbol_table.pop();
 
     ctx.vars.unwind(&stack_frame);
+
+    // Restore the parent multiplier after the loop body has been processed.
+    ctx.loop_iteration_multiplier = parent_multiplier;
 
     Ok(ctx.ir.for_in(
         quantifier,

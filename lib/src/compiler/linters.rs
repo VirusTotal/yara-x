@@ -1,7 +1,6 @@
 use regex::{Error, Regex};
 
-use yara_x_parser::ast;
-use yara_x_parser::ast::{Meta, WithSpan};
+use yara_x_parser::ast::{self, Meta, WithSpan};
 
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::Warning;

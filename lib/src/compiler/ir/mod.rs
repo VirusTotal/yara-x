@@ -33,8 +33,8 @@ use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::mem;
 use std::mem::discriminant;
-use std::ops::Index;
 use std::ops::RangeInclusive;
+use std::ops::{Add, Index};
 use std::rc::Rc;
 
 use bitflags::bitflags;
@@ -2636,6 +2636,33 @@ pub(crate) enum Iterable {
     Range(Range),
     ExprTuple(Vec<ExprId>),
     Expr(ExprId),
+}
+
+impl Iterable {
+    /// Returns the number of iterations that would be performed if the value
+    /// is known at compile time. Returns `None` if the number of iterations
+    /// can't be known.
+    pub(crate) fn num_iterations(&self, ir: &IR) -> Option<i64> {
+        match self {
+            Iterable::Range(range) => {
+                let lower_bound = ir.get(range.lower_bound);
+                let upper_bound = ir.get(range.upper_bound);
+
+                if let (Some(lower_val), Some(upper_val)) = (
+                    lower_bound.try_as_const_integer(),
+                    upper_bound.try_as_const_integer(),
+                ) {
+                    upper_val.add(1).checked_sub(lower_val)
+                } else {
+                    None
+                }
+            }
+            Iterable::ExprTuple(exprs) => Some(exprs.len() as i64),
+            // Cannot determine the size of a generic expression/identifier
+            // at this stage easily. This could be an array or map identifier.
+            Iterable::Expr(_) => None,
+        }
+    }
 }
 
 impl Index<ExprId> for [Expr] {

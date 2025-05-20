@@ -23,17 +23,18 @@ pub enum Warning {
     DuplicateImport(Box<DuplicateImport>),
     IgnoredModule(Box<IgnoredModule>),
     IgnoredRule(Box<IgnoredRule>),
+    InvalidMetadata(Box<InvalidMetadata>),
+    InvalidRuleName(Box<InvalidRuleName>),
+    InvalidTag(Box<InvalidTag>),
     InvariantBooleanExpression(Box<InvariantBooleanExpression>),
+    MissingMetadata(Box<MissingMetadata>),
     NonBooleanAsBoolean(Box<NonBooleanAsBoolean>),
     PotentiallySlowLoop(Box<PotentiallySlowLoop>),
     PotentiallyUnsatisfiableExpression(Box<PotentiallyUnsatisfiableExpression>),
     RedundantCaseModifier(Box<RedundantCaseModifier>),
     SlowPattern(Box<SlowPattern>),
     TextPatternAsHex(Box<TextPatternAsHex>),
-    InvalidMetadata(Box<InvalidMetadata>),
-    MissingMetadata(Box<MissingMetadata>),
-    InvalidRuleName(Box<InvalidRuleName>),
-    InvalidTag(Box<InvalidTag>),
+    TooManyIterations(Box<TooManyIterations>),
     UnknownTag(Box<UnknownTag>),
 }
 
@@ -557,8 +558,41 @@ pub struct InvalidRuleName {
     regex: String,
 }
 
+/// A loop or nested loops have a total number of iterations exceeding a
+/// predefined threshold.
+///
+/// This warning indicates that a rule contains a `for` loop, or a set of nested
+/// `for` loops, that may be very slow because the total number of iterations
+/// is very large.
+///
+/// # Example
+///
+/// ```text
+/// warning[too_many_iterations]: loop has too many iterations
+///  --> test.yar:1:20
+///   |
+/// 1 | rule t { condition: for any i in (0..1000) : ( for any j in (0..1000) : ( true ) ) }
+///   |                    -------------------------------------------------------------- this loop iterates 1000000 times, which may be slow
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "too_many_iterations",
+    title = "loop has too many iterations",
+)]
+#[label(
+    "this loop iterates {iterations} times, which may be slow",
+    loc
+)]
+pub struct TooManyIterations {
+    report: Report,
+    iterations: i64,
+    loc: CodeLoc,
+}
+
 /// Unknown tag. This is only used if the compiler is configured to check
-/// for required tags (see:  [`crate::linters::Tags`]).
+/// for required tags (see: [`crate::linters::Tags`]).
 ///
 /// ## Example
 ///
