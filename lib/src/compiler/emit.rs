@@ -296,7 +296,7 @@ fn emit_expr(
             t => unreachable!("{:?}", t),
         },
 
-        Expr::Filesize { .. } => {
+        Expr::Filesize => {
             instr.global_get(ctx.wasm_symbols.filesize);
         }
 
@@ -1988,7 +1988,7 @@ fn emit_for<I, B, C, A>(
             // At the top of the stack we have the i32 with the result from
             // the loop body. Decide what to do depending on the quantifier.
             match quantifier {
-                Quantifier::None { .. } => {
+                Quantifier::None => {
                     block.if_else(
                         I32,
                         |then_| {
@@ -2008,7 +2008,7 @@ fn emit_for<I, B, C, A>(
                         },
                     );
                 }
-                Quantifier::All { .. } => {
+                Quantifier::All => {
                     block.if_else(
                         I32,
                         |then_| {
@@ -2028,7 +2028,7 @@ fn emit_for<I, B, C, A>(
                         },
                     );
                 }
-                Quantifier::Any { .. } => {
+                Quantifier::Any => {
                     block.if_else(
                         I32,
                         |then_| {

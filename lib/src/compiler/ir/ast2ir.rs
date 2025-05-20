@@ -1062,7 +1062,7 @@ fn of_expr_from_ast(
             // `all of <items> at <expr>`: the warning is raised only if there
             // are more than one item. `all of ($a) at 0` doesn't raise a
             // warning.
-            Quantifier::All { .. } => items.len() > 1,
+            Quantifier::All => items.len() > 1,
             // `<expr> of <items> at <expr>: the warning is raised if <expr> is
             // 2 or more.
             Quantifier::Expr(expr) => match ctx.ir.get(*expr).type_value() {
@@ -1079,7 +1079,7 @@ fn of_expr_from_ast(
                     _ => false,
                 }
             }
-            Quantifier::None { .. } | Quantifier::Any { .. } => false,
+            Quantifier::None | Quantifier::Any => false,
         };
 
         if raise_warning {

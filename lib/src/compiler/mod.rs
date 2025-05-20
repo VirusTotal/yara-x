@@ -2805,7 +2805,7 @@ impl Warnings {
 
     /// Returns true if the given code is a valid warning code.
     pub fn is_valid_code(code: &str) -> bool {
-        Warning::all_codes().iter().any(|c| *c == code)
+        Warning::all_codes().contains(&code)
     }
 
     /// Enables or disables a specific warning identified by `code`.
