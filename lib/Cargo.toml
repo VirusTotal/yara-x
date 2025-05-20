@@ -236,7 +236,6 @@ indexmap = { workspace = true, features = ["serde"] }
 intaglio = { workspace = true }
 ipnet = { workspace = true, optional = true }
 itertools = { workspace = true }
-lazy_static = { workspace = true }
 linkme = { workspace = true }
 log = { workspace = true, optional = true }
 md2 = { workspace = true, optional = true, features = ["oid"] }

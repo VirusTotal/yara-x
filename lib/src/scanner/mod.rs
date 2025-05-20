@@ -623,7 +623,7 @@ impl<'r> Scanner<'r> {
             INIT_HEARTBEAT.call_once(|| {
                 thread::spawn(|| loop {
                     thread::sleep(Duration::from_secs(1));
-                    ENGINE.increment_epoch();
+                    crate::wasm::ENGINE.increment_epoch();
                     HEARTBEAT_COUNTER
                         .fetch_update(
                             Ordering::SeqCst,

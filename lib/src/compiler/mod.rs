@@ -734,7 +734,7 @@ impl<'a> Compiler<'a> {
         // emitted by YARA itself. If this ever happens is probably because
         // wrong WASM code is being emitted.
         let compiled_wasm_mod = wasmtime::Module::from_binary(
-            &crate::wasm::ENGINE,
+            &*crate::wasm::ENGINE,
             wasm_mod.as_slice(),
         )
         .expect("WASM module is not valid");

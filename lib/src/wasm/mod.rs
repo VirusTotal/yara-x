@@ -80,9 +80,9 @@ See the [`lookup_field`] function.
 use std::any::{type_name, TypeId};
 use std::mem;
 use std::rc::Rc;
+use std::sync::Lazy;
 
 use bstr::{BString, ByteSlice};
-use lazy_static::lazy_static;
 use linkme::distributed_slice;
 use rustc_hash::FxHashMap;
 use smallvec::{smallvec, SmallVec};
@@ -705,55 +705,56 @@ pub(crate) struct WasmSymbols {
     pub f64_tmp: walrus::LocalId,
 }
 
-lazy_static! {
-    pub(crate) static ref CONFIG: Config = {
-        let mut config = Config::default();
-        // Wasmtime produces a nasty warning when linked against musl. The
-        // warning can be fixed by disabling native unwind information.
-        //
-        // More details:
-        //
-        // https://github.com/bytecodealliance/wasmtime/issues/8897
-        // https://github.com/VirusTotal/yara-x/issues/181
-        //
-        #[cfg(target_env = "musl")]
-        config.native_unwind_info(false);
+pub(crate) static CONFIG: Lazy<Config> = Lazy::new(|| {
+    let mut config = Config::default();
+    // Wasmtime produces a nasty warning when linked against musl. The
+    // warning can be fixed by disabling native unwind information.
+    //
+    // More details:
+    //
+    // https://github.com/bytecodealliance/wasmtime/issues/8897
+    // https://github.com/VirusTotal/yara-x/issues/181
+    //
+    #[cfg(target_env = "musl")]
+    config.native_unwind_info(false);
 
-        config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
-        config.epoch_interruption(true);
+    config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
+    config.epoch_interruption(true);
 
-        // 16MB should be enough for each WASM module. Each module needs a
-        // fixed amount of memory that is only a few KB long, plus a variable
-        // amount that depends on the number of rules and patterns (1 bit per
-        // rule and 1 bit per pattern). With 16MB there's enough space for
-        // millions of rules and patterns. By default, this is 4GB in 64-bits
-        // systems, which causes a reservation of 4GB of virtual address space
-        // (not physical RAM) per module (and therefore per Scanner). In some
-        // scenarios where virtual address space is limited (i.e: Docker
-        // instances) this is problematic. See:
-        // https://github.com/VirusTotal/yara-x/issues/292
-        config.memory_reservation(0x1000000);
+    // 16MB should be enough for each WASM module. Each module needs a
+    // fixed amount of memory that is only a few KB long, plus a variable
+    // amount that depends on the number of rules and patterns (1 bit per
+    // rule and 1 bit per pattern). With 16MB there's enough space for
+    // millions of rules and patterns. By default, this is 4GB in 64-bits
+    // systems, which causes a reservation of 4GB of virtual address space
+    // (not physical RAM) per module (and therefore per Scanner). In some
+    // scenarios where virtual address space is limited (i.e: Docker
+    // instances) this is problematic. See:
+    // https://github.com/VirusTotal/yara-x/issues/292
+    config.memory_reservation(0x1000000);
 
-        // WASM memory won't grow, there's no need to allocate space for
-        // future grow.
-        config.memory_reservation_for_growth(0);
+    // WASM memory won't grow, there's no need to allocate space for
+    // future grow.
+    config.memory_reservation_for_growth(0);
 
-        // As the memory can't grow, it won't move. By explicitly indicating
-        // this, modules can be compiled with static knowledge the base pointer
-        // of linear memory never changes to enable optimizations.
-        config.memory_may_move(false);
+    // As the memory can't grow, it won't move. By explicitly indicating
+    // this, modules can be compiled with static knowledge the base pointer
+    // of linear memory never changes to enable optimizations.
+    config.memory_may_move(false);
 
-        config
-    };
-    pub(crate) static ref ENGINE: Engine = Engine::new(&CONFIG).unwrap();
-    pub(crate) static ref LINKER: Linker<ScanContext<'static>> = new_linker();
-}
+    config
+});
+
+pub(crate) static ENGINE: Lazy<Engine> = Lazy::new(|| Engine::new(&*CONFIG).unwrap());
+
+pub(crate) static LINKER: Lazy<Linker<ScanContext<'static>>> = Lazy::new(|| new_linker());
 
 pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
-    let mut linker = Linker::<ScanContext<'r>>::new(&ENGINE);
+    let mut linker = Linker::<ScanContext<'r>>::new(&*ENGINE);
     for export in WASM_EXPORTS {
         let func_type = FuncType::new(
-            &ENGINE,
+            &*ENGINE,
+            &*ENGINE,
             export.func.wasmtime_args(),
             export.func.wasmtime_results(),
         );
