@@ -1199,7 +1199,7 @@ fn for_in_expr_from_ast(
 
     let parent_multiplier = ctx.loop_iteration_multiplier;
 
-    if let Some(loop_iterations) = iterable.num_iterations(&ctx.ir) {
+    if let Some(loop_iterations) = iterable.num_iterations(ctx.ir) {
         let combined_iterations =
             parent_multiplier.saturating_mul(loop_iterations);
         if combined_iterations > MAX_LOOP_ITERATIONS {

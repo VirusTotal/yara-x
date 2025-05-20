@@ -1,11 +1,10 @@
 use regex::{Error, Regex};
 
-use yara_x_parser::ast::{self, Meta, WithSpan}; // Updated import
+use yara_x_parser::ast::{self, Meta, WithSpan};
 
 use crate::compiler::report::ReportBuilder;
-use crate::compiler::{warnings, Warning};      // Added import (Warning is used by LinterResult and check_expr)
-// Removed duplicate: use crate::compiler::Warning;
-use crate::compiler::{errors /* removed redundant warnings import here if present */};
+use crate::compiler::{warnings, Warning};
+use crate::compiler::errors;
 use crate::errors::CompileError;
 
 /// Trait implemented by all linters.
