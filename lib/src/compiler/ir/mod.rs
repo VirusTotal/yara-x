@@ -33,8 +33,8 @@ use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::mem;
 use std::mem::discriminant;
-use std::ops::{Add, Index};
 use std::ops::RangeInclusive;
+use std::ops::{Add, Index};
 use std::rc::Rc;
 
 use bitflags::bitflags;
@@ -2645,26 +2645,22 @@ impl Iterable {
     pub(crate) fn num_iterations(&self, ir: &IR) -> Option<i64> {
         match self {
             Iterable::Range(range) => {
-                let lower_bound_expr = ir.get(range.lower_bound);
-                let upper_bound_expr = ir.get(range.upper_bound);
+                let lower_bound = ir.get(range.lower_bound);
+                let upper_bound = ir.get(range.upper_bound);
 
                 if let (Some(lower_val), Some(upper_val)) = (
-                    lower_bound_expr.try_as_const_integer(),
-                    upper_bound_expr.try_as_const_integer(),
+                    lower_bound.try_as_const_integer(),
+                    upper_bound.try_as_const_integer(),
                 ) {
                     upper_val.add(1).checked_sub(lower_val)
                 } else {
                     None
                 }
             }
-            Iterable::ExprTuple(exprs) => {
-                Some(exprs.len() as i64)
-            }
-            Iterable::Expr(_expr_id) => {
-                // Cannot determine the size of a generic expression/identifier
-                // at this stage easily. This could be an array or map identifier.
-                None
-            }
+            Iterable::ExprTuple(exprs) => Some(exprs.len() as i64),
+            // Cannot determine the size of a generic expression/identifier
+            // at this stage easily. This could be an array or map identifier.
+            Iterable::Expr(_) => None,
         }
     }
 }
