@@ -40,10 +40,12 @@ func Globals(vars map[string]interface{}) CompileOption {
 // IgnoreModule is an option for [NewCompiler] and [Compile] that allows
 // ignoring a given module.
 //
-// This option can be passed multiple times with different module names.
-// Alternatively, you can use [Compiler.IgnoreModule], but modules ignored this
-// way are not retained after [Compiler.Build] is called, unlike modules ignored
-// with the IgnoreModule option.
+// Import statements for ignored modules will be ignored without errors,
+// but a warning will be issued. Any rule that makes use of an ignored
+// module will be also ignored, while the rest of the rules that don't
+// rely on that module will be correctly compiled.
+//
+// This option can be used multiple times for ignoring different modules.
 func IgnoreModule(module string) CompileOption {
 	return func(c *Compiler) error {
 		c.ignoredModules[module] = true
