@@ -4,8 +4,8 @@ The scanner takes the rules produces by the compiler and scans data with them.
 */
 use std::cell::RefCell;
 use std::collections::{hash_map, HashMap};
-use std::io::Read;
 use std::mem::transmute;
+use std::io::{Read, BufReader, prelude::*};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -16,6 +16,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Once;
 use std::time::Duration;
 use std::{cmp, fs, thread};
+use std::os::unix::fs::{MetadataExt, FileExt};
 
 use bitvec::prelude::*;
 use indexmap::IndexMap;
@@ -28,6 +29,7 @@ use wasmtime::{
     AsContext, AsContextMut, Global, GlobalType, MemoryType, Mutability,
     Store, TypedFunc, Val, ValType,
 };
+use itertools::Itertools;
 
 use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
@@ -48,6 +50,13 @@ mod matches;
 
 #[cfg(test)]
 mod tests;
+
+
+enum Mapping {
+    File(fs::File),
+    Mem,
+    Uninitialized,
+}
 
 /// Error returned when a scan operation fails.
 #[derive(Error, Debug)]
@@ -382,6 +391,16 @@ impl<'r> Scanner<'r> {
         self.scan_impl(Self::load_file(target.as_ref())?, None)
     }
 
+    /// Scans a process.
+    pub fn scan_proc<'a>(
+        &'a mut self,
+        target: u64,
+    ) -> Result<ScanResults<'a, 'r>, ScanError>
+    {
+        self.scan_impl(Self::load_file(target.as_ref())?, None)
+    }
+
+
     /// Like [`Scanner::scan`], but allows to specify additional scan options.
     pub fn scan_with_options<'a, 'opts>(
         &'a mut self,
@@ -585,6 +604,123 @@ impl<'r> Scanner<'r> {
             )
         }
     }
+    // For now going to read the memory of the entire process being scanned into our own process.
+    // In the future should do something like was done in yara (iterators).
+    #[cfg(target_os = "linux")]
+    fn load_proc<'a>(pid: u64) -> Result<ScannedData<'a>, ScanError> {
+        let maps_path: PathBuf = format!("/proc/{pid}/maps").into();
+        let maps = fs::OpenOptions::new().read(true).open(maps_path).map_err(|err| {
+            ScanError::OpenError { path: maps_path, source: err }
+        })?;
+        let mem_fd_path: PathBuf = format!("/proc/{pid}/mem").into();
+        let mem_fd = fs::OpenOptions::new().read(true).open(mem_fd_path).map_err(|err| {
+            ScanError::OpenError { path: mem_fd_path, source: err }
+        })?;
+        let pagemap_fd_path: PathBuf = format!("/proc/{pid}/pagemap").into();
+        let pagemap_fd = fs::OpenOptions::new().read(true).open(pagemap_fd_path).map_err(|err| {
+            ScanError::OpenError { path: pagemap_fd_path, source: err }
+        })?;
+
+        let reader = BufReader::new(maps);
+        let mem: Vec<u8> = Vec::new();
+
+        for line in reader.lines() {
+            let line = line.map_err(|err| {
+                ScanError::OpenError { path: maps_path, source: err }
+            })?;
+            // Each row in /proc/$PID/maps describes a region of contiguous virtual
+            // memory in a process or thread. Each row has the following fields:
+            //
+            // address           perms offset  dev   inode   pathname
+            // 08048000-08056000 r-xp 00000000 03:0c 64593   /usr/sbin/gpm
+            let Some((address, perms, offset, dev, inode, path)) = line.splitn(6, " ").next_tuple() else {continue;};
+            let Ok(offset) = offset.parse::<u64>() else {continue;};
+            let Ok(inode) = inode.parse::<u64>() else {continue;};
+            let Some((begin, end)) = address.split("-").next_tuple() else {continue;};
+            let Ok(begin) = begin.parse::<u64>() else {continue;};
+            let Ok(end) = end.parse::<u64>() else {continue;};
+            let Some((dmaj, dmin)) = dev.split(":").next_tuple() else {continue;};
+            let Ok(dmaj) = dmaj.parse::<u64>() else {continue;};
+            let Ok(dmin) = dmin.parse::<u64>() else {continue;};
+            let size = end - begin;
+            if !perms.starts_with("r") {continue;}
+            let map_path = Path::new(path);
+            let mapping: Mapping = Mapping::Uninitialized;
+            if map_path.has_root()  && !((dmaj == 0) && (dmin == 0)) {
+                if let Ok(meta) = fs::metadata(map_path) {
+                    let device_id = meta.dev();
+                    // the major and minor are encoded as MMMM Mmmm mmmM MMmm with M being a
+                    // hex digit of the major and m being of the minor.
+                    let file_dmaj = ((device_id & 0x00000000000fff00) >>  8) | ((device_id & 0xfffff00000000000) >> 32);
+                    let file_dmin = (device_id & 0x00000000000000ff) | ((device_id & 0x00000ffffff00000) >> 12);
+                    if (meta.ino() != inode) || (dmaj != file_dmaj) || (dmin != file_dmin) {
+                        // Wrong file, may have been replaced. Treat like missing.
+                        mapping = Mapping::Mem;
+                    } else if meta.size() < offset + size {
+                        // Mapping extends past end of file. Treat like missing.
+                        mapping = Mapping::Mem;
+                    // S_IFMT = 0170000, S_IFREG = 0100000
+                    } else if (meta.mode() & 0o170000) != 0o100000 {
+                        // Correct filesystem object, but not a regular file. Treat like
+                        // uninitialized mapping.
+                        mapping = Mapping::Uninitialized;
+                    } else {
+                        match fs::OpenOptions::new()
+                            .read(true)
+                            .open(map_path) {
+                            Ok(f) => {
+                                match f.metadata() {
+                                    Ok(file_meta) => {
+                                        mapping = if (file_meta.dev() == device_id) && (file_meta.ino() == meta.ino()) {
+                                            Mapping::File(f)
+                                        } else {
+                                            Mapping::Mem
+                                        };
+
+                                    }
+                                    Err(_) => mapping = Mapping::Mem,
+                                }
+                            }
+                            Err(_) => {
+                                mapping = Mapping::Mem;
+                            }
+                        };
+
+                    }
+                } else {
+                    // Why should stat fail after file open? Treat like missing.
+                    mapping = Mapping::Mem;
+                }
+            }
+            if let Mapping::File(file) = mapping {
+                let res = unsafe {
+                    MmapOptions::new().map(&file)
+                };
+                match res {
+                    Err(_) => mapping = Mapping::Mem,
+                    Ok(mmap) => {
+                        let context_buffer = Some(mmap);
+                        //
+                    }
+                }
+            }
+            match mapping {
+                Mapping::Mem => {
+                    let prev_end = mem.len();
+                    mem.resize(prev_end + size as usize, 0);
+                    mem_fd.read_exact_at(&mut mem[prev_end..], begin);
+                }
+                Mapping::Uninitialized => {},
+                Mapping::File(_) =>,
+
+            }
+
+        }
+        Ok(())
+    }
+    #[cfg(target_os = "windows")]
+    fn load_proc<'a>(pid: u64) -> Result<ScannedData<'a>, ScanError> {}
+
 
     fn load_file(path: &Path) -> Result<ScannedData<'static>, ScanError> {
         let mut file = fs::File::open(path).map_err(|err| {
