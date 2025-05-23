@@ -689,11 +689,14 @@ impl<'r> Scanner<'r> {
                 "reading {:x} at addresss {begin:x}",
                 process_memory.len() - prev_end
             );
-            mem_fd.read_exact_at(&mut process_memory[prev_end..], begin);
-            // .map_err(|err| ScanError::OpenError {
-            //     path: mem_fd_path.to_path_buf(),
-            //     source: err,
-            // })?;
+            // this currently fails on things like vvars, not sure why, might be alright to just
+            // ignore failures.
+            mem_fd
+                .read_exact_at(&mut process_memory[prev_end..], begin)
+                .map_err(|err| ScanError::OpenError {
+                    path: mem_fd_path.to_path_buf(),
+                    source: err,
+                })?;
 
             // let map_path = Path::new(path);
             // let mapping: Mapping = Mapping::Uninitialized;
