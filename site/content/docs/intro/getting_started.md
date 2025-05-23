@@ -22,8 +22,8 @@ seo:
 YARA-X is a re-incarnation of  [YARA](https://virustotal.github.io/yara), a
 pattern matching tool designed with malware researchers in mind. This new
 incarnation intends to be faster, safer and more user-friendly than its
-predecessor. The ultimate goal of YARA-X is to
-serve as the future replacement for YARA.
+predecessor. The ultimate goal of YARA-X is replacing YARA as the default
+pattern matching tool for malware researchers.
 
 With YARA-X you can create descriptions of malware families (or whatever you
 want to describe) based on textual or binary patterns. Each description (a.k.a.
