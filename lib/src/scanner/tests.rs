@@ -761,6 +761,35 @@ fn scan_file() {
     assert_eq!(scan_results.matching_rules().len(), 1)
 }
 
+#[test]
+fn scan_proc() {
+    let rules = crate::compile(
+        r#"
+    rule slow {
+      strings:
+        $a = "aaba"
+      condition: 
+        $a
+    }
+    "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    let scan_results = scanner.scan_proc(740445).unwrap();
+
+    assert_eq!(scan_results.matching_rules().len(), 1);
+
+    // let scan_results = scanner
+    //     .scan_file_with_options(
+    //         "src/tests/testdata/jumps.bin",
+    //         ScanOptions::default(),
+    //     )
+    //     .unwrap();
+    //
+    // assert_eq!(scan_results.matching_rules().len(), 1)
+}
+
 #[cfg(feature = "rules-profiling")]
 #[test]
 fn rules_profiling() {
