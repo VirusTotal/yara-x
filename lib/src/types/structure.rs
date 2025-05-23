@@ -18,7 +18,7 @@ use crate::modules::protos::yara::exts::{
     enum_options, enum_value, field_options, message_options, module_options,
 };
 use crate::symbols::{Symbol, SymbolLookup};
-use crate::types::{Array, Map, TypeValue, Value};
+use crate::types::{Array, Map, TypeValue};
 use crate::wasm::WasmExport;
 
 /// Each of the entries in an Access Control List (ACL)
@@ -750,7 +750,7 @@ impl Struct {
                     // values.
                     TypeValue::var_integer_from(0)
                 } else {
-                    TypeValue::Integer(Value::Unknown)
+                    TypeValue::unknown_integer()
                 }
             }
             RuntimeType::F32 | RuntimeType::F64 => {
@@ -761,7 +761,7 @@ impl Struct {
                     // values.
                     TypeValue::var_float_from(0_f64)
                 } else {
-                    TypeValue::Float(Value::Unknown)
+                    TypeValue::unknown_float()
                 }
             }
             RuntimeType::Bool => {
@@ -772,7 +772,7 @@ impl Struct {
                     // values.
                     TypeValue::var_bool_from(false)
                 } else {
-                    TypeValue::Bool(Value::Unknown)
+                    TypeValue::unknown_bool()
                 }
             }
             RuntimeType::String | RuntimeType::VecU8 => {
@@ -783,7 +783,7 @@ impl Struct {
                     // values.
                     TypeValue::var_string_from(b"")
                 } else {
-                    TypeValue::String(Value::Unknown)
+                    TypeValue::unknown_string()
                 }
             }
             RuntimeType::Message(msg_descriptor) => {
@@ -1132,9 +1132,10 @@ impl PartialEq for Struct {
 
 #[cfg(test)]
 mod tests {
-    use super::Struct;
-    use crate::types::{Array, Type, TypeValue, Value};
     use std::rc::Rc;
+
+    use super::Struct;
+    use crate::types::{Array, Type, TypeValue};
 
     #[test]
     fn test_struct() {
@@ -1142,7 +1143,7 @@ mod tests {
         let foo = Struct::default();
 
         root.add_field("foo", TypeValue::Struct(Rc::new(foo)));
-        root.add_field("bar", TypeValue::Integer(Value::Var(1)));
+        root.add_field("bar", TypeValue::var_integer_from(1));
 
         let field1 = root.field_by_name("foo").unwrap();
         let field2 = root.field_by_index(0).unwrap();
@@ -1150,24 +1151,24 @@ mod tests {
         assert_eq!(field1.type_value.ty(), Type::Struct);
         assert_eq!(field1.type_value.ty(), field2.type_value.ty());
 
-        root.add_field("foo.bar", TypeValue::Integer(Value::Var(1)));
+        root.add_field("foo.bar", TypeValue::var_integer_from(1));
     }
 
     #[test]
     fn struct_eq() {
         let mut sub: Struct = Struct::default();
 
-        sub.add_field("integer", TypeValue::Integer(Value::Unknown));
-        sub.add_field("string", TypeValue::String(Value::Unknown));
-        sub.add_field("boolean", TypeValue::Bool(Value::Unknown));
+        sub.add_field("integer", TypeValue::unknown_integer());
+        sub.add_field("string", TypeValue::unknown_string());
+        sub.add_field("boolean", TypeValue::unknown_bool());
 
         let sub = Rc::new(sub);
 
         let mut a = Struct::default();
         let mut b = Struct::default();
 
-        a.add_field("boolean", TypeValue::Bool(Value::Var(true)));
-        a.add_field("integer", TypeValue::Integer(Value::Var(1)));
+        a.add_field("boolean", TypeValue::var_bool_from(true));
+        a.add_field("integer", TypeValue::var_integer_from(1));
         a.add_field("structure", TypeValue::Struct(sub.clone()));
         a.add_field(
             "floats_array",
@@ -1177,8 +1178,8 @@ mod tests {
         // At this point a != b because b is still empty.
         assert_ne!(a, b);
 
-        b.add_field("boolean", TypeValue::Bool(Value::Var(false)));
-        b.add_field("integer", TypeValue::Integer(Value::Var(1)));
+        b.add_field("boolean", TypeValue::var_bool_from(false));
+        b.add_field("integer", TypeValue::var_integer_from(1));
         b.add_field("structure", TypeValue::Struct(sub));
         b.add_field(
             "floats_array",
@@ -1188,8 +1189,8 @@ mod tests {
         // At this point a == b.
         assert_eq!(a, b);
 
-        a.add_field("foo", TypeValue::Bool(Value::Var(false)));
-        b.add_field("foo", TypeValue::Integer(Value::Unknown));
+        a.add_field("foo", TypeValue::var_bool_from(false));
+        b.add_field("foo", TypeValue::unknown_integer());
 
         // At this point a != b again because field "foo" have a different type
         // on each structure.

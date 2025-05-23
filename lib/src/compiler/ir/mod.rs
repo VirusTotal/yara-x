@@ -43,6 +43,7 @@ use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHasher};
 use serde::{Deserialize, Serialize};
 
+use yara_x_parser::ast::Ident;
 use yara_x_parser::Span;
 
 use crate::compiler::context::{Var, VarStack};
@@ -52,11 +53,11 @@ use crate::compiler::ir::dfs::{
 
 use crate::re;
 use crate::symbols::Symbol;
-use crate::types::{Func, FuncSignature, Type, TypeValue, Value};
+use crate::types::Value::Const;
+use crate::types::{Func, FuncSignature, Type, TypeValue};
 
 pub(in crate::compiler) use ast2ir::patterns_from_ast;
 pub(in crate::compiler) use ast2ir::rule_condition_from_ast;
-use yara_x_parser::ast::Ident;
 
 mod ast2ir;
 mod dfs;
@@ -1384,10 +1385,10 @@ impl IR {
     pub fn minus(&mut self, operand: ExprId) -> ExprId {
         if self.constant_folding {
             match self.get(operand).type_value() {
-                TypeValue::Integer(Value::Const(v)) => {
+                TypeValue::Integer { value: Const(v) } => {
                     return self.constant(TypeValue::const_integer_from(-v));
                 }
-                TypeValue::Float(Value::Const(v)) => {
+                TypeValue::Float { value: Const(v) } => {
                     return self.constant(TypeValue::const_float_from(-v));
                 }
                 _ => {}
@@ -2133,8 +2134,8 @@ impl IR {
         let folded = operands
             .iter()
             .map(|op| match self.get(*op).type_value() {
-                TypeValue::Integer(Value::Const(v)) => v as f64,
-                TypeValue::Float(Value::Const(v)) => v,
+                TypeValue::Integer { value: Const(v) } => v as f64,
+                TypeValue::Float { value: Const(v) } => v,
                 _ => unreachable!(),
             })
             .reduce(f) // It's safe to call unwrap because there must be at least
@@ -3077,13 +3078,13 @@ impl Expr {
             | Expr::OfExprTuple(_)
             | Expr::OfPatternSet(_)
             | Expr::ForOf(_)
-            | Expr::ForIn(_) => TypeValue::Bool(Value::Unknown),
+            | Expr::ForIn(_) => TypeValue::unknown_bool(),
 
             Expr::Minus { is_float, .. } => {
                 if *is_float {
-                    TypeValue::Float(Value::Unknown)
+                    TypeValue::unknown_float()
                 } else {
-                    TypeValue::Integer(Value::Unknown)
+                    TypeValue::unknown_integer()
                 }
             }
 
@@ -3092,9 +3093,9 @@ impl Expr {
             | Expr::Mul { is_float, .. }
             | Expr::Div { is_float, .. } => {
                 if *is_float {
-                    TypeValue::Float(Value::Unknown)
+                    TypeValue::unknown_float()
                 } else {
-                    TypeValue::Integer(Value::Unknown)
+                    TypeValue::unknown_integer()
                 }
             }
 
@@ -3111,7 +3112,7 @@ impl Expr {
             | Expr::BitwiseOr { .. }
             | Expr::BitwiseXor { .. }
             | Expr::Shl { .. }
-            | Expr::Shr { .. } => TypeValue::Integer(Value::Unknown),
+            | Expr::Shr { .. } => TypeValue::unknown_integer(),
 
             Expr::Symbol(symbol) => symbol.type_value().clone(),
             Expr::FieldAccess(field_access) => field_access.type_value.clone(),
@@ -3124,7 +3125,7 @@ impl Expr {
     /// If the expression is a constant boolean, returns its value, if not
     /// returns [`None`]
     pub fn try_as_const_bool(&self) -> Option<bool> {
-        if let TypeValue::Bool(Value::Const(v)) = self.type_value() {
+        if let TypeValue::Bool { value: Const(v) } = self.type_value() {
             Some(v)
         } else {
             None
@@ -3134,7 +3135,7 @@ impl Expr {
     /// If the expression is a constant integer, returns its value, if not
     /// returns [`None`]
     pub fn try_as_const_integer(&self) -> Option<i64> {
-        if let TypeValue::Integer(Value::Const(v)) = self.type_value() {
+        if let TypeValue::Integer { value: Const(v) } = self.type_value() {
             Some(v)
         } else {
             None

@@ -1034,9 +1034,13 @@ pub(crate) fn lookup_string(
     num_lookup_indexes: i32,
 ) -> Option<RuntimeString> {
     match lookup_field(caller, structure, num_lookup_indexes) {
-        TypeValue::String(Value::Var(s)) => Some(RuntimeString::Rc(s)),
-        TypeValue::String(Value::Const(s)) => Some(RuntimeString::Rc(s)),
-        TypeValue::String(Value::Unknown) => None,
+        TypeValue::String { value: Value::Var(s) } => {
+            Some(RuntimeString::Rc(s))
+        }
+        TypeValue::String { value: Value::Const(s) } => {
+            Some(RuntimeString::Rc(s))
+        }
+        TypeValue::String { value: Value::Unknown } => None,
         _ => unreachable!(),
     }
 }
@@ -1068,7 +1072,7 @@ macro_rules! gen_lookup_fn {
             structure: Option<Rc<Struct>>,
             num_lookup_indexes: i32,
         ) -> Option<$return_type> {
-            if let $type(value) =
+            if let $type { value } =
                 lookup_field(caller, structure, num_lookup_indexes)
             {
                 value.extract().cloned()

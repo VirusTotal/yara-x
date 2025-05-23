@@ -160,20 +160,20 @@ impl Regexp {
 /// A [`TypeValue`] contains information about the type, and possibly the
 /// value of a YARA expression or identifier.
 ///
-/// In the case of primitive types (integer, float, bool and string), the
-/// value can be constant, variable, or unknown. Structs, arrays and maps
-/// always have a reference to a [`Struct`], [`Array`] or [`Map`] respectively,
-/// but those structures, arrays and maps don't contain actual values at
-/// compile time, they only provide details about the type, like for example,
+/// In the case of primitive types (integer, float, bool, and string), the
+/// value can be constant, variable, or unknown. Structs, arrays, and maps
+/// always have a reference to a [`Struct`], [`Array`] or [`Map`] respectively.
+/// However, those structures, arrays, and maps don't contain actual values at
+/// compile time, they only provide details about the type, like, for example,
 /// which are the fields in a struct, or what's the type of the items in an
 /// array.
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) enum TypeValue {
     Unknown,
-    Integer(Value<i64>),
-    Float(Value<f64>),
-    Bool(Value<bool>),
-    String(Value<Rc<BString>>),
+    Integer { value: Value<i64> },
+    Float { value: Value<f64> },
+    Bool { value: Value<bool> },
+    String { value: Value<Rc<BString>> },
     Regexp(Option<Regexp>),
     Struct(Rc<Struct>),
     Array(Rc<Array>),
@@ -186,29 +186,29 @@ impl Hash for TypeValue {
         mem::discriminant(self).hash(state);
         match self {
             TypeValue::Unknown => {}
-            TypeValue::Integer(v) => {
-                mem::discriminant(v).hash(state);
-                if let Value::Const(c) = v {
+            TypeValue::Integer { value } => {
+                mem::discriminant(value).hash(state);
+                if let Value::Const(c) = value {
                     c.hash(state);
                 }
             }
-            TypeValue::Float(v) => {
-                mem::discriminant(v).hash(state);
-                if let Value::Const(c) = v {
+            TypeValue::Float { value } => {
+                mem::discriminant(value).hash(state);
+                if let Value::Const(c) = value {
                     // f64 doesn't implement the Hash trait. We hash the binary
                     // representation of the f64.
                     f64::to_bits(*c).hash(state);
                 }
             }
-            TypeValue::Bool(v) => {
-                mem::discriminant(v).hash(state);
-                if let Value::Const(c) = v {
+            TypeValue::Bool { value } => {
+                mem::discriminant(value).hash(state);
+                if let Value::Const(c) = value {
                     c.hash(state);
                 }
             }
-            TypeValue::String(v) => {
-                mem::discriminant(v).hash(state);
-                if let Value::Const(c) = v {
+            TypeValue::String { value } => {
+                mem::discriminant(value).hash(state);
+                if let Value::Const(c) = value {
                     c.hash(state);
                 }
             }
@@ -235,10 +235,10 @@ impl TypeValue {
     pub fn is_const(&self) -> bool {
         match self {
             TypeValue::Unknown => false,
-            TypeValue::Integer(value) => value.is_const(),
-            TypeValue::Float(value) => value.is_const(),
-            TypeValue::Bool(value) => value.is_const(),
-            TypeValue::String(value) => value.is_const(),
+            TypeValue::Integer { value } => value.is_const(),
+            TypeValue::Float { value } => value.is_const(),
+            TypeValue::Bool { value } => value.is_const(),
+            TypeValue::String { value } => value.is_const(),
             TypeValue::Regexp(_) => false,
             TypeValue::Struct(_) => false,
             TypeValue::Array(_) => false,
@@ -255,10 +255,10 @@ impl TypeValue {
     /// the same fields and the type of each field matches.
     pub fn eq_type(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Integer(_), Self::Integer(_)) => true,
-            (Self::Float(_), Self::Float(_)) => true,
-            (Self::String(_), Self::String(_)) => true,
-            (Self::Bool(_), Self::Bool(_)) => true,
+            (Self::Integer { .. }, Self::Integer { .. }) => true,
+            (Self::Float { .. }, Self::Float { .. }) => true,
+            (Self::String { .. }, Self::String { .. }) => true,
+            (Self::Bool { .. }, Self::Bool { .. }) => true,
             (Self::Array(a), Self::Array(b)) => {
                 a.deputy().eq_type(&b.deputy())
             }
@@ -292,10 +292,10 @@ impl TypeValue {
     pub fn ty(&self) -> Type {
         match self {
             Self::Unknown => Type::Unknown,
-            Self::Integer(_) => Type::Integer,
-            Self::Float(_) => Type::Float,
-            Self::Bool(_) => Type::Bool,
-            Self::String(_) => Type::String,
+            Self::Integer { .. } => Type::Integer,
+            Self::Float { .. } => Type::Float,
+            Self::Bool { .. } => Type::Bool,
+            Self::String { .. } => Type::String,
             Self::Regexp(_) => Type::Regexp,
             Self::Map(_) => Type::Map,
             Self::Struct(_) => Type::Struct,
@@ -307,10 +307,10 @@ impl TypeValue {
     pub fn clone_without_value(&self) -> Self {
         match self {
             Self::Unknown => Self::Unknown,
-            Self::Integer(_) => Self::Integer(Value::Unknown),
-            Self::Float(_) => Self::Float(Value::Unknown),
-            Self::Bool(_) => Self::Bool(Value::Unknown),
-            Self::String(_) => Self::String(Value::Unknown),
+            Self::Integer { .. } => Self::unknown_integer(),
+            Self::Float { .. } => Self::unknown_float(),
+            Self::Bool { .. } => Self::unknown_bool(),
+            Self::String { .. } => Self::unknown_string(),
             Self::Regexp(_) => Self::Regexp(None),
             Self::Map(v) => Self::Map(v.clone()),
             Self::Struct(v) => Self::Struct(v.clone()),
@@ -327,29 +327,45 @@ impl TypeValue {
     /// integers, floats, and strings and bools can be casted to bool.
     pub fn cast_to_bool(&self) -> Self {
         match self {
-            Self::Integer(Value::Unknown) => Self::Bool(Value::Unknown),
-            Self::Integer(Value::Var(i)) => Self::Bool(Value::Var(*i != 0)),
-            Self::Integer(Value::Const(i)) => {
-                Self::Bool(Value::Const(*i != 0))
+            Self::Integer { value: Value::Unknown } => {
+                Self::Bool { value: Value::Unknown }
+            }
+            Self::Integer { value: Value::Var(i) } => {
+                Self::Bool { value: Value::Var(*i != 0) }
+            }
+            Self::Integer { value: Value::Const(i) } => {
+                Self::Bool { value: Value::Const(*i != 0) }
             }
 
-            Self::Float(Value::Unknown) => Self::Bool(Value::Unknown),
-            Self::Float(Value::Var(f)) => Self::Bool(Value::Var(*f != 0.0)),
-            Self::Float(Value::Const(f)) => {
-                Self::Bool(Value::Const(*f != 0.0))
+            Self::Float { value: Value::Unknown } => {
+                Self::Bool { value: Value::Unknown }
+            }
+            Self::Float { value: Value::Var(f) } => {
+                Self::Bool { value: Value::Var(*f != 0.0) }
+            }
+            Self::Float { value: Value::Const(f) } => {
+                Self::Bool { value: Value::Const(*f != 0.0) }
             }
 
-            Self::String(Value::Unknown) => Self::Bool(Value::Unknown),
-            Self::String(Value::Var(s)) => {
-                Self::Bool(Value::Var(!s.is_empty()))
+            Self::String { value: Value::Unknown } => {
+                Self::Bool { value: Value::Unknown }
             }
-            Self::String(Value::Const(s)) => {
-                Self::Bool(Value::Const(!s.is_empty()))
+            Self::String { value: Value::Var(s) } => {
+                Self::Bool { value: Value::Var(!s.is_empty()) }
+            }
+            Self::String { value: Value::Const(s) } => {
+                Self::Bool { value: Value::Const(!s.is_empty()) }
             }
 
-            Self::Bool(Value::Unknown) => Self::Bool(Value::Unknown),
-            Self::Bool(Value::Var(b)) => Self::Bool(Value::Var(*b)),
-            Self::Bool(Value::Const(b)) => Self::Bool(Value::Const(*b)),
+            Self::Bool { value: Value::Unknown } => {
+                Self::Bool { value: Value::Unknown }
+            }
+            Self::Bool { value: Value::Var(b) } => {
+                Self::Bool { value: Value::Var(*b) }
+            }
+            Self::Bool { value: Value::Const(b) } => {
+                Self::Bool { value: Value::Const(*b) }
+            }
 
             _ => panic!("can not cast {:?} to bool", self),
         }
@@ -412,7 +428,7 @@ impl TypeValue {
     }
 
     pub fn try_as_bool(&self) -> Option<bool> {
-        if let TypeValue::Bool(value) = self {
+        if let TypeValue::Bool { value } = self {
             value.extract().cloned()
         } else {
             panic!(
@@ -423,7 +439,7 @@ impl TypeValue {
     }
 
     pub fn try_as_integer(&self) -> Option<i64> {
-        if let TypeValue::Integer(value) = self {
+        if let TypeValue::Integer { value } = self {
             value.extract().cloned()
         } else {
             panic!(
@@ -434,7 +450,7 @@ impl TypeValue {
     }
 
     pub fn try_as_float(&self) -> Option<f64> {
-        if let TypeValue::Float(value) = self {
+        if let TypeValue::Float { value } = self {
             value.extract().cloned()
         } else {
             panic!(
@@ -445,7 +461,7 @@ impl TypeValue {
     }
 
     pub fn try_as_string(&self) -> Option<Rc<BString>> {
-        if let TypeValue::String(value) = self {
+        if let TypeValue::String { value } = self {
             value.extract().cloned()
         } else {
             panic!(
@@ -455,52 +471,76 @@ impl TypeValue {
         }
     }
 
-    /// Creates a new [`TypeValue`] consisting on a variable integer.
+    /// Creates a new [`TypeValue`] consisting of a variable integer.
     #[inline]
     pub fn var_integer_from<T: Into<i64>>(i: T) -> Self {
-        Self::Integer(Value::Var(i.into()))
+        Self::Integer { value: Value::Var(i.into()) }
     }
 
-    /// Creates a new [`TypeValue`] consisting on a variable float.
+    /// Creates a new [`TypeValue`] consisting of a variable float.
     #[inline]
     pub fn var_float_from<T: Into<f64>>(f: T) -> Self {
-        Self::Float(Value::Var(f.into()))
+        Self::Float { value: Value::Var(f.into()) }
     }
 
-    /// Creates a new [`TypeValue`] consisting on a variable boolean.
+    /// Creates a new [`TypeValue`] consisting of a variable boolean.
     #[inline]
     pub fn var_bool_from(i: bool) -> Self {
-        Self::Bool(Value::Var(i))
+        Self::Bool { value: Value::Var(i) }
     }
 
-    /// Creates a new [`TypeValue`] consisting on a variable string.
+    /// Creates a new [`TypeValue`] consisting of a variable string.
     #[inline]
     pub fn var_string_from<T: AsRef<[u8]>>(s: T) -> Self {
-        Self::String(Value::Var(BString::from(s.as_ref()).into()))
+        Self::String { value: Value::Var(BString::from(s.as_ref()).into()) }
     }
 
-    /// Creates a new [`TypeValue`] consisting on a constant integer.
+    /// Creates a new [`TypeValue`] consisting of a constant integer.
     #[inline]
     pub fn const_integer_from<T: Into<i64>>(i: T) -> Self {
-        Self::Integer(Value::Const(i.into()))
+        Self::Integer { value: Value::Const(i.into()) }
     }
 
-    /// Creates a new [`TypeValue`] consisting on a constant float.
+    /// Creates a new [`TypeValue`] consisting of a constant float.
     #[inline]
     pub fn const_float_from<T: Into<f64>>(f: T) -> Self {
-        Self::Float(Value::Const(f.into()))
+        Self::Float { value: Value::Const(f.into()) }
     }
 
-    /// Creates a new [`TypeValue`] consisting on a constant boolean.
+    /// Creates a new [`TypeValue`] consisting of a constant boolean.
     #[inline]
     pub fn const_bool_from(i: bool) -> Self {
-        Self::Bool(Value::Const(i))
+        Self::Bool { value: Value::Const(i) }
     }
 
-    /// Creates a new [`TypeValue`] consisting on a constant string.
+    /// Creates a new [`TypeValue`] consisting of a constant string.
     #[inline]
     pub fn const_string_from<T: AsRef<[u8]>>(s: T) -> Self {
-        Self::String(Value::Const(BString::from(s.as_ref()).into()))
+        Self::String { value: Value::Const(BString::from(s.as_ref()).into()) }
+    }
+
+    /// Creates a new [`TypeValue`] consisting of an unknown string.
+    #[inline]
+    pub fn unknown_bool() -> Self {
+        Self::Bool { value: Value::Unknown }
+    }
+
+    /// Creates a new [`TypeValue`] consisting of an unknown integer.
+    #[inline]
+    pub fn unknown_float() -> Self {
+        Self::Float { value: Value::Unknown }
+    }
+
+    /// Creates a new [`TypeValue`] consisting of an unknown integer.
+    #[inline]
+    pub fn unknown_integer() -> Self {
+        Self::Integer { value: Value::Unknown }
+    }
+
+    /// Creates a new [`TypeValue`] consisting of an unknown string.
+    #[inline]
+    pub fn unknown_string() -> Self {
+        Self::String { value: Value::Unknown }
     }
 }
 
@@ -514,37 +554,37 @@ impl Debug for TypeValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Unknown => write!(f, "unknown"),
-            Self::Bool(v) => {
-                if let Some(v) = v.extract() {
+            Self::Bool { value } => {
+                if let Some(v) = value.extract() {
                     write!(f, "boolean({:?})", v)
                 } else {
                     write!(f, "boolean(unknown)")
                 }
             }
-            Self::Integer(v) => {
-                if let Some(v) = v.extract() {
+            Self::Integer { value } => {
+                if let Some(v) = value.extract() {
                     write!(f, "integer({:?})", v)
                 } else {
                     write!(f, "integer(unknown)")
                 }
             }
-            Self::Float(v) => {
-                if let Some(v) = v.extract() {
+            Self::Float { value } => {
+                if let Some(v) = value.extract() {
                     write!(f, "float({:?})", v)
                 } else {
                     write!(f, "float(unknown)")
                 }
             }
-            Self::String(v) => {
-                if let Some(v) = v.extract() {
+            Self::String { value } => {
+                if let Some(v) = value.extract() {
                     write!(f, "string({:?})", v)
                 } else {
                     write!(f, "string(unknown)")
                 }
             }
-            Self::Regexp(v) => {
-                if let Some(v) = v {
-                    write!(f, "regexp({:?})", v)
+            Self::Regexp(re) => {
+                if let Some(re) = re {
+                    write!(f, "regexp({:?})", re)
                 } else {
                     write!(f, "regexp(unknown)")
                 }
@@ -560,8 +600,8 @@ impl Debug for TypeValue {
 impl From<EnumValue> for TypeValue {
     fn from(value: EnumValue) -> Self {
         match value {
-            EnumValue::I64(v) => Self::Integer(Value::Const(v)),
-            EnumValue::F64(v) => Self::Float(Value::Const(v)),
+            EnumValue::I64(v) => Self::const_integer_from(v),
+            EnumValue::F64(v) => Self::const_float_from(v),
         }
     }
 }
@@ -570,10 +610,18 @@ impl PartialEq for TypeValue {
     fn eq(&self, rhs: &Self) -> bool {
         match (self, rhs) {
             (Self::Unknown, Self::Unknown) => true,
-            (Self::String(lhs), Self::String(rhs)) => lhs == rhs,
-            (Self::Bool(lhs), Self::Bool(rhs)) => lhs == rhs,
-            (Self::Integer(lhs), Self::Integer(rhs)) => lhs == rhs,
-            (Self::Float(lhs), Self::Float(rhs)) => lhs == rhs,
+            (Self::String { value: lhs }, Self::String { value: rhs }) => {
+                lhs == rhs
+            }
+            (Self::Bool { value: lhs }, Self::Bool { value: rhs }) => {
+                lhs == rhs
+            }
+            (Self::Integer { value: lhs }, Self::Integer { value: rhs }) => {
+                lhs == rhs
+            }
+            (Self::Float { value: lhs }, Self::Float { value: rhs }) => {
+                lhs == rhs
+            }
             (Self::Regexp(lhs), Self::Regexp(rhs)) => lhs == rhs,
             (Self::Struct(lhs), Self::Struct(rhs)) => ptr::eq(&**lhs, &**rhs),
             (Self::Array(lhs), Self::Array(rhs)) => ptr::eq(&**lhs, &**rhs),
