@@ -1,9 +1,12 @@
 use std::fs;
 use std::io::{prelude::*, BufReader};
+#[cfg(target_os = "linux")]
 use std::os::unix::fs::FileExt;
 use std::path::PathBuf;
 
 use itertools::Itertools;
+#[cfg(target_os = "windows")]
+use winapi::um::processthreadsapi;
 
 use crate::scanner::ScanError;
 
@@ -161,4 +164,29 @@ pub fn load_proc(pid: u64) -> Result<Vec<u8>, ScanError> {
 }
 
 #[cfg(target_os = "windows")]
-pub fn load_proc(pid: u64) -> Result<Vec<u8>, ScanError> {}
+pub fn load_proc(pid: u64) -> Result<Vec<u8>, ScanError> {
+  if (processthreadsapi::OpenProcessToken(processthreadsapi::GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, &hToken) &&
+      LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &luidDebug))
+  {
+    tokenPriv.PrivilegeCount = 1;
+    tokenPriv.Privileges[0].Luid = luidDebug;
+    tokenPriv.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+
+    AdjustTokenPrivileges(
+        hToken, FALSE, &tokenPriv, sizeof(tokenPriv), NULL, NULL);
+  }
+
+  if (hToken != NULL)
+    CloseHandle(hToken);
+
+  proc_info->hProcess = OpenProcess(
+      PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, pid);
+
+  if (proc_info->hProcess == NULL)
+  {
+    yr_free(proc_info);
+    return ERROR_COULD_NOT_ATTACH_TO_PROCESS;
+  }
+
+  GetSystemInfo(&proc_info->si);
+}
