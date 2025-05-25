@@ -293,3 +293,6 @@ pretty_assertions = { workspace = true }
 rayon = { workspace = true }
 yara-x-proto-yaml = { workspace = true }
 zip = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+winapi = { workspace = true, features = ["processthreadsapi"] }
