@@ -1,10 +1,9 @@
+use bstr::BString;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::{mem, ptr};
-
-use bstr::BString;
-use serde::{Deserialize, Serialize};
 use walrus::ir::InstrSeqType;
 use walrus::ValType;
 
@@ -94,7 +93,7 @@ pub(crate) enum Value<T> {
 impl<T> Value<T> {
     /// Returns true if the value is constant.
     ///
-    /// A constant value can not change at runtime.
+    /// A constant value cannot change at runtime.
     #[inline]
     pub fn is_const(&self) -> bool {
         matches!(self, Value::Const(_))
@@ -167,18 +166,41 @@ impl Regexp {
 /// compile time, they only provide details about the type, like, for example,
 /// which are the fields in a struct, or what's the type of the items in an
 /// array.
+///
+/// Some types can have an optional set of constraints that give additional
+/// information about the value. For instance, strings can have a constraint
+/// [`StringConstraint::Lowercase`], which indicates that the string is always
+/// lowercase.
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) enum TypeValue {
     Unknown,
-    Integer { value: Value<i64> },
-    Float { value: Value<f64> },
-    Bool { value: Value<bool> },
-    String { value: Value<Rc<BString>> },
+    Integer {
+        value: Value<i64>,
+    },
+    Float {
+        value: Value<f64>,
+    },
+    Bool {
+        value: Value<bool>,
+    },
+    String {
+        value: Value<Rc<BString>>,
+        constraints: Option<Vec<StringConstraint>>,
+    },
     Regexp(Option<Regexp>),
     Struct(Rc<Struct>),
     Array(Rc<Array>),
     Map(Rc<Map>),
     Func(Rc<Func>),
+}
+
+/// Each of the constraints allowed for string types.
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub(crate) enum StringConstraint {
+    /// The string is guaranteed to be lowercase.
+    Lowercase,
+    /// The string has an exact number of bytes.
+    ExactLength(usize),
 }
 
 impl Hash for TypeValue {
@@ -206,7 +228,7 @@ impl Hash for TypeValue {
                     c.hash(state);
                 }
             }
-            TypeValue::String { value } => {
+            TypeValue::String { value, .. } => {
                 mem::discriminant(value).hash(state);
                 if let Value::Const(c) = value {
                     c.hash(state);
@@ -238,7 +260,7 @@ impl TypeValue {
             TypeValue::Integer { value } => value.is_const(),
             TypeValue::Float { value } => value.is_const(),
             TypeValue::Bool { value } => value.is_const(),
-            TypeValue::String { value } => value.is_const(),
+            TypeValue::String { value, .. } => value.is_const(),
             TypeValue::Regexp(_) => false,
             TypeValue::Struct(_) => false,
             TypeValue::Array(_) => false,
@@ -347,13 +369,13 @@ impl TypeValue {
                 Self::Bool { value: Value::Const(*f != 0.0) }
             }
 
-            Self::String { value: Value::Unknown } => {
+            Self::String { value: Value::Unknown, .. } => {
                 Self::Bool { value: Value::Unknown }
             }
-            Self::String { value: Value::Var(s) } => {
+            Self::String { value: Value::Var(s), .. } => {
                 Self::Bool { value: Value::Var(!s.is_empty()) }
             }
-            Self::String { value: Value::Const(s) } => {
+            Self::String { value: Value::Const(s), .. } => {
                 Self::Bool { value: Value::Const(!s.is_empty()) }
             }
 
@@ -461,7 +483,7 @@ impl TypeValue {
     }
 
     pub fn try_as_string(&self) -> Option<Rc<BString>> {
-        if let TypeValue::String { value } = self {
+        if let TypeValue::String { value, .. } = self {
             value.extract().cloned()
         } else {
             panic!(
@@ -492,7 +514,10 @@ impl TypeValue {
     /// Creates a new [`TypeValue`] consisting of a variable string.
     #[inline]
     pub fn var_string_from<T: AsRef<[u8]>>(s: T) -> Self {
-        Self::String { value: Value::Var(BString::from(s.as_ref()).into()) }
+        Self::String {
+            value: Value::Var(BString::from(s.as_ref()).into()),
+            constraints: None,
+        }
     }
 
     /// Creates a new [`TypeValue`] consisting of a constant integer.
@@ -516,7 +541,10 @@ impl TypeValue {
     /// Creates a new [`TypeValue`] consisting of a constant string.
     #[inline]
     pub fn const_string_from<T: AsRef<[u8]>>(s: T) -> Self {
-        Self::String { value: Value::Const(BString::from(s.as_ref()).into()) }
+        Self::String {
+            value: Value::Const(BString::from(s.as_ref()).into()),
+            constraints: None,
+        }
     }
 
     /// Creates a new [`TypeValue`] consisting of an unknown string.
@@ -540,7 +568,19 @@ impl TypeValue {
     /// Creates a new [`TypeValue`] consisting of an unknown string.
     #[inline]
     pub fn unknown_string() -> Self {
-        Self::String { value: Value::Unknown }
+        Self::String { value: Value::Unknown, constraints: None }
+    }
+
+    /// Creates a new [`TypeValue`] consisting of an unknown string with
+    /// the given constraints.
+    #[inline]
+    pub fn unknown_string_with_constraints<C: Into<Vec<StringConstraint>>>(
+        constraints: C,
+    ) -> Self {
+        Self::String {
+            value: Value::Unknown,
+            constraints: Some(constraints.into()),
+        }
     }
 }
 
@@ -575,7 +615,7 @@ impl Debug for TypeValue {
                     write!(f, "float(unknown)")
                 }
             }
-            Self::String { value } => {
+            Self::String { value, .. } => {
                 if let Some(v) = value.extract() {
                     write!(f, "string({:?})", v)
                 } else {
@@ -610,9 +650,10 @@ impl PartialEq for TypeValue {
     fn eq(&self, rhs: &Self) -> bool {
         match (self, rhs) {
             (Self::Unknown, Self::Unknown) => true,
-            (Self::String { value: lhs }, Self::String { value: rhs }) => {
-                lhs == rhs
-            }
+            (
+                Self::String { value: lhs, .. },
+                Self::String { value: rhs, .. },
+            ) => lhs == rhs,
             (Self::Bool { value: lhs }, Self::Bool { value: rhs }) => {
                 lhs == rhs
             }

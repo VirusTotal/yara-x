@@ -5,13 +5,13 @@ use crate::types::TypeValue;
 
 #[test]
 fn expr_size() {
-    // Sentinel test for making sure tha Expr doesn't grow in future
+    // Sentinel test for making sure the Expr doesn't grow in future
     // changes.
     #[cfg(target_pointer_width = "32")]
-    assert_eq!(size_of::<Expr>(), 20);
+    assert_eq!(size_of::<Expr>(), 24);
 
     #[cfg(target_pointer_width = "64")]
-    assert_eq!(size_of::<Expr>(), 32);
+    assert_eq!(size_of::<Expr>(), 40);
 }
 
 #[test]

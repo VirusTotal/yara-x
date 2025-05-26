@@ -34,7 +34,8 @@ use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
 use crate::re;
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
 use crate::types::Value::Const;
-use crate::types::{Map, Regexp, Type, TypeValue};
+use crate::types::{Map, Regexp, StringConstraint, Type, TypeValue};
+use crate::warnings::UnsatisfiableExpression;
 
 /// How many patterns a rule can have. If a rule has more than this number of
 /// patterns the [`TooManyPatterns`] error is returned.
@@ -1648,7 +1649,8 @@ fn func_call_from_ast(
                 ctx.report_builder,
                 "`function`".to_string(),
                 format!("`{}`", symbol.ty()),
-                ctx.report_builder.span_to_code_loc(func_call.span()),
+                ctx.report_builder
+                    .span_to_code_loc(func_call.identifier.span()),
                 None,
             ))
         }
@@ -2220,7 +2222,44 @@ gen_binary_op!(
     // Integers can be compared with floats, but strings can be
     // compared only with another string.
     Type::Integer | Type::Float,
-    None
+    Some(|ctx, lhs, rhs, lhs_span, rhs_span| {
+        let lhs = ctx.ir.get(lhs).type_value();
+        let rhs = ctx.ir.get(rhs).type_value();
+
+        match (lhs, rhs, lhs_span, rhs_span) {
+            (
+                TypeValue::String { value: Const(string), .. },
+                TypeValue::String { constraints: Some(constraints), .. },
+                const_string,
+                constrained_string,
+            )
+            | (
+                TypeValue::String { constraints: Some(constraints), .. },
+                TypeValue::String { value: Const(string), .. },
+                constrained_string,
+                const_string,
+            ) => {
+                if constraints.contains(&StringConstraint::Lowercase)
+                    && string.chars().any(|c| c.is_uppercase())
+                {
+                    ctx.warnings.add(|| {
+                        UnsatisfiableExpression::build(
+                            ctx.report_builder,
+                            "this is a lowercase string".to_string(),
+                            "this contains uppercase characters".to_string(),
+                            ctx.report_builder
+                                .span_to_code_loc(constrained_string),
+                            ctx.report_builder.span_to_code_loc(const_string),
+                            Some("a lowercase string can't be equal to a string containing uppercase characters".to_string()),
+                        )
+                    });
+                }
+            }
+            _ => {}
+        }
+
+        Ok(())
+    })
 );
 
 gen_binary_op!(

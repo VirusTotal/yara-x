@@ -9,11 +9,12 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use syn::visit::Visit;
 use syn::{
-    Error, GenericArgument, Ident, ItemFn, PatType, PathArguments, Result,
-    ReturnType, Type, TypePath,
+    AngleBracketedGenericArguments, Error, Expr, ExprLit, GenericArgument,
+    Ident, ItemFn, Lit, PatType, PathArguments, Result, ReturnType, Type,
+    TypePath,
 };
 
-/// Parses signature of a Rust function and returns its mangled named.
+/// Parses the signature of a Rust function and returns its mangled named.
 struct FuncSignatureParser<'ast> {
     arg_types: Option<VecDeque<&'ast Type>>,
 }
@@ -28,6 +29,20 @@ impl<'ast> FuncSignatureParser<'ast> {
         &type_path.path.segments.last().unwrap().ident
     }
 
+    #[inline(always)]
+    fn type_args(
+        type_path: &TypePath,
+    ) -> Result<impl Iterator<Item = &GenericArgument>> {
+        if let PathArguments::AngleBracketed(
+            AngleBracketedGenericArguments { args, .. },
+        ) = &type_path.path.segments.last().unwrap().arguments
+        {
+            Ok(args.into_iter())
+        } else {
+            Err(Error::new_spanned(type_path, "this type must have arguments"))
+        }
+    }
+
     fn type_path_to_mangled_named(
         type_path: &TypePath,
     ) -> Result<Cow<'static, str>> {
@@ -37,9 +52,40 @@ impl<'ast> FuncSignatureParser<'ast> {
             "bool" => Ok(Cow::Borrowed("b")),
             "PatternId" | "RuleId" => Ok(Cow::Borrowed("i")),
             "RegexpId" => Ok(Cow::Borrowed("r")),
-            "RuntimeString" => Ok(Cow::Borrowed("s")),
-            "RuntimeObjectHandle" => Ok(Cow::Borrowed("i")),
             "Rc" => Ok(Cow::Borrowed("i")),
+            "RuntimeObjectHandle" => Ok(Cow::Borrowed("i")),
+            "RuntimeString" => Ok(Cow::Borrowed("s")),
+            "FixedLenString" => {
+                let mut args = Self::type_args(type_path)?;
+
+                if let Some(GenericArgument::Const(Expr::Lit(ExprLit {
+                    lit: Lit::Int(len_literal),
+                    ..
+                }))) = args.next()
+                {
+                    Ok(Cow::Owned(format!(
+                        "s:N{:?}",
+                        len_literal.base10_parse::<usize>()?
+                    )))
+                } else {
+                    Err(Error::new_spanned(
+                        type_path,
+                        "FixedLenString must have a constant length (i.e: <FixedLenString<32>>))",
+                    ))
+                }
+            }
+            "Lowercase" => {
+                let mut args = Self::type_args(type_path)?;
+                if let Some(GenericArgument::Type(Type::Path(p))) = args.next()
+                {
+                    Ok(Self::type_path_to_mangled_named(p)?.add(":L"))
+                } else {
+                    Err(Error::new_spanned(
+                        type_path,
+                        "Lowercase must have a type argument (i.e: <Lowercase<RuntimeString>>))",
+                    ))
+                }
+            }
             type_ident => Err(Error::new_spanned(
                 type_path,
                 format!(
@@ -306,5 +352,29 @@ mod tests {
         };
 
         assert_eq!(parser.parse(&func).unwrap(), "@@is");
+
+        let func = parse_quote! {
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> Lowercase<RuntimeString> {  }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@s:L");
+
+        let func = parse_quote! {
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> Lowercase<FixedLenString<32>> {  }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@s:N32:L");
+
+        let func = parse_quote! {
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> FixedLenString<64> {  }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@s:N64");
+
+        let func = parse_quote! {
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> Option<Lowercase<FixedLenString<32>>> {  }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@s:N32:Lu");
     }
 }

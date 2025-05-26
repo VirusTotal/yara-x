@@ -1,0 +1,18 @@
+warning[unsatisfiable_expr]: unsatisfiable expression
+ --> line:3:31
+  |
+3 | rule test_1 { condition: hash.md5(0, filesize) == "AAB" }
+  |                               ----------------    ----- this contains uppercase characters
+  |                               |
+  |                               this is a lowercase string
+  |
+  = note: a lowercase string can't be equal to a string containing uppercase characters
+warning[unsatisfiable_expr]: unsatisfiable expression
+ --> line:6:39
+  |
+6 | rule test_2 { condition: "AD" == hash.sha256(0,filesize) }
+  |                          ----         ------------------ this is a lowercase string
+  |                          |
+  |                          this contains uppercase characters
+  |
+  = note: a lowercase string can't be equal to a string containing uppercase characters

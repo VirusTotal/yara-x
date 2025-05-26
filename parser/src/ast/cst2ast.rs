@@ -1284,7 +1284,7 @@ impl<'src> Builder<'src> {
         let r_paren_span = self.expect(R_PAREN)?;
 
         let expr = Expr::FuncCall(Box::new(FuncCall {
-            span: identifier.span(),
+            span: identifier.span().combine(&r_paren_span),
             args_span: l_paren_span.combine(&r_paren_span),
             object,
             identifier,

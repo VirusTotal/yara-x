@@ -79,18 +79,19 @@ fn import_md5(ctx: &mut ScanContext) -> Option<RuntimeString> {
 /// Function names excluded while computing the telfhash. These exclusions
 /// are based on the original implementation:
 /// https://github.com/trendmicro/telfhash/blob/master/telfhash/telfhash.py
-pub(crate) static TELFHASH_EXCLUSIONS: LazyLock<FxHashSet<&'static str>> = LazyLock::new(|| {
-    let mut exclusions = FxHashSet::default();
-    exclusions.insert("__libc_start_main");
-    exclusions.insert("main");
-    exclusions.insert("abort");
-    exclusions.insert("cachectl");
-    exclusions.insert("cacheflush");
-    exclusions.insert("puts");
-    exclusions.insert("atol");
-    exclusions.insert("malloc_trim");
-    exclusions
-});
+pub(crate) static TELFHASH_EXCLUSIONS: LazyLock<FxHashSet<&'static str>> =
+    LazyLock::new(|| {
+        let mut exclusions = FxHashSet::default();
+        exclusions.insert("__libc_start_main");
+        exclusions.insert("main");
+        exclusions.insert("abort");
+        exclusions.insert("cachectl");
+        exclusions.insert("cacheflush");
+        exclusions.insert("puts");
+        exclusions.insert("atol");
+        exclusions.insert("malloc_trim");
+        exclusions
+    });
 
 /// Function that returns the [`telfhash`][1] for the current ELF file.
 ///

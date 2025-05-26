@@ -35,6 +35,7 @@ pub enum Warning {
     SlowPattern(Box<SlowPattern>),
     TextPatternAsHex(Box<TextPatternAsHex>),
     TooManyIterations(Box<TooManyIterations>),
+    UnsatisfiableExpression(Box<UnsatisfiableExpression>),
     UnknownTag(Box<UnknownTag>),
 }
 
@@ -148,6 +149,44 @@ pub struct PotentiallyUnsatisfiableExpression {
     report: Report,
     quantifier_loc: CodeLoc,
     at_loc: CodeLoc,
+}
+
+/// A boolean expression can't be satisfied.
+///
+/// ## Example
+///
+/// ```text
+/// warning[unsatisfiable_expr]: unsatisfiable expression
+/// --> test.yar:6:34
+/// |
+/// 6 | rule x { condition: "AD" == hash.sha256(0,filesize) }
+/// |                     ----         ------------------ this is a lowercase string
+/// |                     |
+/// |                     this contains uppercase characters
+/// |
+/// = note: a lowercase strings can't be equal to a string containing uppercase characters
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "unsatisfiable_expr",
+    title = "unsatisfiable expression"
+)]
+#[label(
+    "{label_1}",
+    loc_1
+)]
+#[label(
+    "{label_2}",
+    loc_2
+)]
+#[footer(note)]
+pub struct UnsatisfiableExpression {
+    report: Report,
+    label_1: String,
+    label_2: String,
+    loc_1: CodeLoc,
+    loc_2: CodeLoc,
+    note: Option<String>,
 }
 
 

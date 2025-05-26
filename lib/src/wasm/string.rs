@@ -5,8 +5,18 @@ use crate::compiler::LiteralId;
 use crate::scanner::{RuntimeObject, RuntimeObjectHandle, ScanContext};
 use crate::utils::cast;
 
+/// This trait is implemented by [RuntimeString], [FixedLenString] and [Lowercase].
+pub(crate) trait String: Default {
+    /// Creates a new string.
+    fn new<V: Into<Vec<u8>>>(s: V) -> Self;
+
+    /// Returns this string as a primitive type suitable to be passed to WASM.
+    fn into_wasm_with_ctx(self, ctx: &mut ScanContext) -> RuntimeStringWasm;
+    fn from_slice(ctx: &ScanContext, s: &[u8]) -> Self;
+}
+
 /// Represents a [`RuntimeString`] as a `i64` that can be passed from WASM to
-/// host and vice-versa.
+/// host and vice versa.
 ///
 /// The types that we can pass to (and receive from) WASM functions are only
 /// primitive types (i64, i32, f64 and f32). In order to be able to pass a
@@ -16,21 +26,21 @@ use crate::utils::cast;
 /// The `u64` value contains all the information required for uniquely
 /// identifying the string. This is how the information is encoded:
 ///
-/// * `RuntimeString:Undef`  -> `0`
+/// * `RuntimeString:Undef` -> `0`
 ///    A zero represents an undefined string.
 ///
-/// * `RuntimeString:Literal`  -> `LiteralId << 2 | 1`
+/// * `RuntimeString:Literal` -> `LiteralId << 2 | 1`
 ///    If the two lower bits are equal to 1, it's a literal string, where the
 ///    remaining bits represent the `LiteralId`.
 ///
-/// * `RuntimeString:Rc`  -> `RuntimeStringId << 2 | 2`
+/// * `RuntimeString:Rc` -> `RuntimeStringId << 2 | 2`
 ///    If the two lower bits are equal to 2, it's a runtime string, where the
 ///    remaining bits represent the handle of a string object.
 ///
 /// * `RuntimeString:ScannedDataSlice` -> `Offset << 18 | Len << 2 | 3)`
 ///    If the two lower bits are 3, it's a string backed by the scanned data.
 ///    Bits 18:3 ar used for representing the string length (up to 64KB),
-///    while bits 64:19 represents the offset (up to 70,368,744,177,663).
+///    while bits 64:19 represent the offset (up to 70,368,744,177,663).
 ///
 pub(crate) type RuntimeStringWasm = i64;
 
@@ -74,11 +84,31 @@ impl Default for RuntimeString {
     }
 }
 
-impl RuntimeString {
-    /// Creates a [`RuntimeString`] from a [`String`], a [`Vec<u8>`] or any
-    /// type that implements [`Into<Vec<u8>>`].
-    pub(crate) fn new<S: Into<Vec<u8>>>(s: S) -> Self {
+impl String for RuntimeString {
+    /// Creates a [`RuntimeString`] from a [`RString`], a [`Vec<u8>`] or any
+    /// type that implements [`Into<Vec<u8>>`]
+    fn new<S: Into<Vec<u8>>>(s: S) -> Self {
         Self::Rc(Rc::new(BString::new(s.into())))
+    }
+
+    /// Returns this string as a primitive type suitable to be passed to WASM.
+    fn into_wasm_with_ctx(self, ctx: &mut ScanContext) -> RuntimeStringWasm {
+        match self {
+            Self::Literal(id) => i64::from(id) << 2,
+            Self::Rc(s) => {
+                let handle: i64 = ctx.store_string(s).into();
+                (handle << 2) | 1
+            }
+            Self::ScannedDataSlice { offset, length } => {
+                if length >= u16::MAX as usize {
+                    panic!(
+                        "runtime-string slices can't be larger than {}",
+                        u16::MAX
+                    )
+                }
+                ((offset as i64) << 18) | ((length as i64) << 2) | 2
+            }
+        }
     }
 
     /// Creates a [`RuntimeString`] from a reference to a byte slice.
@@ -89,7 +119,7 @@ impl RuntimeString {
     ///
     /// In any other case it makes a copy of the string and return the
     /// [`RuntimeString::Rc`] variant.
-    pub(crate) fn from_slice(ctx: &ScanContext, s: &[u8]) -> Self {
+    fn from_slice(ctx: &ScanContext, s: &[u8]) -> Self {
         let data = ctx.scanned_data();
 
         let data_start = data.as_ptr() as usize;
@@ -107,7 +137,9 @@ impl RuntimeString {
             Self::Rc(Rc::new(BString::from(s)))
         }
     }
+}
 
+impl RuntimeString {
     /// Returns this string as a &[`BStr`].
     pub(crate) fn as_bstr<'a>(&'a self, ctx: &'a ScanContext) -> &'a BStr {
         match self {
@@ -131,29 +163,6 @@ impl RuntimeString {
         ctx: &'a ScanContext,
     ) -> Result<&'a str, Utf8Error> {
         self.as_bstr(ctx).to_str()
-    }
-
-    /// Returns this string as a primitive type suitable to be passed to WASM.
-    pub(crate) fn into_wasm_with_ctx(
-        self,
-        ctx: &mut ScanContext,
-    ) -> RuntimeStringWasm {
-        match self {
-            Self::Literal(id) => i64::from(id) << 2,
-            Self::Rc(s) => {
-                let handle: i64 = ctx.store_string(s).into();
-                (handle << 2) | 1
-            }
-            Self::ScannedDataSlice { offset, length } => {
-                if length >= u16::MAX as usize {
-                    panic!(
-                        "runtime-string slices can't be larger than {}",
-                        u16::MAX
-                    )
-                }
-                ((offset as i64) << 18) | ((length as i64) << 2) | 2
-            }
-        }
     }
 
     /// Returns this string as a primitive type suitable to be passed to WASM.
@@ -284,5 +293,59 @@ impl RuntimeString {
         } else {
             self.as_bstr(ctx).eq(other.as_bstr(ctx))
         }
+    }
+}
+
+/// Special kind of [RuntimeString] that has a fixed length.
+///
+/// Trying to create a [FixedLenString] with some length that is not the one
+/// specified by the `LEN` parameter will cause a panic.
+#[derive(Debug, Default)]
+pub(crate) struct FixedLenString<const LEN: usize>(RuntimeString);
+
+impl<const LEN: usize> String for FixedLenString<LEN> {
+    fn new<S: Into<Vec<u8>>>(s: S) -> Self {
+        let s = s.into();
+        assert_eq!(
+            s.len(),
+            LEN,
+            "FixedLenString<{}>::new called with invalid length: {}",
+            LEN,
+            s.len(),
+        );
+        Self(RuntimeString::new(s))
+    }
+
+    /// Returns this string as a primitive type suitable to be passed to WASM.
+    fn into_wasm_with_ctx(self, ctx: &mut ScanContext) -> RuntimeStringWasm {
+        self.0.into_wasm_with_ctx(ctx)
+    }
+
+    fn from_slice(ctx: &ScanContext, s: &[u8]) -> Self {
+        assert_eq!(
+            s.len(),
+            LEN,
+            "FixedLenString<{}>::new called with invalid length: {}",
+            LEN,
+            s.len(),
+        );
+        Self(RuntimeString::from_slice(ctx, s))
+    }
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct Lowercase<S: String>(S);
+
+impl<S: String> String for Lowercase<S> {
+    fn new<V: Into<Vec<u8>>>(s: V) -> Self {
+        Self(S::new(s))
+    }
+
+    fn into_wasm_with_ctx(self, ctx: &mut ScanContext) -> RuntimeStringWasm {
+        self.0.into_wasm_with_ctx(ctx)
+    }
+
+    fn from_slice(ctx: &ScanContext, s: &[u8]) -> Self {
+        Self(S::from_slice(ctx, s))
     }
 }

@@ -1,9 +1,11 @@
+use crate::types::{StringConstraint, TypeValue};
 use itertools::Itertools;
+use nom::AsChar;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
-
-use crate::types::TypeValue;
+use std::iter::Peekable;
+use std::str::Chars;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 /// Represents a mangled function name.
@@ -12,8 +14,8 @@ use crate::types::TypeValue;
 /// about the function's arguments and return types.
 ///
 /// Mangled names have the format `<func name>@<arguments>@<return type>`,
-/// where `<arguments>` is a sequence of characters, one per argument,
-/// that specify the argument's type. Allowed types are:
+/// where `<arguments>` is a sequence of characters that specify the
+/// argument's type. Allowed types are:
 ///
 /// ```text
 ///  i: integer
@@ -24,11 +26,11 @@ use crate::types::TypeValue;
 /// ```
 ///
 /// `<return type>` is also a sequence of one or more of the characters
-/// above, specifying the types returned by the function (except `r`,
+/// above, specifying the type returned by the function (except `r`,
 /// because functions can't return regular expressions). For example, a
 /// function `add` with two integer arguments that return another integer
 /// would have the mangled name `add@ii@i`. A function `foo` that returns
-/// a tuple of two integers have the mangled name `foo@@ii`.
+/// a tuple of two integers has the mangled name `foo@@ii`.
 ///
 /// Additionally, the return type may be followed by a `u` character if
 /// the returned value may be undefined. For example, a function `foo` that
@@ -47,6 +49,24 @@ use crate::types::TypeValue;
 /// foo() -> Option<f32>           ->  foo@@fu
 /// foo() -> Option<(f64,f64)>     ->  foo@@ffu
 /// ```
+///
+/// ### Type Constraints
+///
+/// Types may include constraints that specify additional restrictions on
+/// their values. A constraint follows the type character, separated by a
+/// colon, and consists of an uppercase letter (representing the constraint
+/// type) and possibly additional characters, depending on the constraint.
+///
+/// Examples:
+///
+/// ```text
+/// foo() -> lowercase string           _> foo@@s:L
+/// foo() -> string of length 32        _> foo@@s:N32
+/// foo() -> 32-byte lowercase string   -> foo@@s:N32:L
+/// ```
+///
+/// Multiple constraints can be chained by appending them in sequence after
+/// the type character.
 #[derive(Serialize, Deserialize, Hash)]
 pub(crate) struct MangledFnName(String);
 
@@ -60,44 +80,82 @@ impl MangledFnName {
 impl MangledFnName {
     /// Returns the types of arguments and return value for the function.
     pub fn unmangle(&self) -> (Vec<TypeValue>, TypeValue) {
-        let (_name, arg_types, ret) =
+        let (_name, arg_types, ret_type) =
             self.0.split('@').collect_tuple().unwrap_or_else(|| {
                 panic!("invalid mangled name: `{}`", self.0)
             });
 
-        let mut args = vec![];
-
-        for t in arg_types.chars() {
-            match t {
-                'i' => args.push(TypeValue::unknown_integer()),
-                'f' => args.push(TypeValue::unknown_float()),
-                'b' => args.push(TypeValue::unknown_bool()),
-                's' => args.push(TypeValue::unknown_string()),
-                'r' => args.push(TypeValue::Regexp(None)),
-                _ => panic!("unexpected argument type: `{}`", t),
-            }
+        let mut args = Vec::new();
+        let mut chars = arg_types.chars().peekable();
+        while let Some(type_value) = self.next_type(&mut chars) {
+            args.push(type_value);
         }
 
-        let result = if let Some(ret) = ret.get(0..1) {
-            match ret.get(0..1).unwrap() {
-                "i" => TypeValue::unknown_integer(),
-                "f" => TypeValue::unknown_float(),
-                "b" => TypeValue::unknown_bool(),
-                "s" => TypeValue::unknown_string(),
-                "u" => TypeValue::Unknown,
-                _ => panic!("unexpected return type: `{}`", ret),
-            }
-        } else {
-            TypeValue::Unknown
-        };
+        let mut chars = ret_type.chars().peekable();
+        let ret = self.next_type(&mut chars).unwrap_or_else(|| {
+            panic!("expecting return type in mangled name: `{}`", self.0)
+        });
 
-        (args, result)
+        // Return type can't be a regexp.
+        assert!(!matches!(ret, TypeValue::Regexp(_)));
+
+        (args, ret)
     }
 
     /// Returns true if the function's result may be undefined.
     #[inline]
     pub fn result_may_be_undef(&self) -> bool {
         self.0.ends_with('u')
+    }
+
+    fn next_type(&self, chars: &mut Peekable<Chars>) -> Option<TypeValue> {
+        match chars.next() {
+            Some('u') => Some(TypeValue::Unknown),
+            Some('r') => Some(TypeValue::Regexp(None)),
+            Some('i') => Some(TypeValue::unknown_integer()),
+            Some('f') => Some(TypeValue::unknown_float()),
+            Some('b') => Some(TypeValue::unknown_bool()),
+            Some('s') => {
+                let mut constraints = Vec::new();
+
+                while let Some(':') = chars.peek() {
+                    chars.next(); // consume the colon (:)
+                    match chars.next() {
+                        Some('L') => {
+                            constraints.push(StringConstraint::Lowercase);
+                        }
+                        Some('N') => {
+                            let n = chars
+                                .by_ref()
+                                .peeking_take_while(|&c| c.is_dec_digit())
+                                .collect::<String>()
+                                .parse::<usize>()
+                                .unwrap_or_else(|_| {
+                                    panic!(
+                                        "invalid mangled name: `{}`",
+                                        self.0
+                                    )
+                                });
+
+                            constraints.push(StringConstraint::ExactLength(n));
+                        }
+                        None | Some(_) => {
+                            panic!("invalid mangled name: `{}`", self.0)
+                        }
+                    }
+                }
+
+                Some(if constraints.is_empty() {
+                    TypeValue::unknown_string()
+                } else {
+                    TypeValue::unknown_string_with_constraints(constraints)
+                })
+            }
+            Some(c) => {
+                panic!("unknown type `{}` in mangled name: `{}`", c, self.0)
+            }
+            None => None,
+        }
     }
 }
 
@@ -112,7 +170,7 @@ where
 
 /// Represents a function's signature.
 ///
-/// YARA modules allow function overloading, therefore functions can have the
+/// YARA modules allow function overloading, therefore, functions can have the
 /// same name but different arguments.
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub(crate) struct FuncSignature {
@@ -217,7 +275,7 @@ impl Func {
 
 #[cfg(test)]
 mod test {
-    use crate::types::{MangledFnName, TypeValue};
+    use crate::types::{MangledFnName, StringConstraint, TypeValue};
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -245,6 +303,37 @@ mod test {
         assert_eq!(
             MangledFnName::from("foo@s@s").unmangle(),
             (vec![TypeValue::unknown_string()], TypeValue::unknown_string())
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@s@s:L").unmangle(),
+            (
+                vec![TypeValue::unknown_string()],
+                TypeValue::unknown_string_with_constraints(vec![
+                    StringConstraint::Lowercase
+                ])
+            )
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@s@s:N16").unmangle(),
+            (
+                vec![TypeValue::unknown_string()],
+                TypeValue::unknown_string_with_constraints(vec![
+                    StringConstraint::ExactLength(16),
+                ])
+            )
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@s@s:N16:L").unmangle(),
+            (
+                vec![TypeValue::unknown_string()],
+                TypeValue::unknown_string_with_constraints(vec![
+                    StringConstraint::ExactLength(16),
+                    StringConstraint::Lowercase
+                ])
+            )
         );
 
         assert!(!MangledFnName::from("foo@i@i").result_may_be_undef());

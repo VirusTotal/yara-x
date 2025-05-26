@@ -135,7 +135,7 @@ impl Symbol {
 
     #[cfg(test)]
     fn as_string(&self) -> Option<BString> {
-        if let TypeValue::String { value } = self.type_value() {
+        if let TypeValue::String { value, .. } = self.type_value() {
             value.extract().map(|s| BString::from(s.as_slice()))
         } else {
             None

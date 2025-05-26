@@ -281,7 +281,7 @@ fn emit_expr(
             TypeValue::Bool { value: Const(value) } => {
                 instr.i32_const((*value).into());
             }
-            TypeValue::String { value: Const(value) } => {
+            TypeValue::String { value: Const(value), .. } => {
                 // Put the literal string in the pool, or get its ID if it was
                 // already there.
                 let literal_id = ctx.lit_pool.get_or_intern(value.as_bstr());
