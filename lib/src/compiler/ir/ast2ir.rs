@@ -2226,36 +2226,76 @@ gen_binary_op!(
         let lhs = ctx.ir.get(lhs).type_value();
         let rhs = ctx.ir.get(rhs).type_value();
 
-        match (lhs, rhs, lhs_span, rhs_span) {
+        let (
+            const_string,
+            const_string_span,
+            constraints,
+            constrained_string_span,
+        ) = match (lhs, rhs, lhs_span, rhs_span) {
             (
-                TypeValue::String { value: Const(string), .. },
+                TypeValue::String { value: Const(const_string), .. },
                 TypeValue::String { constraints: Some(constraints), .. },
-                const_string,
-                constrained_string,
+                const_string_span,
+                constrained_string_span,
             )
             | (
                 TypeValue::String { constraints: Some(constraints), .. },
-                TypeValue::String { value: Const(string), .. },
-                constrained_string,
+                TypeValue::String { value: Const(const_string), .. },
+                constrained_string_span,
+                const_string_span,
+            ) => (
                 const_string,
-            ) => {
-                if constraints.contains(&StringConstraint::Lowercase)
-                    && string.chars().any(|c| c.is_uppercase())
+                const_string_span,
+                constraints,
+                constrained_string_span,
+            ),
+            _ => return Ok(()),
+        };
+
+        for constraint in constraints {
+            match constraint {
+                StringConstraint::Lowercase
+                    if const_string.chars().any(|c| c.is_uppercase()) =>
                 {
                     ctx.warnings.add(|| {
                         UnsatisfiableExpression::build(
                             ctx.report_builder,
                             "this is a lowercase string".to_string(),
                             "this contains uppercase characters".to_string(),
-                            ctx.report_builder
-                                .span_to_code_loc(constrained_string),
-                            ctx.report_builder.span_to_code_loc(const_string),
-                            Some("a lowercase string can't be equal to a string containing uppercase characters".to_string()),
+                            ctx.report_builder.span_to_code_loc(
+                                constrained_string_span.clone()
+                            ),
+                            ctx.report_builder.span_to_code_loc(
+                                const_string_span.clone()
+                            ),
+                            Some(
+                                "a lowercase string can't be equal to a string containing uppercase characters"
+                                .to_string())
                         )
                     });
                 }
+                StringConstraint::ExactLength(n)
+                    if const_string.len() != n =>
+                {
+                    ctx.warnings.add(|| {
+                        UnsatisfiableExpression::build(
+                            ctx.report_builder,
+                            format!("the length of this string is {}", n),
+                            format!(
+                                "the length of this string is {}",
+                                const_string.len()
+                            ),
+                            ctx.report_builder.span_to_code_loc(
+                                constrained_string_span.clone(),
+                            ),
+                            ctx.report_builder
+                                .span_to_code_loc(const_string_span.clone()),
+                            None,
+                        )
+                    });
+                }
+                _ => {}
             }
-            _ => {}
         }
 
         Ok(())
