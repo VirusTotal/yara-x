@@ -74,9 +74,9 @@ message GoReSym {
 }
 
 message FileMetadata {
-  string sha256 = 1;
-  string sha1 = 2;
-  string md5 = 3;
+  string sha256 = 1 [(yara.field_options).lowercase = true ];
+  string sha1 = 2 [(yara.field_options).lowercase = true ];
+  string md5 = 3 [(yara.field_options).lowercase = true ];
   string ssdeep = 4;
   string imphash = 5;
   string vhash = 6;

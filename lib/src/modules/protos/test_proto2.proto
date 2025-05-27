@@ -136,7 +136,7 @@ message TestProto2 {
 
   // String values.
 
-  required string             string_foo = 61;
+  required string             string_foo = 61 [(yara.field_options).lowercase = true];
   required string             string_bar = 62;
   optional string             string_undef = 63;
 
