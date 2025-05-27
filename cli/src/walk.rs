@@ -82,14 +82,14 @@ impl<'a> Walker<'a> {
     ///
     /// Patterns can contain the following wildcards:
     ///
-    /// - `?`      matches any single character.
+    /// - `?` matches any single character.
     ///
-    /// - `*`      matches any sequence of characters, except the path separator.
+    /// - `*` matches any sequence of characters, except the path separator.
     ///
-    /// - `**`     matches any sequence of characters, including the path separator.
+    /// - `**` matches any sequence of characters, including the path separator.
     ///
-    /// - `[...]`  matches any character inside the brackets. Can also specify ranges of
-    ///          characters (e.g. `[0-9]`, `[a-z]`)
+    /// - `[...]` matches any character inside the brackets. Can also specify ranges of
+    ///   characters (e.g. `[0-9]`, `[a-z]`)
     ///
     /// - `[!...]` is the negation of `[...]`
     ///

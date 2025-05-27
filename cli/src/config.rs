@@ -178,12 +178,12 @@ impl Default for Config {
     }
 }
 
-/// Load config file from a given path. Path must contain a valid TOML file or
-/// this function will propagate the error. For structure of the config file
+/// Load a config file from a given path. Path must contain a valid TOML file
+/// or this function will propagate the error. For structure of the config file
 /// see "YARA-X Config Guide.md".
 pub fn load_config_from_file(
     config_file: &Path,
-) -> Result<Config, figment::Error> {
+) -> Result<Config, Box<figment::Error>> {
     let config: Config =
         Figment::from(Serialized::defaults(Config::default()))
             .merge(Toml::file_exact(config_file))

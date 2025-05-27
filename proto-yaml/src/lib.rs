@@ -23,16 +23,15 @@ that values of that field must be rendered in hexadecimal form. The list of
 supported format modifiers is:
 
 - `x`: Serializes the value as a hexadecimal number. Only valid for integer
-       fields.
+  fields.
 
 - `t`: Serializes the field as a timestamp. The value itself is rendered as a
-       decimal integer, but a comment is added with the timestamp in a
-       human-friendly format. Only valid for integer fields.
+  decimal integer, but a comment is added with the timestamp in a human-friendly
+  format. Only valid for integer fields.
 
 - `flag:ENUM_TYPE_NAME`: Serializes the field as a set of flags. The value
-                         is rendered as a hexadecimal number. but a comment is
-                         added withe flags set. `ENUM_TYPE_NAME` must be the
-                         name of enum where each value represents a flag.
+  is rendered as a hexadecimal number. but a comment is added withe flags set.
+  `ENUM_TYPE_NAME` must be the name of enum where each value represents a flag.
 
 # Examples
 

@@ -65,10 +65,10 @@ impl CodeLoc {
 ///
 /// - `level`: Indicates the severity, either `Level::Error` or `Level::Warning`.
 /// - `code`: A unique code that identifies the specific error or warning
-///           (e.g., "E006").
+///   (e.g., "E006").
 /// - `title`: The title of the report (e.g., "unexpected negative number").
 /// - `labels`: A collection of labels included in the report. Each label
-///             contains a level, a span, and associated text.
+///   contains a level, a span, and associated text.
 /// - `footers`: A collection notes that appear after the end of the report.
 #[derive(Clone)]
 pub(crate) struct Report {

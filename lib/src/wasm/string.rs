@@ -27,20 +27,20 @@ pub(crate) trait String: Default {
 /// identifying the string. This is how the information is encoded:
 ///
 /// * `RuntimeString:Undef` -> `0`
-///    A zero represents an undefined string.
+///   A zero represents an undefined string.
 ///
 /// * `RuntimeString:Literal` -> `LiteralId << 2 | 1`
-///    If the two lower bits are equal to 1, it's a literal string, where the
-///    remaining bits represent the `LiteralId`.
+///   If the two lower bits are equal to 1, it's a literal string, where the
+///   remaining bits represent the `LiteralId`.
 ///
 /// * `RuntimeString:Rc` -> `RuntimeStringId << 2 | 2`
-///    If the two lower bits are equal to 2, it's a runtime string, where the
-///    remaining bits represent the handle of a string object.
+///   If the two lower bits are equal to 2, it's a runtime string, where the
+///   remaining bits represent the handle of a string object.
 ///
 /// * `RuntimeString:ScannedDataSlice` -> `Offset << 18 | Len << 2 | 3)`
-///    If the two lower bits are 3, it's a string backed by the scanned data.
-///    Bits 18:3 ar used for representing the string length (up to 64KB),
-///    while bits 64:19 represent the offset (up to 70,368,744,177,663).
+///   If the two lower bits are 3, it's a string backed by the scanned data.
+///   Bits 18:3 ar used for representing the string length (up to 64KB),
+///   while bits 64:19 represent the offset (up to 70,368,744,177,663).
 ///
 pub(crate) type RuntimeStringWasm = i64;
 
