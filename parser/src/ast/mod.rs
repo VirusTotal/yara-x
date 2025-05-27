@@ -857,7 +857,8 @@ impl FuncCall<'_> {
     /// Span covered by the function's arguments in the source code.
     ///
     /// [`FuncCall::span`] covers the whole function call, including the
-    /// function identifier, while this covers only the arguments.
+    /// function identifier and the arguments, while this covers only the
+    /// arguments.
     pub fn args_span(&self) -> Span {
         self.args_span.clone()
     }

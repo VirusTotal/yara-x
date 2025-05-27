@@ -8,7 +8,7 @@ use std::{mem, ptr};
 use bstr::BString;
 
 use crate::compiler::{RuleId, Var};
-use crate::types::{AclEntry, Func, Type, TypeValue, Value};
+use crate::types::{AclEntry, Func, Type, TypeValue};
 
 /// Trait implemented by types that allow looking up for a symbol.
 pub(crate) trait SymbolLookup {
@@ -119,14 +119,14 @@ impl Symbol {
         match &self {
             Symbol::Var { type_value, .. } => type_value.clone(),
             Symbol::Field { type_value, .. } => type_value.clone(),
-            Symbol::Rule(_) => TypeValue::Bool(Value::Unknown),
+            Symbol::Rule(_) => TypeValue::unknown_bool(),
             Symbol::Func(func) => TypeValue::Func(func.clone()),
         }
     }
 
     #[cfg(test)]
     fn as_integer(&self) -> Option<i64> {
-        if let TypeValue::Integer(value) = self.type_value() {
+        if let TypeValue::Integer { value } = self.type_value() {
             value.extract().cloned()
         } else {
             None
@@ -135,7 +135,7 @@ impl Symbol {
 
     #[cfg(test)]
     fn as_string(&self) -> Option<BString> {
-        if let TypeValue::String(value) = self.type_value() {
+        if let TypeValue::String { value, .. } = self.type_value() {
             value.extract().map(|s| BString::from(s.as_slice()))
         } else {
             None

@@ -98,7 +98,9 @@ use crate::scanner::{RuntimeObjectHandle, ScanContext, ScanError};
 use crate::types::{
     Array, Func, FuncSignature, Map, Struct, TypeValue, Value,
 };
+use crate::wasm;
 use crate::wasm::string::RuntimeString;
+use crate::wasm::string::String as _;
 
 pub(crate) mod builder;
 pub(crate) mod string;
@@ -464,7 +466,7 @@ impl WasmResult for bool {
     }
 }
 
-impl WasmResult for RuntimeString {
+impl<S: wasm::string::String> WasmResult for S {
     fn values(self, ctx: &mut ScanContext) -> WasmResultArray<ValRaw> {
         smallvec![ValRaw::i64(self.into_wasm_with_ctx(ctx))]
     }
@@ -1034,9 +1036,13 @@ pub(crate) fn lookup_string(
     num_lookup_indexes: i32,
 ) -> Option<RuntimeString> {
     match lookup_field(caller, structure, num_lookup_indexes) {
-        TypeValue::String(Value::Var(s)) => Some(RuntimeString::Rc(s)),
-        TypeValue::String(Value::Const(s)) => Some(RuntimeString::Rc(s)),
-        TypeValue::String(Value::Unknown) => None,
+        TypeValue::String { value: Value::Var(s), .. } => {
+            Some(RuntimeString::Rc(s))
+        }
+        TypeValue::String { value: Value::Const(s), .. } => {
+            Some(RuntimeString::Rc(s))
+        }
+        TypeValue::String { value: Value::Unknown, .. } => None,
         _ => unreachable!(),
     }
 }
@@ -1068,7 +1074,7 @@ macro_rules! gen_lookup_fn {
             structure: Option<Rc<Struct>>,
             num_lookup_indexes: i32,
         ) -> Option<$return_type> {
-            if let $type(value) =
+            if let $type { value } =
                 lookup_field(caller, structure, num_lookup_indexes)
             {
                 value.extract().cloned()

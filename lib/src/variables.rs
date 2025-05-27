@@ -14,7 +14,7 @@ use bstr::BString;
 use thiserror::Error;
 
 use crate::types;
-use crate::types::{Array, TypeValue, Value};
+use crate::types::{Array, TypeValue};
 
 /// Represents a YARA variable.
 ///
@@ -174,14 +174,14 @@ impl TryFrom<&serde_json::Value> for Variable {
         match value {
             serde_json::Value::Null => Err(VariableError::UnexpectedNull),
             serde_json::Value::Bool(b) => {
-                Ok(Variable(TypeValue::Bool(Value::Var(*b))))
+                Ok(Variable(TypeValue::var_bool_from(*b)))
             }
             serde_json::Value::Number(n) => {
                 if let Some(n) = n.as_u64() {
-                    Ok(Variable(TypeValue::Integer(Value::Var(
-                        n.try_into()
-                            .map_err(|_| VariableError::IntegerOutOfRange)?,
-                    ))))
+                    let n: i64 = n
+                        .try_into()
+                        .map_err(|_| VariableError::IntegerOutOfRange)?;
+                    Ok(Variable(TypeValue::var_integer_from(n)))
                 } else if let Some(n) = n.as_i64() {
                     Ok(Variable(TypeValue::var_integer_from(n)))
                 } else if let Some(n) = n.as_f64() {

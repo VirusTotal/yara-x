@@ -33,7 +33,9 @@ use crate::errors::CustomError;
 use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
 use crate::re;
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
-use crate::types::{Map, Regexp, Type, TypeValue, Value};
+use crate::types::Value::Const;
+use crate::types::{Map, Regexp, StringConstraint, Type, TypeValue};
+use crate::warnings::UnsatisfiableExpression;
 
 /// How many patterns a rule can have. If a rule has more than this number of
 /// patterns the [`TooManyPatterns`] error is returned.
@@ -504,8 +506,8 @@ fn expr_from_ast(
             let replacement =
                 match (lhs_expr.type_value(), rhs_expr.type_value()) {
                     (
-                        TypeValue::Bool(_),
-                        TypeValue::Integer(Value::Const(0)),
+                        TypeValue::Bool { .. },
+                        TypeValue::Integer { value: Const(0) },
                     ) => Some((
                         ctx.ir.not(lhs),
                         format!(
@@ -516,8 +518,8 @@ fn expr_from_ast(
                         ),
                     )),
                     (
-                        TypeValue::Integer(Value::Const(0)),
-                        TypeValue::Bool(_),
+                        TypeValue::Integer { value: Const(0) },
+                        TypeValue::Bool { .. },
                     ) => Some((
                         ctx.ir.not(rhs),
                         format!(
@@ -528,8 +530,8 @@ fn expr_from_ast(
                         ),
                     )),
                     (
-                        TypeValue::Bool(_),
-                        TypeValue::Integer(Value::Const(1)),
+                        TypeValue::Bool { .. },
+                        TypeValue::Integer { value: Const(1) },
                     ) => Some((
                         lhs,
                         ctx.report_builder.get_snippet(
@@ -537,8 +539,8 @@ fn expr_from_ast(
                         ),
                     )),
                     (
-                        TypeValue::Integer(Value::Const(1)),
-                        TypeValue::Bool(_),
+                        TypeValue::Integer { value: Const(1) },
+                        TypeValue::Bool { .. },
                     ) => Some((
                         rhs,
                         ctx.report_builder.get_snippet(
@@ -1066,14 +1068,14 @@ fn of_expr_from_ast(
             // `<expr> of <items> at <expr>: the warning is raised if <expr> is
             // 2 or more.
             Quantifier::Expr(expr) => match ctx.ir.get(*expr).type_value() {
-                TypeValue::Integer(Value::Const(value)) => value >= 2,
+                TypeValue::Integer { value: Const(value) } => value >= 2,
                 _ => false,
             },
             // `<expr>% of <items> at <expr>: the warning is raised if the
             // <expr> percent of the items is 2 or more.
             Quantifier::Percentage(expr) => {
                 match ctx.ir.get(*expr).type_value() {
-                    TypeValue::Integer(Value::Const(percentage)) => {
+                    TypeValue::Integer { value: Const(percentage) } => {
                         items.len() as f64 * percentage as f64 / 100.0 >= 2.0
                     }
                     _ => false,
@@ -1142,7 +1144,7 @@ fn for_of_expr_from_ast(
         "$",
         Symbol::Var {
             var: next_pattern_id,
-            type_value: TypeValue::Integer(Value::Unknown),
+            type_value: TypeValue::unknown_integer(),
         },
     );
 
@@ -1236,7 +1238,7 @@ fn for_in_expr_from_ast(
                     })
                 }
             }
-            (vec![TypeValue::Integer(Value::Unknown)], Type::Unknown)
+            (vec![TypeValue::unknown_integer()], Type::Unknown)
         }
         Iterable::ExprTuple(expressions) => {
             // All expressions in the tuple have the same type, we can use
@@ -1259,11 +1261,11 @@ fn for_in_expr_from_ast(
             TypeValue::Array(array) => (vec![array.deputy()], Type::Array),
             TypeValue::Map(map) => match map.as_ref() {
                 Map::IntegerKeys { .. } => (
-                    vec![TypeValue::Integer(Value::Unknown), map.deputy()],
+                    vec![TypeValue::unknown_integer(), map.deputy()],
                     Type::Map,
                 ),
                 Map::StringKeys { .. } => (
-                    vec![TypeValue::String(Value::Unknown), map.deputy()],
+                    vec![TypeValue::unknown_string(), map.deputy()],
                     Type::Map,
                 ),
             },
@@ -1460,8 +1462,8 @@ fn range_from_ast(
     // variables, for example) we can't raise an error at compile time, but it
     // will be handled at scan time.
     if let (
-        TypeValue::Integer(Value::Const(lower_bound)),
-        TypeValue::Integer(Value::Const(upper_bound)),
+        TypeValue::Integer { value: Const(lower_bound) },
+        TypeValue::Integer { value: Const(upper_bound) },
     ) = (
         ctx.ir.get(lower_bound).type_value(),
         ctx.ir.get(upper_bound).type_value(),
@@ -1491,7 +1493,7 @@ fn non_negative_integer_from_ast(
     check_type(ctx, expr, span.clone(), &[Type::Integer])?;
 
     let type_value = ctx.ir.get(expr).type_value();
-    if let TypeValue::Integer(Value::Const(value)) = type_value {
+    if let TypeValue::Integer { value: Const(value) } = type_value {
         if value < 0 {
             return Err(UnexpectedNegativeNumber::build(
                 ctx.report_builder,
@@ -1517,7 +1519,7 @@ fn integer_in_range_from_ast(
     // the given range.
     let type_value = ctx.ir.get(expr).type_value();
 
-    if let TypeValue::Integer(Value::Const(value)) = type_value {
+    if let TypeValue::Integer { value: Const(value) } = type_value {
         if !range.contains(&value) {
             return Err(NumberOutOfRange::build(
                 ctx.report_builder,
@@ -1647,7 +1649,8 @@ fn func_call_from_ast(
                 ctx.report_builder,
                 "`function`".to_string(),
                 format!("`{}`", symbol.ty()),
-                ctx.report_builder.span_to_code_loc(func_call.span()),
+                ctx.report_builder
+                    .span_to_code_loc(func_call.identifier.span()),
                 None,
             ))
         }
@@ -2151,7 +2154,7 @@ gen_binary_op!(
     Type::Integer,
     Type::Integer,
     Some(|ctx, _lhs, rhs, _lhs_span, rhs_span| {
-        if let TypeValue::Integer(Value::Const(value)) =
+        if let TypeValue::Integer { value: Const(value) } =
             ctx.ir.get(rhs).type_value()
         {
             if value < 0 {
@@ -2171,7 +2174,7 @@ gen_binary_op!(
     Type::Integer,
     Type::Integer,
     Some(|ctx, _lhs, rhs, _lhs_span, rhs_span| {
-        if let TypeValue::Integer(Value::Const(value)) =
+        if let TypeValue::Integer { value: Const(value) } =
             ctx.ir.get(rhs).type_value()
         {
             if value < 0 {
@@ -2219,7 +2222,84 @@ gen_binary_op!(
     // Integers can be compared with floats, but strings can be
     // compared only with another string.
     Type::Integer | Type::Float,
-    None
+    Some(|ctx, lhs, rhs, lhs_span, rhs_span| {
+        let lhs = ctx.ir.get(lhs).type_value();
+        let rhs = ctx.ir.get(rhs).type_value();
+
+        let (
+            const_string,
+            const_string_span,
+            constraints,
+            constrained_string_span,
+        ) = match (lhs, rhs, lhs_span, rhs_span) {
+            (
+                TypeValue::String { value: Const(const_string), .. },
+                TypeValue::String { constraints: Some(constraints), .. },
+                const_string_span,
+                constrained_string_span,
+            )
+            | (
+                TypeValue::String { constraints: Some(constraints), .. },
+                TypeValue::String { value: Const(const_string), .. },
+                constrained_string_span,
+                const_string_span,
+            ) => (
+                const_string,
+                const_string_span,
+                constraints,
+                constrained_string_span,
+            ),
+            _ => return Ok(()),
+        };
+
+        for constraint in constraints {
+            match constraint {
+                StringConstraint::Lowercase
+                    if const_string.chars().any(|c| c.is_uppercase()) =>
+                {
+                    ctx.warnings.add(|| {
+                        UnsatisfiableExpression::build(
+                            ctx.report_builder,
+                            "this is a lowercase string".to_string(),
+                            "this contains uppercase characters".to_string(),
+                            ctx.report_builder.span_to_code_loc(
+                                constrained_string_span.clone()
+                            ),
+                            ctx.report_builder.span_to_code_loc(
+                                const_string_span.clone()
+                            ),
+                            Some(
+                                "a lowercase string can't be equal to a string containing uppercase characters"
+                                .to_string())
+                        )
+                    });
+                }
+                StringConstraint::ExactLength(n)
+                    if const_string.len() != n =>
+                {
+                    ctx.warnings.add(|| {
+                        UnsatisfiableExpression::build(
+                            ctx.report_builder,
+                            format!("the length of this string is {}", n),
+                            format!(
+                                "the length of this string is {}",
+                                const_string.len()
+                            ),
+                            ctx.report_builder.span_to_code_loc(
+                                constrained_string_span.clone(),
+                            ),
+                            ctx.report_builder
+                                .span_to_code_loc(const_string_span.clone()),
+                            None,
+                        )
+                    });
+                }
+                _ => {}
+            }
+        }
+
+        Ok(())
+    })
 );
 
 gen_binary_op!(
