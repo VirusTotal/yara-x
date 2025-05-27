@@ -298,6 +298,8 @@ impl RuntimeString {
 
 /// Special kind of [RuntimeString] that has a fixed length.
 ///
+/// The specified length is in bytes, not characters.
+///
 /// Trying to create a [FixedLenString] with some length that is not the one
 /// specified by the `LEN` parameter will cause a panic.
 #[derive(Debug, Default)]

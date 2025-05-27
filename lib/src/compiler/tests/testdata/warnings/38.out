@@ -1,0 +1,9 @@
+warning[unsatisfiable_expr]: unsatisfiable expression
+ --> line:5:9
+  |
+5 |         test_proto2.string_foo == "FOO"
+  |         ----------------------    ----- this contains uppercase characters
+  |         |
+  |         this is a lowercase string
+  |
+  = note: a lowercase string can't be equal to a string containing uppercase characters

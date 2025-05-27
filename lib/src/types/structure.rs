@@ -18,7 +18,7 @@ use crate::modules::protos::yara::exts::{
     enum_options, enum_value, field_options, message_options, module_options,
 };
 use crate::symbols::{Symbol, SymbolLookup};
-use crate::types::{Array, Map, TypeValue};
+use crate::types::{Array, Map, StringConstraint, TypeValue};
 use crate::wasm::WasmExport;
 
 /// Each of the entries in an Access Control List (ACL)
@@ -334,55 +334,39 @@ impl Struct {
             let number = fd.number() as u64;
             let name = Self::field_name(&fd);
 
-            let value = match field_ty {
-                RuntimeFieldType::Singular(ty) => {
-                    if let Some(msg) = msg {
-                        Self::new_value(
-                            &ty,
-                            fd.get_singular(msg),
-                            generate_fields_for_enums,
-                            syntax,
-                        )
-                    } else {
-                        Self::new_value(
-                            &ty,
-                            None,
-                            generate_fields_for_enums,
-                            syntax,
-                        )
-                    }
-                }
-                RuntimeFieldType::Repeated(ty) => {
-                    if let Some(msg) = msg {
-                        Self::new_array(
-                            &ty,
-                            Some(fd.get_repeated(msg)),
-                            generate_fields_for_enums,
-                        )
-                    } else {
-                        Self::new_array(&ty, None, generate_fields_for_enums)
-                    }
-                }
-                RuntimeFieldType::Map(key_ty, value_ty) => {
-                    if let Some(msg) = msg {
-                        Self::new_map(
-                            &key_ty,
-                            &value_ty,
-                            Some(fd.get_map(msg)),
-                            generate_fields_for_enums,
-                            syntax,
-                        )
-                    } else {
-                        Self::new_map(
-                            &key_ty,
-                            &value_ty,
-                            None,
-                            generate_fields_for_enums,
-                            syntax,
-                        )
-                    }
-                }
+            let mut value = match field_ty {
+                RuntimeFieldType::Singular(ty) => Self::new_value(
+                    &ty,
+                    msg.and_then(|msg| fd.get_singular(msg)),
+                    generate_fields_for_enums,
+                    syntax,
+                ),
+                RuntimeFieldType::Repeated(ty) => Self::new_array(
+                    &ty,
+                    msg.map(|msg| fd.get_repeated(msg)),
+                    generate_fields_for_enums,
+                ),
+                RuntimeFieldType::Map(key_ty, value_ty) => Self::new_map(
+                    &key_ty,
+                    &value_ty,
+                    msg.map(|msg| fd.get_map(msg)),
+                    generate_fields_for_enums,
+                    syntax,
+                ),
             };
+
+            if Self::lowercase(&fd) {
+                if let TypeValue::String { constraints, .. } = &mut value {
+                    constraints
+                        .get_or_insert_default()
+                        .push(StringConstraint::Lowercase);
+                } else {
+                    panic!(
+                        "`lowercase = true` in non-string field: {}",
+                        fd.full_name()
+                    )
+                }
+            }
 
             fields.push((
                 name,
@@ -416,7 +400,7 @@ impl Struct {
         let methods = WasmExport::get_methods(msg_descriptor.full_name());
 
         // For each method implemented by this struct field, add a field
-        // to the struct of function type. Methods can not have the same name
+        // to the struct of function type. Methods cannot have the same name
         // as an existing field.
         for (name, method) in methods {
             if new_struct
@@ -683,6 +667,21 @@ impl Struct {
         field_options
             .get(&field_descriptor.proto().options)
             .and_then(|options| options.ignore)
+            .unwrap_or(false)
+    }
+
+    /// Given a [`FieldDescriptor`] returns `true` if the field is a lowercase
+    /// string
+    ///
+    /// Lowercase strings are annotated in the protobuf definition as follows:
+    ///
+    /// ```text
+    /// string foo = 1 [(yara.field_options).lowercase = true];
+    /// ```
+    fn lowercase(field_descriptor: &FieldDescriptor) -> bool {
+        field_options
+            .get(&field_descriptor.proto().options)
+            .and_then(|options| options.lowercase)
             .unwrap_or(false)
     }
 

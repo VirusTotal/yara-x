@@ -83,6 +83,14 @@ message FieldOptions {
   // Also, keep in mind that ACL entries are evaluated sequentially. The first
   // entry that fails will trigger the corresponding error message.
   repeated AclEntry acl = 3;
+
+  // Indicates that a string field is always lowercase.
+  //
+  // This option can be used only with fields of type string. If used with some
+  // other type YARA will panic.
+  //
+  // string some_lowercase_string = 32 [(yara.field_options).lowercase = true];
+  optional bool lowercase = 4;
 }
 
 // An entry in a field's ACL.
