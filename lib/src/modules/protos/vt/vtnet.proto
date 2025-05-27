@@ -58,7 +58,7 @@ message DNSRecord {
 }
 
 message Favicon {
-  string raw_md5 = 1;
+  string raw_md5 = 1 [(yara.field_options) = { lowercase: true }];
   string dhash = 2;
 }
 
@@ -68,7 +68,7 @@ message KeyValue {
 }
 
 message FileMetadata {
-  string sha256 = 1;
+  string sha256 = 1 [(yara.field_options) = { lowercase: true }];
   bool new_for_vt = 3;
   vt.analysis.AnalysisStats analysis_stats = 5;
   vt.fileanalysis.FileType file_type = 6;
@@ -79,7 +79,7 @@ message FileMetadata {
 }
 
 message ResourceFileMetadata {
-  string sha256 = 1;
+  string sha256 = 1 [(yara.field_options) = { lowercase: true }];
   vt.analysis.AnalysisStats analysis_stats = 2;
   vt.fileanalysis.FileType file_type = 3;
   bool new_for_url = 4;

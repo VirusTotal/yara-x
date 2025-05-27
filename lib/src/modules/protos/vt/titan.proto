@@ -74,13 +74,13 @@ message GoReSym {
 }
 
 message FileMetadata {
-  string sha256 = 1 [(yara.field_options).lowercase = true ];
-  string sha1 = 2 [(yara.field_options).lowercase = true ];
-  string md5 = 3 [(yara.field_options).lowercase = true ];
+  string sha256 = 1 [(yara.field_options) = { lowercase: true }];
+  string sha1 = 2 [(yara.field_options) = { lowercase: true }];
+  string md5 = 3 [(yara.field_options) = { lowercase: true }];
   string ssdeep = 4;
-  string imphash = 5;
-  string vhash = 6;
-  string telfhash = 27;
+  string imphash = 5 [(yara.field_options) = { lowercase: true }];
+  string vhash = 6 [(yara.field_options) = { lowercase: true }];
+  string telfhash = 27 [(yara.field_options) = { lowercase: true }];
   string file_name = 7;
   vt.fileanalysis.FileType file_type = 8;
   int64 file_size = 9;
