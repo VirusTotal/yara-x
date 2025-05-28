@@ -137,6 +137,7 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         Some(OutputFormats::Json) => {
             let mut serializer = JsonSerializer::new(stdout());
             serializer
+                .with_colors(use_color)
                 .serialize(module_output.as_ref())
                 .expect("Failed to serialize");
             println!();

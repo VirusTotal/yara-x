@@ -1,6 +1,8 @@
-/*! Serializes a Protocol Buffer (protobuf) message to JSON.
+/*! Serializes a Protocol Buffer (protobuf) message to JSON. */
 
-*/
+use std::borrow::Cow;
+use std::cmp::Ordering;
+use std::io::{Error, Write};
 
 use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
@@ -8,9 +10,7 @@ use itertools::Itertools;
 use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
 use protobuf::reflect::{MessageRef, ReflectValueRef};
 use protobuf::MessageDyn;
-use std::borrow::Cow;
-use std::cmp::Ordering;
-use std::io::{Error, Write};
+use yansi::{Color, Paint, Style};
 
 #[cfg(test)]
 mod tests;
@@ -19,18 +19,42 @@ include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 
 const INDENTATION: u16 = 4;
 
+// A struct that represents colors for output
+#[derive(Default)]
+struct Colors {
+    string: Style,
+    field_name: Style,
+}
+
 /// Serializes a protobuf to JSON format.
 ///
 /// Takes a protobuf message and produces a JSON representation of it.
 pub struct Serializer<W: Write> {
     indent: u16,
     output: W,
+    colors: Colors,
 }
 
 impl<W: Write> Serializer<W> {
     /// Creates a new YAML serializer that writes its output to `w`.
     pub fn new(w: W) -> Self {
-        Self { output: w, indent: 0 }
+        Self { output: w, indent: 0, colors: Colors::default() }
+    }
+
+    /// Specifies whether the serializer should colorize the output.
+    ///
+    /// If true, the output contain ANSI escape sequences that make it
+    /// look nicer on compatible consoles. The default setting is `false`.
+    pub fn with_colors(&mut self, yes: bool) -> &mut Self {
+        self.colors = if yes {
+            Colors {
+                string: Color::Green.foreground(),
+                field_name: Color::Yellow.foreground(),
+            }
+        } else {
+            Colors::default()
+        };
+        self
     }
 
     /// Serializes the given protobuf message.
@@ -70,7 +94,7 @@ impl<W: Write> Serializer<W> {
     }
 
     fn write_field_name(&mut self, name: &str) -> Result<(), Error> {
-        write!(self.output, "\"{}\": ", name)
+        write!(self.output, "\"{}\": ", name.paint(self.colors.field_name))
     }
 
     fn write_msg(&mut self, msg: &MessageRef) -> Result<(), Error> {
@@ -134,7 +158,11 @@ impl<W: Write> Serializer<W> {
 
                     while let Some(item) = items.next() {
                         let key = item.key.to_string();
-                        write!(self.output, "\"{}\": ", Self::escape(&key))?;
+                        write!(
+                            self.output,
+                            "\"{}\": ",
+                            Self::escape(&key).paint(self.colors.string)
+                        )?;
                         self.write_value(&item.value)?;
                         if items.peek().is_some() {
                             write!(self.output, ",")?;
@@ -171,10 +199,18 @@ impl<W: Write> Serializer<W> {
             ReflectValueRef::F64(v) => write!(self.output, "{}", v)?,
             ReflectValueRef::Bool(v) => write!(self.output, "{}", v)?,
             ReflectValueRef::String(v) => {
-                write!(self.output, "\"{}\"", Self::escape(v))?;
+                write!(
+                    self.output,
+                    "\"{}\"",
+                    Self::escape(v).paint(self.colors.string)
+                )?;
             }
             ReflectValueRef::Bytes(v) => {
-                write!(self.output, "\"{}\"", BASE64_STANDARD.encode(v))?;
+                write!(
+                    self.output,
+                    "\"{}\"",
+                    BASE64_STANDARD.encode(v).paint(self.colors.string)
+                )?;
             }
             ReflectValueRef::Enum(d, v) => match d.value_by_number(*v) {
                 Some(e) => write!(self.output, "{}", e.name())?,

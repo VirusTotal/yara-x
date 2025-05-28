@@ -15,6 +15,7 @@ rust-version.workspace = true
 base64 = { workspace = true }
 protobuf = { workspace = true }
 itertools = { workspace = true }
+yansi = { workspace = true }
 
 [dev-dependencies]
 goldenfile = { workspace = true }

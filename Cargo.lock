@@ -4820,6 +4820,7 @@ dependencies = [
  "itertools 0.14.0",
  "protobuf",
  "protobuf-codegen",
+ "yansi",
 ]
 
 [[package]]
