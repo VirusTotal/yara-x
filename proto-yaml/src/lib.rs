@@ -65,6 +65,7 @@ some_flag: 0x06  # BAR | BAZ
 use chrono::prelude::DateTime;
 use itertools::Itertools;
 use protobuf::MessageDyn;
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::io::{Error, Write};
 use std::ops::BitAnd;
@@ -225,9 +226,8 @@ impl<W: Write> Serializer<W> {
         Ok(())
     }
 
-    fn quote_bytes(bytes: &[u8]) -> String {
-        let mut result = String::new();
-        result.push('"');
+    fn escape_bytes(bytes: &[u8]) -> String {
+        let mut result = String::with_capacity(bytes.len());
         for b in bytes.iter() {
             match b {
                 b'\n' => result.push_str(r"\n"),
@@ -242,26 +242,29 @@ impl<W: Write> Serializer<W> {
                 }
             }
         }
-        result.push('"');
         result
     }
 
-    fn quote_str(s: &str) -> String {
-        let mut result = String::new();
-        result.push('"');
-        for c in s.chars() {
-            match c {
-                '\n' => result.push_str(r"\n"),
-                '\r' => result.push_str(r"\r"),
-                '\t' => result.push_str(r"\t"),
-                '\'' => result.push_str("\\\'"),
-                '"' => result.push_str("\\\""),
-                '\\' => result.push_str(r"\\"),
-                _ => result.push(c),
+    fn escape(s: &str) -> Cow<'_, str> {
+        if s.chars()
+            .any(|c| matches!(c, '\n' | '\r' | '\t' | '\'' | '"' | '\\'))
+        {
+            let mut result = String::with_capacity(s.len());
+            for c in s.chars() {
+                match c {
+                    '\n' => result.push_str(r"\n"),
+                    '\r' => result.push_str(r"\r"),
+                    '\t' => result.push_str(r"\t"),
+                    '\'' => result.push_str("\\\'"),
+                    '"' => result.push_str("\\\""),
+                    '\\' => result.push_str(r"\\"),
+                    _ => result.push(c),
+                }
             }
+            Cow::Owned(result)
+        } else {
+            Cow::Borrowed(s)
         }
-        result.push('"');
-        result
     }
 
     fn write_comment(&mut self, comment: &str) -> Result<(), Error> {
@@ -337,11 +340,13 @@ impl<W: Write> Serializer<W> {
                         .peekable();
 
                     while let Some(item) = items.next() {
-                        // We have to escape possible \n in key as it is interpreted as string
-                        // it is covered in tests
-                        let escaped_key =
-                            Self::quote_str(item.key.to_str().unwrap());
-                        self.write_field_name(escaped_key.as_str())?;
+                        let key = format!("{}", item.key);
+                        let escaped_key = Self::escape(&key);
+                        write!(
+                            self.output,
+                            "\"{}\":",
+                            escaped_key.paint(self.colors.field_name)
+                        )?;
                         self.indent += INDENTATION;
                         self.write_name_value_separator(&item.value)?;
                         self.write_value(&field, &item.value)?;
@@ -390,15 +395,15 @@ impl<W: Write> Serializer<W> {
             ReflectValueRef::String(v) => {
                 write!(
                     self.output,
-                    "{}",
-                    Self::quote_str(v).paint(self.colors.string)
+                    "\"{}\"",
+                    Self::escape(v).paint(self.colors.string)
                 )?;
             }
             ReflectValueRef::Bytes(v) => {
                 write!(
                     self.output,
-                    "{}",
-                    Self::quote_bytes(v).paint(self.colors.string)
+                    "\"{}\"",
+                    Self::escape_bytes(v).paint(self.colors.string)
                 )?;
             }
             ReflectValueRef::Enum(d, v) => match d.value_by_number(*v) {

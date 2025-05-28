@@ -8,6 +8,7 @@ use itertools::Itertools;
 use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
 use protobuf::reflect::{MessageRef, ReflectValueRef};
 use protobuf::MessageDyn;
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::io::{Error, Write};
 
@@ -46,22 +47,26 @@ impl<W: Write> Serializer<W> {
         write!(self.output, "{}", value.to_string())
     }
 
-    fn quote_str(s: &str) -> String {
-        let mut result = String::new();
-        result.push('"');
-        for c in s.chars() {
-            match c {
-                '\n' => result.push_str(r"\n"),
-                '\r' => result.push_str(r"\r"),
-                '\t' => result.push_str(r"\t"),
-                '\'' => result.push_str("\\\'"),
-                '"' => result.push_str("\\\""),
-                '\\' => result.push_str(r"\\"),
-                _ => result.push(c),
+    fn escape(s: &str) -> Cow<'_, str> {
+        if s.chars()
+            .any(|c| matches!(c, '\n' | '\r' | '\t' | '\'' | '"' | '\\'))
+        {
+            let mut result = String::with_capacity(s.len());
+            for c in s.chars() {
+                match c {
+                    '\n' => result.push_str(r"\n"),
+                    '\r' => result.push_str(r"\r"),
+                    '\t' => result.push_str(r"\t"),
+                    '\'' => result.push_str("\\\'"),
+                    '"' => result.push_str("\\\""),
+                    '\\' => result.push_str(r"\\"),
+                    _ => result.push(c),
+                }
             }
+            Cow::Owned(result)
+        } else {
+            Cow::Borrowed(s)
         }
-        result.push('"');
-        result
     }
 
     fn write_field_name(&mut self, name: &str) -> Result<(), Error> {
@@ -128,11 +133,8 @@ impl<W: Write> Serializer<W> {
                         .peekable();
 
                     while let Some(item) = items.next() {
-                        // We have to escape possible \n in key as it is interpreted as string
-                        // it is covered in tests
-                        let escaped_key =
-                            Self::quote_str(item.key.to_string().as_str());
-                        write!(self.output, "{}: ", escaped_key.as_str())?;
+                        let key = item.key.to_string();
+                        write!(self.output, "\"{}\": ", Self::escape(&key))?;
                         self.write_value(&item.value)?;
                         if items.peek().is_some() {
                             write!(self.output, ",")?;
@@ -169,7 +171,7 @@ impl<W: Write> Serializer<W> {
             ReflectValueRef::F64(v) => write!(self.output, "{}", v)?,
             ReflectValueRef::Bool(v) => write!(self.output, "{}", v)?,
             ReflectValueRef::String(v) => {
-                write!(self.output, "{}", Self::quote_str(v))?;
+                write!(self.output, "\"{}\"", Self::escape(v))?;
             }
             ReflectValueRef::Bytes(v) => {
                 write!(self.output, "\"{}\"", BASE64_STANDARD.encode(v))?;
