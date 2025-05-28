@@ -1,0 +1,243 @@
+/*! Serializes a Protocol Buffer (protobuf) message to JSON.
+
+*/
+
+use base64::prelude::BASE64_STANDARD;
+use base64::Engine;
+use itertools::Itertools;
+use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
+use protobuf::reflect::{MessageRef, ReflectValueRef};
+use protobuf::MessageDyn;
+use std::cmp::Ordering;
+use std::io::{Error, Write};
+
+#[cfg(test)]
+mod tests;
+
+include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
+
+const INDENTATION: u16 = 4;
+
+/// Serializes a protobuf to JSON format.
+///
+/// Takes a protobuf message and produces a JSON representation of it.
+pub struct Serializer<W: Write> {
+    indent: u16,
+    output: W,
+}
+
+impl<W: Write> Serializer<W> {
+    /// Creates a new YAML serializer that writes its output to `w`.
+    pub fn new(w: W) -> Self {
+        Self { output: w, indent: 0 }
+    }
+
+    /// Serializes the given protobuf message.
+    pub fn serialize(&mut self, msg: &dyn MessageDyn) -> Result<(), Error> {
+        self.write_msg(&MessageRef::new(msg))
+    }
+}
+
+impl<W: Write> Serializer<W> {
+    fn print_integer_value<T: Into<i64> + ToString + Copy>(
+        &mut self,
+        value: T,
+    ) -> Result<(), std::io::Error> {
+        write!(self.output, "{}", value.to_string())
+    }
+
+    fn quote_str(s: &str) -> String {
+        let mut result = String::new();
+        result.push('"');
+        for c in s.chars() {
+            match c {
+                '\n' => result.push_str(r"\n"),
+                '\r' => result.push_str(r"\r"),
+                '\t' => result.push_str(r"\t"),
+                '\'' => result.push_str("\\\'"),
+                '"' => result.push_str("\\\""),
+                '\\' => result.push_str(r"\\"),
+                _ => result.push(c),
+            }
+        }
+        result.push('"');
+        result
+    }
+
+    fn write_field_name(&mut self, name: &str) -> Result<(), Error> {
+        write!(self.output, "\"{}\": ", name)
+    }
+
+    fn write_msg(&mut self, msg: &MessageRef) -> Result<(), Error> {
+        let descriptor = msg.descriptor_dyn();
+
+        // Iterator that returns only the non-empty fields in the message.
+        let mut non_empty_fields = descriptor
+            .fields()
+            .filter(|field| match field.get_reflect(&**msg) {
+                Optional(optional) => optional.value().is_some(),
+                Repeated(repeated) => !repeated.is_empty(),
+                Map(map) => !map.is_empty(),
+            })
+            .peekable();
+
+        write!(self.output, "{{")?;
+        self.indent += INDENTATION;
+        self.newline()?;
+
+        while let Some(field) = non_empty_fields.next() {
+            match field.get_reflect(&**msg) {
+                Optional(optional) => {
+                    let value = optional.value().unwrap();
+                    self.write_field_name(field.name())?;
+                    self.write_value(&value)?;
+                }
+                Repeated(repeated) => {
+                    self.write_field_name(field.name())?;
+                    write!(self.output, "[")?;
+                    self.indent += INDENTATION;
+                    self.newline()?;
+                    let mut items = repeated.into_iter().peekable();
+                    while let Some(value) = items.next() {
+                        self.write_value(&value)?;
+                        if items.peek().is_some() {
+                            write!(self.output, ",")?;
+                            self.newline()?;
+                        }
+                    }
+                    self.indent -= INDENTATION;
+                    self.newline()?;
+                    write!(self.output, "]")?;
+                }
+                Map(map) => {
+                    self.write_field_name(field.name())?;
+                    write!(self.output, "{{")?;
+                    self.indent += INDENTATION;
+                    self.newline()?;
+
+                    // Iteration order is not stable (i.e: the order in which
+                    // items are returned can vary from one execution to the
+                    // other), because the underlying data structure is a
+                    // HashMap. For this reason items are wrapped in a KV
+                    // struct (which implement the Ord trait) and sorted.
+                    // Key-value pairs are sorted by key.
+                    let mut items = map
+                        .into_iter()
+                        .map(|(key, value)| KV { key, value })
+                        .sorted()
+                        .peekable();
+
+                    while let Some(item) = items.next() {
+                        // We have to escape possible \n in key as it is interpreted as string
+                        // it is covered in tests
+                        let escaped_key =
+                            Self::quote_str(item.key.to_str().unwrap());
+                        write!(self.output, "{}: ", escaped_key.as_str())?;
+                        self.write_value(&item.value)?;
+                        if items.peek().is_some() {
+                            write!(self.output, ",")?;
+                            self.newline()?;
+                        } else {
+                            self.indent -= INDENTATION;
+                            self.newline()?;
+                        }
+                    }
+                    write!(self.output, "}}")?;
+                }
+            }
+
+            if non_empty_fields.peek().is_some() {
+                write!(self.output, ",")?;
+                self.newline()?;
+            }
+        }
+
+        self.indent -= INDENTATION;
+        self.newline()?;
+        write!(self.output, "}}")?;
+
+        Ok(())
+    }
+
+    fn write_value(&mut self, value: &ReflectValueRef) -> Result<(), Error> {
+        match value {
+            ReflectValueRef::U32(v) => self.print_integer_value(*v)?,
+            ReflectValueRef::U64(v) => self.print_integer_value(*v as i64)?,
+            ReflectValueRef::I32(v) => self.print_integer_value(*v)?,
+            ReflectValueRef::I64(v) => self.print_integer_value(*v)?,
+            ReflectValueRef::F32(v) => write!(self.output, "{}", v)?,
+            ReflectValueRef::F64(v) => write!(self.output, "{}", v)?,
+            ReflectValueRef::Bool(v) => write!(self.output, "{}", v)?,
+            ReflectValueRef::String(v) => {
+                write!(self.output, "{}", Self::quote_str(v))?;
+            }
+            ReflectValueRef::Bytes(v) => {
+                write!(self.output, "\"{}\"", BASE64_STANDARD.encode(v))?;
+            }
+            ReflectValueRef::Enum(d, v) => match d.value_by_number(*v) {
+                Some(e) => write!(self.output, "{}", e.name())?,
+                None => write!(self.output, "{}", v)?,
+            },
+            ReflectValueRef::Message(msg) => self.write_msg(msg)?,
+        }
+        Ok(())
+    }
+
+    fn newline(&mut self) -> Result<(), Error> {
+        writeln!(self.output)?;
+        for _ in 0..self.indent {
+            write!(self.output, " ")?;
+        }
+        Ok(())
+    }
+}
+
+/// Helper type that allows to sort the entries in protobuf map.
+struct KV<'a> {
+    key: ReflectValueRef<'a>,
+    value: ReflectValueRef<'a>,
+}
+
+impl PartialOrd for KV<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for KV<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.key {
+            ReflectValueRef::U32(v) => {
+                v.cmp(&other.key.to_u32().unwrap_or_default())
+            }
+            ReflectValueRef::U64(v) => {
+                v.cmp(&other.key.to_u64().unwrap_or_default())
+            }
+            ReflectValueRef::I32(v) => {
+                v.cmp(&other.key.to_i32().unwrap_or_default())
+            }
+            ReflectValueRef::I64(v) => {
+                v.cmp(&other.key.to_i64().unwrap_or_default())
+            }
+            ReflectValueRef::Bool(v) => {
+                v.cmp(&other.key.to_bool().unwrap_or_default())
+            }
+            ReflectValueRef::String(v) => {
+                v.cmp(other.key.to_str().unwrap_or_default())
+            }
+            _ => {
+                // Protobuf doesn't support map keys of any other type
+                // except the ones listed above.
+                panic!("unsupported type in map key")
+            }
+        }
+    }
+}
+
+impl PartialEq for KV<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.key.to_str().eq(&other.key.to_str())
+    }
+}
+
+impl Eq for KV<'_> {}

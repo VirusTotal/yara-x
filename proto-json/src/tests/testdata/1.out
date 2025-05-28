@@ -1,0 +1,28 @@
+{
+    "i32": 123,
+    "str": "foo",
+    "bytes": "yv4=",
+    "float": 3.1415,
+    "bool": true,
+    "repeated_msg": [
+        {
+            "i32": 456,
+            "str": "bar\nbar"
+        },
+        {
+            "i32": 789,
+            "str": "foo\\bar",
+            "map_string_string": {
+                "foo\nbar": "bar"
+            }
+        }
+    ],
+    "nested_msg": {
+        "i32": 1234,
+        "str": "qux\nfoo",
+        "map_string_string": {
+            "bar": "baz",
+            "foo": "bar"
+        }
+    }
+}

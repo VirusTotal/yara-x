@@ -24,9 +24,6 @@ use std::str::FromStr;
 use std::time::Duration;
 use strum_macros::{Display, EnumString};
 
-use protobuf_json_mapping::{
-    print_to_string_with_options as proto_to_json, PrintOptions,
-};
 use pyo3::exceptions::{PyException, PyIOError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{
@@ -146,39 +143,39 @@ impl Module {
     }
 
     /// Invoke the module with provided data.
+    ///
+    /// Returns None if the module didn't produce any output for the given data.
     fn invoke<'py>(
         &'py self,
         py: Python<'py>,
         data: &[u8],
     ) -> PyResult<Bound<'py, PyAny>> {
-        let print_options =
-            PrintOptions { proto_field_name: true, ..Default::default() };
-        let module_json = match self._module {
-            SupportedModules::Macho => proto_to_json(
-                invoke::<Macho>(data).unwrap().as_ref(),
-                &print_options,
-            ),
-            SupportedModules::Lnk => proto_to_json(
-                invoke::<Lnk>(data).unwrap().as_ref(),
-                &print_options,
-            ),
-            SupportedModules::Elf => proto_to_json(
-                invoke::<ELF>(data).unwrap().as_ref(),
-                &print_options,
-            ),
-            SupportedModules::Pe => proto_to_json(
-                invoke::<PE>(data).unwrap().as_ref(),
-                &print_options,
-            ),
-            SupportedModules::Dotnet => proto_to_json(
-                invoke::<Dotnet>(data).unwrap().as_ref(),
-                &print_options,
-            ),
-        }
-        .map_err(|err| PyValueError::new_err(err.to_string()))?;
+        let module_output = match self._module {
+            SupportedModules::Macho => invoke_dyn::<Macho>(data),
+            SupportedModules::Lnk => invoke_dyn::<Lnk>(data),
+            SupportedModules::Elf => invoke_dyn::<ELF>(data),
+            SupportedModules::Pe => invoke_dyn::<PE>(data),
+            SupportedModules::Dotnet => invoke_dyn::<Dotnet>(data),
+        };
+
+        let module_output = match module_output {
+            Some(output) => output,
+            None => return Ok(py.None().into_bound(py)),
+        };
+
+        let mut module_output_json = Vec::new();
+
+        let mut serializer =
+            yara_x_proto_json::Serializer::new(&mut module_output_json);
+
+        serializer
+            .serialize(module_output.as_ref())
+            .expect("unable to serialize JSON produced by module");
+
         let json = PyModule::import(py, "json")?;
         let json_loads = json.getattr("loads")?;
-        json_loads.call((module_json,), None)
+
+        json_loads.call((module_output_json,), None)
     }
 }
 
@@ -754,13 +751,15 @@ fn scan_results_to_py(
         let json = PyModule::import(py, "json")?;
         let json_loads = json.getattr("loads")?;
         for (module, output) in outputs {
-            let module_output_json = proto_to_json(
-                output,
-                &PrintOptions { proto_field_name: true, ..Default::default() },
-            )
-            .unwrap();
+            let mut module_output_json = Vec::new();
+            let mut serializer =
+                yara_x_proto_json::Serializer::new(&mut module_output_json);
+
+            serializer.serialize(output).expect("unable to serialize JSON");
+
             let module_output =
                 json_loads.call((module_output_json,), None)?;
+
             module_outputs.set_item(module, module_output)?;
         }
     }

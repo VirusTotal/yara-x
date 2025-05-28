@@ -225,7 +225,7 @@ impl<W: Write> Serializer<W> {
         Ok(())
     }
 
-    fn quote_bytes(&mut self, bytes: &[u8]) -> String {
+    fn quote_bytes(bytes: &[u8]) -> String {
         let mut result = String::new();
         result.push('"');
         for b in bytes.iter() {
@@ -246,7 +246,7 @@ impl<W: Write> Serializer<W> {
         result
     }
 
-    fn quote_str(&mut self, s: &str) -> String {
+    fn quote_str(s: &str) -> String {
         let mut result = String::new();
         result.push('"');
         for c in s.chars() {
@@ -340,7 +340,7 @@ impl<W: Write> Serializer<W> {
                         // We have to escape possible \n in key as it is interpreted as string
                         // it is covered in tests
                         let escaped_key =
-                            self.quote_bytes(item.key.to_string().as_bytes());
+                            Self::quote_str(item.key.to_str().unwrap());
                         self.write_field_name(escaped_key.as_str())?;
                         self.indent += INDENTATION;
                         self.write_name_value_separator(&item.value)?;
@@ -388,12 +388,18 @@ impl<W: Write> Serializer<W> {
             ReflectValueRef::F64(v) => write!(self.output, "{:.1}", v)?,
             ReflectValueRef::Bool(v) => write!(self.output, "{}", v)?,
             ReflectValueRef::String(v) => {
-                let quoted = self.quote_str(v);
-                write!(self.output, "{}", quoted.paint(self.colors.string))?;
+                write!(
+                    self.output,
+                    "{}",
+                    Self::quote_str(v).paint(self.colors.string)
+                )?;
             }
             ReflectValueRef::Bytes(v) => {
-                let quoted = self.quote_bytes(v);
-                write!(self.output, "{}", quoted.paint(self.colors.string))?;
+                write!(
+                    self.output,
+                    "{}",
+                    Self::quote_bytes(v).paint(self.colors.string)
+                )?;
             }
             ReflectValueRef::Enum(d, v) => match d.value_by_number(*v) {
                 Some(e) => write!(self.output, "{}", e.name())?,
