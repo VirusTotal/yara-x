@@ -131,7 +131,7 @@ impl<W: Write> Serializer<W> {
                         // We have to escape possible \n in key as it is interpreted as string
                         // it is covered in tests
                         let escaped_key =
-                            Self::quote_str(item.key.to_str().unwrap());
+                            Self::quote_str(item.key.to_string().as_str());
                         write!(self.output, "{}: ", escaped_key.as_str())?;
                         self.write_value(&item.value)?;
                         if items.peek().is_some() {
