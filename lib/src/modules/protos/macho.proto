@@ -1,6 +1,5 @@
 syntax = "proto2";
 import "yara.proto";
-import "yaml.proto";
 
 package macho;
 
@@ -43,7 +42,7 @@ message Certificate {
 
 message Dylib {
   required bytes name = 1;
-  required uint32 timestamp = 2 [(yaml.field).fmt = "t"];
+  required uint32 timestamp = 2 [(yara.field_options).fmt = "t"];
   required string compatibility_version = 3;
   required string current_version = 4;
 }
@@ -93,13 +92,13 @@ message Dysymtab {
 message Section {
   optional bytes segname = 1;
   optional bytes sectname = 2;
-  optional uint64 addr = 3 [(yaml.field).fmt = "x"];
-  optional uint64 size = 4 [(yaml.field).fmt = "x"];
+  optional uint64 addr = 3 [(yara.field_options).fmt = "x"];
+  optional uint64 size = 4 [(yara.field_options).fmt = "x"];
   optional uint32 offset = 5;
   optional uint32 align = 6;
   optional uint32 reloff = 7;
   optional uint32 nreloc = 8;
-  optional uint32 flags = 9 [(yaml.field).fmt = "x"];
+  optional uint32 flags = 9 [(yara.field_options).fmt = "x"];
   optional uint32 reserved1 = 10;
   optional uint32 reserved2 = 11;
   optional uint32 reserved3 = 12;
@@ -107,20 +106,20 @@ message Section {
 
 message Segment {
   optional bytes segname = 3;
-  optional uint64 vmaddr = 4 [(yaml.field).fmt = "x"];
-  optional uint64 vmsize = 5 [(yaml.field).fmt = "x"];
+  optional uint64 vmaddr = 4 [(yara.field_options).fmt = "x"];
+  optional uint64 vmsize = 5 [(yara.field_options).fmt = "x"];
   optional uint64 fileoff = 6;
   optional uint64 filesize = 7;
-  optional uint32 maxprot = 8 [(yaml.field).fmt = "x"];
-  optional uint32 initprot = 9 [(yaml.field).fmt = "x"];
+  optional uint32 maxprot = 8 [(yara.field_options).fmt = "x"];
+  optional uint32 initprot = 9 [(yara.field_options).fmt = "x"];
   optional uint32 nsects = 10;
-  optional uint32 flags = 11 [(yaml.field).fmt = "flags:SegmentFlag"];
+  optional uint32 flags = 11 [(yara.field_options).fmt = "flags:SegmentFlag"];
   repeated Section sections = 12;
 }
 
 message FatArch {
-  optional uint32 cputype = 1 [(yaml.field).fmt = "x"];
-  optional uint32 cpusubtype = 2 [(yaml.field).fmt = "x"];
+  optional uint32 cputype = 1 [(yara.field_options).fmt = "x"];
+  optional uint32 cpusubtype = 2 [(yara.field_options).fmt = "x"];
   optional uint64 offset = 3;
   optional uint64 size = 4;
   optional uint32 align = 5;
@@ -128,13 +127,13 @@ message FatArch {
 }
 
 message File {
-  optional uint32 magic = 1 [(yaml.field).fmt = "x"];
-  optional uint32 cputype = 2 [(yaml.field).fmt = "x"];
-  optional uint32 cpusubtype = 3 [(yaml.field).fmt = "x"];
+  optional uint32 magic = 1 [(yara.field_options).fmt = "x"];
+  optional uint32 cputype = 2 [(yara.field_options).fmt = "x"];
+  optional uint32 cpusubtype = 3 [(yara.field_options).fmt = "x"];
   optional uint32 filetype = 4;
   optional uint32 ncmds = 5;
   optional uint32 sizeofcmds = 6;
-  optional uint32 flags = 7 [(yaml.field).fmt = "flags:FileFlag"];
+  optional uint32 flags = 7 [(yara.field_options).fmt = "flags:FileFlag"];
   optional uint32 reserved = 8;
   optional uint64 number_of_segments = 9;
   optional bytes dynamic_linker = 10;
@@ -160,13 +159,13 @@ message File {
 
 message Macho {
   // Set Mach-O header and basic fields
-  optional uint32 magic = 1 [(yaml.field).fmt = "x"];
-  optional uint32 cputype = 2 [(yaml.field).fmt = "x"];
-  optional uint32 cpusubtype = 3 [(yaml.field).fmt = "x"];
+  optional uint32 magic = 1 [(yara.field_options).fmt = "x"];
+  optional uint32 cputype = 2 [(yara.field_options).fmt = "x"];
+  optional uint32 cpusubtype = 3 [(yara.field_options).fmt = "x"];
   optional uint32 filetype = 4;
   optional uint32 ncmds = 5;
   optional uint32 sizeofcmds = 6;
-  optional uint32 flags = 7 [(yaml.field).fmt = "x"];
+  optional uint32 flags = 7 [(yara.field_options).fmt = "x"];
   optional uint32 reserved = 8;
   optional uint64 number_of_segments = 9;
   optional bytes dynamic_linker = 10;
@@ -192,7 +191,7 @@ message Macho {
 
 
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 29 [(yaml.field).fmt = "x"];
+  optional uint32 fat_magic = 29 [(yara.field_options).fmt = "x"];
   optional uint32 nfat_arch = 30;
   repeated FatArch fat_arch = 31;
 

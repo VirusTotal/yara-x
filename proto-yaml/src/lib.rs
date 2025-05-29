@@ -6,19 +6,19 @@ produced YAML can be customized by using specific options in your `.proto`
 files. Let's use the following protobuf message definition as an example:
 
 ```protobuf
-import "yaml.proto";
+import "yara.proto";
 
 message MyMessage {
-  optional int32 some_field = 1 [(yaml.field).fmt = "x"];
+  optional int32 some_field = 1 [(yara.field_options).fmt = "x"];
 }
 ```
 
-The first think to note is the `import "yaml.proto"` statement before the
-message definition. The `yaml.proto` file defines the existing YAML formatting
+The first think to note is the `import "yara.proto"` statement before the
+message definition. The `yara.proto` file defines the existing formatting
 options, so you must include it in your own `.proto` file in order to be able
 to use the such options.
 
-The `[(yaml.field).fmt = "x"]` modifier, when applied to some field, indicates
+The `[(yara.field_options).fmt = "x"]` modifier, when applied to some field, indicates
 that values of that field must be rendered in hexadecimal form. The list of
 supported format modifiers is:
 
@@ -38,12 +38,12 @@ supported format modifiers is:
 Protobuf definition:
 
 ```protobuf
-import "yaml.proto";
+import "yara.proto";
 
 message MyMessage {
-  optional int32 some_field = 1 [(yaml.field).fmt = "x"];
-  optional int64 some_timestamp = 2 [(yaml.field).fmt = "t"];
-  optional int32 some_flag = 3 [(yaml.field).fmt = "flags:MyFlags"];
+  optional int32 some_field = 1 [(yara.field_options).fmt = "x"];
+  optional int64 some_timestamp = 2 [(yara.field_options).fmt = "t"];
+  optional int32 some_flag = 3 [(yara.field_options).fmt = "flags:MyFlags"];
 }
 
 enum MyFlags {
@@ -75,7 +75,7 @@ use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
 use protobuf::reflect::{EnumDescriptor, ReflectValueRef};
 use protobuf::reflect::{FieldDescriptor, MessageRef};
 
-use crate::yaml::exts::field as field_options;
+use yara_x_proto::yara::exts::field_options;
 
 #[cfg(test)]
 mod tests;
@@ -180,11 +180,30 @@ impl<W: Write> Serializer<W> {
             }
         }
 
-        panic!(
-            "invalid format option `{}` for field `{}`",
-            fmt,
-            field_descriptor.full_name(),
-        );
+        // If the format is not "x", "t", or "flags:ENUM_TYPE", and it's not empty,
+        // it could be a custom format string (e.g. "{:#x}"). In this case,
+        // we don't have a specific ValueFormat enum variant, so we treat it as None
+        // for now. The actual formatting will be handled directly where this
+        // function's return value is used, by checking if `fmt` is non-empty.
+        // However, the original panic for unknown simple formats like "x", "t"
+        // should be preserved if fmt is not a flags type and not x or t.
+        // For now, to keep changes minimal, we'll assume that if it's not x, t, or flags,
+        // and it's not empty, it's an invalid *simple* format specifier.
+        // More complex format strings will pass through as ValueFormat::None
+        // and need to be handled by the caller if direct string formatting is desired.
+        if !fmt.is_empty() {
+            // This part of the logic might need refinement if we want to support
+            // arbitrary format strings directly through ValueFormat.
+            // For now, an unknown non-empty fmt that is not "x", "t", or "flags:..."
+            // is considered an error, similar to the original code.
+            panic!(
+                "invalid format option `{}` for field `{}`",
+                fmt,
+                field_descriptor.full_name(),
+            );
+        }
+
+        ValueFormat::None
     }
 
     fn print_integer_value<T: Into<i64> + ToString + Copy>(

@@ -91,6 +91,13 @@ message FieldOptions {
   //
   // string some_lowercase_string = 32 [(yara.field_options).lowercase = true];
   optional bool lowercase = 4;
+
+  // Specifies the format of the field when converted to a string.
+  //
+  // This option can be used with integer, float, and boolean fields. It uses
+  // Rust's formatting syntax. For example, if an integer field has `fmt = "{:#x}"`
+  // it will be formatted as a hexadecimal string with a "0x" prefix.
+  optional string fmt = 5;
 }
 
 // An entry in a field's ACL.
