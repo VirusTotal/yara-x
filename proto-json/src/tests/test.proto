@@ -1,0 +1,20 @@
+syntax = "proto2";
+
+package test;
+
+message SubMessage {
+  optional int32 i32 = 1;
+  optional string str = 2;
+  map<string, string> map_string_string = 3;
+}
+
+message Message {
+  optional int32 i32 = 1;
+  optional int64 i64 = 2;
+  optional string str = 4;
+  optional bytes bytes = 5;
+  optional float float = 6;
+  required bool bool = 7;
+  repeated SubMessage repeated_msg = 8;
+  optional SubMessage nested_msg = 9;
+}

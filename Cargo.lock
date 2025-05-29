@@ -598,17 +598,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
 
 [[package]]
-name = "colored_json"
-version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e35980a1b846f8e3e359fd18099172a0857140ba9230affc4f71348081e039b6"
-dependencies = [
- "serde",
- "serde_json",
- "yansi",
-]
-
-[[package]]
 name = "compact_str"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2727,17 +2716,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "protobuf-json-mapping"
-version = "3.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0d6e4be637b310d8a5c02fa195243328e2d97fa7df1127a27281ef1187fcb1d"
-dependencies = [
- "protobuf",
- "protobuf-support",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "protobuf-parse"
 version = "3.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4744,13 +4722,11 @@ name = "yara-x-cli"
 version = "0.15.0"
 dependencies = [
  "anyhow",
- "ascii_tree",
  "assert_cmd",
  "assert_fs",
  "chardetng",
  "clap",
  "clap_complete",
- "colored_json",
  "crossbeam",
  "crossterm 0.28.1",
  "enable-ansi-support",
@@ -4763,7 +4739,6 @@ dependencies = [
  "log",
  "predicates",
  "protobuf",
- "protobuf-json-mapping",
  "serde",
  "serde_json",
  "strum",
@@ -4774,6 +4749,7 @@ dependencies = [
  "yara-x",
  "yara-x-fmt",
  "yara-x-parser",
+ "yara-x-proto-json",
  "yara-x-proto-yaml",
 ]
 
@@ -4835,6 +4811,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "yara-x-proto-json"
+version = "0.15.0"
+dependencies = [
+ "base64 0.22.1",
+ "globwalk",
+ "goldenfile",
+ "itertools 0.14.0",
+ "protobuf",
+ "protobuf-codegen",
+ "yansi",
+]
+
+[[package]]
 name = "yara-x-proto-yaml"
 version = "0.15.0"
 dependencies = [
@@ -4844,8 +4833,6 @@ dependencies = [
  "itertools 0.14.0",
  "protobuf",
  "protobuf-codegen",
- "protobuf-parse",
- "protobuf-support",
  "yansi",
 ]
 
@@ -4853,8 +4840,8 @@ dependencies = [
 name = "yara-x-py"
 version = "0.15.0"
 dependencies = [
+ "base64 0.22.1",
  "protobuf",
- "protobuf-json-mapping",
  "pyo3",
  "pyo3-build-config",
  "pyo3-file",
@@ -4863,6 +4850,7 @@ dependencies = [
  "strum_macros",
  "yara-x",
  "yara-x-fmt",
+ "yara-x-proto-json",
 ]
 
 [[package]]

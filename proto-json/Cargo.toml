@@ -1,7 +1,7 @@
 [package]
-name = "yara-x-proto-yaml"
+name = "yara-x-proto-json"
 description = """
-Library the converts protocol buffers into YAML.
+Library the converts protocol buffers into JSON.
 """
 version.workspace = true
 authors.workspace = true
@@ -12,7 +12,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-chrono = { workspace = true }
+base64 = { workspace = true }
 protobuf = { workspace = true }
 itertools = { workspace = true }
 yansi = { workspace = true }
@@ -20,6 +20,7 @@ yansi = { workspace = true }
 [dev-dependencies]
 goldenfile = { workspace = true }
 globwalk = { workspace = true }
+protobuf = { workspace = true }
 
 [build-dependencies]
 protobuf = { workspace = true }
