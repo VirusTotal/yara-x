@@ -4840,6 +4840,8 @@ dependencies = [
 name = "yara-x-py"
 version = "0.15.0"
 dependencies = [
+ "base64 0.22.1",
+ "protobuf",
  "pyo3",
  "pyo3-build-config",
  "pyo3-file",

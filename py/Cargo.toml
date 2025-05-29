@@ -16,6 +16,8 @@ doc = false
 crate-type = ["cdylib"]
 
 [dependencies]
+base64 = { workspace = true }
+protobuf = { workspace = true }
 pyo3 = { version = "0.24.1", features = [
     "abi3",
     "abi3-py38",

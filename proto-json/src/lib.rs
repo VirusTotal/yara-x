@@ -1,8 +1,23 @@
-/*! Serializes a Protocol Buffer (protobuf) message to JSON. */
+/*! Serializes Protocol Buffer (protobuf) messages into JSON format.
 
-use std::borrow::Cow;
-use std::cmp::Ordering;
-use std::io::{Error, Write};
+This crate provides functionality to serialize arbitrary protobuf messages
+into a structured JSON representation. Special handling is applied to certain
+protobuf field types that are not natively representable in JSON—most notably,
+`bytes` fields.
+
+Since raw byte sequences may contain non-UTF-8 data, they cannot be directly
+encoded as JSON strings. Instead, they are serialized as an object containing
+the base64-encoded value along with an encoding identifier. For example:
+
+```json
+{
+  "my_bytes_field": {
+    "encoding": "base64",
+    "value": "dGhpcyBpcyB0aGUgb3JpZ2luYWwgdmFsdWU="
+  }
+}
+```
+*/
 
 use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
@@ -10,6 +25,10 @@ use itertools::Itertools;
 use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
 use protobuf::reflect::{MessageRef, ReflectValueRef};
 use protobuf::MessageDyn;
+use std::borrow::Cow;
+use std::cmp::Ordering;
+use std::io::{Error, Write};
+use std::str::from_utf8;
 use yansi::{Color, Paint, Style};
 
 #[cfg(test)]
@@ -205,13 +224,11 @@ impl<W: Write> Serializer<W> {
                     Self::escape(v).paint(self.colors.string)
                 )?;
             }
-            ReflectValueRef::Bytes(v) => {
-                write!(
-                    self.output,
-                    "\"{}\"",
-                    BASE64_STANDARD.encode(v).paint(self.colors.string)
-                )?;
-            }
+            ReflectValueRef::Bytes(v) => write!(
+                self.output,
+                "{{ \"encoding\": \"base64\", \"value\": \"{}\"}}",
+                BASE64_STANDARD.encode(v).paint(self.colors.string)
+            )?,
             ReflectValueRef::Enum(d, v) => match d.value_by_number(*v) {
                 Some(e) => write!(self.output, "{}", e.name())?,
                 None => write!(self.output, "{}", v)?,

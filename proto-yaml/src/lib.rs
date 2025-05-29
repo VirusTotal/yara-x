@@ -1,6 +1,6 @@
 /*! Serializes a Protocol Buffer (protobuf) message to YAML.
 
-This crates serializes arbitrary protobuf messages to YAML format, producing
+This crate serializes arbitrary protobuf messages to YAML format, producing
 YAML that is user-friendly, customizable and colorful. Some aspects of the
 produced YAML can be customized by using specific options in your `.proto`
 files. Let's use the following protobuf message definition as an example:
