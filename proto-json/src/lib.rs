@@ -19,16 +19,16 @@ the base64-encoded value along with an encoding identifier. For example:
 ```
 */
 
+use std::borrow::Cow;
+use std::cmp::Ordering;
+use std::io::{Error, Write};
+
 use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
 use itertools::Itertools;
 use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
 use protobuf::reflect::{MessageRef, ReflectValueRef};
 use protobuf::MessageDyn;
-use std::borrow::Cow;
-use std::cmp::Ordering;
-use std::io::{Error, Write};
-use std::str::from_utf8;
 use yansi::{Color, Paint, Style};
 
 #[cfg(test)]
