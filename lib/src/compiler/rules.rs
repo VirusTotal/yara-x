@@ -5,7 +5,6 @@ use std::slice::Iter;
 use std::time::Instant;
 
 use aho_corasick::AhoCorasick;
-use bincode::Options;
 #[cfg(feature = "logging")]
 use log::*;
 use regex_automata::meta::Regex;
@@ -165,9 +164,8 @@ impl Rules {
         let start = Instant::now();
 
         // Skip the magic and deserialize the remaining data.
-        let mut rules = bincode::DefaultOptions::new()
-            .with_varint_encoding()
-            .deserialize::<Self>(&bytes[magic.len()..])?;
+        let (rules, _len): (Self, usize) = bincode::serde::decode_from_slice(&bytes[magic.len()..], bincode::config::legacy().with_variable_int_encoding())?;
+        let mut rules = rules;
 
         #[cfg(feature = "logging")]
         info!("Deserialization time: {:?}", Instant::elapsed(&start));
@@ -216,9 +214,7 @@ impl Rules {
         writer.write_all(b"YARA-X")?;
 
         // Serialize rules.
-        Ok(bincode::DefaultOptions::new()
-            .with_varint_encoding()
-            .serialize_into(writer, self)?)
+        Ok(bincode::serde::encode_into_std_write(self, writer, bincode::config::legacy().with_variable_int_encoding())?)
     }
 
     /// Deserializes the rules from a `reader`.
@@ -445,9 +441,8 @@ impl Rules {
 
     #[inline]
     pub(crate) fn globals(&self) -> types::Struct {
-        bincode::DefaultOptions::new()
-            .deserialize::<types::Struct>(self.serialized_globals.as_slice())
-            .expect("error deserializing global variables")
+        let (globals, _len): (types::Struct, usize) = bincode::serde::decode_from_slice(self.serialized_globals.as_slice(), bincode::config::legacy()).expect("error deserializing global variables");
+        globals
     }
 
     #[inline]
