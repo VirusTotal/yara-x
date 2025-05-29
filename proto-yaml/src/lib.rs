@@ -74,8 +74,9 @@ use yansi::{Color, Paint, Style};
 use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
 use protobuf::reflect::{EnumDescriptor, ReflectValueRef};
 use protobuf::reflect::{FieldDescriptor, MessageRef};
+use yara_x_proto::yara::exts::field_options as yara_field_options_ext;
+use yara_x_proto::yara::FieldOptions;
 
-use crate::yaml::exts::field as field_options;
 
 #[cfg(test)]
 mod tests;
@@ -148,12 +149,17 @@ impl<W: Write> Serializer<W> {
         &self,
         field_descriptor: &FieldDescriptor,
     ) -> ValueFormat {
-        let opts = match field_options.get(&field_descriptor.proto().options) {
-            Some(opts) => opts,
-            None => return ValueFormat::None,
-        };
+        let yara_field_opts =
+            yara_field_options_ext.get(field_descriptor.options());
 
-        let fmt = opts.fmt();
+        let fmt_str = yara_field_opts
+            .and_then(|opts: FieldOptions| if opts.has_fmt() { Some(opts.fmt()) } else { None });
+
+        if fmt_str.is_none() {
+            return ValueFormat::None;
+        }
+
+        let fmt = fmt_str.unwrap();
 
         if fmt == "x" {
             return ValueFormat::Hex;
@@ -180,11 +186,30 @@ impl<W: Write> Serializer<W> {
             }
         }
 
-        panic!(
-            "invalid format option `{}` for field `{}`",
-            fmt,
-            field_descriptor.full_name(),
-        );
+        // If the format is not "x", "t", or "flags:ENUM_TYPE", and it's not empty,
+        // it could be a custom format string (e.g. "{:#x}"). In this case,
+        // we don't have a specific ValueFormat enum variant, so we treat it as None
+        // for now. The actual formatting will be handled directly where this
+        // function's return value is used, by checking if `fmt` is non-empty.
+        // However, the original panic for unknown simple formats like "x", "t"
+        // should be preserved if fmt is not a flags type and not x or t.
+        // For now, to keep changes minimal, we'll assume that if it's not x, t, or flags,
+        // and it's not empty, it's an invalid *simple* format specifier.
+        // More complex format strings will pass through as ValueFormat::None
+        // and need to be handled by the caller if direct string formatting is desired.
+        if !fmt.is_empty() {
+             // This part of the logic might need refinement if we want to support
+             // arbitrary format strings directly through ValueFormat.
+             // For now, an unknown non-empty fmt that is not "x", "t", or "flags:..."
+             // is considered an error, similar to the original code.
+            panic!(
+                "invalid format option `{}` for field `{}`",
+                fmt,
+                field_descriptor.full_name(),
+            );
+        }
+        
+        ValueFormat::None
     }
 
     fn print_integer_value<T: Into<i64> + ToString + Copy>(

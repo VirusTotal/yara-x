@@ -16,6 +16,7 @@ chrono = { workspace = true }
 protobuf = { workspace = true }
 itertools = { workspace = true }
 yansi = { workspace = true }
+yara-x-proto = { workspace = true }
 
 [dev-dependencies]
 goldenfile = { workspace = true }

@@ -8,6 +8,5 @@ fn main() {
         .include("src/tests")
         .include("src")
         .input("src/tests/test.proto")
-        .input("src/yaml.proto")
         .run_from_script();
 }
