@@ -4834,6 +4834,7 @@ dependencies = [
  "protobuf",
  "protobuf-codegen",
  "yansi",
+ "yara-x-proto",
 ]
 
 [[package]]

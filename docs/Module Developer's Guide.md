@@ -265,18 +265,18 @@ example:
 
 ```
 message Macho {
-  optional uint32 magic = 1 [(yaml.field).fmt = "x"];
+  optional uint32 magic = 1 [(yara.field_options).fmt = "x"];
 }
 ```
 
-Here, `[(yaml.field).fmt = "x"]` instructs YARA to portray the magic field in
-hexadecimal format (i.e., "x"). Consequently, the output will display
+Here, `[(yara.field_options).fmt = "x"]` instructs YARA to portray the magic 
+field in hexadecimal format (i.e., "x"). Consequently, the output will display
 `magic: 0xfeedfacf` instead of the less readable `magic: 4277009103`.
 
 Supported format options also includes `"t"` for timestamps. For example:
 
 ```
-optional uint32 my_timestamp = 1 [(yaml.field).fmt = "t"];
+optional uint32 my_timestamp = 1 [(yara.field_options).fmt = "t"];
 ```
 
 In this scenario, the output would be rendered as follows:

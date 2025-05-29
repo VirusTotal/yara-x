@@ -6,19 +6,19 @@ produced YAML can be customized by using specific options in your `.proto`
 files. Let's use the following protobuf message definition as an example:
 
 ```protobuf
-import "yaml.proto";
+import "yara.proto";
 
 message MyMessage {
-  optional int32 some_field = 1 [(yaml.field).fmt = "x"];
+  optional int32 some_field = 1 [(yara.field_options).fmt = "x"];
 }
 ```
 
-The first think to note is the `import "yaml.proto"` statement before the
-message definition. The `yaml.proto` file defines the existing YAML formatting
+The first think to note is the `import "yara.proto"` statement before the
+message definition. The `yara.proto` file defines the existing formatting
 options, so you must include it in your own `.proto` file in order to be able
 to use the such options.
 
-The `[(yaml.field).fmt = "x"]` modifier, when applied to some field, indicates
+The `[(yara.field_options).fmt = "x"]` modifier, when applied to some field, indicates
 that values of that field must be rendered in hexadecimal form. The list of
 supported format modifiers is:
 
@@ -38,12 +38,12 @@ supported format modifiers is:
 Protobuf definition:
 
 ```protobuf
-import "yaml.proto";
+import "yara.proto";
 
 message MyMessage {
-  optional int32 some_field = 1 [(yaml.field).fmt = "x"];
-  optional int64 some_timestamp = 2 [(yaml.field).fmt = "t"];
-  optional int32 some_flag = 3 [(yaml.field).fmt = "flags:MyFlags"];
+  optional int32 some_field = 1 [(yara.field_options).fmt = "x"];
+  optional int64 some_timestamp = 2 [(yara.field_options).fmt = "t"];
+  optional int32 some_flag = 3 [(yara.field_options).fmt = "flags:MyFlags"];
 }
 
 enum MyFlags {
@@ -74,9 +74,8 @@ use yansi::{Color, Paint, Style};
 use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
 use protobuf::reflect::{EnumDescriptor, ReflectValueRef};
 use protobuf::reflect::{FieldDescriptor, MessageRef};
-use yara_x_proto::yara::exts::field_options as yara_field_options_ext;
-use yara_x_proto::yara::FieldOptions;
 
+use yara_x_proto::yara::exts::field_options;
 
 #[cfg(test)]
 mod tests;
@@ -149,17 +148,12 @@ impl<W: Write> Serializer<W> {
         &self,
         field_descriptor: &FieldDescriptor,
     ) -> ValueFormat {
-        let yara_field_opts =
-            yara_field_options_ext.get(field_descriptor.options());
+        let opts = match field_options.get(&field_descriptor.proto().options) {
+            Some(opts) => opts,
+            None => return ValueFormat::None,
+        };
 
-        let fmt_str = yara_field_opts
-            .and_then(|opts: FieldOptions| if opts.has_fmt() { Some(opts.fmt()) } else { None });
-
-        if fmt_str.is_none() {
-            return ValueFormat::None;
-        }
-
-        let fmt = fmt_str.unwrap();
+        let fmt = opts.fmt();
 
         if fmt == "x" {
             return ValueFormat::Hex;
@@ -198,17 +192,17 @@ impl<W: Write> Serializer<W> {
         // More complex format strings will pass through as ValueFormat::None
         // and need to be handled by the caller if direct string formatting is desired.
         if !fmt.is_empty() {
-             // This part of the logic might need refinement if we want to support
-             // arbitrary format strings directly through ValueFormat.
-             // For now, an unknown non-empty fmt that is not "x", "t", or "flags:..."
-             // is considered an error, similar to the original code.
+            // This part of the logic might need refinement if we want to support
+            // arbitrary format strings directly through ValueFormat.
+            // For now, an unknown non-empty fmt that is not "x", "t", or "flags:..."
+            // is considered an error, similar to the original code.
             panic!(
                 "invalid format option `{}` for field `{}`",
                 fmt,
                 field_descriptor.full_name(),
             );
         }
-        
+
         ValueFormat::None
     }
 

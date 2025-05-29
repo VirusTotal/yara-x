@@ -1,7 +1,6 @@
 syntax = "proto2";
 
 import "yara.proto";
-import "yaml.proto";
 
 package dotnet;
 
@@ -56,8 +55,8 @@ message AssemblyRef {
 
 message Stream {
   optional string name = 1;
-  required uint32 offset = 2 [(yaml.field).fmt = "x"];
-  required uint32 size = 3 [(yaml.field).fmt = "x"];
+  required uint32 offset = 2 [(yara.field_options).fmt = "x"];
+  required uint32 size = 3 [(yara.field_options).fmt = "x"];
 }
 
 message Version {
@@ -68,8 +67,8 @@ message Version {
 }
 
 message Resource {
-  optional uint32 offset = 1 [(yaml.field).fmt = "x"];
-  optional uint32 length = 2 [(yaml.field).fmt = "x"];
+  optional uint32 offset = 1 [(yara.field_options).fmt = "x"];
+  optional uint32 length = 2 [(yara.field_options).fmt = "x"];
   optional string name = 3;
 }
 

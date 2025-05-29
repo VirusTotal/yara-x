@@ -1,7 +1,6 @@
 syntax = "proto2";
 
 import "yara.proto";
-import "yaml.proto";
 
 package pe;
 
@@ -21,40 +20,40 @@ message PE {
   optional Version image_version = 6;
   optional Version linker_version = 7;
   optional OptionalMagic opthdr_magic = 8;
-  optional uint32 characteristics = 9 [(yaml.field).fmt = "flags:Characteristics"];
-  optional uint32 dll_characteristics = 10 [(yaml.field).fmt = "flags:DllCharacteristics"];
-  optional uint32 timestamp = 11 [(yaml.field).fmt = "t"];
-  optional uint64 image_base = 12 [(yaml.field).fmt = "x"];
+  optional uint32 characteristics = 9 [(yara.field_options).fmt = "flags:Characteristics"];
+  optional uint32 dll_characteristics = 10 [(yara.field_options).fmt = "flags:DllCharacteristics"];
+  optional uint32 timestamp = 11 [(yara.field_options).fmt = "t"];
+  optional uint64 image_base = 12 [(yara.field_options).fmt = "x"];
   optional uint32 checksum = 13;
-  optional uint32 base_of_code = 14 [(yaml.field).fmt = "x"];
-  optional uint32 base_of_data = 15 [(yaml.field).fmt = "x"];
+  optional uint32 base_of_code = 14 [(yara.field_options).fmt = "x"];
+  optional uint32 base_of_data = 15 [(yara.field_options).fmt = "x"];
 
   // Entry point as a file offset.
-  optional uint32 entry_point = 16 [(yaml.field).fmt = "x"];
+  optional uint32 entry_point = 16 [(yara.field_options).fmt = "x"];
 
   // Entry point as it appears in the PE header (RVA).
-  optional uint32 entry_point_raw = 17 [(yaml.field).fmt = "x"];
+  optional uint32 entry_point_raw = 17 [(yara.field_options).fmt = "x"];
 
   optional string dll_name = 18;
-  optional uint32 export_timestamp = 19 [(yaml.field).fmt = "t"];
+  optional uint32 export_timestamp = 19 [(yara.field_options).fmt = "t"];
 
-  optional uint32 section_alignment = 20 [(yaml.field).fmt = "x"];
-  optional uint32 file_alignment = 21 [(yaml.field).fmt = "x"];
-  optional uint32 loader_flags = 22 [(yaml.field).fmt = "x"];
+  optional uint32 section_alignment = 20 [(yara.field_options).fmt = "x"];
+  optional uint32 file_alignment = 21 [(yara.field_options).fmt = "x"];
+  optional uint32 loader_flags = 22 [(yara.field_options).fmt = "x"];
 
-  optional uint32 size_of_optional_header = 23 [(yaml.field).fmt = "x"];
-  optional uint32 size_of_code = 24 [(yaml.field).fmt = "x"];
-  optional uint32 size_of_initialized_data = 25 [(yaml.field).fmt = "x"];
-  optional uint32 size_of_uninitialized_data = 26 [(yaml.field).fmt = "x"];
-  optional uint32 size_of_image = 27 [(yaml.field).fmt = "x"];
-  optional uint32 size_of_headers = 28 [(yaml.field).fmt = "x"];
+  optional uint32 size_of_optional_header = 23 [(yara.field_options).fmt = "x"];
+  optional uint32 size_of_code = 24 [(yara.field_options).fmt = "x"];
+  optional uint32 size_of_initialized_data = 25 [(yara.field_options).fmt = "x"];
+  optional uint32 size_of_uninitialized_data = 26 [(yara.field_options).fmt = "x"];
+  optional uint32 size_of_image = 27 [(yara.field_options).fmt = "x"];
+  optional uint32 size_of_headers = 28 [(yara.field_options).fmt = "x"];
 
-  optional uint64 size_of_stack_reserve = 29 [(yaml.field).fmt = "x"];
-  optional uint64 size_of_stack_commit = 30 [(yaml.field).fmt = "x"];
-  optional uint64 size_of_heap_reserve = 31 [(yaml.field).fmt = "x"];
-  optional uint64 size_of_heap_commit = 32 [(yaml.field).fmt = "x"];
+  optional uint64 size_of_stack_reserve = 29 [(yara.field_options).fmt = "x"];
+  optional uint64 size_of_stack_commit = 30 [(yara.field_options).fmt = "x"];
+  optional uint64 size_of_heap_reserve = 31 [(yara.field_options).fmt = "x"];
+  optional uint64 size_of_heap_commit = 32 [(yara.field_options).fmt = "x"];
 
-  optional uint32 pointer_to_symbol_table = 33 [(yaml.field).fmt = "x"];
+  optional uint32 pointer_to_symbol_table = 33 [(yara.field_options).fmt = "x"];
   optional uint32 win32_version_value = 34;
   optional uint32 number_of_symbols = 35;
   optional uint32 number_of_rva_and_sizes = 36;
@@ -75,7 +74,7 @@ message PE {
   repeated Section sections = 50;
   repeated DirEntry data_directories = 51;
 
-  optional uint64 resource_timestamp = 52 [(yaml.field).fmt = "t"];
+  optional uint64 resource_timestamp = 52 [(yara.field_options).fmt = "t"];
   // TODO: implement resource_version?
   optional Version resource_version = 53;
   repeated Resource resources = 54;
@@ -99,14 +98,14 @@ message KeyValue {
 }
 
 message DirEntry {
-  required uint32 virtual_address = 1 [(yaml.field).fmt = "x"];
-  required uint32 size = 2 [(yaml.field).fmt = "x"];
+  required uint32 virtual_address = 1 [(yara.field_options).fmt = "x"];
+  required uint32 size = 2 [(yara.field_options).fmt = "x"];
 }
 
 message Resource {
-  required uint32 length = 1 [(yaml.field).fmt = "x"];
-  required uint32 rva = 2 [(yaml.field).fmt = "x"];
-  optional uint32 offset = 3 [(yaml.field).fmt = "x"];
+  required uint32 length = 1 [(yara.field_options).fmt = "x"];
+  required uint32 rva = 2 [(yara.field_options).fmt = "x"];
+  optional uint32 offset = 3 [(yara.field_options).fmt = "x"];
   optional ResourceType type = 4;
   optional uint32 id = 5;
   optional uint32 language = 6;
@@ -124,15 +123,15 @@ message Import {
 message Export {
   optional string name = 1;
   required uint32 ordinal = 2;
-  required uint32 rva = 3 [(yaml.field).fmt = "x"];
-  optional uint32 offset = 4 [(yaml.field).fmt = "x"];
+  required uint32 rva = 3 [(yara.field_options).fmt = "x"];
+  optional uint32 offset = 4 [(yara.field_options).fmt = "x"];
   optional string forward_name = 5;
 }
 
 message Function {
   optional string name = 1;
   optional uint32 ordinal = 2;
-  required uint32 rva = 3 [(yaml.field).fmt = "x"];
+  required uint32 rva = 3 [(yara.field_options).fmt = "x"];
 }
 
 
@@ -144,8 +143,8 @@ message Signature {
   optional string algorithm = 5;
   optional string algorithm_oid = 6;
   optional string serial = 7;
-  optional int64 not_before = 8 [(yaml.field).fmt = "t"];
-  optional int64 not_after = 9 [(yaml.field).fmt = "t"];
+  optional int64 not_before = 8 [(yara.field_options).fmt = "t"];
+  optional int64 not_after = 9 [(yara.field_options).fmt = "t"];
   optional bool verified = 10;
   optional string digest_alg = 11;
   optional string digest = 12;
@@ -173,13 +172,13 @@ message Certificate {
   optional string algorithm = 5;
   optional string algorithm_oid = 6;
   optional string serial = 7;
-  optional int64 not_before = 8 [(yaml.field).fmt = "t"];
-  optional int64 not_after = 9 [(yaml.field).fmt = "t"];
+  optional int64 not_before = 8 [(yara.field_options).fmt = "t"];
+  optional int64 not_after = 9 [(yara.field_options).fmt = "t"];
 }
 
 message CounterSignature {
   optional bool verified = 1;
-  optional int64 sign_time = 2 [(yaml.field).fmt = "t"];
+  optional int64 sign_time = 2 [(yara.field_options).fmt = "t"];
   optional string digest = 12;
   optional string digest_alg = 3;
   repeated Certificate chain = 4;
@@ -231,20 +230,20 @@ message Section {
   //
   // See: https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-image_section_header#members
   required bytes full_name = 2;
-  required uint32 characteristics = 3 [(yaml.field).fmt = "flags:SectionCharacteristics"];
-  required uint32 raw_data_size = 4 [(yaml.field).fmt = "x"];
-  required uint32 raw_data_offset = 5 [(yaml.field).fmt = "x"];
-  required uint32 virtual_address = 6 [(yaml.field).fmt = "x"];
-  required uint32 virtual_size = 7 [(yaml.field).fmt = "x"];
-  required uint32 pointer_to_relocations = 8 [(yaml.field).fmt = "x"];
-  required uint32 pointer_to_line_numbers = 9 [(yaml.field).fmt = "x"];
+  required uint32 characteristics = 3 [(yara.field_options).fmt = "flags:SectionCharacteristics"];
+  required uint32 raw_data_size = 4 [(yara.field_options).fmt = "x"];
+  required uint32 raw_data_offset = 5 [(yara.field_options).fmt = "x"];
+  required uint32 virtual_address = 6 [(yara.field_options).fmt = "x"];
+  required uint32 virtual_size = 7 [(yara.field_options).fmt = "x"];
+  required uint32 pointer_to_relocations = 8 [(yara.field_options).fmt = "x"];
+  required uint32 pointer_to_line_numbers = 9 [(yara.field_options).fmt = "x"];
   required uint32 number_of_relocations = 10;
   required uint32 number_of_line_numbers = 11;
 }
 
 message RichSignature {
-  required uint32 offset = 1 [(yaml.field).fmt = "x"];
-  required uint32 length = 2 [(yaml.field).fmt = "x"];
+  required uint32 offset = 1 [(yara.field_options).fmt = "x"];
+  required uint32 length = 2 [(yara.field_options).fmt = "x"];
   required uint32 key = 3;
   required bytes raw_data = 4;
   required bytes clear_data = 5;
@@ -258,8 +257,8 @@ message RichTool {
 }
 
 message Overlay {
-  required uint64 offset = 1 [(yaml.field).fmt = "x"];
-  required uint64 size = 2 [(yaml.field).fmt = "x"];
+  required uint64 offset = 1 [(yara.field_options).fmt = "x"];
+  required uint64 size = 2 [(yara.field_options).fmt = "x"];
 }
 
 enum Machine {

@@ -1,6 +1,6 @@
 syntax = "proto2";
 
-import "yaml.proto";
+import "yara.proto";
 
 package test;
 
@@ -11,8 +11,8 @@ message SubMessage {
 }
 
 message Message {
-  optional int32 int32_hex = 1 [(yaml.field).fmt = "x"];
-  optional int64 timestamp = 2 [(yaml.field).fmt = "t"];
+  optional int32 int32_hex = 1 [(yara.field_options).fmt = "x"];
+  optional int64 timestamp = 2 [(yara.field_options).fmt = "t"];
   optional int32 int32_dec = 3;
   optional string str = 4;
   repeated SubMessage repeated_msg = 5;
