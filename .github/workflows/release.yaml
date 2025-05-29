@@ -229,6 +229,7 @@ jobs:
         cargo login ${{ secrets.CRATES_IO_API_TOKEN }}
         cargo publish -p yara-x-macros
         cargo publish -p yara-x-proto
+        cargo publish -p yara-x-proto-json
         cargo publish -p yara-x-proto-yaml
         cargo publish -p yara-x-parser
         cargo publish -p yara-x-fmt
