@@ -164,7 +164,10 @@ impl Rules {
         let start = Instant::now();
 
         // Skip the magic and deserialize the remaining data.
-        let (rules, _len): (Self, usize) = bincode::serde::decode_from_slice(&bytes[magic.len()..], bincode::config::legacy().with_variable_int_encoding())?;
+        let (rules, _len): (Self, usize) = bincode::serde::decode_from_slice(
+            &bytes[magic.len()..],
+            bincode::config::standard(),
+        )?;
         let mut rules = rules;
 
         #[cfg(feature = "logging")]
@@ -213,8 +216,13 @@ impl Rules {
         // Write file header.
         writer.write_all(b"YARA-X")?;
 
-        // Serialize rules.
-        Ok(bincode::serde::encode_into_std_write(self, writer, bincode::config::legacy().with_variable_int_encoding())?)
+        bincode::serde::encode_into_std_write(
+            self,
+            &mut writer,
+            bincode::config::standard(),
+        )?;
+
+        Ok(())
     }
 
     /// Deserializes the rules from a `reader`.
@@ -441,7 +449,12 @@ impl Rules {
 
     #[inline]
     pub(crate) fn globals(&self) -> types::Struct {
-        let (globals, _len): (types::Struct, usize) = bincode::serde::decode_from_slice(self.serialized_globals.as_slice(), bincode::config::legacy()).expect("error deserializing global variables");
+        let (globals, _): (types::Struct, usize) =
+            bincode::serde::decode_from_slice(
+                self.serialized_globals.as_slice(),
+                bincode::config::standard(),
+            )
+            .expect("error deserializing global variables");
         globals
     }
 

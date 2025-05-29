@@ -20,10 +20,13 @@ pub enum SerializationError {
     #[error("not a YARA-X compiled rules file")]
     InvalidFormat,
 
-    /// The data seems to be YARA-X serialized rules, but it's invalid or
-    /// corrupted.
-    #[error("invalid YARA-X compiled rules file")]
-    InvalidEncoding(#[from] bincode::Error),
+    /// Error occurred while encoding YARA-X rules.
+    #[error("cannot encode YARA-X rules")]
+    EncodeError(#[from] bincode::error::EncodeError),
+
+    /// Error occurred while decoding YARA-X rules.
+    #[error("cannot decode YARA-X rules")]
+    DecodeError(#[from] bincode::error::DecodeError),
 
     /// I/O error while trying to read or write serialized data.
     #[error(transparent)]
