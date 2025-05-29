@@ -221,7 +221,7 @@ anyhow = { workspace = true }
 array-bytes = { workspace = true }
 ascii_tree = { workspace = true }
 base64 = { workspace = true }
-bincode = { workspace = true }
+bincode = { workspace = true, features = ["serde"] }
 bitflags = { workspace = true, features = ["serde"] }
 bitvec = { workspace = true }
 bstr = { workspace = true, features = ["serde"] }

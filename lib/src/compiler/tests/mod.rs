@@ -19,7 +19,7 @@ fn serialization() {
 
     assert!(matches!(
         Rules::deserialize(b"YARA-X").err().unwrap(),
-        SerializationError::InvalidEncoding(_)
+        SerializationError::DecodeError(_)
     ));
 
     let rules = compile(r#"rule test { strings: $a = "foo" condition: $a }"#)

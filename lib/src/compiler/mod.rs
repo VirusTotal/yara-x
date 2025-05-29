@@ -14,7 +14,6 @@ use std::rc::Rc;
 use std::time::Instant;
 use std::{fmt, fs, iter, vec};
 
-use bincode::Options;
 use bitflags::bitflags;
 use bstr::{BStr, ByteSlice};
 use itertools::{izip, Itertools, MinMaxResult};
@@ -753,9 +752,11 @@ impl<'a> Compiler<'a> {
         // An alternative is changing the `Rc` in some variants of `TypeValue`
         // to `Arc`, as the root cause that prevents `Struct` from being `Send`
         // is the use of `Rc` in `TypeValue`.
-        let serialized_globals = bincode::DefaultOptions::new()
-            .serialize(&self.root_struct)
-            .expect("failed to serialize global variables");
+        let serialized_globals = bincode::serde::encode_to_vec(
+            &self.root_struct,
+            bincode::config::standard().with_variable_int_encoding(),
+        )
+        .expect("failed to serialize global variables");
 
         let mut rules = Rules {
             serialized_globals,
