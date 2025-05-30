@@ -27,9 +27,11 @@ use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
 use itertools::Itertools;
 use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
-use protobuf::reflect::{MessageRef, ReflectValueRef};
+use protobuf::reflect::{FieldDescriptor, MessageRef, ReflectValueRef};
 use protobuf::MessageDyn;
 use yansi::{Color, Paint, Style};
+
+use yara_x_proto::{get_field_format, FieldFormat};
 
 #[cfg(test)]
 mod tests;
@@ -86,8 +88,17 @@ impl<W: Write> Serializer<W> {
     fn print_integer_value<T: Into<i64> + ToString + Copy>(
         &mut self,
         value: T,
+        format: FieldFormat,
     ) -> Result<(), std::io::Error> {
-        write!(self.output, "{}", value.to_string())
+        if matches!(format, FieldFormat::Timestamp) {
+            write!(
+                self.output,
+                "{{ \"encoding\": \"timestamp\", \"value\": {} }}",
+                value.to_string()
+            )
+        } else {
+            write!(self.output, "{}", value.to_string())
+        }
     }
 
     fn escape(s: &str) -> Cow<'_, str> {
@@ -138,7 +149,7 @@ impl<W: Write> Serializer<W> {
                 Optional(optional) => {
                     let value = optional.value().unwrap();
                     self.write_field_name(field.name())?;
-                    self.write_value(&value)?;
+                    self.write_value(&field, &value)?;
                 }
                 Repeated(repeated) => {
                     self.write_field_name(field.name())?;
@@ -147,7 +158,7 @@ impl<W: Write> Serializer<W> {
                     self.newline()?;
                     let mut items = repeated.into_iter().peekable();
                     while let Some(value) = items.next() {
-                        self.write_value(&value)?;
+                        self.write_value(&field, &value)?;
                         if items.peek().is_some() {
                             write!(self.output, ",")?;
                             self.newline()?;
@@ -182,7 +193,7 @@ impl<W: Write> Serializer<W> {
                             "\"{}\": ",
                             Self::escape(&key).paint(self.colors.string)
                         )?;
-                        self.write_value(&item.value)?;
+                        self.write_value(&field, &item.value)?;
                         if items.peek().is_some() {
                             write!(self.output, ",")?;
                             self.newline()?;
@@ -208,12 +219,24 @@ impl<W: Write> Serializer<W> {
         Ok(())
     }
 
-    fn write_value(&mut self, value: &ReflectValueRef) -> Result<(), Error> {
+    fn write_value(
+        &mut self,
+        field: &FieldDescriptor,
+        value: &ReflectValueRef,
+    ) -> Result<(), Error> {
         match value {
-            ReflectValueRef::U32(v) => self.print_integer_value(*v)?,
-            ReflectValueRef::U64(v) => self.print_integer_value(*v as i64)?,
-            ReflectValueRef::I32(v) => self.print_integer_value(*v)?,
-            ReflectValueRef::I64(v) => self.print_integer_value(*v)?,
+            ReflectValueRef::U32(v) => {
+                self.print_integer_value(*v, get_field_format(field))?
+            }
+            ReflectValueRef::U64(v) => {
+                self.print_integer_value(*v as i64, get_field_format(field))?
+            }
+            ReflectValueRef::I32(v) => {
+                self.print_integer_value(*v, get_field_format(field))?
+            }
+            ReflectValueRef::I64(v) => {
+                self.print_integer_value(*v, get_field_format(field))?
+            }
             ReflectValueRef::F32(v) => write!(self.output, "{}", v)?,
             ReflectValueRef::F64(v) => write!(self.output, "{}", v)?,
             ReflectValueRef::Bool(v) => write!(self.output, "{}", v)?,

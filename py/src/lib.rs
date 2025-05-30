@@ -30,7 +30,8 @@ use protobuf::MessageDyn;
 use pyo3::exceptions::{PyException, PyIOError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{
-    PyBool, PyBytes, PyDict, PyFloat, PyInt, PyString, PyTuple,
+    PyBool, PyBytes, PyDict, PyFloat, PyInt, PyString, PyStringMethods,
+    PyTuple,
 };
 use pyo3::{create_exception, IntoPyObjectExt};
 use pyo3_file::PyFileLikeObject;
@@ -840,10 +841,27 @@ fn match_to_py(py: Python, match_: yrx::Match) -> PyResult<Py<Match>> {
 /// and returns the result as a Python `bytes` object, preserving the original
 /// binary data.
 #[pyclass]
-struct JsonDecoder;
+struct JsonDecoder {
+    fromtimestamp: Py<PyAny>,
+}
 
 #[pymethods]
 impl JsonDecoder {
+    #[staticmethod]
+    fn new() -> Self {
+        JsonDecoder {
+            fromtimestamp: Python::with_gil(|py| {
+                PyModule::import(py, "datetime")
+                    .unwrap()
+                    .getattr("datetime")
+                    .unwrap()
+                    .getattr("fromtimestamp")
+                    .unwrap()
+                    .unbind()
+            }),
+        }
+    }
+
     fn __call__<'py>(
         &self,
         py: Python<'py>,
@@ -854,21 +872,19 @@ impl JsonDecoder {
             .as_ref()
             .and_then(|encoding| encoding.downcast::<PyString>().ok())
         {
-            let value = dict
-                .get_item("value")?
-                .as_ref()
-                .and_then(|value| value.downcast::<PyString>().ok())
-                .map(|value| value.to_string());
-
-            let value = match value {
+            let value = match dict.get_item("value")? {
                 Some(value) => value,
                 None => return Ok(dict.into_any()),
             };
 
             if encoding == "base64" {
                 BASE64_STANDARD
-                    .decode(value)
+                    .decode(value.downcast::<PyString>()?.to_cow()?.as_bytes())
                     .expect("decoding base64")
+                    .into_bound_py_any(py)
+            } else if encoding == "timestamp" {
+                self.fromtimestamp
+                    .call(py, (value,), None)?
                     .into_bound_py_any(py)
             } else {
                 Ok(dict.into_any())
@@ -901,7 +917,7 @@ fn proto_to_json<'py>(
     // that can transform JSON objects on the fly. This is used in order to
     // decode some types that are not directly representable in JSON. See the
     // documentation for JsonDecode for details.
-    kwargs.set_item("object_hook", JsonDecoder {})?;
+    kwargs.set_item("object_hook", JsonDecoder::new())?;
 
     json_loads.call((module_output_json,), Some(&kwargs))
 }

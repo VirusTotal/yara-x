@@ -12,13 +12,13 @@ include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 /// ways. For example, you can define a field that represents a timestamp in the
 /// following way:
 ///
-/// ```
+/// ```text
 /// optional uint32 my_timestamp = 1 [(yara.field_options).fmt = "t"];
 /// ```
 ///
 /// Or a field that should be formatted as an hexadecimal number:
 ///
-/// ```
+/// ```text
 /// optional uint32 my_flags = 2 [(yara.field_options).fmt = "x"];
 /// ```
 ///

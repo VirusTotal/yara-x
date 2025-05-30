@@ -173,6 +173,8 @@ message TestProto2 {
   map<int64, bool>            map_int64_bool = 303;
   map<int64, float>           map_int64_float = 304;
 
+  optional int64              timestamp = 305 [(yara.field_options).fmt = "t"];
+
   /// This field will be visible in YARA as `bool_yara` instead of `bool_proto`.
   optional bool bool_proto = 350 [(yara.field_options).name = "bool_yara"];
 

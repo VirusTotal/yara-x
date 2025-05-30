@@ -176,5 +176,7 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> TestProto2 {
 
     test.array_struct.push(nested);
 
+    test.set_timestamp(1748591440);
+
     test
 }

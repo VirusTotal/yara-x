@@ -203,11 +203,13 @@ def test_scanner_timeout():
 
 
 def test_module_outputs():
+  import datetime
   rules = yara_x.compile('import "test_proto2" rule foo {condition: false}')
   module_outputs = rules.scan(b'').module_outputs
   assert module_outputs['test_proto2']['int32_one'] == 1
   assert module_outputs['test_proto2']['bytes_foo'] == b'foo'
   assert module_outputs['test_proto2']['bytes_raw'] == b'\xfcH\x83\xe4\xf0\xeb3]\x8bE\x00H'
+  assert module_outputs['test_proto2']['timestamp'] == datetime.datetime(2025, 5, 30, 9, 50, 40)
 
 
 def test_ignored_modules():

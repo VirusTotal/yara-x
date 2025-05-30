@@ -62,17 +62,17 @@ some_flag: 0x06  # BAR | BAZ
 ```
  */
 
-use chrono::prelude::DateTime;
-use itertools::Itertools;
-use protobuf::MessageDyn;
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::io::{Error, Write};
 use std::ops::BitAnd;
-use yansi::{Color, Paint, Style};
 
+use chrono::prelude::DateTime;
+use itertools::Itertools;
 use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
 use protobuf::reflect::{FieldDescriptor, MessageRef, ReflectValueRef};
+use protobuf::MessageDyn;
+use yansi::{Color, Paint, Style};
 
 use yara_x_proto::{get_field_format, FieldFormat};
 
@@ -137,9 +137,9 @@ impl<W: Write> Serializer<W> {
     fn print_integer_value<T: Into<i64> + ToString + Copy>(
         &mut self,
         value: T,
-        value_format: FieldFormat,
+        format: FieldFormat,
     ) -> Result<(), std::io::Error> {
-        match value_format {
+        match format {
             FieldFormat::Flags(flags_enum) => {
                 let value = value.into();
                 write!(self.output, "0x{:x}", value)?;
