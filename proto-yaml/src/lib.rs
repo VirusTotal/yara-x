@@ -72,10 +72,9 @@ use std::ops::BitAnd;
 use yansi::{Color, Paint, Style};
 
 use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
-use protobuf::reflect::{EnumDescriptor, ReflectValueRef};
-use protobuf::reflect::{FieldDescriptor, MessageRef};
+use protobuf::reflect::{FieldDescriptor, MessageRef, ReflectValueRef};
 
-use yara_x_proto::yara::exts::field_options;
+use yara_x_proto::{get_field_format, FieldFormat};
 
 #[cfg(test)]
 mod tests;
@@ -91,15 +90,6 @@ struct Colors {
     field_name: Style,
     repeated_name: Style,
     comment: Style,
-}
-
-/// A struct that represents the format applied to values.
-#[derive(Debug, Clone)]
-enum ValueFormat {
-    None,
-    Hex,
-    Timestamp,
-    Flags(EnumDescriptor),
 }
 
 /// Serializes a protobuf to YAML format.
@@ -144,75 +134,13 @@ impl<W: Write> Serializer<W> {
 }
 
 impl<W: Write> Serializer<W> {
-    fn get_value_format(
-        &self,
-        field_descriptor: &FieldDescriptor,
-    ) -> ValueFormat {
-        let opts = match field_options.get(&field_descriptor.proto().options) {
-            Some(opts) => opts,
-            None => return ValueFormat::None,
-        };
-
-        let fmt = opts.fmt();
-
-        if fmt == "x" {
-            return ValueFormat::Hex;
-        } else if fmt == "t" {
-            return ValueFormat::Timestamp;
-        }
-
-        let msg_descriptor = field_descriptor.containing_message();
-        let file_descriptor = msg_descriptor.file_descriptor();
-
-        // Check if format is something like `flags:ENUM_TYPE`.
-        if let Some(flags_enum) = fmt.strip_prefix("flags:") {
-            if let Some(flags_enum) =
-                file_descriptor.enums().find(|e| e.name() == flags_enum)
-            {
-                return ValueFormat::Flags(flags_enum);
-            } else {
-                panic!(
-                    "field `{}` declared as `flags:{}`, but enum `{}` was not found",
-                    field_descriptor.full_name(),
-                    flags_enum,
-                    flags_enum
-                )
-            }
-        }
-
-        // If the format is not "x", "t", or "flags:ENUM_TYPE", and it's not empty,
-        // it could be a custom format string (e.g. "{:#x}"). In this case,
-        // we don't have a specific ValueFormat enum variant, so we treat it as None
-        // for now. The actual formatting will be handled directly where this
-        // function's return value is used, by checking if `fmt` is non-empty.
-        // However, the original panic for unknown simple formats like "x", "t"
-        // should be preserved if fmt is not a flags type and not x or t.
-        // For now, to keep changes minimal, we'll assume that if it's not x, t, or flags,
-        // and it's not empty, it's an invalid *simple* format specifier.
-        // More complex format strings will pass through as ValueFormat::None
-        // and need to be handled by the caller if direct string formatting is desired.
-        if !fmt.is_empty() {
-            // This part of the logic might need refinement if we want to support
-            // arbitrary format strings directly through ValueFormat.
-            // For now, an unknown non-empty fmt that is not "x", "t", or "flags:..."
-            // is considered an error, similar to the original code.
-            panic!(
-                "invalid format option `{}` for field `{}`",
-                fmt,
-                field_descriptor.full_name(),
-            );
-        }
-
-        ValueFormat::None
-    }
-
     fn print_integer_value<T: Into<i64> + ToString + Copy>(
         &mut self,
         value: T,
-        value_format: ValueFormat,
+        value_format: FieldFormat,
     ) -> Result<(), std::io::Error> {
         match value_format {
-            ValueFormat::Flags(flags_enum) => {
+            FieldFormat::Flags(flags_enum) => {
                 let value = value.into();
                 write!(self.output, "0x{:x}", value)?;
                 let mut f = vec![];
@@ -225,10 +153,10 @@ impl<W: Write> Serializer<W> {
                     self.write_comment(f.into_iter().join(" | ").as_str())?;
                 }
             }
-            ValueFormat::Hex => {
+            FieldFormat::Hex => {
                 write!(self.output, "0x{:x}", value.into())?;
             }
-            ValueFormat::Timestamp => {
+            FieldFormat::Timestamp => {
                 write!(self.output, "{}", value.to_string())?;
                 self.write_comment(
                     DateTime::from_timestamp(value.into(), 0)
@@ -388,26 +316,22 @@ impl<W: Write> Serializer<W> {
 
     fn write_value(
         &mut self,
-        field_descriptor: &FieldDescriptor,
+        field: &FieldDescriptor,
         value: &ReflectValueRef,
     ) -> Result<(), Error> {
         match value {
-            ReflectValueRef::U32(v) => self.print_integer_value(
-                *v,
-                self.get_value_format(field_descriptor),
-            )?,
-            ReflectValueRef::U64(v) => self.print_integer_value(
-                *v as i64,
-                self.get_value_format(field_descriptor),
-            )?,
-            ReflectValueRef::I32(v) => self.print_integer_value(
-                *v,
-                self.get_value_format(field_descriptor),
-            )?,
-            ReflectValueRef::I64(v) => self.print_integer_value(
-                *v,
-                self.get_value_format(field_descriptor),
-            )?,
+            ReflectValueRef::U32(v) => {
+                self.print_integer_value(*v, get_field_format(field))?
+            }
+            ReflectValueRef::U64(v) => {
+                self.print_integer_value(*v as i64, get_field_format(field))?
+            }
+            ReflectValueRef::I32(v) => {
+                self.print_integer_value(*v, get_field_format(field))?
+            }
+            ReflectValueRef::I64(v) => {
+                self.print_integer_value(*v, get_field_format(field))?
+            }
             ReflectValueRef::F32(v) => write!(self.output, "{:.1}", v)?,
             ReflectValueRef::F64(v) => write!(self.output, "{:.1}", v)?,
             ReflectValueRef::Bool(v) => write!(self.output, "{}", v)?,
