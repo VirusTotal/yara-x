@@ -209,7 +209,7 @@ def test_module_outputs():
   assert module_outputs['test_proto2']['int32_one'] == 1
   assert module_outputs['test_proto2']['bytes_foo'] == b'foo'
   assert module_outputs['test_proto2']['bytes_raw'] == b'\xfcH\x83\xe4\xf0\xeb3]\x8bE\x00H'
-  assert module_outputs['test_proto2']['timestamp'] == datetime.datetime(2025, 5, 30, 9, 50, 40)
+  assert module_outputs['test_proto2']['timestamp'] == datetime.datetime(2025, 5, 30, 7, 50, 40, tzinfo=datetime.timezone.utc)
 
 
 def test_ignored_modules():

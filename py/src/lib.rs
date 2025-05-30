@@ -31,7 +31,7 @@ use pyo3::exceptions::{PyException, PyIOError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{
     PyBool, PyBytes, PyDict, PyFloat, PyInt, PyString, PyStringMethods,
-    PyTuple,
+    PyTuple, PyTzInfo,
 };
 use pyo3::{create_exception, IntoPyObjectExt};
 use pyo3_file::PyFileLikeObject;
@@ -883,8 +883,10 @@ impl JsonDecoder {
                     .expect("decoding base64")
                     .into_bound_py_any(py)
             } else if encoding == "timestamp" {
+                let kwargs = PyDict::new(py);
+                kwargs.set_item("tz", PyTzInfo::utc(py)?)?;
                 self.fromtimestamp
-                    .call(py, (value,), None)?
+                    .call(py, (value,), Some(&kwargs))?
                     .into_bound_py_any(py)
             } else {
                 Ok(dict.into_any())
