@@ -102,11 +102,7 @@ fn capi() {
         let mut compiler = std::ptr::null_mut();
         yrx_compiler_create(0, &mut compiler);
 
-        // TODO: Use c-string literals cr#"rule test ..."# when we MSRV
-        // is bumped to 1.77.
-        // https://doc.rust-lang.org/edition-guide/rust-2021/c-string-literals.html
-        let src = CString::new(
-            br#"
+        let src = cr#"
             import "pe"
             rule test : tag1 tag2 {
                 meta:
@@ -121,14 +117,12 @@ fn capi() {
                     some_str == "some_str" and
                     some_int == 1 and
                     some_float == 1.5)
-            }"#,
-        )
-        .unwrap();
+            }"#;
 
-        let some_bool = CString::new(b"some_bool").unwrap();
-        let some_str = CString::new(b"some_str").unwrap();
-        let some_int = CString::new(b"some_int").unwrap();
-        let some_float = CString::new(b"some_float").unwrap();
+        let some_bool = c"some_bool";
+        let some_str = c"some_str";
+        let some_int = c"some_int";
+        let some_float = c"some_float";
 
         yrx_compiler_define_global_int(compiler, some_int.as_ptr(), 1);
         yrx_compiler_define_global_float(compiler, some_float.as_ptr(), 1.5);
@@ -139,10 +133,10 @@ fn capi() {
             some_str.as_ptr(),
         );
 
-        let feature = CString::new(b"foo").unwrap();
+        let feature = c"foo";
         yrx_compiler_enable_feature(compiler, feature.as_ptr());
 
-        let namespace = CString::new(b"foo").unwrap();
+        let namespace = c"foo";
         yrx_compiler_new_namespace(compiler, namespace.as_ptr());
         yrx_compiler_add_source(compiler, src.as_ptr());
 
@@ -222,8 +216,8 @@ fn capi_errors() {
         let mut compiler = std::ptr::null_mut();
         yrx_compiler_create(0, &mut compiler);
 
-        let src = CString::new(b"rule test { condition: foo }").unwrap();
-        let origin = CString::new("test.yar").unwrap();
+        let src = c"rule test { condition: foo }";
+        let origin = c"test.yar";
 
         assert_eq!(
             yrx_compiler_add_source_with_origin(
