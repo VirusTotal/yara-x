@@ -24,5 +24,6 @@
             "bar": "baz",
             "foo": "bar"
         }
-    }
+    },
+    "timestamp": { "encoding": "timestamp", "value": 0 }
 }

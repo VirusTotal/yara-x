@@ -1,5 +1,7 @@
 syntax = "proto2";
 
+import "yara.proto";
+
 package test;
 
 message SubMessage {
@@ -17,4 +19,5 @@ message Message {
   required bool bool = 7;
   repeated SubMessage repeated_msg = 8;
   optional SubMessage nested_msg = 9;
+  optional int32 timestamp= 10 [(yara.field_options).fmt = "t"];
 }
