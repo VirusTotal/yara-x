@@ -239,10 +239,6 @@ pub struct Compiler<'a> {
     /// escape sequences.
     relaxed_re_syntax: bool,
 
-    /// If true, the compiler applies common subexpression elimination to
-    /// rule conditions.
-    cse: bool,
-
     /// If true, the compiler hoists loop-invariant expressions (i.e: those
     /// that don't vary on each iteration of the loop), moving them outside
     /// the loop.
@@ -497,7 +493,6 @@ impl<'a> Compiler<'a> {
             wasm_symbols,
             wasm_exports,
             relaxed_re_syntax: false,
-            cse: false,
             hoisting: false,
             error_on_slow_pattern: false,
             error_on_slow_loop: false,
@@ -991,13 +986,7 @@ impl<'a> Compiler<'a> {
     /// This is a very experimental feature.
     #[doc(hidden)]
     pub fn condition_optimization(&mut self, yes: bool) -> &mut Self {
-        // CSE is explicitly disabled for now.
-        self.cse(false).hoisting(yes)
-    }
-
-    pub(crate) fn cse(&mut self, yes: bool) -> &mut Self {
-        self.cse = yes;
-        self
+        self.hoisting(yes)
     }
 
     pub(crate) fn hoisting(&mut self, yes: bool) -> &mut Self {
@@ -1540,10 +1529,6 @@ impl Compiler<'_> {
                 return Err(err);
             }
         };
-
-        if self.cse {
-            condition = self.ir.cse();
-        }
 
         if self.hoisting {
             condition = self.ir.hoisting();
