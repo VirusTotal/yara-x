@@ -19,7 +19,7 @@
     ],
     "nested_msg": {
         "i32": 1234,
-        "str": "qux\nfoo",
+        "str": "qux\nfoo\tbar\\baz\"qux",
         "map_string_string": {
             "bar": "baz",
             "foo": "bar"
