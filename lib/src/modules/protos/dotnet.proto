@@ -14,7 +14,7 @@ option (yara.module_options) = {
 message Dotnet {
   optional bool is_dotnet = 1;
   optional string module_name = 2;
-  optional bytes version = 3;  // TODO: should be string?
+  optional string version = 3;
 
   optional uint64 number_of_streams = 4;
   optional uint64 number_of_guids = 5;

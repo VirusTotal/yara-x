@@ -51,7 +51,7 @@ pub struct Dotnet<'a> {
     /// Slice that contains the whole .NET file.
     data: &'a [u8],
     /// Version string.
-    version: &'a [u8],
+    version: &'a str,
     /// Headers of the streams found in the .NET file.
     stream_headers: Vec<StreamHeader<'a>>,
     /// Size of indexes used for referencing a string in the `#Strings` stream.
@@ -357,10 +357,13 @@ impl<'a> Dotnet<'a> {
                 // length + version string. According to the specification
                 // length must be <= 255. The length includes any padding
                 // added to align the next field to a 4 byte boundary. The
-                // string is null-terminated.
-                map_parser(
-                    length_data(verify(le_u32, |length| *length <= 255)),
-                    take_till(|c| c == 0),
+                // string is UTF-8 and null-terminated.
+                map_res(
+                    map_parser(
+                        length_data(verify(le_u32, |length| *length <= 255)),
+                        take_till(|c| c == 0),
+                    ),
+                    from_utf8,
                 ),
                 le_u16, // flags (reserved)
                 // number of streams, say N, followed by array of N stream
@@ -2232,7 +2235,7 @@ struct CLIHeader {
 /// ECMA-335 Section II.24.2.1
 struct CLIMetadata<'a> {
     stream_headers: Vec<StreamHeader<'a>>,
-    version: &'a [u8],
+    version: &'a str,
 }
 
 /// StreamHeader
@@ -2724,7 +2727,7 @@ impl From<Dotnet<'_>> for protos::dotnet::Dotnet {
         let mut result = protos::dotnet::Dotnet::new();
 
         result.set_is_dotnet(true);
-        result.set_version(dotnet.version.to_vec());
+        result.set_version(dotnet.version.to_string());
         result.guids.extend(dotnet.get_guids().map(|guid| guid.to_string()));
         result.typelib =
             dotnet.get_typelib().map(|typelib| typelib.to_string());
