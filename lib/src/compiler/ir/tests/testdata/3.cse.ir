@@ -1,13 +1,13 @@
 RULE test
-  24: WITH -- hash: 0x825ac1d62451ffe1 -- parent: None 
-    23: FN_CALL hash.md5@ii@s:N32:Lu -- hash: 0xbe23bb6d9ec1165e -- parent: 24 
-      6: CONST integer(0) -- parent: 23 
-      7: FILESIZE -- parent: 23 
-    22: OR -- hash: 0x9c37eeec72832c3 -- parent: 24 
-      10: EQ -- hash: 0x99f74c2821f85677 -- parent: 22 
-        8: SYMBOL Var { var: Var { frame_id: 0, ty: string, index: 0 }, type_value: string(unknown) } -- parent: 10 
-        9: CONST string("feba6c919e3797e7778e8f2e85fa033d") -- parent: 10 
-      21: EQ -- hash: 0xe7d686e055069be3 -- parent: 22 
-        19: SYMBOL Var { var: Var { frame_id: 0, ty: string, index: 0 }, type_value: string(unknown) } -- parent: 21 
-        20: CONST string("275876e34cf609db118f3d84b799a790") -- parent: 21 
+  22: OR -- hash: 0x919db2da0fc7c751 -- parent: None 
+    10: EQ -- hash: 0x789880c57de1743e -- parent: 22 
+      8: FN_CALL hash.md5@ii@s:N32:Lu -- hash: 0xbe23bb6d9ec1165e -- parent: 10 
+        6: CONST integer(0) -- parent: 8 
+        7: FILESIZE -- parent: 8 
+      9: CONST string("feba6c919e3797e7778e8f2e85fa033d") -- parent: 10 
+    21: EQ -- hash: 0xc677bb7db0efb9aa -- parent: 22 
+      19: FN_CALL hash.md5@ii@s:N32:Lu -- hash: 0xbe23bb6d9ec1165e -- parent: 21 
+        17: CONST integer(0) -- parent: 19 
+        18: FILESIZE -- parent: 19 
+      20: CONST string("275876e34cf609db118f3d84b799a790") -- parent: 21 
 

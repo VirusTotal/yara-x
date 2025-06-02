@@ -1,23 +1,22 @@
 RULE test
-  31: WITH -- hash: 0xb71f27c5b465947 -- parent: None 
-    30: FN_CALL uint16@i@iu -- hash: 0x8388494845bae8f6 -- parent: 31 
-      3: CONST integer(0) -- parent: 30 
-    29: OR -- hash: 0x5f5f7debe18c8867 -- parent: 31 
-      16: AND -- hash: 0xe40c6123d00b5d25 -- parent: 29 
-        6: EQ -- hash: 0xf57bdb1d618f7e40 -- parent: 16 
-          4: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 0 }, type_value: integer(unknown) } -- parent: 6 
-          5: CONST integer(23117) -- parent: 6 
-        15: EQ -- hash: 0x69851164e47029d9 -- parent: 16 
-          13: FN_CALL uint32@i@iu -- hash: 0x3018868b5ef5e28d -- parent: 15 
-            12: FN_CALL uint32@i@iu -- hash: 0x11ebe7bfd2692abe -- parent: 13 
-              11: CONST integer(60) -- parent: 12 
-          14: CONST integer(17744) -- parent: 15 
-      28: AND -- hash: 0xf19f8cc1e394b0 -- parent: 29 
-        23: EQ -- hash: 0x5a99f0157644314c -- parent: 28 
-          21: FN_CALL uint32@i@iu -- hash: 0x866f689720470782 -- parent: 23 
-            20: CONST integer(0) -- parent: 21 
-          22: CONST integer(1179403647) -- parent: 23 
-        27: NE -- hash: 0x84d0c1fe42d7f137 -- parent: 28 
-          25: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 0 }, type_value: integer(unknown) } -- parent: 27 
-          26: CONST integer(0) -- parent: 27 
+  29: OR -- hash: 0xcd739dd2c39c446d -- parent: None 
+    16: AND -- hash: 0xd5c4987d90eaa4e0 -- parent: 29 
+      6: EQ -- hash: 0x3c39649c72d4a493 -- parent: 16 
+        4: FN_CALL uint16@i@iu -- hash: 0x8388494845bae8f6 -- parent: 6 
+          3: CONST integer(0) -- parent: 4 
+        5: CONST integer(23117) -- parent: 6 
+      15: EQ -- hash: 0x69851164e47029d9 -- parent: 16 
+        13: FN_CALL uint32@i@iu -- hash: 0x3018868b5ef5e28d -- parent: 15 
+          12: FN_CALL uint32@i@iu -- hash: 0x11ebe7bfd2692abe -- parent: 13 
+            11: CONST integer(60) -- parent: 12 
+        14: CONST integer(17744) -- parent: 15 
+    28: AND -- hash: 0xd00d540b210159e3 -- parent: 29 
+      23: EQ -- hash: 0x5a99f0157644314c -- parent: 28 
+        21: FN_CALL uint32@i@iu -- hash: 0x866f689720470782 -- parent: 23 
+          20: CONST integer(0) -- parent: 21 
+        22: CONST integer(1179403647) -- parent: 23 
+      27: NE -- hash: 0x5225c2aaa0128b80 -- parent: 28 
+        25: FN_CALL uint16@i@iu -- hash: 0x8388494845bae8f6 -- parent: 27 
+          24: CONST integer(0) -- parent: 25 
+        26: CONST integer(0) -- parent: 27 
 

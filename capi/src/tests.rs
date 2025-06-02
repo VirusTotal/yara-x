@@ -17,7 +17,7 @@ use crate::{
     YRX_METADATA, YRX_PATTERN, YRX_RESULT, YRX_RULE,
 };
 
-use std::ffi::{c_char, c_void, CStr, CString};
+use std::ffi::{c_char, c_void, CStr};
 
 extern "C" fn on_rule_iter(_rule: *const YRX_RULE, user_data: *mut c_void) {
     let ptr = user_data as *mut i32;
