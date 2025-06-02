@@ -164,11 +164,11 @@ impl Rules {
         let start = Instant::now();
 
         // Skip the magic and deserialize the remaining data.
-        let (rules, _len): (Self, usize) = bincode::serde::decode_from_slice(
-            &bytes[magic.len()..],
-            bincode::config::standard(),
-        )?;
-        let mut rules = rules;
+        let (mut rules, _len): (Self, usize) =
+            bincode::serde::decode_from_slice(
+                &bytes[magic.len()..],
+                bincode::config::standard(),
+            )?;
 
         #[cfg(feature = "logging")]
         info!("Deserialization time: {:?}", Instant::elapsed(&start));
