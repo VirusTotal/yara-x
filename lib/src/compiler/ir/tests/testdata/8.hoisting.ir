@@ -1,19 +1,21 @@
 RULE test_1
-  18: FOR_IN -- hash: 0x484aefd2a54cc5c9 -- parent: None 
-    0: CONST integer(0) -- parent: 18 
-    1: CONST integer(1) -- parent: 18 
-    20: WITH -- hash: 0xdf5f3aa616537915 -- parent: 18 
-      19: MUL -- hash: 0x2e08804f5ef1dd4b -- parent: 20 
-        12: ADD -- hash: 0x9bbcc7ec2223cfaa -- parent: 19 
-          10: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 12 
-          11: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 12 
-        13: CONST integer(2) -- parent: 19 
-      17: FOR_IN -- hash: 0x7ec412f9067cc7c7 -- parent: 20 
-        2: CONST integer(0) -- parent: 17 
-        3: CONST integer(1) -- parent: 17 
-        16: EQ -- hash: 0x1c076fb576847749 -- parent: 17 
-          14: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 7 }, type_value: integer(unknown) } -- parent: 16 
-          15: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 13 }, type_value: integer(unknown) } -- parent: 16 
+  22: FOR_IN -- hash: 0x69a3fc10be973aef -- parent: None 
+    0: CONST integer(0) -- parent: 22 
+    1: CONST integer(1) -- parent: 22 
+    24: WITH -- hash: 0x8a49d4deac9f558b -- parent: 22 
+      23: MUL -- hash: 0x2e08804f5ef1dd4b -- parent: 24 
+        14: ADD -- hash: 0x9bbcc7ec2223cfaa -- parent: 23 
+          12: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 14 
+          13: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 14 
+        15: CONST integer(2) -- parent: 23 
+      21: FOR_IN -- hash: 0x42b4e6601ef263a3 -- parent: 24 
+        2: CONST integer(0) -- parent: 21 
+        3: CONST integer(1) -- parent: 21 
+        20: EQ -- hash: 0x86f8c6f0fdfe253 -- parent: 21 
+          16: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 7 }, type_value: integer(unknown) } -- parent: 20 
+          19: MINUS -- hash: 0xe0ab718cabd58229 -- parent: 20 
+            18: MINUS -- hash: 0x24b3b1f825dac78c -- parent: 19 
+              17: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 13 }, type_value: integer(unknown) } -- parent: 18 
 
 RULE test_2
   14: FOR_IN -- hash: 0x3db4dcb0bae6421a -- parent: None 

@@ -4,7 +4,7 @@ rule test_1 {
   condition:
     for any i in (0..1) : (
       for any j in (0..1) : (
-         (i + i) * 2 == j
+         (i + i) * 2 == --j
       )
     )
 }

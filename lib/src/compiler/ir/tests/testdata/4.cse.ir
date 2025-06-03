@@ -1,10 +1,10 @@
 RULE test
-  60: WITH -- hash: 0xdf397237b4ffa1a2 -- parent: None 
-    2: FIELD_ACCESS -- hash: 0x30adb8d0b7ea7b20 -- parent: 60 
+  77: WITH -- hash: 0x2aa6c1f669ae2520 -- parent: None 
+    2: FIELD_ACCESS -- hash: 0x30adb8d0b7ea7b20 -- parent: 77 
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 2 
       1: SYMBOL Field { index: 12, is_root: false, type_value: integer(unknown), acl: None } -- parent: 2 
-    59: AND -- hash: 0x6c175182ff13cea5 -- parent: 60 
-      35: FOR_IN -- hash: 0x68a46f0ab6ea3ad1 -- parent: 59 
+    76: AND -- hash: 0xcce3785d10669f2b -- parent: 77 
+      35: FOR_IN -- hash: 0x68a46f0ab6ea3ad1 -- parent: 76 
         3: CONST integer(0) -- parent: 35 
         4: CONST integer(1) -- parent: 35 
         34: AND -- hash: 0xf391ff5ee74242c2 -- parent: 35 
@@ -23,10 +23,10 @@ RULE test
                 28: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None } -- parent: 29 
               30: CONST integer(1) -- parent: 31 
             32: CONST float(1.0) -- parent: 33 
-      58: FOR_IN -- hash: 0xc914e4a03d9205ee -- parent: 59 
+      58: FOR_IN -- hash: 0x5acaec2ad2bd517e -- parent: 76 
         36: CONST integer(0) -- parent: 58 
         37: CONST integer(1) -- parent: 58 
-        57: AND -- hash: 0xe9babd6e2f9a208a -- parent: 58 
+        57: OR -- hash: 0x7b70c4f8c0c56c1a -- parent: 58 
           43: NE -- hash: 0x6c1a3099aa8575c5 -- parent: 57 
             41: FN_CALL test_proto2.add@ii@i -- hash: 0xe62f32868fcf8ebd -- parent: 43 
               39: CONST integer(1) -- parent: 41 
@@ -39,4 +39,15 @@ RULE test
                 51: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None } -- parent: 52 
               53: CONST integer(1) -- parent: 54 
             55: CONST float(1.0) -- parent: 56 
+      75: FOR_IN -- hash: 0x8988f604c3b027ad -- parent: 76 
+        59: CONST integer(0) -- parent: 75 
+        60: CONST integer(1) -- parent: 75 
+        74: NOT -- hash: 0x9c7b86f0f28a1fda -- parent: 75 
+          73: EQ -- hash: 0x6ec9b9876aec1c07 -- parent: 74 
+            71: ADD -- hash: 0x5c65e3370f4f4674 -- parent: 73 
+              69: FIELD_ACCESS -- hash: 0xc6f26b43ef493d46 -- parent: 71 
+                67: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 69 
+                68: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None } -- parent: 69 
+              70: CONST integer(1) -- parent: 71 
+            72: CONST float(2.0) -- parent: 73 
 
