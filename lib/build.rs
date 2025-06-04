@@ -157,16 +157,8 @@ fn main() {
         proto_parser.pure();
     }
 
-    proto_compiler
-        .cargo_out_dir("protos")
-        .include("./src/modules/protos")
-        .include("../proto/src")
-        .input("../proto/src/yara.proto");
-
-    proto_parser
-        .include("./src/modules/protos")
-        .include("../proto/src")
-        .input("../proto/src/yara.proto");
+    proto_compiler.cargo_out_dir("protos").include("./src/modules/protos");
+    proto_parser.include("./src/modules/protos");
 
     // All `.proto` files in src/modules/protos must be compiled
     for entry in globwalk::glob("src/modules/protos/**").unwrap().flatten() {
