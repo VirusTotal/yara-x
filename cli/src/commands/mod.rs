@@ -26,6 +26,7 @@ use anyhow::{anyhow, bail, Context};
 use clap::{arg, command, crate_authors, ArgMatches, Command};
 use crossterm::tty::IsTty;
 use superconsole::{Component, Line, Lines, Span, SuperConsole};
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 use yansi::Color::Green;
 use yansi::Paint;
 
@@ -330,10 +331,33 @@ impl Component for CompileState {
     }
 }
 
-fn truncate_with_ellipsis(s: Cow<str>, max_length: usize) -> Cow<str> {
-    if s.len() <= max_length {
-        s
-    } else {
-        format!("{}...", &s[..max_length - 3]).into()
+/// Truncates the string `s` to fit within the specified console width.
+///
+/// If `s` fits within `max_width`, it is returned unchanged along with its
+/// actual display width. If `s` exceeds `max_width`, it is truncated to exactly
+/// `max_width` columns, including a trailing ellipsis ("...") to indicate
+/// truncation.
+///
+/// Note: The display width refers to the number of columns the string occupies
+/// in the console—not its byte length or character count.
+fn truncate_with_ellipsis(s: Cow<str>, max_width: usize) -> (Cow<str>, usize) {
+    let width = s.width();
+
+    if s.width() <= max_width {
+        return (s, width);
     }
+
+    let mut with = 0;
+    let mut last_char_idx = 0;
+
+    for (idx, c) in s.char_indices() {
+        last_char_idx = idx;
+        let char_width = c.width().unwrap_or(0);
+        if with + char_width + 3 >= max_width {
+            break;
+        }
+        with += char_width;
+    }
+
+    (format!("{}...", &s[..last_char_idx]).into(), with + 3)
 }

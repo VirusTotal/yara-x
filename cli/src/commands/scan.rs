@@ -617,13 +617,20 @@ impl Component for ScanState {
             for (file, start_time) in
                 self.files_in_progress.lock().unwrap().iter()
             {
-                let path = replace_whitespace(file);
-                // The length of the elapsed is 7 characters.
-                let spaces = " "
-                    .repeat(dimensions.width.saturating_sub(path.len() + 7));
+                // The length of the elapsed time is 7 characters.
+                let max_path_with = dimensions.width.saturating_sub(7);
+
+                let (path, path_width) = truncate_with_ellipsis(
+                    replace_whitespace(file),
+                    max_path_with,
+                );
+
+                let spaces =
+                    " ".repeat(max_path_with.saturating_sub(path_width));
+
                 let line = format!(
                     "{}{}{:6.1}s",
-                    truncate_with_ellipsis(path, dimensions.width - 7),
+                    path,
                     spaces,
                     Instant::elapsed(start_time).as_secs_f32()
                 );

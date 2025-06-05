@@ -4790,6 +4790,7 @@ dependencies = [
  "strum",
  "strum_macros",
  "superconsole",
+ "unicode-width",
  "wild",
  "yansi",
  "yara-x",
