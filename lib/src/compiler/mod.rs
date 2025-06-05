@@ -526,21 +526,18 @@ impl<'a> Compiler<'a> {
     /// Adds some YARA source code to be compiled.
     ///
     /// The `src` parameter accepts any type that implements [`Into<SourceCode>`],
-    /// such as `&str`, `&[u8]`, and naturally, [`SourceCode`] itself. This input
-    /// can include one or more YARA rules.
+    /// such as `&str`, `&[u8]`, or an instance of [`SourceCode`] itself. The source
+    /// code may include one or more YARA rules.
     ///
-    /// This function may be invoked multiple times to add several sets of YARA
-    /// rules. If the rules provided in `src` contain errors that prevent
-    /// compilation, the function will return the first error encountered.
-    /// Additionally, the compiler will store this error, along with any others
-    /// discovered during compilation, which can be accessed using
+    /// You can call this function multiple times to add different sets of rules.
+    /// If the provided source code contains syntax or semantic errors that prevent
+    /// compilation, the function returns the first encountered error. All errors
+    /// found during compilation are also recorded and can be retrieved using
     /// [`Compiler::errors`].
     ///
-    /// Even if a previous invocation resulted in a compilation error, you can
-    /// continue calling this function for adding more rules. In such cases, any
-    /// rules that failed to compile will not be included in the final compiled
-    /// set.
-    /// about the source code's origin.
+    /// Even if previous calls to this function resulted in compilation errors,
+    /// you may continue adding additional rules. Only successfully compiled rules
+    /// will be included in the final rule set.
     pub fn add_source<'src, S>(
         &mut self,
         src: S,
@@ -608,15 +605,17 @@ impl<'a> Compiler<'a> {
 
     /// Defines a global variable and sets its initial value.
     ///
-    /// Global variables must be defined before using [`Compiler::add_source`]
-    /// for adding any YARA source code that uses those variables. The variable
-    /// will retain its initial value when the compiled [`Rules`] are used for
-    /// scanning data, however each scanner can change the variable's initial
-    /// value by calling [`crate::Scanner::set_global`].
+    /// Global variables must be defined before adding any YARA source code
+    /// that references them via [`Compiler::add_source`]. Once defined, the
+    /// variable's initial value is preserved in the compiled [`Rules`] and
+    /// will be used unless overridden.
     ///
-    /// `T` can be any type that implements [`TryInto<Variable>`], which
-    /// includes: `i64`, `i32`, `i16`, `i8`, `u32`, `u16`, `u8`, `f64`, `f32`,
-    /// `bool`, `&str`, `String` and [`serde_json::Value`].
+    /// When scanning, each scanner instance can modify the initial value of
+    /// the variable using [`crate::Scanner::set_global`].
+    ///
+    /// `T` can be any type that implements [`TryInto<Variable>`], including:
+    /// `i64`, `i32`, `i16`, `i8`, `u32`, `u16`, `u8`, `f64`, `f32`, `bool`,
+    /// `&str`, `String` and [`serde_json::Value`].
     ///
     /// ```
     /// # use yara_x::Compiler;
@@ -963,8 +962,6 @@ impl<'a> Compiler<'a> {
     /// By default, the compiler allows the use of `include` statements, which
     /// include the content of other files. When includes are disabled, any
     /// attempt to use an `include` statement will result in a compile error.
-    ///
-    /// # Example
     ///
     /// ```
     /// # use yara_x::Compiler;
