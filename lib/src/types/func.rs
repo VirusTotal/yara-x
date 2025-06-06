@@ -1,6 +1,6 @@
 use crate::types::{StringConstraint, TypeValue};
 use itertools::Itertools;
-use nom::AsChar;
+
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
@@ -127,7 +127,7 @@ impl MangledFnName {
                         Some('N') => {
                             let n = chars
                                 .by_ref()
-                                .peeking_take_while(|&c| c.is_dec_digit())
+                                .peeking_take_while(|&c| c.is_ascii_digit())
                                 .collect::<String>()
                                 .parse::<usize>()
                                 .unwrap_or_else(|_| {
