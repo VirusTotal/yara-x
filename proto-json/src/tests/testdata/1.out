@@ -25,5 +25,7 @@
             "foo": "bar"
         }
     },
-    "timestamp": { "encoding": "timestamp", "value": 0 }
+    "timestamp": { "encoding": "timestamp", "value": 0 },
+    "enum": "Foo",
+    "flags": 3
 }

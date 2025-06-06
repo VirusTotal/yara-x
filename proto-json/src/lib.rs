@@ -253,7 +253,7 @@ impl<W: Write> Serializer<W> {
                 BASE64_STANDARD.encode(v).paint(self.colors.string)
             )?,
             ReflectValueRef::Enum(d, v) => match d.value_by_number(*v) {
-                Some(e) => write!(self.output, "{}", e.name())?,
+                Some(e) => write!(self.output, "\"{}\"", e.name())?,
                 None => write!(self.output, "{}", v)?,
             },
             ReflectValueRef::Message(msg) => self.write_msg(msg)?,

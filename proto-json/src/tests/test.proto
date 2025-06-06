@@ -20,4 +20,19 @@ message Message {
   repeated SubMessage repeated_msg = 8;
   optional SubMessage nested_msg = 9;
   optional int32 timestamp= 10 [(yara.field_options).fmt = "t"];
+  optional Enum enum = 11;
+  required uint32 flags = 12 [(yara.field_options).fmt = "flags:Flags"];
+
+}
+
+enum Enum {
+  Foo = 1;
+  Bar = 2;
+}
+
+enum Flags {
+  option (yara.enum_options).inline = true;
+  FOO = 0x1;
+  BAR = 0x2;
+  BAZ = 0x4;
 }
