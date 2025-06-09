@@ -749,7 +749,6 @@ pub(crate) static ENGINE: LazyLock<Engine> =
 pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     let mut linker = Linker::<ScanContext<'r>>::new(&ENGINE);
     for export in WASM_EXPORTS {
-        println!("{}", export.mangled_name);
         let func_type = FuncType::new(
             &ENGINE,
             export.func.wasmtime_args(),

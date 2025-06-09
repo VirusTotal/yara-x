@@ -1354,7 +1354,7 @@ fn with_expr_from_ast(
         let type_value = ctx.ir.get(expr).type_value();
 
         if let TypeValue::Func(func) = &type_value {
-            if func.method_of().is_some() {
+            if func.is_method() {
                 return Err(MethodNotAllowedInWith::build(
                     ctx.report_builder,
                     ctx.report_builder

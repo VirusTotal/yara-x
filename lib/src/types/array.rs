@@ -1,12 +1,12 @@
+use std::cell::OnceCell;
 use std::rc::Rc;
-use std::sync::OnceLock;
 
 use bstr::BString;
 use serde::{Deserialize, Serialize};
 
 use crate::symbols::{Symbol, SymbolTable};
-use crate::types::{Func, Struct, TypeValue};
-use crate::wasm;
+use crate::types::{Struct, TypeValue};
+use crate::wasm::WasmExport;
 
 #[derive(Serialize, Deserialize)]
 pub(crate) enum Array {
@@ -18,17 +18,14 @@ pub(crate) enum Array {
 }
 
 impl Array {
-    const BUILTIN_METHODS: OnceLock<Rc<SymbolTable>> = OnceLock::new();
+    const BUILTIN_METHODS: OnceCell<Rc<SymbolTable>> = OnceCell::new();
     pub fn builtin_methods(&self) -> Rc<SymbolTable> {
         Self::BUILTIN_METHODS
             .get_or_init(|| {
                 let mut s = SymbolTable::new();
-                s.insert(
-                    "len",
-                    Symbol::Func(Rc::new(Func::from_mangled_name(
-                        wasm::export__array_len.mangled_name,
-                    ))),
-                );
+                for (name, func) in WasmExport::get_methods("Array") {
+                    s.insert(name, Symbol::Func(Rc::new(func)));
+                }
                 Rc::new(s)
             })
             .clone()

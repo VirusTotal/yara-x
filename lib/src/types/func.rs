@@ -14,9 +14,13 @@ use std::str::Chars;
 /// A mangled name is a function name decorated with additional information
 /// about the function's arguments and return types.
 ///
-/// Mangled names have the format `<func name>@<arguments>@<return type>`,
-/// where `<arguments>` is a sequence of characters that specify the
-/// argument's type. Allowed types are:
+/// Mangled names have the format:
+///   
+/// `[<type name>::]<func name>@<arguments>@<return type>`
+///
+/// The prefix `<type name>::` is optional, it is present only if the function
+/// is a method of the type identified by `<type name>`. `<arguments>` is a
+/// sequence of characters that specify the argument's type. Allowed types are:
 ///
 /// ```text
 ///  i: integer
@@ -186,11 +190,13 @@ pub(crate) struct FuncSignature {
 }
 
 impl FuncSignature {
+    /// Returns true if the function's result may be undefined.
     #[inline]
     pub fn result_may_be_undef(&self) -> bool {
         self.mangled_name.result_may_be_undef()
     }
 
+    /// If this function is a method of some type, returns the type name.
     #[inline]
     pub fn method_of(&self) -> Option<&str> {
         self.mangled_name.method_of()
@@ -241,32 +247,38 @@ pub(crate) struct Func {
     /// The list of signatures for this function. Functions can be overloaded,
     /// so they may more than one signature.
     signatures: Vec<Rc<FuncSignature>>,
+    /// If this function is a method, this field contains the name of the
+    /// type. `None` indicates that this is a standard function, not a method.
+    method_of: Option<String>,
 }
 
 impl Func {
     /// Creates a new [`Func`] from a mangled function name.
     pub fn from_mangled_name(name: &str) -> Self {
-        Self { signatures: vec![Rc::new(FuncSignature::from(name))] }
+        let signature = FuncSignature::from(name);
+        let method_of = signature.method_of().map(String::from);
+        Self { signatures: vec![Rc::new(signature)], method_of }
     }
-    /// If this function is a method of some type, returns the name of the
-    /// type. Returns [`None`] if the function is not a method.
-    pub fn method_of(&self) -> Option<&str> {
-        // TODO: try to remove this function.
-        for sig in &self.signatures {
-            let method_of = sig.method_of();
-            if method_of.is_some() {
-                return method_of;
-            }
-        }
-        None
+    /// Returns `true` if this function is a method.
+    pub fn is_method(&self) -> bool {
+        self.method_of.is_some()
     }
 
-    /// Add a signature to the function.
+    /// Adds a signature to the function.
+    ///
+    /// If any of the added signatures is a method associated with a specific type,
+    /// all other signatures must also be methods for the same type.
     ///
     /// # Panics
     ///
-    /// If the function already has the given signature.
+    /// Panics if the function already contains the given signature, or if the added
+    /// signature is a method for a different type than the one used in existing
+    /// method signatures.
     pub fn add_signature(&mut self, signature: FuncSignature) {
+        if let Some(method_of) = &self.method_of {
+            assert_eq!(signature.method_of(), Some(method_of.as_str()));
+        }
+
         let signature = Rc::new(signature);
         // Signatures are inserted into self.signatures sorted by
         // mangled named.

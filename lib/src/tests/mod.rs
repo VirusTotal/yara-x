@@ -694,6 +694,16 @@ fn with() {
 }
 
 #[test]
+fn len_methods() {
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(r#"test_proto2.array_bool.len() == 2"#);
+    condition_true!(r#"test_proto2.array_int64.len() == 3"#);
+    condition_true!(r#"test_proto2.array_string.len() == 3"#);
+
+    condition_true!(r#"test_proto2.map_int64_int64.len() == 1"#);
+}
+
+#[test]
 fn text_patterns() {
     pattern_true!(r#""issi""#, b"mississippi");
     pattern_true!(r#""issi" ascii"#, b"mississippi");

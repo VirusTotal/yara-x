@@ -1,8 +1,12 @@
 use bstr::BString;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use std::cell::OnceCell;
+use std::rc::Rc;
 
+use crate::symbols::{Symbol, SymbolTable};
 use crate::types::TypeValue;
+use crate::wasm::WasmExport;
 
 #[derive(Serialize, Deserialize)]
 pub(crate) enum Map {
@@ -11,11 +15,10 @@ pub(crate) enum Map {
         // The deputy value is one that acts as a representative of the values
         // stored in the map. This value only contains type information, not
         // actual data. For example, if the value is an integer it will be
-        // Value::Integer(None), if it is a structure, it will have the
-        // same fields than actual structures stored in the map, but those
-        // fields will contain no data. The deputy value is optional because
-        // it is present only at compile time, when the `map` field is an
-        // empty map.
+        // Value::Integer(None), if it is a structure, it will have the same
+        // fields as actual structures stored in the map, but those fields will
+        // contain no data. The deputy value is optional because it is present
+        // only at compile time, when the `map` field is an empty map.
         deputy: Option<TypeValue>,
         // Use IndexMap instead of HashMap because IndexMap allows to get an
         // item not only by key, but also by index. HashMap doesn't offer
@@ -28,6 +31,19 @@ pub(crate) enum Map {
 }
 
 impl Map {
+    const BUILTIN_METHODS: OnceCell<Rc<SymbolTable>> = OnceCell::new();
+    pub fn builtin_methods(&self) -> Rc<SymbolTable> {
+        Self::BUILTIN_METHODS
+            .get_or_init(|| {
+                let mut s = SymbolTable::new();
+                for (name, func) in WasmExport::get_methods("Map") {
+                    s.insert(name, Symbol::Func(Rc::new(func)));
+                }
+                Rc::new(s)
+            })
+            .clone()
+    }
+
     pub fn deputy(&self) -> TypeValue {
         match self {
             Map::IntegerKeys { deputy, .. } => {
