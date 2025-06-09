@@ -27,8 +27,10 @@ fn set_local(value: schema::CuckooJson) {
 
 #[module_main]
 fn main(_data: &[u8], meta: Option<&[u8]>) -> Cuckoo {
-    let parsed =
-        serde_json::from_slice::<schema::CuckooJson>(meta.unwrap_or_default());
+    let parsed = match meta {
+        None => Ok(schema::CuckooJson::default()),
+        Some(m) => serde_json::from_slice::<schema::CuckooJson>(m)
+    };
 
     match parsed {
         Ok(parsed) => {
@@ -39,7 +41,9 @@ fn main(_data: &[u8], meta: Option<&[u8]>) -> Cuckoo {
             error!("can't parse cuckoo report: {}", e);
         }
         #[cfg(not(feature = "logging"))]
-        Err(_) => {}
+        Err(_) => {
+            set_local(schema::CuckooJson::default());
+        }
     };
 
     Cuckoo::new()

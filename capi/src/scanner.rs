@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 #[cfg(feature = "rules-profiling")]
 use std::ffi::CString;
 use std::ffi::{c_char, c_void, CStr};
@@ -5,15 +6,17 @@ use std::slice;
 use std::time::Duration;
 
 use yara_x::errors::ScanError;
+use yara_x::ScanOptions;
 
 use crate::{
     _yrx_set_last_error, YRX_RESULT, YRX_RULE, YRX_RULES, YRX_RULE_CALLBACK,
 };
 
 /// A scanner that scans data with a set of compiled YARA rules.
-pub struct YRX_SCANNER<'s> {
+pub struct YRX_SCANNER<'s, 'm> {
     inner: yara_x::Scanner<'s>,
     on_matching_rule: Option<(YRX_RULE_CALLBACK, *mut std::ffi::c_void)>,
+    module_data: HashMap<&'m str, &'m [u8]>,
 }
 
 /// Creates a [`YRX_SCANNER`] object that can be used for scanning data with
@@ -38,6 +41,7 @@ pub unsafe extern "C" fn yrx_scanner_create(
     *scanner = Box::into_raw(Box::new(YRX_SCANNER {
         inner: yara_x::Scanner::new(rules.inner()),
         on_matching_rule: None,
+        module_data: HashMap::new(),
     }));
 
     YRX_RESULT::SUCCESS
@@ -94,7 +98,15 @@ pub unsafe extern "C" fn yrx_scanner_scan(
         None => return YRX_RESULT::INVALID_ARGUMENT,
     };
 
-    let scan_results = scanner.inner.scan(data);
+    let options = scanner
+        .module_data
+        .iter()
+        .fold(ScanOptions::new(), |acc, (module_name, meta)| {
+            acc.set_module_metadata(module_name, meta)
+        });
+
+    let scan_results = scanner.inner.scan_with_options(data, options);
+    scanner.module_data.clear();
 
     if let Err(err) = scan_results {
         let result = match err {
@@ -206,6 +218,47 @@ pub unsafe extern "C" fn yrx_scanner_set_module_output(
             YRX_RESULT::SCAN_ERROR
         }
     }
+}
+
+/// Specifies metadata for a module.
+///
+/// Since the module's output typically varies with each scanned file, you need to
+/// call [yrx_scanner_set_module_data] prior to each invocation of
+/// [yrx_scanner_scan]. Once [yrx_scanner_scan] is executed, the module's metadata
+/// is consumed and will be empty unless set again before the subsequent call.
+///
+/// The `name` argument is the name of a YARA module. It must be a valid UTF-8 string.
+///
+/// The `name` as well as `data` must be valid from the time they are used as arguments
+/// of this function until the scan is executed.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_scanner_set_module_data(
+    scanner: *mut YRX_SCANNER,
+    name: *const c_char,
+    data: *const u8,
+    len: usize,
+) -> YRX_RESULT {
+    let scanner = match scanner.as_mut() {
+        Some(s) => s,
+        None => return YRX_RESULT::INVALID_ARGUMENT,
+    };
+
+    let name = match CStr::from_ptr(name).to_str() {
+        Ok(name) => name,
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            return YRX_RESULT::INVALID_UTF8;
+        }
+    };
+
+    let data = match slice_from_ptr_and_len(data, len) {
+        Some(data) => data,
+        None => return YRX_RESULT::INVALID_ARGUMENT,
+    };
+
+    scanner.module_data.insert(name, data);
+
+    YRX_RESULT::SUCCESS
 }
 
 unsafe extern "C" fn yrx_scanner_set_global<

@@ -30,7 +30,7 @@ pub(super) struct UdpJson {
     pub dport: u64,
 }
 
-#[derive(/* serde::Deserialize, - custom */ Debug)]
+#[derive(/* serde::Deserialize, - custom */ Debug, Default)]
 pub(super) struct NetworkJson {
     pub domains: Option<Vec<DomainJson>>,
     pub http: Option<Vec<HttpJson>>,
@@ -39,19 +39,19 @@ pub(super) struct NetworkJson {
     pub hosts: Option<Vec<String>>,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, Default)]
 pub(super) struct SummaryJson {
     pub mutexes: Option<Vec<String>>,
     pub files: Option<Vec<String>>,
     pub keys: Option<Vec<String>>,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, Default)]
 pub(super) struct BehaviorJson {
     pub summary: SummaryJson,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, Default)]
 pub(super) struct CuckooJson {
     pub network: NetworkJson,
     pub behavior: BehaviorJson,
