@@ -15,12 +15,12 @@ RULE test_1
       21: CONST integer(0) -- parent: 22 
 
 RULE test_2
-  10: DEFINED -- hash: 0x724d354d07744a2a -- parent: None 
-    9: FOR_IN -- hash: 0xebd1cf9739bb7d11 -- parent: 10 
+  10: DEFINED -- hash: 0xc0679a26d09a412e -- parent: None 
+    9: FOR_IN -- hash: 0x7c23aa43148905e5 -- parent: 10 
       0: CONST integer(0) -- parent: 9 
       1: CONST integer(10) -- parent: 9 
-      8: EQ -- hash: 0x417da33c44558cf1 -- parent: 9 
-        6: FN_CALL test_proto2.undef_i64@@iu -- hash: 0xe9bfe015cdc995a -- parent: 8 
+      8: EQ -- hash: 0x3811592712be149d -- parent: 9 
+        6: FN_CALL test_proto2.undef_i64@@iu -- hash: 0xc0206489d8f27bee -- parent: 8 
         7: CONST integer(0) -- parent: 8 
 
 RULE test_3

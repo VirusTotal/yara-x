@@ -1,9 +1,12 @@
 use std::rc::Rc;
+use std::sync::OnceLock;
 
 use bstr::BString;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{Struct, TypeValue};
+use crate::symbols::{Symbol, SymbolTable};
+use crate::types::{Func, Struct, TypeValue};
+use crate::wasm;
 
 #[derive(Serialize, Deserialize)]
 pub(crate) enum Array {
@@ -15,6 +18,22 @@ pub(crate) enum Array {
 }
 
 impl Array {
+    const BUILTIN_METHODS: OnceLock<Rc<SymbolTable>> = OnceLock::new();
+    pub fn builtin_methods(&self) -> Rc<SymbolTable> {
+        Self::BUILTIN_METHODS
+            .get_or_init(|| {
+                let mut s = SymbolTable::new();
+                s.insert(
+                    "len",
+                    Symbol::Func(Rc::new(Func::from_mangled_name(
+                        wasm::export__array_len.mangled_name,
+                    ))),
+                );
+                Rc::new(s)
+            })
+            .clone()
+    }
+
     pub fn deputy(&self) -> TypeValue {
         match self {
             Array::Integers(_) => TypeValue::unknown_integer(),

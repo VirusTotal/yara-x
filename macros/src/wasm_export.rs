@@ -258,12 +258,18 @@ pub(crate) fn impl_wasm_export_macro(
     let public = attr_args.public;
     let export_ident = format_ident!("export__{}", rust_fn_name);
     let exported_fn_ident = format_ident!("WasmExportedFn{}", num_args);
+    let args_signature = FuncSignatureParser::new().parse(&func)?;
+
     let method_of = attr_args
         .method_of
+        .as_ref()
         .map_or_else(|| quote! { None}, |m| quote! { Some(#m) });
 
-    let mangled_fn_name =
-        format!("{}{}", fn_name, FuncSignatureParser::new().parse(&func)?);
+    let mangled_fn_name = if let Some(ty_name) = attr_args.method_of {
+        format!("{ty_name}::{fn_name}{args_signature}")
+    } else {
+        format!("{fn_name}{args_signature}")
+    };
 
     let fn_descriptor = quote! {
         #[allow(non_upper_case_globals)]

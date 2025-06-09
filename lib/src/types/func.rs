@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::iter::Peekable;
+use std::rc::Rc;
 use std::str::Chars;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -108,6 +109,11 @@ impl MangledFnName {
         self.0.ends_with('u')
     }
 
+    /// If this function is a method of some type, returns the type name.
+    pub fn method_of(&self) -> Option<&str> {
+        self.0.split_once("::").map(|(type_name, _)| type_name)
+    }
+
     fn next_type(&self, chars: &mut Peekable<Chars>) -> Option<TypeValue> {
         match chars.next() {
             Some('u') => Some(TypeValue::Unknown),
@@ -177,7 +183,18 @@ pub(crate) struct FuncSignature {
     pub mangled_name: MangledFnName,
     pub args: Vec<TypeValue>,
     pub result: TypeValue,
-    pub result_may_be_undef: bool,
+}
+
+impl FuncSignature {
+    #[inline]
+    pub fn result_may_be_undef(&self) -> bool {
+        self.mangled_name.result_may_be_undef()
+    }
+
+    #[inline]
+    pub fn method_of(&self) -> Option<&str> {
+        self.mangled_name.method_of()
+    }
 }
 
 impl Hash for FuncSignature {
@@ -209,9 +226,8 @@ impl PartialEq for FuncSignature {
 impl<T: Into<String>> From<T> for FuncSignature {
     fn from(value: T) -> Self {
         let mangled_name = MangledFnName::from(value.into());
-        let result_may_be_undef = mangled_name.result_may_be_undef();
         let (args, result) = mangled_name.unmangle();
-        Self { mangled_name, args, result, result_may_be_undef }
+        Self { mangled_name, args, result }
     }
 }
 
@@ -224,27 +240,25 @@ impl<T: Into<String>> From<T> for FuncSignature {
 pub(crate) struct Func {
     /// The list of signatures for this function. Functions can be overloaded,
     /// so they may more than one signature.
-    signatures: Vec<FuncSignature>,
-    /// If this function is a method, contains the name of the type the method
-    /// is associated to. For standard functions this is [`None`].
-    method_of: Option<String>,
+    signatures: Vec<Rc<FuncSignature>>,
 }
 
 impl Func {
     /// Creates a new [`Func`] from a mangled function name.
     pub fn from_mangled_name(name: &str) -> Self {
-        Self { signatures: vec![FuncSignature::from(name)], method_of: None }
+        Self { signatures: vec![Rc::new(FuncSignature::from(name))] }
     }
-
-    /// Makes this function a method of the specified type.
-    pub fn make_method_of(&mut self, type_name: &str) {
-        self.method_of = Some(type_name.to_string())
-    }
-
     /// If this function is a method of some type, returns the name of the
     /// type. Returns [`None`] if the function is not a method.
     pub fn method_of(&self) -> Option<&str> {
-        self.method_of.as_deref()
+        // TODO: try to remove this function.
+        for sig in &self.signatures {
+            let method_of = sig.method_of();
+            if method_of.is_some() {
+                return method_of;
+            }
+        }
+        None
     }
 
     /// Add a signature to the function.
@@ -253,6 +267,7 @@ impl Func {
     ///
     /// If the function already has the given signature.
     pub fn add_signature(&mut self, signature: FuncSignature) {
+        let signature = Rc::new(signature);
         // Signatures are inserted into self.signatures sorted by
         // mangled named.
         match self.signatures.binary_search(&signature) {
@@ -268,7 +283,7 @@ impl Func {
 
     /// Returns all the signatures for this function.
     #[inline]
-    pub fn signatures(&self) -> &[FuncSignature] {
+    pub fn signatures(&self) -> &[Rc<FuncSignature>] {
         self.signatures.as_slice()
     }
 }
@@ -335,6 +350,13 @@ mod test {
                 ])
             )
         );
+
+        assert_eq!(
+            MangledFnName::from("Bar::foo@i@iu").method_of(),
+            Some("Bar")
+        );
+
+        assert_eq!(MangledFnName::from("foo@i@iu").method_of(), None);
 
         assert!(!MangledFnName::from("foo@i@i").result_may_be_undef());
         assert!(MangledFnName::from("foo@i@iu").result_may_be_undef());

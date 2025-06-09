@@ -225,13 +225,9 @@ impl WasmExport {
     /// fn some_method(...) { ... }
     /// ```
     pub fn get_methods(type_name: &str) -> FxHashMap<&'static str, Func> {
-        let mut methods = WasmExport::get_functions(|export| {
+        WasmExport::get_functions(|export| {
             export.method_of.is_some_and(|name| name == type_name)
-        });
-        for (_, func) in methods.iter_mut() {
-            func.make_method_of(type_name)
-        }
-        methods
+        })
     }
 }
 
@@ -753,6 +749,7 @@ pub(crate) static ENGINE: LazyLock<Engine> =
 pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     let mut linker = Linker::<ScanContext<'r>>::new(&ENGINE);
     for export in WASM_EXPORTS {
+        println!("{}", export.mangled_name);
         let func_type = FuncType::new(
             &ENGINE,
             export.func.wasmtime_args(),
@@ -925,7 +922,7 @@ pub(crate) fn pat_offset(
 }
 
 /// Called from WASM to obtain the length of an array.
-#[wasm_export]
+#[wasm_export(name = "len", method_of = "Array")]
 pub(crate) fn array_len(
     _: &mut Caller<'_, ScanContext>,
     array: Rc<Array>,
@@ -934,7 +931,7 @@ pub(crate) fn array_len(
 }
 
 /// Called from WASM to obtain the length of a map.
-#[wasm_export]
+#[wasm_export(name = "len", method_of = "Map")]
 pub(crate) fn map_len(_: &mut Caller<'_, ScanContext>, map: Rc<Map>) -> i64 {
     map.len() as i64
 }

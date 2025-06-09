@@ -306,6 +306,7 @@ impl TypeValue {
     pub fn symbol_table(&self) -> Option<Rc<dyn SymbolLookup>> {
         match self {
             Self::Struct(s) => Some(s.clone()),
+            Self::Array(a) => Some(a.builtin_methods()),
             _ => None,
         }
     }

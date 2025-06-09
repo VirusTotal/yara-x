@@ -646,7 +646,7 @@ fn emit_expr(
                 emit_expr(ctx, ir, *expr, instr);
             }
 
-            if func_call.signature().result_may_be_undef {
+            if func_call.signature().result_may_be_undef() {
                 emit_call_and_handle_undef(
                     ctx,
                     instr,
