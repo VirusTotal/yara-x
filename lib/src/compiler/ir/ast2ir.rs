@@ -1353,6 +1353,9 @@ fn with_expr_from_ast(
         let expr = expr_from_ast(ctx, &item.expression)?;
         let type_value = ctx.ir.get(expr).type_value();
 
+        // If some item in the `with` statement is a function, don't create
+        // a variable for it, but add it to the symbol table. Methods are not
+        // allowed though.
         if let TypeValue::Func(func) = &type_value {
             if func.is_method() {
                 return Err(MethodNotAllowedInWith::build(
