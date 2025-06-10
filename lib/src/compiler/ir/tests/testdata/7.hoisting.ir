@@ -17,9 +17,9 @@ RULE test_1
         21: CONST integer(0) -- parent: 22 
 
 RULE test_2
-  10: DEFINED -- hash: 0xf7eed6b2a095c2be -- parent: None 
-    12: WITH -- hash: 0x6399cde916bd6d36 -- parent: 10 
-      11: FN_CALL test_proto2.undef_i64@@iu -- hash: 0xe9bfe015cdc995a -- parent: 12 
+  10: DEFINED -- hash: 0xd8cb367ced48a495 -- parent: None 
+    12: WITH -- hash: 0xb7f6e9da70521817 -- parent: 10 
+      11: FN_CALL test_proto2.undef_i64@@iu -- hash: 0xc0206489d8f27bee -- parent: 12 
       14: WITH -- hash: 0x3fd4d8a8a7b3def1 -- parent: 12 
         13: EQ -- hash: 0xfaee69d45c264d0d -- parent: 14 
           6: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 0 }, type_value: integer(unknown) } -- parent: 13 

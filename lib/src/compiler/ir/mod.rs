@@ -53,7 +53,7 @@ use crate::compiler::ir::dfs::{
 use crate::re;
 use crate::symbols::Symbol;
 use crate::types::Value::Const;
-use crate::types::{Func, FuncSignature, Type, TypeValue};
+use crate::types::{FuncSignature, Type, TypeValue};
 
 pub(in crate::compiler) use ast2ir::patterns_from_ast;
 pub(in crate::compiler) use ast2ir::rule_condition_from_ast;
@@ -1540,9 +1540,7 @@ impl IR {
         &mut self,
         object: Option<ExprId>,
         args: Vec<ExprId>,
-        func: Rc<Func>,
-        type_value: TypeValue,
-        signature_index: usize,
+        signature: Rc<FuncSignature>,
     ) -> ExprId {
         let expr_id = ExprId::from(self.nodes.len());
         for arg in args.iter() {
@@ -1555,9 +1553,7 @@ impl IR {
         self.nodes.push(Expr::FuncCall(Box::new(FuncCall {
             object,
             args,
-            func,
-            type_value,
-            signature_index,
+            signature,
         })));
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         expr_id
@@ -2139,23 +2135,21 @@ pub(crate) struct FieldAccess {
 
 /// An expression representing a function or method call.
 pub(crate) struct FuncCall {
+    /// If the function is method. This is the expression that returns the
+    /// object that will be used as the `self` pointer when calling the
+    /// method.
     pub object: Option<ExprId>,
-    /// The function or method being called.
-    pub func: Rc<Func>,
+    /// The specific signature of the function that is being called. Due to
+    /// function overloading each function can have multiple signatures.
+    pub signature: Rc<FuncSignature>,
     /// The arguments passed to the function or method in this call.
     pub args: Vec<ExprId>,
-    /// Type and value for the result.
-    pub type_value: TypeValue,
-    /// Due to function overloading, the same function may have multiple
-    /// signatures. This field indicates the index of the signature that
-    /// matched the provided arguments.
-    pub signature_index: usize,
 }
 
 impl FuncCall {
     /// Returns the mangled function name for this function call.
     pub fn signature(&self) -> &FuncSignature {
-        &self.func.signatures()[self.signature_index]
+        self.signature.as_ref()
     }
 
     /// Returns the mangled function name for this function call.
@@ -2338,8 +2332,7 @@ impl Hash for Expr {
                 discriminant(index).hash(state);
             }
             Expr::FuncCall(func_call) => {
-                func_call.func.hash(state);
-                func_call.signature_index.hash(state);
+                func_call.signature.hash(state);
             }
             Expr::OfExprTuple(of_expr_tuple) => {
                 discriminant(&of_expr_tuple.quantifier).hash(state);
@@ -2671,7 +2664,7 @@ impl Expr {
 
             Expr::Symbol(symbol) => symbol.ty(),
             Expr::FieldAccess(field_access) => field_access.type_value.ty(),
-            Expr::FuncCall(func_call) => func_call.type_value.ty(),
+            Expr::FuncCall(func_call) => func_call.signature.result.ty(),
             Expr::Lookup(lookup) => lookup.type_value.ty(),
             Expr::With(with) => with.type_value.ty(),
         }
@@ -2742,7 +2735,7 @@ impl Expr {
 
             Expr::Symbol(symbol) => symbol.type_value().clone(),
             Expr::FieldAccess(field_access) => field_access.type_value.clone(),
-            Expr::FuncCall(func_call) => func_call.type_value.clone(),
+            Expr::FuncCall(func_call) => func_call.signature.result.clone(),
             Expr::Lookup(lookup) => lookup.type_value.clone(),
             Expr::With(with) => with.type_value.clone(),
         }

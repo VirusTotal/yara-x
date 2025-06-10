@@ -301,11 +301,12 @@ impl TypeValue {
     /// Returns the symbol table associated to this [`TypeValue`].
     ///
     /// The symbol table contains the methods and/or fields associated to the
-    /// type. This only returns some value for [`TypeValue::Struct`] for any
-    /// other type it returns [`None`].
+    /// type.
     pub fn symbol_table(&self) -> Option<Rc<dyn SymbolLookup>> {
         match self {
             Self::Struct(s) => Some(s.clone()),
+            Self::Array(a) => Some(a.builtin_methods()),
+            Self::Map(m) => Some(m.builtin_methods()),
             _ => None,
         }
     }

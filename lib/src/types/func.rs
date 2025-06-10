@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::iter::Peekable;
+use std::rc::Rc;
 use std::str::Chars;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -13,9 +14,13 @@ use std::str::Chars;
 /// A mangled name is a function name decorated with additional information
 /// about the function's arguments and return types.
 ///
-/// Mangled names have the format `<func name>@<arguments>@<return type>`,
-/// where `<arguments>` is a sequence of characters that specify the
-/// argument's type. Allowed types are:
+/// Mangled names have the format:
+///   
+/// `[<type name>::]<func name>@<arguments>@<return type>`
+///
+/// The prefix `<type name>::` is optional, it is present only if the function
+/// is a method of the type identified by `<type name>`. `<arguments>` is a
+/// sequence of characters that specify the argument's type. Allowed types are:
 ///
 /// ```text
 ///  i: integer
@@ -108,6 +113,11 @@ impl MangledFnName {
         self.0.ends_with('u')
     }
 
+    /// If this function is a method of some type, returns the type name.
+    pub fn method_of(&self) -> Option<&str> {
+        self.0.split_once("::").map(|(type_name, _)| type_name)
+    }
+
     fn next_type(&self, chars: &mut Peekable<Chars>) -> Option<TypeValue> {
         match chars.next() {
             Some('u') => Some(TypeValue::Unknown),
@@ -177,7 +187,20 @@ pub(crate) struct FuncSignature {
     pub mangled_name: MangledFnName,
     pub args: Vec<TypeValue>,
     pub result: TypeValue,
-    pub result_may_be_undef: bool,
+}
+
+impl FuncSignature {
+    /// Returns true if the function's result may be undefined.
+    #[inline]
+    pub fn result_may_be_undef(&self) -> bool {
+        self.mangled_name.result_may_be_undef()
+    }
+
+    /// If this function is a method of some type, returns the type name.
+    #[inline]
+    pub fn method_of(&self) -> Option<&str> {
+        self.mangled_name.method_of()
+    }
 }
 
 impl Hash for FuncSignature {
@@ -209,9 +232,8 @@ impl PartialEq for FuncSignature {
 impl<T: Into<String>> From<T> for FuncSignature {
     fn from(value: T) -> Self {
         let mangled_name = MangledFnName::from(value.into());
-        let result_may_be_undef = mangled_name.result_may_be_undef();
         let (args, result) = mangled_name.unmangle();
-        Self { mangled_name, args, result, result_may_be_undef }
+        Self { mangled_name, args, result }
     }
 }
 
@@ -224,35 +246,40 @@ impl<T: Into<String>> From<T> for FuncSignature {
 pub(crate) struct Func {
     /// The list of signatures for this function. Functions can be overloaded,
     /// so they may more than one signature.
-    signatures: Vec<FuncSignature>,
-    /// If this function is a method, contains the name of the type the method
-    /// is associated to. For standard functions this is [`None`].
+    signatures: Vec<Rc<FuncSignature>>,
+    /// If this function is a method, this field contains the name of the
+    /// type. `None` indicates that this is a standard function, not a method.
     method_of: Option<String>,
 }
 
 impl Func {
     /// Creates a new [`Func`] from a mangled function name.
     pub fn from_mangled_name(name: &str) -> Self {
-        Self { signatures: vec![FuncSignature::from(name)], method_of: None }
+        let signature = FuncSignature::from(name);
+        let method_of = signature.method_of().map(String::from);
+        Self { signatures: vec![Rc::new(signature)], method_of }
+    }
+    /// Returns `true` if this function is a method.
+    pub fn is_method(&self) -> bool {
+        self.method_of.is_some()
     }
 
-    /// Makes this function a method of the specified type.
-    pub fn make_method_of(&mut self, type_name: &str) {
-        self.method_of = Some(type_name.to_string())
-    }
-
-    /// If this function is a method of some type, returns the name of the
-    /// type. Returns [`None`] if the function is not a method.
-    pub fn method_of(&self) -> Option<&str> {
-        self.method_of.as_deref()
-    }
-
-    /// Add a signature to the function.
+    /// Adds a signature to the function.
+    ///
+    /// If any of the added signatures is a method associated with a specific type,
+    /// all other signatures must also be methods for the same type.
     ///
     /// # Panics
     ///
-    /// If the function already has the given signature.
+    /// Panics if the function already contains the given signature, or if the added
+    /// signature is a method for a different type than the one used in existing
+    /// method signatures.
     pub fn add_signature(&mut self, signature: FuncSignature) {
+        if let Some(method_of) = &self.method_of {
+            assert_eq!(signature.method_of(), Some(method_of.as_str()));
+        }
+
+        let signature = Rc::new(signature);
         // Signatures are inserted into self.signatures sorted by
         // mangled named.
         match self.signatures.binary_search(&signature) {
@@ -268,7 +295,7 @@ impl Func {
 
     /// Returns all the signatures for this function.
     #[inline]
-    pub fn signatures(&self) -> &[FuncSignature] {
+    pub fn signatures(&self) -> &[Rc<FuncSignature>] {
         self.signatures.as_slice()
     }
 }
@@ -335,6 +362,13 @@ mod test {
                 ])
             )
         );
+
+        assert_eq!(
+            MangledFnName::from("Bar::foo@i@iu").method_of(),
+            Some("Bar")
+        );
+
+        assert_eq!(MangledFnName::from("foo@i@iu").method_of(), None);
 
         assert!(!MangledFnName::from("foo@i@i").result_may_be_undef());
         assert!(MangledFnName::from("foo@i@iu").result_may_be_undef());

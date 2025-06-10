@@ -820,6 +820,8 @@ fn expr_from_ast(
         ast::Expr::Lookup(expr) => {
             let primary = expr_from_ast(ctx, &expr.primary)?;
 
+            ctx.one_shot_symbol_table = None;
+
             match ctx.ir.get(primary).type_value() {
                 TypeValue::Array(array) => {
                     let index =
@@ -1180,10 +1182,8 @@ fn is_potentially_large_range(ctx: &CompileContext, range: &Range) -> bool {
             |node| matches!(node, Expr::Filesize | Expr::PatternCount { .. }),
             // Don't traverse the arguments of `math.min`.
             |node| {
-                if let Expr::FuncCall(f) = node {
-                    f.func.signatures().iter().any(|signature| {
-                        signature.mangled_name.as_str().eq("math.min@ii@i")
-                    })
+                if let Expr::FuncCall(func) = node {
+                    func.signature.mangled_name.as_str().eq("math.min@ii@i")
                 } else {
                     false
                 }
@@ -1357,7 +1357,7 @@ fn with_expr_from_ast(
         // a variable for it, but add it to the symbol table. Methods are not
         // allowed though.
         if let TypeValue::Func(func) = &type_value {
-            if func.method_of().is_some() {
+            if func.is_method() {
                 return Err(MethodNotAllowedInWith::build(
                     ctx.report_builder,
                     ctx.report_builder
@@ -1656,12 +1656,6 @@ fn func_call_from_ast(
         }
     };
 
-    // The object is necessary only when this is a method call, if this
-    // is a function call no object is required.
-    if func.method_of().is_none() {
-        object = None
-    }
-
     let args = func_call
         .args
         .iter()
@@ -1676,19 +1670,21 @@ fn func_call_from_ast(
 
     // Determine if any of the signatures for the called function matches
     // the provided arguments.
-    for (i, signature) in func.signatures().iter().enumerate() {
+    for signature in func.signatures().iter() {
         // If the function is actually a method, the first argument is always
         // the type the method belongs to (i.e: the self pointer). This
         // argument appears in the function's signature, but is not expected
         // to appear among the arguments in the call statement.
-        let expected_arg_types: Vec<Type> = if func.method_of().is_some() {
+
+        let expected_arg_types: Vec<Type> = if signature.method_of().is_some()
+        {
             signature.args.iter().skip(1).map(|arg| arg.ty()).collect()
         } else {
             signature.args.iter().map(|arg| arg.ty()).collect()
         };
 
         if arg_types == expected_arg_types {
-            matching_signature = Some((i, signature.result.clone()));
+            matching_signature = Some(signature);
             break;
         }
 
@@ -1720,9 +1716,15 @@ fn func_call_from_ast(
         ));
     }
 
-    let (signature_index, type_value) = matching_signature.unwrap();
+    let matching_signature = matching_signature.unwrap();
 
-    Ok(ctx.ir.func_call(object, args, func, type_value, signature_index))
+    // The object is necessary only when this is a method call, if this
+    // is a function call no object is required.
+    if matching_signature.method_of().is_none() {
+        object = None
+    }
+
+    Ok(ctx.ir.func_call(object, args, matching_signature.clone()))
 }
 
 fn matches_expr_from_ast(
