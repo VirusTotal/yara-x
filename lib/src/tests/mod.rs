@@ -699,7 +699,6 @@ fn len_methods() {
     condition_true!(r#"test_proto2.array_bool.len() == 2"#);
     condition_true!(r#"test_proto2.array_int64.len() == 3"#);
     condition_true!(r#"test_proto2.array_string.len() == 3"#);
-
     condition_true!(r#"test_proto2.map_int64_int64.len() == 1"#);
 }
 
