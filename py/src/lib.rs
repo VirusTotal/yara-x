@@ -920,6 +920,10 @@ fn proto_to_json<'py>(
     // decode some types that are not directly representable in JSON. See the
     // documentation for JsonDecode for details.
     kwargs.set_item("object_hook", JsonDecoder::new())?;
+    // By default, json.loads doesn't allow control character (\t, \n, etc)
+    // in strings, we need to set strict=False to allow them.
+    // https://github.com/VirusTotal/yara-x/issues/365
+    kwargs.set_item("strict", false)?;
 
     json_loads.call((module_output_json,), Some(&kwargs))
 }
