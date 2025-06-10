@@ -100,13 +100,12 @@ pub unsafe extern "C" fn yrx_scanner_scan(
 
     let options = scanner
         .module_data
-        .iter()
+        .drain()
         .fold(ScanOptions::new(), |acc, (module_name, meta)| {
             acc.set_module_metadata(module_name, meta)
         });
 
     let scan_results = scanner.inner.scan_with_options(data, options);
-    scanner.module_data.clear();
 
     if let Err(err) = scan_results {
         let result = match err {

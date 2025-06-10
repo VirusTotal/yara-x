@@ -13,8 +13,8 @@ use crate::{
     yrx_scanner_create, yrx_scanner_destroy, yrx_scanner_on_matching_rule,
     yrx_scanner_scan, yrx_scanner_set_global_bool,
     yrx_scanner_set_global_float, yrx_scanner_set_global_int,
-    yrx_scanner_set_global_str, yrx_scanner_set_timeout,
-    yrx_scanner_set_module_data, YRX_BUFFER, YRX_METADATA, YRX_PATTERN,
+    yrx_scanner_set_global_str, yrx_scanner_set_module_data,
+    yrx_scanner_set_timeout, YRX_BUFFER, YRX_METADATA, YRX_PATTERN,
     YRX_RESULT, YRX_RULE,
 };
 
@@ -284,13 +284,13 @@ fn capi_modules() {
         assert_eq!(matches, 1);
         assert_eq!(yrx_last_error(), std::ptr::null());
 
-        // Module data are cleaned after scanning
+        // Module data are cleaned after scanning.
         matches = 0;
         yrx_scanner_scan(scanner, std::ptr::null(), 0);
         assert_eq!(matches, 0);
         assert_eq!(yrx_last_error(), std::ptr::null());
 
-        // Scanning with two different module data, first is matched, second is not
+        // Scanning with two different module data, first is matched, second is not.
         yrx_scanner_set_module_data(
             scanner,
             module_name.as_ptr(),
@@ -302,7 +302,6 @@ fn capi_modules() {
         assert_eq!(yrx_last_error(), std::ptr::null());
 
         matches = 0;
-
         yrx_scanner_set_module_data(
             scanner,
             module_name.as_ptr(),
