@@ -18,8 +18,11 @@ pub(crate) enum Array {
 }
 
 impl Array {
+    #[allow(clippy::declare_interior_mutable_const)]
     const BUILTIN_METHODS: OnceCell<Rc<SymbolTable>> = OnceCell::new();
+
     pub fn builtin_methods(&self) -> Rc<SymbolTable> {
+        #[allow(clippy::borrow_interior_mutable_const)]
         Self::BUILTIN_METHODS
             .get_or_init(|| {
                 let mut s = SymbolTable::new();
