@@ -13,8 +13,9 @@ use crate::{
     yrx_scanner_create, yrx_scanner_destroy, yrx_scanner_on_matching_rule,
     yrx_scanner_scan, yrx_scanner_set_global_bool,
     yrx_scanner_set_global_float, yrx_scanner_set_global_int,
-    yrx_scanner_set_global_str, yrx_scanner_set_timeout, YRX_BUFFER,
-    YRX_METADATA, YRX_PATTERN, YRX_RESULT, YRX_RULE,
+    yrx_scanner_set_global_str, yrx_scanner_set_module_data,
+    yrx_scanner_set_timeout, YRX_BUFFER, YRX_METADATA, YRX_PATTERN,
+    YRX_RESULT, YRX_RULE,
 };
 
 use std::ffi::{c_char, c_void, CStr};
@@ -91,6 +92,15 @@ extern "C" fn on_rule_match(rule: *const YRX_RULE, user_data: *mut c_void) {
         assert_eq!(count, 2);
     }
 
+    let ptr = user_data as *mut i32;
+    let matches = unsafe { ptr.as_mut().unwrap() };
+    *matches += 1;
+}
+
+extern "C" fn on_rule_match_increase_counter(
+    _rule: *const YRX_RULE,
+    user_data: *mut c_void,
+) {
     let ptr = user_data as *mut i32;
     let matches = unsafe { ptr.as_mut().unwrap() };
     *matches += 1;
@@ -207,6 +217,104 @@ fn capi() {
 
         yrx_scanner_destroy(scanner);
         yrx_rules_destroy(rules);
+    }
+}
+
+#[test]
+fn capi_modules() {
+    unsafe {
+        let mut compiler = std::ptr::null_mut();
+        yrx_compiler_create(0, &mut compiler);
+
+        let src = cr#"
+        import "cuckoo"
+
+        rule test {
+            condition:
+                cuckoo.network.tcp(/192\.168\.1\.1/, 443)
+        }
+        "#;
+
+        let module_name = c"cuckoo";
+        let module_metadata = cr#"
+        {
+            "network": {
+                "tcp": [{ "dport": 443, "dst": "192.168.1.1" }]
+            },
+            "behavior": {
+                "summary": {}
+            }
+        }
+        "#;
+
+        let module_metadata2 = cr#"
+        {
+            "network": {
+                "tcp": [{ "dport": 443, "dst": "192.168.1.2" }]
+            },
+            "behavior": {
+                "summary": {}
+            }
+        }
+        "#;
+
+        yrx_compiler_add_source(compiler, src.as_ptr());
+        let rules = yrx_compiler_build(compiler);
+
+        let mut scanner = std::ptr::null_mut();
+        yrx_scanner_create(rules, &mut scanner);
+
+        let mut matches = 0;
+        yrx_scanner_on_matching_rule(
+            scanner,
+            on_rule_match_increase_counter,
+            &mut matches as *mut i32 as *mut c_void,
+        );
+        yrx_scanner_scan(scanner, std::ptr::null(), 0);
+        assert_eq!(matches, 0);
+        assert_eq!(yrx_last_error(), std::ptr::null());
+
+        yrx_scanner_set_module_data(
+            scanner,
+            module_name.as_ptr(),
+            module_metadata.as_ptr() as *const u8,
+            module_metadata.to_bytes().len(),
+        );
+        yrx_scanner_scan(scanner, std::ptr::null(), 0);
+        assert_eq!(matches, 1);
+        assert_eq!(yrx_last_error(), std::ptr::null());
+
+        // Module data are cleaned after scanning.
+        matches = 0;
+        yrx_scanner_scan(scanner, std::ptr::null(), 0);
+        assert_eq!(matches, 0);
+        assert_eq!(yrx_last_error(), std::ptr::null());
+
+        // Scanning with two different module data, first is matched, second is not.
+        yrx_scanner_set_module_data(
+            scanner,
+            module_name.as_ptr(),
+            module_metadata.as_ptr() as *const u8,
+            module_metadata.to_bytes().len(),
+        );
+        yrx_scanner_scan(scanner, std::ptr::null(), 0);
+        assert_eq!(matches, 1);
+        assert_eq!(yrx_last_error(), std::ptr::null());
+
+        matches = 0;
+        yrx_scanner_set_module_data(
+            scanner,
+            module_name.as_ptr(),
+            module_metadata2.as_ptr() as *const u8,
+            module_metadata2.to_bytes().len(),
+        );
+        yrx_scanner_scan(scanner, std::ptr::null(), 0);
+        assert_eq!(matches, 0);
+        assert_eq!(yrx_last_error(), std::ptr::null());
+
+        yrx_rules_destroy(rules);
+        yrx_scanner_destroy(scanner);
+        yrx_compiler_destroy(compiler);
     }
 }
 

@@ -693,6 +693,22 @@ enum YRX_RESULT yrx_scanner_set_module_output(struct YRX_SCANNER *scanner,
                                               const uint8_t *data,
                                               size_t len);
 
+// Specifies metadata for a module.
+//
+// Since the module's output typically varies with each scanned file, you need to
+// call [yrx_scanner_set_module_data] prior to each invocation of
+// [yrx_scanner_scan]. Once [yrx_scanner_scan] is executed, the module's metadata
+// is consumed and will be empty unless set again before the subsequent call.
+//
+// The `name` argument is the name of a YARA module. It must be a valid UTF-8 string.
+//
+// The `name` as well as `data` must be valid from the time they are used as arguments
+// of this function until the scan is executed.
+enum YRX_RESULT yrx_scanner_set_module_data(struct YRX_SCANNER *scanner,
+                                            const char *name,
+                                            const uint8_t *data,
+                                            size_t len);
+
 // Sets the value of a global variable of type string.
 enum YRX_RESULT yrx_scanner_set_global_str(struct YRX_SCANNER *scanner,
                                            const char *ident,
