@@ -35,6 +35,9 @@ pub(crate) enum Symbol {
         type_value: TypeValue,
         /// Access control list (ACL) for accessing this field.
         acl: Option<Vec<AclEntry>>,
+        /// If the field is deprecated, this will contain the message shown when
+        /// the field is used in a rule.
+        deprecation_msg: Option<String>,
     },
     /// The symbol refers to a rule.
     Rule(RuleId),

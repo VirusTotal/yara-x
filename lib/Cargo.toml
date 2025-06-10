@@ -195,7 +195,7 @@ vt-module = [
 
 # Features that are enabled by default.
 default = [
-    "constant-folding",
+    #"constant-folding",
     "cuckoo-module",
     "exact-atoms",
     "fast-regexp",

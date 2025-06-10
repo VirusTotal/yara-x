@@ -20,6 +20,7 @@ use crate::compiler::report::{Level, Report, ReportBuilder, CodeLoc, Label, Foot
 pub enum Warning {
     BooleanIntegerComparison(Box<BooleanIntegerComparison>),
     ConsecutiveJumps(Box<ConsecutiveJumps>),
+    DeprecatedField(Box<DeprecatedField>),
     DuplicateImport(Box<DuplicateImport>),
     IgnoredModule(Box<IgnoredModule>),
     IgnoredRule(Box<IgnoredRule>),
@@ -690,4 +691,22 @@ pub struct InvalidTag {
     tag_loc: CodeLoc,
     name: String,
     regex: String,
+}
+
+/// FOO TODO
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "deprecated_field",
+    title = "field `{name}` is deprecated`"
+)]
+#[label(
+    "{msg}",
+    loc
+)]
+pub struct DeprecatedField {
+    report: Report,
+    name: String,
+    loc: CodeLoc,
+    msg: String,
 }

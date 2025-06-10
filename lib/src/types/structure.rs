@@ -82,6 +82,9 @@ pub(crate) struct StructField {
     pub type_value: TypeValue,
     /// Access control list (ACL) for accessing this struct field.
     pub acl: Option<Vec<AclEntry>>,
+    /// Deprecation message that must be shown when the field is used in a
+    /// rule. This is `None` for non-deprecated fields.
+    pub deprecation_msg: Option<String>,
 }
 
 /// A dynamic structure with one or more fields.
@@ -122,6 +125,7 @@ impl SymbolLookup for Struct {
             is_root: self.is_root,
             type_value: field.type_value.clone(),
             acl: field.acl.clone(),
+            deprecation_msg: field.deprecation_msg.clone(),
         })
     }
 }
@@ -174,6 +178,7 @@ impl Struct {
                     type_value: TypeValue::Struct(Rc::new(Struct::new())),
                     number: 0,
                     acl: None,
+                    deprecation_msg: None,
                 });
 
             if let TypeValue::Struct(ref mut s) = field.type_value {
@@ -191,7 +196,12 @@ impl Struct {
         } else {
             self.fields.insert(
                 name,
-                StructField { type_value: value, number: 0, acl: None },
+                StructField {
+                    type_value: value,
+                    number: 0,
+                    acl: None,
+                    deprecation_msg: None,
+                },
             )
         }
     }
@@ -374,6 +384,7 @@ impl Struct {
                     // Index is initially zero, will be adjusted later.
                     type_value: value,
                     acl: Self::acl(&fd),
+                    deprecation_msg: Self::deprecation_msg(&fd),
                     number,
                 },
             ));
@@ -683,6 +694,19 @@ impl Struct {
             .get(&field_descriptor.proto().options)
             .and_then(|options| options.lowercase)
             .unwrap_or(false)
+    }
+
+    /// Given a [`FieldDescriptor`] returns `Some(msg)` if the field is
+    /// deprecated, and `msg` is the message that must be shown when the
+    /// field is used.
+    ///
+    /// ```text
+    /// string foo = 1 [(yara.field_options).deprecation_msg = "use `bar` instead"];
+    /// ```
+    fn deprecation_msg(field_descriptor: &FieldDescriptor) -> Option<String> {
+        field_options
+            .get(&field_descriptor.proto().options)
+            .and_then(|options| options.deprecation_msg)
     }
 
     /// Given a [`FieldDescriptor`] returns the Access Control List (ACL)
