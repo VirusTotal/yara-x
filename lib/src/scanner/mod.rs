@@ -84,6 +84,14 @@ pub enum ScanError {
         /// Module name.
         module: String,
     },
+    /// There is some error in module data.
+    #[error("cannot parse data for {module}: {err}")]
+    ModuleDataError {
+        /// Module name.
+        module: String,
+        /// Details about the error.
+        err: String,
+    },
 }
 
 /// Global counter that gets incremented every 1 second by a dedicated thread.
@@ -662,21 +670,37 @@ impl<'r> Scanner<'r> {
 
             let root_struct_name = module.root_struct_descriptor.full_name();
 
+            let module_output;
             // If the user already provided some output for the module by
             // calling `Scanner::set_module_output`, use that output. If not,
             // call the module's main function (if the module has a main
             // function) for getting its output.
-            let module_output = if let Some(output) =
+            if let Some(output) =
                 ctx.user_provided_module_outputs.remove(root_struct_name)
             {
-                Some(output)
+                module_output = Some(output);
             } else {
-                let meta = options.as_ref().and_then(|options| {
-                    options.module_metadata.get(module_name).copied()
-                });
+                let meta: Option<&'opts [u8]> =
+                    options.as_ref().and_then(|options| {
+                        options.module_metadata.get(module_name).copied()
+                    });
 
-                module.main_fn.map(|main_fn| main_fn(data.as_ref(), meta))
-            };
+                if let Some(main_fn) = module.main_fn {
+                    match main_fn(data.as_ref(), meta) {
+                        Ok(ok) => {
+                            module_output = Some(ok);
+                        }
+                        Err(err) => {
+                            return Err(ScanError::ModuleDataError {
+                                module: module_name.to_string(),
+                                err: err.to_string(),
+                            });
+                        }
+                    };
+                } else {
+                    module_output = None;
+                }
+            }
 
             if let Some(module_output) = &module_output {
                 // Make sure that the module is returning a protobuf message of

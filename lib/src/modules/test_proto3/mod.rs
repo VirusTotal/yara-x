@@ -2,7 +2,7 @@ use crate::modules::prelude::*;
 use crate::modules::protos::test_proto3::TestProto3;
 
 #[module_main]
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> TestProto3 {
+fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<TestProto3, String> {
     let mut test = TestProto3::new();
 
     test.int32_zero = 0;
@@ -35,5 +35,5 @@ fn main(_data: &[u8], _meta: Option<&[u8]>) -> TestProto3 {
     test.bytes_foo = "foo".as_bytes().to_vec();
     test.bytes_bar = "bar".as_bytes().to_vec();
 
-    test
+    Ok(test)
 }

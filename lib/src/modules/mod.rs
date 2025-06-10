@@ -27,7 +27,7 @@ pub(crate) mod prelude {
 include!("modules.rs");
 
 /// Type of module's main function.
-type MainFn = fn(&[u8], Option<&[u8]>) -> Box<dyn MessageDyn>;
+type MainFn = fn(&[u8], Option<&[u8]>) -> Result<Box<dyn MessageDyn>, String>;
 
 /// Describes a YARA module.
 pub(crate) struct Module {
@@ -140,6 +140,8 @@ pub mod mods {
     ```
     */
 
+    use protobuf::MessageField;
+
     /// Data structures defined by the `dotnet` module.
     ///
     /// The main structure produced by the module is [`dotnet::Dotnet`]. The
@@ -213,18 +215,24 @@ pub mod mods {
     /// # use yara_x;
     /// let elf_info = yara_x::mods::invoke::<yara_x::mods::ELF>(&[]);
     /// ```
-    pub fn invoke<T: protobuf::MessageFull>(data: &[u8]) -> Option<Box<T>> {
+    pub fn invoke<T: protobuf::MessageFull>(
+        data: &[u8],
+    ) -> Option<Result<Box<T>, String>> {
         let module_output = invoke_dyn::<T>(data)?;
-        Some(<dyn protobuf::MessageDyn>::downcast_box(module_output).unwrap())
+        Some(module_output.map(|result| {
+            <dyn protobuf::MessageDyn>::downcast_box(result).unwrap()
+        }))
     }
 
     /// Like [`invoke`], but allows passing metadata to the module.
     pub fn invoke_with_meta<T: protobuf::MessageFull>(
         data: &[u8],
         meta: Option<&[u8]>,
-    ) -> Option<Box<T>> {
+    ) -> Option<Result<Box<T>, String>> {
         let module_output = invoke_with_meta_dyn::<T>(data, meta)?;
-        Some(<dyn protobuf::MessageDyn>::downcast_box(module_output).unwrap())
+        Some(module_output.map(|result| {
+            <dyn protobuf::MessageDyn>::downcast_box(result).unwrap()
+        }))
     }
 
     /// Invoke a YARA module with arbitrary data, but returns a dynamic
@@ -234,15 +242,26 @@ pub mod mods {
     /// dispatch version of the structure returned by the YARA module.
     pub fn invoke_dyn<T: protobuf::MessageFull>(
         data: &[u8],
-    ) -> Option<Box<dyn protobuf::MessageDyn>> {
+    ) -> Option<Result<Box<dyn protobuf::MessageDyn>, String>> {
         invoke_with_meta_dyn::<T>(data, None)
+    }
+
+    /// Invoke a YARA module with arbitrary data and returns Result with
+    /// MessageField as the Ok value.
+    pub fn invoke_with_message_field_result<T: protobuf::MessageFull>(
+        data: &[u8],
+    ) -> Result<protobuf::MessageField<T>, String> {
+        match invoke::<T>(data) {
+            Some(s) => s.map(|d| protobuf::MessageField(Some(d))),
+            None => Ok(MessageField::none()),
+        }
     }
 
     /// Like [`invoke_dyn`], but allows passing metadata to the module.
     pub fn invoke_with_meta_dyn<T: protobuf::MessageFull>(
         data: &[u8],
         meta: Option<&[u8]>,
-    ) -> Option<Box<dyn protobuf::MessageDyn>> {
+    ) -> Option<Result<Box<dyn protobuf::MessageDyn>, String>> {
         let descriptor = T::descriptor();
         let proto_name = descriptor.full_name();
         let (_, module) =
@@ -263,14 +282,15 @@ pub mod mods {
     /// # use yara_x;
     /// let modules_output = yara_x::mods::invoke_all(&[]);
     /// ```
-    pub fn invoke_all(data: &[u8]) -> Box<Modules> {
+    pub fn invoke_all(data: &[u8]) -> Result<Box<Modules>, String> {
         let mut info = Box::new(Modules::new());
-        info.pe = protobuf::MessageField(invoke::<PE>(data));
-        info.elf = protobuf::MessageField(invoke::<ELF>(data));
-        info.dotnet = protobuf::MessageField(invoke::<Dotnet>(data));
-        info.macho = protobuf::MessageField(invoke::<Macho>(data));
-        info.lnk = protobuf::MessageField(invoke::<Lnk>(data));
-        info
+
+        info.pe = invoke_with_message_field_result::<PE>(data)?;
+        info.elf = invoke_with_message_field_result::<ELF>(data)?;
+        info.dotnet = invoke_with_message_field_result::<Dotnet>(data)?;
+        info.macho = invoke_with_message_field_result::<Macho>(data)?;
+        info.lnk = invoke_with_message_field_result::<Lnk>(data)?;
+        Ok(info)
     }
 
     /// Iterator over built-in module names.
