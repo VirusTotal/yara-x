@@ -1,4 +1,5 @@
 use std::fs;
+use std::mem::MaybeUninit;
 use std::io::{prelude::*, BufReader};
 #[cfg(target_os = "linux")]
 use std::os::unix::fs::FileExt;
@@ -7,6 +8,10 @@ use std::path::PathBuf;
 use itertools::Itertools;
 #[cfg(target_os = "windows")]
 use winapi::um::processthreadsapi;
+use winapi::um::securitybaseapi;
+use winapi::um::winnt;
+use winapi::um::winbase;
+use winapi::shared::ntdef;
 
 use crate::scanner::ScanError;
 
@@ -165,15 +170,27 @@ pub fn load_proc(pid: u64) -> Result<Vec<u8>, ScanError> {
 
 #[cfg(target_os = "windows")]
 pub fn load_proc(pid: u64) -> Result<Vec<u8>, ScanError> {
-  if (processthreadsapi::OpenProcessToken(processthreadsapi::GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, &hToken) &&
-      LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &luidDebug))
+  let mut h_token: winnt::HANDLE = ntdef::NULL;
+  let mut luid_debug = MaybeUninit::<winnt::LUID>::uninit();
+  if unsafe {
+        (processthreadsapi::OpenProcessToken(
+            processthreadsapi::GetCurrentProcess(),
+            winnt::TOKEN_ADJUST_PRIVILEGES,
+            &mut h_token,
+        ) != 0) &&
+        (winbase::LookupPrivilegeValueA(std::ptr::null(),
+            winnt::SE_DEBUG_NAME.as_ptr() as *const i8,
+            luid_debug.as_mut_ptr(),
+        ) != 0)
+    }
   {
-    tokenPriv.PrivilegeCount = 1;
-    tokenPriv.Privileges[0].Luid = luidDebug;
-    tokenPriv.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-
-    AdjustTokenPrivileges(
-        hToken, FALSE, &tokenPriv, sizeof(tokenPriv), NULL, NULL);
+    let mut token_priv = winnt::TOKEN_PRIVILEGES{
+            PrivilegeCount: 1,
+            Privileges: [winnt::LUID_AND_ATTRIBUTES{Luid: unsafe { luid_debug.assume_init()}, Attributes: winnt::SE_PRIVILEGE_ENABLED}]
+        };
+    unsafe {
+        securitybaseapi::AdjustTokenPrivileges(h_token, 0, &mut token_priv, size_of::<winnt::TOKEN_PRIVILEGES>() as u32, std::ptr::null_mut(), std::ptr::null_mut());
+    }
   }
 
   if (hToken != NULL)
