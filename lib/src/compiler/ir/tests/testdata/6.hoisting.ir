@@ -1,22 +1,22 @@
 RULE test
-  29: OR -- hash: 0xc8faf63e6fc4cd6e -- parent: None 
-    16: AND -- hash: 0x8dab579cf49b9cbe -- parent: 29 
-      6: EQ -- hash: 0x35c1df009eb1761a -- parent: 16 
-        4: FN_CALL uint16@i@iu -- hash: 0x7091e7e92285116b -- parent: 6 
+  29: OR -- hash: 0x38ac661bc7edb303 -- parent: None 
+    16: AND -- hash: 0x55644aa7ab376dc4 -- parent: 29 
+      6: EQ -- hash: 0xb74a347972d27f07 -- parent: 16 
+        4: FN_CALL uint16@i@i:R0:65535u -- hash: 0x5c99c42ccd549597 -- parent: 6 
           3: CONST integer(0) -- parent: 4 
         5: CONST integer(23117) -- parent: 6 
-      15: EQ -- hash: 0x2f88edef3d55b4cd -- parent: 16 
-        13: FN_CALL uint32@i@iu -- hash: 0x9e0677dad441cbf6 -- parent: 15 
-          12: FN_CALL uint32@i@iu -- hash: 0xa3bce9990eee53a7 -- parent: 13 
+      15: EQ -- hash: 0xefd8aad42cfb8415 -- parent: 16 
+        13: FN_CALL uint32@i@i:R0:4294967295u -- hash: 0x7b9b59ee5ef72c64 -- parent: 15 
+          12: FN_CALL uint32@i@i:R0:4294967295u -- hash: 0x9112b2d627005c55 -- parent: 13 
             11: CONST integer(60) -- parent: 12 
         14: CONST integer(17744) -- parent: 15 
-    28: AND -- hash: 0x196e381f9886fb00 -- parent: 29 
-      23: EQ -- hash: 0xc814a73c034c440e -- parent: 28 
-        21: FN_CALL uint32@i@iu -- hash: 0x18406a705ccc306c -- parent: 23 
+    28: AND -- hash: 0x42c53eddef4faaf7 -- parent: 29 
+      23: EQ -- hash: 0xd49847c981d59e8b -- parent: 28 
+        21: FN_CALL uint32@i@i:R0:4294967295u -- hash: 0x59633ad74de391a -- parent: 23 
           20: CONST integer(0) -- parent: 21 
         22: CONST integer(1179403647) -- parent: 23 
-      27: NE -- hash: 0x5f9a9964dcff1dc0 -- parent: 28 
-        25: FN_CALL uint16@i@iu -- hash: 0x7091e7e92285116b -- parent: 27 
+      27: NE -- hash: 0xe122eeddb12026ad -- parent: 28 
+        25: FN_CALL uint16@i@i:R0:65535u -- hash: 0x5c99c42ccd549597 -- parent: 27 
           24: CONST integer(0) -- parent: 25 
         26: CONST integer(0) -- parent: 27 
 

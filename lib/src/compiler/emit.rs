@@ -272,7 +272,7 @@ fn emit_expr(
 ) {
     match ir.get(expr) {
         Expr::Const(type_value) => match type_value {
-            TypeValue::Integer { value: Const(value) } => {
+            TypeValue::Integer { value: Const(value), .. } => {
                 instr.i64_const(*value);
             }
             TypeValue::Float { value: Const(value) } => {

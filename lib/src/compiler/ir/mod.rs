@@ -1011,10 +1011,10 @@ impl IR {
     pub fn minus(&mut self, operand: ExprId) -> ExprId {
         if self.constant_folding {
             match self.get(operand).type_value() {
-                TypeValue::Integer { value: Const(v) } => {
+                TypeValue::Integer { value: Const(v), .. } => {
                     return self.constant(TypeValue::const_integer_from(-v));
                 }
-                TypeValue::Float { value: Const(v) } => {
+                TypeValue::Float { value: Const(v), .. } => {
                     return self.constant(TypeValue::const_float_from(-v));
                 }
                 _ => {}
@@ -1756,7 +1756,7 @@ impl IR {
         let folded = operands
             .iter()
             .map(|op| match self.get(*op).type_value() {
-                TypeValue::Integer { value: Const(v) } => v as f64,
+                TypeValue::Integer { value: Const(v), .. } => v as f64,
                 TypeValue::Float { value: Const(v) } => v,
                 _ => unreachable!(),
             })
@@ -2754,7 +2754,7 @@ impl Expr {
     /// If the expression is a constant integer, returns its value, if not
     /// returns [`None`]
     pub fn try_as_const_integer(&self) -> Option<i64> {
-        if let TypeValue::Integer { value: Const(v) } = self.type_value() {
+        if let TypeValue::Integer { value: Const(v), .. } = self.type_value() {
             Some(v)
         } else {
             None

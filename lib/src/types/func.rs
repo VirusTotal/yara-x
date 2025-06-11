@@ -1,4 +1,4 @@
-use crate::types::{StringConstraint, TypeValue};
+use crate::types::{IntegerConstraint, StringConstraint, TypeValue};
 use itertools::Itertools;
 
 use serde::{Deserialize, Serialize};
@@ -68,6 +68,7 @@ use std::str::Chars;
 /// foo() -> lowercase string           _> foo@@s:L
 /// foo() -> string of length 32        _> foo@@s:N32
 /// foo() -> 32-byte lowercase string   -> foo@@s:N32:L
+/// foo() -> integer in the range 0-255 -> foo@@i:R0:255
 /// ```
 ///
 /// Multiple constraints can be chained by appending them in sequence after
@@ -122,9 +123,33 @@ impl MangledFnName {
         match chars.next() {
             Some('u') => Some(TypeValue::Unknown),
             Some('r') => Some(TypeValue::Regexp(None)),
-            Some('i') => Some(TypeValue::unknown_integer()),
             Some('f') => Some(TypeValue::unknown_float()),
             Some('b') => Some(TypeValue::unknown_bool()),
+            Some('i') => {
+                let mut constraints = Vec::new();
+
+                while let Some(':') = chars.peek() {
+                    chars.next(); // consume the colon (:)
+                    match chars.next() {
+                        Some('R') => {
+                            let min = self.parse_i64(chars);
+                            assert_eq!(chars.next(), Some(':'));
+                            let max = self.parse_i64(chars);
+                            constraints
+                                .push(IntegerConstraint::Range(min, max));
+                        }
+                        None | Some(_) => {
+                            panic!("invalid mangled name: `{}`", self.0)
+                        }
+                    }
+                }
+
+                Some(if constraints.is_empty() {
+                    TypeValue::unknown_integer()
+                } else {
+                    TypeValue::unknown_integer_with_constraints(constraints)
+                })
+            }
             Some('s') => {
                 let mut constraints = Vec::new();
 
@@ -135,19 +160,10 @@ impl MangledFnName {
                             constraints.push(StringConstraint::Lowercase);
                         }
                         Some('N') => {
-                            let n = chars
-                                .by_ref()
-                                .peeking_take_while(|&c| c.is_ascii_digit())
-                                .collect::<String>()
-                                .parse::<usize>()
-                                .unwrap_or_else(|_| {
-                                    panic!(
-                                        "invalid mangled name: `{}`",
-                                        self.0
-                                    )
-                                });
-
-                            constraints.push(StringConstraint::ExactLength(n));
+                            let n = self.parse_i64(chars);
+                            constraints.push(StringConstraint::ExactLength(
+                                n as usize,
+                            ));
                         }
                         None | Some(_) => {
                             panic!("invalid mangled name: `{}`", self.0)
@@ -166,6 +182,15 @@ impl MangledFnName {
             }
             None => None,
         }
+    }
+
+    fn parse_i64(&self, chars: &mut Peekable<Chars>) -> i64 {
+        chars
+            .by_ref()
+            .peeking_take_while(|&c| c.is_ascii_digit() || c == '-')
+            .collect::<String>()
+            .parse::<i64>()
+            .unwrap_or_else(|_| panic!("invalid mangled name: `{}`", self.0))
     }
 }
 
@@ -302,7 +327,9 @@ impl Func {
 
 #[cfg(test)]
 mod test {
-    use crate::types::{MangledFnName, StringConstraint, TypeValue};
+    use crate::types::{
+        IntegerConstraint, MangledFnName, StringConstraint, TypeValue,
+    };
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -359,6 +386,26 @@ mod test {
                 TypeValue::unknown_string_with_constraints(vec![
                     StringConstraint::ExactLength(16),
                     StringConstraint::Lowercase
+                ])
+            )
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@@i:R0:10").unmangle(),
+            (
+                vec![],
+                TypeValue::unknown_integer_with_constraints(vec![
+                    IntegerConstraint::Range(0, 10),
+                ])
+            )
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@@i:R-100:1000").unmangle(),
+            (
+                vec![],
+                TypeValue::unknown_integer_with_constraints(vec![
+                    IntegerConstraint::Range(-100, 1000),
                 ])
             )
         );

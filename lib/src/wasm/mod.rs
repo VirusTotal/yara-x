@@ -99,10 +99,12 @@ use crate::types::{
     Array, Func, FuncSignature, Map, Struct, TypeValue, Value,
 };
 use crate::wasm;
+use crate::wasm::integer::RangedInteger;
 use crate::wasm::string::RuntimeString;
 use crate::wasm::string::String as _;
 
 pub(crate) mod builder;
+pub(crate) mod integer;
 pub(crate) mod string;
 
 /// Maximum number of variables.
@@ -425,6 +427,16 @@ impl WasmResult for i32 {
 impl WasmResult for i64 {
     fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
         smallvec![ValRaw::i64(self)]
+    }
+
+    fn types() -> WasmResultArray<wasmtime::ValType> {
+        smallvec![wasmtime::ValType::I64]
+    }
+}
+
+impl<const MIN: i64, const MAX: i64> WasmResult for RangedInteger<MIN, MAX> {
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        smallvec![ValRaw::i64(self.value())]
     }
 
     fn types() -> WasmResultArray<wasmtime::ValType> {
@@ -1070,7 +1082,7 @@ macro_rules! gen_lookup_fn {
             structure: Option<Rc<Struct>>,
             num_lookup_indexes: i32,
         ) -> Option<$return_type> {
-            if let $type { value } =
+            if let $type { value, .. } =
                 lookup_field(caller, structure, num_lookup_indexes)
             {
                 value.extract().cloned()
@@ -1463,12 +1475,12 @@ pub(crate) fn str_matches(
 }
 
 macro_rules! gen_xint_fn {
-    ($name:ident, $return_type:ty, $from_fn:ident) => {
+    ($name:ident, $return_type:ty, $from_fn:ident, $min:expr, $max:expr) => {
         #[wasm_export(public = true)]
         pub(crate) fn $name(
             caller: &mut Caller<'_, ScanContext>,
             offset: i64,
-        ) -> Option<i64> {
+        ) -> Option<RangedInteger<$min, $max>> {
             let offset = usize::try_from(offset).ok()?;
             caller
                 .data()
@@ -1477,20 +1489,21 @@ macro_rules! gen_xint_fn {
                 .map(|bytes| {
                     <$return_type>::$from_fn(bytes.try_into().unwrap()) as i64
                 })
+                .map(|i| RangedInteger::<$min, $max>::new(i))
         }
     };
 }
 
-gen_xint_fn!(uint8, u8, from_le_bytes);
-gen_xint_fn!(uint16, u16, from_le_bytes);
-gen_xint_fn!(uint32, u32, from_le_bytes);
-gen_xint_fn!(uint8be, u8, from_be_bytes);
-gen_xint_fn!(uint16be, u16, from_be_bytes);
-gen_xint_fn!(uint32be, u32, from_be_bytes);
+gen_xint_fn!(uint8, u8, from_le_bytes, 0, 255);
+gen_xint_fn!(uint16, u16, from_le_bytes, 0, 65_535);
+gen_xint_fn!(uint32, u32, from_le_bytes, 0, 4_294_967_295);
+gen_xint_fn!(uint8be, u8, from_be_bytes, 0, 255);
+gen_xint_fn!(uint16be, u16, from_be_bytes, 0, 65_535);
+gen_xint_fn!(uint32be, u32, from_be_bytes, 0, 4_294_967_295);
 
-gen_xint_fn!(int8, i8, from_le_bytes);
-gen_xint_fn!(int16, i16, from_le_bytes);
-gen_xint_fn!(int32, i32, from_le_bytes);
-gen_xint_fn!(int8be, i8, from_be_bytes);
-gen_xint_fn!(int16be, i16, from_be_bytes);
-gen_xint_fn!(int32be, i32, from_be_bytes);
+gen_xint_fn!(int8, i8, from_le_bytes, -128, 127);
+gen_xint_fn!(int16, i16, from_le_bytes, -32_768, 32_767);
+gen_xint_fn!(int32, i32, from_le_bytes, -2_147_483_648, 2_147_483_647);
+gen_xint_fn!(int8be, i8, from_be_bytes, -128, 127);
+gen_xint_fn!(int16be, i16, from_be_bytes, -32_768, 32_767);
+gen_xint_fn!(int32be, i32, from_be_bytes, -2_147_483_648, 2_147_483_647);
