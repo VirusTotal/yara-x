@@ -5,7 +5,7 @@ use serde::{de::Visitor, Deserialize, Deserializer};
 
 #[derive(serde::Deserialize, Debug)]
 pub(super) struct DomainJson {
-    pub domain: String,
+    pub domain: Option<String>,
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -13,21 +13,21 @@ pub(super) struct HttpJson {
     #[serde(rename = "user-agent")]
     pub user_agent: Option<String>,
     pub method: Option<String>, // string ftw
-    pub uri: String,
+    pub uri: Option<String>,
 }
 
 #[derive(serde::Deserialize, Debug)]
 pub(super) struct TcpJson {
     pub dst: Option<String>,
     pub dst_domain: Option<String>,
-    pub dport: u64,
+    pub dport: Option<u64>,
 }
 
 #[derive(serde::Deserialize, Debug)]
 pub(super) struct UdpJson {
     pub dst: Option<String>,
     pub dst_domain: Option<String>,
-    pub dport: u64,
+    pub dport: Option<u64>,
 }
 
 #[derive(/* serde::Deserialize, - custom */ Debug, Default)]
@@ -48,13 +48,13 @@ pub(super) struct SummaryJson {
 
 #[derive(serde::Deserialize, Debug, Default)]
 pub(super) struct BehaviorJson {
-    pub summary: SummaryJson,
+    pub summary: Option<SummaryJson>,
 }
 
 #[derive(serde::Deserialize, Debug, Default)]
 pub(super) struct CuckooJson {
-    pub network: NetworkJson,
-    pub behavior: BehaviorJson,
+    pub network: Option<NetworkJson>,
+    pub behavior: Option<BehaviorJson>,
 }
 
 impl<'de> Deserialize<'de> for NetworkJson {
@@ -131,7 +131,7 @@ impl<'de> Deserialize<'de> for NetworkJson {
 
                 #[derive(serde::Deserialize, Debug)]
                 struct OldDomainJson {
-                    pub hostname: String,
+                    pub hostname: Option<String>,
                 }
 
                 let domains: Option<Vec<DomainJson>> =
