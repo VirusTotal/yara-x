@@ -908,11 +908,10 @@ typedef struct YRX_BUFFER {
 
 ------
 
-### yrx_buffer_destroy
+#### yrx_buffer_destroy
 
 ```c
 void yrx_buffer_destroy(struct YRX_BUFFER *buf);
 ```
 
 Destroys a `YRX_BUFFER` object.
-------
