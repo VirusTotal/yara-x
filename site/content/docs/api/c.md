@@ -204,7 +204,7 @@ enum YRX_RESULT yrx_compiler_add_source_with_origin(
 ```
 
 Adds a YARA source code to be compiled, specifying an origin for the source
-code. This function is similar to `yrx_compiler_add_source`, but in addition
+code. This function is similar to [yrx_compiler_add_source](#yrx_compiler_add_source), but in addition
 to the source code itself it provides a string that identifies the origin of
 the code, usually the file path from where the source was obtained. This
 origin is shown in error reports.
@@ -223,25 +223,6 @@ Tells the compiler that a YARA module is not supported. Import statements
 for ignored modules will be ignored without errors but a warning will be
 issued. Any rule that make use of an ignored module will be ignored, while
 the rest of rules that don't rely on that module will be correctly compiled.
-
-------
-
-#### yrx_compiler_enable_feature
-
-```c
-enum YRX_RESULT yrx_compiler_enable_feature(
-    struct YRX_COMPILER *compiler,
-    const char *feature);
-```
-
-Enables a feature on this compiler. When defining the structure of a module
-in a `.proto` file, you can specify that certain fields are accessible only
-when one or more features are enabled. If some of the required features are
-not enabled, using this field in a YARA rule will cause an error while
-compiling the rules.
-
-> **Important:** This API is hidden from the public documentation because it is
-> unstable and subject to change.
 
 ------
 
@@ -428,20 +409,6 @@ with [yrx_rules_destroy](#yrx_rules_destroy) when not used anymore.
 
 After calling this function the compiler is reset to its initial state,
 you can keep using it by adding more sources and calling this function again.
-
-------
-
-### yrx_buffer_destroy
-
-```c
-void yrx_buffer_destroy(struct YRX_BUFFER *buf);
-```
-
-Destroys a `YRX_BUFFER` object. This is typically used for buffers created by
-functions like `yrx_compiler_errors_json`, `yrx_compiler_warnings_json`, or
-`yrx_rules_serialize`.
-
-------
 
 ### YRX_RULES
 
@@ -826,3 +793,31 @@ typedef enum YRX_RESULT {
     SERIALIZATION_ERROR,
 } YRX_RESULT;
 ```
+
+### YRX_BUFFER
+
+Represents a buffer with arbitrary data. Some functions in this API like
+[yrx_compiler_errors_json](#yrx_compiler_errors_json) and 
+[yrx_compiler_warnings_json](#yrx_compiler_warnings_json)
+create buffers and return pointers to them.
+
+
+```c
+typedef struct YRX_BUFFER {
+  // Pointer to the data contained in the buffer.
+  uint8_t *data;
+  // Length of data in bytes.
+  size_t length;
+} YRX_BUFFER;
+```
+
+------
+
+### yrx_buffer_destroy
+
+```c
+void yrx_buffer_destroy(struct YRX_BUFFER *buf);
+```
+
+Destroys a `YRX_BUFFER` object.
+------
