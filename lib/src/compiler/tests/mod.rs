@@ -1032,17 +1032,26 @@ fn utf8_errors() {
     // Insert invalid UTF-8 in the code.
     src.insert(4, 0xff);
 
+    let mut compiler = Compiler::new();
+
+    let err = compiler
+        .add_source(src.as_slice())
+        .expect_err("expected error")
+        .to_string();
+
     assert_eq!(
-        Compiler::new()
-            .add_source(src.as_slice())
-            .expect_err("expected error")
-            .to_string(),
+        err,
         "error[E032]: invalid UTF-8
  --> line:1:5
   |
 1 | rule� test {condition: true}
   |     ^ invalid UTF-8 character
   |"
+    );
+
+    assert_eq!(
+        compiler.errors.first().expect("expected error").to_string(),
+        err
     );
 }
 

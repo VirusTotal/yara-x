@@ -574,12 +574,16 @@ impl<'a> Compiler<'a> {
                 } else {
                     span_start
                 };
-                return Err(InvalidUTF8::build(
+
+                let err = InvalidUTF8::build(
                     &self.report_builder,
                     self.report_builder.span_to_code_loc(Span(
                         span_start as u32..span_end as u32,
                     )),
-                ));
+                );
+
+                self.errors.push(err.clone());
+                return Err(err);
             }
         };
 
