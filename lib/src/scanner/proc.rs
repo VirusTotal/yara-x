@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use itertools::Itertools;
 use winapi::shared::ntdef;
 use winapi::um::handleapi;
+use winapi::um::memoryapi;
 #[cfg(target_os = "windows")]
 use winapi::um::processthreadsapi;
 use winapi::um::securitybaseapi;
@@ -172,10 +173,12 @@ pub fn load_proc(pid: u64) -> Result<Vec<u8>, ScanError> {
 
 #[cfg(target_os = "windows")]
 pub fn load_proc(pid: u32) -> Result<Vec<u8>, ScanError> {
+    use winapi::shared;
+
     let mut h_token: winnt::HANDLE = ntdef::NULL;
-    let mut luid_debug = MaybeUninit::<winnt::LUID>::uninit();
-    if unsafe {
-        (processthreadsapi::OpenProcessToken(
+    let mut luid_debug_maybe = MaybeUninit::<winnt::LUID>::uninit();
+    if let Some(luid_debug) = unsafe {
+        if (processthreadsapi::OpenProcessToken(
             processthreadsapi::GetCurrentProcess(),
             winnt::TOKEN_ADJUST_PRIVILEGES,
             &mut h_token,
@@ -183,13 +186,18 @@ pub fn load_proc(pid: u32) -> Result<Vec<u8>, ScanError> {
             && (winbase::LookupPrivilegeValueA(
                 std::ptr::null(),
                 winnt::SE_DEBUG_NAME.as_ptr() as *const i8,
-                luid_debug.as_mut_ptr(),
+                luid_debug_maybe.as_mut_ptr(),
             ) != 0)
+        {
+            Some(luid_debug_maybe.assume_init())
+        } else {
+            None
+        }
     } {
         let mut token_priv = winnt::TOKEN_PRIVILEGES {
             PrivilegeCount: 1,
             Privileges: [winnt::LUID_AND_ATTRIBUTES {
-                Luid: unsafe { luid_debug.assume_init() },
+                Luid: luid_debug,
                 Attributes: winnt::SE_PRIVILEGE_ENABLED,
             }],
         };
@@ -223,11 +231,64 @@ pub fn load_proc(pid: u32) -> Result<Vec<u8>, ScanError> {
         return Err(ScanError::ProcessError { pid });
     }
 
-    let mut si = MaybeUninit::<sysinfoapi::SYSTEM_INFO>::uninit();
+    let mut maybe_si = MaybeUninit::<sysinfoapi::SYSTEM_INFO>::uninit();
 
-    unsafe { sysinfoapi::GetSystemInfo(si.as_mut_ptr()) };
+    let si = unsafe {
+        sysinfoapi::GetSystemInfo(maybe_si.as_mut_ptr());
+        maybe_si.assume_init()
+    };
+
+    let mut address = si.lpMinimumApplicationAddress;
+
+    let mut mbi_maybe =
+        MaybeUninit::<winnt::MEMORY_BASIC_INFORMATION>::uninit();
+
+    let mut process_memory: Vec<u8> = Vec::new();
+
+    while let Some(mbi) = if (address < si.lpMaximumApplicationAddress)
+        && unsafe {
+            memoryapi::VirtualQueryEx(
+                h_process,
+                address,
+                mbi_maybe.as_mut_ptr(),
+                size_of::<winnt::MEMORY_BASIC_INFORMATION>(),
+            ) != 0
+        } {
+        Some(unsafe { mbi_maybe.assume_init() })
+    } else {
+        None
+    } {
+        if (mbi.State == winnt::MEM_COMMIT)
+            && ((mbi.Protect & winnt::PAGE_NOACCESS) == 0)
+        {
+            let size = mbi.RegionSize
+                - (unsafe { address.offset_from_unsigned(mbi.BaseAddress) });
+
+            let prev_end = process_memory.len();
+            process_memory.resize(prev_end + size as usize, 0);
+
+            if unsafe {
+                let mut read =
+                    MaybeUninit::<shared::basetsd::SIZE_T>::uninit();
+                memoryapi::ReadProcessMemory(
+                    h_process,
+                    address,
+                    process_memory[prev_end..].as_mut_ptr()
+                        as *mut winapi::ctypes::c_void,
+                    size,
+                    read.as_mut_ptr(),
+                ) == 0
+            } {
+                return Err(ScanError::ProcessError { pid });
+            }
+        }
+
+        address = unsafe { mbi.BaseAddress.add(mbi.RegionSize) };
+    }
 
     unsafe {
         handleapi::CloseHandle(h_process);
     }
+
+    Ok(process_memory)
 }
