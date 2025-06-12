@@ -223,10 +223,10 @@ enum YRX_RESULT yrx_compiler_add_source_with_origin(
 ```
 
 Adds a YARA source code to be compiled, specifying an origin for the source
-code. This function is similar to [yrx_compiler_add_source](#yrx_compiler_add_source), but in addition
-to the source code itself it provides a string that identifies the origin of
-the code, usually the file path from where the source was obtained. This
-origin is shown in error reports.
+code. This function is similar to [yrx_compiler_add_source](#yrx_compiler_add_source),
+but in addition to the source code itself it provides a string that identifies
+the origin of the code, usually the file path from where the source was obtained.
+This origin is shown in error reports.
 
 ------
 
@@ -242,61 +242,6 @@ Tells the compiler that a YARA module is not supported. Import statements
 for ignored modules will be ignored without errors but a warning will be
 issued. Any rule that make use of an ignored module will be ignored, while
 the rest of rules that don't rely on that module will be correctly compiled.
-
-------
-
-#### yrx_compiler_enable_feature
-
-```c
-enum YRX_RESULT yrx_compiler_enable_feature(
-    struct YRX_COMPILER *compiler,
-    const char *feature);
-```
-
-Enables a specific feature on the compiler. This function is used in conjunction with YARA modules that have fields defined with access control lists (ACLs) in their `.proto` files. These ACLs can specify that certain fields are only accessible if a particular feature (or set of features) is enabled.
-
-When a YARA rule attempts to use a feature-restricted field:
-*   If the required feature has been enabled via this function, compilation proceeds normally.
-*   If the required feature is not enabled, a compilation error occurs. The title and label of this error message can be customized within the `.proto` definition of the field.
-
-For example, a `.proto` file might define a field like this:
-
-```protobuf
-optional uint64 requires_foo_and_bar = 500 [
-  (yara.field_options) = {
-    acl: [
-      {
-        allow_if: "foo",
-        error_title: "foo is required",
-        error_label: "this field was used without foo"
-      },
-      {
-        allow_if: "bar",
-        error_title: "bar is required",
-        error_label: "this field was used without bar"
-      }
-    ]
-  }
-];
-```
-
-If a rule uses `test_proto2.requires_foo_and_bar` without "foo" being enabled, the compiler might produce an error similar to:
-
-```text
-error[E034]: foo is required
- --> line:5:29
-  |
-5 |  test_proto2.requires_foo_and_bar == 0
-  |              ^^^^^^^^^^^^^^^^^^^^ this field was used without foo
-  |
-```
-
-**Parameters:**
-
-*   `compiler`: A pointer to the [`YRX_COMPILER`](#yrx_compiler) instance.
-*   `feature`: A null-terminated UTF-8 string representing the name of the feature to enable.
-
-**Important Note:** This API is currently considered unstable and is hidden from public documentation, so it is subject to change in future releases.
 
 ------
 
@@ -670,17 +615,25 @@ enum YRX_RESULT yrx_scanner_set_module_output(
     size_t len);
 ```
 
-Specifies the output data structure for a YARA module. Each module can generate an output, typically a Protocol Buffer, containing information about the scanned file. This function allows you to provide this output data yourself in two scenarios:
+Specifies the output data structure for a YARA module. Each module can generate
+an output, typically a Protocol Buffer, containing information about the scanned
+file. This function allows you to provide this output data yourself in two 
+scenarios:
 
-1.  **Module without auto-output**: If a module doesn't generate output on its own (e.g., lacks a main function), you must use this function to set its output before scanning.
-2.  **Reusing known output**: If you have already processed a file and know the module's output, you can provide it via this function to avoid redundant computation by the module, potentially improving performance.
+1.  **Module without auto-output**: If a module doesn't generate output on its 
+    own (e.g., lacks a main function), you must use this function to set its output 
+    before scanning.
+2.  **Reusing known output**: If you have already processed a file and know 
+    the module's output, you can provide it via this function to avoid redundant 
+    computation by the module, potentially improving performance.
 
-The module's output is consumed after each call to [`yrx_scanner_scan`](#yrx_scanner_scan). Therefore, if you need to provide it, you must call this function before each scan.
-
-**Parameters:**
+The module's output is consumed after each call to [`yrx_scanner_scan`](#yrx_scanner_scan). 
+Therefore, if you need to provide it, you must call this function before each scan.
+This function receives:
 
 *   `scanner`: A pointer to the [`YRX_SCANNER`](#yrx_scanner) instance.
-*   `name`: A null-terminated UTF-8 string. This can be either the YARA module name (e.g., "pe", "elf") or the fully-qualified name of the module's protobuf message.
+*   `name`: A null-terminated UTF-8 string. This can be either the YARA module
+     name (e.g., "pe", "elf") or the fully-qualified name of the module's protobuf message.
 *   `data`: A pointer to the buffer containing the serialized protobuf data.
 *   `len`: The length of the data buffer in bytes.
 
@@ -696,16 +649,18 @@ enum YRX_RESULT yrx_scanner_set_module_data(
     size_t len);
 ```
 
-Specifies metadata for a YARA module. Similar to module output, module metadata is typically specific to each scanned file and is consumed after each call to [`yrx_scanner_scan`](#yrx_scanner_scan). Thus, you need to call this function before each scan if you intend to provide custom module metadata.
-
-The provided `name` and `data` pointers must remain valid from the time this function is called until the scan is executed.
-
-**Parameters:**
+Specifies metadata for a YARA module. Similar to module output, module metadata
+is typically specific to each scanned file and is consumed after each call to 
+[`yrx_scanner_scan`](#yrx_scanner_scan). Thus, you need to call this function 
+before each scan if you intend to provide custom module metadata. It receives:
 
 *   `scanner`: A pointer to the [`YRX_SCANNER`](#yrx_scanner) instance.
 *   `name`: A null-terminated UTF-8 string representing the YARA module name.
 *   `data`: A pointer to the buffer containing the module data.
 *   `len`: The length of the data buffer in bytes.
+
+The provided `name` and `data` pointers must remain valid from the time this
+function is called until the scan is executed.
 
 ------
 
@@ -719,18 +674,24 @@ enum YRX_RESULT yrx_scanner_iter_slowest_rules(
     void *user_data);
 ```
 
-Iterates over the `n` slowest rules encountered by the scanner, invoking the provided callback for each one. This function is used for profiling rule performance.
+Iterates over the `n` slowest rules encountered by the scanner, invoking the
+provided callback for each one. This function is used for profiling rule 
+performance, it receives:
 
-**Parameters:**
-
-*   `scanner`: A pointer to the [`YRX_SCANNER`](#yrx_scanner) instance.
+*   `scanner`: A pointer to the [YRX_SCANNER](#yrx_scanner) instance.
 *   `n`: The maximum number of slowest rules to report.
-*   `callback`: A function pointer of type [`YRX_SLOWEST_RULES_CALLBACK`](#yrx_slowest_rules_callback) that will be invoked for each of the slowest rules.
-*   `user_data`: A void pointer to arbitrary user data that will be passed to the callback function.
+*   `callback`: A function pointer of type [YRX_SLOWEST_RULES_CALLBACK](#yrx_slowest_rules_callback)
+     that will be invoked for each of the slowest rules.
+*   `user_data`: A void pointer to arbitrary user data that will be passed to
+     the callback function.
 
-**Note:** This function requires the `rules-profiling` feature to be enabled when YARA-X is compiled. If the feature is not available, this function will return `YRX_RESULT::NOT_SUPPORTED`.
+**Note:** This function requires the `rules-profiling` feature to be enabled
+when YARA-X is compiled. If the feature is not available, this function will
+return `YRX_RESULT::NOT_SUPPORTED`.
 
-See also: [`YRX_SLOWEST_RULES_CALLBACK`](#yrx_slowest_rules_callback), [`yrx_scanner_clear_profiling_data`](#yrx_scanner_clear_profiling_data).
+See also: 
+ * [YRX_SLOWEST_RULES_CALLBACK](#yrx_slowest_rules_callback)
+ * [yrx_scanner_clear_profiling_data](#yrx_scanner_clear_profiling_data).
 
 ------
 
@@ -741,15 +702,17 @@ enum YRX_RESULT yrx_scanner_clear_profiling_data(
     struct YRX_SCANNER *scanner);
 ```
 
-Clears all accumulated rule profiling data from the scanner. This is useful when you want to start a new profiling session and ensure that the results from [`yrx_scanner_iter_slowest_rules`](#yrx_scanner_iter_slowest_rules) only reflect scans performed after calling this function.
+Clears all accumulated rule profiling data from the scanner. This is useful when
+you want to start a new profiling session and ensure that the results from 
+[yrx_scanner_iter_slowest_rules](#yrx_scanner_iter_slowest_rules) only reflect
+scans performed after calling this function.
 
-**Parameters:**
+**Note:** This function requires the `rules-profiling` feature to be enabled
+when YARA-X is compiled. If the feature is not available, this function will 
+return `YRX_RESULT::NOT_SUPPORTED`.
 
-*   `scanner`: A pointer to the [`YRX_SCANNER`](#yrx_scanner) instance.
-
-**Note:** This function requires the `rules-profiling` feature to be enabled when YARA-X is compiled. If the feature is not available, this function will return `YRX_RESULT::NOT_SUPPORTED`.
-
-See also: [`yrx_scanner_iter_slowest_rules`](#yrx_scanner_iter_slowest_rules).
+See also:
+* [yrx_scanner_iter_slowest_rules](#yrx_scanner_iter_slowest_rules)
 
 ------
 
@@ -1069,11 +1032,12 @@ typedef void (*YRX_MATCH_CALLBACK)(
     void *user_data);
 ```
 
-Callback function passed to [`yrx_pattern_iter_matches`](#yrx_pattern_iter_matches).
+Callback function passed to [yrx_pattern_iter_matches](#yrx_pattern_iter_matches).
 
 The callback is invoked for every match found for a specific pattern. It receives:
-*   A pointer to a [`YRX_MATCH`](#yrx_match) structure containing details about the match. This pointer is only valid for the duration of the callback.
-*   The `user_data` pointer that was passed to [`yrx_pattern_iter_matches`](#yrx_pattern_iter_matches).
+*   A pointer to a [YRX_MATCH](#yrx_match) structure containing details about the
+    match. This pointer is only valid for the duration of the callback.
+*   The `user_data` pointer that was passed to [yrx_pattern_iter_matches](#yrx_pattern_iter_matches).
 
 ------
 
@@ -1085,11 +1049,12 @@ typedef void (*YRX_METADATA_CALLBACK)(
     void *user_data);
 ```
 
-Callback function passed to [`yrx_rule_iter_metadata`](#yrx_rule_iter_metadata).
+Callback function passed to [yrx_rule_iter_metadata](#yrx_rule_iter_metadata).
 
 The callback is invoked for each metadata item associated with a rule. It receives:
-*   A pointer to a [`YRX_METADATA`](#yrx_metadata) structure. This pointer is only valid for the duration of the callback.
-*   The `user_data` pointer that was passed to [`yrx_rule_iter_metadata`](#yrx_rule_iter_metadata).
+*   A pointer to a [YRX_METADATA](#yrx_metadata) structure. This pointer is only 
+    valid for the duration of the callback.
+*   The `user_data` pointer that was passed to [yrx_rule_iter_metadata](#yrx_rule_iter_metadata).
 
 ------
 
@@ -1101,11 +1066,12 @@ typedef void (*YRX_PATTERN_CALLBACK)(
     void *user_data);
 ```
 
-Callback function passed to [`yrx_rule_iter_patterns`](#yrx_rule_iter_patterns).
+Callback function passed to [yrx_rule_iter_patterns](#yrx_rule_iter_patterns).
 
 The callback is invoked for each pattern defined within a rule. It receives:
-*   A pointer to a [`YRX_PATTERN`](#yrx_pattern) structure. This pointer is only valid for the duration of the callback.
-*   The `user_data` pointer that was passed to [`yrx_rule_iter_patterns`](#yrx_rule_iter_patterns).
+*   A pointer to a [YRX_PATTERN](#yrx_pattern) structure. This pointer is only  
+    valid for the duration of the callback.
+*   The `user_data` pointer that was passed to [yrx_rule_iter_patterns](#yrx_rule_iter_patterns).
 
 ------
 
@@ -1117,11 +1083,12 @@ typedef void (*YRX_TAG_CALLBACK)(
     void *user_data);
 ```
 
-Callback function passed to [`yrx_rule_iter_tags`](#yrx_rule_iter_tags).
+Callback function passed to [yrx_rule_iter_tags](#yrx_rule_iter_tags).
 
 The callback is invoked for each tag associated with a rule. It receives:
-*   A pointer to a null-terminated string representing the tag. This pointer is only valid for the duration of the callback.
-*   The `user_data` pointer that was passed to [`yrx_rule_iter_tags`](#yrx_rule_iter_tags).
+*   A pointer to a null-terminated string representing the tag. This pointer is only
+    valid for the duration of the callback.
+*   The `user_data` pointer that was passed to [yrx_rule_iter_tags](#yrx_rule_iter_tags).
 
 ------
 
