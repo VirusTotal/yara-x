@@ -1,95 +1,95 @@
 warning[unsatisfiable_expr]: unsatisfiable expression
- --> line:3:9
+ --> line:5:9
   |
-3 |         uint8(0) == 0x1FF
+5 |         uint8(0) == 0x1FF
   |         --------    ----- this integer is outside the range [0,255]
   |         |
   |         this expression is an integer in the range [0,255]
   |
 warning[unsatisfiable_expr]: unsatisfiable expression
- --> line:8:9
-  |
-8 |         int8(0) == -129
-  |         -------    ---- this integer is outside the range [-128,127]
-  |         |
-  |         this expression is an integer in the range [-128,127]
-  |
-warning[unsatisfiable_expr]: unsatisfiable expression
-  --> line:13:9
+  --> line:10:9
    |
-13 |         uint16(0) == 0x1FFFF
+10 |         int8(0) == -129
+   |         -------    ---- this integer is outside the range [-128,127]
+   |         |
+   |         this expression is an integer in the range [-128,127]
+   |
+warning[unsatisfiable_expr]: unsatisfiable expression
+  --> line:15:9
+   |
+15 |         uint16(0) == 0x1FFFF
    |         ---------    ------- this integer is outside the range [0,65535]
    |         |
    |         this expression is an integer in the range [0,65535]
    |
 warning[unsatisfiable_expr]: unsatisfiable expression
-  --> line:18:9
+  --> line:20:9
    |
-18 |         int16(0) == -32769
+20 |         int16(0) == -32769
    |         --------    ------ this integer is outside the range [-32768,32767]
    |         |
    |         this expression is an integer in the range [-32768,32767]
    |
 warning[unsatisfiable_expr]: unsatisfiable expression
-  --> line:23:9
+  --> line:25:9
    |
-23 |         uint32(0) == 0x1FFFFFFFF
+25 |         uint32(0) == 0x1FFFFFFFF
    |         ---------    ----------- this integer is outside the range [0,4294967295]
    |         |
    |         this expression is an integer in the range [0,4294967295]
    |
 warning[unsatisfiable_expr]: unsatisfiable expression
-  --> line:28:9
+  --> line:30:9
    |
-28 |         int32(0) == -2147483649
+30 |         int32(0) == -2147483649
    |         --------    ----------- this integer is outside the range [-2147483648,2147483647]
    |         |
    |         this expression is an integer in the range [-2147483648,2147483647]
    |
 warning[unsatisfiable_expr]: unsatisfiable expression
-  --> line:33:9
+  --> line:35:9
    |
-33 |         uint8be(0) == 0x1FF
+35 |         uint8be(0) == 0x1FF
    |         ----------    ----- this integer is outside the range [0,255]
    |         |
    |         this expression is an integer in the range [0,255]
    |
 warning[unsatisfiable_expr]: unsatisfiable expression
-  --> line:38:9
+  --> line:40:9
    |
-38 |         int8be(0) == -129
+40 |         int8be(0) == -129
    |         ---------    ---- this integer is outside the range [-128,127]
    |         |
    |         this expression is an integer in the range [-128,127]
    |
 warning[unsatisfiable_expr]: unsatisfiable expression
-  --> line:43:9
+  --> line:45:9
    |
-43 |         uint16be(0) == 0x1FFFF
+45 |         uint16be(0) == 0x1FFFF
    |         -----------    ------- this integer is outside the range [0,65535]
    |         |
    |         this expression is an integer in the range [0,65535]
    |
 warning[unsatisfiable_expr]: unsatisfiable expression
-  --> line:48:9
+  --> line:50:9
    |
-48 |         int16be(0) == -32769
+50 |         int16be(0) == -32769
    |         ----------    ------ this integer is outside the range [-32768,32767]
    |         |
    |         this expression is an integer in the range [-32768,32767]
    |
 warning[unsatisfiable_expr]: unsatisfiable expression
-  --> line:53:9
+  --> line:55:9
    |
-53 |         uint32be(0) == 0x1FFFFFFFF
+55 |         uint32be(0) == 0x1FFFFFFFF
    |         -----------    ----------- this integer is outside the range [0,4294967295]
    |         |
    |         this expression is an integer in the range [0,4294967295]
    |
 warning[unsatisfiable_expr]: unsatisfiable expression
-  --> line:58:9
+  --> line:60:9
    |
-58 |         int32be(0) == -2147483649
+60 |         int32be(0) == -2147483649
    |         ----------    ----------- this integer is outside the range [-2147483648,2147483647]
    |         |
    |         this expression is an integer in the range [-2147483648,2147483647]
