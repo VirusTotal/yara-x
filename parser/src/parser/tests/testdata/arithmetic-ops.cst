@@ -1,4 +1,4 @@
-SOURCE_FILE@0..250
+SOURCE_FILE@0..295
   RULE_DECL@0..72
     RULE_KW@0..4 "rule"
     WHITESPACE@4..5 " "
@@ -247,3 +247,45 @@ SOURCE_FILE@0..250
                 INTEGER_LIT@247..248 "3"
     NEWLINE@248..249 "\n"
     R_BRACE@249..250 "}"
+  NEWLINE@250..251 "\n"
+  NEWLINE@251..252 "\n"
+  RULE_DECL@252..295
+    RULE_KW@252..256 "rule"
+    WHITESPACE@256..257 " "
+    IDENT@257..263 "test_5"
+    WHITESPACE@263..264 " "
+    L_BRACE@264..265 "{"
+    NEWLINE@265..266 "\n"
+    WHITESPACE@266..268 "  "
+    CONDITION_BLK@268..293
+      CONDITION_KW@268..277 "condition"
+      COLON@277..278 ":"
+      NEWLINE@278..279 "\n"
+      WHITESPACE@279..283 "    "
+      BOOLEAN_EXPR@283..293
+        BOOLEAN_TERM@283..293
+          EXPR@283..287
+            TERM@283..287
+              PRIMARY_EXPR@283..287
+                MINUS@283..284 "-"
+                TERM@284..287
+                  PRIMARY_EXPR@284..287
+                    MINUS@284..285 "-"
+                    TERM@285..287
+                      PRIMARY_EXPR@285..287
+                        MINUS@285..286 "-"
+                        TERM@286..287
+                          PRIMARY_EXPR@286..287
+                            INTEGER_LIT@286..287 "1"
+          WHITESPACE@287..288 " "
+          EQ@288..290 "=="
+          WHITESPACE@290..291 " "
+          EXPR@291..293
+            TERM@291..293
+              PRIMARY_EXPR@291..293
+                MINUS@291..292 "-"
+                TERM@292..293
+                  PRIMARY_EXPR@292..293
+                    INTEGER_LIT@292..293 "1"
+    NEWLINE@293..294 "\n"
+    R_BRACE@294..295 "}"

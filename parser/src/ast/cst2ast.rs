@@ -1407,12 +1407,36 @@ impl<'src> Builder<'src> {
                 }))
             }
             Event::Token { kind: MINUS, .. } => {
-                let span = self.expect(MINUS)?;
+                let operator_span = self.expect(MINUS)?;
                 let operand = self.term()?;
-                Expr::Minus(Box::new(UnaryExpr {
-                    span: span.combine(&operand.span()),
-                    operand,
-                }))
+                let operand_span = operand.span();
+                let span = operator_span.combine(&operand_span);
+                let literal = self.get_source_str(&span)?;
+
+                match operand {
+                    // Special case: if a minus sign is immediately followed
+                    // by a positive literal integer, we don't construct a
+                    // `Expr::Minus` with a `Expr::LiteralInteger` operand.
+                    //
+                    // Instead, we merge them into a single `Expr::LiteralInteger`
+                    // with a negative value, updating its span and literal to
+                    // include the minus sign.
+                    //
+                    // This optimization is applied only if the original integer
+                    // is positive and not parenthesized. This avoids cases like
+                    // `--1` (which would become `--1`) or `-(1)` (which would
+                    // become `-(1`).
+                    Expr::LiteralInteger(mut integer)
+                        if integer.value.is_positive()
+                            && !literal.contains('(') =>
+                    {
+                        integer.value = -integer.value;
+                        integer.literal = literal;
+                        integer.span = span;
+                        Expr::LiteralInteger(integer)
+                    }
+                    _ => Expr::Minus(Box::new(UnaryExpr { span, operand })),
+                }
             }
             Event::Token { kind: L_PAREN, .. } => {
                 self.expect(L_PAREN)?;
