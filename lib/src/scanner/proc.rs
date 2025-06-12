@@ -6,15 +6,14 @@ use std::os::unix::fs::FileExt;
 use std::path::PathBuf;
 
 use itertools::Itertools;
-use winapi::shared::ntdef;
-use winapi::um::handleapi;
-use winapi::um::memoryapi;
 #[cfg(target_os = "windows")]
-use winapi::um::processthreadsapi;
-use winapi::um::securitybaseapi;
-use winapi::um::sysinfoapi;
-use winapi::um::winbase;
-use winapi::um::winnt;
+use winapi::{
+    shared::ntdef,
+    um::{
+        handleapi, memoryapi, processthreadsapi, securitybaseapi, sysinfoapi,
+        winbase, winnt,
+    },
+};
 
 use crate::scanner::ScanError;
 
@@ -49,7 +48,7 @@ fn parse_map_line<'a>(line: &'a str) -> Option<Mapping<'a>> {
 }
 
 #[cfg(target_os = "linux")]
-pub fn load_proc(pid: u64) -> Result<Vec<u8>, ScanError> {
+pub fn load_proc(pid: u32) -> Result<Vec<u8>, ScanError> {
     let maps_path: PathBuf = format!("/proc/{pid}/maps").into();
     let maps =
         fs::OpenOptions::new().read(true).open(&maps_path).map_err(|err| {
