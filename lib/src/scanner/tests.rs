@@ -1,3 +1,5 @@
+use std::process;
+
 use pretty_assertions::assert_eq;
 use protobuf::MessageDyn;
 use protobuf::{Message, MessageFull};
@@ -776,7 +778,7 @@ fn scan_proc() {
     .unwrap();
 
     let mut scanner = Scanner::new(&rules);
-    let scan_results = scanner.scan_proc(740445).unwrap();
+    let scan_results = scanner.scan_proc(process::id()).unwrap();
 
     assert_eq!(scan_results.matching_rules().len(), 1);
 
