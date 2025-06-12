@@ -82,6 +82,7 @@ pub enum ScanError {
         /// Error that occurred.
         err: protobuf::Error,
     },
+    /// Could not read process memory.
     #[error("can not attach to process with pid `{pid}`")]
     ProcessError {
         /// Pid of the process.
@@ -392,7 +393,7 @@ impl<'r> Scanner<'r> {
     /// Scans a process.
     pub fn scan_proc<'a>(
         &'a mut self,
-        target: u64,
+        target: u32,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
         self.scan_impl(ScannedData::Vec(load_proc(target)?), None)
     }
@@ -423,7 +424,7 @@ impl<'r> Scanner<'r> {
     /// options.
     pub fn scan_proc_with_options<'a, 'opts>(
         &'a mut self,
-        target: u64,
+        target: u32,
         options: ScanOptions<'opts>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
         self.scan_impl(ScannedData::Vec(load_proc(target)?), Some(options))
