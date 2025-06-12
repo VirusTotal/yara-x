@@ -82,6 +82,11 @@ pub enum ScanError {
         /// Error that occurred.
         err: protobuf::Error,
     },
+    #[error("can not attach to process with pid `{pid}`")]
+    ProcessError {
+        /// Pid of the process.
+        pid: u32,
+    },
     /// The module is unknown.
     #[error("unknown module `{module}`")]
     UnknownModule {

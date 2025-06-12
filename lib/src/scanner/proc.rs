@@ -1,17 +1,19 @@
 use std::fs;
-use std::mem::MaybeUninit;
 use std::io::{prelude::*, BufReader};
+use std::mem::MaybeUninit;
 #[cfg(target_os = "linux")]
 use std::os::unix::fs::FileExt;
 use std::path::PathBuf;
 
 use itertools::Itertools;
+use winapi::shared::ntdef;
+use winapi::um::handleapi;
 #[cfg(target_os = "windows")]
 use winapi::um::processthreadsapi;
 use winapi::um::securitybaseapi;
-use winapi::um::winnt;
+use winapi::um::sysinfoapi;
 use winapi::um::winbase;
-use winapi::shared::ntdef;
+use winapi::um::winnt;
 
 use crate::scanner::ScanError;
 
@@ -169,41 +171,63 @@ pub fn load_proc(pid: u64) -> Result<Vec<u8>, ScanError> {
 }
 
 #[cfg(target_os = "windows")]
-pub fn load_proc(pid: u64) -> Result<Vec<u8>, ScanError> {
-  let mut h_token: winnt::HANDLE = ntdef::NULL;
-  let mut luid_debug = MaybeUninit::<winnt::LUID>::uninit();
-  if unsafe {
+pub fn load_proc(pid: u32) -> Result<Vec<u8>, ScanError> {
+    let mut h_token: winnt::HANDLE = ntdef::NULL;
+    let mut luid_debug = MaybeUninit::<winnt::LUID>::uninit();
+    if unsafe {
         (processthreadsapi::OpenProcessToken(
             processthreadsapi::GetCurrentProcess(),
             winnt::TOKEN_ADJUST_PRIVILEGES,
             &mut h_token,
-        ) != 0) &&
-        (winbase::LookupPrivilegeValueA(std::ptr::null(),
-            winnt::SE_DEBUG_NAME.as_ptr() as *const i8,
-            luid_debug.as_mut_ptr(),
         ) != 0)
-    }
-  {
-    let mut token_priv = winnt::TOKEN_PRIVILEGES{
+            && (winbase::LookupPrivilegeValueA(
+                std::ptr::null(),
+                winnt::SE_DEBUG_NAME.as_ptr() as *const i8,
+                luid_debug.as_mut_ptr(),
+            ) != 0)
+    } {
+        let mut token_priv = winnt::TOKEN_PRIVILEGES {
             PrivilegeCount: 1,
-            Privileges: [winnt::LUID_AND_ATTRIBUTES{Luid: unsafe { luid_debug.assume_init()}, Attributes: winnt::SE_PRIVILEGE_ENABLED}]
+            Privileges: [winnt::LUID_AND_ATTRIBUTES {
+                Luid: unsafe { luid_debug.assume_init() },
+                Attributes: winnt::SE_PRIVILEGE_ENABLED,
+            }],
         };
-    unsafe {
-        securitybaseapi::AdjustTokenPrivileges(h_token, 0, &mut token_priv, size_of::<winnt::TOKEN_PRIVILEGES>() as u32, std::ptr::null_mut(), std::ptr::null_mut());
+        unsafe {
+            securitybaseapi::AdjustTokenPrivileges(
+                h_token,
+                0,
+                &mut token_priv,
+                size_of::<winnt::TOKEN_PRIVILEGES>() as u32,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+            );
+        }
     }
-  }
 
-  if (hToken != NULL)
-    CloseHandle(hToken);
+    if h_token != ntdef::NULL {
+        unsafe {
+            handleapi::CloseHandle(h_token);
+        }
+    };
 
-  proc_info->hProcess = OpenProcess(
-      PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, pid);
+    let h_process = unsafe {
+        processthreadsapi::OpenProcess(
+            winnt::PROCESS_VM_READ | winnt::PROCESS_QUERY_INFORMATION,
+            0,
+            pid,
+        )
+    };
 
-  if (proc_info->hProcess == NULL)
-  {
-    yr_free(proc_info);
-    return ERROR_COULD_NOT_ATTACH_TO_PROCESS;
-  }
+    if h_process == ntdef::NULL {
+        return Err(ScanError::ProcessError { pid });
+    }
 
-  GetSystemInfo(&proc_info->si);
+    let mut si = MaybeUninit::<sysinfoapi::SYSTEM_INFO>::uninit();
+
+    unsafe { sysinfoapi::GetSystemInfo(si.as_mut_ptr()) };
+
+    unsafe {
+        handleapi::CloseHandle(h_process);
+    }
 }
