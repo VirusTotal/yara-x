@@ -39,14 +39,13 @@ RULE test_4
     5: CONST integer(2) -- parent: 6 
 
 RULE test_5
-  14: EQ -- hash: 0xf53fe7e47dccd12 -- parent: None 
-    12: SUB -- hash: 0x2811d6a2057cdcd4 -- parent: 14 
-      7: CONST integer(4) -- parent: 12 
-      11: MUL -- hash: 0x732ef991cf2d1ca3 -- parent: 12 
-        9: MINUS -- hash: 0x250857ae282d75aa -- parent: 11 
-          8: CONST integer(2) -- parent: 9 
-        10: CONST integer(2) -- parent: 11 
-    13: CONST integer(8) -- parent: 14 
+  12: EQ -- hash: 0xeb353eeba0e329e3 -- parent: None 
+    10: SUB -- hash: 0x3e023f7bf097d869 -- parent: 12 
+      6: CONST integer(4) -- parent: 10 
+      9: MUL -- hash: 0x3eb7d1d11a0539b0 -- parent: 10 
+        7: CONST integer(-2) -- parent: 9 
+        8: CONST integer(2) -- parent: 9 
+    11: CONST integer(8) -- parent: 12 
 
 RULE test_6
   18: EQ -- hash: 0x4a78a326637b7d9d -- parent: None 

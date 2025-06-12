@@ -5,8 +5,7 @@
        │  ├─ 1
        │  └─ mul
        │     ├─ 2.5
-       │     ├─ minus
-       │     │  └─ 2
+       │     ├─ -2
        │     └─ minus
        │        └─ 1.0
        └─ add
@@ -14,8 +13,7 @@
           │  ├─ 10.0
           │  └─ 2
           └─ minus
-             └─ minus
-                └─ 1
+             └─ -1
 
  rule test_2
  └─ condition
@@ -24,8 +22,7 @@
        │  ├─ add
        │  │  ├─ 1
        │  │  └─ 2.5
-       │  ├─ minus
-       │  │  └─ 2
+       │  ├─ -2
        │  └─ minus
        │     └─ 1.0
        └─ div
@@ -33,8 +30,7 @@
           └─ add
              ├─ 2
              └─ minus
-                └─ minus
-                   └─ 1
+                └─ -1
 
  rule test_3
  └─ condition
@@ -55,4 +51,12 @@
        └─ sub
           ├─ 6
           └─ 3
+
+ rule test_5
+ └─ condition
+    └─ eq
+       ├─ minus
+       │  └─ minus
+       │     └─ -1
+       └─ -1
 

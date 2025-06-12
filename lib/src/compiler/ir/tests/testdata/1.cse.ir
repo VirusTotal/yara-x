@@ -33,9 +33,9 @@ RULE test_4
     5: CONST integer(2) -- parent: 6 
 
 RULE test_5
-  14: EQ -- hash: 0xce980a3b0dd2d7cf -- parent: None 
-    12: CONST integer(8) -- parent: 14 
-    13: CONST integer(8) -- parent: 14 
+  12: EQ -- hash: 0xce980a3b0dd2d7cf -- parent: None 
+    10: CONST integer(8) -- parent: 12 
+    11: CONST integer(8) -- parent: 12 
 
 RULE test_6
   18: EQ -- hash: 0x4a78a326637b7d9d -- parent: None 
