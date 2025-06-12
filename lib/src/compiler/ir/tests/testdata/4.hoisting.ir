@@ -1,30 +1,30 @@
 RULE test
-  77: WITH -- hash: 0xcb82265a8df56399 -- parent: None 
+  77: WITH -- hash: 0xe52165a3e4f9c004 -- parent: None 
     2: FIELD_ACCESS -- hash: 0x30adb8d0b7ea7b20 -- parent: 77 
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 2 
       1: SYMBOL Field { index: 12, is_root: false, type_value: integer(unknown), acl: None, deprecation_msg: None } -- parent: 2 
-    76: AND -- hash: 0x5e44474f35878564 -- parent: 77 
-      79: WITH -- hash: 0x7059c38b552dfd45 -- parent: 76 
-        78: FN_CALL test_proto2.add@ii@i -- hash: 0x3134dbc7cef85942 -- parent: 79 
+    76: AND -- hash: 0x77e386988c8be1cf -- parent: 77 
+      79: WITH -- hash: 0x21fb65f365d018b2 -- parent: 76 
+        78: FN_CALL test_proto2.add@ii@i -- hash: 0x4b8def611ce41371 -- parent: 79 
           16: CONST integer(1) -- parent: 78 
           17: CONST integer(2) -- parent: 78 
-        81: WITH -- hash: 0xb10afbca5fb181c -- parent: 79 
-          80: EQ -- hash: 0xe146230d6c5d9328 -- parent: 81 
+        81: WITH -- hash: 0x58086382660011ee -- parent: 79 
+          80: EQ -- hash: 0xb06f506b571835e5 -- parent: 81 
             18: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 1 }, type_value: integer(unknown) } -- parent: 80 
             19: CONST integer(3) -- parent: 80 
-          83: WITH -- hash: 0x2609e35ca64a6df4 -- parent: 81 
+          83: WITH -- hash: 0xa1db54bedd6f6be6 -- parent: 81 
             82: FIELD_ACCESS -- hash: 0xc6f26b43ef493d46 -- parent: 83 
               27: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 82 
               28: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None, deprecation_msg: None } -- parent: 82 
-            85: WITH -- hash: 0xa1128adbf7830803 -- parent: 83 
-              84: ADD -- hash: 0x5056d6a046e6fadb -- parent: 85 
+            85: WITH -- hash: 0x1ce3fc3e2ea805f6 -- parent: 83 
+              84: ADD -- hash: 0x1f8003fe2da19d98 -- parent: 85 
                 29: SYMBOL Var { var: Var { frame_id: 0, ty: float, index: 3 }, type_value: float(unknown) } -- parent: 84 
                 30: CONST integer(1) -- parent: 84 
-              87: WITH -- hash: 0x68d958a99d6faa78 -- parent: 85 
+              87: WITH -- hash: 0x6b8d39516e40d5c4 -- parent: 85 
                 86: EQ -- hash: 0xe816c5b8c599086e -- parent: 87 
                   31: SYMBOL Var { var: Var { frame_id: 0, ty: float, index: 4 }, type_value: float(unknown) } -- parent: 86 
                   32: CONST float(1.0) -- parent: 86 
-                35: FOR_IN -- hash: 0x76bea2f2e616bcb1 -- parent: 87 
+                35: FOR_IN -- hash: 0x7972839ab6e7e7fd -- parent: 87 
                   3: CONST integer(0) -- parent: 35 
                   4: CONST integer(1) -- parent: 35 
                   34: AND -- hash: 0x1f1a3d4b94bd6cf0 -- parent: 35 
@@ -33,50 +33,50 @@ RULE test
                       8: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 0 }, type_value: integer(unknown) } -- parent: 9 
                     20: SYMBOL Var { var: Var { frame_id: 0, ty: boolean, index: 2 }, type_value: boolean(unknown) } -- parent: 34 
                     33: SYMBOL Var { var: Var { frame_id: 0, ty: boolean, index: 5 }, type_value: boolean(unknown) } -- parent: 34 
-      89: WITH -- hash: 0x93cca32615906008 -- parent: 76 
-        88: FN_CALL test_proto2.add@ii@i -- hash: 0x3134dbc7cef85942 -- parent: 89 
+      89: WITH -- hash: 0xca40c776e4c60a3a -- parent: 76 
+        88: FN_CALL test_proto2.add@ii@i -- hash: 0x4b8def611ce41371 -- parent: 89 
           39: CONST integer(1) -- parent: 88 
           40: CONST integer(2) -- parent: 88 
-        91: WITH -- hash: 0xfd27d080260fa211 -- parent: 89 
-          90: NE -- hash: 0x70fbdb4217c0b58f -- parent: 91 
+        91: WITH -- hash: 0xa0cb3969e5369c8a -- parent: 89 
+          90: NE -- hash: 0x4025089ffe7b584c -- parent: 91 
             41: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 1 }, type_value: integer(unknown) } -- parent: 90 
             42: CONST integer(0) -- parent: 90 
-          93: WITH -- hash: 0x5fdaf0fcff323763 -- parent: 91 
+          93: WITH -- hash: 0xbe545e6656880f10 -- parent: 91 
             92: FIELD_ACCESS -- hash: 0xc6f26b43ef493d46 -- parent: 93 
               50: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 92 
               51: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None, deprecation_msg: None } -- parent: 92 
-            95: WITH -- hash: 0x2144e3ad0c0df529 -- parent: 93 
-              94: ADD -- hash: 0x5056d6a046e6fadb -- parent: 95 
+            95: WITH -- hash: 0x7fbe51166763ccd6 -- parent: 93 
+              94: ADD -- hash: 0x1f8003fe2da19d98 -- parent: 95 
                 52: SYMBOL Var { var: Var { frame_id: 0, ty: float, index: 3 }, type_value: float(unknown) } -- parent: 94 
                 53: CONST integer(1) -- parent: 94 
-              97: WITH -- hash: 0xc0ec2e1b14238e83 -- parent: 95 
+              97: WITH -- hash: 0x63ffb8d4a4cb6c5e -- parent: 95 
                 96: EQ -- hash: 0xe816c5b8c599086e -- parent: 97 
                   54: SYMBOL Var { var: Var { frame_id: 0, ty: float, index: 4 }, type_value: float(unknown) } -- parent: 96 
                   55: CONST float(1.0) -- parent: 96 
-                99: WITH -- hash: 0x7485d3523da047cf -- parent: 97 
+                99: WITH -- hash: 0x17995e0bce4825aa -- parent: 97 
                   98: OR -- hash: 0xd0741b62865f08c0 -- parent: 99 
                     43: SYMBOL Var { var: Var { frame_id: 0, ty: boolean, index: 2 }, type_value: boolean(unknown) } -- parent: 98 
                     56: SYMBOL Var { var: Var { frame_id: 0, ty: boolean, index: 5 }, type_value: boolean(unknown) } -- parent: 98 
-                  58: FOR_IN -- hash: 0x870d4869d5009c7b -- parent: 99 
+                  58: FOR_IN -- hash: 0x2a20d32365a87a56 -- parent: 99 
                     36: CONST integer(0) -- parent: 58 
                     37: CONST integer(1) -- parent: 58 
                     57: SYMBOL Var { var: Var { frame_id: 0, ty: boolean, index: 6 }, type_value: boolean(unknown) } -- parent: 58 
-      101: WITH -- hash: 0xf3d14cfa21b3a7ec -- parent: 76 
+      101: WITH -- hash: 0x3b6309a759bbc3d2 -- parent: 76 
         100: FIELD_ACCESS -- hash: 0xc6f26b43ef493d46 -- parent: 101 
           67: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 100 
           68: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None, deprecation_msg: None } -- parent: 100 
-        103: WITH -- hash: 0x123b849ff2edbaba -- parent: 101 
-          102: ADD -- hash: 0x7800a4189d15722b -- parent: 103 
+        103: WITH -- hash: 0x59cd414d2af5d69f -- parent: 101 
+          102: ADD -- hash: 0x4729d17687d014e8 -- parent: 103 
             69: SYMBOL Var { var: Var { frame_id: 0, ty: float, index: 1 }, type_value: float(unknown) } -- parent: 102 
             70: CONST integer(1) -- parent: 102 
-          105: WITH -- hash: 0x6d21384221d4f2 -- parent: 103 
+          105: WITH -- hash: 0xa380abf1d2c9b2cc -- parent: 103 
             104: EQ -- hash: 0xfc093311e38bfbf -- parent: 105 
               71: SYMBOL Var { var: Var { frame_id: 0, ty: float, index: 2 }, type_value: float(unknown) } -- parent: 104 
               72: CONST float(2.0) -- parent: 104 
-            107: WITH -- hash: 0xdf07431251494090 -- parent: 105 
+            107: WITH -- hash: 0x821acdcbe1f11e6b -- parent: 105 
               106: NOT -- hash: 0xa950472dd0663d8b -- parent: 107 
                 73: SYMBOL Var { var: Var { frame_id: 0, ty: boolean, index: 3 }, type_value: boolean(unknown) } -- parent: 106 
-              75: FOR_IN -- hash: 0x359a331bad76f0a4 -- parent: 107 
+              75: FOR_IN -- hash: 0xd8adbdd53e1ece7e -- parent: 107 
                 59: CONST integer(0) -- parent: 75 
                 60: CONST integer(1) -- parent: 75 
                 74: SYMBOL Var { var: Var { frame_id: 0, ty: boolean, index: 4 }, type_value: boolean(unknown) } -- parent: 75 

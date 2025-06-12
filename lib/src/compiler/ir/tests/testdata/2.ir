@@ -1,8 +1,8 @@
 RULE test
-  42: FOR_IN -- hash: 0x30a95dc4a6e055e2 -- parent: None 
+  42: FOR_IN -- hash: 0xda878d9eb553a61e -- parent: None 
     0: CONST integer(0) -- parent: 42 
     1: PATTERN_COUNT PatternIdx(0) -- hash: 0xc1bc033c6a64ce89 -- parent: 42 
-    41: FOR_IN -- hash: 0x610ef69fd6846fe5 -- parent: 42 
+    41: FOR_IN -- hash: 0x2c8f1ee17fe69986 -- parent: 42 
       2: CONST integer(0) -- parent: 41 
       3: PATTERN_COUNT PatternIdx(1) -- hash: 0x7699aa02ceb56d76 -- parent: 41 
       40: FOR_IN -- hash: 0x178ae2b47067f224 -- parent: 41 

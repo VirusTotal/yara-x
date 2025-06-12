@@ -11,7 +11,7 @@ fn expr_size() {
     assert_eq!(size_of::<Expr>(), 24);
 
     #[cfg(target_pointer_width = "64")]
-    assert_eq!(size_of::<Expr>(), 40);
+    assert_eq!(size_of::<Expr>(), 48);
 }
 
 #[test]

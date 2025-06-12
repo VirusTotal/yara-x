@@ -29,6 +29,10 @@ impl<'ast> FuncSignatureParser<'ast> {
         &type_path.path.segments.last().unwrap().ident
     }
 
+    /// Returns an iterator with the generic arguments for the type specified
+    /// by `type_path`.
+    ///
+    /// Returns an error if the type doesn't have generic arguments.
     #[inline(always)]
     fn type_args(
         type_path: &TypePath,
@@ -43,6 +47,26 @@ impl<'ast> FuncSignatureParser<'ast> {
         }
     }
 
+    /// Returns the generic arguments for the type specified by `type_path`,
+    /// but only if all the generic arguments are integers.
+    ///
+    /// Returns an error if the type doesn't have generic arguments or if any
+    /// of the arguments is not a literal integer.
+    fn type_args_as_integers(
+        type_path: &TypePath,
+        error_msg: &str,
+    ) -> Result<Vec<i64>> {
+        Self::type_args(type_path)?
+            .map(|arg| match arg {
+                GenericArgument::Const(Expr::Lit(ExprLit {
+                    lit: Lit::Int(integer),
+                    ..
+                })) => integer.base10_parse(),
+                _ => Err(Error::new_spanned(type_path, error_msg)),
+            })
+            .collect::<Result<Vec<_>>>()
+    }
+
     fn type_path_to_mangled_named(
         type_path: &TypePath,
     ) -> Result<Cow<'static, str>> {
@@ -50,29 +74,35 @@ impl<'ast> FuncSignatureParser<'ast> {
             "i32" | "i64" => Ok(Cow::Borrowed("i")),
             "f32" | "f64" => Ok(Cow::Borrowed("f")),
             "bool" => Ok(Cow::Borrowed("b")),
+
             "PatternId" | "RuleId" => Ok(Cow::Borrowed("i")),
             "RegexpId" => Ok(Cow::Borrowed("r")),
             "Rc" => Ok(Cow::Borrowed("i")),
             "RuntimeObjectHandle" => Ok(Cow::Borrowed("i")),
             "RuntimeString" => Ok(Cow::Borrowed("s")),
-            "FixedLenString" => {
-                let mut args = Self::type_args(type_path)?;
+            "RangedInteger" => {
+                let error_msg = "RangedInteger must have MIN and MAX arguments (i.e: RangedInteger<0,256>)";
+                let args = Self::type_args_as_integers(type_path, error_msg)?;
 
-                if let Some(GenericArgument::Const(Expr::Lit(ExprLit {
-                    lit: Lit::Int(len_literal),
-                    ..
-                }))) = args.next()
-                {
-                    Ok(Cow::Owned(format!(
-                        "s:N{:?}",
-                        len_literal.base10_parse::<usize>()?
-                    )))
-                } else {
-                    Err(Error::new_spanned(
-                        type_path,
-                        "FixedLenString must have a constant length (i.e: <FixedLenString<32>>))",
-                    ))
-                }
+                let min = args
+                    .first()
+                    .ok_or_else(|| Error::new_spanned(type_path, error_msg))?;
+
+                let max = args
+                    .get(1)
+                    .ok_or_else(|| Error::new_spanned(type_path, error_msg))?;
+
+                Ok(Cow::Owned(format!("i:R{min:?}:{max:?}")))
+            }
+            "FixedLenString" => {
+                let error_msg = "FixedLenString must have a constant length (i.e: FixedLenString<32>)";
+                let args = Self::type_args_as_integers(type_path, error_msg)?;
+
+                let n = args
+                    .first()
+                    .ok_or_else(|| Error::new_spanned(type_path, error_msg))?;
+
+                Ok(Cow::Owned(format!("s:N{n:?}")))
             }
             "Lowercase" => {
                 let mut args = Self::type_args(type_path)?;

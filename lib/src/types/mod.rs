@@ -174,14 +174,15 @@ impl Regexp {
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) enum TypeValue {
     Unknown,
-    Integer {
-        value: Value<i64>,
+    Bool {
+        value: Value<bool>,
     },
     Float {
         value: Value<f64>,
     },
-    Bool {
-        value: Value<bool>,
+    Integer {
+        value: Value<i64>,
+        constraints: Option<Vec<IntegerConstraint>>,
     },
     String {
         value: Value<Rc<BString>>,
@@ -203,12 +204,19 @@ pub(crate) enum StringConstraint {
     ExactLength(usize),
 }
 
+/// Each of the constraints allowed for integer types.
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub(crate) enum IntegerConstraint {
+    /// The integer is guaranteed to be within the given range.
+    Range(i64, i64),
+}
+
 impl Hash for TypeValue {
     fn hash<H: Hasher>(&self, state: &mut H) {
         mem::discriminant(self).hash(state);
         match self {
             TypeValue::Unknown => {}
-            TypeValue::Integer { value } => {
+            TypeValue::Integer { value, .. } => {
                 mem::discriminant(value).hash(state);
                 if let Value::Const(c) = value {
                     c.hash(state);
@@ -257,7 +265,7 @@ impl TypeValue {
     pub fn is_const(&self) -> bool {
         match self {
             TypeValue::Unknown => false,
-            TypeValue::Integer { value } => value.is_const(),
+            TypeValue::Integer { value, .. } => value.is_const(),
             TypeValue::Float { value } => value.is_const(),
             TypeValue::Bool { value } => value.is_const(),
             TypeValue::String { value, .. } => value.is_const(),
@@ -350,13 +358,13 @@ impl TypeValue {
     /// integers, floats, and strings and bools can be casted to bool.
     pub fn cast_to_bool(&self) -> Self {
         match self {
-            Self::Integer { value: Value::Unknown } => {
+            Self::Integer { value: Value::Unknown, .. } => {
                 Self::Bool { value: Value::Unknown }
             }
-            Self::Integer { value: Value::Var(i) } => {
+            Self::Integer { value: Value::Var(i), .. } => {
                 Self::Bool { value: Value::Var(*i != 0) }
             }
-            Self::Integer { value: Value::Const(i) } => {
+            Self::Integer { value: Value::Const(i), .. } => {
                 Self::Bool { value: Value::Const(*i != 0) }
             }
 
@@ -462,7 +470,7 @@ impl TypeValue {
     }
 
     pub fn try_as_integer(&self) -> Option<i64> {
-        if let TypeValue::Integer { value } = self {
+        if let TypeValue::Integer { value, .. } = self {
             value.extract().cloned()
         } else {
             panic!(
@@ -497,7 +505,7 @@ impl TypeValue {
     /// Creates a new [`TypeValue`] consisting of a variable integer.
     #[inline]
     pub fn var_integer_from<T: Into<i64>>(i: T) -> Self {
-        Self::Integer { value: Value::Var(i.into()) }
+        Self::Integer { value: Value::Var(i.into()), constraints: None }
     }
 
     /// Creates a new [`TypeValue`] consisting of a variable float.
@@ -524,7 +532,7 @@ impl TypeValue {
     /// Creates a new [`TypeValue`] consisting of a constant integer.
     #[inline]
     pub fn const_integer_from<T: Into<i64>>(i: T) -> Self {
-        Self::Integer { value: Value::Const(i.into()) }
+        Self::Integer { value: Value::Const(i.into()), constraints: None }
     }
 
     /// Creates a new [`TypeValue`] consisting of a constant float.
@@ -563,7 +571,7 @@ impl TypeValue {
     /// Creates a new [`TypeValue`] consisting of an unknown integer.
     #[inline]
     pub fn unknown_integer() -> Self {
-        Self::Integer { value: Value::Unknown }
+        Self::Integer { value: Value::Unknown, constraints: None }
     }
 
     /// Creates a new [`TypeValue`] consisting of an unknown string.
@@ -579,6 +587,20 @@ impl TypeValue {
         constraints: C,
     ) -> Self {
         Self::String {
+            value: Value::Unknown,
+            constraints: Some(constraints.into()),
+        }
+    }
+
+    /// Creates a new [`TypeValue`] consisting of an unknown integer with
+    /// the given constraints.
+    #[inline]
+    pub fn unknown_integer_with_constraints<
+        C: Into<Vec<IntegerConstraint>>,
+    >(
+        constraints: C,
+    ) -> Self {
+        Self::Integer {
             value: Value::Unknown,
             constraints: Some(constraints.into()),
         }
@@ -602,7 +624,7 @@ impl Debug for TypeValue {
                     write!(f, "boolean(unknown)")
                 }
             }
-            Self::Integer { value } => {
+            Self::Integer { value, .. } => {
                 if let Some(v) = value.extract() {
                     write!(f, "integer({:?})", v)
                 } else {
@@ -655,13 +677,14 @@ impl PartialEq for TypeValue {
                 Self::String { value: lhs, .. },
                 Self::String { value: rhs, .. },
             ) => lhs == rhs,
-            (Self::Bool { value: lhs }, Self::Bool { value: rhs }) => {
-                lhs == rhs
-            }
-            (Self::Integer { value: lhs }, Self::Integer { value: rhs }) => {
-                lhs == rhs
-            }
+            (
+                Self::Integer { value: lhs, .. },
+                Self::Integer { value: rhs, .. },
+            ) => lhs == rhs,
             (Self::Float { value: lhs }, Self::Float { value: rhs }) => {
+                lhs == rhs
+            }
+            (Self::Bool { value: lhs }, Self::Bool { value: rhs }) => {
                 lhs == rhs
             }
             (Self::Regexp(lhs), Self::Regexp(rhs)) => lhs == rhs,

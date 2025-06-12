@@ -1,12 +1,12 @@
 RULE test_1
-  22: FOR_IN -- hash: 0x4064e296e58e9e0d -- parent: None 
+  22: FOR_IN -- hash: 0x2975ab1e0c45cad2 -- parent: None 
     0: CONST integer(0) -- parent: 22 
     1: CONST integer(1) -- parent: 22 
-    21: FOR_IN -- hash: 0xc6f103a954be900c -- parent: 22 
+    21: FOR_IN -- hash: 0x990f4f186d5fca26 -- parent: 22 
       2: CONST integer(0) -- parent: 21 
       3: CONST integer(1) -- parent: 21 
-      20: EQ -- hash: 0x797c45a8533adc9 -- parent: 21 
-        16: MUL -- hash: 0x2e08804f5ef1dd4b -- parent: 20 
+      20: EQ -- hash: 0x1b5c74ae4e96f61c -- parent: 21 
+        16: MUL -- hash: 0xfd31adad45ac8007 -- parent: 20 
           14: ADD -- hash: 0x9bbcc7ec2223cfaa -- parent: 16 
             12: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 14 
             13: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 14 
@@ -16,13 +16,13 @@ RULE test_1
             17: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 12 }, type_value: integer(unknown) } -- parent: 18 
 
 RULE test_2
-  14: FOR_IN -- hash: 0x3db4dcb0bae6421a -- parent: None 
+  14: FOR_IN -- hash: 0x4c3499ae038d8175 -- parent: None 
     0: CONST integer(0) -- parent: 14 
     1: CONST integer(1) -- parent: 14 
-    13: FOR_IN -- hash: 0x65136a912add98f3 -- parent: 14 
+    13: FOR_IN -- hash: 0x674dd5f463dfb138 -- parent: 14 
       2: CONST integer(0) -- parent: 13 
       3: CONST integer(1) -- parent: 13 
-      12: EQ -- hash: 0xd9a4ade8588e26ce -- parent: 13 
+      12: EQ -- hash: 0xa8cddb464348c98b -- parent: 13 
         10: ADD -- hash: 0x9bbcc7ec2223cfaa -- parent: 12 
           8: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 10 
           9: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 10 

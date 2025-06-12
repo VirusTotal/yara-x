@@ -1,16 +1,16 @@
 RULE test_1
-  12: EQ -- hash: 0x646256388a6d06d9 -- parent: None 
-    10: SUB -- hash: 0xd6cb4f000ea5e36e -- parent: 12 
-      8: ADD -- hash: 0xb8a12af309b416cc -- parent: 10 
+  12: EQ -- hash: 0xc7498012998dc23 -- parent: None 
+    10: SUB -- hash: 0x5de9f21a44838878 -- parent: 12 
+      8: ADD -- hash: 0xd2fa3e8c5b9fd0fb -- parent: 10 
         6: CONST integer(1) -- parent: 8 
         7: CONST integer(1) -- parent: 8 
       9: CONST integer(1) -- parent: 10 
     11: CONST integer(1) -- parent: 12 
 
 RULE test_2
-  20: EQ -- hash: 0xd78af103ebc265d0 -- parent: None 
-    18: SUB -- hash: 0xefe3a0e30d35f872 -- parent: 20 
-      14: ADD -- hash: 0xdb1c03a978fa105c -- parent: 18 
+  20: EQ -- hash: 0xfb622d3fda4c9468 -- parent: None 
+    18: SUB -- hash: 0x38aff83d94a3aa25 -- parent: 20 
+      14: ADD -- hash: 0xaa45310763b4b319 -- parent: 18 
         12: FIELD_ACCESS -- hash: 0xe58b5f97183b1a0c -- parent: 14 
           10: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 12 
           11: SYMBOL Field { index: 13, is_root: false, type_value: integer(unknown), acl: None, deprecation_msg: None } -- parent: 12 
@@ -21,58 +21,58 @@ RULE test_2
     19: CONST integer(1) -- parent: 20 
 
 RULE test_3
-  6: GT -- hash: 0xc6f36cb1ebed8224 -- parent: None 
-    4: DIV -- hash: 0xacd809d9d21f423c -- parent: 6 
-      2: MUL -- hash: 0xe8e00a0346d3cc88 -- parent: 4 
+  6: GT -- hash: 0x6f05ae7a8b19576e -- parent: None 
+    4: DIV -- hash: 0x33f6acf40bfce746 -- parent: 6 
+      2: MUL -- hash: 0x3391d9c94bf86b8 -- parent: 4 
         0: CONST integer(1) -- parent: 2 
         1: CONST integer(2) -- parent: 2 
       3: CONST integer(1) -- parent: 4 
     5: CONST integer(1) -- parent: 6 
 
 RULE test_4
-  6: LE -- hash: 0xecba15e849530ad8 -- parent: None 
-    4: SHR -- hash: 0x758c1dd0aa88c463 -- parent: 6 
-      2: SHL -- hash: 0x3bad5d0a2836fc12 -- parent: 4 
+  6: LE -- hash: 0x94cc57b0e87ee022 -- parent: None 
+    4: SHR -- hash: 0xfcaac0eae066696c -- parent: 6 
+      2: SHL -- hash: 0x560670a37a22b641 -- parent: 4 
         0: CONST integer(1) -- parent: 2 
         1: CONST integer(2) -- parent: 2 
       3: CONST integer(1) -- parent: 4 
     5: CONST integer(2) -- parent: 6 
 
 RULE test_5
-  14: EQ -- hash: 0x9004473fe517fd48 -- parent: None 
-    12: SUB -- hash: 0x1db6b6960e54f6e8 -- parent: 14 
+  14: EQ -- hash: 0xf53fe7e47dccd12 -- parent: None 
+    12: SUB -- hash: 0x2811d6a2057cdcd4 -- parent: 14 
       7: CONST integer(4) -- parent: 12 
-      11: MUL -- hash: 0x58d5e5f87d416274 -- parent: 12 
-        9: MINUS -- hash: 0x55df2a504172d2ed -- parent: 11 
+      11: MUL -- hash: 0x732ef991cf2d1ca3 -- parent: 12 
+        9: MINUS -- hash: 0x250857ae282d75aa -- parent: 11 
           8: CONST integer(2) -- parent: 9 
         10: CONST integer(2) -- parent: 11 
     13: CONST integer(8) -- parent: 14 
 
 RULE test_6
-  18: EQ -- hash: 0x8777ceb7194c50ba -- parent: None 
-    11: BITWISE_XOR -- hash: 0x4a66ea44a5633a37 -- parent: 18 
+  18: EQ -- hash: 0x4a78a326637b7d9d -- parent: None 
+    11: BITWISE_XOR -- hash: 0x64bffdddf74ef466 -- parent: 18 
       9: CONST integer(2) -- parent: 11 
       10: CONST integer(1) -- parent: 11 
-    17: BITWISE_OR -- hash: 0x96a28912f2d9cf76 -- parent: 18 
-      15: BITWISE_AND -- hash: 0x820a9ff09f6af848 -- parent: 17 
-        13: BITWISE_NOT -- hash: 0x3628374027229711 -- parent: 15 
+    17: BITWISE_OR -- hash: 0x1dc12c2d28b77480 -- parent: 18 
+      15: BITWISE_AND -- hash: 0x9c63b389ed56b277 -- parent: 17 
+        13: BITWISE_NOT -- hash: 0x551649e0ddd39ce -- parent: 15 
           12: CONST integer(1) -- parent: 13 
         14: CONST integer(1) -- parent: 15 
       16: CONST integer(1) -- parent: 17 
 
 RULE test_7
-  12: AND -- hash: 0x4ceb9e02827fc0f9 -- parent: None 
-    8: EQ -- hash: 0x95d7ab7ac1da73c8 -- parent: 12 
+  12: AND -- hash: 0x6c4794a019f8a3c6 -- parent: None 
+    8: EQ -- hash: 0x6500d8d8a8951685 -- parent: 12 
       6: FIELD_ACCESS -- hash: 0x6b278e4a6873a6f4 -- parent: 8 
         4: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 6 
         5: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None, deprecation_msg: None } -- parent: 6 
       7: CONST integer(0) -- parent: 8 
     9: CONST boolean(true) -- parent: 12 
-    11: NOT -- hash: 0xf13f69485e97ccb -- parent: 12 
+    11: NOT -- hash: 0x3feac9369f2eda0e -- parent: 12 
       10: CONST boolean(false) -- parent: 11 
 
 RULE test_8
-  5: ADD -- hash: 0x38685bec677c88f1 -- parent: None 
+  5: ADD -- hash: 0x52c16f85b5684320 -- parent: None 
     2: FIELD_ACCESS -- hash: 0x6b278e4a6873a6f4 -- parent: 5 
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 2 
       1: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None, deprecation_msg: None } -- parent: 2 
