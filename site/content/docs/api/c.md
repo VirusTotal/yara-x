@@ -174,6 +174,25 @@ combination of the following flags:
   When this flag is set, YARA-X mimics YARA's behavior, allowing
   constructs that YARA-X doesn't accept by default.
 
+* `YRX_ERROR_ON_SLOW_PATTERN`
+
+  Treats slow patterns as errors instead of warnings.
+
+* `YRX_ERROR_ON_SLOW_LOOP`
+
+  Treats slow loops as errors instead of warnings.
+
+* `YRX_ENABLE_CONDITION_OPTIMIZATION`
+
+  Enables optimizations for rule conditions. This includes techniques
+  like common subexpression elimination (CSE) and loop-invariant
+  code motion (LICM).
+
+* `YRX_DISABLE_INCLUDES`
+
+  Disables `include` statements. The compiler will produce an error
+  if an `include` statement is encountered.
+
 #### yrx_compiler_destroy
 
 ```c
@@ -193,6 +212,56 @@ enum YRX_RESULT yrx_compiler_add_source(
 
 Adds a YARA source code to be compiled. This function can be called multiple
 times.
+
+#### yrx_compiler_add_source_with_origin
+
+```c
+enum YRX_RESULT yrx_compiler_add_source_with_origin(
+    struct YRX_COMPILER *compiler,
+    const char *src,
+    const char *origin);
+```
+
+Adds a YARA source code to be compiled, specifying an origin for the source
+code. This function is similar to [yrx_compiler_add_source](#yrx_compiler_add_source),
+but in addition to the source code itself it provides a string that identifies
+the origin of the code, usually the file path from where the source was obtained.
+This origin is shown in error reports.
+
+------
+
+#### yrx_compiler_ignore_module
+
+```c
+enum YRX_RESULT yrx_compiler_ignore_module(
+    struct YRX_COMPILER *compiler,
+    const char *module);
+```
+
+Tells the compiler that a YARA module is not supported. Import statements
+for ignored modules will be ignored without errors but a warning will be
+issued. Any rule that make use of an ignored module will be ignored, while
+the rest of rules that don't rely on that module will be correctly compiled.
+
+------
+
+#### yrx_compiler_ban_module
+
+```c
+enum YRX_RESULT yrx_compiler_ban_module(
+    struct YRX_COMPILER *compiler,
+    const char *module,
+    const char *error_title,
+    const char *error_msg);
+```
+
+Tell the compiler that a YARA module can't be used. Import statements for
+the banned module will cause an error. The error message can be customized
+by using the given error title and message. If this function is called
+multiple times with the same module name, the error title and message will
+be updated.
+
+------
 
 #### yrx_compiler_new_namespace
 
@@ -245,6 +314,106 @@ functions.
 The `ident` argument must be pointer to null-terminated UTF-8 string. If the
 string is not valid UTF-8 the result is an `INVALID_ARGUMENT` error.
 
+#### yrx_compiler_errors_json
+
+```c
+enum YRX_RESULT yrx_compiler_errors_json(
+    struct YRX_COMPILER *compiler,
+    struct YRX_BUFFER **buf);
+```
+
+Returns the errors encountered during the compilation in JSON format. In the
+address indicated by the `buf` pointer, the function will copy a `YRX_BUFFER*`
+pointer. The `YRX_BUFFER` structure represents a buffer that contains the JSON
+representation of the compilation errors. The JSON consists on an array of
+objects, each object representing a compilation error.
+
+The object has the following fields:
+
+* `type`: A string that describes the type of error.
+* `code`: Error code (e.g: "E009").
+* `title`: Error title (e.g: "unknown identifier `foo`").
+* `labels`: Array of labels.
+* `text`: The full text of the error report, as shown by the command-line tool.
+
+Example:
+
+```json
+[
+  {
+    "type": "error",
+    "code": "E009",
+    "title": "unknown identifier `foo`",
+    "labels": [
+      {
+        "style": "primary",
+        "file_id": 0,
+        "range": {
+          "start": 26,
+          "end": 29
+        },
+        "message": "identifier `foo` not found"
+      }
+    ],
+    "text": "error[E009]: unknown identifier `foo`\n --> /path/to/rules.yara:2:11\n  |\n2 | condition: foo\n  |           ^^^ identifier `foo` not found\n  |\n  = note: this error occurred in rule `my_rule`"
+  }
+]
+```
+
+The `YRX_BUFFER` must be destroyed with [`yrx_buffer_destroy`](#yrx_buffer_destroy).
+
+------
+
+#### yrx_compiler_warnings_json
+
+```c
+enum YRX_RESULT yrx_compiler_warnings_json(
+    struct YRX_COMPILER *compiler,
+    struct YRX_BUFFER **buf);
+```
+
+Returns the warnings encountered during the compilation in JSON format. In the
+address indicated by the `buf` pointer, the function will copy a `YRX_BUFFER*`
+pointer. The `YRX_BUFFER` structure represents a buffer that contains the JSON
+representation of the compilation warnings. The JSON consists on an array of
+objects, each object representing a warning.
+
+The object has the following fields:
+
+* `type`: A string that describes the type of warning.
+* `code`: Warning code (e.g: "slow_pattern").
+* `title`: Warning title (e.g: "slow pattern").
+* `labels`: Array of labels.
+* `text`: The full text of the warning report, as shown by the command-line tool.
+
+Example:
+
+```json
+[
+  {
+    "type": "warning",
+    "code": "slow_pattern",
+    "title": "slow pattern",
+    "labels": [
+      {
+        "style": "primary",
+        "file_id": 0,
+        "range": {
+          "start": 10,
+          "end": 18
+        },
+        "message": "this pattern is slow and may impact scanning performance"
+      }
+    ],
+    "text": "warning: slow pattern\n --> /path/to/rules.yara:1:12\n  |\n1 |   $hex = { AA BB CC DD EE FF 00 11 22 33 44 55 66 77 88 99 }\n  |            ^^^^^^^^ this pattern is slow and may impact scanning performance\n  |\n  = note: this warning occurred in rule `my_rule`"
+  }
+]
+```
+
+The `YRX_BUFFER` must be destroyed with [`yrx_buffer_destroy`](#yrx_buffer_destroy).
+
+------
+
 #### yrx_compiler_build
 
 ```c
@@ -260,13 +429,19 @@ with [yrx_rules_destroy](#yrx_rules_destroy) when not used anymore.
 After calling this function the compiler is reset to its initial state,
 you can keep using it by adding more sources and calling this function again.
 
------- 
-
 ### YRX_RULES
 
 Type that represents a set of compiled rules. The compiled rules can be used for
 scanning data by creating a scanner
 with [yrx_scanner_create](#yrx_scanner_create).
+
+#### yrx_rules_count
+
+```c
+int yrx_rules_count(struct YRX_RULES *rules);
+```
+
+Returns the total number of rules. The result is -1 in case of error.
 
 #### yrx_rules_destroy
 
@@ -276,6 +451,67 @@ void yrx_rules_destroy(struct YRX_RULES *rules);
 
 Destroys the [YRX_RULES](#yrx_rules) object. This function must be called only
 after all the scanners using the  [YRX_RULES](#yrx_rules) object are destroyed.
+
+#### yrx_rules_iter
+
+```c
+enum YRX_RESULT yrx_rules_iter(
+    const struct YRX_RULES *rules,
+    YRX_RULE_CALLBACK callback,
+    void *user_data);
+```
+
+Iterates over the compiled rules, calling the callback function for each rule.
+The `user_data` pointer can be used to provide additional context to your
+callback function. See [YRX_RULE_CALLBACK](#yrx_rule_callback) for more details.
+
+#### yrx_rules_iter_imports
+
+```c
+enum YRX_RESULT yrx_rules_iter_imports(
+    const struct YRX_RULES *rules,
+    YRX_IMPORT_CALLBACK callback,
+    void *user_data);
+```
+
+Iterates over the modules imported by the rules, calling the callback with the
+name of each imported module.
+
+The `user_data` pointer can be used to provide additional context to your callback
+function.
+
+See [YRX_IMPORT_CALLBACK](#yrx_import_callback) for more details.
+
+
+#### yrx_rules_serialize
+
+```c
+enum YRX_RESULT yrx_rules_serialize(
+    const struct YRX_RULES *rules, 
+    struct YRX_BUFFER **buf);
+```
+
+Serializes the rules as a sequence of bytes.
+
+In the address indicated by the `buf` pointer, the function will copy a
+`YRX_BUFFER*` pointer. The [YRX_BUFFER](#yrx_buffer) structure represents a buffer
+that contains the serialized rules. This structure has a pointer to the data 
+itself, and its length.
+
+The [YRX_BUFFER](#yrx_buffer) must be destroyed with [yrx_buffer_destroy](#yrx_buffer_destroy).
+
+#### yrx_rules_deserialize
+
+```c
+enum YRX_RESULT yrx_rules_deserialize(
+    const uint8_t *data,
+    size_t len,
+    struct YRX_RULES **rules);
+```
+
+Deserializes the rules from a sequence of bytes produced by [yrx_rules_serialize](#yrx_rules_serialize).
+
+
 
 ------
 
@@ -366,6 +602,117 @@ enum YRX_RESULT yrx_scanner_set_global_float(
     const char *ident,
     double value);
 ```
+
+------
+
+#### yrx_scanner_set_module_output
+
+```c
+enum YRX_RESULT yrx_scanner_set_module_output(
+    struct YRX_SCANNER *scanner,
+    const char *name,
+    const uint8_t *data,
+    size_t len);
+```
+
+Specifies the output data structure for a YARA module. Each module can generate
+an output, typically a Protocol Buffer, containing information about the scanned
+file. This function allows you to provide this output data yourself in two 
+scenarios:
+
+1.  **Module without auto-output**: If a module doesn't generate output on its 
+    own (e.g., lacks a main function), you must use this function to set its output 
+    before scanning.
+2.  **Reusing known output**: If you have already processed a file and know 
+    the module's output, you can provide it via this function to avoid redundant 
+    computation by the module, potentially improving performance.
+
+The module's output is consumed after each call to [`yrx_scanner_scan`](#yrx_scanner_scan). 
+Therefore, if you need to provide it, you must call this function before each scan.
+This function receives:
+
+*   `scanner`: A pointer to the [`YRX_SCANNER`](#yrx_scanner) instance.
+*   `name`: A null-terminated UTF-8 string. This can be either the YARA module
+     name (e.g., "pe", "elf") or the fully-qualified name of the module's protobuf message.
+*   `data`: A pointer to the buffer containing the serialized protobuf data.
+*   `len`: The length of the data buffer in bytes.
+
+------
+
+#### yrx_scanner_set_module_data
+
+```c
+enum YRX_RESULT yrx_scanner_set_module_data(
+    struct YRX_SCANNER *scanner,
+    const char *name,
+    const uint8_t *data,
+    size_t len);
+```
+
+Specifies metadata for a YARA module. Similar to module output, module metadata
+is typically specific to each scanned file and is consumed after each call to 
+[`yrx_scanner_scan`](#yrx_scanner_scan). Thus, you need to call this function 
+before each scan if you intend to provide custom module metadata. It receives:
+
+*   `scanner`: A pointer to the [`YRX_SCANNER`](#yrx_scanner) instance.
+*   `name`: A null-terminated UTF-8 string representing the YARA module name.
+*   `data`: A pointer to the buffer containing the module data.
+*   `len`: The length of the data buffer in bytes.
+
+The provided `name` and `data` pointers must remain valid from the time this
+function is called until the scan is executed.
+
+------
+
+#### yrx_scanner_iter_slowest_rules
+
+```c
+enum YRX_RESULT yrx_scanner_iter_slowest_rules(
+    struct YRX_SCANNER *scanner,
+    size_t n,
+    YRX_SLOWEST_RULES_CALLBACK callback,
+    void *user_data);
+```
+
+Iterates over the `n` slowest rules encountered by the scanner, invoking the
+provided callback for each one. This function is used for profiling rule 
+performance, it receives:
+
+*   `scanner`: A pointer to the [YRX_SCANNER](#yrx_scanner) instance.
+*   `n`: The maximum number of slowest rules to report.
+*   `callback`: A function pointer of type [YRX_SLOWEST_RULES_CALLBACK](#yrx_slowest_rules_callback)
+     that will be invoked for each of the slowest rules.
+*   `user_data`: A void pointer to arbitrary user data that will be passed to
+     the callback function.
+
+**Note:** This function requires the `rules-profiling` feature to be enabled
+when YARA-X is compiled. If the feature is not available, this function will
+return `YRX_RESULT::NOT_SUPPORTED`.
+
+See also: 
+ * [YRX_SLOWEST_RULES_CALLBACK](#yrx_slowest_rules_callback)
+ * [yrx_scanner_clear_profiling_data](#yrx_scanner_clear_profiling_data).
+
+------
+
+#### yrx_scanner_clear_profiling_data
+
+```c
+enum YRX_RESULT yrx_scanner_clear_profiling_data(
+    struct YRX_SCANNER *scanner);
+```
+
+Clears all accumulated rule profiling data from the scanner. This is useful when
+you want to start a new profiling session and ensure that the results from 
+[yrx_scanner_iter_slowest_rules](#yrx_scanner_iter_slowest_rules) only reflect
+scans performed after calling this function.
+
+**Note:** This function requires the `rules-profiling` feature to be enabled
+when YARA-X is compiled. If the feature is not available, this function will 
+return `YRX_RESULT::NOT_SUPPORTED`.
+
+See also:
+* [yrx_scanner_iter_slowest_rules](#yrx_scanner_iter_slowest_rules)
 
 ------
 
@@ -464,6 +811,19 @@ to a [YRX_PATTERN](#yrx_pattern) structure for each pattern.
 
 The `user_data` pointer can be used to provide additional context to your
 callback function.
+
+#### yrx_rule_iter_tags
+
+```c
+enum YRX_RESULT yrx_rule_iter_tags(
+    const struct YRX_RULE *rule,
+    YRX_TAG_CALLBACK callback,
+    void *user_data);
+```
+
+Iterates over the tags in a rule, calling the callback with a pointer to each
+tag. The `user_data` pointer can be used to provide additional context to your
+callback function. See `YRX_TAG_CALLBACK` for more details.
 
 ------
 
@@ -617,5 +977,169 @@ typedef enum YRX_RESULT {
     INVALID_UTF8,
     // An error occurred while serializing/deserializing YARA rules.
     SERIALIZATION_ERROR,
+    // An error returned when a rule doesn't have any metadata.
+    NO_METADATA,
+    // An error returned in cases where some API is not supported because the
+    // library was not built with the required features.
+    NOT_SUPPORTED,
 } YRX_RESULT;
 ```
+
+### YRX_RULE_CALLBACK
+
+```c
+typedef void (*YRX_RULE_CALLBACK)(
+    const struct YRX_RULE *rule,
+    void *user_data);
+```
+
+Callback function passed to [yrx_scanner_on_matching_rule](#yrx_scanner_on_matching_rule) or
+[yrx_rules_iter](#yrx_rules_iter).
+
+The callback receives a pointer to a rule, represented by a [YRX_RULE](#yrx_rule)
+structure. This pointer is guaranteed to be valid while the callback
+function is being executed, but it may be freed after the callback function
+returns, so you cannot use the pointer outside the callback.
+
+It also receives the `user_data` pointer that can point to arbitrary data
+owned by the user.
+
+
+### YRX_IMPORT_CALLBACK
+
+```c
+typedef void (*YRX_IMPORT_CALLBACK)(
+    const char *module_name,
+    void *user_data);
+```
+
+Callback function passed to [yrx_rules_iter_imports](#yrx_rules_iter_imports).
+
+The callback is called for every module imported by the rules, and it
+receives a pointer to the module's name. This pointer is guaranteed to be
+valid while the callback function is being executed, but it will be freed
+after the callback function returns, so you cannot use the pointer outside
+the callback.
+
+The callback also receives a `user_data` pointer that can point to arbitrary
+data owned by the user.
+
+### YRX_MATCH_CALLBACK
+
+```c
+typedef void (*YRX_MATCH_CALLBACK)(
+    const struct YRX_MATCH *match,
+    void *user_data);
+```
+
+Callback function passed to [yrx_pattern_iter_matches](#yrx_pattern_iter_matches).
+
+The callback is invoked for every match found for a specific pattern. It receives:
+*   A pointer to a [YRX_MATCH](#yrx_match) structure containing details about the
+    match. This pointer is only valid for the duration of the callback.
+*   The `user_data` pointer that was passed to [yrx_pattern_iter_matches](#yrx_pattern_iter_matches).
+
+------
+
+### YRX_METADATA_CALLBACK
+
+```c
+typedef void (*YRX_METADATA_CALLBACK)(
+    const struct YRX_METADATA *metadata,
+    void *user_data);
+```
+
+Callback function passed to [yrx_rule_iter_metadata](#yrx_rule_iter_metadata).
+
+The callback is invoked for each metadata item associated with a rule. It receives:
+*   A pointer to a [YRX_METADATA](#yrx_metadata) structure. This pointer is only 
+    valid for the duration of the callback.
+*   The `user_data` pointer that was passed to [yrx_rule_iter_metadata](#yrx_rule_iter_metadata).
+
+------
+
+### YRX_PATTERN_CALLBACK
+
+```c
+typedef void (*YRX_PATTERN_CALLBACK)(
+    const struct YRX_PATTERN *pattern,
+    void *user_data);
+```
+
+Callback function passed to [yrx_rule_iter_patterns](#yrx_rule_iter_patterns).
+
+The callback is invoked for each pattern defined within a rule. It receives:
+*   A pointer to a [YRX_PATTERN](#yrx_pattern) structure. This pointer is only  
+    valid for the duration of the callback.
+*   The `user_data` pointer that was passed to [yrx_rule_iter_patterns](#yrx_rule_iter_patterns).
+
+------
+
+### YRX_TAG_CALLBACK
+
+```c
+typedef void (*YRX_TAG_CALLBACK)(
+    const char *tag,
+    void *user_data);
+```
+
+Callback function passed to [yrx_rule_iter_tags](#yrx_rule_iter_tags).
+
+The callback is invoked for each tag associated with a rule. It receives:
+*   A pointer to a null-terminated string representing the tag. This pointer is only
+    valid for the duration of the callback.
+*   The `user_data` pointer that was passed to [yrx_rule_iter_tags](#yrx_rule_iter_tags).
+
+------
+
+### YRX_SLOWEST_RULES_CALLBACK
+
+```c
+typedef void (*YRX_SLOWEST_RULES_CALLBACK)(
+    const char *namespace_,
+    const char *rule_name,
+    double pattern_matching_time,
+    double condition_evaluation_time,
+    void *user_data);
+```
+
+Callback function passed to [`yrx_scanner_iter_slowest_rules`](#yrx_scanner_iter_slowest_rules).
+
+This callback is invoked to report information about the slowest rules during a scan. It receives:
+*   `namespace_`: A pointer to a null-terminated string for the rule's namespace.
+*   `rule_name`: A pointer to a null-terminated string for the rule's name.
+*   `pattern_matching_time`: Time spent in pattern matching for this rule (in seconds).
+*   `condition_evaluation_time`: Time spent evaluating the rule's condition (in seconds).
+*   The `user_data` pointer that was passed to [`yrx_scanner_iter_slowest_rules`](#yrx_scanner_iter_slowest_rules).
+
+The string pointers (`namespace_`, `rule_name`) are only valid for the duration of the callback.
+This callback is only available if the `rules-profiling` feature was enabled during compilation.
+
+------
+
+### YRX_BUFFER
+
+Represents a buffer with arbitrary data. Some functions in this API like
+[yrx_compiler_errors_json](#yrx_compiler_errors_json) and 
+[yrx_compiler_warnings_json](#yrx_compiler_warnings_json)
+create buffers and return pointers to them.
+
+
+```c
+typedef struct YRX_BUFFER {
+  // Pointer to the data contained in the buffer.
+  uint8_t *data;
+  // Length of data in bytes.
+  size_t length;
+} YRX_BUFFER;
+```
+
+------
+
+#### yrx_buffer_destroy
+
+```c
+void yrx_buffer_destroy(struct YRX_BUFFER *buf);
+```
+
+Destroys a `YRX_BUFFER` object.
