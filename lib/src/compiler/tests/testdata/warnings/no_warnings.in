@@ -57,3 +57,10 @@ rule test_8 {
   condition:
     $a
 }
+
+rule test_9 {
+    condition:
+        uint8(0) == 0 or uint8(0) == 0xFF or
+        uint16(0) == 0 or uint16(0) == 0xFFFF or
+        uint32(0) == 0 or uint32(0) == 0xFFFFFFFF
+}

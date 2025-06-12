@@ -1,0 +1,60 @@
+rule test_1 {
+    condition:
+        uint8(0) == 0x1FF
+}
+
+rule test_2 {
+    condition:
+        int8(0) == -129
+}
+
+rule test_3 {
+    condition:
+        uint16(0) == 0x1FFFF
+}
+
+rule test_4 {
+    condition:
+        int16(0) == -32769
+}
+
+rule test_5 {
+    condition:
+        uint32(0) == 0x1FFFFFFFF
+}
+
+rule test_6 {
+    condition:
+        int32(0) == -2147483649
+}
+
+rule test_7 {
+    condition:
+        uint8be(0) == 0x1FF
+}
+
+rule test_8 {
+    condition:
+        int8be(0) == -129
+}
+
+rule test_9 {
+    condition:
+        uint16be(0) == 0x1FFFF
+}
+
+rule test_10 {
+    condition:
+        int16be(0) == -32769
+}
+
+rule test_11 {
+    condition:
+        uint32be(0) == 0x1FFFFFFFF
+}
+
+rule test_12 {
+    condition:
+        int32be(0) == -2147483649
+}
+

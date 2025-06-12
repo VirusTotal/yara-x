@@ -34,7 +34,9 @@ use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
 use crate::re;
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
 use crate::types::Value::Const;
-use crate::types::{Map, Regexp, StringConstraint, Type, TypeValue};
+use crate::types::{
+    IntegerConstraint, Map, Regexp, StringConstraint, Type, TypeValue,
+};
 use crate::warnings::UnsatisfiableExpression;
 
 /// How many patterns a rule can have. If a rule has more than this number of
@@ -2169,19 +2171,7 @@ gen_binary_op!(
     shl,
     Type::Integer,
     Type::Integer,
-    Some(|ctx, _lhs, rhs, _lhs_span, rhs_span| {
-        if let TypeValue::Integer { value: Const(value), .. } =
-            ctx.ir.get(rhs).type_value()
-        {
-            if value < 0 {
-                return Err(UnexpectedNegativeNumber::build(
-                    ctx.report_builder,
-                    ctx.report_builder.span_to_code_loc(rhs_span),
-                ));
-            }
-        }
-        Ok(())
-    })
+    Some(shx_check)
 );
 
 gen_binary_op!(
@@ -2189,19 +2179,7 @@ gen_binary_op!(
     shr,
     Type::Integer,
     Type::Integer,
-    Some(|ctx, _lhs, rhs, _lhs_span, rhs_span| {
-        if let TypeValue::Integer { value: Const(value), .. } =
-            ctx.ir.get(rhs).type_value()
-        {
-            if value < 0 {
-                return Err(UnexpectedNegativeNumber::build(
-                    ctx.report_builder,
-                    ctx.report_builder.span_to_code_loc(rhs_span),
-                ));
-            }
-        }
-        Ok(())
-    })
+    Some(shx_check)
 );
 
 gen_unary_op!(bitwise_not_expr_from_ast, bitwise_not, Type::Integer, None);
@@ -2238,84 +2216,7 @@ gen_binary_op!(
     // Integers can be compared with floats, but strings can be
     // compared only with another string.
     Type::Integer | Type::Float,
-    Some(|ctx, lhs, rhs, lhs_span, rhs_span| {
-        let lhs = ctx.ir.get(lhs).type_value();
-        let rhs = ctx.ir.get(rhs).type_value();
-
-        let (
-            const_string,
-            const_string_span,
-            constraints,
-            constrained_string_span,
-        ) = match (lhs, rhs, lhs_span, rhs_span) {
-            (
-                TypeValue::String { value: Const(const_string), .. },
-                TypeValue::String { constraints: Some(constraints), .. },
-                const_string_span,
-                constrained_string_span,
-            )
-            | (
-                TypeValue::String { constraints: Some(constraints), .. },
-                TypeValue::String { value: Const(const_string), .. },
-                constrained_string_span,
-                const_string_span,
-            ) => (
-                const_string,
-                const_string_span,
-                constraints,
-                constrained_string_span,
-            ),
-            _ => return Ok(()),
-        };
-
-        for constraint in constraints {
-            match constraint {
-                StringConstraint::Lowercase
-                    if const_string.chars().any(|c| c.is_uppercase()) =>
-                {
-                    ctx.warnings.add(|| {
-                        UnsatisfiableExpression::build(
-                            ctx.report_builder,
-                            "this is a lowercase string".to_string(),
-                            "this contains uppercase characters".to_string(),
-                            ctx.report_builder.span_to_code_loc(
-                                constrained_string_span.clone()
-                            ),
-                            ctx.report_builder.span_to_code_loc(
-                                const_string_span.clone()
-                            ),
-                            Some(
-                                "a lowercase string can't be equal to a string containing uppercase characters"
-                                .to_string())
-                        )
-                    });
-                }
-                StringConstraint::ExactLength(n)
-                    if const_string.len() != n =>
-                {
-                    ctx.warnings.add(|| {
-                        UnsatisfiableExpression::build(
-                            ctx.report_builder,
-                            format!("the length of this string is {}", n),
-                            format!(
-                                "the length of this string is {}",
-                                const_string.len()
-                            ),
-                            ctx.report_builder.span_to_code_loc(
-                                constrained_string_span.clone(),
-                            ),
-                            ctx.report_builder
-                                .span_to_code_loc(const_string_span.clone()),
-                            None,
-                        )
-                    });
-                }
-                _ => {}
-            }
-        }
-
-        Ok(())
-    })
+    Some(eq_check)
 );
 
 gen_binary_op!(
@@ -2380,3 +2281,168 @@ gen_string_op!(istartswith_expr_from_ast, istarts_with);
 gen_string_op!(endswith_expr_from_ast, ends_with);
 gen_string_op!(iendswith_expr_from_ast, iends_with);
 gen_string_op!(iequals_expr_from_ast, iequals);
+
+/// Checks the operands for the == operation.
+fn eq_check(
+    ctx: &mut CompileContext,
+    lhs: ExprId,
+    rhs: ExprId,
+    lhs_span: Span,
+    rhs_span: Span,
+) -> Result<(), CompileError> {
+    let lhs = ctx.ir.get(lhs).type_value();
+    let rhs = ctx.ir.get(rhs).type_value();
+
+    let check_string_constraints =
+        |ctx: &mut CompileContext,
+         const_string: Rc<BString>,
+         const_string_span: Span,
+         constraints: Vec<StringConstraint>,
+         constrained_string_span: Span| {
+            for constraint in constraints {
+                match constraint {
+                    StringConstraint::Lowercase
+                        if const_string.chars().any(|c| c.is_uppercase()) =>
+                    {
+                        ctx.warnings.add(|| {
+                            UnsatisfiableExpression::build(
+                                ctx.report_builder,
+                                "this is a lowercase string".to_string(),
+                                "this contains uppercase characters".to_string(),
+                                ctx.report_builder.span_to_code_loc(
+                                    constrained_string_span.clone()
+                                ),
+                                ctx.report_builder.span_to_code_loc(
+                                    const_string_span.clone()
+                                ),
+                                Some(
+                                    "a lowercase string can't be equal to a string containing uppercase characters"
+                                        .to_string())
+                            )
+                        });
+                    }
+                    StringConstraint::ExactLength(n)
+                        if const_string.len() != n =>
+                    {
+                        ctx.warnings.add(|| {
+                            UnsatisfiableExpression::build(
+                                ctx.report_builder,
+                                format!("the length of this string is {}", n),
+                                format!(
+                                    "the length of this string is {}",
+                                    const_string.len()
+                                ),
+                                ctx.report_builder.span_to_code_loc(
+                                    constrained_string_span.clone(),
+                                ),
+                                ctx.report_builder.span_to_code_loc(
+                                    const_string_span.clone(),
+                                ),
+                                None,
+                            )
+                        });
+                    }
+                    _ => {}
+                }
+            }
+        };
+
+    let check_integer_constraints =
+        |ctx: &mut CompileContext,
+         const_integer: i64,
+         const_integer_span: Span,
+         constraints: Vec<IntegerConstraint>,
+         constrained_integer_span: Span| {
+            for constraint in constraints {
+                match constraint {
+                    IntegerConstraint::Range(min, max)
+                        if !(min..=max).contains(&const_integer) =>
+                    {
+                        ctx.warnings.add(|| {
+                                UnsatisfiableExpression::build(
+                                    ctx.report_builder,
+                                    format!(
+                                        "this expression is an integer in the range [{min},{max}]",
+                                    ),
+                                    format!(
+                                        "this integer is outside the range [{min},{max}]",
+                                    ),
+                                    ctx.report_builder.span_to_code_loc(
+                                        constrained_integer_span.clone(),
+                                    ),
+                                    ctx.report_builder.span_to_code_loc(
+                                        const_integer_span.clone(),
+                                    ),
+                                    None,
+                                )
+                            });
+                    }
+
+                    _ => {}
+                }
+            }
+        };
+
+    match (lhs, rhs, lhs_span, rhs_span) {
+        (
+            TypeValue::String { value: Const(const_string), .. },
+            TypeValue::String { constraints: Some(constraints), .. },
+            const_string_span,
+            constrained_string_span,
+        )
+        | (
+            TypeValue::String { constraints: Some(constraints), .. },
+            TypeValue::String { value: Const(const_string), .. },
+            constrained_string_span,
+            const_string_span,
+        ) => check_string_constraints(
+            ctx,
+            const_string,
+            const_string_span,
+            constraints,
+            constrained_string_span,
+        ),
+        (
+            TypeValue::Integer { value: Const(const_integer), .. },
+            TypeValue::Integer { constraints: Some(constraints), .. },
+            const_integer_span,
+            constrained_integer_span,
+        )
+        | (
+            TypeValue::Integer { constraints: Some(constraints), .. },
+            TypeValue::Integer { value: Const(const_integer), .. },
+            constrained_integer_span,
+            const_integer_span,
+        ) => check_integer_constraints(
+            ctx,
+            const_integer,
+            const_integer_span,
+            constraints,
+            constrained_integer_span,
+        ),
+        _ => {}
+    };
+
+    Ok(())
+}
+
+/// Checks the operands for shift-left and shift-right operations.
+fn shx_check(
+    ctx: &mut CompileContext,
+    _lhs: ExprId,
+    rhs: ExprId,
+    _lhs_span: Span,
+    rhs_span: Span,
+) -> Result<(), CompileError> {
+    if let TypeValue::Integer { value: Const(value), .. } =
+        ctx.ir.get(rhs).type_value()
+    {
+        if value < 0 {
+            return Err(UnexpectedNegativeNumber::build(
+                ctx.report_builder,
+                ctx.report_builder.span_to_code_loc(rhs_span),
+            ));
+        }
+    }
+    Ok(())
+}
