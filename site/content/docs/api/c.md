@@ -416,6 +416,14 @@ Type that represents a set of compiled rules. The compiled rules can be used for
 scanning data by creating a scanner
 with [yrx_scanner_create](#yrx_scanner_create).
 
+#### yrx_rules_count
+
+```c
+int yrx_rules_count(struct YRX_RULES *rules);
+```
+
+Returns the total number of rules. The result is -1 in case of error.
+
 #### yrx_rules_destroy
 
 ```c
@@ -436,7 +444,55 @@ enum YRX_RESULT yrx_rules_iter(
 
 Iterates over the compiled rules, calling the callback function for each rule.
 The `user_data` pointer can be used to provide additional context to your
-callback function. See `YRX_RULE_CALLBACK` for more details.
+callback function. See [YRX_RULE_CALLBACK](#yrx_rule_callback) for more details.
+
+#### yrx_rules_iter_imports
+
+```c
+enum YRX_RESULT yrx_rules_iter_imports(
+    const struct YRX_RULES *rules,
+    YRX_IMPORT_CALLBACK callback,
+    void *user_data);
+```
+
+Iterates over the modules imported by the rules, calling the callback with the
+name of each imported module.
+
+The `user_data` pointer can be used to provide additional context to your callback
+function.
+
+See [YRX_IMPORT_CALLBACK](#yrx_import_callback) for more details.
+
+
+#### yrx_rules_serialize
+
+```c
+enum YRX_RESULT yrx_rules_serialize(
+    const struct YRX_RULES *rules, 
+    struct YRX_BUFFER **buf);
+```
+
+Serializes the rules as a sequence of bytes.
+
+In the address indicated by the `buf` pointer, the function will copy a
+`YRX_BUFFER*` pointer. The [YRX_BUFFER](#yrx_buffer) structure represents a buffer
+that contains the serialized rules. This structure has a pointer to the data 
+itself, and its length.
+
+The [YRX_BUFFER](#yrx_buffer) must be destroyed with [yrx_buffer_destroy](#yrx_buffer_destroy).
+
+#### yrx_rules_deserialize
+
+```c
+enum YRX_RESULT yrx_rules_deserialize(
+    const uint8_t *data,
+    size_t len,
+    struct YRX_RULES **rules);
+```
+
+Deserializes the rules from a sequence of bytes produced by [yrx_rules_serialize](#yrx_rules_serialize).
+
+
 
 ------
 
@@ -793,6 +849,45 @@ typedef enum YRX_RESULT {
     SERIALIZATION_ERROR,
 } YRX_RESULT;
 ```
+
+### YRX_RULE_CALLBACK
+
+```c
+typedef void (*YRX_RULE_CALLBACK)(
+    const struct YRX_RULE *rule,
+    void *user_data);
+```
+
+Callback function passed to [yrx_scanner_on_matching_rule](#yrx_scanner_on_matching_rule) or
+[yrx_rules_iter](#yrx_rules_iter).
+
+The callback receives a pointer to a rule, represented by a [YRX_RULE](#yrx_rule)
+structure. This pointer is guaranteed to be valid while the callback
+function is being executed, but it may be freed after the callback function
+returns, so you cannot use the pointer outside the callback.
+
+It also receives the `user_data` pointer that can point to arbitrary data
+owned by the user.
+
+
+### YRX_IMPORT_CALLBACK
+
+```c
+typedef void (*YRX_IMPORT_CALLBACK)(
+    const char *module_name,
+    void *user_data);
+```
+
+Callback function passed to [yrx_rules_iter_imports](#yrx_rules_iter_imports).
+
+The callback is called for every module imported by the rules, and it
+receives a pointer to the module's name. This pointer is guaranteed to be
+valid while the callback function is being executed, but it will be freed
+after the callback function returns, so you cannot use the pointer outside
+the callback.
+
+The callback also receives a `user_data` pointer that can point to arbitrary
+data owned by the user.
 
 ### YRX_BUFFER
 
