@@ -194,6 +194,75 @@ enum YRX_RESULT yrx_compiler_add_source(
 Adds a YARA source code to be compiled. This function can be called multiple
 times.
 
+#### yrx_compiler_add_source_with_origin
+
+```c
+enum YRX_RESULT yrx_compiler_add_source_with_origin(
+    struct YRX_COMPILER *compiler,
+    const char *src,
+    const char *origin);
+```
+
+Adds a YARA source code to be compiled, specifying an origin for the source
+code. This function is similar to `yrx_compiler_add_source`, but in addition
+to the source code itself it provides a string that identifies the origin of
+the code, usually the file path from where the source was obtained. This
+origin is shown in error reports.
+
+------
+
+#### yrx_compiler_ignore_module
+
+```c
+enum YRX_RESULT yrx_compiler_ignore_module(
+    struct YRX_COMPILER *compiler,
+    const char *module);
+```
+
+Tells the compiler that a YARA module is not supported. Import statements
+for ignored modules will be ignored without errors but a warning will be
+issued. Any rule that make use of an ignored module will be ignored, while
+the rest of rules that don't rely on that module will be correctly compiled.
+
+------
+
+#### yrx_compiler_enable_feature
+
+```c
+enum YRX_RESULT yrx_compiler_enable_feature(
+    struct YRX_COMPILER *compiler,
+    const char *feature);
+```
+
+Enables a feature on this compiler. When defining the structure of a module
+in a `.proto` file, you can specify that certain fields are accessible only
+when one or more features are enabled. If some of the required features are
+not enabled, using this field in a YARA rule will cause an error while
+compiling the rules.
+
+> **Important:** This API is hidden from the public documentation because it is
+> unstable and subject to change.
+
+------
+
+#### yrx_compiler_ban_module
+
+```c
+enum YRX_RESULT yrx_compiler_ban_module(
+    struct YRX_COMPILER *compiler,
+    const char *module,
+    const char *error_title,
+    const char *error_msg);
+```
+
+Tell the compiler that a YARA module can't be used. Import statements for
+the banned module will cause an error. The error message can be customized
+by using the given error title and message. If this function is called
+multiple times with the same module name, the error title and message will
+be updated.
+
+------
+
 #### yrx_compiler_new_namespace
 
 ```c
@@ -245,6 +314,106 @@ functions.
 The `ident` argument must be pointer to null-terminated UTF-8 string. If the
 string is not valid UTF-8 the result is an `INVALID_ARGUMENT` error.
 
+#### yrx_compiler_errors_json
+
+```c
+enum YRX_RESULT yrx_compiler_errors_json(
+    struct YRX_COMPILER *compiler,
+    struct YRX_BUFFER **buf);
+```
+
+Returns the errors encountered during the compilation in JSON format. In the
+address indicated by the `buf` pointer, the function will copy a `YRX_BUFFER*`
+pointer. The `YRX_BUFFER` structure represents a buffer that contains the JSON
+representation of the compilation errors. The JSON consists on an array of
+objects, each object representing a compilation error.
+
+The object has the following fields:
+
+* `type`: A string that describes the type of error.
+* `code`: Error code (e.g: "E009").
+* `title`: Error title (e.g: "unknown identifier `foo`").
+* `labels`: Array of labels.
+* `text`: The full text of the error report, as shown by the command-line tool.
+
+Example:
+
+```json
+[
+  {
+    "type": "error",
+    "code": "E009",
+    "title": "unknown identifier `foo`",
+    "labels": [
+      {
+        "style": "primary",
+        "file_id": 0,
+        "range": {
+          "start": 26,
+          "end": 29
+        },
+        "message": "identifier `foo` not found"
+      }
+    ],
+    "text": "error[E009]: unknown identifier `foo`\n --> /path/to/rules.yara:2:11\n  |\n2 | condition: foo\n  |           ^^^ identifier `foo` not found\n  |\n  = note: this error occurred in rule `my_rule`"
+  }
+]
+```
+
+The `YRX_BUFFER` must be destroyed with [`yrx_buffer_destroy`](#yrx_buffer_destroy).
+
+------
+
+#### yrx_compiler_warnings_json
+
+```c
+enum YRX_RESULT yrx_compiler_warnings_json(
+    struct YRX_COMPILER *compiler,
+    struct YRX_BUFFER **buf);
+```
+
+Returns the warnings encountered during the compilation in JSON format. In the
+address indicated by the `buf` pointer, the function will copy a `YRX_BUFFER*`
+pointer. The `YRX_BUFFER` structure represents a buffer that contains the JSON
+representation of the compilation warnings. The JSON consists on an array of
+objects, each object representing a warning.
+
+The object has the following fields:
+
+* `type`: A string that describes the type of warning.
+* `code`: Warning code (e.g: "slow_pattern").
+* `title`: Warning title (e.g: "slow pattern").
+* `labels`: Array of labels.
+* `text`: The full text of the warning report, as shown by the command-line tool.
+
+Example:
+
+```json
+[
+  {
+    "type": "warning",
+    "code": "slow_pattern",
+    "title": "slow pattern",
+    "labels": [
+      {
+        "style": "primary",
+        "file_id": 0,
+        "range": {
+          "start": 10,
+          "end": 18
+        },
+        "message": "this pattern is slow and may impact scanning performance"
+      }
+    ],
+    "text": "warning: slow pattern\n --> /path/to/rules.yara:1:12\n  |\n1 |   $hex = { AA BB CC DD EE FF 00 11 22 33 44 55 66 77 88 99 }\n  |            ^^^^^^^^ this pattern is slow and may impact scanning performance\n  |\n  = note: this warning occurred in rule `my_rule`"
+  }
+]
+```
+
+The `YRX_BUFFER` must be destroyed with [`yrx_buffer_destroy`](#yrx_buffer_destroy).
+
+------
+
 #### yrx_compiler_build
 
 ```c
@@ -260,7 +429,19 @@ with [yrx_rules_destroy](#yrx_rules_destroy) when not used anymore.
 After calling this function the compiler is reset to its initial state,
 you can keep using it by adding more sources and calling this function again.
 
------- 
+------
+
+### yrx_buffer_destroy
+
+```c
+void yrx_buffer_destroy(struct YRX_BUFFER *buf);
+```
+
+Destroys a `YRX_BUFFER` object. This is typically used for buffers created by
+functions like `yrx_compiler_errors_json`, `yrx_compiler_warnings_json`, or
+`yrx_rules_serialize`.
+
+------
 
 ### YRX_RULES
 
@@ -276,6 +457,19 @@ void yrx_rules_destroy(struct YRX_RULES *rules);
 
 Destroys the [YRX_RULES](#yrx_rules) object. This function must be called only
 after all the scanners using the  [YRX_RULES](#yrx_rules) object are destroyed.
+
+#### yrx_rules_iter
+
+```c
+enum YRX_RESULT yrx_rules_iter(
+    const struct YRX_RULES *rules,
+    YRX_RULE_CALLBACK callback,
+    void *user_data);
+```
+
+Iterates over the compiled rules, calling the callback function for each rule.
+The `user_data` pointer can be used to provide additional context to your
+callback function. See `YRX_RULE_CALLBACK` for more details.
 
 ------
 
@@ -464,6 +658,19 @@ to a [YRX_PATTERN](#yrx_pattern) structure for each pattern.
 
 The `user_data` pointer can be used to provide additional context to your
 callback function.
+
+#### yrx_rule_iter_tags
+
+```c
+enum YRX_RESULT yrx_rule_iter_tags(
+    const struct YRX_RULE *rule,
+    YRX_TAG_CALLBACK callback,
+    void *user_data);
+```
+
+Iterates over the tags in a rule, calling the callback with a pointer to each
+tag. The `user_data` pointer can be used to provide additional context to your
+callback function. See `YRX_TAG_CALLBACK` for more details.
 
 ------
 
