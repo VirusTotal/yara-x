@@ -18,7 +18,7 @@ use winapi::{
 
 use memmap2::{Mmap, MmapOptions};
 
-use crate::scanner::ScanError;
+use crate::scanner::{ScanError, ScannedData};
 
 struct Mapping<'a> {
     begin: u64,
@@ -51,7 +51,7 @@ fn parse_map_line<'a>(line: &'a str) -> Option<Mapping<'a>> {
 }
 
 #[cfg(target_os = "linux")]
-pub fn load_proc(pid: u32) -> Result<Vec<u8>, ScanError> {
+pub fn load_proc(pid: u32) -> Result<ScannedData<'static>, ScanError> {
     let maps_path: PathBuf = format!("/proc/{pid}/maps").into();
     let maps =
         fs::OpenOptions::new().read(true).open(&maps_path).map_err(|err| {
@@ -170,11 +170,11 @@ pub fn load_proc(pid: u32) -> Result<Vec<u8>, ScanError> {
         // }
     }
     println!("memory size = {:x}", process_memory.len());
-    Ok(process_memory)
+    Ok(ScannedData::Vec(process_memory))
 }
 
 #[cfg(target_os = "windows")]
-pub fn load_proc(pid: u32) -> Result<Mmap, ScanError> {
+pub fn load_proc(pid: u32) -> Result<ScannedData<'static>, ScanError> {
     let mut h_token: winnt::HANDLE = ntdef::NULL;
     let mut luid_debug_maybe = MaybeUninit::<winnt::LUID>::uninit();
     if let Some(luid_debug) = unsafe {
@@ -322,7 +322,9 @@ pub fn load_proc(pid: u32) -> Result<Mmap, ScanError> {
         handleapi::CloseHandle(h_process);
     }
 
-    Ok(process_memory
-        .make_read_only()
-        .map_err(|err| ScanError::ProcessError { pid, source: Some(err) })?)
+    Ok(ScannedData::Mmap(
+        process_memory.make_read_only().map_err(|err| {
+            ScanError::ProcessError { pid, source: Some(err) }
+        })?,
+    ))
 }
