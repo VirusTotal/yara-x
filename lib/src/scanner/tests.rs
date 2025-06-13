@@ -776,11 +776,12 @@ fn scan_proc() {
     "#,
     )
     .unwrap();
+    println!("running test scan_proc");
 
     let mut scanner = Scanner::new(&rules);
-    // let scan_results = scanner.scan_proc(process::id()).unwrap();
+    let scan_results = scanner.scan_proc(process::id()).unwrap();
 
-    // assert_eq!(scan_results.matching_rules().len(), 1);
+    assert_eq!(scan_results.matching_rules().len(), 1);
 
     // let scan_results = scanner
     //     .scan_file_with_options(

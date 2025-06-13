@@ -16,6 +16,8 @@ use winapi::{
     },
 };
 
+use memmap2::{Mmap, MmapOptions};
+
 use crate::scanner::ScanError;
 
 struct Mapping<'a> {
@@ -172,7 +174,7 @@ pub fn load_proc(pid: u32) -> Result<Vec<u8>, ScanError> {
 }
 
 #[cfg(target_os = "windows")]
-pub fn load_proc(pid: u32) -> Result<Vec<u8>, ScanError> {
+pub fn load_proc(pid: u32) -> Result<Mmap, ScanError> {
     let mut h_token: winnt::HANDLE = ntdef::NULL;
     let mut luid_debug_maybe = MaybeUninit::<winnt::LUID>::uninit();
     if let Some(luid_debug) = unsafe {
@@ -226,7 +228,7 @@ pub fn load_proc(pid: u32) -> Result<Vec<u8>, ScanError> {
     };
 
     if h_process == ntdef::NULL {
-        return Err(ScanError::ProcessError { pid });
+        return Err(ScanError::ProcessError { pid, source: None });
     }
 
     let mut maybe_si = MaybeUninit::<sysinfoapi::SYSTEM_INFO>::uninit();
@@ -236,19 +238,18 @@ pub fn load_proc(pid: u32) -> Result<Vec<u8>, ScanError> {
         maybe_si.assume_init()
     };
 
-    let mut address = si.lpMinimumApplicationAddress;
-
     let mut mbi_maybe =
         MaybeUninit::<winnt::MEMORY_BASIC_INFORMATION>::uninit();
 
-    let mut process_memory: [MaybeUninit<u8>; 0x1000] =
-        unsafe { MaybeUninit::uninit().assume_init() };
+    let mut address: u64 = si.lpMinimumApplicationAddress as u64;
 
-    while let Some(mbi) = if (address < si.lpMaximumApplicationAddress)
+    let mut expected_total_size: u64 = 0;
+
+    while let Some(mbi) = if (address < si.lpMaximumApplicationAddress as u64)
         && unsafe {
             memoryapi::VirtualQueryEx(
                 h_process,
-                address,
+                address as *const winapi::ctypes::c_void,
                 mbi_maybe.as_mut_ptr(),
                 size_of::<winnt::MEMORY_BASIC_INFORMATION>(),
             ) != 0
@@ -257,34 +258,63 @@ pub fn load_proc(pid: u32) -> Result<Vec<u8>, ScanError> {
     } else {
         None
     } {
-        println!("address = {:X}", address as usize);
         if (mbi.State == winnt::MEM_COMMIT)
             && ((mbi.Protect & winnt::PAGE_NOACCESS) == 0)
         {
-            let size = mbi.RegionSize
-                - unsafe { address.offset_from_unsigned(mbi.BaseAddress) };
-            let size = if size > 0x1000 { 0x1000 } else { size };
-
-            // let prev_end = process_memory.len();
-            // if prev_end < size {
-            //     process_memory.resize(size as usize, 0);
-            // }
-
-            if unsafe {
-                let mut read = MaybeUninit::<basetsd::SIZE_T>::uninit();
-                memoryapi::ReadProcessMemory(
-                    h_process,
-                    address,
-                    process_memory.as_mut_ptr() as *mut winapi::ctypes::c_void,
-                    size,
-                    read.as_mut_ptr(),
-                ) == 0
-            } {
-                return Err(ScanError::ProcessError { pid });
-            }
-            address = unsafe { address.add(size) };
+            let size =
+                mbi.RegionSize as u64 - (address - mbi.BaseAddress as u64);
+            expected_total_size += size;
+            address += size;
         } else {
-            address = unsafe { mbi.BaseAddress.add(mbi.RegionSize) };
+            address = mbi.BaseAddress as u64 + mbi.RegionSize as u64;
+        }
+    }
+
+    address = si.lpMinimumApplicationAddress as u64;
+
+    let mut process_memory = MmapOptions::new()
+        .len(expected_total_size as usize)
+        .map_anon()
+        .map_err(|err| ScanError::ProcessError { pid, source: Some(err) })?;
+    let mut offset = 0;
+
+    while let Some(mbi) = if (address < si.lpMaximumApplicationAddress as u64)
+        && unsafe {
+            memoryapi::VirtualQueryEx(
+                h_process,
+                address as *const winapi::ctypes::c_void,
+                mbi_maybe.as_mut_ptr(),
+                size_of::<winnt::MEMORY_BASIC_INFORMATION>(),
+            ) != 0
+        } {
+        Some(unsafe { mbi_maybe.assume_init() })
+    } else {
+        None
+    } {
+        if (mbi.State == winnt::MEM_COMMIT)
+            && ((mbi.Protect & winnt::PAGE_NOACCESS) == 0)
+        {
+            let size =
+                mbi.RegionSize as u64 - (address - mbi.BaseAddress as u64);
+
+            if offset + size < expected_total_size {
+                if unsafe {
+                    let mut read = MaybeUninit::<basetsd::SIZE_T>::uninit();
+                    memoryapi::ReadProcessMemory(
+                        h_process,
+                        address as *const winapi::ctypes::c_void,
+                        process_memory[offset as usize..].as_mut_ptr()
+                            as *mut winapi::ctypes::c_void,
+                        size as usize,
+                        read.as_mut_ptr(),
+                    ) != 0
+                } {
+                    offset += size;
+                }
+            }
+            address += size;
+        } else {
+            address = mbi.BaseAddress as u64 + mbi.RegionSize as u64;
         }
     }
 
@@ -292,5 +322,7 @@ pub fn load_proc(pid: u32) -> Result<Vec<u8>, ScanError> {
         handleapi::CloseHandle(h_process);
     }
 
-    Ok(unsafe { mem::transmute::<_, [u8; 0x1000]>(process_memory).to_vec() })
+    Ok(process_memory
+        .make_read_only()
+        .map_err(|err| ScanError::ProcessError { pid, source: Some(err) })?)
 }
