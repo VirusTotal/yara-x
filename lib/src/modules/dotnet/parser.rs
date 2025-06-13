@@ -22,8 +22,11 @@ use uuid::Uuid;
 use crate::modules::pe::parser::{DirEntry, PE};
 use crate::modules::protos;
 
+use strum_macros::Display;
+
 type NomError<'a> = nom::error::Error<&'a [u8]>;
 
+#[derive(Display)]
 pub enum Error<'a> {
     InvalidDotNet,
     InvalidCodedIndex,

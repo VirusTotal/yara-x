@@ -29,7 +29,10 @@ thread_local!(
 );
 
 #[module_main]
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> Hash {
+fn main(
+    _data: &[u8],
+    _meta: Option<&[u8]>,
+) -> Result<Hash, String> {
     // With every scanned file the cache must be cleared.
     SHA256_CACHE.with(|cache| cache.borrow_mut().clear());
     SHA1_CACHE.with(|cache| cache.borrow_mut().clear());
@@ -37,7 +40,7 @@ fn main(_data: &[u8], _meta: Option<&[u8]>) -> Hash {
     CRC32_CACHE.with(|cache| cache.borrow_mut().clear());
     CHECKSUM32_CACHE.with(|cache| cache.borrow_mut().clear());
 
-    Hash::new()
+    Ok(Hash::new())
 }
 
 #[module_export(name = "md5")]

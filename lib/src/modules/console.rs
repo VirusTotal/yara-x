@@ -2,9 +2,9 @@ use crate::modules::prelude::*;
 use crate::modules::protos::console::*;
 
 #[module_main]
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> Console {
+fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Console, String> {
     // Nothing to do, but we have to return our protobuf
-    Console::new()
+    Ok(Console::new())
 }
 
 #[module_export(name = "log")]
@@ -76,13 +76,13 @@ mod tests {
             r#"
             import "console"
             rule test {
-                condition: 
-                    console.log("foo") and 
-                    console.log("bar: ", 1) and 
-                    console.log("baz: ", 3.14) and 
+                condition:
+                    console.log("foo") and
+                    console.log("bar: ", 1) and
+                    console.log("baz: ", 3.14) and
                     console.log(10) and
                     console.log(6.28) and
-                    console.hex(10) and 
+                    console.hex(10) and
                     console.hex("qux: ", 255)
             }
             "#,

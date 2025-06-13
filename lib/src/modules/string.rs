@@ -1,10 +1,12 @@
 use crate::modules::prelude::*;
 use crate::modules::protos::string::*;
 
+use std::string::String as StdString;
+
 #[module_main]
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> String {
+fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<String, StdString> {
     // Nothing to do, but we have to return our protobuf
-    String::new()
+    Ok(String::new())
 }
 
 #[module_export]
