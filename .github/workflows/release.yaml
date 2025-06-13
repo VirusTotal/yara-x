@@ -111,13 +111,18 @@ jobs:
         - pp39
         - pp310
         build:
-        - linux
+        - linux-intel
+        - linux-arm
         - macos
         - windows
         include:
-        - build: linux
+        - build: linux-intel
           os: ubuntu-latest
-          arch: 'aarch64 x86_64'
+          arch: 'x86_64'
+
+        - build: linux-arm
+          os: ubuntu-24.04-arm
+          arch: 'aarch64'
 
         - build: macos
           os: macos-latest
