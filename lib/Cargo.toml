@@ -295,4 +295,4 @@ yara-x-proto-yaml = { workspace = true }
 zip = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
-winapi = { workspace = true, features = ["processthreadsapi", "securitybaseapi", "sysinfoapi"] }
+winapi = { workspace = true, features = ["processthreadsapi", "securitybaseapi", "sysinfoapi", "winbase", "handleapi", "memoryapi"] }
