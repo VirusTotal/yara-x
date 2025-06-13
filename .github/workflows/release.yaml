@@ -108,7 +108,6 @@ jobs:
       matrix:
         python-version:
         - cp39
-        - pp39
         - pp310
         build:
         - linux-intel
