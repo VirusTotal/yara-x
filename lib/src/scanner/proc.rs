@@ -1,5 +1,6 @@
 use std::fs;
 use std::io::{prelude::*, BufReader};
+use std::mem;
 use std::mem::MaybeUninit;
 #[cfg(target_os = "linux")]
 use std::os::unix::fs::FileExt;
@@ -8,7 +9,7 @@ use std::path::PathBuf;
 use itertools::Itertools;
 #[cfg(target_os = "windows")]
 use winapi::{
-    shared::ntdef,
+    shared::{basetsd, ntdef},
     um::{
         handleapi, memoryapi, processthreadsapi, securitybaseapi, sysinfoapi,
         winbase, winnt,
@@ -172,8 +173,6 @@ pub fn load_proc(pid: u32) -> Result<Vec<u8>, ScanError> {
 
 #[cfg(target_os = "windows")]
 pub fn load_proc(pid: u32) -> Result<Vec<u8>, ScanError> {
-    use winapi::shared;
-
     let mut h_token: winnt::HANDLE = ntdef::NULL;
     let mut luid_debug_maybe = MaybeUninit::<winnt::LUID>::uninit();
     if let Some(luid_debug) = unsafe {
@@ -242,7 +241,8 @@ pub fn load_proc(pid: u32) -> Result<Vec<u8>, ScanError> {
     let mut mbi_maybe =
         MaybeUninit::<winnt::MEMORY_BASIC_INFORMATION>::uninit();
 
-    let mut process_memory: Vec<u8> = Vec::new();
+    let mut process_memory: [MaybeUninit<u8>; 0x1000] =
+        unsafe { MaybeUninit::uninit().assume_init() };
 
     while let Some(mbi) = if (address < si.lpMaximumApplicationAddress)
         && unsafe {
@@ -257,37 +257,40 @@ pub fn load_proc(pid: u32) -> Result<Vec<u8>, ScanError> {
     } else {
         None
     } {
+        println!("address = {:X}", address as usize);
         if (mbi.State == winnt::MEM_COMMIT)
             && ((mbi.Protect & winnt::PAGE_NOACCESS) == 0)
         {
             let size = mbi.RegionSize
-                - (unsafe { address.offset_from_unsigned(mbi.BaseAddress) });
+                - unsafe { address.offset_from_unsigned(mbi.BaseAddress) };
+            let size = if size > 0x1000 { 0x1000 } else { size };
 
-            let prev_end = process_memory.len();
-            process_memory.resize(prev_end + size as usize, 0);
+            // let prev_end = process_memory.len();
+            // if prev_end < size {
+            //     process_memory.resize(size as usize, 0);
+            // }
 
             if unsafe {
-                let mut read =
-                    MaybeUninit::<shared::basetsd::SIZE_T>::uninit();
+                let mut read = MaybeUninit::<basetsd::SIZE_T>::uninit();
                 memoryapi::ReadProcessMemory(
                     h_process,
                     address,
-                    process_memory[prev_end..].as_mut_ptr()
-                        as *mut winapi::ctypes::c_void,
+                    process_memory.as_mut_ptr() as *mut winapi::ctypes::c_void,
                     size,
                     read.as_mut_ptr(),
                 ) == 0
             } {
                 return Err(ScanError::ProcessError { pid });
             }
+            address = unsafe { address.add(size) };
+        } else {
+            address = unsafe { mbi.BaseAddress.add(mbi.RegionSize) };
         }
-
-        address = unsafe { mbi.BaseAddress.add(mbi.RegionSize) };
     }
 
     unsafe {
         handleapi::CloseHandle(h_process);
     }
 
-    Ok(process_memory)
+    Ok(unsafe { mem::transmute::<_, [u8; 0x1000]>(process_memory).to_vec() })
 }
