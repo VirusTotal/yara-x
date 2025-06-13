@@ -397,7 +397,7 @@ impl<'r> Scanner<'r> {
         &'a mut self,
         target: u32,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_impl(ScannedData::Mmap(load_proc(target)?), None)
+        self.scan_impl(load_proc(target)?, None)
     }
 
     /// Like [`Scanner::scan`], but allows to specify additional scan options.
@@ -429,7 +429,7 @@ impl<'r> Scanner<'r> {
         target: u32,
         options: ScanOptions<'opts>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_impl(ScannedData::Mmap(load_proc(target)?), Some(options))
+        self.scan_impl(load_proc(target)?, Some(options))
     }
 
     /// Sets the value of a global variable.
