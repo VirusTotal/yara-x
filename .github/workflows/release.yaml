@@ -18,14 +18,19 @@ jobs:
       fail-fast: false
       matrix:
         build:
-        - linux
+        - linux-arm
+        - linux-intel
         - macos-arm
         - macos-intel
         - windows
         include:
-        - build: linux
+        - build: linux-intel
           os: ubuntu-latest
           target: x86_64-unknown-linux-gnu
+
+        - build: linux-arm
+          os: ubuntu-latest
+          target: aarch64-unknown-linux-gnu
 
         - build: macos-intel
           os: macos-latest
@@ -112,6 +117,7 @@ jobs:
         include:
         - build: linux
           os: ubuntu-latest
+          arch: 'arm64 x86_64'
 
         - build: macos
           os: macos-latest
