@@ -276,8 +276,6 @@ yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true, features = ["serde"] }
 
 lingua = { version = "1.6.2", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
-streaming-iterator = { workspace = true }
-
 
 [build-dependencies]
 anyhow = { workspace = true }
@@ -297,4 +295,14 @@ yara-x-proto-yaml = { workspace = true }
 zip = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
-winapi = { workspace = true, features = ["processthreadsapi", "securitybaseapi", "sysinfoapi", "winbase", "handleapi", "memoryapi"] }
+windows = { workspace = true, features = [
+    "Win32",
+    "Win32_Security",
+    "Win32_System",
+    "Win32_System_SystemInformation",
+    "Win32_System_Memory",
+    "Win32_System_Threading",
+    "Win32_System_Diagnostics",
+    "Win32_System_Diagnostics_Debug",
+] }
+windows-result = {workspace = true}
