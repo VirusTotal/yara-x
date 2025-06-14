@@ -776,7 +776,6 @@ fn scan_proc() {
     "#,
     )
     .unwrap();
-    println!("running test scan_proc");
 
     let mut scanner = Scanner::new(&rules);
     let scan_results = scanner.scan_proc(process::id()).unwrap();
