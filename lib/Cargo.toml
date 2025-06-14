@@ -276,6 +276,8 @@ yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true, features = ["serde"] }
 
 lingua = { version = "1.6.2", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
+streaming-iterator = { workspace = true }
+
 
 [build-dependencies]
 anyhow = { workspace = true }
