@@ -74,6 +74,20 @@ pub enum ScanError {
         /// Error that occurred.
         err: std::io::Error,
     },
+    /// Could not create anonymouse map for storing the scanned process memory.
+    #[error("can not map: {source}")]
+    AnonMapError {
+        /// Error that occurred.
+        source: std::io::Error,
+    },
+    /// Could not read memory of the scanned process.
+    #[error("can not read memory of `{pid}`: {err}")]
+    ProcessError {
+        /// pid of the process being scanned.
+        pid: u32,
+        /// Error that occuerred.
+        err: windows_result::Error,
+    },
     /// Could not deserialize the protobuf message for some YARA module.
     #[error("can not deserialize protobuf message for YARA module `{module}`: {err}")]
     ProtoError {
@@ -81,14 +95,6 @@ pub enum ScanError {
         module: String,
         /// Error that occurred.
         err: protobuf::Error,
-    },
-    /// Could not read process memory.
-    #[error("can not attach to process with pid `{pid}`")]
-    ProcessError {
-        /// Pid of the process.
-        pid: u32,
-        /// Error that occurred
-        source: Option<std::io::Error>,
     },
     /// The module is unknown.
     #[error("unknown module `{module}`")]
