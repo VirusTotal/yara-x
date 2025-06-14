@@ -4,19 +4,19 @@ use std::os::unix::fs::FileExt;
 use std::path::PathBuf;
 
 use itertools::Itertools;
-use streaming_iterator::StreamingIterator;
+use memmap2::MmapOptions;
 
 use crate::scanner::{ScanError, ScannedData};
 
-struct Mapping<'a> {
+struct Mapping {
     begin: u64,
     end: u64,
-    perms: &'a str,
+    perms: String,
     offset: u64,
     dmaj: u8,
     dmin: u8,
     inode: u64,
-    path: &'a str,
+    path: String,
 }
 
 // Each row in /proc/$PID/maps describes a region of contiguous virtual
@@ -24,7 +24,7 @@ struct Mapping<'a> {
 //
 // address           perms offset  dev   inode   pathname
 // 08048000-08056000 r-xp 00000000 03:0c 64593   /usr/sbin/gpm
-fn parse_map_line<'a>(line: &'a str) -> Option<Mapping<'a>> {
+fn parse_map_line(line: &str) -> Option<Mapping> {
     let (address, perms, offset, dev, inode, path) =
         line.splitn(6, " ").next_tuple()?;
     let offset = u64::from_str_radix(offset, 16).ok()?;
@@ -35,19 +35,23 @@ fn parse_map_line<'a>(line: &'a str) -> Option<Mapping<'a>> {
     let (dmaj, dmin) = dev.split(":").next_tuple()?;
     let dmaj = u8::from_str_radix(dmaj, 16).ok()?;
     let dmin = u8::from_str_radix(dmin, 16).ok()?;
-    Some(Mapping { begin, end, perms, offset, dmaj, dmin, inode, path })
+    Some(Mapping {
+        begin,
+        end,
+        perms: perms.to_string(),
+        offset,
+        dmaj,
+        dmin,
+        inode,
+        path: path.to_string(),
+    })
 }
 
-struct ProcessMemory {
+struct ProcessMapping {
     maps_reader: BufReader<fs::File>,
-    mems: fs::File,
-    pid: u32,
-    buffer: [u8; 0x1000],
-    start: u64,
-    end: u64,
 }
 
-impl ProcessMemory {
+impl ProcessMapping {
     pub fn new(pid: u32) -> Result<Self, ScanError> {
         let maps_path: PathBuf = format!("/proc/{pid}/maps").into();
         let maps = fs::OpenOptions::new()
@@ -57,85 +61,130 @@ impl ProcessMemory {
                 path: maps_path.to_path_buf(),
                 source: err,
             })?;
-        let mems_path: PathBuf = format!("/proc/{pid}/mem").into();
-        let mems = fs::OpenOptions::new()
-            .read(true)
-            .open(&mems_path)
-            .map_err(|err| ScanError::OpenError {
-                path: mems_path.to_path_buf(),
-                source: err,
-            })?;
-        Ok(ProcessMemory {
-            maps_reader: BufReader::new(maps),
-            mems,
-            pid,
-            buffer: [0; 0x1000],
-            start: 0,
-            end: 0,
-        })
+        Ok(Self { maps_reader: BufReader::new(maps) })
     }
 }
 
-impl StreamingIterator for ProcessMemory {
-    type Item = [u8];
+impl Iterator for ProcessMapping {
+    type Item = Mapping;
 
-    fn get(&self) -> Option<&Self::Item> {
-        if self.start < self.end {
-            let size = std::cmp::min(self.end - self.start, 0x1000);
-            Some(&self.buffer[0..size as usize])
-        } else {
-            None
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut line = String::new();
+        while self.maps_reader.read_line(&mut line).is_ok_and(|read| read != 0)
+        {
+            let Some(mapping) = parse_map_line(&line) else {
+                line.clear();
+                continue;
+            };
+            return Some(mapping);
         }
-    }
-
-    fn advance(self: &mut Self) {
-        if self.start < self.end {
-            let size = std::cmp::min(self.end - self.start, 0x1000);
-            self.start += size;
-        }
-        if self.start < self.end {
-            let size = std::cmp::min(self.end - self.start, 0x1000);
-            let _ = self
-                .mems
-                .read_exact_at(&mut self.buffer[0..size as usize], self.start);
-            return;
-        } else {
-            let mut line = String::new();
-            while self
-                .maps_reader
-                .read_line(&mut line)
-                .is_ok_and(|read| read != 0)
-            {
-                let Some(mapping) = parse_map_line(&line) else {
-                    line.clear();
-                    continue;
-                };
-                if !mapping.perms.starts_with("r") {
-                    line.clear();
-                    continue;
-                }
-                self.start = mapping.begin;
-                self.end = mapping.end;
-                let size = std::cmp::min(self.end - self.start, 0x1000);
-                let _ = self.mems.read_exact_at(
-                    &mut self.buffer[0..size as usize],
-                    self.start,
-                );
-                return;
-            }
-        }
+        return None;
     }
 }
+
+// struct ProcessMemory<'a, T> {
+//     mappings: T,
+//     mems: fs::File,
+//     buffer: &'a mut [u8],
+//     offset: u64,
+//     start: u64,
+//     end: u64,
+// }
+//
+// impl<'a, T> ProcessMemory<'a, T> {
+//     pub fn new(
+//         pid: u32,
+//         mappings: T,
+//         buffer: &'a mut [u8],
+//     ) -> Result<Self, ScanError> {
+//         let mems_path: PathBuf = format!("/proc/{pid}/mem").into();
+//         let mems = fs::OpenOptions::new()
+//             .read(true)
+//             .open(&mems_path)
+//             .map_err(|err| ScanError::OpenError {
+//                 path: mems_path.to_path_buf(),
+//                 source: err,
+//             })?;
+//
+//         Ok(Self { mappings, mems, buffer, offset: 0, start: 0, end: 0 })
+//     }
+// }
+//
+// impl<'a, T> Iterator for ProcessMemory<'a, T>
+// where
+//     T: Iterator<Item = Mapping>,
+// {
+//     type Item = ();
+//
+//     fn next(self: &mut Self) -> Option<Self::Item> {
+//         if self.start < self.end {
+//             let size =
+//                 std::cmp::min(self.end - self.start, self.buffer.len() as u64);
+//             self.start += size;
+//         }
+//         if self.start < self.end {
+//             let size =
+//                 std::cmp::min(self.end - self.start, self.buffer.len() as u64);
+//             let _ = self
+//                 .mems
+//                 .read_exact_at(&mut self.buffer[0..size as usize], self.start);
+//             return Some(());
+//         } else {
+//             while let Some(mapping_desc) = self.mappings.next() {
+//                 self.start = mapping_desc.begin;
+//                 self.end = mapping_desc.end;
+//                 let size = std::cmp::min(
+//                     self.end - self.start,
+//                     self.buffer.len() as u64,
+//                 );
+//                 let _ = self.mems.read_exact_at(
+//                     &mut self.buffer[0..size as usize],
+//                     self.start,
+//                 );
+//                 return Some(());
+//             }
+//         }
+//         return None;
+//     }
+// }
 
 pub fn load_proc(pid: u32) -> Result<ScannedData<'static>, ScanError> {
-    let mut process_memory_iter = ProcessMemory::new(pid)?;
-    let mut process_memory = Vec::new();
+    let process_mappings = ProcessMapping::new(pid)?
+        .filter(|mapping| mapping.perms.starts_with("r"))
+        .collect_vec();
+    let memory_size: u64 = process_mappings
+        .iter()
+        .map(|mapping| mapping.end - mapping.begin)
+        .sum();
+    let mut process_memory =
+        MmapOptions::new().len(memory_size as usize).map_anon().map_err(
+            |err| ScanError::OpenError { path: "".into(), source: err },
+        )?;
 
-    while let Some(mem_chunck) = process_memory_iter.next() {
-        process_memory.extend_from_slice(mem_chunck);
+    let mems_path: PathBuf = format!("/proc/{pid}/mem").into();
+    let mems =
+        fs::OpenOptions::new().read(true).open(&mems_path).map_err(|err| {
+            ScanError::OpenError { path: mems_path.to_path_buf(), source: err }
+        })?;
+
+    let mut offset: u64 = 0;
+    for mapping in process_mappings {
+        let size = mapping.end - mapping.begin;
+        let _ = mems.read_exact_at(
+            &mut process_memory[offset as usize..(offset + size) as usize],
+            mapping.begin,
+        );
+        offset += size;
     }
 
-    return Ok(ScannedData::Vec(process_memory));
+    // let mut process_memory_iter =
+    //     ProcessMemory::new(pid, process_mappings.iter(), &mut process_memory)?;
+
+    Ok(ScannedData::Mmap(
+        process_memory.make_read_only().map_err(|err| {
+            ScanError::ProcessError { pid, source: Some(err) }
+        })?,
+    ))
 }
 
 // pub fn load_proc(pid: u32) -> Result<ScannedData<'static>, ScanError> {
