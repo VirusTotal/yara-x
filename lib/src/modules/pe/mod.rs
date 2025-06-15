@@ -36,16 +36,19 @@ thread_local!(
 );
 
 #[module_main]
-fn main(data: &[u8], _meta: Option<&[u8]>) -> PE {
+fn main(
+    data: &[u8],
+    _meta: Option<&[u8]>
+) -> Result<PE, ModuleError> {
     IMPHASH_CACHE.with(|cache| *cache.borrow_mut() = None);
     CHECKSUM_CACHE.with(|cache| *cache.borrow_mut() = None);
 
     match parser::PE::parse(data) {
-        Ok(pe) => pe.into(),
+        Ok(pe) => Ok(pe.into()),
         Err(_) => {
             let mut pe = PE::new();
             pe.is_pe = Some(false);
-            pe
+            Ok(pe)
         }
     }
 }

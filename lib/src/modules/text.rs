@@ -18,7 +18,7 @@ use lingua::{Language, LanguageDetectorBuilder};
 /// This function must return an instance of the protobuf message indicated
 /// in the `root_message` option in `text.proto`.
 #[module_main]
-fn main(data: &[u8], _meta: Option<&[u8]>) -> Text {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Text, ModuleError> {
     // Create an empty instance of the Text protobuf.
     let mut text_proto = Text::new();
 
@@ -35,7 +35,7 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Text {
                 num_words += line.split_whitespace().count();
                 num_lines += 1;
             }
-            Err(_) => return text_proto,
+            Err(_) => return Ok(text_proto),
         }
     }
 
@@ -44,7 +44,7 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Text {
     text_proto.set_num_words(num_words as i64);
 
     // Return the Text proto after filling the relevant fields.
-    text_proto
+    Ok(text_proto)
 }
 
 /// Function that returns the n-th line in the file.
