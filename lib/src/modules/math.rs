@@ -8,7 +8,7 @@ use crate::modules::prelude::*;
 use crate::modules::protos::math::*;
 
 #[module_main]
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Math, String> {
+fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Math, ModuleError> {
     // Nothing to do, but we have to return our protobuf
     Ok(Math::new())
 }

@@ -2,7 +2,7 @@ use crate::modules::prelude::*;
 use crate::modules::protos::console::*;
 
 #[module_main]
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Console, String> {
+fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Console, ModuleError> {
     // Nothing to do, but we have to return our protobuf
     Ok(Console::new())
 }

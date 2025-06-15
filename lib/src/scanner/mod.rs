@@ -30,7 +30,7 @@ use wasmtime::{
 
 use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
-use crate::modules::{Module, BUILTIN_MODULES};
+use crate::modules::{Module, ModuleError, BUILTIN_MODULES};
 use crate::scanner::matches::PatternMatches;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
@@ -84,14 +84,33 @@ pub enum ScanError {
         /// Module name.
         module: String,
     },
-    /// There is some error in module data.
-    #[error("cannot parse data for {module}: {err}")]
-    ModuleDataError {
+    /// There is some error in module metadata.
+    #[error("cannot parse metadata for {module}: {err}")]
+    ModuleMetadataError {
         /// Module name.
         module: String,
         /// Details about the error.
         err: String,
     },
+    /// Some occured error during processing an input in a module.
+    #[error("error occured in module {module}: {err}")]
+    ModuleInternalError {
+        /// Module name.
+        module: String,
+        /// Details about the error.
+        err: String,
+    },
+}
+
+impl ScanError {
+    fn from_module_error(error: ModuleError, module_name: String) -> ScanError {
+        match error {
+            ModuleError::InternalError { err:e } =>
+                ScanError::ModuleInternalError { module: module_name, err: e },
+            ModuleError::MetadataError { err:e } =>
+                ScanError::ModuleMetadataError { module: module_name, err: e },
+        }
+    }
 }
 
 /// Global counter that gets incremented every 1 second by a dedicated thread.
@@ -690,13 +709,10 @@ impl<'r> Scanner<'r> {
                         Ok(ok) => {
                             module_output = Some(ok);
                         }
-                        Err(err) => {
-                            return Err(ScanError::ModuleDataError {
-                                module: module_name.to_string(),
-                                err: err.to_string(),
-                            });
-                        }
-                    };
+                        Err(e) => return Err(ScanError::from_module_error(
+                            e, module_name.to_string()
+                        ))
+                    }
                 } else {
                     module_output = None;
                 }

@@ -39,7 +39,7 @@ thread_local!(
 fn main(
     data: &[u8],
     _meta: Option<&[u8]>
-) -> Result<PE, String> {
+) -> Result<PE, ModuleError> {
     IMPHASH_CACHE.with(|cache| *cache.borrow_mut() = None);
     CHECKSUM_CACHE.with(|cache| *cache.borrow_mut() = None);
 

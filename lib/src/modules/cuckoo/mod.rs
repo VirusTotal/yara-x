@@ -29,7 +29,7 @@ fn set_local(value: schema::CuckooJson) {
 fn main(
     _data: &[u8],
     meta: Option<&[u8]>,
-) -> Result<Cuckoo, String> {
+) -> Result<Cuckoo, ModuleError> {
     if meta.is_none() || matches!(meta, Some(m) if m.is_empty()) {
         set_local(schema::CuckooJson::default());
         return Ok(Cuckoo::new());
@@ -47,7 +47,7 @@ fn main(
         },
         Err(e) => {
             set_local(schema::CuckooJson::default());
-            return Err(e.to_string());
+            return Err(ModuleError::MetadataError{err: e.to_string()});
         }
     };
 

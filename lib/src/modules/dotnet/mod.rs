@@ -12,7 +12,7 @@ pub mod parser;
 fn main(
     data: &[u8],
     _meta: Option<&[u8]>,
-) -> Result<Dotnet, String> {
+) -> Result<Dotnet, ModuleError> {
     match parser::Dotnet::parse(data) {
         Ok(dotnet) => Ok(dotnet.into()),
         Err(_) => {

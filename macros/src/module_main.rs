@@ -9,8 +9,8 @@ pub(crate) fn impl_module_main_macro(input: ItemFn) -> Result<TokenStream> {
 
     let main_stub = quote! {
         use protobuf::MessageDyn;
-        use std::error::Error;
-        pub(crate) fn __main__(data: &[u8], meta: Option<&[u8]>) -> Result<Box<dyn MessageDyn>, std::string::String> {
+        use crate::modules::ModuleError;
+        pub(crate) fn __main__(data: &[u8], meta: Option<&[u8]>) -> Result<Box<dyn MessageDyn>, ModuleError> {
             #fn_name(data, meta).map(|ok| Box::new(ok) as Box<dyn MessageDyn>)
         }
     };

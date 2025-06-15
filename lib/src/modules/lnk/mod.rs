@@ -20,6 +20,7 @@ pub mod parser;
 fn main(
     data: &[u8],
     _meta: Option<&[u8]>,
-) -> Result<Lnk, String> {
-    parser::LnkParser::new().parse(data).map_err(|e| e.to_string())
+) -> Result<Lnk, ModuleError> {
+    parser::LnkParser::new().parse(data)
+        .map_err(|e| ModuleError::InternalError{err: e.to_string()})
 }

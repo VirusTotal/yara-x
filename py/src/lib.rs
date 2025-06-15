@@ -163,7 +163,7 @@ impl Module {
         };
 
         let module_output = match module_output {
-            Some(output) => output.map_err(PyValueError::new_err)?,
+            Some(output) => output,
             None => return Ok(py.None().into_bound(py)),
         };
 

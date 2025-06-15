@@ -582,7 +582,7 @@ fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 fn main(
     data: &[u8],
     _meta: Option<&[u8]>,
-) -> Result<Macho, String> {
+) -> Result<Macho, ModuleError> {
     DYLIB_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
     ENTITLEMENT_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
     EXPORT_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);

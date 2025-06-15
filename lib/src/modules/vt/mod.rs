@@ -50,7 +50,7 @@ static SUBDOMAIN: LazyLock<i64> = LazyLock::new(|| {
 });
 
 #[module_main]
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<LiveHuntData, String> {
+fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<LiveHuntData, ModuleError> {
     Ok(LiveHuntData::new())
 }
 
