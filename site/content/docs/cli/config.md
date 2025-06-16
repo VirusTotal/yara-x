@@ -200,7 +200,7 @@ These options control the formatting of rules:
 The `[check]` section controls the behavior of the `check` command, which
 enforces standards on rule naming and metadata fields.
 
-### Rule name validation (`check.rule_name`)
+### Rule name validation
 
 ```toml
 [check.rule_name]
@@ -214,7 +214,7 @@ These options define constraints for rule names:
 - `error`: Determines whether a rule name violation is treated as an
   error (`true`) or just a warning (`false`).
 
-### Metadata validation (`check.metadata`)
+### Metadata validation
 
 Each entry in `check.metadata` is a table specifying the requirements for a
 metadata field.
@@ -254,7 +254,7 @@ metadata fields are optional by default, and if they don't comply with the
 requirements established in the configuration file YARA-X will raise a warning.
 By setting `error` to `true` these warnings are turned into errors.
 
-### Tag validation (`check.tags`)
+### Tag validation
 
 ```toml
 [check.tags]
@@ -276,6 +276,41 @@ If both `allowed` and `regexp` are specified the check command will use the
 The default value for `error` is `false`. This means that if tags do not comply
 with the requirements established in the configuration file YARA-X will raise a
 warning. By setting `error` to `true` these warnings are turned into errors.
+
+---
+
+## The [warnings] section
+
+{{< callout >}} 
+New in version 1.2.0 
+{{< /callout >}}
+
+The `[warnings]` section allows you to configure which warnings are shown when
+compiling your rules. 
+
+While you can disable specific warnings using the [`--disable-warnings`]({{< ref "commands.md" >}}#--disable-warnings) 
+command-line option, doing so for every invocation of the CLI becomes tedious.
+
+To simplify this, you can permanently disable specific warnings in your 
+configuration file:
+
+
+```toml
+[warnings]
+text_as_hex = { disabled = true }
+```
+
+In the example above, the `text_as_hex` warning is disabled globally for all
+CLI invocations. You can disable multiple warnings by listing them in the
+same section:
+
+```toml
+[warnings]
+text_as_hex = { disabled = true }
+unsatisfiable_expr = { disabled = true }
+```
+
+---
 
 ## Example file
 
@@ -304,4 +339,9 @@ date = { type = "integer" }
 [check.tags]
 allow_list = ["APT", "CRIME"]
 error = true
+
+[warnings]
+text_as_hex = { disabled = true }
+unsatisfiable_expr = { disabled = true }
+```
 ```

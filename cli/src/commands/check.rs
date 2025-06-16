@@ -11,7 +11,7 @@ use yansi::Paint;
 use yara_x::{linters, SourceCode};
 use yara_x_parser::ast::MetaValue;
 
-use crate::config::{CheckConfig, MetaValueType};
+use crate::config::{Config, MetaValueType};
 use crate::walk::Message;
 use crate::{help, walk};
 
@@ -61,10 +61,7 @@ fn is_md5(s: &str) -> bool {
     s.len() == 32 && s.chars().all(|c| c.is_ascii_hexdigit())
 }
 
-pub fn exec_check(
-    args: &ArgMatches,
-    config: CheckConfig,
-) -> anyhow::Result<()> {
+pub fn exec_check(args: &ArgMatches, config: Config) -> anyhow::Result<()> {
     let rules_path = args.get_one::<PathBuf>("RULES_PATH").unwrap();
     let max_depth = args.get_one::<u16>("max-depth");
     let filters = args.get_many::<String>("filter");
@@ -107,7 +104,7 @@ pub fn exec_check(
             let mut lines = Vec::new();
             let mut compiler = yara_x::Compiler::new();
 
-            for (identifier, config) in config.metadata.iter() {
+            for (identifier, config) in config.check.metadata.iter() {
                 let mut linter =
                     linters::metadata(identifier)
                         .required(config.required)
@@ -174,26 +171,28 @@ pub fn exec_check(
             }
 
             if let Some(re) = config
+                .check
                 .rule_name
                 .regexp
                 .as_ref()
                 .filter(|re| !re.is_empty()) {
                 compiler.add_linter(
-                    linters::rule_name(re)?.error(config.rule_name.error));
+                    linters::rule_name(re)?.error(config.check.rule_name.error));
             }
 
             // Prefer allowed list over the regex, as it is more explicit.
-            if !config.tags.allowed.is_empty() {
+            if !config.check.tags.allowed.is_empty() {
                 compiler.add_linter(
-                    linters::tags_allowed(config.tags.allowed.clone())
-                    .error(config.tags.error));
+                    linters::tags_allowed(config.check.tags.allowed.clone())
+                    .error(config.check.tags.error));
             } else if let Some(re) = config
+                .check
                 .tags
                 .regexp
                 .as_ref()
                 .filter(|re| !re.is_empty()) {
                 compiler.add_linter(
-                    linters::tag_regex(re)?.error(config.tags.error)
+                    linters::tag_regex(re)?.error(config.check.tags.error)
                 );
             }
 

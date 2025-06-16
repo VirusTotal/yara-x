@@ -7,6 +7,7 @@ use clap::{arg, value_parser, Arg, ArgAction, ArgMatches, Command};
 use crate::commands::{
     compile_rules, external_var_parser, path_with_namespace_parser,
 };
+use crate::config::Config;
 use crate::help;
 
 pub fn compile() -> Command {
@@ -68,7 +69,7 @@ pub fn compile() -> Command {
         )
 }
 
-pub fn exec_compile(args: &ArgMatches) -> anyhow::Result<()> {
+pub fn exec_compile(args: &ArgMatches, config: Config) -> anyhow::Result<()> {
     let rules_path = args
         .get_many::<(Option<String>, PathBuf)>("[NAMESPACE:]RULES_PATH")
         .unwrap();
@@ -79,7 +80,7 @@ pub fn exec_compile(args: &ArgMatches) -> anyhow::Result<()> {
         .get_many::<(String, serde_json::Value)>("define")
         .map(|var| var.cloned().collect());
 
-    let rules = compile_rules(rules_path, external_vars, args)?;
+    let rules = compile_rules(rules_path, external_vars, args, &config)?;
 
     let output_file = File::create(output_path).with_context(|| {
         format!("can not write `{}`", output_path.display())

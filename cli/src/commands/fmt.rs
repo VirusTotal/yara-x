@@ -6,7 +6,7 @@ use std::{fs, io, process};
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 use yara_x_fmt::Formatter;
 
-use crate::config::FormatConfig;
+use crate::config::Config;
 use crate::help::FMT_CHECK_MODE;
 
 pub fn fmt() -> Command {
@@ -22,25 +22,22 @@ pub fn fmt() -> Command {
         .arg(arg!(-c --check  "Run in 'check' mode").long_help(FMT_CHECK_MODE))
 }
 
-pub fn exec_fmt(
-    args: &ArgMatches,
-    config: FormatConfig,
-) -> anyhow::Result<()> {
+pub fn exec_fmt(args: &ArgMatches, config: Config) -> anyhow::Result<()> {
     let files = args.get_many::<PathBuf>("FILE").unwrap();
     let check = args.get_flag("check");
 
     let formatter = Formatter::new()
-        .align_metadata(config.meta.align_values)
-        .align_patterns(config.patterns.align_values)
-        .indent_section_headers(config.rule.indent_section_headers)
-        .indent_section_contents(config.rule.indent_section_contents)
-        .indent_spaces(config.rule.indent_spaces)
-        .newline_before_curly_brace(config.rule.newline_before_curly_brace)
+        .align_metadata(config.fmt.meta.align_values)
+        .align_patterns(config.fmt.patterns.align_values)
+        .indent_section_headers(config.fmt.rule.indent_section_headers)
+        .indent_section_contents(config.fmt.rule.indent_section_contents)
+        .indent_spaces(config.fmt.rule.indent_spaces)
+        .newline_before_curly_brace(config.fmt.rule.newline_before_curly_brace)
         .empty_line_before_section_header(
-            config.rule.empty_line_before_section_header,
+            config.fmt.rule.empty_line_before_section_header,
         )
         .empty_line_after_section_header(
-            config.rule.empty_line_after_section_header,
+            config.fmt.rule.empty_line_after_section_header,
         );
 
     let mut modified = false;

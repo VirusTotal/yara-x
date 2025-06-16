@@ -55,6 +55,40 @@ fn disable_warning() {
 }
 
 #[test]
+fn disable_warning_config_file() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_file = temp_dir.child("config.toml");
+
+    config_file
+        .write_str(
+            r#"
+            [warnings]
+            invariant_expr = { disabled = true }
+            "#,
+        )
+        .unwrap();
+
+    Command::cargo_bin("yr")
+        .unwrap()
+        .arg("--config")
+        .arg(config_file.path())
+        .arg("scan")
+        .arg("src/tests/testdata/true.yar")
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .stderr(
+            predicate::str::contains(
+                "warning[invariant_expr]: invariant boolean expression",
+            )
+            .not(),
+        )
+        .stdout(predicate::str::contains(
+            "always_true src/tests/testdata/dummy.file",
+        ));
+}
+
+#[test]
 fn print_strings() {
     Command::cargo_bin("yr")
         .unwrap()

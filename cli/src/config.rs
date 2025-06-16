@@ -8,18 +8,21 @@ use figment::{
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
-/// Configuration structure for "yr" commands.
-#[derive(Deserialize, Serialize, Debug)]
+/// Configuration for the CLI.
+#[derive(Deserialize, Serialize, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
-    /// Format specific configuration information.
+    /// Configuration for the `fmt` command.
     pub fmt: FormatConfig,
-    /// Check specific configuration information.
+    /// Configuration for the `check` command.
     pub check: CheckConfig,
+    /// Configuration for warnings. Keys are warning identifiers
+    /// and values are the configuration for that warning.
+    pub warnings: BTreeMap<String, WarningConfig>,
 }
 
-/// Format specific configuration information.
-#[derive(Deserialize, Serialize, Debug)]
+/// Configuration for the `fmt` command.
+#[derive(Deserialize, Serialize, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct FormatConfig {
     /// Rule specific formatting information.
@@ -69,7 +72,7 @@ pub enum MetaValueType {
     Hash,
 }
 
-/// Linter specific configuration information.
+/// Configuration for the `check` command.
 #[derive(Deserialize, Serialize, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct CheckConfig {
@@ -158,23 +161,35 @@ pub struct PatternsFormatConfig {
     pub align_values: bool,
 }
 
-impl Default for Config {
-    fn default() -> Config {
-        Config {
-            fmt: FormatConfig {
-                rule: RuleFormatConfig {
-                    indent_section_headers: true,
-                    indent_section_contents: true,
-                    indent_spaces: 2,
-                    newline_before_curly_brace: false,
-                    empty_line_before_section_header: true,
-                    empty_line_after_section_header: false,
-                },
-                meta: MetaFormatConfig { align_values: true },
-                patterns: PatternsFormatConfig { align_values: true },
-            },
-            check: CheckConfig::default(),
+/// Configuration for warnings.
+#[derive(Deserialize, Serialize, Debug, Default)]
+#[serde(deny_unknown_fields)]
+pub struct WarningConfig {
+    pub disabled: bool,
+}
+
+impl Default for RuleFormatConfig {
+    fn default() -> RuleFormatConfig {
+        RuleFormatConfig {
+            indent_section_headers: true,
+            indent_section_contents: true,
+            indent_spaces: 2,
+            newline_before_curly_brace: false,
+            empty_line_before_section_header: true,
+            empty_line_after_section_header: false,
         }
+    }
+}
+
+impl Default for MetaFormatConfig {
+    fn default() -> MetaFormatConfig {
+        MetaFormatConfig { align_values: true }
+    }
+}
+
+impl Default for PatternsFormatConfig {
+    fn default() -> PatternsFormatConfig {
+        PatternsFormatConfig { align_values: true }
     }
 }
 

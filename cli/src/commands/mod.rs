@@ -30,10 +30,10 @@ use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 use yansi::Color::Green;
 use yansi::Paint;
 
+use crate::config::Config;
+use crate::walk::Walker;
 use crate::{commands, help, APP_HELP_TEMPLATE};
 use yara_x::{Compiler, Rules, SourceCode};
-
-use crate::walk::Walker;
 
 pub fn command(name: &'static str) -> Command {
     Command::new(name).help_template(
@@ -150,11 +150,12 @@ fn existing_path_parser(input: &str) -> Result<PathBuf, anyhow::Error> {
     }
 }
 
-pub fn create_compiler(
+pub fn create_compiler<'a>(
     external_vars: Option<Vec<(String, serde_json::Value)>>,
     args: &ArgMatches,
-) -> Result<Compiler, anyhow::Error> {
-    let mut compiler: Compiler<'_> = Compiler::new();
+    config: &Config,
+) -> Result<Compiler<'a>, anyhow::Error> {
+    let mut compiler = Compiler::new();
 
     compiler
         .relaxed_re_syntax(
@@ -188,6 +189,11 @@ pub fn create_compiler(
         .unwrap_or_default()
         .into_iter()
         .flatten()
+        .chain(config.warnings.iter().filter_map(
+            |(warning_id, warning_config)| {
+                warning_config.disabled.then_some(warning_id)
+            },
+        ))
         .collect();
 
     // If the `disabled_warnings` vector contains "all", all warnings will
@@ -214,11 +220,12 @@ pub fn compile_rules<'a, P>(
     paths: P,
     external_vars: Option<Vec<(String, serde_json::Value)>>,
     args: &ArgMatches,
+    config: &Config,
 ) -> Result<Rules, anyhow::Error>
 where
     P: Iterator<Item = &'a (Option<String>, PathBuf)>,
 {
-    let mut compiler = create_compiler(external_vars, args)?;
+    let mut compiler = create_compiler(external_vars, args, config)?;
 
     let mut console =
         if stdout().is_tty() { SuperConsole::new() } else { None };
