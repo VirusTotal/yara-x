@@ -103,12 +103,17 @@ pub enum ScanError {
 }
 
 impl ScanError {
-    fn from_module_error(error: ModuleError, module_name: String) -> ScanError {
+    fn from_module_error(
+        error: ModuleError,
+        module_name: String,
+    ) -> ScanError {
         match error {
-            ModuleError::InternalError { err:e } =>
-                ScanError::ModuleInternalError { module: module_name, err: e },
-            ModuleError::MetadataError { err:e } =>
-                ScanError::ModuleMetadataError { module: module_name, err: e },
+            ModuleError::InternalError { err: e } => {
+                ScanError::ModuleInternalError { module: module_name, err: e }
+            }
+            ModuleError::MetadataError { err: e } => {
+                ScanError::ModuleMetadataError { module: module_name, err: e }
+            }
         }
     }
 }
@@ -709,9 +714,12 @@ impl<'r> Scanner<'r> {
                         Ok(ok) => {
                             module_output = Some(ok);
                         }
-                        Err(e) => return Err(ScanError::from_module_error(
-                            e, module_name.to_string()
-                        ))
+                        Err(e) => {
+                            return Err(ScanError::from_module_error(
+                                e,
+                                module_name.to_string(),
+                            ))
+                        }
                     }
                 } else {
                     module_output = None;

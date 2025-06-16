@@ -28,17 +28,17 @@ pub(crate) mod prelude {
 
 include!("modules.rs");
 
-/// Enum describing errors occured in modules.
+/// Enum describing errors occurred in modules.
 #[derive(Error, Debug)]
 pub enum ModuleError {
     /// Invalid format of module metadata.
-    #[error("invalid format of module metadata: {err}")] 
+    #[error("invalid format of module metadata: {err}")]
     MetadataError {
         /// Details about the error.
         err: String,
     },
     /// Error occurred when processing the input data.
-    #[error("error while processing module a input: {err}")] 
+    #[error("error while processing module a input: {err}")]
     InternalError {
         /// Details about the error.
         err: String,
@@ -46,7 +46,8 @@ pub enum ModuleError {
 }
 
 /// Type of module's main function.
-type MainFn = fn(&[u8], Option<&[u8]>) -> Result<Box<dyn MessageDyn>, ModuleError>;
+type MainFn =
+    fn(&[u8], Option<&[u8]>) -> Result<Box<dyn MessageDyn>, ModuleError>;
 
 /// Describes a YARA module.
 pub(crate) struct Module {
