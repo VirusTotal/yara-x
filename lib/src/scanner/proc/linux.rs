@@ -59,7 +59,7 @@ impl ProcessMapping {
             .open(&maps_path)
             .map_err(|err| ScanError::OpenError {
                 path: maps_path.to_path_buf(),
-                source: err,
+                err,
             })?;
         Ok(Self { maps_reader: BufReader::new(maps) })
     }
@@ -156,15 +156,15 @@ pub fn load_proc(pid: u32) -> Result<ScannedData<'static>, ScanError> {
         .iter()
         .map(|mapping| mapping.end - mapping.begin)
         .sum();
-    let mut process_memory =
-        MmapOptions::new().len(memory_size as usize).map_anon().map_err(
-            |err| ScanError::OpenError { path: "".into(), source: err },
-        )?;
+    let mut process_memory = MmapOptions::new()
+        .len(memory_size as usize)
+        .map_anon()
+        .map_err(|err| ScanError::OpenError { path: "".into(), err })?;
 
     let mems_path: PathBuf = format!("/proc/{pid}/mem").into();
     let mems =
         fs::OpenOptions::new().read(true).open(&mems_path).map_err(|err| {
-            ScanError::OpenError { path: mems_path.to_path_buf(), source: err }
+            ScanError::OpenError { path: mems_path.to_path_buf(), err }
         })?;
 
     let mut offset: u64 = 0;
