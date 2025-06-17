@@ -579,23 +579,15 @@ fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 }
 
 #[module_main]
-fn main(
-    data: &[u8],
-    _meta: Option<&[u8]>,
-) -> Result<Macho, ModuleError> {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Macho, ModuleError> {
     DYLIB_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
     ENTITLEMENT_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
     EXPORT_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
     IMPORT_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
     SYM_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
 
-    if data.is_empty() {
-        return Ok(Macho::new());
-    }
-
     match parser::MachO::parse(data) {
         Ok(macho) => Ok(macho.into()),
         Err(_) => Ok(Macho::new()),
     }
 }
-
