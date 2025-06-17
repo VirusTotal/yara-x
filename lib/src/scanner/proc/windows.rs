@@ -144,7 +144,7 @@ pub fn load_proc(pid: u32) -> Result<ScannedData<'static>, ScanError> {
     let mut process_memory = MmapOptions::new()
         .len(memory_size as usize)
         .map_anon()
-        .map_err(|err| ScanError::AnonMapError { source: err })?;
+        .map_err(|err| ScanError::AnonMapError { err })?;
     let mut offset = 0;
 
     for mbi in process_mappings {
@@ -165,6 +165,6 @@ pub fn load_proc(pid: u32) -> Result<ScannedData<'static>, ScanError> {
     Ok(ScannedData::Mmap(
         process_memory
             .make_read_only()
-            .map_err(|err| ScanError::AnonMapError { source: err })?,
+            .map_err(|err| ScanError::AnonMapError { err })?,
     ))
 }
