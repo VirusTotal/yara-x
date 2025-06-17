@@ -170,20 +170,24 @@ pub fn load_proc(pid: u32) -> Result<ScannedData<'static>, ScanError> {
     let mut offset: u64 = 0;
     for mapping in process_mappings {
         let size = mapping.end - mapping.begin;
-        let _ = mems.read_exact_at(
-            &mut process_memory[offset as usize..(offset + size) as usize],
-            mapping.begin,
-        );
-        offset += size;
+        if mems
+            .read_exact_at(
+                &mut process_memory[offset as usize..(offset + size) as usize],
+                mapping.begin,
+            )
+            .is_ok()
+        {
+            offset += size;
+        }
     }
 
     // let mut process_memory_iter =
     //     ProcessMemory::new(pid, process_mappings.iter(), &mut process_memory)?;
 
     Ok(ScannedData::Mmap(
-        process_memory.make_read_only().map_err(|err| {
-            ScanError::ProcessError { pid, source: Some(err) }
-        })?,
+        process_memory
+            .make_read_only()
+            .map_err(|err| ScanError::AnonMapError { err })?,
     ))
 }
 
