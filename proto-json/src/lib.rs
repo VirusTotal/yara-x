@@ -111,7 +111,6 @@ impl<W: Write> Serializer<W> {
                     '\n' => result.push_str(r"\n"),
                     '\r' => result.push_str(r"\r"),
                     '\t' => result.push_str(r"\t"),
-                    '\'' => result.push_str("\\\'"),
                     '"' => result.push_str("\\\""),
                     '\\' => result.push_str(r"\\"),
                     _ => result.push(c),

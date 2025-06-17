@@ -11,7 +11,7 @@
         },
         {
             "i32": 789,
-            "str": "foo\\bar",
+            "str": "foo's\\bar",
             "map_string_string": {
                 "foo\nbar": "bar"
             }
