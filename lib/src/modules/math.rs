@@ -8,9 +8,9 @@ use crate::modules::prelude::*;
 use crate::modules::protos::math::*;
 
 #[module_main]
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> Math {
+fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Math, ModuleError> {
     // Nothing to do, but we have to return our protobuf
-    Math::new()
+    Ok(Math::new())
 }
 
 #[module_export]
@@ -838,7 +838,7 @@ mod tests {
             import "math"
             rule test {
                 condition:
-                    math.to_string(1234) == "1234" 
+                    math.to_string(1234) == "1234"
             }"#,
             b""
         );
@@ -848,7 +848,7 @@ mod tests {
             import "math"
             rule test {
                 condition:
-                    math.to_string(-1) == "-1" 
+                    math.to_string(-1) == "-1"
             }"#,
             b""
         );
@@ -858,7 +858,7 @@ mod tests {
             import "math"
             rule test {
                 condition:
-                    math.to_string(32, 16) == "20" 
+                    math.to_string(32, 16) == "20"
             }"#,
             b""
         );
@@ -868,7 +868,7 @@ mod tests {
             import "math"
             rule test {
                 condition:
-                    math.to_string(32, 8) == "40" 
+                    math.to_string(32, 8) == "40"
             }"#,
             b""
         );
@@ -878,7 +878,7 @@ mod tests {
             import "math"
             rule test {
                 condition:
-                    math.to_string(32, 10) == "32" 
+                    math.to_string(32, 10) == "32"
             }"#,
             b""
         );
@@ -888,7 +888,7 @@ mod tests {
             import "math"
             rule test {
                 condition:
-                    not defined math.to_string(32, 7) 
+                    not defined math.to_string(32, 7)
             }"#,
             b""
         );
@@ -902,7 +902,7 @@ mod tests {
             rule test {
                 condition:
                     math.to_number(true) == 1 and
-                    math.to_number(false) == 0 
+                    math.to_number(false) == 0
             }"#,
             b""
         );

@@ -579,7 +579,7 @@ fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 }
 
 #[module_main]
-fn main(data: &[u8], _meta: Option<&[u8]>) -> Macho {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Macho, ModuleError> {
     DYLIB_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
     ENTITLEMENT_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
     EXPORT_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
@@ -587,7 +587,7 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Macho {
     SYM_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
 
     match parser::MachO::parse(data) {
-        Ok(macho) => macho.into(),
-        Err(_) => Macho::new(),
+        Ok(macho) => Ok(macho.into()),
+        Err(_) => Ok(Macho::new()),
     }
 }

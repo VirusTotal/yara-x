@@ -3,6 +3,8 @@ use protobuf::MessageDyn;
 use rustc_hash::FxHashMap;
 use std::sync::LazyLock;
 
+use thiserror::Error;
+
 pub mod protos {
     include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 }
@@ -26,8 +28,20 @@ pub(crate) mod prelude {
 
 include!("modules.rs");
 
+/// Enum describing errors occurred in modules.
+#[derive(Error, Debug)]
+pub enum ModuleError {
+    /// Invalid format of module metadata.
+    #[error("invalid metadata: {err}")]
+    MetadataError { err: String },
+    /// Error occurred when processing the input data.
+    #[error("internal error: {err}")]
+    InternalError { err: String },
+}
+
 /// Type of module's main function.
-type MainFn = fn(&[u8], Option<&[u8]>) -> Box<dyn MessageDyn>;
+type MainFn =
+    fn(&[u8], Option<&[u8]>) -> Result<Box<dyn MessageDyn>, ModuleError>;
 
 /// Describes a YARA module.
 pub(crate) struct Module {
@@ -250,7 +264,7 @@ pub mod mods {
                 module.root_struct_descriptor.full_name() == proto_name
             })?;
 
-        Some(module.main_fn?(data, meta))
+        module.main_fn?(data, meta).ok()
     }
 
     /// Invoke all YARA modules and return the data produced by them.

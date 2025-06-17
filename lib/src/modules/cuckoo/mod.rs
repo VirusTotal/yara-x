@@ -26,27 +26,26 @@ fn set_local(value: schema::CuckooJson) {
 }
 
 #[module_main]
-fn main(_data: &[u8], meta: Option<&[u8]>) -> Cuckoo {
-    let parsed = match meta {
-        None => Ok(schema::CuckooJson::default()),
-        Some(m) => serde_json::from_slice::<schema::CuckooJson>(m)
+fn main(_data: &[u8], meta: Option<&[u8]>) -> Result<Cuckoo, ModuleError> {
+    let meta = match meta {
+        None | Some([]) => {
+            set_local(schema::CuckooJson::default());
+            return Ok(Cuckoo::new());
+        }
+        Some(meta) => meta,
     };
 
-    match parsed {
+    match serde_json::from_slice::<schema::CuckooJson>(meta) {
         Ok(parsed) => {
             set_local(parsed);
         }
-        #[cfg(feature = "logging")]
         Err(e) => {
-            error!("can't parse cuckoo report: {}", e);
-        }
-        #[cfg(not(feature = "logging"))]
-        Err(_) => {
             set_local(schema::CuckooJson::default());
+            return Err(ModuleError::MetadataError { err: e.to_string() });
         }
     };
 
-    Cuckoo::new()
+    Ok(Cuckoo::new())
 }
 
 #[module_export(name = "network.dns_lookup")]

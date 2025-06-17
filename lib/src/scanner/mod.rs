@@ -30,7 +30,7 @@ use wasmtime::{
 
 use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
-use crate::modules::{Module, BUILTIN_MODULES};
+use crate::modules::{Module, ModuleError, BUILTIN_MODULES};
 use crate::scanner::matches::PatternMatches;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
@@ -75,7 +75,7 @@ pub enum ScanError {
     ProtoError {
         /// Module name.
         module: String,
-        /// Error that occurred
+        /// Error that occurred.
         err: protobuf::Error,
     },
     /// The module is unknown.
@@ -83,6 +83,14 @@ pub enum ScanError {
     UnknownModule {
         /// Module name.
         module: String,
+    },
+    /// Some module produced an error when it was invoked.
+    #[error("error in module `{module}`: {err}")]
+    ModuleError {
+        /// Module name.
+        module: String,
+        /// Error that occurred.
+        err: ModuleError,
     },
 }
 
@@ -662,21 +670,33 @@ impl<'r> Scanner<'r> {
 
             let root_struct_name = module.root_struct_descriptor.full_name();
 
+            let module_output;
             // If the user already provided some output for the module by
             // calling `Scanner::set_module_output`, use that output. If not,
             // call the module's main function (if the module has a main
             // function) for getting its output.
-            let module_output = if let Some(output) =
+            if let Some(output) =
                 ctx.user_provided_module_outputs.remove(root_struct_name)
             {
-                Some(output)
+                module_output = Some(output);
             } else {
-                let meta = options.as_ref().and_then(|options| {
-                    options.module_metadata.get(module_name).copied()
-                });
+                let meta: Option<&'opts [u8]> =
+                    options.as_ref().and_then(|options| {
+                        options.module_metadata.get(module_name).copied()
+                    });
 
-                module.main_fn.map(|main_fn| main_fn(data.as_ref(), meta))
-            };
+                if let Some(main_fn) = module.main_fn {
+                    module_output =
+                        Some(main_fn(data.as_ref(), meta).map_err(|err| {
+                            ScanError::ModuleError {
+                                module: module_name.to_string(),
+                                err,
+                            }
+                        })?);
+                } else {
+                    module_output = None;
+                }
+            }
 
             if let Some(module_output) = &module_output {
                 // Make sure that the module is returning a protobuf message of

@@ -27,10 +27,12 @@ thread_local!(
 );
 
 #[module_main]
-fn main(data: &[u8], _meta: Option<&[u8]>) -> ELF {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<ELF, ModuleError> {
     IMPORT_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
     TLSH_CACHE.with(|cache| *cache.borrow_mut() = None);
-    parser::ElfParser::new().parse(data).unwrap_or_else(|_| ELF::new())
+    parser::ElfParser::new()
+        .parse(data)
+        .map_err(|e| ModuleError::InternalError { err: e.to_string() })
 }
 
 #[module_export]
