@@ -28,11 +28,7 @@ fn set_local(value: schema::CuckooJson) {
 #[module_main]
 fn main(_data: &[u8], meta: Option<&[u8]>) -> Result<Cuckoo, ModuleError> {
     let meta = match meta {
-        None => {
-            set_local(schema::CuckooJson::default());
-            return Ok(Cuckoo::new());
-        }
-        Some(meta) if meta.is_empty() => {
+        None | Some([]) => {
             set_local(schema::CuckooJson::default());
             return Ok(Cuckoo::new());
         }
