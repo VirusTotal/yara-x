@@ -4852,7 +4852,6 @@ version = "1.1.0"
 dependencies = [
  "protobuf",
  "protobuf-codegen",
- "protobuf-parse",
 ]
 
 [[package]]
