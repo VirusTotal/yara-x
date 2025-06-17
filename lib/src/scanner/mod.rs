@@ -28,6 +28,8 @@ use wasmtime::{
     AsContext, AsContextMut, Global, GlobalType, MemoryType, Mutability,
     Store, TypedFunc, Val, ValType,
 };
+#[cfg(target_os = "windows")]
+use windows_result;
 
 use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
@@ -75,11 +77,12 @@ pub enum ScanError {
         err: std::io::Error,
     },
     /// Could not create anonymouse map for storing the scanned process memory.
-    #[error("can not map: {source}")]
+    #[error("can not map: {err}")]
     AnonMapError {
         /// Error that occurred.
-        source: std::io::Error,
+        err: std::io::Error,
     },
+    #[cfg(target_os = "windows")]
     /// Could not read memory of the scanned process.
     #[error("can not read memory of `{pid}`: {err}")]
     ProcessError {
