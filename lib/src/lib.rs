@@ -99,6 +99,7 @@ pub mod errors {
     //! crate.
     pub use crate::compiler::errors::*;
     pub use crate::compiler::InvalidWarningCode;
+    pub use crate::modules::ModuleError;
     pub use crate::scanner::ScanError;
     pub use crate::variables::VariableError;
 }

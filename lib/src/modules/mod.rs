@@ -30,6 +30,7 @@ include!("modules.rs");
 
 /// Enum describing errors occurred in modules.
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum ModuleError {
     /// Invalid format of module metadata.
     #[error("invalid metadata: {err}")]
