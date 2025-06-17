@@ -50,25 +50,26 @@ mod tests;
 
 /// Error returned when a scan operation fails.
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum ScanError {
     /// The scan was aborted after the timeout period.
     #[error("timeout")]
     Timeout,
     /// Could not open the scanned file.
-    #[error("can not open `{path}`: {source}")]
+    #[error("can not open `{path}`: {err}")]
     OpenError {
         /// Path of the file being scanned.
         path: PathBuf,
         /// Error that occurred.
-        source: std::io::Error,
+        err: std::io::Error,
     },
     /// Could not map the scanned file into memory.
-    #[error("can not map `{path}`: {source}")]
+    #[error("can not map `{path}`: {err}")]
     MapError {
         /// Path of the file being scanned.
         path: PathBuf,
         /// Error that occurred.
-        source: std::io::Error,
+        err: std::io::Error,
     },
     /// Could not deserialize the protobuf message for some YARA module.
     #[error("can not deserialize protobuf message for YARA module `{module}`: {err}")]
@@ -560,7 +561,7 @@ impl<'r> Scanner<'r> {
 impl<'r> Scanner<'r> {
     fn load_file(path: &Path) -> Result<ScannedData<'static>, ScanError> {
         let mut file = fs::File::open(path).map_err(|err| {
-            ScanError::OpenError { path: path.to_path_buf(), source: err }
+            ScanError::OpenError { path: path.to_path_buf(), err }
         })?;
 
         let size = file.metadata().map(|m| m.len()).unwrap_or(0);
@@ -573,16 +574,13 @@ impl<'r> Scanner<'r> {
         let data = if size < 500_000_000 {
             buffered_file = Vec::with_capacity(size as usize);
             file.read_to_end(&mut buffered_file).map_err(|err| {
-                ScanError::OpenError { path: path.to_path_buf(), source: err }
+                ScanError::OpenError { path: path.to_path_buf(), err }
             })?;
             ScannedData::Vec(buffered_file)
         } else {
             mapped_file = unsafe {
                 MmapOptions::new().map(&file).map_err(|err| {
-                    ScanError::MapError {
-                        path: path.to_path_buf(),
-                        source: err,
-                    }
+                    ScanError::MapError { path: path.to_path_buf(), err }
                 })
             }?;
             ScannedData::Mmap(mapped_file)
