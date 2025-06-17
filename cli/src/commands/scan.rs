@@ -479,13 +479,11 @@ pub fn exec_scan(args: &ArgMatches, config: Config) -> anyhow::Result<()> {
             let root_cause = err.root_cause().to_string();
             let msg = if error != root_cause {
                 format!(
-                    "{} {}: {}",
+                    "{}{error}: {root_cause}",
                     "error: ".paint(Red).bold(),
-                    error,
-                    root_cause,
                 )
             } else {
-                format!("{}: {}", "error: ".paint(Red).bold(), error)
+                format!("{}{error}", "error: ".paint(Red).bold())
             };
 
             let _ = output.send(Message::Error(msg));
