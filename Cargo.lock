@@ -4688,7 +4688,6 @@ dependencies = [
  "annotate-snippets",
  "anyhow",
  "array-bytes",
- "ascii_tree",
  "base64 0.22.1",
  "bincode",
  "bitflags 2.9.1",
