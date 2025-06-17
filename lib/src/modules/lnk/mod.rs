@@ -17,10 +17,8 @@ use crate::modules::protos::lnk::*;
 pub mod parser;
 
 #[module_main]
-fn main(
-    data: &[u8],
-    _meta: Option<&[u8]>,
-) -> Result<Lnk, ModuleError> {
-    parser::LnkParser::new().parse(data)
-        .map_err(|e| ModuleError::InternalError{err: e.to_string()})
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Lnk, ModuleError> {
+    parser::LnkParser::new()
+        .parse(data)
+        .map_err(|e| ModuleError::InternalError { err: e.to_string() })
 }

@@ -75,7 +75,7 @@ pub enum ScanError {
     ProtoError {
         /// Module name.
         module: String,
-        /// Error that occurred
+        /// Error that occurred.
         err: protobuf::Error,
     },
     /// The module is unknown.
@@ -84,38 +84,14 @@ pub enum ScanError {
         /// Module name.
         module: String,
     },
-    /// There is some error in module metadata.
-    #[error("cannot parse metadata for {module}: {err}")]
-    ModuleMetadataError {
+    /// Some module produced an error when it was invoked.
+    #[error("error in module `{module}`: {err}")]
+    ModuleError {
         /// Module name.
         module: String,
-        /// Details about the error.
-        err: String,
+        /// Error that occurred.
+        err: ModuleError,
     },
-    /// Some occured error during processing an input in a module.
-    #[error("error occured in module {module}: {err}")]
-    ModuleInternalError {
-        /// Module name.
-        module: String,
-        /// Details about the error.
-        err: String,
-    },
-}
-
-impl ScanError {
-    fn from_module_error(
-        error: ModuleError,
-        module_name: String,
-    ) -> ScanError {
-        match error {
-            ModuleError::InternalError { err: e } => {
-                ScanError::ModuleInternalError { module: module_name, err: e }
-            }
-            ModuleError::MetadataError { err: e } => {
-                ScanError::ModuleMetadataError { module: module_name, err: e }
-            }
-        }
-    }
 }
 
 /// Global counter that gets incremented every 1 second by a dedicated thread.
@@ -710,17 +686,13 @@ impl<'r> Scanner<'r> {
                     });
 
                 if let Some(main_fn) = module.main_fn {
-                    match main_fn(data.as_ref(), meta) {
-                        Ok(ok) => {
-                            module_output = Some(ok);
-                        }
-                        Err(e) => {
-                            return Err(ScanError::from_module_error(
-                                e,
-                                module_name.to_string(),
-                            ))
-                        }
-                    }
+                    module_output =
+                        Some(main_fn(data.as_ref(), meta).map_err(|err| {
+                            ScanError::ModuleError {
+                                module: module_name.to_string(),
+                                err,
+                            }
+                        })?);
                 } else {
                     module_output = None;
                 }

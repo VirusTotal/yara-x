@@ -32,17 +32,11 @@ include!("modules.rs");
 #[derive(Error, Debug)]
 pub enum ModuleError {
     /// Invalid format of module metadata.
-    #[error("invalid format of module metadata: {err}")]
-    MetadataError {
-        /// Details about the error.
-        err: String,
-    },
+    #[error("invalid metadata: {err}")]
+    MetadataError { err: String },
     /// Error occurred when processing the input data.
-    #[error("error while processing module a input: {err}")]
-    InternalError {
-        /// Details about the error.
-        err: String,
-    },
+    #[error("internal error: {err}")]
+    InternalError { err: String },
 }
 
 /// Type of module's main function.
