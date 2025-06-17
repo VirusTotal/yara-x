@@ -273,7 +273,6 @@ wasmtime = { workspace = true, default-features = false, features = [
     "runtime",
 ] }
 x509-parser = { workspace = true, optional = true }
-yansi = { workspace = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true, features = ["serde"] }
 
