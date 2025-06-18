@@ -202,8 +202,8 @@ impl WasmModuleBuilder {
 
         // The first instructions in the main function initialize the global
         // variables `pattern_search_done`.
-        main_func.func_body().i32_const(0);
-        main_func.func_body().global_set(pattern_search_done);
+        // main_func.func_body().i32_const(0);
+        // main_func.func_body().global_set(pattern_search_done);
 
         let namespace_block = namespace_func.dangling_instr_seq(None).id();
 

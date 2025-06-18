@@ -1,5 +1,5 @@
 #[cfg(target_os = "linux")]
-pub use linux::load_proc;
+pub use linux::{ProcessMapping, ProcessMemory};
 #[cfg(target_os = "windows")]
 pub use windows::load_proc;
 
