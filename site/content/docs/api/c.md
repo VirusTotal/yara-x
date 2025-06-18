@@ -71,7 +71,7 @@ Windows users will find all the files needed for importing YARA-X in the
 `target/x86_64-pc-windows-msvc/release` directory. This includes:
 
 * A header file `yara_x.h`
-* A [module definition file]() `yara_x_capi.def`
+* A [module definition file](https://learn.microsoft.com/en-us/cpp/build/reference/module-definition-dot-def-files) `yara_x_capi.def`
 * A DLL file `yara_x_capi.dll` with its corresponding import
   library `yara_x_capi.dll.lib`
 * A static library `yara_x_capi.lib`
