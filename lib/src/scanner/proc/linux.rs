@@ -1,22 +1,68 @@
 use std::fs;
 use std::io::{prelude::*, BufReader};
-use std::os::unix::fs::FileExt;
+use std::os::unix::fs::{FileExt, MetadataExt};
 use std::path::PathBuf;
 
+use bitflags::bitflags;
 use itertools::Itertools;
-use memmap2::MmapOptions;
+use memmap2::{Mmap, MmapOptions};
 
 use crate::scanner::{ScanError, ScannedData};
+
+bitflags! {
+    pub struct Perms: u8 {
+        const READ = 0b00000001;
+        const WRITE = 0b00000010;
+        const EXECUTE = 0b00000100;
+        const SHARED = 0b00001000;
+    }
+}
 
 pub struct Mapping {
     begin: u64,
     end: u64,
-    perms: String,
+    perms: Perms,
     offset: u64,
     dmaj: u8,
     dmin: u8,
     inode: u64,
-    path: String,
+    pathname: String,
+}
+
+impl Mapping {
+    fn open_backing_file(&self) -> Option<fs::File> {
+        if (self.pathname.len() == 0) || ((self.dmaj == 0) && (self.dmin == 0))
+        {
+            return None;
+        }
+        let meta = fs::metadata(&self.pathname).ok()?;
+        let dev = meta.dev();
+
+        if (libc::major(dev) != self.dmaj as u32)
+            || (libc::minor(dev) != self.dmin as u32)
+            || (meta.ino() != self.inode)
+            || (meta.size() < self.offset)
+            || ((meta.mode() & libc::S_IFMT) != libc::S_IFREG)
+        {
+            return None;
+        }
+
+        let file =
+            fs::OpenOptions::new().read(true).open(&self.pathname).ok()?;
+        let meta = file.metadata().ok()?;
+        let dev = meta.dev();
+
+        if (libc::major(dev) != self.dmaj as u32)
+            || (libc::minor(dev) != self.dmin as u32)
+            || (meta.ino() != self.inode)
+            || (meta.size() < self.offset)
+            || ((meta.mode() & libc::S_IFMT) != libc::S_IFREG)
+        {
+            return None;
+        }
+
+        Some(file)
+    }
 }
 
 // Each row in /proc/$PID/maps describes a region of contiguous virtual
@@ -25,7 +71,7 @@ pub struct Mapping {
 // address           perms offset  dev   inode   pathname
 // 08048000-08056000 r-xp 00000000 03:0c 64593   /usr/sbin/gpm
 fn parse_map_line(line: &str) -> Option<Mapping> {
-    let (address, perms, offset, dev, inode, path) =
+    let (address, str_perms, offset, dev, inode, pathname) =
         line.splitn(6, " ").next_tuple()?;
     let offset = u64::from_str_radix(offset, 16).ok()?;
     let inode = u64::from_str_radix(inode, 16).ok()?;
@@ -35,15 +81,32 @@ fn parse_map_line(line: &str) -> Option<Mapping> {
     let (dmaj, dmin) = dev.split(":").next_tuple()?;
     let dmaj = u8::from_str_radix(dmaj, 16).ok()?;
     let dmin = u8::from_str_radix(dmin, 16).ok()?;
+    let str_perms = str_perms.bytes().collect_vec();
+    if str_perms.len() != 4 {
+        return None;
+    }
+    let mut perms = Perms::empty();
+    if str_perms[0] == b'r' {
+        perms |= Perms::READ;
+    }
+    if str_perms[1] == b'w' {
+        perms |= Perms::WRITE;
+    }
+    if str_perms[2] == b'x' {
+        perms |= Perms::EXECUTE;
+    }
+    if str_perms[3] == b's' {
+        perms |= Perms::SHARED;
+    }
     Some(Mapping {
         begin,
         end,
-        perms: perms.to_string(),
+        perms,
         offset,
         dmaj,
         dmin,
         inode,
-        path: path.to_string(),
+        pathname: pathname.to_string(),
     })
 }
 
@@ -83,49 +146,118 @@ impl Iterator for ProcessMapping {
 }
 
 pub struct ProcessMemory {
-    mappings: ProcessMapping,
-    mems: fs::File,
+    maps: ProcessMapping,
+    mem: fs::File,
+    pagemap: fs::File,
     start: u64,
     end: u64,
+    pagesize: u64,
+}
+
+pub enum MemRegion {
+    Buffer(u64),
+    Mmap(Mmap),
 }
 
 impl ProcessMemory {
-    pub fn new(pid: u32, mappings: ProcessMapping) -> Result<Self, ScanError> {
-        let mems_path: PathBuf = format!("/proc/{pid}/mem").into();
-        let mems = fs::OpenOptions::new()
+    pub fn new(pid: u32, mapping: ProcessMapping) -> Result<Self, ScanError> {
+        let mem_path: PathBuf = format!("/proc/{pid}/mem").into();
+        let mem = fs::OpenOptions::new().read(true).open(&mem_path).map_err(
+            |err| ScanError::OpenError { path: mem_path.to_path_buf(), err },
+        )?;
+
+        let pagemap_path: PathBuf = format!("/proc/{pid}/pagemap").into();
+        let pagemap = fs::OpenOptions::new()
             .read(true)
-            .open(&mems_path)
+            .open(&pagemap_path)
             .map_err(|err| ScanError::OpenError {
-                path: mems_path.to_path_buf(),
+                path: pagemap_path.to_path_buf(),
                 err,
             })?;
 
-        Ok(Self { mappings, mems, start: 0, end: 0 })
+        Ok(Self {
+            maps: mapping,
+            mem,
+            pagemap,
+            start: 0,
+            end: 0,
+            pagesize: unsafe { libc::sysconf(libc::_SC_PAGE_SIZE) }
+                .try_into()
+                .unwrap_or(4096),
+        })
     }
 
-    pub fn next(&mut self, buffer: &mut [u8]) -> Option<u64> {
+    pub fn next(&mut self, buffer: &mut [u8]) -> Option<MemRegion> {
         if self.start < self.end {
             let size =
                 std::cmp::min(self.end - self.start, buffer.len() as u64);
+            self.mem
+                .read_exact_at(&mut buffer[0..size as usize], self.start)
+                .ok()?;
             self.start += size;
-        }
-        if self.start < self.end {
-            let size =
-                std::cmp::min(self.end - self.start, buffer.len() as u64);
-            let _ = self
-                .mems
-                .read_exact_at(&mut buffer[0..size as usize], self.start);
-            return Some(size);
+            return Some(MemRegion::Buffer(size));
         } else {
-            while let Some(mapping_desc) = self.mappings.next() {
-                self.start = mapping_desc.begin;
-                self.end = mapping_desc.end;
-                let size =
-                    std::cmp::min(self.end - self.start, buffer.len() as u64);
-                let _ = self
-                    .mems
-                    .read_exact_at(&mut buffer[0..size as usize], self.start);
-                return Some(size);
+            while let Some(map) = self.maps.next() {
+                if !map.perms.contains(Perms::READ) {
+                    continue;
+                }
+                match map
+                    .open_backing_file()
+                    .map(|file| unsafe {
+                        MmapOptions::new()
+                            .offset(map.offset)
+                            .map_mut(&file)
+                            .ok()
+                    })
+                    .flatten()
+                {
+                    Some(mut mapped_file) => {
+                        let size = self.end - self.start;
+                        let mut pagemap: Vec<u64> = Vec::with_capacity(
+                            size.div_ceil(self.pagesize) as usize,
+                        );
+                        self.pagemap
+                            .read_exact_at(
+                                unsafe { pagemap.align_to_mut() }.1,
+                                map.offset,
+                            )
+                            .ok()?;
+
+                        for (index, detail) in pagemap.iter().enumerate() {
+                            if (detail >> 61) == 0 {
+                                continue;
+                            }
+
+                            let start = index * self.pagesize as usize;
+                            self.mem
+                                .read_exact_at(
+                                    &mut mapped_file[start
+                                        ..start + self.pagesize as usize],
+                                    map.begin + start as u64,
+                                )
+                                .ok()?;
+                        }
+                        return mapped_file
+                            .make_read_only()
+                            .ok()
+                            .map(|mmap| MemRegion::Mmap(mmap));
+                    }
+                    None => {
+                        self.start = map.begin;
+                        self.end = map.end;
+                        let size = std::cmp::min(
+                            self.end - self.start,
+                            buffer.len() as u64,
+                        );
+                        self.mem
+                            .read_exact_at(
+                                &mut buffer[0..size as usize],
+                                self.start,
+                            )
+                            .ok()?;
+                        return Some(MemRegion::Buffer(size));
+                    }
+                }
             }
         }
         None
@@ -134,7 +266,7 @@ impl ProcessMemory {
 
 pub fn load_proc(pid: u32) -> Result<ScannedData<'static>, ScanError> {
     let process_mappings = ProcessMapping::new(pid)?
-        .filter(|mapping| mapping.perms.starts_with("r"))
+        .filter(|mapping| mapping.perms.contains(Perms::READ))
         .collect_vec();
     let memory_size: u64 = process_mappings
         .iter()
