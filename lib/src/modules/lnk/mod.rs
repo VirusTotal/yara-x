@@ -18,7 +18,12 @@ pub mod parser;
 
 #[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Lnk, ModuleError> {
-    parser::LnkParser::new()
-        .parse(data)
-        .map_err(|e| ModuleError::InternalError { err: e.to_string() })
+    match parser::LnkParser::new().parse(data) {
+        Ok(lnk) => Ok(lnk),
+        Err(_) => {
+            let mut lnk = Lnk::new();
+            lnk.is_lnk = Some(false);
+            Ok(lnk)
+        }
+    }
 }
