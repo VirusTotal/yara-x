@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::mem;
 use std::num::NonZeroUsize;
 
@@ -119,53 +120,56 @@ impl LnkParser {
         //               [COMMAND_LINE_ARGUMENTS] [ICON_LOCATION]
         (input, self.result.name) = cond(
             link_flags & Self::HAS_NAME != 0,
-            Self::parse_string_data(unicode),
+            Self::parse_string_data(unicode, Some(260)),
         )
         .parse(input)?;
 
         (input, self.result.relative_path) = cond(
             link_flags & Self::HAS_RELATIVE_PATH != 0,
-            Self::parse_string_data(unicode),
+            Self::parse_string_data(unicode, Some(260)),
         )
         .parse(input)?;
 
         (input, self.result.working_dir) = cond(
             link_flags & Self::HAS_WORKING_DIR != 0,
-            Self::parse_string_data(unicode),
+            Self::parse_string_data(unicode, Some(260)),
         )
         .parse(input)?;
 
         (input, self.result.cmd_line_args) = cond(
             link_flags & Self::HAS_ARGUMENTS != 0,
-            Self::parse_string_data(unicode),
+            Self::parse_string_data(unicode, None),
         )
         .parse(input)?;
 
         (input, self.result.icon_location) = cond(
             link_flags & Self::HAS_ICON_LOCATION != 0,
-            Self::parse_string_data(unicode),
+            Self::parse_string_data(unicode, Some(260)),
         )
         .parse(input)?;
 
         // Parse the extra data.
         //
         // EXTRA_DATA = *EXTRA_DATA_BLOCK TERMINAL_BLOCK
-        let (overlay, _) = many_till(
+        let overlay = many_till(
             self.parse_extra_data_block(),
             // The terminal block has size < 4.
             verify(le_u32, |block_size| *block_size < 4),
         )
-        .parse(input)?;
+        .parse(input)
+        .map(|(overlay, _)| overlay);
 
-        // Any remaining data is outside the specification and its considered
-        // an overlay. The field `overlay_offset` is initialized only if there
-        // is some overlay.
-        if !overlay.is_empty() {
-            self.result.overlay_offset =
-                Some((total_size - overlay.len()).try_into().unwrap());
+        if let Ok(overlay) = overlay {
+            // Any remaining data is outside the specification and its considered
+            // an overlay. The field `overlay_offset` is initialized only if there
+            // is some overlay.
+            if !overlay.is_empty() {
+                self.result.overlay_offset =
+                    Some((total_size - overlay.len()).try_into().unwrap());
+            }
+
+            self.result.overlay_size = overlay.len().try_into().ok();
         }
-
-        self.result.overlay_size = overlay.len().try_into().ok();
 
         Ok(mem::take(&mut self.result))
     }
@@ -441,9 +445,23 @@ impl LnkParser {
 
     fn parse_string_data(
         unicode: bool,
+        max_len: Option<u16>,
     ) -> impl FnMut(&[u8]) -> IResult<&[u8], String> {
         move |input: &[u8]| {
-            let (string, length) = le_u16(input)?;
+            let (string, mut length) = le_u16(input)?;
+
+            // Microsoft doesn't follow its own specification and limits the
+            // length of strings to 260 characters in some cases. That's why
+            // this function takes an optional argument `max_len`. If a max
+            // length is specified it is used for limiting the length of the
+            // string.
+            // See:
+            // https://github.com/VirusTotal/yara-x/issues/379
+            // https://harfanglab.io/insidethelab/sadfuture-xdspy-latest-evolution/
+            // https://github.com/Matmaus/LnkParse3/commit/992d064b2b5ef9cc1460e94cad7232a2e2bf0ce0
+            if let Some(max_len) = max_len {
+                length = min(length, max_len);
+            }
 
             let length =
                 if unicode { length as usize * 2 } else { length as usize };
