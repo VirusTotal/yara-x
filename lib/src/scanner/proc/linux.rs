@@ -8,7 +8,7 @@ use memmap2::MmapOptions;
 
 use crate::scanner::{ScanError, ScannedData};
 
-struct Mapping {
+pub struct Mapping {
     begin: u64,
     end: u64,
     perms: String,
@@ -47,7 +47,7 @@ fn parse_map_line(line: &str) -> Option<Mapping> {
     })
 }
 
-struct ProcessMapping {
+pub struct ProcessMapping {
     maps_reader: BufReader<fs::File>,
 }
 
@@ -82,71 +82,55 @@ impl Iterator for ProcessMapping {
     }
 }
 
-// struct ProcessMemory<'a, T> {
-//     mappings: T,
-//     mems: fs::File,
-//     buffer: &'a mut [u8],
-//     offset: u64,
-//     start: u64,
-//     end: u64,
-// }
-//
-// impl<'a, T> ProcessMemory<'a, T> {
-//     pub fn new(
-//         pid: u32,
-//         mappings: T,
-//         buffer: &'a mut [u8],
-//     ) -> Result<Self, ScanError> {
-//         let mems_path: PathBuf = format!("/proc/{pid}/mem").into();
-//         let mems = fs::OpenOptions::new()
-//             .read(true)
-//             .open(&mems_path)
-//             .map_err(|err| ScanError::OpenError {
-//                 path: mems_path.to_path_buf(),
-//                 source: err,
-//             })?;
-//
-//         Ok(Self { mappings, mems, buffer, offset: 0, start: 0, end: 0 })
-//     }
-// }
-//
-// impl<'a, T> Iterator for ProcessMemory<'a, T>
-// where
-//     T: Iterator<Item = Mapping>,
-// {
-//     type Item = ();
-//
-//     fn next(self: &mut Self) -> Option<Self::Item> {
-//         if self.start < self.end {
-//             let size =
-//                 std::cmp::min(self.end - self.start, self.buffer.len() as u64);
-//             self.start += size;
-//         }
-//         if self.start < self.end {
-//             let size =
-//                 std::cmp::min(self.end - self.start, self.buffer.len() as u64);
-//             let _ = self
-//                 .mems
-//                 .read_exact_at(&mut self.buffer[0..size as usize], self.start);
-//             return Some(());
-//         } else {
-//             while let Some(mapping_desc) = self.mappings.next() {
-//                 self.start = mapping_desc.begin;
-//                 self.end = mapping_desc.end;
-//                 let size = std::cmp::min(
-//                     self.end - self.start,
-//                     self.buffer.len() as u64,
-//                 );
-//                 let _ = self.mems.read_exact_at(
-//                     &mut self.buffer[0..size as usize],
-//                     self.start,
-//                 );
-//                 return Some(());
-//             }
-//         }
-//         return None;
-//     }
-// }
+pub struct ProcessMemory {
+    mappings: ProcessMapping,
+    mems: fs::File,
+    start: u64,
+    end: u64,
+}
+
+impl ProcessMemory {
+    pub fn new(pid: u32, mappings: ProcessMapping) -> Result<Self, ScanError> {
+        let mems_path: PathBuf = format!("/proc/{pid}/mem").into();
+        let mems = fs::OpenOptions::new()
+            .read(true)
+            .open(&mems_path)
+            .map_err(|err| ScanError::OpenError {
+                path: mems_path.to_path_buf(),
+                err,
+            })?;
+
+        Ok(Self { mappings, mems, start: 0, end: 0 })
+    }
+
+    pub fn next(&mut self, buffer: &mut [u8]) -> Option<u64> {
+        if self.start < self.end {
+            let size =
+                std::cmp::min(self.end - self.start, buffer.len() as u64);
+            self.start += size;
+        }
+        if self.start < self.end {
+            let size =
+                std::cmp::min(self.end - self.start, buffer.len() as u64);
+            let _ = self
+                .mems
+                .read_exact_at(&mut buffer[0..size as usize], self.start);
+            return Some(size);
+        } else {
+            while let Some(mapping_desc) = self.mappings.next() {
+                self.start = mapping_desc.begin;
+                self.end = mapping_desc.end;
+                let size =
+                    std::cmp::min(self.end - self.start, buffer.len() as u64);
+                let _ = self
+                    .mems
+                    .read_exact_at(&mut buffer[0..size as usize], self.start);
+                return Some(size);
+            }
+        }
+        None
+    }
+}
 
 pub fn load_proc(pid: u32) -> Result<ScannedData<'static>, ScanError> {
     let process_mappings = ProcessMapping::new(pid)?

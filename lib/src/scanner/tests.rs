@@ -769,7 +769,7 @@ fn scan_proc() {
         r#"
     rule slow {
       strings:
-        $a = "aaba"
+        $a = "A very unique string that is unlikley to be present inside of a process (unless the process being scanned is the process scanning)"
       condition: 
         $a
     }
@@ -781,6 +781,33 @@ fn scan_proc() {
     let scan_results = scanner.scan_proc(process::id()).unwrap();
 
     assert_eq!(scan_results.matching_rules().len(), 1);
+
+    // let scan_results = scanner
+    //     .scan_file_with_options(
+    //         "src/tests/testdata/jumps.bin",
+    //         ScanOptions::default(),
+    //     )
+    //     .unwrap();
+    //
+    // assert_eq!(scan_results.matching_rules().len(), 1)
+}
+
+#[test]
+fn scan_proc_with_offset_dependent_condition() {
+    let rules = crate::compile(
+        r#"
+    rule slow {
+      condition:
+        uint8(0) >= 0
+    }
+    "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    let scan_results = scanner.scan_proc(process::id()).unwrap();
+
+    assert_eq!(scan_results.matching_rules().len(), 0);
 
     // let scan_results = scanner
     //     .scan_file_with_options(

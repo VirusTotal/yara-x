@@ -35,7 +35,7 @@ use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
 use crate::modules::{Module, ModuleError, BUILTIN_MODULES};
 use crate::scanner::matches::PatternMatches;
-use crate::scanner::proc::load_proc;
+use crate::scanner::proc::{ProcessMapping, ProcessMemory};
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
@@ -189,6 +189,7 @@ pub struct Scanner<'r> {
     wasm_store: Pin<Box<Store<ScanContext<'static>>>>,
     wasm_main_func: TypedFunc<(), i32>,
     filesize: Global,
+    pattern_search_done: Global,
     timeout: Option<Duration>,
 }
 
@@ -342,7 +343,14 @@ impl<'r> Scanner<'r> {
 
         wasm_store.data_mut().main_memory = Some(main_memory);
 
-        Self { rules, wasm_store, wasm_main_func, filesize, timeout: None }
+        Self {
+            rules,
+            wasm_store,
+            wasm_main_func,
+            filesize,
+            pattern_search_done,
+            timeout: None,
+        }
     }
 
     /// Sets a timeout for scan operations.
@@ -406,7 +414,10 @@ impl<'r> Scanner<'r> {
         &'a mut self,
         target: u32,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_impl(load_proc(target)?, None)
+        self.scan_many_impl(
+            ProcessMemory::new(target, ProcessMapping::new(target)?)?,
+            None,
+        )
     }
 
     /// Like [`Scanner::scan`], but allows to specify additional scan options.
@@ -438,7 +449,10 @@ impl<'r> Scanner<'r> {
         target: u32,
         options: ScanOptions<'opts>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_impl(load_proc(target)?, Some(options))
+        self.scan_many_impl(
+            ProcessMemory::new(target, ProcessMapping::new(target)?)?,
+            Some(options),
+        )
     }
 
     /// Sets the value of a global variable.
@@ -713,6 +727,11 @@ impl<'r> Scanner<'r> {
             )
             .unwrap();
 
+        // Set the global variable `pattern_search_done` to false.
+        self.pattern_search_done
+            .set(self.wasm_store.as_context_mut(), Val::I32(0))
+            .unwrap();
+
         let ctx = self.scan_context_mut();
 
         ctx.deadline =
@@ -903,6 +922,302 @@ impl<'r> Scanner<'r> {
 
         match func_result {
             Ok(0) => Ok(ScanResults::new(self.scan_context(), data)),
+            Ok(v) => panic!("WASM main returned: {}", v),
+            Err(err) if err.is::<ScanError>() => {
+                Err(err.downcast::<ScanError>().unwrap())
+            }
+            Err(err) => panic!(
+                "unexpected error while executing WASM main function: {}",
+                err
+            ),
+        }
+    }
+
+    fn scan_many_impl<'a, 'opts>(
+        &'a mut self,
+        mut data_iter: ProcessMemory,
+        options: Option<ScanOptions<'opts>>,
+    ) -> Result<ScanResults<'a, 'r>, ScanError> {
+        // Clear information about matches found in a previous scan, if any.
+        self.reset();
+
+        // Timeout in seconds. This is either the value provided by the user or
+        // 315.360.000 which is the number of seconds in a year. Using u64::MAX
+        // doesn't work because this value is added to the current epoch, and
+        // will cause an overflow. We need an integer large enough, but that
+        // has room before the u64 limit is reached. For this same reason if
+        // the user specifies a value larger than 315.360.000 we limit it to
+        // 315.360.000 anyway. One year should be enough, I hope you don't plan
+        // to run a YARA scan that takes longer.
+        let timeout_secs =
+            self.timeout.map_or(Self::DEFAULT_SCAN_TIMEOUT, |t| {
+                cmp::min(
+                    t.as_secs_f32().ceil() as u64,
+                    Self::DEFAULT_SCAN_TIMEOUT,
+                )
+            });
+
+        // Sets the deadline for the WASM store. The WASM main function will
+        // abort if the deadline is reached while the function is being
+        // executed.
+        self.wasm_store.set_epoch_deadline(timeout_secs);
+        self.wasm_store
+            .epoch_deadline_callback(|_| Err(ScanError::Timeout.into()));
+
+        // If the user specified some timeout, start the heartbeat thread, if
+        // not previously started. The heartbeat thread increments the WASM
+        // engine epoch and HEARTBEAT_COUNTER every second. There's a single
+        // instance of this thread, independently of the number of concurrent
+        // scans.
+        if self.timeout.is_some() {
+            INIT_HEARTBEAT.call_once(|| {
+                thread::spawn(|| loop {
+                    thread::sleep(Duration::from_secs(1));
+                    crate::wasm::ENGINE.increment_epoch();
+                    HEARTBEAT_COUNTER
+                        .fetch_update(
+                            Ordering::SeqCst,
+                            Ordering::SeqCst,
+                            |x| Some(x + 1),
+                        )
+                        .unwrap();
+                });
+            });
+        }
+
+        let ctx = self.wasm_store.data_mut();
+        ctx.deadline =
+            HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
+
+        let mut buffer = [0; 0x1000];
+
+        while let Some(size) = data_iter.next(&mut buffer) {
+            let data = &buffer[0..size as usize];
+            // Set the global variable `filesize` to the size of the scanned data.
+            self.filesize
+                .set(
+                    self.wasm_store.as_context_mut(),
+                    Val::I64(data.len() as i64),
+                )
+                .unwrap();
+
+            let ctx = self.wasm_store.data_mut();
+
+            ctx.scanned_data = data.as_ptr();
+            ctx.scanned_data_len = data.len();
+
+            // Free all runtime objects left around by previous scans.
+            ctx.runtime_objects.clear();
+
+            _ = ctx.search_for_patterns();
+        }
+
+        self.pattern_search_done
+            .set(self.wasm_store.as_context_mut(), Val::I32(1))
+            .unwrap();
+
+        let ctx = self.wasm_store.data_mut();
+
+        // Save the time in which the evaluation of rules started.
+        #[cfg(feature = "rules-profiling")]
+        {
+            ctx.rule_execution_start_time = ctx.clock.raw();
+        }
+
+        // Set the scanned_data to be zero sized. This ensures things like `uint32(0)` will return
+        // undefined (This is different in behaviour to the original yara, where a `uint32(0) would
+        // trigger a refetch).
+        ctx.scanned_data = [0; 0].as_ptr();
+        ctx.scanned_data_len = 0;
+
+        for module_name in ctx.compiled_rules.imports() {
+            // Lookup the module in the list of built-in modules.
+            let module =
+                modules::BUILTIN_MODULES.get(module_name).unwrap_or_else(
+                    || panic!("module `{}` not found", module_name),
+                );
+
+            let root_struct_name = module.root_struct_descriptor.full_name();
+
+            let module_output;
+            // If the user already provided some output for the module by
+            // calling `Scanner::set_module_output`, use that output. If not,
+            // call the module's main function (if the module has a main
+            // function) for getting its output.
+            if let Some(output) =
+                ctx.user_provided_module_outputs.remove(root_struct_name)
+            {
+                module_output = Some(output);
+            } else {
+                // NOTE: not scanning the modules since their is no data, might be worth it
+                // to scan each section until Some is returned (more similar to the
+                // behaviour of yara)
+                //
+                // let meta: Option<&'opts [u8]> =
+                //     options.as_ref().and_then(|options| {
+                //         options.module_metadata.get(module_name).copied()
+                //     });
+                //
+                // if let Some(main_fn) = module.main_fn {
+                //     module_output =
+                //         Some(main_fn(data.as_ref(), meta).map_err(|err| {
+                //             ScanError::ModuleError {
+                //                 module: module_name.to_string(),
+                //                 err,
+                //             }
+                //         })?);
+                // } else {
+                //     module_output = None;
+                // }
+                module_output = None;
+            }
+
+            if let Some(module_output) = &module_output {
+                // Make sure that the module is returning a protobuf message of
+                // the expected type.
+                debug_assert_eq!(
+                    module_output.descriptor_dyn().full_name(),
+                    module.root_struct_descriptor.full_name(),
+                    "main function of module `{}` must return `{}`, but returned `{}`",
+                    module_name,
+                    module.root_struct_descriptor.full_name(),
+                    module_output.descriptor_dyn().full_name(),
+                );
+
+                // Make sure that the module is returning a protobuf message
+                // where all required fields are initialized. This only applies
+                // to proto2, proto3 doesn't have "required" fields, all fields
+                // are optional.
+                debug_assert!(
+                    module_output.is_initialized_dyn(),
+                    "module `{}` returned a protobuf `{}` where some required fields are not initialized ",
+                    module_name,
+                    module.root_struct_descriptor.full_name()
+                );
+            }
+
+            // When constant folding is enabled we don't need to generate
+            // structure fields for enums. This is because during the
+            // optimization process symbols like MyEnum.ENUM_ITEM are resolved
+            // to their constant values at compile time. In other words, the
+            // compiler determines that MyEnum.ENUM_ITEM is equal to some value
+            // X, and uses that value in the generated code.
+            //
+            // However, without constant folding, enums are treated as any
+            // other field in a struct, and their values are determined at scan
+            // time. For that reason these fields must be generated for enums
+            // when constant folding is disabled.
+            let generate_fields_for_enums =
+                !cfg!(feature = "constant-folding");
+
+            let module_struct = Struct::from_proto_descriptor_and_msg(
+                &module.root_struct_descriptor,
+                module_output.as_deref(),
+                generate_fields_for_enums,
+            );
+
+            if let Some(module_output) = module_output {
+                ctx.module_outputs
+                    .insert(root_struct_name.to_string(), module_output);
+            }
+
+            // The data structure obtained from the module is added to the
+            // root structure. Any data from previous scans will be replaced
+            // with the new data structure.
+            ctx.root_struct.add_field(
+                module_name,
+                TypeValue::Struct(Rc::new(module_struct)),
+            );
+        }
+
+        // Invoke the main function, which evaluates the rules' conditions. It
+        // will not call ScanContext::search_for_patterns (which does the Aho-Corasick
+        // scanning) since we have already called it ourselves.
+        //
+        // This will return Err(ScanError::Timeout), when the scan timeout is
+        // reached while WASM code is being executed.
+        let func_result =
+            self.wasm_main_func.call(self.wasm_store.as_context_mut(), ());
+
+        #[cfg(feature = "rules-profiling")]
+        if func_result.is_err() {
+            let ctx = self.wasm_store.data_mut();
+            // If a timeout occurs, the methods `ctx.track_rule_no_match` or
+            // `ctx.track_rule_match` may not be invoked for the currently
+            // executing rule. This means that the time spent within that rule
+            // has not been recorded yet, so we need to update it here.
+            //
+            // The ID of the rule that was running during the timeout can be
+            // determined as the one immediately following the last executed
+            // rule, based on the assumption that rules are processed in a
+            // strictly ascending ID order.
+            //
+            // Additionally, if the timeout happens after `ctx.last_executed_rule`
+            // has been updated with the last rule ID, we might end up calling
+            // `update_time_spent_in_rule` with an ID that is off by one.
+            // However, this function is designed to handle such cases
+            // gracefully.
+            ctx.update_time_spent_in_rule(
+                ctx.last_executed_rule
+                    .map_or(RuleId::from(0), |rule_id| rule_id.next()),
+            );
+        }
+
+        #[cfg(all(feature = "rules-profiling", feature = "logging"))]
+        {
+            let most_expensive_rules = self.slowest_rules(10);
+            if !most_expensive_rules.is_empty() {
+                log::info!("Most expensive rules:");
+                for profiling_data in most_expensive_rules {
+                    log::info!("+ namespace: {}", profiling_data.namespace);
+                    log::info!("  rule: {}", profiling_data.rule);
+                    log::info!(
+                        "  pattern matching time: {:?}",
+                        profiling_data.pattern_matching_time
+                    );
+                    log::info!(
+                        "  condition execution time: {:?}",
+                        profiling_data.condition_exec_time
+                    );
+                }
+            }
+        }
+
+        let ctx = self.wasm_store.data_mut();
+
+        // Set pointer to data back to nil. This means that accessing
+        // `scanned_data` from within `ScanResults` is not possible.
+        ctx.scanned_data = null();
+        ctx.scanned_data_len = 0;
+
+        // Clear the value of `current_struct` as it may contain a reference
+        // to some struct.
+        ctx.current_struct = None;
+
+        // Both `private_matching_rules` and `non_private_matching_rules` are
+        // empty at this point. Matching rules were being tracked by the
+        // `matching_rules` map, but we are about to move them to these two
+        // vectors while leaving the map empty.
+        assert!(ctx.private_matching_rules.is_empty());
+        assert!(ctx.non_private_matching_rules.is_empty());
+
+        // Move the matching rules the vectors, leaving the `matching_rules`
+        // map empty.
+        for rules in ctx.matching_rules.values_mut() {
+            for rule_id in rules.drain(0..) {
+                if ctx.compiled_rules.get(rule_id).is_private {
+                    ctx.private_matching_rules.push(rule_id);
+                } else {
+                    ctx.non_private_matching_rules.push(rule_id);
+                }
+            }
+        }
+
+        match func_result {
+            Ok(0) => Ok(ScanResults::new(
+                self.wasm_store.data(),
+                ScannedData::Vec(vec![]),
+            )),
             Ok(v) => panic!("WASM main returned: {}", v),
             Err(err) if err.is::<ScanError>() => {
                 Err(err.downcast::<ScanError>().unwrap())
