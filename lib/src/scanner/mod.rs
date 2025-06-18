@@ -35,7 +35,7 @@ use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
 use crate::modules::{Module, ModuleError, BUILTIN_MODULES};
 use crate::scanner::matches::PatternMatches;
-use crate::scanner::proc::{ProcessMapping, ProcessMemory};
+use crate::scanner::proc::{MemRegion, ProcessMapping, ProcessMemory};
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
@@ -991,8 +991,11 @@ impl<'r> Scanner<'r> {
 
         let mut buffer = [0; 0x1000];
 
-        while let Some(size) = data_iter.next(&mut buffer) {
-            let data = &buffer[0..size as usize];
+        while let Some(memregion) = data_iter.next(&mut buffer) {
+            let data = match &memregion {
+                MemRegion::Buffer(size) => &buffer[0..*size as usize],
+                MemRegion::Mmap(mmap) => mmap,
+            };
             // Set the global variable `filesize` to the size of the scanned data.
             self.filesize
                 .set(
