@@ -5,7 +5,7 @@ use std::os::windows::io::{
 
 use memmap2::MmapOptions;
 use windows::Win32::{
-    Foundation::{HANDLE, LUID},
+    Foundation::{ERROR_PARTIAL_COPY, HANDLE, LUID},
     Security::{
         AdjustTokenPrivileges, LookupPrivilegeValueW, LUID_AND_ATTRIBUTES,
         SE_DEBUG_NAME, SE_PRIVILEGE_ENABLED, TOKEN_ADJUST_PRIVILEGES,
@@ -14,7 +14,7 @@ use windows::Win32::{
     System::{
         Diagnostics::Debug::ReadProcessMemory,
         Memory::{
-            VirtualQueryEx, MEMORY_BASIC_INFORMATION, MEM_COMMIT,
+            VirtualQueryEx, MEMORY_BASIC_INFORMATION, MEM_COMMIT, PAGE_GUARD,
             PAGE_NOACCESS,
         },
         SystemInformation::{GetSystemInfo, SYSTEM_INFO},
@@ -24,9 +24,8 @@ use windows::Win32::{
         },
     },
 };
-use windows_result;
+use windows_result::HRESULT;
 
-use crate::scanner::proc::MemRegion;
 use crate::scanner::{ScanError, ScannedData};
 
 struct ProcessMapping {
@@ -118,8 +117,6 @@ fn obtain_debug_priv() -> Result<(), windows_result::Error> {
 pub struct ProcessMemory {
     h_process: OwnedHandle,
     maps: ProcessMapping,
-    start: u64,
-    end: u64,
 }
 
 impl ProcessMemory {
@@ -141,55 +138,57 @@ impl ProcessMemory {
             )
         };
 
-        Ok(Self { h_process, maps: ProcessMapping::new(), start: 0, end: 0 })
+        Ok(Self { h_process, maps: ProcessMapping::new() })
     }
+}
 
-    pub fn next(&mut self, buffer: &mut [u8]) -> Option<MemRegion> {
-        if self.start < self.end {
-            let size =
-                std::cmp::min(self.end - self.start, buffer.len() as u64);
+const ERROR_PARTIAL_COPY_RESULT: HRESULT =
+    HRESULT::from_win32(ERROR_PARTIAL_COPY.0);
+
+impl Iterator for ProcessMemory {
+    type Item = ScannedData<'static>;
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(mbi) = self.maps.next(self.h_process.as_handle()) {
+            if (!mbi.State.contains(MEM_COMMIT))
+                || mbi.Protect.contains(PAGE_NOACCESS)
+            {
+                continue;
+            }
+            println!("mbi = {:#?}", mbi);
+            // if (mbi.Protect.contains(PAGE_GUARD))
+
+            let mut buffer = Vec::<u8>::with_capacity(mbi.RegionSize);
             let mut read: usize = 0;
             unsafe {
-                ReadProcessMemory(
+                match ReadProcessMemory(
                     HANDLE(self.h_process.as_raw_handle()),
-                    self.start as *const core::ffi::c_void,
-                    buffer[0..size as usize].as_mut_ptr()
-                        as *mut core::ffi::c_void,
-                    size as usize,
-                    Some(&mut read),
-                )
-            }
-            .ok()?;
-
-            self.start += size;
-            return Some(MemRegion::Buffer(size));
-        } else {
-            while let Some(mbi) = self.maps.next(self.h_process.as_handle()) {
-                if (mbi.State != MEM_COMMIT)
-                    || mbi.Protect.contains(PAGE_NOACCESS)
-                {
-                    continue;
-                }
-
-                self.start = mbi.BaseAddress as u64;
-                self.end = self.start + mbi.RegionSize as u64;
-                let size =
-                    std::cmp::min(mbi.RegionSize as u64, buffer.len() as u64);
-                let mut read: usize = 0;
-                unsafe {
-                    ReadProcessMemory(
-                        HANDLE(self.h_process.as_raw_handle()),
-                        self.start as *const core::ffi::c_void,
-                        buffer[0..size as usize].as_mut_ptr()
-                            as *mut core::ffi::c_void,
-                        size as usize,
-                        Some(&mut read),
+                    mbi.BaseAddress,
+                    std::mem::transmute::<_, &mut [u8]>(
+                        buffer.spare_capacity_mut(),
                     )
+                    .as_mut_ptr()
+                        as *mut core::ffi::c_void,
+                    mbi.RegionSize,
+                    Some(&mut read),
+                ) {
+                    Ok(_) => Ok(()),
+                    Err(e) => {
+                        println!("err = {:?}", e);
+                        match e.code() {
+                            // This is expected, we just read less than the requested size.
+                            ERROR_PARTIAL_COPY_RESULT => Ok(()),
+                            _ => Err(e),
+                        }
+                    }
                 }
-                .ok()?;
-                self.start += size;
-                return Some(MemRegion::Buffer(size));
+                .ok();
+                println!(
+                    "read {} bytes from {:#x}",
+                    read, mbi.BaseAddress as u64
+                );
+                buffer.set_len(read);
             }
+            return Some(ScannedData::Vec(buffer));
         }
         None
     }
