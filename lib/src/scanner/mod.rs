@@ -35,7 +35,7 @@ use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
 use crate::modules::{Module, ModuleError, BUILTIN_MODULES};
 use crate::scanner::matches::PatternMatches;
-use crate::scanner::proc::{MemRegion, ProcessMapping, ProcessMemory};
+use crate::scanner::proc::ProcessMemory;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
@@ -414,10 +414,7 @@ impl<'r> Scanner<'r> {
         &'a mut self,
         target: u32,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_many_impl(
-            ProcessMemory::new(target, ProcessMapping::new(target)?)?,
-            None,
-        )
+        self.scan_many_impl(ProcessMemory::new(target)?, None)
     }
 
     /// Like [`Scanner::scan`], but allows to specify additional scan options.
@@ -449,10 +446,7 @@ impl<'r> Scanner<'r> {
         target: u32,
         options: ScanOptions<'opts>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_many_impl(
-            ProcessMemory::new(target, ProcessMapping::new(target)?)?,
-            Some(options),
-        )
+        self.scan_many_impl(ProcessMemory::new(target)?, Some(options))
     }
 
     /// Sets the value of a global variable.
@@ -989,13 +983,12 @@ impl<'r> Scanner<'r> {
         ctx.deadline =
             HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
 
-        let mut buffer = [0; 0x1000];
+        println!("gonna start iterating over the data");
+        for scanned_data in data_iter {
+            let data: &[u8] = scanned_data.as_ref();
+            println!("data.len = {}", data.len());
+            println!("data_start = {:?}", &data[0..10]);
 
-        while let Some(memregion) = data_iter.next(&mut buffer) {
-            let data = match &memregion {
-                MemRegion::Buffer(size) => &buffer[0..*size as usize],
-                MemRegion::Mmap(mmap) => mmap,
-            };
             // Set the global variable `filesize` to the size of the scanned data.
             self.filesize
                 .set(
