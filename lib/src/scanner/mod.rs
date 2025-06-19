@@ -987,7 +987,7 @@ impl<'r> Scanner<'r> {
         for scanned_data in data_iter {
             let data: &[u8] = scanned_data.as_ref();
             println!("data.len = {}", data.len());
-            println!("data_start = {:?}", &data[0..10]);
+            // println!("data_start = {:?}", &data[0..10]);
 
             // Set the global variable `filesize` to the size of the scanned data.
             self.filesize
