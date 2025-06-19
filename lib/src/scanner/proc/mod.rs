@@ -1,7 +1,9 @@
 #[cfg(target_os = "linux")]
-pub use linux::{MemRegion, ProcessMapping, ProcessMemory};
+pub use linux::ProcessMemory;
 #[cfg(target_os = "windows")]
-pub use windows::load_proc;
+pub use windows::ProcessMemory;
+
+use memmap2::Mmap;
 
 #[cfg(target_os = "linux")]
 mod linux;

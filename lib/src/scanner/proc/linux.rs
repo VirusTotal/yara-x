@@ -5,11 +5,12 @@ use std::path::PathBuf;
 
 use bitflags::bitflags;
 use itertools::Itertools;
-use memmap2::{Mmap, MmapOptions};
+use memmap2::MmapOptions;
 
 use crate::scanner::{ScanError, ScannedData};
 
 bitflags! {
+    #[derive(Debug)]
     pub struct Perms: u8 {
         const READ = 0b00000001;
         const WRITE = 0b00000010;
@@ -18,6 +19,7 @@ bitflags! {
     }
 }
 
+#[derive(Debug)]
 pub struct Mapping {
     begin: u64,
     end: u64,
@@ -31,12 +33,34 @@ pub struct Mapping {
 
 impl Mapping {
     fn open_backing_file(&self) -> Option<fs::File> {
+        println!("attempting to open backing file: {}", self.pathname);
         if (self.pathname.len() == 0) || ((self.dmaj == 0) && (self.dmin == 0))
         {
             return None;
         }
-        let meta = fs::metadata(&self.pathname).ok()?;
+        println!("has valid pathname and dmaj + dmin");
+        let meta = fs::metadata(&self.pathname)
+            .map_err(|e| {
+                println!("failed to get meta err = {e}");
+                e
+            })
+            .ok()?;
+        println!("got meta");
         let dev = meta.dev();
+
+        println!(
+            "{} != {} || {} != {} || {} != {} || {} < {} || {} != {}",
+            libc::major(dev),
+            self.dmaj as u32,
+            libc::minor(dev),
+            self.dmin as u32,
+            meta.ino(),
+            self.inode,
+            meta.size(),
+            self.offset,
+            (meta.mode() & libc::S_IFMT),
+            libc::S_IFREG
+        );
 
         if (libc::major(dev) != self.dmaj as u32)
             || (libc::minor(dev) != self.dmin as u32)
@@ -46,10 +70,13 @@ impl Mapping {
         {
             return None;
         }
+        println!("passed metadata checks");
 
         let file =
             fs::OpenOptions::new().read(true).open(&self.pathname).ok()?;
+        println!("opend file");
         let meta = file.metadata().ok()?;
+        println!("got file metadata");
         let dev = meta.dev();
 
         if (libc::major(dev) != self.dmaj as u32)
@@ -60,6 +87,8 @@ impl Mapping {
         {
             return None;
         }
+        println!("passed metadata checks for file");
+        println!("opened backing file: {}", self.pathname);
 
         Some(file)
     }
@@ -70,11 +99,20 @@ impl Mapping {
 //
 // address           perms offset  dev   inode   pathname
 // 08048000-08056000 r-xp 00000000 03:0c 64593   /usr/sbin/gpm
+// The following might be problematic:
+// "pathname is shown unescaped except for newline characters,
+// which are replaced with an octal escape sequence.  As a
+// result, it is not possible to determine whether the
+// original pathname contained a newline character or the
+// literal \012 character sequence."
 fn parse_map_line(line: &str) -> Option<Mapping> {
     let (address, str_perms, offset, dev, inode, pathname) =
         line.splitn(6, " ").next_tuple()?;
+    // this is fine because a valid path must start with a '/', we only strip a single '\n'
+    // character because the path can technically contain whitespace characters.
+    let pathname = pathname.trim_start().strip_suffix('\n').unwrap_or("");
     let offset = u64::from_str_radix(offset, 16).ok()?;
-    let inode = u64::from_str_radix(inode, 16).ok()?;
+    let inode = u64::from_str_radix(inode, 10).ok()?;
     let (begin, end) = address.split("-").next_tuple()?;
     let begin = u64::from_str_radix(begin, 16).ok()?;
     let end = u64::from_str_radix(end, 16).ok()?;
@@ -135,11 +173,13 @@ impl Iterator for ProcessMapping {
         let mut line = String::new();
         while self.maps_reader.read_line(&mut line).is_ok_and(|read| read != 0)
         {
-            let Some(mapping) = parse_map_line(&line) else {
-                line.clear();
-                continue;
-            };
-            return Some(mapping);
+            match parse_map_line(&line) {
+                Some(mapping) => return Some(mapping),
+                None => {
+                    line.clear();
+                    continue;
+                }
+            }
         }
         return None;
     }
@@ -149,18 +189,12 @@ pub struct ProcessMemory {
     maps: ProcessMapping,
     mem: fs::File,
     pagemap: fs::File,
-    start: u64,
-    end: u64,
-    pagesize: u64,
-}
-
-pub enum MemRegion {
-    Buffer(u64),
-    Mmap(Mmap),
+    pagesize: usize,
 }
 
 impl ProcessMemory {
-    pub fn new(pid: u32, mapping: ProcessMapping) -> Result<Self, ScanError> {
+    pub fn new(pid: u32) -> Result<Self, ScanError> {
+        let maps = ProcessMapping::new(pid)?;
         let mem_path: PathBuf = format!("/proc/{pid}/mem").into();
         let mem = fs::OpenOptions::new().read(true).open(&mem_path).map_err(
             |err| ScanError::OpenError { path: mem_path.to_path_buf(), err },
@@ -176,87 +210,82 @@ impl ProcessMemory {
             })?;
 
         Ok(Self {
-            maps: mapping,
+            maps,
             mem,
             pagemap,
-            start: 0,
-            end: 0,
             pagesize: unsafe { libc::sysconf(libc::_SC_PAGE_SIZE) }
                 .try_into()
                 .unwrap_or(4096),
         })
     }
+}
 
-    pub fn next(&mut self, buffer: &mut [u8]) -> Option<MemRegion> {
-        if self.start < self.end {
-            let size =
-                std::cmp::min(self.end - self.start, buffer.len() as u64);
-            self.mem
-                .read_exact_at(&mut buffer[0..size as usize], self.start)
-                .ok()?;
-            self.start += size;
-            return Some(MemRegion::Buffer(size));
-        } else {
-            while let Some(map) = self.maps.next() {
-                if !map.perms.contains(Perms::READ) {
-                    continue;
-                }
-                match map
-                    .open_backing_file()
-                    .map(|file| unsafe {
-                        MmapOptions::new()
-                            .offset(map.offset)
-                            .map_mut(&file)
-                            .ok()
-                    })
-                    .flatten()
-                {
-                    Some(mut mapped_file) => {
-                        let size = self.end - self.start;
-                        let mut pagemap: Vec<u64> = Vec::with_capacity(
-                            size.div_ceil(self.pagesize) as usize,
-                        );
-                        self.pagemap
-                            .read_exact_at(
-                                unsafe { pagemap.align_to_mut() }.1,
-                                map.offset,
-                            )
-                            .ok()?;
+impl Iterator for ProcessMemory {
+    // the static here is meaningless because we never return a ScannedData::Slice, which is the
+    // only one that makes use of the lifetime.
+    type Item = ScannedData<'static>;
 
-                        for (index, detail) in pagemap.iter().enumerate() {
-                            if (detail >> 61) == 0 {
-                                continue;
-                            }
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(map) = self.maps.next() {
+            if !map.perms.contains(Perms::READ) {
+                continue;
+            }
+            println!("map = {:?}", map);
 
-                            let start = index * self.pagesize as usize;
-                            self.mem
-                                .read_exact_at(
-                                    &mut mapped_file[start
-                                        ..start + self.pagesize as usize],
-                                    map.begin + start as u64,
-                                )
-                                .ok()?;
+            let size = (map.end - map.begin) as usize;
+            match map
+                .open_backing_file()
+                .map(|file| unsafe {
+                    MmapOptions::new()
+                        .offset(map.offset)
+                        .len(size)
+                        .map_copy(&file)
+                        .map_err(|e| {
+                            println!("failed to map file, err = {e}");
+                            e
+                        })
+                        .ok()
+                })
+                .flatten()
+            {
+                Some(mut mapped_file) => {
+                    println!(
+                        "managed to map file, size = {}",
+                        mapped_file.len()
+                    );
+                    let mut pagemap: Vec<u64> =
+                        Vec::with_capacity(size.div_ceil(self.pagesize));
+                    self.pagemap
+                        .read_exact_at(
+                            unsafe { pagemap.align_to_mut() }.1,
+                            map.offset,
+                        )
+                        .ok()?;
+
+                    for (index, detail) in pagemap.iter().enumerate() {
+                        if (detail >> 61) == 0 {
+                            continue;
                         }
-                        return mapped_file
-                            .make_read_only()
-                            .ok()
-                            .map(|mmap| MemRegion::Mmap(mmap));
-                    }
-                    None => {
-                        self.start = map.begin;
-                        self.end = map.end;
-                        let size = std::cmp::min(
-                            self.end - self.start,
-                            buffer.len() as u64,
-                        );
+
+                        let start = index * self.pagesize;
                         self.mem
                             .read_exact_at(
-                                &mut buffer[0..size as usize],
-                                self.start,
+                                &mut mapped_file[start..start + self.pagesize],
+                                map.begin + start as u64,
                             )
                             .ok()?;
-                        return Some(MemRegion::Buffer(size));
                     }
+                    return Some(ScannedData::Mmap(
+                        mapped_file.make_read_only().ok()?,
+                    ));
+                }
+                None => {
+                    println!("failed to map file, size = {}", size);
+                    // NOTE: consider reusing the buffer.
+                    let mut buffer = Vec::<u8>::with_capacity(size);
+                    self.mem.read_exact_at(&mut buffer, map.begin).ok()?;
+                    unsafe { buffer.set_len(size) };
+                    return Some(ScannedData::Vec(buffer));
                 }
             }
         }

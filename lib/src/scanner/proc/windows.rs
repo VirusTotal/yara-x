@@ -1,7 +1,8 @@
 use std::mem::MaybeUninit;
-use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
+use std::os::windows::io::{
+    AsHandle, AsRawHandle, BorrowedHandle, FromRawHandle, OwnedHandle,
+};
 
-use itertools::Itertools;
 use memmap2::MmapOptions;
 use windows::Win32::{
     Foundation::{HANDLE, LUID},
@@ -25,16 +26,16 @@ use windows::Win32::{
 };
 use windows_result;
 
+use crate::scanner::proc::MemRegion;
 use crate::scanner::{ScanError, ScannedData};
 
-struct ProcessMapping<'a> {
+struct ProcessMapping {
     address: u64,
     max_address: u64,
-    h_process: &'a OwnedHandle,
 }
 
-impl<'a> ProcessMapping<'a> {
-    pub fn new(h_process: &'a OwnedHandle) -> Self {
+impl ProcessMapping {
+    fn new() -> Self {
         let mut maybe_si = MaybeUninit::<SYSTEM_INFO>::uninit();
 
         let si = unsafe {
@@ -45,20 +46,19 @@ impl<'a> ProcessMapping<'a> {
         let min_address = si.lpMinimumApplicationAddress as u64;
         let max_address = si.lpMaximumApplicationAddress as u64;
 
-        Self { h_process, address: min_address, max_address }
+        Self { address: min_address, max_address }
     }
-}
 
-impl<'a> Iterator for ProcessMapping<'a> {
-    type Item = MEMORY_BASIC_INFORMATION;
-
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next<'a>(
+        &mut self,
+        h_process: BorrowedHandle<'a>,
+    ) -> Option<MEMORY_BASIC_INFORMATION> {
         let mut mbi_maybe = MaybeUninit::<MEMORY_BASIC_INFORMATION>::uninit();
 
         if (self.address < self.max_address)
             && unsafe {
                 VirtualQueryEx(
-                    HANDLE(self.h_process.as_raw_handle()),
+                    HANDLE(h_process.as_raw_handle()),
                     Some(self.address as *const core::ffi::c_void),
                     mbi_maybe.as_mut_ptr(),
                     size_of::<MEMORY_BASIC_INFORMATION>(),
@@ -115,6 +115,86 @@ fn obtain_debug_priv() -> Result<(), windows_result::Error> {
     Ok(())
 }
 
+pub struct ProcessMemory {
+    h_process: OwnedHandle,
+    maps: ProcessMapping,
+    start: u64,
+    end: u64,
+}
+
+impl ProcessMemory {
+    pub fn new(pid: u32) -> Result<Self, ScanError> {
+        // TODO: this should be done once for the entire entire scanning process, not once per process
+        // loaded.
+        obtain_debug_priv()
+            .map_err(|err| ScanError::ProcessError { pid, err })?;
+
+        let h_process = unsafe {
+            OwnedHandle::from_raw_handle(
+                OpenProcess(
+                    PROCESS_VM_READ | PROCESS_QUERY_INFORMATION,
+                    false,
+                    pid,
+                )
+                .map_err(|err| ScanError::ProcessError { pid, err })?
+                .0,
+            )
+        };
+
+        Ok(Self { h_process, maps: ProcessMapping::new(), start: 0, end: 0 })
+    }
+
+    pub fn next(&mut self, buffer: &mut [u8]) -> Option<MemRegion> {
+        if self.start < self.end {
+            let size =
+                std::cmp::min(self.end - self.start, buffer.len() as u64);
+            let mut read: usize = 0;
+            unsafe {
+                ReadProcessMemory(
+                    HANDLE(self.h_process.as_raw_handle()),
+                    self.start as *const core::ffi::c_void,
+                    buffer[0..size as usize].as_mut_ptr()
+                        as *mut core::ffi::c_void,
+                    size as usize,
+                    Some(&mut read),
+                )
+            }
+            .ok()?;
+
+            self.start += size;
+            return Some(MemRegion::Buffer(size));
+        } else {
+            while let Some(mbi) = self.maps.next(self.h_process.as_handle()) {
+                if (mbi.State != MEM_COMMIT)
+                    || mbi.Protect.contains(PAGE_NOACCESS)
+                {
+                    continue;
+                }
+
+                self.start = mbi.BaseAddress as u64;
+                self.end = self.start + mbi.RegionSize as u64;
+                let size =
+                    std::cmp::min(mbi.RegionSize as u64, buffer.len() as u64);
+                let mut read: usize = 0;
+                unsafe {
+                    ReadProcessMemory(
+                        HANDLE(self.h_process.as_raw_handle()),
+                        self.start as *const core::ffi::c_void,
+                        buffer[0..size as usize].as_mut_ptr()
+                            as *mut core::ffi::c_void,
+                        size as usize,
+                        Some(&mut read),
+                    )
+                }
+                .ok()?;
+                self.start += size;
+                return Some(MemRegion::Buffer(size));
+            }
+        }
+        None
+    }
+}
+
 pub fn load_proc(pid: u32) -> Result<ScannedData<'static>, ScanError> {
     // TODO: this should be done once for the entire entire scanning process, not once per process
     // loaded.
@@ -132,11 +212,16 @@ pub fn load_proc(pid: u32) -> Result<ScannedData<'static>, ScanError> {
         )
     };
 
-    let process_mappings = ProcessMapping::new(&h_process)
-        .filter(|mbi| {
-            (mbi.State == MEM_COMMIT) && (!mbi.Protect.contains(PAGE_NOACCESS))
-        })
-        .collect_vec();
+    let mut mappings = ProcessMapping::new();
+    let mut process_mappings = Vec::new();
+    while let Some(mbi_info) = mappings.next(h_process.as_handle()) {
+        if (mbi_info.State != MEM_COMMIT)
+            || mbi_info.Protect.contains(PAGE_NOACCESS)
+        {
+            continue;
+        }
+        process_mappings.push(mbi_info);
+    }
 
     let memory_size: u64 =
         process_mappings.iter().map(|mbi| mbi.RegionSize as u64).sum();
