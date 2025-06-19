@@ -14,7 +14,7 @@ use windows::Win32::{
     System::{
         Diagnostics::Debug::ReadProcessMemory,
         Memory::{
-            VirtualQueryEx, MEMORY_BASIC_INFORMATION, MEM_COMMIT, PAGE_GUARD,
+            VirtualQueryEx, MEMORY_BASIC_INFORMATION, MEM_COMMIT,
             PAGE_NOACCESS,
         },
         SystemInformation::{GetSystemInfo, SYSTEM_INFO},
@@ -154,13 +154,12 @@ impl Iterator for ProcessMemory {
             {
                 continue;
             }
-            println!("mbi = {:#?}", mbi);
             // if (mbi.Protect.contains(PAGE_GUARD))
 
             let mut buffer = Vec::<u8>::with_capacity(mbi.RegionSize);
             let mut read: usize = 0;
             unsafe {
-                match ReadProcessMemory(
+                if !ReadProcessMemory(
                     HANDLE(self.h_process.as_raw_handle()),
                     mbi.BaseAddress,
                     std::mem::transmute::<_, &mut [u8]>(
@@ -170,22 +169,16 @@ impl Iterator for ProcessMemory {
                         as *mut core::ffi::c_void,
                     mbi.RegionSize,
                     Some(&mut read),
-                ) {
-                    Ok(_) => Ok(()),
-                    Err(e) => {
-                        println!("err = {:?}", e);
-                        match e.code() {
-                            // This is expected, we just read less than the requested size.
-                            ERROR_PARTIAL_COPY_RESULT => Ok(()),
-                            _ => Err(e),
-                        }
-                    }
+                )
+                .map_err(|e| match e.code() {
+                    // This is expected, we just read less than the requested size.
+                    ERROR_PARTIAL_COPY_RESULT => Ok(()),
+                    _ => Err(e),
+                })
+                .is_ok()
+                {
+                    continue;
                 }
-                .ok();
-                println!(
-                    "read {} bytes from {:#x}",
-                    read, mbi.BaseAddress as u64
-                );
                 buffer.set_len(read);
             }
             return Some(ScannedData::Vec(buffer));

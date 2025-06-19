@@ -199,7 +199,7 @@ impl Iterator for ProcessMemory {
     type Item = ScannedData<'static>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(map) = self.maps.next() {
+        'outer: while let Some(map) = self.maps.next() {
             if !map.perms.contains(Perms::READ) {
                 continue;
             }
@@ -217,30 +217,48 @@ impl Iterator for ProcessMemory {
                 .flatten()
             {
                 Some(mut mapped_file) => {
-                    let mut pagemap = Box::<[u64]>::new_uninit_slice(
+                    let mut region_pagemap = Box::<[u64]>::new_uninit_slice(
                         size.div_ceil(self.pagesize),
                     );
-                    self.pagemap
-                        .read_exact_at(
-                            unsafe { pagemap.align_to_mut() }.1,
-                            map.offset,
-                        )
-                        .ok()?;
-                    let pagemap = unsafe { pagemap.assume_init() };
+                    match self.pagemap.read_exact_at(
+                        unsafe { region_pagemap.align_to_mut() }.1,
+                        map.offset,
+                    ) {
+                        Ok(()) => {
+                            let region_pagemap =
+                                unsafe { region_pagemap.assume_init() };
 
-                    for (index, detail) in pagemap.iter().enumerate() {
-                        if (detail >> 61) == 0 {
-                            continue;
+                            for (index, detail) in
+                                region_pagemap.iter().enumerate()
+                            {
+                                if (detail >> 61) == 0 {
+                                    continue;
+                                }
+
+                                let start = index * self.pagesize;
+                                if !self
+                                    .mem
+                                    .read_exact_at(
+                                        &mut mapped_file
+                                            [start..start + self.pagesize],
+                                        map.begin + start as u64,
+                                    )
+                                    .is_ok()
+                                {
+                                    continue 'outer;
+                                }
+                            }
                         }
-
-                        let start = index * self.pagesize;
-                        self.mem
-                            .read_exact_at(
-                                &mut mapped_file[start..start + self.pagesize],
-                                map.begin + start as u64,
-                            )
-                            .ok()?;
-                    }
+                        Err(_) => {
+                            if !self
+                                .mem
+                                .read_exact_at(&mut mapped_file, map.begin)
+                                .is_ok()
+                            {
+                                continue;
+                            }
+                        }
+                    };
 
                     return Some(ScannedData::Mmap(
                         mapped_file.make_read_only().ok()?,
@@ -249,7 +267,8 @@ impl Iterator for ProcessMemory {
                 None => {
                     // NOTE: consider reusing the buffer, and using MaybeUninit.
                     let mut buffer = Vec::<u8>::with_capacity(size);
-                    self.mem
+                    if self
+                        .mem
                         .read_exact_at(
                             unsafe {
                                 std::mem::transmute(
@@ -258,7 +277,10 @@ impl Iterator for ProcessMemory {
                             },
                             map.begin,
                         )
-                        .ok()?;
+                        .is_ok()
+                    {
+                        continue;
+                    }
                     unsafe {
                         buffer.set_len(size);
                     };
