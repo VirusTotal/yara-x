@@ -114,22 +114,22 @@ Disable all warnings:
 --disable-warnings
 ```
 
-Disable warning `slow_patterns`:
+Disable warning `slow_pattern`:
 
 ```
---disable-warnings=slow_patterns
+--disable-warnings=slow_pattern
 ```
 
-Disable warnings `slow_patterns` and `redundant_modifier`:
+Disable warnings `slow_pattern` and `redundant_modifier`:
 
 ```
---disable-warnings=slow_patterns,redundant_modifier
+--disable-warnings=slow_pattern,redundant_modifier
 ```
 
 Equivalent to the previous one, but using `--disable-warnings` multiple times:
 
 ```
---disable-warnings=slow_patterns --disable-warnings=redundant_modifier
+--disable-warnings=slow_pattern --disable-warnings=redundant_modifier
 ```
 
 ### --include-dir \<PATH\>, -I \<PATH\>
