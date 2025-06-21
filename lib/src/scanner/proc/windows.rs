@@ -3,7 +3,6 @@ use std::os::windows::io::{
     AsHandle, AsRawHandle, BorrowedHandle, FromRawHandle, OwnedHandle,
 };
 
-use memmap2::MmapOptions;
 use windows::Win32::{
     Foundation::{ERROR_PARTIAL_COPY, HANDLE, LUID},
     Security::{
@@ -26,7 +25,8 @@ use windows::Win32::{
 };
 use windows_result::HRESULT;
 
-use crate::scanner::{ScanError, ScannedData};
+use crate::scanner::proc::DataIter;
+use crate::scanner::ScanError;
 
 struct ProcessMapping {
     address: u64,
@@ -117,6 +117,8 @@ fn obtain_debug_priv() -> Result<(), windows_result::Error> {
 pub struct ProcessMemory {
     h_process: OwnedHandle,
     maps: ProcessMapping,
+    start: u64,
+    end: u64,
 }
 
 impl ProcessMemory {
@@ -138,110 +140,67 @@ impl ProcessMemory {
             )
         };
 
-        Ok(Self { h_process, maps: ProcessMapping::new() })
+        Ok(Self { h_process, maps: ProcessMapping::new(), start: 0, end: 0 })
     }
 }
 
+// TODO: Make this configurable.
+const MAX_BUFFER_SIZE: u64 = 0x100000;
 const ERROR_PARTIAL_COPY_RESULT: HRESULT =
     HRESULT::from_win32(ERROR_PARTIAL_COPY.0);
 
-impl Iterator for ProcessMemory {
-    type Item = ScannedData<'static>;
-    fn next(&mut self) -> Option<Self::Item> {
-        while let Some(mbi) = self.maps.next(self.h_process.as_handle()) {
-            if (!mbi.State.contains(MEM_COMMIT))
-                || mbi.Protect.contains(PAGE_NOACCESS)
-            {
-                continue;
-            }
-            // if (mbi.Protect.contains(PAGE_GUARD))
-
-            let mut buffer = Vec::<u8>::with_capacity(mbi.RegionSize);
-            let mut read: usize = 0;
-            unsafe {
-                if !ReadProcessMemory(
-                    HANDLE(self.h_process.as_raw_handle()),
-                    mbi.BaseAddress,
-                    std::mem::transmute::<_, &mut [u8]>(
-                        buffer.spare_capacity_mut(),
+impl DataIter for ProcessMemory {
+    type Item<'a> = &'a Vec<u8>;
+    fn next<'a>(&mut self, buffer: &'a mut Vec<u8>) -> Option<Self::Item<'a>> {
+        buffer.clear();
+        loop {
+            if self.start < self.end {
+                let size =
+                    std::cmp::min(MAX_BUFFER_SIZE, self.end - self.start);
+                if size as usize > buffer.capacity() {
+                    buffer.reserve_exact(size as usize);
+                }
+                let mut read: usize = 0;
+                unsafe {
+                    if !ReadProcessMemory(
+                        HANDLE(self.h_process.as_raw_handle()),
+                        self.start as *const core::ffi::c_void,
+                        std::mem::transmute::<_, &mut [u8]>(
+                            buffer.spare_capacity_mut(),
+                        )
+                        .as_mut_ptr()
+                            as *mut core::ffi::c_void,
+                        size as usize,
+                        Some(&mut read),
                     )
-                    .as_mut_ptr()
-                        as *mut core::ffi::c_void,
-                    mbi.RegionSize,
-                    Some(&mut read),
-                )
-                .map_err(|e| match e.code() {
-                    // This is expected, we just read less than the requested size.
-                    ERROR_PARTIAL_COPY_RESULT => Ok(()),
-                    _ => Err(e),
-                })
-                .is_ok()
+                    .map_err(|e| match e.code() {
+                        // This is expected, we just read less than the requested size.
+                        ERROR_PARTIAL_COPY_RESULT => Ok(()),
+                        _ => Err(e),
+                    })
+                    .is_ok()
+                    {
+                        self.start += size;
+                        continue;
+                    }
+                    buffer.set_len(read);
+                }
+                self.start += read as u64;
+                return Some(buffer);
+            } else if let Some(mbi) =
+                self.maps.next(self.h_process.as_handle())
+            {
+                // NOTE: think about maybe touching PAGE_GUARD twice to enable reading from it.
+                if (!mbi.State.contains(MEM_COMMIT))
+                    || mbi.Protect.contains(PAGE_NOACCESS)
                 {
                     continue;
                 }
-                buffer.set_len(read);
+                self.start = mbi.BaseAddress as u64;
+                self.end = self.start + mbi.RegionSize as u64;
+            } else {
+                return None;
             }
-            return Some(ScannedData::Vec(buffer));
         }
-        None
     }
-}
-
-pub fn load_proc(pid: u32) -> Result<ScannedData<'static>, ScanError> {
-    // TODO: this should be done once for the entire entire scanning process, not once per process
-    // loaded.
-    obtain_debug_priv().map_err(|err| ScanError::ProcessError { pid, err })?;
-
-    let h_process = unsafe {
-        OwnedHandle::from_raw_handle(
-            OpenProcess(
-                PROCESS_VM_READ | PROCESS_QUERY_INFORMATION,
-                false,
-                pid,
-            )
-            .map_err(|err| ScanError::ProcessError { pid, err })?
-            .0,
-        )
-    };
-
-    let mut mappings = ProcessMapping::new();
-    let mut process_mappings = Vec::new();
-    while let Some(mbi_info) = mappings.next(h_process.as_handle()) {
-        if (mbi_info.State != MEM_COMMIT)
-            || mbi_info.Protect.contains(PAGE_NOACCESS)
-        {
-            continue;
-        }
-        process_mappings.push(mbi_info);
-    }
-
-    let memory_size: u64 =
-        process_mappings.iter().map(|mbi| mbi.RegionSize as u64).sum();
-
-    let mut process_memory = MmapOptions::new()
-        .len(memory_size as usize)
-        .map_anon()
-        .map_err(|err| ScanError::AnonMapError { err })?;
-    let mut offset = 0;
-
-    for mbi in process_mappings {
-        let mut read: usize = 0;
-        unsafe {
-            _ = ReadProcessMemory(
-                HANDLE(h_process.as_raw_handle()),
-                mbi.BaseAddress,
-                process_memory[offset as usize..].as_mut_ptr()
-                    as *mut core::ffi::c_void,
-                mbi.RegionSize,
-                Some(&mut read),
-            );
-        };
-        offset += read;
-    }
-
-    Ok(ScannedData::Mmap(
-        process_memory
-            .make_read_only()
-            .map_err(|err| ScanError::AnonMapError { err })?,
-    ))
 }
