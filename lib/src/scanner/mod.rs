@@ -35,7 +35,7 @@ use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
 use crate::modules::{Module, ModuleError, BUILTIN_MODULES};
 use crate::scanner::matches::PatternMatches;
-use crate::scanner::proc::ProcessMemory;
+use crate::scanner::proc::{DataIter, ProcessMemory};
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
@@ -927,11 +927,14 @@ impl<'r> Scanner<'r> {
         }
     }
 
-    fn scan_many_impl<'a, 'opts>(
+    fn scan_many_impl<'a, 'opts, T>(
         &'a mut self,
-        mut data_iter: ProcessMemory,
+        mut data_iter: T,
         options: Option<ScanOptions<'opts>>,
-    ) -> Result<ScanResults<'a, 'r>, ScanError> {
+    ) -> Result<ScanResults<'a, 'r>, ScanError>
+    where
+        T: DataIter,
+    {
         // Clear information about matches found in a previous scan, if any.
         self.reset();
 
@@ -983,22 +986,17 @@ impl<'r> Scanner<'r> {
         ctx.deadline =
             HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
 
-        for scanned_data in data_iter {
-            let data: &[u8] = scanned_data.as_ref();
-            // println!("data_start = {:?}", &data[0..10]);
+        let mut total_data_len = 0;
+        let mut buffer: Vec<u8> = Vec::new();
 
-            // Set the global variable `filesize` to the size of the scanned data.
-            self.filesize
-                .set(
-                    self.wasm_store.as_context_mut(),
-                    Val::I64(data.len() as i64),
-                )
-                .unwrap();
+        while let Some(scanned_data) = data_iter.next(&mut buffer) {
+            let data: &[u8] = scanned_data.as_ref();
 
             let ctx = self.wasm_store.data_mut();
 
             ctx.scanned_data = data.as_ptr();
             ctx.scanned_data_len = data.len();
+            total_data_len += data.len();
 
             // Free all runtime objects left around by previous scans.
             ctx.runtime_objects.clear();
@@ -1008,6 +1006,14 @@ impl<'r> Scanner<'r> {
 
         self.pattern_search_done
             .set(self.wasm_store.as_context_mut(), Val::I32(1))
+            .unwrap();
+
+        // Set the global variable `filesize` to the size of the scanned data.
+        self.filesize
+            .set(
+                self.wasm_store.as_context_mut(),
+                Val::I64(total_data_len as i64),
+            )
             .unwrap();
 
         let ctx = self.wasm_store.data_mut();

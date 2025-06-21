@@ -781,15 +781,6 @@ fn scan_proc() {
     let scan_results = scanner.scan_proc(process::id()).unwrap();
 
     assert_eq!(scan_results.matching_rules().len(), 1);
-
-    // let scan_results = scanner
-    //     .scan_file_with_options(
-    //         "src/tests/testdata/jumps.bin",
-    //         ScanOptions::default(),
-    //     )
-    //     .unwrap();
-    //
-    // assert_eq!(scan_results.matching_rules().len(), 1)
 }
 
 #[test]
@@ -808,15 +799,6 @@ fn scan_proc_with_offset_dependent_condition() {
     let scan_results = scanner.scan_proc(process::id()).unwrap();
 
     assert_eq!(scan_results.matching_rules().len(), 0);
-
-    // let scan_results = scanner
-    //     .scan_file_with_options(
-    //         "src/tests/testdata/jumps.bin",
-    //         ScanOptions::default(),
-    //     )
-    //     .unwrap();
-    //
-    // assert_eq!(scan_results.matching_rules().len(), 1)
 }
 
 #[cfg(feature = "rules-profiling")]
