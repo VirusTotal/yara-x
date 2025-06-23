@@ -569,10 +569,10 @@ impl<'r> Scanner<'r> {
 
 impl<'r> Scanner<'r> {
     #[inline]
-    fn scan_context(&mut self) -> &ScanContext<'r> {
+    fn scan_context(&self) -> &ScanContext<'r> {
         unsafe {
-            transmute::<&mut ScanContext<'static>, &mut ScanContext<'r>>(
-                self.wasm_store.data_mut(),
+            transmute::<&ScanContext<'static>, &ScanContext<'r>>(
+                self.wasm_store.data(),
             )
         }
     }
