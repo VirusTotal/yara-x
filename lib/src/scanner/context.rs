@@ -442,13 +442,16 @@ impl ScanContext<'_> {
     /// This function won't be called if the conditions can be fully evaluated
     /// without looking for any of the patterns. If it must be called, it will be
     /// called only once.
-    pub(crate) fn search_for_patterns(&mut self) -> Result<(), ScanError> {
+    pub(crate) fn search_for_patterns(
+        &mut self,
+        is_fragment: bool,
+    ) -> Result<(), ScanError> {
         #[cfg(any(feature = "rules-profiling", feature = "logging"))]
         let scan_start = self.clock.raw();
 
         // Verify the anchored pattern first. These are patterns that can match
         // at a single known offset within the data.
-        self.verify_anchored_patterns();
+        self.verify_anchored_patterns(is_fragment);
 
         let ac = self.compiled_rules.ac_automaton();
 
@@ -533,7 +536,18 @@ impl ScanContext<'_> {
                         sub_pattern_id,
                         sub_pattern,
                         *pattern_id,
-                        Match { range: match_range, xor_key: None },
+                        Match {
+                            range: match_range.clone(),
+                            xor_key: None,
+                            content: if is_fragment {
+                                Some(
+                                    scanned_data[match_range.clone()].to_vec(),
+                                )
+                            } else {
+                                None
+                            },
+                        },
+                        is_fragment,
                     );
                 }
 
@@ -552,12 +566,14 @@ impl ScanContext<'_> {
                         scanned_data,
                         atom_pos,
                         *flags,
+                        is_fragment,
                     ) {
                         self.handle_sub_pattern_match(
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
                             match_,
+                            is_fragment,
                         );
                     }
                 }
@@ -576,8 +592,10 @@ impl ScanContext<'_> {
                                 sub_pattern,
                                 *pattern_id,
                                 match_,
+                                is_fragment,
                             );
                         },
+                        is_fragment,
                     )
                 }
 
@@ -591,12 +609,14 @@ impl ScanContext<'_> {
                         atom_pos,
                         atom,
                         *flags,
+                        is_fragment,
                     ) {
                         self.handle_sub_pattern_match(
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
                             match_,
+                            is_fragment,
                         );
                     }
                 }
@@ -613,12 +633,14 @@ impl ScanContext<'_> {
                         atom_pos,
                         None,
                         matches!(sub_pattern, SubPattern::Base64Wide { .. }),
+                        is_fragment,
                     ) {
                         self.handle_sub_pattern_match(
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
                             match_,
+                            is_fragment,
                         );
                     }
                 }
@@ -657,12 +679,14 @@ impl ScanContext<'_> {
                             sub_pattern,
                             SubPattern::CustomBase64Wide { .. }
                         ),
+                        is_fragment,
                     ) {
                         self.handle_sub_pattern_match(
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
                             match_,
+                            is_fragment,
                         );
                     }
                 }
@@ -710,7 +734,7 @@ impl ScanContext<'_> {
         Ok(())
     }
 
-    fn verify_anchored_patterns(&mut self) {
+    fn verify_anchored_patterns(&mut self, is_fragment: bool) {
         for (sub_pattern_id, (pattern_id, sub_pattern)) in self
             .compiled_rules
             .anchored_sub_patterns()
@@ -732,12 +756,14 @@ impl ScanContext<'_> {
                         self.scanned_data(),
                         *offset,
                         *flags,
+                        is_fragment,
                     ) {
                         self.handle_sub_pattern_match(
                             *sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
                             match_,
+                            is_fragment,
                         );
                     }
                 }
@@ -752,6 +778,7 @@ impl ScanContext<'_> {
         sub_pattern: &SubPattern,
         pattern_id: PatternId,
         match_: Match,
+        is_fragment: bool,
     ) {
         match sub_pattern {
             SubPattern::Literal { .. }
@@ -801,6 +828,7 @@ impl ScanContext<'_> {
                             pattern_id,
                             sub_pattern_id,
                             match_.range,
+                            is_fragment,
                         );
                     } else {
                         // This sub-pattern is in the middle of the
@@ -871,6 +899,7 @@ impl ScanContext<'_> {
         pattern_id: PatternId,
         tail_sub_pattern_id: SubPatternId,
         tail_match_range: Range<usize>,
+        is_fragment: bool,
     ) {
         let mut queue = VecDeque::new();
 
@@ -892,6 +921,15 @@ impl ScanContext<'_> {
                             Match {
                                 range: match_range.start..tail_match_range.end,
                                 xor_key: None,
+                                content: if is_fragment {
+                                    Some(
+                                        self.scanned_data()[match_range.start
+                                            ..tail_match_range.end]
+                                            .to_vec(),
+                                    )
+                                } else {
+                                    None
+                                },
                             },
                             flags.contains(SubPatternFlags::GreedyRegexp),
                         );
@@ -984,6 +1022,7 @@ fn verify_literal_match(
     scanned_data: &[u8],
     atom_pos: usize,
     flags: SubPatternFlags,
+    is_fragment: bool,
 ) -> Option<Match> {
     // Offset where the match should end (exclusive).
     let match_end = atom_pos + pattern.len();
@@ -1015,6 +1054,11 @@ fn verify_literal_match(
             // The end of the range is exclusive.
             range: atom_pos..match_end,
             xor_key: None,
+            content: if is_fragment {
+                Some(scanned_data[atom_pos..match_end].to_vec())
+            } else {
+                None
+            },
         })
     } else {
         None
@@ -1081,6 +1125,7 @@ fn verify_regexp_match(
     atom: &SubPatternAtom,
     flags: SubPatternFlags,
     mut f: impl FnMut(Match),
+    is_fragment: bool,
 ) {
     let mut fwd_match_len = None;
 
@@ -1135,7 +1180,15 @@ fn verify_regexp_match(
                     let range =
                         atom_pos - bck_match_len..atom_pos + fwd_match_len;
                     if verify_full_word(scanned_data, &range, flags, None) {
-                        f(Match { range, xor_key: None });
+                        f(Match {
+                            range: range.clone(),
+                            xor_key: None,
+                            content: if is_fragment {
+                                Some(scanned_data[range].to_vec())
+                            } else {
+                                None
+                            },
+                        });
                     }
                     Action::Continue
                 },
@@ -1150,7 +1203,15 @@ fn verify_regexp_match(
                     let range =
                         atom_pos - bck_match_len..atom_pos + fwd_match_len;
                     if verify_full_word(scanned_data, &range, flags, None) {
-                        f(Match { range, xor_key: None });
+                        f(Match {
+                            range: range.clone(),
+                            xor_key: None,
+                            content: if is_fragment {
+                                Some(scanned_data[range].to_vec())
+                            } else {
+                                None
+                            },
+                        });
                     }
                     Action::Continue
                 },
@@ -1159,7 +1220,15 @@ fn verify_regexp_match(
     } else {
         let range = atom_pos..atom_pos + fwd_match_len;
         if verify_full_word(scanned_data, &range, flags, None) {
-            f(Match { range, xor_key: None });
+            f(Match {
+                range: range.clone(),
+                xor_key: None,
+                content: if is_fragment {
+                    Some(scanned_data[range].to_vec())
+                } else {
+                    None
+                },
+            });
         }
     }
 }
@@ -1174,6 +1243,7 @@ fn verify_xor_match(
     atom_pos: usize,
     atom: &SubPatternAtom,
     flags: SubPatternFlags,
+    is_fragment: bool,
 ) -> Option<Match> {
     // Offset where the match should end (exclusive).
     let match_end = atom_pos + pattern.len();
@@ -1206,7 +1276,15 @@ fn verify_xor_match(
     }
 
     if &scanned_data[match_range.clone()] == pattern.as_bytes() {
-        Some(Match { range: match_range, xor_key: Some(key) })
+        Some(Match {
+            range: match_range.clone(),
+            xor_key: Some(key),
+            content: if is_fragment {
+                Some(scanned_data[match_range].to_vec())
+            } else {
+                None
+            },
+        })
     } else {
         None
     }
@@ -1223,6 +1301,7 @@ fn verify_base64_match(
     atom_pos: usize,
     alphabet: Option<base64::alphabet::Alphabet>,
     wide: bool,
+    is_fragmet: bool,
 ) -> Option<Match> {
     // The pattern is passed to this function in its original form, before
     // being encoded as base64. Compute the size of the pattern once it is
@@ -1350,7 +1429,15 @@ fn verify_base64_match(
         decoded.as_ref().ok()?.get(padding..padding + pattern.len())?;
 
     if pattern.eq(decoded_pattern) {
-        Some(Match { range: atom_pos..atom_pos + match_len, xor_key: None })
+        Some(Match {
+            range: atom_pos..atom_pos + match_len,
+            xor_key: None,
+            content: if is_fragmet {
+                Some(scanned_data[atom_pos..atom_pos + match_len].to_vec())
+            } else {
+                None
+            },
+        })
     } else {
         None
     }

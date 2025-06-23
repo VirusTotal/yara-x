@@ -414,7 +414,7 @@ impl<'r> Scanner<'r> {
         &'a mut self,
         target: u32,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_many_impl(ProcessMemory::new(target)?, None)
+        self.scan_many_impl(ProcessMemory::new(target)?)
     }
 
     /// Like [`Scanner::scan`], but allows to specify additional scan options.
@@ -437,16 +437,6 @@ impl<'r> Scanner<'r> {
         P: AsRef<Path>,
     {
         self.scan_impl(Self::load_file(target.as_ref())?, Some(options))
-    }
-
-    /// Like [`Scanner::scan_proc`] but allows to specify additional scan
-    /// options.
-    pub fn scan_proc_with_options<'a, 'opts>(
-        &'a mut self,
-        target: u32,
-        options: ScanOptions<'opts>,
-    ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_many_impl(ProcessMemory::new(target)?, Some(options))
     }
 
     /// Sets the value of a global variable.
@@ -930,7 +920,6 @@ impl<'r> Scanner<'r> {
     fn scan_many_impl<'a, 'opts, T>(
         &'a mut self,
         mut data_iter: T,
-        options: Option<ScanOptions<'opts>>,
     ) -> Result<ScanResults<'a, 'r>, ScanError>
     where
         T: DataIter,
@@ -996,19 +985,21 @@ impl<'r> Scanner<'r> {
 
             ctx.scanned_data = data.as_ptr();
             ctx.scanned_data_len = data.len();
-            total_data_len += data.len();
 
             // Free all runtime objects left around by previous scans.
             ctx.runtime_objects.clear();
 
-            _ = ctx.search_for_patterns();
+            _ = ctx.search_for_patterns(true);
+
+            total_data_len += data.len();
         }
 
         self.pattern_search_done
             .set(self.wasm_store.as_context_mut(), Val::I32(1))
             .unwrap();
 
-        // Set the global variable `filesize` to the size of the scanned data.
+        // Set the global variable `filesize` to the size of the total memroy regions.
+        // TODO: consider if instead it should be undefined (like in yara).
         self.filesize
             .set(
                 self.wasm_store.as_context_mut(),
@@ -1029,106 +1020,6 @@ impl<'r> Scanner<'r> {
         // trigger a refetch).
         ctx.scanned_data = [0; 0].as_ptr();
         ctx.scanned_data_len = 0;
-
-        for module_name in ctx.compiled_rules.imports() {
-            // Lookup the module in the list of built-in modules.
-            let module =
-                modules::BUILTIN_MODULES.get(module_name).unwrap_or_else(
-                    || panic!("module `{}` not found", module_name),
-                );
-
-            let root_struct_name = module.root_struct_descriptor.full_name();
-
-            let module_output;
-            // If the user already provided some output for the module by
-            // calling `Scanner::set_module_output`, use that output. If not,
-            // call the module's main function (if the module has a main
-            // function) for getting its output.
-            if let Some(output) =
-                ctx.user_provided_module_outputs.remove(root_struct_name)
-            {
-                module_output = Some(output);
-            } else {
-                // NOTE: not scanning the modules since their is no data, might be worth it
-                // to scan each section until Some is returned (more similar to the
-                // behaviour of yara)
-                //
-                // let meta: Option<&'opts [u8]> =
-                //     options.as_ref().and_then(|options| {
-                //         options.module_metadata.get(module_name).copied()
-                //     });
-                //
-                // if let Some(main_fn) = module.main_fn {
-                //     module_output =
-                //         Some(main_fn(data.as_ref(), meta).map_err(|err| {
-                //             ScanError::ModuleError {
-                //                 module: module_name.to_string(),
-                //                 err,
-                //             }
-                //         })?);
-                // } else {
-                //     module_output = None;
-                // }
-                module_output = None;
-            }
-
-            if let Some(module_output) = &module_output {
-                // Make sure that the module is returning a protobuf message of
-                // the expected type.
-                debug_assert_eq!(
-                    module_output.descriptor_dyn().full_name(),
-                    module.root_struct_descriptor.full_name(),
-                    "main function of module `{}` must return `{}`, but returned `{}`",
-                    module_name,
-                    module.root_struct_descriptor.full_name(),
-                    module_output.descriptor_dyn().full_name(),
-                );
-
-                // Make sure that the module is returning a protobuf message
-                // where all required fields are initialized. This only applies
-                // to proto2, proto3 doesn't have "required" fields, all fields
-                // are optional.
-                debug_assert!(
-                    module_output.is_initialized_dyn(),
-                    "module `{}` returned a protobuf `{}` where some required fields are not initialized ",
-                    module_name,
-                    module.root_struct_descriptor.full_name()
-                );
-            }
-
-            // When constant folding is enabled we don't need to generate
-            // structure fields for enums. This is because during the
-            // optimization process symbols like MyEnum.ENUM_ITEM are resolved
-            // to their constant values at compile time. In other words, the
-            // compiler determines that MyEnum.ENUM_ITEM is equal to some value
-            // X, and uses that value in the generated code.
-            //
-            // However, without constant folding, enums are treated as any
-            // other field in a struct, and their values are determined at scan
-            // time. For that reason these fields must be generated for enums
-            // when constant folding is disabled.
-            let generate_fields_for_enums =
-                !cfg!(feature = "constant-folding");
-
-            let module_struct = Struct::from_proto_descriptor_and_msg(
-                &module.root_struct_descriptor,
-                module_output.as_deref(),
-                generate_fields_for_enums,
-            );
-
-            if let Some(module_output) = module_output {
-                ctx.module_outputs
-                    .insert(root_struct_name.to_string(), module_output);
-            }
-
-            // The data structure obtained from the module is added to the
-            // root structure. Any data from previous scans will be replaced
-            // with the new data structure.
-            ctx.root_struct.add_field(
-                module_name,
-                TypeValue::Struct(Rc::new(module_struct)),
-            );
-        }
 
         // Invoke the main function, which evaluates the rules' conditions. It
         // will not call ScanContext::search_for_patterns (which does the Aho-Corasick

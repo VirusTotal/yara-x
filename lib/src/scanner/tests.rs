@@ -784,21 +784,39 @@ fn scan_proc() {
 }
 
 #[test]
-fn scan_proc_with_offset_dependent_condition() {
+fn scan_proc_get_match() {
     let rules = crate::compile(
         r#"
     rule slow {
-      condition:
-        uint8(0) >= 0
+      strings:
+        $a = {31 33 32 35 31 35 32 33 [17] 31 33 32 35 31 35 32 33}
+      condition: 
+        $a
     }
     "#,
     )
     .unwrap();
 
+    let expected_match_content = b"13251523thisis17byteslong13251523";
+
     let mut scanner = Scanner::new(&rules);
     let scan_results = scanner.scan_proc(process::id()).unwrap();
 
-    assert_eq!(scan_results.matching_rules().len(), 0);
+    assert_eq!(scan_results.matching_rules().len(), 1);
+    assert_eq!(
+        scan_results
+            .matching_rules()
+            .next()
+            .unwrap()
+            .patterns()
+            .next()
+            .unwrap()
+            .matches()
+            .next()
+            .unwrap()
+            .data(),
+        expected_match_content
+    );
 }
 
 #[cfg(feature = "rules-profiling")]
