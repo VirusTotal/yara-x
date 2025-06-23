@@ -67,7 +67,7 @@ list of with the names of the warnings to disable.
 Examples:
 
 --disable-warnings
---disable-warnings=slow_patterns
+--disable-warnings=slow_pattern
 --disable-warnings=slow_rules,redundant_modifier"
 --disable-warnings=slow_rules --disable-warnings=redundant_modifier"#;
 
