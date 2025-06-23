@@ -2,10 +2,10 @@
 
 The scanner takes the rules produces by the compiler and scans data with them.
 */
-
 use std::cell::RefCell;
 use std::collections::{hash_map, HashMap};
 use std::io::Read;
+use std::mem::transmute;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -22,6 +22,7 @@ use indexmap::IndexMap;
 use memmap2::{Mmap, MmapOptions};
 use protobuf::{CodedInputStream, MessageDyn};
 use rustc_hash::{FxHashMap, FxHashSet};
+
 use thiserror::Error;
 use wasmtime::{
     AsContext, AsContextMut, Global, GlobalType, MemoryType, Mutability,
@@ -165,7 +166,8 @@ impl<'a> ScanOptions<'a> {
 /// in-memory data sequentially, but you need multiple scanners for scanning in
 /// parallel.
 pub struct Scanner<'r> {
-    wasm_store: Pin<Box<Store<ScanContext<'r>>>>,
+    rules: &'r Rules,
+    wasm_store: Pin<Box<Store<ScanContext<'static>>>>,
     wasm_main_func: TypedFunc<(), i32>,
     filesize: Global,
     timeout: Option<Duration>,
@@ -179,6 +181,38 @@ impl<'r> Scanner<'r> {
         let num_rules = rules.num_rules() as u32;
         let num_patterns = rules.num_patterns() as u32;
 
+        let ctx = ScanContext {
+            wasm_store: NonNull::dangling(),
+            runtime_objects: IndexMap::new(),
+            compiled_rules: rules,
+            console_log: None,
+            current_struct: None,
+            root_struct: rules.globals().make_root(),
+            scanned_data: null(),
+            scanned_data_len: 0,
+            private_matching_rules: Vec::new(),
+            non_private_matching_rules: Vec::new(),
+            matching_rules: IndexMap::new(),
+            main_memory: None,
+            module_outputs: FxHashMap::default(),
+            user_provided_module_outputs: FxHashMap::default(),
+            pattern_matches: PatternMatches::new(),
+            unconfirmed_matches: FxHashMap::default(),
+            deadline: 0,
+            limit_reached: FxHashSet::default(),
+            regexp_cache: RefCell::new(FxHashMap::default()),
+            #[cfg(feature = "rules-profiling")]
+            time_spent_in_pattern: FxHashMap::default(),
+            #[cfg(feature = "rules-profiling")]
+            time_spent_in_rule: vec![0; num_rules as usize],
+            #[cfg(feature = "rules-profiling")]
+            rule_execution_start_time: 0,
+            #[cfg(feature = "rules-profiling")]
+            last_executed_rule: None,
+            #[cfg(any(feature = "rules-profiling", feature = "logging"))]
+            clock: quanta::Clock::new(),
+        };
+
         // The ScanContext structure belongs to the WASM store, but at the same
         // time it must have a reference to the store because it is required
         // for accessing the WASM memory from code that only has a reference to
@@ -188,40 +222,16 @@ impl<'r> Scanner<'r> {
         // store in ScanContext. The store is put into a pinned box in order to
         // make sure that it doesn't move from its original memory address and
         // the pointer remains valid.
-        let mut wasm_store = Box::pin(Store::new(
-            &crate::wasm::ENGINE,
-            ScanContext {
-                wasm_store: NonNull::dangling(),
-                runtime_objects: IndexMap::new(),
-                compiled_rules: rules,
-                console_log: None,
-                current_struct: None,
-                root_struct: rules.globals().make_root(),
-                scanned_data: null(),
-                scanned_data_len: 0,
-                private_matching_rules: Vec::new(),
-                non_private_matching_rules: Vec::new(),
-                matching_rules: IndexMap::new(),
-                main_memory: None,
-                module_outputs: FxHashMap::default(),
-                user_provided_module_outputs: FxHashMap::default(),
-                pattern_matches: PatternMatches::new(),
-                unconfirmed_matches: FxHashMap::default(),
-                deadline: 0,
-                limit_reached: FxHashSet::default(),
-                regexp_cache: RefCell::new(FxHashMap::default()),
-                #[cfg(feature = "rules-profiling")]
-                time_spent_in_pattern: FxHashMap::default(),
-                #[cfg(feature = "rules-profiling")]
-                time_spent_in_rule: vec![0; num_rules as usize],
-                #[cfg(feature = "rules-profiling")]
-                rule_execution_start_time: 0,
-                #[cfg(feature = "rules-profiling")]
-                last_executed_rule: None,
-                #[cfg(any(feature = "rules-profiling", feature = "logging"))]
-                clock: quanta::Clock::new(),
-            },
-        ));
+        //
+        // Also, the `Store` type requires a type T that is static, therefore
+        // we are forced to transmute the ScanContext<'r> into ScanContext<'static>.
+        // This is safe to do because the Store only lives for the time that
+        // the scanner lives, and 'r is the lifetime for the rules passed to
+        // the scanner, which are guaranteed to outlive the scanner.
+        let mut wasm_store =
+            Box::pin(Store::new(&crate::wasm::ENGINE, unsafe {
+                transmute::<ScanContext<'r>, ScanContext<'static>>(ctx)
+            }));
 
         // Initialize the ScanContext.wasm_store pointer that was initially
         // dangling.
@@ -312,7 +322,7 @@ impl<'r> Scanner<'r> {
 
         wasm_store.data_mut().main_memory = Some(main_memory);
 
-        Self { wasm_store, wasm_main_func, filesize, timeout: None }
+        Self { rules, wasm_store, wasm_main_func, filesize, timeout: None }
     }
 
     /// Sets a timeout for scan operations.
@@ -333,7 +343,7 @@ impl<'r> Scanner<'r> {
     /// When some pattern reaches the maximum number of patterns it won't
     /// produce more matches.
     pub fn max_matches_per_pattern(&mut self, n: usize) -> &mut Self {
-        self.wasm_store.data_mut().pattern_matches.max_matches_per_pattern(n);
+        self.scan_context_mut().pattern_matches.max_matches_per_pattern(n);
         self
     }
 
@@ -348,7 +358,7 @@ impl<'r> Scanner<'r> {
     where
         F: FnMut(String) + 'r,
     {
-        self.wasm_store.data_mut().console_log = Some(Box::new(callback));
+        self.scan_context_mut().console_log = Some(Box::new(callback));
         self
     }
 
@@ -409,7 +419,7 @@ impl<'r> Scanner<'r> {
     where
         VariableError: From<<T as TryInto<Variable>>::Error>,
     {
-        let ctx = self.wasm_store.data_mut();
+        let ctx = self.scan_context_mut();
 
         if let Some(field) = ctx.root_struct.field_by_name_mut(ident) {
             let variable: Variable = value.try_into()?;
@@ -485,8 +495,7 @@ impl<'r> Scanner<'r> {
             });
         }
 
-        self.wasm_store
-            .data_mut()
+        self.scan_context_mut()
             .user_provided_module_outputs
             .insert(full_name.to_string(), data);
 
@@ -544,7 +553,7 @@ impl<'r> Scanner<'r> {
     /// for subsequent scans, use [`Scanner::clear_profiling_data`].
     #[cfg(feature = "rules-profiling")]
     pub fn slowest_rules(&self, n: usize) -> Vec<ProfilingData> {
-        self.wasm_store.data().slowest_rules(n)
+        self.scan_context().slowest_rules(n)
     }
 
     /// Clears all accumulated profiling data.
@@ -554,11 +563,28 @@ impl<'r> Scanner<'r> {
     /// the results reflect only the data gathered after this method is called.
     #[cfg(feature = "rules-profiling")]
     pub fn clear_profiling_data(&mut self) {
-        self.wasm_store.data_mut().clear_profiling_data()
+        self.scan_context_mut().clear_profiling_data()
     }
 }
 
 impl<'r> Scanner<'r> {
+    #[inline]
+    fn scan_context(&mut self) -> &ScanContext<'r> {
+        unsafe {
+            transmute::<&mut ScanContext<'static>, &mut ScanContext<'r>>(
+                self.wasm_store.data_mut(),
+            )
+        }
+    }
+    #[inline]
+    fn scan_context_mut(&mut self) -> &mut ScanContext<'r> {
+        unsafe {
+            transmute::<&mut ScanContext<'static>, &mut ScanContext<'r>>(
+                self.wasm_store.data_mut(),
+            )
+        }
+    }
+
     fn load_file(path: &Path) -> Result<ScannedData<'static>, ScanError> {
         let mut file = fs::File::open(path).map_err(|err| {
             ScanError::OpenError { path: path.to_path_buf(), err }
@@ -649,7 +675,7 @@ impl<'r> Scanner<'r> {
             )
             .unwrap();
 
-        let ctx = self.wasm_store.data_mut();
+        let ctx = self.scan_context_mut();
 
         ctx.deadline =
             HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
@@ -771,7 +797,7 @@ impl<'r> Scanner<'r> {
 
         #[cfg(feature = "rules-profiling")]
         if func_result.is_err() {
-            let ctx = self.wasm_store.data_mut();
+            let ctx = self.scan_context_mut();
             // If a timeout occurs, the methods `ctx.track_rule_no_match` or
             // `ctx.track_rule_match` may not be invoked for the currently
             // executing rule. This means that the time spent within that rule
@@ -813,7 +839,7 @@ impl<'r> Scanner<'r> {
             }
         }
 
-        let ctx = self.wasm_store.data_mut();
+        let ctx = self.scan_context_mut();
 
         // Set pointer to data back to nil. This means that accessing
         // `scanned_data` from within `ScanResults` is not possible.
@@ -844,7 +870,7 @@ impl<'r> Scanner<'r> {
         }
 
         match func_result {
-            Ok(0) => Ok(ScanResults::new(self.wasm_store.data(), data)),
+            Ok(0) => Ok(ScanResults::new(self.scan_context(), data)),
             Ok(v) => panic!("WASM main returned: {}", v),
             Err(err) if err.is::<ScanError>() => {
                 Err(err.downcast::<ScanError>().unwrap())
@@ -860,9 +886,10 @@ impl<'r> Scanner<'r> {
     /// scan. This clears all the information generated during the previous
     /// scan.
     fn reset(&mut self) {
-        let ctx = self.wasm_store.data_mut();
-        let num_rules = ctx.compiled_rules.num_rules();
-        let num_patterns = ctx.compiled_rules.num_patterns();
+        let num_rules = self.rules.num_rules();
+        let num_patterns = self.rules.num_patterns();
+
+        let ctx = self.scan_context_mut();
 
         // Clear the array that tracks the patterns that reached the maximum
         // number of patterns.

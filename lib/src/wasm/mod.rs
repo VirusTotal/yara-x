@@ -758,8 +758,8 @@ pub(crate) static CONFIG: LazyLock<Config> = LazyLock::new(|| {
 pub(crate) static ENGINE: LazyLock<Engine> =
     LazyLock::new(|| Engine::new(&CONFIG).unwrap());
 
-pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
-    let mut linker = Linker::<ScanContext<'r>>::new(&ENGINE);
+pub(crate) fn new_linker() -> Linker<ScanContext<'static>> {
+    let mut linker = Linker::<ScanContext<'static>>::new(&ENGINE);
     for export in WASM_EXPORTS {
         let func_type = FuncType::new(
             &ENGINE,

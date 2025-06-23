@@ -40,7 +40,7 @@ use crate::wasm::MATCHING_RULES_BITMAP_BASE;
 /// Structure that holds information about the current scan.
 pub(crate) struct ScanContext<'r> {
     /// Pointer to the WASM store.
-    pub wasm_store: NonNull<Store<ScanContext<'r>>>,
+    pub wasm_store: NonNull<Store<ScanContext<'static>>>,
     /// Map where keys are object handles and values are objects used during
     /// the evaluation of rule conditions. Handles are opaque integer values
     /// that can be passed to and received from WASM code. Each handle identify
