@@ -477,15 +477,15 @@ func metadataCallback(metadata *C.YRX_METADATA, handle C.uintptr_t) {
 	var value interface{}
 
 	switch metadata.value_type {
-	case C.I64:
+	case C.YRX_I64:
 		value = int64(C.meta_i64(unsafe.Pointer(&metadata.value)))
-	case C.F64:
+	case C.YRX_F64:
 		value = float64(C.meta_f64(unsafe.Pointer(&metadata.value)))
-	case C.BOOLEAN:
+	case C.YRX_BOOLEAN:
 		value = bool(C.meta_bool(unsafe.Pointer(&metadata.value)))
-	case C.STRING:
+	case C.YRX_STRING:
 		value = C.GoString(C.meta_str(unsafe.Pointer(&metadata.value)))
-	case C.BYTES:
+	case C.YRX_BYTES:
 		bytes := C.meta_bytes(unsafe.Pointer(&metadata.value))
 		value = C.GoBytes(
 			unsafe.Pointer(bytes.data),
