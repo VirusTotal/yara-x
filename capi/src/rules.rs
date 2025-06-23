@@ -54,9 +54,9 @@ pub unsafe extern "C" fn yrx_rules_iter(
             let rule = YRX_RULE::new(r);
             callback(&rule as *const YRX_RULE, user_data);
         }
-        YRX_RESULT::SUCCESS
+        YRX_RESULT::YRX_SUCCESS
     } else {
-        YRX_RESULT::INVALID_ARGUMENT
+        YRX_RESULT::YRX_INVALID_ARGUMENT
     }
 }
 
@@ -95,15 +95,15 @@ pub unsafe extern "C" fn yrx_rules_serialize(
                     length: serialized.len(),
                 }));
                 _yrx_set_last_error::<SerializationError>(None);
-                YRX_RESULT::SUCCESS
+                YRX_RESULT::YRX_SUCCESS
             }
             Err(err) => {
                 _yrx_set_last_error(Some(err));
-                YRX_RESULT::SERIALIZATION_ERROR
+                YRX_RESULT::YRX_SERIALIZATION_ERROR
             }
         }
     } else {
-        YRX_RESULT::INVALID_ARGUMENT
+        YRX_RESULT::YRX_INVALID_ARGUMENT
     }
 }
 
@@ -119,11 +119,11 @@ pub unsafe extern "C" fn yrx_rules_deserialize(
         Ok(r) => {
             *rules = Box::into_raw(YRX_RULES::boxed(r));
             _yrx_set_last_error::<SerializationError>(None);
-            YRX_RESULT::SUCCESS
+            YRX_RESULT::YRX_SUCCESS
         }
         Err(err) => {
             _yrx_set_last_error(Some(err));
-            YRX_RESULT::SERIALIZATION_ERROR
+            YRX_RESULT::YRX_SERIALIZATION_ERROR
         }
     }
 }
@@ -159,9 +159,9 @@ pub unsafe extern "C" fn yrx_rules_iter_imports(
             let import = CString::new(import).unwrap();
             callback(import.as_ptr(), user_data);
         }
-        YRX_RESULT::SUCCESS
+        YRX_RESULT::YRX_SUCCESS
     } else {
-        YRX_RESULT::INVALID_ARGUMENT
+        YRX_RESULT::YRX_INVALID_ARGUMENT
     }
 }
 

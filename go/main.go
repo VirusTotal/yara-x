@@ -123,7 +123,7 @@ func ReadFrom(r io.Reader) (*Rules, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	if C.yrx_rules_deserialize(ptr, C.size_t(len(data)), &rules.cRules) != C.SUCCESS {
+	if C.yrx_rules_deserialize(ptr, C.size_t(len(data)), &rules.cRules) != C.YRX_SUCCESS {
 		return nil, errors.New(C.GoString(C.yrx_last_error()))
 	}
 
@@ -147,7 +147,7 @@ func (r *Rules) WriteTo(w io.Writer) (int64, error) {
 	var buf *C.YRX_BUFFER
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-	if C.yrx_rules_serialize(r.cRules, &buf) != C.SUCCESS {
+	if C.yrx_rules_serialize(r.cRules, &buf) != C.YRX_SUCCESS {
 		return 0, errors.New(C.GoString(C.yrx_last_error()))
 	}
 	defer C.yrx_buffer_destroy(buf)
@@ -281,13 +281,13 @@ func newRule(cRule *C.YRX_RULE) *Rule {
 	var str *C.uint8_t
 	var len C.size_t
 
-	if C.yrx_rule_namespace(cRule, &str, &len) != C.SUCCESS {
+	if C.yrx_rule_namespace(cRule, &str, &len) != C.YRX_SUCCESS {
 		panic("yrx_rule_namespace failed")
 	}
 
 	namespace := C.GoStringN((*C.char)(unsafe.Pointer(str)), C.int(len))
 
-	if C.yrx_rule_identifier(cRule, &str, &len) != C.SUCCESS {
+	if C.yrx_rule_identifier(cRule, &str, &len) != C.YRX_SUCCESS {
 		panic("yrx_rule_name failed")
 	}
 
@@ -300,7 +300,7 @@ func newRule(cRule *C.YRX_RULE) *Rule {
 	if C._yrx_rule_iter_tags(
 		cRule,
 		C.YRX_TAG_CALLBACK(C.tagCallback),
-		C.uintptr_t(tagsHandle)) != C.SUCCESS {
+		C.uintptr_t(tagsHandle)) != C.YRX_SUCCESS {
 		panic("yrx_rule_iter_tags failed")
 	}
 
@@ -311,7 +311,7 @@ func newRule(cRule *C.YRX_RULE) *Rule {
 	if C._yrx_rule_iter_metadata(
 		cRule,
 		C.YRX_PATTERN_CALLBACK(C.metadataCallback),
-		C.uintptr_t(metadataHandle)) != C.SUCCESS {
+		C.uintptr_t(metadataHandle)) != C.YRX_SUCCESS {
 		panic("yrx_rule_iter_metadata failed")
 	}
 
@@ -322,7 +322,7 @@ func newRule(cRule *C.YRX_RULE) *Rule {
 	if C._yrx_rule_iter_patterns(
 		cRule,
 		C.YRX_PATTERN_CALLBACK(C.patternCallback),
-		C.uintptr_t(patternsHandle)) != C.SUCCESS {
+		C.uintptr_t(patternsHandle)) != C.YRX_SUCCESS {
 		panic("yrx_rule_iter_patterns failed")
 	}
 
@@ -444,7 +444,7 @@ func patternCallback(pattern *C.YRX_PATTERN, handle C.uintptr_t) {
 	var str *C.uint8_t
 	var len C.size_t
 
-	if C.yrx_pattern_identifier(pattern, &str, &len) != C.SUCCESS {
+	if C.yrx_pattern_identifier(pattern, &str, &len) != C.YRX_SUCCESS {
 		panic("yrx_pattern_identifier failed")
 	}
 
@@ -454,7 +454,7 @@ func patternCallback(pattern *C.YRX_PATTERN, handle C.uintptr_t) {
 
 	if C._yrx_pattern_iter_matches(pattern,
 		C.YRX_MATCH_CALLBACK(C.matchCallback),
-		C.uintptr_t(matchesHandle)) != C.SUCCESS {
+		C.uintptr_t(matchesHandle)) != C.YRX_SUCCESS {
 		panic("yrx_pattern_iter_matches failed")
 	}
 

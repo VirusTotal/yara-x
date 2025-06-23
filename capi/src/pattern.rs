@@ -30,9 +30,9 @@ pub unsafe extern "C" fn yrx_pattern_identifier(
         *ident = pattern.0.identifier().as_ptr();
         *len = pattern.0.identifier().len();
         _yrx_set_last_error::<String>(None);
-        YRX_RESULT::SUCCESS
+        YRX_RESULT::YRX_SUCCESS
     } else {
-        YRX_RESULT::INVALID_ARGUMENT
+        YRX_RESULT::YRX_INVALID_ARGUMENT
     }
 }
 
@@ -65,7 +65,7 @@ pub unsafe extern "C" fn yrx_pattern_iter_matches(
     let matches_iter = if let Some(pattern) = pattern.as_ref() {
         pattern.0.matches()
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     for m in matches_iter {
@@ -75,5 +75,5 @@ pub unsafe extern "C" fn yrx_pattern_iter_matches(
         )
     }
 
-    YRX_RESULT::SUCCESS
+    YRX_RESULT::YRX_SUCCESS
 }

@@ -377,7 +377,7 @@ func (c *Compiler) AddSource(src string, opts ...SourceOption) error {
 	// different thread in-between the two calls to the C API.
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-	if C.yrx_compiler_add_source_with_origin(c.cCompiler, cSrc, cOrigin) == C.SYNTAX_ERROR {
+	if C.yrx_compiler_add_source_with_origin(c.cCompiler, cSrc, cOrigin) == C.YRX_SYNTAX_ERROR {
 		return errors.New(C.GoString(C.yrx_last_error()))
 	}
 	// After the call to yrx_compiler_add_source, c is not live anymore and
@@ -394,7 +394,7 @@ func (c *Compiler) enableFeature(feature string) {
 	cFeature := C.CString(feature)
 	defer C.free(unsafe.Pointer(cFeature))
 	result := C.yrx_compiler_enable_feature(c.cCompiler, cFeature)
-	if result != C.SUCCESS {
+	if result != C.YRX_SUCCESS {
 		panic("yrx_compiler_enable_feature failed")
 	}
 	runtime.KeepAlive(c)
@@ -409,7 +409,7 @@ func (c *Compiler) ignoreModule(module string) {
 	cModule := C.CString(module)
 	defer C.free(unsafe.Pointer(cModule))
 	result := C.yrx_compiler_ignore_module(c.cCompiler, cModule)
-	if result != C.SUCCESS {
+	if result != C.YRX_SUCCESS {
 		panic("yrx_compiler_add_unsupported_module failed")
 	}
 	runtime.KeepAlive(c)
@@ -426,7 +426,7 @@ func (c *Compiler) banModule(module, error_title, error_message string) {
 	defer C.free(unsafe.Pointer(cErrMsg))
 
 	result := C.yrx_compiler_ban_module(c.cCompiler, cModule, cErrTitle, cErrMsg)
-	if result != C.SUCCESS {
+	if result != C.YRX_SUCCESS {
 		panic("yrx_compiler_add_unsupported_module failed")
 	}
 	runtime.KeepAlive(c)
@@ -453,7 +453,7 @@ func (c *Compiler) NewNamespace(namespace string) {
 	cNamespace := C.CString(namespace)
 	defer C.free(unsafe.Pointer(cNamespace))
 	result := C.yrx_compiler_new_namespace(c.cCompiler, cNamespace)
-	if result != C.SUCCESS {
+	if result != C.YRX_SUCCESS {
 		panic("yrx_compiler_new_namespace failed")
 	}
 	runtime.KeepAlive(c)
@@ -499,7 +499,7 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 
 	runtime.KeepAlive(c)
 
-	if ret == C.VARIABLE_ERROR {
+	if ret == C.YRX_VARIABLE_ERROR {
 		return errors.New(C.GoString(C.yrx_last_error()))
 	}
 
@@ -510,7 +510,7 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 // [Compiler.AddSource].
 func (c *Compiler) Errors() []CompileError {
 	var buf *C.YRX_BUFFER
-	if C.yrx_compiler_errors_json(c.cCompiler, &buf) != C.SUCCESS {
+	if C.yrx_compiler_errors_json(c.cCompiler, &buf) != C.YRX_SUCCESS {
 		panic("yrx_compiler_errors_json failed")
 	}
 
@@ -532,7 +532,7 @@ func (c *Compiler) Errors() []CompileError {
 // [Compiler.AddSource].
 func (c *Compiler) Warnings() []Warning {
 	var buf *C.YRX_BUFFER
-	if C.yrx_compiler_warnings_json(c.cCompiler, &buf) != C.SUCCESS {
+	if C.yrx_compiler_warnings_json(c.cCompiler, &buf) != C.YRX_SUCCESS {
 		panic("yrx_compiler_warnings_json failed")
 	}
 

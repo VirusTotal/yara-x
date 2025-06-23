@@ -333,7 +333,7 @@ fn capi_errors() {
                 src.as_ptr(),
                 origin.as_ptr()
             ),
-            YRX_RESULT::SYNTAX_ERROR
+            YRX_RESULT::YRX_SYNTAX_ERROR
         );
 
         assert_eq!(

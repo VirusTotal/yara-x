@@ -54,40 +54,40 @@
 
 // Types of metadata values.
 typedef enum YRX_METADATA_TYPE {
-  I64,
-  F64,
-  BOOLEAN,
-  STRING,
-  BYTES,
+  YRX_I64,
+  YRX_F64,
+  YRX_BOOLEAN,
+  YRX_STRING,
+  YRX_BYTES,
 } YRX_METADATA_TYPE;
 
 // Error codes returned by functions in this API.
 typedef enum YRX_RESULT {
   // Everything was OK.
-  SUCCESS,
+  YRX_SUCCESS,
   // A syntax error occurred while compiling YARA rules.
-  SYNTAX_ERROR,
+  YRX_SYNTAX_ERROR,
   // An error occurred while defining or setting a global variable. This may
   // happen when a variable is defined twice and when you try to set a value
   // that doesn't correspond to the variable's type.
-  VARIABLE_ERROR,
+  YRX_VARIABLE_ERROR,
   // An error occurred during a scan operation.
-  SCAN_ERROR,
+  YRX_SCAN_ERROR,
   // A scan operation was aborted due to a timeout.
-  SCAN_TIMEOUT,
+  YRX_SCAN_TIMEOUT,
   // An error indicating that some of the arguments passed to a function is
   // invalid. Usually indicates a nil pointer to a scanner or compiler.
-  INVALID_ARGUMENT,
+  YRX_INVALID_ARGUMENT,
   // An error indicating that some of the strings passed to a function is
   // not valid UTF-8.
-  INVALID_UTF8,
+  YRX_INVALID_UTF8,
   // An error occurred while serializing/deserializing YARA rules.
-  SERIALIZATION_ERROR,
+  YRX_SERIALIZATION_ERROR,
   // An error returned when a rule doesn't have any metadata.
-  NO_METADATA,
+  YRX_NO_METADATA,
   // An error returned in cases where some API is not supported because the
   // library was not built with the required features.
-  NOT_SUPPORTED,
+  YRX_NOT_SUPPORTED,
 } YRX_RESULT;
 
 // A compiler that takes YARA source code and produces compiled rules.

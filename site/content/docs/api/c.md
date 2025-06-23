@@ -275,7 +275,7 @@ Creates a new namespace. Further calls
 to [yrx_compiler_add_source](#yrx_compiler_add_source) will put the
 rules under the newly created namespace. The `namespace` argument must be
 pointer to null-terminated UTF-8 string. If the string is not valid UTF-8 the
-result is an `INVALID_ARGUMENT` error.
+result is an `YRX_INVALID_ARGUMENT` error.
 
 #### yrx_compiler_define_global_xxxx
 
@@ -312,7 +312,7 @@ calling any of the [yrx_scanner_set_global_xxxx](#yrx_scanner_set_global_xxxx)
 functions.
 
 The `ident` argument must be pointer to null-terminated UTF-8 string. If the
-string is not valid UTF-8 the result is an `INVALID_ARGUMENT` error.
+string is not valid UTF-8 the result is an `YRX_INVALID_ARGUMENT` error.
 
 #### yrx_compiler_errors_json
 
@@ -687,7 +687,7 @@ performance, it receives:
 
 **Note:** This function requires the `rules-profiling` feature to be enabled
 when YARA-X is compiled. If the feature is not available, this function will
-return `YRX_RESULT::NOT_SUPPORTED`.
+return `YRX_NOT_SUPPORTED`.
 
 See also: 
  * [YRX_SLOWEST_RULES_CALLBACK](#yrx_slowest_rules_callback)
@@ -709,7 +709,7 @@ scans performed after calling this function.
 
 **Note:** This function requires the `rules-profiling` feature to be enabled
 when YARA-X is compiled. If the feature is not available, this function will 
-return `YRX_RESULT::NOT_SUPPORTED`.
+return `YRX_NOT_SUPPORTED`.
 
 See also:
 * [yrx_scanner_iter_slowest_rules](#yrx_scanner_iter_slowest_rules)
@@ -910,11 +910,11 @@ Each of the possible types of a metadata entry.
 
 ```c
 typedef enum YRX_METADATA_TYPE {
-    I64,
-    F64,
-    BOOLEAN,
-    STRING,
-    BYTES,
+    YRX_I64,
+    YRX_F64,
+    YRX_BOOLEAN,
+    YRX_STRING,
+    YRX_BYTES,
 } YRX_METADATA_VALUE_TYPE;
 ```
 
@@ -958,30 +958,30 @@ Error codes returned by multiple functions in this API.
 ```c
 typedef enum YRX_RESULT {
     // Everything was OK.
-    SUCCESS,
+    YRX_SUCCESS,
     // A syntax error occurred while compiling YARA rules.
-    SYNTAX_ERROR,
+    YRX_SYNTAX_ERROR,
     // An error occurred while defining or setting a global variable. This may
     // happen when a variable is defined twice and when you try to set a value
     // that doesn't correspond to the variable's type.
-    VARIABLE_ERROR,
+    YRX_VARIABLE_ERROR,
     // An error occurred during a scan operation.
-    SCAN_ERROR,
+    YRX_SCAN_ERROR,
     // A scan operation was aborted due to a timeout.
-    SCAN_TIMEOUT,
+    YRX_SCAN_TIMEOUT,
     // An error indicating that some of the arguments passed to a function is
     // invalid. Usually indicates a nil pointer to a scanner or compiler.
-    INVALID_ARGUMENT,
+    YRX_INVALID_ARGUMENT,
     // An error indicating that some of the strings passed to a function is
     // not valid UTF-8.
-    INVALID_UTF8,
+    YRX_INVALID_UTF8,
     // An error occurred while serializing/deserializing YARA rules.
-    SERIALIZATION_ERROR,
+    YRX_SERIALIZATION_ERROR,
     // An error returned when a rule doesn't have any metadata.
-    NO_METADATA,
+    YRX_NO_METADATA,
     // An error returned in cases where some API is not supported because the
     // library was not built with the required features.
-    NOT_SUPPORTED,
+    YRX_NOT_SUPPORTED,
 } YRX_RESULT;
 ```
 
