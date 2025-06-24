@@ -1,5 +1,5 @@
 use crate::compiler::{IdentId, PatternId, RuleInfo};
-use crate::scanner::{ScanContext, ScannedData};
+use crate::scanner::{ScanContext, ScanResultsData};
 use crate::{compiler, scanner, Rules};
 use bstr::{BStr, ByteSlice};
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,7 @@ pub enum PatternKind {
 /// A structure that describes a rule.
 pub struct Rule<'a, 'r> {
     pub(crate) ctx: Option<&'a ScanContext<'r>>,
-    pub(crate) data: Option<&'a ScannedData<'a>>,
+    pub(crate) data: Option<&'a ScanResultsData<'a>>,
     pub(crate) rules: &'r Rules,
     pub(crate) rule_info: &'r RuleInfo,
 }
@@ -249,7 +249,7 @@ impl<'r> Tag<'r> {
 /// as well.
 pub struct Patterns<'a, 'r> {
     ctx: Option<&'a ScanContext<'r>>,
-    data: Option<&'a ScannedData<'a>>,
+    data: Option<&'a ScanResultsData<'a>>,
     rules: &'r Rules,
     iterator: Iter<'a, (IdentId, PatternKind, PatternId, bool)>,
     /// True if the iterator should yield all patterns, including the
@@ -316,7 +316,7 @@ impl<'a, 'r> Iterator for Patterns<'a, 'r> {
 /// Represents a pattern defined by a rule.
 pub struct Pattern<'a, 'r> {
     ctx: Option<&'a ScanContext<'r>>,
-    data: Option<&'a ScannedData<'a>>,
+    data: Option<&'a ScanResultsData<'a>>,
     rules: &'r Rules,
     ident_id: IdentId,
     pattern_id: PatternId,
@@ -357,7 +357,7 @@ impl<'a, 'r> Pattern<'a, 'r> {
 
 /// Iterator that returns the matches for a pattern.
 pub struct Matches<'a> {
-    data: Option<&'a ScannedData<'a>>,
+    data: Option<&'a ScanResultsData<'a>>,
     iterator: Option<Iter<'a, scanner::Match>>,
 }
 
@@ -378,7 +378,7 @@ impl ExactSizeIterator for Matches<'_> {
 
 /// Represents a match.
 pub struct Match<'a> {
-    data: &'a ScannedData<'a>,
+    data: &'a ScanResultsData<'a>,
     inner: &'a scanner::Match,
 }
 
@@ -392,9 +392,23 @@ impl<'a> Match<'a> {
     /// Slice containing the data that matched.
     #[inline]
     pub fn data(&self) -> &'a [u8] {
-        match &self.inner.content {
-            Some(content) => content,
-            None => self.data.as_ref().get(self.inner.range.clone()).unwrap(),
+        match self.data {
+            ScanResultsData::Continuous(scanned_data) => {
+                scanned_data.as_ref().get(self.inner.range.clone()).unwrap()
+            }
+            ScanResultsData::Fragmeneted(sparse_data) => {
+                // TODO: replace this with a binary search.
+                for (start, data) in sparse_data {
+                    if *start <= self.inner.range.start {
+                        return &data[self.inner.range.start - start
+                            ..self.inner.range.end - start];
+                    }
+                }
+                panic!(
+                    "Match range {:?} not found in sparse data",
+                    self.inner.range
+                );
+            }
         }
     }
 

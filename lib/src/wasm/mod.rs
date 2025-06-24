@@ -790,7 +790,7 @@ pub(crate) fn new_linker() -> Linker<ScanContext<'static>> {
 pub(crate) fn search_for_patterns(
     caller: &mut Caller<'_, ScanContext>,
 ) -> bool {
-    match caller.data_mut().search_for_patterns(false) {
+    match caller.data_mut().search_for_patterns(0, &mut None) {
         Ok(_) => true,
         Err(ScanError::Timeout) => false,
         Err(_) => unreachable!(),
