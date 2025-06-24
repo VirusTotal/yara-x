@@ -36,6 +36,7 @@ use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
 use crate::modules::{Module, ModuleError, BUILTIN_MODULES};
 use crate::scanner::matches::PatternMatches;
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 use crate::scanner::proc::{DataIter, ProcessMemory};
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
@@ -411,6 +412,7 @@ impl<'r> Scanner<'r> {
         self.scan_impl(Self::load_file(target.as_ref())?, None)
     }
 
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
     /// Scans a process.
     pub fn scan_proc<'a>(
         &'a mut self,
