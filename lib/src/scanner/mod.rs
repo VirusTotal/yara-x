@@ -37,7 +37,7 @@ use crate::models::Rule;
 use crate::modules::{Module, ModuleError, BUILTIN_MODULES};
 use crate::scanner::matches::PatternMatches;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
-use crate::scanner::proc::{DataIter, ProcessMemory};
+use crate::scanner::proc::ProcessMemory;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
@@ -918,7 +918,7 @@ impl<'r> Scanner<'r> {
         }
     }
 
-    fn scan_many_impl<'a, 'opts, T>(
+    fn scan_many_impl<'a, T>(
         &'a mut self,
         mut data_iter: T,
     ) -> Result<ScanResults<'a, 'r>, ScanError>
@@ -1173,6 +1173,11 @@ impl<'r> Scanner<'r> {
             bitmap.fill(false);
         }
     }
+}
+
+pub trait DataIter {
+    type Item<'a>: AsRef<[u8]>;
+    fn next<'a>(&mut self, buffer: &'a mut Vec<u8>) -> Option<Self::Item<'a>>;
 }
 
 pub struct FragmentedRanges {

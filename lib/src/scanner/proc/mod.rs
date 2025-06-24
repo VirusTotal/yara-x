@@ -7,8 +7,3 @@ pub use windows::ProcessMemory;
 mod linux;
 #[cfg(target_os = "windows")]
 mod windows;
-
-pub trait DataIter {
-    type Item<'a>: AsRef<[u8]>;
-    fn next<'a>(&mut self, buffer: &'a mut Vec<u8>) -> Option<Self::Item<'a>>;
-}
