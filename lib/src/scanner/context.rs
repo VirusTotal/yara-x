@@ -485,9 +485,14 @@ impl ScanContext<'_> {
         #[cfg(any(feature = "rules-profiling", feature = "logging"))]
         let scan_start = self.clock.raw();
 
-        // Verify the anchored pattern first. These are patterns that can match
-        // at a single known offset within the data.
-        self.verify_anchored_patterns(sparse_data_ranges);
+        // only verify anchored patterns when scanning a single continuous buffer.
+        // NOTE: we could potentially check anchored patterns even when doing fragmented scanning
+        // by using the self.scanned_data_off, but I have a hard time thinking of a use for that.
+        if sparse_data_ranges.is_none() {
+            // Verify the anchored pattern first. These are patterns that can match
+            // at a single known offset within the data.
+            self.verify_anchored_patterns();
+        }
 
         let ac = self.compiled_rules.ac_automaton();
 
@@ -758,10 +763,7 @@ impl ScanContext<'_> {
         Ok(())
     }
 
-    fn verify_anchored_patterns(
-        &mut self,
-        sparse_data_ranges: &mut Option<FragmentedRanges>,
-    ) {
+    fn verify_anchored_patterns(&mut self) {
         for (sub_pattern_id, (pattern_id, sub_pattern)) in self
             .compiled_rules
             .anchored_sub_patterns()
@@ -789,7 +791,7 @@ impl ScanContext<'_> {
                             sub_pattern,
                             *pattern_id,
                             match_,
-                            sparse_data_ranges,
+                            &mut None,
                         );
                     }
                 }
