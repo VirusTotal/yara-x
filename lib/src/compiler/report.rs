@@ -74,7 +74,7 @@ impl CodeLoc {
 pub(crate) struct Report {
     code_cache: Arc<CodeCache>,
     with_colors: bool,
-    max_with: usize,
+    max_width: usize,
     level: Level,
     code: &'static str,
     title: String,
@@ -230,7 +230,7 @@ impl Display for Report {
             annotate_snippets::Renderer::plain()
         };
 
-        let renderer = renderer.term_width(self.max_with);
+        let renderer = renderer.term_width(self.max_width);
         let text = renderer.render(message);
 
         write!(f, "{}", text)
@@ -265,7 +265,7 @@ pub struct Footer<'a> {
 /// [register_source]: ReportBuilder::register_source
 pub struct ReportBuilder {
     with_colors: bool,
-    max_with: usize,
+    max_width: usize,
     current_source_id: Cell<Option<SourceId>>,
     next_source_id: Cell<SourceId>,
     code_cache: Arc<CodeCache>,
@@ -311,7 +311,7 @@ impl ReportBuilder {
     pub fn new() -> Self {
         Self {
             with_colors: false,
-            max_with: DEFAULT_TERM_WIDTH,
+            max_width: DEFAULT_TERM_WIDTH,
             current_source_id: Cell::new(None),
             next_source_id: Cell::new(SourceId(0)),
             code_cache: Arc::new(CodeCache::new()),
@@ -328,8 +328,8 @@ impl ReportBuilder {
     /// Sets the maximum number of columns while rendering error messages.
     ///
     /// The default value is 140.
-    pub fn max_with(&mut self, with: usize) -> &mut Self {
-        self.max_with = with;
+    pub fn max_width(&mut self, width: usize) -> &mut Self {
+        self.max_width = width;
         self
     }
 
@@ -440,7 +440,7 @@ impl ReportBuilder {
         Report {
             code_cache: self.code_cache.clone(),
             with_colors: self.with_colors,
-            max_with: self.max_with,
+            max_width: self.max_width,
             level,
             code,
             title,

@@ -891,8 +891,8 @@ impl<'a> Compiler<'a> {
     /// Sets the maximum number of columns in error messages.
     ///
     /// The default value is 140.
-    pub fn errors_max_with(&mut self, with: usize) -> &mut Self {
-        self.report_builder.max_with(with);
+    pub fn errors_max_width(&mut self, width: usize) -> &mut Self {
+        self.report_builder.max_width(width);
         self
     }
 
