@@ -7,6 +7,7 @@ use std::collections::{hash_map, HashMap};
 use std::io::Read;
 use std::mem::transmute;
 use std::ops::Deref;
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::ptr::{null, NonNull};
@@ -910,7 +911,10 @@ impl<'r> Scanner<'r> {
         }
 
         match func_result {
-            Ok(0) => Ok(ScanResults::new(self.scan_context(), data)),
+            Ok(0) => Ok(ScanResults::new(
+                self.scan_context(),
+                ScanResultsData::Continuous(data),
+            )),
             Ok(v) => panic!("WASM main returned: {}", v),
             Err(err) if err.is::<ScanError>() => {
                 Err(err.downcast::<ScanError>().unwrap())
@@ -982,6 +986,9 @@ impl<'r> Scanner<'r> {
 
         let mut total_data_len = 0;
         let mut buffer: Vec<u8> = Vec::new();
+        // TODO: make this a structure
+        let mut sparse_scanned_ranges = Vec::<Range<usize>>::new();
+        let mut sparse_scanned_data = Vec::<(usize, Vec<u8>)>::new();
 
         while let Some(scanned_data) = data_iter.next(&mut buffer) {
             let data: &[u8] = scanned_data.as_ref();
@@ -994,9 +1001,20 @@ impl<'r> Scanner<'r> {
             // Free all runtime objects left around by previous scans.
             ctx.runtime_objects.clear();
 
-            _ = ctx.search_for_patterns(true);
+            _ = ctx.search_for_patterns(
+                total_data_len,
+                &mut Some(&mut sparse_scanned_ranges),
+            );
+
+            for range in sparse_scanned_ranges.iter() {
+                sparse_scanned_data.push((
+                    total_data_len + range.start,
+                    data[range.clone()].to_vec(),
+                ));
+            }
 
             total_data_len += data.len();
+            sparse_scanned_ranges.clear();
         }
 
         self.pattern_search_done
@@ -1112,7 +1130,7 @@ impl<'r> Scanner<'r> {
         match func_result {
             Ok(0) => Ok(ScanResults::new(
                 self.wasm_store.data(),
-                ScannedData::Vec(vec![]),
+                ScanResultsData::Fragmeneted(sparse_scanned_data),
             )),
             Ok(v) => panic!("WASM main returned: {}", v),
             Err(err) if err.is::<ScanError>() => {
@@ -1175,16 +1193,27 @@ impl<'r> Scanner<'r> {
     }
 }
 
+// TODO: consider only having the Fragmented variant and just representing the Continuous variant
+// as a single item Fragmented.
+pub enum ScanResultsData<'a> {
+    Continuous(ScannedData<'a>),
+    // TODO: this might not actually be better for some cases (in particular if there are no
+    // overlaps then this is a waste)
+    // if a significant part of the fragment matched then it might be better to just save the
+    // whole of it.
+    Fragmeneted(Vec<(usize, Vec<u8>)>),
+}
+
 /// Results of a scan operation.
 ///
 /// Allows iterating over both the matching and non-matching rules.
 pub struct ScanResults<'a, 'r> {
     ctx: &'a ScanContext<'r>,
-    data: ScannedData<'a>,
+    data: ScanResultsData<'a>,
 }
 
 impl<'a, 'r> ScanResults<'a, 'r> {
-    fn new(ctx: &'a ScanContext<'r>, data: ScannedData<'a>) -> Self {
+    fn new(ctx: &'a ScanContext<'r>, data: ScanResultsData<'a>) -> Self {
         Self { ctx, data }
     }
 
@@ -1229,12 +1258,12 @@ impl<'a, 'r> ScanResults<'a, 'r> {
 /// Iterator that yields the rules that matched during a scan.
 pub struct MatchingRules<'a, 'r> {
     ctx: &'a ScanContext<'r>,
-    data: &'a ScannedData<'a>,
+    data: &'a ScanResultsData<'a>,
     iterator: Iter<'a, RuleId>,
 }
 
 impl<'a, 'r> MatchingRules<'a, 'r> {
-    fn new(ctx: &'a ScanContext<'r>, data: &'a ScannedData<'a>) -> Self {
+    fn new(ctx: &'a ScanContext<'r>, data: &'a ScanResultsData<'a>) -> Self {
         Self { ctx, data, iterator: ctx.non_private_matching_rules.iter() }
     }
 }
@@ -1265,13 +1294,13 @@ impl ExactSizeIterator for MatchingRules<'_, '_> {
 /// Iterator that yields the rules that didn't match during a scan.
 pub struct NonMatchingRules<'a, 'r> {
     ctx: &'a ScanContext<'r>,
-    data: &'a ScannedData<'a>,
+    data: &'a ScanResultsData<'a>,
     iterator: bitvec::slice::IterZeros<'a, u8, Lsb0>,
     len: usize,
 }
 
 impl<'a, 'r> NonMatchingRules<'a, 'r> {
-    fn new(ctx: &'a ScanContext<'r>, data: &'a ScannedData<'a>) -> Self {
+    fn new(ctx: &'a ScanContext<'r>, data: &'a ScanResultsData<'a>) -> Self {
         let num_rules = ctx.compiled_rules.num_rules();
         let main_memory =
             ctx.main_memory.unwrap().data(unsafe { ctx.wasm_store.as_ref() });

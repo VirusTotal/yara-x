@@ -15,12 +15,6 @@ pub(crate) struct Match {
     /// where `k` is the XOR key (it may be 0). For any other type of
     /// pattern this is `None`.
     pub xor_key: Option<u8>,
-    /// When scanning fragmeneted data this is `Some(content)`
-    /// where `content` is the actual content of the match.
-    /// otherwise its `None`
-    // TODO: This should be a referernce to a separate structure that retains the data for matches
-    // without duplication.
-    pub content: Option<Vec<u8>>,
 }
 
 /// Represents the list of matches for a pattern.
@@ -59,6 +53,7 @@ impl MatchList {
     pub fn add(&mut self, m: Match, replace_if_longer: bool) {
         let mut insertion_index = self.matches.len();
 
+        // TODO: replace this with a binary search
         while insertion_index > 0 {
             let existing_match = &mut self.matches[insertion_index - 1];
             if m.range.start == existing_match.range.start {
@@ -297,11 +292,11 @@ mod test {
     fn match_list() {
         let mut ml = MatchList::with_capacity(5);
 
-        ml.add(Match { range: (2..10), xor_key: None, content: None }, false);
-        ml.add(Match { range: (1..10), xor_key: None, content: None }, false);
-        ml.add(Match { range: (4..10), xor_key: None, content: None }, false);
-        ml.add(Match { range: (3..10), xor_key: None, content: None }, false);
-        ml.add(Match { range: (5..10), xor_key: None, content: None }, false);
+        ml.add(Match { range: (2..10), xor_key: None }, false);
+        ml.add(Match { range: (1..10), xor_key: None }, false);
+        ml.add(Match { range: (4..10), xor_key: None }, false);
+        ml.add(Match { range: (3..10), xor_key: None }, false);
+        ml.add(Match { range: (5..10), xor_key: None }, false);
 
         assert_eq!(
             ml.iter().map(|m| m.range.clone()).collect::<Vec<Range<usize>>>(),
