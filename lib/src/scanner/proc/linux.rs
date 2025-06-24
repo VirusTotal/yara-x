@@ -7,7 +7,7 @@ use bitflags::bitflags;
 use itertools::Itertools;
 use memmap2::{Mmap, MmapOptions};
 
-use crate::scanner::proc::DataIter;
+use crate::scanner::DataIter;
 use crate::scanner::ScanError;
 
 pub enum MemRegion<'a> {
@@ -48,8 +48,7 @@ pub struct Mapping {
 
 impl Mapping {
     fn open_backing_file(&self) -> Option<fs::File> {
-        if (self.pathname.len() == 0) || ((self.dmaj == 0) && (self.dmin == 0))
-        {
+        if self.pathname.is_empty() || ((self.dmaj == 0) && (self.dmin == 0)) {
             return None;
         }
         let meta = fs::metadata(&self.pathname).ok()?;
@@ -100,7 +99,7 @@ fn parse_map_line(line: &str) -> Option<Mapping> {
     // character because the path can technically contain whitespace characters.
     let pathname = pathname.trim_start().strip_suffix('\n').unwrap_or("");
     let offset = u64::from_str_radix(offset, 16).ok()?;
-    let inode = u64::from_str_radix(inode, 10).ok()?;
+    let inode = inode.parse::<u64>().ok()?;
     let (begin, end) = address.split("-").next_tuple()?;
     let begin = u64::from_str_radix(begin, 16).ok()?;
     let end = u64::from_str_radix(end, 16).ok()?;
@@ -169,7 +168,7 @@ impl Iterator for ProcessMapping {
                 }
             }
         }
-        return None;
+        None
     }
 }
 
@@ -232,7 +231,12 @@ impl DataIter for ProcessMemory {
                     .mem
                     .read_exact_at(
                         unsafe {
-                            std::mem::transmute(buffer.spare_capacity_mut())
+                            std::mem::transmute::<
+                                &mut [std::mem::MaybeUninit<u8>],
+                                &mut [u8],
+                            >(
+                                buffer.spare_capacity_mut()
+                            )
                         },
                         self.start,
                     )
@@ -252,17 +256,13 @@ impl DataIter for ProcessMemory {
                 }
 
                 let size = (map.end - map.begin) as usize;
-                match map
-                    .open_backing_file()
-                    .map(|file| unsafe {
-                        MmapOptions::new()
-                            .offset(map.offset)
-                            .len(size)
-                            .map_copy(&file)
-                            .ok()
-                    })
-                    .flatten()
-                {
+                match map.open_backing_file().and_then(|file| unsafe {
+                    MmapOptions::new()
+                        .offset(map.offset)
+                        .len(size)
+                        .map_copy(&file)
+                        .ok()
+                }) {
                     Some(mut mapped_file) => {
                         let mut region_pagemap =
                             Box::<[u64]>::new_uninit_slice(
@@ -287,26 +287,24 @@ impl DataIter for ProcessMemory {
                                 }
 
                                 let start = index * self.pagesize;
-                                if !self
+                                if self
                                     .mem
                                     .read_exact_at(
                                         &mut mapped_file
                                             [start..start + self.pagesize],
                                         map.begin + start as u64,
                                     )
-                                    .is_ok()
+                                    .is_err()
                                 {
                                     continue 'outer;
                                 }
                             }
-                        } else {
-                            if !self
-                                .mem
-                                .read_exact_at(&mut mapped_file, map.begin)
-                                .is_ok()
-                            {
-                                continue;
-                            }
+                        } else if self
+                            .mem
+                            .read_exact_at(&mut mapped_file, map.begin)
+                            .is_err()
+                        {
+                            continue;
                         }
 
                         return Some(MemRegion::Mmap(

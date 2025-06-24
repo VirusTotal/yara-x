@@ -25,7 +25,7 @@ use windows::Win32::{
 };
 use windows_result::HRESULT;
 
-use crate::scanner::proc::DataIter;
+use crate::scanner::DataIter;
 use crate::scanner::ScanError;
 
 struct ProcessMapping {
