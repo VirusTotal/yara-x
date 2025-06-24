@@ -211,6 +211,7 @@ impl<'r> Scanner<'r> {
             root_struct: rules.globals().make_root(),
             scanned_data: null(),
             scanned_data_len: 0,
+            scanned_data_off: 0,
             matching_rules: Vec::new(),
             matching_rules_per_ns: IndexMap::new(),
             num_matching_private_rules: 0,
@@ -981,9 +982,9 @@ impl<'r> Scanner<'r> {
 
         let mut total_data_len = 0;
         let mut buffer: Vec<u8> = Vec::new();
-        // TODO: make this a structure
-        let mut sparse_scanned_ranges = Vec::<Range<usize>>::new();
-        let mut sparse_scanned_data = Vec::<(usize, Vec<u8>)>::new();
+        let mut sparse_scanned_ranges =
+            Some(FragmentedRanges { ranges: Vec::new() });
+        let mut sparse_scanned_data = FragmentedData { fragments: Vec::new() };
 
         while let Some(scanned_data) = data_iter.next(&mut buffer) {
             let data: &[u8] = scanned_data.as_ref();
@@ -992,24 +993,23 @@ impl<'r> Scanner<'r> {
 
             ctx.scanned_data = data.as_ptr();
             ctx.scanned_data_len = data.len();
+            ctx.scanned_data_off = total_data_len;
 
             // Free all runtime objects left around by previous scans.
             ctx.runtime_objects.clear();
 
-            _ = ctx.search_for_patterns(
-                total_data_len,
-                &mut Some(&mut sparse_scanned_ranges),
-            );
+            _ = ctx.search_for_patterns(&mut sparse_scanned_ranges);
 
-            for range in sparse_scanned_ranges.iter() {
-                sparse_scanned_data.push((
-                    total_data_len + range.start,
-                    data[range.clone()].to_vec(),
-                ));
+            for range in
+                sparse_scanned_ranges.as_mut().unwrap().ranges.drain(..)
+            {
+                sparse_scanned_data.fragments.push(Fragment {
+                    start: total_data_len + range.start,
+                    data: data[range].to_vec(),
+                });
             }
 
             total_data_len += data.len();
-            sparse_scanned_ranges.clear();
         }
 
         self.pattern_search_done
@@ -1103,22 +1103,16 @@ impl<'r> Scanner<'r> {
         // to some struct.
         ctx.current_struct = None;
 
-        // Both `private_matching_rules` and `non_private_matching_rules` are
-        // empty at this point. Matching rules were being tracked by the
-        // `matching_rules` map, but we are about to move them to these two
-        // vectors while leaving the map empty.
-        assert!(ctx.private_matching_rules.is_empty());
-        assert!(ctx.non_private_matching_rules.is_empty());
+        // `matching_rules` must be empty at this point. Matching rules were
+        // being tracked by the `matching_rules_per_ns` map, but we are about
+        // to move them to `matching_rules` while leaving the map empty.
+        assert!(ctx.matching_rules.is_empty());
 
         // Move the matching rules the vectors, leaving the `matching_rules`
         // map empty.
-        for rules in ctx.matching_rules.values_mut() {
+        for rules in ctx.matching_rules_per_ns.values_mut() {
             for rule_id in rules.drain(0..) {
-                if ctx.compiled_rules.get(rule_id).is_private {
-                    ctx.private_matching_rules.push(rule_id);
-                } else {
-                    ctx.non_private_matching_rules.push(rule_id);
-                }
+                ctx.matching_rules.push(rule_id);
             }
         }
 
@@ -1185,15 +1179,97 @@ impl<'r> Scanner<'r> {
     }
 }
 
+pub struct FragmentedRanges {
+    pub ranges: Vec<Range<usize>>,
+}
+
+impl FragmentedRanges {
+    /// Searches for a range that contains the given offset.
+    ///
+    /// If a range containing `offset` is found, then [`Ok`] is returned
+    /// containing the index of the range. If no range is found, then [`Err`]
+    /// is returned, containing the index where the range would be located.
+    ///
+    /// This operation is O(log(N)) because it takes advantage of the fact
+    /// that ranges are sorted by order and uses a binary search
+    /// internally.
+    ///
+    /// The list can't contain two ranges which overlap,
+    #[inline]
+    pub fn search(&self, offset: usize, from: usize) -> Result<usize, usize> {
+        self.ranges[from..]
+            .binary_search_by(|x| {
+                if x.start == offset {
+                    core::cmp::Ordering::Equal
+                } else if x.start < offset {
+                    if offset <= x.end {
+                        core::cmp::Ordering::Equal
+                    } else {
+                        core::cmp::Ordering::Less
+                    }
+                } else {
+                    core::cmp::Ordering::Greater
+                }
+            })
+            .map(|i| i + from)
+            .map_err(|i| i + from)
+    }
+}
+
+pub struct Fragment {
+    start: usize,
+    data: Vec<u8>,
+}
+
+pub struct FragmentedData {
+    pub fragments: Vec<Fragment>,
+}
+
+impl FragmentedData {
+    pub fn get(&self, range: Range<usize>) -> Option<&[u8]> {
+        let index = self.search(range.start).ok()?;
+        let fragment = &self.fragments[index];
+        fragment
+            .data
+            .get(range.start - fragment.start..range.end - fragment.start)
+    }
+
+    /// Searches for a fragment that contains the given offset.
+    ///
+    /// If a fragment containing `offset` is found, then [`Ok`] is returned
+    /// containing the index of the match. If no fragment is found, then [`Err`]
+    /// is returned, containing the index where the fragment would be located.
+    ///
+    /// This operation is O(log(N)) because it takes advantage of the fact
+    /// that fragments are sorted by order and uses a binary search
+    /// internally.
+    ///
+    /// The list can't contain two fragments which overlap,
+    #[inline]
+    pub fn search(&self, offset: usize) -> Result<usize, usize> {
+        self.fragments.binary_search_by(|x| {
+            if x.start <= offset {
+                if offset < x.start + x.data.len() {
+                    core::cmp::Ordering::Equal
+                } else {
+                    core::cmp::Ordering::Less
+                }
+            } else {
+                core::cmp::Ordering::Greater
+            }
+        })
+    }
+}
+
 // TODO: consider only having the Fragmented variant and just representing the Continuous variant
 // as a single item Fragmented.
 pub enum ScanResultsData<'a> {
     Continuous(ScannedData<'a>),
     // TODO: this might not actually be better for some cases (in particular if there are no
-    // overlaps then this is a waste)
+    // overlaps then this is a waste).
     // if a significant part of the fragment matched then it might be better to just save the
     // whole of it.
-    Fragmeneted(Vec<(usize, Vec<u8>)>),
+    Fragmeneted(FragmentedData),
 }
 
 /// Results of a scan operation.
@@ -1261,7 +1337,7 @@ pub struct MatchingRules<'a, 'r> {
 }
 
 impl<'a, 'r> MatchingRules<'a, 'r> {
-    fn new(ctx: &'a ScanContext<'r>, data: &'a ScannedData<'a>) -> Self {
+    fn new(ctx: &'a ScanContext<'r>, data: &'a ScanResultsData<'a>) -> Self {
         Self {
             ctx,
             data,

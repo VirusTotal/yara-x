@@ -1,5 +1,6 @@
 use std::process;
 
+use itertools::Itertools;
 use pretty_assertions::assert_eq;
 use protobuf::MessageDyn;
 use protobuf::{Message, MessageFull};
@@ -817,6 +818,53 @@ fn scan_proc_get_match() {
             .data(),
         expected_match_content
     );
+}
+
+#[test]
+fn scan_proc_overlapping_matches() {
+    let rules = crate::compile(
+        r#"
+    rule slow {
+      strings:
+        $a = { 35 32 33 34 37 31 33 34 [16] ?? }
+        $b = { ?? [16] 37 32 33 34 37 38 32 31 }
+      condition: 
+        all of them
+    }
+    "#,
+    )
+    .unwrap();
+
+    let expected_match_content = b"52347134thisis17byteslong72347821";
+
+    let mut scanner = Scanner::new(&rules);
+    let scan_results = scanner.scan_proc(process::id()).unwrap();
+
+    assert_eq!(scan_results.matching_rules().len(), 1);
+    let (pattern1, pattern2) = scan_results
+        .matching_rules()
+        .next()
+        .unwrap()
+        .patterns()
+        .map(|pat| (pat.identifier(), pat.matches().next().unwrap().data()))
+        .collect_tuple()
+        .unwrap();
+    let (pattern_a, pattern_b) = match pattern1.0 {
+        "$a" => (pattern1, pattern2),
+        "$b" => (pattern2, pattern1),
+        _ => unreachable!(),
+    };
+    // Check that the match content is as expected.
+    assert_eq!(
+        pattern_a.1,
+        &expected_match_content[..expected_match_content.len() - 8]
+    );
+    assert_eq!(pattern_b.1, &expected_match_content[8..]);
+    // Check that the content of the matchs is not duplicated.
+    assert!(std::ptr::eq(
+        &pattern_a.1[8..],
+        &pattern_b.1[..pattern_b.1.len() - 8]
+    ))
 }
 
 #[cfg(feature = "rules-profiling")]

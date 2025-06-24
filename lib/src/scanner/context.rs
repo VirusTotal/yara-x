@@ -32,8 +32,8 @@ use crate::re::Action;
 use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
 #[cfg(feature = "rules-profiling")]
 use crate::scanner::ProfilingData;
-use crate::scanner::ScanError;
 use crate::scanner::HEARTBEAT_COUNTER;
+use crate::scanner::{FragmentedRanges, ScanError};
 use crate::types::{Array, Map, Struct};
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
 
@@ -50,6 +50,8 @@ pub(crate) struct ScanContext<'r> {
     pub scanned_data: *const u8,
     /// Length of data being scanned.
     pub scanned_data_len: usize,
+    /// Offset of data being scanned in total data.
+    pub scanned_data_off: usize,
     /// Vector containing the IDs of the rules that matched, including both
     /// global and non-global ones. The rules are added first to the
     /// `matching_rules_per_ns` map, and then moved to this vector
@@ -413,10 +415,7 @@ impl ScanContext<'_> {
         pattern_id: PatternId,
         match_: Match,
         replace_if_longer: bool,
-        // TODO: make this part of the ctx.
-        search_offset: usize,
-        // TODO: create type for this:
-        sparse_data_ranges: &mut Option<&mut Vec<Range<usize>>>,
+        sparse_data_ranges: &mut Option<FragmentedRanges>,
     ) {
         let wasm_store = unsafe { self.wasm_store.as_mut() };
         let mem = self.main_memory.unwrap().data_mut(wasm_store);
@@ -433,8 +432,8 @@ impl ScanContext<'_> {
         if !self.pattern_matches.add(
             pattern_id,
             Match {
-                range: match_.range.start + search_offset
-                    ..match_.range.end + search_offset,
+                range: match_.range.start + self.scanned_data_off
+                    ..match_.range.end + self.scanned_data_off,
                 xor_key: match_.xor_key,
             },
             replace_if_longer,
@@ -442,60 +441,29 @@ impl ScanContext<'_> {
             self.limit_reached.insert(pattern_id);
         } else if let Some(sparse_data_ranges) = sparse_data_ranges {
             // TODO: consider replace_if_longer.
-            let mut insertion_start_index = sparse_data_ranges.len();
+            let insertion_start_index =
+                sparse_data_ranges.search(match_.range.start, 0);
+            let insertion_end_index = sparse_data_ranges.search(
+                match_.range.end,
+                insertion_start_index.unwrap_or_else(|e| e),
+            );
 
-            // TODO: replace this with a binary search
-            while insertion_start_index > 0 {
-                let existing_range =
-                    &sparse_data_ranges[insertion_start_index - 1];
-                // The match just before `insertion_start_index` starts at some offset
-                // that is lower or equal to the match being inserted, so this is the
-                // final start insertion index.
-                if match_.range.start >= existing_range.start {
-                    break;
-                }
-                insertion_start_index -= 1;
-            }
-
-            let mut insertion_end_index = insertion_start_index;
-
-            // TODO: replace this with a binary search
-            while insertion_end_index < sparse_data_ranges.len() {
-                let existing_range = &sparse_data_ranges[insertion_end_index];
-                // The match just at `insertion_end_index` ends at some offset
-                // that is higher or equal to the end of the match being inserted, so this is the
-                // final end insertion index.
-                if match_.range.end <= existing_range.end {
-                    break;
-                }
-                insertion_end_index += 1;
-            }
-
-            let (start, start_index) = if insertion_start_index == 0 {
-                (match_.range.start, insertion_start_index)
-            } else {
-                let existing_range =
-                    &sparse_data_ranges[insertion_start_index - 1];
-                if existing_range.end < match_.range.start {
-                    (match_.range.start, insertion_start_index)
-                } else {
-                    (existing_range.start, insertion_start_index - 1)
-                }
+            let (start, start_idx) = match insertion_start_index {
+                Ok(idx) => (sparse_data_ranges.ranges[idx].start, idx),
+                Err(idx) => (match_.range.start, idx),
             };
-            let (end, end_index) = if insertion_end_index
-                == sparse_data_ranges.len()
-            {
-                (match_.range.end, insertion_end_index)
-            } else {
-                let existing_range = &sparse_data_ranges[insertion_end_index];
-                if existing_range.start > match_.range.end {
-                    (match_.range.end, insertion_end_index - 1)
-                } else {
-                    (existing_range.end, insertion_end_index)
-                }
+            let (end, end_idx) = match insertion_end_index {
+                Ok(idx) => (
+                    core::cmp::max(
+                        sparse_data_ranges.ranges[idx].end,
+                        match_.range.end,
+                    ),
+                    idx + 1,
+                ),
+                Err(idx) => (match_.range.end, idx),
             };
-            sparse_data_ranges.drain(start_index..end_index);
-            sparse_data_ranges.insert(insertion_start_index, start..end);
+            sparse_data_ranges.ranges.drain(start_idx..end_idx);
+            sparse_data_ranges.ranges.insert(start_idx, start..end);
         }
     }
 
@@ -512,15 +480,14 @@ impl ScanContext<'_> {
     /// called only once.
     pub(crate) fn search_for_patterns(
         &mut self,
-        search_offset: usize,
-        sparse_data_ranges: &mut Option<&mut Vec<Range<usize>>>,
+        sparse_data_ranges: &mut Option<FragmentedRanges>,
     ) -> Result<(), ScanError> {
         #[cfg(any(feature = "rules-profiling", feature = "logging"))]
         let scan_start = self.clock.raw();
 
         // Verify the anchored pattern first. These are patterns that can match
         // at a single known offset within the data.
-        self.verify_anchored_patterns(search_offset, sparse_data_ranges);
+        self.verify_anchored_patterns(sparse_data_ranges);
 
         let ac = self.compiled_rules.ac_automaton();
 
@@ -609,7 +576,6 @@ impl ScanContext<'_> {
                             range: match_range.start..match_range.end,
                             xor_key: None,
                         },
-                        search_offset,
                         sparse_data_ranges,
                     );
                 }
@@ -635,7 +601,6 @@ impl ScanContext<'_> {
                             sub_pattern,
                             *pattern_id,
                             match_,
-                            search_offset,
                             sparse_data_ranges,
                         );
                     }
@@ -655,7 +620,6 @@ impl ScanContext<'_> {
                                 sub_pattern,
                                 *pattern_id,
                                 match_,
-                                search_offset,
                                 sparse_data_ranges,
                             );
                         },
@@ -678,7 +642,6 @@ impl ScanContext<'_> {
                             sub_pattern,
                             *pattern_id,
                             match_,
-                            search_offset,
                             sparse_data_ranges,
                         );
                     }
@@ -702,7 +665,6 @@ impl ScanContext<'_> {
                             sub_pattern,
                             *pattern_id,
                             match_,
-                            search_offset,
                             sparse_data_ranges,
                         );
                     }
@@ -748,7 +710,6 @@ impl ScanContext<'_> {
                             sub_pattern,
                             *pattern_id,
                             match_,
-                            search_offset,
                             sparse_data_ranges,
                         );
                     }
@@ -799,8 +760,7 @@ impl ScanContext<'_> {
 
     fn verify_anchored_patterns(
         &mut self,
-        search_offset: usize,
-        sparse_data_ranges: &mut Option<&mut Vec<Range<usize>>>,
+        sparse_data_ranges: &mut Option<FragmentedRanges>,
     ) {
         for (sub_pattern_id, (pattern_id, sub_pattern)) in self
             .compiled_rules
@@ -829,7 +789,6 @@ impl ScanContext<'_> {
                             sub_pattern,
                             *pattern_id,
                             match_,
-                            search_offset,
                             sparse_data_ranges,
                         );
                     }
@@ -845,8 +804,7 @@ impl ScanContext<'_> {
         sub_pattern: &SubPattern,
         pattern_id: PatternId,
         match_: Match,
-        search_offset: usize,
-        sparse_data_ranges: &mut Option<&mut Vec<Range<usize>>>,
+        sparse_data_ranges: &mut Option<FragmentedRanges>,
     ) {
         match sub_pattern {
             SubPattern::Literal { .. }
@@ -859,7 +817,6 @@ impl ScanContext<'_> {
                     pattern_id,
                     match_,
                     false,
-                    search_offset,
                     sparse_data_ranges,
                 );
             }
@@ -868,7 +825,6 @@ impl ScanContext<'_> {
                     pattern_id,
                     match_,
                     flags.contains(SubPatternFlags::GreedyRegexp),
-                    search_offset,
                     sparse_data_ranges,
                 );
             }
@@ -904,7 +860,6 @@ impl ScanContext<'_> {
                             pattern_id,
                             sub_pattern_id,
                             match_.range,
-                            search_offset,
                             sparse_data_ranges,
                         );
                     } else {
@@ -976,8 +931,7 @@ impl ScanContext<'_> {
         pattern_id: PatternId,
         tail_sub_pattern_id: SubPatternId,
         tail_match_range: Range<usize>,
-        search_offset: usize,
-        sparse_data_ranges: &mut Option<&mut Vec<Range<usize>>>,
+        sparse_data_ranges: &mut Option<FragmentedRanges>,
     ) {
         let mut queue = VecDeque::new();
 
@@ -1001,7 +955,6 @@ impl ScanContext<'_> {
                                 xor_key: None,
                             },
                             flags.contains(SubPatternFlags::GreedyRegexp),
-                            search_offset,
                             sparse_data_ranges,
                         );
                     }

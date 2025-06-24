@@ -397,17 +397,7 @@ impl<'a> Match<'a> {
                 scanned_data.as_ref().get(self.inner.range.clone()).unwrap()
             }
             ScanResultsData::Fragmeneted(sparse_data) => {
-                // TODO: replace this with a binary search.
-                for (start, data) in sparse_data {
-                    if *start <= self.inner.range.start {
-                        return &data[self.inner.range.start - start
-                            ..self.inner.range.end - start];
-                    }
-                }
-                panic!(
-                    "Match range {:?} not found in sparse data",
-                    self.inner.range
-                );
+                sparse_data.get(self.inner.range.clone()).unwrap()
             }
         }
     }
