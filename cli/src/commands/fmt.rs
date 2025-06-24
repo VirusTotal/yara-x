@@ -22,7 +22,7 @@ pub fn fmt() -> Command {
         .arg(arg!(-c --check  "Run in 'check' mode").long_help(FMT_CHECK_MODE))
 }
 
-pub fn exec_fmt(args: &ArgMatches, config: Config) -> anyhow::Result<()> {
+pub fn exec_fmt(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let files = args.get_many::<PathBuf>("FILE").unwrap();
     let check = args.get_flag("check");
 

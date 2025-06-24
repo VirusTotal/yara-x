@@ -61,7 +61,7 @@ fn is_md5(s: &str) -> bool {
     s.len() == 32 && s.chars().all(|c| c.is_ascii_hexdigit())
 }
 
-pub fn exec_check(args: &ArgMatches, config: Config) -> anyhow::Result<()> {
+pub fn exec_check(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let rules_path = args.get_one::<PathBuf>("RULES_PATH").unwrap();
     let max_depth = args.get_one::<u16>("max-depth");
     let filters = args.get_many::<String>("filter");

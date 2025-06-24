@@ -83,13 +83,13 @@ fn main() -> anyhow::Result<()> {
 
     let result = match args.subcommand() {
         #[cfg(feature = "debug-cmd")]
-        Some(("debug", args)) => commands::exec_debug(args),
-        Some(("check", args)) => commands::exec_check(args, config),
+        Some(("debug", args)) => commands::exec_debug(args, &config),
+        Some(("check", args)) => commands::exec_check(args, &config),
         Some(("fix", args)) => commands::exec_fix(args),
-        Some(("fmt", args)) => commands::exec_fmt(args, config),
-        Some(("scan", args)) => commands::exec_scan(args, config),
+        Some(("fmt", args)) => commands::exec_fmt(args, &config),
+        Some(("scan", args)) => commands::exec_scan(args, &config),
         Some(("dump", args)) => commands::exec_dump(args),
-        Some(("compile", args)) => commands::exec_compile(args, config),
+        Some(("compile", args)) => commands::exec_compile(args, &config),
         Some(("completion", args)) => commands::exec_completion(args),
         _ => unreachable!(),
     };

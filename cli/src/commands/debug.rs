@@ -12,6 +12,7 @@ use yara_x_parser::Parser;
 use crate::commands::{
     create_compiler, external_var_parser, get_external_vars,
 };
+use crate::config::Config;
 use crate::help;
 
 pub fn ast() -> Command {
@@ -87,18 +88,18 @@ pub fn debug() -> Command {
         .subcommand(modules())
 }
 
-pub fn exec_debug(args: &ArgMatches) -> anyhow::Result<()> {
+pub fn exec_debug(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     match args.subcommand() {
-        Some(("ast", args)) => exec_ast(args),
-        Some(("cst", args)) => exec_cst(args),
-        Some(("ir", args)) => exec_ir(args),
-        Some(("wasm", args)) => exec_wasm(args),
-        Some(("modules", args)) => exec_modules(args),
+        Some(("ast", args)) => exec_ast(args, config),
+        Some(("cst", args)) => exec_cst(args, config),
+        Some(("ir", args)) => exec_ir(args, config),
+        Some(("wasm", args)) => exec_wasm(args, config),
+        Some(("modules", args)) => exec_modules(args, config),
         _ => unreachable!(),
     }
 }
 
-pub fn exec_ast(args: &ArgMatches) -> anyhow::Result<()> {
+pub fn exec_ast(args: &ArgMatches, _config: &Config) -> anyhow::Result<()> {
     let rules_path = args.get_one::<PathBuf>("RULES_PATH").unwrap();
 
     let src = fs::read(rules_path)
@@ -111,7 +112,7 @@ pub fn exec_ast(args: &ArgMatches) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn exec_cst(args: &ArgMatches) -> anyhow::Result<()> {
+pub fn exec_cst(args: &ArgMatches, _config: &Config) -> anyhow::Result<()> {
     let rules_path = args.get_one::<PathBuf>("RULES_PATH").unwrap();
 
     let src = fs::read(rules_path)
@@ -124,14 +125,14 @@ pub fn exec_cst(args: &ArgMatches) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn exec_ir(args: &ArgMatches) -> anyhow::Result<()> {
+pub fn exec_ir(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let rules_path = args.get_one::<PathBuf>("RULES_PATH").unwrap();
 
     let src = fs::read(rules_path)
         .with_context(|| format!("can not read `{}`", rules_path.display()))?;
 
     let external_vars = get_external_vars(args);
-    let mut compiler = create_compiler(external_vars, args)?;
+    let mut compiler = create_compiler(external_vars, args, config)?;
 
     compiler.set_ir_writer(stdout());
     compiler.add_source(src.as_slice())?;
@@ -139,7 +140,7 @@ pub fn exec_ir(args: &ArgMatches) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn exec_wasm(args: &ArgMatches) -> anyhow::Result<()> {
+fn exec_wasm(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let mut rules_path =
         args.get_one::<PathBuf>("RULES_PATH").unwrap().to_path_buf();
 
@@ -152,7 +153,7 @@ fn exec_wasm(args: &ArgMatches) -> anyhow::Result<()> {
     rules_path.set_extension("wasm");
 
     let external_vars = get_external_vars(args);
-    let mut compiler = create_compiler(external_vars, args)?;
+    let mut compiler = create_compiler(external_vars, args, config)?;
 
     compiler.add_source(src)?;
     compiler.emit_wasm_file(rules_path.as_path())?;
@@ -160,7 +161,7 @@ fn exec_wasm(args: &ArgMatches) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn exec_modules(_args: &ArgMatches) -> anyhow::Result<()> {
+fn exec_modules(_args: &ArgMatches, _config: &Config) -> anyhow::Result<()> {
     for name in yara_x::mods::module_names() {
         println!("{}", name);
     }

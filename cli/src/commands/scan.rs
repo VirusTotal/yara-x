@@ -237,7 +237,7 @@ impl From<&ArgMatches> for OutputOptions {
     }
 }
 
-pub fn exec_scan(args: &ArgMatches, config: Config) -> anyhow::Result<()> {
+pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let mut rules_path = args
         .get_many::<(Option<String>, PathBuf)>("[NAMESPACE:]RULES_PATH")
         .unwrap();
@@ -315,7 +315,7 @@ pub fn exec_scan(args: &ArgMatches, config: Config) -> anyhow::Result<()> {
         // With `take()` we pass the external variables to `compile_rules`,
         // while leaving a `None` in `external_vars`. This way external
         // variables are not set again in the scanner.
-        compile_rules(rules_path, external_vars.take(), args, &config)?
+        compile_rules(rules_path, external_vars.take(), args, config)?
     };
 
     let rules_ref = &rules;
