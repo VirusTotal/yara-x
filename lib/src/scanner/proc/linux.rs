@@ -184,6 +184,7 @@ pub struct ProcessMemory {
 
 impl ProcessMemory {
     pub fn new(pid: u32) -> Result<Self, ScanError> {
+        // TODO: might need to do PTRACE_ATTACH, but it appears to work without it...
         let maps = ProcessMapping::new(pid)?;
         let mem_path: PathBuf = format!("/proc/{pid}/mem").into();
         let mem = fs::OpenOptions::new().read(true).open(&mem_path).map_err(
@@ -213,7 +214,7 @@ impl ProcessMemory {
 }
 
 // TODO: Make this configurable.
-// NOTE: should this also effect Mmap.
+// NOTE: should this also effect Mmap?
 const MAX_BUFFER_SIZE: u64 = 0x100000;
 
 impl DataIter for ProcessMemory {
