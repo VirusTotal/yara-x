@@ -78,12 +78,6 @@ pub enum ScanError {
         /// Error that occurred.
         err: std::io::Error,
     },
-    /// Could not create anonymouse map for storing the scanned process memory.
-    #[error("can not map: {err}")]
-    AnonMapError {
-        /// Error that occurred.
-        err: std::io::Error,
-    },
     #[cfg(target_os = "windows")]
     /// Could not read memory of the scanned process.
     #[error("can not read memory of `{pid}`: {err}")]
@@ -1188,8 +1182,8 @@ pub struct FragmentedRanges {
 impl FragmentedRanges {
     /// Searches for a range that contains the given offset.
     ///
-    /// If a range containing `offset` is found, then [`Ok`] is returned
-    /// containing the index of the range. If no range is found, then [`Err`]
+    /// If a range containing `offset` is found (or one that whose end overlaps with offset),
+    /// then [`Ok`] is returned containing the index of the range. If no range is found, then [`Err`]
     /// is returned, containing the index where the range would be located.
     ///
     /// This operation is O(log(N)) because it takes advantage of the fact
@@ -1269,7 +1263,7 @@ pub enum ScanResultsData<'a> {
     Continuous(ScannedData<'a>),
     // TODO: this might not actually be better for some cases (in particular if there are no
     // overlaps then this is a waste).
-    // if a significant part of the fragment matched then it might be better to just save the
+    // TODO: if a significant part of the fragment matched then it might be better to just save the
     // whole of it.
     Fragmeneted(FragmentedData),
 }
