@@ -564,10 +564,7 @@ impl ScanContext<'_> {
                         sub_pattern_id,
                         sub_pattern,
                         *pattern_id,
-                        Match {
-                            range: match_range.start..match_range.end,
-                            xor_key: None,
-                        },
+                        Match { range: match_range, xor_key: None },
                         sparse_data_ranges,
                     );
                 }
@@ -1186,10 +1183,7 @@ fn verify_regexp_match(
                     let range =
                         atom_pos - bck_match_len..atom_pos + fwd_match_len;
                     if verify_full_word(scanned_data, &range, flags, None) {
-                        f(Match {
-                            range: range.start..range.end,
-                            xor_key: None,
-                        });
+                        f(Match { range, xor_key: None });
                     }
                     Action::Continue
                 },
@@ -1204,10 +1198,7 @@ fn verify_regexp_match(
                     let range =
                         atom_pos - bck_match_len..atom_pos + fwd_match_len;
                     if verify_full_word(scanned_data, &range, flags, None) {
-                        f(Match {
-                            range: range.start..range.end,
-                            xor_key: None,
-                        });
+                        f(Match { range, xor_key: None });
                     }
                     Action::Continue
                 },
@@ -1216,7 +1207,7 @@ fn verify_regexp_match(
     } else {
         let range = atom_pos..atom_pos + fwd_match_len;
         if verify_full_word(scanned_data, &range, flags, None) {
-            f(Match { range: range.start..range.end, xor_key: None });
+            f(Match { range, xor_key: None });
         }
     }
 }
@@ -1263,10 +1254,7 @@ fn verify_xor_match(
     }
 
     if &scanned_data[match_range.clone()] == pattern.as_bytes() {
-        Some(Match {
-            range: match_range.start..match_range.end,
-            xor_key: Some(key),
-        })
+        Some(Match { range: match_range, xor_key: Some(key) })
     } else {
         None
     }

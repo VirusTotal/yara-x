@@ -87,7 +87,7 @@ impl Mapping {
 //
 // address           perms offset  dev   inode   pathname
 // 08048000-08056000 r-xp 00000000 03:0c 64593   /usr/sbin/gpm
-// The following might be problematic:
+// NOTE: The following might be problematic:
 // "pathname is shown unescaped except for newline characters,
 // which are replaced with an octal escape sequence.  As a
 // result, it is not possible to determine whether the
