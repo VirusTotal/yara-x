@@ -1199,17 +1199,15 @@ impl FragmentedRanges {
     #[inline]
     pub fn search(&self, offset: usize, from: usize) -> Result<usize, usize> {
         self.ranges[from..]
-            .binary_search_by(|x| {
-                if x.start == offset {
-                    core::cmp::Ordering::Equal
-                } else if x.start < offset {
+            .binary_search_by(|x| match x.start.cmp(&offset) {
+                cmp::Ordering::Equal => cmp::Ordering::Equal,
+                cmp::Ordering::Greater => cmp::Ordering::Greater,
+                cmp::Ordering::Less => {
                     if offset <= x.end {
-                        core::cmp::Ordering::Equal
+                        cmp::Ordering::Equal
                     } else {
-                        core::cmp::Ordering::Less
+                        cmp::Ordering::Less
                     }
-                } else {
-                    core::cmp::Ordering::Greater
                 }
             })
             .map(|i| i + from)
