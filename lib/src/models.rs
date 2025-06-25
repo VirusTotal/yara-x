@@ -396,7 +396,7 @@ impl<'a> Match<'a> {
             ScanResultsData::Continuous(scanned_data) => {
                 scanned_data.as_ref().get(self.inner.range.clone()).unwrap()
             }
-            ScanResultsData::Fragmeneted(sparse_data) => {
+            ScanResultsData::Fragmented(sparse_data) => {
                 sparse_data.get(self.inner.range.clone()).unwrap()
             }
         }

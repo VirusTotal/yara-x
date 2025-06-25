@@ -1115,7 +1115,7 @@ impl<'r> Scanner<'r> {
         match func_result {
             Ok(0) => Ok(ScanResults::new(
                 self.wasm_store.data(),
-                ScanResultsData::Fragmeneted(sparse_scanned_data),
+                ScanResultsData::Fragmented(sparse_scanned_data),
             )),
             Ok(v) => panic!("WASM main returned: {}", v),
             Err(err) if err.is::<ScanError>() => {
@@ -1268,7 +1268,7 @@ pub enum ScanResultsData<'a> {
     // overlaps then this is a waste).
     // TODO: if a significant part of the fragment matched then it might be better to just save the
     // whole of it.
-    Fragmeneted(FragmentedData),
+    Fragmented(FragmentedData),
 }
 
 /// Results of a scan operation.
