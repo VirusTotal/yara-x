@@ -57,7 +57,7 @@ impl Mapping {
         if (libc::major(dev) != self.dmaj as u32)
             || (libc::minor(dev) != self.dmin as u32)
             || (meta.ino() != self.inode)
-            || (meta.size() < self.offset)
+            || (meta.size() < (self.offset + self.end - self.begin))
             || ((meta.mode() & libc::S_IFMT) != libc::S_IFREG)
         {
             return None;
@@ -71,7 +71,7 @@ impl Mapping {
         if (libc::major(dev) != self.dmaj as u32)
             || (libc::minor(dev) != self.dmin as u32)
             || (meta.ino() != self.inode)
-            || (meta.size() < self.offset)
+            || (meta.size() < (self.offset + self.end - self.begin))
             || ((meta.mode() & libc::S_IFMT) != libc::S_IFREG)
         {
             return None;
