@@ -829,8 +829,8 @@ fn scan_proc_overlapping_matches() {
         r#"
     rule slow {
       strings:
-        $a = { 35 32 33 34 37 31 33 34 [16] ?? }
-        $b = { ?? [16] 37 32 33 34 37 38 32 31 }
+        $a = /52347134[a-z]{20}/
+        $b = /[a-z]{20}72347821/
       condition: 
         all of them
     }
@@ -838,7 +838,7 @@ fn scan_proc_overlapping_matches() {
     )
     .unwrap();
 
-    let expected_match_content = b"52347134thisis17byteslong72347821";
+    let expected_match_content = b"52347134somelowercaseletters72347821";
 
     let mut scanner = Scanner::new(&rules);
     let scan_results = scanner.scan_proc(process::id()).unwrap();
