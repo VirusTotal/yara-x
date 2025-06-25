@@ -764,6 +764,7 @@ fn scan_file() {
     assert_eq!(scan_results.matching_rules().len(), 1)
 }
 
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 #[test]
 fn scan_proc() {
     let rules = crate::compile(
@@ -784,6 +785,7 @@ fn scan_proc() {
     assert_eq!(scan_results.matching_rules().len(), 1);
 }
 
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 #[test]
 fn scan_proc_get_match() {
     let rules = crate::compile(
@@ -820,6 +822,7 @@ fn scan_proc_get_match() {
     );
 }
 
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 #[test]
 fn scan_proc_overlapping_matches() {
     let rules = crate::compile(
