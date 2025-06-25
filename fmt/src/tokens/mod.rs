@@ -497,8 +497,8 @@ where
         }
         loop {
             match self.events.next()? {
-                Event::Begin(kind) => return Some(Token::Begin(kind)),
-                Event::End(kind) => return Some(Token::End(kind)),
+                Event::Begin { kind, .. } => return Some(Token::Begin(kind)),
+                Event::End { kind, .. } => return Some(Token::End(kind)),
                 Event::Token { kind, span } => {
                     let token_bytes = &self.source[span.range()];
                     // The whitespace token has a different treatment because

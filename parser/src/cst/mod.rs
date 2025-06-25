@@ -36,9 +36,9 @@ mod tests;
 #[derive(Debug, PartialEq)]
 pub enum Event {
     /// Indicates the beginning of a non-terminal production in the grammar.
-    Begin(SyntaxKind),
+    Begin { kind: SyntaxKind, span: Span },
     /// Indicates the end of a non-terminal production in the grammar.
-    End(SyntaxKind),
+    End { kind: SyntaxKind, span: Span },
     /// A terminal symbol in the grammar.
     Token { kind: SyntaxKind, span: Span },
     /// An error found during the parsing of the source.
@@ -223,8 +223,8 @@ impl TryFrom<Parser<'_>> for CST {
 
         for node in parser.into_cst_stream() {
             match node {
-                Event::Begin(kind) => builder.start_node(kind.into()),
-                Event::End(_) => builder.finish_node(),
+                Event::Begin { kind, .. } => builder.start_node(kind.into()),
+                Event::End { .. } => builder.finish_node(),
                 Event::Token { kind, span } => {
                     // Make sure that the CST covers the whole source code,
                     // each must start where the previous one ended.

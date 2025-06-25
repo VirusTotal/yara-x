@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 
-use crate::cst::{Event, SyntaxKind};
+use crate::cst::Event;
+use crate::cst::SyntaxKind;
 use crate::Span;
 
 /// A Concrete Syntax Tree (CST) represented as a stream of events.
@@ -15,6 +16,8 @@ pub struct SyntaxStream {
     open_begins: VecDeque<usize>,
     /// Number of currently active bookmarks.
     num_bookmarks: usize,
+    /// The span of the last token in the stream.
+    last_token_span: Span,
 }
 
 impl SyntaxStream {
@@ -24,6 +27,7 @@ impl SyntaxStream {
             events: VecDeque::new(),
             open_begins: VecDeque::new(),
             num_bookmarks: 0,
+            last_token_span: Span::default(),
         }
     }
 
@@ -59,6 +63,7 @@ impl SyntaxStream {
     /// Pushes a [`Event::Token`] at the end of the stream.
     #[inline]
     pub(crate) fn push_token(&mut self, kind: SyntaxKind, span: Span) {
+        self.last_token_span = span.clone();
         self.events.push_back(Event::Token { kind, span })
     }
 
@@ -76,7 +81,15 @@ impl SyntaxStream {
     /// that must be closed by a corresponding call to [`SyntaxStream::end`].
     pub(crate) fn begin(&mut self, kind: SyntaxKind) {
         let pos = self.events.len();
-        self.events.push_back(Event::Begin(kind));
+        let last_token_end = self.last_token_span.end();
+        self.events.push_back(Event::Begin {
+            kind,
+            // The non-terminal represented by this Event::Begin starts where
+            // the last token ends. The end is initially set to `last_token_end`
+            // too, but it will be updated when Event::End is inserted in the
+            // stream.
+            span: Span::from(last_token_end..last_token_end),
+        });
         self.open_begins.push_back(pos);
     }
 
@@ -87,15 +100,25 @@ impl SyntaxStream {
     ///
     /// * If no matching `Begin` exists for this `End`.
     pub(crate) fn end(&mut self) {
-        match self.last_open_begin() {
-            Some((_, kind)) => {
-                self.open_begins.pop_back().unwrap();
-                self.events.push_back(Event::End(kind))
+        // Get the `Event::Begin` that corresponds to this `Event::End`.
+        let begin = &mut self.events[self
+            .open_begins
+            .pop_back()
+            .expect("`End` without a corresponding `Begin`")];
+
+        match begin {
+            Event::Begin { kind, span } => {
+                // Now that we know where it ends, the span associated to
+                // Event::Begin is updated.
+                *span = Span::from(span.start()..self.last_token_span.end());
+                // Push the Event::End that closes the Event::Begin. Both
+                // have the same kind and span.
+                let kind = *kind;
+                let span = span.clone();
+                self.events.push_back(Event::End { kind, span });
             }
-            None => {
-                panic!("`End` without a corresponding `Begin`")
-            }
-        }
+            _ => unreachable!(),
+        };
     }
 
     /// Similar to [`SyntaxStream::end`], but the kind of the closed block is
@@ -105,17 +128,24 @@ impl SyntaxStream {
     ///
     /// * If no matching `Begin` exists for this `End`.
     pub(crate) fn end_with_error(&mut self) {
-        match self.last_open_begin() {
-            Some((pos, _)) => {
-                let node = self.events.get_mut(pos).unwrap();
-                *node = Event::Begin(SyntaxKind::ERROR);
-                self.events.push_back(Event::End(SyntaxKind::ERROR));
-                self.open_begins.pop_back().unwrap();
+        // Get the `Event::Begin` that corresponds to this `Event::End`.
+        let begin = &mut self.events[self
+            .open_begins
+            .pop_back()
+            .expect("`End` without a corresponding `Begin`")];
+
+        match begin {
+            Event::Begin { kind, span } => {
+                // Change the kind for Event::Begin to SyntaxKind::ERROR.
+                *kind = SyntaxKind::ERROR;
+                // Update the span's ending offset for Event::Begin.
+                *span = Span::from(span.start()..self.last_token_span.end());
+                let kind = *kind;
+                let span = span.clone();
+                self.events.push_back(Event::End { kind, span });
             }
-            None => {
-                panic!("`End` without a corresponding `Begin`")
-            }
-        }
+            _ => unreachable!(),
+        };
     }
 
     /// Returns a bookmark for the current ending position of the stream.
@@ -132,7 +162,20 @@ impl SyntaxStream {
     /// If the bookmark points to a position that doesn't exist.
     pub(crate) fn truncate(&mut self, bookmark: &Bookmark) {
         assert!(bookmark.0 <= self.events.len());
-        self.events.truncate(bookmark.0)
+        self.events.truncate(bookmark.0);
+
+        self.last_token_span = self
+            .events
+            .iter()
+            .rev()
+            .find_map(|event| {
+                if let Event::Token { span, .. } = event {
+                    Some(span.clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default();
     }
 
     pub(crate) fn remove_bookmark(&mut self, bookmark: Bookmark) {
@@ -143,12 +186,13 @@ impl SyntaxStream {
             .expect("dropping a bookmark twice");
     }
 
+    #[cfg(test)]
     pub(crate) fn last_open_begin(&self) -> Option<(usize, SyntaxKind)> {
         let pos = self.open_begins.back()?;
         let node = self.events.get(*pos)?;
 
         let kind = match node {
-            Event::Begin(kind) => kind,
+            Event::Begin { kind, .. } => kind,
             _ => panic!(),
         };
 
@@ -182,13 +226,38 @@ mod tests {
     fn bookmarks() {
         let mut s = SyntaxStream::new();
         let bookmark = s.bookmark();
-        s.push_token(SyntaxKind::R_BRACE, Span(0..1));
-        s.push_token(SyntaxKind::L_BRACE, Span(1..2));
+        s.push_token(SyntaxKind::L_BRACE, Span(0..1));
+        s.push_token(SyntaxKind::R_BRACE, Span(1..2));
         s.truncate(&bookmark);
-        s.push_token(SyntaxKind::R_BRACE, Span(0..1));
-        s.push_token(SyntaxKind::L_BRACE, Span(1..2));
+        s.push_token(SyntaxKind::L_BRACE, Span(0..1));
+        s.push_token(SyntaxKind::R_BRACE, Span(1..2));
         s.truncate(&bookmark);
         s.remove_bookmark(bookmark);
+        s.begin(SyntaxKind::EXPR);
+        s.push_token(SyntaxKind::L_PAREN, Span(0..1));
+        s.push_token(SyntaxKind::R_PAREN, Span(1..2));
+        s.end();
+
+        assert_eq!(
+            s.pop(),
+            Some(Event::Begin { kind: SyntaxKind::EXPR, span: Span(0..2) })
+        );
+
+        assert_eq!(
+            s.pop(),
+            Some(Event::Token { kind: SyntaxKind::L_PAREN, span: Span(0..1) })
+        );
+
+        assert_eq!(
+            s.pop(),
+            Some(Event::Token { kind: SyntaxKind::R_PAREN, span: Span(1..2) })
+        );
+
+        assert_eq!(
+            s.pop(),
+            Some(Event::End { kind: SyntaxKind::EXPR, span: Span(0..2) })
+        );
+
         assert_eq!(s.pop(), None);
     }
 
@@ -205,18 +274,30 @@ mod tests {
         s.begin(SyntaxKind::ERROR);
         s.push_token(SyntaxKind::COLON, Span(0..1));
         s.end_with_error();
-        assert_eq!(s.pop(), Some(Event::Begin(SyntaxKind::ERROR)));
+        assert_eq!(
+            s.pop(),
+            Some(Event::Begin { kind: SyntaxKind::ERROR, span: Span(0..1) })
+        );
         assert_eq!(
             s.pop(),
             Some(Event::Token { kind: SyntaxKind::COLON, span: Span(0..1) })
         );
-        assert_eq!(s.pop(), Some(Event::End(SyntaxKind::ERROR)));
+        assert_eq!(
+            s.pop(),
+            Some(Event::End { kind: SyntaxKind::ERROR, span: Span(0..1) })
+        );
 
         let mut s = SyntaxStream::new();
         s.begin(SyntaxKind::RULE_DECL);
         s.end_with_error();
-        assert_eq!(s.pop(), Some(Event::Begin(SyntaxKind::ERROR)));
-        assert_eq!(s.pop(), Some(Event::End(SyntaxKind::ERROR)));
+        assert_eq!(
+            s.pop(),
+            Some(Event::Begin { kind: SyntaxKind::ERROR, span: Span(0..0) })
+        );
+        assert_eq!(
+            s.pop(),
+            Some(Event::End { kind: SyntaxKind::ERROR, span: Span(0..0) })
+        );
     }
 
     #[test]
