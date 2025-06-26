@@ -57,7 +57,8 @@ impl<'src> Builder<'src> {
 
         loop {
             match self.peek() {
-                Event::Begin(RULE_DECL) => match self.rule_decl() {
+                Event::Begin { kind: RULE_DECL, .. } => match self.rule_decl()
+                {
                     Ok(rule) => items.push(Item::Rule(rule)),
                     // If `rule_decl` returns an error the rule is ignored,
                     // but we try to continue at the next rule declaration,
@@ -66,21 +67,25 @@ impl<'src> Builder<'src> {
                     Err(BuilderError::Abort) => self.recover(),
                     Err(BuilderError::MaxDepthReached) => {}
                 },
-                Event::Begin(IMPORT_STMT) => match self.import_stmt() {
-                    Ok(import) => items.push(Item::Import(import)),
-                    // If `import_stmt` returns an error the import is ignored,
-                    // but we try to continue at the next valid item.
-                    Err(BuilderError::Abort) => self.recover(),
-                    Err(BuilderError::MaxDepthReached) => {}
-                },
-                Event::Begin(INCLUDE_STMT) => match self.include_stmt() {
-                    Ok(include) => items.push(Item::Include(include)),
-                    // If `include_stmt` returns an error the include is ignored,
-                    // but we try to continue at the next valid item.
-                    Err(BuilderError::Abort) => self.recover(),
-                    Err(BuilderError::MaxDepthReached) => {}
-                },
-                Event::End(SOURCE_FILE) => break,
+                Event::Begin { kind: IMPORT_STMT, .. } => {
+                    match self.import_stmt() {
+                        Ok(import) => items.push(Item::Import(import)),
+                        // If `import_stmt` returns an error the import is ignored,
+                        // but we try to continue at the next valid item.
+                        Err(BuilderError::Abort) => self.recover(),
+                        Err(BuilderError::MaxDepthReached) => {}
+                    }
+                }
+                Event::Begin { kind: INCLUDE_STMT, .. } => {
+                    match self.include_stmt() {
+                        Ok(include) => items.push(Item::Include(include)),
+                        // If `include_stmt` returns an error the include is ignored,
+                        // but we try to continue at the next valid item.
+                        Err(BuilderError::Abort) => self.recover(),
+                        Err(BuilderError::MaxDepthReached) => {}
+                    }
+                }
+                Event::End { kind: SOURCE_FILE, .. } => break,
                 _ => self.recover(),
             }
         }
@@ -149,10 +154,10 @@ impl<'src> Builder<'src> {
     fn recover(&mut self) {
         loop {
             match self.peek() {
-                Event::Begin(RULE_DECL)
-                | Event::Begin(IMPORT_STMT)
-                | Event::Begin(INCLUDE_STMT) => break,
-                Event::End(SOURCE_FILE) => break,
+                Event::Begin { kind: RULE_DECL, .. }
+                | Event::Begin { kind: IMPORT_STMT, .. }
+                | Event::Begin { kind: INCLUDE_STMT, .. } => break,
+                Event::End { kind: SOURCE_FILE, .. } => break,
                 _ => {
                     let _ = self.events.next();
                 }
@@ -230,14 +235,15 @@ impl<'src> Builder<'src> {
     /// CST node that contains portions of the syntax tree that were not
     /// correctly parsed.
     fn next(&mut self) -> Result<Event, BuilderError> {
-        if let Event::Begin(ERROR) = self.peek() {
+        if let Event::Begin { kind: ERROR, .. } = self.peek() {
             return Err(BuilderError::Abort);
         }
         Ok(self.events.next().expect("unexpected end of events"))
     }
 
     fn begin(&mut self, kind: SyntaxKind) -> Result<(), BuilderError> {
-        assert_eq!(self.next()?, Event::Begin(kind));
+        let next = self.next()?;
+        assert!(matches!(next, Event::Begin{kind: k, ..} if k == kind));
         if self.depth == Self::MAX_AST_DEPTH {
             return Err(BuilderError::MaxDepthReached);
         }
@@ -246,7 +252,8 @@ impl<'src> Builder<'src> {
     }
 
     fn end(&mut self, kind: SyntaxKind) -> Result<(), BuilderError> {
-        assert_eq!(self.next()?, Event::End(kind));
+        let next = self.next()?;
+        assert!(matches!(next, Event::End{kind: k, ..} if k == kind));
         self.depth = self.depth.saturating_sub(1);
         Ok(())
     }
@@ -341,7 +348,7 @@ impl<'src> Builder<'src> {
         loop {
             let (operator, (l_bp, r_bp)) = match self.peek() {
                 Event::Token { kind, .. } => (*kind, binding_power(*kind)),
-                Event::End(_) => break,
+                Event::End { .. } => break,
                 event => panic!("unexpected {:?}", event),
             };
 
@@ -463,7 +470,7 @@ impl<'src> Builder<'src> {
     fn rule_decl(&mut self) -> Result<Rule<'src>, BuilderError> {
         self.begin(RULE_DECL)?;
 
-        let flags = if let Event::Begin(RULE_MODS) = self.peek() {
+        let flags = if let Event::Begin { kind: RULE_MODS, .. } = self.peek() {
             self.rule_mods()?
         } else {
             RuleFlags::empty()
@@ -473,7 +480,7 @@ impl<'src> Builder<'src> {
 
         let identifier = self.identifier()?;
 
-        let tags = if let Event::Begin(RULE_TAGS) = self.peek() {
+        let tags = if let Event::Begin { kind: RULE_TAGS, .. } = self.peek() {
             Some(self.rule_tags()?)
         } else {
             None
@@ -481,17 +488,18 @@ impl<'src> Builder<'src> {
 
         self.expect(L_BRACE)?;
 
-        let meta = if let Event::Begin(META_BLK) = self.peek() {
+        let meta = if let Event::Begin { kind: META_BLK, .. } = self.peek() {
             Some(self.meta_blk()?)
         } else {
             None
         };
 
-        let patterns = if let Event::Begin(PATTERNS_BLK) = self.peek() {
-            Some(self.patterns_blk()?)
-        } else {
-            None
-        };
+        let patterns =
+            if let Event::Begin { kind: PATTERNS_BLK, .. } = self.peek() {
+                Some(self.patterns_blk()?)
+            } else {
+                None
+            };
 
         self.begin(CONDITION_BLK)?;
         self.expect(CONDITION_KW)?;
@@ -521,7 +529,7 @@ impl<'src> Builder<'src> {
                     self.next()?;
                     flags.insert(RuleFlags::Private)
                 }
-                Event::End(RULE_MODS) => {
+                Event::End { kind: RULE_MODS, .. } => {
                     break;
                 }
                 event => panic!("unexpected {:?}", event),
@@ -554,7 +562,7 @@ impl<'src> Builder<'src> {
 
         let mut meta = Vec::new();
 
-        while let Event::Begin(META_DEF) = self.peek() {
+        while let Event::Begin { kind: META_DEF, .. } = self.peek() {
             meta.push(self.meta_def()?)
         }
 
@@ -570,7 +578,7 @@ impl<'src> Builder<'src> {
 
         let mut patterns = Vec::new();
 
-        while let Event::Begin(PATTERN_DEF) = self.peek() {
+        while let Event::Begin { kind: PATTERN_DEF, .. } = self.peek() {
             patterns.push(self.pattern_def()?);
         }
 
@@ -658,7 +666,7 @@ impl<'src> Builder<'src> {
                     modifiers,
                 }))
             }
-            Event::Begin(HEX_PATTERN) => {
+            Event::Begin { kind: HEX_PATTERN, .. } => {
                 let tokens = self.hex_pattern()?;
                 let modifiers = self.pattern_mods_opt()?;
 
@@ -679,7 +687,7 @@ impl<'src> Builder<'src> {
     fn pattern_mods_opt(
         &mut self,
     ) -> Result<PatternModifiers<'src>, BuilderError> {
-        if let Event::Begin(PATTERN_MODS) = self.peek() {
+        if let Event::Begin { kind: PATTERN_MODS, .. } = self.peek() {
             self.pattern_mods()
         } else {
             Ok(PatternModifiers::default())
@@ -693,7 +701,7 @@ impl<'src> Builder<'src> {
 
         let mut modifiers = Vec::new();
 
-        while let Event::Begin(PATTERN_MOD) = self.peek() {
+        while let Event::Begin { kind: PATTERN_MOD, .. } = self.peek() {
             self.begin(PATTERN_MOD)?;
             match self.next()? {
                 Event::Token { kind: ASCII_KW, span } => {
@@ -831,10 +839,12 @@ impl<'src> Builder<'src> {
                         HexToken::Byte(HexByte { span, value, mask })
                     }
                 }
-                Event::Begin(HEX_ALTERNATIVE) => {
+                Event::Begin { kind: HEX_ALTERNATIVE, .. } => {
                     HexToken::Alternative(Box::new(self.hex_alternative()?))
                 }
-                Event::Begin(HEX_JUMP) => HexToken::Jump(self.hex_jump()?),
+                Event::Begin { kind: HEX_JUMP, .. } => {
+                    HexToken::Jump(self.hex_jump()?)
+                }
                 _ => break,
             });
         }
@@ -956,10 +966,12 @@ impl<'src> Builder<'src> {
                     anchor: self.anchor()?,
                 }))
             }
-            Event::Begin(FOR_EXPR) => self.for_expr()?,
-            Event::Begin(OF_EXPR) => self.of_expr()?,
-            Event::Begin(WITH_EXPR) => self.with_expr()?,
-            Event::Begin(EXPR) => self.pratt_parser(Self::expr, 0)?,
+            Event::Begin { kind: FOR_EXPR, .. } => self.for_expr()?,
+            Event::Begin { kind: OF_EXPR, .. } => self.of_expr()?,
+            Event::Begin { kind: WITH_EXPR, .. } => self.with_expr()?,
+            Event::Begin { kind: EXPR, .. } => {
+                self.pratt_parser(Self::expr, 0)?
+            }
             event => panic!("unexpected {:?}", event),
         };
 
@@ -985,7 +997,7 @@ impl<'src> Builder<'src> {
                     Event::Token { kind: THEM_KW, .. } => {
                         Some(PatternSet::Them { span: self.expect(THEM_KW)? })
                     }
-                    Event::Begin(PATTERN_IDENT_TUPLE) => {
+                    Event::Begin { kind: PATTERN_IDENT_TUPLE, .. } => {
                         Some(PatternSet::Set(self.pattern_ident_tuple()?))
                     }
                     event => panic!("unexpected {:?}", event),
@@ -1050,10 +1062,12 @@ impl<'src> Builder<'src> {
                     span: self.expect(THEM_KW)?,
                 })
             }
-            Event::Begin(PATTERN_IDENT_TUPLE) => OfItems::PatternSet(
-                PatternSet::Set(self.pattern_ident_tuple()?),
-            ),
-            Event::Begin(BOOLEAN_EXPR_TUPLE) => {
+            Event::Begin { kind: PATTERN_IDENT_TUPLE, .. } => {
+                OfItems::PatternSet(PatternSet::Set(
+                    self.pattern_ident_tuple()?,
+                ))
+            }
+            Event::Begin { kind: BOOLEAN_EXPR_TUPLE, .. } => {
                 OfItems::BoolExprTuple(self.boolean_expr_tuple()?)
             }
             event => panic!("unexpected {:?}", event),
@@ -1128,12 +1142,12 @@ impl<'src> Builder<'src> {
             Event::Token { kind: ANY_KW, .. } => {
                 Quantifier::Any { span: self.expect(ANY_KW)? }
             }
-            Event::Begin(PRIMARY_EXPR) => {
+            Event::Begin { kind: PRIMARY_EXPR, .. } => {
                 let expr = self.primary_expr()?;
                 self.expect(PERCENT)?;
                 Quantifier::Percentage(expr)
             }
-            Event::Begin(EXPR) => Quantifier::Expr(self.expr()?),
+            Event::Begin { kind: EXPR, .. } => Quantifier::Expr(self.expr()?),
             event => panic!("unexpected {:?}", event),
         };
 
@@ -1146,11 +1160,11 @@ impl<'src> Builder<'src> {
         self.begin(ITERABLE)?;
 
         let iterable = match self.peek() {
-            Event::Begin(RANGE) => Iterable::Range(self.range()?),
-            Event::Begin(EXPR_TUPLE) => {
+            Event::Begin { kind: RANGE, .. } => Iterable::Range(self.range()?),
+            Event::Begin { kind: EXPR_TUPLE, .. } => {
                 Iterable::ExprTuple(self.expr_tuple()?)
             }
-            Event::Begin(EXPR) => Iterable::Expr(self.expr()?),
+            Event::Begin { kind: EXPR, .. } => Iterable::Expr(self.expr()?),
             event => panic!("unexpected {:?}", event),
         };
 
@@ -1230,8 +1244,8 @@ impl<'src> Builder<'src> {
         self.begin(TERM)?;
 
         let expr = match self.peek() {
-            Event::Begin(FUNC_CALL) => self.func_call(None)?,
-            Event::Begin(PRIMARY_EXPR) => {
+            Event::Begin { kind: FUNC_CALL, .. } => self.func_call(None)?,
+            Event::Begin { kind: PRIMARY_EXPR, .. } => {
                 let mut expr = self.primary_expr()?;
 
                 match self.peek() {
@@ -1274,7 +1288,7 @@ impl<'src> Builder<'src> {
         let l_paren_span = self.expect(L_PAREN)?;
         let mut args = Vec::new();
 
-        while let Event::Begin(BOOLEAN_EXPR) = self.peek() {
+        while let Event::Begin { kind: BOOLEAN_EXPR, .. } = self.peek() {
             args.push(self.boolean_expr()?);
             if let Event::Token { kind: COMMA, .. } = self.peek() {
                 self.expect(COMMA)?;

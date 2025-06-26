@@ -4,7 +4,7 @@ use std::fs;
 use std::io::BufWriter;
 use std::io::Write;
 
-use crate::cst::CST;
+use crate::cst::{CSTStream, CST};
 use crate::{Parser, Span};
 
 #[test]
@@ -27,6 +27,30 @@ fn cst() {
         let cst = CST::try_from(Parser::new(source.as_bytes())).unwrap();
         let mut w = BufWriter::new(output_file);
         write!(&mut w, "{:?}", cst).unwrap();
+    });
+}
+
+#[test]
+fn cst_stream() {
+    let files: Vec<_> = globwalk::glob("src/parser/tests/testdata/*.in")
+        .unwrap()
+        .flatten()
+        .map(|entry| entry.into_path())
+        .collect();
+
+    files.into_par_iter().for_each(|path| {
+        let mut mint = goldenfile::Mint::new(".");
+        // Path to the .out file, replace the .in extension with .out.
+        let output_path = path.with_extension("cststream");
+        let output_file = mint.new_goldenfile(output_path).unwrap();
+
+        let source = fs::read_to_string(path).unwrap();
+        let cst = CSTStream::from(Parser::new(source.as_bytes()));
+        let mut w = BufWriter::new(output_file);
+
+        for event in cst {
+            writeln!(&mut w, "{:?}", event).unwrap();
+        }
     });
 }
 

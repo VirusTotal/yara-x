@@ -221,7 +221,10 @@ impl Iterator for ParserImpl<'_> {
         match self.state {
             State::StartOfInput => {
                 self.state = State::OK;
-                Some(Event::Begin(SOURCE_FILE))
+                Some(Event::Begin {
+                    kind: SOURCE_FILE,
+                    span: Span(0..self.tokens.source().len() as u32),
+                })
             }
             State::EndOfInput => None,
             _ => {
@@ -253,7 +256,10 @@ impl Iterator for ParserImpl<'_> {
                     Some(token)
                 } else {
                     self.state = State::EndOfInput;
-                    Some(Event::End(SOURCE_FILE))
+                    Some(Event::End {
+                        kind: SOURCE_FILE,
+                        span: Span(0..self.tokens.source().len() as u32),
+                    })
                 }
             }
         }

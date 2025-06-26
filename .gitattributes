@@ -4,6 +4,7 @@
 *.out text eol=lf
 *.ast text eol=lf
 *.cst text eol=lf
+*.cststream text eol=lf
 *.ir eol=lf
 *.unformatted text eol=lf
 *.stdout text eol=lf

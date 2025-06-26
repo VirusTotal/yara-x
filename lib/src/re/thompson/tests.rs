@@ -753,7 +753,7 @@ fn re_code_14() {
         // Atoms
         vec![RegexpAtom {
             atom: Atom::inexact(vec![]),
-            code_loc: CodeLoc { fwd: 0x00, bck_seq_id: 0, bck: 0x00 }
+            code_loc: CodeLoc { fwd: 0x00, bck_seq_id: 0, bck: 0x16 }
         }],
         // Epsilon closure starting at forward code 0.
         vec![0x08, 0x16],
@@ -791,7 +791,7 @@ fn re_code_15() {
         // Atoms
         vec![RegexpAtom {
             atom: Atom::inexact(vec![]),
-            code_loc: CodeLoc { fwd: 0x00, bck_seq_id: 0, bck: 0x00 }
+            code_loc: CodeLoc { fwd: 0x00, bck_seq_id: 0, bck: 0x2b }
         }],
         // Epsilon closure starting at forward code 0.
         vec![0x15, 0x24, 0x2b],

@@ -1,0 +1,21 @@
+Begin { kind: SOURCE_FILE, span: Span(0..36) }
+Begin { kind: ERROR, span: Span(0..36) }
+Token { kind: RULE_KW, span: Span(0..4) }
+Token { kind: WHITESPACE, span: Span(4..5) }
+Token { kind: IDENT, span: Span(5..9) }
+Token { kind: WHITESPACE, span: Span(9..10) }
+Error { message: "expecting `:` or `{`, found `=`", span: Span(10..11) }
+Token { kind: EQUAL, span: Span(10..11) }
+Token { kind: WHITESPACE, span: Span(11..12) }
+Token { kind: L_BRACE, span: Span(12..13) }
+Token { kind: NEWLINE, span: Span(13..14) }
+Token { kind: WHITESPACE, span: Span(14..16) }
+Token { kind: CONDITION_KW, span: Span(16..25) }
+Token { kind: COLON, span: Span(25..26) }
+Token { kind: NEWLINE, span: Span(26..27) }
+Token { kind: WHITESPACE, span: Span(27..30) }
+Token { kind: TRUE_KW, span: Span(30..34) }
+Token { kind: NEWLINE, span: Span(34..35) }
+Token { kind: R_BRACE, span: Span(35..36) }
+End { kind: ERROR, span: Span(0..36) }
+End { kind: SOURCE_FILE, span: Span(0..36) }

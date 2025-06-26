@@ -39,10 +39,12 @@ pub fn fix_encoding() -> Command {
                 .action(ArgAction::Append),
         )
         .arg(
-            arg!(-d --"max-depth" <MAX_DEPTH>)
+            arg!(-r - -"recursive"[MAX_DEPTH])
                 .help("Walk directories recursively up to a given depth")
-                .long_help(help::DEPTH_LONG_HELP)
-                .value_parser(value_parser!(u16)),
+                .long_help(help::RECURSIVE_LONG_HELP)
+                .default_missing_value("1000")
+                .require_equals(true)
+                .value_parser(value_parser!(usize)),
         )
         .arg(
             arg!(-p --"threads" <NUM_THREADS>)
@@ -64,14 +66,12 @@ pub fn exec_fix_encoding(args: &ArgMatches) -> anyhow::Result<()> {
     let rules_path = args.get_one::<PathBuf>("RULES_PATH").unwrap();
     let filters = args.get_many::<String>("filter");
     let dry_run = args.get_flag("dry-run");
-    let max_depth = args.get_one::<u16>("max-depth");
+    let recursive = args.get_one::<usize>("recursive");
     let num_threads = args.get_one::<u8>("threads");
 
     let mut w = walk::ParWalker::path(rules_path);
 
-    if let Some(max_depth) = max_depth {
-        w.max_depth(*max_depth as usize);
-    }
+    w.max_depth(*recursive.unwrap_or(&0));
 
     if let Some(num_threads) = num_threads {
         w.num_threads(*num_threads);

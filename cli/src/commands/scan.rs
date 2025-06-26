@@ -154,7 +154,7 @@ pub fn scan() -> Command {
             arg!(-r --"recursive" [MAX_DEPTH])
                 .help("Scan directories recursively")
                 .long_help(help::SCAN_RECURSIVE_LONG_HELP)
-                .default_missing_value("100")
+                .default_missing_value("1000")
                 .require_equals(true)
                 .value_parser(value_parser!(usize))
         )

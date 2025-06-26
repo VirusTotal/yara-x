@@ -1,0 +1,21 @@
+Begin { kind: SOURCE_FILE, span: Span(0..27) }
+Begin { kind: ERROR, span: Span(0..27) }
+Token { kind: RULE_KW, span: Span(0..4) }
+Token { kind: WHITESPACE, span: Span(4..5) }
+Token { kind: IDENT, span: Span(5..9) }
+Token { kind: WHITESPACE, span: Span(9..10) }
+Token { kind: L_BRACE, span: Span(10..11) }
+Token { kind: WHITESPACE, span: Span(11..12) }
+Begin { kind: CONDITION_BLK, span: Span(12..27) }
+Token { kind: CONDITION_KW, span: Span(12..21) }
+Token { kind: COLON, span: Span(21..22) }
+Token { kind: WHITESPACE, span: Span(22..23) }
+Begin { kind: BOOLEAN_EXPR, span: Span(23..27) }
+Begin { kind: BOOLEAN_TERM, span: Span(23..27) }
+Token { kind: TRUE_KW, span: Span(23..27) }
+End { kind: BOOLEAN_TERM, span: Span(23..27) }
+End { kind: BOOLEAN_EXPR, span: Span(23..27) }
+End { kind: CONDITION_BLK, span: Span(12..27) }
+End { kind: ERROR, span: Span(0..27) }
+Error { message: "expecting operator or `}`, found end of file", span: Span(26..26) }
+End { kind: SOURCE_FILE, span: Span(0..27) }

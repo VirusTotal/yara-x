@@ -225,19 +225,28 @@ impl Compiler {
         self,
         hir: &re::hir::Hir,
     ) -> Result<(InstrSeq, InstrSeq, Vec<RegexpAtom>), Error> {
-        let start_loc = self.location();
+        let mut code_loc = self.location();
 
         let (mut backward_code, mut forward_code, mut atoms) =
             visit(&hir.inner, self)?;
 
         forward_code.emit_instr(Instr::MATCH)?;
-        backward_code.emit_instr(Instr::MATCH)?;
+        code_loc.bck = backward_code.emit_instr(Instr::MATCH)?;
 
+        // If the pattern yields no atoms, or if too many atoms were found and
+        // the compiler opts out of extraction, insert a single zero-length
+        // atom. Its forward code represents the entire regexp, while its
+        // backward code is a simple match instruction.
         if atoms.is_empty() {
-            atoms.push(RegexpAtom {
-                atom: Atom::inexact([]),
-                code_loc: start_loc,
-            })
+            atoms.push(RegexpAtom { atom: Atom::inexact([]), code_loc })
+        }
+
+        // At this point all atoms must have bck_seq_id == 0 because all
+        // backward code sequences have been merged re-ordered and put
+        // into the main backward code sequence.
+        #[cfg(debug_assertions)]
+        for atom in atoms.iter() {
+            assert_eq!(atom.code_loc.bck_seq_id, 0);
         }
 
         assert!(atoms.len() <= MAX_ATOMS_PER_REGEXP);
