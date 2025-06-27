@@ -1,6 +1,3 @@
-#[cfg(feature = "logging")]
-use log::error;
-
 use crate::compiler::RegexpId;
 use crate::modules::prelude::*;
 use crate::modules::protos::cuckoo::*;
