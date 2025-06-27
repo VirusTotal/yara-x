@@ -399,9 +399,11 @@ pub struct RedundantCaseModifier {
     "this pattern may slow down the scan",
     pattern_loc
 )]
+#[footer(note)]
 pub struct SlowPattern {
     report: Report,
     pattern_loc: CodeLoc,
+    note: Option<String>,
 }
 
 /// An unsupported module has been used.
