@@ -1471,6 +1471,7 @@ impl Compiler<'_> {
                                 &self.report_builder,
                                 self.report_builder
                                     .span_to_code_loc(pat.span().clone()),
+                                None,
                             )
                         });
                     }
@@ -2311,23 +2312,33 @@ impl Compiler<'_> {
             ));
         }
 
-        let slow_pattern =
+        let (slow_pattern, note) =
             match re_atoms.iter().map(|re_atom| re_atom.atom.len()).minmax() {
                 // No atoms, slow pattern.
-                MinMaxResult::NoElements => true,
+                MinMaxResult::NoElements => (true, None),
+                // Only one atom of len 0.
+                MinMaxResult::OneElement(0) => (
+                    true,
+                    Some(
+                        "this is an exceptionally extreme case that may severely degrade scanning throughput"
+                            .to_string(),
+                    ),
+                ),
                 // Only one atom shorter than 2 bytes, slow pattern.
-                MinMaxResult::OneElement(len) if len < 2 => true,
+                MinMaxResult::OneElement(len) if len < 2 => (true, None),
                 // More than one atom, at least one is shorter than 2 bytes.
-                MinMaxResult::MinMax(min, _) if min < 2 => true,
+                MinMaxResult::MinMax(min, _) if min < 2 => (true, None),
                 // More than 2700 atoms, all with exactly 2 bytes.
                 // Why 2700?. The larger the number of atoms the higher the
                 // odds of finding one of them in the data, which slows down
                 // the scan. The regex [A-Za-z]{N,} (with N>=2) produces
                 // (26+26)^2 = 2704 atoms. So, 2700 is large enough, but
                 // produces a warning with the aforementioned regex.
-                MinMaxResult::MinMax(2, 2) if re_atoms.len() > 2700 => true,
+                MinMaxResult::MinMax(2, 2) if re_atoms.len() > 2700 => {
+                    (true, None)
+                }
                 // In all other cases the pattern is not slow.
-                _ => false,
+                _ => (false, None),
             };
 
         if slow_pattern {
@@ -2335,12 +2346,14 @@ impl Compiler<'_> {
                 return Err(errors::SlowPattern::build(
                     &self.report_builder,
                     self.report_builder.span_to_code_loc(span),
+                    note,
                 ));
             } else {
                 self.warnings.add(|| {
                     warnings::SlowPattern::build(
                         &self.report_builder,
                         self.report_builder.span_to_code_loc(span),
+                        note,
                     )
                 });
             }

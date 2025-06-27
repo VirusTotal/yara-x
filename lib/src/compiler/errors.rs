@@ -425,9 +425,11 @@ pub struct EntrypointUnsupported {
 #[associated_enum(CompileError)]
 #[error(code = "E018", title = "slow pattern")]
 #[label("this pattern may slow down the scan", error_loc)]
+#[footer(note)]
 pub struct SlowPattern {
     report: Report,
     error_loc: CodeLoc,
+    note: Option<String>,
 }
 
 /// A pattern has modifiers that can't be used together.
