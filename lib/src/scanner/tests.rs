@@ -1,3 +1,6 @@
+use std::process;
+
+use itertools::Itertools;
 use pretty_assertions::assert_eq;
 use protobuf::MessageDyn;
 use protobuf::{Message, MessageFull};
@@ -681,6 +684,112 @@ fn scan_file() {
         .unwrap();
 
     assert_eq!(scan_results.matching_rules().len(), 1)
+}
+
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+#[test]
+fn scan_proc() {
+    let rules = crate::compile(
+        r#"
+    rule slow {
+      strings:
+        $a = "A very unique string that is unlikley to be present inside of a process (unless the process being scanned is the process scanning)"
+      condition: 
+        $a
+    }
+    "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    let scan_results = scanner.scan_proc(process::id()).unwrap();
+
+    assert_eq!(scan_results.matching_rules().len(), 1);
+}
+
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+#[test]
+fn scan_proc_get_match() {
+    let rules = crate::compile(
+        r#"
+    rule slow {
+      strings:
+        $a = {31 33 32 35 31 35 32 33 [17] 31 33 32 35 31 35 32 33}
+      condition: 
+        $a
+    }
+    "#,
+    )
+    .unwrap();
+
+    let expected_match_content = b"13251523thisis17byteslong13251523";
+
+    let mut scanner = Scanner::new(&rules);
+    let scan_results = scanner.scan_proc(process::id()).unwrap();
+
+    assert_eq!(scan_results.matching_rules().len(), 1);
+    assert_eq!(
+        scan_results
+            .matching_rules()
+            .next()
+            .unwrap()
+            .patterns()
+            .next()
+            .unwrap()
+            .matches()
+            .next()
+            .unwrap()
+            .data(),
+        expected_match_content
+    );
+}
+
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+#[test]
+fn scan_proc_overlapping_matches() {
+    let rules = crate::compile(
+        r#"
+    rule slow {
+      strings:
+        $a = /52347134[a-z]{20}/
+        $b = /[a-z]{20}72347821/
+      condition: 
+        all of them
+    }
+    "#,
+    )
+    .unwrap();
+
+    let expected_match_content = b"52347134somelowercaseletters72347821";
+
+    let mut scanner = Scanner::new(&rules);
+    let scan_results = scanner.scan_proc(process::id()).unwrap();
+
+    assert_eq!(scan_results.matching_rules().len(), 1);
+    let (pattern1, pattern2) = scan_results
+        .matching_rules()
+        .next()
+        .unwrap()
+        .patterns()
+        .map(|pat| (pat.identifier(), pat.matches().next().unwrap().data()))
+        .collect_tuple()
+        .unwrap();
+    let (pattern_a, pattern_b) = match pattern1.0 {
+        "$a" => (pattern1, pattern2),
+        "$b" => (pattern2, pattern1),
+        _ => unreachable!(),
+    };
+    // Check that the match content is as expected.
+    assert_eq!(
+        pattern_a.1,
+        &expected_match_content[..expected_match_content.len() - 8]
+    );
+    assert_eq!(pattern_b.1, &expected_match_content[8..]);
+    // Check that the content of the matchs is not duplicated.
+    assert!(std::ptr::eq(
+        &pattern_a.1[8..],
+        &pattern_b.1[..pattern_b.1.len() - 8]
+    ))
 }
 
 #[cfg(feature = "rules-profiling")]

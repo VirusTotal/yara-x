@@ -7,6 +7,7 @@ use std::collections::{hash_map, HashMap};
 use std::io::Read;
 use std::mem::transmute;
 use std::ops::Deref;
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::ptr::{null, NonNull};
@@ -28,11 +29,15 @@ use wasmtime::{
     AsContext, AsContextMut, Global, GlobalType, MemoryType, Mutability,
     Store, TypedFunc, Val, ValType,
 };
+#[cfg(target_os = "windows")]
+use windows_result;
 
 use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
 use crate::modules::{Module, ModuleError, BUILTIN_MODULES};
 use crate::scanner::matches::PatternMatches;
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+use crate::scanner::proc::ProcessMemory;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
@@ -45,6 +50,7 @@ pub(crate) use crate::scanner::matches::Match;
 
 mod context;
 mod matches;
+mod proc;
 
 #[cfg(test)]
 mod tests;
@@ -71,6 +77,15 @@ pub enum ScanError {
         path: PathBuf,
         /// Error that occurred.
         err: std::io::Error,
+    },
+    #[cfg(target_os = "windows")]
+    /// Could not read memory of the scanned process.
+    #[error("can not read memory of `{pid}`: {err}")]
+    ProcessError {
+        /// pid of the process being scanned.
+        pid: u32,
+        /// Error that occuerred.
+        err: windows_result::Error,
     },
     /// Could not deserialize the protobuf message for some YARA module.
     #[error("can not deserialize protobuf message for YARA module `{module}`: {err}")]
@@ -170,6 +185,7 @@ pub struct Scanner<'r> {
     wasm_store: Pin<Box<Store<ScanContext<'static>>>>,
     wasm_main_func: TypedFunc<(), i32>,
     filesize: Global,
+    pattern_search_done: Global,
     timeout: Option<Duration>,
 }
 
@@ -190,6 +206,7 @@ impl<'r> Scanner<'r> {
             root_struct: rules.globals().make_root(),
             scanned_data: null(),
             scanned_data_len: 0,
+            scanned_data_off: 0,
             private_matching_rules: Vec::new(),
             non_private_matching_rules: Vec::new(),
             matching_rules: IndexMap::new(),
@@ -322,7 +339,14 @@ impl<'r> Scanner<'r> {
 
         wasm_store.data_mut().main_memory = Some(main_memory);
 
-        Self { rules, wasm_store, wasm_main_func, filesize, timeout: None }
+        Self {
+            rules,
+            wasm_store,
+            wasm_main_func,
+            filesize,
+            pattern_search_done,
+            timeout: None,
+        }
     }
 
     /// Sets a timeout for scan operations.
@@ -379,6 +403,15 @@ impl<'r> Scanner<'r> {
         P: AsRef<Path>,
     {
         self.scan_impl(Self::load_file(target.as_ref())?, None)
+    }
+
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
+    /// Scans a process.
+    pub fn scan_proc<'a>(
+        &'a mut self,
+        target: u32,
+    ) -> Result<ScanResults<'a, 'r>, ScanError> {
+        self.scan_many_impl(ProcessMemory::new(target)?)
     }
 
     /// Like [`Scanner::scan`], but allows to specify additional scan options.
@@ -675,6 +708,11 @@ impl<'r> Scanner<'r> {
             )
             .unwrap();
 
+        // Set the global variable `pattern_search_done` to false.
+        self.pattern_search_done
+            .set(self.wasm_store.as_context_mut(), Val::I32(0))
+            .unwrap();
+
         let ctx = self.scan_context_mut();
 
         ctx.deadline =
@@ -870,7 +908,226 @@ impl<'r> Scanner<'r> {
         }
 
         match func_result {
-            Ok(0) => Ok(ScanResults::new(self.scan_context(), data)),
+            Ok(0) => Ok(ScanResults::new(
+                self.scan_context(),
+                ScanResultsData::Continuous(data),
+            )),
+            Ok(v) => panic!("WASM main returned: {}", v),
+            Err(err) if err.is::<ScanError>() => {
+                Err(err.downcast::<ScanError>().unwrap())
+            }
+            Err(err) => panic!(
+                "unexpected error while executing WASM main function: {}",
+                err
+            ),
+        }
+    }
+
+    fn scan_many_impl<'a, T>(
+        &'a mut self,
+        mut data_iter: T,
+    ) -> Result<ScanResults<'a, 'r>, ScanError>
+    where
+        T: DataIter,
+    {
+        // Clear information about matches found in a previous scan, if any.
+        self.reset();
+
+        // Timeout in seconds. This is either the value provided by the user or
+        // 315.360.000 which is the number of seconds in a year. Using u64::MAX
+        // doesn't work because this value is added to the current epoch, and
+        // will cause an overflow. We need an integer large enough, but that
+        // has room before the u64 limit is reached. For this same reason if
+        // the user specifies a value larger than 315.360.000 we limit it to
+        // 315.360.000 anyway. One year should be enough, I hope you don't plan
+        // to run a YARA scan that takes longer.
+        let timeout_secs =
+            self.timeout.map_or(Self::DEFAULT_SCAN_TIMEOUT, |t| {
+                cmp::min(
+                    t.as_secs_f32().ceil() as u64,
+                    Self::DEFAULT_SCAN_TIMEOUT,
+                )
+            });
+
+        // Sets the deadline for the WASM store. The WASM main function will
+        // abort if the deadline is reached while the function is being
+        // executed.
+        self.wasm_store.set_epoch_deadline(timeout_secs);
+        self.wasm_store
+            .epoch_deadline_callback(|_| Err(ScanError::Timeout.into()));
+
+        // If the user specified some timeout, start the heartbeat thread, if
+        // not previously started. The heartbeat thread increments the WASM
+        // engine epoch and HEARTBEAT_COUNTER every second. There's a single
+        // instance of this thread, independently of the number of concurrent
+        // scans.
+        if self.timeout.is_some() {
+            INIT_HEARTBEAT.call_once(|| {
+                thread::spawn(|| loop {
+                    thread::sleep(Duration::from_secs(1));
+                    crate::wasm::ENGINE.increment_epoch();
+                    HEARTBEAT_COUNTER
+                        .fetch_update(
+                            Ordering::SeqCst,
+                            Ordering::SeqCst,
+                            |x| Some(x + 1),
+                        )
+                        .unwrap();
+                });
+            });
+        }
+
+        let ctx = self.wasm_store.data_mut();
+        ctx.deadline =
+            HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
+
+        let mut total_data_len = 0;
+        let mut buffer: Vec<u8> = Vec::new();
+        let mut sparse_scanned_ranges =
+            Some(FragmentedRanges { ranges: Vec::new() });
+        let mut sparse_scanned_data = FragmentedData { fragments: Vec::new() };
+
+        while let Some(scanned_data) = data_iter.next(&mut buffer) {
+            let data: &[u8] = scanned_data.as_ref();
+
+            let ctx = self.wasm_store.data_mut();
+
+            ctx.scanned_data = data.as_ptr();
+            ctx.scanned_data_len = data.len();
+            ctx.scanned_data_off = total_data_len;
+
+            // Free all runtime objects left around by previous scans.
+            ctx.runtime_objects.clear();
+
+            _ = ctx.search_for_patterns(&mut sparse_scanned_ranges);
+
+            for range in
+                sparse_scanned_ranges.as_mut().unwrap().ranges.drain(..)
+            {
+                sparse_scanned_data.fragments.push(Fragment {
+                    start: total_data_len + range.start,
+                    data: data[range].to_vec(),
+                });
+            }
+
+            total_data_len += data.len();
+        }
+
+        self.pattern_search_done
+            .set(self.wasm_store.as_context_mut(), Val::I32(1))
+            .unwrap();
+
+        // Set the global variable `filesize` to the size of the total memroy regions.
+        // TODO: consider if instead it should be undefined (like in yara).
+        self.filesize
+            .set(
+                self.wasm_store.as_context_mut(),
+                Val::I64(total_data_len as i64),
+            )
+            .unwrap();
+
+        let ctx = self.wasm_store.data_mut();
+
+        // Save the time in which the evaluation of rules started.
+        #[cfg(feature = "rules-profiling")]
+        {
+            ctx.rule_execution_start_time = ctx.clock.raw();
+        }
+
+        // Set the scanned_data to be zero sized. This ensures things like `uint32(0)` will return
+        // undefined (This is different in behaviour to the original yara, where a `uint32(0) would
+        // trigger a refetch).
+        ctx.scanned_data = [0; 0].as_ptr();
+        ctx.scanned_data_len = 0;
+
+        // Invoke the main function, which evaluates the rules' conditions. It
+        // will not call ScanContext::search_for_patterns (which does the Aho-Corasick
+        // scanning) since we have already called it ourselves.
+        //
+        // This will return Err(ScanError::Timeout), when the scan timeout is
+        // reached while WASM code is being executed.
+        let func_result =
+            self.wasm_main_func.call(self.wasm_store.as_context_mut(), ());
+
+        #[cfg(feature = "rules-profiling")]
+        if func_result.is_err() {
+            let ctx = self.wasm_store.data_mut();
+            // If a timeout occurs, the methods `ctx.track_rule_no_match` or
+            // `ctx.track_rule_match` may not be invoked for the currently
+            // executing rule. This means that the time spent within that rule
+            // has not been recorded yet, so we need to update it here.
+            //
+            // The ID of the rule that was running during the timeout can be
+            // determined as the one immediately following the last executed
+            // rule, based on the assumption that rules are processed in a
+            // strictly ascending ID order.
+            //
+            // Additionally, if the timeout happens after `ctx.last_executed_rule`
+            // has been updated with the last rule ID, we might end up calling
+            // `update_time_spent_in_rule` with an ID that is off by one.
+            // However, this function is designed to handle such cases
+            // gracefully.
+            ctx.update_time_spent_in_rule(
+                ctx.last_executed_rule
+                    .map_or(RuleId::from(0), |rule_id| rule_id.next()),
+            );
+        }
+
+        #[cfg(all(feature = "rules-profiling", feature = "logging"))]
+        {
+            let most_expensive_rules = self.slowest_rules(10);
+            if !most_expensive_rules.is_empty() {
+                log::info!("Most expensive rules:");
+                for profiling_data in most_expensive_rules {
+                    log::info!("+ namespace: {}", profiling_data.namespace);
+                    log::info!("  rule: {}", profiling_data.rule);
+                    log::info!(
+                        "  pattern matching time: {:?}",
+                        profiling_data.pattern_matching_time
+                    );
+                    log::info!(
+                        "  condition execution time: {:?}",
+                        profiling_data.condition_exec_time
+                    );
+                }
+            }
+        }
+
+        let ctx = self.wasm_store.data_mut();
+
+        // Set pointer to data back to nil. This means that accessing
+        // `scanned_data` from within `ScanResults` is not possible.
+        ctx.scanned_data = null();
+        ctx.scanned_data_len = 0;
+
+        // Clear the value of `current_struct` as it may contain a reference
+        // to some struct.
+        ctx.current_struct = None;
+
+        // Both `private_matching_rules` and `non_private_matching_rules` are
+        // empty at this point. Matching rules were being tracked by the
+        // `matching_rules` map, but we are about to move them to these two
+        // vectors while leaving the map empty.
+        assert!(ctx.private_matching_rules.is_empty());
+        assert!(ctx.non_private_matching_rules.is_empty());
+
+        // Move the matching rules the vectors, leaving the `matching_rules`
+        // map empty.
+        for rules in ctx.matching_rules.values_mut() {
+            for rule_id in rules.drain(0..) {
+                if ctx.compiled_rules.get(rule_id).is_private {
+                    ctx.private_matching_rules.push(rule_id);
+                } else {
+                    ctx.non_private_matching_rules.push(rule_id);
+                }
+            }
+        }
+
+        match func_result {
+            Ok(0) => Ok(ScanResults::new(
+                self.wasm_store.data(),
+                ScanResultsData::Fragmented(sparse_scanned_data),
+            )),
             Ok(v) => panic!("WASM main returned: {}", v),
             Err(err) if err.is::<ScanError>() => {
                 Err(err.downcast::<ScanError>().unwrap())
@@ -932,16 +1189,112 @@ impl<'r> Scanner<'r> {
     }
 }
 
+pub trait DataIter {
+    type Item<'a>: AsRef<[u8]>;
+    fn next<'a>(&mut self, buffer: &'a mut Vec<u8>) -> Option<Self::Item<'a>>;
+}
+
+pub struct FragmentedRanges {
+    pub ranges: Vec<Range<usize>>,
+}
+
+impl FragmentedRanges {
+    /// Searches for a range that contains the given offset.
+    ///
+    /// If a range containing `offset` is found (or one that whose end overlaps with offset),
+    /// then [`Ok`] is returned containing the index of the range. If no range is found, then [`Err`]
+    /// is returned, containing the index where the range would be located.
+    ///
+    /// This operation is O(log(N)) because it takes advantage of the fact
+    /// that ranges are sorted by order and uses a binary search
+    /// internally.
+    ///
+    /// The list can't contain two ranges which overlap,
+    #[inline]
+    pub fn search(&self, offset: usize, from: usize) -> Result<usize, usize> {
+        self.ranges[from..]
+            .binary_search_by(|x| match x.start.cmp(&offset) {
+                cmp::Ordering::Equal => cmp::Ordering::Equal,
+                cmp::Ordering::Greater => cmp::Ordering::Greater,
+                cmp::Ordering::Less => {
+                    if offset <= x.end {
+                        cmp::Ordering::Equal
+                    } else {
+                        cmp::Ordering::Less
+                    }
+                }
+            })
+            .map(|i| i + from)
+            .map_err(|i| i + from)
+    }
+}
+
+pub struct Fragment {
+    start: usize,
+    data: Vec<u8>,
+}
+
+pub struct FragmentedData {
+    pub fragments: Vec<Fragment>,
+}
+
+impl FragmentedData {
+    pub fn get(&self, range: Range<usize>) -> Option<&[u8]> {
+        let index = self.search(range.start).ok()?;
+        let fragment = &self.fragments[index];
+        fragment
+            .data
+            .get(range.start - fragment.start..range.end - fragment.start)
+    }
+
+    /// Searches for a fragment that contains the given offset.
+    ///
+    /// If a fragment containing `offset` is found, then [`Ok`] is returned
+    /// containing the index of the match. If no fragment is found, then [`Err`]
+    /// is returned, containing the index where the fragment would be located.
+    ///
+    /// This operation is O(log(N)) because it takes advantage of the fact
+    /// that fragments are sorted by order and uses a binary search
+    /// internally.
+    ///
+    /// The list can't contain two fragments which overlap,
+    #[inline]
+    pub fn search(&self, offset: usize) -> Result<usize, usize> {
+        self.fragments.binary_search_by(|x| {
+            if x.start <= offset {
+                if offset < x.start + x.data.len() {
+                    core::cmp::Ordering::Equal
+                } else {
+                    core::cmp::Ordering::Less
+                }
+            } else {
+                core::cmp::Ordering::Greater
+            }
+        })
+    }
+}
+
+// TODO: consider only having the Fragmented variant and just representing the Continuous variant
+// as a single item Fragmented.
+pub enum ScanResultsData<'a> {
+    Continuous(ScannedData<'a>),
+    // TODO: this might not actually be better for some cases (in particular if there are no
+    // overlaps then this is a waste).
+    // TODO: if a significant part of the fragment matched then it might be better to just save the
+    // whole of it.
+    Fragmented(FragmentedData),
+}
+
 /// Results of a scan operation.
 ///
 /// Allows iterating over both the matching and non-matching rules.
 pub struct ScanResults<'a, 'r> {
     ctx: &'a ScanContext<'r>,
-    data: ScannedData<'a>,
+    data: ScanResultsData<'a>,
 }
 
 impl<'a, 'r> ScanResults<'a, 'r> {
-    fn new(ctx: &'a ScanContext<'r>, data: ScannedData<'a>) -> Self {
+    fn new(ctx: &'a ScanContext<'r>, data: ScanResultsData<'a>) -> Self {
         Self { ctx, data }
     }
 
@@ -986,12 +1339,12 @@ impl<'a, 'r> ScanResults<'a, 'r> {
 /// Iterator that yields the rules that matched during a scan.
 pub struct MatchingRules<'a, 'r> {
     ctx: &'a ScanContext<'r>,
-    data: &'a ScannedData<'a>,
+    data: &'a ScanResultsData<'a>,
     iterator: Iter<'a, RuleId>,
 }
 
 impl<'a, 'r> MatchingRules<'a, 'r> {
-    fn new(ctx: &'a ScanContext<'r>, data: &'a ScannedData<'a>) -> Self {
+    fn new(ctx: &'a ScanContext<'r>, data: &'a ScanResultsData<'a>) -> Self {
         Self { ctx, data, iterator: ctx.non_private_matching_rules.iter() }
     }
 }
@@ -1022,13 +1375,13 @@ impl ExactSizeIterator for MatchingRules<'_, '_> {
 /// Iterator that yields the rules that didn't match during a scan.
 pub struct NonMatchingRules<'a, 'r> {
     ctx: &'a ScanContext<'r>,
-    data: &'a ScannedData<'a>,
+    data: &'a ScanResultsData<'a>,
     iterator: bitvec::slice::IterZeros<'a, u8, Lsb0>,
     len: usize,
 }
 
 impl<'a, 'r> NonMatchingRules<'a, 'r> {
-    fn new(ctx: &'a ScanContext<'r>, data: &'a ScannedData<'a>) -> Self {
+    fn new(ctx: &'a ScanContext<'r>, data: &'a ScanResultsData<'a>) -> Self {
         let num_rules = ctx.compiled_rules.num_rules();
         let main_memory =
             ctx.main_memory.unwrap().data(unsafe { ctx.wasm_store.as_ref() });
