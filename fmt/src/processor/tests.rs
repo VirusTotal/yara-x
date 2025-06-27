@@ -1,5 +1,5 @@
 use pretty_assertions::assert_eq;
-use yara_x_parser::cst::SyntaxKind;
+use yara_x_parser::cst::{CSTStream, SyntaxKind};
 use yara_x_parser::Parser;
 
 use crate::processor::{actions, Processor};
@@ -8,8 +8,8 @@ use crate::tokens::Token::*;
 use crate::tokens::{categories, Token};
 
 fn tokenize(source: &str) -> Vec<Token> {
-    let events =
-        Parser::new(source.as_bytes()).into_cst_stream().whitespaces(false);
+    let parser = Parser::new(source.as_bytes());
+    let events = CSTStream::from(parser).whitespaces(false);
 
     tokens::Tokens::new(source.as_bytes(), events).collect()
 }

@@ -19,6 +19,7 @@ use crate::cst::SyntaxKind::{
     ASCII_KW, BASE64WIDE_KW, BASE64_KW, FULLWORD_KW, NOCASE_KW, WIDE_KW,
     XOR_KW,
 };
+use crate::cst::{CSTStream, Event};
 use crate::{Parser, Span};
 
 mod ascii_tree;
@@ -43,9 +44,18 @@ pub enum Item<'src> {
 }
 
 impl<'src> From<Parser<'src>> for AST<'src> {
-    /// Crates an [`AST`] from the given parser.
+    /// Creates an [`AST`] from the given [`Parser`].
     fn from(parser: Parser<'src>) -> Self {
-        Builder::new(parser).build_ast()
+        Self::from(CSTStream::new(parser.source(), parser))
+    }
+}
+
+impl<'src, I> From<CSTStream<'src, I>> for AST<'src>
+where
+    I: Iterator<Item = Event>,
+{
+    fn from(cst: CSTStream<'src, I>) -> Self {
+        Builder::new(cst).build_ast()
     }
 }
 

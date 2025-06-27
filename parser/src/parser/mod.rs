@@ -40,6 +40,13 @@ pub struct Parser<'src> {
     pub(crate) parser: ParserImpl<'src>,
 }
 
+impl Iterator for Parser<'_> {
+    type Item = Event;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.parser.next()
+    }
+}
+
 impl<'src> Parser<'src> {
     /// Creates a new parser for the given source code.
     pub fn new(source: &'src [u8]) -> Self {
@@ -54,6 +61,7 @@ impl<'src> Parser<'src> {
 
     /// Consumes the parser and returns an Abstract Syntax Tree (AST).
     #[inline]
+    #[deprecated(since = "1.3.0", note = "use `AST::from(parser)` instead")]
     pub fn into_ast(self) -> AST<'src> {
         AST::from(self)
     }
@@ -71,8 +79,14 @@ impl<'src> Parser<'src> {
     /// Consumes the parser and returns a Concrete Syntax Tree (CST) as
     /// a stream of events.
     #[inline]
-    pub fn into_cst_stream(self) -> CSTStream<'src> {
-        CSTStream::from(self)
+    #[deprecated(
+        since = "1.3.0",
+        note = "use `CSTStream::from(parser)` instead"
+    )]
+    pub fn into_cst_stream(
+        self,
+    ) -> CSTStream<'src, impl Iterator<Item = Event> + use<'src>> {
+        CSTStream::new(self.source(), self.parser)
     }
 }
 

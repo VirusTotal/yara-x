@@ -11,7 +11,7 @@ use num_traits::{Bounded, CheckedMul, FromPrimitive, Num};
 use crate::ast::errors::Error;
 use crate::ast::*;
 use crate::cst::SyntaxKind::*;
-use crate::cst::{CSTStream, Event, SyntaxKind};
+use crate::cst::{Event, SyntaxKind};
 use crate::Span;
 
 #[derive(Debug)]
@@ -27,26 +27,28 @@ enum BuilderError {
     MaxDepthReached,
 }
 
-/// Creates an Abstract Syntax Tree from a [`Parser`].
-pub(super) struct Builder<'src> {
+/// Creates an Abstract Syntax Tree from an iterator of [`Event`],
+/// like a [`CSTStream`].
+pub(super) struct Builder<'src, I>
+where
+    I: Iterator<Item = Event>,
+{
     source: &'src [u8],
-    events: Peekable<CSTStream<'src>>,
+    events: Peekable<CSTStream<'src, I>>,
     errors: Vec<Error>,
     depth: usize,
 }
 
-impl<'src> Builder<'src> {
-    pub fn new(parser: Parser<'src>) -> Self {
+impl<'src, I> Builder<'src, I>
+where
+    I: Iterator<Item = Event>,
+{
+    pub fn new(cst: CSTStream<'src, I>) -> Self {
         Self {
             errors: Vec::new(),
-            source: parser.source(),
+            source: cst.source(),
+            events: cst.peekable(),
             depth: 0,
-            events: parser
-                .into_cst_stream()
-                .whitespaces(false)
-                .newlines(false)
-                .comments(false)
-                .peekable(),
         }
     }
 
@@ -144,7 +146,10 @@ macro_rules! new_binary_expr {
     }};
 }
 
-impl<'src> Builder<'src> {
+impl<'src, I> Builder<'src, I>
+where
+    I: Iterator<Item = Event>,
+{
     const MAX_AST_DEPTH: usize = 3000;
 
     /// Consumes all events until finding the start of a rule, an import
@@ -166,26 +171,24 @@ impl<'src> Builder<'src> {
         self.depth = 0;
     }
 
-    /// Consumes events of type [`Event::Error`] until finding one that
-    /// is not an error.
+    /// Consumes errors, whitespaces, newlines and comments, until finding
+    /// some other kind of token.
     ///
     /// The consumed errors are appended to `self.errors`.
-    fn consume_errors(&mut self) {
-        self.errors.extend(
-            self.events
-                .peeking_take_while(|event| {
-                    matches!(event, Event::Error { .. })
-                })
-                .map(|event| {
-                    // The event is guaranteed to be an Event::Error by the
-                    // predicate passed to `peeking_take_while`.
-                    if let Event::Error { message, span } = event {
-                        Error::SyntaxError { message, span }
-                    } else {
-                        unreachable!()
-                    }
-                }),
-        );
+    fn consume_errors_and_trivia(&mut self) {
+        for event in self.events.peeking_take_while(|event| {
+            matches!(
+                event,
+                Event::Error { .. }
+                    | Event::Token { kind: WHITESPACE, .. }
+                    | Event::Token { kind: NEWLINE, .. }
+                    | Event::Token { kind: COMMENT, .. }
+            )
+        }) {
+            if let Event::Error { message, span } = event {
+                self.errors.push(Error::SyntaxError { message, span });
+            }
+        }
     }
 
     /// Returns the slice of source code defined by `span`.
@@ -211,15 +214,12 @@ impl<'src> Builder<'src> {
         })
     }
 
-    /// Returns a reference to the next non-error [`Event`] in the CST stream
-    /// without consuming it.
-    ///
-    /// All events of type [`Event::Error`] that appears before the next non-error
-    /// event are consumed.
+    /// Returns a reference to the next [`Event`] that is not a whitespace,
+    /// newline, comment or error. The event is returned without being
+    /// consumed. Any whitespace, newline, comment or error is consumed that
+    /// appears before the returned one is consumed.
     fn peek(&mut self) -> &Event {
-        // Any Event::Error at the front of the event stream is consumed and
-        // added to `self.errors`.
-        self.consume_errors();
+        self.consume_errors_and_trivia();
         self.events.peek().expect("unexpected end of events")
     }
 
@@ -450,7 +450,10 @@ impl<'src> Builder<'src> {
     }
 }
 
-impl<'src> Builder<'src> {
+impl<'src, I> Builder<'src, I>
+where
+    I: Iterator<Item = Event>,
+{
     fn include_stmt(&mut self) -> Result<Include<'src>, BuilderError> {
         self.begin(INCLUDE_STMT)?;
         let span = self.expect(INCLUDE_KW)?;

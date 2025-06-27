@@ -7,6 +7,8 @@ use anyhow::Context;
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 
 use yara_x::SourceCode;
+use yara_x_parser::ast::AST;
+use yara_x_parser::cst::CST;
 use yara_x_parser::Parser;
 
 use crate::commands::{
@@ -106,7 +108,7 @@ pub fn exec_ast(args: &ArgMatches, _config: &Config) -> anyhow::Result<()> {
         .with_context(|| format!("can not read `{}`", rules_path.display()))?;
 
     let parser = Parser::new(src.as_slice());
-    let ast = parser.into_ast();
+    let ast: AST = parser.into();
 
     println!("{ast:?}");
     Ok(())
@@ -119,7 +121,7 @@ pub fn exec_cst(args: &ArgMatches, _config: &Config) -> anyhow::Result<()> {
         .with_context(|| format!("can not read `{}`", rules_path.display()))?;
 
     let parser = Parser::new(src.as_slice());
-    let cst = parser.try_into_cst()?;
+    let cst: CST = parser.try_into()?;
 
     println!("{cst:?}");
     Ok(())

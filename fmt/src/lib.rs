@@ -22,7 +22,7 @@ use thiserror::Error;
 
 use tokens::Token::*;
 use tokens::TokenStream;
-use yara_x_parser::cst::{Event, SyntaxKind};
+use yara_x_parser::cst::{CSTStream, Event, SyntaxKind};
 use yara_x_parser::{Parser, Span};
 
 use crate::align::Align;
@@ -343,7 +343,7 @@ impl Formatter {
 
         input.read_to_end(&mut in_buf).map_err(Error::ReadError)?;
 
-        let cst_stream = Parser::new(in_buf.as_slice()).into_cst_stream();
+        let cst_stream = CSTStream::from(Parser::new(in_buf.as_slice()));
 
         // Inspect the CST stream looking for events indicating the presence of
         // invalid UTF-8 sequences.
