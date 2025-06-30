@@ -705,6 +705,13 @@ impl<'src> PatternModifiers<'src> {
     }
 
     #[inline]
+    pub fn private(&self) -> Option<&PatternModifier<'src>> {
+        self.modifiers
+            .iter()
+            .find(|m| matches!(m, PatternModifier::Private { .. }))
+    }
+
+    #[inline]
     pub fn xor(&self) -> Option<&PatternModifier<'src>> {
         self.modifiers
             .iter()

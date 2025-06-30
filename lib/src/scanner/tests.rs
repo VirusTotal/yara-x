@@ -503,6 +503,57 @@ fn private_rules() {
 }
 
 #[test]
+fn private_patterns() {
+    let mut compiler = crate::Compiler::new();
+
+    compiler
+        .add_source(
+            r#"
+        rule test_1 {
+            strings:
+                $a = "foo" private
+                $b = "bar"
+            condition:
+                $a and $b
+        }
+        "#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+
+    let mut scanner = Scanner::new(&rules);
+    let scan_results = scanner.scan(b"foobar").expect("scan should not fail");
+
+    assert_eq!(scan_results.matching_rules().len(), 1);
+
+    let rule = scan_results.matching_rules().next().unwrap();
+
+    let mut patterns = rule.patterns();
+    assert_eq!(patterns.len(), 1);
+    assert_eq!(patterns.next().unwrap().identifier(), "$b");
+    assert_eq!(patterns.len(), 0);
+    assert!(patterns.next().is_none());
+
+    let mut patterns = rule.patterns().all();
+    assert_eq!(patterns.len(), 2);
+    assert_eq!(patterns.next().unwrap().identifier(), "$a");
+    assert_eq!(patterns.len(), 1);
+    assert_eq!(patterns.next().unwrap().identifier(), "$b");
+    assert_eq!(patterns.len(), 0);
+    assert!(patterns.next().is_none());
+
+    let mut patterns = rule.patterns();
+
+    assert_eq!(patterns.len(), 1);
+    assert_eq!(patterns.next().unwrap().identifier(), "$b");
+    assert_eq!(patterns.len(), 0);
+
+    let mut patterns = patterns.all();
+    assert!(patterns.next().is_none());
+}
+
+#[test]
 fn max_matches_per_pattern() {
     let mut compiler = crate::Compiler::new();
 
