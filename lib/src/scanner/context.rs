@@ -150,7 +150,7 @@ impl<'r> ScanContext<'r> {
             self.time_spent_in_rule.iter(),
         ) {
             let mut pattern_matching_time = 0;
-            for (_, _, pattern_id) in rule.patterns.iter() {
+            for (_, _, pattern_id, _) in rule.patterns.iter() {
                 if let Some(d) = self.time_spent_in_pattern.get(pattern_id) {
                     pattern_matching_time += *d;
                 }
