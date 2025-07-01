@@ -499,6 +499,7 @@ fn private_rules() {
 
     let mut scanner = Scanner::new(&rules);
     let scan_results = scanner.scan(&[]).expect("scan should not fail");
+
     let mut matching_rules = scan_results.matching_rules();
 
     // Only the matching non-private rule should be reported.
@@ -514,6 +515,18 @@ fn private_rules() {
     assert_eq!(non_matching_rules.next().unwrap().identifier(), "test_4");
     assert_eq!(non_matching_rules.len(), 0);
     assert!(non_matching_rules.next().is_none());
+
+    let mut all_matching_rules =
+        scan_results.matching_rules().include_private(true);
+
+    assert_eq!(all_matching_rules.len(), 3);
+    assert_eq!(all_matching_rules.next().unwrap().identifier(), "test_1");
+    assert_eq!(all_matching_rules.len(), 2);
+    assert_eq!(all_matching_rules.next().unwrap().identifier(), "test_2");
+    assert_eq!(all_matching_rules.len(), 1);
+    assert_eq!(all_matching_rules.next().unwrap().identifier(), "test_3");
+    assert_eq!(all_matching_rules.len(), 0);
+    assert!(all_matching_rules.next().is_none());
 }
 
 #[test]
