@@ -319,7 +319,7 @@ impl Rules {
     ) -> Option<(RuleId, IdentId)> {
         let (target_pattern_id, _) = self.get_sub_pattern(sub_pattern_id);
         for (rule_id, rule) in self.rules.iter().enumerate() {
-            for (ident_id, _, pattern_id) in &rule.patterns {
+            for (ident_id, _, pattern_id, _) in &rule.patterns {
                 if pattern_id == target_pattern_id {
                     return Some((rule_id.into(), *ident_id));
                 };
@@ -548,7 +548,9 @@ impl fmt::Debug for Rules {
             writeln!(f, "  namespace: {}", namespace)?;
             writeln!(f, "  name: {}", name)?;
             writeln!(f, "  patterns:")?;
-            for (pattern_ident_id, _, pattern_id) in &rule.patterns {
+            for (pattern_ident_id, _, pattern_id, _is_private) in
+                &rule.patterns
+            {
                 let ident = self.ident_pool.get(*pattern_ident_id).unwrap();
                 writeln!(f, "    {:?} {} ", pattern_id, ident)?;
             }
@@ -591,8 +593,12 @@ pub(crate) struct RuleInfo {
     pub(crate) ident_ref: CodeLoc,
     /// Metadata associated to the rule.
     pub(crate) metadata: Vec<(IdentId, MetaValue)>,
-    /// Vector with all the patterns defined by this rule.
-    pub(crate) patterns: Vec<(IdentId, PatternKind, PatternId)>,
+    /// Vector with all the patterns defined by this rule. The bool in the
+    /// tuple indicates if the pattern is private.
+    pub(crate) patterns: Vec<(IdentId, PatternKind, PatternId, bool)>,
+    /// Number of private patterns in the rule. The number of non-private
+    /// patterns can be computed as patterns.len - num_private_patterns.
+    pub(crate) num_private_patterns: usize,
     /// True if the rule is global.
     pub(crate) is_global: bool,
     /// True if the rule is private.

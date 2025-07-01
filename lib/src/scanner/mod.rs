@@ -190,9 +190,10 @@ impl<'r> Scanner<'r> {
             root_struct: rules.globals().make_root(),
             scanned_data: null(),
             scanned_data_len: 0,
-            private_matching_rules: Vec::new(),
-            non_private_matching_rules: Vec::new(),
-            matching_rules: IndexMap::new(),
+            matching_rules: Vec::new(),
+            matching_rules_per_ns: IndexMap::new(),
+            num_matching_private_rules: 0,
+            num_non_matching_private_rules: 0,
             main_memory: None,
             module_outputs: FxHashMap::default(),
             user_provided_module_outputs: FxHashMap::default(),
@@ -850,22 +851,16 @@ impl<'r> Scanner<'r> {
         // to some struct.
         ctx.current_struct = None;
 
-        // Both `private_matching_rules` and `non_private_matching_rules` are
-        // empty at this point. Matching rules were being tracked by the
-        // `matching_rules` map, but we are about to move them to these two
-        // vectors while leaving the map empty.
-        assert!(ctx.private_matching_rules.is_empty());
-        assert!(ctx.non_private_matching_rules.is_empty());
+        // `matching_rules` must be empty at this point. Matching rules were
+        // being tracked by the `matching_rules_per_ns` map, but we are about
+        // to move them to `matching_rules` while leaving the map empty.
+        assert!(ctx.matching_rules.is_empty());
 
         // Move the matching rules the vectors, leaving the `matching_rules`
         // map empty.
-        for rules in ctx.matching_rules.values_mut() {
+        for rules in ctx.matching_rules_per_ns.values_mut() {
             for rule_id in rules.drain(0..) {
-                if ctx.compiled_rules.get(rule_id).is_private {
-                    ctx.private_matching_rules.push(rule_id);
-                } else {
-                    ctx.non_private_matching_rules.push(rule_id);
-                }
+                ctx.matching_rules.push(rule_id);
             }
         }
 
@@ -895,20 +890,17 @@ impl<'r> Scanner<'r> {
         // number of patterns.
         ctx.limit_reached.clear();
 
-        // Clear the unconfirmed matches.
         ctx.unconfirmed_matches.clear();
+        ctx.num_matching_private_rules = 0;
+        ctx.num_non_matching_private_rules = 0;
 
         // If some pattern or rule matched, clear the matches. Notice that a
         // rule may match without any pattern being matched, because there
         // are rules without patterns, or that match if the pattern is not
         // found.
-        if !ctx.pattern_matches.is_empty()
-            || !ctx.non_private_matching_rules.is_empty()
-            || !ctx.private_matching_rules.is_empty()
-        {
+        if !ctx.pattern_matches.is_empty() || !ctx.matching_rules.is_empty() {
             ctx.pattern_matches.clear();
-            ctx.non_private_matching_rules.clear();
-            ctx.private_matching_rules.clear();
+            ctx.matching_rules.clear();
 
             let mem = ctx
                 .main_memory
@@ -984,15 +976,38 @@ impl<'a, 'r> ScanResults<'a, 'r> {
 }
 
 /// Iterator that yields the rules that matched during a scan.
+///
+/// Private rules are not included by default, use
+/// [`MatchingRules::include_private`] for changing this behaviour.
 pub struct MatchingRules<'a, 'r> {
     ctx: &'a ScanContext<'r>,
     data: &'a ScannedData<'a>,
     iterator: Iter<'a, RuleId>,
+    len_non_private: usize,
+    len_private: usize,
+    include_private: bool,
 }
 
 impl<'a, 'r> MatchingRules<'a, 'r> {
     fn new(ctx: &'a ScanContext<'r>, data: &'a ScannedData<'a>) -> Self {
-        Self { ctx, data, iterator: ctx.non_private_matching_rules.iter() }
+        Self {
+            ctx,
+            data,
+            iterator: ctx.matching_rules.iter(),
+            include_private: false,
+            len_non_private: ctx.matching_rules.len()
+                - ctx.num_matching_private_rules,
+            len_private: ctx.num_matching_private_rules,
+        }
+    }
+
+    /// Specifies whether the iterator should yield private rules.
+    ///
+    /// This does not reset the iterator to its initial state, the iterator will
+    /// continue from its current position.
+    pub fn include_private(mut self, yes: bool) -> Self {
+        self.include_private = yes;
+        self
     }
 }
 
@@ -1000,31 +1015,49 @@ impl<'a, 'r> Iterator for MatchingRules<'a, 'r> {
     type Item = Rule<'a, 'r>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let rule_id = *self.iterator.next()?;
         let rules = self.ctx.compiled_rules;
-        let rule_info = rules.get(rule_id);
-        Some(Rule {
-            ctx: Some(self.ctx),
-            data: Some(self.data),
-            rule_info,
-            rules,
-        })
+        loop {
+            let rule_id = *self.iterator.next()?;
+            let rule_info = rules.get(rule_id);
+            if rule_info.is_private {
+                self.len_private -= 1;
+            } else {
+                self.len_non_private -= 1;
+            }
+            if self.include_private || !rule_info.is_private {
+                return Some(Rule {
+                    ctx: Some(self.ctx),
+                    data: Some(self.data),
+                    rule_info,
+                    rules,
+                });
+            }
+        }
     }
 }
 
 impl ExactSizeIterator for MatchingRules<'_, '_> {
     #[inline]
     fn len(&self) -> usize {
-        self.iterator.len()
+        if self.include_private {
+            self.len_non_private + self.len_private
+        } else {
+            self.len_non_private
+        }
     }
 }
 
 /// Iterator that yields the rules that didn't match during a scan.
+///
+/// Private rules are not included by default, use
+/// [`NonMatchingRules::include_private`] for changing this behaviour.
 pub struct NonMatchingRules<'a, 'r> {
     ctx: &'a ScanContext<'r>,
     data: &'a ScannedData<'a>,
     iterator: bitvec::slice::IterZeros<'a, u8, Lsb0>,
-    len: usize,
+    include_private: bool,
+    len_private: usize,
+    len_non_private: usize,
 }
 
 impl<'a, 'r> NonMatchingRules<'a, 'r> {
@@ -1051,12 +1084,21 @@ impl<'a, 'r> NonMatchingRules<'a, 'r> {
             ctx,
             data,
             iterator: matching_rules_bitmap.iter_zeros(),
-            // The number of non-matching rules is the total number of rules
-            // minus the number of matching rules, both private and non-private.
-            len: ctx.compiled_rules.num_rules()
-                - ctx.private_matching_rules.len()
-                - ctx.non_private_matching_rules.len(),
+            include_private: false,
+            len_non_private: ctx.compiled_rules.num_rules()
+                - ctx.matching_rules.len()
+                - ctx.num_non_matching_private_rules,
+            len_private: ctx.num_non_matching_private_rules,
         }
+    }
+
+    /// Specifies whether the iterator should yield private rules.
+    ///
+    /// This does not reset the iterator to its initial state, the iterator will
+    /// continue from its current position.
+    pub fn include_private(mut self, yes: bool) -> Self {
+        self.include_private = yes;
+        self
     }
 }
 
@@ -1064,14 +1106,19 @@ impl<'a, 'r> Iterator for NonMatchingRules<'a, 'r> {
     type Item = Rule<'a, 'r>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        let rules = self.ctx.compiled_rules;
+
         loop {
-            self.len = self.len.saturating_sub(1);
             let rule_id = RuleId::from(self.iterator.next()?);
-            let rules = self.ctx.compiled_rules;
             let rule_info = rules.get(rule_id);
-            // Private rules are not returned, if the current rule is private
-            // keep in the loop and try with the next one.
-            if !rule_info.is_private {
+
+            if rule_info.is_private {
+                self.len_private -= 1;
+            } else {
+                self.len_non_private -= 1;
+            }
+
+            if self.include_private || !rule_info.is_private {
                 return Some(Rule {
                     ctx: Some(self.ctx),
                     data: Some(self.data),
@@ -1086,7 +1133,11 @@ impl<'a, 'r> Iterator for NonMatchingRules<'a, 'r> {
 impl ExactSizeIterator for NonMatchingRules<'_, '_> {
     #[inline]
     fn len(&self) -> usize {
-        self.len
+        if self.include_private {
+            self.len_non_private + self.len_private
+        } else {
+            self.len_non_private
+        }
     }
 }
 

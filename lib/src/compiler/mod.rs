@@ -1400,6 +1400,7 @@ impl Compiler<'_> {
             is_global: rule.flags.contains(RuleFlags::Global),
             is_private: rule.flags.contains(RuleFlags::Private),
             metadata: meta,
+            num_private_patterns: 0,
         });
 
         let mut rule_patterns = Vec::new();
@@ -1576,6 +1577,10 @@ impl Compiler<'_> {
                 ));
             }
 
+            if pattern.pattern().flags().contains(PatternFlags::Private) {
+                current_rule.num_private_patterns += 1;
+            }
+
             // Check if this pattern has been declared before, in this rule or
             // in some other rule. In such cases the pattern ID is re-used, and
             // we don't need to process (i.e: extract atoms and add them to
@@ -1607,6 +1612,7 @@ impl Compiler<'_> {
                 self.ident_pool.get_or_intern(pattern.identifier().name),
                 pattern_kind,
                 pattern_id,
+                pattern.pattern().flags().contains(PatternFlags::Private),
             ));
 
             pattern_ids.push(pattern_id);

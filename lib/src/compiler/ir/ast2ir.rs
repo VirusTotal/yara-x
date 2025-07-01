@@ -112,6 +112,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
     let base64 = pattern.modifiers.base64();
     let base64wide = pattern.modifiers.base64wide();
     let wide = pattern.modifiers.wide();
+    let private = pattern.modifiers.private();
 
     let invalid_combinations = [
         ("xor", xor, "nocase", nocase),
@@ -152,6 +153,10 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
 
     if fullword.is_some() {
         flags.insert(PatternFlags::Fullword);
+    }
+
+    if private.is_some() {
+        flags.insert(PatternFlags::Private);
     }
 
     let xor_range = match xor {
