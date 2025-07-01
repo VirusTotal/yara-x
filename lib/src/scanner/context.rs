@@ -50,20 +50,20 @@ pub(crate) struct ScanContext<'r> {
     pub scanned_data: *const u8,
     /// Length of data being scanned.
     pub scanned_data_len: usize,
-    /// Vector containing the IDs of the non-private rules that matched,
-    /// including both global and non-global ones. The rules are added first
-    /// to the `matching_rules` map, and then moved to this vector once the
-    /// scan finishes.
-    pub non_private_matching_rules: Vec<RuleId>,
-    /// Vector containing the IDs of the private rules that matched, including
-    /// both global and non-global ones. The rules are added first to the
-    /// `matching_rules` map, and then moved to this vector once the scan
-    /// finishes.
-    pub private_matching_rules: Vec<RuleId>,
+    /// Vector containing the IDs of the rules that matched, including both
+    /// global and non-global ones. The rules are added first to the
+    /// `matching_rules_per_ns` map, and then moved to this vector
+    /// once the scan finishes.
+    pub matching_rules: Vec<RuleId>,
+    /// Number of private rules that have matched. This will be equal to or
+    /// less than the length of `matching_rules`.
+    pub num_matching_private_rules: usize,
+    /// Number of private rules that did not match.
+    pub num_non_matching_private_rules: usize,
     /// Map containing the IDs of rules that matched. Using an `IndexMap`
     /// because we want to keep the insertion order, so that rules in
     /// namespaces that were declared first, appear first in scan results.
-    pub matching_rules: IndexMap<NamespaceId, Vec<RuleId>>,
+    pub matching_rules_per_ns: IndexMap<NamespaceId, Vec<RuleId>>,
     /// Compiled rules for this scan.
     pub compiled_rules: &'r Rules,
     /// Structure that contains top-level symbols, like module names
@@ -311,13 +311,18 @@ impl ScanContext<'_> {
 
         let rule = self.compiled_rules.get(rule_id);
 
+        if rule.is_private {
+            self.num_non_matching_private_rules += 1;
+        }
+
         // If the rule is global, all the rules in the same namespace that
-        // matched previously must be removed from the `matching_rules` map.
-        // Also, their corresponding bits in the matching rules bitmap must
-        // be cleared.
+        // matched previously must be removed from the `matching_rules_per_ns`
+        // map. Also, their corresponding bits in the matching rules bitmap must
+        // be cleared, and `num_matching_private_rules` must be decremented if
+        // the rule was private and `num_non_matching_private_rules` incremented.
         if rule.is_global {
             if let Some(rules) =
-                self.matching_rules.get_mut(&rule.namespace_id)
+                self.matching_rules_per_ns.get_mut(&rule.namespace_id)
             {
                 let wasm_store = unsafe { self.wasm_store.as_mut() };
                 let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
@@ -330,6 +335,10 @@ impl ScanContext<'_> {
                 );
 
                 for rule_id in rules.drain(0..) {
+                    if self.compiled_rules.get(rule_id).is_private {
+                        self.num_matching_private_rules -= 1;
+                        self.num_non_matching_private_rules += 1;
+                    }
                     bits.set(rule_id.into(), false);
                 }
             }
@@ -364,10 +373,14 @@ impl ScanContext<'_> {
             rule_id,
         );
 
-        self.matching_rules
+        self.matching_rules_per_ns
             .entry(rule.namespace_id)
             .or_default()
             .push(rule_id);
+
+        if rule.is_private {
+            self.num_matching_private_rules += 1;
+        }
 
         let wasm_store = unsafe { self.wasm_store.as_mut() };
         let mem = self.main_memory.unwrap().data_mut(wasm_store);

@@ -66,15 +66,15 @@ impl<'a, 'r> Rule<'a, 'r> {
 
     /// Returns an iterator over the patterns defined for this rule.
     ///
-    /// By default, the iterator yields only public patterns. Call
-    /// [`Patterns::all`] to continue iteration from the current position
-    /// while also yielding private patterns.
+    /// By default, the iterator yields only public patterns. Use
+    /// [`Patterns::include_private`] if you want to include private patterns
+    /// as well.
     pub fn patterns(&self) -> Patterns<'a, 'r> {
         Patterns {
             ctx: self.ctx,
             rules: self.rules,
             data: self.data,
-            yield_private: false,
+            include_private: false,
             iterator: self.rule_info.patterns.iter(),
             len_non_private: self.rule_info.patterns.len()
                 - self.rule_info.num_private_patterns,
@@ -243,6 +243,10 @@ impl<'r> Tag<'r> {
 }
 
 /// An iterator that returns the patterns defined by a rule.
+///
+/// By default, the iterator yields only public patterns. Use
+/// [`Patterns::include_private`] if you want to include private patterns
+/// as well.
 pub struct Patterns<'a, 'r> {
     ctx: Option<&'a ScanContext<'r>>,
     data: Option<&'a ScannedData<'a>>,
@@ -251,7 +255,7 @@ pub struct Patterns<'a, 'r> {
     /// True if the iterator should yield all patterns, including the
     /// private ones. If false, only the non-private patterns are
     /// yielded.
-    yield_private: bool,
+    include_private: bool,
     /// Number of private patterns that remain to be yielded.
     len_private: usize,
     /// Number of non-private patterns that remain to be yielded.
@@ -259,13 +263,12 @@ pub struct Patterns<'a, 'r> {
 }
 
 impl Patterns<'_, '_> {
-    /// Configures the iterator to include all patterns, including private
-    /// ones.
+    /// Specifies whether the iterator should yield private patterns.
     ///
-    /// Note: This does not reset the iterator to its initial state. It will
-    /// continue from its current position, now including private patterns.
-    pub fn all(mut self) -> Self {
-        self.yield_private = true;
+    /// This does not reset the iterator to its initial state, the iterator will
+    /// continue from its current position.
+    pub fn include_private(mut self, yes: bool) -> Self {
+        self.include_private = yes;
         self
     }
 }
@@ -273,7 +276,7 @@ impl Patterns<'_, '_> {
 impl ExactSizeIterator for Patterns<'_, '_> {
     #[inline]
     fn len(&self) -> usize {
-        if self.yield_private {
+        if self.include_private {
             self.len_non_private + self.len_private
         } else {
             self.len_non_private
@@ -285,28 +288,28 @@ impl<'a, 'r> Iterator for Patterns<'a, 'r> {
     type Item = Pattern<'a, 'r>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (ident_id, pattern_kind, pattern_id, is_private) = loop {
+        loop {
             let (ident_id, pattern_kind, pattern_id, is_private) =
                 self.iterator.next()?;
+
             if *is_private {
                 self.len_private -= 1;
             } else {
                 self.len_non_private -= 1;
             }
-            if self.yield_private || !is_private {
-                break (ident_id, pattern_kind, pattern_id, is_private);
-            }
-        };
 
-        Some(Pattern {
-            ctx: self.ctx,
-            rules: self.rules,
-            data: self.data,
-            ident_id: *ident_id,
-            pattern_id: *pattern_id,
-            kind: *pattern_kind,
-            is_private: *is_private,
-        })
+            if self.include_private || !is_private {
+                return Some(Pattern {
+                    ctx: self.ctx,
+                    rules: self.rules,
+                    data: self.data,
+                    ident_id: *ident_id,
+                    pattern_id: *pattern_id,
+                    kind: *pattern_kind,
+                    is_private: *is_private,
+                });
+            }
+        }
     }
 }
 
