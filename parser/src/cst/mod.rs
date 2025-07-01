@@ -232,7 +232,6 @@ impl TryFrom<Parser<'_>> for CST {
     type Error = Utf8Error;
 
     /// Crates a [`CST`] from the given parser.
-
     fn try_from(parser: Parser) -> Result<Self, Utf8Error> {
         Self::try_from(CSTStream::new(parser.source(), parser))
     }
