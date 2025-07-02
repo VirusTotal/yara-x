@@ -227,7 +227,6 @@ impl CST {
     }
 }
 
-#[doc(hidden)]
 impl TryFrom<Parser<'_>> for CST {
     type Error = Utf8Error;
 
