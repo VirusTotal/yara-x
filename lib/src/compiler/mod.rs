@@ -26,7 +26,8 @@ use thiserror::Error;
 use walrus::FunctionId;
 
 use yara_x_parser::ast;
-use yara_x_parser::ast::{Ident, Import, Include, RuleFlags, WithSpan};
+use yara_x_parser::ast::{Ident, Import, Include, RuleFlags, WithSpan, AST};
+use yara_x_parser::cst::CSTStream;
 use yara_x_parser::{Parser, Span};
 
 use crate::compiler::base64::base64_patterns;
@@ -559,7 +560,9 @@ impl<'a> Compiler<'a> {
         let ast = match src.as_str() {
             Ok(src) => {
                 // Parse the source code and build the Abstract Syntax Tree.
-                Parser::new(src.as_bytes()).into_ast()
+                let cst = CSTStream::from(Parser::new(src.as_bytes()));
+
+                AST::from(cst)
             }
             Err(err) => {
                 let span_start = err.valid_up_to();

@@ -6,6 +6,7 @@ use bstr::ByteSlice;
 use pretty_assertions::assert_eq;
 use rayon::prelude::*;
 
+use yara_x_parser::cst::CSTStream;
 use yara_x_parser::{Parser, Span};
 
 use crate::tokens::{TokenStream, Tokens};
@@ -33,8 +34,8 @@ fn spacer() {
     for t in tests {
         let mut output = Vec::new();
         let rules = t.0.as_bytes();
-        let events = Parser::new(rules).into_cst_stream().whitespaces(false);
-        let tokens = Tokens::new(rules, events);
+        let events = CSTStream::from(Parser::new(rules));
+        let tokens = Tokens::new(rules, events.whitespaces(false));
 
         Formatter::add_spacing(tokens).write_to(&mut output).unwrap();
         assert_eq!(str::from_utf8(&output).unwrap(), t.1);

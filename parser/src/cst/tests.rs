@@ -1,10 +1,10 @@
-use crate::cst::SyntaxKind;
+use crate::cst::{SyntaxKind, CST};
 use crate::{Parser, Span};
 
 #[test]
 fn cst_1() {
-    let cst =
-        Parser::new(b"rule test { condition: true }").try_into_cst().unwrap();
+    let cst: CST =
+        Parser::new(b"rule test { condition: true }").try_into().unwrap();
 
     let source_file = cst.root();
 
@@ -80,8 +80,8 @@ fn cst_1() {
 
 #[test]
 fn cst_2() {
-    let cst =
-        Parser::new(b"rule test { condition: true }").try_into_cst().unwrap();
+    let cst: CST =
+        Parser::new(b"rule test { condition: true }").try_into().unwrap();
 
     let mut c = cst.root().first_child().unwrap().children_with_tokens();
 
@@ -121,8 +121,8 @@ fn cst_2() {
 
 #[test]
 fn cst_3() {
-    let cst =
-        Parser::new(b"rule test { condition: true }").try_into_cst().unwrap();
+    let cst: CST =
+        Parser::new(b"rule test { condition: true }").try_into().unwrap();
 
     let condition_blk =
         cst.root().first_child().unwrap().first_child().unwrap();
@@ -162,8 +162,9 @@ fn cst_3() {
 
 #[test]
 fn cst_4() {
-    let cst =
-        Parser::new(b"rule test { condition: true }").try_into_cst().unwrap();
+    let cst: CST =
+        Parser::new(b"rule test { condition: true }").try_into().unwrap();
+
     let source_file = cst.root().into_mut();
 
     // Detach the first token, which is the `rule` keyword.
