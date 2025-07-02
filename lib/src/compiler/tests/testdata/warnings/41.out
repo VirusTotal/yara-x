@@ -4,8 +4,8 @@ warning[slow_pattern]: slow pattern
  3 | /   $h = { (
  4 | |    2D A? FF FF FF ?? ?? |
 ...  |
-31 | |    8D 76 ( 2? | 3? | 4? | 5? ) ?? ?? |
-32 | |    8D 7F ( 2? | 3? | 4? | 5? ) ?? ?? ) }
+55 | |    8D 76 ( 2? | 3? | 4? | 5? ) ?? ?? |
+56 | |    8D 7F ( 2? | 3? | 4? | 5? ) ?? ?? ) }
    | |______________________________________- this pattern may slow down the scan
    |
    = note: this is an exceptionally extreme case that may severely degrade scanning throughput
