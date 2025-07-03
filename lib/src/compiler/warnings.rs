@@ -695,7 +695,19 @@ pub struct InvalidTag {
     regex: String,
 }
 
-/// FOO TODO
+/// A deprecated field was used in a YARA rule.
+/// check for it (see: [`crate::linters::Tags`]).
+///
+/// ## Example
+///
+/// ```text
+/// warning[deprecated_field]: field `foo` is deprecated
+///  --> rules/test.yara:1:10
+///   |
+/// 3 | vt.metadata.foo
+///   |             --- `foo` is deprecated, use `bar` instead
+///   |
+/// ```
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(Warning)]
 #[warning(
