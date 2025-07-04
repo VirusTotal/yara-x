@@ -80,6 +80,24 @@ impl Span {
         Self(self.0.start..other.0.end)
     }
 
+    /// Returns true if this span completely contains `other`.
+    ///
+    /// Both the start and end of the `other` span must be within the limits of
+    /// this span.
+    ///
+    /// ```
+    /// # use yara_x_parser::Span;
+    /// assert!(Span(0..3).contains(&Span(0..2)));
+    /// assert!(Span(0..3).contains(&Span(1..3)));
+    /// assert!(Span(0..3).contains(&Span(0..3)));
+    /// assert!(!Span(0..3).contains(&Span(0..4)));
+    /// assert!(!Span(0..3).contains(&Span(3..4)));
+    /// ```
+    pub fn contains(&self, other: &Self) -> bool {
+        self.0.contains(&other.0.start)
+            && self.0.contains(&other.0.end.saturating_sub(1))
+    }
+
     /// Returns a new [`Span`] that is a subspan of the original one.
     ///
     /// `start` and `end` are the starting and ending offset of the subspan,

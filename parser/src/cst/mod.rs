@@ -92,7 +92,14 @@ impl<'src, I> CSTStream<'src, I>
 where
     I: Iterator<Item = Event>,
 {
-    pub(crate) fn new(source: &'src [u8], events: I) -> Self {
+    /// Creates a new [`CSTStream`] from source code and some iterator
+    /// that returns the parsed source code in the form of a sequence
+    /// of [`Event`].
+    ///
+    /// This API is not meant to be public, but it is used by the
+    /// compiler in the yara_x crate.
+    #[doc(hidden)]
+    pub fn new(source: &'src [u8], events: I) -> Self {
         Self {
             source,
             events,

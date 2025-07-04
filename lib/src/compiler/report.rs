@@ -248,6 +248,13 @@ pub struct Label<'a> {
     text: &'a str,
 }
 
+impl Label<'_> {
+    #[inline]
+    pub fn span(&self) -> &Span {
+        &self.span
+    }
+}
+
 /// Represents a footer in an error or warning report.
 #[derive(Serialize)]
 pub struct Footer<'a> {
