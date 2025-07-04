@@ -229,11 +229,18 @@ int32be(<offset>)
 uint8be(<offset>)
 uint16be(<offset>)
 uint32be(<offset>)
+
+float32(<offset>)
+double64(<offset>)
+
+float32be(<offset>)
+double64be(<offset>)
 ```
 
 The `intXX` functions read 8, 16, and 32 bits signed integers from the given
-offset, while functions uintXX read unsigned integers. Both 16 and 32-bit
-integers are considered to be little-endian. If you want to read a big-endian
+offset, while functions `uintXX` read unsigned integers. IEEE 754 floating
+point numbers are read using `float32/double64`. The order in which multiple
+bytes are read defaults to little-endian. If you want to read a big-endian
 integer use the corresponding function ending in `be`. The offset parameter can
 be any expression returning an unsigned integer, including the return value of
 one the `uintXX` functions. Let's see a rule to distinguish PE files:
