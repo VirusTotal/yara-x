@@ -1896,6 +1896,46 @@ fn regexp_wide() {
     pattern_false!(r"/foobar\B/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x");
     pattern_true!(r"/foobar$/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00");
     pattern_true!(r"/foobar$/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x");
+
+    pattern_false!(
+        r"/foo.bar/ wide",
+        b"f\x00o\x00o\x00\x00\xFFb\x00a\x00r\x00"
+    );
+
+    pattern_false!(
+        r"/foo.?bar/ wide",
+        b"f\x00o\x00o\x00\x00\xFFb\x00a\x00r\x00"
+    );
+
+    pattern_false!(
+        r"/foo.{2,5}bar/ wide",
+        b"f\x00o\x00o\x00\x00\xFFx\x00x\x00b\x00a\x00r\x00"
+    );
+
+    pattern_true!(
+        r"/foo.{2,10}bar/ wide",
+        b"\xFF\xFFf\x00o\x00o\x00x\x00x\x00b\x00a\x00r\x00\xFF\xFF"
+    );
+
+    pattern_false!(
+        r"/bar.foo/ wide",
+        b"b\x00a\x00r\x00\x00\xFFf\x00o\x00o\x00"
+    );
+
+    pattern_false!(
+        r"/bar.?foo/ wide",
+        b"b\x00a\x00r\x00\x00\xFFf\x00o\x00o\x00"
+    );
+
+    pattern_false!(
+        r"/bar.{2,5}foo/ wide",
+        b"b\x00a\x00r\x00\x00\xFFx\x00x\x00f\x00o\x00o\x00"
+    );
+
+    pattern_true!(
+        r"/bar.{2,10}foo/ wide",
+        b"\xFF\xFFb\x00a\x00r\x00x\x00x\x00f\x00o\x00o\x00\xFF\xFF"
+    );
 }
 
 #[test]
