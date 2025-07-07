@@ -2885,6 +2885,7 @@ impl Warnings {
         self.suppressed_warnings.clear();
     }
 
+    /// Suppress the warning with the given code, for the given span.
     pub fn suppress(&mut self, code: &str, span: Span) {
         self.suppressed_warnings
             .entry(code.to_string())
