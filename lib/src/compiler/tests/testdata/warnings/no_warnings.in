@@ -65,3 +65,22 @@ rule test_9 {
         uint16(0) == 0 or uint16(0) == 0xFFFF or
         uint32(0) == 0 or uint32(0) == 0xFFFFFFFF
 }
+
+rule test_10 {
+  strings:
+    // suppress: text_as_hex
+    $a = { 61 62 63 64 }
+    $b = { 61 62 63 64 } // suppress: text_as_hex
+  condition:
+    $a and $b or true // suppress: invariant_expr
+}
+
+// suppress: text_as_hex
+// suppress: invariant_expr
+rule test_11 {
+  strings:
+    $a = { 61 62 63 64 }
+    $b = { 61 62 63 64 }
+  condition:
+    $a and $b or true
+}
