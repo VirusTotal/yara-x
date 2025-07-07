@@ -148,7 +148,11 @@ where
                 if kind == SyntaxKind::RULE_DECL
                     || kind == SyntaxKind::PATTERN_DEF =>
             {
-                for comment in self.pending_comments.iter_mut() {
+                for comment in self
+                    .pending_comments
+                    .iter_mut()
+                    .filter(|p| p.code_span.is_none())
+                {
                     comment.code_span = Some(span.clone());
                 }
             }
@@ -173,10 +177,13 @@ mod tests {
         let parser = Parser::new(
             b"
 // suppress: foo
-rule test { // suppress: bar
+rule test_1 { // suppress: bar
     // suppress: baz
     condition: true
 }
+
+// suppress: foo
+rule test_2 { strings: /* suppress: bar */ $a = { 00 01 } condition: true }
         ",
         );
 
@@ -190,12 +197,12 @@ rule test { // suppress: bar
         let _ = cst.collect::<Vec<Event>>();
 
         let expected: HashMap<_, _> = vec![
-            // foo is suppressed for the whole rule
-            ("foo", vec![Span(18..89)]),
-            // bar is suppressed for "rule test {"
-            ("bar", vec![Span(18..29)]),
+            // foo is suppressed for the whole rules test_1 and test_2
+            ("foo", vec![Span(18..91), Span(110..185)]),
+            // bar is suppressed for "rule test_1 {" and "rule test_2 { strings: "
+            ("bar", vec![Span(18..31), Span(110..132)]),
             // baz is suppressed for "condition: true"
-            ("baz", vec![Span(72..87)]),
+            ("baz", vec![Span(74..89)]),
         ]
         .into_iter()
         .collect();
