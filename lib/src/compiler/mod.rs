@@ -6,7 +6,7 @@ module implements the YARA compiler.
 
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -55,9 +55,9 @@ pub(crate) use crate::compiler::context::*;
 pub(crate) use crate::compiler::ir::*;
 #[doc(inline)]
 pub use crate::compiler::rules::*;
-
 #[doc(inline)]
 pub use crate::compiler::warnings::*;
+use crate::compiler::wsh::WarningSuppressionHook;
 use crate::errors::{IncludeError, IncludeNotAllowed, IncludeNotFound};
 use crate::linters::LinterResult;
 use crate::models::PatternKind;
@@ -76,6 +76,7 @@ pub mod base64;
 pub mod errors;
 pub mod linters;
 pub mod warnings;
+pub mod wsh;
 
 /// A structure that describes some YARA source code.
 ///
@@ -560,9 +561,13 @@ impl<'a> Compiler<'a> {
         let ast = match src.as_str() {
             Ok(src) => {
                 // Parse the source code and build the Abstract Syntax Tree.
-                let cst = CSTStream::from(Parser::new(src.as_bytes()));
+                let cst = Parser::new(src.as_bytes());
+                let cst =
+                    WarningSuppressionHook::from(cst).hook(|warning, span| {
+                        self.warnings.suppress(warning, span);
+                    });
 
-                AST::from(cst)
+                AST::from(CSTStream::new(src.as_bytes(), cst))
             }
             Err(err) => {
                 let span_start = err.valid_up_to();
@@ -595,6 +600,8 @@ impl<'a> Compiler<'a> {
         let existing_errors = self.errors.len();
 
         self.c_items(ast.items());
+
+        self.warnings.clear_suppressed();
 
         self.errors.extend(
             ast.into_errors()
@@ -2783,8 +2790,14 @@ pub struct InvalidWarningCode(String);
 /// warnings types.
 pub(crate) struct Warnings {
     warnings: Vec<Warning>,
+    /// Maximum number of warnings that will be stored in `warnings`.
     max_warnings: usize,
+    /// Warnings that are globally disabled.
     disabled_warnings: HashSet<String>,
+    /// Warnings that are suppressed for a specific code span. Keys are
+    /// warning identifiers, and values are the code spans in which the
+    /// warning is disabled.
+    suppressed_warnings: HashMap<String, Vec<Span>>,
 }
 
 impl Default for Warnings {
@@ -2793,6 +2806,7 @@ impl Default for Warnings {
             warnings: Vec::new(),
             max_warnings: 100,
             disabled_warnings: HashSet::default(),
+            suppressed_warnings: HashMap::default(),
         }
     }
 }
@@ -2806,7 +2820,24 @@ impl Warnings {
     pub fn add(&mut self, f: impl FnOnce() -> Warning) {
         if self.warnings.len() < self.max_warnings {
             let warning = f();
-            if !self.disabled_warnings.contains(warning.code()) {
+            let mut warn = !self.disabled_warnings.contains(warning.code());
+
+            if warn {
+                if let Some(spans) =
+                    self.suppressed_warnings.get(warning.code())
+                {
+                    'l: for disabled_span in spans {
+                        for label in warning.labels() {
+                            if disabled_span.contains(label.span()) {
+                                warn = false;
+                                break 'l;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if warn {
                 self.warnings.push(warning);
             }
         }
@@ -2847,6 +2878,19 @@ impl Warnings {
                 self.disabled_warnings.insert(c.to_string());
             }
         }
+    }
+
+    /// Clear suppressed warnings.
+    pub fn clear_suppressed(&mut self) {
+        self.suppressed_warnings.clear();
+    }
+
+    /// Suppress the warning with the given code, for the given span.
+    pub fn suppress(&mut self, code: &str, span: Span) {
+        self.suppressed_warnings
+            .entry(code.to_string())
+            .or_default()
+            .push(span);
     }
 
     #[inline]
