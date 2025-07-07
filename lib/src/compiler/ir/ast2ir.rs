@@ -285,7 +285,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
         hir.as_literal_bytes().and_then(|lit| lit.to_str().ok())
     {
         if literal.chars().all(|c| {
-            (c >= ' ' && c <= '~') || c == '\t' || c == '\n' || c == '\r'
+            (' '..='~').contains(&c) || c == '\t' || c == '\n' || c == '\r'
         }) {
             ctx.warnings.add(|| {
                 TextPatternAsHex::build(
