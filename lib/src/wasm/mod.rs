@@ -1528,6 +1528,6 @@ macro_rules! gen_xieee754_fn {
 }
 
 gen_xieee754_fn!(float32, f32, from_le_bytes);
-gen_xieee754_fn!(double64, f64, from_le_bytes);
+gen_xieee754_fn!(float64, f64, from_le_bytes);
 gen_xieee754_fn!(float32be, f32, from_be_bytes);
-gen_xieee754_fn!(double64be, f64, from_be_bytes);
+gen_xieee754_fn!(float64be, f64, from_be_bytes);
