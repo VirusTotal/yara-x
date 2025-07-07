@@ -9,7 +9,7 @@ menu:
   docs:
     parent: ""
     identifier: "differences"
-weight: 300
+weight: 310
 toc: true
 seo:
   title: "" # custom title (optional)
