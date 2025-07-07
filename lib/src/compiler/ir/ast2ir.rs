@@ -285,7 +285,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
         hir.as_literal_bytes().and_then(|lit| lit.to_str().ok())
     {
         if literal.chars().all(|c| {
-            c.is_ascii() && (c >= ' ' || c == '\t' || c == '\n' || c == '\r')
+            (c >= ' ' && c <= '~') || c == '\t' || c == '\n' || c == '\r'
         }) {
             ctx.warnings.add(|| {
                 TextPatternAsHex::build(
@@ -2310,21 +2310,21 @@ fn eq_check(
                         if const_string.chars().any(|c| c.is_uppercase()) =>
                     {
                         ctx.warnings.add(|| {
-                            UnsatisfiableExpression::build(
-                                ctx.report_builder,
-                                "this is a lowercase string".to_string(),
-                                "this contains uppercase characters".to_string(),
-                                ctx.report_builder.span_to_code_loc(
-                                    constrained_string_span.clone()
-                                ),
-                                ctx.report_builder.span_to_code_loc(
-                                    const_string_span.clone()
-                                ),
-                                Some(
-                                    "a lowercase string can't be equal to a string containing uppercase characters"
-                                        .to_string())
-                            )
-                        });
+                                UnsatisfiableExpression::build(
+                                    ctx.report_builder,
+                                    "this is a lowercase string".to_string(),
+                                    "this contains uppercase characters".to_string(),
+                                    ctx.report_builder.span_to_code_loc(
+                                        constrained_string_span.clone()
+                                    ),
+                                    ctx.report_builder.span_to_code_loc(
+                                        const_string_span.clone()
+                                    ),
+                                    Some(
+                                        "a lowercase string can't be equal to a string containing uppercase characters"
+                                            .to_string()),
+                                )
+                            });
                     }
                     StringConstraint::ExactLength(n)
                         if const_string.len() != n =>

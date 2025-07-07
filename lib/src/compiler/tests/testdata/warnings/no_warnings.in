@@ -54,8 +54,9 @@ rule test_7 {
 rule test_8 {
   strings:
     $a = { 50 4B 03 04 }
+    $b = { 7F 45 4C 46 }
   condition:
-    $a
+    $a and $b
 }
 
 rule test_9 {
