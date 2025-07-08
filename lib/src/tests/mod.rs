@@ -431,6 +431,42 @@ fn intxx() {
 }
 
 #[test]
+fn floatxx() {
+    condition_true!("float32(0) == 1.0", &[0x00, 0x00, 0x80, 0x3f]);
+    condition_true!("float32be(0) == 1.0", &[0x3f, 0x80, 0x00, 0x00]);
+
+    condition_true!(
+        "float32(0) == 3.1415927410125732",
+        &[0xDB, 0x0F, 0x49, 0x40]
+    );
+
+    condition_true!(
+        "float32be(0) == 3.1415927410125732",
+        &[0x40, 0x49, 0x0F, 0xDB]
+    );
+
+    condition_true!(
+        "float64be(0) == 1.0",
+        &[0x3F, 0xF0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+    );
+
+    condition_true!(
+        "float64(0) == 1.0",
+        &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0x3F]
+    );
+
+    condition_true!(
+        "float64be(0) == 3.141592653589793238462643",
+        &[0x40, 0x09, 0x21, 0xFB, 0x54, 0x44, 0x2D, 0x18]
+    );
+
+    condition_true!(
+        "float64(0) == 3.141592653589793238462643",
+        &[0x18, 0x2D, 0x44, 0x54, 0xFB, 0x21, 0x09, 0x40]
+    );
+}
+
+#[test]
 fn for_in() {
     condition_true!("for any i in (0..1): ( 1 )");
     condition_false!("for any i in (0..1): ( 0 )");

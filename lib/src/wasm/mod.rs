@@ -1474,7 +1474,7 @@ pub(crate) fn str_matches(
     ctx.regexp_matches(rhs, lhs.as_bstr(ctx))
 }
 
-macro_rules! gen_xint_fn {
+macro_rules! gen_int_fn {
     ($name:ident, $return_type:ty, $from_fn:ident, $min:expr, $max:expr) => {
         #[wasm_export(public = true)]
         pub(crate) fn $name(
@@ -1494,21 +1494,21 @@ macro_rules! gen_xint_fn {
     };
 }
 
-gen_xint_fn!(uint8, u8, from_le_bytes, 0, 255);
-gen_xint_fn!(uint16, u16, from_le_bytes, 0, 65_535);
-gen_xint_fn!(uint32, u32, from_le_bytes, 0, 4_294_967_295);
-gen_xint_fn!(uint8be, u8, from_be_bytes, 0, 255);
-gen_xint_fn!(uint16be, u16, from_be_bytes, 0, 65_535);
-gen_xint_fn!(uint32be, u32, from_be_bytes, 0, 4_294_967_295);
+gen_int_fn!(uint8, u8, from_le_bytes, 0, 255);
+gen_int_fn!(uint16, u16, from_le_bytes, 0, 65_535);
+gen_int_fn!(uint32, u32, from_le_bytes, 0, 4_294_967_295);
+gen_int_fn!(uint8be, u8, from_be_bytes, 0, 255);
+gen_int_fn!(uint16be, u16, from_be_bytes, 0, 65_535);
+gen_int_fn!(uint32be, u32, from_be_bytes, 0, 4_294_967_295);
 
-gen_xint_fn!(int8, i8, from_le_bytes, -128, 127);
-gen_xint_fn!(int16, i16, from_le_bytes, -32_768, 32_767);
-gen_xint_fn!(int32, i32, from_le_bytes, -2_147_483_648, 2_147_483_647);
-gen_xint_fn!(int8be, i8, from_be_bytes, -128, 127);
-gen_xint_fn!(int16be, i16, from_be_bytes, -32_768, 32_767);
-gen_xint_fn!(int32be, i32, from_be_bytes, -2_147_483_648, 2_147_483_647);
+gen_int_fn!(int8, i8, from_le_bytes, -128, 127);
+gen_int_fn!(int16, i16, from_le_bytes, -32_768, 32_767);
+gen_int_fn!(int32, i32, from_le_bytes, -2_147_483_648, 2_147_483_647);
+gen_int_fn!(int8be, i8, from_be_bytes, -128, 127);
+gen_int_fn!(int16be, i16, from_be_bytes, -32_768, 32_767);
+gen_int_fn!(int32be, i32, from_be_bytes, -2_147_483_648, 2_147_483_647);
 
-macro_rules! gen_xieee754_fn {
+macro_rules! gen_float_fn {
     ($name:ident, $return_type:ty, $from_fn:ident) => {
         #[wasm_export(public = true)]
         pub(crate) fn $name(
@@ -1527,7 +1527,7 @@ macro_rules! gen_xieee754_fn {
     };
 }
 
-gen_xieee754_fn!(float32, f32, from_le_bytes);
-gen_xieee754_fn!(float64, f64, from_le_bytes);
-gen_xieee754_fn!(float32be, f32, from_be_bytes);
-gen_xieee754_fn!(float64be, f64, from_be_bytes);
+gen_float_fn!(float32, f32, from_le_bytes);
+gen_float_fn!(float64, f64, from_le_bytes);
+gen_float_fn!(float32be, f32, from_be_bytes);
+gen_float_fn!(float64be, f64, from_be_bytes);
