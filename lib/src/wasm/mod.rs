@@ -1507,3 +1507,27 @@ gen_xint_fn!(int32, i32, from_le_bytes, -2_147_483_648, 2_147_483_647);
 gen_xint_fn!(int8be, i8, from_be_bytes, -128, 127);
 gen_xint_fn!(int16be, i16, from_be_bytes, -32_768, 32_767);
 gen_xint_fn!(int32be, i32, from_be_bytes, -2_147_483_648, 2_147_483_647);
+
+macro_rules! gen_xieee754_fn {
+    ($name:ident, $return_type:ty, $from_fn:ident) => {
+        #[wasm_export(public = true)]
+        pub(crate) fn $name(
+            caller: &mut Caller<'_, ScanContext>,
+            offset: i64,
+        ) -> Option<f64> {
+            let offset = usize::try_from(offset).ok()?;
+            caller
+                .data()
+                .scanned_data()
+                .get(offset..offset + mem::size_of::<$return_type>())
+                .map(|bytes| {
+                    <$return_type>::$from_fn(bytes.try_into().unwrap()) as f64
+                })
+        }
+    };
+}
+
+gen_xieee754_fn!(float32, f32, from_le_bytes);
+gen_xieee754_fn!(float64, f64, from_le_bytes);
+gen_xieee754_fn!(float32be, f32, from_be_bytes);
+gen_xieee754_fn!(float64be, f64, from_be_bytes);
