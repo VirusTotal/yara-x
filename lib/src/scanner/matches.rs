@@ -53,6 +53,7 @@ impl MatchList {
     pub fn add(&mut self, m: Match, replace_if_longer: bool) {
         let mut insertion_index = self.matches.len();
 
+        // TODO: replace this with a binary search
         while insertion_index > 0 {
             let existing_match = &mut self.matches[insertion_index - 1];
             if m.range.start == existing_match.range.start {
