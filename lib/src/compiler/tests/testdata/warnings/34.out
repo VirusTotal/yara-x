@@ -8,11 +8,29 @@ warning[text_as_hex]: hex pattern could be written as text literal
   |     help: replace with "aaa"
   |
 warning[text_as_hex]: hex pattern could be written as text literal
-  --> line:10:5
+  --> line:10:7
    |
-10 |     $aaa = { 61 09 62 }
-   |     -----------------
-   |     |
-   |     this pattern can be written as a text literal
-   |     help: replace with "a\tb"
+10 |       $quoted_aaa = { 27 61 61 61 27 }
+   |       ------------------------------
+   |       |
+   |       this pattern can be written as a text literal
+   |       help: replace with "'aaa'"
+   |
+warning[text_as_hex]: hex pattern could be written as text literal
+  --> line:17:7
+   |
+17 |       $quoted_aaa = { 22 61 61 61 22 }
+   |       ------------------------------
+   |       |
+   |       this pattern can be written as a text literal
+   |       help: replace with "\"aaa\""
+   |
+warning[text_as_hex]: hex pattern could be written as text literal
+  --> line:24:7
+   |
+24 |       $ = { 61 61 61 0D 0A 09 62 62 62 }
+   |       --------------------------------
+   |       |
+   |       this pattern can be written as a text literal
+   |       help: replace with "aaa\r\n\tbbb"
    |

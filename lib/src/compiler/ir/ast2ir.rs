@@ -290,7 +290,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
             ctx.warnings.add(|| {
                 TextPatternAsHex::build(
                     ctx.report_builder,
-                    literal.escape_default().to_string(),
+                    escape(literal),
                     ctx.report_builder.span_to_code_loc(pattern.span()),
                 )
             });
@@ -307,6 +307,21 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
             anchored_at: None,
         }),
     })
+}
+
+fn escape(s: &str) -> String {
+    let mut escaped = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '\r' => escaped.push_str("\\r"),
+            '\n' => escaped.push_str("\\n"),
+            '\t' => escaped.push_str("\\t"),
+            '\\' => escaped.push_str("\\\\"),
+            '"' => escaped.push_str("\\\""),
+            _ => escaped.push(c),
+        }
+    }
+    escaped
 }
 
 pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
