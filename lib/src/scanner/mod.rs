@@ -606,7 +606,7 @@ impl<'r> Scanner<'r> {
             ScannedData::Vec(buffered_file)
         } else {
             mapped_file = unsafe {
-                MmapOptions::new().map(&file).map_err(|err| {
+                MmapOptions::new().map_copy_read_only(&file).map_err(|err| {
                     ScanError::MapError { path: path.to_path_buf(), err }
                 })
             }?;
