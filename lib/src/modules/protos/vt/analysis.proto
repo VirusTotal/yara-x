@@ -1,0 +1,17 @@
+// THIS FILE IS GENERATED AUTOMATICALLY. DO NOT EDIT.
+// LINT: LEGACY_NAMES
+
+syntax = "proto3";
+
+package vt.analysis;
+
+import "yara.proto";
+
+message AnalysisStats {
+  int32 malicious = 1;
+  int32 suspicious = 2;
+  int32 undetected = 3;
+  int32 harmless = 4;
+  int32 failure = 5;
+  int32 type_unsupported = 6;
+}

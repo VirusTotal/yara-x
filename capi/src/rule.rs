@@ -34,9 +34,9 @@ pub unsafe extern "C" fn yrx_rule_identifier(
         *ident = rule.0.identifier().as_ptr();
         *len = rule.0.identifier().len();
         _yrx_set_last_error::<String>(None);
-        YRX_RESULT::SUCCESS
+        YRX_RESULT::YRX_SUCCESS
     } else {
-        YRX_RESULT::INVALID_ARGUMENT
+        YRX_RESULT::YRX_INVALID_ARGUMENT
     }
 }
 
@@ -58,9 +58,9 @@ pub unsafe extern "C" fn yrx_rule_namespace(
         *ns = rule.0.namespace().as_ptr();
         *len = rule.0.namespace().len();
         _yrx_set_last_error::<String>(None);
-        YRX_RESULT::SUCCESS
+        YRX_RESULT::YRX_SUCCESS
     } else {
-        YRX_RESULT::INVALID_ARGUMENT
+        YRX_RESULT::YRX_INVALID_ARGUMENT
     }
 }
 
@@ -93,7 +93,7 @@ pub unsafe extern "C" fn yrx_rule_iter_metadata(
     let metadata_iter = if let Some(rule) = rule.as_ref() {
         rule.0.metadata()
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     for (identifier, value) in metadata_iter {
@@ -102,23 +102,24 @@ pub unsafe extern "C" fn yrx_rule_iter_metadata(
 
         let (ty, val) = match value {
             MetaValue::Integer(v) => {
-                (YRX_METADATA_TYPE::I64, YRX_METADATA_VALUE { r#i64: v })
+                (YRX_METADATA_TYPE::YRX_I64, YRX_METADATA_VALUE { r#i64: v })
             }
             MetaValue::Float(v) => {
-                (YRX_METADATA_TYPE::F64, YRX_METADATA_VALUE { r#f64: v })
+                (YRX_METADATA_TYPE::YRX_F64, YRX_METADATA_VALUE { r#f64: v })
             }
-            MetaValue::Bool(v) => {
-                (YRX_METADATA_TYPE::BOOLEAN, YRX_METADATA_VALUE { boolean: v })
-            }
+            MetaValue::Bool(v) => (
+                YRX_METADATA_TYPE::YRX_BOOLEAN,
+                YRX_METADATA_VALUE { boolean: v },
+            ),
             MetaValue::String(v) => {
                 string = CString::new(v).unwrap();
                 (
-                    YRX_METADATA_TYPE::STRING,
+                    YRX_METADATA_TYPE::YRX_STRING,
                     YRX_METADATA_VALUE { string: string.as_ptr() },
                 )
             }
             MetaValue::Bytes(v) => (
-                YRX_METADATA_TYPE::BYTES,
+                YRX_METADATA_TYPE::YRX_BYTES,
                 YRX_METADATA_VALUE {
                     bytes: YRX_METADATA_BYTES {
                         length: v.len(),
@@ -138,7 +139,7 @@ pub unsafe extern "C" fn yrx_rule_iter_metadata(
         )
     }
 
-    YRX_RESULT::SUCCESS
+    YRX_RESULT::YRX_SUCCESS
 }
 
 /// Callback function passed to [`yrx_rule_iter_patterns`].
@@ -170,14 +171,14 @@ pub unsafe extern "C" fn yrx_rule_iter_patterns(
     let patterns_iter = if let Some(rule) = rule.as_ref() {
         rule.0.patterns()
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     for pattern in patterns_iter {
         callback(&YRX_PATTERN::new(pattern), user_data)
     }
 
-    YRX_RESULT::SUCCESS
+    YRX_RESULT::YRX_SUCCESS
 }
 
 /// Callback function passed to [`yrx_rule_iter_tags`].
@@ -209,7 +210,7 @@ pub unsafe extern "C" fn yrx_rule_iter_tags(
     let tags_iter = if let Some(rule) = rule.as_ref() {
         rule.0.tags()
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     for tag in tags_iter {
@@ -217,5 +218,5 @@ pub unsafe extern "C" fn yrx_rule_iter_tags(
         callback(tag_name.as_ptr(), user_data)
     }
 
-    YRX_RESULT::SUCCESS
+    YRX_RESULT::YRX_SUCCESS
 }

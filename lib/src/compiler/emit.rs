@@ -31,7 +31,8 @@ use crate::compiler::{
 use crate::scanner::RuntimeObjectHandle;
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::Symbol;
-use crate::types::{Array, Map, Type, TypeValue, Value};
+use crate::types::Value::Const;
+use crate::types::{Array, Map, Type, TypeValue};
 use crate::utils::cast;
 use crate::wasm;
 use crate::wasm::builder::WasmModuleBuilder;
@@ -271,16 +272,16 @@ fn emit_expr(
 ) {
     match ir.get(expr) {
         Expr::Const(type_value) => match type_value {
-            TypeValue::Integer(Value::Const(value)) => {
+            TypeValue::Integer { value: Const(value), .. } => {
                 instr.i64_const(*value);
             }
-            TypeValue::Float(Value::Const(value)) => {
+            TypeValue::Float { value: Const(value) } => {
                 instr.f64_const(*value);
             }
-            TypeValue::Bool(Value::Const(value)) => {
+            TypeValue::Bool { value: Const(value) } => {
                 instr.i32_const((*value).into());
             }
-            TypeValue::String(Value::Const(value)) => {
+            TypeValue::String { value: Const(value), .. } => {
                 // Put the literal string in the pool, or get its ID if it was
                 // already there.
                 let literal_id = ctx.lit_pool.get_or_intern(value.as_bstr());
@@ -296,7 +297,7 @@ fn emit_expr(
             t => unreachable!("{:?}", t),
         },
 
-        Expr::Filesize { .. } => {
+        Expr::Filesize => {
             instr.global_get(ctx.wasm_symbols.filesize);
         }
 
@@ -318,22 +319,22 @@ fn emit_expr(
                     let index: i32 = (*index).try_into().unwrap();
 
                     match type_value {
-                        TypeValue::Integer(_) => {
+                        TypeValue::Integer { .. } => {
                             ctx.lookup_list.push((index, *is_root));
                             emit_lookup_integer(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
-                        TypeValue::Float(_) => {
+                        TypeValue::Float { .. } => {
                             ctx.lookup_list.push((index, *is_root));
                             emit_lookup_float(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
-                        TypeValue::Bool(_) => {
+                        TypeValue::Bool { .. } => {
                             ctx.lookup_list.push((index, *is_root));
                             emit_lookup_bool(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
-                        TypeValue::String(_) => {
+                        TypeValue::String { .. } => {
                             ctx.lookup_list.push((index, *is_root));
                             emit_lookup_string(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
@@ -358,7 +359,7 @@ fn emit_expr(
                             // root structure, we know that the stack already
                             // contains the object.
                             if let Some((_, true)) = ctx.lookup_list.first() {
-                                if func.method_of().is_some() {
+                                if func.is_method() {
                                     emit_lookup_object(ctx, instr);
                                 }
                             }
@@ -635,16 +636,17 @@ fn emit_expr(
         },
 
         Expr::FuncCall(func_call) => {
-            // Emit the arguments first.
-            for expr in func_call.args.iter() {
-                emit_expr(ctx, ir, *expr, instr);
-            }
-
+            // If this is method call, the target object (self or this in some
+            // programming languages) is the first argument.
             if let Some(obj) = func_call.object {
                 emit_expr(ctx, ir, obj, instr);
             }
 
-            if func_call.signature().result_may_be_undef {
+            for expr in func_call.args.iter() {
+                emit_expr(ctx, ir, *expr, instr);
+            }
+
+            if func_call.signature().result_may_be_undef() {
                 emit_call_and_handle_undef(
                     ctx,
                     instr,
@@ -1987,7 +1989,7 @@ fn emit_for<I, B, C, A>(
             // At the top of the stack we have the i32 with the result from
             // the loop body. Decide what to do depending on the quantifier.
             match quantifier {
-                Quantifier::None { .. } => {
+                Quantifier::None => {
                     block.if_else(
                         I32,
                         |then_| {
@@ -2007,7 +2009,7 @@ fn emit_for<I, B, C, A>(
                         },
                     );
                 }
-                Quantifier::All { .. } => {
+                Quantifier::All => {
                     block.if_else(
                         I32,
                         |then_| {
@@ -2027,7 +2029,7 @@ fn emit_for<I, B, C, A>(
                         },
                     );
                 }
-                Quantifier::Any { .. } => {
+                Quantifier::Any => {
                     block.if_else(
                         I32,
                         |then_| {

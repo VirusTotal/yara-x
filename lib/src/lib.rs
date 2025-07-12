@@ -43,6 +43,7 @@ assert_eq!(results.matching_rules().len(), 1);
 
 #![deny(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
+extern crate core;
 
 pub use compiler::compile;
 pub use compiler::Compiler;
@@ -83,6 +84,14 @@ mod models;
 #[cfg(test)]
 mod tests;
 
+pub mod linters {
+    //! Linters that can be added to the compiler for performing additional checks.
+    //!
+    //! This module contains the linters that can be passed to [`crate::Compiler::add_linter`]
+    //! for performing additional checks to the YARA rules being compiled.
+    pub use crate::compiler::linters::*;
+}
+
 pub mod errors {
     //! Errors returned by this crate.
     //!
@@ -90,6 +99,7 @@ pub mod errors {
     //! crate.
     pub use crate::compiler::errors::*;
     pub use crate::compiler::InvalidWarningCode;
+    pub use crate::modules::ModuleError;
     pub use crate::scanner::ScanError;
     pub use crate::variables::VariableError;
 }

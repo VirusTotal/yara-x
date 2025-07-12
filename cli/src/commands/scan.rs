@@ -97,6 +97,13 @@ pub fn scan() -> Command {
                 .action(ArgAction::Append)
         )
         .arg(
+            arg!(-I --"include-dir" <PATH>)
+                .help("Directory in which to search for included files")
+                .long_help(help::INCLUDE_DIR_LONG_HELP)
+                .value_parser(value_parser!(PathBuf))
+                .action(ArgAction::Append)
+        )
+        .arg(
             arg!(-x --"module-data")
                 .help("Pass FILE's content as extra data to MODULE")
                 .long_help(help::MODULE_DATA_LONG_HELP)
@@ -147,7 +154,7 @@ pub fn scan() -> Command {
             arg!(-r --"recursive" [MAX_DEPTH])
                 .help("Scan directories recursively")
                 .long_help(help::SCAN_RECURSIVE_LONG_HELP)
-                .default_missing_value("100")
+                .default_missing_value("1000")
                 .require_equals(true)
                 .value_parser(value_parser!(usize))
         )
@@ -230,7 +237,7 @@ impl From<&ArgMatches> for OutputOptions {
     }
 }
 
-pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
+pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let mut rules_path = args
         .get_many::<(Option<String>, PathBuf)>("[NAMESPACE:]RULES_PATH")
         .unwrap();
@@ -308,7 +315,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         // With `take()` we pass the external variables to `compile_rules`,
         // while leaving a `None` in `external_vars`. This way external
         // variables are not set again in the scanner.
-        compile_rules(rules_path, external_vars.take(), args)?
+        compile_rules(rules_path, external_vars.take(), args, config)?
     };
 
     let rules_ref = &rules;
@@ -472,13 +479,11 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
             let root_cause = err.root_cause().to_string();
             let msg = if error != root_cause {
                 format!(
-                    "{} {}: {}",
+                    "{}{error}: {root_cause}",
                     "error: ".paint(Red).bold(),
-                    error,
-                    root_cause,
                 )
             } else {
-                format!("{}: {}", "error: ".paint(Red).bold(), error)
+                format!("{}{error}", "error: ".paint(Red).bold())
             };
 
             let _ = output.send(Message::Error(msg));
@@ -610,13 +615,20 @@ impl Component for ScanState {
             for (file, start_time) in
                 self.files_in_progress.lock().unwrap().iter()
             {
-                let path = replace_whitespace(file);
-                // The length of the elapsed is 7 characters.
-                let spaces = " "
-                    .repeat(dimensions.width.saturating_sub(path.len() + 7));
+                // The length of the elapsed time is 7 characters.
+                let max_path_with = dimensions.width.saturating_sub(7);
+
+                let (path, path_width) = truncate_with_ellipsis(
+                    replace_whitespace(file),
+                    max_path_with,
+                );
+
+                let spaces =
+                    " ".repeat(max_path_with.saturating_sub(path_width));
+
                 let line = format!(
                     "{}{}{:6.1}s",
-                    truncate_with_ellipsis(path, dimensions.width - 7),
+                    path,
                     spaces,
                     Instant::elapsed(start_time).as_secs_f32()
                 );
@@ -628,7 +640,9 @@ impl Component for ScanState {
     }
 }
 
+use crate::config::Config;
 use output_handler::*;
+
 mod output_handler {
     use super::*;
     use std::collections::HashMap;
@@ -676,7 +690,7 @@ mod output_handler {
     ) -> Vec<RuleJson> {
         scan_results
             .filter(move |rule| {
-                output_options.only_tag.as_ref().map_or(true, |only_tag| {
+                output_options.only_tag.as_ref().is_none_or(|only_tag| {
                     rule.tags().any(|tag| tag.identifier() == only_tag)
                 })
             })
@@ -1105,8 +1119,7 @@ mod output_handler {
             // prepare the increment *outside* the critical section
             let matches = scan_results
                 .filter(|rule| {
-                    self.output_options.only_tag.as_ref().map_or(
-                        true,
+                    self.output_options.only_tag.as_ref().is_none_or(
                         |only_tag| {
                             rule.tags().any(|tag| tag.identifier() == only_tag)
                         },

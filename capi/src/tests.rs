@@ -13,11 +13,12 @@ use crate::{
     yrx_scanner_create, yrx_scanner_destroy, yrx_scanner_on_matching_rule,
     yrx_scanner_scan, yrx_scanner_set_global_bool,
     yrx_scanner_set_global_float, yrx_scanner_set_global_int,
-    yrx_scanner_set_global_str, yrx_scanner_set_timeout, YRX_BUFFER,
-    YRX_METADATA, YRX_PATTERN, YRX_RESULT, YRX_RULE,
+    yrx_scanner_set_global_str, yrx_scanner_set_module_data,
+    yrx_scanner_set_timeout, YRX_BUFFER, YRX_METADATA, YRX_PATTERN,
+    YRX_RESULT, YRX_RULE,
 };
 
-use std::ffi::{c_char, c_void, CStr, CString};
+use std::ffi::{c_char, c_void, CStr};
 
 extern "C" fn on_rule_iter(_rule: *const YRX_RULE, user_data: *mut c_void) {
     let ptr = user_data as *mut i32;
@@ -96,17 +97,22 @@ extern "C" fn on_rule_match(rule: *const YRX_RULE, user_data: *mut c_void) {
     *matches += 1;
 }
 
+extern "C" fn on_rule_match_increase_counter(
+    _rule: *const YRX_RULE,
+    user_data: *mut c_void,
+) {
+    let ptr = user_data as *mut i32;
+    let matches = unsafe { ptr.as_mut().unwrap() };
+    *matches += 1;
+}
+
 #[test]
 fn capi() {
     unsafe {
         let mut compiler = std::ptr::null_mut();
         yrx_compiler_create(0, &mut compiler);
 
-        // TODO: Use c-string literals cr#"rule test ..."# when we MSRV
-        // is bumped to 1.77.
-        // https://doc.rust-lang.org/edition-guide/rust-2021/c-string-literals.html
-        let src = CString::new(
-            br#"
+        let src = cr#"
             import "pe"
             rule test : tag1 tag2 {
                 meta:
@@ -121,14 +127,12 @@ fn capi() {
                     some_str == "some_str" and
                     some_int == 1 and
                     some_float == 1.5)
-            }"#,
-        )
-        .unwrap();
+            }"#;
 
-        let some_bool = CString::new(b"some_bool").unwrap();
-        let some_str = CString::new(b"some_str").unwrap();
-        let some_int = CString::new(b"some_int").unwrap();
-        let some_float = CString::new(b"some_float").unwrap();
+        let some_bool = c"some_bool";
+        let some_str = c"some_str";
+        let some_int = c"some_int";
+        let some_float = c"some_float";
 
         yrx_compiler_define_global_int(compiler, some_int.as_ptr(), 1);
         yrx_compiler_define_global_float(compiler, some_float.as_ptr(), 1.5);
@@ -139,10 +143,10 @@ fn capi() {
             some_str.as_ptr(),
         );
 
-        let feature = CString::new(b"foo").unwrap();
+        let feature = c"foo";
         yrx_compiler_enable_feature(compiler, feature.as_ptr());
 
-        let namespace = CString::new(b"foo").unwrap();
+        let namespace = c"foo";
         yrx_compiler_new_namespace(compiler, namespace.as_ptr());
         yrx_compiler_add_source(compiler, src.as_ptr());
 
@@ -217,13 +221,111 @@ fn capi() {
 }
 
 #[test]
+fn capi_modules() {
+    unsafe {
+        let mut compiler = std::ptr::null_mut();
+        yrx_compiler_create(0, &mut compiler);
+
+        let src = cr#"
+        import "cuckoo"
+
+        rule test {
+            condition:
+                cuckoo.network.tcp(/192\.168\.1\.1/, 443)
+        }
+        "#;
+
+        let module_name = c"cuckoo";
+        let module_metadata = cr#"
+        {
+            "network": {
+                "tcp": [{ "dport": 443, "dst": "192.168.1.1" }]
+            },
+            "behavior": {
+                "summary": {}
+            }
+        }
+        "#;
+
+        let module_metadata2 = cr#"
+        {
+            "network": {
+                "tcp": [{ "dport": 443, "dst": "192.168.1.2" }]
+            },
+            "behavior": {
+                "summary": {}
+            }
+        }
+        "#;
+
+        yrx_compiler_add_source(compiler, src.as_ptr());
+        let rules = yrx_compiler_build(compiler);
+
+        let mut scanner = std::ptr::null_mut();
+        yrx_scanner_create(rules, &mut scanner);
+
+        let mut matches = 0;
+        yrx_scanner_on_matching_rule(
+            scanner,
+            on_rule_match_increase_counter,
+            &mut matches as *mut i32 as *mut c_void,
+        );
+        yrx_scanner_scan(scanner, std::ptr::null(), 0);
+        assert_eq!(matches, 0);
+        assert_eq!(yrx_last_error(), std::ptr::null());
+
+        yrx_scanner_set_module_data(
+            scanner,
+            module_name.as_ptr(),
+            module_metadata.as_ptr() as *const u8,
+            module_metadata.to_bytes().len(),
+        );
+        yrx_scanner_scan(scanner, std::ptr::null(), 0);
+        assert_eq!(matches, 1);
+        assert_eq!(yrx_last_error(), std::ptr::null());
+
+        // Module data are cleaned after scanning.
+        matches = 0;
+        yrx_scanner_scan(scanner, std::ptr::null(), 0);
+        assert_eq!(matches, 0);
+        assert_eq!(yrx_last_error(), std::ptr::null());
+
+        // Scanning with two different module data, first is matched, second is not.
+        yrx_scanner_set_module_data(
+            scanner,
+            module_name.as_ptr(),
+            module_metadata.as_ptr() as *const u8,
+            module_metadata.to_bytes().len(),
+        );
+        yrx_scanner_scan(scanner, std::ptr::null(), 0);
+        assert_eq!(matches, 1);
+        assert_eq!(yrx_last_error(), std::ptr::null());
+
+        matches = 0;
+        yrx_scanner_set_module_data(
+            scanner,
+            module_name.as_ptr(),
+            module_metadata2.as_ptr() as *const u8,
+            module_metadata2.to_bytes().len(),
+        );
+        yrx_scanner_scan(scanner, std::ptr::null(), 0);
+        assert_eq!(matches, 0);
+        assert_eq!(yrx_last_error(), std::ptr::null());
+
+        yrx_rules_destroy(rules);
+        yrx_scanner_destroy(scanner);
+        yrx_compiler_destroy(compiler);
+    }
+}
+
+#[test]
 fn capi_errors() {
     unsafe {
         let mut compiler = std::ptr::null_mut();
         yrx_compiler_create(0, &mut compiler);
 
-        let src = CString::new(b"rule test { condition: foo }").unwrap();
-        let origin = CString::new("test.yar").unwrap();
+        let src = c"rule test { condition: foo }";
+        let origin = c"test.yar";
 
         assert_eq!(
             yrx_compiler_add_source_with_origin(
@@ -231,7 +333,7 @@ fn capi_errors() {
                 src.as_ptr(),
                 origin.as_ptr()
             ),
-            YRX_RESULT::SYNTAX_ERROR
+            YRX_RESULT::YRX_SYNTAX_ERROR
         );
 
         assert_eq!(

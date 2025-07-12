@@ -3,13 +3,13 @@ use protobuf::MessageDyn;
 use protobuf::{Message, MessageFull};
 use serde_json::json;
 
-#[cfg(feature = "rules-profiling")]
-use std::time::Duration;
-
 use crate::models::MetaValue;
 use crate::variables::VariableError;
 use crate::Scanner;
 use crate::{mods, ScanOptions};
+
+#[cfg(feature = "rules-profiling")]
+use std::time::Duration;
 
 #[test]
 fn iterators() {
@@ -486,6 +486,11 @@ fn private_rules() {
             condition:
                 true
         }
+        
+        rule test_4 {
+            condition:
+                 false
+        }
         "#,
         )
         .unwrap();
@@ -495,11 +500,84 @@ fn private_rules() {
     let mut scanner = Scanner::new(&rules);
     let scan_results = scanner.scan(&[]).expect("scan should not fail");
 
+    let mut matching_rules = scan_results.matching_rules();
+
     // Only the matching non-private rule should be reported.
-    assert_eq!(scan_results.matching_rules().len(), 1);
+    assert_eq!(matching_rules.len(), 1);
+    assert_eq!(matching_rules.next().unwrap().identifier(), "test_3");
+    assert_eq!(matching_rules.len(), 0);
+    assert!(matching_rules.next().is_none());
+
+    let mut non_matching_rules = scan_results.non_matching_rules();
 
     // Only the non-matching, non-private rules should be reported.
-    assert_eq!(scan_results.non_matching_rules().len(), 0);
+    assert_eq!(non_matching_rules.len(), 1);
+    assert_eq!(non_matching_rules.next().unwrap().identifier(), "test_4");
+    assert_eq!(non_matching_rules.len(), 0);
+    assert!(non_matching_rules.next().is_none());
+
+    let mut all_matching_rules =
+        scan_results.matching_rules().include_private(true);
+
+    assert_eq!(all_matching_rules.len(), 3);
+    assert_eq!(all_matching_rules.next().unwrap().identifier(), "test_1");
+    assert_eq!(all_matching_rules.len(), 2);
+    assert_eq!(all_matching_rules.next().unwrap().identifier(), "test_2");
+    assert_eq!(all_matching_rules.len(), 1);
+    assert_eq!(all_matching_rules.next().unwrap().identifier(), "test_3");
+    assert_eq!(all_matching_rules.len(), 0);
+    assert!(all_matching_rules.next().is_none());
+}
+
+#[test]
+fn private_patterns() {
+    let mut compiler = crate::Compiler::new();
+
+    compiler
+        .add_source(
+            r#"
+        rule test_1 {
+            strings:
+                $a = "foo" private
+                $b = "bar"
+            condition:
+                $a and $b
+        }
+        "#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+
+    let mut scanner = Scanner::new(&rules);
+    let scan_results = scanner.scan(b"foobar").expect("scan should not fail");
+
+    assert_eq!(scan_results.matching_rules().len(), 1);
+
+    let rule = scan_results.matching_rules().next().unwrap();
+
+    let mut patterns = rule.patterns();
+    assert_eq!(patterns.len(), 1);
+    assert_eq!(patterns.next().unwrap().identifier(), "$b");
+    assert_eq!(patterns.len(), 0);
+    assert!(patterns.next().is_none());
+
+    let mut patterns = rule.patterns().include_private(true);
+    assert_eq!(patterns.len(), 2);
+    assert_eq!(patterns.next().unwrap().identifier(), "$a");
+    assert_eq!(patterns.len(), 1);
+    assert_eq!(patterns.next().unwrap().identifier(), "$b");
+    assert_eq!(patterns.len(), 0);
+    assert!(patterns.next().is_none());
+
+    let mut patterns = rule.patterns();
+
+    assert_eq!(patterns.len(), 1);
+    assert_eq!(patterns.next().unwrap().identifier(), "$b");
+    assert_eq!(patterns.len(), 0);
+
+    let mut patterns = patterns.include_private(true);
+    assert!(patterns.next().is_none());
 }
 
 #[test]

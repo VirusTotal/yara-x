@@ -1,0 +1,249 @@
+// THIS FILE IS GENERATED AUTOMATICALLY. DO NOT EDIT.
+// LINT: LEGACY_NAMES
+
+syntax = "proto3";
+
+package vt.net;
+
+import "vt/analysis.proto";
+import "vt/filetypes.proto";
+import "vt/hunting_gti_score.proto";
+import "vt/sandbox.proto";
+import "vt/submitter.proto";
+import "yara.proto";
+
+message Subject {
+  string common_name = 1;
+  string country = 2;
+  string organization = 3;
+  string organizational_unit = 4;
+  string locality = 5;
+  string state = 6;
+}
+
+message Validity {
+  int64 not_after = 1;
+  int64 not_before = 2;
+}
+
+message SSLCertificate {
+  string thumbprint = 1;
+  Subject subject = 2;
+  Validity validity = 3;
+  repeated string subject_alternative_name = 4;
+  string signature = 5;
+  string serial_number = 6;
+  Subject issuer = 7;
+}
+
+message Tracker {
+  string name = 1;
+  string id = 2;
+  string url = 3;
+}
+
+message DNSRecord {
+  string type = 2;
+  string dns_class = 3;
+  int64 ttl = 4;
+  string mname = 5;
+  string rname = 6;
+  int64 priority = 7;
+  int64 serial = 8;
+  int64 retry = 9;
+  int64 refresh = 10;
+  int64 expire = 11;
+  int64 minimum = 12;
+  string value = 13;
+}
+
+message Favicon {
+  string raw_md5 = 1 [(yara.field_options) = { lowercase: true }];
+  string dhash = 2;
+}
+
+message KeyValue {
+  string key = 1;
+  repeated string values = 2;
+}
+
+message FileMetadata {
+  string sha256 = 1 [(yara.field_options) = { lowercase: true }];
+  bool new_for_vt = 3;
+  vt.analysis.AnalysisStats analysis_stats = 5;
+  vt.fileanalysis.FileType file_type = 6;
+  bool new_for_url = 7;
+  bool new_for_ip = 8;
+  bool new_for_domain = 9;
+  map<string, string> signatures = 10;
+}
+
+message ResourceFileMetadata {
+  string sha256 = 1 [(yara.field_options) = { lowercase: true }];
+  vt.analysis.AnalysisStats analysis_stats = 2;
+  vt.fileanalysis.FileType file_type = 3;
+  bool new_for_url = 4;
+  map<string, string> signatures = 5;
+}
+
+message PopularityRank {
+  int64 position = 1;
+  int64 ingestion_time = 2;
+  string rank = 3;
+}
+
+message EnrichedURL {
+  option (yara.message_options) = {
+    name: "URL"
+  };
+
+  int64 port = 3;
+  repeated Tracker trackers = 4;
+  map<string, string> response_headers = 5;
+  int64 number_of_response_headers = 33;
+  int64 response_code = 6;
+  map<string, string> cookies = 7;
+  Favicon favicon = 8;
+  repeated string outgoing_links = 9;
+  repeated string redirects = 10;
+  string html_title = 11;
+  repeated KeyValue html_meta_tags = 12;
+  bool new_url = 17;
+  vt.analysis.AnalysisStats analysis_stats = 18;
+  int64 first_submission_date = 19;
+  map<string, string> signatures = 20;
+  vt.submitter.Submitter submitter = 21;
+  repeated string tags = 24;
+  string query = 34;
+  map<string, string> params = 25;
+  string path = 26;
+  string hostname = 27;
+  string raw = 28;
+  FileMetadata downloaded_file = 29;
+  FileMetadata communicating_file = 30;
+  repeated ResourceFileMetadata embedded_resources = 31;
+  map<string, string> categories = 35;
+  vt.hunting_gti_score.HuntingGtiScore gti_assessment = 39
+      [(yara.field_options) = {
+        acl: [ {
+          error_title: "unknown field or method `gti_assessment`"
+          error_label: "this field or method doesn't exist"
+          accept_if: [ "gti", "staff" ]
+        } ]
+      }];
+}
+
+message EnrichedIP {
+  option (yara.message_options) = {
+    name: "IP"
+  };
+
+  map<string, string> whois = 3;
+  string whois_raw = 22;
+  SSLCertificate https_certificate = 4;
+  string jarm = 5;
+  string ip_as_owner = 6;
+  int64 ip_asn = 7;
+  string ip_country = 8;
+  vt.analysis.AnalysisStats analysis_stats = 13;
+  map<string, string> signatures = 14;
+  repeated string tags = 17;
+  string raw = 18;
+  FileMetadata downloaded_file = 19;
+  FileMetadata communicating_file = 20;
+  int64 ip_as_int = 23;
+  bool first_whois = 24 [(yara.field_options) = {
+    acl: [ {
+      error_title: "vt.net.ip.first_whois is supported in rulesets matching against IPs"
+      error_label: "this field is supported for IPs only"
+      accept_if: [ "ip_address" ]
+    } ]
+  }];
+  bool new_whois = 25 [(yara.field_options) = {
+    acl: [ {
+      error_title: "vt.net.ip.new_whois is supported in rulesets matching against IPs"
+      error_label: "this field is supported for IPs only"
+      accept_if: [ "ip_address" ]
+    } ]
+  }];
+  string reverse_lookup = 26;
+  vt.hunting_gti_score.HuntingGtiScore gti_assessment = 30
+      [(yara.field_options) = {
+        acl: [ {
+          error_title: "unknown field or method `gti_assessment`"
+          error_label: "this field or method doesn't exist"
+          accept_if: [ "gti", "staff" ]
+        } ]
+      }];
+}
+
+message EnrichedDomain {
+  option (yara.message_options) = {
+    name: "Domain"
+  };
+
+  enum Permutation {
+    ALL = 0 [(yara.enum_value) = { i64: 31 }];
+    TYPO = 1 [(yara.enum_value) = { i64: 1 }];
+    HOMOGLYPH = 2 [(yara.enum_value) = { i64: 2 }];
+    HYPHENATION = 3 [(yara.enum_value) = { i64: 4 }];
+    SUBDOMAIN = 4 [(yara.enum_value) = { i64: 8 }];
+    BITSQUATTING = 5 [(yara.enum_value) = { i64: 16 }];
+  }
+
+  string raw = 18;
+  string root = 27;
+  map<string, string> whois = 3;
+  string whois_raw = 26;
+  SSLCertificate https_certificate = 4;
+  string jarm = 5;
+  repeated DNSRecord dns_records = 6;
+  Favicon favicon = 7;
+  vt.analysis.AnalysisStats analysis_stats = 12;
+  map<string, string> signatures = 13;
+  bool new_domain = 16;
+  repeated string tags = 17;
+  FileMetadata downloaded_file = 19;
+  FileMetadata communicating_file = 20;
+  bool first_whois = 21;
+  bool new_whois = 22;
+  bool first_resolution = 23;
+  bool new_resolution = 24;
+  map<string, string> categories = 28;
+  repeated PopularityRank popularity_ranks = 30;
+  int64 number_of_popularity_ranks = 31;
+  repeated PopularityRank root_popularity_ranks = 32;
+  int64 number_of_root_popularity_ranks = 33;
+  vt.hunting_gti_score.HuntingGtiScore gti_assessment = 37
+      [(yara.field_options) = {
+        acl: [ {
+          error_title: "unknown field or method `gti_assessment`"
+          error_label: "this field or method doesn't exist"
+          accept_if: [ "gti", "staff" ]
+        } ]
+      }];
+}
+
+message EnrichedNetloc {
+  EnrichedURL url = 1 [(yara.field_options) = {
+    acl: [ {
+      error_title: "vt.net.url is supported only in rulesets matching against URLs"
+      error_label: "this field is supported for URLs only"
+      accept_if: [ "url", "file" ]
+    } ]
+  }];
+  EnrichedIP ip = 2 [(yara.field_options) = {
+    acl: [ {
+      error_title: "vt.net.ip is supported only in rulesets matching against URLs, domains or IPs"
+      error_label: "this field is supported for URLs, domains and IPs only"
+      accept_if: [ "url", "domain", "ip_address", "file" ]
+    } ]
+  }];
+  EnrichedDomain domain = 3 [(yara.field_options) = {
+    acl: [ {
+      error_title: "vt.net.domain is supported only in rulesets matching against URLs or domains"
+      error_label: "this field is supported for URLs and domains only"
+      accept_if: [ "url", "domain", "file" ]
+    } ]
+  }];
+}

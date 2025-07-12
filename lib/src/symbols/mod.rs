@@ -8,7 +8,7 @@ use std::{mem, ptr};
 use bstr::BString;
 
 use crate::compiler::{RuleId, Var};
-use crate::types::{AclEntry, Func, Type, TypeValue, Value};
+use crate::types::{AclEntry, Func, Type, TypeValue};
 
 /// Trait implemented by types that allow looking up for a symbol.
 pub(crate) trait SymbolLookup {
@@ -35,6 +35,9 @@ pub(crate) enum Symbol {
         type_value: TypeValue,
         /// Access control list (ACL) for accessing this field.
         acl: Option<Vec<AclEntry>>,
+        /// If the field is deprecated, this will contain the message shown when
+        /// the field is used in a rule.
+        deprecation_msg: Option<String>,
     },
     /// The symbol refers to a rule.
     Rule(RuleId),
@@ -119,14 +122,14 @@ impl Symbol {
         match &self {
             Symbol::Var { type_value, .. } => type_value.clone(),
             Symbol::Field { type_value, .. } => type_value.clone(),
-            Symbol::Rule(_) => TypeValue::Bool(Value::Unknown),
+            Symbol::Rule(_) => TypeValue::unknown_bool(),
             Symbol::Func(func) => TypeValue::Func(func.clone()),
         }
     }
 
     #[cfg(test)]
     fn as_integer(&self) -> Option<i64> {
-        if let TypeValue::Integer(value) = self.type_value() {
+        if let TypeValue::Integer { value, .. } = self.type_value() {
             value.extract().cloned()
         } else {
             None
@@ -135,7 +138,7 @@ impl Symbol {
 
     #[cfg(test)]
     fn as_string(&self) -> Option<BString> {
-        if let TypeValue::String(value) = self.type_value() {
+        if let TypeValue::String { value, .. } = self.type_value() {
             value.extract().map(|s| BString::from(s.as_slice()))
         } else {
             None
@@ -393,11 +396,12 @@ mod tests {
         test.set_float_one(1.0);
         test.set_double_one(1.0);
 
-        test.set_string_foo("foo".to_string());
-        test.set_string_bar("bar".to_string());
+        test.set_string_foo("foo".into());
+        test.set_string_bar("bar".into());
 
-        test.set_bytes_foo("foo".as_bytes().to_vec());
-        test.set_bytes_bar("bar".as_bytes().to_vec());
+        test.set_bytes_foo("foo".into());
+        test.set_bytes_bar("bar".into());
+        test.set_bytes_raw(b"\x00\x02".into());
 
         nested.set_nested_int32_zero(0);
 

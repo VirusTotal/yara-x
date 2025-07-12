@@ -16,17 +16,20 @@ doc = false
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.23.3", features = [
+base64 = { workspace = true }
+protobuf = { workspace = true }
+pyo3 = { version = "0.25.0", features = [
     "abi3",
     "abi3-py38",
     "extension-module",
 ] }
-pyo3-file = "0.10.0"
+pyo3-file = "0.13.0"
 serde_json = { workspace = true }
-
-protobuf-json-mapping = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
 yara-x = { workspace = true, features = ["parallel-compilation"] }
+yara-x-proto-json = { workspace = true }
 yara-x-fmt = { workspace = true }
 
 [build-dependencies]
-pyo3-build-config = "0.23.3"
+pyo3-build-config = "0.25.0"

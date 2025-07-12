@@ -33,3 +33,5 @@ mod text;
 mod time;
 #[cfg(feature = "vba-module")]
 mod vba;
+#[cfg(feature = "vt-module")]
+mod vt;

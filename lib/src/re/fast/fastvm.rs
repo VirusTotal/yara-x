@@ -102,6 +102,28 @@ impl<'r> FastVM<'r> {
                 Instr::Match => {
                     let mut stop = false;
                     for (position, _) in self.positions.iter() {
+                        // If the pattern is wide, make sure that the matching
+                        // string contains the corresponding interleaved zeroes.
+                        if wide {
+                            let interleaved_zeroes_found = if backwards {
+                                input
+                                    .iter()
+                                    .rev()
+                                    .take(*position)
+                                    .step_by(2)
+                                    .all(|b| *b == 0)
+                            } else {
+                                input
+                                    .iter()
+                                    .take(*position)
+                                    .skip(1)
+                                    .step_by(2)
+                                    .all(|b| *b == 0)
+                            };
+                            if !interleaved_zeroes_found {
+                                continue;
+                            }
+                        }
                         match f(*position) {
                             Action::Stop => {
                                 stop = true;

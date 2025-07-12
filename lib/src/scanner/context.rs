@@ -4,7 +4,7 @@ use std::collections::VecDeque;
 use std::iter;
 #[cfg(feature = "rules-profiling")]
 use std::ops::AddAssign;
-use std::ops::{Range, RangeInclusive};
+use std::ops::Range;
 use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
@@ -26,6 +26,7 @@ use crate::compiler::{
     SubPatternAtom, SubPatternFlags, SubPatternId,
 };
 use crate::re::fast::FastVM;
+use crate::re::hir::ChainedPatternGap;
 use crate::re::thompson::PikeVM;
 use crate::re::Action;
 use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
@@ -39,7 +40,7 @@ use crate::wasm::MATCHING_RULES_BITMAP_BASE;
 /// Structure that holds information about the current scan.
 pub(crate) struct ScanContext<'r> {
     /// Pointer to the WASM store.
-    pub wasm_store: NonNull<Store<ScanContext<'r>>>,
+    pub wasm_store: NonNull<Store<ScanContext<'static>>>,
     /// Map where keys are object handles and values are objects used during
     /// the evaluation of rule conditions. Handles are opaque integer values
     /// that can be passed to and received from WASM code. Each handle identify
@@ -49,20 +50,20 @@ pub(crate) struct ScanContext<'r> {
     pub scanned_data: *const u8,
     /// Length of data being scanned.
     pub scanned_data_len: usize,
-    /// Vector containing the IDs of the non-private rules that matched,
-    /// including both global and non-global ones. The rules are added first
-    /// to the `matching_rules` map, and then moved to this vector once the
-    /// scan finishes.
-    pub non_private_matching_rules: Vec<RuleId>,
-    /// Vector containing the IDs of the private rules that matched, including
-    /// both global and non-global ones. The rules are added first to the
-    /// `matching_rules` map, and then moved to this vector once the scan
-    /// finishes.
-    pub private_matching_rules: Vec<RuleId>,
+    /// Vector containing the IDs of the rules that matched, including both
+    /// global and non-global ones. The rules are added first to the
+    /// `matching_rules_per_ns` map, and then moved to this vector
+    /// once the scan finishes.
+    pub matching_rules: Vec<RuleId>,
+    /// Number of private rules that have matched. This will be equal to or
+    /// less than the length of `matching_rules`.
+    pub num_matching_private_rules: usize,
+    /// Number of private rules that did not match.
+    pub num_non_matching_private_rules: usize,
     /// Map containing the IDs of rules that matched. Using an `IndexMap`
     /// because we want to keep the insertion order, so that rules in
     /// namespaces that were declared first, appear first in scan results.
-    pub matching_rules: IndexMap<NamespaceId, Vec<RuleId>>,
+    pub matching_rules_per_ns: IndexMap<NamespaceId, Vec<RuleId>>,
     /// Compiled rules for this scan.
     pub compiled_rules: &'r Rules,
     /// Structure that contains top-level symbols, like module names
@@ -149,7 +150,7 @@ impl<'r> ScanContext<'r> {
             self.time_spent_in_rule.iter(),
         ) {
             let mut pattern_matching_time = 0;
-            for (_, _, pattern_id) in rule.patterns.iter() {
+            for (_, _, pattern_id, _) in rule.patterns.iter() {
                 if let Some(d) = self.time_spent_in_pattern.get(pattern_id) {
                     pattern_matching_time += *d;
                 }
@@ -310,13 +311,18 @@ impl ScanContext<'_> {
 
         let rule = self.compiled_rules.get(rule_id);
 
+        if rule.is_private {
+            self.num_non_matching_private_rules += 1;
+        }
+
         // If the rule is global, all the rules in the same namespace that
-        // matched previously must be removed from the `matching_rules` map.
-        // Also, their corresponding bits in the matching rules bitmap must
-        // be cleared.
+        // matched previously must be removed from the `matching_rules_per_ns`
+        // map. Also, their corresponding bits in the matching rules bitmap must
+        // be cleared, and `num_matching_private_rules` must be decremented if
+        // the rule was private and `num_non_matching_private_rules` incremented.
         if rule.is_global {
             if let Some(rules) =
-                self.matching_rules.get_mut(&rule.namespace_id)
+                self.matching_rules_per_ns.get_mut(&rule.namespace_id)
             {
                 let wasm_store = unsafe { self.wasm_store.as_mut() };
                 let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
@@ -329,6 +335,10 @@ impl ScanContext<'_> {
                 );
 
                 for rule_id in rules.drain(0..) {
+                    if self.compiled_rules.get(rule_id).is_private {
+                        self.num_matching_private_rules -= 1;
+                        self.num_non_matching_private_rules += 1;
+                    }
                     bits.set(rule_id.into(), false);
                 }
             }
@@ -363,10 +373,14 @@ impl ScanContext<'_> {
             rule_id,
         );
 
-        self.matching_rules
+        self.matching_rules_per_ns
             .entry(rule.namespace_id)
             .or_default()
             .push(rule_id);
+
+        if rule.is_private {
+            self.num_matching_private_rules += 1;
+        }
 
         let wasm_store = unsafe { self.wasm_store.as_mut() };
         let mem = self.main_memory.unwrap().data_mut(wasm_store);
@@ -623,7 +637,7 @@ impl ScanContext<'_> {
                             // `Alphabet::new` validates the string again. This
                             // is not really necessary as we already know that
                             // the string represents a valid alphabet, it would
-                            // be better if could use the private function
+                            // be better if we could use the private function
                             // `Alphabet::from_str_unchecked`
                             base64::alphabet::Alphabet::new(alphabet).unwrap()
                         });
@@ -810,20 +824,29 @@ impl ScanContext<'_> {
         &mut self,
         chained_to: SubPatternId,
         match_start: usize,
-        gap: &RangeInclusive<u32>,
+        gap: &ChainedPatternGap,
     ) -> bool {
         if let Some(unconfirmed_matches) =
             self.unconfirmed_matches.get_mut(&chained_to)
         {
-            let min_gap = *gap.start() as usize;
-            let max_gap = *gap.end() as usize;
-
             for m in unconfirmed_matches {
-                let valid_range =
-                    m.range.end + min_gap..=m.range.end + max_gap;
-                if valid_range.contains(&match_start) {
-                    return true;
-                }
+                match gap {
+                    ChainedPatternGap::Bounded(gap) => {
+                        let min_gap = *gap.start() as usize;
+                        let max_gap = *gap.end() as usize;
+                        if (m.range.end + min_gap..=m.range.end + max_gap)
+                            .contains(&match_start)
+                        {
+                            return true;
+                        }
+                    }
+                    ChainedPatternGap::Unbounded(gap) => {
+                        let min_gap = gap.start as usize;
+                        if (m.range.start + min_gap..).contains(&match_start) {
+                            return true;
+                        }
+                    }
+                };
             }
         }
 
@@ -905,23 +928,29 @@ impl ScanContext<'_> {
                     if let Some(unconfirmed_matches) =
                         self.unconfirmed_matches.get_mut(chained_to)
                     {
-                        let min_gap = *gap.start() as usize;
-                        let max_gap = *gap.end() as usize;
-
                         // Check whether the current match is at a correct
                         // distance from each of the unconfirmed matches.
                         for m in unconfirmed_matches {
-                            let valid_range =
-                                m.range.end + min_gap..=m.range.end + max_gap;
-
+                            let in_range = match gap {
+                                ChainedPatternGap::Bounded(gap) => {
+                                    let min_gap = *gap.start() as usize;
+                                    let max_gap = *gap.end() as usize;
+                                    (m.range.end + min_gap
+                                        ..=m.range.end + max_gap)
+                                        .contains(&match_range.start)
+                                }
+                                ChainedPatternGap::Unbounded(gap) => {
+                                    let min_gap = gap.start as usize;
+                                    (m.range.end + min_gap..)
+                                        .contains(&match_range.start)
+                                }
+                            };
                             // Besides checking that the unconfirmed match lays
                             // at a correct distance from the current match, we
                             // also check that the chain length associated to
                             // the unconfirmed match doesn't exceed the current
                             // chain length.
-                            if valid_range.contains(&match_range.start)
-                                && m.chain_length <= chain_length
-                            {
+                            if in_range && m.chain_length <= chain_length {
                                 m.chain_length = chain_length + 1;
                                 queue.push_back((
                                     *chained_to,
@@ -1198,7 +1227,7 @@ fn verify_base64_match(
     // The pattern is passed to this function in its original form, before
     // being encoded as base64. Compute the size of the pattern once it is
     // encoded as base64.
-    let len = base64::encoded_len(pattern.len(), false).unwrap();
+    let len = base64::encoded_len(pattern.len(), false)?;
 
     // A portion of the pattern in base64 form was found at `atom_pos`,
     // but decoding the base64 string starting at that offset is not ok
@@ -1315,20 +1344,13 @@ fn verify_base64_match(
         base64_engine.decode(s)
     };
 
-    if let Ok(decoded) = decoded {
-        // If the decoding was successful, ignore the padding and compare
-        // to the pattern.
-        let decoded = &decoded[padding..];
-        if decoded.len() >= pattern.len()
-            && pattern.eq(&decoded[0..pattern.len()])
-        {
-            Some(Match {
-                range: atom_pos..atom_pos + match_len,
-                xor_key: None,
-            })
-        } else {
-            None
-        }
+    // If the decoding was successful, ignore the padding and compare to the
+    // expected pattern.
+    let decoded_pattern =
+        decoded.as_ref().ok()?.get(padding..padding + pattern.len())?;
+
+    if pattern.eq(decoded_pattern) {
+        Some(Match { range: atom_pos..atom_pos + match_len, xor_key: None })
     } else {
         None
     }

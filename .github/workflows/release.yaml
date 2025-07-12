@@ -1,4 +1,7 @@
 name: Release
+permissions:
+  # Allow this action to create releases.
+  contents: write
 on:
   create:
     tags:
@@ -15,19 +18,18 @@ jobs:
       fail-fast: false
       matrix:
         build:
-        - linux
         - linux-arm
+        - linux-intel
         - macos-arm
         - macos-intel
         - windows
-        - windows-arm
         include:
-        - build: linux
+        - build: linux-intel
           os: ubuntu-latest
           target: x86_64-unknown-linux-gnu
 
         - build: linux-arm
-          os: ubuntu-latest
+          os: ubuntu-24.04-arm
           target: aarch64-unknown-linux-gnu
 
         - build: macos-intel
@@ -42,13 +44,9 @@ jobs:
           os: windows-latest
           target: x86_64-pc-windows-msvc
 
-        - build: windows-arm
-          os: windows-latest
-          target: aarch64-pc-windows-msvc
-
     steps:
     - name: Checkout sources
-      uses: actions/checkout@v4
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
@@ -84,7 +82,7 @@ jobs:
       run: |
         set -ex
         pkgname=yara-x-${{ github.ref_name }}-${{ matrix.target }}
-        if [ "${{ matrix.build }}" = "windows" || "${{ matrix.build }}" == "windows-arm" ]; then
+        if [ "${{ matrix.build }}" = "windows" ]; then
             7z a $pkgname.zip ./target/${{ matrix.target }}/release-lto/yr.exe
             7z a yara-x-capi-${{ github.ref_name }}-${{ matrix.target }}.zip \
                ./target/${{ matrix.target }}/release-lto/yara_x.h \
@@ -97,7 +95,7 @@ jobs:
         fi
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1  # v4.6.1
       with:
         name: yr-${{ matrix.target }}
         path: yara-x-*
@@ -110,16 +108,20 @@ jobs:
       matrix:
         python-version:
         - cp39
-        - pp39
         - pp310
         build:
-        - linux
+        - linux-intel
+        - linux-arm
         - macos
         - windows
         include:
-        - build: linux
+        - build: linux-intel
           os: ubuntu-latest
-          arch: 'aarch64 x86_64'
+          arch: 'x86_64'
+
+        - build: linux-arm
+          os: ubuntu-24.04-arm
+          arch: 'aarch64'
 
         - build: macos
           os: macos-latest
@@ -127,12 +129,11 @@ jobs:
 
         - build: windows
           os: windows-latest
-          arch: 'x86 AMD64 ARM64'
+          arch: 'x86 AMD64'
 
     steps:
     - name: Checkout sources
-      uses: actions/checkout@v4
-
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
       with:
@@ -148,7 +149,7 @@ jobs:
         fi
 
     - name: Install Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38  # v5.4.0
       with:
         python-version: '3.12'
 
@@ -189,13 +190,13 @@ jobs:
         MACOSX_DEPLOYMENT_TARGET: '10.12'
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1  # v4.6.1
       with:
         name: pypi-${{ matrix.build }}-${{ matrix.python-version }}
         path: ./wheelhouse/*.whl
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1  # v4.6.1
       with:
         name: pypi-source-${{ strategy.job-index }}
         path: ./wheelhouse/*.tar.gz
@@ -206,7 +207,7 @@ jobs:
 
     steps:
     - name: Download artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806  # v4.1.9
       with:
         pattern: yr-*
 
@@ -215,7 +216,7 @@ jobs:
       run: ls
 
     - name: Release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda  # v2.2.1
       with:
         draft: true
         files: yr-*/yara-x-*
@@ -225,7 +226,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout sources
-      uses: actions/checkout@v4
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
     - name: Publish crate
       env:
@@ -238,9 +239,12 @@ jobs:
         cargo login ${{ secrets.CRATES_IO_API_TOKEN }}
         cargo publish -p yara-x-macros
         cargo publish -p yara-x-proto
+        cargo publish -p yara-x-proto-json
         cargo publish -p yara-x-proto-yaml
         cargo publish -p yara-x-parser
+        cargo publish -p yara-x-fmt
         cargo publish -p yara-x
+        cargo publish -p yara-x-cli
 
   publish-py:
     needs: [ build-py ]
@@ -252,7 +256,7 @@ jobs:
       id-token: write
     steps:
     - name: Download artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806  # v4.1.9
       with:
         pattern: pypi-*
         merge-multiple: true

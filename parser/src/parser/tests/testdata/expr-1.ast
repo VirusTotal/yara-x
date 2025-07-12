@@ -53,10 +53,8 @@
  └─ condition
     └─ eq
        ├─ add
-       │  ├─ minus
-       │  │  └─ 1
-       │  └─ minus
-       │     └─ 1
+       │  ├─ -1
+       │  └─ -1
        └─ 0
 
  rule test_5

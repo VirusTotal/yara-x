@@ -80,9 +80,9 @@ See the [`lookup_field`] function.
 use std::any::{type_name, TypeId};
 use std::mem;
 use std::rc::Rc;
+use std::sync::LazyLock;
 
 use bstr::{BString, ByteSlice};
-use lazy_static::lazy_static;
 use linkme::distributed_slice;
 use rustc_hash::FxHashMap;
 use smallvec::{smallvec, SmallVec};
@@ -98,9 +98,13 @@ use crate::scanner::{RuntimeObjectHandle, ScanContext, ScanError};
 use crate::types::{
     Array, Func, FuncSignature, Map, Struct, TypeValue, Value,
 };
+use crate::wasm;
+use crate::wasm::integer::RangedInteger;
 use crate::wasm::string::RuntimeString;
+use crate::wasm::string::String as _;
 
 pub(crate) mod builder;
+pub(crate) mod integer;
 pub(crate) mod string;
 
 /// Maximum number of variables.
@@ -136,7 +140,7 @@ pub(crate) struct WasmExport {
     pub name: &'static str,
     /// Function's mangled name. The mangled name contains information about
     /// the function's arguments and return type. For additional details see
-    /// [`yara_x_parser::types::MangledFnName`].
+    /// [`crate::types::MangledFnName`].
     pub mangled_name: &'static str,
     /// True if the function is visible from YARA rules. Functions exported by
     /// modules, as well as built-in functions like uint8, uint16, etc, are
@@ -223,13 +227,9 @@ impl WasmExport {
     /// fn some_method(...) { ... }
     /// ```
     pub fn get_methods(type_name: &str) -> FxHashMap<&'static str, Func> {
-        let mut methods = WasmExport::get_functions(|export| {
+        WasmExport::get_functions(|export| {
             export.method_of.is_some_and(|name| name == type_name)
-        });
-        for (_, func) in methods.iter_mut() {
-            func.make_method_of(type_name)
-        }
-        methods
+        })
     }
 }
 
@@ -434,6 +434,16 @@ impl WasmResult for i64 {
     }
 }
 
+impl<const MIN: i64, const MAX: i64> WasmResult for RangedInteger<MIN, MAX> {
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        smallvec![ValRaw::i64(self.value())]
+    }
+
+    fn types() -> WasmResultArray<wasmtime::ValType> {
+        smallvec![wasmtime::ValType::I64]
+    }
+}
+
 impl WasmResult for f32 {
     fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
         smallvec![ValRaw::f32(f32::to_bits(self))]
@@ -464,7 +474,7 @@ impl WasmResult for bool {
     }
 }
 
-impl WasmResult for RuntimeString {
+impl<S: wasm::string::String> WasmResult for S {
     fn values(self, ctx: &mut ScanContext) -> WasmResultArray<ValRaw> {
         smallvec![ValRaw::i64(self.into_wasm_with_ctx(ctx))]
     }
@@ -705,30 +715,51 @@ pub(crate) struct WasmSymbols {
     pub f64_tmp: walrus::LocalId,
 }
 
-lazy_static! {
-    pub(crate) static ref CONFIG: Config = {
-        let mut config = Config::default();
-        // Wasmtime produces a nasty warning when linked against musl. The
-        // warning can be fixed by disabling native unwind information.
-        //
-        // More details:
-        //
-        // https://github.com/bytecodealliance/wasmtime/issues/8897
-        // https://github.com/VirusTotal/yara-x/issues/181
-        //
-        #[cfg(target_env = "musl")]
-        config.native_unwind_info(false);
+pub(crate) static CONFIG: LazyLock<Config> = LazyLock::new(|| {
+    let mut config = Config::default();
+    // Wasmtime produces a nasty warning when linked against musl. The
+    // warning can be fixed by disabling native unwind information.
+    //
+    // More details:
+    //
+    // https://github.com/bytecodealliance/wasmtime/issues/8897
+    // https://github.com/VirusTotal/yara-x/issues/181
+    //
+    #[cfg(target_env = "musl")]
+    config.native_unwind_info(false);
 
-        config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
-        config.epoch_interruption(true);
-        config
-    };
-    pub(crate) static ref ENGINE: Engine = Engine::new(&CONFIG).unwrap();
-    pub(crate) static ref LINKER: Linker<ScanContext<'static>> = new_linker();
-}
+    config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
+    config.epoch_interruption(true);
 
-pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
-    let mut linker = Linker::<ScanContext<'r>>::new(&ENGINE);
+    // 16MB should be enough for each WASM module. Each module needs a
+    // fixed amount of memory that is only a few KB long, plus a variable
+    // amount that depends on the number of rules and patterns (1 bit per
+    // rule and 1 bit per pattern). With 16MB there's enough space for
+    // millions of rules and patterns. By default, this is 4GB in 64-bits
+    // systems, which causes a reservation of 4GB of virtual address space
+    // (not physical RAM) per module (and therefore per Scanner). In some
+    // scenarios where virtual address space is limited (i.e: Docker
+    // instances) this is problematic. See:
+    // https://github.com/VirusTotal/yara-x/issues/292
+    config.memory_reservation(0x1000000);
+
+    // WASM memory won't grow, there's no need to allocate space for
+    // future grow.
+    config.memory_reservation_for_growth(0);
+
+    // As the memory can't grow, it won't move. By explicitly indicating
+    // this, modules can be compiled with static knowledge the base pointer
+    // of linear memory never changes to enable optimizations.
+    config.memory_may_move(false);
+
+    config
+});
+
+pub(crate) static ENGINE: LazyLock<Engine> =
+    LazyLock::new(|| Engine::new(&CONFIG).unwrap());
+
+pub(crate) fn new_linker() -> Linker<ScanContext<'static>> {
+    let mut linker = Linker::<ScanContext<'static>>::new(&ENGINE);
     for export in WASM_EXPORTS {
         let func_type = FuncType::new(
             &ENGINE,
@@ -902,7 +933,7 @@ pub(crate) fn pat_offset(
 }
 
 /// Called from WASM to obtain the length of an array.
-#[wasm_export]
+#[wasm_export(name = "len", method_of = "Array")]
 pub(crate) fn array_len(
     _: &mut Caller<'_, ScanContext>,
     array: Rc<Array>,
@@ -911,7 +942,7 @@ pub(crate) fn array_len(
 }
 
 /// Called from WASM to obtain the length of a map.
-#[wasm_export]
+#[wasm_export(name = "len", method_of = "Map")]
 pub(crate) fn map_len(_: &mut Caller<'_, ScanContext>, map: Rc<Map>) -> i64 {
     map.len() as i64
 }
@@ -1013,9 +1044,13 @@ pub(crate) fn lookup_string(
     num_lookup_indexes: i32,
 ) -> Option<RuntimeString> {
     match lookup_field(caller, structure, num_lookup_indexes) {
-        TypeValue::String(Value::Var(s)) => Some(RuntimeString::Rc(s)),
-        TypeValue::String(Value::Const(s)) => Some(RuntimeString::Rc(s)),
-        TypeValue::String(Value::Unknown) => None,
+        TypeValue::String { value: Value::Var(s), .. } => {
+            Some(RuntimeString::Rc(s))
+        }
+        TypeValue::String { value: Value::Const(s), .. } => {
+            Some(RuntimeString::Rc(s))
+        }
+        TypeValue::String { value: Value::Unknown, .. } => None,
         _ => unreachable!(),
     }
 }
@@ -1047,7 +1082,7 @@ macro_rules! gen_lookup_fn {
             structure: Option<Rc<Struct>>,
             num_lookup_indexes: i32,
         ) -> Option<$return_type> {
-            if let $type(value) =
+            if let $type { value, .. } =
                 lookup_field(caller, structure, num_lookup_indexes)
             {
                 value.extract().cloned()
@@ -1439,13 +1474,13 @@ pub(crate) fn str_matches(
     ctx.regexp_matches(rhs, lhs.as_bstr(ctx))
 }
 
-macro_rules! gen_xint_fn {
-    ($name:ident, $return_type:ty, $from_fn:ident) => {
+macro_rules! gen_int_fn {
+    ($name:ident, $return_type:ty, $from_fn:ident, $min:expr, $max:expr) => {
         #[wasm_export(public = true)]
         pub(crate) fn $name(
             caller: &mut Caller<'_, ScanContext>,
             offset: i64,
-        ) -> Option<i64> {
+        ) -> Option<RangedInteger<$min, $max>> {
             let offset = usize::try_from(offset).ok()?;
             caller
                 .data()
@@ -1454,20 +1489,45 @@ macro_rules! gen_xint_fn {
                 .map(|bytes| {
                     <$return_type>::$from_fn(bytes.try_into().unwrap()) as i64
                 })
+                .map(|i| RangedInteger::<$min, $max>::new(i))
         }
     };
 }
 
-gen_xint_fn!(uint8, u8, from_le_bytes);
-gen_xint_fn!(uint16, u16, from_le_bytes);
-gen_xint_fn!(uint32, u32, from_le_bytes);
-gen_xint_fn!(uint8be, u8, from_be_bytes);
-gen_xint_fn!(uint16be, u16, from_be_bytes);
-gen_xint_fn!(uint32be, u32, from_be_bytes);
+gen_int_fn!(uint8, u8, from_le_bytes, 0, 255);
+gen_int_fn!(uint16, u16, from_le_bytes, 0, 65_535);
+gen_int_fn!(uint32, u32, from_le_bytes, 0, 4_294_967_295);
+gen_int_fn!(uint8be, u8, from_be_bytes, 0, 255);
+gen_int_fn!(uint16be, u16, from_be_bytes, 0, 65_535);
+gen_int_fn!(uint32be, u32, from_be_bytes, 0, 4_294_967_295);
 
-gen_xint_fn!(int8, i8, from_le_bytes);
-gen_xint_fn!(int16, i16, from_le_bytes);
-gen_xint_fn!(int32, i32, from_le_bytes);
-gen_xint_fn!(int8be, i8, from_be_bytes);
-gen_xint_fn!(int16be, i16, from_be_bytes);
-gen_xint_fn!(int32be, i32, from_be_bytes);
+gen_int_fn!(int8, i8, from_le_bytes, -128, 127);
+gen_int_fn!(int16, i16, from_le_bytes, -32_768, 32_767);
+gen_int_fn!(int32, i32, from_le_bytes, -2_147_483_648, 2_147_483_647);
+gen_int_fn!(int8be, i8, from_be_bytes, -128, 127);
+gen_int_fn!(int16be, i16, from_be_bytes, -32_768, 32_767);
+gen_int_fn!(int32be, i32, from_be_bytes, -2_147_483_648, 2_147_483_647);
+
+macro_rules! gen_float_fn {
+    ($name:ident, $return_type:ty, $from_fn:ident) => {
+        #[wasm_export(public = true)]
+        pub(crate) fn $name(
+            caller: &mut Caller<'_, ScanContext>,
+            offset: i64,
+        ) -> Option<f64> {
+            let offset = usize::try_from(offset).ok()?;
+            caller
+                .data()
+                .scanned_data()
+                .get(offset..offset + mem::size_of::<$return_type>())
+                .map(|bytes| {
+                    <$return_type>::$from_fn(bytes.try_into().unwrap()) as f64
+                })
+        }
+    };
+}
+
+gen_float_fn!(float32, f32, from_le_bytes);
+gen_float_fn!(float64, f64, from_le_bytes);
+gen_float_fn!(float32be, f32, from_be_bytes);
+gen_float_fn!(float64be, f64, from_be_bytes);

@@ -5,6 +5,8 @@
 //! both protobuf structure fields and constants. This together with
 //! also exported functions can be later used in YARA rules.
 
+use std::cell::RefCell;
+
 use crate::modules::prelude::*;
 use crate::modules::protos::macho::*;
 use bstr::BString;
@@ -14,6 +16,19 @@ use md5::{Digest, Md5};
 mod parser;
 #[cfg(test)]
 mod tests;
+
+thread_local!(
+    static DYLIB_MD5_CACHE: RefCell<Option<String>> =
+        const { RefCell::new(None) };
+    static ENTITLEMENT_MD5_CACHE: RefCell<Option<String>> =
+        const { RefCell::new(None) };
+    static EXPORT_MD5_CACHE: RefCell<Option<String>> =
+        const { RefCell::new(None) };
+    static IMPORT_MD5_CACHE: RefCell<Option<String>> =
+        const { RefCell::new(None) };
+    static SYM_MD5_CACHE: RefCell<Option<String>> =
+        const { RefCell::new(None) };
+);
 
 /// Get the index of a Mach-O file within a fat binary based on CPU type.
 ///
@@ -320,6 +335,17 @@ fn has_export(ctx: &ScanContext, export: RuntimeString) -> Option<bool> {
 /// Returns a md5 hash of the dylibs designated in the mach-o binary
 #[module_export]
 fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
+    let cached = DYLIB_MD5_CACHE.with(|cache| -> Option<RuntimeString> {
+        cache
+            .borrow()
+            .as_deref()
+            .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
+    });
+
+    if cached.is_some() {
+        return cached;
+    }
+
     let macho = ctx.module_output::<Macho>()?;
     let mut dylibs_to_hash = &macho.dylibs;
 
@@ -351,12 +377,29 @@ fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     md5_hash.update(dylibs_to_hash.as_bytes());
 
     let digest = format!("{:x}", md5_hash.finalize());
+
+    DYLIB_MD5_CACHE.with(|cache| {
+        *cache.borrow_mut() = Some(digest.clone());
+    });
+
     Some(RuntimeString::new(digest))
 }
 
 /// Returns a md5 hash of the entitlements designated in the mach-o binary
 #[module_export]
 fn entitlement_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
+    let cached =
+        ENTITLEMENT_MD5_CACHE.with(|cache| -> Option<RuntimeString> {
+            cache
+                .borrow()
+                .as_deref()
+                .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
+        });
+
+    if cached.is_some() {
+        return cached;
+    }
+
     let macho = ctx.module_output::<Macho>()?;
     let mut entitlements_to_hash = &macho.entitlements;
 
@@ -383,12 +426,28 @@ fn entitlement_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     md5_hash.update(entitlements_str.as_bytes());
 
     let digest = format!("{:x}", md5_hash.finalize());
+
+    ENTITLEMENT_MD5_CACHE.with(|cache| {
+        *cache.borrow_mut() = Some(digest.clone());
+    });
+
     Some(RuntimeString::new(digest))
 }
 
 /// Returns a md5 hash of the export symbols in the mach-o binary
 #[module_export]
 fn export_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
+    let cached = EXPORT_MD5_CACHE.with(|cache| -> Option<RuntimeString> {
+        cache
+            .borrow()
+            .as_deref()
+            .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
+    });
+
+    if cached.is_some() {
+        return cached;
+    }
+
     let macho = ctx.module_output::<Macho>()?;
     let mut exports_to_hash = &macho.exports;
 
@@ -415,12 +474,28 @@ fn export_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     md5_hash.update(exports_str.as_bytes());
 
     let digest = format!("{:x}", md5_hash.finalize());
+
+    EXPORT_MD5_CACHE.with(|cache| {
+        *cache.borrow_mut() = Some(digest.clone());
+    });
+
     Some(RuntimeString::new(digest))
 }
 
 /// Returns a md5 hash of the imported symbols in the mach-o binary
 #[module_export]
 fn import_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
+    let cached = IMPORT_MD5_CACHE.with(|cache| -> Option<RuntimeString> {
+        cache
+            .borrow()
+            .as_deref()
+            .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
+    });
+
+    if cached.is_some() {
+        return cached;
+    }
+
     let macho = ctx.module_output::<Macho>()?;
     let mut imports_to_hash = &macho.imports;
 
@@ -447,12 +522,28 @@ fn import_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     md5_hash.update(imports_str.as_bytes());
 
     let digest = format!("{:x}", md5_hash.finalize());
+
+    IMPORT_MD5_CACHE.with(|cache| {
+        *cache.borrow_mut() = Some(digest.clone());
+    });
+
     Some(RuntimeString::new(digest))
 }
 
 /// Returns a md5 hash of the symbol table in the mach-o binary
 #[module_export]
 fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
+    let cached = SYM_MD5_CACHE.with(|cache| -> Option<RuntimeString> {
+        cache
+            .borrow()
+            .as_deref()
+            .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
+    });
+
+    if cached.is_some() {
+        return cached;
+    }
+
     let macho = ctx.module_output::<Macho>()?;
     let mut symtab_to_hash = &macho.symtab.entries;
 
@@ -479,13 +570,24 @@ fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     md5_hash.update(symtab_hash_entries);
 
     let digest = format!("{:x}", md5_hash.finalize());
+
+    SYM_MD5_CACHE.with(|cache| {
+        *cache.borrow_mut() = Some(digest.clone());
+    });
+
     Some(RuntimeString::new(digest))
 }
 
 #[module_main]
-fn main(data: &[u8], _meta: Option<&[u8]>) -> Macho {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Macho, ModuleError> {
+    DYLIB_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
+    ENTITLEMENT_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
+    EXPORT_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
+    IMPORT_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
+    SYM_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
+
     match parser::MachO::parse(data) {
-        Ok(macho) => macho.into(),
-        Err(_) => Macho::new(),
+        Ok(macho) => Ok(macho.into()),
+        Err(_) => Ok(Macho::new()),
     }
 }

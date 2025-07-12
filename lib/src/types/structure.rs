@@ -18,7 +18,7 @@ use crate::modules::protos::yara::exts::{
     enum_options, enum_value, field_options, message_options, module_options,
 };
 use crate::symbols::{Symbol, SymbolLookup};
-use crate::types::{Array, Map, TypeValue, Value};
+use crate::types::{Array, Map, StringConstraint, TypeValue};
 use crate::wasm::WasmExport;
 
 /// Each of the entries in an Access Control List (ACL)
@@ -82,6 +82,9 @@ pub(crate) struct StructField {
     pub type_value: TypeValue,
     /// Access control list (ACL) for accessing this struct field.
     pub acl: Option<Vec<AclEntry>>,
+    /// Deprecation message that must be shown when the field is used in a
+    /// rule. This is `None` for non-deprecated fields.
+    pub deprecation_msg: Option<String>,
 }
 
 /// A dynamic structure with one or more fields.
@@ -122,6 +125,7 @@ impl SymbolLookup for Struct {
             is_root: self.is_root,
             type_value: field.type_value.clone(),
             acl: field.acl.clone(),
+            deprecation_msg: field.deprecation_msg.clone(),
         })
     }
 }
@@ -174,6 +178,7 @@ impl Struct {
                     type_value: TypeValue::Struct(Rc::new(Struct::new())),
                     number: 0,
                     acl: None,
+                    deprecation_msg: None,
                 });
 
             if let TypeValue::Struct(ref mut s) = field.type_value {
@@ -191,7 +196,12 @@ impl Struct {
         } else {
             self.fields.insert(
                 name,
-                StructField { type_value: value, number: 0, acl: None },
+                StructField {
+                    type_value: value,
+                    number: 0,
+                    acl: None,
+                    deprecation_msg: None,
+                },
             )
         }
     }
@@ -334,55 +344,39 @@ impl Struct {
             let number = fd.number() as u64;
             let name = Self::field_name(&fd);
 
-            let value = match field_ty {
-                RuntimeFieldType::Singular(ty) => {
-                    if let Some(msg) = msg {
-                        Self::new_value(
-                            &ty,
-                            fd.get_singular(msg),
-                            generate_fields_for_enums,
-                            syntax,
-                        )
-                    } else {
-                        Self::new_value(
-                            &ty,
-                            None,
-                            generate_fields_for_enums,
-                            syntax,
-                        )
-                    }
-                }
-                RuntimeFieldType::Repeated(ty) => {
-                    if let Some(msg) = msg {
-                        Self::new_array(
-                            &ty,
-                            Some(fd.get_repeated(msg)),
-                            generate_fields_for_enums,
-                        )
-                    } else {
-                        Self::new_array(&ty, None, generate_fields_for_enums)
-                    }
-                }
-                RuntimeFieldType::Map(key_ty, value_ty) => {
-                    if let Some(msg) = msg {
-                        Self::new_map(
-                            &key_ty,
-                            &value_ty,
-                            Some(fd.get_map(msg)),
-                            generate_fields_for_enums,
-                            syntax,
-                        )
-                    } else {
-                        Self::new_map(
-                            &key_ty,
-                            &value_ty,
-                            None,
-                            generate_fields_for_enums,
-                            syntax,
-                        )
-                    }
-                }
+            let mut value = match field_ty {
+                RuntimeFieldType::Singular(ty) => Self::new_value(
+                    &ty,
+                    msg.and_then(|msg| fd.get_singular(msg)),
+                    generate_fields_for_enums,
+                    syntax,
+                ),
+                RuntimeFieldType::Repeated(ty) => Self::new_array(
+                    &ty,
+                    msg.map(|msg| fd.get_repeated(msg)),
+                    generate_fields_for_enums,
+                ),
+                RuntimeFieldType::Map(key_ty, value_ty) => Self::new_map(
+                    &key_ty,
+                    &value_ty,
+                    msg.map(|msg| fd.get_map(msg)),
+                    generate_fields_for_enums,
+                    syntax,
+                ),
             };
+
+            if Self::lowercase(&fd) {
+                if let TypeValue::String { constraints, .. } = &mut value {
+                    constraints
+                        .get_or_insert_default()
+                        .push(StringConstraint::Lowercase);
+                } else {
+                    panic!(
+                        "`lowercase = true` in non-string field: {}",
+                        fd.full_name()
+                    )
+                }
+            }
 
             fields.push((
                 name,
@@ -390,6 +384,7 @@ impl Struct {
                     // Index is initially zero, will be adjusted later.
                     type_value: value,
                     acl: Self::acl(&fd),
+                    deprecation_msg: Self::deprecation_msg(&fd),
                     number,
                 },
             ));
@@ -416,7 +411,7 @@ impl Struct {
         let methods = WasmExport::get_methods(msg_descriptor.full_name());
 
         // For each method implemented by this struct field, add a field
-        // to the struct of function type. Methods can not have the same name
+        // to the struct of function type. Methods cannot have the same name
         // as an existing field.
         for (name, method) in methods {
             if new_struct
@@ -628,13 +623,26 @@ impl Struct {
     /// What this function returns is the value associated to an enum item,
     /// returning the value set via the `(yara.enum_value).i64` option, if any,
     /// or the tag number.
-    fn enum_value(enum_value_descriptor: &EnumValueDescriptor) -> EnumValue {
+    pub(crate) fn enum_value(
+        enum_value_descriptor: &EnumValueDescriptor,
+    ) -> EnumValue {
         enum_value
             .get(&enum_value_descriptor.proto().options)
             .and_then(|options| options.value)
             .unwrap_or_else(|| {
                 EnumValue::I64(enum_value_descriptor.value() as i64)
             })
+    }
+
+    /// Similar to [`Struct::enum_value`], but returns the enum value as an `i64`
+    /// or `None` if it isn't an `i64`.
+    pub(crate) fn enum_value_i64(
+        enum_value_descriptor: &EnumValueDescriptor,
+    ) -> Option<i64> {
+        match Self::enum_value(enum_value_descriptor) {
+            EnumValue::I64(i) => Some(i),
+            EnumValue::F64(_) => None,
+        }
     }
 
     /// Given a [`FieldDescriptor`] returns the name that this field will
@@ -671,6 +679,34 @@ impl Struct {
             .get(&field_descriptor.proto().options)
             .and_then(|options| options.ignore)
             .unwrap_or(false)
+    }
+
+    /// Given a [`FieldDescriptor`] returns `true` if the field is a lowercase
+    /// string
+    ///
+    /// Lowercase strings are annotated in the protobuf definition as follows:
+    ///
+    /// ```text
+    /// string foo = 1 [(yara.field_options).lowercase = true];
+    /// ```
+    fn lowercase(field_descriptor: &FieldDescriptor) -> bool {
+        field_options
+            .get(&field_descriptor.proto().options)
+            .and_then(|options| options.lowercase)
+            .unwrap_or(false)
+    }
+
+    /// Given a [`FieldDescriptor`] returns `Some(msg)` if the field is
+    /// deprecated, and `msg` is the message that must be shown when the
+    /// field is used.
+    ///
+    /// ```text
+    /// string foo = 1 [(yara.field_options).deprecation_msg = "use `bar` instead"];
+    /// ```
+    fn deprecation_msg(field_descriptor: &FieldDescriptor) -> Option<String> {
+        field_options
+            .get(&field_descriptor.proto().options)
+            .and_then(|options| options.deprecation_msg)
     }
 
     /// Given a [`FieldDescriptor`] returns the Access Control List (ACL)
@@ -737,7 +773,7 @@ impl Struct {
                     // values.
                     TypeValue::var_integer_from(0)
                 } else {
-                    TypeValue::Integer(Value::Unknown)
+                    TypeValue::unknown_integer()
                 }
             }
             RuntimeType::F32 | RuntimeType::F64 => {
@@ -748,7 +784,7 @@ impl Struct {
                     // values.
                     TypeValue::var_float_from(0_f64)
                 } else {
-                    TypeValue::Float(Value::Unknown)
+                    TypeValue::unknown_float()
                 }
             }
             RuntimeType::Bool => {
@@ -759,7 +795,7 @@ impl Struct {
                     // values.
                     TypeValue::var_bool_from(false)
                 } else {
-                    TypeValue::Bool(Value::Unknown)
+                    TypeValue::unknown_bool()
                 }
             }
             RuntimeType::String | RuntimeType::VecU8 => {
@@ -770,7 +806,7 @@ impl Struct {
                     // values.
                     TypeValue::var_string_from(b"")
                 } else {
-                    TypeValue::String(Value::Unknown)
+                    TypeValue::unknown_string()
                 }
             }
             RuntimeType::Message(msg_descriptor) => {
@@ -1119,9 +1155,10 @@ impl PartialEq for Struct {
 
 #[cfg(test)]
 mod tests {
-    use super::Struct;
-    use crate::types::{Array, Type, TypeValue, Value};
     use std::rc::Rc;
+
+    use super::Struct;
+    use crate::types::{Array, Type, TypeValue};
 
     #[test]
     fn test_struct() {
@@ -1129,7 +1166,7 @@ mod tests {
         let foo = Struct::default();
 
         root.add_field("foo", TypeValue::Struct(Rc::new(foo)));
-        root.add_field("bar", TypeValue::Integer(Value::Var(1)));
+        root.add_field("bar", TypeValue::var_integer_from(1));
 
         let field1 = root.field_by_name("foo").unwrap();
         let field2 = root.field_by_index(0).unwrap();
@@ -1137,24 +1174,24 @@ mod tests {
         assert_eq!(field1.type_value.ty(), Type::Struct);
         assert_eq!(field1.type_value.ty(), field2.type_value.ty());
 
-        root.add_field("foo.bar", TypeValue::Integer(Value::Var(1)));
+        root.add_field("foo.bar", TypeValue::var_integer_from(1));
     }
 
     #[test]
     fn struct_eq() {
         let mut sub: Struct = Struct::default();
 
-        sub.add_field("integer", TypeValue::Integer(Value::Unknown));
-        sub.add_field("string", TypeValue::String(Value::Unknown));
-        sub.add_field("boolean", TypeValue::Bool(Value::Unknown));
+        sub.add_field("integer", TypeValue::unknown_integer());
+        sub.add_field("string", TypeValue::unknown_string());
+        sub.add_field("boolean", TypeValue::unknown_bool());
 
         let sub = Rc::new(sub);
 
         let mut a = Struct::default();
         let mut b = Struct::default();
 
-        a.add_field("boolean", TypeValue::Bool(Value::Var(true)));
-        a.add_field("integer", TypeValue::Integer(Value::Var(1)));
+        a.add_field("boolean", TypeValue::var_bool_from(true));
+        a.add_field("integer", TypeValue::var_integer_from(1));
         a.add_field("structure", TypeValue::Struct(sub.clone()));
         a.add_field(
             "floats_array",
@@ -1164,8 +1201,8 @@ mod tests {
         // At this point a != b because b is still empty.
         assert_ne!(a, b);
 
-        b.add_field("boolean", TypeValue::Bool(Value::Var(false)));
-        b.add_field("integer", TypeValue::Integer(Value::Var(1)));
+        b.add_field("boolean", TypeValue::var_bool_from(false));
+        b.add_field("integer", TypeValue::var_integer_from(1));
         b.add_field("structure", TypeValue::Struct(sub));
         b.add_field(
             "floats_array",
@@ -1175,8 +1212,8 @@ mod tests {
         // At this point a == b.
         assert_eq!(a, b);
 
-        a.add_field("foo", TypeValue::Bool(Value::Var(false)));
-        b.add_field("foo", TypeValue::Integer(Value::Unknown));
+        a.add_field("foo", TypeValue::var_bool_from(false));
+        b.add_field("foo", TypeValue::unknown_integer());
 
         // At this point a != b again because field "foo" have a different type
         // on each structure.

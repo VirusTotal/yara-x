@@ -225,19 +225,28 @@ impl Compiler {
         self,
         hir: &re::hir::Hir,
     ) -> Result<(InstrSeq, InstrSeq, Vec<RegexpAtom>), Error> {
-        let start_loc = self.location();
+        let mut code_loc = self.location();
 
         let (mut backward_code, mut forward_code, mut atoms) =
             visit(&hir.inner, self)?;
 
         forward_code.emit_instr(Instr::MATCH)?;
-        backward_code.emit_instr(Instr::MATCH)?;
+        code_loc.bck = backward_code.emit_instr(Instr::MATCH)?;
 
+        // If the pattern yields no atoms, or if too many atoms were found and
+        // the compiler opts out of extraction, insert a single zero-length
+        // atom. Its forward code represents the entire regexp, while its
+        // backward code is a simple match instruction.
         if atoms.is_empty() {
-            atoms.push(RegexpAtom {
-                atom: Atom::inexact([]),
-                code_loc: start_loc,
-            })
+            atoms.push(RegexpAtom { atom: Atom::inexact([]), code_loc })
+        }
+
+        // At this point all atoms must have bck_seq_id == 0 because all
+        // backward code sequences have been merged re-ordered and put
+        // into the main backward code sequence.
+        #[cfg(debug_assertions)]
+        for atom in atoms.iter() {
+            assert_eq!(atom.code_loc.bck_seq_id, 0);
         }
 
         assert!(atoms.len() <= MAX_ATOMS_PER_REGEXP);
@@ -504,6 +513,10 @@ impl Compiler {
         Ok(match look {
             Look::Start => self.emit_instr(Instr::START)?,
             Look::End => self.emit_instr(Instr::END)?,
+            Look::StartLF | Look::StartCRLF => {
+                self.emit_instr(Instr::LINE_START)?
+            }
+            Look::EndLF | Look::EndCRLF => self.emit_instr(Instr::LINE_END)?,
             Look::WordAscii => self.emit_instr(Instr::WORD_BOUNDARY)?,
             Look::WordAsciiNegate => {
                 self.emit_instr(Instr::WORD_BOUNDARY_NEG)?
@@ -998,7 +1011,7 @@ impl hir::Visitor for Compiler {
                 self.visit_pre_concat();
             }
             HirKind::Alternation(alternatives) => {
-                if alternatives.len() > MAX_ALTERNATIVES.into() {
+                if alternatives.len() > MAX_ALTERNATIVES {
                     return Err(Error::TooManyAlternatives);
                 }
                 self.visit_pre_alternation(alternatives)?;
@@ -1791,6 +1804,12 @@ impl Display for InstrSeq {
                 }
                 Instr::End => {
                     writeln!(f, "{:05x}: END", addr)?;
+                }
+                Instr::LineStart => {
+                    writeln!(f, "{:05x}: LINE_START", addr)?;
+                }
+                Instr::LineEnd => {
+                    writeln!(f, "{:05x}: LINE_END", addr)?;
                 }
                 Instr::WordBoundary => {
                     writeln!(f, "{:05x}: WORD_BOUNDARY", addr)?;

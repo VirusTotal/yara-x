@@ -15,6 +15,14 @@ Examples:
 yr completion bash > $(brew --prefix)/etc/bash_completion.d/yr
 yr completion zsh > "${fpath[1]}/_yr""#;
 
+pub const CONFIG_FILE: &str = r#"Config file for YARA-X
+
+Specifies a config file which controls the behavior of YARA-X. If config file is not
+specified, ${HOME}/.yara-x.toml is used. If it does not exist the default options are
+applied.
+
+See https://virustotal.github.io/yara-x/docs/cli/config-file/ for supported options."#;
+
 pub const DEFINE_LONG_HELP: &str = r#"Define external variable
 
 Examples:
@@ -23,26 +31,6 @@ Examples:
 --define some_float=3.14
 --define some_bool=true
 --define some_str=\"foobar\""#;
-
-pub const MODULE_DATA_LONG_HELP: &str = r#"Pass FILE's content as extra data to MODULE
-
-Some modules require supplementary data to work, in addition to the scanned
-file. This option allows you to provide that extra data. The flag can be used
-multiple times to supply data to different modules. The content of the FILE is
-loaded and interpreted by the respective module.
-
-Examples:
-
---module-data=mymodule0=./example0.json --module-data=mymodule1=./example1.json
-
-In this example, the contents of example0.json and example1.json will be passed
-to mymodule0 and mymodule1, respectively."#;
-
-pub const DEPTH_LONG_HELP: &str = r#"Walk directories recursively up to a given depth
-
-This is ignored if <RULES_PATH> is not a directory. When <MAX_DEPTH> is 0 it
-means that files located in the specified directory will be processed, but
-subdirectories won't be traversed. By default <MAX_DEPTH> is infinite."#;
 
 pub const DUMP_LONG_HELP: &str = r#"Show the data produced by YARA modules for a file
 
@@ -67,7 +55,7 @@ list of with the names of the warnings to disable.
 Examples:
 
 --disable-warnings
---disable-warnings=slow_patterns
+--disable-warnings=slow_pattern
 --disable-warnings=slow_rules,redundant_modifier"
 --disable-warnings=slow_rules --disable-warnings=redundant_modifier"#;
 
@@ -93,6 +81,11 @@ When no filter is specified, the following ones are used by default:
 
 --filter='**/*.yara' --filter='**/*.yar'"#;
 
+pub const FMT_CHECK_MODE: &str = r#"Run in 'check' mode
+
+Doesn't modify the files. Exits with 0 if files are formatted correctly. Exits
+with 1 if formatting is required."#;
+
 pub const FIX_ENCODING_LONG_HELP: &str = r#"Convert source files to UTF-8
 
 YARA-X is stricter that YARA with respect to invalid UTF-8 characters in source
@@ -102,12 +95,56 @@ they are not.
 If <RULES_PATH> is a directory, all files with extensions `.yar` and `.yara` will
 be converted. This behavior can be changed by using the `--filter` option."#;
 
+pub const INCLUDE_DIR_LONG_HELP: &str = r#"Directory in which to search for included files
+
+If not given, the current working directory is used. May be specified multiple times;
+directories will be searched in order."#;
+
 pub const IGNORE_MODULE_LONG_HELP: &str = r#"Ignore rules that use the specified module
 
 Rules that use the specified module will be ignored, as well as any rules that
 depends directly or indirectly on such rules.
 
 This option can be used more than once for ignored different modules."#;
+
+pub const MODULE_DATA_LONG_HELP: &str = r#"Pass FILE's content as extra data to MODULE
+
+Some modules require supplementary data to work, in addition to the scanned
+file. This option allows you to provide that extra data. The flag can be used
+multiple times to supply data to different modules. The content of the FILE is
+loaded and interpreted by the respective module.
+
+Examples:
+
+--module-data=mymodule0=./example0.json --module-data=mymodule1=./example1.json
+
+In this example, the contents of example0.json and example1.json will be passed
+to mymodule0 and mymodule1, respectively."#;
+
+pub const OUTPUT_FORMAT_LONG_HELP: &str = r#"Output format
+
+The format in which results will be displayed. Any errors or warnings will not
+be in this format, only results.
+
+Examples:
+
+--output-format=ndjson"#;
+
+pub const RECURSIVE_LONG_HELP: &str = r#"Walk directories recursively
+
+When <RULES_PATH> is a directory, this option enables recursive directory traversal.
+You can optionally specify a <MAX_DEPTH> to limit how deep the traversal goes:
+
+--recursive     process nested subdirectories with no limits.
+--recursive=0   process only the files in <TARGET_PATH> (no subdirectories)
+--recursive=3   process up to 3 levels deep, including nested subdirectories
+
+If --recursive is not specified, the default behavior is equivalent to --recursive=0.
+
+Examples:
+
+--recursive
+--recursive=3"#;
 
 pub const THREADS_LONG_HELP: &str = r#"Use the specified number of threads
 
@@ -137,18 +174,6 @@ yr scan rules_dir scanned_file
 yr scan namespace:rules_file.yar scanned_file
 yr scan namespace:rules_dir scanned_file"#;
 
-pub const SCAN_RECURSIVE_LONG_HELP: &str = r#"Scan directories recursively
-
-When <TARGET_PATH> is a directory, this option enables recursive scanning of its contents.
-An optional <MAX_DEPTH> parameter can be specified to limit the scan depth. A MAX_DEPTH=1
-value restricts the scan to direct child directories of <TARGET_PATH>. If this option is
-not used, only the files within <TARGET_PATH> will be scanned, excluding its subdirectories.
-
-Examples:
-
---recursive
---recursive=3"#;
-
 pub const SCAN_PRINT_STRING_LONG_HELP: &str = r#"Print matching patterns
 
 The printed patterns can be optionally limited to <N> characters. By default they are limited
@@ -159,24 +184,18 @@ Examples:
 --print-strings
 --print-strings=50"#;
 
-pub const OUTPUT_FORMAT_LONG_HELP: &str = r#"Output format
+pub const SCAN_RECURSIVE_LONG_HELP: &str = r#"Scan directories recursively
 
-The format in which results will be displayed. Any errors or warnings will not
-be in this format, only results.
+When <TARGET_PATH> is a directory, this option enables recursive scanning of its contents.
+You can optionally specify a <MAX_DEPTH> to limit how deep the scan goes:
+
+--recursive     scan nested subdirectories with no depth limit.
+--recursive=0   scan only the files in <TARGET_PATH> (no subdirectories)
+--recursive=3   scan up to 3 levels deep, including nested subdirectories
+
+If --recursive is not specified, the default behavior is equivalent to --recursive=0.
 
 Examples:
 
---output-format=ndjson"#;
-
-pub const FMT_CHECK_MODE: &str = r#"Run in 'check' mode
-
-Doesn't modify the files. Exits with 0 if files are formatted correctly. Exits
-with 1 if formatting is required."#;
-
-pub const CONFIG_FILE: &str = r#"Config file for YARA-X
-
-Specifies a config file which controls the behavior of YARA-X. If config file is not
-specified, ${HOME}/.yara-x.toml is used. If it does not exist the default options are
-applied.
-
-See https://virustotal.github.io/yara-x/docs/cli/config-file/ for supported options."#;
+--recursive
+--recursive=3"#;

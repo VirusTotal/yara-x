@@ -1,0 +1,59 @@
+// THIS FILE IS GENERATED AUTOMATICALLY. DO NOT EDIT.
+// LINT: LEGACY_NAMES
+
+syntax = "proto3";
+
+package vt.sigma;
+
+import "vt/filetypes.proto";
+
+message SigmaMatch {
+  repeated SigmaMatchContext match_context = 1;
+  vt.sigma.SigmaRule.Level rule_level = 2;
+  string rule_id = 3;
+  string rule_source = 4;
+  string rule_title = 5;
+  string rule_description = 6;
+  string rule_author = 7;
+}
+
+message SigmaMatchContext {
+  map<string, string> values = 1;
+}
+
+message SigmaRule {
+  enum Level {
+    unknown = 0;
+    low = 1;
+    medium = 2;
+    high = 3;
+    critical = 4;
+  }
+
+  string rule = 1;
+  string title = 2;
+  LogSource log_source = 3;
+  string status = 4;
+  string description = 5;
+  repeated string references = 6;
+  repeated string fields = 7;
+  repeated string false_positives = 8;
+  vt.sigma.SigmaRule.Level level = 9;
+  string source = 10;
+  repeated string tags = 11;
+  Detection detection = 12;
+  string author = 13;
+  string source_url = 14;
+}
+
+message LogSource {
+  string category = 1;
+  string product = 2;
+  string service = 3;
+  string definition = 4;
+}
+
+message Detection {
+  string condition = 1;
+  map<string, string> details = 2;
+}

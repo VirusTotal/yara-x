@@ -1,5 +1,5 @@
 use pretty_assertions::assert_eq;
-use yara_x_parser::cst::SyntaxKind;
+use yara_x_parser::cst::{CSTStream, SyntaxKind};
 
 use crate::tokens::Token::*;
 use crate::tokens::{Token, Tokens};
@@ -16,12 +16,11 @@ fn token_generation() {
                 $a and $b and foo * 1 == 2
         }"#;
 
-    let events = Parser::new(rule.as_bytes())
-        .into_cst_stream()
+    let events = CSTStream::from(Parser::new(rule.as_bytes()))
         .whitespaces(false)
         .newlines(false);
 
-    let tokens: Vec<Token> = Tokens::new(events).collect();
+    let tokens: Vec<Token> = Tokens::new(rule.as_bytes(), events).collect();
 
     assert_eq!(
         tokens,
@@ -111,8 +110,8 @@ fn whitespaces() {
             true
     }"#;
 
-    let events = Parser::new(rule.as_bytes()).into_cst_stream();
-    let tokens: Vec<Token> = Tokens::new(events).collect();
+    let events = CSTStream::from(Parser::new(rule.as_bytes()));
+    let tokens: Vec<Token> = Tokens::new(rule.as_bytes(), events).collect();
 
     assert_eq!(
         tokens,

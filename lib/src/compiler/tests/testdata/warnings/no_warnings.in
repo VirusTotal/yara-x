@@ -50,3 +50,37 @@ rule test_7 {
   condition:
     $a
 }
+
+rule test_8 {
+  strings:
+    $a = { 50 4B 03 04 }
+    $b = { 7F 45 4C 46 }
+  condition:
+    $a and $b
+}
+
+rule test_9 {
+    condition:
+        uint8(0) == 0 or uint8(0) == 0xFF or
+        uint16(0) == 0 or uint16(0) == 0xFFFF or
+        uint32(0) == 0 or uint32(0) == 0xFFFFFFFF
+}
+
+rule test_10 {
+  strings:
+    // suppress: text_as_hex
+    $a = { 61 62 63 64 }
+    $b = { 61 62 63 64 } // suppress: text_as_hex
+  condition:
+    $a and $b or true // suppress: invariant_expr
+}
+
+// suppress: text_as_hex
+// suppress: invariant_expr
+rule test_11 {
+  strings:
+    $a = { 61 62 63 64 }
+    $b = { 61 62 63 64 }
+  condition:
+    $a and $b or true
+}

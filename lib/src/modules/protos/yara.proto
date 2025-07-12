@@ -83,6 +83,28 @@ message FieldOptions {
   // Also, keep in mind that ACL entries are evaluated sequentially. The first
   // entry that fails will trigger the corresponding error message.
   repeated AclEntry acl = 3;
+
+  // Indicates that a string field is always lowercase.
+  //
+  // This option can be used only with fields of type string. If used with some
+  // other type YARA will panic.
+  //
+  // string some_lowercase_string = 32 [(yara.field_options).lowercase = true];
+  optional bool lowercase = 4;
+
+  // Specifies the format of the field when converted to a string.
+  //
+  // This option can be used with integer, float, and boolean fields. It uses
+  // Rust's formatting syntax. For example, if an integer field has `fmt = "{:#x}"`
+  // it will be formatted as a hexadecimal string with a "0x" prefix.
+  optional string fmt = 5;
+
+  // Indicates that the field is deprecated.
+  //
+  // This option is used for indicating that a field is deprecated. The string
+  // is the message that will be shown when the deprecated field is used in a
+  // rule.
+  optional string deprecation_msg = 6;
 }
 
 // An entry in a field's ACL.

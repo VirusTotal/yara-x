@@ -1,88 +1,88 @@
 RULE test_1
-  12: EQ -- hash: 0x1e87f9ecd59c9f97 -- parent: None 
+  12: EQ -- hash: 0xbc578eceb5139ff6 -- parent: None 
     10: CONST integer(1) -- parent: 12 
     11: CONST integer(1) -- parent: 12 
 
 RULE test_2
-  20: EQ -- hash: 0x435e2bc40faf0997 -- parent: None 
-    18: SUB -- hash: 0xcbbf8e838c34d7e1 -- parent: 20 
-      14: ADD -- hash: 0x736c700ea5e3e841 -- parent: 18 
-        12: FIELD_ACCESS -- hash: 0x33962d7e5c60ec68 -- parent: 14 
-          10: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 12 
-          11: SYMBOL Field { index: 13, is_root: false, type_value: integer(unknown), acl: None } -- parent: 12 
+  20: EQ -- hash: 0xfb622d3fda4c9468 -- parent: None 
+    18: SUB -- hash: 0x38aff83d94a3aa25 -- parent: 20 
+      14: ADD -- hash: 0xaa45310763b4b319 -- parent: 18 
+        12: FIELD_ACCESS -- hash: 0xe58b5f97183b1a0c -- parent: 14 
+          10: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 12 
+          11: SYMBOL Field { index: 13, is_root: false, type_value: integer(unknown), acl: None, deprecation_msg: None } -- parent: 12 
         13: CONST integer(1) -- parent: 14 
-      17: FIELD_ACCESS -- hash: 0x33962d7e5c60ec68 -- parent: 18 
-        15: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 17 
-        16: SYMBOL Field { index: 13, is_root: false, type_value: integer(unknown), acl: None } -- parent: 17 
+      17: FIELD_ACCESS -- hash: 0xe58b5f97183b1a0c -- parent: 18 
+        15: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 17 
+        16: SYMBOL Field { index: 13, is_root: false, type_value: integer(unknown), acl: None, deprecation_msg: None } -- parent: 17 
     19: CONST integer(1) -- parent: 20 
 
 RULE test_3
-  6: GT -- hash: 0x936af95517c74992 -- parent: None 
-    4: DIV -- hash: 0x75c0510b526a94ab -- parent: 6 
+  6: GT -- hash: 0x61dcf8602bb009ae -- parent: None 
+    4: DIV -- hash: 0x8a6d566de890e50c -- parent: 6 
       2: CONST integer(2) -- parent: 4 
       3: CONST integer(1) -- parent: 4 
     5: CONST integer(1) -- parent: 6 
 
 RULE test_4
-  6: LE -- hash: 0x63b2e857a1254c2b -- parent: None 
-    4: SHR -- hash: 0x8dd6307742aa2311 -- parent: 6 
-      2: SHL -- hash: 0x48eeb57428a0dbf0 -- parent: 4 
+  6: LE -- hash: 0x94cc57b0e87ee022 -- parent: None 
+    4: SHR -- hash: 0xfcaac0eae066696c -- parent: 6 
+      2: SHL -- hash: 0x560670a37a22b641 -- parent: 4 
         0: CONST integer(1) -- parent: 2 
         1: CONST integer(2) -- parent: 2 
       3: CONST integer(1) -- parent: 4 
     5: CONST integer(2) -- parent: 6 
 
 RULE test_5
-  14: EQ -- hash: 0x82d0fbda86ff9c76 -- parent: None 
-    12: CONST integer(8) -- parent: 14 
-    13: CONST integer(8) -- parent: 14 
+  12: EQ -- hash: 0xce980a3b0dd2d7cf -- parent: None 
+    10: CONST integer(8) -- parent: 12 
+    11: CONST integer(8) -- parent: 12 
 
 RULE test_6
-  18: EQ -- hash: 0xea1ddf3adc653142 -- parent: None 
-    11: BITWISE_XOR -- hash: 0xdd299ba912958ce8 -- parent: 18 
+  18: EQ -- hash: 0x4a78a326637b7d9d -- parent: None 
+    11: BITWISE_XOR -- hash: 0x64bffdddf74ef466 -- parent: 18 
       9: CONST integer(2) -- parent: 11 
       10: CONST integer(1) -- parent: 11 
-    17: BITWISE_OR -- hash: 0xda5a8a244bcb673d -- parent: 18 
-      15: BITWISE_AND -- hash: 0x22082a7fc27dabe1 -- parent: 17 
-        13: BITWISE_NOT -- hash: 0x44d8a0dd009c8a5c -- parent: 15 
+    17: BITWISE_OR -- hash: 0x1dc12c2d28b77480 -- parent: 18 
+      15: BITWISE_AND -- hash: 0x9c63b389ed56b277 -- parent: 17 
+        13: BITWISE_NOT -- hash: 0x551649e0ddd39ce -- parent: 15 
           12: CONST integer(1) -- parent: 13 
         14: CONST integer(1) -- parent: 15 
       16: CONST integer(1) -- parent: 17 
 
 RULE test_7
-  12: AND -- hash: 0xa31d146601773ef0 -- parent: None 
-    8: EQ -- hash: 0x22575eadeb0769cf -- parent: 12 
-      6: FIELD_ACCESS -- hash: 0xd1ac9e3929a1ce9b -- parent: 8 
-        4: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 6 
-        5: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None } -- parent: 6 
+  12: AND -- hash: 0x966e46de448a5ee5 -- parent: None 
+    8: EQ -- hash: 0x6500d8d8a8951685 -- parent: 12 
+      6: FIELD_ACCESS -- hash: 0x6b278e4a6873a6f4 -- parent: 8 
+        4: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 6 
+        5: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None, deprecation_msg: None } -- parent: 6 
       7: CONST integer(0) -- parent: 8 
 
 RULE test_8
-  5: ADD -- hash: 0xc4e1a16fb19df223 -- parent: None 
-    2: FIELD_ACCESS -- hash: 0xd1ac9e3929a1ce9b -- parent: 5 
-      0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None } -- parent: 2 
-      1: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None } -- parent: 2 
+  5: ADD -- hash: 0x52c16f85b5684320 -- parent: None 
+    2: FIELD_ACCESS -- hash: 0x6b278e4a6873a6f4 -- parent: 5 
+      0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 2 
+      1: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None, deprecation_msg: None } -- parent: 2 
     3: CONST integer(1) -- parent: 5 
     4: CONST integer(2) -- parent: 5 
 
 RULE test_9
-  18: AND -- hash: 0xb21fa80def581aea -- parent: None 
-    2: CONTAINS -- hash: 0x702eaf70b18909ff -- parent: 18 
+  18: AND -- hash: 0x87ea037bd606baac -- parent: None 
+    2: CONTAINS -- hash: 0xbabdc2c62427fdc -- parent: 18 
       0: CONST string("foobar") -- parent: 2 
       1: CONST string("bar") -- parent: 2 
-    5: ICONTAINS -- hash: 0xe30a191883a20729 -- parent: 18 
+    5: ICONTAINS -- hash: 0xc2864620e881ca78 -- parent: 18 
       3: CONST string("foobar") -- parent: 5 
       4: CONST string("BAR") -- parent: 5 
-    8: STARTS_WITH -- hash: 0xc963b1bf1e8d9506 -- parent: 18 
+    8: STARTS_WITH -- hash: 0x58ec6fc7a36541b2 -- parent: 18 
       6: CONST string("foobar") -- parent: 8 
       7: CONST string("foo") -- parent: 8 
-    11: ISTARTS_WITH -- hash: 0x1ce5974aa4aaacaa -- parent: 18 
+    11: ISTARTS_WITH -- hash: 0x3965d2a92aab2a87 -- parent: 18 
       9: CONST string("foobar") -- parent: 11 
       10: CONST string("FOO") -- parent: 11 
-    14: ENDS_WITH -- hash: 0x4394dbecb8c89956 -- parent: 18 
+    14: ENDS_WITH -- hash: 0xe536fb2e32265590 -- parent: 18 
       12: CONST string("foobar") -- parent: 14 
       13: CONST string("bar") -- parent: 14 
-    17: IENDS_WITH -- hash: 0xb67045948ae19680 -- parent: 18 
+    17: IENDS_WITH -- hash: 0x9c116522b865a02d -- parent: 18 
       15: CONST string("foobar") -- parent: 17 
       16: CONST string("BAR") -- parent: 17 
 

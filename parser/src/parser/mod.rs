@@ -40,6 +40,13 @@ pub struct Parser<'src> {
     pub(crate) parser: ParserImpl<'src>,
 }
 
+impl Iterator for Parser<'_> {
+    type Item = Event;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.parser.next()
+    }
+}
+
 impl<'src> Parser<'src> {
     /// Creates a new parser for the given source code.
     pub fn new(source: &'src [u8]) -> Self {
@@ -54,6 +61,7 @@ impl<'src> Parser<'src> {
 
     /// Consumes the parser and returns an Abstract Syntax Tree (AST).
     #[inline]
+    #[deprecated(since = "1.3.0", note = "use `AST::from(parser)` instead")]
     pub fn into_ast(self) -> AST<'src> {
         AST::from(self)
     }
@@ -71,8 +79,14 @@ impl<'src> Parser<'src> {
     /// Consumes the parser and returns a Concrete Syntax Tree (CST) as
     /// a stream of events.
     #[inline]
-    pub fn into_cst_stream(self) -> CSTStream<'src> {
-        CSTStream::from(self)
+    #[deprecated(
+        since = "1.3.0",
+        note = "use `CSTStream::from(parser)` instead"
+    )]
+    pub fn into_cst_stream(
+        self,
+    ) -> CSTStream<'src, impl Iterator<Item = Event> + use<'src>> {
+        CSTStream::new(self.source(), self.parser)
     }
 }
 
@@ -221,7 +235,10 @@ impl Iterator for ParserImpl<'_> {
         match self.state {
             State::StartOfInput => {
                 self.state = State::OK;
-                Some(Event::Begin(SOURCE_FILE))
+                Some(Event::Begin {
+                    kind: SOURCE_FILE,
+                    span: Span(0..self.tokens.source().len() as u32),
+                })
             }
             State::EndOfInput => None,
             _ => {
@@ -253,7 +270,10 @@ impl Iterator for ParserImpl<'_> {
                     Some(token)
                 } else {
                     self.state = State::EndOfInput;
-                    Some(Event::End(SOURCE_FILE))
+                    Some(Event::End {
+                        kind: SOURCE_FILE,
+                        span: Span(0..self.tokens.source().len() as u32),
+                    })
                 }
             }
         }
@@ -1019,7 +1039,7 @@ impl ParserImpl<'_> {
     /// A top-level item is either an import statement or a rule declaration.
     ///
     /// ```text
-    /// TOP_LEVEL_ITEM ::= ( IMPORT_STMT | RULE_DECL )
+    /// TOP_LEVEL_ITEM ::= ( IMPORT_STMT | INCLUDE_STMT | RULE_DECL )
     /// ```
     fn top_level_item(&mut self) -> &mut Self {
         let token = match self.peek() {
@@ -1031,6 +1051,7 @@ impl ParserImpl<'_> {
         };
         match token {
             Token::IMPORT_KW(_) => self.import_stmt(),
+            Token::INCLUDE_KW(_) => self.include_stmt(),
             Token::GLOBAL_KW(_) | Token::PRIVATE_KW(_) | Token::RULE_KW(_) => {
                 self.rule_decl()
             }
@@ -1072,6 +1093,18 @@ impl ParserImpl<'_> {
             .end()
     }
 
+    /// Parses an include statement.
+    ///
+    /// ```text
+    /// INCLUDE_STMT ::= `include` STRING_LIT
+    /// ```
+    fn include_stmt(&mut self) -> &mut Self {
+        self.begin(INCLUDE_STMT)
+            .expect(t!(INCLUDE_KW))
+            .expect(t!(STRING_LIT))
+            .end()
+    }
+
     /// Parses a rule declaration.
     ///
     /// ```text
@@ -1095,7 +1128,8 @@ impl ParserImpl<'_> {
             .end_with_recovery(t!(GLOBAL_KW
                 | PRIVATE_KW
                 | RULE_KW
-                | IMPORT_KW))
+                | IMPORT_KW
+                | INCLUDE_KW))
     }
 
     /// Parses rule modifiers.

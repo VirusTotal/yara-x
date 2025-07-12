@@ -1,0 +1,4 @@
+rule included {
+    condition:
+        true
+}

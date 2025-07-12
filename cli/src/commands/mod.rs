@@ -23,16 +23,17 @@ use std::io::stdout;
 use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Context};
-use clap::{command, crate_authors, ArgMatches, Command};
+use clap::{arg, command, crate_authors, ArgMatches, Command};
 use crossterm::tty::IsTty;
 use superconsole::{Component, Line, Lines, Span, SuperConsole};
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 use yansi::Color::Green;
 use yansi::Paint;
 
-use crate::{commands, APP_HELP_TEMPLATE};
-use yara_x::{Compiler, Rules, SourceCode};
-
+use crate::config::Config;
 use crate::walk::Walker;
+use crate::{commands, help, APP_HELP_TEMPLATE};
+use yara_x::{Compiler, Rules, SourceCode};
 
 pub fn command(name: &'static str) -> Command {
     Command::new(name).help_template(
@@ -49,7 +50,13 @@ pub fn cli() -> Command {
     command!()
         .author(crate_authors!("\n")) // requires `cargo` feature
         .arg_required_else_help(true)
+        .arg(
+            arg!(-C --config <CONFIG_FILE> "Config file")
+                .value_parser(existing_path_parser)
+                .long_help(help::CONFIG_FILE),
+        )
         .help_template(APP_HELP_TEMPLATE)
+        .subcommand_required(true)
         .subcommands(vec![
             commands::scan(),
             commands::compile(),
@@ -114,39 +121,79 @@ fn meta_file_value_parser(
 ///
 /// Returns the namespace and the path. If the namespace is not provided
 /// returns [`None`].
+///
+/// In Windows, namespaces with a single character are not allowed as they can
+/// be confused with a drive letter.
 fn path_with_namespace_parser(
     input: &str,
 ) -> Result<(Option<String>, PathBuf), anyhow::Error> {
     if let Some((namespace, path)) = input.split_once(':') {
+        // In Windows a namespace with a single letter could actually be a
+        // drive letter.
+        #[cfg(target_os = "windows")]
+        if namespace.len() == 1 {
+            return Ok((None, PathBuf::from(input)));
+        }
         Ok((Some(namespace.to_string()), PathBuf::from(path)))
     } else {
         Ok((None, PathBuf::from(input)))
     }
 }
 
-pub fn create_compiler(
+/// Parses a path and makes sure that it exists.
+fn existing_path_parser(input: &str) -> Result<PathBuf, anyhow::Error> {
+    let path = PathBuf::from(input);
+    if path.try_exists()? {
+        Ok(path)
+    } else {
+        Err(anyhow!("file not found"))
+    }
+}
+
+pub fn create_compiler<'a>(
     external_vars: Option<Vec<(String, serde_json::Value)>>,
     args: &ArgMatches,
-) -> Result<Compiler, anyhow::Error> {
-    let mut compiler: Compiler<'_> = Compiler::new();
+    config: &Config,
+) -> Result<Compiler<'a>, anyhow::Error> {
+    let mut compiler = Compiler::new();
 
     compiler
         .relaxed_re_syntax(
-            args.get_one::<bool>("relaxed-re-syntax")
+            args.try_get_one::<bool>("relaxed-re-syntax")
+                .unwrap_or_default()
                 .cloned()
                 .unwrap_or_default(),
         )
         .colorize_errors(stdout().is_tty());
 
-    for m in args.get_many::<String>("ignore-module").into_iter().flatten() {
-        println!("ignore {}", m);
-        compiler.ignore_module(m);
+    for module in args
+        .try_get_many::<String>("ignore-module")
+        .unwrap_or_default()
+        .into_iter()
+        .flatten()
+    {
+        compiler.ignore_module(module);
+    }
+
+    for dir in args
+        .try_get_many::<PathBuf>("include-dir")
+        .unwrap_or_default()
+        .into_iter()
+        .flatten()
+    {
+        compiler.add_include_dir(dir);
     }
 
     let disabled_warnings: Vec<_> = args
-        .get_many::<String>("disable-warnings")
+        .try_get_many::<String>("disable-warnings")
+        .unwrap_or_default()
         .into_iter()
         .flatten()
+        .chain(config.warnings.iter().filter_map(
+            |(warning_id, warning_config)| {
+                warning_config.disabled.then_some(warning_id)
+            },
+        ))
         .collect();
 
     // If the `disabled_warnings` vector contains "all", all warnings will
@@ -173,11 +220,12 @@ pub fn compile_rules<'a, P>(
     paths: P,
     external_vars: Option<Vec<(String, serde_json::Value)>>,
     args: &ArgMatches,
+    config: &Config,
 ) -> Result<Rules, anyhow::Error>
 where
     P: Iterator<Item = &'a (Option<String>, PathBuf)>,
 {
-    let mut compiler = create_compiler(external_vars, args)?;
+    let mut compiler = create_compiler(external_vars, args, config)?;
 
     let mut console =
         if stdout().is_tty() { SuperConsole::new() } else { None };
@@ -290,10 +338,33 @@ impl Component for CompileState {
     }
 }
 
-fn truncate_with_ellipsis(s: Cow<str>, max_length: usize) -> Cow<str> {
-    if s.len() <= max_length {
-        s
-    } else {
-        format!("{}...", &s[..max_length - 3]).into()
+/// Truncates the string `s` to fit within the specified console width.
+///
+/// If `s` fits within `max_width`, it is returned unchanged along with its
+/// actual display width. If `s` exceeds `max_width`, it is truncated to exactly
+/// `max_width` columns, including a trailing ellipsis ("...") to indicate
+/// truncation.
+///
+/// Note: The display width refers to the number of columns the string occupies
+/// in the console—not its byte length or character count.
+fn truncate_with_ellipsis(s: Cow<str>, max_width: usize) -> (Cow<str>, usize) {
+    let width = s.width();
+
+    if s.width() <= max_width {
+        return (s, width);
     }
+
+    let mut with = 0;
+    let mut last_char_idx = 0;
+
+    for (idx, c) in s.char_indices() {
+        last_char_idx = idx;
+        let char_width = c.width().unwrap_or(0);
+        if with + char_width + 3 >= max_width {
+            break;
+        }
+        with += char_width;
+    }
+
+    (format!("{}...", &s[..last_char_idx]).into(), with + 3)
 }

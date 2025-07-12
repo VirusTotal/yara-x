@@ -20,10 +20,13 @@ pub enum SerializationError {
     #[error("not a YARA-X compiled rules file")]
     InvalidFormat,
 
-    /// The data seems to be YARA-X serialized rules, but it's invalid or
-    /// corrupted.
-    #[error("invalid YARA-X compiled rules file")]
-    InvalidEncoding(#[from] bincode::Error),
+    /// Error occurred while encoding YARA-X rules.
+    #[error("cannot encode YARA-X rules")]
+    EncodeError(#[from] bincode::error::EncodeError),
+
+    /// Error occurred while decoding YARA-X rules.
+    #[error("cannot decode YARA-X rules")]
+    DecodeError(#[from] bincode::error::DecodeError),
 
     /// I/O error while trying to read or write serialized data.
     #[error(transparent)]
@@ -56,19 +59,26 @@ pub enum CompileError {
     DuplicateTag(Box<DuplicateTag>),
     EmptyPatternSet(Box<EmptyPatternSet>),
     EntrypointUnsupported(Box<EntrypointUnsupported>),
+    IncludeError(Box<IncludeError>),
+    IncludeNotAllowed(Box<IncludeNotAllowed>),
+    IncludeNotFound(Box<IncludeNotFound>),
     InvalidBase64Alphabet(Box<InvalidBase64Alphabet>),
     InvalidEscapeSequence(Box<InvalidEscapeSequence>),
     InvalidFloat(Box<InvalidFloat>),
     InvalidInteger(Box<InvalidInteger>),
+    InvalidMetadata(Box<InvalidMetadata>),
     InvalidModifier(Box<InvalidModifier>),
     InvalidModifierCombination(Box<InvalidModifierCombination>),
     InvalidPattern(Box<InvalidPattern>),
     InvalidRange(Box<InvalidRange>),
     InvalidRegexp(Box<InvalidRegexp>),
     InvalidRegexpModifier(Box<InvalidRegexpModifier>),
+    InvalidRuleName(Box<InvalidRuleName>),
+    InvalidTag(Box<InvalidTag>),
     InvalidUTF8(Box<InvalidUTF8>),
     MethodNotAllowedInWith(Box<MethodNotAllowedInWith>),
     MismatchingTypes(Box<MismatchingTypes>),
+    MissingMetadata(Box<MissingMetadata>),
     MixedGreediness(Box<MixedGreediness>),
     NumberOutOfRange(Box<NumberOutOfRange>),
     PotentiallySlowLoop(Box<PotentiallySlowLoop>),
@@ -81,6 +91,7 @@ pub enum CompileError {
     UnknownIdentifier(Box<UnknownIdentifier>),
     UnknownModule(Box<UnknownModule>),
     UnknownPattern(Box<UnknownPattern>),
+    UnknownTag(Box<UnknownTag>),
     UnusedPattern(Box<UnusedPattern>),
     WrongArguments(Box<WrongArguments>),
     WrongType(Box<WrongType>),
@@ -93,33 +104,33 @@ impl CompileError {
     ) -> Self {
         match err {
             ast::Error::SyntaxError { message, span } => {
-                SyntaxError::build(report_builder, message, span.into())
+                SyntaxError::build(report_builder, message, report_builder.span_to_code_loc(span))
             }
             ast::Error::InvalidInteger { message, span } => {
-                InvalidInteger::build(report_builder, message, span.into())
+                InvalidInteger::build(report_builder, message, report_builder.span_to_code_loc(span))
             }
             ast::Error::InvalidFloat { message, span } => {
-                InvalidFloat::build(report_builder, message, span.into())
+                InvalidFloat::build(report_builder, message, report_builder.span_to_code_loc(span))
             }
             ast::Error::InvalidRegexpModifier { message, span } => {
                 InvalidRegexpModifier::build(
                     report_builder,
                     message,
-                    span.into(),
+                    report_builder.span_to_code_loc(span),
                 )
             }
             ast::Error::InvalidEscapeSequence { message, span } => {
                 InvalidEscapeSequence::build(
                     report_builder,
                     message,
-                    span.into(),
+                    report_builder.span_to_code_loc(span),
                 )
             }
             ast::Error::UnexpectedEscapeSequence(span) => {
-                UnexpectedEscapeSequence::build(report_builder, span.into())
+                UnexpectedEscapeSequence::build(report_builder, report_builder.span_to_code_loc(span))
             }
             ast::Error::InvalidUTF8(span) => {
-                InvalidUTF8::build(report_builder, span.into())
+                InvalidUTF8::build(report_builder, report_builder.span_to_code_loc(span))
             }
         }
     }
@@ -414,9 +425,11 @@ pub struct EntrypointUnsupported {
 #[associated_enum(CompileError)]
 #[error(code = "E018", title = "slow pattern")]
 #[label("this pattern may slow down the scan", error_loc)]
+#[footer(note)]
 pub struct SlowPattern {
     report: Report,
     error_loc: CodeLoc,
+    note: Option<String>,
 }
 
 /// A pattern has modifiers that can't be used together.
@@ -647,6 +660,238 @@ pub struct TooManyPatterns {
 pub struct MethodNotAllowedInWith {
     report: Report,
     error_loc: CodeLoc,
+}
+
+/// Some metadata entry is invalid. This is only used if the compiler is
+/// configured to check for valid metadata (see: [`crate::linters::Metadata`]).
+///
+/// ## Example
+///
+/// ```text
+/// error[E037]: metadata `author` is not valid
+/// --> test.yar:4:5
+///   |
+/// 4 |     author = 1234
+///   |              ---- `author` must be a string
+///   |
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E037", title = "metadata `{name}` is not valid")]
+#[label(
+    "{label}",
+    label_loc
+)]
+pub struct InvalidMetadata {
+    report: Report,
+    name: String,
+    label_loc: CodeLoc,
+    label: String,
+}
+
+/// Missing metadata. This is only used if the compiler is configured to check
+/// for required metadata (see:  [`crate::linters::Metadata`]).
+///
+/// ## Example
+///
+/// ```text
+/// error[E038]: required metadata is missing
+///  --> test.yar:12:6
+///    |
+/// 12 | rule pants {
+///    |      ----- required metadata "date" not found
+///    |
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(
+    code = "E038",
+    title = "required metadata is missing"
+)]
+#[label(
+    "required metadata `{name}` not found",
+    rule_loc
+)]
+#[footer(note)]
+pub struct MissingMetadata {
+    report: Report,
+    rule_loc: CodeLoc,
+    name: String,
+    note: Option<String>,
+}
+
+/// Rule name does not match regex. This is only used if the compiler is
+/// configured to check for it (see: [`crate::linters::RuleName`]).
+///
+/// ## Example
+///
+/// ```text
+/// error[E039]: rule name does not match regex `APT_.*`
+///  --> test.yar:13:6
+///    |
+/// 13 | rule pants {
+///    |      ----- this rule name does not match regex `APT_.*`
+///    |
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(
+    code = "E039",
+    title = "rule name does not match regex `{regex}`"
+)]
+#[label(
+    "this rule name does not match regex `{regex}`",
+    rule_loc
+)]
+pub struct InvalidRuleName {
+    report: Report,
+    rule_loc: CodeLoc,
+    regex: String,
+}
+
+/// Unknown tag. This is only used if the compiler is configured to check
+/// for required tags (see:  [`crate::linters::Tags`]).
+///
+/// ## Example
+///
+/// ```text
+/// error[E040]: tag not in allowed list
+///  --> rules/test.yara:1:10
+///   |
+/// 1 | rule a : foo {
+///   |          ^^^ tag `foo` not in allowed list
+///   |
+///   = note: Allowed tags: test, bar
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(
+    code = "E040",
+    title = "tag not in allowed list"
+)]
+#[label(
+    "tag `{name}` not in allowed list",
+    tag_loc
+)]
+#[footer(note)]
+pub struct UnknownTag {
+    report: Report,
+    tag_loc: CodeLoc,
+    name: String,
+    note: Option<String>,
+}
+
+/// Tag does not match regex. This is only used if the compiler is configured to
+/// check for it (see: [`crate::linters::Tags`]).
+///
+/// ## Example
+///
+/// ```text
+/// error[E041]: tag does not match regex `bar`
+///  --> rules/test.yara:1:10
+///   |
+/// 1 | rule a : foo {
+///   |          ^^^ tag `foo` does not match regex `bar`
+///   |
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(
+    code = "E041",
+    title = "tag does not match regex `{regex}`"
+)]
+#[label(
+    "tag `{name}` does not match regex `{regex}`",
+    tag_loc
+)]
+pub struct InvalidTag {
+    report: Report,
+    tag_loc: CodeLoc,
+    name: String,
+    regex: String,
+}
+
+/// An error occurred while including a file.
+///
+/// ## Example
+///
+/// ```text
+/// error[E042]: error including file
+///  --> line:1:1
+///   |
+/// 1 | include "unknown"
+///   | ^^^^^^^^^^^^^^^^^ failed with error: Permission denied (os error 13)
+///   |
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(
+    code = "E042",
+    title = "error including file"
+)]
+#[label(
+    "failed with error: {error}",
+    include_loc
+)]
+pub struct IncludeError {
+    report: Report,
+    include_loc: CodeLoc,
+    error: String,
+}
+
+/// An included file was not found.
+///
+/// ## Example
+///
+/// ```text
+/// error[E042]: include file not found
+///  --> line:1:1
+///   |
+/// 1 | include "unknown"
+///   | ^^^^^^^^^^^^^^^^^ `unknown` not found in any of the include directories
+///   |
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(
+    code = "E043",
+    title = "include file not found"
+)]
+#[label(
+    "`{file_path}` not found in any of the include directories",
+    include_loc
+)]
+pub struct IncludeNotFound {
+    report: Report,
+    file_path: String,
+    include_loc: CodeLoc,
+}
+
+/// An include statement was used, but includes are disabled
+///
+/// # Example
+///
+/// ```text
+/// error[E044]: include statements not allowed
+///  --> line:1:1
+///
+/// 1 | include "some_file"
+///   | ^^^^^^^^^^^^^^^^^^^ includes are disabled for this compilation
+///   |
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(
+    code = "E044",
+    title = "include statements not allowed"
+)]
+#[label(
+    "includes are disabled for this compilation",
+    include_loc
+)]
+pub struct IncludeNotAllowed {
+    report: Report,
+    include_loc: CodeLoc,
 }
 
 /// A custom error has occurred.

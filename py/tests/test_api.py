@@ -29,6 +29,12 @@ def test_error_on_slow_pattern():
     compiler.add_source(r'rule test {strings: $a = /a.*/ condition: $a}')
 
 
+def test_invalid_rule_name_regexp():
+  compiler = yara_x.Compiler()
+  with pytest.raises(ValueError):
+    compiler.rule_name_regexp("(AXS|ERS")
+
+
 def test_int_globals():
   compiler = yara_x.Compiler()
   compiler.define_global('some_int', 1)
@@ -126,7 +132,7 @@ def test_metadata():
 			qux = "qux"
 			quux = "qu\x00x"
 		condition:
-		  true	
+		  true
 	}
 	''')
 
@@ -145,7 +151,7 @@ def test_tags():
   rules = yara_x.compile('''
 	rule test : tag1 tag2 {
 		condition:
-		  true	
+		  true
 	}
 	''')
 
@@ -197,9 +203,13 @@ def test_scanner_timeout():
 
 
 def test_module_outputs():
+  import datetime
   rules = yara_x.compile('import "test_proto2" rule foo {condition: false}')
   module_outputs = rules.scan(b'').module_outputs
-  assert module_outputs['test_proto2']['int32One'] == 1
+  assert module_outputs['test_proto2']['int32_one'] == 1
+  assert module_outputs['test_proto2']['bytes_foo'] == b'foo'
+  assert module_outputs['test_proto2']['bytes_raw'] == b'\xfcH\x83\xe4\xf0\xeb3]\x8bE\x00H'
+  assert module_outputs['test_proto2']['timestamp'] == datetime.datetime(2025, 5, 30, 7, 50, 40, tzinfo=datetime.timezone.utc)
 
 
 def test_ignored_modules():
@@ -269,12 +279,42 @@ def test_console_log():
   scanner.scan(b'')
   assert ok
 
+
 def test_format():
-    import io
-    expected_output = "rule test {\n  condition:\n    true\n}\n"
-    inp = io.StringIO("rule test {condition: true}")
-    output = io.StringIO()
-    fmt = yara_x.Formatter()
-    fmt.format(inp, output)
-    result = output.getvalue()
-    assert result == expected_output
+  import io
+  expected_output = (
+      '''rule test {
+  strings:
+    $a = "foo"
+
+  condition:
+    $a at 0
+}
+''')
+  inp = io.StringIO(
+      'rule test { strings: $a = "foo" condition: $a at 0 }')
+  output = io.StringIO()
+  fmt = yara_x.Formatter()
+  fmt.format(inp, output)
+  result = output.getvalue()
+  assert result == expected_output
+
+
+def test_module():
+  with pytest.raises(ValueError):
+    yara_x.Module('AXS')
+
+  # We aren't interested in testing the actual parsing functionality of the
+  # module as that is covered in module tests. Instead we just want to make sure
+  # we get a dict object back, and we can do that by passing non-PE data.
+  result = yara_x.Module('PE').invoke(b'ERS')
+  assert isinstance(result, dict)
+
+
+def test_compiler_disables_includes():
+  compiler = yara_x.Compiler()
+  compiler.enable_includes(False)
+
+  with pytest.raises(yara_x.CompileError,
+                     match="include statements not allowed"):
+    compiler.add_source(f'include "foo.yar"\\nrule main {{ condition: true }}')

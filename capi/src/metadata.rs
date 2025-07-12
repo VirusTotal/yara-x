@@ -4,11 +4,11 @@ use std::ffi::c_char;
 #[repr(C)]
 #[allow(missing_docs)]
 pub enum YRX_METADATA_TYPE {
-    I64,
-    F64,
-    BOOLEAN,
-    STRING,
-    BYTES,
+    YRX_I64,
+    YRX_F64,
+    YRX_BOOLEAN,
+    YRX_STRING,
+    YRX_BYTES,
 }
 
 /// Represents a metadata value that contains raw bytes.

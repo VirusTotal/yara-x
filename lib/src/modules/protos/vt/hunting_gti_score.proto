@@ -1,0 +1,26 @@
+// THIS FILE IS GENERATED AUTOMATICALLY. DO NOT EDIT.
+// LINT: LEGACY_NAMES
+
+syntax = "proto3";
+
+package vt.hunting_gti_score;
+
+import "vt/gti_score.proto";
+
+message HuntingGtiVerdict {
+  vt.gti_score.Verdict value = 1;
+}
+
+message HuntingGtiThreatScore {
+  int32 value = 1;
+}
+
+message HuntingGtiSeverity {
+  vt.gti_score.Severity value = 1;
+}
+
+message HuntingGtiScore {
+  HuntingGtiVerdict verdict = 1;
+  HuntingGtiThreatScore threat_score = 2;
+  HuntingGtiSeverity severity = 3;
+}

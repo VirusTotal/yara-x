@@ -19,3 +19,8 @@ rule test_4 {
   condition:
     5 - 2 != 6 - 3
 }
+
+rule test_5 {
+  condition:
+    ---1 == -1
+}

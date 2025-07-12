@@ -1,6 +1,3 @@
-#[cfg(feature = "logging")]
-use log::error;
-
 use crate::compiler::RegexpId;
 use crate::modules::prelude::*;
 use crate::modules::protos::cuckoo::*;
@@ -26,23 +23,26 @@ fn set_local(value: schema::CuckooJson) {
 }
 
 #[module_main]
-fn main(_data: &[u8], meta: Option<&[u8]>) -> Cuckoo {
-    let parsed =
-        serde_json::from_slice::<schema::CuckooJson>(meta.unwrap_or_default());
+fn main(_data: &[u8], meta: Option<&[u8]>) -> Result<Cuckoo, ModuleError> {
+    let meta = match meta {
+        None | Some([]) => {
+            set_local(schema::CuckooJson::default());
+            return Ok(Cuckoo::new());
+        }
+        Some(meta) => meta,
+    };
 
-    match parsed {
+    match serde_json::from_slice::<schema::CuckooJson>(meta) {
         Ok(parsed) => {
             set_local(parsed);
         }
-        #[cfg(feature = "logging")]
         Err(e) => {
-            error!("can't parse cuckoo report: {}", e);
+            set_local(schema::CuckooJson::default());
+            return Err(ModuleError::MetadataError { err: e.to_string() });
         }
-        #[cfg(not(feature = "logging"))]
-        Err(_) => {}
     };
 
-    Cuckoo::new()
+    Ok(Cuckoo::new())
 }
 
 #[module_export(name = "network.dns_lookup")]
@@ -53,11 +53,12 @@ fn network_dns_lookup_r(
     Some(
         get_local()?
             .network
+            .as_ref()?
             .domains
             .iter()
             .flatten()
             .filter(|domain| {
-                ctx.regexp_matches(regexp_id, domain.domain.as_bytes())
+                matches!(&domain.domain, Some(domain_domain) if ctx.regexp_matches(regexp_id, domain_domain.as_bytes()))
             })
             .count() as _,
     )
@@ -71,12 +72,13 @@ fn network_http_request_r(
     Some(
         get_local()?
             .network
+            .as_ref()?
             .http
             .iter()
             .flatten()
             .filter(|http| {
                 http.method.is_some() // ~> is request (is not response)
-                    && ctx.regexp_matches(regexp_id, http.uri.as_bytes())
+                    && matches!(&http.uri, Some(uri) if ctx.regexp_matches(regexp_id, uri.as_bytes()))
             })
             .count() as _,
     )
@@ -87,6 +89,7 @@ fn network_http_get_r(ctx: &ScanContext, regexp_id: RegexpId) -> Option<i64> {
     Some(
         get_local()?
             .network
+            .as_ref()?
             .http
             .iter()
             .flatten()
@@ -95,7 +98,7 @@ fn network_http_get_r(ctx: &ScanContext, regexp_id: RegexpId) -> Option<i64> {
                     .as_ref()
                     .map(|method| method.eq_ignore_ascii_case("get"))
                     .unwrap_or(false)
-                    && ctx.regexp_matches(regexp_id, http.uri.as_bytes())
+                    && matches!(&http.uri, Some(uri) if ctx.regexp_matches(regexp_id, uri.as_bytes()))
             })
             .count() as _,
     )
@@ -106,6 +109,7 @@ fn network_http_post_r(ctx: &ScanContext, regexp_id: RegexpId) -> Option<i64> {
     Some(
         get_local()?
             .network
+            .as_ref()?
             .http
             .iter()
             .flatten()
@@ -114,7 +118,7 @@ fn network_http_post_r(ctx: &ScanContext, regexp_id: RegexpId) -> Option<i64> {
                     .as_ref()
                     .map(|method| method.eq_ignore_ascii_case("post"))
                     .unwrap_or(false)
-                    && ctx.regexp_matches(regexp_id, http.uri.as_bytes())
+                    && matches!(&http.uri, Some(uri) if ctx.regexp_matches(regexp_id, uri.as_bytes()))
             })
             .count() as _,
     )
@@ -128,6 +132,7 @@ fn network_http_user_agent_r(
     Some(
         get_local()?
             .network
+            .as_ref()?
             .http
             .iter()
             .flatten()
@@ -148,17 +153,20 @@ fn network_tcp_ri(
     Some(
         get_local()?
             .network
+            .as_ref()?
             .tcp
             .iter()
             .flatten()
-            .filter(|tcp| {
-                tcp.dport == port as u64
-                    && tcp
-                        .dst
-                        .iter()
-                        .chain(tcp.dst_domain.iter())
-                        .any(|dst| ctx.regexp_matches(dst_re, dst.as_bytes()))
-            })
+            .filter(|tcp|
+                matches!(tcp.dport, Some(dport) if {
+                    dport == port as u64
+                        && tcp
+                            .dst
+                            .iter()
+                            .chain(tcp.dst_domain.iter())
+                            .any(|dst| ctx.regexp_matches(dst_re, dst.as_bytes()))
+                })
+            )
             .count() as _,
     )
 }
@@ -172,17 +180,18 @@ fn network_udp_ri(
     Some(
         get_local()?
             .network
+            .as_ref()?
             .udp
             .iter()
             .flatten()
-            .filter(|udp| {
-                udp.dport == port as u64
+            .filter(|udp| matches!(udp.dport, Some(dport) if {
+                dport == port as u64
                     && udp
                         .dst
                         .iter()
                         .chain(udp.dst_domain.iter())
                         .any(|dst| ctx.regexp_matches(dst_re, dst.as_bytes()))
-            })
+            }))
             .count() as _,
     )
 }
@@ -192,6 +201,7 @@ fn network_host_r(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
     Some(
         get_local()?
             .network
+            .as_ref()?
             .hosts
             .iter()
             .flatten()
@@ -205,7 +215,9 @@ fn sync_mutex_r(ctx: &ScanContext, mutex_re: RegexpId) -> Option<i64> {
     Some(
         get_local()?
             .behavior
+            .as_ref()?
             .summary
+            .as_ref()?
             .mutexes
             .iter()
             .flatten()
@@ -222,7 +234,9 @@ fn filesystem_file_access_r(
     Some(
         get_local()?
             .behavior
+            .as_ref()?
             .summary
+            .as_ref()?
             .files
             .iter()
             .flatten()
@@ -239,7 +253,9 @@ fn registry_key_access_r(
     Some(
         get_local()?
             .behavior
+            .as_ref()?
             .summary
+            .as_ref()?
             .keys
             .iter()
             .flatten()

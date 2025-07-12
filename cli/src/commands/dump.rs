@@ -1,17 +1,17 @@
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command, ValueEnum};
 
-use colored_json::{ColorMode, ToColoredJson};
 use crossterm::tty::IsTty;
 use protobuf::MessageField;
-use protobuf_json_mapping::print_to_string;
 use std::fs::File;
 use std::io::{stdin, stdout, Read};
 use std::path::PathBuf;
 use strum_macros::Display;
 
-use crate::help;
 use yara_x::mods::*;
-use yara_x_proto_yaml::Serializer;
+use yara_x_proto_json::Serializer as JsonSerializer;
+use yara_x_proto_yaml::Serializer as YamlSerializer;
+
+use crate::help;
 
 #[derive(Debug, Clone, ValueEnum, Display, PartialEq)]
 enum SupportedModules {
@@ -149,19 +149,17 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
 
     match output_format {
         Some(OutputFormats::Json) => {
-            let mode = if use_color { ColorMode::On } else { ColorMode::Off };
-            println!(
-                "{}",
-                print_to_string(module_output.as_ref())?
-                    .to_colored_json(mode)?
-            );
-        }
-        Some(OutputFormats::Yaml) | None => {
-            let mut serializer = Serializer::new(stdout());
+            let mut serializer = JsonSerializer::new(stdout());
             serializer
                 .with_colors(use_color)
-                .serialize(module_output.as_ref())
-                .expect("Failed to serialize");
+                .serialize(module_output.as_ref())?;
+            println!();
+        }
+        Some(OutputFormats::Yaml) | None => {
+            let mut serializer = YamlSerializer::new(stdout());
+            serializer
+                .with_colors(use_color)
+                .serialize(module_output.as_ref())?;
             println!();
         }
     }

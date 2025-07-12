@@ -9,6 +9,7 @@ edition.workspace = true
 readme.workspace = true
 license.workspace = true
 homepage.workspace = true
+repository.workspace = true
 rust-version.workspace = true
 
 [[bin]]
@@ -41,9 +42,7 @@ logging = ["dep:log", "dep:env_logger"]
 # performance.
 rules-profiling = ["yara-x/rules-profiling"]
 
-
 [dependencies]
-ascii_tree = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 clap_complete = { workspace = true }
@@ -55,24 +54,26 @@ enable-ansi-support = { workspace = true }
 env_logger = { workspace = true, optional = true, features = ["auto-color"] }
 log = { workspace = true, optional = true }
 protobuf = { workspace = true }
-protobuf-json-mapping = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
+strum = { workspace = true }
+strum_macros = { workspace = true }
 yansi = { workspace = true }
 yara-x = { workspace = true, features = ["parallel-compilation"] }
 yara-x-parser = { workspace = true }
 yara-x-proto-yaml = { workspace = true }
+yara-x-proto-json = { workspace = true }
 yara-x-fmt = { workspace = true }
 
 chardetng = "0.1.17"
-colored_json = "5.0.0"
 crossbeam = "0.8.4"
-crossterm = "0.28.1"
+crossterm = "0.29.0"
 encoding_rs = "0.8.35"
-strum_macros = "0.26.4"
 superconsole = "0.2.0"
+unicode-width = "0.2.0"
 wild = "2.2.1"
 
 [dev-dependencies]
 assert_cmd = "2.0.16"
+assert_fs = "1.1.2"
 predicates = { workspace = true }

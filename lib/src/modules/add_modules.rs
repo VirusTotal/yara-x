@@ -34,4 +34,6 @@ add_module!(modules, "text", text, "text.Text", Some("text"), Some(text::__main_
 add_module!(modules, "time", time, "time.Time", Some("time"), Some(time::__main__ as MainFn));
 #[cfg(feature = "vba-module")]
 add_module!(modules, "vba", vba, "vba.Vba", Some("vba"), Some(vba::__main__ as MainFn));
+#[cfg(feature = "vt-module")]
+add_module!(modules, "vt", titan, "vt.titan.LiveHuntData", Some("vt"), Some(vt::__main__ as MainFn));
 }

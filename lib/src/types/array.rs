@@ -1,9 +1,12 @@
+use std::cell::OnceCell;
 use std::rc::Rc;
 
 use bstr::BString;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{Struct, TypeValue, Value};
+use crate::symbols::{Symbol, SymbolTable};
+use crate::types::{Struct, TypeValue};
+use crate::wasm::WasmExport;
 
 #[derive(Serialize, Deserialize)]
 pub(crate) enum Array {
@@ -15,12 +18,28 @@ pub(crate) enum Array {
 }
 
 impl Array {
+    #[allow(clippy::declare_interior_mutable_const)]
+    const BUILTIN_METHODS: OnceCell<Rc<SymbolTable>> = OnceCell::new();
+
+    pub fn builtin_methods(&self) -> Rc<SymbolTable> {
+        #[allow(clippy::borrow_interior_mutable_const)]
+        Self::BUILTIN_METHODS
+            .get_or_init(|| {
+                let mut s = SymbolTable::new();
+                for (name, func) in WasmExport::get_methods("Array") {
+                    s.insert(name, Symbol::Func(Rc::new(func)));
+                }
+                Rc::new(s)
+            })
+            .clone()
+    }
+
     pub fn deputy(&self) -> TypeValue {
         match self {
-            Array::Integers(_) => TypeValue::Integer(Value::Unknown),
-            Array::Floats(_) => TypeValue::Float(Value::Unknown),
-            Array::Bools(_) => TypeValue::Bool(Value::Unknown),
-            Array::Strings(_) => TypeValue::String(Value::Unknown),
+            Array::Integers(_) => TypeValue::unknown_integer(),
+            Array::Floats(_) => TypeValue::unknown_float(),
+            Array::Bools(_) => TypeValue::unknown_bool(),
+            Array::Strings(_) => TypeValue::unknown_string(),
             Array::Structs(s) => TypeValue::Struct(s.first().unwrap().clone()),
         }
     }

@@ -114,6 +114,32 @@ class Compiler:
         """
         ...
 
+    def rule_name_regexp(self, regexp: str) -> None:
+        r"""
+        Tell the compiler that any rule must match this regular expression or it
+        will result in a compiler warning.
+
+        # Raises
+
+        [ValueError](https://docs.python.org/3/library/exceptions.html#ValueError)
+        if the regular expression is invalid.
+        """
+        ...
+
+    def required_metadata(self, regexp: typing.Dict[str, str]) -> None:
+        r"""
+        Specify required metadata identifiers and types for the values in each
+        rule. Any rule which does not meet these requirements will result in a
+        compiler warning.
+
+        The key in your dictionary corresponds to the metadata identifier and
+        the value in your dictionary corresponds to the required type for that
+        metadata in the rule.
+
+        Acceptable values are documented in [the config file](https://virustotal.github.io/yara-x/docs/cli/config-file/).
+        """
+        ...
+
 class Formatter:
     r"""
     Formats YARA rules.
@@ -260,7 +286,7 @@ class ScanResults:
 
     def module_outputs(self) -> dict:
         r"""
-        Rules that matched during the scan.
+        Module output from the scan.
         """
         ...
 
@@ -272,3 +298,12 @@ def compile(src: str) -> Rules:
     variables. For more complex use cases you will need to use a [`Compiler`].
     """
     ...
+
+class Module:
+    r"""A YARA-X module."""
+    def new(self, name: str) -> Module:
+        ...
+
+    def invoke(data: str) -> dict:
+        r"""Parse the data and collect module metadata."""
+        ...

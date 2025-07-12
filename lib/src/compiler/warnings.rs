@@ -20,16 +20,24 @@ use crate::compiler::report::{Level, Report, ReportBuilder, CodeLoc, Label, Foot
 pub enum Warning {
     BooleanIntegerComparison(Box<BooleanIntegerComparison>),
     ConsecutiveJumps(Box<ConsecutiveJumps>),
+    DeprecatedField(Box<DeprecatedField>),
     DuplicateImport(Box<DuplicateImport>),
     IgnoredModule(Box<IgnoredModule>),
     IgnoredRule(Box<IgnoredRule>),
+    InvalidMetadata(Box<InvalidMetadata>),
+    InvalidRuleName(Box<InvalidRuleName>),
+    InvalidTag(Box<InvalidTag>),
     InvariantBooleanExpression(Box<InvariantBooleanExpression>),
+    MissingMetadata(Box<MissingMetadata>),
     NonBooleanAsBoolean(Box<NonBooleanAsBoolean>),
     PotentiallySlowLoop(Box<PotentiallySlowLoop>),
     PotentiallyUnsatisfiableExpression(Box<PotentiallyUnsatisfiableExpression>),
     RedundantCaseModifier(Box<RedundantCaseModifier>),
     SlowPattern(Box<SlowPattern>),
     TextPatternAsHex(Box<TextPatternAsHex>),
+    TooManyIterations(Box<TooManyIterations>),
+    UnsatisfiableExpression(Box<UnsatisfiableExpression>),
+    UnknownTag(Box<UnknownTag>),
 }
 
 /// A hex pattern contains two or more consecutive jumps.
@@ -97,7 +105,7 @@ impl ConsecutiveJumps {
     title = "potentially slow loop",
 )]
 #[label(
-"this range can be very large",
+    "this range can be very large",
     loc
 )]
 pub struct PotentiallySlowLoop {
@@ -142,6 +150,44 @@ pub struct PotentiallyUnsatisfiableExpression {
     report: Report,
     quantifier_loc: CodeLoc,
     at_loc: CodeLoc,
+}
+
+/// A boolean expression can't be satisfied.
+///
+/// ## Example
+///
+/// ```text
+/// warning[unsatisfiable_expr]: unsatisfiable expression
+/// --> test.yar:6:34
+/// |
+/// 6 | rule x { condition: "AD" == hash.sha256(0,filesize) }
+/// |                     ----         ------------------ this is a lowercase string
+/// |                     |
+/// |                     this contains uppercase characters
+/// |
+/// = note: a lowercase strings can't be equal to a string containing uppercase characters
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "unsatisfiable_expr",
+    title = "unsatisfiable expression"
+)]
+#[label(
+    "{label_1}",
+    loc_1
+)]
+#[label(
+    "{label_2}",
+    loc_2
+)]
+#[footer(note)]
+pub struct UnsatisfiableExpression {
+    report: Report,
+    label_1: String,
+    label_2: String,
+    loc_1: CodeLoc,
+    loc_2: CodeLoc,
+    note: Option<String>,
 }
 
 
@@ -353,9 +399,11 @@ pub struct RedundantCaseModifier {
     "this pattern may slow down the scan",
     pattern_loc
 )]
+#[footer(note)]
 pub struct SlowPattern {
     report: Report,
     pattern_loc: CodeLoc,
+    note: Option<String>,
 }
 
 /// An unsupported module has been used.
@@ -460,4 +508,219 @@ pub struct TextPatternAsHex {
     report: Report,
     text: String,
     pattern_loc: CodeLoc,
+}
+
+/// Some metadata entry is invalid. This is only used if the compiler is
+/// configured to check for valid metadata (see: [`crate::linters::Metadata`]).
+///
+/// ## Example
+///
+/// ```text
+/// warning[invalid_metadata]: metadata `author` is not valid
+/// --> test.yar:4:5
+///   |
+/// 4 |     author = 1234
+///   |              ---- `author` must be a string
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "invalid_metadata",
+    title = "metadata `{name}` is not valid"
+)]
+#[label(
+    "{label}",
+    label_loc
+)]
+pub struct InvalidMetadata {
+    report: Report,
+    name: String,
+    label_loc: CodeLoc,
+    label: String,
+}
+
+/// Missing metadata. This is only used if the compiler is configured to check
+/// for required metadata (see:  [`crate::linters::Metadata`]).
+///
+/// ## Example
+///
+/// ```text
+/// warning[missing_metadata]: required metadata is missing
+///  --> test.yar:12:6
+///    |
+/// 12 | rule pants {
+///    |      ----- required metadata "date" not found
+///    |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "missing_metadata",
+    title = "required metadata is missing"
+)]
+#[label(
+    "required metadata `{name}` not found",
+    rule_loc
+)]
+#[footer(note)]
+pub struct MissingMetadata {
+    report: Report,
+    rule_loc: CodeLoc,
+    name: String,
+    note: Option<String>,
+}
+
+/// Rule name does not match regex. This is only used if the compiler is
+/// configured to check for it (see: [`crate::linters::RuleName`]).
+///
+/// ## Example
+///
+/// ```text
+/// warning[invalid_rule_name]: rule name does not match regex `APT_.*`
+///  --> test.yar:13:6
+///    |
+/// 13 | rule pants {
+///    |      ----- this rule name does not match regex `APT_.*`
+///    |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "invalid_rule_name",
+    title = "rule name does not match regex `{regex}`"
+)]
+#[label(
+    "this rule name does not match regex `{regex}`",
+    rule_loc
+)]
+pub struct InvalidRuleName {
+    report: Report,
+    rule_loc: CodeLoc,
+    regex: String,
+}
+
+/// A loop or nested loops have a total number of iterations exceeding a
+/// predefined threshold.
+///
+/// This warning indicates that a rule contains a `for` loop, or a set of nested
+/// `for` loops, that may be very slow because the total number of iterations
+/// is very large.
+///
+/// # Example
+///
+/// ```text
+/// warning[too_many_iterations]: loop has too many iterations
+///  --> test.yar:1:20
+///   |
+/// 1 | rule t { condition: for any i in (0..1000) : ( for any j in (0..1000) : ( true ) ) }
+///   |                    -------------------------------------------------------------- this loop iterates 1000000 times, which may be slow
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "too_many_iterations",
+    title = "loop has too many iterations",
+)]
+#[label(
+    "this loop iterates {iterations} times, which may be slow",
+    loc
+)]
+pub struct TooManyIterations {
+    report: Report,
+    iterations: i64,
+    loc: CodeLoc,
+}
+
+/// Unknown tag. This is only used if the compiler is configured to check
+/// for required tags (see: [`crate::linters::Tags`]).
+///
+/// ## Example
+///
+/// ```text
+/// warning[unknown_tag]: tag not in allowed list
+///  --> rules/test.yara:1:10
+///   |
+/// 1 | rule a : foo {
+///   |          --- tag `foo` not in allowed list
+///   |
+///   = note: allowed tags: test, bar
+/// ```
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "unknown_tag",
+    title = "tag not in allowed list"
+)]
+#[label(
+    "tag `{name}` not in allowed list",
+    tag_loc
+)]
+#[footer(note)]
+pub struct UnknownTag {
+    report: Report,
+    tag_loc: CodeLoc,
+    name: String,
+    note: Option<String>,
+}
+
+/// Tag does not match regex. This is only used if the compiler is configured to
+/// check for it (see: [`crate::linters::Tags`]).
+///
+/// ## Example
+///
+/// ```text
+/// warning[invalid_tag]: tag `foo` does not match regex `bar`
+///  --> rules/test.yara:1:10
+///   |
+/// 1 | rule a : foo {
+///   |          --- tag `foo` does not match regex `bar`
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "invalid_tag",
+    title = "tag `{name}` does not match regex `{regex}`"
+)]
+#[label(
+    "tag `{name}` does not match regex `{regex}`",
+    tag_loc
+)]
+pub struct InvalidTag {
+    report: Report,
+    tag_loc: CodeLoc,
+    name: String,
+    regex: String,
+}
+
+/// A deprecated field was used in a YARA rule.
+/// check for it (see: [`crate::linters::Tags`]).
+///
+/// ## Example
+///
+/// ```text
+/// warning[deprecated_field]: field `foo` is deprecated
+///  --> rules/test.yara:1:10
+///   |
+/// 3 | vt.metadata.foo
+///   |             --- `foo` is deprecated, use `bar` instead
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "deprecated_field",
+    title = "field `{name}` is deprecated`"
+)]
+#[label(
+    "{msg}",
+    loc
+)]
+pub struct DeprecatedField {
+    report: Report,
+    name: String,
+    loc: CodeLoc,
+    msg: String,
 }

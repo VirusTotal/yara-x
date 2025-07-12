@@ -136,13 +136,14 @@ message TestProto2 {
 
   // String values.
 
-  required string             string_foo = 61;
+  required string             string_foo = 61 [(yara.field_options).lowercase = true];
   required string             string_bar = 62;
   optional string             string_undef = 63;
 
   required bytes              bytes_foo = 64;
   required bytes              bytes_bar = 65;
-  optional bytes              bytes_undef = 66;
+  required bytes              bytes_raw = 66;
+  optional bytes              bytes_undef = 67;
 
   enum Enumeration {
     ITEM_0 = 0;
@@ -171,6 +172,8 @@ message TestProto2 {
   map<int64, string>          map_int64_string = 302;
   map<int64, bool>            map_int64_bool = 303;
   map<int64, float>           map_int64_float = 304;
+
+  optional int64              timestamp = 305 [(yara.field_options).fmt = "t"];
 
   /// This field will be visible in YARA as `bool_yara` instead of `bool_proto`.
   optional bool bool_proto = 350 [(yara.field_options).name = "bool_yara"];
@@ -210,6 +213,8 @@ message TestProto2 {
       ]
     }
   ];
+
+  optional string deprecated = 501 [ (yara.field_options).deprecation_msg = "don't use"];
 }
 
 enum TopLevelEnumeration {

@@ -114,23 +114,31 @@ Disable all warnings:
 --disable-warnings
 ```
 
-Disable warning `slow_patterns`:
+Disable warning `slow_pattern`:
 
 ```
---disable-warnings=slow_patterns
+--disable-warnings=slow_pattern
 ```
 
-Disable warnings `slow_patterns` and `redundant_modifier`:
+Disable warnings `slow_pattern` and `redundant_modifier`:
 
 ```
---disable-warnings=slow_patterns,redundant_modifier
+--disable-warnings=slow_pattern,redundant_modifier
 ```
 
 Equivalent to the previous one, but using `--disable-warnings` multiple times:
 
 ```
---disable-warnings=slow_patterns --disable-warnings=redundant_modifier
+--disable-warnings=slow_pattern --disable-warnings=redundant_modifier
 ```
+
+### --include-dir \<PATH\>, -I \<PATH\>
+
+Directory in which to search for included files
+
+If not given, the current working directory is used. May be specified multiple
+times;
+directories will be searched in order.
 
 ### --ignore-module \<MODULE\>
 
@@ -329,6 +337,10 @@ rules in other namespaces.
 ### --disable-warnings
 
 See [--disable-warnings](#--disable-warnings) for the scan command.
+
+### --include-dir <PATH>, -I <PATH>
+
+See [--include-dir](#--include-dir-path--i-path) for the scan command.
 
 ### --ignore-module <MODULE>
 

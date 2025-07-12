@@ -1,7 +1,9 @@
-use lazy_static::lazy_static;
 use protobuf::reflect::MessageDescriptor;
 use protobuf::MessageDyn;
 use rustc_hash::FxHashMap;
+use std::sync::LazyLock;
+
+use thiserror::Error;
 
 pub mod protos {
     include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
@@ -13,7 +15,10 @@ mod tests;
 #[allow(unused_imports)]
 pub(crate) mod prelude {
     pub(crate) use crate::scanner::ScanContext;
-    pub(crate) use crate::wasm::string::*;
+    pub(crate) use crate::wasm::string::FixedLenString;
+    pub(crate) use crate::wasm::string::Lowercase;
+    pub(crate) use crate::wasm::string::RuntimeString;
+    pub(crate) use crate::wasm::string::String as _;
     pub(crate) use crate::wasm::*;
     pub(crate) use bstr::ByteSlice;
     pub(crate) use linkme::distributed_slice;
@@ -23,8 +28,27 @@ pub(crate) mod prelude {
 
 include!("modules.rs");
 
+/// Enum describing errors occurred in modules.
+#[derive(Error, Debug)]
+#[non_exhaustive]
+pub enum ModuleError {
+    /// Invalid format of module metadata.
+    #[error("invalid metadata: {err}")]
+    MetadataError {
+        /// The error that actually occurred.
+        err: String,
+    },
+    /// Error occurred when processing the input data.
+    #[error("internal error: {err}")]
+    InternalError {
+        /// The error that actually occurred.
+        err: String,
+    },
+}
+
 /// Type of module's main function.
-type MainFn = fn(&[u8], Option<&[u8]>) -> Box<dyn MessageDyn>;
+type MainFn =
+    fn(&[u8], Option<&[u8]>) -> Result<Box<dyn MessageDyn>, ModuleError>;
 
 /// Describes a YARA module.
 pub(crate) struct Module {
@@ -74,31 +98,31 @@ macro_rules! add_module {
     }};
 }
 
-lazy_static! {
-    /// `BUILTIN_MODULES` is a static, global map where keys are module names
-    /// and values are [`Module`] structures that describe a YARA module.
-    ///
-    /// This table is populated with the modules defined by a `.proto` file in
-    /// `src/modules/protos`. Each `.proto` file that contains a statement like
-    /// the following one defines a YARA module:
-    ///
-    /// ```protobuf
-    /// option (yara.module_options) = {
-    ///   name : "foo"
-    ///   root_message: "Foo"
-    ///   rust_module: "foo"
-    /// };
-    /// ```
-    ///
-    /// The `name` field is the module's name (i.e: the name used in `import`
-    /// statements), which is also the key in `BUILTIN_MODULES`. `root_message`
-    /// is the name of the message that describes the module's structure. This
-    /// is required because a `.proto` file can define more than one message.
-    ///
-    /// `rust_module` is the name of the Rust module where functions exported
-    /// by the YARA module are defined. This field is optional, if not provided
-    /// the module is considered a data-only module.
-    pub(crate) static ref BUILTIN_MODULES: FxHashMap<&'static str, Module> = {
+/// `BUILTIN_MODULES` is a static, global map where keys are module names
+/// and values are [`Module`] structures that describe a YARA module.
+///
+/// This table is populated with the modules defined by a `.proto` file in
+/// `src/modules/protos`. Each `.proto` file that contains a statement like
+/// the following one defines a YARA module:
+///
+/// ```protobuf
+/// option (yara.module_options) = {
+///   name : "foo"
+///   root_message: "Foo"
+///   rust_module: "foo"
+/// };
+/// ```
+///
+/// The `name` field is the module's name (i.e: the name used in `import`
+/// statements), which is also the key in `BUILTIN_MODULES`. `root_message`
+/// is the name of the message that describes the module's structure. This
+/// is required because a `.proto` file can define more than one message.
+///
+/// `rust_module` is the name of the Rust module where functions exported
+/// by the YARA module are defined. This field is optional, if not provided
+/// the module is considered a data-only module.
+pub(crate) static BUILTIN_MODULES: LazyLock<FxHashMap<&'static str, Module>> =
+    LazyLock::new(|| {
         let mut modules = FxHashMap::default();
         // The `add_modules.rs` file is automatically generated at compile time
         // by `build.rs`. This is an example of how `add_modules.rs` looks like:
@@ -115,8 +139,7 @@ lazy_static! {
         // protobuf in `src/modules/protos` defining a YARA module.
         include!("add_modules.rs");
         modules
-    };
-}
+    });
 
 pub mod mods {
     /*! Utility functions and structures for invoking YARA modules directly.
@@ -136,7 +159,7 @@ pub mod mods {
     # use yara_x;
     let pe_info = yara_x::mods::invoke::<yara_x::mods::PE>(&[]);
     ```
-     */
+    */
 
     /// Data structures defined by the `dotnet` module.
     ///
@@ -266,7 +289,7 @@ pub mod mods {
                 module.root_struct_descriptor.full_name() == proto_name
             })?;
 
-        Some(module.main_fn?(data, meta))
+        module.main_fn?(data, meta).ok()
     }
 
     /// Invoke all YARA modules and return the data produced by them.
@@ -299,4 +322,5 @@ pub mod mods {
     }
 }
 
+#[cfg(any(feature = "pe-module", feature = "macho-module"))]
 pub(crate) mod utils;

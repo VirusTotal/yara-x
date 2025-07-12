@@ -137,29 +137,6 @@ adapt your own programs to the new API.
 However, the APIs are conceptually similar, and the migration process should
 be very simple in most cases.
 
-### No include statements
-
-The `include` statement supported by YARA is not implemented in YARA-X yet.
-This is a temporary situation, though. We plan to support this feature in later
-versions of YARA-X.
-
-Many YARA users employ the `include` statement as a way to join together
-multiple source files. In such cases, they have a main file (let's say
-`index.yar`) that simply includes every other file they want to compile. This
-was required because you can't pass to YARA a directory containing multiple
-source files so that YARA uses all of them. In YARA-X this is possible, you
-can pass a directory with multiple source files. For instance:
-
-```bash
-yr scan my_yara_repository file_to_scan
-```
-
-With the command above YARA-X will use every `*.yar` or `*.yara` file contained
-in `my_yara_repository` (the search is recursive, so it will look into
-subdirectories as well). If all you want is using every file source file in
-a directory, you don't need to use or maintain a `index.yar` file that contains
-`include` statements for every file in that directory.
-
 ### No process scanning
 
 Process scanning is not implemented in YARA-X yet. This may change in the future

@@ -1,0 +1,358 @@
+// THIS FILE IS GENERATED AUTOMATICALLY. DO NOT EDIT.
+// LINT: LEGACY_NAMES
+
+syntax = "proto3";
+
+package vt.fileanalysis;
+
+import "vt/filetypes.proto";
+import "vt/sigma.proto";
+import "vt/tools/net_analysis.proto";
+import "yara.proto";
+
+enum BehaviourTag {
+  option (yara.enum_options) = {
+    name: "BehaviourTrait"
+  };
+
+  UNKNOWN_BEHAVIOUR = 0;
+  DETECT_DEBUG_ENVIRONMENT = 1;
+  DIRECT_CPU_CLOCK_ACCESS = 2;
+  LONG_SLEEPS = 3;
+  SELF_DELETE = 4;
+  HOSTS_MODIFIER = 5;
+  INSTALLS_BROWSER_EXTENSION = 6;
+  PASSWORD_DIALOG = 7;
+  SUDO = 8;
+  PERSISTENCE = 9;
+  SENDS_SMS = 10;
+  CHECKS_GPS = 11;
+  FTP_COMMUNICATION = 12;
+  SSH_COMMUNICATION = 13;
+  TELNET_COMMUNICATION = 14;
+  SMTP_COMMUNICATION = 15;
+  MYSQL_COMMUNICATION = 26;
+  IRC_COMMUNICATION = 17;
+  SUSPICIOUS_DNS = 18;
+  SUSPICIOUS_UDP = 19;
+  BIG_UPSTREAM = 20;
+  TUNNELING = 21;
+  CRYPTO = 22;
+  TELEPHONY = 23;
+  RUNTIME_MODULES = 24;
+  REFLECTION = 25;
+  DECRYPTS_EXE = 27;
+  MACRO_ENVIRON = 28;
+  MACRO_OPEN_FILE = 29;
+  MACRO_WRITE_FILE = 30;
+  MACRO_HANDLE_FILE = 31;
+  MACRO_COPY_FILE = 32;
+  MACRO_CREATE_FILE = 33;
+  MACRO_RUN_FILE = 34;
+  MACRO_HIDE_APP = 35;
+  MACRO_POWERSHELL = 36;
+  MACRO_CREATE_DIR = 37;
+  MACRO_SAVE_WORKBOOK = 38;
+  MACRO_CREATE_OLE = 39;
+  MACRO_ENUM_WINDOWS = 40;
+  MACRO_RUN_DLL = 41;
+  MACRO_DOWNLOAD_URL = 42;
+  MACRO_SEND_KEYS = 43;
+  MACRO_REGISTRY = 44;
+  MACRO_ANTI_ANALYSIS = 45;
+  OBFUSCATED = 46;
+  CLIPBOARD = 47;
+  CHECKS_CPU_NAME = 48;
+  CHECKS_DISK_SPACE = 49;
+  CHECKS_MEMORY_AVAILABLE = 50;
+  CHECKS_HOSTNAME = 51;
+  CHECKS_NETWORK_ADAPTERS = 52;
+  CHECKS_BIOS = 53;
+  CHECKS_PCI_BUS = 54;
+  CHECKS_USB_BUS = 55;
+  EXECUTES_DROPPED_FILE = 56;
+  REPEATED_CLOCK_ACCESS = 57;
+  CHECKS_USER_INPUT = 58;
+  CALLS_WMI = 59;
+  EVAL_FUNCTION = 60;
+  IDLE = 61;
+  SERVICE_SCAN = 62;
+  LISTENS = 63;
+  SETS_PROCESS_NAME = 64;
+  QR_CODE = 65;
+}
+
+enum VerdictTag {
+  option (yara.enum_options) = {
+    name: "BehaviourVerdict"
+  };
+
+  UNKNOWN_VERDICT = 0;
+  CLEAN = 1;
+  MALWARE = 2;
+  GREYWARE = 3;
+  RANSOM = 4;
+  PHISHING = 5;
+  BANKER = 6;
+  ADWARE = 7;
+  EXPLOIT = 8;
+  EVADER = 9;
+  RAT = 10;
+  TROJAN = 11;
+  SPREADER = 12;
+  STEALER = 13;
+}
+
+enum ImpactSeverity {
+  IMPACT_SEVERITY_UNKNOWN = 0;
+  IMPACT_SEVERITY_INFO = 1;
+  IMPACT_SEVERITY_LOW = 2;
+  IMPACT_SEVERITY_MEDIUM = 3;
+  IMPACT_SEVERITY_HIGH = 4;
+}
+
+message BehaviourSummary {
+  repeated string files_opened = 1;
+  repeated string files_written = 2;
+  repeated string files_deleted = 3;
+  repeated FileCopy files_copied = 4;
+  repeated string files_attribute_changed = 5;
+  repeated DroppedFile files_dropped = 6;
+  string hosts_file = 7;
+  repeated ProcessItem processes_list = 75;
+  repeated string processes_created = 9;
+  repeated string processes_terminated = 10;
+  repeated string processes_killed = 11;
+  repeated string processes_injected = 12;
+  repeated string command_executions = 13;
+  repeated string services_opened = 14;
+  repeated string services_created = 15;
+  repeated string services_started = 16;
+  repeated string services_stopped = 17;
+  repeated string services_deleted = 18;
+  repeated string services_bound = 19;
+  repeated string windows_searched = 20;
+  repeated string windows_hidden = 21;
+  repeated PermissionCheck permissions_checked = 22;
+  repeated string permissions_requested = 23;
+  repeated string mutexes_opened = 24;
+  repeated string mutexes_created = 25;
+  repeated string signals_observed = 26;
+  repeated string signals_hooked = 27;
+  repeated string modules_loaded = 28;
+  repeated string calls_highlighted = 29;
+  repeated string invokes = 30;
+  repeated string crypto_algorithms_observed = 31;
+  repeated string crypto_keys = 32;
+  repeated string crypto_plain_text = 33;
+  repeated string encoding_algorithms_observed = 34;
+  repeated string text_decoded = 35;
+  repeated string text_highlighted = 36;
+  repeated BehaviourTag tags = 37 [(yara.field_options) = { name: "traits" }];
+  repeated string databases_opened = 55;
+  repeated string databases_deleted = 56;
+  repeated string registry_keys_opened = 38;
+  repeated KeyValue registry_keys_set = 39;
+  repeated string registry_keys_deleted = 40;
+  repeated string system_property_lookups = 41;
+  repeated KeyValue system_property_sets = 42;
+  repeated string shared_preferences_lookups = 43;
+  repeated KeyValue shared_preferences_sets = 44;
+  repeated string content_model_observers = 45;
+  repeated KeyValue content_model_sets = 46;
+  repeated string activities_started = 47;
+  repeated HttpConversation http_conversations = 48;
+  repeated DnsLookup dns_lookups = 49;
+  repeated IpTraffic ip_traffic = 50;
+  repeated Sms sms_sent = 51;
+  repeated VerdictTag verdicts = 52;
+  int32 verdict_confidence = 61;
+  repeated string verdict_labels = 65;
+  repeated string ja3_digests = 57;
+  repeated string memory_pattern_ips = 58;
+  repeated string memory_pattern_domains = 59;
+  repeated string memory_pattern_urls = 60;
+  repeated SmtpConversation smtp_conversations = 64;
+  repeated vt.tools.net_analysis.CrowdSourcedIdsResults ids_alerts = 68;
+  repeated TLS tls = 69;
+  repeated MitreAttackTechnique mitre_attack_techniques = 70;
+  repeated vt.sigma.SigmaMatch sigma_analysis_results = 71;
+  repeated SignatureMatch signature_matches = 72;
+  repeated MalwareBehaviorCatalog mbc = 74;
+}
+
+message TLS {
+  map<string, string> subject = 1;
+  map<string, string> issuer = 2;
+  string serial_number = 3;
+  string thumbprint = 4;
+  string version = 5;
+  string sni = 6;
+  string ja3 = 7;
+  string ja3s = 8;
+  string ja4 = 10;
+}
+
+message FileCopy {
+  string source = 1;
+  string destination = 2;
+}
+
+message DroppedFile {
+  string path = 1;
+  string sha256 = 2;
+  vt.fileanalysis.FileType type = 3;
+  string download_url = 5;
+  string process_name = 6;
+  string process_id = 7;
+}
+
+message PermissionCheck {
+  string permission = 1;
+  string owner = 2;
+}
+
+message KeyValue {
+  string key = 1;
+  string value = 2;
+}
+
+message HttpConversation {
+  option (yara.message_options) = {
+    name: "Http"
+  };
+
+  enum RequestMethod {
+    option (yara.enum_options) = {
+      name: "Method"
+    };
+
+    UNKNOWN = 0;
+    GET = 1;
+    HEAD = 2;
+    POST = 3;
+    PUT = 4;
+    DELETE = 5;
+    TRACE = 6;
+    OPTIONS = 7;
+    CONNECT = 8;
+    PATCH = 9;
+    PROPFIND = 10;
+    SETUP = 11;
+    UNLOCK = 12;
+  }
+
+  string url = 1;
+  vt.fileanalysis.HttpConversation.RequestMethod request_method = 2;
+  map<string, string> request_headers = 3;
+  map<string, string> response_headers = 4;
+  int32 response_status_code = 5;
+  vt.fileanalysis.FileType response_body_filetype = 6;
+  bytes response_body_first_ten_bytes = 7;
+}
+
+message DnsLookup {
+  string hostname = 1;
+  repeated string resolved_ips = 2;
+  repeated string txt_records = 3;
+}
+
+message IpTraffic {
+  option (yara.message_options) = {
+    name: "Net"
+  };
+
+  enum TransportLayerProtocol {
+    option (yara.enum_options) = {
+      name: "Protocol"
+    };
+
+    UNKNOWN = 0;
+    ICMP = 1;
+    IGMP = 2;
+    TCP = 6;
+    UDP = 17;
+    ESP = 50;
+    AH = 51;
+    L2TP = 115;
+    SCTP = 132;
+  }
+
+  string destination_ip = 1;
+  int32 destination_port = 2;
+  vt.fileanalysis.IpTraffic.TransportLayerProtocol transport_layer_protocol = 3;
+  int64 destination_ip_asn = 4;
+  int64 destination_ip_as_int = 5;
+}
+
+message SmtpConversation {
+  string hostname = 1;
+  string destination_ip = 2;
+  uint32 destination_port = 3;
+  string smtp_from = 4;
+  repeated string smtp_to = 5;
+  repeated string message_from = 6;
+  repeated string message_to = 7;
+  repeated string message_cc = 8;
+  repeated string message_bcc = 9;
+  string timestamp = 10;
+  string subject = 11;
+  string html_body = 12;
+  string txt_body = 13;
+  string auth_user = 14;
+  string auth_pass = 15;
+  repeated KeyValue headers = 16;
+  repeated DroppedFile attachments = 17;
+  string x_mailer = 18;
+}
+
+message Sms {
+  string destination = 1;
+  string body = 2;
+}
+
+message SignatureMatch {
+  enum SignatureFormat {
+    SIG_FORMAT_UNKNOWN = 0;
+    SIG_FORMAT_YARA = 1;
+    SIG_FORMAT_SIGMA = 2;
+    SIG_FORMAT_CAPA = 3;
+    SIG_FORMAT_OPENIOC = 4;
+    SIG_FORMAT_KEYWORD = 5;
+  }
+
+  string id = 1;
+  vt.fileanalysis.SignatureMatch.SignatureFormat format = 2;
+  string name = 3;
+  string description = 4;
+  repeated string authors = 5;
+  repeated string events = 6;
+  repeated string match_data = 7;
+  string rule_src = 8;
+  ImpactSeverity severity = 9;
+}
+
+message MitreAttackTechnique {
+  string id = 1;
+  ImpactSeverity severity = 2;
+  string signature_description = 3;
+}
+
+message MalwareBehaviorCatalog {
+  string id = 1;
+  string objective = 2;
+  string behavior = 3;
+  string method = 4;
+}
+
+message ProcessItem {
+  string process_id = 1;
+  string parent_process_id = 2;
+  string name = 3;
+  uint64 start_time = 4;
+  uint64 termination_time = 5;
+  repeated string files_opened = 6;
+  repeated string files_written = 7;
+  repeated string files_deleted = 8;
+  repeated FileCopy files_copied = 9;
+}

@@ -36,9 +36,9 @@ mod tests;
 #[derive(Debug, PartialEq)]
 pub enum Event {
     /// Indicates the beginning of a non-terminal production in the grammar.
-    Begin(SyntaxKind),
+    Begin { kind: SyntaxKind, span: Span },
     /// Indicates the end of a non-terminal production in the grammar.
-    End(SyntaxKind),
+    End { kind: SyntaxKind, span: Span },
     /// A terminal symbol in the grammar.
     Token { kind: SyntaxKind, span: Span },
     /// An error found during the parsing of the source.
@@ -77,18 +77,40 @@ pub enum Event {
 /// subtree that contains portions of the syntax tree that were not correctly
 /// parsed. Of course, `Event::Begin(ERROR)` must be accompanied by a matching
 /// `Event::End(ERROR)`.
-pub struct CSTStream<'src> {
-    parser: Parser<'src>,
+pub struct CSTStream<'src, I>
+where
+    I: Iterator<Item = Event>,
+{
+    source: &'src [u8],
+    events: I,
     whitespaces: bool,
     newlines: bool,
     comments: bool,
 }
 
-impl<'src> CSTStream<'src> {
-    /// Returns the source code associated to this CSTStream.
-    #[inline]
+impl<'src, I> CSTStream<'src, I>
+where
+    I: Iterator<Item = Event>,
+{
+    /// Creates a new [`CSTStream`] from source code and some iterator
+    /// that returns the parsed source code in the form of a sequence
+    /// of [`Event`].
+    ///
+    /// This API is not meant to be public, but it is used by the
+    /// compiler in the yara_x crate.
+    #[doc(hidden)]
+    pub fn new(source: &'src [u8], events: I) -> Self {
+        Self {
+            source,
+            events,
+            whitespaces: true,
+            newlines: true,
+            comments: true,
+        }
+    }
+
     pub fn source(&self) -> &'src [u8] {
-        self.parser.source()
+        self.source
     }
 
     /// Enables or disables whitespaces in the returned CST.
@@ -122,23 +144,18 @@ impl<'src> CSTStream<'src> {
     }
 }
 
-impl<'src> From<Parser<'src>> for CSTStream<'src> {
-    /// Creates a [`CSTStream`] from the given parser.
-    fn from(parser: Parser<'src>) -> Self {
-        Self { parser, whitespaces: true, newlines: true, comments: true }
-    }
-}
-
-impl Iterator for CSTStream<'_> {
+impl<I> Iterator for CSTStream<'_, I>
+where
+    I: Iterator<Item = Event>,
+{
     type Item = Event;
 
-    /// Returns the next event in the stream.
     fn next(&mut self) -> Option<Self::Item> {
         if self.whitespaces && self.newlines {
-            self.parser.parser.next()
+            self.events.next()
         } else {
             loop {
-                match self.parser.parser.next()? {
+                match self.events.next()? {
                     token @ Event::Token { kind: WHITESPACE, .. } => {
                         if self.whitespaces {
                             break Some(token);
@@ -161,6 +178,12 @@ impl Iterator for CSTStream<'_> {
     }
 }
 
+impl<'src> From<Parser<'src>> for CSTStream<'src, Parser<'src>> {
+    /// Creates a [`CSTStream`] from the given parser.
+    fn from(parser: Parser<'src>) -> Self {
+        CSTStream::new(parser.source(), parser)
+    }
+}
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct YARA();
@@ -216,15 +239,27 @@ impl TryFrom<Parser<'_>> for CST {
 
     /// Crates a [`CST`] from the given parser.
     fn try_from(parser: Parser) -> Result<Self, Utf8Error> {
-        let source = parser.source();
+        Self::try_from(CSTStream::new(parser.source(), parser))
+    }
+}
+
+impl<'src, I> TryFrom<CSTStream<'src, I>> for CST
+where
+    I: Iterator<Item = Event>,
+{
+    type Error = Utf8Error;
+
+    /// Creates a [`CSTStream`] from the given parser.
+    fn try_from(cst: CSTStream<'src, I>) -> Result<Self, Utf8Error> {
+        let source = cst.source();
         let mut builder = GreenNodeBuilder::new();
         let mut prev_token_span: Option<Span> = None;
         let mut errors = Vec::new();
 
-        for node in parser.into_cst_stream() {
+        for node in cst {
             match node {
-                Event::Begin(kind) => builder.start_node(kind.into()),
-                Event::End(_) => builder.finish_node(),
+                Event::Begin { kind, .. } => builder.start_node(kind.into()),
+                Event::End { .. } => builder.finish_node(),
                 Event::Token { kind, span } => {
                     // Make sure that the CST covers the whole source code,
                     // each must start where the previous one ended.

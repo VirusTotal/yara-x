@@ -9,6 +9,7 @@ edition.workspace = true
 readme.workspace = true
 license.workspace = true
 homepage.workspace = true
+repository.workspace = true
 
 [features]
 # The `capi` feature is required by `cargo-c`.

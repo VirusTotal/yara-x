@@ -6,7 +6,6 @@ use nom::combinator::{map, map_res, verify};
 use nom::multi::{count, many0};
 use nom::number::complete::{le_u32, u16, u32, u64, u8};
 use nom::number::Endianness;
-use nom::sequence::tuple;
 use nom::{Err, IResult, Parser};
 use protobuf::EnumOrUnknown;
 
@@ -42,7 +41,7 @@ impl ElfParser {
         elf: &'a [u8],
     ) -> Result<elf::ELF, Err<nom::error::Error<&'a [u8]>>> {
         // Parse the ELF identifier.
-        let (remainder, (_, class, data_encoding, _, _, _)) = tuple((
+        let (remainder, (_, class, data_encoding, _, _, _)) = (
             // Magic must be 0x7f 0x45 (E) 0x4c (L) 0x46 (F).
             verify(le_u32, |magic| *magic == 0x464C457F),
             // Class must be either ELF_CLASS_32 or ELF_CLASS_64.
@@ -56,7 +55,8 @@ impl ElfParser {
             u8,            // version
             take(8_usize), // padding
             u8,            // nident
-        ))(elf)?;
+        )
+            .parse(elf)?;
 
         match class {
             Self::ELF_CLASS_32 => self.class = Class::Elf32,
@@ -291,7 +291,7 @@ impl ElfParser {
                     ehdr.sh_entry_count,
                     ehdr.sh_str_tab_index,
                 ),
-            ) = tuple((
+            ) = (
                 u16(self.endianness), // type
                 u16(self.endianness), // machine
                 u32(self.endianness), // version
@@ -305,7 +305,8 @@ impl ElfParser {
                 u16(self.endianness), // sh_entry_size
                 u16(self.endianness), // sh_entry_count
                 u16(self.endianness), // sh_str_table_index
-            ))(input)?;
+            )
+                .parse(input)?;
 
             Ok((remainder, ehdr))
         }
@@ -329,7 +330,7 @@ impl ElfParser {
                     _,
                     shdr.entry_size,
                 ),
-            ) = tuple((
+            ) = (
                 u32(self.endianness), // name
                 u32(self.endianness), // type
                 self.off_or_addr(),   // flags
@@ -340,7 +341,8 @@ impl ElfParser {
                 u32(self.endianness), // info
                 self.off_or_addr(),   // align
                 self.off_or_addr(),   // entry_size
-            ))(input)?;
+            )
+                .parse(input)?;
 
             Ok((remainder, shdr))
         }
@@ -369,7 +371,7 @@ impl ElfParser {
                     phdr.flags,
                     phdr.alignment,
                 ),
-            ) = tuple((
+            ) = (
                 u32(self.endianness),                    // type_
                 map(u32(self.endianness), |v| v.into()), // offset
                 map(u32(self.endianness), |v| v.into()), // virt_addr
@@ -378,7 +380,8 @@ impl ElfParser {
                 map(u32(self.endianness), |v| v.into()), // mem_size
                 u32(self.endianness),                    // flags
                 map(u32(self.endianness), |v| v.into()), // alignment
-            ))(input)?;
+            )
+                .parse(input)?;
 
             Ok((remainder, phdr))
         }
@@ -400,7 +403,7 @@ impl ElfParser {
                     phdr.mem_size,
                     phdr.alignment,
                 ),
-            ) = tuple((
+            ) = (
                 u32(self.endianness), // type_
                 u32(self.endianness), // flags
                 u64(self.endianness), // offset
@@ -409,7 +412,8 @@ impl ElfParser {
                 u64(self.endianness), // file_size
                 u64(self.endianness), // mem_size
                 u64(self.endianness), // alignment
-            ))(input)?;
+            )
+                .parse(input)?;
 
             Ok((remainder, phdr))
         }
@@ -492,14 +496,15 @@ impl ElfParser {
                     sym.name, sym.value, sym.size, sym.info, sym.other,
                     sym.shndx,
                 ),
-            ) = tuple((
+            ) = (
                 u32(self.endianness),                    // name
                 map(u32(self.endianness), |v| v.into()), // value
                 map(u32(self.endianness), |v| v.into()), // size
                 u8,                                      // info
                 u8,                                      // other
                 u16(self.endianness),                    // shndx
-            ))(input)?;
+            )
+                .parse(input)?;
 
             Ok((remainder, sym))
         }
@@ -515,14 +520,15 @@ impl ElfParser {
                     sym.name, sym.info, sym.other, sym.shndx, sym.value,
                     sym.size,
                 ),
-            ) = tuple((
+            ) = (
                 u32(self.endianness), // name
                 u8,                   // info
                 u8,                   // other
                 u16(self.endianness), // shndx
                 u64(self.endianness), // value
                 u64(self.endianness), // size
-            ))(input)?;
+            )
+                .parse(input)?;
 
             Ok((remainder, sym))
         }
@@ -563,12 +569,12 @@ impl ElfParser {
                 // Parse tuples (tag, value) until the final marker
                 // with tag == ELF_DT_NULL is found.
                 let parser_result = many0(verify(
-                    tuple((
+                    (
                         // tag (a.k.a type)
                         self.off_or_addr(),
                         // value
                         self.off_or_addr(),
-                    )),
+                    ),
                     |(tag, _)| *tag != Self::ELF_DT_NULL,
                 ))
                 .parse(segment_data);

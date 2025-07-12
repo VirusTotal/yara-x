@@ -46,6 +46,11 @@ pub const YRX_ERROR_ON_SLOW_LOOP: u32 = 8;
 /// code motion (LICM).
 pub const YRX_ENABLE_CONDITION_OPTIMIZATION: u32 = 16;
 
+/// Flag passed to [`yrx_compiler_create`] for disabling `include` statements.
+/// With this flag, the compiler produces an error when `include` statements are
+/// encountered.
+pub const YRX_DISABLE_INCLUDES: u32 = 32;
+
 fn _yrx_compiler_create<'a>(flags: u32) -> yara_x::Compiler<'a> {
     let mut compiler = yara_x::Compiler::new();
     if flags & YRX_RELAXED_RE_SYNTAX != 0 {
@@ -63,6 +68,9 @@ fn _yrx_compiler_create<'a>(flags: u32) -> yara_x::Compiler<'a> {
     if flags & YRX_ERROR_ON_SLOW_LOOP != 0 {
         compiler.error_on_slow_loop(true);
     }
+    if flags & YRX_DISABLE_INCLUDES != 0 {
+        compiler.enable_includes(false);
+    }
     compiler
 }
 
@@ -77,7 +85,7 @@ pub unsafe extern "C" fn yrx_compiler_create(
         flags,
     }));
 
-    YRX_RESULT::SUCCESS
+    YRX_RESULT::YRX_SUCCESS
 }
 
 /// Destroys a [`YRX_COMPILER`] object.
@@ -114,7 +122,7 @@ pub unsafe extern "C" fn yrx_compiler_add_source_with_origin(
     let compiler = if let Some(compiler) = compiler.as_mut() {
         compiler
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     let src = CStr::from_ptr(src);
@@ -124,18 +132,18 @@ pub unsafe extern "C" fn yrx_compiler_add_source_with_origin(
         let origin = CStr::from_ptr(origin);
         src = match origin.to_str() {
             Ok(origin) => src.with_origin(origin),
-            Err(_) => return YRX_RESULT::INVALID_ARGUMENT,
+            Err(_) => return YRX_RESULT::YRX_INVALID_ARGUMENT,
         };
     }
 
     match compiler.inner.add_source(src) {
         Ok(_) => {
             _yrx_set_last_error::<CompileError>(None);
-            YRX_RESULT::SUCCESS
+            YRX_RESULT::YRX_SUCCESS
         }
         Err(err) => {
             _yrx_set_last_error(Some(err));
-            YRX_RESULT::SYNTAX_ERROR
+            YRX_RESULT::YRX_SYNTAX_ERROR
         }
     }
 }
@@ -154,18 +162,18 @@ pub unsafe extern "C" fn yrx_compiler_ignore_module(
     let compiler = if let Some(compiler) = compiler.as_mut() {
         compiler
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     let module = if let Ok(module) = CStr::from_ptr(module).to_str() {
         module
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     compiler.inner.ignore_module(module);
 
-    YRX_RESULT::SUCCESS
+    YRX_RESULT::YRX_SUCCESS
 }
 
 /// Enables a feature on this compiler.
@@ -223,18 +231,18 @@ pub unsafe extern "C" fn yrx_compiler_enable_feature(
     let compiler = if let Some(compiler) = compiler.as_mut() {
         compiler
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     let feature = if let Ok(module) = CStr::from_ptr(feature).to_str() {
         module
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     compiler.inner.enable_feature(feature);
 
-    YRX_RESULT::SUCCESS
+    YRX_RESULT::YRX_SUCCESS
 }
 
 /// Tell the compiler that a YARA module can't be used.
@@ -254,31 +262,31 @@ pub unsafe extern "C" fn yrx_compiler_ban_module(
     let compiler = if let Some(compiler) = compiler.as_mut() {
         compiler
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     let module = if let Ok(module) = CStr::from_ptr(module).to_str() {
         module
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     let err_title = if let Ok(err_title) = CStr::from_ptr(error_title).to_str()
     {
         err_title
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     let err_msg = if let Ok(err_msg) = CStr::from_ptr(error_msg).to_str() {
         err_msg
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     compiler.inner.ban_module(module, err_title, err_msg);
 
-    YRX_RESULT::SUCCESS
+    YRX_RESULT::YRX_SUCCESS
 }
 
 /// Creates a new namespace.
@@ -296,18 +304,18 @@ pub unsafe extern "C" fn yrx_compiler_new_namespace(
     let compiler = if let Some(compiler) = compiler.as_mut() {
         compiler
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     let namespace = if let Ok(namespace) = CStr::from_ptr(namespace).to_str() {
         namespace
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     compiler.inner.new_namespace(namespace);
 
-    YRX_RESULT::SUCCESS
+    YRX_RESULT::YRX_SUCCESS
 }
 
 /// Defines a global variable and sets its initial value.
@@ -327,23 +335,23 @@ unsafe fn yrx_compiler_define_global<
     let compiler = if let Some(compiler) = compiler.as_mut() {
         compiler
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     let ident = if let Ok(ident) = CStr::from_ptr(ident).to_str() {
         ident
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     match compiler.inner.define_global(ident, value) {
         Ok(_) => {
             _yrx_set_last_error::<VariableError>(None);
-            YRX_RESULT::SUCCESS
+            YRX_RESULT::YRX_SUCCESS
         }
         Err(err) => {
             _yrx_set_last_error(Some(err));
-            YRX_RESULT::VARIABLE_ERROR
+            YRX_RESULT::YRX_VARIABLE_ERROR
         }
     }
 }
@@ -358,7 +366,7 @@ pub unsafe extern "C" fn yrx_compiler_define_global_str(
     let value = if let Ok(value) = CStr::from_ptr(value).to_str() {
         value
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     yrx_compiler_define_global(compiler, ident, value)
@@ -439,7 +447,7 @@ pub unsafe extern "C" fn yrx_compiler_errors_json(
     let compiler = if let Some(compiler) = compiler.as_mut() {
         compiler
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     match serde_json::to_vec(compiler.inner.errors()) {
@@ -451,11 +459,11 @@ pub unsafe extern "C" fn yrx_compiler_errors_json(
                 length: json.len(),
             }));
             _yrx_set_last_error::<SerializationError>(None);
-            YRX_RESULT::SUCCESS
+            YRX_RESULT::YRX_SUCCESS
         }
         Err(err) => {
             _yrx_set_last_error(Some(err));
-            YRX_RESULT::SERIALIZATION_ERROR
+            YRX_RESULT::YRX_SERIALIZATION_ERROR
         }
     }
 }
@@ -505,7 +513,7 @@ pub unsafe extern "C" fn yrx_compiler_warnings_json(
     let compiler = if let Some(compiler) = compiler.as_mut() {
         compiler
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     match serde_json::to_vec(compiler.inner.warnings()) {
@@ -517,11 +525,11 @@ pub unsafe extern "C" fn yrx_compiler_warnings_json(
                 length: json.len(),
             }));
             _yrx_set_last_error::<SerializationError>(None);
-            YRX_RESULT::SUCCESS
+            YRX_RESULT::YRX_SUCCESS
         }
         Err(err) => {
             _yrx_set_last_error(Some(err));
-            YRX_RESULT::SERIALIZATION_ERROR
+            YRX_RESULT::YRX_SERIALIZATION_ERROR
         }
     }
 }

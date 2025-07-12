@@ -1,8 +1,8 @@
-use lazy_static::lazy_static;
 use std::collections::VecDeque;
 use std::str::from_utf8_unchecked;
+use std::sync::LazyLock;
 
-use yara_x_parser::cst::{CSTStream, Event, SyntaxKind};
+use yara_x_parser::cst::{Event, SyntaxKind};
 
 #[cfg(test)]
 mod tests;
@@ -23,7 +23,7 @@ mod tests;
 /// super-category.
 pub(crate) mod categories {
     use bitflags::bitflags;
-    use lazy_static::lazy_static;
+    use std::sync::LazyLock;
 
     bitflags! {
         #[derive(Debug, Clone, Copy)]
@@ -48,97 +48,83 @@ pub(crate) mod categories {
             const RGrouping           = 0b00000000000000100000000000000000;
         }
     }
-    lazy_static! {
-        // These are the base categories (i.e: those that don't contain another category)
-        pub static ref NONE: Category =
-            Category::None;
 
-        pub static ref END: Category =
-            Category::End;
+    // These are the base categories (i.e: those that don't contain another category)
+    pub static NONE: LazyLock<Category> = LazyLock::new(|| Category::None);
+    pub static BEGIN: LazyLock<Category> = LazyLock::new(|| Category::Begin);
+    pub static END: LazyLock<Category> = LazyLock::new(|| Category::End);
+    pub static BLOCK_BEGIN: LazyLock<Category> =
+        LazyLock::new(|| Category::BlockBegin);
+    pub static BLOCK_END: LazyLock<Category> =
+        LazyLock::new(|| Category::BlockEnd);
+    pub static ALIGNMENT_BLOCK_BEGIN: LazyLock<Category> =
+        LazyLock::new(|| Category::AlignmentBlockBegin);
+    pub static ALIGNMENT_BLOCK_END: LazyLock<Category> =
+        LazyLock::new(|| Category::AlignmentBlockEnd);
+    pub static ALIGNMENT_MARKER: LazyLock<Category> =
+        LazyLock::new(|| Category::AlignmentMarker);
+    pub static INDENTATION: LazyLock<Category> =
+        LazyLock::new(|| Category::Indentation);
+    pub static WHITESPACE: LazyLock<Category> =
+        LazyLock::new(|| Category::Whitespace);
+    pub static COMMENT: LazyLock<Category> =
+        LazyLock::new(|| Category::Comment);
+    pub static NEWLINE: LazyLock<Category> =
+        LazyLock::new(|| Category::Newline);
+    pub static KEYWORD: LazyLock<Category> =
+        LazyLock::new(|| Category::Keyword);
+    pub static PUNCTUATION: LazyLock<Category> =
+        LazyLock::new(|| Category::Punctuation);
+    pub static IDENTIFIER: LazyLock<Category> =
+        LazyLock::new(|| Category::Identifier);
+    pub static LITERAL: LazyLock<Category> =
+        LazyLock::new(|| Category::Literal);
+    pub static LGROUPING: LazyLock<Category> =
+        LazyLock::new(|| Category::LGrouping);
+    pub static RGROUPING: LazyLock<Category> =
+        LazyLock::new(|| Category::RGrouping);
 
-        pub static ref BLOCK_BEGIN: Category =
-            Category::BlockBegin;
+    // These are super-categories that are composed of other categories.
+    pub static CONTROL: LazyLock<Category> = LazyLock::new(|| {
+        *BEGIN
+            | *END
+            | *INDENTATION
+            | *BLOCK_BEGIN
+            | *BLOCK_END
+            | *ALIGNMENT_BLOCK_BEGIN
+            | *ALIGNMENT_BLOCK_END
+    });
 
-        pub static ref BLOCK_END: Category =
-            Category::BlockEnd;
-
-        pub static ref ALIGNMENT_BLOCK_BEGIN: Category =
-            Category::AlignmentBlockBegin;
-
-        pub static ref ALIGNMENT_BLOCK_END: Category =
-            Category::AlignmentBlockBegin;
-
-        pub static ref ALIGNMENT_MARKER: Category =
-            Category::AlignmentMarker;
-
-        pub static ref INDENTATION: Category =
-            Category::Indentation;
-
-        pub static ref WHITESPACE: Category =
-            Category::Whitespace;
-
-        pub static ref COMMENT: Category =
-            Category::Comment;
-
-        pub static ref NEWLINE: Category =
-            Category::Newline;
-
-        pub static ref KEYWORD: Category =
-            Category::Keyword;
-
-        pub static ref PUNCTUATION: Category =
-            Category::Punctuation;
-
-        pub static ref IDENTIFIER: Category =
-            Category::Identifier;
-
-        pub static ref LITERAL: Category =
-            Category::Literal;
-
-        pub static ref LGROUPING: Category =
-            Category::LGrouping;
-
-        pub static ref RGROUPING: Category =
-            Category::RGrouping;
-
-        // These are super-categories that are composed of other categories.
-        pub static ref CONTROL: Category =
-            Category::Begin |
-            Category::End |
-            Category::Indentation |
-            Category::BlockBegin |
-            Category::BlockEnd |
-            Category::AlignmentBlockBegin |
-            Category::AlignmentBlockEnd;
-
-        pub static ref SPACING: Category =
-            Category::Whitespace |
-            Category::Newline;
-
-        pub static ref TEXT: Category =
-            Category::Keyword |
-            Category::Punctuation |
-            Category::LGrouping |
-            Category::RGrouping |
-            Category::Identifier |
-            Category::Literal;
-    }
+    pub static TEXT: LazyLock<Category> = LazyLock::new(|| {
+        *KEYWORD
+            | *PUNCTUATION
+            | *LGROUPING
+            | *RGROUPING
+            | *IDENTIFIER
+            | *LITERAL
+    });
 }
 
-lazy_static! {
-    pub(crate) static ref ASTERISK: Token<'static> = Token::Punctuation(b"*");
-    pub(crate) static ref COLON: Token<'static> = Token::Punctuation(b":");
-    pub(crate) static ref COMMA: Token<'static> = Token::Punctuation(b",");
-    pub(crate) static ref DOT: Token<'static> = Token::Punctuation(b".");
-    pub(crate) static ref EQUAL: Token<'static> = Token::Punctuation(b"=");
-    pub(crate) static ref HYPHEN: Token<'static> = Token::Punctuation(b"-");
-    pub(crate) static ref LBRACE: Token<'static> = Token::Punctuation(b"{");
-    pub(crate) static ref RBRACE: Token<'static> = Token::Punctuation(b"}");
-    pub(crate) static ref LBRACKET: Token<'static> = Token::LGrouping(b"[");
-    pub(crate) static ref RBRACKET: Token<'static> = Token::RGrouping(b"]");
-    pub(crate) static ref LPAREN: Token<'static> = Token::LGrouping(b"(");
-    pub(crate) static ref RPAREN: Token<'static> = Token::RGrouping(b")");
-}
+pub(crate) static ASTERISK: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::Punctuation(b"*"));
+pub(crate) static COLON: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::Punctuation(b":"));
+pub(crate) static COMMA: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::Punctuation(b","));
+pub(crate) static DOT: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::Punctuation(b"."));
+pub(crate) static EQUAL: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::Punctuation(b"="));
+pub(crate) static HYPHEN: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::Punctuation(b"-"));
+pub(crate) static LBRACE: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::Punctuation(b"{"));
+pub(crate) static RBRACE: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::Punctuation(b"}"));
+pub(crate) static LPAREN: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::LGrouping(b"("));
+pub(crate) static RPAREN: LazyLock<Token<'static>> =
+    LazyLock::new(|| Token::RGrouping(b")"));
 
 /// Type that represents the tokens used by the formatter.
 ///
@@ -235,33 +221,29 @@ impl<'a> Token<'a> {
     /// Returns the category the token belongs to.
     pub fn category(&'a self) -> categories::Category {
         match self {
-            Token::None => categories::Category::None,
-            Token::Begin(..) => categories::Category::Begin,
-            Token::End(..) => categories::Category::End,
-            Token::BlockBegin => categories::Category::BlockBegin,
-            Token::BlockEnd => categories::Category::BlockEnd,
-            Token::AlignmentBlockBegin => {
-                categories::Category::AlignmentBlockBegin
-            }
-            Token::AlignmentBlockEnd => {
-                categories::Category::AlignmentBlockEnd
-            }
-            Token::AlignmentMarker => categories::Category::AlignmentMarker,
-            Token::Indentation(..) => categories::Category::Indentation,
-            Token::Whitespace => categories::Category::Whitespace,
-            Token::Tab => categories::Category::Whitespace,
+            Token::None => *categories::NONE,
+            Token::Begin(..) => *categories::BEGIN,
+            Token::End(..) => *categories::END,
+            Token::BlockBegin => *categories::BLOCK_BEGIN,
+            Token::BlockEnd => *categories::BLOCK_END,
+            Token::AlignmentBlockBegin => *categories::ALIGNMENT_BLOCK_BEGIN,
+            Token::AlignmentBlockEnd => *categories::ALIGNMENT_BLOCK_END,
+            Token::AlignmentMarker => *categories::ALIGNMENT_MARKER,
+            Token::Indentation(..) => *categories::INDENTATION,
+            Token::Whitespace => *categories::WHITESPACE,
+            Token::Tab => *categories::WHITESPACE,
             Token::Comment(..)
             | Token::BlockComment(..)
             | Token::TailComment(..)
             | Token::HeadComment(..)
-            | Token::InlineComment(..) => categories::Category::Comment,
-            Token::Newline => categories::Category::Newline,
-            Token::Identifier(..) => categories::Category::Identifier,
-            Token::Keyword(..) => categories::Category::Keyword,
-            Token::LGrouping(..) => categories::Category::LGrouping,
-            Token::RGrouping(..) => categories::Category::RGrouping,
-            Token::Punctuation(..) => categories::Category::Punctuation,
-            Token::Literal(..) => categories::Category::Literal,
+            | Token::InlineComment(..) => *categories::COMMENT,
+            Token::Newline => *categories::NEWLINE,
+            Token::Identifier(..) => *categories::IDENTIFIER,
+            Token::Keyword(..) => *categories::KEYWORD,
+            Token::LGrouping(..) => *categories::LGROUPING,
+            Token::RGrouping(..) => *categories::RGROUPING,
+            Token::Punctuation(..) => *categories::PUNCTUATION,
+            Token::Literal(..) => *categories::LITERAL,
         }
     }
 
@@ -352,6 +334,7 @@ impl<'a> Token<'a> {
             | SyntaxKind::IEQUALS_KW
             | SyntaxKind::IMPORT_KW
             | SyntaxKind::IN_KW
+            | SyntaxKind::INCLUDE_KW
             | SyntaxKind::ISTARTSWITH_KW
             | SyntaxKind::MATCHES_KW
             | SyntaxKind::META_KW
@@ -481,20 +464,30 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
 // implements the TokenStream trait.
 impl<'a, T> TokenStream<'a> for T where T: Iterator<Item = Token<'a>> {}
 
-/// An iterator that takes a [`CSTStream`] generated by the parser and produces
-/// a sequence of tokens.
-pub(crate) struct Tokens<'src> {
-    events: CSTStream<'src>,
+/// An iterator that takes a sequence of events generated by the parser and
+/// produces a sequence of tokens which constitute the input to the formatter.
+pub(crate) struct Tokens<'src, E>
+where
+    E: Iterator<Item = Event>,
+{
+    source: &'src [u8],
+    events: E,
     buffer: VecDeque<Token<'src>>,
 }
 
-impl<'src> Tokens<'src> {
-    pub fn new(stream: CSTStream<'src>) -> Self {
-        Self { events: stream, buffer: VecDeque::new() }
+impl<'src, E> Tokens<'src, E>
+where
+    E: Iterator<Item = Event>,
+{
+    pub fn new(source: &'src [u8], events: E) -> Self {
+        Self { source, events, buffer: VecDeque::new() }
     }
 }
 
-impl<'src> Iterator for Tokens<'src> {
+impl<'src, E> Iterator for Tokens<'src, E>
+where
+    E: Iterator<Item = Event>,
+{
     type Item = Token<'src>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -504,10 +497,10 @@ impl<'src> Iterator for Tokens<'src> {
         }
         loop {
             match self.events.next()? {
-                Event::Begin(kind) => return Some(Token::Begin(kind)),
-                Event::End(kind) => return Some(Token::End(kind)),
+                Event::Begin { kind, .. } => return Some(Token::Begin(kind)),
+                Event::End { kind, .. } => return Some(Token::End(kind)),
                 Event::Token { kind, span } => {
-                    let token_bytes = &self.events.source()[span.range()];
+                    let token_bytes = &self.source[span.range()];
                     // The whitespace token has a different treatment because
                     // the parser returns a single whitespace token when
                     // multiple whitespaces appear together. Here we separate

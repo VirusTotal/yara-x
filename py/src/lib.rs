@@ -20,18 +20,34 @@ use std::mem;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::pin::Pin;
+use std::str::FromStr;
 use std::time::Duration;
+use strum_macros::{Display, EnumString};
 
-use protobuf_json_mapping::print_to_string as proto_to_json;
+use base64::prelude::BASE64_STANDARD;
+use base64::Engine;
+use protobuf::MessageDyn;
 use pyo3::exceptions::{PyException, PyIOError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{
-    PyBool, PyBytes, PyDict, PyFloat, PyInt, PyString, PyTuple,
+    PyBool, PyBytes, PyDict, PyFloat, PyInt, PyString, PyStringMethods,
+    PyTuple, PyTzInfo,
 };
 use pyo3::{create_exception, IntoPyObjectExt};
 use pyo3_file::PyFileLikeObject;
 
 use ::yara_x as yrx;
+use ::yara_x::mods::*;
+
+#[derive(Debug, Clone, Display, EnumString, PartialEq)]
+#[strum(ascii_case_insensitive)]
+enum SupportedModules {
+    Lnk,
+    Macho,
+    Elf,
+    Pe,
+    Dotnet,
+}
 
 /// Formats YARA rules.
 #[pyclass(unsendable)]
@@ -108,6 +124,53 @@ impl Formatter {
     }
 }
 
+#[pyclass]
+struct Module {
+    _module: SupportedModules,
+}
+
+#[pymethods]
+impl Module {
+    /// Creates a new [`Module`].
+    ///
+    /// Type of module must be one of [`SupportedModules`]
+    #[new]
+    fn new(name: &str) -> PyResult<Self> {
+        Ok(Self {
+            _module: SupportedModules::from_str(name).map_err(|_| {
+                PyValueError::new_err(format!(
+                    "{} not a supported module",
+                    name
+                ))
+            })?,
+        })
+    }
+
+    /// Invoke the module with provided data.
+    ///
+    /// Returns None if the module didn't produce any output for the given data.
+    fn invoke<'py>(
+        &'py self,
+        py: Python<'py>,
+        data: &[u8],
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let module_output = match self._module {
+            SupportedModules::Macho => invoke_dyn::<Macho>(data),
+            SupportedModules::Lnk => invoke_dyn::<Lnk>(data),
+            SupportedModules::Elf => invoke_dyn::<ELF>(data),
+            SupportedModules::Pe => invoke_dyn::<PE>(data),
+            SupportedModules::Dotnet => invoke_dyn::<Dotnet>(data),
+        };
+
+        let module_output = match module_output {
+            Some(output) => output,
+            None => return Ok(py.None().into_bound(py)),
+        };
+
+        proto_to_json(py, module_output.as_ref())
+    }
+}
+
 /// Compiles a YARA source code producing a set of compiled [`Rules`].
 ///
 /// This function allows compiling simple rules that don't depend on external
@@ -126,6 +189,7 @@ struct Compiler {
     inner: yrx::Compiler<'static>,
     relaxed_re_syntax: bool,
     error_on_slow_pattern: bool,
+    includes_enabled: bool,
 }
 
 impl Compiler {
@@ -159,13 +223,33 @@ impl Compiler {
     /// The `error_on_slow_pattern` argument tells the compiler to treat slow
     /// patterns as errors, instead of warnings.
     #[new]
-    #[pyo3(signature = (*, relaxed_re_syntax=false, error_on_slow_pattern=false))]
-    fn new(relaxed_re_syntax: bool, error_on_slow_pattern: bool) -> Self {
-        Self {
+    #[pyo3(signature = (*, relaxed_re_syntax=false, error_on_slow_pattern=false, includes_enabled=true))]
+    fn new(
+        relaxed_re_syntax: bool,
+        error_on_slow_pattern: bool,
+        includes_enabled: bool,
+    ) -> Self {
+        let mut compiler = Self {
             inner: Self::new_inner(relaxed_re_syntax, error_on_slow_pattern),
             relaxed_re_syntax,
             error_on_slow_pattern,
-        }
+            includes_enabled,
+        };
+        compiler.inner.enable_includes(includes_enabled);
+        compiler
+    }
+
+    /// Specify a regular expression that the compiler will enforce upon each
+    /// rule name. Any rule which has a name which does not match this regex
+    /// will return an InvalidRuleName warning.
+    ///
+    /// If the regexp does not compile a ValueError is returned.
+    #[pyo3(signature = (regexp_str))]
+    fn rule_name_regexp(&mut self, regexp_str: &str) -> PyResult<()> {
+        let linter = yrx::linters::rule_name(regexp_str)
+            .map_err(|err| PyValueError::new_err(err.to_string()))?;
+        self.inner.add_linter(linter);
+        Ok(())
     }
 
     /// Adds a YARA source code to be compiled.
@@ -255,12 +339,30 @@ impl Compiler {
 
     /// Tell the compiler that a YARA module is not supported.
     ///
-    /// Import statements for unsupported modules will be ignored without
-    /// errors, but a warning will be issued. Any rule that make use of an
-    /// ignored module will be ignored, while the rest of rules that
-    /// don't rely on that module will be correctly compiled.
+    /// Import statements for ignored modules will be ignored without errors,
+    /// but a warning will be issued. Any rule that makes use of an ignored
+    /// module will be also ignored, while the rest of the rules that don't
+    /// rely on that module will be correctly compiled.
     fn ignore_module(&mut self, module: &str) {
         self.inner.ignore_module(module);
+    }
+
+    /// Enables or disables the inclusion of files with the `include` directive.
+    ///
+    /// When includes are disabled, any `include` directive encountered in the
+    /// source code will be treated as an error. By default, includes are enabled.
+    ///
+    /// # Example
+    ///
+    /// ```python
+    /// import yara_x
+    ///
+    /// compiler = yara_x.Compiler()
+    /// compiler.enable_includes(False)  # Disable includes
+    /// ```
+    fn enable_includes(&mut self, yes: bool) {
+        self.includes_enabled = yes;
+        self.inner.enable_includes(yes);
     }
 
     /// Builds the source code previously added to the compiler.
@@ -454,7 +556,7 @@ impl ScanResults {
     }
 
     #[getter]
-    /// Rules that matched during the scan.
+    /// Module output from the scan.
     fn module_outputs<'py>(
         &'py self,
         py: Python<'py>,
@@ -635,16 +737,9 @@ fn scan_results_to_py(
     let module_outputs = PyDict::new(py);
     let outputs = scan_results.module_outputs();
 
-    // For better performance we only load the "json" module if there's
-    // some module output.
     if outputs.len() > 0 {
-        let json = PyModule::import(py, "json")?;
-        let json_loads = json.getattr("loads")?;
         for (module, output) in outputs {
-            let module_output_json = proto_to_json(output).unwrap();
-            let module_output =
-                json_loads.call((module_output_json,), None)?;
-            module_outputs.set_item(module, module_output)?;
+            module_outputs.set_item(module, proto_to_json(py, output)?)?;
         }
     }
 
@@ -727,6 +822,112 @@ fn match_to_py(py: Python, match_: yrx::Match) -> PyResult<Py<Match>> {
     )
 }
 
+/// Decodes the JSON output generated by YARA modules and converts it
+/// into a native Python dictionary.
+///
+/// YARA module outputs often include values that require special handling.
+/// In particular, raw byte strings—since they cannot be directly represented
+/// in JSON—are encoded as base64 and wrapped in an object that includes
+/// both the encoded value and metadata about the encoding. For example:
+///
+/// ```json
+/// "my_bytes_field": {
+///   "encoding": "base64",
+///   "value": "dGhpcyBpcyB0aGUgb3JpZ2luYWwgdmFsdWU="
+/// }
+/// ```
+///
+/// This decoder identifies such structures, decodes the base64-encoded content,
+/// and returns the result as a Python `bytes` object, preserving the original
+/// binary data.
+#[pyclass]
+struct JsonDecoder {
+    fromtimestamp: Py<PyAny>,
+}
+
+#[pymethods]
+impl JsonDecoder {
+    #[staticmethod]
+    fn new() -> Self {
+        JsonDecoder {
+            fromtimestamp: Python::with_gil(|py| {
+                PyModule::import(py, "datetime")
+                    .unwrap()
+                    .getattr("datetime")
+                    .unwrap()
+                    .getattr("fromtimestamp")
+                    .unwrap()
+                    .unbind()
+            }),
+        }
+    }
+
+    fn __call__<'py>(
+        &self,
+        py: Python<'py>,
+        dict: Bound<'py, PyDict>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        if let Some(encoding) = dict
+            .get_item("encoding")?
+            .as_ref()
+            .and_then(|encoding| encoding.downcast::<PyString>().ok())
+        {
+            let value = match dict.get_item("value")? {
+                Some(value) => value,
+                None => return Ok(dict.into_any()),
+            };
+
+            if encoding == "base64" {
+                BASE64_STANDARD
+                    .decode(value.downcast::<PyString>()?.to_cow()?.as_bytes())
+                    .expect("decoding base64")
+                    .into_bound_py_any(py)
+            } else if encoding == "timestamp" {
+                let kwargs = PyDict::new(py);
+                kwargs.set_item("tz", PyTzInfo::utc(py)?)?;
+                self.fromtimestamp
+                    .call(py, (value,), Some(&kwargs))?
+                    .into_bound_py_any(py)
+            } else {
+                Ok(dict.into_any())
+            }
+        } else {
+            Ok(dict.into_any())
+        }
+    }
+}
+
+fn proto_to_json<'py>(
+    py: Python<'py>,
+    proto: &dyn MessageDyn,
+) -> PyResult<Bound<'py, PyAny>> {
+    let mut module_output_json = Vec::new();
+
+    let mut serializer =
+        yara_x_proto_json::Serializer::new(&mut module_output_json);
+
+    serializer
+        .serialize(proto)
+        .expect("unable to serialize JSON produced by module");
+
+    let json = PyModule::import(py, "json")?;
+    let json_loads = json.getattr("loads")?;
+
+    let kwargs = PyDict::new(py);
+
+    // The `object_hook` argument for `json.loads` allows to pass a callable
+    // that can transform JSON objects on the fly. This is used in order to
+    // decode some types that are not directly representable in JSON. See the
+    // documentation for JsonDecode for details.
+    kwargs.set_item("object_hook", JsonDecoder::new())?;
+    // By default, json.loads doesn't allow control character (\t, \n, etc)
+    // in strings, we need to set strict=False to allow them.
+    // https://github.com/VirusTotal/yara-x/issues/365
+    kwargs.set_item("strict", false)?;
+
+    json_loads.call((module_output_json,), Some(&kwargs))
+}
+
 create_exception!(
     yara_x,
     CompileError,
@@ -776,5 +977,7 @@ fn yara_x(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Pattern>()?;
     m.add_class::<Match>()?;
     m.add_class::<Formatter>()?;
+    m.add_class::<Module>()?;
+    m.add_class::<JsonDecoder>()?;
     Ok(())
 }

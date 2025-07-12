@@ -5,7 +5,6 @@ use std::slice::Iter;
 use std::time::Instant;
 
 use aho_corasick::AhoCorasick;
-use bincode::Options;
 #[cfg(feature = "logging")]
 use log::*;
 use regex_automata::meta::Regex;
@@ -165,9 +164,11 @@ impl Rules {
         let start = Instant::now();
 
         // Skip the magic and deserialize the remaining data.
-        let mut rules = bincode::DefaultOptions::new()
-            .with_varint_encoding()
-            .deserialize::<Self>(&bytes[magic.len()..])?;
+        let (mut rules, _len): (Self, usize) =
+            bincode::serde::decode_from_slice(
+                &bytes[magic.len()..],
+                bincode::config::standard(),
+            )?;
 
         #[cfg(feature = "logging")]
         info!("Deserialization time: {:?}", Instant::elapsed(&start));
@@ -215,10 +216,13 @@ impl Rules {
         // Write file header.
         writer.write_all(b"YARA-X")?;
 
-        // Serialize rules.
-        Ok(bincode::DefaultOptions::new()
-            .with_varint_encoding()
-            .serialize_into(writer, self)?)
+        bincode::serde::encode_into_std_write(
+            self,
+            &mut writer,
+            bincode::config::standard(),
+        )?;
+
+        Ok(())
     }
 
     /// Deserializes the rules from a `reader`.
@@ -315,7 +319,7 @@ impl Rules {
     ) -> Option<(RuleId, IdentId)> {
         let (target_pattern_id, _) = self.get_sub_pattern(sub_pattern_id);
         for (rule_id, rule) in self.rules.iter().enumerate() {
-            for (ident_id, _, pattern_id) in &rule.patterns {
+            for (ident_id, _, pattern_id, _) in &rule.patterns {
                 if pattern_id == target_pattern_id {
                     return Some((rule_id.into(), *ident_id));
                 };
@@ -445,9 +449,13 @@ impl Rules {
 
     #[inline]
     pub(crate) fn globals(&self) -> types::Struct {
-        bincode::DefaultOptions::new()
-            .deserialize::<types::Struct>(self.serialized_globals.as_slice())
-            .expect("error deserializing global variables")
+        let (globals, _): (types::Struct, usize) =
+            bincode::serde::decode_from_slice(
+                self.serialized_globals.as_slice(),
+                bincode::config::standard(),
+            )
+            .expect("error deserializing global variables");
+        globals
     }
 
     #[inline]
@@ -540,7 +548,9 @@ impl fmt::Debug for Rules {
             writeln!(f, "  namespace: {}", namespace)?;
             writeln!(f, "  name: {}", name)?;
             writeln!(f, "  patterns:")?;
-            for (pattern_ident_id, _, pattern_id) in &rule.patterns {
+            for (pattern_ident_id, _, pattern_id, _is_private) in
+                &rule.patterns
+            {
                 let ident = self.ident_pool.get(*pattern_ident_id).unwrap();
                 writeln!(f, "    {:?} {} ", pattern_id, ident)?;
             }
@@ -583,8 +593,12 @@ pub(crate) struct RuleInfo {
     pub(crate) ident_ref: CodeLoc,
     /// Metadata associated to the rule.
     pub(crate) metadata: Vec<(IdentId, MetaValue)>,
-    /// Vector with all the patterns defined by this rule.
-    pub(crate) patterns: Vec<(IdentId, PatternKind, PatternId)>,
+    /// Vector with all the patterns defined by this rule. The bool in the
+    /// tuple indicates if the pattern is private.
+    pub(crate) patterns: Vec<(IdentId, PatternKind, PatternId, bool)>,
+    /// Number of private patterns in the rule. The number of non-private
+    /// patterns can be computed as patterns.len - num_private_patterns.
+    pub(crate) num_private_patterns: usize,
     /// True if the rule is global.
     pub(crate) is_global: bool,
     /// True if the rule is private.

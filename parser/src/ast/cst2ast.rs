@@ -11,7 +11,7 @@ use num_traits::{Bounded, CheckedMul, FromPrimitive, Num};
 use crate::ast::errors::Error;
 use crate::ast::*;
 use crate::cst::SyntaxKind::*;
-use crate::cst::{CSTStream, Event, SyntaxKind};
+use crate::cst::{Event, SyntaxKind};
 use crate::Span;
 
 #[derive(Debug)]
@@ -27,63 +27,76 @@ enum BuilderError {
     MaxDepthReached,
 }
 
-/// Creates an Abstract Syntax Tree from a [`Parser`].
-pub(super) struct Builder<'src> {
+/// Creates an Abstract Syntax Tree from an iterator of [`Event`],
+/// like a [`CSTStream`].
+pub(super) struct Builder<'src, I>
+where
+    I: Iterator<Item = Event>,
+{
     source: &'src [u8],
-    events: Peekable<CSTStream<'src>>,
+    events: Peekable<CSTStream<'src, I>>,
     errors: Vec<Error>,
     depth: usize,
 }
 
-impl<'src> Builder<'src> {
-    pub fn new(parser: Parser<'src>) -> Self {
+impl<'src, I> Builder<'src, I>
+where
+    I: Iterator<Item = Event>,
+{
+    pub fn new(cst: CSTStream<'src, I>) -> Self {
         Self {
             errors: Vec::new(),
-            source: parser.source(),
+            source: cst.source(),
+            events: cst.peekable(),
             depth: 0,
-            events: parser
-                .into_cst_stream()
-                .whitespaces(false)
-                .newlines(false)
-                .comments(false)
-                .peekable(),
         }
     }
 
     pub fn build_ast(mut self) -> AST<'src> {
-        let mut imports: Vec<Import> = Vec::new();
-        let mut rules: Vec<Rule> = Vec::new();
+        let mut items: Vec<Item> = Vec::new();
 
         self.begin(SOURCE_FILE).unwrap();
 
         loop {
             match self.peek() {
-                Event::Begin(RULE_DECL) => match self.rule_decl() {
-                    Ok(rule) => rules.push(rule),
+                Event::Begin { kind: RULE_DECL, .. } => match self.rule_decl()
+                {
+                    Ok(rule) => items.push(Item::Rule(rule)),
                     // If `rule_decl` returns an error the rule is ignored,
-                    // but we try to continue at the next rule declaration
-                    // or import statement. The `recover` function discards
-                    // everything until finding the next rule or import.
+                    // but we try to continue at the next rule declaration,
+                    // import statement, or include statement. The `recover` function discards
+                    // everything until finding the next valid item.
                     Err(BuilderError::Abort) => self.recover(),
                     Err(BuilderError::MaxDepthReached) => {}
                 },
-                Event::Begin(IMPORT_STMT) => match self.import_stmt() {
-                    Ok(import) => imports.push(import),
-                    // If `import_stmt` returns an error the import is ignored,
-                    // but we try to continue at the next rule declaration
-                    // or import statement. The `recover` function discards
-                    // everything until finding the next rule or import.
-                    Err(BuilderError::Abort) => self.recover(),
-                    Err(BuilderError::MaxDepthReached) => {}
-                },
-                Event::End(SOURCE_FILE) => break,
+                Event::Begin { kind: IMPORT_STMT, .. } => {
+                    match self.import_stmt() {
+                        Ok(import) => items.push(Item::Import(import)),
+                        // If `import_stmt` returns an error the import is ignored,
+                        // but we try to continue at the next valid item.
+                        Err(BuilderError::Abort) => self.recover(),
+                        Err(BuilderError::MaxDepthReached) => {}
+                    }
+                }
+                Event::Begin { kind: INCLUDE_STMT, .. } => {
+                    match self.include_stmt() {
+                        Ok(include) => items.push(Item::Include(include)),
+                        // If `include_stmt` returns an error the include is ignored,
+                        // but we try to continue at the next valid item.
+                        Err(BuilderError::Abort) => self.recover(),
+                        Err(BuilderError::MaxDepthReached) => {}
+                    }
+                }
+                Event::End { kind: SOURCE_FILE, .. } => break,
                 _ => self.recover(),
             }
         }
 
         self.end(SOURCE_FILE).unwrap();
 
-        AST { imports, rules, errors: self.errors }
+        assert_eq!(self.depth, 0);
+
+        AST { items, errors: self.errors }
     }
 }
 
@@ -133,45 +146,49 @@ macro_rules! new_binary_expr {
     }};
 }
 
-impl<'src> Builder<'src> {
+impl<'src, I> Builder<'src, I>
+where
+    I: Iterator<Item = Event>,
+{
     const MAX_AST_DEPTH: usize = 3000;
 
     /// Consumes all events until finding the start of a rule, an import
-    /// statement or the end of the file.
+    /// statement, an include statement, or the end of the file.
     ///
     /// Any [`Event::Error`] found is added to `self.errors`.
     fn recover(&mut self) {
         loop {
             match self.peek() {
-                Event::Begin(RULE_DECL) | Event::Begin(IMPORT_STMT) => break,
-                Event::End(SOURCE_FILE) => break,
+                Event::Begin { kind: RULE_DECL, .. }
+                | Event::Begin { kind: IMPORT_STMT, .. }
+                | Event::Begin { kind: INCLUDE_STMT, .. } => break,
+                Event::End { kind: SOURCE_FILE, .. } => break,
                 _ => {
                     let _ = self.events.next();
                 }
             }
         }
+        self.depth = 0;
     }
 
-    /// Consumes events of type [`Event::Error`] until finding one that
-    /// is not an error.
+    /// Consumes errors, whitespaces, newlines and comments, until finding
+    /// some other kind of token.
     ///
     /// The consumed errors are appended to `self.errors`.
-    fn consume_errors(&mut self) {
-        self.errors.extend(
-            self.events
-                .peeking_take_while(|event| {
-                    matches!(event, Event::Error { .. })
-                })
-                .map(|event| {
-                    // The event is guaranteed to be an Event::Error by the
-                    // predicate passed to `peeking_take_while`.
-                    if let Event::Error { message, span } = event {
-                        Error::SyntaxError { message, span }
-                    } else {
-                        unreachable!()
-                    }
-                }),
-        );
+    fn consume_errors_and_trivia(&mut self) {
+        for event in self.events.peeking_take_while(|event| {
+            matches!(
+                event,
+                Event::Error { .. }
+                    | Event::Token { kind: WHITESPACE, .. }
+                    | Event::Token { kind: NEWLINE, .. }
+                    | Event::Token { kind: COMMENT, .. }
+            )
+        }) {
+            if let Event::Error { message, span } = event {
+                self.errors.push(Error::SyntaxError { message, span });
+            }
+        }
     }
 
     /// Returns the slice of source code defined by `span`.
@@ -197,15 +214,12 @@ impl<'src> Builder<'src> {
         })
     }
 
-    /// Returns a reference to the next non-error [`Event`] in the CST stream
-    /// without consuming it.
-    ///
-    /// All events of type [`Event::Error`] that appears before the next non-error
-    /// event are consumed.
+    /// Returns a reference to the next [`Event`] that is not a whitespace,
+    /// newline, comment or error. The event is returned without being
+    /// consumed. Any whitespace, newline, comment or error is consumed that
+    /// appears before the returned one is consumed.
     fn peek(&mut self) -> &Event {
-        // Any Event::Error at the front of the event stream is consumed and
-        // added to `self.errors`.
-        self.consume_errors();
+        self.consume_errors_and_trivia();
         self.events.peek().expect("unexpected end of events")
     }
 
@@ -221,14 +235,15 @@ impl<'src> Builder<'src> {
     /// CST node that contains portions of the syntax tree that were not
     /// correctly parsed.
     fn next(&mut self) -> Result<Event, BuilderError> {
-        if let Event::Begin(ERROR) = self.peek() {
+        if let Event::Begin { kind: ERROR, .. } = self.peek() {
             return Err(BuilderError::Abort);
         }
         Ok(self.events.next().expect("unexpected end of events"))
     }
 
     fn begin(&mut self, kind: SyntaxKind) -> Result<(), BuilderError> {
-        assert_eq!(self.next()?, Event::Begin(kind));
+        let next = self.next()?;
+        assert!(matches!(next, Event::Begin{kind: k, ..} if k == kind));
         if self.depth == Self::MAX_AST_DEPTH {
             return Err(BuilderError::MaxDepthReached);
         }
@@ -237,8 +252,9 @@ impl<'src> Builder<'src> {
     }
 
     fn end(&mut self, kind: SyntaxKind) -> Result<(), BuilderError> {
-        assert_eq!(self.next()?, Event::End(kind));
-        self.depth -= 1;
+        let next = self.next()?;
+        assert!(matches!(next, Event::End{kind: k, ..} if k == kind));
+        self.depth = self.depth.saturating_sub(1);
         Ok(())
     }
 
@@ -332,7 +348,7 @@ impl<'src> Builder<'src> {
         loop {
             let (operator, (l_bp, r_bp)) = match self.peek() {
                 Event::Token { kind, .. } => (*kind, binding_power(*kind)),
-                Event::End(_) => break,
+                Event::End { .. } => break,
                 event => panic!("unexpected {:?}", event),
             };
 
@@ -434,7 +450,18 @@ impl<'src> Builder<'src> {
     }
 }
 
-impl<'src> Builder<'src> {
+impl<'src, I> Builder<'src, I>
+where
+    I: Iterator<Item = Event>,
+{
+    fn include_stmt(&mut self) -> Result<Include<'src>, BuilderError> {
+        self.begin(INCLUDE_STMT)?;
+        let span = self.expect(INCLUDE_KW)?;
+        let (file_name, file_name_span) = self.utf8_string_lit()?;
+        self.end(INCLUDE_STMT)?;
+        Ok(Include { file_name, span: span.combine(&file_name_span) })
+    }
+
     fn import_stmt(&mut self) -> Result<Import<'src>, BuilderError> {
         self.begin(IMPORT_STMT)?;
         let span = self.expect(IMPORT_KW)?;
@@ -446,7 +473,7 @@ impl<'src> Builder<'src> {
     fn rule_decl(&mut self) -> Result<Rule<'src>, BuilderError> {
         self.begin(RULE_DECL)?;
 
-        let flags = if let Event::Begin(RULE_MODS) = self.peek() {
+        let flags = if let Event::Begin { kind: RULE_MODS, .. } = self.peek() {
             self.rule_mods()?
         } else {
             RuleFlags::empty()
@@ -456,7 +483,7 @@ impl<'src> Builder<'src> {
 
         let identifier = self.identifier()?;
 
-        let tags = if let Event::Begin(RULE_TAGS) = self.peek() {
+        let tags = if let Event::Begin { kind: RULE_TAGS, .. } = self.peek() {
             Some(self.rule_tags()?)
         } else {
             None
@@ -464,17 +491,18 @@ impl<'src> Builder<'src> {
 
         self.expect(L_BRACE)?;
 
-        let meta = if let Event::Begin(META_BLK) = self.peek() {
+        let meta = if let Event::Begin { kind: META_BLK, .. } = self.peek() {
             Some(self.meta_blk()?)
         } else {
             None
         };
 
-        let patterns = if let Event::Begin(PATTERNS_BLK) = self.peek() {
-            Some(self.patterns_blk()?)
-        } else {
-            None
-        };
+        let patterns =
+            if let Event::Begin { kind: PATTERNS_BLK, .. } = self.peek() {
+                Some(self.patterns_blk()?)
+            } else {
+                None
+            };
 
         self.begin(CONDITION_BLK)?;
         self.expect(CONDITION_KW)?;
@@ -495,18 +523,23 @@ impl<'src> Builder<'src> {
         let mut flags = RuleFlags::empty();
 
         loop {
-            match self.next()? {
+            match self.peek() {
                 Event::Token { kind: GLOBAL_KW, .. } => {
+                    self.next()?;
                     flags.insert(RuleFlags::Global)
                 }
                 Event::Token { kind: PRIVATE_KW, .. } => {
+                    self.next()?;
                     flags.insert(RuleFlags::Private)
                 }
-                Event::End(RULE_MODS) => break,
+                Event::End { kind: RULE_MODS, .. } => {
+                    break;
+                }
                 event => panic!("unexpected {:?}", event),
             }
         }
 
+        self.end(RULE_MODS)?;
         Ok(flags)
     }
 
@@ -532,7 +565,7 @@ impl<'src> Builder<'src> {
 
         let mut meta = Vec::new();
 
-        while let Event::Begin(META_DEF) = self.peek() {
+        while let Event::Begin { kind: META_DEF, .. } = self.peek() {
             meta.push(self.meta_def()?)
         }
 
@@ -548,7 +581,7 @@ impl<'src> Builder<'src> {
 
         let mut patterns = Vec::new();
 
-        while let Event::Begin(PATTERN_DEF) = self.peek() {
+        while let Event::Begin { kind: PATTERN_DEF, .. } = self.peek() {
             patterns.push(self.pattern_def()?);
         }
 
@@ -574,34 +607,33 @@ impl<'src> Builder<'src> {
 
         let value = match self.peek() {
             Event::Token { kind: INTEGER_LIT, .. } => {
-                let (value, _, _) = self.integer_lit::<i64>()?;
-                MetaValue::Integer(multiplier * value)
+                let (value, _, span) = self.integer_lit::<i64>()?;
+                MetaValue::Integer((multiplier * value, span))
             }
             Event::Token { kind: FLOAT_LIT, .. } => {
-                let (value, _, _) = self.float_lit()?;
-                MetaValue::Float(multiplier as f64 * value)
+                let (value, _, span) = self.float_lit()?;
+                MetaValue::Float((multiplier as f64 * value, span))
             }
             Event::Token { kind: STRING_LIT, .. } => {
                 match self.string_lit(true)? {
                     // If the result is a string borrowed directly from the
                     // source code, we can be sure that it's a valid UTF-8
                     // string.
-                    (Cow::Borrowed(s), _lit, _span) => {
-                        MetaValue::String(unsafe { s.to_str_unchecked() })
-                    }
+                    (Cow::Borrowed(s), _lit, span) => MetaValue::String((
+                        unsafe { s.to_str_unchecked() },
+                        span,
+                    )),
                     // If the result is an owned string is because it contains
                     // some escaped character, this string is not guaranteed
                     // to be a valid UTF-8 string.
-                    (Cow::Owned(s), _lit, _span) => MetaValue::Bytes(s),
+                    (Cow::Owned(s), _lit, span) => MetaValue::Bytes((s, span)),
                 }
             }
             Event::Token { kind: TRUE_KW, .. } => {
-                self.expect(TRUE_KW)?;
-                MetaValue::Bool(true)
+                MetaValue::Bool((true, self.expect(TRUE_KW)?))
             }
             Event::Token { kind: FALSE_KW, .. } => {
-                self.expect(FALSE_KW)?;
-                MetaValue::Bool(false)
+                MetaValue::Bool((false, self.expect(FALSE_KW)?))
             }
             event => panic!("unexpected {:?}", event),
         };
@@ -637,7 +669,7 @@ impl<'src> Builder<'src> {
                     modifiers,
                 }))
             }
-            Event::Begin(HEX_PATTERN) => {
+            Event::Begin { kind: HEX_PATTERN, .. } => {
                 let tokens = self.hex_pattern()?;
                 let modifiers = self.pattern_mods_opt()?;
 
@@ -658,7 +690,7 @@ impl<'src> Builder<'src> {
     fn pattern_mods_opt(
         &mut self,
     ) -> Result<PatternModifiers<'src>, BuilderError> {
-        if let Event::Begin(PATTERN_MODS) = self.peek() {
+        if let Event::Begin { kind: PATTERN_MODS, .. } = self.peek() {
             self.pattern_mods()
         } else {
             Ok(PatternModifiers::default())
@@ -672,7 +704,7 @@ impl<'src> Builder<'src> {
 
         let mut modifiers = Vec::new();
 
-        while let Event::Begin(PATTERN_MOD) = self.peek() {
+        while let Event::Begin { kind: PATTERN_MOD, .. } = self.peek() {
             self.begin(PATTERN_MOD)?;
             match self.next()? {
                 Event::Token { kind: ASCII_KW, span } => {
@@ -810,10 +842,12 @@ impl<'src> Builder<'src> {
                         HexToken::Byte(HexByte { span, value, mask })
                     }
                 }
-                Event::Begin(HEX_ALTERNATIVE) => {
+                Event::Begin { kind: HEX_ALTERNATIVE, .. } => {
                     HexToken::Alternative(Box::new(self.hex_alternative()?))
                 }
-                Event::Begin(HEX_JUMP) => HexToken::Jump(self.hex_jump()?),
+                Event::Begin { kind: HEX_JUMP, .. } => {
+                    HexToken::Jump(self.hex_jump()?)
+                }
                 _ => break,
             });
         }
@@ -935,10 +969,12 @@ impl<'src> Builder<'src> {
                     anchor: self.anchor()?,
                 }))
             }
-            Event::Begin(FOR_EXPR) => self.for_expr()?,
-            Event::Begin(OF_EXPR) => self.of_expr()?,
-            Event::Begin(WITH_EXPR) => self.with_expr()?,
-            Event::Begin(EXPR) => self.pratt_parser(Self::expr, 0)?,
+            Event::Begin { kind: FOR_EXPR, .. } => self.for_expr()?,
+            Event::Begin { kind: OF_EXPR, .. } => self.of_expr()?,
+            Event::Begin { kind: WITH_EXPR, .. } => self.with_expr()?,
+            Event::Begin { kind: EXPR, .. } => {
+                self.pratt_parser(Self::expr, 0)?
+            }
             event => panic!("unexpected {:?}", event),
         };
 
@@ -964,7 +1000,7 @@ impl<'src> Builder<'src> {
                     Event::Token { kind: THEM_KW, .. } => {
                         Some(PatternSet::Them { span: self.expect(THEM_KW)? })
                     }
-                    Event::Begin(PATTERN_IDENT_TUPLE) => {
+                    Event::Begin { kind: PATTERN_IDENT_TUPLE, .. } => {
                         Some(PatternSet::Set(self.pattern_ident_tuple()?))
                     }
                     event => panic!("unexpected {:?}", event),
@@ -1029,10 +1065,12 @@ impl<'src> Builder<'src> {
                     span: self.expect(THEM_KW)?,
                 })
             }
-            Event::Begin(PATTERN_IDENT_TUPLE) => OfItems::PatternSet(
-                PatternSet::Set(self.pattern_ident_tuple()?),
-            ),
-            Event::Begin(BOOLEAN_EXPR_TUPLE) => {
+            Event::Begin { kind: PATTERN_IDENT_TUPLE, .. } => {
+                OfItems::PatternSet(PatternSet::Set(
+                    self.pattern_ident_tuple()?,
+                ))
+            }
+            Event::Begin { kind: BOOLEAN_EXPR_TUPLE, .. } => {
                 OfItems::BoolExprTuple(self.boolean_expr_tuple()?)
             }
             event => panic!("unexpected {:?}", event),
@@ -1107,12 +1145,12 @@ impl<'src> Builder<'src> {
             Event::Token { kind: ANY_KW, .. } => {
                 Quantifier::Any { span: self.expect(ANY_KW)? }
             }
-            Event::Begin(PRIMARY_EXPR) => {
+            Event::Begin { kind: PRIMARY_EXPR, .. } => {
                 let expr = self.primary_expr()?;
                 self.expect(PERCENT)?;
                 Quantifier::Percentage(expr)
             }
-            Event::Begin(EXPR) => Quantifier::Expr(self.expr()?),
+            Event::Begin { kind: EXPR, .. } => Quantifier::Expr(self.expr()?),
             event => panic!("unexpected {:?}", event),
         };
 
@@ -1125,11 +1163,11 @@ impl<'src> Builder<'src> {
         self.begin(ITERABLE)?;
 
         let iterable = match self.peek() {
-            Event::Begin(RANGE) => Iterable::Range(self.range()?),
-            Event::Begin(EXPR_TUPLE) => {
+            Event::Begin { kind: RANGE, .. } => Iterable::Range(self.range()?),
+            Event::Begin { kind: EXPR_TUPLE, .. } => {
                 Iterable::ExprTuple(self.expr_tuple()?)
             }
-            Event::Begin(EXPR) => Iterable::Expr(self.expr()?),
+            Event::Begin { kind: EXPR, .. } => Iterable::Expr(self.expr()?),
             event => panic!("unexpected {:?}", event),
         };
 
@@ -1209,8 +1247,8 @@ impl<'src> Builder<'src> {
         self.begin(TERM)?;
 
         let expr = match self.peek() {
-            Event::Begin(FUNC_CALL) => self.func_call(None)?,
-            Event::Begin(PRIMARY_EXPR) => {
+            Event::Begin { kind: FUNC_CALL, .. } => self.func_call(None)?,
+            Event::Begin { kind: PRIMARY_EXPR, .. } => {
                 let mut expr = self.primary_expr()?;
 
                 match self.peek() {
@@ -1253,7 +1291,7 @@ impl<'src> Builder<'src> {
         let l_paren_span = self.expect(L_PAREN)?;
         let mut args = Vec::new();
 
-        while let Event::Begin(BOOLEAN_EXPR) = self.peek() {
+        while let Event::Begin { kind: BOOLEAN_EXPR, .. } = self.peek() {
             args.push(self.boolean_expr()?);
             if let Event::Token { kind: COMMA, .. } = self.peek() {
                 self.expect(COMMA)?;
@@ -1263,7 +1301,7 @@ impl<'src> Builder<'src> {
         let r_paren_span = self.expect(R_PAREN)?;
 
         let expr = Expr::FuncCall(Box::new(FuncCall {
-            span: identifier.span(),
+            span: identifier.span().combine(&r_paren_span),
             args_span: l_paren_span.combine(&r_paren_span),
             object,
             identifier,
@@ -1386,12 +1424,36 @@ impl<'src> Builder<'src> {
                 }))
             }
             Event::Token { kind: MINUS, .. } => {
-                let span = self.expect(MINUS)?;
+                let operator_span = self.expect(MINUS)?;
                 let operand = self.term()?;
-                Expr::Minus(Box::new(UnaryExpr {
-                    span: span.combine(&operand.span()),
-                    operand,
-                }))
+                let operand_span = operand.span();
+                let span = operator_span.combine(&operand_span);
+                let literal = self.get_source_str(&span)?;
+
+                match operand {
+                    // Special case: if a minus sign is immediately followed
+                    // by a positive literal integer, we don't construct a
+                    // `Expr::Minus` with a `Expr::LiteralInteger` operand.
+                    //
+                    // Instead, we merge them into a single `Expr::LiteralInteger`
+                    // with a negative value, updating its span and literal to
+                    // include the minus sign.
+                    //
+                    // This optimization is applied only if the original integer
+                    // is positive and not parenthesized. This avoids cases like
+                    // `--1` (which would become `--1`) or `-(1)` (which would
+                    // become `-(1`).
+                    Expr::LiteralInteger(mut integer)
+                        if integer.value.is_positive()
+                            && !literal.contains('(') =>
+                    {
+                        integer.value = -integer.value;
+                        integer.literal = literal;
+                        integer.span = span;
+                        Expr::LiteralInteger(integer)
+                    }
+                    _ => Expr::Minus(Box::new(UnaryExpr { span, operand })),
+                }
             }
             Event::Token { kind: L_PAREN, .. } => {
                 self.expect(L_PAREN)?;

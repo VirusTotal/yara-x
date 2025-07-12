@@ -1,0 +1,6 @@
+import "hash"
+
+rule test_1 { condition: hash.md5(0, filesize) == "AAB" }
+
+
+rule test_2 { condition: "AD" == hash.sha256(0,filesize) }

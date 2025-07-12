@@ -22,7 +22,7 @@ use thiserror::Error;
 
 use tokens::Token::*;
 use tokens::TokenStream;
-use yara_x_parser::cst::SyntaxKind;
+use yara_x_parser::cst::{CSTStream, Event, SyntaxKind};
 use yara_x_parser::{Parser, Span};
 
 use crate::align::Align;
@@ -49,16 +49,16 @@ mod tests;
 #[allow(clippy::large_enum_variant)]
 pub enum Error {
     /// Error while reading from input.
-    #[error("Read error")]
+    #[error("read error: {0}")]
     ReadError(io::Error),
 
     /// Error while writing to output.
-    #[error("Write error")]
+    #[error("write error: {0}")]
     WriteError(io::Error),
 
-    /// Error while parsing the input.
-    #[error("Parse error")]
-    ParseError { message: String, span: Span },
+    /// The input file contained invalid UTF-8.
+    #[error("invalid UTF-8 at {0}")]
+    InvalidUTF8(Span),
 }
 
 /// Formats YARA source code automatically.
@@ -328,10 +328,7 @@ impl Formatter {
     /// Returns `true` if the output differs from the input.
     ///
     /// This function will fail if it can't read from the input, write to the
-    /// output, or when the input doesn't contain syntactically valid YARA
-    /// rules.
-    ///
-    /// TODO: syntactically invalid rules may be formatted
+    /// output, or when the input contains invalid UTF-8 characters.
     pub fn format<R, W>(
         &self,
         mut input: R,
@@ -341,18 +338,32 @@ impl Formatter {
         R: io::Read,
         W: io::Write,
     {
-        let mut in_buf = Vec::new();
+        let mut invalid_utf8 = Option::None;
+        let mut in_buf = Vec::with_capacity(256);
 
         input.read_to_end(&mut in_buf).map_err(Error::ReadError)?;
 
-        let stream = Parser::new(in_buf.as_slice()).into_cst_stream();
-        let tokens = Tokens::new(stream);
+        let cst_stream = CSTStream::from(Parser::new(in_buf.as_slice()));
 
+        // Inspect the CST stream looking for events indicating the presence of
+        // invalid UTF-8 sequences.
+        let events = cst_stream.into_iter().inspect(|evt| {
+            if let Event::Token { kind: SyntaxKind::INVALID_UTF8, span } = evt
+            {
+                invalid_utf8.get_or_insert(span.clone());
+            }
+        });
+
+        let tokens = Tokens::new(in_buf.as_slice(), events);
         let mut out_buf = Cursor::new(Vec::new());
 
         self.format_impl(tokens)
             .write_to(&mut out_buf)
             .map_err(Error::WriteError)?;
+
+        if let Some(span) = invalid_utf8 {
+            return Err(Error::InvalidUTF8(span));
+        }
 
         let modified = in_buf.ne(out_buf.get_ref());
 
@@ -522,8 +533,8 @@ impl Formatter {
 
         let tokens = processor::Processor::new(tokens)
             //
-            // Insert newline in front of import statements, making sure that
-            // each import starts at a new line. The newline is not inserted if
+            // Insert newline in front of import and include statements, making
+            // sure that they start at a new line. The newline is not inserted if
             // the statement is at the start of the file.
             //
             // Example:
@@ -537,8 +548,11 @@ impl Formatter {
                     let next_token = ctx.token(1);
                     let prev_token = ctx.token(-1);
 
-                    next_token.eq(&Begin(SyntaxKind::IMPORT_STMT))
-                        && prev_token.neq(&Begin(SyntaxKind::SOURCE_FILE))
+                    matches!(
+                        next_token,
+                        Begin(SyntaxKind::IMPORT_STMT)
+                            | Begin(SyntaxKind::INCLUDE_STMT)
+                    ) && prev_token.neq(&Begin(SyntaxKind::SOURCE_FILE))
                         && prev_token.is_not(*NEWLINE)
                 },
                 processor::actions::newline,

@@ -17,13 +17,13 @@ use crate::modules::protos::lnk::*;
 pub mod parser;
 
 #[module_main]
-fn main(data: &[u8], _meta: Option<&[u8]>) -> Lnk {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Lnk, ModuleError> {
     match parser::LnkParser::new().parse(data) {
-        Ok(lnk) => lnk,
+        Ok(lnk) => Ok(lnk),
         Err(_) => {
             let mut lnk = Lnk::new();
             lnk.is_lnk = Some(false);
-            lnk
+            Ok(lnk)
         }
     }
 }

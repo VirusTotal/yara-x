@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 #[cfg(feature = "rules-profiling")]
 use std::ffi::CString;
 use std::ffi::{c_char, c_void, CStr};
@@ -5,15 +6,17 @@ use std::slice;
 use std::time::Duration;
 
 use yara_x::errors::ScanError;
+use yara_x::ScanOptions;
 
 use crate::{
     _yrx_set_last_error, YRX_RESULT, YRX_RULE, YRX_RULES, YRX_RULE_CALLBACK,
 };
 
 /// A scanner that scans data with a set of compiled YARA rules.
-pub struct YRX_SCANNER<'s> {
+pub struct YRX_SCANNER<'s, 'm> {
     inner: yara_x::Scanner<'s>,
     on_matching_rule: Option<(YRX_RULE_CALLBACK, *mut std::ffi::c_void)>,
+    module_data: HashMap<&'m str, &'m [u8]>,
 }
 
 /// Creates a [`YRX_SCANNER`] object that can be used for scanning data with
@@ -32,15 +35,16 @@ pub unsafe extern "C" fn yrx_scanner_create(
     let rules = if let Some(rules) = rules.as_ref() {
         rules
     } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     *scanner = Box::into_raw(Box::new(YRX_SCANNER {
         inner: yara_x::Scanner::new(rules.inner()),
         on_matching_rule: None,
+        module_data: HashMap::new(),
     }));
 
-    YRX_RESULT::SUCCESS
+    YRX_RESULT::YRX_SUCCESS
 }
 
 /// Destroys a [`YRX_SCANNER`] object.
@@ -63,12 +67,12 @@ pub unsafe extern "C" fn yrx_scanner_set_timeout(
 ) -> YRX_RESULT {
     let scanner = match scanner.as_mut() {
         Some(s) => s,
-        None => return YRX_RESULT::INVALID_ARGUMENT,
+        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
     };
 
     scanner.inner.set_timeout(Duration::from_secs(timeout));
 
-    YRX_RESULT::SUCCESS
+    YRX_RESULT::YRX_SUCCESS
 }
 
 /// Scans a data buffer.
@@ -86,20 +90,27 @@ pub unsafe extern "C" fn yrx_scanner_scan(
 
     let scanner = match scanner.as_mut() {
         Some(s) => s,
-        None => return YRX_RESULT::INVALID_ARGUMENT,
+        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
     };
 
     let data = match slice_from_ptr_and_len(data, len) {
         Some(data) => data,
-        None => return YRX_RESULT::INVALID_ARGUMENT,
+        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
     };
 
-    let scan_results = scanner.inner.scan(data);
+    let options = scanner
+        .module_data
+        .drain()
+        .fold(ScanOptions::new(), |acc, (module_name, meta)| {
+            acc.set_module_metadata(module_name, meta)
+        });
+
+    let scan_results = scanner.inner.scan_with_options(data, options);
 
     if let Err(err) = scan_results {
         let result = match err {
-            ScanError::Timeout => YRX_RESULT::SCAN_TIMEOUT,
-            _ => YRX_RESULT::SCAN_ERROR,
+            ScanError::Timeout => YRX_RESULT::YRX_SCAN_TIMEOUT,
+            _ => YRX_RESULT::YRX_SCAN_ERROR,
         };
         _yrx_set_last_error(Some(err));
         return result;
@@ -113,7 +124,7 @@ pub unsafe extern "C" fn yrx_scanner_scan(
         }
     }
 
-    YRX_RESULT::SUCCESS
+    YRX_RESULT::YRX_SUCCESS
 }
 
 /// Sets a callback function that is called by the scanner for each rule that
@@ -132,9 +143,9 @@ pub unsafe extern "C" fn yrx_scanner_on_matching_rule(
 ) -> YRX_RESULT {
     if let Some(scanner) = scanner.as_mut() {
         scanner.on_matching_rule = Some((callback, user_data));
-        YRX_RESULT::SUCCESS
+        YRX_RESULT::YRX_SUCCESS
     } else {
-        YRX_RESULT::INVALID_ARGUMENT
+        YRX_RESULT::YRX_INVALID_ARGUMENT
     }
 }
 
@@ -180,32 +191,73 @@ pub unsafe extern "C" fn yrx_scanner_set_module_output(
 ) -> YRX_RESULT {
     let scanner = match scanner.as_mut() {
         Some(s) => s,
-        None => return YRX_RESULT::INVALID_ARGUMENT,
+        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
     };
 
     let module_name = match CStr::from_ptr(name).to_str() {
         Ok(name) => name,
         Err(err) => {
             _yrx_set_last_error(Some(err));
-            return YRX_RESULT::INVALID_UTF8;
+            return YRX_RESULT::YRX_INVALID_UTF8;
         }
     };
 
     let data = match slice_from_ptr_and_len(data, len) {
         Some(data) => data,
-        None => return YRX_RESULT::INVALID_ARGUMENT,
+        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
     };
 
     match scanner.inner.set_module_output_raw(module_name, data) {
         Ok(_) => {
             _yrx_set_last_error::<ScanError>(None);
-            YRX_RESULT::SUCCESS
+            YRX_RESULT::YRX_SUCCESS
         }
         Err(err) => {
             _yrx_set_last_error(Some(err));
-            YRX_RESULT::SCAN_ERROR
+            YRX_RESULT::YRX_SCAN_ERROR
         }
     }
+}
+
+/// Specifies metadata for a module.
+///
+/// Since the module's output typically varies with each scanned file, you need to
+/// call [yrx_scanner_set_module_data] prior to each invocation of
+/// [yrx_scanner_scan]. Once [yrx_scanner_scan] is executed, the module's metadata
+/// is consumed and will be empty unless set again before the subsequent call.
+///
+/// The `name` argument is the name of a YARA module. It must be a valid UTF-8 string.
+///
+/// The `name` as well as `data` must be valid from the time they are used as arguments
+/// of this function until the scan is executed.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_scanner_set_module_data(
+    scanner: *mut YRX_SCANNER,
+    name: *const c_char,
+    data: *const u8,
+    len: usize,
+) -> YRX_RESULT {
+    let scanner = match scanner.as_mut() {
+        Some(s) => s,
+        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+    };
+
+    let name = match CStr::from_ptr(name).to_str() {
+        Ok(name) => name,
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            return YRX_RESULT::YRX_INVALID_UTF8;
+        }
+    };
+
+    let data = match slice_from_ptr_and_len(data, len) {
+        Some(data) => data,
+        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+    };
+
+    scanner.module_data.insert(name, data);
+
+    YRX_RESULT::YRX_SUCCESS
 }
 
 unsafe extern "C" fn yrx_scanner_set_global<
@@ -217,25 +269,25 @@ unsafe extern "C" fn yrx_scanner_set_global<
 ) -> YRX_RESULT {
     let scanner = match scanner.as_mut() {
         Some(s) => s,
-        None => return YRX_RESULT::INVALID_ARGUMENT,
+        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
     };
 
     let ident = match CStr::from_ptr(ident).to_str() {
         Ok(ident) => ident,
         Err(err) => {
             _yrx_set_last_error(Some(err));
-            return YRX_RESULT::INVALID_UTF8;
+            return YRX_RESULT::YRX_INVALID_UTF8;
         }
     };
 
     match scanner.inner.set_global(ident, value) {
         Ok(_) => {
             _yrx_set_last_error::<ScanError>(None);
-            YRX_RESULT::SUCCESS
+            YRX_RESULT::YRX_SUCCESS
         }
         Err(err) => {
             _yrx_set_last_error(Some(err));
-            YRX_RESULT::VARIABLE_ERROR
+            YRX_RESULT::YRX_VARIABLE_ERROR
         }
     }
 }
@@ -251,7 +303,7 @@ pub unsafe extern "C" fn yrx_scanner_set_global_str(
         Ok(value) => yrx_scanner_set_global(scanner, ident, value),
         Err(err) => {
             _yrx_set_last_error(Some(err));
-            YRX_RESULT::INVALID_UTF8
+            YRX_RESULT::YRX_INVALID_UTF8
         }
     }
 }
@@ -315,7 +367,7 @@ unsafe fn slice_from_ptr_and_len<'a>(
 ///
 /// Requires the `rules-profiling` feature.
 pub type YRX_SLOWEST_RULES_CALLBACK = extern "C" fn(
-    namespace: *const c_char,
+    namespace_: *const c_char,
     rule: *const c_char,
     pattern_matching_time: f64,
     condition_exec_time: f64,
@@ -337,13 +389,13 @@ pub unsafe extern "C" fn yrx_scanner_iter_slowest_rules(
     user_data: *mut c_void,
 ) -> YRX_RESULT {
     #[cfg(not(feature = "rules-profiling"))]
-    return YRX_RESULT::NOT_SUPPORTED;
+    return YRX_RESULT::YRX_NOT_SUPPORTED;
 
     #[cfg(feature = "rules-profiling")]
     {
         let scanner = match scanner.as_ref() {
             Some(s) => s,
-            None => return YRX_RESULT::INVALID_ARGUMENT,
+            None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
         };
 
         for profiling_info in scanner.inner.slowest_rules(n) {
@@ -359,7 +411,7 @@ pub unsafe extern "C" fn yrx_scanner_iter_slowest_rules(
             );
         }
 
-        YRX_RESULT::SUCCESS
+        YRX_RESULT::YRX_SUCCESS
     }
 }
 
@@ -378,15 +430,15 @@ pub unsafe extern "C" fn yrx_scanner_clear_profiling_data(
     scanner: *mut YRX_SCANNER,
 ) -> YRX_RESULT {
     #[cfg(not(feature = "rules-profiling"))]
-    return YRX_RESULT::NOT_SUPPORTED;
+    return YRX_RESULT::YRX_NOT_SUPPORTED;
 
     #[cfg(feature = "rules-profiling")]
     {
         match scanner.as_mut() {
             Some(s) => s.inner.clear_profiling_data(),
-            None => return YRX_RESULT::INVALID_ARGUMENT,
+            None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
         };
 
-        YRX_RESULT::SUCCESS
+        YRX_RESULT::YRX_SUCCESS
     }
 }

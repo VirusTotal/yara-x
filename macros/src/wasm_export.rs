@@ -9,11 +9,12 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use syn::visit::Visit;
 use syn::{
-    Error, GenericArgument, Ident, ItemFn, PatType, PathArguments, Result,
-    ReturnType, Type, TypePath,
+    AngleBracketedGenericArguments, Error, Expr, ExprLit, GenericArgument,
+    Ident, ItemFn, Lit, PatType, PathArguments, Result, ReturnType, Type,
+    TypePath,
 };
 
-/// Parses signature of a Rust function and returns its mangled named.
+/// Parses the signature of a Rust function and returns its mangled named.
 struct FuncSignatureParser<'ast> {
     arg_types: Option<VecDeque<&'ast Type>>,
 }
@@ -28,6 +29,44 @@ impl<'ast> FuncSignatureParser<'ast> {
         &type_path.path.segments.last().unwrap().ident
     }
 
+    /// Returns an iterator with the generic arguments for the type specified
+    /// by `type_path`.
+    ///
+    /// Returns an error if the type doesn't have generic arguments.
+    #[inline(always)]
+    fn type_args(
+        type_path: &TypePath,
+    ) -> Result<impl Iterator<Item = &GenericArgument>> {
+        if let PathArguments::AngleBracketed(
+            AngleBracketedGenericArguments { args, .. },
+        ) = &type_path.path.segments.last().unwrap().arguments
+        {
+            Ok(args.into_iter())
+        } else {
+            Err(Error::new_spanned(type_path, "this type must have arguments"))
+        }
+    }
+
+    /// Returns the generic arguments for the type specified by `type_path`,
+    /// but only if all the generic arguments are integers.
+    ///
+    /// Returns an error if the type doesn't have generic arguments or if any
+    /// of the arguments is not a literal integer.
+    fn type_args_as_integers(
+        type_path: &TypePath,
+        error_msg: &str,
+    ) -> Result<Vec<i64>> {
+        Self::type_args(type_path)?
+            .map(|arg| match arg {
+                GenericArgument::Const(Expr::Lit(ExprLit {
+                    lit: Lit::Int(integer),
+                    ..
+                })) => integer.base10_parse(),
+                _ => Err(Error::new_spanned(type_path, error_msg)),
+            })
+            .collect::<Result<Vec<_>>>()
+    }
+
     fn type_path_to_mangled_named(
         type_path: &TypePath,
     ) -> Result<Cow<'static, str>> {
@@ -35,11 +74,48 @@ impl<'ast> FuncSignatureParser<'ast> {
             "i32" | "i64" => Ok(Cow::Borrowed("i")),
             "f32" | "f64" => Ok(Cow::Borrowed("f")),
             "bool" => Ok(Cow::Borrowed("b")),
+
             "PatternId" | "RuleId" => Ok(Cow::Borrowed("i")),
             "RegexpId" => Ok(Cow::Borrowed("r")),
-            "RuntimeString" => Ok(Cow::Borrowed("s")),
-            "RuntimeObjectHandle" => Ok(Cow::Borrowed("i")),
             "Rc" => Ok(Cow::Borrowed("i")),
+            "RuntimeObjectHandle" => Ok(Cow::Borrowed("i")),
+            "RuntimeString" => Ok(Cow::Borrowed("s")),
+            "RangedInteger" => {
+                let error_msg = "RangedInteger must have MIN and MAX arguments (i.e: RangedInteger<0,256>)";
+                let args = Self::type_args_as_integers(type_path, error_msg)?;
+
+                let min = args
+                    .first()
+                    .ok_or_else(|| Error::new_spanned(type_path, error_msg))?;
+
+                let max = args
+                    .get(1)
+                    .ok_or_else(|| Error::new_spanned(type_path, error_msg))?;
+
+                Ok(Cow::Owned(format!("i:R{min:?}:{max:?}")))
+            }
+            "FixedLenString" => {
+                let error_msg = "FixedLenString must have a constant length (i.e: FixedLenString<32>)";
+                let args = Self::type_args_as_integers(type_path, error_msg)?;
+
+                let n = args
+                    .first()
+                    .ok_or_else(|| Error::new_spanned(type_path, error_msg))?;
+
+                Ok(Cow::Owned(format!("s:N{n:?}")))
+            }
+            "Lowercase" => {
+                let mut args = Self::type_args(type_path)?;
+                if let Some(GenericArgument::Type(Type::Path(p))) = args.next()
+                {
+                    Ok(Self::type_path_to_mangled_named(p)?.add(":L"))
+                } else {
+                    Err(Error::new_spanned(
+                        type_path,
+                        "Lowercase must have a type argument (i.e: <Lowercase<RuntimeString>>))",
+                    ))
+                }
+            }
             type_ident => Err(Error::new_spanned(
                 type_path,
                 format!(
@@ -212,12 +288,18 @@ pub(crate) fn impl_wasm_export_macro(
     let public = attr_args.public;
     let export_ident = format_ident!("export__{}", rust_fn_name);
     let exported_fn_ident = format_ident!("WasmExportedFn{}", num_args);
+    let args_signature = FuncSignatureParser::new().parse(&func)?;
+
     let method_of = attr_args
         .method_of
+        .as_ref()
         .map_or_else(|| quote! { None}, |m| quote! { Some(#m) });
 
-    let mangled_fn_name =
-        format!("{}{}", fn_name, FuncSignatureParser::new().parse(&func)?);
+    let mangled_fn_name = if let Some(ty_name) = attr_args.method_of {
+        format!("{ty_name}::{fn_name}{args_signature}")
+    } else {
+        format!("{fn_name}{args_signature}")
+    };
 
     let fn_descriptor = quote! {
         #[allow(non_upper_case_globals)]
@@ -306,5 +388,29 @@ mod tests {
         };
 
         assert_eq!(parser.parse(&func).unwrap(), "@@is");
+
+        let func = parse_quote! {
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> Lowercase<RuntimeString> {  }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@s:L");
+
+        let func = parse_quote! {
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> Lowercase<FixedLenString<32>> {  }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@s:N32:L");
+
+        let func = parse_quote! {
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> FixedLenString<64> {  }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@s:N64");
+
+        let func = parse_quote! {
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> Option<Lowercase<FixedLenString<32>>> {  }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@s:N32:Lu");
     }
 }

@@ -2,12 +2,26 @@ rule test_1 {
   strings:
     $aaa = { 61 61 61 }
   condition:
-    $aaa
+    all of them
 }
 
 rule test_2 {
-  strings:
-    $aaa = { 61 09 62 }
-  condition:
-    $aaa
+   strings:
+      $quoted_aaa = { 27 61 61 61 27 }
+   condition:
+      all of them
+}
+
+rule test_3 {
+   strings:
+      $quoted_aaa = { 22 61 61 61 22 }
+   condition:
+      all of them
+}
+
+rule test_4 {
+   strings:
+      $ = { 61 61 61 0D 0A 09 62 62 62 }
+   condition:
+      all of them
 }

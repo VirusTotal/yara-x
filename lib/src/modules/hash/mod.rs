@@ -29,7 +29,10 @@ thread_local!(
 );
 
 #[module_main]
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> Hash {
+fn main(
+    _data: &[u8],
+    _meta: Option<&[u8]>,
+) -> Result<Hash, ModuleError> {
     // With every scanned file the cache must be cleared.
     SHA256_CACHE.with(|cache| cache.borrow_mut().clear());
     SHA1_CACHE.with(|cache| cache.borrow_mut().clear());
@@ -37,7 +40,7 @@ fn main(_data: &[u8], _meta: Option<&[u8]>) -> Hash {
     CRC32_CACHE.with(|cache| cache.borrow_mut().clear());
     CHECKSUM32_CACHE.with(|cache| cache.borrow_mut().clear());
 
-    Hash::new()
+    Ok(Hash::new())
 }
 
 #[module_export(name = "md5")]
@@ -45,9 +48,9 @@ fn md5_data(
     ctx: &mut ScanContext,
     offset: i64,
     size: i64,
-) -> Option<RuntimeString> {
-    let cached = MD5_CACHE.with(|cache| -> Option<RuntimeString> {
-        Some(RuntimeString::from_slice(
+) -> Option<Lowercase<FixedLenString<32>>> {
+    let cached = MD5_CACHE.with(|cache| {
+        Some(Lowercase::<FixedLenString<32>>::from_slice(
             ctx,
             cache.borrow().get(&(offset, size))?.as_bytes(),
         ))
@@ -69,15 +72,21 @@ fn md5_data(
         cache.borrow_mut().insert((offset, size), digest.clone());
     });
 
-    Some(RuntimeString::new(digest))
+    Some(Lowercase::<FixedLenString<32>>::new(digest))
 }
 
 #[module_export(name = "md5")]
-fn md5_str(ctx: &mut ScanContext, s: RuntimeString) -> Option<RuntimeString> {
+fn md5_str(
+    ctx: &mut ScanContext,
+    s: RuntimeString,
+) -> Option<Lowercase<FixedLenString<32>>> {
     let mut hasher = Md5::new();
     hasher.update(s.as_bstr(ctx));
 
-    Some(RuntimeString::new(format!("{:x}", hasher.finalize())))
+    Some(Lowercase::<FixedLenString<32>>::new(format!(
+        "{:x}",
+        hasher.finalize()
+    )))
 }
 
 #[module_export(name = "sha1")]
@@ -85,9 +94,9 @@ fn sha1_data(
     ctx: &mut ScanContext,
     offset: i64,
     size: i64,
-) -> Option<RuntimeString> {
-    let cached = SHA1_CACHE.with(|cache| -> Option<RuntimeString> {
-        Some(RuntimeString::from_slice(
+) -> Option<Lowercase<FixedLenString<40>>> {
+    let cached = SHA1_CACHE.with(|cache| {
+        Some(Lowercase::<FixedLenString<40>>::from_slice(
             ctx,
             cache.borrow().get(&(offset, size))?.as_bytes(),
         ))
@@ -109,15 +118,21 @@ fn sha1_data(
         cache.borrow_mut().insert((offset, size), digest.clone());
     });
 
-    Some(RuntimeString::new(digest))
+    Some(Lowercase::<FixedLenString<40>>::new(digest))
 }
 
 #[module_export(name = "sha1")]
-fn sha1_str(ctx: &mut ScanContext, s: RuntimeString) -> Option<RuntimeString> {
+fn sha1_str(
+    ctx: &mut ScanContext,
+    s: RuntimeString,
+) -> Option<Lowercase<FixedLenString<40>>> {
     let mut hasher = Sha1::new();
     hasher.update(s.as_bstr(ctx));
 
-    Some(RuntimeString::new(format!("{:x}", hasher.finalize())))
+    Some(Lowercase::<FixedLenString<40>>::new(format!(
+        "{:x}",
+        hasher.finalize()
+    )))
 }
 
 #[module_export(name = "sha256")]
@@ -125,9 +140,9 @@ fn sha256_data(
     ctx: &mut ScanContext,
     offset: i64,
     size: i64,
-) -> Option<RuntimeString> {
-    let cached = SHA256_CACHE.with(|cache| -> Option<RuntimeString> {
-        Some(RuntimeString::from_slice(
+) -> Option<Lowercase<FixedLenString<64>>> {
+    let cached = SHA256_CACHE.with(|cache| {
+        Some(Lowercase::<FixedLenString<64>>::from_slice(
             ctx,
             cache.borrow().get(&(offset, size))?.as_bytes(),
         ))
@@ -149,18 +164,21 @@ fn sha256_data(
         cache.borrow_mut().insert((offset, size), digest.clone());
     });
 
-    Some(RuntimeString::new(digest))
+    Some(Lowercase::<FixedLenString<64>>::new(digest))
 }
 
 #[module_export(name = "sha256")]
 fn sha256_str(
     ctx: &mut ScanContext,
     s: RuntimeString,
-) -> Option<RuntimeString> {
+) -> Option<Lowercase<FixedLenString<64>>> {
     let mut hasher = Sha256::new();
     hasher.update(s.as_bstr(ctx));
 
-    Some(RuntimeString::new(format!("{:x}", hasher.finalize())))
+    Some(Lowercase::<FixedLenString<64>>::new(format!(
+        "{:x}",
+        hasher.finalize()
+    )))
 }
 
 #[module_export(name = "crc32")]

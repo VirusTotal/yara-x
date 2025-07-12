@@ -1,12 +1,13 @@
 use std::fs::File;
+use std::io::{Cursor, Seek, SeekFrom};
 use std::path::PathBuf;
 use std::{fs, io, process};
 
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 use yara_x_fmt::Formatter;
 
-use crate::config::{load_config_from_file, FormatConfig};
-use crate::help::{CONFIG_FILE, FMT_CHECK_MODE};
+use crate::config::Config;
+use crate::help::FMT_CHECK_MODE;
 
 pub fn fmt() -> Command {
     super::command("fmt")
@@ -19,54 +20,46 @@ pub fn fmt() -> Command {
                 .action(ArgAction::Append),
         )
         .arg(arg!(-c --check  "Run in 'check' mode").long_help(FMT_CHECK_MODE))
-        .arg(
-            arg!(-C --config <CONFIG_FILE> "Config file")
-                .value_parser(value_parser!(PathBuf))
-                .long_help(CONFIG_FILE),
-        )
 }
 
-pub fn exec_fmt(
-    args: &ArgMatches,
-    main_config: FormatConfig,
-) -> anyhow::Result<()> {
+pub fn exec_fmt(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let files = args.get_many::<PathBuf>("FILE").unwrap();
     let check = args.get_flag("check");
-    let config_file = args.get_one::<PathBuf>("config");
-
-    let config: FormatConfig = if config_file.is_some() {
-        load_config_from_file(config_file.unwrap())?.fmt
-    } else {
-        main_config
-    };
 
     let formatter = Formatter::new()
-        .align_metadata(config.meta.align_values)
-        .align_patterns(config.patterns.align_values)
-        .indent_section_headers(config.rule.indent_section_headers)
-        .indent_section_contents(config.rule.indent_section_contents)
-        .indent_spaces(config.rule.indent_spaces)
-        .newline_before_curly_brace(config.rule.newline_before_curly_brace)
+        .align_metadata(config.fmt.meta.align_values)
+        .align_patterns(config.fmt.patterns.align_values)
+        .indent_section_headers(config.fmt.rule.indent_section_headers)
+        .indent_section_contents(config.fmt.rule.indent_section_contents)
+        .indent_spaces(config.fmt.rule.indent_spaces)
+        .newline_before_curly_brace(config.fmt.rule.newline_before_curly_brace)
         .empty_line_before_section_header(
-            config.rule.empty_line_before_section_header,
+            config.fmt.rule.empty_line_before_section_header,
         )
         .empty_line_after_section_header(
-            config.rule.empty_line_after_section_header,
+            config.fmt.rule.empty_line_after_section_header,
         );
 
-    let mut changed = false;
+    let mut modified = false;
 
     for file in files {
         let input = fs::read(file.as_path())?;
-        changed = if check {
+        modified = if check {
             formatter.format(input.as_slice(), io::sink())?
         } else {
-            let output_file = File::create(file.as_path())?;
-            formatter.format(input.as_slice(), output_file)?
-        } || changed;
+            let mut formatted = Cursor::new(Vec::with_capacity(input.len()));
+            if formatter.format(input.as_slice(), &mut formatted)? {
+                formatted.seek(SeekFrom::Start(0))?;
+                let mut output_file = File::create(file.as_path())?;
+                io::copy(&mut formatted, &mut output_file)?;
+                true
+            } else {
+                false
+            }
+        } || modified;
     }
 
-    if changed {
+    if modified {
         process::exit(1)
     }
 

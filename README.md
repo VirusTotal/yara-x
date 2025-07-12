@@ -8,8 +8,8 @@
 YARA-X is a re-incarnation of [YARA](https://github.com/VirusTotal/yara), a
 pattern matching tool designed with malware researchers in mind. This new
 incarnation intends to be faster, safer and more user-friendly than its
-predecessor. The ultimate goal of YARA-X is to serve as the future replacement
-for YARA.
+predecessor. The ultimate goal of YARA-X is replacing YARA as the default
+pattern matching tool for malware researchers.
 
 With YARA-X you can create descriptions of malware families (or whatever you
 want to describe) based on textual or binary patterns. Each description (a.k.a.
@@ -59,16 +59,10 @@ will now focus on YARA-X.
 
 #### What's the current state of YARA-X?
 
-YARA-X is still in beta, but is mature and stable enough for use, specially
-from the command-line interface or one-shot Python scripts. While the APIs may
-still undergo minor changes, the foundational aspects are already established.
-
-At VirusTotal, we have been running YARA-X alongside YARA for a while,
-scanning
-millions of files with tens of thousands of rules, and addressing
-discrepancies
-between the two. This means that YARA-X is already battle-tested. These tests
-have even uncovered YARA bugs!
+YARA-X is already mature and stable. At VirusTotal, we have been running YARA-X 
+in production for a long time, scanning billions of files with tens of thousands 
+of rules, and addressing discrepancies and bugs. This means that YARA-X is already
+battle-tested.
 
 Please test YARA-X and don’t hesitate
 to [open an issue](https://github.com/VirusTotal/yara-x/issues/new) if you

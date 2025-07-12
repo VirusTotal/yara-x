@@ -166,6 +166,26 @@ compiler.add_source("rule test_2 { condition: false }", origin="test.yar")
 rules = compiler.build()
 ```
 
+#### .add_include_dir(path)
+
+Adds a directory to the list of directories where the compiler should look for
+included files. When an `include` statement is found, the compiler looks for the 
+included file in the directories added with this function, in the order they were
+added.
+
+If this function is not called, the compiler will only look for included files in 
+the current directory. Use [Compiler.enable_includes(...)](#enable_includesbool) for 
+controlling whether include statements are allowed or not.
+
+##### Example
+
+```python
+compiler = yara_x.Compiler()
+compiler.add_include_dir("my_rules")
+# The file "included.yar" is read from the "my_rules" directory.
+compiler.add_source('include "included.yar" rule test_2 { condition: false }')
+```
+
 #### .define_global(identifier, value)
 
 Defines a global variable and sets its initial value.
@@ -188,6 +208,21 @@ if the type of `value` is not one of the supported ones.
 compiler = yara_x.Compiler()
 compiler.define_global("my_int_var", 1)
 compiler.add_source("rule test { condition: my_int_var == 1 }")
+```
+
+#### .enable_includes(bool)
+
+Enables or disables the inclusion of files with the `include` directive. When includes
+are disabled, any `include` directive encountered in the source code will be treated as
+an error. By default, includes are enabled.
+
+##### Example
+
+```python
+import yara_x
+
+compiler = yara_x.Compiler()
+compiler.enable_includes(False)  # Disable includes
 ```
 
 #### .new_namespace(string)
@@ -425,6 +460,26 @@ The length of the match.
 
 If the pattern used the [xor]({{< ref "text_patterns.md" >}}#xor-modifier)
 modifier, this contains the XOR key (it may be 0). If not, this is `None`.
+
+---------
+
+### Module
+
+Type that represents a YARA module. Modules are extensions that can provide additional functionality and capabilities
+to YARA rules. This class allows leveraging modules for parsing some file formats independently of any YARA rule.
+
+##### Example
+
+```python
+pe_info = yara_x.Module('pe').invoke(data)
+```
+
+In the example above, the `invoke` function is called with some binary data read from a PE file. The YARA `pe` module
+parses the data and returns a dictionary with all the metadata extracted from the PE file.
+
+#### .invoke()
+
+Invokes the functionality of the module.
 
 ---------
 

@@ -19,6 +19,7 @@ use crate::cst::SyntaxKind::{
     ASCII_KW, BASE64WIDE_KW, BASE64_KW, FULLWORD_KW, NOCASE_KW, WIDE_KW,
     XOR_KW,
 };
+use crate::cst::{CSTStream, Event};
 use crate::{Parser, Span};
 
 mod ascii_tree;
@@ -29,32 +30,64 @@ pub use errors::Error;
 
 /// Abstract Syntax Tree (AST) for YARA rules.
 pub struct AST<'src> {
-    /// The list of imports.
-    pub imports: Vec<Import<'src>>,
-    /// The list of rules in the AST.
-    rules: Vec<Rule<'src>>,
+    /// The list of items in the AST (imports, includes, and rules).
+    pub items: Vec<Item<'src>>,
     /// Errors that occurred while parsing the rules.
     errors: Vec<Error>,
 }
 
+/// Top level items in the AST.
+pub enum Item<'src> {
+    Import(Import<'src>),
+    Include(Include<'src>),
+    Rule(Rule<'src>),
+}
+
 impl<'src> From<Parser<'src>> for AST<'src> {
-    /// Crates an [`AST`] from the given parser.
+    /// Creates an [`AST`] from the given [`Parser`].
     fn from(parser: Parser<'src>) -> Self {
-        Builder::new(parser).build_ast()
+        Self::from(CSTStream::new(parser.source(), parser))
+    }
+}
+
+impl<'src, I> From<CSTStream<'src, I>> for AST<'src>
+where
+    I: Iterator<Item = Event>,
+{
+    fn from(cst: CSTStream<'src, I>) -> Self {
+        Builder::new(cst).build_ast()
     }
 }
 
 impl<'src> AST<'src> {
-    /// Returns the import statements in the AST.
+    /// Returns the top level items in the AST.
+    ///
+    /// A top level item can be an import, include, or rule.
     #[inline]
-    pub fn imports(&self) -> &[Import<'src>] {
-        self.imports.as_slice()
+    pub fn items(&self) -> impl Iterator<Item = &Item<'src>> {
+        self.items.iter()
+    }
+
+    /// Returns the import statements in the AST.
+    pub fn imports(&self) -> impl Iterator<Item = &Import<'src>> {
+        self.items.iter().filter_map(|item| {
+            if let Item::Import(import) = item {
+                Some(import)
+            } else {
+                None
+            }
+        })
     }
 
     /// Returns the rules in the AST.
-    #[inline]
-    pub fn rules(&self) -> &[Rule<'src>] {
-        self.rules.as_slice()
+    pub fn rules(&self) -> impl Iterator<Item = &Rule<'src>> {
+        self.items.iter().filter_map(|item| {
+            if let Item::Rule(rule) = item {
+                Some(rule)
+            } else {
+                None
+            }
+        })
     }
 
     /// Returns the errors found while parsing the source code.
@@ -73,7 +106,7 @@ impl<'src> AST<'src> {
 
 impl Debug for AST<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        for rule in &self.rules {
+        for rule in self.rules() {
             write_tree(f, &ascii_tree::rule_ascii_tree(rule))?;
             writeln!(f)?;
         }
@@ -94,6 +127,13 @@ impl Debug for AST<'_> {
 pub struct Import<'src> {
     span: Span,
     pub module_name: &'src str,
+}
+
+/// An include statement.
+#[derive(Debug)]
+pub struct Include<'src> {
+    span: Span,
+    pub file_name: &'src str,
 }
 
 /// A YARA rule.
@@ -126,21 +166,21 @@ pub struct Meta<'src> {
 /// Each of the possible values that can have a metadata entry.
 #[derive(Debug)]
 pub enum MetaValue<'src> {
-    Bool(bool),
-    Integer(i64),
-    Float(f64),
-    String(&'src str),
-    Bytes(BString),
+    Bool((bool, Span)),
+    Integer((i64, Span)),
+    Float((f64, Span)),
+    String((&'src str, Span)),
+    Bytes((BString, Span)),
 }
 
 impl Display for MetaValue<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Bool(v) => write!(f, "{}", v),
-            Self::Integer(v) => write!(f, "{}", v),
-            Self::Float(v) => write!(f, "{:.1}", v),
-            Self::String(v) => write!(f, "\"{}\"", v),
-            Self::Bytes(v) => write!(f, "\"{}\"", v),
+            Self::Bool((v, _)) => write!(f, "{}", v),
+            Self::Integer((v, _)) => write!(f, "{}", v),
+            Self::Float((v, _)) => write!(f, "{:.1}", v),
+            Self::String((v, _)) => write!(f, "\"{}\"", v),
+            Self::Bytes((v, _)) => write!(f, "\"{}\"", v),
         }
     }
 }
@@ -675,6 +715,13 @@ impl<'src> PatternModifiers<'src> {
     }
 
     #[inline]
+    pub fn private(&self) -> Option<&PatternModifier<'src>> {
+        self.modifiers
+            .iter()
+            .find(|m| matches!(m, PatternModifier::Private { .. }))
+    }
+
+    #[inline]
     pub fn xor(&self) -> Option<&PatternModifier<'src>> {
         self.modifiers
             .iter()
@@ -825,6 +872,10 @@ pub struct FuncCall<'src> {
 
 impl FuncCall<'_> {
     /// Span covered by the function's arguments in the source code.
+    ///
+    /// [`FuncCall::span`] covers the whole function call, including the
+    /// function identifier and the arguments, while this covers only the
+    /// arguments.
     pub fn args_span(&self) -> Span {
         self.args_span.clone()
     }
@@ -1052,6 +1103,18 @@ impl WithSpan for IdentWithRange<'_> {
     }
 }
 
+impl WithSpan for MetaValue<'_> {
+    fn span(&self) -> Span {
+        match self {
+            MetaValue::Bool((_, span))
+            | MetaValue::Integer((_, span))
+            | MetaValue::Float((_, span))
+            | MetaValue::String((_, span))
+            | MetaValue::Bytes((_, span)) => span.clone(),
+        }
+    }
+}
+
 impl WithSpan for ForOf<'_> {
     fn span(&self) -> Span {
         self.span.clone()
@@ -1102,6 +1165,12 @@ impl WithSpan for Iterable<'_> {
 }
 
 impl WithSpan for Import<'_> {
+    fn span(&self) -> Span {
+        self.span.clone()
+    }
+}
+
+impl WithSpan for Include<'_> {
     fn span(&self) -> Span {
         self.span.clone()
     }

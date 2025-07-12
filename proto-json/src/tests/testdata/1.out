@@ -1,0 +1,31 @@
+{
+    "i32": 123,
+    "str": "foo",
+    "bytes": { "encoding": "base64", "value": "yv4="},
+    "float": 3.1415,
+    "bool": true,
+    "repeated_msg": [
+        {
+            "i32": 456,
+            "str": "bar\nbar"
+        },
+        {
+            "i32": 789,
+            "str": "foo's\\bar",
+            "map_string_string": {
+                "foo\nbar": "bar"
+            }
+        }
+    ],
+    "nested_msg": {
+        "i32": 1234,
+        "str": "qux\nfoo\tbar\\baz\"qux",
+        "map_string_string": {
+            "bar": "baz",
+            "foo": "bar"
+        }
+    },
+    "timestamp": { "encoding": "timestamp", "value": 0 },
+    "enum": "Foo",
+    "flags": 3
+}

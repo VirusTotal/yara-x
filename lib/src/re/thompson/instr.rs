@@ -85,7 +85,11 @@ impl Display for SplitId {
 }
 
 impl SplitId {
+    /// Number of bits in an SplitId.
     pub const BITS: usize = 13;
+
+    /// Maximum SplitId.
+    pub const MAX: usize = (1 << SplitId::BITS) - 1;
 
     #[inline]
     pub fn to_le_bytes(self) -> [u8; size_of::<Self>()] {
@@ -103,7 +107,7 @@ impl SplitId {
     #[inline]
     pub fn add(self, amount: u16) -> Option<Self> {
         let sum = self.0.checked_add(amount)?;
-        if sum >= 1 << Self::BITS {
+        if sum as usize > Self::MAX {
             return None;
         }
         Some(Self(sum))
@@ -244,6 +248,20 @@ pub enum Instr<'a> {
     /// Matches the end of the scanned data ($).
     End,
 
+    /// Matches the start of the scanned data or the start of a line (^ in
+    /// multi-line mode). Specifically, this matches at the start of the
+    /// data, or at the position immediately before a \n character, a \r
+    /// character, or sequences \r\n and \n\r. It won't match in the middle
+    /// of \r\n or \n\r.
+    LineStart,
+
+    /// Matches the end of the scanned data or the end of a line ($ in
+    /// multi-line mode). Specifically, this matches at the end of the
+    /// data, or at the position immediately after a \n character, a \r
+    /// character, or sequences \r\n and \n\r. It won't match in the middle
+    /// of \r\n or \n\r.
+    LineEnd,
+
     /// Matches a word boundary (i.e: characters that are not part of the
     /// \w class). Used for \b look-around assertions. This is a zero-length
     /// match.
@@ -285,6 +303,8 @@ impl Instr<'_> {
     pub const WORD_END: u8 = 0x0F;
     pub const REPEAT_GREEDY: u8 = 0x10;
     pub const REPEAT_NON_GREEDY: u8 = 0x11;
+    pub const LINE_START: u8 = 0x12;
+    pub const LINE_END: u8 = 0x13;
 }
 
 /// Parses a slice of bytes that contains Pike VM instructions, returning
@@ -394,6 +414,8 @@ impl<'a> InstrParser<'a> {
             }
             [OPCODE_PREFIX, Instr::START, ..] => (Instr::Start, 2),
             [OPCODE_PREFIX, Instr::END, ..] => (Instr::End, 2),
+            [OPCODE_PREFIX, Instr::LINE_START, ..] => (Instr::LineStart, 2),
+            [OPCODE_PREFIX, Instr::LINE_END, ..] => (Instr::LineEnd, 2),
             [OPCODE_PREFIX, Instr::WORD_BOUNDARY, ..] => {
                 (Instr::WordBoundary, 2)
             }

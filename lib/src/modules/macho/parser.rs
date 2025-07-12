@@ -1,12 +1,13 @@
-use crate::modules::protos;
-use crate::modules::utils::asn1::SignedData;
+use std::collections::HashSet;
+
 use bstr::{BStr, ByteSlice};
 use der_parser::asn1_rs::{FromBer, OptTaggedParser, ParseResult};
 use der_parser::ber::{
     parse_ber_integer, parse_ber_oid, parse_ber_sequence,
     parse_ber_sequence_defined_g, parse_ber_set_of_v,
-    parse_ber_tagged_explicit_g, BerObject,
+    parse_ber_tagged_explicit_g,
 };
+use der_parser::error::BerResult;
 use der_parser::error::Error::BerValueError;
 use itertools::Itertools;
 #[cfg(feature = "logging")]
@@ -17,13 +18,14 @@ use nom::error::ErrorKind;
 use nom::multi::{count, length_count};
 use nom::number::complete::{be_u32, le_u32, u16, u32, u64, u8};
 use nom::number::Endianness;
-use nom::sequence::tuple;
 use nom::{Err, IResult, Parser};
 use protobuf::MessageField;
-use std::collections::HashSet;
 use x509_parser::x509::AlgorithmIdentifier;
 
-type Error<'a> = nom::error::Error<&'a [u8]>;
+use crate::modules::protos;
+use crate::modules::utils::asn1::SignedData;
+
+type NomError<'a> = nom::error::Error<&'a [u8]>;
 
 /// Mach-O magic constants
 const MH_MAGIC: u32 = 0xfeedface;
@@ -97,6 +99,8 @@ const LC_LINKER_OPTION: u32 = 0x0000002d;
 const LC_VERSION_MIN_TVOS: u32 = 0x0000002f;
 const LC_VERSION_MIN_WATCHOS: u32 = 0x00000030;
 const LC_BUILD_VERSION: u32 = 0x00000032;
+const LC_DYLD_EXPORTS_TRIE: u32 = 0x00000033 | LC_REQ_DYLD;
+const LC_DYLD_CHAINED_FIXUPS: u32 = 0x00000034 | LC_REQ_DYLD;
 
 /// Mach-O CPU types
 const CPU_TYPE_MC680X0: u32 = 0x00000006;
@@ -130,7 +134,7 @@ pub struct MachO<'a> {
 impl<'a> MachO<'a> {
     /// Given the content of Macho-O file, parses it and returns a [`MachO`]
     /// object representing the file.
-    pub fn parse(data: &'a [u8]) -> Result<Self, Err<Error<'a>>> {
+    pub fn parse(data: &'a [u8]) -> Result<Self, Err<NomError<'a>>> {
         let (_, magic) = le_u32(data)?;
 
         if matches!(magic, FAT_MAGIC | FAT_CIGAM | FAT_MAGIC_64 | FAT_CIGAM_64)
@@ -148,7 +152,9 @@ impl<'a> MachO<'a> {
 
 impl<'a> MachO<'a> {
     /// Parses a FAT Mach-O file.
-    fn parse_fat_macho_file(data: &'a [u8]) -> Result<Self, Err<Error<'a>>> {
+    fn parse_fat_macho_file(
+        data: &'a [u8],
+    ) -> Result<Self, Err<NomError<'a>>> {
         // Parse the magic number and make sure it's valid for a FAT
         // Mach-O file.
         let (remainder, magic) = verify(be_u32, |magic| {
@@ -183,14 +189,14 @@ impl<'a> MachO<'a> {
             u32(endianness),
             // fat_arch/fat_arch64 structure.
             map(
-                tuple((
+                (
                     u32(endianness),                    // cputype
                     u32(endianness),                    // cpusubtype
                     uint(endianness, is_32_bits),       // offset
                     uint(endianness, is_32_bits),       // size
                     u32(endianness),                    // align
                     cond(!is_32_bits, u32(endianness)), // reserved
-                )),
+                ),
                 |(cputype, cpusubtype, offset, size, align, reserved)| {
                     FatArch {
                         cputype,
@@ -202,7 +208,8 @@ impl<'a> MachO<'a> {
                     }
                 },
             ),
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         let mut files = Vec::new();
 
@@ -234,7 +241,7 @@ impl<'a> MachO<'a> {
     /// Parses a single-architecture Mach-O file.
     fn parse_macho_file(
         data: &'a [u8],
-    ) -> Result<MachOFile<'a>, Err<Error<'a>>> {
+    ) -> Result<MachOFile<'a>, Err<NomError<'a>>> {
         let (remainder, magic) = verify(be_u32, |magic| {
             matches!(*magic, MH_MAGIC | MH_CIGAM | MH_MAGIC_64 | MH_CIGAM_64)
         })
@@ -253,7 +260,7 @@ impl<'a> MachO<'a> {
         };
 
         let (mut commands, header) = map(
-            tuple((
+            (
                 u32(endianness),                    // cputype
                 u32(endianness),                    // cpusubtype
                 u32(endianness),                    // filetype
@@ -261,7 +268,7 @@ impl<'a> MachO<'a> {
                 u32(endianness),                    // sizeofcmds,
                 u32(endianness),                    // flags,
                 cond(!is_32_bits, u32(endianness)), // reserved, only in 64-bits
-            )),
+            ),
             |(
                 cputype,
                 cpusubtype,
@@ -282,7 +289,8 @@ impl<'a> MachO<'a> {
                     reserved,
                 }
             },
-        )(remainder)?;
+        )
+        .parse(remainder)?;
 
         let mut macho = MachOFile {
             endianness,
@@ -296,6 +304,8 @@ impl<'a> MachO<'a> {
             dynamic_linker: None,
             linker_options: Vec::new(),
             dyld_info: None,
+            dyld_export_trie: None,
+            dyld_chain_fixups: None,
             source_version: None,
             entry_point_offset: None,
             entry_point_rva: None,
@@ -311,7 +321,7 @@ impl<'a> MachO<'a> {
         };
 
         for _ in 0..macho.header.ncmds as usize {
-            match macho.command()(commands) {
+            match macho.command().parse(commands) {
                 Ok((c, _)) => commands = c,
                 Err(err) => {
                     #[cfg(feature = "logging")]
@@ -359,7 +369,7 @@ impl<'a> MachO<'a> {
             if let Some(super_data) =
                 data.get(offset..offset.saturating_add(size))
             {
-                if let Err(_err) = macho.cs_superblob()(super_data) {
+                if let Err(_err) = macho.cs_superblob().parse(super_data) {
                     #[cfg(feature = "logging")]
                     error!("Error parsing Mach-O file: {:?}", _err);
                     // fail silently if it fails, data was not formatted
@@ -369,13 +379,23 @@ impl<'a> MachO<'a> {
             }
         }
 
-        if let Some(ref dyld_info) = macho.dyld_info {
-            let offset = dyld_info.export_off as usize;
-            let size = dyld_info.export_size as usize;
+        for (offset, size) in [
+            macho
+                .dyld_export_trie
+                .as_ref()
+                .map(|t| (t.data_off as usize, t.data_size as usize)),
+            macho
+                .dyld_info
+                .as_ref()
+                .map(|i| (i.export_off as usize, i.export_size as usize)),
+        ]
+        .into_iter()
+        .flatten()
+        {
             if let Some(export_data) =
                 data.get(offset..offset.saturating_add(size))
             {
-                if let Err(_err) = macho.exports()(export_data) {
+                if let Err(_err) = macho.parse_exports(export_data) {
                     #[cfg(feature = "logging")]
                     error!("Error parsing Mach-O file: {:?}", _err);
                     // fail silently if it fails, data was not formatted
@@ -385,25 +405,45 @@ impl<'a> MachO<'a> {
             }
         }
 
-        if let Some(ref dyld_info) = macho.dyld_info {
-            for (offset, size) in [
-                (dyld_info.bind_off, dyld_info.bind_size),
-                (dyld_info.lazy_bind_off, dyld_info.lazy_bind_size),
-                (dyld_info.weak_bind_off, dyld_info.weak_bind_size),
-            ] {
-                let offset = offset as usize;
-                let size = size as usize;
-                if let Some(import_data) =
-                    data.get(offset..offset.saturating_add(size))
-                {
-                    if let Err(_err) = macho.imports()(import_data) {
-                        #[cfg(feature = "logging")]
-                        error!("Error parsing Mach-O file: {:?}", _err);
-                        // fail silently if it fails, data was not formatted
-                        // correctly but parsing should still proceed for
-                        // everything else
-                    };
-                }
+        for (offset, size) in macho
+            .dyld_info
+            .as_ref()
+            .map(|i| {
+                [
+                    (i.bind_off as usize, i.bind_size as usize),
+                    (i.lazy_bind_off as usize, i.lazy_bind_size as usize),
+                    (i.weak_bind_off as usize, i.weak_bind_size as usize),
+                ]
+            })
+            .into_iter()
+            .flatten()
+        {
+            if let Some(import_data) =
+                data.get(offset..offset.saturating_add(size))
+            {
+                if let Err(_err) = macho.parse_imports(import_data) {
+                    #[cfg(feature = "logging")]
+                    error!("Error parsing Mach-O file: {:?}", _err);
+                    // fail silently if it fails, data was not formatted
+                    // correctly but parsing should still proceed for
+                    // everything else
+                };
+            }
+        }
+
+        if let Some(ref chained_fixups) = macho.dyld_chain_fixups {
+            let offset = chained_fixups.data_off as usize;
+            let size = chained_fixups.data_size as usize;
+            if let Some(fixup_data) =
+                data.get(offset..offset.saturating_add(size))
+            {
+                if let Err(_err) = macho.parse_chained_fixups(fixup_data) {
+                    #[cfg(feature = "logging")]
+                    error!("Error parsing Mach-O file: {:?}", _err);
+                    // fail silently if it fails, data was not formatted
+                    // correctly but parsing should still proceed for
+                    // everything else
+                };
             }
         }
 
@@ -423,6 +463,8 @@ pub struct MachOFile<'a> {
     symtab: Option<Symtab<'a>>,
     dysymtab: Option<Dysymtab>,
     dyld_info: Option<DyldInfo>,
+    dyld_export_trie: Option<DyldExportTrie>,
+    dyld_chain_fixups: Option<DyldChainFixups>,
     dynamic_linker: Option<&'a [u8]>,
     linker_options: Vec<&'a [u8]>,
     source_version: Option<String>,
@@ -455,9 +497,10 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses a Mach-O section.
     fn section(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Section<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = Section<'a>, Error = NomError<'a>> + '_
+    {
         map(
-            tuple((
+            (
                 // sectname
                 map(take(16_usize), |name| {
                     BStr::new(name).trim_end_with(|c| c == '\0')
@@ -476,7 +519,7 @@ impl<'a> MachOFile<'a> {
                 u32(self.endianness),                   // reserved1
                 u32(self.endianness),                   // reserved2
                 cond(!self.is_32_bits, u32(self.endianness)), // reserved3
-            )),
+            ),
             |(
                 sectname,
                 segname,
@@ -512,14 +555,15 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses a Mach-O command.
     fn command(
         &mut self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl Parser<&'a [u8], Output = (), Error = NomError<'a>> + '_ {
         move |input: &'a [u8]| {
             // The first two u32 in the command are the value that indicates
             // the command type, and the size of the command's data.
-            let (remainder, (command, command_size)) = tuple((
+            let (remainder, (command, command_size)) = (
                 u32(self.endianness), // command
                 u32(self.endianness), // command_size
-            ))(input)?;
+            )
+                .parse(input)?;
 
             // Take the command's data.
             let (remainder, command_data) = take(
@@ -534,60 +578,85 @@ impl<'a> MachOFile<'a> {
             match command {
                 LC_MAIN => {
                     let (_, (entry_point_offset, stack_size)) =
-                        self.main_command()(command_data)?;
+                        self.main_command().parse(command_data)?;
                     self.entry_point_offset = Some(entry_point_offset);
                     self.stack_size = Some(stack_size);
                 }
                 LC_UNIXTHREAD => {
-                    let (_, eip) = self.thread_command()(command_data)?;
+                    let (_, eip) =
+                        self.thread_command().parse(command_data)?;
                     self.entry_point_rva = Some(eip);
                 }
                 LC_SEGMENT | LC_SEGMENT_64 => {
-                    let (_, segment) = self.segment_command()(command_data)?;
+                    let (_, segment) =
+                        self.segment_command().parse(command_data)?;
                     self.segments.push(segment);
                 }
                 LC_RPATH => {
-                    let (_, rpath) = self.rpath_command()(command_data)?;
+                    let (_, rpath) =
+                        self.rpath_command().parse(command_data)?;
                     self.rpaths.push(rpath);
                 }
                 LC_LOAD_DYLIB | LC_ID_DYLIB | LC_LOAD_WEAK_DYLIB
                 | LC_REEXPORT_DYLIB => {
-                    let (_, dylib) = self.dylib_command()(command_data)?;
+                    let (_, dylib) =
+                        self.dylib_command().parse(command_data)?;
                     self.dylibs.push(dylib);
                 }
                 LC_SOURCE_VERSION => {
                     let (_, ver) =
-                        self.source_version_command()(command_data)?;
+                        self.source_version_command().parse(command_data)?;
                     self.source_version =
                         Some(convert_to_source_version_string(ver));
                 }
                 LC_ID_DYLINKER | LC_LOAD_DYLINKER | LC_DYLD_ENVIRONMENT => {
-                    let (_, dylinker) = self.dylinker_command()(command_data)?;
+                    let (_, dylinker) =
+                        self.dylinker_command().parse(command_data)?;
                     self.dynamic_linker = Some(dylinker);
                 }
                 LC_SYMTAB => {
-                    let (_, symtab) = self.symtab_command()(command_data)?;
+                    let (_, symtab) =
+                        self.symtab_command().parse(command_data)?;
                     self.symtab = Some(symtab);
                 }
                 LC_DYSYMTAB => {
-                    let (_, dysymtab) = self.dysymtab_command()(command_data)?;
+                    let (_, dysymtab) =
+                        self.dysymtab_command().parse(command_data)?;
                     self.dysymtab = Some(dysymtab);
                 }
                 LC_CODE_SIGNATURE => {
-                    let (_, lid) = self.linkeditdata_command()(command_data)?;
+                    let (_, lid) =
+                        self.linkeditdata_command().parse(command_data)?;
                     self.code_signature_data = Some(lid);
+                }
+                LC_DYLD_EXPORTS_TRIE => {
+                    let (_, exports_data) =
+                        self.linkeditdata_command().parse(command_data)?;
+                    self.dyld_export_trie = Some(DyldExportTrie {
+                        data_off: exports_data.dataoff,
+                        data_size: exports_data.datasize,
+                    });
+                }
+                LC_DYLD_CHAINED_FIXUPS => {
+                    let (_, imports_data) =
+                        self.linkeditdata_command().parse(command_data)?;
+                    self.dyld_chain_fixups = Some(DyldChainFixups {
+                        data_off: imports_data.dataoff,
+                        data_size: imports_data.datasize,
+                    });
                 }
                 LC_DYLD_INFO | LC_DYLD_INFO_ONLY => {
                     let (_, dyld_info) =
-                        self.dyld_info_command()(command_data)?;
+                        self.dyld_info_command().parse(command_data)?;
                     self.dyld_info = Some(dyld_info);
                 }
                 LC_UUID => {
-                    let (_, uuid) = self.uuid_command()(command_data)?;
+                    let (_, uuid) = self.uuid_command().parse(command_data)?;
                     self.uuid = Some(uuid);
                 }
                 LC_BUILD_VERSION => {
-                    let (_, bv) = self.build_version_command()(command_data)?;
+                    let (_, bv) =
+                        self.build_version_command().parse(command_data)?;
                     self.build_version = Some(bv);
                 }
                 LC_VERSION_MIN_MACOSX
@@ -595,13 +664,13 @@ impl<'a> MachOFile<'a> {
                 | LC_VERSION_MIN_TVOS
                 | LC_VERSION_MIN_WATCHOS => {
                     let (_, mut mv) =
-                        self.min_version_command()(command_data)?;
+                        self.min_version_command().parse(command_data)?;
                     mv.device = command;
                     self.min_version = Some(mv);
                 }
                 LC_LINKER_OPTION => {
                     let (_, linker_options) =
-                        self.linker_options_command()(command_data)?;
+                        self.linker_options_command().parse(command_data)?;
                     self.linker_options.extend(linker_options);
                 }
                 _ => {}
@@ -614,33 +683,37 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses a LC_MAIN command.
     fn main_command(
         &mut self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], (u64, u64)> + '_ {
-        tuple((
+    ) -> impl Parser<&'a [u8], Output = (u64, u64), Error = NomError<'a>> + '_
+    {
+        (
             u64(self.endianness), // entryoff,
             u64(self.endianness), // stacksize,
-        ))
+        )
     }
 
     /// Parser that parses a LC_UNIXTHREAD command.
     fn thread_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         move |input: &'a [u8]| {
-            let (remainder, (_flavor, _count)) = tuple((
+            let (remainder, (_flavor, _count)) = (
                 u32(self.endianness), // flavor
                 u32(self.endianness), // count
-            ))(input)?;
+            )
+                .parse(input)?;
 
             match self.header.cputype {
-                CPU_TYPE_X86 => self.x86_thread_state()(remainder),
-                CPU_TYPE_X86_64 => self.x86_64_thread_state()(remainder),
-                CPU_TYPE_ARM => self.arm_thread_state()(remainder),
-                CPU_TYPE_ARM64 => self.arm64_thread_state()(remainder),
-                CPU_TYPE_POWERPC => self.ppc_thread_state()(remainder),
-                CPU_TYPE_POWERPC64 => self.ppc64_thread_state()(remainder),
-                CPU_TYPE_MC680X0 => self.m68k_thread_state()(remainder),
-                CPU_TYPE_MC88000 => self.m88k_thread_state()(remainder),
-                CPU_TYPE_SPARC => self.sparc_thread_state()(remainder),
+                CPU_TYPE_X86 => self.x86_thread_state().parse(remainder),
+                CPU_TYPE_X86_64 => self.x86_64_thread_state().parse(remainder),
+                CPU_TYPE_ARM => self.arm_thread_state().parse(remainder),
+                CPU_TYPE_ARM64 => self.arm64_thread_state().parse(remainder),
+                CPU_TYPE_POWERPC => self.ppc_thread_state().parse(remainder),
+                CPU_TYPE_POWERPC64 => {
+                    self.ppc64_thread_state().parse(remainder)
+                }
+                CPU_TYPE_MC680X0 => self.m68k_thread_state().parse(remainder),
+                CPU_TYPE_MC88000 => self.m88k_thread_state().parse(remainder),
+                CPU_TYPE_SPARC => self.sparc_thread_state().parse(remainder),
                 _ => Ok((remainder, 0)),
             }
         }
@@ -649,7 +722,8 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses a LC_SEGMENT or LC_SEGMENT_64 command.
     fn segment_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Segment<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = Segment<'a>, Error = NomError<'a>> + '_
+    {
         move |input: &'a [u8]| {
             let (
                 remainder,
@@ -664,7 +738,7 @@ impl<'a> MachOFile<'a> {
                     nsects,
                     flags,
                 ),
-            ) = tuple((
+            ) = (
                 // name
                 map(take(16_usize), |name| {
                     BStr::new(name).trim_end_with(|c| c == '\0')
@@ -677,10 +751,11 @@ impl<'a> MachOFile<'a> {
                 u32(self.endianness),                   // initprot,
                 u32(self.endianness),                   // nsects,
                 u32(self.endianness),                   // flags,
-            ))(input)?;
+            )
+                .parse(input)?;
 
             let (remainder, sections) =
-                count(self.section(), nsects as usize)(remainder)?;
+                count(self.section(), nsects as usize).parse(remainder)?;
 
             Ok((
                 remainder,
@@ -704,41 +779,45 @@ impl<'a> MachOFile<'a> {
     /// or LC_REEXPORT_DYLIB command.
     fn dylib_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Dylib<'a>> + '_ {
-        move |input: &'a [u8]| {
-            let (
-                remainder,
-                (_offset, timestamp, current_version, compatibility_version),
-            ) = tuple((
-                u32(self.endianness), // offset,
-                u32(self.endianness), // timestamp,
-                u32(self.endianness), // current_version,
-                u32(self.endianness), // compatibility_version,
-            ))(input)?;
-
-            Ok((
-                &[],
+    ) -> impl Parser<&'a [u8], Output = Dylib<'a>, Error = NomError<'a>> + '_
+    {
+        map(
+            (
+                u32(self.endianness),        // offset,
+                u32(self.endianness),        // timestamp,
+                u32(self.endianness),        // current_version,
+                u32(self.endianness),        // compatibility_version,
+                take_till(|b| b == b'\x00'), // name
+            ),
+            |(
+                _offset,
+                timestamp,
+                current_version,
+                compatibility_version,
+                name,
+            )| {
                 Dylib {
-                    name: BStr::new(remainder).trim_end_with(|c| c == '\0'),
+                    name: BStr::new(name),
                     timestamp,
                     current_version,
                     compatibility_version,
-                },
-            ))
-        }
+                }
+            },
+        )
     }
 
     /// Parser that parses a LC_DYSYMTAB command.
     fn symtab_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Symtab<'a>> + '_ {
+    ) -> impl Parser<&'a [u8], Output = Symtab<'a>, Error = NomError<'a>> + '_
+    {
         map(
-            tuple((
+            (
                 u32(self.endianness), //  symoff
                 u32(self.endianness), //  nsyms
                 u32(self.endianness), //  stroff
                 u32(self.endianness), //  strsize
-            )),
+            ),
             |(symoff, nsyms, stroff, strsize)| Symtab {
                 symoff,
                 nsyms,
@@ -752,9 +831,10 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses a LC_DYSYMTAB command.
     fn dysymtab_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Dysymtab> + '_ {
+    ) -> impl Parser<&'a [u8], Output = Dysymtab, Error = NomError<'a>> + '_
+    {
         map(
-            tuple((
+            (
                 u32(self.endianness), //  ilocalsym
                 u32(self.endianness), //  nlocalsym
                 u32(self.endianness), //  iextdefsym
@@ -771,7 +851,7 @@ impl<'a> MachOFile<'a> {
                 u32(self.endianness), //  nextrel
                 u32(self.endianness), //  locreloff
                 u32(self.endianness), //  nlocrel
-            )),
+            ),
             |(
                 ilocalsym,
                 nlocalsym,
@@ -815,52 +895,58 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses a LC_CODESIGNATURE command
     fn linkeditdata_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], LinkedItData> + '_ {
+    ) -> impl Parser<&'a [u8], Output = LinkedItData, Error = NomError<'a>> + '_
+    {
         map(
-            tuple((
+            (
                 u32(self.endianness), //  dataoff
                 u32(self.endianness), //  datasize
-            )),
+            ),
             |(dataoff, datasize)| LinkedItData { dataoff, datasize },
         )
     }
 
     fn cs_blob(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], CSBlob> + '_ {
-        move |input: &'a [u8]| {
-            let (_, (magic, length)) = tuple((
+    ) -> impl Parser<&'a [u8], Output = CSBlob, Error = NomError<'a>> + '_
+    {
+        map(
+            (
                 u32(Endianness::Big), // magic
                 u32(Endianness::Big), // length,
-            ))(input)?;
-
-            Ok((&[], CSBlob { magic, length }))
-        }
+            ),
+            |(magic, length)| CSBlob { magic, length },
+        )
     }
 
     fn cs_index(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], CSBlobIndex> + '_ {
-        move |input: &'a [u8]| {
-            let (input, (_blobtype, offset)) = tuple((
+    ) -> impl Parser<&'a [u8], Output = CSBlobIndex, Error = NomError<'a>> + '_
+    {
+        map(
+            (
                 u32(Endianness::Big), // blobtype
                 u32(Endianness::Big), // offset,
-            ))(input)?;
-
-            Ok((input, CSBlobIndex { _blobtype, offset, blob: None }))
-        }
+            ),
+            |(_blobtype, offset)| CSBlobIndex {
+                _blobtype,
+                offset,
+                blob: None,
+            },
+        )
     }
 
     fn cs_superblob(
         &mut self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], CSSuperBlob> + '_ {
+    ) -> impl Parser<&'a [u8], Output = CSSuperBlob, Error = NomError<'a>> + '_
+    {
         move |input: &'a [u8]| {
-            let (mut remainder, (_magic, _length, count)) =
-                tuple((
-                    u32(Endianness::Big), // magic
-                    u32(Endianness::Big), // offset,
-                    u32(Endianness::Big), // count,
-                ))(input)?;
+            let (mut remainder, (_magic, _length, count)) = (
+                u32(Endianness::Big), // magic
+                u32(Endianness::Big), // offset,
+                u32(Endianness::Big), // count,
+            )
+                .parse(input)?;
 
             let mut super_blob =
                 CSSuperBlob { _magic, _length, count, index: Vec::new() };
@@ -868,11 +954,11 @@ impl<'a> MachOFile<'a> {
             let mut cs_index: CSBlobIndex;
 
             for _ in 0..super_blob.count {
-                (remainder, cs_index) = self.cs_index()(remainder)?;
+                (remainder, cs_index) = self.cs_index().parse(remainder)?;
 
                 cs_index.blob = input
                     .get(cs_index.offset as usize..)
-                    .and_then(|blob_data| self.cs_blob()(blob_data).ok())
+                    .and_then(|blob_data| self.cs_blob().parse(blob_data).ok())
                     .map(|(_, blob)| blob);
 
                 super_blob.index.push(cs_index);
@@ -893,9 +979,10 @@ impl<'a> MachOFile<'a> {
                 let size_of_blob = std::mem::size_of::<CSBlob>();
                 match blob.magic {
                     CS_MAGIC_EMBEDDED_ENTITLEMENTS => {
-                        let xml_data = match super_data
-                            .get(offset.saturating_add(size_of_blob) .. offset.saturating_add(length))
-                        {
+                        let xml_data = match super_data.get(
+                            offset.saturating_add(size_of_blob)
+                                ..offset.saturating_add(length),
+                        ) {
                             Some(data) => data,
                             None => continue,
                         };
@@ -952,16 +1039,17 @@ impl<'a> MachOFile<'a> {
                 }
             }
 
-            Ok((&[], super_blob))
+            Ok((remainder, super_blob))
         }
     }
 
     /// Parser that parses LC_DYLD_INFO_ONLY and LC_DYLD_INFO commands
     fn dyld_info_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], DyldInfo> + '_ {
+    ) -> impl Parser<&'a [u8], Output = DyldInfo, Error = NomError<'a>> + '_
+    {
         map(
-            tuple((
+            (
                 u32(self.endianness), //  rebase_off
                 u32(self.endianness), //  rebase_size
                 u32(self.endianness), //  bind_off
@@ -972,7 +1060,7 @@ impl<'a> MachOFile<'a> {
                 u32(self.endianness), //  lazy_bind_size
                 u32(self.endianness), //  export_off
                 u32(self.endianness), //  export_size
-            )),
+            ),
             |(
                 rebase_off,
                 rebase_size,
@@ -1001,265 +1089,308 @@ impl<'a> MachOFile<'a> {
         )
     }
 
-    fn parse_export_node(
-        &mut self,
-    ) -> impl FnMut(&'a [u8], usize) -> IResult<&'a [u8], usize> + '_ {
-        move |data: &'a [u8], offset: usize| {
-            let mut stack = Vec::<ExportNode>::new();
-            let mut visited = HashSet::<usize>::new();
+    /// Parser that parses the exports at the offsets defined within
+    /// LC_DYLD_INFO, LC_DYLD_INFO_ONLY, and LC_DYLD_EXPORTS_TRIE.
+    fn parse_exports(&mut self, data: &'a [u8]) -> IResult<&'a [u8], ()> {
+        let mut stack = Vec::<ExportNode>::new();
+        let mut visited = HashSet::<usize>::new();
 
-            stack.push(ExportNode { offset, prefix: "".to_string() });
+        stack.push(ExportNode { offset: 0, prefix: "".to_string() });
 
-            while !stack.is_empty() && !data.is_empty() && offset < data.len()
-            {
-                let export_node = stack.pop().unwrap();
+        while !stack.is_empty() && !data.is_empty() {
+            let export_node = stack.pop().unwrap();
 
-                // If node was already visited, continue without processing it.
-                if !visited.insert(export_node.offset) {
-                    continue;
-                }
-
-                let node_data = match data.get(export_node.offset..) {
-                    Some(data) => data,
-                    None => continue,
-                };
-
-                let (mut remaining_data, length) = uleb128(node_data)?;
-
-                if length != 0 {
-                    let (remainder, flags) = uleb128(remaining_data)?;
-                    match flags {
-                        EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER => {
-                            let (remainder, (_stub_offset, _resolver_offset)) =
-                                tuple((uleb128, uleb128))(remainder)?;
-                            remaining_data = remainder;
-                        }
-                        EXPORT_SYMBOL_FLAGS_REEXPORT => {
-                            let (remainder, _ordinal) = uleb128(remainder)?;
-
-                            let (remainder, _label) =
-                                map(
-                                    tuple((
-                                        take_till(|b| b == b'\x00'),
-                                        tag(b"\x00"),
-                                    )),
-                                    |(s, _)| s,
-                                )(remainder)?;
-
-                            remaining_data = remainder;
-                        }
-                        EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION => {
-                            let (remainder, _offset) = uleb128(remainder)?;
-                            remaining_data = remainder;
-                        }
-                        _ => {}
-                    }
-                }
-
-                let (mut edge_remainder, edges) = u8(remaining_data)?;
-
-                for _ in 0..edges {
-                    let (remainder, edge_label) =
-                        map(
-                            tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
-                            |(s, _)| BStr::new(s),
-                        )(edge_remainder)?;
-
-                    let (remainder, edge_offset) = uleb128(remainder)?;
-
-                    if let Ok(edge_label_str) = edge_label.to_str() {
-                        stack.push(ExportNode {
-                            offset: edge_offset as usize,
-                            prefix: format!(
-                                "{}{}",
-                                export_node.prefix, edge_label_str
-                            ),
-                        });
-                    }
-
-                    edge_remainder = remainder;
-                }
-
-                if length != 0 {
-                    self.exports.push(export_node.prefix)
-                }
+            // If node was already visited, continue without processing it.
+            if !visited.insert(export_node.offset) {
+                continue;
             }
 
-            Ok((data, 0))
-        }
-    }
+            let node_data = match data.get(export_node.offset..) {
+                Some(data) => data,
+                None => continue,
+            };
 
-    /// Parser that parses the exports at the offsets defined within
-    /// LC_DYLD_INFO and LC_DYLD_INFO_ONLY.
-    fn exports(
-        &mut self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<String>> + '_ {
-        move |data: &'a [u8]| {
-            let exports = Vec::<String>::new();
-            let (remainder, _) = self.parse_export_node()(data, 0)?;
+            let (mut remaining_data, length) = uleb128(node_data)?;
 
-            Ok((remainder, exports))
-        }
-    }
-
-    /// Parser that parses the imports at the offsets defined within LC_DYLD_INFO and LC_DYLD_INFO_ONLY
-    fn imports(
-        &mut self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u8> + '_ {
-        move |data: &'a [u8]| {
-            let mut remainder: &[u8] = data;
-            let mut entry: u8;
-
-            while !remainder.is_empty() {
-                (remainder, entry) = u8(remainder)?;
-                let opcode = entry & BIND_OPCODE_MASK;
-                let _immediate = entry & BIND_IMMEDIATE_MASK;
-                match opcode {
-                    BIND_OPCODE_SET_DYLIB_ORDINAL_ULEB
-                    | BIND_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB
-                    | BIND_OPCODE_ADD_ADDR_ULEB
-                    | BIND_OPCODE_DO_BIND_ADD_ADDR_ULEB => {
-                        (remainder, _) = uleb128(remainder)?;
+            if length != 0 {
+                let (remainder, flags) = uleb128(remaining_data)?;
+                match flags {
+                    EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER => {
+                        let (remainder, (_stub_offset, _resolver_offset)) =
+                            (uleb128, uleb128).parse(remainder)?;
+                        remaining_data = remainder;
                     }
-                    BIND_OPCODE_DO_BIND_ULEB_TIMES_SKIPPING_ULEB => {
-                        (remainder, _) = uleb128(remainder)?;
-                        (remainder, _) = uleb128(remainder)?;
-                    }
-                    BIND_OPCODE_SET_ADDEND_SLEB => {
-                        (remainder, _) = sleb128(remainder)?;
-                    }
-
-                    BIND_OPCODE_SET_SYMBOL_TRAILING_FLAGS_IMM => {
-                        let (import_remainder, strr) = map(
-                            tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
+                    EXPORT_SYMBOL_FLAGS_REEXPORT => {
+                        let (remainder, _ordinal) = uleb128(remainder)?;
+                        let (remainder, _label) = map(
+                            (take_till(|b| b == b'\x00'), tag("\x00")),
                             |(s, _)| s,
-                        )(
-                            remainder
-                        )?;
-                        remainder = import_remainder;
-                        if let Ok(import) = strr.to_str() {
-                            self.imports.push(import.to_string());
-                        }
+                        )
+                        .parse(remainder)?;
+
+                        remaining_data = remainder;
+                    }
+                    EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION => {
+                        let (remainder, _offset) = uleb128(remainder)?;
+                        remaining_data = remainder;
                     }
                     _ => {}
                 }
             }
 
-            Ok((remainder, 0))
+            let (mut edge_remainder, edges) = u8(remaining_data)?;
+
+            for _ in 0..edges {
+                let (remainder, edge_label) = map(
+                    (take_till(|b| b == b'\x00'), tag("\x00")),
+                    |(s, _)| BStr::new(s),
+                )
+                .parse(edge_remainder)?;
+
+                let (remainder, edge_offset) = uleb128(remainder)?;
+
+                if let Ok(edge_label_str) = edge_label.to_str() {
+                    stack.push(ExportNode {
+                        offset: edge_offset as usize,
+                        prefix: format!(
+                            "{}{}",
+                            export_node.prefix, edge_label_str
+                        ),
+                    });
+                }
+
+                edge_remainder = remainder;
+            }
+
+            if length != 0 {
+                self.exports.push(export_node.prefix)
+            }
         }
+
+        Ok((&[], ()))
+    }
+
+    /// Parser that parses the imports at the offsets defined within LC_DYLD_INFO and LC_DYLD_INFO_ONLY
+    fn parse_imports(&mut self, data: &'a [u8]) -> IResult<&'a [u8], ()> {
+        let mut remainder: &[u8] = data;
+        let mut entry: u8;
+
+        while !remainder.is_empty() {
+            (remainder, entry) = u8(remainder)?;
+            let opcode = entry & BIND_OPCODE_MASK;
+            let _immediate = entry & BIND_IMMEDIATE_MASK;
+            match opcode {
+                BIND_OPCODE_SET_DYLIB_ORDINAL_ULEB
+                | BIND_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB
+                | BIND_OPCODE_ADD_ADDR_ULEB
+                | BIND_OPCODE_DO_BIND_ADD_ADDR_ULEB => {
+                    (remainder, _) = uleb128(remainder)?;
+                }
+                BIND_OPCODE_DO_BIND_ULEB_TIMES_SKIPPING_ULEB => {
+                    (remainder, _) = uleb128(remainder)?;
+                    (remainder, _) = uleb128(remainder)?;
+                }
+                BIND_OPCODE_SET_ADDEND_SLEB => {
+                    (remainder, _) = sleb128(remainder)?;
+                }
+
+                BIND_OPCODE_SET_SYMBOL_TRAILING_FLAGS_IMM => {
+                    let (import_remainder, strr) = map(
+                        (take_till(|b| b == b'\x00'), tag("\x00")),
+                        |(s, _)| BStr::new(s),
+                    )
+                    .parse(remainder)?;
+                    remainder = import_remainder;
+                    if let Ok(import) = strr.to_str() {
+                        self.imports.push(import.to_string());
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        Ok((remainder, ()))
+    }
+
+    /// Parser that parses the header for the chained fixups designated by LC_DYLD_CHAINED_FIXUPS.
+    fn chained_fixup_header(
+        &self,
+    ) -> impl Parser<&'a [u8], Output = ChainedFixupsHeader, Error = NomError<'a>>
+           + '_ {
+        map(
+            (
+                u32(self.endianness), //  fixups_version
+                u32(self.endianness), //  starts_offset
+                u32(self.endianness), //  imports_offset
+                u32(self.endianness), //  symbols_offset
+                u32(self.endianness), //  imports_count
+                u32(self.endianness), //  imports_format
+                u32(self.endianness), //  symbols_format
+            ),
+            |(
+                fixups_version,
+                starts_offset,
+                imports_offset,
+                symbols_offset,
+                imports_count,
+                imports_format,
+                symbols_format,
+            )| {
+                ChainedFixupsHeader {
+                    _fixups_version: fixups_version,
+                    _starts_offset: starts_offset,
+                    imports_offset,
+                    symbols_offset,
+                    imports_count,
+                    _imports_format: imports_format,
+                    _symbols_format: symbols_format,
+                }
+            },
+        )
+    }
+
+    /// Parser that parses the chained fixup imports designated by LC_DYLD_CHAINED_FIXUPS.
+    fn parse_chained_fixups(
+        &mut self,
+        data: &'a [u8],
+    ) -> IResult<&'a [u8], ()> {
+        let (_, header) = self.chained_fixup_header().parse(data)?;
+
+        if let Some(import_data) = data.get(header.imports_offset as usize..) {
+            let mut remainder = import_data;
+            let mut chained_import_value: u32;
+
+            for _ in 0..header.imports_count {
+                (remainder, chained_import_value) =
+                    u32(self.endianness)(remainder)?;
+
+                let _lib_ordinal = chained_import_value & 0xff;
+                let _import_kind = (chained_import_value >> 8) & 0x1;
+                let name_offset = chained_import_value >> 9;
+
+                if let Some(name_buffer) = data.get(
+                    header.symbols_offset.saturating_add(name_offset)
+                        as usize..,
+                ) {
+                    let (_remainder, import_str) = map(
+                        (take_till(|b| b == b'\x00'), tag("\x00")),
+                        |(s, _)| s,
+                    )
+                    .parse(name_buffer)?;
+
+                    if let Ok(import) = import_str.to_str() {
+                        self.imports.push(import.to_string());
+                    }
+                }
+            }
+        }
+
+        Ok((&[], ()))
     }
 
     /// Parser that parses a LC_ID_DYLINKER, LC_LOAD_DYLINKER or
     /// LC_DYLD_ENVIRONMENT  command.
     fn dylinker_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], &'a [u8]> + '_ {
-        move |input: &'a [u8]| {
-            let (remainder, _offset) = u32(self.endianness)(input)?;
-
-            Ok((&[], BStr::new(remainder).trim_end_with(|c| c == '\0')))
-        }
+    ) -> impl Parser<&'a [u8], Output = &'a [u8], Error = NomError<'a>> + '_
+    {
+        map(
+            (
+                u32(self.endianness),        // offset,
+                take_till(|b| b == b'\x00'), // command
+            ),
+            |(_offset, command)| command,
+        )
     }
 
     /// Parser that parses a LC_LINKER_OPTION command.
     fn linker_options_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<&'a [u8]>> + '_ {
-        move |input: &'a [u8]| {
-            let mut linker_options = Vec::new();
-            let (mut remainder, count) = u32(self.endianness)(input)?;
-            let mut option: &[u8];
-            for _ in 0..count {
-                (remainder, option) = map(
-                    tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
-                    |(s, _)| s,
-                )(remainder)?;
-
-                linker_options.push(option);
-            }
-            Ok((&[], linker_options))
-        }
+    ) -> impl Parser<&'a [u8], Output = Vec<&'a [u8]>, Error = NomError<'a>> + '_
+    {
+        length_count(
+            u32(self.endianness), // count
+            map((take_till(|b| b == b'\x00'), tag("\x00")), |(s, _)| s),
+        )
     }
 
     /// Parser that parses a LC_UUID command.
     fn uuid_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], &'a [u8]> + '_ {
-        move |input: &'a [u8]| {
-            let (_, uuid) = take(16usize)(input)?;
-
-            Ok((&[], BStr::new(uuid).trim_end_with(|c| c == '\0')))
-        }
+    ) -> impl Parser<&'a [u8], Output = &'a [u8], Error = NomError<'a>> + '_
+    {
+        map(take(16usize), |uuid| BStr::new(uuid).trim_end_with(|c| c == '\0'))
     }
 
     /// Parser that parses a LC_SOURCE_VERSION command.
     fn source_version_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         u64(self.endianness)
     }
 
     /// Parser that parses a LC_RPATH command.
     fn rpath_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], &'a [u8]> + '_ {
-        move |input: &'a [u8]| {
-            let (remainder, _) = u32(self.endianness)(input)?;
-
-            Ok((&[], BStr::new(remainder).trim_end_with(|c| c == '\0')))
-        }
+    ) -> impl Parser<&'a [u8], Output = &'a [u8], Error = NomError<'a>> + '_
+    {
+        map(
+            (
+                u32(self.endianness),
+                take_till(|b| b == b'\x00'), // rpath
+            ),
+            |(_, rpath)| rpath,
+        )
     }
 
     /// Parser that parses a LC_BUILD_VERSION command.
     fn build_version_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], BuildVersionCommand> + '_
-    {
-        move |input: &'a [u8]| {
-            let (remainder, (platform, minos, sdk, ntools)) =
-                tuple((
-                    u32(self.endianness), // platform,
-                    u32(self.endianness), // minos,
-                    u32(self.endianness), // sdk,
+    ) -> impl Parser<&'a [u8], Output = BuildVersionCommand, Error = NomError<'a>>
+           + '_ {
+        map(
+            (
+                u32(self.endianness), // platform,
+                u32(self.endianness), // minos,
+                u32(self.endianness), // sdk,
+                length_count(
                     u32(self.endianness), // ntools,
-                ))(input)?;
-
-            let (_, tools) = count(
-                map(
-                    tuple((
-                        u32(self.endianness), // tool,
-                        u32(self.endianness), // version,
-                    )),
-                    |(tool, version)| BuildToolObject { tool, version },
+                    map(
+                        (
+                            u32(self.endianness), // tool,
+                            u32(self.endianness), // version,
+                        ),
+                        |(tool, version)| BuildToolObject { tool, version },
+                    ),
                 ),
-                ntools as usize,
-            )(remainder)?;
-
-            Ok((
-                &[],
-                BuildVersionCommand { platform, minos, sdk, ntools, tools },
-            ))
-        }
+            ),
+            |(platform, minos, sdk, tools)| BuildVersionCommand {
+                platform,
+                minos,
+                sdk,
+                tools,
+            },
+        )
     }
 
     fn min_version_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], MinVersion> + '_ {
-        move |input: &'a [u8]| {
-            let (input, (version, sdk)) = tuple((
+    ) -> impl Parser<&'a [u8], Output = MinVersion, Error = NomError<'a>> + '_
+    {
+        map(
+            (
                 u32(self.endianness), // version
                 u32(self.endianness), // sdk,
-            ))(input)?;
-
-            Ok((input, MinVersion { device: 0, version, sdk }))
-        }
+            ),
+            |(version, sdk)| MinVersion { device: 0, version, sdk },
+        )
     }
 
     fn x86_thread_state(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         map(
-            tuple((
+            (
                 u32(self.endianness), // eax
                 u32(self.endianness), // ebx
                 u32(self.endianness), // ecx
@@ -1276,16 +1407,16 @@ impl<'a> MachOFile<'a> {
                 u32(self.endianness), // es
                 u32(self.endianness), // fs
                 u32(self.endianness), // gs
-            )),
+            ),
             |reg| reg.10 as u64, // eip,
         )
     }
 
     fn x86_64_thread_state(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         map(
-            tuple((
+            (
                 u64(self.endianness), // rax
                 u64(self.endianness), // rbx
                 u64(self.endianness), // rcx
@@ -1307,47 +1438,47 @@ impl<'a> MachOFile<'a> {
                 u64(self.endianness), // cs
                 u64(self.endianness), // fs
                 u64(self.endianness), // gs
-            )),
+            ),
             |reg| reg.16, // eip,
         )
     }
 
     fn arm_thread_state(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         map(
-            tuple((
+            (
                 count(u32(self.endianness), 13), // r
                 u32(self.endianness),            // sp
                 u32(self.endianness),            // lr
                 u32(self.endianness),            // pc
                 u32(self.endianness),            // cpsr
-            )),
+            ),
             |(_, _, _, pc, _)| pc as u64,
         )
     }
 
     fn arm64_thread_state(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         map(
-            tuple((
+            (
                 count(u64(self.endianness), 29), // r
                 u64(self.endianness),            // fp
                 u64(self.endianness),            // lr
                 u64(self.endianness),            // sp
                 u64(self.endianness),            // pc
                 u32(self.endianness),            // cpsr
-            )),
+            ),
             |(_, _, _, _, pc, _)| pc,
         )
     }
 
     fn ppc_thread_state(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         map(
-            tuple((
+            (
                 uint(self.endianness, true),            // srr0
                 uint(self.endianness, true),            // srr1
                 count(uint(self.endianness, true), 32), // r
@@ -1357,16 +1488,16 @@ impl<'a> MachOFile<'a> {
                 uint(self.endianness, true),            // ctr
                 uint(self.endianness, true),            // mq
                 uint(self.endianness, true),            // vrsavead
-            )),
+            ),
             |(srr0, _, _, _, _, _, _, _, _)| srr0,
         )
     }
 
     fn ppc64_thread_state(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         map(
-            tuple((
+            (
                 uint(self.endianness, false),            // srr0
                 uint(self.endianness, false),            // srr1
                 count(uint(self.endianness, false), 32), // r
@@ -1375,52 +1506,52 @@ impl<'a> MachOFile<'a> {
                 uint(self.endianness, false),            // lr
                 uint(self.endianness, false),            // ctr
                 uint(self.endianness, false),            // vrsave
-            )),
+            ),
             |(srr0, _, _, _, _, _, _, _)| srr0,
         )
     }
 
     fn sparc_thread_state(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         map(
-            tuple((
+            (
                 u32(self.endianness),           // psr
                 u32(self.endianness),           // pc
                 u32(self.endianness),           // npc
                 u32(self.endianness),           // y
                 count(u32(self.endianness), 7), // g
                 count(u32(self.endianness), 7), // o
-            )),
+            ),
             |(_, pc, _, _, _, _)| pc as u64,
         )
     }
 
     fn m68k_thread_state(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         map(
-            tuple((
+            (
                 count(u32(self.endianness), 8), // dreg
                 count(u32(self.endianness), 8), // areg
                 u16(self.endianness),           // pad
                 u16(self.endianness),           // sr
                 u32(self.endianness),           // pc
-            )),
+            ),
             |(_, _, _, _, pc)| pc as u64,
         )
     }
 
     fn m88k_thread_state(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
+    ) -> impl Parser<&'a [u8], Output = u64, Error = NomError<'a>> + '_ {
         map(
-            tuple((
+            (
                 count(u32(self.endianness), 31), // r
                 u32(self.endianness),            // xip
                 u32(self.endianness),            // xip_in_bd
                 u32(self.endianness),            // nip
-            )),
+            ),
             |(_, xip, _, _)| xip as u64,
         )
     }
@@ -1551,11 +1682,30 @@ struct DyldInfo {
     export_size: u32,
 }
 
+struct DyldExportTrie {
+    data_off: u32,
+    data_size: u32,
+}
+
+struct DyldChainFixups {
+    data_off: u32,
+    data_size: u32,
+}
+
+struct ChainedFixupsHeader {
+    _fixups_version: u32,
+    _starts_offset: u32,
+    imports_offset: u32,
+    symbols_offset: u32,
+    imports_count: u32,
+    _imports_format: u32,
+    _symbols_format: u32,
+}
+
 struct BuildVersionCommand {
     platform: u32,
     minos: u32,
     sdk: u32,
-    ntools: u32,
     tools: Vec<BuildToolObject>,
 }
 
@@ -1613,7 +1763,7 @@ fn uleb128(input: &[u8]) -> IResult<&[u8], u64> {
 
         val |= b
             .checked_shl(shift)
-            .ok_or(Err::Error(Error::new(input, ErrorKind::TooLarge)))?;
+            .ok_or(Err::Error(NomError::new(input, ErrorKind::TooLarge)))?;
 
         // Break if the most significant bit is zero.
         if byte & 0x80 == 0 {
@@ -1648,7 +1798,7 @@ fn sleb128(input: &[u8]) -> IResult<&[u8], i64> {
 
         val |= b
             .checked_shl(shift)
-            .ok_or(Err::Error(Error::new(input, ErrorKind::TooLarge)))?;
+            .ok_or(Err::Error(NomError::new(input, ErrorKind::TooLarge)))?;
 
         shift += 7;
 
@@ -1694,9 +1844,7 @@ fn convert_to_source_version_string(decimal_number: u64) -> String {
 
 /// Parses CMS certificates from a BER-encoded blob that are embedded in the
 /// Mach-O binary.
-fn parse_certificates(
-    ber_blob: &[u8],
-) -> Result<(&[u8], Vec<Certificate>), Err<der_parser::error::Error>> {
+fn parse_certificates(ber_blob: &[u8]) -> BerResult<Vec<Certificate>> {
     parse_ber_sequence_defined_g(|ber_blob: &[u8], _| {
         let (remainder, _content_type) = parse_ber_oid(ber_blob)?;
 
@@ -1737,21 +1885,15 @@ fn parse_certificates(
 
 /// Parses a BER-encoded sequence of AlgorithmIdentifiers.
 fn parse_digest_algorithms(
-    remainder: &[u8],
-) -> Result<(&[u8], Vec<AlgorithmIdentifier<'_>>), Err<der_parser::error::Error>>
-{
-    let (remainder, digest_algorithms) =
-        parse_ber_set_of_v(AlgorithmIdentifier::from_ber)(remainder)
-            .map_err(|_| BerValueError)?;
-    Ok((remainder, digest_algorithms))
+    input: &[u8],
+) -> BerResult<Vec<AlgorithmIdentifier>> {
+    Ok(parse_ber_set_of_v(AlgorithmIdentifier::from_ber)(input)
+        .map_err(|_| BerValueError)?)
 }
 
 /// Parses a BER-encoded sequence of ContentInfo objects.
-fn parse_content_info(
-    remainder: &[u8],
-) -> Result<(&[u8], BerObject<'_>), Err<der_parser::error::Error>> {
-    let (remainder, _content) = parse_ber_sequence(remainder)?;
-    Ok((remainder, _content))
+fn parse_content_info(input: &[u8]) -> BerResult {
+    parse_ber_sequence(input)
 }
 
 impl From<MachO<'_>> for protos::macho::Macho {
@@ -2067,7 +2209,7 @@ impl From<&BuildVersionCommand> for protos::macho::BuildVersion {
     fn from(bv: &BuildVersionCommand) -> Self {
         let mut result = protos::macho::BuildVersion::new();
         result.set_platform(bv.platform);
-        result.set_ntools(bv.ntools);
+        result.set_ntools(bv.tools.len() as u32);
         result.set_minos(convert_to_version_string(bv.minos));
         result.set_sdk(convert_to_version_string(bv.sdk));
         result.tools.extend(bv.tools.iter().map(|tool| tool.into()));

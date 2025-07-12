@@ -1,7 +1,9 @@
 use std::borrow::Cow;
+use std::collections::HashSet;
 use std::fmt::Write;
 
 use array_bytes::Hexify;
+use bstr::ByteSlice;
 use const_oid::db::{rfc5911, rfc5912, rfc6268};
 use const_oid::{AssociatedOid, ObjectIdentifier};
 use der_parser::asn1_rs::{Set, Tag, ToDer, UtcTime};
@@ -11,7 +13,6 @@ use ecdsa::signature::hazmat::PrehashVerifier;
 use itertools::Itertools;
 use md2::Md2;
 use md5::Md5;
-use nom::AsBytes;
 use protobuf::MessageField;
 use rsa::traits::SignatureScheme;
 use rsa::Pkcs1v15Sign;
@@ -928,7 +929,23 @@ fn verify_signer_info(si: &SignerInfo, certs: &[Certificate<'_>]) -> bool {
 /// contained in the PE file.
 struct CertificateChain<'a, 'b> {
     certs: &'b [Certificate<'a>],
+    /// Holds the next certificate that will be returned while iterating the
+    /// certificate chain.
     next: Option<&'b Certificate<'a>>,
+    /// Contains the certificates that have been returned while iterating the
+    /// certificate chain. This prevents infinite loops while iterating chains
+    /// that contains loops.
+    ///
+    /// Loops in the certificate chain are not common, but they are possible,
+    /// file 147f2a24913f67e66c0fe70e6804efdd1a804e17ab66e8abc5a2e1f64a708a80
+    /// contains a certificate with subject "AddTrust External CA Root" and
+    /// issuer "UTN - DATACorp SGC", but there's a certificate with subject
+    /// "UTN - DATACorp SGC" and issuer "AddTrust External CA Root". Curiously
+    /// enough, these same entities are mentioned in multiple bug reports:
+    ///
+    /// https://redmine.lighttpd.net/issues/2562
+    /// https://dev.gnupg.org/T2972
+    seen: HashSet<&'a [u8]>,
 }
 
 impl<'a, 'b> CertificateChain<'a, 'b> {
@@ -943,7 +960,7 @@ impl<'a, 'b> CertificateChain<'a, 'b> {
         P: Fn(&X509Certificate<'_>) -> bool,
     {
         let next = certs.iter().find(|cert| predicate(&cert.x509));
-        Self { certs, next }
+        Self { certs, next, seen: HashSet::new() }
     }
 
     /// Returns `true` if the certificate chain is valid.
@@ -1009,17 +1026,27 @@ impl<'a, 'b> Iterator for CertificateChain<'a, 'b> {
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.next;
         if let Some(next) = self.next {
-            // When the certificate is self-signed issuer == subject, in that
+            // If issuer == subject, the certificate is self-signed. In that
             // case we can't keep going up the chain.
             if next.x509.tbs_certificate.subject
                 == next.x509.tbs_certificate.issuer
             {
                 self.next = None
             } else {
-                self.next = self.certs.iter().find(|c| {
-                    c.x509.tbs_certificate.subject
-                        == next.x509.tbs_certificate.issuer
-                });
+                self.next = self
+                    .certs
+                    .iter()
+                    // The next certificate must be the issuer of the current one...
+                    .find(|c| {
+                        c.x509.tbs_certificate.subject
+                            == next.x509.tbs_certificate.issuer
+                    })
+                    // ... except if the issuer was already returned by the iterator,
+                    // which indicates that the certificate chain contains a loop.
+                    .filter(|c| {
+                        self.seen
+                            .insert(c.x509.tbs_certificate.subject.as_raw())
+                    });
             }
         }
         next
@@ -1043,13 +1070,10 @@ enum PublicKeyError {
     Pkcs8(#[from] rsa::pkcs8::spki::Error),
 
     #[error("DER parsing error")]
-    Der(#[from] der_parser::error::Error),
+    Der(#[from] der_parser::error::BerError),
 
     #[error("ECDSA error")]
     Ecdsa(#[from] ecdsa::Error),
-
-    #[error("DER parsing error")]
-    Nom(#[from] nom::Err<der_parser::error::Error>),
 
     #[error("Missing algorithm parameters")]
     MissingAlgorithmParameters,
@@ -1087,10 +1111,18 @@ impl TryFrom<&SubjectPublicKeyInfo<'_>> for PublicKey {
                 let key_bytes = spki.subject_public_key.as_ref();
 
                 use der_parser::ber::parse_ber_integer;
-                let (_, y) = parse_ber_integer(key_bytes)?;
-                let (rem, p) = parse_ber_integer(parameters.data)?;
-                let (rem, q) = parse_ber_integer(rem)?;
-                let (_, g) = parse_ber_integer(rem)?;
+
+                let (_, y) = parse_ber_integer(key_bytes)
+                    .map_err(|err| PublicKeyError::Der(err.into()))?;
+
+                let (rem, p) = parse_ber_integer(parameters.data)
+                    .map_err(|err| PublicKeyError::Der(err.into()))?;
+
+                let (rem, q) = parse_ber_integer(rem)
+                    .map_err(|err| PublicKeyError::Der(err.into()))?;
+
+                let (_, g) = parse_ber_integer(rem)
+                    .map_err(|err| PublicKeyError::Der(err.into()))?;
 
                 let p = dsa::BigUint::from_bytes_be(p.content.as_slice()?);
                 let q = dsa::BigUint::from_bytes_be(q.content.as_slice()?);

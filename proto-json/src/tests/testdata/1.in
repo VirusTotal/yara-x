@@ -1,0 +1,32 @@
+i32: 123
+float: 3.1415
+str: "foo"
+bool: true
+bytes: "\xCA\xFE"
+timestamp: 0
+enum: Foo
+flags: 3
+repeated_msg {
+  i32: 456
+  str: "bar\nbar"
+}
+repeated_msg {
+  i32: 789
+  str: "foo's\\bar"
+  map_string_string {
+    key: "foo\nbar"
+    value: "bar"
+  }
+}
+nested_msg {
+  i32: 1234
+  str: "qux\nfoo\tbar\\baz\"qux"
+  map_string_string {
+    key: "foo"
+    value: "bar"
+  }
+  map_string_string {
+    key: "bar"
+    value: "baz"
+  }
+}

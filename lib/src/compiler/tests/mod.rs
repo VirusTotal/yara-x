@@ -1,10 +1,11 @@
-use pretty_assertions::assert_eq;
-use serde_json::json;
 use std::fs;
 use std::io::Write;
 use std::mem::size_of;
 
-use crate::compiler::{SubPattern, VarStack};
+use pretty_assertions::assert_eq;
+use serde_json::json;
+
+use crate::compiler::{linters, SubPattern, VarStack};
 use crate::errors::{SerializationError, VariableError};
 use crate::types::Type;
 use crate::{compile, Compiler, Rules, Scanner, SourceCode};
@@ -18,7 +19,7 @@ fn serialization() {
 
     assert!(matches!(
         Rules::deserialize(b"YARA-X").err().unwrap(),
-        SerializationError::InvalidEncoding(_)
+        SerializationError::DecodeError(_)
     ));
 
     let rules = compile(r#"rule test { strings: $a = "foo" condition: $a }"#)
@@ -618,6 +619,219 @@ fn banned_modules() {
     assert_eq!(compiler.errors().len(), 1);
 }
 
+#[test]
+fn linter_tag_list() {
+    assert!(Compiler::new()
+        .add_linter(linters::tags_allowed(vec![
+            "foo".to_string(),
+            "bar".to_string()
+        ]))
+        .add_source(
+            r#"rule test : foo bar { strings: $foo = "foo" condition: $foo }"#
+        )
+        .unwrap()
+        .warnings()
+        .is_empty());
+
+    // This linter should return multiple warnings.
+    assert_eq!(
+        Compiler::new()
+            .add_linter(linters::tags_allowed(vec![
+                "foo".to_string(),
+                "bar".to_string(),
+            ]))
+            .add_source(
+                r#"rule test : axs ers { strings: $foo = "foo" condition: $foo }"#
+            )
+            .unwrap()
+            .warnings()
+            .iter()
+            .map(|w| w.to_string())
+            .collect::<Vec<_>>(),
+        &[r#"warning[unknown_tag]: tag not in allowed list
+ --> line:1:13
+  |
+1 | rule test : axs ers { strings: $foo = "foo" condition: $foo }
+  |             --- tag `axs` not in allowed list
+  |
+  = note: allowed tags: foo, bar"#,
+             r#"warning[unknown_tag]: tag not in allowed list
+ --> line:1:17
+  |
+1 | rule test : axs ers { strings: $foo = "foo" condition: $foo }
+  |                 --- tag `ers` not in allowed list
+  |
+  = note: allowed tags: foo, bar"#,
+        ]
+    );
+
+    // Only the first error should be reported.
+    assert_eq!(
+        Compiler::new()
+            .add_linter(linters::tags_allowed(vec![
+                "foo".to_string(),
+                "bar".to_string(),
+            ]).error(true))
+            .add_source(
+                r#"rule test : axs ers { strings: $foo = "foo" condition: $foo }"#
+            )
+            .expect_err("expected error")
+            .to_string(),
+        r#"error[E040]: tag not in allowed list
+ --> line:1:13
+  |
+1 | rule test : axs ers { strings: $foo = "foo" condition: $foo }
+  |             ^^^ tag `axs` not in allowed list
+  |
+  = note: allowed tags: foo, bar"#);
+}
+
+#[test]
+fn linter_tags_regexp() {
+    assert!(Compiler::new()
+        .add_linter(linters::tag_regex("^(foo|bar)").unwrap())
+        .add_source(
+            r#"rule test : foo1 bar2 { strings: $foo = "foo" condition: $foo }"#
+        )
+        .unwrap()
+        .warnings()
+        .is_empty());
+
+    assert_eq!(
+        Compiler::new()
+            .add_linter(linters::tag_regex("^(foo|bar)").unwrap())
+            .add_source(
+                r#"rule test : baz blah { strings: $foo = "foo" condition: $foo }"#
+            )
+            .unwrap()
+            .warnings()
+            .iter()
+            .map(|w| w.to_string())
+            .collect::<Vec<_>>(),
+        &[r#"warning[invalid_tag]: tag `baz` does not match regex `^(foo|bar)`
+ --> line:1:13
+  |
+1 | rule test : baz blah { strings: $foo = "foo" condition: $foo }
+  |             --- tag `baz` does not match regex `^(foo|bar)`
+  |"#,
+       r#"warning[invalid_tag]: tag `blah` does not match regex `^(foo|bar)`
+ --> line:1:17
+  |
+1 | rule test : baz blah { strings: $foo = "foo" condition: $foo }
+  |                 ---- tag `blah` does not match regex `^(foo|bar)`
+  |"#,
+    ]);
+
+    assert_eq!(
+        Compiler::new()
+            .add_linter(linters::tag_regex("^(foo|bar)").unwrap().error(true))
+            .add_source(
+                r#"rule test : baz blah { strings: $foo = "foo" condition: $foo }"#
+            )
+            .expect_err("expected error")
+            .to_string(),
+        r#"error[E041]: tag does not match regex `^(foo|bar)`
+ --> line:1:13
+  |
+1 | rule test : baz blah { strings: $foo = "foo" condition: $foo }
+  |             ^^^ tag `baz` does not match regex `^(foo|bar)`
+  |"#);
+
+    assert!(linters::tag_regex("(AXS|ERS").is_err());
+}
+
+#[test]
+fn linter_rule_name() {
+    assert!(Compiler::new()
+        .add_linter(linters::rule_name("r_.+").unwrap())
+        .add_source(r#"rule r_foo { strings: $foo = "foo" condition: $foo }"#)
+        .unwrap()
+        .add_source(r#"rule r_bar { strings: $bar = "bar" condition: $bar }"#)
+        .unwrap()
+        .warnings()
+        .is_empty());
+
+    assert_eq!(
+        Compiler::new()
+            .add_linter(linters::rule_name("r_.+").unwrap())
+            .add_source(
+                r#"rule foo { strings: $foo = "foo" condition: $foo }"#
+            )
+            .unwrap()
+            .warnings()
+            .iter()
+            .map(|w| w.to_string())
+            .collect::<Vec<_>>(),
+        &[
+            r#"warning[invalid_rule_name]: rule name does not match regex `r_.+`
+ --> line:1:6
+  |
+1 | rule foo { strings: $foo = "foo" condition: $foo }
+  |      --- this rule name does not match regex `r_.+`
+  |"#
+        ]
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .add_linter(linters::rule_name("r_.+").unwrap().error(true))
+            .add_source(r#"rule foo { condition: true }"#)
+            .expect_err("expected error")
+            .to_string(),
+        "error[E039]: rule name does not match regex `r_.+`
+ --> line:1:6
+  |
+1 | rule foo { condition: true }
+  |      ^^^ this rule name does not match regex `r_.+`
+  |"
+    );
+
+    assert!(linters::rule_name("(AXS|ERS").is_err());
+}
+
+#[test]
+fn linter_required_metadata() {
+    assert!(Compiler::new()
+        .add_linter(linters::metadata("author").required(true))
+        .add_source(r#"rule r_foo { meta: author = "foo" strings: $foo = "foo" condition: $foo }"#)
+        .unwrap()
+        .warnings()
+        .is_empty());
+
+    assert_eq!(
+        Compiler::new()
+            .add_linter(linters::metadata("author").required(true))
+            .add_source(
+                r#"rule foo { strings: $foo = "foo" condition: $foo }"#
+            )
+            .unwrap()
+            .warnings()
+            .iter()
+            .map(|w| w.to_string())
+            .collect::<Vec<_>>(),
+        &[r#"warning[missing_metadata]: required metadata is missing
+ --> line:1:6
+  |
+1 | rule foo { strings: $foo = "foo" condition: $foo }
+  |      --- required metadata `author` not found
+  |"#]
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .add_linter(linters::metadata("author").required(true).error(true))
+            .add_source(r#"rule foo { condition: true }"#)
+            .expect_err("expected error")
+            .to_string(),
+        "error[E038]: required metadata is missing
+ --> line:1:6
+  |
+1 | rule foo { condition: true }
+  |      ^^^ required metadata `author` not found
+  |"
+    );
+}
+
 #[cfg(feature = "test_proto2-module")]
 #[test]
 fn import_modules() {
@@ -818,17 +1032,26 @@ fn utf8_errors() {
     // Insert invalid UTF-8 in the code.
     src.insert(4, 0xff);
 
+    let mut compiler = Compiler::new();
+
+    let err = compiler
+        .add_source(src.as_slice())
+        .expect_err("expected error")
+        .to_string();
+
     assert_eq!(
-        Compiler::new()
-            .add_source(src.as_slice())
-            .expect_err("expected error")
-            .to_string(),
+        err,
         "error[E032]: invalid UTF-8
  --> line:1:5
   |
 1 | rule� test {condition: true}
   |     ^ invalid UTF-8 character
   |"
+    );
+
+    assert_eq!(
+        compiler.errors.first().expect("expected error").to_string(),
+        err
     );
 }
 
@@ -870,6 +1093,44 @@ fn errors_serialization() {
     });
 
     assert_eq!(json_error, expected.to_string());
+}
+
+#[test]
+fn test_includes() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        // this directory contains the included.yar file
+        .add_include_dir("src/compiler/tests/testdata/includes")
+        .add_source(r#"include "included_ok.yar""#)
+        .unwrap();
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+
+    assert_eq!(scanner.scan(b"").unwrap().matching_rules().len(), 1);
+}
+
+#[test]
+fn test_disable_includes() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        .enable_includes(false)
+        .add_include_dir("src/compiler/tests/testdata/includes");
+
+    assert_eq!(
+        compiler
+            .add_source(r#"include "included_ok.yar""#)
+            .unwrap_err()
+            .to_string(),
+        r#"error[E044]: include statements not allowed
+ --> line:1:1
+  |
+1 | include "included_ok.yar"
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^ includes are disabled for this compilation
+  |"#
+    );
 }
 
 #[test]
@@ -953,9 +1214,9 @@ fn test_warnings() {
             continue;
         }
 
-        src.push_str(rules.as_str());
-
         let mut compiler = Compiler::new();
+
+        src.push_str(rules.as_str());
 
         compiler.ignore_module("unsupported_module");
         compiler.add_source(src.as_str()).unwrap();
