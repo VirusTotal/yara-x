@@ -7,7 +7,7 @@ use crate::tokens;
 use crate::tokens::Token::*;
 use crate::tokens::{categories, Token};
 
-fn tokenize(source: &str) -> Vec<Token> {
+fn tokenize(source: &str) -> Vec<Token<'_>> {
     let parser = Parser::new(source.as_bytes());
     let events = CSTStream::from(parser).whitespaces(false);
 
