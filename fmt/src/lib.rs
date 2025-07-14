@@ -829,15 +829,17 @@ impl Formatter {
             |token| token.is(*NEWLINE),
         );
 
-        // Make sure that tail and block comments are followed by newline. In
-        // most cases this is already the case, but some of the rules that
-        // remove newlines may remove those appearing after the comment.
+        // Make sure that comments (except inline comments) are followed by
+        // newline. In most cases this is already the case, but some of the rules
+        // that remove newlines may remove those appearing after the comment.
         let tokens = processor::Processor::new(tokens)
             .set_passthrough(*CONTROL)
             .add_rule(
                 |ctx| {
-                    matches!(ctx.token(-1), TailComment(_) | BlockComment(_))
-                        && ctx.token(1).is_not(*NEWLINE)
+                    matches!(
+                        ctx.token(-1),
+                        HeadComment(_) | TailComment(_) | BlockComment(_)
+                    ) && ctx.token(1).is_not(*NEWLINE)
                 },
                 processor::actions::newline,
             );
@@ -1366,6 +1368,16 @@ impl Formatter {
                     add_space && !drop_space
                 },
                 processor::actions::space,
+            )
+            // Insert space before after inline comment.
+            .add_rule(
+                |ctx| {
+                    matches!(
+                        ctx.token(-1),
+                        InlineComment(_)
+                    )
+                },
+                processor::actions::space
             )
             // Insert two spaces before trailing comments in a line.
             .add_rule(
