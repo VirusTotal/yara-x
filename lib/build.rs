@@ -55,7 +55,7 @@ fn generate_module_files(proto_files: Vec<FileDescriptorProto>) {
         Ok(modules_rs) => modules_rs,
         Err(err) => {
             println!("cargo:warning=`build.rs` was unable to re-generate `lib/src/modules/modules.rs`");
-            println!("cargo:warning=due to the following error: {}", err);
+            println!("cargo:warning=due to the following error: {err}");
             println!("cargo:warning=ignore this warning unless you are trying to add new YARA-X modules");
             println!("cargo:warning=to disable the warning set the environment variable YRX_REGENERATE_MODULES_RS=false");
             return;
@@ -102,13 +102,13 @@ fn generate_module_files(proto_files: Vec<FileDescriptorProto>) {
         // have a function named "main". If the YARA module doesn't have an
         // associated YARA module, the main function is set to None.
         let main_fn = if let Some(rust_mod) = &rust_mod {
-            format!("Some({}::__main__ as MainFn)", rust_mod)
+            format!("Some({rust_mod}::__main__ as MainFn)")
         } else {
             "None".to_string()
         };
 
         let rust_mod_name = if let Some(rust_mod) = &rust_mod {
-            format!(r#"Some("{}")"#, rust_mod)
+            format!(r#"Some("{rust_mod}")"#)
         } else {
             "None".to_string()
         };

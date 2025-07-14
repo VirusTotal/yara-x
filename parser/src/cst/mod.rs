@@ -217,7 +217,7 @@ impl Debug for CST {
         if !self.errors.is_empty() {
             writeln!(f, "\nERRORS:")?;
             for (span, err) in &self.errors {
-                writeln!(f, "- {}: {}", span, err)?;
+                writeln!(f, "- {span}: {err}")?;
             }
         }
         Ok(())

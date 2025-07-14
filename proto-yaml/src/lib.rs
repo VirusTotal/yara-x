@@ -142,7 +142,7 @@ impl<W: Write> Serializer<W> {
         match format {
             FieldFormat::Flags(flags_enum) => {
                 let value = value.into();
-                write!(self.output, "0x{:x}", value)?;
+                write!(self.output, "0x{value:x}")?;
                 let mut f = vec![];
                 for v in flags_enum.values() {
                     if value.bitand(v.value() as i64) != 0 {
@@ -215,7 +215,7 @@ impl<W: Write> Serializer<W> {
     }
 
     fn write_comment(&mut self, comment: &str) -> Result<(), Error> {
-        let comment = format!("  # {}", comment);
+        let comment = format!("  # {comment}");
         write!(self.output, "{}", comment.paint(self.colors.comment))
     }
 
@@ -332,9 +332,9 @@ impl<W: Write> Serializer<W> {
             ReflectValueRef::I64(v) => {
                 self.print_integer_value(*v, get_field_format(field))?
             }
-            ReflectValueRef::F32(v) => write!(self.output, "{:.1}", v)?,
-            ReflectValueRef::F64(v) => write!(self.output, "{:.1}", v)?,
-            ReflectValueRef::Bool(v) => write!(self.output, "{}", v)?,
+            ReflectValueRef::F32(v) => write!(self.output, "{v:.1}")?,
+            ReflectValueRef::F64(v) => write!(self.output, "{v:.1}")?,
+            ReflectValueRef::Bool(v) => write!(self.output, "{v}")?,
             ReflectValueRef::String(v) => {
                 write!(
                     self.output,
@@ -351,7 +351,7 @@ impl<W: Write> Serializer<W> {
             }
             ReflectValueRef::Enum(d, v) => match d.value_by_number(*v) {
                 Some(e) => write!(self.output, "{}", e.name())?,
-                None => write!(self.output, "{}", v)?,
+                None => write!(self.output, "{v}")?,
             },
             ReflectValueRef::Message(msg) => self.write_msg(msg)?,
         }

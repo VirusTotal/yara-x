@@ -236,9 +236,9 @@ impl<W: Write> Serializer<W> {
             ReflectValueRef::I64(v) => {
                 self.print_integer_value(*v, get_field_format(field))?
             }
-            ReflectValueRef::F32(v) => write!(self.output, "{}", v)?,
-            ReflectValueRef::F64(v) => write!(self.output, "{}", v)?,
-            ReflectValueRef::Bool(v) => write!(self.output, "{}", v)?,
+            ReflectValueRef::F32(v) => write!(self.output, "{v}")?,
+            ReflectValueRef::F64(v) => write!(self.output, "{v}")?,
+            ReflectValueRef::Bool(v) => write!(self.output, "{v}")?,
             ReflectValueRef::String(v) => {
                 write!(
                     self.output,
@@ -253,7 +253,7 @@ impl<W: Write> Serializer<W> {
             )?,
             ReflectValueRef::Enum(d, v) => match d.value_by_number(*v) {
                 Some(e) => write!(self.output, "\"{}\"", e.name())?,
-                None => write!(self.output, "{}", v)?,
+                None => write!(self.output, "{v}")?,
             },
             ReflectValueRef::Message(msg) => self.write_msg(msg)?,
         }

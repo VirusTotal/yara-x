@@ -161,7 +161,7 @@ impl<'src> Tokenizer<'src> {
         self.lexer_starting_pos += match &self.mode {
             Mode::Normal(lexer) => lexer.span().end,
             mode => {
-                panic!(r"enter_hex_pattern_mode called from mode: {:?}", mode)
+                panic!(r"enter_hex_pattern_mode called from mode: {mode:?}")
             }
         };
         self.mode = Mode::HexPattern(Logos::lexer(
@@ -184,7 +184,7 @@ impl<'src> Tokenizer<'src> {
         self.lexer_starting_pos += match &self.mode {
             Mode::HexPattern(lexer) => lexer.span().end,
             mode => {
-                panic!(r"enter_hex_jump_mode called from mode: {:?}", mode)
+                panic!(r"enter_hex_jump_mode called from mode: {mode:?}")
             }
         };
         self.mode = Mode::HexJump(Logos::lexer(

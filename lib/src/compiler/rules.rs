@@ -544,20 +544,20 @@ impl fmt::Debug for Rules {
             let name = self.ident_pool.get(rule.ident_id).unwrap();
             let namespace =
                 self.ident_pool.get(rule.namespace_ident_id).unwrap();
-            writeln!(f, "RuleId({})", id)?;
-            writeln!(f, "  namespace: {}", namespace)?;
-            writeln!(f, "  name: {}", name)?;
+            writeln!(f, "RuleId({id})")?;
+            writeln!(f, "  namespace: {namespace}")?;
+            writeln!(f, "  name: {name}")?;
             writeln!(f, "  patterns:")?;
             for (pattern_ident_id, _, pattern_id, _is_private) in
                 &rule.patterns
             {
                 let ident = self.ident_pool.get(*pattern_ident_id).unwrap();
-                writeln!(f, "    {:?} {} ", pattern_id, ident)?;
+                writeln!(f, "    {pattern_id:?} {ident} ")?;
             }
         }
 
         for (id, (pattern_id, _)) in self.sub_patterns.iter().enumerate() {
-            writeln!(f, "SubPatternId({}) -> {:?}", id, pattern_id)?;
+            writeln!(f, "SubPatternId({id}) -> {pattern_id:?}")?;
         }
 
         Ok(())

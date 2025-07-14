@@ -38,7 +38,7 @@ pub(crate) enum Type {
 
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -66,7 +66,7 @@ impl From<Type> for ValType {
             Type::Float => ValType::F64,
             Type::Bool => ValType::I32,
             Type::String => ValType::I64,
-            _ => panic!("can not create WASM primitive type for `{}`", ty),
+            _ => panic!("can not create WASM primitive type for `{ty}`"),
         }
     }
 }
@@ -398,7 +398,7 @@ impl TypeValue {
                 Self::Bool { value: Value::Const(*b) }
             }
 
-            _ => panic!("can not cast {:?} to bool", self),
+            _ => panic!("can not cast {self:?} to bool"),
         }
     }
 
@@ -407,8 +407,7 @@ impl TypeValue {
             array.clone()
         } else {
             panic!(
-                "called `as_array` on a TypeValue that is not TypeValue::Array, it is: {:?}",
-                self
+                "called `as_array` on a TypeValue that is not TypeValue::Array, it is: {self:?}"
             )
         }
     }
@@ -418,8 +417,7 @@ impl TypeValue {
             structure.clone()
         } else {
             panic!(
-                "called `as_struct` on a TypeValue that is not TypeValue::Struct, it is: {:?}",
-                self
+                "called `as_struct` on a TypeValue that is not TypeValue::Struct, it is: {self:?}"
             )
         }
     }
@@ -429,8 +427,7 @@ impl TypeValue {
             map.clone()
         } else {
             panic!(
-                "called `as_map` on a TypeValue that is not TypeValue::Map, it is: {:?}",
-                self
+                "called `as_map` on a TypeValue that is not TypeValue::Map, it is: {self:?}"
             )
         }
     }
@@ -463,8 +460,7 @@ impl TypeValue {
             value.extract().cloned()
         } else {
             panic!(
-                "called `try_as_bool` on a TypeValue that is not TypeValue::Bool, it is: {:?}",
-                self
+                "called `try_as_bool` on a TypeValue that is not TypeValue::Bool, it is: {self:?}"
             )
         }
     }
@@ -474,8 +470,7 @@ impl TypeValue {
             value.extract().cloned()
         } else {
             panic!(
-                "called `try_as_integer` on a TypeValue that is not TypeValue::Integer, it is: {:?}",
-                self
+                "called `try_as_integer` on a TypeValue that is not TypeValue::Integer, it is: {self:?}"
             )
         }
     }
@@ -485,8 +480,7 @@ impl TypeValue {
             value.extract().cloned()
         } else {
             panic!(
-                "called `try_as_float` on a TypeValue that is not TypeValue::Float, it is: {:?}",
-                self
+                "called `try_as_float` on a TypeValue that is not TypeValue::Float, it is: {self:?}"
             )
         }
     }
@@ -496,8 +490,7 @@ impl TypeValue {
             value.extract().cloned()
         } else {
             panic!(
-                "called `as_string` on a TypeValue that is not TypeValue::String, it is: {:?}",
-                self
+                "called `as_string` on a TypeValue that is not TypeValue::String, it is: {self:?}"
             )
         }
     }
@@ -609,7 +602,7 @@ impl TypeValue {
 
 impl Display for TypeValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -619,35 +612,35 @@ impl Debug for TypeValue {
             Self::Unknown => write!(f, "unknown"),
             Self::Bool { value } => {
                 if let Some(v) = value.extract() {
-                    write!(f, "boolean({:?})", v)
+                    write!(f, "boolean({v:?})")
                 } else {
                     write!(f, "boolean(unknown)")
                 }
             }
             Self::Integer { value, .. } => {
                 if let Some(v) = value.extract() {
-                    write!(f, "integer({:?})", v)
+                    write!(f, "integer({v:?})")
                 } else {
                     write!(f, "integer(unknown)")
                 }
             }
             Self::Float { value } => {
                 if let Some(v) = value.extract() {
-                    write!(f, "float({:?})", v)
+                    write!(f, "float({v:?})")
                 } else {
                     write!(f, "float(unknown)")
                 }
             }
             Self::String { value, .. } => {
                 if let Some(v) = value.extract() {
-                    write!(f, "string({:?})", v)
+                    write!(f, "string({v:?})")
                 } else {
                     write!(f, "string(unknown)")
                 }
             }
             Self::Regexp(re) => {
                 if let Some(re) = re {
-                    write!(f, "regexp({:?})", re)
+                    write!(f, "regexp({re:?})")
                 } else {
                     write!(f, "regexp(unknown)")
                 }

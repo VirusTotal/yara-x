@@ -272,11 +272,11 @@ where
                     // unexpected syntax in the CST. Either the source -> CST
                     // phase is not strict enough, or the CST -> AST phase is
                     // overly strict.
-                    panic!("expected {:?}, got {:?}", expected_kind, kind);
+                    panic!("expected {expected_kind:?}, got {kind:?}");
                 }
                 Ok(span)
             }
-            event => panic!("unexpected {:?}, got {:?}", expected_kind, event),
+            event => panic!("unexpected {expected_kind:?}, got {event:?}"),
         }
     }
 
@@ -349,7 +349,7 @@ where
             let (operator, (l_bp, r_bp)) = match self.peek() {
                 Event::Token { kind, .. } => (*kind, binding_power(*kind)),
                 Event::End { .. } => break,
-                event => panic!("unexpected {:?}", event),
+                event => panic!("unexpected {event:?}"),
             };
 
             if l_bp < min_bp {
@@ -535,7 +535,7 @@ where
                 Event::End { kind: RULE_MODS, .. } => {
                     break;
                 }
-                event => panic!("unexpected {:?}", event),
+                event => panic!("unexpected {event:?}"),
             }
         }
 
@@ -635,7 +635,7 @@ where
             Event::Token { kind: FALSE_KW, .. } => {
                 MetaValue::Bool((false, self.expect(FALSE_KW)?))
             }
-            event => panic!("unexpected {:?}", event),
+            event => panic!("unexpected {event:?}"),
         };
 
         self.end(META_DEF)?;
@@ -679,7 +679,7 @@ where
                     modifiers,
                 }))
             }
-            event => panic!("unexpected {:?}", event),
+            event => panic!("unexpected {event:?}"),
         };
 
         self.end(PATTERN_DEF)?;
@@ -742,7 +742,7 @@ where
                                 end = self.integer_lit::<u8>()?.0;
                                 span = span.combine(&self.expect(R_PAREN)?);
                             }
-                            event => panic!("unexpected {:?}", event),
+                            event => panic!("unexpected {event:?}"),
                         }
                     }
                     modifiers.push(PatternModifier::Xor { span, start, end });
@@ -772,10 +772,10 @@ where
                                 alphabet,
                             });
                         }
-                        event => panic!("unexpected {:?}", event),
+                        event => panic!("unexpected {event:?}"),
                     };
                 }
-                event => panic!("unexpected {:?}", event),
+                event => panic!("unexpected {event:?}"),
             }
             self.end(PATTERN_MOD)?;
         }
@@ -975,7 +975,7 @@ where
             Event::Begin { kind: EXPR, .. } => {
                 self.pratt_parser(Self::expr, 0)?
             }
-            event => panic!("unexpected {:?}", event),
+            event => panic!("unexpected {event:?}"),
         };
 
         self.end(BOOLEAN_TERM)?;
@@ -1003,7 +1003,7 @@ where
                     Event::Begin { kind: PATTERN_IDENT_TUPLE, .. } => {
                         Some(PatternSet::Set(self.pattern_ident_tuple()?))
                     }
-                    event => panic!("unexpected {:?}", event),
+                    event => panic!("unexpected {event:?}"),
                 };
             }
             Event::Token { kind: IDENT, .. } => {
@@ -1014,12 +1014,12 @@ where
                         Event::Token { kind: IN_KW, .. } => {
                             break;
                         }
-                        event => panic!("unexpected {:?}", event),
+                        event => panic!("unexpected {event:?}"),
                     }
                 }
                 iterable = Some(self.iterable()?);
             }
-            event => panic!("unexpected {:?}", event),
+            event => panic!("unexpected {event:?}"),
         }
 
         self.expect(COLON)?;
@@ -1073,7 +1073,7 @@ where
             Event::Begin { kind: BOOLEAN_EXPR_TUPLE, .. } => {
                 OfItems::BoolExprTuple(self.boolean_expr_tuple()?)
             }
-            event => panic!("unexpected {:?}", event),
+            event => panic!("unexpected {event:?}"),
         };
 
         let anchor = self.anchor()?;
@@ -1151,7 +1151,7 @@ where
                 Quantifier::Percentage(expr)
             }
             Event::Begin { kind: EXPR, .. } => Quantifier::Expr(self.expr()?),
-            event => panic!("unexpected {:?}", event),
+            event => panic!("unexpected {event:?}"),
         };
 
         self.end(QUANTIFIER)?;
@@ -1168,7 +1168,7 @@ where
                 Iterable::ExprTuple(self.expr_tuple()?)
             }
             Event::Begin { kind: EXPR, .. } => Iterable::Expr(self.expr()?),
-            event => panic!("unexpected {:?}", event),
+            event => panic!("unexpected {event:?}"),
         };
 
         self.end(ITERABLE)?;
@@ -1476,7 +1476,7 @@ where
                     Expr::FieldAccess(Box::new(NAryExpr::from(idents)))
                 }
             }
-            event => panic!("unexpected {:?}", event),
+            event => panic!("unexpected {event:?}"),
         };
 
         self.end(PRIMARY_EXPR)?;
@@ -1628,7 +1628,7 @@ where
                     );
 
                     self.errors.push(Error::InvalidRegexpModifier {
-                        message: format!("{}", c),
+                        message: format!("{c}"),
                         span,
                     });
 

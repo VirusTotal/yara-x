@@ -119,8 +119,7 @@ impl<'ast> FuncSignatureParser<'ast> {
             type_ident => Err(Error::new_spanned(
                 type_path,
                 format!(
-                    "type `{}` is not supported as argument or return type",
-                    type_ident
+                    "type `{type_ident}` is not supported as argument or return type"
                 ),
             )),
         }
@@ -270,8 +269,7 @@ pub(crate) fn impl_wasm_export_macro(
         return Err(Error::new_spanned(
             &func.sig,
             format!(
-                "function `{}` must have at least one argument of type `&mut Caller<'_, ScanContext>`",
-                rust_fn_name),
+                "function `{rust_fn_name}` must have at least one argument of type `&mut Caller<'_, ScanContext>`"),
         ));
     }
 

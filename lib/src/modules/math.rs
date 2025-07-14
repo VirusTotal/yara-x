@@ -50,9 +50,9 @@ fn to_string_base(
     base: i64,
 ) -> Option<RuntimeString> {
     match base {
-        8 => Some(RuntimeString::new(format!("{:o}", x))),
-        10 => Some(RuntimeString::new(format!("{}", x))),
-        16 => Some(RuntimeString::new(format!("{:x}", x))),
+        8 => Some(RuntimeString::new(format!("{x:o}"))),
+        10 => Some(RuntimeString::new(format!("{x}"))),
+        16 => Some(RuntimeString::new(format!("{x:x}"))),
         _ => None,
     }
 }

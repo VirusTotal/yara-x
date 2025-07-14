@@ -32,7 +32,7 @@ fn main() -> anyhow::Result<()> {
     // Enable support for ANSI escape codes in Windows. In other platforms
     // this is a no-op.
     if let Err(err) = enable_ansi_support::enable_ansi_support() {
-        println!("could not enable ANSI support: {}", err)
+        println!("could not enable ANSI support: {err}")
     }
 
     #[cfg(feature = "logging")]

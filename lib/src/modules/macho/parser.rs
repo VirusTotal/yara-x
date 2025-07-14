@@ -1820,14 +1820,14 @@ fn convert_to_version_string(decimal_number: u32) -> String {
     let major = decimal_number >> 16;
     let minor = (decimal_number >> 8) & 0xFF;
     let patch = decimal_number & 0xFF;
-    format!("{}.{}.{}", major, minor, patch)
+    format!("{major}.{minor}.{patch}")
 }
 
 /// Convert a decimal number representation to a build version string representation.
 fn convert_to_build_tool_version(decimal_number: u32) -> String {
     let a = decimal_number >> 16;
     let b = (decimal_number >> 8) & 0xff;
-    format!("{}.{}", a, b)
+    format!("{a}.{b}")
 }
 
 /// Convert a decimal number representation to a source version string
@@ -1839,7 +1839,7 @@ fn convert_to_source_version_string(decimal_number: u64) -> String {
     let c = (decimal_number >> 20) & mask;
     let d = (decimal_number >> 10) & mask;
     let e = decimal_number & mask;
-    format!("{}.{}.{}.{}.{}", a, b, c, d, e)
+    format!("{a}.{b}.{c}.{d}.{e}")
 }
 
 /// Parses CMS certificates from a BER-encoded blob that are embedded in the
@@ -1941,11 +1941,11 @@ impl From<MachO<'_>> for protos::macho::Macho {
                 for (idx, c) in uuid.iter().enumerate() {
                     match idx {
                         3 | 5 | 7 | 9 => {
-                            uuid_str.push_str(format!("{:02X}", c).as_str());
+                            uuid_str.push_str(format!("{c:02X}").as_str());
                             uuid_str.push('-');
                         }
                         _ => {
-                            uuid_str.push_str(format!("{:02X}", c).as_str());
+                            uuid_str.push_str(format!("{c:02X}").as_str());
                         }
                     }
                 }
@@ -2027,11 +2027,11 @@ impl From<&MachOFile<'_>> for protos::macho::File {
             for (idx, c) in uuid.iter().enumerate() {
                 match idx {
                     3 | 5 | 7 | 9 => {
-                        uuid_str.push_str(format!("{:02X}", c).as_str());
+                        uuid_str.push_str(format!("{c:02X}").as_str());
                         uuid_str.push('-');
                     }
                     _ => {
-                        uuid_str.push_str(format!("{:02X}", c).as_str());
+                        uuid_str.push_str(format!("{c:02X}").as_str());
                     }
                 }
             }

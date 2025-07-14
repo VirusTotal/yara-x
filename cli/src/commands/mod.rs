@@ -289,11 +289,11 @@ where
     }
 
     for error in compiler.errors() {
-        eprintln!("{}", error);
+        eprintln!("{error}");
     }
 
     for warning in compiler.warnings() {
-        eprintln!("{}", warning);
+        eprintln!("{warning}");
     }
 
     if !compiler.errors().is_empty() {

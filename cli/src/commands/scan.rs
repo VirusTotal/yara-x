@@ -559,7 +559,7 @@ impl ScanState {
 // superconsole will not print any string that contains Unicode characters that
 // are spaces but are not the ASCII space character, so we replace them all.
 // See https://github.com/VirusTotal/yara-x/pull/163 for discussion.
-fn replace_whitespace(path: &Path) -> Cow<str> {
+fn replace_whitespace(path: &Path) -> Cow<'_, str> {
     let mut s = path.to_string_lossy();
     if s.chars().any(|c| c != ' ' && c.is_whitespace()) {
         let mut r = String::with_capacity(s.len());
@@ -596,7 +596,7 @@ impl Component for ScanState {
         let num_matching_files =
             self.num_matching_files.load(Ordering::Relaxed);
 
-        let matched = format!("{} file(s) matched.", num_matching_files);
+        let matched = format!("{num_matching_files} file(s) matched.");
 
         lines.push(Line::from_iter([
             Span::new_unstyled(scanned)?,
@@ -729,7 +729,7 @@ mod output_handler {
                     let more_bytes_message =
                         match match_data.len().saturating_sub(string_limit) {
                             0 => None,
-                            n => Some(format!(" ... {} more bytes", n)),
+                            n => Some(format!(" ... {n} more bytes")),
                         };
 
                     let string = match_data
@@ -849,16 +849,16 @@ mod output_handler {
                     for (pos, (m, v)) in metadata.with_position() {
                         match v {
                             MetaValue::Bool(v) => {
-                                msg.push_str(&format!("{}={}", m, v))
+                                msg.push_str(&format!("{m}={v}"))
                             }
                             MetaValue::Integer(v) => {
-                                msg.push_str(&format!("{}={}", m, v))
+                                msg.push_str(&format!("{m}={v}"))
                             }
                             MetaValue::Float(v) => {
-                                msg.push_str(&format!("{}={}", m, v))
+                                msg.push_str(&format!("{m}={v}"))
                             }
                             MetaValue::String(v) => {
-                                msg.push_str(&format!("{}=\"{}\"", m, v))
+                                msg.push_str(&format!("{m}=\"{v}\""))
                             }
                             MetaValue::Bytes(v) => msg.push_str(&format!(
                                 "{}=\"{}\"",
@@ -892,7 +892,7 @@ mod output_handler {
                             match m.xor_key() {
                                 Some(k) => {
                                     match_str.push_str(
-                                        format!(" xor({:#x},", k).as_str(),
+                                        format!(" xor({k:#x},").as_str(),
                                     );
                                     for b in &match_data
                                         [..min(match_data.len(), limit)]
@@ -929,7 +929,7 @@ mod output_handler {
                                     for (pos, b) in data.iter().with_position()
                                     {
                                         match_str.push_str(
-                                            format!("{:02x}", b).as_str(),
+                                            format!("{b:02x}").as_str(),
                                         );
                                         if !matches!(
                                             pos,
@@ -1066,7 +1066,7 @@ mod output_handler {
                     let more_bytes_message =
                         match match_data.len().saturating_sub(string_limit) {
                             0 => None,
-                            n => Some(format!(" ... {} more bytes", n)),
+                            n => Some(format!(" ... {n} more bytes")),
                         };
 
                     let string = match_data

@@ -224,7 +224,7 @@ impl EmitContext<'_> {
     /// If a no function with the given name exists.
     pub fn function_id(&self, fn_mangled_name: &str) -> FunctionId {
         *self.wasm_exports.get(fn_mangled_name).unwrap_or_else(|| {
-            panic!("can't find function `{}`", fn_mangled_name)
+            panic!("can't find function `{fn_mangled_name}`")
         })
     }
 

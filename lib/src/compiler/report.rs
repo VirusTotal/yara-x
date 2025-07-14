@@ -174,7 +174,7 @@ impl Eq for Report {}
 
 impl Debug for Report {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }
 
@@ -233,7 +233,7 @@ impl Display for Report {
         let renderer = renderer.term_width(self.max_width);
         let text = renderer.render(message);
 
-        write!(f, "{}", text)
+        write!(f, "{text}")
     }
 }
 

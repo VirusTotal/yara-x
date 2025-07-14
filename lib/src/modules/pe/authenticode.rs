@@ -723,15 +723,15 @@ fn format_name(name: &X509Name) -> String {
             };
             match (key, val) {
                 (key, Some(val)) => {
-                    write!(n, "{}=", key).unwrap();
+                    write!(n, "{key}=").unwrap();
                     for char in val.chars() {
                         n.write_char(char).unwrap();
                     }
                 }
                 (key, None) => {
-                    write!(n, "{}=#", key).unwrap();
+                    write!(n, "{key}=#").unwrap();
                     for c in attr_val.data {
-                        write!(n, "{:02x}", c).unwrap();
+                        write!(n, "{c:02x}").unwrap();
                     }
                 }
             }

@@ -2817,7 +2817,7 @@ fn ord_to_name(dll_name: &str, ordinal: u16) -> Option<String> {
         _ => None,
     };
 
-    func_name.map(|n| n.to_owned()).or_else(|| Some(format!("ord{}", ordinal)))
+    func_name.map(|n| n.to_owned()).or_else(|| Some(format!("ord{ordinal}")))
 }
 
 /// Convert ordinal number to function name for oleaut32.dll.

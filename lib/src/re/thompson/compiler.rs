@@ -1713,32 +1713,31 @@ impl Display for InstrSeq {
         for (instr, addr) in InstrParser::new(self.seq.get_ref().as_slice()) {
             match instr {
                 Instr::AnyByte => {
-                    writeln!(f, "{:05x}: ANY_BYTE", addr)?;
+                    writeln!(f, "{addr:05x}: ANY_BYTE")?;
                 }
                 Instr::Byte(byte) => {
-                    writeln!(f, "{:05x}: LIT {:#04x}", addr, byte)?;
+                    writeln!(f, "{addr:05x}: LIT {byte:#04x}")?;
                 }
                 Instr::MaskedByte { byte, mask } => {
                     writeln!(
                         f,
-                        "{:05x}: MASKED_BYTE {:#04x} {:#04x}",
-                        addr, byte, mask
+                        "{addr:05x}: MASKED_BYTE {byte:#04x} {mask:#04x}"
                     )?;
                 }
                 Instr::CaseInsensitiveChar(c) => {
-                    writeln!(f, "{:05x}: CASE_INSENSITIVE {:#04x}", addr, c)?;
+                    writeln!(f, "{addr:05x}: CASE_INSENSITIVE {c:#04x}")?;
                 }
                 Instr::ClassRanges(class) => {
-                    write!(f, "{:05x}: CLASS_RANGES", addr)?;
+                    write!(f, "{addr:05x}: CLASS_RANGES")?;
                     for range in class.ranges() {
                         write!(f, " [{:#04x}-{:#04x}]", range.0, range.1)?;
                     }
                     writeln!(f)?;
                 }
                 Instr::ClassBitmap(class) => {
-                    write!(f, "{:05x}: CLASS_BITMAP", addr)?;
+                    write!(f, "{addr:05x}: CLASS_BITMAP")?;
                     for byte in class.bytes() {
-                        write!(f, " {:#04x}", byte)?;
+                        write!(f, " {byte:#04x}")?;
                     }
                     writeln!(f)?;
                 }
@@ -1800,31 +1799,31 @@ impl Display for InstrSeq {
                     )?;
                 }
                 Instr::Start => {
-                    writeln!(f, "{:05x}: START", addr)?;
+                    writeln!(f, "{addr:05x}: START")?;
                 }
                 Instr::End => {
-                    writeln!(f, "{:05x}: END", addr)?;
+                    writeln!(f, "{addr:05x}: END")?;
                 }
                 Instr::LineStart => {
-                    writeln!(f, "{:05x}: LINE_START", addr)?;
+                    writeln!(f, "{addr:05x}: LINE_START")?;
                 }
                 Instr::LineEnd => {
-                    writeln!(f, "{:05x}: LINE_END", addr)?;
+                    writeln!(f, "{addr:05x}: LINE_END")?;
                 }
                 Instr::WordBoundary => {
-                    writeln!(f, "{:05x}: WORD_BOUNDARY", addr)?;
+                    writeln!(f, "{addr:05x}: WORD_BOUNDARY")?;
                 }
                 Instr::WordBoundaryNeg => {
-                    writeln!(f, "{:05x}: WORD_BOUNDARY_NEG", addr)?;
+                    writeln!(f, "{addr:05x}: WORD_BOUNDARY_NEG")?;
                 }
                 Instr::WordStart => {
-                    writeln!(f, "{:05x}: WORD_START", addr)?;
+                    writeln!(f, "{addr:05x}: WORD_START")?;
                 }
                 Instr::WordEnd => {
-                    writeln!(f, "{:05x}: WORD_END", addr)?;
+                    writeln!(f, "{addr:05x}: WORD_END")?;
                 }
                 Instr::Match => {
-                    writeln!(f, "{:05x}: MATCH", addr)?;
+                    writeln!(f, "{addr:05x}: MATCH")?;
                     break;
                 }
             };

@@ -165,8 +165,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
                 return Err(InvalidRange::build(
                     ctx.report_builder,
                     format!(
-                        "lower bound ({}) is greater than upper bound ({})",
-                        start, end
+                        "lower bound ({start}) is greater than upper bound ({end})"
                     ),
                     ctx.report_builder.span_to_code_loc(modifier.span()),
                 ));
@@ -1508,8 +1507,7 @@ fn range_from_ast(
             return Err(InvalidRange::build(
                 ctx.report_builder,
                 format!(
-                    "lower bound ({}) is greater than upper bound ({})",
-                    lower_bound, upper_bound
+                    "lower bound ({lower_bound}) is greater than upper bound ({upper_bound})"
                 ),
                 ctx.report_builder.span_to_code_loc(range.span()),
             ));
@@ -1792,7 +1790,7 @@ fn check_type(
         Err(WrongType::build(
             ctx.report_builder,
             CompileError::join_with_or(accepted_types, true),
-            format!("`{}`", ty),
+            format!("`{ty}`"),
             ctx.report_builder.span_to_code_loc(span),
             None,
         ))
@@ -2347,7 +2345,7 @@ fn eq_check(
                         ctx.warnings.add(|| {
                             UnsatisfiableExpression::build(
                                 ctx.report_builder,
-                                format!("the length of this string is {}", n),
+                                format!("the length of this string is {n}"),
                                 format!(
                                     "the length of this string is {}",
                                     const_string.len()

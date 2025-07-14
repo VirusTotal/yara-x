@@ -114,7 +114,7 @@ impl Debug for AST<'_> {
         if !self.errors.is_empty() {
             writeln!(f, "ERRORS:")?;
             for err in &self.errors {
-                writeln!(f, "- {:?}", err)?;
+                writeln!(f, "- {err:?}")?;
             }
         }
 
@@ -176,11 +176,11 @@ pub enum MetaValue<'src> {
 impl Display for MetaValue<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Bool((v, _)) => write!(f, "{}", v),
-            Self::Integer((v, _)) => write!(f, "{}", v),
-            Self::Float((v, _)) => write!(f, "{:.1}", v),
-            Self::String((v, _)) => write!(f, "\"{}\"", v),
-            Self::Bytes((v, _)) => write!(f, "\"{}\"", v),
+            Self::Bool((v, _)) => write!(f, "{v}"),
+            Self::Integer((v, _)) => write!(f, "{v}"),
+            Self::Float((v, _)) => write!(f, "{v:.1}"),
+            Self::String((v, _)) => write!(f, "\"{v}\""),
+            Self::Bytes((v, _)) => write!(f, "\"{v}\""),
         }
     }
 }
@@ -371,9 +371,9 @@ impl HexJump {
 impl Display for HexJump {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match (self.start, self.end) {
-            (Some(start), Some(end)) => write!(f, "[{}-{}]", start, end),
-            (Some(start), None) => write!(f, "[{}-]", start),
-            (None, Some(end)) => write!(f, "[-{}]", end),
+            (Some(start), Some(end)) => write!(f, "[{start}-{end}]"),
+            (Some(start), None) => write!(f, "[{start}-]"),
+            (None, Some(end)) => write!(f, "[-{end}]"),
             (None, None) => write!(f, "[-]"),
         }
     }
@@ -808,9 +808,9 @@ impl Display for PatternModifier<'_> {
                 if *start == 0 && *end == 255 {
                     write!(f, "xor")
                 } else if *start == *end {
-                    write!(f, "xor({})", start)
+                    write!(f, "xor({start})")
                 } else {
-                    write!(f, "xor({}-{})", start, end)
+                    write!(f, "xor({start}-{end})")
                 }
             }
         }

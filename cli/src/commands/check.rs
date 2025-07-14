@@ -218,7 +218,7 @@ pub fn exec_check(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                             file_path.display()
                         ));
                         for warning in compiler.warnings() {
-                            eprintln!("{}", warning);
+                            eprintln!("{warning}");
                         }
                     }
                 }

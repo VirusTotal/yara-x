@@ -1004,7 +1004,7 @@ impl Struct {
                 syntax,
             ),
             ty => {
-                panic!("maps in YARA can't have keys of type `{}`", ty);
+                panic!("maps in YARA can't have keys of type `{ty}`");
             }
         };
 

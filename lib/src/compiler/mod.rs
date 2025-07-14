@@ -1741,7 +1741,7 @@ impl Compiler<'_> {
                         .add_field(name, TypeValue::Func(Rc::new(export)))
                         .is_some()
                     {
-                        panic!("duplicate function `{}`", name)
+                        panic!("duplicate function `{name}`")
                     }
                 }
             }
@@ -1757,7 +1757,7 @@ impl Compiler<'_> {
                 )
                 .is_some()
             {
-                panic!("duplicate module `{}`", module_name)
+                panic!("duplicate module `{module_name}`")
             }
         }
 

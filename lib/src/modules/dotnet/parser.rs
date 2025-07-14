@@ -957,7 +957,7 @@ impl<'a> Dotnet<'a> {
                 .get(method_def.param_list.saturating_add(i as usize))
                 .and_then(|param| param.name)
                 .map(Cow::Borrowed)
-                .unwrap_or_else(|| Cow::Owned(format!("P_{}", i)));
+                .unwrap_or_else(|| Cow::Owned(format!("P_{i}")));
 
             let mut param_type = String::new();
 
@@ -1058,7 +1058,7 @@ impl<'a> Dotnet<'a> {
             Table::TypeRef => self.get_type_ref(index).and_then(|t| {
                 match (t.namespace, t.plain_name()) {
                     (Some(namespace), Some(name)) => {
-                        Some(format!("{}.{}", namespace, name))
+                        Some(format!("{namespace}.{name}"))
                     }
                     (_, name) => name.map(|n| n.to_string()),
                 }
@@ -1190,7 +1190,7 @@ impl<'a> Dotnet<'a> {
                         .ok_or(Error::InvalidType)?
                 };
 
-                write!(output, "{}", name)?;
+                write!(output, "{name}")?;
             }
             Type::Array => {
                 let dimensions;
@@ -1237,16 +1237,16 @@ impl<'a> Dotnet<'a> {
 
                     match (lower_bound, size) {
                         (Some(0), Some(size)) => {
-                            write!(output, "{}", size)?;
+                            write!(output, "{size}")?;
                         }
                         (Some(l), Some(size)) if size >= 1 => {
                             write!(output, "{}...{}", l, l + size - 1)?;
                         }
                         (Some(l), None) => {
-                            write!(output, "{}...", l)?;
+                            write!(output, "{l}...")?;
                         }
                         (None, Some(size)) => {
-                            write!(output, "{}", size)?;
+                            write!(output, "{size}")?;
                         }
                         _ => {}
                     }

@@ -690,7 +690,7 @@ impl<'r> Scanner<'r> {
             // Lookup the module in the list of built-in modules.
             let module =
                 modules::BUILTIN_MODULES.get(module_name).unwrap_or_else(
-                    || panic!("module `{}` not found", module_name),
+                    || panic!("module `{module_name}` not found"),
                 );
 
             let root_struct_name = module.root_struct_descriptor.full_name();
@@ -866,13 +866,12 @@ impl<'r> Scanner<'r> {
 
         match func_result {
             Ok(0) => Ok(ScanResults::new(self.scan_context(), data)),
-            Ok(v) => panic!("WASM main returned: {}", v),
+            Ok(v) => panic!("WASM main returned: {v}"),
             Err(err) if err.is::<ScanError>() => {
                 Err(err.downcast::<ScanError>().unwrap())
             }
             Err(err) => panic!(
-                "unexpected error while executing WASM main function: {}",
-                err
+                "unexpected error while executing WASM main function: {err}"
             ),
         }
     }

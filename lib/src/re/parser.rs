@@ -30,7 +30,7 @@ pub(crate) enum Error {
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::SyntaxError { msg, .. } => write!(f, "{}", msg),
+            Error::SyntaxError { msg, .. } => write!(f, "{msg}"),
             Error::MixedGreediness { .. } => write!(f, "mixed greediness"),
         }
     }
@@ -234,8 +234,7 @@ impl Parser {
                 ErrorKind::EscapeUnrecognized => {
                     let esc_seq = &re_src[span.start.offset..span.end.offset];
                     Some(format!(
-                        "did you mean `\\{}` instead of `{}`?",
-                        esc_seq, esc_seq
+                        "did you mean `\\{esc_seq}` instead of `{esc_seq}`?"
                     ))
                 }
                 ErrorKind::RepetitionMissing

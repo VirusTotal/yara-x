@@ -50,8 +50,16 @@ static SUBDOMAIN: LazyLock<i64> = LazyLock::new(|| {
 });
 
 #[module_main]
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<LiveHuntData, ModuleError> {
+fn main(
+    _data: &[u8],
+    _meta: Option<&[u8]>,
+) -> Result<LiveHuntData, ModuleError> {
     Ok(LiveHuntData::new())
+}
+
+#[module_export(name = "parent", method_of = "vt.file_analysis.ProcessItem3")]
+fn parent(ctx: &mut ScanContext, process: Rc<Struct>) -> bool {
+    todo!()
 }
 
 #[module_export(method_of = "vt.net.EnrichedIP")]
@@ -358,6 +366,29 @@ mod tests {
                 .unwrap()
                 .matching_rules()
                 .len(),
+            1
+        );
+    }
+
+    #[test]
+    fn process_parent() {
+        let rule = r#"
+           import "vt"
+           rule test {
+             condition:
+               for any proccess in vt.behaviour.process_list: (
+                  process.parent()
+               )
+           }"#;
+
+        let mut compiler = Compiler::new();
+
+        compiler.enable_feature("file").add_source(rule).unwrap();
+
+        let rules = compiler.build();
+
+        assert_eq!(
+            Scanner::new(&rules).scan(b"").unwrap().matching_rules().len(),
             1
         );
     }

@@ -29,7 +29,7 @@ fn log_msg_str(
 
 #[module_export(name = "log")]
 fn log_int(ctx: &mut ScanContext, i: i64) -> bool {
-    ctx.console_log(format!("{}", i));
+    ctx.console_log(format!("{i}"));
     true
 }
 
@@ -41,7 +41,7 @@ fn log_msg_int(ctx: &mut ScanContext, message: RuntimeString, i: i64) -> bool {
 
 #[module_export(name = "log")]
 fn log_float(ctx: &mut ScanContext, f: f64) -> bool {
-    ctx.console_log(format!("{}", f));
+    ctx.console_log(format!("{f}"));
     true
 }
 
@@ -57,7 +57,7 @@ fn log_msg_float(
 
 #[module_export(name = "hex")]
 fn log_hex(ctx: &mut ScanContext, i: i64) -> bool {
-    ctx.console_log(format!("0x{:x}", i));
+    ctx.console_log(format!("0x{i:x}"));
     true
 }
 

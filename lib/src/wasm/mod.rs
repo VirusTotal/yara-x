@@ -606,7 +606,7 @@ fn type_id_to_wasmtime(
     } else if type_id == TypeId::of::<Rc<Map>>() {
         return &[wasmtime::ValType::I64];
     }
-    panic!("type `{}` can't be an argument", type_name)
+    panic!("type `{type_name}` can't be an argument")
 }
 
 /// Macro that creates types [`WasmExportedFn0`], [`WasmExportedFn1`], etc,
@@ -1019,8 +1019,7 @@ fn lookup_field(
             .field_by_index(field_index as usize)
             .unwrap_or_else(|| {
                 panic!(
-                    "expecting field with index {} in {:#?}",
-                    field_index, structure
+                    "expecting field with index {field_index} in {structure:#?}"
                 )
             });
 

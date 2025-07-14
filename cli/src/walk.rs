@@ -571,7 +571,7 @@ fn output_messages<S>(
                         s.as_str(),
                     ));
                 } else {
-                    println!("{}", s)
+                    println!("{s}")
                 }
             }
             Ok(Message::Error(s)) => {
@@ -580,7 +580,7 @@ fn output_messages<S>(
                         s.as_str(),
                     ));
                 } else {
-                    eprintln!("{}", s)
+                    eprintln!("{s}")
                 }
             }
             Ok(Message::Abort) => {

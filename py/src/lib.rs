@@ -139,8 +139,7 @@ impl Module {
         Ok(Self {
             _module: SupportedModules::from_str(name).map_err(|_| {
                 PyValueError::new_err(format!(
-                    "{} not a supported module",
-                    name
+                    "{name} not a supported module"
                 ))
             })?,
         })
