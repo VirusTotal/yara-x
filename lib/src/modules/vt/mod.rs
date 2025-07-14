@@ -57,11 +57,6 @@ fn main(
     Ok(LiveHuntData::new())
 }
 
-#[module_export(name = "parent", method_of = "vt.file_analysis.ProcessItem3")]
-fn parent(ctx: &mut ScanContext, process: Rc<Struct>) -> bool {
-    todo!()
-}
-
 #[module_export(method_of = "vt.net.EnrichedIP")]
 fn in_range(
     ctx: &mut ScanContext,
