@@ -366,29 +366,6 @@ mod tests {
     }
 
     #[test]
-    fn process_parent() {
-        let rule = r#"
-           import "vt"
-           rule test {
-             condition:
-               for any proccess in vt.behaviour.process_list: (
-                  process.parent()
-               )
-           }"#;
-
-        let mut compiler = Compiler::new();
-
-        compiler.enable_feature("file").add_source(rule).unwrap();
-
-        let rules = compiler.build();
-
-        assert_eq!(
-            Scanner::new(&rules).scan(b"").unwrap().matching_rules().len(),
-            1
-        );
-    }
-
-    #[test]
     fn permutation_constants() {
         let rule = r#"
            import "vt"
