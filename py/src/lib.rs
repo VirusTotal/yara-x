@@ -138,9 +138,7 @@ impl Module {
     fn new(name: &str) -> PyResult<Self> {
         Ok(Self {
             _module: SupportedModules::from_str(name).map_err(|_| {
-                PyValueError::new_err(format!(
-                    "{name} not a supported module"
-                ))
+                PyValueError::new_err(format!("{name} not a supported module"))
             })?,
         })
     }
