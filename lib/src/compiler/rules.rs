@@ -125,7 +125,7 @@ pub struct Rules {
 impl Rules {
     /// An iterator that yields the name of the modules imported by the
     /// rules.
-    pub fn imports(&self) -> Imports {
+    pub fn imports(&self) -> Imports<'_> {
         Imports {
             iter: self.imported_modules.iter(),
             ident_pool: &self.ident_pool,
@@ -256,7 +256,7 @@ impl Rules {
     /// assert_eq!(iter.next().map(|r| r.identifier()), Some("foo"));
     /// assert_eq!(iter.next().map(|r| r.identifier()), Some("bar"));
     /// ```
-    pub fn iter(&self) -> RulesIter {
+    pub fn iter(&self) -> RulesIter<'_> {
         RulesIter { rules: self, iterator: self.rules.iter() }
     }
 

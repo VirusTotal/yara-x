@@ -320,7 +320,7 @@ impl<'a> InstrParser<'a> {
     }
 
     #[inline(always)]
-    pub fn decode_instr(code: &[u8]) -> (Instr, usize) {
+    pub fn decode_instr(code: &[u8]) -> (Instr<'_>, usize) {
         match code[..] {
             [OPCODE_PREFIX, Instr::ANY_BYTE, ..] => (Instr::AnyByte, 2),
             [OPCODE_PREFIX, Instr::MASKED_BYTE, byte, mask, ..] => {

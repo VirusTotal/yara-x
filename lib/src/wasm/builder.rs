@@ -258,7 +258,7 @@ impl WasmModuleBuilder {
         &mut self,
         rule_id: RuleId,
         global: bool,
-    ) -> InstrSeqBuilder {
+    ) -> InstrSeqBuilder<'_> {
         if self.num_rules == self.rules_per_func {
             self.finish_rule_func();
             self.num_rules = 0;

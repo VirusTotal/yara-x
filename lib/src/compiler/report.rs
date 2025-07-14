@@ -90,7 +90,7 @@ impl Report {
     }
 
     /// Returns the report's labels.
-    pub(crate) fn labels(&self) -> impl Iterator<Item = Label> {
+    pub(crate) fn labels(&self) -> impl Iterator<Item = Label<'_>> {
         self.labels.iter().map(|(level, code_loc, text)| {
             let source_id =
                 code_loc.source_id.expect("CodeLoc without source ID");
@@ -122,7 +122,7 @@ impl Report {
 
     /// Returns the report's footers.
     #[inline]
-    pub(crate) fn footers(&self) -> impl Iterator<Item = Footer> {
+    pub(crate) fn footers(&self) -> impl Iterator<Item = Footer<'_>> {
         self.footers
             .iter()
             .map(|(level, text)| Footer { level: level_as_text(*level), text })

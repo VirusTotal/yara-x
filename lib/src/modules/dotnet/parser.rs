@@ -297,7 +297,7 @@ impl<'a> Dotnet<'a> {
         self.num_rows[table as usize]
     }
 
-    fn get_type_ref(&self, index: &CodedIndex) -> Option<&TypeRef> {
+    fn get_type_ref(&self, index: &CodedIndex) -> Option<&TypeRef<'_>> {
         if index.table != Table::TypeRef {
             return None;
         }
@@ -350,7 +350,7 @@ impl<'a> Dotnet<'a> {
     /// Parses metadata root.
     ///
     /// ECMA-335 Section II.24.2.1.
-    fn parse_metadata_root(input: &[u8]) -> IResult<&[u8], CLIMetadata> {
+    fn parse_metadata_root(input: &[u8]) -> IResult<&[u8], CLIMetadata<'_>> {
         map(
             (
                 verify(le_u32, |magic| *magic == 0x424A5342), // magic == 0x424A5342
@@ -393,7 +393,7 @@ impl<'a> Dotnet<'a> {
     }
 
     /// Parses a stream header.
-    fn parse_stream_header(input: &[u8]) -> IResult<&[u8], StreamHeader> {
+    fn parse_stream_header(input: &[u8]) -> IResult<&[u8], StreamHeader<'_>> {
         let (remaining, (offset, size, name)) = (
             le_u32,                // offset
             le_u32,                // size
@@ -2425,7 +2425,7 @@ impl CodedIndex {
     /// of the tables the coded index is actually being referring to, while
     /// the upper 32-N bits are used for the index itself. The value of N
     /// depends on the number of tables.
-    fn from_u32(tables: &[Table], u: u32) -> Result<Self, Error> {
+    fn from_u32(tables: &[Table], u: u32) -> Result<Self, Error<'_>> {
         let tag_size = f64::log2(tables.len() as f64).ceil() as u32;
         let table_index = u & ((1 << tag_size) - 1);
         let table = tables

@@ -662,7 +662,7 @@ impl<'src> PatternModifiers<'src> {
 
     /// Returns an iterator for all the modifiers associated to the pattern.
     #[inline]
-    pub fn iter(&self) -> PatternModifiersIter {
+    pub fn iter(&self) -> PatternModifiersIter<'_> {
         PatternModifiersIter { iter: self.modifiers.iter() }
     }
 

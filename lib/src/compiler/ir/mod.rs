@@ -467,7 +467,7 @@ impl IR {
 
     /// Returns an iterator that performs a depth first search starting at
     /// the given node.
-    pub fn dfs_iter(&self, start: ExprId) -> DFSIter {
+    pub fn dfs_iter(&self, start: ExprId) -> DFSIter<'_> {
         DFSIter::new(start, self)
     }
 
@@ -475,7 +475,7 @@ impl IR {
     /// information about the current scopes.
     ///
     /// See [`DFSWithScopeIter`] for details.
-    pub fn dfs_with_scope(&self, start: ExprId) -> DFSWithScopeIter {
+    pub fn dfs_with_scope(&self, start: ExprId) -> DFSWithScopeIter<'_> {
         DFSWithScopeIter::new(start, self)
     }
 
@@ -544,7 +544,7 @@ impl IR {
     }
 
     /// Returns an iterator that yields the children of the given expression.
-    pub fn children(&self, expr: ExprId) -> Children {
+    pub fn children(&self, expr: ExprId) -> Children<'_> {
         // The children iterator uses a DFS iterator under the hood. By using
         // the `DFSIter::prune` method we avoid traversing all the descendants
         // of the given expression and traverse only its children.

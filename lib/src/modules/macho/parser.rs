@@ -1844,7 +1844,7 @@ fn convert_to_source_version_string(decimal_number: u64) -> String {
 
 /// Parses CMS certificates from a BER-encoded blob that are embedded in the
 /// Mach-O binary.
-fn parse_certificates(ber_blob: &[u8]) -> BerResult<Vec<Certificate>> {
+fn parse_certificates(ber_blob: &[u8]) -> BerResult<'_, Vec<Certificate>> {
     parse_ber_sequence_defined_g(|ber_blob: &[u8], _| {
         let (remainder, _content_type) = parse_ber_oid(ber_blob)?;
 
@@ -1886,13 +1886,13 @@ fn parse_certificates(ber_blob: &[u8]) -> BerResult<Vec<Certificate>> {
 /// Parses a BER-encoded sequence of AlgorithmIdentifiers.
 fn parse_digest_algorithms(
     input: &[u8],
-) -> BerResult<Vec<AlgorithmIdentifier>> {
+) -> BerResult<'_, Vec<AlgorithmIdentifier<'_>>> {
     Ok(parse_ber_set_of_v(AlgorithmIdentifier::from_ber)(input)
         .map_err(|_| BerValueError)?)
 }
 
 /// Parses a BER-encoded sequence of ContentInfo objects.
-fn parse_content_info(input: &[u8]) -> BerResult {
+fn parse_content_info(input: &[u8]) -> BerResult<'_> {
     parse_ber_sequence(input)
 }
 

@@ -307,7 +307,7 @@ impl<'a> PE<'a> {
     /// declared in the PE file.
     ///
     /// Sections appear in the same order as they are in the section table.
-    pub fn get_sections(&self) -> &[Section] {
+    pub fn get_sections(&self) -> &[Section<'_>] {
         self.sections.as_slice()
     }
 
@@ -323,7 +323,7 @@ impl<'a> PE<'a> {
     ///
     /// http://www.ntcore.com/files/richsign.htm
     /// https://bytepointer.com/articles/the_microsoft_rich_header.htm
-    pub fn get_rich_header(&self) -> Option<&RichHeader> {
+    pub fn get_rich_header(&self) -> Option<&RichHeader<'_>> {
         self.rich_header
             .get_or_init(|| {
                 Self::parse_rich_header()(self.dos_stub)

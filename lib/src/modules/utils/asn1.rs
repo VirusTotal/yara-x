@@ -227,7 +227,7 @@ impl<'a> SignedData<'a> {
         ))
     }
 
-    pub fn parse_certificates(input: &[u8]) -> (&[u8], Vec<Certificate>) {
+    pub fn parse_certificates(input: &[u8]) -> (&[u8], Vec<Certificate<'_>>) {
         let mut remainder = input;
         let mut certificates = Vec::new();
 
@@ -379,7 +379,7 @@ impl<'a> SignerInfo<'a> {
 
     fn parse_issuer_and_serial_number(
         input: &[u8],
-    ) -> BerResult<(X509Name, BigUint)> {
+    ) -> BerResult<'_, (X509Name<'_>, BigUint)> {
         parse_ber_sequence_defined_g(|input: &[u8], _| {
             let (remainder, issuer) =
                 X509Name::from_der(input).map_err(|_| BerValueError)?;
@@ -395,7 +395,7 @@ impl<'a> SignerInfo<'a> {
         })(input)
     }
 
-    fn parse_attributes(input: &[u8]) -> BerResult<Vec<Attribute>> {
+    fn parse_attributes(input: &[u8]) -> BerResult<'_, Vec<Attribute<'_>>> {
         let mut remainder = input;
         let mut attributes = Vec::new();
         loop {
@@ -530,7 +530,7 @@ pub struct SpcSpOpusInfo {
 }
 
 impl SpcSpOpusInfo {
-    fn parse_inner(input: &[u8]) -> BerResult<Self> {
+    fn parse_inner(input: &[u8]) -> BerResult<'_, Self> {
         let (remainder, program_name) = OptTaggedParser::from(0)
             .parse_ber(input, |_, content| Self::parse_spc_string(content))?;
 
@@ -545,7 +545,7 @@ impl SpcSpOpusInfo {
     ///     unicode           [0] IMPLICIT BMPSTRING
     ///     ascii             [1] IMPLICIT IA5STRING
     /// }
-    fn parse_spc_string(input: &[u8]) -> BerResult<String> {
+    fn parse_spc_string(input: &[u8]) -> BerResult<'_, String> {
         alt((
             // The most straightforward way for parsing a BmpString would be:
             //
@@ -571,7 +571,7 @@ impl SpcSpOpusInfo {
     ///     moniker            [1] IMPLICIT SpcSerializedObject,
     ///     file               [2] EXPLICIT SpcString
     /// }
-    fn parse_spc_link(input: &[u8]) -> BerResult<String> {
+    fn parse_spc_link(input: &[u8]) -> BerResult<'_, String> {
         // The SpcLink, when used in the SpcSpOpusInfo structure, only contains
         // URLs (the first choice), we don't bother to implement parsing for the
         // other two choices. SpcLink is also used inside SpcPeImageData, and in

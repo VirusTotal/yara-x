@@ -188,7 +188,7 @@ fn permutations(
 /// ```
 ///
 /// Returns `None` if the argument is not a valid domain name.
-fn parse_domain(domain: &BStr) -> Option<DomainParts> {
+fn parse_domain(domain: &BStr) -> Option<DomainParts<'_>> {
     let domain_len = domain.len();
     let suffix_len = psl::suffix(domain)?.as_bytes().len();
     let tld = domain[domain_len - suffix_len..].to_str().ok()?;

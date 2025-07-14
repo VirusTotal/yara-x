@@ -277,7 +277,7 @@ impl Struct {
     pub fn field_entry_by_name(
         &mut self,
         name: String,
-    ) -> indexmap::map::Entry<String, StructField> {
+    ) -> indexmap::map::Entry<'_, String, StructField> {
         self.fields.entry(name)
     }
 
@@ -1119,7 +1119,7 @@ impl Struct {
         }
     }
 
-    fn value_as_string(value: ReflectValueRef) -> &[u8] {
+    fn value_as_string(value: ReflectValueRef<'_>) -> &[u8] {
         match value {
             ReflectValueRef::String(v) => v.as_bytes(),
             ReflectValueRef::Bytes(v) => v,
