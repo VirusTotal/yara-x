@@ -97,24 +97,29 @@ impl Report {
 
             let code_cache = self.code_cache.read();
             let cache_entry = code_cache.get(&source_id).unwrap();
+            let code = &cache_entry.code;
             let code_origin = cache_entry.origin.clone();
+            let span = code_loc.span.clone();
 
             // This could be faster if we maintain an ordered vector with the
             // byte offset where each line begins. By doing a binary search
             // on that vector, we can locate the line number in O(log(N))
             // instead of O(N).
-            let (line, column) = byte_offset_to_line_col(
-                &cache_entry.code,
-                code_loc.span.start(),
-            )
-            .unwrap();
+            let (line, column) =
+                match byte_offset_to_line_col(code, span.start()) {
+                    Some((line, column)) => (line, column),
+                    None => panic!(
+                        "can't find line and column for span {} in code:\n{}",
+                        span, code
+                    ),
+                };
 
             Label {
                 level: level_as_text(*level),
                 code_origin,
                 line,
                 column,
-                span: code_loc.span.clone(),
+                span,
                 text,
             }
         })
@@ -494,7 +499,8 @@ fn byte_offset_to_line_col(
         }
     }
 
-    // If the byte_offset points to the last byte of the string, return the final position
+    // If the byte_offset points to the last byte of the string, return the
+    // final position
     if byte_offset == text.len() {
         return Some((line, col));
     }
@@ -546,6 +552,7 @@ mod tests {
     fn byte_offset_to_line_col_multibyte_characters() {
         let text = "Hello, 你好!";
         assert_eq!(byte_offset_to_line_col(text, 7), Some((1, 8))); // Position of '你'
+        assert_eq!(byte_offset_to_line_col(text, 8), None); // Position in the middle of '你'
         assert_eq!(byte_offset_to_line_col(text, 10), Some((1, 9))); // Position of '好'
         assert_eq!(byte_offset_to_line_col(text, 13), Some((1, 10))); // Position of '!'
     }
