@@ -416,7 +416,7 @@ and `rustfmt`.
 yr fmt <FILE>...
 ```
 
-### ---check, -c
+### --check, -c
 
 Run in "check" mode. Doesn't modify any file, but exits error code 0 if the
 files are formatted correctly and no change is necessary, or error code 1
