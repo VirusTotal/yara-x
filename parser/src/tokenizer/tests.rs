@@ -24,7 +24,7 @@ fn keywords() {
 #[test]
 fn identifiers() {
     let mut lexer = super::Tokenizer::new(
-        "foo _bar baz0 qux_1 $ $_ $foo @foo #foo !foo".as_bytes(),
+        "foo _bar baz0 qux_1 $ $_ $foo @foo #foo !foo _123".as_bytes(),
     );
 
     assert_eq!(lexer.next_token(), Some(Token::IDENT(Span(0..3))));
@@ -46,6 +46,8 @@ fn identifiers() {
     assert_eq!(lexer.next_token(), Some(Token::PATTERN_COUNT(Span(35..39))));
     assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(39..40))));
     assert_eq!(lexer.next_token(), Some(Token::PATTERN_LENGTH(Span(40..44))));
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(44..45))));
+    assert_eq!(lexer.next_token(), Some(Token::IDENT(Span(45..49))));
 
     assert_eq!(lexer.next_token(), None);
 }
