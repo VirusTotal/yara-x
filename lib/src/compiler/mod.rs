@@ -1552,21 +1552,6 @@ impl Compiler<'_> {
             writeln!(w, "{:?}", self.ir).unwrap();
         }
 
-        // Create a new symbol of bool type for the rule.
-        let new_symbol = Symbol::Rule(rule_id);
-
-        // Insert the symbol in the symbol table corresponding to the
-        // current namespace.
-        let existing_symbol = self
-            .current_namespace
-            .symbols
-            .as_ref()
-            .borrow_mut()
-            .insert(rule.identifier.name, new_symbol);
-
-        // No other symbol with the same identifier should exist.
-        assert!(existing_symbol.is_none());
-
         let mut pattern_ids = Vec::with_capacity(rule_patterns.len());
         let mut pending_patterns = HashSet::new();
 
@@ -1625,9 +1610,9 @@ impl Compiler<'_> {
             pattern_ids.push(pattern_id);
         }
 
-        // Process the patterns in the rule. This extract the best atoms
+        // Process the patterns in the rule. This extracts the best atoms
         // from each pattern, adding them to the `self.atoms` vector, it
-        // also creates one or more sub-patterns per pattern and add them
+        // also creates one or more sub-patterns per pattern and adds them
         // to `self.sub_patterns`
         for (pattern_id, pattern, span) in izip!(
             pattern_ids.iter(),
@@ -1653,6 +1638,23 @@ impl Compiler<'_> {
                 pending_patterns.remove(pattern_id);
             }
         }
+
+        // Create a new symbol of bool type for the rule.
+        let new_symbol = Symbol::Rule(rule_id);
+
+        // Insert the symbol in the symbol table corresponding to the
+        // current namespace. This must be done after every fallible function
+        // has been called; once the symbol is inserted in the symbol table,
+        // it can't be undone.
+        let existing_symbol = self
+            .current_namespace
+            .symbols
+            .as_ref()
+            .borrow_mut()
+            .insert(rule.identifier.name, new_symbol);
+
+        // No other symbol with the same identifier should exist.
+        assert!(existing_symbol.is_none());
 
         // The last step is emitting the WASM code corresponding to the rule's
         // condition. This is done after every fallible function has been called

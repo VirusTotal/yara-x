@@ -1,0 +1,6 @@
+error[E014]: invalid regular expression
+ --> line:3:5
+  |
+3 |     $a = /.*/
+  |     ^^^^^^^^^ this regexp can match empty strings
+  |
