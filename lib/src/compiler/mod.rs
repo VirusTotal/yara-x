@@ -2311,14 +2311,13 @@ impl Compiler<'_> {
             false,
         );
 
-        let re_atoms = result.map_err(|err| match err {
-            re::Error::TooLarge => InvalidRegexp::build(
+        let re_atoms = result.map_err(|err| {
+            InvalidRegexp::build(
                 &self.report_builder,
-                "regexp is too large".to_string(),
+                err.to_string(),
                 self.report_builder.span_to_code_loc(span.clone()),
                 None,
-            ),
-            _ => unreachable!(),
+            )
         })?;
 
         if matches!(hir.minimum_len(), Some(0)) {

@@ -56,7 +56,7 @@ pub(crate) const MAX_ALTERNATIVES: usize = 255;
 #[derive(Error, Debug)]
 pub(crate) enum Error {
     /// The regular expression is too large.
-    #[error("regexp too large")]
+    #[error("regexp is too large")]
     TooLarge,
 
     #[error("too many alternatives in alternation (max: 255)")]
