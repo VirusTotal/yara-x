@@ -78,19 +78,27 @@ fn integer_literals() {
     assert_eq!(lexer.next_token(), Some(Token::INTEGER_LIT(Span(10..14))));
     assert_eq!(lexer.next_token(), None);
 
-    let mut lexer = super::Tokenizer::new(r#"1_0 0x1_0 0o1_0"#.as_bytes());
+    let mut lexer = super::Tokenizer::new(
+        r#"1_0 0x1_0 0o1_0 1__0 0x1__0 0o1__0"#.as_bytes(),
+    );
     assert_eq!(lexer.next_token(), Some(Token::INTEGER_LIT(Span(0..3))));
     assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(3..4))));
     assert_eq!(lexer.next_token(), Some(Token::INTEGER_LIT(Span(4..9))));
     assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(9..10))));
     assert_eq!(lexer.next_token(), Some(Token::INTEGER_LIT(Span(10..15))));
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(15..16))));
+    assert_eq!(lexer.next_token(), Some(Token::INTEGER_LIT(Span(16..20))));
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(20..21))));
+    assert_eq!(lexer.next_token(), Some(Token::INTEGER_LIT(Span(21..27))));
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(27..28))));
+    assert_eq!(lexer.next_token(), Some(Token::INTEGER_LIT(Span(28..34))));
     assert_eq!(lexer.next_token(), None);
 }
 
 #[test]
 fn float_literals() {
     let mut lexer =
-        super::Tokenizer::new(r#"3.14 10.0 1.0 1_0.0_1"#.as_bytes());
+        super::Tokenizer::new(r#"3.14 10.0 1.0 1_0.0_1 1__0.0__1"#.as_bytes());
     assert_eq!(lexer.next_token(), Some(Token::FLOAT_LIT(Span(0..4))));
     assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(4..5))));
     assert_eq!(lexer.next_token(), Some(Token::FLOAT_LIT(Span(5..9))));
@@ -98,6 +106,8 @@ fn float_literals() {
     assert_eq!(lexer.next_token(), Some(Token::FLOAT_LIT(Span(10..13))));
     assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(13..14))));
     assert_eq!(lexer.next_token(), Some(Token::FLOAT_LIT(Span(14..21))));
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(21..22))));
+    assert_eq!(lexer.next_token(), Some(Token::FLOAT_LIT(Span(22..31))));
     assert_eq!(lexer.next_token(), None);
 }
 

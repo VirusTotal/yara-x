@@ -444,26 +444,24 @@ enum NormalToken<'src> {
     ]
     Ident(&'src [u8]),
 
-    // Float literals. Single underscores are allowed to separate any digits but
-    // neither part of the float may start with an underscore.
+    // Float literals. Underscores are allowed to separate digits.
     #[regex(
         r#"(?x)                         # allow comments in the regexp
-            ([0-9]+_?)+                 # one or more digits or underscores
+            ([0-9]+_*)+                 # one or more digits or underscores
             \.                          # a dot
-            ([0-9_]+_?)+                # one more digits or underscores
+            ([0-9_]+_*)+                # one more digits or underscores
         "#,
         |token| token.slice())
     ]
     FloatLit(&'src [u8]),
 
-    // Integer literals. Single underscores are allowed to separate any digits
-    // but the literal can not start with an underscore.
+    // Integer literals. Underscores are allowed to separate digits.
     #[regex(
         r#"(?x)
            (
-             0x([a-fA-F0-9]+_?)+ |       # hexadecimal number
-             0o([0-7]+_?)+       |       # octal number
-             ([0-9]+_?)+(KB|MB)?         # decimal number followed by optional underscore and optional KB or MB
+             0x([a-fA-F0-9]+_*)+ |       # hexadecimal number
+             0o([0-7]+_*)+       |       # octal number
+             ([0-9]+_*)+(KB|MB)?         # decimal number followed by optional underscore and optional KB or MB
            )
         "#,
         |token| token.slice())
