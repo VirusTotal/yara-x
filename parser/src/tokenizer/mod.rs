@@ -447,9 +447,9 @@ enum NormalToken<'src> {
     // Float literals
     #[regex(
         r#"(?x)                         # allow comments in the regexp
-            [0-9]+                      # one or more digits
+            [0-9_]+                      # one or more digits
             \.                          # a dot
-            [0-9]+                      # one more digits
+            [0-9_]+                      # one more digits
         "#,
         |token| token.slice())
     ]
@@ -459,12 +459,13 @@ enum NormalToken<'src> {
     #[regex(
         r#"(?x)
            (
-             0x[a-fA-F0-9]+ |           # hexadecimal number
-             0o[0-7]+       |           # octal number
-             [0-9]+(KB|MB)?             # decimal number followed by optional KB or MB
+             0x[a-fA-F0-9_]+ |           # hexadecimal number
+             0o[0-7_]+       |           # octal number
+             [0-9_]+(KB|MB)?             # decimal number followed by optional KB or MB
            )
         "#,
-        |token| token.slice())
+        |token| token.slice(),
+        priority = 3)
     ]
     IntegerLit(&'src [u8]),
 

@@ -1546,12 +1546,19 @@ where
             multiplier = 1024 * 1024;
         }
 
-        let value = if literal.starts_with("0x") {
-            T::from_str_radix(literal.strip_prefix("0x").unwrap(), 16)
+        let literal_no_underscores = literal.replace('_', "");
+        let value = if literal_no_underscores.as_str().starts_with("0x") {
+            T::from_str_radix(
+                literal_no_underscores.strip_prefix("0x").unwrap(),
+                16,
+            )
         } else if literal.starts_with("0o") {
-            T::from_str_radix(literal.strip_prefix("0o").unwrap(), 8)
+            T::from_str_radix(
+                literal_no_underscores.strip_prefix("0o").unwrap(),
+                8,
+            )
         } else {
-            T::from_str_radix(literal, 10)
+            T::from_str_radix(literal_no_underscores.as_str(), 10)
         };
 
         let build_error = |span: &Span| Error::InvalidInteger {
@@ -1591,13 +1598,14 @@ where
     fn float_lit(&mut self) -> Result<(f64, &'src str, Span), BuilderError> {
         let span = self.expect(FLOAT_LIT)?;
         let literal = self.get_source_str(&span)?;
-        let value = literal.parse::<f64>().map_err(|err| {
-            self.errors.push(Error::InvalidFloat {
-                message: err.to_string(),
-                span: span.clone(),
-            });
-            BuilderError::Abort
-        })?;
+        let value =
+            literal.replace('_', "").parse::<f64>().map_err(|err| {
+                self.errors.push(Error::InvalidFloat {
+                    message: err.to_string(),
+                    span: span.clone(),
+                });
+                BuilderError::Abort
+            })?;
 
         Ok((value, literal, span))
     }
