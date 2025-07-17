@@ -87,7 +87,8 @@ fn integer_literals() {
 
 #[test]
 fn float_literals() {
-    let mut lexer = super::Tokenizer::new(r#"3.14 10.0 1.0 1_0.0_1"#.as_bytes());
+    let mut lexer =
+        super::Tokenizer::new(r#"3.14 10.0 1.0 1_0.0_1"#.as_bytes());
     assert_eq!(lexer.next_token(), Some(Token::FLOAT_LIT(Span(0..4))));
     assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(4..5))));
     assert_eq!(lexer.next_token(), Some(Token::FLOAT_LIT(Span(5..9))));
