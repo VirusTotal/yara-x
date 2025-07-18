@@ -137,7 +137,7 @@ Negative values are prefixed with minus sign (`-`):
 -0o77
 ```
 
-Since YARA-X 1.6.0 underscores (`_`) are allowed within numeric literals to improve
+Since YARA-X 1.5.0 underscores (`_`) are allowed within numeric literals to improve
 readability:
 
 ```yara
@@ -164,7 +164,7 @@ a decimal point:
 42     // integer
 ```
 
-Since YARA-X 1.6.0 float literals can also include underscores for better readability:
+Since YARA-X 1.5.0 float literals can also include underscores for better readability:
 
 ```yara
 1_000.0
