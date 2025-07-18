@@ -87,6 +87,92 @@ direction of their associativity.
 | 2          | `and`         | Logical and                             | Left-to-right |
 | 1          | `or`          | Logical or                              | Left-to-right |
 
+
+## Literals
+
+When writing rule conditions in YARA-X, you often need to use fixed values known
+as literals. YARA-X supports several types of literals, including string literals
+and integer literals, which can be written in various formats.
+
+### String literals
+
+String literals are enclosed in double quotes ("). They represent sequences of characters
+and support standard escape sequences.
+
+##### Examples
+
+```yara
+"example"
+"This is a string\nwith a newline"
+"Tab:\tIndented"                                                       
+"Quote: \"double quoted\""
+```
+
+| Escape sequence | Operator        |
+|-----------------|-----------------|
+| `\\`            | Backslash       |
+| `\"`            | Double quote    |
+| `\n`            | Newline         |
+| `\r`            | Carriage return |
+| `\t`            | Tab             |        
+
+
+### Integer literals
+
+Integer literals represent whole numbers and can be written in decimal, hexadecimal, 
+or octal notation:
+
+```yara
+100        // decimal
+0x1f       // hexadecimal (lowercase)
+0xDEADBEEF // hexadecimal (uppercase)
+0o755      // octal
+```
+
+Negative values are prefixed with minus sign (`-`):
+
+```yara
+-100
+-0x2A
+-0o77
+```
+
+Since YARA-X 1.6.0 underscores (`_`) are allowed within numeric literals to improve
+readability:
+
+```yara
+1_000_000
+0xFF_FF_FF
+```
+
+### Float literals
+
+Float literals are represented in the standard notation (scientific notation is not
+supported):
+
+```yara
+3.14
+0.0
+-273.15
+```
+
+Floats without a fractional part are still considered float literals if they include
+a decimal point:
+
+```yara
+42.0   // float
+42     // integer
+```
+
+Since YARA-X 1.6.0 float literals can also include underscores for better readability:
+
+```yara
+1_000.0
+2_500_000.5
+```
+
+
+
 ## Counting pattern occurrences
 
 Sometimes we need to know not only if a certain pattern is present or not, but
