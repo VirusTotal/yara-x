@@ -1,0 +1,13 @@
+ rule test
+ ├─ meta
+ │  ├─ a = 1000
+ │  └─ b = 10.1
+ └─ condition
+    └─ and
+       ├─ eq
+       │  ├─ 0xaa_bb
+       │  └─ 0xaabb
+       └─ eq
+          ├─ 0.1_0
+          └─ 0.1
+
