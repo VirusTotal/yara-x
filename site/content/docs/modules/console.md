@@ -74,6 +74,18 @@ Logs the given message and float number.
 
 Example: `console.log("Entropy: ", math.entropy(0, filesize))`
 
+### log(boolean)
+
+Logs the given boolean value.
+
+Example: `console.log(pe.is_32bit())`
+
+### log(message, boolean)
+
+Logs the given message and boolean value.
+
+Example: `console.log("32 bit PE: ", pe.is_32bit())`
+
 ### hex(integer)
 
 Logs the given number as hex.

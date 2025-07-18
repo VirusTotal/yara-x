@@ -28,6 +28,22 @@ fn log_msg_str(
 }
 
 #[module_export(name = "log")]
+fn log_bool(ctx: &mut ScanContext, b: bool) -> bool {
+    ctx.console_log(format!("{b}"));
+    true
+}
+
+#[module_export(name = "log")]
+fn log_msg_bool(
+    ctx: &mut ScanContext,
+    message: RuntimeString,
+    b: bool,
+) -> bool {
+    ctx.console_log(format!("{}{}", message.as_bstr(ctx), b));
+    true
+}
+
+#[module_export(name = "log")]
 fn log_int(ctx: &mut ScanContext, i: i64) -> bool {
     ctx.console_log(format!("{i}"));
     true
