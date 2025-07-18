@@ -67,7 +67,7 @@ log = "0.4.27"
 magic = "0.16.2"
 md2 = "0.10.2"
 md-5 = "0.10.6"
-memmap2 = "0.9.5"
+memmap2 = "0.9.7"
 memchr = "2.7.5"
 memx = "0.1.32"
 nom = "8.0.0"
@@ -102,7 +102,7 @@ thiserror = "2.0.12"
 tlsh-fixed = "0.1.1"
 uuid = "1.17.0"
 walrus = "0.23.3"
-wasmtime = { version = "34.0.0", default-features = false }
+wasmtime = { version = "34.0.1", default-features = false }
 x509-parser = "0.17.0"
 yansi = "1.0.1"
 yara-x = { path = "lib", version = "1.4.0" }
@@ -112,7 +112,7 @@ yara-x-parser = { path = "parser", version = "1.4.0" }
 yara-x-proto = { path = "proto", version = "1.4.0" }
 yara-x-proto-yaml = { path = "proto-yaml", version = "1.4.0" }
 yara-x-proto-json = { path = "proto-json", version = "1.4.0" }
-zip = "4.1.0"
+zip = "4.3.0"
 
 # Special profile that builds a release binary with link-time optimization.
 # Compiling with this profile takes a while, but the resulting binary is
