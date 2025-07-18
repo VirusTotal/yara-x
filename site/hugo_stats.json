@@ -621,7 +621,6 @@
       "stricter-escaped-characters-in-regular-expressions",
       "string-literals",
       "subsystem",
-      "supported-escape-sequences",
       "sym",
       "sym_hash",
       "symbind",
