@@ -151,6 +151,9 @@ magic-module = [
 # The `math` module.
 math-module = []
 
+# The `olecf` module
+olecf-module = []
+
 # The `pe` module parses PE files.
 pe-module = [
     "dep:const-oid",
@@ -187,6 +190,9 @@ text-module = [
 # conditions of a rule to check against other epoch time.
 time-module = []
 
+# The `vba` module
+vba-module = []
+
 # The `vt` module is a VirusTotal-specific module that provides access to
 # the metadata that VirusTotal has about the scanned file.
 vt-module = [
@@ -206,10 +212,12 @@ default = [
     "macho-module",
     "math-module",
     "hash-module",
+    "olecf-module",
     "pe-module",
     "string-module",
     "time-module",
     "lnk-module",
+    "vba-module",
     "test_proto2-module",
     "test_proto3-module",
     "vt-module",
@@ -274,6 +282,7 @@ wasmtime = { workspace = true, default-features = false, features = [
 x509-parser = { workspace = true, optional = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true, features = ["serde"] }
+zip = { workspace = true }
 
 lingua = { version = "1.6.2", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
 

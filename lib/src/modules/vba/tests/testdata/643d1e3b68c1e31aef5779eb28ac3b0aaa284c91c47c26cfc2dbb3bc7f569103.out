@@ -1,0 +1,17 @@
+vba:
+    has_macros: true
+    module_names:
+      - "ThisDocument"
+    module_types:
+      - "Class"
+    module_code:
+      - "Attribute VB_Name = \"ThisDocument\"\r\nAttribute VB_Base = \"1Normal.ThisDocument\"\r\nAttribute VB_GlobalNameSpace = False\r\nAttribute VB_Creatable = False\r\nAttribute VB_PredeclaredId = True\r\nAttribute VB_Exposed = True\r\nAttribute VB_TemplateDerived = True\r\nAttribute VB_Customizable = True\r\n\r\nPrivate Sub Document_New()\r\n    MsgBox \"Hello, world!\"\r\nEnd Sub\r\n"
+    project_info:
+        name: "Project"
+        version: "1769106437.10"
+        references:
+          - "stdole"
+          - "Normal"
+          - "Office"
+        module_count: 1
+        is_compressed: true
