@@ -315,7 +315,7 @@ rule sym_hash_example {
 | dyld_info           | [DyldInfo](#dyldinfo)         |
 | rpaths              | string array                  |
 | entitlements        | string array                  |
-| certificates        | [Certificates](#certificates) |
+| certificates        | [Certificate](#certificate) array |
 | uuid                | string                        |
 | build_version       | [BuildVersion](#buildversion) |
 | min_version         | [MinVersion](#minversion)     |
@@ -344,14 +344,15 @@ rule sym_hash_example {
 | ntools   | integer                       |
 | tools    | [BuildTool](#buildtool) array |
 
-<a name="macho-Certificates"></a>
+<a name="macho-Certificate"></a>
 
-### Certificates
+### Certificate
 
-| Field        | Type         |
-| ------------ | ------------ |
-| common_names | string array |
-| signer_names | string array |
+| Field          | Type    |
+| -------------- | ------- |
+| issuer         | string  |
+| subject        | string  |
+| is_self_signed | boolean |
 
 ### DyldInfo
 
