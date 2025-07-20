@@ -292,40 +292,40 @@ rule sym_hash_example {
 
 ### Module structure
 
-| Field               | Type                          |
-| ------------------- | ----------------------------- |
-| magic               | integer                       |
-| cputype             | integer                       |
-| cpusubtype          | integer                       |
-| filetype            | integer                       |
-| ncmds               | integer                       |
-| sizeofcmds          | integer                       |
-| flags               | integer                       |
-| reserved            | integer                       |
-| number_of_segments  | integer                       |
-| dynamic_linker      | string                        |
-| entry_point         | integer                       |
-| stack_size          | integer                       |
-| source_version      | string                        |
-| symtab              | [Symtab](#symtab)             |
-| dysymtab            | [Dysymtab](#dysymtab)         |
-| code_signature_data | [LinkedItData](#linkeditdata) |
-| segments            | [Segment](#segment) array     |
-| dylibs              | [Dylib](#dylib) array         |
-| dyld_info           | [DyldInfo](#dyldinfo)         |
-| rpaths              | string array                  |
-| entitlements        | string array                  |
+| Field               | Type                              |
+| ------------------- | --------------------------------- |
+| magic               | integer                           |
+| cputype             | integer                           |
+| cpusubtype          | integer                           |
+| filetype            | integer                           |
+| ncmds               | integer                           |
+| sizeofcmds          | integer                           |
+| flags               | integer                           |
+| reserved            | integer                           |
+| number_of_segments  | integer                           |
+| dynamic_linker      | string                            |
+| entry_point         | integer                           |
+| stack_size          | integer                           |
+| source_version      | string                            |
+| symtab              | [Symtab](#symtab)                 |
+| dysymtab            | [Dysymtab](#dysymtab)             |
+| code_signature_data | [LinkedItData](#linkeditdata)     |
+| segments            | [Segment](#segment) array         |
+| dylibs              | [Dylib](#dylib) array             |
+| dyld_info           | [DyldInfo](#dyldinfo)             |
+| rpaths              | string array                      |
+| entitlements        | string array                      |
 | certificates        | [Certificate](#certificate) array |
-| uuid                | string                        |
-| build_version       | [BuildVersion](#buildversion) |
-| min_version         | [MinVersion](#minversion)     |
-| exports             | string array                  |
-| imports             | string array                  |
-| linker_options      | string array                  |
-| fat_magic           | integer                       |
-| nfat_arch           | integer                       |
-| fat_arch            | [FatArch](#fatarch) array     |
-| file                | [File](#file) array           |
+| uuid                | string                            |
+| build_version       | [BuildVersion](#buildversion)     |
+| min_version         | [MinVersion](#minversion)         |
+| exports             | string array                      |
+| imports             | string array                      |
+| linker_options      | string array                      |
+| fat_magic           | integer                           |
+| nfat_arch           | integer                           |
+| fat_arch            | [FatArch](#fatarch) array         |
+| file                | [File](#file) array               |
 
 ### BuildTool
 
