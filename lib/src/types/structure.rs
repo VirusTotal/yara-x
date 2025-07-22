@@ -432,20 +432,6 @@ impl Struct {
 
         let mut new_struct = Self { fields: field_index, is_root: false };
 
-        // Get the functions that will be added to this structure.
-        for (name, func) in WasmExport::get_functions(functions_predicate) {
-            if new_struct
-                .add_field(name, TypeValue::Func(Rc::new(func)))
-                .is_some()
-            {
-                panic!(
-                    "function `{}` has the same name than a field in `{}`",
-                    name,
-                    msg_descriptor.name()
-                )
-            };
-        }
-
         if generate_fields_for_enums && Self::is_module_root(msg_descriptor) {
             let mut enums = IndexSet::new();
 
@@ -463,6 +449,20 @@ impl Struct {
             for enum_ in &enums {
                 new_struct.add_enum_fields(enum_);
             }
+        }
+
+        // Get the functions that will be added to this structure.
+        for (name, func) in WasmExport::get_functions(functions_predicate) {
+            if new_struct
+                .add_field(name, TypeValue::Func(Rc::new(func)))
+                .is_some()
+            {
+                panic!(
+                    "function `{}` has the same name than a field in `{}`",
+                    name,
+                    msg_descriptor.name()
+                )
+            };
         }
 
         Rc::new(new_struct)
