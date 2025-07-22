@@ -48,7 +48,7 @@ use crate::types::{Func, Struct, TypeValue};
 use crate::utils::cast;
 use crate::variables::{is_valid_identifier, Variable, VariableError};
 use crate::wasm::builder::WasmModuleBuilder;
-use crate::wasm::{WasmExport, WasmSymbols, WASM_EXPORTS};
+use crate::wasm::{WasmSymbols, WASM_EXPORTS};
 
 pub(crate) use crate::compiler::atoms::*;
 pub(crate) use crate::compiler::context::*;
@@ -1722,41 +1722,27 @@ impl Compiler<'_> {
             self.imported_modules
                 .push(self.ident_pool.get_or_intern(module_name));
 
-            // Create the structure that describes the module.
-            let mut module_struct = Struct::from_proto_descriptor_and_msg(
-                &module.root_struct_descriptor,
-                None,
-                true,
-            );
-
-            // Does the YARA module has an associated Rust module? If
-            // yes, search for functions exported by the module.
-            if let Some(rust_module_name) = module.rust_module_name {
-                // Find all WASM public functions that belong to the current module.
-                let mut functions = WasmExport::get_functions(|e| {
-                    e.public && e.rust_module_path.contains(rust_module_name)
-                });
-
-                // Insert the functions in the module's struct.
-                for (name, export) in functions.drain() {
-                    if module_struct
-                        .add_field(name, TypeValue::Func(Rc::new(export)))
-                        .is_some()
-                    {
-                        panic!("duplicate function `{name}`")
-                    }
-                }
-            }
+            // Create the structure that describes the module. If the YARA
+            // module has an associated Rust module, any publicly exported
+            // function in that module is added to the structure.
+            let module_struct =
+                Struct::from_proto_descriptor_and_msg_with_functions(
+                    &module.root_struct_descriptor,
+                    None,
+                    true,
+                    |e| {
+                        module.rust_module_name.is_some_and(|name| {
+                            e.public && e.rust_module_path.contains(name)
+                        })
+                    },
+                );
 
             // Insert the module in the struct that contains all imported
             // modules. This struct contains all modules imported, from
             // all namespaces. Panic if the module was already in the struct.
             if self
                 .root_struct
-                .add_field(
-                    module_name,
-                    TypeValue::Struct(Rc::new(module_struct)),
-                )
+                .add_field(module_name, TypeValue::Struct(module_struct))
                 .is_some()
             {
                 panic!("duplicate module `{module_name}`")

@@ -10,7 +10,6 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::ptr::{null, NonNull};
-use std::rc::Rc;
 use std::slice::Iter;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Once;
@@ -774,10 +773,8 @@ impl<'r> Scanner<'r> {
             // The data structure obtained from the module is added to the
             // root structure. Any data from previous scans will be replaced
             // with the new data structure.
-            ctx.root_struct.add_field(
-                module_name,
-                TypeValue::Struct(Rc::new(module_struct)),
-            );
+            ctx.root_struct
+                .add_field(module_name, TypeValue::Struct(module_struct));
         }
 
         // Save the time in which the evaluation of rules started.

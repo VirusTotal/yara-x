@@ -329,7 +329,32 @@ impl Struct {
         msg_descriptor: &MessageDescriptor,
         msg: Option<&dyn MessageDyn>,
         generate_fields_for_enums: bool,
-    ) -> Self {
+    ) -> Rc<Self> {
+        Self::from_proto_descriptor_and_msg_with_functions(
+            msg_descriptor,
+            msg,
+            generate_fields_for_enums,
+            |export| {
+                export
+                    .method_of
+                    .is_some_and(|name| name == msg_descriptor.full_name())
+            },
+        )
+    }
+
+    /// Similar to [`Struct::from_proto_descriptor_and_msg`] but receives an
+    /// extra predicate for deciding which functions will be added to the
+    /// structure. Any [`WasmExport`] matching the predicate will be added to
+    /// the structure.
+    pub fn from_proto_descriptor_and_msg_with_functions<P>(
+        msg_descriptor: &MessageDescriptor,
+        msg: Option<&dyn MessageDyn>,
+        generate_fields_for_enums: bool,
+        functions_predicate: P,
+    ) -> Rc<Self>
+    where
+        P: FnMut(&&WasmExport) -> bool,
+    {
         let syntax = msg_descriptor.file_descriptor().syntax();
         let mut fields = Vec::new();
 
@@ -407,19 +432,14 @@ impl Struct {
 
         let mut new_struct = Self { fields: field_index, is_root: false };
 
-        // Get the methods implemented for this struct type.
-        let methods = WasmExport::get_methods(msg_descriptor.full_name());
-
-        // For each method implemented by this struct field, add a field
-        // to the struct of function type. Methods cannot have the same name
-        // as an existing field.
-        for (name, method) in methods {
+        // Get the functions that will be added to this structure.
+        for (name, func) in WasmExport::get_functions(functions_predicate) {
             if new_struct
-                .add_field(name, TypeValue::Func(Rc::new(method)))
+                .add_field(name, TypeValue::Func(Rc::new(func)))
                 .is_some()
             {
                 panic!(
-                    "method `{}` has the same name than a field in `{}`",
+                    "function `{}` has the same name than a field in `{}`",
                     name,
                     msg_descriptor.name()
                 )
@@ -445,7 +465,7 @@ impl Struct {
             }
         }
 
-        new_struct
+        Rc::new(new_struct)
     }
 
     /// Returns true if the given message is the YARA module's root message.
@@ -823,7 +843,7 @@ impl Struct {
                         enum_as_fields,
                     )
                 };
-                TypeValue::Struct(Rc::new(structure))
+                TypeValue::Struct(structure)
             }
         }
     }
@@ -957,22 +977,22 @@ impl Struct {
                         repeated
                             .into_iter()
                             .map(|value| {
-                                Rc::new(Self::from_proto_descriptor_and_value(
+                                Self::from_proto_descriptor_and_value(
                                     msg_descriptor,
                                     value,
                                     enum_as_fields,
-                                ))
+                                )
                             })
                             .collect(),
                     )
                 } else {
-                    Array::Structs(vec![Rc::new(
+                    Array::Structs(vec![
                         Struct::from_proto_descriptor_and_msg(
                             msg_descriptor,
                             None,
                             enum_as_fields,
                         ),
-                    )])
+                    ])
                 }
             }
         };
@@ -1081,7 +1101,7 @@ impl Struct {
         msg_descriptor: &MessageDescriptor,
         value: ReflectValueRef,
         enum_as_fields: bool,
-    ) -> Struct {
+    ) -> Rc<Self> {
         if let ReflectValueRef::Message(m) = value {
             Struct::from_proto_descriptor_and_msg(
                 msg_descriptor,
