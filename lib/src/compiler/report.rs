@@ -109,8 +109,7 @@ impl Report {
                 match byte_offset_to_line_col(code, span.start()) {
                     Some((line, column)) => (line, column),
                     None => panic!(
-                        "can't find line and column for span {} in code:\n{}",
-                        span, code
+                        "can't find line and column for span {span} in code:\n{code}",
                     ),
                 };
 
