@@ -21,7 +21,7 @@ rule test_3 {
 
 rule test_4 {
    strings:
-      $ = { 61 61 61 0D 0A 09 62 62 62 }
+      $ = { 61 61 61 0D 0A 09 5C 62 62 62 }
    condition:
       all of them
 }

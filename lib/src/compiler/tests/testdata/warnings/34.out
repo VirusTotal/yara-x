@@ -28,9 +28,9 @@ warning[text_as_hex]: hex pattern could be written as text literal
 warning[text_as_hex]: hex pattern could be written as text literal
   --> line:24:7
    |
-24 |       $ = { 61 61 61 0D 0A 09 62 62 62 }
-   |       --------------------------------
+24 |       $ = { 61 61 61 0D 0A 09 5C 62 62 62 }
+   |       -----------------------------------
    |       |
    |       this pattern can be written as a text literal
-   |       help: replace with "aaa\r\n\tbbb"
+   |       help: replace with "aaa\r\n\t\\bbb"
    |
