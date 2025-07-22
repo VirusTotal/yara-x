@@ -140,6 +140,67 @@ class Compiler:
         """
         ...
 
+class Scanner:
+    r"""
+    Scans data with already compiled YARA rules.
+    """
+    def new(rules: Rules) -> Scanner:
+        r"""
+        Creates a new [`Scanner`] with a given set of [`Rules`].
+        """
+        ...
+
+    def set_global(self, ident: str, value: typing.Any) -> None:
+        r"""
+        Sets the value of a global variable.
+
+        The variable must have been previously defined by calling [`Compiler::define_global`]
+        and the type it has during the definition must match the type of the new
+        value.
+
+        The variable will retain the new value in subsequent scans, unless this
+        function is called again for setting a new value.
+
+        The type of `value` must be: `bool`, `str`, `bytes`, `int` or `float`.
+
+        # Raises
+
+        [TypeError](https://docs.python.org/3/library/exceptions.html#TypeError)
+        if the type of `value` is not one of the supported ones.
+        """
+        ...
+
+    def set_timeout(self, seconds: int) -> None:
+        r"""
+        Sets a timeout for each scan.
+
+        After setting a timeout scans will abort after the specified `seconds`.
+        """
+        ...
+
+    def console_log(self, callback: typing.Callable) -> None:
+        r"""
+        Sets a callback that is invoked every time a YARA rule calls the
+        `console` module.
+
+        The `callback` function is invoked with a string representing the
+        message being logged. The function can print the message to stdout,
+        append it to a file, etc. If no callback is set these messages are
+        ignored.
+        """
+        ...
+
+    def scan(self, data: bytes) -> ScanResults:
+        r"""
+        Scans in-memory data.
+        """
+        ...
+
+    def scan_file(self, path: str) -> ScanResults:
+        r"""
+        Scans a file.
+        """
+
 class Formatter:
     r"""
     Formats YARA rules.
