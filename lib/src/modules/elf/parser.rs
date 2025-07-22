@@ -229,7 +229,7 @@ impl ElfParser {
         rva: u64,
     ) -> Option<u64> {
         match elf_type.enum_value() {
-            Ok(elf::Type::ET_EXEC) => {
+            Ok(elf::Type::ET_EXEC) | Ok(elf::Type::ET_DYN) => {
                 for segment in segments.iter() {
                     if segment.virt_addr_range()?.contains(&rva) {
                         return segment

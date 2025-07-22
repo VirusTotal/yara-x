@@ -1,0 +1,37 @@
+type: ET_DYN
+machine: EM_X86_64
+entry_point: 38280
+sh_offset: 0
+sh_entry_size: 64
+ph_offset: 64
+ph_entry_size: 56
+number_of_sections: 0
+number_of_segments: 3
+symtab_entries: 0
+dynsym_entries: 0
+dynamic_section_entries: 0
+segments:
+  - type: PT_LOAD
+    flags: 0x5  # PF_X | PF_R
+    offset: 0
+    virtual_address: 0
+    physical_address: 0
+    file_size: 40634
+    memory_size: 40634
+    alignment: 4096
+  - type: PT_LOAD
+    flags: 0x6  # PF_W | PF_R
+    offset: 0
+    virtual_address: 40960
+    physical_address: 40960
+    file_size: 0
+    memory_size: 51488
+    alignment: 4096
+  - type: PT_GNU_STACK
+    flags: 0x6  # PF_W | PF_R
+    offset: 0
+    virtual_address: 0
+    physical_address: 0
+    file_size: 0
+    memory_size: 0
+    alignment: 16
