@@ -1,0 +1,517 @@
+type: ET_DYN
+machine: EM_X86_64
+entry_point: 115776
+sh_offset: 224320
+sh_entry_size: 64
+ph_offset: 64
+ph_entry_size: 56
+number_of_sections: 20
+number_of_segments: 9
+symtab_entries: 0
+dynsym_entries: 39
+dynamic_section_entries: 18
+sections:
+  - type: SHT_NULL
+    flags: 0
+    address: 0
+    size: 0
+    offset: 0
+    name: ""
+  - type: SHT_NOTE
+    flags: 2
+    address: 568
+    size: 36
+    offset: 568
+    name: ".note.gnu.build-id"
+  - type: SHT_HASH
+    flags: 2
+    address: 608
+    size: 312
+    offset: 608
+    name: ".hash"
+  - type: 1879048182
+    flags: 2
+    address: 920
+    size: 348
+    offset: 920
+    name: ".gnu.hash"
+  - type: SHT_DYNSYM
+    flags: 2
+    address: 1272
+    size: 936
+    offset: 1272
+    name: ".dynsym"
+  - type: SHT_STRTAB
+    flags: 2
+    address: 2208
+    size: 689
+    offset: 2208
+    name: ".dynstr"
+  - type: 1879048191
+    flags: 2
+    address: 2898
+    size: 78
+    offset: 2898
+    name: ".gnu.version"
+  - type: 1879048189
+    flags: 2
+    address: 2976
+    size: 236
+    offset: 2976
+    name: ".gnu.version_d"
+  - type: SHT_RELA
+    flags: 2
+    address: 3216
+    size: 24
+    offset: 3216
+    name: ".rela.dyn"
+  - type: 19
+    flags: 2
+    address: 3240
+    size: 32
+    offset: 3240
+    name: ".relr.dyn"
+  - type: SHT_PROGBITS
+    flags: 6
+    address: 4096
+    size: 160465
+    offset: 4096
+    name: ".text"
+  - type: SHT_PROGBITS
+    flags: 2
+    address: 167936
+    size: 25688
+    offset: 167936
+    name: ".rodata"
+  - type: SHT_PROGBITS
+    flags: 2
+    address: 193624
+    size: 2828
+    offset: 193624
+    name: ".eh_frame_hdr"
+  - type: SHT_PROGBITS
+    flags: 2
+    address: 196456
+    size: 15576
+    offset: 196456
+    name: ".eh_frame"
+  - type: SHT_PROGBITS
+    flags: 3
+    address: 213600
+    size: 7200
+    offset: 213600
+    name: ".data.rel.ro"
+  - type: SHT_DYNAMIC
+    flags: 3
+    address: 220800
+    size: 384
+    offset: 220800
+    name: ".dynamic"
+  - type: SHT_PROGBITS
+    flags: 3
+    address: 221184
+    size: 2892
+    offset: 221184
+    name: ".data"
+  - type: SHT_NOBITS
+    flags: 3
+    address: 224096
+    size: 1968
+    offset: 224076
+    name: ".bss"
+  - type: SHT_PROGBITS
+    flags: 0
+    address: 0
+    size: 52
+    offset: 224076
+    name: ".gnu_debuglink"
+  - type: SHT_STRTAB
+    flags: 0
+    address: 0
+    size: 190
+    offset: 224128
+    name: ".shstrtab"
+segments:
+  - type: PT_LOAD
+    flags: 0x4  # PF_R
+    offset: 0
+    virtual_address: 0
+    physical_address: 0
+    file_size: 3272
+    memory_size: 3272
+    alignment: 4096
+  - type: PT_LOAD
+    flags: 0x5  # PF_X | PF_R
+    offset: 4096
+    virtual_address: 4096
+    physical_address: 4096
+    file_size: 160465
+    memory_size: 160465
+    alignment: 4096
+  - type: PT_LOAD
+    flags: 0x4  # PF_R
+    offset: 167936
+    virtual_address: 167936
+    physical_address: 167936
+    file_size: 44096
+    memory_size: 44096
+    alignment: 4096
+  - type: PT_LOAD
+    flags: 0x6  # PF_W | PF_R
+    offset: 213600
+    virtual_address: 213600
+    physical_address: 213600
+    file_size: 10476
+    memory_size: 12464
+    alignment: 4096
+  - type: PT_DYNAMIC
+    flags: 0x6  # PF_W | PF_R
+    offset: 220800
+    virtual_address: 220800
+    physical_address: 220800
+    file_size: 384
+    memory_size: 384
+    alignment: 8
+  - type: PT_NOTE
+    flags: 0x4  # PF_R
+    offset: 568
+    virtual_address: 568
+    physical_address: 568
+    file_size: 36
+    memory_size: 36
+    alignment: 4
+  - type: PT_GNU_EH_FRAME
+    flags: 0x4  # PF_R
+    offset: 193624
+    virtual_address: 193624
+    physical_address: 193624
+    file_size: 2828
+    memory_size: 2828
+    alignment: 4
+  - type: PT_GNU_STACK
+    flags: 0x6  # PF_W | PF_R
+    offset: 0
+    virtual_address: 0
+    physical_address: 0
+    file_size: 0
+    memory_size: 0
+    alignment: 16
+  - type: PT_GNU_RELRO
+    flags: 0x4  # PF_R
+    offset: 213600
+    virtual_address: 213600
+    physical_address: 213600
+    file_size: 7584
+    memory_size: 7584
+    alignment: 1
+dynsym:
+  - name: ""
+    value: 0
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 0
+    visibility: STV_DEFAULT
+  - name: "_dl_rtld_di_serinfo"
+    value: 37008
+    size: 443
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "_dl_audit_symbind_alt"
+    value: 96720
+    size: 417
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "__nptl_initial_report_events"
+    value: 224216
+    size: 1
+    type: STT_OBJECT
+    bind: STB_GLOBAL
+    shndx: 17
+    visibility: STV_DEFAULT
+  - name: "GLIBC_2.2.5"
+    value: 0
+    size: 0
+    type: STT_OBJECT
+    bind: STB_GLOBAL
+    shndx: 65521
+    visibility: STV_DEFAULT
+  - name: "_rtld_global_ro"
+    value: 219776
+    size: 952
+    type: STT_OBJECT
+    bind: STB_GLOBAL
+    shndx: 14
+    visibility: STV_DEFAULT
+  - name: "_dl_allocate_tls"
+    value: 72432
+    size: 51
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "__rseq_flags"
+    value: 193440
+    size: 4
+    type: STT_OBJECT
+    bind: STB_GLOBAL
+    shndx: 11
+    visibility: STV_DEFAULT
+  - name: "_rtld_global"
+    value: 221184
+    size: 2888
+    type: STT_OBJECT
+    bind: STB_GLOBAL
+    shndx: 16
+    visibility: STV_DEFAULT
+  - name: "_dl_allocate_tls_init"
+    value: 71888
+    size: 532
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "__libc_stack_end"
+    value: 219680
+    size: 8
+    type: STT_OBJECT
+    bind: STB_GLOBAL
+    shndx: 14
+    visibility: STV_DEFAULT
+  - name: "__libc_enable_secure"
+    value: 219688
+    size: 4
+    type: STT_OBJECT
+    bind: STB_GLOBAL
+    shndx: 14
+    visibility: STV_DEFAULT
+  - name: "_dl_deallocate_tls"
+    value: 72496
+    size: 123
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "__tunable_is_initialized"
+    value: 75968
+    size: 25
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "_dl_x86_get_cpu_features"
+    value: 95824
+    size: 8
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "_dl_signal_exception"
+    value: 8384
+    size: 84
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "_r_debug"
+    value: 224120
+    size: 40
+    type: STT_OBJECT
+    bind: STB_GLOBAL
+    shndx: 17
+    visibility: STV_DEFAULT
+  - name: "_dl_catch_exception"
+    value: 8992
+    size: 377
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "__tls_get_addr"
+    value: 84544
+    size: 61
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "_dl_exception_free"
+    value: 19376
+    size: 31
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "_dl_debug_state"
+    value: 13376
+    size: 1
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "_dl_get_tls_static_info"
+    value: 71632
+    size: 21
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "_dl_find_dso_for_object"
+    value: 48208
+    size: 169
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "GLIBC_PRIVATE"
+    value: 0
+    size: 0
+    type: STT_OBJECT
+    bind: STB_GLOBAL
+    shndx: 65521
+    visibility: STV_DEFAULT
+  - name: "__rseq_offset"
+    value: 219616
+    size: 8
+    type: STT_OBJECT
+    bind: STB_GLOBAL
+    shndx: 14
+    visibility: STV_DEFAULT
+  - name: "__rtld_version_placeholder"
+    value: 164560
+    size: 1
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "_dl_fatal_printf"
+    value: 54944
+    size: 160
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "GLIBC_2.3"
+    value: 0
+    size: 0
+    type: STT_OBJECT
+    bind: STB_GLOBAL
+    shndx: 65521
+    visibility: STV_DEFAULT
+  - name: "GLIBC_2.4"
+    value: 0
+    size: 0
+    type: STT_OBJECT
+    bind: STB_GLOBAL
+    shndx: 65521
+    visibility: STV_DEFAULT
+  - name: "__rseq_size"
+    value: 219608
+    size: 4
+    type: STT_OBJECT
+    bind: STB_GLOBAL
+    shndx: 14
+    visibility: STV_DEFAULT
+  - name: "__tunable_get_val"
+    value: 77568
+    size: 119
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "_dl_signal_error"
+    value: 8480
+    size: 104
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "_dl_exception_create_format"
+    value: 18224
+    size: 1141
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "_dl_argv"
+    value: 219736
+    size: 8
+    type: STT_OBJECT
+    bind: STB_GLOBAL
+    shndx: 14
+    visibility: STV_DEFAULT
+  - name: "_dl_mcount"
+    value: 109968
+    size: 533
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "_dl_exception_create"
+    value: 18016
+    size: 199
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "_dl_audit_preinit"
+    value: 96592
+    size: 125
+    type: STT_FUNC
+    bind: STB_GLOBAL
+    shndx: 10
+    visibility: STV_DEFAULT
+  - name: "GLIBC_2.34"
+    value: 0
+    size: 0
+    type: STT_OBJECT
+    bind: STB_GLOBAL
+    shndx: 65521
+    visibility: STV_DEFAULT
+  - name: "GLIBC_2.35"
+    value: 0
+    size: 0
+    type: STT_OBJECT
+    bind: STB_GLOBAL
+    shndx: 65521
+    visibility: STV_DEFAULT
+dynamic:
+  - type: DT_SONAME
+    val: 600
+  - type: DT_HASH
+    val: 608
+  - type: 1879047925
+    val: 920
+  - type: DT_STRTAB
+    val: 2208
+  - type: DT_SYMTAB
+    val: 1272
+  - type: DT_STRSZ
+    val: 689
+  - type: DT_SYMENT
+    val: 24
+  - type: DT_RELA
+    val: 3216
+  - type: DT_RELASZ
+    val: 24
+  - type: DT_RELAENT
+    val: 24
+  - type: DT_VERDEF
+    val: 2976
+  - type: DT_VERDEFNUM
+    val: 7
+  - type: DT_FLAGS
+    val: 8
+  - type: DT_FLAGS_1
+    val: 1
+  - type: DT_VERSYM
+    val: 2898
+  - type: 36
+    val: 3240
+  - type: 35
+    val: 32
+  - type: 37
+    val: 8
