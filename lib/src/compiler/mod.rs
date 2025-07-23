@@ -19,6 +19,7 @@ use bstr::{BStr, ByteSlice};
 use itertools::{izip, Itertools, MinMaxResult};
 #[cfg(feature = "logging")]
 use log::*;
+use protobuf::reflect::MessageDescriptor;
 use regex_syntax::hir;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -48,7 +49,7 @@ use crate::types::{Func, Struct, TypeValue};
 use crate::utils::cast;
 use crate::variables::{is_valid_identifier, Variable, VariableError};
 use crate::wasm::builder::WasmModuleBuilder;
-use crate::wasm::{WasmSymbols, WASM_EXPORTS};
+use crate::wasm::{WasmExport, WasmSymbols, WASM_EXPORTS};
 
 pub(crate) use crate::compiler::atoms::*;
 pub(crate) use crate::compiler::context::*;
@@ -1715,6 +1716,51 @@ impl Compiler<'_> {
         // Yes, module exists.
         let module = module.unwrap();
 
+        // This function is passed to `Struct::from_proto_descriptor_and_msg`
+        // for adding functions/methods to the structures as appropriate.
+        // Top-level functions defined by the module will be added to the
+        // module's root structure, and methods will be added to their
+        // corresponding structures.
+        let mut func_injection =
+            |descriptor: &MessageDescriptor, s: &mut Struct| {
+                // Determine which function/methods will be added to the
+                // structure.
+                let functions = if &module.root_struct_descriptor == descriptor
+                {
+                    // This is the module's root structure, if there's some Rust
+                    // module associated to the YARA module, add any publicly exported
+                    // function to the structure.
+                    if let Some(rust_module_name) = module.rust_module_name {
+                        WasmExport::get_functions(|export| {
+                            export.public
+                                && export
+                                    .rust_module_path
+                                    .contains(rust_module_name)
+                        })
+                    } else {
+                        return;
+                    }
+                } else {
+                    // This is not the module's root structure, but it may have
+                    // some methods defined for it.
+                    WasmExport::get_methods(descriptor.full_name())
+                };
+
+                // Add the functions to the structure. They can't collide with
+                // existing fields.
+                for (name, func) in functions {
+                    if s.add_field(name, TypeValue::Func(Rc::new(func)))
+                        .is_some()
+                    {
+                        panic!(
+                        "function `{}` has the same name than a field in `{}`",
+                        name,
+                        descriptor.name()
+                    )
+                    };
+                }
+            };
+
         // If the module has not been added to `self.root_struct` and
         // `self.imported_modules`, do it.
         if !self.root_struct.has_field(module_name) {
@@ -1722,20 +1768,17 @@ impl Compiler<'_> {
             self.imported_modules
                 .push(self.ident_pool.get_or_intern(module_name));
 
-            // Create the structure that describes the module. If the YARA
-            // module has an associated Rust module, any publicly exported
-            // function in that module is added to the structure.
-            let module_struct =
-                Struct::from_proto_descriptor_and_msg_with_functions(
-                    &module.root_struct_descriptor,
-                    None,
-                    true,
-                    |e| {
-                        module.rust_module_name.is_some_and(|name| {
-                            e.public && e.rust_module_path.contains(name)
-                        })
-                    },
-                );
+            // Create the structure that describes the module. The structure
+            // will have all the fields defined in the module's root protobuf
+            // message, and `func_injection` will add functions that are publicly
+            // exported for this module and methods defined for any other
+            // structure defined by the module.
+            let module_struct = Struct::from_proto_descriptor_and_msg(
+                &module.root_struct_descriptor,
+                None,
+                true,
+                &mut func_injection,
+            );
 
             // Insert the module in the struct that contains all imported
             // modules. This struct contains all modules imported, from

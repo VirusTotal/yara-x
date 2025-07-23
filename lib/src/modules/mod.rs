@@ -129,10 +129,10 @@ pub(crate) static BUILTIN_MODULES: LazyLock<FxHashMap<&'static str, Module>> =
         //
         // {
         //  #[cfg(feature = "pe_module")]
-        //  add_module!(modules, "pe", pe, Some(pe::main as MainFn));
+        //  add_module!(modules, "pe", pe, "pe.PE", Some("pe"), Some(pe::__main__ as MainFn));
         //
         //  #[cfg(feature = "elf_module")]
-        //  add_module!(modules, "elf", elf, Some(elf::main as MainFn));
+        //  add_module!(modules, "elf", elf, "elf.ELF", Some("elf"), Some(elf::__main__ as MainFn));
         // }
         //
         // `add_modules.rs` will contain an `add_module!` statement for each
