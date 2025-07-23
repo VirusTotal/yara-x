@@ -98,7 +98,7 @@ pub(crate) struct StructField {
 /// is also represented by one of these structures.
 ///
 /// The structures that represent a YARA module are created from the protobuf
-/// associated to that module. Function [`Struct::from_proto_descriptor_and_msg_with_methods`]
+/// associated to that module. Function [`Struct::from_proto_descriptor_and_msg`]
 /// is used for that purpose.
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub(crate) struct Struct {
