@@ -490,7 +490,7 @@ impl TypeValue {
             value.extract().cloned()
         } else {
             panic!(
-                "called `as_string` on a TypeValue that is not TypeValue::String, it is: {self:?}"
+                "called `try_as_string` on a TypeValue that is not TypeValue::String, it is: {self:?}"
             )
         }
     }

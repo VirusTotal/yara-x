@@ -19,7 +19,6 @@ use bstr::{BStr, ByteSlice};
 use itertools::{izip, Itertools, MinMaxResult};
 #[cfg(feature = "logging")]
 use log::*;
-use protobuf::reflect::MessageDescriptor;
 use regex_syntax::hir;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -450,7 +449,7 @@ impl<'a> Compiler<'a> {
             // Get only the public exports not belonging to a YARA module.
             .filter(|e| e.public && e.builtin())
         {
-            let func = Rc::new(Func::from_mangled_name(export.mangled_name));
+            let func = Rc::new(Func::from(export.mangled_name));
             let symbol = Symbol::Func(func);
 
             global_symbols.borrow_mut().insert(export.name, symbol);
@@ -1724,49 +1723,51 @@ impl Compiler<'_> {
                 .push(self.ident_pool.get_or_intern(module_name));
 
             // Create the structure that describes the module.
-            let module_struct = Struct::from_proto_descriptor_and_msg(
+            let mut module_struct = Struct::from_proto_descriptor_and_msg(
                 &module.root_struct_descriptor,
                 None,
                 true,
-                &mut |descriptor: &MessageDescriptor, s: &mut Struct| {
-                    // Find the function/methods will be added to the structure.
-                    let funcs = if &module.root_struct_descriptor == descriptor
-                    {
-                        // This is the module's root structure, if there's some Rust
-                        // module associated to the YARA module, add any publicly exported
-                        // function to the structure.
-                        if let Some(rust_module_name) = module.rust_module_name
-                        {
-                            WasmExport::get_functions(|export| {
-                                export.public
-                                    && export
-                                        .rust_module_path
-                                        .contains(rust_module_name)
-                            })
-                        } else {
-                            return;
-                        }
-                    } else {
-                        // This is not the module's root structure, but it may have
-                        // some methods defined for it.
-                        WasmExport::get_methods(descriptor.full_name())
-                    };
+            );
 
-                    // Add the functions to the structure. They can't collide with
-                    // existing fields.
-                    for (name, func) in funcs {
-                        if s.add_field(name, TypeValue::Func(Rc::new(func)))
-                            .is_some()
-                        {
+            // Get a mutable reference for the module's structure. This is
+            // possible because there's only one Rc pointing to the structure,
+            // otherwise the `.unwrap()` panics.
+            let module_struct_mut =
+                Rc::<Struct>::get_mut(&mut module_struct).unwrap();
+
+            // If the YARA module has an associated Rust module, check if it
+            // exports some function and add it to the structure.
+            if let Some(rust_module_name) = module.rust_module_name {
+                let functions = WasmExport::get_functions(|export| {
+                    export.public
+                        && export.rust_module_path.contains(rust_module_name)
+                });
+                for (name, func) in functions {
+                    let func = TypeValue::Func(Rc::new(func));
+                    if module_struct_mut.add_field(name, func).is_some() {
+                        panic!(
+                            "function `{name}` has the same name than a field in `{rust_module_name}`",
+                        )
+                    };
+                }
+            }
+
+            // Iterate over all substructures of the module's main structure and
+            // add any methods defined for them.
+            module_struct_mut.enum_substructures(&mut |sub_struct| {
+                let methods = sub_struct.protobuf_type_name().map(WasmExport::get_methods);
+                if let Some(methods) = methods {
+                    for (name, func) in methods {
+                        let func = TypeValue::Func(Rc::new(func));
+                        if sub_struct.add_field(name, func).is_some() {
                             panic!(
-                                "function `{}` has the same name than a field in `{}`",
-                                name,
-                                descriptor.name()
+                                "method `{name}` has the same name than a field in `{}`",
+                                sub_struct.protobuf_type_name().unwrap(),
                             )
                         };
                     }
-                },
-            );
+                }
+            });
 
             // Insert the module in the struct that contains all imported
             // modules. This struct contains all modules imported, from

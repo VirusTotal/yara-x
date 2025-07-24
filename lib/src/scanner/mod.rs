@@ -763,7 +763,6 @@ impl<'r> Scanner<'r> {
                 &module.root_struct_descriptor,
                 module_output.as_deref(),
                 generate_fields_for_enums,
-                &mut |_, _| {},
             );
 
             if let Some(module_output) = module_output {

@@ -204,10 +204,7 @@ impl WasmExport {
             if let Some(function) = functions.get_mut(export.name) {
                 function.add_signature(FuncSignature::from(mangled_name))
             } else {
-                functions.insert(
-                    export.name,
-                    Func::from_mangled_name(mangled_name.as_str()),
-                );
+                functions.insert(export.name, Func::from(mangled_name));
             }
         }
 

@@ -93,4 +93,15 @@ impl Array {
             panic!()
         }
     }
+
+    pub fn enum_substructures<F>(&mut self, f: &mut F)
+    where
+        F: FnMut(&mut Struct),
+    {
+        if let Self::Structs(v) = self {
+            for s in v.iter_mut() {
+                Rc::<Struct>::get_mut(s).unwrap().enum_substructures(f);
+            }
+        }
+    }
 }

@@ -255,6 +255,7 @@ impl PartialEq for FuncSignature {
 }
 
 impl<T: Into<String>> From<T> for FuncSignature {
+    /// Creates a [`FuncSignature`] from a string containing a mangled function name.
     fn from(value: T) -> Self {
         let mangled_name = MangledFnName::from(value.into());
         let (args, result) = mangled_name.unmangle();
@@ -277,13 +278,16 @@ pub(crate) struct Func {
     method_of: Option<String>,
 }
 
-impl Func {
-    /// Creates a new [`Func`] from a mangled function name.
-    pub fn from_mangled_name(name: &str) -> Self {
-        let signature = FuncSignature::from(name);
+impl<T: Into<String>> From<T> for Func {
+    /// Creates a [`Func`] from a string containing a mangled function name.
+    fn from(value: T) -> Self {
+        let signature = FuncSignature::from(value);
         let method_of = signature.method_of().map(String::from);
         Self { signatures: vec![Rc::new(signature)], method_of }
     }
+}
+
+impl Func {
     /// Returns `true` if this function is a method.
     pub fn is_method(&self) -> bool {
         self.method_of.is_some()

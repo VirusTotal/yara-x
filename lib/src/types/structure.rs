@@ -114,6 +114,9 @@ pub(crate) struct Struct {
     /// True if this is the root structure. The root structure is the top-level
     /// structure that contains global variables and modules.
     is_root: bool,
+    /// The name of the protobuf type this enum was crated from. If the enum
+    /// was not created from a protobuf type, this is `None`.
+    protobuf_type_name: Option<String>,
 }
 
 impl SymbolLookup for Struct {
@@ -132,13 +135,22 @@ impl SymbolLookup for Struct {
 impl Struct {
     /// Creates a new, empty struct.
     pub fn new() -> Self {
-        Self { fields: IndexMap::new(), is_root: false }
+        Self {
+            fields: IndexMap::new(),
+            is_root: false,
+            protobuf_type_name: None,
+        }
     }
 
     /// Makes this the root structure.
     pub fn make_root(mut self) -> Self {
         self.is_root = true;
         self
+    }
+
+    /// Returns the protobuf type this enum was created from, if any.
+    pub fn protobuf_type_name(&self) -> Option<&str> {
+        self.protobuf_type_name.as_deref()
     }
 
     /// Adds a new field to the structure.
@@ -205,8 +217,8 @@ impl Struct {
         }
     }
 
-    /// Adds a new fields to the structure corresponding to the values
-    /// in the given enum.
+    /// Adds new fields to the structure corresponding to the values in the
+    /// given enum.
     fn add_enum_fields(&mut self, enum_descriptor: &EnumDescriptor) {
         let mut enclosing_msg = enum_descriptor.enclosing_message();
         let mut path = Vec::new();
@@ -280,6 +292,24 @@ impl Struct {
         self.fields.entry(name)
     }
 
+    pub fn enum_substructures<F>(&mut self, f: &mut F)
+    where
+        F: FnMut(&mut Struct),
+    {
+        f(self);
+        for field in self.fields.values_mut() {
+            match &mut field.type_value {
+                TypeValue::Struct(s) => {
+                    Rc::<Struct>::get_mut(s).unwrap().enum_substructures(f);
+                }
+                TypeValue::Array(a) => {
+                    Rc::<Array>::get_mut(a).unwrap().enum_substructures(f);
+                }
+                _ => {}
+            }
+        }
+    }
+
     /// Creates a [`Struct`] from a protobuf message descriptor.
     ///
     /// Receives the [`MessageDescriptor`] corresponding to the protobuf
@@ -320,25 +350,15 @@ impl Struct {
     /// and `SomeOtherEnum` will be included as fields of the [`Struct`]
     /// created for `MyMessage`.
     ///
-    /// The provided callback `f` will be invoked for every struct that is
-    /// created. This includes the initial struct corresponding to the root
-    /// [`MessageDescriptor`], as well as any nested structs that are generated
-    /// for fields within it. The callback can be used to modify or extend each
-    /// struct (for example, by adding custom fields).
-    ///
     /// # Panics
     ///
     /// If [`MessageDyn`] doesn't represent a message that corresponds to
     /// the given [`MessageDescriptor`].
-    pub fn from_proto_descriptor_and_msg<F>(
+    pub fn from_proto_descriptor_and_msg(
         msg_descriptor: &MessageDescriptor,
         msg: Option<&dyn MessageDyn>,
         generate_fields_for_enums: bool,
-        f: &mut F,
-    ) -> Rc<Self>
-    where
-        F: FnMut(&MessageDescriptor, &mut Struct),
-    {
+    ) -> Rc<Self> {
         let syntax = msg_descriptor.file_descriptor().syntax();
         let mut fields = Vec::new();
 
@@ -359,13 +379,11 @@ impl Struct {
                     msg.and_then(|msg| fd.get_singular(msg)),
                     generate_fields_for_enums,
                     syntax,
-                    f,
                 ),
                 RuntimeFieldType::Repeated(ty) => Self::new_array(
                     &ty,
                     msg.map(|msg| fd.get_repeated(msg)),
                     generate_fields_for_enums,
-                    f,
                 ),
                 RuntimeFieldType::Map(key_ty, value_ty) => Self::new_map(
                     &key_ty,
@@ -373,7 +391,6 @@ impl Struct {
                     msg.map(|msg| fd.get_map(msg)),
                     generate_fields_for_enums,
                     syntax,
-                    f,
                 ),
             };
 
@@ -417,7 +434,11 @@ impl Struct {
             }
         }
 
-        let mut new_struct = Self { fields: field_index, is_root: false };
+        let mut new_struct = Self {
+            fields: field_index,
+            is_root: false,
+            protobuf_type_name: Some(msg_descriptor.full_name().to_string()),
+        };
 
         if generate_fields_for_enums && Self::is_module_root(msg_descriptor) {
             let mut enums = IndexSet::new();
@@ -437,8 +458,6 @@ impl Struct {
                 new_struct.add_enum_fields(enum_);
             }
         }
-
-        f(msg_descriptor, &mut new_struct);
 
         Rc::new(new_struct)
     }
@@ -749,16 +768,12 @@ impl Struct {
     /// the serialized data, regardless of their values. So we can distinguish
     /// a default value (like 0) from an uninitialized value, and handle the
     /// latter undefined values in YARA.
-    fn new_value<F>(
+    fn new_value(
         ty: &RuntimeType,
         value: Option<ReflectValueRef>,
         enum_as_fields: bool,
         syntax: Syntax,
-        f: &mut F,
-    ) -> TypeValue
-    where
-        F: FnMut(&MessageDescriptor, &mut Struct),
-    {
+    ) -> TypeValue {
         match ty {
             RuntimeType::I32
             | RuntimeType::I64
@@ -814,14 +829,12 @@ impl Struct {
                         msg_descriptor,
                         value,
                         enum_as_fields,
-                        f,
                     )
                 } else {
                     Self::from_proto_descriptor_and_msg(
                         msg_descriptor,
                         None,
                         enum_as_fields,
-                        f,
                     )
                 };
                 TypeValue::Struct(structure)
@@ -829,15 +842,11 @@ impl Struct {
         }
     }
 
-    fn new_array<F>(
+    fn new_array(
         ty: &RuntimeType,
         repeated: Option<ReflectRepeatedRef>,
         enum_as_fields: bool,
-        f: &mut F,
-    ) -> TypeValue
-    where
-        F: FnMut(&MessageDescriptor, &mut Struct),
-    {
+    ) -> TypeValue {
         let array = match ty {
             RuntimeType::I32 => {
                 if let Some(repeated) = repeated {
@@ -966,7 +975,6 @@ impl Struct {
                                     msg_descriptor,
                                     value,
                                     enum_as_fields,
-                                    f,
                                 )
                             })
                             .collect(),
@@ -977,7 +985,6 @@ impl Struct {
                             msg_descriptor,
                             None,
                             enum_as_fields,
-                            f,
                         ),
                     ])
                 }
@@ -987,24 +994,19 @@ impl Struct {
         TypeValue::Array(Rc::new(array))
     }
 
-    fn new_map<F>(
+    fn new_map(
         key_ty: &RuntimeType,
         value_ty: &RuntimeType,
         map: Option<ReflectMapRef>,
         enum_as_fields: bool,
         syntax: Syntax,
-        f: &mut F,
-    ) -> TypeValue
-    where
-        F: FnMut(&MessageDescriptor, &mut Struct),
-    {
+    ) -> TypeValue {
         let map = match key_ty {
             RuntimeType::String => Self::new_map_with_string_key(
                 value_ty,
                 map,
                 enum_as_fields,
                 syntax,
-                f,
             ),
             RuntimeType::I32
             | RuntimeType::I64
@@ -1014,7 +1016,6 @@ impl Struct {
                 map,
                 enum_as_fields,
                 syntax,
-                f,
             ),
             ty => {
                 panic!("maps in YARA can't have keys of type `{ty}`");
@@ -1024,16 +1025,12 @@ impl Struct {
         TypeValue::Map(Rc::new(map))
     }
 
-    fn new_map_with_integer_key<F>(
+    fn new_map_with_integer_key(
         value_ty: &RuntimeType,
         map: Option<ReflectMapRef>,
         enum_as_fields: bool,
         syntax: Syntax,
-        f: &mut F,
-    ) -> Map
-    where
-        F: FnMut(&MessageDescriptor, &mut Struct),
-    {
+    ) -> Map {
         if let Some(map) = map {
             let mut result = IndexMap::default();
             for (key, value) in map.into_iter() {
@@ -1044,7 +1041,6 @@ impl Struct {
                         Some(value),
                         enum_as_fields,
                         syntax,
-                        f,
                     ),
                 );
             }
@@ -1056,23 +1052,18 @@ impl Struct {
                     None,
                     enum_as_fields,
                     syntax,
-                    f,
                 )),
                 map: Default::default(),
             }
         }
     }
 
-    fn new_map_with_string_key<F>(
+    fn new_map_with_string_key(
         value_ty: &RuntimeType,
         map: Option<ReflectMapRef>,
         enum_as_fields: bool,
         syntax: Syntax,
-        f: &mut F,
-    ) -> Map
-    where
-        F: FnMut(&MessageDescriptor, &mut Struct),
-    {
+    ) -> Map {
         if let Some(map) = map {
             let mut result = IndexMap::default();
             for (key, value) in map.into_iter() {
@@ -1083,7 +1074,6 @@ impl Struct {
                         Some(value),
                         enum_as_fields,
                         syntax,
-                        f,
                     ),
                 );
             }
@@ -1095,28 +1085,22 @@ impl Struct {
                     None,
                     enum_as_fields,
                     syntax,
-                    f,
                 )),
                 map: Default::default(),
             }
         }
     }
 
-    fn from_proto_descriptor_and_value<F>(
+    fn from_proto_descriptor_and_value(
         msg_descriptor: &MessageDescriptor,
         value: ReflectValueRef,
         enum_as_fields: bool,
-        f: &mut F,
-    ) -> Rc<Self>
-    where
-        F: FnMut(&MessageDescriptor, &mut Struct),
-    {
+    ) -> Rc<Self> {
         if let ReflectValueRef::Message(m) = value {
             Struct::from_proto_descriptor_and_msg(
                 msg_descriptor,
                 Some(m.deref()),
                 enum_as_fields,
-                f,
             )
         } else {
             unreachable!()
@@ -1185,10 +1169,9 @@ impl PartialEq for Struct {
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
-
     use super::Struct;
     use crate::types::{Array, Type, TypeValue};
+    use std::rc::Rc;
 
     #[test]
     fn test_struct() {
@@ -1205,6 +1188,42 @@ mod tests {
         assert_eq!(field1.type_value.ty(), field2.type_value.ty());
 
         root.add_field("foo.bar", TypeValue::var_integer_from(1));
+    }
+    #[test]
+    fn test_proto_struct() {
+        use protobuf::MessageFull;
+
+        use crate::modules::protos::test_proto2::TestProto2;
+
+        let mut structure = Struct::from_proto_descriptor_and_msg(
+            &TestProto2::descriptor(),
+            None,
+            true,
+        );
+
+        let structure = Rc::<Struct>::get_mut(&mut structure).unwrap();
+
+        let mut names = Vec::new();
+
+        structure.enum_substructures(&mut |s| {
+            names.push(s.protobuf_type_name().map(|n| n.to_string()));
+            println!("{:?}\n\n", s)
+        });
+
+        // TODO
+        assert_eq!(
+            vec![
+                Some("test_proto2.TestProto2".to_string()),
+                Some("test_proto2.NestedProto2".to_string()),
+                Some("test_proto2.NestedProto2".to_string()),
+                None,
+                None,
+                None,
+                None,
+                None,
+            ],
+            names
+        );
     }
 
     #[test]

@@ -337,7 +337,6 @@ mod tests {
             &TestProto2::descriptor(),
             None,
             true,
-            &mut |_, _| {},
         );
 
         assert_eq!(test.lookup("int32_zero").unwrap().ty(), Type::Integer);
@@ -417,7 +416,6 @@ mod tests {
             &descriptor,
             Some(message.as_ref()),
             true,
-            &mut |_, _| {},
         );
 
         assert_eq!(
