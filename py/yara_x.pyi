@@ -212,8 +212,8 @@ class Formatter:
     r"""
     Formats YARA rules.
     """
-    def new(
-        self,
+    def __new__(
+        cls,
         align_metadata: bool,
         align_patterns: bool,
         indent_section_headers: bool,
@@ -369,7 +369,7 @@ def compile(src: str) -> Rules:
 
 class Module:
     r"""A YARA-X module."""
-    def new(self, name: str) -> Module:
+    def __new__(cls, name: str) -> Module:
         r"""Creates a new [`Module`] with the given name, which must be a valid YARA-X module name."""
         ...
     def invoke(self, data: str) -> dict:

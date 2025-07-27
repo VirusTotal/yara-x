@@ -220,7 +220,7 @@ impl Compiler {
     /// The `error_on_slow_pattern` argument tells the compiler to treat slow
     /// patterns as errors, instead of warnings.
     #[new]
-    #[pyo3(signature = (*, relaxed_re_syntax=false, error_on_slow_pattern=false, includes_enabled=true))]
+    #[pyo3(signature = (relaxed_re_syntax=false, error_on_slow_pattern=false, includes_enabled=true))]
     fn new(
         relaxed_re_syntax: bool,
         error_on_slow_pattern: bool,
