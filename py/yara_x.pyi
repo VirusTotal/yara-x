@@ -150,25 +150,25 @@ class Scanner:
     data sequentially, but you need multiple scanners for scanning in parallel.
     """
 
-    def new() -> Scanner:
+    def new(self) -> Scanner:
         r"""
         Creates a new [`Scanner`] with a given set of [`Rules`].
         """
         ...
 
-    def scan(data: bytes) -> ScanResults:
+    def scan(self, data: bytes) -> ScanResults:
         r"""
         Scans in-memory data.
         """
         ...
 
-    def scan_file(file: str) -> ScanResults:
+    def scan_file(self, file: str) -> ScanResults:
         r"""
         Scans a file
         """
         ...
 
-    def set_global(ident: str, value: typing.Any):
+    def set_global(self, ident: str, value: typing.Any):
         r"""
         Sets the value of a global variable.
 
@@ -188,7 +188,7 @@ class Scanner:
         """
         ...
 
-    def set_timeout(seconds: int):
+    def set_timeout(self, seconds: int):
         r"""
         Sets a timeout for each scan.
 
@@ -196,7 +196,7 @@ class Scanner:
         """
         ...
 
-    def console_log(callback: collections.abc.Callable[str]):
+    def console_log(self, callback: collections.abc.Callable[str]):
         r"""
         Sets a callback that is invoked every time a YARA rule calls the
         `console` module.
@@ -336,7 +336,7 @@ class Rules:
         ...
 
     @staticmethod
-    def deserialize_from(self, file: typing.Any) -> Rules:
+    def deserialize_from(file: typing.Any) -> Rules:
         r"""
         Deserializes rules from a file-like object.
         """
@@ -369,9 +369,7 @@ def compile(src: str) -> Rules:
 
 class Module:
     r"""A YARA-X module."""
-    def new(self, name: str) -> Module:
-        ...
-
-    def invoke(data: str) -> dict:
+    def new(self, name: str) -> Module: ...
+    def invoke(self, data: str) -> dict:
         r"""Parse the data and collect module metadata."""
         ...
