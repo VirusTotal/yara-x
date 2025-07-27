@@ -5,7 +5,12 @@ class Compiler:
     r"""
     Compiles YARA source code producing a set of compiled [`Rules`].
     """
-    def new(self, relaxed_re_syntax: bool, error_on_slow_pattern: bool) -> Compiler:
+    def __new__(
+        cls,
+        relaxed_re_syntax: bool,
+        error_on_slow_pattern: bool,
+        includes_enabled: bool,
+    ) -> Compiler:
         r"""
         Creates a new [`Compiler`].
 
@@ -23,6 +28,9 @@ class Compiler:
 
         The `error_on_slow_pattern` argument tells the compiler to treat slow
         patterns as errors, instead of warnings.
+
+        The `includes_enabled` argument controls whether the compiler should
+        enable or disable the inclusion of files with the `include` directive.
         """
         ...
 
@@ -150,7 +158,7 @@ class Scanner:
     data sequentially, but you need multiple scanners for scanning in parallel.
     """
 
-    def new(self) -> Scanner:
+    def __new__(cls, rules: Rules) -> Scanner:
         r"""
         Creates a new [`Scanner`] with a given set of [`Rules`].
         """
