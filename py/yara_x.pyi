@@ -369,7 +369,9 @@ def compile(src: str) -> Rules:
 
 class Module:
     r"""A YARA-X module."""
-    def new(self, name: str) -> Module: ...
+    def new(self, name: str) -> Module:
+        r"""Creates a new [`Module`] with the given name, which must be a valid YARA-X module name."""
+        ...
     def invoke(self, data: str) -> dict:
         r"""Parse the data and collect module metadata."""
         ...
