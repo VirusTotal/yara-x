@@ -7,9 +7,9 @@ class Compiler:
     """
     def __new__(
         cls,
-        relaxed_re_syntax: bool,
-        error_on_slow_pattern: bool,
-        includes_enabled: bool,
+        relaxed_re_syntax: bool = False,
+        error_on_slow_pattern: bool = False,
+        includes_enabled: bool = True,
     ) -> Compiler:
         r"""
         Creates a new [`Compiler`].
