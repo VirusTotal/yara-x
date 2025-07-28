@@ -285,6 +285,31 @@ impl Compiler {
         Ok(())
     }
 
+    /// Adds a directory to the list of directories where the compiler should
+    /// look for included files.
+    ///
+    /// When an `include` statement is found, the compiler looks for the included
+    /// file in the directories added with this function, in the order they were
+    /// added.
+    ///
+    /// If this function is not called, the compiler will only look for included
+    /// files in the current directory.
+    ///
+    /// Use [Compiler::enable_includes] for controlling whether include statements
+    /// are allowed or not.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// import yara_x
+    /// compiler = yara_x.Compiler()
+    /// compiler.add_include_dir("/path/to/rules")
+    /// compiler.add_include_dir("/another/path")
+    /// ```
+    fn add_include_dir(&mut self, dir: &str) {
+        self.inner.add_include_dir(dir);
+    }
+
     /// Defines a global variable and sets its initial value.
     ///
     /// Global variables must be defined before calling [`Compiler::add_source`]

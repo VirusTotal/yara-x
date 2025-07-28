@@ -148,6 +148,37 @@ pub unsafe extern "C" fn yrx_compiler_add_source_with_origin(
     }
 }
 
+/// Adds a directory to the list of directories where the compiler should
+/// look for included files.
+///
+/// When an `include` statement is found, the compiler looks for the included
+/// file in the directories added with this function, in the order they were
+/// added.
+///
+/// If this function is not called, the compiler will only look for included
+/// files in the current directory.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_compiler_add_include_dir(
+    compiler: *mut YRX_COMPILER,
+    dir: *const c_char,
+) -> YRX_RESULT {
+    let compiler = if let Some(compiler) = compiler.as_mut() {
+        compiler
+    } else {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+    let dir = if let Ok(dir) = CStr::from_ptr(dir).to_str() {
+        dir
+    } else {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+    compiler.inner.add_include_dir(dir);
+
+    YRX_RESULT::YRX_SUCCESS
+}
+
 /// Tell the compiler that a YARA module is not supported.
 ///
 /// Import statements for ignored modules will be ignored without errors but a

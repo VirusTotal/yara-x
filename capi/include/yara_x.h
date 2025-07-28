@@ -295,6 +295,18 @@ enum YRX_RESULT yrx_compiler_add_source_with_origin(struct YRX_COMPILER *compile
                                                     const char *src,
                                                     const char *origin);
 
+// Adds a directory to the list of directories where the compiler should
+// look for included files.
+//
+// When an `include` statement is found, the compiler looks for the included
+// file in the directories added with this function, in the order they were
+// added.
+//
+// If this function is not called, the compiler will only look for included
+// files in the current directory.
+enum YRX_RESULT yrx_compiler_add_include_dir(struct YRX_COMPILER *compiler,
+                                             const char *dir);
+
 // Tell the compiler that a YARA module is not supported.
 //
 // Import statements for ignored modules will be ignored without errors but a

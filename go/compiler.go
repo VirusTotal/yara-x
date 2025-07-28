@@ -142,6 +142,23 @@ func EnableIncludes(yes bool) CompileOption {
 	}
 }
 
+// IncludeDir is an option for [NewCompiler] and [Compile] that tells the
+// compiler where to look for included files. This option can be used multiple
+// times for specifying more than one include directories.
+//
+// When an `include` statement is found, the compiler looks for the included
+// file in the directories specified by this option, in the order they were
+// specified.
+//
+// If this option is not used, the compiler will only look for included files
+// in the current directory.
+func IncludeDir(path string) CompileOption {
+	return func(c *Compiler) error {
+		c.includeDirs = append(c.includeDirs, path)
+		return nil
+	}
+}
+
 // A structure that contains the options passed to [Compiler.AddSource].
 type sourceOptions struct {
 	origin string
@@ -263,6 +280,7 @@ type Compiler struct {
 	bannedModules         map[string]bannedModule
 	vars                  map[string]interface{}
 	features              []string
+	includeDirs           []string
 }
 
 // NewCompiler creates a new compiler.
@@ -273,6 +291,7 @@ func NewCompiler(opts ...CompileOption) (*Compiler, error) {
 		bannedModules:   make(map[string]bannedModule),
 		vars:            make(map[string]interface{}),
 		features:        make([]string, 0),
+		includeDirs:     make([]string, 0),
 	}
 
 	for _, opt := range opts {
@@ -327,6 +346,9 @@ func (c *Compiler) initialize() error {
 			return err
 		}
 	}
+    for _, dir := range c.includeDirs {
+        c.addIncludeDir(dir)
+    }
 	return nil
 }
 
@@ -386,6 +408,17 @@ func (c *Compiler) AddSource(src string, opts ...SourceOption) error {
 	// until yrx_compiler_add_source finishes.
 	runtime.KeepAlive(c)
 	return nil
+}
+
+// addIncludeDir adds an include directory to the compiler.
+func (c *Compiler) addIncludeDir(dir string) {
+	cDir := C.CString(dir)
+	defer C.free(unsafe.Pointer(cDir))
+	result := C.yrx_compiler_add_include_dir(c.cCompiler, cDir)
+	if result != C.YRX_SUCCESS {
+		panic("yrx_compiler_add_include_dir failed")
+	}
+	runtime.KeepAlive(c)
 }
 
 // enableFeature enables a compiler feature.

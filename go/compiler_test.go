@@ -2,7 +2,10 @@ package yara_x
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
+	"os"
+	"io/ioutil"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -57,6 +60,19 @@ func TestDisabledIncludes(t *testing.T) {
   | ^^^^^^^^^^^^^^^^^ includes are disabled for this compilation
   |`
 	assert.EqualError(t, err, expected)
+}
+
+func TestIncludes(t *testing.T) {
+    file, err := ioutil.TempFile("", "prefix")
+    assert.NoError(t, err)
+
+    defer os.Remove(file.Name())
+
+	_, err = Compile(
+		fmt.Sprintf(`include "%s"`, file.Name()),
+		IncludeDir(os.TempDir()))
+
+	assert.NoError(t, err)
 }
 
 func TestRelaxedReSyntax(t *testing.T) {
