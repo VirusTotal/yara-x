@@ -14,6 +14,7 @@ symtab:
     stroff: 13344
     strsize: 760
     entries:
+      - "radr://5614542"
       - "_NXArgc"
       - "_NXArgv"
       - "___progname"
@@ -67,7 +68,6 @@ symtab:
       - "_strtol"
       - "_sysctl"
       - "_vfprintf"
-      - "radr://5614542"
 dysymtab:
     ilocalsym: 0
     nlocalsym: 1
@@ -320,3 +320,10 @@ min_version:
     device: MACOSX
     version: "10.5.0"
     sdk: "0.0.0"
+exports:
+  - "_NXArgc"
+  - "_NXArgv"
+  - "___progname"
+  - "__mh_execute_header"
+  - "_environ"
+  - "start"

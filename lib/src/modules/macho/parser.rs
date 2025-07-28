@@ -48,6 +48,19 @@ const _CS_MAGIC_DETACHED_SIGNATURE: u32 = 0xfade0cc1;
 const CS_MAGIC_BLOBWRAPPER: u32 = 0xfade0b01;
 const CS_MAGIC_EMBEDDED_ENTITLEMENTS: u32 = 0xfade7171;
 
+/// Mach-O symtol table flag constants
+const N_STAB: u8 = 0xe0; /* if any of these bits set, a symbolic debugging entry */
+const _N_PEXT: u8 = 0x10; /* private external symbol bit */
+const N_TYPE: u8 = 0x0e; /* mask for the type bits */
+const N_EXT: u8 = 0x01; /* external symbol bit, set for external symbols */
+
+/// Mach-o value flags for N_TYPE bits of the n_type field.
+const _N_UNDF: u8 = 0x0; /* undefined, n_sect == NO_SECT */
+const N_ABS: u8 = 0x2; /* absolute, n_sect == NO_SECT */
+const N_SECT: u8 = 0xe; /* defined in section number n_sect */
+const _N_PBUD: u8 = 0xc; /* prebound undefined (defined in a dylib) */
+const N_INDR: u8 = 0xa; /* indirect */
+
 /// Mach-O export flag constants
 const EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION: u64 = 0x00000004;
 const EXPORT_SYMBOL_FLAGS_REEXPORT: u64 = 0x00000008;
@@ -341,21 +354,27 @@ impl<'a> MachO<'a> {
             }
         }
 
-        if let Some(ref mut symtab) = macho.symtab {
+        if let Some(ref symtab) = macho.symtab {
             let str_offset = symtab.stroff as usize;
             let str_end = symtab.strsize as usize;
+            let sym_offset = symtab.symoff as usize;
+            let nsyms = symtab.nsyms;
 
             // We don't want the dyld_shared_cache ones for now
             if let Some(string_table) =
                 data.get(str_offset..str_offset.saturating_add(str_end))
             {
-                let strings: Vec<&'a [u8]> = string_table
-                    .split(|&c| c == b'\0')
-                    .map(|line| BStr::new(line).trim_end_with(|c| c == '\0'))
-                    .filter(|s| !s.trim().is_empty())
-                    .collect();
-
-                symtab.entries.extend(strings);
+                if let Some(symbol_table) = data.get(sym_offset..) {
+                    if let Err(_err) =
+                        macho.parse_symtab(string_table, symbol_table, nsyms)
+                    {
+                        #[cfg(feature = "logging")]
+                        error!("Error parsing Mach-O file: {:?}", _err);
+                        // fail silently if it fails, data was not formatted
+                        // correctly but parsing should still proceed for
+                        // everything else
+                    };
+                }
             }
         }
 
@@ -1089,6 +1108,65 @@ impl<'a> MachOFile<'a> {
         )
     }
 
+    /// Parser that parses the nlist structures that are defined by the offsets in LC_SYMTAB
+    fn nlist(
+        &self,
+    ) -> impl Parser<&'a [u8], Output = Nlist, Error = NomError<'a>> + '_ {
+        map(
+            (
+                u32(self.endianness),                   // n_strx
+                u8,                                     // n_type
+                u8,                                     // n_sect
+                u16(self.endianness),                   // n_desc
+                uint(self.endianness, self.is_32_bits), // n_value
+            ),
+            |(n_strx, n_type, n_sect, n_desc, n_value)| Nlist {
+                n_strx,
+                n_type,
+                _n_sect: n_sect,
+                _n_desc: n_desc,
+                _n_value: n_value,
+            },
+        )
+    }
+
+    /// Parser that parses the symbol table which includes the nlist structure and the
+    /// relevant string from the string table as defined in LC_SYMTAB
+    fn parse_symtab(
+        &mut self,
+        string_table: &'a [u8],
+        symbol_table: &'a [u8],
+        count: u32,
+    ) -> IResult<&'a [u8], ()> {
+        let mut data = symbol_table;
+        let mut n;
+
+        for _ in 0..count {
+            (data, n) = self.nlist().parse(data)?;
+
+            if let Some(symtab) = self.symtab.as_mut() {
+                if let Some(string_data) =
+                    string_table.get(n.n_strx as usize..)
+                {
+                    let (_, string_value) = map(
+                        (take_till(|b| b == b'\x00'), tag("\x00")),
+                        |(s, _)| s,
+                    )
+                    .parse(string_data)?;
+
+                    if string_value.len() != 0 {
+                        symtab.entries.push(SymbolTableEntry {
+                            tags: n.n_type,
+                            value: string_value,
+                        });
+                    }
+                }
+            }
+        }
+
+        Ok((data, ()))
+    }
+
     /// Parser that parses the exports at the offsets defined within
     /// LC_DYLD_INFO, LC_DYLD_INFO_ONLY, and LC_DYLD_EXPORTS_TRIE.
     fn parse_exports(&mut self, data: &'a [u8]) -> IResult<&'a [u8], ()> {
@@ -1647,7 +1725,20 @@ struct Symtab<'a> {
     nsyms: u32,
     stroff: u32,
     strsize: u32,
-    entries: Vec<&'a [u8]>,
+    entries: Vec<SymbolTableEntry<'a>>,
+}
+
+struct Nlist {
+    n_strx: u32,
+    n_type: u8,
+    _n_sect: u8,
+    _n_desc: u16,
+    _n_value: u64,
+}
+
+struct SymbolTableEntry<'a> {
+    tags: u8,
+    value: &'a [u8],
 }
 
 struct Dysymtab {
@@ -1969,6 +2060,28 @@ impl From<MachO<'_>> for protos::macho::Macho {
             result.entitlements.extend(m.entitlements.clone());
             result.exports.extend(m.exports.clone());
             result.imports.extend(m.imports.clone());
+
+            // if the exports are empty, iterate the symbol table entries to check
+            if m.dyld_export_trie.is_none() && m.dyld_info.is_none() {
+                if let Some(symtab) = &m.symtab {
+                    result.exports.extend(symtab.entries.iter().filter_map(
+                        |e| {
+                            let t = e.tags & N_TYPE;
+                            if (e.tags & N_EXT != 0)
+                                && ((t == N_SECT)
+                                    || (t == N_ABS)
+                                    || (t == N_INDR))
+                                && ((e.tags & N_STAB) == 0)
+                            {
+                                Some(BStr::new(e.value).to_string())
+                            } else {
+                                None
+                            }
+                        },
+                    ))
+                }
+            }
+
             result
                 .certificates
                 .extend(m.certificates.iter().map(|cert| cert.into()));
@@ -2053,6 +2166,25 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         result.entitlements.extend(macho.entitlements.clone());
         result.exports.extend(macho.exports.clone());
         result.imports.extend(macho.imports.clone());
+
+        // if the exports are empty, iterate the symbol table entries to check like dyld_info does
+        // see: https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L560-L617
+        if macho.dyld_export_trie.is_none() && macho.dyld_info.is_none() {
+            if let Some(symtab) = &macho.symtab {
+                result.exports.extend(symtab.entries.iter().filter_map(|e| {
+                    let t = e.tags & N_TYPE;
+                    if (e.tags & N_EXT != 0)
+                        && ((t == N_SECT) || (t == N_ABS) || (t == N_INDR))
+                        && ((e.tags & N_STAB) == 0)
+                    {
+                        Some(BStr::new(e.value).to_string())
+                    } else {
+                        None
+                    }
+                }))
+            }
+        }
+
         result
             .certificates
             .extend(macho.certificates.iter().map(|cert| cert.into()));
@@ -2139,9 +2271,10 @@ impl From<&Symtab<'_>> for protos::macho::Symtab {
         result.set_nsyms(symtab.nsyms);
         result.set_stroff(symtab.stroff);
         result.set_strsize(symtab.strsize);
+        // populate the entries
         result
             .entries
-            .extend(symtab.entries.iter().map(|entry| entry.to_vec()));
+            .extend(symtab.entries.iter().map(|entry| entry.value.to_vec()));
         result
     }
 }

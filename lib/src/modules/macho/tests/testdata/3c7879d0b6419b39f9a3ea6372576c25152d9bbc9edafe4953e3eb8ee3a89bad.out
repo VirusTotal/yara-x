@@ -14,6 +14,7 @@ symtab:
     stroff: 183216
     strsize: 9424
     entries:
+      - "radr://5614542"
       - "_MsoABTerm"
       - "_MsoCContact"
       - "_MsoCContactCategory"
@@ -383,7 +384,6 @@ symtab:
       - "_objc_sync_exit"
       - "_objc_terminate"
       - "_strcmp"
-      - "radr://5614542"
 dysymtab:
     ilocalsym: 0
     nlocalsym: 1
