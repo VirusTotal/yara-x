@@ -5,7 +5,12 @@ class Compiler:
     r"""
     Compiles YARA source code producing a set of compiled [`Rules`].
     """
-    def new(self, relaxed_re_syntax: bool, error_on_slow_pattern: bool) -> Compiler:
+    def __new__(
+        cls,
+        relaxed_re_syntax: bool = False,
+        error_on_slow_pattern: bool = False,
+        includes_enabled: bool = True,
+    ) -> Compiler:
         r"""
         Creates a new [`Compiler`].
 
@@ -23,6 +28,9 @@ class Compiler:
 
         The `error_on_slow_pattern` argument tells the compiler to treat slow
         patterns as errors, instead of warnings.
+
+        The `includes_enabled` argument controls whether the compiler should
+        enable or disable the inclusion of files with the `include` directive.
         """
         ...
 
@@ -150,25 +158,25 @@ class Scanner:
     data sequentially, but you need multiple scanners for scanning in parallel.
     """
 
-    def new() -> Scanner:
+    def __new__(cls, rules: Rules) -> Scanner:
         r"""
         Creates a new [`Scanner`] with a given set of [`Rules`].
         """
         ...
 
-    def scan(data: bytes) -> ScanResults:
+    def scan(self, data: bytes) -> ScanResults:
         r"""
         Scans in-memory data.
         """
         ...
 
-    def scan_file(file: str) -> ScanResults:
+    def scan_file(self, file: str) -> ScanResults:
         r"""
         Scans a file
         """
         ...
 
-    def set_global(ident: str, value: typing.Any):
+    def set_global(self, ident: str, value: typing.Any):
         r"""
         Sets the value of a global variable.
 
@@ -188,7 +196,7 @@ class Scanner:
         """
         ...
 
-    def set_timeout(seconds: int):
+    def set_timeout(self, seconds: int):
         r"""
         Sets a timeout for each scan.
 
@@ -196,7 +204,7 @@ class Scanner:
         """
         ...
 
-    def console_log(callback: collections.abc.Callable[str]):
+    def console_log(self, callback: collections.abc.Callable[str]):
         r"""
         Sets a callback that is invoked every time a YARA rule calls the
         `console` module.
@@ -212,8 +220,8 @@ class Formatter:
     r"""
     Formats YARA rules.
     """
-    def new(
-        self,
+    def __new__(
+        cls,
         align_metadata: bool,
         align_patterns: bool,
         indent_section_headers: bool,
@@ -336,7 +344,7 @@ class Rules:
         ...
 
     @staticmethod
-    def deserialize_from(self, file: typing.Any) -> Rules:
+    def deserialize_from(file: typing.Any) -> Rules:
         r"""
         Deserializes rules from a file-like object.
         """
@@ -369,9 +377,9 @@ def compile(src: str) -> Rules:
 
 class Module:
     r"""A YARA-X module."""
-    def new(self, name: str) -> Module:
+    def __new__(cls, name: str) -> Module:
+        r"""Creates a new [`Module`] with the given name, which must be a valid YARA-X module name."""
         ...
-
-    def invoke(data: str) -> dict:
+    def invoke(self, data: str) -> dict:
         r"""Parse the data and collect module metadata."""
         ...
