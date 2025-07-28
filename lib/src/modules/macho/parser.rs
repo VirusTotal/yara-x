@@ -1154,7 +1154,7 @@ impl<'a> MachOFile<'a> {
                     )
                     .parse(string_data)?;
 
-                    if string_value.len() != 0 {
+                    if !string_value.is_empty() {
                         symtab.entries.push(SymbolTableEntry {
                             tags: n.n_type,
                             value: string_value,
