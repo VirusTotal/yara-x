@@ -522,8 +522,6 @@ exports:
   - "_receive_samples"
   - "start"
 imports:
-  - "_mouseIsHovering"
-  - "_generationComplete"
   - ".objc_class_name_NSArray"
   - ".objc_class_name_NSAutoreleasePool"
   - ".objc_class_name_NSBundle"

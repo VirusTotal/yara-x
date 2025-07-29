@@ -2093,8 +2093,7 @@ impl From<MachO<'_>> for protos::macho::Macho {
                     result.imports.extend(symtab.entries.iter().filter_map(
                         |e| {
                             let t = e.tags & N_TYPE;
-
-                            if t == N_UNDF {
+                            if (t == N_UNDF) && (e.tags & N_STAB == 0) {
                                 Some(BStr::new(e.value).to_string())
                             } else {
                                 None
@@ -2216,7 +2215,7 @@ impl From<&MachOFile<'_>> for protos::macho::File {
                 result.imports.extend(symtab.entries.iter().filter_map(|e| {
                     let t = e.tags & N_TYPE;
 
-                    if t == N_UNDF {
+                    if (t == N_UNDF) && (e.tags & N_STAB == 0) {
                         Some(BStr::new(e.value).to_string())
                     } else {
                         None
