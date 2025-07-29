@@ -1047,6 +1047,7 @@ file:
         stroff: 7691280
         strsize: 124112
         entries:
+          - "radr://5614542"
           - "__mh_execute_header"
           - "_$s10Foundation10CocoaErrorV03_nsC0So7NSErrorCvg"
           - "_$s10Foundation10CocoaErrorV4CodeV16fileReadTooLargeAEvgZ"
@@ -4507,7 +4508,6 @@ file:
           - "_write"
           - "_writev"
           - "dyld_stub_binder"
-          - "radr://5614542"
     dysymtab:
         ilocalsym: 0
         nlocalsym: 1
@@ -9079,6 +9079,7 @@ file:
         stroff: 7699808
         strsize: 124784
         entries:
+          - "radr://5614542"
           - "__mh_execute_header"
           - "_$s10Foundation10CocoaErrorV03_nsC0So7NSErrorCvg"
           - "_$s10Foundation10CocoaErrorV4CodeV16fileReadTooLargeAEvgZ"
@@ -12535,7 +12536,6 @@ file:
           - "_write"
           - "_writev"
           - "dyld_stub_binder"
-          - "radr://5614542"
     dysymtab:
         ilocalsym: 0
         nlocalsym: 1

@@ -13,10 +13,10 @@ symtab:
     stroff: 16432
     strsize: 40
     entries:
+      - "_.str"
       - "__start"
       - "_comment"
       - "_shellcode"
-      - "_.str"
 segments:
   - segname: "__PAGEZERO"
     vmaddr: 0x0
@@ -89,3 +89,7 @@ segments:
     initprot: 0x1
     nsects: 0
     flags: 0x4  # SG_NORELOC
+exports:
+  - "__start"
+  - "_comment"
+  - "_shellcode"

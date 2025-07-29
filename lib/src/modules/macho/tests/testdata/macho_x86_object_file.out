@@ -52,3 +52,5 @@ segments:
         flags: 0x80000400
         reserved1: 0
         reserved2: 0
+exports:
+  - "__Z9factoriali"

@@ -1,0 +1,400 @@
+magic: 0xcefaedfe
+cputype: 0x7
+cpusubtype: 0x3
+filetype: 2
+ncmds: 13
+sizeofcmds: 1180
+flags: 0x85
+number_of_segments: 5
+dynamic_linker: "/usr/lib/dyld"
+entry_point: 5104
+symtab:
+    symoff: 36864
+    nsyms: 233
+    stroff: 39776
+    strsize: 4860
+    entries:
+      - "/var/localadmin/Projects/py2app/py2app/apptemplate/"
+      - "src/main.c"
+      - "/var/folders/Z2/Z2xQoIsaHR48rfZb07EkPU+++TI/-Tmp-//ccEbJqni.o"
+      - "_py2app_openConsole"
+      - "_ensureGUI"
+      - "_bind_objc_Cocoa_ApplicationServices"
+      - "_py2app_findPyLocation"
+      - "_py2app_setPythonPath"
+      - "_py2app_getApplicationName"
+      - "_report_error"
+      - "_report_script_error"
+      - "_report_linkEdit_error"
+      - "_py2app_main"
+      - "_main"
+      - "_ERR_NONAME"
+      - "_ERR_PYRUNTIMELOCATIONS"
+      - "_ERR_NOPYTHONRUNTIME"
+      - "_ERR_COLONPATH"
+      - "_ERR_NOPYTHONSCRIPT"
+      - "_ERR_PYTHONEXCEPTION"
+      - "_ERR_LINKERRFMT"
+      - "_ERR_CONSOLEAPPTITLE"
+      - "_ERR_TERMINATE"
+      - "_ERR_REALLYBADTITLE"
+      - "_ERR_TITLEFORMAT"
+      - "_ERR_CONSOLEAPP"
+      - "_ERR_DEFAULTURLTITLE"
+      - "_bound.59293"
+      - "_name.59460"
+      - "_prefix.59625"
+      - "_bound.59253"
+      - "_py2app_pool"
+      - "_py2app_LSOpenFSRef"
+      - "_py2app_LSFindApplicationForInfo"
+      - "_py2app_GetCurrentProcess"
+      - "_py2app_SetFrontProcess"
+      - "_py2app_CFArrayRemoveValueAtIndex"
+      - "_py2app_CFStringCreateFromExternalRepresentation"
+      - "_py2app_CFStringAppendCString"
+      - "_py2app_CFStringCreateMutable"
+      - "_py2app_kCFTypeArrayCallBacks"
+      - "_py2app_CFArrayCreateMutable"
+      - "_py2app_CFRetain"
+      - "_py2app_CFRelease"
+      - "_py2app_CFBundleGetMainBundle"
+      - "_py2app_CFBundleGetValueForInfoDictionaryKey"
+      - "_py2app_CFArrayGetCount"
+      - "_py2app_CFStringCreateWithCString"
+      - "_py2app_CFArrayGetValueAtIndex"
+      - "_py2app_CFArrayAppendValue"
+      - "_py2app_CFStringFind"
+      - "_py2app_CFBundleCopyPrivateFrameworksURL"
+      - "_py2app_CFURLCreateWithFileSystemPathRelativeToBase"
+      - "_py2app_CFStringCreateWithSubstring"
+      - "_py2app_CFStringGetLength"
+      - "_py2app_CFURLGetFileSystemRepresentation"
+      - "_py2app_CFURLCreateWithFileSystemPath"
+      - "_py2app_CFShow"
+      - "_py2app_CFBundleCopyResourcesDirectoryURL"
+      - "_py2app_CFURLCreateFromFileSystemRepresentation"
+      - "_py2app_CFURLCreateFromFileSystemRepresentationRelativeToBase"
+      - "_py2app_CFStringGetCharacterAtIndex"
+      - "_py2app_CFURLCreateWithString"
+      - "_py2app_CFStringGetCString"
+      - "_py2app_CFStringCreateByCombiningStrings"
+      - "_py2app_CFDictionaryGetValue"
+      - "_py2app_CFBooleanGetValue"
+      - "_py2app_CFNumberGetValue"
+      - "_py2app_CFStringCreateArrayBySeparatingStrings"
+      - "_py2app_CFArrayAppendArray"
+      - "_py2app_CFStringCreateWithFormat"
+      - "_py2app_CFBundleCopyResourceURL"
+      - "_py2app_CFBundleCopyAuxiliaryExecutableURL"
+      - "_py2app_CFURLCreateCopyDeletingLastPathComponent"
+      - "_py2app_CFURLCreateCopyAppendingPathComponent"
+      - "_py2app_CFURLCopyLastPathComponent"
+      - "_py2app_CFStringGetMaximumSizeForEncoding"
+      - "_py2app_objc_getClass"
+      - "_py2app_sel_getUid"
+      - "_py2app_objc_msgSend"
+      - "_py2app_NSLog"
+      - "_py2app_NSApplicationLoad"
+      - "_py2app_NSRunAlertPanel"
+      - "dyld_stub_binding_helper"
+      - "__dyld_func_lookup"
+      - "_py2app_openConsole"
+      - "_ensureGUI"
+      - "_bind_objc_Cocoa_ApplicationServices"
+      - "_py2app_findPyLocation"
+      - "_py2app_setPythonPath"
+      - "_py2app_getApplicationName"
+      - "_report_error"
+      - "_report_script_error"
+      - "_report_linkEdit_error"
+      - "_py2app_main"
+      - "dyld__mach_header"
+      - "_ERR_NONAME"
+      - "_ERR_PYRUNTIMELOCATIONS"
+      - "_ERR_NOPYTHONRUNTIME"
+      - "_ERR_COLONPATH"
+      - "_ERR_NOPYTHONSCRIPT"
+      - "_ERR_PYTHONEXCEPTION"
+      - "_ERR_LINKERRFMT"
+      - "_ERR_CONSOLEAPPTITLE"
+      - "_ERR_TERMINATE"
+      - "_ERR_REALLYBADTITLE"
+      - "_ERR_TITLEFORMAT"
+      - "_ERR_CONSOLEAPP"
+      - "_ERR_DEFAULTURLTITLE"
+      - "_bound.59293"
+      - "_name.59460"
+      - "_prefix.59625"
+      - "_bound.59253"
+      - "_py2app_pool"
+      - "_py2app_LSOpenFSRef"
+      - "_py2app_LSFindApplicationForInfo"
+      - "_py2app_GetCurrentProcess"
+      - "_py2app_SetFrontProcess"
+      - "_py2app_CFArrayRemoveValueAtIndex"
+      - "_py2app_CFStringCreateFromExternalRepresentation"
+      - "_py2app_CFStringAppendCString"
+      - "_py2app_CFStringCreateMutable"
+      - "_py2app_kCFTypeArrayCallBacks"
+      - "_py2app_CFArrayCreateMutable"
+      - "_py2app_CFRetain"
+      - "_py2app_CFRelease"
+      - "_py2app_CFBundleGetMainBundle"
+      - "_py2app_CFBundleGetValueForInfoDictionaryKey"
+      - "_py2app_CFArrayGetCount"
+      - "_py2app_CFStringCreateWithCString"
+      - "_py2app_CFArrayGetValueAtIndex"
+      - "_py2app_CFArrayAppendValue"
+      - "_py2app_CFStringFind"
+      - "_py2app_CFBundleCopyPrivateFrameworksURL"
+      - "_py2app_CFURLCreateWithFileSystemPathRelativeToBase"
+      - "_py2app_CFStringCreateWithSubstring"
+      - "_py2app_CFStringGetLength"
+      - "_py2app_CFURLGetFileSystemRepresentation"
+      - "_py2app_CFURLCreateWithFileSystemPath"
+      - "_py2app_CFShow"
+      - "_py2app_CFBundleCopyResourcesDirectoryURL"
+      - "_py2app_CFURLCreateFromFileSystemRepresentation"
+      - "_py2app_CFURLCreateFromFileSystemRepresentationRelativeToBase"
+      - "_py2app_CFStringGetCharacterAtIndex"
+      - "_py2app_CFURLCreateWithString"
+      - "_py2app_CFStringGetCString"
+      - "_py2app_CFStringCreateByCombiningStrings"
+      - "_py2app_CFDictionaryGetValue"
+      - "_py2app_CFBooleanGetValue"
+      - "_py2app_CFNumberGetValue"
+      - "_py2app_CFStringCreateArrayBySeparatingStrings"
+      - "_py2app_CFArrayAppendArray"
+      - "_py2app_CFStringCreateWithFormat"
+      - "_py2app_CFBundleCopyResourceURL"
+      - "_py2app_CFBundleCopyAuxiliaryExecutableURL"
+      - "_py2app_CFURLCreateCopyDeletingLastPathComponent"
+      - "_py2app_CFURLCreateCopyAppendingPathComponent"
+      - "_py2app_CFURLCopyLastPathComponent"
+      - "_py2app_CFStringGetMaximumSizeForEncoding"
+      - "_py2app_objc_getClass"
+      - "_py2app_sel_getUid"
+      - "_py2app_objc_msgSend"
+      - "_py2app_NSLog"
+      - "_py2app_NSApplicationLoad"
+      - "_py2app_NSRunAlertPanel"
+      - "_NXArgc"
+      - "_NXArgv"
+      - "___progname"
+      - "__mh_execute_header"
+      - "_environ"
+      - "_main"
+      - "start"
+      - "__NSGetExecutablePath"
+      - "___stderrp"
+      - "_dlerror"
+      - "_dlopen"
+      - "_dlsym"
+      - "_exit"
+      - "_fclose"
+      - "_fopen"
+      - "_fprintf"
+      - "_fputs$UNIX2003"
+      - "_free"
+      - "_fwrite$UNIX2003"
+      - "_getenv"
+      - "_getpid"
+      - "_getpwnam"
+      - "_lstat"
+      - "_mbstowcs"
+      - "_memcpy"
+      - "_memset"
+      - "_setenv$UNIX2003"
+      - "_setlocale"
+      - "_snprintf"
+      - "_stat"
+      - "_strchr"
+      - "_strdup"
+      - "_strlen"
+      - "_unsetenv$UNIX2003"
+dysymtab:
+    ilocalsym: 0
+    nlocalsym: 199
+    iextdefsym: 199
+    nextdefsym: 7
+    tocoff: 206
+    ntoc: 27
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 39660
+    nextrel: 29
+    locreloff: 0
+    nlocrel: 0
+code_signature_data:
+    dataoff: 44640
+    datasize: 9600
+segments:
+  - segname: "__PAGEZERO"
+    vmaddr: 0x0
+    vmsize: 0x1000
+    fileoff: 0
+    filesize: 0
+    maxprot: 0x0
+    initprot: 0x0
+    nsects: 0
+    flags: 0x0
+  - segname: "__TEXT"
+    vmaddr: 0x1000
+    vmsize: 0x7000
+    fileoff: 0
+    filesize: 28672
+    maxprot: 0x7
+    initprot: 0x5
+    nsects: 2
+    flags: 0x0
+    sections:
+      - segname: "__TEXT"
+        sectname: "__text"
+        addr: 0x23f0
+        size: 0x4cae
+        offset: 5104
+        align: 4
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0
+      - segname: "__TEXT"
+        sectname: "__cstring"
+        addr: 0x70a0
+        size: 0xf58
+        offset: 24736
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+  - segname: "__DATA"
+    vmaddr: 0x8000
+    vmsize: 0x1000
+    fileoff: 28672
+    filesize: 4096
+    maxprot: 0x7
+    initprot: 0x3
+    nsects: 4
+    flags: 0x0
+    sections:
+      - segname: "__DATA"
+        sectname: "__data"
+        addr: 0x8000
+        size: 0x14
+        offset: 28672
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+      - segname: "__DATA"
+        sectname: "__dyld"
+        addr: 0x8014
+        size: 0x1c
+        offset: 28692
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+      - segname: "__DATA"
+        sectname: "__const"
+        addr: 0x8030
+        size: 0x34
+        offset: 28720
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+      - segname: "__DATA"
+        sectname: "__bss"
+        addr: 0x8064
+        size: 0xe0
+        offset: 0
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x1
+        reserved1: 0
+        reserved2: 0
+  - segname: "__IMPORT"
+    vmaddr: 0x9000
+    vmsize: 0x1000
+    fileoff: 32768
+    filesize: 4096
+    maxprot: 0x7
+    initprot: 0x7
+    nsects: 2
+    flags: 0x0
+    sections:
+      - segname: "__IMPORT"
+        sectname: "__pointers"
+        addr: 0x9000
+        size: 0x4
+        offset: 32768
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x6
+        reserved1: 0
+        reserved2: 0
+      - segname: "__IMPORT"
+        sectname: "__jump_table"
+        addr: 0x9040
+        size: 0x8c
+        offset: 32832
+        align: 6
+        reloff: 0
+        nreloc: 0
+        flags: 0x4000008
+        reserved1: 1
+        reserved2: 5
+  - segname: "__LINKEDIT"
+    vmaddr: 0xa000
+    vmsize: 0x5000
+    fileoff: 36864
+    filesize: 17376
+    maxprot: 0x7
+    initprot: 0x1
+    nsects: 0
+    flags: 0x0
+dylibs:
+  - name: "/usr/lib/libgcc_s.1.dylib"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1.0.0"
+  - name: "/usr/lib/libSystem.B.dylib"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "111.1.7"
+certificates:
+  - issuer: "C=US, O=Apple Inc., OU=Apple Certification Authority, CN=Apple Root CA"
+    subject: "CN=Developer ID Certification Authority, OU=Apple Certification Authority, O=Apple Inc., C=US"
+    is_self_signed: false
+  - issuer: "C=US, O=Apple Inc., OU=Apple Certification Authority, CN=Apple Root CA"
+    subject: "C=US, O=Apple Inc., OU=Apple Certification Authority, CN=Apple Root CA"
+    is_self_signed: true
+  - issuer: "CN=Developer ID Certification Authority, OU=Apple Certification Authority, O=Apple Inc., C=US"
+    subject: "uid=5X2HL6S54X, CN=Developer ID Application: Gladys Brady, OU=5X2HL6S54X, O=Gladys Brady, C=GB"
+    is_self_signed: false
+uuid: "D691C242-DA49-1081-50D5-4F8991924B06"
+exports:
+  - "_NXArgc"
+  - "_NXArgv"
+  - "___progname"
+  - "__mh_execute_header"
+  - "_environ"
+  - "_main"
+  - "start"

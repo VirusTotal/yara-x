@@ -17,6 +17,7 @@ symtab:
     stroff: 271144
     strsize: 6000
     entries:
+      - "radr://5614542"
       - "__mh_execute_header"
       - "_AEGetParamPtr"
       - "_AEInstallEventHandler"
@@ -324,7 +325,6 @@ symtab:
       - "_strstr"
       - "_usleep"
       - "dyld_stub_binder"
-      - "radr://5614542"
 dysymtab:
     ilocalsym: 0
     nlocalsym: 1
