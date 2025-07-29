@@ -55,7 +55,7 @@ const N_TYPE: u8 = 0x0e; /* mask for the type bits */
 const N_EXT: u8 = 0x01; /* external symbol bit, set for external symbols */
 
 /// Mach-o value flags for N_TYPE bits of the n_type field.
-const _N_UNDF: u8 = 0x0; /* undefined, n_sect == NO_SECT */
+const N_UNDF: u8 = 0x0; /* undefined, n_sect == NO_SECT */
 const N_ABS: u8 = 0x2; /* absolute, n_sect == NO_SECT */
 const N_SECT: u8 = 0xe; /* defined in section number n_sect */
 const _N_PBUD: u8 = 0xc; /* prebound undefined (defined in a dylib) */
@@ -2062,7 +2062,9 @@ impl From<MachO<'_>> for protos::macho::Macho {
             result.exports.extend(m.exports.clone());
             result.imports.extend(m.imports.clone());
 
-            // if the exports are empty, iterate the symbol table entries to check
+            // If the exports are empty, iterate the symbol table entries to
+            // check like dyld_info does:
+            // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L560-L617
             if m.dyld_export_trie.is_none() && m.dyld_info.is_none() {
                 if let Some(symtab) = &m.symtab {
                     result.exports.extend(symtab.entries.iter().filter_map(
@@ -2074,6 +2076,25 @@ impl From<MachO<'_>> for protos::macho::Macho {
                                     || (t == N_INDR))
                                 && ((e.tags & N_STAB) == 0)
                             {
+                                Some(BStr::new(e.value).to_string())
+                            } else {
+                                None
+                            }
+                        },
+                    ))
+                }
+            }
+
+            // If the imports are empty, iterate the symbol table entries to
+            // check for undefined symbols like dyld_info does:
+            // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L372-L398
+            if m.dyld_chain_fixups.is_none() && m.dyld_info.is_none() {
+                if let Some(symtab) = &m.symtab {
+                    result.imports.extend(symtab.entries.iter().filter_map(
+                        |e| {
+                            let t = e.tags & N_TYPE;
+
+                            if t == N_UNDF {
                                 Some(BStr::new(e.value).to_string())
                             } else {
                                 None
@@ -2169,7 +2190,7 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         result.imports.extend(macho.imports.clone());
 
         // If the exports are empty, iterate the symbol table entries to check
-        // like dyld_info does see:
+        // like dyld_info does:
         // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L560-L617
         if macho.dyld_export_trie.is_none() && macho.dyld_info.is_none() {
             if let Some(symtab) = &macho.symtab {
@@ -2187,6 +2208,22 @@ impl From<&MachOFile<'_>> for protos::macho::File {
             }
         }
 
+        // If the imports are empty, iterate the symbol table entries to
+        // check for undefined symbols like dyld_info does:
+        // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L372-L398
+        if macho.dyld_chain_fixups.is_none() && macho.dyld_info.is_none() {
+            if let Some(symtab) = &macho.symtab {
+                result.imports.extend(symtab.entries.iter().filter_map(|e| {
+                    let t = e.tags & N_TYPE;
+
+                    if t == N_UNDF {
+                        Some(BStr::new(e.value).to_string())
+                    } else {
+                        None
+                    }
+                }))
+            }
+        }
         result
             .certificates
             .extend(macho.certificates.iter().map(|cert| cert.into()));
