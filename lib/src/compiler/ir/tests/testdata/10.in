@@ -1,0 +1,8 @@
+// simple include test
+
+include "10-dependency.yar"
+
+rule test {
+  condition:
+    test_10_dep
+}

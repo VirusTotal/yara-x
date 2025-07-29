@@ -1,0 +1,8 @@
+// chain include test
+
+include "12-dependency-a.yar"
+
+rule test {
+  condition:
+    test_12_dep_a and test_12_dep_b
+}

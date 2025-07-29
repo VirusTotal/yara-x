@@ -1,0 +1,9 @@
+// diamond include test
+
+include "13-dependency-a.yar"
+include "13-dependency-b.yar"
+
+rule test {
+  condition:
+    test_13_dep_a and test_13_dep_b and test_13_dep_c
+}

@@ -2,6 +2,7 @@ use std::mem::size_of;
 
 use crate::compiler::{Expr, IR};
 use crate::types::TypeValue;
+use crate::SourceCode;
 
 #[test]
 fn expr_size() {
@@ -91,7 +92,10 @@ fn ir() {
             path.with_extension("no-folding.ir")
         };
 
-        let source = fs::read_to_string(path).unwrap();
+        let source = fs::read_to_string(&path).unwrap();
+        let source_code = SourceCode::from(source.as_str()).with_origin(
+            &path.as_os_str().to_str().expect("Path should be valid UTF-8"),
+        );
 
         let output_file = mint.new_goldenfile(&output_path).unwrap();
         let mut compiler = Compiler::new();
@@ -100,7 +104,7 @@ fn ir() {
         compiler
             .hoisting(false)
             .set_ir_writer(w)
-            .add_source(source.as_str())
+            .add_source(source_code.clone())
             .unwrap();
 
         #[cfg(feature = "constant-folding")]
@@ -113,7 +117,7 @@ fn ir() {
             compiler
                 .hoisting(false)
                 .set_ir_writer(w)
-                .add_source(source.as_str())
+                .add_source(source_code.clone())
                 .unwrap();
 
             let hoisting_output = output_path.with_extension("hoisting.ir");
@@ -124,7 +128,7 @@ fn ir() {
             compiler
                 .hoisting(true)
                 .set_ir_writer(w)
-                .add_source(source.as_str())
+                .add_source(source_code.clone())
                 .unwrap();
         }
     });

@@ -1,0 +1,3 @@
+// source origin required
+
+include "148-dependency-a.yar"

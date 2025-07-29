@@ -1,0 +1,10 @@
+error[E042]: error including file
+ --> <CARGO_MANIFEST_DIR>/src/compiler/tests/testdata/errors/148-dependency-b.yar:1:1
+  |
+1 | include "148.in"
+  | ^^^^^^^^^^^^^^^^ failed with error: File was already included.
+Full include stack:
+↳ <CARGO_MANIFEST_DIR>/src/compiler/tests/testdata/errors/148.in
+  ↳ <CARGO_MANIFEST_DIR>/src/compiler/tests/testdata/errors/148-dependency-a.yar
+    ↳ <CARGO_MANIFEST_DIR>/src/compiler/tests/testdata/errors/148-dependency-b.yar
+  |

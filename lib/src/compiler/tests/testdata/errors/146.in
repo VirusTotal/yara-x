@@ -1,0 +1,8 @@
+// source origin required
+
+include "146.in"
+
+rule test {
+  condition:
+    false
+}
