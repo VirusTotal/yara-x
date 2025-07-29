@@ -151,7 +151,7 @@ where
             State::PreComment { leading_newline: self.start_of_input };
         loop {
             match &mut state {
-                State::PreComment { ref mut leading_newline } => {
+                State::PreComment { leading_newline } => {
                     match self.input_buffer.pop_front() {
                         Some(token @ Token::Whitespace) => {
                             self.indentation += token.len();

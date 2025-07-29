@@ -412,7 +412,7 @@ impl Transformer {
     }
 
     fn replace_word_boundary_assertions(&self, ast: &mut Ast) {
-        if let Ast::Assertion(ref assertion) = ast {
+        if let &mut Ast::Assertion(ref assertion) = ast {
             match assertion.kind {
                 AssertionKind::WordBoundaryStartAngle => {
                     let _ = replace(

@@ -8,9 +8,9 @@ use std::rc::Rc;
 
 use bstr::{BString, ByteSlice};
 use itertools::Itertools;
+use yara_x_parser::Span;
 use yara_x_parser::ast;
 use yara_x_parser::ast::WithSpan;
-use yara_x_parser::Span;
 
 use crate::compiler::context::VarStack;
 use crate::compiler::errors::{
@@ -27,7 +27,7 @@ use crate::compiler::ir::{
 };
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{
-    warnings, CompileContext, CompileError, ForVars, TextPatternAsHex,
+    CompileContext, CompileError, ForVars, TextPatternAsHex, warnings,
 };
 use crate::errors::CustomError;
 use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
@@ -889,7 +889,7 @@ fn expr_from_ast(
                         ctx.report_builder
                             .span_to_code_loc(expr.primary.span()),
                         None,
-                    ))
+                    ));
                 }
             }
         }
@@ -971,7 +971,7 @@ fn bool_expr_from_ast(
                 "a map".to_string(),
                 code_loc,
                 None,
-            ))
+            ));
         }
         TypeValue::Struct(_) => {
             return Err(WrongType::build(
@@ -980,7 +980,7 @@ fn bool_expr_from_ast(
                 "a struct".to_string(),
                 code_loc,
                 None,
-            ))
+            ));
         }
         TypeValue::Array(_) => {
             return Err(WrongType::build(
@@ -989,7 +989,7 @@ fn bool_expr_from_ast(
                 "an array".to_string(),
                 code_loc,
                 None,
-            ))
+            ));
         }
         TypeValue::Regexp(_) => {
             return Err(WrongType::build(
@@ -998,7 +998,7 @@ fn bool_expr_from_ast(
                 "a regexp".to_string(),
                 code_loc,
                 None,
-            ))
+            ));
         }
         type_value => {
             warn_if_not_bool(ctx, type_value.ty(), ast.span());
@@ -1284,11 +1284,13 @@ fn for_in_expr_from_ast(
             // clone its actual value if known. The actual value for the
             // loop variable is not known until the loop is executed.
             (
-                vec![expressions
-                    .first()
-                    .map(|node_idx| ctx.ir.get(*node_idx).type_value())
-                    .unwrap()
-                    .clone_without_value()],
+                vec![
+                    expressions
+                        .first()
+                        .map(|node_idx| ctx.ir.get(*node_idx).type_value())
+                        .unwrap()
+                        .clone_without_value(),
+                ],
                 Type::Unknown,
             )
         }
@@ -1618,7 +1620,7 @@ fn pattern_set_from_ast(
             pattern_indexes
         }
         // `x of ($a*, $b)`
-        ast::PatternSet::Set(ref set) => {
+        ast::PatternSet::Set(set) => {
             for item in set {
                 if !ctx
                     .current_rule_patterns
@@ -1686,7 +1688,7 @@ fn func_call_from_ast(
                 ctx.report_builder
                     .span_to_code_loc(func_call.identifier.span()),
                 None,
-            ))
+            ));
         }
     };
 
