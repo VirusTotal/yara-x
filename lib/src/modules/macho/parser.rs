@@ -1108,7 +1108,8 @@ impl<'a> MachOFile<'a> {
         )
     }
 
-    /// Parser that parses the nlist structures that are defined by the offsets in LC_SYMTAB
+    /// Parser that parses the nlist structures that are defined by the offsets
+    /// in LC_SYMTAB.
     fn nlist(
         &self,
     ) -> impl Parser<&'a [u8], Output = Nlist, Error = NomError<'a>> + '_ {
@@ -1130,8 +1131,8 @@ impl<'a> MachOFile<'a> {
         )
     }
 
-    /// Parser that parses the symbol table which includes the nlist structure and the
-    /// relevant string from the string table as defined in LC_SYMTAB
+    /// Parser that parses the symbol table which includes the nlist structure
+    /// and the relevant string from the string table as defined in LC_SYMTAB.
     fn parse_symtab(
         &mut self,
         string_table: &'a [u8],
@@ -2167,8 +2168,9 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         result.exports.extend(macho.exports.clone());
         result.imports.extend(macho.imports.clone());
 
-        // if the exports are empty, iterate the symbol table entries to check like dyld_info does
-        // see: https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L560-L617
+        // If the exports are empty, iterate the symbol table entries to check
+        // like dyld_info does see:
+        // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L560-L617
         if macho.dyld_export_trie.is_none() && macho.dyld_info.is_none() {
             if let Some(symtab) = &macho.symtab {
                 result.exports.extend(symtab.entries.iter().filter_map(|e| {
