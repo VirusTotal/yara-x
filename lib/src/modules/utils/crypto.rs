@@ -1,6 +1,5 @@
 use std::convert::TryFrom;
 
-use super::asn1::{oid, oid_to_object_identifier};
 use const_oid::db::rfc5912;
 use const_oid::{AssociatedOid, ObjectIdentifier};
 use digest::{Digest, Output};
@@ -15,6 +14,11 @@ use sha1::Sha1;
 use sha2::{Sha256, Sha384, Sha512};
 use thiserror::Error;
 use x509_parser::x509::{AlgorithmIdentifier, SubjectPublicKeyInfo};
+
+#[cfg(feature = "logging")]
+use log::error;
+
+use super::asn1::{oid, oid_to_object_identifier};
 
 /// Represents a public key.
 pub enum PublicKey {
