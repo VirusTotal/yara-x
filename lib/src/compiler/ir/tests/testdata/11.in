@@ -1,0 +1,9 @@
+// multiple include test
+
+include "11-dependency-a.yar"
+include "11-dependency-b.yar"
+
+rule test {
+  condition:
+    test_11_dep_a and test_11_dep_b
+}

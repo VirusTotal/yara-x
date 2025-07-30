@@ -1,0 +1,15 @@
+RULE test_13_dep_c
+  0: CONST boolean(true) -- parent: None 
+
+RULE test_13_dep_a
+  0: CONST boolean(true) -- parent: None 
+
+RULE test_13_dep_b
+  0: CONST boolean(true) -- parent: None 
+
+RULE test
+  3: AND -- hash: 0x50a68ffd40424bc1 -- parent: None 
+    0: SYMBOL Rule(RuleId(1)) -- parent: 3 
+    1: SYMBOL Rule(RuleId(2)) -- parent: 3 
+    2: SYMBOL Rule(RuleId(0)) -- parent: 3 
+

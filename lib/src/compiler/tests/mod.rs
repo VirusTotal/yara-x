@@ -1169,15 +1169,30 @@ fn test_errors() {
 
         src.push_str(rules.as_str());
 
-        let err = compile(src.as_str()).expect_err(
+        // Set source code origin if the file starts with "// source origin required".
+        let src_code = if rules.starts_with("// source origin required") {
+            SourceCode::from(src.as_str()).with_origin(
+                in_path
+                    .as_os_str()
+                    .to_str()
+                    .expect("Path should be valid UTF-8"),
+            )
+        } else {
+            SourceCode::from(src.as_str())
+        };
+
+        let err = compile(src_code).expect_err(
             format!("file {:?} should have failed", in_path).as_str(),
         );
 
+        // Replace all the absolute paths in error messages with a placeholder.
+        let project_path = env!("CARGO_MANIFEST_DIR");
+        let err_string =
+            err.to_string().replace(project_path, "<CARGO_MANIFEST_DIR>");
+
         let mut output_file = mint.new_goldenfile(out_path).unwrap();
 
-        output_file
-            .write_all(err.to_string().as_bytes())
-            .expect("unable to write")
+        output_file.write_all(err_string.as_bytes()).expect("unable to write")
     }
 }
 

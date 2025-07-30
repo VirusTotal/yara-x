@@ -1,0 +1,6 @@
+RULE test_10_dep
+  0: CONST boolean(true) -- parent: None 
+
+RULE test
+  0: SYMBOL Rule(RuleId(0)) -- parent: None 
+
