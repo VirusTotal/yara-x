@@ -82,11 +82,6 @@ parallel-compilation = ["wasmtime/parallel-compilation"]
 # scan. Notice that profiling itself has a noticeable impact on performance.
 rules-profiling = ["logging", "dep:quanta"]
 
-# When enabled use the logic included in the `x509-parser` crate for verifying
-# certificates. If not enabled we use our ouwn logic. This is disabled by
-# default.
-x509-parser-verify = ["x509-parser/verify"]
-
 # Features for enabling/disabling modules.
 #
 # For each module we have a `<module name>-module` feature that controls whether
@@ -95,6 +90,16 @@ x509-parser-verify = ["x509-parser/verify"]
 
 # The `console` module exports functions for printing text from YARA rules.
 console-module = []
+
+# The `crx` module parses Chrome Extension files.
+crx-module = [
+    "dep:ecdsa",
+    "dep:nom",
+    "dep:rsa",
+    "dep:sha1",
+    "dep:sha2",
+    "dep:zip",
+]
 
 # The `cuckoo` module parses behaviour reports from the Cuckoo Sandbox
 # https://cuckoosandbox.org/
@@ -197,10 +202,11 @@ vt-module = [
 # Features that are enabled by default.
 default = [
     "constant-folding",
+    "console-module",
+    "crx-module",
     "cuckoo-module",
     "exact-atoms",
     "fast-regexp",
-    "console-module",
     "dotnet-module",
     "elf-module",
     "macho-module",
@@ -274,6 +280,7 @@ wasmtime = { workspace = true, default-features = false, features = [
 x509-parser = { workspace = true, optional = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true, features = ["serde"] }
+zip = { workspace = true, optional = true }
 
 lingua = { version = "1.6.2", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
 
