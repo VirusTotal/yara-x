@@ -6,6 +6,8 @@ import "elf.proto";
 import "pe.proto";
 import "lnk.proto";
 import "macho.proto";
+import "olecf.proto";
+import "vba.proto";
 
 package mods;
 
@@ -16,4 +18,6 @@ message Modules {
     optional dotnet.Dotnet dotnet = 3;
     optional macho.Macho macho = 4;
     optional lnk.Lnk lnk = 5;
+    optional olecf.Olecf olecf = 6;
+    optional vba.Vba vba = 7;
 }
