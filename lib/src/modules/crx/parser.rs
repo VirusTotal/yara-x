@@ -322,7 +322,7 @@ impl<'a> Crx<'a> {
         let mut id = String::with_capacity(raw_id.len() * 2);
 
         for &b in raw_id {
-            write!(id, "{:02x}", b).unwrap();
+            write!(id, "{b:02x}").unwrap();
         }
 
         id.chars()
@@ -350,13 +350,13 @@ impl From<Crx<'_>> for protos::crx::Crx {
                     .name
                     .as_deref()
                     .and_then(|name| locale.resolve(name))
-                    .or_else(|| manifest.name.as_deref())
+                    .or(manifest.name.as_deref())
                     .map(|s| s.to_owned());
                 result.description = manifest
                     .description
                     .as_deref()
                     .and_then(|name| locale.resolve(name))
-                    .or_else(|| manifest.description.as_deref())
+                    .or(manifest.description.as_deref())
                     .map(|s| s.to_owned());
                 result.raw_name = manifest.name;
                 result.raw_description = manifest.description;
