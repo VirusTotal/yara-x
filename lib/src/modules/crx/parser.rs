@@ -1,5 +1,6 @@
+use std::collections::HashMap;
 use std::fmt::Write;
-use std::io::Cursor;
+use std::io::{Cursor, Read, Seek};
 
 use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
@@ -14,14 +15,16 @@ use nom::Parser;
 use protobuf::Message;
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
-
 use strum_macros::Display;
+use zip::result::ZipResult;
+use zip::ZipArchive;
 
 use crate::mods::crx::{
     AsymmetricKeyProof, CrxFileHeader, CrxSignature, SignedData,
 };
 use crate::modules::protos;
 use crate::modules::utils::crypto::PublicKey;
+
 type NomError<'a> = nom::error::Error<&'a [u8]>;
 
 #[derive(Display)]
@@ -63,18 +66,45 @@ impl<'a> From<nom::Err<NomError<'a>>> for Error<'a> {
 #[derive(Default)]
 pub struct Crx<'a> {
     crx_id: String,
-    version: u32,
+    crx_version: u32,
     header_size: u32,
     manifest: Option<CrxManifest>,
     signatures: Vec<CrxSignature>,
+    locale: Option<CrxLocale>,
     zip_data: &'a [u8],
 }
 
 #[derive(serde::Deserialize, Debug)]
 struct CrxManifest {
-    name: Option<String>,
     version: Option<String>,
+    name: Option<String>,
     description: Option<String>,
+    minimum_chrome_version: Option<String>,
+    homepage_url: Option<String>,
+    default_locale: Option<String>,
+    #[serde(default)]
+    permissions: Vec<String>,
+    #[serde(default)]
+    host_permissions: Vec<String>,
+    #[serde(default)]
+    optional_permissions: Vec<String>,
+    #[serde(default)]
+    optional_host_permissions: Vec<String>,
+}
+
+#[derive(serde::Deserialize, Debug)]
+struct CrxLocaleEntry {
+    message: String,
+}
+
+#[derive(serde::Deserialize, Debug)]
+struct CrxLocale(HashMap<String, CrxLocaleEntry>);
+
+impl CrxLocale {
+    pub fn resolve(&self, msg: &str) -> Option<&str> {
+        let key = msg.strip_prefix("__MSG_")?.strip_suffix("__")?;
+        self.0.get(key).map(|entry| entry.message.as_str())
+    }
 }
 
 impl<'a> Crx<'a> {
@@ -100,7 +130,10 @@ impl<'a> Crx<'a> {
         let (remainder, key) = take(key_len).parse(remainder)?;
         let (zip_data, signature) = take(signature_len).parse(remainder)?;
 
-        let manifest = Self::read_manifest(zip_data);
+        let mut zip =
+            Self::read_zip(zip_data).map_err(|_| Error::InvalidCrx)?;
+
+        let manifest = Self::read_manifest(&mut zip);
 
         let verified = PublicKey::from_der(SHA_1_WITH_RSA_ENCRYPTION, key)
             .is_ok_and(|key| {
@@ -121,14 +154,22 @@ impl<'a> Crx<'a> {
         let digest = sha256.finalize();
         let crx_id = Self::printable_extension_id(&digest.as_slice()[0..16]);
 
-        println!("manifest: {:?}", manifest);
+        // Read the `default_locale` field from the manifest, or use "en" as
+        // the default locale language.
+        let locale_lang = manifest
+            .as_ref()
+            .and_then(|m| m.default_locale.as_deref())
+            .unwrap_or("en");
+
+        let locale = Self::read_locale(&mut zip, locale_lang);
 
         Ok(Crx {
-            version: 2,
+            crx_version: 2,
             header_size: key_len + signature_len,
             crx_id,
             manifest,
             signatures,
+            locale,
             zip_data,
         })
     }
@@ -171,16 +212,28 @@ impl<'a> Crx<'a> {
         ));
 
         let crx_id = Self::printable_extension_id(signed_data.crx_id());
-        let manifest = Self::read_manifest(zip_data);
 
-        println!("manifest: {:?}", manifest);
+        let mut zip =
+            Self::read_zip(zip_data).map_err(|_| Error::InvalidCrx)?;
+
+        let manifest = Self::read_manifest(&mut zip);
+
+        // Read the `default_locale` field from the manifest, or use "en" as
+        // the default locale language.
+        let locale_lang = manifest
+            .as_ref()
+            .and_then(|m| m.default_locale.as_deref())
+            .unwrap_or("en");
+
+        let locale = Self::read_locale(&mut zip, locale_lang);
 
         Ok(Crx {
-            version: 3,
+            crx_version: 3,
             header_size: header_data.len() as u32,
             crx_id,
             manifest,
             signatures,
+            locale,
             zip_data,
         })
     }
@@ -212,11 +265,25 @@ impl<'a> Crx<'a> {
         Some(signature)
     }
 
-    fn read_manifest(zip_data: &[u8]) -> Option<CrxManifest> {
-        let mut zip = zip::ZipArchive::new(Cursor::new(zip_data)).ok()?;
-        let manifest = zip.by_name("manifest.json").ok()?;
+    fn read_zip(zip_data: &[u8]) -> ZipResult<ZipArchive<Cursor<&[u8]>>> {
+        zip::ZipArchive::new(Cursor::new(zip_data))
+    }
 
+    fn read_manifest<R: Read + Seek>(
+        zip: &mut ZipArchive<R>,
+    ) -> Option<CrxManifest> {
+        let manifest = zip.by_name("manifest.json").ok()?;
         serde_json::from_reader::<_, CrxManifest>(manifest).ok()
+    }
+
+    fn read_locale<R: Read + Seek>(
+        zip: &mut ZipArchive<R>,
+        lang: &str,
+    ) -> Option<CrxLocale> {
+        let index =
+            zip.index_for_path(format!("_locales/{lang}/messages.json"))?;
+        let locale = zip.by_index(index).ok()?;
+        serde_json::from_reader::<_, CrxLocale>(locale).ok()
     }
 
     fn verify_v2<D: Digest + AssociatedOid>(
@@ -271,11 +338,42 @@ impl<'a> Crx<'a> {
 impl From<Crx<'_>> for protos::crx::Crx {
     fn from(crx: Crx) -> Self {
         let mut result = protos::crx::Crx::new();
+
         result.set_is_crx(true);
-        result.set_header_size(crx.header_size);
-        result.set_version(crx.version);
+        result.set_crx_version(crx.crx_version);
         result.set_id(crx.crx_id);
-        result.signatures.extend(crx.signatures);
+        result.signatures = crx.signatures;
+
+        if let Some(manifest) = crx.manifest {
+            if let Some(locale) = crx.locale {
+                result.name = manifest
+                    .name
+                    .as_deref()
+                    .and_then(|name| locale.resolve(name))
+                    .or_else(|| manifest.name.as_deref())
+                    .map(|s| s.to_owned());
+                result.description = manifest
+                    .description
+                    .as_deref()
+                    .and_then(|name| locale.resolve(name))
+                    .or_else(|| manifest.description.as_deref())
+                    .map(|s| s.to_owned());
+                result.raw_name = manifest.name;
+                result.raw_description = manifest.description;
+            } else {
+                result.name = manifest.name;
+                result.description = manifest.description;
+            }
+            result.version = manifest.version;
+            result.minimum_chrome_version = manifest.minimum_chrome_version;
+            result.homepage_url = manifest.homepage_url;
+            result.permissions = manifest.permissions;
+            result.host_permissions = manifest.host_permissions;
+            result.optional_permissions = manifest.optional_permissions;
+            result.optional_host_permissions =
+                manifest.optional_host_permissions;
+        };
+
         result
     }
 }

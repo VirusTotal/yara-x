@@ -12,10 +12,21 @@ option (yara.module_options) = {
 
 message Crx {
   optional bool is_crx = 1;
-  optional uint32 version = 2;
-  required uint32 header_size = 3;
+  optional uint32 crx_version = 2;
+  optional uint32 header_size = 3;
   optional string id = 4;
-  repeated CrxSignature signatures = 5;
+  optional string version = 16;
+  optional string name = 5;
+  optional string description = 6;
+  optional string raw_name = 7;
+  optional string raw_description = 8;
+  optional string minimum_chrome_version = 9;
+  optional string homepage_url = 10;
+  repeated string permissions = 11;
+  repeated string host_permissions = 12;
+  repeated string optional_permissions = 13;
+  repeated string optional_host_permissions = 14;
+  repeated CrxSignature signatures = 15;
 }
 
 message CrxSignature {

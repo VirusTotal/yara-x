@@ -1,0 +1,19 @@
+is_crx: true
+crx_version: 2
+id: "cblpjenafgeohmnjknfhpdbdljfkndig"
+version: "0.1.1.3001"
+name: "Twitter Media Downloader"
+description: "Download images/videos of user\'s media-timeline on Twitter."
+raw_name: "__MSG_ext_title__"
+raw_description: "__MSG_ext_description__"
+permissions:
+  - "storage"
+  - "webRequest"
+  - "webRequestBlocking"
+  - "*://*.twitter.com/*"
+  - "*://pbs.twimg.com/*"
+  - "*://video.twimg.com/*"
+  - "*://*.cdn.vine.co/*"
+signatures:
+  - key: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnBJBp7R/agmgXkbIRIwethmnX761ckg8WVVP9IPU3JHcm4omzoxKMB8LbEArjWFp6Wa9aTIzXAUxaT1kmSFkdJ4a5u1nMRxBvXHD6pWvu4a3wmPTJWQCMnxf+MRg6JTnhENuV8+K1mj5Nd//LFZA/2/VehYPbBc3jlCmSDgGTzNlHO4s9kjLZ54E/gU0DNgUavX8t7TEWISs1lCBeJ3nrfM13f+Vg6wGVJt/+qk1hc8v1boUPz2fDwLOeemDOiReanizTjbwCt+17aHvP0f4hlWROzeBXOYMWAQiGjq2cP8J2O/md8B+/kTnMaMZzWFUnDPFikaKoqA2PthJQzN2BQIDAQAB"
+    verified: true
