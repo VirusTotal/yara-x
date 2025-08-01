@@ -342,6 +342,7 @@ impl From<Crx<'_>> for protos::crx::Crx {
         result.set_is_crx(true);
         result.set_crx_version(crx.crx_version);
         result.set_id(crx.crx_id);
+        result.set_header_size(crx.header_size);
         result.signatures = crx.signatures;
 
         if let Some(manifest) = crx.manifest {

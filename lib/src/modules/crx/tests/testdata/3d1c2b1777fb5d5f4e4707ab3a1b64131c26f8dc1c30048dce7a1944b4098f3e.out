@@ -1,5 +1,6 @@
 is_crx: true
 crx_version: 2
+header_size: 550
 id: "cblpjenafgeohmnjknfhpdbdljfkndig"
 version: "0.1.1.3001"
 name: "Twitter Media Downloader"
