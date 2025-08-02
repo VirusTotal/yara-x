@@ -1291,7 +1291,6 @@ impl<'a> MachOFile<'a> {
                     remainder = import_remainder;
                     if let Ok(import) = strr.to_str() {
                         if !seen.contains(import) {
-                            dbg!("it does not");
                             self.imports.push(import.to_string());
                             seen.insert(import);
                         }
