@@ -593,5 +593,3 @@ imports:
   - "_strcpy"
   - "_strlen"
   - "_wcslen"
-  - "__ZdlPv"
-  - "__Znwm"
