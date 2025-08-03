@@ -18,6 +18,8 @@ add_module!(modules, "macho", macho, "macho.Macho", Some("macho"), Some(macho::_
 add_module!(modules, "magic", magic, "magic.Magic", Some("magic"), Some(magic::__main__ as MainFn));
 #[cfg(feature = "math-module")]
 add_module!(modules, "math", math, "math.Math", Some("math"), Some(math::__main__ as MainFn));
+#[cfg(feature = "olecf-module")]
+add_module!(modules, "olecf", olecf, "olecf.Olecf", Some("olecf"), Some(olecf::__main__ as MainFn));
 #[cfg(feature = "pe-module")]
 add_module!(modules, "pe", pe, "pe.PE", Some("pe"), Some(pe::__main__ as MainFn));
 #[cfg(feature = "string-module")]
@@ -30,6 +32,8 @@ add_module!(modules, "test_proto3", test_proto3, "test_proto3.TestProto3", Some(
 add_module!(modules, "text", text, "text.Text", Some("text"), Some(text::__main__ as MainFn));
 #[cfg(feature = "time-module")]
 add_module!(modules, "time", time, "time.Time", Some("time"), Some(time::__main__ as MainFn));
+#[cfg(feature = "vba-module")]
+add_module!(modules, "vba", vba, "vba.Vba", Some("vba"), Some(vba::__main__ as MainFn));
 #[cfg(feature = "vt-module")]
 add_module!(modules, "vt", titan, "vt.titan.LiveHuntData", Some("vt"), Some(vt::__main__ as MainFn));
 }

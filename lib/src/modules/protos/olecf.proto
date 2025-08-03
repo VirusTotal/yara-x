@@ -1,0 +1,23 @@
+syntax = "proto2";
+import "yara.proto";
+
+package olecf;
+
+option (yara.module_options) = {
+  name : "olecf"
+  root_message: "olecf.Olecf"
+  rust_module: "olecf"
+  cargo_feature: "olecf-module"
+};
+
+message Olecf {
+  // True if file is an OLE CF file.
+  required bool is_olecf = 1;
+  // Streams contained in the OLE CF file.
+  repeated Stream streams = 2;
+}
+
+message Stream {
+  required string name = 1;
+  required uint64 size = 2;
+}
