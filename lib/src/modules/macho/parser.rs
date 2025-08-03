@@ -424,6 +424,10 @@ impl<'a> MachO<'a> {
             }
         }
 
+        // imports defined at `weak_offset` can be duplicative, meaning
+        // they can exist in `bind_offset` _and_ `weak_offset` or one of them.
+        // To avoid duplicates in the imports list, keep track of seen imports
+        let mut seen: HashSet<_> = HashSet::new();
         for (offset, size) in macho
             .dyld_info
             .as_ref()
@@ -440,7 +444,8 @@ impl<'a> MachO<'a> {
             if let Some(import_data) =
                 data.get(offset..offset.saturating_add(size))
             {
-                if let Err(_err) = macho.parse_imports(import_data) {
+                if let Err(_err) = macho.parse_imports(import_data, &mut seen)
+                {
                     #[cfg(feature = "logging")]
                     error!("Error parsing Mach-O file: {:?}", _err);
                     // fail silently if it fails, data was not formatted
@@ -1250,7 +1255,11 @@ impl<'a> MachOFile<'a> {
     }
 
     /// Parser that parses the imports at the offsets defined within LC_DYLD_INFO and LC_DYLD_INFO_ONLY
-    fn parse_imports(&mut self, data: &'a [u8]) -> IResult<&'a [u8], ()> {
+    fn parse_imports(
+        &mut self,
+        data: &'a [u8],
+        seen: &mut HashSet<&'a str>,
+    ) -> IResult<&'a [u8], ()> {
         let mut remainder: &[u8] = data;
         let mut entry: u8;
 
@@ -1281,7 +1290,10 @@ impl<'a> MachOFile<'a> {
                     .parse(remainder)?;
                     remainder = import_remainder;
                     if let Ok(import) = strr.to_str() {
-                        self.imports.push(import.to_string());
+                        if !seen.contains(import) {
+                            self.imports.push(import.to_string());
+                            seen.insert(import);
+                        }
                     }
                 }
                 _ => {}
