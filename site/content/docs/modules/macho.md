@@ -269,7 +269,9 @@ rule import_hash_example {
 
 ### symhash()
 
-Returns an MD5 hash of the symbol table entries designated in the Mach-O binary.
+Implementation of `symhash` as defined at https://github.com/threatstream/symhash/.
+
+Returns an MD5 hash of the symbols extracted as defined above.
 
 {{< callout title="Notice">}}
 
