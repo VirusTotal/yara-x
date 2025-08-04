@@ -399,8 +399,7 @@ impl re::ast::Visitor for &mut Validator {
             }
             Ast::Dot(hir) => {
                 if self.dot_matches_new_line {
-                    self.match_kind =
-                        MatchKind::ArbitraryData(hir.deref().clone())
+                    self.match_kind = MatchKind::ArbitraryData(*hir.deref())
                 } else {
                     self.match_kind = MatchKind::NonArbitrary
                 }
