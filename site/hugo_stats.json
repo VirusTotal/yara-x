@@ -622,7 +622,7 @@
       "string-literals",
       "subsystem",
       "sym",
-      "sym_hash",
+      "symhash",
       "symbind",
       "symbol-table",
       "symtab",

@@ -7,6 +7,7 @@
 
 use std::cell::RefCell;
 
+use crate::modules::macho::parser::{N_EXT, N_STAB, N_TYPE};
 use crate::modules::prelude::*;
 use crate::modules::protos::macho::*;
 use bstr::BString;
@@ -530,9 +531,10 @@ fn import_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     Some(RuntimeString::new(digest))
 }
 
-/// Returns a md5 hash of the symbol table in the mach-o binary
+/// Returns a md5 hash of specific parts of the symbol table
+/// as defined by http://github.com/threatstream/symhash
 #[module_export]
-fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
+fn symhash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let cached = SYM_MD5_CACHE.with(|cache| -> Option<RuntimeString> {
         cache
             .borrow()
@@ -560,9 +562,16 @@ fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 
     let mut md5_hash: digest::core_api::CoreWrapper<md5::Md5Core> = Md5::new();
 
+    // ref: implementation of symhash published at https://github.com/threatstream/symhash/
     let symtab_hash_entries = symtab_to_hash
         .iter()
-        .map(|e| BString::new(e.trim().to_lowercase()))
+        .filter(|s| {
+            let n_type = s.tags();
+            (n_type & N_STAB as u32 == 0)
+                && (n_type & N_EXT as u32) == N_EXT as u32
+                && (n_type & N_TYPE as u32) == 0
+        })
+        .map(|e| BString::new(e.value().trim().to_vec()))
         .unique()
         .sorted()
         .join(",");

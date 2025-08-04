@@ -17,242 +17,478 @@ symtab:
     stroff: 48304
     strsize: 3952
     entries:
-      - "__Z13My_Block_RecviRPhii"
-      - "__Z13My_Block_SendiPhiiii"
-      - "__Z13MyDeHandShakei"
-      - "__Z15My_Socket_Closei"
-      - "__Z6MySendiPhi"
-      - "__Z6MyRecviRPh"
-      - "__Z10MyRecvFileiPwi"
-      - "__Z10MySendFileiPwi"
-      - "__Z10log_stringPKcz"
-      - "__Z4sdelPw"
-      - "__Z12MakeBaseDataRPh"
-      - "__Z11save_configv"
-      - "__Z20GetRequestFromServerPwRPh"
-      - "__Z15IterFromForwardPv"
-      - "__Z13IterToForwardPv"
-      - "__Z11IterForwardPv"
-      - "__Z13ForwardThreadPv"
-      - "__Z6RunCmdPcRPh"
-      - "__Z9conn_nonbPci"
-      - "__Z21MakeConsoleResultDataPhRS_"
-      - "__Z15MakeExploreDataPhRS_"
-      - "__Z7ScanDirPw"
-      - "__Z12SecureDeletePhRS_"
-      - "__Z8DoActioni"
-      - "__ZNSt3__16vectorIPwNS_9allocatorIS1_EEE21__push_back_slow_pathIRKS1_EEvOT_"
-      - "__ZNSt3__1L20__throw_length_errorEPKc"
-      - "__ZNSt12length_errorC1EPKc"
-      - "__Z8my_sleepi"
-      - "__Z4initiPPc"
-      - "__Z12getipaddressv"
-      - "__Z11getbaseinfov"
-      - "__Z14TCP_CONNECT_THPv"
-      - "__Z18MyConnectTcpSocketPwi"
-      - "__Z13ConnectServerv"
-      - "__Z13ConnectThreadPv"
-      - "__Z11load_configv"
-      - "_main"
-      - "__ZN9TROY_INFOC2Ev"
-      - "__GLOBAL__sub_I_main.mm"
-      - "__Z10InitStringv"
-      - "__Z14DecryptStringAPhPc"
-      - "__Z14DecryptStringWPhPw"
-      - "__Z10___stricmpPcS_"
-      - "__Z9___strtokPcS_"
-      - "__Z9___strcpyPcS_"
-      - "__Z9___strcatPcS_"
-      - "__Z9___strlenPc"
-      - "__Z10___strncpyPcS_i"
-      - "__Z10___strncatPcS_i"
-      - "__Z7___atoiPc"
-      - "__Z10___wcsicmpPwS_"
-      - "__Z9___wcstokPwPKw"
-      - "__Z9___wcscpyPwS_"
-      - "__Z9___wcscatPwS_"
-      - "__Z9___wcslenPw"
-      - "__Z10___wcsncpyPwS_i"
-      - "__Z10___wcsncatPwS_i"
-      - "__Z7___wtoiPw"
-      - "__Z10___mbs2wcsPcPwmb"
-      - "__Z10___wcs2mbsPwPcb"
-      - "__Z11___wcsnicmpPwS_i"
-      - "__Z6ROTL64yh"
-      - "__Z11HashStringWPw"
-      - "__Z11HashStringAPc"
-      - "__Z14EncryptStringAPcS_"
-      - "__Z13EncryptStreamPhiiy"
-      - "__Z13DecryptStreamPhiiy"
-      - "__Z20build_decoding_tablev"
-      - "__Z14base64_cleanupv"
-      - "__Z13base64_encodePKhmPm"
-      - "__Z13base64_decodePKcRPh"
-      - "__Z13base64_encodePKcPcm"
-      - "__ZL14encoding_table"
-      - "__ZL9mod_table"
-      - "GCC_except_table9"
-      - "GCC_except_table11"
-      - "GCC_except_table12"
-      - "GCC_except_table17"
-      - "GCC_except_table2"
-      - "GCC_except_table3"
-      - "GCC_except_table19"
-      - "_g_ptyShell"
-      - "_g_pidForward"
-      - "_g_sckForwardListen"
-      - "_g_pTroyInfo"
-      - "_g_szEnv"
-      - "_g_szIP"
-      - "_g_nPort"
-      - "_g_tcpSocket"
-      - "_g_bConnectionStatus"
-      - "_RUN_TAG_SERVER1"
-      - "_RUN_TAG_SERVER2"
-      - "_RUN_TAG_PROXY"
-      - "_RUN_TAG_PROXY_USER"
-      - "_RUN_TAG_PROXY_PWD"
-      - "_RUN_TAG_FORWARD"
-      - "_RUN_TAG_TARGET"
-      - "_RUN_TAG_LISTEN"
-      - "_RUN_TAG_UID"
-      - "_RUN_TAG_TIME_CONN"
-      - "_EXPLORER_FILTER"
-      - "_EXPLORER_DIR_SELF"
-      - "_EXPLORER_DIR_PARENT"
-      - "_EXPLORER_STR_TYPE"
-      - "_EXPLORER_FILE_DELETE_TYPE"
-      - "_FILETIME_STR_TYPE"
-      - "_CMD_TEST"
-      - "_CMD_RUN"
-      - "_TIME_FORMAT"
-      - "_CMD_SUCCESS"
-      - "_CMD_FAILED"
-      - "_PROXY_CONNECT"
-      - "_PROXY_HTTP"
-      - "_PROXY_USER_AGENT"
-      - "_PROXY_KEEP_CONNECTION"
-      - "_PROXY_PROGMA"
-      - "_PROXY_MODE_BASIC"
-      - "_PROXY_MODE_NTLM"
-      - "_ptr"
-      - "__ZL14decoding_table"
-      - "__mh_execute_header"
-      - "_NSLocaleCountryCode"
-      - "_NSUserName"
-      - "_OBJC_CLASS_$_NSArray"
-      - "_OBJC_CLASS_$_NSDate"
-      - "_OBJC_CLASS_$_NSDateFormatter"
-      - "_OBJC_CLASS_$_NSHost"
-      - "_OBJC_CLASS_$_NSLocale"
-      - "_OBJC_CLASS_$_NSPipe"
-      - "_OBJC_CLASS_$_NSProcessInfo"
-      - "_OBJC_CLASS_$_NSString"
-      - "_OBJC_CLASS_$_NSTask"
-      - "_OBJC_EHTYPE_$_NSException"
-      - "__Unwind_Resume"
-      - "__ZNKSt3__120__vector_base_commonILb1EE20__throw_length_errorEv"
-      - "__ZNKSt3__120__vector_base_commonILb1EE20__throw_out_of_rangeEv"
-      - "__ZNSt11logic_errorC2EPKc"
-      - "__ZNSt12length_errorD1Ev"
-      - "__ZTISt12length_error"
-      - "__ZTVSt12length_error"
-      - "__ZdlPv"
-      - "__Znam"
-      - "__Znwm"
-      - "___CFConstantStringClassReference"
-      - "___bzero"
-      - "___cxa_allocate_exception"
-      - "___cxa_free_exception"
-      - "___cxa_throw"
-      - "___error"
-      - "___gxx_personality_v0"
-      - "___objc_personality_v0"
-      - "___stack_chk_fail"
-      - "___stack_chk_guard"
-      - "_accept"
-      - "_atoi"
-      - "_bind"
-      - "_close"
-      - "_closedir"
-      - "_connect"
-      - "_exit"
-      - "_fclose"
-      - "_fcntl"
-      - "_fopen"
-      - "_fprintf"
-      - "_fread"
-      - "_free"
-      - "_freeifaddrs"
-      - "_fseek"
-      - "_ftell"
-      - "_fwrite"
-      - "_getenv"
-      - "_gethostbyname"
-      - "_getifaddrs"
-      - "_getsockopt"
-      - "_gmtime"
-      - "_inet_addr"
-      - "_inet_ntoa"
-      - "_inet_pton"
-      - "_listen"
-      - "_malloc"
-      - "_mbstowcs"
-      - "_memcpy"
-      - "_memset"
-      - "_objc_alloc"
-      - "_objc_autoreleasePoolPop"
-      - "_objc_autoreleasePoolPush"
-      - "_objc_begin_catch"
-      - "_objc_end_catch"
-      - "_objc_msgSend"
-      - "_objc_msgSend_stret"
-      - "_objc_release"
-      - "_objc_retain"
-      - "_objc_retainAutorelease"
-      - "_objc_retainAutoreleasedReturnValue"
-      - "_opendir$INODE64"
-      - "_pthread_cancel"
-      - "_pthread_create"
-      - "_rand"
-      - "_readdir$INODE64"
-      - "_realpath$DARWIN_EXTSN"
-      - "_recv"
-      - "_remove"
-      - "_rmdir"
-      - "_select$1050"
-      - "_send"
-      - "_shutdown"
-      - "_sleep"
-      - "_socket"
-      - "_sprintf"
-      - "_srand"
-      - "_stat$INODE64"
-      - "_strcasecmp"
-      - "_strcat"
-      - "_strcpy"
-      - "_strlen"
-      - "_strncat"
-      - "_strncpy"
-      - "_strtok"
-      - "_swprintf"
-      - "_swscanf"
-      - "_sysctl"
-      - "_time"
-      - "_usleep"
-      - "_utime"
-      - "_vsnprintf"
-      - "_wcscasecmp"
-      - "_wcscat"
-      - "_wcscpy"
-      - "_wcslen"
-      - "_wcsncasecmp"
-      - "_wcsncat"
-      - "_wcsncpy"
-      - "_wcsstr"
-      - "_wcstok"
-      - "_wcstombs"
-      - "dyld_stub_binder"
+      - tags: 30
+        value: "__Z13My_Block_RecviRPhii"
+      - tags: 30
+        value: "__Z13My_Block_SendiPhiiii"
+      - tags: 30
+        value: "__Z13MyDeHandShakei"
+      - tags: 30
+        value: "__Z15My_Socket_Closei"
+      - tags: 30
+        value: "__Z6MySendiPhi"
+      - tags: 30
+        value: "__Z6MyRecviRPh"
+      - tags: 30
+        value: "__Z10MyRecvFileiPwi"
+      - tags: 30
+        value: "__Z10MySendFileiPwi"
+      - tags: 30
+        value: "__Z10log_stringPKcz"
+      - tags: 30
+        value: "__Z4sdelPw"
+      - tags: 30
+        value: "__Z12MakeBaseDataRPh"
+      - tags: 30
+        value: "__Z11save_configv"
+      - tags: 30
+        value: "__Z20GetRequestFromServerPwRPh"
+      - tags: 30
+        value: "__Z15IterFromForwardPv"
+      - tags: 30
+        value: "__Z13IterToForwardPv"
+      - tags: 30
+        value: "__Z11IterForwardPv"
+      - tags: 30
+        value: "__Z13ForwardThreadPv"
+      - tags: 30
+        value: "__Z6RunCmdPcRPh"
+      - tags: 30
+        value: "__Z9conn_nonbPci"
+      - tags: 30
+        value: "__Z21MakeConsoleResultDataPhRS_"
+      - tags: 30
+        value: "__Z15MakeExploreDataPhRS_"
+      - tags: 30
+        value: "__Z7ScanDirPw"
+      - tags: 30
+        value: "__Z12SecureDeletePhRS_"
+      - tags: 30
+        value: "__Z8DoActioni"
+      - tags: 30
+        value: "__ZNSt3__16vectorIPwNS_9allocatorIS1_EEE21__push_back_slow_pathIRKS1_EEvOT_"
+      - tags: 14
+        value: "__ZNSt3__1L20__throw_length_errorEPKc"
+      - tags: 14
+        value: "__ZNSt12length_errorC1EPKc"
+      - tags: 30
+        value: "__Z8my_sleepi"
+      - tags: 30
+        value: "__Z4initiPPc"
+      - tags: 30
+        value: "__Z12getipaddressv"
+      - tags: 30
+        value: "__Z11getbaseinfov"
+      - tags: 30
+        value: "__Z14TCP_CONNECT_THPv"
+      - tags: 30
+        value: "__Z18MyConnectTcpSocketPwi"
+      - tags: 30
+        value: "__Z13ConnectServerv"
+      - tags: 30
+        value: "__Z13ConnectThreadPv"
+      - tags: 30
+        value: "__Z11load_configv"
+      - tags: 30
+        value: "_main"
+      - tags: 30
+        value: "__ZN9TROY_INFOC2Ev"
+      - tags: 14
+        value: "__GLOBAL__sub_I_main.mm"
+      - tags: 30
+        value: "__Z10InitStringv"
+      - tags: 30
+        value: "__Z14DecryptStringAPhPc"
+      - tags: 30
+        value: "__Z14DecryptStringWPhPw"
+      - tags: 30
+        value: "__Z10___stricmpPcS_"
+      - tags: 30
+        value: "__Z9___strtokPcS_"
+      - tags: 30
+        value: "__Z9___strcpyPcS_"
+      - tags: 30
+        value: "__Z9___strcatPcS_"
+      - tags: 30
+        value: "__Z9___strlenPc"
+      - tags: 30
+        value: "__Z10___strncpyPcS_i"
+      - tags: 30
+        value: "__Z10___strncatPcS_i"
+      - tags: 30
+        value: "__Z7___atoiPc"
+      - tags: 30
+        value: "__Z10___wcsicmpPwS_"
+      - tags: 30
+        value: "__Z9___wcstokPwPKw"
+      - tags: 30
+        value: "__Z9___wcscpyPwS_"
+      - tags: 30
+        value: "__Z9___wcscatPwS_"
+      - tags: 30
+        value: "__Z9___wcslenPw"
+      - tags: 30
+        value: "__Z10___wcsncpyPwS_i"
+      - tags: 30
+        value: "__Z10___wcsncatPwS_i"
+      - tags: 30
+        value: "__Z7___wtoiPw"
+      - tags: 30
+        value: "__Z10___mbs2wcsPcPwmb"
+      - tags: 30
+        value: "__Z10___wcs2mbsPwPcb"
+      - tags: 30
+        value: "__Z11___wcsnicmpPwS_i"
+      - tags: 30
+        value: "__Z6ROTL64yh"
+      - tags: 30
+        value: "__Z11HashStringWPw"
+      - tags: 30
+        value: "__Z11HashStringAPc"
+      - tags: 30
+        value: "__Z14EncryptStringAPcS_"
+      - tags: 30
+        value: "__Z13EncryptStreamPhiiy"
+      - tags: 30
+        value: "__Z13DecryptStreamPhiiy"
+      - tags: 30
+        value: "__Z20build_decoding_tablev"
+      - tags: 30
+        value: "__Z14base64_cleanupv"
+      - tags: 30
+        value: "__Z13base64_encodePKhmPm"
+      - tags: 30
+        value: "__Z13base64_decodePKcRPh"
+      - tags: 30
+        value: "__Z13base64_encodePKcPcm"
+      - tags: 14
+        value: "__ZL14encoding_table"
+      - tags: 14
+        value: "__ZL9mod_table"
+      - tags: 14
+        value: "GCC_except_table9"
+      - tags: 14
+        value: "GCC_except_table11"
+      - tags: 14
+        value: "GCC_except_table12"
+      - tags: 14
+        value: "GCC_except_table17"
+      - tags: 14
+        value: "GCC_except_table2"
+      - tags: 14
+        value: "GCC_except_table3"
+      - tags: 14
+        value: "GCC_except_table19"
+      - tags: 30
+        value: "_g_ptyShell"
+      - tags: 30
+        value: "_g_pidForward"
+      - tags: 30
+        value: "_g_sckForwardListen"
+      - tags: 30
+        value: "_g_pTroyInfo"
+      - tags: 30
+        value: "_g_szEnv"
+      - tags: 30
+        value: "_g_szIP"
+      - tags: 30
+        value: "_g_nPort"
+      - tags: 30
+        value: "_g_tcpSocket"
+      - tags: 30
+        value: "_g_bConnectionStatus"
+      - tags: 30
+        value: "_RUN_TAG_SERVER1"
+      - tags: 30
+        value: "_RUN_TAG_SERVER2"
+      - tags: 30
+        value: "_RUN_TAG_PROXY"
+      - tags: 30
+        value: "_RUN_TAG_PROXY_USER"
+      - tags: 30
+        value: "_RUN_TAG_PROXY_PWD"
+      - tags: 30
+        value: "_RUN_TAG_FORWARD"
+      - tags: 30
+        value: "_RUN_TAG_TARGET"
+      - tags: 30
+        value: "_RUN_TAG_LISTEN"
+      - tags: 30
+        value: "_RUN_TAG_UID"
+      - tags: 30
+        value: "_RUN_TAG_TIME_CONN"
+      - tags: 30
+        value: "_EXPLORER_FILTER"
+      - tags: 30
+        value: "_EXPLORER_DIR_SELF"
+      - tags: 30
+        value: "_EXPLORER_DIR_PARENT"
+      - tags: 30
+        value: "_EXPLORER_STR_TYPE"
+      - tags: 30
+        value: "_EXPLORER_FILE_DELETE_TYPE"
+      - tags: 30
+        value: "_FILETIME_STR_TYPE"
+      - tags: 30
+        value: "_CMD_TEST"
+      - tags: 30
+        value: "_CMD_RUN"
+      - tags: 30
+        value: "_TIME_FORMAT"
+      - tags: 30
+        value: "_CMD_SUCCESS"
+      - tags: 30
+        value: "_CMD_FAILED"
+      - tags: 30
+        value: "_PROXY_CONNECT"
+      - tags: 30
+        value: "_PROXY_HTTP"
+      - tags: 30
+        value: "_PROXY_USER_AGENT"
+      - tags: 30
+        value: "_PROXY_KEEP_CONNECTION"
+      - tags: 30
+        value: "_PROXY_PROGMA"
+      - tags: 30
+        value: "_PROXY_MODE_BASIC"
+      - tags: 30
+        value: "_PROXY_MODE_NTLM"
+      - tags: 30
+        value: "_ptr"
+      - tags: 14
+        value: "__ZL14decoding_table"
+      - tags: 15
+        value: "__mh_execute_header"
+      - tags: 1
+        value: "_NSLocaleCountryCode"
+      - tags: 1
+        value: "_NSUserName"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSArray"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSDate"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSDateFormatter"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSHost"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSLocale"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSPipe"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSProcessInfo"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSString"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSTask"
+      - tags: 1
+        value: "_OBJC_EHTYPE_$_NSException"
+      - tags: 1
+        value: "__Unwind_Resume"
+      - tags: 1
+        value: "__ZNKSt3__120__vector_base_commonILb1EE20__throw_length_errorEv"
+      - tags: 1
+        value: "__ZNKSt3__120__vector_base_commonILb1EE20__throw_out_of_rangeEv"
+      - tags: 1
+        value: "__ZNSt11logic_errorC2EPKc"
+      - tags: 1
+        value: "__ZNSt12length_errorD1Ev"
+      - tags: 1
+        value: "__ZTISt12length_error"
+      - tags: 1
+        value: "__ZTVSt12length_error"
+      - tags: 1
+        value: "__ZdlPv"
+      - tags: 1
+        value: "__Znam"
+      - tags: 1
+        value: "__Znwm"
+      - tags: 1
+        value: "___CFConstantStringClassReference"
+      - tags: 1
+        value: "___bzero"
+      - tags: 1
+        value: "___cxa_allocate_exception"
+      - tags: 1
+        value: "___cxa_free_exception"
+      - tags: 1
+        value: "___cxa_throw"
+      - tags: 1
+        value: "___error"
+      - tags: 1
+        value: "___gxx_personality_v0"
+      - tags: 1
+        value: "___objc_personality_v0"
+      - tags: 1
+        value: "___stack_chk_fail"
+      - tags: 1
+        value: "___stack_chk_guard"
+      - tags: 1
+        value: "_accept"
+      - tags: 1
+        value: "_atoi"
+      - tags: 1
+        value: "_bind"
+      - tags: 1
+        value: "_close"
+      - tags: 1
+        value: "_closedir"
+      - tags: 1
+        value: "_connect"
+      - tags: 1
+        value: "_exit"
+      - tags: 1
+        value: "_fclose"
+      - tags: 1
+        value: "_fcntl"
+      - tags: 1
+        value: "_fopen"
+      - tags: 1
+        value: "_fprintf"
+      - tags: 1
+        value: "_fread"
+      - tags: 1
+        value: "_free"
+      - tags: 1
+        value: "_freeifaddrs"
+      - tags: 1
+        value: "_fseek"
+      - tags: 1
+        value: "_ftell"
+      - tags: 1
+        value: "_fwrite"
+      - tags: 1
+        value: "_getenv"
+      - tags: 1
+        value: "_gethostbyname"
+      - tags: 1
+        value: "_getifaddrs"
+      - tags: 1
+        value: "_getsockopt"
+      - tags: 1
+        value: "_gmtime"
+      - tags: 1
+        value: "_inet_addr"
+      - tags: 1
+        value: "_inet_ntoa"
+      - tags: 1
+        value: "_inet_pton"
+      - tags: 1
+        value: "_listen"
+      - tags: 1
+        value: "_malloc"
+      - tags: 1
+        value: "_mbstowcs"
+      - tags: 1
+        value: "_memcpy"
+      - tags: 1
+        value: "_memset"
+      - tags: 1
+        value: "_objc_alloc"
+      - tags: 1
+        value: "_objc_autoreleasePoolPop"
+      - tags: 1
+        value: "_objc_autoreleasePoolPush"
+      - tags: 1
+        value: "_objc_begin_catch"
+      - tags: 1
+        value: "_objc_end_catch"
+      - tags: 1
+        value: "_objc_msgSend"
+      - tags: 1
+        value: "_objc_msgSend_stret"
+      - tags: 1
+        value: "_objc_release"
+      - tags: 1
+        value: "_objc_retain"
+      - tags: 1
+        value: "_objc_retainAutorelease"
+      - tags: 1
+        value: "_objc_retainAutoreleasedReturnValue"
+      - tags: 1
+        value: "_opendir$INODE64"
+      - tags: 1
+        value: "_pthread_cancel"
+      - tags: 1
+        value: "_pthread_create"
+      - tags: 1
+        value: "_rand"
+      - tags: 1
+        value: "_readdir$INODE64"
+      - tags: 1
+        value: "_realpath$DARWIN_EXTSN"
+      - tags: 1
+        value: "_recv"
+      - tags: 1
+        value: "_remove"
+      - tags: 1
+        value: "_rmdir"
+      - tags: 1
+        value: "_select$1050"
+      - tags: 1
+        value: "_send"
+      - tags: 1
+        value: "_shutdown"
+      - tags: 1
+        value: "_sleep"
+      - tags: 1
+        value: "_socket"
+      - tags: 1
+        value: "_sprintf"
+      - tags: 1
+        value: "_srand"
+      - tags: 1
+        value: "_stat$INODE64"
+      - tags: 1
+        value: "_strcasecmp"
+      - tags: 1
+        value: "_strcat"
+      - tags: 1
+        value: "_strcpy"
+      - tags: 1
+        value: "_strlen"
+      - tags: 1
+        value: "_strncat"
+      - tags: 1
+        value: "_strncpy"
+      - tags: 1
+        value: "_strtok"
+      - tags: 1
+        value: "_swprintf"
+      - tags: 1
+        value: "_swscanf"
+      - tags: 1
+        value: "_sysctl"
+      - tags: 1
+        value: "_time"
+      - tags: 1
+        value: "_usleep"
+      - tags: 1
+        value: "_utime"
+      - tags: 1
+        value: "_vsnprintf"
+      - tags: 1
+        value: "_wcscasecmp"
+      - tags: 1
+        value: "_wcscat"
+      - tags: 1
+        value: "_wcscpy"
+      - tags: 1
+        value: "_wcslen"
+      - tags: 1
+        value: "_wcsncasecmp"
+      - tags: 1
+        value: "_wcsncat"
+      - tags: 1
+        value: "_wcsncpy"
+      - tags: 1
+        value: "_wcsstr"
+      - tags: 1
+        value: "_wcstok"
+      - tags: 1
+        value: "_wcstombs"
+      - tags: 1
+        value: "dyld_stub_binder"
 dysymtab:
     ilocalsym: 0
     nlocalsym: 120

@@ -199,12 +199,18 @@ file:
         stroff: 33120
         strsize: 112
         entries:
-          - "radr://5614542"
-          - "__mh_execute_header"
-          - "_CallComponentDispatch"
-          - "_OpenDefaultComponent"
-          - "_exit"
-          - "dyld_stub_binder"
+          - tags: 60
+            value: "radr://5614542"
+          - tags: 15
+            value: "__mh_execute_header"
+          - tags: 1
+            value: "_CallComponentDispatch"
+          - tags: 1
+            value: "_OpenDefaultComponent"
+          - tags: 1
+            value: "_exit"
+          - tags: 1
+            value: "dyld_stub_binder"
     dysymtab:
         ilocalsym: 0
         nlocalsym: 1
@@ -360,10 +366,14 @@ file:
         stroff: 33024
         strsize: 88
         entries:
-          - "radr://5614542"
-          - "__mh_execute_header"
-          - "_CallComponentDispatch"
-          - "_OpenDefaultComponent"
+          - tags: 60
+            value: "radr://5614542"
+          - tags: 15
+            value: "__mh_execute_header"
+          - tags: 1
+            value: "_CallComponentDispatch"
+          - tags: 1
+            value: "_OpenDefaultComponent"
     dysymtab:
         ilocalsym: 0
         nlocalsym: 1

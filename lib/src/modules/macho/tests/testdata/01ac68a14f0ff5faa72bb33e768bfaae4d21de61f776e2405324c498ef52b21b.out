@@ -14,172 +14,338 @@ symtab:
     stroff: 37600
     strsize: 5864
     entries:
-      - "___clang_call_terminate"
-      - "__ZNK8wxString9AsCharBufERK8wxMBConv"
-      - "__ZN22wxScopedCharTypeBufferIcE14CreateNonOwnedEPKcm"
-      - "__ZN8wxStringC2ERK22wxScopedCharTypeBufferIwE"
-      - "__ZN8wxString7ImplStrEPKwm"
-      - "__ZN8wxString17SubstrBufFromTypeIPKwEC2ERKS2_m"
-      - "__ZN22wxScopedCharTypeBufferIwED2Ev"
-      - "__ZN22wxScopedCharTypeBufferIwE6DecRefEv"
-      - "__ZN22wxScopedCharTypeBufferIcED2Ev"
-      - "__ZN22wxScopedCharTypeBufferIcE6DecRefEv"
-      - "__ZN8wxStringC2EPKcRK8wxMBConv"
-      - "__ZN8wxString7ImplStrEPKcRK8wxMBConv"
-      - "__ZNSt3__124__put_character_sequenceIcNS_11char_traitsIcEEEERNS_13basic_ostreamIT_T0_EES7_PKS4_m"
-      - "__ZNSt3__116__pad_and_outputIcNS_11char_traitsIcEEEENS_19ostreambuf_iteratorIT_T0_EES6_PKS4_S8_S8_RNS_8ios_baseES4_"
-      - "GCC_except_table1"
-      - "GCC_except_table2"
-      - "GCC_except_table3"
-      - "GCC_except_table5"
-      - "GCC_except_table6"
-      - "GCC_except_table7"
-      - "GCC_except_table8"
-      - "GCC_except_table11"
-      - "GCC_except_table12"
-      - "GCC_except_table15"
-      - "GCC_except_table17"
-      - "GCC_except_table0"
-      - "GCC_except_table1"
-      - "GCC_except_table2"
-      - "GCC_except_table3"
-      - "GCC_except_table4"
-      - "GCC_except_table5"
-      - "GCC_except_table6"
-      - "GCC_except_table7"
-      - "GCC_except_table5"
-      - "GCC_except_table6"
-      - "GCC_except_table10"
-      - "GCC_except_table11"
-      - "GCC_except_table14"
-      - "GCC_except_table15"
-      - "__ZL12openSessions"
-      - "_APF_Plugin_DisconnectingDataSource"
-      - "_APF_Plugin_Initialize"
-      - "_APF_Plugin_Terminate"
-      - "_APF_Plugin_Unload"
-      - "__Z10InitializeP15CAPF_PluginInfoP14PLUGINMEMBLOCK"
-      - "__Z14ACCT_GetJobLogPK15CAPF_DataSourcePPP17HarmonyAttributesRl"
-      - "__Z16ACCT_ClearJobLogPK15CAPF_DataSource"
-      - "__Z16CreateControlBarP8stCBInfoP20HarmonySessionHandle"
-      - "__Z16out_HarmonyAttrsRNSt3__113basic_ostreamIcNS_11char_traitsIcEEEEiP17HarmonyAttributes"
-      - "__Z17ACCT_GetJobLogXMLP15CAPF_PluginInfoP14PLUGINMEMBLOCKP9VERSIONEXPv"
-      - "__Z18ACCT_GetFirstIndexPK15CAPF_DataSourceRl"
-      - "__Z18AllocateStringCopyRPcRK8wxString"
-      - "__Z19ACCT_ClearJobLogXMLP15CAPF_PluginInfoP14PLUGINMEMBLOCKP9VERSIONEXPv"
-      - "__Z19ACCT_FreeStringListPP17HarmonyAttributesi"
-      - "__Z19ACCT_GetEventsExXMLP15CAPF_PluginInfoP14PLUGINMEMBLOCKP9VERSIONEXPv"
-      - "__Z19CBB_GetResmanEventsP15CAPF_DataSourcePFvP20HarmonyResourceEventPvES3_P15HarmonyNBTicket"
-      - "__Z19CBB_SetEFControlBarP15CAPF_DataSourceP15CAPF_PluginInfoPv"
-      - "__Z19CB_ImportControlBarP15CAPF_DataSourceP15CAPF_PluginInfoPv"
-      - "__Z20ACCT_GetJobLogLengthPK15CAPF_DataSourceRl"
-      - "__Z20CBB_DeleteControlBarP15CAPF_DataSourceRK8wxString"
-      - "__Z21ACCT_GetFirstIndexXMLP15CAPF_PluginInfoP14PLUGINMEMBLOCKP9VERSIONEXPv"
-      - "__Z21ACCT_GetJobLogPortionPK15CAPF_DataSourceRlS2_PPP17HarmonyAttributesS2_"
-      - "__Z21APF_ds2HarmonyHandlesPK15CAPF_DataSourcePP29harmonyDataSourceSpecificDataPP19HarmonyServerHandle"
-      - "__Z21APF_harmonyGetSessionP29harmonyDataSourceSpecificData22APF_harmonySessionType"
-      - "__Z21CBB_GetControlBarDataP15CAPF_DataSourceP15CAPF_PluginInfoPv"
-      - "__Z22ACCT_FreeStringListXMLP15CAPF_PluginInfoP14PLUGINMEMBLOCKP9VERSIONEXPv"
-      - "__Z22CBB_FreeControlBarDataP15CAPF_DataSourceP15CAPF_PluginInfoPv"
-      - "__Z23ACCT_GetJobLogLengthXMLP15CAPF_PluginInfoP14PLUGINMEMBLOCKP9VERSIONEXPv"
-      - "__Z23APF_ChkTicketOrTimedOutP15CAPF_DataSourceR15HarmonyNBTicketR13HarmonyResult"
-      - "__Z23GetFeatureSessionHandlePK15CAPF_DataSource22APF_harmonySessionTypePP20HarmonySessionHandle"
-      - "__Z24ACCT_GetJobLogPortionXMLP15CAPF_PluginInfoP14PLUGINMEMBLOCKP9VERSIONEXPv"
-      - "__Z24CBB_GetControlbarSupportP15CAPF_DataSourceP15CAPF_PluginInfoPv"
-      - "__Z25APF_H_GetLocalizedStringsP29harmonyDataSourceSpecificDataPPciS2_i"
-      - "__Z26APF_H_GetLocalizedStringNBP15CAPF_DataSourceR8wxStringS2_iS2_"
-      - "__Z36APF_H_GetLocalizedStringNB_AlternateP15CAPF_DataSourceR8wxStringS2_iS2_"
-      - "__ZlsRNSt3__113basic_ostreamIcNS_11char_traitsIcEEEEP17HarmonyAttributes"
-      - "_ACCT_clearJobLog"
-      - "_ACCT_getEventsEx"
-      - "_ACCT_getFirstIndex"
-      - "_ACCT_getJobLog"
-      - "_ACCT_getJobLogLength"
-      - "_ACCT_getJobLogPortionEx"
-      - "_ACCT_openSession"
-      - "_ATTR_openSession"
-      - "_AUTH_openSession"
-      - "_FONT_openSession"
-      - "_FT_openSession"
-      - "_GA_openSession"
-      - "_GLOBOBJ_openSession"
-      - "_JOBM_openSession"
-      - "_LOCL_getStringWithContext"
-      - "_LOCL_getStringsWithContext"
-      - "_LP_openSession"
-      - "_MTX_openSession"
-      - "_NB_cancel_block_destroy"
-      - "_NB_checkTicket"
-      - "_NB_destroy"
-      - "_RESMAN_createResource"
-      - "_RESMAN_deleteResource"
-      - "_RESMAN_getEventsEx"
-      - "_RESMAN_getResourceTypes"
-      - "_RESMAN_getResourceWithSettingsInContainer"
-      - "_RESMAN_openSession"
-      - "__Unwind_Resume"
-      - "__Z10wxOnAssertPKciS0_S0_S0_"
-      - "__Z12wxMilliSleepm"
-      - "__Z19wxGet_wxConvUTF8Ptrv"
-      - "__Z20EFIAPF_ErrLogGen_MACPKclS0_S0_l"
-      - "__ZN11CAPF_ReqObj13GetInputParamERK8wxStringPPv"
-      - "__ZN11CAPF_ReqObj13GetInputParamERK8wxStringPl"
-      - "__ZN11CAPF_ReqObj13GetInputParamERK8wxStringRS0_"
-      - "__ZN11CAPF_ReqObj14SetOutputParamERK8wxStringPv"
-      - "__ZN11CAPF_ReqObj14SetOutputParamERK8wxStringl"
-      - "__ZN11CAPF_ReqObj20CAPF_ReqObj_CalleeExElPvP15CAPF_PluginInfo"
-      - "__ZN11CAPF_ReqObjD1Ev"
-      - "__ZN11wxStopWatch5StartEl"
-      - "__ZN12CAPF_Session9GetKeyIDAEPc"
-      - "__ZN8wxString10ConvertStrEPKcmRK8wxMBConv"
-      - "__ZN8wxString4TrimEb"
-      - "__ZN8wxString4nposE"
-      - "__ZN9wxPrivate18GetUntypedNullDataEv"
-      - "__ZNK11wxStopWatch11TimeInMicroEv"
-      - "__ZNK15CAPF_DataSource10getSessionEv"
-      - "__ZNK15CAPF_DataSource11getProtocolEv"
-      - "__ZNK15CAPF_DataSource14getDSWorkClassEi"
-      - "__ZNK8wxMBConv14DoConvertMB2WCEPKcm"
-      - "__ZNK8wxString6AsCharERK8wxMBConv"
-      - "__ZNK8wxString9CmpNoCaseERKS_"
-      - "__ZNKSt3__16locale9use_facetERNS0_2idE"
-      - "__ZNKSt3__18ios_base6getlocEv"
-      - "__ZNSt3__112basic_stringIwNS_11char_traitsIwEENS_9allocatorIwEEE6__initEPKwm"
-      - "__ZNSt3__112basic_stringIwNS_11char_traitsIwEENS_9allocatorIwEEE6assignEPKwm"
-      - "__ZNSt3__112basic_stringIwNS_11char_traitsIwEENS_9allocatorIwEEEaSERKS5_"
-      - "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEE6sentryC1ERS3_"
-      - "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEE6sentryD1Ev"
-      - "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEElsEi"
-      - "__ZNSt3__15ctypeIcE2idE"
-      - "__ZNSt3__16localeD1Ev"
-      - "__ZNSt3__18ios_base33__set_badbit_and_consider_rethrowEv"
-      - "__ZNSt3__18ios_base5clearEj"
-      - "__ZSt9terminatev"
-      - "__ZTV11CAPF_ReqObj"
-      - "__ZTV12wxMBConvUTF8"
-      - "__ZdlPv"
-      - "__Znwm"
-      - "___bzero"
-      - "___cxa_begin_catch"
-      - "___cxa_end_catch"
-      - "___gxx_personality_v0"
-      - "_calloc"
-      - "_free"
-      - "_freeHarmonyAttributes"
-      - "_freeStringList"
-      - "_global_lpAPFInfo"
-      - "_harmony_calloc"
-      - "_harmony_free"
-      - "_harmony_malloc"
-      - "_memset"
-      - "_strcpy"
-      - "_strlen"
-      - "_wcslen"
-      - "_wxConvUTF8Ptr"
-      - "_wxEmptyString"
-      - "_wxTheAssertHandler"
-      - "_wxTrapInAssert"
-      - "dyld_stub_binder"
+      - tags: 30
+        value: "___clang_call_terminate"
+      - tags: 30
+        value: "__ZNK8wxString9AsCharBufERK8wxMBConv"
+      - tags: 30
+        value: "__ZN22wxScopedCharTypeBufferIcE14CreateNonOwnedEPKcm"
+      - tags: 30
+        value: "__ZN8wxStringC2ERK22wxScopedCharTypeBufferIwE"
+      - tags: 30
+        value: "__ZN8wxString7ImplStrEPKwm"
+      - tags: 30
+        value: "__ZN8wxString17SubstrBufFromTypeIPKwEC2ERKS2_m"
+      - tags: 30
+        value: "__ZN22wxScopedCharTypeBufferIwED2Ev"
+      - tags: 30
+        value: "__ZN22wxScopedCharTypeBufferIwE6DecRefEv"
+      - tags: 30
+        value: "__ZN22wxScopedCharTypeBufferIcED2Ev"
+      - tags: 30
+        value: "__ZN22wxScopedCharTypeBufferIcE6DecRefEv"
+      - tags: 30
+        value: "__ZN8wxStringC2EPKcRK8wxMBConv"
+      - tags: 30
+        value: "__ZN8wxString7ImplStrEPKcRK8wxMBConv"
+      - tags: 30
+        value: "__ZNSt3__124__put_character_sequenceIcNS_11char_traitsIcEEEERNS_13basic_ostreamIT_T0_EES7_PKS4_m"
+      - tags: 30
+        value: "__ZNSt3__116__pad_and_outputIcNS_11char_traitsIcEEEENS_19ostreambuf_iteratorIT_T0_EES6_PKS4_S8_S8_RNS_8ios_baseES4_"
+      - tags: 14
+        value: "GCC_except_table1"
+      - tags: 14
+        value: "GCC_except_table2"
+      - tags: 14
+        value: "GCC_except_table3"
+      - tags: 14
+        value: "GCC_except_table5"
+      - tags: 14
+        value: "GCC_except_table6"
+      - tags: 14
+        value: "GCC_except_table7"
+      - tags: 14
+        value: "GCC_except_table8"
+      - tags: 14
+        value: "GCC_except_table11"
+      - tags: 14
+        value: "GCC_except_table12"
+      - tags: 14
+        value: "GCC_except_table15"
+      - tags: 14
+        value: "GCC_except_table17"
+      - tags: 14
+        value: "GCC_except_table0"
+      - tags: 14
+        value: "GCC_except_table1"
+      - tags: 14
+        value: "GCC_except_table2"
+      - tags: 14
+        value: "GCC_except_table3"
+      - tags: 14
+        value: "GCC_except_table4"
+      - tags: 14
+        value: "GCC_except_table5"
+      - tags: 14
+        value: "GCC_except_table6"
+      - tags: 14
+        value: "GCC_except_table7"
+      - tags: 14
+        value: "GCC_except_table5"
+      - tags: 14
+        value: "GCC_except_table6"
+      - tags: 14
+        value: "GCC_except_table10"
+      - tags: 14
+        value: "GCC_except_table11"
+      - tags: 14
+        value: "GCC_except_table14"
+      - tags: 14
+        value: "GCC_except_table15"
+      - tags: 14
+        value: "__ZL12openSessions"
+      - tags: 15
+        value: "_APF_Plugin_DisconnectingDataSource"
+      - tags: 15
+        value: "_APF_Plugin_Initialize"
+      - tags: 15
+        value: "_APF_Plugin_Terminate"
+      - tags: 15
+        value: "_APF_Plugin_Unload"
+      - tags: 15
+        value: "__Z10InitializeP15CAPF_PluginInfoP14PLUGINMEMBLOCK"
+      - tags: 15
+        value: "__Z14ACCT_GetJobLogPK15CAPF_DataSourcePPP17HarmonyAttributesRl"
+      - tags: 15
+        value: "__Z16ACCT_ClearJobLogPK15CAPF_DataSource"
+      - tags: 15
+        value: "__Z16CreateControlBarP8stCBInfoP20HarmonySessionHandle"
+      - tags: 15
+        value: "__Z16out_HarmonyAttrsRNSt3__113basic_ostreamIcNS_11char_traitsIcEEEEiP17HarmonyAttributes"
+      - tags: 15
+        value: "__Z17ACCT_GetJobLogXMLP15CAPF_PluginInfoP14PLUGINMEMBLOCKP9VERSIONEXPv"
+      - tags: 15
+        value: "__Z18ACCT_GetFirstIndexPK15CAPF_DataSourceRl"
+      - tags: 15
+        value: "__Z18AllocateStringCopyRPcRK8wxString"
+      - tags: 15
+        value: "__Z19ACCT_ClearJobLogXMLP15CAPF_PluginInfoP14PLUGINMEMBLOCKP9VERSIONEXPv"
+      - tags: 15
+        value: "__Z19ACCT_FreeStringListPP17HarmonyAttributesi"
+      - tags: 15
+        value: "__Z19ACCT_GetEventsExXMLP15CAPF_PluginInfoP14PLUGINMEMBLOCKP9VERSIONEXPv"
+      - tags: 15
+        value: "__Z19CBB_GetResmanEventsP15CAPF_DataSourcePFvP20HarmonyResourceEventPvES3_P15HarmonyNBTicket"
+      - tags: 15
+        value: "__Z19CBB_SetEFControlBarP15CAPF_DataSourceP15CAPF_PluginInfoPv"
+      - tags: 15
+        value: "__Z19CB_ImportControlBarP15CAPF_DataSourceP15CAPF_PluginInfoPv"
+      - tags: 15
+        value: "__Z20ACCT_GetJobLogLengthPK15CAPF_DataSourceRl"
+      - tags: 15
+        value: "__Z20CBB_DeleteControlBarP15CAPF_DataSourceRK8wxString"
+      - tags: 15
+        value: "__Z21ACCT_GetFirstIndexXMLP15CAPF_PluginInfoP14PLUGINMEMBLOCKP9VERSIONEXPv"
+      - tags: 15
+        value: "__Z21ACCT_GetJobLogPortionPK15CAPF_DataSourceRlS2_PPP17HarmonyAttributesS2_"
+      - tags: 15
+        value: "__Z21APF_ds2HarmonyHandlesPK15CAPF_DataSourcePP29harmonyDataSourceSpecificDataPP19HarmonyServerHandle"
+      - tags: 15
+        value: "__Z21APF_harmonyGetSessionP29harmonyDataSourceSpecificData22APF_harmonySessionType"
+      - tags: 15
+        value: "__Z21CBB_GetControlBarDataP15CAPF_DataSourceP15CAPF_PluginInfoPv"
+      - tags: 15
+        value: "__Z22ACCT_FreeStringListXMLP15CAPF_PluginInfoP14PLUGINMEMBLOCKP9VERSIONEXPv"
+      - tags: 15
+        value: "__Z22CBB_FreeControlBarDataP15CAPF_DataSourceP15CAPF_PluginInfoPv"
+      - tags: 15
+        value: "__Z23ACCT_GetJobLogLengthXMLP15CAPF_PluginInfoP14PLUGINMEMBLOCKP9VERSIONEXPv"
+      - tags: 15
+        value: "__Z23APF_ChkTicketOrTimedOutP15CAPF_DataSourceR15HarmonyNBTicketR13HarmonyResult"
+      - tags: 15
+        value: "__Z23GetFeatureSessionHandlePK15CAPF_DataSource22APF_harmonySessionTypePP20HarmonySessionHandle"
+      - tags: 15
+        value: "__Z24ACCT_GetJobLogPortionXMLP15CAPF_PluginInfoP14PLUGINMEMBLOCKP9VERSIONEXPv"
+      - tags: 15
+        value: "__Z24CBB_GetControlbarSupportP15CAPF_DataSourceP15CAPF_PluginInfoPv"
+      - tags: 15
+        value: "__Z25APF_H_GetLocalizedStringsP29harmonyDataSourceSpecificDataPPciS2_i"
+      - tags: 15
+        value: "__Z26APF_H_GetLocalizedStringNBP15CAPF_DataSourceR8wxStringS2_iS2_"
+      - tags: 15
+        value: "__Z36APF_H_GetLocalizedStringNB_AlternateP15CAPF_DataSourceR8wxStringS2_iS2_"
+      - tags: 15
+        value: "__ZlsRNSt3__113basic_ostreamIcNS_11char_traitsIcEEEEP17HarmonyAttributes"
+      - tags: 1
+        value: "_ACCT_clearJobLog"
+      - tags: 1
+        value: "_ACCT_getEventsEx"
+      - tags: 1
+        value: "_ACCT_getFirstIndex"
+      - tags: 1
+        value: "_ACCT_getJobLog"
+      - tags: 1
+        value: "_ACCT_getJobLogLength"
+      - tags: 1
+        value: "_ACCT_getJobLogPortionEx"
+      - tags: 1
+        value: "_ACCT_openSession"
+      - tags: 1
+        value: "_ATTR_openSession"
+      - tags: 1
+        value: "_AUTH_openSession"
+      - tags: 1
+        value: "_FONT_openSession"
+      - tags: 1
+        value: "_FT_openSession"
+      - tags: 1
+        value: "_GA_openSession"
+      - tags: 1
+        value: "_GLOBOBJ_openSession"
+      - tags: 1
+        value: "_JOBM_openSession"
+      - tags: 1
+        value: "_LOCL_getStringWithContext"
+      - tags: 1
+        value: "_LOCL_getStringsWithContext"
+      - tags: 1
+        value: "_LP_openSession"
+      - tags: 1
+        value: "_MTX_openSession"
+      - tags: 1
+        value: "_NB_cancel_block_destroy"
+      - tags: 1
+        value: "_NB_checkTicket"
+      - tags: 1
+        value: "_NB_destroy"
+      - tags: 1
+        value: "_RESMAN_createResource"
+      - tags: 1
+        value: "_RESMAN_deleteResource"
+      - tags: 1
+        value: "_RESMAN_getEventsEx"
+      - tags: 1
+        value: "_RESMAN_getResourceTypes"
+      - tags: 1
+        value: "_RESMAN_getResourceWithSettingsInContainer"
+      - tags: 1
+        value: "_RESMAN_openSession"
+      - tags: 1
+        value: "__Unwind_Resume"
+      - tags: 1
+        value: "__Z10wxOnAssertPKciS0_S0_S0_"
+      - tags: 1
+        value: "__Z12wxMilliSleepm"
+      - tags: 1
+        value: "__Z19wxGet_wxConvUTF8Ptrv"
+      - tags: 1
+        value: "__Z20EFIAPF_ErrLogGen_MACPKclS0_S0_l"
+      - tags: 1
+        value: "__ZN11CAPF_ReqObj13GetInputParamERK8wxStringPPv"
+      - tags: 1
+        value: "__ZN11CAPF_ReqObj13GetInputParamERK8wxStringPl"
+      - tags: 1
+        value: "__ZN11CAPF_ReqObj13GetInputParamERK8wxStringRS0_"
+      - tags: 1
+        value: "__ZN11CAPF_ReqObj14SetOutputParamERK8wxStringPv"
+      - tags: 1
+        value: "__ZN11CAPF_ReqObj14SetOutputParamERK8wxStringl"
+      - tags: 1
+        value: "__ZN11CAPF_ReqObj20CAPF_ReqObj_CalleeExElPvP15CAPF_PluginInfo"
+      - tags: 1
+        value: "__ZN11CAPF_ReqObjD1Ev"
+      - tags: 1
+        value: "__ZN11wxStopWatch5StartEl"
+      - tags: 1
+        value: "__ZN12CAPF_Session9GetKeyIDAEPc"
+      - tags: 1
+        value: "__ZN8wxString10ConvertStrEPKcmRK8wxMBConv"
+      - tags: 1
+        value: "__ZN8wxString4TrimEb"
+      - tags: 1
+        value: "__ZN8wxString4nposE"
+      - tags: 1
+        value: "__ZN9wxPrivate18GetUntypedNullDataEv"
+      - tags: 1
+        value: "__ZNK11wxStopWatch11TimeInMicroEv"
+      - tags: 1
+        value: "__ZNK15CAPF_DataSource10getSessionEv"
+      - tags: 1
+        value: "__ZNK15CAPF_DataSource11getProtocolEv"
+      - tags: 1
+        value: "__ZNK15CAPF_DataSource14getDSWorkClassEi"
+      - tags: 1
+        value: "__ZNK8wxMBConv14DoConvertMB2WCEPKcm"
+      - tags: 1
+        value: "__ZNK8wxString6AsCharERK8wxMBConv"
+      - tags: 1
+        value: "__ZNK8wxString9CmpNoCaseERKS_"
+      - tags: 1
+        value: "__ZNKSt3__16locale9use_facetERNS0_2idE"
+      - tags: 1
+        value: "__ZNKSt3__18ios_base6getlocEv"
+      - tags: 1
+        value: "__ZNSt3__112basic_stringIwNS_11char_traitsIwEENS_9allocatorIwEEE6__initEPKwm"
+      - tags: 1
+        value: "__ZNSt3__112basic_stringIwNS_11char_traitsIwEENS_9allocatorIwEEE6assignEPKwm"
+      - tags: 1
+        value: "__ZNSt3__112basic_stringIwNS_11char_traitsIwEENS_9allocatorIwEEEaSERKS5_"
+      - tags: 1
+        value: "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEE6sentryC1ERS3_"
+      - tags: 1
+        value: "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEE6sentryD1Ev"
+      - tags: 1
+        value: "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEElsEi"
+      - tags: 1
+        value: "__ZNSt3__15ctypeIcE2idE"
+      - tags: 1
+        value: "__ZNSt3__16localeD1Ev"
+      - tags: 1
+        value: "__ZNSt3__18ios_base33__set_badbit_and_consider_rethrowEv"
+      - tags: 1
+        value: "__ZNSt3__18ios_base5clearEj"
+      - tags: 1
+        value: "__ZSt9terminatev"
+      - tags: 1
+        value: "__ZTV11CAPF_ReqObj"
+      - tags: 1
+        value: "__ZTV12wxMBConvUTF8"
+      - tags: 1
+        value: "__ZdlPv"
+      - tags: 1
+        value: "__Znwm"
+      - tags: 1
+        value: "___bzero"
+      - tags: 1
+        value: "___cxa_begin_catch"
+      - tags: 1
+        value: "___cxa_end_catch"
+      - tags: 1
+        value: "___gxx_personality_v0"
+      - tags: 1
+        value: "_calloc"
+      - tags: 1
+        value: "_free"
+      - tags: 1
+        value: "_freeHarmonyAttributes"
+      - tags: 1
+        value: "_freeStringList"
+      - tags: 1
+        value: "_global_lpAPFInfo"
+      - tags: 1
+        value: "_harmony_calloc"
+      - tags: 1
+        value: "_harmony_free"
+      - tags: 1
+        value: "_harmony_malloc"
+      - tags: 1
+        value: "_memset"
+      - tags: 1
+        value: "_strcpy"
+      - tags: 1
+        value: "_strlen"
+      - tags: 1
+        value: "_wcslen"
+      - tags: 1
+        value: "_wxConvUTF8Ptr"
+      - tags: 1
+        value: "_wxEmptyString"
+      - tags: 1
+        value: "_wxTheAssertHandler"
+      - tags: 1
+        value: "_wxTrapInAssert"
+      - tags: 1
+        value: "dyld_stub_binder"
 dysymtab:
     ilocalsym: 0
     nlocalsym: 40

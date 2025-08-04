@@ -14,164 +14,322 @@ symtab:
     stroff: 23860
     strsize: 5268
     entries:
-      - "/__templates/InPaint/main.m"
-      - "/__templates/InPaint/build/CORE KG 1.build/Release/CORE Keygen.build/Objects-normal/ppc/main.o"
-      - "_main"
-      - "/__templates/InPaint/gui source/KGCustomMainWindow.m"
-      - "/__templates/InPaint/build/CORE KG 1.build/Release/CORE Keygen.build/Objects-normal/ppc/KGCustomMainWindow.o"
-      - "-[KGCustomMainWindow initWithContentRect:styleMask:backing:defer:]"
-      - "-[KGCustomMainWindow canBecomeKeyWindow]"
-      - "-[KGCustomMainWindow mouseDragged:]"
-      - "-[KGCustomMainWindow mouseDown:]"
-      - "/__templates/InPaint/gui source/KGCustomMainWindowView.m"
-      - "/__templates/InPaint/build/CORE KG 1.build/Release/CORE Keygen.build/Objects-normal/ppc/KGCustomMainWindowView.o"
-      - "-[KGCustomMainWindowView awakeFromNib]"
-      - "-[KGCustomMainWindowView drawRect:]"
-      - "/__templates/InPaint/gui source/KGCustomFieldClass.m"
-      - "/__templates/InPaint/build/CORE KG 1.build/Release/CORE Keygen.build/Objects-normal/ppc/KGCustomFieldClass.o"
-      - "-[KGCustomFieldClass awakeFromNib]"
-      - "-[KGCustomFieldClass drawRect:]"
-      - "-[KGCustomFieldClass mouseDown:]"
-      - "-[KGCustomFieldClass mouseUp:]"
-      - "-[KGCustomFieldClass _remote_mouseDown]"
-      - "-[KGCustomFieldClass _remote_mouseUp]"
-      - "/__templates/InPaint/gui source/KGCustomLabel.m"
-      - "/__templates/InPaint/build/CORE KG 1.build/Release/CORE Keygen.build/Objects-normal/ppc/KGCustomLabel.o"
-      - "-[KGCustomLabel mouseDown:]"
-      - "-[KGCustomLabel mouseUp:]"
-      - "/__templates/InPaint/gui source/KGWindowsController.m"
-      - "/__templates/InPaint/build/CORE KG 1.build/Release/CORE Keygen.build/Objects-normal/ppc/KGWindowsController.o"
-      - "-[KGWindowsController awakeFromNib]"
-      - "/Developer/SDKs/MacOSX10.4u.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSGeometry.h"
-      - "-[KGWindowsController exit:]"
-      - "/__templates/InPaint/gui source/KGCustButton.m"
-      - "/__templates/InPaint/build/CORE KG 1.build/Release/CORE Keygen.build/Objects-normal/ppc/KGCustButton.o"
-      - "+[KGCustButton cellClass]"
-      - "-[KGCustButton initWithCoder:]"
-      - "/__templates/InPaint/gui source/KGCustButtonView.m"
-      - "/__templates/InPaint/build/CORE KG 1.build/Release/CORE Keygen.build/Objects-normal/ppc/KGCustButtonView.o"
-      - "-[KGCustButtonView mouseEntered:]"
-      - "-[KGCustButtonView drawWithFrame:inView:]"
-      - "_mouseIsHovering"
-      - "/__templates/InPaint/KGSerialNumberGenerator.m"
-      - "/__templates/InPaint/build/CORE KG 1.build/Release/CORE Keygen.build/Objects-normal/ppc/KGSerialNumberGenerator.o"
-      - "-[KGSerialNumberGenerator init]"
-      - "-[KGSerialNumberGenerator awakeFromNib]"
-      - "-[KGSerialNumberGenerator createSerial:]"
-      - "-[KGSerialNumberGenerator generationComplete]"
-      - "-[KGSerialNumberGenerator copyToCB:]"
-      - "_generationComplete"
-      - "__start"
-      - "dyld_stub_binding_helper"
-      - "__dyld_func_lookup"
-      - "_main"
-      - "-[KGCustomMainWindow initWithContentRect:styleMask:backing:defer:]"
-      - "-[KGCustomMainWindow canBecomeKeyWindow]"
-      - "-[KGCustomMainWindow mouseDragged:]"
-      - "-[KGCustomMainWindow mouseDown:]"
-      - "-[KGCustomMainWindowView awakeFromNib]"
-      - "-[KGCustomMainWindowView drawRect:]"
-      - "-[KGCustomFieldClass awakeFromNib]"
-      - "-[KGCustomFieldClass drawRect:]"
-      - "-[KGCustomFieldClass mouseDown:]"
-      - "-[KGCustomFieldClass mouseUp:]"
-      - "-[KGCustomFieldClass _remote_mouseDown]"
-      - "-[KGCustomFieldClass _remote_mouseUp]"
-      - "-[KGCustomLabel mouseDown:]"
-      - "-[KGCustomLabel mouseUp:]"
-      - "-[KGWindowsController awakeFromNib]"
-      - "-[KGWindowsController exit:]"
-      - "+[KGCustButton cellClass]"
-      - "-[KGCustButton initWithCoder:]"
-      - "-[KGCustButtonView mouseEntered:]"
-      - "-[KGCustButtonView drawWithFrame:inView:]"
-      - "-[KGSerialNumberGenerator init]"
-      - "-[KGSerialNumberGenerator awakeFromNib]"
-      - "-[KGSerialNumberGenerator createSerial:]"
-      - "-[KGSerialNumberGenerator generationComplete]"
-      - "-[KGSerialNumberGenerator copyToCB:]"
-      - "saveFP"
-      - "restFP"
-      - "_pointer_to__darwin_gcc3_preregister_frame_info"
-      - "_mouseIsHovering"
-      - "_generationComplete"
-      - ".objc_class_name_KGCustButton"
-      - ".objc_class_name_KGCustButtonView"
-      - ".objc_class_name_KGCustomFieldClass"
-      - ".objc_class_name_KGCustomLabel"
-      - ".objc_class_name_KGCustomMainWindow"
-      - ".objc_class_name_KGCustomMainWindowView"
-      - ".objc_class_name_KGSerialNumberGenerator"
-      - ".objc_class_name_KGWindowsController"
-      - "_NXArgc"
-      - "_NXArgv"
-      - "___darwin_gcc3_preregister_frame_info"
-      - "___progname"
-      - "__mh_execute_header"
-      - "_catch_exception_raise"
-      - "_catch_exception_raise_state"
-      - "_catch_exception_raise_state_identity"
-      - "_clock_alarm_reply"
-      - "_do_mach_notify_dead_name"
-      - "_do_mach_notify_no_senders"
-      - "_do_mach_notify_port_deleted"
-      - "_do_mach_notify_send_once"
-      - "_do_seqnos_mach_notify_dead_name"
-      - "_do_seqnos_mach_notify_no_senders"
-      - "_do_seqnos_mach_notify_port_deleted"
-      - "_do_seqnos_mach_notify_send_once"
-      - "_environ"
-      - "_receive_samples"
-      - "start"
-      - ".objc_class_name_NSArray"
-      - ".objc_class_name_NSAutoreleasePool"
-      - ".objc_class_name_NSBundle"
-      - ".objc_class_name_NSButton"
-      - ".objc_class_name_NSButtonCell"
-      - ".objc_class_name_NSColor"
-      - ".objc_class_name_NSImage"
-      - ".objc_class_name_NSKeyedUnarchiver"
-      - ".objc_class_name_NSMutableAttributedString"
-      - ".objc_class_name_NSMutableDictionary"
-      - ".objc_class_name_NSObject"
-      - ".objc_class_name_NSPasteboard"
-      - ".objc_class_name_NSScreen"
-      - ".objc_class_name_NSString"
-      - ".objc_class_name_NSTextField"
-      - ".objc_class_name_NSView"
-      - ".objc_class_name_NSWindow"
-      - "_AbsoluteToNanoseconds"
-      - "_BASSMOD_Free"
-      - "_BASSMOD_Init"
-      - "_BASSMOD_MusicLoad"
-      - "_BASSMOD_MusicPlay"
-      - "_BASSMOD_SetVolume"
-      - "_CGWindowLevelForKey"
-      - "_NSApp"
-      - "_NSAppKitVersionNumber"
-      - "_NSApplicationMain"
-      - "_NSForegroundColorAttributeName"
-      - "_NSLog"
-      - "_NSRectFill"
-      - "_NSStringPboardType"
-      - "_NSZeroPoint"
-      - "_UpTime"
-      - "___CFConstantStringClassReference"
-      - "___keymgr_dwarf2_register_sections"
-      - "___sF"
-      - "__cthread_init_routine"
-      - "_atexit"
-      - "_clock"
-      - "_errno"
-      - "_exit"
-      - "_floor"
-      - "_fwrite"
-      - "_mach_init_routine"
-      - "_objc_msgSendSuper"
-      - "_objc_msgSend_stret"
-      - "_random"
-      - "_srandom"
-      - "_strdup"
+      - tags: 100
+        value: "/__templates/InPaint/main.m"
+      - tags: 102
+        value: "/__templates/InPaint/build/CORE KG 1.build/Release/CORE Keygen.build/Objects-normal/ppc/main.o"
+      - tags: 36
+        value: "_main"
+      - tags: 100
+        value: "/__templates/InPaint/gui source/KGCustomMainWindow.m"
+      - tags: 102
+        value: "/__templates/InPaint/build/CORE KG 1.build/Release/CORE Keygen.build/Objects-normal/ppc/KGCustomMainWindow.o"
+      - tags: 36
+        value: "-[KGCustomMainWindow initWithContentRect:styleMask:backing:defer:]"
+      - tags: 36
+        value: "-[KGCustomMainWindow canBecomeKeyWindow]"
+      - tags: 36
+        value: "-[KGCustomMainWindow mouseDragged:]"
+      - tags: 36
+        value: "-[KGCustomMainWindow mouseDown:]"
+      - tags: 100
+        value: "/__templates/InPaint/gui source/KGCustomMainWindowView.m"
+      - tags: 102
+        value: "/__templates/InPaint/build/CORE KG 1.build/Release/CORE Keygen.build/Objects-normal/ppc/KGCustomMainWindowView.o"
+      - tags: 36
+        value: "-[KGCustomMainWindowView awakeFromNib]"
+      - tags: 36
+        value: "-[KGCustomMainWindowView drawRect:]"
+      - tags: 100
+        value: "/__templates/InPaint/gui source/KGCustomFieldClass.m"
+      - tags: 102
+        value: "/__templates/InPaint/build/CORE KG 1.build/Release/CORE Keygen.build/Objects-normal/ppc/KGCustomFieldClass.o"
+      - tags: 36
+        value: "-[KGCustomFieldClass awakeFromNib]"
+      - tags: 36
+        value: "-[KGCustomFieldClass drawRect:]"
+      - tags: 36
+        value: "-[KGCustomFieldClass mouseDown:]"
+      - tags: 36
+        value: "-[KGCustomFieldClass mouseUp:]"
+      - tags: 36
+        value: "-[KGCustomFieldClass _remote_mouseDown]"
+      - tags: 36
+        value: "-[KGCustomFieldClass _remote_mouseUp]"
+      - tags: 100
+        value: "/__templates/InPaint/gui source/KGCustomLabel.m"
+      - tags: 102
+        value: "/__templates/InPaint/build/CORE KG 1.build/Release/CORE Keygen.build/Objects-normal/ppc/KGCustomLabel.o"
+      - tags: 36
+        value: "-[KGCustomLabel mouseDown:]"
+      - tags: 36
+        value: "-[KGCustomLabel mouseUp:]"
+      - tags: 100
+        value: "/__templates/InPaint/gui source/KGWindowsController.m"
+      - tags: 102
+        value: "/__templates/InPaint/build/CORE KG 1.build/Release/CORE Keygen.build/Objects-normal/ppc/KGWindowsController.o"
+      - tags: 36
+        value: "-[KGWindowsController awakeFromNib]"
+      - tags: 132
+        value: "/Developer/SDKs/MacOSX10.4u.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSGeometry.h"
+      - tags: 36
+        value: "-[KGWindowsController exit:]"
+      - tags: 100
+        value: "/__templates/InPaint/gui source/KGCustButton.m"
+      - tags: 102
+        value: "/__templates/InPaint/build/CORE KG 1.build/Release/CORE Keygen.build/Objects-normal/ppc/KGCustButton.o"
+      - tags: 36
+        value: "+[KGCustButton cellClass]"
+      - tags: 36
+        value: "-[KGCustButton initWithCoder:]"
+      - tags: 100
+        value: "/__templates/InPaint/gui source/KGCustButtonView.m"
+      - tags: 102
+        value: "/__templates/InPaint/build/CORE KG 1.build/Release/CORE Keygen.build/Objects-normal/ppc/KGCustButtonView.o"
+      - tags: 36
+        value: "-[KGCustButtonView mouseEntered:]"
+      - tags: 36
+        value: "-[KGCustButtonView drawWithFrame:inView:]"
+      - tags: 32
+        value: "_mouseIsHovering"
+      - tags: 100
+        value: "/__templates/InPaint/KGSerialNumberGenerator.m"
+      - tags: 102
+        value: "/__templates/InPaint/build/CORE KG 1.build/Release/CORE Keygen.build/Objects-normal/ppc/KGSerialNumberGenerator.o"
+      - tags: 36
+        value: "-[KGSerialNumberGenerator init]"
+      - tags: 36
+        value: "-[KGSerialNumberGenerator awakeFromNib]"
+      - tags: 36
+        value: "-[KGSerialNumberGenerator createSerial:]"
+      - tags: 36
+        value: "-[KGSerialNumberGenerator generationComplete]"
+      - tags: 36
+        value: "-[KGSerialNumberGenerator copyToCB:]"
+      - tags: 32
+        value: "_generationComplete"
+      - tags: 14
+        value: "__start"
+      - tags: 14
+        value: "dyld_stub_binding_helper"
+      - tags: 14
+        value: "__dyld_func_lookup"
+      - tags: 14
+        value: "_main"
+      - tags: 14
+        value: "-[KGCustomMainWindow initWithContentRect:styleMask:backing:defer:]"
+      - tags: 14
+        value: "-[KGCustomMainWindow canBecomeKeyWindow]"
+      - tags: 14
+        value: "-[KGCustomMainWindow mouseDragged:]"
+      - tags: 14
+        value: "-[KGCustomMainWindow mouseDown:]"
+      - tags: 14
+        value: "-[KGCustomMainWindowView awakeFromNib]"
+      - tags: 14
+        value: "-[KGCustomMainWindowView drawRect:]"
+      - tags: 14
+        value: "-[KGCustomFieldClass awakeFromNib]"
+      - tags: 14
+        value: "-[KGCustomFieldClass drawRect:]"
+      - tags: 14
+        value: "-[KGCustomFieldClass mouseDown:]"
+      - tags: 14
+        value: "-[KGCustomFieldClass mouseUp:]"
+      - tags: 14
+        value: "-[KGCustomFieldClass _remote_mouseDown]"
+      - tags: 14
+        value: "-[KGCustomFieldClass _remote_mouseUp]"
+      - tags: 14
+        value: "-[KGCustomLabel mouseDown:]"
+      - tags: 14
+        value: "-[KGCustomLabel mouseUp:]"
+      - tags: 14
+        value: "-[KGWindowsController awakeFromNib]"
+      - tags: 14
+        value: "-[KGWindowsController exit:]"
+      - tags: 14
+        value: "+[KGCustButton cellClass]"
+      - tags: 14
+        value: "-[KGCustButton initWithCoder:]"
+      - tags: 14
+        value: "-[KGCustButtonView mouseEntered:]"
+      - tags: 14
+        value: "-[KGCustButtonView drawWithFrame:inView:]"
+      - tags: 14
+        value: "-[KGSerialNumberGenerator init]"
+      - tags: 14
+        value: "-[KGSerialNumberGenerator awakeFromNib]"
+      - tags: 14
+        value: "-[KGSerialNumberGenerator createSerial:]"
+      - tags: 14
+        value: "-[KGSerialNumberGenerator generationComplete]"
+      - tags: 14
+        value: "-[KGSerialNumberGenerator copyToCB:]"
+      - tags: 14
+        value: "saveFP"
+      - tags: 14
+        value: "restFP"
+      - tags: 14
+        value: "_pointer_to__darwin_gcc3_preregister_frame_info"
+      - tags: 30
+        value: "_mouseIsHovering"
+      - tags: 30
+        value: "_generationComplete"
+      - tags: 15
+        value: ".objc_class_name_KGCustButton"
+      - tags: 15
+        value: ".objc_class_name_KGCustButtonView"
+      - tags: 15
+        value: ".objc_class_name_KGCustomFieldClass"
+      - tags: 15
+        value: ".objc_class_name_KGCustomLabel"
+      - tags: 15
+        value: ".objc_class_name_KGCustomMainWindow"
+      - tags: 15
+        value: ".objc_class_name_KGCustomMainWindowView"
+      - tags: 15
+        value: ".objc_class_name_KGSerialNumberGenerator"
+      - tags: 15
+        value: ".objc_class_name_KGWindowsController"
+      - tags: 15
+        value: "_NXArgc"
+      - tags: 15
+        value: "_NXArgv"
+      - tags: 15
+        value: "___darwin_gcc3_preregister_frame_info"
+      - tags: 15
+        value: "___progname"
+      - tags: 3
+        value: "__mh_execute_header"
+      - tags: 15
+        value: "_catch_exception_raise"
+      - tags: 15
+        value: "_catch_exception_raise_state"
+      - tags: 15
+        value: "_catch_exception_raise_state_identity"
+      - tags: 15
+        value: "_clock_alarm_reply"
+      - tags: 15
+        value: "_do_mach_notify_dead_name"
+      - tags: 15
+        value: "_do_mach_notify_no_senders"
+      - tags: 15
+        value: "_do_mach_notify_port_deleted"
+      - tags: 15
+        value: "_do_mach_notify_send_once"
+      - tags: 15
+        value: "_do_seqnos_mach_notify_dead_name"
+      - tags: 15
+        value: "_do_seqnos_mach_notify_no_senders"
+      - tags: 15
+        value: "_do_seqnos_mach_notify_port_deleted"
+      - tags: 15
+        value: "_do_seqnos_mach_notify_send_once"
+      - tags: 15
+        value: "_environ"
+      - tags: 15
+        value: "_receive_samples"
+      - tags: 15
+        value: "start"
+      - tags: 1
+        value: ".objc_class_name_NSArray"
+      - tags: 1
+        value: ".objc_class_name_NSAutoreleasePool"
+      - tags: 1
+        value: ".objc_class_name_NSBundle"
+      - tags: 1
+        value: ".objc_class_name_NSButton"
+      - tags: 1
+        value: ".objc_class_name_NSButtonCell"
+      - tags: 1
+        value: ".objc_class_name_NSColor"
+      - tags: 1
+        value: ".objc_class_name_NSImage"
+      - tags: 1
+        value: ".objc_class_name_NSKeyedUnarchiver"
+      - tags: 1
+        value: ".objc_class_name_NSMutableAttributedString"
+      - tags: 1
+        value: ".objc_class_name_NSMutableDictionary"
+      - tags: 1
+        value: ".objc_class_name_NSObject"
+      - tags: 1
+        value: ".objc_class_name_NSPasteboard"
+      - tags: 1
+        value: ".objc_class_name_NSScreen"
+      - tags: 1
+        value: ".objc_class_name_NSString"
+      - tags: 1
+        value: ".objc_class_name_NSTextField"
+      - tags: 1
+        value: ".objc_class_name_NSView"
+      - tags: 1
+        value: ".objc_class_name_NSWindow"
+      - tags: 1
+        value: "_AbsoluteToNanoseconds"
+      - tags: 1
+        value: "_BASSMOD_Free"
+      - tags: 1
+        value: "_BASSMOD_Init"
+      - tags: 1
+        value: "_BASSMOD_MusicLoad"
+      - tags: 1
+        value: "_BASSMOD_MusicPlay"
+      - tags: 1
+        value: "_BASSMOD_SetVolume"
+      - tags: 1
+        value: "_CGWindowLevelForKey"
+      - tags: 1
+        value: "_NSApp"
+      - tags: 1
+        value: "_NSAppKitVersionNumber"
+      - tags: 1
+        value: "_NSApplicationMain"
+      - tags: 1
+        value: "_NSForegroundColorAttributeName"
+      - tags: 1
+        value: "_NSLog"
+      - tags: 1
+        value: "_NSRectFill"
+      - tags: 1
+        value: "_NSStringPboardType"
+      - tags: 1
+        value: "_NSZeroPoint"
+      - tags: 1
+        value: "_UpTime"
+      - tags: 1
+        value: "___CFConstantStringClassReference"
+      - tags: 1
+        value: "___keymgr_dwarf2_register_sections"
+      - tags: 1
+        value: "___sF"
+      - tags: 1
+        value: "__cthread_init_routine"
+      - tags: 1
+        value: "_atexit"
+      - tags: 1
+        value: "_clock"
+      - tags: 1
+        value: "_errno"
+      - tags: 1
+        value: "_exit"
+      - tags: 1
+        value: "_floor"
+      - tags: 1
+        value: "_fwrite"
+      - tags: 1
+        value: "_mach_init_routine"
+      - tags: 1
+        value: "_objc_msgSendSuper"
+      - tags: 1
+        value: "_objc_msgSend_stret"
+      - tags: 1
+        value: "_random"
+      - tags: 1
+        value: "_srandom"
+      - tags: 1
+        value: "_strdup"
 dysymtab:
     ilocalsym: 0
     nlocalsym: 177

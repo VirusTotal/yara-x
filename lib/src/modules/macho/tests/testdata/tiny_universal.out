@@ -153,12 +153,18 @@ file:
         stroff: 8440
         strsize: 72
         entries:
-          - "__mh_execute_header"
-          - "_factorial"
-          - "_main"
-          - "_printf"
-          - "_scanf"
-          - "dyld_stub_binder"
+          - tags: 15
+            value: "__mh_execute_header"
+          - tags: 15
+            value: "_factorial"
+          - tags: 15
+            value: "_main"
+          - tags: 1
+            value: "_printf"
+          - tags: 1
+            value: "_scanf"
+          - tags: 1
+            value: "dyld_stub_binder"
     dysymtab:
         ilocalsym: 0
         nlocalsym: 0
@@ -359,12 +365,18 @@ file:
         stroff: 8472
         strsize: 72
         entries:
-          - "__mh_execute_header"
-          - "_factorial"
-          - "_main"
-          - "_printf"
-          - "_scanf"
-          - "dyld_stub_binder"
+          - tags: 15
+            value: "__mh_execute_header"
+          - tags: 15
+            value: "_factorial"
+          - tags: 15
+            value: "_main"
+          - tags: 1
+            value: "_printf"
+          - tags: 1
+            value: "_scanf"
+          - tags: 1
+            value: "dyld_stub_binder"
     dysymtab:
         ilocalsym: 0
         nlocalsym: 0

@@ -12,7 +12,8 @@ symtab:
     stroff: 340
     strsize: 16
     entries:
-      - "__Z9factoriali"
+      - tags: 15
+        value: "__Z9factoriali"
 dysymtab:
     ilocalsym: 0
     nlocalsym: 0

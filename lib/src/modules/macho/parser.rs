@@ -49,10 +49,10 @@ const CS_MAGIC_BLOBWRAPPER: u32 = 0xfade0b01;
 const CS_MAGIC_EMBEDDED_ENTITLEMENTS: u32 = 0xfade7171;
 
 /// Mach-O symtol table flag constants
-const N_STAB: u8 = 0xe0; /* if any of these bits set, a symbolic debugging entry */
+pub const N_STAB: u8 = 0xe0; /* if any of these bits set, a symbolic debugging entry */
 const _N_PEXT: u8 = 0x10; /* private external symbol bit */
-const N_TYPE: u8 = 0x0e; /* mask for the type bits */
-const N_EXT: u8 = 0x01; /* external symbol bit, set for external symbols */
+pub const N_TYPE: u8 = 0x0e; /* mask for the type bits */
+pub const N_EXT: u8 = 0x01; /* external symbol bit, set for external symbols */
 
 /// Mach-o value flags for N_TYPE bits of the n_type field.
 const N_UNDF: u8 = 0x0; /* undefined, n_sect == NO_SECT */
@@ -2325,9 +2325,16 @@ impl From<&Symtab<'_>> for protos::macho::Symtab {
         result.set_stroff(symtab.stroff);
         result.set_strsize(symtab.strsize);
         // populate the entries
+        result.entries.extend(symtab.entries.iter().map(|entry| entry.into()));
         result
-            .entries
-            .extend(symtab.entries.iter().map(|entry| entry.value.to_vec()));
+    }
+}
+
+impl From<&SymbolTableEntry<'_>> for protos::macho::SymbolTableEntry {
+    fn from(entry: &SymbolTableEntry<'_>) -> Self {
+        let mut result = protos::macho::SymbolTableEntry::new();
+        result.set_tags(entry.tags.into());
+        result.set_value(entry.value.to_vec());
         result
     }
 }

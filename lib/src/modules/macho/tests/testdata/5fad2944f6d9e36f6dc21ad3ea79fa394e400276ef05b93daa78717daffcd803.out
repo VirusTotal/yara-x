@@ -12,31 +12,56 @@ symtab:
     stroff: 3840
     strsize: 496
     entries:
-      - "_fourbppswaptable"
-      - "_onebppswaptable"
-      - "_twobppswaptable"
-      - "_png_do_bgr"
-      - "_png_do_check_palette_indexes"
-      - "_png_do_invert"
-      - "_png_do_packswap"
-      - "_png_do_strip_channel"
-      - "_png_do_swap"
-      - "_png_get_current_pass_number"
-      - "_png_get_current_row_number"
-      - "_png_get_user_transform_ptr"
-      - "_png_set_add_alpha"
-      - "_png_set_bgr"
-      - "_png_set_filler"
-      - "_png_set_interlace_handling"
-      - "_png_set_invert_alpha"
-      - "_png_set_invert_mono"
-      - "_png_set_packing"
-      - "_png_set_packswap"
-      - "_png_set_shift"
-      - "_png_set_swap"
-      - "_png_set_swap_alpha"
-      - "_png_set_user_transform_info"
-      - "_png_app_error"
+      - tags: 14
+        value: "_fourbppswaptable"
+      - tags: 14
+        value: "_onebppswaptable"
+      - tags: 14
+        value: "_twobppswaptable"
+      - tags: 15
+        value: "_png_do_bgr"
+      - tags: 15
+        value: "_png_do_check_palette_indexes"
+      - tags: 15
+        value: "_png_do_invert"
+      - tags: 15
+        value: "_png_do_packswap"
+      - tags: 15
+        value: "_png_do_strip_channel"
+      - tags: 15
+        value: "_png_do_swap"
+      - tags: 15
+        value: "_png_get_current_pass_number"
+      - tags: 15
+        value: "_png_get_current_row_number"
+      - tags: 15
+        value: "_png_get_user_transform_ptr"
+      - tags: 15
+        value: "_png_set_add_alpha"
+      - tags: 15
+        value: "_png_set_bgr"
+      - tags: 15
+        value: "_png_set_filler"
+      - tags: 15
+        value: "_png_set_interlace_handling"
+      - tags: 15
+        value: "_png_set_invert_alpha"
+      - tags: 15
+        value: "_png_set_invert_mono"
+      - tags: 15
+        value: "_png_set_packing"
+      - tags: 15
+        value: "_png_set_packswap"
+      - tags: 15
+        value: "_png_set_shift"
+      - tags: 15
+        value: "_png_set_swap"
+      - tags: 15
+        value: "_png_set_swap_alpha"
+      - tags: 15
+        value: "_png_set_user_transform_info"
+      - tags: 1
+        value: "_png_app_error"
 dysymtab:
     ilocalsym: 0
     nlocalsym: 3

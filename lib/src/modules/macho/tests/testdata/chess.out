@@ -17,314 +17,622 @@ symtab:
     stroff: 271144
     strsize: 6000
     entries:
-      - "radr://5614542"
-      - "__mh_execute_header"
-      - "_AEGetParamPtr"
-      - "_AEInstallEventHandler"
-      - "_CFRelease"
-      - "_CGBitmapContextCreate"
-      - "_CGColorSpaceCreateDeviceRGB"
-      - "_CGColorSpaceRelease"
-      - "_CGContextClearRect"
-      - "_CGContextDrawImage"
-      - "_CGContextGetTextPosition"
-      - "_CGContextRelease"
-      - "_CGContextSelectFont"
-      - "_CGContextSetAlpha"
-      - "_CGContextSetShouldSubpixelQuantizeFonts"
-      - "_CGContextSetTextDrawingMode"
-      - "_CGContextShowTextAtPoint"
-      - "_CGImageGetHeight"
-      - "_CGImageGetWidth"
-      - "_CGImageRelease"
-      - "_CGImageSourceCreateImageAtIndex"
-      - "_CGImageSourceCreateWithURL"
-      - "_CGLDescribeRenderer"
-      - "_CGLQueryRendererInfo"
-      - "_GetCurrentProcess"
-      - "_NSAccessibilityActionDescription"
-      - "_NSAccessibilityButtonRole"
-      - "_NSAccessibilityChildrenAttribute"
-      - "_NSAccessibilityContentsAttribute"
-      - "_NSAccessibilityDescriptionAttribute"
-      - "_NSAccessibilityEnabledAttribute"
-      - "_NSAccessibilityFocusedAttribute"
-      - "_NSAccessibilityGroupRole"
-      - "_NSAccessibilityParentAttribute"
-      - "_NSAccessibilityPositionAttribute"
-      - "_NSAccessibilityPressAction"
-      - "_NSAccessibilityRoleAttribute"
-      - "_NSAccessibilityRoleDescription"
-      - "_NSAccessibilityRoleDescriptionAttribute"
-      - "_NSAccessibilitySelectedChildrenAttribute"
-      - "_NSAccessibilitySelectedChildrenChangedNotification"
-      - "_NSAccessibilitySelectedRowsChangedNotification"
-      - "_NSAccessibilitySizeAttribute"
-      - "_NSAccessibilityStaticTextRole"
-      - "_NSAccessibilityTitleAttribute"
-      - "_NSAccessibilityTopLevelUIElementAttribute"
-      - "_NSAccessibilityValueAttribute"
-      - "_NSAccessibilityWindowAttribute"
-      - "_NSApp"
-      - "_NSApplicationMain"
-      - "_NSBeep"
-      - "_NSCocoaErrorDomain"
-      - "_NSDefaultRunLoopMode"
-      - "_NSEventTrackingRunLoopMode"
-      - "_NSFullUserName"
-      - "_NSLocalizedDescriptionKey"
-      - "_NSLog"
-      - "_NSRectFill"
-      - "_NSVoiceDemoText"
-      - "_NSVoiceLocaleIdentifier"
-      - "_NSVoiceName"
-      - "_NSWindowWillCloseNotification"
-      - "_OBJC_CLASS_$_GKAchievement"
-      - "_OBJC_CLASS_$_GKDialogController"
-      - "_OBJC_CLASS_$_GKGameCenterViewController"
-      - "_OBJC_CLASS_$_GKLocalPlayer"
-      - "_OBJC_CLASS_$_GKMatchRequest"
-      - "_OBJC_CLASS_$_GKPlayer"
-      - "_OBJC_CLASS_$_GKTurnBasedMatch"
-      - "_OBJC_CLASS_$_GKTurnBasedMatchmakerViewController"
-      - "_OBJC_CLASS_$_NSAlert"
-      - "_OBJC_CLASS_$_NSAnimationContext"
-      - "_OBJC_CLASS_$_NSApplication"
-      - "_OBJC_CLASS_$_NSArray"
-      - "_OBJC_CLASS_$_NSAutoreleasePool"
-      - "_OBJC_CLASS_$_NSBundle"
-      - "_OBJC_CLASS_$_NSColor"
-      - "_OBJC_CLASS_$_NSCursor"
-      - "_OBJC_CLASS_$_NSData"
-      - "_OBJC_CLASS_$_NSDate"
-      - "_OBJC_CLASS_$_NSDictionary"
-      - "_OBJC_CLASS_$_NSDocument"
-      - "_OBJC_CLASS_$_NSDocumentController"
-      - "_OBJC_CLASS_$_NSError"
-      - "_OBJC_CLASS_$_NSEvent"
-      - "_OBJC_CLASS_$_NSFileHandle"
-      - "_OBJC_CLASS_$_NSFileManager"
-      - "_OBJC_CLASS_$_NSFont"
-      - "_OBJC_CLASS_$_NSImageView"
-      - "_OBJC_CLASS_$_NSInvocation"
-      - "_OBJC_CLASS_$_NSLocale"
-      - "_OBJC_CLASS_$_NSMutableArray"
-      - "_OBJC_CLASS_$_NSMutableDictionary"
-      - "_OBJC_CLASS_$_NSMutableString"
-      - "_OBJC_CLASS_$_NSNotification"
-      - "_OBJC_CLASS_$_NSNotificationCenter"
-      - "_OBJC_CLASS_$_NSNotificationQueue"
-      - "_OBJC_CLASS_$_NSNull"
-      - "_OBJC_CLASS_$_NSNumber"
-      - "_OBJC_CLASS_$_NSNumberFormatter"
-      - "_OBJC_CLASS_$_NSObject"
-      - "_OBJC_CLASS_$_NSOpenGLPixelFormat"
-      - "_OBJC_CLASS_$_NSOpenGLView"
-      - "_OBJC_CLASS_$_NSOperationQueue"
-      - "_OBJC_CLASS_$_NSPipe"
-      - "_OBJC_CLASS_$_NSPort"
-      - "_OBJC_CLASS_$_NSPortMessage"
-      - "_OBJC_CLASS_$_NSPropertyListSerialization"
-      - "_OBJC_CLASS_$_NSRegularExpression"
-      - "_OBJC_CLASS_$_NSRunLoop"
-      - "_OBJC_CLASS_$_NSScreen"
-      - "_OBJC_CLASS_$_NSSet"
-      - "_OBJC_CLASS_$_NSSpeechSynthesizer"
-      - "_OBJC_CLASS_$_NSString"
-      - "_OBJC_CLASS_$_NSTableView"
-      - "_OBJC_CLASS_$_NSTask"
-      - "_OBJC_CLASS_$_NSTextFieldCell"
-      - "_OBJC_CLASS_$_NSThread"
-      - "_OBJC_CLASS_$_NSTrackingArea"
-      - "_OBJC_CLASS_$_NSURL"
-      - "_OBJC_CLASS_$_NSUserDefaults"
-      - "_OBJC_CLASS_$_NSUserDefaultsController"
-      - "_OBJC_CLASS_$_NSValue"
-      - "_OBJC_CLASS_$_NSWindow"
-      - "_OBJC_CLASS_$_NSWindowController"
-      - "_OBJC_CLASS_$_NSWorkspace"
-      - "_OBJC_METACLASS_$_NSDocument"
-      - "_OBJC_METACLASS_$_NSImageView"
-      - "_OBJC_METACLASS_$_NSObject"
-      - "_OBJC_METACLASS_$_NSOpenGLView"
-      - "_OBJC_METACLASS_$_NSTableView"
-      - "_OBJC_METACLASS_$_NSTextFieldCell"
-      - "_OBJC_METACLASS_$_NSWindow"
-      - "_OBJC_METACLASS_$_NSWindowController"
-      - "_SCNetworkReachabilityCreateWithAddress"
-      - "_SCNetworkReachabilityGetFlags"
-      - "_SRAddLanguageObject"
-      - "_SRAddText"
-      - "_SRCloseRecognitionSystem"
-      - "_SRCountItems"
-      - "_SREmptyLanguageObject"
-      - "_SRGetIndexedItem"
-      - "_SRGetProperty"
-      - "_SRNewLanguageModel"
-      - "_SRNewPath"
-      - "_SRNewRecognizer"
-      - "_SROpenRecognitionSystem"
-      - "_SRReleaseObject"
-      - "_SRSetLanguageModel"
-      - "_SRSetProperty"
-      - "_SRStartListening"
-      - "_SRStopListening"
-      - "__Block_copy"
-      - "__Block_object_assign"
-      - "__Block_object_dispose"
-      - "__Block_release"
-      - "__DefaultRuneLocale"
-      - "__NSConcreteGlobalBlock"
-      - "__NSConcreteStackBlock"
-      - "__Unwind_Resume"
-      - "__ZdlPv"
-      - "__Znwm"
-      - "___CFConstantStringClassReference"
-      - "___bzero"
-      - "___cxa_guard_abort"
-      - "___cxa_guard_acquire"
-      - "___cxa_guard_release"
-      - "___error"
-      - "___gxx_personality_v0"
-      - "___maskrune"
-      - "___sincosf_stret"
-      - "___stack_chk_fail"
-      - "___stack_chk_guard"
-      - "___stderrp"
-      - "___stdinp"
-      - "___stdoutp"
-      - "___tolower"
-      - "___toupper"
-      - "__dispatch_main_q"
-      - "__objc_empty_cache"
-      - "_abort"
-      - "_arc4random"
-      - "_atan2f"
-      - "_atoi"
-      - "_calloc"
-      - "_creat"
-      - "_dispatch_after"
-      - "_dispatch_apply"
-      - "_dispatch_async"
-      - "_dispatch_get_global_queue"
-      - "_dispatch_once"
-      - "_dispatch_queue_create"
-      - "_dispatch_time"
-      - "_exit"
-      - "_fclose"
-      - "_fileno"
-      - "_fmodf"
-      - "_fopen"
-      - "_fprintf"
-      - "_fputc"
-      - "_fputs"
-      - "_free"
-      - "_funopen"
-      - "_fwrite"
-      - "_getenv"
-      - "_getrlimit"
-      - "_gettimeofday"
-      - "_glBegin"
-      - "_glBindTexture"
-      - "_glBlendFunc"
-      - "_glCallList"
-      - "_glClear"
-      - "_glClearColor"
-      - "_glColor3fv"
-      - "_glColor4f"
-      - "_glColor4fv"
-      - "_glColorMask"
-      - "_glCullFace"
-      - "_glDeleteTextures"
-      - "_glDepthMask"
-      - "_glDisable"
-      - "_glEnable"
-      - "_glEnd"
-      - "_glEndList"
-      - "_glFlush"
-      - "_glGenTextures"
-      - "_glGetDoublev"
-      - "_glGetFloatv"
-      - "_glGetIntegerv"
-      - "_glGetString"
-      - "_glHint"
-      - "_glLightModeli"
-      - "_glLightf"
-      - "_glLightfv"
-      - "_glLighti"
-      - "_glLoadIdentity"
-      - "_glMaterialf"
-      - "_glMaterialfv"
-      - "_glMatrixMode"
-      - "_glNewList"
-      - "_glNormal3f"
-      - "_glPixelStorei"
-      - "_glPopAttrib"
-      - "_glPopMatrix"
-      - "_glPushAttrib"
-      - "_glPushMatrix"
-      - "_glReadPixels"
-      - "_glRotatef"
-      - "_glScalef"
-      - "_glShadeModel"
-      - "_glStencilFunc"
-      - "_glStencilOp"
-      - "_glTexCoord2f"
-      - "_glTexEnvi"
-      - "_glTexParameterf"
-      - "_glTexParameteri"
-      - "_glTranslatef"
-      - "_glVertex3d"
-      - "_glVertex3f"
-      - "_glVertex3fv"
-      - "_glViewport"
-      - "_gluBuild2DMipmaps"
-      - "_gluCylinder"
-      - "_gluDeleteQuadric"
-      - "_gluDisk"
-      - "_gluLookAt"
-      - "_gluNewQuadric"
-      - "_gluOrtho2D"
-      - "_gluPartialDisk"
-      - "_gluPerspective"
-      - "_gluProject"
-      - "_gluQuadricNormals"
-      - "_gluQuadricOrientation"
-      - "_gluQuadricTexture"
-      - "_gluUnProject"
-      - "_hypotf"
-      - "_isatty"
-      - "_ldexpf"
-      - "_lroundf"
-      - "_malloc"
-      - "_memchr"
-      - "_memcpy"
-      - "_memset"
-      - "_objc_alloc"
-      - "_objc_autorelease"
-      - "_objc_enumerationMutation"
-      - "_objc_msgSend"
-      - "_objc_msgSendSuper2"
-      - "_objc_msgSend_stret"
-      - "_objc_release"
-      - "_objc_retain"
-      - "_objc_setProperty_nonatomic"
-      - "_pow"
-      - "_putenv"
-      - "_random"
-      - "_read"
-      - "_realloc"
-      - "_setrlimit"
-      - "_snprintf"
-      - "_srandom"
-      - "_strchr"
-      - "_strcspn"
-      - "_strlcpy"
-      - "_strlen"
-      - "_strspn"
-      - "_strstr"
-      - "_usleep"
-      - "dyld_stub_binder"
+      - tags: 60
+        value: "radr://5614542"
+      - tags: 15
+        value: "__mh_execute_header"
+      - tags: 1
+        value: "_AEGetParamPtr"
+      - tags: 1
+        value: "_AEInstallEventHandler"
+      - tags: 1
+        value: "_CFRelease"
+      - tags: 1
+        value: "_CGBitmapContextCreate"
+      - tags: 1
+        value: "_CGColorSpaceCreateDeviceRGB"
+      - tags: 1
+        value: "_CGColorSpaceRelease"
+      - tags: 1
+        value: "_CGContextClearRect"
+      - tags: 1
+        value: "_CGContextDrawImage"
+      - tags: 1
+        value: "_CGContextGetTextPosition"
+      - tags: 1
+        value: "_CGContextRelease"
+      - tags: 1
+        value: "_CGContextSelectFont"
+      - tags: 1
+        value: "_CGContextSetAlpha"
+      - tags: 1
+        value: "_CGContextSetShouldSubpixelQuantizeFonts"
+      - tags: 1
+        value: "_CGContextSetTextDrawingMode"
+      - tags: 1
+        value: "_CGContextShowTextAtPoint"
+      - tags: 1
+        value: "_CGImageGetHeight"
+      - tags: 1
+        value: "_CGImageGetWidth"
+      - tags: 1
+        value: "_CGImageRelease"
+      - tags: 1
+        value: "_CGImageSourceCreateImageAtIndex"
+      - tags: 1
+        value: "_CGImageSourceCreateWithURL"
+      - tags: 1
+        value: "_CGLDescribeRenderer"
+      - tags: 1
+        value: "_CGLQueryRendererInfo"
+      - tags: 1
+        value: "_GetCurrentProcess"
+      - tags: 1
+        value: "_NSAccessibilityActionDescription"
+      - tags: 1
+        value: "_NSAccessibilityButtonRole"
+      - tags: 1
+        value: "_NSAccessibilityChildrenAttribute"
+      - tags: 1
+        value: "_NSAccessibilityContentsAttribute"
+      - tags: 1
+        value: "_NSAccessibilityDescriptionAttribute"
+      - tags: 1
+        value: "_NSAccessibilityEnabledAttribute"
+      - tags: 1
+        value: "_NSAccessibilityFocusedAttribute"
+      - tags: 1
+        value: "_NSAccessibilityGroupRole"
+      - tags: 1
+        value: "_NSAccessibilityParentAttribute"
+      - tags: 1
+        value: "_NSAccessibilityPositionAttribute"
+      - tags: 1
+        value: "_NSAccessibilityPressAction"
+      - tags: 1
+        value: "_NSAccessibilityRoleAttribute"
+      - tags: 1
+        value: "_NSAccessibilityRoleDescription"
+      - tags: 1
+        value: "_NSAccessibilityRoleDescriptionAttribute"
+      - tags: 1
+        value: "_NSAccessibilitySelectedChildrenAttribute"
+      - tags: 1
+        value: "_NSAccessibilitySelectedChildrenChangedNotification"
+      - tags: 1
+        value: "_NSAccessibilitySelectedRowsChangedNotification"
+      - tags: 1
+        value: "_NSAccessibilitySizeAttribute"
+      - tags: 1
+        value: "_NSAccessibilityStaticTextRole"
+      - tags: 1
+        value: "_NSAccessibilityTitleAttribute"
+      - tags: 1
+        value: "_NSAccessibilityTopLevelUIElementAttribute"
+      - tags: 1
+        value: "_NSAccessibilityValueAttribute"
+      - tags: 1
+        value: "_NSAccessibilityWindowAttribute"
+      - tags: 1
+        value: "_NSApp"
+      - tags: 1
+        value: "_NSApplicationMain"
+      - tags: 1
+        value: "_NSBeep"
+      - tags: 1
+        value: "_NSCocoaErrorDomain"
+      - tags: 1
+        value: "_NSDefaultRunLoopMode"
+      - tags: 1
+        value: "_NSEventTrackingRunLoopMode"
+      - tags: 1
+        value: "_NSFullUserName"
+      - tags: 1
+        value: "_NSLocalizedDescriptionKey"
+      - tags: 1
+        value: "_NSLog"
+      - tags: 1
+        value: "_NSRectFill"
+      - tags: 1
+        value: "_NSVoiceDemoText"
+      - tags: 1
+        value: "_NSVoiceLocaleIdentifier"
+      - tags: 1
+        value: "_NSVoiceName"
+      - tags: 1
+        value: "_NSWindowWillCloseNotification"
+      - tags: 1
+        value: "_OBJC_CLASS_$_GKAchievement"
+      - tags: 1
+        value: "_OBJC_CLASS_$_GKDialogController"
+      - tags: 1
+        value: "_OBJC_CLASS_$_GKGameCenterViewController"
+      - tags: 1
+        value: "_OBJC_CLASS_$_GKLocalPlayer"
+      - tags: 1
+        value: "_OBJC_CLASS_$_GKMatchRequest"
+      - tags: 1
+        value: "_OBJC_CLASS_$_GKPlayer"
+      - tags: 1
+        value: "_OBJC_CLASS_$_GKTurnBasedMatch"
+      - tags: 1
+        value: "_OBJC_CLASS_$_GKTurnBasedMatchmakerViewController"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSAlert"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSAnimationContext"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSApplication"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSArray"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSAutoreleasePool"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSBundle"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSColor"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSCursor"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSData"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSDate"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSDictionary"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSDocument"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSDocumentController"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSError"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSEvent"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSFileHandle"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSFileManager"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSFont"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSImageView"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSInvocation"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSLocale"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSMutableArray"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSMutableDictionary"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSMutableString"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSNotification"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSNotificationCenter"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSNotificationQueue"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSNull"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSNumber"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSNumberFormatter"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSObject"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSOpenGLPixelFormat"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSOpenGLView"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSOperationQueue"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSPipe"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSPort"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSPortMessage"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSPropertyListSerialization"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSRegularExpression"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSRunLoop"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSScreen"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSSet"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSSpeechSynthesizer"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSString"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSTableView"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSTask"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSTextFieldCell"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSThread"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSTrackingArea"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSURL"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSUserDefaults"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSUserDefaultsController"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSValue"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSWindow"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSWindowController"
+      - tags: 1
+        value: "_OBJC_CLASS_$_NSWorkspace"
+      - tags: 1
+        value: "_OBJC_METACLASS_$_NSDocument"
+      - tags: 1
+        value: "_OBJC_METACLASS_$_NSImageView"
+      - tags: 1
+        value: "_OBJC_METACLASS_$_NSObject"
+      - tags: 1
+        value: "_OBJC_METACLASS_$_NSOpenGLView"
+      - tags: 1
+        value: "_OBJC_METACLASS_$_NSTableView"
+      - tags: 1
+        value: "_OBJC_METACLASS_$_NSTextFieldCell"
+      - tags: 1
+        value: "_OBJC_METACLASS_$_NSWindow"
+      - tags: 1
+        value: "_OBJC_METACLASS_$_NSWindowController"
+      - tags: 1
+        value: "_SCNetworkReachabilityCreateWithAddress"
+      - tags: 1
+        value: "_SCNetworkReachabilityGetFlags"
+      - tags: 1
+        value: "_SRAddLanguageObject"
+      - tags: 1
+        value: "_SRAddText"
+      - tags: 1
+        value: "_SRCloseRecognitionSystem"
+      - tags: 1
+        value: "_SRCountItems"
+      - tags: 1
+        value: "_SREmptyLanguageObject"
+      - tags: 1
+        value: "_SRGetIndexedItem"
+      - tags: 1
+        value: "_SRGetProperty"
+      - tags: 1
+        value: "_SRNewLanguageModel"
+      - tags: 1
+        value: "_SRNewPath"
+      - tags: 1
+        value: "_SRNewRecognizer"
+      - tags: 1
+        value: "_SROpenRecognitionSystem"
+      - tags: 1
+        value: "_SRReleaseObject"
+      - tags: 1
+        value: "_SRSetLanguageModel"
+      - tags: 1
+        value: "_SRSetProperty"
+      - tags: 1
+        value: "_SRStartListening"
+      - tags: 1
+        value: "_SRStopListening"
+      - tags: 1
+        value: "__Block_copy"
+      - tags: 1
+        value: "__Block_object_assign"
+      - tags: 1
+        value: "__Block_object_dispose"
+      - tags: 1
+        value: "__Block_release"
+      - tags: 1
+        value: "__DefaultRuneLocale"
+      - tags: 1
+        value: "__NSConcreteGlobalBlock"
+      - tags: 1
+        value: "__NSConcreteStackBlock"
+      - tags: 1
+        value: "__Unwind_Resume"
+      - tags: 1
+        value: "__ZdlPv"
+      - tags: 1
+        value: "__Znwm"
+      - tags: 1
+        value: "___CFConstantStringClassReference"
+      - tags: 1
+        value: "___bzero"
+      - tags: 1
+        value: "___cxa_guard_abort"
+      - tags: 1
+        value: "___cxa_guard_acquire"
+      - tags: 1
+        value: "___cxa_guard_release"
+      - tags: 1
+        value: "___error"
+      - tags: 1
+        value: "___gxx_personality_v0"
+      - tags: 1
+        value: "___maskrune"
+      - tags: 1
+        value: "___sincosf_stret"
+      - tags: 1
+        value: "___stack_chk_fail"
+      - tags: 1
+        value: "___stack_chk_guard"
+      - tags: 1
+        value: "___stderrp"
+      - tags: 1
+        value: "___stdinp"
+      - tags: 1
+        value: "___stdoutp"
+      - tags: 1
+        value: "___tolower"
+      - tags: 1
+        value: "___toupper"
+      - tags: 1
+        value: "__dispatch_main_q"
+      - tags: 1
+        value: "__objc_empty_cache"
+      - tags: 1
+        value: "_abort"
+      - tags: 1
+        value: "_arc4random"
+      - tags: 1
+        value: "_atan2f"
+      - tags: 1
+        value: "_atoi"
+      - tags: 1
+        value: "_calloc"
+      - tags: 1
+        value: "_creat"
+      - tags: 1
+        value: "_dispatch_after"
+      - tags: 1
+        value: "_dispatch_apply"
+      - tags: 1
+        value: "_dispatch_async"
+      - tags: 1
+        value: "_dispatch_get_global_queue"
+      - tags: 1
+        value: "_dispatch_once"
+      - tags: 1
+        value: "_dispatch_queue_create"
+      - tags: 1
+        value: "_dispatch_time"
+      - tags: 1
+        value: "_exit"
+      - tags: 1
+        value: "_fclose"
+      - tags: 1
+        value: "_fileno"
+      - tags: 1
+        value: "_fmodf"
+      - tags: 1
+        value: "_fopen"
+      - tags: 1
+        value: "_fprintf"
+      - tags: 1
+        value: "_fputc"
+      - tags: 1
+        value: "_fputs"
+      - tags: 1
+        value: "_free"
+      - tags: 1
+        value: "_funopen"
+      - tags: 1
+        value: "_fwrite"
+      - tags: 1
+        value: "_getenv"
+      - tags: 1
+        value: "_getrlimit"
+      - tags: 1
+        value: "_gettimeofday"
+      - tags: 1
+        value: "_glBegin"
+      - tags: 1
+        value: "_glBindTexture"
+      - tags: 1
+        value: "_glBlendFunc"
+      - tags: 1
+        value: "_glCallList"
+      - tags: 1
+        value: "_glClear"
+      - tags: 1
+        value: "_glClearColor"
+      - tags: 1
+        value: "_glColor3fv"
+      - tags: 1
+        value: "_glColor4f"
+      - tags: 1
+        value: "_glColor4fv"
+      - tags: 1
+        value: "_glColorMask"
+      - tags: 1
+        value: "_glCullFace"
+      - tags: 1
+        value: "_glDeleteTextures"
+      - tags: 1
+        value: "_glDepthMask"
+      - tags: 1
+        value: "_glDisable"
+      - tags: 1
+        value: "_glEnable"
+      - tags: 1
+        value: "_glEnd"
+      - tags: 1
+        value: "_glEndList"
+      - tags: 1
+        value: "_glFlush"
+      - tags: 1
+        value: "_glGenTextures"
+      - tags: 1
+        value: "_glGetDoublev"
+      - tags: 1
+        value: "_glGetFloatv"
+      - tags: 1
+        value: "_glGetIntegerv"
+      - tags: 1
+        value: "_glGetString"
+      - tags: 1
+        value: "_glHint"
+      - tags: 1
+        value: "_glLightModeli"
+      - tags: 1
+        value: "_glLightf"
+      - tags: 1
+        value: "_glLightfv"
+      - tags: 1
+        value: "_glLighti"
+      - tags: 1
+        value: "_glLoadIdentity"
+      - tags: 1
+        value: "_glMaterialf"
+      - tags: 1
+        value: "_glMaterialfv"
+      - tags: 1
+        value: "_glMatrixMode"
+      - tags: 1
+        value: "_glNewList"
+      - tags: 1
+        value: "_glNormal3f"
+      - tags: 1
+        value: "_glPixelStorei"
+      - tags: 1
+        value: "_glPopAttrib"
+      - tags: 1
+        value: "_glPopMatrix"
+      - tags: 1
+        value: "_glPushAttrib"
+      - tags: 1
+        value: "_glPushMatrix"
+      - tags: 1
+        value: "_glReadPixels"
+      - tags: 1
+        value: "_glRotatef"
+      - tags: 1
+        value: "_glScalef"
+      - tags: 1
+        value: "_glShadeModel"
+      - tags: 1
+        value: "_glStencilFunc"
+      - tags: 1
+        value: "_glStencilOp"
+      - tags: 1
+        value: "_glTexCoord2f"
+      - tags: 1
+        value: "_glTexEnvi"
+      - tags: 1
+        value: "_glTexParameterf"
+      - tags: 1
+        value: "_glTexParameteri"
+      - tags: 1
+        value: "_glTranslatef"
+      - tags: 1
+        value: "_glVertex3d"
+      - tags: 1
+        value: "_glVertex3f"
+      - tags: 1
+        value: "_glVertex3fv"
+      - tags: 1
+        value: "_glViewport"
+      - tags: 1
+        value: "_gluBuild2DMipmaps"
+      - tags: 1
+        value: "_gluCylinder"
+      - tags: 1
+        value: "_gluDeleteQuadric"
+      - tags: 1
+        value: "_gluDisk"
+      - tags: 1
+        value: "_gluLookAt"
+      - tags: 1
+        value: "_gluNewQuadric"
+      - tags: 1
+        value: "_gluOrtho2D"
+      - tags: 1
+        value: "_gluPartialDisk"
+      - tags: 1
+        value: "_gluPerspective"
+      - tags: 1
+        value: "_gluProject"
+      - tags: 1
+        value: "_gluQuadricNormals"
+      - tags: 1
+        value: "_gluQuadricOrientation"
+      - tags: 1
+        value: "_gluQuadricTexture"
+      - tags: 1
+        value: "_gluUnProject"
+      - tags: 1
+        value: "_hypotf"
+      - tags: 1
+        value: "_isatty"
+      - tags: 1
+        value: "_ldexpf"
+      - tags: 1
+        value: "_lroundf"
+      - tags: 1
+        value: "_malloc"
+      - tags: 1
+        value: "_memchr"
+      - tags: 1
+        value: "_memcpy"
+      - tags: 1
+        value: "_memset"
+      - tags: 1
+        value: "_objc_alloc"
+      - tags: 1
+        value: "_objc_autorelease"
+      - tags: 1
+        value: "_objc_enumerationMutation"
+      - tags: 1
+        value: "_objc_msgSend"
+      - tags: 1
+        value: "_objc_msgSendSuper2"
+      - tags: 1
+        value: "_objc_msgSend_stret"
+      - tags: 1
+        value: "_objc_release"
+      - tags: 1
+        value: "_objc_retain"
+      - tags: 1
+        value: "_objc_setProperty_nonatomic"
+      - tags: 1
+        value: "_pow"
+      - tags: 1
+        value: "_putenv"
+      - tags: 1
+        value: "_random"
+      - tags: 1
+        value: "_read"
+      - tags: 1
+        value: "_realloc"
+      - tags: 1
+        value: "_setrlimit"
+      - tags: 1
+        value: "_snprintf"
+      - tags: 1
+        value: "_srandom"
+      - tags: 1
+        value: "_strchr"
+      - tags: 1
+        value: "_strcspn"
+      - tags: 1
+        value: "_strlcpy"
+      - tags: 1
+        value: "_strlen"
+      - tags: 1
+        value: "_strspn"
+      - tags: 1
+        value: "_strstr"
+      - tags: 1
+        value: "_usleep"
+      - tags: 1
+        value: "dyld_stub_binder"
 dysymtab:
     ilocalsym: 0
     nlocalsym: 1

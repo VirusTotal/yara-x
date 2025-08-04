@@ -14,205 +14,404 @@ symtab:
     stroff: 39776
     strsize: 4860
     entries:
-      - "/var/localadmin/Projects/py2app/py2app/apptemplate/"
-      - "src/main.c"
-      - "/var/folders/Z2/Z2xQoIsaHR48rfZb07EkPU+++TI/-Tmp-//ccEbJqni.o"
-      - "_py2app_openConsole"
-      - "_ensureGUI"
-      - "_bind_objc_Cocoa_ApplicationServices"
-      - "_py2app_findPyLocation"
-      - "_py2app_setPythonPath"
-      - "_py2app_getApplicationName"
-      - "_report_error"
-      - "_report_script_error"
-      - "_report_linkEdit_error"
-      - "_py2app_main"
-      - "_main"
-      - "_ERR_NONAME"
-      - "_ERR_PYRUNTIMELOCATIONS"
-      - "_ERR_NOPYTHONRUNTIME"
-      - "_ERR_COLONPATH"
-      - "_ERR_NOPYTHONSCRIPT"
-      - "_ERR_PYTHONEXCEPTION"
-      - "_ERR_LINKERRFMT"
-      - "_ERR_CONSOLEAPPTITLE"
-      - "_ERR_TERMINATE"
-      - "_ERR_REALLYBADTITLE"
-      - "_ERR_TITLEFORMAT"
-      - "_ERR_CONSOLEAPP"
-      - "_ERR_DEFAULTURLTITLE"
-      - "_bound.59293"
-      - "_name.59460"
-      - "_prefix.59625"
-      - "_bound.59253"
-      - "_py2app_pool"
-      - "_py2app_LSOpenFSRef"
-      - "_py2app_LSFindApplicationForInfo"
-      - "_py2app_GetCurrentProcess"
-      - "_py2app_SetFrontProcess"
-      - "_py2app_CFArrayRemoveValueAtIndex"
-      - "_py2app_CFStringCreateFromExternalRepresentation"
-      - "_py2app_CFStringAppendCString"
-      - "_py2app_CFStringCreateMutable"
-      - "_py2app_kCFTypeArrayCallBacks"
-      - "_py2app_CFArrayCreateMutable"
-      - "_py2app_CFRetain"
-      - "_py2app_CFRelease"
-      - "_py2app_CFBundleGetMainBundle"
-      - "_py2app_CFBundleGetValueForInfoDictionaryKey"
-      - "_py2app_CFArrayGetCount"
-      - "_py2app_CFStringCreateWithCString"
-      - "_py2app_CFArrayGetValueAtIndex"
-      - "_py2app_CFArrayAppendValue"
-      - "_py2app_CFStringFind"
-      - "_py2app_CFBundleCopyPrivateFrameworksURL"
-      - "_py2app_CFURLCreateWithFileSystemPathRelativeToBase"
-      - "_py2app_CFStringCreateWithSubstring"
-      - "_py2app_CFStringGetLength"
-      - "_py2app_CFURLGetFileSystemRepresentation"
-      - "_py2app_CFURLCreateWithFileSystemPath"
-      - "_py2app_CFShow"
-      - "_py2app_CFBundleCopyResourcesDirectoryURL"
-      - "_py2app_CFURLCreateFromFileSystemRepresentation"
-      - "_py2app_CFURLCreateFromFileSystemRepresentationRelativeToBase"
-      - "_py2app_CFStringGetCharacterAtIndex"
-      - "_py2app_CFURLCreateWithString"
-      - "_py2app_CFStringGetCString"
-      - "_py2app_CFStringCreateByCombiningStrings"
-      - "_py2app_CFDictionaryGetValue"
-      - "_py2app_CFBooleanGetValue"
-      - "_py2app_CFNumberGetValue"
-      - "_py2app_CFStringCreateArrayBySeparatingStrings"
-      - "_py2app_CFArrayAppendArray"
-      - "_py2app_CFStringCreateWithFormat"
-      - "_py2app_CFBundleCopyResourceURL"
-      - "_py2app_CFBundleCopyAuxiliaryExecutableURL"
-      - "_py2app_CFURLCreateCopyDeletingLastPathComponent"
-      - "_py2app_CFURLCreateCopyAppendingPathComponent"
-      - "_py2app_CFURLCopyLastPathComponent"
-      - "_py2app_CFStringGetMaximumSizeForEncoding"
-      - "_py2app_objc_getClass"
-      - "_py2app_sel_getUid"
-      - "_py2app_objc_msgSend"
-      - "_py2app_NSLog"
-      - "_py2app_NSApplicationLoad"
-      - "_py2app_NSRunAlertPanel"
-      - "dyld_stub_binding_helper"
-      - "__dyld_func_lookup"
-      - "_py2app_openConsole"
-      - "_ensureGUI"
-      - "_bind_objc_Cocoa_ApplicationServices"
-      - "_py2app_findPyLocation"
-      - "_py2app_setPythonPath"
-      - "_py2app_getApplicationName"
-      - "_report_error"
-      - "_report_script_error"
-      - "_report_linkEdit_error"
-      - "_py2app_main"
-      - "dyld__mach_header"
-      - "_ERR_NONAME"
-      - "_ERR_PYRUNTIMELOCATIONS"
-      - "_ERR_NOPYTHONRUNTIME"
-      - "_ERR_COLONPATH"
-      - "_ERR_NOPYTHONSCRIPT"
-      - "_ERR_PYTHONEXCEPTION"
-      - "_ERR_LINKERRFMT"
-      - "_ERR_CONSOLEAPPTITLE"
-      - "_ERR_TERMINATE"
-      - "_ERR_REALLYBADTITLE"
-      - "_ERR_TITLEFORMAT"
-      - "_ERR_CONSOLEAPP"
-      - "_ERR_DEFAULTURLTITLE"
-      - "_bound.59293"
-      - "_name.59460"
-      - "_prefix.59625"
-      - "_bound.59253"
-      - "_py2app_pool"
-      - "_py2app_LSOpenFSRef"
-      - "_py2app_LSFindApplicationForInfo"
-      - "_py2app_GetCurrentProcess"
-      - "_py2app_SetFrontProcess"
-      - "_py2app_CFArrayRemoveValueAtIndex"
-      - "_py2app_CFStringCreateFromExternalRepresentation"
-      - "_py2app_CFStringAppendCString"
-      - "_py2app_CFStringCreateMutable"
-      - "_py2app_kCFTypeArrayCallBacks"
-      - "_py2app_CFArrayCreateMutable"
-      - "_py2app_CFRetain"
-      - "_py2app_CFRelease"
-      - "_py2app_CFBundleGetMainBundle"
-      - "_py2app_CFBundleGetValueForInfoDictionaryKey"
-      - "_py2app_CFArrayGetCount"
-      - "_py2app_CFStringCreateWithCString"
-      - "_py2app_CFArrayGetValueAtIndex"
-      - "_py2app_CFArrayAppendValue"
-      - "_py2app_CFStringFind"
-      - "_py2app_CFBundleCopyPrivateFrameworksURL"
-      - "_py2app_CFURLCreateWithFileSystemPathRelativeToBase"
-      - "_py2app_CFStringCreateWithSubstring"
-      - "_py2app_CFStringGetLength"
-      - "_py2app_CFURLGetFileSystemRepresentation"
-      - "_py2app_CFURLCreateWithFileSystemPath"
-      - "_py2app_CFShow"
-      - "_py2app_CFBundleCopyResourcesDirectoryURL"
-      - "_py2app_CFURLCreateFromFileSystemRepresentation"
-      - "_py2app_CFURLCreateFromFileSystemRepresentationRelativeToBase"
-      - "_py2app_CFStringGetCharacterAtIndex"
-      - "_py2app_CFURLCreateWithString"
-      - "_py2app_CFStringGetCString"
-      - "_py2app_CFStringCreateByCombiningStrings"
-      - "_py2app_CFDictionaryGetValue"
-      - "_py2app_CFBooleanGetValue"
-      - "_py2app_CFNumberGetValue"
-      - "_py2app_CFStringCreateArrayBySeparatingStrings"
-      - "_py2app_CFArrayAppendArray"
-      - "_py2app_CFStringCreateWithFormat"
-      - "_py2app_CFBundleCopyResourceURL"
-      - "_py2app_CFBundleCopyAuxiliaryExecutableURL"
-      - "_py2app_CFURLCreateCopyDeletingLastPathComponent"
-      - "_py2app_CFURLCreateCopyAppendingPathComponent"
-      - "_py2app_CFURLCopyLastPathComponent"
-      - "_py2app_CFStringGetMaximumSizeForEncoding"
-      - "_py2app_objc_getClass"
-      - "_py2app_sel_getUid"
-      - "_py2app_objc_msgSend"
-      - "_py2app_NSLog"
-      - "_py2app_NSApplicationLoad"
-      - "_py2app_NSRunAlertPanel"
-      - "_NXArgc"
-      - "_NXArgv"
-      - "___progname"
-      - "__mh_execute_header"
-      - "_environ"
-      - "_main"
-      - "start"
-      - "__NSGetExecutablePath"
-      - "___stderrp"
-      - "_dlerror"
-      - "_dlopen"
-      - "_dlsym"
-      - "_exit"
-      - "_fclose"
-      - "_fopen"
-      - "_fprintf"
-      - "_fputs$UNIX2003"
-      - "_free"
-      - "_fwrite$UNIX2003"
-      - "_getenv"
-      - "_getpid"
-      - "_getpwnam"
-      - "_lstat"
-      - "_mbstowcs"
-      - "_memcpy"
-      - "_memset"
-      - "_setenv$UNIX2003"
-      - "_setlocale"
-      - "_snprintf"
-      - "_stat"
-      - "_strchr"
-      - "_strdup"
-      - "_strlen"
-      - "_unsetenv$UNIX2003"
+      - tags: 100
+        value: "/var/localadmin/Projects/py2app/py2app/apptemplate/"
+      - tags: 100
+        value: "src/main.c"
+      - tags: 102
+        value: "/var/folders/Z2/Z2xQoIsaHR48rfZb07EkPU+++TI/-Tmp-//ccEbJqni.o"
+      - tags: 36
+        value: "_py2app_openConsole"
+      - tags: 36
+        value: "_ensureGUI"
+      - tags: 36
+        value: "_bind_objc_Cocoa_ApplicationServices"
+      - tags: 36
+        value: "_py2app_findPyLocation"
+      - tags: 36
+        value: "_py2app_setPythonPath"
+      - tags: 36
+        value: "_py2app_getApplicationName"
+      - tags: 36
+        value: "_report_error"
+      - tags: 36
+        value: "_report_script_error"
+      - tags: 36
+        value: "_report_linkEdit_error"
+      - tags: 36
+        value: "_py2app_main"
+      - tags: 36
+        value: "_main"
+      - tags: 38
+        value: "_ERR_NONAME"
+      - tags: 38
+        value: "_ERR_PYRUNTIMELOCATIONS"
+      - tags: 38
+        value: "_ERR_NOPYTHONRUNTIME"
+      - tags: 38
+        value: "_ERR_COLONPATH"
+      - tags: 38
+        value: "_ERR_NOPYTHONSCRIPT"
+      - tags: 38
+        value: "_ERR_PYTHONEXCEPTION"
+      - tags: 38
+        value: "_ERR_LINKERRFMT"
+      - tags: 38
+        value: "_ERR_CONSOLEAPPTITLE"
+      - tags: 38
+        value: "_ERR_TERMINATE"
+      - tags: 38
+        value: "_ERR_REALLYBADTITLE"
+      - tags: 38
+        value: "_ERR_TITLEFORMAT"
+      - tags: 38
+        value: "_ERR_CONSOLEAPP"
+      - tags: 38
+        value: "_ERR_DEFAULTURLTITLE"
+      - tags: 38
+        value: "_bound.59293"
+      - tags: 38
+        value: "_name.59460"
+      - tags: 38
+        value: "_prefix.59625"
+      - tags: 38
+        value: "_bound.59253"
+      - tags: 38
+        value: "_py2app_pool"
+      - tags: 38
+        value: "_py2app_LSOpenFSRef"
+      - tags: 38
+        value: "_py2app_LSFindApplicationForInfo"
+      - tags: 38
+        value: "_py2app_GetCurrentProcess"
+      - tags: 38
+        value: "_py2app_SetFrontProcess"
+      - tags: 38
+        value: "_py2app_CFArrayRemoveValueAtIndex"
+      - tags: 38
+        value: "_py2app_CFStringCreateFromExternalRepresentation"
+      - tags: 38
+        value: "_py2app_CFStringAppendCString"
+      - tags: 38
+        value: "_py2app_CFStringCreateMutable"
+      - tags: 38
+        value: "_py2app_kCFTypeArrayCallBacks"
+      - tags: 38
+        value: "_py2app_CFArrayCreateMutable"
+      - tags: 38
+        value: "_py2app_CFRetain"
+      - tags: 38
+        value: "_py2app_CFRelease"
+      - tags: 38
+        value: "_py2app_CFBundleGetMainBundle"
+      - tags: 38
+        value: "_py2app_CFBundleGetValueForInfoDictionaryKey"
+      - tags: 38
+        value: "_py2app_CFArrayGetCount"
+      - tags: 38
+        value: "_py2app_CFStringCreateWithCString"
+      - tags: 38
+        value: "_py2app_CFArrayGetValueAtIndex"
+      - tags: 38
+        value: "_py2app_CFArrayAppendValue"
+      - tags: 38
+        value: "_py2app_CFStringFind"
+      - tags: 38
+        value: "_py2app_CFBundleCopyPrivateFrameworksURL"
+      - tags: 38
+        value: "_py2app_CFURLCreateWithFileSystemPathRelativeToBase"
+      - tags: 38
+        value: "_py2app_CFStringCreateWithSubstring"
+      - tags: 38
+        value: "_py2app_CFStringGetLength"
+      - tags: 38
+        value: "_py2app_CFURLGetFileSystemRepresentation"
+      - tags: 38
+        value: "_py2app_CFURLCreateWithFileSystemPath"
+      - tags: 38
+        value: "_py2app_CFShow"
+      - tags: 38
+        value: "_py2app_CFBundleCopyResourcesDirectoryURL"
+      - tags: 38
+        value: "_py2app_CFURLCreateFromFileSystemRepresentation"
+      - tags: 38
+        value: "_py2app_CFURLCreateFromFileSystemRepresentationRelativeToBase"
+      - tags: 38
+        value: "_py2app_CFStringGetCharacterAtIndex"
+      - tags: 38
+        value: "_py2app_CFURLCreateWithString"
+      - tags: 38
+        value: "_py2app_CFStringGetCString"
+      - tags: 38
+        value: "_py2app_CFStringCreateByCombiningStrings"
+      - tags: 38
+        value: "_py2app_CFDictionaryGetValue"
+      - tags: 38
+        value: "_py2app_CFBooleanGetValue"
+      - tags: 38
+        value: "_py2app_CFNumberGetValue"
+      - tags: 38
+        value: "_py2app_CFStringCreateArrayBySeparatingStrings"
+      - tags: 38
+        value: "_py2app_CFArrayAppendArray"
+      - tags: 38
+        value: "_py2app_CFStringCreateWithFormat"
+      - tags: 38
+        value: "_py2app_CFBundleCopyResourceURL"
+      - tags: 38
+        value: "_py2app_CFBundleCopyAuxiliaryExecutableURL"
+      - tags: 38
+        value: "_py2app_CFURLCreateCopyDeletingLastPathComponent"
+      - tags: 38
+        value: "_py2app_CFURLCreateCopyAppendingPathComponent"
+      - tags: 38
+        value: "_py2app_CFURLCopyLastPathComponent"
+      - tags: 38
+        value: "_py2app_CFStringGetMaximumSizeForEncoding"
+      - tags: 38
+        value: "_py2app_objc_getClass"
+      - tags: 38
+        value: "_py2app_sel_getUid"
+      - tags: 38
+        value: "_py2app_objc_msgSend"
+      - tags: 38
+        value: "_py2app_NSLog"
+      - tags: 38
+        value: "_py2app_NSApplicationLoad"
+      - tags: 38
+        value: "_py2app_NSRunAlertPanel"
+      - tags: 30
+        value: "dyld_stub_binding_helper"
+      - tags: 30
+        value: "__dyld_func_lookup"
+      - tags: 14
+        value: "_py2app_openConsole"
+      - tags: 14
+        value: "_ensureGUI"
+      - tags: 14
+        value: "_bind_objc_Cocoa_ApplicationServices"
+      - tags: 14
+        value: "_py2app_findPyLocation"
+      - tags: 14
+        value: "_py2app_setPythonPath"
+      - tags: 14
+        value: "_py2app_getApplicationName"
+      - tags: 14
+        value: "_report_error"
+      - tags: 14
+        value: "_report_script_error"
+      - tags: 14
+        value: "_report_linkEdit_error"
+      - tags: 14
+        value: "_py2app_main"
+      - tags: 14
+        value: "dyld__mach_header"
+      - tags: 14
+        value: "_ERR_NONAME"
+      - tags: 14
+        value: "_ERR_PYRUNTIMELOCATIONS"
+      - tags: 14
+        value: "_ERR_NOPYTHONRUNTIME"
+      - tags: 14
+        value: "_ERR_COLONPATH"
+      - tags: 14
+        value: "_ERR_NOPYTHONSCRIPT"
+      - tags: 14
+        value: "_ERR_PYTHONEXCEPTION"
+      - tags: 14
+        value: "_ERR_LINKERRFMT"
+      - tags: 14
+        value: "_ERR_CONSOLEAPPTITLE"
+      - tags: 14
+        value: "_ERR_TERMINATE"
+      - tags: 14
+        value: "_ERR_REALLYBADTITLE"
+      - tags: 14
+        value: "_ERR_TITLEFORMAT"
+      - tags: 14
+        value: "_ERR_CONSOLEAPP"
+      - tags: 14
+        value: "_ERR_DEFAULTURLTITLE"
+      - tags: 14
+        value: "_bound.59293"
+      - tags: 14
+        value: "_name.59460"
+      - tags: 14
+        value: "_prefix.59625"
+      - tags: 14
+        value: "_bound.59253"
+      - tags: 14
+        value: "_py2app_pool"
+      - tags: 14
+        value: "_py2app_LSOpenFSRef"
+      - tags: 14
+        value: "_py2app_LSFindApplicationForInfo"
+      - tags: 14
+        value: "_py2app_GetCurrentProcess"
+      - tags: 14
+        value: "_py2app_SetFrontProcess"
+      - tags: 14
+        value: "_py2app_CFArrayRemoveValueAtIndex"
+      - tags: 14
+        value: "_py2app_CFStringCreateFromExternalRepresentation"
+      - tags: 14
+        value: "_py2app_CFStringAppendCString"
+      - tags: 14
+        value: "_py2app_CFStringCreateMutable"
+      - tags: 14
+        value: "_py2app_kCFTypeArrayCallBacks"
+      - tags: 14
+        value: "_py2app_CFArrayCreateMutable"
+      - tags: 14
+        value: "_py2app_CFRetain"
+      - tags: 14
+        value: "_py2app_CFRelease"
+      - tags: 14
+        value: "_py2app_CFBundleGetMainBundle"
+      - tags: 14
+        value: "_py2app_CFBundleGetValueForInfoDictionaryKey"
+      - tags: 14
+        value: "_py2app_CFArrayGetCount"
+      - tags: 14
+        value: "_py2app_CFStringCreateWithCString"
+      - tags: 14
+        value: "_py2app_CFArrayGetValueAtIndex"
+      - tags: 14
+        value: "_py2app_CFArrayAppendValue"
+      - tags: 14
+        value: "_py2app_CFStringFind"
+      - tags: 14
+        value: "_py2app_CFBundleCopyPrivateFrameworksURL"
+      - tags: 14
+        value: "_py2app_CFURLCreateWithFileSystemPathRelativeToBase"
+      - tags: 14
+        value: "_py2app_CFStringCreateWithSubstring"
+      - tags: 14
+        value: "_py2app_CFStringGetLength"
+      - tags: 14
+        value: "_py2app_CFURLGetFileSystemRepresentation"
+      - tags: 14
+        value: "_py2app_CFURLCreateWithFileSystemPath"
+      - tags: 14
+        value: "_py2app_CFShow"
+      - tags: 14
+        value: "_py2app_CFBundleCopyResourcesDirectoryURL"
+      - tags: 14
+        value: "_py2app_CFURLCreateFromFileSystemRepresentation"
+      - tags: 14
+        value: "_py2app_CFURLCreateFromFileSystemRepresentationRelativeToBase"
+      - tags: 14
+        value: "_py2app_CFStringGetCharacterAtIndex"
+      - tags: 14
+        value: "_py2app_CFURLCreateWithString"
+      - tags: 14
+        value: "_py2app_CFStringGetCString"
+      - tags: 14
+        value: "_py2app_CFStringCreateByCombiningStrings"
+      - tags: 14
+        value: "_py2app_CFDictionaryGetValue"
+      - tags: 14
+        value: "_py2app_CFBooleanGetValue"
+      - tags: 14
+        value: "_py2app_CFNumberGetValue"
+      - tags: 14
+        value: "_py2app_CFStringCreateArrayBySeparatingStrings"
+      - tags: 14
+        value: "_py2app_CFArrayAppendArray"
+      - tags: 14
+        value: "_py2app_CFStringCreateWithFormat"
+      - tags: 14
+        value: "_py2app_CFBundleCopyResourceURL"
+      - tags: 14
+        value: "_py2app_CFBundleCopyAuxiliaryExecutableURL"
+      - tags: 14
+        value: "_py2app_CFURLCreateCopyDeletingLastPathComponent"
+      - tags: 14
+        value: "_py2app_CFURLCreateCopyAppendingPathComponent"
+      - tags: 14
+        value: "_py2app_CFURLCopyLastPathComponent"
+      - tags: 14
+        value: "_py2app_CFStringGetMaximumSizeForEncoding"
+      - tags: 14
+        value: "_py2app_objc_getClass"
+      - tags: 14
+        value: "_py2app_sel_getUid"
+      - tags: 14
+        value: "_py2app_objc_msgSend"
+      - tags: 14
+        value: "_py2app_NSLog"
+      - tags: 14
+        value: "_py2app_NSApplicationLoad"
+      - tags: 14
+        value: "_py2app_NSRunAlertPanel"
+      - tags: 15
+        value: "_NXArgc"
+      - tags: 15
+        value: "_NXArgv"
+      - tags: 15
+        value: "___progname"
+      - tags: 3
+        value: "__mh_execute_header"
+      - tags: 15
+        value: "_environ"
+      - tags: 15
+        value: "_main"
+      - tags: 15
+        value: "start"
+      - tags: 1
+        value: "__NSGetExecutablePath"
+      - tags: 1
+        value: "___stderrp"
+      - tags: 1
+        value: "_dlerror"
+      - tags: 1
+        value: "_dlopen"
+      - tags: 1
+        value: "_dlsym"
+      - tags: 1
+        value: "_exit"
+      - tags: 1
+        value: "_fclose"
+      - tags: 1
+        value: "_fopen"
+      - tags: 1
+        value: "_fprintf"
+      - tags: 1
+        value: "_fputs$UNIX2003"
+      - tags: 1
+        value: "_free"
+      - tags: 1
+        value: "_fwrite$UNIX2003"
+      - tags: 1
+        value: "_getenv"
+      - tags: 1
+        value: "_getpid"
+      - tags: 1
+        value: "_getpwnam"
+      - tags: 1
+        value: "_lstat"
+      - tags: 1
+        value: "_mbstowcs"
+      - tags: 1
+        value: "_memcpy"
+      - tags: 1
+        value: "_memset"
+      - tags: 1
+        value: "_setenv$UNIX2003"
+      - tags: 1
+        value: "_setlocale"
+      - tags: 1
+        value: "_snprintf"
+      - tags: 1
+        value: "_stat"
+      - tags: 1
+        value: "_strchr"
+      - tags: 1
+        value: "_strdup"
+      - tags: 1
+        value: "_strlen"
+      - tags: 1
+        value: "_unsetenv$UNIX2003"
 dysymtab:
     ilocalsym: 0
     nlocalsym: 199

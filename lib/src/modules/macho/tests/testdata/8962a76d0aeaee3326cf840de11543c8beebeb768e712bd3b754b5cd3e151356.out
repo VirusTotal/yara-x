@@ -13,10 +13,14 @@ symtab:
     stroff: 16432
     strsize: 40
     entries:
-      - "_.str"
-      - "__start"
-      - "_comment"
-      - "_shellcode"
+      - tags: 14
+        value: "_.str"
+      - tags: 15
+        value: "__start"
+      - tags: 15
+        value: "_comment"
+      - tags: 15
+        value: "_shellcode"
 segments:
   - segname: "__PAGEZERO"
     vmaddr: 0x0

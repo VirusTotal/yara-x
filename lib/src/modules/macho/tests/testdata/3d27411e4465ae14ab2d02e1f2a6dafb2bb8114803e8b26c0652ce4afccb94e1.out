@@ -14,60 +14,114 @@ symtab:
     stroff: 13344
     strsize: 760
     entries:
-      - "radr://5614542"
-      - "_NXArgc"
-      - "_NXArgv"
-      - "___progname"
-      - "__mh_execute_header"
-      - "_environ"
-      - "start"
-      - "_CFBundleCopyExecutableURL"
-      - "_CFBundleGetIdentifier"
-      - "_CFBundleGetInfoDictionary"
-      - "_CFBundleGetMainBundle"
-      - "_CFDictionarySetValue"
-      - "_CFRelease"
-      - "_CFRetain"
-      - "_CFURLGetFileSystemRepresentation"
-      - "_GetCurrentProcess"
-      - "_NSAddImage"
-      - "_NSAddressOfSymbol"
-      - "_NSIsSymbolNameDefined"
-      - "_NSLinkEditError"
-      - "_NSLookupAndBindSymbol"
-      - "_NSLookupSymbolInImage"
-      - "___CFConstantStringClassReference"
-      - "___stderrp"
-      - "_close$UNIX2003"
-      - "_exit"
-      - "_fclose"
-      - "_fcntl$UNIX2003"
-      - "_fgets"
-      - "_fopen"
-      - "_fprintf"
-      - "_free"
-      - "_fstat"
-      - "_getenv"
-      - "_getrusage"
-      - "_gettimeofday"
-      - "_memset"
-      - "_mmap$UNIX2003"
-      - "_munmap$UNIX2003"
-      - "_open$UNIX2003"
-      - "_putenv$UNIX2003"
-      - "_realpath$DARWIN_EXTSN"
-      - "_snprintf"
-      - "_sprintf"
-      - "_strcasecmp"
-      - "_strchr"
-      - "_strcmp"
-      - "_strdup"
-      - "_strlen"
-      - "_strpbrk"
-      - "_strrchr"
-      - "_strtol"
-      - "_sysctl"
-      - "_vfprintf"
+      - tags: 60
+        value: "radr://5614542"
+      - tags: 15
+        value: "_NXArgc"
+      - tags: 15
+        value: "_NXArgv"
+      - tags: 15
+        value: "___progname"
+      - tags: 3
+        value: "__mh_execute_header"
+      - tags: 15
+        value: "_environ"
+      - tags: 15
+        value: "start"
+      - tags: 1
+        value: "_CFBundleCopyExecutableURL"
+      - tags: 1
+        value: "_CFBundleGetIdentifier"
+      - tags: 1
+        value: "_CFBundleGetInfoDictionary"
+      - tags: 1
+        value: "_CFBundleGetMainBundle"
+      - tags: 1
+        value: "_CFDictionarySetValue"
+      - tags: 1
+        value: "_CFRelease"
+      - tags: 1
+        value: "_CFRetain"
+      - tags: 1
+        value: "_CFURLGetFileSystemRepresentation"
+      - tags: 1
+        value: "_GetCurrentProcess"
+      - tags: 1
+        value: "_NSAddImage"
+      - tags: 1
+        value: "_NSAddressOfSymbol"
+      - tags: 1
+        value: "_NSIsSymbolNameDefined"
+      - tags: 1
+        value: "_NSLinkEditError"
+      - tags: 1
+        value: "_NSLookupAndBindSymbol"
+      - tags: 1
+        value: "_NSLookupSymbolInImage"
+      - tags: 1
+        value: "___CFConstantStringClassReference"
+      - tags: 1
+        value: "___stderrp"
+      - tags: 1
+        value: "_close$UNIX2003"
+      - tags: 1
+        value: "_exit"
+      - tags: 1
+        value: "_fclose"
+      - tags: 1
+        value: "_fcntl$UNIX2003"
+      - tags: 1
+        value: "_fgets"
+      - tags: 1
+        value: "_fopen"
+      - tags: 1
+        value: "_fprintf"
+      - tags: 1
+        value: "_free"
+      - tags: 1
+        value: "_fstat"
+      - tags: 1
+        value: "_getenv"
+      - tags: 1
+        value: "_getrusage"
+      - tags: 1
+        value: "_gettimeofday"
+      - tags: 1
+        value: "_memset"
+      - tags: 1
+        value: "_mmap$UNIX2003"
+      - tags: 1
+        value: "_munmap$UNIX2003"
+      - tags: 1
+        value: "_open$UNIX2003"
+      - tags: 1
+        value: "_putenv$UNIX2003"
+      - tags: 1
+        value: "_realpath$DARWIN_EXTSN"
+      - tags: 1
+        value: "_snprintf"
+      - tags: 1
+        value: "_sprintf"
+      - tags: 1
+        value: "_strcasecmp"
+      - tags: 1
+        value: "_strchr"
+      - tags: 1
+        value: "_strcmp"
+      - tags: 1
+        value: "_strdup"
+      - tags: 1
+        value: "_strlen"
+      - tags: 1
+        value: "_strpbrk"
+      - tags: 1
+        value: "_strrchr"
+      - tags: 1
+        value: "_strtol"
+      - tags: 1
+        value: "_sysctl"
+      - tags: 1
+        value: "_vfprintf"
 dysymtab:
     ilocalsym: 0
     nlocalsym: 1

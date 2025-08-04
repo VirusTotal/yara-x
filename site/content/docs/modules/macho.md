@@ -267,7 +267,7 @@ rule import_hash_example {
 }
 ```
 
-### sym_hash()
+### symhash()
 
 Returns an MD5 hash of the symbol table entries designated in the Mach-O binary.
 
@@ -282,9 +282,9 @@ The returned hash string is always in lowercase.
 ```yara
 import "macho"
 
-rule sym_hash_example {
+rule symhash_example {
   condition:
-    macho.sym_hash() == "a9ccc7c7b8bd33a99dc7ede4e8d771b4"
+    macho.symhash() == "a9ccc7c7b8bd33a99dc7ede4e8d771b4"
 }
 ```
 
