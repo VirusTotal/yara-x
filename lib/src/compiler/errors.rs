@@ -895,23 +895,22 @@ pub struct IncludeNotAllowed {
     include_loc: CodeLoc,
 }
 
-/// A regular expression has a prefix that can be arbitrarily long and matches
-/// any sequence of bytes.
-/// 
+/// Indicates that a regular expression has a prefix that can be arbitrarily
+/// long and matches any sequence of bytes.
+///
 /// # Example
-/// 
-/// error[E045]: arbitrary regular expression prefix
-///  --> line:3:11
-///   |
-/// 3 |     $a = /.*foo/s
-///   |           ^^ this prefix can be arbitrarily long and matches all bytes
-///   |
-/// 
-/// Regular expressions with these kinds of prefixes don't many too much sense,
-/// as YARA will report a match at every file offset from the beginning of the
-/// file to the offset where the rest of the regular expression matched. In 
-/// most cases the prefix can be stripped down without changing the rule 
-/// semantics.
+///
+/// error[E045]: arbitrary regular expression prefix  
+///  --> line:3:11  
+///   |  
+/// 3 |     $a = /.*foo/s  
+///   |           ^^ this prefix can be arbitrarily long and matches all bytes  
+///   |  
+///
+/// Regular expressions with such prefixes are problematic because YARA will
+/// report a match at every file offset from the start of the file up to where
+/// the rest of the pattern matches. In most cases, this prefix can be removed
+/// without affecting the rule's semantics.
 #[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
 #[error(code = "E045", title = "arbitrary regular expression prefix")]
