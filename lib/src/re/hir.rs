@@ -1,8 +1,8 @@
-use bstr::ByteSlice;
 use std::hash::{Hash, Hasher};
 use std::mem;
 use std::ops::{RangeFrom, RangeInclusive};
 
+use bstr::ByteSlice;
 use regex_syntax::hir::Class;
 use regex_syntax::hir::ClassBytes;
 use regex_syntax::hir::ClassBytesRange;
@@ -12,6 +12,7 @@ use regex_syntax::hir::Dot;
 use regex_syntax::hir::HirKind;
 use regex_syntax::hir::Repetition;
 use serde::{Deserialize, Serialize};
+
 use yara_x_parser::ast;
 
 use crate::utils::cast;

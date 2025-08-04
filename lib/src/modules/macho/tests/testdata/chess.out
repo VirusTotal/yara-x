@@ -1150,5 +1150,3 @@ imports:
   - "_strspn"
   - "_strstr"
   - "_usleep"
-  - "__ZdlPv"
-  - "__Znwm"

@@ -14,11 +14,12 @@ use yara_x_parser::Span;
 
 use crate::compiler::context::VarStack;
 use crate::compiler::errors::{
-    AssignmentMismatch, DuplicateModifier, DuplicatePattern, EmptyPatternSet,
-    EntrypointUnsupported, InvalidBase64Alphabet, InvalidModifier,
-    InvalidModifierCombination, InvalidPattern, InvalidRange, InvalidRegexp,
-    MismatchingTypes, MixedGreediness, NumberOutOfRange, SyntaxError,
-    TooManyPatterns, UnexpectedNegativeNumber, WrongArguments, WrongType,
+    ArbitraryRegexpPrefix, AssignmentMismatch, DuplicateModifier,
+    DuplicatePattern, EmptyPatternSet, EntrypointUnsupported,
+    InvalidBase64Alphabet, InvalidModifier, InvalidModifierCombination,
+    InvalidPattern, InvalidRange, InvalidRegexp, MismatchingTypes,
+    MixedGreediness, NumberOutOfRange, SyntaxError, TooManyPatterns,
+    UnexpectedNegativeNumber, WrongArguments, WrongType,
 };
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
@@ -1846,7 +1847,7 @@ fn re_error_to_compile_error(
     err: re::parser::Error,
 ) -> CompileError {
     match err {
-        re::parser::Error::SyntaxError { msg, span, note } => {
+        re::parser::Error::WrongSyntax { msg, span, note } => {
             InvalidRegexp::build(
                 report_builder,
                 msg,
@@ -1866,6 +1867,17 @@ fn re_error_to_compile_error(
                         .offset(1),
                 ),
                 note,
+            )
+        }
+        re::parser::Error::ArbitraryPrefix { span } => {
+            ArbitraryRegexpPrefix::build(
+                report_builder,
+                report_builder.span_to_code_loc(
+                    regexp
+                        .span()
+                        .subspan(span.start.offset, span.end.offset)
+                        .offset(1),
+                ),
             )
         }
         re::parser::Error::MixedGreediness {

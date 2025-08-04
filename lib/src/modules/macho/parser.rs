@@ -55,7 +55,7 @@ const N_TYPE: u8 = 0x0e; /* mask for the type bits */
 const N_EXT: u8 = 0x01; /* external symbol bit, set for external symbols */
 
 /// Mach-o value flags for N_TYPE bits of the n_type field.
-const _N_UNDF: u8 = 0x0; /* undefined, n_sect == NO_SECT */
+const N_UNDF: u8 = 0x0; /* undefined, n_sect == NO_SECT */
 const N_ABS: u8 = 0x2; /* absolute, n_sect == NO_SECT */
 const N_SECT: u8 = 0xe; /* defined in section number n_sect */
 const _N_PBUD: u8 = 0xc; /* prebound undefined (defined in a dylib) */
@@ -424,6 +424,10 @@ impl<'a> MachO<'a> {
             }
         }
 
+        // imports defined at `weak_offset` can be duplicative, meaning
+        // they can exist in `bind_offset` _and_ `weak_offset` or one of them.
+        // To avoid duplicates in the imports list, keep track of seen imports
+        let mut seen: HashSet<_> = HashSet::new();
         for (offset, size) in macho
             .dyld_info
             .as_ref()
@@ -440,7 +444,8 @@ impl<'a> MachO<'a> {
             if let Some(import_data) =
                 data.get(offset..offset.saturating_add(size))
             {
-                if let Err(_err) = macho.parse_imports(import_data) {
+                if let Err(_err) = macho.parse_imports(import_data, &mut seen)
+                {
                     #[cfg(feature = "logging")]
                     error!("Error parsing Mach-O file: {:?}", _err);
                     // fail silently if it fails, data was not formatted
@@ -1250,7 +1255,11 @@ impl<'a> MachOFile<'a> {
     }
 
     /// Parser that parses the imports at the offsets defined within LC_DYLD_INFO and LC_DYLD_INFO_ONLY
-    fn parse_imports(&mut self, data: &'a [u8]) -> IResult<&'a [u8], ()> {
+    fn parse_imports(
+        &mut self,
+        data: &'a [u8],
+        seen: &mut HashSet<&'a str>,
+    ) -> IResult<&'a [u8], ()> {
         let mut remainder: &[u8] = data;
         let mut entry: u8;
 
@@ -1281,7 +1290,10 @@ impl<'a> MachOFile<'a> {
                     .parse(remainder)?;
                     remainder = import_remainder;
                     if let Ok(import) = strr.to_str() {
-                        self.imports.push(import.to_string());
+                        if !seen.contains(import) {
+                            self.imports.push(import.to_string());
+                            seen.insert(import);
+                        }
                     }
                 }
                 _ => {}
@@ -2062,18 +2074,40 @@ impl From<MachO<'_>> for protos::macho::Macho {
             result.exports.extend(m.exports.clone());
             result.imports.extend(m.imports.clone());
 
-            // if the exports are empty, iterate the symbol table entries to check
+            // If the exports are empty, iterate the symbol table entries to
+            // check like dyld_info does:
+            // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L560-L617
             if m.dyld_export_trie.is_none() && m.dyld_info.is_none() {
                 if let Some(symtab) = &m.symtab {
                     result.exports.extend(symtab.entries.iter().filter_map(
                         |e| {
                             let t = e.tags & N_TYPE;
+
                             if (e.tags & N_EXT != 0)
                                 && ((t == N_SECT)
                                     || (t == N_ABS)
                                     || (t == N_INDR))
                                 && ((e.tags & N_STAB) == 0)
                             {
+                                Some(BStr::new(e.value).to_string())
+                            } else {
+                                None
+                            }
+                        },
+                    ))
+                }
+            }
+
+            // If the imports are empty, iterate the symbol table entries to
+            // check for undefined symbols like dyld_info does:
+            // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L372-L398
+            if m.dyld_chain_fixups.is_none() && m.dyld_info.is_none() {
+                if let Some(symtab) = &m.symtab {
+                    result.imports.extend(symtab.entries.iter().filter_map(
+                        |e| {
+                            let t = e.tags & N_TYPE;
+
+                            if (t == N_UNDF) && (e.tags & N_STAB == 0) {
                                 Some(BStr::new(e.value).to_string())
                             } else {
                                 None
@@ -2169,12 +2203,13 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         result.imports.extend(macho.imports.clone());
 
         // If the exports are empty, iterate the symbol table entries to check
-        // like dyld_info does see:
+        // like dyld_info does:
         // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L560-L617
         if macho.dyld_export_trie.is_none() && macho.dyld_info.is_none() {
             if let Some(symtab) = &macho.symtab {
                 result.exports.extend(symtab.entries.iter().filter_map(|e| {
                     let t = e.tags & N_TYPE;
+
                     if (e.tags & N_EXT != 0)
                         && ((t == N_SECT) || (t == N_ABS) || (t == N_INDR))
                         && ((e.tags & N_STAB) == 0)
@@ -2187,6 +2222,22 @@ impl From<&MachOFile<'_>> for protos::macho::File {
             }
         }
 
+        // If the imports are empty, iterate the symbol table entries to
+        // check for undefined symbols like dyld_info does:
+        // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L372-L398
+        if macho.dyld_chain_fixups.is_none() && macho.dyld_info.is_none() {
+            if let Some(symtab) = &macho.symtab {
+                result.imports.extend(symtab.entries.iter().filter_map(|e| {
+                    let t = e.tags & N_TYPE;
+
+                    if (t == N_UNDF) && (e.tags & N_STAB == 0) {
+                        Some(BStr::new(e.value).to_string())
+                    } else {
+                        None
+                    }
+                }))
+            }
+        }
         result
             .certificates
             .extend(macho.certificates.iter().map(|cert| cert.into()));

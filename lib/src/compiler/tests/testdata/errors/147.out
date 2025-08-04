@@ -1,0 +1,6 @@
+error[E045]: arbitrary regular expression prefix
+ --> line:3:11
+  |
+3 |     $a = /..{10,}foo/s
+  |           ^^^^^^^ this prefix can be arbitrarily long and matches all bytes
+  |
