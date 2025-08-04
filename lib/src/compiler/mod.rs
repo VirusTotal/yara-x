@@ -128,6 +128,13 @@ impl<'src> SourceCode<'src> {
         }
     }
 
+    /// Returns the absolute path of the origin if exists, or None otherwise.
+    pub fn absolute_origin(&self) -> Option<std::path::PathBuf> {
+        self.origin
+            .as_deref()
+            .and_then(|path| std::fs::canonicalize(Path::new(path)).ok())
+    }
+
     /// Returns the source code as a `&str`.
     ///
     /// If the source code is not valid UTF-8 it will return an error.
@@ -401,6 +408,15 @@ pub struct Compiler<'a> {
     /// Linters applied to each rule during compilation. The linters are added
     /// to the compiler using [`Compiler::add_linter`]:
     linters: Vec<Box<dyn linters::Linter + 'a>>,
+
+    /// Origins of all the source codes added to the compiler.
+    /// This include any source code dirrectly added via calling `add_source`,
+    /// and also any indirectly added source code, e.g. from include statement
+    /// handling.
+    included_origins: FxHashSet<std::path::PathBuf>,
+    /// The current stack of source code origins being processed. This is used
+    /// keep track of include statements and detect potential circular includes.
+    included_origins_processing_stack: Vec<std::path::PathBuf>,
 }
 
 impl<'a> Compiler<'a> {
@@ -522,6 +538,8 @@ impl<'a> Compiler<'a> {
             linters: Vec::new(),
             include_dirs: None,
             includes_enabled: true,
+            included_origins: FxHashSet::default(),
+            included_origins_processing_stack: Vec::new(),
         }
     }
 
@@ -550,6 +568,10 @@ impl<'a> Compiler<'a> {
         // Convert `src` into an instance of `SourceCode` if it is something
         // else, like a &str.
         let mut src = src.into();
+
+        if let Some(ref origin) = src.absolute_origin() {
+            self.included_origins_processing_stack.push(origin.clone().into());
+        }
 
         // Register source code, even before validating that it is UTF-8. In
         // case of UTF-8 encoding errors we want to report that error too,
@@ -599,7 +621,11 @@ impl<'a> Compiler<'a> {
         // know if more errors were added.
         let existing_errors = self.errors.len();
 
-        self.c_items(ast.items());
+        self.c_items(ast.items(), &src);
+
+        if src.origin.is_some() {
+            self.included_origins_processing_stack.pop();
+        }
 
         self.warnings.clear_suppressed();
 
@@ -1201,10 +1227,43 @@ impl Compiler<'_> {
         true
     }
 
+    /// Returns the content of an included file and its filesystem path.
     fn read_included_file(
         &mut self,
         include: &Include,
-    ) -> Result<Vec<u8>, CompileError> {
+        src: &SourceCode,
+    ) -> Result<(Vec<u8>, PathBuf), CompileError> {
+        let try_read_file = |file_path: PathBuf| -> Option<
+            Result<(Vec<u8>, PathBuf), CompileError>,
+        > {
+            if file_path.exists() {
+                Some(
+                    fs::read(&file_path)
+                        .map(|contents| (contents, file_path))
+                        .map_err(|err| {
+                            IncludeError::build(
+                                &self.report_builder,
+                                self.report_builder
+                                    .span_to_code_loc(include.span()),
+                                err.to_string(),
+                            )
+                        }),
+                )
+            } else {
+                None
+            }
+        };
+
+        // First, if available, try the directory of the origin file.
+        if let Some(parent) =
+            src.absolute_origin().as_ref().and_then(|path| path.parent())
+        {
+            let file_path = parent.join(include.file_name);
+            if let Some(result) = try_read_file(file_path) {
+                return result;
+            }
+        }
+
         // If no include directories are specified, use the current directory.
         let current_dir = vec![PathBuf::from(".")];
         let include_dirs = self.include_dirs.as_ref().unwrap_or(&current_dir);
@@ -1212,14 +1271,8 @@ impl Compiler<'_> {
         // Try to read the file from each directory.
         for dir in include_dirs {
             let file_path = dir.join(include.file_name);
-            if file_path.exists() {
-                return fs::read(file_path).map_err(|err| {
-                    IncludeError::build(
-                        &self.report_builder,
-                        self.report_builder.span_to_code_loc(include.span()),
-                        err.to_string(),
-                    )
-                });
+            if let Some(result) = try_read_file(file_path) {
+                return result;
             }
         }
 
@@ -1233,7 +1286,7 @@ impl Compiler<'_> {
 }
 
 impl Compiler<'_> {
-    fn c_items<'a, I>(&mut self, items: I)
+    fn c_items<'a, I>(&mut self, items: I, src: &SourceCode)
     where
         I: Iterator<Item = &'a ast::Item<'a>>,
     {
@@ -1276,10 +1329,55 @@ impl Compiler<'_> {
                         continue;
                     }
 
-                    let included = match self.read_included_file(include) {
-                        Ok(included) => included,
-                        Err(err) => {
-                            self.errors.push(err);
+                    let (included, include_path) =
+                        match self.read_included_file(include, &src) {
+                            Ok(included) => included,
+                            Err(err) => {
+                                self.errors.push(err);
+                                continue;
+                            }
+                        };
+
+                    // If the read include file is already in the current include
+                    // processing stack, we detected a circular include.
+                    if self
+                        .included_origins_processing_stack
+                        .contains(&include_path)
+                    {
+                        self.errors.push(IncludeError::build(
+                            &self.report_builder,
+                            self.report_builder
+                                .span_to_code_loc(include.span()),
+                            format!(
+                                "File was already included.\nFull include stack:\n{}",
+                                self.included_origins_processing_stack
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(i, path)| format!("{:>width$}↳ {}", "", path.display(), width = i * 2))
+                                    .collect::<Vec<_>>()
+                                    .join("\n")
+                            ),
+                        ));
+                        continue;
+                    }
+
+                    // If the read include files was already processed, but not
+                    // in the current include processing stack, skip it.
+                    if self.included_origins.contains(&include_path) {
+                        continue;
+                    }
+
+                    let include_path_str = match include_path.to_str() {
+                        Some(path_str) => path_str,
+                        None => {
+                            self.errors.push(IncludeError::build(
+                                &self.report_builder,
+                                self.report_builder
+                                    .span_to_code_loc(include.span()),
+                                String::from(
+                                    "Cannot convert include path to UTF-8",
+                                ),
+                            ));
                             continue;
                         }
                     };
@@ -1297,8 +1395,10 @@ impl Compiler<'_> {
                     // we don't need to handle the error here.
                     let _ = self.add_source(
                         SourceCode::from(included.as_slice())
-                            .with_origin(include.file_name),
+                            .with_origin(include_path_str),
                     );
+
+                    self.included_origins.insert(include_path.clone());
 
                     // Restore the current source ID to the value it had before
                     // calling `add_source`.
