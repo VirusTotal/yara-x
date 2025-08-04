@@ -2,9 +2,13 @@ use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::fmt::{Debug, Display, Formatter};
 use std::mem::replace;
+use std::ops::Deref;
 
 use regex_syntax as re;
-use regex_syntax::ast::{AssertionKind, Ast, ErrorKind, Literal, LiteralKind};
+use regex_syntax::ast::{
+    AssertionKind, Ast, ErrorKind, Literal, LiteralKind, RepetitionKind,
+    RepetitionRange,
+};
 use thiserror::Error;
 
 use yara_x_parser::ast;
@@ -25,6 +29,9 @@ pub(crate) enum Error {
         span_1: re::ast::Span,
         span_2: re::ast::Span,
     },
+    ArbitraryPrefix {
+        span: re::ast::Span,
+    },
 }
 
 impl Display for Error {
@@ -32,6 +39,9 @@ impl Display for Error {
         match self {
             Error::SyntaxError { msg, .. } => write!(f, "{msg}"),
             Error::MixedGreediness { .. } => write!(f, "mixed greediness"),
+            Error::ArbitraryPrefix { .. } => {
+                write!(f, "arbitrary prefix")
+            }
         }
     }
 }
@@ -254,18 +264,16 @@ impl Parser {
         })?;
 
         let ast = Transformer::new().transform(ast);
-        let greedy = Validator::new().validate(&ast);
 
         // `greedy` is set to Some(true) if all regexp quantifiers are greedy,
         // Some(false) if all are non-greedy, and None if there's a mix of
         // greedy and non-greedy quantifiers, like in `foo.*bar.*?baz`. Mixed
         // greediness is allowed only if allow_mixed_greediness is true, an
         // error is returned if otherwise.
-        let greedy = if self.allow_mixed_greediness {
-            greedy.unwrap_or(None)
-        } else {
-            greedy?
-        };
+        let greedy = Validator::new()
+            .allow_mixed_greediness(self.allow_mixed_greediness)
+            .dot_matches_new_line(regexp.dot_matches_new_line())
+            .validate(&ast)?;
 
         let case_insensitive = if self.force_case_insensitive {
             true
@@ -293,13 +301,48 @@ impl Parser {
     }
 }
 
+#[derive(Clone, Default)]
+enum MatchKind {
+    #[default]
+    NonArbitrary,
+    ArbitraryData(re::ast::Span),
+    ArbitraryLengthAndData(re::ast::Span),
+}
+
+/// Performs additional validation on regular expressions to ensure
+/// compatibility with YARA.
+///
+/// This includes checks such as disallowing a mix of greedy and non-greedy
+/// quantifiers, and rejecting expressions that begin with patterns capable
+/// of matching arbitrarily long sequences of arbitrary bytes.
 struct Validator {
     first_rep: Option<(bool, re::ast::Span)>,
+    greedy: Option<bool>,
+    match_kind: MatchKind,
+    stack: Vec<Vec<MatchKind>>,
+    allow_mixed_greediness: bool,
+    dot_matches_new_line: bool,
 }
 
 impl Validator {
     fn new() -> Self {
-        Self { first_rep: None }
+        Self {
+            first_rep: None,
+            greedy: None,
+            match_kind: MatchKind::NonArbitrary,
+            stack: Vec::new(),
+            allow_mixed_greediness: false,
+            dot_matches_new_line: false,
+        }
+    }
+    fn allow_mixed_greediness(mut self, yes: bool) -> Self {
+        self.allow_mixed_greediness = yes;
+        self
+    }
+
+    fn dot_matches_new_line(mut self, yes: bool) -> Self {
+        self.dot_matches_new_line = yes;
+        self
     }
 
     fn validate(&mut self, ast: &Ast) -> Result<Option<bool>, Error> {
@@ -312,24 +355,147 @@ impl re::ast::Visitor for &mut Validator {
     type Err = Error;
 
     fn finish(self) -> Result<Self::Output, Self::Err> {
-        Ok(self.first_rep.map(|rep| rep.0))
+        Ok(self.greedy)
     }
 
     fn visit_pre(&mut self, ast: &Ast) -> Result<(), Self::Err> {
-        if let Ast::Repetition(rep) = ast {
-            if let Some(first_rep) = self.first_rep {
-                if rep.greedy != first_rep.0 {
-                    return Err(Error::MixedGreediness {
-                        is_greedy_1: rep.greedy,
-                        is_greedy_2: first_rep.0,
-                        span_1: *ast.span(),
-                        span_2: first_rep.1,
-                    });
+        match ast {
+            Ast::Repetition(rep) => {
+                if let Some(first_rep) = self.first_rep {
+                    if rep.greedy != first_rep.0 {
+                        if !self.allow_mixed_greediness {
+                            return Err(Error::MixedGreediness {
+                                is_greedy_1: rep.greedy,
+                                is_greedy_2: first_rep.0,
+                                span_1: *ast.span(),
+                                span_2: first_rep.1,
+                            });
+                        }
+                        self.greedy = None;
+                    }
+                } else {
+                    self.first_rep = Some((rep.greedy, rep.span));
+                    self.greedy = Some(rep.greedy);
                 }
-            } else {
-                self.first_rep = Some((rep.greedy, rep.span));
+            }
+            Ast::Concat(_) | Ast::Alternation(_) => {
+                self.stack.push(Vec::new());
+            }
+            _ => {}
+        }
+
+        Ok(())
+    }
+
+    fn visit_post(&mut self, ast: &Ast) -> Result<(), Self::Err> {
+        match ast {
+            Ast::Flags(_) | Ast::Assertion(_) | Ast::Group(_) => {}
+            Ast::Empty(_)
+            | Ast::Literal(_)
+            | Ast::ClassUnicode(_)
+            | Ast::ClassPerl(_)
+            | Ast::ClassBracketed(_) => {
+                self.match_kind = MatchKind::NonArbitrary
+            }
+            Ast::Dot(hir) => {
+                if self.dot_matches_new_line {
+                    self.match_kind =
+                        MatchKind::ArbitraryData(hir.deref().clone())
+                } else {
+                    self.match_kind = MatchKind::NonArbitrary
+                }
+            }
+            Ast::Repetition(rep) => {
+                if let MatchKind::ArbitraryData(_) = self.match_kind {
+                    let unbounded = matches!(
+                        rep.op.kind,
+                        RepetitionKind::Range(RepetitionRange::AtLeast(_))
+                            | RepetitionKind::ZeroOrMore
+                            | RepetitionKind::OneOrMore
+                    );
+                    if unbounded {
+                        self.match_kind =
+                            MatchKind::ArbitraryLengthAndData(rep.span);
+                    }
+                }
+            }
+            Ast::Alternation(alternation) => {
+                let mut items = self.stack.pop().unwrap();
+                items.push(self.match_kind.clone());
+                assert_eq!(items.len(), alternation.asts.len());
+
+                for item in items.into_iter() {
+                    match item {
+                        MatchKind::NonArbitrary => {}
+                        m @ MatchKind::ArbitraryData(_) => {
+                            self.match_kind = m;
+                        }
+                        m @ MatchKind::ArbitraryLengthAndData(_) => {
+                            self.match_kind = m;
+                            break;
+                        }
+                    }
+                }
+            }
+            Ast::Concat(concat) => {
+                let mut items = self.stack.pop().unwrap();
+                items.push(self.match_kind.clone());
+                assert_eq!(items.len(), concat.asts.len());
+
+                let merge_spans = |a: MatchKind, b: MatchKind| match (a, b) {
+                    (
+                        MatchKind::ArbitraryData(a),
+                        MatchKind::ArbitraryData(b),
+                    ) => MatchKind::ArbitraryData(re::ast::Span::new(
+                        a.start, b.end,
+                    )),
+                    (
+                        MatchKind::ArbitraryLengthAndData(a),
+                        MatchKind::ArbitraryData(b),
+                    )
+                    | (
+                        MatchKind::ArbitraryData(a),
+                        MatchKind::ArbitraryLengthAndData(b),
+                    ) => MatchKind::ArbitraryLengthAndData(
+                        re::ast::Span::new(a.start, b.end),
+                    ),
+                    _ => MatchKind::NonArbitrary,
+                };
+
+                // If the stack is empty this is the top-level concatenation.
+                if self.stack.is_empty() {
+                    if let MatchKind::ArbitraryLengthAndData(span) = items
+                        .into_iter()
+                        .take_while(|match_kind| {
+                            matches!(
+                                match_kind,
+                                MatchKind::ArbitraryLengthAndData(_)
+                                    | MatchKind::ArbitraryData(_)
+                            )
+                        })
+                        .reduce(merge_spans)
+                        .unwrap_or_default()
+                    {
+                        return Err(Error::ArbitraryPrefix { span });
+                    }
+                } else {
+                    self.match_kind =
+                        items.into_iter().reduce(merge_spans).unwrap();
+                }
             }
         }
+        Ok(())
+    }
+
+    fn visit_concat_in(&mut self) -> Result<(), Self::Err> {
+        self.stack.last_mut().unwrap().push(self.match_kind.clone());
+        self.match_kind = MatchKind::NonArbitrary;
+        Ok(())
+    }
+
+    fn visit_alternation_in(&mut self) -> Result<(), Self::Err> {
+        self.stack.last_mut().unwrap().push(self.match_kind.clone());
+        self.match_kind = MatchKind::NonArbitrary;
         Ok(())
     }
 }

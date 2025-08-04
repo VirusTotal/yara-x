@@ -50,6 +50,7 @@ pub struct EmitWasmError(#[from] anyhow::Error);
 #[derive(Serialize)]
 #[serde(tag = "type")]
 pub enum CompileError {
+    ArbitraryRegexpPrefix(Box<ArbitraryRegexpPrefix>),
     AssignmentMismatch(Box<AssignmentMismatch>),
     ConflictingRuleIdentifier(Box<ConflictingRuleIdentifier>),
     CustomError(Box<CustomError>),
@@ -892,6 +893,32 @@ pub struct IncludeNotFound {
 pub struct IncludeNotAllowed {
     report: Report,
     include_loc: CodeLoc,
+}
+
+/// A regular expression has a prefix that can be arbitrarily long and matches
+/// any sequence of bytes.
+/// 
+/// # Example
+/// 
+/// error[E045]: arbitrary regular expression prefix
+///  --> line:3:11
+///   |
+/// 3 |     $a = /.*foo/s
+///   |           ^^ this prefix can be arbitrarily long and matches all bytes
+///   |
+/// 
+/// Regular expressions with these kinds of prefixes don't many too much sense,
+/// as YARA will report a match at every file offset from the beginning of the
+/// file to the offset where the rest of the regular expression matched. In 
+/// most cases the prefix can be stripped down without changing the rule 
+/// semantics.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E045", title = "arbitrary regular expression prefix")]
+#[label("this prefix can be arbitrarily long and matches all bytes", error_loc)]
+pub struct ArbitraryRegexpPrefix {
+    report: Report,
+    error_loc: CodeLoc,
 }
 
 /// A custom error has occurred.

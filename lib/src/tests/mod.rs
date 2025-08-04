@@ -1334,6 +1334,7 @@ fn regexp_patterns_2() {
     pattern_match!(r#"/.b{2,3}/"#, b"abb", b"abb");
     pattern_match!(r#"/.b{2,3}/"#, b"abbb", b"abbb");
     pattern_match!(r#"/.b{2,3}?/"#, b"abbb", b"abb");
+    pattern_match!(r#"/.{2,3}c/s"#, b"abbc", b"abbc");
     pattern_match!(r#"/ab{2,3}?c/"#, b"abbbc", b"abbbc");
     pattern_match!(r#"/.b{2,3}cccc/"#, b"abbbcccc", b"abbbcccc");
     pattern_match!(r#"/.b{2,3}?cccc/"#, b"abbbcccc", b"abbbcccc");
