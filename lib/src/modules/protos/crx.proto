@@ -1,0 +1,72 @@
+syntax = "proto2";
+import "yara.proto";
+
+package crx;
+
+option (yara.module_options) = {
+  name : "crx"
+  root_message: "crx.Crx"
+  rust_module: "crx"
+  cargo_feature: "crx-module"
+};
+
+message Crx {
+  optional bool is_crx = 1;
+  optional uint32 crx_version = 2;
+  optional uint32 header_size = 3;
+  optional string id = 4;
+  optional string version = 16;
+  optional string name = 5;
+  optional string description = 6;
+  optional string raw_name = 7;
+  optional string raw_description = 8;
+  optional string minimum_chrome_version = 9;
+  optional string homepage_url = 10;
+  repeated string permissions = 11;
+  repeated string host_permissions = 12;
+  repeated string optional_permissions = 13;
+  repeated string optional_host_permissions = 14;
+  repeated CrxSignature signatures = 15;
+}
+
+message CrxSignature {
+  required string key = 1;
+  required bool verified = 2;
+}
+
+message CrxFileHeader {
+  // PSS signature with RSA public key. The public key is formatted as a
+  // X.509 SubjectPublicKeyInfo block, as in CRX₂. In the common case of a
+  // developer key proof, the first 128 bits of the SHA-256 hash of the
+  // public key must equal the crx_id.
+  repeated AsymmetricKeyProof sha256_with_rsa = 2;
+
+  // ECDSA signature, using the NIST P-256 curve. Public key appears in
+  // named-curve format.
+  // The pinned algorithm will be this, at least on 2017-01-01.
+  repeated AsymmetricKeyProof sha256_with_ecdsa = 3;
+
+  // The binary form of a SignedData message. We do not use a nested
+  // SignedData message, as handlers of this message must verify the proofs
+  // on exactly these bytes, so it is convenient to parse in two steps.
+  //
+  // All proofs in this CrxFile message are on the value
+  // "CRX3 SignedData\x00" + signed_header_size + signed_header_data +
+  // archive, where "\x00" indicates an octet with value 0, "CRX3 SignedData"
+  // is encoded using UTF-8, signed_header_size is the size in octets of the
+  // contents of this field and is encoded using 4 octets in little-endian
+  // order, signed_header_data is exactly the content of this field, and
+  // archive is the remaining contents of the file following the header.
+  optional bytes signed_header_data = 10000;
+}
+
+message AsymmetricKeyProof {
+  optional bytes public_key = 1;
+  optional bytes signature = 2;
+}
+
+message SignedData {
+  // This is simple binary, not UTF-8 encoded mpdecimal; i.e. it is exactly
+  // 16 bytes long.
+  optional bytes crx_id = 1;
+}

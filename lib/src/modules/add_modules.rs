@@ -2,6 +2,8 @@
 {
 #[cfg(feature = "console-module")]
 add_module!(modules, "console", console, "console.Console", Some("console"), Some(console::__main__ as MainFn));
+#[cfg(feature = "crx-module")]
+add_module!(modules, "crx", crx, "crx.Crx", Some("crx"), Some(crx::__main__ as MainFn));
 #[cfg(feature = "cuckoo-module")]
 add_module!(modules, "cuckoo", cuckoo, "cuckoo.Cuckoo", Some("cuckoo"), Some(cuckoo::__main__ as MainFn));
 #[cfg(feature = "dotnet-module")]
