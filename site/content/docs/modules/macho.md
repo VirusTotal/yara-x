@@ -496,13 +496,20 @@ rule symhash_example {
 
 ### Symtab
 
-| Field   | Type         |
-| ------- | ------------ |
-| symoff  | integer      |
-| nsyms   | integer      |
-| stroff  | integer      |
-| strsize | integer      |
-| entries | string array |
+| Field   | Type                   |
+| ------- | ---------------------- |
+| symoff  | integer                |
+| nsyms   | integer                |
+| stroff  | integer                |
+| strsize | integer                |
+| entries | SymbolTableEntry array |
+
+### SymbolTableEntry
+
+| Field | Type    |
+| ----- | ------- |
+| tags  | integer |
+| value | string  |
 
 ### CPU_ARM_64_SUBTYPE
 
