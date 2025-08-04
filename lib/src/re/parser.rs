@@ -18,7 +18,7 @@ use crate::types;
 
 #[derive(Error, Debug)]
 pub(crate) enum Error {
-    SyntaxError {
+    WrongSyntax {
         msg: String,
         span: re::ast::Span,
         note: Option<String>,
@@ -37,7 +37,7 @@ pub(crate) enum Error {
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::SyntaxError { msg, .. } => write!(f, "{msg}"),
+            Error::WrongSyntax { msg, .. } => write!(f, "{msg}"),
             Error::MixedGreediness { .. } => write!(f, "mixed greediness"),
             Error::ArbitraryPrefix { .. } => {
                 write!(f, "arbitrary prefix")
@@ -256,7 +256,7 @@ impl Parser {
                 _ => None,
             };
 
-            Error::SyntaxError {
+            Error::WrongSyntax {
                 msg: err.kind().to_string(),
                 span: adjust_span(span, span_delta),
                 note,
@@ -290,7 +290,7 @@ impl Parser {
 
         let hir =
             translator.translate(re_src.as_ref(), &ast).map_err(|err| {
-                Error::SyntaxError {
+                Error::WrongSyntax {
                     msg: err.kind().to_string(),
                     span: adjust_span(err.span(), span_delta),
                     note: None,

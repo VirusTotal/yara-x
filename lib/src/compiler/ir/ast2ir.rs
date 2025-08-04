@@ -1847,7 +1847,7 @@ fn re_error_to_compile_error(
     err: re::parser::Error,
 ) -> CompileError {
     match err {
-        re::parser::Error::SyntaxError { msg, span, note } => {
+        re::parser::Error::WrongSyntax { msg, span, note } => {
             InvalidRegexp::build(
                 report_builder,
                 msg,
