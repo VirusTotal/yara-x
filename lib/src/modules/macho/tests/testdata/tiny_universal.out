@@ -153,18 +153,43 @@ file:
         stroff: 8440
         strsize: 72
         entries:
-          - tags: 15
-            value: "__mh_execute_header"
-          - tags: 15
-            value: "_factorial"
-          - tags: 15
-            value: "_main"
-          - tags: 1
-            value: "_printf"
-          - tags: 1
-            value: "_scanf"
-          - tags: 1
-            value: "dyld_stub_binder"
+          - "__mh_execute_header"
+          - "_factorial"
+          - "_main"
+          - "_printf"
+          - "_scanf"
+          - "dyld_stub_binder"
+        nlists:
+          - n_strx: 2
+            n_type: 15
+            n_sect: 1
+            n_desc: 16
+            n_value: 4096
+          - n_strx: 22
+            n_type: 15
+            n_sect: 1
+            n_desc: 0
+            n_value: 7824
+          - n_strx: 33
+            n_type: 15
+            n_sect: 1
+            n_desc: 0
+            n_value: 7904
+          - n_strx: 39
+            n_type: 1
+            n_sect: 0
+            n_desc: 256
+            n_value: 0
+          - n_strx: 47
+            n_type: 1
+            n_sect: 0
+            n_desc: 256
+            n_value: 0
+          - n_strx: 54
+            n_type: 1
+            n_sect: 0
+            n_desc: 256
+            n_value: 0
     dysymtab:
         ilocalsym: 0
         nlocalsym: 0
@@ -365,18 +390,43 @@ file:
         stroff: 8472
         strsize: 72
         entries:
-          - tags: 15
-            value: "__mh_execute_header"
-          - tags: 15
-            value: "_factorial"
-          - tags: 15
-            value: "_main"
-          - tags: 1
-            value: "_printf"
-          - tags: 1
-            value: "_scanf"
-          - tags: 1
-            value: "dyld_stub_binder"
+          - "__mh_execute_header"
+          - "_factorial"
+          - "_main"
+          - "_printf"
+          - "_scanf"
+          - "dyld_stub_binder"
+        nlists:
+          - n_strx: 2
+            n_type: 15
+            n_sect: 1
+            n_desc: 16
+            n_value: 4294967296
+          - n_strx: 22
+            n_type: 15
+            n_sect: 1
+            n_desc: 0
+            n_value: 4294971024
+          - n_strx: 33
+            n_type: 15
+            n_sect: 1
+            n_desc: 0
+            n_value: 4294971104
+          - n_strx: 39
+            n_type: 1
+            n_sect: 0
+            n_desc: 256
+            n_value: 0
+          - n_strx: 47
+            n_type: 1
+            n_sect: 0
+            n_desc: 256
+            n_value: 0
+          - n_strx: 54
+            n_type: 1
+            n_sect: 0
+            n_desc: 256
+            n_value: 0
     dysymtab:
         ilocalsym: 0
         nlocalsym: 0

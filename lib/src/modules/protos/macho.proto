@@ -60,9 +60,12 @@ message DyldInfo {
   optional uint32 export_size = 10;
 }
 
-message SymbolTableEntry {
-  optional uint32 tags = 1;
-  optional bytes value = 2;
+message Nlist {
+  optional uint32 n_strx = 1;
+  optional uint32 n_type = 2;
+  optional uint32 n_sect = 3;
+  optional uint32 n_desc = 4;
+  optional uint64 n_value = 5;
 }
 
 message Symtab {
@@ -70,7 +73,8 @@ message Symtab {
   optional uint32 nsyms = 2;
   optional uint32 stroff = 3;
   optional uint32 strsize = 4;
-  repeated SymbolTableEntry entries = 5;
+  repeated bytes entries = 5;
+  repeated Nlist nlists = 6;
 }
 
 message Dysymtab {

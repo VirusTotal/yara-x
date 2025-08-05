@@ -12,56 +12,157 @@ symtab:
     stroff: 3840
     strsize: 496
     entries:
-      - tags: 14
-        value: "_fourbppswaptable"
-      - tags: 14
-        value: "_onebppswaptable"
-      - tags: 14
-        value: "_twobppswaptable"
-      - tags: 15
-        value: "_png_do_bgr"
-      - tags: 15
-        value: "_png_do_check_palette_indexes"
-      - tags: 15
-        value: "_png_do_invert"
-      - tags: 15
-        value: "_png_do_packswap"
-      - tags: 15
-        value: "_png_do_strip_channel"
-      - tags: 15
-        value: "_png_do_swap"
-      - tags: 15
-        value: "_png_get_current_pass_number"
-      - tags: 15
-        value: "_png_get_current_row_number"
-      - tags: 15
-        value: "_png_get_user_transform_ptr"
-      - tags: 15
-        value: "_png_set_add_alpha"
-      - tags: 15
-        value: "_png_set_bgr"
-      - tags: 15
-        value: "_png_set_filler"
-      - tags: 15
-        value: "_png_set_interlace_handling"
-      - tags: 15
-        value: "_png_set_invert_alpha"
-      - tags: 15
-        value: "_png_set_invert_mono"
-      - tags: 15
-        value: "_png_set_packing"
-      - tags: 15
-        value: "_png_set_packswap"
-      - tags: 15
-        value: "_png_set_shift"
-      - tags: 15
-        value: "_png_set_swap"
-      - tags: 15
-        value: "_png_set_swap_alpha"
-      - tags: 15
-        value: "_png_set_user_transform_info"
-      - tags: 1
-        value: "_png_app_error"
+      - "_fourbppswaptable"
+      - "_onebppswaptable"
+      - "_twobppswaptable"
+      - "_png_do_bgr"
+      - "_png_do_check_palette_indexes"
+      - "_png_do_invert"
+      - "_png_do_packswap"
+      - "_png_do_strip_channel"
+      - "_png_do_swap"
+      - "_png_get_current_pass_number"
+      - "_png_get_current_row_number"
+      - "_png_get_user_transform_ptr"
+      - "_png_set_add_alpha"
+      - "_png_set_bgr"
+      - "_png_set_filler"
+      - "_png_set_interlace_handling"
+      - "_png_set_invert_alpha"
+      - "_png_set_invert_mono"
+      - "_png_set_packing"
+      - "_png_set_packswap"
+      - "_png_set_shift"
+      - "_png_set_swap"
+      - "_png_set_swap_alpha"
+      - "_png_set_user_transform_info"
+      - "_png_app_error"
+    nlists:
+      - n_strx: 442
+        n_type: 14
+        n_sect: 7
+        n_desc: 0
+        n_value: 2308
+      - n_strx: 460
+        n_type: 14
+        n_sect: 7
+        n_desc: 0
+        n_value: 1796
+      - n_strx: 477
+        n_type: 14
+        n_sect: 7
+        n_desc: 0
+        n_value: 2052
+      - n_strx: 286
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 1112
+      - n_strx: 298
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 1248
+      - n_strx: 219
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 496
+      - n_strx: 247
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 680
+      - n_strx: 264
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 760
+      - n_strx: 234
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 644
+      - n_strx: 413
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 1624
+      - n_strx: 385
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 1608
+      - n_strx: 357
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 1596
+      - n_strx: 137
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 292
+      - n_strx: 1
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 0
+      - n_strx: 106
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 172
+      - n_strx: 78
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 140
+      - n_strx: 176
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 456
+      - n_strx: 198
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 476
+      - n_strx: 28
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 48
+      - n_strx: 45
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 80
+      - n_strx: 63
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 108
+      - n_strx: 14
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 20
+      - n_strx: 156
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 436
+      - n_strx: 328
+        n_type: 15
+        n_sect: 1
+        n_desc: 8
+        n_value: 1540
+      - n_strx: 122
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
 dysymtab:
     ilocalsym: 0
     nlocalsym: 3

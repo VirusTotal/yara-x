@@ -13,14 +13,31 @@ symtab:
     stroff: 16432
     strsize: 40
     entries:
-      - tags: 14
-        value: "_.str"
-      - tags: 15
-        value: "__start"
-      - tags: 15
-        value: "_comment"
-      - tags: 15
-        value: "_shellcode"
+      - "_.str"
+      - "__start"
+      - "_comment"
+      - "_shellcode"
+    nlists:
+      - n_strx: 32
+        n_type: 14
+        n_sect: 2
+        n_desc: 0
+        n_value: 15840
+      - n_strx: 4
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 15792
+      - n_strx: 12
+        n_type: 15
+        n_sect: 3
+        n_desc: 0
+        n_value: 16384
+      - n_strx: 21
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 7572
 segments:
   - segname: "__PAGEZERO"
     vmaddr: 0x0

@@ -848,6 +848,7 @@ impl<'a> MachOFile<'a> {
                 stroff,
                 strsize,
                 entries: Vec::new(),
+                nlists: Vec::new(),
             },
         )
     }
@@ -1129,9 +1130,9 @@ impl<'a> MachOFile<'a> {
             |(n_strx, n_type, n_sect, n_desc, n_value)| Nlist {
                 n_strx,
                 n_type,
-                _n_sect: n_sect,
-                _n_desc: n_desc,
-                _n_value: n_value,
+                n_sect,
+                n_desc,
+                n_value,
             },
         )
     }
@@ -1149,7 +1150,6 @@ impl<'a> MachOFile<'a> {
 
         for _ in 0..count {
             (data, n) = self.nlist().parse(data)?;
-
             if let Some(symtab) = self.symtab.as_mut() {
                 if let Some(string_data) =
                     string_table.get(n.n_strx as usize..)
@@ -1161,10 +1161,8 @@ impl<'a> MachOFile<'a> {
                     .parse(string_data)?;
 
                     if !string_value.is_empty() {
-                        symtab.entries.push(SymbolTableEntry {
-                            tags: n.n_type,
-                            value: string_value,
-                        });
+                        symtab.entries.push(string_value);
+                        symtab.nlists.push(n);
                     }
                 }
             }
@@ -1738,20 +1736,16 @@ struct Symtab<'a> {
     nsyms: u32,
     stroff: u32,
     strsize: u32,
-    entries: Vec<SymbolTableEntry<'a>>,
+    entries: Vec<&'a [u8]>,
+    nlists: Vec<Nlist>,
 }
 
 struct Nlist {
     n_strx: u32,
     n_type: u8,
-    _n_sect: u8,
-    _n_desc: u16,
-    _n_value: u64,
-}
-
-struct SymbolTableEntry<'a> {
-    tags: u8,
-    value: &'a [u8],
+    n_sect: u8,
+    n_desc: u16,
+    n_value: u64,
 }
 
 struct Dysymtab {
@@ -2079,22 +2073,26 @@ impl From<MachO<'_>> for protos::macho::Macho {
             // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L560-L617
             if m.dyld_export_trie.is_none() && m.dyld_info.is_none() {
                 if let Some(symtab) = &m.symtab {
-                    result.exports.extend(symtab.entries.iter().filter_map(
-                        |e| {
-                            let t = e.tags & N_TYPE;
-
-                            if (e.tags & N_EXT != 0)
-                                && ((t == N_SECT)
-                                    || (t == N_ABS)
-                                    || (t == N_INDR))
-                                && ((e.tags & N_STAB) == 0)
-                            {
-                                Some(BStr::new(e.value).to_string())
-                            } else {
-                                None
-                            }
-                        },
-                    ))
+                    result.exports.extend(
+                        symtab
+                            .nlists
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(idx, nlist)| {
+                                let t = nlist.n_type & N_TYPE;
+                                if (nlist.n_type & N_EXT != 0)
+                                    && ((t == N_SECT)
+                                        || (t == N_ABS)
+                                        || (t == N_INDR))
+                                    && ((nlist.n_type & N_STAB) == 0)
+                                {
+                                    symtab.entries.get(idx)
+                                } else {
+                                    None
+                                }
+                            })
+                            .map(|sym| BStr::new(sym).to_string()),
+                    )
                 }
             }
 
@@ -2103,17 +2101,23 @@ impl From<MachO<'_>> for protos::macho::Macho {
             // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L372-L398
             if m.dyld_chain_fixups.is_none() && m.dyld_info.is_none() {
                 if let Some(symtab) = &m.symtab {
-                    result.imports.extend(symtab.entries.iter().filter_map(
-                        |e| {
-                            let t = e.tags & N_TYPE;
-
-                            if (t == N_UNDF) && (e.tags & N_STAB == 0) {
-                                Some(BStr::new(e.value).to_string())
-                            } else {
-                                None
-                            }
-                        },
-                    ))
+                    result.imports.extend(
+                        symtab
+                            .nlists
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(idx, nlist)| {
+                                let t = nlist.n_type & N_TYPE;
+                                if (t == N_UNDF)
+                                    && (nlist.n_type & N_STAB == 0)
+                                {
+                                    symtab.entries.get(idx)
+                                } else {
+                                    None
+                                }
+                            })
+                            .map(|sym| BStr::new(sym).to_string()),
+                    );
                 }
             }
 
@@ -2207,18 +2211,26 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L560-L617
         if macho.dyld_export_trie.is_none() && macho.dyld_info.is_none() {
             if let Some(symtab) = &macho.symtab {
-                result.exports.extend(symtab.entries.iter().filter_map(|e| {
-                    let t = e.tags & N_TYPE;
-
-                    if (e.tags & N_EXT != 0)
-                        && ((t == N_SECT) || (t == N_ABS) || (t == N_INDR))
-                        && ((e.tags & N_STAB) == 0)
-                    {
-                        Some(BStr::new(e.value).to_string())
-                    } else {
-                        None
-                    }
-                }))
+                result.exports.extend(
+                    symtab
+                        .nlists
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(idx, nlist)| {
+                            let t = nlist.n_type & N_TYPE;
+                            if (nlist.n_type & N_EXT != 0)
+                                && ((t == N_SECT)
+                                    || (t == N_ABS)
+                                    || (t == N_INDR))
+                                && ((nlist.n_type & N_STAB) == 0)
+                            {
+                                symtab.entries.get(idx)
+                            } else {
+                                None
+                            }
+                        })
+                        .map(|sym| BStr::new(sym).to_string()),
+                )
             }
         }
 
@@ -2227,15 +2239,21 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L372-L398
         if macho.dyld_chain_fixups.is_none() && macho.dyld_info.is_none() {
             if let Some(symtab) = &macho.symtab {
-                result.imports.extend(symtab.entries.iter().filter_map(|e| {
-                    let t = e.tags & N_TYPE;
-
-                    if (t == N_UNDF) && (e.tags & N_STAB == 0) {
-                        Some(BStr::new(e.value).to_string())
-                    } else {
-                        None
-                    }
-                }))
+                result.imports.extend(
+                    symtab
+                        .nlists
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(idx, nlist)| {
+                            let t = nlist.n_type & N_TYPE;
+                            if (t == N_UNDF) && (nlist.n_type & N_STAB == 0) {
+                                symtab.entries.get(idx)
+                            } else {
+                                None
+                            }
+                        })
+                        .map(|sym| BStr::new(sym).to_string()),
+                );
             }
         }
         result
@@ -2325,16 +2343,22 @@ impl From<&Symtab<'_>> for protos::macho::Symtab {
         result.set_stroff(symtab.stroff);
         result.set_strsize(symtab.strsize);
         // populate the entries
-        result.entries.extend(symtab.entries.iter().map(|entry| entry.into()));
+        result
+            .entries
+            .extend(symtab.entries.iter().map(|entry| entry.to_vec()));
+        result.nlists.extend(symtab.nlists.iter().map(|n| n.into()));
         result
     }
 }
 
-impl From<&SymbolTableEntry<'_>> for protos::macho::SymbolTableEntry {
-    fn from(entry: &SymbolTableEntry<'_>) -> Self {
-        let mut result = protos::macho::SymbolTableEntry::new();
-        result.set_tags(entry.tags.into());
-        result.set_value(entry.value.to_vec());
+impl From<&Nlist> for protos::macho::Nlist {
+    fn from(nlist: &Nlist) -> Self {
+        let mut result = protos::macho::Nlist::new();
+        result.set_n_strx(nlist.n_strx);
+        result.set_n_type(nlist.n_type as u32);
+        result.set_n_sect(nlist.n_sect as u32);
+        result.set_n_desc(nlist.n_desc as u32);
+        result.set_n_value(nlist.n_value);
         result
     }
 }

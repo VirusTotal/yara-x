@@ -548,11 +548,13 @@ fn symhash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 
     let macho = ctx.module_output::<Macho>()?;
     let mut symtab_to_hash = &macho.symtab.entries;
+    let mut nlists = &macho.symtab.nlists;
 
     // if there is not a symbtol table in the main Macho, the symbol table of the
     // nested file should be hashed
     if symtab_to_hash.is_empty() && !macho.file.is_empty() {
         symtab_to_hash = &macho.file[0].symtab.entries;
+        nlists = &macho.file[0].symtab.nlists
     }
 
     // we need to check again as the nested symbol table could be empty too
@@ -563,15 +565,21 @@ fn symhash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let mut md5_hash: digest::core_api::CoreWrapper<md5::Md5Core> = Md5::new();
 
     // ref: implementation of symhash published at https://github.com/threatstream/symhash/
-    let symtab_hash_entries = symtab_to_hash
+    let symtab_hash_entries = nlists
         .iter()
-        .filter(|s| {
-            let n_type = s.tags();
-            (n_type & N_STAB as u32 == 0)
+        .enumerate()
+        .filter_map(|(idx, nlist)| {
+            let n_type = nlist.n_type();
+            if (n_type & N_STAB as u32 == 0)
                 && (n_type & N_EXT as u32) == N_EXT as u32
                 && (n_type & N_TYPE as u32) == 0
+            {
+                symtab_to_hash.get(idx)
+            } else {
+                None
+            }
         })
-        .map(|e| BString::new(e.value().trim().to_vec()))
+        .map(|s| BString::new(s.trim().to_vec()))
         .unique()
         .sorted()
         .join(",");
