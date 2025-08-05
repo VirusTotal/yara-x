@@ -496,20 +496,25 @@ rule symhash_example {
 
 ### Symtab
 
-| Field   | Type                   |
-| ------- | ---------------------- |
-| symoff  | integer                |
-| nsyms   | integer                |
-| stroff  | integer                |
-| strsize | integer                |
-| entries | SymbolTableEntry array |
+| Field   | Type                  |
+| ------- | --------------------- |
+| symoff  | integer               |
+| nsyms   | integer               |
+| stroff  | integer               |
+| strsize | integer               |
+| entries | string array          |
+| nlists  | [Nlist](#nlist) array |
 
-### SymbolTableEntry
+### Nlist
 
-| Field | Type    |
-| ----- | ------- |
-| tags  | integer |
-| value | string  |
+| Field   | Type    |
+| ------- | ------- |
+| n_strx  | integer |
+| n_type  | integer |
+| n_sect  | integer |
+| n_desc  | integer |
+| n_value | integer |
+
 
 ### CPU_ARM_64_SUBTYPE
 
