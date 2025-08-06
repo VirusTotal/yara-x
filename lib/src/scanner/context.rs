@@ -16,6 +16,7 @@ use bitvec::order::Lsb0;
 use bitvec::slice::BitSlice;
 use bstr::{BString, ByteSlice};
 use indexmap::IndexMap;
+use memx::memeq;
 use protobuf::{MessageDyn, MessageFull};
 use regex_automata::meta::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -1183,8 +1184,6 @@ fn verify_xor_match(
         return None;
     }
 
-    let mut pattern = pattern.to_owned();
-
     // The atom that matched is the result of XORing the pattern with some
     // key. The key can be obtained by XORing some byte in the atom with
     // the corresponding byte in the pattern.
@@ -1196,20 +1195,19 @@ fn verify_xor_match(
         return None;
     }
 
-    // Now we can XOR the whole pattern with the obtained key and make sure
-    // that it matches the data. This only makes sense if the key is not
-    // zero.
-    if key != 0 {
-        for byte in &mut pattern {
-            *byte ^= key;
+    if key == 0 {
+        if !memeq(&pattern, &scanned_data[atom_pos..match_end]) {
+            return None;
+        }
+    } else {
+        for (i, b) in scanned_data[atom_pos..match_end].iter().enumerate() {
+            if pattern[i] != b ^ key {
+                return None;
+            }
         }
     }
 
-    if &scanned_data[match_range.clone()] == pattern.as_bytes() {
-        Some(Match { range: match_range, xor_key: Some(key) })
-    } else {
-        None
-    }
+    Some(Match { range: match_range, xor_key: Some(key) })
 }
 
 /// Verifies that a literal sub-pattern actually matches in base64 form at
