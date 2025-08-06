@@ -552,7 +552,7 @@ impl<'r> Scanner<'r> {
     /// performance bottlenecks. To reset the profiling data and start fresh
     /// for subsequent scans, use [`Scanner::clear_profiling_data`].
     #[cfg(feature = "rules-profiling")]
-    pub fn slowest_rules(&self, n: usize) -> Vec<ProfilingData> {
+    pub fn slowest_rules(&self, n: usize) -> Vec<ProfilingData<'_>> {
         self.scan_context().slowest_rules(n)
     }
 
