@@ -48,7 +48,7 @@ fn magic_crash() {
     import "magic"
     rule t {
       condition:
-        magic.mime_type() != "text/plain"
+        magic.mime_type() != "foo"
     }"#,
     )
     .unwrap();
