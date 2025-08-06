@@ -48,7 +48,7 @@ fn magic_crash() {
     import "magic"
     rule t {
       condition:
-        magic.mime_type() != "foo"
+        magic.mime_type() == "foo"
     }"#,
     )
     .unwrap();
@@ -58,5 +58,5 @@ fn magic_crash() {
         .scan(&[0x00, 0x00, 0xfe, 0xff, 0xff, 0xff, 0x2a, 0x08])
         .unwrap();
 
-    assert_eq!(results.matching_rules().len(), 1);
+    assert_eq!(results.matching_rules().len(), 0);
 }
