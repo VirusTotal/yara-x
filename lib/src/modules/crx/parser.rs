@@ -64,14 +64,13 @@ impl<'a> From<nom::Err<NomError<'a>>> for Error<'a> {
 /// [N bytes] : Header data (the binary encoding of a CrxFileHeader protobuf).
 /// [rest]    : The ZIP archive.
 #[derive(Default)]
-pub struct Crx<'a> {
+pub struct Crx {
     crx_id: String,
     crx_version: u32,
     header_size: u32,
     manifest: Option<CrxManifest>,
     signatures: Vec<CrxSignature>,
     locale: Option<CrxLocale>,
-    zip_data: &'a [u8],
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -107,9 +106,9 @@ impl CrxLocale {
     }
 }
 
-impl<'a> Crx<'a> {
+impl Crx {
     const MAGIC: u32 = 0x43723234; // Cr24
-    pub fn parse(data: &'a [u8]) -> Result<Self, Error<'a>> {
+    pub fn parse(data: &[u8]) -> Result<Self, Error<'_>> {
         let (remainder, (magic, version)) = (be_u32, le_u32).parse(data)?;
 
         if magic != Self::MAGIC {
@@ -123,7 +122,7 @@ impl<'a> Crx<'a> {
         }
     }
 
-    fn parse_v2(data: &'a [u8]) -> Result<Self, Error<'a>> {
+    fn parse_v2(data: &[u8]) -> Result<Self, Error<'_>> {
         let (remainder, (key_len, signature_len)) =
             (le_u32, le_u32).parse(data)?;
 
@@ -170,11 +169,10 @@ impl<'a> Crx<'a> {
             manifest,
             signatures,
             locale,
-            zip_data,
         })
     }
 
-    fn parse_v3(data: &'a [u8]) -> Result<Self, Error<'a>> {
+    fn parse_v3(data: &[u8]) -> Result<Self, Error<'_>> {
         let (zip_data, header_data) = length_data(le_u32).parse(data)?;
 
         // The header is CrxFileHeader protobuf.
@@ -234,7 +232,6 @@ impl<'a> Crx<'a> {
             manifest,
             signatures,
             locale,
-            zip_data,
         })
     }
 
@@ -335,7 +332,7 @@ impl<'a> Crx<'a> {
     }
 }
 
-impl From<Crx<'_>> for protos::crx::Crx {
+impl From<Crx> for protos::crx::Crx {
     fn from(crx: Crx) -> Self {
         let mut result = protos::crx::Crx::new();
 
