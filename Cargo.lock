@@ -2059,8 +2059,7 @@ dependencies = [
 [[package]]
 name = "magic"
 version = "0.16.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a200ae03df8c3dce7a963f6eeaac8feb41bf9001cb7e5ab22e3205aec2f0373d"
+source = "git+https://github.com/plusvic/rust-magic.git#154af61f44722acf68bae2e428f25658ffa614ef"
 dependencies = [
  "bitflags 2.9.1",
  "libc",

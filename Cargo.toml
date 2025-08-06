@@ -64,7 +64,7 @@ ipnet = "2.11.0"
 itertools = "0.14.0"
 linkme = "0.3.33"
 log = "0.4.27"
-magic = "0.16.2"
+magic = { git = "https://github.com/plusvic/rust-magic.git" }
 md2 = "0.10.2"
 md-5 = "0.10.6"
 memmap2 = "0.9.7"
