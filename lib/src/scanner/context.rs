@@ -137,7 +137,7 @@ impl<'r> ScanContext<'r> {
     ///
     /// Profiling has an accumulative effect. When the scanner is used for
     /// scanning multiple files the times add up.
-    pub fn slowest_rules(&self, n: usize) -> Vec<ProfilingData> {
+    pub fn slowest_rules(&self, n: usize) -> Vec<ProfilingData<'_>> {
         debug_assert_eq!(
             self.compiled_rules.num_rules(),
             self.time_spent_in_rule.len()
