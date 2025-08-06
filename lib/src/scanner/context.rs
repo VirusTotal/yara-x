@@ -1196,7 +1196,7 @@ fn verify_xor_match(
     }
 
     if key == 0 {
-        if !memeq(&pattern, &scanned_data[atom_pos..match_end]) {
+        if !memeq(pattern, &scanned_data[atom_pos..match_end]) {
             return None;
         }
     } else {
