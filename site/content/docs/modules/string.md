@@ -9,7 +9,7 @@ menu:
   docs:
     parent: ""
     identifier: "string-module"
-weight: 325
+weight: 900
 toc: true
 seo:
   title: "" # custom title (optional)

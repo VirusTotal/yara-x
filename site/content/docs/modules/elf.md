@@ -9,7 +9,7 @@ menu:
   docs:
     parent: ""
     identifier: "elf-module"
-weight: 303
+weight: 400
 toc: true
 seo:
   title: "" # custom title (optional)

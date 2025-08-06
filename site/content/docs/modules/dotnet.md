@@ -9,7 +9,7 @@ menu:
   docs:
     parent: ""
     identifier: "dotnet-module"
-weight: 305
+weight: 300
 toc: true
 seo:
   title: "" # custom title (optional)
