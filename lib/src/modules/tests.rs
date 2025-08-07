@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
+use crate::mods::invoke_all;
 use rayon::prelude::*;
 
 /// Utility function that receives the content of an [`Intel HEX`][1] (ihex)
@@ -168,4 +169,14 @@ fn test_modules() {
 
         yaml.serialize(output).unwrap();
     });
+}
+
+#[test]
+fn test_invoke_modules() {
+    let modules = invoke_all(&[]);
+
+    assert!(modules.pe.is_pe.is_some_and(|value| value == false));
+    assert!(modules.dotnet.is_dotnet.is_some_and(|value| value == false));
+    assert!(modules.lnk.is_lnk.is_some_and(|value| value == false));
+    assert!(modules.crx.is_crx.is_some_and(|value| value == false));
 }
