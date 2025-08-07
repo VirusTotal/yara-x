@@ -2702,7 +2702,9 @@ fn match_length() {
 
 #[test]
 fn xor() {
+    pattern_true!(r#""mississippi" xor"#, b"mississippi");
     pattern_true!(r#""mississippi" xor"#, b"lhrrhrrhqqh");
+    pattern_false!(r#""mississippi" xor"#, b"lhrrhrrhqqq");
     pattern_true!(r#""ssi" xor"#, b"lhrrhrrhqqh");
     pattern_false!(r#""miss" xor fullword"#, b"lhrrhrrhqqh");
     pattern_false!(r#""ppi" xor fullword"#, b"lhrrhrrhqqh");
