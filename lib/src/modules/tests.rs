@@ -175,8 +175,8 @@ fn test_modules() {
 fn test_invoke_modules() {
     let modules = invoke_all(&[]);
 
-    assert!(modules.pe.is_pe.is_some_and(|value| value == false));
-    assert!(modules.dotnet.is_dotnet.is_some_and(|value| value == false));
-    assert!(modules.lnk.is_lnk.is_some_and(|value| value == false));
-    assert!(modules.crx.is_crx.is_some_and(|value| value == false));
+    assert!(modules.pe.is_pe.is_some_and(|value| !value));
+    assert!(modules.dotnet.is_dotnet.is_some_and(|value| !value));
+    assert!(modules.lnk.is_lnk.is_some_and(|value| !value));
+    assert!(modules.crx.is_crx.is_some_and(|value| !value));
 }
