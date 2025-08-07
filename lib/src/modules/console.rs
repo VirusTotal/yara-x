@@ -98,8 +98,11 @@ mod tests {
                     console.log("baz: ", 3.14) and
                     console.log(10) and
                     console.log(6.28) and
+                    console.log(true) and
+                    console.log("bool: ", true) and
                     console.hex(10) and
-                    console.hex("qux: ", 255)
+                    console.hex("qux: ", 255) and
+                    console.log("hello ", "world!")
             }
             "#,
         )
@@ -120,8 +123,11 @@ mod tests {
                 "baz: 3.14",
                 "10",
                 "6.28",
+                "true",
+                "bool: true",
                 "0xa",
-                "qux: 0xff"
+                "qux: 0xff",
+                "hello world!",
             ]
         );
     }
