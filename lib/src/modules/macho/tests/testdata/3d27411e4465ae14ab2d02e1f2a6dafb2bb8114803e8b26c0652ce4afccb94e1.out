@@ -68,6 +68,277 @@ symtab:
       - "_strtol"
       - "_sysctl"
       - "_vfprintf"
+    nlists:
+      - n_strx: 742
+        n_type: 60
+        n_sect: 0
+        n_desc: 0
+        n_value: 90260802
+      - n_strx: 4
+        n_type: 15
+        n_sect: 10
+        n_desc: 0
+        n_value: 12500
+      - n_strx: 12
+        n_type: 15
+        n_sect: 10
+        n_desc: 0
+        n_value: 12504
+      - n_strx: 20
+        n_type: 15
+        n_sect: 10
+        n_desc: 0
+        n_value: 12512
+      - n_strx: 32
+        n_type: 3
+        n_sect: 1
+        n_desc: 16
+        n_value: 4096
+      - n_strx: 52
+        n_type: 15
+        n_sect: 10
+        n_desc: 0
+        n_value: 12508
+      - n_strx: 61
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 6848
+      - n_strx: 67
+        n_type: 1
+        n_sect: 0
+        n_desc: 2048
+        n_value: 0
+      - n_strx: 94
+        n_type: 1
+        n_sect: 0
+        n_desc: 2048
+        n_value: 0
+      - n_strx: 117
+        n_type: 1
+        n_sect: 0
+        n_desc: 2048
+        n_value: 0
+      - n_strx: 144
+        n_type: 1
+        n_sect: 0
+        n_desc: 2048
+        n_value: 0
+      - n_strx: 167
+        n_type: 1
+        n_sect: 0
+        n_desc: 2048
+        n_value: 0
+      - n_strx: 189
+        n_type: 1
+        n_sect: 0
+        n_desc: 2048
+        n_value: 0
+      - n_strx: 200
+        n_type: 1
+        n_sect: 0
+        n_desc: 2048
+        n_value: 0
+      - n_strx: 210
+        n_type: 1
+        n_sect: 0
+        n_desc: 2048
+        n_value: 0
+      - n_strx: 244
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 263
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 275
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 294
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 317
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 334
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 357
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 380
+        n_type: 1
+        n_sect: 0
+        n_desc: 2048
+        n_value: 0
+      - n_strx: 414
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 425
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 441
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 447
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 455
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 471
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 478
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 485
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 494
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 500
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 507
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 515
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 526
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 540
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 548
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 563
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 580
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 595
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 612
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 635
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 645
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 654
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 666
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 674
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 682
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 690
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 698
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 707
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 716
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 724
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 732
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
 dysymtab:
     ilocalsym: 0
     nlocalsym: 1

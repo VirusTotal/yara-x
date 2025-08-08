@@ -172,6 +172,797 @@ symtab:
       - "_random"
       - "_srandom"
       - "_strdup"
+    nlists:
+      - n_strx: 2812
+        n_type: 100
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 2840
+        n_type: 102
+        n_sect: 0
+        n_desc: 1
+        n_value: 1289082699
+      - n_strx: 2935
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 8124
+      - n_strx: 2941
+        n_type: 100
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 2994
+        n_type: 102
+        n_sect: 0
+        n_desc: 1
+        n_value: 1289082699
+      - n_strx: 3103
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 8128
+      - n_strx: 3170
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 8380
+      - n_strx: 3211
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 8388
+      - n_strx: 3247
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 8732
+      - n_strx: 3280
+        n_type: 100
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 3337
+        n_type: 102
+        n_sect: 0
+        n_desc: 1
+        n_value: 1289082699
+      - n_strx: 3450
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 8960
+      - n_strx: 3489
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 9052
+      - n_strx: 3525
+        n_type: 100
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 3578
+        n_type: 102
+        n_sect: 0
+        n_desc: 1
+        n_value: 1289082699
+      - n_strx: 3687
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 9388
+      - n_strx: 3722
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 9480
+      - n_strx: 3754
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 9672
+      - n_strx: 3787
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 9804
+      - n_strx: 3818
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 9896
+      - n_strx: 3858
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 9988
+      - n_strx: 3896
+        n_type: 100
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 3944
+        n_type: 102
+        n_sect: 0
+        n_desc: 1
+        n_value: 1289082699
+      - n_strx: 4048
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 10080
+      - n_strx: 4076
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 10196
+      - n_strx: 4102
+        n_type: 100
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 4156
+        n_type: 102
+        n_sect: 0
+        n_desc: 1
+        n_value: 1289082699
+      - n_strx: 4266
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 10212
+      - n_strx: 4302
+        n_type: 132
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 4402
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 10644
+      - n_strx: 4431
+        n_type: 100
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 4478
+        n_type: 102
+        n_sect: 0
+        n_desc: 1
+        n_value: 1289082699
+      - n_strx: 4581
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 10712
+      - n_strx: 4607
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 10732
+      - n_strx: 4638
+        n_type: 100
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 4689
+        n_type: 102
+        n_sect: 0
+        n_desc: 1
+        n_value: 1289082700
+      - n_strx: 4796
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 11376
+      - n_strx: 4830
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 11396
+      - n_strx: 4872
+        n_type: 32
+        n_sect: 10
+        n_desc: 0
+        n_value: 0
+      - n_strx: 4889
+        n_type: 100
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 4936
+        n_type: 102
+        n_sect: 0
+        n_desc: 1
+        n_value: 1289082700
+      - n_strx: 5050
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 12236
+      - n_strx: 5082
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 12312
+      - n_strx: 5122
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 12336
+      - n_strx: 5163
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 12852
+      - n_strx: 5209
+        n_type: 36
+        n_sect: 1
+        n_desc: 0
+        n_value: 12964
+      - n_strx: 5246
+        n_type: 32
+        n_sect: 10
+        n_desc: 0
+        n_value: 0
+      - n_strx: 2
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 7240
+      - n_strx: 10
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 8084
+      - n_strx: 35
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 8108
+      - n_strx: 54
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 8124
+      - n_strx: 60
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 8128
+      - n_strx: 127
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 8380
+      - n_strx: 168
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 8388
+      - n_strx: 204
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 8732
+      - n_strx: 237
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 8960
+      - n_strx: 276
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 9052
+      - n_strx: 312
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 9388
+      - n_strx: 347
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 9480
+      - n_strx: 379
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 9672
+      - n_strx: 412
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 9804
+      - n_strx: 443
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 9896
+      - n_strx: 483
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 9988
+      - n_strx: 521
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 10080
+      - n_strx: 549
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 10196
+      - n_strx: 575
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 10212
+      - n_strx: 611
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 10644
+      - n_strx: 640
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 10712
+      - n_strx: 666
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 10732
+      - n_strx: 697
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 11376
+      - n_strx: 731
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 11396
+      - n_strx: 773
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 12236
+      - n_strx: 805
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 12312
+      - n_strx: 845
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 12336
+      - n_strx: 886
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 12852
+      - n_strx: 932
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 12964
+      - n_strx: 969
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 13260
+      - n_strx: 976
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 13340
+      - n_strx: 983
+        n_type: 14
+        n_sect: 9
+        n_desc: 0
+        n_value: 16772
+      - n_strx: 1031
+        n_type: 30
+        n_sect: 10
+        n_desc: 0
+        n_value: 16840
+      - n_strx: 1048
+        n_type: 30
+        n_sect: 10
+        n_desc: 0
+        n_value: 16841
+      - n_strx: 1068
+        n_type: 15
+        n_sect: 13
+        n_desc: 0
+        n_value: 21032
+      - n_strx: 1098
+        n_type: 15
+        n_sect: 13
+        n_desc: 0
+        n_value: 21080
+      - n_strx: 1132
+        n_type: 15
+        n_sect: 13
+        n_desc: 0
+        n_value: 20888
+      - n_strx: 1168
+        n_type: 15
+        n_sect: 13
+        n_desc: 0
+        n_value: 20936
+      - n_strx: 1199
+        n_type: 15
+        n_sect: 13
+        n_desc: 0
+        n_value: 20792
+      - n_strx: 1235
+        n_type: 15
+        n_sect: 13
+        n_desc: 0
+        n_value: 20840
+      - n_strx: 1275
+        n_type: 15
+        n_sect: 13
+        n_desc: 0
+        n_value: 21128
+      - n_strx: 1316
+        n_type: 15
+        n_sect: 13
+        n_desc: 0
+        n_value: 20984
+      - n_strx: 1353
+        n_type: 15
+        n_sect: 9
+        n_desc: 16
+        n_value: 16768
+      - n_strx: 1361
+        n_type: 15
+        n_sect: 9
+        n_desc: 16
+        n_value: 16764
+      - n_strx: 1369
+        n_type: 15
+        n_sect: 10
+        n_desc: 0
+        n_value: 16784
+      - n_strx: 1407
+        n_type: 15
+        n_sect: 9
+        n_desc: 16
+        n_value: 16756
+      - n_strx: 1419
+        n_type: 3
+        n_sect: 0
+        n_desc: 16
+        n_value: 4096
+      - n_strx: 1439
+        n_type: 15
+        n_sect: 10
+        n_desc: 16
+        n_value: 16788
+      - n_strx: 1462
+        n_type: 15
+        n_sect: 10
+        n_desc: 16
+        n_value: 16792
+      - n_strx: 1491
+        n_type: 15
+        n_sect: 10
+        n_desc: 16
+        n_value: 16796
+      - n_strx: 1529
+        n_type: 15
+        n_sect: 10
+        n_desc: 16
+        n_value: 16800
+      - n_strx: 1548
+        n_type: 15
+        n_sect: 10
+        n_desc: 16
+        n_value: 16804
+      - n_strx: 1574
+        n_type: 15
+        n_sect: 10
+        n_desc: 16
+        n_value: 16808
+      - n_strx: 1601
+        n_type: 15
+        n_sect: 10
+        n_desc: 16
+        n_value: 16812
+      - n_strx: 1630
+        n_type: 15
+        n_sect: 10
+        n_desc: 16
+        n_value: 16816
+      - n_strx: 1656
+        n_type: 15
+        n_sect: 10
+        n_desc: 16
+        n_value: 16820
+      - n_strx: 1689
+        n_type: 15
+        n_sect: 10
+        n_desc: 16
+        n_value: 16824
+      - n_strx: 1723
+        n_type: 15
+        n_sect: 10
+        n_desc: 16
+        n_value: 16828
+      - n_strx: 1759
+        n_type: 15
+        n_sect: 10
+        n_desc: 16
+        n_value: 16832
+      - n_strx: 1792
+        n_type: 15
+        n_sect: 9
+        n_desc: 16
+        n_value: 16760
+      - n_strx: 1801
+        n_type: 15
+        n_sect: 10
+        n_desc: 16
+        n_value: 16836
+      - n_strx: 1818
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 7188
+      - n_strx: 1824
+        n_type: 1
+        n_sect: 0
+        n_desc: 1793
+        n_value: 0
+      - n_strx: 1849
+        n_type: 1
+        n_sect: 0
+        n_desc: 1793
+        n_value: 0
+      - n_strx: 1884
+        n_type: 1
+        n_sect: 0
+        n_desc: 1793
+        n_value: 0
+      - n_strx: 1910
+        n_type: 1
+        n_sect: 0
+        n_desc: 2049
+        n_value: 0
+      - n_strx: 1936
+        n_type: 1
+        n_sect: 0
+        n_desc: 2049
+        n_value: 0
+      - n_strx: 1966
+        n_type: 1
+        n_sect: 0
+        n_desc: 2049
+        n_value: 0
+      - n_strx: 1991
+        n_type: 1
+        n_sect: 0
+        n_desc: 2049
+        n_value: 0
+      - n_strx: 2016
+        n_type: 1
+        n_sect: 0
+        n_desc: 1793
+        n_value: 0
+      - n_strx: 2051
+        n_type: 1
+        n_sect: 0
+        n_desc: 1793
+        n_value: 0
+      - n_strx: 2094
+        n_type: 1
+        n_sect: 0
+        n_desc: 1793
+        n_value: 0
+      - n_strx: 2131
+        n_type: 1
+        n_sect: 0
+        n_desc: 1793
+        n_value: 0
+      - n_strx: 2157
+        n_type: 1
+        n_sect: 0
+        n_desc: 2049
+        n_value: 0
+      - n_strx: 2187
+        n_type: 1
+        n_sect: 0
+        n_desc: 2049
+        n_value: 0
+      - n_strx: 2213
+        n_type: 1
+        n_sect: 0
+        n_desc: 1793
+        n_value: 0
+      - n_strx: 2239
+        n_type: 1
+        n_sect: 0
+        n_desc: 2049
+        n_value: 0
+      - n_strx: 2268
+        n_type: 1
+        n_sect: 0
+        n_desc: 2049
+        n_value: 0
+      - n_strx: 2292
+        n_type: 1
+        n_sect: 0
+        n_desc: 2049
+        n_value: 0
+      - n_strx: 2318
+        n_type: 1
+        n_sect: 0
+        n_desc: 1281
+        n_value: 0
+      - n_strx: 2341
+        n_type: 1
+        n_sect: 0
+        n_desc: 513
+        n_value: 0
+      - n_strx: 2355
+        n_type: 1
+        n_sect: 0
+        n_desc: 513
+        n_value: 0
+      - n_strx: 2369
+        n_type: 1
+        n_sect: 0
+        n_desc: 513
+        n_value: 0
+      - n_strx: 2388
+        n_type: 1
+        n_sect: 0
+        n_desc: 513
+        n_value: 0
+      - n_strx: 2407
+        n_type: 1
+        n_sect: 0
+        n_desc: 513
+        n_value: 0
+      - n_strx: 2426
+        n_type: 1
+        n_sect: 0
+        n_desc: 1537
+        n_value: 0
+      - n_strx: 2447
+        n_type: 1
+        n_sect: 0
+        n_desc: 2048
+        n_value: 0
+      - n_strx: 2454
+        n_type: 1
+        n_sect: 0
+        n_desc: 2048
+        n_value: 0
+      - n_strx: 2477
+        n_type: 1
+        n_sect: 0
+        n_desc: 2049
+        n_value: 0
+      - n_strx: 2496
+        n_type: 1
+        n_sect: 0
+        n_desc: 2048
+        n_value: 0
+      - n_strx: 2528
+        n_type: 1
+        n_sect: 0
+        n_desc: 1793
+        n_value: 0
+      - n_strx: 2535
+        n_type: 1
+        n_sect: 0
+        n_desc: 2049
+        n_value: 0
+      - n_strx: 2547
+        n_type: 1
+        n_sect: 0
+        n_desc: 2048
+        n_value: 0
+      - n_strx: 2567
+        n_type: 1
+        n_sect: 0
+        n_desc: 1792
+        n_value: 0
+      - n_strx: 2580
+        n_type: 1
+        n_sect: 0
+        n_desc: 1281
+        n_value: 0
+      - n_strx: 2588
+        n_type: 1
+        n_sect: 0
+        n_desc: 1280
+        n_value: 0
+      - n_strx: 2622
+        n_type: 1
+        n_sect: 0
+        n_desc: 1025
+        n_value: 0
+      - n_strx: 2657
+        n_type: 1
+        n_sect: 0
+        n_desc: 1024
+        n_value: 0
+      - n_strx: 2663
+        n_type: 1
+        n_sect: 0
+        n_desc: 1024
+        n_value: 0
+      - n_strx: 2686
+        n_type: 1
+        n_sect: 0
+        n_desc: 1025
+        n_value: 0
+      - n_strx: 2694
+        n_type: 1
+        n_sect: 0
+        n_desc: 1025
+        n_value: 0
+      - n_strx: 2701
+        n_type: 1
+        n_sect: 0
+        n_desc: 1024
+        n_value: 0
+      - n_strx: 2708
+        n_type: 1
+        n_sect: 0
+        n_desc: 1025
+        n_value: 0
+      - n_strx: 2714
+        n_type: 1
+        n_sect: 0
+        n_desc: 1025
+        n_value: 0
+      - n_strx: 2721
+        n_type: 1
+        n_sect: 0
+        n_desc: 1025
+        n_value: 0
+      - n_strx: 2729
+        n_type: 1
+        n_sect: 0
+        n_desc: 1024
+        n_value: 0
+      - n_strx: 2748
+        n_type: 1
+        n_sect: 0
+        n_desc: 1793
+        n_value: 0
+      - n_strx: 2767
+        n_type: 1
+        n_sect: 0
+        n_desc: 1793
+        n_value: 0
+      - n_strx: 2787
+        n_type: 1
+        n_sect: 0
+        n_desc: 1025
+        n_value: 0
+      - n_strx: 2795
+        n_type: 1
+        n_sect: 0
+        n_desc: 1025
+        n_value: 0
+      - n_strx: 2804
+        n_type: 1
+        n_sect: 0
+        n_desc: 1025
+        n_value: 0
 dysymtab:
     ilocalsym: 0
     nlocalsym: 177

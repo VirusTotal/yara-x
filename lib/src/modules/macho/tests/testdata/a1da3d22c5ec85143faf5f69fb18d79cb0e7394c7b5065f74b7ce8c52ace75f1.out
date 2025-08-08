@@ -205,6 +205,37 @@ file:
           - "_OpenDefaultComponent"
           - "_exit"
           - "dyld_stub_binder"
+        nlists:
+          - n_strx: 92
+            n_type: 60
+            n_sect: 0
+            n_desc: 0
+            n_value: 90260802
+          - n_strx: 4
+            n_type: 15
+            n_sect: 1
+            n_desc: 16
+            n_value: 4294967296
+          - n_strx: 24
+            n_type: 1
+            n_sect: 0
+            n_desc: 256
+            n_value: 0
+          - n_strx: 47
+            n_type: 1
+            n_sect: 0
+            n_desc: 256
+            n_value: 0
+          - n_strx: 69
+            n_type: 1
+            n_sect: 0
+            n_desc: 512
+            n_value: 0
+          - n_strx: 75
+            n_type: 1
+            n_sect: 0
+            n_desc: 512
+            n_value: 0
     dysymtab:
         ilocalsym: 0
         nlocalsym: 1
@@ -364,6 +395,27 @@ file:
           - "__mh_execute_header"
           - "_CallComponentDispatch"
           - "_OpenDefaultComponent"
+        nlists:
+          - n_strx: 69
+            n_type: 60
+            n_sect: 0
+            n_desc: 0
+            n_value: 90260802
+          - n_strx: 4
+            n_type: 15
+            n_sect: 1
+            n_desc: 16
+            n_value: 4294967296
+          - n_strx: 24
+            n_type: 1
+            n_sect: 0
+            n_desc: 256
+            n_value: 0
+          - n_strx: 47
+            n_type: 1
+            n_sect: 0
+            n_desc: 256
+            n_value: 0
     dysymtab:
         ilocalsym: 0
         nlocalsym: 1
