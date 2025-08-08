@@ -7,6 +7,7 @@
 
 use std::cell::RefCell;
 
+use crate::modules::macho::parser::{N_EXT, N_STAB, N_TYPE};
 use crate::modules::prelude::*;
 use crate::modules::protos::macho::*;
 use bstr::BString;
@@ -530,9 +531,10 @@ fn import_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     Some(RuntimeString::new(digest))
 }
 
-/// Returns a md5 hash of the symbol table in the mach-o binary
+/// Returns a md5 hash of specific parts of the symbol table
+/// as defined by http://github.com/threatstream/symhash
 #[module_export]
-fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
+fn symhash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let cached = SYM_MD5_CACHE.with(|cache| -> Option<RuntimeString> {
         cache
             .borrow()
@@ -546,11 +548,13 @@ fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 
     let macho = ctx.module_output::<Macho>()?;
     let mut symtab_to_hash = &macho.symtab.entries;
+    let mut nlists = &macho.symtab.nlists;
 
     // if there is not a symbtol table in the main Macho, the symbol table of the
     // nested file should be hashed
     if symtab_to_hash.is_empty() && !macho.file.is_empty() {
         symtab_to_hash = &macho.file[0].symtab.entries;
+        nlists = &macho.file[0].symtab.nlists
     }
 
     // we need to check again as the nested symbol table could be empty too
@@ -560,9 +564,22 @@ fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 
     let mut md5_hash: digest::core_api::CoreWrapper<md5::Md5Core> = Md5::new();
 
-    let symtab_hash_entries = symtab_to_hash
+    // ref: implementation of symhash published at https://github.com/threatstream/symhash/
+    let symtab_hash_entries = nlists
         .iter()
-        .map(|e| BString::new(e.trim().to_lowercase()))
+        .enumerate()
+        .filter_map(|(idx, nlist)| {
+            let n_type = nlist.n_type();
+            if (n_type & N_STAB as u32 == 0)
+                && (n_type & N_EXT as u32) == N_EXT as u32
+                && (n_type & N_TYPE as u32) == 0
+            {
+                symtab_to_hash.get(idx)
+            } else {
+                None
+            }
+        })
+        .map(|s| BString::new(s.trim().to_vec()))
         .unique()
         .sorted()
         .join(",");

@@ -67,6 +67,277 @@ symtab:
       - "__swift_FORCE_LOAD_$_swiftunistd"
       - "_objc_opt_self"
       - "_swift_getObjCClassMetadata"
+    nlists:
+      - n_strx: 1517
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 0
+      - n_strx: 1242
+        n_type: 14
+        n_sect: 3
+        n_desc: 0
+        n_value: 188
+      - n_strx: 1099
+        n_type: 14
+        n_sect: 5
+        n_desc: 0
+        n_value: 216
+      - n_strx: 1511
+        n_type: 14
+        n_sect: 2
+        n_desc: 0
+        n_value: 416
+      - n_strx: 1505
+        n_type: 14
+        n_sect: 3
+        n_desc: 0
+        n_value: 188
+      - n_strx: 1499
+        n_type: 14
+        n_sect: 4
+        n_desc: 0
+        n_value: 208
+      - n_strx: 1493
+        n_type: 14
+        n_sect: 5
+        n_desc: 0
+        n_value: 216
+      - n_strx: 1487
+        n_type: 14
+        n_sect: 6
+        n_desc: 0
+        n_value: 224
+      - n_strx: 624
+        n_type: 14
+        n_sect: 6
+        n_desc: 32
+        n_value: 224
+      - n_strx: 1481
+        n_type: 14
+        n_sect: 7
+        n_desc: 0
+        n_value: 232
+      - n_strx: 1475
+        n_type: 14
+        n_sect: 8
+        n_desc: 0
+        n_value: 352
+      - n_strx: 1469
+        n_type: 14
+        n_sect: 9
+        n_desc: 0
+        n_value: 354
+      - n_strx: 1016
+        n_type: 14
+        n_sect: 9
+        n_desc: 32
+        n_value: 354
+      - n_strx: 1463
+        n_type: 14
+        n_sect: 10
+        n_desc: 0
+        n_value: 370
+      - n_strx: 1523
+        n_type: 14
+        n_sect: 11
+        n_desc: 0
+        n_value: 384
+      - n_strx: 711
+        n_type: 31
+        n_sect: 2
+        n_desc: 32
+        n_value: 416
+      - n_strx: 1311
+        n_type: 31
+        n_sect: 4
+        n_desc: 128
+        n_value: 208
+      - n_strx: 1293
+        n_type: 31
+        n_sect: 1
+        n_desc: 128
+        n_value: 88
+      - n_strx: 883
+        n_type: 31
+        n_sect: 8
+        n_desc: 160
+        n_value: 352
+      - n_strx: 212
+        n_type: 31
+        n_sect: 7
+        n_desc: 160
+        n_value: 320
+      - n_strx: 260
+        n_type: 31
+        n_sect: 7
+        n_desc: 160
+        n_value: 304
+      - n_strx: 380
+        n_type: 31
+        n_sect: 7
+        n_desc: 160
+        n_value: 328
+      - n_strx: 168
+        n_type: 31
+        n_sect: 7
+        n_desc: 160
+        n_value: 232
+      - n_strx: 1
+        n_type: 31
+        n_sect: 7
+        n_desc: 160
+        n_value: 344
+      - n_strx: 543
+        n_type: 31
+        n_sect: 7
+        n_desc: 160
+        n_value: 312
+      - n_strx: 587
+        n_type: 31
+        n_sect: 7
+        n_desc: 160
+        n_value: 336
+      - n_strx: 40
+        n_type: 31
+        n_sect: 7
+        n_desc: 160
+        n_value: 296
+      - n_strx: 88
+        n_type: 31
+        n_sect: 7
+        n_desc: 160
+        n_value: 240
+      - n_strx: 341
+        n_type: 31
+        n_sect: 7
+        n_desc: 160
+        n_value: 288
+      - n_strx: 300
+        n_type: 31
+        n_sect: 7
+        n_desc: 160
+        n_value: 256
+      - n_strx: 128
+        n_type: 31
+        n_sect: 7
+        n_desc: 160
+        n_value: 264
+      - n_strx: 422
+        n_type: 31
+        n_sect: 7
+        n_desc: 160
+        n_value: 272
+      - n_strx: 461
+        n_type: 31
+        n_sect: 7
+        n_desc: 160
+        n_value: 248
+      - n_strx: 503
+        n_type: 31
+        n_sect: 7
+        n_desc: 160
+        n_value: 280
+      - n_strx: 944
+        n_type: 15
+        n_sect: 1
+        n_desc: 32
+        n_value: 0
+      - n_strx: 1329
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 1076
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 842
+        n_type: 1
+        n_sect: 0
+        n_desc: 64
+        n_value: 0
+      - n_strx: 911
+        n_type: 1
+        n_sect: 0
+        n_desc: 64
+        n_value: 0
+      - n_strx: 1041
+        n_type: 1
+        n_sect: 0
+        n_desc: 64
+        n_value: 0
+      - n_strx: 805
+        n_type: 1
+        n_sect: 0
+        n_desc: 64
+        n_value: 0
+      - n_strx: 638
+        n_type: 1
+        n_sect: 0
+        n_desc: 64
+        n_value: 0
+      - n_strx: 1396
+        n_type: 1
+        n_sect: 0
+        n_desc: 64
+        n_value: 0
+      - n_strx: 1433
+        n_type: 1
+        n_sect: 0
+        n_desc: 64
+        n_value: 0
+      - n_strx: 670
+        n_type: 1
+        n_sect: 0
+        n_desc: 64
+        n_value: 0
+      - n_strx: 739
+        n_type: 1
+        n_sect: 0
+        n_desc: 64
+        n_value: 0
+      - n_strx: 984
+        n_type: 1
+        n_sect: 0
+        n_desc: 64
+        n_value: 0
+      - n_strx: 950
+        n_type: 1
+        n_sect: 0
+        n_desc: 64
+        n_value: 0
+      - n_strx: 772
+        n_type: 1
+        n_sect: 0
+        n_desc: 64
+        n_value: 0
+      - n_strx: 1142
+        n_type: 1
+        n_sect: 0
+        n_desc: 64
+        n_value: 0
+      - n_strx: 1174
+        n_type: 1
+        n_sect: 0
+        n_desc: 64
+        n_value: 0
+      - n_strx: 1209
+        n_type: 1
+        n_sect: 0
+        n_desc: 64
+        n_value: 0
+      - n_strx: 1127
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 1265
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
 dysymtab:
     ilocalsym: 0
     nlocalsym: 15
