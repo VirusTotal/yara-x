@@ -872,6 +872,45 @@ impl<M> Node<M> {
         // real siblings.
         self.inner.siblings_with_tokens(direction).skip(1).map(|x| x.into())
     }
+
+    /// Returns a token at a given offset of this node.
+    ///
+    /// Depending on what is at the given offset it will return None,
+    /// single token or two adjacent tokens.
+    ///
+    /// ```rust
+    /// # use yara_x_parser::Parser;
+    /// # use yara_x_parser::cst::TokenAtOffset;
+    /// // Get the root node, which contains 26 characters.
+    /// let mut rule_decl = Parser::new(b"rule test {condition:true}")
+    ///     .try_into_cst()
+    ///     .unwrap()
+    ///     .root();
+    ///
+    /// // Should find single `SyntaxKind::RULE_KW` token at offset 0.
+    /// let single_token = rule_decl.token_at_offset(0);
+    /// let rule_kw = rule_decl.first_token().unwrap();
+    /// assert_eq!(single_token, TokenAtOffset::Single(rule_kw));
+    ///
+    /// // Should find both `SyntaxKind::RULE_KW` and
+    /// // `SyntaxKind::WHITESPACE` tokens at offset 4.
+    /// let between_tokens = rule_decl.token_at_offset(4);
+    /// let left_rule_kw = rule_decl.first_token().unwrap();
+    /// let right_whitespace = rule_decl.first_token().unwrap().next_token().unwrap();
+    /// assert_eq!(between_tokens, TokenAtOffset::Between(left_rule_kw, right_whitespace));
+    ///
+    /// // Should return `TokenAtOffset::None` for an empty file.
+    /// let mut empty = Parser::new(b"")
+    ///     .try_into_cst()
+    ///     .unwrap()
+    ///     .root();
+    ///
+    /// let none = empty.token_at_offset(0);
+    /// assert_eq!(none, TokenAtOffset::None);
+    /// ```
+    pub fn token_at_offset(&self, offset: u32) -> TokenAtOffset<M> {
+        TokenAtOffset::from(self.inner.token_at_offset(offset.into()))
+    }
 }
 
 impl Node<Immutable> {
@@ -925,5 +964,56 @@ impl<M> Iterator for NodesAndTokens<M> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(|x| x.into())
+    }
+}
+
+/// Represents tokens found at a given offset.
+///
+/// This is the value returned by [`Node::token_at_offset`].
+///
+/// NOTE: This API is still unstable and should not be used by third-party code.
+#[derive(Debug, PartialEq)]
+#[doc(hidden)]
+pub enum TokenAtOffset<M> {
+    None,
+    Single(Token<M>),
+    Between(Token<M>, Token<M>),
+}
+
+impl<M> TokenAtOffset<M> {
+    /// Returns the token option, giving preference to the right token
+    /// if the offset is between two leaves.
+    pub fn right_biased(self) -> Option<Token<M>> {
+        match self {
+            TokenAtOffset::None => None,
+            TokenAtOffset::Single(token) => Some(token),
+            TokenAtOffset::Between(_, right) => Some(right),
+        }
+    }
+
+    /// Returns the token option, giving preference to the left token
+    /// if the offset is between two leaves.
+    pub fn left_biased(self) -> Option<Token<M>> {
+        match self {
+            TokenAtOffset::None => None,
+            TokenAtOffset::Single(token) => Some(token),
+            TokenAtOffset::Between(left, _) => Some(left),
+        }
+    }
+}
+
+impl<M> From<rowan::TokenAtOffset<rowan::SyntaxToken<YARA>>>
+    for TokenAtOffset<M>
+{
+    fn from(value: rowan::TokenAtOffset<rowan::SyntaxToken<YARA>>) -> Self {
+        match value {
+            rowan::TokenAtOffset::None => Self::None,
+            rowan::TokenAtOffset::Single(token) => {
+                Self::Single(Token::new(token))
+            }
+            rowan::TokenAtOffset::Between(left, right) => {
+                Self::Between(Token::new(left), Token::new(right))
+            }
+        }
     }
 }
