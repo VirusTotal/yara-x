@@ -22,6 +22,7 @@ use std::path::PathBuf;
 use std::pin::Pin;
 use std::str::FromStr;
 use std::time::Duration;
+use std::sync::OnceLock;
 use strum_macros::{Display, EnumString};
 
 use base64::prelude::BASE64_STANDARD;
@@ -38,6 +39,18 @@ use pyo3_file::PyFileLikeObject;
 
 use ::yara_x as yrx;
 use ::yara_x::mods::*;
+
+fn dict_to_json(dict: Bound<PyAny>) -> PyResult<serde_json::Value> {
+    static JSON_DUMPS: OnceLock<Py<PyAny>> = OnceLock::new();
+    let py = dict.py();
+    let dumps = JSON_DUMPS.get_or_init(|| {
+        let json_mod = PyModule::import(py, "json").unwrap().unbind();
+        let dumps = json_mod.getattr(py, "dumps").unwrap();
+        dumps
+    });
+    let json_str: String = dumps.call1(py, (dict,))?.extract(py)?;
+    serde_json::from_str(&json_str).map_err(|err| PyValueError::new_err(err.to_string()))
+}
 
 #[derive(Debug, Clone, Display, EnumString, PartialEq)]
 #[strum(ascii_case_insensitive)]
@@ -339,6 +352,8 @@ impl Compiler {
             self.inner.define_global(ident, value.extract::<i64>()?)
         } else if value.is_exact_instance_of::<PyFloat>() {
             self.inner.define_global(ident, value.extract::<f64>()?)
+        } else if value.is_exact_instance_of::<PyDict>() {
+            self.inner.define_global(ident, dict_to_json(value)?)
         } else {
             return Err(PyTypeError::new_err(format!(
                 "unsupported variable type `{}`",
@@ -500,6 +515,8 @@ impl Scanner {
             self.inner.set_global(ident, value.extract::<i64>()?)
         } else if value.is_exact_instance_of::<PyFloat>() {
             self.inner.set_global(ident, value.extract::<f64>()?)
+        } else if value.is_exact_instance_of::<PyDict>() {
+            self.inner.set_global(ident, dict_to_json(value)?)
         } else {
             return Err(PyTypeError::new_err(format!(
                 "unsupported variable type `{}`",
