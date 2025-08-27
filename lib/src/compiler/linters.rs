@@ -139,7 +139,7 @@ type Predicate<'a> = dyn Fn(&Meta) -> bool + 'a;
 ///   |
 ///   = note: allowed tags: foo, bar"#);
 pub struct Tags {
-    allow_list: Vec<String>,
+    allowed: Vec<String>,
     regex: Option<String>,
     compiled_regex: Option<Regex>,
     error: bool,
@@ -148,12 +148,7 @@ pub struct Tags {
 impl Tags {
     /// A list of strings that tags for each rule must match one of.
     pub(crate) fn from_list(list: Vec<String>) -> Self {
-        Self {
-            allow_list: list,
-            regex: None,
-            compiled_regex: None,
-            error: false,
-        }
+        Self { allowed: list, regex: None, compiled_regex: None, error: false }
     }
 
     /// Regular expression that tags for each rule must match.
@@ -163,7 +158,7 @@ impl Tags {
         let regex = regex.into();
         let compiled_regex = Some(Regex::new(regex.as_str())?);
         let tags = Self {
-            allow_list: Vec::new(),
+            allowed: Vec::new(),
             regex: Some(regex),
             compiled_regex,
             error: false,
@@ -195,9 +190,9 @@ impl LinterInternal for Tags {
 
         let mut results: Vec<Warning> = Vec::new();
         let tags = rule.tags.as_ref().unwrap();
-        if !self.allow_list.is_empty() {
+        if !self.allowed.is_empty() {
             for tag in tags.iter() {
-                if !self.allow_list.contains(&tag.name.to_string()) {
+                if !self.allowed.contains(&tag.name.to_string()) {
                     if self.error {
                         return LinterResult::Err(errors::UnknownTag::build(
                             report_builder,
@@ -205,7 +200,7 @@ impl LinterInternal for Tags {
                             tag.name.to_string(),
                             Some(format!(
                                 "allowed tags: {}",
-                                self.allow_list.join(", ")
+                                self.allowed.join(", ")
                             )),
                         ));
                     } else {
@@ -215,7 +210,7 @@ impl LinterInternal for Tags {
                             tag.name.to_string(),
                             Some(format!(
                                 "allowed tags: {}",
-                                self.allow_list.join(", ")
+                                self.allowed.join(", ")
                             )),
                         ));
                     }
