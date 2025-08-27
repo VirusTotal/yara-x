@@ -147,7 +147,7 @@ fn print_meta() {
         .arg("src/tests/testdata/dummy.file")
         .assert()
         .success()
-        .stdout("foo [string=\"foo\",bool=true,int=1,float=3.14] src/tests/testdata/dummy.file\n");
+        .stdout("foo [string=\"foo\",bool=true,int=1,float=3.14,regexp=\"foo\"] src/tests/testdata/dummy.file\n");
 }
 
 #[test]

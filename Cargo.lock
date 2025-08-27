@@ -4836,6 +4836,7 @@ dependencies = [
  "log",
  "predicates",
  "protobuf",
+ "regex",
  "serde",
  "serde_json",
  "strum",
