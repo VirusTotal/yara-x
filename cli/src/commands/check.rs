@@ -5,6 +5,7 @@ use std::{fs, io};
 use anyhow::Context;
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 use crossterm::tty::IsTty;
+use regex;
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Green, Red, Yellow};
 use yansi::Paint;
@@ -112,14 +113,28 @@ pub fn exec_check(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
                 match config.ty {
                     MetaValueType::String => {
+                        let message = if let Some(regexp) = &config.regexp {
+                            // Make sure that the regexp is valid.
+                            let _ = regex::bytes::Regex::new(&regexp)?;
+                            format!("`{identifier}` must be a string that matches `/{regexp}/`")
+                        } else {
+                            format!("`{identifier}` must be a string")
+                        };
                         linter = linter.validator(
                             |meta| {
-                                matches!(
-                                    meta.value,
-                                    MetaValue::String(_) | MetaValue::Bytes(_)
-                                )
+                                match (&meta.value, &config.regexp) {
+                                    (MetaValue::String((s, _)), Some(regexp)) => {
+                                        regex::Regex::new(&regexp).unwrap().is_match(s)
+                                    }
+                                    (MetaValue::Bytes((s, _)), Some(regexp)) => {
+                                        regex::bytes::Regex::new(&regexp).unwrap().is_match(s)
+                                    }
+                                    (MetaValue::String(_), None) => true,
+                                    (MetaValue::Bytes(_), None) => true,
+                                    _ => false,
+                                }
                             },
-                            format!("`{identifier}` must be a string"),
+                            message,
                         );
                     }
                     MetaValueType::Integer => {
@@ -184,7 +199,7 @@ pub fn exec_check(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
             if !config.check.tags.allowed.is_empty() {
                 compiler.add_linter(
                     linters::tags_allowed(config.check.tags.allowed.clone())
-                    .error(config.check.tags.error));
+                        .error(config.check.tags.error));
             } else if let Some(re) = config
                 .check
                 .tags
@@ -252,7 +267,7 @@ pub fn exec_check(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
             Ok(())
         },
     )
-    .unwrap();
+        .unwrap();
 
     Ok(())
 }

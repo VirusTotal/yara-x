@@ -138,6 +138,11 @@ jobs:
       env:
         RUSTFLAGS: ${{ matrix.rust_flags }}
 
+    - name: Run CLI tests
+      run: cargo test -p yara-x-cli --bin yr
+      env:
+        RUSTFLAGS: ${{ matrix.rust_flags }}
+
     - name: Run doc tests
       run: cargo test --doc
       env:

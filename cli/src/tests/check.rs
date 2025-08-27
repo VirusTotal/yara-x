@@ -21,6 +21,7 @@ fn metadata() {
             sha256 = { type = "sha256" }
             required = { type = "string", required = true }
             optional = { type = "string" }
+            regexp = { type = "string", regexp = "(foo|bar)" }
             "#,
         )
         .unwrap();
@@ -42,14 +43,14 @@ fn metadata() {
   |      --- required metadata `required` not found
   |
 warning[text_as_hex]: hex pattern could be written as text literal
- --> src/tests/testdata/foo.yar:9:5
-  |
-9 |     $foo_hex = { 66 6f 6f }
-  |     ---------------------
-  |     |
-  |     this pattern can be written as a text literal
-  |     help: replace with "foo"
-  |
+  --> src/tests/testdata/foo.yar:10:5
+   |
+10 |     $foo_hex = { 66 6f 6f }
+   |     ---------------------
+   |     |
+   |     this pattern can be written as a text literal
+   |     help: replace with "foo"
+   |
 "#,
         );
 
@@ -66,6 +67,7 @@ warning[text_as_hex]: hex pattern could be written as text literal
                 int = 3.14
                 float = "not a float"
                 string = true
+                regexp = "baz"
               condition:
                 true
             }"#,
@@ -83,23 +85,36 @@ warning[text_as_hex]: hex pattern could be written as text literal
         .stderr(predicate::str::contains(
             "warning[invalid_metadata]: metadata `md5` is not valid",
         ))
+        .stderr(predicate::str::contains("`md5` must be a MD5"))
         .stderr(predicate::str::contains(
             "warning[invalid_metadata]: metadata `sha1` is not valid",
         ))
+        .stderr(predicate::str::contains("`sha1` must be a SHA-1"))
         .stderr(predicate::str::contains(
             "warning[invalid_metadata]: metadata `sha256` is not valid",
         ))
+        .stderr(predicate::str::contains("`sha256` must be a SHA-256"))
         .stderr(predicate::str::contains(
             "warning[invalid_metadata]: metadata `bool` is not valid",
         ))
+        .stderr(predicate::str::contains("`bool` must be a bool"))
         .stderr(predicate::str::contains(
             "warning[invalid_metadata]: metadata `int` is not valid",
         ))
+        .stderr(predicate::str::contains("`int` must be an int"))
         .stderr(predicate::str::contains(
             "warning[invalid_metadata]: metadata `float` is not valid",
         ))
+        .stderr(predicate::str::contains("`float` must be a float"))
         .stderr(predicate::str::contains(
             "warning[invalid_metadata]: metadata `string` is not valid",
+        ))
+        .stderr(predicate::str::contains("`string` must be a string"))
+        .stderr(predicate::str::contains(
+            "warning[invalid_metadata]: metadata `regexp` is not valid",
+        ))
+        .stderr(predicate::str::contains(
+            "`regexp` must be a string that matches `/(foo|bar)/`",
         ));
 }
 
