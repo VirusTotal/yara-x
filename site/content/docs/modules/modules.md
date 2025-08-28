@@ -9,7 +9,7 @@ menu:
   docs:
     parent: ""
     identifier: "modules-intro"
-weight: 301
+weight: 1
 toc: true
 seo:
   title: "" # custom title (optional)

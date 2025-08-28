@@ -9,7 +9,7 @@ menu:
   docs:
     parent: ""
     identifier: "math-module"
-weight: 325
+weight: 700
 toc: true
 seo:
   title: "" # custom title (optional)

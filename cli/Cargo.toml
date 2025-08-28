@@ -54,6 +54,7 @@ enable-ansi-support = { workspace = true }
 env_logger = { workspace = true, optional = true, features = ["auto-color"] }
 log = { workspace = true, optional = true }
 protobuf = { workspace = true }
+regex = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
 strum = { workspace = true }

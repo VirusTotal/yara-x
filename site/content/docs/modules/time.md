@@ -9,7 +9,7 @@ menu:
   docs:
     parent: ""
     identifier: "time-module"
-weight: 325
+weight: 1000
 toc: true
 seo:
   title: "" # custom title (optional)

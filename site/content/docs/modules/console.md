@@ -9,7 +9,7 @@ menu:
   docs:
     parent: ""
     identifier: "console-module"
-weight: 325
+weight: 100
 toc: true
 seo:
   title: "" # custom title (optional)

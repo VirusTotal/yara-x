@@ -9,7 +9,7 @@ menu:
   docs:
     parent: ""
     identifier: "hash-module"
-weight: 325
+weight: 500
 toc: true
 seo:
   title: "" # custom title (optional)

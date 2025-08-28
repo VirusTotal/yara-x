@@ -118,6 +118,9 @@ pub struct RuleNameConfig {
 pub struct MetadataConfig {
     #[serde(rename = "type")]
     pub ty: MetaValueType,
+    /// A regular expression that the metadata value must match. Only
+    /// applies if type is MetaValueType::String.
+    pub regexp: Option<String>,
     /// Specifies whether the metadata is required or optional.
     #[serde(default)]
     pub required: bool,

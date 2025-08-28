@@ -9,7 +9,7 @@ menu:
   docs:
     parent: ""
     identifier: "macho-module"
-weight: 310
+weight: 600
 toc: true
 seo:
   title: "" # custom title (optional)

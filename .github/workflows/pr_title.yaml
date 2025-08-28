@@ -13,6 +13,6 @@ jobs:
     permissions:
       statuses: write
     steps:
-    - uses: aslafy-z/conventional-pr-title-action@a0b851005a0f82ac983a56ead5a8111c0d8e044a  # v3.2.0
+    - uses: amannn/action-semantic-pull-request@fdd4d3ddf614fbcd8c29e4b106d3bbe0cb2c605d # v6.0.1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
