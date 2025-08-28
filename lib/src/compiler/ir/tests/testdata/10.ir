@@ -1,7 +1,7 @@
 RULE test
-  13: FOR_IN -- hash: 0xfc4f8d81a95824cd -- parent: None 
+  13: FOR_IN -- hash: 0x96423d1fc9f13492 -- parent: None 
     0: CONST integer(1) -- parent: 13 
-    1: CONST integer(2) -- parent: 13 
+    1: CONST integer(10) -- parent: 13 
     12: WITH -- hash: 0x2fa6e67ac30fd47a -- parent: 13 
       6: FN_CALL uint32@i@i:R0:4294967295u -- hash: 0xb24700199f93dab8 -- parent: 12 
         5: ADD -- hash: 0x685e7a2ba5a36f1d -- parent: 6 
