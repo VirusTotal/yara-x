@@ -727,6 +727,42 @@ fn with() {
            )
         "#
     );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"with one = test_proto2.int32_one,
+                two = test_proto2.add(one, 1),
+                three = two + 1,
+                four = 4: (
+
+                with seven = three + four: (
+                    seven == 7
+                )
+           )
+        "#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_false!(
+        r#"with undef_1 = uint32(100000),
+                undef_2 = uint32(undef_1),
+                one = 1: (
+                undef_2 != one
+           )
+        "#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_false!(
+        r#"for any i in (1..2): (
+            with undef_1 = uint32(100000),
+                undef_2 = uint32(undef_1) + i,
+                one = i: (
+                undef_2 != one
+           )
+        )
+        "#
+    );
 }
 
 #[test]
