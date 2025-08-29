@@ -245,7 +245,6 @@ fn ignore_module() {
   |
 1 | import "unknown"
   | ---------------- module `unknown` used here
-  |
 warning[unsupported_module]: module `unknown` is not supported
  --> src/tests/testdata/unknown_module.yar:5:6
   |
