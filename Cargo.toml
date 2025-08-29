@@ -12,7 +12,7 @@ keywords = ["pattern-matching", "cybersecurity", "forensics", "malware", "yara"]
 #   .github/workflows/tests.yaml
 #   .github/workflows/code_health.yaml
 #
-rust-version = "1.85.0"
+rust-version = "1.86.0"
 
 [workspace]
 members = [
