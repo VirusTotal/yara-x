@@ -896,7 +896,7 @@ impl<M> Node<M> {
     ///
     /// // Should find `SyntaxKind::WHITESPACE` token at offset 4.
     /// assert_eq!(
-    ///     rule_decl.token_at_offset(0).unwrap().kind(),
+    ///     rule_decl.token_at_offset(4).unwrap().kind(),
     ///     SyntaxKind::WHITESPACE);
     ///
     /// let condition_blk = rule_decl.first_child().unwrap();
