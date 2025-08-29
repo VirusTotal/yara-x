@@ -907,10 +907,16 @@ impl<M> Node<M> {
     /// assert_eq!(none, None);
     /// ```
     pub fn token_at_offset(&self, offset: u32) -> Option<Token<M>> {
-        self.inner
-            .token_at_offset(offset.into())
-            .right_biased()
-            .map(Token::new)
+        if self.span().start() as u32 <= offset
+            && self.span().end() as u32 >= offset
+        {
+            self.inner
+                .token_at_offset(offset.into())
+                .right_biased()
+                .map(Token::new)
+        } else {
+            None
+        }
     }
 }
 
