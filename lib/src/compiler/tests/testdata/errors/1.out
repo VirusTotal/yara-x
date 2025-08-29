@@ -2,10 +2,7 @@ error[E012]: duplicate rule `test`
  --> line:5:6
   |
 1 | rule test {
-  |      ---- note: `test` declared here for the first time
-2 |    condition: true
-3 | }
-4 |
+  |      ---- `test` declared here for the first time
+...
 5 | rule test {
   |      ^^^^ duplicate declaration of `test`
-  |

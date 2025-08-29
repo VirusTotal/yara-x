@@ -342,8 +342,7 @@ fn capi_errors() {
  --> test.yar:1:24
   |
 1 | rule test { condition: foo }
-  |                        ^^^ this identifier has not been declared
-  |"
+  |                        ^^^ this identifier has not been declared"
         );
 
         yrx_compiler_destroy(compiler);

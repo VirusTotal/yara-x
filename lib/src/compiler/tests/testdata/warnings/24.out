@@ -3,7 +3,6 @@ warning[unsupported_module]: module `unsupported_module` is not supported
   |
 1 | import "unsupported_module"
   | --------------------------- module `unsupported_module` used here
-  |
 warning[unsupported_module]: module `unsupported_module` is not supported
  --> line:4:5
   |
@@ -16,4 +15,3 @@ warning[ignored_rule]: rule `test_2` will be ignored due to an indirect dependen
   |
 9 |     test_1
   |     ------ this other rule depends on module `unsupported_module`, which is unsupported
-  |

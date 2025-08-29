@@ -609,8 +609,7 @@ fn banned_modules() {
  --> line:2:13
   |
 2 |             import "test_proto2"
-  |             ^^^^^^^^^^^^^^^^^^^^ module `test_proto2` is used here
-  |"#
+  |             ^^^^^^^^^^^^^^^^^^^^ module `test_proto2` is used here"#
     );
 
     // The only error should be the error about the use of a banned module,
@@ -712,14 +711,12 @@ fn linter_tags_regexp() {
  --> line:1:13
   |
 1 | rule test : baz blah { strings: $foo = "foo" condition: $foo }
-  |             --- tag `baz` does not match regex `^(foo|bar)`
-  |"#,
+  |             --- tag `baz` does not match regex `^(foo|bar)`"#,
        r#"warning[invalid_tag]: tag `blah` does not match regex `^(foo|bar)`
  --> line:1:17
   |
 1 | rule test : baz blah { strings: $foo = "foo" condition: $foo }
-  |                 ---- tag `blah` does not match regex `^(foo|bar)`
-  |"#,
+  |                 ---- tag `blah` does not match regex `^(foo|bar)`"#,
     ]);
 
     assert_eq!(
@@ -734,8 +731,7 @@ fn linter_tags_regexp() {
  --> line:1:13
   |
 1 | rule test : baz blah { strings: $foo = "foo" condition: $foo }
-  |             ^^^ tag `baz` does not match regex `^(foo|bar)`
-  |"#);
+  |             ^^^ tag `baz` does not match regex `^(foo|bar)`"#);
 
     assert!(linters::tag_regex("(AXS|ERS").is_err());
 }
@@ -767,8 +763,7 @@ fn linter_rule_name() {
  --> line:1:6
   |
 1 | rule foo { strings: $foo = "foo" condition: $foo }
-  |      --- this rule name does not match regex `r_.+`
-  |"#
+  |      --- this rule name does not match regex `r_.+`"#
         ]
     );
 
@@ -782,8 +777,7 @@ fn linter_rule_name() {
  --> line:1:6
   |
 1 | rule foo { condition: true }
-  |      ^^^ this rule name does not match regex `r_.+`
-  |"
+  |      ^^^ this rule name does not match regex `r_.+`"
     );
 
     assert!(linters::rule_name("(AXS|ERS").is_err());
@@ -813,8 +807,7 @@ fn linter_required_metadata() {
  --> line:1:6
   |
 1 | rule foo { strings: $foo = "foo" condition: $foo }
-  |      --- required metadata `author` not found
-  |"#]
+  |      --- required metadata `author` not found"#]
     );
 
     assert_eq!(
@@ -827,8 +820,7 @@ fn linter_required_metadata() {
  --> line:1:6
   |
 1 | rule foo { condition: true }
-  |      ^^^ required metadata `author` not found
-  |"
+  |      ^^^ required metadata `author` not found"
     );
 }
 
@@ -901,8 +893,7 @@ fn wrong_type() {
  --> line:3:36
   |
 3 |             rule test { condition: pe.sections }
-  |                                    ^^^^^^^^^^^ expression should be `bool`, but it is an array
-  |"
+  |                                    ^^^^^^^^^^^ expression should be `bool`, but it is an array"
     );
 
     assert_eq!(
@@ -918,8 +909,7 @@ fn wrong_type() {
  --> line:3:36
   |
 3 |             rule test { condition: pe.version_info }
-  |                                    ^^^^^^^^^^^^^^^ expression should be `bool`, but it is a map
-  |"
+  |                                    ^^^^^^^^^^^^^^^ expression should be `bool`, but it is a map"
     );
 }
 
@@ -974,8 +964,7 @@ fn conflicting_identifiers_error() {
  --> line:1:6
   |
 1 | rule foo  {condition: true}
-  |      ^^^ identifier already in use by a module or global variable
-  |"
+  |      ^^^ identifier already in use by a module or global variable"
     );
 }
 
@@ -997,8 +986,7 @@ fn duplicate_rule_error() {
  ::: line:1:6
   |
 1 | rule foo : first {condition: true}
-  |      --- note: `foo` declared here for the first time
-  |"
+  |      --- `foo` declared here for the first time"
     );
 }
 
@@ -1019,8 +1007,7 @@ condition:
  --> line:3:4
   |
 3 |    9223372036854775807 + 1000000000 == 0
-  |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this number is out of the allowed range [-9223372036854775808-9223372036854775807]
-  |"
+  |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this number is out of the allowed range [-9223372036854775808-9223372036854775807]"
     );
 }
 
@@ -1045,8 +1032,7 @@ fn utf8_errors() {
  --> line:1:5
   |
 1 | rule� test {condition: true}
-  |     ^ invalid UTF-8 character
-  |"
+  |     ^ invalid UTF-8 character"
     );
 
     assert_eq!(
@@ -1088,8 +1074,7 @@ fn errors_serialization() {
  --> test.yar:1:23
   |
 1 | rule test {condition: foo}
-  |                       ^^^ this identifier has not been declared
-  |"#
+  |                       ^^^ this identifier has not been declared"#
     });
 
     assert_eq!(json_error, expected.to_string());
@@ -1128,8 +1113,7 @@ fn test_disable_includes() {
  --> line:1:1
   |
 1 | include "included_ok.yar"
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^ includes are disabled for this compilation
-  |"#
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^ includes are disabled for this compilation"#
     );
 }
 

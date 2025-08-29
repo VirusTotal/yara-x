@@ -5,7 +5,6 @@ warning[unsatisfiable_expr]: unsatisfiable expression
   |         --------    ----- this integer is outside the range [0,255]
   |         |
   |         this expression is an integer in the range [0,255]
-  |
 warning[unsatisfiable_expr]: unsatisfiable expression
  --> line:8:9
   |
@@ -13,7 +12,6 @@ warning[unsatisfiable_expr]: unsatisfiable expression
   |         -------    ---- this integer is outside the range [-128,127]
   |         |
   |         this expression is an integer in the range [-128,127]
-  |
 warning[unsatisfiable_expr]: unsatisfiable expression
   --> line:13:9
    |
@@ -21,7 +19,6 @@ warning[unsatisfiable_expr]: unsatisfiable expression
    |         ---------    ------- this integer is outside the range [0,65535]
    |         |
    |         this expression is an integer in the range [0,65535]
-   |
 warning[unsatisfiable_expr]: unsatisfiable expression
   --> line:18:9
    |
@@ -29,7 +26,6 @@ warning[unsatisfiable_expr]: unsatisfiable expression
    |         --------    ------ this integer is outside the range [-32768,32767]
    |         |
    |         this expression is an integer in the range [-32768,32767]
-   |
 warning[unsatisfiable_expr]: unsatisfiable expression
   --> line:23:9
    |
@@ -37,7 +33,6 @@ warning[unsatisfiable_expr]: unsatisfiable expression
    |         ---------    ----------- this integer is outside the range [0,4294967295]
    |         |
    |         this expression is an integer in the range [0,4294967295]
-   |
 warning[unsatisfiable_expr]: unsatisfiable expression
   --> line:28:9
    |
@@ -45,7 +40,6 @@ warning[unsatisfiable_expr]: unsatisfiable expression
    |         --------    ----------- this integer is outside the range [-2147483648,2147483647]
    |         |
    |         this expression is an integer in the range [-2147483648,2147483647]
-   |
 warning[unsatisfiable_expr]: unsatisfiable expression
   --> line:33:9
    |
@@ -53,7 +47,6 @@ warning[unsatisfiable_expr]: unsatisfiable expression
    |         ----------    ----- this integer is outside the range [0,255]
    |         |
    |         this expression is an integer in the range [0,255]
-   |
 warning[unsatisfiable_expr]: unsatisfiable expression
   --> line:38:9
    |
@@ -61,7 +54,6 @@ warning[unsatisfiable_expr]: unsatisfiable expression
    |         ---------    ---- this integer is outside the range [-128,127]
    |         |
    |         this expression is an integer in the range [-128,127]
-   |
 warning[unsatisfiable_expr]: unsatisfiable expression
   --> line:43:9
    |
@@ -69,7 +61,6 @@ warning[unsatisfiable_expr]: unsatisfiable expression
    |         -----------    ------- this integer is outside the range [0,65535]
    |         |
    |         this expression is an integer in the range [0,65535]
-   |
 warning[unsatisfiable_expr]: unsatisfiable expression
   --> line:48:9
    |
@@ -77,7 +68,6 @@ warning[unsatisfiable_expr]: unsatisfiable expression
    |         ----------    ------ this integer is outside the range [-32768,32767]
    |         |
    |         this expression is an integer in the range [-32768,32767]
-   |
 warning[unsatisfiable_expr]: unsatisfiable expression
   --> line:53:9
    |
@@ -85,7 +75,6 @@ warning[unsatisfiable_expr]: unsatisfiable expression
    |         -----------    ----------- this integer is outside the range [0,4294967295]
    |         |
    |         this expression is an integer in the range [0,4294967295]
-   |
 warning[unsatisfiable_expr]: unsatisfiable expression
   --> line:58:9
    |
@@ -93,4 +82,3 @@ warning[unsatisfiable_expr]: unsatisfiable expression
    |         ----------    ----------- this integer is outside the range [-2147483648,2147483647]
    |         |
    |         this expression is an integer in the range [-2147483648,2147483647]
-   |

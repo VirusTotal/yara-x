@@ -3,4 +3,3 @@ error[E024]: invalid pattern `$a`
   |
 3 |   $a = { 01 [0] 02 }
   |             ^^^ zero-length jumps are useless, remove it
-  |

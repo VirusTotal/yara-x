@@ -3,4 +3,3 @@ warning[slow_pattern]: slow pattern
   |
 3 |     $a = /[A-Za-z]{2,}/
   |     ------------------- this pattern may slow down the scan
-  |

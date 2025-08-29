@@ -3,4 +3,3 @@ error[E045]: arbitrary regular expression prefix
   |
 3 |     $a = /.*foo/s
   |           ^^ this prefix can be arbitrarily long and matches all bytes
-  |

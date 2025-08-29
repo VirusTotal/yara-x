@@ -3,4 +3,3 @@ error[E033]: invalid pattern modifier
   |
 3 |     $a = { 01 02 } nocase
   |                    ^^^^^^ this modifier can't be applied to a hex pattern
-  |

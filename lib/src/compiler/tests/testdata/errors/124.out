@@ -3,4 +3,3 @@ error[E001]: syntax error
   |
 3 |     !
   |     ^ this `!` is outside of the body of a `for .. of` statement
-  |

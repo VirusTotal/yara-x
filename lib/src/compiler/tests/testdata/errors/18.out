@@ -3,4 +3,3 @@ error[E007]: number out of range
   |
 5 |     @a[0]
   |        ^ this number is out of the allowed range [1-9223372036854775807]
-  |

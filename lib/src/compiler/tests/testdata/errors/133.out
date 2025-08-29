@@ -3,4 +3,3 @@ error[E001]: syntax error
   |
 3 |     "foo" matches /foo
   |                   ^^^^ unclosed regular expression
-  |

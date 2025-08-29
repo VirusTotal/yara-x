@@ -22,7 +22,7 @@ impl Parse for Label {
     /// #[label("{error_msg}", error_ref, Level::Info)]
     /// ```
     ///
-    /// The last argument is optional, the default value is `Level::Error`.
+    /// The last argument is optional, the default value is `Level::ERROR`.
     fn parse(input: ParseStream) -> Result<Self> {
         let label_fmt: LitStr = input.parse()?;
         let _ = input.parse::<Comma>()?;
@@ -95,9 +95,9 @@ pub(crate) fn impl_error_struct_macro(
             footers.push(attr.parse_args::<Footer>()?);
         } else {
             if attr.path().is_ident("error") {
-                level = Some(quote!(Level::Error))
+                level = Some(quote!(Level::ERROR))
             } else if attr.path().is_ident("warning") {
-                level = Some(quote!(Level::Warning))
+                level = Some(quote!(Level::WARNING))
             } else {
                 return Err(Error::new(
                     attr.path().span(),
@@ -143,8 +143,8 @@ pub(crate) fn impl_error_struct_macro(
         let label_fmt = &label.label_fmt;
         let label_ref = &label.label_ref;
         // If a level is explicitly specified as part of the label definition,
-        // use the specified level, if not, use Level::Error for #[error(...)]
-        // and Level::Warning for #[warning(...)].
+        // use the specified level, if not, use Level::ERROR for #[error(...)]
+        // and Level::WARNING for #[warning(...)].
         match &label.level {
             Some(level_expr) => {
                 quote!((#level_expr, #label_ref.clone(), format!(#label_fmt)))
@@ -162,7 +162,7 @@ pub(crate) fn impl_error_struct_macro(
                 quote!((#level_expr, #footer_expr.clone()))
             }
             None => {
-                quote!((Level::Note, #footer_expr.clone()))
+                quote!((Level::NOTE, #footer_expr.clone()))
             }
         }
     });

@@ -3,4 +3,3 @@ error[E027]: invalid integer
   |
 3 |     $a = "foo" xor(256)
   |                    ^^^ this number is out of the valid range: [0, 255]
-  |

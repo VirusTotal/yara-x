@@ -3,4 +3,3 @@ error[E001]: syntax error
   |
 2 |   condition: 1  1 == 1
   |                 ^ expecting `%`, `[`, `.`, operator, `of`, expression or `}`, found `1`
-  |

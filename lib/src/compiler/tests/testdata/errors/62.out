@@ -3,4 +3,3 @@ error[E001]: syntax error
   |
 1 | rule 1_foo { condition: true }
   |      ^^ expecting identifier, found `1_`
-  |

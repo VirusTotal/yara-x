@@ -3,4 +3,3 @@ error[E027]: invalid integer
   |
 2 |    condition: 99999999999999999999
   |               ^^^^^^^^^^^^^^^^^^^^ this number is out of the valid range: [-9223372036854775808, 9223372036854775807]
-  |

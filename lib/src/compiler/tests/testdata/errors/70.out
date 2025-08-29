@@ -3,4 +3,3 @@ error[E001]: syntax error
   |
 1 | rule test { strings: condition: true }
   |                      ^^^^^^^^^ expecting pattern identifier, found `condition`
-  |

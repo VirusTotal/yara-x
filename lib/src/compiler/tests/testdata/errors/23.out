@@ -3,4 +3,3 @@ error[E006]: unexpected negative number
   |
 6 |     $a at -1
   |           ^^ this number can not be negative
-  |

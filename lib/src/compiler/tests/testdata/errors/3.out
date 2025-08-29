@@ -3,4 +3,3 @@ error[E002]: wrong type
   |
 2 |   condition: 1 + "1" == 2
   |                  ^^^ expression should be `float` or `integer`, but it is `string`
-  |

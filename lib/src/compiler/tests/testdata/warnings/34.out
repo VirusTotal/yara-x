@@ -5,8 +5,7 @@ warning[text_as_hex]: hex pattern could be written as text literal
   |     -----------------
   |     |
   |     this pattern can be written as a text literal
-  |     help: replace with "aaa"
-  |
+  |     replace with "aaa"
 warning[text_as_hex]: hex pattern could be written as text literal
   --> line:10:7
    |
@@ -14,8 +13,7 @@ warning[text_as_hex]: hex pattern could be written as text literal
    |       ------------------------------
    |       |
    |       this pattern can be written as a text literal
-   |       help: replace with "'aaa'"
-   |
+   |       replace with "'aaa'"
 warning[text_as_hex]: hex pattern could be written as text literal
   --> line:17:7
    |
@@ -23,8 +21,7 @@ warning[text_as_hex]: hex pattern could be written as text literal
    |       ------------------------------
    |       |
    |       this pattern can be written as a text literal
-   |       help: replace with "\"aaa\""
-   |
+   |       replace with "\"aaa\""
 warning[text_as_hex]: hex pattern could be written as text literal
   --> line:24:7
    |
@@ -32,5 +29,4 @@ warning[text_as_hex]: hex pattern could be written as text literal
    |       -----------------------------------
    |       |
    |       this pattern can be written as a text literal
-   |       help: replace with "aaa\r\n\t\\bbb"
-   |
+   |       replace with "aaa\r\n\t\\bbb"

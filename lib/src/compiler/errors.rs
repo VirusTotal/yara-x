@@ -198,7 +198,7 @@ pub struct SyntaxError {
     "expression should be {expected_types}, but it is {actual_type}",
     error_loc
 )]
-#[footer(help, Level::Help)]
+#[footer(help, Level::HELP)]
 pub struct WrongType {
     report: Report,
     expected_types: String,
@@ -335,12 +335,12 @@ pub struct InvalidRange {
 #[label(
     "duplicate declaration of `{new_rule}`",
     duplicate_rule_loc,
-    Level::Error
+    Level::ERROR
 )]
 #[label(
     "`{new_rule}` declared here for the first time",
     existing_rule_loc,
-    Level::Note
+    Level::NOTE
 )]
 pub struct DuplicateRule {
     report: Report,
@@ -414,7 +414,7 @@ pub struct EmptyPatternSet {
 #[label(
     "use `pe.entry_point` or `elf.entry_point` or `macho.entry_point`",
     error_loc,
-    Level::Help
+    Level::HELP
 )]
 pub struct EntrypointUnsupported {
     report: Report,
@@ -492,7 +492,7 @@ pub struct UnusedPattern {
 #[label(
     "`{pattern_ident}` declared here for the first time",
     note_loc,
-    Level::Note
+    Level::NOTE
 )]
 pub struct DuplicatePattern {
     report: Report,

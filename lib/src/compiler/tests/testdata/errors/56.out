@@ -3,4 +3,3 @@ error[E002]: wrong type
   |
 4 |     test_proto2(1)
   |     ^^^^^^^^^^^ expression should be `function`, but it is `struct`
-  |

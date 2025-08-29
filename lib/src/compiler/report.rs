@@ -1,5 +1,7 @@
-use annotate_snippets::renderer;
 use annotate_snippets::renderer::{AnsiColor, Color, DEFAULT_TERM_WIDTH};
+use annotate_snippets::{
+    renderer, Annotation, AnnotationKind, Group, Snippet,
+};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use std::borrow::Cow;
@@ -12,7 +14,7 @@ use yara_x_parser::Span;
 
 use crate::SourceCode;
 
-pub type Level = annotate_snippets::Level;
+pub type Level = annotate_snippets::Level<'static>;
 
 /// Identifier for each source code file registered in a [`ReportBuilder`].
 /// Each source file gets assigned its own unique `SourceId` when registered
@@ -114,7 +116,7 @@ impl Report {
                 };
 
             Label {
-                level: level_as_text(*level),
+                level: level_as_text(level),
                 code_origin,
                 line,
                 column,
@@ -129,7 +131,7 @@ impl Report {
     pub(crate) fn footers(&self) -> impl Iterator<Item = Footer<'_>> {
         self.footers
             .iter()
-            .map(|(level, text)| Footer { level: level_as_text(*level), text })
+            .map(|(level, text)| Footer { level: level_as_text(level), text })
     }
 }
 
@@ -151,7 +153,7 @@ impl Serialize for Report {
         // that label.
         if let Some(label) = labels
             .iter()
-            .find(|label| label.level == level_as_text(self.level))
+            .find(|label| label.level == level_as_text(&self.level))
         {
             s.serialize_field("line", &label.line)?;
             s.serialize_field("column", &label.column)?;
@@ -184,20 +186,22 @@ impl Debug for Report {
 
 impl Display for Report {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        // Use the SourceId indicated by the first label, or the one
-        // corresponding to the current source file (i.e: the most
-        // recently registered).
+        let code_cache = self.code_cache.read();
+
+        let mut group = Group::with_title(
+            self.level.clone().primary_title(&self.title).id(self.code),
+        );
+
+        // Use the SourceId of the first label, or the one corresponding
+        // to the current source file (i.e: the most recently registered).
         let source_id =
             self.labels.first().and_then(|label| label.1.source_id).unwrap();
 
-        let code_cache = self.code_cache.read();
         let mut cache_entry = code_cache.get(&source_id).unwrap();
-        let mut src = cache_entry.code.as_str();
+        let src = cache_entry.code.as_str();
 
-        let mut message = self.level.title(self.title.as_str()).id(self.code);
-        let mut snippet = annotate_snippets::Snippet::source(src)
-            .origin(cache_entry.origin.as_deref().unwrap_or("line"))
-            .fold(true);
+        let mut snippet: Snippet<'_, Annotation> = Snippet::source(src)
+            .path(cache_entry.origin.as_deref().unwrap_or("line"));
 
         for (level, label_ref, label) in &self.labels {
             let label_source_id = label_ref.source_id.unwrap();
@@ -207,25 +211,29 @@ impl Display for Report {
             // start a new snippet for the label's source file.
             if label_source_id != source_id {
                 cache_entry = code_cache.get(&label_source_id).unwrap();
-                src = cache_entry.code.as_str();
-                message = message.snippet(snippet);
-                snippet = annotate_snippets::Snippet::source(src)
-                    .origin(cache_entry.origin.as_deref().unwrap_or("line"))
-                    .fold(true)
+                group = group.element(snippet);
+                snippet = Snippet::source(cache_entry.code.as_str())
+                    .path(cache_entry.origin.as_deref().unwrap_or("line"));
             }
+
+            let annotation_kind = if matches!(level, &Level::ERROR) {
+                AnnotationKind::Primary
+            } else {
+                AnnotationKind::Context
+            };
 
             let span_start = label_ref.span.start();
             let span_end = label_ref.span.end();
 
             snippet = snippet.annotation(
-                level.span(span_start..span_end).label(label.as_str()),
+                annotation_kind.span(span_start..span_end).label(label),
             );
         }
 
-        message = message.snippet(snippet);
+        group = group.element(snippet);
 
         for (level, text) in &self.footers {
-            message = message.footer(level.title(text.as_str()));
+            group = group.element(level.clone().message(text.as_str()));
         }
 
         let renderer = if self.with_colors {
@@ -235,7 +243,7 @@ impl Display for Report {
         };
 
         let renderer = renderer.term_width(self.max_width);
-        let text = renderer.render(message);
+        let text = renderer.render(&[group]);
 
         write!(f, "{text}")
     }
@@ -461,13 +469,14 @@ impl ReportBuilder {
     }
 }
 
-fn level_as_text(level: Level) -> &'static str {
+fn level_as_text(level: &Level) -> &'static str {
     match level {
-        Level::Error => "error",
-        Level::Warning => "warning",
-        Level::Info => "info",
-        Level::Note => "note",
-        Level::Help => "help",
+        &Level::ERROR => "error",
+        &Level::WARNING => "warning",
+        &Level::INFO => "info",
+        &Level::NOTE => "note",
+        &Level::HELP => "help",
+        _ => panic!("unsupported level {:?}", level),
     }
 }
 
