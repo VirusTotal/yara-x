@@ -873,29 +873,38 @@ impl<M> Node<M> {
         self.inner.siblings_with_tokens(direction).skip(1).map(|x| x.into())
     }
 
-    /// Returns a token at a given offset of this node.
+    /// Returns the token at a given offset within the source code.
+    ///
+    /// If the offset points code that is outside the current node, this
+    /// function returns `None`.
+    ///
     ///
     /// ```rust
-    /// # use yara_x_parser::Parser;
-    /// // Get the root node, which contains 26 characters.
-    /// let mut rule_decl = Parser::new(b"rule test {condition:true}")
+    /// # use yara_x_parser::cst::SyntaxKind;
+    /// use yara_x_parser::Parser;
+    /// let mut root_node = Parser::new(b"rule test {condition:true}")
     ///     .try_into_cst()
     ///     .unwrap()
     ///     .root();
     ///
+    /// let rule_decl = root_node.first_child().unwrap();
+    ///
     /// // Should find `SyntaxKind::RULE_KW` token at offset 0.
-    /// let found_rule_kw = rule_decl.token_at_offset(0);
-    /// let rule_kw = rule_decl.first_token().unwrap();
-    /// assert_eq!(found_rule_kw, Some(rule_kw));
+    /// assert_eq!(
+    ///     rule_decl.token_at_offset(0).unwrap().kind(),
+    ///     SyntaxKind::RULE_KW);
     ///
     /// // Should find `SyntaxKind::WHITESPACE` token at offset 4.
-    /// let found_whitespace = rule_decl.token_at_offset(4);
-    /// let whitespace = rule_decl
-    ///                     .first_token()
-    ///                     .unwrap()
-    ///                     .next_token()
-    ///                     .unwrap();
-    /// assert_eq!(found_whitespace, Some(whitespace));
+    /// assert_eq!(
+    ///     rule_decl.token_at_offset(0).unwrap().kind(),
+    ///     SyntaxKind::WHITESPACE);
+    ///
+    /// let condition_blk = rule_decl.first_child().unwrap();
+    ///
+    /// // When calling `token_at_offset(0)` on the node that represents
+    /// // the condition block the result is `None` because the `rule`
+    /// // keyword is not contained in that node.
+    /// assert!(condition_blk.token_at_offset(0).is_none());
     ///
     /// // Should return `None` for an empty file.
     /// let mut empty = Parser::new(b"")
@@ -903,20 +912,16 @@ impl<M> Node<M> {
     ///     .unwrap()
     ///     .root();
     ///
-    /// let none = empty.token_at_offset(0);
-    /// assert_eq!(none, None);
+    /// assert!(empty.token_at_offset(0).is_none());
     /// ```
-    pub fn token_at_offset(&self, offset: u32) -> Option<Token<M>> {
-        if self.span().start() as u32 <= offset
-            && self.span().end() as u32 >= offset
-        {
-            self.inner
-                .token_at_offset(offset.into())
-                .right_biased()
-                .map(Token::new)
-        } else {
-            None
+    pub fn token_at_offset(&self, offset: usize) -> Option<Token<M>> {
+        if !self.span().range().contains(&offset) {
+            return None;
         }
+        self.inner
+            .token_at_offset(offset.try_into().ok()?)
+            .right_biased()
+            .map(Token::new)
     }
 }
 
