@@ -470,12 +470,12 @@ impl ReportBuilder {
 }
 
 fn level_as_text(level: &Level) -> &'static str {
-    match level {
-        &Level::ERROR => "error",
-        &Level::WARNING => "warning",
-        &Level::INFO => "info",
-        &Level::NOTE => "note",
-        &Level::HELP => "help",
+    match *level {
+        Level::ERROR => "error",
+        Level::WARNING => "warning",
+        Level::INFO => "info",
+        Level::NOTE => "note",
+        Level::HELP => "help",
         _ => panic!("unsupported level {:?}", level),
     }
 }
