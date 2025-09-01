@@ -58,7 +58,9 @@ pub use crate::compiler::rules::*;
 #[doc(inline)]
 pub use crate::compiler::warnings::*;
 use crate::compiler::wsh::WarningSuppressionHook;
-use crate::errors::{IncludeError, IncludeNotAllowed, IncludeNotFound};
+use crate::errors::{
+    CircularIncludes, IncludeError, IncludeNotAllowed, IncludeNotFound,
+};
 use crate::linters::LinterResult;
 use crate::models::PatternKind;
 
@@ -262,6 +264,10 @@ pub struct Compiler<'a> {
     /// If true, include statements are allowed. If false, include statements
     /// will produce a compile error.
     includes_enabled: bool,
+
+    /// Tracks the paths of the files that have been included already. This
+    /// used mainly for detecting circular includes.
+    included_paths: Vec<PathBuf>,
 
     /// Used for generating error and warning reports.
     report_builder: ReportBuilder,
@@ -522,6 +528,7 @@ impl<'a> Compiler<'a> {
             linters: Vec::new(),
             include_dirs: None,
             includes_enabled: true,
+            included_paths: Vec::new(),
         }
     }
 
@@ -1204,7 +1211,7 @@ impl Compiler<'_> {
     fn read_included_file(
         &mut self,
         include: &Include,
-    ) -> Result<Vec<u8>, CompileError> {
+    ) -> Result<(PathBuf, Vec<u8>), CompileError> {
         // If no include directories are specified, use the current directory.
         let current_dir = vec![PathBuf::from(".")];
         let include_dirs = self.include_dirs.as_ref().unwrap_or(&current_dir);
@@ -1213,13 +1220,16 @@ impl Compiler<'_> {
         for dir in include_dirs {
             let file_path = dir.join(include.file_name);
             if file_path.exists() {
-                return fs::read(file_path).map_err(|err| {
-                    IncludeError::build(
-                        &self.report_builder,
-                        self.report_builder.span_to_code_loc(include.span()),
-                        err.to_string(),
-                    )
-                });
+                let file_content =
+                    fs::read(file_path.as_path()).map_err(|err| {
+                        IncludeError::build(
+                            &self.report_builder,
+                            self.report_builder
+                                .span_to_code_loc(include.span()),
+                            err.to_string(),
+                        )
+                    })?;
+                return Ok((file_path, file_content));
             }
         }
 
@@ -1276,13 +1286,25 @@ impl Compiler<'_> {
                         continue;
                     }
 
-                    let included = match self.read_included_file(include) {
-                        Ok(included) => included,
-                        Err(err) => {
-                            self.errors.push(err);
-                            continue;
-                        }
-                    };
+                    let (included_path, included_src) =
+                        match self.read_included_file(include) {
+                            Ok(included) => included,
+                            Err(err) => {
+                                self.errors.push(err);
+                                continue;
+                            }
+                        };
+
+                    if self.included_paths.contains(&included_path) {
+                        self.errors.push(CircularIncludes::build(
+                            &self.report_builder,
+                            self.report_builder
+                                .span_to_code_loc(include.span()),
+                        ));
+                        continue;
+                    }
+
+                    self.included_paths.push(included_path);
 
                     // Save the current source ID from the report builder in
                     // order to restore it later. Any recursive call to
@@ -1296,13 +1318,15 @@ impl Compiler<'_> {
                     // by `add_source` is simply the first of the added errors,
                     // we don't need to handle the error here.
                     let _ = self.add_source(
-                        SourceCode::from(included.as_slice())
+                        SourceCode::from(included_src.as_slice())
                             .with_origin(include.file_name),
                     );
 
                     // Restore the current source ID to the value it had before
                     // calling `add_source`.
                     self.report_builder.set_current_source_id(source_id);
+
+                    self.included_paths.pop();
                 }
                 ast::Item::Rule(rule) => {
                     if let Err(err) = self.c_rule(rule) {

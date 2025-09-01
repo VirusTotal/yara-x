@@ -52,6 +52,7 @@ pub struct EmitWasmError(#[from] anyhow::Error);
 pub enum CompileError {
     ArbitraryRegexpPrefix(Box<ArbitraryRegexpPrefix>),
     AssignmentMismatch(Box<AssignmentMismatch>),
+    CircularIncludes(Box<CircularIncludes>),
     ConflictingRuleIdentifier(Box<ConflictingRuleIdentifier>),
     CustomError(Box<CustomError>),
     DuplicateModifier(Box<DuplicateModifier>),
@@ -916,6 +917,16 @@ pub struct IncludeNotAllowed {
 #[error(code = "E045", title = "arbitrary regular expression prefix")]
 #[label("this prefix can be arbitrarily long and matches all bytes", error_loc)]
 pub struct ArbitraryRegexpPrefix {
+    report: Report,
+    error_loc: CodeLoc,
+}
+
+/// Include statements have circular dependencies.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E046", title = "circular include")]
+#[label("circular dependencies in include statement", error_loc)]
+pub struct CircularIncludes {
     report: Report,
     error_loc: CodeLoc,
 }

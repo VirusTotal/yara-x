@@ -1097,6 +1097,25 @@ fn test_includes() {
 }
 
 #[test]
+fn test_circular_includes() {
+    let mut compiler = Compiler::new();
+
+    assert_eq!(
+        compiler
+            // this directory contains the included.yar file
+            .add_include_dir("src/compiler/tests/testdata/includes")
+            .add_source(r#"include "included_circular.yar""#)
+            .unwrap_err()
+            .to_string(),
+        r#"error[E046]: circular include
+ --> included_circular.yar:1:1
+  |
+1 | include "included_circular.yar"
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ circular dependencies in include statement"#
+    );
+}
+
+#[test]
 fn test_disable_includes() {
     let mut compiler = Compiler::new();
 
