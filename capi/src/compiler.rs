@@ -433,6 +433,28 @@ pub unsafe extern "C" fn yrx_compiler_define_global_float(
     yrx_compiler_define_global(compiler, ident, value)
 }
 
+/// Defines a global variable of hashmap type and sets its initial value.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_compiler_define_global_hashmap(
+    compiler: *mut YRX_COMPILER,
+    ident: *const c_char,
+    value: *const c_char,
+) -> YRX_RESULT {
+
+    let value: serde_json::Value = if let Ok(value) = CStr::from_ptr(value).to_str() {
+        match serde_json::from_str(value) {
+            Ok(json_value) => json_value,
+            Err(_) => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+        }
+    } else {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+
+    yrx_compiler_define_global(compiler, ident, value)
+}
+
+
 /// Returns the errors encountered during the compilation in JSON format.
 ///
 /// In the address indicated by the `buf` pointer, the function will copy a

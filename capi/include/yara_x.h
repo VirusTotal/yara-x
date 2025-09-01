@@ -408,6 +408,11 @@ enum YRX_RESULT yrx_compiler_define_global_float(struct YRX_COMPILER *compiler,
                                                  const char *ident,
                                                  double value);
 
+// Defines a global variable of hashmap type and sets its initial value.
+enum YRX_RESULT yrx_compiler_define_global_hashmap(struct YRX_COMPILER *compiler,
+                                                   const char *ident,
+                                                   const char *value);
+
 // Returns the errors encountered during the compilation in JSON format.
 //
 // In the address indicated by the `buf` pointer, the function will copy a
