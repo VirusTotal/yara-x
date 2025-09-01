@@ -229,7 +229,7 @@ impl<'r> Scanner<'r> {
         // the scanner lives, and 'r is the lifetime for the rules passed to
         // the scanner, which are guaranteed to outlive the scanner.
         let mut wasm_store =
-            Box::pin(Store::new(&crate::wasm::ENGINE, unsafe {
+            Box::pin(Store::new(wasm::get_engine(), unsafe {
                 transmute::<ScanContext<'r>, ScanContext<'static>>(ctx)
             }));
 
@@ -655,7 +655,7 @@ impl<'r> Scanner<'r> {
             INIT_HEARTBEAT.call_once(|| {
                 thread::spawn(|| loop {
                     thread::sleep(Duration::from_secs(1));
-                    crate::wasm::ENGINE.increment_epoch();
+                    wasm::get_engine().increment_epoch();
                     HEARTBEAT_COUNTER
                         .fetch_update(
                             Ordering::SeqCst,
