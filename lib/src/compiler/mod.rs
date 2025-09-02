@@ -1218,14 +1218,13 @@ impl Compiler<'_> {
         include: &Include,
     ) -> Result<(Vec<u8>, PathBuf), CompileError> {
         let read_file = |path| -> Result<Vec<u8>, CompileError> {
-            let file_content = fs::read(path).map_err(|err| {
+            fs::read(path).map_err(|err| {
                 IncludeError::build(
                     &self.report_builder,
                     self.report_builder.span_to_code_loc(include.span()),
                     err.to_string(),
                 )
-            })?;
-            return Ok(file_content);
+            })
         };
 
         // Look for the included file in directory at the top of the include
@@ -1247,10 +1246,10 @@ impl Compiler<'_> {
                     return Ok((read_file(path.as_path())?, path));
                 }
             }
-        } else {
-            if let Ok(path) = PathBuf::from(include.file_name).canonicalize() {
-                return Ok((read_file(path.as_path())?, path));
-            }
+        } else if let Ok(path) =
+            PathBuf::from(include.file_name).canonicalize()
+        {
+            return Ok((read_file(path.as_path())?, path));
         }
 
         // The file was not found anywhere, return an error.
