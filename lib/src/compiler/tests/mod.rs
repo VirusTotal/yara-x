@@ -1117,8 +1117,14 @@ fn test_circular_includes() {
   = note: include dependencies:"#
     ));
 
+    #[cfg(target_family = "unix")]
     assert!(err.contains(
         r"lib/src/compiler/tests/testdata/includes/included_circular.yar"
+    ));
+
+    #[cfg(target_family = "windows")]
+    assert!(err.contains(
+        r#"lib\src\compiler\tests\testdata\includes\included_circular.yar"#
     ));
 }
 
