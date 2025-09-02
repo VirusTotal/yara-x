@@ -265,9 +265,10 @@ pub struct Compiler<'a> {
     /// will produce a compile error.
     includes_enabled: bool,
 
-    /// Tracks the paths of the files that have been included already. This
-    /// used mainly for detecting circular includes.
-    included_paths: Vec<PathBuf>,
+    /// Tracks the paths of the files that have been included by nested
+    /// includes. This is useful for detecting circular includes and resolving
+    /// relative includes.
+    include_stack: Vec<PathBuf>,
 
     /// Used for generating error and warning reports.
     report_builder: ReportBuilder,
@@ -528,7 +529,7 @@ impl<'a> Compiler<'a> {
             linters: Vec::new(),
             include_dirs: None,
             includes_enabled: true,
-            included_paths: Vec::new(),
+            include_stack: Vec::new(),
         }
     }
 
@@ -1208,32 +1209,51 @@ impl Compiler<'_> {
         true
     }
 
+    /// Reads the file specified by an `include` statement.
+    ///
+    /// The function returns both the content and the path of the included file, or
+    /// an error if the included file could not be found.
     fn read_included_file(
         &mut self,
         include: &Include,
-    ) -> Result<(PathBuf, Vec<u8>), CompileError> {
-        // If no include directories are specified, use the current directory.
-        let current_dir = vec![PathBuf::from(".")];
-        let include_dirs = self.include_dirs.as_ref().unwrap_or(&current_dir);
+    ) -> Result<(Vec<u8>, PathBuf), CompileError> {
+        let read_file = |path| -> Result<Vec<u8>, CompileError> {
+            let file_content = fs::read(path).map_err(|err| {
+                IncludeError::build(
+                    &self.report_builder,
+                    self.report_builder.span_to_code_loc(include.span()),
+                    err.to_string(),
+                )
+            })?;
+            return Ok(file_content);
+        };
 
-        // Try to read the file from each directory.
-        for dir in include_dirs {
-            let file_path = dir.join(include.file_name);
-            if file_path.exists() {
-                let file_content =
-                    fs::read(file_path.as_path()).map_err(|err| {
-                        IncludeError::build(
-                            &self.report_builder,
-                            self.report_builder
-                                .span_to_code_loc(include.span()),
-                            err.to_string(),
-                        )
-                    })?;
-                return Ok((file_path, file_content));
+        // Look for the included file in directory at the top of the include
+        // stack. This allows includes that are relative to the
+        if let Some(dir) =
+            self.include_stack.last().and_then(|path| path.parent())
+        {
+            if let Ok(path) = dir.join(include.file_name).canonicalize() {
+                return Ok((read_file(path.as_path())?, path));
             }
         }
 
-        // If file not found anywhere, return an error.
+        // If one or more include directory were specified, try to find the
+        // included file in them, in the order they were specified. Otherwise,
+        // try to find the included file in the current directory.
+        if let Some(include_dirs) = &self.include_dirs {
+            for dir in include_dirs {
+                if let Ok(path) = dir.join(include.file_name).canonicalize() {
+                    return Ok((read_file(path.as_path())?, path));
+                }
+            }
+        } else {
+            if let Ok(path) = PathBuf::from(include.file_name).canonicalize() {
+                return Ok((read_file(path.as_path())?, path));
+            }
+        }
+
+        // The file was not found anywhere, return an error.
         Err(IncludeNotFound::build(
             &self.report_builder,
             include.file_name.to_string(),
@@ -1286,7 +1306,7 @@ impl Compiler<'_> {
                         continue;
                     }
 
-                    let (included_path, included_src) =
+                    let (included_src, included_path) =
                         match self.read_included_file(include) {
                             Ok(included) => included,
                             Err(err) => {
@@ -1295,16 +1315,30 @@ impl Compiler<'_> {
                             }
                         };
 
-                    if self.included_paths.contains(&included_path) {
+                    if self.include_stack.contains(&included_path) {
                         self.errors.push(CircularIncludes::build(
                             &self.report_builder,
                             self.report_builder
                                 .span_to_code_loc(include.span()),
+                            Some(format!(
+                                "include dependencies:\n{}",
+                                self.include_stack
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(i, path)| format!(
+                                        "{:>width$}↳ {}",
+                                        "",
+                                        path.display(),
+                                        width = i * 2
+                                    ))
+                                    .collect::<Vec<_>>()
+                                    .join("\n")
+                            )),
                         ));
                         continue;
                     }
 
-                    self.included_paths.push(included_path);
+                    self.include_stack.push(included_path);
 
                     // Save the current source ID from the report builder in
                     // order to restore it later. Any recursive call to
@@ -1326,7 +1360,7 @@ impl Compiler<'_> {
                     // calling `add_source`.
                     self.report_builder.set_current_source_id(source_id);
 
-                    self.included_paths.pop();
+                    self.include_stack.pop().unwrap();
                 }
                 ast::Item::Rule(rule) => {
                     if let Err(err) = self.c_rule(rule) {

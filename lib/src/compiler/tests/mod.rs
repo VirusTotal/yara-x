@@ -1100,19 +1100,42 @@ fn test_includes() {
 fn test_circular_includes() {
     let mut compiler = Compiler::new();
 
-    assert_eq!(
-        compiler
-            // this directory contains the included.yar file
-            .add_include_dir("src/compiler/tests/testdata/includes")
-            .add_source(r#"include "included_circular.yar""#)
-            .unwrap_err()
-            .to_string(),
-        r#"error[E046]: circular include
+    let err = compiler
+        // this directory contains the included.yar file
+        .add_include_dir("src/compiler/tests/testdata/includes")
+        .add_source(r#"include "included_circular.yar""#)
+        .unwrap_err()
+        .to_string();
+
+    assert!(err.contains(
+        r#"error[E046]: circular include dependencies
  --> included_circular.yar:1:1
   |
 1 | include "included_circular.yar"
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ circular dependencies in include statement"#
-    );
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ include statement has circular dependencies
+  |
+  = note: include dependencies:"#
+    ));
+
+    assert!(err.contains(
+        r"lib/src/compiler/tests/testdata/includes/included_circular.yar"
+    ));
+}
+
+#[test]
+fn test_relative_includes() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        // this directory contains the included.yar file
+        .add_include_dir("src/compiler/tests/testdata/includes")
+        .add_source(r#"include "included_relative.yar""#)
+        .unwrap();
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+
+    assert_eq!(scanner.scan(b"").unwrap().matching_rules().len(), 1);
 }
 
 #[test]

@@ -924,11 +924,13 @@ pub struct ArbitraryRegexpPrefix {
 /// Include statements have circular dependencies.
 #[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
 #[associated_enum(CompileError)]
-#[error(code = "E046", title = "circular include")]
-#[label("circular dependencies in include statement", error_loc)]
+#[error(code = "E046", title = "circular include dependencies")]
+#[label("include statement has circular dependencies", error_loc)]
+#[footer(note)]
 pub struct CircularIncludes {
     report: Report,
     error_loc: CodeLoc,
+    note: Option<String>,
 }
 
 /// A custom error has occurred.
