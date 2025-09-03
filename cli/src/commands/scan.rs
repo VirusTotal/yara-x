@@ -117,6 +117,11 @@ pub fn scan() -> Command {
                 .help("Print non-satisfied rules only")
         )
         .arg(
+            arg!(--"no-mmap")
+                .help("Don't use memory-mapped files")
+                .long_help(help::NO_MMAP_LONG_HELP)
+        )
+        .arg(
             arg!(-o --"output-format" <FORMAT>)
                 .help("Output format for results")
                 .long_help(help::OUTPUT_FORMAT_LONG_HELP)
@@ -250,6 +255,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let disable_console_logs = args.get_flag("disable-console-logs");
     let scan_list = args.get_flag("scan-list");
     let recursive = args.get_one::<usize>("recursive");
+    let no_mmap = args.get_flag("no-mmap");
 
     let timeout =
         args.get_one::<u64>("timeout").map(|t| Duration::from_secs(*t));
@@ -386,6 +392,10 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                 }
             }
 
+            if no_mmap {
+                scanner.use_mmap(false);
+            }
+
             scanner
         },
         // File handler. Called for every file found while walking the path.
@@ -430,7 +440,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
             let scan_results = scan_results?;
             let mut wanted_rules = match args.get_flag("negate") {
                 true => Box::new(scan_results.non_matching_rules())
-                    as Box<dyn ExactSizeIterator<Item = Rule>>,
+                    as Box<dyn ExactSizeIterator<Item=Rule>>,
                 false => Box::new(scan_results.matching_rules()),
             };
 
@@ -498,7 +508,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
             Ok(())
         },
     )
-    .unwrap();
+        .unwrap();
 
     #[cfg(feature = "rules-profiling")]
     if profiling {

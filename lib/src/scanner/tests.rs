@@ -735,7 +735,7 @@ fn namespaces() {
 fn scan_file() {
     let rules = crate::compile(
         r#"
-    rule slow {
+    rule test {
       strings:
         $a = "aaaa"
       condition: 
@@ -759,6 +759,30 @@ fn scan_file() {
         .unwrap();
 
     assert_eq!(scan_results.matching_rules().len(), 1)
+}
+
+#[test]
+fn scan_no_mmap() {
+    let rules = crate::compile(
+        r#"
+    rule test {
+      strings:
+        $a = "aaaa"
+      condition:
+        $a
+    }
+    "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+
+    let scan_results = scanner
+        .use_mmap(false)
+        .scan_file("src/tests/testdata/jumps.bin")
+        .unwrap();
+
+    assert_eq!(scan_results.matching_rules().len(), 1);
 }
 
 #[cfg(feature = "rules-profiling")]
