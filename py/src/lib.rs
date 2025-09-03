@@ -254,9 +254,9 @@ impl Compiler {
     /// will return an InvalidRuleName warning.
     ///
     /// If the regexp does not compile a ValueError is returned.
-    #[pyo3(signature = (regexp_str))]
-    fn rule_name_regexp(&mut self, regexp_str: &str) -> PyResult<()> {
-        let linter = yrx::linters::rule_name(regexp_str)
+    #[pyo3(signature = (regexp))]
+    fn rule_name_regexp(&mut self, regexp: &str) -> PyResult<()> {
+        let linter = yrx::linters::rule_name(regexp)
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
         self.inner.add_linter(linter);
         Ok(())
@@ -1011,12 +1011,12 @@ fn yara_x(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(compile, m)?)?;
     m.add_class::<Rules>()?;
     m.add_class::<Scanner>()?;
+    m.add_class::<ScanResults>()?;
     m.add_class::<Compiler>()?;
     m.add_class::<Rule>()?;
     m.add_class::<Pattern>()?;
     m.add_class::<Match>()?;
     m.add_class::<Formatter>()?;
     m.add_class::<Module>()?;
-    m.add_class::<JsonDecoder>()?;
     Ok(())
 }
