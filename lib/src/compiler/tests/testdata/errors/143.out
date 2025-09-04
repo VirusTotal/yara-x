@@ -3,4 +3,3 @@ error[E001]: syntax error
   |
 1 | rule included {
   |               ^ expecting `condition`, found end of file
-  |

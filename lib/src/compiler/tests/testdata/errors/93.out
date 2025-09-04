@@ -3,4 +3,3 @@ error[E025]: unknown pattern `@a`
   |
 3 |      @a == 1
   |      ^^ this pattern is not declared in the `strings` section
-  |

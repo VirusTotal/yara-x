@@ -316,7 +316,7 @@ pub struct BooleanIntegerComparison {
 #[label(
     "`{module_name}` imported here for the first time",
     existing_import_loc,
-    Level::Note
+    Level::NOTE
 )]
 pub struct DuplicateImport {
     report: Report,
@@ -502,7 +502,7 @@ pub struct IgnoredRule {
 #[label(
     "replace with \"{text}\"",
     pattern_loc,
-    Level::Help
+    Level::HELP
 )]
 pub struct TextPatternAsHex {
     report: Report,

@@ -132,6 +132,12 @@ Equivalent to the previous one, but using `--disable-warnings` multiple times:
 --disable-warnings=slow_pattern --disable-warnings=redundant_modifier
 ```
 
+### --ignore-module \<MODULE\>
+
+Rules that use the specified module will be ignored, as well as any rules that
+depends directly or indirectly on such rules. This option can be used more than
+once for ignored different modules.
+
 ### --include-dir \<PATH\>, -I \<PATH\>
 
 Directory in which to search for included files
@@ -140,15 +146,37 @@ If not given, the current working directory is used. May be specified multiple
 times;
 directories will be searched in order.
 
-### --ignore-module \<MODULE\>
+### -x, --module-data \<MODULE=FILE\>
 
-Rules that use the specified module will be ignored, as well as any rules that
-depends directly or indirectly on such rules. This option can be used more than
-once for ignored different modules.
+Pass FILE's content as extra data to MODULE
+
+Some modules require supplementary data to work, in addition to the scanned
+file. This option allows you to provide that extra data. The flag can be used
+multiple times to supply data to different modules. The content of the FILE is
+loaded and interpreted by the respective module.
+       
+```
+--module-data=mymodule0=./example0.json --module-data=mymodule1=./example1.json
+```
+
+In this example, the contents of example0.json and example1.json will be passed
+to mymodule0 and mymodule1, respectively.
 
 ### --negate, -n
 
 Prints the rules that doesn't match instead of those that match.
+
+### --no-mmap
+
+Don't use memory-mapped files
+
+By default, large files are memory-mapped as this is typically faster than copying
+file contents into memory. However, this approach has a drawback: if another process
+truncates the file during scanning, a `SIGBUS` signal may occur and the YARA-X process
+will crash.
+
+This option disables memory mapping and forces the scanner to always read files into
+an in-memory buffer instead.
 
 ### --output-format \<FORMAT\>
 

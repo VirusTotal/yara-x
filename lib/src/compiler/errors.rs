@@ -52,6 +52,7 @@ pub struct EmitWasmError(#[from] anyhow::Error);
 pub enum CompileError {
     ArbitraryRegexpPrefix(Box<ArbitraryRegexpPrefix>),
     AssignmentMismatch(Box<AssignmentMismatch>),
+    CircularIncludes(Box<CircularIncludes>),
     ConflictingRuleIdentifier(Box<ConflictingRuleIdentifier>),
     CustomError(Box<CustomError>),
     DuplicateModifier(Box<DuplicateModifier>),
@@ -198,7 +199,7 @@ pub struct SyntaxError {
     "expression should be {expected_types}, but it is {actual_type}",
     error_loc
 )]
-#[footer(help, Level::Help)]
+#[footer(help, Level::HELP)]
 pub struct WrongType {
     report: Report,
     expected_types: String,
@@ -335,12 +336,12 @@ pub struct InvalidRange {
 #[label(
     "duplicate declaration of `{new_rule}`",
     duplicate_rule_loc,
-    Level::Error
+    Level::ERROR
 )]
 #[label(
     "`{new_rule}` declared here for the first time",
     existing_rule_loc,
-    Level::Note
+    Level::NOTE
 )]
 pub struct DuplicateRule {
     report: Report,
@@ -414,7 +415,7 @@ pub struct EmptyPatternSet {
 #[label(
     "use `pe.entry_point` or `elf.entry_point` or `macho.entry_point`",
     error_loc,
-    Level::Help
+    Level::HELP
 )]
 pub struct EntrypointUnsupported {
     report: Report,
@@ -492,7 +493,7 @@ pub struct UnusedPattern {
 #[label(
     "`{pattern_ident}` declared here for the first time",
     note_loc,
-    Level::Note
+    Level::NOTE
 )]
 pub struct DuplicatePattern {
     report: Report,
@@ -918,6 +919,18 @@ pub struct IncludeNotAllowed {
 pub struct ArbitraryRegexpPrefix {
     report: Report,
     error_loc: CodeLoc,
+}
+
+/// Include statements have circular dependencies.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E046", title = "circular include dependencies")]
+#[label("include statement has circular dependencies", error_loc)]
+#[footer(note)]
+pub struct CircularIncludes {
+    report: Report,
+    error_loc: CodeLoc,
+    note: Option<String>,
 }
 
 /// A custom error has occurred.

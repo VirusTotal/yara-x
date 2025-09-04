@@ -3,10 +3,8 @@ warning[slow_pattern]: slow pattern
   |
 3 |     $a = {00 [1-10] 01}
   |     ------------------ this pattern may slow down the scan
-  |
 warning[slow_pattern]: slow pattern
   --> line:10:4
    |
 10 |    $a = /a.*/
    |    ---------- this pattern may slow down the scan
-   |

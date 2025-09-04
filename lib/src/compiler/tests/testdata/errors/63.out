@@ -3,4 +3,3 @@ error[E001]: syntax error
   |
 2 |     true }
   |     ^^^^ expecting `meta`, `strings` or `condition`, found `true`
-  |

@@ -21,8 +21,8 @@ use std::ops::Deref;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::str::FromStr;
+use std::sync::OnceLock;
 use std::time::Duration;
-use strum_macros::{Display, EnumString};
 
 use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
@@ -35,9 +35,22 @@ use pyo3::types::{
 };
 use pyo3::{create_exception, IntoPyObjectExt};
 use pyo3_file::PyFileLikeObject;
+use strum_macros::{Display, EnumString};
 
 use ::yara_x as yrx;
 use ::yara_x::mods::*;
+
+fn dict_to_json(dict: Bound<PyAny>) -> PyResult<serde_json::Value> {
+    static JSON_DUMPS: OnceLock<Py<PyAny>> = OnceLock::new();
+    let py = dict.py();
+    let dumps = JSON_DUMPS.get_or_init(|| {
+        let json_mod = PyModule::import(py, "json").unwrap().unbind();
+        json_mod.getattr(py, "dumps").unwrap()
+    });
+    let json_str: String = dumps.call1(py, (dict,))?.extract(py)?;
+    serde_json::from_str(&json_str)
+        .map_err(|err| PyValueError::new_err(err.to_string()))
+}
 
 #[derive(Debug, Clone, Display, EnumString, PartialEq)]
 #[strum(ascii_case_insensitive)]
@@ -241,9 +254,9 @@ impl Compiler {
     /// will return an InvalidRuleName warning.
     ///
     /// If the regexp does not compile a ValueError is returned.
-    #[pyo3(signature = (regexp_str))]
-    fn rule_name_regexp(&mut self, regexp_str: &str) -> PyResult<()> {
-        let linter = yrx::linters::rule_name(regexp_str)
+    #[pyo3(signature = (regexp))]
+    fn rule_name_regexp(&mut self, regexp: &str) -> PyResult<()> {
+        let linter = yrx::linters::rule_name(regexp)
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
         self.inner.add_linter(linter);
         Ok(())
@@ -339,6 +352,8 @@ impl Compiler {
             self.inner.define_global(ident, value.extract::<i64>()?)
         } else if value.is_exact_instance_of::<PyFloat>() {
             self.inner.define_global(ident, value.extract::<f64>()?)
+        } else if value.is_exact_instance_of::<PyDict>() {
+            self.inner.define_global(ident, dict_to_json(value)?)
         } else {
             return Err(PyTypeError::new_err(format!(
                 "unsupported variable type `{}`",
@@ -500,6 +515,8 @@ impl Scanner {
             self.inner.set_global(ident, value.extract::<i64>()?)
         } else if value.is_exact_instance_of::<PyFloat>() {
             self.inner.set_global(ident, value.extract::<f64>()?)
+        } else if value.is_exact_instance_of::<PyDict>() {
+            self.inner.set_global(ident, dict_to_json(value)?)
         } else {
             return Err(PyTypeError::new_err(format!(
                 "unsupported variable type `{}`",
@@ -994,12 +1011,12 @@ fn yara_x(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(compile, m)?)?;
     m.add_class::<Rules>()?;
     m.add_class::<Scanner>()?;
+    m.add_class::<ScanResults>()?;
     m.add_class::<Compiler>()?;
     m.add_class::<Rule>()?;
     m.add_class::<Pattern>()?;
     m.add_class::<Match>()?;
     m.add_class::<Formatter>()?;
     m.add_class::<Module>()?;
-    m.add_class::<JsonDecoder>()?;
     Ok(())
 }

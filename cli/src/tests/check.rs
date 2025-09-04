@@ -41,7 +41,6 @@ fn metadata() {
   |
 1 | rule foo : bar baz {
   |      --- required metadata `required` not found
-  |
 warning[text_as_hex]: hex pattern could be written as text literal
   --> src/tests/testdata/foo.yar:10:5
    |
@@ -49,8 +48,7 @@ warning[text_as_hex]: hex pattern could be written as text literal
    |     ---------------------
    |     |
    |     this pattern can be written as a text literal
-   |     help: replace with "foo"
-   |
+   |     replace with "foo"
 "#,
         );
 
@@ -173,7 +171,6 @@ error[E039]: rule name does not match regex `APT_.+`
   |
 1 | rule foo : bar baz {
   |      ^^^ this rule name does not match regex `APT_.+`
-  |
 "#,
         );
 }

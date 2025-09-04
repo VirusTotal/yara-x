@@ -37,7 +37,7 @@ num-traits = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 
-logos = "0.15.0"
+logos = "0.15.1"
 rowan = "0.16.1"
 
 [dev-dependencies]

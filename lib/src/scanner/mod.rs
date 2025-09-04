@@ -170,6 +170,7 @@ pub struct Scanner<'r> {
     wasm_main_func: TypedFunc<(), i32>,
     filesize: Global,
     timeout: Option<Duration>,
+    use_mmap: bool,
 }
 
 impl<'r> Scanner<'r> {
@@ -322,7 +323,14 @@ impl<'r> Scanner<'r> {
 
         wasm_store.data_mut().main_memory = Some(main_memory);
 
-        Self { rules, wasm_store, wasm_main_func, filesize, timeout: None }
+        Self {
+            rules,
+            wasm_store,
+            wasm_main_func,
+            filesize,
+            timeout: None,
+            use_mmap: true,
+        }
     }
 
     /// Sets a timeout for scan operations.
@@ -344,6 +352,22 @@ impl<'r> Scanner<'r> {
     /// produce more matches.
     pub fn max_matches_per_pattern(&mut self, n: usize) -> &mut Self {
         self.scan_context_mut().pattern_matches.max_matches_per_pattern(n);
+        self
+    }
+
+    /// Specifies whether [`Scanner::scan_file`] and [`Scanner::scan_file_with_option`]
+    /// may use memory-mapped files to read input.
+    ///
+    /// By default, the scanner uses memory mapping for very large files, as this
+    /// is typically faster than copying file contents into memory. However, this
+    /// approach has a drawback: if another process truncates the file during
+    /// scanning, a `SIGBUS` signal may occur.
+    ///
+    /// Setting this option disables memory mapping and forces the scanner to
+    /// always read files into an in-memory buffer instead. This method is slower,
+    /// but safer.
+    pub fn use_mmap(&mut self, yes: bool) -> &mut Self {
+        self.use_mmap = yes;
         self
     }
 
@@ -378,7 +402,7 @@ impl<'r> Scanner<'r> {
     where
         P: AsRef<Path>,
     {
-        self.scan_impl(Self::load_file(target.as_ref())?, None)
+        self.scan_impl(self.load_file(target.as_ref())?, None)
     }
 
     /// Like [`Scanner::scan`], but allows to specify additional scan options.
@@ -400,7 +424,7 @@ impl<'r> Scanner<'r> {
     where
         P: AsRef<Path>,
     {
-        self.scan_impl(Self::load_file(target.as_ref())?, Some(options))
+        self.scan_impl(self.load_file(target.as_ref())?, Some(options))
     }
 
     /// Sets the value of a global variable.
@@ -585,7 +609,10 @@ impl<'r> Scanner<'r> {
         }
     }
 
-    fn load_file(path: &Path) -> Result<ScannedData<'static>, ScanError> {
+    fn load_file(
+        &self,
+        path: &Path,
+    ) -> Result<ScannedData<'static>, ScanError> {
         let mut file = fs::File::open(path).map_err(|err| {
             ScanError::OpenError { path: path.to_path_buf(), err }
         })?;
@@ -597,19 +624,19 @@ impl<'r> Scanner<'r> {
 
         // For files smaller than ~500MB reading the whole file is faster than
         // using a memory-mapped file.
-        let data = if size < 500_000_000 {
-            buffered_file = Vec::with_capacity(size as usize);
-            file.read_to_end(&mut buffered_file).map_err(|err| {
-                ScanError::OpenError { path: path.to_path_buf(), err }
-            })?;
-            ScannedData::Vec(buffered_file)
-        } else {
+        let data = if self.use_mmap && size > 500_000_000 {
             mapped_file = unsafe {
                 MmapOptions::new().map_copy_read_only(&file).map_err(|err| {
                     ScanError::MapError { path: path.to_path_buf(), err }
                 })
             }?;
             ScannedData::Mmap(mapped_file)
+        } else {
+            buffered_file = Vec::with_capacity(size as usize);
+            file.read_to_end(&mut buffered_file).map_err(|err| {
+                ScanError::OpenError { path: path.to_path_buf(), err }
+            })?;
+            ScannedData::Vec(buffered_file)
         };
 
         Ok(data)

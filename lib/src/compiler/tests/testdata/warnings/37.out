@@ -5,7 +5,6 @@ warning[unsatisfiable_expr]: unsatisfiable expression
   |                               ----------------    ----- the length of this string is 3
   |                               |
   |                               the length of this string is 32
-  |
 warning[unsatisfiable_expr]: unsatisfiable expression
  --> line:3:31
   |
@@ -16,15 +15,14 @@ warning[unsatisfiable_expr]: unsatisfiable expression
   |
   = note: a lowercase string can't be equal to a string containing uppercase characters
 warning[unsatisfiable_expr]: unsatisfiable expression
- --> line:6:39
+ --> line:6:26
   |
 6 | rule test_2 { condition: "AD" == hash.sha256(0,filesize) }
   |                          ----         ------------------ the length of this string is 64
   |                          |
   |                          the length of this string is 2
-  |
 warning[unsatisfiable_expr]: unsatisfiable expression
- --> line:6:39
+ --> line:6:26
   |
 6 | rule test_2 { condition: "AD" == hash.sha256(0,filesize) }
   |                          ----         ------------------ this is a lowercase string

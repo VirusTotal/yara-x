@@ -3,4 +3,3 @@ error[E029]: invalid escape sequence
   |
 2 |   condition: "\ޘabc" == "abc"
   |               ^^ invalid escape sequence `\ޘ`
-  |

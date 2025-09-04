@@ -3,4 +3,3 @@ error[E009]: unknown identifier `foo`
   |
 4 |        and foo == "foo"
   |            ^^^ this identifier has not been declared
-  |

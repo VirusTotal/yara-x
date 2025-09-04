@@ -402,8 +402,8 @@ where
             }
         }
         // Check if the tokens at the front of the input queue are pass-through
-        // tokens. In that case copy them directly to the output until the we
-        // have a non-pass-through token at the front of the queue.
+        // tokens. In that case copy them directly to the output until we have a
+        // non-pass-through token at the front of the queue.
         while let Some(token) = self.next_tokens.front() {
             if token.is(self.passthrough) {
                 let token = self.next_tokens.pop_front().unwrap();

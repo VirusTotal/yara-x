@@ -59,8 +59,7 @@ pub(crate) enum LinterResult {
 ///  --> line:1:6
 ///   |
 /// 1 | rule foo { strings: $foo = "foo" condition: $foo }
-///   |      --- this rule name does not match regex `APT_.*`
-///   |"#);
+///   |      --- this rule name does not match regex `APT_.*`"#);
 /// ```
 pub struct RuleName {
     regex: String,
@@ -268,8 +267,7 @@ impl LinterInternal for Tags {
 ///  --> line:1:6
 ///   |
 /// 1 | rule foo { strings: $foo = "foo" condition: $foo }
-///   |      --- required metadata `author` not found
-///   |"#);
+///   |      --- required metadata `author` not found"#);
 /// ```
 pub struct Metadata<'a> {
     identifier: String,
@@ -346,8 +344,7 @@ impl<'a> Metadata<'a> {
     ///  --> line:3:21
     ///   |
     /// 3 |            author = false
-    ///   |                     ----- author must be a string
-    ///   |"#);
+    ///   |                     ----- author must be a string"#);
     /// ```
     pub fn validator<P, M>(mut self, predicate: P, message: M) -> Self
     where

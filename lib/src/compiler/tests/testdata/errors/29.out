@@ -3,4 +3,3 @@ error[E008]: unknown field or method `foo`
   |
 4 |     test_proto2.foo
   |                 ^^^ this field or method doesn't exist
-  |

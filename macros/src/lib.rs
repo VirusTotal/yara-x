@@ -68,14 +68,14 @@ mod wasm_export;
 ///    of a text, the name of some field of type `SourceRef` in the structure,
 ///    and optionally, the label's error level. Valid error levels are:
 ///
-///     - `Level::Error`
-///     - `Level::Warning`
-///     - `Level::Info`
-///     - `Level::Note`
-///     - `Level::Help`
+///     - `Level::ERROR`
+///     - `Level::WARNING`
+///     - `Level::INFO`
+///     - `Level::NOTE`
+///     - `Level::HELP`
 ///
-///    If the level is omitted it will be either `Level::Error` or
-///    `Level::Warning`, depending on whether we are defining an error with
+///    If the level is omitted it will be either `Level::ERROR` or
+///    `Level::WARNING`, depending on whether we are defining an error with
 ///    `#[error(...)]`, or a warning with `#[warning(...)]`.
 ///
 /// ```text

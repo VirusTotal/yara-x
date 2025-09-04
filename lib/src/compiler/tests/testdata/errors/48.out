@@ -5,4 +5,3 @@ error[E005]: assignment mismatch
   |             ^    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this produces 2 value(s)
   |             |
   |             this expects 1 value(s)
-  |

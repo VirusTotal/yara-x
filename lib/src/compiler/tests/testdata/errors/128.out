@@ -5,4 +5,3 @@ error[E001]: syntax error
 2 | |
 3 | | rule test { condition: true }
   | |_____________________________^ expecting import statement or rule definition
-  |

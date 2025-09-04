@@ -3,4 +3,3 @@ error[E014]: invalid regular expression
   |
 2 |   condition: "foobar" matches /foo[bar/
   |                                   ^ unclosed character class
-  |

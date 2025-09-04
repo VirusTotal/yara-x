@@ -324,8 +324,7 @@ fn test_acl() {
  --> line:5:29
   |
 5 |                 test_proto2.requires_foo_and_bar == 0
-  |                             ^^^^^^^^^^^^^^^^^^^^ this field was used without foo
-  |"#
+  |                             ^^^^^^^^^^^^^^^^^^^^ this field was used without foo"#
     );
 
     c.enable_feature("foo");
@@ -336,8 +335,7 @@ fn test_acl() {
  --> line:5:29
   |
 5 |                 test_proto2.requires_foo_and_bar == 0
-  |                             ^^^^^^^^^^^^^^^^^^^^ this field was used without bar
-  |"#
+  |                             ^^^^^^^^^^^^^^^^^^^^ this field was used without bar"#
     );
 
     c.enable_feature("bar");
@@ -354,7 +352,6 @@ fn test_acl() {
  --> line:5:29
   |
 5 |                 test_proto2.requires_foo_and_bar == 0
-  |                             ^^^^^^^^^^^^^^^^^^^^ this field was used with baz
-  |"#
+  |                             ^^^^^^^^^^^^^^^^^^^^ this field was used with baz"#
     );
 }

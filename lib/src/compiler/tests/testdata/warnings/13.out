@@ -1,8 +1,7 @@
 warning[duplicate_import]: duplicate import statement
- --> line:2:1
+ --> line:1:1
   |
 1 | import "test_proto2"
-  | -------------------- note: `test_proto2` imported here for the first time
+  | -------------------- `test_proto2` imported here for the first time
 2 | import "test_proto2"
   | -------------------- duplicate import
-  |

@@ -3,4 +3,3 @@ error[E024]: invalid pattern `$a`
   |
 3 |     $a = ""
   |          ^^ this pattern is too short
-  |

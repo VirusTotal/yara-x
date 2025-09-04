@@ -3,4 +3,3 @@ error[E002]: wrong type
   |
 2 |   condition: 1 << 2.0 + 2
   |                   ^^^^^^^ expression should be `integer`, but it is `float`
-  |

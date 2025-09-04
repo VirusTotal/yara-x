@@ -107,6 +107,16 @@ depends directly or indirectly on such rules.
 
 This option can be used more than once for ignored different modules."#;
 
+pub const NO_MMAP_LONG_HELP: &str = r#"Don't use memory-mapped files
+
+By default, large files are memory-mapped as this is typically faster than copying
+file contents into memory. However, this approach has a drawback: if another process
+truncates the file during scanning, a `SIGBUS` signal may occur and the YARA-X process
+will crash.
+   
+This option disables memory mapping and forces the scanner to always read files into
+an in-memory buffer instead."#;
+
 pub const MODULE_DATA_LONG_HELP: &str = r#"Pass FILE's content as extra data to MODULE
 
 Some modules require supplementary data to work, in addition to the scanned

@@ -3,4 +3,3 @@ error[E030]: invalid regexp modifier `x`
   |
 3 |     "foo" matches /foo/x
   |                        ^ invalid modifier
-  |
