@@ -44,8 +44,7 @@ func TestBannedModules(t *testing.T) {
  --> line:1:1
   |
 1 | import "pe"
-  | ^^^^^^^^^^^ pe module was used here
-  |`
+  | ^^^^^^^^^^^ pe module was used here`
 	assert.EqualError(t, err, expected)
 }
 
@@ -57,8 +56,7 @@ func TestDisabledIncludes(t *testing.T) {
  --> line:1:1
   |
 1 | include "foo.yar"
-  | ^^^^^^^^^^^^^^^^^ includes are disabled for this compilation
-  |`
+  | ^^^^^^^^^^^^^^^^^ includes are disabled for this compilation`
 	assert.EqualError(t, err, expected)
 }
 
@@ -177,8 +175,7 @@ func TestError(t *testing.T) {
  --> line:1:24
   |
 1 | rule test { condition: foo }
-  |                        ^^^ this identifier has not been declared
-  |`
+  |                        ^^^ this identifier has not been declared`
 	assert.EqualError(t, err, expected)
 }
 
@@ -190,16 +187,14 @@ func TestCompilerFeatures(t *testing.T) {
  --> line:1:57
   |
 1 | import "test_proto2" rule test { condition: test_proto2.requires_foo_and_bar }
-  |                                                         ^^^^^^^^^^^^^^^^^^^^ this field was used without foo
-  |`)
+  |                                                         ^^^^^^^^^^^^^^^^^^^^ this field was used without foo`)
 
 	_, err = Compile(rules, WithFeature("foo"))
 	assert.EqualError(t, err, `error[E100]: bar is required
  --> line:1:57
   |
 1 | import "test_proto2" rule test { condition: test_proto2.requires_foo_and_bar }
-  |                                                         ^^^^^^^^^^^^^^^^^^^^ this field was used without bar
-  |`)
+  |                                                         ^^^^^^^^^^^^^^^^^^^^ this field was used without bar`)
 
 	_, err = Compile(rules, WithFeature("foo"), WithFeature("bar"))
 	assert.NoError(t, err)
@@ -265,8 +260,7 @@ func TestErrors(t *testing.T) {
  --> test.yar:1:26
   |
 1 | rule test_2 { condition: foo }
-  |                          ^^^ this identifier has not been declared
-  |`,
+  |                          ^^^ this identifier has not been declared`,
 		},
 	}, c.Errors())
 }
@@ -370,8 +364,7 @@ func TestWarnings(t *testing.T) {
  --> line:1:31
   |
 1 | rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }
-  |                               ---------- these consecutive jumps will be treated as [0-2]
-  |`,
+  |                               ---------- these consecutive jumps will be treated as [0-2]`,
 		},
 		{
 			Code:   "slow_pattern",
@@ -393,8 +386,7 @@ func TestWarnings(t *testing.T) {
  --> line:1:22
   |
 1 | rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }
-  |                      ---------------------- this pattern may slow down the scan
-  |`,
+  |                      ---------------------- this pattern may slow down the scan`,
 		},
 	}, c.Warnings())
 }
