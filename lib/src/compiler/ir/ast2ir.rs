@@ -8,6 +8,7 @@ use std::rc::Rc;
 
 use bstr::{BString, ByteSlice};
 use itertools::Itertools;
+
 use yara_x_parser::ast;
 use yara_x_parser::ast::WithSpan;
 use yara_x_parser::Span;
@@ -534,9 +535,7 @@ fn expr_from_ast(
                         ctx.ir.not(lhs),
                         format!(
                             "not {}",
-                            ctx.report_builder.get_snippet(
-                                &ctx.report_builder.span_to_code_loc(lhs_span)
-                            )
+                            ctx.report_builder.get_snippet(lhs_span)
                         ),
                     )),
                     (
@@ -546,29 +545,17 @@ fn expr_from_ast(
                         ctx.ir.not(rhs),
                         format!(
                             "not {}",
-                            ctx.report_builder.get_snippet(
-                                &ctx.report_builder.span_to_code_loc(rhs_span)
-                            )
+                            ctx.report_builder.get_snippet(rhs_span)
                         ),
                     )),
                     (
                         TypeValue::Bool { .. },
                         TypeValue::Integer { value: Const(1), .. },
-                    ) => Some((
-                        lhs,
-                        ctx.report_builder.get_snippet(
-                            &ctx.report_builder.span_to_code_loc(lhs_span),
-                        ),
-                    )),
+                    ) => Some((lhs, ctx.report_builder.get_snippet(lhs_span))),
                     (
                         TypeValue::Integer { value: Const(1), .. },
                         TypeValue::Bool { .. },
-                    ) => Some((
-                        rhs,
-                        ctx.report_builder.get_snippet(
-                            &ctx.report_builder.span_to_code_loc(rhs_span),
-                        ),
-                    )),
+                    ) => Some((rhs, ctx.report_builder.get_snippet(rhs_span))),
                     _ => None,
                 };
 
@@ -940,7 +927,6 @@ fn bool_expr_from_ast(
 ) -> Result<ExprId, CompileError> {
     ctx.one_shot_symbol_table = None;
 
-    let code_loc = ctx.report_builder.span_to_code_loc(ast.span());
     let expr = expr_from_ast(ctx, ast)?;
 
     match ctx.ir.get(expr).type_value() {
@@ -953,7 +939,7 @@ fn bool_expr_from_ast(
                     let style = ctx.report_builder.green_style();
                     format!(
                         "you probably meant {style}{}(){style:#}",
-                        ctx.report_builder.get_snippet(&code_loc)
+                        ctx.report_builder.get_snippet(ast.span())
                     )
                 });
 
@@ -961,7 +947,7 @@ fn bool_expr_from_ast(
                 ctx.report_builder,
                 "`bool`".to_string(),
                 "a function".to_string(),
-                code_loc,
+                ctx.report_builder.span_to_code_loc(ast.span()),
                 help,
             ));
         }
@@ -970,7 +956,7 @@ fn bool_expr_from_ast(
                 ctx.report_builder,
                 "`bool`".to_string(),
                 "a map".to_string(),
-                code_loc,
+                ctx.report_builder.span_to_code_loc(ast.span()),
                 None,
             ));
         }
@@ -979,7 +965,7 @@ fn bool_expr_from_ast(
                 ctx.report_builder,
                 "`bool`".to_string(),
                 "a struct".to_string(),
-                code_loc,
+                ctx.report_builder.span_to_code_loc(ast.span()),
                 None,
             ));
         }
@@ -988,7 +974,7 @@ fn bool_expr_from_ast(
                 ctx.report_builder,
                 "`bool`".to_string(),
                 "an array".to_string(),
-                code_loc,
+                ctx.report_builder.span_to_code_loc(ast.span()),
                 None,
             ));
         }
@@ -997,7 +983,7 @@ fn bool_expr_from_ast(
                 ctx.report_builder,
                 "`bool`".to_string(),
                 "a regexp".to_string(),
-                code_loc,
+                ctx.report_builder.span_to_code_loc(ast.span()),
                 None,
             ));
         }
@@ -1064,10 +1050,48 @@ fn of_expr_from_ast(
         }
     };
 
-    // If the quantifier expression is greater than the number of items,
-    // the `of` expression is always false.
     if let Quantifier::Expr(expr) = &quantifier {
         if let Some(value) = ctx.ir.get(*expr).try_as_const_integer() {
+            // The use of `0 of them` is not recommended, because is not clear
+            // if 0 or more patterns must match, or if none of them should
+            // match.
+            if value == 0 {
+                let mut warning = warnings::AmbiguousExpression::build(
+                    ctx.report_builder,
+                    ctx.report_builder.span_to_code_loc(of.span()),
+                );
+                // Compute the span of the quantifier expression, but relative
+                // to the start of the `of` expression. This can't be an absolute
+                // span (relative to the start of the source file) because it
+                // will be used for referencing a portion of the snippet that
+                // contains only the `of` expression.
+                let span = of
+                    .quantifier
+                    .span()
+                    .offset(of.span().start().wrapping_neg() as isize);
+
+                warning.report().add_group(
+                    annotate_snippets::Level::HELP
+                        .secondary_title(
+                            "consider using `none` instead of `0`",
+                        )
+                        .element(
+                            annotate_snippets::Snippet::source(
+                                ctx.report_builder.get_snippet(of.span()),
+                            )
+                            .patch(
+                                annotate_snippets::Patch::new(
+                                    span.range(),
+                                    "none",
+                                ),
+                            ),
+                        ),
+                );
+
+                ctx.warnings.add(|| warning)
+            }
+            // If the quantifier expression is greater than the number of items,
+            // the `of` expression is always false.
             if value > items.len() as i64 {
                 ctx.warnings.add(|| warnings::InvariantBooleanExpression::build(
                     ctx.report_builder,

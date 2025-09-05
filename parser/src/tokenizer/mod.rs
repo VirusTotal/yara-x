@@ -93,7 +93,7 @@ impl<'src> Tokenizer<'src> {
                         return Some(convert_normal_token(
                             token,
                             Span::from(lexer.span())
-                                .offset(self.lexer_starting_pos),
+                                .offset(self.lexer_starting_pos as isize),
                         ));
                     }
                     Err(()) => return Some(self.unexpected_token()),
@@ -103,7 +103,7 @@ impl<'src> Tokenizer<'src> {
                         return Some(convert_hex_pattern_token(
                             token,
                             Span::from(lexer.span())
-                                .offset(self.lexer_starting_pos),
+                                .offset(self.lexer_starting_pos as isize),
                         ))
                     }
                     Err(()) => {
@@ -125,7 +125,7 @@ impl<'src> Tokenizer<'src> {
                         return Some(convert_hex_jump_token(
                             token,
                             Span::from(lexer.span())
-                                .offset(self.lexer_starting_pos),
+                                .offset(self.lexer_starting_pos as isize),
                         ))
                     }
                     Err(()) => {
@@ -213,7 +213,7 @@ impl Tokenizer<'_> {
         if chunk.valid().is_empty() {
             return Token::INVALID_UTF8(
                 Span(start as u32..(start + 1) as u32)
-                    .offset(self.lexer_starting_pos),
+                    .offset(self.lexer_starting_pos as isize),
             );
         }
 
@@ -228,7 +228,7 @@ impl Tokenizer<'_> {
         lexer.bump(unexpected.len().saturating_sub(lexer.span().len()));
 
         Token::UNKNOWN(
-            Span::from(lexer.span()).offset(self.lexer_starting_pos),
+            Span::from(lexer.span()).offset(self.lexer_starting_pos as isize),
         )
     }
 }

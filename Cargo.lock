@@ -90,9 +90,9 @@ dependencies = [
 
 [[package]]
 name = "annotate-snippets"
-version = "0.12.2"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "982b1e014494ccc9d4737fa74eee118cd67b1905d781b7b9d03b32d77858593f"
+checksum = "4b0f1e2f8ec4bff67c7e1867001ec452595daf315cce10c393b7d4274024f878"
 dependencies = [
  "anstyle",
  "unicode-width",

@@ -11,7 +11,7 @@ rule test_2 {
     $a = "foo"
     $b = "bar"
   condition:
-    0 of them at 0
+    any of them at 0
 }
 
 rule test_3 {
@@ -19,39 +19,31 @@ rule test_3 {
     $a = "foo"
     $b = "bar"
   condition:
-    any of them at 0
-}
-
-rule test_4 {
-  strings:
-    $a = "foo"
-    $b = "bar"
-  condition:
     1 of them at 0
 }
 
-rule test_5 {
+rule test_4 {
   strings:
     $a = "foo"
   condition:
     none of ($a*) at 0
 }
 
-rule test_6 {
+rule test_5 {
   strings:
     $a = "foo"
   condition:
     all of ($a*, $a*) at 0
 }
 
-rule test_7 {
+rule test_6 {
   strings:
     $a = /[A-Fa-f0-9]{2,}/
   condition:
     $a
 }
 
-rule test_8 {
+rule test_7 {
   strings:
     $a = { 50 4B 03 04 }
     $b = { 7F 45 4C 46 }
@@ -59,14 +51,14 @@ rule test_8 {
     $a and $b
 }
 
-rule test_9 {
+rule test_8 {
     condition:
         uint8(0) == 0 or uint8(0) == 0xFF or
         uint16(0) == 0 or uint16(0) == 0xFFFF or
         uint32(0) == 0 or uint32(0) == 0xFFFFFFFF
 }
 
-rule test_10 {
+rule test_9 {
   strings:
     // suppress: text_as_hex
     $a = { 61 62 63 64 }
@@ -77,7 +69,7 @@ rule test_10 {
 
 // suppress: text_as_hex
 // suppress: invariant_expr
-rule test_11 {
+rule test_10 {
   strings:
     $a = { 61 62 63 64 }
     $b = { 61 62 63 64 }

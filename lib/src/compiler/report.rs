@@ -39,12 +39,6 @@ impl CodeLoc {
     pub(crate) fn new(source_id: Option<SourceId>, span: Span) -> Self {
         Self { source_id, span }
     }
-
-    /// Returns the span within the source code.
-    #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
-    }
 }
 
 /// Represents an error or warning report.
@@ -82,6 +76,7 @@ pub(crate) struct Report {
     title: String,
     labels: Vec<(Level, CodeLoc, String)>,
     footers: Vec<(Level, String)>,
+    groups: Vec<Group<'static>>,
 }
 
 impl Report {
@@ -132,6 +127,10 @@ impl Report {
         self.footers
             .iter()
             .map(|(level, text)| Footer { level: level_as_text(level), text })
+    }
+
+    pub(crate) fn add_group(&mut self, group: Group<'static>) {
+        self.groups.push(group);
     }
 }
 
@@ -243,7 +242,11 @@ impl Display for Report {
         };
 
         let renderer = renderer.term_width(self.max_width);
-        let text = renderer.render(&[group]);
+
+        let mut groups = vec![group];
+        groups.extend_from_slice(&self.groups);
+
+        let text = renderer.render(&groups);
 
         write!(f, "{text}")
     }
@@ -428,14 +431,14 @@ impl ReportBuilder {
         source_id
     }
 
-    /// Returns the fragment of source code indicated by `code_loc`.
-    pub fn get_snippet(&self, code_loc: &CodeLoc) -> String {
-        let source_id = code_loc.source_id.expect("CodeLoc without source ID");
+    /// Returns the fragment from the current source code indicated by `span`.
+    pub fn get_snippet(&self, span: Span) -> String {
+        let source_id = self.get_current_source_id().unwrap();
         let code_cache = self.code_cache.read();
         let cache_entry = code_cache.get(&source_id).unwrap();
         let src = cache_entry.code.as_str();
 
-        src[code_loc.span().range()].to_string()
+        src[span.range()].to_string()
     }
 
     /// Creates a new error or warning report.
@@ -465,6 +468,7 @@ impl ReportBuilder {
             title,
             labels,
             footers,
+            groups: Vec::new(),
         }
     }
 }
