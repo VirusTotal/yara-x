@@ -145,6 +145,11 @@ readability:
 0xFF_FF_FF
 ```
 
+Integers are always 64-bits long, even the results of functions like `uint8`,
+`uint16` and `uint32` are promoted to 64-bits. This is something you must take
+into account, specially while using bitwise operators (for example, `~0x01` is
+not `0xFE` but `0xFFFFFFFFFFFFFFFE`).
+
 ### Float literals
 
 Float literals are represented in the standard notation (scientific notation is not
@@ -170,8 +175,6 @@ Since YARA-X 1.5.0 float literals can also include underscores for better readab
 1_000.0
 2_500_000.5
 ```
-
-
 
 ## Counting pattern occurrences
 
@@ -260,18 +263,6 @@ character `!` in front of the pattern identifier, in a similar way you use
 the `@` character for the offset. `!a[1]` is the length for the first match of
 `$a`, `!a[2]` is the length for the second match, and so on. `!a` is an
 abbreviated form of `!a[1]`.
-
-Integers are always 64-bits long, even the results of functions like `uint8`,
-`uint16` and `uint32` are promoted to 64-bits. This is something you must take
-into account, specially while using bitwise operators (for example, `~0x01` is
-not `0xFE` but `0xFFFFFFFFFFFFFFFE`).
-
-The following table lists the precedence and associativity of all operators. The
-table is sorted in descending precedence order, which means that operators
-listed on a higher row in the list are grouped prior operators listed in rows
-further below it. Operators within the same row have the same precedence, if
-they appear together in a expression the associativity determines how they are
-grouped.
 
 ## File size
 
