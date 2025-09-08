@@ -22,7 +22,7 @@ solve.
  */
 
 use std::fmt::{Display, Formatter};
-use std::ops::Range;
+use std::ops::{Add, Range, Sub};
 
 pub use parser::Parser;
 
@@ -108,16 +108,32 @@ impl Span {
         Self(self.0.start + start as u32..self.0.start + end as u32)
     }
 
-    /// Displace the span to the left, incrementing both the starting and
-    /// ending positions by the given offset
+    /// Displace the span by adding `offset` to both the starting and
+    /// ending positions.
     ///
     /// ```
     /// # use yara_x_parser::Span;
-    /// assert_eq!(Span(0..1).offset(1), Span(1..2))
+    /// assert_eq!(Span(0..1).offset(1), Span(1..2));
+    /// assert_eq!(Span(1..2).offset(-1), Span(0..1));
     /// ```
-    pub fn offset(mut self, offset: usize) -> Self {
-        self.0.start = self.0.start.saturating_add(offset as u32);
-        self.0.end = self.0.end.saturating_add(offset as u32);
+    ///
+    /// # Panics
+    ///
+    /// Panics if the new span has a start or end positions that are
+    /// negative or larger than `Span::MAX`.
+    ///
+    /// ```should_panic
+    /// # use yara_x_parser::Span;
+    /// Span(0..1).offset(-1);
+    /// ```
+    pub fn offset(mut self, offset: isize) -> Self {
+        if offset.is_negative() {
+            self.0.start = self.0.start.sub(offset.unsigned_abs() as u32);
+            self.0.end = self.0.end.sub(offset.unsigned_abs() as u32);
+        } else {
+            self.0.start = self.0.start.add(offset as u32);
+            self.0.end = self.0.end.add(offset as u32);
+        }
         self
     }
 }

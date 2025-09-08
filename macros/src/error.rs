@@ -233,7 +233,6 @@ pub(crate) fn impl_error_struct_macro(
 
             /// Returns the footers associated to this error/warning.
             #[inline]
-            #[inline]
             pub fn footers(&self) -> impl Iterator<Item = Footer> {
                 self.report.footers()
             }
@@ -374,6 +373,18 @@ pub(crate) fn impl_error_enum_macro(
                     #(
                         Self::#variant_idents(v) => {
                              v.report.footers()
+                        }
+                    ),*
+                }
+            }
+
+            /// Returns the error report associated to this error/warning.
+            #[inline]
+            pub fn report(&mut self) -> &mut Report {
+                match self {
+                    #(
+                        Self::#variant_idents(v) => {
+                             &mut v.report
                         }
                     ),*
                 }

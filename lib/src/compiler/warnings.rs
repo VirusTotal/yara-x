@@ -18,6 +18,7 @@ use crate::compiler::report::{Level, Report, ReportBuilder, CodeLoc, Label, Foot
 #[derive(Serialize)]
 #[serde(tag = "type")]
 pub enum Warning {
+    AmbiguousExpression(Box<AmbiguousExpression>),
     BooleanIntegerComparison(Box<BooleanIntegerComparison>),
     ConsecutiveJumps(Box<ConsecutiveJumps>),
     DeprecatedField(Box<DeprecatedField>),
@@ -723,4 +724,36 @@ pub struct DeprecatedField {
     name: String,
     loc: CodeLoc,
     msg: String,
+}
+
+/// An ambiguous expression is used in a condition.
+///
+/// ## Example
+///
+/// ```text
+/// warning[ambiguous_expr]: ambiguous expression
+///  --> line:6:5
+///   |
+/// 6 |     0 of them
+///   |     --------- this expression is ambiguous
+///   |
+/// help: consider using `none` instead of `0`
+///   |
+/// 6 - 0 of them
+/// 6 + none of them
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "ambiguous_expr",
+    title = "ambiguous expression"
+)]
+#[label(
+    "this expression is ambiguous",
+    loc
+)]
+pub struct AmbiguousExpression {
+    report: Report,
+    loc: CodeLoc,
 }

@@ -2,7 +2,10 @@ error[E017]: `entrypoint` is unsupported
  --> line:3:5
   |
 3 |     entrypoint == 0x1000
-  |     ^^^^^^^^^^
-  |     |
-  |     the `entrypoint` keyword is not supported anymore
-  |     use `pe.entry_point` or `elf.entry_point` or `macho.entry_point`
+  |     ^^^^^^^^^^ the `entrypoint` keyword is not supported anymore
+  |
+help: use `pe.entry_point`, elf.entry_point` or `macho.entry_point`
+  |
+3 -     entrypoint == 0x1000
+3 +     pe.entry_point == 0x1000
+  |

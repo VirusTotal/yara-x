@@ -412,11 +412,6 @@ pub struct EmptyPatternSet {
 #[associated_enum(CompileError)]
 #[error(code = "E017", title = "`entrypoint` is unsupported")]
 #[label("the `entrypoint` keyword is not supported anymore", error_loc)]
-#[label(
-    "use `pe.entry_point` or `elf.entry_point` or `macho.entry_point`",
-    error_loc,
-    Level::HELP
-)]
 pub struct EntrypointUnsupported {
     report: Report,
     error_loc: CodeLoc,
