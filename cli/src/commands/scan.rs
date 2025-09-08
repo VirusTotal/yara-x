@@ -122,6 +122,12 @@ pub fn scan() -> Command {
                 .long_help(help::NO_MMAP_LONG_HELP)
         )
         .arg(
+            arg!(--"max-matches-per-pattern" <MATCHES>)
+                .help("Maximum number of matches per pattern")
+                .long_help(help::MAX_MATCHES_PER_PATTERN_LONG_HELP)
+                .value_parser(value_parser!(usize))
+        )
+        .arg(
             arg!(-o --"output-format" <FORMAT>)
                 .help("Output format for results")
                 .long_help(help::OUTPUT_FORMAT_LONG_HELP)
@@ -256,6 +262,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let scan_list = args.get_flag("scan-list");
     let recursive = args.get_one::<usize>("recursive");
     let no_mmap = args.get_flag("no-mmap");
+    let max_matches_per_pattern = args.get_one::<usize>("max-matches-per-pattern");
 
     let timeout =
         args.get_one::<u64>("timeout").map(|t| Duration::from_secs(*t));
@@ -394,6 +401,10 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
             if no_mmap {
                 scanner.use_mmap(false);
+            }
+
+            if let Some(max_matches_per_pattern) = max_matches_per_pattern {
+                scanner.max_matches_per_pattern(*max_matches_per_pattern);
             }
 
             scanner

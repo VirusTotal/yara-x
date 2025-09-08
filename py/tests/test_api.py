@@ -218,6 +218,18 @@ def test_scanner_timeout():
   with pytest.raises(yara_x.TimeoutError):
     scanner.scan(b'foobar')
 
+def test_scanner_max_matches_per_pattern():
+  compiler = yara_x.Compiler()
+  compiler.add_source('rule test {strings: $a = "." condition: #a > 1}')
+
+  scanner.max_matches_per_pattern(1)
+  matching_rules = scanner.scan(b'..').matching_rules
+  assert len(matching_rules) == 0
+
+  scanner.max_matches_per_pattern(2)
+  matching_rules = scanner.scan(b'..').matching_rules
+  assert len(matching_rules) == 1
+
 
 def test_module_outputs():
   import datetime

@@ -117,6 +117,10 @@ will crash.
 This option disables memory mapping and forces the scanner to always read files into
 an in-memory buffer instead."#;
 
+pub const MAX_MATCHES_PER_PATTERN_LONG_HELP: &str = r#"Maximum number of matches per pattern
+
+When some pattern reaches the maximum number of patterns it won't produce more matches."#;
+
 pub const MODULE_DATA_LONG_HELP: &str = r#"Pass FILE's content as extra data to MODULE
 
 Some modules require supplementary data to work, in addition to the scanned

@@ -221,6 +221,14 @@ class Scanner:
         """
         ...
 
+    def max_matches_per_pattern(self, matches: int) -> None:
+        r"""
+        Sets the maximum number of matches per pattern.
+
+        When some pattern reaches the specified number of `matches` it won't produce more matches.
+        """
+        ...
+
     def console_log(self, callback: collections.abc.Callable[[str], Any]) -> None:
         r"""
         Sets a callback that is invoked every time a YARA rule calls the
