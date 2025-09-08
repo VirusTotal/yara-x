@@ -27,7 +27,7 @@ use crate::compiler::ir::{
     Error, Expr, ExprId, Iterable, LiteralPattern, MatchAnchor, Pattern,
     PatternFlags, PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern,
 };
-use crate::compiler::report::ReportBuilder;
+use crate::compiler::report::{Level, ReportBuilder};
 use crate::compiler::{
     warnings, CompileContext, CompileError, ForVars, TextPatternAsHex,
 };
@@ -445,10 +445,16 @@ fn expr_from_ast(
 ) -> Result<ExprId, CompileError> {
     let expr = match expr {
         ast::Expr::Entrypoint { span } => {
-            return Err(EntrypointUnsupported::build(
+            let mut err = EntrypointUnsupported::build(
                 ctx.report_builder,
                 ctx.report_builder.span_to_code_loc(span.clone()),
-            ));
+            );
+
+            err.report()
+                .new_section(Level::HELP, "use `pe.entry_point`, elf.entry_point` or `macho.entry_point`")
+                .patch(span.clone(), "pe.entry_point");
+
+            return Err(err);
         }
         ast::Expr::Filesize { .. } => ctx.ir.filesize(),
 
@@ -1060,33 +1066,14 @@ fn of_expr_from_ast(
                     ctx.report_builder,
                     ctx.report_builder.span_to_code_loc(of.span()),
                 );
-                // Compute the span of the quantifier expression, but relative
-                // to the start of the `of` expression. This can't be an absolute
-                // span (relative to the start of the source file) because it
-                // will be used for referencing a portion of the snippet that
-                // contains only the `of` expression.
-                let span = of
-                    .quantifier
-                    .span()
-                    .offset(of.span().start().wrapping_neg() as isize);
 
-                warning.report().add_group(
-                    annotate_snippets::Level::HELP
-                        .secondary_title(
-                            "consider using `none` instead of `0`",
-                        )
-                        .element(
-                            annotate_snippets::Snippet::source(
-                                ctx.report_builder.get_snippet(of.span()),
-                            )
-                            .patch(
-                                annotate_snippets::Patch::new(
-                                    span.range(),
-                                    "none",
-                                ),
-                            ),
-                        ),
-                );
+                warning
+                    .report()
+                    .new_section(
+                        Level::HELP,
+                        "consider using `none` instead of `0`",
+                    )
+                    .patch(of.quantifier.span(), "none");
 
                 ctx.warnings.add(|| warning)
             }

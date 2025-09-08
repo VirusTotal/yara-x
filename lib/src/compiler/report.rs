@@ -1,6 +1,6 @@
 use annotate_snippets::renderer::{AnsiColor, Color, DEFAULT_TERM_WIDTH};
 use annotate_snippets::{
-    renderer, Annotation, AnnotationKind, Group, Snippet,
+    renderer, Annotation, AnnotationKind, Group, Patch, Snippet,
 };
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
@@ -76,7 +76,14 @@ pub(crate) struct Report {
     title: String,
     labels: Vec<(Level, CodeLoc, String)>,
     footers: Vec<(Level, String)>,
-    groups: Vec<Group<'static>>,
+    sections: Vec<Section>,
+}
+
+#[derive(Clone)]
+pub(crate) struct Section {
+    level: Level,
+    title: String,
+    patches: Vec<(Span, String)>,
 }
 
 impl Report {
@@ -129,8 +136,30 @@ impl Report {
             .map(|(level, text)| Footer { level: level_as_text(level), text })
     }
 
-    pub(crate) fn add_group(&mut self, group: Group<'static>) {
-        self.groups.push(group);
+    pub(crate) fn new_section<T: Into<String>>(
+        &mut self,
+        level: Level,
+        title: T,
+    ) -> &mut Self {
+        self.sections.push(Section {
+            level,
+            title: title.into(),
+            patches: vec![],
+        });
+        self
+    }
+
+    pub(crate) fn patch<R: Into<String>>(
+        &mut self,
+        span: Span,
+        replacement: R,
+    ) -> &mut Self {
+        self.sections
+            .last_mut()
+            .unwrap()
+            .patches
+            .push((span, replacement.into()));
+        self
     }
 }
 
@@ -244,7 +273,22 @@ impl Display for Report {
         let renderer = renderer.term_width(self.max_width);
 
         let mut groups = vec![group];
-        groups.extend_from_slice(&self.groups);
+
+        for section in &self.sections {
+            let mut snippet = Snippet::source(src);
+
+            for (span, replacement) in &section.patches {
+                snippet = snippet.patch(Patch::new(span.range(), replacement))
+            }
+
+            groups.push(
+                section
+                    .level
+                    .clone()
+                    .secondary_title(&section.title)
+                    .element(snippet),
+            );
+        }
 
         let text = renderer.render(&groups);
 
@@ -468,7 +512,7 @@ impl ReportBuilder {
             title,
             labels,
             footers,
-            groups: Vec::new(),
+            sections: Vec::new(),
         }
     }
 }

@@ -739,8 +739,8 @@ pub struct DeprecatedField {
 ///   |
 /// help: consider using `none` instead of `0`
 ///   |
-/// 1 - 0 of them
-/// 1 + none of them
+/// 6 - 0 of them
+/// 6 + none of them
 ///   |
 /// ```
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
