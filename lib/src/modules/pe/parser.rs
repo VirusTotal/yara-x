@@ -12,7 +12,7 @@ use digest;
 use itertools::Itertools;
 use memchr::memmem;
 use nom::branch::{alt, permutation};
-use nom::bytes::complete::{take, take_till};
+use nom::bytes::complete::{take, take_till, take_while_m_n};
 use nom::combinator::{
     cond, consumed, iterator, map, opt, success, verify, Success,
 };
@@ -539,6 +539,7 @@ impl<'a> PE<'a> {
     const MAX_PE_EXPORTS: usize = 16384;
     const MAX_PE_RESOURCES: usize = 65536;
     const MAX_DIR_ENTRIES: usize = 16;
+    const MAX_FUNC_NAME_LENGTH: usize = 1024;
 
     fn parse_dos_header(input: &[u8]) -> IResult<&[u8], DOSHeader> {
         map(
@@ -1913,8 +1914,8 @@ impl<'a> PE<'a> {
                     if let Ok(rva) = TryInto::<u32>::try_into(thunk) {
                         func.name = self
                             .parse_at_rva(rva, Self::parse_import_by_name)
-                            .map(|n| n.to_vec())
-                            .and_then(|n| String::from_utf8(n).ok());
+                            .and_then(|s| str::from_utf8(s).ok())
+                            .map(|s| s.to_string());
                     }
                 }
 
@@ -2017,10 +2018,22 @@ impl<'a> PE<'a> {
     fn parse_import_by_name(input: &[u8]) -> IResult<&[u8], &[u8]> {
         map(
             (
-                le_u16, // hint
-                verify(take_till(|c: u8| c == 0_u8), |name: &[u8]| {
-                    !name.is_empty()
-                }), // name
+                // hint
+                le_u16,
+                // name
+                verify(
+                    // As a sanity check, the maximum function allowed function
+                    // name is MAX_FUNC_NAME_LENGTH. Some corrupted files can
+                    // produce larger names. Example:
+                    // 0a88c56ab8abf7955138f5ecc81a635d8fca70865f5f763fd07d9fb3d1381585
+                    take_while_m_n(0, Self::MAX_FUNC_NAME_LENGTH, |c: u8| {
+                        c != 0_u8
+                    }),
+                    |name: &[u8]| {
+                        !name.is_empty()
+                            && name.iter().all(|c| c.is_ascii_graphic())
+                    },
+                ),
             ),
             |(_, name)| name,
         )
