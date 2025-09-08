@@ -1914,8 +1914,7 @@ impl<'a> PE<'a> {
                     if let Ok(rva) = TryInto::<u32>::try_into(thunk) {
                         func.name = self
                             .parse_at_rva(rva, Self::parse_import_by_name)
-                            .and_then(|s| str::from_utf8(s).ok())
-                            .map(|s| s.to_string());
+                            .and_then(|s| String::from_utf8(s.to_vec()).ok())
                     }
                 }
 

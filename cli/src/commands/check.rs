@@ -5,7 +5,6 @@ use std::{fs, io};
 use anyhow::Context;
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 use crossterm::tty::IsTty;
-use regex;
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Green, Red, Yellow};
 use yansi::Paint;
@@ -115,7 +114,7 @@ pub fn exec_check(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                     MetaValueType::String => {
                         let message = if let Some(regexp) = &config.regexp {
                             // Make sure that the regexp is valid.
-                            let _ = regex::bytes::Regex::new(&regexp)?;
+                            let _ = regex::bytes::Regex::new(regexp)?;
                             format!("`{identifier}` must be a string that matches `/{regexp}/`")
                         } else {
                             format!("`{identifier}` must be a string")
@@ -124,10 +123,10 @@ pub fn exec_check(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                             |meta| {
                                 match (&meta.value, &config.regexp) {
                                     (MetaValue::String((s, _)), Some(regexp)) => {
-                                        regex::Regex::new(&regexp).unwrap().is_match(s)
+                                        regex::Regex::new(regexp).unwrap().is_match(s)
                                     }
                                     (MetaValue::Bytes((s, _)), Some(regexp)) => {
-                                        regex::bytes::Regex::new(&regexp).unwrap().is_match(s)
+                                        regex::bytes::Regex::new(regexp).unwrap().is_match(s)
                                     }
                                     (MetaValue::String(_), None) => true,
                                     (MetaValue::Bytes(_), None) => true,

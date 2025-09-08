@@ -524,7 +524,7 @@ fn level_as_text(level: &Level) -> &'static str {
         Level::INFO => "info",
         Level::NOTE => "note",
         Level::HELP => "help",
-        _ => panic!("unsupported level {:?}", level),
+        _ => panic!("unsupported level {level:?}"),
     }
 }
 
