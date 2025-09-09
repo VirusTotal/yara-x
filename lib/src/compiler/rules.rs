@@ -660,7 +660,7 @@ impl FilesizeContraints {
                 }
             }
             (Bound::Unbounded, new) => {
-                self.start = new.clone();
+                self.start = *new;
             }
             (_, Bound::Unbounded) => {}
         }
@@ -690,7 +690,7 @@ impl FilesizeContraints {
                 }
             }
             (Bound::Unbounded, new) => {
-                self.end = new.clone();
+                self.end = *new;
             }
             (_, Bound::Unbounded) => {}
         }
