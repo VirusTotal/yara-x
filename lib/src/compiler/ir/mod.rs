@@ -29,6 +29,7 @@ allows using the same regex engine for matching both types of patterns.
 [Hir]: regex_syntax::hir::Hir
 */
 
+use std::collections::Bound;
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::mem;
@@ -55,11 +56,12 @@ use crate::symbols::Symbol;
 use crate::types::Value::Const;
 use crate::types::{FuncSignature, Type, TypeValue};
 
+use crate::compiler::FilesizeContraints;
 pub(in crate::compiler) use ast2ir::patterns_from_ast;
 pub(in crate::compiler) use ast2ir::rule_condition_from_ast;
 
 mod ast2ir;
-mod dfs;
+pub(crate) mod dfs;
 mod hex2hir;
 
 #[cfg(test)]
@@ -860,6 +862,78 @@ impl IR {
         }
 
         self.root.unwrap()
+    }
+
+    pub fn filesize_constraints(&self) -> FilesizeContraints {
+        let mut result = FilesizeContraints::default();
+        let mut dfs = self.dfs_iter(self.root.unwrap());
+
+        while let Some(evt) = dfs.next() {
+            let expr = match evt {
+                Event::Enter((_, expr, _)) => expr,
+                _ => continue,
+            };
+            match expr {
+                Expr::Gt { lhs, rhs } => {
+                    match (self.get(*lhs), self.get(*rhs)) {
+                        // constant > filesize
+                        (Expr::Const(c), Expr::Filesize) => {
+                            result.min_end(Bound::Excluded(c.as_integer()));
+                        }
+                        // filesize > constant
+                        (Expr::Filesize, Expr::Const(c)) => {
+                            result.max_start(Bound::Excluded(c.as_integer()));
+                        }
+                        _ => {}
+                    }
+                }
+                Expr::Ge { lhs, rhs } => {
+                    match (self.get(*lhs), self.get(*rhs)) {
+                        // constant >= filesize
+                        (Expr::Const(c), Expr::Filesize) => {
+                            result.min_end(Bound::Included(c.as_integer()));
+                        }
+                        // filesize >= constant
+                        (Expr::Filesize, Expr::Const(c)) => {
+                            result.max_start(Bound::Included(c.as_integer()));
+                        }
+                        _ => {}
+                    }
+                }
+                Expr::Lt { lhs, rhs } => {
+                    match (self.get(*lhs), self.get(*rhs)) {
+                        // constant < filesize
+                        (Expr::Const(c), Expr::Filesize) => {
+                            result.max_start(Bound::Excluded(c.as_integer()));
+                        }
+                        // filesize < constant
+                        (Expr::Filesize, Expr::Const(c)) => {
+                            result.min_end(Bound::Excluded(c.as_integer()));
+                        }
+                        _ => {}
+                    }
+                }
+                Expr::Le { lhs, rhs } => {
+                    match (self.get(*lhs), self.get(*rhs)) {
+                        // constant < filesize
+                        (Expr::Const(c), Expr::Filesize) => {
+                            result.max_start(Bound::Included(c.as_integer()));
+                        }
+                        // filesize < constant
+                        (Expr::Filesize, Expr::Const(c)) => {
+                            result.min_end(Bound::Included(c.as_integer()));
+                        }
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
+            if !matches!(expr, Expr::And { .. }) {
+                dfs.prune();
+            }
+        }
+
+        result
     }
 }
 

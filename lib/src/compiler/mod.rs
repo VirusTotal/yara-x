@@ -327,6 +327,9 @@ pub struct Compiler<'a> {
     /// function name (e.g: `my_module.my_struct.my_func@ii@i`)
     wasm_exports: FxHashMap<String, FunctionId>,
 
+    // TODO
+    filesize_contraints: FxHashMap<PatternId, FilesizeContraints>,
+
     /// A vector with all the rules that has been compiled. A [`RuleId`] is
     /// an index in this vector.
     rules: Vec<RuleInfo>,
@@ -520,6 +523,7 @@ impl<'a> Compiler<'a> {
             ignored_modules: FxHashSet::default(),
             banned_modules: FxHashMap::default(),
             ignored_rules: FxHashMap::default(),
+            filesize_contraints: FxHashMap::default(),
             root_struct: Struct::new().make_root(),
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
@@ -791,6 +795,7 @@ impl<'a> Compiler<'a> {
             atoms: self.atoms,
             re_code: self.re_code,
             warnings: self.warnings.into(),
+            filesize_contraints: self.filesize_contraints,
         };
 
         rules.build_ac_automaton();
@@ -1604,9 +1609,14 @@ impl Compiler<'_> {
             condition = self.ir.hoisting();
         }
 
+        let constraints = self.ir.filesize_constraints();
+
         if let Some(w) = &mut self.ir_writer {
             writeln!(w, "RULE {}", rule.identifier.name).unwrap();
             writeln!(w, "{:?}", self.ir).unwrap();
+            if !constraints.not_bounded() {
+                writeln!(w, "{constraints:?}\n",).unwrap();
+            }
         }
 
         let mut pattern_ids = Vec::with_capacity(rule_patterns.len());

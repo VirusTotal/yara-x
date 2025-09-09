@@ -447,7 +447,7 @@ impl ScanContext<'_> {
         #[cfg(any(feature = "rules-profiling", feature = "logging"))]
         let scan_start = self.clock.raw();
 
-        // Verify the anchored pattern first. These are patterns that can match
+        // Verify the anchored patterns first. These are patterns that can match
         // at a single known offset within the data.
         self.verify_anchored_patterns();
 
