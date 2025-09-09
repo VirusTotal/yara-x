@@ -262,7 +262,8 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let scan_list = args.get_flag("scan-list");
     let recursive = args.get_one::<usize>("recursive");
     let no_mmap = args.get_flag("no-mmap");
-    let max_matches_per_pattern = args.get_one::<usize>("max-matches-per-pattern");
+    let max_matches_per_pattern =
+        args.get_one::<usize>("max-matches-per-pattern");
 
     let timeout =
         args.get_one::<u64>("timeout").map(|t| Duration::from_secs(*t));
