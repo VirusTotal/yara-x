@@ -95,6 +95,7 @@ rules = compiler.build()
 # Pass the rules to a scanner, and set a scan timeout.
 scanner = yara_x.Scanner(rules)
 scanner.set_timeout(60)
+scanner.max_matches_per_pattern(1000)
 # Scan some data.
 result = scanner.scan(b"foo")
 ```

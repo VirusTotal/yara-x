@@ -178,6 +178,15 @@ will crash.
 This option disables memory mapping and forces the scanner to always read files into
 an in-memory buffer instead.
 
+### --max-matches-per-pattern \<MATCHES\>
+
+Maximum number of matches per pattern
+
+When some pattern reaches the maximum number of occurrences it won't produce
+more matches. This can affect rules that rely on the number of occurrences of
+some pattern. For instance, the expression `#a > 100` will be false if this
+limit is set to 100 or less.
+
 ### --output-format \<FORMAT\>
 
 Specify the output format. Available options are `text`, `ndjson` and `json`.

@@ -536,6 +536,13 @@ impl Scanner {
         self.inner.set_timeout(Duration::from_secs(seconds));
     }
 
+    /// Sets the maximum number of matches per pattern.
+    ///
+    /// When some pattern reaches the specified number of `matches` it won't produce more matches.
+    fn max_matches_per_pattern(&mut self, matches: usize) {
+        self.inner.max_matches_per_pattern(matches);
+    }
+
     /// Sets a callback that is invoked every time a YARA rule calls the
     /// `console` module.
     ///
