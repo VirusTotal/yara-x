@@ -97,8 +97,8 @@ be converted. This behavior can be changed by using the `--filter` option."#;
 
 pub const INCLUDE_DIR_LONG_HELP: &str = r#"Directory in which to search for included files
 
-If not given, the current working directory is used. May be specified multiple times;
-directories will be searched in order."#;
+If not given, the current working directory is used. May be specified multiple 
+times; directories will be searched in order."#;
 
 pub const IGNORE_MODULE_LONG_HELP: &str = r#"Ignore rules that use the specified module
 
@@ -109,17 +109,20 @@ This option can be used more than once for ignored different modules."#;
 
 pub const NO_MMAP_LONG_HELP: &str = r#"Don't use memory-mapped files
 
-By default, large files are memory-mapped as this is typically faster than copying
-file contents into memory. However, this approach has a drawback: if another process
-truncates the file during scanning, a `SIGBUS` signal may occur and the YARA-X process
-will crash.
+By default, large files are memory-mapped as this is typically faster than 
+copying file contents into memory. However, this approach has a drawback: if 
+another process truncates the file during scanning, a `SIGBUS` signal may 
+occur and the YARA-X process will crash.
    
-This option disables memory mapping and forces the scanner to always read files into
-an in-memory buffer instead."#;
+This option disables memory mapping and forces the scanner to always read files
+into an in-memory buffer instead."#;
 
 pub const MAX_MATCHES_PER_PATTERN_LONG_HELP: &str = r#"Maximum number of matches per pattern
 
-When some pattern reaches the maximum number of patterns it won't produce more matches."#;
+When some pattern reaches the maximum number of occurrences it won't produce
+more matches. This can affect rules that rely on the number of occurrences of
+some pattern. For instance, the expression `#a > 100` will be false if this 
+limit is set to 100 or less."#;
 
 pub const MODULE_DATA_LONG_HELP: &str = r#"Pass FILE's content as extra data to MODULE
 
@@ -190,8 +193,8 @@ yr scan namespace:rules_dir scanned_file"#;
 
 pub const SCAN_PRINT_STRING_LONG_HELP: &str = r#"Print matching patterns
 
-The printed patterns can be optionally limited to <N> characters. By default they are limited
-to 120 characters.
+The printed patterns can be optionally limited to <N> characters. By default 
+they are limited to 120 characters.
 
 Examples:
 
@@ -200,14 +203,15 @@ Examples:
 
 pub const SCAN_RECURSIVE_LONG_HELP: &str = r#"Scan directories recursively
 
-When <TARGET_PATH> is a directory, this option enables recursive scanning of its contents.
-You can optionally specify a <MAX_DEPTH> to limit how deep the scan goes:
+When <TARGET_PATH> is a directory, this option enables recursive scanning
+of its contents. You can optionally specify a <MAX_DEPTH> to limit how deep
+the scan goes:
 
 --recursive     scan nested subdirectories with no depth limit.
 --recursive=0   scan only the files in <TARGET_PATH> (no subdirectories)
 --recursive=3   scan up to 3 levels deep, including nested subdirectories
 
-If --recursive is not specified, the default behavior is equivalent to --recursive=0.
+If --recursive is not specified, the default behavior is --recursive=0.
 
 Examples:
 
