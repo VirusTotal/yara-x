@@ -124,7 +124,7 @@ inherits = "release"
 lto = true
 codegen-units = 1
 
-# Enable optimizations even for debug releases yara-x-parser. This is necessary
+# Enable optimizations even for debug releases of yara-x-parser. This is necessary
 # because the `logos` lexer produces recursive functions and rely on the rustc's
 # tail-recursion elimination. In debug releases these optimizations are disabled
 # and the produced code is actually recursive, which produces stack overflows
