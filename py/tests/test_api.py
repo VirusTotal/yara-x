@@ -222,6 +222,7 @@ def test_scanner_max_matches_per_pattern():
   compiler = yara_x.Compiler()
   compiler.add_source('rule test {strings: $a = "." condition: #a > 1}')
 
+  scanner = yara_x.Scanner(compiler.build())
   scanner.max_matches_per_pattern(1)
   matching_rules = scanner.scan(b'..').matching_rules
   assert len(matching_rules) == 0
