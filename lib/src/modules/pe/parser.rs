@@ -2219,10 +2219,8 @@ impl<'a> PE<'a> {
     }
 
     fn str_at_rva(&self, rva: u32, max_len: usize) -> Option<&'a str> {
-        from_utf8(
-            self.parse_at_rva(rva, take_while_m_n(0, max_len, |c| c != 0))?,
-        )
-        .ok()
+        self.parse_at_rva(rva, take_while_m_n(0, max_len, |c| c != 0))
+            .map(|s| from_utf8(s).ok())?
     }
 
     fn dll_name_at_rva(&self, rva: u32) -> Option<&'a str> {
