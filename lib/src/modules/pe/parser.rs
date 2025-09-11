@@ -2136,7 +2136,7 @@ impl<'a> PE<'a> {
                     })
             {
                 if let Some(name_rva) = names.get(idx) {
-                    f.name = self.str_at_rva(*name_rva);
+                    f.name = self.str_at_rva_limited(*name_rva, Self::MAX_FUNC_NAME_LENGTH);
                 }
             }
 
@@ -2146,7 +2146,7 @@ impl<'a> PE<'a> {
             // really pointing to the function, but to a ASCII string that
             // contains the DLL and function to which this export is forwarded.
             if exports_section.contains(&f.rva) {
-                f.forward_name = self.str_at_rva(f.rva);
+                f.forward_name = self.str_at_rva_limited(f.rva, Self::MAX_FUNC_NAME_LENGTH);
             } else {
                 f.offset = self.rva_to_offset(f.rva);
             }
@@ -2217,6 +2217,11 @@ impl<'a> PE<'a> {
 
     fn str_at_rva(&self, rva: u32) -> Option<&'a str> {
         let dll_name = self.parse_at_rva(rva, take_till(|c| c == 0))?;
+        from_utf8(dll_name).ok()
+    }
+
+    fn str_at_rva_limited(&self, rva: u32, max_size: usize) -> Option<&'a str> {
+        let dll_name = self.parse_at_rva(rva, take_while_m_n(0, max_size, |c| c != 0))?;
         from_utf8(dll_name).ok()
     }
 
