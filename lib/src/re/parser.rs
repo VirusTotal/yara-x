@@ -6,7 +6,7 @@ use std::ops::Deref;
 
 use regex_syntax as re;
 use regex_syntax::ast::{
-    AssertionKind, Ast, ErrorKind, Literal, LiteralKind, RepetitionKind,
+    AssertionKind, Ast, ErrorKind, Flag, Literal, LiteralKind, RepetitionKind,
     RepetitionRange,
 };
 use thiserror::Error;
@@ -29,6 +29,9 @@ pub(crate) enum Error {
         span_1: re::ast::Span,
         span_2: re::ast::Span,
     },
+    UnsupportedInUnicode {
+        span: re::ast::Span,
+    },
     ArbitraryPrefix {
         span: re::ast::Span,
     },
@@ -39,6 +42,9 @@ impl Display for Error {
         match self {
             Error::WrongSyntax { msg, .. } => write!(f, "{msg}"),
             Error::MixedGreediness { .. } => write!(f, "mixed greediness"),
+            Error::UnsupportedInUnicode { .. } => {
+                write!(f, "this is unsupported in Unicode regular expressions")
+            }
             Error::ArbitraryPrefix { .. } => {
                 write!(f, "arbitrary prefix")
             }
@@ -313,8 +319,9 @@ enum MatchKind {
 /// compatibility with YARA.
 ///
 /// This includes checks such as disallowing a mix of greedy and non-greedy
-/// quantifiers, and rejecting expressions that begin with patterns capable
-/// of matching arbitrarily long sequences of arbitrary bytes.
+/// quantifiers, rejecting expressions that begin with patterns capable
+/// of matching arbitrarily long sequences of arbitrary bytes, and making
+/// sure that some assertions like \b and \B are not used in Unicode mode.
 struct Validator {
     first_rep: Option<(bool, re::ast::Span)>,
     greedy: Option<bool>,
@@ -322,6 +329,7 @@ struct Validator {
     stack: Vec<Vec<MatchKind>>,
     allow_mixed_greediness: bool,
     dot_matches_new_line: bool,
+    unicode_mode_stack: Vec<bool>,
 }
 
 impl Validator {
@@ -333,6 +341,7 @@ impl Validator {
             stack: Vec::new(),
             allow_mixed_greediness: false,
             dot_matches_new_line: false,
+            unicode_mode_stack: Vec::new(),
         }
     }
     fn allow_mixed_greediness(mut self, yes: bool) -> Self {
@@ -348,6 +357,19 @@ impl Validator {
     fn validate(&mut self, ast: &Ast) -> Result<Option<bool>, Error> {
         re::ast::visit(ast, self)
     }
+
+    /// Returns true if we are currently in Unicode mode.
+    ///
+    /// Unicode mode is enabled by using the `(?u)` flag in the regexp, and can
+    /// be disabled by using `(?-u)`. These flags apply to the current regular
+    /// expression group. For instance, in `/((?u)foo)bar)/` the `foo` portion
+    /// is in Unicode mode, but `bar` it's not, because the flag appears within
+    /// the group that encloses `foo`.
+    fn in_unicode_mode(&self) -> bool {
+        // The current Unicode mode is the value at the top of the stack,
+        // or false if the stack is empty.
+        self.unicode_mode_stack.last().cloned().unwrap_or(false)
+    }
 }
 
 impl re::ast::Visitor for &mut Validator {
@@ -360,6 +382,41 @@ impl re::ast::Visitor for &mut Validator {
 
     fn visit_pre(&mut self, ast: &Ast) -> Result<(), Self::Err> {
         match ast {
+            Ast::Group(_) => {
+                self.unicode_mode_stack.push(self.in_unicode_mode());
+            }
+            Ast::Flags(f) => {
+                if let Some(unicode_flag) = f.flags.flag_state(Flag::Unicode) {
+                    match self.unicode_mode_stack.last_mut() {
+                        Some(u) => *u = unicode_flag,
+                        None => self.unicode_mode_stack.push(unicode_flag),
+                    }
+                }
+            }
+            Ast::Assertion(assertion) => {
+                // The transformer should have removed all WordBoundaryStartAngle
+                // and WordBoundaryEndAngle from the AST. These kinds of assertions
+                // should not be found.
+                debug_assert!(!matches!(
+                    assertion.kind,
+                    AssertionKind::WordBoundaryStartAngle  // \<
+                        | AssertionKind::WordBoundaryEndAngle // \>
+                ));
+
+                if self.in_unicode_mode()
+                    && matches!(
+                        assertion.kind,
+                        AssertionKind::NotWordBoundary  // \B
+                        | AssertionKind::WordBoundary // \b
+                        | AssertionKind::WordBoundaryStart // \b{start}
+                        | AssertionKind::WordBoundaryEnd // \b{end}
+                    )
+                {
+                    return Err(Error::UnsupportedInUnicode {
+                        span: assertion.span.clone(),
+                    });
+                }
+            }
             Ast::Repetition(rep) => {
                 if let Some(first_rep) = self.first_rep {
                     if rep.greedy != first_rep.0 {
@@ -389,7 +446,10 @@ impl re::ast::Visitor for &mut Validator {
 
     fn visit_post(&mut self, ast: &Ast) -> Result<(), Self::Err> {
         match ast {
-            Ast::Flags(_) | Ast::Assertion(_) | Ast::Group(_) => {}
+            Ast::Group(_) => {
+                self.unicode_mode_stack.pop();
+            }
+            Ast::Flags(_) | Ast::Assertion(_) => {}
             Ast::Empty(_)
             | Ast::Literal(_)
             | Ast::ClassUnicode(_)
@@ -540,11 +600,7 @@ impl Transformer {
                 Ast::Flags(_) => {}
                 Ast::Literal(_) => {}
                 Ast::Dot(_) => {}
-                Ast::Assertion(assertion) => match assertion.kind {
-                    AssertionKind::WordBoundaryStartAngle => {}
-                    AssertionKind::WordBoundaryEndAngle => {}
-                    _ => {}
-                },
+                Ast::Assertion(_) => {}
                 Ast::ClassUnicode(_) => {}
                 Ast::ClassPerl(_) => {}
                 Ast::ClassBracketed(_) => {}
