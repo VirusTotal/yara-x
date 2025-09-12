@@ -413,7 +413,7 @@ impl re::ast::Visitor for &mut Validator {
                     )
                 {
                     return Err(Error::UnsupportedInUnicode {
-                        span: assertion.span.clone(),
+                        span: assertion.span,
                     });
                 }
             }
