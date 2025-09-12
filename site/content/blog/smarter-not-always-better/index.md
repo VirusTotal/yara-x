@@ -2,7 +2,7 @@
 title: "Smarter is not always better"
 description: ""
 summary: ""
-date: 2025-09-012T00:00:00+01:00
+date: 2025-09-12T00:00:00+01:00
 lastmod: 2025-09-12T00:00:00+01:00
 draft: false
 weight: 50
