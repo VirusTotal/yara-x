@@ -230,6 +230,24 @@ This origin is shown in error reports.
 
 ------
 
+#### yrx_compiler_add_include_dir
+
+```c
+enum YRX_RESULT yrx_compiler_add_include_dir(
+    struct YRX_COMPILER *compiler,
+    const char *dir);
+```
+
+Adds a directory to the list of directories where the compiler should look for included files.
+
+When an `include` is found, the compiler looks for the included file in the directories added
+with this function, in the order they were added.
+
+If this function is not called, the compiler will only look for included files in the current
+directory.
+
+------
+
 #### yrx_compiler_ignore_module
 
 ```c
