@@ -673,6 +673,7 @@
       "yrx_buffer_destroy",
       "yrx_compile",
       "yrx_compiler",
+      "yrx_compiler_add_include_dir",
       "yrx_compiler_add_source",
       "yrx_compiler_add_source_with_origin",
       "yrx_compiler_ban_module",
