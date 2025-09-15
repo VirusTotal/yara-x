@@ -2,6 +2,8 @@ use std::collections::VecDeque;
 use std::str::from_utf8_unchecked;
 use std::sync::LazyLock;
 
+use bstr::ByteSlice;
+
 use yara_x_parser::cst::{Event, SyntaxKind};
 
 #[cfg(test)]
@@ -396,15 +398,18 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
         Self: Sized,
         W: std::io::Write,
     {
-        let mut col_num = 0;
+        let mut indent = Vec::new();
         for token in self {
             match token {
                 Token::Newline => {
                     w.write_all(b"\n")?;
-                    col_num = 0;
+                    indent.clear();
+                }
+                Token::Tab => {
+                    w.write_all(b"\t")?;
+                    indent.push(b'\t');
                 }
                 Token::Whitespace
-                | Token::Tab
                 | Token::Comment(_)
                 | Token::Identifier(_)
                 | Token::Keyword(_)
@@ -413,7 +418,9 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
                 | Token::RGrouping(_)
                 | Token::Punctuation(_) => {
                     w.write_all(token.as_bytes())?;
-                    col_num += token.len() as i16;
+                    for _ in 0..token.len() {
+                        indent.push(b' ');
+                    }
                 }
 
                 Token::BlockComment(lines)
@@ -421,11 +428,9 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
                 | Token::TailComment(lines)
                 | Token::InlineComment(lines) => {
                     let mut lines = lines.iter();
-                    let message_col = col_num;
 
                     // The first line of the comment is already indented.
                     if let Some(first_line) = lines.next() {
-                        col_num += first_line.len() as i16;
                         w.write_all(first_line)?;
                     }
 
@@ -434,11 +439,8 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
                     // indentation.
                     for line in lines {
                         w.write_all("\n".as_bytes())?;
-                        w.write_all(
-                            " ".repeat(message_col as usize).as_bytes(),
-                        )?;
+                        w.write_all(indent.as_bytes())?;
                         w.write_all(line)?;
-                        col_num = message_col + line.len() as i16;
                     }
                 }
 

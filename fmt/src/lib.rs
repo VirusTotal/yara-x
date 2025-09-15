@@ -27,7 +27,7 @@ use yara_x_parser::{Parser, Span};
 
 use crate::align::Align;
 use crate::format_hex_patterns::FormatHexPatterns;
-use crate::indentation::AddIndentationSpaces;
+use crate::indentation::AddIndentation;
 use crate::tokens::categories::*;
 use crate::tokens::*;
 use crate::trailing_spaces::RemoveTrailingSpaces;
@@ -61,17 +61,26 @@ pub enum Error {
     InvalidUTF8(Span),
 }
 
+/// Specifies how to indent the formatted code.
+#[derive(Copy, Clone)]
+pub enum Indentation {
+    /// Use a given number of spaces per indentation level.
+    Spaces(usize),
+    /// Use one tab per indentation level.
+    Tabs,
+}
+
 /// Formats YARA source code automatically.
 pub struct Formatter {
     align_metadata: bool,
     align_patterns: bool,
     indent_section_headers: bool,
     indent_section_contents: bool,
-    indent_spaces: u8,
     newline_before_curly_brace: bool,
     empty_line_before_section_header: bool,
     empty_line_after_section_header: bool,
     tab_size: usize,
+    indentation: Indentation,
 }
 
 impl Default for Formatter {
@@ -89,11 +98,11 @@ impl Formatter {
             align_patterns: true,
             indent_section_headers: true,
             indent_section_contents: true,
-            indent_spaces: 2,
             newline_before_curly_brace: false,
             empty_line_before_section_header: true,
             empty_line_after_section_header: false,
             tab_size: 4,
+            indentation: Indentation::Spaces(2),
         }
     }
 
@@ -236,8 +245,28 @@ impl Formatter {
     /// Number of spaces to indent, if indenting at all. Set to 0 to use tabs.
     ///
     /// The default is `2`.
+    #[deprecated(
+        since = "1.7.0",
+        note = "use `.indentation(Indentation::Spaces(n))` or `.indentation(Indentation::Tabs)` instead"
+    )]
     pub fn indent_spaces(mut self, n: u8) -> Self {
-        self.indent_spaces = n;
+        if n == 0 {
+            self.indentation = Indentation::Tabs
+        } else {
+            self.indentation = Indentation::Spaces(n as usize)
+        }
+        self
+    }
+
+    /// Specifies how to indent the formatted source code.
+    ///
+    /// ```
+    /// # use yara_x_fmt::{Formatter, Indentation};
+    /// let indent_with_two_spaces = Formatter::new().indentation(Indentation::Spaces(2));
+    /// let indent_with_tabs = Formatter::new().indentation(Indentation::Tabs);
+    /// ```
+    pub fn indentation(mut self, indentation: Indentation) -> Self {
+        self.indentation = indentation;
         self
     }
 
@@ -877,7 +906,7 @@ impl Formatter {
                 Box::new(tokens)
             };
 
-        let tokens = AddIndentationSpaces::new(tokens, self.indent_spaces);
+        let tokens = AddIndentation::new(tokens, self.indentation);
         let tokens = RemoveTrailingSpaces::new(tokens);
 
         tokens

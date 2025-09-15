@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::{fs, io, process};
 
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
-use yara_x_fmt::Formatter;
+use yara_x_fmt::{Formatter, Indentation};
 
 use crate::config::Config;
 use crate::help;
@@ -43,7 +43,11 @@ pub fn exec_fmt(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
         .align_patterns(config.fmt.patterns.align_values)
         .indent_section_headers(config.fmt.rule.indent_section_headers)
         .indent_section_contents(config.fmt.rule.indent_section_contents)
-        .indent_spaces(config.fmt.rule.indent_spaces)
+        .indentation(if config.fmt.rule.indent_spaces == 0 {
+            Indentation::Tabs
+        } else {
+            Indentation::Spaces(config.fmt.rule.indent_spaces as usize)
+        })
         .newline_before_curly_brace(config.fmt.rule.newline_before_curly_brace)
         .empty_line_before_section_header(
             config.fmt.rule.empty_line_before_section_header,

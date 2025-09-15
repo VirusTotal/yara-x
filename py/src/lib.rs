@@ -40,6 +40,7 @@ use strum_macros::{Display, EnumString};
 
 use ::yara_x as yrx;
 use ::yara_x::mods::*;
+use yara_x_fmt::Indentation;
 
 fn dict_to_json(dict: Bound<PyAny>) -> PyResult<serde_json::Value> {
     static JSON_DUMPS: OnceLock<Py<PyAny>> = OnceLock::new();
@@ -109,7 +110,11 @@ impl Formatter {
                 .align_patterns(align_patterns)
                 .indent_section_headers(indent_section_headers)
                 .indent_section_contents(indent_section_contents)
-                .indent_spaces(indent_spaces)
+                .indentation(if indent_spaces == 0 {
+                    Indentation::Tabs
+                } else {
+                    Indentation::Spaces(indent_spaces as usize)
+                })
                 .newline_before_curly_brace(newline_before_curly_brace)
                 .empty_line_before_section_header(
                     empty_line_before_section_header,
