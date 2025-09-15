@@ -107,7 +107,7 @@ fn token_generation() {
 fn whitespaces() {
     let rule = r#"rule test {
         condition:
-            true
+        	true
     }"#;
 
     let events = CSTStream::from(Parser::new(rule.as_bytes()));
@@ -144,10 +144,7 @@ fn whitespaces() {
             Whitespace,
             Whitespace,
             Whitespace,
-            Whitespace,
-            Whitespace,
-            Whitespace,
-            Whitespace,
+            Tab,
             Begin(SyntaxKind::BOOLEAN_EXPR),
             Begin(SyntaxKind::BOOLEAN_TERM),
             Keyword(b"true"),

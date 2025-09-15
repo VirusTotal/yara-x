@@ -86,6 +86,12 @@ pub const FMT_CHECK_MODE: &str = r#"Run in 'check' mode
 Doesn't modify the files. Exits with 0 if files are formatted correctly. Exits
 with 1 if formatting is required."#;
 
+pub const FMT_TAB_SIZE: &str = r#"Tab size (in spaces) used in source files
+
+If the input contains tab characters, the formatter uses this value to determine how
+many spaces each tab represents. Setting this incorrectly can lead to misaligned 
+formatting when the code mixes tabs and spaces."#;
+
 pub const FIX_ENCODING_LONG_HELP: &str = r#"Convert source files to UTF-8
 
 YARA-X is stricter that YARA with respect to invalid UTF-8 characters in source

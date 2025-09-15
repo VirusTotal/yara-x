@@ -24,8 +24,9 @@ use crate::tokens::{Token, TokenStream};
 /// ```
 ///
 /// This processor must be used with a token stream that still retains the
-/// original spacing of the source code, because it needs the spacing for
-/// determining the original indentation of the comment. For example:
+/// original spacing of the source code (but with tabs replaced by spaces),
+/// because it needs the spacing for determining the original indentation
+/// of the comment. For example:
 ///
 /// ```text
 /// rule test {
@@ -73,6 +74,7 @@ where
     start_of_input: bool,
     end_of_input: bool,
     indentation: usize,
+    tab_size: usize,
 }
 
 /// States used in [`CommentProcessor::process_input_buffer`]
@@ -103,7 +105,16 @@ where
             start_of_input: true,
             end_of_input: false,
             indentation: 0,
+            tab_size: 4,
         }
+    }
+
+    /// Number of spaces in a tab.
+    ///
+    /// The default is `4`.
+    pub fn tab_size(mut self, n: usize) -> Self {
+        self.tab_size = n;
+        self
     }
 
     fn push_comment(
@@ -154,7 +165,11 @@ where
                 State::PreComment { leading_newline } => {
                     match self.input_buffer.pop_front() {
                         Some(token @ Token::Whitespace) => {
-                            self.indentation += token.len();
+                            self.indentation += 1;
+                            self.output_buffer.push_back(token);
+                        }
+                        Some(token @ Token::Tab) => {
+                            self.indentation += self.tab_size;
                             self.output_buffer.push_back(token);
                         }
                         // A newline has been found while in PreComment state,
@@ -174,6 +189,7 @@ where
                                 lines: split_comment_lines(
                                     comment,
                                     self.indentation,
+                                    self.tab_size,
                                 ),
                             };
                             self.indentation += token.len();
@@ -189,8 +205,11 @@ where
                     leading_newline,
                     indentation,
                 } => match self.input_buffer.pop_front() {
-                    Some(token @ Token::Whitespace) => {
-                        self.indentation += token.len();
+                    Some(Token::Whitespace) => {
+                        self.indentation += 1;
+                    }
+                    Some(Token::Tab) => {
+                        self.indentation += self.tab_size;
                     }
                     // Newline found while in the Comment state. If this is the
                     // first newline after the comment, the trailing_newline
@@ -241,8 +260,12 @@ where
                     Some(Token::Comment(comment)) => {
                         if *indentation == self.indentation {
                             lines.append(
-                                split_comment_lines(comment, *indentation)
-                                    .as_mut(),
+                                split_comment_lines(
+                                    comment,
+                                    *indentation,
+                                    self.tab_size,
+                                )
+                                .as_mut(),
                             );
                             *trailing_newline = false;
                         } else {
@@ -258,6 +281,7 @@ where
                                 lines: split_comment_lines(
                                     comment,
                                     self.indentation,
+                                    self.tab_size,
                                 ),
                             };
                         }
@@ -331,7 +355,7 @@ where
 /// Splits a multi-line comment into lines.
 ///
 /// Also removes the specified number of whitespaces from the beginning of
-/// each line, except the first one.
+/// each line.
 ///
 /// This is necessary because when a multi-line comment that uses the
 /// `/* comment */` syntax is indented, the comment itself contains some spaces
@@ -346,16 +370,31 @@ where
 /// Notice how the comment contains some spaces (here represented by
 /// `<-- indentation -->`) that should be removed/adjusted when the comment
 /// is re-indented.
-fn split_comment_lines(comment: &[u8], indentation: usize) -> Vec<Vec<u8>> {
+fn split_comment_lines(
+    comment: &[u8],
+    indentation: usize,
+    tab_size: usize,
+) -> Vec<Vec<u8>> {
     let comment = BStr::new(comment);
-    let indent = b" ".repeat(indentation);
     let mut result = Vec::new();
     for line in comment.lines() {
-        if let Some(line_no_indent) = line.strip_prefix(indent.as_slice()) {
-            result.push(line_no_indent.to_vec())
-        } else {
-            result.push(line.to_owned())
+        let mut i = 0;
+        let mut comment_start = 0;
+        for (start, _, ch) in line.char_indices() {
+            if i >= indentation {
+                comment_start = start;
+                break;
+            }
+            match ch {
+                ' ' => i += 1,
+                '\t' => i += tab_size,
+                _ => {
+                    comment_start = start;
+                    break;
+                }
+            }
         }
+        result.push(line.get(comment_start..).unwrap_or_default().to_vec());
     }
     result
 }

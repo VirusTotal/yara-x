@@ -1,0 +1,23 @@
+rule test_1
+{
+	condition:
+		/*
+		        Test
+		*/
+		uint16be(0) == 0x4d5a
+}
+
+rule test_2
+{
+	condition:
+		/*
+            Test
+        */
+        /*
+            Test
+        */
+        /*
+            Test
+        */
+		uint16be(0) == 0x4d5a
+}

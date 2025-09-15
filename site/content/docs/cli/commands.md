@@ -458,3 +458,13 @@ yr fmt <FILE>...
 Run in "check" mode. Doesn't modify any file, but exits error code 0 if the
 files are formatted correctly and no change is necessary, or error code 1
 if otherwise.
+
+### -t, --tab-size \<NUM_SPACES>\
+
+Tab size (in spaces) used in source files
+
+If the input contains tab characters, the formatter uses this value to determine how
+many spaces each tab represents. Setting this incorrectly can lead to misaligned
+formatting when the code mixes tabs and spaces.
+
+By default, it uses 4 spaces.

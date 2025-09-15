@@ -71,6 +71,7 @@ pub struct Formatter {
     newline_before_curly_brace: bool,
     empty_line_before_section_header: bool,
     empty_line_after_section_header: bool,
+    tab_size: usize,
 }
 
 impl Default for Formatter {
@@ -92,6 +93,7 @@ impl Formatter {
             newline_before_curly_brace: false,
             empty_line_before_section_header: true,
             empty_line_after_section_header: false,
+            tab_size: 4,
         }
     }
 
@@ -239,6 +241,19 @@ impl Formatter {
         self
     }
 
+    /// Specifies the tab size (in spaces) expected in the unformatted source
+    /// code.
+    ///
+    /// If the input contains tab characters, the formatter uses this value to
+    /// determine how many spaces each tab represents. Setting this incorrectly
+    /// can lead to misaligned formatting when the code mixes tabs and spaces.
+    ///
+    /// Defaults to `4`.
+    pub fn input_tab_size(mut self, tab_size: usize) -> Self {
+        self.tab_size = tab_size;
+        self
+    }
+
     /// Specify if newline should be added before the opening curly brace in a
     /// rule declaration. If false the rule will look like this:
     ///
@@ -379,7 +394,8 @@ impl Formatter {
     where
         I: TokenStream<'a> + 'a,
     {
-        let tokens = comments::CommentProcessor::new(input);
+        let tokens =
+            comments::CommentProcessor::new(input).tab_size(self.tab_size);
 
         // Remove all whitespaces from the original source.
         let tokens = processor::Processor::new(tokens).add_rule(
