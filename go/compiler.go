@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"runtime"
 	"unsafe"
-	"reflect"
 )
 
 // A CompileOption represent an option passed to [NewCompiler] and [Compile].
@@ -509,9 +508,6 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-
-	fmt.Println(value)
-	fmt.Println(reflect.TypeOf(value))
 
 	switch v := value.(type) {
 	case int:
