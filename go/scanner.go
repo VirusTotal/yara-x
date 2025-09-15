@@ -149,7 +149,7 @@ func (s *Scanner) SetGlobal(ident string, value interface{}) error {
 		ret = C.int(C.yrx_scanner_set_global_str(s.cScanner, cIdent, cValue))
 	case float64:
 		ret = C.int(C.yrx_scanner_set_global_float(s.cScanner, cIdent, C.double(v)))
-	case map[string]string:
+	case map[string]interface{}:
 		jsonStr, err := json.Marshal(v)
 		if err != nil {
 			return fmt.Errorf("failed to marshal '%s' to json: '%v'", ident, err)
