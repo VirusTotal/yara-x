@@ -397,8 +397,6 @@ pub unsafe extern "C" fn yrx_compiler_get_globals(
         return CString::new("yrx error").unwrap().as_ptr();
     };
 
-    //println!("{}", compiler.inner.show_globals());
-
     CString::new(compiler.inner.show_globals()).unwrap().as_ptr()
 }
 
