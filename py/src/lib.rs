@@ -180,7 +180,7 @@ impl PyReader {
             let is_text_io =
                 obj_bound.is_instance(consts::text_io_base(py)?)?;
 
-            return Ok(Self { obj, is_text_io });
+            Ok(Self { obj, is_text_io })
         })
     }
 }
@@ -223,7 +223,7 @@ impl PyWriter {
             let is_text_io =
                 obj_bound.is_instance(consts::text_io_base(py)?)?;
 
-            return Ok(Self { obj, is_text_io });
+            Ok(Self { obj, is_text_io })
         })
     }
 }
