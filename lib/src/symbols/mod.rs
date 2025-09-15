@@ -209,6 +209,20 @@ impl SymbolTable {
         self.map.insert(ident.into(), symbol)
     }
 
+    /// Shows all currently loaded symbols inside the symbol table
+pub fn show_symbols(&self) -> String {
+    self.map
+        .iter()
+        .filter_map(|(k, v)| {
+            if let Symbol::Field{..} = v {
+                Some(format!("{}: {:?}\n",k , v))
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
     /// Returns true if the symbol table already contains a symbol with
     /// the given identifier.
     #[inline]

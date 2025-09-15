@@ -1,9 +1,9 @@
-use std::ffi::{c_char, CStr};
+use std::ffi::{c_char, CStr, CString};
 use std::mem;
 use std::mem::ManuallyDrop;
 
 use yara_x::errors::{CompileError, SerializationError, VariableError};
-use yara_x::SourceCode;
+use yara_x::{Compiler, SourceCode};
 
 use crate::{_yrx_set_last_error, YRX_BUFFER, YRX_RESULT, YRX_RULES};
 
@@ -387,6 +387,21 @@ unsafe fn yrx_compiler_define_global<
     }
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn yrx_compiler_get_globals(
+    compiler: *mut YRX_COMPILER,
+) -> *const c_char {
+    let compiler = if let Some(compiler) = compiler.as_mut() {
+        compiler
+    } else {
+        return CString::new("yrx error").unwrap().as_ptr();
+    };
+
+    //println!("{}", compiler.inner.show_globals());
+
+    CString::new(compiler.inner.show_globals()).unwrap().as_ptr()
+}
+
 /// Defines a global variable of string type and sets its initial value.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_compiler_define_global_str(
@@ -449,7 +464,6 @@ pub unsafe extern "C" fn yrx_compiler_define_global_hashmap(
     } else {
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
-
 
     yrx_compiler_define_global(compiler, ident, value)
 }

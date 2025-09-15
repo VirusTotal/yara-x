@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"runtime"
 	"unsafe"
+	"reflect"
 )
 
 // A CompileOption represent an option passed to [NewCompiler] and [Compile].
@@ -509,6 +510,9 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
+	fmt.Println(value)
+	fmt.Println(reflect.TypeOf(value))
+
 	switch v := value.(type) {
 	case int:
 		ret = C.int(C.yrx_compiler_define_global_int(c.cCompiler, cIdent, C.int64_t(v)))
@@ -527,7 +531,13 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 	case float64:
 		ret = C.int(C.yrx_compiler_define_global_float(c.cCompiler, cIdent, C.double(v)))
 	case map[string]interface{}:
-		ret = C.int(C.yrx_compiler_define_global_hashmap(c.cCompiler, cIdent, C.CString(v)))
+		jsonStr, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Errorf("failed to marshal '%s' to json: '%v'", ident, err)
+		}
+		cValue := C.CString(string(jsonStr))
+		defer C.free(unsafe.Pointer(cValue))
+		ret = C.int(C.yrx_compiler_define_global_hashmap(c.cCompiler, cIdent, cValue))
 	default:
 		return fmt.Errorf("variable `%s` has unsupported type: %T", ident, v)
 	}
@@ -539,6 +549,10 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 	}
 
 	return nil
+}
+
+func (c *Compiler) GetGlobals() string {
+	return C.GoString(C.yrx_compiler_get_globals(c.cCompiler))
 }
 
 // Errors that occurred during the compilation, across multiple calls to
