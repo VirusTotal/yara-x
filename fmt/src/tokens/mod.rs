@@ -418,9 +418,7 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
                 | Token::RGrouping(_)
                 | Token::Punctuation(_) => {
                     w.write_all(token.as_bytes())?;
-                    for _ in 0..token.len() {
-                        indent.push(b' ');
-                    }
+                    indent.extend(std::iter::repeat_n(b' ', token.len()));
                 }
 
                 Token::BlockComment(lines)
