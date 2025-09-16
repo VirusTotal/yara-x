@@ -392,7 +392,7 @@ impl<'a> Match<'a> {
     /// Slice containing the data that matched.
     #[inline]
     pub fn data(&self) -> &'a [u8] {
-        self.data.as_ref().get(self.inner.range.clone()).unwrap()
+        self.data.as_ref().get(self.range()).unwrap()
     }
 
     /// XOR key used for decrypting the data if the pattern had the `xor`
