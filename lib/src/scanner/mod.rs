@@ -5,11 +5,11 @@ The scanner takes the rules produces by the compiler and scans data with them.
 use std::cell::RefCell;
 use std::collections::{hash_map, HashMap};
 use std::io::Read;
-use std::mem::transmute;
+use std::mem::{transmute, MaybeUninit};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
-use std::ptr::{null, NonNull};
+use std::ptr::NonNull;
 use std::slice::Iter;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Once;
@@ -109,12 +109,61 @@ pub enum ScannedData<'a> {
     Mmap(Mmap),
 }
 
+impl<'a> ScannedData<'a> {
+    fn blocks(&'a self) -> impl Iterator<Item = (usize, &'a [u8])> {
+        ScannedDataBlocks { scanned_data: self, finished: false }
+    }
+}
+
 impl AsRef<[u8]> for ScannedData<'_> {
     fn as_ref(&self) -> &[u8] {
         match self {
             ScannedData::Slice(s) => s,
             ScannedData::Vec(v) => v.as_ref(),
             ScannedData::Mmap(m) => m.as_ref(),
+        }
+    }
+}
+
+impl<'a> TryInto<ScannedData<'a>> for &'a [u8] {
+    type Error = ScanError;
+    fn try_into(self) -> Result<ScannedData<'a>, Self::Error> {
+        Ok(ScannedData::Slice(self))
+    }
+}
+
+impl<'a, const N: usize> TryInto<ScannedData<'a>> for &'a [u8; N] {
+    type Error = ScanError;
+    fn try_into(self) -> Result<ScannedData<'a>, Self::Error> {
+        Ok(ScannedData::Slice(self))
+    }
+}
+
+pub struct ScannedDataBlocks<'a> {
+    scanned_data: &'a ScannedData<'a>,
+    finished: bool,
+}
+
+impl<'a> Iterator for ScannedDataBlocks<'a> {
+    type Item = (usize, &'a [u8]);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.finished {
+            return None;
+        }
+        match self.scanned_data {
+            ScannedData::Slice(data) => {
+                self.finished = true;
+                Some((0, data.as_ref()))
+            }
+            ScannedData::Vec(data) => {
+                self.finished = true;
+                Some((0, data.as_slice()))
+            }
+            ScannedData::Mmap(data) => {
+                self.finished = true;
+                Some((0, data.as_ref()))
+            }
         }
     }
 }
@@ -188,8 +237,7 @@ impl<'r> Scanner<'r> {
             console_log: None,
             current_struct: None,
             root_struct: rules.globals().make_root(),
-            scanned_data: null(),
-            scanned_data_len: 0,
+            scanned_data: MaybeUninit::zeroed(),
             matching_rules: Vec::new(),
             matching_rules_per_ns: IndexMap::new(),
             num_matching_private_rules: 0,
@@ -387,11 +435,15 @@ impl<'r> Scanner<'r> {
     }
 
     /// Scans in-memory data.
-    pub fn scan<'a>(
+    pub fn scan<'a, D>(
         &'a mut self,
-        data: &'a [u8],
-    ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_impl(ScannedData::Slice(data), None)
+        data: D,
+    ) -> Result<ScanResults<'a, 'r>, ScanError>
+    where
+        D: TryInto<ScannedData<'a>>,
+        ScanError: From<D::Error>,
+    {
+        self.scan_impl(data.try_into()?, None)
     }
 
     /// Scans a file.
@@ -706,8 +758,10 @@ impl<'r> Scanner<'r> {
 
         ctx.deadline =
             HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
-        ctx.scanned_data = data.as_ref().as_ptr();
-        ctx.scanned_data_len = data.as_ref().len();
+
+        ctx.scanned_data = MaybeUninit::new(unsafe {
+            transmute::<&ScannedData<'a>, &ScannedData<'static>>(&data)
+        });
 
         // Free all runtime objects left around by previous scans.
         ctx.runtime_objects.clear();
@@ -865,10 +919,7 @@ impl<'r> Scanner<'r> {
 
         let ctx = self.scan_context_mut();
 
-        // Set pointer to data back to nil. This means that accessing
-        // `scanned_data` from within `ScanResults` is not possible.
-        ctx.scanned_data = null();
-        ctx.scanned_data_len = 0;
+        ctx.scanned_data = MaybeUninit::zeroed();
 
         // Clear the value of `current_struct` as it may contain a reference
         // to some struct.
@@ -879,8 +930,8 @@ impl<'r> Scanner<'r> {
         // to move them to `matching_rules` while leaving the map empty.
         assert!(ctx.matching_rules.is_empty());
 
-        // Move the matching rules the vectors, leaving the `matching_rules`
-        // map empty.
+        // Move the matching rules to the `matching_rules` vector, leaving the
+        // `matching_rules_per_ns` map empty.
         for rules in ctx.matching_rules_per_ns.values_mut() {
             for rule_id in rules.drain(0..) {
                 ctx.matching_rules.push(rule_id);
