@@ -423,8 +423,62 @@ impl Formatter {
     where
         I: TokenStream<'a> + 'a,
     {
+        // The first step is inserting newlines between top-level statements
+        // (rules, imports and includes) if they are in the same line.
+        let tokens = processor::Processor::new(input)
+            //
+            // Insert newline in front of import and include statements, making
+            // sure that they start at a new line. The newline is not inserted if
+            // the statement is at the start of the file.
+            //
+            // Example:
+            //
+            // import "foo" import "bar"
+            //
+            // Inserts newline before import "bar".
+            //
+            .add_rule(
+                |ctx| {
+                    let next_token = ctx.token(1);
+                    let prev_token = ctx.token(-1);
+
+                    matches!(
+                        next_token,
+                        Begin(SyntaxKind::IMPORT_STMT)
+                            | Begin(SyntaxKind::INCLUDE_STMT)
+                    ) && prev_token.neq(&Begin(SyntaxKind::SOURCE_FILE))
+                        && prev_token.is_not(*NEWLINE)
+                },
+                processor::actions::newline,
+            )
+            //
+            // Insert newline in front of rule declarations, making sure that
+            // rule declarations starts at a new line. The newline is not
+            // inserted if the rule is at the start of the file.
+            //
+            // Example:
+            //
+            // rule foo { ... } rule bar { ... }
+            //
+            // Inserts newline before "rule bar".
+            //
+            .add_rule(
+                |ctx| {
+                    let next_token = ctx.token(1);
+                    let prev_token = ctx.token(-1);
+
+                    next_token.eq(&Begin(SyntaxKind::RULE_DECL))
+                        && prev_token.neq(&Begin(SyntaxKind::SOURCE_FILE))
+                        && prev_token.is_not(*NEWLINE)
+                },
+                processor::actions::newline,
+            );
+
+        // Process comments before removing whitespaces. Whitespaces must
+        // be the original ones while the comments are being processed in
+        // order to maintain comment indentation unaltered.
         let tokens =
-            comments::CommentProcessor::new(input).tab_size(self.tab_size);
+            comments::CommentProcessor::new(tokens).tab_size(self.tab_size);
 
         // Remove all whitespaces from the original source.
         let tokens = processor::Processor::new(tokens).add_rule(
@@ -502,7 +556,7 @@ impl Formatter {
             // moved up and placed before Token::Begin(source_file) by the
             // first bubble pipeline.
             .add_rule(
-                |ctx| ctx.token(-1).eq(&None) && ctx.token(1).is(*NEWLINE),
+                |ctx| ctx.token(-1).is(*NONE) && ctx.token(1).is(*NEWLINE),
                 processor::actions::drop,
             )
             // Remove excess of consecutive newlines, only two consecutive
@@ -512,6 +566,15 @@ impl Formatter {
                     ctx.token(1).is(*NEWLINE)
                         && ctx.token(2).is(*NEWLINE)
                         && ctx.token(3).is(*NEWLINE)
+                },
+                processor::actions::drop,
+            )
+            // Remove excess of newlines at the end of the file.
+            .add_rule(
+                |ctx| {
+                    ctx.token(-1).is(*NEWLINE)
+                        && ctx.token(1).is(*NEWLINE)
+                        && ctx.token(2).is(*NONE)
                 },
                 processor::actions::drop,
             )
@@ -578,53 +641,6 @@ impl Formatter {
 
         let tokens = processor::Processor::new(tokens)
             //
-            // Insert newline in front of import and include statements, making
-            // sure that they start at a new line. The newline is not inserted if
-            // the statement is at the start of the file.
-            //
-            // Example:
-            //
-            // import "foo" import "bar"
-            //
-            // Inserts newline before import "bar".
-            //
-            .add_rule(
-                |ctx| {
-                    let next_token = ctx.token(1);
-                    let prev_token = ctx.token(-1);
-
-                    matches!(
-                        next_token,
-                        Begin(SyntaxKind::IMPORT_STMT)
-                            | Begin(SyntaxKind::INCLUDE_STMT)
-                    ) && prev_token.neq(&Begin(SyntaxKind::SOURCE_FILE))
-                        && prev_token.is_not(*NEWLINE)
-                },
-                processor::actions::newline,
-            )
-            //
-            // Insert newline in front of rule declarations, making sure that
-            // rule declarations starts at a new line. The newline is not
-            // inserted if the rule is at the start of the file.
-            //
-            // Example:
-            //
-            // rule foo { ... } rule bar { ... }
-            //
-            // Inserts newline before "rule bar".
-            //
-            .add_rule(
-                |ctx| {
-                    let next_token = ctx.token(1);
-                    let prev_token = ctx.token(-1);
-
-                    next_token.eq(&Begin(SyntaxKind::RULE_DECL))
-                        && prev_token.neq(&Begin(SyntaxKind::SOURCE_FILE))
-                        && prev_token.is_not(*NEWLINE)
-                },
-                processor::actions::newline,
-            )
-            //
             // Insert additional newline in front of a rule declaration that
             // already starts at a newline, but only if not preceded by a
             // comment. In other words, this adds empty lines in between rule
@@ -647,17 +663,6 @@ impl Formatter {
                     ctx.token(1).eq(&Begin(SyntaxKind::RULE_DECL))
                         && ctx.token(-1).is(*NEWLINE)
                         && ctx.token(-2).is_not(*NEWLINE | *COMMENT)
-                },
-                processor::actions::newline,
-            )
-            //
-            // Insert empty line at the end of the file
-            //
-            .add_rule(
-                |ctx| {
-                    ctx.token(1).eq(&End(SyntaxKind::SOURCE_FILE))
-                        && ctx.token(-1).is_not(*NEWLINE)
-                        && ctx.token(2).is_not(*NEWLINE)
                 },
                 processor::actions::newline,
             );
@@ -803,6 +808,7 @@ impl Formatter {
             )
         };
 
+        // Add newline at multiple places.
         let tokens = processor::Processor::new(tokens)
             .set_passthrough(*CONTROL)
             // Add a newline in front of meta definitions in the "meta" section.
@@ -840,6 +846,11 @@ impl Formatter {
                         && ctx.token(1).eq(&RBRACE)
                         && ctx.token(-1).is_not(*NEWLINE)
                 },
+                processor::actions::newline,
+            )
+            // Add empty line at the end of the file
+            .add_rule(
+                |ctx| ctx.token(1).is(*NONE) && ctx.token(-1).is_not(*NEWLINE),
                 processor::actions::newline,
             );
 

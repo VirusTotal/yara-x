@@ -194,8 +194,10 @@ where
                             };
                             self.indentation += token.len();
                         }
-                        // Control tokens are passed directly to output.
-                        Some(token) => self.output_buffer.push_back(token),
+                        // Control tokens are passed directly to the output.
+                        Some(token) => {
+                            self.output_buffer.push_back(token);
+                        }
                         None => break,
                     }
                 }
@@ -286,26 +288,20 @@ where
                             };
                         }
                     }
-                    Some(token) => self.output_buffer.push_back(token),
-                    None => break,
+                    // Control tokens are moved directly to the output.
+                    Some(token) => {
+                        self.output_buffer.push_back(token);
+                    }
+                    None => {
+                        self.push_comment(
+                            (*lines).to_vec(),
+                            *leading_newline,
+                            *trailing_newline || self.end_of_input,
+                        );
+                        break;
+                    }
                 },
             }
-        }
-
-        // Handle the case in which a comment was found, but it wasn't followed
-        // by a newline.
-        if let State::Comment {
-            lines,
-            leading_newline,
-            trailing_newline,
-            ..
-        } = state
-        {
-            self.push_comment(
-                lines,
-                leading_newline,
-                trailing_newline || self.end_of_input,
-            );
         }
     }
 }
@@ -322,31 +318,37 @@ where
             if let Some(token) = self.output_buffer.pop_front() {
                 return Some(token);
             }
+
             // No tokens in the output buffer, take a token from the input.
-            if let Some(token) = self.input.next() {
-                // If the token from input is a newline, space or comment,
-                // put it in the input buffer.
-                if token.is(*NEWLINE | *WHITESPACE | *COMMENT | *CONTROL) {
-                    self.input_buffer.push_back(token)
+            match self.input.next() {
+                Some(token)
+                    if token
+                        .is(*NEWLINE | *WHITESPACE | *COMMENT | *CONTROL) =>
+                {
+                    // If the token from input is a newline, space or comment,
+                    // put it in the input buffer.
+                    self.input_buffer.push_back(token);
                 }
-                // If the token from the input is not a newline, space or
-                // comment the input buffer is processed, putting some
-                // tokens in the output buffer.
-                else {
+                Some(token) => {
+                    // If the token from the input is not a newline, space or
+                    // comment the input buffer is processed, putting some
+                    // tokens in the output buffer.
                     self.process_input_buffer();
+                    self.start_of_input = false;
                     self.indentation += token.len();
                     self.output_buffer.push_back(token);
-                    self.start_of_input = false;
                 }
-            } else if !self.input_buffer.is_empty() {
-                // No more tokens in the input stream, but the input buffer
-                // contains some tokens, process them.
-                self.end_of_input = true;
-                self.process_input_buffer();
-            } else {
-                // No more tokens in the input stream and the input buffer
-                // is empty, nothing else to do.
-                return None;
+                None if !self.input_buffer.is_empty() => {
+                    // No more tokens in the input stream, but the input buffer
+                    // contains some tokens, process them.
+                    self.end_of_input = true;
+                    self.process_input_buffer();
+                }
+                None => {
+                    // No more tokens in the input stream and the input buffer
+                    // is empty, nothing else to do.
+                    return None;
+                }
             }
         }
     }
@@ -401,10 +403,10 @@ fn split_comment_lines(
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::assert_eq;
-
     use crate::comments::CommentProcessor;
     use crate::tokens::Token;
+    use pretty_assertions::assert_eq;
+    use yara_x_parser::cst::SyntaxKind::SOURCE_FILE;
 
     fn test(input: Vec<Token>, expected_output: Vec<Token>) {
         assert_eq!(
@@ -531,18 +533,24 @@ mod tests {
 
         test(
             vec![
-                Token::Comment(b"// comment"),
+                Token::Begin(SOURCE_FILE),
+                Token::Comment(b"// comment 1"),
                 Token::Newline,
+                Token::Newline,
+                Token::Comment(b"// comment 2"),
                 Token::Newline,
                 Token::Whitespace,
                 Token::Whitespace,
+                Token::End(SOURCE_FILE),
             ],
             vec![
-                Token::BlockComment(vec![b"// comment".to_vec()]),
+                Token::Begin(SOURCE_FILE),
+                Token::BlockComment(vec![b"// comment 1".to_vec()]),
                 Token::Newline,
                 Token::Newline,
-                Token::Whitespace,
-                Token::Whitespace,
+                Token::End(SOURCE_FILE),
+                Token::BlockComment(vec![b"// comment 2".to_vec()]),
+                Token::Newline,
             ],
         );
     }
