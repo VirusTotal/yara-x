@@ -2,6 +2,8 @@ use std::collections::VecDeque;
 use std::str::from_utf8_unchecked;
 use std::sync::LazyLock;
 
+use bstr::ByteSlice;
+
 use yara_x_parser::cst::{Event, SyntaxKind};
 
 #[cfg(test)]
@@ -396,15 +398,18 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
         Self: Sized,
         W: std::io::Write,
     {
-        let mut col_num = 0;
+        let mut indent = Vec::new();
         for token in self {
             match token {
                 Token::Newline => {
                     w.write_all(b"\n")?;
-                    col_num = 0;
+                    indent.clear();
+                }
+                Token::Tab => {
+                    w.write_all(b"\t")?;
+                    indent.push(b'\t');
                 }
                 Token::Whitespace
-                | Token::Tab
                 | Token::Comment(_)
                 | Token::Identifier(_)
                 | Token::Keyword(_)
@@ -413,7 +418,7 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
                 | Token::RGrouping(_)
                 | Token::Punctuation(_) => {
                     w.write_all(token.as_bytes())?;
-                    col_num += token.len() as i16;
+                    indent.extend(std::iter::repeat_n(b' ', token.len()));
                 }
 
                 Token::BlockComment(lines)
@@ -421,11 +426,9 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
                 | Token::TailComment(lines)
                 | Token::InlineComment(lines) => {
                     let mut lines = lines.iter();
-                    let message_col = col_num;
 
                     // The first line of the comment is already indented.
                     if let Some(first_line) = lines.next() {
-                        col_num += first_line.len() as i16;
                         w.write_all(first_line)?;
                     }
 
@@ -434,11 +437,8 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
                     // indentation.
                     for line in lines {
                         w.write_all("\n".as_bytes())?;
-                        w.write_all(
-                            " ".repeat(message_col as usize).as_bytes(),
-                        )?;
+                        w.write_all(indent.as_bytes())?;
                         w.write_all(line)?;
-                        col_num = message_col + line.len() as i16;
                     }
                 }
 
@@ -503,15 +503,22 @@ where
                     let token_bytes = &self.source[span.range()];
                     // The whitespace token has a different treatment because
                     // the parser returns a single whitespace token when
-                    // multiple whitespaces appear together. Here we separate
-                    // them into individual spaces.
+                    // multiple whitespaces appear together, and tabs are also
+                    // treated as whitespaces. Here we separate each whitespace
+                    // or tab into its own token.
                     return if kind == SyntaxKind::WHITESPACE {
                         // SAFETY: It's safe to assume that the whitespace
                         // token is composed of valid UTF-8 characters. The
                         // tokenizer guarantees this.
                         let s = unsafe { from_utf8_unchecked(token_bytes) };
-                        for _ in s.chars() {
-                            self.buffer.push_back(Token::Whitespace);
+                        for ch in s.chars() {
+                            match ch {
+                                ' ' => {
+                                    self.buffer.push_back(Token::Whitespace)
+                                }
+                                '\t' => self.buffer.push_back(Token::Tab),
+                                _ => unreachable!(),
+                            };
                         }
                         self.buffer.pop_front()
                     } else {

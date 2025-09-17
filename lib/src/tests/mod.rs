@@ -317,6 +317,9 @@ fn string_operations() {
     // characters.
     condition_false!(r#""🙈🙉🙊" matches /^...$/"#);
     condition_true!(r#""🙈🙉🙊" matches /(?u)^...$/"#);
+    // This doesn't match because unicode support is disabled after
+    // the first dot (.).
+    condition_false!(r#""🙈🙉🙊" matches /(?u)^.(?-u)..$/"#);
 }
 
 #[test]
@@ -1746,6 +1749,29 @@ fn regexp_patterns_5() {
         r#"/🙈🙉🙊/i"#,
         b"\xF0\x9F\x99\x88\xF0\x9F\x99\x89\xF0\x9F\x99\x8A"
     );
+
+    pattern_match!(r"/^abc \bxyz$/", b"abc xyz", b"abc xyz");
+    pattern_match!(r"/^abc\b xyz$/", b"abc xyz", b"abc xyz");
+    pattern_false!(r"/^abc\bxyz$/", b"abcxyz");
+
+    pattern_match!(r"/^abc \b{start}xyz$/", b"abc xyz", b"abc xyz");
+    pattern_false!(r"/^abc\b{start} xyz$/", b"abc xyz");
+
+    pattern_match!(r"/^abc\b{end} xyz$/", b"abc xyz", b"abc xyz");
+    pattern_false!(r"/^abc \b{end}xyz$/", b"abc xyz");
+
+    pattern_match!(r"/^abc\Bxyz$/", b"abcxyz", b"abcxyz");
+
+    // Here the Unicode mode is enabled only for "abc", for the rest of the
+    // regexp Unicode is disabled
+    pattern_match!(r"/(?u)^abc(?-u)\b xyz$/", b"abc xyz", b"abc xyz");
+    pattern_match!(r"/^((?u)abc)\b xyz$/", b"abc xyz", b"abc xyz");
+
+    // TODO: enable if we ever implement unicode support for regexps.
+    //pattern_match!(r"/(?u)^abc \bxyz$/", b"abc xyz", b"abc xyz");
+    //pattern_match!(r"/(?u)^abc\Bxyz$/", b"abcxyz", b"abcxyz");
+    //pattern_match!(r"/(?u)^abc \b{start}xyz$/", b"abc xyz", b"abc xyz");
+    //pattern_match!(r"/(?u)^abc\b{end} xyz$/", b"abc xyz", b"abc xyz");
 }
 
 #[test]

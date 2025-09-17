@@ -10,7 +10,7 @@ use yara_x_parser::cst::CSTStream;
 use yara_x_parser::{Parser, Span};
 
 use crate::tokens::{TokenStream, Tokens};
-use crate::{Error, Formatter};
+use crate::{Error, Formatter, Indentation};
 
 #[test]
 fn spacer() {
@@ -99,12 +99,12 @@ fn format_config_options() {
             "indent_section_contents_false.formatted",
         ),
         (
-            Formatter::new().indent_spaces(0),
+            Formatter::new().indentation(Indentation::Tabs),
             "generic_rule.unformatted",
             "indent_spaces_zero.formatted",
         ),
         (
-            Formatter::new().indent_spaces(1),
+            Formatter::new().indentation(Indentation::Spaces(1)),
             "generic_rule.unformatted",
             "indent_spaces_one.formatted",
         ),

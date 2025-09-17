@@ -1,11 +1,11 @@
-import "test"
+import "test"  /* Comment */
 
-/* Comment */ rule test1 {
+rule test1 {
   condition:
     true
-}
+}  /* Comment */
 
-/* Comment */ rule test2 {
+rule test2 {
   condition:
     true
 }

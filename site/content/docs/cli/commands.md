@@ -178,6 +178,15 @@ will crash.
 This option disables memory mapping and forces the scanner to always read files into
 an in-memory buffer instead.
 
+### --max-matches-per-pattern \<MATCHES\>
+
+Maximum number of matches per pattern
+
+When some pattern reaches the maximum number of occurrences it won't produce
+more matches. This can affect rules that rely on the number of occurrences of
+some pattern. For instance, the expression `#a > 100` will be false if this
+limit is set to 100 or less.
+
 ### --output-format \<FORMAT\>
 
 Specify the output format. Available options are `text`, `ndjson` and `json`.
@@ -449,3 +458,13 @@ yr fmt <FILE>...
 Run in "check" mode. Doesn't modify any file, but exits error code 0 if the
 files are formatted correctly and no change is necessary, or error code 1
 if otherwise.
+
+### -t, --tab-size \<NUM_SPACES>\
+
+Tab size (in spaces) used in source files
+
+If the input contains tab characters, the formatter uses this value to determine how
+many spaces each tab represents. Setting this incorrectly can lead to misaligned
+formatting when the code mixes tabs and spaces.
+
+By default, it uses 4 spaces.

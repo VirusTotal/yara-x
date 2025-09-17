@@ -557,7 +557,7 @@ impl Compiler {
         //     ....
         // lN: ... code for eN ...
         // lEND:
-        debug_assert!(alternatives.len() < 256);
+        debug_assert!(alternatives.len() <= MAX_ALTERNATIVES);
 
         let l0 = self.emit_split_n(alternatives.len().try_into().unwrap())?;
 
