@@ -214,7 +214,7 @@ impl<'a> ScanOptions<'a> {
 /// in-memory data sequentially, but you need multiple scanners for scanning in
 /// parallel.
 pub struct Scanner<'r> {
-    rules: &'r Rules,
+    _rules: &'r Rules,
     wasm_store: Pin<Box<Store<ScanContext<'static>>>>,
     wasm_main_func: TypedFunc<(), i32>,
     filesize: Global,
@@ -372,7 +372,7 @@ impl<'r> Scanner<'r> {
         wasm_store.data_mut().main_memory = Some(main_memory);
 
         Self {
-            rules,
+            _rules: rules,
             wasm_store,
             wasm_main_func,
             filesize,
@@ -700,7 +700,7 @@ impl<'r> Scanner<'r> {
         options: Option<ScanOptions<'opts>>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
         // Clear information about matches found in a previous scan, if any.
-        self.reset();
+        self.scan_context_mut().reset();
 
         // Timeout in seconds. This is either the value provided by the user or
         // 315.360.000 which is the number of seconds in a year. Using u64::MAX
@@ -947,52 +947,6 @@ impl<'r> Scanner<'r> {
             Err(err) => panic!(
                 "unexpected error while executing WASM main function: {err}"
             ),
-        }
-    }
-
-    /// Resets the scanner to its initial state, making it ready for another
-    /// scan. This clears all the information generated during the previous
-    /// scan.
-    fn reset(&mut self) {
-        let num_rules = self.rules.num_rules();
-        let num_patterns = self.rules.num_patterns();
-
-        let ctx = self.scan_context_mut();
-
-        // Clear the array that tracks the patterns that reached the maximum
-        // number of patterns.
-        ctx.limit_reached.clear();
-
-        ctx.unconfirmed_matches.clear();
-        ctx.num_matching_private_rules = 0;
-        ctx.num_non_matching_private_rules = 0;
-
-        // If some pattern or rule matched, clear the matches. Notice that a
-        // rule may match without any pattern being matched, because there
-        // are rules without patterns, or that match if the pattern is not
-        // found.
-        if !ctx.pattern_matches.is_empty() || !ctx.matching_rules.is_empty() {
-            ctx.pattern_matches.clear();
-            ctx.matching_rules.clear();
-
-            let mem = ctx
-                .main_memory
-                .unwrap()
-                .data_mut(self.wasm_store.as_context_mut());
-
-            // Starting at MATCHING_RULES_BITMAP in main memory there's a
-            // bitmap were the N-th bit indicates if the rule with ID = N
-            // matched or not, If some rule matched in a previous call the
-            // bitmap will contain some bits set to 1 and need to be cleared.
-            let base = MATCHING_RULES_BITMAP_BASE as usize;
-            let bitmap = BitSlice::<_, Lsb0>::from_slice_mut(
-                &mut mem[base..base
-                    + num_rules.div_ceil(8)
-                    + num_patterns.div_ceil(8)],
-            );
-
-            // Set to zero all bits in the bitmap.
-            bitmap.fill(false);
         }
     }
 }

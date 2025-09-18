@@ -285,6 +285,49 @@ impl ScanContext<'_> {
         obj_ref
     }
 
+    /// Resets the scan context to its initial state, making it ready for
+    /// another scan. This clears all the information generated during the
+    /// previous scan.
+    pub(crate) fn reset(&mut self) {
+        let num_rules = self.compiled_rules.num_rules();
+        let num_patterns = self.compiled_rules.num_patterns();
+
+        // Clear the array that tracks the patterns that reached the maximum
+        // number of patterns.
+        self.limit_reached.clear();
+
+        self.unconfirmed_matches.clear();
+        self.num_matching_private_rules = 0;
+        self.num_non_matching_private_rules = 0;
+
+        // If some pattern or rule matched, clear the matches. Notice that a
+        // rule may match without any pattern being matched, because there
+        // are rules without patterns, or that match if the pattern is not
+        // found.
+        if !self.pattern_matches.is_empty() || !self.matching_rules.is_empty()
+        {
+            self.pattern_matches.clear();
+            self.matching_rules.clear();
+
+            let store_ctx = unsafe { self.wasm_store.as_mut() };
+            let mem = self.main_memory.unwrap().data_mut(store_ctx);
+
+            // Starting at MATCHING_RULES_BITMAP in main memory there's a
+            // bitmap were the N-th bit indicates if the rule with ID = N
+            // matched or not, If some rule matched in a previous call the
+            // bitmap will contain some bits set to 1 and need to be cleared.
+            let base = MATCHING_RULES_BITMAP_BASE as usize;
+            let bitmap = BitSlice::<_, Lsb0>::from_slice_mut(
+                &mut mem[base..base
+                    + num_rules.div_ceil(8)
+                    + num_patterns.div_ceil(8)],
+            );
+
+            // Set to zero all bits in the bitmap.
+            bitmap.fill(false);
+        }
+    }
+
     /// Update the time spent in the rule with the given ID, the time is
     /// increased by the time elapsed since `rule_execution_start_time`.
     #[cfg(feature = "rules-profiling")]
