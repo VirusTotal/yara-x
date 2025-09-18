@@ -214,7 +214,7 @@ impl ScanContext<'_, '_> {
     }
 }
 
-impl<'d> ScanContext<'_, 'd> {
+impl ScanContext<'_, '_> {
     /// Returns a slice with the data being scanned.
     pub(crate) fn scanned_data(&self) -> &[u8] {
         self.scanned_data.as_ref().unwrap().as_ref()

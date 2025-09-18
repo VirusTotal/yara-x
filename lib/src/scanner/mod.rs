@@ -102,7 +102,7 @@ pub enum ScannedData<'d> {
     Mmap(Mmap),
 }
 
-impl<'d> AsRef<[u8]> for ScannedData<'d> {
+impl AsRef<[u8]> for ScannedData<'_> {
     fn as_ref(&self) -> &[u8] {
         match self {
             ScannedData::Slice(s) => s,
