@@ -16,12 +16,8 @@ use std::{cmp, fs, thread};
 use bitvec::prelude::*;
 use memmap2::{Mmap, MmapOptions};
 use protobuf::{CodedInputStream, MessageDyn};
-
 use thiserror::Error;
-use wasmtime::{
-    AsContext, AsContextMut, Global, GlobalType, MemoryType, Mutability,
-    Store, TypedFunc, Val, ValType,
-};
+use wasmtime::Store;
 
 use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
@@ -178,8 +174,6 @@ impl<'a> ScanOptions<'a> {
 pub struct Scanner<'r> {
     _rules: &'r Rules,
     wasm_store: Pin<Box<Store<ScanContext<'static, 'static>>>>,
-    wasm_main_func: TypedFunc<(), i32>,
-    filesize: Global,
     timeout: Option<Duration>,
     use_mmap: bool,
 }
@@ -189,103 +183,8 @@ impl<'r> Scanner<'r> {
 
     /// Creates a new scanner.
     pub fn new(rules: &'r Rules) -> Self {
-        let mut wasm_store = create_wasm_store_and_ctx(rules);
-
-        let num_rules = rules.num_rules() as u32;
-        let num_patterns = rules.num_patterns() as u32;
-
-        // Global variable that will hold the value for `filesize`. This is
-        // initialized to 0 because the file size is not known until some
-        // data is scanned.
-        let filesize = Global::new(
-            wasm_store.as_context_mut(),
-            GlobalType::new(ValType::I64, Mutability::Var),
-            Val::I64(0),
-        )
-        .unwrap();
-
-        // Global variable that is set to `true` when the Aho-Corasick pattern
-        // search phase has been executed.
-        let pattern_search_done = Global::new(
-            wasm_store.as_context_mut(),
-            GlobalType::new(ValType::I32, Mutability::Var),
-            Val::I32(0),
-        )
-        .unwrap();
-
-        // Compute the base offset for the bitmap that contains matching
-        // information for patterns. This bitmap has 1 bit per pattern, the
-        // N-th bit is set if pattern with PatternId = N matched. The bitmap
-        // starts right after the bitmap that contains matching information
-        // for rules.
-        let matching_patterns_bitmap_base =
-            MATCHING_RULES_BITMAP_BASE as u32 + num_rules.div_ceil(8);
-
-        // Compute the required memory size in 64KB pages.
-        let mem_size = u32::div_ceil(
-            matching_patterns_bitmap_base + num_patterns.div_ceil(8),
-            65536,
-        );
-
-        let matching_patterns_bitmap_base = Global::new(
-            wasm_store.as_context_mut(),
-            GlobalType::new(ValType::I32, Mutability::Const),
-            Val::I32(matching_patterns_bitmap_base as i32),
-        )
-        .unwrap();
-
-        // Create module's main memory.
-        let main_memory = wasmtime::Memory::new(
-            wasm_store.as_context_mut(),
-            MemoryType::new(mem_size, Some(mem_size)),
-        )
-        .unwrap();
-
-        // Instantiate the module. This takes the wasm code provided by the
-        // `wasm_mod` function and links its imported functions with the
-        // implementations that YARA provides.
-        let wasm_instance = wasm::new_linker()
-            .define(wasm_store.as_context(), "yara_x", "filesize", filesize)
-            .unwrap()
-            .define(
-                wasm_store.as_context(),
-                "yara_x",
-                "pattern_search_done",
-                pattern_search_done,
-            )
-            .unwrap()
-            .define(
-                wasm_store.as_context(),
-                "yara_x",
-                "matching_patterns_bitmap_base",
-                matching_patterns_bitmap_base,
-            )
-            .unwrap()
-            .define(
-                wasm_store.as_context(),
-                "yara_x",
-                "main_memory",
-                main_memory,
-            )
-            .unwrap()
-            .instantiate(wasm_store.as_context_mut(), rules.wasm_mod())
-            .unwrap();
-
-        // Obtain a reference to the "main" function exported by the module.
-        let wasm_main_func = wasm_instance
-            .get_typed_func::<(), i32>(wasm_store.as_context_mut(), "main")
-            .unwrap();
-
-        wasm_store.data_mut().main_memory = Some(main_memory);
-
-        Self {
-            _rules: rules,
-            wasm_store,
-            wasm_main_func,
-            filesize,
-            timeout: None,
-            use_mmap: true,
-        }
+        let wasm_store = create_wasm_store_and_ctx(rules);
+        Self { _rules: rules, wasm_store, timeout: None, use_mmap: true }
     }
 
     /// Sets a timeout for scan operations.
@@ -650,23 +549,15 @@ impl<'r> Scanner<'r> {
             });
         }
 
-        // Set the global variable `filesize` to the size of the scanned data.
-        self.filesize
-            .set(
-                self.wasm_store.as_context_mut(),
-                Val::I64(data.as_ref().len() as i64),
-            )
-            .unwrap();
-
         let ctx = self.scan_context_mut();
+
+        // Set the global variable `filesize` to the size of the scanned data.
+        ctx.set_filesize(data.as_ref().len() as i64);
 
         ctx.deadline =
             HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
 
-        // Free all runtime objects left around by previous scans.
-        ctx.runtime_objects.clear();
-
-        // Set the data to scan.
+        // Set the data to be scanned.
         ctx.scanned_data = Some(data);
 
         for module_name in ctx.compiled_rules.imports() {
@@ -766,67 +657,8 @@ impl<'r> Scanner<'r> {
                 .add_field(module_name, TypeValue::Struct(module_struct));
         }
 
-        // Save the time in which the evaluation of rules started.
-        #[cfg(feature = "rules-profiling")]
-        {
-            ctx.rule_execution_start_time = ctx.clock.raw();
-        }
-
-        // Invoke the main function, which evaluates the rules' conditions. It
-        // calls ScanContext::search_for_patterns (which does the Aho-Corasick
-        // scanning) only if necessary.
-        //
-        // This will return Err(ScanError::Timeout), when the scan timeout is
-        // reached while WASM code is being executed.
-        let func_result =
-            self.wasm_main_func.call(self.wasm_store.as_context_mut(), ());
-
-        #[cfg(feature = "rules-profiling")]
-        if func_result.is_err() {
-            let ctx = self.scan_context_mut();
-            // If a timeout occurs, the methods `ctx.track_rule_no_match` or
-            // `ctx.track_rule_match` may not be invoked for the currently
-            // executing rule. This means that the time spent within that rule
-            // has not been recorded yet, so we need to update it here.
-            //
-            // The ID of the rule that was running during the timeout can be
-            // determined as the one immediately following the last executed
-            // rule, based on the assumption that rules are processed in a
-            // strictly ascending ID order.
-            //
-            // Additionally, if the timeout happens after `ctx.last_executed_rule`
-            // has been updated with the last rule ID, we might end up calling
-            // `update_time_spent_in_rule` with an ID that is off by one.
-            // However, this function is designed to handle such cases
-            // gracefully.
-            ctx.update_time_spent_in_rule(
-                ctx.last_executed_rule
-                    .map_or(RuleId::from(0), |rule_id| rule_id.next()),
-            );
-        }
-
-        #[cfg(all(feature = "rules-profiling", feature = "logging"))]
-        {
-            let most_expensive_rules = self.slowest_rules(10);
-            if !most_expensive_rules.is_empty() {
-                log::info!("Most expensive rules:");
-                for profiling_data in most_expensive_rules {
-                    log::info!("+ namespace: {}", profiling_data.namespace);
-                    log::info!("  rule: {}", profiling_data.rule);
-                    log::info!(
-                        "  pattern matching time: {:?}",
-                        profiling_data.pattern_matching_time
-                    );
-                    log::info!(
-                        "  condition execution time: {:?}",
-                        profiling_data.condition_exec_time
-                    );
-                }
-            }
-        }
-
-        let ctx = self.scan_context_mut();
-        let data = ctx.scanned_data.take().unwrap();
+        let eval_result = ctx.eval_conditions();
+        let scanned_data = ctx.scanned_data.take().unwrap();
 
         // Clear the value of `current_struct` as it may contain a reference
         // to some struct.
@@ -845,8 +677,8 @@ impl<'r> Scanner<'r> {
             }
         }
 
-        match func_result {
-            Ok(0) => Ok(ScanResults::new(self.scan_context(), data)),
+        match eval_result {
+            Ok(0) => Ok(ScanResults::new(self.scan_context(), scanned_data)),
             Ok(v) => panic!("WASM main returned: {v}"),
             Err(err) if err.is::<ScanError>() => {
                 Err(err.downcast::<ScanError>().unwrap())
@@ -997,8 +829,10 @@ pub struct NonMatchingRules<'a, 'r> {
 impl<'a, 'r> NonMatchingRules<'a, 'r> {
     fn new(ctx: &'a ScanContext<'r, 'a>, data: &'a ScannedData<'a>) -> Self {
         let num_rules = ctx.compiled_rules.num_rules();
-        let main_memory =
-            ctx.main_memory.unwrap().data(unsafe { ctx.wasm_store.as_ref() });
+        let main_memory = ctx
+            .wasm_main_memory
+            .unwrap()
+            .data(unsafe { ctx.wasm_store.as_ref() });
 
         let base = MATCHING_RULES_BITMAP_BASE as usize;
 

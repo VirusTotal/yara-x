@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 #[cfg(feature = "rules-profiling")]
 use std::iter;
-use std::mem::transmute;
+use std::mem::{transmute, MaybeUninit};
 #[cfg(feature = "rules-profiling")]
 use std::ops::AddAssign;
 use std::ops::{Deref, Range};
@@ -22,7 +22,10 @@ use memx::memeq;
 use protobuf::{MessageDyn, MessageFull};
 use regex_automata::meta::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
-use wasmtime::Store;
+use wasmtime::{
+    AsContext, AsContextMut, Global, GlobalType, Instance, MemoryType,
+    Mutability, Store, TypedFunc, Val, ValType,
+};
 
 use crate::compiler::{
     NamespaceId, PatternId, RegexpId, RuleId, Rules, SubPattern,
@@ -45,6 +48,15 @@ use crate::wasm::MATCHING_RULES_BITMAP_BASE;
 pub(crate) struct ScanContext<'r, 'd> {
     /// Pointer to the WASM store.
     pub wasm_store: NonNull<Store<ScanContext<'static, 'static>>>,
+    /// The WASM module.
+    pub wasm_module: MaybeUninit<Instance>,
+    /// Main function in the WASM module. This is the entrypoint from where
+    /// the execution of rule conditions starts.
+    pub wasm_main_func: Option<TypedFunc<(), i32>>,
+    /// Module's main memory.
+    pub wasm_main_memory: Option<wasmtime::Memory>,
+    /// WASM global variable that contains the value of `filesize`.
+    pub wasm_filesize: Option<Global>,
     /// Map where keys are object handles and values are objects used during
     /// the evaluation of rule conditions. Handles are opaque integer values
     /// that can be passed to and received from WASM code. Each handle identify
@@ -76,8 +88,6 @@ pub(crate) struct ScanContext<'r, 'd> {
     /// Currently active structure that overrides the `root_struct` if
     /// set.
     pub current_struct: Option<Rc<Struct>>,
-    /// Module's main memory.
-    pub main_memory: Option<wasmtime::Memory>,
     /// Hash map that contains the protobuf messages returned by YARA modules.
     /// Keys are the fully qualified protobuf message name, and values are
     /// the message returned by the main function of the corresponding module.
@@ -134,7 +144,7 @@ pub(crate) struct ScanContext<'r, 'd> {
 }
 
 #[cfg(feature = "rules-profiling")]
-impl<'r> ScanContext<'r> {
+impl ScanContext<'_, '_> {
     /// Returns the slowest N rules.
     ///
     /// Profiling has an accumulative effect. When the scanner is used for
@@ -210,6 +220,13 @@ impl<'d> ScanContext<'_, 'd> {
         self.scanned_data.as_ref().unwrap().as_ref()
     }
 
+    #[inline]
+    pub(crate) fn wasm_store_mut<'a>(
+        &mut self,
+    ) -> &'a mut Store<ScanContext<'static, 'static>> {
+        unsafe { self.wasm_store.as_mut() }
+    }
+
     /// Returns true of the regexp identified by the given [`RegexpId`]
     /// matches `haystack`.
     pub(crate) fn regexp_matches(
@@ -281,12 +298,91 @@ impl<'d> ScanContext<'_, 'd> {
         obj_ref
     }
 
+    /// Set the value of the global variable `filesize`.
+    pub(crate) fn set_filesize(&mut self, filesize: i64) {
+        self.wasm_filesize
+            .unwrap()
+            .set(self.wasm_store_mut(), Val::I64(filesize))
+            .unwrap();
+    }
+
+    /// Invoke the main function, which evaluates the rules' conditions. It
+    /// calls ScanContext::search_for_patterns (which does the Aho-Corasick
+    /// scanning) only if necessary.
+    ///
+    /// This will return `Err(ScanError::Timeout)`, when the scan timeout is
+    /// reached while WASM code is being executed.
+    pub(crate) fn eval_conditions(&mut self) -> wasmtime::Result<i32> {
+        // Save the time in which the evaluation started.
+        #[cfg(feature = "rules-profiling")]
+        {
+            self.rule_execution_start_time = self.clock.raw();
+        }
+        // Invoke the main function, which evaluates the rules' conditions. It
+        // calls ScanContext::search_for_patterns (which does the Aho-Corasick
+        // scanning) only if necessary.
+        //
+        // This will return Err(ScanError::Timeout), when the scan timeout is
+        // reached while WASM code is being executed.
+        let store = self.wasm_store_mut();
+        let eval_result =
+            self.wasm_main_func.as_ref().unwrap().call(store, ());
+
+        #[cfg(feature = "rules-profiling")]
+        if eval_result.is_err() {
+            // If a timeout occurs, the methods `ctx.track_rule_no_match` or
+            // `ctx.track_rule_match` may not be invoked for the currently
+            // executing rule. This means that the time spent within that rule
+            // has not been recorded yet, so we need to update it here.
+            //
+            // The ID of the rule that was running during the timeout can be
+            // determined as the one immediately following the last executed
+            // rule, based on the assumption that rules are processed in a
+            // strictly ascending ID order.
+            //
+            // Additionally, if the timeout happens after `ctx.last_executed_rule`
+            // has been updated with the last rule ID, we might end up calling
+            // `update_time_spent_in_rule` with an ID that is off by one.
+            // However, this function is designed to handle such cases
+            // gracefully.
+            self.update_time_spent_in_rule(
+                self.last_executed_rule
+                    .map_or(RuleId::from(0), |rule_id| rule_id.next()),
+            );
+        }
+
+        #[cfg(all(feature = "rules-profiling", feature = "logging"))]
+        {
+            let most_expensive_rules = self.slowest_rules(10);
+            if !most_expensive_rules.is_empty() {
+                log::info!("Most expensive rules:");
+                for profiling_data in most_expensive_rules {
+                    log::info!("+ namespace: {}", profiling_data.namespace);
+                    log::info!("  rule: {}", profiling_data.rule);
+                    log::info!(
+                        "  pattern matching time: {:?}",
+                        profiling_data.pattern_matching_time
+                    );
+                    log::info!(
+                        "  condition execution time: {:?}",
+                        profiling_data.condition_exec_time
+                    );
+                }
+            }
+        }
+
+        eval_result
+    }
+
     /// Resets the scan context to its initial state, making it ready for
     /// another scan. This clears all the information generated during the
     /// previous scan.
     pub(crate) fn reset(&mut self) {
         let num_rules = self.compiled_rules.num_rules();
         let num_patterns = self.compiled_rules.num_patterns();
+
+        // Free all runtime objects left around by previous scans.
+        self.runtime_objects.clear();
 
         // Clear the array that tracks the patterns that reached the maximum
         // number of patterns.
@@ -305,8 +401,8 @@ impl<'d> ScanContext<'_, 'd> {
             self.pattern_matches.clear();
             self.matching_rules.clear();
 
-            let store_ctx = unsafe { self.wasm_store.as_mut() };
-            let mem = self.main_memory.unwrap().data_mut(store_ctx);
+            let store = self.wasm_store_mut();
+            let mem = self.wasm_main_memory.unwrap().data_mut(store);
 
             // Starting at MATCHING_RULES_BITMAP in main memory there's a
             // bitmap were the N-th bit indicates if the rule with ID = N
@@ -364,8 +460,8 @@ impl<'d> ScanContext<'_, 'd> {
             if let Some(rules) =
                 self.matching_rules_per_ns.get_mut(&rule.namespace_id)
             {
-                let wasm_store = unsafe { self.wasm_store.as_mut() };
-                let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
+                let store = unsafe { self.wasm_store.as_mut() };
+                let main_mem = self.wasm_main_memory.unwrap().data_mut(store);
 
                 let base = MATCHING_RULES_BITMAP_BASE as usize;
                 let num_rules = self.compiled_rules.num_rules();
@@ -422,8 +518,8 @@ impl<'d> ScanContext<'_, 'd> {
             self.num_matching_private_rules += 1;
         }
 
-        let wasm_store = unsafe { self.wasm_store.as_mut() };
-        let mem = self.main_memory.unwrap().data_mut(wasm_store);
+        let wasm_store = self.wasm_store_mut();
+        let mem = self.wasm_main_memory.unwrap().data_mut(wasm_store);
         let num_rules = self.compiled_rules.num_rules();
 
         let base = MATCHING_RULES_BITMAP_BASE as usize;
@@ -454,8 +550,8 @@ impl<'d> ScanContext<'_, 'd> {
         match_: Match,
         replace_if_longer: bool,
     ) {
-        let wasm_store = unsafe { self.wasm_store.as_mut() };
-        let mem = self.main_memory.unwrap().data_mut(wasm_store);
+        let wasm_store = self.wasm_store_mut();
+        let mem = self.wasm_main_memory.unwrap().data_mut(wasm_store);
         let num_rules = self.compiled_rules.num_rules();
         let num_patterns = self.compiled_rules.num_patterns();
 
@@ -1487,6 +1583,9 @@ impl From<i64> for RuntimeObjectHandle {
 pub fn create_wasm_store_and_ctx<'r>(
     rules: &'r Rules,
 ) -> Pin<Box<Store<ScanContext<'static, 'static>>>> {
+    let num_rules = rules.num_rules() as u32;
+    let num_patterns = rules.num_patterns() as u32;
+
     let ctx = ScanContext {
         wasm_store: NonNull::dangling(),
         runtime_objects: IndexMap::new(),
@@ -1499,7 +1598,10 @@ pub fn create_wasm_store_and_ctx<'r>(
         matching_rules_per_ns: IndexMap::new(),
         num_matching_private_rules: 0,
         num_non_matching_private_rules: 0,
-        main_memory: None,
+        wasm_module: MaybeUninit::uninit(),
+        wasm_main_memory: None,
+        wasm_main_func: None,
+        wasm_filesize: None,
         module_outputs: FxHashMap::default(),
         user_provided_module_outputs: FxHashMap::default(),
         pattern_matches: PatternMatches::new(),
@@ -1542,6 +1644,90 @@ pub fn create_wasm_store_and_ctx<'r>(
     // dangling.
     wasm_store.data_mut().wasm_store =
         NonNull::from(wasm_store.as_ref().deref());
+
+    // Global variable that will hold the value for `filesize`. This is
+    // initialized to 0 because the file size is not known until some
+    // data is scanned.
+    let filesize = Global::new(
+        wasm_store.as_context_mut(),
+        GlobalType::new(ValType::I64, Mutability::Var),
+        Val::I64(0),
+    )
+    .unwrap();
+
+    // Global variable that is set to `true` when the Aho-Corasick pattern
+    // search phase has been executed.
+    let pattern_search_done = Global::new(
+        wasm_store.as_context_mut(),
+        GlobalType::new(ValType::I32, Mutability::Var),
+        Val::I32(0),
+    )
+    .unwrap();
+
+    // Compute the base offset for the bitmap that contains matching
+    // information for patterns. This bitmap has 1 bit per pattern, the
+    // N-th bit is set if pattern with PatternId = N matched. The bitmap
+    // starts right after the bitmap that contains matching information
+    // for rules.
+    let matching_patterns_bitmap_base =
+        MATCHING_RULES_BITMAP_BASE as u32 + num_rules.div_ceil(8);
+
+    // Compute the required memory size in 64KB pages.
+    let mem_size = u32::div_ceil(
+        matching_patterns_bitmap_base + num_patterns.div_ceil(8),
+        65536,
+    );
+
+    let matching_patterns_bitmap_base = Global::new(
+        wasm_store.as_context_mut(),
+        GlobalType::new(ValType::I32, Mutability::Const),
+        Val::I32(matching_patterns_bitmap_base as i32),
+    )
+    .unwrap();
+
+    // Create module's main memory.
+    let main_memory = wasmtime::Memory::new(
+        wasm_store.as_context_mut(),
+        MemoryType::new(mem_size, Some(mem_size)),
+    )
+    .unwrap();
+
+    // Instantiate the module. This takes the wasm code provided by the
+    // `wasm_mod` function and links its imported functions with the
+    // implementations that YARA provides.
+    let wasm_instance = wasm::new_linker()
+        .define(wasm_store.as_context(), "yara_x", "filesize", filesize)
+        .unwrap()
+        .define(
+            wasm_store.as_context(),
+            "yara_x",
+            "pattern_search_done",
+            pattern_search_done,
+        )
+        .unwrap()
+        .define(
+            wasm_store.as_context(),
+            "yara_x",
+            "matching_patterns_bitmap_base",
+            matching_patterns_bitmap_base,
+        )
+        .unwrap()
+        .define(wasm_store.as_context(), "yara_x", "main_memory", main_memory)
+        .unwrap()
+        .instantiate(wasm_store.as_context_mut(), rules.wasm_mod())
+        .unwrap();
+
+    // Obtain a reference to the "main" function exported by the module.
+    let main_fn = wasm_instance
+        .get_typed_func::<(), i32>(wasm_store.as_context_mut(), "main")
+        .unwrap();
+
+    let ctx = wasm_store.data_mut();
+
+    ctx.wasm_module = MaybeUninit::new(wasm_instance);
+    ctx.wasm_main_memory = Some(main_memory);
+    ctx.wasm_main_func = Some(main_fn);
+    ctx.wasm_filesize = Some(filesize);
 
     wasm_store
 }

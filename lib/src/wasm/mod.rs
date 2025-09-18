@@ -1028,8 +1028,11 @@ fn lookup_field(
 
     let mut store_ctx = caller.as_context_mut();
 
-    let mem_ptr =
-        store_ctx.data_mut().main_memory.unwrap().data_ptr(&mut store_ctx);
+    let mem_ptr = store_ctx
+        .data_mut()
+        .wasm_main_memory
+        .unwrap()
+        .data_ptr(&mut store_ctx);
 
     let lookup_indexes_ptr =
         unsafe { mem_ptr.offset(LOOKUP_INDEXES_START as isize) };
