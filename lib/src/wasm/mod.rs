@@ -801,9 +801,9 @@ pub(crate) unsafe fn free_engine() {
     ENGINE.take().unwrap().unload_process_handlers()
 }
 
-pub(crate) fn new_linker() -> Linker<ScanContext<'static>> {
+pub(crate) fn new_linker() -> Linker<ScanContext<'static, 'static>> {
     let engine = get_engine();
-    let mut linker = Linker::<ScanContext<'static>>::new(engine);
+    let mut linker = Linker::<ScanContext<'static, 'static>>::new(engine);
     for export in WASM_EXPORTS {
         let func_type = FuncType::new(
             engine,

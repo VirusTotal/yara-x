@@ -4,7 +4,7 @@ The scanner takes the rules produces by the compiler and scans data with them.
 */
 use std::collections::{hash_map, HashMap};
 use std::io::Read;
-use std::mem::{transmute, MaybeUninit};
+use std::mem::transmute;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::slice::Iter;
@@ -39,6 +39,8 @@ pub(crate) use crate::scanner::matches::Match;
 
 mod context;
 mod matches;
+
+mod block;
 
 #[cfg(test)]
 mod tests;
@@ -98,19 +100,13 @@ static HEARTBEAT_COUNTER: AtomicU64 = AtomicU64::new(0);
 /// Used for spawning the thread that increments `HEARTBEAT_COUNTER`.
 static INIT_HEARTBEAT: Once = Once::new();
 
-pub enum ScannedData<'a> {
-    Slice(&'a [u8]),
+pub enum ScannedData<'d> {
+    Slice(&'d [u8]),
     Vec(Vec<u8>),
     Mmap(Mmap),
 }
 
-impl<'a> ScannedData<'a> {
-    fn blocks(&'a self) -> impl Iterator<Item = (usize, &'a [u8])> {
-        ScannedDataBlocks { scanned_data: self, finished: false }
-    }
-}
-
-impl AsRef<[u8]> for ScannedData<'_> {
+impl<'d> AsRef<[u8]> for ScannedData<'d> {
     fn as_ref(&self) -> &[u8] {
         match self {
             ScannedData::Slice(s) => s,
@@ -120,46 +116,17 @@ impl AsRef<[u8]> for ScannedData<'_> {
     }
 }
 
-impl<'a> TryInto<ScannedData<'a>> for &'a [u8] {
+impl<'d> TryInto<ScannedData<'d>> for &'d [u8] {
     type Error = ScanError;
-    fn try_into(self) -> Result<ScannedData<'a>, Self::Error> {
+    fn try_into(self) -> Result<ScannedData<'d>, Self::Error> {
         Ok(ScannedData::Slice(self))
     }
 }
 
-impl<'a, const N: usize> TryInto<ScannedData<'a>> for &'a [u8; N] {
+impl<'d, const N: usize> TryInto<ScannedData<'d>> for &'d [u8; N] {
     type Error = ScanError;
-    fn try_into(self) -> Result<ScannedData<'a>, Self::Error> {
+    fn try_into(self) -> Result<ScannedData<'d>, Self::Error> {
         Ok(ScannedData::Slice(self))
-    }
-}
-
-pub struct ScannedDataBlocks<'a> {
-    scanned_data: &'a ScannedData<'a>,
-    finished: bool,
-}
-
-impl<'a> Iterator for ScannedDataBlocks<'a> {
-    type Item = (usize, &'a [u8]);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.finished {
-            return None;
-        }
-        match self.scanned_data {
-            ScannedData::Slice(data) => {
-                self.finished = true;
-                Some((0, data.as_ref()))
-            }
-            ScannedData::Vec(data) => {
-                self.finished = true;
-                Some((0, data.as_slice()))
-            }
-            ScannedData::Mmap(data) => {
-                self.finished = true;
-                Some((0, data.as_ref()))
-            }
-        }
     }
 }
 
@@ -210,7 +177,7 @@ impl<'a> ScanOptions<'a> {
 /// parallel.
 pub struct Scanner<'r> {
     _rules: &'r Rules,
-    wasm_store: Pin<Box<Store<ScanContext<'static>>>>,
+    wasm_store: Pin<Box<Store<ScanContext<'static, 'static>>>>,
     wasm_main_func: TypedFunc<(), i32>,
     filesize: Global,
     timeout: Option<Duration>,
@@ -343,7 +310,7 @@ impl<'r> Scanner<'r> {
         self
     }
 
-    /// Specifies whether [`Scanner::scan_file`] and [`Scanner::scan_file_with_option`]
+    /// Specifies whether [`Scanner::scan_file`] and [`Scanner::scan_file_with_options`]
     /// may use memory-mapped files to read input.
     ///
     /// By default, the scanner uses memory mapping for very large files, as this
@@ -375,14 +342,10 @@ impl<'r> Scanner<'r> {
     }
 
     /// Scans in-memory data.
-    pub fn scan<'a, D>(
+    pub fn scan<'a>(
         &'a mut self,
-        data: D,
-    ) -> Result<ScanResults<'a, 'r>, ScanError>
-    where
-        D: TryInto<ScannedData<'a>>,
-        ScanError: From<D::Error>,
-    {
+        data: &'a [u8],
+    ) -> Result<ScanResults<'a, 'r>, ScanError> {
         self.scan_impl(data.try_into()?, None)
     }
 
@@ -585,26 +548,27 @@ impl<'r> Scanner<'r> {
 
 impl<'r> Scanner<'r> {
     #[inline]
-    fn scan_context(&self) -> &ScanContext<'r> {
+    fn scan_context<'a>(&self) -> &ScanContext<'r, 'a> {
         unsafe {
-            transmute::<&ScanContext<'static>, &ScanContext<'r>>(
+            transmute::<&ScanContext<'static, 'static>, &ScanContext<'r, '_>>(
                 self.wasm_store.data(),
             )
         }
     }
     #[inline]
-    fn scan_context_mut(&mut self) -> &mut ScanContext<'r> {
+    fn scan_context_mut<'a>(&mut self) -> &mut ScanContext<'r, 'a> {
         unsafe {
-            transmute::<&mut ScanContext<'static>, &mut ScanContext<'r>>(
-                self.wasm_store.data_mut(),
-            )
+            transmute::<
+                &mut ScanContext<'static, 'static>,
+                &mut ScanContext<'r, '_>,
+            >(self.wasm_store.data_mut())
         }
     }
 
-    fn load_file(
+    fn load_file<'a>(
         &self,
         path: &Path,
-    ) -> Result<ScannedData<'static>, ScanError> {
+    ) -> Result<ScannedData<'a>, ScanError> {
         let mut file = fs::File::open(path).map_err(|err| {
             ScanError::OpenError { path: path.to_path_buf(), err }
         })?;
@@ -699,12 +663,11 @@ impl<'r> Scanner<'r> {
         ctx.deadline =
             HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
 
-        ctx.scanned_data = MaybeUninit::new(unsafe {
-            transmute::<&ScannedData<'a>, &ScannedData<'static>>(&data)
-        });
-
         // Free all runtime objects left around by previous scans.
         ctx.runtime_objects.clear();
+
+        // Set the data to scan.
+        ctx.scanned_data = Some(data);
 
         for module_name in ctx.compiled_rules.imports() {
             // Lookup the module in the list of built-in modules.
@@ -730,13 +693,18 @@ impl<'r> Scanner<'r> {
                     });
 
                 if let Some(main_fn) = module.main_fn {
-                    module_output =
-                        Some(main_fn(data.as_ref(), meta).map_err(|err| {
+                    module_output = Some(
+                        main_fn(
+                            ctx.scanned_data.as_ref().unwrap().as_ref(),
+                            meta,
+                        )
+                        .map_err(|err| {
                             ScanError::ModuleError {
                                 module: module_name.to_string(),
                                 err,
                             }
-                        })?);
+                        })?,
+                    );
                 } else {
                     module_output = None;
                 }
@@ -858,8 +826,7 @@ impl<'r> Scanner<'r> {
         }
 
         let ctx = self.scan_context_mut();
-
-        ctx.scanned_data = MaybeUninit::zeroed();
+        let data = ctx.scanned_data.take().unwrap();
 
         // Clear the value of `current_struct` as it may contain a reference
         // to some struct.
@@ -895,12 +862,12 @@ impl<'r> Scanner<'r> {
 ///
 /// Allows iterating over both the matching and non-matching rules.
 pub struct ScanResults<'a, 'r> {
-    ctx: &'a ScanContext<'r>,
+    ctx: &'a ScanContext<'r, 'a>,
     data: ScannedData<'a>,
 }
 
 impl<'a, 'r> ScanResults<'a, 'r> {
-    fn new(ctx: &'a ScanContext<'r>, data: ScannedData<'a>) -> Self {
+    fn new(ctx: &'a ScanContext<'r, 'a>, data: ScannedData<'a>) -> Self {
         Self { ctx, data }
     }
 
@@ -947,7 +914,7 @@ impl<'a, 'r> ScanResults<'a, 'r> {
 /// Private rules are not included by default, use
 /// [`MatchingRules::include_private`] for changing this behaviour.
 pub struct MatchingRules<'a, 'r> {
-    ctx: &'a ScanContext<'r>,
+    ctx: &'a ScanContext<'r, 'a>,
     data: &'a ScannedData<'a>,
     iterator: Iter<'a, RuleId>,
     len_non_private: usize,
@@ -956,7 +923,7 @@ pub struct MatchingRules<'a, 'r> {
 }
 
 impl<'a, 'r> MatchingRules<'a, 'r> {
-    fn new(ctx: &'a ScanContext<'r>, data: &'a ScannedData<'a>) -> Self {
+    fn new(ctx: &'a ScanContext<'r, 'a>, data: &'a ScannedData<'a>) -> Self {
         Self {
             ctx,
             data,
@@ -1019,7 +986,7 @@ impl ExactSizeIterator for MatchingRules<'_, '_> {
 /// Private rules are not included by default, use
 /// [`NonMatchingRules::include_private`] for changing this behaviour.
 pub struct NonMatchingRules<'a, 'r> {
-    ctx: &'a ScanContext<'r>,
+    ctx: &'a ScanContext<'r, 'a>,
     data: &'a ScannedData<'a>,
     iterator: bitvec::slice::IterZeros<'a, u8, Lsb0>,
     include_private: bool,
@@ -1028,7 +995,7 @@ pub struct NonMatchingRules<'a, 'r> {
 }
 
 impl<'a, 'r> NonMatchingRules<'a, 'r> {
-    fn new(ctx: &'a ScanContext<'r>, data: &'a ScannedData<'a>) -> Self {
+    fn new(ctx: &'a ScanContext<'r, 'a>, data: &'a ScannedData<'a>) -> Self {
         let num_rules = ctx.compiled_rules.num_rules();
         let main_memory =
             ctx.main_memory.unwrap().data(unsafe { ctx.wasm_store.as_ref() });
@@ -1110,13 +1077,13 @@ impl ExactSizeIterator for NonMatchingRules<'_, '_> {
 
 /// Iterator that returns the outputs produced by YARA modules.
 pub struct ModuleOutputs<'a, 'r> {
-    ctx: &'a ScanContext<'r>,
+    ctx: &'a ScanContext<'r, 'a>,
     len: usize,
     iterator: hash_map::Iter<'a, &'a str, Module>,
 }
 
 impl<'a, 'r> ModuleOutputs<'a, 'r> {
-    fn new(ctx: &'a ScanContext<'r>) -> Self {
+    fn new(ctx: &'a ScanContext<'r, 'a>) -> Self {
         Self {
             ctx,
             len: ctx.module_outputs.len(),

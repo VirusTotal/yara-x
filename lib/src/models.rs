@@ -19,7 +19,7 @@ pub enum PatternKind {
 
 /// A structure that describes a rule.
 pub struct Rule<'a, 'r> {
-    pub(crate) ctx: Option<&'a ScanContext<'r>>,
+    pub(crate) ctx: Option<&'a ScanContext<'r, 'a>>,
     pub(crate) data: Option<&'a ScannedData<'a>>,
     pub(crate) rules: &'r Rules,
     pub(crate) rule_info: &'r RuleInfo,
@@ -248,7 +248,7 @@ impl<'r> Tag<'r> {
 /// [`Patterns::include_private`] if you want to include private patterns
 /// as well.
 pub struct Patterns<'a, 'r> {
-    ctx: Option<&'a ScanContext<'r>>,
+    ctx: Option<&'a ScanContext<'r, 'a>>,
     data: Option<&'a ScannedData<'a>>,
     rules: &'r Rules,
     iterator: Iter<'a, (IdentId, PatternKind, PatternId, bool)>,
@@ -315,7 +315,7 @@ impl<'a, 'r> Iterator for Patterns<'a, 'r> {
 
 /// Represents a pattern defined by a rule.
 pub struct Pattern<'a, 'r> {
-    ctx: Option<&'a ScanContext<'r>>,
+    ctx: Option<&'a ScanContext<'r, 'a>>,
     data: Option<&'a ScannedData<'a>>,
     rules: &'r Rules,
     ident_id: IdentId,

@@ -3,7 +3,6 @@ use std::collections::VecDeque;
 #[cfg(feature = "rules-profiling")]
 use std::iter;
 use std::mem::transmute;
-use std::mem::MaybeUninit;
 #[cfg(feature = "rules-profiling")]
 use std::ops::AddAssign;
 use std::ops::{Deref, Range};
@@ -43,16 +42,16 @@ use crate::wasm;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
 
 /// Structure that holds information about the current scan.
-pub(crate) struct ScanContext<'r> {
+pub(crate) struct ScanContext<'r, 'd> {
     /// Pointer to the WASM store.
-    pub wasm_store: NonNull<Store<ScanContext<'static>>>,
+    pub wasm_store: NonNull<Store<ScanContext<'static, 'static>>>,
     /// Map where keys are object handles and values are objects used during
     /// the evaluation of rule conditions. Handles are opaque integer values
     /// that can be passed to and received from WASM code. Each handle identify
     /// an object (string, struct, array or map).
     pub runtime_objects: IndexMap<RuntimeObjectHandle, RuntimeObject>,
     /// Data being scanned.
-    pub scanned_data: MaybeUninit<&'static ScannedData<'static>>,
+    pub scanned_data: Option<ScannedData<'d>>,
     /// Vector containing the IDs of the rules that matched, including both
     /// global and non-global ones. The rules are added first to the
     /// `matching_rules_per_ns` map, and then moved to this vector
@@ -205,16 +204,10 @@ impl<'r> ScanContext<'r> {
     }
 }
 
-impl ScanContext<'_> {
+impl<'d> ScanContext<'_, 'd> {
     /// Returns a slice with the data being scanned.
-    pub(crate) fn scanned_data(&self) -> &'static [u8] {
-        unsafe { self.scanned_data.assume_init().as_ref() }
-    }
-
-    pub(crate) fn data_blocks(
-        &self,
-    ) -> impl Iterator<Item = (usize, &'static [u8])> {
-        unsafe { self.scanned_data.assume_init().blocks() }
+    pub(crate) fn scanned_data(&self) -> &[u8] {
+        self.scanned_data.as_ref().unwrap().as_ref()
     }
 
     /// Returns true of the regexp identified by the given [`RegexpId`]
@@ -478,7 +471,7 @@ impl ScanContext<'_> {
         }
     }
 
-    /// Search for patterns in the data.
+    /// Search for patterns in the scanned data.
     ///
     /// The pattern search phase is when YARA scans the data looking for the
     /// patterns declared in rules. All the patterns are searched simultaneously
@@ -505,243 +498,233 @@ impl ScanContext<'_> {
         #[cfg(feature = "logging")]
         let mut atom_matches = 0_usize;
 
-        for (block_base, block_data) in self.data_blocks() {
-            // Verify the anchored pattern first. These are patterns that can
-            // match at a single known offset within the data.
-            self.verify_anchored_patterns(block_base, block_data);
+        // Take ownership of the scanned data, while searching for
+        // the patterns, `self.scanned_data` is left as `None`.
+        let data = self.scanned_data.take().unwrap();
+        let block_base = 0; // TODO
 
-            for ac_match in ac.find_overlapping_iter(block_data) {
+        // Verify the anchored pattern first. These are patterns that can
+        // match at a single known offset within the data.
+        self.verify_anchored_patterns(block_base, data.as_ref());
+
+        for ac_match in ac.find_overlapping_iter(data.as_ref()) {
+            #[cfg(feature = "logging")]
+            {
+                atom_matches += 1;
+            }
+
+            if HEARTBEAT_COUNTER.load(Ordering::Relaxed) >= self.deadline {
                 #[cfg(feature = "logging")]
-                {
-                    atom_matches += 1;
-                }
+                log::info!(
+                    "Scan timeout after: {:?}",
+                    self.clock.delta(scan_start, self.clock.raw())
+                );
+                return Err(ScanError::Timeout);
+            }
 
-                if HEARTBEAT_COUNTER.load(Ordering::Relaxed) >= self.deadline {
-                    #[cfg(feature = "logging")]
-                    log::info!(
-                        "Scan timeout after: {:?}",
-                        self.clock.delta(scan_start, self.clock.raw())
+            let atom =
+                unsafe { atoms.get_unchecked(ac_match.pattern().as_usize()) };
+
+            // Subtract the backtrack value from the offset where the atom
+            // matched. If the result is negative the atom can't be inside
+            // the scanned data and therefore is not a possible match.
+            let atom_pos = if let Some(atom_pos) =
+                ac_match.start().checked_sub(atom.backtrack())
+            {
+                atom_pos
+            } else {
+                continue;
+            };
+
+            // Each atom belongs to a sub-pattern.
+            let sub_pattern_id = atom.sub_pattern_id();
+
+            // Each sub-pattern belongs to a pattern.
+            let (pattern_id, sub_pattern) =
+                &self.compiled_rules.get_sub_pattern(sub_pattern_id);
+
+            // Check if the potentially matching pattern has reached the
+            // maximum number of allowed matches. In that case continue without
+            // verifying the match. `get_unchecked` is used for performance
+            // reasons, the number of bits in the bit vector is guaranteed to
+            // be the number of patterns.
+            if self.limit_reached.contains(pattern_id) {
+                continue;
+            }
+
+            #[cfg(feature = "rules-profiling")]
+            let verification_start = self.clock.raw();
+
+            // If the atom is exact no further verification is needed, except
+            // for making sure that the fullword requirements are met. An exact
+            // atom is enough to guarantee that the whole sub-pattern matched.
+            #[cfg(feature = "exact-atoms")]
+            if atom.is_exact() {
+                let flags = match sub_pattern {
+                    SubPattern::Literal { flags, .. }
+                    | SubPattern::LiteralChainHead { flags, .. }
+                    | SubPattern::LiteralChainTail { flags, .. }
+                    | SubPattern::Regexp { flags, .. }
+                    | SubPattern::RegexpChainHead { flags, .. }
+                    | SubPattern::RegexpChainTail { flags, .. } => flags,
+                    _ => unreachable!(),
+                };
+
+                let match_range = atom_pos..atom_pos + atom.len();
+
+                if verify_full_word(data.as_ref(), &match_range, *flags, None)
+                {
+                    self.handle_sub_pattern_match(
+                        sub_pattern_id,
+                        sub_pattern,
+                        *pattern_id,
+                        Match { range: match_range, xor_key: None },
                     );
-                    return Err(ScanError::Timeout);
                 }
 
-                let atom = unsafe {
-                    atoms.get_unchecked(ac_match.pattern().as_usize())
-                };
+                continue;
+            }
 
-                // Subtract the backtrack value from the offset where the atom
-                // matched. If the result is negative the atom can't be inside
-                // the scanned data and therefore is not a possible match.
-                let atom_pos = if let Some(atom_pos) =
-                    ac_match.start().checked_sub(atom.backtrack())
-                {
-                    atom_pos
-                } else {
-                    continue;
-                };
-
-                // Each atom belongs to a sub-pattern.
-                let sub_pattern_id = atom.sub_pattern_id();
-
-                // Each sub-pattern belongs to a pattern.
-                let (pattern_id, sub_pattern) =
-                    &self.compiled_rules.get_sub_pattern(sub_pattern_id);
-
-                // Check if the potentially matching pattern has reached the
-                // maximum number of allowed matches. In that case continue without
-                // verifying the match. `get_unchecked` is used for performance
-                // reasons, the number of bits in the bit vector is guaranteed to
-                // be the number of patterns.
-                if self.limit_reached.contains(pattern_id) {
-                    continue;
-                }
-
-                #[cfg(feature = "rules-profiling")]
-                let verification_start = self.clock.raw();
-
-                // If the atom is exact no further verification is needed, except
-                // for making sure that the fullword requirements are met. An exact
-                // atom is enough to guarantee that the whole sub-pattern matched.
-                #[cfg(feature = "exact-atoms")]
-                if atom.is_exact() {
-                    let flags = match sub_pattern {
-                        SubPattern::Literal { flags, .. }
-                        | SubPattern::LiteralChainHead { flags, .. }
-                        | SubPattern::LiteralChainTail { flags, .. }
-                        | SubPattern::Regexp { flags, .. }
-                        | SubPattern::RegexpChainHead { flags, .. }
-                        | SubPattern::RegexpChainTail { flags, .. } => flags,
-                        _ => unreachable!(),
-                    };
-
-                    let match_range = atom_pos..atom_pos + atom.len();
-
-                    if verify_full_word(block_data, &match_range, *flags, None)
-                    {
+            match sub_pattern {
+                SubPattern::Literal { pattern, flags, .. }
+                | SubPattern::LiteralChainHead { pattern, flags, .. }
+                | SubPattern::LiteralChainTail { pattern, flags, .. } => {
+                    if let Some(match_) = verify_literal_match(
+                        self.compiled_rules
+                            .lit_pool()
+                            .get_bytes(*pattern)
+                            .unwrap(),
+                        data.as_ref(),
+                        atom_pos,
+                        *flags,
+                    ) {
                         self.handle_sub_pattern_match(
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            Match { range: match_range, xor_key: None },
+                            match_,
                         );
                     }
-
-                    continue;
+                }
+                SubPattern::Regexp { flags, .. }
+                | SubPattern::RegexpChainHead { flags, .. }
+                | SubPattern::RegexpChainTail { flags, .. } => {
+                    verify_regexp_match(
+                        &mut vm,
+                        data.as_ref(),
+                        atom_pos,
+                        atom,
+                        *flags,
+                        |match_| {
+                            self.handle_sub_pattern_match(
+                                sub_pattern_id,
+                                sub_pattern,
+                                *pattern_id,
+                                match_,
+                            );
+                        },
+                    )
                 }
 
-                match sub_pattern {
-                    SubPattern::Literal { pattern, flags, .. }
-                    | SubPattern::LiteralChainHead {
-                        pattern, flags, ..
-                    }
-                    | SubPattern::LiteralChainTail {
-                        pattern, flags, ..
-                    } => {
-                        if let Some(match_) = verify_literal_match(
-                            self.compiled_rules
-                                .lit_pool()
-                                .get_bytes(*pattern)
-                                .unwrap(),
-                            block_data,
-                            atom_pos,
-                            *flags,
-                        ) {
-                            self.handle_sub_pattern_match(
-                                sub_pattern_id,
-                                sub_pattern,
-                                *pattern_id,
-                                match_,
-                            );
-                        }
-                    }
-                    SubPattern::Regexp { flags, .. }
-                    | SubPattern::RegexpChainHead { flags, .. }
-                    | SubPattern::RegexpChainTail { flags, .. } => {
-                        verify_regexp_match(
-                            &mut vm,
-                            block_data,
-                            atom_pos,
-                            atom,
-                            *flags,
-                            |match_| {
-                                self.handle_sub_pattern_match(
-                                    sub_pattern_id,
-                                    sub_pattern,
-                                    *pattern_id,
-                                    match_,
-                                );
-                            },
-                        )
-                    }
-
-                    SubPattern::Xor { pattern, flags } => {
-                        if let Some(match_) = verify_xor_match(
-                            self.compiled_rules
-                                .lit_pool()
-                                .get_bytes(*pattern)
-                                .unwrap(),
-                            block_data,
-                            atom_pos,
-                            atom,
-                            *flags,
-                        ) {
-                            self.handle_sub_pattern_match(
-                                sub_pattern_id,
-                                sub_pattern,
-                                *pattern_id,
-                                match_,
-                            );
-                        }
-                    }
-
-                    SubPattern::Base64 { pattern, padding }
-                    | SubPattern::Base64Wide { pattern, padding } => {
-                        if let Some(match_) = verify_base64_match(
-                            self.compiled_rules
-                                .lit_pool()
-                                .get_bytes(*pattern)
-                                .unwrap(),
-                            block_data,
-                            (*padding).into(),
-                            atom_pos,
-                            None,
-                            matches!(
-                                sub_pattern,
-                                SubPattern::Base64Wide { .. }
-                            ),
-                        ) {
-                            self.handle_sub_pattern_match(
-                                sub_pattern_id,
-                                sub_pattern,
-                                *pattern_id,
-                                match_,
-                            );
-                        }
-                    }
-
-                    SubPattern::CustomBase64 {
-                        pattern,
-                        alphabet,
-                        padding,
-                    }
-                    | SubPattern::CustomBase64Wide {
-                        pattern,
-                        alphabet,
-                        padding,
-                    } => {
-                        let alphabet = self
-                            .compiled_rules
+                SubPattern::Xor { pattern, flags } => {
+                    if let Some(match_) = verify_xor_match(
+                        self.compiled_rules
                             .lit_pool()
-                            .get_str(*alphabet)
-                            .map(|alphabet| {
-                                // `Alphabet::new` validates the string again. This
-                                // is not really necessary as we already know that
-                                // the string represents a valid alphabet, it would
-                                // be better if we could use the private function
-                                // `Alphabet::from_str_unchecked`
-                                base64::alphabet::Alphabet::new(alphabet)
-                                    .unwrap()
-                            });
-
-                        assert!(alphabet.is_some());
-
-                        if let Some(match_) = verify_base64_match(
-                            self.compiled_rules
-                                .lit_pool()
-                                .get_bytes(*pattern)
-                                .unwrap(),
-                            block_data,
-                            (*padding).into(),
-                            atom_pos,
-                            alphabet,
-                            matches!(
-                                sub_pattern,
-                                SubPattern::CustomBase64Wide { .. }
-                            ),
-                        ) {
-                            self.handle_sub_pattern_match(
-                                sub_pattern_id,
-                                sub_pattern,
-                                *pattern_id,
-                                match_,
-                            );
-                        }
+                            .get_bytes(*pattern)
+                            .unwrap(),
+                        data.as_ref(),
+                        atom_pos,
+                        atom,
+                        *flags,
+                    ) {
+                        self.handle_sub_pattern_match(
+                            sub_pattern_id,
+                            sub_pattern,
+                            *pattern_id,
+                            match_,
+                        );
                     }
-                };
-
-                #[cfg(feature = "rules-profiling")]
-                {
-                    let time_spent = self
-                        .clock
-                        .delta_as_nanos(verification_start, self.clock.raw());
-
-                    self.time_spent_in_pattern
-                        .entry(*pattern_id)
-                        .and_modify(|t| {
-                            t.add_assign(time_spent);
-                        })
-                        .or_insert(time_spent);
                 }
+
+                SubPattern::Base64 { pattern, padding }
+                | SubPattern::Base64Wide { pattern, padding } => {
+                    if let Some(match_) = verify_base64_match(
+                        self.compiled_rules
+                            .lit_pool()
+                            .get_bytes(*pattern)
+                            .unwrap(),
+                        data.as_ref(),
+                        (*padding).into(),
+                        atom_pos,
+                        None,
+                        matches!(sub_pattern, SubPattern::Base64Wide { .. }),
+                    ) {
+                        self.handle_sub_pattern_match(
+                            sub_pattern_id,
+                            sub_pattern,
+                            *pattern_id,
+                            match_,
+                        );
+                    }
+                }
+
+                SubPattern::CustomBase64 { pattern, alphabet, padding }
+                | SubPattern::CustomBase64Wide {
+                    pattern,
+                    alphabet,
+                    padding,
+                } => {
+                    let alphabet = self
+                        .compiled_rules
+                        .lit_pool()
+                        .get_str(*alphabet)
+                        .map(|alphabet| {
+                            // `Alphabet::new` validates the string again. This
+                            // is not really necessary as we already know that
+                            // the string represents a valid alphabet, it would
+                            // be better if we could use the private function
+                            // `Alphabet::from_str_unchecked`
+                            base64::alphabet::Alphabet::new(alphabet).unwrap()
+                        });
+
+                    assert!(alphabet.is_some());
+
+                    if let Some(match_) = verify_base64_match(
+                        self.compiled_rules
+                            .lit_pool()
+                            .get_bytes(*pattern)
+                            .unwrap(),
+                        data.as_ref(),
+                        (*padding).into(),
+                        atom_pos,
+                        alphabet,
+                        matches!(
+                            sub_pattern,
+                            SubPattern::CustomBase64Wide { .. }
+                        ),
+                    ) {
+                        self.handle_sub_pattern_match(
+                            sub_pattern_id,
+                            sub_pattern,
+                            *pattern_id,
+                            match_,
+                        );
+                    }
+                }
+            };
+
+            #[cfg(feature = "rules-profiling")]
+            {
+                let time_spent = self
+                    .clock
+                    .delta_as_nanos(verification_start, self.clock.raw());
+
+                self.time_spent_in_pattern
+                    .entry(*pattern_id)
+                    .and_modify(|t| {
+                        t.add_assign(time_spent);
+                    })
+                    .or_insert(time_spent);
             }
         }
 
@@ -768,6 +751,9 @@ impl ScanContext<'_> {
             self.rule_execution_start_time +=
                 scan_end.saturating_sub(scan_start);
         }
+
+        // Bring back ownership of the scanned to the ScanContext.
+        self.scanned_data = Some(data);
 
         Ok(())
     }
@@ -1048,7 +1034,7 @@ impl ScanContext<'_> {
     }
 }
 
-/// Verifies if a literal `pattern` matches at `offset` in `haystack`.
+/// Verifies if a literal `pattern` matches at `match_start` in `scanned_data`.
 ///
 /// Returns a [`Match`] if the match was confirmed or [`None`] if otherwise.
 fn verify_literal_match(
@@ -1500,15 +1486,15 @@ impl From<i64> for RuntimeObjectHandle {
 
 pub fn create_wasm_store_and_ctx<'r>(
     rules: &'r Rules,
-) -> Pin<Box<Store<ScanContext<'static>>>> {
+) -> Pin<Box<Store<ScanContext<'static, 'static>>>> {
     let ctx = ScanContext {
         wasm_store: NonNull::dangling(),
         runtime_objects: IndexMap::new(),
         compiled_rules: rules,
         console_log: None,
         current_struct: None,
+        scanned_data: None,
         root_struct: rules.globals().make_root(),
-        scanned_data: MaybeUninit::zeroed(),
         matching_rules: Vec::new(),
         matching_rules_per_ns: IndexMap::new(),
         num_matching_private_rules: 0,
@@ -1549,7 +1535,7 @@ pub fn create_wasm_store_and_ctx<'r>(
     // the scanner lives, and 'r is the lifetime for the rules passed to
     // the scanner, which are guaranteed to outlive the scanner.
     let mut wasm_store = Box::pin(Store::new(wasm::get_engine(), unsafe {
-        transmute::<ScanContext<'r>, ScanContext<'static>>(ctx)
+        transmute::<ScanContext<'r, '_>, ScanContext<'static, 'static>>(ctx)
     }));
 
     // Initialize the ScanContext.wasm_store pointer that was initially
