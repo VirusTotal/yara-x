@@ -2,14 +2,11 @@
 
 The scanner takes the rules produces by the compiler and scans data with them.
 */
-use std::cell::RefCell;
 use std::collections::{hash_map, HashMap};
 use std::io::Read;
 use std::mem::{transmute, MaybeUninit};
-use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
-use std::ptr::NonNull;
 use std::slice::Iter;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Once;
@@ -17,10 +14,8 @@ use std::time::Duration;
 use std::{cmp, fs, thread};
 
 use bitvec::prelude::*;
-use indexmap::IndexMap;
 use memmap2::{Mmap, MmapOptions};
 use protobuf::{CodedInputStream, MessageDyn};
-use rustc_hash::{FxHashMap, FxHashSet};
 
 use thiserror::Error;
 use wasmtime::{
@@ -31,7 +26,7 @@ use wasmtime::{
 use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
 use crate::modules::{Module, ModuleError, BUILTIN_MODULES};
-use crate::scanner::matches::PatternMatches;
+use crate::scanner::context::create_wasm_store_and_ctx;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
@@ -227,65 +222,10 @@ impl<'r> Scanner<'r> {
 
     /// Creates a new scanner.
     pub fn new(rules: &'r Rules) -> Self {
+        let mut wasm_store = create_wasm_store_and_ctx(rules);
+
         let num_rules = rules.num_rules() as u32;
         let num_patterns = rules.num_patterns() as u32;
-
-        let ctx = ScanContext {
-            wasm_store: NonNull::dangling(),
-            runtime_objects: IndexMap::new(),
-            compiled_rules: rules,
-            console_log: None,
-            current_struct: None,
-            root_struct: rules.globals().make_root(),
-            scanned_data: MaybeUninit::zeroed(),
-            matching_rules: Vec::new(),
-            matching_rules_per_ns: IndexMap::new(),
-            num_matching_private_rules: 0,
-            num_non_matching_private_rules: 0,
-            main_memory: None,
-            module_outputs: FxHashMap::default(),
-            user_provided_module_outputs: FxHashMap::default(),
-            pattern_matches: PatternMatches::new(),
-            unconfirmed_matches: FxHashMap::default(),
-            deadline: 0,
-            limit_reached: FxHashSet::default(),
-            regexp_cache: RefCell::new(FxHashMap::default()),
-            #[cfg(feature = "rules-profiling")]
-            time_spent_in_pattern: FxHashMap::default(),
-            #[cfg(feature = "rules-profiling")]
-            time_spent_in_rule: vec![0; num_rules as usize],
-            #[cfg(feature = "rules-profiling")]
-            rule_execution_start_time: 0,
-            #[cfg(feature = "rules-profiling")]
-            last_executed_rule: None,
-            #[cfg(any(feature = "rules-profiling", feature = "logging"))]
-            clock: quanta::Clock::new(),
-        };
-
-        // The ScanContext structure belongs to the WASM store, but at the same
-        // time it must have a reference to the store because it is required
-        // for accessing the WASM memory from code that only has a reference to
-        // ScanContext. This kind of circular data structures are not natural
-        // to Rust, and they can be achieved either by using unsafe pointers,
-        // or by using Rc::Weak. In this case we are storing a pointer to the
-        // store in ScanContext. The store is put into a pinned box in order to
-        // make sure that it doesn't move from its original memory address and
-        // the pointer remains valid.
-        //
-        // Also, the `Store` type requires a type T that is static, therefore
-        // we are forced to transmute the ScanContext<'r> into ScanContext<'static>.
-        // This is safe to do because the Store only lives for the time that
-        // the scanner lives, and 'r is the lifetime for the rules passed to
-        // the scanner, which are guaranteed to outlive the scanner.
-        let mut wasm_store =
-            Box::pin(Store::new(wasm::get_engine(), unsafe {
-                transmute::<ScanContext<'r>, ScanContext<'static>>(ctx)
-            }));
-
-        // Initialize the ScanContext.wasm_store pointer that was initially
-        // dangling.
-        wasm_store.data_mut().wasm_store =
-            NonNull::from(wasm_store.as_ref().deref());
 
         // Global variable that will hold the value for `filesize`. This is
         // initialized to 0 because the file size is not known until some

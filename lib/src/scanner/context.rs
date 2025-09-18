@@ -2,10 +2,12 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 #[cfg(feature = "rules-profiling")]
 use std::iter;
+use std::mem::transmute;
 use std::mem::MaybeUninit;
 #[cfg(feature = "rules-profiling")]
 use std::ops::AddAssign;
-use std::ops::Range;
+use std::ops::{Deref, Range};
+use std::pin::Pin;
 use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
@@ -37,6 +39,7 @@ use crate::scanner::ProfilingData;
 use crate::scanner::HEARTBEAT_COUNTER;
 use crate::scanner::{ScanError, ScannedData};
 use crate::types::{Array, Map, Struct};
+use crate::wasm;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
 
 /// Structure that holds information about the current scan.
@@ -1493,4 +1496,66 @@ impl From<i64> for RuntimeObjectHandle {
     fn from(value: i64) -> Self {
         Self(value)
     }
+}
+
+pub fn create_wasm_store_and_ctx<'r>(
+    rules: &'r Rules,
+) -> Pin<Box<Store<ScanContext<'static>>>> {
+    let ctx = ScanContext {
+        wasm_store: NonNull::dangling(),
+        runtime_objects: IndexMap::new(),
+        compiled_rules: rules,
+        console_log: None,
+        current_struct: None,
+        root_struct: rules.globals().make_root(),
+        scanned_data: MaybeUninit::zeroed(),
+        matching_rules: Vec::new(),
+        matching_rules_per_ns: IndexMap::new(),
+        num_matching_private_rules: 0,
+        num_non_matching_private_rules: 0,
+        main_memory: None,
+        module_outputs: FxHashMap::default(),
+        user_provided_module_outputs: FxHashMap::default(),
+        pattern_matches: PatternMatches::new(),
+        unconfirmed_matches: FxHashMap::default(),
+        deadline: 0,
+        limit_reached: FxHashSet::default(),
+        regexp_cache: RefCell::new(FxHashMap::default()),
+        #[cfg(feature = "rules-profiling")]
+        time_spent_in_pattern: FxHashMap::default(),
+        #[cfg(feature = "rules-profiling")]
+        time_spent_in_rule: vec![0; num_rules as usize],
+        #[cfg(feature = "rules-profiling")]
+        rule_execution_start_time: 0,
+        #[cfg(feature = "rules-profiling")]
+        last_executed_rule: None,
+        #[cfg(any(feature = "rules-profiling", feature = "logging"))]
+        clock: quanta::Clock::new(),
+    };
+
+    // The ScanContext structure belongs to the WASM store, but at the same
+    // time the context must have a reference to the store because it is
+    // required for accessing the WASM memory from code that only has a
+    // reference to ScanContext. This kind of circular data structures are
+    // not natural to Rust, and they can be achieved either by using unsafe
+    // pointers, or by using Rc::Weak. In this case we are storing a pointer
+    // to the store in ScanContext. The store is put into a pinned box in order
+    // to make sure that it doesn't move from its original memory address and
+    // the pointer remains valid.
+    //
+    // Also, the `Store` type requires a type T that is static, therefore
+    // we are forced to transmute the ScanContext<'r> into ScanContext<'static>.
+    // This is safe to do because the Store only lives for the time that
+    // the scanner lives, and 'r is the lifetime for the rules passed to
+    // the scanner, which are guaranteed to outlive the scanner.
+    let mut wasm_store = Box::pin(Store::new(wasm::get_engine(), unsafe {
+        transmute::<ScanContext<'r>, ScanContext<'static>>(ctx)
+    }));
+
+    // Initialize the ScanContext.wasm_store pointer that was initially
+    // dangling.
+    wasm_store.data_mut().wasm_store =
+        NonNull::from(wasm_store.as_ref().deref());
+
+    wasm_store
 }
