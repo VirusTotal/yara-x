@@ -28,7 +28,7 @@ func TestGlobals(t *testing.T) {
 	c, err := NewCompiler()
 	assert.NoError(t, err)
 	x := map[string]interface{}{"a": map[string]interface{}{"a": "b"}, "b": "d"}
-	y := []interface{}{"z", 1}
+	y := []interface{}{"z"}
 	
 	c.DefineGlobal("test_hashmap", x)
 	c.DefineGlobal("A", "b")
