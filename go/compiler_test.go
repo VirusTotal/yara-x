@@ -28,16 +28,22 @@ func TestGlobals(t *testing.T) {
 	c, err := NewCompiler()
 	assert.NoError(t, err)
 	x := map[string]interface{}{"a": map[string]interface{}{"a": "b"}, "b": "d"}
+	y := []interface{}{"z", 1}
+	
 	c.DefineGlobal("test_hashmap", x)
 	c.DefineGlobal("A", "b")
+	c.DefineGlobal("test_arr", y)
+
 	c.AddSource("rule test {condition: test_hashmap.a.a == \"b\"}")
-	c.AddSource("rule testy {condition: A == \"b\"}")
+	c.AddSource("rule test2 {condition: A == \"b\"}")
+	c.AddSource("rule test3 {condition: test_arr[0] == \"z\"}")
 
 	s := NewScanner(c.Build())
 	ScanResults, _ := s.Scan([]byte{})
-	assert.Len(t, ScanResults.MatchingRules(), 2)
+	assert.Len(t, ScanResults.MatchingRules(), 3)
 
 	s.SetGlobal("A", "c")
+	s.SetGlobal("test_arr", []interface{}{"f"})
 	ScanResults, _ = s.Scan([]byte{})
 	assert.Len(t, ScanResults.MatchingRules(), 1)
 }

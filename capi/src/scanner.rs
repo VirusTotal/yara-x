@@ -338,9 +338,9 @@ pub unsafe extern "C" fn yrx_scanner_set_global_float(
     yrx_scanner_set_global(scanner, ident, value)
 }
 
-/// Sets the value of a global variable of type hashmap
+/// Sets the value of a global variable of a vaild serde::json value
 #[no_mangle]
-pub unsafe extern "C" fn yrx_scanner_set_global_hashmap(
+pub unsafe extern "C" fn yrx_scanner_set_global_json(
     scanner: *mut YRX_SCANNER,
     ident: *const c_char,
     value: *const c_char,

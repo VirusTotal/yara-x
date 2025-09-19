@@ -673,11 +673,6 @@ impl<'a> Compiler<'a> {
         Ok(self)
     }
 
-    /// Shows all current global variables of the compiler
-    pub fn show_globals(&mut self) -> String {
-        self.global_symbols.borrow_mut().show_symbols()
-    }
-
     /// Creates a new namespace.
     ///
     /// Further calls to [`Compiler::add_source`] will put the rules under the

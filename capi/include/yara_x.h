@@ -388,8 +388,6 @@ enum YRX_RESULT yrx_compiler_ban_module(struct YRX_COMPILER *compiler,
 enum YRX_RESULT yrx_compiler_new_namespace(struct YRX_COMPILER *compiler,
                                            const char *namespace_);
 
-const char *yrx_compiler_get_globals(struct YRX_COMPILER *compiler);
-
 // Defines a global variable of string type and sets its initial value.
 enum YRX_RESULT yrx_compiler_define_global_str(struct YRX_COMPILER *compiler,
                                                const char *ident,
@@ -410,10 +408,10 @@ enum YRX_RESULT yrx_compiler_define_global_float(struct YRX_COMPILER *compiler,
                                                  const char *ident,
                                                  double value);
 
-// Defines a global variable of hashmap type and sets its initial value.
-enum YRX_RESULT yrx_compiler_define_global_hashmap(struct YRX_COMPILER *compiler,
-                                                   const char *ident,
-                                                   const char *value);
+// Defines a global variable of a valid serde::json type and sets its initial value.
+enum YRX_RESULT yrx_compiler_define_global_json(struct YRX_COMPILER *compiler,
+                                                const char *ident,
+                                                const char *value);
 
 // Returns the errors encountered during the compilation in JSON format.
 //
@@ -748,10 +746,10 @@ enum YRX_RESULT yrx_scanner_set_global_float(struct YRX_SCANNER *scanner,
                                              const char *ident,
                                              double value);
 
-// Sets the value of a global variable of type hashmap
-enum YRX_RESULT yrx_scanner_set_global_hashmap(struct YRX_SCANNER *scanner,
-                                               const char *ident,
-                                               const char *value);
+// Sets the value of a global variable of a vaild serde::json value
+enum YRX_RESULT yrx_scanner_set_global_json(struct YRX_SCANNER *scanner,
+                                            const char *ident,
+                                            const char *value);
 
 // Iterates over the slowest N rules, calling the callback for each rule.
 //
