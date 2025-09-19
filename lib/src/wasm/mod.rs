@@ -797,10 +797,20 @@ pub(crate) fn get_engine<'a>() -> &'a Engine {
 ///   `wasmtime` cannot reliably restore the original state, which may lead
 ///   to undefined behavior.
 pub(crate) unsafe fn free_engine() {
-    #[allow(static_mut_refs)]
-    ENGINE.take().unwrap().unload_process_handlers()
+    // `unload_process_handlers` is called only in the platforms where
+    // wasmtime actually installs signal handlers. See:
+    // https://github.com/bytecodealliance/wasmtime/blob/9362e47987363c350a8d9d09aa56677425496fb7/crates/wasmtime/build.rs#L20
+    #[cfg(any(
+        target_arch = "x86_64",
+        target_arch = "aarch64",
+        target_arch = "riscv64",
+        target_arch = "s390x",
+    ))]
+    {
+        #[allow(static_mut_refs)]
+        ENGINE.take().unwrap().unload_process_handlers()
+    }
 }
-
 pub(crate) fn new_linker() -> Linker<ScanContext<'static>> {
     let engine = get_engine();
     let mut linker = Linker::<ScanContext<'static>>::new(engine);
