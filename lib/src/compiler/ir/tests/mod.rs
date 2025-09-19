@@ -7,11 +7,16 @@ use crate::types::TypeValue;
 fn expr_size() {
     // Sentinel test for making sure the Expr doesn't grow in future
     // changes.
-    #[cfg(target_pointer_width = "32")]
-    assert_eq!(size_of::<Expr>(), 32);
-
     #[cfg(target_pointer_width = "64")]
     assert_eq!(size_of::<Expr>(), 48);
+
+    // Curiously enough, in 32-bits Windows the size is different from
+    // 32-bits Linux.
+    #[cfg(all(target_pointer_width = "32", target_family = "windows"))]
+    assert_eq!(size_of::<Expr>(), 32);
+
+    #[cfg(all(target_pointer_width = "32", target_family = "unix"))]
+    assert_eq!(size_of::<Expr>(), 24);
 }
 
 #[test]
