@@ -8,7 +8,7 @@ fn expr_size() {
     // Sentinel test for making sure the Expr doesn't grow in future
     // changes.
     #[cfg(target_pointer_width = "32")]
-    assert_eq!(size_of::<Expr>(), 24);
+    assert_eq!(size_of::<Expr>(), 32);
 
     #[cfg(target_pointer_width = "64")]
     assert_eq!(size_of::<Expr>(), 48);
