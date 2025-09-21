@@ -109,6 +109,9 @@ crx-module = [
 # the Cuckoo Sandbox seems to be abandoned since 2017.
 cuckoo-module = []
 
+# The `dex` module parses DEX files.
+dex-module = []
+
 # The `dotnet` module parses .NET files.
 dotnet-module = [
     "pe-module",
@@ -207,6 +210,7 @@ default = [
     "cuckoo-module",
     "exact-atoms",
     "fast-regexp",
+    "dex-module",
     "dotnet-module",
     "elf-module",
     "macho-module",
