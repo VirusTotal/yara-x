@@ -338,21 +338,29 @@ pub unsafe extern "C" fn yrx_scanner_set_global_float(
     yrx_scanner_set_global(scanner, ident, value)
 }
 
-/// Sets the value of a global variable of a vaild serde::json value
+/// Sets the value of a global variable from a JSON-encoded string.
+///
+/// This is best for complex types like maps and arrays. For simple types
+/// (e.g., booleans, integers, strings), prefer dedicated functions to avoid
+/// the overhead of JSON deserialization.
+///
+/// The type of the JSON-encoded value must match the type of the variable
+/// as it was defined.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_scanner_set_global_json(
     scanner: *mut YRX_SCANNER,
     ident: *const c_char,
     value: *const c_char,
 ) -> YRX_RESULT {
-
-    let value: serde_json::Value = if let Ok(value) = CStr::from_ptr(value).to_str() {
-        match serde_json::from_str(value) {
-            Ok(json_value) => json_value,
-            Err(_) => return YRX_RESULT::YRX_INVALID_ARGUMENT,
-        }
+    let value = if let Ok(value) = CStr::from_ptr(value).to_str() {
+        value
     } else {
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+    let value: serde_json::Value = match serde_json::from_str(value) {
+        Ok(json_value) => json_value,
+        Err(_) => return YRX_RESULT::YRX_INVALID_ARGUMENT,
     };
 
     yrx_scanner_set_global(scanner, ident, value)

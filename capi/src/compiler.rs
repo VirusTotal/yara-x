@@ -3,7 +3,7 @@ use std::mem;
 use std::mem::ManuallyDrop;
 
 use yara_x::errors::{CompileError, SerializationError, VariableError};
-use yara_x::{SourceCode};
+use yara_x::SourceCode;
 
 use crate::{_yrx_set_last_error, YRX_BUFFER, YRX_RESULT, YRX_RULES};
 
@@ -433,26 +433,34 @@ pub unsafe extern "C" fn yrx_compiler_define_global_float(
     yrx_compiler_define_global(compiler, ident, value)
 }
 
-/// Defines a global variable of a valid serde::json type and sets its initial value.
+/// Defines a global variable from a JSON-encoded string.
+///
+/// This is best for complex types like maps and arrays. For simple types
+/// (e.g., booleans, integers, strings), prefer dedicated functions to avoid
+/// the overhead of JSON deserialization.
+///
+/// When defining a map, keys must be of string type, and values can be
+/// any of the types supported by YARA, including other maps. Arrays must be
+/// homogeneous (all elements must be the same type).
 #[no_mangle]
 pub unsafe extern "C" fn yrx_compiler_define_global_json(
     compiler: *mut YRX_COMPILER,
     ident: *const c_char,
     value: *const c_char,
 ) -> YRX_RESULT {
-
-    let value: serde_json::Value = if let Ok(value) = CStr::from_ptr(value).to_str() {
-        match serde_json::from_str(value) {
-            Ok(json_value) => json_value,
-            Err(_) => return YRX_RESULT::YRX_INVALID_ARGUMENT,
-        }
+    let value = if let Ok(value) = CStr::from_ptr(value).to_str() {
+        value
     } else {
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
-    
+
+    let value: serde_json::Value = match serde_json::from_str(value) {
+        Ok(json_value) => json_value,
+        Err(_) => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+    };
+
     yrx_compiler_define_global(compiler, ident, value)
 }
-
 
 /// Returns the errors encountered during the compilation in JSON format.
 ///
