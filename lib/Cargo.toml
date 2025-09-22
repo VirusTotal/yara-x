@@ -110,7 +110,11 @@ crx-module = [
 cuckoo-module = []
 
 # The `dex` module parses DEX files.
-dex-module = []
+dex-module = [
+    "dep:nom",
+    "dep:sha1",
+    "dep:simd-adler32",
+]
 
 # The `dotnet` module parses .NET files.
 dotnet-module = [
@@ -285,6 +289,7 @@ x509-parser = { workspace = true, optional = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true, features = ["serde"] }
 zip = { workspace = true, optional = true }
+simd-adler32 = {workspace = true, optional = true}
 
 lingua = { version = "1.6.2", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
 

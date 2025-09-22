@@ -310,6 +310,7 @@ pub mod mods {
         info.macho = protobuf::MessageField(invoke::<Macho>(data));
         info.lnk = protobuf::MessageField(invoke::<Lnk>(data));
         info.crx = protobuf::MessageField(invoke::<Crx>(data));
+        info.dex = protobuf::MessageField(invoke::<Dex>(data));
         info
     }
 

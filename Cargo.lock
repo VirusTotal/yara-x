@@ -4753,6 +4753,7 @@ dependencies = [
  "serde_json",
  "sha1",
  "sha2 0.10.9",
+ "simd-adler32",
  "smallvec",
  "strum_macros",
  "thiserror 2.0.16",

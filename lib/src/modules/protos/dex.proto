@@ -28,30 +28,30 @@ message DexHeader {
     optional uint32 magic = 1 [(yara.field_options).fmt = "x"];
     // DEX version (35, 36, 37, ...)
     optional uint32 version = 2;
-    optional uint32 checksum = 3;
+    optional uint32 checksum = 3 [(yara.field_options).fmt = "x"];
     optional string signature = 4;
     optional uint32 file_size = 5;
     optional uint32 header_size = 6;
-    optional uint32 endian_tag = 7;
+    optional uint32 endian_tag = 7 [(yara.field_options).fmt = "x"];
     optional uint32 link_size = 8;
-    optional uint32 link_off = 9;
-    optional uint32 map_off = 10;
+    optional uint32 link_off = 9 [(yara.field_options).fmt = "x"];
+    optional uint32 map_off = 10 [(yara.field_options).fmt = "x"];
     optional uint32 string_ids_size = 11;
-    optional uint32 string_ids_off = 12;
+    optional uint32 string_ids_off = 12 [(yara.field_options).fmt = "x"];
     optional uint32 type_ids_size = 13;
-    optional uint32 type_ids_off = 14;
+    optional uint32 type_ids_off = 14 [(yara.field_options).fmt = "x"];
     optional uint32 proto_ids_size = 15;
-    optional uint32 proto_ids_off = 16;
+    optional uint32 proto_ids_off = 16 [(yara.field_options).fmt = "x"];
     optional uint32 field_ids_size = 17;
-    optional uint32 field_ids_off = 18;
+    optional uint32 field_ids_off = 18 [(yara.field_options).fmt = "x"];
     optional uint32 method_ids_size = 19;
-    optional uint32 method_ids_off = 20;
+    optional uint32 method_ids_off = 20 [(yara.field_options).fmt = "x"];
     optional uint32 class_defs_size = 21;
-    optional uint32 class_defs_off = 22;
+    optional uint32 class_defs_off = 22 [(yara.field_options).fmt = "x"];
     optional uint32 data_size = 23;
-    optional uint32 data_off = 24;
+    optional uint32 data_off = 24 [(yara.field_options).fmt = "x"];
     optional uint32 container_size = 25;
-    optional uint32 header_offset = 26;
+    optional uint32 header_offset = 26 [(yara.field_options).fmt = "x"];
 }
 
 message StringItem {

@@ -113,6 +113,7 @@ yara-x-proto = { path = "proto", version = "1.7.1" }
 yara-x-proto-yaml = { path = "proto-yaml", version = "1.7.1" }
 yara-x-proto-json = { path = "proto-json", version = "1.7.1" }
 zip = "5.1.1"
+simd-adler32 = "0.3.7"
 
 # Special profile that builds a release binary with link-time optimization.
 # Compiling with this profile takes a while, but the resulting binary is

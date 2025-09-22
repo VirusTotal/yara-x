@@ -50,7 +50,7 @@ impl<'a> Dex<'a> {
         header.magic = magic;
         header.version = version;
 
-        // note: splitted parsing in half because nom can't parse such big structure (or i just dumb)
+        // note: nom limits the number of parsers in the tuple to 21, and the header consists of 24 fields
         (
             remainder,
             (
@@ -633,13 +633,6 @@ impl From<Dex<'_>> for protos::dex::Dex {
                 .into_iter()
                 .map(protos::dex::ClassItem::from),
         );
-
-        println!("strings: {:#?}", result.string_items.len());
-        println!("types: {:#?}", result.types.len());
-        println!("protos: {:#?}", result.protos.len());
-        println!("fields: {:#?}", result.fields.len());
-        println!("methods: {:#?}", result.methods.len());
-        println!("classes: {:#?}", result.classes.len());
 
         result.map_list = MessageField::some(dex.get_map_items().into());
 
