@@ -105,3 +105,22 @@ fn signature(ctx: &mut ScanContext) -> Option<RuntimeString> {
 
     Some(RuntimeString::new(digest))
 }
+
+#[module_export(name = "contains_string")]
+fn string_contains(
+    ctx: &mut ScanContext,
+    value: RuntimeString,
+) -> Option<bool> {
+    let dex = ctx.module_output::<Dex>()?;
+
+    // let str = value.to_str(&ctx).ok()?.to_string();
+    let str = match value.to_str(&ctx) {
+        Ok(v) => Some(v.to_string()),
+        Err(_) => return None,
+    };
+
+    // string items sorted by dex format
+    Some(
+        dex.string_items.binary_search_by(|item| item.value.cmp(&str)).is_ok(),
+    )
+}

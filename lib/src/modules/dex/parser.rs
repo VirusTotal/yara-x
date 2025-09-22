@@ -641,7 +641,7 @@ struct DexHeader {
     header_offset: Option<u32>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct StringItem {
     size: u64,     // uleb128 size
     value: String, // ubyte[]
