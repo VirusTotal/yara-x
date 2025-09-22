@@ -3,15 +3,15 @@
 The scanner takes the rules produces by the compiler and scans data with them.
 */
 use std::collections::{hash_map, HashMap};
+use std::fs;
 use std::io::Read;
 use std::mem::transmute;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::slice::Iter;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::AtomicU64;
 use std::sync::Once;
 use std::time::Duration;
-use std::{cmp, fs, thread};
 
 use bitvec::prelude::*;
 use memmap2::{Mmap, MmapOptions};
@@ -26,7 +26,7 @@ use crate::scanner::context::create_wasm_store_and_ctx;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-use crate::{modules, wasm, Variable};
+use crate::{modules, Variable};
 
 pub(crate) use crate::scanner::context::RuntimeObject;
 pub(crate) use crate::scanner::context::RuntimeObjectHandle;
@@ -174,17 +174,14 @@ impl<'a> ScanOptions<'a> {
 pub struct Scanner<'r> {
     _rules: &'r Rules,
     wasm_store: Pin<Box<Store<ScanContext<'static, 'static>>>>,
-    timeout: Option<Duration>,
     use_mmap: bool,
 }
 
 impl<'r> Scanner<'r> {
-    const DEFAULT_SCAN_TIMEOUT: u64 = 315_360_000;
-
     /// Creates a new scanner.
     pub fn new(rules: &'r Rules) -> Self {
         let wasm_store = create_wasm_store_and_ctx(rules);
-        Self { _rules: rules, wasm_store, timeout: None, use_mmap: true }
+        Self { _rules: rules, wasm_store, use_mmap: true }
     }
 
     /// Sets a timeout for scan operations.
@@ -196,7 +193,7 @@ impl<'r> Scanner<'r> {
     /// the scanner could potentially continue running for a longer period than
     /// the specified timeout.
     pub fn set_timeout(&mut self, timeout: Duration) -> &mut Self {
-        self.timeout = Some(timeout);
+        self.scan_context_mut().set_timeout(timeout);
         self
     }
 
@@ -502,60 +499,13 @@ impl<'r> Scanner<'r> {
         data: ScannedData<'a>,
         options: Option<ScanOptions<'opts>>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        // Clear information about matches found in a previous scan, if any.
-        self.scan_context_mut().reset();
-
-        // Timeout in seconds. This is either the value provided by the user or
-        // 315.360.000 which is the number of seconds in a year. Using u64::MAX
-        // doesn't work because this value is added to the current epoch, and
-        // will cause an overflow. We need an integer large enough, but that
-        // has room before the u64 limit is reached. For this same reason if
-        // the user specifies a value larger than 315.360.000 we limit it to
-        // 315.360.000 anyway. One year should be enough, I hope you don't plan
-        // to run a YARA scan that takes longer.
-        let timeout_secs =
-            self.timeout.map_or(Self::DEFAULT_SCAN_TIMEOUT, |t| {
-                cmp::min(
-                    t.as_secs_f32().ceil() as u64,
-                    Self::DEFAULT_SCAN_TIMEOUT,
-                )
-            });
-
-        // Sets the deadline for the WASM store. The WASM main function will
-        // abort if the deadline is reached while the function is being
-        // executed.
-        self.wasm_store.set_epoch_deadline(timeout_secs);
-        self.wasm_store
-            .epoch_deadline_callback(|_| Err(ScanError::Timeout.into()));
-
-        // If the user specified some timeout, start the heartbeat thread, if
-        // not previously started. The heartbeat thread increments the WASM
-        // engine epoch and HEARTBEAT_COUNTER every second. There's a single
-        // instance of this thread, independently of the number of concurrent
-        // scans.
-        if self.timeout.is_some() {
-            INIT_HEARTBEAT.call_once(|| {
-                thread::spawn(|| loop {
-                    thread::sleep(Duration::from_secs(1));
-                    wasm::get_engine().increment_epoch();
-                    HEARTBEAT_COUNTER
-                        .fetch_update(
-                            Ordering::SeqCst,
-                            Ordering::SeqCst,
-                            |x| Some(x + 1),
-                        )
-                        .unwrap();
-                });
-            });
-        }
-
         let ctx = self.scan_context_mut();
+
+        // Clear information about matches found in a previous scan, if any.
+        ctx.reset();
 
         // Set the global variable `filesize` to the size of the scanned data.
         ctx.set_filesize(data.as_ref().len() as i64);
-
-        ctx.deadline =
-            HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
 
         // Set the data to be scanned.
         ctx.scanned_data = Some(data);
@@ -657,36 +607,12 @@ impl<'r> Scanner<'r> {
                 .add_field(module_name, TypeValue::Struct(module_struct));
         }
 
-        let eval_result = ctx.eval_conditions();
+        // Evaluate the conditions of every rule.
+        ctx.eval_conditions()?;
+
         let scanned_data = ctx.scanned_data.take().unwrap();
 
-        // Clear the value of `current_struct` as it may contain a reference
-        // to some struct.
-        ctx.current_struct = None;
-
-        // `matching_rules` must be empty at this point. Matching rules were
-        // being tracked by the `matching_rules_per_ns` map, but we are about
-        // to move them to `matching_rules` while leaving the map empty.
-        assert!(ctx.matching_rules.is_empty());
-
-        // Move the matching rules to the `matching_rules` vector, leaving the
-        // `matching_rules_per_ns` map empty.
-        for rules in ctx.matching_rules_per_ns.values_mut() {
-            for rule_id in rules.drain(0..) {
-                ctx.matching_rules.push(rule_id);
-            }
-        }
-
-        match eval_result {
-            Ok(0) => Ok(ScanResults::new(self.scan_context(), scanned_data)),
-            Ok(v) => panic!("WASM main returned: {v}"),
-            Err(err) if err.is::<ScanError>() => {
-                Err(err.downcast::<ScanError>().unwrap())
-            }
-            Err(err) => panic!(
-                "unexpected error while executing WASM main function: {err}"
-            ),
-        }
+        Ok(ScanResults::new(self.scan_context(), scanned_data))
     }
 }
 

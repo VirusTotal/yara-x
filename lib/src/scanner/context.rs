@@ -10,8 +10,10 @@ use std::pin::Pin;
 use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
+use std::time::Duration;
 #[cfg(feature = "rules-profiling")]
 use std::time::Duration;
+use std::{cmp, thread};
 
 use base64::Engine;
 use bitvec::order::Lsb0;
@@ -38,8 +40,8 @@ use crate::re::Action;
 use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
 #[cfg(feature = "rules-profiling")]
 use crate::scanner::ProfilingData;
-use crate::scanner::HEARTBEAT_COUNTER;
 use crate::scanner::{ScanError, ScannedData};
+use crate::scanner::{HEARTBEAT_COUNTER, INIT_HEARTBEAT};
 use crate::types::{Array, Map, Struct};
 use crate::wasm;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
@@ -62,6 +64,9 @@ pub(crate) struct ScanContext<'r, 'd> {
     /// that can be passed to and received from WASM code. Each handle identify
     /// an object (string, struct, array or map).
     pub runtime_objects: IndexMap<RuntimeObjectHandle, RuntimeObject>,
+    /// The time that can be spent in a scan operation, including the
+    /// execution of the rule conditions.
+    pub scan_timeout: Option<Duration>,
     /// Data being scanned.
     pub scanned_data: Option<ScannedData<'d>>,
     /// Vector containing the IDs of the rules that matched, including both
@@ -215,6 +220,8 @@ impl ScanContext<'_, '_> {
 }
 
 impl ScanContext<'_, '_> {
+    const DEFAULT_SCAN_TIMEOUT: u64 = 315_360_000;
+
     /// Returns a slice with the data being scanned.
     pub(crate) fn scanned_data(&self) -> &[u8] {
         self.scanned_data.as_ref().unwrap().as_ref()
@@ -306,13 +313,19 @@ impl ScanContext<'_, '_> {
             .unwrap();
     }
 
+    /// Sets a timeout for scan operations.
+    pub(crate) fn set_timeout(&mut self, timeout: Duration) -> &mut Self {
+        self.scan_timeout = Some(timeout);
+        self
+    }
+
     /// Invoke the main function, which evaluates the rules' conditions. It
     /// calls ScanContext::search_for_patterns (which does the Aho-Corasick
     /// scanning) only if necessary.
     ///
     /// This will return `Err(ScanError::Timeout)`, when the scan timeout is
     /// reached while WASM code is being executed.
-    pub(crate) fn eval_conditions(&mut self) -> wasmtime::Result<i32> {
+    pub(crate) fn eval_conditions(&mut self) -> Result<(), ScanError> {
         // Save the time in which the evaluation started.
         #[cfg(feature = "rules-profiling")]
         {
@@ -371,12 +384,36 @@ impl ScanContext<'_, '_> {
             }
         }
 
-        eval_result
+        // `matching_rules` must be empty at this point. Matching rules were
+        // being tracked by the `matching_rules_per_ns` map, but we are about
+        // to move them to `matching_rules` while leaving the map empty.
+        assert!(self.matching_rules.is_empty());
+
+        // Move the matching rules to the `matching_rules` vector, leaving the
+        // `matching_rules_per_ns` map empty.
+        for rules in self.matching_rules_per_ns.values_mut() {
+            for rule_id in rules.drain(0..) {
+                self.matching_rules.push(rule_id);
+            }
+        }
+
+        match eval_result {
+            Ok(0) => Ok(()),
+            Ok(v) => panic!("WASM main returned: {v}"),
+            Err(err) if err.is::<ScanError>() => {
+                Err(err.downcast::<ScanError>().unwrap())
+            }
+            Err(err) => panic!(
+                "unexpected error while executing WASM main function: {err}"
+            ),
+        }
     }
 
     /// Resets the scan context to its initial state, making it ready for
-    /// another scan. This clears all the information generated during the
-    /// previous scan.
+    /// another scan.
+    ///
+    /// This clears all the information generated during the previous scan and
+    /// resets the deadline for timeouts.
     pub(crate) fn reset(&mut self) {
         let num_rules = self.compiled_rules.num_rules();
         let num_patterns = self.compiled_rules.num_patterns();
@@ -391,6 +428,18 @@ impl ScanContext<'_, '_> {
         self.unconfirmed_matches.clear();
         self.num_matching_private_rules = 0;
         self.num_non_matching_private_rules = 0;
+
+        // Clear the value of `current_struct` as it may contain a reference
+        // to some struct.
+        self.current_struct = None;
+
+        // Move the matching rules to the `matching_rules` vector, leaving the
+        // `matching_rules_per_ns` map empty.
+        for rules in self.matching_rules_per_ns.values_mut() {
+            for rule_id in rules.drain(0..) {
+                self.matching_rules.push(rule_id);
+            }
+        }
 
         // If some pattern or rule matched, clear the matches. Notice that a
         // rule may match without any pattern being matched, because there
@@ -417,6 +466,54 @@ impl ScanContext<'_, '_> {
 
             // Set to zero all bits in the bitmap.
             bitmap.fill(false);
+        }
+
+        // Timeout in seconds. This is either the value provided by the user or
+        // 315.360.000 which is the number of seconds in a year. Using u64::MAX
+        // doesn't work because this value is added to the current epoch, and
+        // will cause an overflow. We need an integer large enough, but that
+        // has room before the u64 limit is reached. For this same reason if
+        // the user specifies a value larger than 315.360.000 we limit it to
+        // 315.360.000 anyway. One year should be enough, I hope you don't plan
+        // to run a YARA scan that takes longer.
+        let timeout_secs =
+            self.scan_timeout.map_or(Self::DEFAULT_SCAN_TIMEOUT, |t| {
+                cmp::min(
+                    t.as_secs_f32().ceil() as u64,
+                    Self::DEFAULT_SCAN_TIMEOUT,
+                )
+            });
+
+        self.deadline =
+            HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
+
+        let wasm_store = self.wasm_store_mut();
+
+        // Sets the deadline for the WASM store. The WASM main function
+        // will abort if the deadline is reached while the function is being
+        // executed.
+        wasm_store.set_epoch_deadline(timeout_secs);
+        wasm_store.epoch_deadline_callback(|_| Err(ScanError::Timeout.into()));
+
+        // If some timeout was specified, start the heartbeat thread, if
+        // not previously started. The heartbeat thread increments the WASM
+        // engine epoch and HEARTBEAT_COUNTER every second. There's a single
+        // instance of this thread, independently of the number of concurrent
+        // scans.
+        if self.scan_timeout.is_some() {
+            INIT_HEARTBEAT.call_once(|| {
+                thread::spawn(|| loop {
+                    thread::sleep(Duration::from_secs(1));
+                    wasm::get_engine().increment_epoch();
+                    HEARTBEAT_COUNTER
+                        .fetch_update(
+                            Ordering::SeqCst,
+                            Ordering::SeqCst,
+                            |x| Some(x + 1),
+                        )
+                        .unwrap();
+                });
+            });
         }
     }
 
@@ -1593,6 +1690,7 @@ pub fn create_wasm_store_and_ctx<'r>(
         console_log: None,
         current_struct: None,
         scanned_data: None,
+        scan_timeout: None,
         root_struct: rules.globals().make_root(),
         matching_rules: Vec::new(),
         matching_rules_per_ns: IndexMap::new(),

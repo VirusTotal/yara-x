@@ -1,7 +1,6 @@
 use std::marker::PhantomData;
 use std::mem::transmute;
 use std::pin::Pin;
-use std::time::Duration;
 
 use wasmtime::Store;
 
@@ -22,26 +21,26 @@ struct BlockScanner<'r, S: ScannerState> {
     _state: PhantomData<S>,
     rules: &'r Rules,
     wasm_store: Pin<Box<Store<ScanContext<'static, 'static>>>>,
-    timeout: Option<Duration>,
 }
 
 impl<'r> BlockScanner<'r, Idle> {
-    const DEFAULT_SCAN_TIMEOUT: u64 = 315_360_000;
-
     /// Creates a new scanner.
     pub fn new(rules: &'r Rules) -> BlockScanner<'r, Idle> {
-        let wasm_store = create_wasm_store_and_ctx(rules);
-        BlockScanner { _state: PhantomData, rules, wasm_store, timeout: None }
+        BlockScanner {
+            _state: PhantomData,
+            rules,
+            wasm_store: create_wasm_store_and_ctx(rules),
+        }
     }
 }
 
 impl<'r> BlockScanner<'r, Idle> {
-    pub fn start(mut self) -> BlockScanner<'r, Scanning> {
-        // Clear information about matches found in a previous scan, if any.
+    pub fn start(&mut self) -> &mut BlockScanner<'r, Scanning> {
         self.scan_context_mut().reset();
-        // Return the scanner, but transmuted into a BlockScanner<Scanning>.
         unsafe {
-            transmute::<BlockScanner<Idle>, BlockScanner<Scanning>>(self)
+            transmute::<&mut BlockScanner<Idle>, &mut BlockScanner<Scanning>>(
+                self,
+            )
         }
     }
 }
@@ -58,10 +57,9 @@ impl<'r> BlockScanner<'r, Scanning> {
         Ok(self)
     }
 
-    pub fn finish(self) -> BlockScanner<'r, Idle> {
-        unsafe {
-            transmute::<BlockScanner<Scanning>, BlockScanner<Idle>>(self)
-        }
+    pub fn finish(&mut self) -> Result<(), ScanError> {
+        let ctx = self.scan_context_mut();
+        ctx.eval_conditions()
     }
 }
 
@@ -84,16 +82,19 @@ mod tests {
 
     #[test]
     fn block_scanner() {
-        let rules = compile("rule test { condition: true }").unwrap();
-        let s = BlockScanner::new(&rules);
+        let rules =
+            compile(r#"rule test { strings: $a = "ipsum" condition: $a }"#)
+                .unwrap();
 
-        let mut a = s.start();
+        let mut scanner = BlockScanner::new(&rules);
 
-        a.scan(0, b"").unwrap();
-        a.scan(1000, b"").unwrap();
-
-        let s = a.finish();
-
-        //s.scan(b"")
+        scanner
+            .start()
+            .scan(0, b"Lorem ipsum")
+            .unwrap()
+            .scan(1000, b"dolor sit amet")
+            .unwrap()
+            .finish()
+            .unwrap();
     }
 }
