@@ -94,7 +94,7 @@ message MapItem {
     optional TypeCode type = 0;
     optional uint32 unused = 1;
     optional uint32 size = 2;
-    optional uint32 offset = 3;
+    optional uint32 offset = 3 [(yara.field_options).fmt = "x"];
 }
 
 enum AccessFlag {

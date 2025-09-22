@@ -84,7 +84,7 @@ impl<'a> Dex<'a> {
             le_u32,                                         // map_off
             le_u32,                                         // string_ids_size
             le_u32,                                         // string_ids_off
-            verify(le_u32, |size| *size <= 0xFFFF),         // type_ids_size
+            verify(le_u32, |size| *size <= u16::MAX.into()), // type_ids_size
             le_u32,                                         // type_ids_off
         )
             .parse(remainder)?;
@@ -106,16 +106,16 @@ impl<'a> Dex<'a> {
                 header.header_offset,
             ),
         ) = (
-            verify(le_u32, |size| *size <= 0xFFFF), // proto_ids_size
-            le_u32,                                 // proto_ids_off
-            le_u32,                                 // field_ids_size
-            le_u32,                                 // field_ids_off
-            le_u32,                                 // method_ids_size
-            le_u32,                                 // method_ids_off
-            le_u32,                                 // class_defs_size
-            le_u32,                                 // class_defs_off
-            le_u32,                                 // data_size
-            le_u32,                                 // data_off
+            verify(le_u32, |size| *size <= u16::MAX.into()), // proto_ids_size
+            le_u32,                                          // proto_ids_off
+            le_u32,                                          // field_ids_size
+            le_u32,                                          // field_ids_off
+            le_u32,                                          // method_ids_size
+            le_u32,                                          // method_ids_off
+            le_u32,                                          // class_defs_size
+            le_u32,                                          // class_defs_off
+            le_u32,                                          // data_size
+            le_u32,                                          // data_off
             cond(header.version >= DexVersion::DEX41, le_u32), // container_size
             cond(header.version >= DexVersion::DEX41, le_u32), // header_offset
         )
@@ -180,41 +180,54 @@ impl<'a> Dex<'a> {
     fn parse_string_items(&self) -> HashMap<u32, Rc<StringItem>> {
         (0..self.header.string_ids_size)
             .filter_map(|idx| {
-                self.parse_string_by_id(idx)
-                    .ok()
-                    .map(|(_, item)| (idx, Rc::new(item)))
+                self.parse_string_by_id(idx).map(|item| (idx, Rc::new(item)))
             })
             .collect()
     }
 
     fn parse_type_items(&self) -> HashMap<u32, Rc<StringItem>> {
-        let mut remainder = &self.data[self.header.type_ids_off as usize..];
+        let Some(data_range) = self.data.get(
+            self.header.type_ids_off as usize
+                ..self.header.proto_ids_off as usize,
+        ) else {
+            return HashMap::new();
+        };
 
         let Some(string_items) = self.string_items.get() else {
             return HashMap::new();
         };
 
+        let mut remainder = data_range;
+
         (0..self.header.type_ids_size)
             .filter_map(|idx| {
-                let (rem, descriptor_idx) =
-                    le_u32::<&[u8], Error>(remainder).ok()?;
-                remainder = rem;
-                let item = string_items.get(&descriptor_idx)?;
-
-                Some((idx, Rc::clone(item)))
+                le_u32::<&[u8], Error>(remainder).ok().and_then(
+                    |(rem, descriptor_idx)| {
+                        remainder = rem;
+                        string_items
+                            .get(&descriptor_idx)
+                            .map(|s| (idx, Rc::clone(s)))
+                    },
+                )
             })
             .collect()
     }
 
     fn parse_proto_items(&self) -> HashMap<u32, Rc<ProtoItem>> {
-        let (Some(string_items), Some(type_items)) =
-            (self.string_items.get(), self.type_items.get())
+        let Some((data_range, string_items, type_items)) = self
+            .data
+            .get(
+                self.header.proto_ids_off as usize
+                    ..self.header.field_ids_off as usize,
+            )
+            .zip(self.string_items.get())
+            .zip(self.type_items.get())
+            .map(|((d, s), t)| (d, s, t))
         else {
             return HashMap::new();
         };
 
-        let mut remainder = &self.data[self.header.proto_ids_off as usize
-            ..self.header.field_ids_off as usize];
+        let mut remainder = data_range;
 
         (0..self.header.proto_ids_size)
             .filter_map(|idx| {
@@ -235,9 +248,8 @@ impl<'a> Dex<'a> {
                 } else {
                     self.parse_type_list(parameters_idx)
                         .ok()
-                        .map_or((0, Vec::new()), |(_, (size, types))| {
-                            (size, types)
-                        })
+                        .map(|(_, (size, types))| (size, types))
+                        .unwrap_or((0, Vec::new()))
                 };
 
                 Some((
@@ -254,14 +266,21 @@ impl<'a> Dex<'a> {
     }
 
     fn parse_field_items(&self) -> HashMap<u32, Rc<FieldItem>> {
+        let data_range = match self.data.get(
+            self.header.field_ids_off as usize
+                ..self.header.method_ids_off as usize,
+        ) {
+            Some(v) => v,
+            None => return HashMap::new(),
+        };
+
         let (Some(string_items), Some(type_items)) =
             (self.string_items.get(), self.type_items.get())
         else {
             return HashMap::new();
         };
 
-        let mut remainder = &self.data[self.header.field_ids_off as usize
-            ..self.header.method_ids_off as usize];
+        let mut remainder = data_range;
 
         (0..self.header.field_ids_size)
             .filter_map(|idx| {
@@ -284,6 +303,14 @@ impl<'a> Dex<'a> {
     }
 
     fn parse_method_items(&self) -> HashMap<u32, Rc<MethodItem>> {
+        let data_range = match self.data.get(
+            self.header.method_ids_off as usize
+                ..self.header.class_defs_off as usize,
+        ) {
+            Some(v) => v,
+            None => return HashMap::new(),
+        };
+
         let (Some(string_items), Some(type_items), Some(proto_items)) = (
             self.string_items.get(),
             self.type_items.get(),
@@ -292,8 +319,7 @@ impl<'a> Dex<'a> {
             return HashMap::new();
         };
 
-        let mut remainder = &self.data[self.header.method_ids_off as usize
-            ..self.header.class_defs_off as usize];
+        let mut remainder = data_range;
 
         (0..self.header.method_ids_size)
             .filter_map(|idx| {
@@ -316,6 +342,12 @@ impl<'a> Dex<'a> {
     }
 
     fn parse_class_items(&self) -> Vec<Rc<ClassItem>> {
+        let data_range =
+            match self.data.get(self.header.class_defs_off as usize..) {
+                Some(v) => v,
+                None => return Vec::new(),
+            };
+
         if self.header.class_defs_off == 0 {
             return Vec::new();
         }
@@ -326,7 +358,7 @@ impl<'a> Dex<'a> {
             return Vec::new();
         };
 
-        let mut remainder = &self.data[self.header.class_defs_off as usize..];
+        let mut remainder = data_range;
 
         (0..self.header.class_defs_size)
             .filter_map(|_| {
@@ -369,9 +401,16 @@ impl<'a> Dex<'a> {
         &self,
         offset: u32,
     ) -> IResult<&[u8], (u32, Vec<Rc<StringItem>>)> {
-        let type_items = self.type_items.get().unwrap();
+        let type_items = self
+            .type_items
+            .get()
+            .ok_or(Err::Failure(Error::new(&[], ErrorKind::NoneOf)))?;
 
-        let mut remainder = &self.data[offset as usize..];
+        let mut remainder = self
+            .data
+            .get(offset as usize..)
+            .ok_or(Err::Failure(Error::new(&[], ErrorKind::Eof)))?;
+
         let (type_list_rem, size) = le_u32(remainder)?;
         remainder = type_list_rem;
 
@@ -390,21 +429,15 @@ impl<'a> Dex<'a> {
     }
 
     fn parse_map_items(&self) -> Option<MapList> {
-        let map_list_offset = &self.data[self.header.map_off as usize..];
+        self.data.get(self.header.map_off as usize..).and_then(|offset| {
+            let (items_offset, size) = le_u32::<&[u8], Error>(offset).ok()?;
 
-        let (remainder, size) = match le_u32::<&[u8], Error>(map_list_offset) {
-            Ok(item) => item,
-            Err(_) => return None,
-        };
+            let (_, items) = count(Self::parse_map_item, size as usize)
+                .parse(items_offset)
+                .ok()?;
 
-        let (_, items) = match count(Self::parse_map_item, size as usize)
-            .parse(remainder)
-        {
-            Ok(item) => item,
-            Err(_) => return None,
-        };
-
-        Some(MapList { size, items })
+            Some(MapList { size, items })
+        })
     }
 
     fn parse_map_item(input: &[u8]) -> IResult<&[u8], MapItem> {
@@ -419,19 +452,25 @@ impl<'a> Dex<'a> {
         Ok((remainder, MapItem { item_type, unused, size, offset }))
     }
 
-    fn parse_string_by_id(&self, idx: u32) -> IResult<&[u8], StringItem> {
-        let string_idx_offset =
-            &self.data[(self.header.string_ids_off + idx * 4) as usize..];
+    fn parse_string_by_id(&self, idx: u32) -> Option<StringItem> {
+        let string_data_offset = self
+            .data
+            .get((self.header.string_ids_off + (4 * idx)) as usize..)
+            .and_then(|offset| {
+                le_u32::<&[u8], Error>(offset)
+                    .map(|(_, data_off)| data_off)
+                    .ok()
+            })?;
 
-        let (_, string_data_off) = le_u32(string_idx_offset)?;
+        self.data.get(string_data_offset as usize..).and_then(|data| {
+            let (data, utf16_size) = uleb128(data).ok()?;
+            let (_, bytes) =
+                take::<usize, &[u8], Error>(utf16_size as usize)(data).ok()?;
 
-        let string_data = &self.data[string_data_off as usize..];
+            let s = String::from_utf8_lossy(bytes).to_string();
 
-        let (string_data, utf16_size) = uleb128(string_data)?;
-        let (string_data, bytes) = take(utf16_size)(string_data)?;
-        let s = std::str::from_utf8(bytes).unwrap_or_default().to_string();
-
-        Ok((string_data, StringItem { size: utf16_size, value: s }))
+            Some(StringItem { size: utf16_size, value: s })
+        })
     }
 }
 
