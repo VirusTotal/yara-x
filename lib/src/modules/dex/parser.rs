@@ -1,4 +1,7 @@
-use crate::modules::protos;
+use std::cell::OnceCell;
+use std::collections::HashMap;
+use std::rc::Rc;
+
 use nom::bytes::complete::take;
 use nom::combinator::{cond, map, map_res, verify};
 use nom::error::ErrorKind;
@@ -6,15 +9,11 @@ use nom::multi::count;
 use nom::number::complete::{be_u16, be_u32, le_u16, le_u32, u8};
 use nom::{Err, IResult, Parser};
 use protobuf::{EnumOrUnknown, MessageField};
-use std::cell::OnceCell;
-use std::collections::HashMap;
-use std::rc::Rc;
+
+use crate::modules::protos;
+use crate::modules::utils::leb128::uleb128;
 
 type Error<'a> = nom::error::Error<&'a [u8]>;
-
-const ENDIAN_CONSTANT: u32 = 0x12345678;
-const REVERSE_ENDIAN_CONSTANT: u32 = 0x78563412;
-// const NO_INDEX: u32 = 0xffffffff;
 
 #[derive(Default)]
 pub struct Dex<'a> {
@@ -30,6 +29,13 @@ pub struct Dex<'a> {
 }
 
 impl<'a> Dex<'a> {
+    // the type of endianness used in the file
+    const ENDIAN_CONSTANT: u32 = 0x12345678;
+    const REVERSE_ENDIAN_CONSTANT: u32 = 0x78563412;
+
+    // lack of information
+    const NO_INDEX: u32 = 0xffffffff;
+
     pub fn parse(data: &'a [u8]) -> Result<Self, Err<Error<'a>>> {
         // Extract dex header with information about data location
         let (_, header) = Self::parse_dex_header(data)?;
@@ -39,10 +45,14 @@ impl<'a> Dex<'a> {
 
     fn parse_dex_header(data: &[u8]) -> IResult<&[u8], DexHeader> {
         let (mut remainder, (magic, _, version, _)) = (
-            verify(be_u32, |magic| *magic == 0x6465780A), // magic must be 'dex\n'
-            verify(u8, |b| *b == 0x30),                   // expect 0x30
-            map_res(be_u16, DexVersion::try_from),        // dex version
-            verify(u8, |b| *b == 0x00),                   // expect 0x00
+            // magic must be 'dex\n'
+            verify(be_u32, |magic| *magic == 0x6465780A),
+            // part of dex version, must be 0x30
+            verify(u8, |b| *b == 0x30),
+            // extract dex version
+            map_res(be_u16, DexVersion::try_from),
+            // part of dex version, must be 0x00
+            verify(u8, |b| *b == 0x00),
         )
             .parse(data)?;
 
@@ -77,7 +87,8 @@ impl<'a> Dex<'a> {
             // but the format itself does not follow this.
             verify(le_u32, |size| *size == 0x70), // header_size
             verify(le_u32, |tag| {
-                *tag == ENDIAN_CONSTANT || *tag == REVERSE_ENDIAN_CONSTANT
+                *tag == Self::ENDIAN_CONSTANT
+                    || *tag == Self::REVERSE_ENDIAN_CONSTANT
             }), // endian_tag
             le_u32,                               // link_size
             le_u32,                               // link_off
@@ -124,6 +135,7 @@ impl<'a> Dex<'a> {
         Ok((remainder, header))
     }
 
+    /// Return the strings found in the DEX file
     pub fn get_string_items(&self) -> Vec<&StringItem> {
         self.string_items
             .get_or_init(|| self.parse_string_items())
@@ -132,6 +144,7 @@ impl<'a> Dex<'a> {
             .collect()
     }
 
+    /// Return the types found in the DEX file
     pub fn get_type_items(&self) -> Vec<&StringItem> {
         self.type_items
             .get_or_init(|| self.parse_type_items())
@@ -140,6 +153,7 @@ impl<'a> Dex<'a> {
             .collect()
     }
 
+    /// Return the prototypes found in the DEX file
     pub fn get_proto_items(&self) -> Vec<&ProtoItem> {
         self.proto_items
             .get_or_init(|| self.parse_proto_items())
@@ -148,6 +162,7 @@ impl<'a> Dex<'a> {
             .collect()
     }
 
+    /// Return the fields found in the DEX file
     pub fn get_field_items(&self) -> Vec<&FieldItem> {
         self.field_items
             .get_or_init(|| self.parse_field_items())
@@ -156,6 +171,7 @@ impl<'a> Dex<'a> {
             .collect()
     }
 
+    /// Return the methods found in the DEX file
     pub fn get_method_items(&self) -> Vec<&MethodItem> {
         self.method_items
             .get_or_init(|| self.parse_method_items())
@@ -164,6 +180,7 @@ impl<'a> Dex<'a> {
             .collect()
     }
 
+    /// Return the classes found in the DEX file
     pub fn get_class_items(&self) -> Vec<&ClassItem> {
         self.class_items
             .get_or_init(|| self.parse_class_items())
@@ -172,12 +189,23 @@ impl<'a> Dex<'a> {
             .collect()
     }
 
+    /// Return the map information found in the DEX file
     pub fn get_map_items(&self) -> &MapList {
         self.map_items
             .get_or_init(|| self.parse_map_items().unwrap_or_default())
     }
 
+    /// Collects a list of strings in a hashmap from string_ids_off list.
+    /// A HashMap is needed to quickly access an item by its index.
+    ///
+    /// See: https://source.android.com/docs/core/runtime/dex-format#string-item
     fn parse_string_items(&self) -> HashMap<u32, Rc<StringItem>> {
+        // DEX file doesn't contain strings.
+        // It's a strange case, but it needs to be checked.
+        if self.header.string_ids_off == 0 {
+            return HashMap::new();
+        }
+
         (0..self.header.string_ids_size)
             .map_while(|idx| {
                 self.parse_string_by_id(idx).map(|item| (idx, Rc::new(item)))
@@ -185,15 +213,28 @@ impl<'a> Dex<'a> {
             .collect()
     }
 
+    /// Collects a list of types in a hashmap from type_ids_off list.
+    /// Each item in the list is an index that points to a string table.
+    ///
+    /// `type_item = string_item[type_ids_off[idx]]`
+    ///
+    /// See: https://source.android.com/docs/core/runtime/dex-format#type-id-item
     fn parse_type_items(&self) -> HashMap<u32, Rc<StringItem>> {
-        let Some(data_range) = self.data.get(
-            self.header.type_ids_off as usize
-                ..self.header.proto_ids_off as usize,
-        ) else {
+        // DEX file doesn't contain types.
+        // It's a strange case, but it needs to be checked.
+        if self.header.type_ids_off == 0 {
             return HashMap::new();
-        };
+        }
 
-        let Some(string_items) = self.string_items.get() else {
+        let Some((data_range, string_items)) = self
+            .data
+            .get(
+                self.header.type_ids_off as usize
+                    ..self.header.proto_ids_off as usize,
+            )
+            .zip(self.string_items.get())
+            .map(|(d, s)| (d, s))
+        else {
             return HashMap::new();
         };
 
@@ -213,7 +254,17 @@ impl<'a> Dex<'a> {
             .collect()
     }
 
+    /// Collects a list of prototypes in a hashmap from proto_ids_off list.
+    ///
+    /// See: https://source.android.com/docs/core/runtime/dex-format#proto-id-item
+    /// See: https://source.android.com/docs/core/runtime/dex-format#type-list
     fn parse_proto_items(&self) -> HashMap<u32, Rc<ProtoItem>> {
+        // DEX file doesn't contain prototypes.
+        // It's a strange case, but it needs to be checked.
+        if self.header.proto_ids_off == 0 {
+            return HashMap::new();
+        }
+
         let Some((data_range, string_items, type_items)) = self
             .data
             .get(
@@ -231,7 +282,7 @@ impl<'a> Dex<'a> {
 
         (0..self.header.proto_ids_size)
             .map_while(|idx| {
-                let (rem, (shorty_idx, return_type_idx, parameters_idx)) = (
+                let (rem, (shorty_idx, return_type_idx, parameters_off)) = (
                     le_u32::<&[u8], Error>, // shorty_idx
                     le_u32,                 // return_type_idx
                     le_u32,                 // parameters_off
@@ -243,10 +294,11 @@ impl<'a> Dex<'a> {
                 let shorty_item = string_items.get(&shorty_idx)?;
                 let return_type = type_items.get(&return_type_idx)?;
 
-                let (parameters_count, parameters) = if parameters_idx == 0 {
+                // According to the documentation, if parameters_off is 0, then the type has 0 parameters.
+                let (parameters_count, parameters) = if parameters_off == 0 {
                     (0, Vec::new())
                 } else {
-                    self.parse_type_list(parameters_idx)
+                    self.parse_type_list(parameters_off)
                         .ok()
                         .map(|(_, (size, types))| (size, types))
                         .unwrap_or((0, Vec::new()))
@@ -265,17 +317,25 @@ impl<'a> Dex<'a> {
             .collect()
     }
 
+    /// Collects a list of fields in a hashmap from field_ids_off list.
+    ///
+    /// See: https://source.android.com/docs/core/runtime/dex-format#field-id-item
     fn parse_field_items(&self) -> HashMap<u32, Rc<FieldItem>> {
-        let data_range = match self.data.get(
-            self.header.field_ids_off as usize
-                ..self.header.method_ids_off as usize,
-        ) {
-            Some(v) => v,
-            None => return HashMap::new(),
-        };
+        // DEX file doesn't contain fields.
+        // It's a strange case, but it needs to be checked.
+        if self.header.field_ids_off == 0 {
+            return HashMap::new();
+        }
 
-        let (Some(string_items), Some(type_items)) =
-            (self.string_items.get(), self.type_items.get())
+        let Some((data_range, string_items, type_items)) = self
+            .data
+            .get(
+                self.header.field_ids_off as usize
+                    ..self.header.method_ids_off as usize,
+            )
+            .zip(self.string_items.get())
+            .zip(self.type_items.get())
+            .map(|((d, s), t)| (d, s, t))
         else {
             return HashMap::new();
         };
@@ -302,7 +362,16 @@ impl<'a> Dex<'a> {
             .collect()
     }
 
+    /// Collects a list of methods in a hashmap from method_ids_off list.
+    ///
+    /// See: https://source.android.com/docs/core/runtime/dex-format#method-id-item
     fn parse_method_items(&self) -> HashMap<u32, Rc<MethodItem>> {
+        // DEX file doesn't contain methods
+        // It's a strange case, but it needs to be checked.
+        if self.header.method_ids_off == 0 {
+            return HashMap::new();
+        }
+
         let data_range = match self.data.get(
             self.header.method_ids_off as usize
                 ..self.header.class_defs_off as usize,
@@ -341,19 +410,23 @@ impl<'a> Dex<'a> {
             .collect()
     }
 
+    /// Collects a list of classes from class_defs_off list.
+    /// Only a part of the fields is extracted, because not all of them are useful when writing YARA rules.
+    ///
+    /// See: https://source.android.com/docs/core/runtime/dex-format#class-def-item
     fn parse_class_items(&self) -> Vec<Rc<ClassItem>> {
-        let data_range =
-            match self.data.get(self.header.class_defs_off as usize..) {
-                Some(v) => v,
-                None => return Vec::new(),
-            };
-
+        // DEX file doesn't contain classess
+        // It's a strange case, but it needs to be checked.
         if self.header.class_defs_off == 0 {
             return Vec::new();
         }
 
-        let (Some(string_items), Some(type_items)) =
-            (self.string_items.get(), self.type_items.get())
+        let Some((data_range, string_items, type_items)) = self
+            .data
+            .get(self.header.class_defs_off as usize..)
+            .zip(self.string_items.get())
+            .zip(self.type_items.get())
+            .map(|((d, s), t)| (d, s, t))
         else {
             return Vec::new();
         };
@@ -383,9 +456,16 @@ impl<'a> Dex<'a> {
                 remainder = rem;
 
                 let class = Rc::clone(type_items.get(&class_idx)?);
-                let superclass = Rc::clone(type_items.get(&superclass_idx)?);
-                let source_file =
-                    Rc::clone(string_items.get(&source_file_idx)?);
+                let superclass = if superclass_idx != Self::NO_INDEX {
+                    Some(Rc::clone(type_items.get(&superclass_idx)?))
+                } else {
+                    None
+                };
+                let source_file = if source_file_idx != Self::NO_INDEX {
+                    Some(Rc::clone(string_items.get(&source_file_idx)?))
+                } else {
+                    None
+                };
 
                 Some(Rc::new(ClassItem {
                     class,
@@ -397,10 +477,14 @@ impl<'a> Dex<'a> {
             .collect()
     }
 
+    /// Collects a type list to list of strings from given offset
+    ///
+    /// See: https://source.android.com/docs/core/runtime/dex-format#type-list
     fn parse_type_list(
         &self,
         offset: u32,
     ) -> IResult<&[u8], (u32, Vec<Rc<StringItem>>)> {
+        // At this point we must have reference to type items
         let type_items = self
             .type_items
             .get()
@@ -428,6 +512,9 @@ impl<'a> Dex<'a> {
         Ok((remainder, (size, items)))
     }
 
+    /// Collects information about maps from the DEX file
+    ///
+    /// See: https://source.android.com/docs/core/runtime/dex-format#map-list
     fn parse_map_items(&self) -> Option<MapList> {
         self.data.get(self.header.map_off as usize..).and_then(|offset| {
             let (items_offset, size) = le_u32::<&[u8], Error>(offset).ok()?;
@@ -440,6 +527,9 @@ impl<'a> Dex<'a> {
         })
     }
 
+    /// Parse single map_item from given input
+    ///
+    /// See: https://source.android.com/docs/core/runtime/dex-format#map-item
     fn parse_map_item(input: &[u8]) -> IResult<&[u8], MapItem> {
         let (remainder, (item_type, unused, size, offset)) = (
             le_u16, // type
@@ -452,6 +542,10 @@ impl<'a> Dex<'a> {
         Ok((remainder, MapItem { item_type, unused, size, offset }))
     }
 
+    /// Parses string by index in the string_ids_off table
+    ///
+    /// idx - is an index in the string_ids_off table
+    /// strings_ids_off[idx] -> string_data_item
     fn parse_string_by_id(&self, idx: u32) -> Option<StringItem> {
         let string_data_offset = self
             .data
@@ -579,8 +673,8 @@ pub struct MethodItem {
 pub struct ClassItem {
     class: Rc<StringItem>,
     access_flags: u32,
-    superclass: Rc<StringItem>,
-    source_file: Rc<StringItem>,
+    superclass: Option<Rc<StringItem>>,
+    source_file: Option<Rc<StringItem>>,
 }
 
 #[derive(Default)]
@@ -597,49 +691,11 @@ pub struct MapItem {
     offset: u32,
 }
 
-// TODO: maybe move this functions from macho and this module in utils
-/// Parser that reads [ULEB128][1].
-///
-/// Notice however that this function returns a `u64`, so it's able to parse
-/// numbers up to 2^64-1. When parsing larger numbers it fails, even if they
-/// are valid ULEB128.
-///
-/// [1]: https://en.wikipedia.org/wiki/LEB128
-fn uleb128(input: &[u8]) -> IResult<&[u8], u64> {
-    let mut val: u64 = 0;
-    let mut shift: u32 = 0;
-
-    let mut data = input;
-    let mut byte: u8;
-
-    loop {
-        // Read one byte of data.
-        (data, byte) = u8(data)?;
-
-        // Use all the bits, except the most significant one.
-        let b = (byte & 0x7f) as u64;
-
-        val |= b
-            .checked_shl(shift)
-            .ok_or(Err::Error(Error::new(input, ErrorKind::TooLarge)))?;
-
-        // Break if the most significant bit is zero.
-        if byte & 0x80 == 0 {
-            break;
-        }
-
-        shift += 7;
-    }
-
-    Ok((data, val))
-}
-
 impl From<Dex<'_>> for protos::dex::Dex {
     fn from(dex: Dex) -> Self {
         let mut result = protos::dex::Dex::new();
 
         result.set_is_dex(true);
-        // TODO: think about borrowing, idk what is the best for now
         result.header = MessageField::some(dex.header.clone().into());
 
         result.string_items.extend(
@@ -769,10 +825,15 @@ impl From<&ClassItem> for protos::dex::ClassItem {
 
         result.class = MessageField::some(value.class.as_ref().into());
         result.set_access_flags(value.access_flags);
-        result.superclass =
-            MessageField::some(value.superclass.as_ref().into());
-        result.source_file =
-            MessageField::some(value.source_file.as_ref().into());
+
+        if let Some(superclass) = &value.superclass {
+            result.superclass = MessageField::some(superclass.as_ref().into());
+        }
+
+        if let Some(source_file) = &value.source_file {
+            result.source_file =
+                MessageField::some(source_file.as_ref().into());
+        }
 
         result
     }
