@@ -1,143 +1,142 @@
-dex:
-    is_dex: true
-    header:
-        magic: 0x6465780a
-        version: 38
-        checksum: 0x200c7aa1
-        signature: "e9bd6aa16e8eea1a71e7fd2eb3236749a10a64ef"
-        file_size: 876
-        header_size: 0x70
-        endian_tag: 0x12345678
-        link_size: 0
-        link_off: 0x0
-        map_off: 0x2d8
-        string_ids_size: 19
-        string_ids_off: 0x70
-        type_ids_size: 7
-        type_ids_off: 0xbc
-        proto_ids_size: 5
-        proto_ids_off: 0xd8
-        field_ids_size: 0
-        field_ids_off: 0x0
-        method_ids_size: 8
-        method_ids_off: 0x114
-        class_defs_size: 1
-        class_defs_off: 0x154
-        data_size: 504
-        data_off: 0x174
-    string_items:
-      - size: 6
-        value: "<init>"
-      - size: 1
-        value: "L"
-      - size: 14
-        value: "getPackageName"
-      - size: 8
-        value: "onCreate"
-      - size: 6
-        value: "xjgxpt"
-      - size: 21
+is_dex: true
+header:
+    magic: 0x6465780a
+    version: 38
+    checksum: 0x200c7aa1
+    signature: "e9bd6aa16e8eea1a71e7fd2eb3236749a10a64ef"
+    file_size: 876
+    header_size: 0x70
+    endian_tag: 0x12345678
+    link_size: 0
+    link_off: 0x0
+    map_off: 0x2d8
+    string_ids_size: 19
+    string_ids_off: 0x70
+    type_ids_size: 7
+    type_ids_off: 0xbc
+    proto_ids_size: 5
+    proto_ids_off: 0xd8
+    field_ids_size: 0
+    field_ids_off: 0x0
+    method_ids_size: 8
+    method_ids_off: 0x114
+    class_defs_size: 1
+    class_defs_off: 0x154
+    data_size: 504
+    data_off: 0x174
+string_items:
+  - size: 0
+    value: ""
+  - size: 8
+    value: "<clinit>"
+  - size: 6
+    value: "<init>"
+  - size: 1
+    value: "I"
+  - size: 1
+    value: "L"
+  - size: 3
+    value: "LLI"
+  - size: 25
+    value: "Landroid/app/Application;"
+  - size: 25
+    value: "Landroid/content/Context;"
+  - size: 18
+    value: "Ljava/lang/String;"
+  - size: 18
+    value: "Ljava/lang/System;"
+  - size: 21
+    value: "Lwmczycqxv/egztwrhea;"
+  - size: 1
+    value: "V"
+  - size: 2
+    value: "VL"
+  - size: 17
+    value: "attachBaseContext"
+  - size: 20
+    value: "createPackageContext"
+  - size: 14
+    value: "getPackageName"
+  - size: 11
+    value: "loadLibrary"
+  - size: 8
+    value: "onCreate"
+  - size: 6
+    value: "xjgxpt"
+types:
+  - size: 1
+    value: "I"
+  - size: 25
+    value: "Landroid/app/Application;"
+  - size: 25
+    value: "Landroid/content/Context;"
+  - size: 18
+    value: "Ljava/lang/String;"
+  - size: 18
+    value: "Ljava/lang/System;"
+  - size: 21
+    value: "Lwmczycqxv/egztwrhea;"
+  - size: 1
+    value: "V"
+classes:
+  - class:
+        size: 21
         value: "Lwmczycqxv/egztwrhea;"
-      - size: 0
+    access_flags: 1
+    superclass:
+        size: 25
+        value: "Landroid/app/Application;"
+    source_file:
+        size: 0
         value: ""
-      - size: 8
-        value: "<clinit>"
-      - size: 25
-        value: "Landroid/app/Application;"
-      - size: 20
-        value: "createPackageContext"
-      - size: 3
-        value: "LLI"
-      - size: 25
-        value: "Landroid/content/Context;"
-      - size: 2
-        value: "VL"
-      - size: 17
-        value: "attachBaseContext"
-      - size: 18
-        value: "Ljava/lang/String;"
-      - size: 11
-        value: "loadLibrary"
-      - size: 1
-        value: "V"
-      - size: 1
-        value: "I"
-      - size: 18
-        value: "Ljava/lang/System;"
-    types:
-      - size: 1
-        value: "I"
-      - size: 25
-        value: "Landroid/content/Context;"
-      - size: 18
-        value: "Ljava/lang/String;"
-      - size: 25
-        value: "Landroid/app/Application;"
-      - size: 21
-        value: "Lwmczycqxv/egztwrhea;"
-      - size: 1
-        value: "V"
-      - size: 18
-        value: "Ljava/lang/System;"
-    classes:
-      - class:
-            size: 21
-            value: "Lwmczycqxv/egztwrhea;"
-        access_flags: 1
-        superclass:
-            size: 25
-            value: "Landroid/app/Application;"
-        source_file:
-            size: 0
-            value: ""
-    map_list:
-        size: 12
-        items:
-          - type: TYPE_HEADER_ITEM
-            unused: 0
-            size: 1
-            offset: 0x0
-          - type: TYPE_STRING_ID_ITEM
-            unused: 0
-            size: 19
-            offset: 0x70
-          - type: TYPE_TYPE_ID_ITEM
-            unused: 0
-            size: 7
-            offset: 0xbc
-          - type: TYPE_PROTO_ID_ITEM
-            unused: 0
-            size: 5
-            offset: 0xd8
-          - type: TYPE_METHOD_ID_ITEM
-            unused: 0
-            size: 8
-            offset: 0x114
-          - type: TYPE_CLASS_DEF_ITEM
-            unused: 0
-            size: 1
-            offset: 0x154
-          - type: TYPE_STRING_DATA_ITEM
-            unused: 0
-            size: 19
-            offset: 0x174
-          - type: TYPE_TYPE_LIST
-            unused: 0
-            size: 3
-            offset: 0x268
-          - type: TYPE_ANNOTATION_SET_ITEM
-            unused: 0
-            size: 1
-            offset: 0x280
-          - type: TYPE_CODE_ITEM
-            unused: 0
-            size: 2
-            offset: 0x284
-          - type: TYPE_CLASS_DATA_ITEM
-            unused: 0
-            size: 1
-            offset: 0x2b8
-          - type: TYPE_MAP_LIST
-            unused: 0
-            size: 1
-            offset: 0x2d8
+map_list:
+    size: 12
+    items:
+      - type: TYPE_HEADER_ITEM
+        unused: 0
+        size: 1
+        offset: 0x0
+      - type: TYPE_STRING_ID_ITEM
+        unused: 0
+        size: 19
+        offset: 0x70
+      - type: TYPE_TYPE_ID_ITEM
+        unused: 0
+        size: 7
+        offset: 0xbc
+      - type: TYPE_PROTO_ID_ITEM
+        unused: 0
+        size: 5
+        offset: 0xd8
+      - type: TYPE_METHOD_ID_ITEM
+        unused: 0
+        size: 8
+        offset: 0x114
+      - type: TYPE_CLASS_DEF_ITEM
+        unused: 0
+        size: 1
+        offset: 0x154
+      - type: TYPE_STRING_DATA_ITEM
+        unused: 0
+        size: 19
+        offset: 0x174
+      - type: TYPE_TYPE_LIST
+        unused: 0
+        size: 3
+        offset: 0x268
+      - type: TYPE_ANNOTATION_SET_ITEM
+        unused: 0
+        size: 1
+        offset: 0x280
+      - type: TYPE_CODE_ITEM
+        unused: 0
+        size: 2
+        offset: 0x284
+      - type: TYPE_CLASS_DATA_ITEM
+        unused: 0
+        size: 1
+        offset: 0x2b8
+      - type: TYPE_MAP_LIST
+        unused: 0
+        size: 1
+        offset: 0x2d8
