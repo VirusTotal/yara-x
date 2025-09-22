@@ -12,6 +12,9 @@ use crate::modules::protos::dex::*;
 
 pub mod parser;
 
+#[cfg(test)]
+mod tests;
+
 thread_local!(
     static CHECKSUM_CACHE: RefCell<Option<i64>> = const { RefCell::new(None) };
     static SIGNATURE_CACHE: RefCell<Option<String>> =

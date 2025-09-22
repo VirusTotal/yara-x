@@ -31,7 +31,7 @@ message DexHeader {
     optional uint32 checksum = 3 [(yara.field_options).fmt = "x"];
     optional string signature = 4;
     optional uint32 file_size = 5;
-    optional uint32 header_size = 6;
+    optional uint32 header_size = 6 [(yara.field_options).fmt = "x"];
     optional uint32 endian_tag = 7 [(yara.field_options).fmt = "x"];
     optional uint32 link_size = 8;
     optional uint32 link_off = 9 [(yara.field_options).fmt = "x"];
