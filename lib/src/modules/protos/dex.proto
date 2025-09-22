@@ -10,6 +10,7 @@ option (yara.module_options) = {
     cargo_feature: "dex-module"
 };
 
+// TODO: add documentation to the fields
 message Dex {
     optional bool is_dex = 1;
     optional string module_name = 2;
@@ -97,6 +98,7 @@ message MapItem {
     optional uint32 offset = 3 [(yara.field_options).fmt = "x"];
 }
 
+// TODO: maybe inline this flags
 enum AccessFlag {
     ACC_PUBLIC = 0x1;
     ACC_PRIVATE = 0x2;

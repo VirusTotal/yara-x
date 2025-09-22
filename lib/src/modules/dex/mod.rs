@@ -53,11 +53,15 @@ fn checksum(ctx: &mut ScanContext) -> Option<i64> {
     }
 
     let data = ctx.scanned_data();
-    // TODO: i don't like hardcoded offset
-    let checksum_offset = 8 + 4;
+
+    const CHECKSUM_OFFSET: usize = 12;
+    let data = match data.get(CHECKSUM_OFFSET..) {
+        Some(v) => v,
+        None => return None,
+    };
 
     let mut adler = Adler32::new();
-    adler.write(&data[checksum_offset..]);
+    adler.write(data);
     let hash = adler.finish();
 
     CHECKSUM_CACHE.with(|cache| {
@@ -92,11 +96,14 @@ fn signature(ctx: &mut ScanContext) -> Option<RuntimeString> {
 
     let data = ctx.scanned_data();
 
-    // TODO: i don't like hardcoded offset
-    let signature_offset = 8 + 4 + 20;
+    const SIGNATURE_OFFSET: usize = 32;
+    let data = match data.get(SIGNATURE_OFFSET..) {
+        Some(v) => v,
+        None => return None,
+    };
 
     let mut hasher = Sha1::new();
-    hasher.update(&data[signature_offset..]);
+    hasher.update(data);
     let digest = format!("{:x}", hasher.finalize());
 
     SIGNATURE_CACHE.with(|cache| {
@@ -106,14 +113,14 @@ fn signature(ctx: &mut ScanContext) -> Option<RuntimeString> {
     Some(RuntimeString::new(digest))
 }
 
+/// Function that checks whether the DEX file contains the specified string
 #[module_export(name = "contains_string")]
-fn string_contains(
+fn contains_string(
     ctx: &mut ScanContext,
     value: RuntimeString,
 ) -> Option<bool> {
     let dex = ctx.module_output::<Dex>()?;
 
-    // let str = value.to_str(&ctx).ok()?.to_string();
     let str = match value.to_str(&ctx) {
         Ok(v) => Some(v.to_string()),
         Err(_) => return None,
@@ -122,5 +129,45 @@ fn string_contains(
     // string items sorted by dex format
     Some(
         dex.string_items.binary_search_by(|item| item.value.cmp(&str)).is_ok(),
+    )
+}
+
+/// Function that checks whether the DEX file contains the specified method
+#[module_export(name = "contains_method")]
+fn contains_method(
+    ctx: &mut ScanContext,
+    value: RuntimeString,
+) -> Option<bool> {
+    let dex = ctx.module_output::<Dex>()?;
+
+    let str = match value.to_str(&ctx) {
+        Ok(v) => v,
+        Err(_) => return None,
+    };
+
+    Some(
+        dex.methods
+            .binary_search_by(|item| item.name.value().cmp(str))
+            .is_ok(),
+    )
+}
+
+/// Function that checks whether the DEX file contains the specified class
+#[module_export(name = "contains_class")]
+fn contains_class(
+    ctx: &mut ScanContext,
+    value: RuntimeString,
+) -> Option<bool> {
+    let dex = ctx.module_output::<Dex>()?;
+
+    let str = match value.to_str(&ctx) {
+        Ok(v) => v,
+        Err(_) => return None,
+    };
+
+    Some(
+        dex.classes
+            .binary_search_by(|item| item.class.value().cmp(str))
+            .is_ok(),
     )
 }
