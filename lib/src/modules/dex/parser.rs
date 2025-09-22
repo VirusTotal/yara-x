@@ -75,17 +75,17 @@ impl<'a> Dex<'a> {
             le_u32, // file_size
             // There should be a check for header size depending on the DEX version,
             // but the format itself does not follow this.
-            verify(le_u32, |file_size| *file_size == 0x70), // header_size
+            verify(le_u32, |size| *size == 0x70), // header_size
             verify(le_u32, |tag| {
                 *tag == ENDIAN_CONSTANT || *tag == REVERSE_ENDIAN_CONSTANT
             }), // endian_tag
-            le_u32,                                         // link_size
-            le_u32,                                         // link_off
-            le_u32,                                         // map_off
-            le_u32,                                         // string_ids_size
-            le_u32,                                         // string_ids_off
+            le_u32,                               // link_size
+            le_u32,                               // link_off
+            le_u32,                               // map_off
+            le_u32,                               // string_ids_size
+            le_u32,                               // string_ids_off
             verify(le_u32, |size| *size <= u16::MAX.into()), // type_ids_size
-            le_u32,                                         // type_ids_off
+            le_u32,                               // type_ids_off
         )
             .parse(remainder)?;
 
@@ -179,7 +179,7 @@ impl<'a> Dex<'a> {
 
     fn parse_string_items(&self) -> HashMap<u32, Rc<StringItem>> {
         (0..self.header.string_ids_size)
-            .filter_map(|idx| {
+            .map_while(|idx| {
                 self.parse_string_by_id(idx).map(|item| (idx, Rc::new(item)))
             })
             .collect()
@@ -200,7 +200,7 @@ impl<'a> Dex<'a> {
         let mut remainder = data_range;
 
         (0..self.header.type_ids_size)
-            .filter_map(|idx| {
+            .map_while(|idx| {
                 le_u32::<&[u8], Error>(remainder).ok().and_then(
                     |(rem, descriptor_idx)| {
                         remainder = rem;
@@ -230,7 +230,7 @@ impl<'a> Dex<'a> {
         let mut remainder = data_range;
 
         (0..self.header.proto_ids_size)
-            .filter_map(|idx| {
+            .map_while(|idx| {
                 let (rem, (shorty_idx, return_type_idx, parameters_idx)) = (
                     le_u32::<&[u8], Error>, // shorty_idx
                     le_u32,                 // return_type_idx
@@ -283,7 +283,7 @@ impl<'a> Dex<'a> {
         let mut remainder = data_range;
 
         (0..self.header.field_ids_size)
-            .filter_map(|idx| {
+            .map_while(|idx| {
                 let (rem, (class_idx, type_idx, name_idx)) = (
                     le_u16::<&[u8], Error>, // class_idx
                     le_u16,                 // type_idx
@@ -322,7 +322,7 @@ impl<'a> Dex<'a> {
         let mut remainder = data_range;
 
         (0..self.header.method_ids_size)
-            .filter_map(|idx| {
+            .map_while(|idx| {
                 let (rem, (class_idx, proto_idx, name_idx)) = (
                     le_u16::<&[u8], Error>, // class_idx
                     le_u16,                 // proto_idx
@@ -361,7 +361,7 @@ impl<'a> Dex<'a> {
         let mut remainder = data_range;
 
         (0..self.header.class_defs_size)
-            .filter_map(|_| {
+            .map_while(|_| {
                 let (
                     rem,
                     (
@@ -419,7 +419,7 @@ impl<'a> Dex<'a> {
 
         let items = type_indexes
             .iter()
-            .filter_map(|idx| match type_items.get(idx) {
+            .map_while(|idx| match type_items.get(idx) {
                 Some(item) => Some(Rc::clone(item)),
                 None => None,
             })
