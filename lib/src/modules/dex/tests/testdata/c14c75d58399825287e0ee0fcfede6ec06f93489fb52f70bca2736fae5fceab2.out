@@ -78,17 +78,113 @@ types:
     value: "Lwmczycqxv/egztwrhea;"
   - size: 1
     value: "V"
-classes:
+protos:
+  - shorty:
+        size: 3
+        value: "LLI"
+    return_type:
+        size: 25
+        value: "Landroid/content/Context;"
+    parameters_count: 2
+    parameters:
+      - size: 18
+        value: "Ljava/lang/String;"
+      - size: 25
+        value: "Landroid/app/Application;"
+  - shorty:
+        size: 1
+        value: "L"
+    return_type:
+        size: 18
+        value: "Ljava/lang/String;"
+    parameters_count: 0
+  - shorty:
+        size: 1
+        value: "V"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 0
+  - shorty:
+        size: 2
+        value: "VL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 25
+        value: "Landroid/content/Context;"
+  - shorty:
+        size: 2
+        value: "VL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 18
+        value: "Ljava/lang/String;"
+methods:
+  - class:
+        size: 25
+        value: "Landroid/app/Application;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 1
+        value: "I"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 18
+            value: "Ljava/lang/String;"
+    name:
+        size: 1
+        value: "L"
+  - class:
+        size: 25
+        value: "Landroid/content/Context;"
+    proto:
+        shorty:
+            size: 1
+            value: "L"
+        return_type:
+            size: 18
+            value: "Ljava/lang/String;"
+        parameters_count: 0
+    name:
+        size: 0
+        value: ""
   - class:
         size: 21
         value: "Lwmczycqxv/egztwrhea;"
-    access_flags: 1
-    superclass:
-        size: 25
-        value: "Landroid/app/Application;"
-    source_file:
-        size: 0
-        value: ""
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "<init>"
 map_list:
     size: 12
     items:
