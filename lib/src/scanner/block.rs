@@ -1,4 +1,3 @@
-use std::marker::PhantomData;
 use std::mem::transmute;
 use std::pin::Pin;
 
@@ -8,62 +7,44 @@ use crate::scanner::context::create_wasm_store_and_ctx;
 use crate::scanner::{ScanContext, ScannedData};
 use crate::{Rules, ScanError};
 
-trait ScannerState {}
-
-struct Idle {}
-
-struct Scanning {}
-
-impl ScannerState for Idle {}
-impl ScannerState for Scanning {}
-
-struct BlockScanner<'r, S: ScannerState> {
-    _state: PhantomData<S>,
-    rules: &'r Rules,
+struct BlockScanner<'r> {
+    _rules: &'r Rules,
     wasm_store: Pin<Box<Store<ScanContext<'static, 'static>>>>,
+    scanning: bool,
 }
 
-impl<'r> BlockScanner<'r, Idle> {
+impl<'r> BlockScanner<'r> {
     /// Creates a new scanner.
-    pub fn new(rules: &'r Rules) -> BlockScanner<'r, Idle> {
+    pub fn new(rules: &'r Rules) -> BlockScanner<'r> {
         BlockScanner {
-            _state: PhantomData,
-            rules,
+            _rules: rules,
             wasm_store: create_wasm_store_and_ctx(rules),
+            scanning: false,
         }
     }
 }
-
-impl<'r> BlockScanner<'r, Idle> {
-    pub fn start(&mut self) -> &mut BlockScanner<'r, Scanning> {
-        self.scan_context_mut().reset();
-        unsafe {
-            transmute::<&mut BlockScanner<Idle>, &mut BlockScanner<Scanning>>(
-                self,
-            )
-        }
-    }
-}
-
-impl<'r> BlockScanner<'r, Scanning> {
+impl BlockScanner<'_> {
     pub fn scan(
         &mut self,
         base: usize,
         data: &[u8],
     ) -> Result<&mut Self, ScanError> {
-        let ctx = self.scan_context_mut();
-        ctx.scanned_data = Some(ScannedData::Slice(data));
-        ctx.search_for_patterns()?;
+        if !self.scanning {
+            self.scan_context_mut().reset();
+            self.scanning = true;
+        }
+        self.scan_context_mut().scanned_data = Some(ScannedData::Slice(data));
+        self.scan_context_mut().search_for_patterns()?;
         Ok(self)
     }
 
     pub fn finish(&mut self) -> Result<(), ScanError> {
-        let ctx = self.scan_context_mut();
-        ctx.eval_conditions()
+        self.scanning = false;
+        self.scan_context_mut().eval_conditions()
     }
 }
 
-impl<'r, S: ScannerState> BlockScanner<'r, S> {
+impl<'r> BlockScanner<'r> {
     #[inline]
     fn scan_context_mut(&mut self) -> &mut ScanContext<'r, '_> {
         unsafe {
@@ -78,7 +59,7 @@ impl<'r, S: ScannerState> BlockScanner<'r, S> {
 #[cfg(test)]
 mod tests {
     use crate::compile;
-    use crate::scanner::block::{BlockScanner, Idle};
+    use crate::scanner::block::BlockScanner;
 
     #[test]
     fn block_scanner() {
@@ -89,7 +70,6 @@ mod tests {
         let mut scanner = BlockScanner::new(&rules);
 
         scanner
-            .start()
             .scan(0, b"Lorem ipsum")
             .unwrap()
             .scan(1000, b"dolor sit amet")

@@ -141,7 +141,7 @@ macro_rules! pattern_match {
 
         let mut scanner = crate::scanner::Scanner::new(&rules);
         let scan_results = scanner.scan($data).expect("scan should not fail");
-        let matching_data = scan_results
+        let first_match = scan_results
             .matching_rules()
             .next()
             .expect(format!("pattern `{}` should match `{:?}`", $pattern, $data).as_str())
@@ -150,8 +150,9 @@ macro_rules! pattern_match {
             .unwrap()
             .matches()
             .next()
-            .unwrap()
-            .data();
+            .unwrap();
+
+        let matching_data = first_match.data();
 
         assert_eq!(
             matching_data, $expected_result,

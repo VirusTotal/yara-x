@@ -694,11 +694,11 @@ impl ScanContext<'_, '_> {
         // Take ownership of the scanned data, while searching for
         // the patterns, `self.scanned_data` is left as `None`.
         let data = self.scanned_data.take().unwrap();
-        let block_base = 0; // TODO
+        let base = 0; // TODO
 
         // Verify the anchored pattern first. These are patterns that can
         // match at a single known offset within the data.
-        self.verify_anchored_patterns(block_base, data.as_ref());
+        self.verify_anchored_patterns(base, data.as_ref());
 
         for ac_match in ac.find_overlapping_iter(data.as_ref()) {
             #[cfg(feature = "logging")]

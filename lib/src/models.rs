@@ -1,5 +1,5 @@
 use crate::compiler::{IdentId, PatternId, RuleInfo};
-use crate::scanner::{ScanContext, ScannedData};
+use crate::scanner::{DataSnippets, ScanContext};
 use crate::{compiler, scanner, Rules};
 use bstr::{BStr, ByteSlice};
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,7 @@ pub enum PatternKind {
 /// A structure that describes a rule.
 pub struct Rule<'a, 'r> {
     pub(crate) ctx: Option<&'a ScanContext<'r, 'a>>,
-    pub(crate) data: Option<&'a ScannedData<'a>>,
+    pub(crate) snippets: Option<&'a DataSnippets<'a>>,
     pub(crate) rules: &'r Rules,
     pub(crate) rule_info: &'r RuleInfo,
 }
@@ -73,7 +73,7 @@ impl<'a, 'r> Rule<'a, 'r> {
         Patterns {
             ctx: self.ctx,
             rules: self.rules,
-            data: self.data,
+            snippets: self.snippets,
             include_private: false,
             iterator: self.rule_info.patterns.iter(),
             len_non_private: self.rule_info.patterns.len()
@@ -249,7 +249,7 @@ impl<'r> Tag<'r> {
 /// as well.
 pub struct Patterns<'a, 'r> {
     ctx: Option<&'a ScanContext<'r, 'a>>,
-    data: Option<&'a ScannedData<'a>>,
+    snippets: Option<&'a DataSnippets<'a>>,
     rules: &'r Rules,
     iterator: Iter<'a, (IdentId, PatternKind, PatternId, bool)>,
     /// True if the iterator should yield all patterns, including the
@@ -302,7 +302,7 @@ impl<'a, 'r> Iterator for Patterns<'a, 'r> {
                 return Some(Pattern {
                     ctx: self.ctx,
                     rules: self.rules,
-                    data: self.data,
+                    snippets: self.snippets,
                     ident_id: *ident_id,
                     pattern_id: *pattern_id,
                     kind: *pattern_kind,
@@ -316,7 +316,7 @@ impl<'a, 'r> Iterator for Patterns<'a, 'r> {
 /// Represents a pattern defined by a rule.
 pub struct Pattern<'a, 'r> {
     ctx: Option<&'a ScanContext<'r, 'a>>,
-    data: Option<&'a ScannedData<'a>>,
+    snippets: Option<&'a DataSnippets<'a>>,
     rules: &'r Rules,
     ident_id: IdentId,
     pattern_id: PatternId,
@@ -345,7 +345,7 @@ impl<'a, 'r> Pattern<'a, 'r> {
     /// Returns the matches found for this pattern.
     pub fn matches(&self) -> Matches<'a> {
         Matches {
-            data: self.data,
+            snippets: self.snippets,
             iterator: self.ctx.and_then(|ctx| {
                 ctx.pattern_matches
                     .get(self.pattern_id)
@@ -357,7 +357,7 @@ impl<'a, 'r> Pattern<'a, 'r> {
 
 /// Iterator that returns the matches for a pattern.
 pub struct Matches<'a> {
-    data: Option<&'a ScannedData<'a>>,
+    snippets: Option<&'a DataSnippets<'a>>,
     iterator: Option<Iter<'a, scanner::Match>>,
 }
 
@@ -366,7 +366,7 @@ impl<'a> Iterator for Matches<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let iter = self.iterator.as_mut()?;
-        Some(Match { data: self.data?, inner: iter.next()? })
+        Some(Match { snippets: self.snippets?, inner: iter.next()? })
     }
 }
 
@@ -378,11 +378,11 @@ impl ExactSizeIterator for Matches<'_> {
 
 /// Represents a match.
 pub struct Match<'a> {
-    data: &'a ScannedData<'a>,
+    snippets: &'a DataSnippets<'a>,
     inner: &'a scanner::Match,
 }
 
-impl<'a> Match<'a> {
+impl Match<'_> {
     /// Range within the original data where the match occurred.
     #[inline]
     pub fn range(&self) -> Range<usize> {
@@ -391,8 +391,8 @@ impl<'a> Match<'a> {
 
     /// Slice containing the data that matched.
     #[inline]
-    pub fn data(&self) -> &'a [u8] {
-        self.data.as_ref().get(self.range()).unwrap()
+    pub fn data(&self) -> &[u8] {
+        self.snippets.get(self.range()).unwrap()
     }
 
     /// XOR key used for decrypting the data if the pattern had the `xor`

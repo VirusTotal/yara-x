@@ -6,6 +6,7 @@ use std::collections::{hash_map, HashMap};
 use std::fs;
 use std::io::Read;
 use std::mem::transmute;
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::slice::Iter;
@@ -238,7 +239,7 @@ impl<'r> Scanner<'r> {
     }
 
     /// Scans in-memory data.
-    pub fn scan<'a>(
+    pub fn scan<'a, 'd>(
         &'a mut self,
         data: &'a [u8],
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
@@ -267,11 +268,11 @@ impl<'r> Scanner<'r> {
 
     /// Like [`Scanner::scan_file`], but allows to specify additional scan
     /// options.
-    pub fn scan_file_with_options<'a, 'opts, P>(
-        &'a mut self,
+    pub fn scan_file_with_options<'opts, P>(
+        &mut self,
         target: P,
         options: ScanOptions<'opts>,
-    ) -> Result<ScanResults<'a, 'r>, ScanError>
+    ) -> Result<ScanResults<'_, 'r>, ScanError>
     where
         P: AsRef<Path>,
     {
@@ -612,7 +613,38 @@ impl<'r> Scanner<'r> {
 
         let scanned_data = ctx.scanned_data.take().unwrap();
 
-        Ok(ScanResults::new(self.scan_context(), scanned_data))
+        Ok(ScanResults::new(
+            self.scan_context(),
+            DataSnippets::ScannedData(scanned_data),
+        ))
+    }
+}
+
+/// Helper type that exposes the data matched during a scan operation.
+///
+/// Matching data can be accessed through the [`Match::data`] method. Normally,
+/// this data can be retrieved by slicing directly into the scanned input.
+/// However, that requires the original input to remain valid until the scan
+/// results are processed. This works fine for a single contiguous block of
+/// memory, but is impractical when scanning multiple blocks, since holding
+/// onto all of them until the end would consume excessive memory.
+///
+/// To handle this, two strategies are used:
+///
+/// - **Single-block scans**: Data is accessed directly from the input slice.
+/// - **Multi-block scans**: Matching fragments are copied and retained until
+///   results are processed.
+///
+/// Each strategy corresponds to a variant in this enum.
+pub(crate) enum DataSnippets<'d> {
+    ScannedData(ScannedData<'d>),
+}
+
+impl DataSnippets<'_> {
+    pub(crate) fn get(&self, range: Range<usize>) -> Option<&[u8]> {
+        match self {
+            DataSnippets::ScannedData(data) => data.as_ref().get(range),
+        }
     }
 }
 
@@ -621,22 +653,22 @@ impl<'r> Scanner<'r> {
 /// Allows iterating over both the matching and non-matching rules.
 pub struct ScanResults<'a, 'r> {
     ctx: &'a ScanContext<'r, 'a>,
-    data: ScannedData<'a>,
+    data: DataSnippets<'a>,
 }
 
 impl<'a, 'r> ScanResults<'a, 'r> {
-    fn new(ctx: &'a ScanContext<'r, 'a>, data: ScannedData<'a>) -> Self {
+    fn new(ctx: &'a ScanContext<'r, 'a>, data: DataSnippets<'a>) -> Self {
         Self { ctx, data }
     }
 
     /// Returns an iterator that yields the matching rules in arbitrary order.
-    pub fn matching_rules(&'a self) -> MatchingRules<'a, 'r> {
+    pub fn matching_rules(&self) -> MatchingRules<'_, 'r> {
         MatchingRules::new(self.ctx, &self.data)
     }
 
     /// Returns an iterator that yields the non-matching rules in arbitrary
     /// order.
-    pub fn non_matching_rules(&'a self) -> NonMatchingRules<'a, 'r> {
+    pub fn non_matching_rules(&self) -> NonMatchingRules<'_, 'r> {
         NonMatchingRules::new(self.ctx, &self.data)
     }
 
@@ -673,7 +705,7 @@ impl<'a, 'r> ScanResults<'a, 'r> {
 /// [`MatchingRules::include_private`] for changing this behaviour.
 pub struct MatchingRules<'a, 'r> {
     ctx: &'a ScanContext<'r, 'a>,
-    data: &'a ScannedData<'a>,
+    snippets: &'a DataSnippets<'a>,
     iterator: Iter<'a, RuleId>,
     len_non_private: usize,
     len_private: usize,
@@ -681,10 +713,13 @@ pub struct MatchingRules<'a, 'r> {
 }
 
 impl<'a, 'r> MatchingRules<'a, 'r> {
-    fn new(ctx: &'a ScanContext<'r, 'a>, data: &'a ScannedData<'a>) -> Self {
+    fn new(
+        ctx: &'a ScanContext<'r, 'a>,
+        snippets: &'a DataSnippets<'a>,
+    ) -> Self {
         Self {
             ctx,
-            data,
+            snippets,
             iterator: ctx.matching_rules.iter(),
             include_private: false,
             len_non_private: ctx.matching_rules.len()
@@ -719,7 +754,7 @@ impl<'a, 'r> Iterator for MatchingRules<'a, 'r> {
             if self.include_private || !rule_info.is_private {
                 return Some(Rule {
                     ctx: Some(self.ctx),
-                    data: Some(self.data),
+                    snippets: Some(self.snippets),
                     rule_info,
                     rules,
                 });
@@ -745,7 +780,7 @@ impl ExactSizeIterator for MatchingRules<'_, '_> {
 /// [`NonMatchingRules::include_private`] for changing this behaviour.
 pub struct NonMatchingRules<'a, 'r> {
     ctx: &'a ScanContext<'r, 'a>,
-    data: &'a ScannedData<'a>,
+    snippets: &'a DataSnippets<'a>,
     iterator: bitvec::slice::IterZeros<'a, u8, Lsb0>,
     include_private: bool,
     len_private: usize,
@@ -753,7 +788,10 @@ pub struct NonMatchingRules<'a, 'r> {
 }
 
 impl<'a, 'r> NonMatchingRules<'a, 'r> {
-    fn new(ctx: &'a ScanContext<'r, 'a>, data: &'a ScannedData<'a>) -> Self {
+    fn new(
+        ctx: &'a ScanContext<'r, 'a>,
+        snippets: &'a DataSnippets<'a>,
+    ) -> Self {
         let num_rules = ctx.compiled_rules.num_rules();
         let main_memory = ctx
             .wasm_main_memory
@@ -776,7 +814,7 @@ impl<'a, 'r> NonMatchingRules<'a, 'r> {
 
         Self {
             ctx,
-            data,
+            snippets,
             iterator: matching_rules_bitmap.iter_zeros(),
             include_private: false,
             len_non_private: ctx.compiled_rules.num_rules()
@@ -815,7 +853,7 @@ impl<'a, 'r> Iterator for NonMatchingRules<'a, 'r> {
             if self.include_private || !rule_info.is_private {
                 return Some(Rule {
                     ctx: Some(self.ctx),
-                    data: Some(self.data),
+                    snippets: Some(self.snippets),
                     rule_info,
                     rules,
                 });
