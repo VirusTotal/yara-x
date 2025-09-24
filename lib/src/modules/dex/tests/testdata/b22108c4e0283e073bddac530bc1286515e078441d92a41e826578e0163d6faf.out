@@ -1,0 +1,3340 @@
+is_dex: true
+header:
+    magic: 0x6465780a
+    version: 35
+    checksum: 0xe5aa2902
+    signature: "a875330cb11361ae8c364295b2b9193785e7a770"
+    file_size: 10168
+    header_size: 0x70
+    endian_tag: 0x12345678
+    link_size: 0
+    link_off: 0x0
+    map_off: 0x2700
+    string_ids_size: 176
+    string_ids_off: 0x70
+    type_ids_size: 63
+    type_ids_off: 0x330
+    proto_ids_size: 61
+    proto_ids_off: 0x42c
+    field_ids_size: 20
+    field_ids_off: 0x708
+    method_ids_size: 122
+    method_ids_off: 0x7a8
+    class_defs_size: 11
+    class_defs_off: 0xb78
+    data_size: 6880
+    data_off: 0xcd8
+string_ids:
+  - size: 7
+    value: ".Loader"
+  - size: 3
+    value: "//A"
+  - size: 6
+    value: "2sShuT"
+  - size: 8
+    value: "<clinit>"
+  - size: 6
+    value: "<init>"
+  - size: 3
+    value: "DEx"
+  - size: 1
+    value: "I"
+  - size: 2
+    value: "IL"
+  - size: 3
+    value: "ILI"
+  - size: 4
+    value: "ILII"
+  - size: 1
+    value: "J"
+  - size: 2
+    value: "JJ"
+  - size: 1
+    value: "L"
+  - size: 2
+    value: "LI"
+  - size: 2
+    value: "LL"
+  - size: 3
+    value: "LLI"
+  - size: 5
+    value: "LLILI"
+  - size: 3
+    value: "LLL"
+  - size: 4
+    value: "LLLL"
+  - size: 22
+    value: "Landroid/app/Activity;"
+  - size: 26
+    value: "Landroid/app/AlarmManager;"
+  - size: 25
+    value: "Landroid/app/Application;"
+  - size: 27
+    value: "Landroid/app/PendingIntent;"
+  - size: 21
+    value: "Landroid/app/Service;"
+  - size: 35
+    value: "Landroid/content/BroadcastReceiver;"
+  - size: 31
+    value: "Landroid/content/ComponentName;"
+  - size: 25
+    value: "Landroid/content/Context;"
+  - size: 24
+    value: "Landroid/content/Intent;"
+  - size: 30
+    value: "Landroid/content/IntentFilter;"
+  - size: 35
+    value: "Landroid/content/SharedPreferences;"
+  - size: 34
+    value: "Landroid/content/res/AssetManager;"
+  - size: 26
+    value: "Landroid/os/Build$VERSION;"
+  - size: 19
+    value: "Landroid/os/Bundle;"
+  - size: 20
+    value: "Landroid/os/Handler;"
+  - size: 20
+    value: "Landroid/os/IBinder;"
+  - size: 24
+    value: "Landroid/os/SystemClock;"
+  - size: 21
+    value: "Landroid/util/Base64;"
+  - size: 21
+    value: "Landroid/view/Window;"
+  - size: 34
+    value: "Ldalvik/annotation/EnclosingClass;"
+  - size: 35
+    value: "Ldalvik/annotation/EnclosingMethod;"
+  - size: 30
+    value: "Ldalvik/annotation/InnerClass;"
+  - size: 30
+    value: "Ldalvik/system/DexClassLoader;"
+  - size: 31
+    value: "Ljava/io/ByteArrayOutputStream;"
+  - size: 14
+    value: "Ljava/io/File;"
+  - size: 26
+    value: "Ljava/io/FileOutputStream;"
+  - size: 21
+    value: "Ljava/io/InputStream;"
+  - size: 17
+    value: "Ljava/lang/Class;"
+  - size: 23
+    value: "Ljava/lang/ClassLoader;"
+  - size: 21
+    value: "Ljava/lang/Exception;"
+  - size: 34
+    value: "Ljava/lang/IllegalAccessException;"
+  - size: 34
+    value: "Ljava/lang/InstantiationException;"
+  - size: 19
+    value: "Ljava/lang/Integer;"
+  - size: 33
+    value: "Ljava/lang/NoSuchMethodException;"
+  - size: 18
+    value: "Ljava/lang/Object;"
+  - size: 20
+    value: "Ljava/lang/Runnable;"
+  - size: 18
+    value: "Ljava/lang/String;"
+  - size: 25
+    value: "Ljava/lang/StringBuilder;"
+  - size: 21
+    value: "Ljava/lang/Throwable;"
+  - size: 31
+    value: "Ljava/lang/reflect/Constructor;"
+  - size: 45
+    value: "Ljava/lang/reflect/InvocationTargetException;"
+  - size: 26
+    value: "Ljava/lang/reflect/Method;"
+  - size: 35
+    value: "Ljava/util/zip/InflaterInputStream;"
+  - size: 21
+    value: "Lorg/BasicActivity$1;"
+  - size: 21
+    value: "Lorg/BasicActivity$2;"
+  - size: 19
+    value: "Lorg/BasicActivity;"
+  - size: 22
+    value: "Lorg/CeonstReceiver$1;"
+  - size: 20
+    value: "Lorg/CeonstReceiver;"
+  - size: 18
+    value: "Lorg/DevService$1;"
+  - size: 16
+    value: "Lorg/DevService;"
+  - size: 17
+    value: "Lorg/KasReceiver;"
+  - size: 17
+    value: "Lorg/KseActivity;"
+  - size: 16
+    value: "Lorg/MvReceiver;"
+  - size: 15
+    value: "Lorg/hskdAppli;"
+  - size: 7
+    value: "SDK_INT"
+  - size: 4
+    value: "TYPE"
+  - size: 1
+    value: "V"
+  - size: 2
+    value: "VI"
+  - size: 3
+    value: "VII"
+  - size: 4
+    value: "VIJL"
+  - size: 2
+    value: "VL"
+  - size: 3
+    value: "VLI"
+  - size: 4
+    value: "VLII"
+  - size: 3
+    value: "VLL"
+  - size: 5
+    value: "VLLIL"
+  - size: 4
+    value: "VLLL"
+  - size: 4
+    value: "Va/A"
+  - size: 1
+    value: "Z"
+  - size: 2
+    value: "ZL"
+  - size: 2
+    value: "[B"
+  - size: 2
+    value: "[I"
+  - size: 18
+    value: "[Ljava/lang/Class;"
+  - size: 19
+    value: "[Ljava/lang/Object;"
+  - size: 19
+    value: "[Ljava/lang/String;"
+  - size: 1
+    value: "a"
+  - size: 4
+    value: "aCOM"
+  - size: 11
+    value: "accessFlags"
+  - size: 8
+    value: "addFlags"
+  - size: 5
+    value: "alarm"
+  - size: 36
+    value: "android.intent.action.BOOT_COMPLETED"
+  - size: 32
+    value: "android.intent.action.SCREEN_OFF"
+  - size: 6
+    value: "append"
+  - size: 5
+    value: "apply"
+  - size: 2
+    value: "as"
+  - size: 1
+    value: "b"
+  - size: 1
+    value: "c"
+  - size: 36
+    value: "c2V0Q29tcG9uZW50RW5hYmxlZFNldHRpbmc="
+  - size: 8
+    value: "ccCrEATe"
+  - size: 10
+    value: "clearFlags"
+  - size: 5
+    value: "close"
+  - size: 1
+    value: "d"
+  - size: 6
+    value: "decode"
+  - size: 6
+    value: "delete"
+  - size: 4
+    value: "edit"
+  - size: 15
+    value: "elapsedRealtime"
+  - size: 6
+    value: "equals"
+  - size: 6
+    value: "exists"
+  - size: 4
+    value: "fas/"
+  - size: 6
+    value: "finish"
+  - size: 15
+    value: "getAbsolutePath"
+  - size: 9
+    value: "getAction"
+  - size: 14
+    value: "getApplication"
+  - size: 9
+    value: "getAssets"
+  - size: 12
+    value: "getBroadcast"
+  - size: 8
+    value: "getClass"
+  - size: 14
+    value: "getConstructor"
+  - size: 12
+    value: "getDecorView"
+  - size: 11
+    value: "getFilesDir"
+  - size: 6
+    value: "getInt"
+  - size: 9
+    value: "getMethod"
+  - size: 7
+    value: "getName"
+  - size: 17
+    value: "getPackageManager"
+  - size: 14
+    value: "getPackageName"
+  - size: 20
+    value: "getSharedPreferences"
+  - size: 20
+    value: "getSystemClassLoader"
+  - size: 16
+    value: "getSystemService"
+  - size: 9
+    value: "getWindow"
+  - size: 6
+    value: "invoke"
+  - size: 4
+    value: "list"
+  - size: 9
+    value: "loadClass"
+  - size: 6
+    value: "mkdirs"
+  - size: 4
+    value: "name"
+  - size: 11
+    value: "newInstance"
+  - size: 13
+    value: "onBackPressed"
+  - size: 6
+    value: "onBind"
+  - size: 8
+    value: "onCreate"
+  - size: 9
+    value: "onDestroy"
+  - size: 9
+    value: "onReceive"
+  - size: 14
+    value: "onStartCommand"
+  - size: 6
+    value: "onStop"
+  - size: 11
+    value: "onTerminate"
+  - size: 4
+    value: "open"
+  - size: 15
+    value: "printStackTrace"
+  - size: 6
+    value: "putInt"
+  - size: 4
+    value: "read"
+  - size: 16
+    value: "registerReceiver"
+  - size: 6
+    value: "rrpREf"
+  - size: 3
+    value: "run"
+  - size: 6
+    value: "s2sHUt"
+  - size: 9
+    value: "separator"
+  - size: 3
+    value: "set"
+  - size: 8
+    value: "setFlags"
+  - size: 17
+    value: "setStatusBarColor"
+  - size: 21
+    value: "setSystemUiVisibility"
+  - size: 4
+    value: "skip"
+  - size: 5
+    value: "start"
+  - size: 13
+    value: "startActivity"
+  - size: 12
+    value: "startService"
+  - size: 9
+    value: "substring"
+  - size: 11
+    value: "toByteArray"
+  - size: 11
+    value: "toLowerCase"
+  - size: 8
+    value: "toString"
+  - size: 18
+    value: "unregisterReceiver"
+  - size: 5
+    value: "value"
+  - size: 7
+    value: "valueOf"
+  - size: 5
+    value: "write"
+  - size: 1
+    value: "x"
+type_ids:
+  - size: 1
+    value: "I"
+  - size: 1
+    value: "J"
+  - size: 22
+    value: "Landroid/app/Activity;"
+  - size: 26
+    value: "Landroid/app/AlarmManager;"
+  - size: 25
+    value: "Landroid/app/Application;"
+  - size: 27
+    value: "Landroid/app/PendingIntent;"
+  - size: 21
+    value: "Landroid/app/Service;"
+  - size: 35
+    value: "Landroid/content/BroadcastReceiver;"
+  - size: 31
+    value: "Landroid/content/ComponentName;"
+  - size: 25
+    value: "Landroid/content/Context;"
+  - size: 24
+    value: "Landroid/content/Intent;"
+  - size: 30
+    value: "Landroid/content/IntentFilter;"
+  - size: 35
+    value: "Landroid/content/SharedPreferences;"
+  - size: 34
+    value: "Landroid/content/res/AssetManager;"
+  - size: 26
+    value: "Landroid/os/Build$VERSION;"
+  - size: 19
+    value: "Landroid/os/Bundle;"
+  - size: 20
+    value: "Landroid/os/Handler;"
+  - size: 20
+    value: "Landroid/os/IBinder;"
+  - size: 24
+    value: "Landroid/os/SystemClock;"
+  - size: 21
+    value: "Landroid/util/Base64;"
+  - size: 21
+    value: "Landroid/view/Window;"
+  - size: 34
+    value: "Ldalvik/annotation/EnclosingClass;"
+  - size: 35
+    value: "Ldalvik/annotation/EnclosingMethod;"
+  - size: 30
+    value: "Ldalvik/annotation/InnerClass;"
+  - size: 30
+    value: "Ldalvik/system/DexClassLoader;"
+  - size: 31
+    value: "Ljava/io/ByteArrayOutputStream;"
+  - size: 14
+    value: "Ljava/io/File;"
+  - size: 26
+    value: "Ljava/io/FileOutputStream;"
+  - size: 21
+    value: "Ljava/io/InputStream;"
+  - size: 17
+    value: "Ljava/lang/Class;"
+  - size: 23
+    value: "Ljava/lang/ClassLoader;"
+  - size: 21
+    value: "Ljava/lang/Exception;"
+  - size: 34
+    value: "Ljava/lang/IllegalAccessException;"
+  - size: 34
+    value: "Ljava/lang/InstantiationException;"
+  - size: 19
+    value: "Ljava/lang/Integer;"
+  - size: 33
+    value: "Ljava/lang/NoSuchMethodException;"
+  - size: 18
+    value: "Ljava/lang/Object;"
+  - size: 20
+    value: "Ljava/lang/Runnable;"
+  - size: 18
+    value: "Ljava/lang/String;"
+  - size: 25
+    value: "Ljava/lang/StringBuilder;"
+  - size: 21
+    value: "Ljava/lang/Throwable;"
+  - size: 31
+    value: "Ljava/lang/reflect/Constructor;"
+  - size: 45
+    value: "Ljava/lang/reflect/InvocationTargetException;"
+  - size: 26
+    value: "Ljava/lang/reflect/Method;"
+  - size: 35
+    value: "Ljava/util/zip/InflaterInputStream;"
+  - size: 21
+    value: "Lorg/BasicActivity$1;"
+  - size: 21
+    value: "Lorg/BasicActivity$2;"
+  - size: 19
+    value: "Lorg/BasicActivity;"
+  - size: 22
+    value: "Lorg/CeonstReceiver$1;"
+  - size: 20
+    value: "Lorg/CeonstReceiver;"
+  - size: 18
+    value: "Lorg/DevService$1;"
+  - size: 16
+    value: "Lorg/DevService;"
+  - size: 17
+    value: "Lorg/KasReceiver;"
+  - size: 17
+    value: "Lorg/KseActivity;"
+  - size: 16
+    value: "Lorg/MvReceiver;"
+  - size: 15
+    value: "Lorg/hskdAppli;"
+  - size: 1
+    value: "V"
+  - size: 1
+    value: "Z"
+  - size: 2
+    value: "[B"
+  - size: 2
+    value: "[I"
+  - size: 18
+    value: "[Ljava/lang/Class;"
+  - size: 19
+    value: "[Ljava/lang/Object;"
+  - size: 19
+    value: "[Ljava/lang/String;"
+proto_ids:
+  - shorty:
+        size: 4
+        value: "ILII"
+    return_type:
+        size: 1
+        value: "I"
+    parameters_count: 3
+    parameters:
+      - size: 24
+        value: "Landroid/content/Intent;"
+      - size: 1
+        value: "I"
+      - size: 1
+        value: "J"
+  - shorty:
+        size: 3
+        value: "ILI"
+    return_type:
+        size: 1
+        value: "I"
+    parameters_count: 2
+    parameters:
+      - size: 18
+        value: "Ljava/lang/String;"
+      - size: 1
+        value: "J"
+  - shorty:
+        size: 2
+        value: "IL"
+    return_type:
+        size: 1
+        value: "I"
+    parameters_count: 1
+    parameters:
+      - size: 2
+        value: "[B"
+  - shorty:
+        size: 1
+        value: "J"
+    return_type:
+        size: 1
+        value: "J"
+    parameters_count: 0
+  - shorty:
+        size: 2
+        value: "JJ"
+    return_type:
+        size: 1
+        value: "J"
+    parameters_count: 1
+    parameters:
+      - size: 1
+        value: "J"
+  - shorty:
+        size: 1
+        value: "L"
+    return_type:
+        size: 25
+        value: "Landroid/app/Application;"
+    parameters_count: 0
+  - shorty:
+        size: 5
+        value: "LLILI"
+    return_type:
+        size: 27
+        value: "Landroid/app/PendingIntent;"
+    parameters_count: 3
+    parameters:
+      - size: 25
+        value: "Landroid/content/Context;"
+      - size: 24
+        value: "Landroid/content/Intent;"
+      - size: 22
+        value: "Landroid/app/Activity;"
+  - shorty:
+        size: 2
+        value: "LL"
+    return_type:
+        size: 31
+        value: "Landroid/content/ComponentName;"
+    parameters_count: 1
+    parameters:
+      - size: 24
+        value: "Landroid/content/Intent;"
+  - shorty:
+        size: 2
+        value: "LI"
+    return_type:
+        size: 24
+        value: "Landroid/content/Intent;"
+    parameters_count: 1
+    parameters:
+      - size: 1
+        value: "I"
+  - shorty:
+        size: 3
+        value: "LLL"
+    return_type:
+        size: 24
+        value: "Landroid/content/Intent;"
+    parameters_count: 1
+    parameters:
+      - size: 1
+        value: "J"
+  - shorty:
+        size: 2
+        value: "LL"
+    return_type:
+        size: 35
+        value: "Landroid/content/SharedPreferences;"
+    parameters_count: 1
+    parameters:
+      - size: 25
+        value: "Landroid/content/Context;"
+  - shorty:
+        size: 3
+        value: "LLI"
+    return_type:
+        size: 35
+        value: "Landroid/content/SharedPreferences;"
+    parameters_count: 2
+    parameters:
+      - size: 18
+        value: "Ljava/lang/String;"
+      - size: 1
+        value: "J"
+  - shorty:
+        size: 1
+        value: "L"
+    return_type:
+        size: 34
+        value: "Landroid/content/res/AssetManager;"
+    parameters_count: 0
+  - shorty:
+        size: 2
+        value: "LL"
+    return_type:
+        size: 20
+        value: "Landroid/os/IBinder;"
+    parameters_count: 1
+    parameters:
+      - size: 24
+        value: "Landroid/content/Intent;"
+  - shorty:
+        size: 1
+        value: "L"
+    return_type:
+        size: 21
+        value: "Landroid/view/Window;"
+    parameters_count: 0
+  - shorty:
+        size: 4
+        value: "LLLL"
+    return_type:
+        size: 30
+        value: "Ldalvik/system/DexClassLoader;"
+    parameters_count: 2
+    parameters:
+      - size: 23
+        value: "Ljava/lang/ClassLoader;"
+      - size: 1
+        value: "J"
+  - shorty:
+        size: 1
+        value: "L"
+    return_type:
+        size: 14
+        value: "Ljava/io/File;"
+    parameters_count: 0
+  - shorty:
+        size: 2
+        value: "LL"
+    return_type:
+        size: 21
+        value: "Ljava/io/InputStream;"
+    parameters_count: 1
+    parameters:
+      - size: 18
+        value: "Ljava/lang/String;"
+  - shorty:
+        size: 1
+        value: "L"
+    return_type:
+        size: 17
+        value: "Ljava/lang/Class;"
+    parameters_count: 0
+  - shorty:
+        size: 2
+        value: "LL"
+    return_type:
+        size: 17
+        value: "Ljava/lang/Class;"
+    parameters_count: 1
+    parameters:
+      - size: 18
+        value: "Ljava/lang/String;"
+  - shorty:
+        size: 1
+        value: "L"
+    return_type:
+        size: 23
+        value: "Ljava/lang/ClassLoader;"
+    parameters_count: 0
+  - shorty:
+        size: 2
+        value: "LI"
+    return_type:
+        size: 19
+        value: "Ljava/lang/Integer;"
+    parameters_count: 1
+    parameters:
+      - size: 1
+        value: "I"
+  - shorty:
+        size: 3
+        value: "LLL"
+    return_type:
+        size: 18
+        value: "Ljava/lang/Object;"
+    parameters_count: 1
+    parameters:
+      - size: 26
+        value: "Landroid/app/AlarmManager;"
+  - shorty:
+        size: 2
+        value: "LL"
+    return_type:
+        size: 18
+        value: "Ljava/lang/Object;"
+    parameters_count: 1
+    parameters:
+      - size: 18
+        value: "Ljava/lang/String;"
+  - shorty:
+        size: 2
+        value: "LL"
+    return_type:
+        size: 18
+        value: "Ljava/lang/Object;"
+    parameters_count: 1
+    parameters:
+      - size: 19
+        value: "[Ljava/lang/Object;"
+  - shorty:
+        size: 1
+        value: "L"
+    return_type:
+        size: 18
+        value: "Ljava/lang/String;"
+    parameters_count: 0
+  - shorty:
+        size: 2
+        value: "LI"
+    return_type:
+        size: 18
+        value: "Ljava/lang/String;"
+    parameters_count: 1
+    parameters:
+      - size: 1
+        value: "I"
+  - shorty:
+        size: 2
+        value: "LL"
+    return_type:
+        size: 25
+        value: "Ljava/lang/StringBuilder;"
+    parameters_count: 1
+    parameters:
+      - size: 18
+        value: "Ljava/lang/String;"
+  - shorty:
+        size: 2
+        value: "LL"
+    return_type:
+        size: 31
+        value: "Ljava/lang/reflect/Constructor;"
+    parameters_count: 0
+  - shorty:
+        size: 3
+        value: "LLL"
+    return_type:
+        size: 26
+        value: "Ljava/lang/reflect/Method;"
+    parameters_count: 1
+    parameters:
+      - size: 26
+        value: "Landroid/app/AlarmManager;"
+  - shorty:
+        size: 1
+        value: "V"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 0
+  - shorty:
+        size: 2
+        value: "VI"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 1
+        value: "I"
+  - shorty:
+        size: 3
+        value: "VII"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 2
+    parameters:
+      - size: 1
+        value: "I"
+      - size: 26
+        value: "Landroid/app/AlarmManager;"
+  - shorty:
+        size: 4
+        value: "VIJL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 2
+    parameters:
+      - size: 27
+        value: "Landroid/app/PendingIntent;"
+      - size: 22
+        value: "Landroid/app/Activity;"
+  - shorty:
+        size: 2
+        value: "VL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 35
+        value: "Landroid/content/BroadcastReceiver;"
+  - shorty:
+        size: 3
+        value: "VLL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 1
+        value: "J"
+  - shorty:
+        size: 3
+        value: "VLL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 22
+        value: "Landroid/app/Activity;"
+  - shorty:
+        size: 2
+        value: "VL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 24
+        value: "Landroid/content/Intent;"
+  - shorty:
+        size: 4
+        value: "VLLL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 2
+    parameters:
+      - size: 18
+        value: "Ljava/lang/Object;"
+      - size: 1
+        value: "J"
+  - shorty:
+        size: 2
+        value: "VL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 19
+        value: "Landroid/os/Bundle;"
+  - shorty:
+        size: 2
+        value: "VL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 21
+        value: "Landroid/view/Window;"
+  - shorty:
+        size: 2
+        value: "VL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 14
+        value: "Ljava/io/File;"
+  - shorty:
+        size: 3
+        value: "VLL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 1
+        value: "J"
+  - shorty:
+        size: 2
+        value: "VL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 21
+        value: "Ljava/io/InputStream;"
+  - shorty:
+        size: 2
+        value: "VL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 18
+        value: "Ljava/lang/Object;"
+  - shorty:
+        size: 3
+        value: "VLI"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 2
+    parameters:
+      - size: 18
+        value: "Ljava/lang/Object;"
+      - size: 1
+        value: "J"
+  - shorty:
+        size: 3
+        value: "VLL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 1
+        value: "J"
+  - shorty:
+        size: 2
+        value: "VL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 18
+        value: "Ljava/lang/String;"
+  - shorty:
+        size: 3
+        value: "VLL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 1
+        value: "J"
+  - shorty:
+        size: 3
+        value: "VLL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 22
+        value: "Landroid/app/Activity;"
+  - shorty:
+        size: 2
+        value: "VL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 19
+        value: "Lorg/BasicActivity;"
+  - shorty:
+        size: 5
+        value: "VLLIL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 2
+    parameters:
+      - size: 1
+        value: "J"
+      - size: 19
+        value: "Landroid/os/Bundle;"
+  - shorty:
+        size: 2
+        value: "VL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 16
+        value: "Lorg/DevService;"
+  - shorty:
+        size: 2
+        value: "VL"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 1
+    parameters:
+      - size: 2
+        value: "[B"
+  - shorty:
+        size: 4
+        value: "VLII"
+    return_type:
+        size: 1
+        value: "V"
+    parameters_count: 3
+    parameters:
+      - size: 2
+        value: "[B"
+      - size: 1
+        value: "I"
+      - size: 22
+        value: "Landroid/app/Activity;"
+  - shorty:
+        size: 1
+        value: "Z"
+    return_type:
+        size: 1
+        value: "Z"
+    parameters_count: 0
+  - shorty:
+        size: 2
+        value: "ZL"
+    return_type:
+        size: 1
+        value: "Z"
+    parameters_count: 1
+    parameters:
+      - size: 18
+        value: "Ljava/lang/Object;"
+  - shorty:
+        size: 1
+        value: "L"
+    return_type:
+        size: 2
+        value: "[B"
+    parameters_count: 0
+  - shorty:
+        size: 3
+        value: "LLI"
+    return_type:
+        size: 2
+        value: "[B"
+    parameters_count: 2
+    parameters:
+      - size: 18
+        value: "Ljava/lang/String;"
+      - size: 1
+        value: "J"
+  - shorty:
+        size: 3
+        value: "LLI"
+    return_type:
+        size: 2
+        value: "[B"
+    parameters_count: 2
+    parameters:
+      - size: 2
+        value: "[B"
+      - size: 22
+        value: "Landroid/app/Activity;"
+  - shorty:
+        size: 2
+        value: "LL"
+    return_type:
+        size: 19
+        value: "[Ljava/lang/String;"
+    parameters_count: 1
+    parameters:
+      - size: 18
+        value: "Ljava/lang/String;"
+field_ids:
+  - class:
+        size: 26
+        value: "Landroid/os/Build$VERSION;"
+    type:
+        size: 1
+        value: "I"
+    name:
+        size: 7
+        value: "SDK_INT"
+  - class:
+        size: 14
+        value: "Ljava/io/File;"
+    type:
+        size: 18
+        value: "Ljava/lang/String;"
+    name:
+        size: 9
+        value: "separator"
+  - class:
+        size: 19
+        value: "Ljava/lang/Integer;"
+    type:
+        size: 17
+        value: "Ljava/lang/Class;"
+    name:
+        size: 4
+        value: "TYPE"
+  - class:
+        size: 21
+        value: "Lorg/BasicActivity$1;"
+    type:
+        size: 18
+        value: "Ljava/lang/Object;"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 21
+        value: "Lorg/BasicActivity$2;"
+    type:
+        size: 19
+        value: "Lorg/BasicActivity;"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 19
+        value: "Lorg/BasicActivity;"
+    type:
+        size: 35
+        value: "Landroid/content/BroadcastReceiver;"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 22
+        value: "Lorg/CeonstReceiver$1;"
+    type:
+        size: 24
+        value: "Landroid/content/Intent;"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 22
+        value: "Lorg/CeonstReceiver$1;"
+    type:
+        size: 1
+        value: "I"
+    name:
+        size: 1
+        value: "b"
+  - class:
+        size: 22
+        value: "Lorg/CeonstReceiver$1;"
+    type:
+        size: 18
+        value: "Ljava/lang/Object;"
+    name:
+        size: 1
+        value: "c"
+  - class:
+        size: 22
+        value: "Lorg/CeonstReceiver$1;"
+    type:
+        size: 20
+        value: "Lorg/CeonstReceiver;"
+    name:
+        size: 1
+        value: "d"
+  - class:
+        size: 18
+        value: "Lorg/DevService$1;"
+    type:
+        size: 16
+        value: "Lorg/DevService;"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 16
+        value: "Lorg/DevService;"
+    type:
+        size: 1
+        value: "Z"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 16
+        value: "Lorg/DevService;"
+    type:
+        size: 26
+        value: "Ljava/lang/reflect/Method;"
+    name:
+        size: 1
+        value: "b"
+  - class:
+        size: 16
+        value: "Lorg/DevService;"
+    type:
+        size: 35
+        value: "Landroid/content/BroadcastReceiver;"
+    name:
+        size: 1
+        value: "c"
+  - class:
+        size: 17
+        value: "Lorg/KseActivity;"
+    type:
+        size: 20
+        value: "Landroid/os/Handler;"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 17
+        value: "Lorg/KseActivity;"
+    type:
+        size: 18
+        value: "Ljava/lang/String;"
+    name:
+        size: 1
+        value: "b"
+  - class:
+        size: 15
+        value: "Lorg/hskdAppli;"
+    type:
+        size: 18
+        value: "Ljava/lang/Object;"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 15
+        value: "Lorg/hskdAppli;"
+    type:
+        size: 23
+        value: "Ljava/lang/ClassLoader;"
+    name:
+        size: 1
+        value: "b"
+  - class:
+        size: 15
+        value: "Lorg/hskdAppli;"
+    type:
+        size: 17
+        value: "Ljava/lang/Class;"
+    name:
+        size: 1
+        value: "c"
+  - class:
+        size: 15
+        value: "Lorg/hskdAppli;"
+    type:
+        size: 18
+        value: "Ljava/lang/String;"
+    name:
+        size: 1
+        value: "d"
+method_ids:
+  - class:
+        size: 22
+        value: "Landroid/app/Activity;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 22
+        value: "Landroid/app/Activity;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 19
+            value: "Landroid/os/Bundle;"
+    name:
+        size: 8
+        value: "onCreate"
+  - class:
+        size: 22
+        value: "Landroid/app/Activity;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 9
+        value: "onDestroy"
+  - class:
+        size: 26
+        value: "Landroid/app/AlarmManager;"
+    proto:
+        shorty:
+            size: 4
+            value: "VIJL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 2
+        parameters:
+          - size: 27
+            value: "Landroid/app/PendingIntent;"
+          - size: 22
+            value: "Landroid/app/Activity;"
+    name:
+        size: 3
+        value: "set"
+  - class:
+        size: 25
+        value: "Landroid/app/Application;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 25
+        value: "Landroid/app/Application;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 8
+        value: "onCreate"
+  - class:
+        size: 25
+        value: "Landroid/app/Application;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 11
+        value: "onTerminate"
+  - class:
+        size: 27
+        value: "Landroid/app/PendingIntent;"
+    proto:
+        shorty:
+            size: 5
+            value: "LLILI"
+        return_type:
+            size: 27
+            value: "Landroid/app/PendingIntent;"
+        parameters_count: 3
+        parameters:
+          - size: 25
+            value: "Landroid/content/Context;"
+          - size: 24
+            value: "Landroid/content/Intent;"
+          - size: 22
+            value: "Landroid/app/Activity;"
+    name:
+        size: 12
+        value: "getBroadcast"
+  - class:
+        size: 21
+        value: "Landroid/app/Service;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 21
+        value: "Landroid/app/Service;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 8
+        value: "onCreate"
+  - class:
+        size: 21
+        value: "Landroid/app/Service;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 9
+        value: "onDestroy"
+  - class:
+        size: 35
+        value: "Landroid/content/BroadcastReceiver;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 31
+        value: "Landroid/content/ComponentName;"
+    proto:
+        shorty:
+            size: 3
+            value: "VLL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 1
+            value: "J"
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 25
+        value: "Landroid/content/Context;"
+    proto:
+        shorty:
+            size: 3
+            value: "LLI"
+        return_type:
+            size: 35
+            value: "Landroid/content/SharedPreferences;"
+        parameters_count: 2
+        parameters:
+          - size: 18
+            value: "Ljava/lang/String;"
+          - size: 1
+            value: "J"
+    name:
+        size: 20
+        value: "getSharedPreferences"
+  - class:
+        size: 25
+        value: "Landroid/content/Context;"
+    proto:
+        shorty:
+            size: 2
+            value: "LL"
+        return_type:
+            size: 31
+            value: "Landroid/content/ComponentName;"
+        parameters_count: 1
+        parameters:
+          - size: 24
+            value: "Landroid/content/Intent;"
+    name:
+        size: 12
+        value: "startService"
+  - class:
+        size: 24
+        value: "Landroid/content/Intent;"
+    proto:
+        shorty:
+            size: 3
+            value: "VLL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 22
+            value: "Landroid/app/Activity;"
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 24
+        value: "Landroid/content/Intent;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 18
+            value: "Ljava/lang/String;"
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 24
+        value: "Landroid/content/Intent;"
+    proto:
+        shorty:
+            size: 2
+            value: "LI"
+        return_type:
+            size: 24
+            value: "Landroid/content/Intent;"
+        parameters_count: 1
+        parameters:
+          - size: 1
+            value: "I"
+    name:
+        size: 8
+        value: "addFlags"
+  - class:
+        size: 24
+        value: "Landroid/content/Intent;"
+    proto:
+        shorty:
+            size: 1
+            value: "L"
+        return_type:
+            size: 18
+            value: "Ljava/lang/String;"
+        parameters_count: 0
+    name:
+        size: 9
+        value: "getAction"
+  - class:
+        size: 30
+        value: "Landroid/content/IntentFilter;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 18
+            value: "Ljava/lang/String;"
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 35
+        value: "Landroid/content/SharedPreferences;"
+    proto:
+        shorty:
+            size: 3
+            value: "ILI"
+        return_type:
+            size: 1
+            value: "I"
+        parameters_count: 2
+        parameters:
+          - size: 18
+            value: "Ljava/lang/String;"
+          - size: 1
+            value: "J"
+    name:
+        size: 6
+        value: "getInt"
+  - class:
+        size: 34
+        value: "Landroid/content/res/AssetManager;"
+    proto:
+        shorty:
+            size: 2
+            value: "LL"
+        return_type:
+            size: 19
+            value: "[Ljava/lang/String;"
+        parameters_count: 1
+        parameters:
+          - size: 18
+            value: "Ljava/lang/String;"
+    name:
+        size: 4
+        value: "list"
+  - class:
+        size: 34
+        value: "Landroid/content/res/AssetManager;"
+    proto:
+        shorty:
+            size: 2
+            value: "LL"
+        return_type:
+            size: 21
+            value: "Ljava/io/InputStream;"
+        parameters_count: 1
+        parameters:
+          - size: 18
+            value: "Ljava/lang/String;"
+    name:
+        size: 4
+        value: "open"
+  - class:
+        size: 20
+        value: "Landroid/os/Handler;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 24
+        value: "Landroid/os/SystemClock;"
+    proto:
+        shorty:
+            size: 1
+            value: "J"
+        return_type:
+            size: 1
+            value: "J"
+        parameters_count: 0
+    name:
+        size: 15
+        value: "elapsedRealtime"
+  - class:
+        size: 21
+        value: "Landroid/util/Base64;"
+    proto:
+        shorty:
+            size: 3
+            value: "LLI"
+        return_type:
+            size: 2
+            value: "[B"
+        parameters_count: 2
+        parameters:
+          - size: 18
+            value: "Ljava/lang/String;"
+          - size: 1
+            value: "J"
+    name:
+        size: 6
+        value: "decode"
+  - class:
+        size: 21
+        value: "Landroid/util/Base64;"
+    proto:
+        shorty:
+            size: 3
+            value: "LLI"
+        return_type:
+            size: 2
+            value: "[B"
+        parameters_count: 2
+        parameters:
+          - size: 2
+            value: "[B"
+          - size: 22
+            value: "Landroid/app/Activity;"
+    name:
+        size: 6
+        value: "decode"
+  - class:
+        size: 21
+        value: "Landroid/view/Window;"
+    proto:
+        shorty:
+            size: 2
+            value: "VI"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 1
+            value: "I"
+    name:
+        size: 8
+        value: "addFlags"
+  - class:
+        size: 21
+        value: "Landroid/view/Window;"
+    proto:
+        shorty:
+            size: 2
+            value: "VI"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 1
+            value: "I"
+    name:
+        size: 10
+        value: "clearFlags"
+  - class:
+        size: 21
+        value: "Landroid/view/Window;"
+    proto:
+        shorty:
+            size: 3
+            value: "VII"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 2
+        parameters:
+          - size: 1
+            value: "I"
+          - size: 26
+            value: "Landroid/app/AlarmManager;"
+    name:
+        size: 8
+        value: "setFlags"
+  - class:
+        size: 21
+        value: "Landroid/view/Window;"
+    proto:
+        shorty:
+            size: 2
+            value: "VI"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 1
+            value: "I"
+    name:
+        size: 17
+        value: "setStatusBarColor"
+  - class:
+        size: 31
+        value: "Ljava/io/ByteArrayOutputStream;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 31
+        value: "Ljava/io/ByteArrayOutputStream;"
+    proto:
+        shorty:
+            size: 1
+            value: "L"
+        return_type:
+            size: 2
+            value: "[B"
+        parameters_count: 0
+    name:
+        size: 11
+        value: "toByteArray"
+  - class:
+        size: 31
+        value: "Ljava/io/ByteArrayOutputStream;"
+    proto:
+        shorty:
+            size: 4
+            value: "VLII"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 3
+        parameters:
+          - size: 2
+            value: "[B"
+          - size: 1
+            value: "I"
+          - size: 22
+            value: "Landroid/app/Activity;"
+    name:
+        size: 5
+        value: "write"
+  - class:
+        size: 14
+        value: "Ljava/io/File;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 18
+            value: "Ljava/lang/String;"
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 14
+        value: "Ljava/io/File;"
+    proto:
+        shorty:
+            size: 1
+            value: "Z"
+        return_type:
+            size: 1
+            value: "Z"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "delete"
+  - class:
+        size: 14
+        value: "Ljava/io/File;"
+    proto:
+        shorty:
+            size: 1
+            value: "Z"
+        return_type:
+            size: 1
+            value: "Z"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "exists"
+  - class:
+        size: 14
+        value: "Ljava/io/File;"
+    proto:
+        shorty:
+            size: 1
+            value: "L"
+        return_type:
+            size: 18
+            value: "Ljava/lang/String;"
+        parameters_count: 0
+    name:
+        size: 15
+        value: "getAbsolutePath"
+  - class:
+        size: 14
+        value: "Ljava/io/File;"
+    proto:
+        shorty:
+            size: 1
+            value: "Z"
+        return_type:
+            size: 1
+            value: "Z"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "mkdirs"
+  - class:
+        size: 26
+        value: "Ljava/io/FileOutputStream;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 14
+            value: "Ljava/io/File;"
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 26
+        value: "Ljava/io/FileOutputStream;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 5
+        value: "close"
+  - class:
+        size: 26
+        value: "Ljava/io/FileOutputStream;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 2
+            value: "[B"
+    name:
+        size: 5
+        value: "write"
+  - class:
+        size: 21
+        value: "Ljava/io/InputStream;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 5
+        value: "close"
+  - class:
+        size: 21
+        value: "Ljava/io/InputStream;"
+    proto:
+        shorty:
+            size: 2
+            value: "IL"
+        return_type:
+            size: 1
+            value: "I"
+        parameters_count: 1
+        parameters:
+          - size: 2
+            value: "[B"
+    name:
+        size: 4
+        value: "read"
+  - class:
+        size: 21
+        value: "Ljava/io/InputStream;"
+    proto:
+        shorty:
+            size: 2
+            value: "JJ"
+        return_type:
+            size: 1
+            value: "J"
+        parameters_count: 1
+        parameters:
+          - size: 1
+            value: "J"
+    name:
+        size: 4
+        value: "skip"
+  - class:
+        size: 17
+        value: "Ljava/lang/Class;"
+    proto:
+        shorty:
+            size: 2
+            value: "LL"
+        return_type:
+            size: 31
+            value: "Ljava/lang/reflect/Constructor;"
+        parameters_count: 0
+    name:
+        size: 14
+        value: "getConstructor"
+  - class:
+        size: 17
+        value: "Ljava/lang/Class;"
+    proto:
+        shorty:
+            size: 3
+            value: "LLL"
+        return_type:
+            size: 26
+            value: "Ljava/lang/reflect/Method;"
+        parameters_count: 1
+        parameters:
+          - size: 26
+            value: "Landroid/app/AlarmManager;"
+    name:
+        size: 9
+        value: "getMethod"
+  - class:
+        size: 17
+        value: "Ljava/lang/Class;"
+    proto:
+        shorty:
+            size: 1
+            value: "L"
+        return_type:
+            size: 18
+            value: "Ljava/lang/String;"
+        parameters_count: 0
+    name:
+        size: 7
+        value: "getName"
+  - class:
+        size: 23
+        value: "Ljava/lang/ClassLoader;"
+    proto:
+        shorty:
+            size: 1
+            value: "L"
+        return_type:
+            size: 23
+            value: "Ljava/lang/ClassLoader;"
+        parameters_count: 0
+    name:
+        size: 20
+        value: "getSystemClassLoader"
+  - class:
+        size: 23
+        value: "Ljava/lang/ClassLoader;"
+    proto:
+        shorty:
+            size: 2
+            value: "LL"
+        return_type:
+            size: 17
+            value: "Ljava/lang/Class;"
+        parameters_count: 1
+        parameters:
+          - size: 18
+            value: "Ljava/lang/String;"
+    name:
+        size: 9
+        value: "loadClass"
+  - class:
+        size: 21
+        value: "Ljava/lang/Exception;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 15
+        value: "printStackTrace"
+  - class:
+        size: 19
+        value: "Ljava/lang/Integer;"
+    proto:
+        shorty:
+            size: 2
+            value: "LI"
+        return_type:
+            size: 19
+            value: "Ljava/lang/Integer;"
+        parameters_count: 1
+        parameters:
+          - size: 1
+            value: "I"
+    name:
+        size: 7
+        value: "valueOf"
+  - class:
+        size: 18
+        value: "Ljava/lang/Object;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 18
+        value: "Ljava/lang/Object;"
+    proto:
+        shorty:
+            size: 1
+            value: "L"
+        return_type:
+            size: 17
+            value: "Ljava/lang/Class;"
+        parameters_count: 0
+    name:
+        size: 8
+        value: "getClass"
+  - class:
+        size: 18
+        value: "Ljava/lang/String;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 2
+            value: "[B"
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 18
+        value: "Ljava/lang/String;"
+    proto:
+        shorty:
+            size: 2
+            value: "ZL"
+        return_type:
+            size: 1
+            value: "Z"
+        parameters_count: 1
+        parameters:
+          - size: 18
+            value: "Ljava/lang/Object;"
+    name:
+        size: 6
+        value: "equals"
+  - class:
+        size: 18
+        value: "Ljava/lang/String;"
+    proto:
+        shorty:
+            size: 2
+            value: "LI"
+        return_type:
+            size: 18
+            value: "Ljava/lang/String;"
+        parameters_count: 1
+        parameters:
+          - size: 1
+            value: "I"
+    name:
+        size: 9
+        value: "substring"
+  - class:
+        size: 18
+        value: "Ljava/lang/String;"
+    proto:
+        shorty:
+            size: 1
+            value: "L"
+        return_type:
+            size: 18
+            value: "Ljava/lang/String;"
+        parameters_count: 0
+    name:
+        size: 11
+        value: "toLowerCase"
+  - class:
+        size: 25
+        value: "Ljava/lang/StringBuilder;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 25
+        value: "Ljava/lang/StringBuilder;"
+    proto:
+        shorty:
+            size: 2
+            value: "LL"
+        return_type:
+            size: 25
+            value: "Ljava/lang/StringBuilder;"
+        parameters_count: 1
+        parameters:
+          - size: 18
+            value: "Ljava/lang/String;"
+    name:
+        size: 6
+        value: "append"
+  - class:
+        size: 25
+        value: "Ljava/lang/StringBuilder;"
+    proto:
+        shorty:
+            size: 1
+            value: "L"
+        return_type:
+            size: 18
+            value: "Ljava/lang/String;"
+        parameters_count: 0
+    name:
+        size: 8
+        value: "toString"
+  - class:
+        size: 21
+        value: "Ljava/lang/Throwable;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 15
+        value: "printStackTrace"
+  - class:
+        size: 31
+        value: "Ljava/lang/reflect/Constructor;"
+    proto:
+        shorty:
+            size: 2
+            value: "LL"
+        return_type:
+            size: 18
+            value: "Ljava/lang/Object;"
+        parameters_count: 1
+        parameters:
+          - size: 19
+            value: "[Ljava/lang/Object;"
+    name:
+        size: 11
+        value: "newInstance"
+  - class:
+        size: 26
+        value: "Ljava/lang/reflect/Method;"
+    proto:
+        shorty:
+            size: 3
+            value: "LLL"
+        return_type:
+            size: 18
+            value: "Ljava/lang/Object;"
+        parameters_count: 1
+        parameters:
+          - size: 26
+            value: "Landroid/app/AlarmManager;"
+    name:
+        size: 6
+        value: "invoke"
+  - class:
+        size: 35
+        value: "Ljava/util/zip/InflaterInputStream;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 21
+            value: "Ljava/io/InputStream;"
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 21
+        value: "Lorg/BasicActivity$1;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 18
+            value: "Ljava/lang/Object;"
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 21
+        value: "Lorg/BasicActivity$1;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 3
+        value: "run"
+  - class:
+        size: 21
+        value: "Lorg/BasicActivity$2;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 19
+            value: "Lorg/BasicActivity;"
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 21
+        value: "Lorg/BasicActivity$2;"
+    proto:
+        shorty:
+            size: 3
+            value: "VLL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 1
+            value: "J"
+    name:
+        size: 9
+        value: "onReceive"
+  - class:
+        size: 19
+        value: "Lorg/BasicActivity;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 19
+        value: "Lorg/BasicActivity;"
+    proto:
+        shorty:
+            size: 1
+            value: "L"
+        return_type:
+            size: 21
+            value: "Landroid/view/Window;"
+        parameters_count: 0
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 19
+        value: "Lorg/BasicActivity;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 21
+            value: "Landroid/view/Window;"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 19
+        value: "Lorg/BasicActivity;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 18
+            value: "Ljava/lang/Object;"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 19
+        value: "Lorg/BasicActivity;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 21
+            value: "Landroid/view/Window;"
+    name:
+        size: 1
+        value: "b"
+  - class:
+        size: 19
+        value: "Lorg/BasicActivity;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "finish"
+  - class:
+        size: 19
+        value: "Lorg/BasicActivity;"
+    proto:
+        shorty:
+            size: 1
+            value: "L"
+        return_type:
+            size: 21
+            value: "Landroid/view/Window;"
+        parameters_count: 0
+    name:
+        size: 9
+        value: "getWindow"
+  - class:
+        size: 19
+        value: "Lorg/BasicActivity;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 19
+            value: "Landroid/os/Bundle;"
+    name:
+        size: 8
+        value: "onCreate"
+  - class:
+        size: 19
+        value: "Lorg/BasicActivity;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 9
+        value: "onDestroy"
+  - class:
+        size: 22
+        value: "Lorg/CeonstReceiver$1;"
+    proto:
+        shorty:
+            size: 5
+            value: "VLLIL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 2
+        parameters:
+          - size: 1
+            value: "J"
+          - size: 19
+            value: "Landroid/os/Bundle;"
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 22
+        value: "Lorg/CeonstReceiver$1;"
+    proto:
+        shorty:
+            size: 3
+            value: "VLI"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 2
+        parameters:
+          - size: 18
+            value: "Ljava/lang/Object;"
+          - size: 1
+            value: "J"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 22
+        value: "Lorg/CeonstReceiver$1;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 3
+        value: "run"
+  - class:
+        size: 20
+        value: "Lorg/CeonstReceiver;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 20
+        value: "Lorg/CeonstReceiver;"
+    proto:
+        shorty:
+            size: 2
+            value: "LL"
+        return_type:
+            size: 35
+            value: "Landroid/content/SharedPreferences;"
+        parameters_count: 1
+        parameters:
+          - size: 25
+            value: "Landroid/content/Context;"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 20
+        value: "Lorg/CeonstReceiver;"
+    proto:
+        shorty:
+            size: 4
+            value: "VLLL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 2
+        parameters:
+          - size: 18
+            value: "Ljava/lang/Object;"
+          - size: 1
+            value: "J"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 20
+        value: "Lorg/CeonstReceiver;"
+    proto:
+        shorty:
+            size: 3
+            value: "VLL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 1
+            value: "J"
+    name:
+        size: 9
+        value: "onReceive"
+  - class:
+        size: 18
+        value: "Lorg/DevService$1;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 16
+            value: "Lorg/DevService;"
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 18
+        value: "Lorg/DevService$1;"
+    proto:
+        shorty:
+            size: 3
+            value: "VLL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 1
+            value: "J"
+    name:
+        size: 9
+        value: "onReceive"
+  - class:
+        size: 16
+        value: "Lorg/DevService;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 16
+        value: "Lorg/DevService;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 16
+        value: "Lorg/DevService;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 24
+            value: "Landroid/content/Intent;"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 16
+        value: "Lorg/DevService;"
+    proto:
+        shorty:
+            size: 3
+            value: "VLL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 1
+            value: "J"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 16
+        value: "Lorg/DevService;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 1
+        value: "b"
+  - class:
+        size: 16
+        value: "Lorg/DevService;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 24
+            value: "Landroid/content/Intent;"
+    name:
+        size: 1
+        value: "b"
+  - class:
+        size: 16
+        value: "Lorg/DevService;"
+    proto:
+        shorty:
+            size: 1
+            value: "L"
+        return_type:
+            size: 25
+            value: "Landroid/app/Application;"
+        parameters_count: 0
+    name:
+        size: 14
+        value: "getApplication"
+  - class:
+        size: 16
+        value: "Lorg/DevService;"
+    proto:
+        shorty:
+            size: 2
+            value: "LL"
+        return_type:
+            size: 18
+            value: "Ljava/lang/Object;"
+        parameters_count: 1
+        parameters:
+          - size: 18
+            value: "Ljava/lang/String;"
+    name:
+        size: 16
+        value: "getSystemService"
+  - class:
+        size: 16
+        value: "Lorg/DevService;"
+    proto:
+        shorty:
+            size: 2
+            value: "LL"
+        return_type:
+            size: 20
+            value: "Landroid/os/IBinder;"
+        parameters_count: 1
+        parameters:
+          - size: 24
+            value: "Landroid/content/Intent;"
+    name:
+        size: 6
+        value: "onBind"
+  - class:
+        size: 16
+        value: "Lorg/DevService;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 8
+        value: "onCreate"
+  - class:
+        size: 16
+        value: "Lorg/DevService;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 9
+        value: "onDestroy"
+  - class:
+        size: 16
+        value: "Lorg/DevService;"
+    proto:
+        shorty:
+            size: 4
+            value: "ILII"
+        return_type:
+            size: 1
+            value: "I"
+        parameters_count: 3
+        parameters:
+          - size: 24
+            value: "Landroid/content/Intent;"
+          - size: 1
+            value: "I"
+          - size: 1
+            value: "J"
+    name:
+        size: 14
+        value: "onStartCommand"
+  - class:
+        size: 16
+        value: "Lorg/DevService;"
+    proto:
+        shorty:
+            size: 3
+            value: "LLL"
+        return_type:
+            size: 24
+            value: "Landroid/content/Intent;"
+        parameters_count: 1
+        parameters:
+          - size: 1
+            value: "J"
+    name:
+        size: 16
+        value: "registerReceiver"
+  - class:
+        size: 16
+        value: "Lorg/DevService;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 24
+            value: "Landroid/content/Intent;"
+    name:
+        size: 13
+        value: "startActivity"
+  - class:
+        size: 16
+        value: "Lorg/DevService;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 35
+            value: "Landroid/content/BroadcastReceiver;"
+    name:
+        size: 18
+        value: "unregisterReceiver"
+  - class:
+        size: 17
+        value: "Lorg/KasReceiver;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 17
+        value: "Lorg/KseActivity;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 8
+        value: "<clinit>"
+  - class:
+        size: 17
+        value: "Lorg/KseActivity;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 17
+        value: "Lorg/KseActivity;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 17
+        value: "Lorg/KseActivity;"
+    proto:
+        shorty:
+            size: 3
+            value: "VLL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 22
+            value: "Landroid/app/Activity;"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 17
+        value: "Lorg/KseActivity;"
+    proto:
+        shorty:
+            size: 1
+            value: "L"
+        return_type:
+            size: 18
+            value: "Ljava/lang/String;"
+        parameters_count: 0
+    name:
+        size: 14
+        value: "getPackageName"
+  - class:
+        size: 17
+        value: "Lorg/KseActivity;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 13
+        value: "onBackPressed"
+  - class:
+        size: 17
+        value: "Lorg/KseActivity;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 19
+            value: "Landroid/os/Bundle;"
+    name:
+        size: 8
+        value: "onCreate"
+  - class:
+        size: 17
+        value: "Lorg/KseActivity;"
+    proto:
+        shorty:
+            size: 2
+            value: "LL"
+        return_type:
+            size: 31
+            value: "Landroid/content/ComponentName;"
+        parameters_count: 1
+        parameters:
+          - size: 24
+            value: "Landroid/content/Intent;"
+    name:
+        size: 12
+        value: "startService"
+  - class:
+        size: 16
+        value: "Lorg/MvReceiver;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 15
+        value: "Lorg/hskdAppli;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 6
+        value: "<init>"
+  - class:
+        size: 15
+        value: "Lorg/hskdAppli;"
+    proto:
+        shorty:
+            size: 4
+            value: "LLLL"
+        return_type:
+            size: 30
+            value: "Ldalvik/system/DexClassLoader;"
+        parameters_count: 2
+        parameters:
+          - size: 23
+            value: "Ljava/lang/ClassLoader;"
+          - size: 1
+            value: "J"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 15
+        value: "Lorg/hskdAppli;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 15
+        value: "Lorg/hskdAppli;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 14
+            value: "Ljava/io/File;"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 15
+        value: "Lorg/hskdAppli;"
+    proto:
+        shorty:
+            size: 3
+            value: "VLL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 1
+            value: "J"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 15
+        value: "Lorg/hskdAppli;"
+    proto:
+        shorty:
+            size: 3
+            value: "VLL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 1
+            value: "J"
+    name:
+        size: 1
+        value: "a"
+  - class:
+        size: 15
+        value: "Lorg/hskdAppli;"
+    proto:
+        shorty:
+            size: 1
+            value: "L"
+        return_type:
+            size: 34
+            value: "Landroid/content/res/AssetManager;"
+        parameters_count: 0
+    name:
+        size: 9
+        value: "getAssets"
+  - class:
+        size: 15
+        value: "Lorg/hskdAppli;"
+    proto:
+        shorty:
+            size: 1
+            value: "L"
+        return_type:
+            size: 14
+            value: "Ljava/io/File;"
+        parameters_count: 0
+    name:
+        size: 11
+        value: "getFilesDir"
+  - class:
+        size: 15
+        value: "Lorg/hskdAppli;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 8
+        value: "onCreate"
+  - class:
+        size: 15
+        value: "Lorg/hskdAppli;"
+    proto:
+        shorty:
+            size: 1
+            value: "V"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 0
+    name:
+        size: 11
+        value: "onTerminate"
+class_defs:
+  - class:
+        size: 21
+        value: "Lorg/BasicActivity$1;"
+    access_flags: 16
+    superclass:
+        size: 18
+        value: "Ljava/lang/Object;"
+  - class:
+        size: 35
+        value: "Landroid/content/BroadcastReceiver;"
+    access_flags: 0
+  - class:
+        size: 1
+        value: "I"
+    access_flags: 47
+    superclass:
+        size: 1
+        value: "J"
+    source_file:
+        size: 7
+        value: ".Loader"
+  - class:
+        size: 1
+        value: "I"
+    access_flags: 36
+  - class:
+        size: 1
+        value: "I"
+    access_flags: 4294967295
+    superclass:
+        size: 1
+        value: "I"
+    source_file:
+        size: 7
+        value: ".Loader"
+  - class:
+        size: 18
+        value: "Lorg/DevService$1;"
+    access_flags: 0
+    superclass:
+        size: 35
+        value: "Landroid/content/BroadcastReceiver;"
+  - class:
+        size: 21
+        value: "Landroid/app/Service;"
+    access_flags: 0
+map_list:
+    size: 15
+    items:
+      - type: TYPE_HEADER_ITEM
+        unused: 0
+        size: 1
+        offset: 0x0
+      - type: TYPE_STRING_ID_ITEM
+        unused: 0
+        size: 176
+        offset: 0x70
+      - type: TYPE_TYPE_ID_ITEM
+        unused: 0
+        size: 63
+        offset: 0x330
+      - type: TYPE_PROTO_ID_ITEM
+        unused: 0
+        size: 61
+        offset: 0x42c
+      - type: TYPE_FIELD_ID_ITEM
+        unused: 0
+        size: 20
+        offset: 0x708
+      - type: TYPE_METHOD_ID_ITEM
+        unused: 0
+        size: 122
+        offset: 0x7a8
+      - type: TYPE_CLASS_DEF_ITEM
+        unused: 0
+        size: 11
+        offset: 0xb78
+      - type: TYPE_STRING_DATA_ITEM
+        unused: 0
+        size: 176
+        offset: 0xcd8
+      - type: TYPE_TYPE_LIST
+        unused: 0
+        size: 37
+        offset: 0x1730
+      - type: TYPE_ANNOTATION_ITEM
+        unused: 0
+        size: 6
+        offset: 0x1872
+      - type: TYPE_ANNOTATION_SET_ITEM
+        unused: 0
+        size: 6
+        offset: 0x18a0
+      - type: TYPE_ANNOTATIONS_DIRECTORY_ITEM
+        unused: 0
+        size: 4
+        offset: 0x18d8
+      - type: TYPE_CODE_ITEM
+        unused: 0
+        size: 46
+        offset: 0x1918
+      - type: TYPE_CLASS_DATA_ITEM
+        unused: 0
+        size: 11
+        offset: 0x25d8
+      - type: TYPE_MAP_LIST
+        unused: 0
+        size: 1
+        offset: 0x2700

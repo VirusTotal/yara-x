@@ -2,8 +2,8 @@ is_dex: true
 header:
     magic: 0x6465780a
     version: 38
-    checksum: 0x200c7aa1
-    signature: "e9bd6aa16e8eea1a71e7fd2eb3236749a10a64ef"
+    checksum: 0x7f4679b0
+    signature: "eab238c117f398ac922c2daf525df3832ed7ac3b"
     file_size: 876
     header_size: 0x70
     endian_tag: 0x12345678
@@ -41,12 +41,12 @@ string_ids:
     value: "Landroid/app/Application;"
   - size: 25
     value: "Landroid/content/Context;"
+  - size: 19
+    value: "Lezbkvojpi/keikfof;"
   - size: 18
     value: "Ljava/lang/String;"
   - size: 18
     value: "Ljava/lang/System;"
-  - size: 21
-    value: "Lwmczycqxv/egztwrhea;"
   - size: 1
     value: "V"
   - size: 2
@@ -61,8 +61,8 @@ string_ids:
     value: "loadLibrary"
   - size: 8
     value: "onCreate"
-  - size: 6
-    value: "xjgxpt"
+  - size: 7
+    value: "oyclxjt"
 type_ids:
   - size: 1
     value: "I"
@@ -70,12 +70,12 @@ type_ids:
     value: "Landroid/app/Application;"
   - size: 25
     value: "Landroid/content/Context;"
+  - size: 19
+    value: "Lezbkvojpi/keikfof;"
   - size: 18
     value: "Ljava/lang/String;"
   - size: 18
     value: "Ljava/lang/System;"
-  - size: 21
-    value: "Lwmczycqxv/egztwrhea;"
   - size: 1
     value: "V"
 proto_ids:
@@ -141,25 +141,8 @@ method_ids:
         size: 6
         value: "<init>"
   - class:
-        size: 18
-        value: "Ljava/lang/System;"
-    proto:
-        shorty:
-            size: 2
-            value: "VL"
-        return_type:
-            size: 1
-            value: "V"
-        parameters_count: 1
-        parameters:
-          - size: 18
-            value: "Ljava/lang/String;"
-    name:
-        size: 11
-        value: "loadLibrary"
-  - class:
-        size: 21
-        value: "Lwmczycqxv/egztwrhea;"
+        size: 19
+        value: "Lezbkvojpi/keikfof;"
     proto:
         shorty:
             size: 1
@@ -172,8 +155,8 @@ method_ids:
         size: 8
         value: "<clinit>"
   - class:
-        size: 21
-        value: "Lwmczycqxv/egztwrhea;"
+        size: 19
+        value: "Lezbkvojpi/keikfof;"
     proto:
         shorty:
             size: 1
@@ -186,8 +169,8 @@ method_ids:
         size: 6
         value: "<init>"
   - class:
-        size: 21
-        value: "Lwmczycqxv/egztwrhea;"
+        size: 19
+        value: "Lezbkvojpi/keikfof;"
     proto:
         shorty:
             size: 2
@@ -203,8 +186,8 @@ method_ids:
         size: 17
         value: "attachBaseContext"
   - class:
-        size: 21
-        value: "Lwmczycqxv/egztwrhea;"
+        size: 19
+        value: "Lezbkvojpi/keikfof;"
     proto:
         shorty:
             size: 3
@@ -222,8 +205,8 @@ method_ids:
         size: 20
         value: "createPackageContext"
   - class:
-        size: 21
-        value: "Lwmczycqxv/egztwrhea;"
+        size: 19
+        value: "Lezbkvojpi/keikfof;"
     proto:
         shorty:
             size: 1
@@ -236,8 +219,8 @@ method_ids:
         size: 14
         value: "getPackageName"
   - class:
-        size: 21
-        value: "Lwmczycqxv/egztwrhea;"
+        size: 19
+        value: "Lezbkvojpi/keikfof;"
     proto:
         shorty:
             size: 1
@@ -249,10 +232,27 @@ method_ids:
     name:
         size: 8
         value: "onCreate"
+  - class:
+        size: 18
+        value: "Ljava/lang/System;"
+    proto:
+        shorty:
+            size: 2
+            value: "VL"
+        return_type:
+            size: 1
+            value: "V"
+        parameters_count: 1
+        parameters:
+          - size: 18
+            value: "Ljava/lang/String;"
+    name:
+        size: 11
+        value: "loadLibrary"
 class_defs:
   - class:
-        size: 21
-        value: "Lwmczycqxv/egztwrhea;"
+        size: 19
+        value: "Lezbkvojpi/keikfof;"
     access_flags: 1
     superclass:
         size: 25

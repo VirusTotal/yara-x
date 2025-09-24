@@ -408,7 +408,7 @@ impl Dex {
         }
 
         let (rem, method_entries) = count(
-            (le_u16::<&[u8], Error>, le_u16, le_u16),
+            (le_u16::<&[u8], Error>, le_u16, le_u32),
             header.method_ids_size as usize,
         )
         .parse(remainder)?;

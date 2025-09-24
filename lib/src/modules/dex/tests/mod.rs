@@ -61,3 +61,57 @@ fn signature() {
         &dex
     );
 }
+
+#[test]
+fn strings() {
+    let dex = create_binary_from_zipped_ihex(
+        "src/modules/dex/tests/testdata/c14c75d58399825287e0ee0fcfede6ec06f93489fb52f70bca2736fae5fceab2.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "dex"
+        rule test {
+            condition:
+                dex.contains_string("loadLibrary")
+        }
+        "#,
+        &dex
+    );
+}
+
+#[test]
+fn methods() {
+    let dex = create_binary_from_zipped_ihex(
+        "src/modules/dex/tests/testdata/c14c75d58399825287e0ee0fcfede6ec06f93489fb52f70bca2736fae5fceab2.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "dex"
+        rule test {
+            condition:
+                dex.contains_method("getPackageName")
+        }
+        "#,
+        &dex
+    );
+}
+
+#[test]
+fn classes() {
+    let dex = create_binary_from_zipped_ihex(
+        "src/modules/dex/tests/testdata/c14c75d58399825287e0ee0fcfede6ec06f93489fb52f70bca2736fae5fceab2.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "dex"
+        rule test {
+            condition:
+                dex.contains_class("Lwmczycqxv/egztwrhea;")
+        }
+        "#,
+        &dex
+    );
+}

@@ -12,15 +12,14 @@ option (yara.module_options) = {
 
 message Dex {
     optional bool is_dex = 1;
-    optional string module_name = 2;
-    optional DexHeader header = 3;
-    repeated StringItem string_ids = 4;
-    repeated StringItem type_ids = 5;
-    repeated ProtoItem proto_ids = 6;
-    repeated FieldItem field_ids = 7;
-    repeated MethodItem method_ids = 8;
-    repeated ClassItem class_defs = 9;
-    optional MapList map_list = 10;
+    optional DexHeader header = 2;
+    repeated StringItem string_ids = 3;
+    repeated StringItem type_ids = 4;
+    repeated ProtoItem proto_ids = 5;
+    repeated FieldItem field_ids = 6;
+    repeated MethodItem method_ids = 7;
+    repeated ClassItem class_defs = 8;
+    optional MapList map_list = 9;
 }
 
 // See: https://source.android.com/docs/core/runtime/dex-format#header-item
@@ -198,36 +197,4 @@ enum TypeCode {
     TYPE_ENCODED_ARRAY_ITEM = 0x2005;
     TYPE_ANNOTATIONS_DIRECTORY_ITEM = 0x2006;
     TYPE_HIDDENAPI_CLASS_DATA_ITEM = 0xF000;
-}
-
-// See: https://source.android.com/docs/core/runtime/dex-format#method-handle-type-codes
-enum MethodHandle {
-    option (yara.enum_options).inline = true;
-
-    // Method handle is a static field setter (accessor)
-    METHOD_HANDLE_TYPE_STATIC_PUT = 0x00;
-
-    // Method handle is a static field getter (accessor)
-    METHOD_HANDLE_TYPE_STATIC_GET = 0x01;
-
-    // Method handle is an instance field setter (accessor)
-    METHOD_HANDLE_TYPE_INSTANCE_PUT = 0x02;
-
-    // Method handle is an instance field getter (accessor)
-    METHOD_HANDLE_TYPE_INSTANCE_GET = 0x03;
-
-    // Method handle is a static method invoker
-    METHOD_HANDLE_TYPE_INVOKE_STATIC = 0x04;
-
-    // Method handle is an instance method invoker
-    METHOD_HANDLE_TYPE_INVOKE_INSTANCE = 0x05;
-
-    // Method handle is a constructor method invoker
-    METHOD_HANDLE_TYPE_INVOKE_CONSTRUCTOR = 0x06;
-
-    // Method handle is a direct method invoker
-    METHOD_HANDLE_TYPE_INVOKE_DIRECT = 0x07;
-
-    // Method handle is an interface method invoker
-    METHOD_HANDLE_TYPE_INVOKE_INTERFACE = 0x08;
 }
