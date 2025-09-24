@@ -98,16 +98,32 @@ static HEARTBEAT_COUNTER: AtomicU64 = AtomicU64::new(0);
 /// Used for spawning the thread that increments `HEARTBEAT_COUNTER`.
 static INIT_HEARTBEAT: Once = Once::new();
 
+/// Represents the data being scanned.
+///
+/// The scanned data can be backed by a slice owned by someone else, or a
+/// vector or memory-mapped file owned by `ScannedData` itself. When the
+/// scanned data is backed by a slice, it can also contain a base address
+/// for the data.
 pub enum ScannedData<'d> {
-    Slice(&'d [u8]),
+    Slice((usize, &'d [u8])),
     Vec(Vec<u8>),
     Mmap(Mmap),
+}
+
+impl ScannedData<'_> {
+    pub fn base(&self) -> usize {
+        if let Self::Slice((base, _)) = self {
+            *base
+        } else {
+            0
+        }
+    }
 }
 
 impl AsRef<[u8]> for ScannedData<'_> {
     fn as_ref(&self) -> &[u8] {
         match self {
-            ScannedData::Slice(s) => s,
+            ScannedData::Slice((_, s)) => s.as_ref(),
             ScannedData::Vec(v) => v.as_ref(),
             ScannedData::Mmap(m) => m.as_ref(),
         }
@@ -117,14 +133,14 @@ impl AsRef<[u8]> for ScannedData<'_> {
 impl<'d> TryInto<ScannedData<'d>> for &'d [u8] {
     type Error = ScanError;
     fn try_into(self) -> Result<ScannedData<'d>, Self::Error> {
-        Ok(ScannedData::Slice(self))
+        Ok(ScannedData::Slice((0, self)))
     }
 }
 
 impl<'d, const N: usize> TryInto<ScannedData<'d>> for &'d [u8; N] {
     type Error = ScanError;
     fn try_into(self) -> Result<ScannedData<'d>, Self::Error> {
-        Ok(ScannedData::Slice(self))
+        Ok(ScannedData::Slice((0, self)))
     }
 }
 
@@ -264,7 +280,7 @@ impl<'r> Scanner<'r> {
         data: &'a [u8],
         options: ScanOptions<'opts>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_impl(ScannedData::Slice(data), Some(options))
+        self.scan_impl(ScannedData::Slice((0, data)), Some(options))
     }
 
     /// Like [`Scanner::scan_file`], but allows to specify additional scan
@@ -608,7 +624,7 @@ impl<'r> Scanner<'r> {
         // `ScanContext::search_for_patterns` if necessary.
         ctx.eval_conditions()?;
 
-        ctx.scan_state = ScanState::Finished(DataSnippets::ScannedData(
+        ctx.scan_state = ScanState::Finished(DataSnippets::SingleBlock(
             ctx.scan_state.take_data(),
         ));
 
@@ -633,13 +649,13 @@ impl<'r> Scanner<'r> {
 ///
 /// Each strategy corresponds to a variant in this enum.
 pub(crate) enum DataSnippets<'d> {
-    ScannedData(ScannedData<'d>),
+    SingleBlock(ScannedData<'d>),
 }
 
 impl DataSnippets<'_> {
     pub(crate) fn get(&self, range: Range<usize>) -> Option<&[u8]> {
         match self {
-            DataSnippets::ScannedData(data) => data.as_ref().get(range),
+            DataSnippets::SingleBlock(data) => data.as_ref().get(range),
         }
     }
 }

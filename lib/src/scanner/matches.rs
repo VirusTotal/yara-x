@@ -9,7 +9,9 @@ use crate::compiler::PatternId;
 /// Represents the match of a pattern.
 #[derive(Debug, Clone)]
 pub(crate) struct Match {
-    /// Range within the scanned data where the match was found.
+    /// Base address of the data block where the match was found.
+    pub base: usize,
+    /// Range within the data block where the match was found.
     pub range: Range<usize>,
     /// For patterns that have the `xor` modifier this is always `Some(k)`
     /// where `k` is the XOR key (it may be 0). For any other type of
@@ -291,15 +293,16 @@ mod test {
     fn match_list() {
         let mut ml = MatchList::with_capacity(5);
 
-        ml.add(Match { range: (2..10), xor_key: None }, false);
-        ml.add(Match { range: (1..10), xor_key: None }, false);
-        ml.add(Match { range: (4..10), xor_key: None }, false);
-        ml.add(Match { range: (3..10), xor_key: None }, false);
-        ml.add(Match { range: (5..10), xor_key: None }, false);
+        ml.add(Match { base: 0, range: (2..10), xor_key: None }, false);
+        ml.add(Match { base: 0, range: (1..10), xor_key: None }, false);
+        ml.add(Match { base: 0, range: (1..15), xor_key: None }, true);
+        ml.add(Match { base: 0, range: (4..10), xor_key: None }, false);
+        ml.add(Match { base: 0, range: (3..10), xor_key: None }, false);
+        ml.add(Match { base: 0, range: (5..10), xor_key: None }, false);
 
         assert_eq!(
             ml.iter().map(|m| m.range.clone()).collect::<Vec<Range<usize>>>(),
-            vec![(1..10), (2..10), (3..10), (4..10), (5..10)]
+            vec![(1..15), (2..10), (3..10), (4..10), (5..10)]
         )
     }
 }

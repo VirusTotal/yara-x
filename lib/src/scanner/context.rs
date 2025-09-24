@@ -724,11 +724,10 @@ impl<'d> ScanContext<'_, 'd> {
         // Take ownership of the scanned data, while searching for
         // the patterns, `self.scanned_data` is left as `None`.
         let data = self.scan_state.take_data();
-        let base = 0; // TODO
 
         // Verify the anchored pattern first. These are patterns that can
         // match at a single known offset within the data.
-        self.verify_anchored_patterns(base, data.as_ref());
+        self.verify_anchored_patterns(data.base(), data.as_ref());
 
         for ac_match in ac.find_overlapping_iter(data.as_ref()) {
             #[cfg(feature = "logging")]
@@ -801,7 +800,11 @@ impl<'d> ScanContext<'_, 'd> {
                         sub_pattern_id,
                         sub_pattern,
                         *pattern_id,
-                        Match { range: match_range, xor_key: None },
+                        Match {
+                            base: data.base(),
+                            range: match_range,
+                            xor_key: None,
+                        },
                     );
                 }
 
@@ -812,11 +815,14 @@ impl<'d> ScanContext<'_, 'd> {
                 SubPattern::Literal { pattern, flags, .. }
                 | SubPattern::LiteralChainHead { pattern, flags, .. }
                 | SubPattern::LiteralChainTail { pattern, flags, .. } => {
-                    if let Some(match_) = verify_literal_match(
-                        self.compiled_rules
-                            .lit_pool()
-                            .get_bytes(*pattern)
-                            .unwrap(),
+                    let pattern = self
+                        .compiled_rules
+                        .lit_pool()
+                        .get_bytes(*pattern)
+                        .unwrap();
+
+                    if verify_literal_match(
+                        pattern,
                         data.as_ref(),
                         atom_pos,
                         *flags,
@@ -825,7 +831,11 @@ impl<'d> ScanContext<'_, 'd> {
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            match_,
+                            Match {
+                                base: data.base(),
+                                range: atom_pos..atom_pos + pattern.len(),
+                                xor_key: None,
+                            },
                         );
                     }
                 }
@@ -838,23 +848,30 @@ impl<'d> ScanContext<'_, 'd> {
                         atom_pos,
                         atom,
                         *flags,
-                        |match_| {
+                        |range| {
                             self.handle_sub_pattern_match(
                                 sub_pattern_id,
                                 sub_pattern,
                                 *pattern_id,
-                                match_,
+                                Match {
+                                    base: data.base(),
+                                    range,
+                                    xor_key: None,
+                                },
                             );
                         },
                     )
                 }
 
                 SubPattern::Xor { pattern, flags } => {
-                    if let Some(match_) = verify_xor_match(
-                        self.compiled_rules
-                            .lit_pool()
-                            .get_bytes(*pattern)
-                            .unwrap(),
+                    let pattern = self
+                        .compiled_rules
+                        .lit_pool()
+                        .get_bytes(*pattern)
+                        .unwrap();
+
+                    if let Some(xor_key) = verify_xor_match(
+                        pattern,
                         data.as_ref(),
                         atom_pos,
                         atom,
@@ -864,14 +881,18 @@ impl<'d> ScanContext<'_, 'd> {
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            match_,
+                            Match {
+                                base: data.base(),
+                                range: atom_pos..atom_pos + pattern.len(),
+                                xor_key: Some(xor_key),
+                            },
                         );
                     }
                 }
 
                 SubPattern::Base64 { pattern, padding }
                 | SubPattern::Base64Wide { pattern, padding } => {
-                    if let Some(match_) = verify_base64_match(
+                    if let Some(range) = verify_base64_match(
                         self.compiled_rules
                             .lit_pool()
                             .get_bytes(*pattern)
@@ -886,7 +907,7 @@ impl<'d> ScanContext<'_, 'd> {
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            match_,
+                            Match { base: data.base(), range, xor_key: None },
                         );
                     }
                 }
@@ -912,7 +933,7 @@ impl<'d> ScanContext<'_, 'd> {
 
                     assert!(alphabet.is_some());
 
-                    if let Some(match_) = verify_base64_match(
+                    if let Some(range) = verify_base64_match(
                         self.compiled_rules
                             .lit_pool()
                             .get_bytes(*pattern)
@@ -930,7 +951,7 @@ impl<'d> ScanContext<'_, 'd> {
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            match_,
+                            Match { base: data.base(), range, xor_key: None },
                         );
                     }
                 }
@@ -981,11 +1002,7 @@ impl<'d> ScanContext<'_, 'd> {
         Ok(())
     }
 
-    fn verify_anchored_patterns(
-        &mut self,
-        block_base: usize,
-        block_data: &[u8],
-    ) {
+    fn verify_anchored_patterns(&mut self, base: usize, data: &[u8]) {
         for (sub_pattern_id, (pattern_id, sub_pattern)) in self
             .compiled_rules
             .anchored_sub_patterns()
@@ -1002,22 +1019,24 @@ impl<'d> ScanContext<'_, 'd> {
                     // Make the offset relative to the block's base. If an
                     // overflow occurs is because the block's base is larger
                     // than the offset, in such cases the match can't occur.
-                    if let (offset, false) = offset.overflowing_sub(block_base)
-                    {
-                        if let Some(match_) = verify_literal_match(
-                            self.compiled_rules
-                                .lit_pool()
-                                .get_bytes(*pattern)
-                                .unwrap(),
-                            block_data,
-                            offset,
-                            *flags,
-                        ) {
+                    if let (offset, false) = offset.overflowing_sub(base) {
+                        let pattern = self
+                            .compiled_rules
+                            .lit_pool()
+                            .get_bytes(*pattern)
+                            .unwrap();
+
+                        if verify_literal_match(pattern, data, offset, *flags)
+                        {
                             self.handle_sub_pattern_match(
                                 *sub_pattern_id,
                                 sub_pattern,
                                 *pattern_id,
-                                match_,
+                                Match {
+                                    base,
+                                    range: offset..offset + pattern.len(),
+                                    xor_key: None,
+                                },
                             );
                         }
                     }
@@ -1081,7 +1100,7 @@ impl<'d> ScanContext<'_, 'd> {
                         self.verify_chain_of_matches(
                             pattern_id,
                             sub_pattern_id,
-                            match_.range,
+                            match_,
                         );
                     } else {
                         // This sub-pattern is in the middle of the
@@ -1151,11 +1170,11 @@ impl<'d> ScanContext<'_, 'd> {
         &mut self,
         pattern_id: PatternId,
         tail_sub_pattern_id: SubPatternId,
-        tail_match_range: Range<usize>,
+        tail_match: Match,
     ) {
         let mut queue = VecDeque::new();
 
-        queue.push_back((tail_sub_pattern_id, tail_match_range, 1));
+        queue.push_back((tail_sub_pattern_id, tail_match.range, 1));
 
         let mut tail_chained_to: Option<SubPatternId> = None;
         let mut tail_match_range: Option<Range<usize>> = None;
@@ -1171,6 +1190,7 @@ impl<'d> ScanContext<'_, 'd> {
                         self.track_pattern_match(
                             pattern_id,
                             Match {
+                                base: tail_match.base,
                                 range: match_range.start..tail_match_range.end,
                                 xor_key: None,
                             },
@@ -1258,20 +1278,18 @@ impl<'d> ScanContext<'_, 'd> {
 }
 
 /// Verifies if a literal `pattern` matches at `match_start` in `scanned_data`.
-///
-/// Returns a [`Match`] if the match was confirmed or [`None`] if otherwise.
 fn verify_literal_match(
     pattern: &[u8],
     scanned_data: &[u8],
     match_start: usize,
     flags: SubPatternFlags,
-) -> Option<Match> {
+) -> bool {
     // Offset where the match should end (exclusive).
     let match_end = match_start + pattern.len();
 
     // The match can not end past the end of the scanned data.
     if match_end > scanned_data.len() {
-        return None;
+        return false;
     }
 
     if flags.intersects(
@@ -1282,7 +1300,7 @@ fn verify_literal_match(
         flags,
         None,
     ) {
-        return None;
+        return false;
     }
 
     let match_found = if flags.contains(SubPatternFlags::Nocase) {
@@ -1291,15 +1309,7 @@ fn verify_literal_match(
         &scanned_data[match_start..match_end] == pattern.as_bytes()
     };
 
-    if match_found {
-        Some(Match {
-            // The end of the range is exclusive.
-            range: match_start..match_end,
-            xor_key: None,
-        })
-    } else {
-        None
-    }
+    match_found
 }
 
 /// Returns true if the match delimited by `match_range` is a full word match.
@@ -1361,7 +1371,7 @@ fn verify_regexp_match(
     match_start: usize,
     atom: &SubPatternAtom,
     flags: SubPatternFlags,
-    mut f: impl FnMut(Match),
+    mut f: impl FnMut(Range<usize>),
 ) {
     let mut fwd_match_len = None;
 
@@ -1416,7 +1426,7 @@ fn verify_regexp_match(
                     let range = match_start - bck_match_len
                         ..match_start + fwd_match_len;
                     if verify_full_word(scanned_data, &range, flags, None) {
-                        f(Match { range, xor_key: None });
+                        f(range);
                     }
                     Action::Continue
                 },
@@ -1431,7 +1441,7 @@ fn verify_regexp_match(
                     let range = match_start - bck_match_len
                         ..match_start + fwd_match_len;
                     if verify_full_word(scanned_data, &range, flags, None) {
-                        f(Match { range, xor_key: None });
+                        f(range);
                     }
                     Action::Continue
                 },
@@ -1440,22 +1450,22 @@ fn verify_regexp_match(
     } else {
         let range = match_start..match_start + fwd_match_len;
         if verify_full_word(scanned_data, &range, flags, None) {
-            f(Match { range, xor_key: None });
+            f(range);
         }
     }
 }
 
-/// Verifies that a literal sub-pattern actually matches in XORed form
-/// at the position where an atom was found.
+/// Verifies that `pattern` actually matches in XORed form at `match_start`
+/// within `scanned_data`.
 ///
-/// Returns a [`Match`] if the match was confirmed or [`None`] if otherwise.
+/// Returns the XOR key if the match was confirmed, or [`None`] if otherwise.
 fn verify_xor_match(
     pattern: &[u8],
     scanned_data: &[u8],
     match_start: usize,
     atom: &SubPatternAtom,
     flags: SubPatternFlags,
-) -> Option<Match> {
+) -> Option<u8> {
     // Offset where the match should end (exclusive).
     let match_end = match_start + pattern.len();
 
@@ -1487,13 +1497,13 @@ fn verify_xor_match(
         }
     }
 
-    Some(Match { range: match_range, xor_key: Some(key) })
+    Some(key)
 }
 
-/// Verifies that a literal sub-pattern actually matches in base64 form at
-/// the offset where some atom.
+/// Verifies that `pattern` actually matches in base64 form at `match_start`
+/// within `scanned_data`.
 ///
-/// Returns a [`Match`] if the match was confirmed or [`None`] if otherwise.
+/// Returns the range where the match was found or [`None`] if otherwise.
 fn verify_base64_match(
     pattern: &[u8],
     scanned_data: &[u8],
@@ -1501,7 +1511,7 @@ fn verify_base64_match(
     match_start: usize,
     alphabet: Option<base64::alphabet::Alphabet>,
     wide: bool,
-) -> Option<Match> {
+) -> Option<Range<usize>> {
     // The pattern is passed to this function in its original form, before
     // being encoded as base64. Compute the size of the pattern once it is
     // encoded as base64.
@@ -1628,10 +1638,7 @@ fn verify_base64_match(
         decoded.as_ref().ok()?.get(padding..padding + pattern.len())?;
 
     if pattern.eq(decoded_pattern) {
-        Some(Match {
-            range: match_start..match_start + match_len,
-            xor_key: None,
-        })
+        Some(match_start..match_start + match_len)
     } else {
         None
     }

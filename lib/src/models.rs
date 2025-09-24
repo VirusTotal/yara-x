@@ -390,8 +390,8 @@ impl<'a> Match<'a, '_> {
     pub fn data(&self) -> &'a [u8] {
         let data = match &self.ctx.scan_state {
             ScanState::Finished(snippets) => match snippets {
-                DataSnippets::ScannedData(data) => match data {
-                    ScannedData::Slice(s) => s.get(self.range()),
+                DataSnippets::SingleBlock(data) => match data {
+                    ScannedData::Slice((_, s)) => s.get(self.range()),
                     ScannedData::Vec(v) => v.get(self.range()),
                     ScannedData::Mmap(m) => m.get(self.range()),
                 },
