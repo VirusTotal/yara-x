@@ -524,7 +524,6 @@ impl<'a> Iterator for RulesIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         Some(Rule {
             ctx: None,
-            snippets: None,
             rules: self.rules,
             rule_info: self.iterator.next()?,
         })

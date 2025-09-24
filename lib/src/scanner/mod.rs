@@ -32,6 +32,7 @@ use crate::{modules, Variable};
 pub(crate) use crate::scanner::context::RuntimeObject;
 pub(crate) use crate::scanner::context::RuntimeObjectHandle;
 pub(crate) use crate::scanner::context::ScanContext;
+pub(crate) use crate::scanner::context::ScanState;
 pub(crate) use crate::scanner::matches::Match;
 
 mod context;
@@ -239,7 +240,7 @@ impl<'r> Scanner<'r> {
     }
 
     /// Scans in-memory data.
-    pub fn scan<'a, 'd>(
+    pub fn scan<'a>(
         &'a mut self,
         data: &'a [u8],
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
@@ -509,7 +510,7 @@ impl<'r> Scanner<'r> {
         ctx.set_filesize(data.as_ref().len() as i64);
 
         // Set the data to be scanned.
-        ctx.scanned_data = Some(data);
+        ctx.scan_state = ScanState::Scanning(data);
 
         for module_name in ctx.compiled_rules.imports() {
             // Lookup the module in the list of built-in modules.
@@ -535,18 +536,13 @@ impl<'r> Scanner<'r> {
                     });
 
                 if let Some(main_fn) = module.main_fn {
-                    module_output = Some(
-                        main_fn(
-                            ctx.scanned_data.as_ref().unwrap().as_ref(),
-                            meta,
-                        )
-                        .map_err(|err| {
-                            ScanError::ModuleError {
+                    module_output =
+                        Some(main_fn(ctx.scanned_data(), meta).map_err(
+                            |err| ScanError::ModuleError {
                                 module: module_name.to_string(),
                                 err,
-                            }
-                        })?,
-                    );
+                            },
+                        )?);
                 } else {
                     module_output = None;
                 }
@@ -611,12 +607,10 @@ impl<'r> Scanner<'r> {
         // Evaluate the conditions of every rule.
         ctx.eval_conditions()?;
 
-        let scanned_data = ctx.scanned_data.take().unwrap();
+        let data = ctx.scan_state.take_data();
+        ctx.scan_state = ScanState::Finished(DataSnippets::ScannedData(data));
 
-        Ok(ScanResults::new(
-            self.scan_context(),
-            DataSnippets::ScannedData(scanned_data),
-        ))
+        Ok(ScanResults::new(self.scan_context()))
     }
 }
 
@@ -653,23 +647,22 @@ impl DataSnippets<'_> {
 /// Allows iterating over both the matching and non-matching rules.
 pub struct ScanResults<'a, 'r> {
     ctx: &'a ScanContext<'r, 'a>,
-    data: DataSnippets<'a>,
 }
 
 impl<'a, 'r> ScanResults<'a, 'r> {
-    fn new(ctx: &'a ScanContext<'r, 'a>, data: DataSnippets<'a>) -> Self {
-        Self { ctx, data }
+    fn new(ctx: &'a ScanContext<'r, 'a>) -> Self {
+        Self { ctx }
     }
 
     /// Returns an iterator that yields the matching rules in arbitrary order.
     pub fn matching_rules(&self) -> MatchingRules<'_, 'r> {
-        MatchingRules::new(self.ctx, &self.data)
+        MatchingRules::new(self.ctx)
     }
 
     /// Returns an iterator that yields the non-matching rules in arbitrary
     /// order.
     pub fn non_matching_rules(&self) -> NonMatchingRules<'_, 'r> {
-        NonMatchingRules::new(self.ctx, &self.data)
+        NonMatchingRules::new(self.ctx)
     }
 
     /// Returns the protobuf produced by a YARA module after processing the
@@ -705,7 +698,6 @@ impl<'a, 'r> ScanResults<'a, 'r> {
 /// [`MatchingRules::include_private`] for changing this behaviour.
 pub struct MatchingRules<'a, 'r> {
     ctx: &'a ScanContext<'r, 'a>,
-    snippets: &'a DataSnippets<'a>,
     iterator: Iter<'a, RuleId>,
     len_non_private: usize,
     len_private: usize,
@@ -713,13 +705,9 @@ pub struct MatchingRules<'a, 'r> {
 }
 
 impl<'a, 'r> MatchingRules<'a, 'r> {
-    fn new(
-        ctx: &'a ScanContext<'r, 'a>,
-        snippets: &'a DataSnippets<'a>,
-    ) -> Self {
+    fn new(ctx: &'a ScanContext<'r, 'a>) -> Self {
         Self {
             ctx,
-            snippets,
             iterator: ctx.matching_rules.iter(),
             include_private: false,
             len_non_private: ctx.matching_rules.len()
@@ -752,12 +740,7 @@ impl<'a, 'r> Iterator for MatchingRules<'a, 'r> {
                 self.len_non_private -= 1;
             }
             if self.include_private || !rule_info.is_private {
-                return Some(Rule {
-                    ctx: Some(self.ctx),
-                    snippets: Some(self.snippets),
-                    rule_info,
-                    rules,
-                });
+                return Some(Rule { ctx: Some(self.ctx), rule_info, rules });
             }
         }
     }
@@ -780,7 +763,6 @@ impl ExactSizeIterator for MatchingRules<'_, '_> {
 /// [`NonMatchingRules::include_private`] for changing this behaviour.
 pub struct NonMatchingRules<'a, 'r> {
     ctx: &'a ScanContext<'r, 'a>,
-    snippets: &'a DataSnippets<'a>,
     iterator: bitvec::slice::IterZeros<'a, u8, Lsb0>,
     include_private: bool,
     len_private: usize,
@@ -788,10 +770,7 @@ pub struct NonMatchingRules<'a, 'r> {
 }
 
 impl<'a, 'r> NonMatchingRules<'a, 'r> {
-    fn new(
-        ctx: &'a ScanContext<'r, 'a>,
-        snippets: &'a DataSnippets<'a>,
-    ) -> Self {
+    fn new(ctx: &'a ScanContext<'r, 'a>) -> Self {
         let num_rules = ctx.compiled_rules.num_rules();
         let main_memory = ctx
             .wasm_main_memory
@@ -814,7 +793,6 @@ impl<'a, 'r> NonMatchingRules<'a, 'r> {
 
         Self {
             ctx,
-            snippets,
             iterator: matching_rules_bitmap.iter_zeros(),
             include_private: false,
             len_non_private: ctx.compiled_rules.num_rules()
@@ -851,12 +829,7 @@ impl<'a, 'r> Iterator for NonMatchingRules<'a, 'r> {
             }
 
             if self.include_private || !rule_info.is_private {
-                return Some(Rule {
-                    ctx: Some(self.ctx),
-                    snippets: Some(self.snippets),
-                    rule_info,
-                    rules,
-                });
+                return Some(Rule { ctx: Some(self.ctx), rule_info, rules });
             }
         }
     }

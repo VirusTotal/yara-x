@@ -68,16 +68,16 @@ fn matches() {
     for matching_rule in results.matching_rules() {
         for pattern in matching_rule.patterns() {
             matches.extend(
-                pattern.matches().map(|x| {
-                    (pattern.identifier(), x.range(), x.data().to_vec())
-                }),
+                pattern
+                    .matches()
+                    .map(|x| (pattern.identifier(), x.range(), x.data())),
             )
         }
     }
 
     assert_eq!(
         matches,
-        [("$a", 0..6, b"foobar".to_vec()), ("$b", 3..6, b"bar".to_vec())]
+        [("$a", 0..6, b"foobar".as_slice()), ("$b", 3..6, b"bar".as_slice())]
     )
 }
 

@@ -1,3 +1,12 @@
+use base64::Engine;
+use bitvec::order::Lsb0;
+use bitvec::slice::BitSlice;
+use bstr::{BString, ByteSlice};
+use indexmap::IndexMap;
+use memx::memeq;
+use protobuf::{MessageDyn, MessageFull};
+use regex_automata::meta::Regex;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::RefCell;
 use std::collections::VecDeque;
 #[cfg(feature = "rules-profiling")]
@@ -13,17 +22,7 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 #[cfg(feature = "rules-profiling")]
 use std::time::Duration;
-use std::{cmp, thread};
-
-use base64::Engine;
-use bitvec::order::Lsb0;
-use bitvec::slice::BitSlice;
-use bstr::{BString, ByteSlice};
-use indexmap::IndexMap;
-use memx::memeq;
-use protobuf::{MessageDyn, MessageFull};
-use regex_automata::meta::Regex;
-use rustc_hash::{FxHashMap, FxHashSet};
+use std::{cmp, mem, thread};
 use wasmtime::{
     AsContext, AsContextMut, Global, GlobalType, Instance, MemoryType,
     Mutability, Store, TypedFunc, Val, ValType,
@@ -40,11 +39,33 @@ use crate::re::Action;
 use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
 #[cfg(feature = "rules-profiling")]
 use crate::scanner::ProfilingData;
-use crate::scanner::{ScanError, ScannedData};
+use crate::scanner::{DataSnippets, ScanError, ScannedData};
 use crate::scanner::{HEARTBEAT_COUNTER, INIT_HEARTBEAT};
 use crate::types::{Array, Map, Struct};
 use crate::wasm;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
+
+/// Represents the states in which a scanner can be.
+pub(crate) enum ScanState<'a> {
+    Idle,
+    Scanning(ScannedData<'a>),
+    Finished(DataSnippets<'a>),
+}
+
+impl<'a> ScanState<'a> {
+    /// Returns the data that was being scanned and changes the scan state
+    /// to [`ScanState::Idle`].
+    ///
+    /// # Panics
+    ///
+    /// If the scanner is not currently in [`ScanState::Scanning`].
+    pub fn take_data(&mut self) -> ScannedData<'a> {
+        match mem::replace(self, Self::Idle) {
+            Self::Scanning(data) => data,
+            _ => panic!(),
+        }
+    }
+}
 
 /// Structure that holds information about the current scan.
 pub(crate) struct ScanContext<'r, 'd> {
@@ -67,8 +88,8 @@ pub(crate) struct ScanContext<'r, 'd> {
     /// The time that can be spent in a scan operation, including the
     /// execution of the rule conditions.
     pub scan_timeout: Option<Duration>,
-    /// Data being scanned.
-    pub scanned_data: Option<ScannedData<'d>>,
+    /// The current state of the scanner.
+    pub scan_state: ScanState<'d>,
     /// Vector containing the IDs of the rules that matched, including both
     /// global and non-global ones. The rules are added first to the
     /// `matching_rules_per_ns` map, and then moved to this vector
@@ -219,12 +240,15 @@ impl ScanContext<'_, '_> {
     }
 }
 
-impl ScanContext<'_, '_> {
+impl<'d> ScanContext<'_, 'd> {
     const DEFAULT_SCAN_TIMEOUT: u64 = 315_360_000;
 
     /// Returns a slice with the data being scanned.
     pub(crate) fn scanned_data(&self) -> &[u8] {
-        self.scanned_data.as_ref().unwrap().as_ref()
+        match &self.scan_state {
+            ScanState::Scanning(data) => data.as_ref(),
+            _ => panic!(),
+        }
     }
 
     #[inline]
@@ -693,7 +717,7 @@ impl ScanContext<'_, '_> {
 
         // Take ownership of the scanned data, while searching for
         // the patterns, `self.scanned_data` is left as `None`.
-        let data = self.scanned_data.take().unwrap();
+        let data = self.scan_state.take_data();
         let base = 0; // TODO
 
         // Verify the anchored pattern first. These are patterns that can
@@ -946,7 +970,7 @@ impl ScanContext<'_, '_> {
         }
 
         // Bring back ownership of the scanned to the ScanContext.
-        self.scanned_data = Some(data);
+        self.scan_state = ScanState::Scanning(data);
 
         Ok(())
     }
@@ -1689,8 +1713,8 @@ pub fn create_wasm_store_and_ctx<'r>(
         compiled_rules: rules,
         console_log: None,
         current_struct: None,
-        scanned_data: None,
         scan_timeout: None,
+        scan_state: ScanState::Idle,
         root_struct: rules.globals().make_root(),
         matching_rules: Vec::new(),
         matching_rules_per_ns: IndexMap::new(),
