@@ -4,7 +4,7 @@ use std::pin::Pin;
 use wasmtime::Store;
 
 use crate::scanner::context::{create_wasm_store_and_ctx, ScanState};
-use crate::scanner::{ScanContext, ScannedData};
+use crate::scanner::{DataSnippets, ScanContext, ScannedData};
 use crate::{Rules, ScanError};
 
 struct BlockScanner<'r> {
@@ -33,15 +33,16 @@ impl BlockScanner<'_> {
             self.scan_context_mut().reset();
             self.scanning = true;
         }
-        self.scan_context_mut().scan_state =
-            ScanState::Scanning(ScannedData::Slice(data));
-        self.scan_context_mut().search_for_patterns()?;
+        let ctx = self.scan_context_mut();
+        ctx.scan_state = ScanState::Scanning(ScannedData::Slice(data));
+        ctx.search_for_patterns()?;
         Ok(self)
     }
 
     pub fn finish(&mut self) -> Result<(), ScanError> {
         self.scanning = false;
-        self.scan_context_mut().eval_conditions()
+        let ctx = self.scan_context_mut();
+        ctx.eval_conditions()
     }
 }
 

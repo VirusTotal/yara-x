@@ -509,7 +509,7 @@ impl<'r> Scanner<'r> {
         // Set the global variable `filesize` to the size of the scanned data.
         ctx.set_filesize(data.as_ref().len() as i64);
 
-        // Set the data to be scanned.
+        // Indicate that the scanner is currently scanning the given data.
         ctx.scan_state = ScanState::Scanning(data);
 
         for module_name in ctx.compiled_rules.imports() {
@@ -604,13 +604,15 @@ impl<'r> Scanner<'r> {
                 .add_field(module_name, TypeValue::Struct(module_struct));
         }
 
-        // Evaluate the conditions of every rule.
+        // Evaluate the conditions of every rule, this will call
+        // `ScanContext::search_for_patterns` if necessary.
         ctx.eval_conditions()?;
 
-        let data = ctx.scan_state.take_data();
-        ctx.scan_state = ScanState::Finished(DataSnippets::ScannedData(data));
+        ctx.scan_state = ScanState::Finished(DataSnippets::ScannedData(
+            ctx.scan_state.take_data(),
+        ));
 
-        Ok(ScanResults::new(self.scan_context()))
+        Ok(ScanResults::new(ctx))
     }
 }
 

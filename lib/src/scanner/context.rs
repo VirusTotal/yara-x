@@ -244,6 +244,10 @@ impl<'d> ScanContext<'_, 'd> {
     const DEFAULT_SCAN_TIMEOUT: u64 = 315_360_000;
 
     /// Returns a slice with the data being scanned.
+    ///
+    /// # Panics
+    ///
+    /// If the current scan state is not [`ScanState::Scanning`].
     pub(crate) fn scanned_data(&self) -> &[u8] {
         match &self.scan_state {
             ScanState::Scanning(data) => data.as_ref(),
@@ -441,6 +445,8 @@ impl<'d> ScanContext<'_, 'd> {
     pub(crate) fn reset(&mut self) {
         let num_rules = self.compiled_rules.num_rules();
         let num_patterns = self.compiled_rules.num_patterns();
+
+        self.scan_state = ScanState::Idle;
 
         // Free all runtime objects left around by previous scans.
         self.runtime_objects.clear();
@@ -1708,7 +1714,6 @@ pub fn create_wasm_store_and_ctx<'r>(
     let num_patterns = rules.num_patterns() as u32;
 
     let ctx = ScanContext {
-        wasm_store: NonNull::dangling(),
         runtime_objects: IndexMap::new(),
         compiled_rules: rules,
         console_log: None,
@@ -1720,6 +1725,7 @@ pub fn create_wasm_store_and_ctx<'r>(
         matching_rules_per_ns: IndexMap::new(),
         num_matching_private_rules: 0,
         num_non_matching_private_rules: 0,
+        wasm_store: NonNull::dangling(),
         wasm_module: MaybeUninit::uninit(),
         wasm_main_memory: None,
         wasm_main_func: None,
