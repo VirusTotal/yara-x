@@ -10,21 +10,20 @@ option (yara.module_options) = {
     cargo_feature: "dex-module"
 };
 
-// TODO: add documentation to the fields
 message Dex {
     optional bool is_dex = 1;
     optional string module_name = 2;
     optional DexHeader header = 3;
-    repeated StringItem string_items = 4;
-    repeated StringItem types = 5;
-    repeated ProtoItem protos = 6;
-    repeated FieldItem fields = 7;
-    repeated MethodItem methods = 8;
-    repeated ClassItem classes = 9;
+    repeated StringItem string_ids = 4;
+    repeated StringItem type_ids = 5;
+    repeated ProtoItem proto_ids = 6;
+    repeated FieldItem field_ids = 7;
+    repeated MethodItem method_ids = 8;
+    repeated ClassItem class_defs = 9;
     optional MapList map_list = 10;
 }
 
-// https://source.android.com/docs/core/runtime/dex-format#header-item
+// See: https://source.android.com/docs/core/runtime/dex-format#header-item
 message DexHeader {
     optional uint32 magic = 1 [(yara.field_options).fmt = "x"];
     // DEX version (35, 36, 37, ...)
@@ -83,7 +82,7 @@ message ClassItem {
     optional StringItem class = 0;
     optional uint32 access_flags = 1;
     optional StringItem superclass = 2;
-    optional StringItem source_file = 3;
+    optional StringItem source_file = 4;
 }
 
 message MapList {
@@ -98,30 +97,86 @@ message MapItem {
     optional uint32 offset = 3 [(yara.field_options).fmt = "x"];
 }
 
-// TODO: maybe inline this flags
+// Bitfields of these flags are used to indicate the accessibility and overall properties of classes and class members
+// See: https://source.android.com/docs/core/runtime/dex-format#access-flags
 enum AccessFlag {
+    option (yara.enum_options).inline = true;
+
+    // public: visible everywhere (class, field, method)
     ACC_PUBLIC = 0x1;
+
+    // private: only visible to defining class (class, field, method)
     ACC_PRIVATE = 0x2;
+
+    // protected: visible to package and subclasses (class, field, method)
     ACC_PROTECTED = 0x4;
+
+    // static:
+    //   - class: not constructed with an outer this reference
+    //   - field: global to defining class
+    //   - method: does not take a this argument
     ACC_STATIC = 0x8;
+
+    // final:
+    //   - class: not subclassable
+    //   - field: immutable after construction
+    //   - method: not overridable
     ACC_FINAL = 0x10;
+
+    // synchronized: method has associated lock automatically acquired around call.
+    // Note: only valid if ACC_NATIVE is also set.
     ACC_SYNCHRONIZED = 0x20;
-    // ACC_VOLATILE = 0x40;
+
+    // bridge: compiler-generated method to provide type-safe bridge
     ACC_BRIDGE = 0x40;
-    // ACC_TRANSIENT = 0x80;
+
+    // varargs: last argument should be treated as a "rest" argument by compiler
     ACC_VARARGS = 0x80;
+
+    // native: implemented in native code
     ACC_NATIVE = 0x100;
+
+    // interface: multiply-implementable abstract class
     ACC_INTERFACE = 0x200;
+
+    // abstract:
+    //   - class: not directly instantiable
+    //   - method: unimplemented by this class
     ACC_ABSTRACT = 0x400;
+
+    // strictfp: strict rules for floating-point arithmetic
     ACC_STRICT = 0x800;
+
+    // synthetic: not directly defined in source code (class, field, method)
     ACC_SYNTHETIC = 0x1000;
+
+    // annotation: declared as an annotation class
     ACC_ANNOTATION = 0x2000;
+
+    // enum:
+    //   - class: declared as an enumerated type
+    //   - field: declared as an enumerated value
     ACC_ENUM = 0x4000;
+
+    // constructor: constructor method (class or instance initializer)
     ACC_CONSTRUCTOR = 0x10000;
+
+    // declared synchronized: declared with 'synchronized' keyword
     ACC_DECLARED_SYNCHRONIZED = 0x20000;
 }
 
+enum AccessFlagSpecial {
+    option (yara.enum_options).inline = true;
+    // volatile (field): special access rules to help with thread safety
+    ACC_VOLATILE = 0x40;
+
+    // transient (field): not to be saved by default serialization
+    ACC_TRANSIENT = 0x80;
+}
+
+// See: https://source.android.com/docs/core/runtime/dex-format#type-codes
 enum TypeCode {
+    option (yara.enum_options).inline = true;
     TYPE_HEADER_ITEM = 0x0000;
     TYPE_STRING_ID_ITEM = 0x0001;
     TYPE_TYPE_ID_ITEM = 0x0002;
@@ -145,14 +200,34 @@ enum TypeCode {
     TYPE_HIDDENAPI_CLASS_DATA_ITEM = 0xF000;
 }
 
+// See: https://source.android.com/docs/core/runtime/dex-format#method-handle-type-codes
 enum MethodHandle {
+    option (yara.enum_options).inline = true;
+
+    // Method handle is a static field setter (accessor)
     METHOD_HANDLE_TYPE_STATIC_PUT = 0x00;
+
+    // Method handle is a static field getter (accessor)
     METHOD_HANDLE_TYPE_STATIC_GET = 0x01;
+
+    // Method handle is an instance field setter (accessor)
     METHOD_HANDLE_TYPE_INSTANCE_PUT = 0x02;
+
+    // Method handle is an instance field getter (accessor)
     METHOD_HANDLE_TYPE_INSTANCE_GET = 0x03;
+
+    // Method handle is a static method invoker
     METHOD_HANDLE_TYPE_INVOKE_STATIC = 0x04;
+
+    // Method handle is an instance method invoker
     METHOD_HANDLE_TYPE_INVOKE_INSTANCE = 0x05;
+
+    // Method handle is a constructor method invoker
     METHOD_HANDLE_TYPE_INVOKE_CONSTRUCTOR = 0x06;
+
+    // Method handle is a direct method invoker
     METHOD_HANDLE_TYPE_INVOKE_DIRECT = 0x07;
+
+    // Method handle is an interface method invoker
     METHOD_HANDLE_TYPE_INVOKE_INTERFACE = 0x08;
 }

@@ -127,9 +127,7 @@ fn contains_string(
     };
 
     // string items sorted by dex format
-    Some(
-        dex.string_items.binary_search_by(|item| item.value.cmp(&str)).is_ok(),
-    )
+    Some(dex.string_ids.binary_search_by(|item| item.value.cmp(&str)).is_ok())
 }
 
 /// Function that checks whether the DEX file contains the specified method
@@ -146,7 +144,7 @@ fn contains_method(
     };
 
     Some(
-        dex.methods
+        dex.method_ids
             .binary_search_by(|item| item.name.value().cmp(str))
             .is_ok(),
     )
@@ -166,7 +164,7 @@ fn contains_class(
     };
 
     Some(
-        dex.classes
+        dex.class_defs
             .binary_search_by(|item| item.class.value().cmp(str))
             .is_ok(),
     )

@@ -19,22 +19,22 @@ pub struct Dex {
     header: DexHeader,
 
     // List with all found strings
-    string_items: Vec<Rc<StringItem>>,
+    string_ids: Vec<Rc<StringItem>>,
 
     // List with all found types
-    type_items: Vec<Rc<StringItem>>,
+    type_ids: Vec<Rc<StringItem>>,
 
     // List with all found prototypes
-    proto_items: Vec<Rc<ProtoItem>>,
+    proto_ids: Vec<Rc<ProtoItem>>,
 
     // List with all found fields
-    field_items: Vec<FieldItem>,
+    field_ids: Vec<FieldItem>,
 
     // List with all found methods
-    method_items: Vec<MethodItem>,
+    method_ids: Vec<MethodItem>,
 
     // List with all found classes
-    class_items: Vec<ClassItem>,
+    class_defs: Vec<ClassItem>,
 
     // Map information
     map_list: Option<MapList>,
@@ -53,45 +53,45 @@ impl Dex {
         let (strings_offset, header) = Self::parse_dex_header(data)?;
 
         // Extract defined strings
-        let (types_offset, string_items) =
-            Self::parse_string_items(strings_offset, data, &header)?;
+        let (types_offset, string_ids) =
+            Self::parse_string_ids(strings_offset, data, &header)?;
 
         // Extract defined types
-        let (proto_offset, type_items) =
-            Self::parse_type_items(types_offset, &header, &string_items)?;
+        let (proto_offset, type_ids) =
+            Self::parse_type_ids(types_offset, &header, &string_ids)?;
 
         // Exctract defined prototypes
-        let (field_offset, proto_items) = Self::parse_proto_items(
+        let (field_offset, proto_ids) = Self::parse_proto_ids(
             proto_offset,
             data,
             &header,
-            &string_items,
-            &type_items,
+            &string_ids,
+            &type_ids,
         )?;
 
         // Extract defined fields
-        let (method_offset, field_items) = Self::parse_field_items(
+        let (method_offset, field_ids) = Self::parse_field_ids(
             field_offset,
             &header,
-            &string_items,
-            &type_items,
+            &string_ids,
+            &type_ids,
         )?;
 
         // Extract defined methods
-        let (class_offset, method_items) = Self::parse_method_items(
+        let (class_offset, method_ids) = Self::parse_method_ids(
             method_offset,
             &header,
-            &string_items,
-            &type_items,
-            &proto_items,
+            &string_ids,
+            &type_ids,
+            &proto_ids,
         )?;
 
         // Exctract defined classes
-        let (_, class_items) = Self::parse_class_items(
+        let (_, class_defs) = Self::parse_class_defs(
             class_offset,
             &header,
-            &string_items,
-            &type_items,
+            &string_ids,
+            &type_ids,
         )?;
 
         // Extract map information
@@ -99,12 +99,12 @@ impl Dex {
 
         Ok(Self {
             header,
-            string_items,
-            type_items,
-            proto_items,
-            field_items,
-            method_items,
-            class_items,
+            string_ids,
+            type_ids,
+            proto_ids,
+            field_ids,
+            method_ids,
+            class_defs,
             map_list,
         })
     }
@@ -205,7 +205,7 @@ impl Dex {
     /// A HashMap is needed to quickly access an item by its index.
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#string-item
-    fn parse_string_items<'a>(
+    fn parse_string_ids<'a>(
         remainder: &'a [u8],
         data: &'a [u8],
         header: &DexHeader,
@@ -258,7 +258,7 @@ impl Dex {
     /// `type_item = string_item[type_ids_off[idx]]`
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#type-id-item
-    fn parse_type_items<'a>(
+    fn parse_type_ids<'a>(
         remainder: &'a [u8],
         header: &DexHeader,
         string_items: &[Rc<StringItem>],
@@ -286,7 +286,7 @@ impl Dex {
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#proto-id-item
     /// See: https://source.android.com/docs/core/runtime/dex-format#type-list
-    fn parse_proto_items<'a>(
+    fn parse_proto_ids<'a>(
         remainder: &'a [u8],
         data: &'a [u8],
         header: &DexHeader,
@@ -358,7 +358,7 @@ impl Dex {
     /// Collects a list of fields in a hashmap from field_ids_off list.
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#field-id-item
-    fn parse_field_items<'a>(
+    fn parse_field_ids<'a>(
         remainder: &'a [u8],
         header: &DexHeader,
         string_items: &[Rc<StringItem>],
@@ -394,7 +394,7 @@ impl Dex {
     /// Collects a list of methods in a hashmap from method_ids_off list.
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#method-id-item
-    fn parse_method_items<'a>(
+    fn parse_method_ids<'a>(
         remainder: &'a [u8],
         header: &DexHeader,
         string_items: &[Rc<StringItem>],
@@ -432,7 +432,7 @@ impl Dex {
     /// Only a part of the fields is extracted, because not all of them are useful when writing YARA rules.
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#class-def-item
-    fn parse_class_items<'a>(
+    fn parse_class_defs<'a>(
         remainder: &'a [u8],
         header: &DexHeader,
         string_items: &[Rc<StringItem>],
@@ -653,30 +653,30 @@ impl From<Dex> for protos::dex::Dex {
         result.set_is_dex(true);
         result.header = MessageField::some(dex.header.clone().into());
 
-        result.string_items.extend(
-            dex.string_items
+        result.string_ids.extend(
+            dex.string_ids
                 .iter()
                 .map(|x| protos::dex::StringItem::from(x.as_ref())),
         );
-        result.types.extend(
-            dex.type_items
+        result.type_ids.extend(
+            dex.type_ids
                 .iter()
                 .map(|x| protos::dex::StringItem::from(x.as_ref())),
         );
-        result.protos.extend(
-            dex.proto_items
+        result.proto_ids.extend(
+            dex.proto_ids
                 .iter()
                 .map(|x| protos::dex::ProtoItem::from(x.as_ref())),
         );
         result
-            .fields
-            .extend(dex.field_items.iter().map(protos::dex::FieldItem::from));
-        result.methods.extend(
-            dex.method_items.iter().map(protos::dex::MethodItem::from),
-        );
+            .field_ids
+            .extend(dex.field_ids.iter().map(protos::dex::FieldItem::from));
         result
-            .classes
-            .extend(dex.class_items.iter().map(protos::dex::ClassItem::from));
+            .method_ids
+            .extend(dex.method_ids.iter().map(protos::dex::MethodItem::from));
+        result
+            .class_defs
+            .extend(dex.class_defs.iter().map(protos::dex::ClassItem::from));
 
         if let Some(map_list) = dex.map_list {
             result.map_list = MessageField::some(map_list.into());
