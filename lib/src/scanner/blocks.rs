@@ -152,7 +152,7 @@ impl<'r> Scanner<'r> {
         ctx.eval_conditions()?;
 
         ctx.scan_state = ScanState::Finished(DataSnippets::MultiBlock(
-            mem::replace(&mut self.snippets, BTreeMap::new()),
+            mem::take(&mut self.snippets),
         ));
 
         Ok(ScanResults::new(ctx))
