@@ -184,12 +184,21 @@ mod tests {
 
         let mut scanner = Scanner::new(&rules);
 
-        scanner
+        let results = scanner
             .scan(0, b"Lorem ipsum")
             .unwrap()
             .scan(1000, b"dolor sit amet")
             .unwrap()
             .finish()
             .unwrap();
+
+        assert_eq!(results.matching_rules().len(), 1);
+
+        let rule = results.matching_rules().next().unwrap();
+        let pattern = rule.patterns().next().unwrap();
+        let match_ = pattern.matches().next().unwrap();
+
+        assert_eq!(match_.data(), b"ipsum".as_slice());
+        assert_eq!(match_.range(), 6..11);
     }
 }
