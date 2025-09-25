@@ -282,6 +282,12 @@ impl PatternMatches {
             }
         }
     }
+
+    pub fn matches_per_pattern(
+        &self,
+    ) -> impl Iterator<Item = (&PatternId, &MatchList)> {
+        self.matches.iter()
+    }
 }
 
 #[cfg(test)]

@@ -2,7 +2,7 @@
 
 The scanner takes the rules produces by the compiler and scans data with them.
 */
-use std::collections::{hash_map, HashMap};
+use std::collections::{hash_map, BTreeMap, HashMap};
 use std::fs;
 use std::io::Read;
 use std::mem::transmute;
@@ -38,7 +38,7 @@ pub(crate) use crate::scanner::matches::Match;
 mod context;
 mod matches;
 
-mod block;
+pub mod blocks;
 
 #[cfg(test)]
 mod tests;
@@ -461,6 +461,7 @@ impl<'r> Scanner<'r> {
 }
 
 impl<'r> Scanner<'r> {
+    #[cfg(feature = "rules-profiling")]
     #[inline]
     fn scan_context<'a>(&self) -> &ScanContext<'r, 'a> {
         unsafe {
@@ -644,19 +645,62 @@ impl<'r> Scanner<'r> {
 /// To handle this, two strategies are used:
 ///
 /// - **Single-block scans**: Data is accessed directly from the input slice.
-/// - **Multi-block scans**: Matching fragments are copied and retained until
-///   results are processed.
+/// - **Multi-block scans**: Matching fragments are copied and retained in a
+///   BTreeMap until the results are processed. The keys in the btree are
+///   the offsets where the snippets start and the values are vectors with
+///   the snippet's data.
 ///
 /// Each strategy corresponds to a variant in this enum.
 pub(crate) enum DataSnippets<'d> {
     SingleBlock(ScannedData<'d>),
+    MultiBlock(BTreeMap<usize, Vec<u8>>),
 }
 
 impl DataSnippets<'_> {
     pub(crate) fn get(&self, range: Range<usize>) -> Option<&[u8]> {
         match self {
-            DataSnippets::SingleBlock(data) => data.as_ref().get(range),
+            Self::SingleBlock(data) => data.as_ref().get(range),
+            Self::MultiBlock(btree) => {
+                // Find in the btree the snippet that starts exactly at the
+                // offset indicated by range.start, if not found, take the
+                // previous one, which may also contain the requested range.
+                let (snippet_offset, snippet_data) =
+                    btree.range(..=range.start).next_back()?;
+
+                // Calculate the start and end of the slice within the snippet.
+                let start = range.start - snippet_offset;
+                let end = range.end - snippet_offset;
+
+                // Returns the data, or `None` if `start` and `end` are not
+                // within the snippet boundaries.
+                snippet_data.get(start..end)
+            }
         }
+    }
+}
+
+#[cfg(test)]
+mod snippet_tests {
+    use super::DataSnippets;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn snippets() {
+        let mut btree_map = BTreeMap::new();
+
+        btree_map.insert(0, vec![1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        btree_map.insert(50, vec![51, 52, 53, 54]);
+
+        let snippets = DataSnippets::MultiBlock(btree_map);
+
+        assert_eq!(snippets.get(0..2), Some([1, 2].as_slice()));
+        assert_eq!(snippets.get(1..3), Some([2, 3].as_slice()));
+        assert_eq!(snippets.get(8..9), Some([9].as_slice()));
+        assert_eq!(snippets.get(9..10), None);
+        assert_eq!(snippets.get(50..51), Some([51].as_slice()));
+        assert_eq!(snippets.get(50..54), Some([51, 52, 53, 54].as_slice()));
+        assert_eq!(snippets.get(52..54), Some([53, 54].as_slice()));
+        assert_eq!(snippets.get(50..56), None);
     }
 }
 

@@ -1,10 +1,11 @@
-use bstr::{BStr, ByteSlice};
-use serde::{Deserialize, Serialize};
 use std::ops::Range;
 use std::slice::Iter;
 
+use bstr::{BStr, ByteSlice};
+use serde::{Deserialize, Serialize};
+
 use crate::compiler::{IdentId, PatternId, RuleInfo};
-use crate::scanner::{DataSnippets, ScanContext, ScanState, ScannedData};
+use crate::scanner::{ScanContext, ScanState};
 use crate::{compiler, scanner, Rules};
 
 /// Kinds of patterns.
@@ -389,13 +390,7 @@ impl<'a> Match<'a, '_> {
     #[inline]
     pub fn data(&self) -> &'a [u8] {
         let data = match &self.ctx.scan_state {
-            ScanState::Finished(snippets) => match snippets {
-                DataSnippets::SingleBlock(data) => match data {
-                    ScannedData::Slice((_, s)) => s.get(self.range()),
-                    ScannedData::Vec(v) => v.get(self.range()),
-                    ScannedData::Mmap(m) => m.get(self.range()),
-                },
-            },
+            ScanState::Finished(snippets) => snippets.get(self.range()),
             _ => None,
         };
 
