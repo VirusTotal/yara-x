@@ -20,8 +20,6 @@ use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
-#[cfg(feature = "rules-profiling")]
-use std::time::Duration;
 use std::{cmp, mem, thread};
 use wasmtime::{
     AsContext, AsContextMut, Global, GlobalType, Instance, MemoryType,
