@@ -679,31 +679,6 @@ impl DataSnippets<'_> {
     }
 }
 
-#[cfg(test)]
-mod snippet_tests {
-    use super::DataSnippets;
-    use std::collections::BTreeMap;
-
-    #[test]
-    fn snippets() {
-        let mut btree_map = BTreeMap::new();
-
-        btree_map.insert(0, vec![1, 2, 3, 4, 5, 6, 7, 8, 9]);
-        btree_map.insert(50, vec![51, 52, 53, 54]);
-
-        let snippets = DataSnippets::MultiBlock(btree_map);
-
-        assert_eq!(snippets.get(0..2), Some([1, 2].as_slice()));
-        assert_eq!(snippets.get(1..3), Some([2, 3].as_slice()));
-        assert_eq!(snippets.get(8..9), Some([9].as_slice()));
-        assert_eq!(snippets.get(9..10), None);
-        assert_eq!(snippets.get(50..51), Some([51].as_slice()));
-        assert_eq!(snippets.get(50..54), Some([51, 52, 53, 54].as_slice()));
-        assert_eq!(snippets.get(52..54), Some([53, 54].as_slice()));
-        assert_eq!(snippets.get(50..56), None);
-    }
-}
-
 /// Results of a scan operation.
 ///
 /// Allows iterating over both the matching and non-matching rules.
@@ -946,5 +921,30 @@ impl<'a> Iterator for ModuleOutputs<'a, '_> {
                 return Some((*name, module_output.as_ref()));
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod snippet_tests {
+    use super::DataSnippets;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn snippets() {
+        let mut btree_map = BTreeMap::new();
+
+        btree_map.insert(0, vec![1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        btree_map.insert(50, vec![51, 52, 53, 54]);
+
+        let snippets = DataSnippets::MultiBlock(btree_map);
+
+        assert_eq!(snippets.get(0..2), Some([1, 2].as_slice()));
+        assert_eq!(snippets.get(1..3), Some([2, 3].as_slice()));
+        assert_eq!(snippets.get(8..9), Some([9].as_slice()));
+        assert_eq!(snippets.get(9..10), None);
+        assert_eq!(snippets.get(50..51), Some([51].as_slice()));
+        assert_eq!(snippets.get(50..54), Some([51, 52, 53, 54].as_slice()));
+        assert_eq!(snippets.get(52..54), Some([53, 54].as_slice()));
+        assert_eq!(snippets.get(50..56), None);
     }
 }
