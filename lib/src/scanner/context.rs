@@ -1,12 +1,3 @@
-use base64::Engine;
-use bitvec::order::Lsb0;
-use bitvec::slice::BitSlice;
-use bstr::{BString, ByteSlice};
-use indexmap::IndexMap;
-use memx::memeq;
-use protobuf::{MessageDyn, MessageFull};
-use regex_automata::meta::Regex;
-use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::RefCell;
 use std::collections::VecDeque;
 #[cfg(feature = "rules-profiling")]
@@ -21,6 +12,16 @@ use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::{cmp, mem, thread};
+
+use base64::Engine;
+use bitvec::order::Lsb0;
+use bitvec::slice::BitSlice;
+use bstr::{BString, ByteSlice};
+use indexmap::IndexMap;
+use memx::memeq;
+use protobuf::{MessageDyn, MessageFull};
+use regex_automata::meta::Regex;
+use rustc_hash::{FxHashMap, FxHashSet};
 use wasmtime::{
     AsContext, AsContextMut, Global, GlobalType, Instance, MemoryType,
     Mutability, Store, TypedFunc, Val, ValType,
