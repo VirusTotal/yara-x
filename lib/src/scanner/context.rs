@@ -240,7 +240,7 @@ impl ScanContext<'_, '_> {
     }
 }
 
-impl<'d> ScanContext<'_, 'd> {
+impl ScanContext<'_, '_> {
     const DEFAULT_SCAN_TIMEOUT: u64 = 315_360_000;
 
     /// Returns a slice with the data being scanned.

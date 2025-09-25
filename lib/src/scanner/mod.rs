@@ -123,7 +123,7 @@ impl ScannedData<'_> {
 impl AsRef<[u8]> for ScannedData<'_> {
     fn as_ref(&self) -> &[u8] {
         match self {
-            ScannedData::Slice((_, s)) => s.as_ref(),
+            ScannedData::Slice((_, s)) => s,
             ScannedData::Vec(v) => v.as_ref(),
             ScannedData::Mmap(m) => m.as_ref(),
         }

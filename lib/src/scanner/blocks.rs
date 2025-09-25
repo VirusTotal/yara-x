@@ -82,9 +82,9 @@ impl<'r> Scanner<'r> {
     /// # Arguments
     ///
     /// * `base` - The starting offset of the `data` block within overall
-    ///            data being scanned.
+    ///   data being scanned.
     /// * `data` - The byte slice representing the current block of data to
-    ///            scan.
+    ///   scan.
     ///
     /// # Returns
     ///
