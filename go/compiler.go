@@ -526,6 +526,14 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 		ret = C.int(C.yrx_compiler_define_global_float(c.cCompiler, cIdent, C.double(v)))
 	case float64:
 		ret = C.int(C.yrx_compiler_define_global_float(c.cCompiler, cIdent, C.double(v)))
+	case map[string]interface{}, []interface{}:
+		jsonStr, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Errorf("failed to marshal '%s' to json: '%v'", ident, err)
+		}
+		cValue := C.CString(string(jsonStr))
+		defer C.free(unsafe.Pointer(cValue))
+		ret = C.int(C.yrx_compiler_define_global_json(c.cCompiler, cIdent, cValue))
 	default:
 		return fmt.Errorf("variable `%s` has unsupported type: %T", ident, v)
 	}

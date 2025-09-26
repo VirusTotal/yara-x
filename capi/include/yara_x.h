@@ -408,6 +408,19 @@ enum YRX_RESULT yrx_compiler_define_global_float(struct YRX_COMPILER *compiler,
                                                  const char *ident,
                                                  double value);
 
+// Defines a global variable from a JSON-encoded string.
+//
+// This is best for complex types like maps and arrays. For simple types
+// (e.g., booleans, integers, strings), prefer dedicated functions to avoid
+// the overhead of JSON deserialization.
+//
+// When defining a map, keys must be of string type, and values can be
+// any of the types supported by YARA, including other maps. Arrays must be
+// homogeneous (all elements must be the same type).
+enum YRX_RESULT yrx_compiler_define_global_json(struct YRX_COMPILER *compiler,
+                                                const char *ident,
+                                                const char *value);
+
 // Returns the errors encountered during the compilation in JSON format.
 //
 // In the address indicated by the `buf` pointer, the function will copy a
@@ -740,6 +753,18 @@ enum YRX_RESULT yrx_scanner_set_global_int(struct YRX_SCANNER *scanner,
 enum YRX_RESULT yrx_scanner_set_global_float(struct YRX_SCANNER *scanner,
                                              const char *ident,
                                              double value);
+
+// Sets the value of a global variable from a JSON-encoded string.
+//
+// This is best for complex types like maps and arrays. For simple types
+// (e.g., booleans, integers, strings), prefer dedicated functions to avoid
+// the overhead of JSON deserialization.
+//
+// The type of the JSON-encoded value must match the type of the variable
+// as it was defined.
+enum YRX_RESULT yrx_scanner_set_global_json(struct YRX_SCANNER *scanner,
+                                            const char *ident,
+                                            const char *value);
 
 // Iterates over the slowest N rules, calling the callback for each rule.
 //
