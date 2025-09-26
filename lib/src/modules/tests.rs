@@ -179,4 +179,5 @@ fn test_invoke_modules() {
     assert!(modules.dotnet.is_dotnet.is_some_and(|value| !value));
     assert!(modules.lnk.is_lnk.is_some_and(|value| !value));
     assert!(modules.crx.is_crx.is_some_and(|value| !value));
+    assert!(modules.dex.is_dex.is_some_and(|value| !value));
 }
