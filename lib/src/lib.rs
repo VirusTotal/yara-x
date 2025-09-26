@@ -59,6 +59,7 @@ pub use models::PatternKind;
 pub use models::Patterns;
 pub use models::Rule;
 pub use modules::mods;
+pub use scanner::blocks;
 pub use scanner::MatchingRules;
 pub use scanner::ModuleOutputs;
 pub use scanner::NonMatchingRules;

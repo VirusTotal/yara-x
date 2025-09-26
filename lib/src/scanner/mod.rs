@@ -2,48 +2,43 @@
 
 The scanner takes the rules produces by the compiler and scans data with them.
 */
-use std::cell::RefCell;
-use std::collections::{hash_map, HashMap};
+use std::collections::{hash_map, BTreeMap, HashMap};
+use std::fs;
 use std::io::Read;
 use std::mem::transmute;
-use std::ops::Deref;
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
-use std::ptr::{null, NonNull};
 use std::slice::Iter;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::AtomicU64;
 use std::sync::Once;
 use std::time::Duration;
-use std::{cmp, fs, thread};
 
 use bitvec::prelude::*;
-use indexmap::IndexMap;
 use memmap2::{Mmap, MmapOptions};
 use protobuf::{CodedInputStream, MessageDyn};
-use rustc_hash::{FxHashMap, FxHashSet};
-
 use thiserror::Error;
-use wasmtime::{
-    AsContext, AsContextMut, Global, GlobalType, MemoryType, Mutability,
-    Store, TypedFunc, Val, ValType,
-};
+use wasmtime::Store;
 
 use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
 use crate::modules::{Module, ModuleError, BUILTIN_MODULES};
-use crate::scanner::matches::PatternMatches;
+use crate::scanner::context::create_wasm_store_and_ctx;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-use crate::{modules, wasm, Variable};
+use crate::{modules, Variable};
 
 pub(crate) use crate::scanner::context::RuntimeObject;
 pub(crate) use crate::scanner::context::RuntimeObjectHandle;
 pub(crate) use crate::scanner::context::ScanContext;
+pub(crate) use crate::scanner::context::ScanState;
 pub(crate) use crate::scanner::matches::Match;
 
 mod context;
 mod matches;
+
+pub mod blocks;
 
 #[cfg(test)]
 mod tests;
@@ -103,19 +98,49 @@ static HEARTBEAT_COUNTER: AtomicU64 = AtomicU64::new(0);
 /// Used for spawning the thread that increments `HEARTBEAT_COUNTER`.
 static INIT_HEARTBEAT: Once = Once::new();
 
-pub enum ScannedData<'a> {
-    Slice(&'a [u8]),
+/// Represents the data being scanned.
+///
+/// The scanned data can be backed by a slice owned by someone else, or a
+/// vector or memory-mapped file owned by `ScannedData` itself. When the
+/// scanned data is backed by a slice, it can also contain a base address
+/// for the data.
+pub enum ScannedData<'d> {
+    Slice((usize, &'d [u8])),
     Vec(Vec<u8>),
     Mmap(Mmap),
+}
+
+impl ScannedData<'_> {
+    pub fn base(&self) -> usize {
+        if let Self::Slice((base, _)) = self {
+            *base
+        } else {
+            0
+        }
+    }
 }
 
 impl AsRef<[u8]> for ScannedData<'_> {
     fn as_ref(&self) -> &[u8] {
         match self {
-            ScannedData::Slice(s) => s,
+            ScannedData::Slice((_, s)) => s,
             ScannedData::Vec(v) => v.as_ref(),
             ScannedData::Mmap(m) => m.as_ref(),
         }
+    }
+}
+
+impl<'d> TryInto<ScannedData<'d>> for &'d [u8] {
+    type Error = ScanError;
+    fn try_into(self) -> Result<ScannedData<'d>, Self::Error> {
+        Ok(ScannedData::Slice((0, self)))
+    }
+}
+
+impl<'d, const N: usize> TryInto<ScannedData<'d>> for &'d [u8; N] {
+    type Error = ScanError;
+    fn try_into(self) -> Result<ScannedData<'d>, Self::Error> {
+        Ok(ScannedData::Slice((0, self)))
     }
 }
 
@@ -165,172 +190,16 @@ impl<'a> ScanOptions<'a> {
 /// in-memory data sequentially, but you need multiple scanners for scanning in
 /// parallel.
 pub struct Scanner<'r> {
-    rules: &'r Rules,
-    wasm_store: Pin<Box<Store<ScanContext<'static>>>>,
-    wasm_main_func: TypedFunc<(), i32>,
-    filesize: Global,
-    timeout: Option<Duration>,
+    _rules: &'r Rules,
+    wasm_store: Pin<Box<Store<ScanContext<'static, 'static>>>>,
     use_mmap: bool,
 }
 
 impl<'r> Scanner<'r> {
-    const DEFAULT_SCAN_TIMEOUT: u64 = 315_360_000;
-
     /// Creates a new scanner.
     pub fn new(rules: &'r Rules) -> Self {
-        let num_rules = rules.num_rules() as u32;
-        let num_patterns = rules.num_patterns() as u32;
-
-        let ctx = ScanContext {
-            wasm_store: NonNull::dangling(),
-            runtime_objects: IndexMap::new(),
-            compiled_rules: rules,
-            console_log: None,
-            current_struct: None,
-            root_struct: rules.globals().make_root(),
-            scanned_data: null(),
-            scanned_data_len: 0,
-            matching_rules: Vec::new(),
-            matching_rules_per_ns: IndexMap::new(),
-            num_matching_private_rules: 0,
-            num_non_matching_private_rules: 0,
-            main_memory: None,
-            module_outputs: FxHashMap::default(),
-            user_provided_module_outputs: FxHashMap::default(),
-            pattern_matches: PatternMatches::new(),
-            unconfirmed_matches: FxHashMap::default(),
-            deadline: 0,
-            limit_reached: FxHashSet::default(),
-            regexp_cache: RefCell::new(FxHashMap::default()),
-            #[cfg(feature = "rules-profiling")]
-            time_spent_in_pattern: FxHashMap::default(),
-            #[cfg(feature = "rules-profiling")]
-            time_spent_in_rule: vec![0; num_rules as usize],
-            #[cfg(feature = "rules-profiling")]
-            rule_execution_start_time: 0,
-            #[cfg(feature = "rules-profiling")]
-            last_executed_rule: None,
-            #[cfg(any(feature = "rules-profiling", feature = "logging"))]
-            clock: quanta::Clock::new(),
-        };
-
-        // The ScanContext structure belongs to the WASM store, but at the same
-        // time it must have a reference to the store because it is required
-        // for accessing the WASM memory from code that only has a reference to
-        // ScanContext. This kind of circular data structures are not natural
-        // to Rust, and they can be achieved either by using unsafe pointers,
-        // or by using Rc::Weak. In this case we are storing a pointer to the
-        // store in ScanContext. The store is put into a pinned box in order to
-        // make sure that it doesn't move from its original memory address and
-        // the pointer remains valid.
-        //
-        // Also, the `Store` type requires a type T that is static, therefore
-        // we are forced to transmute the ScanContext<'r> into ScanContext<'static>.
-        // This is safe to do because the Store only lives for the time that
-        // the scanner lives, and 'r is the lifetime for the rules passed to
-        // the scanner, which are guaranteed to outlive the scanner.
-        let mut wasm_store =
-            Box::pin(Store::new(wasm::get_engine(), unsafe {
-                transmute::<ScanContext<'r>, ScanContext<'static>>(ctx)
-            }));
-
-        // Initialize the ScanContext.wasm_store pointer that was initially
-        // dangling.
-        wasm_store.data_mut().wasm_store =
-            NonNull::from(wasm_store.as_ref().deref());
-
-        // Global variable that will hold the value for `filesize`. This is
-        // initialized to 0 because the file size is not known until some
-        // data is scanned.
-        let filesize = Global::new(
-            wasm_store.as_context_mut(),
-            GlobalType::new(ValType::I64, Mutability::Var),
-            Val::I64(0),
-        )
-        .unwrap();
-
-        // Global variable that is set to `true` when the Aho-Corasick pattern
-        // search phase has been executed.
-        let pattern_search_done = Global::new(
-            wasm_store.as_context_mut(),
-            GlobalType::new(ValType::I32, Mutability::Var),
-            Val::I32(0),
-        )
-        .unwrap();
-
-        // Compute the base offset for the bitmap that contains matching
-        // information for patterns. This bitmap has 1 bit per pattern, the
-        // N-th bit is set if pattern with PatternId = N matched. The bitmap
-        // starts right after the bitmap that contains matching information
-        // for rules.
-        let matching_patterns_bitmap_base =
-            MATCHING_RULES_BITMAP_BASE as u32 + num_rules.div_ceil(8);
-
-        // Compute the required memory size in 64KB pages.
-        let mem_size = u32::div_ceil(
-            matching_patterns_bitmap_base + num_patterns.div_ceil(8),
-            65536,
-        );
-
-        let matching_patterns_bitmap_base = Global::new(
-            wasm_store.as_context_mut(),
-            GlobalType::new(ValType::I32, Mutability::Const),
-            Val::I32(matching_patterns_bitmap_base as i32),
-        )
-        .unwrap();
-
-        // Create module's main memory.
-        let main_memory = wasmtime::Memory::new(
-            wasm_store.as_context_mut(),
-            MemoryType::new(mem_size, Some(mem_size)),
-        )
-        .unwrap();
-
-        // Instantiate the module. This takes the wasm code provided by the
-        // `wasm_mod` function and links its imported functions with the
-        // implementations that YARA provides.
-        let wasm_instance = wasm::new_linker()
-            .define(wasm_store.as_context(), "yara_x", "filesize", filesize)
-            .unwrap()
-            .define(
-                wasm_store.as_context(),
-                "yara_x",
-                "pattern_search_done",
-                pattern_search_done,
-            )
-            .unwrap()
-            .define(
-                wasm_store.as_context(),
-                "yara_x",
-                "matching_patterns_bitmap_base",
-                matching_patterns_bitmap_base,
-            )
-            .unwrap()
-            .define(
-                wasm_store.as_context(),
-                "yara_x",
-                "main_memory",
-                main_memory,
-            )
-            .unwrap()
-            .instantiate(wasm_store.as_context_mut(), rules.wasm_mod())
-            .unwrap();
-
-        // Obtain a reference to the "main" function exported by the module.
-        let wasm_main_func = wasm_instance
-            .get_typed_func::<(), i32>(wasm_store.as_context_mut(), "main")
-            .unwrap();
-
-        wasm_store.data_mut().main_memory = Some(main_memory);
-
-        Self {
-            rules,
-            wasm_store,
-            wasm_main_func,
-            filesize,
-            timeout: None,
-            use_mmap: true,
-        }
+        let wasm_store = create_wasm_store_and_ctx(rules);
+        Self { _rules: rules, wasm_store, use_mmap: true }
     }
 
     /// Sets a timeout for scan operations.
@@ -342,7 +211,7 @@ impl<'r> Scanner<'r> {
     /// the scanner could potentially continue running for a longer period than
     /// the specified timeout.
     pub fn set_timeout(&mut self, timeout: Duration) -> &mut Self {
-        self.timeout = Some(timeout);
+        self.scan_context_mut().set_timeout(timeout);
         self
     }
 
@@ -355,7 +224,7 @@ impl<'r> Scanner<'r> {
         self
     }
 
-    /// Specifies whether [`Scanner::scan_file`] and [`Scanner::scan_file_with_option`]
+    /// Specifies whether [`Scanner::scan_file`] and [`Scanner::scan_file_with_options`]
     /// may use memory-mapped files to read input.
     ///
     /// By default, the scanner uses memory mapping for very large files, as this
@@ -391,7 +260,7 @@ impl<'r> Scanner<'r> {
         &'a mut self,
         data: &'a [u8],
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_impl(ScannedData::Slice(data), None)
+        self.scan_impl(data.try_into()?, None)
     }
 
     /// Scans a file.
@@ -411,16 +280,16 @@ impl<'r> Scanner<'r> {
         data: &'a [u8],
         options: ScanOptions<'opts>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_impl(ScannedData::Slice(data), Some(options))
+        self.scan_impl(ScannedData::Slice((0, data)), Some(options))
     }
 
     /// Like [`Scanner::scan_file`], but allows to specify additional scan
     /// options.
-    pub fn scan_file_with_options<'a, 'opts, P>(
-        &'a mut self,
+    pub fn scan_file_with_options<'opts, P>(
+        &mut self,
         target: P,
         options: ScanOptions<'opts>,
-    ) -> Result<ScanResults<'a, 'r>, ScanError>
+    ) -> Result<ScanResults<'_, 'r>, ScanError>
     where
         P: AsRef<Path>,
     {
@@ -592,27 +461,29 @@ impl<'r> Scanner<'r> {
 }
 
 impl<'r> Scanner<'r> {
+    #[cfg(feature = "rules-profiling")]
     #[inline]
-    fn scan_context(&self) -> &ScanContext<'r> {
+    fn scan_context<'a>(&self) -> &ScanContext<'r, 'a> {
         unsafe {
-            transmute::<&ScanContext<'static>, &ScanContext<'r>>(
+            transmute::<&ScanContext<'static, 'static>, &ScanContext<'r, '_>>(
                 self.wasm_store.data(),
             )
         }
     }
     #[inline]
-    fn scan_context_mut(&mut self) -> &mut ScanContext<'r> {
+    fn scan_context_mut<'a>(&mut self) -> &mut ScanContext<'r, 'a> {
         unsafe {
-            transmute::<&mut ScanContext<'static>, &mut ScanContext<'r>>(
-                self.wasm_store.data_mut(),
-            )
+            transmute::<
+                &mut ScanContext<'static, 'static>,
+                &mut ScanContext<'r, '_>,
+            >(self.wasm_store.data_mut())
         }
     }
 
-    fn load_file(
+    fn load_file<'a>(
         &self,
         path: &Path,
-    ) -> Result<ScannedData<'static>, ScanError> {
+    ) -> Result<ScannedData<'a>, ScanError> {
         let mut file = fs::File::open(path).map_err(|err| {
             ScanError::OpenError { path: path.to_path_buf(), err }
         })?;
@@ -647,70 +518,16 @@ impl<'r> Scanner<'r> {
         data: ScannedData<'a>,
         options: Option<ScanOptions<'opts>>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        // Clear information about matches found in a previous scan, if any.
-        self.reset();
-
-        // Timeout in seconds. This is either the value provided by the user or
-        // 315.360.000 which is the number of seconds in a year. Using u64::MAX
-        // doesn't work because this value is added to the current epoch, and
-        // will cause an overflow. We need an integer large enough, but that
-        // has room before the u64 limit is reached. For this same reason if
-        // the user specifies a value larger than 315.360.000 we limit it to
-        // 315.360.000 anyway. One year should be enough, I hope you don't plan
-        // to run a YARA scan that takes longer.
-        let timeout_secs =
-            self.timeout.map_or(Self::DEFAULT_SCAN_TIMEOUT, |t| {
-                cmp::min(
-                    t.as_secs_f32().ceil() as u64,
-                    Self::DEFAULT_SCAN_TIMEOUT,
-                )
-            });
-
-        // Sets the deadline for the WASM store. The WASM main function will
-        // abort if the deadline is reached while the function is being
-        // executed.
-        self.wasm_store.set_epoch_deadline(timeout_secs);
-        self.wasm_store
-            .epoch_deadline_callback(|_| Err(ScanError::Timeout.into()));
-
-        // If the user specified some timeout, start the heartbeat thread, if
-        // not previously started. The heartbeat thread increments the WASM
-        // engine epoch and HEARTBEAT_COUNTER every second. There's a single
-        // instance of this thread, independently of the number of concurrent
-        // scans.
-        if self.timeout.is_some() {
-            INIT_HEARTBEAT.call_once(|| {
-                thread::spawn(|| loop {
-                    thread::sleep(Duration::from_secs(1));
-                    wasm::get_engine().increment_epoch();
-                    HEARTBEAT_COUNTER
-                        .fetch_update(
-                            Ordering::SeqCst,
-                            Ordering::SeqCst,
-                            |x| Some(x + 1),
-                        )
-                        .unwrap();
-                });
-            });
-        }
-
-        // Set the global variable `filesize` to the size of the scanned data.
-        self.filesize
-            .set(
-                self.wasm_store.as_context_mut(),
-                Val::I64(data.as_ref().len() as i64),
-            )
-            .unwrap();
-
         let ctx = self.scan_context_mut();
 
-        ctx.deadline =
-            HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
-        ctx.scanned_data = data.as_ref().as_ptr();
-        ctx.scanned_data_len = data.as_ref().len();
+        // Clear information about matches found in a previous scan, if any.
+        ctx.reset();
 
-        // Free all runtime objects left around by previous scans.
-        ctx.runtime_objects.clear();
+        // Set the global variable `filesize` to the size of the scanned data.
+        ctx.set_filesize(data.as_ref().len() as i64);
+
+        // Indicate that the scanner is currently scanning the given data.
+        ctx.scan_state = ScanState::Scanning(data);
 
         for module_name in ctx.compiled_rules.imports() {
             // Lookup the module in the list of built-in modules.
@@ -737,12 +554,12 @@ impl<'r> Scanner<'r> {
 
                 if let Some(main_fn) = module.main_fn {
                     module_output =
-                        Some(main_fn(data.as_ref(), meta).map_err(|err| {
-                            ScanError::ModuleError {
+                        Some(main_fn(ctx.scanned_data(), meta).map_err(
+                            |err| ScanError::ModuleError {
                                 module: module_name.to_string(),
                                 err,
-                            }
-                        })?);
+                            },
+                        )?);
                 } else {
                     module_output = None;
                 }
@@ -804,144 +621,60 @@ impl<'r> Scanner<'r> {
                 .add_field(module_name, TypeValue::Struct(module_struct));
         }
 
-        // Save the time in which the evaluation of rules started.
-        #[cfg(feature = "rules-profiling")]
-        {
-            ctx.rule_execution_start_time = ctx.clock.raw();
-        }
+        // Evaluate the conditions of every rule, this will call
+        // `ScanContext::search_for_patterns` if necessary.
+        ctx.eval_conditions()?;
 
-        // Invoke the main function, which evaluates the rules' conditions. It
-        // calls ScanContext::search_for_patterns (which does the Aho-Corasick
-        // scanning) only if necessary.
-        //
-        // This will return Err(ScanError::Timeout), when the scan timeout is
-        // reached while WASM code is being executed.
-        let func_result =
-            self.wasm_main_func.call(self.wasm_store.as_context_mut(), ());
+        ctx.scan_state = ScanState::Finished(DataSnippets::SingleBlock(
+            ctx.scan_state.take_data(),
+        ));
 
-        #[cfg(feature = "rules-profiling")]
-        if func_result.is_err() {
-            let ctx = self.scan_context_mut();
-            // If a timeout occurs, the methods `ctx.track_rule_no_match` or
-            // `ctx.track_rule_match` may not be invoked for the currently
-            // executing rule. This means that the time spent within that rule
-            // has not been recorded yet, so we need to update it here.
-            //
-            // The ID of the rule that was running during the timeout can be
-            // determined as the one immediately following the last executed
-            // rule, based on the assumption that rules are processed in a
-            // strictly ascending ID order.
-            //
-            // Additionally, if the timeout happens after `ctx.last_executed_rule`
-            // has been updated with the last rule ID, we might end up calling
-            // `update_time_spent_in_rule` with an ID that is off by one.
-            // However, this function is designed to handle such cases
-            // gracefully.
-            ctx.update_time_spent_in_rule(
-                ctx.last_executed_rule
-                    .map_or(RuleId::from(0), |rule_id| rule_id.next()),
-            );
-        }
-
-        #[cfg(all(feature = "rules-profiling", feature = "logging"))]
-        {
-            let most_expensive_rules = self.slowest_rules(10);
-            if !most_expensive_rules.is_empty() {
-                log::info!("Most expensive rules:");
-                for profiling_data in most_expensive_rules {
-                    log::info!("+ namespace: {}", profiling_data.namespace);
-                    log::info!("  rule: {}", profiling_data.rule);
-                    log::info!(
-                        "  pattern matching time: {:?}",
-                        profiling_data.pattern_matching_time
-                    );
-                    log::info!(
-                        "  condition execution time: {:?}",
-                        profiling_data.condition_exec_time
-                    );
-                }
-            }
-        }
-
-        let ctx = self.scan_context_mut();
-
-        // Set pointer to data back to nil. This means that accessing
-        // `scanned_data` from within `ScanResults` is not possible.
-        ctx.scanned_data = null();
-        ctx.scanned_data_len = 0;
-
-        // Clear the value of `current_struct` as it may contain a reference
-        // to some struct.
-        ctx.current_struct = None;
-
-        // `matching_rules` must be empty at this point. Matching rules were
-        // being tracked by the `matching_rules_per_ns` map, but we are about
-        // to move them to `matching_rules` while leaving the map empty.
-        assert!(ctx.matching_rules.is_empty());
-
-        // Move the matching rules the vectors, leaving the `matching_rules`
-        // map empty.
-        for rules in ctx.matching_rules_per_ns.values_mut() {
-            for rule_id in rules.drain(0..) {
-                ctx.matching_rules.push(rule_id);
-            }
-        }
-
-        match func_result {
-            Ok(0) => Ok(ScanResults::new(self.scan_context(), data)),
-            Ok(v) => panic!("WASM main returned: {v}"),
-            Err(err) if err.is::<ScanError>() => {
-                Err(err.downcast::<ScanError>().unwrap())
-            }
-            Err(err) => panic!(
-                "unexpected error while executing WASM main function: {err}"
-            ),
-        }
+        Ok(ScanResults::new(ctx))
     }
+}
 
-    /// Resets the scanner to its initial state, making it ready for another
-    /// scan. This clears all the information generated during the previous
-    /// scan.
-    fn reset(&mut self) {
-        let num_rules = self.rules.num_rules();
-        let num_patterns = self.rules.num_patterns();
+/// Helper type that exposes the data matched during a scan operation.
+///
+/// Matching data can be accessed through the [`Match::data`] method. Normally,
+/// this data can be retrieved by slicing directly into the scanned input.
+/// However, that requires the original input to remain valid until the scan
+/// results are processed. This works fine for a single contiguous block of
+/// memory, but is impractical when scanning multiple blocks, since holding
+/// onto all of them until the end would consume excessive memory.
+///
+/// To handle this, two strategies are used:
+///
+/// - **Single-block scans**: Data is accessed directly from the input slice.
+/// - **Multi-block scans**: Matching fragments are copied and retained in a
+///   BTreeMap until the results are processed. The keys in the btree are
+///   the offsets where the snippets start and the values are vectors with
+///   the snippet's data.
+///
+/// Each strategy corresponds to a variant in this enum.
+pub(crate) enum DataSnippets<'d> {
+    SingleBlock(ScannedData<'d>),
+    MultiBlock(BTreeMap<usize, Vec<u8>>),
+}
 
-        let ctx = self.scan_context_mut();
+impl DataSnippets<'_> {
+    pub(crate) fn get(&self, range: Range<usize>) -> Option<&[u8]> {
+        match self {
+            Self::SingleBlock(data) => data.as_ref().get(range),
+            Self::MultiBlock(btree) => {
+                // Find in the btree the snippet that starts exactly at the
+                // offset indicated by range.start, if not found, take the
+                // previous one, which may also contain the requested range.
+                let (snippet_offset, snippet_data) =
+                    btree.range(..=range.start).next_back()?;
 
-        // Clear the array that tracks the patterns that reached the maximum
-        // number of patterns.
-        ctx.limit_reached.clear();
+                // Calculate the start and end of the slice within the snippet.
+                let start = range.start - snippet_offset;
+                let end = range.end - snippet_offset;
 
-        ctx.unconfirmed_matches.clear();
-        ctx.num_matching_private_rules = 0;
-        ctx.num_non_matching_private_rules = 0;
-
-        // If some pattern or rule matched, clear the matches. Notice that a
-        // rule may match without any pattern being matched, because there
-        // are rules without patterns, or that match if the pattern is not
-        // found.
-        if !ctx.pattern_matches.is_empty() || !ctx.matching_rules.is_empty() {
-            ctx.pattern_matches.clear();
-            ctx.matching_rules.clear();
-
-            let mem = ctx
-                .main_memory
-                .unwrap()
-                .data_mut(self.wasm_store.as_context_mut());
-
-            // Starting at MATCHING_RULES_BITMAP in main memory there's a
-            // bitmap were the N-th bit indicates if the rule with ID = N
-            // matched or not, If some rule matched in a previous call the
-            // bitmap will contain some bits set to 1 and need to be cleared.
-            let base = MATCHING_RULES_BITMAP_BASE as usize;
-            let bitmap = BitSlice::<_, Lsb0>::from_slice_mut(
-                &mut mem[base..base
-                    + num_rules.div_ceil(8)
-                    + num_patterns.div_ceil(8)],
-            );
-
-            // Set to zero all bits in the bitmap.
-            bitmap.fill(false);
+                // Returns the data, or `None` if `start` and `end` are not
+                // within the snippet boundaries.
+                snippet_data.get(start..end)
+            }
         }
     }
 }
@@ -950,24 +683,23 @@ impl<'r> Scanner<'r> {
 ///
 /// Allows iterating over both the matching and non-matching rules.
 pub struct ScanResults<'a, 'r> {
-    ctx: &'a ScanContext<'r>,
-    data: ScannedData<'a>,
+    ctx: &'a ScanContext<'r, 'a>,
 }
 
 impl<'a, 'r> ScanResults<'a, 'r> {
-    fn new(ctx: &'a ScanContext<'r>, data: ScannedData<'a>) -> Self {
-        Self { ctx, data }
+    fn new(ctx: &'a ScanContext<'r, 'a>) -> Self {
+        Self { ctx }
     }
 
     /// Returns an iterator that yields the matching rules in arbitrary order.
-    pub fn matching_rules(&'a self) -> MatchingRules<'a, 'r> {
-        MatchingRules::new(self.ctx, &self.data)
+    pub fn matching_rules(&self) -> MatchingRules<'_, 'r> {
+        MatchingRules::new(self.ctx)
     }
 
     /// Returns an iterator that yields the non-matching rules in arbitrary
     /// order.
-    pub fn non_matching_rules(&'a self) -> NonMatchingRules<'a, 'r> {
-        NonMatchingRules::new(self.ctx, &self.data)
+    pub fn non_matching_rules(&self) -> NonMatchingRules<'_, 'r> {
+        NonMatchingRules::new(self.ctx)
     }
 
     /// Returns the protobuf produced by a YARA module after processing the
@@ -1002,8 +734,7 @@ impl<'a, 'r> ScanResults<'a, 'r> {
 /// Private rules are not included by default, use
 /// [`MatchingRules::include_private`] for changing this behaviour.
 pub struct MatchingRules<'a, 'r> {
-    ctx: &'a ScanContext<'r>,
-    data: &'a ScannedData<'a>,
+    ctx: &'a ScanContext<'r, 'a>,
     iterator: Iter<'a, RuleId>,
     len_non_private: usize,
     len_private: usize,
@@ -1011,10 +742,9 @@ pub struct MatchingRules<'a, 'r> {
 }
 
 impl<'a, 'r> MatchingRules<'a, 'r> {
-    fn new(ctx: &'a ScanContext<'r>, data: &'a ScannedData<'a>) -> Self {
+    fn new(ctx: &'a ScanContext<'r, 'a>) -> Self {
         Self {
             ctx,
-            data,
             iterator: ctx.matching_rules.iter(),
             include_private: false,
             len_non_private: ctx.matching_rules.len()
@@ -1047,12 +777,7 @@ impl<'a, 'r> Iterator for MatchingRules<'a, 'r> {
                 self.len_non_private -= 1;
             }
             if self.include_private || !rule_info.is_private {
-                return Some(Rule {
-                    ctx: Some(self.ctx),
-                    data: Some(self.data),
-                    rule_info,
-                    rules,
-                });
+                return Some(Rule { ctx: Some(self.ctx), rule_info, rules });
             }
         }
     }
@@ -1074,8 +799,7 @@ impl ExactSizeIterator for MatchingRules<'_, '_> {
 /// Private rules are not included by default, use
 /// [`NonMatchingRules::include_private`] for changing this behaviour.
 pub struct NonMatchingRules<'a, 'r> {
-    ctx: &'a ScanContext<'r>,
-    data: &'a ScannedData<'a>,
+    ctx: &'a ScanContext<'r, 'a>,
     iterator: bitvec::slice::IterZeros<'a, u8, Lsb0>,
     include_private: bool,
     len_private: usize,
@@ -1083,10 +807,12 @@ pub struct NonMatchingRules<'a, 'r> {
 }
 
 impl<'a, 'r> NonMatchingRules<'a, 'r> {
-    fn new(ctx: &'a ScanContext<'r>, data: &'a ScannedData<'a>) -> Self {
+    fn new(ctx: &'a ScanContext<'r, 'a>) -> Self {
         let num_rules = ctx.compiled_rules.num_rules();
-        let main_memory =
-            ctx.main_memory.unwrap().data(unsafe { ctx.wasm_store.as_ref() });
+        let main_memory = ctx
+            .wasm_main_memory
+            .unwrap()
+            .data(unsafe { ctx.wasm_store.as_ref() });
 
         let base = MATCHING_RULES_BITMAP_BASE as usize;
 
@@ -1104,7 +830,6 @@ impl<'a, 'r> NonMatchingRules<'a, 'r> {
 
         Self {
             ctx,
-            data,
             iterator: matching_rules_bitmap.iter_zeros(),
             include_private: false,
             len_non_private: ctx.compiled_rules.num_rules()
@@ -1141,12 +866,7 @@ impl<'a, 'r> Iterator for NonMatchingRules<'a, 'r> {
             }
 
             if self.include_private || !rule_info.is_private {
-                return Some(Rule {
-                    ctx: Some(self.ctx),
-                    data: Some(self.data),
-                    rule_info,
-                    rules,
-                });
+                return Some(Rule { ctx: Some(self.ctx), rule_info, rules });
             }
         }
     }
@@ -1165,13 +885,13 @@ impl ExactSizeIterator for NonMatchingRules<'_, '_> {
 
 /// Iterator that returns the outputs produced by YARA modules.
 pub struct ModuleOutputs<'a, 'r> {
-    ctx: &'a ScanContext<'r>,
+    ctx: &'a ScanContext<'r, 'a>,
     len: usize,
     iterator: hash_map::Iter<'a, &'a str, Module>,
 }
 
 impl<'a, 'r> ModuleOutputs<'a, 'r> {
-    fn new(ctx: &'a ScanContext<'r>) -> Self {
+    fn new(ctx: &'a ScanContext<'r, 'a>) -> Self {
         Self {
             ctx,
             len: ctx.module_outputs.len(),
@@ -1201,5 +921,30 @@ impl<'a> Iterator for ModuleOutputs<'a, '_> {
                 return Some((*name, module_output.as_ref()));
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod snippet_tests {
+    use super::DataSnippets;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn snippets() {
+        let mut btree_map = BTreeMap::new();
+
+        btree_map.insert(0, vec![1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        btree_map.insert(50, vec![51, 52, 53, 54]);
+
+        let snippets = DataSnippets::MultiBlock(btree_map);
+
+        assert_eq!(snippets.get(0..2), Some([1, 2].as_slice()));
+        assert_eq!(snippets.get(1..3), Some([2, 3].as_slice()));
+        assert_eq!(snippets.get(8..9), Some([9].as_slice()));
+        assert_eq!(snippets.get(9..10), None);
+        assert_eq!(snippets.get(50..51), Some([51].as_slice()));
+        assert_eq!(snippets.get(50..54), Some([51, 52, 53, 54].as_slice()));
+        assert_eq!(snippets.get(52..54), Some([53, 54].as_slice()));
+        assert_eq!(snippets.get(50..56), None);
     }
 }
