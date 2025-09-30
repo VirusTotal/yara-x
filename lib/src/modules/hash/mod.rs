@@ -29,10 +29,7 @@ thread_local!(
 );
 
 #[module_main]
-fn main(
-    _data: &[u8],
-    _meta: Option<&[u8]>,
-) -> Result<Hash, ModuleError> {
+fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Hash, ModuleError> {
     // With every scanned file the cache must be cleared.
     SHA256_CACHE.with(|cache| cache.borrow_mut().clear());
     SHA1_CACHE.with(|cache| cache.borrow_mut().clear());
@@ -61,7 +58,7 @@ fn md5_data(
     }
 
     let range = offset.try_into().ok()?..(offset + size).try_into().ok()?;
-    let data = ctx.scanned_data().get(range)?;
+    let data = ctx.scanned_data()?.get(range)?;
     let mut hasher = Md5::new();
 
     hasher.update(data);
@@ -107,7 +104,7 @@ fn sha1_data(
     }
 
     let range = offset.try_into().ok()?..(offset + size).try_into().ok()?;
-    let data = ctx.scanned_data().get(range)?;
+    let data = ctx.scanned_data()?.get(range)?;
     let mut hasher = Sha1::new();
 
     hasher.update(data);
@@ -153,7 +150,7 @@ fn sha256_data(
     }
 
     let range = offset.try_into().ok()?..(offset + size).try_into().ok()?;
-    let data = ctx.scanned_data().get(range)?;
+    let data = ctx.scanned_data()?.get(range)?;
     let mut hasher = Sha256::new();
 
     hasher.update(data);
@@ -192,7 +189,7 @@ fn crc_data(ctx: &ScanContext, offset: i64, size: i64) -> Option<i64> {
     }
 
     let range = offset.try_into().ok()?..(offset + size).try_into().ok()?;
-    let data = ctx.scanned_data().get(range)?;
+    let data = ctx.scanned_data()?.get(range)?;
     let crc = crc32fast::hash(data);
 
     CRC32_CACHE.with(|cache| {
@@ -219,7 +216,7 @@ fn checksum_data(ctx: &ScanContext, offset: i64, size: i64) -> Option<i64> {
     }
 
     let range = offset.try_into().ok()?..(offset + size).try_into().ok()?;
-    let data = ctx.scanned_data().get(range)?;
+    let data = ctx.scanned_data()?.get(range)?;
     let mut checksum = 0_u32;
 
     for byte in data {

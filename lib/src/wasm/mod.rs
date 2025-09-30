@@ -1541,7 +1541,7 @@ macro_rules! gen_int_fn {
             let offset = usize::try_from(offset).ok()?;
             caller
                 .data()
-                .scanned_data()
+                .scanned_data()?
                 .get(offset..offset + mem::size_of::<$return_type>())
                 .map(|bytes| {
                     <$return_type>::$from_fn(bytes.try_into().unwrap()) as i64
@@ -1575,7 +1575,7 @@ macro_rules! gen_float_fn {
             let offset = usize::try_from(offset).ok()?;
             caller
                 .data()
-                .scanned_data()
+                .scanned_data()?
                 .get(offset..offset + mem::size_of::<$return_type>())
                 .map(|bytes| {
                     <$return_type>::$from_fn(bytes.try_into().unwrap()) as f64

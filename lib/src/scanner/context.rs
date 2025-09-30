@@ -31,6 +31,7 @@ use crate::compiler::{
     NamespaceId, PatternId, RegexpId, RuleId, Rules, SubPattern,
     SubPatternAtom, SubPatternFlags, SubPatternId,
 };
+use crate::errors::VariableError;
 use crate::re::fast::FastVM;
 use crate::re::hir::ChainedPatternGap;
 use crate::re::thompson::PikeVM;
@@ -40,29 +41,23 @@ use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
 use crate::scanner::ProfilingData;
 use crate::scanner::{DataSnippets, ScanError, ScannedData};
 use crate::scanner::{HEARTBEAT_COUNTER, INIT_HEARTBEAT};
-use crate::types::{Array, Map, Struct};
-use crate::wasm;
+use crate::types::{Array, Map, Struct, TypeValue};
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
+use crate::{wasm, Variable};
 
 /// Represents the states in which a scanner can be.
 pub(crate) enum ScanState<'a> {
     Idle,
-    Scanning(ScannedData<'a>),
+    ScanningData(ScannedData<'a>),
+    ScanningBlock((usize, &'a [u8])),
     Finished(DataSnippets<'a>),
 }
 
 impl<'a> ScanState<'a> {
-    /// Returns the data that was being scanned and changes the scan state
-    /// to [`ScanState::Idle`].
-    ///
-    /// # Panics
-    ///
-    /// If the scanner is not currently in [`ScanState::Scanning`].
-    pub fn take_data(&mut self) -> ScannedData<'a> {
-        match mem::replace(self, Self::Idle) {
-            Self::Scanning(data) => data,
-            _ => panic!(),
-        }
+    /// Returns changes the current state to [`ScanState::Idle`] and returns
+    /// the previous state.
+    pub fn take(&mut self) -> ScanState<'a> {
+        mem::replace(self, Self::Idle)
     }
 }
 
@@ -244,13 +239,13 @@ impl ScanContext<'_, '_> {
 
     /// Returns a slice with the data being scanned.
     ///
-    /// # Panics
-    ///
-    /// If the current scan state is not [`ScanState::Scanning`].
-    pub(crate) fn scanned_data(&self) -> &[u8] {
+    /// Returns `None` if the current scan state is not [`ScanState::ScanningData`].
+    /// Particularly, if the state is [`ScanState::ScanningBlock`] the result is
+    /// `None`.
+    pub(crate) fn scanned_data(&self) -> Option<&[u8]> {
         match &self.scan_state {
-            ScanState::Scanning(data) => data.as_ref(),
-            _ => panic!(),
+            ScanState::ScanningData(data) => Some(data.as_ref()),
+            _ => None,
         }
     }
 
@@ -300,6 +295,35 @@ impl ScanContext<'_, '_> {
         if let Some(console_log) = &mut self.console_log {
             console_log(message)
         }
+    }
+
+    /// Sets the value of a global variable.
+    pub fn set_global<T: TryInto<Variable>>(
+        &mut self,
+        ident: &str,
+        value: T,
+    ) -> Result<&mut Self, VariableError>
+    where
+        VariableError: From<<T as TryInto<Variable>>::Error>,
+    {
+        if let Some(field) = self.root_struct.field_by_name_mut(ident) {
+            let variable: Variable = value.try_into()?;
+            let type_value: TypeValue = variable.into();
+            // The new type must match the old one.
+            if type_value.eq_type(&field.type_value) {
+                field.type_value = type_value;
+            } else {
+                return Err(VariableError::InvalidType {
+                    variable: ident.to_string(),
+                    expected_type: field.type_value.ty().to_string(),
+                    actual_type: type_value.ty().to_string(),
+                });
+            }
+        } else {
+            return Err(VariableError::Undefined(ident.to_string()));
+        }
+
+        Ok(self)
     }
 
     pub(crate) fn store_struct(
@@ -720,15 +744,21 @@ impl ScanContext<'_, '_> {
         #[cfg(feature = "logging")]
         let mut atom_matches = 0_usize;
 
-        // Take ownership of the scanned data, while searching for
-        // the patterns, `self.scanned_data` is left as `None`.
-        let data = self.scan_state.take_data();
+        // Take ownership of the scan state, while searching for
+        // the patterns, `self.scan_state` is left as `Idle`.
+        let state = self.scan_state.take();
+
+        let (base, data) = match &state {
+            ScanState::ScanningData(data) => (0, data.as_ref()),
+            ScanState::ScanningBlock((base, data)) => (*base, *data),
+            _ => panic!(),
+        };
 
         // Verify the anchored pattern first. These are patterns that can
         // match at a single known offset within the data.
-        self.verify_anchored_patterns(data.base(), data.as_ref());
+        self.verify_anchored_patterns(base, data);
 
-        for ac_match in ac.find_overlapping_iter(data.as_ref()) {
+        for ac_match in ac.find_overlapping_iter(data) {
             #[cfg(feature = "logging")]
             {
                 atom_matches += 1;
@@ -793,17 +823,12 @@ impl ScanContext<'_, '_> {
 
                 let match_range = atom_pos..atom_pos + atom.len();
 
-                if verify_full_word(data.as_ref(), &match_range, *flags, None)
-                {
+                if verify_full_word(data, &match_range, *flags, None) {
                     self.handle_sub_pattern_match(
                         sub_pattern_id,
                         sub_pattern,
                         *pattern_id,
-                        Match {
-                            base: data.base(),
-                            range: match_range,
-                            xor_key: None,
-                        },
+                        Match { base, range: match_range, xor_key: None },
                     );
                 }
 
@@ -820,18 +845,13 @@ impl ScanContext<'_, '_> {
                         .get_bytes(*pattern)
                         .unwrap();
 
-                    if verify_literal_match(
-                        pattern,
-                        data.as_ref(),
-                        atom_pos,
-                        *flags,
-                    ) {
+                    if verify_literal_match(pattern, data, atom_pos, *flags) {
                         self.handle_sub_pattern_match(
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
                             Match {
-                                base: data.base(),
+                                base,
                                 range: atom_pos..atom_pos + pattern.len(),
                                 xor_key: None,
                             },
@@ -843,7 +863,7 @@ impl ScanContext<'_, '_> {
                 | SubPattern::RegexpChainTail { flags, .. } => {
                     verify_regexp_match(
                         &mut vm,
-                        data.as_ref(),
+                        data,
                         atom_pos,
                         atom,
                         *flags,
@@ -852,11 +872,7 @@ impl ScanContext<'_, '_> {
                                 sub_pattern_id,
                                 sub_pattern,
                                 *pattern_id,
-                                Match {
-                                    base: data.base(),
-                                    range,
-                                    xor_key: None,
-                                },
+                                Match { base, range, xor_key: None },
                             );
                         },
                     )
@@ -869,19 +885,15 @@ impl ScanContext<'_, '_> {
                         .get_bytes(*pattern)
                         .unwrap();
 
-                    if let Some(xor_key) = verify_xor_match(
-                        pattern,
-                        data.as_ref(),
-                        atom_pos,
-                        atom,
-                        *flags,
-                    ) {
+                    if let Some(xor_key) =
+                        verify_xor_match(pattern, data, atom_pos, atom, *flags)
+                    {
                         self.handle_sub_pattern_match(
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
                             Match {
-                                base: data.base(),
+                                base,
                                 range: atom_pos..atom_pos + pattern.len(),
                                 xor_key: Some(xor_key),
                             },
@@ -896,7 +908,7 @@ impl ScanContext<'_, '_> {
                             .lit_pool()
                             .get_bytes(*pattern)
                             .unwrap(),
-                        data.as_ref(),
+                        data,
                         (*padding).into(),
                         atom_pos,
                         None,
@@ -906,7 +918,7 @@ impl ScanContext<'_, '_> {
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            Match { base: data.base(), range, xor_key: None },
+                            Match { base, range, xor_key: None },
                         );
                     }
                 }
@@ -937,7 +949,7 @@ impl ScanContext<'_, '_> {
                             .lit_pool()
                             .get_bytes(*pattern)
                             .unwrap(),
-                        data.as_ref(),
+                        data,
                         (*padding).into(),
                         atom_pos,
                         alphabet,
@@ -950,7 +962,7 @@ impl ScanContext<'_, '_> {
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            Match { base: data.base(), range, xor_key: None },
+                            Match { base, range, xor_key: None },
                         );
                     }
                 }
@@ -996,7 +1008,7 @@ impl ScanContext<'_, '_> {
         }
 
         // Bring back ownership of the scanned to the ScanContext.
-        self.scan_state = ScanState::Scanning(data);
+        self.scan_state = state;
 
         Ok(())
     }
@@ -1780,12 +1792,12 @@ pub fn create_wasm_store_and_ctx<'r>(
         NonNull::from(wasm_store.as_ref().deref());
 
     // Global variable that will hold the value for `filesize`. This is
-    // initialized to 0 because the file size is not known until some
-    // data is scanned.
+    // initialized to -1 (which means undefined) because the file size
+    // is not known until some data is scanned.
     let filesize = Global::new(
         wasm_store.as_context_mut(),
         GlobalType::new(ValType::I64, Mutability::Var),
-        Val::I64(0),
+        Val::I64(-1),
     )
     .unwrap();
 

@@ -298,7 +298,24 @@ fn emit_expr(
         },
 
         Expr::Filesize => {
+            let tmp = ctx.wasm_symbols.i64_tmp_a;
+            // Get the value of filesize from global variable.
             instr.global_get(ctx.wasm_symbols.filesize);
+            // Make a copy in tmp, while leaving the value in the stack.
+            instr.local_tee(tmp);
+            // Compare filesize with 0.
+            instr.i64_const(0);
+            instr.binop(BinaryOp::I64LtS);
+            // Is filesize < 0?
+            instr.if_else(
+                I64,
+                // If yes, filesize is undefined
+                |then_| throw_undef(ctx, then_),
+                // Otherwise return its value
+                |else_| {
+                    else_.local_get(tmp);
+                },
+            );
         }
 
         Expr::Symbol(symbol) => {

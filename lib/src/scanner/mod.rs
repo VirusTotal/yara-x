@@ -3,6 +3,7 @@
 The scanner takes the rules produces by the compiler and scans data with them.
 */
 use std::collections::{hash_map, BTreeMap, HashMap};
+use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::io::Read;
 use std::mem::transmute;
@@ -101,29 +102,17 @@ static INIT_HEARTBEAT: Once = Once::new();
 /// Represents the data being scanned.
 ///
 /// The scanned data can be backed by a slice owned by someone else, or a
-/// vector or memory-mapped file owned by `ScannedData` itself. When the
-/// scanned data is backed by a slice, it can also contain a base address
-/// for the data.
+/// vector or memory-mapped file owned by `ScannedData` itself.
 pub enum ScannedData<'d> {
-    Slice((usize, &'d [u8])),
+    Slice(&'d [u8]),
     Vec(Vec<u8>),
     Mmap(Mmap),
-}
-
-impl ScannedData<'_> {
-    pub fn base(&self) -> usize {
-        if let Self::Slice((base, _)) = self {
-            *base
-        } else {
-            0
-        }
-    }
 }
 
 impl AsRef<[u8]> for ScannedData<'_> {
     fn as_ref(&self) -> &[u8] {
         match self {
-            ScannedData::Slice((_, s)) => s,
+            ScannedData::Slice(s) => s,
             ScannedData::Vec(v) => v.as_ref(),
             ScannedData::Mmap(m) => m.as_ref(),
         }
@@ -133,14 +122,14 @@ impl AsRef<[u8]> for ScannedData<'_> {
 impl<'d> TryInto<ScannedData<'d>> for &'d [u8] {
     type Error = ScanError;
     fn try_into(self) -> Result<ScannedData<'d>, Self::Error> {
-        Ok(ScannedData::Slice((0, self)))
+        Ok(ScannedData::Slice(self))
     }
 }
 
 impl<'d, const N: usize> TryInto<ScannedData<'d>> for &'d [u8; N] {
     type Error = ScanError;
     fn try_into(self) -> Result<ScannedData<'d>, Self::Error> {
-        Ok(ScannedData::Slice((0, self)))
+        Ok(ScannedData::Slice(self))
     }
 }
 
@@ -280,7 +269,7 @@ impl<'r> Scanner<'r> {
         data: &'a [u8],
         options: ScanOptions<'opts>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_impl(ScannedData::Slice((0, data)), Some(options))
+        self.scan_impl(ScannedData::Slice(data), Some(options))
     }
 
     /// Like [`Scanner::scan_file`], but allows to specify additional scan
@@ -312,25 +301,7 @@ impl<'r> Scanner<'r> {
     where
         VariableError: From<<T as TryInto<Variable>>::Error>,
     {
-        let ctx = self.scan_context_mut();
-
-        if let Some(field) = ctx.root_struct.field_by_name_mut(ident) {
-            let variable: Variable = value.try_into()?;
-            let type_value: TypeValue = variable.into();
-            // The new type must match the old one.
-            if type_value.eq_type(&field.type_value) {
-                field.type_value = type_value;
-            } else {
-                return Err(VariableError::InvalidType {
-                    variable: ident.to_string(),
-                    expected_type: field.type_value.ty().to_string(),
-                    actual_type: type_value.ty().to_string(),
-                });
-            }
-        } else {
-            return Err(VariableError::Undefined(ident.to_string()));
-        }
-
+        self.scan_context_mut().set_global(ident, value)?;
         Ok(self)
     }
 
@@ -527,7 +498,7 @@ impl<'r> Scanner<'r> {
         ctx.set_filesize(data.as_ref().len() as i64);
 
         // Indicate that the scanner is currently scanning the given data.
-        ctx.scan_state = ScanState::Scanning(data);
+        ctx.scan_state = ScanState::ScanningData(data);
 
         for module_name in ctx.compiled_rules.imports() {
             // Lookup the module in the list of built-in modules.
@@ -553,13 +524,14 @@ impl<'r> Scanner<'r> {
                     });
 
                 if let Some(main_fn) = module.main_fn {
-                    module_output =
-                        Some(main_fn(ctx.scanned_data(), meta).map_err(
+                    module_output = Some(
+                        main_fn(ctx.scanned_data().unwrap(), meta).map_err(
                             |err| ScanError::ModuleError {
                                 module: module_name.to_string(),
                                 err,
                             },
-                        )?);
+                        )?,
+                    );
                 } else {
                     module_output = None;
                 }
@@ -625,9 +597,12 @@ impl<'r> Scanner<'r> {
         // `ScanContext::search_for_patterns` if necessary.
         ctx.eval_conditions()?;
 
-        ctx.scan_state = ScanState::Finished(DataSnippets::SingleBlock(
-            ctx.scan_state.take_data(),
-        ));
+        let data = match ctx.scan_state.take() {
+            ScanState::ScanningData(data) => data,
+            _ => unreachable!(),
+        };
+
+        ctx.scan_state = ScanState::Finished(DataSnippets::SingleBlock(data));
 
         Ok(ScanResults::new(ctx))
     }
@@ -684,6 +659,12 @@ impl DataSnippets<'_> {
 /// Allows iterating over both the matching and non-matching rules.
 pub struct ScanResults<'a, 'r> {
     ctx: &'a ScanContext<'r, 'a>,
+}
+
+impl Debug for ScanResults<'_, '_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ScanResults")
+    }
 }
 
 impl<'a, 'r> ScanResults<'a, 'r> {

@@ -2,7 +2,9 @@ use bstr::{BStr, BString, ByteSlice, Utf8Error};
 use std::rc::Rc;
 
 use crate::compiler::LiteralId;
-use crate::scanner::{RuntimeObject, RuntimeObjectHandle, ScanContext};
+use crate::scanner::{
+    RuntimeObject, RuntimeObjectHandle, ScanContext, ScanState,
+};
 use crate::utils::cast;
 
 /// This trait is implemented by [RuntimeString], [FixedLenString] and [Lowercase].
@@ -85,7 +87,7 @@ impl Default for RuntimeString {
 }
 
 impl String for RuntimeString {
-    /// Creates a [`RuntimeString`] from a [`RString`], a [`Vec<u8>`] or any
+    /// Creates a [`RuntimeString`] from a [`String`], a [`Vec<u8>`] or any
     /// type that implements [`Into<Vec<u8>>`]
     fn new<S: Into<Vec<u8>>>(s: S) -> Self {
         Self::Rc(Rc::new(BString::new(s.into())))
@@ -120,22 +122,23 @@ impl String for RuntimeString {
     /// In any other case it makes a copy of the string and return the
     /// [`RuntimeString::Rc`] variant.
     fn from_slice(ctx: &ScanContext, s: &[u8]) -> Self {
-        let data = ctx.scanned_data();
+        if let ScanState::ScanningData(data) = &ctx.scan_state {
+            let data = data.as_ref();
+            let data_start = data.as_ptr() as usize;
+            let data_end = data_start + data.len();
 
-        let data_start = data.as_ptr() as usize;
-        let data_end = data_start + data.len();
+            let s_start = s.as_ptr() as usize;
+            let s_end = s_start + s.len();
 
-        let s_start = s.as_ptr() as usize;
-        let s_end = s_start + s.len();
-
-        if s_start >= data_start && s_end <= data_end {
-            Self::ScannedDataSlice {
-                offset: s_start - data_start,
-                length: s.len(),
+            if s_start >= data_start && s_end <= data_end {
+                return Self::ScannedDataSlice {
+                    offset: s_start - data_start,
+                    length: s.len(),
+                };
             }
-        } else {
-            Self::Rc(Rc::new(BString::from(s)))
         }
+
+        Self::Rc(Rc::new(BString::from(s)))
     }
 }
 
@@ -147,7 +150,7 @@ impl RuntimeString {
                 ctx.compiled_rules.lit_pool().get(*id).unwrap()
             }
             Self::ScannedDataSlice { offset, length } => {
-                let data = ctx.scanned_data();
+                let data = ctx.scanned_data().unwrap();
                 BStr::new(&data[*offset..*offset + *length])
             }
             Self::Rc(s) => s.as_bstr(),
