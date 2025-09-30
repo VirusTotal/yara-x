@@ -500,7 +500,17 @@ func (c *Compiler) NewNamespace(namespace string) {
 // scanning data, however each scanner can change the variable's initial
 // value by calling [Scanner.SetGlobal].
 //
-// Valid value types are: int, int32, int64, bool, string, float32 and float64.
+// The following primitive types are supported: int, int32, int64, bool,
+// string, float32 and float64.
+//
+// Composite types are also supported:
+//
+// - map[string]interface{} represents a YARA structure, where keys are
+// field names and values may be any supported primitive type or nested maps
+// for sub-structures.
+//
+// - []interface{} represents a YARA array. All elements in the array
+// must be of the same type.
 func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 	cIdent := C.CString(ident)
 	defer C.free(unsafe.Pointer(cIdent))
