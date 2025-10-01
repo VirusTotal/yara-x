@@ -2022,8 +2022,8 @@ impl<'a> PE<'a> {
                 le_u16,
                 // name
                 verify(
-                    // As a sanity check, the maximum function allowed function
-                    // name is MAX_FUNC_NAME_LENGTH. Some corrupted files can
+                    // As a sanity check, function names are limited to
+                    // MAX_FUNC_NAME_LENGTH bytes. Some corrupted files can
                     // produce larger names. Example:
                     // 0a88c56ab8abf7955138f5ecc81a635d8fca70865f5f763fd07d9fb3d1381585
                     take_while_m_n(0, Self::MAX_FUNC_NAME_LENGTH, |c: u8| {
