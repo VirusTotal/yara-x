@@ -854,6 +854,28 @@ impl Rules {
     }
 }
 
+#[pyclass(unsendable)]
+struct RulesIter {
+    iter: Box<dyn Iterator<Item = yrx::Rule<'static, 'static>> + Send>,
+    // Keep a reference to Rules to keep it alive.
+    _rules: Py<Rules>,
+}
+
+#[pymethods]
+impl RulesIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<Py<Rule>>> {
+        let py = slf.py();
+        match slf.iter.next() {
+            Some(rule) => Ok(Some(rule_to_py(py, rule)?.into())),
+            None => Ok(None),
+        }
+    }
+}
+
 #[pymethods]
 impl Rules {
     /// Scans in-memory data with these rules.
@@ -884,6 +906,23 @@ impl Rules {
             .map_err(|err| PyIOError::new_err(err.to_string()))?;
 
         Python::attach(|py| Py::new(py, Rules::new(rules)))
+    }
+
+    /// Returns an iterator over the rules.
+    fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<RulesIter>> {
+        let py = slf.py();
+
+        let rules_ref: &'static yrx::Rules = {
+            let rules_ptr: *const yrx::Rules = &slf.inner.rules;
+            unsafe { &*rules_ptr }
+        };
+
+        let iter = rules_ref.iter();
+
+        let rules_iter =
+            RulesIter { iter: Box::new(iter), _rules: slf.into() };
+
+        Py::new(py, rules_iter)
     }
 }
 

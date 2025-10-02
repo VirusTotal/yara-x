@@ -160,7 +160,7 @@ def test_metadata():
       ("bar", 2.0),
       ("baz", True),
       ("qux", "qux"),
-      ("quux", "qu\0x")
+      ("quux", "qu\x00x")
   )
 
 
@@ -347,4 +347,22 @@ def test_compiler_disables_includes():
 
   with pytest.raises(yara_x.CompileError,
                      match="include statements not allowed"):
-    compiler.add_source(f'include "foo.yar"\\nrule main {{ condition: true }}')
+    compiler.add_source(f'include "foo.yar"\nrule main {{ condition: true }}')
+
+
+def test_rules_iterator():
+  rules = yara_x.compile('''
+rule foo {
+  condition:
+    true
+}
+rule bar {
+  condition:
+    true
+}
+''')
+
+  rules_list = list(rules)
+  assert len(rules_list) == 2
+  assert rules_list[0].identifier == 'foo'
+  assert rules_list[1].identifier == 'bar'
