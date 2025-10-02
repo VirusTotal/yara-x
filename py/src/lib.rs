@@ -870,7 +870,7 @@ impl RulesIter {
     fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<Py<Rule>>> {
         let py = slf.py();
         match slf.iter.next() {
-            Some(rule) => Ok(Some(rule_to_py(py, rule)?.into())),
+            Some(rule) => Ok(Some(rule_to_py(py, rule)?)),
             None => Ok(None),
         }
     }
