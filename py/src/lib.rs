@@ -912,15 +912,11 @@ impl Rules {
     fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<RulesIter>> {
         let py = slf.py();
 
-        let rules_ref: &'static yrx::Rules = {
-            let rules_ptr: *const yrx::Rules = &slf.inner.rules;
-            unsafe { &*rules_ptr }
-        };
-
-        let iter = rules_ref.iter();
+        let rules: &'static yrx::Rules =
+            unsafe { mem::transmute(&slf.inner.rules) };
 
         let rules_iter =
-            RulesIter { iter: Box::new(iter), _rules: slf.into() };
+            RulesIter { iter: Box::new(rules.iter()), _rules: slf.into() };
 
         Py::new(py, rules_iter)
     }
