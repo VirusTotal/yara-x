@@ -21,6 +21,7 @@ enum SupportedModules {
     Pe,
     Dotnet,
     Crx,
+    Dex,
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -115,6 +116,9 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         if !requested_modules.contains(&&SupportedModules::Crx) {
             module_output.crx = MessageField::none()
         }
+        if !requested_modules.contains(&&SupportedModules::Dex) {
+            module_output.dex = MessageField::none()
+        }
     } else {
         // Module was not specified, only show those that produced meaningful
         // results, the rest are cleared out.
@@ -137,6 +141,9 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         }
         if !module_output.crx.is_crx() {
             module_output.crx = MessageField::none()
+        }
+        if !module_output.dex.is_dex() {
+            module_output.dex = MessageField::none()
         }
     }
 
