@@ -601,7 +601,7 @@ pub type YRX_SLOWEST_RULES_CALLBACK = extern "C" fn(
 /// Iterates over the slowest N rules, calling the callback for each rule.
 ///
 /// Requires the `rules-profiling` feature, otherwise returns
-/// [`YRX_RESULT::NOT_SUPPORTED`].
+/// `YRX_RESULT::NOT_SUPPORTED`.
 ///
 /// See [`YRX_SLOWEST_RULES_CALLBACK`] for more details.
 #[no_mangle]
@@ -646,7 +646,7 @@ pub unsafe extern "C" fn yrx_scanner_iter_slowest_rules(
 /// results reflect only the data gathered after this method is called.
 ///
 /// Requires the `rules-profiling` feature, otherwise returns
-/// [`YRX_RESULT::NOT_SUPPORTED`].
+/// `YRX_RESULT::NOT_SUPPORTED`.
 ///
 #[no_mangle]
 #[allow(unused_variables)]

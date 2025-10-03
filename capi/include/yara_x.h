@@ -211,7 +211,7 @@ typedef void (*YRX_PATTERN_CALLBACK)(const struct YRX_PATTERN *pattern,
 typedef void (*YRX_TAG_CALLBACK)(const char *tag,
                                  void *user_data);
 
-// Callback function passed to [`yrx_scanner_on_matching_rule`] or
+// Callback function passed to `yrx_scanner_on_matching_rule` or
 // [`yrx_rules_iter`].
 //
 // The callback receives a pointer to a rule, represented by a [`YRX_RULE`]
@@ -516,7 +516,7 @@ struct YRX_RULES *yrx_compiler_build(struct YRX_COMPILER *compiler);
 // Arguments `ident` and `len` are output parameters that receive pointers
 // to a `const uint8_t*` and `size_t`, where this function will leave a pointer
 // to the rule's name and its length, respectively. The rule's name is *NOT*
-// null-terminated, and the pointer will be valid as long as the [`YRX_RULES`]
+// null-terminated, and the pointer will be valid as long as the `YRX_RULES`
 // object that contains the pattern is not freed. The name is guaranteed to be
 // a valid UTF-8 string.
 enum YRX_RESULT yrx_pattern_identifier(const struct YRX_PATTERN *pattern,
@@ -539,7 +539,7 @@ enum YRX_RESULT yrx_pattern_iter_matches(const struct YRX_PATTERN *pattern,
 // Arguments `ident` and `len` are output parameters that receive pointers
 // to a `const uint8_t*` and `size_t`, where this function will leave a pointer
 // to the rule's name and its length, respectively. The rule's name is *NOT*
-// null-terminated, and the pointer will be valid as long as the [`YRX_RULES`]
+// null-terminated, and the pointer will be valid as long as the `YRX_RULES`
 // object that contains the rule is not freed. The name is guaranteed to be a
 // valid UTF-8 string.
 enum YRX_RESULT yrx_rule_identifier(const struct YRX_RULE *rule,
@@ -551,7 +551,7 @@ enum YRX_RESULT yrx_rule_identifier(const struct YRX_RULE *rule,
 // Arguments `ns` and `len` are output parameters that receive pointers to a
 // `const uint8_t*` and `size_t`, where this function will leave a pointer
 // to the rule's namespace and its length, respectively. The namespace is *NOT*
-// null-terminated, and the pointer will be valid as long as the [`YRX_RULES`]
+// null-terminated, and the pointer will be valid as long as the `YRX_RULES`
 // object that contains the rule is not freed. The namespace is guaranteed to
 // be a valid UTF-8 string.
 enum YRX_RESULT yrx_rule_namespace(const struct YRX_RULE *rule,
@@ -614,7 +614,7 @@ int yrx_rules_count(struct YRX_RULES *rules);
 // that contains the serialized rules. This structure has a pointer to the
 // data itself, and its length.
 //
-// The [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
+// The [`YRX_BUFFER`] must be destroyed with `yrx_buffer_destroy`.
 enum YRX_RESULT yrx_rules_serialize(const struct YRX_RULES *rules,
                                     struct YRX_BUFFER **buf);
 
@@ -839,7 +839,7 @@ enum YRX_RESULT yrx_scanner_set_global_json(struct YRX_SCANNER *scanner,
 // Iterates over the slowest N rules, calling the callback for each rule.
 //
 // Requires the `rules-profiling` feature, otherwise returns
-// [`YRX_RESULT::NOT_SUPPORTED`].
+// `YRX_RESULT::NOT_SUPPORTED`.
 //
 // See [`YRX_SLOWEST_RULES_CALLBACK`] for more details.
 enum YRX_RESULT yrx_scanner_iter_slowest_rules(struct YRX_SCANNER *scanner,
@@ -854,7 +854,7 @@ enum YRX_RESULT yrx_scanner_iter_slowest_rules(struct YRX_SCANNER *scanner,
 // results reflect only the data gathered after this method is called.
 //
 // Requires the `rules-profiling` feature, otherwise returns
-// [`YRX_RESULT::NOT_SUPPORTED`].
+// `YRX_RESULT::NOT_SUPPORTED`.
 //
 enum YRX_RESULT yrx_scanner_clear_profiling_data(struct YRX_SCANNER *scanner);
 
