@@ -679,7 +679,7 @@ enum YRX_RESULT yrx_scanner_scan(struct YRX_SCANNER *scanner,
 //
 // Each call to this function scans a block of data. The `base` argument
 // specifies the offset of the current block within the overall data being
-// scanned. In must cases you will want to call this function multiple times,
+// scanned. In most cases you will want to call this function multiple times,
 // providing a different block on each call.
 //
 // Once this function is called for a scanner, it enters block scanning mode
