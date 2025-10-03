@@ -6,7 +6,7 @@ use std::mem;
 use std::time::Duration;
 
 use yara_x::errors::ScanError;
-use yara_x::{ScanOptions, ScanResults};
+use yara_x::ScanOptions;
 
 use crate::{
     _yrx_set_last_error, YRX_RESULT, YRX_RULE, YRX_RULES, YRX_RULE_CALLBACK,
@@ -661,28 +661,4 @@ unsafe fn slice_from_ptr_and_len<'a>(
         std::slice::from_raw_parts(data, len)
     };
     Some(data)
-}
-
-fn handle_results(
-    scanner: &mut YRX_SCANNER,
-    scan_results: Result<ScanResults, ScanError>,
-) -> YRX_RESULT {
-    if let Err(err) = scan_results {
-        let result = match err {
-            ScanError::Timeout => YRX_RESULT::YRX_SCAN_TIMEOUT,
-            _ => YRX_RESULT::YRX_SCAN_ERROR,
-        };
-        _yrx_set_last_error(Some(err));
-        return result;
-    }
-
-    let scan_results = scan_results.unwrap();
-
-    if let Some((callback, user_data)) = scanner.on_matching_rule {
-        for r in scan_results.matching_rules() {
-            callback(&YRX_RULE::new(r), user_data);
-        }
-    }
-
-    YRX_RESULT::YRX_SUCCESS
 }

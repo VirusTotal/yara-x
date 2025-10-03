@@ -670,7 +670,7 @@ impl<'a> TstInfo<'a> {
 ///
 /// https://doc.rust-lang.org/alloc/string/struct.String.html#method.from_utf16be
 fn string_from_utf16be(v: &[u8]) -> Option<String> {
-    if v.len() % 2 != 0 {
+    if !v.len().is_multiple_of(2) {
         return None;
     }
 
