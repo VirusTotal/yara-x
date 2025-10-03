@@ -81,6 +81,9 @@ typedef enum YRX_RESULT {
   // An error indicating that some of the strings passed to a function is
   // not valid UTF-8.
   YRX_INVALID_UTF8,
+  // An error indicating that a scanner that was already in multi-block
+  // mode has been used as a standard scanner.
+  YRX_INVALID_STATE,
   // An error occurred while serializing/deserializing YARA rules.
   YRX_SERIALIZATION_ERROR,
   // An error returned when a rule doesn't have any metadata.
@@ -667,6 +670,73 @@ enum YRX_RESULT yrx_scanner_set_timeout(struct YRX_SCANNER *scanner,
 enum YRX_RESULT yrx_scanner_scan(struct YRX_SCANNER *scanner,
                                  const uint8_t *data,
                                  size_t len);
+
+// Scans a block of data.
+//
+// This function is designed for scenarios where the data to be scanned is not
+// available as a single contiguous block of memory, but rather arrives in
+// smaller, discrete blocks, allowing for incremental scanning.
+//
+// Each call to this function scans a block of data. The `base` argument
+// specifies the offset of the current block within the overall data being
+// scanned. In must cases you will want to call this function multiple times,
+// providing a different block on each call.
+//
+// Once this function is called for a scanner, it enters block scanning mode
+// and any subsequent call to [`yrx_scanner_scan`] will fail with
+// [`YRX_RESULT::YRX_INVALID_STATE`]. Once the scanner is in block scanning
+// mode it can be used in that mode only.
+//
+// When all blocks have been scanned, you must call [`yrx_scanner_finish`].
+//
+// # Limitations of Block Scanning
+//
+// Block scanning works by analyzing data in chunks rather than as a whole
+// file. This makes it useful for streaming or memory-constrained scenarios,
+// but it comes with important limitations compared to standard scanning:
+//
+// 1) Modules won't work. Parsers for structured formats (e.g., PE, ELF)
+//    require access to the entire file and cannot be applied in block
+//    scanning mode.
+// 2) Other modules like `hash` won't work either, as they require access to
+//    all the scanned data during the evaluation of the rule's condition,
+//    something that can't be guaranteed in block scanning mode. The hash
+//    functions will return `undefined` when used in a multi-block context.
+// 3) Built-in functions like `uint8`, `uint16`, `uint32`, etc., have the
+//    same limitation. They also return `undefined` in block scanning mode.
+// 4) The `filesize` keyword returns `undefined` in block scanning mode.
+//
+// All these limitations imply that in block scanning mode you should only
+// use rules that rely on text, hex or regex patterns.
+//
+// # Data Consistency in Overlapping Blocks
+//
+// When [`yrx_scanner_scan_block`] is invoked multiple times with different
+// blocks that may overlap, the user is responsible for ensuring data
+// consistency. This means that if the same region of the original data is
+// present in two or more overlapping blocks, the content of that region must
+// be identical across all calls to `scan`.
+//
+// Generally speaking, the scanner does not verify this consistency and
+// assumes the user provides accurate and consistent data. In debug releases
+// the scanner may try to verify this consistency, but only when some pattern
+// matches in the overlapping region.
+enum YRX_RESULT yrx_scanner_scan_block(struct YRX_SCANNER *scanner,
+                                       size_t base,
+                                       const uint8_t *data,
+                                       size_t len);
+
+// Finalizes the scan of a set of memory blocks.
+//
+// This function must be used in conjunction with [`yrx_scanner_scan_block`]
+// when scanning data in blocks. After all data blocks have been scanned, this
+// functions evaluates the conditions of the YARA rules and produces the final
+// scan results.
+//
+// After this function returns, the scanner is ready to be used again for
+// scanning a new set of memory blocks. However, the scanner remains in block
+// scanning mode and can't be used for normal scanning.
+enum YRX_RESULT yrx_scanner_finish(struct YRX_SCANNER *scanner);
 
 // Sets a callback function that is called by the scanner for each rule that
 // matched during a scan.

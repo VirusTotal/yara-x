@@ -45,15 +45,38 @@ use crate::{Rules, ScanError, ScanResults, Variable};
 /// assert_eq!(results.matching_rules().len(), 1);
 /// ```
 ///
+/// # Limitations of Block Scanning
+///
+/// Block scanning works by analyzing data in chunks rather than as a whole
+/// file. This makes it useful for streaming or memory-constrained scenarios,
+/// but it comes with important limitations compared to standard scanning:
+///
+/// 1) Modules won't work. Parsers for structured formats (e.g., PE, ELF)
+///    require access to the entire file and cannot be applied in block
+///    scanning mode.
+/// 2) Other modules like `hash` won't work either, as they require access to
+///    all the scanned data during the evaluation of the rule's condition,
+///    something that can't be guaranteed in block scanning mode. The hash
+///    functions will return `undefined` when used in a multi-block context.
+/// 3) Built-in functions like `uint8`, `uint16`, `uint32`, etc., have the
+///    same limitation. They also return `undefined` in block scanning mode.
+/// 4) The `filesize` keyword returns `undefined` in block scanning mode.
+///
+/// All these limitations imply that in block scanning mode you should only
+/// use rules that rely on text, hex or regex patterns.
+///
 /// # Data Consistency in Overlapping Blocks
 ///
-/// When [`Scanner::scan`] is invoked multiple times with different
-/// blocks that may overlap, the user is responsible for ensuring data
-/// consistency. This means that if the same region of the original data
-/// is present in two or more overlapping blocks, the content of that
-/// region must be identical across all calls to `scan`. The scanner
-/// does not verify this consistency and assumes the user provides
-/// accurate and consistent data.
+/// When [`Scanner::scan`] is invoked multiple times with different blocks
+/// that may overlap, the user is responsible for ensuring data consistency.
+/// This means that if the same region of the original data is present in two
+/// or more overlapping blocks, the content of that region must be identical
+/// across all calls to this function.
+///
+/// Generally speaking, the scanner does not verify this consistency and
+/// assumes the user provides accurate and consistent data. In debug releases
+/// the scanner may try to verify this consistency, but only when some pattern
+/// matches in the overlapping region.
 pub struct Scanner<'r> {
     _rules: &'r Rules,
     wasm_store: Pin<Box<Store<ScanContext<'static, 'static>>>>,
@@ -230,6 +253,17 @@ impl<'r> Scanner<'r> {
                 &mut ScanContext<'static, 'static>,
                 &mut ScanContext<'r, 'a>,
             >(self.wasm_store.data_mut())
+        }
+    }
+}
+
+impl<'r> From<crate::scanner::Scanner<'r>> for Scanner<'r> {
+    fn from(scanner: crate::scanner::Scanner<'r>) -> Self {
+        Self {
+            _rules: scanner._rules,
+            wasm_store: scanner.wasm_store,
+            needs_reset: true,
+            snippets: Default::default(),
         }
     }
 }

@@ -11,12 +11,13 @@ use crate::{
     yrx_rule_iter_metadata, yrx_rule_iter_patterns, yrx_rule_iter_tags,
     yrx_rule_namespace, yrx_rules_deserialize, yrx_rules_destroy,
     yrx_rules_iter, yrx_rules_iter_imports, yrx_rules_serialize,
-    yrx_scanner_create, yrx_scanner_destroy, yrx_scanner_on_matching_rule,
-    yrx_scanner_scan, yrx_scanner_set_global_bool,
-    yrx_scanner_set_global_float, yrx_scanner_set_global_int,
-    yrx_scanner_set_global_json, yrx_scanner_set_global_str,
-    yrx_scanner_set_module_data, yrx_scanner_set_timeout, YRX_BUFFER,
-    YRX_METADATA, YRX_PATTERN, YRX_RESULT, YRX_RULE,
+    yrx_scanner_create, yrx_scanner_destroy, yrx_scanner_finish,
+    yrx_scanner_on_matching_rule, yrx_scanner_scan, yrx_scanner_scan_block,
+    yrx_scanner_set_global_bool, yrx_scanner_set_global_float,
+    yrx_scanner_set_global_int, yrx_scanner_set_global_json,
+    yrx_scanner_set_global_str, yrx_scanner_set_module_data,
+    yrx_scanner_set_timeout, YRX_BUFFER, YRX_METADATA, YRX_PATTERN,
+    YRX_RESULT, YRX_RULE,
 };
 
 use std::ffi::{c_char, c_void, CStr};
@@ -339,6 +340,53 @@ fn capi_modules() {
         yrx_rules_destroy(rules);
         yrx_scanner_destroy(scanner);
         yrx_compiler_destroy(compiler);
+    }
+}
+
+#[test]
+fn capi_blocks() {
+    unsafe {
+        let mut compiler = std::ptr::null_mut();
+        yrx_compiler_create(0, &mut compiler);
+
+        let src = cr#"
+rule test1 { strings: $a = "foo" condition: $a }
+rule test2 { strings: $a = "bar" condition: $a }
+"#;
+        yrx_compiler_add_source(compiler, src.as_ptr());
+
+        let rules = yrx_compiler_build(compiler);
+        yrx_compiler_destroy(compiler);
+
+        let mut scanner = std::ptr::null_mut();
+        yrx_scanner_create(rules, &mut scanner);
+
+        let mut matches = 0;
+        yrx_scanner_on_matching_rule(
+            scanner,
+            on_rule_match_increase_counter,
+            &mut matches as *mut i32 as *mut c_void,
+        );
+
+        let block1 = b"foo";
+        let block2 = b"bar";
+
+        yrx_scanner_scan_block(scanner, 0, block1.as_ptr(), block1.len());
+        yrx_scanner_scan_block(scanner, 10, block2.as_ptr(), block2.len());
+
+        yrx_scanner_finish(scanner);
+
+        assert_eq!(matches, 2);
+
+        // Scan again, the scanner should be reset.
+        matches = 0;
+        let block3 = b"foobar";
+        yrx_scanner_scan_block(scanner, 0, block3.as_ptr(), block3.len());
+        yrx_scanner_finish(scanner);
+        assert_eq!(matches, 2);
+
+        yrx_scanner_destroy(scanner);
+        yrx_rules_destroy(rules);
     }
 }
 
