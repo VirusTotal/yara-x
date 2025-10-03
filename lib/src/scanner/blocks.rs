@@ -243,9 +243,42 @@ impl<'r> Scanner<'r> {
         self.scan_context_mut().console_log = Some(Box::new(callback));
         self
     }
+
+    /// Returns profiling data for the slowest N rules.
+    ///
+    /// The profiling data reflects the cumulative execution time of each rule
+    /// across all scanned files. This information is useful for identifying
+    /// performance bottlenecks. To reset the profiling data and start fresh
+    /// for subsequent scans, use [`crate::Scanner::clear_profiling_data`].
+    #[cfg(feature = "rules-profiling")]
+    pub fn slowest_rules(
+        &self,
+        n: usize,
+    ) -> Vec<crate::scanner::ProfilingData<'_>> {
+        self.scan_context().slowest_rules(n)
+    }
+
+    /// Clears all accumulated profiling data.
+    ///
+    /// This method resets the profiling data collected during rule execution
+    /// across scanned files. Use this to start a new profiling session, ensuring
+    /// the results reflect only the data gathered after this method is called.
+    #[cfg(feature = "rules-profiling")]
+    pub fn clear_profiling_data(&mut self) {
+        self.scan_context_mut().clear_profiling_data()
+    }
 }
 
 impl<'r> Scanner<'r> {
+    #[cfg(feature = "rules-profiling")]
+    #[inline]
+    fn scan_context<'a>(&self) -> &ScanContext<'r, 'a> {
+        unsafe {
+            transmute::<&ScanContext<'static, 'static>, &ScanContext<'r, '_>>(
+                self.wasm_store.data(),
+            )
+        }
+    }
     #[inline]
     fn scan_context_mut<'a>(&mut self) -> &'a mut ScanContext<'r, 'a> {
         unsafe {

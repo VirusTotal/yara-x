@@ -5,6 +5,9 @@ use std::ffi::{c_char, c_void, CStr};
 use std::mem;
 use std::time::Duration;
 
+#[cfg(feature = "rules-profiling")]
+use yara_x::ProfilingData;
+
 use yara_x::errors::ScanError;
 use yara_x::ScanOptions;
 
@@ -67,6 +70,24 @@ impl<'r> InnerScanner<'r> {
             InnerScanner::None => unreachable!(),
         }
         Ok(self)
+    }
+
+    #[cfg(feature = "rules-profiling")]
+    fn slowest_rules(&self, n: usize) -> Vec<ProfilingData<'_>> {
+        match self {
+            InnerScanner::SingleBlock(s) => s.slowest_rules(n),
+            InnerScanner::MultiBlock(s) => s.slowest_rules(n),
+            InnerScanner::None => unreachable!(),
+        }
+    }
+
+    #[cfg(feature = "rules-profiling")]
+    fn clear_profiling_data(&mut self) {
+        match self {
+            InnerScanner::SingleBlock(s) => s.clear_profiling_data(),
+            InnerScanner::MultiBlock(s) => s.clear_profiling_data(),
+            InnerScanner::None => unreachable!(),
+        }
     }
 }
 
