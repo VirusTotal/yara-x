@@ -380,17 +380,8 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     w.walk(
         state,
         // Initialization
-        |_, output| {
+        |_, _| {
             let mut scanner = Scanner::new(rules_ref);
-
-            if !disable_console_logs {
-                let output = output.clone();
-                scanner.console_log(move |msg| {
-                    output
-                        .send(Message::Error(format!("{}", msg.paint(Yellow))))
-                        .unwrap();
-                });
-            }
 
             if let Some(ref vars) = external_vars {
                 for (ident, value) in vars {
@@ -412,6 +403,16 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
         },
         // File handler. Called for every file found while walking the path.
         |state, output, file_path, scanner| {
+            if !disable_console_logs {
+                let output = output.clone();
+                let path = file_path.display().to_string();
+                scanner.console_log(move |msg| {
+                    output
+                        .send(Message::Error(format!("{}: {}", &path.paint(Yellow), msg.paint(Yellow))))
+                        .unwrap();
+                });
+            }
+
             let elapsed_time = Instant::elapsed(&start_time);
 
             if let Some(timeout) = timeout {
