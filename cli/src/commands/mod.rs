@@ -87,15 +87,12 @@ fn external_var_parser(
     option: &str,
 ) -> Result<(String, serde_json::Value), anyhow::Error> {
     let (var, value) = option.split_once('=').ok_or(anyhow!(
-        "the equal sign is missing, use the syntax VAR=VALUE (example: {}=10)",
-        option
+        "the equal sign is missing, use the syntax VAR=VALUE (example: {option}=10)",
     ))?;
 
     let value = serde_json::from_str(value).map_err(|_| {
         anyhow!(
-            "`{}` is not a valid value, did you mean \\\"{}\\\"?",
-            value,
-            value
+            "`{value}` is not a valid value, did you mean \\\"{value}\\\"?"
         )
     })?;
 
@@ -108,8 +105,7 @@ fn meta_file_value_parser(
     option: &str,
 ) -> Result<(String, PathBuf), anyhow::Error> {
     let (var, value) = option.split_once('=').ok_or(anyhow!(
-        "the equal sign is missing, use the syntax MODULE=FILE (example: {}=file)",
-        option
+        "the equal sign is missing, use the syntax MODULE=FILE (example: {option}=file)"
     ))?;
 
     let value = PathBuf::from(value);

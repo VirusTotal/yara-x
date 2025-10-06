@@ -1618,7 +1618,7 @@ fn verify_base64_match(
         // that bytes at odd positions are zeroes.
         let mut ascii = Vec::with_capacity(decode_range.len() / 2);
         for (i, b) in scanned_data[decode_range].iter().enumerate() {
-            if i % 2 == 0 {
+            if i.is_multiple_of(2) {
                 // Padding (=) is not added to ASCII string.
                 if *b != b'=' {
                     ascii.push(*b)
