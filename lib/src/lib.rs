@@ -42,7 +42,7 @@ assert_eq!(results.matching_rules().len(), 1);
 */
 
 #![deny(missing_docs)]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 extern crate core;
 
 pub use compiler::compile;
