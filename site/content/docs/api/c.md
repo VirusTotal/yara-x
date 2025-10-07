@@ -317,6 +317,11 @@ enum YRX_RESULT yrx_compiler_define_global_float(
     struct YRX_COMPILER *compiler,
     const char *ident,
     double value);
+
+enum YRX_RESULT yrx_compiler_define_global_json(
+    struct YRX_COMPILER *compiler,
+    const char *ident,
+    const char *json_value);
 ```
 
 Defines a global variable and sets its initial value.
@@ -331,6 +336,15 @@ functions.
 
 The `ident` argument must be pointer to null-terminated UTF-8 string. If the
 string is not valid UTF-8 the result is an `YRX_INVALID_ARGUMENT` error.
+
+In the case of `yrx_compiler_define_global_json`, the value is a text string
+with a JSON-encoded value. This is best for complex types like maps and arrays.
+For simple types (e.g., booleans, integers, strings), prefer dedicated functions
+to avoid the overhead of JSON deserialization.
+
+When defining a map, keys must be of string type, and values can be any of the
+types supported by YARA, including other maps. Arrays must be homogeneous (all
+elements must be the same type).
 
 #### yrx_compiler_errors_json
 
@@ -619,6 +633,11 @@ enum YRX_RESULT yrx_scanner_set_global_float(
     struct YRX_SCANNER *scanner,
     const char *ident,
     double value);
+
+enum YRX_RESULT yrx_scanner_set_global_json(
+    struct YRX_SCANNER *scanner,
+    const char *ident,
+    const char *json_value);
 ```
 
 ------
@@ -1161,3 +1180,32 @@ void yrx_buffer_destroy(struct YRX_BUFFER *buf);
 ```
 
 Destroys a `YRX_BUFFER` object.
+
+### yrx_finalize
+
+```c
+void yrx_finalize();
+```
+
+Finalizes YARA-X.
+
+This function only needs to be called in a very specific scenario:
+when YARA-X is used as a dynamically loaded library (`.so`, `.dll`,
+`.dylib`) **and** that library must be unloaded at runtime.
+
+Its primary purpose is to remove the process-wide signal handlers
+installed by the [wasmtime](https://wasmtime.dev/) engine.
+
+This function is **unsafe** to call under normal circumstances. It has
+strict preconditions that must be met:
+
+- There must be no other active `wasmtime` engines in the process. This
+ applies not only to clones of the engine used by YARA-X (which should not
+ exist because YARA-X uses a single copy of its engine), but to *any*
+ `wasmtime` engine, since global state shared by all engines is torn
+ down.
+
+- On Unix platforms, no other signal handlers may have been installed
+ for signals intercepted by `wasmtime`. If other handlers have been set,
+ `wasmtime` cannot reliably restore the original state, which may lead
+ to undefined behavior.
