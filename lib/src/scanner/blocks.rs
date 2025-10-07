@@ -61,8 +61,8 @@ use crate::{Rules, ScanError, ScanResults, Variable};
 /// 3) Built-in functions like `uint8`, `uint16`, `uint32`, etc., have the
 ///    same limitation. They also return `undefined` in block scanning mode.
 /// 4) The `filesize` keyword returns `undefined` in block scanning mode.
-/// 5) Patterns won't match across block boundaries. Every match reported
-///    will be completely contained within one of the blocks.
+/// 5) Patterns won't match across block boundaries. Every match will be
+///    completely contained within one of the blocks.
 ///
 /// All these limitations imply that in block scanning mode you should only
 /// use rules that rely on text, hex or regex patterns.
