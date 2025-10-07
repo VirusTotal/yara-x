@@ -390,6 +390,8 @@ pub unsafe extern "C" fn yrx_scanner_on_matching_rule(
 /// The `name` argument is either a YARA module name (i.e: "pe", "elf", "dotnet",
 /// etc.) or the fully-qualified name of the protobuf message associated to
 /// the module. It must be a valid UTF-8 string.
+///
+/// If the scanner is in block scanning mode this function returns `YRX_INVALID_STATE`.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_scanner_set_module_output(
     scanner: *mut YRX_SCANNER,
@@ -428,8 +430,9 @@ pub unsafe extern "C" fn yrx_scanner_set_module_output(
                 }
             }
         }
-        // If the scanner is in multi-block mode this function is a no-op.
-        InnerScanner::MultiBlock(_) => YRX_RESULT::YRX_SUCCESS,
+        // This function produces an error if invoked while the scanner
+        // is in block scanning mode.
+        InnerScanner::MultiBlock(_) => YRX_RESULT::YRX_INVALID_STATE,
         InnerScanner::None => unreachable!(),
     }
 }
@@ -445,6 +448,8 @@ pub unsafe extern "C" fn yrx_scanner_set_module_output(
 ///
 /// The `name` as well as `data` must be valid from the time they are used as arguments
 /// of this function until the scan is executed.
+///
+/// If the scanner is in block scanning mode this function returns `YRX_INVALID_STATE`.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_scanner_set_module_data(
     scanner: *mut YRX_SCANNER,
@@ -469,6 +474,10 @@ pub unsafe extern "C" fn yrx_scanner_set_module_data(
         Some(data) => data,
         None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
     };
+
+    if matches!(scanner.inner, InnerScanner::MultiBlock(_)) {
+        return YRX_RESULT::YRX_INVALID_STATE;
+    }
 
     scanner.module_data.insert(name, data);
 

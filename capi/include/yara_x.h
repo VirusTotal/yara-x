@@ -813,6 +813,8 @@ enum YRX_RESULT yrx_scanner_on_matching_rule(struct YRX_SCANNER *scanner,
 // The `name` argument is either a YARA module name (i.e: "pe", "elf", "dotnet",
 // etc.) or the fully-qualified name of the protobuf message associated to
 // the module. It must be a valid UTF-8 string.
+//
+// If the scanner is in block scanning mode this function returns `YRX_INVALID_STATE`.
 enum YRX_RESULT yrx_scanner_set_module_output(struct YRX_SCANNER *scanner,
                                               const char *name,
                                               const uint8_t *data,
@@ -829,6 +831,8 @@ enum YRX_RESULT yrx_scanner_set_module_output(struct YRX_SCANNER *scanner,
 //
 // The `name` as well as `data` must be valid from the time they are used as arguments
 // of this function until the scan is executed.
+//
+// If the scanner is in block scanning mode this function returns `YRX_INVALID_STATE`.
 enum YRX_RESULT yrx_scanner_set_module_data(struct YRX_SCANNER *scanner,
                                             const char *name,
                                             const uint8_t *data,

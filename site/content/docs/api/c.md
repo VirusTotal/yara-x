@@ -776,6 +776,8 @@ This function receives:
 *   `data`: A pointer to the buffer containing the serialized protobuf data.
 *   `len`: The length of the data buffer in bytes.
 
+If the scanner is in block scanning mode this function returns `YRX_INVALID_STATE`.
+
 ------
 
 #### yrx_scanner_set_module_data
@@ -800,6 +802,8 @@ before each scan if you intend to provide custom module metadata. It receives:
 
 The provided `name` and `data` pointers must remain valid from the time this
 function is called until the scan is executed.
+
+If the scanner is in block scanning mode this function returns `YRX_INVALID_STATE`.
 
 ------
 
