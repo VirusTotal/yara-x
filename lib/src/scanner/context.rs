@@ -828,7 +828,7 @@ impl ScanContext<'_, '_> {
                         sub_pattern_id,
                         sub_pattern,
                         *pattern_id,
-                        Match { base, range: match_range, xor_key: None },
+                        Match::new(match_range).rebase(base),
                     );
                 }
 
@@ -850,11 +850,8 @@ impl ScanContext<'_, '_> {
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            Match {
-                                base,
-                                range: atom_pos..atom_pos + pattern.len(),
-                                xor_key: None,
-                            },
+                            Match::new(atom_pos..atom_pos + pattern.len())
+                                .rebase(base),
                         );
                     }
                 }
@@ -867,12 +864,12 @@ impl ScanContext<'_, '_> {
                         atom_pos,
                         atom,
                         *flags,
-                        |range| {
+                        |match_range| {
                             self.handle_sub_pattern_match(
                                 sub_pattern_id,
                                 sub_pattern,
                                 *pattern_id,
-                                Match { base, range, xor_key: None },
+                                Match::new(match_range).rebase(base),
                             );
                         },
                     )
@@ -885,25 +882,23 @@ impl ScanContext<'_, '_> {
                         .get_bytes(*pattern)
                         .unwrap();
 
-                    if let Some(xor_key) =
+                    if let Some(key) =
                         verify_xor_match(pattern, data, atom_pos, atom, *flags)
                     {
                         self.handle_sub_pattern_match(
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            Match {
-                                base,
-                                range: atom_pos..atom_pos + pattern.len(),
-                                xor_key: Some(xor_key),
-                            },
+                            Match::new(atom_pos..atom_pos + pattern.len())
+                                .rebase(base)
+                                .xor_key(key),
                         );
                     }
                 }
 
                 SubPattern::Base64 { pattern, padding }
                 | SubPattern::Base64Wide { pattern, padding } => {
-                    if let Some(range) = verify_base64_match(
+                    if let Some(match_range) = verify_base64_match(
                         self.compiled_rules
                             .lit_pool()
                             .get_bytes(*pattern)
@@ -918,7 +913,7 @@ impl ScanContext<'_, '_> {
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            Match { base, range, xor_key: None },
+                            Match::new(match_range).rebase(base),
                         );
                     }
                 }
@@ -944,7 +939,7 @@ impl ScanContext<'_, '_> {
 
                     assert!(alphabet.is_some());
 
-                    if let Some(range) = verify_base64_match(
+                    if let Some(match_range) = verify_base64_match(
                         self.compiled_rules
                             .lit_pool()
                             .get_bytes(*pattern)
@@ -962,7 +957,7 @@ impl ScanContext<'_, '_> {
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            Match { base, range, xor_key: None },
+                            Match::new(match_range).rebase(base),
                         );
                     }
                 }
@@ -1043,11 +1038,8 @@ impl ScanContext<'_, '_> {
                                 *sub_pattern_id,
                                 sub_pattern,
                                 *pattern_id,
-                                Match {
-                                    base,
-                                    range: offset..offset + pattern.len(),
-                                    xor_key: None,
-                                },
+                                Match::new(offset..offset + pattern.len())
+                                    .rebase(base),
                             );
                         }
                     }
@@ -1185,29 +1177,32 @@ impl ScanContext<'_, '_> {
     ) {
         let mut queue = VecDeque::new();
 
-        queue.push_back((tail_sub_pattern_id, tail_match.range, 1));
+        queue.push_back((
+            tail_sub_pattern_id,
+            UnconfirmedMatch {
+                range: tail_match.range.clone(),
+                chain_length: 1,
+            },
+        ));
 
         let mut tail_chained_to: Option<SubPatternId> = None;
-        let mut tail_match_range: Option<Range<usize>> = None;
 
-        while let Some((id, match_range, chain_length)) = queue.pop_front() {
+        while let Some((id, current_match)) = queue.pop_front() {
             match &self.compiled_rules.get_sub_pattern(id).1 {
                 SubPattern::LiteralChainHead { flags, .. }
                 | SubPattern::RegexpChainHead { flags, .. } => {
-                    // The chain head is reached, and we know the range where
-                    // the tail matches. This indicates that the whole chain is
-                    // valid, and we have a full match.
-                    if let Some(tail_match_range) = &tail_match_range {
-                        self.track_pattern_match(
-                            pattern_id,
-                            Match {
-                                base: tail_match.base,
-                                range: match_range.start..tail_match_range.end,
-                                xor_key: None,
-                            },
-                            flags.contains(SubPatternFlags::GreedyRegexp),
-                        );
-                    }
+                    // The chain head is reached. This indicates that the whole
+                    // chain is valid, and we have a full match.
+                    self.track_pattern_match(
+                        pattern_id,
+                        Match {
+                            base: tail_match.base,
+                            range: current_match.range.start
+                                ..tail_match.range.end,
+                            xor_key: None,
+                        },
+                        flags.contains(SubPatternFlags::GreedyRegexp),
+                    );
 
                     let mut next_pattern_id = tail_chained_to;
 
@@ -1215,9 +1210,9 @@ impl ScanContext<'_, '_> {
                         if let Some(unconfirmed_matches) =
                             self.unconfirmed_matches.get_mut(&id)
                         {
-                            for m in unconfirmed_matches {
-                                m.chain_length = 0;
-                            }
+                            unconfirmed_matches
+                                .iter_mut()
+                                .for_each(|m| m.chain_length = 0);
                         }
                         let (_, sub_pattern) =
                             self.compiled_rules.get_sub_pattern(id);
@@ -1237,49 +1232,45 @@ impl ScanContext<'_, '_> {
                     // sub-pattern that comes before in the chain. For example,
                     // if the chain is P1 <- P2, and we just found a match for
                     // P2, iterate over the unconfirmed matches for P1.
-                    if let Some(unconfirmed_matches) =
-                        self.unconfirmed_matches.get_mut(chained_to)
-                    {
-                        // Check whether the current match is at a correct
-                        // distance from each of the unconfirmed matches.
-                        for m in unconfirmed_matches {
-                            let in_range = match gap {
-                                ChainedPatternGap::Bounded(gap) => {
-                                    let min_gap = *gap.start() as usize;
-                                    let max_gap = *gap.end() as usize;
-                                    (m.range.end + min_gap
-                                        ..=m.range.end + max_gap)
-                                        .contains(&match_range.start)
-                                }
-                                ChainedPatternGap::Unbounded(gap) => {
-                                    let min_gap = gap.start as usize;
-                                    (m.range.end + min_gap..)
-                                        .contains(&match_range.start)
-                                }
-                            };
-                            // Besides checking that the unconfirmed match lays
-                            // at a correct distance from the current match, we
-                            // also check that the chain length associated to
-                            // the unconfirmed match doesn't exceed the current
-                            // chain length.
-                            if in_range && m.chain_length <= chain_length {
-                                m.chain_length = chain_length + 1;
-                                queue.push_back((
-                                    *chained_to,
-                                    m.range.clone(),
-                                    m.chain_length,
-                                ));
+                    let unconfirmed_matches =
+                        match self.unconfirmed_matches.get_mut(chained_to) {
+                            Some(m) => m,
+                            None => continue,
+                        };
+
+                    // Check whether the current match is at a correct distance
+                    // from each of the unconfirmed matches.
+                    for m in unconfirmed_matches {
+                        let in_range = match gap {
+                            ChainedPatternGap::Bounded(gap) => {
+                                let min_gap = *gap.start() as usize;
+                                let max_gap = *gap.end() as usize;
+                                (m.range.end + min_gap..=m.range.end + max_gap)
+                                    .contains(&current_match.range.start)
                             }
+                            ChainedPatternGap::Unbounded(gap) => {
+                                let min_gap = gap.start as usize;
+                                (m.range.end + min_gap..)
+                                    .contains(&current_match.range.start)
+                            }
+                        };
+                        // Besides checking that the unconfirmed match lays at
+                        // a correct distance from the current match, we also
+                        // check that the chain length associated to the
+                        // unconfirmed match doesn't exceed the current chain
+                        // length.
+                        if in_range
+                            && m.chain_length <= current_match.chain_length
+                        {
+                            m.chain_length = current_match.chain_length + 1;
+                            queue.push_back((*chained_to, m.clone()))
                         }
                     }
 
-                    if flags.contains(SubPatternFlags::LastInChain) {
-                        // Take note of the range where the tail matched.
-                        tail_match_range = Some(match_range.clone());
-
-                        if flags.contains(SubPatternFlags::GreedyRegexp) {
-                            tail_chained_to = Some(*chained_to);
-                        }
+                    if flags.contains(SubPatternFlags::LastInChain)
+                        && flags.contains(SubPatternFlags::GreedyRegexp)
+                    {
+                        tail_chained_to = Some(*chained_to);
                     }
                 }
                 _ => unreachable!(),

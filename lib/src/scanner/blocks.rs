@@ -61,6 +61,8 @@ use crate::{Rules, ScanError, ScanResults, Variable};
 /// 3) Built-in functions like `uint8`, `uint16`, `uint32`, etc., have the
 ///    same limitation. They also return `undefined` in block scanning mode.
 /// 4) The `filesize` keyword returns `undefined` in block scanning mode.
+/// 5) Patterns won't match across block boundaries. Every match reported
+///    will be completely contained within one of the blocks.
 ///
 /// All these limitations imply that in block scanning mode you should only
 /// use rules that rely on text, hex or regex patterns.
@@ -120,9 +122,30 @@ impl<'r> Scanner<'r> {
         base: usize,
         data: &[u8],
     ) -> Result<&mut Self, ScanError> {
+        // Reset the scanner if needed. This is done before scanning the first
+        // block after the scanner has been created, or when a previous scan
+        // has finished and the scanner is going to be reused.
         if self.needs_reset {
             self.scan_context_mut().reset();
             self.needs_reset = false;
+        }
+        // Even when the scanner is not reset, we must clear unconfirmed matches
+        // between blocks. Otherwise, matches partially detected in one block
+        // could incorrectly be confirmed by data from a different block.
+        //
+        // This prevents matches from spanning multiple blocks — a scenario that
+        // could occur with patterns split into multiple subpatterns, for
+        // example:
+        //
+        // { 01 02 03 [-] 04 05 06}
+        //
+        // In this case, the subpattern `01 02 03` might match in one block, and
+        // `04 05 06` in the next. While supporting cross-block matches is
+        // technically possible, it would be inconsistent with patterns that
+        // cannot span blocks. To maintain a simple, uniform rule — that matches
+        // never cross block boundaries — we clear all unconfirmed matches here.
+        else {
+            self.scan_context_mut().unconfirmed_matches.clear();
         }
 
         let ctx = self.scan_context_mut();
@@ -131,8 +154,14 @@ impl<'r> Scanner<'r> {
         ctx.search_for_patterns()?;
 
         for (_, match_list) in ctx.pattern_matches.matches_per_pattern() {
-            for m in match_list.iter().filter(|m| m.base == base) {
-                if let Some(match_data) = data.get(m.range.clone()) {
+            // Here we iterate the matches in order to gather snippets of data
+            // from where the matches occurred. Notice however that we are only
+            // interested in the matches that occurred in the recently scanned
+            // block (those were match.base == base).
+            for match_ in
+                match_list.iter().filter(|match_| match_.base == base)
+            {
+                if let Some(match_data) = data.get(match_.block_range()) {
                     // Snippets are indexed by their offsets within the scanned
                     // data. This offset is not relative to the start of the
                     // memory block, it takes into account the block's base
@@ -142,7 +171,7 @@ impl<'r> Scanner<'r> {
                     // If an entry exists for the same offset, it will be replaced
                     // with the new matching data only if it's larger than the
                     // existing one.
-                    match self.snippets.entry(m.base + m.range.start) {
+                    match self.snippets.entry(match_.range.start) {
                         Entry::Occupied(mut entry) => {
                             let snippet = entry.get_mut();
                             if match_data.len() > snippet.len() {
@@ -308,25 +337,19 @@ mod tests {
     use std::time::Duration;
 
     #[test]
-    fn block_scanner() {
-        let mut compiler = Compiler::new();
-
-        compiler
-            .define_global("foo", "")
-            .unwrap()
-            .add_source(r#"rule test { strings: $a = "ipsum" condition: $a and foo == "foo" }"#)
-            .unwrap();
-
-        let rules = compiler.build();
+    fn block_scanner_1() {
+        let rules = compile(
+            r#"
+            rule test { strings: $a = "ipsum" condition: $a }"#,
+        )
+        .unwrap();
 
         let mut scanner = Scanner::new(&rules);
-
-        scanner.set_global("foo", "foo").unwrap();
 
         let results = scanner
             .scan(0, b"Lorem ipsum")
             .unwrap()
-            .scan(1000, b"dolor sit amet")
+            .scan(1000, b"dolor ipsum sit amet")
             .unwrap()
             .finish()
             .unwrap();
@@ -335,32 +358,132 @@ mod tests {
 
         let rule = results.matching_rules().next().unwrap();
         let pattern = rule.patterns().next().unwrap();
-        let match_ = pattern.matches().next().unwrap();
+        let mut matches = pattern.matches();
 
-        assert_eq!(match_.data(), b"ipsum".as_slice());
-        assert_eq!(match_.range(), 6..11);
+        let match1 = matches.next().unwrap();
+        assert_eq!(match1.data(), b"ipsum".as_slice());
+        assert_eq!(match1.range(), 6..11);
+
+        let match2 = matches.next().unwrap();
+        assert_eq!(match2.data(), b"ipsum".as_slice());
+        assert_eq!(match2.range(), 1006..1011);
+    }
+
+    #[test]
+    fn block_scanner_2() {
+        let rules = compile(
+            r#"
+            rule test { strings: $a = /ipsum.*amet/s condition: $a }"#,
+        )
+        .unwrap();
+
+        let mut scanner = Scanner::new(&rules);
+
+        let results = scanner
+            .scan(0, b"Lorem ipsum")
+            .unwrap()
+            .scan(1000, b"dolor ipsum sit amet")
+            .unwrap()
+            .finish()
+            .unwrap();
+
+        let rule = results.matching_rules().next().unwrap();
+        let pattern = rule.patterns().next().unwrap();
+        let mut matches = pattern.matches();
+
+        let match_ = matches.next().unwrap();
+        assert_eq!(match_.data(), b"ipsum sit amet".as_slice());
+        assert_eq!(match_.range(), 1006..1020);
+    }
+
+    #[test]
+    fn block_scanner_match_in_range() {
+        let rules = compile(
+            r#"
+            rule test { strings: $a = "ipsum" condition: $a in (1003..1008) }"#,
+        )
+        .unwrap();
+
+        let mut scanner = Scanner::new(&rules);
+
+        let results = scanner
+            .scan(0, b"Lorem ipsum")
+            .unwrap()
+            .scan(1000, b"dolor ipsum sit amet")
+            .unwrap()
+            .finish()
+            .unwrap();
+
+        assert_eq!(results.matching_rules().len(), 1);
+
+        let rule = results.matching_rules().next().unwrap();
+        let pattern = rule.patterns().next().unwrap();
+        let mut matches = pattern.matches();
+
+        let match1 = matches.next().unwrap();
+        assert_eq!(match1.data(), b"ipsum".as_slice());
+        assert_eq!(match1.range(), 6..11);
+
+        let match2 = matches.next().unwrap();
+        assert_eq!(match2.data(), b"ipsum".as_slice());
+        assert_eq!(match2.range(), 1006..1011);
+    }
+
+    #[test]
+    fn block_scanner_match_at_offset() {
+        let rules = compile(
+            r#"
+            rule test { strings: $a = "ipsum" condition: $a at 1006 }"#,
+        )
+        .unwrap();
+
+        let mut scanner = Scanner::new(&rules);
+
+        let results = scanner
+            .scan(1000, b"dolor ipsum sit amet")
+            .unwrap()
+            .finish()
+            .unwrap();
+
+        assert_eq!(results.matching_rules().len(), 1);
+    }
+
+    #[test]
+    fn block_scanner_global() {
+        let mut compiler = Compiler::new();
+
+        compiler
+            .define_global("foo", "")
+            .unwrap()
+            .add_source(
+                r#"
+                rule test { condition: foo == "foo" }"#,
+            )
+            .unwrap();
+
+        let rules = compiler.build();
+        let mut scanner = Scanner::new(&rules);
+        scanner.set_global("foo", "foo").unwrap();
+        let results = scanner.finish().unwrap();
+        assert_eq!(results.matching_rules().len(), 1);
     }
 
     #[test]
     fn block_scanner_timeout() {
         let rules = compile(
             r#"
-    rule slow {
-      condition: 
-        for any i in (0..10000000) : (
-           uint8(i) == 0xCC
-        )
-    }
-    "#,
+            rule slow {
+                condition: 
+                    for any i in (0..10000000) : (
+                         uint8(i) == 0xCC
+                    )
+            }"#,
         )
         .unwrap();
 
         let mut scanner = Scanner::new(&rules);
-
         scanner.set_timeout(Duration::from_secs(1));
-
         let err = scanner.finish().unwrap_err();
-
         assert_eq!(err.to_string(), "timeout");
     }
 
@@ -368,11 +491,10 @@ mod tests {
     fn block_scanner_filesize() {
         let rules = compile(
             r#"
-    rule filesize_undefined {
-      condition: 
-        not defined filesize 
-    }
-    "#,
+            rule filesize_undefined {
+                condition: 
+                    not defined filesize 
+            }"#,
         )
         .unwrap();
 
