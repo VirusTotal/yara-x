@@ -61,7 +61,7 @@ pub(in crate::compiler) use ast2ir::patterns_from_ast;
 pub(in crate::compiler) use ast2ir::rule_condition_from_ast;
 
 mod ast2ir;
-pub(crate) mod dfs;
+mod dfs;
 mod hex2hir;
 
 #[cfg(test)]
