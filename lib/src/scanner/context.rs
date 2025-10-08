@@ -356,6 +356,11 @@ impl ScanContext<'_, '_> {
         obj_ref
     }
 
+    /// Get the value of the global variable `filesize`.
+    pub(crate) fn get_filesize(&mut self) -> i64 {
+        self.wasm_filesize.unwrap().get(self.wasm_store_mut()).i64().unwrap()
+    }
+
     /// Set the value of the global variable `filesize`.
     pub(crate) fn set_filesize(&mut self, filesize: i64) {
         self.wasm_filesize
@@ -736,14 +741,8 @@ impl ScanContext<'_, '_> {
             fast_vm: FastVM::new(self.compiled_rules.re_code()),
         };
 
-        let filesize = self
-            .wasm_filesize
-            .unwrap()
-            .get(self.wasm_store_mut())
-            .i64()
-            .unwrap();
-
         let atoms = self.compiled_rules.atoms();
+        let filesize = self.get_filesize();
 
         #[cfg(any(feature = "rules-profiling", feature = "logging"))]
         let scan_start = self.clock.raw();
