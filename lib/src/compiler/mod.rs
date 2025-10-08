@@ -40,7 +40,6 @@ use crate::compiler::errors::{
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{CompileContext, VarStack};
 use crate::modules::BUILTIN_MODULES;
-use crate::re;
 use crate::re::hir::{ChainedPattern, ChainedPatternGap};
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup, SymbolTable};
@@ -49,6 +48,7 @@ use crate::utils::cast;
 use crate::variables::{is_valid_identifier, Variable, VariableError};
 use crate::wasm::builder::WasmModuleBuilder;
 use crate::wasm::{WasmExport, WasmSymbols, WASM_EXPORTS};
+use crate::{re, wasm};
 
 pub(crate) use crate::compiler::atoms::*;
 pub(crate) use crate::compiler::context::*;
@@ -753,7 +753,7 @@ impl<'a> Compiler<'a> {
         // emitted by YARA itself. If this ever happens is probably because
         // wrong WASM code is being emitted.
         let compiled_wasm_mod = wasmtime::Module::from_binary(
-            &crate::wasm::ENGINE,
+            wasm::get_engine(),
             wasm_mod.as_slice(),
         )
         .expect("WASM module is not valid");

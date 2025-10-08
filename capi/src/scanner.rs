@@ -2,8 +2,11 @@ use std::collections::HashMap;
 #[cfg(feature = "rules-profiling")]
 use std::ffi::CString;
 use std::ffi::{c_char, c_void, CStr};
-use std::slice;
+use std::mem;
 use std::time::Duration;
+
+#[cfg(feature = "rules-profiling")]
+use yara_x::ProfilingData;
 
 use yara_x::errors::ScanError;
 use yara_x::ScanOptions;
@@ -12,10 +15,86 @@ use crate::{
     _yrx_set_last_error, YRX_RESULT, YRX_RULE, YRX_RULES, YRX_RULE_CALLBACK,
 };
 
+enum InnerScanner<'r> {
+    None,
+    SingleBlock(yara_x::Scanner<'r>),
+    MultiBlock(yara_x::blocks::Scanner<'r>),
+}
+
+impl<'r> InnerScanner<'r> {
+    fn set_timeout(&mut self, duration: Duration) -> &mut Self {
+        match self {
+            InnerScanner::SingleBlock(s) => {
+                s.set_timeout(duration);
+            }
+            InnerScanner::MultiBlock(s) => {
+                s.set_timeout(duration);
+            }
+            InnerScanner::None => unreachable!(),
+        }
+        self
+    }
+
+    fn make_multi_block(&mut self) -> &mut yara_x::blocks::Scanner<'r> {
+        // Already a multi-block scanner, nothing else to do.
+        if let Self::MultiBlock(s) = self {
+            return s;
+        }
+        // It's currently a single-block scanner, replace it with a multi-block
+        // scanner.
+        if let Self::SingleBlock(s) = mem::replace(self, InnerScanner::None) {
+            *self = InnerScanner::MultiBlock(s.into());
+        }
+        // At this point it must be a multi-block scanner.
+        match self {
+            InnerScanner::MultiBlock(s) => s,
+            _ => unreachable!(),
+        }
+    }
+
+    fn set_global<T>(
+        &mut self,
+        ident: &str,
+        value: T,
+    ) -> Result<&mut Self, yara_x::errors::VariableError>
+    where
+        T: TryInto<yara_x::Variable, Error = yara_x::errors::VariableError>,
+    {
+        match self {
+            InnerScanner::SingleBlock(s) => {
+                s.set_global(ident, value)?;
+            }
+            InnerScanner::MultiBlock(s) => {
+                s.set_global(ident, value)?;
+            }
+            InnerScanner::None => unreachable!(),
+        }
+        Ok(self)
+    }
+
+    #[cfg(feature = "rules-profiling")]
+    fn slowest_rules(&self, n: usize) -> Vec<ProfilingData<'_>> {
+        match self {
+            InnerScanner::SingleBlock(s) => s.slowest_rules(n),
+            InnerScanner::MultiBlock(s) => s.slowest_rules(n),
+            InnerScanner::None => unreachable!(),
+        }
+    }
+
+    #[cfg(feature = "rules-profiling")]
+    fn clear_profiling_data(&mut self) {
+        match self {
+            InnerScanner::SingleBlock(s) => s.clear_profiling_data(),
+            InnerScanner::MultiBlock(s) => s.clear_profiling_data(),
+            InnerScanner::None => unreachable!(),
+        }
+    }
+}
+
 /// A scanner that scans data with a set of compiled YARA rules.
-pub struct YRX_SCANNER<'s, 'm> {
-    inner: yara_x::Scanner<'s>,
-    on_matching_rule: Option<(YRX_RULE_CALLBACK, *mut std::ffi::c_void)>,
+pub struct YRX_SCANNER<'r, 'm> {
+    inner: InnerScanner<'r>,
+    on_matching_rule: Option<(YRX_RULE_CALLBACK, *mut c_void)>,
     module_data: HashMap<&'m str, &'m [u8]>,
 }
 
@@ -39,7 +118,7 @@ pub unsafe extern "C" fn yrx_scanner_create(
     };
 
     *scanner = Box::into_raw(Box::new(YRX_SCANNER {
-        inner: yara_x::Scanner::new(rules.inner()),
+        inner: InnerScanner::SingleBlock(yara_x::Scanner::new(rules.inner())),
         on_matching_rule: None,
         module_data: HashMap::new(),
     }));
@@ -105,26 +184,155 @@ pub unsafe extern "C" fn yrx_scanner_scan(
             acc.set_module_metadata(module_name, meta)
         });
 
-    let scan_results = scanner.inner.scan_with_options(data, options);
+    let scan_results = match &mut scanner.inner {
+        InnerScanner::SingleBlock(s) => s.scan_with_options(data, options),
+        InnerScanner::MultiBlock(_) => return YRX_RESULT::YRX_INVALID_STATE,
+        InnerScanner::None => unreachable!(),
+    };
 
-    if let Err(err) = scan_results {
-        let result = match err {
-            ScanError::Timeout => YRX_RESULT::YRX_SCAN_TIMEOUT,
-            _ => YRX_RESULT::YRX_SCAN_ERROR,
-        };
-        _yrx_set_last_error(Some(err));
-        return result;
-    }
-
-    let scan_results = scan_results.unwrap();
-
-    if let Some((callback, user_data)) = scanner.on_matching_rule {
-        for r in scan_results.matching_rules() {
-            callback(&YRX_RULE::new(r), user_data);
+    match scan_results {
+        Ok(results) => {
+            if let Some((callback, user_data)) = scanner.on_matching_rule {
+                for r in results.matching_rules() {
+                    callback(&YRX_RULE::new(r), user_data);
+                }
+            }
+            YRX_RESULT::YRX_SUCCESS
+        }
+        Err(ScanError::Timeout) => {
+            _yrx_set_last_error(Some(ScanError::Timeout));
+            YRX_RESULT::YRX_SCAN_TIMEOUT
+        }
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            YRX_RESULT::YRX_SCAN_ERROR
         }
     }
+}
 
-    YRX_RESULT::YRX_SUCCESS
+/// Scans a block of data.
+///
+/// This function is designed for scenarios where the data to be scanned is not
+/// available as a single contiguous block of memory, but rather arrives in
+/// smaller, discrete blocks, allowing for incremental scanning.
+///
+/// Each call to this function scans a block of data. The `base` argument
+/// specifies the offset of the current block within the overall data being
+/// scanned. In most cases you will want to call this function multiple times,
+/// providing a different block on each call.
+///
+/// Once this function is called for a scanner, it enters block scanning mode
+/// and any subsequent call to [`yrx_scanner_scan`] will fail with
+/// [`YRX_RESULT::YRX_INVALID_STATE`]. Once the scanner is in block scanning
+/// mode it can be used in that mode only.
+///
+/// When all blocks have been scanned, you must call [`yrx_scanner_finish`].
+///
+/// # Limitations of Block Scanning
+///
+/// Block scanning works by analyzing data in chunks rather than as a whole
+/// file. This makes it useful for streaming or memory-constrained scenarios,
+/// but it comes with important limitations compared to standard scanning:
+///
+/// 1) Modules won't work. Parsers for structured formats (e.g., PE, ELF)
+///    require access to the entire file and cannot be applied in block
+///    scanning mode.
+/// 2) Other modules like `hash` won't work either, as they require access to
+///    all the scanned data during the evaluation of the rule's condition,
+///    something that can't be guaranteed in block scanning mode. The hash
+///    functions will return `undefined` when used in a multi-block context.
+/// 3) Built-in functions like `uint8`, `uint16`, `uint32`, etc., have the
+///    same limitation. They also return `undefined` in block scanning mode.
+/// 4) The `filesize` keyword returns `undefined` in block scanning mode.
+/// 5) Patterns won't match across block boundaries. Every match will be
+///    completely contained within one of the blocks.
+///
+/// All these limitations imply that in block scanning mode you should only
+/// use rules that rely on text, hex or regex patterns.
+///
+/// # Data Consistency in Overlapping Blocks
+///
+/// When [`yrx_scanner_scan_block`] is invoked multiple times with different
+/// blocks that may overlap, the user is responsible for ensuring data
+/// consistency. This means that if the same region of the original data is
+/// present in two or more overlapping blocks, the content of that region must
+/// be identical across all calls to `scan`.
+///
+/// Generally speaking, the scanner does not verify this consistency and
+/// assumes the user provides accurate and consistent data. In debug releases
+/// the scanner may try to verify this consistency, but only when some pattern
+/// matches in the overlapping region.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_scanner_scan_block(
+    scanner: *mut YRX_SCANNER,
+    base: usize,
+    data: *const u8,
+    len: usize,
+) -> YRX_RESULT {
+    _yrx_set_last_error::<ScanError>(None);
+
+    let scanner = match scanner.as_mut() {
+        Some(s) => s,
+        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+    };
+
+    let data = match slice_from_ptr_and_len(data, len) {
+        Some(data) => data,
+        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+    };
+
+    match scanner.inner.make_multi_block().scan(base, data) {
+        Ok(_) => YRX_RESULT::YRX_SUCCESS,
+        Err(ScanError::Timeout) => {
+            _yrx_set_last_error(Some(ScanError::Timeout));
+            YRX_RESULT::YRX_SCAN_TIMEOUT
+        }
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            YRX_RESULT::YRX_SCAN_ERROR
+        }
+    }
+}
+
+/// Finalizes the scan of a set of memory blocks.
+///
+/// This function must be used in conjunction with [`yrx_scanner_scan_block`]
+/// when scanning data in blocks. After all data blocks have been scanned, this
+/// functions evaluates the conditions of the YARA rules and produces the final
+/// scan results.
+///
+/// After this function returns, the scanner is ready to be used again for
+/// scanning a new set of memory blocks. However, the scanner remains in block
+/// scanning mode and can't be used for normal scanning.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_scanner_finish(
+    scanner: *mut YRX_SCANNER,
+) -> YRX_RESULT {
+    _yrx_set_last_error::<ScanError>(None);
+
+    let scanner = match scanner.as_mut() {
+        Some(s) => s,
+        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+    };
+
+    match scanner.inner.make_multi_block().finish() {
+        Ok(results) => {
+            if let Some((callback, user_data)) = scanner.on_matching_rule {
+                for r in results.matching_rules() {
+                    callback(&YRX_RULE::new(r), user_data);
+                }
+            }
+            YRX_RESULT::YRX_SUCCESS
+        }
+        Err(ScanError::Timeout) => {
+            _yrx_set_last_error(Some(ScanError::Timeout));
+            YRX_RESULT::YRX_SCAN_TIMEOUT
+        }
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            YRX_RESULT::YRX_SCAN_ERROR
+        }
+    }
 }
 
 /// Sets a callback function that is called by the scanner for each rule that
@@ -182,6 +390,8 @@ pub unsafe extern "C" fn yrx_scanner_on_matching_rule(
 /// The `name` argument is either a YARA module name (i.e: "pe", "elf", "dotnet",
 /// etc.) or the fully-qualified name of the protobuf message associated to
 /// the module. It must be a valid UTF-8 string.
+///
+/// If the scanner is in block scanning mode this function returns `YRX_INVALID_STATE`.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_scanner_set_module_output(
     scanner: *mut YRX_SCANNER,
@@ -207,15 +417,23 @@ pub unsafe extern "C" fn yrx_scanner_set_module_output(
         None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
     };
 
-    match scanner.inner.set_module_output_raw(module_name, data) {
-        Ok(_) => {
-            _yrx_set_last_error::<ScanError>(None);
-            YRX_RESULT::YRX_SUCCESS
+    match &mut scanner.inner {
+        InnerScanner::SingleBlock(scanner) => {
+            match scanner.set_module_output_raw(module_name, data) {
+                Ok(_) => {
+                    _yrx_set_last_error::<ScanError>(None);
+                    YRX_RESULT::YRX_SUCCESS
+                }
+                Err(err) => {
+                    _yrx_set_last_error(Some(err));
+                    YRX_RESULT::YRX_SCAN_ERROR
+                }
+            }
         }
-        Err(err) => {
-            _yrx_set_last_error(Some(err));
-            YRX_RESULT::YRX_SCAN_ERROR
-        }
+        // This function produces an error if invoked while the scanner
+        // is in block scanning mode.
+        InnerScanner::MultiBlock(_) => YRX_RESULT::YRX_INVALID_STATE,
+        InnerScanner::None => unreachable!(),
     }
 }
 
@@ -230,6 +448,8 @@ pub unsafe extern "C" fn yrx_scanner_set_module_output(
 ///
 /// The `name` as well as `data` must be valid from the time they are used as arguments
 /// of this function until the scan is executed.
+///
+/// If the scanner is in block scanning mode this function returns `YRX_INVALID_STATE`.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_scanner_set_module_data(
     scanner: *mut YRX_SCANNER,
@@ -254,6 +474,10 @@ pub unsafe extern "C" fn yrx_scanner_set_module_data(
         Some(data) => data,
         None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
     };
+
+    if matches!(scanner.inner, InnerScanner::MultiBlock(_)) {
+        return YRX_RESULT::YRX_INVALID_STATE;
+    }
 
     scanner.module_data.insert(name, data);
 
@@ -338,21 +562,32 @@ pub unsafe extern "C" fn yrx_scanner_set_global_float(
     yrx_scanner_set_global(scanner, ident, value)
 }
 
-unsafe fn slice_from_ptr_and_len<'a>(
-    data: *const u8,
-    len: usize,
-) -> Option<&'a [u8]> {
-    // `data` is allowed to be null as long as `len` is 0. That's equivalent
-    // to an empty slice.
-    if data.is_null() && len > 0 {
-        return None;
-    }
-    let data = if data.is_null() || len == 0 {
-        &[]
+/// Sets the value of a global variable from a JSON-encoded string.
+///
+/// This is best for complex types like maps and arrays. For simple types
+/// (e.g., booleans, integers, strings), prefer dedicated functions to avoid
+/// the overhead of JSON deserialization.
+///
+/// The type of the JSON-encoded value must match the type of the variable
+/// as it was defined.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_scanner_set_global_json(
+    scanner: *mut YRX_SCANNER,
+    ident: *const c_char,
+    value: *const c_char,
+) -> YRX_RESULT {
+    let value = if let Ok(value) = CStr::from_ptr(value).to_str() {
+        value
     } else {
-        slice::from_raw_parts(data, len)
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
-    Some(data)
+
+    let value: serde_json::Value = match serde_json::from_str(value) {
+        Ok(json_value) => json_value,
+        Err(_) => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+    };
+
+    yrx_scanner_set_global(scanner, ident, value)
 }
 
 /// Callback function passed to [`yrx_scanner_iter_slowest_rules`].
@@ -377,7 +612,7 @@ pub type YRX_SLOWEST_RULES_CALLBACK = extern "C" fn(
 /// Iterates over the slowest N rules, calling the callback for each rule.
 ///
 /// Requires the `rules-profiling` feature, otherwise returns
-/// [`YRX_RESULT::NOT_SUPPORTED`].
+/// `YRX_RESULT::NOT_SUPPORTED`.
 ///
 /// See [`YRX_SLOWEST_RULES_CALLBACK`] for more details.
 #[no_mangle]
@@ -422,7 +657,7 @@ pub unsafe extern "C" fn yrx_scanner_iter_slowest_rules(
 /// results reflect only the data gathered after this method is called.
 ///
 /// Requires the `rules-profiling` feature, otherwise returns
-/// [`YRX_RESULT::NOT_SUPPORTED`].
+/// `YRX_RESULT::NOT_SUPPORTED`.
 ///
 #[no_mangle]
 #[allow(unused_variables)]
@@ -441,4 +676,21 @@ pub unsafe extern "C" fn yrx_scanner_clear_profiling_data(
 
         YRX_RESULT::YRX_SUCCESS
     }
+}
+
+unsafe fn slice_from_ptr_and_len<'a>(
+    data: *const u8,
+    len: usize,
+) -> Option<&'a [u8]> {
+    // `data` is allowed to be null as long as `len` is 0. That's equivalent
+    // to an empty slice.
+    if data.is_null() && len > 0 {
+        return None;
+    }
+    let data = if data.is_null() || len == 0 {
+        &[]
+    } else {
+        std::slice::from_raw_parts(data, len)
+    };
+    Some(data)
 }

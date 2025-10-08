@@ -540,6 +540,7 @@ impl<'a> PE<'a> {
     const MAX_PE_RESOURCES: usize = 65536;
     const MAX_DIR_ENTRIES: usize = 16;
     const MAX_FUNC_NAME_LENGTH: usize = 1024;
+    const MAX_DLL_NAME_LENGTH: usize = 512;
 
     fn parse_dos_header(input: &[u8]) -> IResult<&[u8], DOSHeader> {
         map(
@@ -2021,8 +2022,8 @@ impl<'a> PE<'a> {
                 le_u16,
                 // name
                 verify(
-                    // As a sanity check, the maximum function allowed function
-                    // name is MAX_FUNC_NAME_LENGTH. Some corrupted files can
+                    // As a sanity check, function names are limited to
+                    // MAX_FUNC_NAME_LENGTH bytes. Some corrupted files can
                     // produce larger names. Example:
                     // 0a88c56ab8abf7955138f5ecc81a635d8fca70865f5f763fd07d9fb3d1381585
                     take_while_m_n(0, Self::MAX_FUNC_NAME_LENGTH, |c: u8| {
@@ -2136,7 +2137,8 @@ impl<'a> PE<'a> {
                     })
             {
                 if let Some(name_rva) = names.get(idx) {
-                    f.name = self.str_at_rva(*name_rva);
+                    f.name =
+                        self.str_at_rva(*name_rva, Self::MAX_FUNC_NAME_LENGTH);
                 }
             }
 
@@ -2146,7 +2148,8 @@ impl<'a> PE<'a> {
             // really pointing to the function, but to a ASCII string that
             // contains the DLL and function to which this export is forwarded.
             if exports_section.contains(&f.rva) {
-                f.forward_name = self.str_at_rva(f.rva);
+                f.forward_name =
+                    self.str_at_rva(f.rva, Self::MAX_FUNC_NAME_LENGTH);
             } else {
                 f.offset = self.rva_to_offset(f.rva);
             }
@@ -2215,9 +2218,9 @@ impl<'a> PE<'a> {
         parser.parse(data).map(|(_, result)| result).ok()
     }
 
-    fn str_at_rva(&self, rva: u32) -> Option<&'a str> {
-        let dll_name = self.parse_at_rva(rva, take_till(|c| c == 0))?;
-        from_utf8(dll_name).ok()
+    fn str_at_rva(&self, rva: u32, max_len: usize) -> Option<&'a str> {
+        self.parse_at_rva(rva, take_while_m_n(0, max_len, |c| c != 0))
+            .map(|s| from_utf8(s).ok())?
     }
 
     fn dll_name_at_rva(&self, rva: u32) -> Option<&'a str> {
@@ -2225,7 +2228,7 @@ impl<'a> PE<'a> {
         // restrictive? YARA is using a more relaxed approach and accepts
         // every byte except the ones listed below. YARA imposes a length
         // limit of 256 bytes, though.
-        let dll_name = self.str_at_rva(rva)?;
+        let dll_name = self.str_at_rva(rva, Self::MAX_DLL_NAME_LENGTH)?;
 
         for c in dll_name.chars() {
             if c.is_ascii_control() {

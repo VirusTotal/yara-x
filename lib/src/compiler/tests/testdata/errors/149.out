@@ -1,0 +1,5 @@
+error[E014]: invalid regular expression
+ --> line:3:18
+  |
+3 |     $a = /(?u)foo\b/
+  |                  ^^ this is unsupported in Unicode regular expressions

@@ -1,0 +1,6 @@
+rule test {
+  strings:
+    $a = /(?u)foo\b/
+  condition:
+    $a
+}

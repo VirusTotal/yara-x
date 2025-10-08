@@ -148,6 +148,9 @@ pub enum YRX_RESULT {
     /// An error indicating that some of the strings passed to a function is
     /// not valid UTF-8.
     YRX_INVALID_UTF8,
+    /// An error indicating that a scanner that was already in multi-block
+    /// mode has been used as a standard scanner.
+    YRX_INVALID_STATE,
     /// An error occurred while serializing/deserializing YARA rules.
     YRX_SERIALIZATION_ERROR,
     /// An error returned when a rule doesn't have any metadata.
@@ -231,4 +234,35 @@ pub unsafe extern "C" fn yrx_compile(
             YRX_RESULT::YRX_SYNTAX_ERROR
         }
     }
+}
+
+/// Finalizes YARA-X.
+///
+/// This function only needs to be called in a very specific scenario:
+/// when YARA-X is used as a dynamically loaded library (`.so`, `.dll`,
+/// `.dylib`) **and** that library must be unloaded at runtime.
+///
+/// Its primary purpose is to remove the process-wide signal handlers
+/// installed by the [wasmtime] engine.
+///
+/// # Safety
+///
+/// This function is **unsafe** to call under normal circumstances. It has
+/// strict preconditions that must be met:
+///
+/// - There must be no other active `wasmtime` engines in the process. This
+///   applies not only to clones of the engine used by YARA-X (which should not
+///   exist because YARA-X uses a single copy of its engine), but to *any*
+///   `wasmtime` engine, since global state shared by all engines is torn
+///   down.
+///
+/// - On Unix platforms, no other signal handlers may have been installed
+///   for signals intercepted by `wasmtime`. If other handlers have been set,
+///   `wasmtime` cannot reliably restore the original state, which may lead
+///   to undefined behavior.
+///
+/// [wasmtime]: https://wasmtime.dev/
+#[no_mangle]
+pub unsafe extern "C" fn yrx_finalize() {
+    yara_x::finalize();
 }

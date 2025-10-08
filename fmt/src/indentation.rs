@@ -1,4 +1,4 @@
-use crate::{Token, TokenStream};
+use crate::{Indentation, Token, TokenStream};
 use std::collections::VecDeque;
 
 /// Pipeline that insert spaces for indenting code.
@@ -8,31 +8,31 @@ use std::collections::VecDeque;
 /// level. These tokens are removed from the output, and the appropriate
 /// number of spaces is inserted after each newline for indenting the code
 /// to its corresponding level.
-pub(crate) struct AddIndentationSpaces<'a, T>
+pub(crate) struct AddIndentation<'a, T>
 where
     T: TokenStream<'a>,
 {
     input: T,
     indent_level: i16,
-    num_spaces: u8,
+    indentation: Indentation,
     output_buffer: VecDeque<Token<'a>>,
 }
 
-impl<'a, T> AddIndentationSpaces<'a, T>
+impl<'a, T> AddIndentation<'a, T>
 where
     T: TokenStream<'a>,
 {
-    pub fn new(input: T, num_spaces: u8) -> Self {
+    pub fn new(input: T, indentation: Indentation) -> Self {
         Self {
             input,
-            num_spaces,
+            indentation,
             indent_level: 0,
             output_buffer: VecDeque::new(),
         }
     }
 }
 
-impl<'a, T> Iterator for AddIndentationSpaces<'a, T>
+impl<'a, T> Iterator for AddIndentation<'a, T>
 where
     T: TokenStream<'a>,
 {
@@ -57,12 +57,15 @@ where
                 Token::Newline => {
                     self.output_buffer.push_back(Token::Newline);
                     for _ in 0..self.indent_level {
-                        if self.num_spaces == 0 {
-                            self.output_buffer.push_back(Token::Tab);
-                        } else {
-                            for _ in 0..self.num_spaces {
-                                self.output_buffer
-                                    .push_back(Token::Whitespace);
+                        match &self.indentation {
+                            Indentation::Spaces(n) => {
+                                for _ in 0..*n {
+                                    self.output_buffer
+                                        .push_back(Token::Whitespace);
+                                }
+                            }
+                            Indentation::Tabs => {
+                                self.output_buffer.push_back(Token::Tab);
                             }
                         }
                     }

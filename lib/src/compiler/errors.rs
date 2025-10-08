@@ -896,12 +896,14 @@ pub struct IncludeNotAllowed {
 ///
 /// # Example
 ///
+/// ```text
 /// error[E045]: arbitrary regular expression prefix  
 ///  --> line:3:11  
 ///   |  
 /// 3 |     $a = /.*foo/s  
 ///   |           ^^ this prefix can be arbitrarily long and matches all bytes  
-///   |  
+///   |
+/// ```  
 ///
 /// Regular expressions with such prefixes are problematic because YARA will
 /// report a match at every file offset from the start of the file up to where

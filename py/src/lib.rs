@@ -14,15 +14,16 @@ matches = rules.scan(b'some dummy data')
  */
 
 #![deny(missing_docs)]
-
+use std::borrow::Cow;
+use std::io::{Read, Write};
 use std::marker::PhantomPinned;
-use std::mem;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::str::FromStr;
 use std::sync::OnceLock;
 use std::time::Duration;
+use std::{io, mem};
 
 use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
@@ -34,11 +35,12 @@ use pyo3::types::{
     PyTuple, PyTzInfo,
 };
 use pyo3::{create_exception, IntoPyObjectExt};
-use pyo3_file::PyFileLikeObject;
+
 use strum_macros::{Display, EnumString};
 
 use ::yara_x as yrx;
 use ::yara_x::mods::*;
+use yara_x_fmt::Indentation;
 
 fn dict_to_json(dict: Bound<PyAny>) -> PyResult<serde_json::Value> {
     static JSON_DUMPS: OnceLock<Py<PyAny>> = OnceLock::new();
@@ -108,7 +110,11 @@ impl Formatter {
                 .align_patterns(align_patterns)
                 .indent_section_headers(indent_section_headers)
                 .indent_section_contents(indent_section_contents)
-                .indent_spaces(indent_spaces)
+                .indentation(if indent_spaces == 0 {
+                    Indentation::Tabs
+                } else {
+                    Indentation::Spaces(indent_spaces as usize)
+                })
                 .newline_before_curly_brace(newline_before_curly_brace)
                 .empty_line_before_section_header(
                     empty_line_before_section_header,
@@ -120,20 +126,136 @@ impl Formatter {
     }
 
     /// Format a YARA rule
-    fn format(&self, input: PyObject, output: PyObject) -> PyResult<()> {
-        let in_buf = PyFileLikeObject::with_requirements(
-            input, true, false, false, false,
-        )?;
-
-        let mut out_buf = PyFileLikeObject::with_requirements(
-            output, false, true, false, false,
-        )?;
-
+    fn format(&self, input: Py<PyAny>, output: Py<PyAny>) -> PyResult<()> {
         self.inner
-            .format(in_buf, &mut out_buf)
+            .format(PyReader::new(input)?, PyWriter::new(output)?)
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
         Ok(())
+    }
+}
+
+mod consts {
+    use pyo3::prelude::*;
+    use pyo3::sync::PyOnceLock;
+    use pyo3::types::PyString;
+    use pyo3::{intern, Bound, Py, PyResult, Python};
+
+    pub fn read(py: Python<'_>) -> &Bound<'_, PyString> {
+        intern!(py, "read")
+    }
+
+    pub fn write(py: Python<'_>) -> &Bound<'_, PyString> {
+        intern!(py, "write")
+    }
+
+    pub fn flush(py: Python<'_>) -> &Bound<'_, PyString> {
+        intern!(py, "flush")
+    }
+
+    pub fn text_io_base(py: Python<'_>) -> PyResult<&Bound<'_, PyAny>> {
+        static INSTANCE: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+
+        INSTANCE
+            .get_or_try_init(py, || {
+                let io = PyModule::import(py, "io")?;
+                let cls = io.getattr("TextIOBase")?;
+                Ok(cls.unbind())
+            })
+            .map(|x| x.bind(py))
+    }
+}
+
+struct PyReader {
+    obj: Py<PyAny>,
+    is_text_io: bool,
+}
+
+impl PyReader {
+    pub fn new(obj: Py<PyAny>) -> PyResult<Self> {
+        Python::attach(|py| {
+            let obj_bound = obj.bind(py);
+
+            if !obj_bound.hasattr(consts::read(py))? {
+                return Err(PyTypeError::new_err(
+                    "object does not have a .read() method.",
+                ));
+            }
+
+            let is_text_io =
+                obj_bound.is_instance(consts::text_io_base(py)?)?;
+
+            Ok(Self { obj, is_text_io })
+        })
+    }
+}
+
+impl Read for PyReader {
+    fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
+        Python::attach(|py| {
+            let data =
+                self.obj.call_method1(py, consts::read(py), (buf.len(),))?;
+
+            if self.is_text_io {
+                let bytes = data.extract::<Cow<str>>(py)?;
+                buf.write_all(bytes.as_bytes())?;
+                Ok(bytes.len())
+            } else {
+                let bytes = data.extract::<Cow<[u8]>>(py)?;
+                buf.write_all(bytes.as_ref())?;
+                Ok(bytes.len())
+            }
+        })
+    }
+}
+
+struct PyWriter {
+    obj: Py<PyAny>,
+    is_text_io: bool,
+}
+
+impl PyWriter {
+    pub fn new(obj: Py<PyAny>) -> PyResult<Self> {
+        Python::attach(|py| {
+            let obj_bound = obj.bind(py);
+
+            if !obj_bound.hasattr(consts::write(py))? {
+                return Err(PyTypeError::new_err(
+                    "object does not have a .write() method.",
+                ));
+            }
+
+            let is_text_io =
+                obj_bound.is_instance(consts::text_io_base(py)?)?;
+
+            Ok(Self { obj, is_text_io })
+        })
+    }
+}
+
+impl Write for PyWriter {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        Python::attach(|py| {
+            let arg = if self.is_text_io {
+                let s = std::str::from_utf8(buf).expect(
+                    "tried to write non-utf8 data to a TextIO object.",
+                );
+                PyString::new(py, s).into_any()
+            } else {
+                PyBytes::new(py, buf).into_any()
+            };
+
+            let n = self.obj.call_method1(py, consts::write(py), (arg,))?;
+
+            n.extract(py).map_err(io::Error::from)
+        })
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Python::attach(|py| {
+            self.obj.call_method0(py, consts::flush(py))?;
+            Ok(())
+        })
     }
 }
 
@@ -475,7 +597,7 @@ impl Scanner {
     /// Creates a new [`Scanner`] with a given set of [`Rules`].
     #[new]
     fn new(rules: Py<Rules>) -> Self {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let rules_ref: &'static yrx::Rules = {
                 let rules = rules.borrow(py);
                 let rules_ptr: *const yrx::Rules = &rules.deref().inner.rules;
@@ -536,6 +658,13 @@ impl Scanner {
         self.inner.set_timeout(Duration::from_secs(seconds));
     }
 
+    /// Sets the maximum number of matches per pattern.
+    ///
+    /// When some pattern reaches the specified number of `matches` it won't produce more matches.
+    fn max_matches_per_pattern(&mut self, matches: usize) {
+        self.inner.max_matches_per_pattern(matches);
+    }
+
     /// Sets a callback that is invoked every time a YARA rule calls the
     /// `console` module.
     ///
@@ -543,12 +672,12 @@ impl Scanner {
     /// message being logged. The function can print the message to stdout,
     /// append it to a file, etc. If no callback is set these messages are
     /// ignored.
-    fn console_log(&mut self, callback: PyObject) -> PyResult<()> {
-        if !Python::with_gil(|py| callback.bind(py).is_callable()) {
+    fn console_log(&mut self, callback: Py<PyAny>) -> PyResult<()> {
+        if !Python::attach(|py| callback.bind(py).is_callable()) {
             return Err(PyValueError::new_err("callback is not callable"));
         }
         self.inner.console_log(move |msg| {
-            let _ = Python::with_gil(|py| -> PyResult<PyObject> {
+            let _ = Python::attach(|py| -> PyResult<Py<PyAny>> {
                 callback.call1(py, (msg,))
             });
         });
@@ -557,7 +686,7 @@ impl Scanner {
 
     /// Scans in-memory data.
     fn scan(&mut self, data: &[u8]) -> PyResult<Py<ScanResults>> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             scan_results_to_py(
                 py,
                 self.inner.scan(data).map_err(map_scan_err)?,
@@ -567,7 +696,7 @@ impl Scanner {
 
     /// Scans a file.
     fn scan_file(&mut self, path: PathBuf) -> PyResult<Py<ScanResults>> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             scan_results_to_py(
                 py,
                 self.inner.scan_file(path).map_err(map_scan_err)?,
@@ -591,7 +720,7 @@ impl ScanResults {
     #[getter]
     /// Rules that matched during the scan.
     fn matching_rules(&self) -> Py<PyTuple> {
-        Python::with_gil(|py| self.matching_rules.clone_ref(py))
+        Python::attach(|py| self.matching_rules.clone_ref(py))
     }
 
     #[getter]
@@ -631,20 +760,20 @@ impl Rule {
     /// Returns the rule's tags.
     #[getter]
     fn tags(&self) -> Py<PyTuple> {
-        Python::with_gil(|py| self.tags.clone_ref(py))
+        Python::attach(|py| self.tags.clone_ref(py))
     }
 
     /// A tuple of pairs `(identifier, value)` with the metadata associated to
     /// the rule.
     #[getter]
     fn metadata(&self) -> Py<PyTuple> {
-        Python::with_gil(|py| self.metadata.clone_ref(py))
+        Python::attach(|py| self.metadata.clone_ref(py))
     }
 
     /// Patterns defined by the rule.
     #[getter]
     fn patterns(&self) -> Py<PyTuple> {
-        Python::with_gil(|py| self.patterns.clone_ref(py))
+        Python::attach(|py| self.patterns.clone_ref(py))
     }
 }
 
@@ -666,7 +795,7 @@ impl Pattern {
     /// Matches found for this pattern.
     #[getter]
     fn matches(&self) -> Py<PyTuple> {
-        Python::with_gil(|py| self.matches.clone_ref(py))
+        Python::attach(|py| self.matches.clone_ref(py))
     }
 }
 
@@ -725,12 +854,34 @@ impl Rules {
     }
 }
 
+#[pyclass(unsendable)]
+struct RulesIter {
+    iter: Box<dyn Iterator<Item = yrx::Rule<'static, 'static>> + Send>,
+    // Keep a reference to Rules to keep it alive.
+    _rules: Py<Rules>,
+}
+
+#[pymethods]
+impl RulesIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<Py<Rule>>> {
+        let py = slf.py();
+        match slf.iter.next() {
+            Some(rule) => Ok(Some(rule_to_py(py, rule)?)),
+            None => Ok(None),
+        }
+    }
+}
+
 #[pymethods]
 impl Rules {
     /// Scans in-memory data with these rules.
     fn scan(&self, data: &[u8]) -> PyResult<Py<ScanResults>> {
         let mut scanner = yrx::Scanner::new(&self.inner.rules);
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             scan_results_to_py(
                 py,
                 scanner
@@ -741,26 +892,33 @@ impl Rules {
     }
 
     /// Serializes the rules into a file-like object.
-    fn serialize_into(&self, file: PyObject) -> PyResult<()> {
-        let f = PyFileLikeObject::with_requirements(
-            file, false, true, false, false,
-        )?;
+    fn serialize_into(&self, file: Py<PyAny>) -> PyResult<()> {
         self.inner
             .rules
-            .serialize_into(f)
+            .serialize_into(PyWriter::new(file)?)
             .map_err(|err| PyIOError::new_err(err.to_string()))
     }
 
     /// Deserializes rules from a file-like object.
     #[staticmethod]
-    fn deserialize_from(file: PyObject) -> PyResult<Py<Rules>> {
-        let f = PyFileLikeObject::with_requirements(
-            file, true, false, false, false,
-        )?;
-        let rules = yrx::Rules::deserialize_from(f)
+    fn deserialize_from(file: Py<PyAny>) -> PyResult<Py<Rules>> {
+        let rules = yrx::Rules::deserialize_from(PyReader::new(file)?)
             .map_err(|err| PyIOError::new_err(err.to_string()))?;
 
-        Python::with_gil(|py| Py::new(py, Rules::new(rules)))
+        Python::attach(|py| Py::new(py, Rules::new(rules)))
+    }
+
+    /// Returns an iterator over the rules.
+    fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<RulesIter>> {
+        let py = slf.py();
+
+        let rules: &'static yrx::Rules =
+            unsafe { mem::transmute(&slf.inner.rules) };
+
+        let rules_iter =
+            RulesIter { iter: Box::new(rules.iter()), _rules: slf.into() };
+
+        Py::new(py, rules_iter)
     }
 }
 
@@ -889,7 +1047,7 @@ impl JsonDecoder {
     #[staticmethod]
     fn new() -> Self {
         JsonDecoder {
-            fromtimestamp: Python::with_gil(|py| {
+            fromtimestamp: Python::attach(|py| {
                 PyModule::import(py, "datetime")
                     .unwrap()
                     .getattr("datetime")

@@ -36,10 +36,7 @@ thread_local!(
 );
 
 #[module_main]
-fn main(
-    data: &[u8],
-    _meta: Option<&[u8]>
-) -> Result<PE, ModuleError> {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<PE, ModuleError> {
     IMPHASH_CACHE.with(|cache| *cache.borrow_mut() = None);
     CHECKSUM_CACHE.with(|cache| *cache.borrow_mut() = None);
 
@@ -134,7 +131,7 @@ fn calculate_checksum(ctx: &mut ScanContext) -> Option<i64> {
     }
 
     let pe = ctx.module_output::<PE>()?;
-    let data = ctx.scanned_data();
+    let data = ctx.scanned_data()?;
     let mut sum: u32 = 0;
 
     if !pe.is_pe() {

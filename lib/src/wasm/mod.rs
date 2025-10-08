@@ -80,7 +80,7 @@ See the [`lookup_field`] function.
 use std::any::{type_name, TypeId};
 use std::mem;
 use std::rc::Rc;
-use std::sync::LazyLock;
+use std::sync::{LazyLock, OnceLock};
 
 use bstr::{BString, ByteSlice};
 use linkme::distributed_slice;
@@ -752,14 +752,72 @@ pub(crate) static CONFIG: LazyLock<Config> = LazyLock::new(|| {
     config
 });
 
-pub(crate) static ENGINE: LazyLock<Engine> =
-    LazyLock::new(|| Engine::new(&CONFIG).unwrap());
+/// The global WASM engine used everywhere.
+///
+/// The engine is initialized once, the first time that it is used,
+/// and then reused. It needs to be mutable so that the [`free_engine`]
+/// can destroy it.
+static mut ENGINE: OnceLock<Engine> = OnceLock::new();
 
-pub(crate) fn new_linker() -> Linker<ScanContext<'static>> {
-    let mut linker = Linker::<ScanContext<'static>>::new(&ENGINE);
+/// Returns the global WASM engine used everywhere.
+pub(crate) fn get_engine<'a>() -> &'a Engine {
+    unsafe {
+        // Static mutable references are dangerous and should be used
+        // with care, that's why the compiler has the static_mut_refs
+        // warning. Here it's safe to have a mutable static reference
+        // to the engine, because this reference is mutated only once
+        // when the engine is initialized, and then again if `free_engine`
+        // is called.
+        #[allow(static_mut_refs)]
+        ENGINE.get_or_init(|| Engine::new(&CONFIG).unwrap())
+    }
+}
+
+/// Frees the global WASM engine.
+///
+/// This function only needs to be called in a very specific scenario:
+/// when YARA-X is used as a dynamically loaded library (`.so`, `.dll`,
+/// `.dylib`) **and** that library must be unloaded at runtime.
+///
+/// Its primary purpose is to remove the process-wide signal handlers
+/// installed by the WASM engine.
+///
+/// # Safety
+///
+/// This function is **unsafe** to call under normal circumstances. It has
+/// strict preconditions that must be met:
+///
+/// - There must be no other active `wasmtime` engines in the process. This
+///   applies not only to clones of this engine (which should not exist),
+///   but to *any* `wasmtime` engine, since global state shared by all
+///   engines is torn down.
+///
+/// - On Unix platforms, no other signal handlers may have been installed
+///   for signals intercepted by `wasmtime`. If other handlers have been set,
+///   `wasmtime` cannot reliably restore the original state, which may lead
+///   to undefined behavior.
+pub(crate) unsafe fn free_engine() {
+    // `unload_process_handlers` is called only in the platforms where
+    // wasmtime actually installs signal handlers. See:
+    // https://github.com/bytecodealliance/wasmtime/blob/9362e47987363c350a8d9d09aa56677425496fb7/crates/wasmtime/build.rs#L20
+    #[cfg(any(
+        target_arch = "x86_64",
+        target_arch = "aarch64",
+        target_arch = "riscv64",
+        target_arch = "s390x",
+    ))]
+    {
+        #[allow(static_mut_refs)]
+        ENGINE.take().unwrap().unload_process_handlers()
+    }
+}
+
+pub(crate) fn new_linker() -> Linker<ScanContext<'static, 'static>> {
+    let engine = get_engine();
+    let mut linker = Linker::<ScanContext<'static, 'static>>::new(engine);
     for export in WASM_EXPORTS {
         let func_type = FuncType::new(
-            &ENGINE,
+            engine,
             export.func.wasmtime_args(),
             export.func.wasmtime_results(),
         );
@@ -981,8 +1039,11 @@ fn lookup_field(
 
     let mut store_ctx = caller.as_context_mut();
 
-    let mem_ptr =
-        store_ctx.data_mut().main_memory.unwrap().data_ptr(&mut store_ctx);
+    let mem_ptr = store_ctx
+        .data_mut()
+        .wasm_main_memory
+        .unwrap()
+        .data_ptr(&mut store_ctx);
 
     let lookup_indexes_ptr =
         unsafe { mem_ptr.offset(LOOKUP_INDEXES_START as isize) };
@@ -1480,7 +1541,7 @@ macro_rules! gen_int_fn {
             let offset = usize::try_from(offset).ok()?;
             caller
                 .data()
-                .scanned_data()
+                .scanned_data()?
                 .get(offset..offset + mem::size_of::<$return_type>())
                 .map(|bytes| {
                     <$return_type>::$from_fn(bytes.try_into().unwrap()) as i64
@@ -1514,7 +1575,7 @@ macro_rules! gen_float_fn {
             let offset = usize::try_from(offset).ok()?;
             caller
                 .data()
-                .scanned_data()
+                .scanned_data()?
                 .get(offset..offset + mem::size_of::<$return_type>())
                 .map(|bytes| {
                     <$return_type>::$from_fn(bytes.try_into().unwrap()) as f64

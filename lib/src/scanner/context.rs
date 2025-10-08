@@ -2,14 +2,16 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 #[cfg(feature = "rules-profiling")]
 use std::iter;
+use std::mem::{transmute, MaybeUninit};
 #[cfg(feature = "rules-profiling")]
 use std::ops::AddAssign;
-use std::ops::Range;
+use std::ops::{Deref, Range};
+use std::pin::Pin;
 use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
-#[cfg(feature = "rules-profiling")]
 use std::time::Duration;
+use std::{cmp, mem, thread};
 
 use base64::Engine;
 use bitvec::order::Lsb0;
@@ -20,12 +22,16 @@ use memx::memeq;
 use protobuf::{MessageDyn, MessageFull};
 use regex_automata::meta::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
-use wasmtime::Store;
+use wasmtime::{
+    AsContext, AsContextMut, Global, GlobalType, Instance, MemoryType,
+    Mutability, Store, TypedFunc, Val, ValType,
+};
 
 use crate::compiler::{
     NamespaceId, PatternId, RegexpId, RuleId, Rules, SubPattern,
     SubPatternAtom, SubPatternFlags, SubPatternId,
 };
+use crate::errors::VariableError;
 use crate::re::fast::FastVM;
 use crate::re::hir::ChainedPatternGap;
 use crate::re::thompson::PikeVM;
@@ -33,38 +39,65 @@ use crate::re::Action;
 use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
 #[cfg(feature = "rules-profiling")]
 use crate::scanner::ProfilingData;
-use crate::scanner::ScanError;
-use crate::scanner::HEARTBEAT_COUNTER;
-use crate::types::{Array, Map, Struct};
+use crate::scanner::{DataSnippets, ScanError, ScannedData};
+use crate::scanner::{HEARTBEAT_COUNTER, INIT_HEARTBEAT};
+use crate::types::{Array, Map, Struct, TypeValue};
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
+use crate::{wasm, Variable};
+
+/// Represents the states in which a scanner can be.
+pub(crate) enum ScanState<'a> {
+    Idle,
+    ScanningData(ScannedData<'a>),
+    ScanningBlock((usize, &'a [u8])),
+    Finished(DataSnippets<'a>),
+}
+
+impl<'a> ScanState<'a> {
+    /// Returns changes the current state to [`ScanState::Idle`] and returns
+    /// the previous state.
+    pub fn take(&mut self) -> ScanState<'a> {
+        mem::replace(self, Self::Idle)
+    }
+}
 
 /// Structure that holds information about the current scan.
-pub(crate) struct ScanContext<'r> {
+pub(crate) struct ScanContext<'r, 'd> {
     /// Pointer to the WASM store.
-    pub wasm_store: NonNull<Store<ScanContext<'static>>>,
+    pub wasm_store: NonNull<Store<ScanContext<'static, 'static>>>,
+    /// The WASM module.
+    pub wasm_module: MaybeUninit<Instance>,
+    /// Main function in the WASM module. This is the entrypoint from where
+    /// the execution of rule conditions starts.
+    pub wasm_main_func: Option<TypedFunc<(), i32>>,
+    /// Module's main memory.
+    pub wasm_main_memory: Option<wasmtime::Memory>,
+    /// WASM global variable that contains the value of `filesize`.
+    pub wasm_filesize: Option<Global>,
     /// Map where keys are object handles and values are objects used during
     /// the evaluation of rule conditions. Handles are opaque integer values
     /// that can be passed to and received from WASM code. Each handle identify
     /// an object (string, struct, array or map).
     pub runtime_objects: IndexMap<RuntimeObjectHandle, RuntimeObject>,
-    /// Pointer to the data being scanned.
-    pub scanned_data: *const u8,
-    /// Length of data being scanned.
-    pub scanned_data_len: usize,
+    /// The time that can be spent in a scan operation, including the
+    /// execution of the rule conditions.
+    pub scan_timeout: Option<Duration>,
+    /// The current state of the scanner.
+    pub scan_state: ScanState<'d>,
     /// Vector containing the IDs of the rules that matched, including both
     /// global and non-global ones. The rules are added first to the
     /// `matching_rules_per_ns` map, and then moved to this vector
     /// once the scan finishes.
     pub matching_rules: Vec<RuleId>,
+    /// Map containing the IDs of rules that matched. Using an `IndexMap`
+    /// because we want to keep the insertion order, so that rules in
+    /// namespaces that were declared first, appear first in scan results.
+    pub matching_rules_per_ns: IndexMap<NamespaceId, Vec<RuleId>>,
     /// Number of private rules that have matched. This will be equal to or
     /// less than the length of `matching_rules`.
     pub num_matching_private_rules: usize,
     /// Number of private rules that did not match.
     pub num_non_matching_private_rules: usize,
-    /// Map containing the IDs of rules that matched. Using an `IndexMap`
-    /// because we want to keep the insertion order, so that rules in
-    /// namespaces that were declared first, appear first in scan results.
-    pub matching_rules_per_ns: IndexMap<NamespaceId, Vec<RuleId>>,
     /// Compiled rules for this scan.
     pub compiled_rules: &'r Rules,
     /// Structure that contains top-level symbols, like module names
@@ -75,8 +108,6 @@ pub(crate) struct ScanContext<'r> {
     /// Currently active structure that overrides the `root_struct` if
     /// set.
     pub current_struct: Option<Rc<Struct>>,
-    /// Module's main memory.
-    pub main_memory: Option<wasmtime::Memory>,
     /// Hash map that contains the protobuf messages returned by YARA modules.
     /// Keys are the fully qualified protobuf message name, and values are
     /// the message returned by the main function of the corresponding module.
@@ -133,7 +164,7 @@ pub(crate) struct ScanContext<'r> {
 }
 
 #[cfg(feature = "rules-profiling")]
-impl<'r> ScanContext<'r> {
+impl ScanContext<'_, '_> {
     /// Returns the slowest N rules.
     ///
     /// Profiling has an accumulative effect. When the scanner is used for
@@ -203,15 +234,26 @@ impl<'r> ScanContext<'r> {
     }
 }
 
-impl ScanContext<'_> {
+impl ScanContext<'_, '_> {
+    const DEFAULT_SCAN_TIMEOUT: u64 = 315_360_000;
+
     /// Returns a slice with the data being scanned.
-    pub(crate) fn scanned_data<'a>(&self) -> &'a [u8] {
-        unsafe {
-            std::slice::from_raw_parts::<u8>(
-                self.scanned_data,
-                self.scanned_data_len,
-            )
+    ///
+    /// Returns `None` if the current scan state is not [`ScanState::ScanningData`].
+    /// Particularly, if the state is [`ScanState::ScanningBlock`] the result is
+    /// `None`.
+    pub(crate) fn scanned_data(&self) -> Option<&[u8]> {
+        match &self.scan_state {
+            ScanState::ScanningData(data) => Some(data.as_ref()),
+            _ => None,
         }
+    }
+
+    #[inline]
+    pub(crate) fn wasm_store_mut<'a>(
+        &mut self,
+    ) -> &'a mut Store<ScanContext<'static, 'static>> {
+        unsafe { self.wasm_store.as_mut() }
     }
 
     /// Returns true of the regexp identified by the given [`RegexpId`]
@@ -255,6 +297,35 @@ impl ScanContext<'_> {
         }
     }
 
+    /// Sets the value of a global variable.
+    pub fn set_global<T: TryInto<Variable>>(
+        &mut self,
+        ident: &str,
+        value: T,
+    ) -> Result<&mut Self, VariableError>
+    where
+        VariableError: From<<T as TryInto<Variable>>::Error>,
+    {
+        if let Some(field) = self.root_struct.field_by_name_mut(ident) {
+            let variable: Variable = value.try_into()?;
+            let type_value: TypeValue = variable.into();
+            // The new type must match the old one.
+            if type_value.eq_type(&field.type_value) {
+                field.type_value = type_value;
+            } else {
+                return Err(VariableError::InvalidType {
+                    variable: ident.to_string(),
+                    expected_type: field.type_value.ty().to_string(),
+                    actual_type: type_value.ty().to_string(),
+                });
+            }
+        } else {
+            return Err(VariableError::Undefined(ident.to_string()));
+        }
+
+        Ok(self)
+    }
+
     pub(crate) fn store_struct(
         &mut self,
         s: Rc<Struct>,
@@ -283,6 +354,220 @@ impl ScanContext<'_> {
         let obj_ref = RuntimeObjectHandle(Rc::<BString>::as_ptr(&s) as i64);
         self.runtime_objects.insert_full(obj_ref, RuntimeObject::String(s));
         obj_ref
+    }
+
+    /// Set the value of the global variable `filesize`.
+    pub(crate) fn set_filesize(&mut self, filesize: i64) {
+        self.wasm_filesize
+            .unwrap()
+            .set(self.wasm_store_mut(), Val::I64(filesize))
+            .unwrap();
+    }
+
+    /// Sets a timeout for scan operations.
+    pub(crate) fn set_timeout(&mut self, timeout: Duration) -> &mut Self {
+        self.scan_timeout = Some(timeout);
+        self
+    }
+
+    /// Invoke the main function, which evaluates the rules' conditions. It
+    /// calls ScanContext::search_for_patterns (which does the Aho-Corasick
+    /// scanning) only if necessary.
+    ///
+    /// This will return `Err(ScanError::Timeout)`, when the scan timeout is
+    /// reached while WASM code is being executed.
+    pub(crate) fn eval_conditions(&mut self) -> Result<(), ScanError> {
+        // Save the time in which the evaluation started.
+        #[cfg(feature = "rules-profiling")]
+        {
+            self.rule_execution_start_time = self.clock.raw();
+        }
+        // Invoke the main function, which evaluates the rules' conditions. It
+        // calls ScanContext::search_for_patterns (which does the Aho-Corasick
+        // scanning) only if necessary.
+        //
+        // This will return Err(ScanError::Timeout), when the scan timeout is
+        // reached while WASM code is being executed.
+        let store = self.wasm_store_mut();
+        let eval_result =
+            self.wasm_main_func.as_ref().unwrap().call(store, ());
+
+        #[cfg(feature = "rules-profiling")]
+        if eval_result.is_err() {
+            // If a timeout occurs, the methods `ctx.track_rule_no_match` or
+            // `ctx.track_rule_match` may not be invoked for the currently
+            // executing rule. This means that the time spent within that rule
+            // has not been recorded yet, so we need to update it here.
+            //
+            // The ID of the rule that was running during the timeout can be
+            // determined as the one immediately following the last executed
+            // rule, based on the assumption that rules are processed in a
+            // strictly ascending ID order.
+            //
+            // Additionally, if the timeout happens after `ctx.last_executed_rule`
+            // has been updated with the last rule ID, we might end up calling
+            // `update_time_spent_in_rule` with an ID that is off by one.
+            // However, this function is designed to handle such cases
+            // gracefully.
+            self.update_time_spent_in_rule(
+                self.last_executed_rule
+                    .map_or(RuleId::from(0), |rule_id| rule_id.next()),
+            );
+        }
+
+        #[cfg(all(feature = "rules-profiling", feature = "logging"))]
+        {
+            let most_expensive_rules = self.slowest_rules(10);
+            if !most_expensive_rules.is_empty() {
+                log::info!("Most expensive rules:");
+                for profiling_data in most_expensive_rules {
+                    log::info!("+ namespace: {}", profiling_data.namespace);
+                    log::info!("  rule: {}", profiling_data.rule);
+                    log::info!(
+                        "  pattern matching time: {:?}",
+                        profiling_data.pattern_matching_time
+                    );
+                    log::info!(
+                        "  condition execution time: {:?}",
+                        profiling_data.condition_exec_time
+                    );
+                }
+            }
+        }
+
+        // `matching_rules` must be empty at this point. Matching rules were
+        // being tracked by the `matching_rules_per_ns` map, but we are about
+        // to move them to `matching_rules` while leaving the map empty.
+        assert!(self.matching_rules.is_empty());
+
+        // Move the matching rules to the `matching_rules` vector, leaving the
+        // `matching_rules_per_ns` map empty.
+        for rules in self.matching_rules_per_ns.values_mut() {
+            for rule_id in rules.drain(0..) {
+                self.matching_rules.push(rule_id);
+            }
+        }
+
+        match eval_result {
+            Ok(0) => Ok(()),
+            Ok(v) => panic!("WASM main returned: {v}"),
+            Err(err) if err.is::<ScanError>() => {
+                Err(err.downcast::<ScanError>().unwrap())
+            }
+            Err(err) => panic!(
+                "unexpected error while executing WASM main function: {err}"
+            ),
+        }
+    }
+
+    /// Resets the scan context to its initial state, making it ready for
+    /// another scan.
+    ///
+    /// This clears all the information generated during the previous scan and
+    /// resets the deadline for timeouts.
+    pub(crate) fn reset(&mut self) {
+        let num_rules = self.compiled_rules.num_rules();
+        let num_patterns = self.compiled_rules.num_patterns();
+
+        self.scan_state = ScanState::Idle;
+
+        // Free all runtime objects left around by previous scans.
+        self.runtime_objects.clear();
+
+        // Clear the array that tracks the patterns that reached the maximum
+        // number of patterns.
+        self.limit_reached.clear();
+
+        self.unconfirmed_matches.clear();
+        self.num_matching_private_rules = 0;
+        self.num_non_matching_private_rules = 0;
+
+        // Clear the value of `current_struct` as it may contain a reference
+        // to some struct.
+        self.current_struct = None;
+
+        // Move the matching rules to the `matching_rules` vector, leaving the
+        // `matching_rules_per_ns` map empty.
+        for rules in self.matching_rules_per_ns.values_mut() {
+            for rule_id in rules.drain(0..) {
+                self.matching_rules.push(rule_id);
+            }
+        }
+
+        // If some pattern or rule matched, clear the matches. Notice that a
+        // rule may match without any pattern being matched, because there
+        // are rules without patterns, or that match if the pattern is not
+        // found.
+        if !self.pattern_matches.is_empty() || !self.matching_rules.is_empty()
+        {
+            self.pattern_matches.clear();
+            self.matching_rules.clear();
+
+            let store = self.wasm_store_mut();
+            let mem = self.wasm_main_memory.unwrap().data_mut(store);
+
+            // Starting at MATCHING_RULES_BITMAP in main memory there's a
+            // bitmap were the N-th bit indicates if the rule with ID = N
+            // matched or not, If some rule matched in a previous call the
+            // bitmap will contain some bits set to 1 and need to be cleared.
+            let base = MATCHING_RULES_BITMAP_BASE as usize;
+            let bitmap = BitSlice::<_, Lsb0>::from_slice_mut(
+                &mut mem[base..base
+                    + num_rules.div_ceil(8)
+                    + num_patterns.div_ceil(8)],
+            );
+
+            // Set to zero all bits in the bitmap.
+            bitmap.fill(false);
+        }
+
+        // Timeout in seconds. This is either the value provided by the user or
+        // 315.360.000 which is the number of seconds in a year. Using u64::MAX
+        // doesn't work because this value is added to the current epoch, and
+        // will cause an overflow. We need an integer large enough, but that
+        // has room before the u64 limit is reached. For this same reason if
+        // the user specifies a value larger than 315.360.000 we limit it to
+        // 315.360.000 anyway. One year should be enough, I hope you don't plan
+        // to run a YARA scan that takes longer.
+        let timeout_secs =
+            self.scan_timeout.map_or(Self::DEFAULT_SCAN_TIMEOUT, |t| {
+                cmp::min(
+                    t.as_secs_f32().ceil() as u64,
+                    Self::DEFAULT_SCAN_TIMEOUT,
+                )
+            });
+
+        self.deadline =
+            HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
+
+        let wasm_store = self.wasm_store_mut();
+
+        // Sets the deadline for the WASM store. The WASM main function
+        // will abort if the deadline is reached while the function is being
+        // executed.
+        wasm_store.set_epoch_deadline(timeout_secs);
+        wasm_store.epoch_deadline_callback(|_| Err(ScanError::Timeout.into()));
+
+        // If some timeout was specified, start the heartbeat thread, if
+        // not previously started. The heartbeat thread increments the WASM
+        // engine epoch and HEARTBEAT_COUNTER every second. There's a single
+        // instance of this thread, independently of the number of concurrent
+        // scans.
+        if self.scan_timeout.is_some() {
+            INIT_HEARTBEAT.call_once(|| {
+                thread::spawn(|| loop {
+                    thread::sleep(Duration::from_secs(1));
+                    wasm::get_engine().increment_epoch();
+                    HEARTBEAT_COUNTER
+                        .fetch_update(
+                            Ordering::SeqCst,
+                            Ordering::SeqCst,
+                            |x| Some(x + 1),
+                        )
+                        .unwrap();
+                });
+            });
+        }
     }
 
     /// Update the time spent in the rule with the given ID, the time is
@@ -325,8 +610,8 @@ impl ScanContext<'_> {
             if let Some(rules) =
                 self.matching_rules_per_ns.get_mut(&rule.namespace_id)
             {
-                let wasm_store = unsafe { self.wasm_store.as_mut() };
-                let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
+                let store = unsafe { self.wasm_store.as_mut() };
+                let main_mem = self.wasm_main_memory.unwrap().data_mut(store);
 
                 let base = MATCHING_RULES_BITMAP_BASE as usize;
                 let num_rules = self.compiled_rules.num_rules();
@@ -383,8 +668,8 @@ impl ScanContext<'_> {
             self.num_matching_private_rules += 1;
         }
 
-        let wasm_store = unsafe { self.wasm_store.as_mut() };
-        let mem = self.main_memory.unwrap().data_mut(wasm_store);
+        let wasm_store = self.wasm_store_mut();
+        let mem = self.wasm_main_memory.unwrap().data_mut(wasm_store);
         let num_rules = self.compiled_rules.num_rules();
 
         let base = MATCHING_RULES_BITMAP_BASE as usize;
@@ -415,8 +700,8 @@ impl ScanContext<'_> {
         match_: Match,
         replace_if_longer: bool,
     ) {
-        let wasm_store = unsafe { self.wasm_store.as_mut() };
-        let mem = self.main_memory.unwrap().data_mut(wasm_store);
+        let wasm_store = self.wasm_store_mut();
+        let mem = self.wasm_main_memory.unwrap().data_mut(wasm_store);
         let num_rules = self.compiled_rules.num_rules();
         let num_patterns = self.compiled_rules.num_patterns();
 
@@ -432,7 +717,7 @@ impl ScanContext<'_> {
         }
     }
 
-    /// Search for patterns in the data.
+    /// Search for patterns in the scanned data.
     ///
     /// The pattern search phase is when YARA scans the data looking for the
     /// patterns declared in rules. All the patterns are searched simultaneously
@@ -444,13 +729,6 @@ impl ScanContext<'_> {
     /// without looking for any of the patterns. If it must be called, it will be
     /// called only once.
     pub(crate) fn search_for_patterns(&mut self) -> Result<(), ScanError> {
-        #[cfg(any(feature = "rules-profiling", feature = "logging"))]
-        let scan_start = self.clock.raw();
-
-        // Verify the anchored patterns first. These are patterns that can match
-        // at a single known offset within the data.
-        self.verify_anchored_patterns();
-
         let ac = self.compiled_rules.ac_automaton();
 
         let mut vm = VM {
@@ -459,12 +737,28 @@ impl ScanContext<'_> {
         };
 
         let atoms = self.compiled_rules.atoms();
-        let scanned_data = self.scanned_data();
+
+        #[cfg(any(feature = "rules-profiling", feature = "logging"))]
+        let scan_start = self.clock.raw();
 
         #[cfg(feature = "logging")]
         let mut atom_matches = 0_usize;
 
-        for ac_match in ac.find_overlapping_iter(scanned_data) {
+        // Take ownership of the scan state, while searching for
+        // the patterns, `self.scan_state` is left as `Idle`.
+        let state = self.scan_state.take();
+
+        let (base, data) = match &state {
+            ScanState::ScanningData(data) => (0, data.as_ref()),
+            ScanState::ScanningBlock((base, data)) => (*base, *data),
+            _ => panic!(),
+        };
+
+        // Verify the anchored pattern first. These are patterns that can
+        // match at a single known offset within the data.
+        self.verify_anchored_patterns(base, data);
+
+        for ac_match in ac.find_overlapping_iter(data) {
             #[cfg(feature = "logging")]
             {
                 atom_matches += 1;
@@ -529,12 +823,12 @@ impl ScanContext<'_> {
 
                 let match_range = atom_pos..atom_pos + atom.len();
 
-                if verify_full_word(scanned_data, &match_range, *flags, None) {
+                if verify_full_word(data, &match_range, *flags, None) {
                     self.handle_sub_pattern_match(
                         sub_pattern_id,
                         sub_pattern,
                         *pattern_id,
-                        Match { range: match_range, xor_key: None },
+                        Match::new(match_range).rebase(base),
                     );
                 }
 
@@ -545,20 +839,19 @@ impl ScanContext<'_> {
                 SubPattern::Literal { pattern, flags, .. }
                 | SubPattern::LiteralChainHead { pattern, flags, .. }
                 | SubPattern::LiteralChainTail { pattern, flags, .. } => {
-                    if let Some(match_) = verify_literal_match(
-                        self.compiled_rules
-                            .lit_pool()
-                            .get_bytes(*pattern)
-                            .unwrap(),
-                        scanned_data,
-                        atom_pos,
-                        *flags,
-                    ) {
+                    let pattern = self
+                        .compiled_rules
+                        .lit_pool()
+                        .get_bytes(*pattern)
+                        .unwrap();
+
+                    if verify_literal_match(pattern, data, atom_pos, *flags) {
                         self.handle_sub_pattern_match(
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            match_,
+                            Match::new(atom_pos..atom_pos + pattern.len())
+                                .rebase(base),
                         );
                     }
                 }
@@ -567,49 +860,50 @@ impl ScanContext<'_> {
                 | SubPattern::RegexpChainTail { flags, .. } => {
                     verify_regexp_match(
                         &mut vm,
-                        scanned_data,
+                        data,
                         atom_pos,
                         atom,
                         *flags,
-                        |match_| {
+                        |match_range| {
                             self.handle_sub_pattern_match(
                                 sub_pattern_id,
                                 sub_pattern,
                                 *pattern_id,
-                                match_,
+                                Match::new(match_range).rebase(base),
                             );
                         },
                     )
                 }
 
                 SubPattern::Xor { pattern, flags } => {
-                    if let Some(match_) = verify_xor_match(
-                        self.compiled_rules
-                            .lit_pool()
-                            .get_bytes(*pattern)
-                            .unwrap(),
-                        scanned_data,
-                        atom_pos,
-                        atom,
-                        *flags,
-                    ) {
+                    let pattern = self
+                        .compiled_rules
+                        .lit_pool()
+                        .get_bytes(*pattern)
+                        .unwrap();
+
+                    if let Some(key) =
+                        verify_xor_match(pattern, data, atom_pos, atom, *flags)
+                    {
                         self.handle_sub_pattern_match(
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            match_,
+                            Match::new(atom_pos..atom_pos + pattern.len())
+                                .rebase(base)
+                                .xor_key(key),
                         );
                     }
                 }
 
                 SubPattern::Base64 { pattern, padding }
                 | SubPattern::Base64Wide { pattern, padding } => {
-                    if let Some(match_) = verify_base64_match(
+                    if let Some(match_range) = verify_base64_match(
                         self.compiled_rules
                             .lit_pool()
                             .get_bytes(*pattern)
                             .unwrap(),
-                        scanned_data,
+                        data,
                         (*padding).into(),
                         atom_pos,
                         None,
@@ -619,7 +913,7 @@ impl ScanContext<'_> {
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            match_,
+                            Match::new(match_range).rebase(base),
                         );
                     }
                 }
@@ -645,12 +939,12 @@ impl ScanContext<'_> {
 
                     assert!(alphabet.is_some());
 
-                    if let Some(match_) = verify_base64_match(
+                    if let Some(match_range) = verify_base64_match(
                         self.compiled_rules
                             .lit_pool()
                             .get_bytes(*pattern)
                             .unwrap(),
-                        scanned_data,
+                        data,
                         (*padding).into(),
                         atom_pos,
                         alphabet,
@@ -663,7 +957,7 @@ impl ScanContext<'_> {
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            match_,
+                            Match::new(match_range).rebase(base),
                         );
                     }
                 }
@@ -708,10 +1002,13 @@ impl ScanContext<'_> {
                 scan_end.saturating_sub(scan_start);
         }
 
+        // Bring back ownership of the scanned to the ScanContext.
+        self.scan_state = state;
+
         Ok(())
     }
 
-    fn verify_anchored_patterns(&mut self) {
+    fn verify_anchored_patterns(&mut self, base: usize, data: &[u8]) {
         for (sub_pattern_id, (pattern_id, sub_pattern)) in self
             .compiled_rules
             .anchored_sub_patterns()
@@ -725,21 +1022,26 @@ impl ScanContext<'_> {
                     anchored_at: Some(offset),
                     ..
                 } => {
-                    if let Some(match_) = verify_literal_match(
-                        self.compiled_rules
+                    // Make the offset relative to the block's base. If an
+                    // overflow occurs is because the block's base is larger
+                    // than the offset, in such cases the match can't occur.
+                    if let (offset, false) = offset.overflowing_sub(base) {
+                        let pattern = self
+                            .compiled_rules
                             .lit_pool()
                             .get_bytes(*pattern)
-                            .unwrap(),
-                        self.scanned_data(),
-                        *offset,
-                        *flags,
-                    ) {
-                        self.handle_sub_pattern_match(
-                            *sub_pattern_id,
-                            sub_pattern,
-                            *pattern_id,
-                            match_,
-                        );
+                            .unwrap();
+
+                        if verify_literal_match(pattern, data, offset, *flags)
+                        {
+                            self.handle_sub_pattern_match(
+                                *sub_pattern_id,
+                                sub_pattern,
+                                *pattern_id,
+                                Match::new(offset..offset + pattern.len())
+                                    .rebase(base),
+                            );
+                        }
                     }
                 }
                 _ => unreachable!(),
@@ -801,7 +1103,7 @@ impl ScanContext<'_> {
                         self.verify_chain_of_matches(
                             pattern_id,
                             sub_pattern_id,
-                            match_.range,
+                            match_,
                         );
                     } else {
                         // This sub-pattern is in the middle of the
@@ -871,32 +1173,36 @@ impl ScanContext<'_> {
         &mut self,
         pattern_id: PatternId,
         tail_sub_pattern_id: SubPatternId,
-        tail_match_range: Range<usize>,
+        tail_match: Match,
     ) {
         let mut queue = VecDeque::new();
 
-        queue.push_back((tail_sub_pattern_id, tail_match_range, 1));
+        queue.push_back((
+            tail_sub_pattern_id,
+            UnconfirmedMatch {
+                range: tail_match.range.clone(),
+                chain_length: 1,
+            },
+        ));
 
         let mut tail_chained_to: Option<SubPatternId> = None;
-        let mut tail_match_range: Option<Range<usize>> = None;
 
-        while let Some((id, match_range, chain_length)) = queue.pop_front() {
+        while let Some((id, current_match)) = queue.pop_front() {
             match &self.compiled_rules.get_sub_pattern(id).1 {
                 SubPattern::LiteralChainHead { flags, .. }
                 | SubPattern::RegexpChainHead { flags, .. } => {
-                    // The chain head is reached, and we know the range where
-                    // the tail matches. This indicates that the whole chain is
-                    // valid, and we have a full match.
-                    if let Some(tail_match_range) = &tail_match_range {
-                        self.track_pattern_match(
-                            pattern_id,
-                            Match {
-                                range: match_range.start..tail_match_range.end,
-                                xor_key: None,
-                            },
-                            flags.contains(SubPatternFlags::GreedyRegexp),
-                        );
-                    }
+                    // The chain head is reached. This indicates that the whole
+                    // chain is valid, and we have a full match.
+                    self.track_pattern_match(
+                        pattern_id,
+                        Match {
+                            base: tail_match.base,
+                            range: current_match.range.start
+                                ..tail_match.range.end,
+                            xor_key: None,
+                        },
+                        flags.contains(SubPatternFlags::GreedyRegexp),
+                    );
 
                     let mut next_pattern_id = tail_chained_to;
 
@@ -904,9 +1210,9 @@ impl ScanContext<'_> {
                         if let Some(unconfirmed_matches) =
                             self.unconfirmed_matches.get_mut(&id)
                         {
-                            for m in unconfirmed_matches {
-                                m.chain_length = 0;
-                            }
+                            unconfirmed_matches
+                                .iter_mut()
+                                .for_each(|m| m.chain_length = 0);
                         }
                         let (_, sub_pattern) =
                             self.compiled_rules.get_sub_pattern(id);
@@ -926,49 +1232,45 @@ impl ScanContext<'_> {
                     // sub-pattern that comes before in the chain. For example,
                     // if the chain is P1 <- P2, and we just found a match for
                     // P2, iterate over the unconfirmed matches for P1.
-                    if let Some(unconfirmed_matches) =
-                        self.unconfirmed_matches.get_mut(chained_to)
-                    {
-                        // Check whether the current match is at a correct
-                        // distance from each of the unconfirmed matches.
-                        for m in unconfirmed_matches {
-                            let in_range = match gap {
-                                ChainedPatternGap::Bounded(gap) => {
-                                    let min_gap = *gap.start() as usize;
-                                    let max_gap = *gap.end() as usize;
-                                    (m.range.end + min_gap
-                                        ..=m.range.end + max_gap)
-                                        .contains(&match_range.start)
-                                }
-                                ChainedPatternGap::Unbounded(gap) => {
-                                    let min_gap = gap.start as usize;
-                                    (m.range.end + min_gap..)
-                                        .contains(&match_range.start)
-                                }
-                            };
-                            // Besides checking that the unconfirmed match lays
-                            // at a correct distance from the current match, we
-                            // also check that the chain length associated to
-                            // the unconfirmed match doesn't exceed the current
-                            // chain length.
-                            if in_range && m.chain_length <= chain_length {
-                                m.chain_length = chain_length + 1;
-                                queue.push_back((
-                                    *chained_to,
-                                    m.range.clone(),
-                                    m.chain_length,
-                                ));
+                    let unconfirmed_matches =
+                        match self.unconfirmed_matches.get_mut(chained_to) {
+                            Some(m) => m,
+                            None => continue,
+                        };
+
+                    // Check whether the current match is at a correct distance
+                    // from each of the unconfirmed matches.
+                    for m in unconfirmed_matches {
+                        let in_range = match gap {
+                            ChainedPatternGap::Bounded(gap) => {
+                                let min_gap = *gap.start() as usize;
+                                let max_gap = *gap.end() as usize;
+                                (m.range.end + min_gap..=m.range.end + max_gap)
+                                    .contains(&current_match.range.start)
                             }
+                            ChainedPatternGap::Unbounded(gap) => {
+                                let min_gap = gap.start as usize;
+                                (m.range.end + min_gap..)
+                                    .contains(&current_match.range.start)
+                            }
+                        };
+                        // Besides checking that the unconfirmed match lays at
+                        // a correct distance from the current match, we also
+                        // check that the chain length associated to the
+                        // unconfirmed match doesn't exceed the current chain
+                        // length.
+                        if in_range
+                            && m.chain_length <= current_match.chain_length
+                        {
+                            m.chain_length = current_match.chain_length + 1;
+                            queue.push_back((*chained_to, m.clone()))
                         }
                     }
 
-                    if flags.contains(SubPatternFlags::LastInChain) {
-                        // Take note of the range where the tail matched.
-                        tail_match_range = Some(match_range.clone());
-
-                        if flags.contains(SubPatternFlags::GreedyRegexp) {
-                            tail_chained_to = Some(*chained_to);
-                        }
+                    if flags.contains(SubPatternFlags::LastInChain)
+                        && flags.contains(SubPatternFlags::GreedyRegexp)
+                    {
+                        tail_chained_to = Some(*chained_to);
                     }
                 }
                 _ => unreachable!(),
@@ -977,49 +1279,39 @@ impl ScanContext<'_> {
     }
 }
 
-/// Verifies if a literal `pattern` matches at `atom_pos` in `scanned_data`.
-///
-/// Returns a [`Match`] if the match was confirmed or [`None`] if otherwise.
+/// Verifies if a literal `pattern` matches at `match_start` in `scanned_data`.
 fn verify_literal_match(
     pattern: &[u8],
     scanned_data: &[u8],
-    atom_pos: usize,
+    match_start: usize,
     flags: SubPatternFlags,
-) -> Option<Match> {
+) -> bool {
     // Offset where the match should end (exclusive).
-    let match_end = atom_pos + pattern.len();
+    let match_end = match_start + pattern.len();
 
     // The match can not end past the end of the scanned data.
     if match_end > scanned_data.len() {
-        return None;
+        return false;
     }
 
     if flags.intersects(
         SubPatternFlags::FullwordLeft | SubPatternFlags::FullwordRight,
     ) && !verify_full_word(
         scanned_data,
-        &(atom_pos..match_end),
+        &(match_start..match_end),
         flags,
         None,
     ) {
-        return None;
+        return false;
     }
 
     let match_found = if flags.contains(SubPatternFlags::Nocase) {
-        pattern.eq_ignore_ascii_case(&scanned_data[atom_pos..match_end])
+        pattern.eq_ignore_ascii_case(&scanned_data[match_start..match_end])
     } else {
-        &scanned_data[atom_pos..match_end] == pattern.as_bytes()
+        &scanned_data[match_start..match_end] == pattern.as_bytes()
     };
 
-    if match_found {
-        Some(Match {
-            // The end of the range is exclusive.
-            range: atom_pos..match_end,
-            xor_key: None,
-        })
-    } else {
-        None
-    }
+    match_found
 }
 
 /// Returns true if the match delimited by `match_range` is a full word match.
@@ -1070,7 +1362,7 @@ fn verify_full_word(
     true
 }
 
-/// When some `atom` belonging to a regexp is found at `atom_pos`, verify
+/// When some `atom` belonging to a regexp is found at `match_start`, verify
 /// that the regexp actually matches.
 ///
 /// This function can produce multiple matches, `f` is called for every
@@ -1078,10 +1370,10 @@ fn verify_full_word(
 fn verify_regexp_match(
     vm: &mut VM,
     scanned_data: &[u8],
-    atom_pos: usize,
+    match_start: usize,
     atom: &SubPatternAtom,
     flags: SubPatternFlags,
-    mut f: impl FnMut(Match),
+    mut f: impl FnMut(Range<usize>),
 ) {
     let mut fwd_match_len = None;
 
@@ -1094,7 +1386,7 @@ fn verify_regexp_match(
         if flags.contains(SubPatternFlags::FastRegexp) {
             vm.fast_vm.try_match(
                 fwd_code,
-                &scanned_data[atom_pos..],
+                &scanned_data[match_start..],
                 flags.contains(SubPatternFlags::Wide),
                 |match_len| {
                     fwd_match_len = Some(match_len);
@@ -1108,8 +1400,8 @@ fn verify_regexp_match(
         } else {
             vm.pike_vm.try_match(
                 fwd_code,
-                &scanned_data[atom_pos..],
-                &scanned_data[..atom_pos],
+                &scanned_data[match_start..],
+                &scanned_data[..match_start],
                 flags.contains(SubPatternFlags::Wide),
                 |match_len| {
                     fwd_match_len = Some(match_len);
@@ -1130,13 +1422,13 @@ fn verify_regexp_match(
         if flags.contains(SubPatternFlags::FastRegexp) {
             vm.fast_vm.try_match(
                 bck_code,
-                &scanned_data[..atom_pos],
+                &scanned_data[..match_start],
                 flags.contains(SubPatternFlags::Wide),
                 |bck_match_len| {
-                    let range =
-                        atom_pos - bck_match_len..atom_pos + fwd_match_len;
+                    let range = match_start - bck_match_len
+                        ..match_start + fwd_match_len;
                     if verify_full_word(scanned_data, &range, flags, None) {
-                        f(Match { range, xor_key: None });
+                        f(range);
                     }
                     Action::Continue
                 },
@@ -1144,40 +1436,40 @@ fn verify_regexp_match(
         } else {
             vm.pike_vm.try_match(
                 bck_code,
-                &scanned_data[atom_pos..],
-                &scanned_data[..atom_pos],
+                &scanned_data[match_start..],
+                &scanned_data[..match_start],
                 flags.contains(SubPatternFlags::Wide),
                 |bck_match_len| {
-                    let range =
-                        atom_pos - bck_match_len..atom_pos + fwd_match_len;
+                    let range = match_start - bck_match_len
+                        ..match_start + fwd_match_len;
                     if verify_full_word(scanned_data, &range, flags, None) {
-                        f(Match { range, xor_key: None });
+                        f(range);
                     }
                     Action::Continue
                 },
             );
         }
     } else {
-        let range = atom_pos..atom_pos + fwd_match_len;
+        let range = match_start..match_start + fwd_match_len;
         if verify_full_word(scanned_data, &range, flags, None) {
-            f(Match { range, xor_key: None });
+            f(range);
         }
     }
 }
 
-/// Verifies that a literal sub-pattern actually matches in XORed form
-/// at the position where an atom was found.
+/// Verifies that `pattern` actually matches in XORed form at `match_start`
+/// within `scanned_data`.
 ///
-/// Returns a [`Match`] if the match was confirmed or [`None`] if otherwise.
+/// Returns the XOR key if the match was confirmed, or [`None`] if otherwise.
 fn verify_xor_match(
     pattern: &[u8],
     scanned_data: &[u8],
-    atom_pos: usize,
+    match_start: usize,
     atom: &SubPatternAtom,
     flags: SubPatternFlags,
-) -> Option<Match> {
+) -> Option<u8> {
     // Offset where the match should end (exclusive).
-    let match_end = atom_pos + pattern.len();
+    let match_end = match_start + pattern.len();
 
     // The match can not end past the end of the scanned data.
     if match_end > scanned_data.len() {
@@ -1189,45 +1481,45 @@ fn verify_xor_match(
     // the corresponding byte in the pattern.
     let key = atom.as_slice()[0] ^ pattern[atom.backtrack()];
 
-    let match_range = atom_pos..match_end;
+    let match_range = match_start..match_end;
 
     if !verify_full_word(scanned_data, &match_range, flags, Some(key)) {
         return None;
     }
 
     if key == 0 {
-        if !memeq(pattern, &scanned_data[atom_pos..match_end]) {
+        if !memeq(pattern, &scanned_data[match_start..match_end]) {
             return None;
         }
     } else {
-        for (i, b) in scanned_data[atom_pos..match_end].iter().enumerate() {
+        for (i, b) in scanned_data[match_start..match_end].iter().enumerate() {
             if pattern[i] != b ^ key {
                 return None;
             }
         }
     }
 
-    Some(Match { range: match_range, xor_key: Some(key) })
+    Some(key)
 }
 
-/// Verifies that a literal sub-pattern actually matches in base64 form at
-/// the offset where some atom.
+/// Verifies that `pattern` actually matches in base64 form at `match_start`
+/// within `scanned_data`.
 ///
-/// Returns a [`Match`] if the match was confirmed or [`None`] if otherwise.
+/// Returns the range where the match was found or [`None`] if otherwise.
 fn verify_base64_match(
     pattern: &[u8],
     scanned_data: &[u8],
     padding: usize,
-    atom_pos: usize,
+    match_start: usize,
     alphabet: Option<base64::alphabet::Alphabet>,
     wide: bool,
-) -> Option<Match> {
+) -> Option<Range<usize>> {
     // The pattern is passed to this function in its original form, before
     // being encoded as base64. Compute the size of the pattern once it is
     // encoded as base64.
     let len = base64::encoded_len(pattern.len(), false)?;
 
-    // A portion of the pattern in base64 form was found at `atom_pos`,
+    // A portion of the pattern in base64 form was found at `match_start`,
     // but decoding the base64 string starting at that offset is not ok
     // because some characters may have been removed from both the left
     // and the right sides of the base64 string that has been found. For
@@ -1291,10 +1583,10 @@ fn verify_base64_match(
     }
 
     // decode_range is the range within the scanned data that we are going
-    // to decode as base64. It starts at atom_pos - decode_start_delta,
-    // but if atom_pos < decode_start_delta this is not a real match.
+    // to decode as base64. It starts at match_start - decode_start_delta,
+    // but if match_start < decode_start_delta this is not a real match.
     let mut decode_range = if let (decode_start, false) =
-        atom_pos.overflowing_sub(decode_start_delta)
+        match_start.overflowing_sub(decode_start_delta)
     {
         decode_start..decode_start + decode_len
     } else {
@@ -1317,7 +1609,7 @@ fn verify_base64_match(
         // that bytes at odd positions are zeroes.
         let mut ascii = Vec::with_capacity(decode_range.len() / 2);
         for (i, b) in scanned_data[decode_range].iter().enumerate() {
-            if i % 2 == 0 {
+            if i.is_multiple_of(2) {
                 // Padding (=) is not added to ASCII string.
                 if *b != b'=' {
                     ascii.push(*b)
@@ -1348,7 +1640,7 @@ fn verify_base64_match(
         decoded.as_ref().ok()?.get(padding..padding + pattern.len())?;
 
     if pattern.eq(decoded_pattern) {
-        Some(Match { range: atom_pos..atom_pos + match_len, xor_key: None })
+        Some(match_start..match_start + match_len)
     } else {
         None
     }
@@ -1422,4 +1714,157 @@ impl From<i64> for RuntimeObjectHandle {
     fn from(value: i64) -> Self {
         Self(value)
     }
+}
+
+pub fn create_wasm_store_and_ctx<'r>(
+    rules: &'r Rules,
+) -> Pin<Box<Store<ScanContext<'static, 'static>>>> {
+    let num_rules = rules.num_rules() as u32;
+    let num_patterns = rules.num_patterns() as u32;
+
+    let ctx = ScanContext {
+        runtime_objects: IndexMap::new(),
+        compiled_rules: rules,
+        console_log: None,
+        current_struct: None,
+        scan_timeout: None,
+        scan_state: ScanState::Idle,
+        root_struct: rules.globals().make_root(),
+        matching_rules: Vec::new(),
+        matching_rules_per_ns: IndexMap::new(),
+        num_matching_private_rules: 0,
+        num_non_matching_private_rules: 0,
+        wasm_store: NonNull::dangling(),
+        wasm_module: MaybeUninit::uninit(),
+        wasm_main_memory: None,
+        wasm_main_func: None,
+        wasm_filesize: None,
+        module_outputs: FxHashMap::default(),
+        user_provided_module_outputs: FxHashMap::default(),
+        pattern_matches: PatternMatches::new(),
+        unconfirmed_matches: FxHashMap::default(),
+        deadline: 0,
+        limit_reached: FxHashSet::default(),
+        regexp_cache: RefCell::new(FxHashMap::default()),
+        #[cfg(feature = "rules-profiling")]
+        time_spent_in_pattern: FxHashMap::default(),
+        #[cfg(feature = "rules-profiling")]
+        time_spent_in_rule: vec![0; num_rules as usize],
+        #[cfg(feature = "rules-profiling")]
+        rule_execution_start_time: 0,
+        #[cfg(feature = "rules-profiling")]
+        last_executed_rule: None,
+        #[cfg(any(feature = "rules-profiling", feature = "logging"))]
+        clock: quanta::Clock::new(),
+    };
+
+    // The ScanContext structure belongs to the WASM store, but at the same
+    // time the context must have a reference to the store because it is
+    // required for accessing the WASM memory from code that only has a
+    // reference to ScanContext. This kind of circular data structures are
+    // not natural to Rust, and they can be achieved either by using unsafe
+    // pointers, or by using Rc::Weak. In this case we are storing a pointer
+    // to the store in ScanContext. The store is put into a pinned box in order
+    // to make sure that it doesn't move from its original memory address and
+    // the pointer remains valid.
+    //
+    // Also, the `Store` type requires a type T that is static, therefore
+    // we are forced to transmute the ScanContext<'r> into ScanContext<'static>.
+    // This is safe to do because the Store only lives for the time that
+    // the scanner lives, and 'r is the lifetime for the rules passed to
+    // the scanner, which are guaranteed to outlive the scanner.
+    let mut wasm_store = Box::pin(Store::new(wasm::get_engine(), unsafe {
+        transmute::<ScanContext<'r, '_>, ScanContext<'static, 'static>>(ctx)
+    }));
+
+    // Initialize the ScanContext.wasm_store pointer that was initially
+    // dangling.
+    wasm_store.data_mut().wasm_store =
+        NonNull::from(wasm_store.as_ref().deref());
+
+    // Global variable that will hold the value for `filesize`. This is
+    // initialized to -1 (which means undefined) because the file size
+    // is not known until some data is scanned.
+    let filesize = Global::new(
+        wasm_store.as_context_mut(),
+        GlobalType::new(ValType::I64, Mutability::Var),
+        Val::I64(-1),
+    )
+    .unwrap();
+
+    // Global variable that is set to `true` when the Aho-Corasick pattern
+    // search phase has been executed.
+    let pattern_search_done = Global::new(
+        wasm_store.as_context_mut(),
+        GlobalType::new(ValType::I32, Mutability::Var),
+        Val::I32(0),
+    )
+    .unwrap();
+
+    // Compute the base offset for the bitmap that contains matching
+    // information for patterns. This bitmap has 1 bit per pattern, the
+    // N-th bit is set if pattern with PatternId = N matched. The bitmap
+    // starts right after the bitmap that contains matching information
+    // for rules.
+    let matching_patterns_bitmap_base =
+        MATCHING_RULES_BITMAP_BASE as u32 + num_rules.div_ceil(8);
+
+    // Compute the required memory size in 64KB pages.
+    let mem_size = u32::div_ceil(
+        matching_patterns_bitmap_base + num_patterns.div_ceil(8),
+        65536,
+    );
+
+    let matching_patterns_bitmap_base = Global::new(
+        wasm_store.as_context_mut(),
+        GlobalType::new(ValType::I32, Mutability::Const),
+        Val::I32(matching_patterns_bitmap_base as i32),
+    )
+    .unwrap();
+
+    // Create module's main memory.
+    let main_memory = wasmtime::Memory::new(
+        wasm_store.as_context_mut(),
+        MemoryType::new(mem_size, Some(mem_size)),
+    )
+    .unwrap();
+
+    // Instantiate the module. This takes the wasm code provided by the
+    // `wasm_mod` function and links its imported functions with the
+    // implementations that YARA provides.
+    let wasm_instance = wasm::new_linker()
+        .define(wasm_store.as_context(), "yara_x", "filesize", filesize)
+        .unwrap()
+        .define(
+            wasm_store.as_context(),
+            "yara_x",
+            "pattern_search_done",
+            pattern_search_done,
+        )
+        .unwrap()
+        .define(
+            wasm_store.as_context(),
+            "yara_x",
+            "matching_patterns_bitmap_base",
+            matching_patterns_bitmap_base,
+        )
+        .unwrap()
+        .define(wasm_store.as_context(), "yara_x", "main_memory", main_memory)
+        .unwrap()
+        .instantiate(wasm_store.as_context_mut(), rules.wasm_mod())
+        .unwrap();
+
+    // Obtain a reference to the "main" function exported by the module.
+    let main_fn = wasm_instance
+        .get_typed_func::<(), i32>(wasm_store.as_context_mut(), "main")
+        .unwrap();
+
+    let ctx = wasm_store.data_mut();
+
+    ctx.wasm_module = MaybeUninit::new(wasm_instance);
+    ctx.wasm_main_memory = Some(main_memory);
+    ctx.wasm_main_func = Some(main_fn);
+    ctx.wasm_filesize = Some(filesize);
+
+    wasm_store
 }

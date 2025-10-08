@@ -23,7 +23,7 @@ impl YRX_RULES {
     }
 }
 
-/// Callback function passed to [`yrx_scanner_on_matching_rule`] or
+/// Callback function passed to `yrx_scanner_on_matching_rule` or
 /// [`yrx_rules_iter`].
 ///
 /// The callback receives a pointer to a rule, represented by a [`YRX_RULE`]
@@ -79,7 +79,7 @@ pub unsafe extern "C" fn yrx_rules_count(rules: *mut YRX_RULES) -> c_int {
 /// that contains the serialized rules. This structure has a pointer to the
 /// data itself, and its length.
 ///
-/// The [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
+/// The [`YRX_BUFFER`] must be destroyed with `yrx_buffer_destroy`.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_rules_serialize(
     rules: *const YRX_RULES,

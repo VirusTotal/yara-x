@@ -1891,6 +1891,19 @@ fn re_error_to_compile_error(
                 ),
             )
         }
+        re::parser::Error::UnsupportedInUnicode { span } => {
+            InvalidRegexp::build(
+                report_builder,
+                err.to_string(),
+                report_builder.span_to_code_loc(
+                    regexp
+                        .span()
+                        .subspan(span.start.offset, span.end.offset)
+                        .offset(1),
+                ),
+                None,
+            )
+        }
         re::parser::Error::MixedGreediness {
             is_greedy_1,
             is_greedy_2,

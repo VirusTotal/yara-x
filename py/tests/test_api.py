@@ -160,7 +160,7 @@ def test_metadata():
       ("bar", 2.0),
       ("baz", True),
       ("qux", "qux"),
-      ("quux", "qu\0x")
+      ("quux", "qu\x00x")
   )
 
 
@@ -217,6 +217,19 @@ def test_scanner_timeout():
   scanner.set_timeout(1)
   with pytest.raises(yara_x.TimeoutError):
     scanner.scan(b'foobar')
+
+def test_scanner_max_matches_per_pattern():
+  compiler = yara_x.Compiler()
+  compiler.add_source('rule test {strings: $a = "." condition: #a > 1}')
+
+  scanner = yara_x.Scanner(compiler.build())
+  scanner.max_matches_per_pattern(1)
+  matching_rules = scanner.scan(b'..').matching_rules
+  assert len(matching_rules) == 0
+
+  scanner.max_matches_per_pattern(2)
+  matching_rules = scanner.scan(b'..').matching_rules
+  assert len(matching_rules) == 1
 
 
 def test_module_outputs():
@@ -334,4 +347,22 @@ def test_compiler_disables_includes():
 
   with pytest.raises(yara_x.CompileError,
                      match="include statements not allowed"):
-    compiler.add_source(f'include "foo.yar"\\nrule main {{ condition: true }}')
+    compiler.add_source(f'include "foo.yar"\nrule main {{ condition: true }}')
+
+
+def test_rules_iterator():
+  rules = yara_x.compile('''
+rule foo {
+  condition:
+    true
+}
+rule bar {
+  condition:
+    true
+}
+''')
+
+  rules_list = list(rules)
+  assert len(rules_list) == 2
+  assert rules_list[0].identifier == 'foo'
+  assert rules_list[1].identifier == 'bar'

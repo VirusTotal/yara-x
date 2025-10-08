@@ -42,7 +42,7 @@ assert_eq!(results.matching_rules().len(), 1);
 */
 
 #![deny(missing_docs)]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 extern crate core;
 
 pub use compiler::compile;
@@ -59,6 +59,7 @@ pub use models::PatternKind;
 pub use models::Patterns;
 pub use models::Rule;
 pub use modules::mods;
+pub use scanner::blocks;
 pub use scanner::MatchingRules;
 pub use scanner::ModuleOutputs;
 pub use scanner::NonMatchingRules;
@@ -140,4 +141,34 @@ mod utils {
     }
 
     pub(crate) use cast;
+}
+
+/// Finalizes YARA-X.
+///
+/// This function only needs to be called in a very specific scenario:
+/// when YARA-X is used as a dynamically loaded library (`.so`, `.dll`,
+/// `.dylib`) **and** that library must be unloaded at runtime.
+///
+/// Its primary purpose is to remove the process-wide signal handlers
+/// installed by the [wasmtime] engine.
+///
+/// # Safety
+///
+/// This function is **unsafe** to call under normal circumstances. It has
+/// strict preconditions that must be met:
+///
+/// - There must be no other active `wasmtime` engines in the process. This
+///   applies not only to clones of the engine used by YARA-X (which should not
+///   exist because YARA-X uses a single copy of its engine), but to *any*
+///   `wasmtime` engine, since global state shared by all engines is torn
+///   down.
+///
+/// - On Unix platforms, no other signal handlers may have been installed
+///   for signals intercepted by `wasmtime`. If other handlers have been set,
+///   `wasmtime` cannot reliably restore the original state, which may lead
+///   to undefined behavior.
+///
+/// [wasmtime]: https://wasmtime.dev/
+pub unsafe fn finalize() {
+    wasm::free_engine();
 }

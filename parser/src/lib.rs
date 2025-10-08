@@ -22,7 +22,7 @@ solve.
  */
 
 use std::fmt::{Display, Formatter};
-use std::ops::{Add, Range, Sub};
+use std::ops::Range;
 
 pub use parser::Parser;
 
@@ -128,11 +128,13 @@ impl Span {
     /// ```
     pub fn offset(mut self, offset: isize) -> Self {
         if offset.is_negative() {
-            self.0.start = self.0.start.sub(offset.unsigned_abs() as u32);
-            self.0.end = self.0.end.sub(offset.unsigned_abs() as u32);
+            let offset = offset.unsigned_abs() as u32;
+            self.0.start = self.0.start.checked_sub(offset).unwrap();
+            self.0.end = self.0.end.checked_sub(offset).unwrap();
         } else {
-            self.0.start = self.0.start.add(offset as u32);
-            self.0.end = self.0.end.add(offset as u32);
+            let offset = offset as u32;
+            self.0.start = self.0.start.checked_add(offset).unwrap();
+            self.0.end = self.0.end.checked_add(offset).unwrap();
         }
         self
     }

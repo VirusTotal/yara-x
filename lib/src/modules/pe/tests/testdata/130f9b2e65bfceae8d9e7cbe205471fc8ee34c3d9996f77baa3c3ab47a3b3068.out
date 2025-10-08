@@ -578,7 +578,7 @@ import_details:
         rva: 0x244d8
 is_signed: true
 signatures:
-  - subject: "/businessCategory=Private Organization/serialNumber=460726/jurisdictionC=US/jurisdictionST=Idaho/C=US/ST=Idaho/L=Boise/streetAddress=702 W Idaho Street Suite 1100/O=WATCHDOGDEVELOPMENT.COM, LLC/CN=WATCHDOGDEVELOPMENT.COM, LLC"
+  - subject: "/businessCategory=Private Organization/serialNumber=460726/jurisdictionC=US/jurisdictionST=Idaho/C=US/ST=Idaho/L=Boise/street=702 W Idaho Street Suite 1100/O=WATCHDOGDEVELOPMENT.COM, LLC/CN=WATCHDOGDEVELOPMENT.COM, LLC"
     issuer: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign GCC R45 EV CodeSigning CA 2020"
     thumbprint: "73a0b736d2b9354b4c82fdf33b90a8bb7130e5fb"
     version: 3
@@ -598,7 +598,7 @@ signatures:
         digest_alg: "sha256"
         chain:
           - issuer: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign GCC R45 EV CodeSigning CA 2020"
-            subject: "/businessCategory=Private Organization/serialNumber=460726/jurisdictionC=US/jurisdictionST=Idaho/C=US/ST=Idaho/L=Boise/streetAddress=702 W Idaho Street Suite 1100/O=WATCHDOGDEVELOPMENT.COM, LLC/CN=WATCHDOGDEVELOPMENT.COM, LLC"
+            subject: "/businessCategory=Private Organization/serialNumber=460726/jurisdictionC=US/jurisdictionST=Idaho/C=US/ST=Idaho/L=Boise/street=702 W Idaho Street Suite 1100/O=WATCHDOGDEVELOPMENT.COM, LLC/CN=WATCHDOGDEVELOPMENT.COM, LLC"
             thumbprint: "73a0b736d2b9354b4c82fdf33b90a8bb7130e5fb"
             version: 3
             algorithm: "sha256WithRSAEncryption"
@@ -653,7 +653,7 @@ signatures:
         not_before: 1595894400  # 2020-07-28 00:00:00 UTC
         not_after: 1868486400  # 2029-03-18 00:00:00 UTC
       - issuer: "/C=BE/O=GlobalSign nv-sa/CN=GlobalSign GCC R45 EV CodeSigning CA 2020"
-        subject: "/businessCategory=Private Organization/serialNumber=460726/jurisdictionC=US/jurisdictionST=Idaho/C=US/ST=Idaho/L=Boise/streetAddress=702 W Idaho Street Suite 1100/O=WATCHDOGDEVELOPMENT.COM, LLC/CN=WATCHDOGDEVELOPMENT.COM, LLC"
+        subject: "/businessCategory=Private Organization/serialNumber=460726/jurisdictionC=US/jurisdictionST=Idaho/C=US/ST=Idaho/L=Boise/street=702 W Idaho Street Suite 1100/O=WATCHDOGDEVELOPMENT.COM, LLC/CN=WATCHDOGDEVELOPMENT.COM, LLC"
         thumbprint: "73a0b736d2b9354b4c82fdf33b90a8bb7130e5fb"
         version: 3
         algorithm: "sha256WithRSAEncryption"

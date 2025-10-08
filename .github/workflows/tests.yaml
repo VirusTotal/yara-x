@@ -14,131 +14,135 @@ jobs:
       fail-fast: true
       matrix:
         build:
-        - msrv
-        - stable
-        - nightly
-        - macos
-        - win-msvc
-        # - win-gnu
-        - no-default-features
-        - protoc
-        - 32bits
+          - msrv
+          - stable
+          - nightly
+          - macos
+          - 32bits
+          - windows
+          - windows-32bits
+          - no-default-features
+          - protoc
+
         include:
-        - build: msrv
-          os: ubuntu-latest
-          rust: 1.86.0
-          target: x86_64-unknown-linux-gnu
-          args: "--features=magic-module,rules-profiling"
-          rust_flags: "-Awarnings"
-          experimental: false
+          - build: msrv
+            os: ubuntu-latest
+            rust: 1.87.0
+            target: x86_64-unknown-linux-gnu
+            args: "--features=magic-module,rules-profiling"
+            rust_flags: "-Awarnings"
+            experimental: false
 
-        - build: stable
-          os: ubuntu-latest
-          rust: stable
-          target: x86_64-unknown-linux-gnu
-          args: "--features=magic-module,rules-profiling"
-          rust_flags: "-Awarnings"
-          experimental: false
+          - build: stable
+            os: ubuntu-latest
+            rust: stable
+            target: x86_64-unknown-linux-gnu
+            args: "--features=magic-module,rules-profiling"
+            rust_flags: "-Awarnings"
+            experimental: false
 
-        - build: nightly
-          os: ubuntu-latest
-          rust: nightly
-          target: x86_64-unknown-linux-gnu
-          args: "--features=magic-module,rules-profiling"
-          rust_flags: "-Awarnings"
-          experimental: true
+          - build: nightly
+            os: ubuntu-latest
+            rust: nightly
+            target: x86_64-unknown-linux-gnu
+            args: "--features=magic-module,rules-profiling"
+            rust_flags: "-Awarnings"
+            experimental: true
 
-        - build: macos
-          os: macos-latest
-          rust: stable
-          target: aarch64-apple-darwin
-          args: "--features=rules-profiling"
-          rust_flags: "-Awarnings"
-          experimental: false
+          - build: macos
+            os: macos-latest
+            rust: stable
+            target: aarch64-apple-darwin
+            args: "--features=rules-profiling"
+            rust_flags: "-Awarnings"
+            experimental: false
 
-        - build: win-msvc
-          os: windows-latest
-          rust: stable
-          target: x86_64-pc-windows-msvc
-          args: "--features=rules-profiling"
-          rust_flags: "-Awarnings"
-          experimental: false
+          - build: 32bits
+            os: ubuntu-latest
+            rust: stable
+            target: i686-unknown-linux-gnu
+            # yara-x-py is excluded because the Python version installed in the
+            # host is 64-bits, but the YARA-X library is 32-bits.
+            args: "--features=rules-profiling --workspace --exclude=yara-x-py"
+            rust_flags: "-Awarnings"
+            experimental: false
 
-        # Tests for the `stable-x86_64-pc-windows-gnu` toolchain disabled
-        # due to https://github.com/VirusTotal/yara-x/issues/29
-        #
-        # - build: win-gnu
-        #   os: windows-latest
-        #   target: x86_64-pc-windows-gnu
-        #   rust: stable-x86_64-gnu
-        #   args: ""
+          - build: windows
+            os: windows-latest
+            rust: stable
+            target: x86_64-pc-windows-msvc
+            args: "--features=rules-profiling"
+            rust_flags: "-Awarnings"
+            experimental: false
 
-        - build: no-default-features
-          os: ubuntu-latest
-          rust: stable
-          target: x86_64-unknown-linux-gnu
-          args: "--package yara-x --no-default-features --features=test_proto2-module,test_proto3-module,string-module,time-module,hash-module,macho-module,magic-module,math-module,lnk-module,elf-module,pe-module,dotnet-module,console-module,crx-module"
-          rust_flags: "-Awarnings"
-          experimental: false
+          - build: windows-32bits
+            os: windows-latest
+            rust: stable
+            target: i686-pc-windows-msvc
+            # yara-x-py is excluded because the Python version installed in the
+            # host is 64-bits, but the YARA-X library is 32-bits.
+            args: "--features=rules-profiling --workspace --exclude=yara-x-py"
+            rust_flags: "-Awarnings"
+            experimental: false
 
-        - build: protoc
-          os: ubuntu-latest
-          rust: stable
-          target: x86_64-unknown-linux-gnu
-          args: "--package yara-x --features=protoc,magic-module"
-          rust_flags: "-Awarnings"
-          experimental: false
+          - build: no-default-features
+            os: ubuntu-latest
+            rust: stable
+            target: x86_64-unknown-linux-gnu
+            args: "--package yara-x --no-default-features --features=test_proto2-module,test_proto3-module,string-module,time-module,hash-module,macho-module,magic-module,math-module,lnk-module,elf-module,pe-module,dotnet-module,console-module,crx-module"
+            rust_flags: "-Awarnings"
+            experimental: false
 
-        - build: 32bits
-          os: ubuntu-latest
-          rust: stable
-          target: i686-unknown-linux-gnu
-          args: ""
-          rust_flags: "-Awarnings"
-          experimental: false
+          - build: protoc
+            os: ubuntu-latest
+            rust: stable
+            target: x86_64-unknown-linux-gnu
+            args: "--package yara-x --features=protoc,magic-module"
+            rust_flags: "-Awarnings"
+            experimental: false
 
     steps:
-    - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Checkout sources
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
-    - name: Setup cache
-      uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf  # v4.2.2
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Setup cache
+        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf  # v4.2.2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Install dependencies
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libmagic-dev gcc-multilib
+      - name: Install dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmagic-dev gcc-multilib
 
-    - name: Install protoc
-      if: matrix.build == 'protoc'
-      run: |
-        sudo apt-get install -y protobuf-compiler
-        cargo install protobuf-codegen
+      - name: Install protoc
+        if: matrix.build == 'protoc'
+        run: |
+          sudo apt-get install -y protobuf-compiler
+          cargo install protobuf-codegen
 
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: ${{ matrix.rust }}
-        target: ${{ matrix.target }}
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          target: ${{ matrix.target }}
 
-    - name: Build
-      run: cargo build --all-targets ${{ matrix.args }}
-      env:
-        RUSTFLAGS: ${{ matrix.rust_flags }}
+      - name: Build
+        run: cargo build --target ${{ matrix.target }} ${{ matrix.args }}
+        env:
+          RUSTFLAGS: ${{ matrix.rust_flags }}
 
-    - name: Run tests
-      run: cargo test --all-targets ${{ matrix.args }}
-      env:
-        RUSTFLAGS: ${{ matrix.rust_flags }}
+      - name: Run tests
+        run: cargo test --target ${{ matrix.target }} ${{ matrix.args }}
+        env:
+          RUSTFLAGS: ${{ matrix.rust_flags }}
 
-    - name: Run doc tests
-      run: cargo test --doc
-      env:
-        RUSTDOCFLAGS: ${{ matrix.rust_flags }}
+      - name: Run doc tests
+        run: cargo test --doc
+        env:
+          RUSTDOCFLAGS: ${{ matrix.rust_flags }}

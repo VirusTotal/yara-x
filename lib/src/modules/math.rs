@@ -75,16 +75,17 @@ fn count_range(
 ) -> Option<i64> {
     let byte: u8 = byte.try_into().ok()?;
     let length: usize = length.try_into().ok()?;
+    let data = ctx.scanned_data()?;
     let start: usize = offset.try_into().ok()?;
-    let end = cmp::min(ctx.scanned_data().len(), start.saturating_add(length));
-    let data = ctx.scanned_data().get(start..end)?;
+    let end = cmp::min(data.len(), start.saturating_add(length));
+    let data = data.get(start..end)?;
     Some(data.iter().filter(|b| **b == byte).count() as i64)
 }
 
 #[module_export(name = "percentage")]
 fn percentage_global(ctx: &ScanContext, byte: i64) -> Option<f64> {
     let byte: u8 = byte.try_into().ok()?;
-    let data = ctx.scanned_data();
+    let data = ctx.scanned_data()?;
     if data.is_empty() {
         return None;
     }
@@ -101,9 +102,10 @@ fn percentage_range(
 ) -> Option<f64> {
     let byte: u8 = byte.try_into().ok()?;
     let length: usize = length.try_into().ok()?;
+    let data = ctx.scanned_data()?;
     let start: usize = offset.try_into().ok()?;
-    let end = cmp::min(ctx.scanned_data().len(), start.saturating_add(length));
-    let data = ctx.scanned_data().get(start..end)?;
+    let end = cmp::min(data.len(), start.saturating_add(length));
+    let data = data.get(start..end)?;
     if data.is_empty() {
         return None;
     }
@@ -113,29 +115,31 @@ fn percentage_range(
 
 #[module_export(name = "mode")]
 fn mode_global(ctx: &ScanContext) -> Option<i64> {
-    mode(ctx.scanned_data())
+    mode(ctx.scanned_data()?)
 }
 
 #[module_export(name = "mode")]
 fn mode_range(ctx: &ScanContext, offset: i64, length: i64) -> Option<i64> {
     let length: usize = length.try_into().ok()?;
+    let data = ctx.scanned_data()?;
     let start: usize = offset.try_into().ok()?;
-    let end = cmp::min(ctx.scanned_data().len(), start.saturating_add(length));
-    mode(ctx.scanned_data().get(start..end)?)
+    let end = cmp::min(data.len(), start.saturating_add(length));
+    mode(data.get(start..end)?)
 }
 
 #[module_export(name = "count")]
 fn count_global(ctx: &ScanContext, byte: i64) -> Option<i64> {
     let byte: u8 = byte.try_into().ok()?;
-    Some(ctx.scanned_data().iter().filter(|b| **b == byte).count() as i64)
+    Some(ctx.scanned_data()?.iter().filter(|b| **b == byte).count() as i64)
 }
 
 #[module_export(name = "entropy")]
 fn entropy_data(ctx: &ScanContext, offset: i64, length: i64) -> Option<f64> {
     let length: usize = length.try_into().ok()?;
+    let data = ctx.scanned_data()?;
     let start: usize = offset.try_into().ok()?;
-    let end = cmp::min(ctx.scanned_data().len(), start.saturating_add(length));
-    Some(entropy(ctx.scanned_data().get(start..end)?))
+    let end = cmp::min(data.len(), start.saturating_add(length));
+    Some(entropy(data.get(start..end)?))
 }
 
 #[module_export(name = "entropy")]
@@ -151,9 +155,10 @@ fn deviation_data(
     mean: f64,
 ) -> Option<f64> {
     let length: usize = length.try_into().ok()?;
+    let data = ctx.scanned_data()?;
     let start: usize = offset.try_into().ok()?;
-    let end = cmp::min(ctx.scanned_data().len(), start.saturating_add(length));
-    deviation(ctx.scanned_data().get(start..end)?, mean)
+    let end = cmp::min(data.len(), start.saturating_add(length));
+    deviation(data.get(start..end)?, mean)
 }
 
 #[module_export(name = "deviation")]
@@ -168,9 +173,10 @@ fn deviation_string(
 #[module_export(name = "mean")]
 fn mean_data(ctx: &ScanContext, offset: i64, length: i64) -> Option<f64> {
     let length: usize = length.try_into().ok()?;
+    let data = ctx.scanned_data()?;
     let start: usize = offset.try_into().ok()?;
-    let end = cmp::min(ctx.scanned_data().len(), start.saturating_add(length));
-    mean(ctx.scanned_data().get(start..end)?)
+    let end = cmp::min(data.len(), start.saturating_add(length));
+    mean(data.get(start..end)?)
 }
 
 #[module_export(name = "mean")]
@@ -185,9 +191,10 @@ fn serial_correlation_data(
     length: i64,
 ) -> Option<f64> {
     let length: usize = length.try_into().ok()?;
+    let data = ctx.scanned_data()?;
     let start: usize = offset.try_into().ok()?;
-    let end = cmp::min(ctx.scanned_data().len(), start.saturating_add(length));
-    serial_correlation(ctx.scanned_data().get(start..end)?)
+    let end = cmp::min(data.len(), start.saturating_add(length));
+    serial_correlation(data.get(start..end)?)
 }
 
 #[module_export(name = "serial_correlation")]
@@ -205,9 +212,10 @@ fn monte_carlo_pi_data(
     length: i64,
 ) -> Option<f64> {
     let length: usize = length.try_into().ok()?;
+    let data = ctx.scanned_data()?;
     let start: usize = offset.try_into().ok()?;
-    let end = cmp::min(ctx.scanned_data().len(), start.saturating_add(length));
-    monte_carlo_pi(ctx.scanned_data().get(start..end)?)
+    let end = cmp::min(data.len(), start.saturating_add(length));
+    monte_carlo_pi(data.get(start..end)?)
 }
 
 #[module_export(name = "monte_carlo_pi")]

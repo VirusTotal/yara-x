@@ -68,7 +68,7 @@ pub(crate) fn undef_i64(_ctx: &mut ScanContext) -> Option<i64> {
 
 #[module_export]
 fn head(ctx: &mut ScanContext, n: i64) -> Option<RuntimeString> {
-    let head = ctx.scanned_data().get(0..n as usize)?;
+    let head = ctx.scanned_data()?.get(0..n as usize)?;
     Some(RuntimeString::from_slice(ctx, head))
 }
 

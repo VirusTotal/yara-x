@@ -100,6 +100,7 @@ pub fn oid_to_str(oid: &Oid) -> Cow<'static, str> {
         rfc4519::O => Cow::Borrowed("O"),
         rfc4519::OU => Cow::Borrowed("OU"),
         rfc4519::ST => Cow::Borrowed("ST"),
+        rfc4519::STREET => Cow::Borrowed("street"),
         // OIDs not included in const_oid.
         oid::JURISDICTION_C => Cow::Borrowed("jurisdictionC"),
         oid::JURISDICTION_L => Cow::Borrowed("jurisdictionL"),
@@ -669,7 +670,7 @@ impl<'a> TstInfo<'a> {
 ///
 /// https://doc.rust-lang.org/alloc/string/struct.String.html#method.from_utf16be
 fn string_from_utf16be(v: &[u8]) -> Option<String> {
-    if v.len() % 2 != 0 {
+    if !v.len().is_multiple_of(2) {
         return None;
     }
 

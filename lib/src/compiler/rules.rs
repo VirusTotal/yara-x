@@ -23,7 +23,7 @@ use crate::compiler::{
 use crate::models::PatternKind;
 use crate::re::{BckCodeLoc, FwdCodeLoc, RegexpAtom};
 use crate::string_pool::{BStringPool, StringPool};
-use crate::{re, types, Rule};
+use crate::{re, types, wasm, Rule};
 
 /// A set of YARA rules in compiled form.
 ///
@@ -196,7 +196,7 @@ impl Rules {
             let start = Instant::now();
 
             rules.compiled_wasm_mod = Some(wasmtime::Module::from_binary(
-                &crate::wasm::ENGINE,
+                wasm::get_engine(),
                 rules.wasm_mod.as_slice(),
             )?);
 
@@ -509,7 +509,7 @@ where
     let bytes: Option<&[u8]> = Deserialize::deserialize(deserializer)?;
     let module = if let Some(bytes) = bytes {
         unsafe {
-            wasmtime::Module::deserialize(&crate::wasm::ENGINE, bytes).ok()
+            wasmtime::Module::deserialize(wasm::get_engine(), bytes).ok()
         }
     } else {
         None
@@ -530,7 +530,6 @@ impl<'a> Iterator for RulesIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         Some(Rule {
             ctx: None,
-            data: None,
             rules: self.rules,
             rule_info: self.iterator.next()?,
         })
