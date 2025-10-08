@@ -1720,10 +1720,10 @@ impl Compiler<'_> {
                         .filesize_bounds
                         .insert(*pattern_id, filesize_bounds.clone())
                         .is_some()
-                    {
-                        // This should not happen.
-                        panic!("modifying the file size bounds of an existing pattern")
-                    }
+                {
+                    // This should not happen.
+                    panic!("modifying the file size bounds of an existing pattern")
+                }
                 pending_patterns.remove(pattern_id);
             }
         }
