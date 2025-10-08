@@ -2730,7 +2730,7 @@ impl From<RegexpId> for u32 {
 /// be met:
 ///
 /// * Both patterns must have the same modifiers (i.e: `"mz" nocase` is not the
-/// same pattern as `"mz"`),
+///   same pattern as `"mz"`),
 /// * Both patterns must be either non-anchored, or anchored to the same offset.
 /// * Both patterns must have the same file size bounds (or no bounds at all).
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
