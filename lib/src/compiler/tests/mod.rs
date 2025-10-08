@@ -6,7 +6,7 @@ use std::mem::size_of;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
-use crate::compiler::{linters, FilesizeContraints, SubPattern, VarStack};
+use crate::compiler::{linters, FilesizeBounds, SubPattern, VarStack};
 use crate::errors::{SerializationError, VariableError};
 use crate::types::Type;
 use crate::{compile, Compiler, Rules, Scanner, SourceCode};
@@ -1265,31 +1265,31 @@ fn test_warnings() {
 }
 
 #[test]
-fn test_filesize_constraints() {
-    let mut constraint = FilesizeContraints::default();
+fn test_filesize_bounds() {
+    let mut bounds = FilesizeBounds::default();
 
-    // The constraint is initially unbounded.
-    assert_eq!(constraint, FilesizeContraints::from(..));
+    // Initially unbounded.
+    assert_eq!(bounds, FilesizeBounds::from(..));
 
-    constraint.min_end(Bound::Included(1000));
+    bounds.min_end(Bound::Included(1000));
     // Now the end must be <= 1000.
-    assert_eq!(constraint, FilesizeContraints::from(..=1000));
+    assert_eq!(bounds, FilesizeBounds::from(..=1000));
 
-    constraint.min_end(Bound::Excluded(1000));
+    bounds.min_end(Bound::Excluded(1000));
     // Now the end must be < 1000, 1000 was excluded.
-    assert_eq!(constraint, FilesizeContraints::from(..1000));
+    assert_eq!(bounds, FilesizeBounds::from(..1000));
 
-    constraint.min_end(Bound::Excluded(2000));
-    // The constraint remains the same, the previous call didn't change the
+    bounds.min_end(Bound::Excluded(2000));
+    // The bounds remain the same, the previous call didn't change the
     // bounds as the existing bounds were already more restrictive.
-    assert_eq!(constraint, FilesizeContraints::from(..1000));
+    assert_eq!(bounds, FilesizeBounds::from(..1000));
 
-    constraint.max_start(Bound::Included(1));
-    assert_eq!(constraint, FilesizeContraints::from(1..1000));
+    bounds.max_start(Bound::Included(1));
+    assert_eq!(bounds, FilesizeBounds::from(1..1000));
 
-    constraint.max_start(Bound::Excluded(1));
+    bounds.max_start(Bound::Excluded(1));
     assert_eq!(
-        constraint,
-        FilesizeContraints::from((Bound::Excluded(1), Bound::Excluded(1000)))
+        bounds,
+        FilesizeBounds::from((Bound::Excluded(1), Bound::Excluded(1000)))
     );
 }

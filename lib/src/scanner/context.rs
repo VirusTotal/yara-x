@@ -736,6 +736,13 @@ impl ScanContext<'_, '_> {
             fast_vm: FastVM::new(self.compiled_rules.re_code()),
         };
 
+        let filesize = self
+            .wasm_filesize
+            .unwrap()
+            .get(self.wasm_store_mut())
+            .i64()
+            .unwrap();
+
         let atoms = self.compiled_rules.atoms();
 
         #[cfg(any(feature = "rules-profiling", feature = "logging"))]
@@ -748,9 +755,9 @@ impl ScanContext<'_, '_> {
         // the patterns, `self.scan_state` is left as `Idle`.
         let state = self.scan_state.take();
 
-        let (base, data) = match &state {
-            ScanState::ScanningData(data) => (0, data.as_ref()),
-            ScanState::ScanningBlock((base, data)) => (*base, *data),
+        let (base, data, block_scanning_mode) = match &state {
+            ScanState::ScanningData(data) => (0, data.as_ref(), false),
+            ScanState::ScanningBlock((base, data)) => (*base, *data, true),
             _ => panic!(),
         };
 
@@ -796,11 +803,24 @@ impl ScanContext<'_, '_> {
 
             // Check if the potentially matching pattern has reached the
             // maximum number of allowed matches. In that case continue without
-            // verifying the match. `get_unchecked` is used for performance
-            // reasons, the number of bits in the bit vector is guaranteed to
-            // be the number of patterns.
+            // verifying the match.
             if self.limit_reached.contains(pattern_id) {
                 continue;
+            }
+
+            // If there are file size bounds associated to the pattern, but
+            // the currently scanned file does not satisfy them, no further
+            // confirmation is needed. The rule won't match regardless of
+            // whether the pattern matches or not. This is not done in block
+            // scanning mode as `filesize` is undefined in that mode.
+            if !block_scanning_mode {
+                if let Some(bounds) =
+                    self.compiled_rules.filesize_bounds(*pattern_id)
+                {
+                    if !bounds.contains(filesize) {
+                        continue;
+                    }
+                }
             }
 
             #[cfg(feature = "rules-profiling")]

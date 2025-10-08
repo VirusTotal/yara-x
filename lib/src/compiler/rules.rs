@@ -86,9 +86,18 @@ pub struct Rules {
     /// where the sub-pattern belongs to.
     pub(in crate::compiler) sub_patterns: Vec<(PatternId, SubPattern)>,
 
-    /// TODO
-    pub(in crate::compiler) filesize_contraints:
-        FxHashMap<PatternId, FilesizeContraints>,
+    /// Map that associates a `PatternId` to a certain file size bound.
+    ///
+    /// A condition like `filesize < 1000 and $a` only matches if `filesize`
+    /// is less than 1000. Therefore, the pattern `$a` does not need be
+    /// checked for files of size 1000 bytes or larger.
+    ///
+    /// In this case, the map will contain an entry associating `$a` to a
+    /// `FilesizeBounds` value like:
+    ///
+    /// `FilesizeBounds{start: Bound::Unbounded, end: Bound:Excluded(1000)}`.
+    pub(in crate::compiler) filesize_bounds:
+        FxHashMap<PatternId, FilesizeBounds>,
 
     /// Vector that contains the [`SubPatternId`] for sub-patterns that can
     /// match only at a fixed offset within the scanned data. These sub-patterns
@@ -468,6 +477,14 @@ impl Rules {
     pub(crate) fn wasm_mod(&self) -> &wasmtime::Module {
         self.compiled_wasm_mod.as_ref().unwrap()
     }
+
+    #[inline]
+    pub(crate) fn filesize_bounds(
+        &self,
+        pattern_id: PatternId,
+    ) -> Option<&FilesizeBounds> {
+        self.filesize_bounds.get(&pattern_id)
+    }
 }
 
 #[cfg(feature = "native-code-serialization")]
@@ -610,19 +627,35 @@ pub(crate) struct RuleInfo {
     pub(crate) is_private: bool,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
-pub(crate) struct FilesizeContraints {
+/// Describes the bounds for `filesize` imposed by a rule condition.
+///
+/// For example, the condition `filesize < 1000 and $a` only matches files
+/// smaller than 10MB. That would be represented by:
+///
+/// ```text
+/// FilesizeBounds { start: Bound::Unbounded, end: Bound::Excluded(1000) }
+/// ```
+///
+/// In contrast, the condition `filesize < 1000 or $a` does not any bounds
+/// to `filesize`, since the use of `or` allows files larger than
+/// 10MB to also match. This case is represented by:
+///
+/// ```text
+/// FilesizeBounds { start: Bound::Unbounded, end: Bound::Unbounded }
+/// ```
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Hash, Eq)]
+pub(crate) struct FilesizeBounds {
     start: Bound<i64>,
     end: Bound<i64>,
 }
 
-impl Default for FilesizeContraints {
+impl Default for FilesizeBounds {
     fn default() -> Self {
         Self { start: Bound::Unbounded, end: Bound::Unbounded }
     }
 }
 
-impl<T: RangeBounds<i64>> From<T> for FilesizeContraints {
+impl<T: RangeBounds<i64>> From<T> for FilesizeBounds {
     fn from(value: T) -> Self {
         Self {
             start: value.start_bound().cloned(),
@@ -631,10 +664,26 @@ impl<T: RangeBounds<i64>> From<T> for FilesizeContraints {
     }
 }
 
-impl FilesizeContraints {
-    pub fn not_bounded(&self) -> bool {
+impl FilesizeBounds {
+    pub fn unbounded(&self) -> bool {
         matches!(self.start, Bound::Unbounded)
             && matches!(self.end, Bound::Unbounded)
+    }
+
+    pub fn contains(&self, value: i64) -> bool {
+        let start_ok = match self.start {
+            Bound::Included(start) => value >= start,
+            Bound::Excluded(start) => value > start,
+            Bound::Unbounded => true,
+        };
+
+        let end_ok = match self.end {
+            Bound::Included(end) => value <= end,
+            Bound::Excluded(end) => value < end,
+            Bound::Unbounded => true,
+        };
+
+        start_ok && end_ok
     }
     pub fn max_start(&mut self, bound: Bound<i64>) -> &mut Self {
         match (&self.start, &bound) {

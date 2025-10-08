@@ -3344,6 +3344,61 @@ fn filesize() {
 }
 
 #[test]
+fn filesize_bounds() {
+    let rules = crate::compile(
+        r#"
+        rule test_1 {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            $a and filesize > 1000
+        }
+        rule test_2 {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            $a
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(
+        scanner
+            .scan(b"foobar")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1 // test_2 matches, but test_1 do not.
+    );
+
+    let rules = crate::compile(
+        r#"
+        rule test {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            $a and filesize == 6
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(
+        scanner
+            .scan(b"foobar")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+}
+
+#[test]
 fn for_of() {
     rule_true!(
         r#"
