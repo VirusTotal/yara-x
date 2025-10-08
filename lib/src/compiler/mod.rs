@@ -1715,8 +1715,8 @@ impl Compiler<'_> {
                         }
                     }
                 };
-                if !filesize_bounds.unbounded() {
-                    if self
+                if !filesize_bounds.unbounded()
+                    && self
                         .filesize_bounds
                         .insert(*pattern_id, filesize_bounds.clone())
                         .is_some()
@@ -1724,7 +1724,6 @@ impl Compiler<'_> {
                         // This should not happen.
                         panic!("modifying the file size bounds of an existing pattern")
                     }
-                }
                 pending_patterns.remove(pattern_id);
             }
         }
