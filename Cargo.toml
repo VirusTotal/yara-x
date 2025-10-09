@@ -12,7 +12,7 @@ keywords = ["pattern-matching", "cybersecurity", "forensics", "malware", "yara"]
 #   .github/workflows/tests.yaml
 #   .github/workflows/code_health.yaml
 #
-rust-version = "1.87.0"
+rust-version = "1.88.0"
 
 [workspace]
 members = [
@@ -113,6 +113,8 @@ yara-x-proto = { path = "proto", version = "1.8.1" }
 yara-x-proto-yaml = { path = "proto-yaml", version = "1.8.1" }
 yara-x-proto-json = { path = "proto-json", version = "1.8.1" }
 zip = "5.1.1"
+simd-adler32 = "0.3.7"
+simd_cesu8 = "1"
 
 # Special profile that builds a release binary with link-time optimization.
 # Compiling with this profile takes a while, but the resulting binary is
