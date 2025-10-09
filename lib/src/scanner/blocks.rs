@@ -474,7 +474,7 @@ mod tests {
             r#"
             rule slow {
                 condition: 
-                    for any i in (0..10000000) : (
+                    for any i in (0..1000000000) : (
                          uint8(i) == 0xCC
                     )
             }"#,
