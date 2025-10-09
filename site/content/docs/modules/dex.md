@@ -32,7 +32,7 @@ rule check_dex_version {
 rule search_string {
     condition:
         for any string in dex.string_ids: (
-            string.value == "Landroid/content/ComponentName;"
+            string == "Landroid/content/ComponentName;"
         )
 }
 ```
@@ -124,8 +124,8 @@ rule search_method {
 | ---------- | ------------------------------- | ---------------------------------------------- |
 | is_dex     | bool                            | True if the file is DEX                        |
 | header     | [DexHeader](#dexheader)         | DexHeader                                      |
-| string_ids | [StringItem](#stringitem) array | List of defined strings                        |
-| type_ids   | [StringItem](#stringitem) array | List of defined types                          |
+| string_ids | string array                    | List of defined strings                        |
+| type_ids   | string array                    | List of defined types                          |
 | proto_ids  | [ProtoItem](#protoitem) array   | List of defined prototypes                     |
 | field_ids  | [FieldItem](#fielditem) array   | List of defined fields                         |
 | method_ids | [MethodItem](#methoditem) array | List of defined methods                        |
@@ -165,46 +165,39 @@ Read more about it in [dex-format](https://source.android.com/docs/core/runtime/
 | container_size  | integer | Size of the entire file (only in v41 or later)                                                |
 | header_offset   | integer | Offset from the start of the file to the start of this header (only in v41 or later)          |
 
-### StringItem
-
-| Field | Type    | Description        |
-| ----- | ------- | ------------------ |
-| size  | integer | Size of the string |
-| value | string  | String itself      |
-
 ### ProtoItem
 
-| Field            | Type                            | Description                  |
-| ---------------- | ------------------------------- | ---------------------------- |
-| shorty           | [StringItem](#stringitem)       | Short-form descriptor string |
-| return_type      | [StringItem](#stringitem)       | Return type string           |
-| parameters_count | integer                         | Number of parameters         |
-| parameters       | [StringItem](#stringitem) array | List of parameters           |
+| Field            | Type         | Description                  |
+| ---------------- | ------------ | ---------------------------- |
+| shorty           | string       | Short-form descriptor string |
+| return_type      | string       | Return type string           |
+| parameters_count | integer      | Number of parameters         |
+| parameters       | string array | List of parameters           |
 
 ### FieldItem
 
-| Field | Type                      | Description                                      |
-| ----- | ------------------------- | ------------------------------------------------ |
-| class | [StringItem](#stringitem) | The name of the class to which the field belongs |
-| type  | [StringItem](#stringitem) | Field type                                       |
-| name  | [StringItem](#stringitem) | Field name                                       |
+| Field | Type   | Description                                      |
+| ----- | ------ | ------------------------------------------------ |
+| class | string | The name of the class to which the field belongs |
+| type  | string | Field type                                       |
+| name  | string | Field name                                       |
 
 ### MethodItem
 
-| Field | Type                      | Description                                       |
-| ----- | ------------------------- | ------------------------------------------------- |
-| class | [StringItem](#stringitem) | The name of the class to which the method belongs |
-| proto | [ProtoItem](#protoitem)   | Method prototype                                  |
-| name  | [StringItem](#stringitem) | Method name                                       |
+| Field | Type                    | Description                                       |
+| ----- | ----------------------- | ------------------------------------------------- |
+| class | string                  | The name of the class to which the method belongs |
+| proto | [ProtoItem](#protoitem) | Method prototype                                  |
+| name  | string                  | Method name                                       |
 
 ### ClassItem
 
 | Field       | Type                      | Description             |
 | ----------- | ------------------------- | ----------------------- |
-| class       | [StringItem](#stringitem) | Class name              |
+| class       | string                    | Class name              |
 | access_flag | [AccessFlag](#accessflag) | Access flags            |
-| superclass  | [StringItem](#stringitem) | Superclass name         |
-| source_file | [StringItem](#stringitem) | Name of the source file |
+| superclass  | string                    | Superclass name         |
+| source_file | string                    | Name of the source file |
 
 ### MapList
 
