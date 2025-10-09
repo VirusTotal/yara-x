@@ -52,7 +52,7 @@ fn checksum(ctx: &mut ScanContext) -> Option<i64> {
         return None;
     }
 
-    let data = ctx.scanned_data();
+    let data = ctx.scanned_data()?;
 
     const CHECKSUM_OFFSET: usize = 12;
     let data = match data.get(CHECKSUM_OFFSET..) {
@@ -94,7 +94,7 @@ fn signature(ctx: &mut ScanContext) -> Option<RuntimeString> {
         return None;
     };
 
-    let data = ctx.scanned_data();
+    let data = ctx.scanned_data()?;
 
     const SIGNATURE_OFFSET: usize = 32;
     let data = match data.get(SIGNATURE_OFFSET..) {
