@@ -19,10 +19,10 @@ pub struct Dex {
     header: DexHeader,
 
     // List with all found strings
-    string_ids: Vec<Rc<StringItem>>,
+    string_ids: Vec<Rc<String>>,
 
     // List with all found types
-    type_ids: Vec<Rc<StringItem>>,
+    type_ids: Vec<Rc<String>>,
 
     // List with all found prototypes
     proto_ids: Vec<Rc<ProtoItem>>,
@@ -209,7 +209,7 @@ impl Dex {
         remainder: &'a [u8],
         data: &'a [u8],
         header: &DexHeader,
-    ) -> IResult<&'a [u8], Vec<Rc<StringItem>>> {
+    ) -> IResult<&'a [u8], Vec<Rc<String>>> {
         // DEX file doesn't contain strings.
         // It's a strange case, but it needs to be checked.
         if header.string_ids_off == 0 {
@@ -239,7 +239,7 @@ impl Dex {
     fn parse_string_from_offset(
         data: &[u8],
         string_data_offset: u32,
-    ) -> Option<StringItem> {
+    ) -> Option<String> {
         data.get(string_data_offset as usize..).and_then(|data| {
             let (data, utf16_size) = uleb128(data).ok()?;
             let (_, bytes) =
@@ -248,7 +248,7 @@ impl Dex {
             // Decode MUTF-8 string and save it
             let s = simd_cesu8::mutf8::decode_lossy(bytes).to_string();
 
-            Some(StringItem { size: utf16_size, value: s })
+            Some(s)
         })
     }
 
@@ -261,8 +261,8 @@ impl Dex {
     fn parse_type_ids<'a>(
         remainder: &'a [u8],
         header: &DexHeader,
-        string_items: &[Rc<StringItem>],
-    ) -> IResult<&'a [u8], Vec<Rc<StringItem>>> {
+        string_items: &[Rc<String>],
+    ) -> IResult<&'a [u8], Vec<Rc<String>>> {
         // DEX file doesn't contain types.
         // It's a strange case, but it needs to be checked.
         if header.type_ids_off == 0 {
@@ -290,8 +290,8 @@ impl Dex {
         remainder: &'a [u8],
         data: &'a [u8],
         header: &DexHeader,
-        string_items: &[Rc<StringItem>],
-        type_items: &[Rc<StringItem>],
+        string_items: &[Rc<String>],
+        type_items: &[Rc<String>],
     ) -> IResult<&'a [u8], Vec<Rc<ProtoItem>>> {
         // DEX file doesn't contain prototypes.
         // It's a strange case, but it needs to be checked.
@@ -339,9 +339,9 @@ impl Dex {
     /// See: https://source.android.com/docs/core/runtime/dex-format#type-list
     fn parse_type_list<'a>(
         data: &'a [u8],
-        type_items: &[Rc<StringItem>],
+        type_items: &[Rc<String>],
         offset: u32,
-    ) -> Option<Vec<Rc<StringItem>>> {
+    ) -> Option<Vec<Rc<String>>> {
         let remainder = data.get(offset as usize..)?;
         let (rem, size) = le_u32::<&[u8], Error>(remainder).ok()?;
         let (_, type_indexes) =
@@ -361,8 +361,8 @@ impl Dex {
     fn parse_field_ids<'a>(
         remainder: &'a [u8],
         header: &DexHeader,
-        string_items: &[Rc<StringItem>],
-        type_items: &[Rc<StringItem>],
+        string_items: &[Rc<String>],
+        type_items: &[Rc<String>],
     ) -> IResult<&'a [u8], Vec<FieldItem>> {
         // DEX file doesn't contain fields.
         // It's a strange case, but it needs to be checked.
@@ -397,8 +397,8 @@ impl Dex {
     fn parse_method_ids<'a>(
         remainder: &'a [u8],
         header: &DexHeader,
-        string_items: &[Rc<StringItem>],
-        type_items: &[Rc<StringItem>],
+        string_items: &[Rc<String>],
+        type_items: &[Rc<String>],
         proto_items: &[Rc<ProtoItem>],
     ) -> IResult<&'a [u8], Vec<MethodItem>> {
         // DEX file doesn't contain methods
@@ -435,8 +435,8 @@ impl Dex {
     fn parse_class_defs<'a>(
         remainder: &'a [u8],
         header: &DexHeader,
-        string_items: &[Rc<StringItem>],
-        type_items: &[Rc<StringItem>],
+        string_items: &[Rc<String>],
+        type_items: &[Rc<String>],
     ) -> IResult<&'a [u8], Vec<ClassItem>> {
         // DEX file doesn't contain classess
         // It's a strange case, but it needs to be checked.
@@ -596,40 +596,34 @@ struct DexHeader {
     header_offset: Option<u32>,
 }
 
-#[derive(Debug, PartialEq)]
-pub struct StringItem {
-    size: u64,     // uleb128 size
-    value: String, // ubyte[]
-}
-
 #[derive(Debug)]
 pub struct ProtoItem {
-    shorty: Rc<StringItem>,
-    return_type: Rc<StringItem>,
+    shorty: Rc<String>,
+    return_type: Rc<String>,
     parameters_count: u32,
-    parameters: Vec<Rc<StringItem>>,
+    parameters: Vec<Rc<String>>,
 }
 
 #[derive(Debug)]
 pub struct FieldItem {
-    class: Rc<StringItem>,
-    type_: Rc<StringItem>,
-    name: Rc<StringItem>,
+    class: Rc<String>,
+    type_: Rc<String>,
+    name: Rc<String>,
 }
 
 #[derive(Debug)]
 pub struct MethodItem {
-    class: Rc<StringItem>,
+    class: Rc<String>,
     proto: Rc<ProtoItem>,
-    name: Rc<StringItem>,
+    name: Rc<String>,
 }
 
 #[derive(Debug)]
 pub struct ClassItem {
-    class: Rc<StringItem>,
+    class: Rc<String>,
     access_flags: u32,
-    superclass: Option<Rc<StringItem>>,
-    source_file: Option<Rc<StringItem>>,
+    superclass: Option<Rc<String>>,
+    source_file: Option<Rc<String>>,
 }
 
 #[derive(Default)]
@@ -653,16 +647,12 @@ impl From<Dex> for protos::dex::Dex {
         result.set_is_dex(true);
         result.header = MessageField::some(dex.header.clone().into());
 
-        result.string_ids.extend(
-            dex.string_ids
-                .iter()
-                .map(|x| protos::dex::StringItem::from(x.as_ref())),
-        );
-        result.type_ids.extend(
-            dex.type_ids
-                .iter()
-                .map(|x| protos::dex::StringItem::from(x.as_ref())),
-        );
+        result
+            .string_ids
+            .extend(dex.string_ids.into_iter().map(|x| x.as_ref().clone()));
+        result
+            .type_ids
+            .extend(dex.type_ids.into_iter().map(|x| x.as_ref().clone()));
         result.proto_ids.extend(
             dex.proto_ids
                 .iter()
@@ -720,23 +710,12 @@ impl From<DexHeader> for protos::dex::DexHeader {
     }
 }
 
-impl From<&StringItem> for protos::dex::StringItem {
-    fn from(item: &StringItem) -> Self {
-        let mut result = protos::dex::StringItem::new();
-
-        result.set_size(item.size);
-        result.set_value(item.value.to_string());
-        result
-    }
-}
-
 impl From<&ProtoItem> for protos::dex::ProtoItem {
     fn from(value: &ProtoItem) -> Self {
         let mut result = protos::dex::ProtoItem::new();
 
-        result.shorty = MessageField::some(value.shorty.as_ref().into());
-        result.return_type =
-            MessageField::some(value.return_type.as_ref().into());
+        result.shorty = Some(value.shorty.to_string());
+        result.return_type = Some(value.return_type.to_string());
         result.set_parameters_count(value.parameters_count);
         result
             .parameters
@@ -750,9 +729,9 @@ impl From<&FieldItem> for protos::dex::FieldItem {
     fn from(value: &FieldItem) -> Self {
         let mut result = protos::dex::FieldItem::new();
 
-        result.class = MessageField::some(value.class.as_ref().into());
-        result.type_ = MessageField::some(value.type_.as_ref().into());
-        result.name = MessageField::some(value.name.as_ref().into());
+        result.class = Some(value.class.to_string());
+        result.type_ = Some(value.type_.to_string());
+        result.name = Some(value.name.to_string());
 
         result
     }
@@ -762,9 +741,9 @@ impl From<&MethodItem> for protos::dex::MethodItem {
     fn from(value: &MethodItem) -> Self {
         let mut result = protos::dex::MethodItem::new();
 
-        result.class = MessageField::some(value.class.as_ref().into());
+        result.class = Some(value.class.to_string());
         result.proto = MessageField::some(value.proto.as_ref().into());
-        result.name = MessageField::some(value.name.as_ref().into());
+        result.name = Some(value.name.to_string());
 
         result
     }
@@ -774,16 +753,15 @@ impl From<&ClassItem> for protos::dex::ClassItem {
     fn from(value: &ClassItem) -> Self {
         let mut result = protos::dex::ClassItem::new();
 
-        result.class = MessageField::some(value.class.as_ref().into());
+        result.class = Some(value.class.to_string());
         result.set_access_flags(value.access_flags);
 
         if let Some(superclass) = &value.superclass {
-            result.superclass = MessageField::some(superclass.as_ref().into());
+            result.superclass = Some(superclass.to_string());
         }
 
         if let Some(source_file) = &value.source_file {
-            result.source_file =
-                MessageField::some(source_file.as_ref().into());
+            result.source_file = Some(source_file.to_string());
         }
 
         result

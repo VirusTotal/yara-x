@@ -121,13 +121,10 @@ fn contains_string(
 ) -> Option<bool> {
     let dex = ctx.module_output::<Dex>()?;
 
-    let str = match value.to_str(&ctx) {
-        Ok(v) => Some(v.to_string()),
-        Err(_) => return None,
-    };
+    let str = value.to_str(&ctx).ok()?.to_string();
 
     // string items sorted by dex format
-    Some(dex.string_ids.binary_search_by(|item| item.value.cmp(&str)).is_ok())
+    Some(dex.string_ids.binary_search(&str).is_ok())
 }
 
 /// Function that checks whether the DEX file contains the specified method
@@ -139,15 +136,11 @@ fn contains_method(
     let dex = ctx.module_output::<Dex>()?;
 
     let str = match value.to_str(&ctx) {
-        Ok(v) => v,
+        Ok(v) => Some(v.to_string()),
         Err(_) => return None,
     };
 
-    Some(
-        dex.method_ids
-            .binary_search_by(|item| item.name.value().cmp(str))
-            .is_ok(),
-    )
+    Some(dex.method_ids.binary_search_by(|item| item.name.cmp(&str)).is_ok())
 }
 
 /// Function that checks whether the DEX file contains the specified class
@@ -158,14 +151,11 @@ fn contains_class(
 ) -> Option<bool> {
     let dex = ctx.module_output::<Dex>()?;
 
-    let str = match value.to_str(&ctx) {
-        Ok(v) => v,
-        Err(_) => return None,
-    };
+    let class_name = Some(value.to_str(&ctx).ok()?.to_string());
 
     Some(
         dex.class_defs
-            .binary_search_by(|item| item.class.value().cmp(str))
+            .binary_search_by(|item| item.class.cmp(&class_name))
             .is_ok(),
     )
 }

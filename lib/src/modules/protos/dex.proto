@@ -13,8 +13,8 @@ option (yara.module_options) = {
 message Dex {
     optional bool is_dex = 1;
     optional DexHeader header = 2;
-    repeated StringItem string_ids = 3;
-    repeated StringItem type_ids = 4;
+    repeated string string_ids = 3;
+    repeated string type_ids = 4;
     repeated ProtoItem proto_ids = 5;
     repeated FieldItem field_ids = 6;
     repeated MethodItem method_ids = 7;
@@ -53,35 +53,30 @@ message DexHeader {
     optional uint32 header_offset = 26 [(yara.field_options).fmt = "x"];
 }
 
-message StringItem {
-    optional uint64 size = 0;
-    optional string value = 1;
-}
-
 message ProtoItem {
-    optional StringItem shorty = 0;
-    optional StringItem return_type = 1;
+    optional string shorty = 0;
+    optional string return_type = 1;
     optional uint32 parameters_count = 2;
-    repeated StringItem parameters = 3;
+    repeated string parameters = 3;
 }
 
 message FieldItem {
-    optional StringItem class = 0;
-    optional StringItem type = 1;
-    optional StringItem name = 2;
+    optional string class = 0;
+    optional string type = 1;
+    optional string name = 2;
 }
 
 message MethodItem {
-    optional StringItem class = 0;
+    optional string class = 0;
     optional ProtoItem proto = 1;
-    optional StringItem name = 2;
+    optional string name = 2;
 }
 
 message ClassItem {
-    optional StringItem class = 0;
-    optional uint32 access_flags = 1;
-    optional StringItem superclass = 2;
-    optional StringItem source_file = 4;
+    optional string class = 0;
+    optional uint32 access_flags = 1 [(yara.field_options).fmt = "flags:AccessFlag"];
+    optional string superclass = 2;
+    optional string source_file = 4;
 }
 
 message MapList {
