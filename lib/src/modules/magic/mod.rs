@@ -44,7 +44,7 @@ fn file_type(ctx: &mut ScanContext) -> Option<RuntimeString> {
         return Some(RuntimeString::new(cached));
     }
 
-    match get_type(ctx.scanned_data()) {
+    match get_type(ctx.scanned_data()?) {
         Ok(type_) => {
             TYPE_CACHE.replace(Some(type_.clone()));
             Some(RuntimeString::new(type_))
@@ -66,7 +66,7 @@ fn mime_type(ctx: &mut ScanContext) -> Option<RuntimeString> {
         return Some(RuntimeString::new(cached));
     }
 
-    match get_mime_type(ctx.scanned_data()) {
+    match get_mime_type(ctx.scanned_data()?) {
         Ok(type_) => {
             MIME_TYPE_CACHE.replace(Some(type_.clone()));
             Some(RuntimeString::new(type_))

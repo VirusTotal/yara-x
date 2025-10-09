@@ -1,0 +1,39 @@
+rule test_1 {
+  condition:
+    filesize > 0
+}
+
+rule test_2 {
+  condition:
+    filesize < 1000
+}
+
+rule test_3 {
+  condition:
+    filesize > 0 and filesize < 1000
+}
+
+rule test_4 {
+  condition:
+    filesize > 0 and filesize > 10 and filesize < 1000
+}
+
+rule test_5 {
+  condition:
+    filesize > 0 and filesize > 10 and filesize < 1000 and filesize < 10
+}
+
+rule test_6 {
+  condition:
+    filesize >= 0
+}
+
+rule test_7 {
+  condition:
+    filesize <= 1000
+}
+
+rule test_8 {
+  condition:
+    filesize >= 0 and filesize <= 10
+}

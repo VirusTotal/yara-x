@@ -29,6 +29,7 @@ allows using the same regex engine for matching both types of patterns.
 [Hir]: regex_syntax::hir::Hir
 */
 
+use std::collections::Bound;
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::mem;
@@ -55,6 +56,7 @@ use crate::symbols::Symbol;
 use crate::types::Value::Const;
 use crate::types::{FuncSignature, Type, TypeValue};
 
+use crate::compiler::FilesizeBounds;
 pub(in crate::compiler) use ast2ir::patterns_from_ast;
 pub(in crate::compiler) use ast2ir::rule_condition_from_ast;
 
@@ -121,6 +123,11 @@ impl<'src> PatternInRule<'src> {
     #[inline]
     pub fn pattern(&self) -> &Pattern {
         &self.pattern
+    }
+
+    #[inline]
+    pub fn pattern_mut(&mut self) -> &mut Pattern {
+        &mut self.pattern
     }
 
     #[inline]
@@ -272,6 +279,17 @@ impl Pattern {
         };
         self.flags_mut().insert(PatternFlags::NonAnchorable);
     }
+
+    pub fn set_filesize_bounds(&mut self, bounds: &FilesizeBounds) {
+        match self {
+            Pattern::Text(literal) => {
+                literal.filesize_bounds = bounds.clone();
+            }
+            Pattern::Regexp(regexp) | Pattern::Hex(regexp) => {
+                regexp.filesize_bounds = bounds.clone();
+            }
+        }
+    }
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -282,6 +300,7 @@ pub(crate) struct LiteralPattern {
     pub xor_range: Option<RangeInclusive<u8>>,
     pub base64_alphabet: Option<String>,
     pub base64wide_alphabet: Option<String>,
+    pub filesize_bounds: FilesizeBounds,
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -289,6 +308,7 @@ pub(crate) struct RegexpPattern {
     pub flags: PatternFlags,
     pub hir: re::hir::Hir,
     pub anchored_at: Option<usize>,
+    pub filesize_bounds: FilesizeBounds,
 }
 
 /// The index of a pattern in the rule that declares it.
@@ -860,6 +880,90 @@ impl IR {
         }
 
         self.root.unwrap()
+    }
+
+    /// Determines the constraints on `filesize` imposed by a rule condition.
+    ///
+    /// This function analyzes the rule’s condition to determine whether it
+    /// restricts matching to files whose size falls within a specific range.
+    ///
+    /// For example, the condition `filesize < 10MB and $a` only matches files
+    /// smaller than 10MB. In this case, the function would return bounds
+    /// reflecting that limit.
+    ///
+    /// In contrast, the condition `filesize < 10MB or $a` does not impose a
+    /// filesize constraint, since the use of `or` allows files larger than
+    /// 10MB to also match.
+    pub fn filesize_bounds(&self) -> FilesizeBounds {
+        let mut result = FilesizeBounds::default();
+        let mut dfs = self.dfs_iter(self.root.unwrap());
+
+        while let Some(evt) = dfs.next() {
+            let expr = match evt {
+                Event::Enter((_, expr, _)) => expr,
+                _ => continue,
+            };
+            match expr {
+                Expr::Gt { lhs, rhs } => {
+                    match (self.get(*lhs), self.get(*rhs)) {
+                        // constant > filesize
+                        (Expr::Const(c), Expr::Filesize) => {
+                            result.min_end(Bound::Excluded(c.as_integer()));
+                        }
+                        // filesize > constant
+                        (Expr::Filesize, Expr::Const(c)) => {
+                            result.max_start(Bound::Excluded(c.as_integer()));
+                        }
+                        _ => {}
+                    }
+                }
+                Expr::Ge { lhs, rhs } => {
+                    match (self.get(*lhs), self.get(*rhs)) {
+                        // constant >= filesize
+                        (Expr::Const(c), Expr::Filesize) => {
+                            result.min_end(Bound::Included(c.as_integer()));
+                        }
+                        // filesize >= constant
+                        (Expr::Filesize, Expr::Const(c)) => {
+                            result.max_start(Bound::Included(c.as_integer()));
+                        }
+                        _ => {}
+                    }
+                }
+                Expr::Lt { lhs, rhs } => {
+                    match (self.get(*lhs), self.get(*rhs)) {
+                        // constant < filesize
+                        (Expr::Const(c), Expr::Filesize) => {
+                            result.max_start(Bound::Excluded(c.as_integer()));
+                        }
+                        // filesize < constant
+                        (Expr::Filesize, Expr::Const(c)) => {
+                            result.min_end(Bound::Excluded(c.as_integer()));
+                        }
+                        _ => {}
+                    }
+                }
+                Expr::Le { lhs, rhs } => {
+                    match (self.get(*lhs), self.get(*rhs)) {
+                        // constant < filesize
+                        (Expr::Const(c), Expr::Filesize) => {
+                            result.max_start(Bound::Included(c.as_integer()));
+                        }
+                        // filesize < constant
+                        (Expr::Filesize, Expr::Const(c)) => {
+                            result.min_end(Bound::Included(c.as_integer()));
+                        }
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
+            if !matches!(expr, Expr::And { .. }) {
+                dfs.prune();
+            }
+        }
+
+        result
     }
 }
 

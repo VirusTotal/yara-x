@@ -811,9 +811,10 @@ pub(crate) unsafe fn free_engine() {
         ENGINE.take().unwrap().unload_process_handlers()
     }
 }
-pub(crate) fn new_linker() -> Linker<ScanContext<'static>> {
+
+pub(crate) fn new_linker() -> Linker<ScanContext<'static, 'static>> {
     let engine = get_engine();
-    let mut linker = Linker::<ScanContext<'static>>::new(engine);
+    let mut linker = Linker::<ScanContext<'static, 'static>>::new(engine);
     for export in WASM_EXPORTS {
         let func_type = FuncType::new(
             engine,
@@ -1038,8 +1039,11 @@ fn lookup_field(
 
     let mut store_ctx = caller.as_context_mut();
 
-    let mem_ptr =
-        store_ctx.data_mut().main_memory.unwrap().data_ptr(&mut store_ctx);
+    let mem_ptr = store_ctx
+        .data_mut()
+        .wasm_main_memory
+        .unwrap()
+        .data_ptr(&mut store_ctx);
 
     let lookup_indexes_ptr =
         unsafe { mem_ptr.offset(LOOKUP_INDEXES_START as isize) };
@@ -1537,7 +1541,7 @@ macro_rules! gen_int_fn {
             let offset = usize::try_from(offset).ok()?;
             caller
                 .data()
-                .scanned_data()
+                .scanned_data()?
                 .get(offset..offset + mem::size_of::<$return_type>())
                 .map(|bytes| {
                     <$return_type>::$from_fn(bytes.try_into().unwrap()) as i64
@@ -1571,7 +1575,7 @@ macro_rules! gen_float_fn {
             let offset = usize::try_from(offset).ok()?;
             caller
                 .data()
-                .scanned_data()
+                .scanned_data()?
                 .get(offset..offset + mem::size_of::<$return_type>())
                 .map(|bytes| {
                     <$return_type>::$from_fn(bytes.try_into().unwrap()) as f64

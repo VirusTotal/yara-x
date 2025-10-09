@@ -18,9 +18,9 @@ message definition. The `yara.proto` file defines the existing formatting
 options, so you must include it in your own `.proto` file in order to be able
 to use the such options.
 
-The `[(yara.field_options).fmt = "x"]` modifier, when applied to some field, indicates
-that values of that field must be rendered in hexadecimal form. The list of
-supported format modifiers is:
+The `[(yara.field_options).fmt = "x"]` modifier, when applied to some field,
+indicates that values of that field must be rendered in hexadecimal form. The
+list of supported format modifiers is:
 
 - `x`: Serializes the value as a hexadecimal number. Only valid for integer
   fields.
@@ -30,8 +30,9 @@ supported format modifiers is:
   format. Only valid for integer fields.
 
 - `flag:ENUM_TYPE_NAME`: Serializes the field as a set of flags. The value
-  is rendered as a hexadecimal number. but a comment is added withe flags set.
-  `ENUM_TYPE_NAME` must be the name of enum where each value represents a flag.
+  is rendered as a hexadecimal number, but a comment is added with the names
+  of the flags that are enabled. `ENUM_TYPE_NAME` must be the name of enum
+  where each value represents a flag.
 
 # Examples
 

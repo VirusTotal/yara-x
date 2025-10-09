@@ -433,6 +433,35 @@ pub unsafe extern "C" fn yrx_compiler_define_global_float(
     yrx_compiler_define_global(compiler, ident, value)
 }
 
+/// Defines a global variable from a JSON-encoded string.
+///
+/// This is best for complex types like maps and arrays. For simple types
+/// (e.g., booleans, integers, strings), prefer dedicated functions to avoid
+/// the overhead of JSON deserialization.
+///
+/// When defining a map, keys must be of string type, and values can be
+/// any of the types supported by YARA, including other maps. Arrays must be
+/// homogeneous (all elements must be the same type).
+#[no_mangle]
+pub unsafe extern "C" fn yrx_compiler_define_global_json(
+    compiler: *mut YRX_COMPILER,
+    ident: *const c_char,
+    value: *const c_char,
+) -> YRX_RESULT {
+    let value = if let Ok(value) = CStr::from_ptr(value).to_str() {
+        value
+    } else {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+    let value: serde_json::Value = match serde_json::from_str(value) {
+        Ok(json_value) => json_value,
+        Err(_) => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+    };
+
+    yrx_compiler_define_global(compiler, ident, value)
+}
+
 /// Returns the errors encountered during the compilation in JSON format.
 ///
 /// In the address indicated by the `buf` pointer, the function will copy a

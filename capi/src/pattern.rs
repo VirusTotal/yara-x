@@ -17,7 +17,7 @@ impl<'a, 'r> YRX_PATTERN<'a, 'r> {
 /// Arguments `ident` and `len` are output parameters that receive pointers
 /// to a `const uint8_t*` and `size_t`, where this function will leave a pointer
 /// to the rule's name and its length, respectively. The rule's name is *NOT*
-/// null-terminated, and the pointer will be valid as long as the [`YRX_RULES`]
+/// null-terminated, and the pointer will be valid as long as the `YRX_RULES`
 /// object that contains the pattern is not freed. The name is guaranteed to be
 /// a valid UTF-8 string.
 #[no_mangle]

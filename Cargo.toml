@@ -1,5 +1,5 @@
 [workspace.package]
-version = "1.7.1"
+version = "1.8.1"
 authors = ["Victor M. Alvarez <vmalvarez@virustotal.com>"]
 edition = "2021"
 homepage = "https://virustotal.github.io/yara-x"
@@ -33,7 +33,7 @@ resolver = "2"
 [workspace.dependencies]
 aho-corasick = "1.1.3"
 annotate-snippets = "0.12.4"
-anyhow = "1.0.99"
+anyhow = "1.0.100"
 array-bytes = "9.3.0"
 ascii_tree = "0.1.1"
 base64 = "0.22.1"
@@ -43,7 +43,7 @@ bitvec = "1.0.1"
 bstr = "1.12.0"
 cbindgen = "0.29.0"
 chrono = "0.4.42"
-clap = "4.5.47"
+clap = "4.5.48"
 clap_complete = "4.5.58"
 const-oid = "0.9.6"
 crc32fast = "1.5.0"
@@ -51,25 +51,25 @@ der-parser = "10.0.0"
 digest = "0.10.7"
 dsa = "0.6.3"
 ecdsa = "0.16.9"
-enable-ansi-support = "0.2.1"
+enable-ansi-support = "0.3.1"
 env_logger = "0.11.8"
 figment = "0.10.19"
 globwalk = "0.9.1"
 goldenfile = "1.8.0"
 home = "0.5.11"
 ihex = "3.0.0"
-indexmap = "2.11.3"
+indexmap = "2.11.4"
 intaglio = "1.10.0"
 ipnet = "2.11.0"
 itertools = "0.14.0"
-linkme = "0.3.33"
+linkme = "0.3.35"
 log = "0.4.28"
-magic = "0.16.3"
+magic = "0.16.7"
 md2 = "0.10.2"
 md-5 = "0.10.6"
 memmap2 = "0.9.8"
-memchr = "2.7.5"
-memx = "0.1.32"
+memchr = "2.7.6"
+memx = "0.2.0"
 nom = "8.0.0"
 num-traits = "0.2.19"
 num-derive = "0.4.2"
@@ -80,38 +80,38 @@ pretty_assertions = "1.4.1"
 protobuf = "3.7.2"
 protobuf-codegen = "3.7.2"
 protobuf-parse = "3.7.2"
-psl = "2.1.141"
+psl = "2.1.147"
 quanta = "0.12.6"
 rayon = "1.11.0"
-regex = "1.11.2"
+regex = "1.11.3"
 regex-syntax = "0.8.6"
-regex-automata = "0.4.10"
-roxmltree = "0.20.0"
+regex-automata = "0.4.11"
+roxmltree = "0.21.0"
 rsa = "0.9.8"
 rustc-hash = "2.1.1"
-serde = "1.0.225"
+serde = "1.0.228"
 serde_json = "1.0.145"
 sha1 = "0.10.6"
 sha2 = "0.10.6"
 smallvec = "1.14.0"
 strum = "0.27.2"
 strum_macros = "0.27.2"
-thiserror = "2.0.16"
+thiserror = "2.0.17"
 # Using tlsh-fixed instead of tlsh because tlsh-fixed includes a fix for this
 # issue: https://github.com/1crcbl/tlsh-rs/issues/2.
 tlsh-fixed = "0.1.1"
 uuid = "1.18.1"
 walrus = "0.23.3"
-wasmtime = { version = "36.0.2", default-features = false }
+wasmtime = { version = "37.0.1", default-features = false }
 x509-parser = "0.18.0"
 yansi = "1.0.1"
-yara-x = { path = "lib", version = "1.7.1" }
-yara-x-fmt = { path = "fmt", version = "1.7.1" }
-yara-x-macros = { path = "macros", version = "1.7.1" }
-yara-x-parser = { path = "parser", version = "1.7.1" }
-yara-x-proto = { path = "proto", version = "1.7.1" }
-yara-x-proto-yaml = { path = "proto-yaml", version = "1.7.1" }
-yara-x-proto-json = { path = "proto-json", version = "1.7.1" }
+yara-x = { path = "lib", version = "1.8.1" }
+yara-x-fmt = { path = "fmt", version = "1.8.1" }
+yara-x-macros = { path = "macros", version ="1.8.1" }
+yara-x-parser = { path = "parser", version = "1.8.1" }
+yara-x-proto = { path = "proto", version = "1.8.1" }
+yara-x-proto-yaml = { path = "proto-yaml", version = "1.8.1" }
+yara-x-proto-json = { path = "proto-json", version = "1.8.1" }
 zip = "5.1.1"
 simd-adler32 = "0.3.7"
 simd_cesu8 = "1"

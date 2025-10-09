@@ -1,3 +1,4 @@
+use std::collections::Bound;
 use std::fs;
 use std::io::Write;
 use std::mem::size_of;
@@ -5,7 +6,7 @@ use std::mem::size_of;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
-use crate::compiler::{linters, SubPattern, VarStack};
+use crate::compiler::{linters, FilesizeBounds, SubPattern, VarStack};
 use crate::errors::{SerializationError, VariableError};
 use crate::types::Type;
 use crate::{compile, Compiler, Rules, Scanner, SourceCode};
@@ -1261,4 +1262,34 @@ fn test_warnings() {
             output_file.write_all(s.as_bytes()).expect("unable to write");
         }
     }
+}
+
+#[test]
+fn test_filesize_bounds() {
+    let mut bounds = FilesizeBounds::default();
+
+    // Initially unbounded.
+    assert_eq!(bounds, FilesizeBounds::from(..));
+
+    bounds.min_end(Bound::Included(1000));
+    // Now the end must be <= 1000.
+    assert_eq!(bounds, FilesizeBounds::from(..=1000));
+
+    bounds.min_end(Bound::Excluded(1000));
+    // Now the end must be < 1000, 1000 was excluded.
+    assert_eq!(bounds, FilesizeBounds::from(..1000));
+
+    bounds.min_end(Bound::Excluded(2000));
+    // The bounds remain the same, the previous call didn't change the
+    // bounds as the existing bounds were already more restrictive.
+    assert_eq!(bounds, FilesizeBounds::from(..1000));
+
+    bounds.max_start(Bound::Included(1));
+    assert_eq!(bounds, FilesizeBounds::from(1..1000));
+
+    bounds.max_start(Bound::Excluded(1));
+    assert_eq!(
+        bounds,
+        FilesizeBounds::from((Bound::Excluded(1), Bound::Excluded(1000)))
+    );
 }
