@@ -109,7 +109,7 @@ impl Dex {
         })
     }
 
-    fn parse_dex_header<'a>(data: &'a [u8]) -> IResult<&'a [u8], DexHeader> {
+    fn parse_dex_header(data: &[u8]) -> IResult<&[u8], DexHeader> {
         let (mut remainder, (magic, _, version, _)) = (
             // magic must be 'dex\n'
             verify(be_u32, |magic| *magic == 0x6465780A),
@@ -122,9 +122,7 @@ impl Dex {
         )
             .parse(data)?;
 
-        let mut header = DexHeader::default();
-        header.magic = magic;
-        header.version = version;
+        let mut header = DexHeader { magic, version, ..DexHeader::default() };
 
         // note: nom limits the number of parsers in the tuple to 21, and the header consists of 24 fields
         (
@@ -337,8 +335,8 @@ impl Dex {
     /// Collects a type list to list of strings from given offset
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#type-list
-    fn parse_type_list<'a>(
-        data: &'a [u8],
+    fn parse_type_list(
+        data: &[u8],
         type_items: &[Rc<String>],
         offset: u32,
     ) -> Option<Vec<Rc<String>>> {
@@ -492,10 +490,7 @@ impl Dex {
     /// Collects information about maps from the DEX file
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#map-list
-    fn parse_map_items<'a>(
-        data: &'a [u8],
-        header: &DexHeader,
-    ) -> Option<MapList> {
+    fn parse_map_items(data: &[u8], header: &DexHeader) -> Option<MapList> {
         data.get(header.map_off as usize..).and_then(|offset| {
             let (items_offset, size) = le_u32::<&[u8], Error>(offset).ok()?;
 
@@ -510,7 +505,7 @@ impl Dex {
     /// Parse single map_item from given input
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#map-item
-    fn parse_map_item<'a>(input: &'a [u8]) -> IResult<&'a [u8], MapItem> {
+    fn parse_map_item(input: &[u8]) -> IResult<&[u8], MapItem> {
         let (remainder, (item_type, unused, size, offset)) = (
             le_u16, // type
             le_u16, // unused
@@ -552,9 +547,9 @@ impl TryFrom<u16> for DexVersion {
     }
 }
 
-impl Into<u32> for DexVersion {
-    fn into(self) -> u32 {
-        match self {
+impl From<DexVersion> for u32 {
+    fn from(value: DexVersion) -> Self {
+        match value {
             DexVersion::DEX35 => 35,
             DexVersion::DEX36 => 36,
             DexVersion::DEX37 => 37,
@@ -784,11 +779,7 @@ impl From<&MapItem> for protos::dex::MapItem {
     fn from(item: &MapItem) -> Self {
         let mut result = protos::dex::MapItem::new();
 
-        result.type_ = item
-            .item_type
-            .try_into()
-            .ok()
-            .map(EnumOrUnknown::<protos::dex::TypeCode>::from_i32);
+        result.type_ = Some(EnumOrUnknown::from_i32(item.item_type.into()));
         result.set_unused(item.unused.into());
         result.set_size(item.size);
         result.set_offset(item.offset);

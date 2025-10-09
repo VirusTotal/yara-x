@@ -55,10 +55,7 @@ fn checksum(ctx: &mut ScanContext) -> Option<i64> {
     let data = ctx.scanned_data()?;
 
     const CHECKSUM_OFFSET: usize = 12;
-    let data = match data.get(CHECKSUM_OFFSET..) {
-        Some(v) => v,
-        None => return None,
-    };
+    let data = data.get(CHECKSUM_OFFSET..)?;
 
     let mut adler = Adler32::new();
     adler.write(data);
@@ -97,10 +94,7 @@ fn signature(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let data = ctx.scanned_data()?;
 
     const SIGNATURE_OFFSET: usize = 32;
-    let data = match data.get(SIGNATURE_OFFSET..) {
-        Some(v) => v,
-        None => return None,
-    };
+    let data = data.get(SIGNATURE_OFFSET..)?;
 
     let mut hasher = Sha1::new();
     hasher.update(data);
@@ -121,7 +115,7 @@ fn contains_string(
 ) -> Option<bool> {
     let dex = ctx.module_output::<Dex>()?;
 
-    let str = value.to_str(&ctx).ok()?.to_string();
+    let str = value.to_str(ctx).ok()?.to_string();
 
     // string items sorted by dex format
     Some(dex.string_ids.binary_search(&str).is_ok())
@@ -135,7 +129,7 @@ fn contains_method(
 ) -> Option<bool> {
     let dex = ctx.module_output::<Dex>()?;
 
-    let str = match value.to_str(&ctx) {
+    let str = match value.to_str(ctx) {
         Ok(v) => Some(v.to_string()),
         Err(_) => return None,
     };
@@ -151,7 +145,7 @@ fn contains_class(
 ) -> Option<bool> {
     let dex = ctx.module_output::<Dex>()?;
 
-    let class_name = Some(value.to_str(&ctx).ok()?.to_string());
+    let class_name = Some(value.to_str(ctx).ok()?.to_string());
 
     Some(
         dex.class_defs
