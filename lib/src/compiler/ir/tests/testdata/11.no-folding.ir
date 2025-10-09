@@ -1,0 +1,81 @@
+RULE test_1
+  2: GT -- hash: 0xc4fc604b82c8a52b -- parent: None 
+    0: FILESIZE -- parent: 2 
+    1: CONST integer(0) -- parent: 2 
+
+FilesizeBounds { start: Excluded(0), end: Unbounded }
+
+RULE test_2
+  2: LT -- hash: 0x4da9ccb7dc8ad14 -- parent: None 
+    0: FILESIZE -- parent: 2 
+    1: CONST integer(1000) -- parent: 2 
+
+FilesizeBounds { start: Unbounded, end: Excluded(1000) }
+
+RULE test_3
+  6: AND -- hash: 0x4683df5ef9ed24cc -- parent: None 
+    2: GT -- hash: 0xc4fc604b82c8a52b -- parent: 6 
+      0: FILESIZE -- parent: 2 
+      1: CONST integer(0) -- parent: 2 
+    5: LT -- hash: 0x4da9ccb7dc8ad14 -- parent: 6 
+      3: FILESIZE -- parent: 5 
+      4: CONST integer(1000) -- parent: 5 
+
+FilesizeBounds { start: Excluded(0), end: Excluded(1000) }
+
+RULE test_4
+  9: AND -- hash: 0x1c68bc25618c80a0 -- parent: None 
+    2: GT -- hash: 0xc4fc604b82c8a52b -- parent: 9 
+      0: FILESIZE -- parent: 2 
+      1: CONST integer(0) -- parent: 2 
+    5: GT -- hash: 0x5c3bcad248790060 -- parent: 9 
+      3: FILESIZE -- parent: 5 
+      4: CONST integer(10) -- parent: 5 
+    8: LT -- hash: 0x4da9ccb7dc8ad14 -- parent: 9 
+      6: FILESIZE -- parent: 8 
+      7: CONST integer(1000) -- parent: 8 
+
+FilesizeBounds { start: Excluded(10), end: Excluded(1000) }
+
+RULE test_5
+  12: AND -- hash: 0x5be76b0c86be461c -- parent: None 
+    2: GT -- hash: 0xc4fc604b82c8a52b -- parent: 12 
+      0: FILESIZE -- parent: 2 
+      1: CONST integer(0) -- parent: 2 
+    5: GT -- hash: 0x5c3bcad248790060 -- parent: 12 
+      3: FILESIZE -- parent: 5 
+      4: CONST integer(10) -- parent: 5 
+    8: LT -- hash: 0x4da9ccb7dc8ad14 -- parent: 12 
+      6: FILESIZE -- parent: 8 
+      7: CONST integer(1000) -- parent: 8 
+    11: LT -- hash: 0x87546aac269567bd -- parent: 12 
+      9: FILESIZE -- parent: 11 
+      10: CONST integer(10) -- parent: 11 
+
+FilesizeBounds { start: Excluded(10), end: Excluded(10) }
+
+RULE test_6
+  2: GE -- hash: 0x6ecb2097ca8fd671 -- parent: None 
+    0: FILESIZE -- parent: 2 
+    1: CONST integer(0) -- parent: 2 
+
+FilesizeBounds { start: Included(0), end: Unbounded }
+
+RULE test_7
+  2: LE -- hash: 0xaea95d17c58fde59 -- parent: None 
+    0: FILESIZE -- parent: 2 
+    1: CONST integer(1000) -- parent: 2 
+
+FilesizeBounds { start: Unbounded, end: Included(1000) }
+
+RULE test_8
+  6: AND -- hash: 0xbb98c4e671eec26d -- parent: None 
+    2: GE -- hash: 0x6ecb2097ca8fd671 -- parent: 6 
+      0: FILESIZE -- parent: 2 
+      1: CONST integer(0) -- parent: 2 
+    5: LE -- hash: 0x31232af86e5c9903 -- parent: 6 
+      3: FILESIZE -- parent: 5 
+      4: CONST integer(10) -- parent: 5 
+
+FilesizeBounds { start: Included(0), end: Included(10) }
+

@@ -327,15 +327,23 @@ pub struct Compiler<'a> {
     /// function name (e.g: `my_module.my_struct.my_func@ii@i`)
     wasm_exports: FxHashMap<String, FunctionId>,
 
+    /// Map that associates a `PatternId` to a certain filesize bound.
+    ///
+    /// A condition like `filesize < 1000 and $a` only matches if `filesize`
+    /// is less than 1000. Therefore, the pattern `$a` does not need be
+    /// checked for files of size 1000 bytes or larger.
+    ///
+    /// In this case, the map will contain an entry associating `$a` to a
+    /// `FilesizeBounds` value like:
+    /// `FilesizeBounds{start: Bound::Unbounded, end: Bound:Excluded(1000)}`.
+    filesize_bounds: FxHashMap<PatternId, FilesizeBounds>,
+
     /// A vector with all the rules that has been compiled. A [`RuleId`] is
     /// an index in this vector.
     rules: Vec<RuleInfo>,
 
     /// Next (not used yet) [`PatternId`].
     next_pattern_id: PatternId,
-
-    /// The [`PatternId`] for the pattern being processed.
-    current_pattern_id: PatternId,
 
     /// Map used for de-duplicating pattern. Keys are the pattern's IR and
     /// values are the `PatternId` assigned to each pattern. Every time a rule
@@ -506,7 +514,6 @@ impl<'a> Compiler<'a> {
             error_on_slow_pattern: false,
             error_on_slow_loop: false,
             next_pattern_id: PatternId(0),
-            current_pattern_id: PatternId(0),
             current_namespace: default_namespace,
             features: FxHashSet::default(),
             warnings: Warnings::default(),
@@ -520,6 +527,7 @@ impl<'a> Compiler<'a> {
             ignored_modules: FxHashSet::default(),
             banned_modules: FxHashMap::default(),
             ignored_rules: FxHashMap::default(),
+            filesize_bounds: FxHashMap::default(),
             root_struct: Struct::new().make_root(),
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
@@ -791,6 +799,7 @@ impl<'a> Compiler<'a> {
             atoms: self.atoms,
             re_code: self.re_code,
             warnings: self.warnings.into(),
+            filesize_bounds: self.filesize_bounds,
         };
 
         rules.build_ac_automaton();
@@ -1048,6 +1057,7 @@ impl<'a> Compiler<'a> {
 impl Compiler<'_> {
     fn add_sub_pattern<I, F, A>(
         &mut self,
+        pattern_id: PatternId,
         sub_pattern: SubPattern,
         atoms: I,
         f: F,
@@ -1059,7 +1069,7 @@ impl Compiler<'_> {
         let sub_pattern_id = SubPatternId(self.sub_patterns.len() as u32);
 
         // Sub-patterns that are anchored at some fixed offset are not added to
-        // the Aho-Corasick automata. Instead their IDs are added to the
+        // the Aho-Corasick automata. Instead, their IDs are added to the
         // anchored_sub_patterns list.
         if let SubPattern::Literal { anchored_at: Some(_), .. } = sub_pattern {
             self.anchored_sub_patterns.push(sub_pattern_id);
@@ -1067,7 +1077,7 @@ impl Compiler<'_> {
             self.atoms.extend(atoms.map(|atom| f(sub_pattern_id, atom)));
         }
 
-        self.sub_patterns.push((self.current_pattern_id, sub_pattern));
+        self.sub_patterns.push((pattern_id, sub_pattern));
 
         sub_pattern_id
     }
@@ -1604,9 +1614,23 @@ impl Compiler<'_> {
             condition = self.ir.hoisting();
         }
 
+        // Analyze the condition and determine the bounds it imposes to
+        // `filesize`, if any.
+        let filesize_bounds = self.ir.filesize_bounds();
+
+        // Set the bounds to all patterns in the rule.
+        if !filesize_bounds.unbounded() {
+            for pattern in &mut rule_patterns {
+                pattern.pattern_mut().set_filesize_bounds(&filesize_bounds);
+            }
+        }
+
         if let Some(w) = &mut self.ir_writer {
             writeln!(w, "RULE {}", rule.identifier.name).unwrap();
             writeln!(w, "{:?}", self.ir).unwrap();
+            if !filesize_bounds.unbounded() {
+                writeln!(w, "{filesize_bounds:?}\n",).unwrap();
+            }
         }
 
         let mut pattern_ids = Vec::with_capacity(rule_patterns.len());
@@ -1635,8 +1659,9 @@ impl Compiler<'_> {
             // we don't need to process (i.e: extract atoms and add them to
             // Aho-Corasick automaton) the pattern again. Two patterns are
             // considered equal if they are exactly the same, including any
-            // modifiers associated to the pattern, and both are non-anchored
-            // or anchored at the same file offset.
+            // modifiers associated to the pattern, both are non-anchored
+            // or anchored at the same file offset, and if they have the same
+            // file size bounds.
             let pattern_id =
                 match self.patterns.entry(pattern.pattern().clone()) {
                     // The pattern already exists, return the existing ID.
@@ -1677,21 +1702,28 @@ impl Compiler<'_> {
             rule.patterns.iter().flatten().map(|p| p.span())
         ) {
             if pending_patterns.contains(pattern_id) {
-                self.current_pattern_id = *pattern_id;
-                let anchored_at = pattern.anchored_at();
                 match pattern.into_pattern() {
                     Pattern::Text(pattern) => {
-                        self.c_literal_pattern(pattern, anchored_at);
+                        self.c_literal_pattern(*pattern_id, pattern);
                     }
                     Pattern::Regexp(pattern) | Pattern::Hex(pattern) => {
                         if let Err(err) =
-                            self.c_regexp_pattern(pattern, anchored_at, span)
+                            self.c_regexp_pattern(*pattern_id, pattern, span)
                         {
                             self.restore_snapshot(snapshot);
                             return Err(err);
                         }
                     }
                 };
+                if !filesize_bounds.unbounded()
+                    && self
+                        .filesize_bounds
+                        .insert(*pattern_id, filesize_bounds.clone())
+                        .is_some()
+                {
+                    // This should not happen.
+                    panic!("modifying the file size bounds of an existing pattern")
+                }
                 pending_patterns.remove(pattern_id);
             }
         }
@@ -1870,8 +1902,8 @@ impl Compiler<'_> {
 
     fn c_literal_pattern(
         &mut self,
+        pattern_id: PatternId,
         pattern: LiteralPattern,
-        anchored_at: Option<usize>,
     ) {
         let full_word = pattern.flags.contains(PatternFlags::Fullword);
         let mut flags = SubPatternFlags::empty();
@@ -1919,6 +1951,7 @@ impl Compiler<'_> {
 
                 let xor_range = pattern.xor_range.clone().unwrap();
                 self.add_sub_pattern(
+                    pattern_id,
                     SubPattern::Xor { pattern: pattern_lit_id, flags },
                     best_atom.xor_combinations(xor_range),
                     SubPatternAtom::from_atom,
@@ -1933,6 +1966,7 @@ impl Compiler<'_> {
                 ));
 
                 self.add_sub_pattern(
+                    pattern_id,
                     SubPattern::Literal {
                         pattern: pattern_lit_id,
                         flags: flags | SubPatternFlags::Nocase,
@@ -1978,6 +2012,7 @@ impl Compiler<'_> {
                         };
 
                         self.add_sub_pattern(
+                            pattern_id,
                             sub_pattern,
                             iter::once({
                                 let mut atom = best_atom_in_bytes(
@@ -2018,6 +2053,7 @@ impl Compiler<'_> {
                         let wide = make_wide(base64_pattern.as_slice());
 
                         self.add_sub_pattern(
+                            pattern_id,
                             sub_pattern,
                             iter::once({
                                 let mut atom =
@@ -2033,9 +2069,10 @@ impl Compiler<'_> {
                 }
             } else {
                 self.add_sub_pattern(
+                    pattern_id,
                     SubPattern::Literal {
                         pattern: pattern_lit_id,
-                        anchored_at,
+                        anchored_at: pattern.anchored_at,
                         flags,
                     },
                     iter::once(best_atom),
@@ -2047,8 +2084,8 @@ impl Compiler<'_> {
 
     fn c_regexp_pattern(
         &mut self,
+        pattern_id: PatternId,
         pattern: RegexpPattern,
-        anchored_at: Option<usize>,
         span: Span,
     ) -> Result<(), CompileError> {
         // Try splitting the regexp into multiple chained sub-patterns if it
@@ -2061,7 +2098,13 @@ impl Compiler<'_> {
 
         if !tail.is_empty() {
             // The pattern was split into multiple chained regexps.
-            return self.c_chain(&head, &tail, pattern.flags, span);
+            return self.c_chain(
+                pattern_id,
+                &head,
+                &tail,
+                pattern.flags,
+                span,
+            );
         }
 
         if head.is_alternation_literal() {
@@ -2072,8 +2115,9 @@ impl Compiler<'_> {
             //   { 01 02 03 }
             //   { (01 02 03 | 04 05 06 ) }
             return self.c_alternation_literal(
+                pattern_id,
                 head,
-                anchored_at,
+                pattern.anchored_at,
                 pattern.flags,
             );
         }
@@ -2104,6 +2148,7 @@ impl Compiler<'_> {
 
         if pattern.flags.contains(PatternFlags::Wide) {
             self.add_sub_pattern(
+                pattern_id,
                 SubPattern::Regexp { flags: flags | SubPatternFlags::Wide },
                 atoms.iter().cloned().map(|atom| atom.make_wide()),
                 SubPatternAtom::from_regexp_atom,
@@ -2112,6 +2157,7 @@ impl Compiler<'_> {
 
         if pattern.flags.contains(PatternFlags::Ascii) {
             self.add_sub_pattern(
+                pattern_id,
                 SubPattern::Regexp { flags },
                 atoms.into_iter(),
                 SubPatternAtom::from_regexp_atom,
@@ -2123,6 +2169,7 @@ impl Compiler<'_> {
 
     fn c_alternation_literal(
         &mut self,
+        pattern_id: PatternId,
         hir: re::hir::Hir,
         anchored_at: Option<usize>,
         flags: PatternFlags,
@@ -2162,12 +2209,14 @@ impl Compiler<'_> {
 
             if case_insensitive {
                 self.add_sub_pattern(
+                    pattern_id,
                     sub_pattern,
                     best_atom.case_combinations(),
                     SubPatternAtom::from_atom,
                 );
             } else {
                 self.add_sub_pattern(
+                    pattern_id,
                     sub_pattern,
                     iter::once(best_atom),
                     SubPatternAtom::from_atom,
@@ -2214,6 +2263,7 @@ impl Compiler<'_> {
 
     fn c_chain(
         &mut self,
+        pattern_id: PatternId,
         leading: &re::hir::Hir,
         trailing: &[ChainedPattern],
         flags: PatternFlags,
@@ -2246,11 +2296,12 @@ impl Compiler<'_> {
 
             if ascii {
                 prev_sub_pattern_ascii =
-                    self.c_literal_chain_head(literal, flags);
+                    self.c_literal_chain_head(pattern_id, literal, flags);
             }
 
             if wide {
                 prev_sub_pattern_wide = self.c_literal_chain_head(
+                    pattern_id,
                     literal,
                     flags | SubPatternFlags::Wide,
                 );
@@ -2271,6 +2322,7 @@ impl Compiler<'_> {
 
             if wide {
                 prev_sub_pattern_wide = self.add_sub_pattern(
+                    pattern_id,
                     SubPattern::RegexpChainHead {
                         flags: flags | SubPatternFlags::Wide,
                     },
@@ -2281,6 +2333,7 @@ impl Compiler<'_> {
 
             if ascii {
                 prev_sub_pattern_ascii = self.add_sub_pattern(
+                    pattern_id,
                     SubPattern::RegexpChainHead { flags },
                     atoms.into_iter(),
                     SubPatternAtom::from_regexp_atom,
@@ -2305,6 +2358,7 @@ impl Compiler<'_> {
             if let hir::HirKind::Literal(literal) = p.hir.kind() {
                 if wide {
                     prev_sub_pattern_wide = self.c_literal_chain_tail(
+                        pattern_id,
                         literal,
                         prev_sub_pattern_wide,
                         p.gap.clone(),
@@ -2313,6 +2367,7 @@ impl Compiler<'_> {
                 };
                 if ascii {
                     prev_sub_pattern_ascii = self.c_literal_chain_tail(
+                        pattern_id,
                         literal,
                         prev_sub_pattern_ascii,
                         p.gap.clone(),
@@ -2333,6 +2388,7 @@ impl Compiler<'_> {
 
                 if wide {
                     prev_sub_pattern_wide = self.add_sub_pattern(
+                        pattern_id,
                         SubPattern::RegexpChainTail {
                             chained_to: prev_sub_pattern_wide,
                             gap: p.gap.clone(),
@@ -2345,6 +2401,7 @@ impl Compiler<'_> {
 
                 if ascii {
                     prev_sub_pattern_ascii = self.add_sub_pattern(
+                        pattern_id,
                         SubPattern::RegexpChainTail {
                             chained_to: prev_sub_pattern_ascii,
                             gap: p.gap.clone(),
@@ -2456,6 +2513,7 @@ impl Compiler<'_> {
 
     fn c_literal_chain_head(
         &mut self,
+        pattern_id: PatternId,
         literal: &hir::Literal,
         flags: SubPatternFlags,
     ) -> SubPatternId {
@@ -2464,6 +2522,7 @@ impl Compiler<'_> {
             flags.contains(SubPatternFlags::Wide),
         );
         self.add_sub_pattern(
+            pattern_id,
             SubPattern::LiteralChainHead { pattern: pattern_lit_id, flags },
             extract_atoms(
                 self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
@@ -2475,6 +2534,7 @@ impl Compiler<'_> {
 
     fn c_literal_chain_tail(
         &mut self,
+        pattern_id: PatternId,
         literal: &hir::Literal,
         chained_to: SubPatternId,
         gap: ChainedPatternGap,
@@ -2485,6 +2545,7 @@ impl Compiler<'_> {
             flags.contains(SubPatternFlags::Wide),
         );
         self.add_sub_pattern(
+            pattern_id,
             SubPattern::LiteralChainTail {
                 pattern: pattern_lit_id,
                 chained_to,
@@ -2662,11 +2723,16 @@ impl From<RegexpId> for u32 {
 /// For each unique pattern defined in a set of YARA rules there's a PatternId
 /// that identifies it. If two different rules define exactly the same pattern
 /// there's a single instance of the pattern and therefore a single PatternId
-/// shared by both rules. Two patterns are considered equal when the have the
-/// same data and modifiers, but the identifier is not relevant. For example,
-/// if one rule defines `$a = "mz"` and another one `$mz = "mz"`, the pattern
-/// `"mz"` is shared by the two rules. Each rule has a Vec<(IdentId, PatternId)>
-/// that associates identifiers to their corresponding patterns.
+/// shared by both rules. For example, if one rule defines `$a = "mz"` and
+/// another one `$mz = "mz"`, the pattern `"mz"` is shared by the two rules.
+///
+/// However, in order to be considered the same, the following conditions must
+/// be met:
+///
+/// * Both patterns must have the same modifiers (i.e: `"mz" nocase` is not the
+///   same pattern as `"mz"`),
+/// * Both patterns must be either non-anchored, or anchored to the same offset.
+/// * Both patterns must have the same file size bounds (or no bounds at all).
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub(crate) struct PatternId(i32);
