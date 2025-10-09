@@ -1,313 +1,189 @@
-is_dex: true
-header:
-    magic: 0x6465780a
-    version: 38
-    checksum: 0x7f4679b0
-    signature: "eab238c117f398ac922c2daf525df3832ed7ac3b"
-    file_size: 876
-    header_size: 0x70
-    endian_tag: 0x12345678
-    link_size: 0
-    link_off: 0x0
-    map_off: 0x2d8
-    string_ids_size: 19
-    string_ids_off: 0x70
-    type_ids_size: 7
-    type_ids_off: 0xbc
-    proto_ids_size: 5
-    proto_ids_off: 0xd8
-    field_ids_size: 0
-    field_ids_off: 0x0
-    method_ids_size: 8
-    method_ids_off: 0x114
-    class_defs_size: 1
-    class_defs_off: 0x154
-    data_size: 504
-    data_off: 0x174
-string_ids:
-  - size: 0
-    value: ""
-  - size: 8
-    value: "<clinit>"
-  - size: 6
-    value: "<init>"
-  - size: 1
-    value: "I"
-  - size: 1
-    value: "L"
-  - size: 3
-    value: "LLI"
-  - size: 25
-    value: "Landroid/app/Application;"
-  - size: 25
-    value: "Landroid/content/Context;"
-  - size: 19
-    value: "Lezbkvojpi/keikfof;"
-  - size: 18
-    value: "Ljava/lang/String;"
-  - size: 18
-    value: "Ljava/lang/System;"
-  - size: 1
-    value: "V"
-  - size: 2
-    value: "VL"
-  - size: 17
-    value: "attachBaseContext"
-  - size: 20
-    value: "createPackageContext"
-  - size: 14
-    value: "getPackageName"
-  - size: 11
-    value: "loadLibrary"
-  - size: 8
-    value: "onCreate"
-  - size: 7
-    value: "oyclxjt"
-type_ids:
-  - size: 1
-    value: "I"
-  - size: 25
-    value: "Landroid/app/Application;"
-  - size: 25
-    value: "Landroid/content/Context;"
-  - size: 19
-    value: "Lezbkvojpi/keikfof;"
-  - size: 18
-    value: "Ljava/lang/String;"
-  - size: 18
-    value: "Ljava/lang/System;"
-  - size: 1
-    value: "V"
-proto_ids:
-  - shorty:
-        size: 3
-        value: "LLI"
-    return_type:
-        size: 25
-        value: "Landroid/content/Context;"
-    parameters_count: 2
-    parameters:
-      - size: 18
-        value: "Ljava/lang/String;"
-      - size: 25
-        value: "Landroid/app/Application;"
-  - shorty:
-        size: 1
-        value: "L"
-    return_type:
-        size: 18
-        value: "Ljava/lang/String;"
-    parameters_count: 0
-  - shorty:
-        size: 1
-        value: "V"
-    return_type:
-        size: 1
-        value: "V"
-    parameters_count: 0
-  - shorty:
-        size: 2
-        value: "VL"
-    return_type:
-        size: 1
-        value: "V"
-    parameters_count: 1
-    parameters:
-      - size: 25
-        value: "Landroid/content/Context;"
-  - shorty:
-        size: 2
-        value: "VL"
-    return_type:
-        size: 1
-        value: "V"
-    parameters_count: 1
-    parameters:
-      - size: 18
-        value: "Ljava/lang/String;"
-method_ids:
-  - class:
-        size: 25
-        value: "Landroid/app/Application;"
-    proto:
-        shorty:
-            size: 1
-            value: "V"
-        return_type:
-            size: 1
-            value: "V"
-        parameters_count: 0
-    name:
-        size: 6
-        value: "<init>"
-  - class:
-        size: 19
-        value: "Lezbkvojpi/keikfof;"
-    proto:
-        shorty:
-            size: 1
-            value: "V"
-        return_type:
-            size: 1
-            value: "V"
-        parameters_count: 0
-    name:
-        size: 8
-        value: "<clinit>"
-  - class:
-        size: 19
-        value: "Lezbkvojpi/keikfof;"
-    proto:
-        shorty:
-            size: 1
-            value: "V"
-        return_type:
-            size: 1
-            value: "V"
-        parameters_count: 0
-    name:
-        size: 6
-        value: "<init>"
-  - class:
-        size: 19
-        value: "Lezbkvojpi/keikfof;"
-    proto:
-        shorty:
-            size: 2
-            value: "VL"
-        return_type:
-            size: 1
-            value: "V"
-        parameters_count: 1
-        parameters:
-          - size: 25
-            value: "Landroid/content/Context;"
-    name:
-        size: 17
-        value: "attachBaseContext"
-  - class:
-        size: 19
-        value: "Lezbkvojpi/keikfof;"
-    proto:
-        shorty:
-            size: 3
-            value: "LLI"
-        return_type:
-            size: 25
-            value: "Landroid/content/Context;"
-        parameters_count: 2
-        parameters:
-          - size: 18
-            value: "Ljava/lang/String;"
-          - size: 25
-            value: "Landroid/app/Application;"
-    name:
-        size: 20
-        value: "createPackageContext"
-  - class:
-        size: 19
-        value: "Lezbkvojpi/keikfof;"
-    proto:
-        shorty:
-            size: 1
-            value: "L"
-        return_type:
-            size: 18
-            value: "Ljava/lang/String;"
-        parameters_count: 0
-    name:
-        size: 14
-        value: "getPackageName"
-  - class:
-        size: 19
-        value: "Lezbkvojpi/keikfof;"
-    proto:
-        shorty:
-            size: 1
-            value: "V"
-        return_type:
-            size: 1
-            value: "V"
-        parameters_count: 0
-    name:
-        size: 8
-        value: "onCreate"
-  - class:
-        size: 18
-        value: "Ljava/lang/System;"
-    proto:
-        shorty:
-            size: 2
-            value: "VL"
-        return_type:
-            size: 1
-            value: "V"
-        parameters_count: 1
-        parameters:
-          - size: 18
-            value: "Ljava/lang/String;"
-    name:
-        size: 11
-        value: "loadLibrary"
-class_defs:
-  - class:
-        size: 19
-        value: "Lezbkvojpi/keikfof;"
-    access_flags: 1
-    superclass:
-        size: 25
-        value: "Landroid/app/Application;"
-    source_file:
-        size: 0
-        value: ""
-map_list:
-    size: 12
-    items:
-      - type: TYPE_HEADER_ITEM
-        unused: 0
-        size: 1
-        offset: 0x0
-      - type: TYPE_STRING_ID_ITEM
-        unused: 0
-        size: 19
-        offset: 0x70
-      - type: TYPE_TYPE_ID_ITEM
-        unused: 0
-        size: 7
-        offset: 0xbc
-      - type: TYPE_PROTO_ID_ITEM
-        unused: 0
-        size: 5
-        offset: 0xd8
-      - type: TYPE_METHOD_ID_ITEM
-        unused: 0
-        size: 8
-        offset: 0x114
-      - type: TYPE_CLASS_DEF_ITEM
-        unused: 0
-        size: 1
-        offset: 0x154
-      - type: TYPE_STRING_DATA_ITEM
-        unused: 0
-        size: 19
-        offset: 0x174
-      - type: TYPE_TYPE_LIST
-        unused: 0
-        size: 3
-        offset: 0x268
-      - type: TYPE_ANNOTATION_SET_ITEM
-        unused: 0
-        size: 1
-        offset: 0x280
-      - type: TYPE_CODE_ITEM
-        unused: 0
-        size: 2
-        offset: 0x284
-      - type: TYPE_CLASS_DATA_ITEM
-        unused: 0
-        size: 1
-        offset: 0x2b8
-      - type: TYPE_MAP_LIST
-        unused: 0
-        size: 1
-        offset: 0x2d8
+  is_dex: true
+  header:
+      magic: 0x6465780a
+      version: 38
+      checksum: 0x7f4679b0
+      signature: "eab238c117f398ac922c2daf525df3832ed7ac3b"
+      file_size: 876
+      header_size: 0x70
+      endian_tag: 0x12345678
+      link_size: 0
+      link_off: 0x0
+      map_off: 0x2d8
+      string_ids_size: 19
+      string_ids_off: 0x70
+      type_ids_size: 7
+      type_ids_off: 0xbc
+      proto_ids_size: 5
+      proto_ids_off: 0xd8
+      field_ids_size: 0
+      field_ids_off: 0x0
+      method_ids_size: 8
+      method_ids_off: 0x114
+      class_defs_size: 1
+      class_defs_off: 0x154
+      data_size: 504
+      data_off: 0x174
+  string_ids:
+    - ""
+    - "<clinit>"
+    - "<init>"
+    - "I"
+    - "L"
+    - "LLI"
+    - "Landroid/app/Application;"
+    - "Landroid/content/Context;"
+    - "Lezbkvojpi/keikfof;"
+    - "Ljava/lang/String;"
+    - "Ljava/lang/System;"
+    - "V"
+    - "VL"
+    - "attachBaseContext"
+    - "createPackageContext"
+    - "getPackageName"
+    - "loadLibrary"
+    - "onCreate"
+    - "oyclxjt"
+  type_ids:
+    - "I"
+    - "Landroid/app/Application;"
+    - "Landroid/content/Context;"
+    - "Lezbkvojpi/keikfof;"
+    - "Ljava/lang/String;"
+    - "Ljava/lang/System;"
+    - "V"
+  proto_ids:
+    - shorty: "LLI"
+      return_type: "Landroid/content/Context;"
+      parameters_count: 2
+      parameters:
+        - "Ljava/lang/String;"
+        - "Landroid/app/Application;"
+    - shorty: "L"
+      return_type: "Ljava/lang/String;"
+      parameters_count: 0
+    - shorty: "V"
+      return_type: "V"
+      parameters_count: 0
+    - shorty: "VL"
+      return_type: "V"
+      parameters_count: 1
+      parameters:
+        - "Landroid/content/Context;"
+    - shorty: "VL"
+      return_type: "V"
+      parameters_count: 1
+      parameters:
+        - "Ljava/lang/String;"
+  method_ids:
+    - class: "Landroid/app/Application;"
+      proto:
+          shorty: "V"
+          return_type: "V"
+          parameters_count: 0
+      name: "<init>"
+    - class: "Lezbkvojpi/keikfof;"
+      proto:
+          shorty: "V"
+          return_type: "V"
+          parameters_count: 0
+      name: "<clinit>"
+    - class: "Lezbkvojpi/keikfof;"
+      proto:
+          shorty: "V"
+          return_type: "V"
+          parameters_count: 0
+      name: "<init>"
+    - class: "Lezbkvojpi/keikfof;"
+      proto:
+          shorty: "VL"
+          return_type: "V"
+          parameters_count: 1
+          parameters:
+            - "Landroid/content/Context;"
+      name: "attachBaseContext"
+    - class: "Lezbkvojpi/keikfof;"
+      proto:
+          shorty: "LLI"
+          return_type: "Landroid/content/Context;"
+          parameters_count: 2
+          parameters:
+            - "Ljava/lang/String;"
+            - "Landroid/app/Application;"
+      name: "createPackageContext"
+    - class: "Lezbkvojpi/keikfof;"
+      proto:
+          shorty: "L"
+          return_type: "Ljava/lang/String;"
+          parameters_count: 0
+      name: "getPackageName"
+    - class: "Lezbkvojpi/keikfof;"
+      proto:
+          shorty: "V"
+          return_type: "V"
+          parameters_count: 0
+      name: "onCreate"
+    - class: "Ljava/lang/System;"
+      proto:
+          shorty: "VL"
+          return_type: "V"
+          parameters_count: 1
+          parameters:
+            - "Ljava/lang/String;"
+      name: "loadLibrary"
+  class_defs:
+    - class: "Lezbkvojpi/keikfof;"
+      access_flags: 0x1  # ACC_PUBLIC
+      superclass: "Landroid/app/Application;"
+      source_file: ""
+  map_list:
+      size: 12
+      items:
+        - type: TYPE_HEADER_ITEM
+          unused: 0
+          size: 1
+          offset: 0x0
+        - type: TYPE_STRING_ID_ITEM
+          unused: 0
+          size: 19
+          offset: 0x70
+        - type: TYPE_TYPE_ID_ITEM
+          unused: 0
+          size: 7
+          offset: 0xbc
+        - type: TYPE_PROTO_ID_ITEM
+          unused: 0
+          size: 5
+          offset: 0xd8
+        - type: TYPE_METHOD_ID_ITEM
+          unused: 0
+          size: 8
+          offset: 0x114
+        - type: TYPE_CLASS_DEF_ITEM
+          unused: 0
+          size: 1
+          offset: 0x154
+        - type: TYPE_STRING_DATA_ITEM
+          unused: 0
+          size: 19
+          offset: 0x174
+        - type: TYPE_TYPE_LIST
+          unused: 0
+          size: 3
+          offset: 0x268
+        - type: TYPE_ANNOTATION_SET_ITEM
+          unused: 0
+          size: 1
+          offset: 0x280
+        - type: TYPE_CODE_ITEM
+          unused: 0
+          size: 2
+          offset: 0x284
+        - type: TYPE_CLASS_DATA_ITEM
+          unused: 0
+          size: 1
+          offset: 0x2b8
+        - type: TYPE_MAP_LIST
+          unused: 0
+          size: 1
+          offset: 0x2d8

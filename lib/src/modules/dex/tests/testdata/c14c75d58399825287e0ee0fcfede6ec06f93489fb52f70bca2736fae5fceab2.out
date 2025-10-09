@@ -25,241 +25,117 @@ header:
     data_size: 504
     data_off: 0x174
 string_ids:
-  - size: 0
-    value: ""
-  - size: 8
-    value: "<clinit>"
-  - size: 6
-    value: "<init>"
-  - size: 1
-    value: "I"
-  - size: 1
-    value: "L"
-  - size: 3
-    value: "LLI"
-  - size: 25
-    value: "Landroid/app/Application;"
-  - size: 25
-    value: "Landroid/content/Context;"
-  - size: 18
-    value: "Ljava/lang/String;"
-  - size: 18
-    value: "Ljava/lang/System;"
-  - size: 21
-    value: "Lwmczycqxv/egztwrhea;"
-  - size: 1
-    value: "V"
-  - size: 2
-    value: "VL"
-  - size: 17
-    value: "attachBaseContext"
-  - size: 20
-    value: "createPackageContext"
-  - size: 14
-    value: "getPackageName"
-  - size: 11
-    value: "loadLibrary"
-  - size: 8
-    value: "onCreate"
-  - size: 6
-    value: "xjgxpt"
+  - ""
+  - "<clinit>"
+  - "<init>"
+  - "I"
+  - "L"
+  - "LLI"
+  - "Landroid/app/Application;"
+  - "Landroid/content/Context;"
+  - "Ljava/lang/String;"
+  - "Ljava/lang/System;"
+  - "Lwmczycqxv/egztwrhea;"
+  - "V"
+  - "VL"
+  - "attachBaseContext"
+  - "createPackageContext"
+  - "getPackageName"
+  - "loadLibrary"
+  - "onCreate"
+  - "xjgxpt"
 type_ids:
-  - size: 1
-    value: "I"
-  - size: 25
-    value: "Landroid/app/Application;"
-  - size: 25
-    value: "Landroid/content/Context;"
-  - size: 18
-    value: "Ljava/lang/String;"
-  - size: 18
-    value: "Ljava/lang/System;"
-  - size: 21
-    value: "Lwmczycqxv/egztwrhea;"
-  - size: 1
-    value: "V"
+  - "I"
+  - "Landroid/app/Application;"
+  - "Landroid/content/Context;"
+  - "Ljava/lang/String;"
+  - "Ljava/lang/System;"
+  - "Lwmczycqxv/egztwrhea;"
+  - "V"
 proto_ids:
-  - shorty:
-        size: 3
-        value: "LLI"
-    return_type:
-        size: 25
-        value: "Landroid/content/Context;"
+  - shorty: "LLI"
+    return_type: "Landroid/content/Context;"
     parameters_count: 2
     parameters:
-      - size: 18
-        value: "Ljava/lang/String;"
-      - size: 25
-        value: "Landroid/app/Application;"
-  - shorty:
-        size: 1
-        value: "L"
-    return_type:
-        size: 18
-        value: "Ljava/lang/String;"
+      - "Ljava/lang/String;"
+      - "Landroid/app/Application;"
+  - shorty: "L"
+    return_type: "Ljava/lang/String;"
     parameters_count: 0
-  - shorty:
-        size: 1
-        value: "V"
-    return_type:
-        size: 1
-        value: "V"
+  - shorty: "V"
+    return_type: "V"
     parameters_count: 0
-  - shorty:
-        size: 2
-        value: "VL"
-    return_type:
-        size: 1
-        value: "V"
+  - shorty: "VL"
+    return_type: "V"
     parameters_count: 1
     parameters:
-      - size: 25
-        value: "Landroid/content/Context;"
-  - shorty:
-        size: 2
-        value: "VL"
-    return_type:
-        size: 1
-        value: "V"
+      - "Landroid/content/Context;"
+  - shorty: "VL"
+    return_type: "V"
     parameters_count: 1
     parameters:
-      - size: 18
-        value: "Ljava/lang/String;"
+      - "Ljava/lang/String;"
 method_ids:
-  - class:
-        size: 25
-        value: "Landroid/app/Application;"
+  - class: "Landroid/app/Application;"
     proto:
-        shorty:
-            size: 1
-            value: "V"
-        return_type:
-            size: 1
-            value: "V"
+        shorty: "V"
+        return_type: "V"
         parameters_count: 0
-    name:
-        size: 6
-        value: "<init>"
-  - class:
-        size: 18
-        value: "Ljava/lang/System;"
+    name: "<init>"
+  - class: "Ljava/lang/System;"
     proto:
-        shorty:
-            size: 2
-            value: "VL"
-        return_type:
-            size: 1
-            value: "V"
+        shorty: "VL"
+        return_type: "V"
         parameters_count: 1
         parameters:
-          - size: 18
-            value: "Ljava/lang/String;"
-    name:
-        size: 11
-        value: "loadLibrary"
-  - class:
-        size: 21
-        value: "Lwmczycqxv/egztwrhea;"
+          - "Ljava/lang/String;"
+    name: "loadLibrary"
+  - class: "Lwmczycqxv/egztwrhea;"
     proto:
-        shorty:
-            size: 1
-            value: "V"
-        return_type:
-            size: 1
-            value: "V"
+        shorty: "V"
+        return_type: "V"
         parameters_count: 0
-    name:
-        size: 8
-        value: "<clinit>"
-  - class:
-        size: 21
-        value: "Lwmczycqxv/egztwrhea;"
+    name: "<clinit>"
+  - class: "Lwmczycqxv/egztwrhea;"
     proto:
-        shorty:
-            size: 1
-            value: "V"
-        return_type:
-            size: 1
-            value: "V"
+        shorty: "V"
+        return_type: "V"
         parameters_count: 0
-    name:
-        size: 6
-        value: "<init>"
-  - class:
-        size: 21
-        value: "Lwmczycqxv/egztwrhea;"
+    name: "<init>"
+  - class: "Lwmczycqxv/egztwrhea;"
     proto:
-        shorty:
-            size: 2
-            value: "VL"
-        return_type:
-            size: 1
-            value: "V"
+        shorty: "VL"
+        return_type: "V"
         parameters_count: 1
         parameters:
-          - size: 25
-            value: "Landroid/content/Context;"
-    name:
-        size: 17
-        value: "attachBaseContext"
-  - class:
-        size: 21
-        value: "Lwmczycqxv/egztwrhea;"
+          - "Landroid/content/Context;"
+    name: "attachBaseContext"
+  - class: "Lwmczycqxv/egztwrhea;"
     proto:
-        shorty:
-            size: 3
-            value: "LLI"
-        return_type:
-            size: 25
-            value: "Landroid/content/Context;"
+        shorty: "LLI"
+        return_type: "Landroid/content/Context;"
         parameters_count: 2
         parameters:
-          - size: 18
-            value: "Ljava/lang/String;"
-          - size: 25
-            value: "Landroid/app/Application;"
-    name:
-        size: 20
-        value: "createPackageContext"
-  - class:
-        size: 21
-        value: "Lwmczycqxv/egztwrhea;"
+          - "Ljava/lang/String;"
+          - "Landroid/app/Application;"
+    name: "createPackageContext"
+  - class: "Lwmczycqxv/egztwrhea;"
     proto:
-        shorty:
-            size: 1
-            value: "L"
-        return_type:
-            size: 18
-            value: "Ljava/lang/String;"
+        shorty: "L"
+        return_type: "Ljava/lang/String;"
         parameters_count: 0
-    name:
-        size: 14
-        value: "getPackageName"
-  - class:
-        size: 21
-        value: "Lwmczycqxv/egztwrhea;"
+    name: "getPackageName"
+  - class: "Lwmczycqxv/egztwrhea;"
     proto:
-        shorty:
-            size: 1
-            value: "V"
-        return_type:
-            size: 1
-            value: "V"
+        shorty: "V"
+        return_type: "V"
         parameters_count: 0
-    name:
-        size: 8
-        value: "onCreate"
+    name: "onCreate"
 class_defs:
-  - class:
-        size: 21
-        value: "Lwmczycqxv/egztwrhea;"
-    access_flags: 1
-    superclass:
-        size: 25
-        value: "Landroid/app/Application;"
-    source_file:
-        size: 0
-        value: ""
+  - class: "Lwmczycqxv/egztwrhea;"
+    access_flags: 0x1  # ACC_PUBLIC
+    superclass: "Landroid/app/Application;"
+    source_file: ""
 map_list:
     size: 12
     items:
