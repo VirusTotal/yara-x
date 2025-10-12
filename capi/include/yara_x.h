@@ -699,6 +699,13 @@ enum YRX_RESULT yrx_scanner_scan(struct YRX_SCANNER *scanner,
                                  const uint8_t *data,
                                  size_t len);
 
+// Scans a file.
+//
+// This function is similar to `yrx_scanner_scan`, but it receives a file
+// path instead of data to be scanned.
+enum YRX_RESULT yrx_scanner_scan_file(struct YRX_SCANNER *scanner,
+                                      const char *path);
+
 // Scans a block of data.
 //
 // This function is designed for scenarios where the data to be scanned is not

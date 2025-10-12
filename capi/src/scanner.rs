@@ -210,6 +210,62 @@ pub unsafe extern "C" fn yrx_scanner_scan(
     }
 }
 
+/// Scans a file.
+///
+/// This function is similar to `yrx_scanner_scan`, but it receives a file
+/// path instead of data to be scanned.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_scanner_scan_file(
+    scanner: *mut YRX_SCANNER,
+    path: *const c_char,
+) -> YRX_RESULT {
+    _yrx_set_last_error::<ScanError>(None);
+
+    let scanner = match scanner.as_mut() {
+        Some(s) => s,
+        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+    };
+
+    let path = match str_from_ptr(path) {
+        Ok(path) => path,
+        Err(err) => return err,
+    };
+
+    let options = scanner
+        .module_data
+        .drain()
+        .fold(ScanOptions::new(), |acc, (module_name, meta)| {
+            acc.set_module_metadata(module_name, meta)
+        });
+
+    let scan_results = match &mut scanner.inner {
+        InnerScanner::SingleBlock(s) => {
+            s.scan_file_with_options(path, options)
+        }
+        InnerScanner::MultiBlock(_) => return YRX_RESULT::YRX_INVALID_STATE,
+        InnerScanner::None => unreachable!(),
+    };
+
+    match scan_results {
+        Ok(results) => {
+            if let Some((callback, user_data)) = scanner.on_matching_rule {
+                for r in results.matching_rules() {
+                    callback(&YRX_RULE::new(r), user_data);
+                }
+            }
+            YRX_RESULT::YRX_SUCCESS
+        }
+        Err(ScanError::Timeout) => {
+            _yrx_set_last_error(Some(ScanError::Timeout));
+            YRX_RESULT::YRX_SCAN_TIMEOUT
+        }
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            YRX_RESULT::YRX_SCAN_ERROR
+        }
+    }
+}
+
 /// Scans a block of data.
 ///
 /// This function is designed for scenarios where the data to be scanned is not
@@ -404,12 +460,9 @@ pub unsafe extern "C" fn yrx_scanner_set_module_output(
         None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
     };
 
-    let module_name = match CStr::from_ptr(name).to_str() {
-        Ok(name) => name,
-        Err(err) => {
-            _yrx_set_last_error(Some(err));
-            return YRX_RESULT::YRX_INVALID_UTF8;
-        }
+    let module_name = match str_from_ptr(name) {
+        Ok(module_name) => module_name,
+        Err(err) => return err,
     };
 
     let data = match slice_from_ptr_and_len(data, len) {
@@ -462,12 +515,9 @@ pub unsafe extern "C" fn yrx_scanner_set_module_data(
         None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
     };
 
-    let name = match CStr::from_ptr(name).to_str() {
+    let name = match str_from_ptr(name) {
         Ok(name) => name,
-        Err(err) => {
-            _yrx_set_last_error(Some(err));
-            return YRX_RESULT::YRX_INVALID_UTF8;
-        }
+        Err(err) => return err,
     };
 
     let data = match slice_from_ptr_and_len(data, len) {
@@ -496,12 +546,9 @@ unsafe extern "C" fn yrx_scanner_set_global<
         None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
     };
 
-    let ident = match CStr::from_ptr(ident).to_str() {
+    let ident = match str_from_ptr(ident) {
         Ok(ident) => ident,
-        Err(err) => {
-            _yrx_set_last_error(Some(err));
-            return YRX_RESULT::YRX_INVALID_UTF8;
-        }
+        Err(err) => return err,
     };
 
     match scanner.inner.set_global(ident, value) {
@@ -523,12 +570,9 @@ pub unsafe extern "C" fn yrx_scanner_set_global_str(
     ident: *const c_char,
     value: *const c_char,
 ) -> YRX_RESULT {
-    match CStr::from_ptr(value).to_str() {
+    match str_from_ptr(value) {
         Ok(value) => yrx_scanner_set_global(scanner, ident, value),
-        Err(err) => {
-            _yrx_set_last_error(Some(err));
-            YRX_RESULT::YRX_INVALID_UTF8
-        }
+        Err(err) => err,
     }
 }
 
@@ -576,10 +620,9 @@ pub unsafe extern "C" fn yrx_scanner_set_global_json(
     ident: *const c_char,
     value: *const c_char,
 ) -> YRX_RESULT {
-    let value = if let Ok(value) = CStr::from_ptr(value).to_str() {
-        value
-    } else {
-        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    let value = match str_from_ptr(value) {
+        Ok(value) => value,
+        Err(err) => return err,
     };
 
     let value: serde_json::Value = match serde_json::from_str(value) {
@@ -693,4 +736,14 @@ unsafe fn slice_from_ptr_and_len<'a>(
         std::slice::from_raw_parts(data, len)
     };
     Some(data)
+}
+
+unsafe fn str_from_ptr<'a>(s: *const c_char) -> Result<&'a str, YRX_RESULT> {
+    match CStr::from_ptr(s).to_str() {
+        Ok(s) => Ok(s),
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            Err(YRX_RESULT::YRX_INVALID_UTF8)
+        }
+    }
 }
