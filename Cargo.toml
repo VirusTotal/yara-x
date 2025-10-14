@@ -105,7 +105,7 @@ walrus = "0.23.3"
 wasmtime = { version = "37.0.2", default-features = false }
 x509-parser = "0.18.0"
 yansi = "1.0.1"
-yara-x = { path = "lib", version = "1.8.1" }
+yara-x = { path = "lib", version = "1.8.1", default-features = false }
 yara-x-fmt = { path = "fmt", version = "1.8.1" }
 yara-x-macros = { path = "macros", version ="1.8.1" }
 yara-x-parser = { path = "parser", version = "1.8.1" }

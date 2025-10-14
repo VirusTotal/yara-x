@@ -233,6 +233,9 @@ def test_scanner_max_matches_per_pattern():
 
 
 def test_module_outputs():
+  if 'test_proto2' not in yara_x.module_names():
+    return
+
   import datetime
   rules = yara_x.compile('import "test_proto2" rule foo {condition: false}')
   module_outputs = rules.scan(b'').module_outputs
@@ -294,6 +297,9 @@ def tests_compiler_warnings():
 
 
 def test_console_log():
+  if 'console' not in yara_x.module_names():
+      return
+
   ok = False
 
   def callback(msg):
@@ -333,6 +339,9 @@ def test_format():
 def test_module():
   with pytest.raises(ValueError):
     yara_x.Module('AXS')
+
+  if 'pe' not in yara_x.module_names():
+    return
 
   # We aren't interested in testing the actual parsing functionality of the
   # module as that is covered in module tests. Instead we just want to make sure
