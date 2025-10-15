@@ -78,7 +78,7 @@ fn format() {
             .expect("format failed");
 
         if !changed {
-            panic!("{:?} and {:?} are equal", path, output_path)
+            panic!("{path:?} and {output_path:?} are equal")
         }
     });
 }

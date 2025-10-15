@@ -1207,10 +1207,9 @@ mod tests {
 
         structure.enum_substructures(&mut |s| {
             names.push(s.protobuf_type_name().map(|n| n.to_string()));
-            println!("{:?}\n\n", s)
+            println!("{s:?}\n\n")
         });
 
-        // TODO
         assert_eq!(
             vec![
                 Some("test_proto2.TestProto2".to_string()),
