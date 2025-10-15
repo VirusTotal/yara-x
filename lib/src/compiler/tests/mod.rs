@@ -1177,7 +1177,7 @@ fn test_errors() {
         // Path to the .in file.
         let in_path = entry.into_path();
 
-        println!("{:?}", in_path);
+        println!("{in_path:?}");
 
         // Path to the .out file.
         let out_path = in_path.with_extension("out");

@@ -158,7 +158,7 @@ fn test_modules() {
         // Get the module output.
         let output =
             scan_results.module_output(module_name).unwrap_or_else(|| {
-                panic!("module `{}` should produce some output", module_name)
+                panic!("module `{module_name}` should produce some output")
             });
 
         let output_file = mint.new_goldenfile(out_path).unwrap();
