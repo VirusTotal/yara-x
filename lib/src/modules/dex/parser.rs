@@ -144,7 +144,7 @@ impl Dex {
         ) = (
             le_u32, // checksum
             map(take(20_u8), |v: &[u8]| {
-                v.iter().map(|b| format!("{:02x}", b)).collect()
+                v.iter().map(|b| format!("{b:02x}")).collect()
             }), // signature
             le_u32, // file_size
             // There should be a check for header size depending on the DEX version,
