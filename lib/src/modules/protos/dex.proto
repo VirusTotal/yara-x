@@ -54,41 +54,41 @@ message DexHeader {
 }
 
 message ProtoItem {
-    optional string shorty = 0;
-    optional string return_type = 1;
-    optional uint32 parameters_count = 2;
-    repeated string parameters = 3;
+    optional string shorty = 1;
+    optional string return_type = 2;
+    optional uint32 parameters_count = 3;
+    repeated string parameters = 4;
 }
 
 message FieldItem {
-    optional string class = 0;
-    optional string type = 1;
-    optional string name = 2;
+    optional string class = 1;
+    optional string type = 2;
+    optional string name = 3;
 }
 
 message MethodItem {
-    optional string class = 0;
-    optional ProtoItem proto = 1;
-    optional string name = 2;
+    optional string class = 1;
+    optional ProtoItem proto = 2;
+    optional string name = 3;
 }
 
 message ClassItem {
-    optional string class = 0;
-    optional uint32 access_flags = 1 [(yara.field_options).fmt = "flags:AccessFlag"];
-    optional string superclass = 2;
+    optional string class = 1;
+    optional uint32 access_flags = 2 [(yara.field_options).fmt = "flags:AccessFlag"];
+    optional string superclass = 3;
     optional string source_file = 4;
 }
 
 message MapList {
-    optional uint32 size = 0;
-    repeated MapItem items = 1;
+    optional uint32 size = 1;
+    repeated MapItem items = 2;
 }
 
 message MapItem {
-    optional TypeCode type = 0;
-    optional uint32 unused = 1;
-    optional uint32 size = 2;
-    optional uint32 offset = 3 [(yara.field_options).fmt = "x"];
+    optional TypeCode type = 1;
+    optional uint32 unused = 2;
+    optional uint32 size = 3;
+    optional uint32 offset = 4 [(yara.field_options).fmt = "x"];
 }
 
 // Bitfields of these flags are used to indicate the accessibility and overall properties of classes and class members
