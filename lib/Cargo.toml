@@ -85,6 +85,22 @@ parallel-compilation = ["wasmtime/parallel-compilation"]
 # scan. Notice that profiling itself has a noticeable impact on performance.
 rules-profiling = ["logging", "dep:quanta"]
 
+crypto = [
+    "dep:const-oid",
+    "dep:der-parser",
+    "dep:digest",
+    "dep:dsa",
+    "dep:ecdsa",
+    "dep:md2",
+    "dep:md-5",
+    "dep:p256",
+    "dep:p384",
+    "dep:rsa",
+    "dep:sha1",
+    "dep:sha2",
+    "dep:x509-parser",
+]
+
 # Features for enabling/disabling modules.
 #
 # For each module we have a `<module name>-module` feature that controls whether
@@ -96,11 +112,8 @@ console-module = []
 
 # The `crx` module parses Chrome Extension files.
 crx-module = [
-    "dep:ecdsa",
+    "crypto",
     "dep:nom",
-    "dep:rsa",
-    "dep:sha1",
-    "dep:sha2",
     "dep:zip",
 ]
 
@@ -124,6 +137,7 @@ dex-module = [
 dotnet-module = [
     "pe-module",
     "dep:nom",
+    "dep:uuid",
 ]
 
 # The `elf` module parses ELF files.
@@ -150,12 +164,9 @@ lnk-module = [
 
 # The `macho` module parses Mach-O files.
 macho-module = [
-    "dep:const-oid",
-    "dep:der-parser",
-    "dep:digest",
+    "crypto",
     "dep:nom",
     "dep:roxmltree",
-    "dep:x509-parser",
 ]
 
 # The `magic` allows recognizing file types based on the output of the
@@ -169,20 +180,8 @@ math-module = []
 
 # The `pe` module parses PE files.
 pe-module = [
-    "dep:const-oid",
-    "dep:der-parser",
-    "dep:digest",
-    "dep:dsa",
-    "dep:ecdsa",
+    "crypto",
     "dep:nom",
-    "dep:rsa",
-    "dep:md2",
-    "dep:md-5",
-    "dep:p256",
-    "dep:p384",
-    "dep:sha1",
-    "dep:sha2",
-    "dep:x509-parser"
 ]
 
 # The `string` modules offer some functions for parsing strings as integers,

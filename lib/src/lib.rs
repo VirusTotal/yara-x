@@ -85,6 +85,9 @@ mod models;
 #[cfg(test)]
 mod tests;
 
+/// Current version number as a string (example: "1.9.0").
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 pub mod linters {
     //! Linters that can be added to the compiler for performing additional checks.
     //!

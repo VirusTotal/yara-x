@@ -137,8 +137,7 @@ fn test_modules() {
 
         // Construct a dummy YARA rule that only imports the module.
         let rule = format!(
-            r#"import "{}" rule test {{ condition: false }}"#,
-            module_name
+            r#"import "{module_name}" rule test {{ condition: false }}"#
         );
 
         // Compile the rule.

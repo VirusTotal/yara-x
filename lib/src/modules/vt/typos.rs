@@ -282,8 +282,7 @@ mod tests {
             if qwerty_neighbours(ch, ch) {
                 assert!(
                     qwerty_neighbours(ch, ch),
-                    "'{}' can't be a neighbour of itself.",
-                    ch,
+                    "'{ch}' can't be a neighbour of itself."
                 );
             }
         }
@@ -296,8 +295,7 @@ mod tests {
                 if qwerty_neighbours(ch1, ch2) {
                     assert!(
                         qwerty_neighbours(ch2, ch1),
-                        "Function is not symmetrical: '{}' -> '{}' is true, but '{}' -> '{}' is false",
-                        ch1, ch2, ch2, ch1
+                        "Function is not symmetrical: '{ch1}' -> '{ch2}' is true, but '{ch2}' -> '{ch1}' is false",
                     );
                 }
             }

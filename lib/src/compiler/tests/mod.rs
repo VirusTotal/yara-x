@@ -1203,7 +1203,7 @@ fn test_errors() {
         src.push_str(rules.as_str());
 
         let err = compile(src.as_str()).expect_err(
-            format!("file {:?} should have failed", in_path).as_str(),
+            format!("file {in_path:?} should have failed").as_str(),
         );
 
         let mut output_file = mint.new_goldenfile(out_path).unwrap();
@@ -1225,7 +1225,7 @@ fn test_warnings() {
         // Path to the .in file.
         let in_path = entry.into_path();
 
-        println!("{:?}", in_path);
+        println!("{in_path:?}");
 
         // Path to the .out file.
         let out_path = in_path.with_extension("out");
