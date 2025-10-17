@@ -539,6 +539,12 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 	return nil
 }
 
+func (c *Compiler) GetGlobals() string {
+
+	fmt.Println(C.GoString(C.yrx_compiler_get_globals(c.cCompiler)))
+	return C.GoString(C.yrx_compiler_get_globals(c.cCompiler))
+}
+
 // Errors that occurred during the compilation, across multiple calls to
 // [Compiler.AddSource].
 func (c *Compiler) Errors() []CompileError {

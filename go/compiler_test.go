@@ -82,6 +82,21 @@ func TestRelaxedReSyntax(t *testing.T) {
 	assert.Len(t, scanResults.MatchingRules(), 1)
 }
 
+func TestGetGlobals(t *testing.T) {
+	c, err := NewCompiler()
+	assert.NoError(t, err)
+	c.DefineGlobal("A", "B")
+
+	fmt.Println(c.GetGlobals())
+
+	assert.NotNil(t, c.GetGlobals())
+
+	c, err = NewCompiler()
+	assert.NoError(t, err)
+
+	assert.Equal(t, c.GetGlobals(), "")
+}
+
 func TestConditionOptimization(t *testing.T) {
 	_, err := Compile(`
 		rule test { condition: true }`,
