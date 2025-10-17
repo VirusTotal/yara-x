@@ -111,9 +111,7 @@ func TestGetGlobals(t *testing.T) {
 	assert.NoError(t, err)
 	c.DefineGlobal("A", "B")
 
-	fmt.Println(c.GetGlobals())
-
-	assert.NotNil(t, c.GetGlobals())
+	assert.Equal(t, c.GetGlobals(), "A: Field { index: 0, is_root: true, type_value: string(\"B\"), acl: None, deprecation_msg: None }\n")
 
 	c, err = NewCompiler()
 	assert.NoError(t, err)
