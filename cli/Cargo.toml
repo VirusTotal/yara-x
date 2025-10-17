@@ -60,7 +60,7 @@ serde = { workspace = true, features = ["derive"] }
 strum = { workspace = true }
 strum_macros = { workspace = true }
 yansi = { workspace = true }
-yara-x = { workspace = true, features = ["parallel-compilation"] }
+yara-x = { workspace = true, default-features = true, features = ["parallel-compilation"] }
 yara-x-parser = { workspace = true }
 yara-x-proto-yaml = { workspace = true }
 yara-x-proto-json = { workspace = true }

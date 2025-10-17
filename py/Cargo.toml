@@ -15,6 +15,40 @@ name = "yara_x"
 doc = false
 crate-type = ["cdylib"]
 
+[features]
+console-module = ["yara-x/console-module"]
+crx-module = ["yara-x/crx-module"]
+cuckoo-module = ["yara-x/cuckoo-module"]
+dotnet-module = ["yara-x/dotnet-module"]
+elf-module = ["yara-x/elf-module"]
+hash-module = ["yara-x/hash-module"]
+lnk-module = ["yara-x/lnk-module"]
+macho-module = ["yara-x/macho-module"]
+math-module = ["yara-x/math-module"]
+pe-module = ["yara-x/pe-module"]
+string-module = ["yara-x/string-module"]
+time-module = ["yara-x/time-module"]
+vt-module = ["yara-x/vt-module"]
+test_proto2-module = ["yara-x/test_proto2-module"]
+test_proto3-module = ["yara-x/test_proto3-module"]
+
+# YARA-X modules that are enabled by default.
+default = [
+    "console-module",
+    "crx-module",
+    "cuckoo-module",
+    "dotnet-module",
+    "elf-module",
+    "hash-module",
+    "lnk-module",
+    "macho-module",
+    "math-module",
+    "pe-module",
+    "string-module",
+    "time-module",
+    "vt-module",
+]
+
 [dependencies]
 base64 = { workspace = true }
 protobuf = { workspace = true }
@@ -26,7 +60,8 @@ pyo3 = { version = "0.26.0", features = [
 serde_json = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
-yara-x = { workspace = true, features = ["parallel-compilation"] }
+
+yara-x = { workspace = true, features = ["exact-atoms", "constant-folding", "fast-regexp"] }
 yara-x-proto-json = { workspace = true }
 yara-x-fmt = { workspace = true }
 

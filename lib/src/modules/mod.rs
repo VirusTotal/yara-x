@@ -312,5 +312,5 @@ pub mod mods {
     }
 }
 
-#[cfg(any(feature = "pe-module", feature = "macho-module"))]
+#[cfg(feature = "crypto")]
 pub(crate) mod utils;

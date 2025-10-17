@@ -39,7 +39,7 @@ use pyo3::{create_exception, IntoPyObjectExt};
 use strum_macros::{Display, EnumString};
 
 use ::yara_x as yrx;
-use ::yara_x::mods::*;
+
 use yara_x_fmt::Indentation;
 
 fn dict_to_json(dict: Bound<PyAny>) -> PyResult<serde_json::Value> {
@@ -57,10 +57,15 @@ fn dict_to_json(dict: Bound<PyAny>) -> PyResult<serde_json::Value> {
 #[derive(Debug, Clone, Display, EnumString, PartialEq)]
 #[strum(ascii_case_insensitive)]
 enum SupportedModules {
+    #[cfg(feature = "lnk-module")]
     Lnk,
+    #[cfg(feature = "macho-module")]
     Macho,
+    #[cfg(feature = "elf-module")]
     Elf,
+    #[cfg(feature = "pe-module")]
     Pe,
+    #[cfg(feature = "dotnet-module")]
     Dotnet,
 }
 
@@ -281,18 +286,36 @@ impl Module {
     /// Invoke the module with provided data.
     ///
     /// Returns None if the module didn't produce any output for the given data.
+    #[allow(unreachable_code, unused_variables, unreachable_patterns)]
     fn invoke<'py>(
         &'py self,
         py: Python<'py>,
         data: &[u8],
     ) -> PyResult<Bound<'py, PyAny>> {
-        let module_output = match self._module {
-            SupportedModules::Macho => invoke_dyn::<Macho>(data),
-            SupportedModules::Lnk => invoke_dyn::<Lnk>(data),
-            SupportedModules::Elf => invoke_dyn::<ELF>(data),
-            SupportedModules::Pe => invoke_dyn::<PE>(data),
-            SupportedModules::Dotnet => invoke_dyn::<Dotnet>(data),
-        };
+        let module_output: Option<Box<dyn protobuf::MessageDyn>> =
+            match self._module {
+                #[cfg(feature = "macho-module")]
+                SupportedModules::Macho => {
+                    yrx::mods::invoke_dyn::<yrx::mods::Macho>(data)
+                }
+                #[cfg(feature = "lnk-module")]
+                SupportedModules::Lnk => {
+                    yrx::mods::invoke_dyn::<yrx::mods::Lnk>(data)
+                }
+                #[cfg(feature = "elf-module")]
+                SupportedModules::Elf => {
+                    yrx::mods::invoke_dyn::<yrx::mods::ELF>(data)
+                }
+                #[cfg(feature = "pe-module")]
+                SupportedModules::Pe => {
+                    yrx::mods::invoke_dyn::<yrx::mods::PE>(data)
+                }
+                #[cfg(feature = "dotnet-module")]
+                SupportedModules::Dotnet => {
+                    yrx::mods::invoke_dyn::<yrx::mods::Dotnet>(data)
+                }
+                _ => return Ok(py.None().into_bound(py)),
+            };
 
         let module_output = match module_output {
             Some(output) => output,
@@ -301,6 +324,15 @@ impl Module {
 
         proto_to_json(py, module_output.as_ref())
     }
+}
+
+/// Returns the names of the supported modules.
+///
+/// These are the modules that can be used in `import` statements in your
+/// rules.
+#[pyfunction]
+fn module_names<'py>(py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
+    PyTuple::new(py, yrx::mods::module_names().collect::<Vec<_>>())
 }
 
 /// Compiles a YARA source code producing a set of compiled [`Rules`].
@@ -355,7 +387,8 @@ impl Compiler {
     /// The `error_on_slow_pattern` argument tells the compiler to treat slow
     /// patterns as errors, instead of warnings.
     #[new]
-    #[pyo3(signature = (relaxed_re_syntax=false, error_on_slow_pattern=false, includes_enabled=true))]
+    #[pyo3(signature = (relaxed_re_syntax=false, error_on_slow_pattern=false, includes_enabled=true)
+    )]
     fn new(
         relaxed_re_syntax: bool,
         error_on_slow_pattern: bool,
@@ -854,6 +887,28 @@ impl Rules {
     }
 }
 
+#[pyclass(unsendable)]
+struct RulesIter {
+    iter: Box<dyn Iterator<Item = yrx::Rule<'static, 'static>> + Send>,
+    // Keep a reference to Rules to keep it alive.
+    _rules: Py<Rules>,
+}
+
+#[pymethods]
+impl RulesIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<Py<Rule>>> {
+        let py = slf.py();
+        match slf.iter.next() {
+            Some(rule) => Ok(Some(rule_to_py(py, rule)?)),
+            None => Ok(None),
+        }
+    }
+}
+
 #[pymethods]
 impl Rules {
     /// Scans in-memory data with these rules.
@@ -884,6 +939,19 @@ impl Rules {
             .map_err(|err| PyIOError::new_err(err.to_string()))?;
 
         Python::attach(|py| Py::new(py, Rules::new(rules)))
+    }
+
+    /// Returns an iterator over the rules.
+    fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<RulesIter>> {
+        let py = slf.py();
+
+        let rules: &'static yrx::Rules =
+            unsafe { mem::transmute(&slf.inner.rules) };
+
+        let rules_iter =
+            RulesIter { iter: Box::new(rules.iter()), _rules: slf.into() };
+
+        Py::new(py, rules_iter)
     }
 }
 
@@ -1132,6 +1200,7 @@ fn yara_x(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("TimeoutError", m.py().get_type::<TimeoutError>())?;
     m.add("ScanError", m.py().get_type::<ScanError>())?;
     m.add_function(wrap_pyfunction!(compile, m)?)?;
+    m.add_function(wrap_pyfunction!(module_names, m)?)?;
     m.add_class::<Rules>()?;
     m.add_class::<Scanner>()?;
     m.add_class::<ScanResults>()?;

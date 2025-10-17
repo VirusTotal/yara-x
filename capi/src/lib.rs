@@ -154,6 +154,9 @@ pub enum YRX_RESULT {
     /// An error indicating that some of the strings passed to a function is
     /// not valid UTF-8.
     YRX_INVALID_UTF8,
+    /// An error indicating that a scanner that was already in multi-block
+    /// mode has been used as a standard scanner.
+    YRX_INVALID_STATE,
     /// An error occurred while serializing/deserializing YARA rules.
     YRX_SERIALIZATION_ERROR,
     /// An error returned when a rule doesn't have any metadata.
@@ -267,6 +270,7 @@ pub unsafe extern "C" fn yrx_compile(
 ///   to undefined behavior.
 ///
 /// [wasmtime]: https://wasmtime.dev/
+#[no_mangle]
 pub unsafe extern "C" fn yrx_finalize() {
     yara_x::finalize();
 }

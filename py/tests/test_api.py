@@ -160,7 +160,7 @@ def test_metadata():
       ("bar", 2.0),
       ("baz", True),
       ("qux", "qux"),
-      ("quux", "qu\0x")
+      ("quux", "qu\x00x")
   )
 
 
@@ -233,6 +233,9 @@ def test_scanner_max_matches_per_pattern():
 
 
 def test_module_outputs():
+  if 'test_proto2' not in yara_x.module_names():
+    return
+
   import datetime
   rules = yara_x.compile('import "test_proto2" rule foo {condition: false}')
   module_outputs = rules.scan(b'').module_outputs
@@ -294,6 +297,9 @@ def tests_compiler_warnings():
 
 
 def test_console_log():
+  if 'console' not in yara_x.module_names():
+      return
+
   ok = False
 
   def callback(msg):
@@ -334,6 +340,9 @@ def test_module():
   with pytest.raises(ValueError):
     yara_x.Module('AXS')
 
+  if 'pe' not in yara_x.module_names():
+    return
+
   # We aren't interested in testing the actual parsing functionality of the
   # module as that is covered in module tests. Instead we just want to make sure
   # we get a dict object back, and we can do that by passing non-PE data.
@@ -347,4 +356,22 @@ def test_compiler_disables_includes():
 
   with pytest.raises(yara_x.CompileError,
                      match="include statements not allowed"):
-    compiler.add_source(f'include "foo.yar"\\nrule main {{ condition: true }}')
+    compiler.add_source(f'include "foo.yar"\nrule main {{ condition: true }}')
+
+
+def test_rules_iterator():
+  rules = yara_x.compile('''
+rule foo {
+  condition:
+    true
+}
+rule bar {
+  condition:
+    true
+}
+''')
+
+  rules_list = list(rules)
+  assert len(rules_list) == 2
+  assert rules_list[0].identifier == 'foo'
+  assert rules_list[1].identifier == 'bar'

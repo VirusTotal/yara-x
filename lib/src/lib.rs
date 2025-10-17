@@ -42,7 +42,7 @@ assert_eq!(results.matching_rules().len(), 1);
 */
 
 #![deny(missing_docs)]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 extern crate core;
 
 pub use compiler::compile;
@@ -59,6 +59,7 @@ pub use models::PatternKind;
 pub use models::Patterns;
 pub use models::Rule;
 pub use modules::mods;
+pub use scanner::blocks;
 pub use scanner::MatchingRules;
 pub use scanner::ModuleOutputs;
 pub use scanner::NonMatchingRules;
@@ -83,6 +84,9 @@ mod wasm;
 mod models;
 #[cfg(test)]
 mod tests;
+
+/// Current version number as a string (example: "1.9.0").
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod linters {
     //! Linters that can be added to the compiler for performing additional checks.

@@ -367,7 +367,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                 as Box<dyn OutputHandler>
         }
         Some(OutputFormats::Ndjson) => {
-            Box::new(NdJsonOutputHandler::new(args.into()))
+            Box::new(NdjsonOutputHandler::new(args.into()))
         }
         None | Some(OutputFormats::Text) => {
             Box::new(TextOutputHandler::new(args.into()))
@@ -987,17 +987,17 @@ mod output_handler {
         }
     }
 
-    pub(super) struct NdJsonOutputHandler {
+    pub(super) struct NdjsonOutputHandler {
         output_options: OutputOptions,
     }
 
-    impl NdJsonOutputHandler {
+    impl NdjsonOutputHandler {
         pub(super) fn new(output_options: OutputOptions) -> Self {
             Self { output_options }
         }
     }
 
-    impl OutputHandler for NdJsonOutputHandler {
+    impl OutputHandler for NdjsonOutputHandler {
         fn on_file_scanned(
             &self,
             file_path: &Path,

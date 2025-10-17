@@ -2,17 +2,19 @@ use crate::compiler::{
     yrx_compiler_add_source, yrx_compiler_add_source_with_origin,
     yrx_compiler_build, yrx_compiler_create, yrx_compiler_define_global_bool,
     yrx_compiler_define_global_float, yrx_compiler_define_global_int,
-    yrx_compiler_define_global_str, yrx_compiler_destroy,
-    yrx_compiler_enable_feature, yrx_compiler_new_namespace,
+    yrx_compiler_define_global_json, yrx_compiler_define_global_str,
+    yrx_compiler_destroy, yrx_compiler_enable_feature,
+    yrx_compiler_new_namespace,
 };
 use crate::{
     yrx_buffer_destroy, yrx_last_error, yrx_rule_identifier,
     yrx_rule_iter_metadata, yrx_rule_iter_patterns, yrx_rule_iter_tags,
     yrx_rule_namespace, yrx_rules_deserialize, yrx_rules_destroy,
     yrx_rules_iter, yrx_rules_iter_imports, yrx_rules_serialize,
-    yrx_scanner_create, yrx_scanner_destroy, yrx_scanner_on_matching_rule,
-    yrx_scanner_scan, yrx_scanner_set_global_bool,
-    yrx_scanner_set_global_float, yrx_scanner_set_global_int,
+    yrx_scanner_create, yrx_scanner_destroy, yrx_scanner_finish,
+    yrx_scanner_on_matching_rule, yrx_scanner_scan, yrx_scanner_scan_block,
+    yrx_scanner_set_global_bool, yrx_scanner_set_global_float,
+    yrx_scanner_set_global_int, yrx_scanner_set_global_json,
     yrx_scanner_set_global_str, yrx_scanner_set_module_data,
     yrx_scanner_set_timeout, YRX_BUFFER, YRX_METADATA, YRX_PATTERN,
     YRX_RESULT, YRX_RULE,
@@ -126,21 +128,37 @@ fn capi() {
                     some_bool and
                     some_str == "some_str" and
                     some_int == 1 and
-                    some_float == 1.5)
+                    some_float == 1.5 and 
+                    some_map.str == "foo" and
+                    some_map.array[0] == 1 and
+                    some_map.map.str == "bar" )
             }"#;
 
         let some_bool = c"some_bool";
         let some_str = c"some_str";
         let some_int = c"some_int";
         let some_float = c"some_float";
+        let some_map = c"some_map";
+        let some_map_value = cr#"{
+           "str": "foo",
+           "array": [1, 2, 3],
+           "map": { "str": "bar" }
+        }"#;
 
         yrx_compiler_define_global_int(compiler, some_int.as_ptr(), 1);
         yrx_compiler_define_global_float(compiler, some_float.as_ptr(), 1.5);
         yrx_compiler_define_global_bool(compiler, some_bool.as_ptr(), true);
+
         yrx_compiler_define_global_str(
             compiler,
             some_str.as_ptr(),
             some_str.as_ptr(),
+        );
+
+        yrx_compiler_define_global_json(
+            compiler,
+            some_map.as_ptr(),
+            some_map_value.as_ptr(),
         );
 
         let feature = c"foo";
@@ -206,10 +224,17 @@ fn capi() {
         yrx_scanner_set_global_bool(scanner, some_bool.as_ptr(), true);
         yrx_scanner_set_global_int(scanner, some_int.as_ptr(), 1);
         yrx_scanner_set_global_float(scanner, some_float.as_ptr(), 1.5);
+
         yrx_scanner_set_global_str(
             scanner,
             some_str.as_ptr(),
             some_str.as_ptr(),
+        );
+
+        yrx_scanner_set_global_json(
+            scanner,
+            some_map.as_ptr(),
+            some_map_value.as_ptr(),
         );
 
         yrx_scanner_scan(scanner, std::ptr::null(), 0);
@@ -315,6 +340,53 @@ fn capi_modules() {
         yrx_rules_destroy(rules);
         yrx_scanner_destroy(scanner);
         yrx_compiler_destroy(compiler);
+    }
+}
+
+#[test]
+fn capi_blocks() {
+    unsafe {
+        let mut compiler = std::ptr::null_mut();
+        yrx_compiler_create(0, &mut compiler);
+
+        let src = cr#"
+rule test1 { strings: $a = "foo" condition: $a }
+rule test2 { strings: $a = "bar" condition: $a }
+"#;
+        yrx_compiler_add_source(compiler, src.as_ptr());
+
+        let rules = yrx_compiler_build(compiler);
+        yrx_compiler_destroy(compiler);
+
+        let mut scanner = std::ptr::null_mut();
+        yrx_scanner_create(rules, &mut scanner);
+
+        let mut matches = 0;
+        yrx_scanner_on_matching_rule(
+            scanner,
+            on_rule_match_increase_counter,
+            &mut matches as *mut i32 as *mut c_void,
+        );
+
+        let block1 = b"foo";
+        let block2 = b"bar";
+
+        yrx_scanner_scan_block(scanner, 0, block1.as_ptr(), block1.len());
+        yrx_scanner_scan_block(scanner, 10, block2.as_ptr(), block2.len());
+
+        yrx_scanner_finish(scanner);
+
+        assert_eq!(matches, 2);
+
+        // Scan again, the scanner should be reset.
+        matches = 0;
+        let block3 = b"foobar";
+        yrx_scanner_scan_block(scanner, 0, block3.as_ptr(), block3.len());
+        yrx_scanner_finish(scanner);
+        assert_eq!(matches, 2);
+
+        yrx_scanner_destroy(scanner);
+        yrx_rules_destroy(rules);
     }
 }
 

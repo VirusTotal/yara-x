@@ -81,6 +81,9 @@ typedef enum YRX_RESULT {
   // An error indicating that some of the strings passed to a function is
   // not valid UTF-8.
   YRX_INVALID_UTF8,
+  // An error indicating that a scanner that was already in multi-block
+  // mode has been used as a standard scanner.
+  YRX_INVALID_STATE,
   // An error occurred while serializing/deserializing YARA rules.
   YRX_SERIALIZATION_ERROR,
   // An error returned when a rule doesn't have any metadata.
@@ -209,7 +212,7 @@ typedef void (*YRX_PATTERN_CALLBACK)(const struct YRX_PATTERN *pattern,
 typedef void (*YRX_TAG_CALLBACK)(const char *tag,
                                  void *user_data);
 
-// Callback function passed to [`yrx_scanner_on_matching_rule`] or
+// Callback function passed to `yrx_scanner_on_matching_rule` or
 // [`yrx_rules_iter`].
 //
 // The callback receives a pointer to a rule, represented by a [`YRX_RULE`]
@@ -270,6 +273,34 @@ void yrx_buffer_destroy(struct YRX_BUFFER *buf);
 // The rules must be destroyed with [`yrx_rules_destroy`].
 enum YRX_RESULT yrx_compile(const char *src,
                             struct YRX_RULES **rules);
+
+// Finalizes YARA-X.
+//
+// This function only needs to be called in a very specific scenario:
+// when YARA-X is used as a dynamically loaded library (`.so`, `.dll`,
+// `.dylib`) **and** that library must be unloaded at runtime.
+//
+// Its primary purpose is to remove the process-wide signal handlers
+// installed by the [wasmtime] engine.
+//
+// # Safety
+//
+// This function is **unsafe** to call under normal circumstances. It has
+// strict preconditions that must be met:
+//
+// - There must be no other active `wasmtime` engines in the process. This
+//   applies not only to clones of the engine used by YARA-X (which should not
+//   exist because YARA-X uses a single copy of its engine), but to *any*
+//   `wasmtime` engine, since global state shared by all engines is torn
+//   down.
+//
+// - On Unix platforms, no other signal handlers may have been installed
+//   for signals intercepted by `wasmtime`. If other handlers have been set,
+//   `wasmtime` cannot reliably restore the original state, which may lead
+//   to undefined behavior.
+//
+// [wasmtime]: https://wasmtime.dev/
+void yrx_finalize(void);
 
 // Creates a [`YRX_COMPILER`] object.
 enum YRX_RESULT yrx_compiler_create(uint32_t flags,
@@ -412,6 +443,19 @@ enum YRX_RESULT yrx_compiler_define_global_float(struct YRX_COMPILER *compiler,
                                                  const char *ident,
                                                  double value);
 
+// Defines a global variable from a JSON-encoded string.
+//
+// This is best for complex types like maps and arrays. For simple types
+// (e.g., booleans, integers, strings), prefer dedicated functions to avoid
+// the overhead of JSON deserialization.
+//
+// When defining a map, keys must be of string type, and values can be
+// any of the types supported by YARA, including other maps. Arrays must be
+// homogeneous (all elements must be the same type).
+enum YRX_RESULT yrx_compiler_define_global_json(struct YRX_COMPILER *compiler,
+                                                const char *ident,
+                                                const char *value);
+
 // Returns the errors encountered during the compilation in JSON format.
 //
 // In the address indicated by the `buf` pointer, the function will copy a
@@ -504,7 +548,7 @@ struct YRX_RULES *yrx_compiler_build(struct YRX_COMPILER *compiler);
 // Arguments `ident` and `len` are output parameters that receive pointers
 // to a `const uint8_t*` and `size_t`, where this function will leave a pointer
 // to the rule's name and its length, respectively. The rule's name is *NOT*
-// null-terminated, and the pointer will be valid as long as the [`YRX_RULES`]
+// null-terminated, and the pointer will be valid as long as the `YRX_RULES`
 // object that contains the pattern is not freed. The name is guaranteed to be
 // a valid UTF-8 string.
 enum YRX_RESULT yrx_pattern_identifier(const struct YRX_PATTERN *pattern,
@@ -527,7 +571,7 @@ enum YRX_RESULT yrx_pattern_iter_matches(const struct YRX_PATTERN *pattern,
 // Arguments `ident` and `len` are output parameters that receive pointers
 // to a `const uint8_t*` and `size_t`, where this function will leave a pointer
 // to the rule's name and its length, respectively. The rule's name is *NOT*
-// null-terminated, and the pointer will be valid as long as the [`YRX_RULES`]
+// null-terminated, and the pointer will be valid as long as the `YRX_RULES`
 // object that contains the rule is not freed. The name is guaranteed to be a
 // valid UTF-8 string.
 enum YRX_RESULT yrx_rule_identifier(const struct YRX_RULE *rule,
@@ -539,7 +583,7 @@ enum YRX_RESULT yrx_rule_identifier(const struct YRX_RULE *rule,
 // Arguments `ns` and `len` are output parameters that receive pointers to a
 // `const uint8_t*` and `size_t`, where this function will leave a pointer
 // to the rule's namespace and its length, respectively. The namespace is *NOT*
-// null-terminated, and the pointer will be valid as long as the [`YRX_RULES`]
+// null-terminated, and the pointer will be valid as long as the `YRX_RULES`
 // object that contains the rule is not freed. The namespace is guaranteed to
 // be a valid UTF-8 string.
 enum YRX_RESULT yrx_rule_namespace(const struct YRX_RULE *rule,
@@ -602,7 +646,7 @@ int yrx_rules_count(struct YRX_RULES *rules);
 // that contains the serialized rules. This structure has a pointer to the
 // data itself, and its length.
 //
-// The [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
+// The [`YRX_BUFFER`] must be destroyed with `yrx_buffer_destroy`.
 enum YRX_RESULT yrx_rules_serialize(const struct YRX_RULES *rules,
                                     struct YRX_BUFFER **buf);
 
@@ -659,6 +703,82 @@ enum YRX_RESULT yrx_scanner_scan(struct YRX_SCANNER *scanner,
                                  const uint8_t *data,
                                  size_t len);
 
+// Scans a file.
+//
+// This function is similar to `yrx_scanner_scan`, but it receives a file
+// path instead of data to be scanned.
+enum YRX_RESULT yrx_scanner_scan_file(struct YRX_SCANNER *scanner,
+                                      const char *path);
+
+// Scans a block of data.
+//
+// This function is designed for scenarios where the data to be scanned is not
+// available as a single contiguous block of memory, but rather arrives in
+// smaller, discrete blocks, allowing for incremental scanning.
+//
+// Each call to this function scans a block of data. The `base` argument
+// specifies the offset of the current block within the overall data being
+// scanned. In most cases you will want to call this function multiple times,
+// providing a different block on each call.
+//
+// Once this function is called for a scanner, it enters block scanning mode
+// and any subsequent call to [`yrx_scanner_scan`] will fail with
+// [`YRX_RESULT::YRX_INVALID_STATE`]. Once the scanner is in block scanning
+// mode it can be used in that mode only.
+//
+// When all blocks have been scanned, you must call [`yrx_scanner_finish`].
+//
+// # Limitations of Block Scanning
+//
+// Block scanning works by analyzing data in chunks rather than as a whole
+// file. This makes it useful for streaming or memory-constrained scenarios,
+// but it comes with important limitations compared to standard scanning:
+//
+// 1) Modules won't work. Parsers for structured formats (e.g., PE, ELF)
+//    require access to the entire file and cannot be applied in block
+//    scanning mode.
+// 2) Other modules like `hash` won't work either, as they require access to
+//    all the scanned data during the evaluation of the rule's condition,
+//    something that can't be guaranteed in block scanning mode. The hash
+//    functions will return `undefined` when used in a multi-block context.
+// 3) Built-in functions like `uint8`, `uint16`, `uint32`, etc., have the
+//    same limitation. They also return `undefined` in block scanning mode.
+// 4) The `filesize` keyword returns `undefined` in block scanning mode.
+// 5) Patterns won't match across block boundaries. Every match will be
+//    completely contained within one of the blocks.
+//
+// All these limitations imply that in block scanning mode you should only
+// use rules that rely on text, hex or regex patterns.
+//
+// # Data Consistency in Overlapping Blocks
+//
+// When [`yrx_scanner_scan_block`] is invoked multiple times with different
+// blocks that may overlap, the user is responsible for ensuring data
+// consistency. This means that if the same region of the original data is
+// present in two or more overlapping blocks, the content of that region must
+// be identical across all calls to `scan`.
+//
+// Generally speaking, the scanner does not verify this consistency and
+// assumes the user provides accurate and consistent data. In debug releases
+// the scanner may try to verify this consistency, but only when some pattern
+// matches in the overlapping region.
+enum YRX_RESULT yrx_scanner_scan_block(struct YRX_SCANNER *scanner,
+                                       size_t base,
+                                       const uint8_t *data,
+                                       size_t len);
+
+// Finalizes the scan of a set of memory blocks.
+//
+// This function must be used in conjunction with [`yrx_scanner_scan_block`]
+// when scanning data in blocks. After all data blocks have been scanned, this
+// functions evaluates the conditions of the YARA rules and produces the final
+// scan results.
+//
+// After this function returns, the scanner is ready to be used again for
+// scanning a new set of memory blocks. However, the scanner remains in block
+// scanning mode and can't be used for normal scanning.
+enum YRX_RESULT yrx_scanner_finish(struct YRX_SCANNER *scanner);
+
 // Sets a callback function that is called by the scanner for each rule that
 // matched during a scan.
 //
@@ -704,6 +824,8 @@ enum YRX_RESULT yrx_scanner_on_matching_rule(struct YRX_SCANNER *scanner,
 // The `name` argument is either a YARA module name (i.e: "pe", "elf", "dotnet",
 // etc.) or the fully-qualified name of the protobuf message associated to
 // the module. It must be a valid UTF-8 string.
+//
+// If the scanner is in block scanning mode this function returns `YRX_INVALID_STATE`.
 enum YRX_RESULT yrx_scanner_set_module_output(struct YRX_SCANNER *scanner,
                                               const char *name,
                                               const uint8_t *data,
@@ -720,6 +842,8 @@ enum YRX_RESULT yrx_scanner_set_module_output(struct YRX_SCANNER *scanner,
 //
 // The `name` as well as `data` must be valid from the time they are used as arguments
 // of this function until the scan is executed.
+//
+// If the scanner is in block scanning mode this function returns `YRX_INVALID_STATE`.
 enum YRX_RESULT yrx_scanner_set_module_data(struct YRX_SCANNER *scanner,
                                             const char *name,
                                             const uint8_t *data,
@@ -745,10 +869,22 @@ enum YRX_RESULT yrx_scanner_set_global_float(struct YRX_SCANNER *scanner,
                                              const char *ident,
                                              double value);
 
+// Sets the value of a global variable from a JSON-encoded string.
+//
+// This is best for complex types like maps and arrays. For simple types
+// (e.g., booleans, integers, strings), prefer dedicated functions to avoid
+// the overhead of JSON deserialization.
+//
+// The type of the JSON-encoded value must match the type of the variable
+// as it was defined.
+enum YRX_RESULT yrx_scanner_set_global_json(struct YRX_SCANNER *scanner,
+                                            const char *ident,
+                                            const char *value);
+
 // Iterates over the slowest N rules, calling the callback for each rule.
 //
 // Requires the `rules-profiling` feature, otherwise returns
-// [`YRX_RESULT::NOT_SUPPORTED`].
+// `YRX_RESULT::NOT_SUPPORTED`.
 //
 // See [`YRX_SLOWEST_RULES_CALLBACK`] for more details.
 enum YRX_RESULT yrx_scanner_iter_slowest_rules(struct YRX_SCANNER *scanner,
@@ -763,7 +899,7 @@ enum YRX_RESULT yrx_scanner_iter_slowest_rules(struct YRX_SCANNER *scanner,
 // results reflect only the data gathered after this method is called.
 //
 // Requires the `rules-profiling` feature, otherwise returns
-// [`YRX_RESULT::NOT_SUPPORTED`].
+// `YRX_RESULT::NOT_SUPPORTED`.
 //
 enum YRX_RESULT yrx_scanner_clear_profiling_data(struct YRX_SCANNER *scanner);
 

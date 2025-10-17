@@ -373,6 +373,10 @@ class Rules:
 
     This is the result of [`Compiler::build`].
     """
+
+    def __iter__(self) -> collections.abc.Iterator[Rule]:
+        ...
+
     def scan(self, data: bytes) -> ScanResults:
         r"""
         Scans in-memory data with these rules.

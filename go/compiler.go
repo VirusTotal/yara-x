@@ -500,7 +500,17 @@ func (c *Compiler) NewNamespace(namespace string) {
 // scanning data, however each scanner can change the variable's initial
 // value by calling [Scanner.SetGlobal].
 //
-// Valid value types are: int, int32, int64, bool, string, float32 and float64.
+// The following primitive types are supported: int, int32, int64, bool,
+// string, float32 and float64.
+//
+// Composite types are also supported:
+//
+// - map[string]interface{} represents a YARA structure, where keys are
+// field names and values may be any supported primitive type or nested maps
+// for sub-structures.
+//
+// - []interface{} represents a YARA array. All elements in the array
+// must be of the same type.
 func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 	cIdent := C.CString(ident)
 	defer C.free(unsafe.Pointer(cIdent))
@@ -526,6 +536,14 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 		ret = C.int(C.yrx_compiler_define_global_float(c.cCompiler, cIdent, C.double(v)))
 	case float64:
 		ret = C.int(C.yrx_compiler_define_global_float(c.cCompiler, cIdent, C.double(v)))
+	case map[string]interface{}, []interface{}:
+		jsonStr, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Errorf("failed to marshal '%s' to json: '%v'", ident, err)
+		}
+		cValue := C.CString(string(jsonStr))
+		defer C.free(unsafe.Pointer(cValue))
+		ret = C.int(C.yrx_compiler_define_global_json(c.cCompiler, cIdent, cValue))
 	default:
 		return fmt.Errorf("variable `%s` has unsupported type: %T", ident, v)
 	}

@@ -26,7 +26,7 @@ fn cst() {
         let source = fs::read_to_string(path).unwrap();
         let cst = CST::try_from(Parser::new(source.as_bytes())).unwrap();
         let mut w = BufWriter::new(output_file);
-        write!(&mut w, "{:?}", cst).unwrap();
+        write!(&mut w, "{cst:?}").unwrap();
     });
 }
 
@@ -49,7 +49,7 @@ fn cst_stream() {
         let mut w = BufWriter::new(output_file);
 
         for event in cst {
-            writeln!(&mut w, "{:?}", event).unwrap();
+            writeln!(&mut w, "{event:?}").unwrap();
         }
     });
 }
@@ -68,11 +68,11 @@ fn ast() {
         let output_path = path.with_extension("ast");
         let output_file = mint.new_goldenfile(output_path).unwrap();
 
-        println!("file: {:?}", path);
+        println!("file: {path:?}");
         let source = fs::read_to_string(path).unwrap();
         let ast = AST::from(Parser::new(source.as_bytes()));
         let mut w = BufWriter::new(output_file);
-        write!(&mut w, "{:?}", ast).unwrap();
+        write!(&mut w, "{ast:?}").unwrap();
     });
 }
 

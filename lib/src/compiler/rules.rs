@@ -1,5 +1,6 @@
 use std::fmt;
 use std::io::{BufWriter, Read, Write};
+use std::ops::{Bound, RangeBounds};
 use std::slice::Iter;
 #[cfg(feature = "logging")]
 use std::time::Instant;
@@ -8,6 +9,7 @@ use aho_corasick::AhoCorasick;
 #[cfg(feature = "logging")]
 use log::*;
 use regex_automata::meta::Regex;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::compiler::atoms::Atom;
@@ -83,6 +85,19 @@ pub struct Rules {
     /// Each sub-pattern in this vector is accompanied by the [`PatternId`]
     /// where the sub-pattern belongs to.
     pub(in crate::compiler) sub_patterns: Vec<(PatternId, SubPattern)>,
+
+    /// Map that associates a `PatternId` to a certain file size bound.
+    ///
+    /// A condition like `filesize < 1000 and $a` only matches if `filesize`
+    /// is less than 1000. Therefore, the pattern `$a` does not need be
+    /// checked for files of size 1000 bytes or larger.
+    ///
+    /// In this case, the map will contain an entry associating `$a` to a
+    /// `FilesizeBounds` value like:
+    ///
+    /// `FilesizeBounds{start: Bound::Unbounded, end: Bound:Excluded(1000)}`.
+    pub(in crate::compiler) filesize_bounds:
+        FxHashMap<PatternId, FilesizeBounds>,
 
     /// Vector that contains the [`SubPatternId`] for sub-patterns that can
     /// match only at a fixed offset within the scanned data. These sub-patterns
@@ -462,6 +477,14 @@ impl Rules {
     pub(crate) fn wasm_mod(&self) -> &wasmtime::Module {
         self.compiled_wasm_mod.as_ref().unwrap()
     }
+
+    #[inline]
+    pub(crate) fn filesize_bounds(
+        &self,
+        pattern_id: PatternId,
+    ) -> Option<&FilesizeBounds> {
+        self.filesize_bounds.get(&pattern_id)
+    }
 }
 
 #[cfg(feature = "native-code-serialization")]
@@ -524,7 +547,6 @@ impl<'a> Iterator for RulesIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         Some(Rule {
             ctx: None,
-            data: None,
             rules: self.rules,
             rule_info: self.iterator.next()?,
         })
@@ -603,6 +625,125 @@ pub(crate) struct RuleInfo {
     pub(crate) is_global: bool,
     /// True if the rule is private.
     pub(crate) is_private: bool,
+}
+
+/// Describes the bounds for `filesize` imposed by a rule condition.
+///
+/// For example, the condition `filesize < 1000 and $a` only matches files
+/// smaller than 10MB. That would be represented by:
+///
+/// ```text
+/// FilesizeBounds { start: Bound::Unbounded, end: Bound::Excluded(1000) }
+/// ```
+///
+/// In contrast, the condition `filesize < 1000 or $a` does not any bounds
+/// to `filesize`, since the use of `or` allows files larger than
+/// 10MB to also match. This case is represented by:
+///
+/// ```text
+/// FilesizeBounds { start: Bound::Unbounded, end: Bound::Unbounded }
+/// ```
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Hash, Eq)]
+pub(crate) struct FilesizeBounds {
+    start: Bound<i64>,
+    end: Bound<i64>,
+}
+
+impl Default for FilesizeBounds {
+    fn default() -> Self {
+        Self { start: Bound::Unbounded, end: Bound::Unbounded }
+    }
+}
+
+impl<T: RangeBounds<i64>> From<T> for FilesizeBounds {
+    fn from(value: T) -> Self {
+        Self {
+            start: value.start_bound().cloned(),
+            end: value.end_bound().cloned(),
+        }
+    }
+}
+
+impl FilesizeBounds {
+    pub fn unbounded(&self) -> bool {
+        matches!(self.start, Bound::Unbounded)
+            && matches!(self.end, Bound::Unbounded)
+    }
+
+    pub fn contains(&self, value: i64) -> bool {
+        let start_ok = match self.start {
+            Bound::Included(start) => value >= start,
+            Bound::Excluded(start) => value > start,
+            Bound::Unbounded => true,
+        };
+
+        let end_ok = match self.end {
+            Bound::Included(end) => value <= end,
+            Bound::Excluded(end) => value < end,
+            Bound::Unbounded => true,
+        };
+
+        start_ok && end_ok
+    }
+    pub fn max_start(&mut self, bound: Bound<i64>) -> &mut Self {
+        match (&self.start, &bound) {
+            (Bound::Included(current), Bound::Included(new)) => {
+                if new > current {
+                    self.start = Bound::Included(*new);
+                }
+            }
+            (Bound::Included(current), Bound::Excluded(new)) => {
+                if new >= current {
+                    self.start = Bound::Excluded(*new);
+                }
+            }
+            (Bound::Excluded(current), Bound::Included(new)) => {
+                if new > current {
+                    self.start = Bound::Included(*new);
+                }
+            }
+            (Bound::Excluded(current), Bound::Excluded(new)) => {
+                if new > current {
+                    self.start = Bound::Excluded(*new);
+                }
+            }
+            (Bound::Unbounded, new) => {
+                self.start = *new;
+            }
+            (_, Bound::Unbounded) => {}
+        }
+        self
+    }
+
+    pub fn min_end(&mut self, bound: Bound<i64>) -> &mut Self {
+        match (&self.end, &bound) {
+            (Bound::Included(current), Bound::Included(new)) => {
+                if new < current {
+                    self.end = Bound::Included(*new);
+                }
+            }
+            (Bound::Included(current), Bound::Excluded(new)) => {
+                if new <= current {
+                    self.end = Bound::Excluded(*new);
+                }
+            }
+            (Bound::Excluded(current), Bound::Included(new)) => {
+                if new < current {
+                    self.end = Bound::Included(*new);
+                }
+            }
+            (Bound::Excluded(current), Bound::Excluded(new)) => {
+                if new < current {
+                    self.end = Bound::Excluded(*new)
+                }
+            }
+            (Bound::Unbounded, new) => {
+                self.end = *new;
+            }
+            (_, Bound::Unbounded) => {}
+        }
+        self
+    }
 }
 
 /// Represents an atom extracted from a pattern and added to the Aho-Corasick
