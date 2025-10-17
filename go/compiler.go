@@ -558,7 +558,6 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 }
 
 func (c *Compiler) GetGlobals() string {
-
 	fmt.Println(C.GoString(C.yrx_compiler_get_globals(c.cCompiler)))
 	return C.GoString(C.yrx_compiler_get_globals(c.cCompiler))
 }
