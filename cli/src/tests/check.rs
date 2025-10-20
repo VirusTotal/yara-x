@@ -165,7 +165,7 @@ fn check_rule_name_error() {
         .arg("src/tests/testdata/foo.yar")
         .assert()
         .failure()
-        .code(predicate::eq(1))
+        .code(1)
         .stdout(
             r#"[ FAIL ] src/tests/testdata/foo.yar
 error[E039]: rule name does not match regex `APT_.+`
