@@ -560,6 +560,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Debug)]
 struct ScanState {
     start_time: Instant,
     num_scanned_files: AtomicUsize,
