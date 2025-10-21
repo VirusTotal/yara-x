@@ -8,7 +8,7 @@ use std::{mem, ptr};
 use bstr::BString;
 
 use crate::compiler::{RuleId, Var};
-use crate::types::{AclEntry, Func, Type, TypeValue};
+use crate::types::{AclEntry, DeprecationNotice, Func, Type, TypeValue};
 
 /// Trait implemented by types that allow looking up for a symbol.
 pub(crate) trait SymbolLookup {
@@ -37,7 +37,7 @@ pub(crate) enum Symbol {
         acl: Option<Vec<AclEntry>>,
         /// If the field is deprecated, this will contain the message shown when
         /// the field is used in a rule.
-        deprecation_msg: Option<String>,
+        deprecation_notice: Option<DeprecationNotice>,
     },
     /// The symbol refers to a rule.
     Rule(RuleId),

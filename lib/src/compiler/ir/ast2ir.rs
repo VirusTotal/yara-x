@@ -657,17 +657,30 @@ fn expr_from_ast(
             }
 
             // If the field is deprecated raise the appropriate warning.
-            if let Symbol::Field { deprecation_msg: Some(ref msg), .. } =
-                symbol
+            if let Symbol::Field {
+                deprecation_notice: Some(ref notice), ..
+            } = symbol
             {
-                ctx.warnings.add(|| {
-                    warnings::DeprecatedField::build(
-                        ctx.report_builder,
-                        ident.name.to_string(),
-                        ctx.report_builder.span_to_code_loc(ident.span()),
-                        msg.clone(),
-                    )
-                })
+                let mut warning = warnings::DeprecatedField::build(
+                    ctx.report_builder,
+                    ident.name.to_string(),
+                    ctx.report_builder.span_to_code_loc(ident.span()),
+                    notice.text.clone(),
+                );
+
+                if let Some(replacement) = &notice.replacement {
+                    warning
+                        .report()
+                        .new_section(
+                            Level::HELP,
+                            notice.help.clone().unwrap_or(
+                                "apply the following changes".to_owned(),
+                            ),
+                        )
+                        .patch(ident.span(), replacement);
+                }
+
+                ctx.warnings.add(|| warning)
             }
 
             ctx.ir.ident(symbol)

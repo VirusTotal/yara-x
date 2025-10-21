@@ -1,8 +1,8 @@
 RULE test_1
   25: WITH -- hash: 0x26996efd3ba8f777 -- parent: None 
     24: FIELD_ACCESS -- hash: 0x54b6d37d2b917356 -- parent: 25 
-      12: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 24 
-      13: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None, deprecation_msg: None } -- parent: 24 
+      12: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None } -- parent: 24 
+      13: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None, deprecation_notice: None } -- parent: 24 
     23: FOR_IN -- hash: 0xd8cf702c9fb77c65 -- parent: 25 
       0: CONST integer(0) -- parent: 23 
       1: CONST integer(1) -- parent: 23 
@@ -12,7 +12,7 @@ RULE test_1
             14: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 0 }, type_value: array } -- parent: 16 
             15: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 6 }, type_value: integer(unknown) } -- parent: 16 
           19: LOOKUP -- hash: 0x1bd1e557c8168259 -- parent: 20 
-            17: SYMBOL Field { index: 6, is_root: false, type_value: array, acl: None, deprecation_msg: None } -- parent: 19 
+            17: SYMBOL Field { index: 6, is_root: false, type_value: array, acl: None, deprecation_notice: None } -- parent: 19 
             18: CONST integer(0) -- parent: 19 
         21: CONST integer(0) -- parent: 22 
 
@@ -33,20 +33,20 @@ RULE test_3
   18: OR -- hash: 0xc03b2943bc74ac56 -- parent: None 
     5: CONTAINS -- hash: 0x9b34a06a5c144733 -- parent: 18 
       3: FIELD_ACCESS -- hash: 0xa68ef47d7e9f1bf3 -- parent: 5 
-        0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 3 
-        1: SYMBOL Field { index: 44, is_root: false, type_value: struct, acl: None, deprecation_msg: None } -- parent: 3 
-        2: SYMBOL Field { index: 5, is_root: false, type_value: string(unknown), acl: None, deprecation_msg: None } -- parent: 3 
+        0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None } -- parent: 3 
+        1: SYMBOL Field { index: 44, is_root: false, type_value: struct, acl: None, deprecation_notice: None } -- parent: 3 
+        2: SYMBOL Field { index: 5, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None } -- parent: 3 
       4: CONST string("foo") -- parent: 5 
     11: CONTAINS -- hash: 0x9b34a06a5c144733 -- parent: 18 
       9: FIELD_ACCESS -- hash: 0xa68ef47d7e9f1bf3 -- parent: 11 
-        6: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 9 
-        7: SYMBOL Field { index: 44, is_root: false, type_value: struct, acl: None, deprecation_msg: None } -- parent: 9 
-        8: SYMBOL Field { index: 5, is_root: false, type_value: string(unknown), acl: None, deprecation_msg: None } -- parent: 9 
+        6: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None } -- parent: 9 
+        7: SYMBOL Field { index: 44, is_root: false, type_value: struct, acl: None, deprecation_notice: None } -- parent: 9 
+        8: SYMBOL Field { index: 5, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None } -- parent: 9 
       10: CONST string("foo") -- parent: 11 
     17: CONTAINS -- hash: 0xbab99c5006e37037 -- parent: 18 
       15: FIELD_ACCESS -- hash: 0xa68ef47d7e9f1bf3 -- parent: 17 
-        12: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 15 
-        13: SYMBOL Field { index: 44, is_root: false, type_value: struct, acl: None, deprecation_msg: None } -- parent: 15 
-        14: SYMBOL Field { index: 5, is_root: false, type_value: string(unknown), acl: None, deprecation_msg: None } -- parent: 15 
+        12: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None } -- parent: 15 
+        13: SYMBOL Field { index: 44, is_root: false, type_value: struct, acl: None, deprecation_notice: None } -- parent: 15 
+        14: SYMBOL Field { index: 5, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None } -- parent: 15 
       16: CONST string("bar") -- parent: 17 
 

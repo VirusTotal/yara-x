@@ -1,8 +1,8 @@
 RULE test
   77: WITH -- hash: 0xe52165a3e4f9c004 -- parent: None 
     2: FIELD_ACCESS -- hash: 0x30adb8d0b7ea7b20 -- parent: 77 
-      0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 2 
-      1: SYMBOL Field { index: 12, is_root: false, type_value: integer(unknown), acl: None, deprecation_msg: None } -- parent: 2 
+      0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None } -- parent: 2 
+      1: SYMBOL Field { index: 12, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None } -- parent: 2 
     76: AND -- hash: 0x77e386988c8be1cf -- parent: 77 
       79: WITH -- hash: 0x21fb65f365d018b2 -- parent: 76 
         78: FN_CALL test_proto2.add@ii@i -- hash: 0x4b8def611ce41371 -- parent: 79 
@@ -14,8 +14,8 @@ RULE test
             19: CONST integer(3) -- parent: 80 
           83: WITH -- hash: 0xa1db54bedd6f6be6 -- parent: 81 
             82: FIELD_ACCESS -- hash: 0xc6f26b43ef493d46 -- parent: 83 
-              27: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 82 
-              28: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None, deprecation_msg: None } -- parent: 82 
+              27: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None } -- parent: 82 
+              28: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None, deprecation_notice: None } -- parent: 82 
             85: WITH -- hash: 0x1ce3fc3e2ea805f6 -- parent: 83 
               84: ADD -- hash: 0x1f8003fe2da19d98 -- parent: 85 
                 29: SYMBOL Var { var: Var { frame_id: 0, ty: float, index: 3 }, type_value: float(unknown) } -- parent: 84 
@@ -43,8 +43,8 @@ RULE test
             42: CONST integer(0) -- parent: 90 
           93: WITH -- hash: 0xbe545e6656880f10 -- parent: 91 
             92: FIELD_ACCESS -- hash: 0xc6f26b43ef493d46 -- parent: 93 
-              50: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 92 
-              51: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None, deprecation_msg: None } -- parent: 92 
+              50: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None } -- parent: 92 
+              51: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None, deprecation_notice: None } -- parent: 92 
             95: WITH -- hash: 0x7fbe51166763ccd6 -- parent: 93 
               94: ADD -- hash: 0x1f8003fe2da19d98 -- parent: 95 
                 52: SYMBOL Var { var: Var { frame_id: 0, ty: float, index: 3 }, type_value: float(unknown) } -- parent: 94 
@@ -63,8 +63,8 @@ RULE test
                     57: SYMBOL Var { var: Var { frame_id: 0, ty: boolean, index: 6 }, type_value: boolean(unknown) } -- parent: 58 
       101: WITH -- hash: 0x3b6309a759bbc3d2 -- parent: 76 
         100: FIELD_ACCESS -- hash: 0xc6f26b43ef493d46 -- parent: 101 
-          67: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 100 
-          68: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None, deprecation_msg: None } -- parent: 100 
+          67: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None } -- parent: 100 
+          68: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None, deprecation_notice: None } -- parent: 100 
         103: WITH -- hash: 0x59cd414d2af5d69f -- parent: 101 
           102: ADD -- hash: 0x4729d17687d014e8 -- parent: 103 
             69: SYMBOL Var { var: Var { frame_id: 0, ty: float, index: 1 }, type_value: float(unknown) } -- parent: 102 

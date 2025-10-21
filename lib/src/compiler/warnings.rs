@@ -697,7 +697,6 @@ pub struct InvalidTag {
 }
 
 /// A deprecated field was used in a YARA rule.
-/// check for it (see: [`crate::linters::Tags`]).
 ///
 /// ## Example
 ///
@@ -713,7 +712,7 @@ pub struct InvalidTag {
 #[associated_enum(Warning)]
 #[warning(
     code = "deprecated_field",
-    title = "field `{name}` is deprecated`"
+    title = "field `{name}` is deprecated"
 )]
 #[label(
     "{msg}",
