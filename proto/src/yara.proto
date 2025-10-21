@@ -94,9 +94,8 @@ message FieldOptions {
 
   // Specifies the format of the field when converted to a string.
   //
-  // This option can be used with integer, float, and boolean fields. It uses
-  // Rust's formatting syntax. For example, if an integer field has `fmt = "{:#x}"`
-  // it will be formatted as a hexadecimal string with a "0x" prefix.
+  // See:
+  // https://docs.rs/yara-x-proto-yaml/latest/yara_x_proto_yaml/index.html
   optional string fmt = 5;
 
   // Indicates that the field is deprecated.
