@@ -129,7 +129,7 @@ import Index from 'flexsearch';
 
     function buildIndex() {
         document.querySelector('.search-loading').classList.remove('d-none');
-        fetch("{{ site.LanguagePrefix }}/search-index.json")
+        fetch("{{ relLangURL "search-index.json" }}")
             .then(function (response) {
                 return response.json();
             })
