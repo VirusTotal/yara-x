@@ -1177,6 +1177,11 @@ impl Compiler<'_> {
         self.re_code.truncate(snapshot.re_code_len);
         self.atoms.truncate(snapshot.atoms_len);
         self.symbol_table.truncate(snapshot.symbol_table_len);
+
+        // Pattern IDs that are >= next_pattern_id, are being discarded. File
+        // size bounds associated to such IDs must be removed.
+        self.filesize_bounds
+            .retain(|pattern_id, _| *pattern_id < snapshot.next_pattern_id);
     }
 
     /// Sets a writer where the compiler will write the Intermediate
@@ -2733,7 +2738,9 @@ impl From<RegexpId> for u32 {
 ///   same pattern as `"mz"`),
 /// * Both patterns must be either non-anchored, or anchored to the same offset.
 /// * Both patterns must have the same file size bounds (or no bounds at all).
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Serialize, Deserialize,
+)]
 #[serde(transparent)]
 pub(crate) struct PatternId(i32);
 

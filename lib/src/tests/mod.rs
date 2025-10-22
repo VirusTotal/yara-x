@@ -3396,6 +3396,26 @@ fn filesize_bounds() {
             .len(),
         1
     );
+
+    // Test case for https://github.com/VirusTotal/yara-x/issues/481
+    crate::compile(
+        r#"
+        rule test_1 {
+          strings:
+            $a = "foobar"
+            $b = /.*/
+          condition:
+            $a and $b and filesize > 10
+        }
+        rule test_2 {
+          strings:
+            $a = "foobar"
+          condition:
+            $a and filesize < 10
+        }
+        "#,
+    )
+    .expect_err("should fail");
 }
 
 #[test]
