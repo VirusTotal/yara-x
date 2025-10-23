@@ -521,13 +521,17 @@ fn expr_from_ast(
 
         // Comparison operations
         ast::Expr::Eq(expr) => {
+            let eq_expr = eq_expr_from_ast(ctx, expr)?;
+
+            let (lhs, rhs) = match ctx.ir.get(eq_expr) {
+                Expr::Eq { lhs, rhs } => (*lhs, *rhs),
+                _ => unreachable!(),
+            };
+
             let span = expr.span();
 
             let lhs_span = expr.lhs.span();
             let rhs_span = expr.rhs.span();
-
-            let lhs = expr_from_ast(ctx, &expr.lhs)?;
-            let rhs = expr_from_ast(ctx, &expr.rhs)?;
 
             let lhs_expr = ctx.ir.get(lhs);
             let rhs_expr = ctx.ir.get(rhs);
@@ -569,7 +573,7 @@ fn expr_from_ast(
                     _ => None,
                 };
 
-            if let Some((expr, msg)) = replacement {
+            if let Some((replacement_expr, msg)) = replacement {
                 ctx.warnings.add(|| {
                     warnings::BooleanIntegerComparison::build(
                         ctx.report_builder,
@@ -577,9 +581,9 @@ fn expr_from_ast(
                         ctx.report_builder.span_to_code_loc(span),
                     )
                 });
-                expr
+                replacement_expr
             } else {
-                eq_expr_from_ast(ctx, expr)?
+                eq_expr
             }
         }
         ast::Expr::Ne(expr) => ne_expr_from_ast(ctx, expr)?,
@@ -1833,7 +1837,7 @@ fn check_operands(
     lhs_span: Span,
     rhs_span: Span,
     accepted_types: &[Type],
-    compatible_types: &[Type],
+    compatible_types: &[(Type, Type)],
 ) -> Result<(), CompileError> {
     let lhs_ty = ctx.ir.get(lhs).ty();
     let rhs_ty = ctx.ir.get(rhs).ty();
@@ -1848,12 +1852,11 @@ fn check_operands(
     let types_are_compatible = {
         // If the types are the same, they are compatible.
         (lhs_ty == rhs_ty)
-            // If both types are in the list of compatible types,
-            // they are compatible too.
-            || (
-            compatible_types.contains(&lhs_ty)
-                && compatible_types.contains(&rhs_ty)
-        )
+            // If the list of compatible types contains the pair
+            // (lhs_ty, rhs_ty) or (rhs_ty, lhs_ty), they are
+            // compatible.
+            || compatible_types.contains(&(lhs_ty, rhs_ty))
+                || compatible_types.contains(&(rhs_ty, lhs_ty))
     };
 
     if !types_are_compatible {
@@ -2008,7 +2011,7 @@ macro_rules! gen_unary_op {
 }
 
 macro_rules! gen_binary_op {
-    ($name:ident, $variant:ident, $( $accepted_types:path )|+, $( $compatible_types:path )|+, $check_fn:expr) => {
+    ($name:ident, $variant:ident, $( $accepted_types:path )|+, $compatible_types:expr, $check_fn:expr) => {
         fn $name(
             ctx: &mut CompileContext,
             expr: &ast::BinaryExpr,
@@ -2026,7 +2029,7 @@ macro_rules! gen_binary_op {
                 lhs_span.clone(),
                 rhs_span.clone(),
                 &[$( $accepted_types ),+],
-                &[$( $compatible_types ),+],
+                $compatible_types,
             )?;
 
             let check_fn:
@@ -2061,7 +2064,7 @@ macro_rules! gen_string_op {
                 lhs_span.clone(),
                 rhs_span.clone(),
                 &[Type::String],
-                &[Type::String],
+                &[],
             )?;
 
             Ok(ctx.ir.$variant(lhs, rhs))
@@ -2070,14 +2073,14 @@ macro_rules! gen_string_op {
 }
 
 macro_rules! gen_n_ary_operation {
-    ($name:ident, $variant:ident, $( $accepted_types:path )|+, $( $compatible_types:path )|+, $check_fn:expr) => {
+    ($name:ident, $variant:ident, $( $accepted_types:path )|+, $compatible_types:expr, $check_fn:expr) => {
         fn $name(
             ctx: &mut CompileContext,
             expr: &ast::NAryExpr,
         ) -> Result<ExprId, CompileError> {
             let span = expr.span();
             let accepted_types = &[$( $accepted_types ),+];
-            let compatible_types = &[$( $compatible_types ),+];
+            let compatible_types = $compatible_types;
 
             let operands_hir: Vec<ExprId> = expr
                 .operands()
@@ -2106,13 +2109,13 @@ macro_rules! gen_n_ary_operation {
 
                 let types_are_compatible = {
                     // If the types are the same, they are compatible.
-                    (lhs_ty == rhs_ty)
-                        // If both types are in the list of compatible types,
-                        // they are compatible too.
-                        || (
-                        compatible_types.contains(&lhs_ty)
-                            && compatible_types.contains(&rhs_ty)
-                    )
+                    (lhs_ty == rhs_ty) ||
+                        // If the list of compatible types contains the pair
+                        // (lhs_ty, rhs_ty) or (rhs_ty, lhs_ty), they are
+                        // compatible.
+                        compatible_types.contains(&(lhs_ty, rhs_ty))
+                            || compatible_types.contains(&(rhs_ty, lhs_ty))
+
                 };
 
                 if !types_are_compatible {
@@ -2171,7 +2174,14 @@ gen_n_ary_operation!(
     Type::Bool | Type::Integer | Type::Float | Type::String,
     // All operand types can be mixed in a boolean operation, as they
     // are casted to boolean anyways.
-    Type::Bool | Type::Integer | Type::Float | Type::String,
+    &[
+        (Type::Integer, Type::Bool),
+        (Type::Integer, Type::Float),
+        (Type::Integer, Type::String),
+        (Type::String, Type::Bool),
+        (Type::String, Type::Float),
+        (Type::Float, Type::Bool)
+    ],
     Some(|ctx, operand, span| {
         let ty = ctx.ir.get(operand).ty();
         warn_if_not_bool(ctx, ty, span);
@@ -2187,7 +2197,14 @@ gen_n_ary_operation!(
     Type::Bool | Type::Integer | Type::Float | Type::String,
     // All operand types can be mixed in a boolean operation, as they
     // are casted to boolean anyways.
-    Type::Bool | Type::Integer | Type::Float | Type::String,
+    &[
+        (Type::Integer, Type::Bool),
+        (Type::Integer, Type::Float),
+        (Type::Integer, Type::String),
+        (Type::String, Type::Bool),
+        (Type::String, Type::Float),
+        (Type::Float, Type::Bool)
+    ],
     Some(|ctx, operand, span| {
         let ty = ctx.ir.get(operand).ty();
         warn_if_not_bool(ctx, ty, span);
@@ -2201,7 +2218,7 @@ gen_n_ary_operation!(
     add_expr_from_ast,
     add,
     Type::Integer | Type::Float,
-    Type::Integer | Type::Float,
+    &[(Type::Integer, Type::Float)],
     None
 );
 
@@ -2209,7 +2226,7 @@ gen_n_ary_operation!(
     sub_expr_from_ast,
     sub,
     Type::Integer | Type::Float,
-    Type::Integer | Type::Float,
+    &[(Type::Integer, Type::Float)],
     None
 );
 
@@ -2217,7 +2234,7 @@ gen_n_ary_operation!(
     mul_expr_from_ast,
     mul,
     Type::Integer | Type::Float,
-    Type::Integer | Type::Float,
+    &[(Type::Integer, Type::Float)],
     None
 );
 
@@ -2225,49 +2242,24 @@ gen_n_ary_operation!(
     div_expr_from_ast,
     div,
     Type::Integer | Type::Float,
-    Type::Integer | Type::Float,
+    &[(Type::Integer, Type::Float)],
     None
 );
 
-gen_n_ary_operation!(
-    mod_expr_from_ast,
-    modulus,
-    Type::Integer,
-    Type::Integer,
-    None
-);
-
-gen_binary_op!(
-    shl_expr_from_ast,
-    shl,
-    Type::Integer,
-    Type::Integer,
-    Some(shx_check)
-);
-
-gen_binary_op!(
-    shr_expr_from_ast,
-    shr,
-    Type::Integer,
-    Type::Integer,
-    Some(shx_check)
-);
+gen_n_ary_operation!(mod_expr_from_ast, modulus, Type::Integer, &[], None);
 
 gen_unary_op!(bitwise_not_expr_from_ast, bitwise_not, Type::Integer, None);
+
+gen_binary_op!(shl_expr_from_ast, shl, Type::Integer, &[], Some(shx_check));
+gen_binary_op!(shr_expr_from_ast, shr, Type::Integer, &[], Some(shx_check));
+
+gen_binary_op!(bitwise_or_expr_from_ast, bitwise_or, Type::Integer, &[], None);
 
 gen_binary_op!(
     bitwise_and_expr_from_ast,
     bitwise_and,
     Type::Integer,
-    Type::Integer,
-    None
-);
-
-gen_binary_op!(
-    bitwise_or_expr_from_ast,
-    bitwise_or,
-    Type::Integer,
-    Type::Integer,
+    &[],
     None
 );
 
@@ -2275,18 +2267,17 @@ gen_binary_op!(
     bitwise_xor_expr_from_ast,
     bitwise_xor,
     Type::Integer,
-    Type::Integer,
+    &[],
     None
 );
 
 gen_binary_op!(
     eq_expr_from_ast,
     eq,
-    // Integers, floats and strings can be compared.
-    Type::Integer | Type::Float | Type::String,
-    // Integers can be compared with floats, but strings can be
-    // compared only with another string.
-    Type::Integer | Type::Float,
+    // Booleans, integers, floats and strings can be compared.
+    Type::Bool | Type::Integer | Type::Float | Type::String,
+    // Integers can be compared with floats and booleans.
+    &[(Type::Integer, Type::Float), (Type::Integer, Type::Bool)],
     Some(eq_check)
 );
 
@@ -2295,9 +2286,8 @@ gen_binary_op!(
     ne,
     // Integers, floats and strings can be compared.
     Type::Integer | Type::Float | Type::String,
-    // Integers can be compared with floats, but strings can be
-    // compared only with another string.
-    Type::Integer | Type::Float,
+    // Integers can be compared with floats.
+    &[(Type::Integer, Type::Float)],
     None
 );
 
@@ -2306,9 +2296,8 @@ gen_binary_op!(
     gt,
     // Integers, floats and strings can be compared.
     Type::Integer | Type::Float | Type::String,
-    // Integers can be compared with floats, but strings can be
-    // compared only with another string.
-    Type::Integer | Type::Float,
+    // Integers can be compared with floats.
+    &[(Type::Integer, Type::Float)],
     None
 );
 
@@ -2319,7 +2308,7 @@ gen_binary_op!(
     Type::Integer | Type::Float | Type::String,
     // Integers can be compared with floats, but strings can be
     // compared only with another string.
-    Type::Integer | Type::Float,
+    &[(Type::Integer, Type::Float)],
     None
 );
 
@@ -2328,9 +2317,8 @@ gen_binary_op!(
     lt,
     // Integers, floats and strings can be compared.
     Type::Integer | Type::Float | Type::String,
-    // Integers can be compared with floats, but strings can be
-    // compared only with another string.
-    Type::Integer | Type::Float,
+    // Integers can be compared with floats.
+    &[(Type::Integer, Type::Float)],
     None
 );
 
@@ -2339,9 +2327,8 @@ gen_binary_op!(
     le,
     // Integers, floats and strings can be compared.
     Type::Integer | Type::Float | Type::String,
-    // Integers can be compared with floats, but strings can be
-    // compared only with another string.
-    Type::Integer | Type::Float,
+    // Integers can be compared with floats.
+    &[(Type::Integer, Type::Float)],
     None
 );
 
