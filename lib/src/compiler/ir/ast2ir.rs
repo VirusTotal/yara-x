@@ -617,6 +617,13 @@ fn expr_from_ast(
                 let expr = expr_from_ast(ctx, operand)?;
                 check_type(ctx, expr, operand.span(), &[Type::Struct])?;
                 operands.push(expr);
+                // The one-shot symbol table is set to the symbol table that
+                // corresponds to the type of the most recent expression. For
+                // instance, after parsing `foo`, the one-shot symbol table
+                // corresponds to the type of `foo`, so that `.bar` can be
+                // resolved in the next iteration of this loop.
+                ctx.one_shot_symbol_table =
+                    ctx.ir.get(expr).type_value().symbol_table();
             }
 
             // Now process the last operand.
@@ -870,8 +877,6 @@ fn expr_from_ast(
         ast::Expr::Lookup(expr) => {
             let primary = expr_from_ast(ctx, &expr.primary)?;
 
-            ctx.one_shot_symbol_table = None;
-
             match ctx.ir.get(primary).type_value() {
                 TypeValue::Array(array) => {
                     let index =
@@ -909,8 +914,6 @@ fn expr_from_ast(
             }
         }
     };
-
-    ctx.one_shot_symbol_table = ctx.ir.get(expr).type_value().symbol_table();
 
     Ok(expr)
 }
@@ -952,8 +955,6 @@ fn bool_expr_from_ast(
     ctx: &mut CompileContext,
     ast: &ast::Expr,
 ) -> Result<ExprId, CompileError> {
-    ctx.one_shot_symbol_table = None;
-
     let expr = expr_from_ast(ctx, ast)?;
 
     match ctx.ir.get(expr).type_value() {
@@ -1700,7 +1701,12 @@ fn func_call_from_ast(
     func_call: &ast::FuncCall,
 ) -> Result<ExprId, CompileError> {
     let mut object = if let Some(obj) = &func_call.object {
-        Some(expr_from_ast(ctx, obj)?)
+        let expr = expr_from_ast(ctx, obj)?;
+        // The one-shot symbol table is set according to the type of the object
+        // associated to the function call, so that methods can be resolved.
+        ctx.one_shot_symbol_table =
+            ctx.ir.get(expr).type_value().symbol_table();
+        Some(expr)
     } else {
         None
     };
