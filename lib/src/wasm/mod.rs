@@ -87,7 +87,7 @@ use linkme::distributed_slice;
 use rustc_hash::FxHashMap;
 use smallvec::{smallvec, SmallVec};
 use wasmtime::{
-    AsContextMut, Caller, Config, Engine, FuncType, Linker, ValRaw,
+    AsContext, AsContextMut, Caller, Config, Engine, FuncType, Linker, ValRaw,
 };
 
 use yara_x_macros::wasm_export;
@@ -216,7 +216,7 @@ impl WasmExport {
     /// `type_name` is one of the strings passed in the `method_of` field to
     /// the `module_export` macro. For instance, in the example below we
     /// specify that `some_method` is a method of `my_module.MyStructure`. If
-    /// we call `find_methods` with `"my_module.MyStructure"` it returns
+    /// we call `get_methods` with `"my_module.MyStructure"` it returns
     /// a hash map that contains a [`Func`] describing `some_method`.
     ///
     /// ```text
@@ -985,6 +985,15 @@ pub(crate) fn pat_offset(
     } else {
         None
     }
+}
+
+/// Called from WASM to obtain the length of a string.
+#[wasm_export(name = "len", method_of = "RuntimeString")]
+pub(crate) fn string_len(
+    caller: &mut Caller<'_, ScanContext>,
+    string: RuntimeString,
+) -> i64 {
+    string.as_bstr(caller.as_context().data()).len() as i64
 }
 
 /// Called from WASM to obtain the length of an array.
