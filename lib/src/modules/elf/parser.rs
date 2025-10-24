@@ -63,7 +63,7 @@ impl ElfParser {
             verify(u8, |c| {
                 *c == Self::ELF_CLASS_32 || *c == Self::ELF_CLASS_64
             })
-            .map_opt(|b| Class::from_u8(b)),
+            .map_opt(Class::from_u8),
             // Data encoding must be either ELF_DATA_2LSB or ELF_DATA_2MSB
             verify(u8, |d| {
                 *d == Self::ELF_DATA_2LSB || *d == Self::ELF_DATA_2MSB
