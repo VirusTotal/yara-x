@@ -1,5 +1,6 @@
 type: ET_EXEC
 machine: EM_386
+osabi: ELFOSABI_NONE
 entry_point: 84
 sh_offset: 0
 sh_entry_size: 0

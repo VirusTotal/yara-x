@@ -13,6 +13,8 @@ option (yara.module_options) = {
 message ELF {
   optional Type type = 1;
   optional Machine machine = 2;
+  optional OsAbi osabi = 18;
+
   optional uint64 entry_point = 3;
   optional uint64 sh_offset = 4;
   optional uint32 sh_entry_size = 5;
@@ -61,6 +63,28 @@ enum Machine {
   EM_ARM = 40;         // 0x0028 ARM
   EM_X86_64 = 62;      // 0x003E AMD/Intel x86_64
   EM_AARCH64 = 183;    // 0x00B7 64-bit ARM
+}
+
+enum OsAbi {
+  option (yara.enum_options).inline = true;
+  ELFOSABI_NONE = 0x00;
+  ELFOSABI_HPUX = 0x01;      // Hewlett-Packard HP-UX
+  ELFOSABI_NETBSD = 0x02;
+  ELFOSABI_LINUX = 0x03;
+  ELFOSABI_GNU_HURD = 0x04;
+  ELFOSABI_SOLARIS = 0x06;   // Sun Solaris
+  ELFOSABI_AIX = 0x07;       // IBM AIX
+  ELFOSABI_IRIX = 0x08;      // Silicon Graphics IRIX
+  ELFOSABI_FREE_BSD = 0x09;
+  ELFOSABI_TRU64 = 0x0A;     // Compaq TRU64 UNIX
+  ELFOSABI_MODESTO = 0x0B;   // Novell Modesto
+  ELFOSABI_OPENBSD = 0x0C;
+  ELFOSABI_OPENVMS = 0x0D;
+  ELFOSABI_NSK = 0x0E;       // Hewlett-Packard Non-Stop Kernel
+  ELFOSABI_AROS = 0x0F;      // Amiga Research OS
+  ELFOSABI_FENIXOS = 0x10;   // FenixOS highly scalable multi-core OS
+  ELFOSABI_CLOUDABI = 0x11;  // Nuxi Cloud ABI
+  ELFOSABI_OPENVOS = 0x12;   // Stratus Technologies OpenVOS
 }
 
 message Section {

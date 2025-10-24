@@ -1,5 +1,6 @@
 type: ET_DYN
 machine: EM_ARM
+osabi: ELFOSABI_NONE
 sh_offset: 496204
 sh_entry_size: 40
 ph_offset: 52

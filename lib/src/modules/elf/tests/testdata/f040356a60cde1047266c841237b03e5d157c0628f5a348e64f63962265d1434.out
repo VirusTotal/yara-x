@@ -1,5 +1,6 @@
 type: ET_EXEC
 machine: EM_SPARC
+osabi: ELFOSABI_NONE
 entry_point: 4348
 sh_offset: 13028
 sh_entry_size: 40

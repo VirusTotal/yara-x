@@ -1,5 +1,6 @@
 type: ET_REL
 machine: EM_386
+osabi: ELFOSABI_NONE
 sh_offset: 3456
 sh_entry_size: 40
 ph_offset: 0
