@@ -847,7 +847,20 @@ pub(crate) fn search_for_patterns(
 ) -> bool {
     match caller.data_mut().search_for_patterns() {
         Ok(_) => true,
-        Err(ScanError::Timeout) => false,
+        Err(ScanError::Timeout) => {
+            // If a timeout occurred during `search_for_patterns`, force the
+            // WASM runtime to raise its own timeout by setting the epoch
+            // deadline to 0 (immediate expiry).
+            //
+            // The WASM runtime and `search_for_patterns` each track timeouts
+            // independently: the runtime uses epoch deadlines, while
+            // `search_for_patterns` relies on the global HEARTBEAT_COUNTER.
+            // This means `search_for_patterns` may time out first, while the
+            // WASM runtime has not yet hit its own deadline (though it soon
+            // will).
+            caller.as_context_mut().set_epoch_deadline(0);
+            false
+        }
         Err(_) => unreachable!(),
     }
 }
