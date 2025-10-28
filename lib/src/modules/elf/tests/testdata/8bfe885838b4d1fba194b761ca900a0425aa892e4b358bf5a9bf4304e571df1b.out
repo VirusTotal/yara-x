@@ -1,6 +1,6 @@
 type: ET_DYN
 machine: EM_X86_64
-osabi: ELFOSABI_NONE
+osabi: OSABI_NONE
 sh_offset: 14904
 sh_entry_size: 64
 ph_offset: 64

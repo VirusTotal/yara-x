@@ -1,6 +1,6 @@
 type: ET_DYN
 machine: EM_X86_64
-osabi: ELFOSABI_LINUX
+osabi: OSABI_LINUX
 entry_point: 115776
 sh_offset: 224320
 sh_entry_size: 64
