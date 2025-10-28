@@ -722,47 +722,24 @@ impl ScanContext<'_, '_> {
         }
     }
 
-    /// Search for patterns in the scanned data.
-    ///
-    /// The pattern search phase is when YARA scans the data looking for the
-    /// patterns declared in rules. All the patterns are searched simultaneously
-    /// using the Aho-Corasick algorithm. This phase is triggered lazily during
-    /// the evaluation of the rule conditions, when some of the conditions need
-    /// to know if a pattern matched or not.
-    ///
-    /// This function won't be called if the conditions can be fully evaluated
-    /// without looking for any of the patterns. If it must be called, it will be
-    /// called only once.
-    pub(crate) fn search_for_patterns(&mut self) -> Result<(), ScanError> {
-        let ac = self.compiled_rules.ac_automaton();
-
+    /// The Aho-Corasick search loop.
+    pub(crate) fn ac_search_loop(
+        &mut self,
+        base: usize,
+        data: &[u8],
+        block_scanning_mode: bool,
+    ) -> Result<(), ScanError> {
         let mut vm = VM {
             pike_vm: PikeVM::new(self.compiled_rules.re_code()),
             fast_vm: FastVM::new(self.compiled_rules.re_code()),
         };
 
+        let ac = self.compiled_rules.ac_automaton();
         let atoms = self.compiled_rules.atoms();
         let filesize = self.get_filesize();
 
-        #[cfg(any(feature = "rules-profiling", feature = "logging"))]
-        let scan_start = self.clock.raw();
-
         #[cfg(feature = "logging")]
         let mut atom_matches = 0_usize;
-
-        // Take ownership of the scan state, while searching for
-        // the patterns, `self.scan_state` is left as `Idle`.
-        let state = self.scan_state.take();
-
-        let (base, data, block_scanning_mode) = match &state {
-            ScanState::ScanningData(data) => (0, data.as_ref(), false),
-            ScanState::ScanningBlock((base, data)) => (*base, *data, true),
-            _ => panic!(),
-        };
-
-        // Verify the anchored pattern first. These are patterns that can
-        // match at a single known offset within the data.
-        self.verify_anchored_patterns(base, data);
 
         for ac_match in ac.find_overlapping_iter(data) {
             #[cfg(feature = "logging")]
@@ -771,11 +748,6 @@ impl ScanContext<'_, '_> {
             }
 
             if HEARTBEAT_COUNTER.load(Ordering::Relaxed) >= self.deadline {
-                #[cfg(feature = "logging")]
-                log::info!(
-                    "Scan timeout after: {:?}",
-                    self.clock.delta(scan_start, self.clock.raw())
-                );
                 return Err(ScanError::Timeout);
             }
 
@@ -997,17 +969,48 @@ impl ScanContext<'_, '_> {
             }
         }
 
+        #[cfg(feature = "logging")]
+        log::info!("Atom matches: {}", atom_matches);
+
+        Ok(())
+    }
+
+    /// Search for patterns in the scanned data.
+    ///
+    /// The pattern search phase is when YARA scans the data looking for the
+    /// patterns declared in rules. All the patterns are searched simultaneously
+    /// using the Aho-Corasick algorithm. This phase is triggered lazily during
+    /// the evaluation of the rule conditions, when some of the conditions need
+    /// to know if a pattern matched or not.
+    ///
+    /// This function won't be called if the conditions can be fully evaluated
+    /// without looking for any of the patterns. If it must be called, it will be
+    /// called only once.
+    pub(crate) fn search_for_patterns(&mut self) -> Result<(), ScanError> {
+        // Take ownership of the scan state, while searching for
+        // the patterns, `self.scan_state` is left as `Idle`.
+        let state = self.scan_state.take();
+
+        let (base, data, block_scanning_mode) = match &state {
+            ScanState::ScanningData(data) => (0, data.as_ref(), false),
+            ScanState::ScanningBlock((base, data)) => (*base, *data, true),
+            _ => panic!(),
+        };
+
+        #[cfg(any(feature = "rules-profiling", feature = "logging"))]
+        let scan_start = self.clock.raw();
+
+        // Verify the anchored pattern first. These are patterns that can
+        // match at a single known offset within the data.
+        self.verify_anchored_patterns(base, data);
+
+        let result = self.ac_search_loop(base, data, block_scanning_mode);
+
+        // Bring back ownership of the scanned to the ScanContext.
+        self.scan_state = state;
+
         #[cfg(any(feature = "rules-profiling", feature = "logging"))]
         let scan_end = self.clock.raw();
-
-        #[cfg(feature = "logging")]
-        {
-            log::info!(
-                "Scan time: {:?}",
-                self.clock.delta(scan_start, scan_end)
-            );
-            log::info!("Atom matches: {}", atom_matches);
-        }
 
         // Adjust the rule evaluation start time to exclude the time spent
         // searching for patterns. Since the `search_for_pattern` function
@@ -1021,10 +1024,15 @@ impl ScanContext<'_, '_> {
                 scan_end.saturating_sub(scan_start);
         }
 
-        // Bring back ownership of the scanned to the ScanContext.
-        self.scan_state = state;
+        #[cfg(feature = "logging")]
+        {
+            log::info!(
+                "Scan time: {:?}",
+                self.clock.delta(scan_start, scan_end)
+            );
+        }
 
-        Ok(())
+        result
     }
 
     fn verify_anchored_patterns(&mut self, base: usize, data: &[u8]) {
