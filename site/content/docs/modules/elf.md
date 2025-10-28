@@ -288,25 +288,25 @@ rule SparcELF {
 
 These are the possible values of the `osabi` field.
 
-| Name              | Value | Description                       |
-|-------------------|-------|-----------------------------------|
-| ELFOSABI_NONE     | 0     | No extensions or unspecified      |
-| ELFOSABI_HPUX     | 1     | Hewlett-Packard HP-UX             |
-| ELFOSABI_NETBSD   | 2     | NetBSD                            |
-| ELFOSABI_LINUX    | 3     | GNU Linux                         |
-| ELFOSABI_SOLARIS  | 6     | Sun Solaris                       |
-| ELFOSABI_AIX      | 7     | AIX                               |
-| ELFOSABI_IRIX     | 8     | IRIX                              |
-| ELFOSABI_FREEBSD  | 9     | FreeBSD                           |
-| ELFOSABI_TRU64    | 10    | Compaq TRU64 UNIX                 |
-| ELFOSABI_MODESTO  | 11    | Novell Modesto                    |
-| ELFOSABI_OPENBSD  | 12    | Open BSD                          |
-| ELFOSABI_OPENVMS  | 13    | Open VMS                          |
-| ELFOSABI_NSK      | 14    | Hewlett-Packard Non-Stop Kernel   |
-| ELFOSABI_AROS     | 15    | Amiga Research OS                 |
-| ELFOSABI_FENIXOS  | 16    | Fenix OS                          |
-| ELFOSABI_CLOUDABI | 17    | Nuxi CloudABI                     |
-| ELFOSABI_OPENVOS  | 18    | Stratus Technologies OpenVOS      |
+| Name           | Value | Description                     |
+|----------------|-------|---------------------------------|
+| OSABI_NONE     | 0     | No extensions or unspecified    |
+| OSABI_HPUX     | 1     | Hewlett-Packard HP-UX           |
+| OSABI_NETBSD   | 2     | NetBSD                          |
+| OSABI_LINUX    | 3     | GNU Linux                       |
+| OSABI_SOLARIS  | 6     | Sun Solaris                     |
+| OSABI_AIX      | 7     | AIX                             |
+| OSABI_IRIX     | 8     | IRIX                            |
+| OSABI_FREEBSD  | 9     | FreeBSD                         |
+| OSABI_TRU64    | 10    | Compaq TRU64 UNIX               |
+| OSABI_MODESTO  | 11    | Novell Modesto                  |
+| OSABI_OPENBSD  | 12    | Open BSD                        |
+| OSABI_OPENVMS  | 13    | Open VMS                        |
+| OSABI_NSK      | 14    | Hewlett-Packard Non-Stop Kernel |
+| OSABI_AROS     | 15    | Amiga Research OS               |
+| OSABI_FENIXOS  | 16    | Fenix OS                        |
+| OSABI_CLOUDABI | 17    | Nuxi CloudABI                   |
+| OSABI_OPENVOS  | 18    | Stratus Technologies OpenVOS    |
 
 #### Example
 
