@@ -1,6 +1,7 @@
 /*! Functions for converting an AST into an IR. */
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::iter;
 use std::ops::RangeInclusive;
@@ -8,7 +9,6 @@ use std::rc::Rc;
 
 use bstr::{BString, ByteSlice};
 use itertools::Itertools;
-
 use yara_x_parser::ast;
 use yara_x_parser::ast::WithSpan;
 use yara_x_parser::Span;
@@ -50,7 +50,7 @@ const MAX_PATTERNS_PER_RULE: usize = 100_000;
 const MAX_LOOP_ITERATIONS: i64 = 1_000_000;
 
 pub(in crate::compiler) fn patterns_from_ast<'src>(
-    ctx: &mut CompileContext<'_, 'src, '_>,
+    ctx: &mut CompileContext<'_, 'src>,
     rule: &ast::Rule<'src>,
 ) -> Result<(), CompileError> {
     for pattern_ast in rule.patterns.as_ref().into_iter().flatten() {
@@ -1219,7 +1219,7 @@ fn for_of_expr_from_ast(
         },
     );
 
-    ctx.symbol_table.push(Rc::new(loop_vars));
+    ctx.symbol_table.push(Rc::new(RefCell::new(loop_vars)));
     ctx.for_of_depth += 1;
 
     let body = bool_expr_from_ast(ctx, &for_of.body)?;
@@ -1383,7 +1383,7 @@ fn for_in_expr_from_ast(
     }
 
     // Put the loop variables into scope.
-    ctx.symbol_table.push(Rc::new(symbols));
+    ctx.symbol_table.push(Rc::new(RefCell::new(symbols)));
 
     let body = bool_expr_from_ast(ctx, &for_in.body)?;
 
@@ -1418,7 +1418,6 @@ fn with_expr_from_ast(
     let symbols = ctx.symbol_table.push_new();
 
     for item in with.declarations.iter() {
-        let name = item.identifier.name;
         let expr = expr_from_ast(ctx, &item.expression)?;
         let type_value = ctx.ir.get(expr).type_value();
 
@@ -1433,18 +1432,36 @@ fn with_expr_from_ast(
                         .span_to_code_loc(item.expression.span()),
                 ));
             }
-            symbols.borrow_mut().insert(name, Symbol::Func(func.clone()));
+            symbols
+                .borrow_mut()
+                .insert(item.identifier.name, Symbol::Func(func.clone()));
         } else {
             let var = stack_frame.new_var(type_value.ty());
             declarations.push((var, expr));
-            symbols.borrow_mut().insert(name, Symbol::Var { var, type_value });
+            symbols
+                .borrow_mut()
+                .insert(item.identifier.name, Symbol::Var { var, type_value });
         }
     }
 
     let body = bool_expr_from_ast(ctx, &with.body)?;
 
-    // Leaving with statement body's scope. Remove with statement variables.
-    ctx.symbol_table.pop();
+    // Leaving with statement body's scope. Remove with statement variables
+    // from the context's symbol table, but keep them to verify if they
+    // were actually used.
+    let with_vars = ctx.symbol_table.pop().unwrap().take();
+
+    for item in with.declarations.iter() {
+        if !with_vars.used(item.identifier.name) {
+            ctx.warnings.add(|| {
+                warnings::UnusedIdentifier::build(
+                    ctx.report_builder,
+                    ctx.report_builder
+                        .span_to_code_loc(item.identifier.span()),
+                )
+            })
+        }
+    }
 
     ctx.vars.unwind(&stack_frame);
 

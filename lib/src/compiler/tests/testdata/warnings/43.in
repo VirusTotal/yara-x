@@ -1,0 +1,11 @@
+rule test_1 {
+   condition:
+       with a = 1, b = 2, c = 3 : ( a == b )
+}
+
+rule test_2 {
+   condition:
+       with a = 1, b = 2, c = 3 : (
+         a == 1 and b == 2 and with c = 4 : ( c == 4 )
+       )
+}

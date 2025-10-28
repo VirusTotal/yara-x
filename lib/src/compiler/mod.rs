@@ -277,7 +277,7 @@ pub struct Compiler<'a> {
     /// symbol tables where the bottom-most table is the one that contains
     /// global identifiers like built-in functions and user-defined global
     /// identifiers.
-    symbol_table: StackedSymbolTable<'a>,
+    symbol_table: StackedSymbolTable,
 
     /// Symbol table that contains the global identifiers, including built-in
     /// functions like `uint8`, `uint16`, etc. This symbol table is at the
