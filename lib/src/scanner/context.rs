@@ -995,12 +995,9 @@ impl ScanContext<'_, '_> {
     /// This function won't be called if the conditions can be fully evaluated
     /// without looking for any of the patterns. If it must be called, it will be
     /// called only once.
-<<<<<<< HEAD
-=======
     ///
     /// In case of timeout, this function returns [ScanError::Timeout] and sets
     /// the scan state to [ScanState::Timeout].
->>>>>>> e16389e7 (fix: edge case in that could cause a panic when a timeout occurs.)
     pub(crate) fn search_for_patterns(&mut self) -> Result<(), ScanError> {
         // Take ownership of the scan state, while searching for
         // the patterns, `self.scan_state` is left as `Idle`.
@@ -1019,12 +1016,6 @@ impl ScanContext<'_, '_> {
         // match at a single known offset within the data.
         self.verify_anchored_patterns(base, data);
 
-<<<<<<< HEAD
-        let result = self.ac_search_loop(base, data, block_scanning_mode);
-
-        // Bring back ownership of the scanned to the ScanContext.
-        self.scan_state = state;
-=======
         let result = match self.ac_search_loop(base, data, block_scanning_mode)
         {
             Ok(_) => {
@@ -1037,7 +1028,6 @@ impl ScanContext<'_, '_> {
             }
             _ => unreachable!(),
         };
->>>>>>> e16389e7 (fix: edge case in that could cause a panic when a timeout occurs.)
 
         #[cfg(any(feature = "rules-profiling", feature = "logging"))]
         let scan_end = self.clock.raw();
