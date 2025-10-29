@@ -976,10 +976,6 @@ fn emit_lazy_pattern_search(
                 .call(ctx.function_id(
                     wasm::export__search_for_patterns.mangled_name,
                 ))
-                // Remove the result of `search_for_patterns` from the stack.
-                // The result is `true` if everything went fine and `false`
-                // in case of timeout, but we don't use this result.
-                .drop()
                 // Set `pattern_search_done` to true.
                 .i32_const(1)
                 .global_set(ctx.wasm_symbols.pattern_search_done);

@@ -48,6 +48,7 @@ use crate::{wasm, Variable};
 /// Represents the states in which a scanner can be.
 pub(crate) enum ScanState<'a> {
     Idle,
+    Timeout,
     ScanningData(ScannedData<'a>),
     ScanningBlock((usize, &'a [u8])),
     Finished(DataSnippets<'a>),
@@ -379,8 +380,8 @@ impl ScanContext<'_, '_> {
     /// calls ScanContext::search_for_patterns (which does the Aho-Corasick
     /// scanning) only if necessary.
     ///
-    /// This will return `Err(ScanError::Timeout)`, when the scan timeout is
-    /// reached while WASM code is being executed.
+    /// This will return [ScanError::Timeout], if a timeout occurs while
+    /// searching for patterns or evaluating the conditions.
     pub(crate) fn eval_conditions(&mut self) -> Result<(), ScanError> {
         // Save the time in which the evaluation started.
         #[cfg(feature = "rules-profiling")]
@@ -453,8 +454,16 @@ impl ScanContext<'_, '_> {
             }
         }
 
+        // The WASM code that evaluates the conditions returns
+        // `ScanError::Timeout` if a timeout occurs during its execution.
+        // However, a timeout may also happen while `search_for_patterns`
+        // is running. In that case, the function returns `Ok(0)` but the
+        // scan state is updated to `ScanState::Timeout`.
         match eval_result {
-            Ok(0) => Ok(()),
+            Ok(0) => match self.scan_state {
+                ScanState::Timeout => Err(ScanError::Timeout),
+                _ => Ok(()),
+            },
             Ok(v) => panic!("WASM main returned: {v}"),
             Err(err) if err.is::<ScanError>() => {
                 Err(err.downcast::<ScanError>().unwrap())
@@ -986,6 +995,12 @@ impl ScanContext<'_, '_> {
     /// This function won't be called if the conditions can be fully evaluated
     /// without looking for any of the patterns. If it must be called, it will be
     /// called only once.
+<<<<<<< HEAD
+=======
+    ///
+    /// In case of timeout, this function returns [ScanError::Timeout] and sets
+    /// the scan state to [ScanState::Timeout].
+>>>>>>> e16389e7 (fix: edge case in that could cause a panic when a timeout occurs.)
     pub(crate) fn search_for_patterns(&mut self) -> Result<(), ScanError> {
         // Take ownership of the scan state, while searching for
         // the patterns, `self.scan_state` is left as `Idle`.
@@ -1004,10 +1019,25 @@ impl ScanContext<'_, '_> {
         // match at a single known offset within the data.
         self.verify_anchored_patterns(base, data);
 
+<<<<<<< HEAD
         let result = self.ac_search_loop(base, data, block_scanning_mode);
 
         // Bring back ownership of the scanned to the ScanContext.
         self.scan_state = state;
+=======
+        let result = match self.ac_search_loop(base, data, block_scanning_mode)
+        {
+            Ok(_) => {
+                self.scan_state = state;
+                Ok(())
+            }
+            Err(ScanError::Timeout) => {
+                self.scan_state = ScanState::Timeout;
+                Err(ScanError::Timeout)
+            }
+            _ => unreachable!(),
+        };
+>>>>>>> e16389e7 (fix: edge case in that could cause a panic when a timeout occurs.)
 
         #[cfg(any(feature = "rules-profiling", feature = "logging"))]
         let scan_end = self.clock.raw();
