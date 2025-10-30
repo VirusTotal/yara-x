@@ -1756,6 +1756,7 @@ impl Compiler<'_> {
             wasm_exports: &self.wasm_exports,
             exception_handler_stack: Vec::new(),
             lookup_list: Vec::new(),
+            emit_search_for_pattern_stack: Vec::new(),
         };
 
         emit_rule_condition(
