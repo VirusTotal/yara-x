@@ -67,24 +67,27 @@ enum Machine {
 
 enum OsAbi {
   option (yara.enum_options).inline = true;
-  OSABI_NONE = 0x00;
-  OSABI_HPUX = 0x01;      // Hewlett-Packard HP-UX
-  OSABI_NETBSD = 0x02;
-  OSABI_LINUX = 0x03;
-  OSABI_GNU_HURD = 0x04;
-  OSABI_SOLARIS = 0x06;   // Sun Solaris
-  OSABI_AIX = 0x07;       // IBM AIX
-  OSABI_IRIX = 0x08;      // Silicon Graphics IRIX
-  OSABI_FREE_BSD = 0x09;
-  OSABI_TRU64 = 0x0A;     // Compaq TRU64 UNIX
-  OSABI_MODESTO = 0x0B;   // Novell Modesto
-  OSABI_OPENBSD = 0x0C;
-  OSABI_OPENVMS = 0x0D;
-  OSABI_NSK = 0x0E;       // Hewlett-Packard Non-Stop Kernel
-  OSABI_AROS = 0x0F;      // Amiga Research OS
-  OSABI_FENIXOS = 0x10;   // FenixOS highly scalable multi-core OS
-  OSABI_CLOUDABI = 0x11;  // Nuxi Cloud ABI
-  OSABI_OPENVOS = 0x12;   // Stratus Technologies OpenVOS
+  OSABI_NONE = 0;
+  OSABI_HPUX = 1;         // Hewlett-Packard HP-UX
+  OSABI_NETBSD = 2;       
+  OSABI_LINUX = 3;        
+  OSABI_GNU_HURD = 4;     
+  OSABI_SOLARIS = 6;      // Sun Solaris
+  OSABI_AIX = 7;          // IBM AIX
+  OSABI_IRIX = 8;         // Silicon Graphics IRIX
+  OSABI_FREE_BSD =9;      
+  OSABI_TRU64 = 10;        // Compaq TRU64 UNIX
+  OSABI_MODESTO = 11;      // Novell Modesto
+  OSABI_OPENBSD = 12;     
+  OSABI_OPENVMS = 13;     
+  OSABI_NSK = 14;          // Hewlett-Packard Non-Stop Kernel
+  OSABI_AROS = 15;         // Amiga Research OS
+  OSABI_FENIXOS = 16;      // FenixOS highly scalable multi-core OS
+  OSABI_CLOUDABI = 17;     // Nuxi Cloud ABI
+  OSABI_OPENVOS = 18;      // Stratus Technologies OpenVOS
+  OSABI_ARM_AEABI = 64;
+  OSABI_ARM = 97;
+  OSABI_STANDALONE = 255;  // Standalone (embedded) application
 }
 
 message Section {
