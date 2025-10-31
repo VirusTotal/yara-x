@@ -57,17 +57,23 @@ pub(crate) fn rule_ascii_tree(rule: &Rule) -> Tree {
 /// Returns a representation of the expression as an ASCII tree.
 pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
     let mut tree_stack: Vec<Tree> = Vec::new();
-    let mut node_pos_stack: Vec<usize> = Vec::new();
+    let mut len_stack: Vec<usize> = Vec::new();
 
     for event in DFSIter::new(expr) {
         match event {
             DFSEvent::Enter(_) => {
-                node_pos_stack.push(tree_stack.len());
+                // Save the size of `tree_stack` at the moment of entering
+                // the expression. This will be useful during the Leave
+                // event for obtaining the children of this expression.
+                len_stack.push(tree_stack.len());
             }
             DFSEvent::Leave(expr) => {
-                let children = tree_stack
-                    .drain(node_pos_stack.pop().unwrap()..)
-                    .collect();
+                // The top of `len_stack` tell us the size of `tree_stack` at
+                // the moment of the Enter event for the current expression,
+                // anything in `tree_stack` that was added after that is a
+                // children of `expr`.
+                let children_start = len_stack.pop().unwrap();
+                let children = tree_stack.drain(children_start..).collect();
                 tree_stack.push(build_tree_for_expr(expr, children));
             }
         }
