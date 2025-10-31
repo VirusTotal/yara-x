@@ -49,10 +49,26 @@ fn dfs_common<'a>(expr: &'a Expr, stack: &mut Vec<DFSEvent<'a>>) {
         | Expr::LiteralInteger(_)
         | Expr::LiteralFloat(_)
         | Expr::Regexp(_)
-        | Expr::Ident(_)
-        | Expr::PatternCount(_)
-        | Expr::PatternOffset(_)
-        | Expr::PatternLength(_) => {}
+        | Expr::Ident(_) => {}
+
+        Expr::PatternCount(p) => {
+            if let Some(r) = &p.range {
+                stack.push(DFSEvent::Enter(&r.upper_bound));
+                stack.push(DFSEvent::Enter(&r.lower_bound));
+            }
+        }
+
+        Expr::PatternOffset(p) => {
+            if let Some(index) = &p.index {
+                stack.push(DFSEvent::Enter(index));
+            }
+        }
+
+        Expr::PatternLength(p) => {
+            if let Some(index) = &p.index {
+                stack.push(DFSEvent::Enter(index));
+            }
+        }
 
         Expr::PatternMatch(expr) => {
             if let Some(anchor) = &expr.anchor {
@@ -62,17 +78,17 @@ fn dfs_common<'a>(expr: &'a Expr, stack: &mut Vec<DFSEvent<'a>>) {
                     }
                     MatchAnchor::In(in_expr) => {
                         stack
-                            .push(DFSEvent::Enter(&in_expr.range.lower_bound));
-                        stack
                             .push(DFSEvent::Enter(&in_expr.range.upper_bound));
+                        stack
+                            .push(DFSEvent::Enter(&in_expr.range.lower_bound));
                     }
                 }
             }
         }
 
         Expr::Lookup(expr) => {
-            stack.push(DFSEvent::Enter(&expr.primary));
             stack.push(DFSEvent::Enter(&expr.index));
+            stack.push(DFSEvent::Enter(&expr.primary));
         }
 
         Expr::FieldAccess(expr) => {
@@ -82,11 +98,11 @@ fn dfs_common<'a>(expr: &'a Expr, stack: &mut Vec<DFSEvent<'a>>) {
         }
 
         Expr::FuncCall(expr) => {
-            if let Some(obj) = &expr.object {
-                stack.push(DFSEvent::Enter(obj));
-            }
             for arg in expr.args.iter().rev() {
                 stack.push(DFSEvent::Enter(arg));
+            }
+            if let Some(obj) = &expr.object {
+                stack.push(DFSEvent::Enter(obj));
             }
         }
 

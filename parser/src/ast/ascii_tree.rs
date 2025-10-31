@@ -4,6 +4,7 @@ use ::ascii_tree::Tree;
 use ::ascii_tree::Tree::{Leaf, Node};
 use itertools::Itertools;
 
+use crate::ast::dfs::{DFSEvent, DFSIter};
 use crate::ast::*;
 
 /// Returns a representation of the rule as an ASCII tree.
@@ -55,6 +56,28 @@ pub(crate) fn rule_ascii_tree(rule: &Rule) -> Tree {
 
 /// Returns a representation of the expression as an ASCII tree.
 pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
+    let mut tree_stack: Vec<Tree> = Vec::new();
+    let mut node_pos_stack: Vec<usize> = Vec::new();
+
+    for event in DFSIter::new(expr) {
+        match event {
+            DFSEvent::Enter(_) => {
+                node_pos_stack.push(tree_stack.len());
+            }
+            DFSEvent::Leave(expr) => {
+                let children = tree_stack
+                    .drain(node_pos_stack.pop().unwrap()..)
+                    .collect();
+                tree_stack.push(build_tree_for_expr(expr, children));
+            }
+        }
+    }
+
+    assert_eq!(tree_stack.len(), 1);
+    tree_stack.pop().unwrap()
+}
+
+fn build_tree_for_expr(expr: &Expr, children: Vec<Tree>) -> Tree {
     match expr {
         Expr::True { .. } => Leaf(vec!["true".to_string()]),
         Expr::False { .. } => Leaf(vec!["false".to_string()]),
@@ -72,229 +95,133 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
                 (false, false) => Leaf(vec![format!("/{}/", regexp.src)]),
             }
         }
-        Expr::Defined(expr) => {
-            Node("defined".to_string(), vec![expr_ascii_tree(&expr.operand)])
-        }
-        Expr::Not(expr) => {
-            Node("not".to_string(), vec![expr_ascii_tree(&expr.operand)])
-        }
-        Expr::And(expr) => Node(
-            "and".to_string(),
-            expr.operands().map(expr_ascii_tree).collect(),
-        ),
-        Expr::Or(expr) => Node(
-            "or".to_string(),
-            expr.operands().map(expr_ascii_tree).collect(),
-        ),
-        Expr::Minus(expr) => {
-            Node("minus".to_string(), vec![expr_ascii_tree(&expr.operand)])
-        }
-        Expr::Add(expr) => Node(
-            "add".to_string(),
-            expr.operands().map(expr_ascii_tree).collect(),
-        ),
-        Expr::Sub(expr) => Node(
-            "sub".to_string(),
-            expr.operands().map(expr_ascii_tree).collect(),
-        ),
-        Expr::Mul(expr) => Node(
-            "mul".to_string(),
-            expr.operands().map(expr_ascii_tree).collect(),
-        ),
-        Expr::Div(expr) => Node(
-            "div".to_string(),
-            expr.operands().map(expr_ascii_tree).collect(),
-        ),
-        Expr::Mod(expr) => Node(
-            "mod".to_string(),
-            expr.operands().map(expr_ascii_tree).collect(),
-        ),
-        Expr::Shl(expr) => Node(
-            "shl".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
-        Expr::Shr(expr) => Node(
-            "shr".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
-        Expr::BitwiseNot(expr) => Node(
-            "bitwise_not".to_string(),
-            vec![expr_ascii_tree(&expr.operand)],
-        ),
-        Expr::BitwiseAnd(expr) => Node(
-            "bitwise_and".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
-        Expr::BitwiseOr(expr) => Node(
-            "bitwise_or".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
-        Expr::BitwiseXor(expr) => Node(
-            "bitwise_xor".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
-
-        Expr::Eq(expr) => Node(
-            "eq".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
-        Expr::Ne(expr) => Node(
-            "ne".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
-        Expr::Lt(expr) => Node(
-            "lt".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
-        Expr::Le(expr) => Node(
-            "le".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
-        Expr::Gt(expr) => Node(
-            "gt".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
-        Expr::Ge(expr) => Node(
-            "ge".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
-        Expr::Contains(expr) => Node(
-            "contains".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
-        Expr::IContains(expr) => Node(
-            "icontains".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
-        Expr::StartsWith(expr) => Node(
-            "startswith".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
-        Expr::IStartsWith(expr) => Node(
-            "istartswith".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
-        Expr::EndsWith(expr) => Node(
-            "endswith".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
-        Expr::IEndsWith(expr) => Node(
-            "iendswith".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
-        Expr::IEquals(expr) => Node(
-            "iequals".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
-        Expr::Matches(expr) => Node(
-            "matches".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
+        Expr::Defined(_) => Node("defined".to_string(), children),
+        Expr::Not(_) => Node("not".to_string(), children),
+        Expr::And(_) => Node("and".to_string(), children),
+        Expr::Or(_) => Node("or".to_string(), children),
+        Expr::Minus(_) => Node("minus".to_string(), children),
+        Expr::Add(_) => Node("add".to_string(), children),
+        Expr::Sub(_) => Node("sub".to_string(), children),
+        Expr::Mul(_) => Node("mul".to_string(), children),
+        Expr::Div(_) => Node("div".to_string(), children),
+        Expr::Mod(_) => Node("mod".to_string(), children),
+        Expr::Shl(_) => Node("shl".to_string(), children),
+        Expr::Shr(_) => Node("shr".to_string(), children),
+        Expr::BitwiseNot(_) => Node("bitwise_not".to_string(), children),
+        Expr::BitwiseAnd(_) => Node("bitwise_and".to_string(), children),
+        Expr::BitwiseOr(_) => Node("bitwise_or".to_string(), children),
+        Expr::BitwiseXor(_) => Node("bitwise_xor".to_string(), children),
+        Expr::Eq(_) => Node("eq".to_string(), children),
+        Expr::Ne(_) => Node("ne".to_string(), children),
+        Expr::Lt(_) => Node("lt".to_string(), children),
+        Expr::Le(_) => Node("le".to_string(), children),
+        Expr::Gt(_) => Node("gt".to_string(), children),
+        Expr::Ge(_) => Node("ge".to_string(), children),
+        Expr::Contains(_) => Node("contains".to_string(), children),
+        Expr::IContains(_) => Node("icontains".to_string(), children),
+        Expr::StartsWith(_) => Node("startswith".to_string(), children),
+        Expr::IStartsWith(_) => Node("istartswith".to_string(), children),
+        Expr::EndsWith(_) => Node("endswith".to_string(), children),
+        Expr::IEndsWith(_) => Node("iendswith".to_string(), children),
+        Expr::IEquals(_) => Node("iequals".to_string(), children),
+        Expr::Matches(_) => Node("matches".to_string(), children),
         Expr::PatternMatch(s) => {
             if let Some(anchor) = &s.anchor {
                 match anchor {
-                    MatchAnchor::At(anchor_at) => Node(
+                    MatchAnchor::At(_) => Node(
                         format!("{} at <expr>", s.identifier.name),
-                        vec![Node(
-                            "<expr>".to_string(),
-                            vec![expr_ascii_tree(&anchor_at.expr)],
-                        )],
+                        vec![Node("<expr>".to_string(), children)],
                     ),
-                    MatchAnchor::In(anchor_in) => Node(
-                        format!("{} in (<start>, <end>)", s.identifier.name),
-                        vec![
-                            Node(
-                                "<start>".to_string(),
-                                vec![expr_ascii_tree(
-                                    &anchor_in.range.lower_bound,
-                                )],
+                    MatchAnchor::In(_) => {
+                        let mut children_iter = children.into_iter();
+                        Node(
+                            format!(
+                                "{} in (<start>, <end>)",
+                                s.identifier.name
                             ),
-                            Node(
-                                "<end>".to_string(),
-                                vec![expr_ascii_tree(
-                                    &anchor_in.range.upper_bound,
-                                )],
-                            ),
-                        ],
-                    ),
+                            vec![
+                                Node(
+                                    "<start>".to_string(),
+                                    vec![children_iter.next().unwrap()],
+                                ),
+                                Node(
+                                    "<end>".to_string(),
+                                    vec![children_iter.next().unwrap()],
+                                ),
+                            ],
+                        )
+                    }
                 }
             } else {
                 Leaf(vec![s.identifier.name.to_string()])
             }
         }
         Expr::PatternCount(s) => {
-            if let Some(range) = &s.range {
+            if s.range.is_some() {
                 Node(
                     format!("{} in <range>", s.identifier.name),
-                    vec![Node(
-                        "<range>".to_string(),
-                        vec![
-                            expr_ascii_tree(&range.lower_bound),
-                            expr_ascii_tree(&range.upper_bound),
-                        ],
-                    )],
+                    vec![Node("<range>".to_string(), children)],
                 )
             } else {
                 Leaf(vec![s.identifier.name.to_string()])
             }
         }
         Expr::PatternOffset(s) | Expr::PatternLength(s) => {
-            if let Some(index) = &s.index {
+            if s.index.is_some() {
                 Node(
                     format!("{}[<index>]", s.identifier.name),
-                    vec![Node(
-                        "<index>".to_string(),
-                        vec![expr_ascii_tree(index)],
-                    )],
+                    vec![Node("<index>".to_string(), children)],
                 )
             } else {
                 Leaf(vec![s.identifier.name.to_string()])
             }
         }
-        Expr::Lookup(l) => Node(
-            "<expr>[<index>]".to_string(),
-            vec![
-                Node("<expr>".to_string(), vec![expr_ascii_tree(&l.primary)]),
-                Node("<index>".to_string(), vec![expr_ascii_tree(&l.index)]),
-            ],
-        ),
-        Expr::FieldAccess(expr) => Node(
-            "field access".to_string(),
-            expr.operands().map(expr_ascii_tree).collect(),
-        ),
+        Expr::Lookup(_) => {
+            let mut children_iter = children.into_iter();
+            Node(
+                "<expr>[<index>]".to_string(),
+                vec![
+                    Node(
+                        "<expr>".to_string(),
+                        vec![children_iter.next().unwrap()],
+                    ),
+                    Node(
+                        "<index>".to_string(),
+                        vec![children_iter.next().unwrap()],
+                    ),
+                ],
+            )
+        }
+        Expr::FieldAccess(_) => Node("field access".to_string(), children),
         Expr::FuncCall(expr) => {
-            // Create a vector where each argument is accompanied by a label
-            // "<arg0>", "<arg1>", "<arg2>", and so on.
-            let labelled_args: Vec<(String, &Expr)> = expr
-                .args
-                .iter()
-                .enumerate()
-                .map(|(i, arg)| (format!("<arg{i}>"), arg))
-                .collect();
+            let mut children_iter = children.into_iter();
+            let mut new_children = Vec::new();
 
-            // Build string with all the labels separated by commas.
-            let comma_sep_labels = labelled_args
-                .iter()
-                .map(|(label, _)| label.as_str())
-                .collect::<Vec<&str>>()
-                .join(", ");
+            if expr.object.is_some() {
+                new_children.push(Node(
+                    "<object>".to_string(),
+                    vec![children_iter.next().unwrap()],
+                ));
+            }
 
-            let mut children = if let Some(o) = &expr.object {
-                vec![Node("<object>".to_string(), vec![expr_ascii_tree(o)])]
-            } else {
-                Vec::new()
-            };
+            let labelled_args: Vec<String> =
+                (0..expr.args.len()).map(|i| format!("<arg{i}>")).collect();
 
-            for (label, arg) in labelled_args.into_iter() {
-                children.push(Node(label, vec![expr_ascii_tree(arg)]))
+            let comma_sep_labels = labelled_args.join(", ");
+
+            for label in labelled_args {
+                new_children
+                    .push(Node(label, vec![children_iter.next().unwrap()]));
             }
 
             Node(
                 format!("{}({})", expr.identifier.name, comma_sep_labels),
-                children,
+                new_children,
             )
         }
         Expr::Of(of) => {
+            let mut children_iter = children.into_iter();
+
             let set_ascii_tree = match &of.items {
                 OfItems::PatternSet(set) => Node(
                     "<items: pattern_set>".to_string(),
@@ -302,11 +229,11 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
                 ),
                 OfItems::BoolExprTuple(set) => Node(
                     "<items: boolean_expr_set>".to_string(),
-                    set.iter().map(expr_ascii_tree).collect(),
+                    children_iter.by_ref().take(set.len()).collect(),
                 ),
             };
 
-            let mut children = vec![
+            let mut new_children = vec![
                 Node(
                     "<quantifier>".to_string(),
                     vec![quantifier_ascii_tree(&of.quantifier)],
@@ -316,25 +243,21 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
 
             let node_title = if let Some(anchor) = &of.anchor {
                 match anchor {
-                    MatchAnchor::At(anchor_at) => {
-                        children.push(Node(
+                    MatchAnchor::At(_) => {
+                        new_children.push(Node(
                             "<expr>".to_string(),
-                            vec![expr_ascii_tree(&anchor_at.expr)],
+                            vec![children_iter.next().unwrap()],
                         ));
                         "<quantifier> of <items> at <expr>".to_string()
                     }
-                    MatchAnchor::In(anchor_in) => {
-                        children.push(Node(
+                    MatchAnchor::In(_) => {
+                        new_children.push(Node(
                             "<start>".to_string(),
-                            vec![expr_ascii_tree(
-                                &anchor_in.range.lower_bound,
-                            )],
+                            vec![children_iter.next().unwrap()],
                         ));
-                        children.push(Node(
+                        new_children.push(Node(
                             "<end>".to_string(),
-                            vec![expr_ascii_tree(
-                                &anchor_in.range.upper_bound,
-                            )],
+                            vec![children_iter.next().unwrap()],
                         ));
                         "<quantifier> of <items> in (<start>..<end>)"
                             .to_string()
@@ -344,7 +267,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
                 "<quantifier> of <items>".to_string()
             };
 
-            Node(node_title, children)
+            Node(node_title, new_children)
         }
         Expr::ForOf(for_of) => Node(
             "for <quantifier> of <items> : ( <condition> )".to_string(),
@@ -357,14 +280,13 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
                     "<items>".to_string(),
                     vec![pattern_set_ascii_tree(&for_of.pattern_set)],
                 ),
-                Node(
-                    "<condition>".to_string(),
-                    vec![expr_ascii_tree(&for_of.body)],
-                ),
+                Node("<condition>".to_string(), children),
             ],
         ),
         Expr::ForIn(f) => {
-            let mut children = vec![
+            let mut children_iter = children.into_iter();
+
+            let mut new_children = vec![
                 Node(
                     "<quantifier>".to_string(),
                     vec![quantifier_ascii_tree(&f.quantifier)],
@@ -381,77 +303,78 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
             ];
 
             let node_title = match &f.iterable {
-                Iterable::Range(range) => {
-                    children.push(Node(
+                Iterable::Range(_) => {
+                    new_children.push(Node(
                         "<start>".to_string(),
-                        vec![expr_ascii_tree(&range.lower_bound)],
+                        vec![children_iter.next().unwrap()],
                     ));
-                    children.push(Node(
+                    new_children.push(Node(
                         "<end>".to_string(),
-                        vec![expr_ascii_tree(&range.upper_bound)],
+                        vec![children_iter.next().unwrap()],
                     ));
                     "for <quantifier> <vars> in (<start>..<end>) : ( <condition> )".to_string()
                 }
                 Iterable::ExprTuple(args) => {
-                    let labelled_args: Vec<(String, &Expr)> = args
-                        .iter()
-                        .enumerate()
-                        .map(|(i, arg)| (format!("<expr{i}>"), arg))
+                    let labelled_args: Vec<String> = (0..args.len())
+                        .map(|i| format!("<expr{i}>"))
                         .collect();
 
-                    let comma_sep_labels = labelled_args
-                        .iter()
-                        .map(|(label, _)| label.as_str())
-                        .collect::<Vec<&str>>()
-                        .join(", ");
+                    let comma_sep_labels = labelled_args.join(", ");
 
-                    for (label, arg) in labelled_args.into_iter() {
-                        children.push(Node(label, vec![expr_ascii_tree(arg)]))
+                    for label in labelled_args {
+                        new_children.push(Node(
+                            label,
+                            vec![children_iter.next().unwrap()],
+                        ));
                     }
 
                     format!("for <quantifier> <vars> in ({comma_sep_labels}) : ( <condition> )")
                 }
-                Iterable::Expr(expr) => {
-                    children.push(Node(
+                Iterable::Expr(_) => {
+                    new_children.push(Node(
                         "<expr>".to_string(),
-                        vec![expr_ascii_tree(expr)],
+                        vec![children_iter.next().unwrap()],
                     ));
                     "for <quantifier> <vars> in <expr> : ( <condition> )"
                         .to_string()
                 }
             };
 
-            children.push(Node(
+            new_children.push(Node(
                 "<condition>".to_string(),
-                vec![expr_ascii_tree(&f.body)],
+                vec![children_iter.next().unwrap()],
             ));
 
-            Node(node_title, children)
+            Node(node_title, new_children)
         }
-        Expr::With(w) => Node(
-            "with <identifiers> : ( <boolean expression> )".to_string(),
-            vec![
-                Node(
-                    "<identifiers>".to_string(),
-                    w.declarations
-                        .iter()
-                        .flat_map(with_items_ascii_tree)
-                        .collect(),
-                ),
-                Node(
-                    "<boolean expression>".to_string(),
-                    vec![expr_ascii_tree(&w.body)],
-                ),
-            ],
-        ),
+        Expr::With(w) => {
+            let mut children_iter = children.into_iter();
+            Node(
+                "with <identifiers> : ( <boolean expression> )".to_string(),
+                vec![
+                    Node(
+                        "<identifiers>".to_string(),
+                        w.declarations
+                            .iter()
+                            .flat_map(|d| {
+                                vec![
+                                    Leaf(vec![format!(
+                                        "{}",
+                                        d.identifier.name
+                                    )]),
+                                    children_iter.next().unwrap(),
+                                ]
+                            })
+                            .collect(),
+                    ),
+                    Node(
+                        "<boolean expression>".to_string(),
+                        vec![children_iter.next().unwrap()],
+                    ),
+                ],
+            )
+        }
     }
-}
-
-fn with_items_ascii_tree(declaration: &WithDeclaration) -> Vec<Tree> {
-    vec![
-        Leaf(vec![format!("{}", declaration.identifier.name)]),
-        expr_ascii_tree(&declaration.expression),
-    ]
 }
 
 pub(crate) fn quantifier_ascii_tree(quantifier: &Quantifier) -> Tree {
