@@ -34,6 +34,29 @@ fn negate() {
 }
 
 #[test]
+fn filter_by_tag() {
+    Command::cargo_bin("yr")
+        .unwrap()
+        .arg("scan")
+        .arg("--tag=foo")
+        .arg("src/tests/testdata/foo.yar")
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .stdout("");
+
+    Command::cargo_bin("yr")
+        .unwrap()
+        .arg("scan")
+        .arg("--tag=bar")
+        .arg("src/tests/testdata/foo.yar")
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("foo src/tests/testdata/dummy.file"));
+}
+
+#[test]
 fn disable_warning() {
     Command::cargo_bin("yr")
         .unwrap()
