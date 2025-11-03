@@ -101,7 +101,7 @@ thiserror = "2.0.17"
 # issue: https://github.com/1crcbl/tlsh-rs/issues/2.
 tlsh-fixed = "0.1.1"
 uuid = "1.18.1"
-walrus = "0.23.3"
+walrus = "0.24.3"
 wasmtime = { version = "37.0.2", default-features = false }
 x509-parser = "0.18.0"
 yansi = "1.0.1"
