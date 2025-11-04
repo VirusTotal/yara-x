@@ -593,6 +593,12 @@ impl<'r> Scanner<'r> {
                 .add_field(module_name, TypeValue::Struct(module_struct));
         }
 
+        // The user provided module outputs are not needed anymore. Let's
+        // clear any remaining entry in the hash map (which can happen if
+        // the user has set outputs for modules that are not even imported
+        // by the rules.
+        ctx.user_provided_module_outputs.clear();
+
         // Evaluate the conditions of every rule, this will call
         // `ScanContext::search_for_patterns` if necessary.
         ctx.eval_conditions()?;

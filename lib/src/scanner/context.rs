@@ -502,7 +502,6 @@ impl ScanContext<'_, '_> {
 
         // Clear module outputs from previous scans.
         self.module_outputs.clear();
-        self.user_provided_module_outputs.clear();
 
         // Move the matching rules to the `matching_rules` vector, leaving the
         // `matching_rules_per_ns` map empty.
