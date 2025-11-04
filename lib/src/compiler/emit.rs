@@ -769,49 +769,36 @@ fn emit_and(
     operands: &[ExprId],
     instr: &mut InstrSeqBuilder,
 ) {
-    // The `or` expression is emitted as:
+    // The `and` expression is emitted as:
     //
-    // block {
-    //   try {
-    //     result = first_operand()
-    //   } catch undefined {
-    //     result = false
-    //   }
-    //   if !result {
-    //     push false
-    //     exit from block
-    //   }
-    //   try {
-    //     result = second_operand()
-    //   } catch undefined {
-    //     result = false
-    //   }
-    //   if !result {
-    //     push false
-    //     exit from block
-    //   }
-    //   ...
-    //   push true
-    // }
-    instr.block(
-        I32, // the block returns a bool
-        |block| {
-            let block_id = block.id();
+    //  try {
+    //    result = first_operand()
+    //    if !result {
+    //      push false
+    //      exit from try
+    //    }
+    //    result = second_operand()
+    //    if !result {
+    //      push false
+    //      exit from try
+    //    }
+    //    ...
+    //    push true
+    //  }
+    //  catch undefined {
+    //    push false
+    //  }
+    catch_undef(
+        ctx,
+        I32,
+        instr,
+        |ctx, instr| {
+            let block_id = instr.id();
             for operand in operands {
-                catch_undef(
-                    ctx,
-                    I32,
-                    block,
-                    |ctx, instr| {
-                        emit_bool_expr(ctx, ir, *operand, instr);
-                    },
-                    |_, instr| {
-                        instr.i32_const(0);
-                    },
-                );
+                emit_bool_expr(ctx, ir, *operand, instr);
                 // If the operand is `false`, exit from the block
                 // with a `false` result.
-                block.if_else(
+                instr.if_else(
                     None,
                     |_| {},
                     |else_| {
@@ -820,9 +807,11 @@ fn emit_and(
                     },
                 );
             }
-            // If none of the operands was false, fallback to returning
-            // true.
-            block.i32_const(1);
+            // If none of the operands was false, return true:
+            instr.i32_const(1);
+        },
+        |_, instr| {
+            instr.i32_const(0); // push false
         },
     );
 }
