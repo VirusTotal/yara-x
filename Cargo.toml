@@ -12,7 +12,7 @@ keywords = ["pattern-matching", "cybersecurity", "forensics", "malware", "yara"]
 #   .github/workflows/tests.yaml
 #   .github/workflows/code_health.yaml
 #
-rust-version = "1.87.0"
+rust-version = "1.88.0"
 
 [workspace]
 members = [
@@ -55,8 +55,8 @@ enable-ansi-support = "0.3.1"
 env_logger = "0.11.8"
 figment = "0.10.19"
 globwalk = "0.9.1"
-goldenfile = "1.8.0"
-home = "0.5.11"
+goldenfile = "1.9.1"
+home = "0.5.12"
 ihex = "3.0.0"
 indexmap = "2.12.0"
 intaglio = "1.11.0"
@@ -102,7 +102,7 @@ thiserror = "2.0.17"
 tlsh-fixed = "0.1.1"
 uuid = "1.18.1"
 walrus = "0.24.3"
-wasmtime = { version = "37.0.2", default-features = false }
+wasmtime = { version = "38.0.3", default-features = false }
 x509-parser = "0.18.0"
 yansi = "1.0.1"
 yara-x = { path = "lib", version = "1.9.0", default-features = false }
