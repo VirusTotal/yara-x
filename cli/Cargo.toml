@@ -71,7 +71,7 @@ crossbeam = "0.8.4"
 crossterm = "0.29.0"
 encoding_rs = "0.8.35"
 superconsole = "0.2.0"
-unicode-width = "0.2.1"
+unicode-width = "0.2.2"
 wild = "2.2.1"
 
 [dev-dependencies]

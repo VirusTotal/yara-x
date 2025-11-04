@@ -1,12 +1,12 @@
 RULE test_1
-  11: AND -- hash: 0xe5cafaa8d88f6647 -- parent: None 
-    0: PATTERN_MATCH PatternIdx(0) -- hash: 0xf292d5de83aa2bcc -- parent: 11 
-    5: EQ -- hash: 0xdd02cd4d9c8dcff4 -- parent: 11 
-      3: PATTERN_COUNT PatternIdx(0) -- hash: 0xc1bc033c6a64ce89 -- parent: 5 
-      4: CONST integer(1) -- parent: 5 
-    10: EQ -- hash: 0x7f7928e1f3fa117b -- parent: 11 
-      8: PATTERN_OFFSET PatternIdx(0) -- hash: 0x90e5309a511f7146 -- parent: 10 
-      9: CONST integer(0) -- parent: 10 
+  7: AND -- hash: 0xe5cafaa8d88f6647 -- parent: None 
+    0: PATTERN_MATCH PatternIdx(0) -- hash: 0xf292d5de83aa2bcc -- parent: 7 
+    3: EQ -- hash: 0xdd02cd4d9c8dcff4 -- parent: 7 
+      1: PATTERN_COUNT PatternIdx(0) -- hash: 0xc1bc033c6a64ce89 -- parent: 3 
+      2: CONST integer(1) -- parent: 3 
+    6: EQ -- hash: 0x7f7928e1f3fa117b -- parent: 7 
+      4: PATTERN_OFFSET PatternIdx(0) -- hash: 0x90e5309a511f7146 -- parent: 6 
+      5: CONST integer(0) -- parent: 6 
 
 RULE test_2
   1: PATTERN_MATCH PatternIdx(0) AT -- hash: 0xd5e7410730122f97 -- parent: None 

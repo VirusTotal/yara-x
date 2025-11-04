@@ -87,21 +87,21 @@ use linkme::distributed_slice;
 use rustc_hash::FxHashMap;
 use smallvec::{smallvec, SmallVec};
 use wasmtime::{
-    AsContextMut, Caller, Config, Engine, FuncType, Linker, ValRaw,
+    AsContext, AsContextMut, Caller, Config, Engine, FuncType, Linker, ValRaw,
 };
 
 use yara_x_macros::wasm_export;
 
 use crate::compiler::{LiteralId, PatternId, RegexpId, RuleId};
 use crate::modules::BUILTIN_MODULES;
-use crate::scanner::{RuntimeObjectHandle, ScanContext, ScanError};
+use crate::scanner::{RuntimeObjectHandle, ScanContext};
 use crate::types::{
     Array, Func, FuncSignature, Map, Struct, TypeValue, Value,
 };
-use crate::wasm;
 use crate::wasm::integer::RangedInteger;
 use crate::wasm::string::RuntimeString;
 use crate::wasm::string::String as _;
+use crate::{wasm, ScanError};
 
 pub(crate) mod builder;
 pub(crate) mod integer;
@@ -216,7 +216,7 @@ impl WasmExport {
     /// `type_name` is one of the strings passed in the `method_of` field to
     /// the `module_export` macro. For instance, in the example below we
     /// specify that `some_method` is a method of `my_module.MyStructure`. If
-    /// we call `find_methods` with `"my_module.MyStructure"` it returns
+    /// we call `get_methods` with `"my_module.MyStructure"` it returns
     /// a hash map that contains a [`Func`] describing `some_method`.
     ///
     /// ```text
@@ -839,16 +839,25 @@ pub(crate) fn new_linker() -> Linker<ScanContext<'static, 'static>> {
 }
 
 /// Invoked from WASM for triggering the pattern search phase.
-///
-/// Returns `true` on success and `false` when a timeout occurs.
 #[wasm_export]
-pub(crate) fn search_for_patterns(
-    caller: &mut Caller<'_, ScanContext>,
-) -> bool {
-    match caller.data_mut().search_for_patterns() {
-        Ok(_) => true,
-        Err(ScanError::Timeout) => false,
-        Err(_) => unreachable!(),
+pub(crate) fn search_for_patterns(caller: &mut Caller<'_, ScanContext>) {
+    // The WASM runtime and `search_for_patterns` each track timeouts
+    // independently: the runtime uses epoch deadlines, while
+    // `search_for_patterns` relies on the global HEARTBEAT_COUNTER.
+    // This means `search_for_patterns` may time out first, while the
+    // WASM runtime has not yet hit its own deadline (though it soon
+    // will).
+    //
+    // If a timeout occurred during `search_for_patterns`, force the
+    // WASM runtime to raise its own timeout by setting the epoch
+    // deadline to 0 (immediate expiry). This forces the WASM runtime
+    // to abort the execution of rule conditions as soon as possible
+    // after the timeout was detected by `search_for_patterns`.
+    if matches!(
+        caller.data_mut().search_for_patterns(),
+        Err(ScanError::Timeout)
+    ) {
+        caller.as_context_mut().set_epoch_deadline(0);
     }
 }
 
@@ -985,6 +994,15 @@ pub(crate) fn pat_offset(
     } else {
         None
     }
+}
+
+/// Called from WASM to obtain the length of a string.
+#[wasm_export(name = "len", method_of = "RuntimeString")]
+pub(crate) fn string_len(
+    caller: &mut Caller<'_, ScanContext>,
+    string: RuntimeString,
+) -> i64 {
+    string.as_bstr(caller.as_context().data()).len() as i64
 }
 
 /// Called from WASM to obtain the length of an array.

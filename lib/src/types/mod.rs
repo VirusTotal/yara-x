@@ -1,5 +1,6 @@
 use bstr::BString;
 use serde::{Deserialize, Serialize};
+use std::cell::OnceCell;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -8,7 +9,8 @@ use walrus::ir::InstrSeqType;
 use walrus::ValType;
 
 use crate::modules::protos::yara::enum_value_options::Value as EnumValue;
-use crate::symbols::SymbolLookup;
+use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
+use crate::wasm::WasmExport;
 
 pub(crate) use array::*;
 pub(crate) use func::*;
@@ -306,6 +308,22 @@ impl TypeValue {
         }
     }
 
+    #[allow(clippy::declare_interior_mutable_const)]
+    const STRING_BUILTIN_METHODS: OnceCell<Rc<SymbolTable>> = OnceCell::new();
+
+    fn string_builtin_methods() -> Rc<SymbolTable> {
+        #[allow(clippy::borrow_interior_mutable_const)]
+        Self::STRING_BUILTIN_METHODS
+            .get_or_init(|| {
+                let mut s = SymbolTable::new();
+                for (name, func) in WasmExport::get_methods("RuntimeString") {
+                    s.insert(name, Symbol::Func(Rc::new(func)));
+                }
+                Rc::new(s)
+            })
+            .clone()
+    }
+
     /// Returns the symbol table associated to this [`TypeValue`].
     ///
     /// The symbol table contains the methods and/or fields associated to the
@@ -313,8 +331,9 @@ impl TypeValue {
     pub fn symbol_table(&self) -> Option<Rc<dyn SymbolLookup>> {
         match self {
             Self::Struct(s) => Some(s.clone()),
-            Self::Array(a) => Some(a.builtin_methods()),
-            Self::Map(m) => Some(m.builtin_methods()),
+            Self::Array(_) => Some(Array::builtin_methods()),
+            Self::Map(_) => Some(Map::builtin_methods()),
+            Self::String { .. } => Some(Self::string_builtin_methods()),
             _ => None,
         }
     }

@@ -33,7 +33,7 @@ fn metadata() {
         .arg("check")
         .arg("src/tests/testdata/foo.yar")
         .assert()
-        .success()
+        .code(2)
         .stdout("[ WARN ] src/tests/testdata/foo.yar\n")
         .stderr(
             r#"warning[missing_metadata]: required metadata is missing
@@ -79,7 +79,7 @@ warning[text_as_hex]: hex pattern could be written as text literal
         .arg("check")
         .arg(yar_file.path())
         .assert()
-        .success()
+        .code(2)
         .stderr(predicate::str::contains(
             "warning[invalid_metadata]: metadata `md5` is not valid",
         ))
@@ -137,7 +137,8 @@ fn check_rule_name_warning() {
         .arg("check")
         .arg("src/tests/testdata/foo.yar")
         .assert()
-        .success()
+        .failure()
+        .code(2)
         .stdout("[ WARN ] src/tests/testdata/foo.yar\n");
 }
 
@@ -163,7 +164,8 @@ fn check_rule_name_error() {
         .arg("check")
         .arg("src/tests/testdata/foo.yar")
         .assert()
-        .success()
+        .failure()
+        .code(1)
         .stdout(
             r#"[ FAIL ] src/tests/testdata/foo.yar
 error[E039]: rule name does not match regex `APT_.+`

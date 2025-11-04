@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 #[cfg(feature = "logging")]
 use std::time::Instant;
-use std::{fmt, fs, iter, vec};
+use std::{fmt, fs, iter};
 
 use bitflags::bitflags;
 use bstr::{BStr, ByteSlice};
@@ -277,7 +277,7 @@ pub struct Compiler<'a> {
     /// symbol tables where the bottom-most table is the one that contains
     /// global identifiers like built-in functions and user-defined global
     /// identifiers.
-    symbol_table: StackedSymbolTable<'a>,
+    symbol_table: StackedSymbolTable,
 
     /// Symbol table that contains the global identifiers, including built-in
     /// functions like `uint8`, `uint16`, etc. This symbol table is at the
@@ -1183,6 +1183,11 @@ impl Compiler<'_> {
         self.re_code.truncate(snapshot.re_code_len);
         self.atoms.truncate(snapshot.atoms_len);
         self.symbol_table.truncate(snapshot.symbol_table_len);
+
+        // Pattern IDs that are >= next_pattern_id, are being discarded. File
+        // size bounds associated to such IDs must be removed.
+        self.filesize_bounds
+            .retain(|pattern_id, _| *pattern_id < snapshot.next_pattern_id);
     }
 
     /// Sets a writer where the compiler will write the Intermediate
@@ -1412,13 +1417,6 @@ impl Compiler<'_> {
             }
         }
 
-        let tags: Vec<IdentId> = rule
-            .tags
-            .iter()
-            .flatten()
-            .map(|t| self.ident_pool.get_or_intern(t.name))
-            .collect();
-
         // Take snapshot of the current compiler state. In case of error
         // compiling the current rule this snapshot allows restoring the
         // compiler to the state it had before starting compiling the rule.
@@ -1428,9 +1426,12 @@ impl Compiler<'_> {
         // added to one of these pools it can't be removed.
         let snapshot = self.take_snapshot();
 
-        // The RuleId for the new rule is current length of `self.rules`. The
-        // first rule has RuleId = 0.
-        let rule_id = RuleId::from(self.rules.len());
+        let tags: Vec<IdentId> = rule
+            .tags
+            .iter()
+            .flatten()
+            .map(|t| self.ident_pool.get_or_intern(t.name))
+            .collect();
 
         // Helper function that converts from `ast::MetaValue` to
         // `compiler::rules::MetaValue`.
@@ -1448,7 +1449,7 @@ impl Compiler<'_> {
 
         // Build a vector of pairs (IdentId, MetaValue) for every meta defined
         // in the rule.
-        let meta = rule
+        let metadata = rule
             .meta
             .iter()
             .flatten()
@@ -1459,29 +1460,6 @@ impl Compiler<'_> {
                 )
             })
             .collect();
-
-        // Add the new rule to `self.rules`. The only information about the
-        // rule that we don't have right now is the PatternId corresponding to
-        // each pattern, that's why the `pattern` fields is initialized as
-        // an empty vector. The PatternId corresponding to each pattern can't
-        // be determined until `bool_expr_from_ast` processes the condition
-        // and determines which patterns are anchored, because this information
-        // is required for detecting duplicate patterns that can share the same
-        // PatternId.
-        self.rules.push(RuleInfo {
-            namespace_id: self.current_namespace.id,
-            namespace_ident_id: self.current_namespace.ident_id,
-            ident_id: self.ident_pool.get_or_intern(rule.identifier.name),
-            ident_ref: self
-                .report_builder
-                .span_to_code_loc(rule.identifier.span()),
-            tags,
-            patterns: vec![],
-            is_global: rule.flags.contains(RuleFlags::Global),
-            is_private: rule.flags.contains(RuleFlags::Private),
-            metadata: meta,
-            num_private_patterns: 0,
-        });
 
         let mut rule_patterns = Vec::new();
 
@@ -1506,7 +1484,7 @@ impl Compiler<'_> {
             drop(ctx);
             self.restore_snapshot(snapshot);
             return Err(err);
-        };
+        }
 
         // Convert the rule condition's AST to the intermediate representation
         // (IR). Also updates the patterns with information about whether they
@@ -1640,14 +1618,15 @@ impl Compiler<'_> {
         }
 
         let mut pattern_ids = Vec::with_capacity(rule_patterns.len());
+        let mut patterns = Vec::with_capacity(rule_patterns.len());
         let mut pending_patterns = HashSet::new();
-
-        let current_rule = self.rules.last_mut().unwrap();
+        let mut num_private_patterns = 0;
 
         for pattern in &rule_patterns {
             // Raise error is some pattern was not used, except if the pattern
             // identifier starts with underscore.
             if !pattern.in_use() && !pattern.identifier().starts_with("$_") {
+                self.restore_snapshot(snapshot);
                 return Err(UnusedPattern::build(
                     &self.report_builder,
                     pattern.identifier().name.to_string(),
@@ -1657,7 +1636,7 @@ impl Compiler<'_> {
             }
 
             if pattern.pattern().flags().contains(PatternFlags::Private) {
-                current_rule.num_private_patterns += 1;
+                num_private_patterns += 1;
             }
 
             // Check if this pattern has been declared before, in this rule or
@@ -1688,7 +1667,7 @@ impl Compiler<'_> {
                 Pattern::Hex(_) => PatternKind::Hex,
             };
 
-            current_rule.patterns.push((
+            patterns.push((
                 self.ident_pool.get_or_intern(pattern.identifier().name),
                 pattern_kind,
                 pattern_id,
@@ -1697,6 +1676,25 @@ impl Compiler<'_> {
 
             pattern_ids.push(pattern_id);
         }
+
+        // The RuleId for the new rule is current length of `self.rules`. The
+        // first rule has RuleId = 0.
+        let rule_id = RuleId::from(self.rules.len());
+
+        self.rules.push(RuleInfo {
+            tags,
+            metadata,
+            patterns,
+            num_private_patterns,
+            is_global: rule.flags.contains(RuleFlags::Global),
+            is_private: rule.flags.contains(RuleFlags::Private),
+            namespace_id: self.current_namespace.id,
+            namespace_ident_id: self.current_namespace.ident_id,
+            ident_id: self.ident_pool.get_or_intern(rule.identifier.name),
+            ident_ref: self
+                .report_builder
+                .span_to_code_loc(rule.identifier.span()),
+        });
 
         // Process the patterns in the rule. This extracts the best atoms
         // from each pattern, adding them to the `self.atoms` vector, it
@@ -1764,6 +1762,7 @@ impl Compiler<'_> {
             wasm_exports: &self.wasm_exports,
             exception_handler_stack: Vec::new(),
             lookup_list: Vec::new(),
+            emit_search_for_pattern_stack: Vec::new(),
         };
 
         emit_rule_condition(
@@ -2739,7 +2738,9 @@ impl From<RegexpId> for u32 {
 ///   same pattern as `"mz"`),
 /// * Both patterns must be either non-anchored, or anchored to the same offset.
 /// * Both patterns must have the same file size bounds (or no bounds at all).
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Serialize, Deserialize,
+)]
 #[serde(transparent)]
 pub(crate) struct PatternId(i32);
 

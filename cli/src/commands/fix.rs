@@ -144,6 +144,7 @@ pub fn exec_fix_encoding(args: &ArgMatches) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Debug)]
 struct FixEncodingState {
     files_modified: AtomicUsize,
 }

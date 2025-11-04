@@ -214,7 +214,11 @@ message TestProto2 {
     }
   ];
 
-  optional string deprecated = 501 [ (yara.field_options).deprecation_msg = "don't use"];
+  optional string deprecated = 501 [ (yara.field_options).deprecation_notice = {
+    text: "don't use",
+    help: "use `foo` instead",
+    replacement: "foo"
+  }];
 }
 
 enum TopLevelEnumeration {

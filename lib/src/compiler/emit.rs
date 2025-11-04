@@ -201,6 +201,10 @@ pub(crate) struct EmitContext<'a> {
     /// identified by `InstrSeqId`.
     pub exception_handler_stack: Vec<(InstrSeqId, ExceptionHandler)>,
 
+    /// Controls whether [emit_lazy_call_to_search_for_patterns] needs to emit
+    /// code or not.
+    pub emit_search_for_pattern_stack: Vec<bool>,
+
     /// The lookup_list contains a sequence of field IDs that will be used
     /// in the next field lookup operation. Each field ID is accompanied by a
     /// boolean that is true if the field belongs to the root structure. Only
@@ -247,6 +251,8 @@ pub(crate) fn emit_rule_condition(
 ) {
     let mut instr = builder.start_rule(rule_id, ctx.current_rule.is_global);
 
+    ctx.emit_search_for_pattern_stack.push(true);
+
     // Emit WASM code for the rule's condition.
     catch_undef(
         ctx,
@@ -260,6 +266,8 @@ pub(crate) fn emit_rule_condition(
         },
     );
 
+    ctx.emit_search_for_pattern_stack.pop();
+    assert!(ctx.emit_search_for_pattern_stack.is_empty());
     builder.finish_rule();
 }
 
@@ -422,15 +430,25 @@ fn emit_expr(
             emit_field_access(ctx, ir, field_access, instr);
         }
 
-        Expr::Defined { operand } => emit_defined(ctx, ir, *operand, instr),
-
-        Expr::Not { operand } => emit_not(ctx, ir, *operand, instr),
-
-        Expr::And { operands } => {
-            emit_and(ctx, ir, operands.as_slice(), instr)
+        Expr::Defined { operand } => {
+            emit_defined(ctx, ir, *operand, instr);
         }
 
-        Expr::Or { operands } => emit_or(ctx, ir, operands.as_slice(), instr),
+        Expr::Not { operand } => {
+            emit_not(ctx, ir, *operand, instr);
+        }
+
+        Expr::And { operands } => {
+            ctx.emit_search_for_pattern_stack.push(true);
+            emit_and(ctx, ir, operands.as_slice(), instr);
+            ctx.emit_search_for_pattern_stack.pop();
+        }
+
+        Expr::Or { operands } => {
+            ctx.emit_search_for_pattern_stack.push(true);
+            emit_or(ctx, ir, operands.as_slice(), instr);
+            ctx.emit_search_for_pattern_stack.pop();
+        }
 
         Expr::Minus { operand, is_float } => {
             if *is_float {
@@ -751,49 +769,36 @@ fn emit_and(
     operands: &[ExprId],
     instr: &mut InstrSeqBuilder,
 ) {
-    // The `or` expression is emitted as:
+    // The `and` expression is emitted as:
     //
-    // block {
-    //   try {
-    //     result = first_operand()
-    //   } catch undefined {
-    //     result = false
-    //   }
-    //   if !result {
-    //     push false
-    //     exit from block
-    //   }
-    //   try {
-    //     result = second_operand()
-    //   } catch undefined {
-    //     result = false
-    //   }
-    //   if !result {
-    //     push false
-    //     exit from block
-    //   }
-    //   ...
-    //   push true
-    // }
-    instr.block(
-        I32, // the block returns a bool
-        |block| {
-            let block_id = block.id();
+    //  try {
+    //    result = first_operand()
+    //    if !result {
+    //      push false
+    //      exit from try
+    //    }
+    //    result = second_operand()
+    //    if !result {
+    //      push false
+    //      exit from try
+    //    }
+    //    ...
+    //    push true
+    //  }
+    //  catch undefined {
+    //    push false
+    //  }
+    catch_undef(
+        ctx,
+        I32,
+        instr,
+        |ctx, instr| {
+            let block_id = instr.id();
             for operand in operands {
-                catch_undef(
-                    ctx,
-                    I32,
-                    block,
-                    |ctx, instr| {
-                        emit_bool_expr(ctx, ir, *operand, instr);
-                    },
-                    |_, instr| {
-                        instr.i32_const(0);
-                    },
-                );
+                emit_bool_expr(ctx, ir, *operand, instr);
                 // If the operand is `false`, exit from the block
                 // with a `false` result.
-                block.if_else(
+                instr.if_else(
                     None,
                     |_| {},
                     |else_| {
@@ -802,9 +807,11 @@ fn emit_and(
                     },
                 );
             }
-            // If none of the operands was false, fallback to returning
-            // true.
-            block.i32_const(1);
+            // If none of the operands was false, return true:
+            instr.i32_const(1);
+        },
+        |_, instr| {
+            instr.i32_const(0); // push false
         },
     );
 }
@@ -957,34 +964,73 @@ fn emit_field_access(
     emit_expr(ctx, ir, *field_access.operands.last().unwrap(), instr);
 }
 
-/// Emits code that checks if the pattern search phase has not been executed
-/// yet, and do it in that case.
-fn emit_lazy_pattern_search(
+/// Emits code that ensures the pattern search phase is executed if it hasn't
+/// been performed yet, invoking `search_for_patterns` when necessary.
+///
+/// The `search_for_patterns` function is invoked lazily during the evaluation
+/// of rule conditions. When a pattern identifier (e.g., `$a`) is first used
+/// in a condition, `search_for_patterns` is called, and the global variable
+/// `pattern_search_done` is set to `true`. This prevents redundant calls to
+/// `search_for_patterns` during subsequent evaluations.
+///
+/// The WASM code that checks `pattern_search_done` and triggers
+/// `search_for_patterns` does not need to be emitted for every pattern
+/// identifier in a condition. For example, consider the following condition:
+///
+/// ```text
+/// $a and $b and $c
+/// ```
+///
+/// When `$a` is encountered, the emitted code includes the check and the call
+/// to `search_for_patterns`. However, for `$b` and `$c`, this code is no longer
+/// needed because evaluating `$a` will already ensure the search is performed
+/// if required.
+///
+/// A single boolean flag to track whether the call has been emitted is not
+/// sufficient due to short-circuit evaluation semantics. For example:
+///
+/// ```text
+/// (my_bool and $a) and $b
+/// ```
+///
+/// In this case, `$a` appears first during code emission, so the call to
+/// `search_for_patterns` must be emitted there. However, `$b` may still require
+/// the same code because `$a` might be skipped entirely at runtime if
+/// `my_bool` evaluates to `false`. Thus, we cannot rely solely on a single
+/// emitted flag.
+///
+/// To handle this, a stack of boolean values is maintained. The top of the
+/// stack indicates whether it is necessary to emit the call to
+/// `search_for_patterns`. Once the call is emitted, the top value is set to
+/// `false`. To correctly account for short-circuiting behavior, a new `true`
+/// value is pushed onto the stack whenever an `AND` or `OR` expression is
+/// encountered.
+fn emit_lazy_call_to_search_for_patterns(
     ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
 ) {
-    instr.global_get(ctx.wasm_symbols.pattern_search_done);
-    instr.if_else(
-        None,
-        |_then| {
-            // The pattern search phase was already executed. Nothing to
-            // do here.
-        },
-        |_else| {
-            _else
-                // Call `search_for_patterns`.
-                .call(ctx.function_id(
-                    wasm::export__search_for_patterns.mangled_name,
-                ))
-                // Remove the result of `search_for_patterns` from the stack.
-                // The result is `true` if everything went fine and `false`
-                // in case of timeout, but we don't use this result.
-                .drop()
-                // Set `pattern_search_done` to true.
-                .i32_const(1)
-                .global_set(ctx.wasm_symbols.pattern_search_done);
-        },
-    );
+    if *ctx.emit_search_for_pattern_stack.last().unwrap() {
+        instr.global_get(ctx.wasm_symbols.pattern_search_done);
+        instr.if_else(
+            None,
+            |_then| {
+                // The pattern search phase was already executed. Nothing to
+                // do here.
+            },
+            |_else| {
+                _else
+                    // Call `search_for_patterns`.
+                    .call(ctx.function_id(
+                        wasm::export__search_for_patterns.mangled_name,
+                    ))
+                    // Set `pattern_search_done` to true.
+                    .i32_const(1)
+                    .global_set(ctx.wasm_symbols.pattern_search_done);
+            },
+        );
+        let top = ctx.emit_search_for_pattern_stack.last_mut().unwrap();
+        *top = false;
+    }
 }
 
 fn emit_pattern_match(
@@ -993,7 +1039,7 @@ fn emit_pattern_match(
     expr: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
-    emit_lazy_pattern_search(ctx, instr);
+    emit_lazy_call_to_search_for_patterns(ctx, instr);
 
     let anchor = match ir.get(expr) {
         // When the pattern ID is known, simply push the ID into the stack.
@@ -1045,7 +1091,7 @@ fn emit_pattern_count(
     expr: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
-    emit_lazy_pattern_search(ctx, instr);
+    emit_lazy_call_to_search_for_patterns(ctx, instr);
 
     let range = match ir.get(expr) {
         // Cases where the pattern ID is known, simply push the ID into the
@@ -1090,7 +1136,7 @@ fn emit_pattern_offset(
     expr: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
-    emit_lazy_pattern_search(ctx, instr);
+    emit_lazy_call_to_search_for_patterns(ctx, instr);
 
     let index = match ir.get(expr) {
         // Cases where the pattern ID is known, simply push the ID into the
@@ -1139,7 +1185,7 @@ fn emit_pattern_length(
     expr: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
-    emit_lazy_pattern_search(ctx, instr);
+    emit_lazy_call_to_search_for_patterns(ctx, instr);
 
     let index = match ir.get(expr) {
         // Cases where the pattern ID is known, simply push the ID into the
@@ -1388,7 +1434,7 @@ fn emit_of_pattern_set(
 
     // Make sure the pattern search phase is executed, as the `of` statement
     // depends on patterns.
-    emit_lazy_pattern_search(ctx, instr);
+    emit_lazy_call_to_search_for_patterns(ctx, instr);
 
     emit_for(
         ctx,
