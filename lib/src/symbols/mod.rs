@@ -213,8 +213,8 @@ impl SymbolTable {
     /// Shows all currently loaded global vars inside the symbol table
     pub fn show_globals(&self) -> String {
         self.map.iter().filter_map(|(k, v)| {
-            if let Symbol::Field{..} = v {
-                Some(format!("{}: {:?}\n", k, v))
+            if let Symbol::Field { type_value, .. } = v {
+                Some(format!("{}: {}\n", k, type_value.value_as_string()))
             } else {
                 None
             }

@@ -617,6 +617,85 @@ impl TypeValue {
             constraints: Some(constraints.into()),
         }
     }
+
+    pub fn value_as_string(&self) -> String {
+        match self {
+            Self::Unknown => "unknown".to_string(),
+            Self::Bool { value } => {
+                if let Some(v) = value.extract().cloned() {
+                    format!("{v:?}")
+                } else {
+                    "unknown".to_string()
+                }
+            }
+            Self::Integer { value, .. } => {
+                if let Some(v) = value.extract().cloned() {
+                    format!("{v:?}")
+                } else {
+                    "unknown".to_string()
+                }
+            }
+            Self::Float { value } => {
+                if let Some(v) = value.extract().cloned() {
+                    format!("{v:?}")
+                } else {
+                    "unknown".to_string()
+                }
+            }
+            Self::String { value, .. } => {
+                if let Some(v) = value.extract().cloned() {
+                    format!("{v:?}")
+                } else {
+                    "unknown".to_string()
+                }
+            }
+            Self::Regexp(re) => {
+                if let Some(re) = re.clone() {
+                    format!("{re:?}")
+                } else {
+                    "unknown".to_string()
+                }
+            }
+            Self::Map(map) => match map.as_ref() {
+                Map::IntegerKeys { map, .. } => {
+                    let items: Vec<String> = map
+                        .iter()
+                        .map(|(k, v)| format!("{}: {}", k, v.value_as_string()))
+                        .collect();
+                    format!("{{{}}}", items.join(", "))
+                }
+                Map::StringKeys { map, .. } => {
+                    let items: Vec<String> = map
+                        .iter()
+                        .map(|(k, v)| format!("{}: {}", k, v.value_as_string()))
+                        .collect();
+                    format!("{{{}}}", items.join(", "))
+                }
+            },
+            Self::Struct(s) => {
+                let items: Vec<String> = s
+                    .fields()
+                    .iter()
+                    .map(|(k, v)| {
+                        format!("{}: {}", k, v.type_value.value_as_string())
+                    })
+                    .collect();
+                format!("{{{}}}", items.join(", "))
+            }
+            Self::Array(a) => match a.as_ref() {
+                Array::Integers(items) => format!("{items:?}"),
+                Array::Floats(items) => format!("{items:?}"),
+                Array::Bools(items) => format!("{items:?}"),
+                Array::Strings(items) => format!("{items:?}"),
+                Array::Structs(items) => {
+                    let item_strs: Vec<String> =
+                        items.iter().map(|s| format!("{s:?}")).collect();
+                    format!("[{}]", item_strs.join(", "))
+                }
+            },
+            Self::Func(f) => format!("{:?}", f),
+        }
+    }
 }
 
 impl Display for TypeValue {

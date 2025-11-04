@@ -109,9 +109,13 @@ func TestRelaxedReSyntax(t *testing.T) {
 func TestGetGlobals(t *testing.T) {
 	c, err := NewCompiler()
 	assert.NoError(t, err)
-	c.DefineGlobal("A", "B")
 
-	assert.Equal(t, c.GetGlobals(), "A: Field { index: 0, is_root: true, type_value: string(\"B\"), acl: None, deprecation_msg: None }\n")
+	x := map[string]interface{}{"a": map[string]interface{}{"a": "b"}, "b": "d"}
+
+	c.DefineGlobal("A", "B")
+	c.DefineGlobal("B", x)
+
+	assert.Equal(t, c.GetGlobals(), "A: \"B\"\nB: {a: {a: \"b\"}, b: \"d\"}\n")
 
 	c, err = NewCompiler()
 	assert.NoError(t, err)
