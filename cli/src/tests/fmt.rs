@@ -9,6 +9,7 @@ fn fmt() {
 
     input_file.write_str("rule test { condition: true }").unwrap();
 
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("fmt")
@@ -16,6 +17,7 @@ fn fmt() {
         .assert()
         .code(1); // Exit code 1 indicates that the file was modified.
 
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("fmt")
@@ -31,6 +33,7 @@ fn utf8_error() {
 
     input_file.write_binary(&[0xff, 0xff]).unwrap();
 
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("fmt")

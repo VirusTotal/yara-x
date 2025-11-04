@@ -26,6 +26,7 @@ fn metadata() {
         )
         .unwrap();
 
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("--config")
@@ -72,6 +73,7 @@ warning[text_as_hex]: hex pattern could be written as text literal
         )
         .unwrap();
 
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("--config")
@@ -130,6 +132,7 @@ fn check_rule_name_warning() {
         )
         .unwrap();
 
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("--config")
@@ -157,6 +160,7 @@ fn check_rule_name_error() {
         )
         .unwrap();
 
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("--config")
@@ -191,6 +195,7 @@ fn config_error() {
         )
         .unwrap();
 
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("--config")

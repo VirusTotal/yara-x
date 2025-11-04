@@ -5,6 +5,7 @@ use predicates::prelude::*;
 
 #[test]
 fn always_true() {
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -22,6 +23,7 @@ fn always_true() {
 
 #[test]
 fn negate() {
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -35,6 +37,7 @@ fn negate() {
 
 #[test]
 fn filter_by_tag() {
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -45,6 +48,7 @@ fn filter_by_tag() {
         .success()
         .stdout("");
 
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -58,6 +62,7 @@ fn filter_by_tag() {
 
 #[test]
 fn disable_warning() {
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -91,6 +96,7 @@ fn disable_warning_config_file() {
         )
         .unwrap();
 
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("--config")
@@ -113,6 +119,7 @@ fn disable_warning_config_file() {
 
 #[test]
 fn print_strings() {
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -131,6 +138,7 @@ fn print_strings() {
 
 #[test]
 fn print_strings_n() {
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -149,6 +157,7 @@ fn print_strings_n() {
 
 #[test]
 fn print_namespace() {
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -162,6 +171,7 @@ fn print_namespace() {
 
 #[test]
 fn print_meta() {
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -175,6 +185,7 @@ fn print_meta() {
 
 #[test]
 fn print_tags() {
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -188,6 +199,7 @@ fn print_tags() {
 
 #[test]
 fn path_as_namespace() {
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -204,6 +216,7 @@ fn path_as_namespace() {
 
 #[test]
 fn format_ndjson() {
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -217,6 +230,7 @@ fn format_ndjson() {
 
 #[test]
 fn define() {
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -232,6 +246,7 @@ fn define() {
 
 #[test]
 fn console() {
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -241,6 +256,7 @@ fn console() {
         .success()
         .stderr("hello\n");
 
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -254,6 +270,7 @@ fn console() {
 
 #[test]
 fn ignore_module() {
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -281,6 +298,7 @@ warning[unsupported_module]: module `unknown` is not supported
 
 #[test]
 fn recursive() {
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -297,6 +315,7 @@ fn recursive() {
 
 #[test]
 fn compiled_rules() {
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -309,6 +328,7 @@ fn compiled_rules() {
         .code(1)
         .stderr("error: can\'t use \'--compiled-rules\' with more than one RULES_PATH\n");
 
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -325,6 +345,7 @@ fn compiled_rules() {
 
     input_file.write_str("rule test { condition: true }").unwrap();
 
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("compile")
@@ -334,6 +355,7 @@ fn compiled_rules() {
         .assert()
         .success();
 
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -346,6 +368,7 @@ fn compiled_rules() {
 
 #[test]
 fn issue_280() {
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -355,6 +378,7 @@ fn issue_280() {
         .success();
 
     // Handle special case of just . for path argument.
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -364,6 +388,7 @@ fn issue_280() {
         .success();
 
     // Handle special case of just ./ for path argument.
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
@@ -374,6 +399,7 @@ fn issue_280() {
 
     // Handle special case of just .\ for path argument.
     #[cfg(target_os = "windows")]
+    #[allow(deprecated)]
     Command::cargo_bin("yr")
         .unwrap()
         .arg("scan")
