@@ -58,8 +58,7 @@ fn dfs_common<'a>(expr: &'a Expr, stack: &mut Vec<DFSEvent<'a>>) {
             }
         }
 
-        Expr::PatternOffset(p)
-        | Expr::PatternLength(p) => {
+        Expr::PatternOffset(p) | Expr::PatternLength(p) => {
             if let Some(index) = &p.index {
                 stack.push(DFSEvent::Enter(index));
             }
