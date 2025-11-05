@@ -89,7 +89,7 @@ jobs:
             os: ubuntu-latest
             rust: stable
             target: x86_64-unknown-linux-gnu
-            args: "--package yara-x --no-default-features --features=test_proto2-module,test_proto3-module,string-module,time-module,hash-module,macho-module,magic-module,math-module,lnk-module,elf-module,pe-module,dotnet-module,console-module,crx-module"
+            args: "--no-default-features --features=test_proto2-module,test_proto3-module,string-module,time-module,hash-module,macho-module,magic-module,math-module,lnk-module,elf-module,pe-module,dotnet-module,console-module,crx-module"
             rust_flags: "-Awarnings"
             experimental: false
 
@@ -97,7 +97,7 @@ jobs:
             os: ubuntu-latest
             rust: stable
             target: x86_64-unknown-linux-gnu
-            args: "--package yara-x --features=protoc,magic-module"
+            args: "--features=protoc,magic-module"
             rust_flags: "-Awarnings"
             experimental: false
 
