@@ -142,6 +142,12 @@ jobs:
         env:
           RUSTFLAGS: ${{ matrix.rust_flags }}
 
+      - name: Run tests for CLI
+        run: cargo test --target ${{ matrix.target }} -p yara-x-cli --bin yr
+        env:
+          CARGO_BIN_EXE_yr: ${{ github.workspace }}/target/${{ matrix.target }}/debug/yr
+          RUSTFLAGS: ${{ matrix.rust_flags }}
+
       - name: Run doc tests
         run: cargo test --doc
         env:
