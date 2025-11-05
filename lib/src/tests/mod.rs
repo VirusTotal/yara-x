@@ -775,6 +775,7 @@ fn len_methods() {
     condition_true!(r#"test_proto2.array_int64.len() == 3"#);
     condition_true!(r#"test_proto2.array_string.len() == 3"#);
     condition_true!(r#"test_proto2.map_int64_int64.len() == 1"#);
+    condition_true!(r#"test_proto2.string_foo.len() == 3"#);
 }
 
 #[test]
@@ -3344,6 +3345,81 @@ fn filesize() {
 }
 
 #[test]
+fn filesize_bounds() {
+    let rules = crate::compile(
+        r#"
+        rule test_1 {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            $a and filesize > 1000
+        }
+        rule test_2 {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            $a
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(
+        scanner
+            .scan(b"foobar")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1 // test_2 matches, but test_1 do not.
+    );
+
+    let rules = crate::compile(
+        r#"
+        rule test {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            $a and filesize == 6
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(
+        scanner
+            .scan(b"foobar")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    // Test case for https://github.com/VirusTotal/yara-x/issues/481
+    crate::compile(
+        r#"
+        rule test_1 {
+          strings:
+            $a = "foobar"
+            $b = /.*/
+          condition:
+            $a and $b and filesize > 10
+        }
+        rule test_2 {
+          strings:
+            $a = "foobar"
+          condition:
+            $a and filesize < 10
+        }
+        "#,
+    )
+    .expect_err("should fail");
+}
+
+#[test]
 fn for_of() {
     rule_true!(
         r#"
@@ -3708,4 +3784,64 @@ fn test_defined_3() {
     condition_false!(r#"test_proto3.bool_undef"#);
     condition_true!(r#"not test_proto3.bool_undef"#);
     condition_true!(r#"test_proto3.string_undef == """#);
+}
+
+#[test]
+#[cfg(feature = "test_proto2-module")]
+fn short_circuit() {
+    rule_true!(
+        r#"
+        import "test_proto2"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                (test_proto2.int32_zero == 0 and $a) and $b
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_true!(
+        r#"
+        import "test_proto2"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                (test_proto2.int32_zero == 1 and $a) or $b
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_true!(
+        r#"
+        import "test_proto2"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                (test_proto2.int32_zero == 0 or $a) and $b
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_true!(
+        r#"
+        import "test_proto2"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                (test_proto2.int32_zero == 1 or $a) and $b
+        }
+        "#,
+        b"foobar"
+    );
 }

@@ -18,7 +18,7 @@ use crate::wasm;
 
 /// Structure that contains information and data structures required during the
 /// compilation of a rule.
-pub(crate) struct CompileContext<'a, 'src, 'sym> {
+pub(crate) struct CompileContext<'a, 'src> {
     /// Builder for creating error and warning reports.
     pub report_builder: &'a ReportBuilder,
 
@@ -27,7 +27,7 @@ pub(crate) struct CompileContext<'a, 'src, 'sym> {
 
     /// Symbol table that contains the currently defined identifiers, modules,
     /// functions, etc.
-    pub symbol_table: &'a mut StackedSymbolTable<'sym>,
+    pub symbol_table: &'a mut StackedSymbolTable,
 
     /// Symbol table for the currently active type.
     ///
@@ -66,7 +66,7 @@ pub(crate) struct CompileContext<'a, 'src, 'sym> {
     pub loop_iteration_multiplier: i64,
 }
 
-impl<'src> CompileContext<'_, 'src, '_> {
+impl<'src> CompileContext<'_, 'src> {
     /// Given a pattern identifier (e.g. `$a`, `#a`, `@a`) search for it in
     /// the current rule and return a tuple containing the [`PatternIdx`]
     /// associated to the pattern and a mutable reference the

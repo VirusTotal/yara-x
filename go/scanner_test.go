@@ -3,6 +3,7 @@ package yara_x
 import (
 	"bytes"
 	"github.com/stretchr/testify/assert"
+	"os"
 	"runtime"
 	"testing"
 	"time"
@@ -82,6 +83,26 @@ func TestScanner4(t *testing.T) {
 	scanResults, _ = s.Scan([]byte{})
 	assert.Len(t, scanResults.MatchingRules(), 1)
 }
+
+
+func TestScanFile(t *testing.T) {
+	r, _ := Compile(`rule t { strings: $bar = "bar" condition: $bar }`)
+	s := NewScanner(r)
+
+	// Create a temporary file with some content
+	f, err := os.CreateTemp("", "example")
+	assert.NoError(t, err)
+	defer os.Remove(f.Name())
+
+	_, err = f.Write([]byte("foobar"))
+	assert.NoError(t, err)
+	f.Close()
+
+	scanResults, _ := s.ScanFile(f.Name())
+	matchingRules := scanResults.MatchingRules()
+	assert.Len(t, matchingRules, 1)
+}
+
 
 func TestScannerTimeout(t *testing.T) {
 	r, _ := Compile("rule t { strings: $a = /a(.*)*a/ condition: $a }")

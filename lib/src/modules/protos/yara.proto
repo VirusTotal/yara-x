@@ -31,7 +31,7 @@ message FieldOptions {
 
   // Ignore the field and don't use it in YARA.
   //
-  // This useful when the protobuf definition has some fields that we don't
+  // This is useful when the protobuf definition has some fields that we don't
   // want to expose to YARA rules. For example:
   //
   // string some_private_data = 32 [(yara.field_options).ignore = true];
@@ -101,10 +101,8 @@ message FieldOptions {
 
   // Indicates that the field is deprecated.
   //
-  // This option is used for indicating that a field is deprecated. The string
-  // is the message that will be shown when the deprecated field is used in a
-  // rule.
-  optional string deprecation_msg = 6;
+  // This option is used for indicating that a field is deprecated.
+  optional DeprecationNotice deprecation_notice = 6;
 }
 
 // An entry in a field's ACL.
@@ -137,6 +135,38 @@ message AclEntry {
   required string error_label = 2;
   repeated string accept_if = 3;
   repeated string reject_if = 4;
+}
+
+// Used for indicating that a field is deprecated.
+//
+// For instance, this is the annotation added to a .proto file for indicating that
+// the field `foo` is deprecated:
+//
+// ```
+//  uint64 foo = 1  [(yara.field_options).deprecation_notice = {
+//    text: "deprecated field",
+//    help: "use `bar` instead",
+//    replacement: "bar"
+//  }];
+//
+// When the field is used in a rule it produces the following warning:
+//
+// ```
+// warning[deprecated_field]: field `foo` is deprecated
+// --> test.yar:3:24
+//  |
+//3 | rule t { condition: my_module.foo == 0 }
+//  |                               --- deprecated field
+//  |
+//help: use `bar` instead
+//  |
+//3 - rule t { condition: my_module.foo == 0 }
+//3 + rule t { condition: my_module.bar == 0 }
+// ```
+message DeprecationNotice {
+  required string text = 1;
+  optional string help = 2;
+  optional string replacement = 3;
 }
 
 message MessageOptions {

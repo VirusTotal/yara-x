@@ -1,5 +1,5 @@
 use std::collections::hash_map::Entry;
-use std::ops::{Range, RangeInclusive};
+use std::ops::{Add, Range, RangeInclusive, Sub};
 
 use core::slice::Iter;
 use rustc_hash::FxHashMap;
@@ -9,14 +9,45 @@ use crate::compiler::PatternId;
 /// Represents the match of a pattern.
 #[derive(Debug, Clone)]
 pub(crate) struct Match {
-    /// Base address of the data block where the match was found.
+    /// Base offset of the block where the match occurred.
     pub base: usize,
-    /// Range within the data block where the match was found.
+    /// Range within the scanned data where the match occurred. Notice that
+    /// this is an absolute range, in other words: in block scanning this
+    /// range is not relative to the block where the match occurred, it is
+    /// relative to the start of the data.
     pub range: Range<usize>,
     /// For patterns that have the `xor` modifier this is always `Some(k)`
     /// where `k` is the XOR key (it may be 0). For any other type of
     /// pattern this is `None`.
     pub xor_key: Option<u8>,
+}
+
+impl Match {
+    pub fn new(range: Range<usize>) -> Self {
+        Self { base: 0, range, xor_key: None }
+    }
+
+    /// Sets the base for the match.
+    ///
+    /// Subtract the previous base from the match start and end, and
+    /// adds the new one.
+    pub fn rebase(mut self, base: usize) -> Self {
+        self.range = self.range.start.sub(self.base).add(base)
+            ..self.range.end.sub(self.base).add(base);
+        self.base = base;
+        self
+    }
+
+    /// Sets the xor key for the match.
+    pub fn xor_key(mut self, key: u8) -> Self {
+        self.xor_key = Some(key);
+        self
+    }
+
+    /// Range relative to the block where the match occurred.
+    pub fn block_range(&self) -> Range<usize> {
+        self.range.start.sub(self.base)..self.range.end.sub(self.base)
+    }
 }
 
 /// Represents the list of matches for a pattern.
@@ -58,7 +89,7 @@ impl MatchList {
         while insertion_index > 0 {
             let existing_match = &mut self.matches[insertion_index - 1];
             if m.range.start == existing_match.range.start {
-                // We have found another match that start at same offset, than
+                // We have found another match that start at same offset as
                 // the new match. Replace the existing match if the new one is
                 // longer and `replace_if_longer` is true.
                 if replace_if_longer && existing_match.range.end < m.range.end
@@ -159,7 +190,7 @@ impl MatchList {
     /// with that offset.
     #[inline]
     pub fn search(&self, offset: usize) -> Result<usize, usize> {
-        self.matches.binary_search_by(|x| x.range.start.cmp(&offset))
+        self.matches.binary_search_by(|m| m.range.start.cmp(&offset))
     }
 }
 
@@ -172,6 +203,7 @@ impl<'a> IntoIterator for &'a MatchList {
     }
 }
 
+#[derive(Clone)]
 pub struct UnconfirmedMatch {
     pub range: Range<usize>,
     pub chain_length: usize,
@@ -299,12 +331,12 @@ mod test {
     fn match_list() {
         let mut ml = MatchList::with_capacity(5);
 
-        ml.add(Match { base: 0, range: (2..10), xor_key: None }, false);
-        ml.add(Match { base: 0, range: (1..10), xor_key: None }, false);
-        ml.add(Match { base: 0, range: (1..15), xor_key: None }, true);
-        ml.add(Match { base: 0, range: (4..10), xor_key: None }, false);
-        ml.add(Match { base: 0, range: (3..10), xor_key: None }, false);
-        ml.add(Match { base: 0, range: (5..10), xor_key: None }, false);
+        ml.add(Match::new(2..10), false);
+        ml.add(Match::new(1..10), false);
+        ml.add(Match::new(1..15), true);
+        ml.add(Match::new(4..10), false);
+        ml.add(Match::new(3..10), false);
+        ml.add(Match::new(5..10), false);
 
         assert_eq!(
             ml.iter().map(|m| m.range.clone()).collect::<Vec<Range<usize>>>(),

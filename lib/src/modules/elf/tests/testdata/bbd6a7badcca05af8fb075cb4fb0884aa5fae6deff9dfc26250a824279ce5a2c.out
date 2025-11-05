@@ -1,5 +1,6 @@
 type: ET_DYN
 machine: EM_X86_64
+osabi: OSABI_NONE
 entry_point: 38280
 sh_offset: 0
 sh_entry_size: 64

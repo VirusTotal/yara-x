@@ -62,7 +62,7 @@ int main() {
 }
 EOF
 
-gcc `pkg-config --cflags yara_x_capi` `pkg-config --libs yara_x_capi` test.c
+gcc `pkg-config --cflags yara_x_capi` test.c `pkg-config --libs yara_x_capi`
 ```
 
 The compilation should succeed without errors.
@@ -106,6 +106,70 @@ give the scanner a callback function that will be called for every matching
 rule. The callback function receives a pointer to a [YRX_RULE](#yrx_rule)
 structure representing the matching rule, and gives you access to details
 about the rule, like its identifier and namespace.
+
+
+## Block scanning mode
+
+In some scenarios, the data to be scanned is not available as a single 
+contiguous block of memory, but instead as a set of discrete, non-contiguous
+blocks. A common example is the memory space of a running process, which 
+consists of multiple separate memory regions that you may want to scan as
+a whole.
+
+In such cases, the [yrx_scanner_scan](#yrx_scanner_scan) function is not 
+suitable, as it accepts only a single contiguous memory block and returns 
+matches found within that block alone.
+
+To handle non-contiguous data, you can use the functions 
+[yrx_scanner_scan_block](#yrx_scanner_scan_block)
+and [yrx_scanner_finish](#yrx_scanner_finish) together. The 
+[yrx_scanner_scan_block](#yrx_scanner_scan_block) function can be 
+invoked multiple times to scan individual memory blocks. However, the final 
+results are not available until [yrx_scanner_finish](#yrx_scanner_finish) is
+called. During this finalization step, the scanner evaluates all rule 
+conditions and determines which rules match, based on the patterns found 
+across all scanned blocks.
+
+This approach allows you to scan data incrementally, one block at a time. It
+is also useful when dealing with data streams whose total size is unknown in 
+advance but can be processed in discrete chunks.
+
+Each call to [yrx_scanner_scan_block](#yrx_scanner_scan_block) must include both
+the pointer to the block being scanned and the offset indicating where that block 
+begins within the overall scanned data.
+
+### Data consistency in overlapping blocks
+
+When [yrx_scanner_scan_block](#yrx_scanner_scan_block) is called multiple times
+with blocks that overlap, the user is responsible for ensuring data consistency.
+If a region of data appears in more than one block, its contents must be identical
+across all calls.
+
+The scanner does not typically verify this consistency. It assumes that 
+the caller provides coherent data. However, in debug builds, the scanner may 
+perform limited verification when a pattern match occurs within an overlapping
+region.
+
+###  Limitations of the block scanning mode
+
+Block scanning comes with important limitations compared to standard scanning:
+
+1) Modules won't work. Parsers for structured formats (e.g., PE, ELF)
+   require access to the entire file and cannot be applied in block
+   scanning mode.
+2) Other modules like `hash` won't work either, as they require access to
+   all the scanned data during the evaluation of the rule's condition,
+   something that can't be guaranteed in block scanning mode. The hash
+   functions will return `undefined` when used in a multi-block context.
+3) Built-in functions like `uint8`, `uint16`, `uint32`, etc., have the
+   same limitation. They also return `undefined` in block scanning mode.
+4) The `filesize` keyword returns `undefined` in block scanning mode.
+5) Patterns won't match across block boundaries. Every match will be 
+   completely contained within one of the blocks.
+
+All these limitations imply that in block scanning mode you should only
+use rules that rely on text, hex or regex patterns.
+
 
 ## API reference
 
@@ -317,6 +381,11 @@ enum YRX_RESULT yrx_compiler_define_global_float(
     struct YRX_COMPILER *compiler,
     const char *ident,
     double value);
+
+enum YRX_RESULT yrx_compiler_define_global_json(
+    struct YRX_COMPILER *compiler,
+    const char *ident,
+    const char *json_value);
 ```
 
 Defines a global variable and sets its initial value.
@@ -331,6 +400,15 @@ functions.
 
 The `ident` argument must be pointer to null-terminated UTF-8 string. If the
 string is not valid UTF-8 the result is an `YRX_INVALID_ARGUMENT` error.
+
+In the case of `yrx_compiler_define_global_json`, the value is a text string
+with a JSON-encoded value. This is best for complex types like maps and arrays.
+For simple types (e.g., booleans, integers, strings), prefer dedicated functions
+to avoid the overhead of JSON deserialization.
+
+When defining a map, keys must be of string type, and values can be any of the
+types supported by YARA, including other maps. Arrays must be homogeneous (all
+elements must be the same type).
 
 #### yrx_compiler_errors_json
 
@@ -589,6 +667,44 @@ enum YRX_RESULT yrx_scanner_scan(
     size_t len);
 ```
 
+Scans a memory buffer.
+
+#### yrx_scanner_scan_block
+
+```c
+enum YRX_RESULT yrx_scanner_scan_block(
+    struct YRX_SCANNER *scanner,
+    const uint8_t *data,
+    size_t len,
+    uint64_t block_offset);
+```
+
+This function is designed for scenarios where the data to be scanned is not
+available as a single contiguous block of memory, but rather arrives in
+smaller, discrete blocks, allowing for incremental scanning. 
+
+See: [Block scanning mode](#block-scanning-mode)
+
+#### yrx_scanner_finish
+
+```c
+enum YRX_RESULT yrx_scanner_finish(
+    struct YRX_SCANNER *scanner);
+```
+
+Finalizes the scan of a set of memory blocks.
+
+This function must be used in conjunction with [`yrx_scanner_scan_block`]
+when scanning data in blocks. After all data blocks have been scanned, this
+functions evaluates the conditions of the YARA rules and produces the final
+scan results.
+
+After this function returns, the scanner is ready to be used again for
+scanning a new set of memory blocks. However, the scanner remains in block
+scanning mode and can't be used for normal scanning.
+
+See: [Block scanning mode](#block-scanning-mode)
+
 #### yrx_scanner_set_timeout
 
 ```c
@@ -619,6 +735,11 @@ enum YRX_RESULT yrx_scanner_set_global_float(
     struct YRX_SCANNER *scanner,
     const char *ident,
     double value);
+
+enum YRX_RESULT yrx_scanner_set_global_json(
+    struct YRX_SCANNER *scanner,
+    const char *ident,
+    const char *json_value);
 ```
 
 ------
@@ -655,6 +776,8 @@ This function receives:
 *   `data`: A pointer to the buffer containing the serialized protobuf data.
 *   `len`: The length of the data buffer in bytes.
 
+If the scanner is in block scanning mode this function returns `YRX_INVALID_STATE`.
+
 ------
 
 #### yrx_scanner_set_module_data
@@ -679,6 +802,8 @@ before each scan if you intend to provide custom module metadata. It receives:
 
 The provided `name` and `data` pointers must remain valid from the time this
 function is called until the scan is executed.
+
+If the scanner is in block scanning mode this function returns `YRX_INVALID_STATE`.
 
 ------
 
@@ -1161,3 +1286,32 @@ void yrx_buffer_destroy(struct YRX_BUFFER *buf);
 ```
 
 Destroys a `YRX_BUFFER` object.
+
+### yrx_finalize
+
+```c
+void yrx_finalize();
+```
+
+Finalizes YARA-X.
+
+This function only needs to be called in a very specific scenario:
+when YARA-X is used as a dynamically loaded library (`.so`, `.dll`,
+`.dylib`) **and** that library must be unloaded at runtime.
+
+Its primary purpose is to remove the process-wide signal handlers
+installed by the [wasmtime](https://wasmtime.dev/) engine.
+
+This function is **unsafe** to call under normal circumstances. It has
+strict preconditions that must be met:
+
+- There must be no other active `wasmtime` engines in the process. This
+ applies not only to clones of the engine used by YARA-X (which should not
+ exist because YARA-X uses a single copy of its engine), but to *any*
+ `wasmtime` engine, since global state shared by all engines is torn
+ down.
+
+- On Unix platforms, no other signal handlers may have been installed
+ for signals intercepted by `wasmtime`. If other handlers have been set,
+ `wasmtime` cannot reliably restore the original state, which may lead
+ to undefined behavior.

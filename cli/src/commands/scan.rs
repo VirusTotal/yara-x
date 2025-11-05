@@ -457,15 +457,16 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                 false => Box::new(scan_results.matching_rules()),
             };
 
-            let matched_count = wanted_rules.len();
-            output_handler.on_file_scanned(
+            state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
+
+            // The number of matching files is incremented only if
+            // `on_file_scanned` returns `true`, which indicates that the
+            // match is actually included in the output and not ignored.
+            if output_handler.on_file_scanned(
                 &file_path,
                 &mut wanted_rules,
                 output,
-            );
-
-            state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
-            if matched_count > 0 {
+            ) {
                 state.num_matching_files.fetch_add(1, Ordering::Relaxed);
             }
 
@@ -561,6 +562,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Debug)]
 struct ScanState {
     start_time: Instant,
     num_scanned_files: AtomicUsize,
@@ -791,12 +793,15 @@ mod output_handler {
     /// [`NdjsonOutputHandler`] and [`JsonOutputHandler`].
     pub(super) trait OutputHandler: Sync {
         /// Called for each scanned file.
+        ///
+        /// Must return `true` when the file was included in the output,
+        /// or `false` if the file was ignored.
         fn on_file_scanned(
             &self,
             file_path: &Path,
             scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
             output: &Sender<Message>,
-        );
+        ) -> bool;
         /// Called when the last file has been scanned.
         fn on_done(&self, _output: &Sender<Message>);
     }
@@ -817,7 +822,7 @@ mod output_handler {
             file_path: &Path,
             scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
             output: &Sender<Message>,
-        ) {
+        ) -> bool {
             if self.output_options.count_only {
                 output
                     .send(Message::Info(format!(
@@ -826,8 +831,10 @@ mod output_handler {
                         scan_results.len()
                     )))
                     .unwrap();
-                return;
+                return true;
             }
+
+            let mut result = false;
 
             for matching_rule in scan_results {
                 if let Some(ref only_tag) = self.output_options.only_tag {
@@ -838,6 +845,8 @@ mod output_handler {
                         continue;
                     }
                 }
+
+                result = true;
 
                 let mut msg = if self.output_options.include_namespace {
                     format!(
@@ -981,6 +990,8 @@ mod output_handler {
 
                 output.send(Message::Info(msg)).unwrap();
             }
+
+            result
         }
 
         fn on_done(&self, _output: &Sender<Message>) {
@@ -1004,7 +1015,7 @@ mod output_handler {
             file_path: &Path,
             scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
             output: &Sender<Message>,
-        ) {
+        ) -> bool {
             let path = file_path.to_str().unwrap();
 
             if self.output_options.count_only {
@@ -1015,17 +1026,22 @@ mod output_handler {
                 .unwrap();
 
                 output.send(Message::Info(json)).unwrap();
-                return;
+                return true;
             }
 
-            let rules = rules_to_json(&self.output_options, scan_results);
+            let matching_rules =
+                rules_to_json(&self.output_options, scan_results);
+
             let line = serde_json::to_string(&JsonOutput {
                 path,
-                rules: rules.as_slice(),
+                rules: matching_rules.as_slice(),
             })
             .unwrap();
 
             output.send(Message::Info(line)).unwrap();
+
+            // Return `false` if `matching_rules` is empty.
+            !matching_rules.is_empty()
         }
 
         fn on_done(&self, _output: &Sender<Message>) {
@@ -1130,7 +1146,7 @@ mod output_handler {
             file_path: &Path,
             scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
             _output: &Sender<Message>,
-        ) {
+        ) -> bool {
             let path = file_path
                 .canonicalize()
                 .ok()
@@ -1140,7 +1156,7 @@ mod output_handler {
                 .unwrap_or_default();
 
             // prepare the increment *outside* the critical section
-            let matches = scan_results
+            let matching_rules = scan_results
                 .filter(|rule| {
                     self.output_options.only_tag.as_ref().is_none_or(
                         |only_tag| {
@@ -1190,8 +1206,9 @@ mod output_handler {
                 });
 
             {
-                let mut lock = self.output_buffer.lock().unwrap();
-                lock.extend(matches);
+                let mut output = self.output_buffer.lock().unwrap();
+                output.extend(matching_rules);
+                !output.is_empty()
             }
         }
 

@@ -26,6 +26,8 @@ mod ascii_tree;
 mod cst2ast;
 mod errors;
 
+pub mod dfs;
+
 pub use errors::Error;
 
 /// Abstract Syntax Tree (AST) for YARA rules.

@@ -86,7 +86,7 @@ fn ir() {
         .collect();
 
     files.into_iter().for_each(|path| {
-        println!("file: {:?}", path);
+        println!("file: {path:?}");
 
         let mut mint = goldenfile::Mint::new(".");
 

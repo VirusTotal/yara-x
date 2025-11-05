@@ -137,8 +137,7 @@ fn test_modules() {
 
         // Construct a dummy YARA rule that only imports the module.
         let rule = format!(
-            r#"import "{}" rule test {{ condition: false }}"#,
-            module_name
+            r#"import "{module_name}" rule test {{ condition: false }}"#
         );
 
         // Compile the rule.
@@ -159,7 +158,7 @@ fn test_modules() {
         // Get the module output.
         let output =
             scan_results.module_output(module_name).unwrap_or_else(|| {
-                panic!("module `{}` should produce some output", module_name)
+                panic!("module `{module_name}` should produce some output")
             });
 
         let output_file = mint.new_goldenfile(out_path).unwrap();

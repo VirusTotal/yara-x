@@ -32,7 +32,7 @@ jobs:
         pwd
         python -m pip install --upgrade pip maturin>=1.7.8
         python -m pip install pytest
-        maturin develop --manifest-path py/Cargo.toml
+        maturin develop --manifest-path py/Cargo.toml --features=test_proto2-module,test_proto3-module
         pytest py
 
     # Non-windows
@@ -43,6 +43,6 @@ jobs:
         virtualenv venv; source venv/bin/activate
         python -m pip install --upgrade pip maturin>=1.7.8
         python -m pip install pytest
-        maturin develop --manifest-path py/Cargo.toml
+        maturin develop --manifest-path py/Cargo.toml --features=test_proto2-module,test_proto3-module
         pytest py
 

@@ -262,6 +262,7 @@ pub unsafe extern "C" fn yrx_compile(
 ///   to undefined behavior.
 ///
 /// [wasmtime]: https://wasmtime.dev/
+#[no_mangle]
 pub unsafe extern "C" fn yrx_finalize() {
     yara_x::finalize();
 }

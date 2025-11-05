@@ -7,11 +7,14 @@ use nom::multi::{count, many0};
 use nom::number::complete::{le_u32, u16, u32, u64, u8};
 use nom::number::Endianness;
 use nom::{Err, IResult, Parser};
+use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
 use protobuf::EnumOrUnknown;
 
 use crate::modules::protos::elf;
 
 #[repr(u8)]
+#[derive(FromPrimitive)]
 enum Class {
     Elf32 = 0x01,
     Elf64 = 0x02,
@@ -41,29 +44,37 @@ impl ElfParser {
         elf: &'a [u8],
     ) -> Result<elf::ELF, Err<nom::error::Error<&'a [u8]>>> {
         // Parse the ELF identifier.
-        let (remainder, (_, class, data_encoding, _, _, _)) = (
+        let (
+            remainder,
+            (
+                _,
+                class,
+                data_encoding,
+                _version,
+                osabi,
+                _abi_version,
+                _padding,
+                _nident,
+            ),
+        ) = (
             // Magic must be 0x7f 0x45 (E) 0x4c (L) 0x46 (F).
             verify(le_u32, |magic| *magic == 0x464C457F),
             // Class must be either ELF_CLASS_32 or ELF_CLASS_64.
             verify(u8, |c| {
                 *c == Self::ELF_CLASS_32 || *c == Self::ELF_CLASS_64
-            }),
+            })
+            .map_opt(Class::from_u8),
             // Data encoding must be either ELF_DATA_2LSB or ELF_DATA_2MSB
             verify(u8, |d| {
                 *d == Self::ELF_DATA_2LSB || *d == Self::ELF_DATA_2MSB
             }),
-            u8,            // version
-            take(8_usize), // padding
+            u8, // version
+            map(u8, |b| EnumOrUnknown::<elf::OsAbi>::from_i32(b as i32)), // osabi
+            u8,            // abi version
+            take(6_usize), // padding
             u8,            // nident
         )
             .parse(elf)?;
-
-        match class {
-            Self::ELF_CLASS_32 => self.class = Class::Elf32,
-            Self::ELF_CLASS_64 => self.class = Class::Elf64,
-            // `class` has been verified to be valid.
-            _ => unreachable!(),
-        }
 
         match data_encoding {
             Self::ELF_DATA_2LSB => {
@@ -75,6 +86,9 @@ impl ElfParser {
             // `data_encoding` has been verified to be valid.
             _ => unreachable!(),
         }
+
+        self.class = class;
+        self.result.osabi = Some(osabi);
 
         // Parse the executable header.
         let (_remainder, ehdr) = self.parse_ehdr()(remainder)?;

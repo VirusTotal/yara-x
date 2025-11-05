@@ -256,6 +256,30 @@ func (s *Scanner) Scan(buf []byte) (*ScanResults, error) {
 	return scanResults, err
 }
 
+// ScanFile scans a file with the Rules associated to the Scanner.
+func (s *Scanner) ScanFile(path string) (*ScanResults, error) {
+	cPath := C.CString(path)
+	defer C.free(unsafe.Pointer(cPath))
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	var err error
+	switch r := C.yrx_scanner_scan_file(s.cScanner, cPath); r {
+	case C.YRX_SUCCESS:
+		err = nil
+	case C.YRX_SCAN_TIMEOUT:
+		err = ErrTimeout
+	default:
+		err = errors.New(C.GoString(C.yrx_last_error()))
+	}
+
+	scanResults := &ScanResults{s.matchingRules}
+	s.matchingRules = nil
+
+	return scanResults, err
+}
+
 // ProfilingInfo contains profiling information about a YARA rule.
 //
 // For each rule it contains: the rule's namespace, the rule's name,

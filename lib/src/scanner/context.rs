@@ -48,6 +48,7 @@ use crate::{wasm, Variable};
 /// Represents the states in which a scanner can be.
 pub(crate) enum ScanState<'a> {
     Idle,
+    Timeout,
     ScanningData(ScannedData<'a>),
     ScanningBlock((usize, &'a [u8])),
     Finished(DataSnippets<'a>),
@@ -356,6 +357,11 @@ impl ScanContext<'_, '_> {
         obj_ref
     }
 
+    /// Get the value of the global variable `filesize`.
+    pub(crate) fn get_filesize(&mut self) -> i64 {
+        self.wasm_filesize.unwrap().get(self.wasm_store_mut()).i64().unwrap()
+    }
+
     /// Set the value of the global variable `filesize`.
     pub(crate) fn set_filesize(&mut self, filesize: i64) {
         self.wasm_filesize
@@ -374,8 +380,8 @@ impl ScanContext<'_, '_> {
     /// calls ScanContext::search_for_patterns (which does the Aho-Corasick
     /// scanning) only if necessary.
     ///
-    /// This will return `Err(ScanError::Timeout)`, when the scan timeout is
-    /// reached while WASM code is being executed.
+    /// This will return [ScanError::Timeout], if a timeout occurs while
+    /// searching for patterns or evaluating the conditions.
     pub(crate) fn eval_conditions(&mut self) -> Result<(), ScanError> {
         // Save the time in which the evaluation started.
         #[cfg(feature = "rules-profiling")]
@@ -448,8 +454,16 @@ impl ScanContext<'_, '_> {
             }
         }
 
+        // The WASM code that evaluates the conditions returns
+        // `ScanError::Timeout` if a timeout occurs during its execution.
+        // However, a timeout may also happen while `search_for_patterns`
+        // is running. In that case, the function returns `Ok(0)` but the
+        // scan state is updated to `ScanState::Timeout`.
         match eval_result {
-            Ok(0) => Ok(()),
+            Ok(0) => match self.scan_state {
+                ScanState::Timeout => Err(ScanError::Timeout),
+                _ => Ok(()),
+            },
             Ok(v) => panic!("WASM main returned: {v}"),
             Err(err) if err.is::<ScanError>() => {
                 Err(err.downcast::<ScanError>().unwrap())
@@ -485,6 +499,9 @@ impl ScanContext<'_, '_> {
         // Clear the value of `current_struct` as it may contain a reference
         // to some struct.
         self.current_struct = None;
+
+        // Clear module outputs from previous scans.
+        self.module_outputs.clear();
 
         // Move the matching rules to the `matching_rules` vector, leaving the
         // `matching_rules_per_ns` map empty.
@@ -717,46 +734,24 @@ impl ScanContext<'_, '_> {
         }
     }
 
-    /// Search for patterns in the scanned data.
-    ///
-    /// The pattern search phase is when YARA scans the data looking for the
-    /// patterns declared in rules. All the patterns are searched simultaneously
-    /// using the Aho-Corasick algorithm. This phase is triggered lazily during
-    /// the evaluation of the rule conditions, when some of the conditions need
-    /// to know if a pattern matched or not.
-    ///
-    /// This function won't be called if the conditions can be fully evaluated
-    /// without looking for any of the patterns. If it must be called, it will be
-    /// called only once.
-    pub(crate) fn search_for_patterns(&mut self) -> Result<(), ScanError> {
-        let ac = self.compiled_rules.ac_automaton();
-
+    /// The Aho-Corasick search loop.
+    pub(crate) fn ac_search_loop(
+        &mut self,
+        base: usize,
+        data: &[u8],
+        block_scanning_mode: bool,
+    ) -> Result<(), ScanError> {
         let mut vm = VM {
             pike_vm: PikeVM::new(self.compiled_rules.re_code()),
             fast_vm: FastVM::new(self.compiled_rules.re_code()),
         };
 
+        let ac = self.compiled_rules.ac_automaton();
         let atoms = self.compiled_rules.atoms();
-
-        #[cfg(any(feature = "rules-profiling", feature = "logging"))]
-        let scan_start = self.clock.raw();
+        let filesize = self.get_filesize();
 
         #[cfg(feature = "logging")]
         let mut atom_matches = 0_usize;
-
-        // Take ownership of the scan state, while searching for
-        // the patterns, `self.scan_state` is left as `Idle`.
-        let state = self.scan_state.take();
-
-        let (base, data) = match &state {
-            ScanState::ScanningData(data) => (0, data.as_ref()),
-            ScanState::ScanningBlock((base, data)) => (*base, *data),
-            _ => panic!(),
-        };
-
-        // Verify the anchored pattern first. These are patterns that can
-        // match at a single known offset within the data.
-        self.verify_anchored_patterns(base, data);
 
         for ac_match in ac.find_overlapping_iter(data) {
             #[cfg(feature = "logging")]
@@ -765,11 +760,6 @@ impl ScanContext<'_, '_> {
             }
 
             if HEARTBEAT_COUNTER.load(Ordering::Relaxed) >= self.deadline {
-                #[cfg(feature = "logging")]
-                log::info!(
-                    "Scan timeout after: {:?}",
-                    self.clock.delta(scan_start, self.clock.raw())
-                );
                 return Err(ScanError::Timeout);
             }
 
@@ -796,11 +786,24 @@ impl ScanContext<'_, '_> {
 
             // Check if the potentially matching pattern has reached the
             // maximum number of allowed matches. In that case continue without
-            // verifying the match. `get_unchecked` is used for performance
-            // reasons, the number of bits in the bit vector is guaranteed to
-            // be the number of patterns.
+            // verifying the match.
             if self.limit_reached.contains(pattern_id) {
                 continue;
+            }
+
+            // If there are file size bounds associated to the pattern, but
+            // the currently scanned file does not satisfy them, no further
+            // confirmation is needed. The rule won't match regardless of
+            // whether the pattern matches or not. This is not done in block
+            // scanning mode as `filesize` is undefined in that mode.
+            if !block_scanning_mode {
+                if let Some(bounds) =
+                    self.compiled_rules.filesize_bounds(*pattern_id)
+                {
+                    if !bounds.contains(filesize) {
+                        continue;
+                    }
+                }
             }
 
             #[cfg(feature = "rules-profiling")]
@@ -828,7 +831,7 @@ impl ScanContext<'_, '_> {
                         sub_pattern_id,
                         sub_pattern,
                         *pattern_id,
-                        Match { base, range: match_range, xor_key: None },
+                        Match::new(match_range).rebase(base),
                     );
                 }
 
@@ -850,11 +853,8 @@ impl ScanContext<'_, '_> {
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            Match {
-                                base,
-                                range: atom_pos..atom_pos + pattern.len(),
-                                xor_key: None,
-                            },
+                            Match::new(atom_pos..atom_pos + pattern.len())
+                                .rebase(base),
                         );
                     }
                 }
@@ -867,12 +867,12 @@ impl ScanContext<'_, '_> {
                         atom_pos,
                         atom,
                         *flags,
-                        |range| {
+                        |match_range| {
                             self.handle_sub_pattern_match(
                                 sub_pattern_id,
                                 sub_pattern,
                                 *pattern_id,
-                                Match { base, range, xor_key: None },
+                                Match::new(match_range).rebase(base),
                             );
                         },
                     )
@@ -885,25 +885,23 @@ impl ScanContext<'_, '_> {
                         .get_bytes(*pattern)
                         .unwrap();
 
-                    if let Some(xor_key) =
+                    if let Some(key) =
                         verify_xor_match(pattern, data, atom_pos, atom, *flags)
                     {
                         self.handle_sub_pattern_match(
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            Match {
-                                base,
-                                range: atom_pos..atom_pos + pattern.len(),
-                                xor_key: Some(xor_key),
-                            },
+                            Match::new(atom_pos..atom_pos + pattern.len())
+                                .rebase(base)
+                                .xor_key(key),
                         );
                     }
                 }
 
                 SubPattern::Base64 { pattern, padding }
                 | SubPattern::Base64Wide { pattern, padding } => {
-                    if let Some(range) = verify_base64_match(
+                    if let Some(match_range) = verify_base64_match(
                         self.compiled_rules
                             .lit_pool()
                             .get_bytes(*pattern)
@@ -918,7 +916,7 @@ impl ScanContext<'_, '_> {
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            Match { base, range, xor_key: None },
+                            Match::new(match_range).rebase(base),
                         );
                     }
                 }
@@ -944,7 +942,7 @@ impl ScanContext<'_, '_> {
 
                     assert!(alphabet.is_some());
 
-                    if let Some(range) = verify_base64_match(
+                    if let Some(match_range) = verify_base64_match(
                         self.compiled_rules
                             .lit_pool()
                             .get_bytes(*pattern)
@@ -962,7 +960,7 @@ impl ScanContext<'_, '_> {
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            Match { base, range, xor_key: None },
+                            Match::new(match_range).rebase(base),
                         );
                     }
                 }
@@ -983,17 +981,59 @@ impl ScanContext<'_, '_> {
             }
         }
 
+        #[cfg(feature = "logging")]
+        log::info!("Atom matches: {}", atom_matches);
+
+        Ok(())
+    }
+
+    /// Search for patterns in the scanned data.
+    ///
+    /// The pattern search phase is when YARA scans the data looking for the
+    /// patterns declared in rules. All the patterns are searched simultaneously
+    /// using the Aho-Corasick algorithm. This phase is triggered lazily during
+    /// the evaluation of the rule conditions, when some of the conditions need
+    /// to know if a pattern matched or not.
+    ///
+    /// This function won't be called if the conditions can be fully evaluated
+    /// without looking for any of the patterns. If it must be called, it will be
+    /// called only once.
+    ///
+    /// In case of timeout, this function returns [ScanError::Timeout] and sets
+    /// the scan state to [ScanState::Timeout].
+    pub(crate) fn search_for_patterns(&mut self) -> Result<(), ScanError> {
+        // Take ownership of the scan state, while searching for
+        // the patterns, `self.scan_state` is left as `Idle`.
+        let state = self.scan_state.take();
+
+        let (base, data, block_scanning_mode) = match &state {
+            ScanState::ScanningData(data) => (0, data.as_ref(), false),
+            ScanState::ScanningBlock((base, data)) => (*base, *data, true),
+            _ => panic!(),
+        };
+
+        #[cfg(any(feature = "rules-profiling", feature = "logging"))]
+        let scan_start = self.clock.raw();
+
+        // Verify the anchored pattern first. These are patterns that can
+        // match at a single known offset within the data.
+        self.verify_anchored_patterns(base, data);
+
+        let result = match self.ac_search_loop(base, data, block_scanning_mode)
+        {
+            Ok(_) => {
+                self.scan_state = state;
+                Ok(())
+            }
+            Err(ScanError::Timeout) => {
+                self.scan_state = ScanState::Timeout;
+                Err(ScanError::Timeout)
+            }
+            _ => unreachable!(),
+        };
+
         #[cfg(any(feature = "rules-profiling", feature = "logging"))]
         let scan_end = self.clock.raw();
-
-        #[cfg(feature = "logging")]
-        {
-            log::info!(
-                "Scan time: {:?}",
-                self.clock.delta(scan_start, scan_end)
-            );
-            log::info!("Atom matches: {}", atom_matches);
-        }
 
         // Adjust the rule evaluation start time to exclude the time spent
         // searching for patterns. Since the `search_for_pattern` function
@@ -1007,10 +1047,15 @@ impl ScanContext<'_, '_> {
                 scan_end.saturating_sub(scan_start);
         }
 
-        // Bring back ownership of the scanned to the ScanContext.
-        self.scan_state = state;
+        #[cfg(feature = "logging")]
+        {
+            log::info!(
+                "Scan time: {:?}",
+                self.clock.delta(scan_start, scan_end)
+            );
+        }
 
-        Ok(())
+        result
     }
 
     fn verify_anchored_patterns(&mut self, base: usize, data: &[u8]) {
@@ -1043,11 +1088,8 @@ impl ScanContext<'_, '_> {
                                 *sub_pattern_id,
                                 sub_pattern,
                                 *pattern_id,
-                                Match {
-                                    base,
-                                    range: offset..offset + pattern.len(),
-                                    xor_key: None,
-                                },
+                                Match::new(offset..offset + pattern.len())
+                                    .rebase(base),
                             );
                         }
                     }
@@ -1185,29 +1227,32 @@ impl ScanContext<'_, '_> {
     ) {
         let mut queue = VecDeque::new();
 
-        queue.push_back((tail_sub_pattern_id, tail_match.range, 1));
+        queue.push_back((
+            tail_sub_pattern_id,
+            UnconfirmedMatch {
+                range: tail_match.range.clone(),
+                chain_length: 1,
+            },
+        ));
 
         let mut tail_chained_to: Option<SubPatternId> = None;
-        let mut tail_match_range: Option<Range<usize>> = None;
 
-        while let Some((id, match_range, chain_length)) = queue.pop_front() {
+        while let Some((id, current_match)) = queue.pop_front() {
             match &self.compiled_rules.get_sub_pattern(id).1 {
                 SubPattern::LiteralChainHead { flags, .. }
                 | SubPattern::RegexpChainHead { flags, .. } => {
-                    // The chain head is reached, and we know the range where
-                    // the tail matches. This indicates that the whole chain is
-                    // valid, and we have a full match.
-                    if let Some(tail_match_range) = &tail_match_range {
-                        self.track_pattern_match(
-                            pattern_id,
-                            Match {
-                                base: tail_match.base,
-                                range: match_range.start..tail_match_range.end,
-                                xor_key: None,
-                            },
-                            flags.contains(SubPatternFlags::GreedyRegexp),
-                        );
-                    }
+                    // The chain head is reached. This indicates that the whole
+                    // chain is valid, and we have a full match.
+                    self.track_pattern_match(
+                        pattern_id,
+                        Match {
+                            base: tail_match.base,
+                            range: current_match.range.start
+                                ..tail_match.range.end,
+                            xor_key: None,
+                        },
+                        flags.contains(SubPatternFlags::GreedyRegexp),
+                    );
 
                     let mut next_pattern_id = tail_chained_to;
 
@@ -1215,9 +1260,9 @@ impl ScanContext<'_, '_> {
                         if let Some(unconfirmed_matches) =
                             self.unconfirmed_matches.get_mut(&id)
                         {
-                            for m in unconfirmed_matches {
-                                m.chain_length = 0;
-                            }
+                            unconfirmed_matches
+                                .iter_mut()
+                                .for_each(|m| m.chain_length = 0);
                         }
                         let (_, sub_pattern) =
                             self.compiled_rules.get_sub_pattern(id);
@@ -1237,49 +1282,45 @@ impl ScanContext<'_, '_> {
                     // sub-pattern that comes before in the chain. For example,
                     // if the chain is P1 <- P2, and we just found a match for
                     // P2, iterate over the unconfirmed matches for P1.
-                    if let Some(unconfirmed_matches) =
-                        self.unconfirmed_matches.get_mut(chained_to)
-                    {
-                        // Check whether the current match is at a correct
-                        // distance from each of the unconfirmed matches.
-                        for m in unconfirmed_matches {
-                            let in_range = match gap {
-                                ChainedPatternGap::Bounded(gap) => {
-                                    let min_gap = *gap.start() as usize;
-                                    let max_gap = *gap.end() as usize;
-                                    (m.range.end + min_gap
-                                        ..=m.range.end + max_gap)
-                                        .contains(&match_range.start)
-                                }
-                                ChainedPatternGap::Unbounded(gap) => {
-                                    let min_gap = gap.start as usize;
-                                    (m.range.end + min_gap..)
-                                        .contains(&match_range.start)
-                                }
-                            };
-                            // Besides checking that the unconfirmed match lays
-                            // at a correct distance from the current match, we
-                            // also check that the chain length associated to
-                            // the unconfirmed match doesn't exceed the current
-                            // chain length.
-                            if in_range && m.chain_length <= chain_length {
-                                m.chain_length = chain_length + 1;
-                                queue.push_back((
-                                    *chained_to,
-                                    m.range.clone(),
-                                    m.chain_length,
-                                ));
+                    let unconfirmed_matches =
+                        match self.unconfirmed_matches.get_mut(chained_to) {
+                            Some(m) => m,
+                            None => continue,
+                        };
+
+                    // Check whether the current match is at a correct distance
+                    // from each of the unconfirmed matches.
+                    for m in unconfirmed_matches {
+                        let in_range = match gap {
+                            ChainedPatternGap::Bounded(gap) => {
+                                let min_gap = *gap.start() as usize;
+                                let max_gap = *gap.end() as usize;
+                                (m.range.end + min_gap..=m.range.end + max_gap)
+                                    .contains(&current_match.range.start)
                             }
+                            ChainedPatternGap::Unbounded(gap) => {
+                                let min_gap = gap.start as usize;
+                                (m.range.end + min_gap..)
+                                    .contains(&current_match.range.start)
+                            }
+                        };
+                        // Besides checking that the unconfirmed match lays at
+                        // a correct distance from the current match, we also
+                        // check that the chain length associated to the
+                        // unconfirmed match doesn't exceed the current chain
+                        // length.
+                        if in_range
+                            && m.chain_length <= current_match.chain_length
+                        {
+                            m.chain_length = current_match.chain_length + 1;
+                            queue.push_back((*chained_to, m.clone()))
                         }
                     }
 
-                    if flags.contains(SubPatternFlags::LastInChain) {
-                        // Take note of the range where the tail matched.
-                        tail_match_range = Some(match_range.clone());
-
-                        if flags.contains(SubPatternFlags::GreedyRegexp) {
-                            tail_chained_to = Some(*chained_to);
-                        }
+                    if flags.contains(SubPatternFlags::LastInChain)
+                        && flags.contains(SubPatternFlags::GreedyRegexp)
+                    {
+                        tail_chained_to = Some(*chained_to);
                     }
                 }
                 _ => unreachable!(),
