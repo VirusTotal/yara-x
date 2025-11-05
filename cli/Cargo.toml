@@ -17,9 +17,11 @@ name = "yr"
 path = "src/main.rs"
 # Don't run the CLI tests by default when `cargo test` is executed. The
 # CLI tests require the `target/debug/yr` binary do exists before the
-# tests are executed. The CLI tests can be run with:
+# tests are executed, and the CARGO_BIN_EXE_yr environment variable
+# contains the absolute path to the yr binary. The CLI tests can be run
+# with:
 # cargo build
-# cargo test -p yara-x-cli --bin yr
+# CARGO_BIN_EXE_yr=/path/to/yr cargo test -p yara-x-cli --bin yr
 test = false
 
 [features]
