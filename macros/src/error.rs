@@ -380,7 +380,7 @@ pub(crate) fn impl_error_enum_macro(
 
             /// Returns the error report associated to this error/warning.
             #[inline]
-            pub fn report(&mut self) -> &mut Report {
+            pub(crate) fn report(&mut self) -> &mut Report {
                 match self {
                     #(
                         Self::#variant_idents(v) => {
