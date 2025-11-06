@@ -2,8 +2,8 @@
 #![allow(clippy::duplicated_attributes)]
 
 use std::fmt::{Debug, Display, Formatter};
-use serde::Serialize;
 
+use serde::Serialize;
 use thiserror::Error;
 
 use yara_x_macros::ErrorEnum;

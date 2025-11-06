@@ -9,7 +9,6 @@ use std::cell::Cell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
-
 use yara_x_parser::Span;
 
 use crate::SourceCode;
@@ -83,7 +82,7 @@ pub(crate) struct Report {
 pub(crate) struct Section {
     level: Level,
     title: String,
-    patches: Vec<(Span, String)>,
+    patches: Vec<(CodeLoc, String)>,
 }
 
 impl Report {
@@ -136,6 +135,15 @@ impl Report {
             .map(|(level, text)| Footer { level: level_as_text(level), text })
     }
 
+    /// Returns all the patches in the report.
+    pub(crate) fn patches(&self) -> impl Iterator<Item = (&CodeLoc, &str)> {
+        self.sections.iter().flat_map(|section| {
+            section.patches.iter().map(|(code_loc, replacement)| {
+                (code_loc, replacement.as_str())
+            })
+        })
+    }
+
     pub(crate) fn new_section<T: Into<String>>(
         &mut self,
         level: Level,
@@ -151,14 +159,14 @@ impl Report {
 
     pub(crate) fn patch<R: Into<String>>(
         &mut self,
-        span: Span,
+        code_loc: CodeLoc,
         replacement: R,
     ) -> &mut Self {
         self.sections
             .last_mut()
             .unwrap()
             .patches
-            .push((span, replacement.into()));
+            .push((code_loc, replacement.into()));
         self
     }
 }
@@ -277,8 +285,9 @@ impl Display for Report {
         for section in &self.sections {
             let mut snippet = Snippet::source(src);
 
-            for (span, replacement) in &section.patches {
-                snippet = snippet.patch(Patch::new(span.range(), replacement))
+            for (code_loc, replacement) in &section.patches {
+                snippet = snippet
+                    .patch(Patch::new(code_loc.span.range(), replacement))
             }
 
             groups.push(
