@@ -23,8 +23,8 @@ use yara_x::errors::ScanError;
 use yara_x::{MetaValue, Patterns, Rule, Rules, ScanOptions, Scanner};
 
 use crate::commands::{
-    add_compilation_options, compile_rules, external_var_parser,
-    get_external_vars, meta_file_value_parser, path_with_namespace_parser,
+    compilation_args, compile_rules, get_external_vars,
+    meta_file_value_parser, path_with_namespace_parser,
     truncate_with_ellipsis,
 };
 use crate::walk::Message;
@@ -57,149 +57,72 @@ pub fn scan() -> Command {
                 .help("Path to the file or directory that will be scanned")
                 .value_parser(value_parser!(PathBuf))
         )
-        // Keep options sorted alphabetically by their long name.
-        // For instance, --bar goes before --foo.
-        .arg(
+        .args(itertools::merge(compilation_args(), [
             arg!(-C --"compiled-rules")
                 .help("Indicate that RULES_PATH is a file with compiled rules")
-                .long_help(help::COMPILED_RULES_LONG_HELP)
-        )
-        .arg(
+                .long_help(help::COMPILED_RULES_LONG_HELP),
             arg!(-c --"count")
-                .help("Print only the number of matches per file")
-        )
-        .arg(
-            arg!(-d --"define")
-                .help("Define external variable")
-                .long_help(help::DEFINE_LONG_HELP)
-                .value_name("VAR=VALUE")
-                .value_parser(external_var_parser)
-                .action(ArgAction::Append)
-        )
-        .arg(
+                .help("Print only the number of matches per file"),
             arg!(--"disable-console-logs")
-                .help("Disable printing console log messages")
-        )
-        .arg(
-            arg!(-w --"disable-warnings" [WARNING_ID])
-                .help("Disable warnings")
-                .long_help(help::DISABLE_WARNINGS_LONG_HELP)
-                .default_missing_value("all")
-                .num_args(0..)
-                .require_equals(true)
-                .value_delimiter(',')
-                .action(ArgAction::Append)
-        )
-        .arg(
-            arg!(--"ignore-module" <MODULE>)
-                .help("Ignore rules that use the specified module")
-                .long_help(help::IGNORE_MODULE_LONG_HELP)
-                .action(ArgAction::Append)
-        )
-        .arg(
-            arg!(-I --"include-dir" <PATH>)
-                .help("Directory in which to search for included files")
-                .long_help(help::INCLUDE_DIR_LONG_HELP)
-                .value_parser(value_parser!(PathBuf))
-                .action(ArgAction::Append)
-        )
-        .arg(
+                .help("Disable printing console log messages"),
+            arg!(--"max-matches-per-pattern" <MATCHES>)
+                .help("Maximum number of matches per pattern")
+                .long_help(help::MAX_MATCHES_PER_PATTERN_LONG_HELP)
+                .value_parser(value_parser!(usize)),
             arg!(-x --"module-data")
                 .help("Pass FILE's content as extra data to MODULE")
                 .long_help(help::MODULE_DATA_LONG_HELP)
                 .required(false)
                 .value_name("MODULE=FILE")
                 .value_parser(meta_file_value_parser)
-                .action(ArgAction::Append)
-        )
-        .arg(
+                .action(ArgAction::Append),
             arg!(-n --"negate")
-                .help("Print non-satisfied rules only")
-        )
-        .arg(
+                .help("Print non-satisfied rules only"),
             arg!(--"no-mmap")
                 .help("Don't use memory-mapped files")
-                .long_help(help::NO_MMAP_LONG_HELP)
-        )
-        .arg(
-            arg!(--"max-matches-per-pattern" <MATCHES>)
-                .help("Maximum number of matches per pattern")
-                .long_help(help::MAX_MATCHES_PER_PATTERN_LONG_HELP)
-                .value_parser(value_parser!(usize))
-        )
-        .arg(
+                .long_help(help::NO_MMAP_LONG_HELP),
             arg!(-o --"output-format" <FORMAT>)
                 .help("Output format for results")
                 .long_help(help::OUTPUT_FORMAT_LONG_HELP)
-                .value_parser(value_parser!(OutputFormats))
-        )
-        .arg(
-            arg!(--"path-as-namespace")
-                .help("Use file path as rule namespace")
-        )
-        .arg(
-            arg!(--"profiling")
-                .help("Show profiling information")
-        )
-        .arg(
+                .value_parser(value_parser!(OutputFormats)),
             arg!(-m --"print-meta")
-                .help("Print rule metadata")
-        )
-        .arg(
+                .help("Print rule metadata"),
             arg!(-e --"print-namespace")
-                .help("Print rule namespace")
-        )
-        .arg(
+                .help("Print rule namespace"),
             arg!(-s --"print-strings" [N])
                 .help("Print matching patterns")
                 .long_help(help::SCAN_PRINT_STRING_LONG_HELP)
                 .default_missing_value("120")
                 .require_equals(true)
-                .value_parser(value_parser!(usize))
-        )
-        .arg(
+                .value_parser(value_parser!(usize)),
             arg!(-g --"print-tags")
-                .help("Print rule tags")
-        )
-        .arg(
+                .help("Print rule tags"),
+            arg!(--"profiling")
+                .help("Show profiling information"),
             arg!(-r --"recursive" [MAX_DEPTH])
                 .help("Scan directories recursively")
                 .long_help(help::SCAN_RECURSIVE_LONG_HELP)
                 .default_missing_value("1000")
                 .require_equals(true)
-                .value_parser(value_parser!(usize))
-        )
-        .arg(
-            arg!(--"relaxed-re-syntax")
-                .help("Use a more relaxed syntax check while parsing regular expressions")
-                .conflicts_with("compiled-rules")
-        )
-        .arg(
+                .value_parser(value_parser!(usize)),
             arg!(--"scan-list")
                 .help("Indicate that TARGET_PATH is a file containing the paths to be scanned")
-                .long_help(help::SCAN_LIST_LONG_HELP)
-        )
-        .arg(
+                .long_help(help::SCAN_LIST_LONG_HELP),
             arg!(-z --"skip-larger" <FILE_SIZE>)
                 .help("Skip files larger than the given size")
-                .value_parser(value_parser!(u64))
-        )
-        .arg(
+                .value_parser(value_parser!(u64)),
             arg!(-t --"tag" <TAG>)
                 .help("Print only rules tagged as TAG")
-                .value_parser(value_parser!(String))
-        )
-        .arg(
+                .value_parser(value_parser!(String)),
             arg!(-p --"threads" <NUM_THREADS>)
                 .help("Use the given number of threads")
                 .long_help(help::THREADS_LONG_HELP)
-                .value_parser(value_parser!(u8).range(1..))
-        )
-        .arg(
+                .value_parser(value_parser!(u8).range(1..)),
             arg!(-a --"timeout" <SECONDS>)
                 .help("Abort scanning after the given number of seconds")
                 .value_parser(value_parser!(u64).range(1..))
-        )
+
+    ]))
 }
 
 #[cfg(feature = "rules-profiling")]
