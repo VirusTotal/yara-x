@@ -190,12 +190,12 @@ pub(crate) struct ParserImpl<'src> {
     /// (position, SyntaxKind) tuple, where position is the absolute index
     /// of a token within the source code. The presence of a tuple in the
     /// cache indicates that the non-terminal indicated by SyntaxKind failed
-    /// to match that position. Notice that only parser failures are cached,
-    /// but successes are not cached. [packrat][1] parsers usually cache both
-    /// failure and successes, but we cache only failures because this enough
-    /// for speeding up some edge cases, while memory consumption remains low
+    /// to match at that position. Notice that only parser failures are cached,
+    /// but successes are not. [packrat][1] parsers usually cache both failure
+    /// and successes, but we cache only failures because this is enough for
+    /// speeding up some edge cases, while memory consumption remains low
     /// because we don't need to store the actual result of the parser, only
-    /// the fact that if failed.
+    /// the fact that it failed.
     ///
     /// [1]: https://en.wikipedia.org/wiki/Packrat_parser
     cache: FxHashSet<(usize, SyntaxKind)>,
