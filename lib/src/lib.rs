@@ -47,6 +47,7 @@ extern crate core;
 
 pub use compiler::compile;
 pub use compiler::Compiler;
+pub use compiler::Patch;
 pub use compiler::Rules;
 pub use compiler::RulesIter;
 pub use compiler::SourceCode;

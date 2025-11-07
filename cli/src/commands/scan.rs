@@ -23,8 +23,8 @@ use yara_x::errors::ScanError;
 use yara_x::{MetaValue, Patterns, Rule, Rules, ScanOptions, Scanner};
 
 use crate::commands::{
-    compile_rules, external_var_parser, get_external_vars,
-    meta_file_value_parser, path_with_namespace_parser,
+    add_compilation_options, compile_rules, external_var_parser,
+    get_external_vars, meta_file_value_parser, path_with_namespace_parser,
     truncate_with_ellipsis,
 };
 use crate::walk::Message;
@@ -200,7 +200,6 @@ pub fn scan() -> Command {
                 .help("Abort scanning after the given number of seconds")
                 .value_parser(value_parser!(u64).range(1..))
         )
-
 }
 
 #[cfg(feature = "rules-profiling")]
@@ -268,7 +267,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let timeout =
         args.get_one::<u64>("timeout").map(|t| Duration::from_secs(*t));
 
-    let mut external_vars = get_external_vars(args);
+    let external_vars = get_external_vars(args);
 
     let metadata = args
         .get_many::<(String, PathBuf)>("module-data")
@@ -329,7 +328,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
         // With `take()` we pass the external variables to `compile_rules`,
         // while leaving a `None` in `external_vars`. This way external
         // variables are not set again in the scanner.
-        compile_rules(rules_path, external_vars.take(), args, config)?
+        compile_rules(rules_path, args, config)?
     };
 
     let rules_ref = &rules;

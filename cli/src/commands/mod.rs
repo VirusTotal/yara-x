@@ -23,7 +23,9 @@ use std::io::stdout;
 use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Context};
-use clap::{arg, command, crate_authors, ArgMatches, Command};
+use clap::{
+    arg, command, crate_authors, value_parser, ArgAction, ArgMatches, Command,
+};
 use crossterm::tty::IsTty;
 use superconsole::{Component, Line, Lines, Span, SuperConsole};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
@@ -214,13 +216,13 @@ pub fn create_compiler<'a>(
 
 pub fn compile_rules<'a, P>(
     paths: P,
-    external_vars: Option<Vec<(String, serde_json::Value)>>,
     args: &ArgMatches,
     config: &Config,
 ) -> Result<Rules, anyhow::Error>
 where
     P: Iterator<Item = &'a (Option<String>, PathBuf)>,
 {
+    let external_vars = get_external_vars(args);
     let mut compiler = create_compiler(external_vars, args, config)?;
 
     let mut console =

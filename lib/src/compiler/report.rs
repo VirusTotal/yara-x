@@ -1,14 +1,16 @@
-use annotate_snippets::renderer::{AnsiColor, Color, DEFAULT_TERM_WIDTH};
-use annotate_snippets::{
-    renderer, Annotation, AnnotationKind, Group, Patch, Snippet,
-};
-use serde::ser::SerializeStruct;
-use serde::{Serialize, Serializer};
 use std::borrow::Cow;
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+
+use annotate_snippets::renderer::{AnsiColor, Color, DEFAULT_TERM_WIDTH};
+use annotate_snippets::{
+    renderer, Annotation, AnnotationKind, Group, Snippet,
+};
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
+
 use yara_x_parser::Span;
 
 use crate::SourceCode;
@@ -37,6 +39,35 @@ pub struct CodeLoc {
 impl CodeLoc {
     pub(crate) fn new(source_id: Option<SourceId>, span: Span) -> Self {
         Self { source_id, span }
+    }
+}
+
+/// TODO
+pub struct Patch {
+    code_cache: Arc<CodeCache>,
+    code_loc: CodeLoc,
+    replacement: String,
+}
+
+impl Patch {
+    /// TODO
+    pub fn origin(&self) -> Option<String> {
+        self.code_cache
+            .read()
+            .get(&self.code_loc.source_id.unwrap())
+            .unwrap()
+            .origin
+            .clone()
+    }
+
+    /// TODO
+    pub fn span(&self) -> Span {
+        self.code_loc.span.clone()
+    }
+
+    /// TODO
+    pub fn replacement(&self) -> &str {
+        &self.replacement
     }
 }
 
@@ -136,10 +167,12 @@ impl Report {
     }
 
     /// Returns all the patches in the report.
-    pub(crate) fn patches(&self) -> impl Iterator<Item = (&CodeLoc, &str)> {
+    pub(crate) fn patches(&self) -> impl Iterator<Item = Patch> + use<'_> {
         self.sections.iter().flat_map(|section| {
-            section.patches.iter().map(|(code_loc, replacement)| {
-                (code_loc, replacement.as_str())
+            section.patches.iter().map(|(code_loc, replacement)| Patch {
+                code_cache: self.code_cache.clone(),
+                code_loc: code_loc.clone(),
+                replacement: replacement.clone(),
             })
         })
     }
@@ -286,8 +319,10 @@ impl Display for Report {
             let mut snippet = Snippet::source(src);
 
             for (code_loc, replacement) in &section.patches {
-                snippet = snippet
-                    .patch(Patch::new(code_loc.span.range(), replacement))
+                snippet = snippet.patch(annotate_snippets::Patch::new(
+                    code_loc.span.range(),
+                    replacement,
+                ))
             }
 
             groups.push(

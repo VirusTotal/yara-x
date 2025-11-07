@@ -53,16 +53,20 @@ use crate::{re, wasm};
 pub(crate) use crate::compiler::atoms::*;
 pub(crate) use crate::compiler::context::*;
 pub(crate) use crate::compiler::ir::*;
-#[doc(inline)]
-pub use crate::compiler::rules::*;
-#[doc(inline)]
-pub use crate::compiler::warnings::*;
+
 use crate::compiler::wsh::WarningSuppressionHook;
 use crate::errors::{
     CircularIncludes, IncludeError, IncludeNotAllowed, IncludeNotFound,
 };
 use crate::linters::LinterResult;
 use crate::models::PatternKind;
+
+#[doc(inline)]
+pub use crate::compiler::report::Patch;
+#[doc(inline)]
+pub use crate::compiler::rules::*;
+#[doc(inline)]
+pub use crate::compiler::warnings::*;
 
 mod atoms;
 mod context;

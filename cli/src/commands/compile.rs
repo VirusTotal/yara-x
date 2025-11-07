@@ -75,12 +75,7 @@ pub fn exec_compile(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
         .unwrap();
 
     let output_path = args.get_one::<PathBuf>("output").unwrap();
-
-    let external_vars: Option<Vec<(String, serde_json::Value)>> = args
-        .get_many::<(String, serde_json::Value)>("define")
-        .map(|var| var.cloned().collect());
-
-    let rules = compile_rules(rules_path, external_vars, args, config)?;
+    let rules = compile_rules(rules_path, args, config)?;
 
     let output_file = File::create(output_path).with_context(|| {
         format!("can not write `{}`", output_path.display())

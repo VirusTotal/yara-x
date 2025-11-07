@@ -379,7 +379,7 @@ pub(crate) fn impl_error_enum_macro(
             }
 
             /// Returns the patches that can be applied to fix this error/warning.
-            pub fn patches(&self) -> impl Iterator<Item = (&CodeLoc, &str)> + '_ {
+            pub fn patches(&self) -> impl Iterator<Item = Patch> + use<'_> {
                 self.report().patches()
             }
 
