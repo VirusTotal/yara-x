@@ -28,7 +28,7 @@ rule test {
         .arg(input_file.path())
         .assert()
         .stdout(predicate::str::contains(
-            "1 out of 1 warnings fixed, 1 file(s) modified",
+            "1 out of 1 warning(s) fixed, 1 file(s) modified",
         ))
         .success();
 
