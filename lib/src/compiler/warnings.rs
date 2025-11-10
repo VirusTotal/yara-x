@@ -280,12 +280,11 @@ pub struct NonBooleanAsBoolean {
     title = "comparison between boolean and integer"
 )]
 #[label(
-    "this comparison can be replaced with: `{replacement}`",
+    "this is comparing an integer and a boolean",
     expr_loc
 )]
 pub struct BooleanIntegerComparison {
     report: Report,
-    replacement: String,
     expr_loc: CodeLoc,
 }
 

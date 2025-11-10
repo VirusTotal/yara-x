@@ -576,14 +576,15 @@ fn expr_from_ast(
                     _ => None,
                 };
 
-            if let Some((replacement_expr, msg)) = replacement {
-                ctx.warnings.add(|| {
-                    warnings::BooleanIntegerComparison::build(
-                        ctx.report_builder,
-                        msg,
-                        ctx.report_builder.span_to_code_loc(span),
-                    )
-                });
+            if let Some((replacement_expr, replacement)) = replacement {
+                let code_loc = ctx.report_builder.span_to_code_loc(span);
+                let mut warning = warnings::BooleanIntegerComparison::build(
+                    ctx.report_builder,
+                    code_loc.clone(),
+                );
+
+                warning.report_mut().patch(code_loc, replacement);
+                ctx.warnings.add(|| warning);
                 replacement_expr
             } else {
                 eq_expr

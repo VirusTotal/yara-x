@@ -195,6 +195,9 @@ impl Report {
         code_loc: CodeLoc,
         replacement: R,
     ) -> &mut Self {
+        if self.sections.is_empty() {
+            self.new_section(Level::HELP, "consider the following change");
+        };
         self.sections
             .last_mut()
             .unwrap()

@@ -1313,18 +1313,24 @@ impl Compiler<'_> {
                     // raise warnings in case of duplicated imports within
                     // the same source file. For each module add a symbol to
                     // the current namespace.
-                    if let Some(span) = already_imported
-                        .insert(&import.module_name, import.span())
-                    {
-                        self.warnings.add(|| {
-                            warnings::DuplicateImport::build(
-                                &self.report_builder,
-                                import.module_name.to_string(),
-                                self.report_builder
-                                    .span_to_code_loc(import.span()),
-                                self.report_builder.span_to_code_loc(span),
-                            )
-                        })
+                    if let Some(existing_import) = already_imported.insert(
+                        &import.module_name,
+                        self.report_builder.span_to_code_loc(import.span()),
+                    ) {
+                        let duplicated_import = self
+                            .report_builder
+                            .span_to_code_loc(import.span());
+
+                        let mut warning = warnings::DuplicateImport::build(
+                            &self.report_builder,
+                            import.module_name.to_string(),
+                            duplicated_import.clone(),
+                            existing_import,
+                        );
+
+                        warning.report_mut().patch(duplicated_import, "");
+
+                        self.warnings.add(|| warning)
                     }
                     // Import the module. This updates `self.root_struct` if
                     // necessary.
