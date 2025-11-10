@@ -2,14 +2,14 @@
 #![allow(clippy::duplicated_attributes)]
 
 use std::fmt::{Debug, Display, Formatter};
-use serde::Serialize;
 
+use serde::Serialize;
 use thiserror::Error;
 
 use yara_x_macros::ErrorEnum;
 use yara_x_macros::ErrorStruct;
 
-use crate::compiler::report::{Level, Report, ReportBuilder, CodeLoc, Label, Footer};
+pub(crate) use crate::compiler::report::{Level, Patch, Report, ReportBuilder, CodeLoc, Label, Footer};
 
 /// A warning raised while compiling YARA rules.
 #[allow(missing_docs)]

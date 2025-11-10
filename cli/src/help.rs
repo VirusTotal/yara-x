@@ -101,6 +101,12 @@ they are not.
 If <RULES_PATH> is a directory, all files with extensions `.yar` and `.yara` will
 be converted. This behavior can be changed by using the `--filter` option."#;
 
+pub const FIX_WARNINGS_LONG_HELP: &str = r#"Automatically fix warnings
+
+This command automatically resolves fixable YARA-X warnings. It accepts the same
+options as the compile command; however, instead of outputting a compiled rules file,
+it directly modifies the source files to fix the warnings."#;
+
 pub const INCLUDE_DIR_LONG_HELP: &str = r#"Directory in which to search for included files
 
 If not given, the current working directory is used. May be specified multiple 

@@ -1,13 +1,23 @@
-use anyhow::Context;
-use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 use std::borrow::Cow;
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 use std::fs;
+use std::fs::File;
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
+
+use anyhow::Context;
+use clap::{arg, value_parser, Arg, ArgAction, ArgMatches, Command};
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Green, Red, Yellow};
 use yansi::Paint;
+use yara_x::Patch;
 
+use crate::commands::{
+    compilation_args, compile_rules, path_with_namespace_parser,
+};
+use crate::config::Config;
 use crate::walk::Message;
 use crate::{help, walk};
 
@@ -18,6 +28,7 @@ pub fn fix() -> Command {
         .hide(true)
         .arg_required_else_help(true)
         .subcommand(fix_encoding())
+        .subcommand(fix_warnings())
 }
 
 pub fn fix_encoding() -> Command {
@@ -55,14 +66,32 @@ pub fn fix_encoding() -> Command {
         )
 }
 
-pub fn exec_fix(args: &ArgMatches) -> anyhow::Result<()> {
+pub fn fix_warnings() -> Command {
+    super::command("warnings")
+        .about("Automatically fix warnings")
+        .long_about(help::FIX_WARNINGS_LONG_HELP)
+        .arg(
+            Arg::new("[NAMESPACE:]RULES_PATH")
+                .required(true)
+                .help("Path to a YARA source file or directory (optionally prefixed with a namespace)")
+                .value_parser(path_with_namespace_parser)
+                .action(ArgAction::Append)
+        )
+        .args(compilation_args())
+}
+
+pub fn exec_fix(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     match args.subcommand() {
-        Some(("encoding", args)) => exec_fix_encoding(args),
+        Some(("encoding", args)) => exec_fix_encoding(args, config),
+        Some(("warnings", args)) => exec_fix_warnings(args, config),
         _ => unreachable!(),
     }
 }
 
-pub fn exec_fix_encoding(args: &ArgMatches) -> anyhow::Result<()> {
+pub fn exec_fix_encoding(
+    args: &ArgMatches,
+    _config: &Config,
+) -> anyhow::Result<()> {
     let rules_path = args.get_one::<PathBuf>("RULES_PATH").unwrap();
     let filters = args.get_many::<String>("filter");
     let dry_run = args.get_flag("dry-run");
@@ -140,6 +169,70 @@ pub fn exec_fix_encoding(args: &ArgMatches) -> anyhow::Result<()> {
         },
     )
     .unwrap();
+
+    Ok(())
+}
+
+pub fn exec_fix_warnings(
+    args: &ArgMatches,
+    config: &Config,
+) -> anyhow::Result<()> {
+    let rules_path = args
+        .get_many::<(Option<String>, PathBuf)>("[NAMESPACE:]RULES_PATH")
+        .unwrap();
+
+    let rules = compile_rules(rules_path, args, config)?;
+
+    let mut patches_per_origin = HashMap::new();
+    let mut num_warnings = 0;
+    let mut num_warnings_with_patch = 0;
+    let mut counted;
+
+    // Create a map where keys are file paths (stored in patch.origin), and
+    // values are a list of patches that must be applied to that file. Patches
+    // are ordered by their starting positions in the file.
+    for warning in rules.warnings() {
+        num_warnings += 1;
+        counted = false;
+        for patch in warning.patches() {
+            if !counted {
+                num_warnings_with_patch += 1;
+                counted = true;
+            }
+            match patches_per_origin.entry(patch.origin().unwrap()) {
+                Entry::Occupied(mut entry) => {
+                    let patches: &mut Vec<Patch> = entry.get_mut();
+                    patches.push(patch);
+                    patches.sort_by_key(|patch| patch.span().start());
+                }
+                Entry::Vacant(entry) => {
+                    entry.insert(vec![patch]);
+                }
+            }
+        }
+    }
+
+    for (origin, patches) in &patches_per_origin {
+        let input = fs::read(&origin)?;
+        let mut output = File::create(&origin)?;
+        let mut input_pos = 0;
+        for patch in patches {
+            let warning_span = patch.span();
+            // Write all bytes from the current position, to the offset where
+            // the replaced text starts.
+            output.write_all(&input[input_pos..warning_span.start()])?;
+            // Write the replacement.
+            output.write_all(patch.replacement().as_bytes())?;
+            // Now the current position is the offset where the replaced text
+            // ends.
+            input_pos = warning_span.end();
+        }
+        output.write_all(&input[input_pos..])?;
+    }
+
+    println!(
+        "{num_warnings_with_patch} out of {num_warnings} warning(s) fixed, {} file(s) modified",
+        patches_per_origin.len());
 
     Ok(())
 }

@@ -378,9 +378,27 @@ pub(crate) fn impl_error_enum_macro(
                 }
             }
 
+            /// Returns the patches that can be applied to fix this error/warning.
+            pub fn patches(&self) -> impl Iterator<Item = Patch> + use<'_> {
+                self.report().patches()
+            }
+
             /// Returns the error report associated to this error/warning.
             #[inline]
-            pub(crate) fn report(&mut self) -> &mut Report {
+            pub(crate) fn report(&self) -> &Report {
+                match self {
+                    #(
+                        Self::#variant_idents(v) => {
+                             &v.report
+                        }
+                    ),*
+                }
+            }
+
+            /// Returns a mutable reference to the error report associated to this
+            /// error/warning.
+            #[inline]
+            pub(crate) fn report_mut(&mut self) -> &mut Report {
                 match self {
                     #(
                         Self::#variant_idents(v) => {

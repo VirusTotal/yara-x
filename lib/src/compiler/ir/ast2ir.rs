@@ -9,6 +9,7 @@ use std::rc::Rc;
 
 use bstr::{BString, ByteSlice};
 use itertools::Itertools;
+
 use yara_x_parser::ast;
 use yara_x_parser::ast::WithSpan;
 use yara_x_parser::Span;
@@ -449,14 +450,16 @@ fn expr_from_ast(
 ) -> Result<ExprId, CompileError> {
     let expr = match expr {
         ast::Expr::Entrypoint { span } => {
+            let code_loc = ctx.report_builder.span_to_code_loc(span.clone());
+
             let mut err = EntrypointUnsupported::build(
                 ctx.report_builder,
-                ctx.report_builder.span_to_code_loc(span.clone()),
+                code_loc.clone(),
             );
 
-            err.report()
+            err.report_mut()
                 .new_section(Level::HELP, "use `pe.entry_point`, elf.entry_point` or `macho.entry_point`")
-                .patch(span.clone(), "pe.entry_point");
+                .patch(code_loc, "pe.entry_point");
 
             return Err(err);
         }
@@ -672,23 +675,26 @@ fn expr_from_ast(
                 deprecation_notice: Some(ref notice), ..
             } = symbol
             {
+                let code_loc =
+                    ctx.report_builder.span_to_code_loc(ident.span());
+
                 let mut warning = warnings::DeprecatedField::build(
                     ctx.report_builder,
                     ident.name.to_string(),
-                    ctx.report_builder.span_to_code_loc(ident.span()),
+                    code_loc.clone(),
                     notice.text.clone(),
                 );
 
                 if let Some(replacement) = &notice.replacement {
                     warning
-                        .report()
+                        .report_mut()
                         .new_section(
                             Level::HELP,
                             notice.help.clone().unwrap_or(
                                 "apply the following changes".to_owned(),
                             ),
                         )
-                        .patch(ident.span(), replacement);
+                        .patch(code_loc, replacement);
                 }
 
                 ctx.warnings.add(|| warning)
@@ -1090,12 +1096,16 @@ fn of_expr_from_ast(
                 );
 
                 warning
-                    .report()
+                    .report_mut()
                     .new_section(
                         Level::HELP,
                         "consider using `none` instead of `0`",
                     )
-                    .patch(of.quantifier.span(), "none");
+                    .patch(
+                        ctx.report_builder
+                            .span_to_code_loc(of.quantifier.span()),
+                        "none",
+                    );
 
                 ctx.warnings.add(|| warning)
             }
