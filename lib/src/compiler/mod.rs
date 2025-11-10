@@ -685,8 +685,8 @@ impl<'a> Compiler<'a> {
     /// Creates a new namespace.
     ///
     /// Further calls to [`Compiler::add_source`] will put the rules under the
-    /// newly created namespace. If the current namespace is already named as
-    /// the current one, no new namespace is created.
+    /// newly created namespace. If the new namespace is named as the current
+    /// one, no new namespace is created.
     ///
     /// In the example below both rules `foo` and `bar` are put into the same
     /// namespace (the default namespace), therefore `bar` can use `foo` as
