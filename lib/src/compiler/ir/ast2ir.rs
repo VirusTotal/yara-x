@@ -2396,22 +2396,31 @@ fn eq_check(
                     StringConstraint::Lowercase
                         if const_string.chars().any(|c| c.is_uppercase()) =>
                     {
-                        ctx.warnings.add(|| {
-                                UnsatisfiableExpression::build(
-                                    ctx.report_builder,
-                                    "this is a lowercase string".to_string(),
-                                    "this contains uppercase characters".to_string(),
-                                    ctx.report_builder.span_to_code_loc(
-                                        constrained_string_span.clone()
-                                    ),
-                                    ctx.report_builder.span_to_code_loc(
-                                        const_string_span.clone()
-                                    ),
-                                    Some(
-                                        "a lowercase string can't be equal to a string containing uppercase characters"
-                                            .to_string()),
-                                )
-                            });
+                        let mut warning = UnsatisfiableExpression::build(
+                            ctx.report_builder,
+                            "this is a lowercase string".to_string(),
+                            "this contains uppercase characters".to_string(),
+                            ctx.report_builder.span_to_code_loc(
+                                constrained_string_span.clone()
+                            ),
+                            ctx.report_builder.span_to_code_loc(
+                                const_string_span.clone()
+                            ),
+                            Some(
+                                "a lowercase string can't be equal to a string containing uppercase characters"
+                                    .to_string()),
+                        );
+                        warning.report_mut().patch(
+                            ctx.report_builder
+                                .span_to_code_loc(const_string_span.clone()),
+                            format!(
+                                "\"{}\"",
+                                const_string.to_string().to_lowercase()
+                            ),
+                        );
+
+                        ctx.warnings.add(|| warning);
+                        return;
                     }
                     StringConstraint::ExactLength(n)
                         if const_string.len() != n =>
@@ -2433,6 +2442,7 @@ fn eq_check(
                                 None,
                             )
                         });
+                        return;
                     }
                     _ => {}
                 }
