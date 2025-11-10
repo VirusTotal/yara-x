@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 #[cfg(feature = "logging")]
 use std::time::Instant;
-use std::{env, fmt, fs, iter};
+use std::{env, fmt, fs, io, iter};
 
 use bitflags::bitflags;
 use bstr::{BStr, ByteSlice};
@@ -1230,6 +1230,10 @@ impl Compiler<'_> {
 
     /// Reads the file specified by an `include` statement.
     ///
+    /// Tries to read the file in the include directories that were specified
+    /// with [`Compiler::add_include_dir`], or in the current directory, if
+    /// no include directories were specified.
+    ///
     /// The function returns both the content and the path of the included file
     /// relative to the current directory, or an error if the included file could
     /// not be read.
@@ -1238,31 +1242,28 @@ impl Compiler<'_> {
         include: &Include,
     ) -> Result<(Vec<u8>, PathBuf), CompileError> {
         let read_file =
-            |mut path: &Path| -> Result<(Vec<u8>, PathBuf), CompileError> {
-                let content = fs::read(path).map_err(|err| {
-                    IncludeError::build(
-                        &self.report_builder,
-                        self.report_builder.span_to_code_loc(include.span()),
-                        err.to_string(),
-                    )
-                })?;
+            |path: PathBuf| -> Result<(Vec<u8>, PathBuf), io::Error> {
+                let mut path = path.canonicalize()?;
+                let content = fs::read(&path)?;
 
-                if let Ok(cwd) = env::current_dir() {
+                if let Ok(cwd) =
+                    env::current_dir().and_then(|dir| dir.canonicalize())
+                {
                     if let Ok(relative_path) = path.strip_prefix(cwd) {
-                        path = relative_path
+                        path = relative_path.to_path_buf();
                     }
                 }
 
-                Ok((content, path.to_path_buf()))
+                Ok((content, path))
             };
 
-        // Look for the included file in directory at the top of the include
-        // stack. This allows includes that are relative to the
+        // Look for the included file in the directory at the top of the
+        // include stack.
         if let Some(dir) =
             self.include_stack.last().and_then(|path| path.parent())
         {
-            if let Ok(path) = dir.join(include.file_name).canonicalize() {
-                return read_file(path.as_path());
+            if let Ok(result) = read_file(dir.join(include.file_name)) {
+                return Ok(result);
             }
         }
 
@@ -1270,23 +1271,35 @@ impl Compiler<'_> {
         // included file in them, in the order they were specified. Otherwise,
         // try to find the included file in the current directory.
         if let Some(include_dirs) = &self.include_dirs {
-            for dir in include_dirs {
-                if let Ok(path) = dir.join(include.file_name).canonicalize() {
-                    return read_file(path.as_path());
-                }
+            if let Some(result) = include_dirs
+                .iter()
+                .find_map(|dir| read_file(dir.join(include.file_name)).ok())
+            {
+                Ok(result)
+            } else {
+                Err(IncludeNotFound::build(
+                    &self.report_builder,
+                    include.file_name.to_string(),
+                    self.report_builder.span_to_code_loc(include.span()),
+                ))
             }
-        } else if let Ok(path) =
-            PathBuf::from(include.file_name).canonicalize()
-        {
-            return read_file(path.as_path());
+        } else {
+            read_file(PathBuf::from(include.file_name)).map_err(|err| {
+                if err.kind() == io::ErrorKind::NotFound {
+                    IncludeNotFound::build(
+                        &self.report_builder,
+                        include.file_name.to_string(),
+                        self.report_builder.span_to_code_loc(include.span()),
+                    )
+                } else {
+                    IncludeError::build(
+                        &self.report_builder,
+                        self.report_builder.span_to_code_loc(include.span()),
+                        err.to_string(),
+                    )
+                }
+            })
         }
-
-        // The file was not found anywhere, return an error.
-        Err(IncludeNotFound::build(
-            &self.report_builder,
-            include.file_name.to_string(),
-            self.report_builder.span_to_code_loc(include.span()),
-        ))
     }
 }
 
