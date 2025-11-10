@@ -69,6 +69,7 @@ pub fn fix_encoding() -> Command {
 pub fn fix_warnings() -> Command {
     super::command("warnings")
         .about("Automatically fix warnings")
+        .long_about(help::FIX_WARNINGS_LONG_HELP)
         .arg(
             Arg::new("[NAMESPACE:]RULES_PATH")
                 .required(true)

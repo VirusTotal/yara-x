@@ -1108,24 +1108,16 @@ fn test_circular_includes() {
         .unwrap_err()
         .to_string();
 
-    assert!(err.contains(
-        r#"error[E046]: circular include dependencies
- --> included_circular.yar:1:1
-  |
-1 | include "included_circular.yar"
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ include statement has circular dependencies
-  |
-  = note: include dependencies:"#
-    ));
+    assert!(err.contains(r#"error[E046]: circular include dependencies"#));
 
     #[cfg(target_family = "unix")]
     assert!(err.contains(
-        r"lib/src/compiler/tests/testdata/includes/included_circular.yar"
+        r"src/compiler/tests/testdata/includes/included_circular.yar"
     ));
 
     #[cfg(target_family = "windows")]
     assert!(err.contains(
-        r#"lib\src\compiler\tests\testdata\includes\included_circular.yar"#
+        r#"src\compiler\tests\testdata\includes\included_circular.yar"#
     ));
 }
 

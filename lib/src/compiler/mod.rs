@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 #[cfg(feature = "logging")]
 use std::time::Instant;
-use std::{fmt, fs, iter};
+use std::{env, fmt, fs, iter};
 
 use bitflags::bitflags;
 use bstr::{BStr, ByteSlice};
@@ -1230,21 +1230,31 @@ impl Compiler<'_> {
 
     /// Reads the file specified by an `include` statement.
     ///
-    /// The function returns both the content and the path of the included file, or
-    /// an error if the included file could not be found.
+    /// The function returns both the content and the path of the included file
+    /// relative to the current directory, or an error if the included file could
+    /// not be read.
     fn read_included_file(
         &mut self,
         include: &Include,
     ) -> Result<(Vec<u8>, PathBuf), CompileError> {
-        let read_file = |path| -> Result<Vec<u8>, CompileError> {
-            fs::read(path).map_err(|err| {
-                IncludeError::build(
-                    &self.report_builder,
-                    self.report_builder.span_to_code_loc(include.span()),
-                    err.to_string(),
-                )
-            })
-        };
+        let read_file =
+            |mut path: &Path| -> Result<(Vec<u8>, PathBuf), CompileError> {
+                let content = fs::read(path).map_err(|err| {
+                    IncludeError::build(
+                        &self.report_builder,
+                        self.report_builder.span_to_code_loc(include.span()),
+                        err.to_string(),
+                    )
+                })?;
+
+                if let Ok(cwd) = env::current_dir() {
+                    if let Ok(relative_path) = path.strip_prefix(cwd) {
+                        path = relative_path
+                    }
+                }
+
+                Ok((content, path.to_path_buf()))
+            };
 
         // Look for the included file in directory at the top of the include
         // stack. This allows includes that are relative to the
@@ -1252,7 +1262,7 @@ impl Compiler<'_> {
             self.include_stack.last().and_then(|path| path.parent())
         {
             if let Ok(path) = dir.join(include.file_name).canonicalize() {
-                return Ok((read_file(path.as_path())?, path));
+                return read_file(path.as_path());
             }
         }
 
@@ -1262,13 +1272,13 @@ impl Compiler<'_> {
         if let Some(include_dirs) = &self.include_dirs {
             for dir in include_dirs {
                 if let Ok(path) = dir.join(include.file_name).canonicalize() {
-                    return Ok((read_file(path.as_path())?, path));
+                    return read_file(path.as_path());
                 }
             }
         } else if let Ok(path) =
             PathBuf::from(include.file_name).canonicalize()
         {
-            return Ok((read_file(path.as_path())?, path));
+            return read_file(path.as_path());
         }
 
         // The file was not found anywhere, return an error.
@@ -1356,8 +1366,6 @@ impl Compiler<'_> {
                         continue;
                     }
 
-                    self.include_stack.push(included_path);
-
                     // Save the current source ID from the report builder in
                     // order to restore it later. Any recursive call to
                     // `add_source` will change the current source ID, and we
@@ -1365,14 +1373,17 @@ impl Compiler<'_> {
                     let source_id =
                         self.report_builder.get_current_source_id().unwrap();
 
+                    let source_code =
+                        SourceCode::from(included_src.as_slice())
+                            .with_origin(included_path.to_str().unwrap());
+
+                    self.include_stack.push(included_path);
+
                     // Any error generated while processing the included source
                     // code will be added to `self.errors`. The error returned
                     // by `add_source` is simply the first of the added errors,
                     // we don't need to handle the error here.
-                    let _ = self.add_source(
-                        SourceCode::from(included_src.as_slice())
-                            .with_origin(include.file_name),
-                    );
+                    let _ = self.add_source(source_code);
 
                     // Restore the current source ID to the value it had before
                     // calling `add_source`.
