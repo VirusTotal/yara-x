@@ -231,7 +231,7 @@ pub fn exec_fix_warnings(
     }
 
     println!(
-        "{num_warnings_with_patch} out of {num_warnings} warnings fixed, {} file(s) modified",
+        "{num_warnings_with_patch} out of {num_warnings} warning(s) fixed, {} file(s) modified",
         patches_per_origin.len());
 
     Ok(())
