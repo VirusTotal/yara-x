@@ -126,12 +126,8 @@ impl<'src> SourceCode<'src> {
     /// This is usually the path of the file that contained the source code,
     /// but it can be an arbitrary string. The origin appears in error and
     /// warning messages.
-    pub fn with_origin(self, origin: &str) -> Self {
-        Self {
-            raw: self.raw,
-            valid: self.valid,
-            origin: Some(origin.to_owned()),
-        }
+    pub fn with_origin<S: Into<String>>(self, origin: S) -> Self {
+        Self { raw: self.raw, valid: self.valid, origin: Some(origin.into()) }
     }
 
     /// Returns the source code as a `&str`.
@@ -1387,8 +1383,11 @@ impl Compiler<'_> {
                         self.report_builder.get_current_source_id().unwrap();
 
                     let source_code =
-                        SourceCode::from(included_src.as_slice())
-                            .with_origin(included_path.to_str().unwrap());
+                        SourceCode::from(included_src.as_slice()).with_origin(
+                            // In Windows the paths separators are backslashes, but we
+                            // want to use slashes.
+                            included_path.to_str().unwrap().replace("\\", "/"),
+                        );
 
                     self.include_stack.push(included_path);
 
