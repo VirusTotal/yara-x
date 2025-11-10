@@ -8,15 +8,18 @@ fn fix_warnings() {
     let temp_dir = TempDir::new().unwrap();
     let input_file = temp_dir.child("test.yar");
 
-    input_file.write_str(
-        r#"
+    input_file
+        .write_str(
+            r#"
 rule test {
   strings:
     $a = "dummy"
   condition:
     0 of them
 }
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
     // Run the "fix warnings" command.
     Command::new(cargo_bin!("yr"))
@@ -24,7 +27,9 @@ rule test {
         .arg("warnings")
         .arg(input_file.path())
         .assert()
-        .stdout(predicate::str::contains("1 out of 1 warnings fixed, 1 file(s) modified"))
+        .stdout(predicate::str::contains(
+            "1 out of 1 warnings fixed, 1 file(s) modified",
+        ))
         .success();
 
     // Check that the file was modified.
@@ -36,5 +41,6 @@ rule test {
   condition:
     none of them
 }
-"#);
+"#,
+    );
 }
