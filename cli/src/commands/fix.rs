@@ -24,8 +24,6 @@ use crate::{help, walk};
 pub fn fix() -> Command {
     super::command("fix")
         .about("Utilities for fixing source code")
-        // The `fix` command is still in beta.
-        .hide(true)
         .arg_required_else_help(true)
         .subcommand(fix_encoding())
         .subcommand(fix_warnings())
