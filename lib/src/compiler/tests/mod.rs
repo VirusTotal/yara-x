@@ -1159,6 +1159,43 @@ fn test_disable_includes() {
 }
 
 #[test]
+fn test_switch_warnings() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        .switch_warning("invariant_expr", false)
+        .unwrap()
+        .add_source(
+            r#"
+            rule test {
+                condition: true
+            }
+            "#,
+        )
+        .unwrap();
+
+    assert_eq!(compiler.warnings().len(), 0);
+}
+
+#[test]
+fn test_switch_all_warnings() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        .switch_all_warnings(false)
+        .add_source(
+            r#"
+            rule test {
+                condition: true
+            }
+            "#,
+        )
+        .unwrap();
+
+    assert_eq!(compiler.warnings().len(), 0);
+}
+
+#[test]
 fn test_errors() {
     let mut mint = goldenfile::Mint::new(".");
 

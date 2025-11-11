@@ -3406,13 +3406,13 @@ fn filesize_bounds() {
             $a = "foobar"
             $b = /.*/
           condition:
-            $a and $b and filesize > 10
+            $a and $b and filesize >= 10
         }
         rule test_2 {
           strings:
             $a = "foobar"
           condition:
-            $a and filesize < 10
+            $a and filesize <= 10
         }
         "#,
     )
