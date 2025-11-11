@@ -1066,7 +1066,7 @@ fn emit_pattern_match(
     // checks if there's a match.
     match anchor {
         MatchAnchor::None => {
-            emit_check_for_pattern_match(ctx, instr);
+            instr.call(ctx.wasm_symbols.check_for_pattern_match);
         }
         MatchAnchor::At(offset) => {
             emit_expr(ctx, ir, *offset, instr);
@@ -1265,18 +1265,6 @@ fn emit_check_for_rule_match(
     // 1 or 0.
     instr.i32_const(rule_id.0 % 8);
     instr.binop(BinaryOp::I32ShrU);
-}
-
-/// Emits the code that checks if a pattern (a.k.a. string) has matched.
-///
-/// This function assumes that the PatternId is at the top of the stack as a
-/// I32. The emitted code consumes the PatternId and leaves another I32 with
-/// value 0 or 1 at the top of the stack.
-fn emit_check_for_pattern_match(
-    ctx: &mut EmitContext,
-    instr: &mut InstrSeqBuilder,
-) {
-    instr.call(ctx.wasm_symbols.check_for_pattern_match);
 }
 
 /// Emits the code that gets an array item by index.
@@ -1515,7 +1503,7 @@ fn emit_of_pattern_set_with_loop(
 
             match &of.anchor {
                 MatchAnchor::None => {
-                    emit_check_for_pattern_match(ctx, instr);
+                    instr.call(ctx.wasm_symbols.check_for_pattern_match);
                 }
                 MatchAnchor::At(offset) => {
                     emit_expr(ctx, ir, *offset, instr);

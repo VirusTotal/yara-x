@@ -933,7 +933,7 @@ pub(crate) fn pat_range_match(
     required: i64,
 ) -> bool {
     // TODO: We could use RangeInclusive<PatternId>, but iterating over it requires that
-    // PatternId implements `iter::Step` which is currently a nighly-only
+    // PatternId implements `iter::Step` which is currently a nightly-only
     // experimental API: https://doc.rust-lang.org/std/iter/trait.Step.html
     let range: RangeInclusive<usize> =
         pattern_id_start.into()..=pattern_id_end.into();

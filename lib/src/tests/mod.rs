@@ -3573,6 +3573,34 @@ fn of() {
             $ = "bar"
             $ = "baz"
           condition:
+            all of them
+        }
+        "#,
+        b"barbaz"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            2 of them
+        }
+        "#,
+        b"bar"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
             100% of them
         }
         "#,
