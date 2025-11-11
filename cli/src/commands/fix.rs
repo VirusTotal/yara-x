@@ -211,8 +211,8 @@ pub fn exec_fix_warnings(
     }
 
     for (origin, patches) in &patches_per_origin {
-        let input = fs::read(&origin)?;
-        let mut output = File::create(&origin)?;
+        let input = fs::read(origin)?;
+        let mut output = File::create(origin)?;
         let mut input_pos = 0;
         for patch in patches {
             let warning_span = patch.span();
