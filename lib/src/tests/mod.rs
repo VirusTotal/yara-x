@@ -3555,6 +3555,20 @@ fn of() {
         r#"
         rule test {
           strings:
+            $a1 = "foo"
+            $a2 = "bar"
+            $b1 = "baz"
+          condition:
+            all of them
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+          strings:
             $ = "foo"
             $ = "bar"
             $ = "baz"

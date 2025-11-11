@@ -4,7 +4,7 @@ use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::iter;
-use std::ops::RangeInclusive;
+use std::ops::{RangeInclusive, Sub};
 use std::rc::Rc;
 
 use bstr::{BString, ByteSlice};
@@ -26,12 +26,12 @@ use crate::compiler::errors::{
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
     Error, Expr, ExprId, Iterable, LiteralPattern, MatchAnchor, Pattern,
-    PatternFlags, PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern,
+    PatternFlags, PatternInRule, Quantifier, Range, RegexpPattern,
 };
 use crate::compiler::report::{Level, ReportBuilder};
 use crate::compiler::{
     warnings, CompileContext, CompileError, FilesizeBounds, ForVars,
-    TextPatternAsHex,
+    PatternIdx, PatternSet, TextPatternAsHex,
 };
 use crate::errors::CustomError;
 use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
@@ -1032,7 +1032,7 @@ fn bool_expr_from_ast(
 
 enum OfItems {
     BoolExprTuple(Vec<ExprId>),
-    PatternSet(Vec<PatternIdx>),
+    PatternSet(PatternSet),
 }
 
 impl OfItems {
@@ -1654,16 +1654,11 @@ fn quantifier_from_ast(
 fn pattern_set_from_ast(
     ctx: &mut CompileContext,
     pattern_set: &ast::PatternSet,
-) -> Result<Vec<PatternIdx>, CompileError> {
-    let pattern_indexes = match pattern_set {
+) -> Result<PatternSet, CompileError> {
+    match pattern_set {
         // `x of them`
         ast::PatternSet::Them { span } => {
-            let pattern_indexes: Vec<PatternIdx> =
-                (0..ctx.current_rule_patterns.len())
-                    .map(|i| i.into())
-                    .collect();
-
-            if pattern_indexes.is_empty() {
+            if ctx.current_rule_patterns.is_empty() {
                 return Err(EmptyPatternSet::build(
                     ctx.report_builder,
                     ctx.report_builder.span_to_code_loc(span.clone()),
@@ -1677,7 +1672,9 @@ fn pattern_set_from_ast(
                 pattern.make_non_anchorable().mark_as_used();
             }
 
-            pattern_indexes
+            Ok(PatternSet::Range(
+                0.into()..=ctx.current_rule_patterns.len().sub(1).into(),
+            ))
         }
         // `x of ($a*, $b)`
         ast::PatternSet::Set(set) => {
@@ -1704,7 +1701,10 @@ fn pattern_set_from_ast(
                     ));
                 }
             }
-            let mut pattern_indexes = Vec::new();
+
+            let mut pattern_indexes: Vec<PatternIdx> = Vec::new();
+            let mut consecutive_indexes = true;
+
             for (i, pattern) in
                 ctx.current_rule_patterns.iter_mut().enumerate()
             {
@@ -1715,13 +1715,33 @@ fn pattern_set_from_ast(
                     // All the patterns in the set are made non-anchorable, and
                     // marked as used.
                     pattern.make_non_anchorable().mark_as_used();
+                    // Check if the last two indexes are N and N + 1, if not, set
+                    // `consecutive_indexes` to false. As this is done every time a
+                    // new index is pushed into `pattern_index`, at the end of the
+                    // loop `contiguous_indexes` tell us if all the indexes in the
+                    // vector are a sequence
+                    if consecutive_indexes {
+                        if let Some(last_two) =
+                            pattern_indexes.last_chunk::<2>()
+                        {
+                            if last_two[0].next() != last_two[1] {
+                                consecutive_indexes = false;
+                            }
+                        }
+                    }
                 }
             }
-            pattern_indexes
-        }
-    };
 
-    Ok(pattern_indexes)
+            if !pattern_indexes.is_empty() && consecutive_indexes {
+                Ok(PatternSet::Range(
+                    *pattern_indexes.first().unwrap()
+                        ..=*pattern_indexes.last().unwrap(),
+                ))
+            } else {
+                Ok(PatternSet::List(pattern_indexes))
+            }
+        }
+    }
 }
 
 fn func_call_from_ast(
