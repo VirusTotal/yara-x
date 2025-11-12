@@ -785,7 +785,7 @@ fn emit_and(
     //      exit from try
     //    }
     //    ...
-    //    push true
+    //    push last_operand()
     //  }
     //  catch undefined {
     //    push false
@@ -796,21 +796,21 @@ fn emit_and(
         instr,
         |ctx, instr| {
             let block_id = instr.id();
-            for operand in operands {
+            for (position, operand) in operands.iter().with_position() {
                 emit_bool_expr(ctx, ir, *operand, instr);
-                // If the operand is `false`, exit from the block
-                // with a `false` result.
-                instr.if_else(
-                    None,
-                    |_| {},
-                    |else_| {
-                        else_.i32_const(0);
-                        else_.br(block_id);
-                    },
-                );
+                // For all operands except the last one, check the result
+                // and exit early from the block if it is false.
+                if matches!(position, Position::First | Position::Middle) {
+                    instr.if_else(
+                        None,
+                        |_| {},
+                        |else_| {
+                            else_.i32_const(0);
+                            else_.br(block_id);
+                        },
+                    );
+                }
             }
-            // If none of the operands was false, return true:
-            instr.i32_const(1);
         },
         |_, instr| {
             instr.i32_const(0); // push false
@@ -847,13 +847,18 @@ fn emit_or(
     //     exit from block
     //   }
     //   ...
-    //   push false
+    //   try {
+    //     result = last_operand()
+    //   } catch undefined {
+    //     result = false
+    //   }
+    //   result
     // }
     instr.block(
         I32, // the block returns a bool
         |block| {
             let block_id = block.id();
-            for operand in operands {
+            for (position, operand) in operands.iter().with_position() {
                 catch_undef(
                     ctx,
                     I32,
@@ -865,20 +870,19 @@ fn emit_or(
                         instr.i32_const(0);
                     },
                 );
-                // If the operand is `true`, exit from the block
-                // with a `true` result.
-                block.if_else(
-                    None,
-                    |then_| {
-                        then_.i32_const(1);
-                        then_.br(block_id);
-                    },
-                    |_| {},
-                );
+                // For all operands except the last one, check the result
+                // and exit early from the block if it is true.
+                if matches!(position, Position::First | Position::Middle) {
+                    block.if_else(
+                        None,
+                        |then_| {
+                            then_.i32_const(1);
+                            then_.br(block_id);
+                        },
+                        |_| {},
+                    );
+                }
             }
-            // If none of the operands was true, fallback to returning
-            // false.
-            block.i32_const(0);
         },
     );
 }
