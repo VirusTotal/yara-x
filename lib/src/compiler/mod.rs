@@ -1727,20 +1727,21 @@ impl Compiler<'_> {
         // from each pattern, adding them to the `self.atoms` vector, it
         // also creates one or more sub-patterns per pattern and adds them
         // to `self.sub_patterns`
-        for (pattern_id, pattern, span) in izip!(
-            pattern_ids.iter(),
-            rule_patterns.into_iter(),
-            rule.patterns.iter().flatten().map(|p| p.span())
-        ) {
+        for (pattern_id, pattern) in
+            izip!(pattern_ids.iter(), rule_patterns.into_iter())
+        {
             if pending_patterns.contains(pattern_id) {
+                let pattern_span = pattern.span().clone();
                 match pattern.into_pattern() {
                     Pattern::Text(pattern) => {
                         self.c_literal_pattern(*pattern_id, pattern);
                     }
                     Pattern::Regexp(pattern) | Pattern::Hex(pattern) => {
-                        if let Err(err) =
-                            self.c_regexp_pattern(*pattern_id, pattern, span)
-                        {
+                        if let Err(err) = self.c_regexp_pattern(
+                            *pattern_id,
+                            pattern,
+                            pattern_span,
+                        ) {
                             self.restore_snapshot(snapshot);
                             return Err(err);
                         }
