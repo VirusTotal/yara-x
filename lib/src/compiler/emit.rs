@@ -239,7 +239,7 @@ impl EmitContext<'_> {
     /// The index of a pattern is the position of the pattern in the `strings`
     /// section of the rule.
     pub fn pattern_id(&self, index: PatternIdx) -> PatternId {
-        self.current_rule.patterns[index.as_usize()].2
+        self.current_rule.patterns[index.as_usize()].pattern_id
     }
 }
 

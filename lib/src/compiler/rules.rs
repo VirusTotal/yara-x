@@ -570,11 +570,9 @@ impl fmt::Debug for Rules {
             writeln!(f, "  namespace: {namespace}")?;
             writeln!(f, "  name: {name}")?;
             writeln!(f, "  patterns:")?;
-            for (pattern_ident_id, _, pattern_id, _is_private) in
-                &rule.patterns
-            {
-                let ident = self.ident_pool.get(*pattern_ident_id).unwrap();
-                writeln!(f, "    {pattern_id:?} {ident} ")?;
+            for pattern in &rule.patterns {
+                let ident = self.ident_pool.get(pattern.ident_id).unwrap();
+                writeln!(f, "    {:?} {ident} ", pattern.pattern_id)?;
             }
         }
 
@@ -617,7 +615,7 @@ pub(crate) struct RuleInfo {
     pub(crate) metadata: Vec<(IdentId, MetaValue)>,
     /// Vector with all the patterns defined by this rule. The bool in the
     /// tuple indicates if the pattern is private.
-    pub(crate) patterns: Vec<(IdentId, PatternKind, PatternId, bool)>,
+    pub(crate) patterns: Vec<PatternInfo>,
     /// Number of private patterns in the rule. The number of non-private
     /// patterns can be computed as patterns.len - num_private_patterns.
     pub(crate) num_private_patterns: usize,
@@ -625,6 +623,19 @@ pub(crate) struct RuleInfo {
     pub(crate) is_global: bool,
     /// True if the rule is private.
     pub(crate) is_private: bool,
+}
+
+/// Information about each of pattern in a rule.
+#[derive(Serialize, Deserialize)]
+pub(crate) struct PatternInfo {
+    /// Unique ID for this pattern.
+    pub pattern_id: PatternId,
+    /// The pattern identifier.
+    pub ident_id: IdentId,
+    /// Indicates if the pattern is text, hex or regexp.
+    pub kind: PatternKind,
+    /// True if the pattern is private.
+    pub is_private: bool,
 }
 
 /// Describes the bounds for `filesize` imposed by a rule condition.

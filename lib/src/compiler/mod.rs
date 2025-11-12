@@ -1695,18 +1695,23 @@ impl Compiler<'_> {
                     }
                 };
 
-            let pattern_kind = match pattern.pattern() {
+            let kind = match pattern.pattern() {
                 Pattern::Text(_) => PatternKind::Text,
                 Pattern::Regexp(_) => PatternKind::Regexp,
                 Pattern::Hex(_) => PatternKind::Hex,
             };
 
-            patterns.push((
-                self.ident_pool.get_or_intern(pattern.identifier().name),
-                pattern_kind,
+            patterns.push(PatternInfo {
+                kind,
                 pattern_id,
-                pattern.pattern().flags().contains(PatternFlags::Private),
-            ));
+                ident_id: self
+                    .ident_pool
+                    .get_or_intern(pattern.identifier().name),
+                is_private: pattern
+                    .pattern()
+                    .flags()
+                    .contains(PatternFlags::Private),
+            });
 
             pattern_ids.push(pattern_id);
         }
