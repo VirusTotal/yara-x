@@ -918,20 +918,39 @@ fn wrong_type() {
 fn continue_after_error() {
     let mut compiler = Compiler::new();
 
-    // This rule won't compile because we are using `contains` with an integer.
+    // This rule won't compile because $b is not used.
     assert!(compiler
         .add_source(
             r#"
             rule test {
+                strings:
+                    $a = "foo"
+                    $b = "bar"
                 condition:
-                    for any x in (1,2,3) : ( x contains "foo")
+                    $a
             }"#
         )
         .is_err());
 
     // Adding a rule with the same name after the previous one failed should
-    // be ok.
-    assert!(compiler.add_source(r#"rule test { condition: true }"#).is_ok());
+    // be ok. Notice that the rule also reuses a pattern that was defined
+    // by the rule that failed before.
+    assert!(compiler
+        .add_source(
+            r#"
+            rule test {
+                strings:
+                    $a = "foo" 
+                condition: 
+                    $a 
+            }"#
+        )
+        .is_ok());
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+
+    assert_eq!(scanner.scan(b"foo").unwrap().matching_rules().len(), 1);
 
     // Now do the same test, but with each rule in a different namespace.
     let mut compiler = Compiler::new();
@@ -941,15 +960,33 @@ fn continue_after_error() {
         .add_source(
             r#"
             rule test {
+                strings:
+                    $a = "foo"
+                    $b = "bar"
                 condition:
-                    for any x in (1,2,3) : ( x contains "foo")
+                    $a
             }"#
         )
         .is_err());
 
     compiler.new_namespace("namespace2");
 
-    assert!(compiler.add_source(r#"rule test { condition: true }"#).is_ok());
+    assert!(compiler
+        .add_source(
+            r#"
+            rule test {
+                strings:
+                    $a = "foo" 
+                condition: 
+                    $a 
+            }"#
+        )
+        .is_ok());
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+
+    assert_eq!(scanner.scan(b"foo").unwrap().matching_rules().len(), 1);
 }
 
 #[test]

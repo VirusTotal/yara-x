@@ -1178,8 +1178,12 @@ impl Compiler<'_> {
         self.atoms.truncate(snapshot.atoms_len);
         self.symbol_table.truncate(snapshot.symbol_table_len);
 
-        // Pattern IDs that are >= next_pattern_id, are being discarded. File
-        // size bounds associated to such IDs must be removed.
+        // Pattern IDs that are >= next_pattern_id, are being discarded. Any pattern
+        // or file size bound associated to such IDs must be removed.
+
+        self.patterns
+            .retain(|_, pattern_id| *pattern_id < snapshot.next_pattern_id);
+
         self.filesize_bounds
             .retain(|pattern_id, _| *pattern_id < snapshot.next_pattern_id);
     }
@@ -1513,9 +1517,9 @@ impl Compiler<'_> {
             return Err(err);
         }
 
-        // Convert the rule condition's AST to the intermediate representation
-        // (IR). Also updates the patterns with information about whether they
-        // are used in the condition and if they are anchored or not.
+        // Convert the condition from AST to IR. Also updates the patterns
+        // with information about whether they are used in the condition and
+        // if they are anchored or not.
         let condition = rule_condition_from_ast(&mut ctx, rule);
 
         drop(ctx);
