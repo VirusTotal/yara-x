@@ -1482,7 +1482,7 @@ fn emit_of_pattern_set(
                     // For every call, except the last one, check the result
                     // and exit early from the block if any of the patterns
                     // were found.
-                    if !matches!(position, Position::Only | Position::Last) {
+                    if matches!(position, Position::First | Position::Middle) {
                         instr.if_else(
                             None,
                             |then_| {
