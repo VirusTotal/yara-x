@@ -334,9 +334,9 @@ impl Rules {
     ) -> Option<(RuleId, IdentId)> {
         let (target_pattern_id, _) = self.get_sub_pattern(sub_pattern_id);
         for (rule_id, rule) in self.rules.iter().enumerate() {
-            for (ident_id, _, pattern_id, _) in &rule.patterns {
-                if pattern_id == target_pattern_id {
-                    return Some((rule_id.into(), *ident_id));
+            for p in &rule.patterns {
+                if p.pattern_id == *target_pattern_id {
+                    return Some((rule_id.into(), p.ident_id));
                 };
             }
         }
