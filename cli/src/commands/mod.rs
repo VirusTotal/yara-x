@@ -23,7 +23,10 @@ use std::io::stdout;
 use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Context};
-use clap::{arg, command, crate_authors, ArgMatches, Command};
+use clap::{
+    arg, command, crate_authors, value_parser, Arg, ArgAction, ArgMatches,
+    Command,
+};
 use crossterm::tty::IsTty;
 use superconsole::{Component, Line, Lines, Span, SuperConsole};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
@@ -212,15 +215,47 @@ pub fn create_compiler<'a>(
     Ok(compiler)
 }
 
+pub fn compilation_args() -> [Arg; 6] {
+    [
+        arg!(-d --"define")
+            .help("Define external variable")
+            .long_help(help::DEFINE_LONG_HELP)
+            .value_name("VAR=VALUE")
+            .value_parser(external_var_parser)
+            .action(ArgAction::Append),
+        arg!(-w --"disable-warnings" [WARNING_ID])
+            .help("Disable warnings")
+            .long_help(help::DISABLE_WARNINGS_LONG_HELP)
+            .default_missing_value("all")
+            .num_args(0..)
+            .require_equals(true)
+            .value_delimiter(',')
+            .action(ArgAction::Append),
+        arg!(-I --"ignore-module" <MODULE>)
+            .help("Ignore rules that use the specified module")
+            .long_help(help::IGNORE_MODULE_LONG_HELP)
+            .action(ArgAction::Append),
+        arg!(--"include-dir" <PATH>)
+            .help("Directory in which to search for included files")
+            .long_help(help::INCLUDE_DIR_LONG_HELP)
+            .value_parser(value_parser!(PathBuf))
+            .action(ArgAction::Append),
+        arg!(--"path-as-namespace")
+            .help("Use file path as rule namespace"),
+        arg!(--"relaxed-re-syntax")
+            .help("Use a more relaxed syntax check while parsing regular expressions"),
+    ]
+}
+
 pub fn compile_rules<'a, P>(
     paths: P,
-    external_vars: Option<Vec<(String, serde_json::Value)>>,
     args: &ArgMatches,
     config: &Config,
 ) -> Result<Rules, anyhow::Error>
 where
     P: Iterator<Item = &'a (Option<String>, PathBuf)>,
 {
+    let external_vars = get_external_vars(args);
     let mut compiler = create_compiler(external_vars, args, config)?;
 
     let mut console =
@@ -284,16 +319,16 @@ where
         console.finalize(&state)?;
     }
 
-    for error in compiler.errors() {
-        eprintln!("{error}");
-    }
-
     for warning in compiler.warnings() {
         eprintln!("{warning}");
     }
 
+    for error in compiler.errors() {
+        eprintln!("{error}");
+    }
+
     if !compiler.errors().is_empty() {
-        bail!("{} errors found", compiler.errors().len());
+        bail!("{} error(s) found", compiler.errors().len());
     }
 
     let rules = compiler.build();

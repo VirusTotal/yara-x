@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 #[cfg(feature = "logging")]
 use std::time::Instant;
-use std::{fmt, fs, iter};
+use std::{env, fmt, fs, io, iter};
 
 use bitflags::bitflags;
 use bstr::{BStr, ByteSlice};
@@ -53,16 +53,20 @@ use crate::{re, wasm};
 pub(crate) use crate::compiler::atoms::*;
 pub(crate) use crate::compiler::context::*;
 pub(crate) use crate::compiler::ir::*;
-#[doc(inline)]
-pub use crate::compiler::rules::*;
-#[doc(inline)]
-pub use crate::compiler::warnings::*;
+
 use crate::compiler::wsh::WarningSuppressionHook;
 use crate::errors::{
     CircularIncludes, IncludeError, IncludeNotAllowed, IncludeNotFound,
 };
 use crate::linters::LinterResult;
 use crate::models::PatternKind;
+
+#[doc(inline)]
+pub use crate::compiler::report::Patch;
+#[doc(inline)]
+pub use crate::compiler::rules::*;
+#[doc(inline)]
+pub use crate::compiler::warnings::*;
 
 mod atoms;
 mod context;
@@ -122,12 +126,8 @@ impl<'src> SourceCode<'src> {
     /// This is usually the path of the file that contained the source code,
     /// but it can be an arbitrary string. The origin appears in error and
     /// warning messages.
-    pub fn with_origin(self, origin: &str) -> Self {
-        Self {
-            raw: self.raw,
-            valid: self.valid,
-            origin: Some(origin.to_owned()),
-        }
+    pub fn with_origin<S: Into<String>>(self, origin: S) -> Self {
+        Self { raw: self.raw, valid: self.valid, origin: Some(origin.into()) }
     }
 
     /// Returns the source code as a `&str`.
@@ -691,8 +691,8 @@ impl<'a> Compiler<'a> {
     /// Creates a new namespace.
     ///
     /// Further calls to [`Compiler::add_source`] will put the rules under the
-    /// newly created namespace. If the current namespace is already named as
-    /// the current one, no new namespace is created.
+    /// newly created namespace. If the new namespace is named as the current
+    /// one, no new namespace is created.
     ///
     /// In the example below both rules `foo` and `bar` are put into the same
     /// namespace (the default namespace), therefore `bar` can use `foo` as
@@ -1184,8 +1184,12 @@ impl Compiler<'_> {
         self.atoms.truncate(snapshot.atoms_len);
         self.symbol_table.truncate(snapshot.symbol_table_len);
 
-        // Pattern IDs that are >= next_pattern_id, are being discarded. File
-        // size bounds associated to such IDs must be removed.
+        // Pattern IDs that are >= next_pattern_id, are being discarded. Any pattern
+        // or file size bound associated to such IDs must be removed.
+
+        self.patterns
+            .retain(|_, pattern_id| *pattern_id < snapshot.next_pattern_id);
+
         self.filesize_bounds
             .retain(|pattern_id, _| *pattern_id < snapshot.next_pattern_id);
     }
@@ -1232,29 +1236,40 @@ impl Compiler<'_> {
 
     /// Reads the file specified by an `include` statement.
     ///
-    /// The function returns both the content and the path of the included file, or
-    /// an error if the included file could not be found.
+    /// Tries to read the file in the include directories that were specified
+    /// with [`Compiler::add_include_dir`], or in the current directory, if
+    /// no include directories were specified.
+    ///
+    /// The function returns both the content and the path of the included file
+    /// relative to the current directory, or an error if the included file could
+    /// not be read.
     fn read_included_file(
         &mut self,
         include: &Include,
     ) -> Result<(Vec<u8>, PathBuf), CompileError> {
-        let read_file = |path| -> Result<Vec<u8>, CompileError> {
-            fs::read(path).map_err(|err| {
-                IncludeError::build(
-                    &self.report_builder,
-                    self.report_builder.span_to_code_loc(include.span()),
-                    err.to_string(),
-                )
-            })
-        };
+        let read_file =
+            |path: PathBuf| -> Result<(Vec<u8>, PathBuf), io::Error> {
+                let mut path = path.canonicalize()?;
+                let content = fs::read(&path)?;
 
-        // Look for the included file in directory at the top of the include
-        // stack. This allows includes that are relative to the
+                if let Ok(cwd) =
+                    env::current_dir().and_then(|dir| dir.canonicalize())
+                {
+                    if let Ok(relative_path) = path.strip_prefix(cwd) {
+                        path = relative_path.to_path_buf();
+                    }
+                }
+
+                Ok((content, path))
+            };
+
+        // Look for the included file in the directory at the top of the
+        // include stack.
         if let Some(dir) =
             self.include_stack.last().and_then(|path| path.parent())
         {
-            if let Ok(path) = dir.join(include.file_name).canonicalize() {
-                return Ok((read_file(path.as_path())?, path));
+            if let Ok(result) = read_file(dir.join(include.file_name)) {
+                return Ok(result);
             }
         }
 
@@ -1262,23 +1277,35 @@ impl Compiler<'_> {
         // included file in them, in the order they were specified. Otherwise,
         // try to find the included file in the current directory.
         if let Some(include_dirs) = &self.include_dirs {
-            for dir in include_dirs {
-                if let Ok(path) = dir.join(include.file_name).canonicalize() {
-                    return Ok((read_file(path.as_path())?, path));
-                }
+            if let Some(result) = include_dirs
+                .iter()
+                .find_map(|dir| read_file(dir.join(include.file_name)).ok())
+            {
+                Ok(result)
+            } else {
+                Err(IncludeNotFound::build(
+                    &self.report_builder,
+                    include.file_name.to_string(),
+                    self.report_builder.span_to_code_loc(include.span()),
+                ))
             }
-        } else if let Ok(path) =
-            PathBuf::from(include.file_name).canonicalize()
-        {
-            return Ok((read_file(path.as_path())?, path));
+        } else {
+            read_file(PathBuf::from(include.file_name)).map_err(|err| {
+                if err.kind() == io::ErrorKind::NotFound {
+                    IncludeNotFound::build(
+                        &self.report_builder,
+                        include.file_name.to_string(),
+                        self.report_builder.span_to_code_loc(include.span()),
+                    )
+                } else {
+                    IncludeError::build(
+                        &self.report_builder,
+                        self.report_builder.span_to_code_loc(include.span()),
+                        err.to_string(),
+                    )
+                }
+            })
         }
-
-        // The file was not found anywhere, return an error.
-        Err(IncludeNotFound::build(
-            &self.report_builder,
-            include.file_name.to_string(),
-            self.report_builder.span_to_code_loc(include.span()),
-        ))
     }
 }
 
@@ -1296,18 +1323,24 @@ impl Compiler<'_> {
                     // raise warnings in case of duplicated imports within
                     // the same source file. For each module add a symbol to
                     // the current namespace.
-                    if let Some(span) = already_imported
-                        .insert(&import.module_name, import.span())
-                    {
-                        self.warnings.add(|| {
-                            warnings::DuplicateImport::build(
-                                &self.report_builder,
-                                import.module_name.to_string(),
-                                self.report_builder
-                                    .span_to_code_loc(import.span()),
-                                self.report_builder.span_to_code_loc(span),
-                            )
-                        })
+                    if let Some(existing_import) = already_imported.insert(
+                        &import.module_name,
+                        self.report_builder.span_to_code_loc(import.span()),
+                    ) {
+                        let duplicated_import = self
+                            .report_builder
+                            .span_to_code_loc(import.span());
+
+                        let mut warning = warnings::DuplicateImport::build(
+                            &self.report_builder,
+                            import.module_name.to_string(),
+                            duplicated_import.clone(),
+                            existing_import,
+                        );
+
+                        warning.report_mut().patch(duplicated_import, "");
+
+                        self.warnings.add(|| warning)
                     }
                     // Import the module. This updates `self.root_struct` if
                     // necessary.
@@ -1358,8 +1391,6 @@ impl Compiler<'_> {
                         continue;
                     }
 
-                    self.include_stack.push(included_path);
-
                     // Save the current source ID from the report builder in
                     // order to restore it later. Any recursive call to
                     // `add_source` will change the current source ID, and we
@@ -1367,14 +1398,20 @@ impl Compiler<'_> {
                     let source_id =
                         self.report_builder.get_current_source_id().unwrap();
 
+                    let source_code =
+                        SourceCode::from(included_src.as_slice()).with_origin(
+                            // In Windows the paths separators are backslashes, but we
+                            // want to use slashes.
+                            included_path.to_str().unwrap().replace("\\", "/"),
+                        );
+
+                    self.include_stack.push(included_path);
+
                     // Any error generated while processing the included source
                     // code will be added to `self.errors`. The error returned
                     // by `add_source` is simply the first of the added errors,
                     // we don't need to handle the error here.
-                    let _ = self.add_source(
-                        SourceCode::from(included_src.as_slice())
-                            .with_origin(include.file_name),
-                    );
+                    let _ = self.add_source(source_code);
 
                     // Restore the current source ID to the value it had before
                     // calling `add_source`.
@@ -1486,9 +1523,9 @@ impl Compiler<'_> {
             return Err(err);
         }
 
-        // Convert the rule condition's AST to the intermediate representation
-        // (IR). Also updates the patterns with information about whether they
-        // are used in the condition and if they are anchored or not.
+        // Convert the condition from AST to IR. Also updates the patterns
+        // with information about whether they are used in the condition and
+        // if they are anchored or not.
         let condition = rule_condition_from_ast(&mut ctx, rule);
 
         drop(ctx);
@@ -1700,20 +1737,21 @@ impl Compiler<'_> {
         // from each pattern, adding them to the `self.atoms` vector, it
         // also creates one or more sub-patterns per pattern and adds them
         // to `self.sub_patterns`
-        for (pattern_id, pattern, span) in izip!(
-            pattern_ids.iter(),
-            rule_patterns.into_iter(),
-            rule.patterns.iter().flatten().map(|p| p.span())
-        ) {
+        for (pattern_id, pattern) in
+            izip!(pattern_ids.iter(), rule_patterns.into_iter())
+        {
             if pending_patterns.contains(pattern_id) {
+                let pattern_span = pattern.span().clone();
                 match pattern.into_pattern() {
                     Pattern::Text(pattern) => {
                         self.c_literal_pattern(*pattern_id, pattern);
                     }
                     Pattern::Regexp(pattern) | Pattern::Hex(pattern) => {
-                        if let Err(err) =
-                            self.c_regexp_pattern(*pattern_id, pattern, span)
-                        {
+                        if let Err(err) = self.c_regexp_pattern(
+                            *pattern_id,
+                            pattern,
+                            pattern_span,
+                        ) {
                             self.restore_snapshot(snapshot);
                             return Err(err);
                         }

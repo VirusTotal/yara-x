@@ -1,14 +1,15 @@
-use annotate_snippets::renderer::{AnsiColor, Color, DEFAULT_TERM_WIDTH};
-use annotate_snippets::{
-    renderer, Annotation, AnnotationKind, Group, Patch, Snippet,
-};
-use serde::ser::SerializeStruct;
-use serde::{Serialize, Serializer};
 use std::borrow::Cow;
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+
+use annotate_snippets::renderer::{AnsiColor, Color, DEFAULT_TERM_WIDTH};
+use annotate_snippets::{
+    renderer, Annotation, AnnotationKind, Group, Snippet,
+};
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 
 use yara_x_parser::Span;
 
@@ -38,6 +39,35 @@ pub struct CodeLoc {
 impl CodeLoc {
     pub(crate) fn new(source_id: Option<SourceId>, span: Span) -> Self {
         Self { source_id, span }
+    }
+}
+
+/// TODO
+pub struct Patch {
+    code_cache: Arc<CodeCache>,
+    code_loc: CodeLoc,
+    replacement: String,
+}
+
+impl Patch {
+    /// TODO
+    pub fn origin(&self) -> Option<String> {
+        self.code_cache
+            .read()
+            .get(&self.code_loc.source_id.unwrap())
+            .unwrap()
+            .origin
+            .clone()
+    }
+
+    /// TODO
+    pub fn span(&self) -> Span {
+        self.code_loc.span.clone()
+    }
+
+    /// TODO
+    pub fn replacement(&self) -> &str {
+        &self.replacement
     }
 }
 
@@ -83,7 +113,7 @@ pub(crate) struct Report {
 pub(crate) struct Section {
     level: Level,
     title: String,
-    patches: Vec<(Span, String)>,
+    patches: Vec<(CodeLoc, String)>,
 }
 
 impl Report {
@@ -136,6 +166,17 @@ impl Report {
             .map(|(level, text)| Footer { level: level_as_text(level), text })
     }
 
+    /// Returns all the patches in the report.
+    pub(crate) fn patches(&self) -> impl Iterator<Item = Patch> + use<'_> {
+        self.sections.iter().flat_map(|section| {
+            section.patches.iter().map(|(code_loc, replacement)| Patch {
+                code_cache: self.code_cache.clone(),
+                code_loc: code_loc.clone(),
+                replacement: replacement.clone(),
+            })
+        })
+    }
+
     pub(crate) fn new_section<T: Into<String>>(
         &mut self,
         level: Level,
@@ -151,14 +192,17 @@ impl Report {
 
     pub(crate) fn patch<R: Into<String>>(
         &mut self,
-        span: Span,
+        code_loc: CodeLoc,
         replacement: R,
     ) -> &mut Self {
+        if self.sections.is_empty() {
+            self.new_section(Level::HELP, "consider the following change");
+        };
         self.sections
             .last_mut()
             .unwrap()
             .patches
-            .push((span, replacement.into()));
+            .push((code_loc, replacement.into()));
         self
     }
 }
@@ -277,8 +321,11 @@ impl Display for Report {
         for section in &self.sections {
             let mut snippet = Snippet::source(src);
 
-            for (span, replacement) in &section.patches {
-                snippet = snippet.patch(Patch::new(span.range(), replacement))
+            for (code_loc, replacement) in &section.patches {
+                snippet = snippet.patch(annotate_snippets::Patch::new(
+                    code_loc.span.range(),
+                    replacement,
+                ))
             }
 
             groups.push(

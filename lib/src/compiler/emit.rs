@@ -26,7 +26,7 @@ use crate::compiler::ir::{
 };
 use crate::compiler::{
     FieldAccess, ForVars, LiteralId, OfExprTuple, OfPatternSet, PatternId,
-    RegexpId, RuleId, RuleInfo, Var,
+    PatternSet, RegexpId, RuleId, RuleInfo, Var,
 };
 use crate::scanner::RuntimeObjectHandle;
 use crate::string_pool::{BStringPool, StringPool};
@@ -1066,7 +1066,7 @@ fn emit_pattern_match(
     // checks if there's a match.
     match anchor {
         MatchAnchor::None => {
-            emit_check_for_pattern_match(ctx, instr);
+            instr.call(ctx.wasm_symbols.check_for_pattern_match);
         }
         MatchAnchor::At(offset) => {
             emit_expr(ctx, ir, *offset, instr);
@@ -1267,18 +1267,6 @@ fn emit_check_for_rule_match(
     instr.binop(BinaryOp::I32ShrU);
 }
 
-/// Emits the code that checks if a pattern (a.k.a. string) has matched.
-///
-/// This function assumes that the PatternId is at the top of the stack as a
-/// I32. The emitted code consumes the PatternId and leaves another I32 with
-/// value 0 or 1 at the top of the stack.
-fn emit_check_for_pattern_match(
-    ctx: &mut EmitContext,
-    instr: &mut InstrSeqBuilder,
-) {
-    instr.call(ctx.wasm_symbols.check_for_pattern_match);
-}
-
 /// Emits the code that gets an array item by index.
 ///
 /// This function must be called right after emitting the code that leaves the
@@ -1426,15 +1414,60 @@ fn emit_of_pattern_set(
     of: &OfPatternSet,
     instr: &mut InstrSeqBuilder,
 ) {
+    // Make sure the pattern search phase is executed, as the `of` statement
+    // depends on patterns.
+    emit_lazy_call_to_search_for_patterns(ctx, instr);
+
+    // Cases like `any of them`, `all of them` and `x of them` are special, as
+    // they can be evaluated by calling a special function that receives a range
+    // of pattern IDs and the minimum number of patterns in that range that must
+    // match. All remaining cases must be evaluated by emitting a loop.
+    match (&of.quantifier, &of.items, &of.anchor) {
+        (Quantifier::Any, PatternSet::Range(range), MatchAnchor::None) => {
+            instr.i32_const(ctx.pattern_id(*range.start()).into());
+            instr.i32_const(ctx.pattern_id(*range.end()).into());
+            instr.i64_const(1);
+            instr.call(
+                ctx.function_id(wasm::export__pat_range_match.mangled_name),
+            );
+        }
+        (Quantifier::All, PatternSet::Range(range), MatchAnchor::None) => {
+            let start: i64 = range.start().into();
+            let end: i64 = range.end().into();
+            instr.i32_const(ctx.pattern_id(*range.start()).into());
+            instr.i32_const(ctx.pattern_id(*range.end()).into());
+            instr.i64_const(end - start + 1);
+            instr.call(
+                ctx.function_id(wasm::export__pat_range_match.mangled_name),
+            );
+        }
+        (
+            Quantifier::Expr(expr_id),
+            PatternSet::Range(range),
+            MatchAnchor::None,
+        ) => {
+            instr.i32_const(ctx.pattern_id(*range.start()).into());
+            instr.i32_const(ctx.pattern_id(*range.end()).into());
+            emit_expr(ctx, ir, *expr_id, instr);
+            instr.call(
+                ctx.function_id(wasm::export__pat_range_match.mangled_name),
+            );
+        }
+        _ => emit_of_pattern_set_with_loop(ctx, ir, of, instr),
+    }
+}
+
+fn emit_of_pattern_set_with_loop(
+    ctx: &mut EmitContext,
+    ir: &IR,
+    of: &OfPatternSet,
+    instr: &mut InstrSeqBuilder,
+) {
     debug_assert!(!of.items.is_empty());
 
     let num_patterns = of.items.len();
     let mut patterns = of.items.iter();
     let next_pattern_id = of.next_pattern_var;
-
-    // Make sure the pattern search phase is executed, as the `of` statement
-    // depends on patterns.
-    emit_lazy_call_to_search_for_patterns(ctx, instr);
 
     emit_for(
         ctx,
@@ -1454,7 +1487,7 @@ fn emit_of_pattern_set(
                 load_var(ctx, instr, i);
                 emit_switch(ctx, I64, instr, |ctx, instr| {
                     if let Some(pattern) = patterns.next() {
-                        instr.i64_const(ctx.pattern_id(*pattern).into());
+                        instr.i64_const(ctx.pattern_id(pattern).into());
                         return true;
                     }
                     false
@@ -1470,7 +1503,7 @@ fn emit_of_pattern_set(
 
             match &of.anchor {
                 MatchAnchor::None => {
-                    emit_check_for_pattern_match(ctx, instr);
+                    instr.call(ctx.wasm_symbols.check_for_pattern_match);
                 }
                 MatchAnchor::At(offset) => {
                     emit_expr(ctx, ir, *offset, instr);
@@ -1571,7 +1604,7 @@ fn emit_for_of_pattern_set(
                 load_var(ctx, instr, i);
                 emit_switch(ctx, I64, instr, |ctx, instr| {
                     if let Some(pattern) = patterns.next() {
-                        instr.i64_const(ctx.pattern_id(*pattern).into());
+                        instr.i64_const(ctx.pattern_id(pattern).into());
                         return true;
                     }
                     false

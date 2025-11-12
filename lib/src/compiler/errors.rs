@@ -11,7 +11,7 @@ use yara_x_macros::ErrorEnum;
 use yara_x_macros::ErrorStruct;
 use yara_x_parser::ast;
 
-use crate::compiler::report::{Level, Report, ReportBuilder, CodeLoc, Label, Footer};
+use crate::compiler::report::{Level, Patch, Report, ReportBuilder, CodeLoc, Label, Footer};
 
 /// Error returned while serializing/deserializing compiled rules.
 #[derive(Error, Debug)]

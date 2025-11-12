@@ -32,11 +32,11 @@ allows using the same regex engine for matching both types of patterns.
 use std::collections::Bound;
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
-use std::mem;
 use std::mem::discriminant;
 use std::ops::RangeInclusive;
 use std::ops::{Add, Index};
 use std::rc::Rc;
+use std::{mem, slice};
 
 use bitflags::bitflags;
 use bstr::BString;
@@ -51,12 +51,12 @@ use crate::compiler::ir::dfs::{
     dfs_common, DFSIter, DFSWithScopeIter, Event, EventContext,
 };
 
+use crate::compiler::FilesizeBounds;
 use crate::re;
 use crate::symbols::Symbol;
 use crate::types::Value::Const;
 use crate::types::{FuncSignature, Type, TypeValue};
 
-use crate::compiler::FilesizeBounds;
 pub(in crate::compiler) use ast2ir::patterns_from_ast;
 pub(in crate::compiler) use ast2ir::rule_condition_from_ast;
 
@@ -315,7 +315,7 @@ pub(crate) struct RegexpPattern {
 ///
 /// The first pattern in the rule has index 0, the second has index 1, and
 /// so on.
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct PatternIdx(usize);
 
 impl PatternIdx {
@@ -323,12 +323,25 @@ impl PatternIdx {
     pub fn as_usize(&self) -> usize {
         self.0
     }
+
+    /// Returns the next PatternIdx by incrementing it.
+    #[inline]
+    pub fn next(&self) -> Self {
+        Self(self.0 + 1)
+    }
 }
 
 impl From<usize> for PatternIdx {
     #[inline]
     fn from(value: usize) -> Self {
         Self(value)
+    }
+}
+
+impl From<&PatternIdx> for i64 {
+    #[inline]
+    fn from(value: &PatternIdx) -> Self {
+        value.0 as i64
     }
 }
 
@@ -1710,7 +1723,7 @@ impl IR {
         quantifier: Quantifier,
         for_vars: ForVars,
         next_pattern_var: Var,
-        items: Vec<PatternIdx>,
+        items: PatternSet,
         anchor: MatchAnchor,
     ) -> ExprId {
         let expr_id = ExprId::from(self.nodes.len());
@@ -1748,7 +1761,7 @@ impl IR {
         quantifier: Quantifier,
         variable: Var,
         for_vars: ForVars,
-        pattern_set: Vec<PatternIdx>,
+        pattern_set: PatternSet,
         body: ExprId,
     ) -> ExprId {
         let expr_id = ExprId::from(self.nodes.len());
@@ -2271,10 +2284,63 @@ pub(crate) struct OfExprTuple {
     pub anchor: MatchAnchor,
 }
 
+/// A set of patterns in an `of` or `for .. of` expression.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum PatternSet {
+    List(Vec<PatternIdx>),
+    Range(RangeInclusive<PatternIdx>),
+}
+
+impl PatternSet {
+    pub fn len(&self) -> usize {
+        match self {
+            Self::List(list) => list.len(),
+            Self::Range(range) => {
+                range.end().as_usize() - range.start().as_usize() + 1
+            }
+        }
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn iter(&self) -> PatternSetIter<'_> {
+        match self {
+            Self::List(list) => PatternSetIter::List(list.iter()),
+            Self::Range(range) => PatternSetIter::Range(
+                range.start().as_usize()..=range.end().as_usize(),
+            ),
+        }
+    }
+}
+
+/// An iterator over a [`PatternSet`].
+pub(crate) enum PatternSetIter<'a> {
+    List(slice::Iter<'a, PatternIdx>),
+    // TODO: We could use RangeInclusive<PatternIdx>, but iterating over it requires
+    // that PatternIdx implements std::iter::Step, which is a nighly-only
+    // experimental API: https://doc.rust-lang.org/std/iter/trait.Step.html
+    Range(RangeInclusive<usize>),
+}
+
+impl<'a> Iterator for PatternSetIter<'a> {
+    type Item = PatternIdx;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            PatternSetIter::List(iter) => iter.next().cloned(),
+            PatternSetIter::Range(range) => range.next().map(PatternIdx::from),
+        }
+    }
+}
+
 /// An `of` expression with at pattern set (e.g. `1 of ($a, $b)`, `all of them`).
 pub(crate) struct OfPatternSet {
     pub quantifier: Quantifier,
-    pub items: Vec<PatternIdx>,
+    pub items: PatternSet,
     pub for_vars: ForVars,
     pub next_pattern_var: Var,
     pub anchor: MatchAnchor,
@@ -2286,7 +2352,7 @@ pub(crate) struct ForOf {
     pub quantifier: Quantifier,
     pub variable: Var,
     pub for_vars: ForVars,
-    pub pattern_set: Vec<PatternIdx>,
+    pub pattern_set: PatternSet,
     pub body: ExprId,
 }
 

@@ -3406,13 +3406,13 @@ fn filesize_bounds() {
             $a = "foobar"
             $b = /.*/
           condition:
-            $a and $b and filesize > 10
+            $a and $b and filesize >= 10
         }
         rule test_2 {
           strings:
             $a = "foobar"
           condition:
-            $a and filesize < 10
+            $a and filesize <= 10
         }
         "#,
     )
@@ -3549,6 +3549,48 @@ fn of() {
         }
         "#,
         b"foobarbaz"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+          strings:
+            $a1 = "foo"
+            $a2 = "bar"
+            $b1 = "baz"
+          condition:
+            all of them
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            all of them
+        }
+        "#,
+        b"barbaz"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            2 of them
+        }
+        "#,
+        b"bar"
     );
 
     rule_false!(

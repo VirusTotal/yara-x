@@ -1,4 +1,4 @@
-use assert_cmd::Command;
+use assert_cmd::{cargo_bin, Command};
 use assert_fs::prelude::*;
 use assert_fs::TempDir;
 use predicates::prelude::*;
@@ -26,8 +26,7 @@ fn metadata() {
         )
         .unwrap();
 
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("--config")
         .arg(config_file.path())
         .arg("check")
@@ -72,8 +71,7 @@ warning[text_as_hex]: hex pattern could be written as text literal
         )
         .unwrap();
 
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("--config")
         .arg(config_file.path())
         .arg("check")
@@ -130,8 +128,7 @@ fn check_rule_name_warning() {
         )
         .unwrap();
 
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("--config")
         .arg(config_file.path())
         .arg("check")
@@ -157,8 +154,7 @@ fn check_rule_name_error() {
         )
         .unwrap();
 
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("--config")
         .arg(config_file.path())
         .arg("check")
@@ -191,8 +187,7 @@ fn config_error() {
         )
         .unwrap();
 
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("--config")
         .arg(config_file.path())
         .arg("check")

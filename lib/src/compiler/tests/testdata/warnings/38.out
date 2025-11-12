@@ -7,3 +7,8 @@ warning[unsatisfiable_expr]: unsatisfiable expression
   |         this is a lowercase string
   |
   = note: a lowercase string can't be equal to a string containing uppercase characters
+help: consider the following change
+  |
+5 -         test_proto2.string_foo == "FOO"
+5 +         test_proto2.string_foo == "foo"
+  |

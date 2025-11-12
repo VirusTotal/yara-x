@@ -1,4 +1,4 @@
-use assert_cmd::Command;
+use assert_cmd::{cargo_bin, Command};
 use assert_fs::prelude::*;
 use assert_fs::TempDir;
 
@@ -9,15 +9,13 @@ fn fmt() {
 
     input_file.write_str("rule test { condition: true }").unwrap();
 
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("fmt")
         .arg(input_file.path())
         .assert()
         .code(1); // Exit code 1 indicates that the file was modified.
 
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("fmt")
         .arg(input_file.path())
         .assert()
@@ -31,8 +29,7 @@ fn utf8_error() {
 
     input_file.write_binary(&[0xff, 0xff]).unwrap();
 
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("fmt")
         .arg(input_file.path())
         .assert()
