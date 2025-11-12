@@ -22,7 +22,6 @@ use log::*;
 use regex_syntax::hir;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use walrus::FunctionId;
 
 use yara_x_parser::ast;
@@ -57,6 +56,7 @@ pub(crate) use crate::compiler::ir::*;
 use crate::compiler::wsh::WarningSuppressionHook;
 use crate::errors::{
     CircularIncludes, IncludeError, IncludeNotAllowed, IncludeNotFound,
+    InvalidWarningCode,
 };
 use crate::linters::LinterResult;
 use crate::models::PatternKind;
@@ -419,38 +419,6 @@ pub struct Compiler<'a> {
 }
 
 impl<'a> Compiler<'a> {
-    /// Adds a directory to the list of directories where the compiler should
-    /// look for included files.
-    ///
-    /// When an `include` statement is found, the compiler looks for the included
-    /// file in the directories added with this function, in the order they were
-    /// added.
-    ///
-    /// If this function is not called, the compiler will only look for included
-    /// files in the current directory.
-    ///
-    /// Use [Compiler::enable_includes] for controlling whether include statements
-    /// are allowed or not.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use yara_x::Compiler;
-    /// # use std::path::Path;
-    /// let mut compiler = Compiler::new();
-    /// compiler.add_include_dir("/path/to/rules")
-    ///         .add_include_dir("/another/path");
-    /// ```
-    pub fn add_include_dir<P: AsRef<std::path::Path>>(
-        &mut self,
-        dir: P,
-    ) -> &mut Self {
-        self.include_dirs
-            .get_or_insert_default()
-            .push(dir.as_ref().to_path_buf());
-        self
-    }
-
     /// Creates a new YARA compiler.
     pub fn new() -> Self {
         let mut ident_pool = StringPool::new();
@@ -539,6 +507,38 @@ impl<'a> Compiler<'a> {
             includes_enabled: true,
             include_stack: Vec::new(),
         }
+    }
+
+    /// Adds a directory to the list of directories where the compiler should
+    /// look for included files.
+    ///
+    /// When an `include` statement is found, the compiler looks for the included
+    /// file in the directories added with this function, in the order they were
+    /// added.
+    ///
+    /// If this function is not called, the compiler will only look for included
+    /// files in the current directory.
+    ///
+    /// Use [Compiler::enable_includes] for controlling whether include statements
+    /// are allowed or not.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use yara_x::Compiler;
+    /// # use std::path::Path;
+    /// let mut compiler = Compiler::new();
+    /// compiler.add_include_dir("/path/to/rules")
+    ///         .add_include_dir("/another/path");
+    /// ```
+    pub fn add_include_dir<P: AsRef<std::path::Path>>(
+        &mut self,
+        dir: P,
+    ) -> &mut Self {
+        self.include_dirs
+            .get_or_insert_default()
+            .push(dir.as_ref().to_path_buf());
+        self
     }
 
     /// Adds some YARA source code to be compiled.
@@ -1052,6 +1052,16 @@ impl<'a> Compiler<'a> {
         let mut wasm_mod = self.wasm_mod.build();
         Ok(wasm_mod.emit_wasm_file(path)?)
     }
+
+    /// Sets a writer where the compiler will write the Intermediate
+    /// Representation (IR) of compiled conditions.
+    ///
+    /// This is used for testing and debugging purposes.
+    #[doc(hidden)]
+    pub fn set_ir_writer<W: Write + 'static>(&mut self, w: W) -> &mut Self {
+        self.ir_writer = Some(Box::new(w));
+        self
+    }
 }
 
 impl Compiler<'_> {
@@ -1186,16 +1196,6 @@ impl Compiler<'_> {
 
         self.filesize_bounds
             .retain(|pattern_id, _| *pattern_id < snapshot.next_pattern_id);
-    }
-
-    /// Sets a writer where the compiler will write the Intermediate
-    /// Representation (IR) of compiled conditions.
-    ///
-    /// This is used for testing and debugging purposes.
-    #[doc(hidden)]
-    pub fn set_ir_writer<W: Write + 'static>(&mut self, w: W) -> &mut Self {
-        self.ir_writer = Some(Box::new(w));
-        self
     }
 
     /// Returns true if the bytes in the slice are all 0x00, 0x90, or 0xff.
@@ -2967,12 +2967,6 @@ struct Snapshot {
     symbol_table_len: usize,
 }
 
-/// Error returned by [`Compiler::switch_warning`] when the warning
-/// code is not valid.
-#[derive(Error, Debug, Eq, PartialEq)]
-#[error("`{0}` is not a valid warning code")]
-pub struct InvalidWarningCode(String);
-
 /// Represents a list of warnings.
 ///
 /// This is a wrapper around a `Vec<Warning>` that contains additional logic
@@ -3050,7 +3044,7 @@ impl Warnings {
         enabled: bool,
     ) -> Result<bool, InvalidWarningCode> {
         if !Self::is_valid_code(code) {
-            return Err(InvalidWarningCode(code.to_string()));
+            return Err(InvalidWarningCode::new(code.to_string()));
         }
         if enabled {
             Ok(!self.disabled_warnings.remove(code))

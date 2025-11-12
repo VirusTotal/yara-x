@@ -13,6 +13,24 @@ use yara_x_parser::ast;
 
 use crate::compiler::report::{Level, Patch, Report, ReportBuilder, CodeLoc, Label, Footer};
 
+/// Error returned by [`crate::Compiler::emit_wasm_file`].
+#[derive(Error, Debug)]
+#[error(transparent)]
+#[doc(hidden)]
+pub struct EmitWasmError(#[from] anyhow::Error);
+
+/// Error returned by [`Compiler::switch_warning`] when the warning
+/// code is not valid.
+#[derive(Error, Debug, Eq, PartialEq)]
+#[error("`{0}` is not a valid warning code")]
+pub struct InvalidWarningCode(String);
+
+impl InvalidWarningCode {
+    pub(crate) fn new(code: String) -> Self {
+        Self(code)
+    }
+}
+
 /// Error returned while serializing/deserializing compiled rules.
 #[derive(Error, Debug)]
 pub enum SerializationError {
@@ -36,12 +54,6 @@ pub enum SerializationError {
     #[error("invalid YARA-X compiled rules file")]
     InvalidWASM(#[from] anyhow::Error),
 }
-
-/// Error returned by [`crate::Compiler::emit_wasm_file`].
-#[derive(Error, Debug)]
-#[error(transparent)]
-#[doc(hidden)]
-pub struct EmitWasmError(#[from] anyhow::Error);
 
 /// Error returned when rule compilation fails.
 #[allow(missing_docs)]
