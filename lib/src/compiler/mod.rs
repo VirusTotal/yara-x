@@ -2777,6 +2777,7 @@ impl From<RegexpId> for u32 {
     Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Serialize, Deserialize,
 )]
 #[serde(transparent)]
+#[derive(Ord)]
 pub(crate) struct PatternId(i32);
 
 impl PatternId {

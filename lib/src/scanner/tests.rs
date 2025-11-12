@@ -61,8 +61,9 @@ fn matches() {
     )
     .unwrap();
 
-    let mut matches = vec![];
     let mut scanner = Scanner::new(&rules);
+
+    let mut matches = vec![];
     let results = scanner.scan(b"foobar").expect("scan should not fail");
 
     for matching_rule in results.matching_rules() {
@@ -78,7 +79,22 @@ fn matches() {
     assert_eq!(
         matches,
         [("$a", 0..6, b"foobar".as_slice()), ("$b", 3..6, b"bar".as_slice())]
-    )
+    );
+
+    let mut matches = vec![];
+    let results = scanner.scan(b"baz").expect("scan should not fail");
+
+    for matching_rule in results.matching_rules() {
+        for pattern in matching_rule.patterns() {
+            matches.extend(
+                pattern
+                    .matches()
+                    .map(|x| (pattern.identifier(), x.range(), x.data())),
+            )
+        }
+    }
+
+    assert_eq!(matches, [("$c", 0..3, b"baz".as_slice())]);
 }
 
 #[test]
