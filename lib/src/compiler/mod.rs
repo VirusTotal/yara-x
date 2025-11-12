@@ -1633,7 +1633,10 @@ impl Compiler<'_> {
         // `filesize`, if any.
         let filesize_bounds = self.ir.filesize_bounds();
 
-        // Set the bounds to all patterns in the rule.
+        // Set the bounds to all patterns in the rule. This must be done
+        // before assigning the PatternId to each pattern, as the filesize
+        // bounds are taken into account when determining if the pattern
+        // is unique or re-used from a previous rule.
         if !filesize_bounds.unbounded() {
             for pattern in &mut rule_patterns {
                 pattern.pattern_mut().set_filesize_bounds(&filesize_bounds);

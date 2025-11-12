@@ -3634,6 +3634,28 @@ fn of() {
         "#,
         b"barbaz"
     );
+
+    rule_false!(
+        r#"
+        rule test_1 {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            all of them
+        }
+
+        rule test_2 {
+          strings:
+            $ = "foo" // re-use pattern from first rule
+            $ = "qux"
+          condition:
+            all of them
+        }
+        "#,
+        b"barbaz"
+    );
 }
 
 #[test]
