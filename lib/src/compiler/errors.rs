@@ -19,7 +19,7 @@ use crate::compiler::report::{Level, Patch, Report, ReportBuilder, CodeLoc, Labe
 #[doc(hidden)]
 pub struct EmitWasmError(#[from] anyhow::Error);
 
-/// Error returned by [`Compiler::switch_warning`] when the warning
+/// Error returned by [`crate::Compiler::switch_warning`] when the warning
 /// code is not valid.
 #[derive(Error, Debug, Eq, PartialEq)]
 #[error("`{0}` is not a valid warning code")]
