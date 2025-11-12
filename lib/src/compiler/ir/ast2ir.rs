@@ -4,7 +4,7 @@ use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::iter;
-use std::ops::{RangeInclusive, Sub};
+use std::ops::RangeInclusive;
 use std::rc::Rc;
 
 use bstr::{BString, ByteSlice};
@@ -31,7 +31,7 @@ use crate::compiler::ir::{
 use crate::compiler::report::{Level, ReportBuilder};
 use crate::compiler::{
     warnings, CompileContext, CompileError, FilesizeBounds, ForVars,
-    PatternIdx, PatternSet, TextPatternAsHex,
+    PatternIdx, TextPatternAsHex,
 };
 use crate::errors::CustomError;
 use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
@@ -1032,7 +1032,7 @@ fn bool_expr_from_ast(
 
 enum OfItems {
     BoolExprTuple(Vec<ExprId>),
-    PatternSet(PatternSet),
+    PatternSet(Vec<PatternIdx>),
 }
 
 impl OfItems {
@@ -1654,7 +1654,7 @@ fn quantifier_from_ast(
 fn pattern_set_from_ast(
     ctx: &mut CompileContext,
     pattern_set: &ast::PatternSet,
-) -> Result<PatternSet, CompileError> {
+) -> Result<Vec<PatternIdx>, CompileError> {
     match pattern_set {
         // `x of them`
         ast::PatternSet::Them { span } => {
@@ -1672,9 +1672,12 @@ fn pattern_set_from_ast(
                 pattern.make_non_anchorable().mark_as_used();
             }
 
-            Ok(PatternSet::Range(
-                0.into()..=ctx.current_rule_patterns.len().sub(1).into(),
-            ))
+            let pattern_indexes: Vec<PatternIdx> =
+                (0..ctx.current_rule_patterns.len())
+                    .map(|i| i.into())
+                    .collect();
+
+            Ok(pattern_indexes)
         }
         // `x of ($a*, $b)`
         ast::PatternSet::Set(set) => {
@@ -1703,7 +1706,6 @@ fn pattern_set_from_ast(
             }
 
             let mut pattern_indexes: Vec<PatternIdx> = Vec::new();
-            let mut consecutive_indexes = true;
 
             for (i, pattern) in
                 ctx.current_rule_patterns.iter_mut().enumerate()
@@ -1715,31 +1717,10 @@ fn pattern_set_from_ast(
                     // All the patterns in the set are made non-anchorable, and
                     // marked as used.
                     pattern.make_non_anchorable().mark_as_used();
-                    // Check if the last two indexes are N and N + 1, if not, set
-                    // `consecutive_indexes` to false. As this is done every time a
-                    // new index is pushed into `pattern_index`, at the end of the
-                    // loop `contiguous_indexes` tell us if all the indexes in the
-                    // vector are a sequence
-                    if consecutive_indexes {
-                        if let Some(last_two) =
-                            pattern_indexes.last_chunk::<2>()
-                        {
-                            if last_two[0].next() != last_two[1] {
-                                consecutive_indexes = false;
-                            }
-                        }
-                    }
                 }
             }
 
-            if !pattern_indexes.is_empty() && consecutive_indexes {
-                Ok(PatternSet::Range(
-                    *pattern_indexes.first().unwrap()
-                        ..=*pattern_indexes.last().unwrap(),
-                ))
-            } else {
-                Ok(PatternSet::List(pattern_indexes))
-            }
+            Ok(pattern_indexes)
         }
     }
 }
