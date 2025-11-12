@@ -3678,6 +3678,18 @@ fn of() {
         "#,
         b"barbaz"
     );
+
+    rule_true!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+          condition:
+            1 of them
+        }
+        "#,
+        b"foo"
+    );
 }
 
 #[test]

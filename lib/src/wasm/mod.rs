@@ -932,7 +932,7 @@ pub(crate) fn pat_range_match(
     pattern_id_end: PatternId,
     required: i64,
 ) -> bool {
-    assert!(pattern_id_start < pattern_id_end);
+    assert!(pattern_id_start <= pattern_id_end);
 
     // TODO: We could use RangeInclusive<PatternId>, but iterating over it
     // requires that PatternId implements `iter::Step` which is currently a
