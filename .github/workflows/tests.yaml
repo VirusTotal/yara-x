@@ -151,6 +151,6 @@ jobs:
           RUSTFLAGS: ${{ matrix.rust_flags }}
 
       - name: Run doc tests
-        run: cargo doc
+        run: cargo doc --no-deps
         env:
           RUSTDOCFLAGS: ${{ matrix.rust_flags }}
