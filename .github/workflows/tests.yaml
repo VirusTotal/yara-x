@@ -114,15 +114,26 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
-      - name: Setup cache
+      - name: Print Rust version to file (for correct caching)
+        run: rustc --version > .rustc_version
+
+      - name: Cache cargo registry
         if: matrix.use_cache == true
         uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf  # v4.2.2
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
-          key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Cache target directory
+        if: matrix.use_cache == true
+        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
+        with:
+          path: target
+          key: ${{ runner.os }}-target-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('.rustc_version') }}
+          restore-keys: ${{ runner.os }}-target-
 
       - name: Install dependencies
         if: runner.os == 'Linux'
