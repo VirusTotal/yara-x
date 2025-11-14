@@ -2,10 +2,10 @@
    of a byte stream.
 
    This code has been taken from:
-   https://github.com/Uinelj/tlsh-rs
+   <https://github.com/Uinelj/tlsh-rs>
 
    Which in turns is a clone of:
-   https://github.com/qy513314/tlsh-rs
+   <https://github.com/qy513314/tlsh-rs>
 
    As both repositories are mostly unmaintained, and the code is small,
    I've made a copy of it instead of taking a dependency.
