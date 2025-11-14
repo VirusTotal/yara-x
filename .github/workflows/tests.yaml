@@ -119,6 +119,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libmagic-dev gcc-multilib
+          sudo apt-get autoremove -y
+          sudo apt-get clean
 
       - name: Install protoc
         if: matrix.build == 'protoc'
