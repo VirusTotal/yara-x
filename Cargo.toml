@@ -97,9 +97,6 @@ smallvec = "1.14.0"
 strum = "0.27.2"
 strum_macros = "0.27.2"
 thiserror = "2.0.17"
-# Using tlsh-fixed instead of tlsh because tlsh-fixed includes a fix for this
-# issue: https://github.com/1crcbl/tlsh-rs/issues/2.
-tlsh-fixed = "0.1.1"
 uuid = "1.18.1"
 walrus = "0.24.3"
 wasmtime = { version = "38.0.4", default-features = false }

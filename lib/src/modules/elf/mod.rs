@@ -10,7 +10,6 @@ use std::sync::LazyLock;
 use itertools::Itertools;
 use md5::{Digest, Md5};
 use rustc_hash::FxHashSet;
-use tlsh_fixed as tlsh;
 
 use crate::modules::prelude::*;
 use crate::modules::protos::elf::*;
@@ -19,6 +18,7 @@ pub mod parser;
 
 #[cfg(test)]
 mod tests;
+mod tlsh;
 
 thread_local!(
     static IMPORT_MD5_CACHE: RefCell<Option<String>> =
