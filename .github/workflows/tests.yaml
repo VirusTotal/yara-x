@@ -134,13 +134,13 @@ jobs:
           toolchain: ${{ matrix.rust }}
           target: ${{ matrix.target }}
 
-      - name: Build
-        run: cargo build --target ${{ matrix.target }} ${{ matrix.args }}
+      - name: Run tests
+        run: cargo test --target ${{ matrix.target }} ${{ matrix.args }}
         env:
           RUSTFLAGS: ${{ matrix.rust_flags }}
 
-      - name: Run tests
-        run: cargo test --target ${{ matrix.target }} ${{ matrix.args }}
+      - name: Build CLI
+        run: cargo build --bin yr --target ${{ matrix.target }} ${{ matrix.args }}
         env:
           RUSTFLAGS: ${{ matrix.rust_flags }}
 
