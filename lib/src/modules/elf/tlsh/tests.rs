@@ -23,8 +23,7 @@ fn exe_test_str(
     let result = builder.build();
     assert!(result.is_ok());
     let tlsh = result.unwrap();
-    assert_eq!(expected, tlsh.hash(), "Test case: {}", test_name);
-
+    assert_eq!(expected, tlsh.hash(), "Test case: {test_name}");
     tlsh
 }
 
@@ -186,13 +185,13 @@ fn test_valid_hash() {
         Version::Version4,
     );
 
-    // string respects the min size of 50 while not having enough randomness to get a hash from.
+    // string respects the min size of 50 while not having enough randomness
+    // to get a hash from.
     builder.update(
         "oooooooooooooooooooooooooooooooooooooooooooooooooo".as_bytes(),
     );
-    let result = builder.build();
-    match result {
-        Err(TlshError::NoValidHash) => assert!(true),
-        _ => assert!(false),
-    }
+
+    assert!(builder
+        .build()
+        .is_err_and(|err| matches!(err, TlshError::NoValidHash)));
 }
