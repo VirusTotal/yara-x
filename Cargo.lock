@@ -2119,16 +2119,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "memx"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3dcdf911804d2b5f4a00e92f383ad5d734dde91ea338e823c3abd4a29b930dfe"
-dependencies = [
- "cpufeatures",
- "rustversion",
-]
-
-[[package]]
 name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4687,7 +4677,6 @@ dependencies = [
  "md2",
  "memchr",
  "memmap2",
- "memx",
  "nom 8.0.0",
  "num-derive 0.4.2",
  "num-traits",
