@@ -42,7 +42,7 @@ impl CodeLoc {
     }
 }
 
-/// TODO
+/// A patch that be applied for fixing a warning or error.
 pub struct Patch {
     code_cache: Arc<CodeCache>,
     code_loc: CodeLoc,
@@ -50,7 +50,7 @@ pub struct Patch {
 }
 
 impl Patch {
-    /// TODO
+    /// Origin of the source code, as specified by [`SourceCode::with_origin`].
     pub fn origin(&self) -> Option<String> {
         self.code_cache
             .read()
@@ -60,12 +60,13 @@ impl Patch {
             .clone()
     }
 
-    /// TODO
+    /// Span covering the portion of source code that needs to be replaced.
     pub fn span(&self) -> Span {
         self.code_loc.span.clone()
     }
 
-    /// TODO
+    /// The new code that should replace the original one indicated by
+    /// [`Patch::span`].
     pub fn replacement(&self) -> &str {
         &self.replacement
     }

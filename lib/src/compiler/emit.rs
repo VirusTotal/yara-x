@@ -8,10 +8,11 @@ expressions or language constructs.
 
 use std::collections::VecDeque;
 use std::mem::size_of;
+use std::ops::RangeInclusive;
 use std::rc::Rc;
 
 use bstr::ByteSlice;
-use itertools::Itertools;
+use itertools::{Itertools, Position};
 use rustc_hash::FxHashMap;
 use walrus::ir::ExtendedLoad::ZeroExtend;
 use walrus::ir::{
@@ -26,7 +27,7 @@ use crate::compiler::ir::{
 };
 use crate::compiler::{
     FieldAccess, ForVars, LiteralId, OfExprTuple, OfPatternSet, PatternId,
-    PatternSet, RegexpId, RuleId, RuleInfo, Var,
+    RegexpId, RuleId, RuleInfo, Var,
 };
 use crate::scanner::RuntimeObjectHandle;
 use crate::string_pool::{BStringPool, StringPool};
@@ -232,12 +233,13 @@ impl EmitContext<'_> {
         })
     }
 
-    /// Given the index of a pattern in a rule, returns its [`PatternId`].
+    /// Given the index of a pattern in the current rule, returns its
+    /// [`PatternId`].
     ///
     /// The index of a pattern is the position of the pattern in the `strings`
     /// section of the rule.
     pub fn pattern_id(&self, index: PatternIdx) -> PatternId {
-        self.current_rule.patterns[index.as_usize()].2
+        self.current_rule.patterns[index.as_usize()].pattern_id
     }
 }
 
@@ -783,7 +785,7 @@ fn emit_and(
     //      exit from try
     //    }
     //    ...
-    //    push true
+    //    push last_operand()
     //  }
     //  catch undefined {
     //    push false
@@ -794,21 +796,21 @@ fn emit_and(
         instr,
         |ctx, instr| {
             let block_id = instr.id();
-            for operand in operands {
+            for (position, operand) in operands.iter().with_position() {
                 emit_bool_expr(ctx, ir, *operand, instr);
-                // If the operand is `false`, exit from the block
-                // with a `false` result.
-                instr.if_else(
-                    None,
-                    |_| {},
-                    |else_| {
-                        else_.i32_const(0);
-                        else_.br(block_id);
-                    },
-                );
+                // For all operands except the last one, check the result
+                // and exit early from the block if it is false.
+                if matches!(position, Position::First | Position::Middle) {
+                    instr.if_else(
+                        None,
+                        |_| {},
+                        |else_| {
+                            else_.i32_const(0);
+                            else_.br(block_id);
+                        },
+                    );
+                }
             }
-            // If none of the operands was false, return true:
-            instr.i32_const(1);
         },
         |_, instr| {
             instr.i32_const(0); // push false
@@ -845,13 +847,18 @@ fn emit_or(
     //     exit from block
     //   }
     //   ...
-    //   push false
+    //   try {
+    //     result = last_operand()
+    //   } catch undefined {
+    //     result = false
+    //   }
+    //   result
     // }
     instr.block(
         I32, // the block returns a bool
         |block| {
             let block_id = block.id();
-            for operand in operands {
+            for (position, operand) in operands.iter().with_position() {
                 catch_undef(
                     ctx,
                     I32,
@@ -863,20 +870,19 @@ fn emit_or(
                         instr.i32_const(0);
                     },
                 );
-                // If the operand is `true`, exit from the block
-                // with a `true` result.
-                block.if_else(
-                    None,
-                    |then_| {
-                        then_.i32_const(1);
-                        then_.br(block_id);
-                    },
-                    |_| {},
-                );
+                // For all operands except the last one, check the result
+                // and exit early from the block if it is true.
+                if matches!(position, Position::First | Position::Middle) {
+                    block.if_else(
+                        None,
+                        |then_| {
+                            then_.i32_const(1);
+                            then_.br(block_id);
+                        },
+                        |_| {},
+                    );
+                }
             }
-            // If none of the operands was true, fallback to returning
-            // false.
-            block.i32_const(0);
         },
     );
 }
@@ -1408,6 +1414,24 @@ fn emit_map_string_key_lookup(
     emit_call_and_handle_undef(ctx, instr, ctx.function_id(func.mangled_name));
 }
 
+fn consecutive_ranges(
+    iter: impl Iterator<Item = PatternId>,
+) -> impl Iterator<Item = RangeInclusive<PatternId>> {
+    iter.peekable().batching(|it| {
+        let start = it.next()?;
+        let mut end = start;
+        while let Some(&next) = it.peek() {
+            if next.0 == end.0 + 1 {
+                end = next;
+                it.next();
+            } else {
+                break;
+            }
+        }
+        Some(start..=end)
+    })
+}
+
 fn emit_of_pattern_set(
     ctx: &mut EmitContext,
     ir: &IR,
@@ -1418,41 +1442,109 @@ fn emit_of_pattern_set(
     // depends on patterns.
     emit_lazy_call_to_search_for_patterns(ctx, instr);
 
+    // Convert the pattern indexes to pattern IDs.
+    let pattern_ids = of
+        .items
+        .iter()
+        .map(|pattern_idx: &PatternIdx| ctx.pattern_id(*pattern_idx))
+        .sorted();
+
+    // Separate the pattern IDs in contiguous ranges. For instance, if we have
+    // the IDs: 0,1,2,3,8,9,12,15,16, the ranges are 0..=3, 8..=9, 12..=12, and
+    // 15..=16.
+    let mut ranges = consecutive_ranges(pattern_ids).collect::<Vec<_>>();
+
     // Cases like `any of them`, `all of them` and `x of them` are special, as
     // they can be evaluated by calling a special function that receives a range
     // of pattern IDs and the minimum number of patterns in that range that must
     // match. All remaining cases must be evaluated by emitting a loop.
     match (&of.quantifier, &of.items, &of.anchor) {
-        (Quantifier::Any, PatternSet::Range(range), MatchAnchor::None) => {
-            instr.i32_const(ctx.pattern_id(*range.start()).into());
-            instr.i32_const(ctx.pattern_id(*range.end()).into());
-            instr.i64_const(1);
+        // `any of them`
+        (Quantifier::Any, _, MatchAnchor::None) => {
+            instr.block(I32, |instr| {
+                let block = instr.id();
+                for (position, range) in ranges.iter().with_position() {
+                    let start: i32 = (*range.start()).into();
+                    let end: i32 = (*range.end()).into();
+                    // If the range contains a single PatternId, invoke
+                    // `check_for_pattern_match` instead of `pat_range_match`.
+                    if end == start {
+                        instr.i32_const(start);
+                        instr.call(ctx.wasm_symbols.check_for_pattern_match);
+                    } else {
+                        instr.i32_const(start);
+                        instr.i32_const(end);
+                        instr.i64_const(1);
+                        instr.call(ctx.function_id(
+                            wasm::export__pat_range_match.mangled_name,
+                        ));
+                    }
+                    // For every call, except the last one, check the result
+                    // and exit early from the block if any of the patterns
+                    // were found.
+                    if matches!(position, Position::First | Position::Middle) {
+                        instr.if_else(
+                            None,
+                            |then_| {
+                                then_.i32_const(1);
+                                then_.br(block);
+                            },
+                            |_else| {},
+                        );
+                    }
+                }
+            });
+        }
+        // `any of them`
+        (Quantifier::All, _, MatchAnchor::None) => {
+            instr.block(I32, |instr| {
+                let block = instr.id();
+                for (position, range) in ranges.iter().with_position() {
+                    let start: i32 = (*range.start()).into();
+                    let end: i32 = (*range.end()).into();
+                    if end == start {
+                        instr.i32_const(start);
+                        instr.call(ctx.wasm_symbols.check_for_pattern_match);
+                    } else {
+                        instr.i32_const(start);
+                        instr.i32_const(end);
+                        instr.i64_const(end as i64 - start as i64 + 1);
+                        instr.call(ctx.function_id(
+                            wasm::export__pat_range_match.mangled_name,
+                        ));
+                    }
+                    // For every call, except the last one, check the result
+                    // and exit early from the block if some of the patterns
+                    // was not found.
+                    if !matches!(position, Position::Only | Position::Last) {
+                        instr.if_else(
+                            None,
+                            |_| {},
+                            |else_| {
+                                else_.i32_const(0);
+                                else_.br(block);
+                            },
+                        );
+                    }
+                }
+            });
+        }
+        // `n of them` but all the pattern IDs are contiguous (there's a
+        // single range)
+        (Quantifier::Expr(quantifier), _, MatchAnchor::None)
+            if ranges.len() == 1 =>
+        {
+            let range = ranges.pop().unwrap();
+            let start: i32 = (*range.start()).into();
+            let end: i32 = (*range.end()).into();
+            instr.i32_const(start);
+            instr.i32_const(end);
+            emit_expr(ctx, ir, *quantifier, instr);
             instr.call(
                 ctx.function_id(wasm::export__pat_range_match.mangled_name),
             );
         }
-        (Quantifier::All, PatternSet::Range(range), MatchAnchor::None) => {
-            let start: i64 = range.start().into();
-            let end: i64 = range.end().into();
-            instr.i32_const(ctx.pattern_id(*range.start()).into());
-            instr.i32_const(ctx.pattern_id(*range.end()).into());
-            instr.i64_const(end - start + 1);
-            instr.call(
-                ctx.function_id(wasm::export__pat_range_match.mangled_name),
-            );
-        }
-        (
-            Quantifier::Expr(expr_id),
-            PatternSet::Range(range),
-            MatchAnchor::None,
-        ) => {
-            instr.i32_const(ctx.pattern_id(*range.start()).into());
-            instr.i32_const(ctx.pattern_id(*range.end()).into());
-            emit_expr(ctx, ir, *expr_id, instr);
-            instr.call(
-                ctx.function_id(wasm::export__pat_range_match.mangled_name),
-            );
-        }
+        // All the remaining cases are evaluated using a loop.
         _ => emit_of_pattern_set_with_loop(ctx, ir, of, instr),
     }
 }
@@ -1487,7 +1579,7 @@ fn emit_of_pattern_set_with_loop(
                 load_var(ctx, instr, i);
                 emit_switch(ctx, I64, instr, |ctx, instr| {
                     if let Some(pattern) = patterns.next() {
-                        instr.i64_const(ctx.pattern_id(pattern).into());
+                        instr.i64_const(ctx.pattern_id(*pattern).into());
                         return true;
                     }
                     false
@@ -1604,7 +1696,7 @@ fn emit_for_of_pattern_set(
                 load_var(ctx, instr, i);
                 emit_switch(ctx, I64, instr, |ctx, instr| {
                     if let Some(pattern) = patterns.next() {
-                        instr.i64_const(ctx.pattern_id(pattern).into());
+                        instr.i64_const(ctx.pattern_id(*pattern).into());
                         return true;
                     }
                     false
