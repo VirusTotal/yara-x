@@ -109,7 +109,7 @@ fn generate_graph(
         let mut writer = DotWriter::from(&mut bytes);
         let mut graph = writer.digraph();
         for (rule, deps) in dep_map.iter() {
-            if (!requested_rules.is_empty() && requested_rules.contains(rule))
+            if requested_rules.contains(rule)
                 || (reverse_deps
                     && deps.rules.iter().any(|d| nodes.contains(d)))
             {
