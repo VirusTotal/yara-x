@@ -3,3 +3,9 @@ warning[consecutive_jumps]: consecutive jumps in hex pattern `$a`
   |
 3 |     $a = { 0F 84 [4] [0-7] 8D } 
   |                  --------- these consecutive jumps will be treated as [4-11]
+  |
+help: consider the following change
+  |
+3 -     $a = { 0F 84 [4] [0-7] 8D } 
+3 +     $a = { 0F 84 [4-11] 8D } 
+  |

@@ -104,14 +104,19 @@ fn hex_sub_pattern_hir_from_ast(
                 }
 
                 if coalesced {
-                    ctx.warnings.add(|| {
-                        warnings::ConsecutiveJumps::build(
-                            ctx.report_builder,
-                            pattern_ident.name.to_string(),
-                            format!("{jump}"),
-                            ctx.report_builder.span_to_code_loc(span.clone()),
-                        )
-                    });
+                    let code_loc =
+                        ctx.report_builder.span_to_code_loc(span.clone());
+
+                    let mut warning = warnings::ConsecutiveJumps::build(
+                        ctx.report_builder,
+                        pattern_ident.name.to_string(),
+                        format!("{jump}"),
+                        ctx.report_builder.span_to_code_loc(span.clone()),
+                    );
+
+                    warning.report_mut().patch(code_loc, format!("{jump}"));
+
+                    ctx.warnings.add(|| warning);
                 }
 
                 match (jump.start, jump.end) {

@@ -79,6 +79,7 @@ See the [`lookup_field`] function.
  */
 use std::any::{type_name, TypeId};
 use std::mem;
+use std::ops::RangeInclusive;
 use std::rc::Rc;
 use std::sync::{LazyLock, OnceLock};
 
@@ -920,6 +921,43 @@ pub(crate) fn is_pat_match_in(
     } else {
         false
     }
+}
+
+/// Invoked from WASM to ask if at least `required` of the patterns in the
+/// range `pattern_id_start..=pattern_id_end` (inclusive) match.
+#[wasm_export]
+pub(crate) fn pat_range_match(
+    caller: &mut Caller<'_, ScanContext>,
+    pattern_id_start: PatternId,
+    pattern_id_end: PatternId,
+    required: i64,
+) -> bool {
+    assert!(pattern_id_start <= pattern_id_end);
+
+    // TODO: We could use RangeInclusive<PatternId>, but iterating over it
+    // requires that PatternId implements `iter::Step` which is currently a
+    // nightly-only experimental API:
+    // https://doc.rust-lang.org/std/iter/trait.Step.html
+    let range: RangeInclusive<usize> =
+        pattern_id_start.into()..=pattern_id_end.into();
+
+    let required = required.try_into().unwrap();
+
+    let ctx = caller.data();
+    let mut num_matches = 0;
+
+    for pattern_id in range {
+        let match_found = ctx
+            .pattern_matches
+            .get(pattern_id.into())
+            .is_some_and(|matches| matches.len() > 0);
+
+        if match_found {
+            num_matches += 1;
+        }
+    }
+
+    num_matches >= required
 }
 
 /// Invoked from WASM to ask for the number of matches for a pattern.

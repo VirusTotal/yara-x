@@ -9,6 +9,7 @@ use std::rc::Rc;
 
 use bstr::{BString, ByteSlice};
 use itertools::Itertools;
+
 use yara_x_parser::ast;
 use yara_x_parser::ast::WithSpan;
 use yara_x_parser::Span;
@@ -25,12 +26,12 @@ use crate::compiler::errors::{
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
     Error, Expr, ExprId, Iterable, LiteralPattern, MatchAnchor, Pattern,
-    PatternFlags, PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern,
+    PatternFlags, PatternInRule, Quantifier, Range, RegexpPattern,
 };
 use crate::compiler::report::{Level, ReportBuilder};
 use crate::compiler::{
     warnings, CompileContext, CompileError, FilesizeBounds, ForVars,
-    TextPatternAsHex,
+    PatternIdx, TextPatternAsHex,
 };
 use crate::errors::CustomError;
 use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
@@ -449,14 +450,16 @@ fn expr_from_ast(
 ) -> Result<ExprId, CompileError> {
     let expr = match expr {
         ast::Expr::Entrypoint { span } => {
+            let code_loc = ctx.report_builder.span_to_code_loc(span.clone());
+
             let mut err = EntrypointUnsupported::build(
                 ctx.report_builder,
-                ctx.report_builder.span_to_code_loc(span.clone()),
+                code_loc.clone(),
             );
 
-            err.report()
+            err.report_mut()
                 .new_section(Level::HELP, "use `pe.entry_point`, elf.entry_point` or `macho.entry_point`")
-                .patch(span.clone(), "pe.entry_point");
+                .patch(code_loc, "pe.entry_point");
 
             return Err(err);
         }
@@ -573,14 +576,15 @@ fn expr_from_ast(
                     _ => None,
                 };
 
-            if let Some((replacement_expr, msg)) = replacement {
-                ctx.warnings.add(|| {
-                    warnings::BooleanIntegerComparison::build(
-                        ctx.report_builder,
-                        msg,
-                        ctx.report_builder.span_to_code_loc(span),
-                    )
-                });
+            if let Some((replacement_expr, replacement)) = replacement {
+                let code_loc = ctx.report_builder.span_to_code_loc(span);
+                let mut warning = warnings::BooleanIntegerComparison::build(
+                    ctx.report_builder,
+                    code_loc.clone(),
+                );
+
+                warning.report_mut().patch(code_loc, replacement);
+                ctx.warnings.add(|| warning);
                 replacement_expr
             } else {
                 eq_expr
@@ -672,23 +676,26 @@ fn expr_from_ast(
                 deprecation_notice: Some(ref notice), ..
             } = symbol
             {
+                let code_loc =
+                    ctx.report_builder.span_to_code_loc(ident.span());
+
                 let mut warning = warnings::DeprecatedField::build(
                     ctx.report_builder,
                     ident.name.to_string(),
-                    ctx.report_builder.span_to_code_loc(ident.span()),
+                    code_loc.clone(),
                     notice.text.clone(),
                 );
 
                 if let Some(replacement) = &notice.replacement {
                     warning
-                        .report()
+                        .report_mut()
                         .new_section(
                             Level::HELP,
                             notice.help.clone().unwrap_or(
                                 "apply the following changes".to_owned(),
                             ),
                         )
-                        .patch(ident.span(), replacement);
+                        .patch(code_loc, replacement);
                 }
 
                 ctx.warnings.add(|| warning)
@@ -1090,12 +1097,16 @@ fn of_expr_from_ast(
                 );
 
                 warning
-                    .report()
+                    .report_mut()
                     .new_section(
                         Level::HELP,
                         "consider using `none` instead of `0`",
                     )
-                    .patch(of.quantifier.span(), "none");
+                    .patch(
+                        ctx.report_builder
+                            .span_to_code_loc(of.quantifier.span()),
+                        "none",
+                    );
 
                 ctx.warnings.add(|| warning)
             }
@@ -1644,15 +1655,10 @@ fn pattern_set_from_ast(
     ctx: &mut CompileContext,
     pattern_set: &ast::PatternSet,
 ) -> Result<Vec<PatternIdx>, CompileError> {
-    let pattern_indexes = match pattern_set {
+    match pattern_set {
         // `x of them`
         ast::PatternSet::Them { span } => {
-            let pattern_indexes: Vec<PatternIdx> =
-                (0..ctx.current_rule_patterns.len())
-                    .map(|i| i.into())
-                    .collect();
-
-            if pattern_indexes.is_empty() {
+            if ctx.current_rule_patterns.is_empty() {
                 return Err(EmptyPatternSet::build(
                     ctx.report_builder,
                     ctx.report_builder.span_to_code_loc(span.clone()),
@@ -1666,7 +1672,12 @@ fn pattern_set_from_ast(
                 pattern.make_non_anchorable().mark_as_used();
             }
 
-            pattern_indexes
+            let pattern_indexes: Vec<PatternIdx> =
+                (0..ctx.current_rule_patterns.len())
+                    .map(|i| i.into())
+                    .collect();
+
+            Ok(pattern_indexes)
         }
         // `x of ($a*, $b)`
         ast::PatternSet::Set(set) => {
@@ -1693,7 +1704,9 @@ fn pattern_set_from_ast(
                     ));
                 }
             }
-            let mut pattern_indexes = Vec::new();
+
+            let mut pattern_indexes: Vec<PatternIdx> = Vec::new();
+
             for (i, pattern) in
                 ctx.current_rule_patterns.iter_mut().enumerate()
             {
@@ -1706,11 +1719,10 @@ fn pattern_set_from_ast(
                     pattern.make_non_anchorable().mark_as_used();
                 }
             }
-            pattern_indexes
-        }
-    };
 
-    Ok(pattern_indexes)
+            Ok(pattern_indexes)
+        }
+    }
 }
 
 fn func_call_from_ast(
@@ -2385,22 +2397,31 @@ fn eq_check(
                     StringConstraint::Lowercase
                         if const_string.chars().any(|c| c.is_uppercase()) =>
                     {
-                        ctx.warnings.add(|| {
-                                UnsatisfiableExpression::build(
-                                    ctx.report_builder,
-                                    "this is a lowercase string".to_string(),
-                                    "this contains uppercase characters".to_string(),
-                                    ctx.report_builder.span_to_code_loc(
-                                        constrained_string_span.clone()
-                                    ),
-                                    ctx.report_builder.span_to_code_loc(
-                                        const_string_span.clone()
-                                    ),
-                                    Some(
-                                        "a lowercase string can't be equal to a string containing uppercase characters"
-                                            .to_string()),
-                                )
-                            });
+                        let mut warning = UnsatisfiableExpression::build(
+                            ctx.report_builder,
+                            "this is a lowercase string".to_string(),
+                            "this contains uppercase characters".to_string(),
+                            ctx.report_builder.span_to_code_loc(
+                                constrained_string_span.clone()
+                            ),
+                            ctx.report_builder.span_to_code_loc(
+                                const_string_span.clone()
+                            ),
+                            Some(
+                                "a lowercase string can't be equal to a string containing uppercase characters"
+                                    .to_string()),
+                        );
+                        warning.report_mut().patch(
+                            ctx.report_builder
+                                .span_to_code_loc(const_string_span.clone()),
+                            format!(
+                                "\"{}\"",
+                                const_string.to_string().to_lowercase()
+                            ),
+                        );
+
+                        ctx.warnings.add(|| warning);
+                        return;
                     }
                     StringConstraint::ExactLength(n)
                         if const_string.len() != n =>
@@ -2422,6 +2443,7 @@ fn eq_check(
                                 None,
                             )
                         });
+                        return;
                     }
                     _ => {}
                 }

@@ -134,7 +134,6 @@ dotnet-module = [
 
 # The `elf` module parses ELF files.
 elf-module = [
-    "dep:tlsh-fixed",
     "dep:nom",
     "dep:md-5",
 ]
@@ -252,7 +251,6 @@ sha1 = { workspace = true, optional = true, features = ["oid"] }
 sha2 = { workspace = true, optional = true, features = ["oid"] }
 magic = { workspace = true, optional = true }
 memchr = { workspace = true }
-memx = { workspace = true }
 nom = { workspace = true, optional = true }
 num-derive = { workspace = true }
 num-traits = { workspace = true }
@@ -272,7 +270,6 @@ serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
 strum_macros = { workspace = true }
 thiserror = { workspace = true }
-tlsh-fixed = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true, features = ["v4"] }
 walrus = { workspace = true }
 wasmtime = { workspace = true, default-features = false, features = [

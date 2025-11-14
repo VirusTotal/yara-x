@@ -3406,13 +3406,13 @@ fn filesize_bounds() {
             $a = "foobar"
             $b = /.*/
           condition:
-            $a and $b and filesize > 10
+            $a and $b and filesize >= 10
         }
         rule test_2 {
           strings:
             $a = "foobar"
           condition:
-            $a and filesize < 10
+            $a and filesize <= 10
         }
         "#,
     )
@@ -3555,6 +3555,48 @@ fn of() {
         r#"
         rule test {
           strings:
+            $a1 = "foo"
+            $a2 = "bar"
+            $b1 = "baz"
+          condition:
+            all of them
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            all of them
+        }
+        "#,
+        b"barbaz"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            2 of them
+        }
+        "#,
+        b"bar"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+          strings:
             $ = "foo"
             $ = "bar"
             $ = "baz"
@@ -3591,6 +3633,62 @@ fn of() {
         }
         "#,
         b"barbaz"
+    );
+
+    rule_true!(
+        r#"
+        rule test_1 {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            all of them
+        }
+
+        rule test_2 {
+          strings:
+            $ = "foo" // re-use pattern from first rule
+            $ = "qux"
+          condition:
+            any of them
+        }
+        "#,
+        b"foo"
+    );
+
+    rule_false!(
+        r#"
+        rule test_1 {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            all of them
+        }
+
+        rule test_2 {
+          strings:
+            $ = "foo" // re-use pattern from first rule
+            $ = "qux"
+          condition:
+            all of them
+        }
+        "#,
+        b"barbaz"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+          condition:
+            1 of them
+        }
+        "#,
+        b"foo"
     );
 }
 

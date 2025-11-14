@@ -70,7 +70,6 @@ md2 = "0.10.2"
 md-5 = "0.10.6"
 memmap2 = "0.9.9"
 memchr = "2.7.6"
-memx = "0.2.0"
 nom = "8.0.0"
 num-traits = "0.2.19"
 num-derive = "0.4.2"
@@ -98,12 +97,9 @@ smallvec = "1.14.0"
 strum = "0.27.2"
 strum_macros = "0.27.2"
 thiserror = "2.0.17"
-# Using tlsh-fixed instead of tlsh because tlsh-fixed includes a fix for this
-# issue: https://github.com/1crcbl/tlsh-rs/issues/2.
-tlsh-fixed = "0.1.1"
 uuid = "1.18.1"
 walrus = "0.24.3"
-wasmtime = { version = "38.0.3", default-features = false }
+wasmtime = { version = "38.0.4", default-features = false }
 x509-parser = "0.18.0"
 yansi = "1.0.1"
 yara-x = { path = "lib", version = "1.9.0", default-features = false }
