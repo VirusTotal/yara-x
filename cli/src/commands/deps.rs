@@ -50,11 +50,6 @@ pub fn exec_deps(args: &ArgMatches) -> anyhow::Result<()> {
         .map(|v| v.as_str())
         .collect();
 
-    if requested_rules.is_empty() && reverse_deps {
-        println!("Must specify a rule when displaying reverse dependencies.");
-        return Ok(());
-    }
-
     let src = fs::read(rules_path)
         .with_context(|| format!("can not read `{}`", rules_path.display()))?;
 
