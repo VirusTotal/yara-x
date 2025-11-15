@@ -644,7 +644,7 @@ impl TypeValue {
             }
             Self::String { value, .. } => {
                 if let Some(v) = value.extract().cloned() {
-                    format!("{v:?}")
+                    v.to_string()
                 } else {
                     "unknown".to_string()
                 }

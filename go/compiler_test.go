@@ -113,14 +113,16 @@ func TestGetGlobals(t *testing.T) {
 	x := map[string]interface{}{"a": map[string]interface{}{"a": "b"}, "b": "d"}
 
 	c.DefineGlobal("A", "B")
-	c.DefineGlobal("B", x)
+	c.DefineGlobal("B", 1)
+	c.DefineGlobal("C", x)
+	c.DefineGlobal("D", true)
 
-	assert.Equal(t, c.GetGlobals(), "A: \"B\"\nB: {a: {a: \"b\"}, b: \"d\"}\n")
+	assert.Contains(t, c.GetGlobals(), "\"C\":\"{a: {a: b}, b: d}\"")
 
 	c, err = NewCompiler()
 	assert.NoError(t, err)
 
-	assert.Equal(t, c.GetGlobals(), "")
+	assert.Equal(t, c.GetGlobals(), "{}")
 }
 
 func TestConditionOptimization(t *testing.T) {

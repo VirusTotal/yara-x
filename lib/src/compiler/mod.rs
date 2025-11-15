@@ -684,7 +684,7 @@ impl<'a> Compiler<'a> {
 
 
     /// Shows all current gloval variables of the compiler
-    pub fn show_globals(&mut self) -> String {
+    pub fn show_globals(&mut self) -> HashMap<String, String> {
         self.global_symbols.borrow_mut().show_globals()
     }
 

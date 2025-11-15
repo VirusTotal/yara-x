@@ -397,10 +397,11 @@ pub unsafe extern "C" fn yrx_compiler_get_globals(
     } else {
         return CString::new("Could not access the compiler").unwrap().into_raw();
     };
-    // let x = CString::new(compiler.inner.show_globals()).unwrap();
-    // println!("{}", x.to_str().unwrap());
 
-    CString::new(compiler.inner.show_globals()).unwrap().into_raw()
+    let globals = compiler.inner.show_globals();
+    let json = serde_json::to_string(&globals).unwrap();
+
+    CString::new(json).unwrap().into_raw()
 }
 
 /// Defines a global variable of string type and sets its initial value.

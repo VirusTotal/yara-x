@@ -211,14 +211,17 @@ impl SymbolTable {
     }
 
     /// Shows all currently loaded global vars inside the symbol table
-    pub fn show_globals(&self) -> String {
-        self.map.iter().filter_map(|(k, v)| {
-            if let Symbol::Field { type_value, .. } = v {
-                Some(format!("{}: {}\n", k, type_value.value_as_string()))
-            } else {
-                None
-            }
-        }).collect()
+    pub fn show_globals(&self) -> HashMap<String, String> {
+        self.map
+            .iter()
+            .filter_map(|(k, v)| {
+                if let Symbol::Field { type_value, .. } = v {
+                    Some((k.clone(), type_value.value_as_string()))
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     /// Returns true if the symbol table already contains a symbol with
