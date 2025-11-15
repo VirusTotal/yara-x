@@ -116,7 +116,6 @@ typedef struct YRX_BUFFER {
   size_t length;
 } YRX_BUFFER;
 
-// Returns the current Global variables loaded into the compiler
 // Contains information about a pattern match.
 typedef struct YRX_MATCH {
   // Offset within the data where the match occurred.
@@ -420,7 +419,7 @@ enum YRX_RESULT yrx_compiler_ban_module(struct YRX_COMPILER *compiler,
 enum YRX_RESULT yrx_compiler_new_namespace(struct YRX_COMPILER *compiler,
                                            const char *namespace_);
 
-// Collects a string of all current loaded global vars
+// Collects a string of a hashmap of all current loaded global vars
 const char *yrx_compiler_get_globals(struct YRX_COMPILER *compiler);
 
 // Defines a global variable of string type and sets its initial value.

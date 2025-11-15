@@ -557,6 +557,7 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 	return nil
 }
 
+// Returns a String of a hashmap of all of the currently loaded global variables in the compiler
 func (c *Compiler) GetGlobals() string {
 	cStr := C.yrx_compiler_get_globals(c.cCompiler)
 	defer C.free(unsafe.Pointer(cStr))

@@ -210,7 +210,7 @@ impl SymbolTable {
         self.map.insert(ident.into(), symbol)
     }
 
-    /// Shows all currently loaded global vars inside the symbol table
+    /// Shows all currently loaded global variables inside the symbol table
     pub fn show_globals(&self) -> HashMap<String, String> {
         self.map
             .iter()

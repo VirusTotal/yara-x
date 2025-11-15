@@ -387,7 +387,7 @@ unsafe fn yrx_compiler_define_global<
     }
 }
 
-/// Collects a string of all current loaded global vars
+/// Collects a string of a hashmap of all current loaded global vars
 #[no_mangle]
 pub unsafe extern "C" fn yrx_compiler_get_globals(
     compiler: *mut YRX_COMPILER,

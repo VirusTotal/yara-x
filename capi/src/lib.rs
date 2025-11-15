@@ -117,7 +117,6 @@ mod tests;
 
 thread_local! {
     static LAST_ERROR: RefCell<Option<CString>> = const { RefCell::new(None) };
-    static GLOBALS: RefCell<Option<Vec<CString>>> = const {RefCell::new(None) };
 }
 
 fn _yrx_set_last_error<E>(err: Option<E>)
@@ -126,11 +125,6 @@ where
 {
     LAST_ERROR.set(err.map(|err| CString::new(err.to_string()).unwrap()))
 }
-
-fn _yrx_set_globals(globals: Option<Vec<CString>>)
-    {
-        GLOBALS.set(globals)
-    }
 
 /// Error codes returned by functions in this API.
 #[derive(PartialEq, Debug)]
@@ -183,8 +177,6 @@ pub unsafe extern "C" fn yrx_last_error() -> *const c_char {
         }
     })
 }
-
-/// Returns the current Global variables loaded into the compiler
 
 /// Contains information about a pattern match.
 #[repr(C)]

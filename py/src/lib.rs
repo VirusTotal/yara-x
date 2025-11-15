@@ -542,8 +542,7 @@ impl Compiler {
         &mut self,
         py: Python,
     ) -> Py<PyAny> {
-        let dict = json_to_dict(py, &self.inner.show_globals()).unwrap();
-        dict
+        json_to_dict(py, &self.inner.show_globals()).unwrap()
     }
 
 
