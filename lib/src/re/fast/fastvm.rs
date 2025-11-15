@@ -1,9 +1,9 @@
-use bitflags::bitflags;
-use itertools::izip;
-use memx::memeq;
 use std::cell::Cell;
 use std::ops::RangeInclusive;
 use std::{cmp, mem};
+
+use bitflags::bitflags;
+use itertools::izip;
 
 use crate::re::bitmapset::BitmapSet;
 use crate::re::fast::instr::{Instr, InstrParser};
@@ -417,7 +417,7 @@ impl FastVM<'_> {
             if input.len() < literal.len() {
                 return false;
             }
-            memeq(&input[..literal.len()], literal)
+            &input[..literal.len()] == literal
         }
     }
 
@@ -449,7 +449,7 @@ impl FastVM<'_> {
             if input.len() < literal.len() {
                 return false;
             }
-            memeq(&input[input.len() - literal.len()..], literal)
+            &input[input.len() - literal.len()..] == literal
         }
     }
 

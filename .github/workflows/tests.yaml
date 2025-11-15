@@ -32,6 +32,7 @@ jobs:
             args: "--features=magic-module,rules-profiling"
             rust_flags: "-Awarnings"
             experimental: false
+            use_cache: true
 
           - build: stable
             os: ubuntu-latest
@@ -40,6 +41,7 @@ jobs:
             args: "--features=magic-module,rules-profiling"
             rust_flags: "-Awarnings"
             experimental: false
+            use_cache: true
 
           - build: nightly
             os: ubuntu-latest
@@ -48,6 +50,7 @@ jobs:
             args: "--features=magic-module,rules-profiling"
             rust_flags: "-Awarnings"
             experimental: true
+            use_cache: true
 
           - build: macos
             os: macos-latest
@@ -56,6 +59,7 @@ jobs:
             args: "--features=rules-profiling"
             rust_flags: "-Awarnings"
             experimental: false
+            use_cache: true
 
           - build: 32bits
             os: ubuntu-latest
@@ -66,6 +70,7 @@ jobs:
             args: "--features=rules-profiling --workspace --exclude=yara-x-py"
             rust_flags: "-Awarnings"
             experimental: false
+            use_cache: true
 
           - build: windows
             os: windows-latest
@@ -74,6 +79,7 @@ jobs:
             args: "--features=rules-profiling"
             rust_flags: "-Awarnings"
             experimental: false
+            use_cache: true
 
           - build: windows-32bits
             os: windows-latest
@@ -84,6 +90,7 @@ jobs:
             args: "--features=rules-profiling --workspace --exclude=yara-x-py"
             rust_flags: "-Awarnings"
             experimental: false
+            use_cache: true
 
           - build: no-default-features
             os: ubuntu-latest
@@ -92,6 +99,7 @@ jobs:
             args: "--no-default-features --features=test_proto2-module,test_proto3-module,string-module,time-module,hash-module,macho-module,magic-module,math-module,lnk-module,elf-module,pe-module,dotnet-module,console-module,crx-module"
             rust_flags: "-Awarnings"
             experimental: false
+            use_cache: false
 
           - build: protoc
             os: ubuntu-latest
@@ -100,19 +108,38 @@ jobs:
             args: "--features=protoc,magic-module"
             rust_flags: "-Awarnings"
             experimental: false
+            use_cache: true
 
     steps:
       - name: Checkout sources
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
-      - name: Setup cache
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          target: ${{ matrix.target }}
+        
+      - name: Print Rust version to file (for correct caching)
+        run: rustc --version > .rustc_version
+
+      - name: Cache cargo registry
+        if: matrix.use_cache == true
         uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf  # v4.2.2
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Cache target directory
+        if: matrix.use_cache == true
+        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
+        with:
+          path: target
+          key: ${{ runner.os }}-target-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('.rustc_version') }}
+          restore-keys: ${{ runner.os }}-target-
 
       - name: Install dependencies
         if: runner.os == 'Linux'
@@ -128,19 +155,13 @@ jobs:
           sudo apt-get install -y protobuf-compiler
           cargo install protobuf-codegen
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.rust }}
-          target: ${{ matrix.target }}
-
-      - name: Build
-        run: cargo build --target ${{ matrix.target }} ${{ matrix.args }}
+      - name: Run tests
+        run: cargo test --target ${{ matrix.target }} ${{ matrix.args }}
         env:
           RUSTFLAGS: ${{ matrix.rust_flags }}
 
-      - name: Run tests
-        run: cargo test --target ${{ matrix.target }} ${{ matrix.args }}
+      - name: Build CLI
+        run: cargo build --bin yr --target ${{ matrix.target }} ${{ matrix.args }}
         env:
           RUSTFLAGS: ${{ matrix.rust_flags }}
 

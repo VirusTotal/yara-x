@@ -251,7 +251,6 @@ sha1 = { workspace = true, optional = true, features = ["oid"] }
 sha2 = { workspace = true, optional = true, features = ["oid"] }
 magic = { workspace = true, optional = true }
 memchr = { workspace = true }
-memx = { workspace = true }
 nom = { workspace = true, optional = true }
 num-derive = { workspace = true }
 num-traits = { workspace = true }
