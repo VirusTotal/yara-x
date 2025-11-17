@@ -137,6 +137,30 @@ impl<'src> DFSIter<'src> {
             DFSEvent::Leave((_, ctx)) => Some(ctx),
         })
     }
+
+    /// Prunes the search tree, preventing the traversal from visiting the
+    /// children of the current node.
+    ///
+    /// The effect of this function depends on the current position in the tree
+    /// For example, if `prune` is called immediately after an [`DFSEvent::Enter`],
+    /// the current node is the one that was just entered. In this scenario,
+    /// pruning ensures that none of this node's children are visited, and the
+    /// next event will be the corresponding [`DFSEvent::Leave`] for the node
+    /// that was entered.
+    ///
+    /// Conversely, if `prune` is called right after an [`DFSEvent::Leave`], the
+    /// current node is the parent of the node that was just left. In this
+    /// case, pruning prevents any remaining children of the current node
+    /// (i.e., the siblings of the node that was just left) from being visited.
+    /// The next event will then be the [`DFSEvent::Leave`] for the parent of
+    /// the node that was exited.
+    pub fn prune(&mut self) {
+        // Remove all DFSEvent::Enter from the stack until finding a
+        // DFSEvent::Leave.
+        while let Some(DFSEvent::Enter(_)) = self.stack.last() {
+            self.stack.pop();
+        }
+    }
 }
 
 impl<'src> Iterator for DFSIter<'src> {
@@ -428,26 +452,10 @@ mod tests {
         assert!(matches!(dfs.next(), Some(DFSEvent::Enter(Expr::Or(_)))));
         // enter: true and false
         assert!(matches!(dfs.next(), Some(DFSEvent::Enter(Expr::And(_)))));
-        // enter: true
-        assert!(matches!(
-            dfs.next(),
-            Some(DFSEvent::Enter(Expr::True { .. }))
-        ));
-        // leave: true
-        assert!(matches!(
-            dfs.next(),
-            Some(DFSEvent::Leave(Expr::True { .. }))
-        ));
-        // enter: false
-        assert!(matches!(
-            dfs.next(),
-            Some(DFSEvent::Enter(Expr::False { .. }))
-        ));
-        // leave: false
-        assert!(matches!(
-            dfs.next(),
-            Some(DFSEvent::Leave(Expr::False { .. }))
-        ));
+
+        // Prune the tree, children of the current node won't be visited.
+        dfs.prune();
+
         // leave: true and false
         assert!(matches!(dfs.next(), Some(DFSEvent::Leave(Expr::And(_)))));
         // enter: 1 + 2 > 5
@@ -464,16 +472,10 @@ mod tests {
             dfs.next(),
             Some(DFSEvent::Leave(Expr::LiteralInteger(_)))
         ));
-        // enter: 2
-        assert!(matches!(
-            dfs.next(),
-            Some(DFSEvent::Enter(Expr::LiteralInteger(_)))
-        ));
-        // leave: 2
-        assert!(matches!(
-            dfs.next(),
-            Some(DFSEvent::Leave(Expr::LiteralInteger(_)))
-        ));
+
+        // Prune the tree. Siblings of 1 won't be traversed.
+        dfs.prune();
+
         // leave: 1 + 2
         assert!(matches!(dfs.next(), Some(DFSEvent::Leave(Expr::Add(_)))));
         // enter: 5
