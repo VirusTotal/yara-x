@@ -165,10 +165,22 @@ fn dfs_common<'a>(expr: &'a Expr, stack: &mut Vec<DFSEvent<'a>>) {
                     stack.push(DFSEvent::Enter(item));
                 }
             }
+            match &expr.quantifier {
+                Quantifier::Percentage(expr) | Quantifier::Expr(expr) => {
+                    stack.push(DFSEvent::Enter(expr));
+                }
+                _ => {}
+            }
         }
 
         Expr::ForOf(expr) => {
             stack.push(DFSEvent::Enter(&expr.body));
+            match &expr.quantifier {
+                Quantifier::Percentage(expr) | Quantifier::Expr(expr) => {
+                    stack.push(DFSEvent::Enter(expr));
+                }
+                _ => {}
+            }
         }
 
         Expr::ForIn(expr) => {
@@ -186,6 +198,12 @@ fn dfs_common<'a>(expr: &'a Expr, stack: &mut Vec<DFSEvent<'a>>) {
                 Iterable::Expr(expr) => {
                     stack.push(DFSEvent::Enter(expr));
                 }
+            }
+            match &expr.quantifier {
+                Quantifier::Percentage(expr) | Quantifier::Expr(expr) => {
+                    stack.push(DFSEvent::Enter(expr));
+                }
+                _ => {}
             }
         }
         Expr::With(expr) => {
