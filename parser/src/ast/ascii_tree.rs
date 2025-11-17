@@ -228,7 +228,13 @@ fn build_tree_for_expr(expr: &Expr, children: Vec<Tree>) -> Tree {
         Expr::Of(of) => {
             let mut children_iter = children.into_iter();
 
-            let set_ascii_tree = match &of.items {
+            let quantifier =
+                quantifier_ascii_tree(&of.quantifier, children_iter.by_ref());
+
+            let mut new_children =
+                vec![Node("<quantifier>".to_string(), vec![quantifier])];
+
+            let items = match &of.items {
                 OfItems::PatternSet(set) => Node(
                     "<items: pattern_set>".to_string(),
                     vec![pattern_set_ascii_tree(set)],
@@ -239,13 +245,7 @@ fn build_tree_for_expr(expr: &Expr, children: Vec<Tree>) -> Tree {
                 ),
             };
 
-            let mut new_children = vec![
-                Node(
-                    "<quantifier>".to_string(),
-                    vec![quantifier_ascii_tree(&of.quantifier)],
-                ),
-                set_ascii_tree,
-            ];
+            new_children.push(items);
 
             let node_title = if let Some(anchor) = &of.anchor {
                 match anchor {
@@ -275,27 +275,40 @@ fn build_tree_for_expr(expr: &Expr, children: Vec<Tree>) -> Tree {
 
             Node(node_title, new_children)
         }
-        Expr::ForOf(for_of) => Node(
-            "for <quantifier> of <items> : ( <condition> )".to_string(),
-            vec![
-                Node(
-                    "<quantifier>".to_string(),
-                    vec![quantifier_ascii_tree(&for_of.quantifier)],
-                ),
-                Node(
-                    "<items>".to_string(),
-                    vec![pattern_set_ascii_tree(&for_of.pattern_set)],
-                ),
-                Node("<condition>".to_string(), children),
-            ],
-        ),
+        Expr::ForOf(for_of) => {
+            let mut children_iter = children.into_iter();
+
+            Node(
+                "for <quantifier> of <items> : ( <condition> )".to_string(),
+                vec![
+                    Node(
+                        "<quantifier>".to_string(),
+                        vec![quantifier_ascii_tree(
+                            &for_of.quantifier,
+                            children_iter.by_ref(),
+                        )],
+                    ),
+                    Node(
+                        "<items>".to_string(),
+                        vec![pattern_set_ascii_tree(&for_of.pattern_set)],
+                    ),
+                    Node(
+                        "<condition>".to_string(),
+                        vec![children_iter.next().unwrap()],
+                    ),
+                ],
+            )
+        }
         Expr::ForIn(f) => {
             let mut children_iter = children.into_iter();
 
             let mut new_children = vec![
                 Node(
                     "<quantifier>".to_string(),
-                    vec![quantifier_ascii_tree(&f.quantifier)],
+                    vec![quantifier_ascii_tree(
+                        &f.quantifier,
+                        children_iter.by_ref(),
+                    )],
                 ),
                 Node(
                     "<vars>".to_string(),
@@ -383,15 +396,18 @@ fn build_tree_for_expr(expr: &Expr, children: Vec<Tree>) -> Tree {
     }
 }
 
-pub(crate) fn quantifier_ascii_tree(quantifier: &Quantifier) -> Tree {
+pub(crate) fn quantifier_ascii_tree(
+    quantifier: &Quantifier,
+    mut children: impl Iterator<Item = Tree>,
+) -> Tree {
     match quantifier {
-        Quantifier::None { .. } => Leaf(vec!["none".to_string()]),
         Quantifier::All { .. } => Leaf(vec!["all".to_string()]),
         Quantifier::Any { .. } => Leaf(vec!["any".to_string()]),
-        Quantifier::Percentage(expr) => {
-            Node("percentage".to_string(), vec![expr_ascii_tree(expr)])
+        Quantifier::None { .. } => Leaf(vec!["none".to_string()]),
+        Quantifier::Expr(_) => children.next().unwrap(),
+        Quantifier::Percentage(_) => {
+            Node("percentage".to_string(), vec![children.next().unwrap()])
         }
-        Quantifier::Expr(expr) => expr_ascii_tree(expr),
     }
 }
 

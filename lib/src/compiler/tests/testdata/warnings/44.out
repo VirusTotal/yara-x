@@ -1,0 +1,7 @@
+warning[invariant_expr]: invariant boolean expression
+ --> line:7:5
+  |
+7 |     for 4 of ($a*, $b): ($ at 1)
+  |     ---------------------------- this expression is always false
+  |
+  = note: the expression requires 4 matching patterns out of 3

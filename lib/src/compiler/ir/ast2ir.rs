@@ -1239,6 +1239,24 @@ fn for_of_expr_from_ast(
     ctx.symbol_table.pop();
     ctx.vars.unwind(&stack_frame);
 
+    if let Quantifier::Expr(expr) = &quantifier {
+        if let Some(value) = ctx.ir.get(*expr).try_as_const_integer() {
+            // If the quantifier expression is greater than the number of items,
+            // the `of` expression is always false.
+            if value > pattern_set.len() as i64 {
+                ctx.warnings.add(|| warnings::InvariantBooleanExpression::build(
+                    ctx.report_builder,
+                    false,
+                    ctx.report_builder.span_to_code_loc(for_of.span()),
+                    Some(format!(
+                        "the expression requires {} matching patterns out of {}",
+                        value, pattern_set.len()
+                    )),
+                ));
+            }
+        }
+    }
+
     Ok(ctx.ir.for_of(quantifier, next_pattern_id, for_vars, pattern_set, body))
 }
 
