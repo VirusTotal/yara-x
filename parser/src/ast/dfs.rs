@@ -336,10 +336,8 @@ fn dfs_enter<'a>(
         }
 
         Expr::ForOf(for_of) => {
-            stack.push(DFSEvent::Enter((
-                &for_of.body,
-                DFSContext::Body(&expr),
-            )));
+            stack
+                .push(DFSEvent::Enter((&for_of.body, DFSContext::Body(expr))));
             match &for_of.quantifier {
                 Quantifier::Percentage(quantifier)
                 | Quantifier::Expr(quantifier) => {
