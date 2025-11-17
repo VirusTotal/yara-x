@@ -520,7 +520,7 @@ mod tests {
 
         let mut contexts = dfs.contexts();
         assert!(matches!(contexts.next(), Some(DFSContext::Root)));
-        assert!(matches!(contexts.next(), None));
+        assert!(contexts.next().is_none());
         drop(contexts);
 
         // enter `1`
@@ -535,7 +535,7 @@ mod tests {
             Some(DFSContext::Quantifier(Expr::ForOf(_)))
         ));
         assert!(matches!(contexts.next(), Some(DFSContext::Root)));
-        assert!(matches!(contexts.next(), None));
+        assert!(contexts.next().is_none());
         drop(contexts);
 
         // leave `1`
@@ -546,7 +546,7 @@ mod tests {
 
         let mut contexts = dfs.contexts();
         assert!(matches!(contexts.next(), Some(DFSContext::Root)));
-        assert!(matches!(contexts.next(), None));
+        assert!(contexts.next().is_none());
         drop(contexts);
 
         // enter `with i = 1 : ( i == 1 )`
@@ -558,7 +558,7 @@ mod tests {
             Some(DFSContext::Body(Expr::ForOf(_)))
         ));
         assert!(matches!(contexts.next(), Some(DFSContext::Root)));
-        assert!(matches!(contexts.next(), None));
+        assert!(contexts.next().is_none());
         drop(contexts);
 
         // enter `1`
@@ -585,7 +585,7 @@ mod tests {
             Some(DFSContext::Body(Expr::ForOf(_)))
         ));
         assert!(matches!(contexts.next(), Some(DFSContext::Root)));
-        assert!(matches!(contexts.next(), None));
+        assert!(contexts.next().is_none());
         drop(contexts);
 
         // enter `i`
@@ -605,7 +605,7 @@ mod tests {
             Some(DFSContext::Body(Expr::ForOf(_)))
         ));
         assert!(matches!(contexts.next(), Some(DFSContext::Root)));
-        assert!(matches!(contexts.next(), None));
+        assert!(contexts.next().is_none());
         drop(contexts);
 
         // leave `i`
