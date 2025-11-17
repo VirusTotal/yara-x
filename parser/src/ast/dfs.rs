@@ -1,3 +1,109 @@
+//! A module for traversing an expression's AST using a depth-first search
+//! (DFS) algorithm.
+//!
+//! This module provides [`DFSIter`], an iterator that walks an expression's
+//! Abstract Syntax Tree (AST) and emits [`DFSEvent`]s for each node in the
+//! tree. There are two types of events: `Enter` and `Leave`. An `Enter` event
+//! is emitted when a node is visited for the first time, before visiting its
+//! children. A `Leave` event is emitted after all the node's children have
+//! been visited.
+//!
+//! For each visited node, the iterator also provides a [`DFSContext`] that
+//! describes the relationship between the visited node and its parent.
+//!
+//! # Example
+//!
+//! The following example shows how to use [`DFSIter`] to collect all the
+//! pattern identifiers used in a YARA rule's condition.
+//!
+//! ```rust
+//! use yara_x_parser::Parser;
+//! use yara_x_parser::ast::*;
+//! use yara_x_parser::ast::dfs::{DFSIter, DFSEvent};
+//!
+//! // Parse a YARA rule from a string.
+//! let mut parser = Parser::new(r#"
+//! rule test {
+//!   strings:
+//!     $a = "some string"
+//!     $b = "another string"
+//!   condition:
+//!     ($a at 100) and $b
+//! }
+//! "#.as_bytes());
+//!
+//! // The AST object is the root of the AST.
+//! let ast = AST::from(parser);
+//!
+//! // Get the condition of the first rule.
+//! let condition = &ast.rules().next().unwrap().condition;
+//!
+//! // Create a new iterator that will traverse the condition's AST.
+//! let mut iter = DFSIter::new(condition);
+//!
+//! // A vector that will store the identifiers found in the condition.
+//! let mut identifiers = Vec::new();
+//!
+//! // Iterate over the events produced by the iterator.
+//! while let Some(event) = iter.next() {
+//!     if let DFSEvent::Enter(expr) = event {
+//!         if let Expr::PatternMatch(pattern_match) = expr {
+//!             identifiers.push(pattern_match.identifier.name);
+//!         }
+//!     }
+//! }
+//!
+//! assert_eq!(identifiers, vec!["$a", "$b"]);
+//! ```
+//!
+//! The example below does the same as the one above, but it also demonstrates
+//! how to use [`DFSIter::prune`] for preventing the iterator from visiting
+//! certain nodes. In this case we are not interested in the expression used
+//! in the `at` operator, so we prune the traversal after finding a
+//! `PatternMatch` expression with an `at` anchor.
+//!
+//! ```rust
+//! # use yara_x_parser::Parser;
+//! # use yara_x_parser::ast::*;
+//! # use yara_x_parser::ast::dfs::{DFSIter, DFSEvent};
+//! #
+//! # let mut parser = Parser::new(r#"
+//! # rule test {
+//! #   strings:
+//! #     $a = "some string"
+//! #     $b = "another string"
+//! #   condition:
+//! #     ($a at 100) and $b
+//! # }
+//! # "#.as_bytes());
+//! #
+//! # let ast = AST::from(parser);
+//! # let condition = &ast.rules().next().unwrap().condition;
+//! #
+//! let mut iter = DFSIter::new(condition);
+//! let mut identifiers = Vec::new();
+//!
+//! while let Some(event) = iter.next() {
+//!     if let DFSEvent::Enter(expr) = event {
+//!         match expr {
+//!             Expr::PatternMatch(pattern_match) => {
+//!                 identifiers.push(pattern_match.identifier.name);
+//!                 // The `at` anchor has an expression that we are not interested
+//!                 // in, so we can prune the traversal to avoid visiting it.
+//!                 if pattern_match.anchor.is_some() {
+//!                     iter.prune();
+//!                 }
+//!             }
+//!             // We are only interested in `PatternMatch` expressions, for any
+//!             // other expression we do nothing. The iterator will continue
+//!             // the traversal normally.
+//!             _ => {}
+//!         }
+//!     }
+//! }
+//!
+//! assert_eq!(identifiers, vec!["$a", "$b"]);
+//! ```
 use crate::ast::*;
 
 /// Events yielded by [`DFSIter`].
