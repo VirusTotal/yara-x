@@ -86,7 +86,8 @@ impl<'src> DFSIter<'src> {
     ///
     /// ```rust
     /// # use yara_x_parser::Parser;
-    /// # use yara_x_parser::ast::{AST, DFSIter, DFSEvent, DFSContext, Expr};
+    /// # use yara_x_parser::ast::{AST, Expr};
+    /// # use yara_x_parser::ast::dfs::{DFSIter, DFSEvent, DFSContext};
     /// let mut parser = Parser::new(r#"
     /// rule test {
     ///   condition:
