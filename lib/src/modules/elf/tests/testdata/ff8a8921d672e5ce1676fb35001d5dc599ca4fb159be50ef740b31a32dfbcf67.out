@@ -1,5 +1,6 @@
 type: ET_EXEC
 machine: EM_X86_64
+osabi: OSABI_NONE
 entry_point: 120
 sh_offset: 0
 sh_entry_size: 0

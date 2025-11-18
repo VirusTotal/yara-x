@@ -775,6 +775,7 @@ fn len_methods() {
     condition_true!(r#"test_proto2.array_int64.len() == 3"#);
     condition_true!(r#"test_proto2.array_string.len() == 3"#);
     condition_true!(r#"test_proto2.map_int64_int64.len() == 1"#);
+    condition_true!(r#"test_proto2.string_foo.len() == 3"#);
 }
 
 #[test]
@@ -3396,6 +3397,26 @@ fn filesize_bounds() {
             .len(),
         1
     );
+
+    // Test case for https://github.com/VirusTotal/yara-x/issues/481
+    crate::compile(
+        r#"
+        rule test_1 {
+          strings:
+            $a = "foobar"
+            $b = /.*/
+          condition:
+            $a and $b and filesize >= 10
+        }
+        rule test_2 {
+          strings:
+            $a = "foobar"
+          condition:
+            $a and filesize <= 10
+        }
+        "#,
+    )
+    .expect_err("should fail");
 }
 
 #[test]
@@ -3534,6 +3555,48 @@ fn of() {
         r#"
         rule test {
           strings:
+            $a1 = "foo"
+            $a2 = "bar"
+            $b1 = "baz"
+          condition:
+            all of them
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            all of them
+        }
+        "#,
+        b"barbaz"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            2 of them
+        }
+        "#,
+        b"bar"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+          strings:
             $ = "foo"
             $ = "bar"
             $ = "baz"
@@ -3570,6 +3633,62 @@ fn of() {
         }
         "#,
         b"barbaz"
+    );
+
+    rule_true!(
+        r#"
+        rule test_1 {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            all of them
+        }
+
+        rule test_2 {
+          strings:
+            $ = "foo" // re-use pattern from first rule
+            $ = "qux"
+          condition:
+            any of them
+        }
+        "#,
+        b"foo"
+    );
+
+    rule_false!(
+        r#"
+        rule test_1 {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            all of them
+        }
+
+        rule test_2 {
+          strings:
+            $ = "foo" // re-use pattern from first rule
+            $ = "qux"
+          condition:
+            all of them
+        }
+        "#,
+        b"barbaz"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+          condition:
+            1 of them
+        }
+        "#,
+        b"foo"
     );
 }
 
@@ -3763,4 +3882,64 @@ fn test_defined_3() {
     condition_false!(r#"test_proto3.bool_undef"#);
     condition_true!(r#"not test_proto3.bool_undef"#);
     condition_true!(r#"test_proto3.string_undef == """#);
+}
+
+#[test]
+#[cfg(feature = "test_proto2-module")]
+fn short_circuit() {
+    rule_true!(
+        r#"
+        import "test_proto2"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                (test_proto2.int32_zero == 0 and $a) and $b
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_true!(
+        r#"
+        import "test_proto2"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                (test_proto2.int32_zero == 1 and $a) or $b
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_true!(
+        r#"
+        import "test_proto2"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                (test_proto2.int32_zero == 0 or $a) and $b
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_true!(
+        r#"
+        import "test_proto2"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                (test_proto2.int32_zero == 1 or $a) and $b
+        }
+        "#,
+        b"foobar"
+    );
 }

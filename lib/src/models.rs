@@ -4,7 +4,7 @@ use std::slice::Iter;
 use bstr::{BStr, ByteSlice};
 use serde::{Deserialize, Serialize};
 
-use crate::compiler::{IdentId, PatternId, RuleInfo};
+use crate::compiler::{IdentId, PatternId, PatternInfo, RuleInfo};
 use crate::scanner::{ScanContext, ScanState};
 use crate::{compiler, scanner, Rules};
 
@@ -250,7 +250,7 @@ impl<'r> Tag<'r> {
 pub struct Patterns<'a, 'r> {
     ctx: Option<&'a ScanContext<'r, 'a>>,
     rules: &'r Rules,
-    iterator: Iter<'a, (IdentId, PatternKind, PatternId, bool)>,
+    iterator: Iter<'a, PatternInfo>,
     /// True if the iterator should yield all patterns, including the
     /// private ones. If false, only the non-private patterns are
     /// yielded.
@@ -288,23 +288,22 @@ impl<'a, 'r> Iterator for Patterns<'a, 'r> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let (ident_id, pattern_kind, pattern_id, is_private) =
-                self.iterator.next()?;
+            let pattern = self.iterator.next()?;
 
-            if *is_private {
+            if pattern.is_private {
                 self.len_private -= 1;
             } else {
                 self.len_non_private -= 1;
             }
 
-            if self.include_private || !is_private {
+            if self.include_private || !pattern.is_private {
                 return Some(Pattern {
                     ctx: self.ctx,
                     rules: self.rules,
-                    ident_id: *ident_id,
-                    pattern_id: *pattern_id,
-                    kind: *pattern_kind,
-                    is_private: *is_private,
+                    ident_id: pattern.ident_id,
+                    pattern_id: pattern.pattern_id,
+                    kind: pattern.kind,
+                    is_private: pattern.is_private,
                 });
             }
         }

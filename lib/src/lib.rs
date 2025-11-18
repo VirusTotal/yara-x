@@ -47,6 +47,7 @@ extern crate core;
 
 pub use compiler::compile;
 pub use compiler::Compiler;
+pub use compiler::Patch;
 pub use compiler::Rules;
 pub use compiler::RulesIter;
 pub use compiler::SourceCode;
@@ -102,7 +103,6 @@ pub mod errors {
     //! This module contains the definitions for all error types returned by this
     //! crate.
     pub use crate::compiler::errors::*;
-    pub use crate::compiler::InvalidWarningCode;
     pub use crate::modules::ModuleError;
     pub use crate::scanner::ScanError;
     pub use crate::variables::VariableError;

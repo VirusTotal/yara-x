@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::fs::{File, Metadata};
 use std::io::BufRead;
 use std::path::{Path, PathBuf};
@@ -322,8 +323,8 @@ impl<'a> Walker<'a> {
 ///     |state, output, file_path, scanner| {
 ///         scanner.scan_file(file_path);
 ///     }
-///     /// This function is called by each thread after every file is
-///     /// scanned.
+///     // This function is called by each thread after every file is
+///     // scanned.
 ///     |scanner| {
 ///         // Do some final action with the scanner before it is released.
 ///     }
@@ -402,9 +403,9 @@ impl<'a> ParWalker<'a> {
         finalize: F,
         on_walk_done: D,
         error: E,
-    ) -> thread::Result<()>
+    ) -> thread::Result<S>
     where
-        S: Component + Send + Sync + 'static,
+        S: Component + Debug + Send + Sync + 'static,
         I: Fn(&S, &Sender<Message>) -> T + Send + Copy + Sync,
         A: Fn(&S, &Sender<Message>, PathBuf, &mut T) -> anyhow::Result<()>
             + Send
@@ -524,19 +525,22 @@ impl<'a> ParWalker<'a> {
             let (msg_send, msg_recv) =
                 crossbeam::channel::bounded::<Message>(32);
 
-            let handle = thread::spawn(move || {
-                output_messages(
-                    render_period,
-                    Instant::now(),
-                    msg_recv,
-                    console.as_mut(),
-                    state.clone(),
-                );
+            let handle = {
+                let state = state.clone();
+                thread::spawn(move || {
+                    output_messages(
+                        render_period,
+                        Instant::now(),
+                        msg_recv,
+                        console.as_mut(),
+                        state.clone(),
+                    );
 
-                if let Some(console) = console {
-                    console.finalize(state.as_ref()).unwrap();
-                }
-            });
+                    if let Some(console) = console {
+                        console.finalize(state.as_ref()).unwrap();
+                    }
+                })
+            };
 
             // let `on_walk_done` send messages to the console
             on_walk_done(&msg_send);
@@ -547,6 +551,8 @@ impl<'a> ParWalker<'a> {
             std::mem::drop(msg_send);
 
             handle.join().unwrap();
+
+            Arc::<S>::try_unwrap(state).unwrap()
         })
     }
 }

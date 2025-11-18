@@ -2054,6 +2054,16 @@ impl<'a> PE<'a> {
         // Parse the IMAGE_EXPORT_DIRECTORY structure.
         let (_, exports) = Self::parse_exports_dir_entry(exports_data).ok()?;
 
+        // If the `address_of_functions` field is 0, do not parse exports it
+        // should be valid RVA within .text or .rdata sections.
+        if exports.address_of_functions == 0 {
+            return Some(ExportInfo {
+                dll_name: self.dll_name_at_rva(exports.name),
+                timestamp: exports.timestamp,
+                functions: Vec::new(),
+            });
+        }
+
         let num_exports =
             min(exports.number_of_functions as usize, Self::MAX_PE_EXPORTS);
 

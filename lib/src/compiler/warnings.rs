@@ -2,14 +2,14 @@
 #![allow(clippy::duplicated_attributes)]
 
 use std::fmt::{Debug, Display, Formatter};
-use serde::Serialize;
 
+use serde::Serialize;
 use thiserror::Error;
 
 use yara_x_macros::ErrorEnum;
 use yara_x_macros::ErrorStruct;
 
-use crate::compiler::report::{Level, Report, ReportBuilder, CodeLoc, Label, Footer};
+pub(crate) use crate::compiler::report::{Level, Patch, Report, ReportBuilder, CodeLoc, Label, Footer};
 
 /// A warning raised while compiling YARA rules.
 #[allow(missing_docs)]
@@ -37,8 +37,9 @@ pub enum Warning {
     SlowPattern(Box<SlowPattern>),
     TextPatternAsHex(Box<TextPatternAsHex>),
     TooManyIterations(Box<TooManyIterations>),
-    UnsatisfiableExpression(Box<UnsatisfiableExpression>),
     UnknownTag(Box<UnknownTag>),
+    UnsatisfiableExpression(Box<UnsatisfiableExpression>),
+    UnusedIdentifier(Box<UnusedIdentifier>),
 }
 
 /// A hex pattern contains two or more consecutive jumps.
@@ -279,12 +280,11 @@ pub struct NonBooleanAsBoolean {
     title = "comparison between boolean and integer"
 )]
 #[label(
-    "this comparison can be replaced with: `{replacement}`",
+    "this is comparing an integer and a boolean",
     expr_loc
 )]
 pub struct BooleanIntegerComparison {
     report: Report,
-    replacement: String,
     expr_loc: CodeLoc,
 }
 
@@ -697,7 +697,6 @@ pub struct InvalidTag {
 }
 
 /// A deprecated field was used in a YARA rule.
-/// check for it (see: [`crate::linters::Tags`]).
 ///
 /// ## Example
 ///
@@ -713,7 +712,7 @@ pub struct InvalidTag {
 #[associated_enum(Warning)]
 #[warning(
     code = "deprecated_field",
-    title = "field `{name}` is deprecated`"
+    title = "field `{name}` is deprecated"
 )]
 #[label(
     "{msg}",
@@ -754,6 +753,32 @@ pub struct DeprecatedField {
     loc
 )]
 pub struct AmbiguousExpression {
+    report: Report,
+    loc: CodeLoc,
+}
+
+/// An identifier was declared but not used.
+///
+/// ## Example
+///
+/// ```text
+/// warning[unused_identifier]: unused identifier
+///  --> test.yar:6:32
+///   |
+/// 6 |             with a = 1, b = 2, c = 3 : (
+///   |                                - this identifier is unused
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "unused_identifier",
+    title = "unused identifier",
+)]
+#[label(
+    "this identifier declared but not used",
+    loc
+)]
+pub struct UnusedIdentifier {
     report: Report,
     loc: CodeLoc,
 }

@@ -85,7 +85,7 @@ fn main() -> anyhow::Result<()> {
         #[cfg(feature = "debug-cmd")]
         Some(("debug", args)) => commands::exec_debug(args, &config),
         Some(("check", args)) => commands::exec_check(args, &config),
-        Some(("fix", args)) => commands::exec_fix(args),
+        Some(("fix", args)) => commands::exec_fix(args, &config),
         Some(("fmt", args)) => commands::exec_fmt(args, &config),
         Some(("scan", args)) => commands::exec_scan(args, &config),
         Some(("dump", args)) => commands::exec_dump(args),

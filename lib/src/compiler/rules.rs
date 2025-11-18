@@ -334,9 +334,9 @@ impl Rules {
     ) -> Option<(RuleId, IdentId)> {
         let (target_pattern_id, _) = self.get_sub_pattern(sub_pattern_id);
         for (rule_id, rule) in self.rules.iter().enumerate() {
-            for (ident_id, _, pattern_id, _) in &rule.patterns {
-                if pattern_id == target_pattern_id {
-                    return Some((rule_id.into(), *ident_id));
+            for p in &rule.patterns {
+                if p.pattern_id == *target_pattern_id {
+                    return Some((rule_id.into(), p.ident_id));
                 };
             }
         }
@@ -570,11 +570,9 @@ impl fmt::Debug for Rules {
             writeln!(f, "  namespace: {namespace}")?;
             writeln!(f, "  name: {name}")?;
             writeln!(f, "  patterns:")?;
-            for (pattern_ident_id, _, pattern_id, _is_private) in
-                &rule.patterns
-            {
-                let ident = self.ident_pool.get(*pattern_ident_id).unwrap();
-                writeln!(f, "    {pattern_id:?} {ident} ")?;
+            for pattern in &rule.patterns {
+                let ident = self.ident_pool.get(pattern.ident_id).unwrap();
+                writeln!(f, "    {:?} {ident} ", pattern.pattern_id)?;
             }
         }
 
@@ -600,31 +598,44 @@ pub(crate) enum MetaValue {
 #[derive(Serialize, Deserialize)]
 pub(crate) struct RuleInfo {
     /// The ID of the namespace the rule belongs to.
-    pub(crate) namespace_id: NamespaceId,
+    pub namespace_id: NamespaceId,
     /// The ID of the rule namespace in the identifiers pool.
-    pub(crate) namespace_ident_id: IdentId,
+    pub namespace_ident_id: IdentId,
     /// The ID of the rule identifier in the identifiers pool.
-    pub(crate) ident_id: IdentId,
+    pub ident_id: IdentId,
     /// Tags associated to the rule.
-    pub(crate) tags: Vec<IdentId>,
+    pub tags: Vec<IdentId>,
     /// Reference to the rule identifier in the source code. This field is
     /// ignored while serializing and deserializing compiles rules, as it
     /// is used only during the compilation phase, but not during the scan
     /// phase.
     #[serde(skip)]
-    pub(crate) ident_ref: CodeLoc,
+    pub ident_ref: CodeLoc,
     /// Metadata associated to the rule.
-    pub(crate) metadata: Vec<(IdentId, MetaValue)>,
+    pub metadata: Vec<(IdentId, MetaValue)>,
     /// Vector with all the patterns defined by this rule. The bool in the
     /// tuple indicates if the pattern is private.
-    pub(crate) patterns: Vec<(IdentId, PatternKind, PatternId, bool)>,
+    pub patterns: Vec<PatternInfo>,
     /// Number of private patterns in the rule. The number of non-private
     /// patterns can be computed as patterns.len - num_private_patterns.
-    pub(crate) num_private_patterns: usize,
+    pub num_private_patterns: usize,
     /// True if the rule is global.
-    pub(crate) is_global: bool,
+    pub is_global: bool,
     /// True if the rule is private.
-    pub(crate) is_private: bool,
+    pub is_private: bool,
+}
+
+/// Information about each of pattern in a rule.
+#[derive(Serialize, Deserialize)]
+pub(crate) struct PatternInfo {
+    /// Unique ID for this pattern.
+    pub pattern_id: PatternId,
+    /// The pattern identifier.
+    pub ident_id: IdentId,
+    /// Indicates if the pattern is text, hex or regexp.
+    pub kind: PatternKind,
+    /// True if the pattern is private.
+    pub is_private: bool,
 }
 
 /// Describes the bounds for `filesize` imposed by a rule condition.

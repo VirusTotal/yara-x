@@ -1,12 +1,11 @@
-use assert_cmd::Command;
+use assert_cmd::{cargo_bin, Command};
 use assert_fs::prelude::*;
 use assert_fs::TempDir;
 use predicates::prelude::*;
 
 #[test]
 fn always_true() {
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("src/tests/testdata/true.yar")
         .arg("src/tests/testdata/dummy.file")
@@ -22,8 +21,7 @@ fn always_true() {
 
 #[test]
 fn negate() {
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("--negate")
         .arg("src/tests/testdata/true.yar")
@@ -34,9 +32,29 @@ fn negate() {
 }
 
 #[test]
+fn filter_by_tag() {
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--tag=foo")
+        .arg("src/tests/testdata/foo.yar")
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .stdout("");
+
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--tag=bar")
+        .arg("src/tests/testdata/foo.yar")
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("foo src/tests/testdata/dummy.file"));
+}
+
+#[test]
 fn disable_warning() {
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("--disable-warnings=invariant_expr")
         .arg("src/tests/testdata/true.yar")
@@ -68,8 +86,7 @@ fn disable_warning_config_file() {
         )
         .unwrap();
 
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("--config")
         .arg(config_file.path())
         .arg("scan")
@@ -90,8 +107,7 @@ fn disable_warning_config_file() {
 
 #[test]
 fn print_strings() {
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("--print-strings")
         .arg("src/tests/testdata/foo.yar")
@@ -108,8 +124,7 @@ fn print_strings() {
 
 #[test]
 fn print_strings_n() {
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("--print-strings=2")
         .arg("src/tests/testdata/foo.yar")
@@ -126,8 +141,7 @@ fn print_strings_n() {
 
 #[test]
 fn print_namespace() {
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("--print-namespace")
         .arg("src/tests/testdata/foo.yar")
@@ -139,8 +153,7 @@ fn print_namespace() {
 
 #[test]
 fn print_meta() {
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("--print-meta")
         .arg("src/tests/testdata/foo.yar")
@@ -152,8 +165,7 @@ fn print_meta() {
 
 #[test]
 fn print_tags() {
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("--print-tags")
         .arg("src/tests/testdata/foo.yar")
@@ -165,8 +177,7 @@ fn print_tags() {
 
 #[test]
 fn path_as_namespace() {
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("--print-namespace")
         .arg("--path-as-namespace")
@@ -181,8 +192,7 @@ fn path_as_namespace() {
 
 #[test]
 fn format_ndjson() {
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("--output-format=ndjson")
         .arg("src/tests/testdata/foo.yar")
@@ -194,8 +204,7 @@ fn format_ndjson() {
 
 #[test]
 fn define() {
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("--define=float=3.14")
         .arg("--define=int=1")
@@ -209,8 +218,7 @@ fn define() {
 
 #[test]
 fn console() {
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("src/tests/testdata/console.yar")
         .arg("src/tests/testdata/dummy.file")
@@ -218,8 +226,7 @@ fn console() {
         .success()
         .stderr("hello\n");
 
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("--disable-console-logs")
         .arg("src/tests/testdata/console.yar")
@@ -231,8 +238,7 @@ fn console() {
 
 #[test]
 fn ignore_module() {
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("--ignore-module=unknown")
         .arg("src/tests/testdata/unknown_module.yar")
@@ -258,8 +264,7 @@ warning[unsupported_module]: module `unknown` is not supported
 
 #[test]
 fn recursive() {
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("--recursive")
         .arg("src/tests/testdata/foo.yar")
@@ -274,8 +279,7 @@ fn recursive() {
 
 #[test]
 fn compiled_rules() {
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("--compiled-rules")
         .arg("src/tests/testdata/foo.yar")
@@ -286,8 +290,7 @@ fn compiled_rules() {
         .code(1)
         .stderr("error: can\'t use \'--compiled-rules\' with more than one RULES_PATH\n");
 
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("--compiled-rules")
         .arg("namespace:src/tests/testdata/foo.yar")
@@ -302,8 +305,7 @@ fn compiled_rules() {
 
     input_file.write_str("rule test { condition: true }").unwrap();
 
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("compile")
         .arg("-o")
         .arg(input_file.with_extension("yarc"))
@@ -311,8 +313,7 @@ fn compiled_rules() {
         .assert()
         .success();
 
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("--compiled-rules")
         .arg(input_file.with_extension("yarc"))
@@ -323,8 +324,7 @@ fn compiled_rules() {
 
 #[test]
 fn issue_280() {
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("src/tests/testdata/foo.yar")
         .arg("./src/tests/testdata/")
@@ -332,8 +332,7 @@ fn issue_280() {
         .success();
 
     // Handle special case of just . for path argument.
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("src/tests/testdata/foo.yar")
         .arg(".")
@@ -341,8 +340,7 @@ fn issue_280() {
         .success();
 
     // Handle special case of just ./ for path argument.
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("src/tests/testdata/foo.yar")
         .arg("./")
@@ -351,8 +349,7 @@ fn issue_280() {
 
     // Handle special case of just .\ for path argument.
     #[cfg(target_os = "windows")]
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("scan")
         .arg("src/tests/testdata/foo.yar")
         .arg(r#".\"#)

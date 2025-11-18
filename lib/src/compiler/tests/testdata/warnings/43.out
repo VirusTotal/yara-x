@@ -1,0 +1,10 @@
+warning[unused_identifier]: unused identifier
+ --> line:3:27
+  |
+3 |        with a = 1, b = 2, c = 3 : ( a == b )
+  |                           - this identifier declared but not used
+warning[unused_identifier]: unused identifier
+ --> line:8:27
+  |
+8 |        with a = 1, b = 2, c = 3 : (
+  |                           - this identifier declared but not used

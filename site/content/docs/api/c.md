@@ -62,7 +62,7 @@ int main() {
 }
 EOF
 
-gcc `pkg-config --cflags yara_x_capi` `pkg-config --libs yara_x_capi` test.c
+gcc `pkg-config --cflags yara_x_capi` test.c `pkg-config --libs yara_x_capi`
 ```
 
 The compilation should succeed without errors.

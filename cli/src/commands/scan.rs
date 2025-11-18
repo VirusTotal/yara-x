@@ -23,7 +23,7 @@ use yara_x::errors::ScanError;
 use yara_x::{MetaValue, Patterns, Rule, Rules, ScanOptions, Scanner};
 
 use crate::commands::{
-    compile_rules, external_var_parser, get_external_vars,
+    compilation_args, compile_rules, get_external_vars,
     meta_file_value_parser, path_with_namespace_parser,
     truncate_with_ellipsis,
 };
@@ -57,150 +57,72 @@ pub fn scan() -> Command {
                 .help("Path to the file or directory that will be scanned")
                 .value_parser(value_parser!(PathBuf))
         )
-        // Keep options sorted alphabetically by their long name.
-        // For instance, --bar goes before --foo.
-        .arg(
+        .args(itertools::merge(compilation_args(), [
             arg!(-C --"compiled-rules")
                 .help("Indicate that RULES_PATH is a file with compiled rules")
-                .long_help(help::COMPILED_RULES_LONG_HELP)
-        )
-        .arg(
+                .long_help(help::COMPILED_RULES_LONG_HELP),
             arg!(-c --"count")
-                .help("Print only the number of matches per file")
-        )
-        .arg(
-            arg!(-d --"define")
-                .help("Define external variable")
-                .long_help(help::DEFINE_LONG_HELP)
-                .value_name("VAR=VALUE")
-                .value_parser(external_var_parser)
-                .action(ArgAction::Append)
-        )
-        .arg(
+                .help("Print only the number of matches per file"),
             arg!(--"disable-console-logs")
-                .help("Disable printing console log messages")
-        )
-        .arg(
-            arg!(-w --"disable-warnings" [WARNING_ID])
-                .help("Disable warnings")
-                .long_help(help::DISABLE_WARNINGS_LONG_HELP)
-                .default_missing_value("all")
-                .num_args(0..)
-                .require_equals(true)
-                .value_delimiter(',')
-                .action(ArgAction::Append)
-        )
-        .arg(
-            arg!(--"ignore-module" <MODULE>)
-                .help("Ignore rules that use the specified module")
-                .long_help(help::IGNORE_MODULE_LONG_HELP)
-                .action(ArgAction::Append)
-        )
-        .arg(
-            arg!(-I --"include-dir" <PATH>)
-                .help("Directory in which to search for included files")
-                .long_help(help::INCLUDE_DIR_LONG_HELP)
-                .value_parser(value_parser!(PathBuf))
-                .action(ArgAction::Append)
-        )
-        .arg(
+                .help("Disable printing console log messages"),
+            arg!(--"max-matches-per-pattern" <MATCHES>)
+                .help("Maximum number of matches per pattern")
+                .long_help(help::MAX_MATCHES_PER_PATTERN_LONG_HELP)
+                .value_parser(value_parser!(usize)),
             arg!(-x --"module-data")
                 .help("Pass FILE's content as extra data to MODULE")
                 .long_help(help::MODULE_DATA_LONG_HELP)
                 .required(false)
                 .value_name("MODULE=FILE")
                 .value_parser(meta_file_value_parser)
-                .action(ArgAction::Append)
-        )
-        .arg(
+                .action(ArgAction::Append),
             arg!(-n --"negate")
-                .help("Print non-satisfied rules only")
-        )
-        .arg(
+                .help("Print non-satisfied rules only"),
             arg!(--"no-mmap")
                 .help("Don't use memory-mapped files")
-                .long_help(help::NO_MMAP_LONG_HELP)
-        )
-        .arg(
-            arg!(--"max-matches-per-pattern" <MATCHES>)
-                .help("Maximum number of matches per pattern")
-                .long_help(help::MAX_MATCHES_PER_PATTERN_LONG_HELP)
-                .value_parser(value_parser!(usize))
-        )
-        .arg(
+                .long_help(help::NO_MMAP_LONG_HELP),
             arg!(-o --"output-format" <FORMAT>)
                 .help("Output format for results")
                 .long_help(help::OUTPUT_FORMAT_LONG_HELP)
-                .value_parser(value_parser!(OutputFormats))
-        )
-        .arg(
-            arg!(--"path-as-namespace")
-                .help("Use file path as rule namespace")
-        )
-        .arg(
-            arg!(--"profiling")
-                .help("Show profiling information")
-        )
-        .arg(
+                .value_parser(value_parser!(OutputFormats)),
             arg!(-m --"print-meta")
-                .help("Print rule metadata")
-        )
-        .arg(
+                .help("Print rule metadata"),
             arg!(-e --"print-namespace")
-                .help("Print rule namespace")
-        )
-        .arg(
+                .help("Print rule namespace"),
             arg!(-s --"print-strings" [N])
                 .help("Print matching patterns")
                 .long_help(help::SCAN_PRINT_STRING_LONG_HELP)
                 .default_missing_value("120")
                 .require_equals(true)
-                .value_parser(value_parser!(usize))
-        )
-        .arg(
+                .value_parser(value_parser!(usize)),
             arg!(-g --"print-tags")
-                .help("Print rule tags")
-        )
-        .arg(
+                .help("Print rule tags"),
+            arg!(--"profiling")
+                .help("Show profiling information"),
             arg!(-r --"recursive" [MAX_DEPTH])
                 .help("Scan directories recursively")
                 .long_help(help::SCAN_RECURSIVE_LONG_HELP)
                 .default_missing_value("1000")
                 .require_equals(true)
-                .value_parser(value_parser!(usize))
-        )
-        .arg(
-            arg!(--"relaxed-re-syntax")
-                .help("Use a more relaxed syntax check while parsing regular expressions")
-                .conflicts_with("compiled-rules")
-        )
-        .arg(
+                .value_parser(value_parser!(usize)),
             arg!(--"scan-list")
                 .help("Indicate that TARGET_PATH is a file containing the paths to be scanned")
-                .long_help(help::SCAN_LIST_LONG_HELP)
-        )
-        .arg(
+                .long_help(help::SCAN_LIST_LONG_HELP),
             arg!(-z --"skip-larger" <FILE_SIZE>)
                 .help("Skip files larger than the given size")
-                .value_parser(value_parser!(u64))
-        )
-        .arg(
+                .value_parser(value_parser!(u64)),
             arg!(-t --"tag" <TAG>)
                 .help("Print only rules tagged as TAG")
-                .value_parser(value_parser!(String))
-        )
-        .arg(
+                .value_parser(value_parser!(String)),
             arg!(-p --"threads" <NUM_THREADS>)
                 .help("Use the given number of threads")
                 .long_help(help::THREADS_LONG_HELP)
-                .value_parser(value_parser!(u8).range(1..))
-        )
-        .arg(
+                .value_parser(value_parser!(u8).range(1..)),
             arg!(-a --"timeout" <SECONDS>)
                 .help("Abort scanning after the given number of seconds")
                 .value_parser(value_parser!(u64).range(1..))
-        )
 
+    ]))
 }
 
 #[cfg(feature = "rules-profiling")]
@@ -268,7 +190,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let timeout =
         args.get_one::<u64>("timeout").map(|t| Duration::from_secs(*t));
 
-    let mut external_vars = get_external_vars(args);
+    let external_vars = get_external_vars(args);
 
     let metadata = args
         .get_many::<(String, PathBuf)>("module-data")
@@ -329,7 +251,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
         // With `take()` we pass the external variables to `compile_rules`,
         // while leaving a `None` in `external_vars`. This way external
         // variables are not set again in the scanner.
-        compile_rules(rules_path, external_vars.take(), args, config)?
+        compile_rules(rules_path, args, config)?
     };
 
     let rules_ref = &rules;
@@ -456,15 +378,16 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                 false => Box::new(scan_results.matching_rules()),
             };
 
-            let matched_count = wanted_rules.len();
-            output_handler.on_file_scanned(
+            state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
+
+            // The number of matching files is incremented only if
+            // `on_file_scanned` returns `true`, which indicates that the
+            // match is actually included in the output and not ignored.
+            if output_handler.on_file_scanned(
                 &file_path,
                 &mut wanted_rules,
                 output,
-            );
-
-            state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
-            if matched_count > 0 {
+            ) {
                 state.num_matching_files.fetch_add(1, Ordering::Relaxed);
             }
 
@@ -560,6 +483,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Debug)]
 struct ScanState {
     start_time: Instant,
     num_scanned_files: AtomicUsize,
@@ -790,12 +714,15 @@ mod output_handler {
     /// [`NdjsonOutputHandler`] and [`JsonOutputHandler`].
     pub(super) trait OutputHandler: Sync {
         /// Called for each scanned file.
+        ///
+        /// Must return `true` when the file was included in the output,
+        /// or `false` if the file was ignored.
         fn on_file_scanned(
             &self,
             file_path: &Path,
             scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
             output: &Sender<Message>,
-        );
+        ) -> bool;
         /// Called when the last file has been scanned.
         fn on_done(&self, _output: &Sender<Message>);
     }
@@ -816,7 +743,7 @@ mod output_handler {
             file_path: &Path,
             scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
             output: &Sender<Message>,
-        ) {
+        ) -> bool {
             if self.output_options.count_only {
                 output
                     .send(Message::Info(format!(
@@ -825,8 +752,10 @@ mod output_handler {
                         scan_results.len()
                     )))
                     .unwrap();
-                return;
+                return true;
             }
+
+            let mut result = false;
 
             for matching_rule in scan_results {
                 if let Some(ref only_tag) = self.output_options.only_tag {
@@ -837,6 +766,8 @@ mod output_handler {
                         continue;
                     }
                 }
+
+                result = true;
 
                 let mut msg = if self.output_options.include_namespace {
                     format!(
@@ -980,6 +911,8 @@ mod output_handler {
 
                 output.send(Message::Info(msg)).unwrap();
             }
+
+            result
         }
 
         fn on_done(&self, _output: &Sender<Message>) {
@@ -1003,7 +936,7 @@ mod output_handler {
             file_path: &Path,
             scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
             output: &Sender<Message>,
-        ) {
+        ) -> bool {
             let path = file_path.to_str().unwrap();
 
             if self.output_options.count_only {
@@ -1014,17 +947,22 @@ mod output_handler {
                 .unwrap();
 
                 output.send(Message::Info(json)).unwrap();
-                return;
+                return true;
             }
 
-            let rules = rules_to_json(&self.output_options, scan_results);
+            let matching_rules =
+                rules_to_json(&self.output_options, scan_results);
+
             let line = serde_json::to_string(&JsonOutput {
                 path,
-                rules: rules.as_slice(),
+                rules: matching_rules.as_slice(),
             })
             .unwrap();
 
             output.send(Message::Info(line)).unwrap();
+
+            // Return `false` if `matching_rules` is empty.
+            !matching_rules.is_empty()
         }
 
         fn on_done(&self, _output: &Sender<Message>) {
@@ -1129,7 +1067,7 @@ mod output_handler {
             file_path: &Path,
             scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
             _output: &Sender<Message>,
-        ) {
+        ) -> bool {
             let path = file_path
                 .canonicalize()
                 .ok()
@@ -1139,7 +1077,7 @@ mod output_handler {
                 .unwrap_or_default();
 
             // prepare the increment *outside* the critical section
-            let matches = scan_results
+            let matching_rules = scan_results
                 .filter(|rule| {
                     self.output_options.only_tag.as_ref().is_none_or(
                         |only_tag| {
@@ -1189,8 +1127,9 @@ mod output_handler {
                 });
 
             {
-                let mut lock = self.output_buffer.lock().unwrap();
-                lock.extend(matches);
+                let mut output = self.output_buffer.lock().unwrap();
+                output.extend(matching_rules);
+                !output.is_empty()
             }
         }
 

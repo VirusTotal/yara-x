@@ -216,8 +216,8 @@ where
 
     /// Returns a reference to the next [`Event`] that is not a whitespace,
     /// newline, comment or error. The event is returned without being
-    /// consumed. Any whitespace, newline, comment or error is consumed that
-    /// appears before the returned one is consumed.
+    /// consumed, but any whitespace, newline, comment or error that appears
+    /// before the event is consumed.
     fn peek(&mut self) -> &Event {
         self.consume_errors_and_trivia();
         self.events.peek().expect("unexpected end of events")

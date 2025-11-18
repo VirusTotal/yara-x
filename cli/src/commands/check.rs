@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::{fs, io};
+use std::{fs, io, process};
 
 use anyhow::Context;
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
@@ -86,7 +86,7 @@ pub fn exec_check(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
     w.max_depth(*recursive.unwrap_or(&0));
 
-    w.walk(
+    let state = w.walk(
         CheckState::new(),
         // Initialization
         |_, _| {},
@@ -268,9 +268,20 @@ pub fn exec_check(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     )
         .unwrap();
 
+    // Exit code is 1 if errors were found.
+    if state.errors.load(Ordering::Relaxed) > 0 {
+        process::exit(1)
+    }
+
+    // Exit code is 2 if no error was found, but warnings were found.
+    if state.warnings.load(Ordering::Relaxed) > 0 {
+        process::exit(2);
+    }
+
     Ok(())
 }
 
+#[derive(Debug)]
 struct CheckState {
     files_passed: AtomicUsize,
     warnings: AtomicUsize,

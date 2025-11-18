@@ -202,11 +202,11 @@ impl Read for PyReader {
                 self.obj.call_method1(py, consts::read(py), (buf.len(),))?;
 
             if self.is_text_io {
-                let bytes = data.extract::<Cow<str>>(py)?;
+                let bytes = data.extract::<Cow<str>>(py).unwrap();
                 buf.write_all(bytes.as_bytes())?;
                 Ok(bytes.len())
             } else {
-                let bytes = data.extract::<Cow<[u8]>>(py)?;
+                let bytes = data.extract::<Cow<[u8]>>(py).unwrap();
                 buf.write_all(bytes.as_ref())?;
                 Ok(bytes.len())
             }
@@ -1100,7 +1100,7 @@ impl JsonDecoder {
         if let Some(encoding) = dict
             .get_item("encoding")?
             .as_ref()
-            .and_then(|encoding| encoding.downcast::<PyString>().ok())
+            .and_then(|encoding| encoding.cast::<PyString>().ok())
         {
             let value = match dict.get_item("value")? {
                 Some(value) => value,
@@ -1109,7 +1109,7 @@ impl JsonDecoder {
 
             if encoding == "base64" {
                 BASE64_STANDARD
-                    .decode(value.downcast::<PyString>()?.to_cow()?.as_bytes())
+                    .decode(value.cast::<PyString>()?.to_cow()?.as_bytes())
                     .expect("decoding base64")
                     .into_bound_py_any(py)
             } else if encoding == "timestamp" {

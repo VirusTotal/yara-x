@@ -1,46 +1,46 @@
 RULE test_1
-  23: FOR_IN -- hash: 0x759f60f5a7f015eb -- parent: None 
-    0: CONST integer(0) -- parent: 23 
-    1: CONST integer(1) -- parent: 23 
-    22: EQ -- hash: 0x5c8fc30a843d9a50 -- parent: 23 
-      20: FIELD_ACCESS -- hash: 0x3ec51a750647f9a8 -- parent: 22 
-        16: LOOKUP -- hash: 0x491138f2e72b9f66 -- parent: 20 
-          14: FIELD_ACCESS -- hash: 0x54b6d37d2b917356 -- parent: 16 
-            12: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 14 
-            13: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None, deprecation_msg: None } -- parent: 14 
-          15: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 16 
-        19: LOOKUP -- hash: 0x1bd1e557c8168259 -- parent: 20 
-          17: SYMBOL Field { index: 6, is_root: false, type_value: array, acl: None, deprecation_msg: None } -- parent: 19 
-          18: CONST integer(0) -- parent: 19 
-      21: CONST integer(0) -- parent: 22 
+  13: FOR_IN -- hash: 0x759f60f5a7f015eb -- parent: None 
+    0: CONST integer(0) -- parent: 13 
+    1: CONST integer(1) -- parent: 13 
+    12: EQ -- hash: 0x5c8fc30a843d9a50 -- parent: 13 
+      10: FIELD_ACCESS -- hash: 0x3ec51a750647f9a8 -- parent: 12 
+        6: LOOKUP -- hash: 0x491138f2e72b9f66 -- parent: 10 
+          4: FIELD_ACCESS -- hash: 0x54b6d37d2b917356 -- parent: 6 
+            2: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None } -- parent: 4 
+            3: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None, deprecation_notice: None } -- parent: 4 
+          5: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) } -- parent: 6 
+        9: LOOKUP -- hash: 0x1bd1e557c8168259 -- parent: 10 
+          7: SYMBOL Field { index: 6, is_root: false, type_value: array, acl: None, deprecation_notice: None } -- parent: 9 
+          8: CONST integer(0) -- parent: 9 
+      11: CONST integer(0) -- parent: 12 
 
 RULE test_2
-  10: DEFINED -- hash: 0x1d49f5b40894ff06 -- parent: None 
-    9: FOR_IN -- hash: 0xd90605d04c83c3bc -- parent: 10 
-      0: CONST integer(0) -- parent: 9 
-      1: CONST integer(10) -- parent: 9 
-      8: EQ -- hash: 0x73a8684f978b75a -- parent: 9 
-        6: FN_CALL test_proto2.undef_i64@@iu -- hash: 0xc0206489d8f27bee -- parent: 8 
-        7: CONST integer(0) -- parent: 8 
+  7: DEFINED -- hash: 0x1d49f5b40894ff06 -- parent: None 
+    6: FOR_IN -- hash: 0xd90605d04c83c3bc -- parent: 7 
+      0: CONST integer(0) -- parent: 6 
+      1: CONST integer(10) -- parent: 6 
+      5: EQ -- hash: 0x73a8684f978b75a -- parent: 6 
+        3: FN_CALL test_proto2.undef_i64@@iu -- hash: 0xc0206489d8f27bee -- parent: 5 
+        4: CONST integer(0) -- parent: 5 
 
 RULE test_3
   18: OR -- hash: 0xc03b2943bc74ac56 -- parent: None 
     5: CONTAINS -- hash: 0x9b34a06a5c144733 -- parent: 18 
       3: FIELD_ACCESS -- hash: 0xa68ef47d7e9f1bf3 -- parent: 5 
-        0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 3 
-        1: SYMBOL Field { index: 44, is_root: false, type_value: struct, acl: None, deprecation_msg: None } -- parent: 3 
-        2: SYMBOL Field { index: 5, is_root: false, type_value: string(unknown), acl: None, deprecation_msg: None } -- parent: 3 
+        0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None } -- parent: 3 
+        1: SYMBOL Field { index: 44, is_root: false, type_value: struct, acl: None, deprecation_notice: None } -- parent: 3 
+        2: SYMBOL Field { index: 5, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None } -- parent: 3 
       4: CONST string("foo") -- parent: 5 
     11: CONTAINS -- hash: 0x9b34a06a5c144733 -- parent: 18 
       9: FIELD_ACCESS -- hash: 0xa68ef47d7e9f1bf3 -- parent: 11 
-        6: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 9 
-        7: SYMBOL Field { index: 44, is_root: false, type_value: struct, acl: None, deprecation_msg: None } -- parent: 9 
-        8: SYMBOL Field { index: 5, is_root: false, type_value: string(unknown), acl: None, deprecation_msg: None } -- parent: 9 
+        6: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None } -- parent: 9 
+        7: SYMBOL Field { index: 44, is_root: false, type_value: struct, acl: None, deprecation_notice: None } -- parent: 9 
+        8: SYMBOL Field { index: 5, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None } -- parent: 9 
       10: CONST string("foo") -- parent: 11 
     17: CONTAINS -- hash: 0xbab99c5006e37037 -- parent: 18 
       15: FIELD_ACCESS -- hash: 0xa68ef47d7e9f1bf3 -- parent: 17 
-        12: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_msg: None } -- parent: 15 
-        13: SYMBOL Field { index: 44, is_root: false, type_value: struct, acl: None, deprecation_msg: None } -- parent: 15 
-        14: SYMBOL Field { index: 5, is_root: false, type_value: string(unknown), acl: None, deprecation_msg: None } -- parent: 15 
+        12: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None } -- parent: 15 
+        13: SYMBOL Field { index: 44, is_root: false, type_value: struct, acl: None, deprecation_notice: None } -- parent: 15 
+        14: SYMBOL Field { index: 5, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None } -- parent: 15 
       16: CONST string("bar") -- parent: 17 
 

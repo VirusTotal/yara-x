@@ -1,0 +1,8 @@
+rule a {
+  strings:
+    $a0 = "foo"
+    $a1 = "pants"
+    $b = "bar"
+  condition:
+    for 4 of ($a*, $b): ($ at 1)
+}

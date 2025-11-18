@@ -1,6 +1,7 @@
 /*! Functions for converting an AST into an IR. */
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::iter;
 use std::ops::RangeInclusive;
@@ -25,12 +26,12 @@ use crate::compiler::errors::{
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
     Error, Expr, ExprId, Iterable, LiteralPattern, MatchAnchor, Pattern,
-    PatternFlags, PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern,
+    PatternFlags, PatternInRule, Quantifier, Range, RegexpPattern,
 };
 use crate::compiler::report::{Level, ReportBuilder};
 use crate::compiler::{
     warnings, CompileContext, CompileError, FilesizeBounds, ForVars,
-    TextPatternAsHex,
+    PatternIdx, TextPatternAsHex,
 };
 use crate::errors::CustomError;
 use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
@@ -50,7 +51,7 @@ const MAX_PATTERNS_PER_RULE: usize = 100_000;
 const MAX_LOOP_ITERATIONS: i64 = 1_000_000;
 
 pub(in crate::compiler) fn patterns_from_ast<'src>(
-    ctx: &mut CompileContext<'_, 'src, '_>,
+    ctx: &mut CompileContext<'_, 'src>,
     rule: &ast::Rule<'src>,
 ) -> Result<(), CompileError> {
     for pattern_ast in rule.patterns.as_ref().into_iter().flatten() {
@@ -449,14 +450,16 @@ fn expr_from_ast(
 ) -> Result<ExprId, CompileError> {
     let expr = match expr {
         ast::Expr::Entrypoint { span } => {
+            let code_loc = ctx.report_builder.span_to_code_loc(span.clone());
+
             let mut err = EntrypointUnsupported::build(
                 ctx.report_builder,
-                ctx.report_builder.span_to_code_loc(span.clone()),
+                code_loc.clone(),
             );
 
-            err.report()
+            err.report_mut()
                 .new_section(Level::HELP, "use `pe.entry_point`, elf.entry_point` or `macho.entry_point`")
-                .patch(span.clone(), "pe.entry_point");
+                .patch(code_loc, "pe.entry_point");
 
             return Err(err);
         }
@@ -521,13 +524,17 @@ fn expr_from_ast(
 
         // Comparison operations
         ast::Expr::Eq(expr) => {
+            let eq_expr = eq_expr_from_ast(ctx, expr)?;
+
+            let (lhs, rhs) = match ctx.ir.get(eq_expr) {
+                Expr::Eq { lhs, rhs } => (*lhs, *rhs),
+                _ => unreachable!(),
+            };
+
             let span = expr.span();
 
             let lhs_span = expr.lhs.span();
             let rhs_span = expr.rhs.span();
-
-            let lhs = expr_from_ast(ctx, &expr.lhs)?;
-            let rhs = expr_from_ast(ctx, &expr.rhs)?;
 
             let lhs_expr = ctx.ir.get(lhs);
             let rhs_expr = ctx.ir.get(rhs);
@@ -569,17 +576,18 @@ fn expr_from_ast(
                     _ => None,
                 };
 
-            if let Some((expr, msg)) = replacement {
-                ctx.warnings.add(|| {
-                    warnings::BooleanIntegerComparison::build(
-                        ctx.report_builder,
-                        msg,
-                        ctx.report_builder.span_to_code_loc(span),
-                    )
-                });
-                expr
+            if let Some((replacement_expr, replacement)) = replacement {
+                let code_loc = ctx.report_builder.span_to_code_loc(span);
+                let mut warning = warnings::BooleanIntegerComparison::build(
+                    ctx.report_builder,
+                    code_loc.clone(),
+                );
+
+                warning.report_mut().patch(code_loc, replacement);
+                ctx.warnings.add(|| warning);
+                replacement_expr
             } else {
-                eq_expr_from_ast(ctx, expr)?
+                eq_expr
             }
         }
         ast::Expr::Ne(expr) => ne_expr_from_ast(ctx, expr)?,
@@ -613,6 +621,13 @@ fn expr_from_ast(
                 let expr = expr_from_ast(ctx, operand)?;
                 check_type(ctx, expr, operand.span(), &[Type::Struct])?;
                 operands.push(expr);
+                // The one-shot symbol table is set to the symbol table that
+                // corresponds to the type of the most recent expression. For
+                // instance, after parsing `foo`, the one-shot symbol table
+                // corresponds to the type of `foo`, so that `.bar` can be
+                // resolved in the next iteration of this loop.
+                ctx.one_shot_symbol_table =
+                    ctx.ir.get(expr).type_value().symbol_table();
             }
 
             // Now process the last operand.
@@ -657,17 +672,33 @@ fn expr_from_ast(
             }
 
             // If the field is deprecated raise the appropriate warning.
-            if let Symbol::Field { deprecation_msg: Some(ref msg), .. } =
-                symbol
+            if let Symbol::Field {
+                deprecation_notice: Some(ref notice), ..
+            } = symbol
             {
-                ctx.warnings.add(|| {
-                    warnings::DeprecatedField::build(
-                        ctx.report_builder,
-                        ident.name.to_string(),
-                        ctx.report_builder.span_to_code_loc(ident.span()),
-                        msg.clone(),
-                    )
-                })
+                let code_loc =
+                    ctx.report_builder.span_to_code_loc(ident.span());
+
+                let mut warning = warnings::DeprecatedField::build(
+                    ctx.report_builder,
+                    ident.name.to_string(),
+                    code_loc.clone(),
+                    notice.text.clone(),
+                );
+
+                if let Some(replacement) = &notice.replacement {
+                    warning
+                        .report_mut()
+                        .new_section(
+                            Level::HELP,
+                            notice.help.clone().unwrap_or(
+                                "apply the following changes".to_owned(),
+                            ),
+                        )
+                        .patch(code_loc, replacement);
+                }
+
+                ctx.warnings.add(|| warning)
             }
 
             ctx.ir.ident(symbol)
@@ -853,8 +884,6 @@ fn expr_from_ast(
         ast::Expr::Lookup(expr) => {
             let primary = expr_from_ast(ctx, &expr.primary)?;
 
-            ctx.one_shot_symbol_table = None;
-
             match ctx.ir.get(primary).type_value() {
                 TypeValue::Array(array) => {
                     let index =
@@ -892,8 +921,6 @@ fn expr_from_ast(
             }
         }
     };
-
-    ctx.one_shot_symbol_table = ctx.ir.get(expr).type_value().symbol_table();
 
     Ok(expr)
 }
@@ -935,8 +962,6 @@ fn bool_expr_from_ast(
     ctx: &mut CompileContext,
     ast: &ast::Expr,
 ) -> Result<ExprId, CompileError> {
-    ctx.one_shot_symbol_table = None;
-
     let expr = expr_from_ast(ctx, ast)?;
 
     match ctx.ir.get(expr).type_value() {
@@ -1072,12 +1097,16 @@ fn of_expr_from_ast(
                 );
 
                 warning
-                    .report()
+                    .report_mut()
                     .new_section(
                         Level::HELP,
                         "consider using `none` instead of `0`",
                     )
-                    .patch(of.quantifier.span(), "none");
+                    .patch(
+                        ctx.report_builder
+                            .span_to_code_loc(of.quantifier.span()),
+                        "none",
+                    );
 
                 ctx.warnings.add(|| warning)
             }
@@ -1201,7 +1230,7 @@ fn for_of_expr_from_ast(
         },
     );
 
-    ctx.symbol_table.push(Rc::new(loop_vars));
+    ctx.symbol_table.push(Rc::new(RefCell::new(loop_vars)));
     ctx.for_of_depth += 1;
 
     let body = bool_expr_from_ast(ctx, &for_of.body)?;
@@ -1209,6 +1238,24 @@ fn for_of_expr_from_ast(
     ctx.for_of_depth -= 1;
     ctx.symbol_table.pop();
     ctx.vars.unwind(&stack_frame);
+
+    if let Quantifier::Expr(expr) = &quantifier {
+        if let Some(value) = ctx.ir.get(*expr).try_as_const_integer() {
+            // If the quantifier expression is greater than the number of items,
+            // the `of` expression is always false.
+            if value > pattern_set.len() as i64 {
+                ctx.warnings.add(|| warnings::InvariantBooleanExpression::build(
+                    ctx.report_builder,
+                    false,
+                    ctx.report_builder.span_to_code_loc(for_of.span()),
+                    Some(format!(
+                        "the expression requires {} matching patterns out of {}",
+                        value, pattern_set.len()
+                    )),
+                ));
+            }
+        }
+    }
 
     Ok(ctx.ir.for_of(quantifier, next_pattern_id, for_vars, pattern_set, body))
 }
@@ -1365,7 +1412,7 @@ fn for_in_expr_from_ast(
     }
 
     // Put the loop variables into scope.
-    ctx.symbol_table.push(Rc::new(symbols));
+    ctx.symbol_table.push(Rc::new(RefCell::new(symbols)));
 
     let body = bool_expr_from_ast(ctx, &for_in.body)?;
 
@@ -1400,7 +1447,6 @@ fn with_expr_from_ast(
     let symbols = ctx.symbol_table.push_new();
 
     for item in with.declarations.iter() {
-        let name = item.identifier.name;
         let expr = expr_from_ast(ctx, &item.expression)?;
         let type_value = ctx.ir.get(expr).type_value();
 
@@ -1415,18 +1461,36 @@ fn with_expr_from_ast(
                         .span_to_code_loc(item.expression.span()),
                 ));
             }
-            symbols.borrow_mut().insert(name, Symbol::Func(func.clone()));
+            symbols
+                .borrow_mut()
+                .insert(item.identifier.name, Symbol::Func(func.clone()));
         } else {
             let var = stack_frame.new_var(type_value.ty());
             declarations.push((var, expr));
-            symbols.borrow_mut().insert(name, Symbol::Var { var, type_value });
+            symbols
+                .borrow_mut()
+                .insert(item.identifier.name, Symbol::Var { var, type_value });
         }
     }
 
     let body = bool_expr_from_ast(ctx, &with.body)?;
 
-    // Leaving with statement body's scope. Remove with statement variables.
-    ctx.symbol_table.pop();
+    // Leaving with statement body's scope. Remove with statement variables
+    // from the context's symbol table, but keep them to verify if they
+    // were actually used.
+    let with_vars = ctx.symbol_table.pop().unwrap().take();
+
+    for item in with.declarations.iter() {
+        if !with_vars.used(item.identifier.name) {
+            ctx.warnings.add(|| {
+                warnings::UnusedIdentifier::build(
+                    ctx.report_builder,
+                    ctx.report_builder
+                        .span_to_code_loc(item.identifier.span()),
+                )
+            })
+        }
+    }
 
     ctx.vars.unwind(&stack_frame);
 
@@ -1609,15 +1673,10 @@ fn pattern_set_from_ast(
     ctx: &mut CompileContext,
     pattern_set: &ast::PatternSet,
 ) -> Result<Vec<PatternIdx>, CompileError> {
-    let pattern_indexes = match pattern_set {
+    match pattern_set {
         // `x of them`
         ast::PatternSet::Them { span } => {
-            let pattern_indexes: Vec<PatternIdx> =
-                (0..ctx.current_rule_patterns.len())
-                    .map(|i| i.into())
-                    .collect();
-
-            if pattern_indexes.is_empty() {
+            if ctx.current_rule_patterns.is_empty() {
                 return Err(EmptyPatternSet::build(
                     ctx.report_builder,
                     ctx.report_builder.span_to_code_loc(span.clone()),
@@ -1631,7 +1690,12 @@ fn pattern_set_from_ast(
                 pattern.make_non_anchorable().mark_as_used();
             }
 
-            pattern_indexes
+            let pattern_indexes: Vec<PatternIdx> =
+                (0..ctx.current_rule_patterns.len())
+                    .map(|i| i.into())
+                    .collect();
+
+            Ok(pattern_indexes)
         }
         // `x of ($a*, $b)`
         ast::PatternSet::Set(set) => {
@@ -1658,7 +1722,9 @@ fn pattern_set_from_ast(
                     ));
                 }
             }
-            let mut pattern_indexes = Vec::new();
+
+            let mut pattern_indexes: Vec<PatternIdx> = Vec::new();
+
             for (i, pattern) in
                 ctx.current_rule_patterns.iter_mut().enumerate()
             {
@@ -1671,11 +1737,10 @@ fn pattern_set_from_ast(
                     pattern.make_non_anchorable().mark_as_used();
                 }
             }
-            pattern_indexes
-        }
-    };
 
-    Ok(pattern_indexes)
+            Ok(pattern_indexes)
+        }
+    }
 }
 
 fn func_call_from_ast(
@@ -1683,7 +1748,12 @@ fn func_call_from_ast(
     func_call: &ast::FuncCall,
 ) -> Result<ExprId, CompileError> {
     let mut object = if let Some(obj) = &func_call.object {
-        Some(expr_from_ast(ctx, obj)?)
+        let expr = expr_from_ast(ctx, obj)?;
+        // The one-shot symbol table is set according to the type of the object
+        // associated to the function call, so that methods can be resolved.
+        ctx.one_shot_symbol_table =
+            ctx.ir.get(expr).type_value().symbol_table();
+        Some(expr)
     } else {
         None
     };
@@ -1820,7 +1890,7 @@ fn check_operands(
     lhs_span: Span,
     rhs_span: Span,
     accepted_types: &[Type],
-    compatible_types: &[Type],
+    compatible_types: &[(Type, Type)],
 ) -> Result<(), CompileError> {
     let lhs_ty = ctx.ir.get(lhs).ty();
     let rhs_ty = ctx.ir.get(rhs).ty();
@@ -1835,12 +1905,11 @@ fn check_operands(
     let types_are_compatible = {
         // If the types are the same, they are compatible.
         (lhs_ty == rhs_ty)
-            // If both types are in the list of compatible types,
-            // they are compatible too.
-            || (
-            compatible_types.contains(&lhs_ty)
-                && compatible_types.contains(&rhs_ty)
-        )
+            // If the list of compatible types contains the pair
+            // (lhs_ty, rhs_ty) or (rhs_ty, lhs_ty), they are
+            // compatible.
+            || compatible_types.contains(&(lhs_ty, rhs_ty))
+                || compatible_types.contains(&(rhs_ty, lhs_ty))
     };
 
     if !types_are_compatible {
@@ -1995,7 +2064,7 @@ macro_rules! gen_unary_op {
 }
 
 macro_rules! gen_binary_op {
-    ($name:ident, $variant:ident, $( $accepted_types:path )|+, $( $compatible_types:path )|+, $check_fn:expr) => {
+    ($name:ident, $variant:ident, $( $accepted_types:path )|+, $compatible_types:expr, $check_fn:expr) => {
         fn $name(
             ctx: &mut CompileContext,
             expr: &ast::BinaryExpr,
@@ -2013,7 +2082,7 @@ macro_rules! gen_binary_op {
                 lhs_span.clone(),
                 rhs_span.clone(),
                 &[$( $accepted_types ),+],
-                &[$( $compatible_types ),+],
+                $compatible_types,
             )?;
 
             let check_fn:
@@ -2048,7 +2117,7 @@ macro_rules! gen_string_op {
                 lhs_span.clone(),
                 rhs_span.clone(),
                 &[Type::String],
-                &[Type::String],
+                &[],
             )?;
 
             Ok(ctx.ir.$variant(lhs, rhs))
@@ -2057,14 +2126,14 @@ macro_rules! gen_string_op {
 }
 
 macro_rules! gen_n_ary_operation {
-    ($name:ident, $variant:ident, $( $accepted_types:path )|+, $( $compatible_types:path )|+, $check_fn:expr) => {
+    ($name:ident, $variant:ident, $( $accepted_types:path )|+, $compatible_types:expr, $check_fn:expr) => {
         fn $name(
             ctx: &mut CompileContext,
             expr: &ast::NAryExpr,
         ) -> Result<ExprId, CompileError> {
             let span = expr.span();
             let accepted_types = &[$( $accepted_types ),+];
-            let compatible_types = &[$( $compatible_types ),+];
+            let compatible_types = $compatible_types;
 
             let operands_hir: Vec<ExprId> = expr
                 .operands()
@@ -2093,13 +2162,13 @@ macro_rules! gen_n_ary_operation {
 
                 let types_are_compatible = {
                     // If the types are the same, they are compatible.
-                    (lhs_ty == rhs_ty)
-                        // If both types are in the list of compatible types,
-                        // they are compatible too.
-                        || (
-                        compatible_types.contains(&lhs_ty)
-                            && compatible_types.contains(&rhs_ty)
-                    )
+                    (lhs_ty == rhs_ty) ||
+                        // If the list of compatible types contains the pair
+                        // (lhs_ty, rhs_ty) or (rhs_ty, lhs_ty), they are
+                        // compatible.
+                        compatible_types.contains(&(lhs_ty, rhs_ty))
+                            || compatible_types.contains(&(rhs_ty, lhs_ty))
+
                 };
 
                 if !types_are_compatible {
@@ -2158,7 +2227,14 @@ gen_n_ary_operation!(
     Type::Bool | Type::Integer | Type::Float | Type::String,
     // All operand types can be mixed in a boolean operation, as they
     // are casted to boolean anyways.
-    Type::Bool | Type::Integer | Type::Float | Type::String,
+    &[
+        (Type::Integer, Type::Bool),
+        (Type::Integer, Type::Float),
+        (Type::Integer, Type::String),
+        (Type::String, Type::Bool),
+        (Type::String, Type::Float),
+        (Type::Float, Type::Bool)
+    ],
     Some(|ctx, operand, span| {
         let ty = ctx.ir.get(operand).ty();
         warn_if_not_bool(ctx, ty, span);
@@ -2174,7 +2250,14 @@ gen_n_ary_operation!(
     Type::Bool | Type::Integer | Type::Float | Type::String,
     // All operand types can be mixed in a boolean operation, as they
     // are casted to boolean anyways.
-    Type::Bool | Type::Integer | Type::Float | Type::String,
+    &[
+        (Type::Integer, Type::Bool),
+        (Type::Integer, Type::Float),
+        (Type::Integer, Type::String),
+        (Type::String, Type::Bool),
+        (Type::String, Type::Float),
+        (Type::Float, Type::Bool)
+    ],
     Some(|ctx, operand, span| {
         let ty = ctx.ir.get(operand).ty();
         warn_if_not_bool(ctx, ty, span);
@@ -2188,7 +2271,7 @@ gen_n_ary_operation!(
     add_expr_from_ast,
     add,
     Type::Integer | Type::Float,
-    Type::Integer | Type::Float,
+    &[(Type::Integer, Type::Float)],
     None
 );
 
@@ -2196,7 +2279,7 @@ gen_n_ary_operation!(
     sub_expr_from_ast,
     sub,
     Type::Integer | Type::Float,
-    Type::Integer | Type::Float,
+    &[(Type::Integer, Type::Float)],
     None
 );
 
@@ -2204,7 +2287,7 @@ gen_n_ary_operation!(
     mul_expr_from_ast,
     mul,
     Type::Integer | Type::Float,
-    Type::Integer | Type::Float,
+    &[(Type::Integer, Type::Float)],
     None
 );
 
@@ -2212,49 +2295,24 @@ gen_n_ary_operation!(
     div_expr_from_ast,
     div,
     Type::Integer | Type::Float,
-    Type::Integer | Type::Float,
+    &[(Type::Integer, Type::Float)],
     None
 );
 
-gen_n_ary_operation!(
-    mod_expr_from_ast,
-    modulus,
-    Type::Integer,
-    Type::Integer,
-    None
-);
-
-gen_binary_op!(
-    shl_expr_from_ast,
-    shl,
-    Type::Integer,
-    Type::Integer,
-    Some(shx_check)
-);
-
-gen_binary_op!(
-    shr_expr_from_ast,
-    shr,
-    Type::Integer,
-    Type::Integer,
-    Some(shx_check)
-);
+gen_n_ary_operation!(mod_expr_from_ast, modulus, Type::Integer, &[], None);
 
 gen_unary_op!(bitwise_not_expr_from_ast, bitwise_not, Type::Integer, None);
+
+gen_binary_op!(shl_expr_from_ast, shl, Type::Integer, &[], Some(shx_check));
+gen_binary_op!(shr_expr_from_ast, shr, Type::Integer, &[], Some(shx_check));
+
+gen_binary_op!(bitwise_or_expr_from_ast, bitwise_or, Type::Integer, &[], None);
 
 gen_binary_op!(
     bitwise_and_expr_from_ast,
     bitwise_and,
     Type::Integer,
-    Type::Integer,
-    None
-);
-
-gen_binary_op!(
-    bitwise_or_expr_from_ast,
-    bitwise_or,
-    Type::Integer,
-    Type::Integer,
+    &[],
     None
 );
 
@@ -2262,18 +2320,17 @@ gen_binary_op!(
     bitwise_xor_expr_from_ast,
     bitwise_xor,
     Type::Integer,
-    Type::Integer,
+    &[],
     None
 );
 
 gen_binary_op!(
     eq_expr_from_ast,
     eq,
-    // Integers, floats and strings can be compared.
-    Type::Integer | Type::Float | Type::String,
-    // Integers can be compared with floats, but strings can be
-    // compared only with another string.
-    Type::Integer | Type::Float,
+    // Booleans, integers, floats and strings can be compared.
+    Type::Bool | Type::Integer | Type::Float | Type::String,
+    // Integers can be compared with floats and booleans.
+    &[(Type::Integer, Type::Float), (Type::Integer, Type::Bool)],
     Some(eq_check)
 );
 
@@ -2282,9 +2339,8 @@ gen_binary_op!(
     ne,
     // Integers, floats and strings can be compared.
     Type::Integer | Type::Float | Type::String,
-    // Integers can be compared with floats, but strings can be
-    // compared only with another string.
-    Type::Integer | Type::Float,
+    // Integers can be compared with floats.
+    &[(Type::Integer, Type::Float)],
     None
 );
 
@@ -2293,9 +2349,8 @@ gen_binary_op!(
     gt,
     // Integers, floats and strings can be compared.
     Type::Integer | Type::Float | Type::String,
-    // Integers can be compared with floats, but strings can be
-    // compared only with another string.
-    Type::Integer | Type::Float,
+    // Integers can be compared with floats.
+    &[(Type::Integer, Type::Float)],
     None
 );
 
@@ -2306,7 +2361,7 @@ gen_binary_op!(
     Type::Integer | Type::Float | Type::String,
     // Integers can be compared with floats, but strings can be
     // compared only with another string.
-    Type::Integer | Type::Float,
+    &[(Type::Integer, Type::Float)],
     None
 );
 
@@ -2315,9 +2370,8 @@ gen_binary_op!(
     lt,
     // Integers, floats and strings can be compared.
     Type::Integer | Type::Float | Type::String,
-    // Integers can be compared with floats, but strings can be
-    // compared only with another string.
-    Type::Integer | Type::Float,
+    // Integers can be compared with floats.
+    &[(Type::Integer, Type::Float)],
     None
 );
 
@@ -2326,9 +2380,8 @@ gen_binary_op!(
     le,
     // Integers, floats and strings can be compared.
     Type::Integer | Type::Float | Type::String,
-    // Integers can be compared with floats, but strings can be
-    // compared only with another string.
-    Type::Integer | Type::Float,
+    // Integers can be compared with floats.
+    &[(Type::Integer, Type::Float)],
     None
 );
 
@@ -2362,22 +2415,31 @@ fn eq_check(
                     StringConstraint::Lowercase
                         if const_string.chars().any(|c| c.is_uppercase()) =>
                     {
-                        ctx.warnings.add(|| {
-                                UnsatisfiableExpression::build(
-                                    ctx.report_builder,
-                                    "this is a lowercase string".to_string(),
-                                    "this contains uppercase characters".to_string(),
-                                    ctx.report_builder.span_to_code_loc(
-                                        constrained_string_span.clone()
-                                    ),
-                                    ctx.report_builder.span_to_code_loc(
-                                        const_string_span.clone()
-                                    ),
-                                    Some(
-                                        "a lowercase string can't be equal to a string containing uppercase characters"
-                                            .to_string()),
-                                )
-                            });
+                        let mut warning = UnsatisfiableExpression::build(
+                            ctx.report_builder,
+                            "this is a lowercase string".to_string(),
+                            "this contains uppercase characters".to_string(),
+                            ctx.report_builder.span_to_code_loc(
+                                constrained_string_span.clone()
+                            ),
+                            ctx.report_builder.span_to_code_loc(
+                                const_string_span.clone()
+                            ),
+                            Some(
+                                "a lowercase string can't be equal to a string containing uppercase characters"
+                                    .to_string()),
+                        );
+                        warning.report_mut().patch(
+                            ctx.report_builder
+                                .span_to_code_loc(const_string_span.clone()),
+                            format!(
+                                "\"{}\"",
+                                const_string.to_string().to_lowercase()
+                            ),
+                        );
+
+                        ctx.warnings.add(|| warning);
+                        return;
                     }
                     StringConstraint::ExactLength(n)
                         if const_string.len() != n =>
@@ -2399,6 +2461,7 @@ fn eq_check(
                                 None,
                             )
                         });
+                        return;
                     }
                     _ => {}
                 }

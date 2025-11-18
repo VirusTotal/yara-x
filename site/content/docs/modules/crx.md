@@ -18,8 +18,8 @@ seo:
   noindex: false # false (default) or true
 ---
 
-The `crx` parses Chrome Extension (CRX) files and enables the creation of YARA
-rules based on metadata extracted from these files.  CRX files are used by 
+The `crx` module parses Chrome Extension (CRX) files and enables the creation of 
+YARA rules based on metadata extracted from these files. CRX files are used by 
 Chromium-based browsers—such as Google Chrome and Microsoft Edge—to package and
 distribute browser extensions. Essentially, they are ZIP archives with a 
 different file extension and additional metadata, including one or more digital
