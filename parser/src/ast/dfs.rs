@@ -12,6 +12,7 @@ pub enum DFSEvent<T> {
 ///
 /// The context provides information about the relationship between the
 /// expression being visited and its parent.
+#[derive(Debug)] // XXX: Remove this after debugging is done.
 pub enum DFSContext<'src> {
     /// The visited expression is the one that was used for starting the
     /// traversal.

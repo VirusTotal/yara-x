@@ -6,8 +6,8 @@ use anyhow::Context;
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 
 use dot_writer::{Attributes, Color, DotWriter, Scope, Style};
-use yara_x_parser::ast::dfs::{DFSEvent, DFSIter};
-use yara_x_parser::ast::{Expr, Quantifier, AST};
+use yara_x_parser::ast::dfs::{DFSContext, DFSEvent, DFSIter};
+use yara_x_parser::ast::{Expr, AST};
 use yara_x_parser::Parser;
 
 #[derive(Debug)]
@@ -190,72 +190,119 @@ fn check_expr<'a>(
     rule_name: &'a str,
     dep_map: &mut BTreeMap<&'a str, Deps<'a>>,
 ) {
+    let mut variable_stack: Vec<Vec<&str>> = vec![];
+    let mut new_variables: Vec<&str> = vec![];
     let mut variables: Vec<&str> = vec![];
-    for event in DFSIter::new(expr) {
+
+    // In the case of a field access expression (ie: pe.number_of_signatures) we
+    // only want to collect the first identifier after entering that field
+    // expression. If we don't do this we will pick up "number_of_signatures" as
+    // an unknown identifier. However, conditions like (pe).signatures.len()
+    // alter the AST so that the second operand of the field access expression
+    // is now a function call, so we need to be careful to avoid picking up the
+    // second operand in this case too.
+    let mut field_access_root = false;
+
+    let mut dfs = DFSIter::new(expr);
+    while let Some(event) = dfs.next() {
         match event {
-            DFSEvent::Enter(expr) => match expr {
-                Expr::Ident(ident) => {
-                    if let Some(_) = dep_map.get(ident.name) {
-                        // This is an identifier that matches a previously seen
-                        // rule.
-                        dep_map.entry(rule_name).and_modify(|v| {
-                            v.rules.insert(ident.name);
-                        });
-                    } else if yara_x::mods::module_names()
-                        .any(|module| module == ident.name)
-                        && !variables.contains(&ident.name)
-                    {
-                        // This is a known module or is not in the list of
-                        // variable identifier to be ignored.
-                        dep_map.entry(rule_name).and_modify(|v| {
-                            v.modules.insert(ident.name);
-                        });
-                    } else {
-                        dep_map.entry(rule_name).and_modify(|v| {
-                            v.unknowns.insert(ident.name);
-                        });
-                    }
+            DFSEvent::Enter(expr) => {
+                let ctx = dfs.contexts().next().unwrap();
+                //println!("===============================");
+                //println!("{event:?}");
+                //println!("{ctx:?}");
+                if let DFSContext::Body(_) = ctx {
+                    variable_stack.push(variables.clone());
+                    // Extend the list of known variables because variables
+                    // defined in an outer scope are visible in the inner
+                    // scope. For example:
+                    //
+                    // for 1 x in (2): (
+                    //   for 1 y in (3): (
+                    //     x + y == 5
+                    //   )
+                    // )
+                    //
+                    variables.extend(new_variables.iter());
+                    new_variables.clear();
                 }
-                Expr::Of(of) => match &of.quantifier {
-                    Quantifier::Percentage(quantifier)
-                    | Quantifier::Expr(quantifier) => {
-                        check_expr(&quantifier, rule_name, dep_map);
+
+                match expr {
+                    Expr::FieldAccess(_) => {
+                        field_access_root = true;
                     }
-                    _ => {}
-                },
-                Expr::ForOf(for_of) => match &for_of.quantifier {
-                    Quantifier::Percentage(quantifier)
-                    | Quantifier::Expr(quantifier) => {
-                        check_expr(&quantifier, rule_name, dep_map);
-                    }
-                    _ => {}
-                },
-                Expr::ForIn(for_in) => {
-                    variables =
-                        for_in.variables.iter().map(|v| v.name).collect();
-                    match &for_in.quantifier {
-                        Quantifier::Percentage(quantifier)
-                        | Quantifier::Expr(quantifier) => {
-                            check_expr(&quantifier, rule_name, dep_map);
+                    Expr::Ident(ident) => {
+                        if let DFSContext::Operand(parent) = ctx {
+                            if let Expr::FieldAccess(_) = parent {
+                                if !field_access_root {
+                                    continue;
+                                }
+                                field_access_root = false;
+                            }
                         }
-                        _ => {}
+
+                        // If this is a known variable, ignore it.
+                        if variables.contains(&ident.name) {
+                            continue;
+                        }
+
+                        if dep_map.contains_key(ident.name) {
+                            // This is an identifier that matches a previously
+                            // seen rule.
+                            dep_map.entry(rule_name).and_modify(|v| {
+                                v.rules.insert(ident.name);
+                            });
+                        } else if yara_x::mods::module_names()
+                            .any(|module| module == ident.name)
+                        {
+                            // This is a known module or is not in the list of
+                            // variable identifier to be ignored.
+                            dep_map.entry(rule_name).and_modify(|v| {
+                                v.modules.insert(ident.name);
+                            });
+                        } else {
+                            dep_map.entry(rule_name).and_modify(|v| {
+                                v.unknowns.insert(ident.name);
+                            });
+                        }
                     }
-                }
-                Expr::With(with) => {
-                    variables = with
-                        .declarations
-                        .iter()
-                        .map(|d| d.identifier.name)
-                        .collect();
-                }
-                _ => {}
-            },
-            DFSEvent::Leave(expr) => match expr {
-                Expr::ForIn(_) | Expr::With(_) => {
-                    variables.clear();
-                }
-                _ => {}
-            },
+                    Expr::ForIn(for_in) => {
+                        new_variables =
+                            for_in.variables.iter().map(|v| v.name).collect();
+                    }
+                    Expr::With(with) => {
+                        new_variables = with
+                            .declarations
+                            .iter()
+                            .map(|d| d.identifier.name)
+                            .collect();
+                    }
+                    _ => {}
+                };
+            }
+            DFSEvent::Leave(expr) => {
+                match expr {
+                    Expr::ForIn(_) | Expr::With(_) => {
+                        // Given the condition:
+                        //
+                        // for 1 x in (2): (...)
+                        //
+                        // The context is None if we are leaving the ForIn so
+                        // unwrap it in with a Root context that we don't
+                        // actually care about. We only care about leaving a
+                        // body context.
+                        if let DFSContext::Body(_) =
+                            dfs.contexts().next().unwrap_or(&DFSContext::Root)
+                        {
+                            variables = variable_stack
+                                .pop()
+                                .expect("Variable stack pop failed");
+                            new_variables = vec![];
+                        }
+                    }
+                    _ => {}
+                };
+            }
         }
     }
 }
