@@ -51,12 +51,12 @@ use crate::compiler::ir::dfs::{
     dfs_common, DFSIter, DFSWithScopeIter, Event, EventContext,
 };
 
+use crate::compiler::FilesizeBounds;
 use crate::re;
 use crate::symbols::Symbol;
 use crate::types::Value::Const;
 use crate::types::{FuncSignature, Type, TypeValue};
 
-use crate::compiler::FilesizeBounds;
 pub(in crate::compiler) use ast2ir::patterns_from_ast;
 pub(in crate::compiler) use ast2ir::rule_condition_from_ast;
 
@@ -315,7 +315,7 @@ pub(crate) struct RegexpPattern {
 ///
 /// The first pattern in the rule has index 0, the second has index 1, and
 /// so on.
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct PatternIdx(usize);
 
 impl PatternIdx {
@@ -329,6 +329,13 @@ impl From<usize> for PatternIdx {
     #[inline]
     fn from(value: usize) -> Self {
         Self(value)
+    }
+}
+
+impl From<&PatternIdx> for i64 {
+    #[inline]
+    fn from(value: &PatternIdx) -> Self {
+        value.0 as i64
     }
 }
 

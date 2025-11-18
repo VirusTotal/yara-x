@@ -18,7 +18,6 @@ use bitvec::order::Lsb0;
 use bitvec::slice::BitSlice;
 use bstr::{BString, ByteSlice};
 use indexmap::IndexMap;
-use memx::memeq;
 use protobuf::{MessageDyn, MessageFull};
 use regex_automata::meta::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -183,8 +182,9 @@ impl ScanContext<'_, '_> {
             self.time_spent_in_rule.iter(),
         ) {
             let mut pattern_matching_time = 0;
-            for (_, _, pattern_id, _) in rule.patterns.iter() {
-                if let Some(d) = self.time_spent_in_pattern.get(pattern_id) {
+            for p in rule.patterns.iter() {
+                if let Some(d) = self.time_spent_in_pattern.get(&p.pattern_id)
+                {
                     pattern_matching_time += *d;
                 }
             }
@@ -1538,7 +1538,7 @@ fn verify_xor_match(
     }
 
     if key == 0 {
-        if !memeq(pattern, &scanned_data[match_start..match_end]) {
+        if pattern != &scanned_data[match_start..match_end] {
             return None;
         }
     } else {
