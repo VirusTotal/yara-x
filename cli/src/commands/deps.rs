@@ -14,12 +14,11 @@ use yara_x_parser::Parser;
 struct Deps<'a> {
     rules: HashSet<&'a str>,
     modules: HashSet<&'a str>,
-    unknowns: HashSet<&'a str>,
 }
 
 pub fn deps() -> Command {
     super::command("deps")
-        .about("Show rule dependencies, modules and unknown identifiers")
+        .about("Show rule dependencies and modules")
         // The `deps` command is not ready yet.
         .hide(true)
         .arg(
@@ -63,7 +62,7 @@ pub fn exec_deps(args: &ArgMatches) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    // Map of rules to dependencies, modules and unknown identifiers they use.
+    // Map of rules to dependencies and modules they use.
     //
     // Given these rules:
     //
@@ -73,9 +72,11 @@ pub fn exec_deps(args: &ArgMatches) -> anyhow::Result<()> {
     // Deps would look like:
     //
     // {
-    //  "a": Deps { rules: {}, modules: {"pe"}, unknowns: {} },
-    //  "b": Deps { rules: {"a"}, modules: {}, unknowns: {"x"} }
+    //  "a": Deps { rules: {}, modules: {"pe"} },
+    //  "b": Deps { rules: {"a"}, modules: {} }
     // }
+    //
+    // The unknown identifier "x" is silently ignored.
     let mut dep_map: BTreeMap<&str, Deps> = BTreeMap::new();
 
     for rule in ast.rules() {
@@ -84,7 +85,6 @@ pub fn exec_deps(args: &ArgMatches) -> anyhow::Result<()> {
             Deps {
                 rules: HashSet::new(),
                 modules: HashSet::new(),
-                unknowns: HashSet::new(),
             },
         );
         check_expr(&rule.condition, rule.identifier.name, &mut dep_map);
@@ -174,15 +174,6 @@ fn generate_node_for_ident<'a>(
         }
         graph.edge(ident, module);
     }
-
-    for unknown in deps.unknowns.iter() {
-        if !nodes.contains(*unknown) {
-            let mut node = graph.node_named(*unknown);
-            node.set_fill_color(Color::Red).set_style(Style::Filled);
-            nodes.insert(unknown);
-        }
-        graph.edge(ident, unknown);
-    }
 }
 
 fn check_expr<'a>(
@@ -194,23 +185,11 @@ fn check_expr<'a>(
     let mut new_variables: Vec<&str> = vec![];
     let mut variables: Vec<&str> = vec![];
 
-    // In the case of a field access expression (ie: pe.number_of_signatures) we
-    // only want to collect the first identifier after entering that field
-    // expression. If we don't do this we will pick up "number_of_signatures" as
-    // an unknown identifier. However, conditions like (pe).signatures.len()
-    // alter the AST so that the second operand of the field access expression
-    // is now a function call, so we need to be careful to avoid picking up the
-    // second operand in this case too.
-    let mut field_access_root = false;
-
     let mut dfs = DFSIter::new(expr);
     while let Some(event) = dfs.next() {
         match event {
             DFSEvent::Enter(expr) => {
                 let ctx = dfs.contexts().next().unwrap();
-                //println!("===============================");
-                //println!("{event:?}");
-                //println!("{ctx:?}");
                 if let DFSContext::Body(_) = ctx {
                     variable_stack.push(variables.clone());
                     // Extend the list of known variables because variables
@@ -228,19 +207,7 @@ fn check_expr<'a>(
                 }
 
                 match expr {
-                    Expr::FieldAccess(_) => {
-                        field_access_root = true;
-                    }
                     Expr::Ident(ident) => {
-                        if let DFSContext::Operand(parent) = ctx {
-                            if let Expr::FieldAccess(_) = parent {
-                                if !field_access_root {
-                                    continue;
-                                }
-                                field_access_root = false;
-                            }
-                        }
-
                         // If this is a known variable, ignore it.
                         if variables.contains(&ident.name) {
                             continue;
@@ -259,10 +226,6 @@ fn check_expr<'a>(
                             // variable identifier to be ignored.
                             dep_map.entry(rule_name).and_modify(|v| {
                                 v.modules.insert(ident.name);
-                            });
-                        } else {
-                            dep_map.entry(rule_name).and_modify(|v| {
-                                v.unknowns.insert(ident.name);
                             });
                         }
                     }

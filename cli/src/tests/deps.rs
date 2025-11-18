@@ -63,8 +63,6 @@ fn unknown_identifier() {
         .stdout(
             r#"digraph {
   a [fillcolor=paleturquoise, style="filled"];
-  x [fillcolor=red, style="filled"];
-  a -> x;
 }
 
 "#,
@@ -245,8 +243,6 @@ fn with_variables_and_unknown() {
         .stdout(
             r#"digraph {
   a [fillcolor=paleturquoise, style="filled"];
-  x [fillcolor=red, style="filled"];
-  a -> x;
 }
 
 "#,
@@ -388,36 +384,6 @@ fn field_access_expression() {
         .success();
 }
 
-/*
- * This test is currently failing because of AST changes...
-#[test]
-fn field_access_func_call_operand() {
-    let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.child("rule.yar");
-
-    input_file
-        .write_str("rule a { condition: (pe).signatures.len() > 0 }")
-        .unwrap();
-
-    Command::new(cargo_bin!("yr"))
-        .arg("deps")
-        .arg("-r")
-        .arg("a")
-        .arg(input_file.path())
-        .assert()
-        .stdout(
-            r#"digraph {
-  a [fillcolor=paleturquoise, style="filled"];
-  pe [fillcolor=palegreen, style="filled"];
-  a -> pe;
-}
-
-"#,
-        )
-        .success();
-}
-*/
-
 #[test]
 fn field_access_with_unknown_lookup() {
     let temp_dir = TempDir::new().unwrap();
@@ -438,8 +404,6 @@ fn field_access_with_unknown_lookup() {
   a [fillcolor=paleturquoise, style="filled"];
   pe [fillcolor=palegreen, style="filled"];
   a -> pe;
-  i [fillcolor=red, style="filled"];
-  a -> i;
 }
 
 "#,
