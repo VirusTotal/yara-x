@@ -193,10 +193,9 @@ fn check_expr<'a>(
 
     let mut dfs = DFSIter::new(expr);
     while let Some(event) = dfs.next() {
-        let ctx = dfs.contexts().next();
         match event {
             DFSEvent::Enter(expr) => {
-                match ctx {
+                match dfs.contexts().next() {
                     Some(DFSContext::Body(Expr::ForIn(for_in))) => {
                         scopes.push(variables.len());
                         variables
@@ -234,28 +233,26 @@ fn check_expr<'a>(
                     }
                 }
             }
-            // When leaving the operand of a FieldAccess expression we prune
-            // the DFS tree, which prevents the siblings of this node from
-            // being traversed. This implies that only the first operand of the
-            // FieldAccess node is visited. The rest of the operands of a
-            // field access expression can contain identifiers, but those
-            // identifiers will correspond to some field in a structure, not
-            // to a variable or module name.
-            DFSEvent::Leave(_)
+            DFSEvent::Leave(expr) => {
+                // When leaving a `for` or `with` statement, remove all the
+                // variables they defined.
+                if matches!(expr, Expr::ForIn(_) | Expr::With(_)) {
+                    variables.drain(scopes.pop().unwrap()..);
+                }
+                // When leaving the operand of a FieldAccess expression we prune
+                // the DFS tree, which prevents the siblings of this node from
+                // being traversed. This implies that only the first operand of the
+                // FieldAccess node is visited. The rest of the operands of a
+                // field access expression can contain identifiers, but those
+                // identifiers will correspond to some field in a structure, not
+                // to a variable or module name.
                 if matches!(
-                    ctx,
+                    dfs.contexts().next(),
                     Some(DFSContext::Operand(Expr::FieldAccess(_)))
-                ) =>
-            {
-                dfs.prune();
+                ) {
+                    dfs.prune();
+                }
             }
-            DFSEvent::Leave(Expr::ForIn(_))
-            | DFSEvent::Leave(Expr::With(_)) => {
-                // Remove all the variables that were defined by the
-                // `for` or `with` statement we are leaving.
-                variables.drain(scopes.pop().unwrap()..);
-            }
-            _ => {}
         }
     }
 }
