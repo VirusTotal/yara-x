@@ -144,7 +144,13 @@ message File {
   optional uint32 sizeofcmds = 6;
   optional uint32 flags = 7 [(yara.field_options).fmt = "flags:FileFlag"];
   optional uint32 reserved = 8;
-  optional uint64 number_of_segments = 9;
+
+  optional uint64 number_of_segments = 9 [(yara.field_options).deprecation_notice = {
+    text: "this field is deprecated",
+    help: "use `segments.len()` instead",
+    replacement: "segments.len()"
+  }];
+
   optional bytes dynamic_linker = 10;
   optional uint64 entry_point = 11;
   optional uint64 stack_size = 12;
@@ -176,7 +182,13 @@ message Macho {
   optional uint32 sizeofcmds = 6;
   optional uint32 flags = 7 [(yara.field_options).fmt = "x"];
   optional uint32 reserved = 8;
-  optional uint64 number_of_segments = 9;
+
+  optional uint64 number_of_segments = 9 [(yara.field_options).deprecation_notice = {
+    text: "this field is deprecated",
+    help: "use `macho.segments.len()` instead",
+    replacement: "segments.len()"
+  }];
+
   optional bytes dynamic_linker = 10;
   optional uint64 entry_point = 11;
   optional uint64 stack_size = 12;
