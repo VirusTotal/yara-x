@@ -57,10 +57,22 @@ message PE {
   optional uint32 win32_version_value = 34;
   optional uint32 number_of_symbols = 35;
   optional uint32 number_of_rva_and_sizes = 36;
-  optional uint32 number_of_sections = 37;
+  
+  optional uint32 number_of_sections = 37 [(yara.field_options).deprecation_notice = {
+    text: "this field is deprecated",
+    help: "use `pe.sections.len()` instead",
+    replacement: "sections.len()"
+  }];
+
   optional uint64 number_of_imported_functions = 38;
   optional uint64 number_of_delayed_imported_functions = 39;
-  optional uint64 number_of_resources = 40;
+  
+  optional uint64 number_of_resources = 40  [(yara.field_options).deprecation_notice = {
+      text: "this field is deprecated",
+      help: "use `pe.resources.len()` instead",
+      replacement: "resources.len()"
+  }];
+  
   optional uint64 number_of_version_infos = 41;
   optional uint64 number_of_imports = 42;
   optional uint64 number_of_delayed_imports = 43;
@@ -68,6 +80,7 @@ message PE {
 
   optional uint64 number_of_signatures = 45  [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
+    help: "use `pe.signatures.len()` instead",
     replacement: "signatures.len()"
   }];
 

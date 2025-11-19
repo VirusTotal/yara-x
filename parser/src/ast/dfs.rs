@@ -1,3 +1,109 @@
+//! A module for traversing an expression's AST using a depth-first search
+//! (DFS) algorithm.
+//!
+//! This module provides [`DFSIter`], an iterator that walks an expression's
+//! Abstract Syntax Tree (AST) and emits [`DFSEvent`]s for each node in the
+//! tree. There are two types of events: `Enter` and `Leave`. An `Enter` event
+//! is emitted when a node is visited for the first time, before visiting its
+//! children. A `Leave` event is emitted after all the node's children have
+//! been visited.
+//!
+//! For each visited node, the iterator also provides a [`DFSContext`] that
+//! describes the relationship between the visited node and its parent.
+//!
+//! # Example
+//!
+//! The following example shows how to use [`DFSIter`] to collect all the
+//! pattern identifiers used in a YARA rule's condition.
+//!
+//! ```rust
+//! use yara_x_parser::Parser;
+//! use yara_x_parser::ast::*;
+//! use yara_x_parser::ast::dfs::{DFSIter, DFSEvent};
+//!
+//! // Parse a YARA rule from a string.
+//! let mut parser = Parser::new(r#"
+//! rule test {
+//!   strings:
+//!     $a = "some string"
+//!     $b = "another string"
+//!   condition:
+//!     ($a at 100) and $b
+//! }
+//! "#.as_bytes());
+//!
+//! // The AST object is the root of the AST.
+//! let ast = AST::from(parser);
+//!
+//! // Get the condition of the first rule.
+//! let condition = &ast.rules().next().unwrap().condition;
+//!
+//! // Create a new iterator that will traverse the condition's AST.
+//! let mut iter = DFSIter::new(condition);
+//!
+//! // A vector that will store the identifiers found in the condition.
+//! let mut identifiers = Vec::new();
+//!
+//! // Iterate over the events produced by the iterator.
+//! while let Some(event) = iter.next() {
+//!     if let DFSEvent::Enter(expr) = event {
+//!         if let Expr::PatternMatch(pattern_match) = expr {
+//!             identifiers.push(pattern_match.identifier.name);
+//!         }
+//!     }
+//! }
+//!
+//! assert_eq!(identifiers, vec!["$a", "$b"]);
+//! ```
+//!
+//! The example below does the same as the one above, but it also demonstrates
+//! how to use [`DFSIter::prune`] for preventing the iterator from visiting
+//! certain nodes. In this case we are not interested in the expression used
+//! in the `at` operator, so we prune the traversal after finding a
+//! `PatternMatch` expression with an `at` anchor.
+//!
+//! ```rust
+//! # use yara_x_parser::Parser;
+//! # use yara_x_parser::ast::*;
+//! # use yara_x_parser::ast::dfs::{DFSIter, DFSEvent};
+//! #
+//! # let mut parser = Parser::new(r#"
+//! # rule test {
+//! #   strings:
+//! #     $a = "some string"
+//! #     $b = "another string"
+//! #   condition:
+//! #     ($a at 100) and $b
+//! # }
+//! # "#.as_bytes());
+//! #
+//! # let ast = AST::from(parser);
+//! # let condition = &ast.rules().next().unwrap().condition;
+//! #
+//! let mut iter = DFSIter::new(condition);
+//! let mut identifiers = Vec::new();
+//!
+//! while let Some(event) = iter.next() {
+//!     if let DFSEvent::Enter(expr) = event {
+//!         match expr {
+//!             Expr::PatternMatch(pattern_match) => {
+//!                 identifiers.push(pattern_match.identifier.name);
+//!                 // The `at` anchor has an expression that we are not interested
+//!                 // in, so we can prune the traversal to avoid visiting it.
+//!                 if pattern_match.anchor.is_some() {
+//!                     iter.prune();
+//!                 }
+//!             }
+//!             // We are only interested in `PatternMatch` expressions, for any
+//!             // other expression we do nothing. The iterator will continue
+//!             // the traversal normally.
+//!             _ => {}
+//!         }
+//!     }
+//! }
+//!
+//! assert_eq!(identifiers, vec!["$a", "$b"]);
+//! ```
 use crate::ast::*;
 
 /// Events yielded by [`DFSIter`].
@@ -61,13 +167,17 @@ pub enum DFSContext<'src> {
 /// events are emitted consecutively.
 pub struct DFSIter<'src> {
     stack: Vec<DFSEvent<(&'src Expr<'src>, DFSContext<'src>)>>,
+    recently_left_context: Option<DFSContext<'src>>,
 }
 
 impl<'src> DFSIter<'src> {
     /// Creates a new [`DFSIter`] that traverses the tree starting at the
     /// given expression.
     pub fn new(expr: &'src Expr<'src>) -> Self {
-        Self { stack: vec![DFSEvent::Enter((expr, DFSContext::Root))] }
+        Self {
+            stack: vec![DFSEvent::Enter((expr, DFSContext::Root))],
+            recently_left_context: None,
+        }
     }
 
     /// Returns an iterator that yields the contexts corresponding to the
@@ -132,10 +242,13 @@ impl<'src> DFSIter<'src> {
     /// assert!(contexts.next().is_none());
     /// ```
     pub fn contexts(&self) -> impl Iterator<Item = &DFSContext<'src>> {
-        self.stack.iter().rev().filter_map(|event| match event {
-            DFSEvent::Enter(_) => None,
-            DFSEvent::Leave((_, ctx)) => Some(ctx),
-        })
+        itertools::chain(
+            self.recently_left_context.iter(),
+            self.stack.iter().rev().filter_map(|event| match event {
+                DFSEvent::Enter(_) => None,
+                DFSEvent::Leave((_, ctx)) => Some(ctx),
+            }),
+        )
     }
 
     /// Prunes the search tree, preventing the traversal from visiting the
@@ -169,11 +282,15 @@ impl<'src> Iterator for DFSIter<'src> {
     fn next(&mut self) -> Option<Self::Item> {
         match self.stack.pop()? {
             DFSEvent::Enter((expr, context)) => {
+                self.recently_left_context = None;
                 self.stack.push(DFSEvent::Leave((expr, context)));
                 dfs_enter(expr, &mut self.stack);
                 Some(DFSEvent::Enter(expr))
             }
-            DFSEvent::Leave((expr, _)) => Some(DFSEvent::Leave(expr)),
+            DFSEvent::Leave((expr, context)) => {
+                self.recently_left_context = Some(context);
+                Some(DFSEvent::Leave(expr))
+            }
         }
     }
 }
@@ -548,6 +665,10 @@ mod tests {
         ));
 
         let mut contexts = dfs.contexts();
+        assert!(matches!(
+            contexts.next(),
+            Some(DFSContext::Quantifier(Expr::ForOf(_)))
+        ));
         assert!(matches!(contexts.next(), Some(DFSContext::Root)));
         assert!(contexts.next().is_none());
         drop(contexts);
@@ -632,6 +753,8 @@ mod tests {
         // leave `for 1 of ($a) : (...)`
         assert!(matches!(dfs.next(), Some(DFSEvent::Leave(Expr::ForOf(_)))));
 
-        assert!(dfs.next().is_none());
+        let mut contexts = dfs.contexts();
+        assert!(matches!(contexts.next(), Some(DFSContext::Root)));
+        assert!(contexts.next().is_none());
     }
 }
