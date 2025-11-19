@@ -124,7 +124,10 @@ impl Dex {
 
         let mut header = DexHeader { magic, version, ..DexHeader::default() };
 
+        let file_size = data.len() as u32;
+
         // note: nom limits the number of parsers in the tuple to 21, and the header consists of 24 fields
+        // note: most verify checks based on android source code (but not strict for catching malware): https://cs.android.com/android/platform/superproject/main/+/main:art/libdexfile/dex/dex_file_verifier.cc;l=618
         (
             remainder,
             (
@@ -146,21 +149,21 @@ impl Dex {
             map(take(20_u8), |v: &[u8]| {
                 v.iter().map(|b| format!("{b:02x}")).collect()
             }), // signature
-            le_u32, // file_size
+            verify(le_u32, |&size| size <= file_size), // file_size
             // There should be a check for header size depending on the DEX version,
             // but the format itself does not follow this.
-            verify(le_u32, |size| *size == 0x70), // header_size
-            verify(le_u32, |tag| {
-                *tag == Self::ENDIAN_CONSTANT
-                    || *tag == Self::REVERSE_ENDIAN_CONSTANT
+            verify(le_u32, |&size| size == 0x70), // header_size
+            verify(le_u32, |&tag| {
+                tag == Self::ENDIAN_CONSTANT
+                    || tag == Self::REVERSE_ENDIAN_CONSTANT
             }), // endian_tag
             le_u32,                               // link_size
-            le_u32,                               // link_off
-            le_u32,                               // map_off
+            verify(le_u32, |&offset| offset <= file_size), // link_off
+            verify(le_u32, |&offset| offset <= file_size), // map_off
             le_u32,                               // string_ids_size
-            le_u32,                               // string_ids_off
-            verify(le_u32, |size| *size <= u16::MAX.into()), // type_ids_size
-            le_u32,                               // type_ids_off
+            verify(le_u32, |&offset| offset <= file_size), // string_ids_off
+            verify(le_u32, |&size| size <= u16::MAX.into()), // type_ids_size
+            verify(le_u32, |&offset| offset <= file_size), // type_ids_off
         )
             .parse(remainder)?;
 
@@ -181,16 +184,16 @@ impl Dex {
                 header.header_offset,
             ),
         ) = (
-            verify(le_u32, |size| *size <= u16::MAX.into()), // proto_ids_size
-            le_u32,                                          // proto_ids_off
+            verify(le_u32, |&size| size <= u16::MAX.into()), // proto_ids_size
+            verify(le_u32, |&offset| offset <= file_size),   // proto_ids_off
             le_u32,                                          // field_ids_size
-            le_u32,                                          // field_ids_off
+            verify(le_u32, |&offset| offset <= file_size),   // field_ids_off
             le_u32,                                          // method_ids_size
-            le_u32,                                          // method_ids_off
+            verify(le_u32, |&offset| offset <= file_size),   // method_ids_off
             le_u32,                                          // class_defs_size
-            le_u32,                                          // class_defs_off
+            verify(le_u32, |&offset| offset <= file_size),   // class_defs_off
             le_u32,                                          // data_size
-            le_u32,                                          // data_off
+            verify(le_u32, |&offset| offset <= file_size),   // data_off
             cond(header.version >= DexVersion::DEX41, le_u32), // container_size
             cond(header.version >= DexVersion::DEX41, le_u32), // header_offset
         )
@@ -219,7 +222,7 @@ impl Dex {
         let string_offsets = it
             .by_ref()
             .take(header.string_ids_size as usize)
-            .filter_map(|offset| Self::parse_string_from_offset(data, offset))
+            .map_while(|offset| Self::parse_string_from_offset(data, offset))
             .map(Rc::new)
             .collect();
 
@@ -270,7 +273,7 @@ impl Dex {
         let type_indexes = it
             .by_ref()
             .take(header.type_ids_size as usize)
-            .filter_map(|idx| string_items.get(idx as usize).cloned())
+            .map_while(|idx| string_items.get(idx as usize).cloned())
             .collect();
 
         let (rem, _) = it.finish()?;
@@ -300,7 +303,7 @@ impl Dex {
         let proto_entries = it
             .by_ref()
             .take(header.proto_ids_size as usize)
-            .filter_map(|(shorty_idx, return_type_idx, parameters_off)| {
+            .map_while(|(shorty_idx, return_type_idx, parameters_off)| {
                 let shorty = string_items.get(shorty_idx as usize)?.clone();
                 let return_type =
                     type_items.get(return_type_idx as usize)?.clone();
@@ -343,7 +346,7 @@ impl Dex {
         let items = it
             .by_ref()
             .take(size as usize)
-            .filter_map(|idx| type_items.get(idx as usize).cloned())
+            .map_while(|idx| type_items.get(idx as usize).cloned())
             .collect();
 
         let _ = it.finish();
@@ -371,7 +374,7 @@ impl Dex {
         let field_entries = it
             .by_ref()
             .take(header.field_ids_size as usize)
-            .filter_map(|(class_idx, type_idx, name_idx)| {
+            .map_while(|(class_idx, type_idx, name_idx)| {
                 let class = type_items.get(class_idx as usize)?.clone();
                 let type_ = type_items.get(type_idx as usize)?.clone();
                 let name = string_items.get(name_idx as usize)?.clone();
@@ -406,7 +409,7 @@ impl Dex {
         let method_entries = it
             .by_ref()
             .take(header.method_ids_size as usize)
-            .filter_map(|(class_idx, proto_idx, name_idx)| {
+            .map_while(|(class_idx, proto_idx, name_idx)| {
                 let class = type_items.get(class_idx as usize)?.clone();
                 let proto = proto_items.get(proto_idx as usize)?.clone();
                 let name = string_items.get(name_idx as usize)?.clone();
@@ -443,7 +446,7 @@ impl Dex {
         let class_entries = it
             .by_ref()
             .take(header.class_defs_size as usize)
-            .filter_map(
+            .map_while(
                 |(
                     class_idx,
                     access_flags,
