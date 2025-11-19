@@ -241,7 +241,9 @@ impl<'src> DFSIter<'src> {
     ///
     /// assert!(contexts.next().is_none());
     /// ```
-    pub fn contexts(&self) -> impl Iterator<Item = &DFSContext<'src>> {
+    pub fn contexts(
+        &self,
+    ) -> impl DoubleEndedIterator<Item = &DFSContext<'src>> {
         itertools::chain(
             self.recently_left_context.iter(),
             self.stack.iter().rev().filter_map(|event| match event {
