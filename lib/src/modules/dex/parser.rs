@@ -1,9 +1,9 @@
 use std::rc::Rc;
 
 use nom::bytes::complete::take;
+use nom::combinator::iterator;
 use nom::combinator::{cond, map, map_res, verify};
 use nom::error::ErrorKind;
-use nom::multi::count;
 use nom::number::complete::{be_u16, be_u32, le_u16, le_u32, u8};
 use nom::{Err, IResult, Parser};
 use protobuf::{EnumOrUnknown, MessageField};
@@ -214,20 +214,18 @@ impl Dex {
             return Ok((remainder, Vec::new()));
         }
 
-        let (rem, string_offsets) =
-            count(le_u32::<&[u8], Error>, header.string_ids_size as usize)
-                .parse(remainder)?;
+        let mut it = iterator(remainder, le_u32);
 
-        Ok((
-            rem,
-            string_offsets
-                .into_iter()
-                .filter_map(|offset| {
-                    Self::parse_string_from_offset(data, offset)
-                })
-                .map(Rc::new)
-                .collect(),
-        ))
+        let string_offsets = it
+            .by_ref()
+            .take(header.string_ids_size as usize)
+            .filter_map(|offset| Self::parse_string_from_offset(data, offset))
+            .map(Rc::new)
+            .collect();
+
+        let (rem, _) = it.finish()?;
+
+        Ok((rem, string_offsets))
     }
 
     /// Parses string by index in the string_ids_off table
@@ -267,17 +265,17 @@ impl Dex {
             return Ok((remainder, Vec::new()));
         }
 
-        let (rem, type_indexes) =
-            count(le_u32::<&[u8], Error>, header.type_ids_size as usize)
-                .parse(remainder)?;
+        let mut it = iterator(remainder, le_u32);
 
-        Ok((
-            rem,
-            type_indexes
-                .into_iter()
-                .filter_map(|idx| string_items.get(idx as usize).cloned())
-                .collect(),
-        ))
+        let type_indexes = it
+            .by_ref()
+            .take(header.type_ids_size as usize)
+            .filter_map(|idx| string_items.get(idx as usize).cloned())
+            .collect();
+
+        let (rem, _) = it.finish()?;
+
+        Ok((rem, type_indexes))
     }
 
     /// Collects a list of prototypes in a hashmap from proto_ids_off list.
@@ -297,39 +295,36 @@ impl Dex {
             return Ok((remainder, Vec::new()));
         }
 
-        let (rem, proto_entries) = count(
-            (le_u32::<&[u8], Error>, le_u32, le_u32),
-            header.proto_ids_size as usize,
-        )
-        .parse(remainder)?;
+        let mut it = iterator(remainder, (le_u32, le_u32, le_u32));
 
-        Ok((
-            rem,
-            proto_entries
-                .into_iter()
-                .filter_map(|(shorty_idx, return_type_idx, parameters_off)| {
-                    let shorty =
-                        string_items.get(shorty_idx as usize)?.clone();
-                    let return_type =
-                        type_items.get(return_type_idx as usize)?.clone();
+        let proto_entries = it
+            .by_ref()
+            .take(header.proto_ids_size as usize)
+            .filter_map(|(shorty_idx, return_type_idx, parameters_off)| {
+                let shorty = string_items.get(shorty_idx as usize)?.clone();
+                let return_type =
+                    type_items.get(return_type_idx as usize)?.clone();
 
-                    // According to the documentation, if parameters_off is 0, then the type has 0 parameters.
-                    let parameters = if parameters_off == 0 {
-                        Vec::new()
-                    } else {
-                        Self::parse_type_list(data, type_items, parameters_off)
-                            .unwrap_or_default()
-                    };
+                // According to the documentation, if parameters_off is 0, then the type has 0 parameters.
+                let parameters = if parameters_off == 0 {
+                    Vec::new()
+                } else {
+                    Self::parse_type_list(data, type_items, parameters_off)
+                        .unwrap_or_default()
+                };
 
-                    Some(Rc::new(ProtoItem {
-                        shorty,
-                        return_type,
-                        parameters_count: parameters.len() as u32,
-                        parameters,
-                    }))
-                })
-                .collect(),
-        ))
+                Some(Rc::new(ProtoItem {
+                    shorty,
+                    return_type,
+                    parameters_count: parameters.len() as u32,
+                    parameters,
+                }))
+            })
+            .collect();
+
+        let (rem, _) = it.finish()?;
+
+        Ok((rem, proto_entries))
     }
 
     /// Collects a type list to list of strings from given offset
@@ -341,14 +336,17 @@ impl Dex {
         offset: u32,
     ) -> Option<Vec<Rc<String>>> {
         let remainder = data.get(offset as usize..)?;
-        let (rem, size) = le_u32::<&[u8], Error>(remainder).ok()?;
-        let (_, type_indexes) =
-            count(le_u32::<&[u8], Error>, size as usize).parse(rem).ok()?;
 
-        let items = type_indexes
-            .into_iter()
+        let (rem, size) = le_u32::<&[u8], Error>(remainder).ok()?;
+
+        let mut it = iterator(rem, le_u32::<&[u8], Error>);
+        let items = it
+            .by_ref()
+            .take(size as usize)
             .filter_map(|idx| type_items.get(idx as usize).cloned())
             .collect();
+
+        let _ = it.finish();
 
         Some(items)
     }
@@ -368,25 +366,23 @@ impl Dex {
             return Ok((remainder, Vec::new()));
         }
 
-        let (rem, field_entries) = count(
-            (le_u16::<&[u8], Error>, le_u16, le_u32),
-            header.field_ids_size as usize,
-        )
-        .parse(remainder)?;
+        let mut it = iterator(remainder, (le_u16, le_u16, le_u32));
 
-        Ok((
-            rem,
-            field_entries
-                .into_iter()
-                .filter_map(|(class_idx, type_idx, name_idx)| {
-                    let class = type_items.get(class_idx as usize)?.clone();
-                    let type_ = type_items.get(type_idx as usize)?.clone();
-                    let name = string_items.get(name_idx as usize)?.clone();
+        let field_entries = it
+            .by_ref()
+            .take(header.field_ids_size as usize)
+            .filter_map(|(class_idx, type_idx, name_idx)| {
+                let class = type_items.get(class_idx as usize)?.clone();
+                let type_ = type_items.get(type_idx as usize)?.clone();
+                let name = string_items.get(name_idx as usize)?.clone();
 
-                    Some(FieldItem { class, type_, name })
-                })
-                .collect(),
-        ))
+                Some(FieldItem { class, type_, name })
+            })
+            .collect();
+
+        let (rem, _) = it.finish()?;
+
+        Ok((rem, field_entries))
     }
 
     /// Collects a list of methods in a hashmap from method_ids_off list.
@@ -405,25 +401,23 @@ impl Dex {
             return Ok((remainder, Vec::new()));
         }
 
-        let (rem, method_entries) = count(
-            (le_u16::<&[u8], Error>, le_u16, le_u32),
-            header.method_ids_size as usize,
-        )
-        .parse(remainder)?;
+        let mut it = iterator(remainder, (le_u16, le_u16, le_u32));
 
-        Ok((
-            rem,
-            method_entries
-                .into_iter()
-                .filter_map(|(class_idx, proto_idx, name_idx)| {
-                    let class = type_items.get(class_idx as usize)?.clone();
-                    let proto = proto_items.get(proto_idx as usize)?.clone();
-                    let name = string_items.get(name_idx as usize)?.clone();
+        let method_entries = it
+            .by_ref()
+            .take(header.method_ids_size as usize)
+            .filter_map(|(class_idx, proto_idx, name_idx)| {
+                let class = type_items.get(class_idx as usize)?.clone();
+                let proto = proto_items.get(proto_idx as usize)?.clone();
+                let name = string_items.get(name_idx as usize)?.clone();
 
-                    Some(MethodItem { class, proto, name })
-                })
-                .collect(),
-        ))
+                Some(MethodItem { class, proto, name })
+            })
+            .collect();
+
+        let (rem, _) = it.finish()?;
+
+        Ok((rem, method_entries))
     }
 
     /// Collects a list of classes from class_defs_off list.
@@ -443,48 +437,45 @@ impl Dex {
         }
 
         // (class_idx, access_flags, superclass_idx, _, source_file_idx)
-        let (rem, class_entries) = count(
-            (le_u32::<&[u8], Error>, le_u32, le_u32, le_u32, le_u32),
-            header.class_defs_size as usize,
-        )
-        .parse(remainder)?;
+        let mut it =
+            iterator(remainder, (le_u32, le_u32, le_u32, le_u32, le_u32));
 
-        Ok((
-            rem,
-            class_entries
-                .into_iter()
-                .filter_map(
-                    |(
-                        class_idx,
+        let class_entries = it
+            .by_ref()
+            .take(header.class_defs_size as usize)
+            .filter_map(
+                |(
+                    class_idx,
+                    access_flags,
+                    superclass_idx,
+                    _,
+                    source_file_idx,
+                )| {
+                    let class = type_items.get(class_idx as usize)?.clone();
+                    let superclass = if superclass_idx != Self::NO_INDEX {
+                        type_items.get(superclass_idx as usize).cloned()
+                    } else {
+                        None
+                    };
+                    let source_file = if source_file_idx != Self::NO_INDEX {
+                        string_items.get(source_file_idx as usize).cloned()
+                    } else {
+                        None
+                    };
+
+                    Some(ClassItem {
+                        class,
                         access_flags,
-                        superclass_idx,
-                        _,
-                        source_file_idx,
-                    )| {
-                        let class =
-                            type_items.get(class_idx as usize)?.clone();
-                        let superclass = if superclass_idx != Self::NO_INDEX {
-                            type_items.get(superclass_idx as usize).cloned()
-                        } else {
-                            None
-                        };
-                        let source_file = if source_file_idx != Self::NO_INDEX
-                        {
-                            string_items.get(source_file_idx as usize).cloned()
-                        } else {
-                            None
-                        };
+                        superclass,
+                        source_file,
+                    })
+                },
+            )
+            .collect();
 
-                        Some(ClassItem {
-                            class,
-                            access_flags,
-                            superclass,
-                            source_file,
-                        })
-                    },
-                )
-                .collect(),
-        ))
+        let (rem, _) = it.finish()?;
+
+        Ok((rem, class_entries))
     }
 
     /// Collects information about maps from the DEX file
@@ -494,9 +485,9 @@ impl Dex {
         data.get(header.map_off as usize..).and_then(|offset| {
             let (items_offset, size) = le_u32::<&[u8], Error>(offset).ok()?;
 
-            let (_, items) = count(Self::parse_map_item, size as usize)
-                .parse(items_offset)
-                .ok()?;
+            let mut it = iterator(items_offset, Self::parse_map_item);
+            let items = it.by_ref().take(size as usize).collect();
+            let _ = it.finish();
 
             Some(MapList { size, items })
         })
@@ -505,6 +496,7 @@ impl Dex {
     /// Parse single map_item from given input
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#map-item
+    #[inline]
     fn parse_map_item(input: &[u8]) -> IResult<&[u8], MapItem> {
         let (remainder, (item_type, unused, size, offset)) = (
             le_u16, // type
