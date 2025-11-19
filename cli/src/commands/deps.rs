@@ -193,9 +193,10 @@ fn check_expr<'a>(
 
     let mut dfs = DFSIter::new(expr);
     while let Some(event) = dfs.next() {
+        let ctx = dfs.contexts().next();
         match event {
             DFSEvent::Enter(expr) => {
-                match dfs.contexts().next() {
+                match ctx {
                     Some(DFSContext::Body(Expr::ForIn(for_in))) => {
                         scopes.push(variables.len());
                         variables
@@ -232,6 +233,21 @@ fn check_expr<'a>(
                         });
                     }
                 }
+            }
+            // When leaving the operand of a FieldAccess expression we prune
+            // the DFS tree, which prevents the siblings of this node from
+            // being traversed. This implies that only the first operand of the
+            // FieldAccess node is visited. The rest of the operands of a
+            // field access expression can contain identifiers, but those
+            // identifiers will correspond to some field in a structure, not
+            // to a variable or module name.
+            DFSEvent::Leave(_)
+                if matches!(
+                    ctx,
+                    Some(DFSContext::Operand(Expr::FieldAccess(_)))
+                ) =>
+            {
+                dfs.prune();
             }
             DFSEvent::Leave(Expr::ForIn(_))
             | DFSEvent::Leave(Expr::With(_)) => {

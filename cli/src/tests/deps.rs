@@ -439,6 +439,47 @@ fn field_access_with_variable() {
 }
 
 #[test]
+fn field_access_hidding_ident() {
+    let temp_dir = TempDir::new().unwrap();
+    let input_file = temp_dir.child("rule.yar");
+
+    input_file
+        .write_str(
+            r#"
+        import "pe"
+
+        rule a {
+        condition:
+          true
+        }
+
+        rule b {
+        condition:
+            pe.a
+        }
+        "#,
+        )
+        .unwrap();
+
+    Command::new(cargo_bin!("yr"))
+        .arg("deps")
+        .arg("-r")
+        .arg("b")
+        .arg(input_file.path())
+        .assert()
+        .stdout(
+            r#"digraph {
+  b [fillcolor=paleturquoise, style="filled"];
+  pe [fillcolor=palegreen, style="filled"];
+  b -> pe;
+}
+
+"#,
+        )
+        .success();
+}
+
+#[test]
 fn reverse_deps() {
     let temp_dir = TempDir::new().unwrap();
     let input_file = temp_dir.child("rule.yar");
