@@ -82,10 +82,7 @@ pub fn exec_deps(args: &ArgMatches) -> anyhow::Result<()> {
     for rule in ast.rules() {
         dep_map.insert(
             rule.identifier.name,
-            Deps {
-                rules: HashSet::new(),
-                modules: HashSet::new(),
-            },
+            Deps { rules: HashSet::new(), modules: HashSet::new() },
         );
         check_expr(&rule.condition, rule.identifier.name, &mut dep_map);
     }
@@ -181,9 +178,18 @@ fn check_expr<'a>(
     rule_name: &'a str,
     dep_map: &mut BTreeMap<&'a str, Deps<'a>>,
 ) {
-    let mut variable_stack: Vec<Vec<&str>> = vec![];
-    let mut new_variables: Vec<&str> = vec![];
-    let mut variables: Vec<&str> = vec![];
+    // Contains the variables that are currently defined. This acts
+    // as a stack where the variables defined by the innermost `for`
+    // or `with` statements are at top of the array.
+    let mut variables = Vec::new();
+    // The `scopes` array contains the indexes within the `variables`
+    // array where a scope start. For instance, if we have two nested
+    // `with` statements where the outermost one defines variables `a`
+    // and `b`, while the innermost defines variables `c` and `d`, the
+    // `variables` vector will contain [`a`, `b`, `c`, `d`] and the
+    // `scopes` vector will contain: [2], which indicates that index
+    // within `variables` where the innermost scope starts.
+    let mut scopes = Vec::new();
 
     let mut dfs = DFSIter::new(expr);
     while let Some(event) = dfs.next() {
@@ -191,19 +197,7 @@ fn check_expr<'a>(
             DFSEvent::Enter(expr) => {
                 let ctx = dfs.contexts().next().unwrap();
                 if let DFSContext::Body(_) = ctx {
-                    variable_stack.push(variables.clone());
-                    // Extend the list of known variables because variables
-                    // defined in an outer scope are visible in the inner
-                    // scope. For example:
-                    //
-                    // for 1 x in (2): (
-                    //   for 1 y in (3): (
-                    //     x + y == 5
-                    //   )
-                    // )
-                    //
-                    variables.extend(new_variables.iter());
-                    new_variables.clear();
+                    scopes.push(variables.len());
                 }
 
                 match expr {
@@ -230,15 +224,15 @@ fn check_expr<'a>(
                         }
                     }
                     Expr::ForIn(for_in) => {
-                        new_variables =
-                            for_in.variables.iter().map(|v| v.name).collect();
+                        variables
+                            .extend(for_in.variables.iter().map(|v| v.name));
                     }
                     Expr::With(with) => {
-                        new_variables = with
-                            .declarations
-                            .iter()
-                            .map(|d| d.identifier.name)
-                            .collect();
+                        variables.extend(
+                            with.declarations
+                                .iter()
+                                .map(|d| d.identifier.name),
+                        );
                     }
                     _ => {}
                 };
@@ -257,10 +251,9 @@ fn check_expr<'a>(
                         if let DFSContext::Body(_) =
                             dfs.contexts().next().unwrap_or(&DFSContext::Root)
                         {
-                            variables = variable_stack
-                                .pop()
-                                .expect("Variable stack pop failed");
-                            new_variables = vec![];
+                            // Remove all the variables that were defined by the
+                            // statement we are leaving now.
+                            variables.drain(scopes.pop().unwrap()..);
                         }
                     }
                     _ => {}
