@@ -195,39 +195,14 @@ fn check_expr<'a>(
     while let Some(event) = dfs.next() {
         match event {
             DFSEvent::Enter(expr) => {
-                let ctx = dfs.contexts().next().unwrap();
-                if let DFSContext::Body(_) = ctx {
-                    scopes.push(variables.len());
-                }
-
-                match expr {
-                    Expr::Ident(ident) => {
-                        // If this is a known variable, ignore it.
-                        if variables.contains(&ident.name) {
-                            continue;
-                        }
-
-                        if dep_map.contains_key(ident.name) {
-                            // This is an identifier that matches a previously
-                            // seen rule.
-                            dep_map.entry(rule_name).and_modify(|v| {
-                                v.rules.insert(ident.name);
-                            });
-                        } else if yara_x::mods::module_names()
-                            .any(|module| module == ident.name)
-                        {
-                            // This is a known module or is not in the list of
-                            // variable identifier to be ignored.
-                            dep_map.entry(rule_name).and_modify(|v| {
-                                v.modules.insert(ident.name);
-                            });
-                        }
-                    }
-                    Expr::ForIn(for_in) => {
+                match dfs.contexts().next() {
+                    Some(DFSContext::Body(Expr::ForIn(for_in))) => {
+                        scopes.push(variables.len());
                         variables
                             .extend(for_in.variables.iter().map(|v| v.name));
                     }
-                    Expr::With(with) => {
+                    Some(DFSContext::Body(Expr::With(with))) => {
+                        scopes.push(variables.len());
                         variables.extend(
                             with.declarations
                                 .iter()
@@ -235,30 +210,36 @@ fn check_expr<'a>(
                         );
                     }
                     _ => {}
-                };
-            }
-            DFSEvent::Leave(expr) => {
-                match expr {
-                    Expr::ForIn(_) | Expr::With(_) => {
-                        // Given the condition:
-                        //
-                        // for 1 x in (2): (...)
-                        //
-                        // The context is None if we are leaving the ForIn so
-                        // unwrap it in with a Root context that we don't
-                        // actually care about. We only care about leaving a
-                        // body context.
-                        if let DFSContext::Body(_) =
-                            dfs.contexts().next().unwrap_or(&DFSContext::Root)
-                        {
-                            // Remove all the variables that were defined by the
-                            // statement we are leaving now.
-                            variables.drain(scopes.pop().unwrap()..);
-                        }
+                }
+                if let Expr::Ident(ident) = expr {
+                    // If this is a known variable, ignore it.
+                    if variables.contains(&ident.name) {
+                        continue;
                     }
-                    _ => {}
-                };
+                    if dep_map.contains_key(ident.name) {
+                        // This is an identifier that matches a previously
+                        // seen rule.
+                        dep_map.entry(rule_name).and_modify(|v| {
+                            v.rules.insert(ident.name);
+                        });
+                    } else if yara_x::mods::module_names()
+                        .any(|module| module == ident.name)
+                    {
+                        // This is a known module or is not in the list of
+                        // variable identifier to be ignored.
+                        dep_map.entry(rule_name).and_modify(|v| {
+                            v.modules.insert(ident.name);
+                        });
+                    }
+                }
             }
+            DFSEvent::Leave(Expr::ForIn(_))
+            | DFSEvent::Leave(Expr::With(_)) => {
+                // Remove all the variables that were defined by the
+                // `for` or `with` statement we are leaving.
+                variables.drain(scopes.pop().unwrap()..);
+            }
+            _ => {}
         }
     }
 }
