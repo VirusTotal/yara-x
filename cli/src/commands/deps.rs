@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 
-use anyhow::Context;
+use anyhow::{bail, Context};
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 
 use dot_writer::{Attributes, Color, DotWriter, Scope, Style};
@@ -59,7 +59,7 @@ pub fn exec_deps(args: &ArgMatches) -> anyhow::Result<()> {
         for err in ast.errors().iter() {
             println!("{err:?}");
         }
-        return Ok(());
+        bail!("{} syntax error(s) found", ast.errors().len());
     }
 
     // Map of rules to dependencies and modules they use.
