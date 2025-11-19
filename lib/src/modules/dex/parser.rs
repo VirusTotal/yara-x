@@ -222,7 +222,7 @@ impl Dex {
         let string_offsets = it
             .by_ref()
             .take(header.string_ids_size as usize)
-            .map_while(|offset| Self::parse_string_from_offset(data, offset))
+            .filter_map(|offset| Self::parse_string_from_offset(data, offset))
             .map(Rc::new)
             .collect();
 
@@ -245,9 +245,10 @@ impl Dex {
                 take::<usize, &[u8], Error>(utf16_size as usize)(data).ok()?;
 
             // Decode MUTF-8 string and save it
-            let s = simd_cesu8::mutf8::decode_lossy(bytes).to_string();
-
-            Some(s)
+            match simd_cesu8::mutf8::decode(bytes) {
+                Ok(v) => Some(v.to_string()),
+                Err(_) => None,
+            }
         })
     }
 
@@ -273,7 +274,7 @@ impl Dex {
         let type_indexes = it
             .by_ref()
             .take(header.type_ids_size as usize)
-            .map_while(|idx| string_items.get(idx as usize).cloned())
+            .filter_map(|idx| string_items.get(idx as usize).cloned())
             .collect();
 
         let (rem, _) = it.finish()?;
@@ -303,7 +304,7 @@ impl Dex {
         let proto_entries = it
             .by_ref()
             .take(header.proto_ids_size as usize)
-            .map_while(|(shorty_idx, return_type_idx, parameters_off)| {
+            .filter_map(|(shorty_idx, return_type_idx, parameters_off)| {
                 let shorty = string_items.get(shorty_idx as usize)?.clone();
                 let return_type =
                     type_items.get(return_type_idx as usize)?.clone();
@@ -346,7 +347,7 @@ impl Dex {
         let items = it
             .by_ref()
             .take(size as usize)
-            .map_while(|idx| type_items.get(idx as usize).cloned())
+            .filter_map(|idx| type_items.get(idx as usize).cloned())
             .collect();
 
         let _ = it.finish();
@@ -374,7 +375,7 @@ impl Dex {
         let field_entries = it
             .by_ref()
             .take(header.field_ids_size as usize)
-            .map_while(|(class_idx, type_idx, name_idx)| {
+            .filter_map(|(class_idx, type_idx, name_idx)| {
                 let class = type_items.get(class_idx as usize)?.clone();
                 let type_ = type_items.get(type_idx as usize)?.clone();
                 let name = string_items.get(name_idx as usize)?.clone();
@@ -409,7 +410,7 @@ impl Dex {
         let method_entries = it
             .by_ref()
             .take(header.method_ids_size as usize)
-            .map_while(|(class_idx, proto_idx, name_idx)| {
+            .filter_map(|(class_idx, proto_idx, name_idx)| {
                 let class = type_items.get(class_idx as usize)?.clone();
                 let proto = proto_items.get(proto_idx as usize)?.clone();
                 let name = string_items.get(name_idx as usize)?.clone();
@@ -446,7 +447,7 @@ impl Dex {
         let class_entries = it
             .by_ref()
             .take(header.class_defs_size as usize)
-            .map_while(
+            .filter_map(
                 |(
                     class_idx,
                     access_flags,
