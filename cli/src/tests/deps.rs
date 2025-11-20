@@ -26,6 +26,26 @@ fn basic_rule() {
 }
 
 #[test]
+fn duplicate_rule() {
+    let temp_dir = TempDir::new().unwrap();
+    let input_file = temp_dir.child("rule.yar");
+
+    input_file
+        .write_str("rule a { condition: true } rule a { condition: true }")
+        .unwrap();
+
+    Command::new(cargo_bin!("yr"))
+        .arg("deps")
+        .arg("-r")
+        .arg("a")
+        .arg(input_file.path())
+        .assert()
+        .failure()
+        .code(1)
+        .stderr("error: Duplicate rule \"a\" found\n");
+}
+
+#[test]
 fn rule_does_not_exist() {
     let temp_dir = TempDir::new().unwrap();
     let input_file = temp_dir.child("rule.yar");

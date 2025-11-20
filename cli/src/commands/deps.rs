@@ -80,6 +80,10 @@ pub fn exec_deps(args: &ArgMatches) -> anyhow::Result<()> {
     let mut dep_map: BTreeMap<&str, Deps> = BTreeMap::new();
 
     for rule in ast.rules() {
+        if dep_map.contains_key(rule.identifier.name) {
+            bail!("Duplicate rule \"{}\" found", rule.identifier.name);
+        }
+
         dep_map.insert(
             rule.identifier.name,
             Deps { rules: HashSet::new(), modules: HashSet::new() },
