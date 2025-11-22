@@ -684,7 +684,7 @@ impl<'a> Compiler<'a> {
 
 
     /// Shows all current gloval variables of the compiler
-    pub fn show_globals(&mut self) -> HashMap<String, String> {
+    pub fn show_globals(&mut self) -> serde_json::Value {
         self.global_symbols.borrow_mut().show_globals()
     }
 

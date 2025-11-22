@@ -117,7 +117,9 @@ def test_show_globals():
   compiler.add_source('rule test {condition: some_dict.foo == "bar"}')
   x = compiler.show_globals()
 
-  assert(x['some_dict'] == '{foo: bar}')
+  assert(x['some_dict'] == {'foo': 'bar'})
+  assert(x['A'] == "B")
+  assert(x['B'] == 1)
 
 
 def test_namespaces():

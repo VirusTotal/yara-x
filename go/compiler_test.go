@@ -6,6 +6,7 @@ import (
 	"testing"
 	"os"
 	"io/ioutil"
+	"encoding/json"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -110,14 +111,23 @@ func TestGetGlobals(t *testing.T) {
 	c, err := NewCompiler()
 	assert.NoError(t, err)
 
-	x := map[string]interface{}{"a": map[string]interface{}{"a": "b"}, "b": "d"}
+	x := map[string]interface{}{"a": map[string]interface{}{"a": "a"}, "b": "d"}
 
 	c.DefineGlobal("A", "B")
-	c.DefineGlobal("B", 1)
+	c.DefineGlobal("B", 1.5)
 	c.DefineGlobal("C", x)
 	c.DefineGlobal("D", true)
 
-	assert.Contains(t, c.GetGlobals(), "\"C\":\"{a: {a: b}, b: d}\"")
+	var globals map[string]interface{}
+
+	// Unmarshal the JSON string into the map
+	err = json.Unmarshal([]byte(c.GetGlobals()), &globals)
+	assert.NoError(t, err)
+
+	assert.Equal(t, globals["A"], "B")
+	assert.Equal(t, globals["B"], 1.5)
+	assert.Equal(t, globals["C"], x)
+	assert.Equal(t, globals["D"], true)
 
 	c, err = NewCompiler()
 	assert.NoError(t, err)

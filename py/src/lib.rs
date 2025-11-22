@@ -57,9 +57,9 @@ fn dict_to_json(dict: Bound<PyAny>) -> PyResult<serde_json::Value> {
 
 fn json_to_dict<'py>(
     py: Python<'py>,
-    hash_map: &HashMap<String, String>,
+    json: &serde_json::Value,
 ) -> PyResult<Py<PyAny>> {
-    let json_str = serde_json::to_string(hash_map)
+    let json_str = serde_json::to_string(json)
         .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
     static JSON_LOADS: OnceLock<Py<PyAny>> = OnceLock::new();
