@@ -16,16 +16,61 @@ message Dotnet {
   optional string module_name = 2;
   optional string version = 3;
 
-  optional uint64 number_of_streams = 4;
-  optional uint64 number_of_guids = 5;
-  optional uint64 number_of_resources = 6;
+  optional uint64 number_of_streams = 4 [(yara.field_options).deprecation_notice = {
+    text: "this field is deprecated",
+    help: "use `dotnet.streams.len()` instead",
+    replacement: "streams.len()"
+  }];
+
+  optional uint64 number_of_guids = 5 [(yara.field_options).deprecation_notice = {
+    text: "this field is deprecated",
+    help: "use `dotnet.guids.len()` instead",
+    replacement: "guids.len()"
+  }];
+
+  optional uint64 number_of_resources = 6 [(yara.field_options).deprecation_notice = {
+    text: "this field is deprecated",
+    help: "use `dotnet.resources.len()` instead",
+    replacement: "resources.len()"
+  }];
+
   optional uint64 number_of_generic_parameters = 7;
-  optional uint64 number_of_classes = 10;
-  optional uint64 number_of_assembly_refs = 11;
-  optional uint64 number_of_modulerefs = 12;
-  optional uint64 number_of_user_strings = 13;
-  optional uint64 number_of_constants = 14;
-  optional uint64 number_of_field_offsets = 15;
+
+  optional uint64 number_of_classes = 10 [(yara.field_options).deprecation_notice = {
+    text: "this field is deprecated",
+    help: "use `dotnet.classes.len()` instead",
+    replacement: "classes.len()"
+  }];
+
+  optional uint64 number_of_assembly_refs = 11 [(yara.field_options).deprecation_notice = {
+    text: "this field is deprecated",
+    help: "use `dotnet.assembly_refs.len()` instead",
+    replacement: "assembly_refs.len()"
+  }];
+
+  optional uint64 number_of_modulerefs = 12 [(yara.field_options).deprecation_notice = {
+    text: "this field is deprecated",
+    help: "use `dotnet.modulerefs.len()` instead",
+    replacement: "modulerefs.len()"
+  }];
+
+  optional uint64 number_of_user_strings = 13 [(yara.field_options).deprecation_notice = {
+    text: "this field is deprecated",
+    help: "use `dotnet.user_strings.len()` instead",
+    replacement: "user_strings.len()"
+  }];
+
+  optional uint64 number_of_constants = 14 [(yara.field_options).deprecation_notice = {
+    text: "this field is deprecated",
+    help: "use `dotnet.constants.len()` instead",
+    replacement: "constants.len()"
+  }];
+
+  optional uint64 number_of_field_offsets = 15 [(yara.field_options).deprecation_notice = {
+    text: "this field is deprecated",
+    help: "use `dotnet.field_offsets.len()` instead",
+    replacement: "field_offsets.len()"
+  }];
 
   optional string typelib = 16;
   repeated Stream streams = 17;
@@ -80,9 +125,25 @@ message Class {
   optional string type = 5;
   required bool abstract = 6;
   required bool sealed = 7;
-  required uint64 number_of_base_types = 8;
-  required uint64 number_of_generic_parameters = 9;
-  required uint64 number_of_methods = 10;
+  
+  required uint64 number_of_base_types = 8 [(yara.field_options).deprecation_notice = {
+    text: "this field is deprecated",
+    help: "use `base_types.len()` instead",
+    replacement: "base_types.len()"
+  }];
+  
+  required uint64 number_of_generic_parameters = 9 [(yara.field_options).deprecation_notice = {
+    text: "this field is deprecated",
+    help: "use `generic_parameters.len()` instead",
+    replacement: "generic_parameters.len()"
+  }];
+
+  required uint64 number_of_methods = 10 [(yara.field_options).deprecation_notice = {
+    text: "this field is deprecated",
+    help: "use `methods.len()` instead",
+    replacement: "methods.len()"
+  }];
+
   repeated string base_types = 11;
   repeated string generic_parameters = 12;
   repeated Method methods = 13;
@@ -96,8 +157,18 @@ message Method {
   required bool virtual = 5;
   required bool final = 6;
   optional string return_type = 7;
-  required uint64 number_of_generic_parameters = 8;
-  required uint64 number_of_parameters = 9;
+  
+  required uint64 number_of_generic_parameters = 8 [(yara.field_options).deprecation_notice = {
+    text: "this field is deprecated",
+    help: "use `generic_parameters.len()` instead",
+    replacement: "generic_parameters.len()"
+  }];
+
+  required uint64 number_of_parameters = 9 [(yara.field_options).deprecation_notice = {
+    text: "this field is deprecated",
+    help: "use `parameters.len()` instead",
+    replacement: "parameters.len()"
+  }];
   repeated string generic_parameters = 10;
   repeated Param parameters = 11;
 }

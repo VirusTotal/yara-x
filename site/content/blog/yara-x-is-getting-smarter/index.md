@@ -25,7 +25,7 @@ expressions" during compilation. This means YARA-X can now flag conditions that
 are logically impossible to meet, helping rule writers catch errors and before 
 deployment.
 
-### What are unsatisfiable expressions?
+## What are unsatisfiable expressions?
 
 An unsatisfiable expression is a condition within a YARA rule that can never
 evaluate to true, regardless of the input data. These expressions often result

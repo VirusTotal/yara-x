@@ -224,7 +224,7 @@ fn console() {
         .arg("src/tests/testdata/dummy.file")
         .assert()
         .success()
-        .stderr("hello\n");
+        .stderr("src/tests/testdata/dummy.file: hello\n");
 
     Command::new(cargo_bin!("yr"))
         .arg("scan")
