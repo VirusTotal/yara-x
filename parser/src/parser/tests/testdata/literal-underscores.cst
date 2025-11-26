@@ -37,30 +37,26 @@ SOURCE_FILE@0..104
         BOOLEAN_TERM@67..84
           EXPR@67..74
             TERM@67..74
-              PRIMARY_EXPR@67..74
-                INTEGER_LIT@67..74 "0xaa_bb"
+              INTEGER_LIT@67..74 "0xaa_bb"
           WHITESPACE@74..75 " "
           EQ@75..77 "=="
           WHITESPACE@77..78 " "
           EXPR@78..84
             TERM@78..84
-              PRIMARY_EXPR@78..84
-                INTEGER_LIT@78..84 "0xaabb"
+              INTEGER_LIT@78..84 "0xaabb"
         WHITESPACE@84..85 " "
         AND_KW@85..88 "and"
         WHITESPACE@88..89 " "
         BOOLEAN_TERM@89..101
           EXPR@89..94
             TERM@89..94
-              PRIMARY_EXPR@89..94
-                FLOAT_LIT@89..94 "0.1_0"
+              FLOAT_LIT@89..94 "0.1_0"
           WHITESPACE@94..95 " "
           EQ@95..97 "=="
           WHITESPACE@97..98 " "
           EXPR@98..101
             TERM@98..101
-              PRIMARY_EXPR@98..101
-                FLOAT_LIT@98..101 "0.1"
+              FLOAT_LIT@98..101 "0.1"
     NEWLINE@101..102 "\n"
     R_BRACE@102..103 "}"
   NEWLINE@103..104 "\n"

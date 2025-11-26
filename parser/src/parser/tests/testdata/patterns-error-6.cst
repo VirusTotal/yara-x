@@ -16,7 +16,6 @@ SOURCE_FILE@0..30
         BOOLEAN_TERM@27..28
           EXPR@27..28
             TERM@27..28
-              PRIMARY_EXPR@27..28
-                PATTERN_OFFSET@27..28 "@"
+              PATTERN_OFFSET@27..28 "@"
     NEWLINE@28..29 "\n"
     R_BRACE@29..30 "}"

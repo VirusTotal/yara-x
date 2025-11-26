@@ -1457,7 +1457,7 @@ impl ParserImpl<'_> {
     ///
     /// ```text
     /// EXPR := (
-    ///    TERM  ( (arithmetic_op | bitwise_op | `.`) TERM )*
+    ///    TERM  ( (arithmetic_op | bitwise_op) TERM )*
     /// )
     /// ``
     fn expr(&mut self) -> &mut Self {
@@ -1475,45 +1475,13 @@ impl ParserImpl<'_> {
                             | SHR
                             | BITWISE_AND
                             | BITWISE_OR
-                            | BITWISE_XOR
-                            | DOT),
+                            | BITWISE_XOR),
                         Some("operator"),
                     )
                     .then(|p| p.term())
                 })
                 .end()
         })
-    }
-
-    /// Parses a term.
-    ///
-    /// ```text
-    /// TERM := (
-    ///     FUNC_CALL |
-    ///     PRIMARY_EXPR
-    ///     (
-    ///        `[` EXPR `]` | `.` FUNC_CALL
-    ///     )?
-    /// )
-    /// ``
-    fn term(&mut self) -> &mut Self {
-        self.begin(TERM)
-            .begin_alt()
-            .alt(|p| p.func_call())
-            .alt(|p| {
-                p.primary_expr().opt(|p| {
-                    p.begin_alt()
-                        .alt(|p| {
-                            p.expect(t!(L_BRACKET))
-                                .expr()
-                                .expect(t!(R_BRACKET))
-                        })
-                        .alt(|p| p.expect(t!(DOT)).then(|p| p.func_call()))
-                        .end_alt()
-                })
-            })
-            .end_alt()
-            .end()
     }
 
     /// Parses a function call.
@@ -1523,7 +1491,7 @@ impl ParserImpl<'_> {
     /// ``
     fn func_call(&mut self) -> &mut Self {
         self.begin(FUNC_CALL)
-            .expect_d(t!(IDENT), Some("expression"))
+            .expect(t!(IDENT))
             .expect(t!(L_PAREN))
             .opt(|p| {
                 p.boolean_expr().zero_or_more(|p| {
@@ -1553,7 +1521,7 @@ impl ParserImpl<'_> {
     /// Parsers a primary expression.
     ///
     /// ```text
-    /// PRIMARY_EXPR := (
+    /// TERM := (
     ///     FLOAT_LIT                          |
     ///     INTEGER_LIT                        |
     ///     STRING_LIT                         |
@@ -1566,14 +1534,14 @@ impl ParserImpl<'_> {
     ///     `-` TERM                           |
     ///     `~` TERM                           |
     ///     `(` EXPR `)`                       |
-    ///     IDENT (`.` IDENT !`(` )*
+    ///     PRIMARY_EXPR ( `.` PRIMARY_EXPR )*
     /// )
     /// ``
-    fn primary_expr(&mut self) -> &mut Self {
+    fn term(&mut self) -> &mut Self {
         const DESC: Option<&'static str> = Some("expression");
 
-        self.cached(PRIMARY_EXPR, |p| {
-            p.begin(PRIMARY_EXPR)
+        self.cached(TERM, |p| {
+            p.begin(TERM)
                 .begin_alt()
                 .alt(|p| {
                     p.expect_d(
@@ -1604,15 +1572,35 @@ impl ParserImpl<'_> {
                         .expect(t!(R_PAREN))
                 })
                 .alt(|p| {
-                    p.expect_d(t!(IDENT), DESC).zero_or_more(|p| {
-                        p.expect(t!(DOT))
-                            .expect(t!(IDENT))
-                            .not(|p| p.expect(t!(L_PAREN)))
+                    p.primary_expr().zero_or_more(|p| {
+                        p.expect_d(t!(DOT), DESC).primary_expr()
                     })
                 })
                 .end_alt()
                 .end()
         })
+    }
+
+    /// ```text
+    /// PRIMARY_EXPR : = (
+    ///    FUNC_CALL  |
+    ///    IDENT `[` EXPR `]`
+    ///    IDENT |
+
+    /// ```
+    fn primary_expr(&mut self) -> &mut Self {
+        self.begin(PRIMARY_EXPR)
+            .begin_alt()
+            .alt(|p| p.func_call())
+            .alt(|p| {
+                p.expect(t!(IDENT))
+                    .expect(t!(L_BRACKET))
+                    .expr()
+                    .expect(t![R_BRACKET])
+            })
+            .alt(|p| p.expect(t!(IDENT)))
+            .end_alt()
+            .end()
     }
 
     /// Parses `for` expression.
@@ -1626,7 +1614,7 @@ impl ParserImpl<'_> {
     /// ``
     fn for_expr(&mut self) -> &mut Self {
         self.begin(FOR_EXPR)
-            .expect(t!(FOR_KW))
+            .expect_d(t!(FOR_KW), Some("expression"))
             .then(|p| p.quantifier())
             .begin_alt()
             .alt(|p| {
@@ -1689,7 +1677,7 @@ impl ParserImpl<'_> {
     /// ```
     fn with_expr(&mut self) -> &mut Self {
         self.begin(WITH_EXPR)
-            .expect(t!(WITH_KW))
+            .expect_d(t!(WITH_KW), Some("expression"))
             .then(|p| p.with_declarations())
             .expect(t!(COLON))
             .expect(t!(L_PAREN))
@@ -1732,19 +1720,21 @@ impl ParserImpl<'_> {
     ///     `all`                           |
     ///     `none`                          |
     ///     `any`                           |
-    ///     (INTEGER_LIT | FLOAT_LIT ) `%`  |
+    ///     TERM `%`                        |
     ///     EXPR !`%`
     /// )
     /// ```
     fn quantifier(&mut self) -> &mut Self {
         self.begin(QUANTIFIER)
             .begin_alt()
-            .alt(|p| p.expect(t!(ALL_KW | NONE_KW | ANY_KW)))
-            // Quantifier can be either a primary expression followed by a %,
-            // or an expression not followed by %. We can't make it an expression
-            // followed by an optional % because that leads to ambiguity, as
-            // expressions can contain the % operator (mod).
-            .alt(|p| p.primary_expr().expect(t!(PERCENT)))
+            .alt(|p| {
+                p.expect_d(t!(ALL_KW | NONE_KW | ANY_KW), Some("expression"))
+            })
+            // Quantifier can be either a term followed by a %, or an expression
+            // not followed by %. We can't make it an expression followed by an
+            // optional % because that leads to ambiguity, as expressions can
+            // contain the % operator (mod).
+            .alt(|p| p.term().expect(t!(PERCENT)))
             .alt(|p| p.expr().not(|p| p.expect(t!(PERCENT))))
             .end_alt()
             .end()

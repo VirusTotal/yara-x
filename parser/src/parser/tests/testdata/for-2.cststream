@@ -42,9 +42,9 @@ Begin { kind: FOR_EXPR, span: Span(65..88) }
 Token { kind: FOR_KW, span: Span(65..68) }
 Token { kind: WHITESPACE, span: Span(68..69) }
 Begin { kind: QUANTIFIER, span: Span(69..72) }
-Begin { kind: PRIMARY_EXPR, span: Span(69..71) }
+Begin { kind: TERM, span: Span(69..71) }
 Token { kind: INTEGER_LIT, span: Span(69..71) }
-End { kind: PRIMARY_EXPR, span: Span(69..71) }
+End { kind: TERM, span: Span(69..71) }
 Token { kind: PERCENT, span: Span(71..72) }
 End { kind: QUANTIFIER, span: Span(69..72) }
 Token { kind: WHITESPACE, span: Span(72..73) }
