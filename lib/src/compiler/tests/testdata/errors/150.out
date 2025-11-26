@@ -1,0 +1,5 @@
+error[E029]: invalid escape sequence
+ --> line:3:19
+  |
+3 |     $a = "/الدفاع+\s[هة]وزار/"
+  |                   ^^ invalid escape sequence `\s`

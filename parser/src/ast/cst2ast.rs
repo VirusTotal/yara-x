@@ -1712,14 +1712,12 @@ where
         let without_quotes = &literal[num_quotes..literal.len() - num_quotes];
 
         // Check if the string contains some backslash.
-        let backslash_pos = if let Some(backslash_pos) =
-            without_quotes.find('\\')
-        {
+        let first_backslash = if let Some(pos) = without_quotes.find('\\') {
             if !allow_escape_char {
                 self.errors.push(Error::UnexpectedEscapeSequence(span));
                 return Err(BuilderError::Abort);
             }
-            backslash_pos
+            pos
         } else {
             // If the literal does not contain a backslash it can't contain escaped
             // characters, the literal is exactly as it appears in the source code.
@@ -1730,13 +1728,13 @@ where
 
         // Initially the result is a copy of the literal string up to the first
         // backslash found.
-        let mut result = BString::from(&without_quotes[..backslash_pos]);
+        let mut result = BString::from(&without_quotes[..first_backslash]);
 
         // Process the remaining part of the literal, starting at the backslash.
-        let without_quotes = &without_quotes[backslash_pos..];
-        let mut chars = without_quotes.char_indices();
+        let remaining = &without_quotes[first_backslash..];
+        let mut chars = remaining.char_indices();
 
-        while let Some((backslash_pos, b)) = chars.next() {
+        while let Some((backslash, b)) = chars.next() {
             match b {
                 // The backslash indicates an escape sequence.
                 '\\' => {
@@ -1757,42 +1755,40 @@ where
                         't' => result.push(b'\t'),
                         '0' => result.push(b'\0'),
                         '"' => result.push(b'"'),
-                        'x' => match (chars.next(), chars.next()) {
-                            (Some((start, _)), Some((end, _))) => {
-                                if let Ok(hex_value) = u8::from_str_radix(
-                                    &without_quotes[start..=end],
-                                    16,
-                                ) {
+                        'x' => {
+                            match (chars.next(), chars.next()) {
+                                (
+                                    Some((start, first_char)),
+                                    Some((end, second_char)),
+                                ) if first_char.is_digit(16)
+                                    && second_char.is_digit(16) =>
+                                {
+                                    let hex_value = u8::from_str_radix(
+                                        &remaining[start..=end],
+                                        16,
+                                    )
+                                    .unwrap();
+
                                     result.push(hex_value);
-                                } else {
-                                    self.errors.push(
-                                        Error::InvalidEscapeSequence {
-                                            message: format!(
-                                                r"invalid hex value `{}` after `\x`",
-                                                &without_quotes[start..=end]
-                                            ),
-                                            span: string_span
-                                                .subspan(start, end + 1),
-                                        }
-                                    );
-                                    return Err(BuilderError::Abort);
                                 }
-                            }
-                            _ => {
-                                self.errors
+                                _ => {
+                                    let (escaped_char_pos, _) = escaped_char;
+
+                                    self.errors
                                     .push(Error::InvalidEscapeSequence {
                                     message:
                                         r"expecting two hex digits after `\x`"
                                             .to_string(),
-                                    span: string_span.subspan(
-                                        backslash_pos,
-                                        escaped_char.0 + 1,
+                                    span: string_span.offset(first_backslash as isize).subspan(
+                                        backslash,
+                                        escaped_char_pos + 1,
                                     ),
                                 });
 
-                                return Err(BuilderError::Abort);
+                                    return Err(BuilderError::Abort);
+                                }
                             }
-                        },
+                        }
                         _ => {
                             let (escaped_char_pos, escaped_char) =
                                 escaped_char;
@@ -1803,13 +1799,12 @@ where
                             self.errors.push(Error::InvalidEscapeSequence {
                                 message: format!(
                                     "invalid escape sequence `{}`",
-                                    &without_quotes
-                                        [backslash_pos..escaped_char_end_pos]
+                                    &remaining
+                                        [backslash..escaped_char_end_pos]
                                 ),
-                                span: string_span.subspan(
-                                    backslash_pos,
-                                    escaped_char_end_pos,
-                                ),
+                                span: string_span
+                                    .offset(first_backslash as isize)
+                                    .subspan(backslash, escaped_char_end_pos),
                             });
 
                             return Err(BuilderError::Abort);
