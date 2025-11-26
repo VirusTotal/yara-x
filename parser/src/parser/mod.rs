@@ -1518,7 +1518,7 @@ impl ParserImpl<'_> {
             .end()
     }
 
-    /// Parsers a primary expression.
+    /// Parses a term.
     ///
     /// ```text
     /// TERM := (
@@ -1581,12 +1581,13 @@ impl ParserImpl<'_> {
         })
     }
 
+    /// Parses a primary expression.
+    ///
     /// ```text
     /// PRIMARY_EXPR : = (
     ///    FUNC_CALL  |
     ///    IDENT `[` EXPR `]`
     ///    IDENT |
-
     /// ```
     fn primary_expr(&mut self) -> &mut Self {
         self.begin(PRIMARY_EXPR)
