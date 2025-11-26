@@ -1243,7 +1243,7 @@ where
         Ok(exprs)
     }
 
-    fn secondary_expr(&mut self) -> Result<Expr<'src>, BuilderError> {
+    fn primary_expr(&mut self) -> Result<Expr<'src>, BuilderError> {
         self.begin(PRIMARY_EXPR)?;
 
         let mut expr = match self.peek() {
@@ -1289,7 +1289,6 @@ where
         let r_paren_span = self.expect(R_PAREN)?;
 
         let expr = Expr::FuncCall(Box::new(FuncCall {
-            span: identifier.span().combine(&r_paren_span),
             args_span: l_paren_span.combine(&r_paren_span),
             object,
             identifier,
@@ -1450,11 +1449,11 @@ where
                 expr
             }
             Event::Begin { kind: PRIMARY_EXPR, .. } => {
-                let mut exprs = vec![self.secondary_expr()?];
+                let mut exprs = vec![self.primary_expr()?];
 
                 while let Event::Token { kind: DOT, .. } = self.peek() {
                     self.expect(DOT)?;
-                    exprs.push(self.secondary_expr()?);
+                    exprs.push(self.primary_expr()?);
                 }
 
                 let mut final_exprs: Vec<Expr> = exprs
@@ -1493,6 +1492,7 @@ where
                             func_call.object = Some(ident);
                             Ok(Expr::FuncCall(func_call))
                         }
+                        // An identifier followed by a lookup expression.
                         (ident @ Expr::Ident(_), Expr::Lookup(mut lookup)) => {
                             lookup.span = ident.span().combine(&lookup.span);
                             lookup.primary = Expr::FieldAccess(Box::new(
@@ -1500,6 +1500,7 @@ where
                             ));
                             Ok(Expr::Lookup(lookup))
                         }
+                        // Field access followed by a lookup expression.
                         (
                             Expr::FieldAccess(mut fa),
                             Expr::Lookup(mut lookup),
