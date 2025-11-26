@@ -39,7 +39,7 @@ SOURCE_FILE@0..90
             FOR_KW@65..68 "for"
             WHITESPACE@68..69 " "
             QUANTIFIER@69..72
-              PRIMARY_EXPR@69..71
+              TERM@69..71
                 INTEGER_LIT@69..71 "10"
               PERCENT@71..72 "%"
             WHITESPACE@72..73 " "

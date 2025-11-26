@@ -953,7 +953,7 @@ fn emit_field_access(
     instr: &mut InstrSeqBuilder,
 ) {
     // Iterate over the operands, excluding the last one. While the operands
-    // are field identifiers they are simply added to the `lookup_list`, and
+    // are field identifiers they are simply added to `lookup_list`, and
     // during the last call to `emit_expr` a single field lookup operation
     // will be emitted, encompassing all the lookups in a single call to
     // Rust code.

@@ -16,62 +16,50 @@ SOURCE_FILE@0..295
         BOOLEAN_TERM@31..70
           EXPR@31..50
             TERM@31..32
-              PRIMARY_EXPR@31..32
-                INTEGER_LIT@31..32 "1"
+              INTEGER_LIT@31..32 "1"
             WHITESPACE@32..33 " "
             ADD@33..34 "+"
             WHITESPACE@34..35 " "
             TERM@35..38
-              PRIMARY_EXPR@35..38
-                FLOAT_LIT@35..38 "2.5"
+              FLOAT_LIT@35..38 "2.5"
             WHITESPACE@38..39 " "
             MUL@39..40 "*"
             WHITESPACE@40..41 " "
             TERM@41..43
-              PRIMARY_EXPR@41..43
-                MINUS@41..42 "-"
-                TERM@42..43
-                  PRIMARY_EXPR@42..43
-                    INTEGER_LIT@42..43 "2"
+              MINUS@41..42 "-"
+              TERM@42..43
+                INTEGER_LIT@42..43 "2"
             WHITESPACE@43..44 " "
             MUL@44..45 "*"
             WHITESPACE@45..46 " "
             TERM@46..50
-              PRIMARY_EXPR@46..50
-                MINUS@46..47 "-"
-                TERM@47..50
-                  PRIMARY_EXPR@47..50
-                    FLOAT_LIT@47..50 "1.0"
+              MINUS@46..47 "-"
+              TERM@47..50
+                FLOAT_LIT@47..50 "1.0"
           WHITESPACE@50..51 " "
           EQ@51..53 "=="
           WHITESPACE@53..54 " "
           EXPR@54..70
             TERM@54..58
-              PRIMARY_EXPR@54..58
-                FLOAT_LIT@54..58 "10.0"
+              FLOAT_LIT@54..58 "10.0"
             WHITESPACE@58..59 " "
             DIV@59..60 "\\"
             WHITESPACE@60..61 " "
             TERM@61..62
-              PRIMARY_EXPR@61..62
-                INTEGER_LIT@61..62 "2"
+              INTEGER_LIT@61..62 "2"
             WHITESPACE@62..63 " "
             ADD@63..64 "+"
             WHITESPACE@64..65 " "
             TERM@65..70
-              PRIMARY_EXPR@65..70
-                MINUS@65..66 "-"
-                TERM@66..70
-                  PRIMARY_EXPR@66..70
-                    L_PAREN@66..67 "("
-                    EXPR@67..69
-                      TERM@67..69
-                        PRIMARY_EXPR@67..69
-                          MINUS@67..68 "-"
-                          TERM@68..69
-                            PRIMARY_EXPR@68..69
-                              INTEGER_LIT@68..69 "1"
-                    R_PAREN@69..70 ")"
+              MINUS@65..66 "-"
+              TERM@66..70
+                L_PAREN@66..67 "("
+                EXPR@67..69
+                  TERM@67..69
+                    MINUS@67..68 "-"
+                    TERM@68..69
+                      INTEGER_LIT@68..69 "1"
+                R_PAREN@69..70 ")"
     NEWLINE@70..71 "\n"
     R_BRACE@71..72 "}"
   NEWLINE@72..73 "\n"
@@ -93,72 +81,58 @@ SOURCE_FILE@0..295
         BOOLEAN_TERM@105..148
           EXPR@105..126
             TERM@105..114
-              PRIMARY_EXPR@105..114
-                L_PAREN@105..106 "("
-                EXPR@106..113
-                  TERM@106..107
-                    PRIMARY_EXPR@106..107
-                      INTEGER_LIT@106..107 "1"
-                  WHITESPACE@107..108 " "
-                  ADD@108..109 "+"
-                  WHITESPACE@109..110 " "
-                  TERM@110..113
-                    PRIMARY_EXPR@110..113
-                      FLOAT_LIT@110..113 "2.5"
-                R_PAREN@113..114 ")"
+              L_PAREN@105..106 "("
+              EXPR@106..113
+                TERM@106..107
+                  INTEGER_LIT@106..107 "1"
+                WHITESPACE@107..108 " "
+                ADD@108..109 "+"
+                WHITESPACE@109..110 " "
+                TERM@110..113
+                  FLOAT_LIT@110..113 "2.5"
+              R_PAREN@113..114 ")"
             WHITESPACE@114..115 " "
             MUL@115..116 "*"
             WHITESPACE@116..117 " "
             TERM@117..119
-              PRIMARY_EXPR@117..119
-                MINUS@117..118 "-"
-                TERM@118..119
-                  PRIMARY_EXPR@118..119
-                    INTEGER_LIT@118..119 "2"
+              MINUS@117..118 "-"
+              TERM@118..119
+                INTEGER_LIT@118..119 "2"
             WHITESPACE@119..120 " "
             MUL@120..121 "*"
             WHITESPACE@121..122 " "
             TERM@122..126
-              PRIMARY_EXPR@122..126
-                MINUS@122..123 "-"
-                TERM@123..126
-                  PRIMARY_EXPR@123..126
-                    FLOAT_LIT@123..126 "1.0"
+              MINUS@122..123 "-"
+              TERM@123..126
+                FLOAT_LIT@123..126 "1.0"
           WHITESPACE@126..127 " "
           EQ@127..129 "=="
           WHITESPACE@129..130 " "
           EXPR@130..148
             TERM@130..134
-              PRIMARY_EXPR@130..134
-                FLOAT_LIT@130..134 "10.0"
+              FLOAT_LIT@130..134 "10.0"
             WHITESPACE@134..135 " "
             DIV@135..136 "\\"
             WHITESPACE@136..137 " "
             TERM@137..148
-              PRIMARY_EXPR@137..148
-                L_PAREN@137..138 "("
-                EXPR@138..147
-                  TERM@138..139
-                    PRIMARY_EXPR@138..139
-                      INTEGER_LIT@138..139 "2"
-                  WHITESPACE@139..140 " "
-                  ADD@140..141 "+"
-                  WHITESPACE@141..142 " "
-                  TERM@142..147
-                    PRIMARY_EXPR@142..147
-                      MINUS@142..143 "-"
-                      TERM@143..147
-                        PRIMARY_EXPR@143..147
-                          L_PAREN@143..144 "("
-                          EXPR@144..146
-                            TERM@144..146
-                              PRIMARY_EXPR@144..146
-                                MINUS@144..145 "-"
-                                TERM@145..146
-                                  PRIMARY_EXPR@145..146
-                                    INTEGER_LIT@145..146 "1"
-                          R_PAREN@146..147 ")"
-                R_PAREN@147..148 ")"
+              L_PAREN@137..138 "("
+              EXPR@138..147
+                TERM@138..139
+                  INTEGER_LIT@138..139 "2"
+                WHITESPACE@139..140 " "
+                ADD@140..141 "+"
+                WHITESPACE@141..142 " "
+                TERM@142..147
+                  MINUS@142..143 "-"
+                  TERM@143..147
+                    L_PAREN@143..144 "("
+                    EXPR@144..146
+                      TERM@144..146
+                        MINUS@144..145 "-"
+                        TERM@145..146
+                          INTEGER_LIT@145..146 "1"
+                    R_PAREN@146..147 ")"
+              R_PAREN@147..148 ")"
     NEWLINE@148..149 "\n"
     R_BRACE@149..150 "}"
   NEWLINE@150..151 "\n"
@@ -181,27 +155,23 @@ SOURCE_FILE@0..295
         BOOLEAN_TERM@184..198
           EXPR@184..189
             TERM@184..185
-              PRIMARY_EXPR@184..185
-                INTEGER_LIT@184..185 "5"
+              INTEGER_LIT@184..185 "5"
             WHITESPACE@185..186 " "
             DIV@186..187 "\\"
             WHITESPACE@187..188 " "
             TERM@188..189
-              PRIMARY_EXPR@188..189
-                INTEGER_LIT@188..189 "2"
+              INTEGER_LIT@188..189 "2"
           WHITESPACE@189..190 " "
           EQ@190..192 "=="
           WHITESPACE@192..193 " "
           EXPR@193..198
             TERM@193..194
-              PRIMARY_EXPR@193..194
-                INTEGER_LIT@193..194 "8"
+              INTEGER_LIT@193..194 "8"
             WHITESPACE@194..195 " "
             MOD@195..196 "%"
             WHITESPACE@196..197 " "
             TERM@197..198
-              PRIMARY_EXPR@197..198
-                INTEGER_LIT@197..198 "3"
+              INTEGER_LIT@197..198 "3"
     NEWLINE@198..199 "\n"
     R_BRACE@199..200 "}"
   NEWLINE@200..201 "\n"
@@ -224,27 +194,23 @@ SOURCE_FILE@0..295
         BOOLEAN_TERM@234..248
           EXPR@234..239
             TERM@234..235
-              PRIMARY_EXPR@234..235
-                INTEGER_LIT@234..235 "5"
+              INTEGER_LIT@234..235 "5"
             WHITESPACE@235..236 " "
             SUB@236..237 "-"
             WHITESPACE@237..238 " "
             TERM@238..239
-              PRIMARY_EXPR@238..239
-                INTEGER_LIT@238..239 "2"
+              INTEGER_LIT@238..239 "2"
           WHITESPACE@239..240 " "
           NE@240..242 "!="
           WHITESPACE@242..243 " "
           EXPR@243..248
             TERM@243..244
-              PRIMARY_EXPR@243..244
-                INTEGER_LIT@243..244 "6"
+              INTEGER_LIT@243..244 "6"
             WHITESPACE@244..245 " "
             SUB@245..246 "-"
             WHITESPACE@246..247 " "
             TERM@247..248
-              PRIMARY_EXPR@247..248
-                INTEGER_LIT@247..248 "3"
+              INTEGER_LIT@247..248 "3"
     NEWLINE@248..249 "\n"
     R_BRACE@249..250 "}"
   NEWLINE@250..251 "\n"
@@ -266,26 +232,20 @@ SOURCE_FILE@0..295
         BOOLEAN_TERM@283..293
           EXPR@283..287
             TERM@283..287
-              PRIMARY_EXPR@283..287
-                MINUS@283..284 "-"
-                TERM@284..287
-                  PRIMARY_EXPR@284..287
-                    MINUS@284..285 "-"
-                    TERM@285..287
-                      PRIMARY_EXPR@285..287
-                        MINUS@285..286 "-"
-                        TERM@286..287
-                          PRIMARY_EXPR@286..287
-                            INTEGER_LIT@286..287 "1"
+              MINUS@283..284 "-"
+              TERM@284..287
+                MINUS@284..285 "-"
+                TERM@285..287
+                  MINUS@285..286 "-"
+                  TERM@286..287
+                    INTEGER_LIT@286..287 "1"
           WHITESPACE@287..288 " "
           EQ@288..290 "=="
           WHITESPACE@290..291 " "
           EXPR@291..293
             TERM@291..293
-              PRIMARY_EXPR@291..293
-                MINUS@291..292 "-"
-                TERM@292..293
-                  PRIMARY_EXPR@292..293
-                    INTEGER_LIT@292..293 "1"
+              MINUS@291..292 "-"
+              TERM@292..293
+                INTEGER_LIT@292..293 "1"
     NEWLINE@293..294 "\n"
     R_BRACE@294..295 "}"

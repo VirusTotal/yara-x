@@ -40,9 +40,7 @@ Begin { kind: BOOLEAN_EXPR, span: Span(67..101) }
 Begin { kind: BOOLEAN_TERM, span: Span(67..84) }
 Begin { kind: EXPR, span: Span(67..74) }
 Begin { kind: TERM, span: Span(67..74) }
-Begin { kind: PRIMARY_EXPR, span: Span(67..74) }
 Token { kind: INTEGER_LIT, span: Span(67..74) }
-End { kind: PRIMARY_EXPR, span: Span(67..74) }
 End { kind: TERM, span: Span(67..74) }
 End { kind: EXPR, span: Span(67..74) }
 Token { kind: WHITESPACE, span: Span(74..75) }
@@ -50,9 +48,7 @@ Token { kind: EQ, span: Span(75..77) }
 Token { kind: WHITESPACE, span: Span(77..78) }
 Begin { kind: EXPR, span: Span(78..84) }
 Begin { kind: TERM, span: Span(78..84) }
-Begin { kind: PRIMARY_EXPR, span: Span(78..84) }
 Token { kind: INTEGER_LIT, span: Span(78..84) }
-End { kind: PRIMARY_EXPR, span: Span(78..84) }
 End { kind: TERM, span: Span(78..84) }
 End { kind: EXPR, span: Span(78..84) }
 End { kind: BOOLEAN_TERM, span: Span(67..84) }
@@ -62,9 +58,7 @@ Token { kind: WHITESPACE, span: Span(88..89) }
 Begin { kind: BOOLEAN_TERM, span: Span(89..101) }
 Begin { kind: EXPR, span: Span(89..94) }
 Begin { kind: TERM, span: Span(89..94) }
-Begin { kind: PRIMARY_EXPR, span: Span(89..94) }
 Token { kind: FLOAT_LIT, span: Span(89..94) }
-End { kind: PRIMARY_EXPR, span: Span(89..94) }
 End { kind: TERM, span: Span(89..94) }
 End { kind: EXPR, span: Span(89..94) }
 Token { kind: WHITESPACE, span: Span(94..95) }
@@ -72,9 +66,7 @@ Token { kind: EQ, span: Span(95..97) }
 Token { kind: WHITESPACE, span: Span(97..98) }
 Begin { kind: EXPR, span: Span(98..101) }
 Begin { kind: TERM, span: Span(98..101) }
-Begin { kind: PRIMARY_EXPR, span: Span(98..101) }
 Token { kind: FLOAT_LIT, span: Span(98..101) }
-End { kind: PRIMARY_EXPR, span: Span(98..101) }
 End { kind: TERM, span: Span(98..101) }
 End { kind: EXPR, span: Span(98..101) }
 End { kind: BOOLEAN_TERM, span: Span(89..101) }
