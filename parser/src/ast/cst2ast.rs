@@ -1760,8 +1760,8 @@ where
                                 (
                                     Some((start, first_char)),
                                     Some((end, second_char)),
-                                ) if first_char.is_digit(16)
-                                    && second_char.is_digit(16) =>
+                                ) if first_char.is_ascii_hexdigit()
+                                    && second_char.is_ascii_hexdigit() =>
                                 {
                                     let hex_value = u8::from_str_radix(
                                         &remaining[start..=end],
