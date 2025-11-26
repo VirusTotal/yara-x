@@ -1456,7 +1456,14 @@ where
                     exprs.push(self.primary_expr()?);
                 }
 
-                let mut final_exprs: Vec<Expr> = exprs
+                // Consecutive dot-separated expressions can be coalesced
+                // into a single one based on the operands types. For
+                // example `a.b` (identifier . identifier), is merged into
+                // one FieldAccess expression. Similarly, if the left side
+                // is already a FieldAccess, and the right is an identifier,
+                // the identifier is simply added to the operand list of
+                // the FieldAccess. There are more cases, all covered below.
+                let mut coalesced: Vec<Expr> = exprs
                     .into_iter()
                     .coalesce(|x, y| match (x, y) {
                         // Two consecutive identifiers, this is a field access.
@@ -1514,10 +1521,10 @@ where
                     })
                     .collect();
 
-                if final_exprs.len() == 1 {
-                    final_exprs.pop().unwrap()
+                if coalesced.len() == 1 {
+                    coalesced.pop().unwrap()
                 } else {
-                    Expr::FieldAccess(Box::new(NAryExpr::from(final_exprs)))
+                    Expr::FieldAccess(Box::new(NAryExpr::from(coalesced)))
                 }
             }
             event => panic!("unexpected {event:?}"),
