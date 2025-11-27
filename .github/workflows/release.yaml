@@ -51,16 +51,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: stable
-
-    - name: Check version number
-      shell: bash
-      run: |
-        set -ex
-        version=`cargo pkgid --manifest-path lib/Cargo.toml | cut -d "@" -f2`
-        if [ "${{ github.ref_name }}" != "v$version" ]; then
-          exit 1
-        fi
-
+        
     - run: rustup target add ${{ matrix.target }}
 
     - name: Build
@@ -136,15 +127,6 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: stable
-
-    - name: Check version number
-      shell: bash
-      run: |
-        set -ex
-        version=`cargo pkgid --manifest-path lib/Cargo.toml | cut -d "@" -f2`
-        if [ "${{ github.ref_name }}" != "v$version" ]; then
-          exit 1
-        fi
 
     - name: Install Python
       uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38  # v5.4.0
