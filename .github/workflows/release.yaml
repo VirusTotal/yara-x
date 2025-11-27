@@ -51,7 +51,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: stable
-        
+
     - run: rustup target add ${{ matrix.target }}
 
     - name: Build
@@ -168,7 +168,6 @@ jobs:
         CIBW_BUILD_VERBOSITY: 1
 
         MACOSX_DEPLOYMENT_TARGET: '14.0'
-        CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: 'gcc'
 
     - name: Upload artifacts
       uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1  # v4.6.1
