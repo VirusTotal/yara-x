@@ -22,3 +22,7 @@ repository = "https://github.com/VirusTotal/yara-x.git"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
+
+[[tool.cibuildwheel.overrides]]
+select = "*-musllinux*"
+environment = { CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER="gcc", CARGO_ENCODED_RUSTFLAGS="" }
