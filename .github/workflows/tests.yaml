@@ -19,7 +19,8 @@ jobs:
           - nightly
           - macos
           - 32bits
-          - windows
+          - windows-msvc
+          - windows-gnu
           - windows-32bits
           - no-default-features
           - protoc
@@ -72,10 +73,19 @@ jobs:
             experimental: false
             use_cache: true
 
-          - build: windows
+          - build: windows-msvc
             os: windows-latest
             rust: stable
             target: x86_64-pc-windows-msvc
+            args: "--features=rules-profiling"
+            rust_flags: "-Awarnings"
+            experimental: false
+            use_cache: true
+
+          - build: windows-gnu
+            os: windows-latest
+            rust: stable
+            target: x86_64-pc-windows-gnu
             args: "--features=rules-profiling"
             rust_flags: "-Awarnings"
             experimental: false
