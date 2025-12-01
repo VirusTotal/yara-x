@@ -176,7 +176,7 @@ jobs:
         CIBW_ARCHS: ${{ matrix.arch || 'auto' }}
 
         CIBW_BEFORE_BUILD_LINUX: |
-          if [ $CIBW_BUILD == *-musllinux* ]; then
+          if [[ $CIBW_BUILD == *-musllinux* ]]; then
             export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER="gcc"
             export CARGO_ENCODED_RUSTFLAGS=""
           fi
