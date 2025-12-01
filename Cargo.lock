@@ -1712,6 +1712,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dabdf0d2968124ee123b21b84ef3232ad0359cd796848059bd45a0c96ab4b0f0"
 
 [[package]]
+name = "inventory"
+version = "0.3.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc61209c082fbeb19919bee74b176221b27223e27b65d781eb91af24eb1fb46e"
+dependencies = [
+ "rustversion",
+]
+
+[[package]]
 name = "ipnet"
 version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4667,6 +4676,7 @@ dependencies = [
  "ihex",
  "indexmap 2.12.0",
  "intaglio",
+ "inventory",
  "ipnet",
  "itertools 0.14.0",
  "lingua",

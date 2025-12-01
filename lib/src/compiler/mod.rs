@@ -46,7 +46,7 @@ use crate::types::{Func, Struct, TypeValue};
 use crate::utils::cast;
 use crate::variables::{is_valid_identifier, Variable, VariableError};
 use crate::wasm::builder::WasmModuleBuilder;
-use crate::wasm::{WasmExport, WasmSymbols, WASM_EXPORTS};
+use crate::wasm::{wasm_exports, WasmExport, WasmSymbols};
 use crate::{re, wasm};
 
 pub(crate) use crate::compiler::atoms::*;
@@ -427,8 +427,7 @@ impl<'a> Compiler<'a> {
         let global_symbols = symbol_table.push_new();
 
         // Add symbols for built-in functions like uint8, uint16, etc.
-        for export in WASM_EXPORTS
-            .iter()
+        for export in wasm_exports()
             // Get only the public exports not belonging to a YARA module.
             .filter(|e| e.public && e.builtin())
         {

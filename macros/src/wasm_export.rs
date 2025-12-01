@@ -301,7 +301,7 @@ pub(crate) fn impl_wasm_export_macro(
 
     let fn_descriptor = quote! {
         #[allow(non_upper_case_globals)]
-        #[distributed_slice(WASM_EXPORTS)]
+        #[cfg_attr(not(feature = "inventory"), distributed_slice(WASM_EXPORTS))]
         pub(crate) static #export_ident: WasmExport = WasmExport {
             name: #fn_name,
             mangled_name: #mangled_fn_name,
@@ -310,6 +310,18 @@ pub(crate) fn impl_wasm_export_macro(
             method_of: #method_of,
             func: &#exported_fn_ident { target_fn: &#rust_fn_name },
         };
+
+        #[cfg(feature = "inventory")]
+        inventory::submit! {
+            WasmExport {
+                name: #fn_name,
+                mangled_name: #mangled_fn_name,
+                public: #public,
+                rust_module_path: module_path!(),
+                method_of: #method_of,
+                func: &#exported_fn_ident { target_fn: &#rust_fn_name },
+            }
+        }
     };
 
     let mut token_stream = func.to_token_stream();
