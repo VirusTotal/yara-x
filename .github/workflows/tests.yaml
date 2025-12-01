@@ -106,7 +106,7 @@ jobs:
             os: ubuntu-latest
             rust: stable
             target: x86_64-unknown-linux-gnu
-            args: "--no-default-features --features=default-modules,magic-module"
+            args: "--no-default-features --features=default-modules,magic-module,linkme"
             rust_flags: "-Awarnings"
             experimental: false
             use_cache: false

@@ -215,7 +215,6 @@ impl WasmExport {
         // match the predicate. Add them to `functions` map, or update the
         // `Func` object with an additional signature if the function is
         // overloaded.
-        #[cfg(not(feature = "inventory"))]
         for export in wasm_exports().filter(predicate) {
             let mangled_name = export.fully_qualified_mangled_name();
             // If the function was already present in the map is because it has

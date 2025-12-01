@@ -212,7 +212,7 @@ vt-module = [
     "dep:psl",
 ]
 
-# All the modules that are enabled by default.
+# Enables all the default modules.
 default-modules = [
     "console-module",
     "crx-module",
@@ -234,9 +234,9 @@ default-modules = [
 # Features that are enabled by default.
 default = [
     "constant-folding",
+    "default-modules",
     "fast-regexp",
     "linkme",
-    "default-modules",
 ]
 
 [dependencies]
