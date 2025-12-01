@@ -49,6 +49,8 @@ exact-atoms = []
 # the fast regexp matching mechanism for testing purposes.
 fast-regexp = []
 
+# Uses the `inventory` crate (https://github.com/dtolnay/inventory) instead
+# of `linkme`  (https://github.com/dtolnay/linkme) for tracking WASM exports.
 inventory = ["dep:inventory"]
 
 # Whether to use protoc for parsing and compiling .proto files. By default,

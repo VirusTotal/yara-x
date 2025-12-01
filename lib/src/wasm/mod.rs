@@ -133,10 +133,14 @@ pub(crate) const MATCHING_RULES_BITMAP_BASE: i32 = LOOKUP_INDEXES_END;
 /// WASM code. Functions with attributes `#[wasm_export]` and `#[module_export]`
 /// are automatically added to this slice. See https://github.com/dtolnay/linkme
 /// for details about how `#[distributed_slice]` works.
-
+///
+/// When the `inventory` feature is enabled, this vector is not used.
 #[cfg(not(feature = "inventory"))]
 #[distributed_slice]
 pub(crate) static WASM_EXPORTS: [WasmExport] = [..];
+
+#[cfg(feature = "inventory")]
+inventory::collect!(WasmExport);
 
 /// Returns an iterator of [`WasmExport`] structs that describes the functions
 /// that are callable from WASM code.
@@ -144,6 +148,7 @@ pub(crate) fn wasm_exports() -> impl Iterator<Item = &'static WasmExport> {
     #[cfg(feature = "inventory")]
     return inventory::iter::<WasmExport>();
 
+    // Rely on the `WASM_EXPORTS` slice when not using the `inventory` crate.
     #[cfg(not(feature = "inventory"))]
     WASM_EXPORTS.iter()
 }
@@ -170,9 +175,6 @@ pub(crate) struct WasmExport {
     /// Reference to some type that implements the WasmExportedFn trait.
     pub func: &'static (dyn WasmExportedFn + Send + Sync),
 }
-
-#[cfg(feature = "inventory")]
-inventory::collect!(WasmExport);
 
 impl WasmExport {
     /// Returns the fully qualified name for a #[wasm_export] function.
