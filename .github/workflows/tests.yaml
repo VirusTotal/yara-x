@@ -86,7 +86,7 @@ jobs:
             os: windows-latest
             rust: stable
             target: x86_64-pc-windows-gnu
-            args: "--features=rules-profiling"
+            args: "--features=rules-profiling,inventory"
             rust_flags: "-Awarnings"
             experimental: false
             use_cache: true
