@@ -29,7 +29,7 @@ Most of the time, these improved heuristics make scanning much faster. But recen
 I ran into an unusual case where they actually made things much slower, and it’s
 a great example of how optimizations can sometimes backfire.
 
-# A quick refresher: What are atoms?
+## A quick refresher: What are atoms?
 
 When YARA processes a rule that includes a regular expression, it first tries to
 extract one or more short atoms from it. Atoms are small fixed substrings (up to 
@@ -72,7 +72,7 @@ At first glance, this seems like a clear win for YARA-X: using `00` as an atom i
 idea because it’s extremely common, while YARA-X’s longer atoms should be much rarer and faster
 to search.
 
-### When smarter backfires
+## When smarter backfires
 
 Here’s where things get interesting.
 

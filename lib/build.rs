@@ -146,6 +146,12 @@ fn main() {
     println!("cargo:rerun-if-changed=src/modules/add_modules.rs");
     println!("cargo:rerun-if-changed=src/modules/modules.rs");
 
+    if !cfg!(feature = "inventory") && !cfg!(feature = "linkme") {
+        panic!(
+            "either the `inventory` feature or the `linkme` feature must be enabled."
+        );
+    }
+
     let mut proto_compiler = Codegen::new();
     let mut proto_parser = Parser::new();
 

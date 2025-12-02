@@ -41,12 +41,10 @@ SOURCE_FILE@0..90
             QUANTIFIER@69..72
               EXPR@69..72
                 TERM@69..70
-                  PRIMARY_EXPR@69..70
-                    INTEGER_LIT@69..70 "1"
+                  INTEGER_LIT@69..70 "1"
                 ADD@70..71 "+"
                 TERM@71..72
-                  PRIMARY_EXPR@71..72
-                    INTEGER_LIT@71..72 "1"
+                  INTEGER_LIT@71..72 "1"
             WHITESPACE@72..73 " "
             OF_KW@73..75 "of"
             WHITESPACE@75..76 " "

@@ -388,7 +388,13 @@ func TestWarnings(t *testing.T) {
  --> line:1:31
   |
 1 | rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }
-  |                               ---------- these consecutive jumps will be treated as [0-2]`,
+  |                               ---------- these consecutive jumps will be treated as [0-2]
+  |
+help: consider the following change
+  |
+1 - rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }
+1 + rule test { strings: $a = {01 [0-2] 02 } condition: $a }
+  |`,
 		},
 		{
 			Code:   "slow_pattern",

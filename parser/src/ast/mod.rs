@@ -865,7 +865,6 @@ pub struct In<'src> {
 /// An expression representing a function call.
 #[derive(Debug)]
 pub struct FuncCall<'src> {
-    span: Span,
     args_span: Span,
     pub object: Option<Expr<'src>>,
     pub identifier: Ident<'src>,
@@ -1180,7 +1179,7 @@ impl WithSpan for Include<'_> {
 
 impl WithSpan for FuncCall<'_> {
     fn span(&self) -> Span {
-        self.span.clone()
+        self.identifier.span.combine(&self.args_span)
     }
 }
 
@@ -1397,7 +1396,7 @@ impl WithSpan for Expr<'_> {
             Expr::Ident(i) => i.span.clone(),
             Expr::Regexp(r) => r.span.clone(),
             Expr::Lookup(l) => l.span.clone(),
-            Expr::FuncCall(f) => f.span.clone(),
+            Expr::FuncCall(f) => f.span(),
             Expr::PatternMatch(p) => p.span(),
             Expr::PatternCount(p) => p.span(),
             Expr::PatternLength(p) => p.span(),

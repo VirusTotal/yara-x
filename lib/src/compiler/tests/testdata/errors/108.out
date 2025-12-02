@@ -1,5 +1,5 @@
 error[E029]: invalid escape sequence
- --> line:2:17
+ --> line:2:15
   |
 2 |   condition: "\xZZ" == "\xZZ"
-  |                 ^^ invalid hex value `ZZ` after `\x`
+  |               ^^ expecting two hex digits after `\x`

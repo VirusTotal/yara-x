@@ -16,9 +16,7 @@ Begin { kind: BOOLEAN_EXPR, span: Span(27..28) }
 Begin { kind: BOOLEAN_TERM, span: Span(27..28) }
 Begin { kind: EXPR, span: Span(27..28) }
 Begin { kind: TERM, span: Span(27..28) }
-Begin { kind: PRIMARY_EXPR, span: Span(27..28) }
 Token { kind: PATTERN_LENGTH, span: Span(27..28) }
-End { kind: PRIMARY_EXPR, span: Span(27..28) }
 End { kind: TERM, span: Span(27..28) }
 End { kind: EXPR, span: Span(27..28) }
 End { kind: BOOLEAN_TERM, span: Span(27..28) }

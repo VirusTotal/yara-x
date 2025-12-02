@@ -167,13 +167,17 @@ pub enum DFSContext<'src> {
 /// events are emitted consecutively.
 pub struct DFSIter<'src> {
     stack: Vec<DFSEvent<(&'src Expr<'src>, DFSContext<'src>)>>,
+    recently_left_context: Option<DFSContext<'src>>,
 }
 
 impl<'src> DFSIter<'src> {
     /// Creates a new [`DFSIter`] that traverses the tree starting at the
     /// given expression.
     pub fn new(expr: &'src Expr<'src>) -> Self {
-        Self { stack: vec![DFSEvent::Enter((expr, DFSContext::Root))] }
+        Self {
+            stack: vec![DFSEvent::Enter((expr, DFSContext::Root))],
+            recently_left_context: None,
+        }
     }
 
     /// Returns an iterator that yields the contexts corresponding to the
@@ -237,11 +241,16 @@ impl<'src> DFSIter<'src> {
     ///
     /// assert!(contexts.next().is_none());
     /// ```
-    pub fn contexts(&self) -> impl Iterator<Item = &DFSContext<'src>> {
-        self.stack.iter().rev().filter_map(|event| match event {
-            DFSEvent::Enter(_) => None,
-            DFSEvent::Leave((_, ctx)) => Some(ctx),
-        })
+    pub fn contexts(
+        &self,
+    ) -> impl DoubleEndedIterator<Item = &DFSContext<'src>> {
+        itertools::chain(
+            self.recently_left_context.iter(),
+            self.stack.iter().rev().filter_map(|event| match event {
+                DFSEvent::Enter(_) => None,
+                DFSEvent::Leave((_, ctx)) => Some(ctx),
+            }),
+        )
     }
 
     /// Prunes the search tree, preventing the traversal from visiting the
@@ -275,11 +284,15 @@ impl<'src> Iterator for DFSIter<'src> {
     fn next(&mut self) -> Option<Self::Item> {
         match self.stack.pop()? {
             DFSEvent::Enter((expr, context)) => {
+                self.recently_left_context = None;
                 self.stack.push(DFSEvent::Leave((expr, context)));
                 dfs_enter(expr, &mut self.stack);
                 Some(DFSEvent::Enter(expr))
             }
-            DFSEvent::Leave((expr, _)) => Some(DFSEvent::Leave(expr)),
+            DFSEvent::Leave((expr, context)) => {
+                self.recently_left_context = Some(context);
+                Some(DFSEvent::Leave(expr))
+            }
         }
     }
 }
@@ -654,6 +667,10 @@ mod tests {
         ));
 
         let mut contexts = dfs.contexts();
+        assert!(matches!(
+            contexts.next(),
+            Some(DFSContext::Quantifier(Expr::ForOf(_)))
+        ));
         assert!(matches!(contexts.next(), Some(DFSContext::Root)));
         assert!(contexts.next().is_none());
         drop(contexts);
@@ -738,6 +755,8 @@ mod tests {
         // leave `for 1 of ($a) : (...)`
         assert!(matches!(dfs.next(), Some(DFSEvent::Leave(Expr::ForOf(_)))));
 
-        assert!(dfs.next().is_none());
+        let mut contexts = dfs.contexts();
+        assert!(matches!(contexts.next(), Some(DFSContext::Root)));
+        assert!(contexts.next().is_none());
     }
 }

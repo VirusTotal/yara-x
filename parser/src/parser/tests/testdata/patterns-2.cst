@@ -33,14 +33,12 @@ SOURCE_FILE@0..238
           WHITESPACE@62..63 " "
           EXPR@63..72
             TERM@63..66
-              PRIMARY_EXPR@63..66
-                INTEGER_LIT@63..66 "100"
+              INTEGER_LIT@63..66 "100"
             WHITESPACE@66..67 " "
             ADD@67..68 "+"
             WHITESPACE@68..69 " "
             TERM@69..72
-              PRIMARY_EXPR@69..72
-                INTEGER_LIT@69..72 "200"
+              INTEGER_LIT@69..72 "200"
     NEWLINE@72..73 "\n"
     R_BRACE@73..74 "}"
   NEWLINE@74..75 "\n"
@@ -76,35 +74,30 @@ SOURCE_FILE@0..238
         BOOLEAN_TERM@134..159
           EXPR@134..154
             TERM@134..154
-              PRIMARY_EXPR@134..154
-                PATTERN_COUNT@134..136 "#a"
-                WHITESPACE@136..137 " "
-                IN_KW@137..139 "in"
-                WHITESPACE@139..140 " "
-                RANGE@140..154
-                  L_PAREN@140..141 "("
-                  EXPR@141..148
-                    TERM@141..144
-                      PRIMARY_EXPR@141..144
-                        INTEGER_LIT@141..144 "100"
-                    ADD@144..145 "+"
-                    TERM@145..148
-                      PRIMARY_EXPR@145..148
-                        INTEGER_LIT@145..148 "100"
-                  DOT@148..149 "."
-                  DOT@149..150 "."
-                  EXPR@150..153
-                    TERM@150..153
-                      PRIMARY_EXPR@150..153
-                        INTEGER_LIT@150..153 "400"
-                  R_PAREN@153..154 ")"
+              PATTERN_COUNT@134..136 "#a"
+              WHITESPACE@136..137 " "
+              IN_KW@137..139 "in"
+              WHITESPACE@139..140 " "
+              RANGE@140..154
+                L_PAREN@140..141 "("
+                EXPR@141..148
+                  TERM@141..144
+                    INTEGER_LIT@141..144 "100"
+                  ADD@144..145 "+"
+                  TERM@145..148
+                    INTEGER_LIT@145..148 "100"
+                DOT@148..149 "."
+                DOT@149..150 "."
+                EXPR@150..153
+                  TERM@150..153
+                    INTEGER_LIT@150..153 "400"
+                R_PAREN@153..154 ")"
           WHITESPACE@154..155 " "
           EQ@155..157 "=="
           WHITESPACE@157..158 " "
           EXPR@158..159
             TERM@158..159
-              PRIMARY_EXPR@158..159
-                INTEGER_LIT@158..159 "2"
+              INTEGER_LIT@158..159 "2"
     NEWLINE@159..160 "\n"
     R_BRACE@160..161 "}"
   NEWLINE@161..162 "\n"
@@ -140,20 +133,17 @@ SOURCE_FILE@0..238
         BOOLEAN_TERM@221..236
           EXPR@221..226
             TERM@221..226
-              PRIMARY_EXPR@221..226
-                PATTERN_OFFSET@221..223 "@a"
-                L_BRACKET@223..224 "["
-                EXPR@224..225
-                  TERM@224..225
-                    PRIMARY_EXPR@224..225
-                      INTEGER_LIT@224..225 "2"
-                R_BRACKET@225..226 "]"
+              PATTERN_OFFSET@221..223 "@a"
+              L_BRACKET@223..224 "["
+              EXPR@224..225
+                TERM@224..225
+                  INTEGER_LIT@224..225 "2"
+              R_BRACKET@225..226 "]"
           WHITESPACE@226..227 " "
           EQ@227..229 "=="
           WHITESPACE@229..230 " "
           EXPR@230..236
             TERM@230..236
-              PRIMARY_EXPR@230..236
-                INTEGER_LIT@230..236 "0x1000"
+              INTEGER_LIT@230..236 "0x1000"
     NEWLINE@236..237 "\n"
     R_BRACE@237..238 "}"

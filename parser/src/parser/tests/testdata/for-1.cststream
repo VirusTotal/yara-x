@@ -44,15 +44,11 @@ Token { kind: WHITESPACE, span: Span(68..69) }
 Begin { kind: QUANTIFIER, span: Span(69..72) }
 Begin { kind: EXPR, span: Span(69..72) }
 Begin { kind: TERM, span: Span(69..70) }
-Begin { kind: PRIMARY_EXPR, span: Span(69..70) }
 Token { kind: INTEGER_LIT, span: Span(69..70) }
-End { kind: PRIMARY_EXPR, span: Span(69..70) }
 End { kind: TERM, span: Span(69..70) }
 Token { kind: ADD, span: Span(70..71) }
 Begin { kind: TERM, span: Span(71..72) }
-Begin { kind: PRIMARY_EXPR, span: Span(71..72) }
 Token { kind: INTEGER_LIT, span: Span(71..72) }
-End { kind: PRIMARY_EXPR, span: Span(71..72) }
 End { kind: TERM, span: Span(71..72) }
 End { kind: EXPR, span: Span(69..72) }
 End { kind: QUANTIFIER, span: Span(69..72) }

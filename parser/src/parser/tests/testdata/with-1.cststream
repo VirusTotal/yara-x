@@ -25,15 +25,11 @@ Token { kind: EQUAL, span: Span(35..36) }
 Token { kind: WHITESPACE, span: Span(36..37) }
 Begin { kind: EXPR, span: Span(37..40) }
 Begin { kind: TERM, span: Span(37..38) }
-Begin { kind: PRIMARY_EXPR, span: Span(37..38) }
 Token { kind: INTEGER_LIT, span: Span(37..38) }
-End { kind: PRIMARY_EXPR, span: Span(37..38) }
 End { kind: TERM, span: Span(37..38) }
 Token { kind: ADD, span: Span(38..39) }
 Begin { kind: TERM, span: Span(39..40) }
-Begin { kind: PRIMARY_EXPR, span: Span(39..40) }
 Token { kind: INTEGER_LIT, span: Span(39..40) }
-End { kind: PRIMARY_EXPR, span: Span(39..40) }
 End { kind: TERM, span: Span(39..40) }
 End { kind: EXPR, span: Span(37..40) }
 End { kind: WITH_DECL, span: Span(31..40) }
@@ -59,9 +55,7 @@ Token { kind: EQ, span: Span(62..64) }
 Token { kind: WHITESPACE, span: Span(64..65) }
 Begin { kind: EXPR, span: Span(65..66) }
 Begin { kind: TERM, span: Span(65..66) }
-Begin { kind: PRIMARY_EXPR, span: Span(65..66) }
 Token { kind: INTEGER_LIT, span: Span(65..66) }
-End { kind: PRIMARY_EXPR, span: Span(65..66) }
 End { kind: TERM, span: Span(65..66) }
 End { kind: EXPR, span: Span(65..66) }
 End { kind: BOOLEAN_TERM, span: Span(58..66) }

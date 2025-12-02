@@ -21,6 +21,7 @@ pub(crate) mod prelude {
     pub(crate) use crate::wasm::string::String as _;
     pub(crate) use crate::wasm::*;
     pub(crate) use bstr::ByteSlice;
+    #[cfg(not(feature = "inventory"))]
     pub(crate) use linkme::distributed_slice;
     pub(crate) use wasmtime::Caller;
     pub(crate) use yara_x_macros::{module_export, module_main, wasm_export};
