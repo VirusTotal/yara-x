@@ -86,7 +86,7 @@ impl Dex {
             &proto_ids,
         )?;
 
-        // Exctract defined classes
+        // Extract defined classes
         let (_, class_defs) = Self::parse_class_defs(
             class_offset,
             &header,
@@ -126,8 +126,11 @@ impl Dex {
 
         let file_size = data.len() as u32;
 
-        // note: nom limits the number of parsers in the tuple to 21, and the header consists of 24 fields
-        // note: most verify checks based on android source code (but not strict for catching malware): https://cs.android.com/android/platform/superproject/main/+/main:art/libdexfile/dex/dex_file_verifier.cc;l=618
+        // note: nom limits the number of parsers in the tuple to 21, and the
+        // header consists of 24 fields
+        // note: most verify checks based on android source code (but not
+        // strict for catching malware):
+        // https://cs.android.com/android/platform/superproject/main/+/main:art/libdexfile/dex/dex_file_verifier.cc;l=618
         (
             remainder,
             (
@@ -425,7 +428,8 @@ impl Dex {
     }
 
     /// Collects a list of classes from class_defs_off list.
-    /// Only a part of the fields is extracted, because not all of them are useful when writing YARA rules.
+    /// Only a part of the fields is extracted, because not all of them are
+    /// useful when writing YARA rules.
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#class-def-item
     fn parse_class_defs<'a>(
