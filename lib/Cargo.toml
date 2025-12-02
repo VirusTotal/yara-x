@@ -225,6 +225,7 @@ default-modules = [
     "console-module",
     "crx-module",
     "cuckoo-module",
+    "dex-module",
     "dotnet-module",
     "elf-module",
     "macho-module",
