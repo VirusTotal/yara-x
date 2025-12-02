@@ -84,6 +84,7 @@ use std::rc::Rc;
 use std::sync::{LazyLock, OnceLock};
 
 use bstr::{BString, ByteSlice};
+#[cfg(not(feature = "inventory"))]
 use linkme::distributed_slice;
 use rustc_hash::FxHashMap;
 use smallvec::{smallvec, SmallVec};
@@ -132,8 +133,25 @@ pub(crate) const MATCHING_RULES_BITMAP_BASE: i32 = LOOKUP_INDEXES_END;
 /// WASM code. Functions with attributes `#[wasm_export]` and `#[module_export]`
 /// are automatically added to this slice. See https://github.com/dtolnay/linkme
 /// for details about how `#[distributed_slice]` works.
+///
+/// When the `inventory` feature is enabled, this vector is not used.
+#[cfg(not(feature = "inventory"))]
 #[distributed_slice]
 pub(crate) static WASM_EXPORTS: [WasmExport] = [..];
+
+#[cfg(feature = "inventory")]
+inventory::collect!(WasmExport);
+
+/// Returns an iterator of [`WasmExport`] structs that describes the functions
+/// that are callable from WASM code.
+pub(crate) fn wasm_exports() -> impl Iterator<Item = &'static WasmExport> {
+    #[cfg(feature = "inventory")]
+    return inventory::iter::<WasmExport>();
+
+    // Rely on the `WASM_EXPORTS` slice when not using the `inventory` crate.
+    #[cfg(not(feature = "inventory"))]
+    WASM_EXPORTS.iter()
+}
 
 /// Type of each entry in [`WASM_EXPORTS`].
 pub(crate) struct WasmExport {
@@ -197,7 +215,7 @@ impl WasmExport {
         // match the predicate. Add them to `functions` map, or update the
         // `Func` object with an additional signature if the function is
         // overloaded.
-        for export in WASM_EXPORTS.iter().filter(predicate) {
+        for export in wasm_exports().filter(predicate) {
             let mangled_name = export.fully_qualified_mangled_name();
             // If the function was already present in the map is because it has
             // multiple signatures. If that's the case, add more signatures to
@@ -816,7 +834,8 @@ pub(crate) unsafe fn free_engine() {
 pub(crate) fn new_linker() -> Linker<ScanContext<'static, 'static>> {
     let engine = get_engine();
     let mut linker = Linker::<ScanContext<'static, 'static>>::new(engine);
-    for export in WASM_EXPORTS {
+
+    for export in wasm_exports() {
         let func_type = FuncType::new(
             engine,
             export.func.wasmtime_args(),

@@ -19,7 +19,8 @@ jobs:
           - nightly
           - macos
           - 32bits
-          - windows
+          - windows-msvc
+          - windows-gnu
           - windows-32bits
           - no-default-features
           - protoc
@@ -72,11 +73,20 @@ jobs:
             experimental: false
             use_cache: true
 
-          - build: windows
+          - build: windows-msvc
             os: windows-latest
             rust: stable
             target: x86_64-pc-windows-msvc
             args: "--features=rules-profiling"
+            rust_flags: "-Awarnings"
+            experimental: false
+            use_cache: true
+
+          - build: windows-gnu
+            os: windows-latest
+            rust: stable
+            target: x86_64-pc-windows-gnu
+            args: " --no-default-features --features=default-modules,rules-profiling,inventory"
             rust_flags: "-Awarnings"
             experimental: false
             use_cache: true
@@ -96,7 +106,7 @@ jobs:
             os: ubuntu-latest
             rust: stable
             target: x86_64-unknown-linux-gnu
-            args: "--no-default-features --features=test_proto2-module,test_proto3-module,string-module,time-module,hash-module,macho-module,magic-module,math-module,lnk-module,elf-module,pe-module,dotnet-module,console-module,crx-module"
+            args: "--no-default-features --features=default-modules,magic-module,linkme"
             rust_flags: "-Awarnings"
             experimental: false
             use_cache: false
