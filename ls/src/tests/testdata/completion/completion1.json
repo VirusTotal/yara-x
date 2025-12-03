@@ -1,0 +1,42 @@
+{
+  "params": {
+    "textDocument": {
+      "uri": "file:///completion1.yar"
+    },
+    "position": {
+      "line": 0,
+      "character": 1
+    }
+  },
+  "expected": [
+    {
+      "label": "import",
+      "kind": 2,
+      "insertTextMode": 2,
+      "insertTextFormat": 2,
+      "insertText": "import \"${1:}\""
+    },
+    {
+      "label": "include",
+      "kind": 2,
+      "insertTextMode": 2,
+      "insertTextFormat": 2,
+      "insertText": "include \"${1:}\""
+    },
+    {
+      "label": "rule",
+      "kind": 2,
+      "insertTextMode": 2,
+      "insertTextFormat": 2,
+      "insertText": "rule ${1:ident} {\n\tcondition:\n\t\t${2:true}\n}"
+    },
+    {
+      "label": "global",
+      "kind": 14
+    },
+    {
+      "label": "private",
+      "kind": 14
+    }
+  ]
+}

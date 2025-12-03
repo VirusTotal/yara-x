@@ -1,0 +1,161 @@
+{
+  "params": {
+    "textDocument": {
+      "uri": "file:///documentsymbols6.yar"
+    }
+  },
+  "expected": [
+    {
+      "name": "multiple_pattern",
+      "detail": "Rule definition",
+      "kind": 12,
+      "range": {
+        "start": {
+          "line": 0,
+          "character": 0
+        },
+        "end": {
+          "line": 7,
+          "character": 1
+        }
+      },
+      "selectionRange": {
+        "start": {
+          "line": 0,
+          "character": 0
+        },
+        "end": {
+          "line": 7,
+          "character": 1
+        }
+      },
+      "children": [
+        {
+          "name": "strings",
+          "kind": 7,
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 2
+            },
+            "end": {
+              "line": 4,
+              "character": 30
+            }
+          },
+          "selectionRange": {
+            "start": {
+              "line": 1,
+              "character": 2
+            },
+            "end": {
+              "line": 4,
+              "character": 30
+            }
+          },
+          "children": [
+            {
+              "name": "$pattern_one",
+              "detail": "Pattern definition",
+              "kind": 13,
+              "range": {
+                "start": {
+                  "line": 2,
+                  "character": 4
+                },
+                "end": {
+                  "line": 2,
+                  "character": 28
+                }
+              },
+              "selectionRange": {
+                "start": {
+                  "line": 2,
+                  "character": 4
+                },
+                "end": {
+                  "line": 2,
+                  "character": 28
+                }
+              }
+            },
+            {
+              "name": "$pattern_two",
+              "detail": "Pattern definition",
+              "kind": 13,
+              "range": {
+                "start": {
+                  "line": 3,
+                  "character": 4
+                },
+                "end": {
+                  "line": 3,
+                  "character": 28
+                }
+              },
+              "selectionRange": {
+                "start": {
+                  "line": 3,
+                  "character": 4
+                },
+                "end": {
+                  "line": 3,
+                  "character": 28
+                }
+              }
+            },
+            {
+              "name": "$pattern_three",
+              "detail": "Pattern definition",
+              "kind": 13,
+              "range": {
+                "start": {
+                  "line": 4,
+                  "character": 4
+                },
+                "end": {
+                  "line": 4,
+                  "character": 30
+                }
+              },
+              "selectionRange": {
+                "start": {
+                  "line": 4,
+                  "character": 4
+                },
+                "end": {
+                  "line": 4,
+                  "character": 30
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "condition",
+          "kind": 7,
+          "range": {
+            "start": {
+              "line": 5,
+              "character": 2
+            },
+            "end": {
+              "line": 6,
+              "character": 8
+            }
+          },
+          "selectionRange": {
+            "start": {
+              "line": 5,
+              "character": 2
+            },
+            "end": {
+              "line": 6,
+              "character": 8
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

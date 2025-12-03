@@ -1,0 +1,17 @@
+{
+  "params": {
+    "textDocument": {
+      "uri": "file:///hover1.yar"
+    },
+    "position": {
+      "line": 4,
+      "character": 5
+    }
+  },
+  "expected": {
+    "contents": {
+      "kind": "markdown",
+      "value": "Pattern value is:\n\n`$a = \"foo\"`"
+    }
+  }
+}

@@ -91,6 +91,7 @@ fn main() -> anyhow::Result<()> {
         Some(("dump", args)) => commands::exec_dump(args),
         Some(("compile", args)) => commands::exec_compile(args, &config),
         Some(("completion", args)) => commands::exec_completion(args),
+        Some(("ls", args)) => commands::exec_language_server(args),
         _ => unreachable!(),
     };
 

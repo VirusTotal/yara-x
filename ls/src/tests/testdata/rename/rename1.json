@@ -1,0 +1,44 @@
+{
+  "params": {
+    "textDocument": {
+      "uri": "file:///rename1.yar"
+    },
+    "position": {
+      "line": 4,
+      "character": 5
+    },
+    "newName": "b"
+  },
+  "expected": {
+    "changes": {
+      "file:///rename1.yar": [
+        {
+          "range": {
+            "start": {
+              "line": 2,
+              "character": 5
+            },
+            "end": {
+              "line": 2,
+              "character": 6
+            }
+          },
+          "newText": "b"
+        },
+        {
+          "range": {
+            "start": {
+              "line": 4,
+              "character": 5
+            },
+            "end": {
+              "line": 4,
+              "character": 6
+            }
+          },
+          "newText": "b"
+        }
+      ]
+    }
+  }
+}

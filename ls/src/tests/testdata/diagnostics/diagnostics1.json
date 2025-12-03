@@ -1,0 +1,11 @@
+{
+  "params": {
+    "textDocument": {
+      "uri": "file:///diagnostics1.yar"
+    }
+  },
+  "expected": {
+    "kind": "full",
+    "items": []
+  }
+}

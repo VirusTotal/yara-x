@@ -26,6 +26,7 @@ members = [
     "proto-json",
     "proto-yaml",
     "py",
+    "ls",
 ]
 resolver = "2"
 
@@ -96,6 +97,7 @@ sha2 = "0.10.6"
 smallvec = "1.14.0"
 strum = "0.27.2"
 strum_macros = "0.27.2"
+tokio = { version = "1.48.0", features = ["full"]}
 thiserror = "2.0.17"
 uuid = "1.18.1"
 walrus = "0.24.3"
@@ -109,6 +111,7 @@ yara-x-parser = { path = "parser", version = "1.10.0" }
 yara-x-proto = { path = "proto", version = "1.10.0"}
 yara-x-proto-yaml = { path = "proto-yaml", version = "1.10.0" }
 yara-x-proto-json = { path = "proto-json", version = "1.10.0" }
+yara-x-ls = { path = "ls", version = "1.10.0" }
 zip = "6.0.0"
 
 # Special profile that builds a release binary with link-time optimization.

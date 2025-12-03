@@ -1,0 +1,13 @@
+{
+  "params": {
+    "textDocument": {
+      "uri": "file:///rename5.yar"
+    },
+    "position": {
+      "line": 3,
+      "character": 9
+    },
+    "newName": "new_condition"
+  },
+  "expected": {}
+}

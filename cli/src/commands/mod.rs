@@ -5,6 +5,7 @@ mod debug;
 mod dump;
 mod fix;
 mod fmt;
+mod ls;
 mod scan;
 
 pub use check::*;
@@ -15,6 +16,7 @@ pub use debug::*;
 pub use dump::*;
 pub use fix::*;
 pub use fmt::*;
+pub use ls::*;
 pub use scan::*;
 
 use std::borrow::Cow;
@@ -70,6 +72,7 @@ pub fn cli() -> Command {
             commands::fmt(),
             commands::fix(),
             commands::completion(),
+            commands::language_server(),
         ])
 }
 

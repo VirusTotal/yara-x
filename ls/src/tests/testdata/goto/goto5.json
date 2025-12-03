@@ -1,0 +1,12 @@
+{
+  "params": {
+    "textDocument": {
+      "uri": "file:///goto5.yar"
+    },
+    "position": {
+      "line": 4,
+      "character": 7
+    }
+  },
+  "expected": null
+}
