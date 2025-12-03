@@ -501,14 +501,8 @@ pub struct IgnoredRule {
     "this pattern can be written as a text literal",
     pattern_loc
 )]
-#[label(
-    "replace with \"{text}\"",
-    pattern_loc,
-    Level::HELP
-)]
 pub struct TextPatternAsHex {
     report: Report,
-    text: String,
     pattern_loc: CodeLoc,
 }
 

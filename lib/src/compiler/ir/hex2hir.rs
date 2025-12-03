@@ -191,7 +191,7 @@ mod tests {
 
     use yara_x_parser::ast;
     use yara_x_parser::ast::{
-        HexAlternative, HexJump, HexPattern, HexSubPattern, HexToken, Ident,
+        HexAlternative, HexJump, HexPattern, HexSubPattern, HexToken,
     };
 
     use super::hex_byte_to_class;
@@ -241,15 +241,13 @@ mod tests {
             loop_iteration_multiplier: 1,
         };
 
-        let mut pattern = HexPattern {
-            identifier: Ident::new("test_ident"),
-            sub_patterns: HexSubPattern(vec![
-                HexToken::Byte(ast::HexByte::new(b'a', 0xff)),
-                HexToken::Byte(ast::HexByte::new(b'b', 0xff)),
-                HexToken::Byte(ast::HexByte::new(b'c', 0xff)),
-            ]),
-            ..Default::default()
-        };
+        let mut pattern = HexPattern::new("test_ident");
+
+        pattern.sub_patterns = HexSubPattern(vec![
+            HexToken::Byte(ast::HexByte::new(b'a', 0xff)),
+            HexToken::Byte(ast::HexByte::new(b'b', 0xff)),
+            HexToken::Byte(ast::HexByte::new(b'c', 0xff)),
+        ]);
 
         assert_eq!(
             super::hex_pattern_hir_from_ast(&mut ctx, &pattern),

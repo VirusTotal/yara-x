@@ -669,13 +669,15 @@ where
                     modifiers,
                 }))
             }
-            Event::Begin { kind: HEX_PATTERN, .. } => {
+            Event::Begin { kind: HEX_PATTERN, span } => {
+                let span = span.clone();
                 let tokens = self.hex_pattern()?;
                 let modifiers = self.pattern_mods_opt()?;
 
                 Pattern::Hex(Box::new(HexPattern {
-                    identifier,
                     sub_patterns: tokens,
+                    span,
+                    identifier,
                     modifiers,
                 }))
             }

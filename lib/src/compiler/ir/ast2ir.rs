@@ -291,13 +291,13 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
         if literal.chars().all(|c| {
             (' '..='~').contains(&c) || c == '\t' || c == '\n' || c == '\r'
         }) {
-            ctx.warnings.add(|| {
-                TextPatternAsHex::build(
-                    ctx.report_builder,
-                    escape(literal),
-                    ctx.report_builder.span_to_code_loc(pattern.span()),
-                )
-            });
+            let code_loc = ctx.report_builder.span_to_code_loc(pattern.span());
+            let mut warning =
+                TextPatternAsHex::build(ctx.report_builder, code_loc.clone());
+
+            warning.report_mut().patch(code_loc, escape(literal));
+
+            ctx.warnings.add(|| warning);
         }
     }
 
@@ -316,6 +316,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
 
 fn escape(s: &str) -> String {
     let mut escaped = String::with_capacity(s.len());
+    escaped.push('"');
     for c in s.chars() {
         match c {
             '\r' => escaped.push_str("\\r"),
@@ -326,6 +327,7 @@ fn escape(s: &str) -> String {
             _ => escaped.push(c),
         }
     }
+    escaped.push('"');
     escaped
 }
 

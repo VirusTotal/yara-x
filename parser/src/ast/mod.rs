@@ -277,9 +277,21 @@ pub struct RegexpPattern<'src> {
 /// A hex pattern (a.k.a. hex string) in a YARA rule.
 #[derive(Debug, Default)]
 pub struct HexPattern<'src> {
+    span: Span,
     pub identifier: Ident<'src>,
     pub sub_patterns: HexSubPattern,
     pub modifiers: PatternModifiers<'src>,
+}
+
+impl<'src> HexPattern<'src> {
+    #[doc(hidden)]
+    pub fn new(ident: &'src str) -> Self {
+        Self {
+            identifier: Ident::new(ident),
+            span: Span::default(),
+            ..Default::default()
+        }
+    }
 }
 
 /// A sequence of tokens that conform a hex pattern (a.k.a. hex string).
@@ -1205,11 +1217,7 @@ impl WithSpan for TextPattern<'_> {
 
 impl WithSpan for HexPattern<'_> {
     fn span(&self) -> Span {
-        if self.modifiers.is_empty() {
-            self.identifier.span().combine(&self.sub_patterns.span())
-        } else {
-            self.identifier.span().combine(&self.modifiers.span())
-        }
+        self.span.clone()
     }
 }
 
